@@ -22,10 +22,6 @@ MockReloadHandler::~MockReloadHandler()
 void MockReloadHandler::reset()
 {
     listen_reloaded = false;
-    pid_reloaded = false;
-    log_tank_reloaded = false;
-    log_level_reloaded = false;
-    log_file_reloaded = false;
     pithy_print_reloaded = false;
     http_api_enabled_reloaded = false;
     http_api_disabled_reloaded = false;
@@ -55,10 +51,6 @@ int MockReloadHandler::count_true()
     int count_true = 0;
     
     if (listen_reloaded) count_true++;
-    if (pid_reloaded) count_true++;
-    if (log_tank_reloaded) count_true++;
-    if (log_level_reloaded) count_true++;
-    if (log_file_reloaded) count_true++;
     if (pithy_print_reloaded) count_true++;
     if (http_api_enabled_reloaded) count_true++;
     if (http_api_disabled_reloaded) count_true++;
@@ -85,10 +77,6 @@ int MockReloadHandler::count_false()
     int count_false = 0;
     
     if (!listen_reloaded) count_false++;
-    if (!pid_reloaded) count_false++;
-    if (!log_tank_reloaded) count_false++;
-    if (!log_level_reloaded) count_false++;
-    if (!log_file_reloaded) count_false++;
     if (!pithy_print_reloaded) count_false++;
     if (!http_api_enabled_reloaded) count_false++;
     if (!http_api_disabled_reloaded) count_false++;
@@ -123,30 +111,6 @@ bool MockReloadHandler::all_true()
 srs_error_t MockReloadHandler::on_reload_listen()
 {
     listen_reloaded = true;
-    return srs_success;
-}
-
-srs_error_t MockReloadHandler::on_reload_pid()
-{
-    pid_reloaded = true;
-    return srs_success;
-}
-
-srs_error_t MockReloadHandler::on_reload_log_tank()
-{
-    log_tank_reloaded = true;
-    return srs_success;
-}
-
-srs_error_t MockReloadHandler::on_reload_log_level()
-{
-    log_level_reloaded = true;
-    return srs_success;
-}
-
-srs_error_t MockReloadHandler::on_reload_log_file()
-{
-    log_file_reloaded = true;
     return srs_success;
 }
 
@@ -330,90 +294,6 @@ VOID TEST(ConfigReloadTest, ReloadListen)
     
     EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload("listen 1935;"));
     EXPECT_TRUE(handler.listen_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
-VOID TEST(ConfigReloadTest, ReloadPid)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pid srs.pid;"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"pid srs.pid;"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"pid srs1.pid;"));
-    EXPECT_TRUE(handler.pid_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"pid srs.pid;"));
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
-VOID TEST(ConfigReloadTest, ReloadLogTank)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"srs_log_tank console;"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_tank console;"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_tank file;"));
-    EXPECT_TRUE(handler.log_tank_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_tank console;"));
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
-VOID TEST(ConfigReloadTest, ReloadLogLevel)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"srs_log_level trace;"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_level trace;"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_level warn;"));
-    EXPECT_TRUE(handler.log_level_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_level trace;"));
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
-VOID TEST(ConfigReloadTest, ReloadLogFile)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"srs_log_file srs.log;"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_file srs.log;"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_file srs1.log;"));
-    EXPECT_TRUE(handler.log_file_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_file srs.log;"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }

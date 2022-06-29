@@ -23,32 +23,7 @@ srs_error_t ISrsReloadHandler::on_reload_listen()
     return srs_success;
 }
 
-srs_error_t ISrsReloadHandler::on_reload_utc_time()
-{
-    return srs_success;
-}
-
 srs_error_t ISrsReloadHandler::on_reload_max_conns()
-{
-    return srs_success;
-}
-
-srs_error_t ISrsReloadHandler::on_reload_pid()
-{
-    return srs_success;
-}
-
-srs_error_t ISrsReloadHandler::on_reload_log_tank()
-{
-    return srs_success;
-}
-
-srs_error_t ISrsReloadHandler::on_reload_log_level()
-{
-    return srs_success;
-}
-
-srs_error_t ISrsReloadHandler::on_reload_log_file()
 {
     return srs_success;
 }

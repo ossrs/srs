@@ -19,10 +19,6 @@ class MockReloadHandler : public ISrsReloadHandler
 {
 public:
     bool listen_reloaded;
-    bool pid_reloaded;
-    bool log_tank_reloaded;
-    bool log_level_reloaded;
-    bool log_file_reloaded;
     bool pithy_print_reloaded;
     bool http_api_enabled_reloaded;
     bool http_api_disabled_reloaded;
@@ -52,10 +48,6 @@ public:
     virtual int count_false();
 public:
     virtual srs_error_t on_reload_listen();
-    virtual srs_error_t on_reload_pid();
-    virtual srs_error_t on_reload_log_tank();
-    virtual srs_error_t on_reload_log_level();
-    virtual srs_error_t on_reload_log_file();
     virtual srs_error_t on_reload_pithy_print();
     virtual srs_error_t on_reload_http_api_enabled();
     virtual srs_error_t on_reload_http_api_disabled();

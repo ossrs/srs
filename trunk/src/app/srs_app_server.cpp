@@ -1495,22 +1495,6 @@ srs_error_t SrsServer::on_reload_listen()
     return err;
 }
 
-srs_error_t SrsServer::on_reload_pid()
-{
-    srs_error_t err = srs_success;
-    
-    if (pid_fd > 0) {
-        ::close(pid_fd);
-        pid_fd = -1;
-    }
-    
-    if ((err = acquire_pid_file()) != srs_success) {
-        return srs_error_wrap(err, "reload pid");
-    }
-    
-    return err;
-}
-
 srs_error_t SrsServer::on_reload_vhost_added(std::string vhost)
 {
     srs_error_t err = srs_success;

@@ -349,12 +349,7 @@ public:
     virtual srs_error_t raw_to_json(SrsJsonObject* obj);
 private:
     virtual srs_error_t do_reload_listen();
-    virtual srs_error_t do_reload_pid();
-    virtual srs_error_t do_reload_srs_log_tank();
-    virtual srs_error_t do_reload_srs_log_level();
-    virtual srs_error_t do_reload_srs_log_file();
     virtual srs_error_t do_reload_max_connections();
-    virtual srs_error_t do_reload_utc_time();
     virtual srs_error_t do_reload_pithy_print_ms();
     virtual srs_error_t do_reload_vhost_added(std::string vhost);
     virtual srs_error_t do_reload_vhost_removed(std::string vhost);

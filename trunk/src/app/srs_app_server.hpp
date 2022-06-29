@@ -319,7 +319,6 @@ public:
 // Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_listen();
-    virtual srs_error_t on_reload_pid();
     virtual srs_error_t on_reload_vhost_added(std::string vhost);
     virtual srs_error_t on_reload_vhost_removed(std::string vhost);
     virtual srs_error_t on_reload_http_api_enabled();

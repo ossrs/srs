@@ -1530,45 +1530,10 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
         }
     }
     
-    // merge config: pid
-    if (!srs_directive_equals(root->get("pid"), old_root->get("pid"))) {
-        if ((err = do_reload_pid()) != srs_success) {
-            return srs_error_wrap(err, "pid");;
-        }
-    }
-    
-    // merge config: srs_log_tank
-    if (!srs_directive_equals(root->get("srs_log_tank"), old_root->get("srs_log_tank"))) {
-        if ((err = do_reload_srs_log_tank()) != srs_success) {
-            return srs_error_wrap(err, "log tank");;
-        }
-    }
-    
-    // merge config: srs_log_level
-    if (!srs_directive_equals(root->get("srs_log_level"), old_root->get("srs_log_level"))) {
-        if ((err = do_reload_srs_log_level()) != srs_success) {
-            return srs_error_wrap(err, "log level");;
-        }
-    }
-    
-    // merge config: srs_log_file
-    if (!srs_directive_equals(root->get("srs_log_file"), old_root->get("srs_log_file"))) {
-        if ((err = do_reload_srs_log_file()) != srs_success) {
-            return srs_error_wrap(err, "log file");;
-        }
-    }
-    
     // merge config: max_connections
     if (!srs_directive_equals(root->get("max_connections"), old_root->get("max_connections"))) {
         if ((err = do_reload_max_connections()) != srs_success) {
             return srs_error_wrap(err, "max connections");;
-        }
-    }
-    
-    // merge config: utc_time
-    if (!srs_directive_equals(root->get("utc_time"), old_root->get("utc_time"))) {
-        if ((err = do_reload_utc_time()) != srs_success) {
-            return srs_error_wrap(err, "utc time");;
         }
     }
     
@@ -2167,70 +2132,6 @@ srs_error_t SrsConfig::do_reload_listen()
     return err;
 }
 
-srs_error_t SrsConfig::do_reload_pid()
-{
-    srs_error_t err = srs_success;
-    
-    vector<ISrsReloadHandler*>::iterator it;
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((err = subscribe->on_reload_pid()) != srs_success) {
-            return srs_error_wrap(err, "notify subscribes reload pid failed");
-        }
-    }
-    srs_trace("reload pid success.");
-    
-    return err;
-}
-
-srs_error_t SrsConfig::do_reload_srs_log_tank()
-{
-    srs_error_t err = srs_success;
-    
-    vector<ISrsReloadHandler*>::iterator it;
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((err = subscribe->on_reload_log_tank()) != srs_success) {
-            return srs_error_wrap(err, "notify subscribes reload srs_log_tank failed");
-        }
-    }
-    srs_trace("reload srs_log_tank success.");
-    
-    return err;
-}
-
-srs_error_t SrsConfig::do_reload_srs_log_level()
-{
-    srs_error_t err = srs_success;
-    
-    vector<ISrsReloadHandler*>::iterator it;
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((err = subscribe->on_reload_log_level()) != srs_success) {
-            return srs_error_wrap(err, "notify subscribes reload srs_log_level failed");
-        }
-    }
-    srs_trace("reload srs_log_level success.");
-    
-    return err;
-}
-
-srs_error_t SrsConfig::do_reload_srs_log_file()
-{
-    srs_error_t err = srs_success;
-    
-    vector<ISrsReloadHandler*>::iterator it;
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((err = subscribe->on_reload_log_file()) != srs_success) {
-            return srs_error_wrap(err, "notify subscribes reload srs_log_file failed");
-        }
-    }
-    srs_trace("reload srs_log_file success.");
-    
-    return err;
-}
-
 srs_error_t SrsConfig::do_reload_max_connections()
 {
     srs_error_t err = srs_success;
@@ -2243,22 +2144,6 @@ srs_error_t SrsConfig::do_reload_max_connections()
         }
     }
     srs_trace("reload max_connections success.");
-    
-    return err;
-}
-
-srs_error_t SrsConfig::do_reload_utc_time()
-{
-    srs_error_t err = srs_success;
-    
-    vector<ISrsReloadHandler*>::iterator it;
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((err = subscribe->on_reload_utc_time()) != srs_success) {
-            return srs_error_wrap(err, "utc_time");
-        }
-    }
-    srs_trace("reload utc_time success.");
     
     return err;
 }

@@ -56,12 +56,6 @@ public:
     virtual void trace(const char* tag, SrsContextId context_id, const char* fmt, ...);
     virtual void warn(const char* tag, SrsContextId context_id, const char* fmt, ...);
     virtual void error(const char* tag, SrsContextId context_id, const char* fmt, ...);
-// Interface ISrsReloadHandler.
-public:
-    virtual srs_error_t on_reload_utc_time();
-    virtual srs_error_t on_reload_log_tank();
-    virtual srs_error_t on_reload_log_level();
-    virtual srs_error_t on_reload_log_file();
 private:
     virtual void write_log(int& fd, char* str_log, int size, int level);
     virtual void open_log_file();
