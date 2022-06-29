@@ -364,7 +364,7 @@ jobs:
           command_timeout: 30m
           script: |
             docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
-            docker rm -f srs-server
+            docker rm -f srs-dev
             #
             # Cleanup old docker images.
             for image in $(docker images |grep '<none>' |awk '{print $3}'); do
@@ -383,8 +383,8 @@ jobs:
           timeout: 60s
           command_timeout: 30m
           script: |
-            docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
-            docker rm -f srs-server
+            docker pull ossrs/lighthouse:$SRS_MAJOR
+            docker rm -f srs-dev
             #
             # Cleanup old docker images.
             for image in $(docker images |grep '<none>' |awk '{print $3}'); do
