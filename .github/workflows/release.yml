@@ -344,16 +344,38 @@ jobs:
       ##################################################################################################################
       ##################################################################################################################
       # Generate variables like:
-      #   SRS_DROPLET_EIP=1.2.3.4
+      #   SRS_LH_OSSRS_NET=1.2.3.4
       - name: Build variables for lh.ossrs.net
         run: |
-          SRS_DROPLET_EIP=$(dig +short lh.ossrs.net)
-          echo "SRS_DROPLET_EIP=$SRS_DROPLET_EIP" >> $GITHUB_ENV
+          SRS_LH_OSSRS_NET=$(dig +short lh.ossrs.net)
+          SRS_R_OSSRS_NET=$(dig +short r.ossrs.net)
+          echo "SRS_LH_OSSRS_NET=$SRS_LH_OSSRS_NET" >> $GITHUB_ENV
+          echo "SRS_R_OSSRS_NET=$SRS_R_OSSRS_NET" >> $GITHUB_ENV
 
       - name: Release to lh.ossrs.net
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ env.SRS_DROPLET_EIP }}
+          host: ${{ env.SRS_LH_OSSRS_NET }}
+          username: root
+          key: ${{ secrets.DIGITALOCEAN_SSHKEY }}
+          port: 22
+          envs: SRS_MAJOR
+          timeout: 60s
+          command_timeout: 30m
+          script: |
+            docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
+            docker rm -f srs-server
+            #
+            # Cleanup old docker images.
+            for image in $(docker images |grep '<none>' |awk '{print $3}'); do
+              docker rmi -f $image
+              echo "Remove image $image, r0=$?"
+            done
+
+      - name: Release to r.ossrs.net
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.SRS_R_OSSRS_NET }}
           username: root
           key: ${{ secrets.DIGITALOCEAN_SSHKEY }}
           port: 22
