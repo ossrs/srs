@@ -768,7 +768,7 @@ VOID TEST(AppLocklessQueue, CoverAll)
 
     // Push and shift elem.
     if (true) {
-        SrsLocklessQueue<MockLogMessage> queue;
+        SrsCircleQueue<MockLogMessage> queue;
 
         HELPER_ASSERT_SUCCESS(queue.push(MockLogMessage("hello")));
         ASSERT_EQ(1, queue.size());
@@ -780,7 +780,7 @@ VOID TEST(AppLocklessQueue, CoverAll)
 
     // Push and shift elem, using pointer.
     if (true) {
-        SrsLocklessQueue<MockLogMessage*> queue;
+        SrsCircleQueue<MockLogMessage*> queue;
 
         HELPER_ASSERT_SUCCESS(queue.push(new MockLogMessage("hello")));
         ASSERT_EQ(1, queue.size());
@@ -794,7 +794,7 @@ VOID TEST(AppLocklessQueue, CoverAll)
 
     // Error shift if queue if empty.
     if (true) {
-        SrsLocklessQueue<MockLogMessage> queue;
+        SrsCircleQueue<MockLogMessage> queue;
 
         MockLogMessage log;
         HELPER_ASSERT_FAILED(queue.shift(log));
@@ -802,7 +802,7 @@ VOID TEST(AppLocklessQueue, CoverAll)
 
     // Error push if queue if full.
     if (true) {
-        SrsLocklessQueue<MockLogMessage> queue(3);
+        SrsCircleQueue<MockLogMessage> queue(3);
 
         HELPER_ASSERT_SUCCESS(queue.push(MockLogMessage("hello")));
         ASSERT_EQ(1, queue.size());
@@ -818,19 +818,19 @@ VOID TEST(AppLocklessQueue, CoverAll)
 
     // Limit the capacity.
     if (true) {
-        SrsLocklessQueue<MockLogMessage> queue(0);
+        SrsCircleQueue<MockLogMessage> queue(0);
         EXPECT_EQ(SRS_CONST_MAX_QUEUE_SIZE, queue.capacity());
     }
     if (true) {
-        SrsLocklessQueue<MockLogMessage> queue(-1);
+        SrsCircleQueue<MockLogMessage> queue(-1);
         EXPECT_EQ(SRS_CONST_MAX_QUEUE_SIZE, queue.capacity());
     }
     if (true) {
-        SrsLocklessQueue<MockLogMessage> queue(SRS_CONST_MAX_QUEUE_SIZE + 1);
+        SrsCircleQueue<MockLogMessage> queue(SRS_CONST_MAX_QUEUE_SIZE + 1);
         EXPECT_EQ(SRS_CONST_MAX_QUEUE_SIZE, queue.capacity());
     }
     if (true) {
-        SrsLocklessQueue<MockLogMessage> queue(3);
+        SrsCircleQueue<MockLogMessage> queue(3);
         EXPECT_EQ(3, queue.capacity());
     }
 }

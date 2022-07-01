@@ -173,6 +173,8 @@ struct StMsg {
     }
 };
 
+int nn_w_threads = 0;
+int nn_r_threads = 0;
 int nn_loops = 0;
 int r_wait = 0;
 SrsLocklessQueue<StMsg> queue(1 * 1024 * 1024);
@@ -193,7 +195,7 @@ void* pfn(void* args) {
     //printf("thread #%d: start write=%d\n", info->id, info->is_write);
 
     int64_t start = srs_update_system_time();
-    int64_t loop = ((int64_t)nn_loops) *  1000;
+    int64_t loop = ((int64_t)nn_loops / (info->is_write ? nn_w_threads : nn_r_threads)) *  1000;
     StMsg src;
     for (int64_t i = 0; i < loop; ) {
         int r0;
@@ -233,8 +235,8 @@ int main(int argc, char** argv) {
 
     int64_t start = srs_update_system_time();
 
-    int nn_w_threads = ::atoi(argv[1]);
-    int nn_r_threads = ::atoi(argv[2]);
+    nn_w_threads = ::atoi(argv[1]);
+    nn_r_threads = ::atoi(argv[2]);
     nn_loops = ::atoi(argv[3]);
     r_wait = ::atoi(argv[4]);
     printf("lockless-queue w_threads=%d, r_threads=%d, loops=%d(m), r_wait=%d(ns)\n", nn_w_threads, nn_r_threads, nn_loops, r_wait);

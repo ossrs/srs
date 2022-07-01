@@ -196,20 +196,21 @@ struct SrsCircleQueueMetadata
 };
 #pragma pack()
 
-// A lockless queue using CAS(Compare and Swap).
 template <typename T>
-class SrsLocklessQueue
+class SrsCircleQueue
 {
 public:
-    SrsLocklessQueue(uint32_t capacity = 0) {
+    SrsCircleQueue(uint32_t capacity = 0) {
         info = new SrsCircleQueueMetadata();
         data = NULL;
         initialize(capacity);
+        lock = new SrsThreadMutex();
     }
 
-    ~SrsLocklessQueue() {
+    ~SrsCircleQueue() {
         srs_freep(info);
         srs_freepa(data);
+        srs_freep(lock);
     }
 
 private:
@@ -234,30 +235,24 @@ public:
             return srs_error_new(ERROR_QUEUE_PUSH, "queue init failed");
         }
 
-        // Find out a position to write at current, using CAS to ensure we got a dedicated one.
-        uint32_t current, next;
-        do {
-            current = info->writing_token;
-            next = (current + 1) % info->nn_capacity;
+        // Find out a position to write at current, using mutex to ensure we got a dedicated one.
+        lock->lock();
 
-            if (next == info->read_already) {
-                return srs_error_new(ERROR_QUEUE_PUSH, "queue is full");
-            }
-        } while (!__sync_bool_compare_and_swap(&info->writing_token, current, next));
+        uint32_t current = info->writing_token;
+        uint32_t next = (current + 1) % info->nn_capacity;
+
+        if (next == info->read_already) {
+            return srs_error_new(ERROR_QUEUE_PUSH, "queue is full");
+        }
+
+        info->writing_token = next;
 
         // Then, we write the elem at current position, note that it's not readable.
         data[current] = elem;
 
-        // Set the written elem to be ready to read, here CAS false means we are not the "minimum" position, so we
-        // switch to other threads to finish the written. For example:
-        //      Thread #1, current=10, next=11, written_already=10, switch to #2
-        //      Thread #2, current=11, next=12, written_already=10, CAS is false and switch to #1
-        //      Thread #1, current=10, written_already=10, CAS is true and update the written_already=11, switch to #2
-        //      Thread #2, current=11, written_already=11, CAS is true, and update the written_already=12.
-        // It keep the written_already like increasing by 1, similar to in a queue.
-        while (!__sync_bool_compare_and_swap(&info->written_already, current, next)) {
-            sched_yield();
-        }
+        info->written_already = next;
+
+        lock->unlock();
 
         // Done, we have already written an elem, increase the size of queue.
         __sync_add_and_fetch(&info->nn_elems, 1);
@@ -274,24 +269,22 @@ public:
             return srs_error_new(ERROR_QUEUE_POP, "queue init failed");
         }
 
-        // Find out a position to read at current, using CAS to ensure we got a dedicated one.
-        uint32_t current, next;
-        do {
-            current = info->reading_token;
-            next = (current + 1) % info->nn_capacity;
+        // Find out a position to read at current, using mutex to ensure we got a dedicated one.
+        lock->lock();
 
-            if (current == info->written_already) {
-                return srs_error_new(ERROR_QUEUE_POP, "queue is empty");
-            }
-        } while (!__sync_bool_compare_and_swap(&info->reading_token, current, next));
+        uint32_t current = info->reading_token;
+        uint32_t next = (current + 1) % info->nn_capacity;
+
+        if (current == info->written_already) {
+            return srs_error_new(ERROR_QUEUE_POP, "queue is empty");
+        }
+        info->reading_token = next;
 
         // Then, we read the elem out at the current position, note that it's not writable.
         elem = data[current];
+        info->read_already = next;
 
-        // Set the read elem to be ready to write, see written_already of push.
-        while (!__sync_bool_compare_and_swap(&info->read_already, current, next)) {
-            sched_yield();
-        }
+        lock->unlock();
 
         // Done, we have already read an elem, decrease the size of queue.
         __sync_sub_and_fetch(&info->nn_elems, 1);
@@ -308,12 +301,13 @@ public:
     }
 
 private:
-    SrsLocklessQueue(const SrsLocklessQueue&);
-    const SrsLocklessQueue& operator=(const SrsLocklessQueue&);
+    SrsCircleQueue(const SrsCircleQueue&);
+    const SrsCircleQueue& operator=(const SrsCircleQueue&);
 
 private:
     SrsCircleQueueMetadata* info;
     T* data;
+    SrsThreadMutex* lock;
 };
 
 // Async file writer, it's thread safe.
@@ -325,7 +319,7 @@ private:
     SrsFileWriter* writer_;
 private:
     // The thread-queue, to flush to disk by dedicated thread.
-    SrsLocklessQueue<SrsSharedPtrMessage*>* chunks_;
+    SrsCircleQueue<SrsSharedPtrMessage*>* chunks_;
 private:
     SrsAsyncFileWriter(std::string p);
     virtual ~SrsAsyncFileWriter();

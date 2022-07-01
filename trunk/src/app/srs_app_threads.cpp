@@ -797,7 +797,7 @@ SrsAsyncFileWriter::SrsAsyncFileWriter(std::string p)
 {
     filename_ = p;
     writer_ = new SrsFileWriter();
-    chunks_ = new SrsLocklessQueue<SrsSharedPtrMessage*>();
+    chunks_ = new SrsCircleQueue<SrsSharedPtrMessage*>();
 }
 
 // TODO: FIXME: Before free the writer, we must remove it from the manager.
