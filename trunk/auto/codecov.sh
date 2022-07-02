@@ -36,9 +36,7 @@ fi
 # Note: The right path is like:
 #       https://codecov.io/gh/ossrs/srs/src/3.0release/trunk/src/protocol/srs_rtmp_stack.cpp
 #       https://codecov.io/gh/ossrs/srs/src/20fbb4466fdc8ba5d810b8570df6004063212838/trunk/src/protocol/srs_rtmp_stack.cpp
-# Remark: It takes a few minutes to sync with github, so it might not available when CircleCI is done.
-#       https://circleci.com/gh/ossrs/srs/tree/3.0release
 cd $workdir &&
-export CODECOV_TOKEN="493bba46-c468-4e73-8b45-8cdd8ff62d96" &&
-bash <(curl -s https://codecov.io/bash) $CODECOV_ARGS &&
+export CODECOV_TOKEN="$CODECOV_TOKEN" &&
+bash <(curl -s https://codecov.io/bash) $CODECOV_ARGS -f '!*gtest*' -f '!*c++*' -f '!*ffmpeg-*-fit*' &&
 echo "Done" && exit 0

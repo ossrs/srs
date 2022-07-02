@@ -118,6 +118,8 @@ jobs:
       # For coverage
       - name: Run SRS covergae
         if: ${{ startsWith(github.ref, 'refs/heads/') || startsWith(github.ref, 'refs/pull/') }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
           # The hash of commit.
           SRS_SHA=${{ github.sha }}
@@ -128,7 +130,8 @@ jobs:
           # The github.ref is, for example, refs/pull/2536/merge
           SRS_PR=$(echo ${{ github.ref }}| awk -F 'refs/pull/' '{print $2}'| awk -F '/' '{print $1}')
           echo "For ref=${{ github.ref }}, sha=${{ github.sha }}, SRS_BRANCH=$SRS_BRANCH, SRS_PR=$SRS_PR, SRS_SHA=$SRS_SHA, SRS_PROJECT=$SRS_PROJECT"
-          docker run --rm --env SRS_BRANCH=$SRS_BRANCH --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
+          docker run --rm --env CODECOV_TOKEN=$CODECOV_TOKEN \
+            --env SRS_BRANCH=$SRS_BRANCH --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
             srs:cov bash -c 'make utest && ./objs/srs_utest && bash auto/codecov.sh'
 
   multile-archs:
