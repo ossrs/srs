@@ -336,6 +336,12 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
         }
     }
 
+    // because update_config will be called by SrsOriginHub::on_publish function
+    // but the live source will not be destroyed while push-client is offline
+    // and so SrsHls instance will not be reconstructed when the same stream pushed again,
+    // so if "writer" not released here, then will lead to memleak. 
+    srs_freep(writer);
+
     if(hls_keys) {
         writer = new SrsEncFileWriter();
     } else {
