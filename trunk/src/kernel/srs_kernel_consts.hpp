@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_KERNEL_CONSTS_HPP
@@ -172,6 +172,10 @@
 #define SRS_CONSTS_LOG_EXEC "EXE"
 // The rtc.
 #define SRS_CONSTS_LOG_RTC "RTC"
+// Srt client play
+#define SRS_CONSTS_LOG_SRT_PLAY "SRT_PLA" 
+// Srt client publish
+#define SRS_CONSTS_LOG_SRT_PUBLISH "SRT_CPB"
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////

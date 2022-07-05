@@ -1,4 +1,6 @@
-/* 
+/* SPDX-License-Identifier: MPL-1.1 OR GPL-2.0-or-later */
+
+/*
  * The contents of this file are subject to the Mozilla Public
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
@@ -155,9 +157,6 @@ typedef struct _st_stack {
     char *stk_bottom;           /* Lowest address of stack's usable portion */
     char *stk_top;              /* Highest address of stack's usable portion */
     void *sp;                   /* Stack pointer from C's point of view */
-#ifdef __ia64__
-    void *bsp;                  /* Register stack backing store pointer */
-#endif
     /* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */
 #ifndef NVALGRIND
     /* id returned by VALGRIND_STACK_REGISTER */
@@ -368,11 +367,7 @@ extern _st_eventsys_t *_st_eventsys;
     #define ST_UTIME_NO_TIMEOUT ((st_utime_t) -1LL)
 #endif
 
-#ifndef __ia64__
-    #define ST_DEFAULT_STACK_SIZE (64*1024)
-#else
-    #define ST_DEFAULT_STACK_SIZE (128*1024)  /* Includes register stack size */
-#endif
+#define ST_DEFAULT_STACK_SIZE (128*1024)  /* Includes register stack size */
 
 #ifndef ST_KEYS_MAX
     #define ST_KEYS_MAX 16

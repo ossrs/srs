@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_kernel_utility.hpp>
@@ -1041,7 +1041,6 @@ srs_error_t srs_av_base64_encode(std::string plaintext, std::string& cipher)
     cipher.clear();
 
     uint32_t val = 0;
-    int di = 0;
     int si = 0;
     int n = (plaintext.length() / 3) * 3;
     uint8_t* p =  (uint8_t*)plaintext.c_str();
@@ -1055,7 +1054,6 @@ srs_error_t srs_av_base64_encode(std::string plaintext, std::string& cipher)
         cipher += encoder[val&0x3f];
 
         si += 3;
-        di += 4;
     }
 
     int remain = plaintext.length() - si;

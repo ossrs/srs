@@ -558,7 +558,7 @@ scApp.filter("sc_filter_number", function(){
 
 scApp.filter("sc_filter_less", function(){
     return function(v) {
-        return v? (v.length > 15? v.substr(0, 15) + "...":v):v;
+        return v? (v.length > 15? v.slice(0, 15) + "...":v):v;
     };
 });
 
@@ -636,7 +636,7 @@ scApp.provider("$sc_server", [function(){
                 var $location = self.$location;
                 var url = $location.absUrl();
                 if (url.indexOf('?') > 0) {
-                    url = url.substr(0, url.indexOf('?'));
+                    url = url.slice(0, url.indexOf('?'));
                 }
                 url += '?';
 

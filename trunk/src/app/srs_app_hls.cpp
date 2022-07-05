@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_hls.hpp>
@@ -20,11 +20,11 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_protocol_amf0.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_source.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_codec.hpp>
@@ -335,6 +335,12 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
             return srs_error_wrap(err, "create dir");
         }
     }
+
+    // because update_config will be called by SrsOriginHub::on_publish function
+    // but the live source will not be destroyed while push-client is offline
+    // and so SrsHls instance will not be reconstructed when the same stream pushed again,
+    // so if "writer" not released here, then will lead to memleak. 
+    srs_freep(writer);
 
     if(hls_keys) {
         writer = new SrsEncFileWriter();

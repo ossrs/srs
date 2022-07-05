@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_HTTP_CONN_HPP
@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include <srs_service_http_conn.hpp>
+#include <srs_protocol_http_conn.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_app_st.hpp>

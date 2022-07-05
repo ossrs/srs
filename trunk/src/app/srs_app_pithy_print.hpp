@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_PITHY_PRINT_HPP
@@ -72,6 +72,20 @@ public:
     bool can_print(int err, uint32_t* pnn = NULL);
 };
 
+// An standalone pithy print, without shared stages.
+class SrsAlonePithyPrint
+{
+private:
+    SrsStageInfo info_;
+    srs_utime_t previous_tick_;
+public:
+    SrsAlonePithyPrint();
+    virtual ~SrsAlonePithyPrint();
+public:
+    virtual void elapse();
+    virtual bool can_print();
+};
+
 // The stage is used for a collection of object to do print,
 // the print time in a stage is constant and not changed,
 // that is, we always got one message to print every specified time.
@@ -116,6 +130,10 @@ public:
     // For RTC sender and receiver, we create printer for each fd.
     static SrsPithyPrint* create_rtc_send(int fd);
     static SrsPithyPrint* create_rtc_recv(int fd);
+#ifdef SRS_SRT
+    static SrsPithyPrint* create_srt_play();
+    static SrsPithyPrint* create_srt_publish();
+#endif
     virtual ~SrsPithyPrint();
 private:
     // Enter the specified stage, return the client id.

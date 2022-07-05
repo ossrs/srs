@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_hybrid.hpp>
@@ -9,7 +9,7 @@
 #include <srs_app_server.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_app_utility.hpp>
 
 using namespace std;
@@ -118,76 +118,6 @@ ISrsHybridServer::ISrsHybridServer()
 
 ISrsHybridServer::~ISrsHybridServer()
 {
-}
-
-SrsServerAdapter::SrsServerAdapter()
-{
-    srs = new SrsServer();
-}
-
-SrsServerAdapter::~SrsServerAdapter()
-{
-    srs_freep(srs);
-}
-
-srs_error_t SrsServerAdapter::initialize()
-{
-    srs_error_t err = srs_success;
-    return err;
-}
-
-srs_error_t SrsServerAdapter::run(SrsWaitGroup* wg)
-{
-    srs_error_t err = srs_success;
-
-    // Initialize the whole system, set hooks to handle server level events.
-    if ((err = srs->initialize(NULL)) != srs_success) {
-        return srs_error_wrap(err, "server initialize");
-    }
-
-    if ((err = srs->initialize_st()) != srs_success) {
-        return srs_error_wrap(err, "initialize st");
-    }
-
-    if ((err = srs->acquire_pid_file()) != srs_success) {
-        return srs_error_wrap(err, "acquire pid file");
-    }
-
-    if ((err = srs->initialize_signal()) != srs_success) {
-        return srs_error_wrap(err, "initialize signal");
-    }
-
-    if ((err = srs->listen()) != srs_success) {
-        return srs_error_wrap(err, "listen");
-    }
-
-    if ((err = srs->register_signal()) != srs_success) {
-        return srs_error_wrap(err, "register signal");
-    }
-
-    if ((err = srs->http_handle()) != srs_success) {
-        return srs_error_wrap(err, "http handle");
-    }
-
-    if ((err = srs->ingest()) != srs_success) {
-        return srs_error_wrap(err, "ingest");
-    }
-
-    if ((err = srs->start(wg)) != srs_success) {
-        return srs_error_wrap(err, "start");
-    }
-
-    return err;
-}
-
-void SrsServerAdapter::stop()
-{
-    srs->stop();
-}
-
-SrsServer* SrsServerAdapter::instance()
-{
-    return srs;
 }
 
 SrsHybridServer::SrsHybridServer()

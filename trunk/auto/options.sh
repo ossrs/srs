@@ -4,9 +4,9 @@
 help=no
 # feature options
 SRS_HDS=NO
-SRS_SRT=NO
+SRS_SRT=YES
 SRS_RTC=YES
-SRS_CXX11=NO
+SRS_CXX11=YES
 SRS_CXX14=NO
 SRS_NGINX=NO
 SRS_UTEST=NO
@@ -371,6 +371,8 @@ function parse_user_option_to_value_and_option() {
 function value2switch() {
     if [[ $1 == YES ]]; then
       echo on;
+    elif [[ $1 == RESERVED ]]; then
+      echo reserved;
     else
       echo off;
     fi
@@ -421,18 +423,13 @@ function apply_auto_options() {
         if [[ $SRS_CROSS_BUILD_ARCH == "" ]]; then
             echo $SRS_TOOL_CC| grep arm >/dev/null 2>&1 && SRS_CROSS_BUILD_ARCH="arm"
             echo $SRS_TOOL_CC| grep aarch64 >/dev/null 2>&1 && SRS_CROSS_BUILD_ARCH="aarch64"
+            echo $SRS_TOOL_CC| grep mipsel >/dev/null 2>&1 && SRS_CROSS_BUILD_ARCH="mipsel"
         fi
         echo "For cross build, host: $SRS_CROSS_BUILD_HOST, prefix: $SRS_CROSS_BUILD_PREFIX, arch: $SRS_CROSS_BUILD_ARCH, cpu: $SRS_CROSS_BUILD_CPU gcc: $SRS_TOOL_CC"
     fi
 
     if [[ $SRS_OSX == YES ]]; then
       SRS_TOOL_LD=$SRS_TOOL_CC
-    fi
-
-    # The SRT code in SRS requires c++11, although we build libsrt without c++11.
-    # TODO: FIXME: Remove c++11 code in SRT of SRS.
-    if [[ $SRS_SRT == YES ]]; then
-        SRS_CXX11=YES
     fi
 
     # Enable FFmpeg fit for RTC to transcode audio from AAC to OPUS, if user enabled it.

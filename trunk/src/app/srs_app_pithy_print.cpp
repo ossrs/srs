@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_pithy_print.hpp>
@@ -148,6 +148,33 @@ bool SrsErrorPithyPrint::can_print(int error_code, uint32_t* pnn)
     return new_stage || stage->can_print();
 }
 
+SrsAlonePithyPrint::SrsAlonePithyPrint() : info_(0)
+{
+    //stage work for one print
+    info_.nb_clients = 1;
+
+    previous_tick_ = srs_get_system_time();
+}
+
+SrsAlonePithyPrint::~SrsAlonePithyPrint()
+{
+}
+
+void SrsAlonePithyPrint::elapse()
+{
+    srs_utime_t diff = srs_get_system_time() - previous_tick_;
+    previous_tick_ = srs_get_system_time();
+
+    diff = srs_max(0, diff);
+
+    info_.elapse(diff);
+}
+
+bool SrsAlonePithyPrint::can_print()
+{
+    return info_.can_print();
+}
+
 // The global stage manager for pithy print, multiple stages.
 SrsStageManager* _srs_stages = NULL;
 
@@ -191,6 +218,13 @@ SrsPithyPrint::SrsPithyPrint(int _stage_id)
 #define SRS_CONSTS_STAGE_RTC_SEND 13
 // for the rtc recv
 #define SRS_CONSTS_STAGE_RTC_RECV 14
+
+#ifdef SRS_SRT
+// the pithy stage for srt play clients.
+#define SRS_CONSTS_STAGE_SRT_PLAY 15
+// the pithy stage for srt publish clients.
+#define SRS_CONSTS_STAGE_SRT_PUBLISH 16
+#endif
 
 SrsPithyPrint* SrsPithyPrint::create_rtmp_play()
 {
@@ -261,6 +295,18 @@ SrsPithyPrint* SrsPithyPrint::create_rtc_recv(int fd)
 {
     return new SrsPithyPrint(fd<<16 | SRS_CONSTS_STAGE_RTC_RECV);
 }
+
+#ifdef SRS_SRT
+SrsPithyPrint* SrsPithyPrint::create_srt_play()
+{
+    return new SrsPithyPrint(SRS_CONSTS_STAGE_SRT_PLAY);
+}
+
+SrsPithyPrint* SrsPithyPrint::create_srt_publish()
+{
+    return new SrsPithyPrint(SRS_CONSTS_STAGE_SRT_PUBLISH);
+}
+#endif
 
 SrsPithyPrint::~SrsPithyPrint()
 {

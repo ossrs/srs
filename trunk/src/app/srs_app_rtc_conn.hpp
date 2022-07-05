@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 John
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_RTC_CONN_HPP
@@ -9,9 +9,9 @@
 
 #include <srs_core.hpp>
 #include <srs_app_listener.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_hybrid.hpp>
 #include <srs_app_hourglass.hpp>
 #include <srs_app_rtc_sdp.hpp>
@@ -21,7 +21,7 @@
 #include <srs_app_rtc_queue.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_dtls.hpp>
-#include <srs_service_conn.hpp>
+#include <srs_protocol_conn.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_async_call.hpp>
 

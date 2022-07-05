@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_encoder.hpp>
@@ -12,7 +12,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_kernel_utility.hpp>

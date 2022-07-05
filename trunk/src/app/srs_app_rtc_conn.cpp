@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 John
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_rtc_conn.hpp>
@@ -24,25 +24,25 @@ using namespace std;
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_rtc_stun_stack.hpp>
-#include <srs_rtmp_stack.hpp>
-#include <srs_rtmp_msg_array.hpp>
+#include <srs_protocol_rtc_stun.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_rtc_queue.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
-#include <srs_service_utility.hpp>
-#include <srs_http_stack.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_protocol_http_stack.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_pithy_print.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_threads.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_protocol_kbps.hpp>
@@ -511,7 +511,7 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
 void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription* desc)
 {
     // Refresh the relation for audio.
-    // TODO: FIMXE: Match by label?
+    // TODO: FIXME: Match by label?
     if (desc && desc->audio_track_desc_ && audio_tracks_.size() == 1) {
         if (! audio_tracks_.empty()) {
             uint32_t ssrc = desc->audio_track_desc_->ssrc_;
@@ -1197,17 +1197,17 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
             return srs_error_wrap(err, "create source");
         }
 
-        // Disable GOP cache for RTC2RTMP bridger, to keep the streams in sync,
+        // Disable GOP cache for RTC2RTMP bridge, to keep the streams in sync,
         // especially for stream merging.
         rtmp->set_cache(false);
 
-        SrsRtmpFromRtcBridger *bridger = new SrsRtmpFromRtcBridger(rtmp);
-        if ((err = bridger->initialize(r)) != srs_success) {
-            srs_freep(bridger);
-            return srs_error_wrap(err, "create bridger");
+        SrsRtmpFromRtcBridge *bridge = new SrsRtmpFromRtcBridge(rtmp);
+        if ((err = bridge->initialize(r)) != srs_success) {
+            srs_freep(bridge);
+            return srs_error_wrap(err, "create bridge");
         }
 
-        source->set_bridger(bridger);
+        source->set_bridge(bridge);
     }
 #endif
 
@@ -2494,17 +2494,11 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
     rtcpNack.encode(&stream);
 
     // TODO: FIXME: Check error.
-    int nb_protected_buf = stream.pos();
-    transport_->protect_rtcp(stream.data(), &nb_protected_buf);
-
-    // TODO: FIXME: Check error.
-    sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     // @see https://tools.ietf.org/html/rfc3550#section-6.4.2
@@ -2540,18 +2534,11 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_
     srs_info("RR ssrc=%u, fraction_lost=%u, cumulative_number_of_packets_lost=%u, extended_highest_sequence=%u, interarrival_jitter=%u",
         ssrc, fraction_lost, cumulative_number_of_packets_lost, extended_highest_sequence, interarrival_jitter);
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp rr");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     /*
@@ -2594,18 +2581,11 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
     stream.write_4bytes(cur_ntp.ntp_second_);
     stream.write_4bytes(cur_ntp.ntp_fractions_);
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp xr");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId& cid_of_subscriber)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     char buf[kRtpPacketSize];
@@ -2626,12 +2606,7 @@ srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId
         _srs_blackhole->sendto(stream.data(), stream.pos());
     }
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp psfb pli");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 void SrsRtcConnection::simulate_nack_drop(int nn)

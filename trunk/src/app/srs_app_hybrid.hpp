@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_HYBRID_HPP
@@ -14,6 +14,7 @@
 #include <srs_app_hourglass.hpp>
 
 class SrsServer;
+class SrsServerAdapter;
 class SrsWaitGroup;
 
 // The hibrid server interfaces, we could register many servers.
@@ -29,22 +30,6 @@ public:
     virtual srs_error_t run(SrsWaitGroup* wg) = 0;
     // Stop each server, should do cleanup, for example, kill processes forked by server.
     virtual void stop() = 0;
-};
-
-// The SRS server adapter, the master server.
-class SrsServerAdapter : public ISrsHybridServer
-{
-private:
-    SrsServer* srs;
-public:
-    SrsServerAdapter();
-    virtual ~SrsServerAdapter();
-public:
-    virtual srs_error_t initialize();
-    virtual srs_error_t run(SrsWaitGroup* wg);
-    virtual void stop();
-public:
-    virtual SrsServer* instance();
 };
 
 // The hybrid server manager.

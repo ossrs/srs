@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_SOURCE_HPP
@@ -16,7 +16,7 @@
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_core_performance.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_app_hourglass.hpp>
 
 class SrsFormat;
@@ -310,7 +310,7 @@ class SrsOriginHub : public ISrsReloadHandler
 {
 private:
     SrsLiveSource* source;
-    SrsRequest* req;
+    SrsRequest* req_;
     bool is_active;
 private:
     // The format, codec information.
@@ -375,6 +375,7 @@ public:
     virtual srs_error_t on_reload_vhost_exec(std::string vhost);
 private:
     virtual srs_error_t create_forwarders();
+    virtual srs_error_t create_backend_forwarders(bool& applied);
     virtual void destroy_forwarders();
 };
 
@@ -468,11 +469,11 @@ public:
 extern SrsLiveSourceManager* _srs_sources;
 
 // For RTMP2RTC, bridge SrsLiveSource to SrsRtcSource
-class ISrsLiveSourceBridger
+class ISrsLiveSourceBridge
 {
 public:
-    ISrsLiveSourceBridger();
-    virtual ~ISrsLiveSourceBridger();
+    ISrsLiveSourceBridge();
+    virtual ~ISrsLiveSourceBridge();
 public:
     virtual srs_error_t on_publish() = 0;
     virtual srs_error_t on_audio(SrsSharedPtrMessage* audio) = 0;
@@ -513,8 +514,8 @@ private:
     int64_t last_packet_time;
     // The event handler.
     ISrsLiveSourceHandler* handler;
-    // The source bridger for other source.
-    ISrsLiveSourceBridger* bridger_;
+    // The source bridge for other source.
+    ISrsLiveSourceBridge* bridge_;
     // The edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
@@ -542,7 +543,7 @@ public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsLiveSourceHandler* h);
     // Bridge to other source, forward packets to it.
-    void set_bridger(ISrsLiveSourceBridger* v);
+    void set_bridge(ISrsLiveSourceBridge* v);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);

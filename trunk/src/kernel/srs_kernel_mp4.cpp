@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_kernel_mp4.hpp>
@@ -1817,11 +1817,16 @@ SrsAudioCodecId SrsMp4TrackBox::soun_codec()
     if (box->entry_count() == 0) {
         return SrsAudioCodecIdForbidden;
     }
-    
-    SrsMp4SampleEntry* entry = box->entrie_at(0);
-    switch(entry->type) {
-        case SrsMp4BoxTypeMP4A: return SrsAudioCodecIdAAC;
-        default: return SrsAudioCodecIdForbidden;
+
+    SrsMp4EsdsBox* esds_box = mp4a()->esds();
+    switch (esds_box->es->decConfigDescr.objectTypeIndication) {
+    case SrsMp4ObjectTypeAac:
+        return SrsAudioCodecIdAAC;
+    case SrsMp4ObjectTypeMp3:
+    case SrsMp4ObjectTypeMp1a:
+        return SrsAudioCodecIdMP3;
+    default:
+        return SrsAudioCodecIdForbidden;
     }
 }
 
@@ -3446,7 +3451,7 @@ srs_error_t SrsMp4DecoderConfigDescriptor::encode_payload(SrsBuffer* buf)
     buf->write_3bytes(bufferSizeDB);
     buf->write_4bytes(maxBitrate);
     buf->write_4bytes(avgBitrate);
-    
+
     if (decSpecificInfo && (err = decSpecificInfo->encode(buf)) != srs_success) {
         return srs_error_wrap(err, "encode des specific info");
     }
@@ -3457,7 +3462,7 @@ srs_error_t SrsMp4DecoderConfigDescriptor::encode_payload(SrsBuffer* buf)
 srs_error_t SrsMp4DecoderConfigDescriptor::decode_payload(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
-    
+
     objectTypeIndication = (SrsMp4ObjectType)buf->read_1bytes();
     
     uint8_t v = buf->read_1bytes();
@@ -5531,7 +5536,7 @@ srs_error_t SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
     if (vide && !avcc) {
         return srs_error_new(ERROR_MP4_ILLEGAL_MOOV, "missing video sequence header");
     }
-    if (soun && !asc) {
+    if (soun && !asc && soun->soun_codec() == SrsAudioCodecIdAAC) {
         return srs_error_new(ERROR_MP4_ILLEGAL_MOOV, "missing audio sequence header");
     }
     
@@ -5953,13 +5958,15 @@ srs_error_t SrsMp4Encoder::flush()
             es->ES_ID = 0x02;
             
             SrsMp4DecoderConfigDescriptor& desc = es->decConfigDescr;
-            desc.objectTypeIndication = SrsMp4ObjectTypeAac;
+            desc.objectTypeIndication = get_audio_object_type();
             desc.streamType = SrsMp4StreamTypeAudioStream;
             srs_freep(desc.decSpecificInfo);
             
-            SrsMp4DecoderSpecificInfo* asc = new SrsMp4DecoderSpecificInfo();
-            desc.decSpecificInfo = asc;
-            asc->asc = pasc;;
+            if (SrsMp4ObjectTypeAac == desc.objectTypeIndication) {
+                SrsMp4DecoderSpecificInfo* asc = new SrsMp4DecoderSpecificInfo();
+                desc.decSpecificInfo = asc;
+                asc->asc = pasc;
+            }
         }
         
         if ((err = samples->write(moov)) != srs_success) {
@@ -6086,6 +6093,18 @@ srs_error_t SrsMp4Encoder::do_write_sample(SrsMp4Sample* ps, uint8_t* sample, ui
     mdat_bytes += nb_sample;
     
     return err;
+}
+
+SrsMp4ObjectType SrsMp4Encoder::get_audio_object_type()
+{
+    switch (acodec) {
+    case SrsAudioCodecIdAAC:
+        return SrsMp4ObjectTypeAac;
+    case SrsAudioCodecIdMP3:
+        return (srs_flv_srates[sample_rate] > 24000) ? SrsMp4ObjectTypeMp1a : SrsMp4ObjectTypeMp3;  // 11172 - 3
+    default:
+        return SrsMp4ObjectTypeForbidden;
+    }
 }
 
 SrsMp4M2tsInitEncoder::SrsMp4M2tsInitEncoder()

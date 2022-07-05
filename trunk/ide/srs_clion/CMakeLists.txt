@@ -26,10 +26,17 @@ ProcessorCount(JOBS)
 
 # We should always configure SRS for switching between branches.
 IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    EXEC_PROGRAM("cd ${SRS_DIR} && ./configure --osx --srt=on --utest=on --jobs=${JOBS}")
+    EXECUTE_PROCESS(
+        COMMAND ./configure --osx --srt=on --utest=on --jobs=${JOBS}
+        WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ELSE ()
-    EXEC_PROGRAM("cd ${SRS_DIR} && ./configure --srt=on --utest=on --jobs=${JOBS}")
+    EXECUTE_PROCESS(
+        COMMAND ./configure --srt=on --utest=on --jobs=${JOBS}
+        WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ENDIF ()
+if(NOT ret EQUAL 0)
+    message(FATAL_ERROR "FAILED: ${ret}")
+endif()
 
 set(DEPS_LIBS ${SRS_DIR}/objs/st/libst.a
         ${SRS_DIR}/objs/openssl/lib/libssl.a
@@ -61,19 +68,13 @@ INCLUDE_DIRECTORIES(${SRS_DIR}/objs
         ${SRS_DIR}/src/kernel
         ${SRS_DIR}/src/protocol
         ${SRS_DIR}/src/app
-        ${SRS_DIR}/src/service
-        ${SRS_DIR}/src/srt)
+        ${SRS_DIR}/src/service)
 
 # Common used sources for SRS and utest.
 AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/core SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/kernel SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/protocol SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/app SOURCE_FILES)
-AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/srt SOURCE_FILES)
-
-# Remove the duplicated test main for srt.
-# TODO: FIMXE: Remove the file directly, use utest or main or research.
-list(REMOVE_ITEM SOURCE_FILES ${SRS_DIR}/src/srt/ts_demux_test.cpp)
 
 ADD_DEFINITIONS("-g -O0")
 

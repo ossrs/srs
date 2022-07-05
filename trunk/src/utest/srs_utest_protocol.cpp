@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 #include <srs_utest_protocol.hpp>
 
@@ -10,13 +10,13 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_rtmp_msg_array.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_st.hpp>
 #include <srs_protocol_amf0.hpp>
-#include <srs_rtmp_stack.hpp>
-#include <srs_service_http_conn.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_http_conn.hpp>
 
 MockEmptyIO::MockEmptyIO()
 {

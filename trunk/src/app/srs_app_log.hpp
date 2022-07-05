@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_LOG_HPP
@@ -13,7 +13,9 @@
 #include <string>
 
 #include <srs_app_reload.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
+
+class SrsMutex;
 
 // For log TAGs.
 #define TAG_MAIN "MAIN"
@@ -39,6 +41,9 @@ private:
     bool log_to_file_tank;
     // Whether use utc time.
     bool utc;
+    // TODO: FIXME: use macro define like SRS_MULTI_THREAD_LOG to switch enable log mutex or not.
+    // Mutex for multithread log.
+    SrsMutex* mutex_;
 public:
     SrsFileLog();
     virtual ~SrsFileLog();

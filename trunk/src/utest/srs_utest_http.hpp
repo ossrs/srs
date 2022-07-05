@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_UTEST_PROTO_STACK_HPP
@@ -13,8 +13,8 @@
 #include <srs_utest.hpp>
 
 #include <srs_utest_protocol.hpp>
-#include <srs_http_stack.hpp>
-#include <srs_service_http_conn.hpp>
+#include <srs_protocol_http_stack.hpp>
+#include <srs_protocol_http_conn.hpp>
 
 #include <string>
 using namespace std;

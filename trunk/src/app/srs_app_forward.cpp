@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_forward.hpp>
@@ -19,10 +19,10 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_pithy_print.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_kbps.hpp>
-#include <srs_rtmp_msg_array.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_codec.hpp>
@@ -52,6 +52,8 @@ SrsForwarder::~SrsForwarder()
     
     srs_freep(sh_video);
     srs_freep(sh_audio);
+    
+    srs_freep(req);
 }
 
 srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
@@ -60,7 +62,7 @@ srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
     
     // it's ok to use the request object,
     // SrsLiveSource already copy it and never delete it.
-    req = r;
+    req = r->copy();
     
     // the ep(endpoint) to forward to
     ep_forward = ep;

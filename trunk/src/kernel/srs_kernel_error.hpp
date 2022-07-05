@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_KERNEL_ERROR_HPP
@@ -43,10 +43,6 @@
 #define ERROR_SYSTEM_ASSERT_FAILED          1021
 #define ERROR_READER_BUFFER_OVERFLOW        1022
 #define ERROR_SYSTEM_CONFIG_INVALID         1023
-#define ERROR_SYSTEM_CONFIG_DIRECTIVE       1024
-#define ERROR_SYSTEM_CONFIG_BLOCK_START     1025
-#define ERROR_SYSTEM_CONFIG_BLOCK_END       1026
-#define ERROR_SYSTEM_CONFIG_EOF             1027
 #define ERROR_SYSTEM_STREAM_BUSY            1028
 #define ERROR_SYSTEM_IP_INVALID             1029
 #define ERROR_SYSTEM_FORWARD_LOOP           1030
@@ -350,6 +346,20 @@
 #define ERROR_RTC_DUPLICATED_SSRC           5029
 #define ERROR_RTC_NO_TRACK                  5030
 #define ERROR_RTC_RTCP_EMPTY_RR             5031
+
+///////////////////////////////////////////////////////
+// SRT protocol error.
+///////////////////////////////////////////////////////
+#define ERROR_SRT_EPOLL                     6000
+#define ERROR_SRT_IO                        6001
+#define ERROR_SRT_TIMEOUT                   6002
+#define ERROR_SRT_INTERRUPT                 6003
+#define ERROR_SRT_LISTEN                    6004
+#define ERROR_SRT_SOCKOPT                   6005
+#define ERROR_SRT_CONN                      6006
+#define ERROR_SRT_SOURCE_BUSY               6007
+#define ERROR_RTMP_TO_SRT                   6008
+#define ERROR_SRT_STATS                     6009
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

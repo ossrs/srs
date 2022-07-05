@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_CONFIG_HPP
@@ -210,7 +210,7 @@ public:
 // Parse utilities
 public:
     // Parse config directive from file buffer.
-    virtual srs_error_t parse(srs_internal::SrsConfigBuffer* buffer);
+    virtual srs_error_t parse(srs_internal::SrsConfigBuffer* buffer, SrsConfig* conf = NULL);
     // Marshal the directive to writer.
     // @param level, the root is level0, all its directives are level1, and so on.
     virtual srs_error_t persistence(SrsFileWriter* writer, int level);
@@ -223,24 +223,36 @@ public:
     virtual SrsJsonAny* dumps_arg0_to_boolean();
 // private parse.
 private:
-    // The directive parsing type.
-    enum SrsDirectiveType {
+    // The directive parsing context.
+    enum SrsDirectiveContext {
         // The root directives, parsing file.
-        parse_file,
-        // For each direcitve, parsing text block.
-        parse_block
+        SrsDirectiveContextFile,
+        // For each directive, parsing text block.
+        SrsDirectiveContextBlock,
+    };
+    enum SrsDirectiveState {
+        // Init state
+        SrsDirectiveStateInit,
+        // The directive terminated by ';' found
+        SrsDirectiveStateEntire,
+        // The token terminated by '{' found
+        SrsDirectiveStateBlockStart,
+        // The '}' found
+        SrsDirectiveStateBlockEnd,
+        // The config file is done
+        SrsDirectiveStateEOF,
     };
     // Parse the conf from buffer. the work flow:
     // 1. read a token(directive args and a ret flag),
     // 2. initialize the directive by args, args[0] is name, args[1-N] is args of directive,
     // 3. if ret flag indicates there are child-directives, read_conf(directive, block) recursively.
-    virtual srs_error_t parse_conf(srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type);
+    virtual srs_error_t parse_conf(srs_internal::SrsConfigBuffer* buffer, SrsDirectiveContext ctx, SrsConfig* conf);
     // Read a token from buffer.
     // A token, is the directive args and a flag indicates whether has child-directives.
     // @param args, the output directive args, the first is the directive name, left is the args.
     // @param line_start, the actual start line of directive.
     // @return, an error code indicates error or has child-directives.
-    virtual srs_error_t read_token(srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start);
+    virtual srs_error_t read_token(srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start, SrsDirectiveState& state);
 };
 
 // The config service provider.
@@ -250,6 +262,7 @@ private:
 // You could keep it before st-thread switch, or simply never keep it.
 class SrsConfig
 {
+    friend class SrsConfDirective;
 // user command
 private:
     // Whether srs is run in dolphin mode.
@@ -356,6 +369,10 @@ private:
 public:
     // Parse the config file, which is specified by cli.
     virtual srs_error_t parse_file(const char* filename);
+private:
+    // Build a buffer from a src, which is string content or filename.
+    virtual srs_error_t build_buffer(std::string src, srs_internal::SrsConfigBuffer** pbuffer);
+public:
     // Check the parsed config.
     virtual srs_error_t check_config();
 protected:
@@ -607,6 +624,8 @@ public:
     virtual bool get_forward_enabled(SrsConfDirective* vhost);
     // Get the forward directive of vhost.
     virtual SrsConfDirective* get_forwards(std::string vhost);
+    // Get the forward directive of backend.
+    virtual SrsConfDirective* get_forward_backend(std::string vhost);
 
 public:
     // Whether the srt sevice enabled
@@ -617,6 +636,8 @@ public:
     virtual int get_srto_maxbw();
     // Get the srt SRTO_MSS, Maximum Segment Size, default is 1500.
     virtual int get_srto_mss();
+    // Get the srt SRTO_TSBPDMODE, timestamp base packet delivery mode, default is false.
+    virtual bool get_srto_tsbpdmode();
     // Get the srt SRTO_LATENCY, latency, default is 0 which means peer/recv latency is 120ms.
     virtual int get_srto_latency();
     // Get the srt SRTO_RCVLATENCY, recv latency, default is 120ms.
@@ -625,10 +646,12 @@ public:
     virtual int get_srto_peer_latency();
     // Get the srt h264 sei filter, default is on, it will drop h264 sei packet.
     virtual bool get_srt_sei_filter();
-    // Get the srt SRTO_TLPKDROP, Too-late Packet Drop, default is true.
-    virtual bool get_srto_tlpkdrop();
+    // Get the srt SRTO_TLPKTDROP, Too-late Packet Drop, default is true.
+    virtual bool get_srto_tlpktdrop();
     // Get the srt SRTO_CONNTIMEO, connection timeout, default is 3000ms.
-    virtual int get_srto_conntimeout();
+    virtual srs_utime_t get_srto_conntimeout();
+    // Get the srt SRTO_PEERIDLETIMEO, peer idle timeout, default is 10000ms.
+    virtual srs_utime_t get_srto_peeridletimeout();
     // Get the srt SRTO_SNDBUF, send buffer, default is 8192 × (1500-28).
     virtual int get_srto_sendbuf();
     // Get the srt SRTO_RCVBUF, recv buffer, default is 8192 × (1500-28).
@@ -637,8 +660,11 @@ public:
     virtual int get_srto_payloadsize();
     // Get the default app.
     virtual std::string get_default_app_name();
-    // Get the mix_correct
-    virtual bool get_srt_mix_correct();
+private:
+    SrsConfDirective* get_srt(std::string vhost);
+public:
+    bool get_srt_enabled(std::string vhost);
+    bool get_srt_to_rtmp(std::string vhost);
 
 // http_hooks section
 private:
@@ -706,6 +732,10 @@ public:
     // Get the origin config of edge,
     // specifies the origin ip address, port.
     virtual SrsConfDirective* get_vhost_edge_origin(std::string vhost);
+    // Get the procotol to connect to origin server.
+    virtual std::string get_vhost_edge_protocol(std::string vhost);
+    // Whether follow client protocol to connect to origin.
+    virtual bool get_vhost_edge_follow_client(std::string vhost);
     // Whether edge token tranverse is enabled,
     // If  true, edge will send connect origin to verfy the token of client.
     // For example, we verify all clients on the origin FMS by server-side as,

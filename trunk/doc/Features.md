@@ -40,7 +40,7 @@ The features of SRS.
 - [x] Improve test coverage for core/kernel/protocol/service.
 - [x] Support docker by [srs-docker](https://github.com/ossrs/srs-docker).
 - [x] Support multiple processes by ReusePort([CN][v4_CN_REUSEPORT], [EN][v4_EN_REUSEPORT]), [#775][bug #775].
-- [x] Support a simple [mgmt console][console], please read [srs-console][srs-ngb].
+- [x] Support a simple [mgmt console](http://ossrs.net:8080/console), please read [srs-console](https://github.com/ossrs/srs-console).
 - [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
 - [x] [Experimental] Support publishing stream by WebRTC, [#307][bug #307].
 - [x] [Experimental] Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307][bug #307].
@@ -59,7 +59,7 @@ The features of SRS.
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v4_CN_DRM2], [EN][v4_EN_DRM2]) authentication, please read [#1535][bug #1535].
 - [x] [Removed] Support pushing RTSP, please read [#2304](https://github.com/ossrs/srs/issues/2304#issuecomment-826009290).
 - [x] [Removed] Support HTTP RAW API, please read [#2653](https://github.com/ossrs/srs/issues/2653).
-- [x] [Removed] Support RTMP client library: [srs-librtmp][srs-librtmp].
+- [x] [Removed] Support RTMP client library: [srs-librtmp](https://github.com/ossrs/srs-librtmp).
 - [ ] Support Windows/Cygwin 64bits, [#2532](https://github.com/ossrs/srs/issues/2532).
 - [ ] Support push stream by GB28181, [#1500][bug #1500].
 - [ ] Support IETF-QUIC for WebRTC Cluster, [#2091][bug #2091].

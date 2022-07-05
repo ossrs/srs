@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_dvr.hpp>
@@ -12,7 +12,7 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_http_hooks.hpp>
@@ -462,7 +462,7 @@ srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio, SrsForm
     SrsAudioChannels channels = format->acodec->sound_type;
     
     SrsAudioAacFrameTrait ct = format->audio->aac_packet_type;
-    if (ct == SrsAudioAacFrameTraitSequenceHeader) {
+    if (ct == SrsAudioAacFrameTraitSequenceHeader || ct == SrsAudioMp3FrameTrait) {
         enc->acodec = sound_format;
         enc->sample_rate = sound_rate;
         enc->sound_bits = sound_size;

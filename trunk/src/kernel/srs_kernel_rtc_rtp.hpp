@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_KERNEL_RTC_RTP_HPP
@@ -286,7 +286,7 @@ private:
 public:
     // The first byte as nalu type, for video decoder only.
     SrsAvcNaluType nalu_type;
-    // The frame type, for RTMP bridger or SFU source.
+    // The frame type, for RTMP bridge or SFU source.
     SrsFrameType frame_type;
 // Fast cache for performance.
 private:

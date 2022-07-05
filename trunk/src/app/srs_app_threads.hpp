@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2020 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_THREADS_HPP
@@ -10,6 +10,8 @@
 #include <srs_core.hpp>
 
 #include <srs_app_hourglass.hpp>
+
+#include <pthread.h>
 
 // Protect server in high load.
 class SrsCircuitBreaker : public ISrsFastTimer
@@ -48,6 +50,29 @@ extern SrsCircuitBreaker* _srs_circuit_breaker;
 
 // Initialize global or thread-local variables.
 extern srs_error_t srs_thread_initialize();
+
+// Wrapper for mutex.
+class SrsMutex
+{
+private:
+    pthread_mutex_t mutex_;
+public:
+    SrsMutex();
+    ~SrsMutex();
+public:
+    void lock();
+    void unlock();
+};
+
+// Lock the mutex when enter current scope, and unlock it when out.
+class SrsAutoLock
+{
+private:
+    SrsMutex* mutex_;
+public:
+    SrsAutoLock(SrsMutex* mutex);
+    ~SrsAutoLock();
+};
 
 #endif
 

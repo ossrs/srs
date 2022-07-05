@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_coworkers.hpp>
@@ -11,10 +11,10 @@ using namespace std;
 
 #include <srs_protocol_json.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_config.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_service_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
 SrsCoWorkers* SrsCoWorkers::_instance = NULL;

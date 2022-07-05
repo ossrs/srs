@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_server.hpp>
@@ -34,7 +34,7 @@ using namespace std;
 #include <srs_app_caster_flv.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_app_coworkers.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
 #include <srs_app_latest_version.hpp>
 
 std::string srs_listener_type2string(SrsListenerType type)
@@ -689,12 +689,22 @@ srs_error_t SrsServer::initialize_signal()
 
 srs_error_t SrsServer::acquire_pid_file()
 {
+    srs_error_t err = srs_success;
+
     // when srs in dolphin mode, no need the pid file.
     if (_srs_config->is_dolphin()) {
         return srs_success;
     }
     
     std::string pid_file = _srs_config->get_pid_file();
+
+    // Try to create dir for pid file.
+    string pid_dir = srs_path_dirname(pid_file);
+    if (!srs_path_exists(pid_dir)) {
+        if ((err = srs_create_dir_recursively(pid_dir)) != srs_success) {
+            return srs_error_wrap(err, "create %s", pid_dir.c_str());
+        }
+    }
     
     // -rw-r--r--
     // 644
@@ -1376,8 +1386,10 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     ISrsStartableConneciton* conn = NULL;
     
     if ((err = fd_to_resource(type, stfd, &conn)) != srs_success) {
+        //close fd on conn error, otherwise will lead to fd leak -gs
+        srs_close_stfd(stfd);
         if (srs_error_code(err) == ERROR_SOCKET_GET_PEER_IP && _srs_config->empty_ip_ok()) {
-            srs_close_stfd(stfd); srs_error_reset(err);
+            srs_error_reset(err);
             return srs_success;
         }
         return srs_error_wrap(err, "fd to resource");
@@ -1610,5 +1622,74 @@ void SrsServer::on_unpublish(SrsLiveSource* s, SrsRequest* r)
     
     SrsCoWorkers* coworkers = SrsCoWorkers::instance();
     coworkers->on_unpublish(s, r);
+}
+
+SrsServerAdapter::SrsServerAdapter()
+{
+    srs = new SrsServer();
+}
+
+SrsServerAdapter::~SrsServerAdapter()
+{
+    srs_freep(srs);
+}
+
+srs_error_t SrsServerAdapter::initialize()
+{
+    srs_error_t err = srs_success;
+    return err;
+}
+
+srs_error_t SrsServerAdapter::run(SrsWaitGroup* wg)
+{
+    srs_error_t err = srs_success;
+
+    // Initialize the whole system, set hooks to handle server level events.
+    if ((err = srs->initialize(NULL)) != srs_success) {
+        return srs_error_wrap(err, "server initialize");
+    }
+
+    if ((err = srs->initialize_st()) != srs_success) {
+        return srs_error_wrap(err, "initialize st");
+    }
+
+    if ((err = srs->acquire_pid_file()) != srs_success) {
+        return srs_error_wrap(err, "acquire pid file");
+    }
+
+    if ((err = srs->initialize_signal()) != srs_success) {
+        return srs_error_wrap(err, "initialize signal");
+    }
+
+    if ((err = srs->listen()) != srs_success) {
+        return srs_error_wrap(err, "listen");
+    }
+
+    if ((err = srs->register_signal()) != srs_success) {
+        return srs_error_wrap(err, "register signal");
+    }
+
+    if ((err = srs->http_handle()) != srs_success) {
+        return srs_error_wrap(err, "http handle");
+    }
+
+    if ((err = srs->ingest()) != srs_success) {
+        return srs_error_wrap(err, "ingest");
+    }
+
+    if ((err = srs->start(wg)) != srs_success) {
+        return srs_error_wrap(err, "start");
+    }
+
+    return err;
+}
+
+void SrsServerAdapter::stop()
+{
+}
+
+SrsServer* SrsServerAdapter::instance()
+{
+    return srs;
 }
 

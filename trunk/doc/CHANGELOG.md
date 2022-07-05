@@ -4,6 +4,38 @@ The changelog for SRS.
 
 > Note: Please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) )** first.
 
+<a name="v5-changes"></a>
+
+## SRS 5.0 Changelog
+
+* v5.0, 2022-06-17, Merge [#3010](https://github.com/ossrs/srs/pull/3010): SRT: Support Coroutine Native SRT over ST. (#3010). v5.0.30
+* v5.0, 2022-06-15, For [#3058](https://github.com/ossrs/srs/pull/3058): Docker: Support x86_64, armv7 and aarch64 docker image (#3058). v5.0.29
+* v5.0, 2022-04-04, Support NGINX HLS Cluster, see [CN](https://github.com/ossrs/srs/wiki/v4_CN_SampleHlsCluster) or [EN](https://github.com/ossrs/srs/wiki/v4_EN_SampleHlsCluster). v5.0.28
+* v5.0, 2022-03-30, Support DigitalOcean [Droplet SRS 1-Click](https://cloud.digitalocean.com/droplets/new?appId=104916642&size=s-1vcpu-1gb&region=sgp1&image=ossrs-srs&type=applications). v5.0.27
+* v5.0, 2022-03-12, Merge [#2943](https://github.com/ossrs/srs/pull/2943): SRT: Fix typo in libsrt build options. v5.0.26
+* v5.0, 2022-03-09, Merge SRS 4.0 for bugfix. v5.0.25
+* v5.0, 2022-02-16, Merge [#2799](https://github.com/ossrs/srs/pull/2799): Forward: Support dynamic forwarding by backend api. (#2799). v5.0.24
+* v5.0, 2022-02-14, Merge [#2878](https://github.com/ossrs/srs/pull/2878): Support include directive for config file. (#2878). v5.0.23
+* v5.0, 2022-01-18, Eliminate unused *.as files for Adobe Flash. v5.0.22
+* v5.0, 2022-01-13, Switch LICENSE from MIT to **MIT or MulanPSL-2.0**. v5.0.21
+* v5.0, 2021-10-24, For [#2689](https://github.com/ossrs/srs/issues/2689): Support loongarch, loongson CPU. v5.0.19
+* v5.0, 2021-10-17, Support daemon(fork twice) for Darwin/OSX [ST#23](https://github.com/ossrs/state-threads/issues/23). v5.0.18
+* v5.0, 2021-10-16, DVR: support mp3 audio codec. (#2593) v5.0.17
+* v5.0, 2021-10-03, OpenWRT: Disable mprotect of ST. 5.0.16
+* v5.0, 2021-10-03, Actions: Create source tar lik srs-server-5.0.14.tar.gz
+* v5.0, 2021-10-02, ST: Support Cygwin64 and MIPS. 5.0.13
+* v5.0, 2021-09-23, Merge [#2578](https://github.com/ossrs/srs/pull/2578) Support http callback on_play/stop. 5.0.12
+* v5.0, 2021-08-07, Fix [#2508](https://github.com/ossrs/srs/pull/2508), Support features query by API. 5.0.10
+* v5.0, 2021-07-07, Refine AUTHORS.txt to AUTHORS.md, etc. 5.0.8
+* v5.0, 2021-07-01, Move AUTHORS.txt to trunk for docker. 5.0.7
+* v5.0, 2021-06-28, Squash: Support query lastest available version. 5.0.6
+* v5.0, 2021-06-22, Squash: Support ARM platform. 5.0.5
+* v5.0, 2021-06-16, Change [GB28181](https://github.com/ossrs/srs/issues/1500) to [feature/gb28181](https://github.com/ossrs/srs/tree/feature/gb28181). 5.0.4
+* v5.0, 2021-05-31, Use [SPDX-License-Identifier: MIT](https://spdx.dev/ids/). 5.0.3
+* v5.0, 2021-05-19, ST: Simplify it, only Linux/Darwin, epoll/kqueue, single process. 5.0.2
+* v5.0, 2021-03-17, Live: Refine edge to follow client and HTTP/302. 5.0.1
+* v5.0, 2021-03-15, Init SRS/5. 5.0.0
+
 <a name="v4-changes"></a>
 
 ## SRS 4.0 Changelog
@@ -877,3 +909,4 @@ The changelog for SRS.
 * v0.1, 2013-10-17, support rtmp chunk2message protocol(recv\_message).
 
 Winlin 2021
+

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 #include <srs_utest_service.hpp>
 
@@ -9,19 +9,19 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_app_listener.hpp>
-#include <srs_service_st.hpp>
-#include <srs_service_utility.hpp>
+#include <srs_protocol_st.hpp>
+#include <srs_protocol_utility.hpp>
 
-#include <srs_service_st.hpp>
-#include <srs_service_http_conn.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_st.hpp>
+#include <srs_protocol_http_conn.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_utest_protocol.hpp>
 #include <srs_utest_http.hpp>
-#include <srs_service_utility.hpp>
-#include <srs_service_http_client.hpp>
-#include <srs_service_rtmp_conn.hpp>
-#include <srs_service_conn.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_protocol_http_client.hpp>
+#include <srs_protocol_rtmp_conn.hpp>
+#include <srs_protocol_conn.hpp>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <st.h>

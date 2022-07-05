@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_utest.hpp>
@@ -16,6 +16,10 @@
 
 #include <string>
 using namespace std;
+
+#ifdef SRS_SRT
+#include <srs_app_srt_server.hpp>
+#endif
 
 // Temporary disk config.
 std::string _srs_tmp_file_prefix = "/tmp/srs-utest-";
@@ -51,6 +55,16 @@ srs_error_t prepare_main() {
 
     srs_freep(_srs_context);
     _srs_context = new SrsThreadContext();
+
+#ifdef SRS_SRT
+    _srt_eventloop = new SrsSrtEventLoop();
+    if ((err = _srt_eventloop->initialize()) != srs_success) {
+        return srs_error_wrap(err, "srt poller initialize");
+    }
+    if ((err = _srt_eventloop->start()) != srs_success) {
+        return srs_error_wrap(err, "srt poller start");
+    }
+#endif
 
     return err;
 }

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 John
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_rtc_server.hpp>
@@ -18,17 +18,17 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_rtc_conn.hpp>
-#include <srs_rtc_stun_stack.hpp>
-#include <srs_http_stack.hpp>
+#include <srs_protocol_rtc_stun.hpp>
+#include <srs_protocol_http_stack.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_rtc_dtls.hpp>
-#include <srs_service_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_api.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
 
 extern SrsPps* _srs_pps_rpkts;
 SrsPps* _srs_pps_rstuns = NULL;

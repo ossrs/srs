@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_SERVER_HPP
@@ -18,8 +18,9 @@
 #include <srs_app_hls.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_conn.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_app_hourglass.hpp>
+#include <srs_app_hybrid.hpp>
 
 class SrsServer;
 class SrsHttpServeMux;
@@ -330,6 +331,22 @@ public:
 public:
     virtual srs_error_t on_publish(SrsLiveSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsLiveSource* s, SrsRequest* r);
+};
+
+// The SRS server adapter, the master server.
+class SrsServerAdapter : public ISrsHybridServer
+{
+private:
+    SrsServer* srs;
+public:
+    SrsServerAdapter();
+    virtual ~SrsServerAdapter();
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t run(SrsWaitGroup* wg);
+    virtual void stop();
+public:
+    virtual SrsServer* instance();
 };
 
 #endif

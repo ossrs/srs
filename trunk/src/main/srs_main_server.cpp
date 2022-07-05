@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_core.hpp>
@@ -44,7 +44,8 @@ using namespace std;
 #endif
 
 #ifdef SRS_SRT
-#include <srt_server.hpp>
+#include <srs_protocol_srt.hpp>
+#include <srs_app_srt_server.hpp>
 #endif
 
 // pre-declare
@@ -125,8 +126,7 @@ srs_error_t do_main(int argc, char** argv)
     
     // config already applied to log.
     srs_trace2(TAG_MAIN, "%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
-    srs_trace("authors: %s", RTMP_SIG_SRS_AUTHORS);
-    srs_trace("contributors: %s", SRS_CONSTRIBUTORS);
+    srs_trace("authors: %sand %s", RTMP_SIG_SRS_AUTHORS, SRS_CONSTRIBUTORS);
     srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s, osx: %d, pkg: %s, region: %s, source: %s",
         _srs_config->cwd().c_str(), cwd.c_str(), SRS_BUILD_DATE, SRS_USER_CONFIGURE, SRS_UNAME, SRS_OSX_BOOL, SRS_PACKAGER,
         srs_getenv("SRS_REGION").c_str(), srs_getenv("SRS_SOURCE").c_str());
@@ -456,7 +456,7 @@ srs_error_t run_hybrid_server()
     _srs_hybrid->register_server(new SrsServerAdapter());
 
 #ifdef SRS_SRT
-    _srs_hybrid->register_server(new SrtServerAdapter());
+    _srs_hybrid->register_server(new SrsSrtServerAdapter());
 #endif
 
 #ifdef SRS_RTC

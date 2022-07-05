@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_edge.hpp>
@@ -14,7 +14,7 @@
 using namespace std;
 
 #include <srs_kernel_error.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_io.hpp>
 #include <srs_app_config.hpp>
 #include <srs_protocol_utility.hpp>
@@ -23,12 +23,17 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_kbps.hpp>
-#include <srs_rtmp_msg_array.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_balance.hpp>
 #include <srs_app_rtmp_conn.hpp>
+#include <srs_protocol_http_client.hpp>
+#include <srs_app_caster_flv.hpp>
+#include <srs_kernel_flv.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_protocol_amf0.hpp>
 
 // when edge timeout, retry next.
 #define SRS_EDGE_INGESTER_TIMEOUT (5 * SRS_UTIME_SECONDS)
@@ -150,6 +155,233 @@ void SrsEdgeRtmpUpstream::kbps_sample(const char* label, int64_t age)
     sdk->kbps_sample(label, age);
 }
 
+SrsEdgeFlvUpstream::SrsEdgeFlvUpstream(std::string schema)
+{
+    schema_ = schema;
+    selected_port = 0;
+
+    sdk_ = NULL;
+    hr_ = NULL;
+    reader_ = NULL;
+    decoder_ = NULL;
+    req_ = NULL;
+}
+
+SrsEdgeFlvUpstream::~SrsEdgeFlvUpstream()
+{
+    close();
+}
+
+srs_error_t SrsEdgeFlvUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
+{
+    // Because we might modify the r, which cause retry fail, so we must copy it.
+    SrsRequest* cp = r->copy();
+
+    // Free the request when close upstream.
+    srs_freep(req_);
+    req_ = cp;
+
+    return do_connect(cp, lb, 0);
+}
+
+srs_error_t SrsEdgeFlvUpstream::do_connect(SrsRequest* r, SrsLbRoundRobin* lb, int redirect_depth)
+{
+    srs_error_t err = srs_success;
+
+    SrsRequest* req = r;
+
+    if (redirect_depth == 0) {
+        SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
+
+        // @see https://github.com/ossrs/srs/issues/79
+        // when origin is error, for instance, server is shutdown,
+        // then user remove the vhost then reload, the conf is empty.
+        if (!conf) {
+            return srs_error_new(ERROR_EDGE_VHOST_REMOVED, "vhost %s removed", req->vhost.c_str());
+        }
+
+        // select the origin.
+        std::string server = lb->select(conf->args);
+        int port = SRS_DEFAULT_HTTP_PORT;
+        if (schema_ == "https") {
+            port = SRS_DEFAULT_HTTPS_PORT;
+        }
+        srs_parse_hostport(server, server, port);
+
+        // Remember the current selected server.
+        selected_ip = server;
+        selected_port = port;
+    } else {
+        // If HTTP redirect, use the server in location.
+        schema_ = req->schema;
+        selected_ip = req->host;
+        selected_port = req->port;
+    }
+
+    srs_freep(sdk_);
+    sdk_ = new SrsHttpClient();
+
+    string path = "/" + req->app + "/" + req->stream;
+    if (!srs_string_ends_with(req->stream, ".flv")) {
+        path += ".flv";
+    }
+    if (!req->param.empty()) {
+        path += req->param;
+    }
+
+    string url = schema_ + "://" + selected_ip + ":" + srs_int2str(selected_port);
+    url += path;
+
+    srs_utime_t cto = SRS_EDGE_INGESTER_TIMEOUT;
+    if ((err = sdk_->initialize(schema_, selected_ip, selected_port, cto)) != srs_success) {
+        return srs_error_wrap(err, "edge pull %s failed, cto=%dms.", url.c_str(), srsu2msi(cto));
+    }
+
+    srs_freep(hr_);
+    if ((err = sdk_->get(path, "", &hr_)) != srs_success) {
+        return srs_error_wrap(err, "edge get %s failed, path=%s", url.c_str(), path.c_str());
+    }
+
+    if (hr_->status_code() == 404) {
+        return srs_error_new(ERROR_RTMP_STREAM_NOT_FOUND, "Connect to %s, status=%d", url.c_str(), hr_->status_code());
+    }
+
+    string location;
+    if (hr_->status_code() == 302) {
+        location = hr_->header()->get("Location");
+    }
+    srs_trace("Edge: Connect to %s ok, status=%d, location=%s", url.c_str(), hr_->status_code(), location.c_str());
+
+    if (hr_->status_code() == 302) {
+        if (redirect_depth >= 3) {
+            return srs_error_new(ERROR_HTTP_302_INVALID, "redirect to %s fail, depth=%d", location.c_str(), redirect_depth);
+        }
+
+        string app;
+        string stream_name;
+        if (true) {
+            string tcUrl;
+            srs_parse_rtmp_url(location, tcUrl, stream_name);
+
+            int port;
+            string schema, host, vhost, param;
+            srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+
+            r->schema = schema; r->host = host; r->port = port;
+            r->app = app; r->stream = stream_name; r->param = param;
+        }
+        return do_connect(r, lb, redirect_depth + 1);
+    }
+
+    srs_freep(reader_);
+    reader_ = new SrsHttpFileReader(hr_->body_reader());
+
+    srs_freep(decoder_);
+    decoder_ = new SrsFlvDecoder();
+
+    if ((err = decoder_->initialize(reader_)) != srs_success) {
+        return srs_error_wrap(err, "init decoder");
+    }
+
+    char header[9];
+    if ((err = decoder_->read_header(header)) != srs_success) {
+        return srs_error_wrap(err, "read header");
+    }
+
+    char pps[4];
+    if ((err = decoder_->read_previous_tag_size(pps)) != srs_success) {
+        return srs_error_wrap(err, "read pts");
+    }
+
+    return err;
+}
+
+srs_error_t SrsEdgeFlvUpstream::recv_message(SrsCommonMessage** pmsg)
+{
+    srs_error_t err = srs_success;
+
+    char type;
+    int32_t size;
+    uint32_t time;
+    if ((err = decoder_->read_tag_header(&type, &size, &time)) != srs_success) {
+        return srs_error_wrap(err, "read tag header");
+    }
+
+    char* data = new char[size];
+    if ((err = decoder_->read_tag_data(data, size)) != srs_success) {
+        srs_freepa(data);
+        return srs_error_wrap(err, "read tag data");
+    }
+
+    char pps[4];
+    if ((err = decoder_->read_previous_tag_size(pps)) != srs_success) {
+        return srs_error_wrap(err, "read pts");
+    }
+
+    int stream_id = 1;
+    SrsCommonMessage* msg = NULL;
+    if ((err = srs_rtmp_create_msg(type, time, data, size, stream_id, &msg)) != srs_success) {
+        return srs_error_wrap(err, "create message");
+    }
+
+    *pmsg = msg;
+
+    return err;
+}
+
+srs_error_t SrsEdgeFlvUpstream::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
+{
+    srs_error_t err = srs_success;
+
+    SrsPacket* packet = NULL;
+    SrsBuffer stream(msg->payload, msg->size);
+    SrsMessageHeader& header = msg->header;
+
+    if (header.is_amf0_data() || header.is_amf3_data()) {
+        std::string command;
+        if ((err = srs_amf0_read_string(&stream, command)) != srs_success) {
+            return srs_error_wrap(err, "decode command name");
+        }
+
+        stream.skip(-1 * stream.pos());
+
+        if (command == SRS_CONSTS_RTMP_SET_DATAFRAME) {
+            *ppacket = packet = new SrsOnMetaDataPacket();
+            return packet->decode(&stream);
+        } else if (command == SRS_CONSTS_RTMP_ON_METADATA) {
+            *ppacket = packet = new SrsOnMetaDataPacket();
+            return packet->decode(&stream);
+        }
+    }
+
+    return err;
+}
+
+void SrsEdgeFlvUpstream::close()
+{
+    srs_freep(sdk_);
+    srs_freep(hr_);
+    srs_freep(reader_);
+    srs_freep(decoder_);
+    srs_freep(req_);
+}
+
+void SrsEdgeFlvUpstream::selected(string& server, int& port)
+{
+    server = selected_ip;
+    port = selected_port;
+}
+
+void SrsEdgeFlvUpstream::set_recv_timeout(srs_utime_t tm)
+{
+    sdk_->set_recv_timeout(tm);
+}
+
+void SrsEdgeFlvUpstream::kbps_sample(const char* label, int64_t age)
+{
+    sdk_->kbps_sample(label, age);
+}
+
 SrsEdgeIngester::SrsEdgeIngester()
 {
     source = NULL;
@@ -247,9 +479,23 @@ srs_error_t SrsEdgeIngester::do_cycle()
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "do cycle pull");
         }
-        
+
+        // Use protocol in config.
+        string edge_protocol = _srs_config->get_vhost_edge_protocol(req->vhost);
+
+        // If follow client protocol, change to protocol of client.
+        bool follow_client = _srs_config->get_vhost_edge_follow_client(req->vhost);
+        if (follow_client && !req->protocol.empty()) {
+            edge_protocol = req->protocol;
+        }
+
+        // Create object by protocol.
         srs_freep(upstream);
-        upstream = new SrsEdgeRtmpUpstream(redirect);
+        if (edge_protocol == "flv" || edge_protocol == "flvs") {
+            upstream = new SrsEdgeFlvUpstream(edge_protocol == "flv"? "http" : "https");
+        } else {
+            upstream = new SrsEdgeRtmpUpstream(redirect);
+        }
         
         if ((err = source->on_source_id_changed(_srs_context->get_id())) != srs_success) {
             return srs_error_wrap(err, "on source id changed");

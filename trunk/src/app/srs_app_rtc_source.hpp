@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 John
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_RTC_SOURCE_HPP
@@ -17,7 +17,7 @@
 #include <map>
 
 #include <srs_app_rtc_sdp.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_app_source.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 
@@ -27,7 +27,7 @@ class SrsSharedPtrMessage;
 class SrsCommonMessage;
 class SrsMessageArray;
 class SrsRtcSource;
-class SrsRtcFromRtmpBridger;
+class SrsRtcFromRtmpBridge;
 class SrsAudioTranscoder;
 class SrsRtpPacket;
 class SrsSample;
@@ -144,11 +144,11 @@ public:
 };
 
 // SrsRtcSource bridge to SrsLiveSource
-class ISrsRtcSourceBridger
+class ISrsRtcSourceBridge
 {
 public:
-    ISrsRtcSourceBridger();
-    virtual ~ISrsRtcSourceBridger();
+    ISrsRtcSourceBridge();
+    virtual ~ISrsRtcSourceBridge();
 public:
     virtual srs_error_t on_publish() = 0;
     virtual srs_error_t on_rtp(SrsRtpPacket *pkt) = 0;
@@ -170,8 +170,8 @@ private:
     ISrsRtcPublishStream* publish_stream_;
     // Steam description for this steam.
     SrsRtcSourceDescription* stream_desc_;
-    // The Source bridger, bridger stream to other source.
-    ISrsRtcSourceBridger* bridger_;
+    // The Source bridge, bridge stream to other source.
+    ISrsRtcSourceBridge* bridge_;
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
@@ -203,7 +203,7 @@ public:
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
 public:
-    void set_bridger(ISrsRtcSourceBridger *bridger);
+    void set_bridge(ISrsRtcSourceBridge *bridge);
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -243,7 +243,7 @@ private:
 };
 
 #ifdef SRS_FFMPEG_FIT
-class SrsRtcFromRtmpBridger : public ISrsLiveSourceBridger
+class SrsRtcFromRtmpBridge : public ISrsLiveSourceBridge
 {
 private:
     SrsRequest* req;
@@ -262,8 +262,8 @@ private:
     uint32_t audio_ssrc;
     uint32_t video_ssrc;
 public:
-    SrsRtcFromRtmpBridger(SrsRtcSource* source);
-    virtual ~SrsRtcFromRtmpBridger();
+    SrsRtcFromRtmpBridge(SrsRtcSource* source);
+    virtual ~SrsRtcFromRtmpBridge();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();
@@ -283,7 +283,7 @@ private:
     srs_error_t consume_packets(std::vector<SrsRtpPacket*>& pkts);
 };
 
-class SrsRtmpFromRtcBridger : public ISrsRtcSourceBridger
+class SrsRtmpFromRtcBridge : public ISrsRtcSourceBridge
 {
 private:
     SrsLiveSource *source_;
@@ -308,8 +308,8 @@ private:
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
 public:
-    SrsRtmpFromRtcBridger(SrsLiveSource *src);
-    virtual ~SrsRtmpFromRtcBridger();
+    SrsRtmpFromRtcBridge(SrsLiveSource *src);
+    virtual ~SrsRtmpFromRtcBridge();
 public:
     srs_error_t initialize(SrsRequest* r);
 public:

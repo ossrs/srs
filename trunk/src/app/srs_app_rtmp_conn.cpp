@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2022 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_rtmp_conn.hpp>
@@ -16,7 +16,7 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
@@ -29,7 +29,7 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_app_utility.hpp>
-#include <srs_rtmp_msg_array.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_app_recv_thread.hpp>
 #include <srs_core_performance.hpp>
@@ -950,7 +950,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     if (!source->can_publish(info->edge)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp: stream %s is busy", req->get_stream_url().c_str());
     }
-    
+
     // Check whether RTC stream is busy.
 #ifdef SRS_RTC
     SrsRtcSource *rtc = NULL;
@@ -970,13 +970,13 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     // Bridge to RTC streaming.
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
     if (rtc) {
-        SrsRtcFromRtmpBridger *bridger = new SrsRtcFromRtmpBridger(rtc);
-        if ((err = bridger->initialize(req)) != srs_success) {
-            srs_freep(bridger);
-            return srs_error_wrap(err, "bridger init");
+        SrsRtcFromRtmpBridge *bridge = new SrsRtcFromRtmpBridge(rtc);
+        if ((err = bridge->initialize(req)) != srs_success) {
+            srs_freep(bridge);
+            return srs_error_wrap(err, "bridge init");
         }
 
-        source->set_bridger(bridger);
+        source->set_bridge(bridge);
     }
 #endif
 
