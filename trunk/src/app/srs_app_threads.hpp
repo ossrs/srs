@@ -242,6 +242,7 @@ public:
         uint32_t next = (current + 1) % info->nn_capacity;
 
         if (next == info->read_already) {
+	    lock->unlock();
             return srs_error_new(ERROR_QUEUE_PUSH, "queue is full");
         }
 
@@ -276,6 +277,7 @@ public:
         uint32_t next = (current + 1) % info->nn_capacity;
 
         if (current == info->written_already) {
+	    lock->unlock();
             return srs_error_new(ERROR_QUEUE_POP, "queue is empty");
         }
         info->reading_token = next;
