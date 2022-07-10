@@ -1926,6 +1926,9 @@ SrsLiveSource::SrsLiveSource()
     
     _can_publish = true;
     die_at = 0;
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+    no_one_wating_at = 0;
+#endif
 
     handler = NULL;
     bridge_ = NULL;
@@ -2004,6 +2007,20 @@ bool SrsLiveSource::expired()
     
     return false;
 }
+
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+bool SrsLiveSource::expired_as_no_one_watching(srs_utime_t timeout)
+{
+    if (no_one_wating_at == 0) {
+        return false;
+    }
+    srs_utime_t now = srs_get_system_time();
+    if (now > no_one_wating_at + timeout) {
+        return true;
+    }
+    return false;
+}
+#endif
 
 srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
 {
@@ -2592,6 +2609,12 @@ srs_error_t SrsLiveSource::on_publish()
 
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_publish(req, _source_id.c_str());
+
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+    if (consumers.empty()) {
+        no_one_wating_at = srs_get_system_time();
+    }
+#endif
     
     return err;
 }
@@ -2648,7 +2671,10 @@ srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)
     
     consumer = new SrsLiveConsumer(this);
     consumers.push_back(consumer);
-    
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+    no_one_wating_at = 0;
+#endif
+
     // for edge, when play edge stream, check the state
     if (_srs_config->get_vhost_is_edge(req->vhost)) {
         // notice edge to start for the first client.
@@ -2714,6 +2740,9 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer* consumer)
     if (consumers.empty()) {
         play_edge->on_all_client_stop();
         die_at = srs_get_system_time();
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+        no_one_wating_at = srs_get_system_time();
+#endif
     }
 }
 

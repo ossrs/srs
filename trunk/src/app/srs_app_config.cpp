@@ -2654,7 +2654,12 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "publish") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+                    if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout" && m != "parse_sps" 
+                        && m != "kickoff_enabled" && m != "kickoff_timeout") {
+#else
                     if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout" && m != "parse_sps") {
+#endif
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.publish.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4500,6 +4505,54 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
     
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
+
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+bool SrsConfig::get_publish_kickoff_enabled(std::string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("publish");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("kickoff_enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+srs_utime_t SrsConfig::get_publish_kickoff_timeout(std::string vhost)
+{
+    // the timeout to kickoff publish as no one watching,
+    // the default value is 3 minutes.
+    static srs_utime_t DEFAULT = 180 * SRS_UTIME_SECONDS;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("publish");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("kickoff_timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
+}
+#endif
 
 int SrsConfig::get_global_chunk_size()
 {

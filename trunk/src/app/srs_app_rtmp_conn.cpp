@@ -876,6 +876,10 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     // initialize the publish timeout.
     publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
     publish_normal_timeout = _srs_config->get_publish_normal_timeout(req->vhost);
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+    bool publish_kickoff_enabled = _srs_config->get_publish_kickoff_enabled(req->vhost);
+    srs_utime_t publish_kickoff_timeout = _srs_config->get_publish_kickoff_timeout(req->vhost);
+#endif
     
     // set the sock options.
     set_sock_options();
@@ -893,6 +897,15 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
         }
+
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+        // Check if the source is expired or not as no one watching.
+        if (publish_kickoff_enabled && source->expired_as_no_one_watching(publish_kickoff_timeout))
+        {
+            srs_trace("kickoff %s as no one watching for more than %d seconds.", req->tcUrl.c_str(), publish_kickoff_timeout / SRS_UTIME_SECONDS);
+            return srs_error_wrap(err, "rtmp: kickoff pusher as no one watching.");
+        }
+#endif
 
         pprint->elapse();
 

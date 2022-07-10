@@ -610,6 +610,12 @@ public:
     virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost);
     // The normal packet timeout in srs_utime_t for encoder.
     virtual srs_utime_t get_publish_normal_timeout(std::string vhost);
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+    // Whether kickoff publish as no one watching.
+    virtual bool get_publish_kickoff_enabled(std::string vhost);
+    // The kickoff timeout in srs_utime_t for publish.
+    virtual srs_utime_t get_publish_kickoff_timeout(std::string vhost);
+#endif
 private:
     // Get the global chunk size.
     virtual int get_global_chunk_size();

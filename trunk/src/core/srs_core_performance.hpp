@@ -171,5 +171,10 @@
 #define SRS_PERF_GLIBC_MEMORY_CHECK
 #undef SRS_PERF_GLIBC_MEMORY_CHECK
 
+/** 
+ * kickoff publisher as no one watching.
+*/
+#define SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+
 #endif
 

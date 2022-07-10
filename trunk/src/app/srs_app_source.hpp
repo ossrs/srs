@@ -531,6 +531,10 @@ private:
     // The last die time, when all consumers quit and no publisher,
     // We will remove the source when source die.
     srs_utime_t die_at;
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+    // The last time when no one wating.
+    srs_utime_t no_one_wating_at;
+#endif
 public:
     SrsLiveSource();
     virtual ~SrsLiveSource();
@@ -539,6 +543,9 @@ public:
     virtual srs_error_t cycle();
     // Remove source when expired.
     virtual bool expired();
+#ifdef SRS_PERF_KICKOFF_AS_NO_ONE_WATCHING
+    bool expired_as_no_one_watching(srs_utime_t timeout);
+#endif
 public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsLiveSourceHandler* h);
