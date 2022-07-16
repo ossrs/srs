@@ -58,8 +58,8 @@
     (void)0
 
 // Check CPU for ST(state-threads), please read https://github.com/ossrs/state-threads/issues/22
-#if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__) && !defined(__aarch64__) && !defined(__mips__) && !defined(__loongarch__)
-    #error "Only support i386/amd64/x86_64/arm/aarch64/mips/loongarch cpu"
+#if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__) && !defined(__aarch64__) && !defined(__mips__) && !defined(__loongarch__) && !defined(__riscv)
+    #error "Only support i386/amd64/x86_64/arm/aarch64/mips/loongarch/riscv cpu"
 #endif
 
 // Error predefined for all modules.
