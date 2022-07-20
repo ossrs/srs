@@ -1,0 +1,7 @@
+1034a1035,1040
+>     riscv:Linux:*:*)
+> 	echo riscv-unknown-linux-${LIBC}
+> 	exit ;;
+>     riscv64:Linux:*:*)
+> 	echo riscv64-unknown-linux-${LIBC}
+> 	exit ;;
