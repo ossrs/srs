@@ -942,6 +942,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
 
 srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 {
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
 
@@ -952,7 +953,6 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 
     // Check whether RTC stream is busy.
 #ifdef SRS_RTC
-    srs_error_t err = srs_success;
     SrsRtcSource *rtc = NULL;
     bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
     bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost);
@@ -982,10 +982,12 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 
     // Start publisher now.
     if (info->edge) {
-        return source->on_edge_start_publish();
+        err = source->on_edge_start_publish();
     } else {
-        return source->on_publish();
+        err = source->on_publish();
     }
+
+    return err;
 }
 
 void SrsRtmpConn::release_publish(SrsLiveSource* source)
