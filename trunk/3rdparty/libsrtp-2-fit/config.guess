@@ -1032,12 +1032,6 @@ EOF
     ppcle:Linux:*:*)
 	echo powerpcle-unknown-linux-${LIBC}
 	exit ;;
-    riscv:Linux:*:*)
-	echo riscv-unknown-linux-${LIBC}
-	exit ;;
-    riscv64:Linux:*:*)
-	echo riscv64-unknown-linux-${LIBC}
-	exit ;;
     s390:Linux:*:* | s390x:Linux:*:*)
 	echo ${UNAME_MACHINE}-ibm-linux-${LIBC}
 	exit ;;
