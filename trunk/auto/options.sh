@@ -40,13 +40,13 @@ SRS_DEFAULT_CONFIG=conf/srs.conf
 SRS_JOBS=1
 SRS_STATIC=NO
 # If enabled, link shared libraries for libst.so which uses MPL license.
-# See https://github.com/ossrs/srs/wiki/LicenseMixing#state-threads
+# See https://ossrs.net/lts/zh-cn/license#state-threads
 SRS_SHARED_ST=NO
 # If enabled, link shared libraries for libsrt.so which uses MPL license.
-# See https://github.com/ossrs/srs/wiki/LicenseMixing#srt
+# See https://ossrs.net/lts/zh-cn/license#srt
 SRS_SHARED_SRT=NO
 # If enabled, link shared libraries for FFmpeg which is LGPL license.
-# See https://github.com/ossrs/srs/wiki/LicenseMixing#ffmpeg
+# See https://ossrs.net/lts/zh-cn/license#ffmpeg
 SRS_SHARED_FFMPEG=NO
 # whether enable the gcov
 SRS_GCOV=NO
@@ -149,7 +149,7 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
   --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
 
-Toolchain options:          @see https://github.com/ossrs/srs/wiki/v4_CN_SrsLinuxArm#ubuntu-cross-build-srs
+Toolchain options:          @see https://ossrs.net/lts/zh-cn/docs/v4/doc/arm#ubuntu-cross-build-srs
   --static=on|off           Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
   --cpu=<CPU>               Toolchain: Select the minimum required CPU for cross-build.
   --arch=<ARCH>             Toolchain: Select architecture for cross-build.
@@ -211,7 +211,7 @@ function parse_user_option() {
     fi
 
     if [[ $option == '--arm' || $option == '--mips' || $option == '--with-arm-ubuntu12' || $option == '--with-mips-ubuntu12' ]]; then
-        echo "Error: Removed misleading option $option, please read https://github.com/ossrs/srs/wiki/v4_CN_SrsLinuxArm#ubuntu-cross-build-srs"
+        echo "Error: Removed misleading option $option, please read https://ossrs.net/lts/zh-cn/docs/v4/doc/arm#ubuntu-cross-build-srs"
         exit -1
     fi
 

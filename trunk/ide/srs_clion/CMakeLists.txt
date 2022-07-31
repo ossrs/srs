@@ -108,5 +108,5 @@ TARGET_LINK_LIBRARIES(utest -ldl -pthread)
 
 ###########################################################
 # Done
-MESSAGE(STATUS "@see https://github.com/ossrs/srs/wiki/v4_CN_IDE")
+MESSAGE(STATUS "@see https://ossrs.net/lts/zh-cn/docs/v4/doc/ide")
 

@@ -471,10 +471,10 @@ jobs:
             * Source: ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
             * Binary: ${{ env.SRS_PACKAGE_MD5 }} [${{ env.SRS_PACKAGE_ZIP }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_PACKAGE_ZIP }})
             ## Docker
-            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}](https://github.com/ossrs/srs/wiki/v5_CN_Home#docker)
-            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}](https://github.com/ossrs/srs/wiki/v5_CN_Home#docker)
-            * Global: [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://github.com/ossrs/srs/wiki/v5_EN_Home#docker)
-            * Global: [docker pull ossrs/srs:${{ env.SRS_TAG }}](https://github.com/ossrs/srs/wiki/v5_EN_Home#docker)
+            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started)
+            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started)
+            * Global: [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
+            * Global: [docker pull ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
             ## Doc
             * [FAQ](https://github.com/ossrs/srs/issues/2716), [Features](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) or [ChangeLogs](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false

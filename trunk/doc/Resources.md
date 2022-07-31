@@ -2,8 +2,6 @@
 
 The resources of SRS.
 
-> Note: Please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) )** first.
-
 ## Ports
 
 The ports used by SRS, kernel services:
@@ -20,9 +18,9 @@ For optional HTTPS services, which might be provided by other web servers:
 
 For optional stream caster services, to push streams to SRS:
 
-* `udp://8935`, Stream Caster: [Push MPEGTS over UDP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-mpeg-ts-over-udp) server.
-* `tcp://554`, Stream Caster: [Push RTSP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-rtsp-to-srs) server.
-* `tcp://8936`, Stream Caster: [Push HTTP-FLV](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-http-flv-to-srs) server.
+* `udp://8935`, Stream Caster: [Push MPEGTS over UDP](https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-mpeg-ts-over-udp) server.
+* `tcp://554`, Stream Caster: [Push RTSP](https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-rtsp-to-srs) server.
+* `tcp://8936`, Stream Caster: [Push HTTP-FLV](https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-http-flv-to-srs) server.
 * `udp://10080`, Stream Caster: [Push SRT Media](https://github.com/ossrs/srs/issues/1147#issuecomment-577469119) server.
 
 For external services to work with SRS:
@@ -48,7 +46,7 @@ Other API used by [ossrs.net](https://ossrs.net):
 The statistic path for [ossrs.net](https://ossrs.net):
 
 * `/srs/xxx` The GitHub pages for [srs](https://github.com/ossrs/srs)
-* `/wiki/xxx` The GitHub wiki for [srs](https://github.com/ossrs/srs/wiki)
+* `/wiki/xxx` The GitHub wiki for [srs](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started)
 * `/release/xxx` The pages for [ossrs.net](https://ossrs.net)
 * `/console/xxx` The pages for [console](http://ossrs.net/console/)
 * `/player/xxx` The pages for [players and publishers](http://ossrs.net/players/)
@@ -88,7 +86,7 @@ git clone https://github.com/ossrs/srs.git
 | min | 0m36.472s | 11MB | git clone -b min --depth=1 https://gitee.com/ossrs/srs.git |
 
 [authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
-[bigthanks]: https://github.com/ossrs/srs/wiki/Product#release40
+[bigthanks]: https://ossrs.net/lts/zh-cn/product#release40
 [st]: https://github.com/ossrs/state-threads
 [st2]: https://github.com/ossrs/state-threads/tree/srs
 [state-threads]: https://github.com/ossrs/state-threads/tree/srs
@@ -104,115 +102,109 @@ git clone https://github.com/ossrs/srs.git
 [docker-srs4]: https://github.com/ossrs/srs-docker/tree/v4#usage
 [docker-dev]: https://github.com/ossrs/srs-docker/tree/dev#usage
 
-[v4_CN_Git]: https://github.com/ossrs/srs/wiki/v4_CN_Git
-[v4_EN_Git]: https://github.com/ossrs/srs/wiki/v4_EN_Git
-[v4_CN_SampleRTMP]: https://github.com/ossrs/srs/wiki/v4_CN_SampleRTMP
-[v4_EN_SampleRTMP]: https://github.com/ossrs/srs/wiki/v4_EN_SampleRTMP
-[v4_CN_SampleRTMPCluster]: https://github.com/ossrs/srs/wiki/v4_CN_SampleRTMPCluster
-[v4_EN_SampleRTMPCluster]: https://github.com/ossrs/srs/wiki/v4_EN_SampleRTMPCluster
-[v4_CN_SampleOriginCluster]: https://github.com/ossrs/srs/wiki/v4_CN_SampleOriginCluster
-[v4_EN_SampleOriginCluster]: https://github.com/ossrs/srs/wiki/v4_EN_SampleOriginCluster
-[v4_CN_SampleHLS]: https://github.com/ossrs/srs/wiki/v4_CN_SampleHLS
-[v4_EN_SampleHLS]: https://github.com/ossrs/srs/wiki/v4_EN_SampleHLS
-[v4_CN_SampleTranscode2HLS]: https://github.com/ossrs/srs/wiki/v4_CN_SampleTranscode2HLS
-[v4_EN_SampleTranscode2HLS]: https://github.com/ossrs/srs/wiki/v4_EN_SampleTranscode2HLS
-[v4_CN_SampleFFMPEG]: https://github.com/ossrs/srs/wiki/v4_CN_SampleFFMPEG
-[v4_EN_SampleFFMPEG]: https://github.com/ossrs/srs/wiki/v4_EN_SampleFFMPEG
-[v4_CN_SampleForward]: https://github.com/ossrs/srs/wiki/v4_CN_SampleForward
-[v4_EN_SampleForward]: https://github.com/ossrs/srs/wiki/v4_EN_SampleForward
-[v4_CN_SampleRealtime]: https://github.com/ossrs/srs/wiki/v4_CN_SampleRealtime
-[v4_EN_SampleRealtime]: https://github.com/ossrs/srs/wiki/v4_EN_SampleRealtime
-[v4_CN_WebRTC]: https://github.com/ossrs/srs/wiki/v4_CN_WebRTC
-[v4_EN_WebRTC]: https://github.com/ossrs/srs/wiki/v4_EN_WebRTC
-[v4_CN_WebRTC#config-candidate]: https://github.com/ossrs/srs/wiki/v4_CN_WebRTC#config-candidate
-[v4_EN_WebRTC#config-candidate]: https://github.com/ossrs/srs/wiki/v4_EN_WebRTC#config-candidate
-[v4_CN_SampleARM]: https://github.com/ossrs/srs/wiki/v4_CN_SampleARM
-[v4_EN_SampleARM]: https://github.com/ossrs/srs/wiki/v4_EN_SampleARM
-[v4_CN_SampleIngest]: https://github.com/ossrs/srs/wiki/v4_CN_SampleIngest
-[v4_EN_SampleIngest]: https://github.com/ossrs/srs/wiki/v4_EN_SampleIngest
-[v4_CN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v4_CN_SampleHTTP
-[v4_EN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v4_EN_SampleHTTP
-[v4_CN_SampleDemo]: https://github.com/ossrs/srs/wiki/v4_CN_SampleDemo
-[v4_EN_SampleDemo]: https://github.com/ossrs/srs/wiki/v4_EN_SampleDemo
-[v4_CN_OriginCluster]: https://github.com/ossrs/srs/wiki/v4_CN_OriginCluster
-[v4_EN_OriginCluster]: https://github.com/ossrs/srs/wiki/v4_EN_OriginCluster
-[v4_CN_REUSEPORT]: https://github.com/ossrs/srs/wiki/v4_CN_REUSEPORT
-[v4_EN_REUSEPORT]: https://github.com/ossrs/srs/wiki/v4_EN_REUSEPORT
-[v4_CN_Sample]: https://github.com/ossrs/srs/wiki/v4_CN_Sample
-[v4_EN_Sample]: https://github.com/ossrs/srs/wiki/v4_EN_Sample
-[v4_CN_Product]: https://github.com/ossrs/srs/wiki/v4_CN_Product
-[v4_EN_Product]: https://github.com/ossrs/srs/wiki/v4_EN_Product
-[v4_CN_Home]: https://github.com/ossrs/srs/wiki/v4_CN_Home
-[v4_EN_Home]: https://github.com/ossrs/srs/wiki/v4_EN_Home
+[v4_CN_Git]: https://ossrs.net/lts/zh-cn/docs/v4/doc/git
+[v4_EN_Git]: https://ossrs.io/lts/en-us/docs/v4/doc/git
+[v4_CN_SampleRTMP]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-rtmp
+[v4_EN_SampleRTMP]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-rtmp
+[v4_CN_SampleRTMPCluster]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-rtmp-cluster
+[v4_EN_SampleRTMPCluster]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-rtmp-cluster
+[v4_CN_SampleOriginCluster]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-origin-cluster
+[v4_EN_SampleOriginCluster]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-origin-cluster
+[v4_CN_SampleHLS]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-hls
+[v4_EN_SampleHLS]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-hls
+[v4_CN_SampleTranscode2HLS]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-transcode-to-hls
+[v4_EN_SampleTranscode2HLS]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-transcode-to-hls
+[v4_CN_SampleFFMPEG]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-ffmpeg
+[v4_EN_SampleFFMPEG]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-ffmpeg
+[v4_CN_SampleForward]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-forward
+[v4_EN_SampleForward]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-forward
+[v4_CN_SampleRealtime]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-realtime
+[v4_EN_SampleRealtime]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-realtime
+[v4_CN_WebRTC]: https://ossrs.net/lts/zh-cn/docs/v4/doc/webrtc
+[v4_EN_WebRTC]: https://ossrs.io/lts/en-us/docs/v4/doc/webrtc
+[v4_CN_WebRTC#config-candidate]: https://ossrs.net/lts/zh-cn/docs/v4/doc/webrtc#config-candidate
+[v4_EN_WebRTC#config-candidate]: https://ossrs.io/lts/en-us/docs/v4/doc/webrtc#config-candidate
+[v4_CN_SampleARM]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-arm
+[v4_EN_SampleARM]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-arm
+[v4_CN_SampleIngest]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-ingest
+[v4_EN_SampleIngest]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-ingest
+[v4_CN_SampleHTTP]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http
+[v4_EN_SampleHTTP]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-http
+[v4_CN_SampleDemo]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sampleDemo
+[v4_EN_SampleDemo]: https://ossrs.io/lts/en-us/docs/v4/doc/sampleDemo
+[v4_CN_OriginCluster]: https://ossrs.net/lts/zh-cn/docs/v4/doc/origin-cluster
+[v4_EN_OriginCluster]: https://ossrs.io/lts/en-us/docs/v4/doc/origin-cluster
+[v4_CN_REUSEPORT]: https://ossrs.net/lts/zh-cn/docs/v4/doc/reuse-port
+[v4_EN_REUSEPORT]: https://ossrs.io/lts/en-us/docs/v4/doc/reuse-port
+[v4_CN_Sample]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample
+[v4_EN_Sample]: https://ossrs.io/lts/en-us/docs/v4/doc/sample
 
-[v4_CN_Compare]: https://github.com/ossrs/srs/wiki/v4_CN_Compare
-[v4_EN_Compare]: https://github.com/ossrs/srs/wiki/v4_EN_Compare
-[v4_CN_Build]: https://github.com/ossrs/srs/wiki/v4_CN_Build
-[v4_EN_Build]: https://github.com/ossrs/srs/wiki/v4_EN_Build
-[v4_CN_Performance]: https://github.com/ossrs/srs/wiki/v4_CN_Performance
-[v4_EN_Performance]: https://github.com/ossrs/srs/wiki/v4_EN_Performance
-[v4_CN_DeliveryRTMP]: https://github.com/ossrs/srs/wiki/v4_CN_DeliveryRTMP
-[v4_EN_DeliveryRTMP]: https://github.com/ossrs/srs/wiki/v4_EN_DeliveryRTMP
-[v4_CN_Edge]: https://github.com/ossrs/srs/wiki/v4_CN_Edge
-[v4_EN_Edge]: https://github.com/ossrs/srs/wiki/v4_EN_Edge
-[v4_CN_RtmpUrlVhost]: https://github.com/ossrs/srs/wiki/v4_CN_RtmpUrlVhost
-[v4_EN_RtmpUrlVhost]: https://github.com/ossrs/srs/wiki/v4_EN_RtmpUrlVhost
-[v4_CN_RTMPHandshake]: https://github.com/ossrs/srs/wiki/v4_CN_RTMPHandshake
-[v4_EN_RTMPHandshake]: https://github.com/ossrs/srs/wiki/v4_EN_RTMPHandshake
-[v4_CN_HTTPServer]: https://github.com/ossrs/srs/wiki/v4_CN_HTTPServer
-[v4_EN_HTTPServer]: https://github.com/ossrs/srs/wiki/v4_EN_HTTPServer
-[v4_CN_DeliveryHLS]: https://github.com/ossrs/srs/wiki/v4_CN_DeliveryHLS
-[v4_EN_DeliveryHLS]: https://github.com/ossrs/srs/wiki/v4_EN_DeliveryHLS
-[v4_CN_DeliveryHLS2]: https://github.com/ossrs/srs/wiki/v4_CN_DeliveryHLS#hlsaudioonly
-[v4_EN_DeliveryHLS2]: https://github.com/ossrs/srs/wiki/v4_EN_DeliveryHLS#hlsaudioonly
-[v4_CN_Reload]: https://github.com/ossrs/srs/wiki/v4_CN_Reload
-[v4_EN_Reload]: https://github.com/ossrs/srs/wiki/v4_EN_Reload
-[v4_CN_LowLatency2]: https://github.com/ossrs/srs/wiki/v4_CN_LowLatency#gop-cache
-[v4_EN_LowLatency2]: https://github.com/ossrs/srs/wiki/v4_EN_LowLatency#gop-cache
-[v4_CN_Forward]: https://github.com/ossrs/srs/wiki/v4_CN_Forward
-[v4_EN_Forward]: https://github.com/ossrs/srs/wiki/v4_EN_Forward
-[v4_CN_FFMPEG]: https://github.com/ossrs/srs/wiki/v4_CN_FFMPEG
-[v4_EN_FFMPEG]: https://github.com/ossrs/srs/wiki/v4_EN_FFMPEG
-[v4_CN_HTTPCallback]: https://github.com/ossrs/srs/wiki/v4_CN_HTTPCallback
-[v4_EN_HTTPCallback]: https://github.com/ossrs/srs/wiki/v4_EN_HTTPCallback
-[v4_CN_SampleDemo]: https://github.com/ossrs/srs/wiki/v4_CN_SampleDemo
-[v4_EN_SampleDemo]: https://github.com/ossrs/srs/wiki/v4_EN_SampleDemo
-[v4_CN_SrsLinuxArm]: https://github.com/ossrs/srs/wiki/v4_CN_SrsLinuxArm
-[v4_EN_SrsLinuxArm]: https://github.com/ossrs/srs/wiki/v4_EN_SrsLinuxArm
-[v4_CN_LinuxService]: https://github.com/ossrs/srs/wiki/v4_CN_LinuxService
-[v4_EN_LinuxService]: https://github.com/ossrs/srs/wiki/v4_EN_LinuxService
-[v4_CN_RTMP-ATC]: https://github.com/ossrs/srs/wiki/v4_CN_RTMP-ATC
-[v4_EN_RTMP-ATC]: https://github.com/ossrs/srs/wiki/v4_EN_RTMP-ATC
-[v4_CN_HTTPApi]: https://github.com/ossrs/srs/wiki/v4_CN_HTTPApi
-[v4_EN_HTTPApi]: https://github.com/ossrs/srs/wiki/v4_EN_HTTPApi
-[v4_CN_Ingest]: https://github.com/ossrs/srs/wiki/v4_CN_Ingest
-[v4_EN_Ingest]: https://github.com/ossrs/srs/wiki/v4_EN_Ingest
-[v4_CN_DVR]: https://github.com/ossrs/srs/wiki/v4_CN_DVR
-[v4_EN_DVR]: https://github.com/ossrs/srs/wiki/v4_EN_DVR
-[v4_CN_SrsLog]: https://github.com/ossrs/srs/wiki/v4_CN_SrsLog
-[v4_EN_SrsLog]: https://github.com/ossrs/srs/wiki/v4_EN_SrsLog
-[v4_CN_DRM2]: https://github.com/ossrs/srs/wiki/v4_CN_DRM#tokentraverse
-[v4_EN_DRM2]: https://github.com/ossrs/srs/wiki/v4_EN_DRM#tokentraverse
-[v4_CN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v4_CN_SampleHTTP
-[v4_EN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v4_EN_SampleHTTP
-[v4_CN_FlvVodStream]: https://github.com/ossrs/srs/wiki/v4_CN_FlvVodStream
-[v4_EN_FlvVodStream]: https://github.com/ossrs/srs/wiki/v4_EN_FlvVodStream
-[v4_CN_Security]: https://github.com/ossrs/srs/wiki/v4_CN_Security
-[v4_EN_Security]: https://github.com/ossrs/srs/wiki/v4_EN_Security
-[v4_CN_DeliveryHttpStream]: https://github.com/ossrs/srs/wiki/v4_CN_DeliveryHttpStream
-[v4_EN_DeliveryHttpStream]: https://github.com/ossrs/srs/wiki/v4_EN_DeliveryHttpStream
-[v4_CN_DeliveryHDS]: https://github.com/ossrs/srs/wiki/v4_CN_DeliveryHDS
-[v4_EN_DeliveryHDS]: https://github.com/ossrs/srs/wiki/v4_EN_DeliveryHDS
-[v4_CN_Streamer]: https://github.com/ossrs/srs/wiki/v4_CN_Streamer
-[v4_EN_Streamer]: https://github.com/ossrs/srs/wiki/v4_EN_Streamer
-[v4_CN_Streamer2]: https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-http-flv-to-srs
-[v4_EN_Streamer2]: https://github.com/ossrs/srs/wiki/v4_EN_Streamer#push-http-flv-to-srs
-[v4_CN_SampleHttpFlv]: https://github.com/ossrs/srs/wiki/v4_CN_SampleHttpFlv
-[v4_EN_SampleHttpFlv]: https://github.com/ossrs/srs/wiki/v4_EN_SampleHttpFlv
-[v4_CN_SampleHttpFlvCluster]: https://github.com/ossrs/srs/wiki/v4_CN_SampleHttpFlvCluster
-[v4_EN_SampleHttpFlvCluster]: https://github.com/ossrs/srs/wiki/v4_EN_SampleHttpFlvCluster
-[v4_CN_SampleDASH]:https://github.com/ossrs/srs/wiki/v4_CN_SampleDASH
-[v4_EN_SampleDASH]:https://github.com/ossrs/srs/wiki/v4_EN_SampleDASH
+[v4_CN_Build]: https://ossrs.net/lts/zh-cn/docs/v4/doc/install
+[v4_EN_Build]: https://ossrs.io/lts/en-us/docs/v4/doc/install
+[v4_CN_Performance]: https://ossrs.net/lts/zh-cn/docs/v4/doc/performance
+[v4_EN_Performance]: https://ossrs.io/lts/en-us/docs/v4/doc/performance
+[v4_CN_DeliveryRTMP]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-rtmp
+[v4_EN_DeliveryRTMP]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-rtmp
+[v4_CN_Edge]: https://ossrs.net/lts/zh-cn/docs/v4/doc/edge
+[v4_EN_Edge]: https://ossrs.io/lts/en-us/docs/v4/doc/edge
+[v4_CN_RtmpUrlVhost]: https://ossrs.net/lts/zh-cn/docs/v4/doc/rtmp-url-vhost
+[v4_EN_RtmpUrlVhost]: https://ossrs.io/lts/en-us/docs/v4/doc/rtmp-url-vhost
+[v4_CN_RTMPHandshake]: https://ossrs.net/lts/zh-cn/docs/v4/doc/rtmp-handshake
+[v4_EN_RTMPHandshake]: https://ossrs.io/lts/en-us/docs/v4/doc/rtmp-handshake
+[v4_CN_HTTPServer]: https://ossrs.net/lts/zh-cn/docs/v4/doc/http-server
+[v4_EN_HTTPServer]: https://ossrs.io/lts/en-us/docs/v4/doc/http-server
+[v4_CN_DeliveryHLS]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hls
+[v4_EN_DeliveryHLS]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-hls
+[v4_CN_DeliveryHLS2]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hls#hlsaudioonly
+[v4_EN_DeliveryHLS2]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-hls#hlsaudioonly
+[v4_CN_Reload]: https://ossrs.net/lts/zh-cn/docs/v4/doc/reload
+[v4_EN_Reload]: https://ossrs.io/lts/en-us/docs/v4/doc/reload
+[v4_CN_LowLatency2]: https://ossrs.net/lts/zh-cn/docs/v4/doc/low-latency#gop-cache
+[v4_EN_LowLatency2]: https://ossrs.io/lts/en-us/docs/v4/doc/low-latency#gop-cache
+[v4_CN_Forward]: https://ossrs.net/lts/zh-cn/docs/v4/doc/forward
+[v4_EN_Forward]: https://ossrs.io/lts/en-us/docs/v4/doc/forward
+[v4_CN_FFMPEG]: https://ossrs.net/lts/zh-cn/docs/v4/doc/ffmpeg
+[v4_EN_FFMPEG]: https://ossrs.io/lts/en-us/docs/v4/doc/ffmpeg
+[v4_CN_HTTPCallback]: https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback
+[v4_EN_HTTPCallback]: https://ossrs.io/lts/en-us/docs/v4/doc/http-callback
+[v4_CN_SampleDemo]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sampleDemo
+[v4_EN_SampleDemo]: https://ossrs.io/lts/en-us/docs/v4/doc/sampleDemo
+[v4_CN_SrsLinuxArm]: https://ossrs.net/lts/zh-cn/docs/v4/doc/arm
+[v4_EN_SrsLinuxArm]: https://ossrs.io/lts/en-us/docs/v4/doc/arm
+[v4_CN_LinuxService]: https://ossrs.net/lts/zh-cn/docs/v4/doc/service
+[v4_EN_LinuxService]: https://ossrs.io/lts/en-us/docs/v4/doc/service
+[v4_CN_RTMP-ATC]: https://ossrs.net/lts/zh-cn/docs/v4/doc/rtmp-atc
+[v4_EN_RTMP-ATC]: https://ossrs.io/lts/en-us/docs/v4/doc/rtmp-atc
+[v4_CN_HTTPApi]: https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api
+[v4_EN_HTTPApi]: https://ossrs.io/lts/en-us/docs/v4/doc/http-api
+[v4_CN_Ingest]: https://ossrs.net/lts/zh-cn/docs/v4/doc/ingest
+[v4_EN_Ingest]: https://ossrs.io/lts/en-us/docs/v4/doc/ingest
+[v4_CN_DVR]: https://ossrs.net/lts/zh-cn/docs/v4/doc/dvr
+[v4_EN_DVR]: https://ossrs.io/lts/en-us/docs/v4/doc/dvr
+[v4_CN_SrsLog]: https://ossrs.net/lts/zh-cn/docs/v4/doc/log
+[v4_EN_SrsLog]: https://ossrs.io/lts/en-us/docs/v4/doc/log
+[v4_CN_DRM2]: https://ossrs.net/lts/zh-cn/docs/v4/doc/drm#tokentraverse
+[v4_EN_DRM2]: https://ossrs.io/lts/en-us/docs/v4/doc/drm#tokentraverse
+[v4_CN_SampleHTTP]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http
+[v4_EN_SampleHTTP]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-http
+[v4_CN_FlvVodStream]: https://ossrs.net/lts/zh-cn/docs/v4/doc/flv-vod-stream
+[v4_EN_FlvVodStream]: https://ossrs.io/lts/en-us/docs/v4/doc/flv-vod-stream
+[v4_CN_Security]: https://ossrs.net/lts/zh-cn/docs/v4/doc/security
+[v4_EN_Security]: https://ossrs.io/lts/en-us/docs/v4/doc/security
+[v4_CN_DeliveryHttpStream]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-http-flv
+[v4_EN_DeliveryHttpStream]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-http-flv
+[v4_CN_DeliveryHDS]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hds
+[v4_EN_DeliveryHDS]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-hds
+[v4_CN_Streamer]: https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer
+[v4_EN_Streamer]: https://ossrs.io/lts/en-us/docs/v4/doc/streamer
+[v4_CN_Streamer2]: https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-http-flv-to-srs
+[v4_EN_Streamer2]: https://ossrs.io/lts/en-us/docs/v4/doc/streamer#push-http-flv-to-srs
+[v4_CN_SampleHttpFlv]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flv
+[v4_EN_SampleHttpFlv]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flv
+[v4_CN_SampleHttpFlvCluster]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flvCluster
+[v4_EN_SampleHttpFlvCluster]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flvCluster
+[v4_CN_SampleDASH]:https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-dash
+[v4_EN_SampleDASH]:https://ossrs.io/lts/en-us/docs/v4/doc/sample-dash
 
 [bug #547]: https://github.com/ossrs/srs/issues/547
 [bug #301]: https://github.com/ossrs/srs/issues/301
@@ -313,13 +305,5 @@ git clone https://github.com/ossrs/srs.git
 [r0.2]: https://github.com/ossrs/srs/releases/tag/v0.2.0
 [r0.1]: https://github.com/ossrs/srs/releases/tag/v0.1.0
 
-
-[v4_CN_Contact]: https://github.com/ossrs/srs/wiki/v4_CN_Contact
-[v4_EN_Contact]: https://github.com/ossrs/srs/wiki/v4_EN_Contact
-
 [LICENSE]: https://github.com/ossrs/srs/blob/4.0release/LICENSE
-[LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
-
-[release2]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release20
-[release3]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release30
-[release4]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release40
+[LicenseMixing]: https://ossrs.net/lts/zh-cn/license

@@ -15,7 +15,7 @@
 // When reload callback, the config is updated yet.
 //
 // Features not support reload,
-// @see: https://github.com/ossrs/srs/wiki/v1_CN_Reload#notsupportedfeatures
+// @see: https://ossrs.net/lts/zh-cn/docs/v4/doc/reload#notsupportedfeatures
 class ISrsReloadHandler
 {
 public:

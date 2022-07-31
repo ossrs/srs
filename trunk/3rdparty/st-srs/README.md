@@ -3,7 +3,7 @@
 ![](http://ossrs.net:8000/gif/v1/sls.gif?site=github.com&path=/srs/srsst)
 [![](https://github.com/ossrs/state-threads/actions/workflows/test.yml/badge.svg?branch=srs)](https://github.com/ossrs/state-threads/actions?query=workflow%3ATest+branch%3Asrs)
 [![](https://codecov.io/gh/ossrs/state-threads/branch/srs/graph/badge.svg)](https://codecov.io/gh/ossrs/state-threads/branch/srs)
-[![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/Contact#wechat)
+[![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://ossrs.net/lts/zh-cn/contact)
 
 Fork from http://sourceforge.net/projects/state-threads, patched for [SRS](https://github.com/ossrs/srs/tree/2.0release).
 
@@ -13,7 +13,7 @@ For original ST without any changes, checkout the [ST master branch](https://git
 
 ## LICENSE
 
-[state-threads](https://github.com/ossrs/state-threads/blob/srs/README#L68) is licenced under [MPL or GPLv2](https://github.com/ossrs/srs/wiki/LicenseMixing#state-threads).
+[state-threads](https://github.com/ossrs/state-threads/blob/srs/README#L68) is licenced under [MPL or GPLv2](https://ossrs.net/lts/zh-cn/license#state-threads).
 
 ## Linux: Usage
 

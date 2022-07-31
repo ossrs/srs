@@ -2,8 +2,6 @@
 
 The changelog for SRS.
 
-> Note: Please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) )** first.
-
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
@@ -12,7 +10,7 @@ The changelog for SRS.
 * v5.0, 2022-06-28, ST: Support thread-local for multiple threads. v5.0.31
 * v5.0, 2022-06-17, Merge [#3010](https://github.com/ossrs/srs/pull/3010): SRT: Support Coroutine Native SRT over ST. (#3010). v5.0.30
 * v5.0, 2022-06-15, For [#3058](https://github.com/ossrs/srs/pull/3058): Docker: Support x86_64, armv7 and aarch64 docker image (#3058). v5.0.29
-* v5.0, 2022-04-04, Support NGINX HLS Cluster, see [CN](https://github.com/ossrs/srs/wiki/v4_CN_SampleHlsCluster) or [EN](https://github.com/ossrs/srs/wiki/v4_EN_SampleHlsCluster). v5.0.28
+* v5.0, 2022-04-04, Support NGINX HLS Cluster, see [CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-hls-cluster) or [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-hls-cluster). v5.0.28
 * v5.0, 2022-03-30, Support DigitalOcean [Droplet SRS 1-Click](https://cloud.digitalocean.com/droplets/new?appId=104916642&size=s-1vcpu-1gb&region=sgp1&image=ossrs-srs&type=applications). v5.0.27
 * v5.0, 2022-03-12, Merge [#2943](https://github.com/ossrs/srs/pull/2943): SRT: Fix typo in libsrt build options. v5.0.26
 * v5.0, 2022-03-09, Merge SRS 4.0 for bugfix. v5.0.25
@@ -66,7 +64,6 @@ The changelog for SRS.
 * v4.0, 2022-01-21, Support docker image for [lighthouse](https://hub.docker.com/r/ossrs/lighthouse). v4.0.231
 * v4.0, 2022-01-17, Enable rtmp2rtc and rtc2rtmp for docker.conf
 * v4.0, 2022-01-17, Support docker image for [droplet](https://hub.docker.com/r/ossrs/droplet). v4.0.230
-* v4.0, 2022-01-16, Update README for **Cloud Virtual Machine([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#cloud-virtual-machine) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#cloud-virtual-machine))**
 * v4.0, 2022-01-13, Merge [#2872](https://github.com/ossrs/srs/pull/2872): RTC: fix play rtc judge for config rtc2rtmp on. (#2872). v4.0.229
 * v4.0, 2022-01-13, Support configure with --config as default config file. v4.0.227
 * v4.0, 2022-01-13, For [#2880](https://github.com/ossrs/srs/pull/2880): Add SrsAutoFreeH to release ptr with hooks. (#2880). v4.0.226
@@ -146,7 +143,7 @@ The changelog for SRS.
 * v4.0, 2021-07-24, Merge [#2483](https://github.com/ossrs/srs/pull/2483), RTC: Support statistic for HTTP-API, HTTP-Callback and Security. 4.0.144
 * v4.0, 2021-07-21, Merge [#2474](https://github.com/ossrs/srs/pull/2474), SRT: Use thread-safe log for multiple-threading SRT module. 4.0.143
 * v4.0, 2021-07-17, Fix bugs and enhance code. 4.0.142
-* v4.0, 2021-07-16, Support [CLion and cmake](https://github.com/ossrs/srs/wiki/v4_CN_IDE#clion) to build and debug SRS. 4.0.141
+* v4.0, 2021-07-16, Support [CLion and cmake](https://ossrs.net/lts/zh-cn/docs/v4/doc/ide#clion) to build and debug SRS. 4.0.141
 * v4.0, 2021-07-08, For [#2403](https://github.com/ossrs/srs/issues/2403), fix padding packets for RTMP2RTC. 4.0.140
 * v4.0, 2021-07-04, For [#2424](https://github.com/ossrs/srs/issues/2424), use srandom/random to generate. 4.0.139
 * v4.0, 2021-07-01, Merge [#2452](https://github.com/ossrs/srs/pull/2452), fix FFmpeg bug by updating channel_layout. 4.0.138
@@ -368,9 +365,9 @@ The changelog for SRS.
 * v3.0, 2019-12-25, For [#1537](https://github.com/ossrs/srs/issues/1537), remove cross-build, not used patches, directly build st.
 * v3.0, 2019-12-24, For [#1508](https://github.com/ossrs/srs/issues/1508), support chunk length and content in multiple parts.
 * v3.0, 2019-12-23, Merge SRS2 for running srs-librtmp on Windows. 3.0.80
-* v3.0, 2019-12-23, For [#1535](https://github.com/ossrs/srs/issues/1535), deprecate Adobe FMS/AMS edge token traversing([CN](https://github.com/ossrs/srs/wiki/v4_CN_DRM#tokentraverse), [EN](https://github.com/ossrs/srs/wiki/v4_EN_DRM#tokentraverse)) authentication. 3.0.79
+* v3.0, 2019-12-23, For [#1535](https://github.com/ossrs/srs/issues/1535), deprecate Adobe FMS/AMS edge token traversing([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/drm#tokentraverse), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/drm#tokentraverse)) authentication. 3.0.79
 * v3.0, 2019-12-23, For [#1535](https://github.com/ossrs/srs/issues/1535), deprecate BWT(bandwidth testing). 3.0.78
-* v3.0, 2019-12-23, For [#1535](https://github.com/ossrs/srs/issues/1535), deprecate Adobe HDS(f4m)([CN](https://github.com/ossrs/srs/wiki/v4_CN_DeliveryHDS), [EN](https://github.com/ossrs/srs/wiki/v4_EN_DeliveryHDS)). 3.0.77
+* v3.0, 2019-12-23, For [#1535](https://github.com/ossrs/srs/issues/1535), deprecate Adobe HDS(f4m)([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hds), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/delivery-hds)). 3.0.77
 * v3.0, 2019-12-20, Fix [#1508](https://github.com/ossrs/srs/issues/1508), http-client support read chunked response. 3.0.76
 * v3.0, 2019-12-20, For [#1508](https://github.com/ossrs/srs/issues/1508), refactor srs_is_digital, support all zeros.
 * <strong>v3.0, 2019-12-19, [3.0 alpha5(3.0.75)](https://github.com/ossrs/srs/releases/tag/v3.0-a5) released. 115362 lines.</strong>
@@ -681,7 +678,7 @@ The changelog for SRS.
 * v2.0, 2014-12-22, hotfix [#264](https://github.com/ossrs/srs/issues/264), ignore NALU when sequence header to make HLS happy. 2.0.76
 * v2.0, 2014-12-20, hotfix [#264](https://github.com/ossrs/srs/issues/264), support disconnect publish connect when hls error. 2.0.75
 * v2.0, 2014-12-12, fix [#257](https://github.com/ossrs/srs/issues/257), support 0.1s+ latency. 2.0.70
-* v2.0, 2014-12-08, update wiki for mr([EN](https://github.com/ossrs/srs/wiki/v4_EN_LowLatency#merged-read), [CN](https://github.com/ossrs/srs/wiki/v4_CN_LowLatency#merged-read)) and mw([EN](https://github.com/ossrs/srs/wiki/v4_EN_LowLatency#merged-write), [CN](https://github.com/ossrs/srs/wiki/v4_CN_LowLatency#merged-write)).
+* v2.0, 2014-12-08, update wiki for mr([EN](https://ossrs.io/lts/en-us/docs/v4/doc/low-latency#merged-read), [CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/low-latency#merged-read)) and mw([EN](https://ossrs.io/lts/en-us/docs/v4/doc/low-latency#merged-write), [CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/low-latency#merged-write)).
 * v2.0, 2014-12-07, fix [#251](https://github.com/ossrs/srs/issues/251), 10k+ clients, use queue cond wait and fast vector. 2.0.67
 * v2.0, 2014-12-05, fix [#251](https://github.com/ossrs/srs/issues/251), 9k+ clients, use fast cache for msgs queue. 2.0.57
 * v2.0, 2014-12-04, fix [#241](https://github.com/ossrs/srs/issues/241), add mw(merged-write) config. 2.0.53
@@ -767,8 +764,8 @@ The changelog for SRS.
 * v1.0, 2014-06-27, SRS online 30days with RTMP/HLS.
 * v1.0, 2014-06-25, fix [#108](https://github.com/ossrs/srs/issues/108), support config time jitter for encoder non-monotonical stream. 0.9.133
 * v1.0, 2014-06-23, support report summaries in heartbeat. 0.9.132
-* v1.0, 2014-06-22, performance refine, support [3k+](https://github.com/ossrs/srs/wiki/v4_CN_Performance#performancereport4k) connections(270kbps). 0.9.130
-* v1.0, 2014-06-21, support edge [token traverse](https://github.com/ossrs/srs/wiki/v4_CN_DRM#tokentraverse), fix [#104](https://github.com/ossrs/srs/issues/104). 0.9.129
+* v1.0, 2014-06-22, performance refine, support [3k+](https://ossrs.net/lts/zh-cn/docs/v4/doc/performance#performancereport4k) connections(270kbps). 0.9.130
+* v1.0, 2014-06-21, support edge [token traverse](https://ossrs.net/lts/zh-cn/docs/v4/doc/drm#tokentraverse), fix [#104](https://github.com/ossrs/srs/issues/104). 0.9.129
 * v1.0, 2014-06-19, add connections count to api summaries. 0.9.127
 * v1.0, 2014-06-19, add srs bytes and kbps to api summaries. 0.9.126
 * v1.0, 2014-06-18, add network bytes to api summaries. 0.9.125
@@ -810,11 +807,11 @@ The changelog for SRS.
 * v1.0, 2014-04-11, add speex1.2 to transcode flash encoder stream. 0.9.58
 * v1.0, 2014-04-10, support reload ingesters(add/remov/update). 0.9.57
 * <strong>v1.0, 2014-04-07, [1.0 mainline(0.9.55)](https://github.com/ossrs/srs/releases/tag/v0.9.1) released. 30000 lines.</strong>
-* v1.0, 2014-04-07, support [ingest](https://github.com/ossrs/srs/wiki/v4_CN_SampleIngest) file/stream/device.
-* v1.0, 2014-04-05, support [http api](https://github.com/ossrs/srs/wiki/v4_CN_HTTPApi) and [http server](https://github.com/ossrs/srs/wiki/v4_CN_HTTPServer).
+* v1.0, 2014-04-07, support [ingest](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-ingest) file/stream/device.
+* v1.0, 2014-04-05, support [http api](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api) and [http server](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-server).
 * v1.0, 2014-04-03, implements http framework and api/v1/version.
 * v1.0, 2014-03-30, fix bug for st detecting epoll failed, force st to use epoll.
-* v1.0, 2014-03-29, add wiki [Performance for RaspberryPi](https://github.com/ossrs/srs/wiki/v4_CN_RaspberryPi).
+* v1.0, 2014-03-29, add wiki [Performance for RaspberryPi](https://ossrs.net/lts/zh-cn/docs/v4/doc/raspberrypi).
 * v1.0, 2014-03-29, add release binary package for raspberry-pi.
 * v1.0, 2014-03-26, support RTMP ATC for HLS/HDS to support backup(failover).
 * v1.0, 2014-03-23, support daemon, default start in daemon.
@@ -825,19 +822,18 @@ The changelog for SRS.
 * v1.0, 2014-03-19, add vn/an for FFMPEG to drop video/audio for radio stream.
 * v1.0, 2014-03-19, refine handshake, client support complex handshake, add utest.
 * v1.0, 2014-03-16, fix bug on arm of st, the sp change from 20 to 8, for respberry-pi, @see [commit](https://github.com/ossrs/srs/commit/5a4373d4835758188b9a1f03005cea0b6ddc62aa)
-* v1.0, 2014-03-16, support ARM([debian armhf, v7cpu](https://github.com/ossrs/srs/wiki/v4_CN_SrsLinuxArm)) with rtmp/ssl/hls/librtmp.
+* v1.0, 2014-03-16, support ARM([debian armhf, v7cpu](https://ossrs.net/lts/zh-cn/docs/v4/doc/arm)) with rtmp/ssl/hls/librtmp.
 * v1.0, 2014-03-12, finish utest for amf0 codec.
 * v1.0, 2014-03-06, add gperftools for mem leak detect, mem/cpu profile.
 * v1.0, 2014-03-04, add gest framework for utest, build success.
 * v1.0, 2014-03-02, srs-librtmp, client publish/play library like librtmp.
 * v1.0, 2014-03-01, modularity, extract core/kernel/rtmp/app/main module.
 * v1.0, 2014-02-28, support arm build(SRS/ST), add ssl to 3rdparty package.
-* v1.0, 2014-02-28, add wiki [BuildArm](https://github.com/ossrs/srs/wiki/v4_CN_Build), [FFMPEG](https://github.com/ossrs/srs/wiki/v4_CN_FFMPEG), [Reload](https://github.com/ossrs/srs/wiki/v4_CN_Reload)
-* v1.0, 2014-02-27, add wiki [LowLatency](https://github.com/ossrs/srs/wiki/v4_CN_LowLatency), [HTTPCallback](https://github.com/ossrs/srs/wiki/v4_CN_HTTPCallback)
-* v1.0, 2014-01-19, add wiki [DeliveryHLS](https://github.com/ossrs/srs/wiki/v4_CN_DeliveryHLS)
-* v1.0, 2014-01-12, add wiki [HowToAskQuestion](https://github.com/ossrs/srs/wiki/v4_CN_HowToAskQuestion), [RtmpUrlVhost](https://github.com/ossrs/srs/wiki/v4_CN_RtmpUrlVhost)
+* v1.0, 2014-02-28, add wiki [BuildArm](https://ossrs.net/lts/zh-cn/docs/v4/doc/install), [FFMPEG](https://ossrs.net/lts/zh-cn/docs/v4/doc/ffmpeg), [Reload](https://ossrs.net/lts/zh-cn/docs/v4/doc/reload)
+* v1.0, 2014-02-27, add wiki [LowLatency](https://ossrs.net/lts/zh-cn/docs/v4/doc/low-latency), [HTTPCallback](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback)
+* v1.0, 2014-01-19, add wiki [DeliveryHLS](https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hls)
 * v1.0, 2014-01-11, fix jw/flower player pause bug, which send closeStream actually.
-* v1.0, 2014-01-05, add wiki [Build](https://github.com/ossrs/srs/wiki/v4_CN_Build), [Performance](https://github.com/ossrs/srs/wiki/v4_CN_Performance), [Forward](https://github.com/ossrs/srs/wiki/v4_CN_Forward)
+* v1.0, 2014-01-05, add wiki [Build](https://ossrs.net/lts/zh-cn/docs/v4/doc/install), [Performance](https://ossrs.net/lts/zh-cn/docs/v4/doc/performance), [Forward](https://ossrs.net/lts/zh-cn/docs/v4/doc/forward)
 * v1.0, 2014-01-01, change listen(512), chunk-size(60000), to improve performance.
 * v1.0, 2013-12-27, merge from wenjie, the bandwidth test feature.
 * <strong>v0.9, 2013-12-25, [v0.9](https://github.com/ossrs/srs/releases/tag/v0.9.0) released. 20926 lines.</strong>
@@ -855,7 +851,7 @@ The changelog for SRS.
 * v0.9, 2013-12-14, refine the thread model for the retry threads.
 * v0.9, 2013-12-10, auto install depends tools/libs on centos/ubuntu.
 * <strong>v0.8, 2013-12-08, [v0.8](https://github.com/ossrs/srs/releases/tag/v0.8.0) released. 19186 lines.</strong>
-* v0.8, 2013-12-08, support [http hooks](https://github.com/ossrs/srs/wiki/v4_CN_HTTPCallback): on_connect/close/publish/unpublish/play/stop.
+* v0.8, 2013-12-08, support [http hooks](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback): on_connect/close/publish/unpublish/play/stop.
 * v0.8, 2013-12-08, support multiple http hooks for a event.
 * v0.8, 2013-12-07, support http callback hooks, on_connect.
 * v0.8, 2013-12-07, support network based cli and json result, add CherryPy 3.2.4.
