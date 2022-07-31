@@ -408,7 +408,7 @@ Winlin 2021
 [v4_EN_Contact]: https://github.com/ossrs/srs/wiki/v4_EN_Contact
 
 [LICENSE]: https://github.com/ossrs/srs/blob/4.0release/LICENSE
-[LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
+[LicenseMixing]: https://ossrs.net/lts/zh-cn/license
 
 [release2]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release30

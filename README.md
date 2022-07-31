@@ -435,5 +435,5 @@ Winlin
 [v4_EN_Contact]: https://github.com/ossrs/srs/wiki/v4_EN_Contact
 
 [LICENSE]: https://github.com/ossrs/srs/blob/4.0release/LICENSE
-[LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
+[LicenseMixing]: https://ossrs.net/lts/zh-cn/license
 

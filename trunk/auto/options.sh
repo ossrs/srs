@@ -40,13 +40,13 @@ SRS_DEFAULT_CONFIG=conf/srs.conf
 SRS_JOBS=1
 SRS_STATIC=NO
 # If enabled, link shared libraries for libst.so which uses MPL license.
-# See https://github.com/ossrs/srs/wiki/LicenseMixing#state-threads
+# See https://ossrs.net/lts/zh-cn/license#state-threads
 SRS_SHARED_ST=NO
 # If enabled, link shared libraries for libsrt.so which uses MPL license.
-# See https://github.com/ossrs/srs/wiki/LicenseMixing#srt
+# See https://ossrs.net/lts/zh-cn/license#srt
 SRS_SHARED_SRT=NO
 # If enabled, link shared libraries for FFmpeg which is LGPL license.
-# See https://github.com/ossrs/srs/wiki/LicenseMixing#ffmpeg
+# See https://ossrs.net/lts/zh-cn/license#ffmpeg
 SRS_SHARED_FFMPEG=NO
 # whether enable the gcov
 SRS_GCOV=NO
