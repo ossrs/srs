@@ -456,6 +456,33 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     }
     
     srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
+
+    // guess stream name
+    if (req->stream.empty()) {
+        srs_trace("client no stream, guess stream from app=%s and param=%s", req->app.c_str(), req->param.c_str());
+
+        size_t pos = std::string::npos;
+        std::string app = req->app;
+        std::string param = req->param;
+
+        // app
+        if ((pos = app.find("/")) != std::string::npos) {
+            req->app = app.substr(0, pos);
+            req->stream = app.substr(pos + 1);
+            if ((pos = req->stream.find("?")) != std::string::npos) {
+                req->stream = req->stream.substr(0, pos);
+            }
+        } else {
+            // param
+            if ((pos = param.find("/")) != std::string::npos) {
+                req->stream = param.substr(pos + 1);
+                if ((pos = req->stream.find("?")) != std::string::npos) {
+                    req->stream = req->stream.substr(0, pos);
+                }
+            }
+        }
+    }
+
     req->strip();
     srs_trace("client identified, type=%s, vhost=%s, app=%s, stream=%s, param=%s, duration=%dms",
         srs_client_type_string(info->type).c_str(), req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), req->param.c_str(), srsu2msi(req->duration));
