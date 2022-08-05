@@ -149,18 +149,20 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
   --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
 
-Toolchain options:          @see https://ossrs.net/lts/zh-cn/docs/v4/doc/arm#ubuntu-cross-build-srs
+Toolchain options:
   --static=on|off           Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
-  --cpu=<CPU>               Toolchain: Select the minimum required CPU for cross-build.
-  --arch=<ARCH>             Toolchain: Select architecture for cross-build.
-  --host=<BUILD>            Toolchain: Cross-compile to build programs to run on HOST.
-  --cross-prefix=<PREFIX>   Toolchain: Use PREFIX for compilation tools.
   --cc=<CC>                 Toolchain: Use c compiler CC. Default: $SRS_TOOL_CC
   --cxx=<CXX>               Toolchain: Use c++ compiler CXX. Default: $SRS_TOOL_CXX
   --ar=<AR>                 Toolchain: Use archive tool AR. Default: $SRS_TOOL_CXX
   --ld=<LD>                 Toolchain: Use linker tool LD. Default: $SRS_TOOL_CXX
   --randlib=<RANDLIB>       Toolchain: Use randlib tool RANDLIB. Default: $SRS_TOOL_CXX
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
+
+Cross Build options:        @see https://ossrs.net/lts/zh-cn/docs/v4/doc/arm#ubuntu-cross-build-srs
+  --cpu=<CPU>               Toolchain: Select the minimum required CPU for cross-build.
+  --arch=<ARCH>             Toolchain: Select architecture for cross-build.
+  --host=<BUILD>            Toolchain: Cross-compile to build programs to run on HOST.
+  --cross-prefix=<PREFIX>   Toolchain: Use PREFIX for compilation tools.
 
 Experts:
   --sys-ssl=on|off          Do not compile ssl, use system ssl(-lssl) if required. Default: $(value2switch $SRS_USE_SYS_SSL)
