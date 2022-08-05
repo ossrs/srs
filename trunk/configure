@@ -465,7 +465,6 @@ END
 # the real entry for all platform:
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 _default: server srs_ingest_hls utest $__mdefaults
-	@bash objs/_srs_build_summary.sh
 
 help:
 	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<utest>|<install>|<uninstall>"
@@ -545,6 +544,7 @@ cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 server: _prepare_dir
 	@echo "Build the SRS server"
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} srs
+	@bash objs/_srs_build_summary.sh
 
 END
 # generate all modules entry
