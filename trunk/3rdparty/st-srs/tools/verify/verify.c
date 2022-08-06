@@ -48,7 +48,7 @@ void verify_jmpbuf()
     unsigned char* p = (unsigned char*)ctx[0].__jb;
     print_buf(p, nn_jb);
 }
-#elif __loongarch__
+#elif __loongarch64
 void verify_jmpbuf()
 {
     // https://github.com/ossrs/state-threads/issues/24#porting

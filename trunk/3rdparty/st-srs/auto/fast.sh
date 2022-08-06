@@ -22,19 +22,12 @@ ret=$?; if [[ 0 -ne $ret ]]; then echo "Make ST utest fail, ret=$ret"; exit $ret
 
 echo "Generating coverage"
 mkdir -p coverage &&
-gcovr -r . -e LINUX -e DARWIN -e examples --html --html-details -o coverage/st.html &&
+(cd obj && rm -f gtest-all.gcda gtest-all.gcno) &&
+(cd obj && rm -f *.c *.cpp gtest-fit && ln -sf ../*.c . && ln -sf ../utest/*.cpp && ln -sf ../utest/gtest-fit .) &&
+(cd obj && gcovr --gcov-exclude gtest --html --html-details -o ../coverage/st.html) &&
+(cd obj && rm -f *.c *.cpp gtest-fit) &&
 echo "Coverage report at coverage/st.html" &&
 open coverage/st.html
 
 popd
 echo "UTest done, restore $(pwd)"
-
-cat << END > /dev/stdout
-
-  # CLI For DARWIN
-  cd $PWD && rm -f ./obj/*.gcda &&
-  make darwin-debug-gcov && ./obj/st_utest &&
-  mkdir -p coverage && gcovr -r . -e LINUX -e DARWIN -e examples --html --html-details -o coverage/st.html &&
-  open coverage/st.html
-
-END

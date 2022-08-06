@@ -433,9 +433,87 @@
 
 
 
+#elif defined(__mips64)
+
+    /****************************************************************/
+    /* For MIPS64, see https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MIPS_Architecture_MIPS64_InstructionSet_%20AFP_P_MD00087_06.05.pdf */
+
+    /*
+     * Internal __jmp_buf layout
+     */
+    #define JB_SP  0    /* Stack pointer */
+    #define JB_RA  11   /* Return address */
+    #define JB_GP  1    /* Global pointer */
+    #define JB_S0  3    /* S0-S7, Saved temporaries */
+    #define JB_S1  4    /* S0-S7, Saved temporaries */
+    #define JB_S2  5    /* S0-S7, Saved temporaries */
+    #define JB_S3  6    /* S0-S7, Saved temporaries */
+    #define JB_S4  7    /* S0-S7, Saved temporaries */
+    #define JB_S5  8    /* S0-S7, Saved temporaries */
+    #define JB_S6  9    /* S0-S7, Saved temporaries */
+    #define JB_S7  10   /* S0-S7, Saved temporaries */
+    #define JB_FP  2    /* FP/S8 Frame pointer */
+
+    	.file "md_linux.S"
+    	.text
+
+    	/* _st_md_cxt_save(__jmp_buf env) */ /* The env is $a0, https://en.wikipedia.org/wiki/MIPS_architecture#Calling_conventions */
+    	.globl _st_md_cxt_save
+    	.type _st_md_cxt_save, %function
+    	.align 2
+    _st_md_cxt_save:
+        sd $sp,  0($a0) /* Save sp to env[0],  *(long*)($a0+ 0) =sp */
+        sd $ra,  8($a0) /* Save ra to env[1],  *(long*)($a0+ 8)=ra, the return address, https://chortle.ccsu.edu/AssemblyTutorial/Chapter-26/ass26_4.html */
+        sd $gp, 16($a0) /* Save gp to env[2],  *(long*)($a0+16) =gp */
+        sd $s0, 24($a0) /* Save s0 to env[3],  *(long*)($a0+24)=s0 */
+        sd $s1, 32($a0) /* Save s1 to env[4],  *(long*)($a0+32)=s1 */
+        sd $s2, 40($a0) /* Save s2 to env[5],  *(long*)($a0+40)=s2 */
+        sd $s3, 48($a0) /* Save s3 to env[6],  *(long*)($a0+48)=s3 */
+        sd $s4, 56($a0) /* Save s4 to env[7],  *(long*)($a0+56)=s4 */
+        sd $s5, 64($a0) /* Save s5 to env[8],  *(long*)($a0+64)=s5 */
+        sd $s6, 72($a0) /* Save s6 to env[9],  *(long*)($a0+72)=s6 */
+        sd $s7, 80($a0) /* Save s7 to env[10], *(long*)($a0+80)=s7 */
+        sd $fp, 88($a0) /* Save fp to env[11], *(long*)($a0+88) =fp */
+        li $v0, 0       /* Set return value to 0 */
+        jr $ra          /* Return */
+
+    	.size _st_md_cxt_save, .-_st_md_cxt_save
+
+    /****************************************************************/
+
+    	/* _st_md_cxt_restore(__jmp_buf env, int val) */
+    	.globl _st_md_cxt_restore
+    	.type _st_md_cxt_restore, %function
+    	.align 2
+    _st_md_cxt_restore:
+        ld $sp,  0($a0) /* Load sp from env[0],  sp=*(long*)($a0+ 0)  */
+        ld $ra,  8($a0) /* Load sp from env[1],  ra=*(long*)($a0+ 8), the saved return address */
+        ld $gp, 16($a0) /* Load sp from env[2],  gp=*(long*)($a0+16)  */
+        ld $s0, 24($a0) /* Load sp from env[3],  s0=*(long*)($a0+24) */
+        ld $s1, 32($a0) /* Load sp from env[4],  s1=*(long*)($a0+32) */
+        ld $s2, 40($a0) /* Load sp from env[5],  s2=*(long*)($a0+40) */
+        ld $s3, 48($a0) /* Load sp from env[6],  s3=*(long*)($a0+48) */
+        ld $s4, 56($a0) /* Load sp from env[7],  s4=*(long*)($a0+56) */
+        ld $s5, 64($a0) /* Load sp from env[8],  s5=*(long*)($a0+64) */
+        ld $s6, 72($a0) /* Load sp from env[9],  s6=*(long*)($a0+72) */
+        ld $s7, 80($a0) /* Load sp from env[10], s7=*(long*)($a0+80) */
+        ld $fp, 88($a0) /* Load sp from env[2],  fp=*(long*)($a0+88)  */
+        li $v0, 1       /* Set return value to 1 */
+        jr $ra          /* Return to the saved return address */
+
+    	.size _st_md_cxt_restore, .-_st_md_cxt_restore
+
+    /****************************************************************/
+
+
+
+
+
+
 #elif defined(__mips__)
 
     /****************************************************************/
+    /* For MIPS32, see https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00565-2B-MIPS32-QRC-01.01.pdf */
 
     /*
      * Internal __jmp_buf layout
@@ -513,7 +591,7 @@
 
 
 
-#elif defined(__loongarch__)
+#elif defined(__loongarch64)
 
     /****************************************************************/
 

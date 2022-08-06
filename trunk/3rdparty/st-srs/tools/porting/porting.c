@@ -25,11 +25,23 @@ int main(int argc, char** argv)
     // https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00565-2B-MIPS32-QRC-01.01.pdf
     printf("__mips__: %d, __mips: %d, _MIPSEL: %d\n", __mips__, __mips, _MIPSEL);
 #endif
+#ifdef __mips64
+    printf("__mips64: %d\n", __mips64);
+#endif
 #ifdef __x86_64__
     printf("__x86_64__: %d\n", __x86_64__);
 #endif
-#ifdef __loongarch__
-    printf("__loongarch__: %d, __loongarch64 :%d\n", __loongarch__, __loongarch64);
+#ifdef __loongarch64
+    printf("__loongarch__: %d __loongarch64: %d\n", __loongarch__, __loongarch64);
+#endif
+#ifdef __riscv
+    printf("__riscv: %d\n", __riscv);
+#endif
+#ifdef __arm__
+    printf("__arm__: %d\n", __arm__);
+#endif
+#ifdef __aarch64__
+    printf("__aarch64__: %d\n", __aarch64__);
 #endif
 
     printf("\nCompiler specs:\n");
@@ -71,7 +83,52 @@ int foo_return_one_arg1(int r0)
 }
 
 #ifdef __linux__
-#ifdef __mips__
+
+#if defined(__riscv) || defined(__arm__) || defined(__aarch64__)
+void print_jmpbuf() {
+}
+#elif __mips64
+void print_jmpbuf()
+{
+    // https://en.wikipedia.org/wiki/MIPS_architecture#Calling_conventions
+    register void* ra asm("ra");
+    register void* gp asm("gp");
+    register void* sp asm("sp");
+    register void* fp asm("fp");
+    // $s0–$s7	$16–$23	saved temporaries
+    register void* s0 asm("s0");
+    register void* s1 asm("s1");
+    register void* s2 asm("s2");
+    register void* s3 asm("s3");
+    register void* s4 asm("s4");
+    register void* s5 asm("s5");
+    register void* s6 asm("s6");
+    register void* s7 asm("s7");
+
+    /*
+    typedef unsigned long long __jmp_buf[13];
+    typedef struct __jmp_buf_tag {
+         __jmp_buf __jmpbuf;
+        int __mask_was_saved;
+        __sigset_t __saved_mask;
+    } jmp_buf[1];
+    */
+    jmp_buf ctx = {0};
+    int r0 = setjmp(ctx);
+    if (!r0) {
+        longjmp(ctx, 1);
+    }
+
+    printf("ra=%p, sp=%p, s0=%p, s1=%p, s2=%p, s3=%p, s4=%p, s5=%p, s6=%p, s7=%p, fp=%p, gp=%p\n",
+        ra, sp, s0, s1, s2, s3, s4, s5, s6, s7, fp, gp);
+
+    int nn_jb = sizeof(ctx[0].__jmpbuf);
+    printf("sizeof(jmp_buf)=%d (unsigned long long [%d])\n", nn_jb, nn_jb/8);
+
+    unsigned char* p = (unsigned char*)ctx[0].__jmpbuf;
+    print_buf(p, nn_jb);
+}
+#elif __mips__
 void print_jmpbuf()
 {
     // https://en.wikipedia.org/wiki/MIPS_architecture#Calling_conventions
@@ -112,7 +169,7 @@ void print_jmpbuf()
     unsigned char* p = (unsigned char*)ctx[0].__jb;
     print_buf(p, nn_jb);
 }
-#elif __loongarch__
+#elif __loongarch64
 void print_jmpbuf()
 {
     // https://github.com/ossrs/state-threads/issues/24#porting
@@ -192,7 +249,8 @@ void print_buf(unsigned char* p, int nn_jb)
 {
     printf("    ");
 
-    for (int i = 0; i < nn_jb; i++) {
+    int i;
+    for (i = 0; i < nn_jb; i++) {
         printf("0x%02x ", (unsigned char)p[i]);
 
         int newline = ((i + 1) % sizeof(void*));

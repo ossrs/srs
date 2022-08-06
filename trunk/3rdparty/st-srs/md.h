@@ -182,6 +182,10 @@
                 #error "ARM/Linux pre-glibc2 not supported yet"
             #endif /* defined(__GLIBC__) && __GLIBC__ >= 2 */
 
+        #elif defined(__mips64)
+            /* https://github.com/ossrs/state-threads/issues/21 */
+            #define MD_USE_BUILTIN_SETJMP
+            #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
         #elif defined(__mips__)
             /* https://github.com/ossrs/state-threads/issues/21 */
             #define MD_USE_BUILTIN_SETJMP
@@ -191,7 +195,7 @@
             #define MD_USE_BUILTIN_SETJMP
             #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
 
-        #elif defined(__loongarch__)
+        #elif defined(__loongarch64)
             /* https://github.com/ossrs/state-threads/issues/24 */
             #define MD_USE_BUILTIN_SETJMP
             #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
