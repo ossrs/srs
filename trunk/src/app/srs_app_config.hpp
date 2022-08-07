@@ -460,6 +460,20 @@ public:
     virtual int get_critical_pulse();
     virtual int get_dying_threshold();
     virtual int get_dying_pulse();
+// TencentCloud service section.
+public:
+    virtual bool get_tencentcloud_cls_enabled();
+    virtual bool get_tencentcloud_cls_stat_heartbeat();
+    virtual bool get_tencentcloud_cls_stat_streams();
+    virtual bool get_tencentcloud_cls_debug_logging();
+    virtual int get_tencentcloud_cls_heartbeat_ratio();
+    virtual int get_tencentcloud_cls_streams_ratio();
+    virtual std::string get_tencentcloud_cls_label();
+    virtual std::string get_tencentcloud_cls_tag();
+    virtual std::string get_tencentcloud_cls_secret_id();
+    virtual std::string get_tencentcloud_cls_secret_key();
+    virtual std::string get_tencentcloud_cls_endpoint();
+    virtual std::string get_tencentcloud_cls_topic_id();
 // stream_caster section
 public:
     // Get all stream_caster in config file.

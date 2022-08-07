@@ -91,6 +91,11 @@ int SrsPps::r10s()
     return sample_10s_.rate;
 }
 
+int SrsPps::r30s()
+{
+    return sample_30s_.rate;
+}
+
 SrsWallClock::SrsWallClock()
 {
 }

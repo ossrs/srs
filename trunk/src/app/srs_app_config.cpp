@@ -59,6 +59,10 @@ const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 #define SRS_CR (char)SRS_CONSTS_CR
 
 // Overwrite the config by env.
+#define SRS_OVERWRITE_BY_ENV_STRING(key) if (getenv(key)) return getenv(key)
+#define SRS_OVERWRITE_BY_ENV_BOOL(key) if (getenv(key)) return SRS_CONF_PERFER_FALSE(string(getenv(key)))
+#define SRS_OVERWRITE_BY_ENV_BOOL2(key) if (getenv(key)) return SRS_CONF_PERFER_TRUE(string(getenv(key)))
+#define SRS_OVERWRITE_BY_ENV_INT(key) if (getenv(key)) return ::atoi(getenv(key))
 #define SRS_OVERWRITE_BY_ENV_SECONDS(key) if (getenv(key)) return ::atoi(getenv(key)) * SRS_UTIME_SECONDS
 
 /**
@@ -2393,7 +2397,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate"
             && n != "query_latest_version" && n != "first_wait_for_qlv" && n != "threads"
-            && n != "circuit_breaker" && n != "is_full" && n != "in_docker"
+            && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "tencentcloud_cls"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -3369,6 +3373,234 @@ int SrsConfig::get_dying_pulse()
     }
 
     return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_tencentcloud_cls_enabled()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_TENCENTCLOUD_CLS_ENABLED");
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_tencentcloud_cls_stat_heartbeat()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_TENCENTCLOUD_CLS_STAT_HEARTBEAT");
+
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("stat_heartbeat");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_tencentcloud_cls_stat_streams()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_TENCENTCLOUD_CLS_STAT_STREAMS");
+
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("stat_streams");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_tencentcloud_cls_debug_logging()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_TENCENTCLOUD_CLS_DEBUG_LOGGING");
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("debug_logging");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+int SrsConfig::get_tencentcloud_cls_heartbeat_ratio()
+{
+    SRS_OVERWRITE_BY_ENV_INT("SRS_TENCENTCLOUD_CLS_HEARTBEAT_RATIO");
+
+    static int DEFAULT = 1;
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("heartbeat_ratio");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_tencentcloud_cls_streams_ratio()
+{
+    SRS_OVERWRITE_BY_ENV_INT("SRS_TENCENTCLOUD_CLS_STREAMS_RATIO");
+
+    static int DEFAULT = 1;
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("streams_ratio");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+string SrsConfig::get_tencentcloud_cls_label()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_LABEL");
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("label");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_tencentcloud_cls_tag()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_TAG");
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("tag");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_tencentcloud_cls_secret_id()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_SECRET_ID");
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("secret_id");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_tencentcloud_cls_secret_key()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_SECRET_KEY");
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("secret_key");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_tencentcloud_cls_endpoint()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_ENDPOINT");
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("endpoint");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_tencentcloud_cls_topic_id()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_TOPIC_ID");
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("tencentcloud_cls");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("topic_id");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
 }
 
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()

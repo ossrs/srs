@@ -99,6 +99,9 @@
 #define ERROR_SOCKET_ACCEPT                 1081
 #define ERROR_THREAD_CREATE                 1082
 #define ERROR_THREAD_FINISHED               1083
+#define ERROR_PB_NO_SPACE                   1084
+#define ERROR_CLS_INVALID_CONFIG            1085
+#define ERROR_CLS_EXCEED_SIZE               1086
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.

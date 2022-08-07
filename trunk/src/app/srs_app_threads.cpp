@@ -16,6 +16,7 @@
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_async_call.hpp>
+#include <srs_app_tencentcloud.hpp>
 
 #ifdef SRS_RTC
 #include <srs_app_rtc_dtls.hpp>
@@ -437,6 +438,9 @@ srs_error_t srs_global_initialize()
 
     // Create global async worker for DVR.
     _srs_dvr_async = new SrsAsyncCallWorker();
+
+    // Initialize global TencentCloud CLS object.
+    _srs_cls = new SrsClsClient();
 
     return err;
 }

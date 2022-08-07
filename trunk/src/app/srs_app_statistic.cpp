@@ -18,6 +18,8 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_app_tencentcloud.hpp>
+#include <srs_kernel_kbps.hpp>
 
 string srs_generate_stat_vid()
 {
@@ -99,13 +101,14 @@ SrsStatisticStream::SrsStatisticStream()
     kbps->set_io(NULL, NULL);
     
     nb_clients = 0;
-    nb_frames = 0;
+    frames = new SrsPps();
 }
 
 SrsStatisticStream::~SrsStatisticStream()
 {
     srs_freep(kbps);
     srs_freep(clk);
+    srs_freep(frames);
 }
 
 srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
@@ -118,7 +121,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
     obj->set("app", SrsJsonAny::str(app.c_str()));
     obj->set("live_ms", SrsJsonAny::integer(srsu2ms(srs_get_system_time())));
     obj->set("clients", SrsJsonAny::integer(nb_clients));
-    obj->set("frames", SrsJsonAny::integer(nb_frames));
+    obj->set("frames", SrsJsonAny::integer(frames->sugar));
     obj->set("send_bytes", SrsJsonAny::integer(kbps->get_send_bytes()));
     obj->set("recv_bytes", SrsJsonAny::integer(kbps->get_recv_bytes()));
     
@@ -369,7 +372,7 @@ srs_error_t SrsStatistic::on_video_frames(SrsRequest* req, int nb_frames)
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
     
-    stream->nb_frames += nb_frames;
+    stream->frames->sugar += nb_frames;
     
     return err;
 }
@@ -508,6 +511,7 @@ SrsKbps* SrsStatistic::kbps_sample()
         for (it = streams.begin(); it != streams.end(); it++) {
             SrsStatisticStream* stream = it->second;
             stream->kbps->sample();
+            stream->frames->update();
         }
     }
     if (true) {
@@ -607,6 +611,65 @@ void SrsStatistic::dumps_hints_kv(std::stringstream & ss)
     }
     if (kbps->get_send_kbps_30s()) {
         ss << "&send=" << kbps->get_send_kbps_30s();
+    }
+}
+
+void SrsStatistic::dumps_cls_summaries(SrsClsSugar* sugar)
+{
+    if (!vhosts.empty()) {
+        sugar->kvf("vhosts", "%d", (int) vhosts.size());
+    }
+    if (!streams.empty()) {
+        sugar->kvf("streams", "%d", (int) streams.size());
+    }
+    if (!clients.empty()) {
+        sugar->kvf("clients", "%d", (int) clients.size());
+    }
+}
+
+void SrsStatistic::dumps_cls_streams(SrsClsSugars* sugars)
+{
+    for (std::map<std::string, SrsStatisticStream*>::iterator it = streams.begin(); it != streams.end(); ++it) {
+        SrsStatisticStream* stream = it->second;
+        if (!stream->active || !stream->nb_clients) {
+            continue;
+        }
+
+        SrsClsSugar* sugar = sugars->create();
+        sugar->kv("hint", "stream");
+        sugar->kv("version", RTMP_SIG_SRS_VERSION);
+        sugar->kvf("pid", "%d", getpid());
+
+        sugar->kv("sid", stream->id);
+        sugar->kv("url", stream->url);
+
+        if (stream->frames->r30s()) {
+            sugar->kvf("fps", "%d", stream->frames->r30s());
+        }
+        if (stream->width) {
+            sugar->kvf("width", "%d", stream->width);
+        }
+        if (stream->height) {
+            sugar->kvf("height", "%d", stream->height);
+        }
+
+        SrsStatisticClient* pub = find_client(stream->publisher_id);
+        if (pub) {
+            if (pub->kbps->get_recv_kbps_30s()) {
+                sugar->kvf("recv", "%d", pub->kbps->get_recv_kbps_30s());
+            }
+            if (pub->kbps->get_send_kbps_30s()) {
+                sugar->kvf("send", "%d", pub->kbps->get_send_kbps_30s());
+            }
+        }
+
+        sugar->kvf("clients", "%d", stream->nb_clients);
+        if (stream->kbps->get_recv_kbps_30s()) {
+            sugar->kvf("recv2", "%d", stream->kbps->get_recv_kbps_30s());
+        }
+        if (stream->kbps->get_send_kbps_30s()) {
+            sugar->kvf("send2", "%d", stream->kbps->get_send_kbps_30s());
+        }
     }
 }
 

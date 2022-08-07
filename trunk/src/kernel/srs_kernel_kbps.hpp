@@ -53,6 +53,8 @@ public:
     void update(int64_t nn);
     // Get the 10s average stat.
     int r10s();
+    // Get the 30s average stat.
+    int r30s();
 };
 
 /**
