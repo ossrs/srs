@@ -551,8 +551,10 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
             echo "Warning: Local openssl is on, ignore system openssl"
         fi
     fi
-    # Patch for loongarch mips64
+    # Patch for loongarch mips64, disable ASM for build failed message as bellow:
+    #       Error: opcode not supported on this processor: mips3 (mips3)
     g++ -dM -E - </dev/null |grep '#define __mips64 1' -q && OPENSSL_CONFIG="./Configure linux64-mips64"
+    uname -r |grep -q "loongson" && OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-asm"
     # For RTC, we should use ASM to improve performance, not a little improving.
     if [[ $SRS_RTC == NO || $SRS_NASM == NO ]]; then
         OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-asm"
