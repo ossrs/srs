@@ -49,7 +49,7 @@ public:
     {
         static char buf[4096] = {0};
         int nbytes = vsnprintf(buf, sizeof(buf), fmt, vl);
-        if (nbytes > 0 && nbytes < sizeof(buf)) {
+        if (nbytes > 0 && nbytes < (int)sizeof(buf)) {
             // Srs log is always start with new line, replcae '\n' to '\0', make log easy to read.
             if (buf[nbytes - 1] == '\n') {
                 buf[nbytes - 1] = '\0';

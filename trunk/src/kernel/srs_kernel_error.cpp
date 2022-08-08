@@ -111,7 +111,7 @@ SrsCplxError* SrsCplxError::create(const char* func, const char* file, int line,
     err->line = line;
     err->code = code;
     err->rerrno = rerrno;
-    if (r0 > 0 && r0 < sizeof(buffer)) {
+    if (r0 > 0 && r0 < (int)sizeof(buffer)) {
         err->msg = string(buffer, r0);
     }
     err->wrapped = NULL;
@@ -140,7 +140,7 @@ SrsCplxError* SrsCplxError::wrap(const char* func, const char* file, int line, S
         err->code = v->code;
     }
     err->rerrno = rerrno;
-    if (r0 > 0 && r0 < sizeof(buffer)) {
+    if (r0 > 0 && r0 < (int)sizeof(buffer)) {
         err->msg = string(buffer, r0);
     }
     err->wrapped = v;
