@@ -97,9 +97,14 @@ void SrsFileLog::verbose(const char* tag, SrsContextId context_id, const char* f
 
     va_list ap;
     va_start(ap, fmt);
-    // we reserved 1 bytes for the new line.
-    size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
+    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
+
+    // Something not expected, drop the log.
+    if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
+        return;
+    }
+    size += r0;
 
     write_log(fd, log_data, size, SrsLogLevelVerbose);
 }
@@ -119,9 +124,14 @@ void SrsFileLog::info(const char* tag, SrsContextId context_id, const char* fmt,
 
     va_list ap;
     va_start(ap, fmt);
-    // we reserved 1 bytes for the new line.
-    size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
+    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
+
+    // Something not expected, drop the log.
+    if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
+        return;
+    }
+    size += r0;
 
     write_log(fd, log_data, size, SrsLogLevelInfo);
 }
@@ -141,9 +151,14 @@ void SrsFileLog::trace(const char* tag, SrsContextId context_id, const char* fmt
 
     va_list ap;
     va_start(ap, fmt);
-    // we reserved 1 bytes for the new line.
-    size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
+    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
+
+    // Something not expected, drop the log.
+    if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
+        return;
+    }
+    size += r0;
 
     write_log(fd, log_data, size, SrsLogLevelTrace);
 }
@@ -163,9 +178,14 @@ void SrsFileLog::warn(const char* tag, SrsContextId context_id, const char* fmt,
 
     va_list ap;
     va_start(ap, fmt);
-    // we reserved 1 bytes for the new line.
-    size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
+    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
+
+    // Something not expected, drop the log.
+    if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
+        return;
+    }
+    size += r0;
 
     write_log(fd, log_data, size, SrsLogLevelWarn);
 }
@@ -185,14 +205,25 @@ void SrsFileLog::error(const char* tag, SrsContextId context_id, const char* fmt
     
     va_list ap;
     va_start(ap, fmt);
-    // we reserved 1 bytes for the new line.
-    size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
+    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
+
+    // Something not expected, drop the log.
+    if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
+        return;
+    }
+    size += r0;
     
     // add strerror() to error msg.
     // Check size to avoid security issue https://github.com/ossrs/srs/issues/1229
     if (errno != 0 && size < LOG_MAX_SIZE) {
-        size += snprintf(log_data + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
+        r0 = snprintf(log_data + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
+
+        // Something not expected, drop the log.
+        if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
+            return;
+        }
+        size += r0;
     }
     
     write_log(fd, log_data, size, SrsLogLevelError);

@@ -101,7 +101,7 @@ SrsCplxError* SrsCplxError::create(const char* func, const char* file, int line,
     va_list ap;
     va_start(ap, fmt);
     static char buffer[4096];
-    vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    int r0 = vsnprintf(buffer, sizeof(buffer), fmt, ap);
     va_end(ap);
     
     SrsCplxError* err = new SrsCplxError();
@@ -111,7 +111,9 @@ SrsCplxError* SrsCplxError::create(const char* func, const char* file, int line,
     err->line = line;
     err->code = code;
     err->rerrno = rerrno;
-    err->msg = buffer;
+    if (r0 > 0 && r0 < sizeof(buffer)) {
+        err->msg = string(buffer, r0);
+    }
     err->wrapped = NULL;
     if (_srs_context) {
         err->cid = _srs_context->get_id();
@@ -126,7 +128,7 @@ SrsCplxError* SrsCplxError::wrap(const char* func, const char* file, int line, S
     va_list ap;
     va_start(ap, fmt);
     static char buffer[4096];
-    vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    int r0 = vsnprintf(buffer, sizeof(buffer), fmt, ap);
     va_end(ap);
     
     SrsCplxError* err = new SrsCplxError();
@@ -138,7 +140,9 @@ SrsCplxError* SrsCplxError::wrap(const char* func, const char* file, int line, S
         err->code = v->code;
     }
     err->rerrno = rerrno;
-    err->msg = buffer;
+    if (r0 > 0 && r0 < sizeof(buffer)) {
+        err->msg = string(buffer, r0);
+    }
     err->wrapped = v;
     if (_srs_context) {
         err->cid = _srs_context->get_id();

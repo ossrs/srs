@@ -134,9 +134,14 @@ void SrsConsoleLog::verbose(const char* tag, SrsContextId context_id, const char
     
     va_list ap;
     va_start(ap, fmt);
-    // we reserved 1 bytes for the new line.
-    size += vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
+    int r0 = vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
     va_end(ap);
+
+    // Something not expected, drop the log.
+    if (r0 <= 0 || r0 >= SRS_BASIC_LOG_SIZE - size) {
+        return;
+    }
+    size += r0;
     
     fprintf(stdout, "%s\n", buffer);
 }
@@ -154,9 +159,14 @@ void SrsConsoleLog::info(const char* tag, SrsContextId context_id, const char* f
     
     va_list ap;
     va_start(ap, fmt);
-    // we reserved 1 bytes for the new line.
-    size += vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
+    int r0 = vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
     va_end(ap);
+
+    // Something not expected, drop the log.
+    if (r0 <= 0 || r0 >= SRS_BASIC_LOG_SIZE - size) {
+        return;
+    }
+    size += r0;
     
     fprintf(stdout, "%s\n", buffer);
 }
@@ -174,9 +184,14 @@ void SrsConsoleLog::trace(const char* tag, SrsContextId context_id, const char* 
     
     va_list ap;
     va_start(ap, fmt);
-    // we reserved 1 bytes for the new line.
-    size += vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
+    int r0 = vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
     va_end(ap);
+
+    // Something not expected, drop the log.
+    if (r0 <= 0 || r0 >= SRS_BASIC_LOG_SIZE - size) {
+        return;
+    }
+    size += r0;
     
     fprintf(stdout, "%s\n", buffer);
 }
@@ -194,9 +209,14 @@ void SrsConsoleLog::warn(const char* tag, SrsContextId context_id, const char* f
     
     va_list ap;
     va_start(ap, fmt);
-    // we reserved 1 bytes for the new line.
-    size += vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
+    int r0 = vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
     va_end(ap);
+
+    // Something not expected, drop the log.
+    if (r0 <= 0 || r0 >= SRS_BASIC_LOG_SIZE - size) {
+        return;
+    }
+    size += r0;
     
     fprintf(stderr, "%s\n", buffer);
 }
@@ -214,13 +234,24 @@ void SrsConsoleLog::error(const char* tag, SrsContextId context_id, const char* 
     
     va_list ap;
     va_start(ap, fmt);
-    // we reserved 1 bytes for the new line.
-    size += vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
+    int r0 = vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
     va_end(ap);
+
+    // Something not expected, drop the log.
+    if (r0 <= 0 || r0 >= SRS_BASIC_LOG_SIZE - size) {
+        return;
+    }
+    size += r0;
     
     // add strerror() to error msg.
     if (errno != 0) {
-        size += snprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, "(%s)", strerror(errno));
+        r0 = snprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, "(%s)", strerror(errno));
+
+        // Something not expected, drop the log.
+        if (r0 <= 0 || r0 >= SRS_BASIC_LOG_SIZE - size) {
+            return;
+        }
+        size += r0;
     }
     
     fprintf(stderr, "%s\n", buffer);
@@ -277,11 +308,7 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
 
     // Exceed the size, ignore this log.
     // Check size to avoid security issue https://github.com/ossrs/srs/issues/1229
-    if (written >= size) {
-        return false;
-    }
-    
-    if (written == -1) {
+    if (written <= 0 || written >= size) {
         return false;
     }
     
