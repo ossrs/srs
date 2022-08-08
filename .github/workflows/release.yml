@@ -7,18 +7,14 @@ on:
       - v5*
 
 jobs:
-  test:
-    name: test
+  envs:
+    name: envs
     runs-on: ubuntu-20.04
-
     steps:
-      ##################################################################################################################
-      ##################################################################################################################
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
         uses: actions/checkout@v2
-
       # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
       # Generate variables like:
       #   SRS_TAG=v5.0-r8
@@ -35,7 +31,28 @@ jobs:
           echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
           SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
           echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
+    outputs:
+      SRS_TAG: ${{ env.SRS_TAG }}
+      SRS_VERSION: ${{ env.SRS_VERSION }}
+      SRS_MAJOR: ${{ env.SRS_MAJOR }}
 
+  test:
+    name: test
+    runs-on: ubuntu-20.04
+    needs:
+      - envs
+    steps:
+      ##################################################################################################################
+      - name: Covert output to env
+        run: |
+          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
+          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
+          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
+      ##################################################################################################################
+      # Git checkout
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      ##################################################################################################################
       # Tests
       - name: Build test image
         run: docker build --tag srs:test -f trunk/Dockerfile.test .
@@ -52,16 +69,19 @@ jobs:
     name: docker-srs
     runs-on: ubuntu-20.04
     needs:
+      - envs
       - test
-
     steps:
       ##################################################################################################################
-      ##################################################################################################################
+      - name: Covert output to env
+        run: |
+          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
+          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
+          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
         uses: actions/checkout@v2
-
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
@@ -69,26 +89,6 @@ jobs:
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-
-      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
-      # Generate variables like:
-      #   SRS_TAG=v5.0-r8
-      #   SRS_TAG=v5.0.145
-      #   SRS_VERSION=5.0.145
-      #   SRS_VERSION=5.0-r8
-      #   SRS_MAJOR=5
-      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
-      - name: Generate varaiables
-        run: |
-          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
-          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
-          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
-          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
-          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
-          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
-
-      ##################################################################################################################
-      ##################################################################################################################
       ##################################################################################################################
       # Create main images for Docker
       - name: Login to docker hub
@@ -104,7 +104,6 @@ jobs:
           docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
             --output "type=image,push=true" \
             -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile .
-
       # Docker alias images
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Docker alias images for ossrs/srs
@@ -115,7 +114,6 @@ jobs:
             ossrs/srs:${{ env.SRS_VERSION }}
             ossrs/srs:${{ env.SRS_MAJOR }}
             ossrs/srs:v${{ env.SRS_MAJOR }}
-
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Login aliyun hub
@@ -139,15 +137,18 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - test
-
+      - envs
     steps:
       ##################################################################################################################
-      ##################################################################################################################
+      - name: Covert output to env
+        run: |
+          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
+          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
+          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
         uses: actions/checkout@v2
-
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
@@ -155,26 +156,6 @@ jobs:
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-
-      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
-      # Generate variables like:
-      #   SRS_TAG=v5.0-r8
-      #   SRS_TAG=v5.0.145
-      #   SRS_VERSION=5.0.145
-      #   SRS_VERSION=5.0-r8
-      #   SRS_MAJOR=5
-      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
-      - name: Generate varaiables
-        run: |
-          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
-          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
-          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
-          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
-          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
-          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
-
-      ##################################################################################################################
-      ##################################################################################################################
       ##################################################################################################################
       # Create main images for Docker
       - name: Login to docker hub
@@ -190,7 +171,6 @@ jobs:
           docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
             --output "type=image,push=true" \
             -t ossrs/droplet:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_DROPLET -f trunk/Dockerfile .
-
       # Docker alias images
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Docker alias images for ossrs/droplet
@@ -201,7 +181,6 @@ jobs:
             ossrs/droplet:${{ env.SRS_VERSION }}
             ossrs/droplet:${{ env.SRS_MAJOR }}
             ossrs/droplet:v${{ env.SRS_MAJOR }}
-
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Login aliyun hub
@@ -225,15 +204,18 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - test
-
+      - envs
     steps:
       ##################################################################################################################
-      ##################################################################################################################
+      - name: Covert output to env
+        run: |
+          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
+          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
+          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
         uses: actions/checkout@v2
-
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
@@ -241,26 +223,6 @@ jobs:
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-
-      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
-      # Generate variables like:
-      #   SRS_TAG=v5.0-r8
-      #   SRS_TAG=v5.0.145
-      #   SRS_VERSION=5.0.145
-      #   SRS_VERSION=5.0-r8
-      #   SRS_MAJOR=5
-      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
-      - name: Generate varaiables
-        run: |
-          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
-          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
-          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
-          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
-          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
-          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
-
-      ##################################################################################################################
-      ##################################################################################################################
       ##################################################################################################################
       # Create main images for Docker
       - name: Login to docker hub
@@ -276,7 +238,6 @@ jobs:
           docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
             --output "type=image,push=true" \
             -t ossrs/lighthouse:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_LIGHTHOUSE -f trunk/Dockerfile .
-
       # Docker alias images
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Docker alias images for ossrs/lighthouse
@@ -287,7 +248,6 @@ jobs:
             ossrs/lighthouse:${{ env.SRS_VERSION }}
             ossrs/lighthouse:${{ env.SRS_MAJOR }}
             ossrs/lighthouse:v${{ env.SRS_MAJOR }}
-
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Login aliyun hub
@@ -314,34 +274,18 @@ jobs:
       - docker-srs
       - docker-lighthouse
       - docker-droplet
-
+      - envs
     steps:
       ##################################################################################################################
-      ##################################################################################################################
+      - name: Covert output to env
+        run: |
+          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
+          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
+          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
         uses: actions/checkout@v2
-
-      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
-      # Generate variables like:
-      #   SRS_TAG=v5.0-r8
-      #   SRS_TAG=v5.0.145
-      #   SRS_VERSION=5.0.145
-      #   SRS_VERSION=5.0-r8
-      #   SRS_MAJOR=5
-      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
-      - name: Generate varaiables
-        run: |
-          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
-          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
-          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
-          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
-          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
-          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
-
-      ##################################################################################################################
-      ##################################################################################################################
       ##################################################################################################################
       # Generate variables like:
       #   SRS_LH_OSSRS_NET=1.2.3.4
@@ -351,7 +295,6 @@ jobs:
           SRS_D_OSSRS_NET=$(dig +short d.ossrs.net)
           echo "SRS_LH_OSSRS_NET=$SRS_LH_OSSRS_NET" >> $GITHUB_ENV
           echo "SRS_D_OSSRS_NET=$SRS_D_OSSRS_NET" >> $GITHUB_ENV
-
       - name: Release to lh.ossrs.net
         uses: appleboy/ssh-action@master
         with:
@@ -371,7 +314,6 @@ jobs:
               docker rmi -f $image
               echo "Remove image $image, r0=$?"
             done
-
       - name: Release to d.ossrs.net
         uses: appleboy/ssh-action@master
         with:
@@ -397,34 +339,18 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - update
-
+      - envs
     steps:
       ##################################################################################################################
-      ##################################################################################################################
+      - name: Covert output to env
+        run: |
+          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
+          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
+          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
         uses: actions/checkout@v2
-
-      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
-      # Generate variables like:
-      #   SRS_TAG=v5.0-r8
-      #   SRS_TAG=v5.0.145
-      #   SRS_VERSION=5.0.145
-      #   SRS_VERSION=5.0-r8
-      #   SRS_MAJOR=5
-      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
-      - name: Generate varaiables
-        run: |
-          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
-          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
-          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
-          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
-          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
-          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
-
-      ##################################################################################################################
-      ##################################################################################################################
       ##################################################################################################################
       # Create source tar for release. Note that it's for OpenWRT package srs-server, so the filename MUST be
       # srs-server-xxx.tar.gz, because the package is named srs-server.
@@ -453,7 +379,6 @@ jobs:
           du -sh $SRS_PACKAGE_ZIP &&
           echo "SRS_PACKAGE_ZIP=$SRS_PACKAGE_ZIP" >> $GITHUB_ENV &&
           echo "SRS_PACKAGE_MD5=$(md5sum $SRS_PACKAGE_ZIP| awk '{print $1}')" >> $GITHUB_ENV
-
       # Create release.
       # TODO: FIXME: Refine the release when 5.0 released
       # TODO: FIXME: Change prerelease to false when 5.0 released
@@ -479,7 +404,6 @@ jobs:
             * [FAQ](https://github.com/ossrs/srs/issues/2716), [Features](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) or [ChangeLogs](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false
           prerelease: true
-
       # Upload release source files
       - name: Upload Release Assets Source
         id: upload-release-assets-source
@@ -489,7 +413,6 @@ jobs:
         with:
           release_id: ${{ steps.create_release.outputs.id }}
           assets_path: ${{ env.SRS_SOURCE_TAR }}
-
       # Upload release package files
       - name: Upload Release Assets Package
         id: upload-release-assets-package
@@ -505,7 +428,5 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - release
-
     steps:
       - run: echo 'All done'
-
