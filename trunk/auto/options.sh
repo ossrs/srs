@@ -63,6 +63,7 @@ SRS_VALGRIND=NO
 SRS_BUILD_TAG= # Set the object files tag name.
 SRS_CLEAN=YES # Whether do "make clean" when configure.
 SRS_SIMULATOR=NO # Whether enable RTC simulate API.
+SRS_GENERATE_OBJS=NO # Whether generate objs and quit.
 #
 ################################################################
 # Performance options.
@@ -173,6 +174,7 @@ Experts:
   --shared-ffmpeg=on|off    Use shared libraries for FFmpeg which is LGPL license. Default: $(value2switch $SRS_SHARED_FFMPEG)
   --clean=on|off            Whether do 'make clean' when configure. Default: $(value2switch $SRS_CLEAN)
   --simulator=on|off        RTC: Whether enable network simulator. Default: $(value2switch $SRS_SIMULATOR)
+  --generate-objs=on|off    RTC: Whether generate objs and quit. Default: $(value2switch $SRS_GENERATE_OBJS)
   --build-tag=<TAG>         Set the build object directory suffix.
 
 Workflow:
@@ -287,6 +289,7 @@ function parse_user_option() {
         --without-rtc)                  SRS_RTC=NO                  ;;
         --rtc)                          SRS_RTC=$(switch2value $value) ;;
         --simulator)                    SRS_SIMULATOR=$(switch2value $value) ;;
+        --generate-objs)                SRS_GENERATE_OBJS=$(switch2value $value) ;;
         --ffmpeg-fit)                   SRS_FFMPEG_FIT=$(switch2value $value) ;;
 
         --cxx11)                        SRS_CXX11=$(switch2value $value) ;;

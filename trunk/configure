@@ -29,8 +29,10 @@ BLACK="\\033[0m"
 # We don't need to cleanup the exists files.
 rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
-# create objs
+# Create objs and platform directories.
 mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}
+# If only generate objs directory, quit without error.
+if [[ $SRS_GENERATE_OBJS == YES ]]; then exit 0; fi
 
 # apply user options.
 . auto/depends.sh

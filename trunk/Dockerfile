@@ -24,9 +24,12 @@ WORKDIR /srs/trunk
 
 # Use srs-cache from base image.
 RUN if [[ -d /usr/local/srs-cache/srs/trunk/objs ]]; then \
-      echo "Build from cache of base image" && mkdir -p objs && \
-      cp -R /usr/local/srs-cache/srs/trunk/objs/Platform-* objs/ && \
-      du -sh objs/*; \
+      ./configure --generate-objs=on && \
+      SOURCE_DIR=$(ls -d /usr/local/srs-cache/srs/trunk/objs/Platform-*) && \
+      TARGET_DIR=$(ls -d objs/Platform-*) && \
+      echo "Build from cache, source=$SOURCE_DIR, target=$TARGET_DIR" && \
+      rm -rf $TARGET_DIR && mv $SOURCE_DIR $TARGET_DIR && \
+      du -sh $TARGET_DIR && ls -lh objs; \
     fi
 
 # Build and install SRS.
