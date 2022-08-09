@@ -41,7 +41,13 @@ extern srs_error_t srs_fd_keepalive(int fd);
 // Get current coroutine/thread.
 extern srs_thread_t srs_thread_self();
 extern void srs_thread_exit(void* retval);
+extern int srs_thread_join(srs_thread_t thread, void **retvalp);
+extern void srs_thread_interrupt(srs_thread_t thread);
 extern void srs_thread_yield();
+
+// For utest to mock the thread create.
+typedef void* (*_ST_THREAD_CREATE_PFN)(void *(*start)(void *arg), void *arg, int joinable, int stack_size);
+extern _ST_THREAD_CREATE_PFN _pfn_st_thread_create;
 
 // For client, to open socket and connect to server.
 // @param tm The timeout in srs_utime_t.

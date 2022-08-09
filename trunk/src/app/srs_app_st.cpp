@@ -6,7 +6,6 @@
 
 #include <srs_app_st.hpp>
 
-#include <st.h>
 #include <string>
 using namespace std;
 
@@ -115,8 +114,6 @@ const SrsContextId& SrsSTCoroutine::cid()
     return impl_->cid();
 }
 
-_ST_THREAD_CREATE_PFN _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)st_thread_create;
-
 SrsFastCoroutine::SrsFastCoroutine(string n, ISrsCoroutineHandler* h)
 {
     // TODO: FIXME: Reduce duplicated code.
@@ -208,7 +205,7 @@ void SrsFastCoroutine::stop()
     // When not started, the trd is NULL.
     if (trd) {
         void* res = NULL;
-        int r0 = st_thread_join((st_thread_t)trd, &res);
+        int r0 = srs_thread_join(trd, &res);
         if (r0) {
             // By st_thread_join
             if (errno == EINVAL) srs_assert(!r0);
@@ -252,7 +249,7 @@ void SrsFastCoroutine::interrupt()
 
     // Note that if another thread is stopping thread and waiting in st_thread_join,
     // the interrupt will make the st_thread_join fail.
-    st_thread_interrupt((st_thread_t)trd);
+    srs_thread_interrupt(trd);
 }
 
 const SrsContextId& SrsFastCoroutine::cid()

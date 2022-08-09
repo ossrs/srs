@@ -142,11 +142,11 @@ fi
 
 # FFMPEG for WebRTC transcoding, such as aac to opus.
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
-  LibFfmpegRoot="${SRS_OBJS_DIR}/ffmpeg/include"; LibFfmpegFile="${SRS_OBJS_DIR}/ffmpeg/lib/libavcodec.a ${SRS_OBJS_DIR}/ffmpeg/lib/libswresample.a ${SRS_OBJS_DIR}/ffmpeg/lib/libavutil.a"
-  if [[ $SRS_CROSS_BUILD == NO ]]; then
-    LibFfmpegRoot="${LibFfmpegRoot} ${SRS_OBJS_DIR}/opus/include"; LibFfmpegFile="${LibFfmpegFile} ${SRS_OBJS_DIR}/opus/lib/libopus.a"
-  fi
-  if [[ $SRS_SHARED_FFMPEG == YES ]]; then LibFfmpegFile="-L${SRS_OBJS_DIR}/ffmpeg/lib -lavcodec -lswresample -lavutil -L${SRS_OBJS_DIR}/opus/lib -lopus"; fi
+    LibFfmpegRoot="${SRS_OBJS_DIR}/ffmpeg/include"; LibFfmpegFile="${SRS_OBJS_DIR}/ffmpeg/lib/libavcodec.a ${SRS_OBJS_DIR}/ffmpeg/lib/libswresample.a ${SRS_OBJS_DIR}/ffmpeg/lib/libavutil.a"
+    if [[ $SRS_CROSS_BUILD == NO ]]; then
+        LibFfmpegFile="${LibFfmpegFile} ${SRS_OBJS_DIR}/opus/lib/libopus.a"
+    fi
+    if [[ $SRS_SHARED_FFMPEG == YES ]]; then LibFfmpegFile="-L${SRS_OBJS_DIR}/ffmpeg/lib -lavcodec -lswresample -lavutil -L${SRS_OBJS_DIR}/opus/lib -lopus"; fi
 fi
 
 # openssl-1.1.0e, for the RTMP complex handshake.
@@ -235,10 +235,6 @@ if [[ $SRS_SRT == YES ]]; then
 fi
 if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_protocol_rtc_stun")
-    ModuleLibIncs+=(${LibSrtpRoot})
-fi
-if [[ $SRS_FFMPEG_FIT == YES ]]; then
-    ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
@@ -247,7 +243,7 @@ PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #App Module, for SRS server only.
 MODULE_ID="APP"
 MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
-ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
+ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
 if [ $SRS_GPERF = YES ]; then
     ModuleLibIncs+=(${LibGperfRoot})
 fi
@@ -256,9 +252,6 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
-fi
-if [[ $SRS_SRT == YES ]]; then
-    ModuleLibIncs+=("${LibSRTRoot[*]}")
 fi
 MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source"
         "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
@@ -295,15 +288,12 @@ APP_OBJS="${MODULE_OBJS[@]}"
 #Server Module, for SRS only.
 MODULE_ID="SERVER"
 MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
-ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibGperfRoot} ${LibSSLRoot})
+ModuleLibIncs=(${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=(${LibSrtpRoot})
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
-fi
-if [[ $SRS_SRT == YES ]]; then
-    ModuleLibIncs+=(${LibSRTRoot})
 fi
 MODULE_FILES=("srs_main_server")
 SERVER_INCS="src/main"; MODULE_DIR=${SERVER_INCS} . auto/modules.sh
@@ -312,15 +302,12 @@ SERVER_OBJS="${MODULE_OBJS[@]}"
 #Main Module, for app from modules.
 MODULE_ID="MAIN"
 MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
-ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibGperfRoot} ${LibSSLRoot})
+ModuleLibIncs=(${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=(${LibSrtpRoot})
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
-fi
-if [[ $SRS_SRT == YES ]]; then
-    ModuleLibIncs+=(${LibSRTRoot})
 fi
 MODULE_FILES=()
 DEFINES=""
@@ -381,6 +368,9 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibFiles+=("${LibFfmpegFile[*]}")
+fi
+if [[ $SRS_SRT == YES ]]; then
+    ModuleLibFiles+=("${LibSRTfile[*]}")
 fi
 #
 for SRS_MODULE in ${SRS_MODULES[*]}; do

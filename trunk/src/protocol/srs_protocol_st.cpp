@@ -147,10 +147,22 @@ void srs_thread_exit(void* retval)
     st_thread_exit(retval);
 }
 
+int srs_thread_join(srs_thread_t thread, void **retvalp)
+{
+    return st_thread_join((st_thread_t)thread, retvalp);
+}
+
+void srs_thread_interrupt(srs_thread_t thread)
+{
+    st_thread_interrupt((st_thread_t)thread);
+}
+
 void srs_thread_yield()
 {
     st_thread_yield();
 }
+
+_ST_THREAD_CREATE_PFN _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)st_thread_create;
 
 srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
 {

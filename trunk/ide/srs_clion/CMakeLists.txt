@@ -61,7 +61,6 @@ INCLUDE_DIRECTORIES(${SRS_DIR}/objs
         ${SRS_DIR}/objs/st
         ${SRS_DIR}/objs/openssl/include
         ${SRS_DIR}/objs/srtp2/include
-        ${SRS_DIR}/objs/opus/include
         ${SRS_DIR}/objs/ffmpeg/include
         ${SRS_DIR}/objs/srt/include
         ${SRS_DIR}/src/core
