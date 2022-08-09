@@ -321,9 +321,12 @@ function OSX_prepare()
 OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
 
 #####################################################################################
-# Whether CPU is loongarch
+# Detect CPU archs.
 #####################################################################################
-OS_IS_LOONGARCH=$(uname -p|grep -q loongarch && echo YES)
+OS_IS_LOONGARCH64=$(g++ -dM -E - </dev/null |grep '#define __loongarch64 1' -q && echo YES)
+OS_IS_MIPS64=$(g++ -dM -E - </dev/null |grep '#define __mips64 1' -q && echo YES)
+OS_IS_LOONGSON=$(uname -r |grep -q loongson && echo YES)
+echo "OS_IS_LOONGARCH64:$OS_IS_LOONGARCH64, OS_IS_MIPS64:$OS_IS_MIPS64, OS_IS_LOONGSON:$OS_IS_LOONGSON"
 
 #####################################################################################
 # for Centos, auto install tools by yum
@@ -553,8 +556,8 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     fi
     # Patch for loongarch mips64, disable ASM for build failed message as bellow:
     #       Error: opcode not supported on this processor: mips3 (mips3)
-    g++ -dM -E - </dev/null |grep '#define __mips64 1' -q && OPENSSL_CONFIG="./Configure linux64-mips64"
-    uname -r |grep -q "loongson" && OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-asm"
+    if [[ $OS_IS_MIPS64 == YES ]]; then OPENSSL_CONFIG="./Configure linux64-mips64"; fi
+    if [[ $OS_IS_LOONGSON == YES ]]; then OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-asm"; fi
     # For RTC, we should use ASM to improve performance, not a little improving.
     if [[ $SRS_RTC == NO || $SRS_NASM == NO ]]; then
         OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-asm"
@@ -627,7 +630,7 @@ if [[ $SRS_RTC == YES ]]; then
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         SRTP_OPTIONS="$SRTP_OPTIONS --host=$SRS_CROSS_BUILD_HOST"
     fi
-    if [[ $OS_IS_LOONGARCH = YES ]]; then
+    if [[ $OS_IS_LOONGARCH64 = YES ]]; then
         SRTP_OPTIONS="$SRTP_OPTIONS --build=loongarch64-unknown-linux-gnu"
     fi
     # Patched ST from https://github.com/ossrs/state-threads/tree/srs
@@ -662,7 +665,7 @@ if [[ $SRS_RTC == YES && $SRS_CROSS_BUILD == NO ]]; then
     if [[ $SRS_SHARED_FFMPEG == NO ]]; then
         OPUS_OPTIONS="--disable-shared --disable-doc"
     fi
-    if [[ $OS_IS_LOONGARCH = YES ]]; then
+    if [[ $OS_IS_LOONGARCH64 = YES ]]; then
         OPUS_OPTIONS="$OPUS_OPTIONS --build=loongarch64-unknown-linux-gnu"
     fi
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1/_release/lib/libopus.a ]]; then
@@ -702,6 +705,8 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     if [[ $SRS_SHARED_FFMPEG == YES ]]; then
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-shared"
     fi
+    # For loongson/mips64, disable mips64r6, or build failed.
+    if [[ $OS_IS_MIPS64 == YES && $OS_IS_LOONGSON == YES ]]; then FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-mips64r6"; fi
     # For cross-build.
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-cross-compile --target-os=linux --disable-pthreads"
