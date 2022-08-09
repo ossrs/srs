@@ -17,9 +17,7 @@
 [![](https://img.shields.io/docker/pulls/ossrs/srs)](https://hub.docker.com/r/ossrs/srs/tags)
 [![](https://ossrs.net/wiki/images/do-btn-srs-125x20.svg)](https://cloud.digitalocean.com/droplets/new?appId=104916642&size=s-1vcpu-1gb&region=sgp1&image=ossrs-srs&type=applications)
 
-SRS/5.0 is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
-
-SRS/5.0，[Bee](https://ossrs.net/lts/zh-cn/product#release50) 是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
+SRS/5.0(Bee) is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
 [![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-sd.png?v=114)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-hd.png)
 
@@ -27,12 +25,14 @@ SRS/5.0，[Bee](https://ossrs.net/lts/zh-cn/product#release50) 是一个简单�
 
 SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
 and note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
-but some third-party libraries are distributed using their [own licenses](https://ossrs.net/lts/zh-cn/license).
+but some third-party libraries are distributed using their [own licenses](https://ossrs.io/lts/en-us/license).
 
 <a name="product"></a> <a name="usage-docker"></a>
 ## Usage
 
-Build SRS from source:
+Please read guide [Getting Started](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started) or [中文文档：起步](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started).
+
+To build SRS from source:
 
 ```
 git clone -b develop https://gitee.com/ossrs/srs.git &&
@@ -75,11 +75,6 @@ Note that if convert RTMP to WebRTC, please use [`rtmp2rtc.conf`](https://github
 
 <a name="srs-40-wiki"></a> <a name="wiki"></a>
 From here, please read wikis:
-
-* [Getting Started](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started), please read Wiki first.
-* [中文文档：起步](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started)，不读Wiki一定扑街，不读文档请不要提Issue，不读文档请不要提问题，任何文档中明确说过的疑问都不会解答。
-
-Fast index for Wikis:
 
 * How to deliver RTMP streaming?([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-rtmp), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-rtmp))
 * How to deliver WebRTC streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/webrtc), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/webrtc))
