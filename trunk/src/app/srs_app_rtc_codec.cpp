@@ -17,6 +17,7 @@ static const AVCodec* srs_find_decoder_by_id(SrsAudioCodecId id)
     } else if (id == SrsAudioCodecIdOpus) {
         const AVCodec* codec = avcodec_find_decoder_by_name("libopus");
         if (!codec) {
+            // TODO: FIXME: Note that the audio might be corrupted, if use FFmpeg native opus.
             codec = avcodec_find_decoder_by_name("opus");
         }
         return codec;
@@ -31,6 +32,7 @@ static const AVCodec* srs_find_encoder_by_id(SrsAudioCodecId id)
     } else if (id == SrsAudioCodecIdOpus) {
         const AVCodec* codec = avcodec_find_encoder_by_name("libopus");
         if (!codec) {
+            // TODO: FIXME: Note that the audio might be corrupted, if use FFmpeg native opus.
             codec = avcodec_find_encoder_by_name("opus");
         }
         return codec;
