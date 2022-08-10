@@ -178,11 +178,15 @@ srs_error_t SrsLatestVersion::start()
         uuid_t uuid;
         uuid_generate_time(uuid);
 
-        char buf[32];
+        // Must reserve last 1 byte for the trailing '\0', because we expect the size of uuid string is 32 bytes.
+        char buf[32 + 1];
+        srs_assert(16 == sizeof(uuid_t));
+
         for (int i = 0; i < 16; i++) {
-            snprintf(buf + i * 2, sizeof(buf), "%02x", uuid[i]);
+            int r0 = snprintf(buf + i * 2, sizeof(buf) - i * 2, "%02x", uuid[i]);
+            srs_assert(r0 > 0 && r0 < sizeof(buf) - i * 2);
         }
-        server_id_ = string(buf, sizeof(buf));
+        server_id_ = buf;
     }
 
     return trd_->start();

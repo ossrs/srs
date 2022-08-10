@@ -962,7 +962,7 @@ namespace srs_internal
         srs_random_generate(random, 1504);
         
         int size = snprintf(random, 1504, "%s", RTMP_SIG_SRS_HANDSHAKE);
-        srs_assert(size < 1504);
+        srs_assert(size > 0 && size < 1504);
         snprintf(random + 1504 - size, size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         
         srs_random_generate(digest, 32);

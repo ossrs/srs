@@ -773,6 +773,9 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
     
     // send in chunked encoding.
     int nb_size = snprintf(header_cache, SRS_HTTP_HEADER_CACHE_SIZE, "%x", size);
+    if (nb_size <= 0 || nb_size >= SRS_HTTP_HEADER_CACHE_SIZE) {
+        return srs_error_new(ERROR_HTTP_CONTENT_LENGTH, "overflow size=%d, expect=%d", size, nb_size);
+    }
     
     iovec iovs[4];
     iovs[0].iov_base = (char*)header_cache;
@@ -842,6 +845,9 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
     
     // chunk header
     int nb_size = snprintf(header_cache, SRS_HTTP_HEADER_CACHE_SIZE, "%x", size);
+    if (nb_size <= 0 || nb_size >= SRS_HTTP_HEADER_CACHE_SIZE) {
+        return srs_error_new(ERROR_HTTP_CONTENT_LENGTH, "overflow size=%d, expect=%d", size, nb_size);
+    }
     iovss[0].iov_base = (char*)header_cache;
     iovss[0].iov_len = (int)nb_size;
 

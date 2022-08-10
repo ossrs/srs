@@ -276,16 +276,16 @@ bool srs_check_ip_addr_valid(string ip)
 string srs_int2str(int64_t value)
 {
     // len(max int64_t) is 20, plus one "+-."
-    char tmp[22];
-    snprintf(tmp, 22, "%" PRId64, value);
+    char tmp[21 + 1];
+    snprintf(tmp, sizeof(tmp), "%" PRId64, value);
     return tmp;
 }
 
 string srs_float2str(double value)
 {
     // len(max int64_t) is 20, plus one "+-."
-    char tmp[22];
-    snprintf(tmp, 22, "%.2f", value);
+    char tmp[21 + 1];
+    snprintf(tmp, sizeof(tmp), "%.2f", value);
     return tmp;
 }
 

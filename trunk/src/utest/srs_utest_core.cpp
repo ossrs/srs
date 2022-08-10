@@ -72,5 +72,17 @@ VOID TEST(CoreLogger, CheckVsnprintf)
         EXPECT_EQ(0, buf[2]);
         EXPECT_EQ(0xf, buf[3]);
     }
+
+    if (true) {
+        char buf[5];
+        EXPECT_EQ(4, snprintf(buf, sizeof(buf), "Hell"));
+        EXPECT_STREQ("Hell", buf);
+
+        EXPECT_EQ(5, snprintf(buf, sizeof(buf), "Hello"));
+        EXPECT_STREQ("Hell", buf);
+
+        EXPECT_EQ(10, snprintf(buf, sizeof(buf), "HelloWorld"));
+        EXPECT_STREQ("Hell", buf);
+    }
 }
 

@@ -1386,7 +1386,7 @@ string srs_string_dumps_hex(const char* str, int length, int limit, char seperat
     int len = 0;
     for (int i = 0; i < length && i < limit && len < LIMIT; ++i) {
         int nb = snprintf(buf + len, LIMIT - len, "%02x", (uint8_t)str[i]);
-        if (nb < 0 || nb >= LIMIT - len) {
+        if (nb <= 0 || nb >= LIMIT - len) {
             break;
         }
         len += nb;
