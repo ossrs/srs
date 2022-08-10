@@ -33,16 +33,10 @@ echo "Required tools are ok."
 OS_IS_UBUNTU=NO
 function Ubuntu_prepare()
 {
-    uname -v|grep Ubuntu >/dev/null 2>&1
-    ret=$?; if [[ 0 -ne $ret ]]; then
-        # for debian, we think it's ubuntu also.
-        # for example, the wheezy/sid which is debian armv7 linux, can not identified by uname -v.
-        if [[ ! -f /etc/debian_version ]]; then
-            return 0;
-        fi
-    fi
-
-    OS_IS_UBUNTU=YES
+    # For Debian, we think it's ubuntu also.
+    # For example, the wheezy/sid which is debian armv7 linux, can not identified by uname -v.
+    OS_IS_UBUNTU=$(apt-get --version >/dev/null 2>&1 && echo YES)
+    if [[ $OS_IS_UBUNTU != YES ]]; then return 0; fi
     echo "Installing tools for Ubuntu."
     
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
@@ -134,11 +128,8 @@ Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for ubuntu
 OS_IS_CENTOS=NO
 function Centos_prepare()
 {
-    if [[ ! -f /etc/redhat-release ]]; then
-        return 0;
-    fi
-
-    OS_IS_CENTOS=YES
+    OS_IS_CENTOS=$(yum --version >/dev/null 2>&1 && echo YES)
+    if [[ $OS_IS_CENTOS != YES ]]; then return 0; fi
     echo "Installing tools for Centos."
     
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
