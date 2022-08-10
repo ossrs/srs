@@ -184,7 +184,7 @@ srs_error_t SrsLatestVersion::start()
 
         for (int i = 0; i < 16; i++) {
             int r0 = snprintf(buf + i * 2, sizeof(buf) - i * 2, "%02x", uuid[i]);
-            srs_assert(r0 > 0 && r0 < sizeof(buf) - i * 2);
+            srs_assert(r0 > 0 && r0 < (int)sizeof(buf) - i * 2);
         }
         server_id_ = buf;
     }

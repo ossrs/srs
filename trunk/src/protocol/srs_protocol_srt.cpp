@@ -171,7 +171,7 @@ srs_error_t srs_srt_listen(srs_srt_t srt_fd, std::string ip, int port)
 
     char sport[8];
     int r0 = snprintf(sport, sizeof(sport), "%d", port);
-    srs_assert(r0 > 0 && r0 < sizeof(sport));
+    srs_assert(r0 > 0 && r0 < (int)sizeof(sport));
 
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));

@@ -176,7 +176,7 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
 
     char sport[8];
     int r0 = snprintf(sport, sizeof(sport), "%d", port);
-    srs_assert(r0 > 0 && r0 < sizeof(sport));
+    srs_assert(r0 > 0 && r0 < (int)sizeof(sport));
     
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
@@ -253,7 +253,7 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
 
     char sport[8];
     int r0 = snprintf(sport, sizeof(sport), "%d", port);
-    srs_assert(r0 > 0 && r0 < sizeof(sport));
+    srs_assert(r0 > 0 && r0 < (int)sizeof(sport));
 
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
@@ -315,7 +315,7 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
 
     char sport[8];
     int r0 = snprintf(sport, sizeof(sport), "%d", port);
-    srs_assert(r0 > 0 && r0 < sizeof(sport));
+    srs_assert(r0 > 0 && r0 < (int)sizeof(sport));
 
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));

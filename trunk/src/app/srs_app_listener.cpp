@@ -436,7 +436,7 @@ std::string SrsUdpMuxSocket::peer_id()
         // Build the peer id, reserve 1 byte for the trailing '\0'.
         static char id_buf[128 + 1];
         int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);
-        if (len <= 0 || len >= sizeof(id_buf)) {
+        if (len <= 0 || len >= (int)sizeof(id_buf)) {
             return "";
         }
         peer_id_ = string(id_buf, len);
