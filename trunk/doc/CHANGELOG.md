@@ -41,6 +41,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-08-10, Fix server id generator bug. v4.0.254
 * v4.0, 2022-06-29, Update SRS image for r.ossrs.net. v4.0.253
 * v4.0, 2022-06-11, For [#3058](https://github.com/ossrs/srs/pull/3058): Docker: Support x86_64, armv7 and aarch64 docker image (#3058). v4.0.252
 * v4.0, 2022-03-19, For [#2893](https://github.com/ossrs/srs/pull/2893): SRT: Decouple publish with play url (#2893). v4.0.251
