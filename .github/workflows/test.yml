@@ -67,11 +67,15 @@ jobs:
         uses: actions/checkout@v2
 
       # Cross Build for ARMv7
-      - name: Cross Build for ARMv7
+      - name: Cross Build for ARMv7 on Ubuntu16
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
+      - name: Cross Build for ARMv7 on Ubuntu20
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-armv7 .
       # Cross Build for AARCH64
-      - name: Cross Build for AARCH64
+      - name: Cross Build for AARCH64 on Ubuntu16
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-aarch64 .
+      - name: Cross Build for AARCH64 on Ubuntu20
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-aarch64 .
 
   build:
     name: actions-test-build
