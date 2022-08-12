@@ -743,7 +743,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
               # For MIPS, which fail with:
               #     ./libavutil/libm.h:54:32: error: static declaration of 'cbrt' follows non-static declaration
               #     /root/openwrt/staging_dir/toolchain-mipsel_24kc_gcc-8.4.0_musl/include/math.h:163:13: note: previous declaration of 'cbrt' was here
-              if [[ $SRS_CROSS_BUILD_ARCH == "mipsel" ]]; then
+              if [[ $SRS_CROSS_BUILD_ARCH == "mipsel" || $SRS_CROSS_BUILD_ARCH == "arm" ]]; then
                 sed -i -e 's/#define HAVE_CBRT 0/#define HAVE_CBRT 1/g' config.h &&
                 sed -i -e 's/#define HAVE_CBRTF 0/#define HAVE_CBRTF 1/g' config.h &&
                 sed -i -e 's/#define HAVE_COPYSIGN 0/#define HAVE_COPYSIGN 1/g' config.h &&
@@ -812,11 +812,17 @@ if [[ $SRS_SRT == YES ]]; then
                 exit -1;
             fi
             # Always disable c++11 for libsrt, because only the srt-app requres it.
-            LIBSRT_OPTIONS="--disable-apps  --enable-static --enable-c++11=0"
+            LIBSRT_OPTIONS="--enable-apps=0  --enable-static=1 --enable-c++11=0"
             if [[ $SRS_SHARED_SRT == YES ]]; then
                 LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=1"
             else
                 LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=0"
+            fi
+            # For cross-build.
+            if [[ $SRS_CROSS_BUILD == YES ]]; then
+                TOOL_GCC_REALPATH=$(realpath $(which $SRS_TOOL_CC))
+                SRT_COMPILER_PREFIX=$(echo $TOOL_GCC_REALPATH |sed 's/-gcc.*$/-/')
+                LIBSRT_OPTIONS="$LIBSRT_OPTIONS --with-compiler-prefix=$SRT_COMPILER_PREFIX"
             fi
             # Start build libsrt.
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit && cd ${SRS_OBJS}/${SRS_PLATFORM} &&

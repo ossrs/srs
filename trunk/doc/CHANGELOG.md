@@ -6,6 +6,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-08-12, Support crossbuild for hisiv500. v5.0.40
 * v5.0, 2022-08-10, Build: Detect OS by packager. v5.0.39
 * v5.0, 2022-08-06, Support MIPS 64bits for loongson 3A4000/3B3000. v5.0.38
 * v5.0, 2022-06-29, Support multiple threads by thread pool. v5.0.32

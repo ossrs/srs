@@ -410,11 +410,6 @@ function apply_auto_options() {
         SRS_X86_X64=YES; opt="--x86-x64 $opt";
     fi
 
-    # Covert prefix without directory.
-    if [[ $SRS_CROSS_BUILD_PREFIX != "" ]]; then
-        SRS_CROSS_BUILD_PREFIX=$(basename $SRS_CROSS_BUILD_PREFIX)
-    fi
-
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         if [[ $SRS_CROSS_BUILD_PREFIX != "" && $SRS_CROSS_BUILD_HOST == "" ]]; then
             SRS_CROSS_BUILD_HOST=$(echo $SRS_CROSS_BUILD_PREFIX| sed 's/-$//g')
