@@ -4,14 +4,12 @@ name: "Test"
 on: [push, pull_request]
 
 jobs:
-  build-centos:
-    name: actions-test-build-centos
+  build-centos7:
+    name: actions-test-build-centos7
     runs-on: ubuntu-20.04
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
       # Build for CentOS 7
       - name: Build on CentOS7, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-baseline .
@@ -23,35 +21,61 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-asm .
       - name: Build on CentOS7, C++98, no FFmpeg
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
+
+  build-centos6:
+    name: actions-test-build-centos6
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
       # Build for CentOS 6
       - name: Build on CentOS6, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-baseline .
       - name: Build on CentOS6, with SRT
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-srt .
+
+  build-centos8:
+    name: actions-test-build-centos8
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
       # Build for CentOS 8
       - name: Build on CentOS8, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-baseline .
       - name: Build on CentOS8, with SRT
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-srt .
 
-  build-ubuntu:
-    name: actions-test-build-ubuntu
+  build-ubuntu16:
+    name: actions-test-build-ubuntu16
     runs-on: ubuntu-20.04
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
       # Build for Ubuntu16
       - name: Build on Ubuntu16, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-baseline .
       - name: Build on Ubuntu16, with SRT
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-srt .
+
+  build-ubuntu18:
+    name: actions-test-build-ubuntu18
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
       # Build for Ubuntu18
       - name: Build on Ubuntu18, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-baseline .
       - name: Build on Ubuntu18, with SRT
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-srt .
+
+  build-ubuntu20:
+    name: actions-test-build-ubuntu20
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
       # Build for Ubuntu20
       - name: Build on Ubuntu20, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-baseline .
@@ -61,11 +85,9 @@ jobs:
   build-cross:
     name: actions-test-build-cross
     runs-on: ubuntu-20.04
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
       # Cross Build for ARMv7
       - name: Cross Build for ARMv7 on Ubuntu16
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
@@ -80,23 +102,23 @@ jobs:
   build:
     name: actions-test-build
     needs:
-      - build-centos
-      - build-ubuntu
+      - build-centos7
+      - build-centos6
+      - build-centos8
+      - build-ubuntu16
+      - build-ubuntu18
+      - build-ubuntu20
       - build-cross
     runs-on: ubuntu-20.04
-
     steps:
       - run: echo 'Build done'
 
   utest:
     name: actions-test-utest
     runs-on: ubuntu-20.04
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
-      ################################################################
       # Tests
       - name: Build test image
         run: docker build --tag srs:test -f trunk/Dockerfile.test .
@@ -110,12 +132,9 @@ jobs:
   coverage:
     name: actions-test-coverage
     runs-on: ubuntu-20.04
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
-      ################################################################
       # Tests
       - name: Build coverage image
         run: docker build --tag srs:cov -f trunk/Dockerfile.cov .
@@ -139,15 +158,14 @@ jobs:
           docker run --rm --env CODECOV_TOKEN=$CODECOV_TOKEN \
             --env SRS_BRANCH=$SRS_BRANCH --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
             srs:cov bash -c 'make utest && ./objs/srs_utest && bash auto/codecov.sh'
+          #
 
-  multile-archs:
-    name: actions-test-multile-archs
+  multile-arch-armv7:
+    name: actions-test-multile-arch-armv7
     runs-on: ubuntu-20.04
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
@@ -155,13 +173,62 @@ jobs:
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-
       - name: Build multiple archs image
         run: |
-          docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
+          docker buildx build --platform linux/arm/v7 \
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             -f trunk/Dockerfile .
+
+  multile-arch-aarch64:
+    name: actions-test-multile-arch-aarch64
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
+      # https://github.com/docker/setup-qemu-action
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Build multiple archs image
+        run: |
+          docker buildx build --platform linux/arm64/v8 \
+            --output "type=image,push=false" \
+            --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
+            -f trunk/Dockerfile .
+
+  multile-arch-amd64:
+    name: actions-test-multile-arch-amd64
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
+      # https://github.com/docker/setup-qemu-action
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Build multiple archs image
+        run: |
+          docker buildx build --platform linux/amd64 \
+            --output "type=image,push=false" \
+            --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
+            -f trunk/Dockerfile .
+
+  artifacts:
+    name: artifacts-done
+    needs:
+      - multile-arch-armv7
+      - multile-arch-aarch64
+      - multile-arch-amd64
+    runs-on: ubuntu-20.04
+    steps:
+      - run: echo 'Artifacts done'
 
   done:
     name: actions-test-done
@@ -169,8 +236,8 @@ jobs:
       - build
       - utest
       - coverage
-      - multile-archs
+      - artifacts
     runs-on: ubuntu-20.04
-
     steps:
       - run: echo 'All done'
+
