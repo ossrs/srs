@@ -1,4 +1,4 @@
-FROM ossrs/srs:dev-gcc7
+FROM ossrs/srs:dev-gcc7-cache
 
 # Install depends tools.
 RUN yum install -y gcc make gcc-c++ patch unzip perl git

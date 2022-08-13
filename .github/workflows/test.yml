@@ -5,8 +5,10 @@ on: [push, pull_request]
 
 jobs:
   build-centos7:
-    name: actions-test-build-centos7
+    name: build-centos7
     runs-on: ubuntu-20.04
+    needs:
+      - multile-arch-amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -23,8 +25,10 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
 
   build-centos6:
-    name: actions-test-build-centos6
+    name: build-centos6
     runs-on: ubuntu-20.04
+    needs:
+      - multile-arch-amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -34,21 +38,11 @@ jobs:
       - name: Build on CentOS6, with SRT
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-srt .
 
-  build-centos8:
-    name: actions-test-build-centos8
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      # Build for CentOS 8
-      - name: Build on CentOS8, baseline
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-baseline .
-      - name: Build on CentOS8, with SRT
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-srt .
-
   build-ubuntu16:
-    name: actions-test-build-ubuntu16
+    name: build-ubuntu16
     runs-on: ubuntu-20.04
+    needs:
+      - multile-arch-amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -59,8 +53,10 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-srt .
 
   build-ubuntu18:
-    name: actions-test-build-ubuntu18
+    name: build-ubuntu18
     runs-on: ubuntu-20.04
+    needs:
+      - multile-arch-amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -71,8 +67,10 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-srt .
 
   build-ubuntu20:
-    name: actions-test-build-ubuntu20
+    name: build-ubuntu20
     runs-on: ubuntu-20.04
+    needs:
+      - multile-arch-amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -82,40 +80,51 @@ jobs:
       - name: Build on Ubuntu20, with SRT
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-srt .
 
-  build-cross:
-    name: actions-test-build-cross
+  build-cross-arm:
+    name: build-cross-arm
     runs-on: ubuntu-20.04
+    needs:
+      - multile-arch-amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      # Cross Build for ARMv7
       - name: Cross Build for ARMv7 on Ubuntu16
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
       - name: Cross Build for ARMv7 on Ubuntu20
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-armv7 .
-      # Cross Build for AARCH64
+
+  build-cross-aarch64:
+    name: build-cross-aarch64
+    runs-on: ubuntu-20.04
+    needs:
+      - multile-arch-amd64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
       - name: Cross Build for AARCH64 on Ubuntu16
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-aarch64 .
       - name: Cross Build for AARCH64 on Ubuntu20
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-aarch64 .
 
   build:
-    name: actions-test-build
+    name: build
     needs:
       - build-centos7
       - build-centos6
-      - build-centos8
       - build-ubuntu16
       - build-ubuntu18
       - build-ubuntu20
-      - build-cross
+      - build-cross-arm
+      - build-cross-aarch64
     runs-on: ubuntu-20.04
     steps:
       - run: echo 'Build done'
 
   utest:
-    name: actions-test-utest
+    name: utest
     runs-on: ubuntu-20.04
+    needs:
+      - multile-arch-amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -130,8 +139,10 @@ jobs:
         run: docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
 
   coverage:
-    name: actions-test-coverage
+    name: coverage
     runs-on: ubuntu-20.04
+    needs:
+      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -161,7 +172,7 @@ jobs:
           #
 
   multile-arch-armv7:
-    name: actions-test-multile-arch-armv7
+    name: multile-arch-armv7
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
@@ -181,7 +192,7 @@ jobs:
             -f trunk/Dockerfile .
 
   multile-arch-aarch64:
-    name: actions-test-multile-arch-aarch64
+    name: multile-arch-aarch64
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
@@ -201,7 +212,7 @@ jobs:
             -f trunk/Dockerfile .
 
   multile-arch-amd64:
-    name: actions-test-multile-arch-amd64
+    name: multile-arch-amd64
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
@@ -231,7 +242,7 @@ jobs:
       - run: echo 'Artifacts done'
 
   done:
-    name: actions-test-done
+    name: done
     needs:
       - build
       - utest

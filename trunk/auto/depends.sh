@@ -370,6 +370,22 @@ if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_CROSS_
 fi
 
 #####################################################################################
+# Try to load cache if exists /usr/local/srs-cache
+#####################################################################################
+# Use srs-cache from base image.
+if [[ -d /usr/local/srs-cache/srs/trunk/objs && $(pwd) != "/usr/local/srs-cache/srs/trunk" ]]; then
+    SOURCE_DIR=$(ls -d /usr/local/srs-cache/srs/trunk/objs/Platform-* 2>/dev/null|head -n 1)
+    if [[ -d $SOURCE_DIR ]]; then
+        TARGET_DIR=${SRS_OBJS}/${SRS_PLATFORM} &&
+        echo "Build from cache, source=$SOURCE_DIR, target=$TARGET_DIR" &&
+        rm -rf $TARGET_DIR && mkdir -p ${SRS_OBJS} && cp -R $SOURCE_DIR $TARGET_DIR &&
+        du -sh /usr/local/srs-cache/srs/trunk/objs/Platform-* &&
+        du -sh objs/Platform-* &&
+        ls -lh objs
+    fi
+fi
+
+#####################################################################################
 # state-threads
 #####################################################################################
 # check the cross build flag file, if flag changed, need to rebuild the st.
