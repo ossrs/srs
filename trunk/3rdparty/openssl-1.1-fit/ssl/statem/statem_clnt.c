@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -12,8 +12,8 @@
 #include <stdio.h>
 #include <time.h>
 #include <assert.h>
-#include "../ssl_locl.h"
-#include "statem_locl.h"
+#include "../ssl_local.h"
+#include "statem_local.h"
 #include <openssl/buffer.h>
 #include <openssl/rand.h>
 #include <openssl/objects.h>
@@ -473,12 +473,6 @@ static WRITE_TRAN ossl_statem_client13_write_transition(SSL *s)
         return WRITE_TRAN_CONTINUE;
 
     case TLS_ST_CR_KEY_UPDATE:
-        if (s->key_update != SSL_KEY_UPDATE_NONE) {
-            st->hand_state = TLS_ST_CW_KEY_UPDATE;
-            return WRITE_TRAN_CONTINUE;
-        }
-        /* Fall through */
-
     case TLS_ST_CW_KEY_UPDATE:
     case TLS_ST_CR_SESSION_TICKET:
     case TLS_ST_CW_FINISHED:
@@ -1007,7 +1001,8 @@ size_t ossl_statem_client_max_message_size(SSL *s)
         return CCS_MAX_LENGTH;
 
     case TLS_ST_CR_SESSION_TICKET:
-        return SSL3_RT_MAX_PLAIN_LENGTH;
+        return (SSL_IS_TLS13(s)) ? SESSION_TICKET_MAX_LENGTH_TLS13
+                                 : SESSION_TICKET_MAX_LENGTH_TLS12;
 
     case TLS_ST_CR_FINISHED:
         return FINISHED_MAX_LENGTH;
@@ -1613,10 +1608,7 @@ MSG_PROCESS_RETURN tls_process_server_hello(SSL *s, PACKET *pkt)
          * so the PAC-based session secret is always preserved. It'll be
          * overwritten if the server refuses resumption.
          */
-        if (s->session->session_id_length > 0
-                || (SSL_IS_TLS13(s)
-                    && s->session->ext.tick_identity
-                       != TLSEXT_PSK_BAD_IDENTITY)) {
+        if (s->session->session_id_length > 0) {
             tsan_counter(&s->session_ctx->stats.sess_miss);
             if (!ssl_get_new_session(s, 0)) {
                 /* SSLfatal() already called */
@@ -1969,7 +1961,6 @@ MSG_PROCESS_RETURN tls_process_server_certificate(SSL *s, PACKET *pkt)
             goto err;
         }
     }
-    s->session->peer_type = certidx;
 
     X509_free(s->session->peer);
     X509_up_ref(x);
@@ -2154,15 +2145,17 @@ static int tls_process_ske_dhe(SSL *s, PACKET *pkt, EVP_PKEY **pkey)
     }
     bnpub_key = NULL;
 
-    if (!ssl_security(s, SSL_SECOP_TMP_DH, DH_security_bits(dh), 0, dh)) {
-        SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, SSL_F_TLS_PROCESS_SKE_DHE,
-                 SSL_R_DH_KEY_TOO_SMALL);
-        goto err;
-    }
-
     if (EVP_PKEY_assign_DH(peer_tmp, dh) == 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_SKE_DHE,
                  ERR_R_EVP_LIB);
+        goto err;
+    }
+    dh = NULL;
+
+    if (!ssl_security(s, SSL_SECOP_TMP_DH, EVP_PKEY_security_bits(peer_tmp),
+                      0, peer_tmp)) {
+        SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, SSL_F_TLS_PROCESS_SKE_DHE,
+                 SSL_R_DH_KEY_TOO_SMALL);
         goto err;
     }
 
@@ -2470,6 +2463,7 @@ MSG_PROCESS_RETURN tls_process_certificate_request(SSL *s, PACKET *pkt)
         s->s3->tmp.ctype_len = 0;
         OPENSSL_free(s->pha_context);
         s->pha_context = NULL;
+        s->pha_context_len = 0;
 
         if (!PACKET_get_length_prefixed_1(pkt, &reqctx) ||
             !PACKET_memdup(&reqctx, &s->pha_context, &s->pha_context_len)) {
@@ -2779,16 +2773,17 @@ int tls_process_cert_status_body(SSL *s, PACKET *pkt)
     }
     s->ext.ocsp.resp = OPENSSL_malloc(resplen);
     if (s->ext.ocsp.resp == NULL) {
+        s->ext.ocsp.resp_len = 0;
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_CERT_STATUS_BODY,
                  ERR_R_MALLOC_FAILURE);
         return 0;
     }
+    s->ext.ocsp.resp_len = resplen;
     if (!PACKET_copy_bytes(pkt, s->ext.ocsp.resp, resplen)) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CERT_STATUS_BODY,
                  SSL_R_LENGTH_MISMATCH);
         return 0;
     }
-    s->ext.ocsp.resp_len = resplen;
 
     return 1;
 }
@@ -2839,7 +2834,7 @@ int tls_process_initial_server_flight(SSL *s)
         if (ret < 0) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                      SSL_F_TLS_PROCESS_INITIAL_SERVER_FLIGHT,
-                     ERR_R_MALLOC_FAILURE);
+                     SSL_R_OCSP_CALLBACK_FAILURE);
             return 0;
         }
     }
@@ -2913,6 +2908,7 @@ static int tls_construct_cke_psk_preamble(SSL *s, WPACKET *pkt)
     if (psklen > PSK_MAX_PSK_LEN) {
         SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE,
                  SSL_F_TLS_CONSTRUCT_CKE_PSK_PREAMBLE, ERR_R_INTERNAL_ERROR);
+        psklen = PSK_MAX_PSK_LEN;   /* Avoid overrunning the array on cleanse */
         goto err;
     } else if (psklen == 0) {
         SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE,
@@ -3358,9 +3354,11 @@ int tls_construct_client_key_exchange(SSL *s, WPACKET *pkt)
  err:
     OPENSSL_clear_free(s->s3->tmp.pms, s->s3->tmp.pmslen);
     s->s3->tmp.pms = NULL;
+    s->s3->tmp.pmslen = 0;
 #ifndef OPENSSL_NO_PSK
     OPENSSL_clear_free(s->s3->tmp.psk, s->s3->tmp.psklen);
     s->s3->tmp.psk = NULL;
+    s->s3->tmp.psklen = 0;
 #endif
     return 0;
 }
@@ -3435,6 +3433,7 @@ int tls_client_key_exchange_post_work(SSL *s)
  err:
     OPENSSL_clear_free(pms, pmslen);
     s->s3->tmp.pms = NULL;
+    s->s3->tmp.pmslen = 0;
     return 0;
 }
 

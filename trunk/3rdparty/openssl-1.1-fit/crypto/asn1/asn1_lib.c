@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,7 +11,7 @@
 #include <limits.h>
 #include "internal/cryptlib.h"
 #include <openssl/asn1.h>
-#include "asn1_locl.h"
+#include "asn1_local.h"
 
 static int asn1_get_length(const unsigned char **pp, int *inf, long *rl,
                            long max);
@@ -268,20 +268,36 @@ ASN1_STRING *ASN1_STRING_dup(const ASN1_STRING *str)
     return ret;
 }
 
-int ASN1_STRING_set(ASN1_STRING *str, const void *_data, int len)
+int ASN1_STRING_set(ASN1_STRING *str, const void *_data, int len_in)
 {
     unsigned char *c;
     const char *data = _data;
+    size_t len;
 
-    if (len < 0) {
+    if (len_in < 0) {
         if (data == NULL)
             return 0;
-        else
-            len = strlen(data);
+        len = strlen(data);
+    } else {
+        len = (size_t)len_in;
     }
-    if ((str->length <= len) || (str->data == NULL)) {
+    /*
+     * Verify that the length fits within an integer for assignment to
+     * str->length below.  The additional 1 is subtracted to allow for the
+     * '\0' terminator even though this isn't strictly necessary.
+     */
+    if (len > INT_MAX - 1) {
+        ASN1err(0, ASN1_R_TOO_LARGE);
+        return 0;
+    }
+    if ((size_t)str->length <= len || str->data == NULL) {
         c = str->data;
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+        /* No NUL terminator in fuzzing builds */
+        str->data = OPENSSL_realloc(c, len);
+#else
         str->data = OPENSSL_realloc(c, len + 1);
+#endif
         if (str->data == NULL) {
             ASN1err(ASN1_F_ASN1_STRING_SET, ERR_R_MALLOC_FAILURE);
             str->data = c;
@@ -291,8 +307,13 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, int len)
     str->length = len;
     if (data != NULL) {
         memcpy(str->data, data, len);
-        /* an allowance for strings :-) */
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+        /*
+         * Add a NUL terminator. This should not be necessary - but we add it as
+         * a safety precaution
+         */
         str->data[len] = '\0';
+#endif
     }
     return 1;
 }

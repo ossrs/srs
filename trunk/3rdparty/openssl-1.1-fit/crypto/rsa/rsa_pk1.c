@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "internal/constant_time_locl.h"
+#include "internal/constant_time.h"
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
@@ -57,7 +57,7 @@ int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
      * D  - data.
      */
 
-    if (num < 11)
+    if (num < RSA_PKCS1_PADDING_SIZE)
         return -1;
 
     /* Accept inputs with and without the leading 0-byte. */
@@ -120,7 +120,7 @@ int RSA_padding_add_PKCS1_type_2(unsigned char *to, int tlen,
     int i, j;
     unsigned char *p;
 
-    if (flen > (tlen - 11)) {
+    if (flen > (tlen - RSA_PKCS1_PADDING_SIZE)) {
         RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_TYPE_2,
                RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
         return 0;
@@ -169,7 +169,7 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
      * section 7.2.2.
      */
 
-    if (flen > num || num < 11) {
+    if (flen > num || num < RSA_PKCS1_PADDING_SIZE) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2,
                RSA_R_PKCS_DECODING_ERROR);
         return -1;
@@ -192,15 +192,14 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
         from -= 1 & mask;
         *--em = *from & mask;
     }
-    from = em;
 
-    good = constant_time_is_zero(from[0]);
-    good &= constant_time_eq(from[1], 2);
+    good = constant_time_is_zero(em[0]);
+    good &= constant_time_eq(em[1], 2);
 
     /* scan over padding data */
     found_zero_byte = 0;
     for (i = 2; i < num; i++) {
-        unsigned int equals0 = constant_time_is_zero(from[i]);
+        unsigned int equals0 = constant_time_is_zero(em[i]);
 
         zero_index = constant_time_select_int(~found_zero_byte & equals0,
                                               i, zero_index);
@@ -208,7 +207,7 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
     }
 
     /*
-     * PS must be at least 8 bytes long, and it starts two bytes into |from|.
+     * PS must be at least 8 bytes long, and it starts two bytes into |em|.
      * If we never found a 0-byte, then |zero_index| is 0 and the check
      * also fails.
      */
@@ -227,24 +226,25 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
     good &= constant_time_ge(tlen, mlen);
 
     /*
-     * Even though we can't fake result's length, we can pretend copying
-     * |tlen| bytes where |mlen| bytes would be real. Last |tlen| of |num|
-     * bytes are viewed as circular buffer with start at |tlen|-|mlen'|,
-     * where |mlen'| is "saturated" |mlen| value. Deducing information
-     * about failure or |mlen| would take attacker's ability to observe
-     * memory access pattern with byte granularity *as it occurs*. It
-     * should be noted that failure is indistinguishable from normal
-     * operation if |tlen| is fixed by protocol.
+     * Move the result in-place by |num|-RSA_PKCS1_PADDING_SIZE-|mlen| bytes to the left.
+     * Then if |good| move |mlen| bytes from |em|+RSA_PKCS1_PADDING_SIZE to |to|.
+     * Otherwise leave |to| unchanged.
+     * Copy the memory back in a way that does not reveal the size of
+     * the data being copied via a timing side channel. This requires copying
+     * parts of the buffer multiple times based on the bits set in the real
+     * length. Clear bits do a non-copy with identical access pattern.
+     * The loop below has overall complexity of O(N*log(N)).
      */
-    tlen = constant_time_select_int(constant_time_lt(num, tlen), num, tlen);
-    msg_index = constant_time_select_int(good, msg_index, num - tlen);
-    mlen = num - msg_index;
-    for (from += msg_index, mask = good, i = 0; i < tlen; i++) {
-        unsigned int equals = constant_time_eq(i, mlen);
-
-        from -= tlen & equals;  /* if (i == mlen) rewind   */
-        mask &= mask ^ equals;  /* if (i == mlen) mask = 0 */
-        to[i] = constant_time_select_8(mask, from[i], to[i]);
+    tlen = constant_time_select_int(constant_time_lt(num - RSA_PKCS1_PADDING_SIZE, tlen),
+                                    num - RSA_PKCS1_PADDING_SIZE, tlen);
+    for (msg_index = 1; msg_index < num - RSA_PKCS1_PADDING_SIZE; msg_index <<= 1) {
+        mask = ~constant_time_eq(msg_index & (num - RSA_PKCS1_PADDING_SIZE - mlen), 0);
+        for (i = RSA_PKCS1_PADDING_SIZE; i < num - msg_index; i++)
+            em[i] = constant_time_select_8(mask, em[i + msg_index], em[i]);
+    }
+    for (i = 0; i < tlen; i++) {
+        mask = good & constant_time_lt(i, mlen);
+        to[i] = constant_time_select_8(mask, em[i + RSA_PKCS1_PADDING_SIZE], to[i]);
     }
 
     OPENSSL_clear_free(em, num);

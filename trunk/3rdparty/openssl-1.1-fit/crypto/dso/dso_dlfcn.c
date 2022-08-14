@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,7 +16,7 @@
 # define _GNU_SOURCE            /* make sure dladdr is declared */
 #endif
 
-#include "dso_locl.h"
+#include "dso_local.h"
 #include "e_os.h"
 
 #ifdef DSO_DLFCN
@@ -27,8 +27,7 @@
 #  endif
 #  include <dlfcn.h>
 #  define HAVE_DLINFO 1
-#  if defined(__CYGWIN__) || \
-     defined(__SCO_VERSION__) || defined(_SCO_ELF) || \
+#  if defined(__SCO_VERSION__) || defined(_SCO_ELF) || \
      (defined(__osf__) && !defined(RTLD_NEXT))     || \
      (defined(__OpenBSD__) && !defined(RTLD_SELF)) || \
         defined(__ANDROID__)

@@ -17,7 +17,7 @@
 #include <openssl/crypto.h>
 #include <openssl/conf.h>
 #include "internal/nelem.h"
-#include "ssl_locl.h"
+#include "ssl_local.h"
 #include "internal/thread_once.h"
 #include "internal/cryptlib.h"
 
@@ -92,7 +92,7 @@ static CRYPTO_ONCE ssl_load_builtin_comp_once = CRYPTO_ONCE_STATIC_INIT;
 
 /*
  * Constant SSL_MAX_DIGEST equal to size of digests array should be defined
- * in the ssl_locl.h
+ * in the ssl_local.h
  */
 
 #define SSL_MD_NUM_IDX  SSL_MAX_DIGEST
@@ -1377,24 +1377,25 @@ int SSL_CTX_set_ciphersuites(SSL_CTX *ctx, const char *str)
 {
     int ret = set_ciphersuites(&(ctx->tls13_ciphersuites), str);
 
-    if (ret && ctx->cipher_list != NULL) {
-        /* We already have a cipher_list, so we need to update it */
+    if (ret && ctx->cipher_list != NULL)
         return update_cipher_list(&ctx->cipher_list, &ctx->cipher_list_by_id,
                                   ctx->tls13_ciphersuites);
-    }
 
     return ret;
 }
 
 int SSL_set_ciphersuites(SSL *s, const char *str)
 {
+    STACK_OF(SSL_CIPHER) *cipher_list;
     int ret = set_ciphersuites(&(s->tls13_ciphersuites), str);
 
-    if (ret && s->cipher_list != NULL) {
-        /* We already have a cipher_list, so we need to update it */
+    if (s->cipher_list == NULL) {
+        if ((cipher_list = SSL_get_ciphers(s)) != NULL)
+            s->cipher_list = sk_SSL_CIPHER_dup(cipher_list);
+    }
+    if (ret && s->cipher_list != NULL)
         return update_cipher_list(&s->cipher_list, &s->cipher_list_by_id,
                                   s->tls13_ciphersuites);
-    }
 
     return ret;
 }

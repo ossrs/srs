@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,14 +10,15 @@
 #include <string.h>
 #include "internal/nelem.h"
 #include "internal/cryptlib.h"
-#include "../ssl_locl.h"
-#include "statem_locl.h"
+#include "../ssl_local.h"
+#include "statem_local.h"
 #include "internal/cryptlib.h"
 
 static int final_renegotiate(SSL *s, unsigned int context, int sent);
 static int init_server_name(SSL *s, unsigned int context);
 static int final_server_name(SSL *s, unsigned int context, int sent);
 #ifndef OPENSSL_NO_EC
+static int init_ec_point_formats(SSL *s, unsigned int context);
 static int final_ec_pt_formats(SSL *s, unsigned int context, int sent);
 #endif
 static int init_session_ticket(SSL *s, unsigned int context);
@@ -56,6 +57,7 @@ static int final_sig_algs(SSL *s, unsigned int context, int sent);
 static int final_early_data(SSL *s, unsigned int context, int sent);
 static int final_maxfragmentlen(SSL *s, unsigned int context, int sent);
 static int init_post_handshake_auth(SSL *s, unsigned int context);
+static int final_psk(SSL *s, unsigned int context, int sent);
 
 /* Structure to define a built-in extension */
 typedef struct extensions_definition_st {
@@ -94,7 +96,7 @@ typedef struct extensions_definition_st {
 /*
  * Definitions of all built-in extensions. NOTE: Changes in the number or order
  * of these extensions should be mirrored with equivalent changes to the
- * indexes ( TLSEXT_IDX_* ) defined in ssl_locl.h.
+ * indexes ( TLSEXT_IDX_* ) defined in ssl_local.h.
  * Each extension has an initialiser, a client and
  * server side parser and a finaliser. The initialiser is called (if the
  * extension is relevant to the given context) even if we did not see the
@@ -158,7 +160,7 @@ static const EXTENSION_DEFINITION ext_defs[] = {
         TLSEXT_TYPE_ec_point_formats,
         SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_2_SERVER_HELLO
         | SSL_EXT_TLS1_2_AND_BELOW_ONLY,
-        NULL, tls_parse_ctos_ec_pt_formats, tls_parse_stoc_ec_pt_formats,
+        init_ec_point_formats, tls_parse_ctos_ec_pt_formats, tls_parse_stoc_ec_pt_formats,
         tls_construct_stoc_ec_pt_formats, tls_construct_ctos_ec_pt_formats,
         final_ec_pt_formats
     },
@@ -336,6 +338,8 @@ static const EXTENSION_DEFINITION ext_defs[] = {
         tls_construct_stoc_key_share, tls_construct_ctos_key_share,
         final_key_share
     },
+#else
+    INVALID_EXTENSION,
 #endif
     {
         /* Must be after key_share */
@@ -387,7 +391,7 @@ static const EXTENSION_DEFINITION ext_defs[] = {
         SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_SERVER_HELLO
         | SSL_EXT_TLS_IMPLEMENTATION_ONLY | SSL_EXT_TLS1_3_ONLY,
         NULL, tls_parse_ctos_psk, tls_parse_stoc_psk, tls_construct_stoc_psk,
-        tls_construct_ctos_psk, NULL
+        tls_construct_ctos_psk, final_psk
     }
 };
 
@@ -949,8 +953,7 @@ static int final_server_name(SSL *s, unsigned int context, int sent)
      * was successful.
      */
     if (s->server) {
-        /* TODO(OpenSSL1.2) revisit !sent case */
-        if (sent && ret == SSL_TLSEXT_ERR_OK && (!s->hit || SSL_IS_TLS13(s))) {
+        if (sent && ret == SSL_TLSEXT_ERR_OK && !s->hit) {
             /* Only store the hostname in the session if we accepted it. */
             OPENSSL_free(s->session->ext.hostname);
             s->session->ext.hostname = OPENSSL_strdup(s->ext.hostname);
@@ -967,7 +970,8 @@ static int final_server_name(SSL *s, unsigned int context, int sent)
      * context, to avoid the confusing situation of having sess_accept_good
      * exceed sess_accept (zero) for the new context.
      */
-    if (SSL_IS_FIRST_HANDSHAKE(s) && s->ctx != s->session_ctx) {
+    if (SSL_IS_FIRST_HANDSHAKE(s) && s->ctx != s->session_ctx
+		    && s->hello_retry_request == SSL_HRR_NONE) {
         tsan_counter(&s->ctx->stats.sess_accept);
         tsan_decr(&s->session_ctx->stats.sess_accept);
     }
@@ -989,7 +993,6 @@ static int final_server_name(SSL *s, unsigned int context, int sent)
                 ss->ext.ticklen = 0;
                 ss->ext.tick_lifetime_hint = 0;
                 ss->ext.tick_age_add = 0;
-                ss->ext.tick_identity = 0;
                 if (!ssl_generate_session_id(s, ss)) {
                     SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_FINAL_SERVER_NAME,
                              ERR_R_INTERNAL_ERROR);
@@ -1012,6 +1015,7 @@ static int final_server_name(SSL *s, unsigned int context, int sent)
         /* TLSv1.3 doesn't have warning alerts so we suppress this */
         if (!SSL_IS_TLS13(s))
             ssl3_send_alert(s, SSL3_AL_WARNING, altmp);
+        s->servername_done = 0;
         return 1;
 
     case SSL_TLSEXT_ERR_NOACK:
@@ -1024,6 +1028,15 @@ static int final_server_name(SSL *s, unsigned int context, int sent)
 }
 
 #ifndef OPENSSL_NO_EC
+static int init_ec_point_formats(SSL *s, unsigned int context)
+{
+    OPENSSL_free(s->ext.peer_ecpointformats);
+    s->ext.peer_ecpointformats = NULL;
+    s->ext.peer_ecpointformats_len = 0;
+
+    return 1;
+}
+
 static int final_ec_pt_formats(SSL *s, unsigned int context, int sent)
 {
     unsigned long alg_k, alg_a;
@@ -1041,18 +1054,18 @@ static int final_ec_pt_formats(SSL *s, unsigned int context, int sent)
      */
     if (s->ext.ecpointformats != NULL
             && s->ext.ecpointformats_len > 0
-            && s->session->ext.ecpointformats != NULL
-            && s->session->ext.ecpointformats_len > 0
+            && s->ext.peer_ecpointformats != NULL
+            && s->ext.peer_ecpointformats_len > 0
             && ((alg_k & SSL_kECDHE) || (alg_a & SSL_aECDSA))) {
         /* we are using an ECC cipher */
         size_t i;
-        unsigned char *list = s->session->ext.ecpointformats;
+        unsigned char *list = s->ext.peer_ecpointformats;
 
-        for (i = 0; i < s->session->ext.ecpointformats_len; i++) {
+        for (i = 0; i < s->ext.peer_ecpointformats_len; i++) {
             if (*list++ == TLSEXT_ECPOINTFORMAT_uncompressed)
                 break;
         }
-        if (i == s->session->ext.ecpointformats_len) {
+        if (i == s->ext.peer_ecpointformats_len) {
             SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_F_FINAL_EC_PT_FORMATS,
                      SSL_R_TLS_INVALID_ECPOINTFORMAT_LIST);
             return 0;
@@ -1137,6 +1150,7 @@ static int init_sig_algs(SSL *s, unsigned int context)
     /* Clear any signature algorithms extension received */
     OPENSSL_free(s->s3->tmp.peer_sigalgs);
     s->s3->tmp.peer_sigalgs = NULL;
+    s->s3->tmp.peer_sigalgslen = 0;
 
     return 1;
 }
@@ -1146,6 +1160,7 @@ static int init_sig_algs_cert(SSL *s, unsigned int context)
     /* Clear any signature algorithms extension received */
     OPENSSL_free(s->s3->tmp.peer_cert_sigalgs);
     s->s3->tmp.peer_cert_sigalgs = NULL;
+    s->s3->tmp.peer_cert_sigalgslen = 0;
 
     return 1;
 }
@@ -1169,14 +1184,26 @@ static int init_etm(SSL *s, unsigned int context)
 
 static int init_ems(SSL *s, unsigned int context)
 {
-    if (!s->server)
+    if (s->s3->flags & TLS1_FLAGS_RECEIVED_EXTMS) {
         s->s3->flags &= ~TLS1_FLAGS_RECEIVED_EXTMS;
+        s->s3->flags |= TLS1_FLAGS_REQUIRED_EXTMS;
+    }
 
     return 1;
 }
 
 static int final_ems(SSL *s, unsigned int context, int sent)
 {
+    /*
+     * Check extended master secret extension is not dropped on
+     * renegotiation.
+     */
+    if (!(s->s3->flags & TLS1_FLAGS_RECEIVED_EXTMS)
+        && (s->s3->flags & TLS1_FLAGS_REQUIRED_EXTMS)) {
+        SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, SSL_F_FINAL_EMS,
+                 SSL_R_INCONSISTENT_EXTMS);
+        return 0;
+    }
     if (!s->server && s->hit) {
         /*
          * Check extended master secret extension is consistent with
@@ -1449,8 +1476,13 @@ int tls_psk_do_binder(SSL *s, const EVP_MD *md, const unsigned char *msgstart,
     unsigned char hash[EVP_MAX_MD_SIZE], binderkey[EVP_MAX_MD_SIZE];
     unsigned char finishedkey[EVP_MAX_MD_SIZE], tmpbinder[EVP_MAX_MD_SIZE];
     unsigned char *early_secret;
+#ifdef CHARSET_EBCDIC
+    static const unsigned char resumption_label[] = { 0x72, 0x65, 0x73, 0x20, 0x62, 0x69, 0x6E, 0x64, 0x65, 0x72, 0x00 };
+    static const unsigned char external_label[]   = { 0x65, 0x78, 0x74, 0x20, 0x62, 0x69, 0x6E, 0x64, 0x65, 0x72, 0x00 };
+#else
     static const unsigned char resumption_label[] = "res binder";
     static const unsigned char external_label[] = "ext binder";
+#endif
     const unsigned char *label;
     size_t bindersize, labelsize, hashsize;
     int hashsizei = EVP_MD_size(md);
@@ -1646,13 +1678,12 @@ static int final_early_data(SSL *s, unsigned int context, int sent)
 
     if (s->max_early_data == 0
             || !s->hit
-            || s->session->ext.tick_identity != 0
             || s->early_data_state != SSL_EARLY_DATA_ACCEPTING
             || !s->ext.early_data_ok
             || s->hello_retry_request != SSL_HRR_NONE
-            || (s->ctx->allow_early_data_cb != NULL
-                && !s->ctx->allow_early_data_cb(s,
-                                         s->ctx->allow_early_data_cb_data))) {
+            || (s->allow_early_data_cb != NULL
+                && !s->allow_early_data_cb(s,
+                                         s->allow_early_data_cb_data))) {
         s->ext.early_data = SSL_EARLY_DATA_REJECTED;
     } else {
         s->ext.early_data = SSL_EARLY_DATA_ACCEPTED;
@@ -1695,6 +1726,22 @@ static int final_maxfragmentlen(SSL *s, unsigned int context, int sent)
 static int init_post_handshake_auth(SSL *s, unsigned int context)
 {
     s->post_handshake_auth = SSL_PHA_NONE;
+
+    return 1;
+}
+
+/*
+ * If clients offer "pre_shared_key" without a "psk_key_exchange_modes"
+ * extension, servers MUST abort the handshake.
+ */
+static int final_psk(SSL *s, unsigned int context, int sent)
+{
+    if (s->server && sent && s->clienthello != NULL
+            && !s->clienthello->pre_proc_exts[TLSEXT_IDX_psk_kex_modes].present) {
+        SSLfatal(s, TLS13_AD_MISSING_EXTENSION, SSL_F_FINAL_PSK,
+                 SSL_R_MISSING_PSK_KEX_MODES_EXTENSION);
+        return 0;
+    }
 
     return 1;
 }

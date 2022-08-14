@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,9 +11,9 @@
 #include <openssl/asn1t.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
-#include "internal/evp_int.h"
-#include "internal/sm2.h"
-#include "internal/sm2err.h"
+#include "crypto/evp.h"
+#include "crypto/sm2.h"
+#include "crypto/sm2err.h"
 
 /* EC pkey context structure */
 
@@ -151,7 +151,7 @@ static int pkey_sm2_decrypt(EVP_PKEY_CTX *ctx,
     const EVP_MD *md = (dctx->md == NULL) ? EVP_sm3() : dctx->md;
 
     if (out == NULL) {
-        if (!sm2_plaintext_size(ec, md, inlen, outlen))
+        if (!sm2_plaintext_size(in, inlen, outlen))
             return -1;
         else
             return 1;
@@ -218,6 +218,10 @@ static int pkey_sm2_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 
     case EVP_PKEY_CTRL_GET1_ID_LEN:
         *(size_t *)p2 = smctx->id_len;
+        return 1;
+
+    case EVP_PKEY_CTRL_DIGESTINIT:
+        /* nothing to be inited, this is to suppress the error... */
         return 1;
 
     default:

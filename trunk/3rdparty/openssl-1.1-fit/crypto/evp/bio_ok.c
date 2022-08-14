@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,9 +38,9 @@
         of memory.
 
         BIO_f_reliable splits data stream into blocks. Each block is prefixed
-        with it's length and suffixed with it's digest. So you need only
+        with its length and suffixed with its digest. So you need only
         several Kbytes of memory to buffer single block before verifying
-        it's digest.
+        its digest.
 
         BIO_f_reliable goes further and adds several important capabilities:
 
@@ -76,7 +76,7 @@
 #include "internal/bio.h"
 #include <openssl/evp.h>
 #include <openssl/rand.h>
-#include "internal/evp_int.h"
+#include "crypto/evp.h"
 
 static int ok_write(BIO *h, const char *buf, int num);
 static int ok_read(BIO *h, char *buf, int size);
@@ -203,7 +203,7 @@ static int ok_read(BIO *b, char *out, int outl)
                 /*
                  * copy start of the next block into proper place
                  */
-                if (ctx->buf_len_save - ctx->buf_off_save > 0) {
+                if (ctx->buf_len_save > ctx->buf_off_save) {
                     ctx->buf_len = ctx->buf_len_save - ctx->buf_off_save;
                     memmove(ctx->buf, &(ctx->buf[ctx->buf_off_save]),
                             ctx->buf_len);

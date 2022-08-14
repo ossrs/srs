@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2010-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2010-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -116,7 +116,7 @@ if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	$avx = ($1>=10) + ($1>=11);
 }
 
-if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9]\.[0-9]+)/) {
+if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:clang|LLVM) version|.*based on LLVM) ([0-9]+\.[0-9]+)/) {
 	$avx = ($2>=3.0) + ($2>3.0);
 }
 
@@ -1155,6 +1155,7 @@ ___
 } else {
 $code.=<<___;
 	jmp	.L_init_clmul
+.cfi_endproc
 .size	gcm_init_avx,.-gcm_init_avx
 ___
 }
@@ -1594,6 +1595,7 @@ ___
 } else {
 $code.=<<___;
 	jmp	.L_ghash_clmul
+.cfi_endproc
 .size	gcm_ghash_avx,.-gcm_ghash_avx
 ___
 }
@@ -1813,4 +1815,4 @@ $code =~ s/\`([^\`]*)\`/eval($1)/gem;
 
 print $code;
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

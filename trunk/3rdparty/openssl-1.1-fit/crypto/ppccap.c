@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2009-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -29,8 +29,8 @@
 #include <openssl/crypto.h>
 #include <openssl/bn.h>
 #include <internal/cryptlib.h>
-#include <internal/chacha.h>
-#include "bn/bn_lcl.h"
+#include <crypto/chacha.h>
+#include "bn/bn_local.h"
 
 #include "ppc_arch.h"
 
@@ -211,6 +211,30 @@ size_t OPENSSL_instrument_bus2(unsigned int *out, size_t cnt, size_t max)
 # if __GLIBC_PREREQ(2, 16)
 #  include <sys/auxv.h>
 #  define OSSL_IMPLEMENT_GETAUXVAL
+# elif defined(__ANDROID_API__)
+/* see https://developer.android.google.cn/ndk/guides/cpu-features */
+#  if __ANDROID_API__ >= 18
+#   include <sys/auxv.h>
+#   define OSSL_IMPLEMENT_GETAUXVAL
+#  endif
+# endif
+#endif
+
+#if defined(__FreeBSD__)
+# include <sys/param.h>
+# if __FreeBSD_version >= 1200000
+#  include <sys/auxv.h>
+#  define OSSL_IMPLEMENT_GETAUXVAL
+
+static unsigned long getauxval(unsigned long key)
+{
+  unsigned long val = 0ul;
+
+  if (elf_aux_info((int)key, &val, sizeof(val)) != 0)
+    return 0ul;
+
+  return val;
+}
 # endif
 #endif
 
@@ -314,6 +338,7 @@ void OPENSSL_cpuid_setup(void)
 #ifdef OSSL_IMPLEMENT_GETAUXVAL
     {
         unsigned long hwcap = getauxval(HWCAP);
+        unsigned long hwcap2 = getauxval(HWCAP2);
 
         if (hwcap & HWCAP_FPU) {
             OPENSSL_ppccap_P |= PPC_FPU;
@@ -332,11 +357,11 @@ void OPENSSL_cpuid_setup(void)
         if (hwcap & HWCAP_ALTIVEC) {
             OPENSSL_ppccap_P |= PPC_ALTIVEC;
 
-            if ((hwcap & HWCAP_VSX) && (getauxval(HWCAP2) & HWCAP_VEC_CRYPTO))
+            if ((hwcap & HWCAP_VSX) && (hwcap2 & HWCAP_VEC_CRYPTO))
                 OPENSSL_ppccap_P |= PPC_CRYPTO207;
         }
 
-        if (hwcap & HWCAP_ARCH_3_00) {
+        if (hwcap2 & HWCAP_ARCH_3_00) {
             OPENSSL_ppccap_P |= PPC_MADD300;
         }
     }

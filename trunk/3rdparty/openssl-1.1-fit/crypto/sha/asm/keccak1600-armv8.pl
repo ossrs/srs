@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -738,7 +738,7 @@ $code.=<<___;
 	blo	.Lprocess_block_ce
 	ldr	d31,[$inp],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	$A[$j/5][$j%5],$A[$j/5][$j%5],v31.16b
 	beq	.Lprocess_block_ce
@@ -747,7 +747,7 @@ ___
 $code.=<<___;
 	ldr	d31,[$inp],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	$A[4][4],$A[4][4],v31.16b
 
@@ -877,4 +877,4 @@ foreach(split("\n",$code)) {
 	print $_,"\n";
 }
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

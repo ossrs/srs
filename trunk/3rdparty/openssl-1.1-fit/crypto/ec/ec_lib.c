@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -13,7 +13,7 @@
 #include <openssl/err.h>
 #include <openssl/opensslv.h>
 
-#include "ec_lcl.h"
+#include "ec_local.h"
 
 /* functions for EC_GROUP objects */
 
@@ -211,6 +211,7 @@ int EC_GROUP_copy(EC_GROUP *dest, const EC_GROUP *src)
 
     dest->asn1_flag = src->asn1_flag;
     dest->asn1_form = src->asn1_form;
+    dest->decoded_from_explicit_params = src->decoded_from_explicit_params;
 
     if (src->seed) {
         OPENSSL_free(dest->seed);
@@ -265,11 +266,100 @@ int EC_METHOD_get_field_type(const EC_METHOD *meth)
 
 static int ec_precompute_mont_data(EC_GROUP *);
 
+/*-
+ * Try computing cofactor from the generator order (n) and field cardinality (q).
+ * This works for all curves of cryptographic interest.
+ *
+ * Hasse thm: q + 1 - 2*sqrt(q) <= n*h <= q + 1 + 2*sqrt(q)
+ * h_min = (q + 1 - 2*sqrt(q))/n
+ * h_max = (q + 1 + 2*sqrt(q))/n
+ * h_max - h_min = 4*sqrt(q)/n
+ * So if n > 4*sqrt(q) holds, there is only one possible value for h:
+ * h = \lfloor (h_min + h_max)/2 \rceil = \lfloor (q + 1)/n \rceil
+ *
+ * Otherwise, zero cofactor and return success.
+ */
+static int ec_guess_cofactor(EC_GROUP *group) {
+    int ret = 0;
+    BN_CTX *ctx = NULL;
+    BIGNUM *q = NULL;
+
+    /*-
+     * If the cofactor is too large, we cannot guess it.
+     * The RHS of below is a strict overestimate of lg(4 * sqrt(q))
+     */
+    if (BN_num_bits(group->order) <= (BN_num_bits(group->field) + 1) / 2 + 3) {
+        /* default to 0 */
+        BN_zero(group->cofactor);
+        /* return success */
+        return 1;
+    }
+
+    if ((ctx = BN_CTX_new()) == NULL)
+        return 0;
+
+    BN_CTX_start(ctx);
+    if ((q = BN_CTX_get(ctx)) == NULL)
+        goto err;
+
+    /* set q = 2**m for binary fields; q = p otherwise */
+    if (group->meth->field_type == NID_X9_62_characteristic_two_field) {
+        BN_zero(q);
+        if (!BN_set_bit(q, BN_num_bits(group->field) - 1))
+            goto err;
+    } else {
+        if (!BN_copy(q, group->field))
+            goto err;
+    }
+
+    /* compute h = \lfloor (q + 1)/n \rceil = \lfloor (q + 1 + n/2)/n \rfloor */
+    if (!BN_rshift1(group->cofactor, group->order) /* n/2 */
+        || !BN_add(group->cofactor, group->cofactor, q) /* q + n/2 */
+        /* q + 1 + n/2 */
+        || !BN_add(group->cofactor, group->cofactor, BN_value_one())
+        /* (q + 1 + n/2)/n */
+        || !BN_div(group->cofactor, NULL, group->cofactor, group->order, ctx))
+        goto err;
+    ret = 1;
+ err:
+    BN_CTX_end(ctx);
+    BN_CTX_free(ctx);
+    return ret;
+}
+
 int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
                            const BIGNUM *order, const BIGNUM *cofactor)
 {
     if (generator == NULL) {
         ECerr(EC_F_EC_GROUP_SET_GENERATOR, ERR_R_PASSED_NULL_PARAMETER);
+        return 0;
+    }
+
+    /* require group->field >= 1 */
+    if (group->field == NULL || BN_is_zero(group->field)
+        || BN_is_negative(group->field)) {
+        ECerr(EC_F_EC_GROUP_SET_GENERATOR, EC_R_INVALID_FIELD);
+        return 0;
+    }
+
+    /*-
+     * - require order >= 1
+     * - enforce upper bound due to Hasse thm: order can be no more than one bit
+     *   longer than field cardinality
+     */
+    if (order == NULL || BN_is_zero(order) || BN_is_negative(order)
+        || BN_num_bits(order) > BN_num_bits(group->field) + 1) {
+        ECerr(EC_F_EC_GROUP_SET_GENERATOR, EC_R_INVALID_GROUP_ORDER);
+        return 0;
+    }
+
+    /*-
+     * Unfortunately the cofactor is an optional field in many standards.
+     * Internally, the lib uses 0 cofactor as a marker for "unknown cofactor".
+     * So accept cofactor == NULL or cofactor >= 0.
+     */
+    if (cofactor != NULL && BN_is_negative(cofactor)) {
+        ECerr(EC_F_EC_GROUP_SET_GENERATOR, EC_R_UNKNOWN_COFACTOR);
         return 0;
     }
 
@@ -281,17 +371,17 @@ int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
     if (!EC_POINT_copy(group->generator, generator))
         return 0;
 
-    if (order != NULL) {
-        if (!BN_copy(group->order, order))
-            return 0;
-    } else
-        BN_zero(group->order);
+    if (!BN_copy(group->order, order))
+        return 0;
 
-    if (cofactor != NULL) {
+    /* Either take the provided positive cofactor, or try to compute it */
+    if (cofactor != NULL && !BN_is_zero(cofactor)) {
         if (!BN_copy(group->cofactor, cofactor))
             return 0;
-    } else
+    } else if (!ec_guess_cofactor(group)) {
         BN_zero(group->cofactor);
+        return 0;
+    }
 
     /*
      * Some groups have an order with
@@ -918,14 +1008,14 @@ int EC_POINTs_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
     size_t i = 0;
     BN_CTX *new_ctx = NULL;
 
-    if ((scalar == NULL) && (num == 0)) {
-        return EC_POINT_set_to_infinity(group, r);
-    }
-
     if (!ec_point_is_compat(r, group)) {
         ECerr(EC_F_EC_POINTS_MUL, EC_R_INCOMPATIBLE_OBJECTS);
         return 0;
     }
+
+    if (scalar == NULL && num == 0)
+        return EC_POINT_set_to_infinity(group, r);
+
     for (i = 0; i < num; i++) {
         if (!ec_point_is_compat(points[i], group)) {
             ECerr(EC_F_EC_POINTS_MUL, EC_R_INCOMPATIBLE_OBJECTS);
@@ -1074,8 +1164,7 @@ static int ec_field_inverse_mod_ord(const EC_GROUP *group, BIGNUM *r,
     ret = 1;
 
  err:
-    if (ctx != NULL)
-        BN_CTX_end(ctx);
+    BN_CTX_end(ctx);
     BN_CTX_free(new_ctx);
     return ret;
 }

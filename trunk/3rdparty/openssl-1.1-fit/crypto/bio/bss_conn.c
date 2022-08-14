@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "bio_lcl.h"
+#include "bio_local.h"
 
 #ifndef OPENSSL_NO_SOCK
 
@@ -54,6 +54,7 @@ void BIO_CONNECT_free(BIO_CONNECT *a);
 #define BIO_CONN_S_CONNECT               4
 #define BIO_CONN_S_OK                    5
 #define BIO_CONN_S_BLOCKED_CONNECT       6
+#define BIO_CONN_S_CONNECT_ERROR         7
 
 static const BIO_METHOD methods_connectp = {
     BIO_TYPE_CONNECT,
@@ -174,7 +175,8 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
                     ERR_add_error_data(4,
                                        "hostname=", c->param_hostname,
                                        " service=", c->param_service);
-                    BIOerr(BIO_F_CONN_STATE, BIO_R_CONNECT_ERROR);
+                    c->state = BIO_CONN_S_CONNECT_ERROR;
+                    break;
                 }
                 goto exit_loop;
             } else {
@@ -184,8 +186,17 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
 
         case BIO_CONN_S_BLOCKED_CONNECT:
             i = BIO_sock_error(b->num);
-            if (i) {
+            if (i != 0) {
                 BIO_clear_retry_flags(b);
+                if ((c->addr_iter = BIO_ADDRINFO_next(c->addr_iter)) != NULL) {
+                    /*
+                     * if there are more addresses to try, do that first
+                     */
+                    BIO_closesocket(b->num);
+                    c->state = BIO_CONN_S_CREATE_SOCKET;
+                    ERR_clear_error();
+                    break;
+                }
                 SYSerr(SYS_F_CONNECT, i);
                 ERR_add_error_data(4,
                                    "hostname=", c->param_hostname,
@@ -196,6 +207,11 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
             } else
                 c->state = BIO_CONN_S_OK;
             break;
+
+        case BIO_CONN_S_CONNECT_ERROR:
+            BIOerr(BIO_F_CONN_STATE, BIO_R_CONNECT_ERROR);
+            ret = 0;
+            goto exit_loop;
 
         case BIO_CONN_S_OK:
             ret = 1;
@@ -309,6 +325,8 @@ static int conn_read(BIO *b, char *out, int outl)
         if (ret <= 0) {
             if (BIO_sock_should_retry(ret))
                 BIO_set_retry_read(b);
+            else if (ret == 0)
+                b->flags |= BIO_FLAGS_IN_EOF;
         }
     }
     return ret;
@@ -398,12 +416,13 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
     case BIO_C_SET_CONNECT:
         if (ptr != NULL) {
             b->init = 1;
-            if (num == 0) {
+            if (num == 0) { /* BIO_set_conn_hostname */
                 char *hold_service = data->param_service;
                 /* We affect the hostname regardless.  However, the input
                  * string might contain a host:service spec, so we must
                  * parse it, which might or might not affect the service
                  */
+
                 OPENSSL_free(data->param_hostname);
                 data->param_hostname = NULL;
                 ret = BIO_parse_hostserv(ptr,
@@ -412,19 +431,29 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
                                          BIO_PARSE_PRIO_HOST);
                 if (hold_service != data->param_service)
                     OPENSSL_free(hold_service);
-            } else if (num == 1) {
+            } else if (num == 1) { /* BIO_set_conn_port */
                 OPENSSL_free(data->param_service);
-                data->param_service = BUF_strdup(ptr);
-            } else if (num == 2) {
+                if ((data->param_service = OPENSSL_strdup(ptr)) == NULL)
+                    ret = 0;
+            } else if (num == 2) { /* BIO_set_conn_address */
                 const BIO_ADDR *addr = (const BIO_ADDR *)ptr;
+                char *host = BIO_ADDR_hostname_string(addr, 1);
+                char *service = BIO_ADDR_service_string(addr, 1);
+
+                ret = host != NULL && service != NULL;
                 if (ret) {
-                    data->param_hostname = BIO_ADDR_hostname_string(addr, 1);
-                    data->param_service = BIO_ADDR_service_string(addr, 1);
+                    OPENSSL_free(data->param_hostname);
+                    data->param_hostname = host;
+                    OPENSSL_free(data->param_service);
+                    data->param_service = service;
                     BIO_ADDRINFO_free(data->addr_first);
                     data->addr_first = NULL;
                     data->addr_iter = NULL;
+                } else {
+                    OPENSSL_free(host);
+                    OPENSSL_free(service);
                 }
-            } else if (num == 3) {
+            } else if (num == 3) { /* BIO_set_conn_ip_family */
                 data->connect_family = *(int *)ptr;
             } else {
                 ret = 0;
@@ -487,6 +516,9 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
             fptr = (BIO_info_cb **)ptr;
             *fptr = data->info_callback;
         }
+        break;
+    case BIO_CTRL_EOF:
+        ret = (b->flags & BIO_FLAGS_IN_EOF) != 0 ? 1 : 0;
         break;
     default:
         ret = 0;

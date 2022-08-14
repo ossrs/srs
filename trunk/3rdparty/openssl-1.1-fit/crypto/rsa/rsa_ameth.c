@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,9 +13,9 @@
 #include <openssl/x509.h>
 #include <openssl/bn.h>
 #include <openssl/cms.h>
-#include "internal/asn1_int.h"
-#include "internal/evp_int.h"
-#include "rsa_locl.h"
+#include "crypto/asn1.h"
+#include "crypto/evp.h"
+#include "rsa_local.h"
 
 #ifndef OPENSSL_NO_CMS
 static int rsa_cms_sign(CMS_SignerInfo *si);
@@ -118,6 +118,15 @@ static int rsa_pub_decode(EVP_PKEY *pkey, X509_PUBKEY *pubkey)
 
 static int rsa_pub_cmp(const EVP_PKEY *a, const EVP_PKEY *b)
 {
+    /*
+     * Don't check the public/private key, this is mostly for smart
+     * cards.
+     */
+    if (((RSA_flags(a->pkey.rsa) & RSA_METHOD_FLAG_NO_CHECK))
+            || (RSA_flags(b->pkey.rsa) & RSA_METHOD_FLAG_NO_CHECK)) {
+        return 1;
+    }
+
     if (BN_cmp(b->pkey.rsa->n, a->pkey.rsa->n) != 0
         || BN_cmp(b->pkey.rsa->e, a->pkey.rsa->e) != 0)
         return 0;
@@ -458,6 +467,9 @@ static int rsa_sig_print(BIO *bp, const X509_ALGOR *sigalg,
 static int rsa_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 {
     X509_ALGOR *alg = NULL;
+    const EVP_MD *md;
+    const EVP_MD *mgf1md;
+    int min_saltlen;
 
     switch (op) {
 
@@ -497,6 +509,16 @@ static int rsa_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 #endif
 
     case ASN1_PKEY_CTRL_DEFAULT_MD_NID:
+        if (pkey->pkey.rsa->pss != NULL) {
+            if (!rsa_pss_get_param(pkey->pkey.rsa->pss, &md, &mgf1md,
+                                   &min_saltlen)) {
+                RSAerr(0, ERR_R_INTERNAL_ERROR);
+                return 0;
+            }
+            *(int *)arg2 = EVP_MD_type(md);
+            /* Return of 2 indicates this MD is mandatory */
+            return 2;
+        }
         *(int *)arg2 = NID_sha256;
         return 1;
 
@@ -583,10 +605,12 @@ static RSA_PSS_PARAMS *rsa_ctx_to_pss(EVP_PKEY_CTX *pkctx)
         return NULL;
     if (saltlen == -1) {
         saltlen = EVP_MD_size(sigmd);
-    } else if (saltlen == -2) {
+    } else if (saltlen == -2 || saltlen == -3) {
         saltlen = EVP_PKEY_size(pk) - EVP_MD_size(sigmd) - 2;
         if ((EVP_PKEY_bits(pk) & 0x7) == 1)
             saltlen--;
+        if (saltlen < 0)
+            return NULL;
     }
 
     return rsa_pss_params_create(sigmd, mgf1md, saltlen);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -68,7 +68,39 @@ void OPENSSL_cpuid_setup(void) __attribute__ ((constructor));
 #   include <sys/auxv.h>
 #   define OSSL_IMPLEMENT_GETAUXVAL
 #  endif
+# elif defined(__ANDROID_API__)
+/* see https://developer.android.google.cn/ndk/guides/cpu-features */
+#  if __ANDROID_API__ >= 18
+#   include <sys/auxv.h>
+#   define OSSL_IMPLEMENT_GETAUXVAL
+#  endif
 # endif
+# if defined(__FreeBSD__)
+#  include <sys/param.h>
+#  if __FreeBSD_version >= 1200000
+#   include <sys/auxv.h>
+#   define OSSL_IMPLEMENT_GETAUXVAL
+
+static unsigned long getauxval(unsigned long key)
+{
+  unsigned long val = 0ul;
+
+  if (elf_aux_info((int)key, &val, sizeof(val)) != 0)
+    return 0ul;
+
+  return val;
+}
+#  endif
+# endif
+
+/*
+ * Android: according to https://developer.android.com/ndk/guides/cpu-features,
+ * getauxval is supported starting with API level 18
+ */
+#  if defined(__ANDROID__) && defined(__ANDROID_API__) && __ANDROID_API__ >= 18
+#   include <sys/auxv.h>
+#   define OSSL_IMPLEMENT_GETAUXVAL
+#  endif
 
 /*
  * ARM puts the feature bits for Crypto Extensions in AT_HWCAP2, whereas

@@ -1,4 +1,4 @@
-# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -65,6 +65,7 @@ use File::Spec::Functions qw/file_name_is_absolute curdir canonpath splitdir
                              rel2abs/;
 use File::Path 2.00 qw/rmtree mkpath/;
 use File::Basename;
+use Cwd qw/getcwd abs_path/;
 
 my $level = 0;
 
@@ -164,13 +165,13 @@ C<indir> takes some additional options OPTS that affect the subdirectory:
 
 =item B<create =E<gt> 0|1>
 
-When set to 1 (or any value that perl preceives as true), the subdirectory
+When set to 1 (or any value that perl perceives as true), the subdirectory
 will be created if it doesn't already exist.  This happens before BLOCK
 is executed.
 
 =item B<cleanup =E<gt> 0|1>
 
-When set to 1 (or any value that perl preceives as true), the subdirectory
+When set to 1 (or any value that perl perceives as true), the subdirectory
 will be cleaned out and removed.  This happens both before and after BLOCK
 is executed.
 
@@ -869,8 +870,8 @@ failures will result in a C<BAIL_OUT> at the end of its run.
 sub __env {
     (my $recipe_datadir = basename($0)) =~ s/\.t$/_data/i;
 
-    $directories{SRCTOP}  = $ENV{SRCTOP} || $ENV{TOP};
-    $directories{BLDTOP}  = $ENV{BLDTOP} || $ENV{TOP};
+    $directories{SRCTOP}  = abs_path($ENV{SRCTOP} || $ENV{TOP});
+    $directories{BLDTOP}  = abs_path($ENV{BLDTOP} || $ENV{TOP});
     $directories{BLDAPPS} = $ENV{BIN_D}  || __bldtop_dir("apps");
     $directories{SRCAPPS} =                 __srctop_dir("apps");
     $directories{BLDFUZZ} =                 __bldtop_dir("fuzz");
@@ -903,26 +904,26 @@ sub __srctop_file {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
     my $f = pop;
-    return catfile($directories{SRCTOP},@_,$f);
+    return abs2rel(catfile($directories{SRCTOP},@_,$f),getcwd);
 }
 
 sub __srctop_dir {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
-    return catdir($directories{SRCTOP},@_);
+    return abs2rel(catdir($directories{SRCTOP},@_), getcwd);
 }
 
 sub __bldtop_file {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
     my $f = pop;
-    return catfile($directories{BLDTOP},@_,$f);
+    return abs2rel(catfile($directories{BLDTOP},@_,$f), getcwd);
 }
 
 sub __bldtop_dir {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
-    return catdir($directories{BLDTOP},@_);
+    return abs2rel(catdir($directories{BLDTOP},@_), getcwd);
 }
 
 # __exeext is a function that returns the platform dependent file extension

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -193,6 +193,7 @@ $code.=<<___;
 .text
 
 .extern	OPENSSL_armcap_P
+.hidden	OPENSSL_armcap_P
 .globl	$func
 .type	$func,%function
 .align	6
@@ -840,12 +841,6 @@ $code.=<<___;
 ___
 }
 
-$code.=<<___;
-#ifndef	__KERNEL__
-.comm	OPENSSL_armcap_P,4,4
-#endif
-___
-
 {   my  %opcode = (
 	"sha256h"	=> 0x5e004000,	"sha256h2"	=> 0x5e005000,
 	"sha256su0"	=> 0x5e282800,	"sha256su1"	=> 0x5e006000	);
@@ -902,4 +897,4 @@ foreach(split("\n",$code)) {
 	print $_,"\n";
 }
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

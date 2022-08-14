@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -123,7 +123,7 @@ typedef struct ocsp_service_locator_st OCSP_SERVICELOC;
      (char *(*)())d2i_OCSP_REQUEST,PEM_STRING_OCSP_REQUEST, \
      bp,(char **)(x),cb,NULL)
 
-#  define PEM_read_bio_OCSP_RESPONSE(bp,x,cb)(OCSP_RESPONSE *)PEM_ASN1_read_bio(\
+#  define PEM_read_bio_OCSP_RESPONSE(bp,x,cb) (OCSP_RESPONSE *)PEM_ASN1_read_bio(\
      (char *(*)())d2i_OCSP_RESPONSE,PEM_STRING_OCSP_RESPONSE, \
      bp,(char **)(x),cb,NULL)
 
@@ -229,8 +229,8 @@ int OCSP_request_verify(OCSP_REQUEST *req, STACK_OF(X509) *certs,
 int OCSP_parse_url(const char *url, char **phost, char **pport, char **ppath,
                    int *pssl);
 
-int OCSP_id_issuer_cmp(OCSP_CERTID *a, OCSP_CERTID *b);
-int OCSP_id_cmp(OCSP_CERTID *a, OCSP_CERTID *b);
+int OCSP_id_issuer_cmp(const OCSP_CERTID *a, const OCSP_CERTID *b);
+int OCSP_id_cmp(const OCSP_CERTID *a, const OCSP_CERTID *b);
 
 int OCSP_request_onereq_count(OCSP_REQUEST *req);
 OCSP_ONEREQ *OCSP_request_onereq_get0(OCSP_REQUEST *req, int i);

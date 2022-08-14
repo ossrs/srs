@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -57,10 +57,14 @@ $code.=<<___;
 
 // forward "declarations" are required for Apple
 .extern	OPENSSL_armcap_P
-.globl	poly1305_blocks
-.globl	poly1305_emit
-
+.hidden	OPENSSL_armcap_P
 .globl	poly1305_init
+.hidden	poly1305_init
+.globl	poly1305_blocks
+.hidden	poly1305_blocks
+.globl	poly1305_emit
+.hidden	poly1305_emit
+
 .type	poly1305_init,%function
 .align	5
 poly1305_init:
@@ -860,8 +864,8 @@ poly1305_blocks_neon:
 	st1	{$ACC4}[0],[$ctx]
 
 .Lno_data_neon:
-	.inst	0xd50323bf		// autiasp
 	ldr	x29,[sp],#80
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	poly1305_blocks_neon,.-poly1305_blocks_neon
 
@@ -943,4 +947,4 @@ foreach (split("\n",$code)) {
 
 	print $_,"\n";
 }
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

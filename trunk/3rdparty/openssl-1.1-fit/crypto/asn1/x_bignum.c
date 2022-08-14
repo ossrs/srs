@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -82,7 +82,7 @@ static int bn_secure_new(ASN1_VALUE **pval, const ASN1_ITEM *it)
 
 static void bn_free(ASN1_VALUE **pval, const ASN1_ITEM *it)
 {
-    if (!*pval)
+    if (*pval == NULL)
         return;
     if (it->size & BN_SENSITIVE)
         BN_clear_free((BIGNUM *)*pval);
@@ -96,7 +96,7 @@ static int bn_i2c(ASN1_VALUE **pval, unsigned char *cont, int *putype,
 {
     BIGNUM *bn;
     int pad;
-    if (!*pval)
+    if (*pval == NULL)
         return -1;
     bn = (BIGNUM *)*pval;
     /* If MSB set in an octet we need a padding byte */
@@ -130,9 +130,20 @@ static int bn_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
 static int bn_secure_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
                          int utype, char *free_cont, const ASN1_ITEM *it)
 {
-    if (!*pval)
-        bn_secure_new(pval, it);
-    return bn_c2i(pval, cont, len, utype, free_cont, it);
+    int ret;
+    BIGNUM *bn;
+
+    if (*pval == NULL && !bn_secure_new(pval, it))
+        return 0;
+
+    ret = bn_c2i(pval, cont, len, utype, free_cont, it);
+    if (!ret)
+        return 0;
+
+    /* Set constant-time flag for all secure BIGNUMS */
+    bn = (BIGNUM *)*pval;
+    BN_set_flags(bn, BN_FLG_CONSTTIME);
+    return ret;
 }
 
 static int bn_print(BIO *out, ASN1_VALUE **pval, const ASN1_ITEM *it,

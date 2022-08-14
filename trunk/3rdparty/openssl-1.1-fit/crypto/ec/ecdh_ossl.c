@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -17,7 +17,7 @@
 #include <openssl/bn.h>
 #include <openssl/objects.h>
 #include <openssl/ec.h>
-#include "ec_lcl.h"
+#include "ec_local.h"
 
 int ossl_ecdh_compute_key(unsigned char **psec, size_t *pseclen,
                           const EC_POINT *pub_key, const EC_KEY *ecdh)
@@ -58,7 +58,7 @@ int ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
 
     priv_key = EC_KEY_get0_private_key(ecdh);
     if (priv_key == NULL) {
-        ECerr(EC_F_ECDH_SIMPLE_COMPUTE_KEY, EC_R_NO_PRIVATE_VALUE);
+        ECerr(EC_F_ECDH_SIMPLE_COMPUTE_KEY, EC_R_MISSING_PRIVATE_KEY);
         goto err;
     }
 
@@ -112,9 +112,8 @@ int ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
     ret = 1;
 
  err:
-    EC_POINT_free(tmp);
-    if (ctx)
-        BN_CTX_end(ctx);
+    EC_POINT_clear_free(tmp);
+    BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     OPENSSL_free(buf);
     return ret;

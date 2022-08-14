@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,10 +14,10 @@
 #include <string.h>
 #include <assert.h>
 #include <openssl/aes.h>
-#include "internal/evp_int.h"
-#include "modes_lcl.h"
+#include "crypto/evp.h"
+#include "modes_local.h"
 #include <openssl/rand.h>
-#include "evp_locl.h"
+#include "evp_local.h"
 
 typedef struct {
     union {
@@ -176,7 +176,7 @@ static void ctr64_inc(unsigned char *counter)
 # define HWAES_xts_decrypt aes_p8_xts_decrypt
 #endif
 
-#if     defined(AES_ASM) && !defined(I386_ONLY) &&      (  \
+#if     defined(OPENSSL_CPUID_OBJ) &&                   (  \
         ((defined(__i386)       || defined(__i386__)    || \
           defined(_M_IX86)) && defined(OPENSSL_IA32_SSE2))|| \
         defined(__x86_64)       || defined(__x86_64__)  || \
@@ -383,10 +383,25 @@ static int aesni_xts_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                               const unsigned char *iv, int enc)
 {
     EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX,ctx);
+
     if (!iv && !key)
         return 1;
 
     if (key) {
+        /* The key is two half length keys in reality */
+        const int bytes = EVP_CIPHER_CTX_key_length(ctx) / 2;
+
+        /*
+         * Verify that the two keys are different.
+         * 
+         * This addresses Rogaway's vulnerability.
+         * See comment in aes_xts_init_key() below.
+         */
+        if (enc && CRYPTO_memcmp(key, key + bytes, bytes) == 0) {
+            EVPerr(EVP_F_AESNI_XTS_INIT_KEY, EVP_R_XTS_DUPLICATED_KEYS);
+            return 0;
+        }
+
         /* key_len is two AES keys */
         if (enc) {
             aesni_set_encrypt_key(key, EVP_CIPHER_CTX_key_length(ctx) * 4,
@@ -596,22 +611,22 @@ void aes_t4_decrypt(const unsigned char *in, unsigned char *out,
  */
 void aes128_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes128_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes192_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes192_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes256_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes256_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes128_t4_ctr32_encrypt(const unsigned char *in, unsigned char *out,
                              size_t blocks, const AES_KEY *key,
                              unsigned char *ivec);
@@ -787,11 +802,26 @@ static int aes_t4_xts_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                                const unsigned char *iv, int enc)
 {
     EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX,ctx);
+
     if (!iv && !key)
         return 1;
 
     if (key) {
-        int bits = EVP_CIPHER_CTX_key_length(ctx) * 4;
+        /* The key is two half length keys in reality */
+        const int bytes = EVP_CIPHER_CTX_key_length(ctx) / 2;
+        const int bits = bytes * 8;
+
+        /*
+         * Verify that the two keys are different.
+         * 
+         * This addresses Rogaway's vulnerability.
+         * See comment in aes_xts_init_key() below.
+         */
+        if (enc && CRYPTO_memcmp(key, key + bytes, bytes) == 0) {
+            EVPerr(EVP_F_AES_T4_XTS_INIT_KEY, EVP_R_XTS_DUPLICATED_KEYS);
+            return 0;
+        }
+
         xctx->stream = NULL;
         /* key_len is two AES keys */
         if (enc) {
@@ -1097,7 +1127,7 @@ typedef struct {
                 } icv;
                 unsigned char k[32];
             } kmac_param;
-            /* KMAC-AES paramater block - end */
+            /* KMAC-AES parameter block - end */
 
             union {
                 unsigned long long g[2];
@@ -1138,9 +1168,9 @@ typedef struct {
 static int s390x_aes_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                               const unsigned char *iv, int enc);
 
-# define S390X_aes_128_cbc_CAPABLE	1	/* checked by callee */
-# define S390X_aes_192_cbc_CAPABLE	1
-# define S390X_aes_256_cbc_CAPABLE	1
+# define S390X_aes_128_cbc_CAPABLE	0	/* checked by callee */
+# define S390X_aes_192_cbc_CAPABLE	0
+# define S390X_aes_256_cbc_CAPABLE	0
 # define S390X_AES_CBC_CTX		EVP_AES_KEY
 
 # define s390x_aes_cbc_init_key aes_init_key
@@ -1160,11 +1190,11 @@ static int s390x_aes_ecb_init_key(EVP_CIPHER_CTX *ctx,
     S390X_AES_ECB_CTX *cctx = EVP_C_DATA(S390X_AES_ECB_CTX, ctx);
     const int keylen = EVP_CIPHER_CTX_key_length(ctx);
 
-    cctx->fc = S390X_AES_FC(keylen);
-    if (!enc)
-        cctx->fc |= S390X_DECRYPT;
+    cctx->fc = S390X_AES_FC(keylen) | (enc ? 0 : S390X_DECRYPT);
 
-    memcpy(cctx->km.param.k, key, keylen);
+    if (key != NULL)
+        memcpy(cctx->km.param.k, key, keylen);
+
     return 1;
 }
 
@@ -1192,14 +1222,17 @@ static int s390x_aes_ofb_init_key(EVP_CIPHER_CTX *ctx,
                                   const unsigned char *ivec, int enc)
 {
     S390X_AES_OFB_CTX *cctx = EVP_C_DATA(S390X_AES_OFB_CTX, ctx);
-    const unsigned char *iv = EVP_CIPHER_CTX_original_iv(ctx);
+    const unsigned char *oiv = EVP_CIPHER_CTX_original_iv(ctx);
     const int keylen = EVP_CIPHER_CTX_key_length(ctx);
     const int ivlen = EVP_CIPHER_CTX_iv_length(ctx);
 
-    memcpy(cctx->kmo.param.cv, iv, ivlen);
-    memcpy(cctx->kmo.param.k, key, keylen);
     cctx->fc = S390X_AES_FC(keylen);
+
+    if (key != NULL)
+        memcpy(cctx->kmo.param.k, key, keylen);
+
     cctx->res = 0;
+    memcpy(cctx->kmo.param.cv, oiv, ivlen);
     return 1;
 }
 
@@ -1207,9 +1240,12 @@ static int s390x_aes_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                 const unsigned char *in, size_t len)
 {
     S390X_AES_OFB_CTX *cctx = EVP_C_DATA(S390X_AES_OFB_CTX, ctx);
+    const int ivlen = EVP_CIPHER_CTX_iv_length(ctx);
+    unsigned char *iv = EVP_CIPHER_CTX_iv_noconst(ctx);
     int n = cctx->res;
     int rem;
 
+    memcpy(cctx->kmo.param.cv, iv, ivlen);
     while (n && len) {
         *out = *in ^ cctx->kmo.param.cv[n];
         n = (n + 1) & 0xf;
@@ -1238,6 +1274,7 @@ static int s390x_aes_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         }
     }
 
+    memcpy(iv, cctx->kmo.param.cv, ivlen);
     cctx->res = n;
     return 1;
 }
@@ -1257,18 +1294,18 @@ static int s390x_aes_cfb_init_key(EVP_CIPHER_CTX *ctx,
                                   const unsigned char *ivec, int enc)
 {
     S390X_AES_CFB_CTX *cctx = EVP_C_DATA(S390X_AES_CFB_CTX, ctx);
-    const unsigned char *iv = EVP_CIPHER_CTX_original_iv(ctx);
+    const unsigned char *oiv = EVP_CIPHER_CTX_original_iv(ctx);
     const int keylen = EVP_CIPHER_CTX_key_length(ctx);
     const int ivlen = EVP_CIPHER_CTX_iv_length(ctx);
 
-    cctx->fc = S390X_AES_FC(keylen);
-    cctx->fc |= 16 << 24;   /* 16 bytes cipher feedback */
-    if (!enc)
-        cctx->fc |= S390X_DECRYPT;
+    cctx->fc = S390X_AES_FC(keylen) | (enc ? 0 : S390X_DECRYPT)
+               | (16 << 24); /* 16 bytes cipher feedback */
+
+    if (key != NULL)
+        memcpy(cctx->kmf.param.k, key, keylen);
 
     cctx->res = 0;
-    memcpy(cctx->kmf.param.cv, iv, ivlen);
-    memcpy(cctx->kmf.param.k, key, keylen);
+    memcpy(cctx->kmf.param.cv, oiv, ivlen);
     return 1;
 }
 
@@ -1278,10 +1315,13 @@ static int s390x_aes_cfb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     S390X_AES_CFB_CTX *cctx = EVP_C_DATA(S390X_AES_CFB_CTX, ctx);
     const int keylen = EVP_CIPHER_CTX_key_length(ctx);
     const int enc = EVP_CIPHER_CTX_encrypting(ctx);
+    const int ivlen = EVP_CIPHER_CTX_iv_length(ctx);
+    unsigned char *iv = EVP_CIPHER_CTX_iv_noconst(ctx);
     int n = cctx->res;
     int rem;
     unsigned char tmp;
 
+    memcpy(cctx->kmf.param.cv, iv, ivlen);
     while (n && len) {
         tmp = *in;
         *out = cctx->kmf.param.cv[n] ^ tmp;
@@ -1314,6 +1354,7 @@ static int s390x_aes_cfb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         }
     }
 
+    memcpy(iv, cctx->kmf.param.cv, ivlen);
     cctx->res = n;
     return 1;
 }
@@ -1330,17 +1371,18 @@ static int s390x_aes_cfb8_init_key(EVP_CIPHER_CTX *ctx,
                                    const unsigned char *ivec, int enc)
 {
     S390X_AES_CFB_CTX *cctx = EVP_C_DATA(S390X_AES_CFB_CTX, ctx);
-    const unsigned char *iv = EVP_CIPHER_CTX_original_iv(ctx);
+    const unsigned char *oiv = EVP_CIPHER_CTX_original_iv(ctx);
     const int keylen = EVP_CIPHER_CTX_key_length(ctx);
     const int ivlen = EVP_CIPHER_CTX_iv_length(ctx);
 
-    cctx->fc = S390X_AES_FC(keylen);
-    cctx->fc |= 1 << 24;   /* 1 byte cipher feedback */
-    if (!enc)
-        cctx->fc |= S390X_DECRYPT;
+    cctx->fc = S390X_AES_FC(keylen) | (enc ? 0 : S390X_DECRYPT)
+               | (1 << 24); /* 1 byte cipher feedback flag */
 
-    memcpy(cctx->kmf.param.cv, iv, ivlen);
-    memcpy(cctx->kmf.param.k, key, keylen);
+    if (key != NULL)
+        memcpy(cctx->kmf.param.k, key, keylen);
+
+    cctx->res = 0;
+    memcpy(cctx->kmf.param.cv, oiv, ivlen);
     return 1;
 }
 
@@ -1348,8 +1390,12 @@ static int s390x_aes_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                  const unsigned char *in, size_t len)
 {
     S390X_AES_CFB_CTX *cctx = EVP_C_DATA(S390X_AES_CFB_CTX, ctx);
+    const int ivlen = EVP_CIPHER_CTX_iv_length(ctx);
+    unsigned char *iv = EVP_CIPHER_CTX_iv_noconst(ctx);
 
+    memcpy(cctx->kmf.param.cv, iv, ivlen);
     s390x_kmf(in, len, out, cctx->fc, &cctx->kmf.param);
+    memcpy(iv, cctx->kmf.param.cv, ivlen);
     return 1;
 }
 
@@ -1363,9 +1409,9 @@ static int s390x_aes_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int s390x_aes_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                  const unsigned char *in, size_t len);
 
-# define S390X_aes_128_ctr_CAPABLE	1	/* checked by callee */
-# define S390X_aes_192_ctr_CAPABLE	1
-# define S390X_aes_256_ctr_CAPABLE	1
+# define S390X_aes_128_ctr_CAPABLE	0	/* checked by callee */
+# define S390X_aes_192_ctr_CAPABLE	0
+# define S390X_aes_256_ctr_CAPABLE	0
 # define S390X_AES_CTR_CTX		EVP_AES_KEY
 
 # define s390x_aes_ctr_init_key aes_init_key
@@ -1384,7 +1430,7 @@ static int s390x_aes_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                     (OPENSSL_s390xcap_P.kma[0] &	\
                                      S390X_CAPBIT(S390X_AES_256)))
 
-/* iv + padding length for iv lenghts != 12 */
+/* iv + padding length for iv lengths != 12 */
 # define S390X_gcm_ivpadlen(i)	((((i) + 15) >> 4 << 4) + 16)
 
 /*-
@@ -1533,8 +1579,7 @@ static int s390x_aes_gcm(S390X_AES_GCM_CTX *ctx, const unsigned char *in,
 /*-
  * Initialize context structure. Code is big-endian.
  */
-static void s390x_aes_gcm_setiv(S390X_AES_GCM_CTX *ctx,
-                                const unsigned char *iv)
+static void s390x_aes_gcm_setiv(S390X_AES_GCM_CTX *ctx)
 {
     ctx->kma.param.t.g[0] = 0;
     ctx->kma.param.t.g[1] = 0;
@@ -1545,12 +1590,11 @@ static void s390x_aes_gcm_setiv(S390X_AES_GCM_CTX *ctx,
     ctx->kreslen = 0;
 
     if (ctx->ivlen == 12) {
-        memcpy(&ctx->kma.param.j0, iv, ctx->ivlen);
+        memcpy(&ctx->kma.param.j0, ctx->iv, ctx->ivlen);
         ctx->kma.param.j0.w[3] = 1;
         ctx->kma.param.cv.w = 1;
     } else {
         /* ctx->iv has the right size and is already padded. */
-        memcpy(ctx->iv, iv, ctx->ivlen);
         s390x_kma(ctx->iv, S390X_gcm_ivpadlen(ctx->ivlen), NULL, 0, NULL,
                   ctx->fc, &ctx->kma.param);
         ctx->fc |= S390X_KMA_HS;
@@ -1578,7 +1622,7 @@ static int s390x_aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 
     switch (type) {
     case EVP_CTRL_INIT:
-        ivlen = EVP_CIPHER_CTX_iv_length(c);
+        ivlen = EVP_CIPHER_iv_length(c->cipher);
         iv = EVP_CIPHER_CTX_iv_noconst(c);
         gctx->key_set = 0;
         gctx->iv_set = 0;
@@ -1587,6 +1631,10 @@ static int s390x_aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         gctx->taglen = -1;
         gctx->iv_gen = 0;
         gctx->tls_aad_len = -1;
+        return 1;
+
+    case EVP_CTRL_GET_IVLEN:
+        *(int *)ptr = gctx->ivlen;
         return 1;
 
     case EVP_CTRL_AEAD_SET_IVLEN:
@@ -1660,7 +1708,7 @@ static int s390x_aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         if (gctx->iv_gen == 0 || gctx->key_set == 0)
             return 0;
 
-        s390x_aes_gcm_setiv(gctx, gctx->iv);
+        s390x_aes_gcm_setiv(gctx);
 
         if (arg <= 0 || arg > gctx->ivlen)
             arg = gctx->ivlen;
@@ -1680,7 +1728,7 @@ static int s390x_aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
             return 0;
 
         memcpy(gctx->iv + gctx->ivlen - arg, ptr, arg);
-        s390x_aes_gcm_setiv(gctx, gctx->iv);
+        s390x_aes_gcm_setiv(gctx);
         gctx->iv_set = 1;
         return 1;
 
@@ -1736,43 +1784,36 @@ static int s390x_aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 }
 
 /*-
- * Set key and/or iv. Returns 1 on success. Otherwise 0 is returned.
+ * Set key or iv or enc/dec. Returns 1 on success. Otherwise 0 is returned.
  */
 static int s390x_aes_gcm_init_key(EVP_CIPHER_CTX *ctx,
                                   const unsigned char *key,
                                   const unsigned char *iv, int enc)
 {
     S390X_AES_GCM_CTX *gctx = EVP_C_DATA(S390X_AES_GCM_CTX, ctx);
-    int keylen;
+    const int keylen = EVP_CIPHER_CTX_key_length(ctx);
 
-    if (iv == NULL && key == NULL)
-        return 1;
+    gctx->fc = S390X_AES_FC(keylen) | (enc ? 0 : S390X_DECRYPT);
 
     if (key != NULL) {
-        keylen = EVP_CIPHER_CTX_key_length(ctx);
+        gctx->fc &= ~S390X_KMA_HS;
         memcpy(&gctx->kma.param.k, key, keylen);
-
-        gctx->fc = S390X_AES_FC(keylen);
-        if (!enc)
-            gctx->fc |= S390X_DECRYPT;
-
-        if (iv == NULL && gctx->iv_set)
-            iv = gctx->iv;
-
-        if (iv != NULL) {
-            s390x_aes_gcm_setiv(gctx, iv);
-            gctx->iv_set = 1;
-        }
         gctx->key_set = 1;
-    } else {
-        if (gctx->key_set)
-            s390x_aes_gcm_setiv(gctx, iv);
-        else
-            memcpy(gctx->iv, iv, gctx->ivlen);
-
-        gctx->iv_set = 1;
-        gctx->iv_gen = 0;
     }
+
+    if (iv != NULL) {
+        memcpy(gctx->iv, iv, gctx->ivlen);
+        gctx->iv_gen = 0;
+        gctx->iv_set = 1;
+    }
+
+    if (gctx->key_set && gctx->iv_set)
+            s390x_aes_gcm_setiv(gctx);
+
+    gctx->fc &= ~(S390X_KMA_LPC | S390X_KMA_LAAD);
+    gctx->areslen = 0;
+    gctx->mreslen = 0;
+    gctx->kreslen = 0;
     return 1;
 }
 
@@ -1861,7 +1902,6 @@ static int s390x_aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         /* recall that we already did en-/decrypt gctx->mres
          * and returned it to caller... */
         OPENSSL_cleanse(tmp, gctx->mreslen);
-        gctx->iv_set = 0;
 
         enc = EVP_CIPHER_CTX_encrypting(ctx);
         if (enc) {
@@ -1895,8 +1935,8 @@ static int s390x_aes_gcm_cleanup(EVP_CIPHER_CTX *c)
 }
 
 # define S390X_AES_XTS_CTX		EVP_AES_XTS_CTX
-# define S390X_aes_128_xts_CAPABLE	1	/* checked by callee */
-# define S390X_aes_256_xts_CAPABLE	1
+# define S390X_aes_128_xts_CAPABLE	0	/* checked by callee */
+# define S390X_aes_256_xts_CAPABLE	0
 
 # define s390x_aes_xts_init_key aes_xts_init_key
 static int s390x_aes_xts_init_key(EVP_CIPHER_CTX *ctx,
@@ -2100,9 +2140,10 @@ static int s390x_aes_ccm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                     const unsigned char *in, size_t len)
 {
     S390X_AES_CCM_CTX *cctx = EVP_C_DATA(S390X_AES_CCM_CTX, ctx);
-    unsigned char *ivec = EVP_CIPHER_CTX_iv_noconst(ctx);
+    const unsigned char *ivec = EVP_CIPHER_CTX_iv(ctx);
     unsigned char *buf = EVP_CIPHER_CTX_buf_noconst(ctx);
     const int enc = EVP_CIPHER_CTX_encrypting(ctx);
+    unsigned char iv[EVP_MAX_IV_LENGTH];
 
     if (out != in
             || len < (EVP_CCM_TLS_EXPLICIT_IV_LEN + (size_t)cctx->aes.ccm.m))
@@ -2118,8 +2159,9 @@ static int s390x_aes_ccm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
      * Get explicit iv (sequence number). We already have fixed iv
      * (server/client_write_iv) here.
      */
-    memcpy(ivec + EVP_CCM_TLS_FIXED_IV_LEN, in, EVP_CCM_TLS_EXPLICIT_IV_LEN);
-    s390x_aes_ccm_setiv(cctx, ivec, len);
+    memcpy(iv, ivec, sizeof(iv));
+    memcpy(iv + EVP_CCM_TLS_FIXED_IV_LEN, in, EVP_CCM_TLS_EXPLICIT_IV_LEN);
+    s390x_aes_ccm_setiv(cctx, iv, len);
 
     /* Process aad (sequence number|type|version|length) */
     s390x_aes_ccm_aad(cctx, buf, cctx->aes.ccm.tls_aad_len);
@@ -2146,42 +2188,35 @@ static int s390x_aes_ccm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 }
 
 /*-
- * Set key and flag field and/or iv. Returns 1 if successful. Otherwise 0 is
- * returned.
+ * Set key or iv or enc/dec. Returns 1 if successful.
+ * Otherwise 0 is returned.
  */
 static int s390x_aes_ccm_init_key(EVP_CIPHER_CTX *ctx,
                                   const unsigned char *key,
                                   const unsigned char *iv, int enc)
 {
     S390X_AES_CCM_CTX *cctx = EVP_C_DATA(S390X_AES_CCM_CTX, ctx);
-    unsigned char *ivec;
-    int keylen;
+    const int keylen  = EVP_CIPHER_CTX_key_length(ctx);
+    unsigned char *ivec = EVP_CIPHER_CTX_iv_noconst(ctx);
 
-    if (iv == NULL && key == NULL)
-        return 1;
+    cctx->aes.ccm.fc = S390X_AES_FC(keylen);
 
     if (key != NULL) {
-        keylen = EVP_CIPHER_CTX_key_length(ctx);
-        cctx->aes.ccm.fc = S390X_AES_FC(keylen);
         memcpy(cctx->aes.ccm.kmac_param.k, key, keylen);
-
-        /* Store encoded m and l. */
-        cctx->aes.ccm.nonce.b[0] = ((cctx->aes.ccm.l - 1) & 0x7)
-                                 | (((cctx->aes.ccm.m - 2) >> 1) & 0x7) << 3;
-        memset(cctx->aes.ccm.nonce.b + 1, 0,
-               sizeof(cctx->aes.ccm.nonce.b));
-        cctx->aes.ccm.blocks = 0;
-
         cctx->aes.ccm.key_set = 1;
     }
-
     if (iv != NULL) {
-        ivec = EVP_CIPHER_CTX_iv_noconst(ctx);
         memcpy(ivec, iv, 15 - cctx->aes.ccm.l);
-
         cctx->aes.ccm.iv_set = 1;
     }
 
+    /* Store encoded m and l. */
+    cctx->aes.ccm.nonce.b[0] = ((cctx->aes.ccm.l - 1) & 0x7)
+                             | (((cctx->aes.ccm.m - 2) >> 1) & 0x7) << 3;
+    memset(cctx->aes.ccm.nonce.b + 1, 0, sizeof(cctx->aes.ccm.nonce.b) - 1);
+
+    cctx->aes.ccm.blocks = 0;
+    cctx->aes.ccm.len_set = 0;
     return 1;
 }
 
@@ -2196,8 +2231,9 @@ static int s390x_aes_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     S390X_AES_CCM_CTX *cctx = EVP_C_DATA(S390X_AES_CCM_CTX, ctx);
     const int enc = EVP_CIPHER_CTX_encrypting(ctx);
+    const unsigned char *ivec = EVP_CIPHER_CTX_iv(ctx);
+    unsigned char *buf;
     int rv;
-    unsigned char *buf, *ivec;
 
     if (!cctx->aes.ccm.key_set)
         return -1;
@@ -2216,13 +2252,9 @@ static int s390x_aes_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     if (!cctx->aes.ccm.iv_set)
         return -1;
 
-    if (!enc && !cctx->aes.ccm.tag_set)
-        return -1;
-
     if (out == NULL) {
         /* Update(): Pass message length. */
         if (in == NULL) {
-            ivec = EVP_CIPHER_CTX_iv_noconst(ctx);
             s390x_aes_ccm_setiv(cctx, ivec, len);
 
             cctx->aes.ccm.len_set = 1;
@@ -2237,6 +2269,10 @@ static int s390x_aes_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         return len;
     }
 
+    /* The tag must be set before actually decrypting data */
+    if (!enc && !cctx->aes.ccm.tag_set)
+        return -1;
+
     /* Update(): Process message. */
 
     if (!cctx->aes.ccm.len_set) {
@@ -2244,7 +2280,6 @@ static int s390x_aes_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
          * In case message length was not previously set explicitly via
          * Update(), set it now.
          */
-        ivec = EVP_CIPHER_CTX_iv_noconst(ctx);
         s390x_aes_ccm_setiv(cctx, ivec, len);
 
         cctx->aes.ccm.len_set = 1;
@@ -2269,9 +2304,6 @@ static int s390x_aes_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         if (rv == -1)
             OPENSSL_cleanse(out, len);
 
-        cctx->aes.ccm.iv_set = 0;
-        cctx->aes.ccm.tag_set = 0;
-        cctx->aes.ccm.len_set = 0;
         return rv;
     }
 }
@@ -2296,6 +2328,10 @@ static int s390x_aes_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         cctx->aes.ccm.tag_set = 0;
         cctx->aes.ccm.len_set = 0;
         cctx->aes.ccm.tls_aad_len = -1;
+        return 1;
+
+    case EVP_CTRL_GET_IVLEN:
+        *(int *)ptr = 15 - cctx->aes.ccm.l;
         return 1;
 
     case EVP_CTRL_AEAD_TLS1_AAD:
@@ -2375,9 +2411,6 @@ static int s390x_aes_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
             return 0;
 
         memcpy(ptr, cctx->aes.ccm.kmac_param.icv.b, cctx->aes.ccm.m);
-        cctx->aes.ccm.tag_set = 0;
-        cctx->aes.ccm.iv_set = 0;
-        cctx->aes.ccm.len_set = 0;
         return 1;
 
     case EVP_CTRL_COPY:
@@ -2414,7 +2447,7 @@ static const EVP_CIPHER s390x_aes_##keylen##_##mode = {			\
     nid##_##keylen##_##nmode,blocksize,					\
     keylen / 8,								\
     ivlen,								\
-    flags | EVP_CIPH_##MODE##_MODE,					\
+    flags | EVP_CIPH_ALWAYS_CALL_INIT | EVP_CIPH_##MODE##_MODE,		\
     s390x_aes_##mode##_init_key,					\
     s390x_aes_##mode##_cipher,						\
     NULL,								\
@@ -2451,7 +2484,7 @@ static const EVP_CIPHER s390x_aes_##keylen##_##mode = {			\
     blocksize,								\
     (EVP_CIPH_##MODE##_MODE == EVP_CIPH_XTS_MODE ? 2 : 1) * keylen / 8,	\
     ivlen,								\
-    flags | EVP_CIPH_##MODE##_MODE,					\
+    flags | EVP_CIPH_ALWAYS_CALL_INIT | EVP_CIPH_##MODE##_MODE,		\
     s390x_aes_##mode##_init_key,					\
     s390x_aes_##mode##_cipher,						\
     s390x_aes_##mode##_cleanup,						\
@@ -2816,11 +2849,15 @@ static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
     case EVP_CTRL_INIT:
         gctx->key_set = 0;
         gctx->iv_set = 0;
-        gctx->ivlen = c->cipher->iv_len;
+        gctx->ivlen = EVP_CIPHER_iv_length(c->cipher);
         gctx->iv = c->iv;
         gctx->taglen = -1;
         gctx->iv_gen = 0;
         gctx->tls_aad_len = -1;
+        return 1;
+
+    case EVP_CTRL_GET_IVLEN:
+        *(int *)ptr = gctx->ivlen;
         return 1;
 
     case EVP_CTRL_AEAD_SET_IVLEN:
@@ -3272,7 +3309,7 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 #define CUSTOM_FLAGS    (EVP_CIPH_FLAG_DEFAULT_ASN1 \
                 | EVP_CIPH_CUSTOM_IV | EVP_CIPH_FLAG_CUSTOM_CIPHER \
                 | EVP_CIPH_ALWAYS_CALL_INIT | EVP_CIPH_CTRL_INIT \
-                | EVP_CIPH_CUSTOM_COPY)
+                | EVP_CIPH_CUSTOM_COPY | EVP_CIPH_CUSTOM_IV_LENGTH)
 
 BLOCK_CIPHER_custom(NID_aes, 128, 1, 12, gcm, GCM,
                     EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
@@ -3283,10 +3320,12 @@ BLOCK_CIPHER_custom(NID_aes, 128, 1, 12, gcm, GCM,
 
 static int aes_xts_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 {
-    EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX,c);
+    EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX, c);
+
     if (type == EVP_CTRL_COPY) {
         EVP_CIPHER_CTX *out = ptr;
         EVP_AES_XTS_CTX *xctx_out = EVP_C_DATA(EVP_AES_XTS_CTX,out);
+
         if (xctx->xts.key1) {
             if (xctx->xts.key1 != &xctx->ks1)
                 return 0;
@@ -3310,11 +3349,36 @@ static int aes_xts_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                             const unsigned char *iv, int enc)
 {
     EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX,ctx);
+
     if (!iv && !key)
         return 1;
 
     if (key)
         do {
+            /* The key is two half length keys in reality */
+            const int bytes = EVP_CIPHER_CTX_key_length(ctx) / 2;
+
+            /*
+             * Verify that the two keys are different.
+             *
+             * This addresses the vulnerability described in Rogaway's
+             * September 2004 paper:
+             *
+             *      "Efficient Instantiations of Tweakable Blockciphers and
+             *       Refinements to Modes OCB and PMAC".
+             *      (http://web.cs.ucdavis.edu/~rogaway/papers/offsets.pdf)
+             *
+             * FIPS 140-2 IG A.9 XTS-AES Key Generation Requirements states
+             * that:
+             *      "The check for Key_1 != Key_2 shall be done at any place
+             *       BEFORE using the keys in the XTS-AES algorithm to process
+             *       data with them."
+             */
+            if (enc && CRYPTO_memcmp(key, key + bytes, bytes) == 0) {
+                EVPerr(EVP_F_AES_XTS_INIT_KEY, EVP_R_XTS_DUPLICATED_KEYS);
+                return 0;
+            }
+
 #ifdef AES_XTS_ASM
             xctx->stream = enc ? AES_xts_encrypt : AES_xts_decrypt;
 #else
@@ -3447,7 +3511,9 @@ static int aes_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         cctx->len_set = 0;
         cctx->tls_aad_len = -1;
         return 1;
-
+    case EVP_CTRL_GET_IVLEN:
+        *(int *)ptr = 15 - cctx->L;
+        return 1;
     case EVP_CTRL_AEAD_TLS1_AAD:
         /* Save the AAD for later use */
         if (arg != EVP_AEAD_TLS1_AAD_LEN)
@@ -3643,8 +3709,6 @@ static int aes_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     if (!cctx->iv_set)
         return -1;
 
-    if (!EVP_CIPHER_CTX_encrypting(ctx) && !cctx->tag_set)
-        return -1;
     if (!out) {
         if (!in) {
             if (CRYPTO_ccm128_setiv(ccm, EVP_CIPHER_CTX_iv_noconst(ctx),
@@ -3659,6 +3723,11 @@ static int aes_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         CRYPTO_ccm128_aad(ccm, in, len);
         return len;
     }
+
+    /* The tag must be set before actually decrypting data */
+    if (!EVP_CIPHER_CTX_encrypting(ctx) && !cctx->tag_set)
+        return -1;
+
     /* If not set length yet do it */
     if (!cctx->len_set) {
         if (CRYPTO_ccm128_setiv(ccm, EVP_CIPHER_CTX_iv_noconst(ctx),
@@ -3893,11 +3962,15 @@ static int aes_ocb_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
     case EVP_CTRL_INIT:
         octx->key_set = 0;
         octx->iv_set = 0;
-        octx->ivlen = EVP_CIPHER_CTX_iv_length(c);
+        octx->ivlen = EVP_CIPHER_iv_length(c->cipher);
         octx->iv = EVP_CIPHER_CTX_iv_noconst(c);
         octx->taglen = 16;
         octx->data_buf_len = 0;
         octx->aad_buf_len = 0;
+        return 1;
+
+    case EVP_CTRL_GET_IVLEN:
+        *(int *)ptr = octx->ivlen;
         return 1;
 
     case EVP_CTRL_AEAD_SET_IVLEN:

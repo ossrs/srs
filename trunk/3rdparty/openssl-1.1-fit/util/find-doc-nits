@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -35,7 +35,7 @@ Find small errors (nits) in documentation.  Options:
     -l Print bogus links
     -n Print nits in POD pages
     -p Warn if non-public name documented (implies -n)
-    -u List undocumented functions
+    -u Count undocumented functions
     -h Print this help message
     -c List undocumented commands and options
 EOF
@@ -137,6 +137,20 @@ sub name_synopsis()
     }
 }
 
+# Check if SECTION ($3) is located before BEFORE ($4)
+sub check_section_location()
+{
+    my $id = shift;
+    my $contents = shift;
+    my $section = shift;
+    my $before = shift;
+
+    return
+        unless $contents =~ /=head1 $section/ and $contents =~ /=head1 $before/;
+    print "$id $section should be placed before $before section\n"
+        if $contents =~ /=head1 $before.*=head1 $section/ms;
+}
+
 sub check()
 {
     my $filename = shift;
@@ -152,6 +166,13 @@ sub check()
 
     my $id = "${filename}:1:";
 
+    # Check ordering of some sections in man3
+    if ( $filename =~ m|man3/| ) {
+        &check_section_location($id, $contents, "RETURN VALUES", "EXAMPLES");
+        &check_section_location($id, $contents, "SEE ALSO", "HISTORY");
+        &check_section_location($id, $contents, "EXAMPLES", "SEE ALSO");
+    }
+
     &name_synopsis($id, $filename, $contents)
         unless $contents =~ /=for comment generic/
             or $filename =~ m@man[157]/@;
@@ -162,6 +183,10 @@ sub check()
         if $contents !~ /=cut\n$/;
     print "$id more than one cut line.\n"
         if $contents =~ /=cut.*=cut/ms;
+    print "$id EXAMPLE not EXAMPLES section.\n"
+        if $contents =~ /=head1 EXAMPLE[^S]/;
+    print "$id WARNING not WARNINGS section.\n"
+        if $contents =~ /=head1 WARNING[^S]/;
     print "$id missing copyright\n"
         if $contents !~ /Copyright .* The OpenSSL Project Authors/;
     print "$id copyright not last\n"
@@ -269,6 +294,7 @@ my %docced;
 sub checkmacros()
 {
     my $count = 0;
+    my %seen;
 
     print "# Checking macros (approximate)\n";
     foreach my $f ( glob('include/openssl/*.h') ) {
@@ -280,7 +306,7 @@ sub checkmacros()
         while ( <IN> ) {
             next unless /^#\s*define\s*(\S+)\(/;
             my $macro = $1;
-            next if $docced{$macro};
+            next if $docced{$macro} || defined $seen{$macro};
             next if $macro =~ /i2d_/
                 || $macro =~ /d2i_/
                 || $macro =~ /DEPRECATEDIN/
@@ -288,6 +314,7 @@ sub checkmacros()
                 || $macro =~ /DECLARE_/;
             print "$f:$macro\n" if $opt_d;
             $count++;
+            $seen{$macro} = 1;
         }
         close(IN);
     }
@@ -299,15 +326,17 @@ sub printem()
     my $libname = shift;
     my $numfile = shift;
     my $count = 0;
+    my %seen;
 
     foreach my $func ( &parsenum($numfile) ) {
-        next if $docced{$func};
+        next if $docced{$func} || defined $seen{$func};
 
         # Skip ASN1 utilities
         next if $func =~ /^ASN1_/;
 
         print "$libname:$func\n" if $opt_d;
         $count++;
+        $seen{$func} = 1;
     }
     print "# Found $count missing from $numfile\n\n";
 }

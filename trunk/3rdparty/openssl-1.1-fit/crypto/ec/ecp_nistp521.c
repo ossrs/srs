@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,7 +38,7 @@ NON_EMPTY_TRANSLATION_UNIT
 
 # include <string.h>
 # include <openssl/err.h>
-# include "ec_lcl.h"
+# include "ec_local.h"
 
 # if defined(__SIZEOF_INT128__) && __SIZEOF_INT128__==16
   /* even with gcc, the typedef won't work for 32-bit platforms */
@@ -128,6 +128,7 @@ static const felem_bytearray nistp521_curve_params[5] = {
 # define NLIMBS 9
 
 typedef uint64_t limb;
+typedef limb limb_aX __attribute((__aligned__(1)));
 typedef limb felem[NLIMBS];
 typedef uint128_t largefelem[NLIMBS];
 
@@ -141,14 +142,14 @@ static const limb bottom58bits = 0x3ffffffffffffff;
 static void bin66_to_felem(felem out, const u8 in[66])
 {
     out[0] = (*((limb *) & in[0])) & bottom58bits;
-    out[1] = (*((limb *) & in[7]) >> 2) & bottom58bits;
-    out[2] = (*((limb *) & in[14]) >> 4) & bottom58bits;
-    out[3] = (*((limb *) & in[21]) >> 6) & bottom58bits;
-    out[4] = (*((limb *) & in[29])) & bottom58bits;
-    out[5] = (*((limb *) & in[36]) >> 2) & bottom58bits;
-    out[6] = (*((limb *) & in[43]) >> 4) & bottom58bits;
-    out[7] = (*((limb *) & in[50]) >> 6) & bottom58bits;
-    out[8] = (*((limb *) & in[58])) & bottom57bits;
+    out[1] = (*((limb_aX *) & in[7]) >> 2) & bottom58bits;
+    out[2] = (*((limb_aX *) & in[14]) >> 4) & bottom58bits;
+    out[3] = (*((limb_aX *) & in[21]) >> 6) & bottom58bits;
+    out[4] = (*((limb_aX *) & in[29])) & bottom58bits;
+    out[5] = (*((limb_aX *) & in[36]) >> 2) & bottom58bits;
+    out[6] = (*((limb_aX *) & in[43]) >> 4) & bottom58bits;
+    out[7] = (*((limb_aX *) & in[50]) >> 6) & bottom58bits;
+    out[8] = (*((limb_aX *) & in[58])) & bottom57bits;
 }
 
 /*
@@ -159,44 +160,31 @@ static void felem_to_bin66(u8 out[66], const felem in)
 {
     memset(out, 0, 66);
     (*((limb *) & out[0])) = in[0];
-    (*((limb *) & out[7])) |= in[1] << 2;
-    (*((limb *) & out[14])) |= in[2] << 4;
-    (*((limb *) & out[21])) |= in[3] << 6;
-    (*((limb *) & out[29])) = in[4];
-    (*((limb *) & out[36])) |= in[5] << 2;
-    (*((limb *) & out[43])) |= in[6] << 4;
-    (*((limb *) & out[50])) |= in[7] << 6;
-    (*((limb *) & out[58])) = in[8];
-}
-
-/* To preserve endianness when using BN_bn2bin and BN_bin2bn */
-static void flip_endian(u8 *out, const u8 *in, unsigned len)
-{
-    unsigned i;
-    for (i = 0; i < len; ++i)
-        out[i] = in[len - 1 - i];
+    (*((limb_aX *) & out[7])) |= in[1] << 2;
+    (*((limb_aX *) & out[14])) |= in[2] << 4;
+    (*((limb_aX *) & out[21])) |= in[3] << 6;
+    (*((limb_aX *) & out[29])) = in[4];
+    (*((limb_aX *) & out[36])) |= in[5] << 2;
+    (*((limb_aX *) & out[43])) |= in[6] << 4;
+    (*((limb_aX *) & out[50])) |= in[7] << 6;
+    (*((limb_aX *) & out[58])) = in[8];
 }
 
 /* BN_to_felem converts an OpenSSL BIGNUM into an felem */
 static int BN_to_felem(felem out, const BIGNUM *bn)
 {
-    felem_bytearray b_in;
     felem_bytearray b_out;
-    unsigned num_bytes;
+    int num_bytes;
 
-    /* BN_bn2bin eats leading zeroes */
-    memset(b_out, 0, sizeof(b_out));
-    num_bytes = BN_num_bytes(bn);
-    if (num_bytes > sizeof(b_out)) {
-        ECerr(EC_F_BN_TO_FELEM, EC_R_BIGNUM_OUT_OF_RANGE);
-        return 0;
-    }
     if (BN_is_negative(bn)) {
         ECerr(EC_F_BN_TO_FELEM, EC_R_BIGNUM_OUT_OF_RANGE);
         return 0;
     }
-    num_bytes = BN_bn2bin(bn, b_in);
-    flip_endian(b_out, b_in, num_bytes);
+    num_bytes = BN_bn2lebinpad(bn, b_out, sizeof(b_out));
+    if (num_bytes < 0) {
+        ECerr(EC_F_BN_TO_FELEM, EC_R_BIGNUM_OUT_OF_RANGE);
+        return 0;
+    }
     bin66_to_felem(out, b_out);
     return 1;
 }
@@ -204,10 +192,9 @@ static int BN_to_felem(felem out, const BIGNUM *bn)
 /* felem_to_BN converts an felem into an OpenSSL BIGNUM */
 static BIGNUM *felem_to_BN(BIGNUM *out, const felem in)
 {
-    felem_bytearray b_in, b_out;
-    felem_to_bin66(b_in, in);
-    flip_endian(b_out, b_in, sizeof(b_out));
-    return BN_bin2bn(b_out, sizeof(b_out), out);
+    felem_bytearray b_out;
+    felem_to_bin66(b_out, in);
+    return BN_lebin2bn(b_out, sizeof(b_out), out);
 }
 
 /*-
@@ -357,10 +344,15 @@ static void felem_diff64(felem out, const felem in)
 static void felem_diff_128_64(largefelem out, const felem in)
 {
     /*
-     * In order to prevent underflow, we add 0 mod p before subtracting.
+     * In order to prevent underflow, we add 64p mod p (which is equivalent
+     * to 0 mod p) before subtracting. p is 2^521 - 1, i.e. in binary a 521
+     * digit number with all bits set to 1. See "The representation of field
+     * elements" comment above for a description of how limbs are used to
+     * represent a number. 64p is represented with 8 limbs containing a number
+     * with 58 bits set and one limb with a number with 57 bits set.
      */
-    static const limb two63m6 = (((limb) 1) << 62) - (((limb) 1) << 5);
-    static const limb two63m5 = (((limb) 1) << 62) - (((limb) 1) << 4);
+    static const limb two63m6 = (((limb) 1) << 63) - (((limb) 1) << 6);
+    static const limb two63m5 = (((limb) 1) << 63) - (((limb) 1) << 5);
 
     out[0] += two63m6 - in[0];
     out[1] += two63m5 - in[1];
@@ -1167,6 +1159,7 @@ static void point_add(felem x3, felem y3, felem z3,
     felem ftmp, ftmp2, ftmp3, ftmp4, ftmp5, ftmp6, x_out, y_out, z_out;
     largefelem tmp, tmp2;
     limb x_equal, y_equal, z1_is_zero, z2_is_zero;
+    limb points_equal;
 
     z1_is_zero = felem_is_zero(z1);
     z2_is_zero = felem_is_zero(z2);
@@ -1251,7 +1244,24 @@ static void point_add(felem x3, felem y3, felem z3,
     felem_scalar64(ftmp5, 2);
     /* ftmp5[i] < 2^61 */
 
-    if (x_equal && y_equal && !z1_is_zero && !z2_is_zero) {
+    /*
+     * The formulae are incorrect if the points are equal, in affine coordinates
+     * (X_1, Y_1) == (X_2, Y_2), so we check for this and do doubling if this
+     * happens.
+     *
+     * We use bitwise operations to avoid potential side-channels introduced by
+     * the short-circuiting behaviour of boolean operators.
+     *
+     * The special case of either point being the point at infinity (z1 and/or
+     * z2 are zero), is handled separately later on in this function, so we
+     * avoid jumping to point_double here in those special cases.
+     *
+     * Notice the comment below on the implications of this branching for timing
+     * leaks and why it is considered practically irrelevant.
+     */
+    points_equal = (x_equal & y_equal & (~z1_is_zero) & (~z2_is_zero));
+
+    if (points_equal) {
         /*
          * This is obviously not constant-time but it will almost-never happen
          * for ECDH / ECDSA. The case where it can happen is during scalar-mult
@@ -1264,7 +1274,7 @@ static void point_add(felem x3, felem y3, felem z3,
          * ffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb
          * 71e913863f7, in that case the penultimate intermediate is -9G and
          * the final digit is also -9G. Since this only happens for a single
-         * scalar, the timing leak is irrelevent. (Any attacker who wanted to
+         * scalar, the timing leak is irrelevant. (Any attacker who wanted to
          * check whether a secret scalar was that exact value, can already do
          * so.)
          */
@@ -1861,8 +1871,8 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
     felem_bytearray *secrets = NULL;
     felem (*pre_comp)[17][3] = NULL;
     felem *tmp_felems = NULL;
-    felem_bytearray tmp;
-    unsigned i, num_bytes;
+    unsigned i;
+    int num_bytes;
     int have_pre_comp = 0;
     size_t num_points = num;
     felem x_in, y_in, z_in, x_out, y_out, z_out;
@@ -1937,17 +1947,15 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
          * i.e., they contribute nothing to the linear combination
          */
         for (i = 0; i < num_points; ++i) {
-            if (i == num)
+            if (i == num) {
                 /*
                  * we didn't have a valid precomputation, so we pick the
                  * generator
                  */
-            {
                 p = EC_GROUP_get0_generator(group);
                 p_scalar = scalar;
-            } else
+            } else {
                 /* the i^th point */
-            {
                 p = points[i];
                 p_scalar = scalars[i];
             }
@@ -1963,10 +1971,16 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
                         ECerr(EC_F_EC_GFP_NISTP521_POINTS_MUL, ERR_R_BN_LIB);
                         goto err;
                     }
-                    num_bytes = BN_bn2bin(tmp_scalar, tmp);
-                } else
-                    num_bytes = BN_bn2bin(p_scalar, tmp);
-                flip_endian(secrets[i], tmp, num_bytes);
+                    num_bytes = BN_bn2lebinpad(tmp_scalar,
+                                               secrets[i], sizeof(secrets[i]));
+                } else {
+                    num_bytes = BN_bn2lebinpad(p_scalar,
+                                               secrets[i], sizeof(secrets[i]));
+                }
+                if (num_bytes < 0) {
+                    ECerr(EC_F_EC_GFP_NISTP521_POINTS_MUL, ERR_R_BN_LIB);
+                    goto err;
+                }
                 /* precompute multiples */
                 if ((!BN_to_felem(x_out, p->X)) ||
                     (!BN_to_felem(y_out, p->Y)) ||
@@ -2009,21 +2023,22 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
                 ECerr(EC_F_EC_GFP_NISTP521_POINTS_MUL, ERR_R_BN_LIB);
                 goto err;
             }
-            num_bytes = BN_bn2bin(tmp_scalar, tmp);
-        } else
-            num_bytes = BN_bn2bin(scalar, tmp);
-        flip_endian(g_secret, tmp, num_bytes);
+            num_bytes = BN_bn2lebinpad(tmp_scalar, g_secret, sizeof(g_secret));
+        } else {
+            num_bytes = BN_bn2lebinpad(scalar, g_secret, sizeof(g_secret));
+        }
         /* do the multiplication with generator precomputation */
         batch_mul(x_out, y_out, z_out,
                   (const felem_bytearray(*))secrets, num_points,
                   g_secret,
                   mixed, (const felem(*)[17][3])pre_comp,
                   (const felem(*)[3])g_pre_comp);
-    } else
+    } else {
         /* do the multiplication without generator precomputation */
         batch_mul(x_out, y_out, z_out,
                   (const felem_bytearray(*))secrets, num_points,
                   NULL, mixed, (const felem(*)[17][3])pre_comp, NULL);
+    }
     /* reduce the output to its unique minimal representation */
     felem_contract(x_in, x_out);
     felem_contract(y_in, y_out);

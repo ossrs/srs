@@ -10,8 +10,8 @@
 
 #include <openssl/err.h>
 
-#include "internal/bn_int.h"
-#include "ec_lcl.h"
+#include "crypto/bn.h"
+#include "ec_local.h"
 
 #ifndef OPENSSL_NO_EC2M
 
@@ -204,8 +204,7 @@ int ec_GF2m_simple_group_check_discriminant(const EC_GROUP *group,
     ret = 1;
 
  err:
-    if (ctx != NULL)
-        BN_CTX_end(ctx);
+    BN_CTX_end(ctx);
     BN_CTX_free(new_ctx);
     return ret;
 }

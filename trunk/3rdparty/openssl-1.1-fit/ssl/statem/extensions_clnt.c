@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,9 +8,9 @@
  */
 
 #include <openssl/ocsp.h>
-#include "../ssl_locl.h"
+#include "../ssl_local.h"
 #include "internal/cryptlib.h"
-#include "statem_locl.h"
+#include "statem_local.h"
 
 EXT_RETURN tls_construct_ctos_renegotiate(SSL *s, WPACKET *pkt,
                                           unsigned int context, X509 *x,
@@ -816,6 +816,7 @@ EXT_RETURN tls_construct_ctos_early_data(SSL *s, WPACKET *pkt,
         OPENSSL_free(s->psksession_id);
         s->psksession_id = OPENSSL_memdup(id, idlen);
         if (s->psksession_id == NULL) {
+            s->psksession_id_len = 0;
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                      SSL_F_TLS_CONSTRUCT_CTOS_EARLY_DATA, ERR_R_INTERNAL_ERROR);
             return EXT_RETURN_FAIL;
@@ -993,7 +994,7 @@ EXT_RETURN tls_construct_ctos_psk(SSL *s, WPACKET *pkt, unsigned int context,
     const EVP_MD *handmd = NULL, *mdres = NULL, *mdpsk = NULL;
     int dores = 0;
 
-    s->session->ext.tick_identity = TLSEXT_PSK_BAD_IDENTITY;
+    s->ext.tick_identity = 0;
 
     /*
      * Note: At this stage of the code we only support adding a single
@@ -1083,6 +1084,7 @@ EXT_RETURN tls_construct_ctos_psk(SSL *s, WPACKET *pkt, unsigned int context,
         agems += s->session->ext.tick_age_add;
 
         reshashsize = EVP_MD_size(mdres);
+        s->ext.tick_identity++;
         dores = 1;
     }
 
@@ -1142,6 +1144,7 @@ EXT_RETURN tls_construct_ctos_psk(SSL *s, WPACKET *pkt, unsigned int context,
                      ERR_R_INTERNAL_ERROR);
             return EXT_RETURN_FAIL;
         }
+        s->ext.tick_identity++;
     }
 
     if (!WPACKET_close(pkt)
@@ -1179,11 +1182,6 @@ EXT_RETURN tls_construct_ctos_psk(SSL *s, WPACKET *pkt, unsigned int context,
         /* SSLfatal() already called */
         return EXT_RETURN_FAIL;
     }
-
-    if (dores)
-        s->session->ext.tick_identity = 0;
-    if (s->psksession != NULL)
-        s->psksession->ext.tick_identity = (dores ? 1 : 0);
 
     return EXT_RETURN_SENT;
 #else
@@ -1374,19 +1372,20 @@ int tls_parse_stoc_ec_pt_formats(SSL *s, PACKET *pkt, unsigned int context,
             return 0;
         }
 
-        s->session->ext.ecpointformats_len = 0;
-        OPENSSL_free(s->session->ext.ecpointformats);
-        s->session->ext.ecpointformats = OPENSSL_malloc(ecpointformats_len);
-        if (s->session->ext.ecpointformats == NULL) {
+        s->ext.peer_ecpointformats_len = 0;
+        OPENSSL_free(s->ext.peer_ecpointformats);
+        s->ext.peer_ecpointformats = OPENSSL_malloc(ecpointformats_len);
+        if (s->ext.peer_ecpointformats == NULL) {
+            s->ext.peer_ecpointformats_len = 0;
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                      SSL_F_TLS_PARSE_STOC_EC_PT_FORMATS, ERR_R_INTERNAL_ERROR);
             return 0;
         }
 
-        s->session->ext.ecpointformats_len = ecpointformats_len;
+        s->ext.peer_ecpointformats_len = ecpointformats_len;
 
         if (!PACKET_copy_bytes(&ecptformatlist,
-                               s->session->ext.ecpointformats,
+                               s->ext.peer_ecpointformats,
                                ecpointformats_len)) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                      SSL_F_TLS_PARSE_STOC_EC_PT_FORMATS, ERR_R_INTERNAL_ERROR);
@@ -1495,8 +1494,13 @@ int tls_parse_stoc_sct(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         s->ext.scts_len = (uint16_t)size;
         if (size > 0) {
             s->ext.scts = OPENSSL_malloc(size);
-            if (s->ext.scts == NULL
-                    || !PACKET_copy_bytes(pkt, s->ext.scts, size)) {
+            if (s->ext.scts == NULL) {
+                s->ext.scts_len = 0;
+                SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PARSE_STOC_SCT,
+                         ERR_R_MALLOC_FAILURE);
+                return 0;
+            }
+            if (!PACKET_copy_bytes(pkt, s->ext.scts, size)) {
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PARSE_STOC_SCT,
                          ERR_R_INTERNAL_ERROR);
                 return 0;
@@ -1595,6 +1599,7 @@ int tls_parse_stoc_npn(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     OPENSSL_free(s->ext.npn);
     s->ext.npn = OPENSSL_malloc(selected_len);
     if (s->ext.npn == NULL) {
+        s->ext.npn_len = 0;
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PARSE_STOC_NPN,
                  ERR_R_INTERNAL_ERROR);
         return 0;
@@ -1635,6 +1640,7 @@ int tls_parse_stoc_alpn(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     OPENSSL_free(s->s3->alpn_selected);
     s->s3->alpn_selected = OPENSSL_malloc(len);
     if (s->s3->alpn_selected == NULL) {
+        s->s3->alpn_selected_len = 0;
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PARSE_STOC_ALPN,
                  ERR_R_INTERNAL_ERROR);
         return 0;
@@ -1666,6 +1672,7 @@ int tls_parse_stoc_alpn(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         s->session->ext.alpn_selected =
             OPENSSL_memdup(s->s3->alpn_selected, s->s3->alpn_selected_len);
         if (s->session->ext.alpn_selected == NULL) {
+            s->session->ext.alpn_selected_len = 0;
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PARSE_STOC_ALPN,
                      ERR_R_INTERNAL_ERROR);
             return 0;
@@ -1861,8 +1868,8 @@ int tls_parse_stoc_key_share(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         return 0;
     }
 
-    skey = ssl_generate_pkey(ckey);
-    if (skey == NULL) {
+    skey = EVP_PKEY_new();
+    if (skey == NULL || EVP_PKEY_copy_parameters(skey, ckey) <= 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PARSE_STOC_KEY_SHARE,
                  ERR_R_MALLOC_FAILURE);
         return 0;
@@ -1927,8 +1934,7 @@ int tls_parse_stoc_early_data(SSL *s, PACKET *pkt, unsigned int context,
     }
 
     if (!s->ext.early_data_ok
-            || !s->hit
-            || s->session->ext.tick_identity != 0) {
+            || !s->hit) {
         /*
          * If we get here then we didn't send early data, or we didn't resume
          * using the first identity, or the SNI/ALPN is not consistent so the
@@ -1956,17 +1962,28 @@ int tls_parse_stoc_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         return 0;
     }
 
-    if (s->session->ext.tick_identity == (int)identity) {
+    if (identity >= (unsigned int)s->ext.tick_identity) {
+        SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_F_TLS_PARSE_STOC_PSK,
+                 SSL_R_BAD_PSK_IDENTITY);
+        return 0;
+    }
+
+    /*
+     * Session resumption tickets are always sent before PSK tickets. If the
+     * ticket index is 0 then it must be for a session resumption ticket if we
+     * sent two tickets, or if we didn't send a PSK ticket.
+     */
+    if (identity == 0 && (s->psksession == NULL || s->ext.tick_identity == 2)) {
         s->hit = 1;
         SSL_SESSION_free(s->psksession);
         s->psksession = NULL;
         return 1;
     }
 
-    if (s->psksession == NULL
-            || s->psksession->ext.tick_identity != (int)identity) {
-        SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_F_TLS_PARSE_STOC_PSK,
-                 SSL_R_BAD_PSK_IDENTITY);
+    if (s->psksession == NULL) {
+        /* Should never happen */
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PARSE_STOC_PSK,
+                 ERR_R_INTERNAL_ERROR);
         return 0;
     }
 
@@ -1985,6 +2002,9 @@ int tls_parse_stoc_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     s->session = s->psksession;
     s->psksession = NULL;
     s->hit = 1;
+    /* Early data is only allowed if we used the first ticket */
+    if (identity != 0)
+        s->ext.early_data_ok = 0;
 #endif
 
     return 1;

@@ -1,4 +1,4 @@
-# Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -36,6 +36,7 @@ ASN1_F_ASN1_ITEM_D2I_FP:206:ASN1_item_d2i_fp
 ASN1_F_ASN1_ITEM_DUP:191:ASN1_item_dup
 ASN1_F_ASN1_ITEM_EMBED_D2I:120:asn1_item_embed_d2i
 ASN1_F_ASN1_ITEM_EMBED_NEW:121:asn1_item_embed_new
+ASN1_F_ASN1_ITEM_EX_I2D:144:ASN1_item_ex_i2d
 ASN1_F_ASN1_ITEM_FLAGS_I2D:118:asn1_item_flags_i2d
 ASN1_F_ASN1_ITEM_I2D_BIO:192:ASN1_item_i2d_bio
 ASN1_F_ASN1_ITEM_I2D_FP:193:ASN1_item_i2d_fp
@@ -314,6 +315,7 @@ CMS_F_CMS_SIGNERINFO_VERIFY:152:CMS_SignerInfo_verify
 CMS_F_CMS_SIGNERINFO_VERIFY_CERT:153:cms_signerinfo_verify_cert
 CMS_F_CMS_SIGNERINFO_VERIFY_CONTENT:154:CMS_SignerInfo_verify_content
 CMS_F_CMS_SIGN_RECEIPT:163:CMS_sign_receipt
+CMS_F_CMS_SI_CHECK_ATTRIBUTES:183:CMS_si_check_attributes
 CMS_F_CMS_STREAM:155:CMS_stream
 CMS_F_CMS_UNCOMPRESS:156:CMS_uncompress
 CMS_F_CMS_VERIFY:157:CMS_verify
@@ -713,11 +715,14 @@ ENGINE_F_INT_ENGINE_CONFIGURE:188:int_engine_configure
 ENGINE_F_INT_ENGINE_MODULE_INIT:187:int_engine_module_init
 ENGINE_F_OSSL_HMAC_INIT:200:ossl_hmac_init
 EVP_F_AESNI_INIT_KEY:165:aesni_init_key
+EVP_F_AESNI_XTS_INIT_KEY:207:aesni_xts_init_key
 EVP_F_AES_GCM_CTRL:196:aes_gcm_ctrl
 EVP_F_AES_INIT_KEY:133:aes_init_key
 EVP_F_AES_OCB_CIPHER:169:aes_ocb_cipher
 EVP_F_AES_T4_INIT_KEY:178:aes_t4_init_key
+EVP_F_AES_T4_XTS_INIT_KEY:208:aes_t4_xts_init_key
 EVP_F_AES_WRAP_CIPHER:170:aes_wrap_cipher
+EVP_F_AES_XTS_INIT_KEY:209:aes_xts_init_key
 EVP_F_ALG_MODULE_INIT:177:alg_module_init
 EVP_F_ARIA_CCM_INIT_KEY:175:aria_ccm_init_key
 EVP_F_ARIA_GCM_CTRL:197:aria_gcm_ctrl
@@ -808,6 +813,7 @@ EVP_F_PKCS5_V2_SCRYPT_KEYIVGEN:180:PKCS5_v2_scrypt_keyivgen
 EVP_F_PKEY_SET_TYPE:158:pkey_set_type
 EVP_F_RC2_MAGIC_TO_METH:109:rc2_magic_to_meth
 EVP_F_RC5_CTRL:125:rc5_ctrl
+EVP_F_R_32_12_16_INIT_KEY:242:r_32_12_16_init_key
 EVP_F_S390X_AES_GCM_CTRL:201:s390x_aes_gcm_ctrl
 EVP_F_UPDATE:173:update
 KDF_F_PKEY_HKDF_CTRL_STR:103:pkey_hkdf_ctrl_str
@@ -929,6 +935,8 @@ PEM_F_PEM_READ_PRIVATEKEY:124:PEM_read_PrivateKey
 PEM_F_PEM_SIGNFINAL:112:PEM_SignFinal
 PEM_F_PEM_WRITE:113:PEM_write
 PEM_F_PEM_WRITE_BIO:114:PEM_write_bio
+PEM_F_PEM_WRITE_BIO_PRIVATEKEY_TRADITIONAL:147:\
+	PEM_write_bio_PrivateKey_traditional
 PEM_F_PEM_WRITE_PRIVATEKEY:139:PEM_write_PrivateKey
 PEM_F_PEM_X509_INFO_READ:115:PEM_X509_INFO_read
 PEM_F_PEM_X509_INFO_READ_BIO:116:PEM_X509_INFO_read_bio
@@ -997,6 +1005,7 @@ PKCS7_F_PKCS7_SIGNER_INFO_SIGN:139:PKCS7_SIGNER_INFO_sign
 PKCS7_F_PKCS7_SIGN_ADD_SIGNER:137:PKCS7_sign_add_signer
 PKCS7_F_PKCS7_SIMPLE_SMIMECAP:119:PKCS7_simple_smimecap
 PKCS7_F_PKCS7_VERIFY:117:PKCS7_verify
+RAND_F_DATA_COLLECT_METHOD:127:data_collect_method
 RAND_F_DRBG_BYTES:101:drbg_bytes
 RAND_F_DRBG_GET_ENTROPY:105:drbg_get_entropy
 RAND_F_DRBG_SETUP:117:drbg_setup
@@ -1020,7 +1029,9 @@ RAND_F_RAND_POOL_ADD_BEGIN:113:rand_pool_add_begin
 RAND_F_RAND_POOL_ADD_END:114:rand_pool_add_end
 RAND_F_RAND_POOL_ATTACH:124:rand_pool_attach
 RAND_F_RAND_POOL_BYTES_NEEDED:115:rand_pool_bytes_needed
+RAND_F_RAND_POOL_GROW:125:rand_pool_grow
 RAND_F_RAND_POOL_NEW:116:rand_pool_new
+RAND_F_RAND_PSEUDO_BYTES:126:RAND_pseudo_bytes
 RAND_F_RAND_WRITE_FILE:112:RAND_write_file
 RSA_F_CHECK_PADDING_MD:140:check_padding_md
 RSA_F_ENCODE_PKCS1:146:encode_pkcs1
@@ -1149,6 +1160,7 @@ SSL_F_FINAL_EC_PT_FORMATS:485:final_ec_pt_formats
 SSL_F_FINAL_EMS:486:final_ems
 SSL_F_FINAL_KEY_SHARE:503:final_key_share
 SSL_F_FINAL_MAXFRAGMENTLEN:557:final_maxfragmentlen
+SSL_F_FINAL_PSK:639:final_psk
 SSL_F_FINAL_RENEGOTIATE:483:final_renegotiate
 SSL_F_FINAL_SERVER_NAME:558:final_server_name
 SSL_F_FINAL_SIG_ALGS:497:final_sig_algs
@@ -1172,6 +1184,7 @@ SSL_F_OSSL_STATEM_SERVER_CONSTRUCT_MESSAGE:431:*
 SSL_F_OSSL_STATEM_SERVER_POST_PROCESS_MESSAGE:601:\
 	ossl_statem_server_post_process_message
 SSL_F_OSSL_STATEM_SERVER_POST_WORK:602:ossl_statem_server_post_work
+SSL_F_OSSL_STATEM_SERVER_PRE_WORK:640:
 SSL_F_OSSL_STATEM_SERVER_PROCESS_MESSAGE:603:ossl_statem_server_process_message
 SSL_F_OSSL_STATEM_SERVER_READ_TRANSITION:418:ossl_statem_server_read_transition
 SSL_F_OSSL_STATEM_SERVER_WRITE_TRANSITION:604:\
@@ -1640,6 +1653,7 @@ X509V3_F_I2S_ASN1_ENUMERATED:121:i2s_ASN1_ENUMERATED
 X509V3_F_I2S_ASN1_IA5STRING:149:i2s_ASN1_IA5STRING
 X509V3_F_I2S_ASN1_INTEGER:120:i2s_ASN1_INTEGER
 X509V3_F_I2V_AUTHORITY_INFO_ACCESS:138:i2v_AUTHORITY_INFO_ACCESS
+X509V3_F_I2V_AUTHORITY_KEYID:173:i2v_AUTHORITY_KEYID
 X509V3_F_LEVEL_ADD_NODE:168:level_add_node
 X509V3_F_NOTICE_SECTION:132:notice_section
 X509V3_F_NREF_NOS:133:nref_nos
@@ -1680,6 +1694,7 @@ X509V3_F_V2I_SUBJECT_ALT:154:v2i_subject_alt
 X509V3_F_V2I_TLS_FEATURE:165:v2i_TLS_FEATURE
 X509V3_F_V3_GENERIC_EXTENSION:116:v3_generic_extension
 X509V3_F_X509V3_ADD1_I2D:140:X509V3_add1_i2d
+X509V3_F_X509V3_ADD_LEN_VALUE:174:x509v3_add_len_value
 X509V3_F_X509V3_ADD_VALUE:105:X509V3_add_value
 X509V3_F_X509V3_EXT_ADD:104:X509V3_EXT_add
 X509V3_F_X509V3_EXT_ADD_ALIAS:106:X509V3_EXT_add_alias
@@ -1733,6 +1748,7 @@ X509_F_X509_NAME_PRINT:117:X509_NAME_print
 X509_F_X509_OBJECT_NEW:150:X509_OBJECT_new
 X509_F_X509_PRINT_EX_FP:118:X509_print_ex_fp
 X509_F_X509_PUBKEY_DECODE:148:x509_pubkey_decode
+X509_F_X509_PUBKEY_GET:161:X509_PUBKEY_get
 X509_F_X509_PUBKEY_GET0:119:X509_PUBKEY_get0
 X509_F_X509_PUBKEY_SET:120:X509_PUBKEY_set
 X509_F_X509_REQ_CHECK_PRIVATE_KEY:144:X509_REQ_check_private_key
@@ -1759,6 +1775,7 @@ ASN1_R_ASN1_PARSE_ERROR:203:asn1 parse error
 ASN1_R_ASN1_SIG_PARSE_ERROR:204:asn1 sig parse error
 ASN1_R_AUX_ERROR:100:aux error
 ASN1_R_BAD_OBJECT_HEADER:102:bad object header
+ASN1_R_BAD_TEMPLATE:230:bad template
 ASN1_R_BMPSTRING_IS_WRONG_LENGTH:214:bmpstring is wrong length
 ASN1_R_BN_LIB:105:bn lib
 ASN1_R_BOOLEAN_IS_WRONG_LENGTH:106:boolean is wrong length
@@ -1930,6 +1947,7 @@ BN_R_P_IS_NOT_PRIME:112:p is not prime
 BN_R_TOO_MANY_ITERATIONS:113:too many iterations
 BN_R_TOO_MANY_TEMPORARY_VARIABLES:109:too many temporary variables
 CMS_R_ADD_SIGNER_ERROR:99:add signer error
+CMS_R_ATTRIBUTE_ERROR:161:attribute error
 CMS_R_CERTIFICATE_ALREADY_PRESENT:175:certificate already present
 CMS_R_CERTIFICATE_HAS_NO_KEYID:160:certificate has no keyid
 CMS_R_CERTIFICATE_VERIFY_ERROR:100:certificate verify error
@@ -2094,6 +2112,7 @@ DSA_R_DECODE_ERROR:104:decode error
 DSA_R_INVALID_DIGEST_TYPE:106:invalid digest type
 DSA_R_INVALID_PARAMETERS:112:invalid parameters
 DSA_R_MISSING_PARAMETERS:101:missing parameters
+DSA_R_MISSING_PRIVATE_KEY:111:missing private key
 DSA_R_MODULUS_TOO_LARGE:103:modulus too large
 DSA_R_NO_PARAMETERS_SET:107:no parameters set
 DSA_R_PARAMETER_ENCODING_ERROR:105:parameter encoding error
@@ -2153,6 +2172,7 @@ EC_R_KEYS_NOT_SET:140:keys not set
 EC_R_LADDER_POST_FAILURE:136:ladder post failure
 EC_R_LADDER_PRE_FAILURE:153:ladder pre failure
 EC_R_LADDER_STEP_FAILURE:162:ladder step failure
+EC_R_MISSING_OID:167:missing OID
 EC_R_MISSING_PARAMETERS:124:missing parameters
 EC_R_MISSING_PRIVATE_KEY:125:missing private key
 EC_R_NEED_NEW_SETUP_VALUES:157:need new setup values
@@ -2218,6 +2238,7 @@ ENGINE_R_VERSION_INCOMPATIBILITY:145:version incompatibility
 EVP_R_AES_KEY_SETUP_FAILED:143:aes key setup failed
 EVP_R_ARIA_KEY_SETUP_FAILED:176:aria key setup failed
 EVP_R_BAD_DECRYPT:100:bad decrypt
+EVP_R_BAD_KEY_LENGTH:195:bad key length
 EVP_R_BUFFER_TOO_SMALL:155:buffer too small
 EVP_R_CAMELLIA_KEY_SETUP_FAILED:157:camellia key setup failed
 EVP_R_CIPHER_PARAMETER_ERROR:122:cipher parameter error
@@ -2245,6 +2266,7 @@ EVP_R_INITIALIZATION_ERROR:134:initialization error
 EVP_R_INPUT_NOT_INITIALIZED:111:input not initialized
 EVP_R_INVALID_DIGEST:152:invalid digest
 EVP_R_INVALID_FIPS_MODE:168:invalid fips mode
+EVP_R_INVALID_IV_LENGTH:194:invalid iv length
 EVP_R_INVALID_KEY:163:invalid key
 EVP_R_INVALID_KEY_LENGTH:130:invalid key length
 EVP_R_INVALID_OPERATION:148:invalid operation
@@ -2264,6 +2286,7 @@ EVP_R_ONLY_ONESHOT_SUPPORTED:177:only oneshot supported
 EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE:150:\
 	operation not supported for this keytype
 EVP_R_OPERATON_NOT_INITIALIZED:151:operaton not initialized
+EVP_R_OUTPUT_WOULD_OVERFLOW:184:output would overflow
 EVP_R_PARTIALLY_OVERLAPPING:162:partially overlapping buffers
 EVP_R_PBKDF2_ERROR:181:pbkdf2 error
 EVP_R_PKEY_APPLICATION_ASN1_METHOD_ALREADY_REGISTERED:179:\
@@ -2287,6 +2310,7 @@ EVP_R_UNSUPPORTED_PRIVATE_KEY_ALGORITHM:118:unsupported private key algorithm
 EVP_R_UNSUPPORTED_SALT_TYPE:126:unsupported salt type
 EVP_R_WRAP_MODE_NOT_ALLOWED:170:wrap mode not allowed
 EVP_R_WRONG_FINAL_BLOCK_LENGTH:109:wrong final block length
+EVP_R_XTS_DUPLICATED_KEYS:183:xts duplicated keys
 KDF_R_INVALID_DIGEST:100:invalid digest
 KDF_R_MISSING_ITERATION_COUNT:109:missing iteration count
 KDF_R_MISSING_KEY:104:missing key
@@ -2384,6 +2408,7 @@ PEM_R_UNEXPECTED_DEK_IV:130:unexpected dek iv
 PEM_R_UNSUPPORTED_CIPHER:113:unsupported cipher
 PEM_R_UNSUPPORTED_ENCRYPTION:114:unsupported encryption
 PEM_R_UNSUPPORTED_KEY_COMPONENTS:126:unsupported key components
+PEM_R_UNSUPPORTED_PUBLIC_KEY_TYPE:110:unsupported public key type
 PKCS12_R_CANT_PACK_STRUCTURE:100:cant pack structure
 PKCS12_R_CONTENT_TYPE_NOT_DATA:121:content type not data
 PKCS12_R_DECODE_ERROR:101:decode error
@@ -2527,6 +2552,7 @@ RSA_R_KEY_PRIME_NUM_INVALID:165:key prime num invalid
 RSA_R_KEY_SIZE_TOO_SMALL:120:key size too small
 RSA_R_LAST_OCTET_INVALID:134:last octet invalid
 RSA_R_MGF1_DIGEST_NOT_ALLOWED:152:mgf1 digest not allowed
+RSA_R_MISSING_PRIVATE_KEY:179:missing private key
 RSA_R_MODULUS_TOO_LARGE:105:modulus too large
 RSA_R_MP_COEFFICIENT_NOT_INVERSE_OF_R:168:mp coefficient not inverse of r
 RSA_R_MP_EXPONENT_NOT_CONGRUENT_TO_D:169:mp exponent not congruent to d
@@ -2718,6 +2744,7 @@ SSL_R_MISSING_DSA_SIGNING_CERT:165:missing dsa signing cert
 SSL_R_MISSING_ECDSA_SIGNING_CERT:381:missing ecdsa signing cert
 SSL_R_MISSING_FATAL:256:missing fatal
 SSL_R_MISSING_PARAMETERS:290:missing parameters
+SSL_R_MISSING_PSK_KEX_MODES_EXTENSION:310:missing psk kex modes extension
 SSL_R_MISSING_RSA_CERTIFICATE:168:missing rsa certificate
 SSL_R_MISSING_RSA_ENCRYPTING_CERT:169:missing rsa encrypting cert
 SSL_R_MISSING_RSA_SIGNING_CERT:170:missing rsa signing cert
@@ -2761,6 +2788,7 @@ SSL_R_NO_VALID_SCTS:216:no valid scts
 SSL_R_NO_VERIFY_COOKIE_CALLBACK:403:no verify cookie callback
 SSL_R_NULL_SSL_CTX:195:null ssl ctx
 SSL_R_NULL_SSL_METHOD_PASSED:196:null ssl method passed
+SSL_R_OCSP_CALLBACK_FAILURE:294:ocsp callback failure
 SSL_R_OLD_SESSION_CIPHER_NOT_RETURNED:197:old session cipher not returned
 SSL_R_OLD_SESSION_COMPRESSION_ALGORITHM_NOT_RETURNED:344:\
 	old session compression algorithm not returned
@@ -3003,6 +3031,7 @@ X509_R_CERT_ALREADY_IN_HASH_TABLE:101:cert already in hash table
 X509_R_CRL_ALREADY_DELTA:127:crl already delta
 X509_R_CRL_VERIFY_FAILURE:131:crl verify failure
 X509_R_IDP_MISMATCH:128:idp mismatch
+X509_R_INVALID_ATTRIBUTES:138:invalid attributes
 X509_R_INVALID_DIRECTORY:113:invalid directory
 X509_R_INVALID_FIELD_NAME:119:invalid field name
 X509_R_INVALID_TRUST:123:invalid trust

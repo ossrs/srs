@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,9 +10,9 @@
 #include <assert.h>
 #include <limits.h>
 #include "internal/cryptlib.h"
-#include "bn_lcl.h"
+#include "bn_local.h"
 #include <openssl/opensslconf.h>
-#include "internal/constant_time_locl.h"
+#include "internal/constant_time.h"
 
 /* This stuff appears to be completely unused, so is deprecated */
 #if OPENSSL_API_COMPAT < 0x00908000L
@@ -87,6 +87,15 @@ const BIGNUM *BN_value_one(void)
     return &const_one;
 }
 
+/*
+ * Old Visual Studio ARM compiler miscompiles BN_num_bits_word()
+ * https://mta.openssl.org/pipermail/openssl-users/2018-August/008465.html
+ */
+#if defined(_MSC_VER) && defined(_ARM_) && defined(_WIN32_WCE) \
+    && _MSC_VER>=1400 && _MSC_VER<1501
+# define MS_BROKEN_BN_num_bits_word
+# pragma optimize("", off)
+#endif
 int BN_num_bits_word(BN_ULONG l)
 {
     BN_ULONG x, mask;
@@ -131,21 +140,70 @@ int BN_num_bits_word(BN_ULONG l)
 
     return bits;
 }
+#ifdef MS_BROKEN_BN_num_bits_word
+# pragma optimize("", on)
+#endif
+
+/*
+ * This function still leaks `a->dmax`: it's caller's responsibility to
+ * expand the input `a` in advance to a public length.
+ */
+static ossl_inline
+int bn_num_bits_consttime(const BIGNUM *a)
+{
+    int j, ret;
+    unsigned int mask, past_i;
+    int i = a->top - 1;
+    bn_check_top(a);
+
+    for (j = 0, past_i = 0, ret = 0; j < a->dmax; j++) {
+        mask = constant_time_eq_int(i, j); /* 0xff..ff if i==j, 0x0 otherwise */
+
+        ret += BN_BITS2 & (~mask & ~past_i);
+        ret += BN_num_bits_word(a->d[j]) & mask;
+
+        past_i |= mask; /* past_i will become 0xff..ff after i==j */
+    }
+
+    /*
+     * if BN_is_zero(a) => i is -1 and ret contains garbage, so we mask the
+     * final result.
+     */
+    mask = ~(constant_time_eq_int(i, ((int)-1)));
+
+    return ret & mask;
+}
 
 int BN_num_bits(const BIGNUM *a)
 {
     int i = a->top - 1;
     bn_check_top(a);
 
+    if (a->flags & BN_FLG_CONSTTIME) {
+        /*
+         * We assume that BIGNUMs flagged as CONSTTIME have also been expanded
+         * so that a->dmax is not leaking secret information.
+         *
+         * In other words, it's the caller's responsibility to ensure `a` has
+         * been preallocated in advance to a public length if we hit this
+         * branch.
+         *
+         */
+        return bn_num_bits_consttime(a);
+    }
+
     if (BN_is_zero(a))
         return 0;
+
     return ((i * BN_BITS2) + BN_num_bits_word(a->d[i]));
 }
 
-static void bn_free_d(BIGNUM *a)
+static void bn_free_d(BIGNUM *a, int clear)
 {
     if (BN_get_flags(a, BN_FLG_SECURE))
-        OPENSSL_secure_free(a->d);
+        OPENSSL_secure_clear_free(a->d, a->dmax * sizeof(a->d[0]));
+    else if (clear != 0)
+        OPENSSL_clear_free(a->d, a->dmax * sizeof(a->d[0]));
     else
         OPENSSL_free(a->d);
 }
@@ -155,10 +213,8 @@ void BN_clear_free(BIGNUM *a)
 {
     if (a == NULL)
         return;
-    if (a->d != NULL && !BN_get_flags(a, BN_FLG_STATIC_DATA)) {
-        OPENSSL_cleanse(a->d, a->dmax * sizeof(a->d[0]));
-        bn_free_d(a);
-    }
+    if (a->d != NULL && !BN_get_flags(a, BN_FLG_STATIC_DATA))
+        bn_free_d(a, 1);
     if (BN_get_flags(a, BN_FLG_MALLOCED)) {
         OPENSSL_cleanse(a, sizeof(*a));
         OPENSSL_free(a);
@@ -170,7 +226,7 @@ void BN_free(BIGNUM *a)
     if (a == NULL)
         return;
     if (!BN_get_flags(a, BN_FLG_STATIC_DATA))
-        bn_free_d(a);
+        bn_free_d(a, 0);
     if (a->flags & BN_FLG_MALLOCED)
         OPENSSL_free(a);
 }
@@ -248,10 +304,8 @@ BIGNUM *bn_expand2(BIGNUM *b, int words)
         BN_ULONG *a = bn_expand_internal(b, words);
         if (!a)
             return NULL;
-        if (b->d) {
-            OPENSSL_cleanse(b->d, b->dmax * sizeof(b->d[0]));
-            bn_free_d(b);
-        }
+        if (b->d != NULL)
+            bn_free_d(b, 1);
         b->d = a;
         b->dmax = words;
     }
@@ -280,15 +334,19 @@ BIGNUM *BN_dup(const BIGNUM *a)
 
 BIGNUM *BN_copy(BIGNUM *a, const BIGNUM *b)
 {
+    int bn_words;
+
     bn_check_top(b);
+
+    bn_words = BN_get_flags(b, BN_FLG_CONSTTIME) ? b->dmax : b->top;
 
     if (a == b)
         return a;
-    if (bn_wexpand(a, b->top) == NULL)
+    if (bn_wexpand(a, bn_words) == NULL)
         return NULL;
 
     if (b->top > 0)
-        memcpy(a->d, b->d, sizeof(b->d[0]) * b->top);
+        memcpy(a->d, b->d, sizeof(b->d[0]) * bn_words);
 
     a->neg = b->neg;
     a->top = b->top;
@@ -338,6 +396,8 @@ void BN_swap(BIGNUM *a, BIGNUM *b)
 
 void BN_clear(BIGNUM *a)
 {
+    if (a == NULL)
+        return;
     bn_check_top(a);
     if (a->d != NULL)
         OPENSSL_cleanse(a->d, sizeof(*a->d) * a->dmax);
@@ -414,8 +474,11 @@ BIGNUM *BN_bin2bn(const unsigned char *s, int len, BIGNUM *ret)
     return ret;
 }
 
+typedef enum {big, little} endianess_t;
+
 /* ignore negative */
-static int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen)
+static
+int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen, endianess_t endianess)
 {
     int n;
     size_t i, lasti, j, atop, mask;
@@ -447,10 +510,17 @@ static int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen)
 
     lasti = atop - 1;
     atop = a->top * BN_BYTES;
-    for (i = 0, j = 0, to += tolen; j < (size_t)tolen; j++) {
+    if (endianess == big)
+        to += tolen; /* start from the end of the buffer */
+    for (i = 0, j = 0; j < (size_t)tolen; j++) {
+        unsigned char val;
         l = a->d[i / BN_BYTES];
         mask = 0 - ((j - atop) >> (8 * sizeof(i) - 1));
-        *--to = (unsigned char)(l >> (8 * (i % BN_BYTES)) & mask);
+        val = (unsigned char)(l >> (8 * (i % BN_BYTES)) & mask);
+        if (endianess == big)
+            *--to = val;
+        else
+            *to++ = val;
         i += (i - lasti) >> (8 * sizeof(i) - 1); /* stay on last limb */
     }
 
@@ -461,12 +531,12 @@ int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen)
 {
     if (tolen < 0)
         return -1;
-    return bn2binpad(a, to, tolen);
+    return bn2binpad(a, to, tolen, big);
 }
 
 int BN_bn2bin(const BIGNUM *a, unsigned char *to)
 {
-    return bn2binpad(a, to, -1);
+    return bn2binpad(a, to, -1, big);
 }
 
 BIGNUM *BN_lebin2bn(const unsigned char *s, int len, BIGNUM *ret)
@@ -518,22 +588,9 @@ BIGNUM *BN_lebin2bn(const unsigned char *s, int len, BIGNUM *ret)
 
 int BN_bn2lebinpad(const BIGNUM *a, unsigned char *to, int tolen)
 {
-    int i;
-    BN_ULONG l;
-    bn_check_top(a);
-    i = BN_num_bytes(a);
-    if (tolen < i)
+    if (tolen < 0)
         return -1;
-    /* Add trailing zeroes if necessary */
-    if (tolen > i)
-        memset(to + i, 0, tolen - i);
-    to += i;
-    while (i--) {
-        l = a->d[i / BN_BYTES];
-        to--;
-        *to = (unsigned char)(l >> (8 * (i % BN_BYTES))) & 0xff;
-    }
-    return tolen;
+    return bn2binpad(a, to, tolen, little);
 }
 
 int BN_ucmp(const BIGNUM *a, const BIGNUM *b)

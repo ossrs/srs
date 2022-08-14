@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_CRYPTLIB_H
-# define HEADER_CRYPTLIB_H
+#ifndef OSSL_INTERNAL_CRYPTLIB_H
+# define OSSL_INTERNAL_CRYPTLIB_H
 
 # include <stdlib.h>
 # include <string.h>
@@ -80,6 +80,7 @@ extern unsigned int OPENSSL_ia32cap_P[];
 void OPENSSL_showfatal(const char *fmta, ...);
 void crypto_cleanup_all_ex_data_int(void);
 int openssl_init_fork_handlers(void);
+int openssl_get_fork_id(void);
 
 char *ossl_safe_getenv(const char *name);
 

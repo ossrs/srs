@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,8 +9,8 @@
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
-#include "dh_locl.h"
-#include "internal/bn_int.h"
+#include "dh_local.h"
+#include "crypto/bn.h"
 
 static int generate_key(DH *dh);
 static int compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh);
@@ -25,18 +25,45 @@ int DH_generate_key(DH *dh)
     return dh->meth->generate_key(dh);
 }
 
+/*-
+ * NB: This function is inherently not constant time due to the
+ * RFC 5246 (8.1.2) padding style that strips leading zero bytes.
+ */
 int DH_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 {
-    return dh->meth->compute_key(key, pub_key, dh);
+    int ret = 0, i;
+    volatile size_t npad = 0, mask = 1;
+
+    /* compute the key; ret is constant unless compute_key is external */
+    if ((ret = dh->meth->compute_key(key, pub_key, dh)) <= 0)
+        return ret;
+
+    /* count leading zero bytes, yet still touch all bytes */
+    for (i = 0; i < ret; i++) {
+        mask &= !key[i];
+        npad += mask;
+    }
+
+    /* unpad key */
+    ret -= npad;
+    /* key-dependent memory access, potentially leaking npad / ret */
+    memmove(key, key + npad, ret);
+    /* key-dependent memory access, potentially leaking npad / ret */
+    memset(key + ret, 0, npad);
+
+    return ret;
 }
 
 int DH_compute_key_padded(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 {
     int rv, pad;
+
+    /* rv is constant unless compute_key is external */
     rv = dh->meth->compute_key(key, pub_key, dh);
     if (rv <= 0)
         return rv;
     pad = BN_num_bytes(dh->p) - rv;
+    /* pad is constant (zero) unless compute_key is external */
     if (pad > 0) {
         memmove(key + pad, key, rv);
         memset(key, 0, pad);
@@ -125,6 +152,15 @@ static int generate_key(DH *dh)
             l = dh->length ? dh->length : BN_num_bits(dh->p) - 1;
             if (!BN_priv_rand(priv_key, l, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
                 goto err;
+            /*
+             * We handle just one known case where g is a quadratic non-residue:
+             * for g = 2: p % 8 == 3
+             */
+            if (BN_is_word(dh->g, DH_GENERATOR_2) && !BN_is_bit_set(dh->p, 2)) {
+                /* clear bit 0, since it won't be a secret anyway */
+                if (!BN_clear_bit(priv_key, 0))
+                    goto err;
+            }
         }
     }
 
@@ -136,11 +172,11 @@ static int generate_key(DH *dh)
         BN_with_flags(prk, priv_key, BN_FLG_CONSTTIME);
 
         if (!dh->meth->bn_mod_exp(dh, pub_key, dh->g, prk, dh->p, ctx, mont)) {
-            BN_free(prk);
+            BN_clear_free(prk);
             goto err;
         }
         /* We MUST free prk before any further use of priv_key */
-        BN_free(prk);
+        BN_clear_free(prk);
     }
 
     dh->pub_key = pub_key;
@@ -203,12 +239,10 @@ static int compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
         goto err;
     }
 
-    ret = BN_bn2bin(tmp, key);
+    ret = BN_bn2binpad(tmp, key, BN_num_bytes(dh->p));
  err:
-    if (ctx != NULL) {
-        BN_CTX_end(ctx);
-        BN_CTX_free(ctx);
-    }
+    BN_CTX_end(ctx);
+    BN_CTX_free(ctx);
     return ret;
 }
 

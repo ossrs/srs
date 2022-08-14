@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,10 +11,10 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#include "rand_lcl.h"
+#include "rand_local.h"
 #include "internal/thread_once.h"
-#include "internal/rand_int.h"
-#include "internal/cryptlib_int.h"
+#include "crypto/rand.h"
+#include "crypto/cryptlib.h"
 
 /*
  * Support framework for NIST SP 800-90A DRBG
@@ -188,8 +188,8 @@ static RAND_DRBG *rand_drbg_new(int secure,
                                 unsigned int flags,
                                 RAND_DRBG *parent)
 {
-    RAND_DRBG *drbg = secure ?
-        OPENSSL_secure_zalloc(sizeof(*drbg)) : OPENSSL_zalloc(sizeof(*drbg));
+    RAND_DRBG *drbg = secure ? OPENSSL_secure_zalloc(sizeof(*drbg))
+                             : OPENSSL_zalloc(sizeof(*drbg));
 
     if (drbg == NULL) {
         RANDerr(RAND_F_RAND_DRBG_NEW, ERR_R_MALLOC_FAILURE);
@@ -197,7 +197,7 @@ static RAND_DRBG *rand_drbg_new(int secure,
     }
 
     drbg->secure = secure && CRYPTO_secure_allocated(drbg);
-    drbg->fork_count = rand_fork_count;
+    drbg->fork_id = openssl_get_fork_id();
     drbg->parent = parent;
 
     if (parent == NULL) {
@@ -318,20 +318,13 @@ int RAND_DRBG_instantiate(RAND_DRBG *drbg,
     /*
      * NIST SP800-90Ar1 section 9.1 says you can combine getting the entropy
      * and nonce in 1 call by increasing the entropy with 50% and increasing
-     * the minimum length to accomadate the length of the nonce.
+     * the minimum length to accommodate the length of the nonce.
      * We do this in case a nonce is require and get_nonce is NULL.
      */
     if (drbg->min_noncelen > 0 && drbg->get_nonce == NULL) {
         min_entropy += drbg->strength / 2;
         min_entropylen += drbg->min_noncelen;
         max_entropylen += drbg->max_noncelen;
-    }
-
-    drbg->reseed_next_counter = tsan_load(&drbg->reseed_prop_counter);
-    if (drbg->reseed_next_counter) {
-        drbg->reseed_next_counter++;
-        if(!drbg->reseed_next_counter)
-            drbg->reseed_next_counter = 1;
     }
 
     if (drbg->get_entropy != NULL)
@@ -359,9 +352,15 @@ int RAND_DRBG_instantiate(RAND_DRBG *drbg,
     }
 
     drbg->state = DRBG_READY;
-    drbg->reseed_gen_counter = 1;
+    drbg->generate_counter = 1;
     drbg->reseed_time = time(NULL);
-    tsan_store(&drbg->reseed_prop_counter, drbg->reseed_next_counter);
+    if (drbg->enable_reseed_propagation) {
+        if (drbg->parent == NULL)
+            tsan_counter(&drbg->reseed_counter);
+        else
+            tsan_store(&drbg->reseed_counter,
+                       tsan_load(&drbg->parent->reseed_counter));
+    }
 
  end:
     if (entropy != NULL && drbg->cleanup_entropy != NULL)
@@ -428,14 +427,6 @@ int RAND_DRBG_reseed(RAND_DRBG *drbg,
     }
 
     drbg->state = DRBG_ERROR;
-
-    drbg->reseed_next_counter = tsan_load(&drbg->reseed_prop_counter);
-    if (drbg->reseed_next_counter) {
-        drbg->reseed_next_counter++;
-        if(!drbg->reseed_next_counter)
-            drbg->reseed_next_counter = 1;
-    }
-
     if (drbg->get_entropy != NULL)
         entropylen = drbg->get_entropy(drbg, &entropy, drbg->strength,
                                        drbg->min_entropylen,
@@ -451,9 +442,15 @@ int RAND_DRBG_reseed(RAND_DRBG *drbg,
         goto end;
 
     drbg->state = DRBG_READY;
-    drbg->reseed_gen_counter = 1;
+    drbg->generate_counter = 1;
     drbg->reseed_time = time(NULL);
-    tsan_store(&drbg->reseed_prop_counter, drbg->reseed_next_counter);
+    if (drbg->enable_reseed_propagation) {
+        if (drbg->parent == NULL)
+            tsan_counter(&drbg->reseed_counter);
+        else
+            tsan_store(&drbg->reseed_counter,
+                       tsan_load(&drbg->parent->reseed_counter));
+    }
 
  end:
     if (entropy != NULL && drbg->cleanup_entropy != NULL)
@@ -554,7 +551,9 @@ int rand_drbg_restart(RAND_DRBG *drbg,
             drbg->meth->reseed(drbg, adin, adinlen, NULL, 0);
         } else if (reseeded == 0) {
             /* do a full reseeding if it has not been done yet above */
-            RAND_DRBG_reseed(drbg, NULL, 0, 0);
+            if (!RAND_DRBG_reseed(drbg, NULL, 0, 0)) {
+                RANDerr(RAND_F_RAND_DRBG_RESTART, RAND_R_RESEED_ERROR);
+            }
         }
     }
 
@@ -578,6 +577,7 @@ int RAND_DRBG_generate(RAND_DRBG *drbg, unsigned char *out, size_t outlen,
                        int prediction_resistance,
                        const unsigned char *adin, size_t adinlen)
 {
+    int fork_id;
     int reseed_required = 0;
 
     if (drbg->state != DRBG_READY) {
@@ -603,13 +603,15 @@ int RAND_DRBG_generate(RAND_DRBG *drbg, unsigned char *out, size_t outlen,
         return 0;
     }
 
-    if (drbg->fork_count != rand_fork_count) {
-        drbg->fork_count = rand_fork_count;
+    fork_id = openssl_get_fork_id();
+
+    if (drbg->fork_id != fork_id) {
+        drbg->fork_id = fork_id;
         reseed_required = 1;
     }
 
     if (drbg->reseed_interval > 0) {
-        if (drbg->reseed_gen_counter >= drbg->reseed_interval)
+        if (drbg->generate_counter >= drbg->reseed_interval)
             reseed_required = 1;
     }
     if (drbg->reseed_time_interval > 0) {
@@ -618,11 +620,8 @@ int RAND_DRBG_generate(RAND_DRBG *drbg, unsigned char *out, size_t outlen,
             || now - drbg->reseed_time >= drbg->reseed_time_interval)
             reseed_required = 1;
     }
-    if (drbg->parent != NULL) {
-        unsigned int reseed_counter = tsan_load(&drbg->reseed_prop_counter);
-        if (reseed_counter > 0
-                && tsan_load(&drbg->parent->reseed_prop_counter)
-                   != reseed_counter)
+    if (drbg->enable_reseed_propagation && drbg->parent != NULL) {
+        if (drbg->reseed_counter != tsan_load(&drbg->parent->reseed_counter))
             reseed_required = 1;
     }
 
@@ -641,7 +640,7 @@ int RAND_DRBG_generate(RAND_DRBG *drbg, unsigned char *out, size_t outlen,
         return 0;
     }
 
-    drbg->reseed_gen_counter++;
+    drbg->generate_counter++;
 
     return 1;
 }
@@ -664,7 +663,7 @@ int RAND_DRBG_bytes(RAND_DRBG *drbg, unsigned char *out, size_t outlen)
     if (drbg->adin_pool == NULL) {
         if (drbg->type == 0)
             goto err;
-        drbg->adin_pool = rand_pool_new(0, 0, drbg->max_adinlen);
+        drbg->adin_pool = rand_pool_new(0, 0, 0, drbg->max_adinlen);
         if (drbg->adin_pool == NULL)
             goto err;
     }
@@ -703,8 +702,7 @@ int RAND_DRBG_set_callbacks(RAND_DRBG *drbg,
                             RAND_DRBG_get_nonce_fn get_nonce,
                             RAND_DRBG_cleanup_nonce_fn cleanup_nonce)
 {
-    if (drbg->state != DRBG_UNINITIALISED
-            || drbg->parent != NULL)
+    if (drbg->state != DRBG_UNINITIALISED)
         return 0;
     drbg->get_entropy = get_entropy;
     drbg->cleanup_entropy = cleanup_entropy;
@@ -880,8 +878,9 @@ static RAND_DRBG *drbg_setup(RAND_DRBG *parent)
     if (parent == NULL && rand_drbg_enable_locking(drbg) == 0)
         goto err;
 
-    /* enable seed propagation */
-    tsan_store(&drbg->reseed_prop_counter, 1);
+    /* enable reseed propagation */
+    drbg->enable_reseed_propagation = 1;
+    drbg->reseed_counter = 1;
 
     /*
      * Ignore instantiation error to support just-in-time instantiation.
@@ -1041,7 +1040,7 @@ static int drbg_add(const void *buf, int num, double randomness)
         return ret;
 #else
         /*
-         * If an os entropy source is avaible then we declare the buffer content
+         * If an os entropy source is available then we declare the buffer content
          * as additional data by setting randomness to zero and trigger a regular
          * reseeding.
          */

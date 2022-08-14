@@ -40,12 +40,19 @@
 #endif
 #include <openssl/bn.h>
 #include <openssl/ssl.h>
-#include "s_apps.h"
 #include "apps.h"
 
 #ifdef _WIN32
 static int WIN32_rename(const char *from, const char *to);
 # define rename(from,to) WIN32_rename((from),(to))
+#endif
+
+#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS)
+# include <conio.h>
+#endif
+
+#if defined(OPENSSL_SYS_MSDOS) && !defined(_WIN32)
+# define _kbhit kbhit
 #endif
 
 typedef struct {
@@ -1955,26 +1962,46 @@ unsigned char *next_protos_parse(size_t *outlen, const char *in)
     size_t len;
     unsigned char *out;
     size_t i, start = 0;
+    size_t skipped = 0;
 
     len = strlen(in);
-    if (len >= 65535)
+    if (len == 0 || len >= 65535)
         return NULL;
 
-    out = app_malloc(strlen(in) + 1, "NPN buffer");
+    out = app_malloc(len + 1, "NPN buffer");
     for (i = 0; i <= len; ++i) {
         if (i == len || in[i] == ',') {
+            /*
+             * Zero-length ALPN elements are invalid on the wire, we could be
+             * strict and reject the entire string, but just ignoring extra
+             * commas seems harmless and more friendly.
+             *
+             * Every comma we skip in this way puts the input buffer another
+             * byte ahead of the output buffer, so all stores into the output
+             * buffer need to be decremented by the number commas skipped.
+             */
+            if (i == start) {
+                ++start;
+                ++skipped;
+                continue;
+            }
             if (i - start > 255) {
                 OPENSSL_free(out);
                 return NULL;
             }
-            out[start] = (unsigned char)(i - start);
+            out[start-skipped] = (unsigned char)(i - start);
             start = i + 1;
         } else {
-            out[i + 1] = in[i];
+            out[i + 1 - skipped] = in[i];
         }
     }
 
-    *outlen = len + 1;
+    if (len <= skipped) {
+        OPENSSL_free(out);
+        return NULL;
+    }
+
+    *outlen = len + 1 - skipped;
     return out;
 }
 

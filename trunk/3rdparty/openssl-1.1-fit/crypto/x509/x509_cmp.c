@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,7 +13,7 @@
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 
 int X509_issuer_and_serial_cmp(const X509 *a, const X509 *b)
 {
@@ -39,6 +39,8 @@ unsigned long X509_issuer_and_serial_hash(X509 *a)
     if (ctx == NULL)
         goto err;
     f = X509_NAME_oneline(a->cert_info.issuer, NULL, 0);
+    if (f == NULL)
+        goto err;
     if (!EVP_DigestInit_ex(ctx, EVP_md5(), NULL))
         goto err;
     if (!EVP_DigestUpdate(ctx, (unsigned char *)f, strlen(f)))
@@ -133,14 +135,21 @@ unsigned long X509_subject_name_hash_old(X509 *x)
  */
 int X509_cmp(const X509 *a, const X509 *b)
 {
-    int rv;
-    /* ensure hash is valid */
-    X509_check_purpose((X509 *)a, -1, 0);
-    X509_check_purpose((X509 *)b, -1, 0);
+    int rv = 0;
 
-    rv = memcmp(a->sha1_hash, b->sha1_hash, SHA_DIGEST_LENGTH);
-    if (rv)
+    if (a == b) /* for efficiency */
+        return 0;
+
+    /* try to make sure hash is valid */
+    (void)X509_check_purpose((X509 *)a, -1, 0);
+    (void)X509_check_purpose((X509 *)b, -1, 0);
+
+    if ((a->ex_flags & EXFLAG_NO_FINGERPRINT) == 0
+            && (b->ex_flags & EXFLAG_NO_FINGERPRINT) == 0)
+        rv = memcmp(a->sha1_hash, b->sha1_hash, SHA_DIGEST_LENGTH);
+    if (rv != 0)
         return rv;
+
     /* Check for match against stored encoding too */
     if (!a->cert_info.enc.modified && !b->cert_info.enc.modified) {
         if (a->cert_info.enc.len < b->cert_info.enc.len)
@@ -450,9 +459,17 @@ STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *chain)
     STACK_OF(X509) *ret;
     int i;
     ret = sk_X509_dup(chain);
+    if (ret == NULL)
+        return NULL;
     for (i = 0; i < sk_X509_num(ret); i++) {
         X509 *x = sk_X509_value(ret, i);
-        X509_up_ref(x);
+        if (!X509_up_ref(x))
+            goto err;
     }
     return ret;
+ err:
+    while (i-- > 0)
+        X509_free (sk_X509_value(ret, i));
+    sk_X509_free(ret);
+    return NULL;
 }

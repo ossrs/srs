@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -185,6 +185,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
     BUF_MEM *buff = NULL;
     char *s, *p, *end;
     int again;
+    int first_call = 1;
     long eline = 0;
     char btmp[DECIMAL_SIZE(eline) + 1];
     CONF_VALUE *v = NULL, *tv;
@@ -233,6 +234,19 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
         BIO_gets(in, p, CONFBUFSIZE - 1);
         p[CONFBUFSIZE - 1] = '\0';
         ii = i = strlen(p);
+        if (first_call) {
+            /* Other BOMs imply unsupported multibyte encoding,
+             * so don't strip them and let the error raise */
+            const unsigned char utf8_bom[3] = {0xEF, 0xBB, 0xBF};
+
+            if (i >= 3 && memcmp(p, utf8_bom, 3) == 0) {
+                memmove(p, p + 3, i - 3);
+                p[i - 3] = 0;
+                i -= 3;
+                ii -= 3;
+            }
+            first_call = 0;
+        }
         if (i == 0 && !again) {
             /* the currently processed BIO is at EOF */
             BIO *parent;
@@ -376,11 +390,13 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
                     if (biosk == NULL) {
                         if ((biosk = sk_BIO_new_null()) == NULL) {
                             CONFerr(CONF_F_DEF_LOAD_BIO, ERR_R_MALLOC_FAILURE);
+                            BIO_free(next);
                             goto err;
                         }
                     }
                     if (!sk_BIO_push(biosk, in)) {
                         CONFerr(CONF_F_DEF_LOAD_BIO, ERR_R_MALLOC_FAILURE);
+                        BIO_free(next);
                         goto err;
                     }
                     /* continue with reading from the included BIO */
@@ -703,7 +719,9 @@ static BIO *process_include(char *include, OPENSSL_DIR_CTX **dirctx,
 static BIO *get_next_file(const char *path, OPENSSL_DIR_CTX **dirctx)
 {
     const char *filename;
+    size_t pathlen;
 
+    pathlen = strlen(path);
     while ((filename = OPENSSL_DIR_read(dirctx, path)) != NULL) {
         size_t namelen;
 
@@ -716,7 +734,7 @@ static BIO *get_next_file(const char *path, OPENSSL_DIR_CTX **dirctx)
             char *newpath;
             BIO *bio;
 
-            newlen = strlen(path) + namelen + 2;
+            newlen = pathlen + namelen + 2;
             newpath = OPENSSL_zalloc(newlen);
             if (newpath == NULL) {
                 CONFerr(CONF_F_GET_NEXT_FILE, ERR_R_MALLOC_FAILURE);
@@ -727,14 +745,11 @@ static BIO *get_next_file(const char *path, OPENSSL_DIR_CTX **dirctx)
              * If the given path isn't clear VMS syntax,
              * we treat it as on Unix.
              */
-            {
-                size_t pathlen = strlen(path);
-
-                if (path[pathlen - 1] == ']' || path[pathlen - 1] == '>'
-                    || path[pathlen - 1] == ':') {
-                    /* Clear VMS directory syntax, just copy as is */
-                    OPENSSL_strlcpy(newpath, path, newlen);
-                }
+            if (path[pathlen - 1] == ']'
+                || path[pathlen - 1] == '>'
+                || path[pathlen - 1] == ':') {
+                /* Clear VMS directory syntax, just copy as is */
+                OPENSSL_strlcpy(newpath, path, newlen);
             }
 #endif
             if (newpath[0] == '\0') {

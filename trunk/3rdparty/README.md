@@ -13,8 +13,8 @@ srt-1.4.1.tar.gz
 * https://ossrs.net/lts/zh-cn/license#srt
 
 openssl-1.1-fit
-openssl-1.1.1b.tar.gz
-* http://www.openssl.org/source/openssl-1.1.1b.tar.gz
+openssl-1.1.1l.tar.gz
+* http://www.openssl.org/source/openssl-1.1.1l.tar.gz
 
 openssl-1.1.0e.zip
 openssl-OpenSSL_1_0_2u.tar.gz

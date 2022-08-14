@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -29,10 +29,10 @@ static unsigned int read_ledword(const unsigned char **in)
 {
     const unsigned char *p = *in;
     unsigned int ret;
-    ret = *p++;
-    ret |= (*p++ << 8);
-    ret |= (*p++ << 16);
-    ret |= (*p++ << 24);
+    ret = (unsigned int)*p++;
+    ret |= (unsigned int)*p++ << 8;
+    ret |= (unsigned int)*p++ << 16;
+    ret |= (unsigned int)*p++ << 24;
     *in = p;
     return ret;
 }
@@ -273,6 +273,9 @@ static EVP_PKEY *b2i_dss(const unsigned char **in,
     } else {
         if (!read_lebn(&p, 20, &priv_key))
             goto memerr;
+
+        /* Set constant time flag before public key calculation */
+        BN_set_flags(priv_key, BN_FLG_CONSTTIME);
 
         /* Calculate public key */
         pub_key = BN_new();
@@ -841,9 +844,9 @@ static int i2b_PVK(unsigned char **out, EVP_PKEY *pk, int enclevel,
         if (!EVP_EncryptInit_ex(cctx, EVP_rc4(), NULL, keybuf, NULL))
             goto error;
         OPENSSL_cleanse(keybuf, 20);
-        if (!EVP_DecryptUpdate(cctx, p, &enctmplen, p, pklen - 8))
+        if (!EVP_EncryptUpdate(cctx, p, &enctmplen, p, pklen - 8))
             goto error;
-        if (!EVP_DecryptFinal_ex(cctx, p + enctmplen, &enctmplen))
+        if (!EVP_EncryptFinal_ex(cctx, p + enctmplen, &enctmplen))
             goto error;
     }
 
@@ -872,9 +875,9 @@ int i2b_PVK_bio(BIO *out, EVP_PKEY *pk, int enclevel,
     wrlen = BIO_write(out, tmp, outlen);
     OPENSSL_free(tmp);
     if (wrlen == outlen) {
-        PEMerr(PEM_F_I2B_PVK_BIO, PEM_R_BIO_WRITE_FAILURE);
         return outlen;
     }
+    PEMerr(PEM_F_I2B_PVK_BIO, PEM_R_BIO_WRITE_FAILURE);
     return -1;
 }
 

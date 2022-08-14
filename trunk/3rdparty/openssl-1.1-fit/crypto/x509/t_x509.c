@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,7 @@
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include "internal/asn1_int.h"
+#include "crypto/asn1.h"
 
 #ifndef OPENSSL_NO_STDIO
 int X509_print_fp(FILE *fp, X509 *x)
@@ -365,9 +365,9 @@ int X509_aux_print(BIO *out, X509 *x, int indent)
         BIO_puts(out, "\n");
     } else
         BIO_printf(out, "%*sNo Rejected Uses.\n", indent, "");
-    alias = X509_alias_get0(x, NULL);
+    alias = X509_alias_get0(x, &i);
     if (alias)
-        BIO_printf(out, "%*sAlias: %s\n", indent, "", alias);
+        BIO_printf(out, "%*sAlias: %.*s\n", indent, "", i, alias);
     keyid = X509_keyid_get0(x, &keyidlen);
     if (keyid) {
         BIO_printf(out, "%*sKey Id: ", indent, "");

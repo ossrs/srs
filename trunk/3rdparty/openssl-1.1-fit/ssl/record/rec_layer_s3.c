@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,15 +10,15 @@
 #include <stdio.h>
 #include <limits.h>
 #include <errno.h>
-#include "../ssl_locl.h"
+#include "../ssl_local.h"
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
 #include <openssl/rand.h>
-#include "record_locl.h"
-#include "../packet_locl.h"
+#include "record_local.h"
+#include "../packet_local.h"
 
 #if     defined(OPENSSL_SMALL_FOOTPRINT) || \
-        !(      defined(AES_ASM) &&     ( \
+        !(      defined(AESNI_ASM) &&   ( \
                 defined(__x86_64)       || defined(__x86_64__)  || \
                 defined(_M_AMD64)       || defined(_M_X64)      ) \
         )
@@ -172,9 +172,9 @@ int ssl3_read_n(SSL *s, size_t n, size_t max, int extend, int clearold,
     /*
      * If extend == 0, obtain new n-byte packet; if extend == 1, increase
      * packet by another n bytes. The packet will be in the sub-array of
-     * s->s3->rbuf.buf specified by s->packet and s->packet_length. (If
-     * s->rlayer.read_ahead is set, 'max' bytes may be stored in rbuf [plus
-     * s->packet_length bytes if extend == 1].)
+     * s->rlayer.rbuf.buf specified by s->rlayer.packet and
+     * s->rlayer.packet_length. (If s->rlayer.read_ahead is set, 'max' bytes may
+     * be stored in rbuf [plus s->rlayer.packet_length bytes if extend == 1].)
      * if clearold == 1, move the packet to the start of the buffer; if
      * clearold == 0 then leave any old packets where they were
      */
@@ -372,6 +372,13 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, size_t len,
     }
 
     s->rlayer.wnum = 0;
+
+    /*
+     * If we are supposed to be sending a KeyUpdate then go into init unless we
+     * have writes pending - in which case we should finish doing that first.
+     */
+    if (wb->left == 0 && s->key_update != SSL_KEY_UPDATE_NONE)
+        ossl_statem_set_in_init(s, 1);
 
     /*
      * When writing early data on the server side we could be "in_init" in
@@ -628,8 +635,9 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, size_t len,
              */
             s->s3->empty_fragment_done = 0;
 
-            if ((i == (int)n) && s->mode & SSL_MODE_RELEASE_BUFFERS &&
-                !SSL_IS_DTLS(s))
+            if (tmpwrit == n
+                    && (s->mode & SSL_MODE_RELEASE_BUFFERS) != 0
+                    && !SSL_IS_DTLS(s))
                 ssl3_release_write_buffer(s);
 
             *written = tot + tmpwrit;
