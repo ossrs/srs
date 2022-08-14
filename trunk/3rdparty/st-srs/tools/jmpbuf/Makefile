@@ -1,4 +1,4 @@
-.PHONY: clean
+.PHONY: default clean
 
 CFLAGS=-g -O0
 
@@ -11,9 +11,14 @@ CPU_ARCHS 	+= $(shell g++ -dM -E - </dev/null |grep -q '__aarch64' && echo arm64
 CFLAGS      += -arch $(CPU_ARCHS)
 endif
 
-./porting:  porting.c
+default: ./jmpbuf ./jmpbuf.E.c
+
+./jmpbuf:  jmpbuf.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $^ $(LDLIBS)
 
+./jmpbuf.E.c: jmpbuf.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -E -o jmpbuf.E.c $^ $(LDLIBS)
+
 clean:
-	rm -rf porting porting.dSYM
+	rm -rf jmpbuf jmpbuf.E.c jmpbuf.dSYM
 

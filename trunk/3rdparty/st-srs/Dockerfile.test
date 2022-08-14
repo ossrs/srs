@@ -1,0 +1,15 @@
+FROM ossrs/srs:dev-gcc7
+
+# Install depends tools.
+RUN yum install -y gcc make gcc-c++ patch unzip perl git
+
+# Build and install SRS.
+COPY . /st
+WORKDIR /st
+
+# Note that we must enable the gcc7 or link failed.
+RUN scl enable devtoolset-7 -- make linux-debug-utest
+
+# Run utest
+RUN ./obj/st_utest
+

@@ -11,9 +11,9 @@ CPU_ARCHS 	+= $(shell g++ -dM -E - </dev/null |grep -q '__aarch64' && echo arm64
 CFLAGS      += -arch $(CPU_ARCHS)
 endif
 
-./porting:  porting.c
+./pcs:  pcs.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $^ $(LDLIBS)
 
 clean:
-	rm -rf porting porting.dSYM
+	rm -rf pcs pcs.dSYM
 

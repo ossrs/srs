@@ -113,6 +113,7 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) will be patche
 - [x] System: Support Multiple Threads for Linux and Darwin. [#19](https://github.com/ossrs/state-threads/issues/19), [srs#2188](https://github.com/ossrs/srs/issues/2188).
 - [x] RISCV: Support RISCV for RISCV CPU, [#24](https://github.com/ossrs/state-threads/pull/28).
 - [x] MIPS: Support Linux/MIPS64 for loongson 3A4000/3B3000, [#21](https://github.com/ossrs/state-threads/pull/21).
+- [x] AppleM1: Support Apple Silicon M1(aarch64), [#30](https://github.com/ossrs/state-threads/issues/30).
 - [ ] IDE: Support CLion for debugging and learning.
 - [ ] System: Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
 

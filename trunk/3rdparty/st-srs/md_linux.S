@@ -175,8 +175,15 @@
 #elif defined(__aarch64__)
 
     /****************************************************************/
-    /* https://github.com/ossrs/srs/issues/1282#issuecomment-445539513 */
+    /* See https://developer.arm.com/documentation/102374/0100/Function-calls */
+    /* See https://developer.arm.com/documentation/102374/0100/Procedure-Call-Standard */
+    /* See https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst#machine-registers */
+    /* See https://wiki.cdot.senecacollege.ca/wiki/AArch64_Register_and_Instruction_Quick_Start */
+    /* See https://chromium.googlesource.com/native_client/nacl-glibc/+/glibc-2.21/sysdeps/aarch64/__longjmp.S */
+    /* See https://chromium.googlesource.com/native_client/nacl-glibc/+/glibc-2.21/sysdeps/aarch64/setjmp.S */
 
+    /* The called routine is expected to preserve r19-r28 *** These registers are generally
+        safe to use in your program. */
     #define JB_X19            0
     #define JB_X20            1
     #define JB_X21            2
@@ -187,10 +194,14 @@
     #define JB_X26            7
     #define JB_X27            8
     #define JB_X28            9
+    /* r29 and r30 are used as the frame register and link register (avoid) */
     #define JB_X29           10
     #define JB_LR            11
+    /* Register '31' is one of two registers depending on the instruction context:
+        For instructions dealing with the stack, it is the stack pointer, named rsp */
     #define JB_SP		 13
 
+    /* FP registers */
     #define JB_D8		 14
     #define JB_D9		 15
     #define JB_D10		 16

@@ -71,6 +71,9 @@
     #if defined(__amd64__) || defined(__x86_64__)
         #define JB_SP  12 /* The jmpbuf is int(4B) array, while MD_GET_SP covert to long(8B) pointer, so the JB_SP should be 12 which is 6*sizeof(long)/sizeof(int) */
         #define MD_GET_SP(_t) *((long *)&((_t)->context[JB_SP]))
+    #elif defined(__aarch64__)
+        /* MUST be SP*2 because context is int array */
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[13 * 2]))
     #else
         #error Unknown CPU architecture
     #endif
