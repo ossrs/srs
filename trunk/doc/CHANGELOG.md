@@ -6,6 +6,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-08-14, Fix [#2747](https://github.com/ossrs/srs/issues/2747): Support Apple Silicon M1(aarch64). v5.0.41
 * v5.0, 2022-08-12, Support crossbuild for hisiv500. v5.0.40
 * v5.0, 2022-08-10, Build: Detect OS by packager. v5.0.39
 * v5.0, 2022-08-06, Support MIPS 64bits for loongson 3A4000/3B3000. v5.0.38
