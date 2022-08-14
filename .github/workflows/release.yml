@@ -132,148 +132,12 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_MAJOR }}
 
-  docker-droplet:
-    name: docker-droplet
-    runs-on: ubuntu-20.04
-    needs:
-      - test
-      - envs
-    steps:
-      ##################################################################################################################
-      - name: Covert output to env
-        run: |
-          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
-          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
-          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
-      ##################################################################################################################
-      # Git checkout
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
-      # https://github.com/docker/setup-qemu-action
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-      # https://github.com/docker/setup-buildx-action
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-      ##################################################################################################################
-      # Create main images for Docker
-      - name: Login to docker hub
-        uses: docker/login-action@v1
-        with:
-          username: "${{ secrets.DOCKER_USERNAME }}"
-          password: "${{ secrets.DOCKER_PASSWORD }}"
-      - name: Build and push images to Docker hub
-        env:
-          PACKAGER_DROPLET: ${{ secrets.SRS_PACKAGER_DROPLET }}
-        run: |
-          echo "Release ossrs/droplet:$SRS_TAG"
-          docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
-            --output "type=image,push=true" \
-            -t ossrs/droplet:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_DROPLET -f trunk/Dockerfile .
-      # Docker alias images
-      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
-      - name: Docker alias images for ossrs/droplet
-        uses: akhilerm/tag-push-action@v2.0.0
-        with:
-          src: ossrs/droplet:${{ env.SRS_TAG }}
-          dst: |
-            ossrs/droplet:${{ env.SRS_VERSION }}
-            ossrs/droplet:${{ env.SRS_MAJOR }}
-            ossrs/droplet:v${{ env.SRS_MAJOR }}
-      # Aliyun ACR
-      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
-      - name: Login aliyun hub
-        uses: docker/login-action@v1
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: "${{ secrets.ACR_USERNAME }}"
-          password: "${{ secrets.ACR_PASSWORD }}"
-      - name: Push to Aliyun registry for ossrs/droplet
-        uses: akhilerm/tag-push-action@v2.0.0
-        with:
-          src: ossrs/droplet:${{ env.SRS_TAG }}
-          dst: |
-            registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:${{ env.SRS_TAG }}
-            registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:${{ env.SRS_VERSION }}
-            registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:${{ env.SRS_MAJOR }}
-            registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:v${{ env.SRS_MAJOR }}
-
-  docker-lighthouse:
-    name: docker-lighthouse
-    runs-on: ubuntu-20.04
-    needs:
-      - test
-      - envs
-    steps:
-      ##################################################################################################################
-      - name: Covert output to env
-        run: |
-          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
-          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
-          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
-      ##################################################################################################################
-      # Git checkout
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
-      # https://github.com/docker/setup-qemu-action
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-      # https://github.com/docker/setup-buildx-action
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-      ##################################################################################################################
-      # Create main images for Docker
-      - name: Login to docker hub
-        uses: docker/login-action@v1
-        with:
-          username: "${{ secrets.DOCKER_USERNAME }}"
-          password: "${{ secrets.DOCKER_PASSWORD }}"
-      - name: Build and push images to Docker hub
-        env:
-          PACKAGER_LIGHTHOUSE: ${{ secrets.SRS_PACKAGER_LIGHTHOUSE }}
-        run: |
-          echo "Release ossrs/lighthouse:$SRS_TAG"
-          docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
-            --output "type=image,push=true" \
-            -t ossrs/lighthouse:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_LIGHTHOUSE -f trunk/Dockerfile .
-      # Docker alias images
-      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
-      - name: Docker alias images for ossrs/lighthouse
-        uses: akhilerm/tag-push-action@v2.0.0
-        with:
-          src: ossrs/lighthouse:${{ env.SRS_TAG }}
-          dst: |
-            ossrs/lighthouse:${{ env.SRS_VERSION }}
-            ossrs/lighthouse:${{ env.SRS_MAJOR }}
-            ossrs/lighthouse:v${{ env.SRS_MAJOR }}
-      # Aliyun ACR
-      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
-      - name: Login aliyun hub
-        uses: docker/login-action@v1
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: "${{ secrets.ACR_USERNAME }}"
-          password: "${{ secrets.ACR_PASSWORD }}"
-      - name: Push to Aliyun registry for ossrs/lighthouse
-        uses: akhilerm/tag-push-action@v2.0.0
-        with:
-          src: ossrs/lighthouse:${{ env.SRS_TAG }}
-          dst: |
-            registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:${{ env.SRS_TAG }}
-            registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:${{ env.SRS_VERSION }}
-            registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:${{ env.SRS_MAJOR }}
-            registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:v${{ env.SRS_MAJOR }}
-
   update:
     name: update
     runs-on: ubuntu-20.04
     needs:
       - test
       - docker-srs
-      - docker-lighthouse
-      - docker-droplet
       - envs
     steps:
       ##################################################################################################################
@@ -325,7 +189,7 @@ jobs:
           timeout: 60s
           command_timeout: 30m
           script: |
-            docker pull ossrs/lighthouse:$SRS_MAJOR
+            docker pull ossrs/srs:$SRS_MAJOR
             docker rm -f srs-dev
             #
             # Cleanup old docker images.
