@@ -8,7 +8,7 @@ jobs:
     name: build-centos7
     runs-on: ubuntu-20.04
     needs:
-      - multile-arch-amd64
+      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -28,7 +28,7 @@ jobs:
     name: build-centos6
     runs-on: ubuntu-20.04
     needs:
-      - multile-arch-amd64
+      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -42,7 +42,7 @@ jobs:
     name: build-ubuntu16
     runs-on: ubuntu-20.04
     needs:
-      - multile-arch-amd64
+      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -56,7 +56,7 @@ jobs:
     name: build-ubuntu18
     runs-on: ubuntu-20.04
     needs:
-      - multile-arch-amd64
+      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -70,7 +70,7 @@ jobs:
     name: build-ubuntu20
     runs-on: ubuntu-20.04
     needs:
-      - multile-arch-amd64
+      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -84,7 +84,7 @@ jobs:
     name: build-cross-arm
     runs-on: ubuntu-20.04
     needs:
-      - multile-arch-amd64
+      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -97,7 +97,7 @@ jobs:
     name: build-cross-aarch64
     runs-on: ubuntu-20.04
     needs:
-      - multile-arch-amd64
+      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -123,8 +123,6 @@ jobs:
   utest:
     name: utest
     runs-on: ubuntu-20.04
-    needs:
-      - multile-arch-amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -141,8 +139,6 @@ jobs:
   coverage:
     name: coverage
     runs-on: ubuntu-20.04
-    needs:
-      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -231,23 +227,14 @@ jobs:
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             -f trunk/Dockerfile .
 
-  artifacts:
-    name: artifacts-done
-    needs:
-      - multile-arch-armv7
-      - multile-arch-aarch64
-      - multile-arch-amd64
-    runs-on: ubuntu-20.04
-    steps:
-      - run: echo 'Artifacts done'
-
   done:
     name: done
     needs:
       - build
-      - utest
       - coverage
-      - artifacts
+      - multile-arch-armv7
+      - multile-arch-aarch64
+      - multile-arch-amd64
     runs-on: ubuntu-20.04
     steps:
       - run: echo 'All done'
