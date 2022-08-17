@@ -44,6 +44,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-08-17, RTMP URL supports domain in stream parameters. v4.0.255
 * v4.0, 2022-08-10, Fix server id generator bug. v4.0.254
 * v4.0, 2022-06-29, Update SRS image for r.ossrs.net. v4.0.253
 * v4.0, 2022-06-11, For [#3058](https://github.com/ossrs/srs/pull/3058): Docker: Support x86_64, armv7 and aarch64 docker image (#3058). v4.0.252
