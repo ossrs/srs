@@ -3388,6 +3388,20 @@ VOID TEST(ProtocolRTMPTest, DiscoveryTcUrl)
         EXPECT_STREQ("?key=abc&&vhost=demo.com", param.c_str());
     }
 
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn/live"; stream= "show?key=abc&&domain=demo.com";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("demo.com", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("?key=abc&&domain=demo.com", param.c_str());
+    }
+
     // vhost in app
     if (true) {
         int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
