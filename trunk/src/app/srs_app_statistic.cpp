@@ -132,7 +132,9 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
     obj->set("publish", publish);
     
     publish->set("active", SrsJsonAny::boolean(active));
-    publish->set("cid", SrsJsonAny::str(publisher_id.c_str()));
+    if (!publisher_id.empty()) {
+        publish->set("cid", SrsJsonAny::str(publisher_id.c_str()));
+    }
     
     if (!has_video) {
         obj->set("video", SrsJsonAny::null());
@@ -164,6 +166,11 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
 
 void SrsStatisticStream::publish(std::string id)
 {
+    // To prevent duplicated publish event by bridger.
+    if (active) {
+        return;
+    }
+
     publisher_id = id;
     active = true;
     
@@ -172,6 +179,11 @@ void SrsStatisticStream::publish(std::string id)
 
 void SrsStatisticStream::close()
 {
+    // To prevent duplicated close event.
+    if (!active) {
+        return;
+    }
+
     has_video = false;
     has_audio = false;
     active = false;
@@ -186,11 +198,17 @@ SrsStatisticClient::SrsStatisticClient()
     req = NULL;
     type = SrsRtmpConnUnknown;
     create = srs_get_system_time();
+
+    clk = new SrsWallClock();
+    kbps = new SrsKbps(clk);
+    kbps->set_io(NULL, NULL);
 }
 
 SrsStatisticClient::~SrsStatisticClient()
 {
 	srs_freep(req);
+    srs_freep(kbps);
+    srs_freep(clk);
 }
 
 srs_error_t SrsStatisticClient::dumps(SrsJsonObject* obj)
@@ -208,6 +226,14 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject* obj)
     obj->set("type", SrsJsonAny::str(srs_client_type_string(type).c_str()));
     obj->set("publish", SrsJsonAny::boolean(srs_client_type_is_publish(type)));
     obj->set("alive", SrsJsonAny::number(srsu2ms(srs_get_system_time() - create) / 1000.0));
+    obj->set("send_bytes", SrsJsonAny::integer(kbps->get_send_bytes()));
+    obj->set("recv_bytes", SrsJsonAny::integer(kbps->get_recv_bytes()));
+
+    SrsJsonObject* okbps = SrsJsonAny::object();
+    obj->set("kbps", okbps);
+
+    okbps->set("recv_30s", SrsJsonAny::integer(kbps->get_recv_kbps_30s()));
+    okbps->set("send_30s", SrsJsonAny::integer(kbps->get_send_kbps_30s()));
     
     return err;
 }
@@ -363,22 +389,6 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
     stream->close();
-    
-    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
-    if (true) {
-        std::map<std::string, SrsStatisticStream*>::iterator it;
-        if ((it=streams.find(stream->id)) != streams.end()) {
-            streams.erase(it);
-        }
-    }
-    
-    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
-    if (true) {
-        std::map<std::string, SrsStatisticStream*>::iterator it;
-        if ((it = rstreams.find(stream->url)) != rstreams.end()) {
-            rstreams.erase(it);
-        }
-    }
 }
 
 srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type)
@@ -429,6 +439,40 @@ void SrsStatistic::on_disconnect(std::string id)
     
     stream->nb_clients--;
     vhost->nb_clients--;
+
+    cleanup_stream(stream);
+}
+
+void SrsStatistic::cleanup_stream(SrsStatisticStream* stream)
+{
+    // If stream has publisher(not active) or player(clients), never cleanup it.
+    if (stream->active || stream->nb_clients > 0) {
+        return;
+    }
+
+    // There should not be any clients referring to the stream.
+    for (std::map<std::string, SrsStatisticClient*>::iterator it = clients.begin(); it != clients.end(); ++it) {
+        SrsStatisticClient* client = it->second;
+        srs_assert(client->stream != stream);
+    }
+
+    // Do cleanup streams.
+    if (true) {
+        std::map<std::string, SrsStatisticStream *>::iterator it;
+        if ((it = streams.find(stream->id)) != streams.end()) {
+            streams.erase(it);
+        }
+    }
+
+    if (true) {
+        std::map<std::string, SrsStatisticStream *>::iterator it;
+        if ((it = rstreams.find(stream->url)) != rstreams.end()) {
+            rstreams.erase(it);
+        }
+    }
+
+    // It's safe to delete the stream now.
+    srs_freep(stream);
 }
 
 void SrsStatistic::kbps_add_delta(std::string id, ISrsKbpsDelta* delta)
@@ -446,6 +490,7 @@ void SrsStatistic::kbps_add_delta(std::string id, ISrsKbpsDelta* delta)
     // add delta of connection to kbps.
     // for next sample() of server kbps can get the stat.
     kbps->add_delta(in, out);
+    client->kbps->add_delta(in, out);
     client->stream->kbps->add_delta(in, out);
     client->stream->vhost->kbps->add_delta(in, out);
 }
@@ -465,6 +510,13 @@ SrsKbps* SrsStatistic::kbps_sample()
         for (it = streams.begin(); it != streams.end(); it++) {
             SrsStatisticStream* stream = it->second;
             stream->kbps->sample();
+        }
+    }
+    if (true) {
+        std::map<std::string, SrsStatisticClient*>::iterator it;
+        for (it = clients.begin(); it != clients.end(); it++) {
+            SrsStatisticClient* client = it->second;
+            client->kbps->sample();
         }
     }
     

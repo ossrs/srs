@@ -1,3 +1,4 @@
+
 # Changelog
 
 The changelog for SRS.
@@ -6,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-08-19, For [#2136](https://github.com/ossrs/srs/issues/2136): API: Cleanup no active streams for statistics. v5.0.42
 * v5.0, 2022-08-14, Fix [#2747](https://github.com/ossrs/srs/issues/2747): Support Apple Silicon M1(aarch64). v5.0.41
 * v5.0, 2022-08-12, Support crossbuild for hisiv500. v5.0.40
 * v5.0, 2022-08-10, Build: Detect OS by packager. v5.0.39

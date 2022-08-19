@@ -50,3 +50,5 @@ bug
 /research/thread-model/thread-local
 *.gcp
 *.svg
+/3rdparty/st-srs/srs
+/3rdparty/st-srs/.circleci
