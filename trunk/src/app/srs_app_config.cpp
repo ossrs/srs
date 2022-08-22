@@ -4960,6 +4960,9 @@ vector<string> SrsConfig::get_vhost_coworkers(string vhost)
     }
 
     conf = conf->get("coworkers");
+    if (!conf) {
+        return coworkers;
+    }
     for (int i = 0; i < (int)conf->args.size(); i++) {
         coworkers.push_back(conf->args.at(i));
     }
