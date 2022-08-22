@@ -2830,45 +2830,19 @@ srs_error_t SrsConfig::check_number_connections()
     ////////////////////////////////////////////////////////////////////////
     // check max connections
     ////////////////////////////////////////////////////////////////////////
-    if (get_max_connections() <= 0) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "max_connections=%d is invalid", get_max_connections());
+    int nb_connections = get_max_connections();
+    if (nb_connections <= 0) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "max_connections=%d is invalid", nb_connections);
     }
-    
+
     // check max connections of system limits
-    if (true) {
-        int nb_consumed_fds = (int)get_listens().size();
-        if (!get_http_api_listen().empty()) {
-            nb_consumed_fds++;
-        }
-        if (!get_http_stream_listen().empty()) {
-            nb_consumed_fds++;
-        }
-        if (get_log_tank_file()) {
-            nb_consumed_fds++;
-        }
-        // 0, 1, 2 for stdin, stdout and stderr.
-        nb_consumed_fds += 3;
-        
-        int nb_connections = get_max_connections();
-        int nb_total = nb_connections + nb_consumed_fds;
-        
-        int max_open_files = (int)sysconf(_SC_OPEN_MAX);
-        int nb_canbe = max_open_files - nb_consumed_fds - 1;
-        
-        // for each play connections, we open a pipe(2fds) to convert SrsConsumver to io,
-        if (nb_total >= max_open_files) {
-            srs_error("invalid max_connections=%d, required=%d, system limit to %d, "
-                      "total=%d(max_connections=%d, nb_consumed_fds=%d). "
-                      "you can change max_connections from %d to %d, or "
-                      "you can login as root and set the limit: ulimit -HSn %d",
-                      nb_connections, nb_total + 100, max_open_files,
-                      nb_total, nb_connections, nb_consumed_fds,
-                      nb_connections, nb_canbe, nb_total + 100);
-            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "%d exceed max open files=%d",
-                nb_total, max_open_files);
-        }
+    int nb_total = nb_connections + 128; // Simple reserved some fds.
+    int max_open_files = (int)sysconf(_SC_OPEN_MAX);
+    if (nb_total >= max_open_files) {
+        srs_error("max_connections=%d, system limit to %d, please run: ulimit -HSn %d", nb_connections, max_open_files, srs_max(10000, nb_connections * 10));
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "%d exceed max open files=%d", nb_total, max_open_files);
     }
-    
+
     return err;
 }
 // LCOV_EXCL_STOP
