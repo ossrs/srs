@@ -70,7 +70,7 @@ class RESTClients(object):
         the request in the POST data string is a object encode by json:
               {
                   "action": "on_connect",
-                  "client_id": 1985,
+                  "client_id": "9308h583",
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
                   "tcUrl": "rtmp://video.test.com/live?key=d2fa801d08e3f90ed1e1670e6e52651a",
                   "pageUrl": "http://www.test.com/live.html"
@@ -80,7 +80,7 @@ class RESTClients(object):
         the request in the POST data string is a object encode by json:
               {
                   "action": "on_close",
-                  "client_id": 1985,
+                  "client_id": "9308h583",
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
                   "send_bytes": 10240, "recv_bytes": 10240
               }
@@ -158,7 +158,7 @@ class RESTStreams(object):
         the request in the POST data string is a object encode by json:
               {
                   "action": "on_publish",
-                  "client_id": 1985,
+                  "client_id": "9308h583",
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
                   "stream": "livestream", "param":"?token=xxx&salt=yyy"
               }
@@ -167,7 +167,7 @@ class RESTStreams(object):
         the request in the POST data string is a object encode by json:
               {
                   "action": "on_unpublish",
-                  "client_id": 1985,
+                  "client_id": "9308h583",
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
                   "stream": "livestream", "param":"?token=xxx&salt=yyy"
               }
@@ -245,7 +245,7 @@ class RESTDvrs(object):
         the request in the POST data string is a object encode by json:
               {
                   "action": "on_dvr",
-                  "client_id": 1985,
+                  "client_id": "9308h583",
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
                   "stream": "livestream", "param":"?token=xxx&salt=yyy",
                   "cwd": "/usr/local/srs",
@@ -364,7 +364,7 @@ class RESTHls(object):
         the request in the POST data string is a object encode by json:
               {
                   "action": "on_dvr",
-                  "client_id": 1985,
+                  "client_id": "9308h583",
                   "ip": "192.168.1.10", 
                   "vhost": "video.test.com", 
                   "app": "live",
@@ -436,7 +436,7 @@ class RESTSessions(object):
         the request in the POST data string is a object encode by json:
               {
                   "action": "on_play",
-                  "client_id": 1985,
+                  "client_id": "9308h583",
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
                   "stream": "livestream", "param":"?token=xxx&salt=yyy",
                   "pageUrl": "http://www.test.com/live.html"
@@ -446,7 +446,7 @@ class RESTSessions(object):
         the request in the POST data string is a object encode by json:
               {
                   "action": "on_stop",
-                  "client_id": 1985,
+                  "client_id": "9308h583",
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
                   "stream": "livestream", "param":"?token=xxx&salt=yyy"
               }
