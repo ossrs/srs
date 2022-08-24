@@ -265,7 +265,9 @@ jobs:
             * Global: [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
             * Global: [docker pull ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
             ## Doc
-            * [FAQ](https://github.com/ossrs/srs/issues/2716), [Features](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) or [ChangeLogs](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
+            * [快速入门](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started) or [Getting Started](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
+            * [中文Wiki首页](https://ossrs.net/lts/zh-cn/docs/v5/doc/introduction) or [Wiki home](https://ossrs.io/lts/en-us/docs/v5/doc/introduction)
+            * [中文FAQ](https://ossrs.net/lts/zh-cn/faq) or [FAQ](https://ossrs.io/lts/en-us/faq), [Features](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) or [ChangeLogs](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false
           prerelease: true
       # Upload release source files

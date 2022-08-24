@@ -49,7 +49,7 @@ The changelog for SRS.
 ## SRS 4.0 Changelog
 
 * v4.0, 2022-08-24, STAT: Support config server_id and generate one if empty. v4.0.257
-* v5.0, 2022-08-24, For [#2136](https://github.com/ossrs/srs/issues/2136): API: Cleanup no active streams for statistics. v4.0.256
+* v4.0, 2022-08-24, For [#2136](https://github.com/ossrs/srs/issues/2136): API: Cleanup no active streams for statistics. v4.0.256
 * v4.0, 2022-08-17, RTMP URL supports domain in stream parameters. v4.0.255
 * v4.0, 2022-08-10, Fix server id generator bug. v4.0.254
 * v4.0, 2022-06-29, Update SRS image for r.ossrs.net. v4.0.253
