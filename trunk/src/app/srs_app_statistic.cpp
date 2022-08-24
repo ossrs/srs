@@ -186,10 +186,16 @@ SrsStatisticClient::SrsStatisticClient()
     req = NULL;
     type = SrsRtmpConnUnknown;
     create = srs_get_system_time();
+
+    clk = new SrsWallClock();
+    kbps = new SrsKbps(clk);
+    kbps->set_io(NULL, NULL);
 }
 
 SrsStatisticClient::~SrsStatisticClient()
 {
+    srs_freep(kbps);
+    srs_freep(clk);
 	srs_freep(req);
 }
 
@@ -208,6 +214,12 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject* obj)
     obj->set("type", SrsJsonAny::str(srs_client_type_string(type).c_str()));
     obj->set("publish", SrsJsonAny::boolean(srs_client_type_is_publish(type)));
     obj->set("alive", SrsJsonAny::number(srsu2ms(srs_get_system_time() - create) / 1000.0));
+
+    SrsJsonObject* okbps = SrsJsonAny::object();
+    obj->set("kbps", okbps);
+
+    okbps->set("recv_30s", SrsJsonAny::integer(kbps->get_recv_kbps_30s()));
+    okbps->set("send_30s", SrsJsonAny::integer(kbps->get_send_kbps_30s()));
     
     return err;
 }
@@ -446,6 +458,7 @@ void SrsStatistic::kbps_add_delta(std::string id, ISrsKbpsDelta* delta)
     // add delta of connection to kbps.
     // for next sample() of server kbps can get the stat.
     kbps->add_delta(in, out);
+    client->kbps->add_delta(in, out);
     client->stream->kbps->add_delta(in, out);
     client->stream->vhost->kbps->add_delta(in, out);
 }
@@ -465,6 +478,13 @@ SrsKbps* SrsStatistic::kbps_sample()
         for (it = streams.begin(); it != streams.end(); it++) {
             SrsStatisticStream* stream = it->second;
             stream->kbps->sample();
+        }
+    }
+    if (true) {
+        std::map<std::string, SrsStatisticClient*>::iterator it;
+        for (it = clients.begin(); it != clients.end(); it++) {
+            SrsStatisticClient* client = it->second;
+            client->kbps->sample();
         }
     }
     

@@ -101,6 +101,10 @@ public:
     std::string id;
     srs_utime_t create;
 public:
+    // The stream total kbps.
+    SrsKbps* kbps;
+    SrsWallClock* clk;
+public:
     SrsStatisticClient();
     virtual ~SrsStatisticClient();
 public:
