@@ -12,6 +12,8 @@
 #include <sstream>
 #include <stdarg.h>
 #include <unistd.h>
+
+#include <map>
 using namespace std;
 
 bool srs_is_system_control_error(srs_error_t err)
@@ -52,6 +54,12 @@ std::string SrsCplxError::description() {
     if (desc.empty()) {
         stringstream ss;
         ss << "code=" << code;
+
+        string code_str = srs_error_code_str(this);
+        if (!code_str.empty()) ss << "(" << code_str << ")";
+
+        string code_longstr = srs_error_code_longstr(this);
+        if (!code_longstr.empty()) ss << "(" << code_longstr << ")";
 
         SrsCplxError* next = this;
         while (next) {
@@ -189,5 +197,67 @@ string SrsCplxError::summary(SrsCplxError* err)
 int SrsCplxError::error_code(SrsCplxError* err)
 {
     return err? err->code : ERROR_SUCCESS;
+}
+
+#define SRS_STRERRNO_GEN(n, v, m, s) {(SrsErrorCode)v, m, s},
+static struct
+{
+    SrsErrorCode code;
+    const char* name;
+    const char* descripton;
+} _srs_strerror_tab[] = {
+#ifndef _WIN32
+    {ERROR_SUCCESS, "Success", "Success"},
+#endif
+    SRS_ERRNO_MAP_SYSTEM(SRS_STRERRNO_GEN)
+    SRS_ERRNO_MAP_RTMP(SRS_STRERRNO_GEN)
+    SRS_ERRNO_MAP_APP(SRS_STRERRNO_GEN)
+    SRS_ERRNO_MAP_HTTP(SRS_STRERRNO_GEN)
+    SRS_ERRNO_MAP_RTC(SRS_STRERRNO_GEN)
+    SRS_ERRNO_MAP_SRT(SRS_STRERRNO_GEN)
+    SRS_ERRNO_MAP_USER(SRS_STRERRNO_GEN)
+};
+#undef SRS_STRERRNO_GEN
+
+std::string SrsCplxError::error_code_str(SrsCplxError* err)
+{
+    static string not_found = "";
+    static std::map<SrsErrorCode, string> error_map;
+
+    // Build map if empty.
+    if (error_map.empty()) {
+        for (int i = 0; i < (int)(sizeof(_srs_strerror_tab) / sizeof(_srs_strerror_tab[0])); i++) {
+            SrsErrorCode code = _srs_strerror_tab[i].code;
+            error_map[code] = _srs_strerror_tab[i].name;
+        }
+    }
+
+    std::map<SrsErrorCode, string>::iterator it = error_map.find((SrsErrorCode)srs_error_code(err));
+    if (it == error_map.end()) {
+        return not_found;
+    }
+
+    return it->second;
+}
+
+std::string SrsCplxError::error_code_longstr(SrsCplxError* err)
+{
+    static string not_found = "";
+    static std::map<SrsErrorCode, string> error_map;
+
+    // Build map if empty.
+    if (error_map.empty()) {
+        for (int i = 0; i < (int)(sizeof(_srs_strerror_tab) / sizeof(_srs_strerror_tab[0])); i++) {
+            SrsErrorCode code = _srs_strerror_tab[i].code;
+            error_map[code] = _srs_strerror_tab[i].descripton;
+        }
+    }
+
+    std::map<SrsErrorCode, string>::iterator it = error_map.find((SrsErrorCode)srs_error_code(err));
+    if (it == error_map.end()) {
+        return not_found;
+    }
+
+    return it->second;
 }
 

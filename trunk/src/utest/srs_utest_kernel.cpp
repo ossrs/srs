@@ -674,10 +674,12 @@ VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
 */
 VOID TEST(KernelFlvTest, FlvEncoderStreamClosed)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileWriter fs;
     SrsFlvTransmuxer enc;
     // The decoder never check the reader status.
-    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(enc.initialize(&fs));
 }
 
 /**
@@ -686,10 +688,12 @@ VOID TEST(KernelFlvTest, FlvEncoderStreamClosed)
 */
 VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileWriter fs;
     SrsFlvTransmuxer enc;
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(enc.initialize(&fs));
     
     // write header, 9bytes
     char flv_header[] = {
@@ -700,7 +704,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
     };
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)0x00 };
     
-    EXPECT_TRUE(ERROR_SUCCESS == enc.write_header());
+    HELPER_EXPECT_SUCCESS(enc.write_header());
     ASSERT_TRUE(9 + 4 == fs.tellg());
     
     EXPECT_TRUE(srs_bytes_equals(flv_header, fs.data(), 9));
@@ -713,7 +717,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
     
     fs.mock_reset_offset();
     
-    EXPECT_TRUE(ERROR_SUCCESS == enc.write_header(flv_header));
+    HELPER_EXPECT_SUCCESS(enc.write_header(flv_header));
     ASSERT_TRUE(9 + 4 == fs.tellg());
     
     EXPECT_TRUE(srs_bytes_equals(flv_header, fs.data(), 9));
@@ -726,10 +730,12 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
 */
 VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileWriter fs;
-    EXPECT_TRUE(ERROR_SUCCESS == fs.open(""));
+    HELPER_EXPECT_SUCCESS(fs.open(""));
     SrsFlvTransmuxer enc;
-    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(enc.initialize(&fs));
     
     // 11 bytes tag header
     char tag_header[] = {
@@ -745,7 +751,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
     };
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
     
-    ASSERT_TRUE(ERROR_SUCCESS == enc.write_metadata(18, md, 8));
+    HELPER_ASSERT_SUCCESS(enc.write_metadata(18, md, 8));
     ASSERT_TRUE(11 + 8 + 4 == fs.tellg());
     
     EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data(), 11));
@@ -760,10 +766,12 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
 */
 VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileWriter fs;
     SrsFlvTransmuxer enc;
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(enc.initialize(&fs));
     
     // 11bytes tag header
     char tag_header[] = {
@@ -779,7 +787,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
     };
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
     
-    ASSERT_TRUE(ERROR_SUCCESS == enc.write_audio(0x30, audio, 8));
+    HELPER_ASSERT_SUCCESS(enc.write_audio(0x30, audio, 8));
     ASSERT_TRUE(11 + 8 + 4 == fs.tellg());
     
     EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data(), 11));
@@ -794,10 +802,12 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
 */
 VOID TEST(KernelFlvTest, FlvEncoderWriteVideo)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileWriter fs;
     SrsFlvTransmuxer enc;
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(enc.initialize(&fs));
     
     // 11bytes tag header
     char tag_header[] = {
@@ -813,7 +823,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteVideo)
     };
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
     
-    ASSERT_TRUE(ERROR_SUCCESS == enc.write_video(0x30, video, 8));
+    HELPER_ASSERT_SUCCESS(enc.write_video(0x30, video, 8));
     ASSERT_TRUE(11 + 8 + 4 == fs.tellg());
     
     EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data(), 11));
@@ -1183,10 +1193,12 @@ VOID TEST(KernelFLVTest, CoverFLVVodSHCase)
 */
 VOID TEST(KernelFlvTest, FlvDecoderStreamClosed)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileReader fs;
     SrsFlvDecoder dec;
     // The decoder never check the reader status.
-    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(dec.initialize(&fs));
 }
 
 /**
@@ -1195,10 +1207,12 @@ VOID TEST(KernelFlvTest, FlvDecoderStreamClosed)
 */
 VOID TEST(KernelFlvTest, FlvDecoderHeader)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileReader fs;
     SrsFlvDecoder dec;
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(dec.initialize(&fs));
     
     // 9bytes
     char flv_header[] = {
@@ -1214,10 +1228,10 @@ VOID TEST(KernelFlvTest, FlvDecoderHeader)
     char data[1024];
     fs.mock_reset_offset();
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_header(data));
+    HELPER_EXPECT_SUCCESS(dec.read_header(data));
     EXPECT_TRUE(srs_bytes_equals(flv_header, data, 9));
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_previous_tag_size(data));
+    HELPER_EXPECT_SUCCESS(dec.read_previous_tag_size(data));
     EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
 }
 
@@ -1227,10 +1241,12 @@ VOID TEST(KernelFlvTest, FlvDecoderHeader)
 */
 VOID TEST(KernelFlvTest, FlvDecoderMetadata)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileReader fs;
     SrsFlvDecoder dec;
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(dec.initialize(&fs));
     
     // 11 bytes tag header
     char tag_header[] = {
@@ -1255,15 +1271,15 @@ VOID TEST(KernelFlvTest, FlvDecoderMetadata)
     char data[1024];
     fs.mock_reset_offset();
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_header(&type, &size, &time));
+    HELPER_EXPECT_SUCCESS(dec.read_tag_header(&type, &size, &time));
     EXPECT_TRUE(18 == type);
     EXPECT_TRUE(8 == size);
     EXPECT_TRUE(0 == time);
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_data(data, size));
+    HELPER_EXPECT_SUCCESS(dec.read_tag_data(data, size));
     EXPECT_TRUE(srs_bytes_equals(md, data, 8));
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_previous_tag_size(data));
+    HELPER_EXPECT_SUCCESS(dec.read_previous_tag_size(data));
     EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
 }
 
@@ -1273,10 +1289,12 @@ VOID TEST(KernelFlvTest, FlvDecoderMetadata)
 */
 VOID TEST(KernelFlvTest, FlvDecoderAudio)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileReader fs;
     SrsFlvDecoder dec;
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(dec.initialize(&fs));
     
     // 11bytes tag header
     char tag_header[] = {
@@ -1301,15 +1319,15 @@ VOID TEST(KernelFlvTest, FlvDecoderAudio)
     char data[1024];
     fs.mock_reset_offset();
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_header(&type, &size, &time));
+    HELPER_EXPECT_SUCCESS(dec.read_tag_header(&type, &size, &time));
     EXPECT_TRUE(8 == type);
     EXPECT_TRUE(8 == size);
     EXPECT_TRUE(0x30 == time);
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_data(data, size));
+    HELPER_EXPECT_SUCCESS(dec.read_tag_data(data, size));
     EXPECT_TRUE(srs_bytes_equals(audio, data, 8));
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_previous_tag_size(data));
+    HELPER_EXPECT_SUCCESS(dec.read_previous_tag_size(data));
     EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
 }
 
@@ -1319,10 +1337,12 @@ VOID TEST(KernelFlvTest, FlvDecoderAudio)
 */
 VOID TEST(KernelFlvTest, FlvDecoderVideo)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileReader fs;
     SrsFlvDecoder dec;
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(dec.initialize(&fs));
     
     // 11bytes tag header
     char tag_header[] = {
@@ -1347,15 +1367,15 @@ VOID TEST(KernelFlvTest, FlvDecoderVideo)
     char data[1024];
     fs.mock_reset_offset();
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_header(&type, &size, &time));
+    HELPER_EXPECT_SUCCESS(dec.read_tag_header(&type, &size, &time));
     EXPECT_TRUE(9 == type);
     EXPECT_TRUE(8 == size);
     EXPECT_TRUE(0x30 == time);
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_data(data, size));
+    HELPER_EXPECT_SUCCESS(dec.read_tag_data(data, size));
     EXPECT_TRUE(srs_bytes_equals(video, data, 8));
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_previous_tag_size(data));
+    HELPER_EXPECT_SUCCESS(dec.read_previous_tag_size(data));
     EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
 }
 
@@ -1365,6 +1385,8 @@ VOID TEST(KernelFlvTest, FlvDecoderVideo)
 */
 VOID TEST(KernelFlvTest, FlvVSDecoderStreamClosed)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileReader fs;
     fs.close();
 
@@ -1378,11 +1400,13 @@ VOID TEST(KernelFlvTest, FlvVSDecoderStreamClosed)
 */
 VOID TEST(KernelFlvTest, FlvVSDecoderHeader)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileReader fs;
     SrsFlvVodStreamDecoder dec;
     
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(dec.initialize(&fs));
     
     // 9bytes
     char flv_header[] = {
@@ -1398,7 +1422,7 @@ VOID TEST(KernelFlvTest, FlvVSDecoderHeader)
     char data[1024];
     fs.mock_reset_offset();
     
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_header_ext(data));
+    HELPER_EXPECT_SUCCESS(dec.read_header_ext(data));
     EXPECT_TRUE(srs_bytes_equals(flv_header, data, 9));
 }
 
@@ -1409,10 +1433,12 @@ VOID TEST(KernelFlvTest, FlvVSDecoderHeader)
 */
 VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileReader fs;
     SrsFlvVodStreamDecoder dec;
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(dec.initialize(&fs));
     
     // push metadata tag
     if (true) {
@@ -1476,7 +1502,7 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader)
     
     int64_t start = 0;
     int size = 0;
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_sequence_header_summary(&start, &size));
+    HELPER_EXPECT_SUCCESS(dec.read_sequence_header_summary(&start, &size));
     EXPECT_EQ(23, (int)start);
     EXPECT_EQ(46, size);
 }
@@ -1488,10 +1514,12 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader)
 */
 VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader2)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileReader fs;
     SrsFlvVodStreamDecoder dec;
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(dec.initialize(&fs));
     
     // push metadata tag
     if (true) {
@@ -1555,7 +1583,7 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader2)
     
     int64_t start = 0;
     int size = 0;
-    EXPECT_TRUE(ERROR_SUCCESS == dec.read_sequence_header_summary(&start, &size));
+    HELPER_EXPECT_SUCCESS(dec.read_sequence_header_summary(&start, &size));
     EXPECT_EQ(23, (int)start);
     EXPECT_EQ(46, size);
 }
@@ -1567,10 +1595,12 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader2)
 */
 VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
 {
+    srs_error_t err = srs_success;
+
     MockSrsFileReader fs;
     SrsFlvVodStreamDecoder dec;
-    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
-    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    HELPER_ASSERT_SUCCESS(fs.open(""));
+    HELPER_ASSERT_SUCCESS(dec.initialize(&fs));
     
     // 11bytes tag header
     char tag_header[] = {
@@ -1583,10 +1613,10 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
     fs.mock_append_data(tag_header, 11);
     EXPECT_TRUE(11 == fs.tellg());
 
-    EXPECT_TRUE(ERROR_SUCCESS == dec.seek2(0));
+    HELPER_EXPECT_SUCCESS(dec.seek2(0));
     EXPECT_TRUE(0 == fs.tellg());
 
-    EXPECT_TRUE(ERROR_SUCCESS == dec.seek2(5));
+    HELPER_EXPECT_SUCCESS(dec.seek2(5));
     EXPECT_TRUE(5 == fs.tellg());
 }
 

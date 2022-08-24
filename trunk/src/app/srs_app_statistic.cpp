@@ -618,13 +618,13 @@ void SrsStatistic::dumps_hints_kv(std::stringstream & ss)
 void SrsStatistic::dumps_cls_summaries(SrsClsSugar* sugar)
 {
     if (!vhosts.empty()) {
-        sugar->kvf("vhosts", "%d", (int) vhosts.size());
+        sugar->kv("vhosts", srs_fmt("%d", (int)vhosts.size()));
     }
     if (!streams.empty()) {
-        sugar->kvf("streams", "%d", (int) streams.size());
+        sugar->kv("streams", srs_fmt("%d", (int)streams.size()));
     }
     if (!clients.empty()) {
-        sugar->kvf("clients", "%d", (int) clients.size());
+        sugar->kv("clients", srs_fmt("%d", (int)clients.size()));
     }
 }
 
@@ -639,37 +639,37 @@ void SrsStatistic::dumps_cls_streams(SrsClsSugars* sugars)
         SrsClsSugar* sugar = sugars->create();
         sugar->kv("hint", "stream");
         sugar->kv("version", RTMP_SIG_SRS_VERSION);
-        sugar->kvf("pid", "%d", getpid());
+        sugar->kv("pid", srs_fmt("%d", getpid()));
 
         sugar->kv("sid", stream->id);
         sugar->kv("url", stream->url);
 
         if (stream->frames->r30s()) {
-            sugar->kvf("fps", "%d", stream->frames->r30s());
+            sugar->kv("fps", srs_fmt("%d", stream->frames->r30s()));
         }
         if (stream->width) {
-            sugar->kvf("width", "%d", stream->width);
+            sugar->kv("width", srs_fmt("%d", stream->width));
         }
         if (stream->height) {
-            sugar->kvf("height", "%d", stream->height);
+            sugar->kv("height", srs_fmt("%d", stream->height));
         }
 
         SrsStatisticClient* pub = find_client(stream->publisher_id);
         if (pub) {
             if (pub->kbps->get_recv_kbps_30s()) {
-                sugar->kvf("recv", "%d", pub->kbps->get_recv_kbps_30s());
+                sugar->kv("recv", srs_fmt("%d", pub->kbps->get_recv_kbps_30s()));
             }
             if (pub->kbps->get_send_kbps_30s()) {
-                sugar->kvf("send", "%d", pub->kbps->get_send_kbps_30s());
+                sugar->kv("send", srs_fmt("%d", pub->kbps->get_send_kbps_30s()));
             }
         }
 
-        sugar->kvf("clients", "%d", stream->nb_clients);
+        sugar->kv("clients", srs_fmt("%d", stream->nb_clients));
         if (stream->kbps->get_recv_kbps_30s()) {
-            sugar->kvf("recv2", "%d", stream->kbps->get_recv_kbps_30s());
+            sugar->kv("recv2", srs_fmt("%d", stream->kbps->get_recv_kbps_30s()));
         }
         if (stream->kbps->get_send_kbps_30s()) {
-            sugar->kvf("send2", "%d", stream->kbps->get_send_kbps_30s());
+            sugar->kv("send2", srs_fmt("%d", stream->kbps->get_send_kbps_30s()));
         }
     }
 }

@@ -1897,7 +1897,7 @@ srs_error_t SrsRtmpClient::connect_app(string app, string tcUrl, SrsRequest* r, 
         
         // @see https://github.com/ossrs/srs/issues/160
         // the debug_srs_upnode is config in vhost and default to true.
-        if (dsu && r && r->args) {
+        if (dsu && r && r->args && r->args->count() > 0) {
             srs_freep(pkt->args);
             pkt->args = r->args->copy()->to_object();
         }

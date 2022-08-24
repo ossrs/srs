@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include <vector>
 #include <algorithm>
@@ -275,10 +276,7 @@ bool srs_check_ip_addr_valid(string ip)
 
 string srs_int2str(int64_t value)
 {
-    // len(max int64_t) is 20, plus one "+-."
-    char tmp[21 + 1];
-    snprintf(tmp, sizeof(tmp), "%" PRId64, value);
-    return tmp;
+    return srs_fmt("%" PRId64, value);
 }
 
 string srs_float2str(double value)
@@ -552,6 +550,23 @@ vector<string> srs_string_split(string str, vector<string> seperators)
     }
     
     return arr;
+}
+
+std::string srs_fmt(const char* fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+
+    static char buf[8192];
+    int r0 = vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+
+    string v;
+    if (r0 > 0 && r0 < (int)sizeof(buf)) {
+        v.append(buf, r0);
+    }
+
+    return v;
 }
 
 int srs_do_create_dir_recursively(string dir)

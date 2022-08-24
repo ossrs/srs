@@ -18,6 +18,7 @@ The features of SRS.
 - [x] System: [Experimental] Support DVR in MP4 format, read [#738](https://github.com/ossrs/srs/issues/738).
 - [x] System: [Experimental] Support loongarch, loongson CPU, [#2689](https://github.com/ossrs/srs/issues/2689).
 - [x] System: [Experimental] Support Apple Silicon M1(aarch64), [#2747](https://github.com/ossrs/srs/issues/2747).
+- [x] System: [Experimental] Support distributed tracing by Tencent Cloud APM.
 - [x] API: Support HTTP API([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-api)) for system management.
 - [x] API: Support HTTP callback([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-callback)) for authentication and integration.
 - [x] API: Support reuse HTTP Stream port for HTTP API, [#2881](https://github.com/ossrs/srs/issues/2881).

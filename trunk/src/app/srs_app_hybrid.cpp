@@ -185,6 +185,9 @@ srs_error_t SrsHybridServer::initialize()
     if ((err = _srs_cls->initialize()) != srs_success) {
         return srs_error_wrap(err, "cls client");
     }
+    if ((err = _srs_apm->initialize()) != srs_success) {
+        return srs_error_wrap(err, "apm client");
+    }
 
     // Register some timers.
     timer20ms_->subscribe(clock_monitor_);
@@ -393,6 +396,12 @@ srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)
     // Report logs to CLS if enabled.
     if ((err = _srs_cls->report()) != srs_success) {
         srs_warn("ignore cls err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+
+    // Report logs to APM if enabled.
+    if ((err = _srs_apm->report()) != srs_success) {
+        srs_warn("ignore apm err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
 

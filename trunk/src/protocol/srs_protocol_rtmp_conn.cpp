@@ -41,6 +41,14 @@ SrsBasicRtmpClient::~SrsBasicRtmpClient()
     srs_freep(req);
 }
 
+SrsAmf0Object* SrsBasicRtmpClient::extra_args()
+{
+    if (req->args == NULL) {
+        req->args = SrsAmf0Any::object();
+    }
+    return req->args;
+}
+
 srs_error_t SrsBasicRtmpClient::connect()
 {
     srs_error_t err = srs_success;
@@ -89,13 +97,8 @@ srs_error_t SrsBasicRtmpClient::do_connect_app(string local_ip, bool debug)
 {
     srs_error_t err = srs_success;
     
-    // args of request takes the srs info.
-    if (req->args == NULL) {
-        req->args = SrsAmf0Any::object();
-    }
-    
     // notify server the edge identity,
-    SrsAmf0Object* data = req->args;
+    SrsAmf0Object* data = extra_args();
     data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
     data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
     data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));

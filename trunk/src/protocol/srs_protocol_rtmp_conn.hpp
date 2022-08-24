@@ -19,6 +19,7 @@ class SrsSharedPtrMessage;
 class SrsPacket;
 class SrsNetworkKbps;
 class SrsWallClock;
+class SrsAmf0Object;
 
 // The simple RTMP client, provides friendly APIs.
 // @remark Should never use client when closed.
@@ -47,6 +48,9 @@ public:
     // @param stm The timeout in srs_utime_t to delivery A/V stream.
     SrsBasicRtmpClient(std::string r, srs_utime_t ctm, srs_utime_t stm);
     virtual ~SrsBasicRtmpClient();
+public:
+    // Get extra args to carry more information.
+    SrsAmf0Object* extra_args();
 public:
     // Connect, handshake and connect app to RTMP server.
     // @remark We always close the transport.

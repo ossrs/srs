@@ -24,6 +24,14 @@ public:
     static srs_error_t encode(SrsBuffer* b, uint64_t v);
 };
 
+// See https://developers.google.com/protocol-buffers/docs/encoding#structure
+class SrsProtobufFixed64
+{
+public:
+    static int sizeof_int(uint64_t v);
+    static srs_error_t encode(SrsBuffer* b, uint64_t v);
+};
+
 // See https://developers.google.com/protocol-buffers/docs/encoding#strings
 class SrsProtobufString
 {
@@ -44,6 +52,7 @@ public:
 enum SrsProtobufField
 {
     // For int32, int64, uint32, uint64, sint32, sint64, bool, enum
+    SrsProtobufFieldEnum = 0,
     SrsProtobufFieldVarint = 0,
     // For fixed64, sfixed64, double
     SrsProtobufField64bit = 1,

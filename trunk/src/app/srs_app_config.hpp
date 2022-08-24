@@ -469,6 +469,11 @@ public:
     virtual std::string get_tencentcloud_cls_secret_key();
     virtual std::string get_tencentcloud_cls_endpoint();
     virtual std::string get_tencentcloud_cls_topic_id();
+    virtual bool get_tencentcloud_apm_enabled();
+    virtual std::string get_tencentcloud_apm_token();
+    virtual std::string get_tencentcloud_apm_endpoint();
+    virtual std::string get_tencentcloud_apm_service_name();
+    virtual bool get_tencentcloud_apm_debug_logging();
 // stream_caster section
 public:
     // Get all stream_caster in config file.

@@ -91,6 +91,8 @@ extern std::string srs_string_min_match(std::string str, std::vector<std::string
 // Split the string by seperator to array.
 extern std::vector<std::string> srs_string_split(std::string s, std::string seperator);
 extern std::vector<std::string> srs_string_split(std::string s, std::vector<std::string> seperators);
+// Format to a string.
+extern std::string srs_fmt(const char* fmt, ...);
 
 // Compare the memory in bytes.
 // @return true if completely equal; otherwise, false.

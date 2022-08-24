@@ -34,6 +34,8 @@ using namespace std;
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_app_http_client.hpp>
+#include <srs_app_tencentcloud.hpp>
 
 // when edge timeout, retry next.
 #define SRS_EDGE_INGESTER_TIMEOUT (5 * SRS_UTIME_SECONDS)
@@ -107,7 +109,11 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     srs_utime_t cto = SRS_EDGE_INGESTER_TIMEOUT;
     srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
-    
+
+    // Create a client span and store it to an AMF0 propagator.
+    ISrsApmSpan* span_client = _srs_apm->inject(_srs_apm->span("edge-pull")->set_kind(SrsApmKindClient)->as_child(_srs_apm->load()), sdk->extra_args());
+    SrsAutoFree(ISrsApmSpan, span_client);
+
     if ((err = sdk->connect()) != srs_success) {
         return srs_error_wrap(err, "edge pull %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
@@ -387,6 +393,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     source = NULL;
     edge = NULL;
     req = NULL;
+    span_main_ = NULL;
     
     upstream = new SrsEdgeRtmpUpstream("");
     lb = new SrsLbRoundRobin();
@@ -396,7 +403,8 @@ SrsEdgeIngester::SrsEdgeIngester()
 SrsEdgeIngester::~SrsEdgeIngester()
 {
     stop();
-    
+
+    srs_freep(span_main_);
     srs_freep(upstream);
     srs_freep(lb);
     srs_freep(trd);
@@ -407,7 +415,12 @@ srs_error_t SrsEdgeIngester::initialize(SrsLiveSource* s, SrsPlayEdge* e, SrsReq
     source = s;
     edge = e;
     req = r;
-    
+
+    // We create a dedicate span for edge ingester, and all players will link to this one.
+    // Note that we use a producer span and end it immediately.
+    srs_assert(!span_main_);
+    span_main_ = _srs_apm->span("edge")->set_kind(SrsApmKindProducer)->end();
+
     return srs_success;
 }
 
@@ -445,12 +458,23 @@ string SrsEdgeIngester::get_curr_origin()
     return lb->selected();
 }
 
+ISrsApmSpan* SrsEdgeIngester::span()
+{
+    srs_assert(span_main_);
+    return span_main_;
+}
+
 // when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_INGESTER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsEdgeIngester::cycle()
 {
     srs_error_t err = srs_success;
+
+    // Save span from parent coroutine to current coroutine context, so that we can load if in this coroutine, for
+    // example to use it in SrsEdgeRtmpUpstream which use RTMP or FLV client to connect to upstream server.
+    _srs_apm->store(span_main_);
+    srs_assert(span_main_);
     
     while (true) {
         // We always check status first.
@@ -459,10 +483,18 @@ srs_error_t SrsEdgeIngester::cycle()
             return srs_error_wrap(err, "edge ingester");
         }
 
+        srs_assert(span_main_);
+        ISrsApmSpan* start = _srs_apm->span("edge-start")->set_kind(SrsApmKindConsumer)->as_child(span_main_)->end();
+        srs_freep(start);
+
         if ((err = do_cycle()) != srs_success) {
             srs_warn("EdgeIngester: Ignore error, %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }
+
+        srs_assert(span_main_);
+        ISrsApmSpan* stop = _srs_apm->span("edge-stop")->set_kind(SrsApmKindConsumer)->as_child(span_main_)->end();
+        srs_freep(stop);
 
         srs_usleep(SRS_EDGE_INGESTER_CIMS);
     }
@@ -700,7 +732,7 @@ srs_error_t SrsEdgeForwarder::initialize(SrsLiveSource* s, SrsPublishEdge* e, Sr
     source = s;
     edge = e;
     req = r;
-    
+
     return srs_success;
 }
 
@@ -733,6 +765,11 @@ srs_error_t SrsEdgeForwarder::start()
     srs_utime_t cto = SRS_EDGE_FORWARDER_TIMEOUT;
     srs_utime_t sto = SRS_CONSTS_RTMP_TIMEOUT;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
+
+    // Create a client span and store it to an AMF0 propagator.
+    // Note that we are able to load the span from coroutine context because in the same coroutine.
+    ISrsApmSpan* span_client = _srs_apm->inject(_srs_apm->span("edge-push")->set_kind(SrsApmKindClient)->as_child(_srs_apm->load()), sdk->extra_args());
+    SrsAutoFree(ISrsApmSpan, span_client);
     
     if ((err = sdk->connect()) != srs_success) {
         return srs_error_wrap(err, "sdk connect %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
@@ -918,6 +955,14 @@ srs_error_t SrsPlayEdge::on_client_play()
         err = ingester->start();
     } else if (state == SrsEdgeStateIngestStopping) {
         return srs_error_new(ERROR_RTMP_EDGE_PLAY_STATE, "state is stopping");
+    }
+
+    // APM bind client span to edge span, which fetch stream from upstream server.
+    // We create a new span to link the two span, because these two spans might be ended.
+    if (ingester->span() && _srs_apm->load()) {
+        ISrsApmSpan* from = _srs_apm->span("play-link")->as_child(_srs_apm->load());
+        ISrsApmSpan* to = _srs_apm->span("edge-link")->as_child(ingester->span())->link(from);
+        srs_freep(from); srs_freep(to);
     }
     
     return err;

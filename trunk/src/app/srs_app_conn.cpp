@@ -614,7 +614,7 @@ srs_error_t SrsBufferedReadWriter::read(void* buf, size_t size, ssize_t* nread)
         return io_->read(buf, size, nread);
     }
 
-    int nn = srs_min(buf_->left(), size);
+    int nn = srs_min(buf_->left(), (int)size);
     *nread = nn;
 
     if (nn) {
@@ -629,7 +629,7 @@ srs_error_t SrsBufferedReadWriter::read_fully(void* buf, size_t size, ssize_t* n
         return io_->read_fully(buf, size, nread);
     }
 
-    int nn = srs_min(buf_->left(), size);
+    int nn = srs_min(buf_->left(), (int)size);
     if (nn) {
         buf_->read_bytes((char*)buf, nn);
     }

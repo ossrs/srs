@@ -1,0 +1,33 @@
+// See https://cloud.tencent.com/document/api/614/16873
+package cls;
+
+message Log
+{
+    message Content
+    {
+        required string key   = 1; // Field name or key
+        required string value = 2; // Field value
+    }
+    required int64   time     = 1; // Timestamp in UNIX(seconds or milliseconds)
+    repeated Content contents = 2; // A group of contents
+}
+
+message LogTag
+{
+    required string key       = 1;
+    required string value     = 2;
+}
+
+message LogGroup
+{
+    repeated Log    logs        = 1; // A group of logs.
+    optional string contextFlow = 2; // Not used.
+    optional string filename    = 3; // Log filename.
+    optional string source      = 4; // Log source, such as server IP.
+    repeated LogTag logTags     = 5;
+}
+
+message LogGroupList
+{
+    repeated LogGroup logGroupList = 1; // A group of log group.
+}

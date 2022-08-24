@@ -1826,6 +1826,13 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         }
     }
 
+    // Overwrite the config by env SRS_CONFIG_FILE.
+    if (::getenv("SRS_CONFIG_FILE")) {
+        string ov = config_file;
+        config_file = ::getenv("SRS_CONFIG_FILE");
+        srs_trace("ENV: Overwrite config %s to %s", ov.c_str(), config_file.c_str());
+    }
+
     // Parse the matched config file.
     err = parse_file(config_file.c_str());
 
@@ -2211,7 +2218,7 @@ srs_error_t SrsConfig::check_normal_config()
         std::string n = conf->name;
         if (n != "listen" && n != "pid" && n != "chunk_size" && n != "ff_log_dir"
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
-            && n != "max_connections" && n != "daemon" && n != "heartbeat"
+            && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "tencentcloud_apm"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
             && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server"
             && n != "utc_time" && n != "work_dir" && n != "asprocess" && n != "server_id"
@@ -3440,6 +3447,101 @@ string SrsConfig::get_tencentcloud_cls_topic_id()
     }
 
     return conf->arg0();
+}
+
+bool SrsConfig::get_tencentcloud_apm_enabled()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_TENCENTCLOUD_APM_ENABLED");
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("tencentcloud_apm");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+string SrsConfig::get_tencentcloud_apm_token()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_APM_TOKEN");
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("tencentcloud_apm");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("token");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_tencentcloud_apm_endpoint()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_APM_ENDPOINT");
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("tencentcloud_apm");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("endpoint");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_tencentcloud_apm_service_name()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_APM_SERVICE_NAME");
+
+    static string DEFAULT = "srs-server";
+
+    SrsConfDirective* conf = root->get("tencentcloud_apm");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("service_name");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+bool SrsConfig::get_tencentcloud_apm_debug_logging()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_TENCENTCLOUD_APM_DEBUG_LOGGING");
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("tencentcloud_apm");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("debug_logging");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()

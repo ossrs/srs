@@ -441,6 +441,7 @@ srs_error_t srs_global_initialize()
 
     // Initialize global TencentCloud CLS object.
     _srs_cls = new SrsClsClient();
+    _srs_apm = new SrsApmClient();
 
     return err;
 }

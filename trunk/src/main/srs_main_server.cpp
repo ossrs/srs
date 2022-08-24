@@ -38,6 +38,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
 #include <srs_app_threads.hpp>
+
 #ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_server.hpp>
@@ -473,6 +474,7 @@ srs_error_t run_in_thread_pool()
     return _srs_thread_pool->run();
 }
 
+#include <srs_app_tencentcloud.hpp>
 srs_error_t run_hybrid_server(void* /*arg*/)
 {
     srs_error_t err = srs_success;
@@ -497,6 +499,10 @@ srs_error_t run_hybrid_server(void* /*arg*/)
     if ((err = _srs_circuit_breaker->initialize()) != srs_success) {
         return srs_error_wrap(err, "init circuit breaker");
     }
+
+    // When startup, create a span for server information.
+    ISrsApmSpan* span = _srs_apm->span("main")->set_kind(SrsApmKindServer);
+    srs_freep(span);
 
     // Should run util hybrid servers all done.
     if ((err = _srs_hybrid->run()) != srs_success) {

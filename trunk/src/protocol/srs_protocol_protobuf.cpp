@@ -136,6 +136,26 @@ srs_error_t SrsProtobufVarints::encode(SrsBuffer* b, uint64_t v)
     return err;
 }
 
+int SrsProtobufFixed64::sizeof_int(uint64_t v)
+{
+    return 8;
+}
+
+srs_error_t SrsProtobufFixed64::encode(SrsBuffer* b, uint64_t v)
+{
+    srs_error_t  err = srs_success;
+
+    if (!b->require(8)) {
+        return srs_error_new(ERROR_PB_NO_SPACE, "require 8 only %d byte", b->left());
+    }
+
+    // Encode values in little-endian byte order,
+    // see https://developers.google.com/protocol-buffers/docs/encoding#non-varint_numbers
+    b->write_le8bytes((int64_t)v);
+
+    return err;
+}
+
 // See Go protowire.SizeBytes of package google.golang.org/protobuf/encoding/protowire
 int SrsProtobufString::sizeof_string(const std::string& v)
 {
