@@ -173,6 +173,10 @@ public:
     //      only got the request object, so the client specified by id maybe not
     //      exists in stat.
     virtual void on_disconnect(std::string id);
+private:
+    // Cleanup the stream if stream is not active and for the last client.
+    void cleanup_stream(SrsStatisticStream* stream);
+public:
     // Sample the kbps, add delta bytes of conn.
     // Use kbps_sample() to get all result of kbps stat.
     virtual void kbps_add_delta(std::string id, ISrsKbpsDelta* delta);

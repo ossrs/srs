@@ -164,6 +164,11 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
 
 void SrsStatisticStream::publish(std::string id)
 {
+    // To prevent duplicated publish event by bridger.
+    if (active) {
+        return;
+    }
+
     publisher_id = id;
     active = true;
     
@@ -172,6 +177,11 @@ void SrsStatisticStream::publish(std::string id)
 
 void SrsStatisticStream::close()
 {
+    // To prevent duplicated close event.
+    if (!active) {
+        return;
+    }
+
     has_video = false;
     has_audio = false;
     active = false;
@@ -375,22 +385,6 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
     stream->close();
-    
-    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
-    if (true) {
-        std::map<std::string, SrsStatisticStream*>::iterator it;
-        if ((it=streams.find(stream->id)) != streams.end()) {
-            streams.erase(it);
-        }
-    }
-    
-    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
-    if (true) {
-        std::map<std::string, SrsStatisticStream*>::iterator it;
-        if ((it = rstreams.find(stream->url)) != rstreams.end()) {
-            rstreams.erase(it);
-        }
-    }
 }
 
 srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type)
@@ -441,6 +435,40 @@ void SrsStatistic::on_disconnect(std::string id)
     
     stream->nb_clients--;
     vhost->nb_clients--;
+
+    cleanup_stream(stream);
+}
+
+void SrsStatistic::cleanup_stream(SrsStatisticStream* stream)
+{
+    // If stream has publisher(not active) or player(clients), never cleanup it.
+    if (stream->active || stream->nb_clients > 0) {
+        return;
+    }
+
+    // There should not be any clients referring to the stream.
+    for (std::map<std::string, SrsStatisticClient*>::iterator it = clients.begin(); it != clients.end(); ++it) {
+        SrsStatisticClient* client = it->second;
+        srs_assert(client->stream != stream);
+    }
+
+    // Do cleanup streams.
+    if (true) {
+        std::map<std::string, SrsStatisticStream *>::iterator it;
+        if ((it = streams.find(stream->id)) != streams.end()) {
+            streams.erase(it);
+        }
+    }
+
+    if (true) {
+        std::map<std::string, SrsStatisticStream *>::iterator it;
+        if ((it = rstreams.find(stream->url)) != rstreams.end()) {
+            rstreams.erase(it);
+        }
+    }
+
+    // It's safe to delete the stream now.
+    srs_freep(stream);
 }
 
 void SrsStatistic::kbps_add_delta(std::string id, ISrsKbpsDelta* delta)
