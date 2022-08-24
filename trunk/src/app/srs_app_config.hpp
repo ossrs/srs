@@ -400,6 +400,8 @@ private:
     // Whether user use full.conf
     virtual bool is_full_config();
 public:
+    // Get the server id, generated a random one if not configured.
+    virtual std::string get_server_id();
     // Get the max connections limit of system.
     // If  exceed the max connection, SRS will disconnect the connection.
     // @remark, linux will limit the connections of each process,
@@ -431,6 +433,7 @@ public:
     virtual bool get_asprocess();
     // Whether query the latest available version of SRS.
     virtual bool whether_query_latest_version();
+    virtual srs_utime_t first_wait_for_qlv();
     // Whether empty client IP is ok.
     virtual bool empty_ip_ok();
     // Get the start wait in ms for gracefully quit.

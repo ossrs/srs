@@ -12,6 +12,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <sstream>
 
 #include <srs_kernel_codec.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
@@ -116,7 +117,7 @@ class SrsStatistic
 private:
     static SrsStatistic *_instance;
     // The id to identify the sever.
-    std::string _server_id;
+    std::string server_id_;
 private:
     // The key: vhost id, value: vhost object.
     std::map<std::string, SrsStatisticVhost*> vhosts;
@@ -197,9 +198,14 @@ public:
     // @param start the start index, from 0.
     // @param count the max count of clients to dump.
     virtual srs_error_t dumps_clients(SrsJsonArray* arr, int start, int count);
+    // Dumps the hints about SRS server.
+    void dumps_hints_kv(std::stringstream & ss);
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);
 };
+
+// Generate a random string id, with constant prefix.
+extern std::string srs_generate_stat_vid();
 
 #endif
