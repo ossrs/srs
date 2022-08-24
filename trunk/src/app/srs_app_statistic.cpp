@@ -238,8 +238,6 @@ SrsStatistic* SrsStatistic::_instance = NULL;
 
 SrsStatistic::SrsStatistic()
 {
-    _server_id = srs_generate_stat_vid();
-    
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
     kbps->set_io(NULL, NULL);
@@ -521,7 +519,10 @@ SrsKbps* SrsStatistic::kbps_sample()
 
 std::string SrsStatistic::server_id()
 {
-    return _server_id;
+    if (server_id_.empty()) {
+        server_id_ = _srs_config->get_server_id();
+    }
+    return server_id_;
 }
 
 srs_error_t SrsStatistic::dumps_vhosts(SrsJsonArray* arr)
@@ -587,6 +588,22 @@ srs_error_t SrsStatistic::dumps_clients(SrsJsonArray* arr, int start, int count)
     }
     
     return err;
+}
+
+void SrsStatistic::dumps_hints_kv(std::stringstream & ss)
+{
+    if (!streams.empty()) {
+        ss << "&streams=" << streams.size();
+    }
+    if (!clients.empty()) {
+        ss << "&clients=" << clients.size();
+    }
+    if (kbps->get_recv_kbps_30s()) {
+        ss << "&recv=" << kbps->get_recv_kbps_30s();
+    }
+    if (kbps->get_send_kbps_30s()) {
+        ss << "&send=" << kbps->get_send_kbps_30s();
+    }
 }
 
 SrsStatisticVhost* SrsStatistic::create_vhost(SrsRequest* req)

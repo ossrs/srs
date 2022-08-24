@@ -39,6 +39,7 @@ class SrsLatestVersion : public ISrsCoroutineHandler
 private:
     SrsCoroutine* trd_;
     std::string server_id_;
+    std::string session_id_;
 private:
     std::string match_version_;
     std::string stable_version_;

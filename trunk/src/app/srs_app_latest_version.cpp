@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_http_client.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_uuid.hpp>
+#include <srs_app_statistic.hpp>
 
 #include <unistd.h>
 #include <sstream>
@@ -189,20 +190,8 @@ srs_error_t SrsLatestVersion::start()
         return srs_success;
     }
 
-    if (true) {
-        uuid_t uuid;
-        uuid_generate_time(uuid);
-
-        // Must reserve last 1 byte for the trailing '\0', because we expect the size of uuid string is 32 bytes.
-        char buf[32 + 1];
-        srs_assert(16 == sizeof(uuid_t));
-
-        for (int i = 0; i < 16; i++) {
-            int r0 = snprintf(buf + i * 2, sizeof(buf) - i * 2, "%02x", uuid[i]);
-            srs_assert(r0 > 0 && r0 < sizeof(buf) - i * 2);
-        }
-        server_id_ = buf;
-    }
+    server_id_ = SrsStatistic::instance()->server_id();
+    session_id_ = srs_generate_stat_vid();
 
     return trd_->start();
 }
@@ -212,15 +201,10 @@ srs_error_t SrsLatestVersion::cycle()
     srs_error_t err = srs_success;
 
     if (true) {
-        srs_utime_t first_random_wait = 0;
-        srs_random_generate((char *) &first_random_wait, 8);
-        first_random_wait = srs_utime_t(uint64_t((first_random_wait + srs_update_system_time() + getpid())) % (5 * 60)) * SRS_UTIME_SECONDS; // in s.
-
-        // Only report after 5+ minutes.
-        first_random_wait += 5 * 60 * SRS_UTIME_SECONDS;
-
-        srs_trace("Startup query id=%s, eip=%s, wait=%ds", server_id_.c_str(), srs_get_public_internet_address().c_str(), srsu2msi(first_random_wait) / 1000);
-        srs_usleep(first_random_wait);
+        srs_utime_t first_wait_for_qlv = _srs_config->first_wait_for_qlv();
+        string pip = srs_get_public_internet_address();
+        srs_trace("Startup query id=%s, session=%s, eip=%s, wait=%ds", server_id_.c_str(), session_id_.c_str(), pip.c_str(), srsu2msi(first_wait_for_qlv) / 1000);
+        srs_usleep(first_wait_for_qlv);
     }
 
     while (true) {
@@ -235,8 +219,8 @@ srs_error_t SrsLatestVersion::cycle()
             srs_freep(err); // Ignore any error.
         }
 
-        srs_trace("Finish query id=%s, eip=%s, match=%s, stable=%s, cost=%dms, url=%s",
-            server_id_.c_str(), srs_get_public_internet_address().c_str(), match_version_.c_str(),
+        srs_trace("Finish query id=%s, session=%s, eip=%s, match=%s, stable=%s, cost=%dms, url=%s",
+            server_id_.c_str(), session_id_.c_str(), srs_get_public_internet_address().c_str(), match_version_.c_str(),
             stable_version_.c_str(), srsu2msi(srs_update_system_time() - starttime), url.c_str());
 
         srs_usleep(3600 * SRS_UTIME_SECONDS); // Every an hour.
@@ -253,11 +237,12 @@ srs_error_t SrsLatestVersion::query_latest_version(string& url)
     stringstream ss;
     ss << "http://api.ossrs.net/service/v1/releases?"
           << "version=v" << VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_REVISION
-          << "&id=" << server_id_ << "&role=srs"
+          << "&id=" << server_id_ << "&session=" << session_id_ << "&role=srs"
           << "&eip=" << srs_get_public_internet_address()
           << "&ts=" << srs_get_system_time()
           << "&alive=" << srsu2ms(srs_get_system_time() - srs_get_system_startup_time()) / 1000;
     srs_build_features(ss);
+    SrsStatistic::instance()->dumps_hints_kv(ss);
     url = ss.str();
 
     SrsHttpUri uri;
