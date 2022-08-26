@@ -339,6 +339,10 @@ void SrsBuffer::write_le8bytes(int64_t value)
 
 void SrsBuffer::write_string(string value)
 {
+    if (value.empty()) {
+        return;
+    }
+
     srs_assert(require((int)value.length()));
     
     memcpy(p, value.data(), value.length());
@@ -347,6 +351,10 @@ void SrsBuffer::write_string(string value)
 
 void SrsBuffer::write_bytes(char* data, int size)
 {
+    if (size <= 0) {
+        return;
+    }
+
     srs_assert(require(size));
     
     memcpy(p, data, size);

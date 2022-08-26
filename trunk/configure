@@ -228,7 +228,7 @@ MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_protocol_conn" "srs_pro
         "srs_protocol_rtmp_stack" "srs_protocol_utility" "srs_protocol_rtmp_msg_array" "srs_protocol_stream"
         "srs_protocol_raw_avc" "srs_protocol_rtsp_stack" "srs_protocol_http_stack" "srs_protocol_kbps" "srs_protocol_json"
         "srs_protocol_format" "srs_protocol_log" "srs_protocol_st" "srs_protocol_http_client"
-        "srs_protocol_http_conn" "srs_protocol_rtmp_conn")
+        "srs_protocol_http_conn" "srs_protocol_rtmp_conn" "srs_protocol_protobuf")
 if [[ $SRS_SRT == YES ]]; then
     MODULE_FILES+=("srs_protocol_srt")
     ModuleLibIncs+=(${LibSRTRoot})

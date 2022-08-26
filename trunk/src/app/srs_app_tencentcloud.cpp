@@ -18,6 +18,7 @@
 #include <srs_app_statistic.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_protocol_protobuf.hpp>
 
 #include <string>
 #include <map>
@@ -159,161 +160,11 @@ namespace tencentcloud_api_sign {
     }
 }
 
-// See https://developers.google.com/protocol-buffers/docs/encoding#varints
-class SrsProtobufVarints
-{
-private:
-    // See Go bits.Len64 of package math/bits.
-    static int bits_len64(uint64_t x) {
-        // See Go bits.len8tab of package math/bits.
-        static uint8_t bits_len8tab[256] = {
-                0x00, 0x01, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
-                0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
-                0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
-                0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
-                0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
-                0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
-                0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
-                0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
-                0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-                0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-                0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-                0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-                0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-                0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-                0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-                0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-        };
-
-        int n = 0;
-        if (x >= (uint64_t)1<<32) {
-            x >>= 32;
-            n = 32;
-        }
-        if (x >= (uint64_t)1<<16) {
-            x >>= 16;
-            n += 16;
-        }
-        if (x >= (uint64_t)1<<8) {
-            x >>= 8;
-            n += 8;
-        }
-        return n + int(bits_len8tab[x]);
-    }
-public:
-    // See Go protowire.SizeVarint of package google.golang.org/protobuf/encoding/protowire
-    static int sizeof_varint(uint64_t v) {
-        int n = bits_len64(v);
-        return int(9 * uint32_t(n) + 64) / 64;
-    }
-    // See Go protowire.AppendVarint of package google.golang.org/protobuf/encoding/protowire
-    static srs_error_t encode(SrsBuffer* b, uint64_t v) {
-        srs_error_t err = srs_success;
-
-        if (!b->require(SrsProtobufVarints::sizeof_varint(v))) {
-            return srs_error_new(ERROR_PB_NO_SPACE, "require %d only %d bytes", v, b->left());
-        }
-
-        if (v < (uint64_t)1<<7) {
-            b->write_1bytes((uint8_t)v);
-        } else if (v < (uint64_t)1<<14) {
-            b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(v>>7));
-        } else if (v < (uint64_t)1<<21) {
-            b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(v>>21));
-        } else if (v < (uint64_t)1<<35) {
-            b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(v>>28));
-        } else if (v < (uint64_t)1<<42) {
-            b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>28)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(v>>35));
-        } else if (v < (uint64_t)1<<49) {
-            b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>28)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>35)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(v>>42));
-        } else if(v < (uint64_t)1<<56) {
-            b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>28)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>35)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>42)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(v>>49));
-        } else if (v < (uint64_t)1<<63) {
-            b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>28)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>35)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>42)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>49)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(v>>56));
-        } else {
-            b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>28)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>35)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>42)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>49)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)(((v>>56)&0x7f)|0x80));
-            b->write_1bytes((uint8_t)1);
-        }
-
-        return err;
-    }
-};
-
-class SrsProtobufString
-{
-public:
-    // See Go protowire.SizeBytes of package google.golang.org/protobuf/encoding/protowire
-    static int sizeof_string(const std::string& v) {
-        uint64_t n = v.length();
-        return SrsProtobufVarints::sizeof_varint(uint64_t(n)) + n;
-    }
-    // See Go protowire.AppendString of package google.golang.org/protobuf/encoding/protowire
-    static srs_error_t encode(SrsBuffer* b, const std::string& v) {
-        srs_error_t  err = srs_success;
-
-        uint64_t n = v.length();
-        if ((err = SrsProtobufVarints::encode(b, n)) != srs_success) {
-            return srs_error_wrap(err, "string size %d", n);
-        }
-
-        if (!b->require(n)) {
-            return srs_error_new(ERROR_PB_NO_SPACE, "require %d only %d byte", n, b->left());
-        }
-        b->write_string(v);
-
-        return err;
-    }
-};
-
 // See https://cloud.tencent.com/document/api/614/16873
-class SrsClsLogContent
+class SrsClsLogContent : public ISrsEncoder
 {
 private:
-    // required string key = 1;
     std::string key_;
-    // required string value = 2;
     std::string value_;
 public:
     SrsClsLogContent();
@@ -327,12 +178,10 @@ public:
 };
 
 // See https://cloud.tencent.com/document/api/614/16873
-class SrsClsLog
+class SrsClsLog : public ISrsEncoder
 {
 private:
-    // required int64 time = 1;
     int64_t time_;
-    // repeated Content contents= 2;
     std::vector<SrsClsLogContent*> contents_;
 public:
     SrsClsLog();
@@ -346,12 +195,10 @@ public:
 };
 
 // See https://cloud.tencent.com/document/api/614/16873
-class SrsClsLogGroup
+class SrsClsLogGroup : public ISrsEncoder
 {
 private:
-    // repeated Log logs= 1;
     std::vector<SrsClsLog*> logs_;
-    // optional string source = 4;
     std::string source_;
 public:
     SrsClsLogGroup();
@@ -368,7 +215,6 @@ public:
 class SrsClsLogGroupList
 {
 private:
-    // repeated LogGroup logGroupList = 1;
     std::vector<SrsClsLogGroup*> groups_;
 public:
     SrsClsLogGroupList();
@@ -402,8 +248,8 @@ SrsClsLogContent* SrsClsLogContent::set_value(std::string v)
 
 uint64_t SrsClsLogContent::nb_bytes()
 {
-    uint64_t  nn = 1 + SrsProtobufString::sizeof_string(key_);
-    nn += 1 + SrsProtobufString::sizeof_string(value_);
+    uint64_t  nn = SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(key_);
+    nn += SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(value_);
     return nn;
 }
 
@@ -411,21 +257,19 @@ srs_error_t SrsClsLogContent::encode(SrsBuffer* b)
 {
     srs_error_t err = srs_success;
 
-    // Encode the field key as [ID=1, TYPE=2(Length delimited)]
-    if (!b->require(1)) {
-        return srs_error_new(ERROR_PB_NO_SPACE, "require 1 byte");
+    // required string key = 1;
+    if ((err = SrsProtobufKey::encode(b, 1, SrsProtobufFieldString)) != srs_success) {
+        return srs_error_wrap(err, "key");
     }
-    b->write_1bytes(0x0a);
 
     if ((err = SrsProtobufString::encode(b, key_)) != srs_success) {
         return srs_error_wrap(err, "encode key=%s", key_.c_str());
     }
 
-    // Encode the field value as [ID=2, TYPE=2(Length delimited)]
-    if (!b->require(1)) {
-        return srs_error_new(ERROR_PB_NO_SPACE, "require 1 byte");
+    // required string value = 2;
+    if ((err = SrsProtobufKey::encode(b, 2, SrsProtobufFieldString)) != srs_success) {
+        return srs_error_wrap(err, "key");
     }
-    b->write_1bytes(0x12);
 
     if ((err = SrsProtobufString::encode(b, value_)) != srs_success) {
         return srs_error_wrap(err, "encode value=%s", value_.c_str());
@@ -461,12 +305,11 @@ SrsClsLog* SrsClsLog::set_time(int64_t v)
 
 uint64_t SrsClsLog::nb_bytes()
 {
-    uint64_t nn = 1 + SrsProtobufVarints::sizeof_varint(time_);
+    uint64_t nn = SrsProtobufKey::sizeof_key() + SrsProtobufVarints::sizeof_varint(time_);
 
     for (std::vector<SrsClsLogContent*>::iterator it = contents_.begin(); it != contents_.end(); ++it) {
         SrsClsLogContent* content = *it;
-        uint64_t size = content->nb_bytes();
-        nn += 1 + SrsProtobufVarints::sizeof_varint(size) + size;
+        nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(content);
     }
 
     return nn;
@@ -476,11 +319,10 @@ srs_error_t SrsClsLog::encode(SrsBuffer* b)
 {
     srs_error_t  err = srs_success;
 
-    // Encode the field time as [ID=1, TYPE=0(Varint)]
-    if (!b->require(1)) {
-        return srs_error_new(ERROR_PB_NO_SPACE, "require 1 byte");
+    // required int64 time = 1;
+    if ((err = SrsProtobufKey::encode(b, 1, SrsProtobufFieldVarint)) != srs_success) {
+        return srs_error_wrap(err, "key");
     }
-    b->write_1bytes(0x08);
 
     if ((err = SrsProtobufVarints::encode(b, time_)) != srs_success) {
         return srs_error_wrap(err, "encode time");
@@ -490,20 +332,12 @@ srs_error_t SrsClsLog::encode(SrsBuffer* b)
     for (std::vector<SrsClsLogContent*>::iterator it = contents_.begin(); it != contents_.end(); ++it) {
         SrsClsLogContent* content = *it;
 
-        // Encode the field contents as [ID=2, TYPE=2(Length delimited)]
-        if (!b->require(1)) {
-            return srs_error_new(ERROR_PB_NO_SPACE, "require 1 byte");
-        }
-        b->write_1bytes(0x12);
-
-        // Encode the varint size of children.
-        uint64_t size = content->nb_bytes();
-        if ((err = SrsProtobufVarints::encode(b, size)) != srs_success) {
-            return srs_error_wrap(err, "encode size=%d", (int)size);
+        // repeated Content contents= 2;
+        if ((err = SrsProtobufKey::encode(b, 2, SrsProtobufFieldObject)) != srs_success) {
+            return srs_error_wrap(err, "key");
         }
 
-        // Encode the content itself.
-        if ((err = content->encode(b)) != srs_success) {
+        if ((err = SrsProtobufObject::encode(b, content)) != srs_success) {
             return srs_error_wrap(err, "encode content");
         }
     }
@@ -541,11 +375,10 @@ uint64_t SrsClsLogGroup::nb_bytes()
     uint64_t nn = 0;
     for (std::vector<SrsClsLog*>::iterator it = logs_.begin(); it != logs_.end(); ++it) {
         SrsClsLog* log = *it;
-        uint64_t size = log->nb_bytes();
-        nn += 1 + SrsProtobufVarints::sizeof_varint(size) + size;
+        nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(log);
     }
 
-    nn += 1 + SrsProtobufString::sizeof_string(source_);
+    nn += SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(source_);
     return nn;
 }
 
@@ -557,29 +390,20 @@ srs_error_t SrsClsLogGroup::encode(SrsBuffer* b)
     for (std::vector<SrsClsLog*>::iterator it = logs_.begin(); it != logs_.end(); ++it) {
         SrsClsLog* log = *it;
 
-        // Encode the field logs as [ID=1, TYPE=2(Length delimited)]
-        if (!b->require(1)) {
-            return srs_error_new(ERROR_PB_NO_SPACE, "require 1 byte");
-        }
-        b->write_1bytes(0x0a);
-
-        // Encode the varint size of children.
-        uint64_t size = log->nb_bytes();
-        if ((err = SrsProtobufVarints::encode(b, size)) != srs_success) {
-            return srs_error_wrap(err, "encode size=%d", (int)size);
+        // repeated Log logs= 1;
+        if ((err = SrsProtobufKey::encode(b, 1, SrsProtobufFieldObject)) != srs_success) {
+            return srs_error_wrap(err, "key");
         }
 
-        // Encode the log itself.
-        if ((err = log->encode(b)) != srs_success) {
+        if ((err = SrsProtobufObject::encode(b, log)) != srs_success) {
             return srs_error_wrap(err, "encode log");
         }
     }
 
-    // Encode the field source as [ID=4, TYPE=2(Length delimited)]
-    if (!b->require(1)) {
-        return srs_error_new(ERROR_PB_NO_SPACE, "require 1 byte");
+    // optional string source = 4;
+    if ((err = SrsProtobufKey::encode(b, 4, SrsProtobufFieldString)) != srs_success) {
+        return srs_error_wrap(err, "key");
     }
-    b->write_1bytes(0x22);
 
     if ((err = SrsProtobufString::encode(b, source_)) != srs_success) {
         return srs_error_wrap(err, "encode source=%s", source_.c_str());
@@ -612,8 +436,7 @@ uint64_t SrsClsLogGroupList::nb_bytes()
     uint64_t nn = 0;
     for (std::vector<SrsClsLogGroup*>::iterator it = groups_.begin(); it != groups_.end(); ++it) {
         SrsClsLogGroup* group = *it;
-        uint64_t size = group->nb_bytes();
-        nn += 1 + SrsProtobufVarints::sizeof_varint(size) + size;
+        nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(group);
     }
     return nn;
 }
@@ -626,20 +449,12 @@ srs_error_t SrsClsLogGroupList::encode(SrsBuffer* b)
     for (std::vector<SrsClsLogGroup*>::iterator it = groups_.begin(); it != groups_.end(); ++it) {
         SrsClsLogGroup* group = *it;
 
-        // Encode the field groups as [ID=1, TYPE=2(Length delimited)]
-        if (!b->require(1)) {
-            return srs_error_new(ERROR_PB_NO_SPACE, "require 1 byte");
-        }
-        b->write_1bytes(0x0a);
-
-        // Encode the varint size of children.
-        uint64_t size = group->nb_bytes();
-        if ((err = SrsProtobufVarints::encode(b, size)) != srs_success) {
-            return srs_error_wrap(err, "encode size=%d", (int)size);
+        // repeated LogGroup logGroupList = 1;
+        if ((err = SrsProtobufKey::encode(b, 1, SrsProtobufFieldLengthDelimited)) != srs_success) {
+            return srs_error_wrap(err, "key");
         }
 
-        // Encode the log group itself.
-        if ((err = group->encode(b)) != srs_success) {
+        if ((err = SrsProtobufObject::encode(b, group)) != srs_success) {
             return srs_error_wrap(err, "encode group");
         }
     }

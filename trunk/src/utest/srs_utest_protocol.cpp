@@ -17,6 +17,8 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_http_conn.hpp>
+#include <srs_protocol_protobuf.hpp>
+#include <srs_kernel_buffer.hpp>
 
 MockEmptyIO::MockEmptyIO()
 {
@@ -6452,6 +6454,254 @@ VOID TEST(ProtocolKbpsTest, WriteLargeIOVs)
         HELPER_EXPECT_SUCCESS(srs_write_large_iovs(&io, iovs, nn_iovs, &nn));
         EXPECT_EQ(5 * nn_iovs, nn);
         EXPECT_EQ(5 * nn_iovs, io.sbytes);
+    }
+}
+
+VOID TEST(ProtocolProtobufTest, VarintsSize)
+{
+    EXPECT_EQ(1,  SrsProtobufVarints::sizeof_varint(               0x00));
+    EXPECT_EQ(1,  SrsProtobufVarints::sizeof_varint(               0x70));
+    EXPECT_EQ(1,  SrsProtobufVarints::sizeof_varint(               0x7f));
+    EXPECT_EQ(2,  SrsProtobufVarints::sizeof_varint(               0x80));
+    EXPECT_EQ(2,  SrsProtobufVarints::sizeof_varint(             0x3ff0));
+    EXPECT_EQ(2,  SrsProtobufVarints::sizeof_varint(             0x3fff));
+    EXPECT_EQ(3,  SrsProtobufVarints::sizeof_varint(             0x4000));
+    EXPECT_EQ(3,  SrsProtobufVarints::sizeof_varint(           0x1ffff0));
+    EXPECT_EQ(3,  SrsProtobufVarints::sizeof_varint(           0x1fffff));
+    EXPECT_EQ(4,  SrsProtobufVarints::sizeof_varint(           0x200000));
+    EXPECT_EQ(4,  SrsProtobufVarints::sizeof_varint(         0x0ffffff0));
+    EXPECT_EQ(4,  SrsProtobufVarints::sizeof_varint(         0x0fffffff));
+    EXPECT_EQ(5,  SrsProtobufVarints::sizeof_varint(         0x10000000));
+    EXPECT_EQ(5,  SrsProtobufVarints::sizeof_varint(        0x7fffffff0));
+    EXPECT_EQ(5,  SrsProtobufVarints::sizeof_varint(        0x7ffffffff));
+    EXPECT_EQ(6,  SrsProtobufVarints::sizeof_varint(        0x800000000));
+    EXPECT_EQ(6,  SrsProtobufVarints::sizeof_varint(      0x3fffffffff0));
+    EXPECT_EQ(6,  SrsProtobufVarints::sizeof_varint(      0x3ffffffffff));
+    EXPECT_EQ(7,  SrsProtobufVarints::sizeof_varint(      0x40000000000));
+    EXPECT_EQ(7,  SrsProtobufVarints::sizeof_varint(    0x1fffffffffff0));
+    EXPECT_EQ(7,  SrsProtobufVarints::sizeof_varint(    0x1ffffffffffff));
+    EXPECT_EQ(8,  SrsProtobufVarints::sizeof_varint(    0x2000000000000));
+    EXPECT_EQ(8,  SrsProtobufVarints::sizeof_varint(  0x0fffffffffffff0));
+    EXPECT_EQ(8,  SrsProtobufVarints::sizeof_varint(  0x0ffffffffffffff));
+    EXPECT_EQ(9,  SrsProtobufVarints::sizeof_varint(  0x100000000000000));
+    EXPECT_EQ(9,  SrsProtobufVarints::sizeof_varint( 0x7ffffffffffffff0));
+    EXPECT_EQ(9,  SrsProtobufVarints::sizeof_varint( 0x7fffffffffffffff));
+    EXPECT_EQ(10, SrsProtobufVarints::sizeof_varint(0x8000000000000000));
+    EXPECT_EQ(10, SrsProtobufVarints::sizeof_varint(0xfffffffffffffff0));
+    EXPECT_EQ(10, SrsProtobufVarints::sizeof_varint(0xffffffffffffffff));
+}
+
+VOID TEST(ProtocolProtobufTest, VarintsEncode)
+{
+    srs_error_t  err = srs_success;
+    static char buf[128];
+
+    if (true) {
+        SrsBuffer b(buf, 1); uint8_t expect[] = {0x00};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x0)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 1); uint8_t expect[] = {0x70};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x70)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 1); uint8_t expect[] = {0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x7f)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 2); uint8_t expect[] = {0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x80)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 2); uint8_t expect[] = {0xf0, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x3ff0)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 2); uint8_t expect[] = {0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x3fff)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 3); uint8_t expect[] = {0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x4000)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 3); uint8_t expect[] = {0xf0, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x1ffff0)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 3); uint8_t expect[] = {0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x1fffff)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 4); uint8_t expect[] = {0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x200000)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 4); uint8_t expect[] = {0xf0, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xffffff0)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 4); uint8_t expect[] = {0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xfffffff)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 5); uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x10000000)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 5); uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x7fffffff0)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 5); uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x7ffffffff)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 6); uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x800000000)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 6); uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x3fffffffff0)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 6); uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x3ffffffffff)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 7); uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x40000000000)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 7); uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x1fffffffffff0)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 7); uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x1ffffffffffff)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 8); uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x2000000000000)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 8); uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xfffffffffffff0)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 8); uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xffffffffffffff)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 9); uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x100000000000000)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 9); uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x7ffffffffffffff0)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 9); uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x7fffffffffffffff)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 10); uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x8000000000000000)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 10); uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xfffffffffffffff0)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 10); uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xffffffffffffffff)); EXPECT_TRUE(srs_bytes_equals(buf, (char*)expect, sizeof(expect)));
+    }
+}
+
+VOID TEST(ProtocolProtobufTest, String)
+{
+    srs_error_t  err = srs_success;
+    static char buf[128];
+
+    if (true) {
+        EXPECT_EQ(1 + 10, SrsProtobufString::sizeof_string("HelloWorld"));
+
+        SrsBuffer b(buf, 1 + 10);
+        HELPER_ASSERT_SUCCESS(SrsProtobufString::encode(&b, "HelloWorld"));
+
+        uint8_t expect[] = {0x0a, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x57, 0x6f, 0x72, 0x6c, 0x64};
+        EXPECT_TRUE(srs_bytes_equals(buf, (char *) expect, sizeof(expect)));
+    }
+
+    if (true) {
+        EXPECT_EQ(1, SrsProtobufString::sizeof_string(""));
+
+        SrsBuffer b(buf, 1);
+        HELPER_ASSERT_SUCCESS(SrsProtobufString::encode(&b, ""));
+
+        uint8_t expect[] = {0x00};
+        EXPECT_TRUE(srs_bytes_equals(buf, (char *) expect, sizeof(expect)));
+    }
+}
+
+class MockProtobufObject : public ISrsEncoder
+{
+public:
+    uint64_t nb_bytes() {
+        return 1;
+    }
+    srs_error_t encode(SrsBuffer* b) {
+        b->write_1bytes(0x0f);
+        return srs_success;
+    }
+};
+
+VOID TEST(ProtocolProtobufTest, FieldKey)
+{
+    srs_error_t  err = srs_success;
+    static char buf[128];
+
+    EXPECT_EQ(2, SrsProtobufFieldString);
+    EXPECT_EQ(2, SrsProtobufFieldBytes);
+    EXPECT_EQ(2, SrsProtobufFieldObject);
+    EXPECT_EQ(2, SrsProtobufFieldLengthDelimited);
+
+    EXPECT_EQ(1, SrsProtobufKey::sizeof_key());
+
+    MockProtobufObject obj;
+    EXPECT_EQ(2, SrsProtobufObject::sizeof_object(&obj));
+    if (true) {
+        SrsBuffer b(buf, 2);
+        HELPER_ASSERT_SUCCESS(SrsProtobufObject::encode(&b, &obj));
+        EXPECT_EQ(0x01, buf[0]); EXPECT_EQ(0x0f, buf[1]);
+    }
+
+    // Encode the field key as [ID=1, TYPE=2(Length delimited)]
+    if (true) {
+        SrsBuffer b(buf, 1);
+        HELPER_ASSERT_SUCCESS(SrsProtobufKey::encode(&b, 1, SrsProtobufFieldLengthDelimited));
+        EXPECT_EQ(0x0a, buf[0]);
+    }
+
+    // Encode the field value as [ID=2, TYPE=2(Length delimited)]
+    if (true) {
+        SrsBuffer b(buf, 1);
+        HELPER_ASSERT_SUCCESS(SrsProtobufKey::encode(&b, 2, SrsProtobufFieldLengthDelimited));
+        EXPECT_EQ(0x12, buf[0]);
+    }
+
+    // Encode the field time as [ID=1, TYPE=0(Varint)]
+    if (true) {
+        SrsBuffer b(buf, 1);
+        HELPER_ASSERT_SUCCESS(SrsProtobufKey::encode(&b, 1, SrsProtobufFieldVarint));
+        EXPECT_EQ(0x08, buf[0]);
+    }
+
+    // Encode the field source as [ID=4, TYPE=2(Length delimited)]
+    if (true) {
+        SrsBuffer b(buf, 1);
+        HELPER_ASSERT_SUCCESS(SrsProtobufKey::encode(&b, 4, SrsProtobufFieldLengthDelimited));
+        EXPECT_EQ(0x22, buf[0]);
     }
 }
 
