@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-08-26, Log: Stat the number of logs. v5.0.45
 * v5.0, 2022-08-24, Log: Support write log to tencentcloud CLS. v5.0.44
 * v5.0, 2022-08-22, Fix [#3114](https://github.com/ossrs/srs/issues/3114): Origin cluster config bug. v5.0.43
 * v5.0, 2022-08-19, For [#2136](https://github.com/ossrs/srs/issues/2136): API: Cleanup no active streams for statistics. v5.0.42

@@ -800,6 +800,7 @@ SrsClsClient::SrsClsClient()
     debug_logging_ = false;
     heartbeat_ratio_ = 0;
     streams_ratio_ = 0;
+    nn_logs_ = 0;
 }
 
 SrsClsClient::~SrsClsClient()
@@ -839,6 +840,11 @@ string SrsClsClient::label()
 string SrsClsClient::tag()
 {
     return tag_;
+}
+
+uint64_t SrsClsClient::nn_logs()
+{
+    return nn_logs_;
 }
 
 srs_error_t SrsClsClient::initialize()
@@ -967,7 +973,8 @@ srs_error_t SrsClsClient::send_log(ISrsEncoder* sugar, int count, int total)
     }
 
     if (debug_logging_) {
-        srs_trace("CLS write logs=%d/%d, size=%dB, request_id=%s", count, total, body.length(), request_id.c_str());
+        string server_id = SrsStatistic::instance()->server_id();
+        srs_trace("CLS write logs=%d/%d, size=%dB, server_id=%s, request_id=%s", count, total, body.length(), server_id.c_str(), request_id.c_str());
     }
 
     return err;
@@ -980,8 +987,11 @@ srs_error_t SrsClsClient::send_logs(SrsClsSugars* sugars)
 {
     srs_error_t err = srs_success;
 
-    // Never do infinite loop, limit to a max loop and drop logs if exceed.
+    // Record the total logs sent out.
     int total = sugars->size();
+    nn_logs_ += total;
+
+    // Never do infinite loop, limit to a max loop and drop logs if exceed.
     for (int i = 0; i < 128 && !sugars->empty(); ++i) {
         SrsClsSugars* v = sugars->slice(SRS_CLS_BATCH_MAX_LOG_SIZE);
         SrsAutoFree(SrsClsSugars, v);

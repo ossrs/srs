@@ -68,6 +68,8 @@ private:
     std::string secret_id_;
     std::string endpoint_;
     std::string topic_;
+private:
+    uint64_t nn_logs_;
 public:
     SrsClsClient();
     virtual ~SrsClsClient();
@@ -79,6 +81,7 @@ public:
     int streams_ratio();
     std::string label();
     std::string tag();
+    uint64_t nn_logs();
 public:
     srs_error_t initialize();
 private:
