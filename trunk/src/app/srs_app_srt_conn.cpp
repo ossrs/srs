@@ -19,6 +19,9 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_srt_server.hpp>
 #include <srs_app_srt_source.hpp>
+#include <srs_app_statistic.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_kernel_utility.hpp>
 
 SrsSrtConnection::SrsSrtConnection(srs_srt_t srt_fd)
 {
@@ -167,6 +170,7 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, s
 
     srt_source_ = NULL;
     req_ = new SrsRequest();
+    req_->ip = ip;
 }
 
 SrsMpegtsSrtConn::~SrsMpegtsSrtConn()
@@ -188,8 +192,12 @@ std::string SrsMpegtsSrtConn::desc()
 
 void SrsMpegtsSrtConn::remark(int64_t* in, int64_t* out)
 {
-    // TODO: FIXME: no impl currently.
     kbps_->remark(in, out);
+}
+
+void SrsMpegtsSrtConn::expire()
+{
+    trd_->interrupt();
 }
 
 srs_error_t SrsMpegtsSrtConn::start()
@@ -215,9 +223,12 @@ const SrsContextId& SrsMpegtsSrtConn::get_id()
 
 srs_error_t SrsMpegtsSrtConn::cycle()
 {
-    srs_error_t err = srs_success;
+    srs_error_t err = do_cycle();
 
-    err = do_cycle();
+    // Update statistic when done.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->kbps_add_delta(get_id().c_str(), this);
+    stat->on_disconnect(get_id().c_str());
 
     // Notify manager to remove it.
     // Note that we create this object, so we use manager to remove it.
@@ -256,6 +267,12 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
         return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
     }
 
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req_->vhost);
+    if (parsed_vhost) {
+        req_->vhost = parsed_vhost->arg0();
+    }
+
     if (! _srs_config->get_srt_enabled(req_->vhost)) {
         return srs_error_new(ERROR_SRT_CONN, "srt disabled, vhost=%s", req_->vhost.c_str());
     }
@@ -270,6 +287,9 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     if ((err = http_hooks_on_connect()) != srs_success) {
         return srs_error_wrap(err, "on connect");
     }
+
+    // Build the tcUrl which is vhost/app.
+    req_->tcUrl = srs_generate_tc_url(req_->host, req_->vhost, req_->app, req_->port);
 
     if (mode == SrtModePush) {
         err = publishing();
@@ -306,6 +326,11 @@ srs_error_t SrsMpegtsSrtConn::playing()
 
     if ((err = http_hooks_on_play()) != srs_success) {
         return srs_error_wrap(err, "rtmp: callback on play");
+    }
+
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPlay)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: stat client");
     }
     
     err = do_playing();
@@ -362,6 +387,11 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
 
     SrsPithyPrint* pprint = SrsPithyPrint::create_srt_publish();
     SrsAutoFree(SrsPithyPrint, pprint);
+
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPublish)) != srs_success) {
+        return srs_error_wrap(err, "srt: stat client");
+    }
 
     int nb_packets = 0;
 

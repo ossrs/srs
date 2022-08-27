@@ -136,8 +136,7 @@ public:
 };
 
 // Interface for connection that is startable.
-class ISrsStartableConneciton : public ISrsConnection
-    , public ISrsStartable, public ISrsKbpsDelta
+class ISrsStartableConneciton : public ISrsConnection, public ISrsStartable, public ISrsKbpsDelta
 {
 public:
     ISrsStartableConneciton();

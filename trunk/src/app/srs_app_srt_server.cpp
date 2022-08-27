@@ -13,6 +13,7 @@ using namespace std;
 #include <srs_protocol_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_srt_conn.hpp>
+#include <srs_app_statistic.hpp>
 
 #ifdef SRS_SRT
 SrsSrtEventLoop* _srt_eventloop = NULL;
@@ -131,16 +132,27 @@ srs_error_t SrsSrtAcceptor::on_srt_client(srs_srt_t srt_fd)
 SrsSrtServer::SrsSrtServer()
 {
     conn_manager_ = new SrsResourceManager("SRT", true);
+    timer_ = NULL;
 }
 
 SrsSrtServer::~SrsSrtServer()
 {
     srs_freep(conn_manager_);
+    srs_freep(timer_);
 }
 
 srs_error_t SrsSrtServer::initialize()
 {
     srs_error_t err = srs_success;
+
+    if (! _srs_config->get_srt_enabled()) {
+        return err;
+    }
+
+    if ((err = setup_ticks()) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+
     return err;
 }
 
@@ -242,15 +254,52 @@ srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsStartableConnecit
 
 void SrsSrtServer::remove(ISrsResource* c)
 {
-    // TODO: FIXME: add some statistic of srt.
-    // ISrsStartableConneciton* conn = dynamic_cast<ISrsStartableConneciton*>(c);
-
-    // SrsStatistic* stat = SrsStatistic::instance();
-    // stat->kbps_add_delta(c->get_id().c_str(), conn);
-    // stat->on_disconnect(c->get_id().c_str());
-
     // use manager to free it async.
     conn_manager_->remove(c);
+}
+
+srs_error_t SrsSrtServer::setup_ticks()
+{
+    srs_error_t err = srs_success;
+
+    srs_freep(timer_);
+    timer_ = new SrsHourGlass("srt", this, 1 * SRS_UTIME_SECONDS);
+
+    if (_srs_config->get_stats_enabled()) {
+        if ((err = timer_->tick(8, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+            return srs_error_wrap(err, "tick");
+        }
+    }
+
+    if ((err = timer_->start()) != srs_success) {
+        return srs_error_wrap(err, "timer");
+    }
+
+    return err;
+}
+
+srs_error_t SrsSrtServer::notify(int event, srs_utime_t interval, srs_utime_t tick)
+{
+    srs_error_t err = srs_success;
+
+    switch (event) {
+        case 8: resample_kbps(); break;
+    }
+
+    return err;
+}
+
+void SrsSrtServer::resample_kbps()
+{
+    // collect delta from all clients.
+    for (int i = 0; i < (int)conn_manager_->size(); i++) {
+        ISrsResource* c = conn_manager_->at(i);
+        ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(conn_manager_->at(i));
+
+        // add delta of connection to server kbps.,
+        // for next sample() of server kbps can get the stat.
+        SrsStatistic::instance()->kbps_add_delta(c->get_id().c_str(), conn);
+    }
 }
 
 SrsSrtServerAdapter::SrsSrtServerAdapter()
@@ -349,7 +398,7 @@ srs_error_t SrsSrtEventLoop::start()
 srs_error_t SrsSrtEventLoop::cycle()
 {
     srs_error_t err = srs_success;
-    
+
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "srt listener");

@@ -14,6 +14,7 @@
 #include <srs_app_srt_listener.hpp>
 
 class SrsSrtServer;
+class SrsHourGlass;
 
 // A common srt acceptor, for SRT server.
 class SrsSrtAcceptor : public ISrsSrtHandler
@@ -37,10 +38,11 @@ public:
 };
 
 // SRS SRT server, initialize and listen, start connection service thread, destroy client.
-class SrsSrtServer : public ISrsResourceManager
+class SrsSrtServer : public ISrsResourceManager, public ISrsHourGlass
 {
 private:
     SrsResourceManager* conn_manager_;
+    SrsHourGlass* timer_;
 private:
     std::vector<SrsSrtAcceptor*> acceptors_;
 public:
@@ -66,6 +68,12 @@ public:
     // A callback for connection to remove itself.
     // When connection thread cycle terminated, callback this to delete connection.
     virtual void remove(ISrsResource* c);
+// interface ISrsHourGlass
+private:
+    virtual srs_error_t setup_ticks();
+    virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
+private:
+    virtual void resample_kbps();
 };
 
 // The srt server adapter, the master server.

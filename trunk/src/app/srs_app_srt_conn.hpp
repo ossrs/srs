@@ -70,7 +70,7 @@ private:
     srs_error_t recv_err_;
 };
 
-class SrsMpegtsSrtConn : public ISrsStartableConneciton, public ISrsCoroutineHandler
+class SrsMpegtsSrtConn : public ISrsStartableConneciton, public ISrsCoroutineHandler, public ISrsExpire
 {
 public:
     SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port);
@@ -81,6 +81,9 @@ public:
 // Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
+// Interface ISrsExpire
+public:
+    virtual void expire();
 public:
     virtual srs_error_t start();
 // Interface ISrsConnection.
