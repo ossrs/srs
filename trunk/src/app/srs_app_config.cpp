@@ -6390,7 +6390,7 @@ bool SrsConfig::get_vhost_hls_dts_directly(string vhost)
 
 bool SrsConfig::get_hls_ctx_enabled(std::string vhost)
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {

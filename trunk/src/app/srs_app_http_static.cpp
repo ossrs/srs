@@ -195,18 +195,20 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
     srs_assert(hr);
 
     SrsRequest* req = hr->to_request(hr->host())->as_http();
+    SrsAutoFree(SrsRequest, req);
+
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
     if (parsed_vhost) {
         req->vhost = parsed_vhost->arg0();
     }
 
-    SrsAutoFree(SrsRequest, req);
-    
+    // If HLS stream is disabled, use SrsHttpFileServer to serve HLS, which is normal file server.
     if (!_srs_config->get_hls_ctx_enabled(req->vhost)) {
         return SrsHttpFileServer::serve_m3u8_ctx(w, r, fullpath);
     }
 
+    // Serve as HLS stream, create a HLS session to serve it.
     string ctx = hr->query_get(SRS_CONTEXT_IN_HLS);
     if (!ctx.empty() && ctx_is_exist(ctx)) {
         alive(ctx, NULL);
@@ -231,8 +233,7 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
     ss << "#EXTM3U" << SRS_CONSTS_LF;
     ss << "#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1" << SRS_CONSTS_LF;
     ss << hr->path() << "?" << SRS_CONTEXT_IN_HLS << "=" << ctx;
-    if (!hr->query().empty() && hr->query_get(SRS_CONTEXT_IN_HLS).empty())
-    {
+    if (!hr->query().empty() && hr->query_get(SRS_CONTEXT_IN_HLS).empty()) {
         ss << "&" << hr->query();
     }
 

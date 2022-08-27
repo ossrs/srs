@@ -1210,8 +1210,8 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
 
-    // TODO: should return "hls_ctx"
-    if (false) {
+    // Should return "hls_ctx"
+    if (true) {
         SrsHttpMuxEntry e;
         e.pattern = "/";
 
@@ -1228,8 +1228,8 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         __MOCK_HTTP_EXPECT_STRCT(200, "index.m3u8?hls_ctx=", w);
     }
 
-    // TODO: should return "hls_ctx"
-    if (false) {
+    // Should return "hls_ctx"
+    if (true) {
         SrsHttpMuxEntry e;
         e.pattern = "/";
 
