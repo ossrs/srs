@@ -470,13 +470,19 @@ public:
 // The rtmp client type.
 enum SrsRtmpConnType
 {
-    SrsRtmpConnUnknown,
-    SrsRtmpConnPlay,
-    SrsRtmpConnFMLEPublish,
-    SrsRtmpConnFlashPublish,
-    SrsRtmpConnHaivisionPublish,
-    SrsRtcConnPlay,
-    SrsRtcConnPublish,
+    SrsRtmpConnUnknown = 0x0000,
+    // All players.
+    SrsRtmpConnPlay = 0x0100,
+    SrsHlsPlay = 0x0101,
+    SrsFlvPlay = 0x0102,
+    SrsRtcConnPlay = 0x0110,
+    SrsSrtConnPlay = 0x0120,
+    // All publishers.
+    SrsRtmpConnFMLEPublish = 0x0200,
+    SrsRtmpConnFlashPublish = 0x0201,
+    SrsRtmpConnHaivisionPublish = 0x0202,
+    SrsRtcConnPublish = 0x0210,
+    SrsSrtConnPublish = 0x0220,
 };
 std::string srs_client_type_string(SrsRtmpConnType type);
 bool srs_client_type_is_publish(SrsRtmpConnType type);
