@@ -294,7 +294,7 @@ void SrsSrtServer::resample_kbps()
     // collect delta from all clients.
     for (int i = 0; i < (int)conn_manager_->size(); i++) {
         ISrsResource* c = conn_manager_->at(i);
-        ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(conn_manager_->at(i));
+        ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(c);
 
         // add delta of connection to server kbps.,
         // for next sample() of server kbps can get the stat.
