@@ -32,6 +32,7 @@ public:
     virtual uint64_t nb_bytes();
     srs_error_t encode(SrsBuffer* b);
 public:
+    bool empty();
     SrsClsSugar* kv(std::string k, std::string v);
     SrsClsSugar* kvf(std::string k, const char* fmt, ...);
 };
@@ -69,30 +70,27 @@ private:
     std::string endpoint_;
     std::string topic_;
 private:
+    SrsClsSugars* sugars_;
     uint64_t nn_logs_;
 public:
     SrsClsClient();
     virtual ~SrsClsClient();
 public:
     bool enabled();
-    bool stat_heartbeat();
-    bool stat_streams();
-    int heartbeat_ratio();
-    int streams_ratio();
     std::string label();
     std::string tag();
     uint64_t nn_logs();
 public:
     srs_error_t initialize();
+    srs_error_t report();
 private:
-    srs_error_t send_log(ISrsEncoder* sugar, int count, int total);
-public:
+    srs_error_t do_send_logs(ISrsEncoder* sugar, int count, int total);
     srs_error_t send_logs(SrsClsSugars* sugars);
+    srs_error_t dump_summaries(SrsClsSugars* sugars);
+    srs_error_t dump_streams(SrsClsSugars* sugars);
 };
 
 extern SrsClsClient* _srs_cls;
-
-srs_error_t srs_cls_report();
 
 #endif
 

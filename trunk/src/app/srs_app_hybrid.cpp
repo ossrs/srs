@@ -391,7 +391,7 @@ srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)
     );
 
     // Report logs to CLS if enabled.
-    if ((err = srs_cls_report()) != srs_success) {
+    if ((err = _srs_cls->report()) != srs_success) {
         srs_warn("ignore cls err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
