@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_st.hpp>
+#include <srs_app_statistic.hpp>
 
 ISrsHttpConnOwner::ISrsHttpConnOwner()
 {
@@ -411,6 +412,11 @@ srs_error_t SrsResponseOnlyHttpConn::on_message_done(ISrsHttpMessage* r, SrsHttp
 
 srs_error_t SrsResponseOnlyHttpConn::on_conn_done(srs_error_t r0)
 {
+    // Update statistic when done.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->kbps_add_delta(get_id().c_str(), this);
+    stat->on_disconnect(get_id().c_str());
+
     // Because we use manager to manage this object,
     // not the http connection object, so we must remove it here.
     manager->remove(this);

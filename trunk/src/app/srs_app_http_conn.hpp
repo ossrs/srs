@@ -57,6 +57,7 @@ public:
     virtual srs_error_t on_conn_done(srs_error_t r0) = 0;
 };
 
+// TODO: FIXME: Should rename to roundtrip or responder, not connection.
 // The http connection which request the static or stream content.
 class SrsHttpConn : public ISrsStartableConneciton, public ISrsCoroutineHandler
     , public ISrsExpire

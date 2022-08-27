@@ -1458,6 +1458,11 @@ srs_error_t SrsRtmpConn::cycle()
 {
     srs_error_t err = do_cycle();
 
+    // Update statistic when done.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->kbps_add_delta(get_id().c_str(), this);
+    stat->on_disconnect(get_id().c_str());
+
     // Notify manager to remove it.
     // Note that we create this object, so we use manager to remove it.
     manager->remove(this);

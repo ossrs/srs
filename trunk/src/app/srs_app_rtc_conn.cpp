@@ -591,7 +591,7 @@ srs_error_t SrsRtcPlayStream::start()
     // update the statistic when client discoveried.
     SrsStatistic* stat = SrsStatistic::instance();
     if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPlay)) != srs_success) {
-	return srs_error_wrap(err, "rtc: stat client");
+        return srs_error_wrap(err, "rtc: stat client");
     }
 
     is_started = true;

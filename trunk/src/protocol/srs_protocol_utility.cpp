@@ -195,12 +195,12 @@ string srs_generate_tc_url(string host, string vhost, string app, int port)
     string tcUrl = "rtmp://";
     
     if (vhost == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
-        tcUrl += host;
+        tcUrl += host.empty() ? SRS_CONSTS_RTMP_DEFAULT_VHOST : host;
     } else {
         tcUrl += vhost;
     }
     
-    if (port != SRS_CONSTS_RTMP_DEFAULT_PORT) {
+    if (port && port != SRS_CONSTS_RTMP_DEFAULT_PORT) {
         tcUrl += ":" + srs_int2str(port);
     }
     

@@ -1298,12 +1298,8 @@ void SrsServer::resample_kbps()
         stat->kbps_add_delta(c->get_id().c_str(), conn);
     }
     
-    // TODO: FXME: support all other connections.
-    
-    // sample the kbps, get the stat.
-    SrsKbps* kbps = stat->kbps_sample();
-    
-    srs_update_rtmp_server((int)conn_manager->size(), kbps);
+    // Update the global server level statistics.
+    stat->kbps_sample();
 }
 
 srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
@@ -1401,12 +1397,6 @@ srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, IS
 
 void SrsServer::remove(ISrsResource* c)
 {
-    ISrsStartableConneciton* conn = dynamic_cast<ISrsStartableConneciton*>(c);
-
-    SrsStatistic* stat = SrsStatistic::instance();
-    stat->kbps_add_delta(c->get_id().c_str(), conn);
-    stat->on_disconnect(c->get_id().c_str());
-
     // use manager to free it async.
     conn_manager->remove(c);
 }
