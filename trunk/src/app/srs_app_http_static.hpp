@@ -17,22 +17,17 @@ struct SrsM3u8CtxInfo
     SrsRequest* req;
 };
 
-// The flv vod stream supports flv?start=offset-bytes.
-// For example, http://server/file.flv?start=10240
-// server will write flv header and sequence header,
-// then seek(10240) and response flv tag data.
-class SrsVodStream : public SrsHttpFileServer, public ISrsFastTimer
+// Server HLS streaming.
+class SrsHlsStream : public ISrsFastTimer
 {
 private:
     // The period of validity of the ctx
     std::map<std::string, SrsM3u8CtxInfo> map_ctx_info_;
 public:
-    SrsVodStream(std::string root_dir);
-    virtual ~SrsVodStream();
-protected:
-    virtual srs_error_t serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int64_t offset);
-    virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int64_t start, int64_t end);
-    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    SrsHlsStream();
+    virtual ~SrsHlsStream();
+public:
+    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, bool* served);
 private:
     virtual bool ctx_is_exist(std::string ctx);
     virtual void alive(std::string ctx, SrsRequest* req);
@@ -41,6 +36,26 @@ private:
 // interface ISrsFastTimer
 private:
     srs_error_t on_timer(srs_utime_t interval);
+};
+
+// The Vod streaming, like FLV, MP4 or HLS streaming.
+class SrsVodStream : public SrsHttpFileServer
+{
+private:
+    SrsHlsStream hls_;
+public:
+    SrsVodStream(std::string root_dir);
+    virtual ~SrsVodStream();
+protected:
+    // The flv vod stream supports flv?start=offset-bytes.
+    // For example, http://server/file.flv?start=10240
+    // server will write flv header and sequence header,
+    // then seek(10240) and response flv tag data.
+    virtual srs_error_t serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int64_t offset);
+    // Support mp4 with start and offset in query string.
+    virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int64_t start, int64_t end);
+    // Support HLS streaming with pseudo session id.
+    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 };
 
 // The http static server instance,
