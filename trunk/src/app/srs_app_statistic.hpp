@@ -99,7 +99,9 @@ public:
 struct SrsStatisticClient
 {
 public:
+    // For HTTP-API to kickoff this connection by expiring it.
     ISrsExpire* conn;
+public:
     SrsStatisticStream* stream;
     SrsRequest* req;
     SrsRtmpConnType type;
@@ -186,8 +188,7 @@ public:
     // Use kbps_sample() to get all result of kbps stat.
     virtual void kbps_add_delta(std::string id, ISrsKbpsDelta* delta);
     // Calc the result for all kbps.
-    // @return the server kbps.
-    virtual SrsKbps* kbps_sample();
+    virtual void kbps_sample();
 public:
     // Get the server id, used to identify the server.
     // For example, when restart, the server id must changed.

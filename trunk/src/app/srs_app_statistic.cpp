@@ -20,6 +20,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_app_tencentcloud.hpp>
 #include <srs_kernel_kbps.hpp>
+#include <srs_app_utility.hpp>
 
 string srs_generate_stat_vid()
 {
@@ -496,7 +497,7 @@ void SrsStatistic::kbps_add_delta(std::string id, ISrsKbpsDelta* delta)
     client->stream->vhost->kbps->add_delta(in, out);
 }
 
-SrsKbps* SrsStatistic::kbps_sample()
+void SrsStatistic::kbps_sample()
 {
     kbps->sample();
     if (true) {
@@ -521,8 +522,9 @@ SrsKbps* SrsStatistic::kbps_sample()
             client->kbps->sample();
         }
     }
-    
-    return kbps;
+
+    // Update server level data.
+    srs_update_rtmp_server((int)clients.size(), kbps);
 }
 
 std::string SrsStatistic::server_id()
