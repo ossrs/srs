@@ -389,11 +389,6 @@ srs_error_t SrsHttpxConn::on_http_message(ISrsHttpMessage* r, SrsHttpResponseWri
     // For each session, we use short-term HTTP connection.
     SrsHttpHeader* hdr = w->header();
     hdr->set("Connection", "Close");
-
-    // Not support HTTP request with body.
-    if (r->content_length() > 0) {
-        return srs_error_new(ERROR_HTTP_WITH_BODY, "with %d body", r->content_length());
-    }
     
     return err;
 }
