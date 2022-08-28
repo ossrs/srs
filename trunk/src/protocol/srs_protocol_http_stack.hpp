@@ -337,13 +337,14 @@ public:
 };
 
 // The server mux, all http server should implements it.
-class ISrsHttpServeMux
+class ISrsHttpServeMux : public ISrsHttpHandler
 {
 public:
     ISrsHttpServeMux();
     virtual ~ISrsHttpServeMux();
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) = 0;
+    // Register HTTP handler to mux.
+    virtual srs_error_t handle(std::string pattern, ISrsHttpHandler* handler) = 0;
 };
 
 // ServeMux is an HTTP request multiplexer.
@@ -413,7 +414,7 @@ private:
 
 // The filter http mux, directly serve the http CORS requests,
 // while proxy to the worker mux for services.
-class SrsHttpCorsMux : public ISrsHttpServeMux
+class SrsHttpCorsMux : public ISrsHttpHandler
 {
 private:
     bool required;

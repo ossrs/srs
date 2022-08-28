@@ -23,7 +23,7 @@
 #include <srs_app_hybrid.hpp>
 
 class SrsServer;
-class SrsHttpServeMux;
+class ISrsHttpServeMux;
 class SrsHttpServer;
 class SrsIngester;
 class SrsHttpHeartbeat;
@@ -199,8 +199,11 @@ class SrsServer : public ISrsReloadHandler, public ISrsLiveSourceHandler
 {
 private:
     // TODO: FIXME: Extract an HttpApiServer.
-    SrsHttpServeMux* http_api_mux;
+    ISrsHttpServeMux* http_api_mux;
     SrsHttpServer* http_server;
+    // If reuse, HTTP API use the same port of HTTP server.
+    bool reuse_api_over_server_;
+private:
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
     SrsResourceManager* conn_manager;
@@ -306,7 +309,7 @@ public:
     // @param stfd, the client fd in st boxed, the underlayer fd.
     virtual srs_error_t accept_client(SrsListenerType type, srs_netfd_t stfd);
     // TODO: FIXME: Fetch from hybrid server manager.
-    virtual SrsHttpServeMux* api_server();
+    virtual ISrsHttpServeMux* api_server();
 private:
     virtual srs_error_t fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsStartableConneciton** pr);
 // Interface ISrsResourceManager
@@ -318,13 +321,6 @@ public:
 // Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_listen();
-    virtual srs_error_t on_reload_vhost_added(std::string vhost);
-    virtual srs_error_t on_reload_vhost_removed(std::string vhost);
-    virtual srs_error_t on_reload_http_api_enabled();
-    virtual srs_error_t on_reload_http_api_disabled();
-    virtual srs_error_t on_reload_http_stream_enabled();
-    virtual srs_error_t on_reload_http_stream_disabled();
-    virtual srs_error_t on_reload_http_stream_updated();
 // Interface ISrsLiveSourceHandler
 public:
     virtual srs_error_t on_publish(SrsLiveSource* s, SrsRequest* r);

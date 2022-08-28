@@ -234,10 +234,6 @@ public:
     // HTTP flv/ts/mp3/aac stream
     virtual srs_error_t http_mount(SrsLiveSource* s, SrsRequest* r);
     virtual void http_unmount(SrsLiveSource* s, SrsRequest* r);
-// Interface ISrsReloadHandler.
-public:
-    virtual srs_error_t on_reload_vhost_added(std::string vhost);
-    virtual srs_error_t on_reload_vhost_http_remux_updated(std::string vhost);
 // Interface ISrsHttpMatchHijacker
 public:
     virtual srs_error_t hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph);

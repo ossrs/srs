@@ -506,9 +506,3 @@ srs_error_t SrsHttpStaticServer::on_reload_vhost_added(string vhost)
     return err;
 }
 
-srs_error_t SrsHttpStaticServer::on_reload_vhost_http_updated()
-{
-    // TODO: FIXME: implements it.
-    return srs_success;
-}
-

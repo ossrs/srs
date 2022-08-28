@@ -1472,28 +1472,6 @@ srs_error_t SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 srs_trace("vhost %s reload publish success.", vhost.c_str());
             }
             
-            // http_static, only one per vhost.
-            if (!srs_directive_equals(new_vhost->get("http_static"), old_vhost->get("http_static"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((err = subscribe->on_reload_vhost_http_updated()) != srs_success) {
-                        return srs_error_wrap(err, "vhost %s notify subscribes http_static failed", vhost.c_str());
-                    }
-                }
-                srs_trace("vhost %s reload http_static success.", vhost.c_str());
-            }
-            
-            // http_remux, only one per vhost.
-            if (!srs_directive_equals(new_vhost->get("http_remux"), old_vhost->get("http_remux"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((err = subscribe->on_reload_vhost_http_remux_updated(vhost)) != srs_success) {
-                        return srs_error_wrap(err, "vhost %s notify subscribes http_remux failed", vhost.c_str());
-                    }
-                }
-                srs_trace("vhost %s reload http_remux success.", vhost.c_str());
-            }
-            
             // transcode, many per vhost.
             if ((err = reload_transcode(new_vhost, old_vhost)) != srs_success) {
                 return srs_error_wrap(err, "reload transcode");
@@ -1550,16 +1528,6 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
             return srs_error_wrap(err, "pithy print ms");;
         }
     }
-    
-    // merge config: http_api
-    if ((err = reload_http_api(old_root)) != srs_success) {
-        return srs_error_wrap(err, "http api");;
-    }
-    
-    // merge config: http_stream
-    if ((err = reload_http_stream(old_root)) != srs_success) {
-        return srs_error_wrap(err, "http steram");;
-    }
 
     // Merge config: rtc_server
     if ((err = reload_rtc_server(old_root)) != srs_success) {
@@ -1573,152 +1541,6 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
         return srs_error_wrap(err, "vhost");;
     }
     
-    return err;
-}
-
-srs_error_t SrsConfig::reload_http_api(SrsConfDirective* old_root)
-{
-    srs_error_t err = srs_success;
-    
-    // merge config.
-    std::vector<ISrsReloadHandler*>::iterator it;
-    
-    // state graph
-    //      old_http_api    new_http_api
-    //      DISABLED    =>  ENABLED
-    //      ENABLED     =>  DISABLED
-    //      ENABLED     =>  ENABLED (modified)
-    
-    SrsConfDirective* new_http_api = root->get("http_api");
-    SrsConfDirective* old_http_api = old_root->get("http_api");
-    
-    // DISABLED    =>      ENABLED
-    if (!get_http_api_enabled(old_http_api) && get_http_api_enabled(new_http_api)) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((err = subscribe->on_reload_http_api_enabled()) != srs_success) {
-                return srs_error_wrap(err, "http api off=>on");
-            }
-        }
-        srs_trace("reload off=>on http_api success.");
-        return err;
-    }
-    
-    // ENABLED     =>      DISABLED
-    if (get_http_api_enabled(old_http_api) && !get_http_api_enabled(new_http_api)) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((err = subscribe->on_reload_http_api_disabled()) != srs_success) {
-                return srs_error_wrap(err, "http api on=>off");
-            }
-        }
-        srs_trace("reload http_api on=>off success.");
-        return err;
-    }
-    
-    //      ENABLED     =>  ENABLED (modified)
-    if (get_http_api_enabled(old_http_api) && get_http_api_enabled(new_http_api)
-        && !srs_directive_equals(old_http_api, new_http_api)
-        ) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((err = subscribe->on_reload_http_api_enabled()) != srs_success) {
-                return srs_error_wrap(err, "http api enabled");
-            }
-        }
-        srs_trace("reload http api enabled success.");
-        
-        if (!srs_directive_equals(old_http_api->get("crossdomain"), new_http_api->get("crossdomain"))) {
-            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                ISrsReloadHandler* subscribe = *it;
-                if ((err = subscribe->on_reload_http_api_crossdomain()) != srs_success) {
-                    return srs_error_wrap(err, "http api crossdomain");
-                }
-            }
-        }
-        srs_trace("reload http api crossdomain success.");
-        
-        if (!srs_directive_equals(old_http_api->get("raw_api"), new_http_api->get("raw_api"))) {
-            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                ISrsReloadHandler* subscribe = *it;
-                if ((err = subscribe->on_reload_http_api_raw_api()) != srs_success) {
-                    return srs_error_wrap(err, "http api raw_api");
-                }
-            }
-        }
-        srs_trace("reload http api raw_api success.");
-        return err;
-    }
-    
-    srs_trace("reload http_api success, nothing changed.");
-    return err;
-}
-
-srs_error_t SrsConfig::reload_http_stream(SrsConfDirective* old_root)
-{
-    srs_error_t err = srs_success;
-    
-    // merge config.
-    std::vector<ISrsReloadHandler*>::iterator it;
-    
-    // state graph
-    //      old_http_stream     new_http_stream
-    //      DISABLED    =>      ENABLED
-    //      ENABLED     =>      DISABLED
-    //      ENABLED     =>      ENABLED (modified)
-    
-    SrsConfDirective* new_http_stream = root->get("http_server");
-    SrsConfDirective* old_http_stream = old_root->get("http_server");
-    
-    // DISABLED    =>      ENABLED
-    if (!get_http_stream_enabled(old_http_stream) && get_http_stream_enabled(new_http_stream)) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((err = subscribe->on_reload_http_stream_enabled()) != srs_success) {
-                return srs_error_wrap(err, "http stream off=>on");
-            }
-        }
-        srs_trace("reload http stream off=>on success.");
-        return err;
-    }
-    
-    // ENABLED     =>      DISABLED
-    if (get_http_stream_enabled(old_http_stream) && !get_http_stream_enabled(new_http_stream)) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((err = subscribe->on_reload_http_stream_disabled()) != srs_success) {
-                return srs_error_wrap(err, "http stream on=>off");
-            }
-        }
-        srs_trace("reload http stream on=>off success.");
-        return err;
-    }
-    
-    //      ENABLED     =>  ENABLED (modified)
-    if (get_http_stream_enabled(old_http_stream) && get_http_stream_enabled(new_http_stream)
-        && !srs_directive_equals(old_http_stream, new_http_stream)
-        ) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((err = subscribe->on_reload_http_stream_updated()) != srs_success) {
-                return srs_error_wrap(err, "http stream enabled");
-            }
-        }
-        srs_trace("reload http stream enabled success.");
-        
-        if (!srs_directive_equals(old_http_stream->get("crossdomain"), new_http_stream->get("crossdomain"))) {
-            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                ISrsReloadHandler* subscribe = *it;
-                if ((err = subscribe->on_reload_http_stream_crossdomain()) != srs_success) {
-                    return srs_error_wrap(err, "http stream crossdomain");
-                }
-            }
-        }
-        srs_trace("reload http stream crossdomain success.");
-        return err;
-    }
-    
-    srs_trace("reload http stream success, nothing changed.");
     return err;
 }
 
@@ -2539,17 +2361,33 @@ srs_error_t SrsConfig::check_normal_config()
     }
     
     ////////////////////////////////////////////////////////////////////////
-    // check http api
+    // Check HTTP API and server.
     ////////////////////////////////////////////////////////////////////////
-    if (get_http_api_listen().empty()) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "http_api.listen requires params");
-    }
-    
-    ////////////////////////////////////////////////////////////////////////
-    // check http stream
-    ////////////////////////////////////////////////////////////////////////
-    if (get_http_stream_listen().empty()) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "http_stream.listen requires params");
+    if (true) {
+        string api = get_http_api_listen();
+        string server = get_http_stream_listen();
+        if (api.empty()) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "http_api.listen requires params");
+        }
+        if (server.empty()) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "http_server.listen requires params");
+        }
+
+        string apis = get_https_api_listen();
+        string servers = get_https_stream_listen();
+        if (api == server && apis != servers) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "for same http, https api(%s) != server(%s)", apis.c_str(), servers.c_str());
+        }
+        if (apis == servers && api != server) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "for same https, http api(%s) != server(%s)", api.c_str(), server.c_str());
+        }
+
+        if (get_https_api_enabled() && !get_http_api_enabled()) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "https api depends on http");
+        }
+        if (get_https_stream_enabled() && !get_http_stream_enabled()) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "https stream depends on http");
+        }
     }
     
     ////////////////////////////////////////////////////////////////////////
@@ -6917,7 +6755,21 @@ bool SrsConfig::get_https_api_enabled()
 
 string SrsConfig::get_https_api_listen()
 {
-    static string DEFAULT = "1990";
+#ifdef SRS_UTEST
+    // We should not use static default, because we need to reset for different testcase.
+    string DEFAULT = "";
+#else
+    static string DEFAULT = "";
+#endif
+
+    // Follow the HTTPS server if config HTTP API as the same of HTTP server.
+    if (DEFAULT.empty()) {
+        if (get_http_api_listen() == get_http_stream_listen()) {
+            DEFAULT = get_https_stream_listen();
+        } else {
+            DEFAULT = "1990";
+        }
+    }
 
     SrsConfDirective* conf = get_https_api();
     if (!conf) {

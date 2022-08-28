@@ -98,7 +98,7 @@ static void srs_srt_log_handler(void* opaque, int level, const char* file, int l
     }
 }
 
-srs_error_t srs_srt_log_initialie()
+srs_error_t srs_srt_log_initialize()
 {
     srs_error_t err = srs_success;
 

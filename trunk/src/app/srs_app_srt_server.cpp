@@ -316,7 +316,7 @@ srs_error_t SrsSrtServerAdapter::initialize()
 {
     srs_error_t err = srs_success;
 
-    if ((err = srs_srt_log_initialie()) != srs_success) {
+    if ((err = srs_srt_log_initialize()) != srs_success) {
         return srs_error_wrap(err, "srt log initialize");
     }
 

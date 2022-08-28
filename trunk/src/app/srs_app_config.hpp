@@ -322,11 +322,6 @@ protected:
     // @remark, use protected for the utest to override with mock.
     virtual srs_error_t reload_conf(SrsConfig* conf);
 private:
-    // Reload  the http_api section of config.
-    virtual srs_error_t reload_http_api(SrsConfDirective* old_root);
-    // Reload  the http_stream section of config.
-    // TODO: FIXME: rename to http_server.
-    virtual srs_error_t reload_http_stream(SrsConfDirective* old_root);
     // Reload the rtc_server section of config.
     virtual srs_error_t reload_rtc_server(SrsConfDirective* old_root);
     // Reload  the transcode section of vhost of config.

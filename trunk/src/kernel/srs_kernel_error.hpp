@@ -273,6 +273,7 @@
 #define ERROR_INOTIFY_OPENFD                3094
 #define ERROR_INOTIFY_WATCH                 3095
 #define ERROR_HTTP_URL_UNESCAPE             3096
+#define ERROR_HTTP_WITH_BODY                3097
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.

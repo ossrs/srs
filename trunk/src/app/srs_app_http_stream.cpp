@@ -613,7 +613,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     SrsFlvStreamEncoder* ffe = dynamic_cast<SrsFlvStreamEncoder*>(enc);
 
     // Note that the handler of hc now is rohc.
-    SrsResponseOnlyHttpConn* rohc = dynamic_cast<SrsResponseOnlyHttpConn*>(hc->handler());
+    SrsHttpxConn* rohc = dynamic_cast<SrsHttpxConn*>(hc->handler());
     srs_assert(rohc);
     
     // Set the socket options for transport.
@@ -962,59 +962,6 @@ void SrsHttpStreamServer::http_unmount(SrsLiveSource* s, SrsRequest* r)
     
     SrsLiveEntry* entry = sflvs[sid];
     entry->stream->entry->enabled = false;
-}
-
-srs_error_t SrsHttpStreamServer::on_reload_vhost_added(string vhost)
-{
-    srs_error_t err = srs_success;
-    
-    if ((err = on_reload_vhost_http_remux_updated(vhost)) != srs_success) {
-        return srs_error_wrap(err, "reload vhost added");
-    }
-    
-    return err;
-}
-
-srs_error_t SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
-{
-    srs_error_t err = srs_success;
-
-    // Create new vhost.
-    if (tflvs.find(vhost) == tflvs.end()) {
-        if ((err = initialize_flv_entry(vhost)) != srs_success) {
-            return srs_error_wrap(err, "init flv entry");
-        }
-        
-        // http mount need SrsRequest and SrsLiveSource param, only create a mapping template entry
-        // and do mount automatically on playing http flv if this stream is a new http_remux stream.
-        return err;
-    }
-
-    // Update all streams for exists vhost.
-    // TODO: FIMXE: If url changed, needs more things to deal with.
-    std::map<std::string, SrsLiveEntry*>::iterator it;
-    for (it = sflvs.begin(); it != sflvs.end(); ++it) {
-        SrsLiveEntry* entry = it->second;
-        if (!entry || !entry->req || !entry->source) {
-            continue;
-        }
-
-        SrsRequest* req = entry->req;
-        if (!req || req->vhost != vhost) {
-            continue;
-        }
-
-        SrsLiveSource* source = entry->source;
-        if (_srs_config->get_vhost_http_remux_enabled(vhost)) {
-            http_mount(source, req);
-        } else {
-            http_unmount(source, req);
-        }
-    }
-    
-    srs_trace("vhost %s http_remux reload success", vhost.c_str());
-    
-    return err;
 }
 
 srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)

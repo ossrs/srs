@@ -485,7 +485,7 @@ srs_error_t SrsRtcServer::listen_api()
     srs_error_t err = srs_success;
 
     // TODO: FIXME: Fetch api from hybrid manager, not from SRS.
-    SrsHttpServeMux* http_api_mux = _srs_hybrid->srs()->instance()->api_server();
+    ISrsHttpServeMux* http_api_mux = _srs_hybrid->srs()->instance()->api_server();
 
     if ((err = http_api_mux->handle("/rtc/v1/play/", new SrsGoApiRtcPlay(this))) != srs_success) {
         return srs_error_wrap(err, "handle play");

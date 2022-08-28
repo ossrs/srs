@@ -596,7 +596,7 @@ ISrsHttpMatchHijacker::~ISrsHttpMatchHijacker()
 {
 }
 
-ISrsHttpServeMux::ISrsHttpServeMux()
+ISrsHttpServeMux::ISrsHttpServeMux() : ISrsHttpHandler()
 {
 }
 

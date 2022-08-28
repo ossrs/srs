@@ -545,7 +545,7 @@ void SrsPublishRecvThread::set_socket_buffer(srs_utime_t sleep_v)
     rtmp->set_recv_buffer(nb_rbuf);
 }
 
-SrsHttpRecvThread::SrsHttpRecvThread(SrsResponseOnlyHttpConn* c)
+SrsHttpRecvThread::SrsHttpRecvThread(SrsHttpxConn* c)
 {
     conn = c;
     trd = new SrsSTCoroutine("http-receive", this, _srs_context->get_id());

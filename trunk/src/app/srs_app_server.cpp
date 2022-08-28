@@ -529,6 +529,8 @@ SrsServer::SrsServer()
     // new these objects in initialize instead.
     http_api_mux = new SrsHttpServeMux();
     http_server = new SrsHttpServer(this);
+    reuse_api_over_server_ = false;
+
     http_heartbeat = new SrsHttpHeartbeat();
     ingester = new SrsIngester();
     trd_ = new SrsSTCoroutine("srs", this, _srs_context->get_id());
@@ -549,9 +551,13 @@ void SrsServer::destroy()
     srs_freep(timer_);
 
     dispose();
-    
-    srs_freep(http_api_mux);
+
+    // If api reuse the same port of server, they're the same object.
+    if (!reuse_api_over_server_) {
+        srs_freep(http_api_mux);
+    }
     srs_freep(http_server);
+
     srs_freep(http_heartbeat);
     srs_freep(ingester);
     
@@ -643,11 +649,29 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
     if(handler && (err = handler->initialize()) != srs_success){
         return srs_error_wrap(err, "handler initialize");
     }
-    
-    if ((err = http_api_mux->initialize()) != srs_success) {
-        return srs_error_wrap(err, "http api initialize");
+
+    // If enabled and the listen is the same value, reuse port.
+    if (_srs_config->get_http_stream_enabled() && _srs_config->get_http_api_enabled()
+        && _srs_config->get_http_api_listen() == _srs_config->get_http_stream_listen()
+        && _srs_config->get_https_api_listen() == _srs_config->get_https_stream_listen()
+    ) {
+        srs_trace("API reuse listen to https server at %s", _srs_config->get_https_stream_listen().c_str());
+        reuse_api_over_server_ = true;
     }
-    
+
+    // If reuse port, use the same object as server.
+    if (!reuse_api_over_server_) {
+        SrsHttpServeMux *api = dynamic_cast<SrsHttpServeMux*>(http_api_mux);
+        srs_assert(api);
+
+        if ((err = api->initialize()) != srs_success) {
+            return srs_error_wrap(err, "http api initialize");
+        }
+    } else {
+        srs_freep(http_api_mux);
+        http_api_mux = http_server;
+    }
+
     if ((err = http_server->initialize()) != srs_success) {
         return srs_error_wrap(err, "http server initialize");
     }
@@ -736,18 +760,22 @@ srs_error_t SrsServer::register_signal()
 srs_error_t SrsServer::http_handle()
 {
     srs_error_t err = srs_success;
-    
-    if ((err = http_api_mux->handle("/", new SrsGoApiRoot())) != srs_success) {
-        return srs_error_wrap(err, "handle /");
+
+    // Ignore / and /api/v1/versions for already handled by HTTP server.
+    if (!reuse_api_over_server_) {
+        if ((err = http_api_mux->handle("/", new SrsGoApiRoot())) != srs_success) {
+            return srs_error_wrap(err, "handle /");
+        }
+        if ((err = http_api_mux->handle("/api/v1/versions", new SrsGoApiVersion())) != srs_success) {
+            return srs_error_wrap(err, "handle versions");
+        }
     }
+
     if ((err = http_api_mux->handle("/api/", new SrsGoApiApi())) != srs_success) {
         return srs_error_wrap(err, "handle api");
     }
     if ((err = http_api_mux->handle("/api/v1/", new SrsGoApiV1())) != srs_success) {
         return srs_error_wrap(err, "handle v1");
-    }
-    if ((err = http_api_mux->handle("/api/v1/versions", new SrsGoApiVersion())) != srs_success) {
-        return srs_error_wrap(err, "handle versions");
     }
     if ((err = http_api_mux->handle("/api/v1/summaries", new SrsGoApiSummaries())) != srs_success) {
         return srs_error_wrap(err, "handle summaries");
@@ -1138,23 +1166,34 @@ srs_error_t SrsServer::listen_rtmp()
 srs_error_t SrsServer::listen_http_api()
 {
     srs_error_t err = srs_success;
-    
+
     close_listeners(SrsListenerHttpApi);
-    if (_srs_config->get_http_api_enabled()) {
-        SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpApi);
-        listeners.push_back(listener);
-        
-        std::string ep = _srs_config->get_http_api_listen();
-        
-        std::string ip;
-        int port;
-        srs_parse_endpoint(ep, ip, port);
-        
-        if ((err = listener->listen(ip, port)) != srs_success) {
-            return srs_error_wrap(err, "http api listen %s:%d", ip.c_str(), port);
-        }
+
+    // Ignore if not enabled.
+    if (!_srs_config->get_http_api_enabled()) {
+        return err;
     }
-    
+
+    // Ignore if reuse same port to http server.
+    if (reuse_api_over_server_) {
+        srs_trace("HTTP-API: Reuse listen to http server %s", _srs_config->get_http_stream_listen().c_str());
+        return err;
+    }
+
+    // Listen at a dedicated HTTP API endpoint.
+    SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpApi);
+    listeners.push_back(listener);
+
+    std::string ep = _srs_config->get_http_api_listen();
+
+    std::string ip;
+    int port;
+    srs_parse_endpoint(ep, ip, port);
+
+    if ((err = listener->listen(ip, port)) != srs_success) {
+        return srs_error_wrap(err, "http api listen %s:%d", ip.c_str(), port);
+    }
+
     return err;
 }
 
@@ -1163,19 +1202,30 @@ srs_error_t SrsServer::listen_https_api()
     srs_error_t err = srs_success;
 
     close_listeners(SrsListenerHttpsApi);
-    if (_srs_config->get_https_api_enabled()) {
-        SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpsApi);
-        listeners.push_back(listener);
 
-        std::string ep = _srs_config->get_https_api_listen();
+    // Ignore if not enabled.
+    if (!_srs_config->get_https_api_enabled()) {
+        return err;
+    }
 
-        std::string ip;
-        int port;
-        srs_parse_endpoint(ep, ip, port);
+    // Ignore if reuse same port to https server.
+    if (reuse_api_over_server_) {
+        srs_trace("HTTPS-API: Reuse listen to https server %s", _srs_config->get_https_stream_listen().c_str());
+        return err;
+    }
 
-        if ((err = listener->listen(ip, port)) != srs_success) {
-            return srs_error_wrap(err, "https api listen %s:%d", ip.c_str(), port);
-        }
+    // Listen at a dedicated HTTPS API endpoint.
+    SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpsApi);
+    listeners.push_back(listener);
+
+    std::string ep = _srs_config->get_https_api_listen();
+
+    std::string ip;
+    int port;
+    srs_parse_endpoint(ep, ip, port);
+
+    if ((err = listener->listen(ip, port)) != srs_success) {
+        return srs_error_wrap(err, "https api listen %s:%d", ip.c_str(), port);
     }
 
     return err;
@@ -1329,7 +1379,7 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     return err;
 }
 
-SrsHttpServeMux* SrsServer::api_server()
+ISrsHttpServeMux* SrsServer::api_server()
 {
     return http_api_mux;
 }
@@ -1379,13 +1429,13 @@ srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, IS
     if (type == SrsListenerRtmpStream) {
         *pr = new SrsRtmpConn(this, stfd, ip, port);
     } else if (type == SrsListenerHttpApi) {
-        *pr = new SrsHttpApi(false, this, stfd, http_api_mux, ip, port);
+        *pr = new SrsHttpxConn(false, this, stfd, http_api_mux, ip, port);
     } else if (type == SrsListenerHttpsApi) {
-        *pr = new SrsHttpApi(true, this, stfd, http_api_mux, ip, port);
+        *pr = new SrsHttpxConn(true, this, stfd, http_api_mux, ip, port);
     } else if (type == SrsListenerHttpStream) {
-        *pr = new SrsResponseOnlyHttpConn(false, this, stfd, http_server, ip, port);
+        *pr = new SrsHttpxConn(false, this, stfd, http_server, ip, port);
     } else if (type == SrsListenerHttpsStream) {
-        *pr = new SrsResponseOnlyHttpConn(true, this, stfd, http_server, ip, port);
+        *pr = new SrsHttpxConn(true, this, stfd, http_server, ip, port);
     } else {
         srs_warn("close for no service handler. fd=%d, ip=%s:%d", fd, ip.c_str(), port);
         srs_close_stfd(stfd);
@@ -1412,99 +1462,10 @@ srs_error_t SrsServer::on_reload_listen()
     return err;
 }
 
-srs_error_t SrsServer::on_reload_vhost_added(std::string vhost)
-{
-    srs_error_t err = srs_success;
-    
-    if (!_srs_config->get_vhost_http_enabled(vhost)) {
-        return err;
-    }
-    
-    // TODO: FIXME: should handle the event in SrsHttpStaticServer
-    if ((err = on_reload_vhost_http_updated()) != srs_success) {
-        return srs_error_wrap(err, "reload vhost added");
-    }
-    
-    return err;
-}
-
-srs_error_t SrsServer::on_reload_vhost_removed(std::string /*vhost*/)
-{
-    srs_error_t err = srs_success;
-    
-    // TODO: FIXME: should handle the event in SrsHttpStaticServer
-    if ((err = on_reload_vhost_http_updated()) != srs_success) {
-        return srs_error_wrap(err, "reload vhost removed");
-    }
-    
-    return err;
-}
-
-srs_error_t SrsServer::on_reload_http_api_enabled()
-{
-    srs_error_t err = srs_success;
-    
-    if ((err = listen_http_api()) != srs_success) {
-        return srs_error_wrap(err, "reload http_api");
-    }
-
-    if ((err = listen_https_api()) != srs_success) {
-        return srs_error_wrap(err, "reload https_api");
-    }
-    
-    return err;
-}
-
-srs_error_t SrsServer::on_reload_http_api_disabled()
-{
-    close_listeners(SrsListenerHttpApi);
-    close_listeners(SrsListenerHttpsApi);
-    return srs_success;
-}
-
-srs_error_t SrsServer::on_reload_http_stream_enabled()
-{
-    srs_error_t err = srs_success;
-    
-    if ((err = listen_http_stream()) != srs_success) {
-        return srs_error_wrap(err, "reload http_stream enabled");
-    }
-
-    if ((err = listen_https_stream()) != srs_success) {
-        return srs_error_wrap(err, "reload https_stream enabled");
-    }
-    
-    return err;
-}
-
-srs_error_t SrsServer::on_reload_http_stream_disabled()
-{
-    close_listeners(SrsListenerHttpStream);
-    close_listeners(SrsListenerHttpsStream);
-    return srs_success;
-}
-
-// TODO: FIXME: rename to http_remux
-srs_error_t SrsServer::on_reload_http_stream_updated()
-{
-    srs_error_t err = srs_success;
-    
-    if ((err = on_reload_http_stream_enabled()) != srs_success) {
-        return srs_error_wrap(err, "reload http_stream updated");
-    }
-    
-    // TODO: FIXME: should handle the event in SrsHttpStaticServer
-    if ((err = on_reload_vhost_http_updated()) != srs_success) {
-        return srs_error_wrap(err, "reload http_stream updated");
-    }
-    
-    return err;
-}
-
 srs_error_t SrsServer::on_publish(SrsLiveSource* s, SrsRequest* r)
 {
     srs_error_t err = srs_success;
-    
+
     if ((err = http_server->http_mount(s, r)) != srs_success) {
         return srs_error_wrap(err, "http mount");
     }

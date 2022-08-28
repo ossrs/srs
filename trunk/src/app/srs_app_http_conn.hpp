@@ -127,7 +127,7 @@ public:
 };
 
 // Drop body of request, only process the response.
-class SrsResponseOnlyHttpConn : public ISrsStartableConneciton, public ISrsHttpConnOwner
+class SrsHttpxConn : public ISrsStartableConneciton, public ISrsHttpConnOwner
     , public ISrsReloadHandler
 {
 private:
@@ -137,8 +137,8 @@ private:
     SrsSslConnection* ssl;
     SrsHttpConn* conn;
 public:
-    SrsResponseOnlyHttpConn(bool https, ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
-    virtual ~SrsResponseOnlyHttpConn();
+    SrsHttpxConn(bool https, ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
+    virtual ~SrsHttpxConn();
 public:
     // Directly read a HTTP request message.
     // It's exported for HTTP stream, such as HTTP FLV, only need to write to client when
@@ -146,9 +146,6 @@ public:
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     // @remark Should only used in HTTP-FLV streaming connection.
     virtual srs_error_t pop_message(ISrsHttpMessage** preq);
-// Interface ISrsReloadHandler
-public:
-    virtual srs_error_t on_reload_http_stream_crossdomain();
 // Interface ISrsHttpConnOwner.
 public:
     virtual srs_error_t on_start();
@@ -189,6 +186,9 @@ public:
 public:
     virtual srs_error_t initialize();
 // Interface ISrsHttpServeMux
+public:
+    virtual srs_error_t handle(std::string pattern, ISrsHttpHandler* handler);
+// Interface ISrsHttpHandler
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 public:

@@ -216,50 +216,5 @@ public:
 };
 #endif
 
-// Handle the HTTP API request.
-class SrsHttpApi : public ISrsStartableConneciton, public ISrsHttpConnOwner
-    , public ISrsReloadHandler
-{
-private:
-    // The manager object to manage the connection.
-    ISrsResourceManager* manager;
-    SrsTcpConnection* skt;
-    SrsSslConnection* ssl;
-    SrsHttpConn* conn;
-public:
-    SrsHttpApi(bool https, ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
-    virtual ~SrsHttpApi();
-// Interface ISrsHttpConnOwner.
-public:
-    virtual srs_error_t on_start();
-    virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
-    virtual srs_error_t on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
-    virtual srs_error_t on_conn_done(srs_error_t r0);
-// Interface ISrsResource.
-public:
-    virtual std::string desc();
-// Interface ISrsKbpsDelta
-public:
-    virtual void remark(int64_t* in, int64_t* out);
-// Interface ISrsReloadHandler
-public:
-    virtual srs_error_t on_reload_http_api_crossdomain();
-// Extract APIs from SrsTcpConnection.
-// Interface ISrsStartable
-public:
-    // Start the client green thread.
-    // when server get a client from listener,
-    // 1. server will create an concrete connection(for instance, RTMP connection),
-    // 2. then add connection to its connection manager,
-    // 3. start the client thread by invoke this start()
-    // when client cycle thread stop, invoke the on_thread_stop(), which will use server
-    // To remove the client by server->remove(this).
-    virtual srs_error_t start();
-// Interface ISrsConnection.
-public:
-    virtual std::string remote_ip();
-    virtual const SrsContextId& get_id();
-};
-
 #endif
 

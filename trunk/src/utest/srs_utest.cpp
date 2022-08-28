@@ -61,6 +61,10 @@ srs_error_t prepare_main() {
     _srs_context = new SrsThreadContext();
 
 #ifdef SRS_SRT
+    if ((err = srs_srt_log_initialize()) != srs_success) {
+        return srs_error_wrap(err, "srt log initialize");
+    }
+
     _srt_eventloop = new SrsSrtEventLoop();
     if ((err = _srt_eventloop->initialize()) != srs_success) {
         return srs_error_wrap(err, "srt poller initialize");
