@@ -179,7 +179,7 @@ public:
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not
     //      exists in stat.
-    virtual void on_disconnect(std::string id);
+    virtual void on_disconnect(std::string id, bool* exists = NULL);
 private:
     // Cleanup the stream if stream is not active and for the last client.
     void cleanup_stream(SrsStatisticStream* stream);

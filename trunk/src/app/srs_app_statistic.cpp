@@ -425,13 +425,12 @@ srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, ISrsExpire*
     return err;
 }
 
-void SrsStatistic::on_disconnect(std::string id)
+void SrsStatistic::on_disconnect(std::string id, bool* exists)
 {
-    std::map<std::string, SrsStatisticClient*>::iterator it;
-    if ((it = clients.find(id)) == clients.end()) {
-        return;
-    }
-    
+    std::map<std::string, SrsStatisticClient*>::iterator it = clients.find(id);
+    if (exists) *exists = (it != clients.end());
+    if (it == clients.end()) return;
+
     SrsStatisticClient* client = it->second;
     SrsStatisticStream* stream = client->stream;
     SrsStatisticVhost* vhost = stream->vhost;
