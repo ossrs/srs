@@ -137,6 +137,29 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     }
 }
 
+void srs_guess_stream_by_app(string& app, string& param, string& stream)
+{
+    size_t pos = std::string::npos;
+
+    // Extract stream from app, if contains slash.
+    if ((pos = app.find("/")) != std::string::npos) {
+        stream = app.substr(pos + 1);
+        app = app.substr(0, pos);
+
+        if ((pos = stream.find("?")) != std::string::npos) {
+            param = stream.substr(pos);
+            stream = stream.substr(0, pos);
+        }
+        return;
+    }
+
+    // Extract stream from param, if contains slash.
+    if ((pos = param.find("/")) != std::string::npos) {
+        stream = param.substr(pos + 1);
+        param = param.substr(0, pos);
+    }
+}
+
 void srs_parse_query_string(string q, map<string,string>& query)
 {
     // query string flags.

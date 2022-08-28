@@ -3574,3 +3574,50 @@ VOID TEST(ProtocolRTMPTest, DiscoveryTcUrl)
     }
 }
 
+VOID TEST(ProtocolRTMPTest, GuessingStream)
+{
+    // Stream in app without params.
+    if (true) {
+        string app = "live/livestream", param = "", stream = "";
+        srs_guess_stream_by_app(app, param, stream);
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("livestream", stream.c_str());
+    }
+
+    // Stream in app with params.
+    if (true) {
+        string app = "live/livestream", param = "?secret=xxx", stream = "";
+        srs_guess_stream_by_app(app, param, stream);
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("livestream", stream.c_str());
+        EXPECT_STREQ("?secret=xxx", param.c_str());
+    }
+
+    // Stream in app with params.
+    if (true) {
+        string app = "live/livestream?secret=xxx", param = "", stream = "";
+        srs_guess_stream_by_app(app, param, stream);
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("livestream", stream.c_str());
+        EXPECT_STREQ("?secret=xxx", param.c_str());
+    }
+
+    // Stream in param.
+    if (true) {
+        string app = "live", param = "?secret=xxx/livestream", stream = "";
+        srs_guess_stream_by_app(app, param, stream);
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("livestream", stream.c_str());
+        EXPECT_STREQ("?secret=xxx", param.c_str());
+    }
+
+    // No stream.
+    if (true) {
+        string app = "live", param = "?secret=xxx", stream = "";
+        srs_guess_stream_by_app(app, param, stream);
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("", stream.c_str());
+        EXPECT_STREQ("?secret=xxx", param.c_str());
+    }
+}
+

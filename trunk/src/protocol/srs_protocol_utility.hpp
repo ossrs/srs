@@ -52,6 +52,12 @@ class ISrsProtocolReadWriter;
 extern void srs_discovery_tc_url(std::string tcUrl, std::string& schema, std::string& host, std::string& vhost, std::string& app,
     std::string& stream, int& port, std::string& param);
 
+// Guessing stream by app and param, to make OBS happy. For example:
+//      rtmp://ip/live/livestream
+//      rtmp://ip/live/livestream?secret=xxx
+//      rtmp://ip/live?secret=xxx/livestream
+extern void srs_guess_stream_by_app(std::string& app, std::string& param, std::string& stream);
+
 // parse query string to map(k,v).
 // must format as key=value&...&keyN=valueN
 extern void srs_parse_query_string(std::string q, std::map<std::string, std::string>& query);

@@ -459,28 +459,9 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
 
     // guess stream name
     if (req->stream.empty()) {
-        srs_trace("client no stream, guess stream from app=%s and param=%s", req->app.c_str(), req->param.c_str());
-
-        size_t pos = std::string::npos;
-        std::string app = req->app;
-        std::string param = req->param;
-
-        // app
-        if ((pos = app.find("/")) != std::string::npos) {
-            req->app = app.substr(0, pos);
-            req->stream = app.substr(pos + 1);
-            if ((pos = req->stream.find("?")) != std::string::npos) {
-                req->stream = req->stream.substr(0, pos);
-            }
-        } else {
-            // param
-            if ((pos = param.find("/")) != std::string::npos) {
-                req->stream = param.substr(pos + 1);
-                if ((pos = req->stream.find("?")) != std::string::npos) {
-                    req->stream = req->stream.substr(0, pos);
-                }
-            }
-        }
+        string app = req->app, param = req->param;
+        srs_guess_stream_by_app(req->app, req->param, req->stream);
+        srs_trace("Guessing by app=%s, param=%s to app=%s, param=%s, stream=%s", app.c_str(), param.c_str(), req->app.c_str(), req->param.c_str(), req->stream.c_str());
     }
 
     req->strip();
