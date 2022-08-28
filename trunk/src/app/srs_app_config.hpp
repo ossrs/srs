@@ -193,7 +193,7 @@ public:
     virtual SrsConfDirective* get(std::string _name);
     // Get the directive by name and its arg0, return the first match.
     virtual SrsConfDirective* get(std::string _name, std::string _arg0);
-    // RAW 
+    // RAW
 public:
     virtual SrsConfDirective* get_or_create(std::string n);
     virtual SrsConfDirective* get_or_create(std::string n, std::string a0);
@@ -714,7 +714,7 @@ public:
 public:
     // Whether bw check enabled for vhost.
     // If  enabled, serve all clients with bandwidth check services.
-    // oterwise, serve all cleints with stream.
+    // otherwise, serve all clients with stream.
     virtual bool get_bw_check_enabled(std::string vhost);
     // The key of server, if client key mot match, reject.
     virtual std::string get_bw_check_key(std::string vhost);
