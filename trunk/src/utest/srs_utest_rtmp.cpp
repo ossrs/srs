@@ -17,6 +17,7 @@
 #include <srs_protocol_http_conn.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_protocol_utility.hpp>
 
 #define SRS_DEFAULT_RECV_BUFFER_SIZE 131072
 
@@ -3618,6 +3619,191 @@ VOID TEST(ProtocolRTMPTest, GuessingStream)
         EXPECT_STREQ("live", app.c_str());
         EXPECT_STREQ("", stream.c_str());
         EXPECT_STREQ("?secret=xxx", param.c_str());
+    }
+}
+
+VOID TEST(ProtocolRTMPTest, DiscoveryUrl)
+{
+    if (true) {
+        string tcUrl = "invalid://ip:8888/app", stream = "stream?k=v&domain=ossrs.io&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("invalid", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(8888, port);
+        EXPECT_STREQ("app", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ossrs.io", vhost.c_str());
+        EXPECT_STREQ("?k=v&domain=ossrs.io&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "invalid://ip/app", stream = "stream?k=v&domain=ossrs.io&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("invalid", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(80, port);
+        EXPECT_STREQ("app", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ossrs.io", vhost.c_str());
+        EXPECT_STREQ("?k=v&domain=ossrs.io&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://ip/app", stream = "stream?k=v&domain=ossrs.io&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("app", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ossrs.io", vhost.c_str());
+        EXPECT_STREQ("?k=v&domain=ossrs.io&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "https://ip/app", stream = "stream?k=v&domain=ossrs.io&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("https", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(443, port);
+        EXPECT_STREQ("app", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ossrs.io", vhost.c_str());
+        EXPECT_STREQ("?k=v&domain=ossrs.io&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "http://ip/app", stream = "stream?k=v&domain=ossrs.io&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("http", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(80, port);
+        EXPECT_STREQ("app", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ossrs.io", vhost.c_str());
+        EXPECT_STREQ("?k=v&domain=ossrs.io&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://ip/app", stream = "stream?domain=__defaultVhost__";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("app", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ip", vhost.c_str());
+        EXPECT_TRUE(param.empty());
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://ip/app/_definst_", stream = "stream?k=v&domain=ossrs.io&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("app", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ossrs.io", vhost.c_str());
+        EXPECT_STREQ("?k=v&domain=ossrs.io&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://ip", stream = "stream?k=v&domain=ossrs.io&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("__defaultApp__", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ossrs.io", vhost.c_str());
+        EXPECT_STREQ("?k=v&domain=ossrs.io&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://ossrs.io/app/app2", stream = "stream?k=v&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("ossrs.io", host.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("app/app2", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ossrs.io", vhost.c_str());
+        EXPECT_STREQ("?k=v&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://ip/app/app2", stream = "stream?k=v&domain=ossrs.io&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("app/app2", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ossrs.io", vhost.c_str());
+        EXPECT_STREQ("?k=v&domain=ossrs.io&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://ip/app/app2", stream = "stream?k=v&vhost=ossrs.io&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("app/app2", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ossrs.io", vhost.c_str());
+        EXPECT_STREQ("?k=v&vhost=ossrs.io&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://ip/app/app2", stream = "stream?k=v&k2=v2";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("app/app2", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ip", vhost.c_str());
+        EXPECT_STREQ("?k=v&k2=v2", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://ip/app/app2?k=v", stream = "stream";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("app/app2", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ip", vhost.c_str());
+        EXPECT_STREQ("?k=v", param.c_str());
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://ip/app?k=v", stream = "stream";
+        string schema, host, vhost, app, param; int port;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("ip", host.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("app", app.c_str());
+        EXPECT_STREQ("stream", stream.c_str());
+        EXPECT_STREQ("ip", vhost.c_str());
+        EXPECT_STREQ("?k=v", param.c_str());
     }
 }
 

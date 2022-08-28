@@ -42,97 +42,58 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_stack.hpp>
 
-/**
- * resolve the vhost in query string
- * @pram vhost, update the vhost if query contains the vhost.
- * @param app, may contains the vhost in query string format:
- *   app?vhost=request_vhost
- *   app...vhost...request_vhost
- * @param param, the query, for example, ?vhost=xxx
- */
-void srs_vhost_resolve(string& vhost, string& app, string& param)
-{
-    // get original param
-    size_t pos = 0;
-    if ((pos = app.find("?")) != std::string::npos) {
-        param = app.substr(pos);
-    }
-    
-    // filter tcUrl
-    app = srs_string_replace(app, ",", "?");
-    app = srs_string_replace(app, "...", "?");
-    app = srs_string_replace(app, "&&", "?");
-    app = srs_string_replace(app, "&", "?");
-    app = srs_string_replace(app, "=", "?");
-    
-    if (srs_string_ends_with(app, "/_definst_")) {
-        app = srs_erase_last_substr(app, "/_definst_");
-    }
-    
-    if ((pos = app.find("?")) != std::string::npos) {
-        std::string query = app.substr(pos + 1);
-        app = app.substr(0, pos);
-
-        if ((pos = query.find("vhost?")) != std::string::npos) {
-            query = query.substr(pos + 6);
-            if (!query.empty()) {
-                vhost = query;
-            }
-        } else if ((pos = query.find("domain?")) != std::string::npos) {
-            query = query.substr(pos + 7);
-            if (!query.empty()) {
-                vhost = query;
-            }
-        }
-    }
-
-    // vhost with params.
-    if ((pos = vhost.find("?")) != std::string::npos) {
-        vhost = vhost.substr(0, pos);
-    }
-    
-    /* others */
-}
-
 void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vhost, string& app, string& stream, int& port, string& param)
 {
-    size_t pos = std::string::npos;
-    std::string url = tcUrl;
-    
-    if ((pos = url.find("://")) != std::string::npos) {
-        schema = url.substr(0, pos);
-        url = url.substr(schema.length() + 3);
-        srs_info("discovery schema=%s", schema.c_str());
-    }
-    
-    if ((pos = url.find("/")) != std::string::npos) {
-        host = url.substr(0, pos);
-        url = url.substr(host.length() + 1);
-        srs_info("discovery host=%s", host.c_str());
-    }
-    
-    port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    if (schema == "https") {
-        port = SRS_DEFAULT_HTTPS_PORT;
+    // Standard URL is:
+    //      rtmp://ip/app/app2/stream?k=v
+    // Where after last slash is stream.
+    string fullUrl = tcUrl;
+    fullUrl += stream.empty() ? "/" : (stream.at(0) == '/' ? stream : "/" + stream);
+    fullUrl += param.empty() ? "" : (param.at(0) == '?' ? param : "?" + param);
+
+    // First, we covert the FMLE URL to standard URL:
+    //      rtmp://ip/app/app2?k=v/stream
+    size_t pos_query = fullUrl.find("?");
+    size_t pos_rslash = fullUrl.rfind("/");
+    if (pos_rslash != string::npos && pos_query != string::npos && pos_query < pos_rslash) {
+        fullUrl = fullUrl.substr(0, pos_query) // rtmp://ip/app/app2
+                  + fullUrl.substr(pos_rslash) // /stream
+                  + fullUrl.substr(pos_query, pos_rslash - pos_query); // ?k=v
     }
 
-    if ((pos = host.find(":")) != std::string::npos) {
-        srs_parse_hostport(host, host, port);
-        srs_info("discovery host=%s, port=%d", host.c_str(), port);
+    // Remove the _definst_ of FMLE URL.
+    if (fullUrl.find("/_definst_") != string::npos) {
+        fullUrl = srs_string_replace(fullUrl, "/_definst_", "");
     }
-    
-    if (url.empty()) {
-        app = SRS_CONSTS_RTMP_DEFAULT_APP;
-    } else {
-        app = url;
+
+    // Parse the standard URL.
+    SrsHttpUri uri;
+    srs_error_t err = srs_success;
+    if ((err = uri.initialize(fullUrl)) != srs_success) {
+        srs_warn("Ignore parse url=%s err %s", fullUrl.c_str(), srs_error_desc(err).c_str());
+        srs_freep(err);
+        return;
     }
-    
-    vhost = host;
-    srs_vhost_resolve(vhost, app, param);
-    srs_vhost_resolve(vhost, stream, param);
-    
-    // Ignore when the param only contains the default vhost.
-    if (param == "?vhost=" SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+
+    schema = uri.get_schema();
+    host = uri.get_host();
+    port = uri.get_port();
+    stream = srs_path_basename(uri.get_path());
+    param = uri.get_query().empty() ? "" : "?" + uri.get_query();
+
+    // Parse app without the prefix slash.
+    app = srs_path_dirname(uri.get_path());
+    if (!app.empty() && app.at(0) == '/') app = app.substr(1);
+    if (app.empty()) app = SRS_CONSTS_RTMP_DEFAULT_APP;
+
+    // Try to parse vhost from query, or use host if not specified.
+    string vhost_in_query = uri.get_query_by_key("vhost");
+    if (vhost_in_query.empty()) vhost_in_query = uri.get_query_by_key("domain");
+    if (!vhost_in_query.empty() && vhost_in_query != SRS_CONSTS_RTMP_DEFAULT_VHOST) vhost = vhost_in_query;
+    if (vhost.empty()) vhost = host;
+
+    // Only one param, the default vhost, clear it.
+    if (param.find("&") == string::npos && vhost_in_query == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         param = "";
     }
 }
