@@ -1945,9 +1945,9 @@ vector<SrsUdpMuxSocket*> SrsRtcConnection::peer_addresses()
     return addresses;
 }
 
-void SrsRtcConnection::remark(int64_t* in, int64_t* out)
+ISrsKbpsDelta* SrsRtcConnection::delta()
 {
-    delta_->remark(in, out);
+    return delta_;
 }
 
 const SrsContextId& SrsRtcConnection::get_id()

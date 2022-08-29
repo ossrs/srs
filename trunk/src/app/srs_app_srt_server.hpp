@@ -62,7 +62,7 @@ public:
     // @param srt_fd, the client fd in srt boxed, the underlayer fd.
     virtual srs_error_t accept_srt_client(srs_srt_t srt_fd);
 private:
-    virtual srs_error_t fd_to_resource(srs_srt_t srt_fd, ISrsStartableConneciton** pr);
+    virtual srs_error_t fd_to_resource(srs_srt_t srt_fd, ISrsResource** pr);
 // Interface ISrsResourceManager
 public:
     // A callback for connection to remove itself.

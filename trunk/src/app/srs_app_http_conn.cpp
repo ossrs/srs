@@ -62,9 +62,8 @@ SrsHttpConn::SrsHttpConn(ISrsHttpConnOwner* handler, ISrsProtocolReadWriter* fd,
     ip = cip;
     port = cport;
     create_time = srsu2ms(srs_get_system_time());
-    clk = new SrsWallClock();
-    kbps = new SrsKbps(clk);
-    kbps->set_io(skt, skt);
+    delta_ = new SrsNetworkDelta();
+    delta_->set_io(skt, skt);
     trd = new SrsSTCoroutine("http", this, _srs_context->get_id());
 }
 
@@ -76,8 +75,7 @@ SrsHttpConn::~SrsHttpConn()
     srs_freep(parser);
     srs_freep(cors);
 
-    srs_freep(kbps);
-    srs_freep(clk);
+    srs_freep(delta_);
 }
 
 std::string SrsHttpConn::desc()
@@ -85,9 +83,9 @@ std::string SrsHttpConn::desc()
     return "HttpConn";
 }
 
-void SrsHttpConn::remark(int64_t* in, int64_t* out)
+ISrsKbpsDelta* SrsHttpConn::delta()
 {
-    kbps->remark(in, out);
+    return delta_;
 }
 
 srs_error_t SrsHttpConn::start()
@@ -404,7 +402,7 @@ srs_error_t SrsHttpxConn::on_conn_done(srs_error_t r0)
     bool exists = false;
     SrsStatistic::instance()->on_disconnect(get_id().c_str(), &exists);
     if (exists) {
-        SrsStatistic::instance()->kbps_add_delta(get_id().c_str(), this);
+        SrsStatistic::instance()->kbps_add_delta(get_id().c_str(), conn->delta());
     }
 
     // Because we use manager to manage this object,
@@ -465,9 +463,9 @@ srs_error_t SrsHttpxConn::start()
     return conn->start();
 }
 
-void SrsHttpxConn::remark(int64_t* in, int64_t* out)
+ISrsKbpsDelta* SrsHttpxConn::delta()
 {
-    conn->remark(in, out);
+    return conn->delta();
 }
 
 SrsHttpServer::SrsHttpServer(SrsServer* svr)

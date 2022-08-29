@@ -21,6 +21,7 @@ class SrsBuffer;
 class SrsLiveSource;
 class SrsSrtSource;
 class SrsSrtServer;
+class SrsNetworkDelta;
 
 // The basic connection of SRS, for SRT based protocols,
 // all srt connections accept from srt listener must extends from this base class,
@@ -70,7 +71,7 @@ private:
     srs_error_t recv_err_;
 };
 
-class SrsMpegtsSrtConn : public ISrsStartableConneciton, public ISrsCoroutineHandler, public ISrsExpire
+class SrsMpegtsSrtConn : public ISrsConnection, public ISrsStartable, public ISrsCoroutineHandler, public ISrsExpire
 {
 public:
     SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port);
@@ -78,9 +79,8 @@ public:
 // Interface ISrsResource.
 public:
     virtual std::string desc();
-// Interface ISrsKbpsDelta
 public:
-    virtual void remark(int64_t* in, int64_t* out);
+    ISrsKbpsDelta* delta();
 // Interface ISrsExpire
 public:
     virtual void expire();
@@ -115,8 +115,7 @@ private:
     SrsSrtServer* srt_server_;
     srs_srt_t srt_fd_;
     SrsSrtConnection* srt_conn_;
-    SrsWallClock* clock_;
-    SrsKbps* kbps_;
+    SrsNetworkDelta* delta_;
     std::string ip_;
     int port_;
     SrsCoroutine* trd_;

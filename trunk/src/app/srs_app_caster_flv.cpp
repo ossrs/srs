@@ -68,9 +68,9 @@ srs_error_t SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
         srs_warn("empty ip for fd=%d", srs_netfd_fileno(stfd));
     }
 
-    ISrsStartableConneciton* conn = new SrsDynamicHttpConn(this, stfd, http_mux, ip, port);
+    SrsDynamicHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux, ip, port);
     conns.push_back(conn);
-    
+
     if ((err = conn->start()) != srs_success) {
         return srs_error_wrap(err, "start tcp listener");
     }
@@ -80,14 +80,14 @@ srs_error_t SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
 
 void SrsAppCasterFlv::remove(ISrsResource* c)
 {
-    ISrsStartableConneciton* conn = dynamic_cast<ISrsStartableConneciton*>(c);
+    ISrsConnection* conn = dynamic_cast<ISrsConnection*>(c);
     
-    std::vector<ISrsStartableConneciton*>::iterator it;
+    std::vector<ISrsConnection*>::iterator it;
     if ((it = std::find(conns.begin(), conns.end(), conn)) != conns.end()) {
         conns.erase(it);
     }
     
-    // fixbug: ISrsStartableConneciton for CasterFlv is not freed, which could cause memory leak
+    // fixbug: ISrsConnection for CasterFlv is not freed, which could cause memory leak
     // so, free conn which is not managed by SrsServer->conns;
     // @see: https://github.com/ossrs/srs/issues/826
     manager->remove(c);
@@ -295,11 +295,6 @@ srs_error_t SrsDynamicHttpConn::start()
     }
 
     return conn->start();
-}
-
-void SrsDynamicHttpConn::remark(int64_t* in, int64_t* out)
-{
-    conn->remark(in, out);
 }
 
 SrsHttpFileReader::SrsHttpFileReader(ISrsHttpResponseReader* h)

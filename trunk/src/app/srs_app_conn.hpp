@@ -135,14 +135,6 @@ public:
     virtual void expire() = 0;
 };
 
-// Interface for connection that is startable.
-class ISrsStartableConneciton : public ISrsConnection, public ISrsStartable, public ISrsKbpsDelta
-{
-public:
-    ISrsStartableConneciton();
-    virtual ~ISrsStartableConneciton();
-};
-
 // The basic connection of SRS, for TCP based protocols,
 // all connections accept from listener must extends from this base class,
 // server will add the connection to manager, and delete it when remove.

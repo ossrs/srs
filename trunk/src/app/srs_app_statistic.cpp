@@ -478,11 +478,12 @@ void SrsStatistic::cleanup_stream(SrsStatisticStream* stream)
 
 void SrsStatistic::kbps_add_delta(std::string id, ISrsKbpsDelta* delta)
 {
-    if (clients.find(id) == clients.end()) {
-        return;
-    }
-    
-    SrsStatisticClient* client = clients[id];
+    if (!delta) return;
+
+    map<string, SrsStatisticClient*>::iterator it = clients.find(id);
+    if (it == clients.end()) return;
+
+    SrsStatisticClient* client = it->second;
     
     // resample the kbps to collect the delta.
     int64_t in, out;

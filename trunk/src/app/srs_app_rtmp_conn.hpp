@@ -37,6 +37,7 @@ class SrsSecurity;
 class ISrsWakable;
 class SrsCommonMessage;
 class SrsPacket;
+class SrsNetworkDelta;
 
 // The simple rtmp client for SRS.
 class SrsSimpleRtmpClient : public SrsBasicRtmpClient
@@ -66,7 +67,7 @@ public:
 };
 
 // The client provides the main logic control for RTMP clients.
-class SrsRtmpConn : public ISrsStartableConneciton, public ISrsReloadHandler
+class SrsRtmpConn : public ISrsConnection, public ISrsStartable, public ISrsReloadHandler
     , public ISrsCoroutineHandler, public ISrsExpire
 {
     // For the thread to directly access any field of connection.
@@ -110,12 +111,8 @@ private:
     // The ip and port of client.
     std::string ip;
     int port;
-    // The connection total kbps.
-    // not only the rtmp or http connection, all type of connection are
-    // need to statistic the kbps of io.
-    // The SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
-    SrsKbps* kbps;
-    SrsWallClock* clk;
+    // The delta for statistic.
+    SrsNetworkDelta* delta_;
     // The create time in milliseconds.
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
@@ -134,9 +131,8 @@ public:
     virtual srs_error_t on_reload_vhost_tcp_nodelay(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
     virtual srs_error_t on_reload_vhost_publish(std::string vhost);
-// Interface ISrsKbpsDelta
 public:
-    virtual void remark(int64_t* in, int64_t* out);
+    virtual ISrsKbpsDelta* delta();
 private:
     // When valid and connected to vhost/app, service the client.
     virtual srs_error_t service_cycle();

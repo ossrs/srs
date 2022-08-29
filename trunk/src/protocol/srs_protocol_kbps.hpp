@@ -101,6 +101,26 @@ public:
     virtual void remark(int64_t* in, int64_t* out);
 };
 
+// A network delta data source for SrsKbps.
+class SrsNetworkDelta : public ISrsKbpsDelta
+{
+private:
+    ISrsProtocolStatistic* in_;
+    ISrsProtocolStatistic* out_;
+    uint64_t in_base_;
+    uint64_t in_delta_;
+    uint64_t out_base_;
+    uint64_t out_delta_;
+public:
+    SrsNetworkDelta();
+    virtual ~SrsNetworkDelta();
+public:
+    virtual void set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out);
+// Interface ISrsKbpsDelta.
+public:
+    virtual void remark(int64_t* in, int64_t* out);
+};
+
 /**
  * to statistic the kbps of io.
  * itself can be a statistic source, for example, used for SRS bytes stat.
@@ -121,14 +141,7 @@ public:
  *           kbps->add_delta(in, out)
  *       kbps->sample()
  *       kbps->get_xxx_kbps().
- * 3. kbps used as ISrsKbpsDelta, to provides delta bytes:
- *      SrsKbps* kbps = ...;
- *      kbps->set_io(in, out);
- *      ISrsKbpsDelta* delta = (ISrsKbpsDelta*)kbps;
- *      int64_t in, out;
- *      delta->remark(&in, out);
- *      printf("delta is %d/%d", in, out);
- * 4. kbps used as ISrsProtocolStatistic, to provides raw bytes:
+ * 3. kbps used as ISrsProtocolStatistic, to provides raw bytes:
  *      SrsKbps* kbps = ...;
  *      kbps->set_io(in, out);
  *      // both kbps->get_recv_bytes() and kbps->get_send_bytes() are available.
@@ -137,7 +150,7 @@ public:
  *      user->set_io(kbps, kbps);
  *   the server never know how many bytes already send/recv, for the connection maybe closed.
  */
-class SrsKbps : public ISrsProtocolStatistic, public ISrsKbpsDelta
+class SrsKbps : public ISrsProtocolStatistic
 {
 private:
     SrsKbpsSlice is;
@@ -192,12 +205,6 @@ public:
 public:
     virtual int64_t get_send_bytes();
     virtual int64_t get_recv_bytes();
-// Interface ISrsKbpsDelta
-public:
-    virtual void remark(int64_t* in, int64_t* out);
-// Interface ISrsMemorySizer
-public:
-    virtual int size_memory();
 };
 
 #endif

@@ -1341,11 +1341,21 @@ void SrsServer::resample_kbps()
     // collect delta from all clients.
     for (int i = 0; i < (int)conn_manager->size(); i++) {
         ISrsResource* c = conn_manager->at(i);
-        ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(c);
-        
-        // add delta of connection to server kbps.,
-        // for next sample() of server kbps can get the stat.
-        stat->kbps_add_delta(c->get_id().c_str(), conn);
+
+        SrsRtmpConn* rtmp = dynamic_cast<SrsRtmpConn*>(c);
+        if (rtmp) {
+            stat->kbps_add_delta(c->get_id().c_str(), rtmp->delta());
+            continue;
+        }
+
+        SrsHttpxConn* httpx = dynamic_cast<SrsHttpxConn*>(c);
+        if (httpx) {
+            stat->kbps_add_delta(c->get_id().c_str(), httpx->delta());
+            continue;
+        }
+
+        // Impossible path, because we only create these connections above.
+        srs_assert(false);
     }
     
     // Update the global server level statistics.
@@ -1356,9 +1366,9 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
     
-    ISrsStartableConneciton* conn = NULL;
+    ISrsResource* resource = NULL;
     
-    if ((err = fd_to_resource(type, stfd, &conn)) != srs_success) {
+    if ((err = fd_to_resource(type, stfd, &resource)) != srs_success) {
         //close fd on conn error, otherwise will lead to fd leak -gs
         srs_close_stfd(stfd);
         if (srs_error_code(err) == ERROR_SOCKET_GET_PEER_IP && _srs_config->empty_ip_ok()) {
@@ -1367,11 +1377,12 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
         }
         return srs_error_wrap(err, "fd to resource");
     }
-    srs_assert(conn);
+    srs_assert(resource);
     
     // directly enqueue, the cycle thread will remove the client.
-    conn_manager->add(conn);
+    conn_manager->add(resource);
 
+    ISrsStartable* conn = dynamic_cast<ISrsStartable*>(resource);
     if ((err = conn->start()) != srs_success) {
         return srs_error_wrap(err, "start conn coroutine");
     }
@@ -1384,7 +1395,7 @@ ISrsHttpServeMux* SrsServer::api_server()
     return http_api_mux;
 }
 
-srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsStartableConneciton** pr)
+srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsResource** pr)
 {
     srs_error_t err = srs_success;
     

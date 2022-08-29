@@ -101,9 +101,8 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int cport)
     ip = cip;
     port = cport;
     create_time = srsu2ms(srs_get_system_time());
-    clk = new SrsWallClock();
-    kbps = new SrsKbps(clk);
-    kbps->set_io(skt, skt);
+    delta_ = new SrsNetworkDelta();
+    delta_->set_io(skt, skt);
     trd = new SrsSTCoroutine("rtmp", this, _srs_context->get_id());
     
     rtmp = new SrsRtmpServer(skt);
@@ -137,8 +136,7 @@ SrsRtmpConn::~SrsRtmpConn()
     }
     srs_freep(trd);
 
-    srs_freep(kbps);
-    srs_freep(clk);
+    srs_freep(delta_);
     srs_freep(skt);
     
     srs_freep(info);
@@ -342,9 +340,9 @@ srs_error_t SrsRtmpConn::on_reload_vhost_publish(string vhost)
     return err;
 }
 
-void SrsRtmpConn::remark(int64_t* in, int64_t* out)
+ISrsKbpsDelta* SrsRtmpConn::delta()
 {
-    kbps->remark(in, out);
+    return delta_;
 }
 
 srs_error_t SrsRtmpConn::service_cycle()
@@ -765,10 +763,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
 
         // reportable
         if (pprint->can_print()) {
-            kbps->sample();
-            srs_trace("-> " SRS_CONSTS_LOG_PLAY " time=%d, msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d/%d",
-                (int)pprint->age(), count, kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), srsu2msi(mw_sleep), mw_msgs);
+            srs_trace("-> " SRS_CONSTS_LOG_PLAY " time=%d, msgs=%d, mw=%d/%d", (int)pprint->age(), count, srsu2msi(mw_sleep), mw_msgs);
         }
         
         if (count <= 0) {
@@ -891,8 +886,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     if (true) {
         bool mr = _srs_config->get_mr_enabled(req->vhost);
         srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost);
-        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d",
-            mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout), tcp_nodelay);
+        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d", mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout), tcp_nodelay);
     }
     
     int64_t nb_msgs = 0;
@@ -935,13 +929,9 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
 
         // reportable
         if (pprint->can_print()) {
-            kbps->sample();
             bool mr = _srs_config->get_mr_enabled(req->vhost);
             srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost);
-            srs_trace("<- " SRS_CONSTS_LOG_CLIENT_PUBLISH " time=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d",
-                (int)pprint->age(), kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), mr, srsu2msi(mr_sleep),
-                srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout));
+            srs_trace("<- " SRS_CONSTS_LOG_CLIENT_PUBLISH " time=%d, mr=%d/%d, p1stpt=%d, pnt=%d", (int)pprint->age(), mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout));
         }
     }
     
@@ -1313,7 +1303,7 @@ void SrsRtmpConn::http_hooks_on_close()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        SrsHttpHooks::on_close(url, req, kbps->get_send_bytes(), kbps->get_recv_bytes());
+        SrsHttpHooks::on_close(url, req, skt->get_send_bytes(), skt->get_recv_bytes());
     }
 }
 
@@ -1468,7 +1458,7 @@ srs_error_t SrsRtmpConn::cycle()
 
     // Update statistic when done.
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->kbps_add_delta(get_id().c_str(), this);
+    stat->kbps_add_delta(get_id().c_str(), delta_);
     stat->on_disconnect(get_id().c_str());
 
     // Notify manager to remove it.

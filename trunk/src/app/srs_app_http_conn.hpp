@@ -36,6 +36,7 @@ class SrsHttpUri;
 class SrsHttpMessage;
 class SrsHttpStreamServer;
 class SrsHttpStaticServer;
+class SrsNetworkDelta;
 
 // The owner of HTTP connection.
 class ISrsHttpConnOwner
@@ -59,7 +60,7 @@ public:
 
 // TODO: FIXME: Should rename to roundtrip or responder, not connection.
 // The http connection which request the static or stream content.
-class SrsHttpConn : public ISrsStartableConneciton, public ISrsCoroutineHandler
+class SrsHttpConn : public ISrsConnection, public ISrsStartable, public ISrsCoroutineHandler
     , public ISrsExpire
 {
 protected:
@@ -76,12 +77,8 @@ protected:
     std::string ip;
     int port;
 private:
-    // The connection total kbps.
-    // not only the rtmp or http connection, all type of connection are
-    // need to statistic the kbps of io.
-    // The SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
-    SrsKbps* kbps;
-    SrsWallClock* clk;
+    // The delta for statistic.
+    SrsNetworkDelta* delta_;
     // The create time in milliseconds.
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
@@ -91,9 +88,8 @@ public:
 // Interface ISrsResource.
 public:
     virtual std::string desc();
-// Interface ISrsKbpsDelta
 public:
-    virtual void remark(int64_t* in, int64_t* out);
+    ISrsKbpsDelta* delta();
 // Interface ISrsStartable
 public:
     virtual srs_error_t start();
@@ -127,8 +123,7 @@ public:
 };
 
 // Drop body of request, only process the response.
-class SrsHttpxConn : public ISrsStartableConneciton, public ISrsHttpConnOwner
-    , public ISrsReloadHandler
+class SrsHttpxConn : public ISrsConnection, public ISrsStartable, public ISrsHttpConnOwner, public ISrsReloadHandler
 {
 private:
     // The manager object to manage the connection.
@@ -168,9 +163,8 @@ public:
 // Interface ISrsStartable
 public:
     virtual srs_error_t start();
-// Interface ISrsKbpsDelta
 public:
-    virtual void remark(int64_t* in, int64_t* out);
+    ISrsKbpsDelta* delta();
 };
 
 // The http server, use http stream or static server to serve requests.

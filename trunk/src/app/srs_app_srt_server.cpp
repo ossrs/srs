@@ -212,18 +212,19 @@ srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd)
 {
     srs_error_t err = srs_success;
 
-    ISrsStartableConneciton* conn = NULL;
-    if ((err = fd_to_resource(srt_fd, &conn)) != srs_success) {
+    ISrsResource* resource = NULL;
+    if ((err = fd_to_resource(srt_fd, &resource)) != srs_success) {
         //close fd on conn error, otherwise will lead to fd leak -gs
         // TODO: FIXME: Handle error.
         srs_srt_close(srt_fd);
         return srs_error_wrap(err, "srt fd to resource");
     }
-    srs_assert(conn);
+    srs_assert(resource);
     
     // directly enqueue, the cycle thread will remove the client.
-    conn_manager_->add(conn);
+    conn_manager_->add(resource);
 
+    ISrsStartable* conn = dynamic_cast<ISrsStartable*>(resource);
     if ((err = conn->start()) != srs_success) {
         return srs_error_wrap(err, "start srt conn coroutine");
     }
@@ -231,7 +232,7 @@ srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd)
     return err;
 }
 
-srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsStartableConneciton** pr)
+srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsResource** pr)
 {
     srs_error_t err = srs_success;
     
@@ -294,11 +295,13 @@ void SrsSrtServer::resample_kbps()
     // collect delta from all clients.
     for (int i = 0; i < (int)conn_manager_->size(); i++) {
         ISrsResource* c = conn_manager_->at(i);
-        ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(c);
+
+        SrsMpegtsSrtConn* conn = dynamic_cast<SrsMpegtsSrtConn*>(c);
+        srs_assert(conn);
 
         // add delta of connection to server kbps.,
         // for next sample() of server kbps can get the stat.
-        SrsStatistic::instance()->kbps_add_delta(c->get_id().c_str(), conn);
+        SrsStatistic::instance()->kbps_add_delta(c->get_id().c_str(), conn->delta());
     }
 }
 

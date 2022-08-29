@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-08-30, Refactor: Use compositor for ISrsKbpsDelta. v5.0.51
 * v5.0, 2022-08-29, RTC: Stat the WebRTC clients bandwidth. v5.0.50
 * v5.0, 2022-08-29, HLS: Stat the HLS streaming clients bandwidth. v5.0.49
 * v5.0, 2022-08-28, URL: Use SrsHttpUri to parse URL and query. v5.0.48

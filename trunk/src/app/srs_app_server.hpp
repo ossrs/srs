@@ -311,7 +311,7 @@ public:
     // TODO: FIXME: Fetch from hybrid server manager.
     virtual ISrsHttpServeMux* api_server();
 private:
-    virtual srs_error_t fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsStartableConneciton** pr);
+    virtual srs_error_t fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsResource** pr);
 // Interface ISrsResourceManager
 public:
     // A callback for connection to remove itself.

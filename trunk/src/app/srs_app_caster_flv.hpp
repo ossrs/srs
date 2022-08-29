@@ -35,7 +35,7 @@ class SrsAppCasterFlv : public ISrsTcpHandler, public ISrsResourceManager, publi
 private:
     std::string output;
     SrsHttpServeMux* http_mux;
-    std::vector<ISrsStartableConneciton*> conns;
+    std::vector<ISrsConnection*> conns;
     SrsResourceManager* manager;
 public:
     SrsAppCasterFlv(SrsConfDirective* c);
@@ -54,7 +54,8 @@ public:
 };
 
 // The dynamic http connection, never drop the body.
-class SrsDynamicHttpConn : public ISrsStartableConneciton, public ISrsHttpConnOwner, public ISrsReloadHandler
+class SrsDynamicHttpConn : public ISrsConnection, public ISrsStartable, public ISrsHttpConnOwner
+    , public ISrsReloadHandler
 {
 private:
     // The manager object to manage the connection.
@@ -92,9 +93,6 @@ public:
 // Interface ISrsStartable
 public:
     virtual srs_error_t start();
-// Interface ISrsKbpsDelta
-public:
-    virtual void remark(int64_t* in, int64_t* out);
 };
 
 // The http wrapper for file reader, to read http post stream like a file.

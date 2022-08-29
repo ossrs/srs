@@ -160,9 +160,8 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, s
 
     srt_fd_ = srt_fd;
     srt_conn_ = new SrsSrtConnection(srt_fd_);
-    clock_ = new SrsWallClock();
-    kbps_ = new SrsKbps(clock_);
-    kbps_->set_io(srt_conn_, srt_conn_);
+    delta_ = new SrsNetworkDelta();
+    delta_->set_io(srt_conn_, srt_conn_);
     ip_ = ip;
     port_ = port;
 
@@ -177,11 +176,8 @@ SrsMpegtsSrtConn::~SrsMpegtsSrtConn()
 {
     srs_freep(trd_);
 
-    srs_freep(kbps_);
-    srs_freep(clock_);
-
+    srs_freep(delta_);
     srs_freep(srt_conn_);
-
     srs_freep(req_);
 }
 
@@ -190,9 +186,9 @@ std::string SrsMpegtsSrtConn::desc()
     return "srt-ts-conn";
 }
 
-void SrsMpegtsSrtConn::remark(int64_t* in, int64_t* out)
+ISrsKbpsDelta* SrsMpegtsSrtConn::delta()
 {
-    kbps_->remark(in, out);
+    return delta_;
 }
 
 void SrsMpegtsSrtConn::expire()
@@ -227,7 +223,7 @@ srs_error_t SrsMpegtsSrtConn::cycle()
 
     // Update statistic when done.
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->kbps_add_delta(get_id().c_str(), this);
+    stat->kbps_add_delta(get_id().c_str(), delta_);
     stat->on_disconnect(get_id().c_str());
 
     // Notify manager to remove it.
@@ -412,11 +408,7 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
                     s.pktRecv(), s.pktRcvLoss(), s.pktRcvRetrans(), s.pktRcvDrop());
             }
 
-            kbps_->sample();
-
-            srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " time=%d, packets=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d",
-                (int)pprint->age(), nb_packets, kbps_->get_send_kbps(), kbps_->get_send_kbps_30s(), kbps_->get_send_kbps_5m(),
-                kbps_->get_recv_kbps(), kbps_->get_recv_kbps_30s(), kbps_->get_recv_kbps_5m());
+            srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " time=%d, packets=%d", (int)pprint->age(), nb_packets);
             nb_packets = 0;
         }
 
@@ -493,11 +485,7 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
                     s.pktSent(), s.pktSndLoss(), s.pktRetrans(), s.pktSndDrop());
             }
 
-            kbps_->sample();
-
-            srs_trace("-> " SRS_CONSTS_LOG_SRT_PLAY " time=%d, packets=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d",
-                (int)pprint->age(), nb_packets, kbps_->get_send_kbps(), kbps_->get_send_kbps_30s(), kbps_->get_send_kbps_5m(),
-                kbps_->get_recv_kbps(), kbps_->get_recv_kbps_30s(), kbps_->get_recv_kbps_5m());
+            srs_trace("-> " SRS_CONSTS_LOG_SRT_PLAY " time=%d, packets=%d", (int)pprint->age(), nb_packets);
             nb_packets = 0;
         }
 
@@ -600,7 +588,7 @@ void SrsMpegtsSrtConn::http_hooks_on_close()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        SrsHttpHooks::on_close(url, req_, kbps_->get_send_bytes(), kbps_->get_recv_bytes());
+        SrsHttpHooks::on_close(url, req_, srt_conn_->get_send_bytes(), srt_conn_->get_recv_bytes());
     }
 }
 

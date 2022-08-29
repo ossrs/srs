@@ -70,8 +70,6 @@ SrsHlsStream::~SrsHlsStream()
 
 srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, string fullpath, SrsRequest* req)
 {
-    srs_error_t err = srs_success;
-
     string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
 
     // Always make the ctx alive now.
@@ -99,13 +97,13 @@ void SrsHlsStream::on_serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
     srs_assert(hc);
 
-    ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(hc);
-    srs_assert(conn);
+    ISrsKbpsDelta* delta = hc->delta();
+    srs_assert(delta);
 
     // Only update the delta, because SrsServer will sample it. Note that SrsServer also does the stat for all clients
     // including this one, but it should be ignored because the id is not matched, and instead we use the hls_ctx as
     // session id to match the client.
-    SrsStatistic::instance()->kbps_add_delta(ctx, conn);
+    SrsStatistic::instance()->kbps_add_delta(ctx, delta);
 }
 
 srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest* req)
@@ -467,8 +465,6 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
 
 srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
 {
-    srs_error_t err = srs_success;
-
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     srs_assert(hr);
 

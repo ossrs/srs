@@ -6226,36 +6226,17 @@ VOID TEST(ProtocolKbpsTest, Connections)
 VOID TEST(ProtocolKbpsTest, Delta)
 {
     if (true) {
-        SrsEphemeralDelta ed;
-
-        ISrsKbpsDelta* delta = (ISrsKbpsDelta*)&ed;
-        int64_t in, out;
-        delta->remark(&in, &out);
-        EXPECT_EQ(0, in);
-        EXPECT_EQ(0, out);
-
-        ed.add_delta(100 * 1000, 100 * 1000);
-        delta->remark(&in, &out);
-        EXPECT_EQ(100 * 1000, in);
-        EXPECT_EQ(100 * 1000, out);
-
-        delta->remark(&in, &out);
-        EXPECT_EQ(0, in);
-        EXPECT_EQ(0, out);
-    }
-
-    if (true) {
         MockWallClock* clock = new MockWallClock();
         SrsAutoFree(MockWallClock, clock);
         MockStatistic* io = new MockStatistic();
         SrsAutoFree(MockStatistic, io);
         
-        SrsKbps* conn = new SrsKbps(clock->set_clock(0));
-        SrsAutoFree(SrsKbps, conn);
+        SrsNetworkDelta* conn = new SrsNetworkDelta();
+        SrsAutoFree(SrsNetworkDelta, conn);
         conn->set_io(io, io);
         
         // No data.
-        ISrsKbpsDelta* delta = (ISrsKbpsDelta*)conn;
+        ISrsKbpsDelta* delta = dynamic_cast<ISrsKbpsDelta*>(conn);
         int64_t in, out;
         delta->remark(&in, &out);
         EXPECT_EQ(0, in);
@@ -6278,13 +6259,13 @@ VOID TEST(ProtocolKbpsTest, Delta)
         SrsAutoFree(MockWallClock, clock);
         MockStatistic* io = new MockStatistic();
         SrsAutoFree(MockStatistic, io);
-        
-        SrsKbps* conn = new SrsKbps(clock->set_clock(0));
-        SrsAutoFree(SrsKbps, conn);
+
+        SrsNetworkDelta* conn = new SrsNetworkDelta();
+        SrsAutoFree(SrsNetworkDelta, conn);
         conn->set_io(io, io);
         
         // No data.
-        ISrsKbpsDelta* delta = (ISrsKbpsDelta*)conn;
+        ISrsKbpsDelta* delta = dynamic_cast<ISrsKbpsDelta*>(conn);
         int64_t in, out;
         delta->remark(&in, &out);
         EXPECT_EQ(0, in);
@@ -6721,6 +6702,54 @@ VOID TEST(ProtocolProtobufTest, FieldKey)
         SrsBuffer b(buf, 1);
         HELPER_ASSERT_SUCCESS(SrsProtobufKey::encode(&b, 4, SrsProtobufFieldLengthDelimited));
         EXPECT_EQ(0x22, buf[0]);
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, NewDelta)
+{
+    if (true) {
+        SrsEphemeralDelta ed;
+
+        ISrsKbpsDelta* delta = (ISrsKbpsDelta*)&ed;
+        int64_t in, out;
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+
+        ed.add_delta(100 * 1000, 100 * 1000);
+        delta->remark(&in, &out);
+        EXPECT_EQ(100 * 1000, in);
+        EXPECT_EQ(100 * 1000, out);
+
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+    }
+
+    if (true) {
+        SrsNetworkDelta nd;
+
+        ISrsKbpsDelta* delta = (ISrsKbpsDelta*)&nd;
+        int64_t in, out;
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+
+        MockStatistic ms;
+        ms.set_in(100 * 1000)->set_out(100*1000);
+        nd.set_io(&ms, &ms);
+        delta->remark(&in, &out);
+        EXPECT_EQ(100 * 1000, in);
+        EXPECT_EQ(100 * 1000, out);
+
+        ms.add_in(10 * 1000)->add_out(10 * 1000);
+        delta->remark(&in, &out);
+        EXPECT_EQ(10 * 1000, in);
+        EXPECT_EQ(10 * 1000, out);
+
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
     }
 }
 

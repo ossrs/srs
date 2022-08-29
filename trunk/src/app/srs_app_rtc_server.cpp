@@ -643,10 +643,7 @@ srs_error_t SrsRtcServer::on_timer(srs_utime_t interval)
         // Update stat if session is alive.
         if (session->is_alive()) {
             nn_rtc_conns++;
-
-            ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(session);
-            SrsStatistic::instance()->kbps_add_delta(session->get_id().c_str(), conn);
-
+            SrsStatistic::instance()->kbps_add_delta(session->get_id().c_str(), session->delta());
             continue;
         }
 

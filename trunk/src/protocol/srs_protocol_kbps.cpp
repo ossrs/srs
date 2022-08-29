@@ -90,6 +90,54 @@ void SrsEphemeralDelta::remark(int64_t* in, int64_t* out)
     in_ = out_ = 0;
 }
 
+SrsNetworkDelta::SrsNetworkDelta()
+{
+    in_ = out_ = NULL;
+    in_base_ = in_delta_ = 0;
+    out_base_ = out_delta_ = 0;
+}
+
+SrsNetworkDelta::~SrsNetworkDelta()
+{
+}
+
+void SrsNetworkDelta::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
+{
+    if (in_) {
+        in_delta_ += in_->get_recv_bytes() - in_base_;
+    }
+    if (in) {
+        in_base_ = in->get_recv_bytes();
+        in_delta_ += in_base_;
+    }
+    in_ = in;
+
+    if (out_) {
+        out_delta_ += out_->get_send_bytes() - out_base_;
+    }
+    if (out) {
+        out_base_ = out->get_send_bytes();
+        out_delta_ += out_base_;
+    }
+    out_ = out;
+}
+
+void SrsNetworkDelta::remark(int64_t* in, int64_t* out)
+{
+    if (in_) {
+        in_delta_ += in_->get_recv_bytes() - in_base_;
+        in_base_ = in_->get_recv_bytes();
+    }
+    if (out_) {
+        out_delta_ += out_->get_send_bytes() - out_base_;
+        out_base_ = out_->get_send_bytes();
+    }
+
+    *in = in_delta_;
+    *out = out_delta_;
+    in_delta_ = out_delta_ = 0;
+}
+
 SrsKbps::SrsKbps(SrsWallClock* c) : is(c), os(c)
 {
     clk = c;
@@ -247,27 +295,5 @@ int64_t SrsKbps::get_recv_bytes()
     bytes += is.last_bytes - is.io_bytes_base;
     
     return bytes;
-}
-
-void SrsKbps::remark(int64_t* in, int64_t* out)
-{
-    sample();
-    
-    int64_t inv = is.get_total_bytes() - is.delta_bytes;
-    is.delta_bytes = is.get_total_bytes();
-    if (in) {
-        *in = inv;
-    }
-    
-    int64_t outv = os.get_total_bytes() - os.delta_bytes;
-    os.delta_bytes = os.get_total_bytes();
-    if (out) {
-        *out = outv;
-    }
-}
-
-int SrsKbps::size_memory()
-{
-    return sizeof(SrsKbps);
 }
 

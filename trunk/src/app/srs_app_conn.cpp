@@ -414,14 +414,6 @@ ISrsExpire::~ISrsExpire()
 {
 }
 
-ISrsStartableConneciton::ISrsStartableConneciton()
-{
-}
-
-ISrsStartableConneciton::~ISrsStartableConneciton()
-{
-}
-
 SrsTcpConnection::SrsTcpConnection(srs_netfd_t c)
 {
     stfd = c;
