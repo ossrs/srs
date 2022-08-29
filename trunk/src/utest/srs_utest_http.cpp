@@ -1225,7 +1225,7 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STRCT(200, "index.m3u8?hls_ctx=", w);
+        __MOCK_HTTP_EXPECT_STRHAS(200, "index.m3u8?hls_ctx=", w);
     }
 
     // Should return "hls_ctx"
@@ -1243,7 +1243,25 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STRCT(200, "index.m3u8?hls_ctx=123456", w);
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // Should return "hls_ctx"
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("livestream-13.ts"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "livestream-13.ts?hls_ctx=123456", w);
     }
 }
 

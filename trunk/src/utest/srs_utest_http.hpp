@@ -47,7 +47,7 @@ bool is_string_contain(string substr, string str);
 #define __MOCK_HTTP_EXPECT_STREQ2(status, text, w) \
         EXPECT_STREQ(mock_http_response2(status, text).c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str())
 
-#define __MOCK_HTTP_EXPECT_STRCT(status, text, w) \
+#define __MOCK_HTTP_EXPECT_STRHAS(status, text, w) \
         EXPECT_PRED2(is_string_contain, text, HELPER_BUFFER2STR(&w.io.out_buffer).c_str())
 
 #endif

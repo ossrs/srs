@@ -382,6 +382,8 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
         return serve_mp4_file(w, r, fullpath);
     } else if (srs_string_ends_with(upath, ".m3u8")) {
         return serve_m3u8_file(w, r, fullpath);
+    } else if (srs_string_ends_with(upath, ".ts")) {
+        return serve_ts_file(w, r, fullpath);
     }
     
     // serve common static file.
@@ -531,6 +533,11 @@ srs_error_t SrsHttpFileServer::serve_m3u8_file(ISrsHttpResponseWriter * w, ISrsH
     return serve_m3u8_ctx(w, r, fullpath);
 }
 
+srs_error_t SrsHttpFileServer::serve_ts_file(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
+{
+    return serve_ts_ctx(w, r, fullpath);
+}
+
 srs_error_t SrsHttpFileServer::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int64_t offset)
 {
     // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
@@ -548,7 +555,12 @@ srs_error_t SrsHttpFileServer::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsH
 srs_error_t SrsHttpFileServer::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
 {
     // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
-    // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
+    return serve_file(w, r, fullpath);
+}
+
+srs_error_t SrsHttpFileServer::serve_ts_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
+{
+    // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
     return serve_file(w, r, fullpath);
 }
 

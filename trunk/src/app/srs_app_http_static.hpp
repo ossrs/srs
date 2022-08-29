@@ -11,6 +11,8 @@
 
 #include <srs_app_http_conn.hpp>
 
+class ISrsFileReaderFactory;
+
 struct SrsM3u8CtxInfo
 {
     srs_utime_t request_time;
@@ -29,10 +31,11 @@ public:
     SrsHlsStream();
     virtual ~SrsHlsStream();
 public:
-    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, SrsRequest* req);
+    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, std::string fullpath, SrsRequest* req);
+    virtual void on_serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
     srs_error_t serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest *req);
-    srs_error_t serve_exists_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    srs_error_t serve_exists_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, std::string fullpath);
     bool ctx_is_exist(std::string ctx);
     void alive(std::string ctx, SrsRequest* req);
     srs_error_t http_hooks_on_play(SrsRequest* req);
@@ -60,6 +63,7 @@ protected:
     virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int64_t start, int64_t end);
     // Support HLS streaming with pseudo session id.
     virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    virtual srs_error_t serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 };
 
 // The http static server instance,

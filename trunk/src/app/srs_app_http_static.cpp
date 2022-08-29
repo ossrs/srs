@@ -68,7 +68,7 @@ SrsHlsStream::~SrsHlsStream()
     map_ctx_info_.clear();
 }
 
-srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, SrsRequest* req)
+srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, string fullpath, SrsRequest* req)
 {
     srs_error_t err = srs_success;
 
@@ -79,18 +79,40 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
 
     // Already exists context, response with rebuilt m3u8 content.
     if (!ctx.empty() && ctx_is_exist(ctx)) {
-        return serve_exists_session(w, r, fullpath);
+        return serve_exists_session(w, r, factory, fullpath);
     }
 
     // Create a m3u8 in memory, contains the session id(ctx).
     return serve_new_session(w, r, req);
 }
 
+void SrsHlsStream::on_serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
+    if (ctx.empty() || !ctx_is_exist(ctx)) {
+        return;
+    }
+
+    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    srs_assert(hr);
+
+    SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
+    srs_assert(hc);
+
+    ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(hc);
+    srs_assert(conn);
+
+    // Only update the delta, because SrsServer will sample it. Note that SrsServer also does the stat for all clients
+    // including this one, but it should be ignored because the id is not matched, and instead we use the hls_ctx as
+    // session id to match the client.
+    SrsStatistic::instance()->kbps_add_delta(ctx, conn);
+}
+
 srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest* req)
 {
     srs_error_t err = srs_success;
 
-    SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
+    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     srs_assert(hr);
 
     string ctx;
@@ -140,18 +162,20 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
     return err;
 }
 
-srs_error_t SrsHlsStream::serve_exists_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath)
+srs_error_t SrsHlsStream::serve_exists_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, std::string fullpath)
 {
     srs_error_t err = srs_success;
 
     // Read m3u8 content.
-    SrsFileReader fs;
-    if ((err = fs.open(fullpath)) != srs_success) {
+    SrsFileReader* fs = factory->create_file_reader();
+    SrsAutoFree(SrsFileReader, fs);
+
+    if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open %s", fullpath.c_str());
     }
 
     string content;
-    if ((err = srs_ioutil_read_all(&fs, content)) != srs_success) {
+    if ((err = srs_ioutil_read_all(fs, content)) != srs_success) {
         return srs_error_wrap(err, "read %s", fullpath.c_str());
     }
 
@@ -445,14 +469,14 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
 {
     srs_error_t err = srs_success;
 
-    SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
+    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     srs_assert(hr);
 
-    SrsRequest *req = hr->to_request(hr->host())->as_http();
+    SrsRequest* req = hr->to_request(hr->host())->as_http();
     SrsAutoFree(SrsRequest, req);
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req->vhost);
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
     if (parsed_vhost) {
         req->vhost = parsed_vhost->arg0();
     }
@@ -464,7 +488,23 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
     }
 
     // Try to serve by HLS streaming.
-    return hls_.serve_m3u8_ctx(w, r, fullpath, req);
+    return hls_.serve_m3u8_ctx(w, r, fs_factory, fullpath, req);
+}
+
+srs_error_t SrsVodStream::serve_ts_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
+{
+    srs_error_t err = srs_success;
+
+    // SrsServer also stat all HTTP connections including this one, but it should be ignored because the id is not
+    // matched to any exists client. And we will do stat for the HLS streaming by session in hls_ctx.
+
+    // Serve by default HLS handler.
+    err = SrsHttpFileServer::serve_ts_ctx(w, r, fullpath);
+
+    // Notify the HLS to stat the ts after serving.
+    hls_.on_serve_ts_ctx(w, r);
+
+    return err;
 }
 
 SrsHttpStaticServer::SrsHttpStaticServer(SrsServer* svr)
