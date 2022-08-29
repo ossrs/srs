@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-08-29, RTC: Stat the WebRTC clients bandwidth. v5.0.50
 * v5.0, 2022-08-29, HLS: Stat the HLS streaming clients bandwidth. v5.0.49
 * v5.0, 2022-08-28, URL: Use SrsHttpUri to parse URL and query. v5.0.48
 * v5.0, 2022-08-28, Fix [#2881](https://github.com/ossrs/srs/issues/2881): HTTP: Support merging api to server. v5.0.47

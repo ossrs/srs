@@ -51,6 +51,8 @@ class SrsStatistic;
 class SrsRtcUserConfig;
 class SrsRtcSendTrack;
 class SrsRtcPublishStream;
+class SrsKbps;
+class SrsWallClock;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -433,7 +435,7 @@ private:
 //
 // For performance, we use non-public from resource,
 // see https://stackoverflow.com/questions/3747066/c-cannot-convert-from-base-a-to-derived-type-b-via-virtual-base-a
-class SrsRtcConnection : public ISrsResource, public ISrsDisposingHandler, public ISrsExpire
+class SrsRtcConnection : public ISrsResource, public ISrsDisposingHandler, public ISrsExpire, public ISrsKbpsDelta
 {
     friend class SrsSecurityTransport;
     friend class SrsRtcPlayStream;
@@ -490,6 +492,9 @@ private:
     SrsErrorPithyPrint* pli_epp;
 private:
     bool nack_enabled_;
+private:
+    SrsKbps* kbps_;
+    SrsWallClock* clock_;
 public:
     SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid);
     virtual ~SrsRtcConnection();
@@ -510,6 +515,9 @@ public:
     std::string username();
     // Get all addresses client used.
     std::vector<SrsUdpMuxSocket*> peer_addresses();
+// Interface ISrsKbpsDelta.
+public:
+    virtual void remark(int64_t* in, int64_t* out);
 // Interface ISrsResource.
 public:
     virtual const SrsContextId& get_id();
