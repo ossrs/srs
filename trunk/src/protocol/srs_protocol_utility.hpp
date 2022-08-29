@@ -32,6 +32,7 @@ class SrsMessageHeader;
 class SrsSharedPtrMessage;
 class SrsCommonMessage;
 class ISrsProtocolReadWriter;
+class ISrsReader;
 
 /**
  * parse the tcUrl, output the schema, host, vhost, app and port.
@@ -182,6 +183,9 @@ extern std::string srs_get_original_ip(ISrsHttpMessage* r);
 
 // Get hostname
 extern std::string srs_get_system_hostname(void);
+
+// Read all content util EOF.
+extern srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content);
 
 #endif
 

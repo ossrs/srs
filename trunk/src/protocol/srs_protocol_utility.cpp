@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_stack.hpp>
+#include <srs_core_autofree.hpp>
 
 void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vhost, string& app, string& stream, int& port, string& param)
 {
@@ -898,5 +899,35 @@ string srs_get_system_hostname()
 
     _srs_system_hostname = std::string(buf);
     return _srs_system_hostname;
+}
+
+srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content)
+{
+    srs_error_t err = srs_success;
+
+    // Cache to read, it might cause coroutine switch, so we use local cache here.
+    char* buf = new char[SRS_HTTP_READ_CACHE_BYTES];
+    SrsAutoFreeA(char, buf);
+
+    // Whatever, read util EOF.
+    while (true) {
+        ssize_t nb_read = 0;
+        if ((err = in->read(buf, SRS_HTTP_READ_CACHE_BYTES, &nb_read)) != srs_success) {
+            int code = srs_error_code(err);
+            if (code == ERROR_SYSTEM_FILE_EOF || code == ERROR_HTTP_RESPONSE_EOF || code == ERROR_HTTP_REQUEST_EOF
+                || code == ERROR_HTTP_STREAM_EOF
+            ) {
+                srs_freep(err);
+                return err;
+            }
+            return srs_error_wrap(err, "read body");
+        }
+
+        if (nb_read > 0) {
+            content.append(buf, nb_read);
+        }
+    }
+
+    return err;
 }
 

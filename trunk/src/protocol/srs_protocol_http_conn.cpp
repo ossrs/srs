@@ -574,25 +574,7 @@ std::string SrsHttpMessage::parse_rest_id(string pattern)
 
 srs_error_t SrsHttpMessage::body_read_all(string& body)
 {
-    srs_error_t err = srs_success;
-    
-    // cache to read.
-    char* buf = new char[SRS_HTTP_READ_CACHE_BYTES];
-    SrsAutoFreeA(char, buf);
-    
-    // whatever, read util EOF.
-    while (!_body->eof()) {
-        ssize_t nb_read = 0;
-        if ((err = _body->read(buf, SRS_HTTP_READ_CACHE_BYTES, &nb_read)) != srs_success) {
-            return srs_error_wrap(err, "read body");
-        }
-        
-        if (nb_read > 0) {
-            body.append(buf, nb_read);
-        }
-    }
-    
-    return err;
+    return srs_ioutil_read_all(_body, body);
 }
 
 ISrsHttpResponseReader* SrsHttpMessage::body_reader()
