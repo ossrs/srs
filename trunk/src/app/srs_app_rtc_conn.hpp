@@ -51,8 +51,7 @@ class SrsStatistic;
 class SrsRtcUserConfig;
 class SrsRtcSendTrack;
 class SrsRtcPublishStream;
-class SrsKbps;
-class SrsWallClock;
+class SrsEphemeralDelta;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -493,8 +492,7 @@ private:
 private:
     bool nack_enabled_;
 private:
-    SrsKbps* kbps_;
-    SrsWallClock* clock_;
+    SrsEphemeralDelta* delta_;
 public:
     SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid);
     virtual ~SrsRtcConnection();

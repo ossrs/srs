@@ -68,6 +68,28 @@ ISrsKbpsDelta::~ISrsKbpsDelta()
 {
 }
 
+SrsEphemeralDelta::SrsEphemeralDelta()
+{
+    in_ = out_ = 0;
+}
+
+SrsEphemeralDelta::~SrsEphemeralDelta()
+{
+}
+
+void SrsEphemeralDelta::add_delta(int64_t in, int64_t out)
+{
+    in_ += in;
+    out_ += out;
+}
+
+void SrsEphemeralDelta::remark(int64_t* in, int64_t* out)
+{
+    if (in) *in = in_;
+    if (out) *out = out_;
+    in_ = out_ = 0;
+}
+
 SrsKbps::SrsKbps(SrsWallClock* c) : is(c), os(c)
 {
     clk = c;

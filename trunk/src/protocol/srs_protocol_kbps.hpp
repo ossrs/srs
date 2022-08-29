@@ -84,6 +84,23 @@ public:
     virtual void remark(int64_t* in, int64_t* out) = 0;
 };
 
+// A delta data source for SrsKbps, used in ephemeral case, for example, UDP server to increase stat when received or
+// sent out each UDP packet.
+class SrsEphemeralDelta : public ISrsKbpsDelta
+{
+private:
+    uint64_t in_;
+    uint64_t out_;
+public:
+    SrsEphemeralDelta();
+    virtual ~SrsEphemeralDelta();
+public:
+    virtual void add_delta(int64_t in, int64_t out);
+// Interface ISrsKbpsDelta.
+public:
+    virtual void remark(int64_t* in, int64_t* out);
+};
+
 /**
  * to statistic the kbps of io.
  * itself can be a statistic source, for example, used for SRS bytes stat.

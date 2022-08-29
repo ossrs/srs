@@ -6226,6 +6226,25 @@ VOID TEST(ProtocolKbpsTest, Connections)
 VOID TEST(ProtocolKbpsTest, Delta)
 {
     if (true) {
+        SrsEphemeralDelta ed;
+
+        ISrsKbpsDelta* delta = (ISrsKbpsDelta*)&ed;
+        int64_t in, out;
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+
+        ed.add_delta(100 * 1000, 100 * 1000);
+        delta->remark(&in, &out);
+        EXPECT_EQ(100 * 1000, in);
+        EXPECT_EQ(100 * 1000, out);
+
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+    }
+
+    if (true) {
         MockWallClock* clock = new MockWallClock();
         SrsAutoFree(MockWallClock, clock);
         MockStatistic* io = new MockStatistic();

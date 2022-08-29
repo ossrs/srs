@@ -1820,13 +1820,10 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     nn_simulate_player_nack_drop = 0;
     pp_address_change = new SrsErrorPithyPrint();
     pli_epp = new SrsErrorPithyPrint();
+    delta_ = new SrsEphemeralDelta();
 
     nack_enabled_ = false;
     timer_nack_ = new SrsRtcConnectionNackTimer(this);
-
-    clock_ = new SrsWallClock();
-    kbps_ = new SrsKbps(clock_);
-    kbps_->set_io(NULL, NULL);
 
     _srs_rtc_manager->subscribe(this);
 }
@@ -1872,9 +1869,7 @@ SrsRtcConnection::~SrsRtcConnection()
     srs_freep(req_);
     srs_freep(pp_address_change);
     srs_freep(pli_epp);
-
-    srs_freep(kbps_);
-    srs_freep(clock_);
+    srs_freep(delta_);
 }
 
 void SrsRtcConnection::on_before_dispose(ISrsResource* c)
@@ -1952,7 +1947,7 @@ vector<SrsUdpMuxSocket*> SrsRtcConnection::peer_addresses()
 
 void SrsRtcConnection::remark(int64_t* in, int64_t* out)
 {
-    kbps_->remark(in, out);
+    delta_->remark(in, out);
 }
 
 const SrsContextId& SrsRtcConnection::get_id()
@@ -2110,7 +2105,7 @@ srs_error_t SrsRtcConnection::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r)
     srs_error_t err = srs_success;
 
     // Update stat when we received data.
-    kbps_->add_delta(skt->size(), 0);
+    delta_->add_delta(skt->size(), 0);
 
     if (!r->is_binding_request()) {
         return err;
@@ -2135,7 +2130,7 @@ srs_error_t SrsRtcConnection::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r)
 srs_error_t SrsRtcConnection::on_dtls(char* data, int nb_data)
 {
     // Update stat when we received data.
-    kbps_->add_delta(nb_data, 0);
+    delta_->add_delta(nb_data, 0);
 
     return transport_->on_dtls(data, nb_data);
 }
@@ -2145,7 +2140,7 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
     srs_error_t err = srs_success;
 
     // Update stat when we received data.
-    kbps_->add_delta(nb_data, 0);
+    delta_->add_delta(nb_data, 0);
 
     int nb_unprotected_buf = nb_data;
     if ((err = transport_->unprotect_rtcp(data, &nb_unprotected_buf)) != srs_success) {
@@ -2286,7 +2281,7 @@ srs_error_t SrsRtcConnection::on_rtp(char* data, int nb_data)
     srs_error_t err = srs_success;
 
     // Update stat when we received data.
-    kbps_->add_delta(nb_data, 0);
+    delta_->add_delta(nb_data, 0);
 
     SrsRtcPublishStream* publisher = NULL;
     if ((err = find_publisher(data, nb_data, &publisher)) != srs_success) {
@@ -2485,7 +2480,7 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
     ++_srs_pps_srtcps->sugar;
 
     // Update stat when we sending data.
-    kbps_->add_delta(0, nb_data);
+    delta_->add_delta(0, nb_data);
 
     int  nb_buf = nb_data;
     if ((err = transport_->protect_rtcp(data, &nb_buf)) != srs_success) {
@@ -2692,7 +2687,7 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket* pkt)
     ++_srs_pps_srtps->sugar;
 
     // Update stat when we sending data.
-    kbps_->add_delta(0, iov->iov_len);
+    delta_->add_delta(0, iov->iov_len);
 
     // TODO: FIXME: Handle error.
     sendonly_skt->sendto(iov->iov_base, iov->iov_len, 0);
@@ -2766,7 +2761,7 @@ srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket* r)
     }
 
     // Update stat when we sending data.
-    kbps_->add_delta(0, stream->pos());
+    delta_->add_delta(0, stream->pos());
 
     if ((err = sendonly_skt->sendto(stream->data(), stream->pos(), 0)) != srs_success) {
         return srs_error_wrap(err, "stun binding response send failed");
