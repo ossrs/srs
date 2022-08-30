@@ -1843,61 +1843,6 @@ VOID TEST(ConfigMainTest, CheckConf_transcode)
     }
 }
 
-VOID TEST(ConfigMainTest, CheckConf_bandcheck)
-{
-    srs_error_t err;
-    
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost v{bandcheck{}}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.parse(_MIN_OK_CONF "vhost v{bandchecks{}}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost v{bandcheck{enabled on;}}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.parse(_MIN_OK_CONF "vhost v{bandcheck{enableds on;}}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost v{bandcheck{key \"35c9b402c12a7246868752e2878f7e0e\";}}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.parse(_MIN_OK_CONF "vhost v{bandcheck{keys \"35c9b402c12a7246868752e2878f7e0e\";}}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost v{bandcheck{interval 30;}}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.parse(_MIN_OK_CONF "vhost v{bandcheck{intervals 30;}}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost v{bandcheck{limit_kbps 4000;}}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.parse(_MIN_OK_CONF "vhost v{bandcheck{limit_kbpss 4000;}}"));
-    }
-}
-
 VOID TEST(ConfigMainTest, CheckConf_chunk_size2)
 {
     srs_error_t err;
@@ -2018,14 +1963,6 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
     srs_error_t err;
 
     MockSrsConfig conf;
-
-    if (true) {
-	    HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
-	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_bw_check_interval(""));
-
-	    HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost v{bandcheck{interval 4;}}"));
-	    EXPECT_EQ(4 * SRS_UTIME_SECONDS, conf.get_bw_check_interval("v"));
-    }
 
     if (true) {
 	    HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
@@ -3198,10 +3135,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
         EXPECT_TRUE(conf.get_vhost_on_dvr("ossrs.net") == NULL);
         EXPECT_TRUE(conf.get_vhost_on_hls("ossrs.net") == NULL);
         EXPECT_TRUE(conf.get_vhost_on_hls_notify("ossrs.net") == NULL);
-        EXPECT_FALSE(conf.get_bw_check_enabled("ossrs.net"));
-        EXPECT_TRUE(conf.get_bw_check_key("ossrs.net").empty());
-        EXPECT_EQ(30000000, conf.get_bw_check_interval("ossrs.net"));
-        EXPECT_EQ(1000, conf.get_bw_check_limit_kbps("ossrs.net"));
         EXPECT_FALSE(conf.get_vhost_is_edge("ossrs.net"));
         EXPECT_TRUE(conf.get_vhost_edge_origin("ossrs.net") == NULL);
         EXPECT_FALSE(conf.get_vhost_edge_token_traverse("ossrs.net"));
@@ -3258,30 +3191,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{cluster{mode remote;}}"));
         EXPECT_TRUE(conf.get_vhost_is_edge("ossrs.net"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{bandcheck{limit_kbps 10;}}"));
-        EXPECT_EQ(10, conf.get_bw_check_limit_kbps("ossrs.net"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{bandcheck{interval 10;}}"));
-        EXPECT_EQ(10000000, conf.get_bw_check_interval("ossrs.net"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{bandcheck{key xxx;}}"));
-        EXPECT_FALSE(conf.get_bw_check_key("ossrs.net").empty());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{bandcheck{enabled on;}}"));
-        EXPECT_TRUE(conf.get_bw_check_enabled("ossrs.net"));
     }
 
     if (true) {

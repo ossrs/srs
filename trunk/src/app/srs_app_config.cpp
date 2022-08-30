@@ -1505,7 +1505,7 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     //
     // always support reload without additional code:
     //      chunk_size, ff_log_dir,
-    //      bandcheck, http_hooks, heartbeat,
+    //      http_hooks, heartbeat,
     //      security
     
     // merge config: listen
@@ -2591,13 +2591,6 @@ srs_error_t SrsConfig::check_normal_config()
                                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.transcode.engine.%s of %s", e.c_str(), vhost->arg0().c_str());
                             }
                         }
-                    }
-                }
-            } else if (n == "bandcheck") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name;
-                    if (m != "enabled" && m != "key" && m != "interval" && m != "limit_kbps") {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.bandcheck.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
             } else if (n == "rtc") {
@@ -4841,94 +4834,6 @@ SrsConfDirective* SrsConfig::get_vhost_on_hls_notify(string vhost)
     }
     
     return conf->get("on_hls_notify");
-}
-
-bool SrsConfig::get_bw_check_enabled(string vhost)
-{
-    static bool DEFAULT = false;
-    
-    SrsConfDirective* conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("bandcheck");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-    
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
-}
-
-string SrsConfig::get_bw_check_key(string vhost)
-{
-    static string DEFAULT = "";
-    
-    SrsConfDirective* conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("bandcheck");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("key");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-    
-    return conf->arg0();
-}
-
-srs_utime_t SrsConfig::get_bw_check_interval(string vhost)
-{
-    static int64_t DEFAULT = 30 * SRS_UTIME_SECONDS;
-    
-    SrsConfDirective* conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("bandcheck");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("interval");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
-}
-
-int SrsConfig::get_bw_check_limit_kbps(string vhost)
-{
-    static int DEFAULT = 1000;
-    
-    SrsConfDirective* conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("bandcheck");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("limit_kbps");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    return ::atoi(conf->arg0().c_str());
 }
 
 bool SrsConfig::get_vhost_is_edge(string vhost)

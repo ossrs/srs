@@ -5,7 +5,7 @@
 #     $SRS_OBJS_DIR the objs directory for Makefile. ie. objs
 #     $SRS_MAKEFILE the makefile name. ie. Makefile
 #
-#     $MAIN_ENTRANCES array, disable all except the $APP_MAIN itself. ie. ["srs_main_server" "srs_main_bandcheck"]
+#     $MAIN_ENTRANCES array, disable all except the $APP_MAIN itself. ie. ["srs_main_server"]
 #     $APP_MAIN the object file that contains main function. ie. srs_main_server
 #     $BUILD_KEY a string indicates the build key for Makefile. ie. srs
 #     $APP_NAME the app name to output. ie. srs

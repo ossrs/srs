@@ -710,23 +710,6 @@ public:
     // Get the on_hls_notify callbacks of vhost.
     // @return the on_hls_notify callback directive, the args is the url to callback.
     virtual SrsConfDirective* get_vhost_on_hls_notify(std::string vhost);
-// bwct(bandwidth check tool) section
-public:
-    // Whether bw check enabled for vhost.
-    // If  enabled, serve all clients with bandwidth check services.
-    // oterwise, serve all cleints with stream.
-    virtual bool get_bw_check_enabled(std::string vhost);
-    // The key of server, if client key mot match, reject.
-    virtual std::string get_bw_check_key(std::string vhost);
-    // The check interval, in srs_utime_t.
-    // If  the client request check in very short time(in the interval),
-    // SRS will reject client.
-    // @remark this is used to prevent the bandwidth check attack.
-    virtual srs_utime_t get_bw_check_interval(std::string vhost);
-    // The max kbps that user can test,
-    // If  exceed the kbps, server will slowdown the send-recv.
-    // @remark this is used to protect the service bandwidth.
-    virtual int get_bw_check_limit_kbps(std::string vhost);
 // vhost cluster section
 public:
     // Whether vhost is edge mode.

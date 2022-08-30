@@ -1241,65 +1241,6 @@ protected:
     virtual srs_error_t encode_packet(SrsBuffer* stream);
 };
 
-// The special packet for the bandwidth test.
-// actually, it's a SrsOnStatusCallPacket, but
-// 1. encode with data field, to send data to client.
-// 2. decode ignore the data field, donot care.
-class SrsBandwidthPacket : public SrsPacket
-{
-public:
-    // Name of command.
-    std::string command_name;
-    // Transaction ID set to 0.
-    double transaction_id;
-    // Command information does not exist. Set to null type.
-    // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any* args; // null
-    // Name-value pairs that describe the response from the server.
-    // 'code','level', 'description' are names of few among such information.
-    // @remark, never be NULL, an AMF0 object instance.
-    SrsAmf0Object* data;
-public:
-    SrsBandwidthPacket();
-    virtual ~SrsBandwidthPacket();
-// Decode functions for concrete packet to override.
-public:
-    virtual srs_error_t decode(SrsBuffer* stream);
-// Encode functions for concrete packet to override.
-public:
-    virtual int get_prefer_cid();
-    virtual int get_message_type();
-protected:
-    virtual int get_size();
-    virtual srs_error_t encode_packet(SrsBuffer* stream);
-// help function for bandwidth packet.
-public:
-    virtual bool is_start_play();
-    virtual bool is_starting_play();
-    virtual bool is_stop_play();
-    virtual bool is_stopped_play();
-    virtual bool is_start_publish();
-    virtual bool is_starting_publish();
-    virtual bool is_stop_publish();
-    virtual bool is_stopped_publish();
-    virtual bool is_finish();
-    virtual bool is_final();
-    static SrsBandwidthPacket* create_start_play();
-    static SrsBandwidthPacket* create_starting_play();
-    static SrsBandwidthPacket* create_playing();
-    static SrsBandwidthPacket* create_stop_play();
-    static SrsBandwidthPacket* create_stopped_play();
-    static SrsBandwidthPacket* create_start_publish();
-    static SrsBandwidthPacket* create_starting_publish();
-    static SrsBandwidthPacket* create_publishing();
-    static SrsBandwidthPacket* create_stop_publish();
-    static SrsBandwidthPacket* create_stopped_publish();
-    static SrsBandwidthPacket* create_finish();
-    static SrsBandwidthPacket* create_final();
-private:
-    virtual SrsBandwidthPacket* set_command(std::string command);
-};
-
 // onStatus data, AMF0 Data
 // @remark, user must set the stream_id by SrsCommonMessage.set_packet().
 class SrsOnStatusDataPacket : public SrsPacket

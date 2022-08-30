@@ -24,7 +24,6 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_refer.hpp>
 #include <srs_app_hls.hpp>
-#include <srs_app_bandwidth.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_edge.hpp>
@@ -107,7 +106,6 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int cport)
     
     rtmp = new SrsRtmpServer(skt);
     refer = new SrsRefer();
-    bandwidth = new SrsBandwidth();
     security = new SrsSecurity();
     duration = 0;
     wakable = NULL;
@@ -142,7 +140,6 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(info);
     srs_freep(rtmp);
     srs_freep(refer);
-    srs_freep(bandwidth);
     srs_freep(security);
 }
 
@@ -367,14 +364,6 @@ srs_error_t SrsRtmpConn::service_cycle()
     
     // get the ip which client connected.
     std::string local_ip = srs_get_local_ip(srs_netfd_fileno(stfd));
-    
-    // do bandwidth test if connect to the vhost which is for bandwidth check.
-    if (_srs_config->get_bw_check_enabled(req->vhost)) {
-        if ((err = bandwidth->bandwidth_check(rtmp, skt, req, local_ip)) != srs_success) {
-            return srs_error_wrap(err, "rtmp: bandwidth check");
-        }
-        return err;
-    }
     
     // set chunk size to larger.
     // set the chunk size before any larger response greater than 128,
