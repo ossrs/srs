@@ -53,6 +53,7 @@ public:
     std::string app;
     std::string stream;
     std::string url;
+    std::string tcUrl;
     bool active;
     // The publisher connection id.
     std::string publisher_id;
@@ -147,6 +148,7 @@ public:
     virtual SrsStatisticVhost* find_vhost_by_id(std::string vid);
     virtual SrsStatisticVhost* find_vhost_by_name(std::string name);
     virtual SrsStatisticStream* find_stream(std::string sid);
+    virtual SrsStatisticStream* find_stream_by_url(std::string url);
     virtual SrsStatisticClient* find_client(std::string client_id);
 public:
     // When got video info for stream.
@@ -175,7 +177,7 @@ public:
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not
     //      exists in stat.
-    virtual void on_disconnect(std::string id, bool* exists = NULL);
+    virtual void on_disconnect(std::string id);
 private:
     // Cleanup the stream if stream is not active and for the last client.
     void cleanup_stream(SrsStatisticStream* stream);

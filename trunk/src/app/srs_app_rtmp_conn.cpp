@@ -524,6 +524,14 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             if ((err = rtmp->start_play(info->res->stream_id)) != srs_success) {
                 return srs_error_wrap(err, "rtmp: start play");
             }
+
+            // We must do stat the client before hooks, because hooks depends on it.
+            SrsStatistic* stat = SrsStatistic::instance();
+            if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type)) != srs_success) {
+                return srs_error_wrap(err, "rtmp: stat client");
+            }
+
+            // We must do hook after stat, because depends on it.
             if ((err = http_hooks_on_play()) != srs_success) {
                 return srs_error_wrap(err, "rtmp: callback on play");
             }
@@ -690,12 +698,6 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
     SrsRequest* req = info->req;
     srs_assert(req);
     srs_assert(consumer);
-
-    // update the statistic when source disconveried.
-    SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type)) != srs_success) {
-        return srs_error_wrap(err, "rtmp: stat client");
-    }
     
     // initialize other components
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_play();
@@ -824,7 +826,14 @@ srs_error_t SrsRtmpConn::publishing(SrsLiveSource* source)
             return srs_error_wrap(err, "rtmp: referer check");
         }
     }
-    
+
+    // We must do stat the client before hooks, because hooks depends on it.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: stat client");
+    }
+
+    // We must do hook after stat, because depends on it.
     if ((err = http_hooks_on_publish()) != srs_success) {
         return srs_error_wrap(err, "rtmp: callback on publish");
     }
@@ -859,12 +868,6 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     SrsRequest* req = info->req;
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_publish();
     SrsAutoFree(SrsPithyPrint, pprint);
-
-    // update the statistic when source disconveried.
-    SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type)) != srs_success) {
-        return srs_error_wrap(err, "rtmp: stat client");
-    }
 
     // start isolate recv thread.
     // TODO: FIXME: Pass the callback here.

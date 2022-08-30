@@ -524,10 +524,28 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
 {
     srs_error_t err = srs_success;
 
+    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
+    SrsHttpxConn* hxc = dynamic_cast<SrsHttpxConn*>(hc->handler());
+
+    // Note that we should enable stat for HTTP streaming client, because each HTTP streaming connection is a real
+    // session that should have statistics for itself.
+    hxc->set_enable_stat(true);
+
     // Correct the app and stream by path, which is created from template.
     // @remark Be careful that the stream has extension now, might cause identify fail.
     req->stream = srs_path_basename(r->path());
-    
+
+    // update client ip
+    req->ip = hc->remote_ip();
+
+    // We must do stat the client before hooks, because hooks depends on it.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, hc, SrsFlvPlay)) != srs_success) {
+        return srs_error_wrap(err, "stat on client");
+    }
+
+    // We must do hook after stat, because depends on it.
     if ((err = http_hooks_on_play(r)) != srs_success) {
         return srs_error_wrap(err, "http hook");
     }
@@ -591,15 +609,6 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
     
-    // update client ip
-    req->ip = hc->remote_ip();
-
-    // update the statistic when source disconveried.
-    SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, hc, SrsFlvPlay)) != srs_success) {
-        return srs_error_wrap(err, "stat on client");
-    }
-    
     // the memory writer.
     SrsBufferWriter writer(w);
     if ((err = enc->initialize(&writer, cache)) != srs_success) {
@@ -616,25 +625,25 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // Try to use fast flv encoder, remember that it maybe NULL.
     SrsFlvStreamEncoder* ffe = dynamic_cast<SrsFlvStreamEncoder*>(enc);
 
-    // Note that the handler of hc now is rohc.
-    SrsHttpxConn* rohc = dynamic_cast<SrsHttpxConn*>(hc->handler());
-    srs_assert(rohc);
+    // Note that the handler of hc now is hxc.
+    SrsHttpxConn* hxc = dynamic_cast<SrsHttpxConn*>(hc->handler());
+    srs_assert(hxc);
     
     // Set the socket options for transport.
     bool tcp_nodelay = _srs_config->get_tcp_nodelay(req->vhost);
     if (tcp_nodelay) {
-        if ((err = rohc->set_tcp_nodelay(tcp_nodelay)) != srs_success) {
+        if ((err = hxc->set_tcp_nodelay(tcp_nodelay)) != srs_success) {
             return srs_error_wrap(err, "set tcp nodelay");
         }
     }
     
     srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost);
-    if ((err = rohc->set_socket_buffer(mw_sleep)) != srs_success) {
+    if ((err = hxc->set_socket_buffer(mw_sleep)) != srs_success) {
         return srs_error_wrap(err, "set mw_sleep %" PRId64, mw_sleep);
     }
 
     // Start a thread to receive all messages from client, then drop them.
-    SrsHttpRecvThread* trd = new SrsHttpRecvThread(rohc);
+    SrsHttpRecvThread* trd = new SrsHttpRecvThread(hxc);
     SrsAutoFree(SrsHttpRecvThread, trd);
     
     if ((err = trd->start()) != srs_success) {

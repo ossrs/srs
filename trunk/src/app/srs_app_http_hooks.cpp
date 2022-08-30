@@ -127,7 +127,7 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
 
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
-    
+
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_publish"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
@@ -137,6 +137,12 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("param", SrsJsonAny::str(req->param.c_str()));
+
+    obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
+    SrsStatisticStream* stream = stat->find_stream_by_url(req->get_stream_url());
+    if (stream) {
+        obj->set("stream_id", SrsJsonAny::str(stream->id.c_str()));
+    }
     
     std::string data = obj->dumps();
     std::string res;
@@ -171,8 +177,15 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("param", SrsJsonAny::str(req->param.c_str()));
+
+    obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
+    SrsStatisticStream* stream = stat->find_stream_by_url(req->get_stream_url());
+    if (stream) {
+        obj->set("stream_id", SrsJsonAny::str(stream->id.c_str()));
+    }
     
     std::string data = obj->dumps();
     std::string res;
@@ -211,8 +224,15 @@ srs_error_t SrsHttpHooks::on_play(string url, SrsRequest* req)
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("param", SrsJsonAny::str(req->param.c_str()));
     obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
+
+    obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
+    SrsStatisticStream* stream = stat->find_stream_by_url(req->get_stream_url());
+    if (stream) {
+        obj->set("stream_id", SrsJsonAny::str(stream->id.c_str()));
+    }
     
     std::string data = obj->dumps();
     std::string res;
@@ -247,8 +267,15 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("param", SrsJsonAny::str(req->param.c_str()));
+
+    obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
+    SrsStatisticStream* stream = stat->find_stream_by_url(req->get_stream_url());
+    if (stream) {
+        obj->set("stream_id", SrsJsonAny::str(stream->id.c_str()));
+    }
     
     std::string data = obj->dumps();
     std::string res;
@@ -287,10 +314,17 @@ srs_error_t SrsHttpHooks::on_dvr(SrsContextId c, string url, SrsRequest* req, st
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("param", SrsJsonAny::str(req->param.c_str()));
     obj->set("cwd", SrsJsonAny::str(cwd.c_str()));
     obj->set("file", SrsJsonAny::str(file.c_str()));
+
+    obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
+    SrsStatisticStream* stream = stat->find_stream_by_url(req->get_stream_url());
+    if (stream) {
+        obj->set("stream_id", SrsJsonAny::str(stream->id.c_str()));
+    }
     
     std::string data = obj->dumps();
     std::string res;
@@ -332,6 +366,7 @@ srs_error_t SrsHttpHooks::on_hls(SrsContextId c, string url, SrsRequest* req, st
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("param", SrsJsonAny::str(req->param.c_str()));
     obj->set("duration", SrsJsonAny::number(srsu2ms(duration)/1000.0));
@@ -341,6 +376,12 @@ srs_error_t SrsHttpHooks::on_hls(SrsContextId c, string url, SrsRequest* req, st
     obj->set("m3u8", SrsJsonAny::str(m3u8.c_str()));
     obj->set("m3u8_url", SrsJsonAny::str(m3u8_url.c_str()));
     obj->set("seq_no", SrsJsonAny::integer(sn));
+
+    obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
+    SrsStatisticStream* stream = stat->find_stream_by_url(req->get_stream_url());
+    if (stream) {
+        obj->set("stream_id", SrsJsonAny::str(stream->id.c_str()));
+    }
     
     std::string data = obj->dumps();
     std::string res;

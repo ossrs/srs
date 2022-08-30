@@ -131,10 +131,14 @@ private:
     SrsTcpConnection* skt;
     SrsSslConnection* ssl;
     SrsHttpConn* conn;
+    // We should never enable the stat, unless HTTP stream connection requires.
+    bool enable_stat_;
 public:
     SrsHttpxConn(bool https, ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpxConn();
 public:
+    // Require statistic about HTTP connection, for HTTP streaming clients only.
+    void set_enable_stat(bool v);
     // Directly read a HTTP request message.
     // It's exported for HTTP stream, such as HTTP FLV, only need to write to client when
     // serving it, but we need to start a thread to read message to detect whether FD is closed.

@@ -128,6 +128,13 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
     SrsContextRestore(_srs_context->get_id());
     _srs_context->set_id(SrsContextId().set_value(ctx));
 
+    // We must do stat the client before hooks, because hooks depends on it.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(ctx, req, NULL, SrsHlsPlay)) != srs_success) {
+        return srs_error_wrap(err, "stat on client");
+    }
+
+    // We must do hook after stat, because depends on it.
     if ((err = http_hooks_on_play(req)) != srs_success) {
         return srs_error_wrap(err, "HLS: http_hooks_on_play");
     }
@@ -153,12 +160,6 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
 
     if ((err = w->final_request()) != srs_success) {
         return srs_error_wrap(err, "final request");
-    }
-
-    // update the statistic when source disconveried.
-    SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(ctx, req, NULL, SrsHlsPlay)) != srs_success) {
-        return srs_error_wrap(err, "stat on client");
     }
 
     return err;
@@ -497,6 +498,13 @@ srs_error_t SrsVodStream::serve_ts_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessa
 
     // SrsServer also stat all HTTP connections including this one, but it should be ignored because the id is not
     // matched to any exists client. And we will do stat for the HLS streaming by session in hls_ctx.
+    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
+    SrsHttpxConn* hxc = dynamic_cast<SrsHttpxConn*>(hc->handler());
+
+    // Note that we never enable the stat for the HTTP connection, because we always stat the pseudo HLS streaming
+    // session identified by hls_ctx, which served by an SrsHlsStream object.
+    hxc->set_enable_stat(false);
 
     // Serve by default HLS handler.
     err = SrsHttpFileServer::serve_ts_ctx(w, r, fullpath);

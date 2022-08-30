@@ -302,7 +302,14 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
 srs_error_t SrsMpegtsSrtConn::publishing()
 {
     srs_error_t err = srs_success;
-    
+
+    // We must do stat the client before hooks, because hooks depends on it.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPublish)) != srs_success) {
+        return srs_error_wrap(err, "srt: stat client");
+    }
+
+    // We must do hook after stat, because depends on it.
     if ((err = http_hooks_on_publish()) != srs_success) {
         return srs_error_wrap(err, "srt: callback on publish");
     }
@@ -321,13 +328,15 @@ srs_error_t SrsMpegtsSrtConn::playing()
 {
     srs_error_t err = srs_success;
 
-    if ((err = http_hooks_on_play()) != srs_success) {
-        return srs_error_wrap(err, "rtmp: callback on play");
-    }
-
+    // We must do stat the client before hooks, because hooks depends on it.
     SrsStatistic* stat = SrsStatistic::instance();
     if ((err = stat->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPlay)) != srs_success) {
         return srs_error_wrap(err, "rtmp: stat client");
+    }
+
+    // We must do hook after stat, because depends on it.
+    if ((err = http_hooks_on_play()) != srs_success) {
+        return srs_error_wrap(err, "rtmp: callback on play");
     }
     
     err = do_playing();
@@ -384,11 +393,6 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
 
     SrsPithyPrint* pprint = SrsPithyPrint::create_srt_publish();
     SrsAutoFree(SrsPithyPrint, pprint);
-
-    SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPublish)) != srs_success) {
-        return srs_error_wrap(err, "srt: stat client");
-    }
 
     int nb_packets = 0;
 

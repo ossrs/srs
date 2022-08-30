@@ -130,10 +130,6 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         ruc.req_->vhost = parsed_vhost->arg0();
     }
 
-    if ((err = http_hooks_on_play(ruc.req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: http_hooks_on_play");
-    }
-
     // For client to specifies the candidate(EIP) of server.
     string eip = r->query_get("eip");
     if (eip.empty()) {
@@ -202,9 +198,15 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
+    // We must do stat the client before hooks, because hooks depends on it.
     SrsRtcConnection* session = NULL;
     if ((err = server_->create_session(&ruc, local_sdp, &session)) != srs_success) {
         return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", ruc.dtls_, ruc.srtp_, eip.c_str());
+    }
+
+    // We must do hook after stat, because depends on it.
+    if ((err = http_hooks_on_play(ruc.req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: http_hooks_on_play");
     }
 
     ostringstream os;
@@ -406,10 +408,6 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
         ruc.req_->vhost = parsed_vhost->arg0();
     }
 
-	if ((err = http_hooks_on_publish(ruc.req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: http_hooks_on_publish");
-    }
-
     // For client to specifies the candidate(EIP) of server.
     string eip = r->query_get("eip");
     if (eip.empty()) {
@@ -455,9 +453,15 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
+    // We must do stat the client before hooks, because hooks depends on it.
     SrsRtcConnection* session = NULL;
     if ((err = server_->create_session(&ruc, local_sdp, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
+    }
+
+    // We must do hook after stat, because depends on it.
+    if ((err = http_hooks_on_publish(ruc.req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: http_hooks_on_publish");
     }
 
     ostringstream os;

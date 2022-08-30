@@ -471,6 +471,12 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
 
     req_ = req->copy();
 
+    // We must do stat the client before hooks, because hooks depends on it.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPlay)) != srs_success) {
+        return srs_error_wrap(err, "rtc: stat client");
+    }
+
     if ((err = _srs_rtc_sources->fetch_or_create(req_, &source_)) != srs_success) {
         return srs_error_wrap(err, "rtc fetch source failed");
     }
@@ -587,12 +593,6 @@ srs_error_t SrsRtcPlayStream::start()
         if ((err = _srs_rtc_hijacker->on_start_play(session_, this, req_)) != srs_success) {
             return srs_error_wrap(err, "on start play");
         }
-    }
-	
-    // update the statistic when client discoveried.
-    SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPlay)) != srs_success) {
-        return srs_error_wrap(err, "rtc: stat client");
     }
 
     is_started = true;
@@ -1130,6 +1130,12 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
 
     req_ = r->copy();
 
+    // We must do stat the client before hooks, because hooks depends on it.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPublish)) != srs_success) {
+        return srs_error_wrap(err, "rtc: stat client");
+    }
+
     if (stream_desc->audio_track_desc_) {
         audio_tracks_.push_back(new SrsRtcAudioRecvTrack(session_, stream_desc->audio_track_desc_));
     }
@@ -1235,12 +1241,6 @@ srs_error_t SrsRtcPublishStream::start()
         if ((err = _srs_rtc_hijacker->on_start_publish(session_, this, req_)) != srs_success) {
             return srs_error_wrap(err, "on start publish");
         }
-    }
-	
-    // update the statistic when client discoveried.
-    SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPublish)) != srs_success) {
-        return srs_error_wrap(err, "rtc: stat client");
     }
 
     is_started = true;

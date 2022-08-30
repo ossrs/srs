@@ -292,6 +292,7 @@ SrsHttpxConn::SrsHttpxConn(bool https, ISrsResourceManager* cm, srs_netfd_t fd, 
 
     manager = cm;
     skt = new SrsTcpConnection(fd);
+    enable_stat_ = false;
 
     if (https) {
         ssl = new SrsSslConnection(skt);
@@ -311,6 +312,11 @@ SrsHttpxConn::~SrsHttpxConn()
     srs_freep(conn);
     srs_freep(ssl);
     srs_freep(skt);
+}
+
+void SrsHttpxConn::set_enable_stat(bool v)
+{
+    enable_stat_ = v;
 }
 
 srs_error_t SrsHttpxConn::pop_message(ISrsHttpMessage** preq)
@@ -399,9 +405,8 @@ srs_error_t SrsHttpxConn::on_message_done(ISrsHttpMessage* r, SrsHttpResponseWri
 srs_error_t SrsHttpxConn::on_conn_done(srs_error_t r0)
 {
     // Only stat the HTTP streaming clients, ignore all API clients.
-    bool exists = false;
-    SrsStatistic::instance()->on_disconnect(get_id().c_str(), &exists);
-    if (exists) {
+    if (enable_stat_) {
+        SrsStatistic::instance()->on_disconnect(get_id().c_str());
         SrsStatistic::instance()->kbps_add_delta(get_id().c_str(), conn->delta());
     }
 

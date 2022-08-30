@@ -114,6 +114,8 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
     obj->set("name", SrsJsonAny::str(stream.c_str()));
     obj->set("vhost", SrsJsonAny::str(vhost->id.c_str()));
     obj->set("app", SrsJsonAny::str(app.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(tcUrl.c_str()));
+    obj->set("url", SrsJsonAny::str(url.c_str()));
     obj->set("live_ms", SrsJsonAny::integer(srsu2ms(srs_get_system_time())));
     obj->set("clients", SrsJsonAny::integer(nb_clients));
     obj->set("frames", SrsJsonAny::integer(frames->sugar));
@@ -218,6 +220,7 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject* obj)
     obj->set("swfUrl", SrsJsonAny::str(req->swfUrl.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("url", SrsJsonAny::str(req->get_stream_url().c_str()));
+    obj->set("name", SrsJsonAny::str(req->stream.c_str()));
     obj->set("type", SrsJsonAny::str(srs_client_type_string(type).c_str()));
     obj->set("publish", SrsJsonAny::boolean(srs_client_type_is_publish(type)));
     obj->set("alive", SrsJsonAny::number(srsu2ms(srs_get_system_time() - create) / 1000.0));
@@ -306,6 +309,15 @@ SrsStatisticStream* SrsStatistic::find_stream(string sid)
 {
     std::map<std::string, SrsStatisticStream*>::iterator it;
     if ((it = streams.find(sid)) != streams.end()) {
+        return it->second;
+    }
+    return NULL;
+}
+
+SrsStatisticStream* SrsStatistic::find_stream_by_url(string url)
+{
+    std::map<std::string, SrsStatisticStream*>::iterator it;
+    if ((it = rstreams.find(url)) != rstreams.end()) {
         return it->second;
     }
     return NULL;
@@ -413,10 +425,9 @@ srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, ISrsExpire*
     return err;
 }
 
-void SrsStatistic::on_disconnect(std::string id, bool* exists)
+void SrsStatistic::on_disconnect(std::string id)
 {
     std::map<std::string, SrsStatisticClient*>::iterator it = clients.find(id);
-    if (exists) *exists = (it != clients.end());
     if (it == clients.end()) return;
 
     SrsStatisticClient* client = it->second;
@@ -683,7 +694,12 @@ SrsStatisticVhost* SrsStatistic::create_vhost(SrsRequest* req)
 
 SrsStatisticStream* SrsStatistic::create_stream(SrsStatisticVhost* vhost, SrsRequest* req)
 {
-    std::string url = req->get_stream_url();
+    // To identify a stream, use url without extension, for example, the bellow are the same stream:
+    //      ossrs.io/live/livestream
+    //      ossrs.io/live/livestream.flv
+    //      ossrs.io/live/livestream.m3u8
+    // Note that we also don't use schema, and vhost is optional.
+    string url = req->get_stream_url();
     
     SrsStatisticStream* stream = NULL;
     
@@ -694,6 +710,7 @@ SrsStatisticStream* SrsStatistic::create_stream(SrsStatisticVhost* vhost, SrsReq
         stream->stream = req->stream;
         stream->app = req->app;
         stream->url = url;
+        stream->tcUrl = req->tcUrl;
         rstreams[url] = stream;
         streams[stream->id] = stream;
         return stream;
