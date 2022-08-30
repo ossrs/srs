@@ -76,7 +76,7 @@ extern long srs_random();
  * generate the tcUrl without param.
  * @remark Use host as tcUrl.vhost if vhost is default vhost.
  */
-extern std::string srs_generate_tc_url(std::string host, std::string vhost, std::string app, int port);
+extern std::string srs_generate_tc_url(std::string schema, std::string host, std::string vhost, std::string app, int port);
 
 /**
  * Generate the stream with param.

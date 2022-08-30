@@ -72,6 +72,10 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
 {
     string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
 
+    // Correct the app and stream by path, which is created from template.
+    // @remark Be careful that the stream has extension now, might cause identify fail.
+    req->stream = srs_path_basename(r->path());
+
     // Always make the ctx alive now.
     alive(ctx, req);
 

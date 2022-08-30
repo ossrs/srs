@@ -139,5 +139,9 @@ bool srs_srt_streamid_to_request(const std::string& streamid, SrtMode& mode, Srs
         request->param = stream_with_params.substr(pos + 1);
     }
 
+    request->host = srs_get_public_internet_address();
+    if (request->vhost.empty()) request->vhost = request->host;
+    request->tcUrl = srs_generate_tc_url("srt", request->host, request->vhost, request->app, request->port);
+
     return ret;
 }

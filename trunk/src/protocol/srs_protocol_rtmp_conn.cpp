@@ -111,7 +111,7 @@ srs_error_t SrsBasicRtmpClient::do_connect_app(string local_ip, bool debug)
     // generate the tcUrl
     std::string param = "";
     std::string target_vhost = req->vhost;
-    std::string tc_url = srs_generate_tc_url(req->host, req->vhost, req->app, req->port);
+    std::string tc_url = srs_generate_tc_url("rtmp", req->host, req->vhost, req->app, req->port);
     
     // replace the tcUrl in request,
     // which will replace the tc_url in client.connect_app().

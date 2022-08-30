@@ -263,7 +263,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
 
     // Detect streamid of srt to request.
     SrtMode mode = SrtModePull;
-    if (! srs_srt_streamid_to_request(streamid, mode, req_)) {
+    if (!srs_srt_streamid_to_request(streamid, mode, req_)) {
         return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
     }
 
@@ -287,9 +287,6 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     if ((err = http_hooks_on_connect()) != srs_success) {
         return srs_error_wrap(err, "on connect");
     }
-
-    // Build the tcUrl which is vhost/app.
-    req_->tcUrl = srs_generate_tc_url(req_->host, req_->vhost, req_->app, req_->port);
 
     if (mode == SrtModePush) {
         err = publishing();

@@ -12,6 +12,7 @@
                         <tr>
                             <th>ID</th>
                             <th>流名称</th>
+                            <th>URL</th>
                             <th>Vhost</th>
                             <th>状态</th>
                             <th>在线人数</th>
@@ -24,6 +25,7 @@
                         <tr ng-repeat="stream in streams">
                             <td><a href="javascript:void(0)" ng-click="gogogo('/streams/' + stream.id)">{{stream.id}}</a></td>
                             <td>{{stream.name| sc_filter_less}}</td>
+                            <td>{{stream |sc_filter_streamURL}}</td>
                             <td><a href="javascript:void(0)" ng-click="gogogo('/vhosts/' + stream.vhost)">{{stream.owner.name}}</a></td>
                             <td>{{stream.publish.active| sc_filter_has_stream}}</td>
                             <td>{{stream.clients}}人</td>

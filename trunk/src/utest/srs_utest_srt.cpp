@@ -423,7 +423,7 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
         SrsRequest req;
         EXPECT_TRUE(srs_srt_streamid_to_request("#!::r=live/livestream?key1=val1,key2=val2", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
-        EXPECT_STREQ(req.vhost.c_str(), "");
+        EXPECT_STREQ(req.vhost.c_str(), srs_get_public_internet_address().c_str());
         EXPECT_STREQ(req.app.c_str(), "live");
         EXPECT_STREQ(req.stream.c_str(), "livestream");
         EXPECT_STREQ(req.param.c_str(), "key1=val1&key2=val2");
@@ -445,7 +445,7 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
         SrsRequest req;
         EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=live/livestream?key1=val1,key2=val2", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
-        EXPECT_STREQ(req.vhost.c_str(), "");
+        EXPECT_STREQ(req.vhost.c_str(), srs_get_public_internet_address().c_str());
         EXPECT_STREQ(req.app.c_str(), "live");
         EXPECT_STREQ(req.stream.c_str(), "livestream");
         EXPECT_STREQ(req.param.c_str(), "key1=val1&key2=val2");

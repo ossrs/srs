@@ -1544,6 +1544,7 @@ void SrsRequest::strip()
 SrsRequest* SrsRequest::as_http()
 {
     schema = "http";
+    tcUrl = srs_generate_tc_url(schema, host, vhost, app, port);
     return this;
 }
 

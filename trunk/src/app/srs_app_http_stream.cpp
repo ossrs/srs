@@ -523,6 +523,10 @@ srs_error_t SrsLiveStream::update_auth(SrsLiveSource* s, SrsRequest* r)
 srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
+
+    // Correct the app and stream by path, which is created from template.
+    // @remark Be careful that the stream has extension now, might cause identify fail.
+    req->stream = srs_path_basename(r->path());
     
     if ((err = http_hooks_on_play(r)) != srs_success) {
         return srs_error_wrap(err, "http hook");
@@ -588,7 +592,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
     
     // update client ip
-    req->ip = hc->remote_ip();    
+    req->ip = hc->remote_ip();
 
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();

@@ -175,9 +175,9 @@ long srs_random()
     return random();
 }
 
-string srs_generate_tc_url(string host, string vhost, string app, int port)
+string srs_generate_tc_url(string schema, string host, string vhost, string app, int port)
 {
-    string tcUrl = "rtmp://";
+    string tcUrl = schema + "://";
     
     if (vhost == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         tcUrl += host.empty() ? SRS_CONSTS_RTMP_DEFAULT_VHOST : host;
@@ -324,10 +324,9 @@ string srs_generate_stream_url(string vhost, string app, string stream)
     if (SRS_CONSTS_RTMP_DEFAULT_VHOST != vhost){
         url += vhost;
     }
-    url += "/";
-    url += app;
-    url += "/";
-    url += stream;
+    url += "/" + app;
+    // Note that we ignore any extension.
+    url += "/" + srs_path_filename(stream);
     
     return url;
 }

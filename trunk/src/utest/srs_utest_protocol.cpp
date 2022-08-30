@@ -581,15 +581,15 @@ VOID TEST(ProtocolUtilityTest, GenerateTcUrl)
     string ip; string vhost; string app; int port; string tcUrl; string param;
     
     ip = "127.0.0.1"; vhost = "__defaultVhost__"; app = "live"; port = 1935;
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
+    tcUrl = srs_generate_tc_url("rtmp", ip, vhost, app, port);
     EXPECT_STREQ("rtmp://127.0.0.1/live", tcUrl.c_str());
     
     ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = 1935;
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
+    tcUrl = srs_generate_tc_url("rtmp", ip, vhost, app, port);
     EXPECT_STREQ("rtmp://demo/live", tcUrl.c_str());
     
     ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = 19351;
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
+    tcUrl = srs_generate_tc_url("rtmp", ip, vhost, app, port);
     EXPECT_STREQ("rtmp://demo:19351/live", tcUrl.c_str());
 }
 
@@ -7021,5 +7021,17 @@ VOID TEST(ProtocolKbpsTest, RAWStatisticSugar)
         EXPECT_EQ(250 * 1000, kbps->get_recv_bytes());
         EXPECT_EQ(250 * 1000, kbps->get_send_bytes());
     }
+}
+
+VOID TEST(ProtocolKbpsTest, StreamIdentify)
+{
+    EXPECT_STREQ("/live/livestream", srs_generate_stream_url("", "live", "livestream").c_str());
+    EXPECT_STREQ("/live/livestream", srs_generate_stream_url("", "live", "livestream.flv").c_str());
+    EXPECT_STREQ("/live/livestream", srs_generate_stream_url("", "live", "livestream.m3u8").c_str());
+    EXPECT_STREQ("/live/livestream", srs_generate_stream_url("__defaultVhost__", "live", "livestream").c_str());
+
+    EXPECT_STREQ("ossrs.io/live/livestream", srs_generate_stream_url("ossrs.io", "live", "livestream").c_str());
+    EXPECT_STREQ("ossrs.io/live/livestream", srs_generate_stream_url("ossrs.io", "live", "livestream.flv").c_str());
+    EXPECT_STREQ("ossrs.io/live/livestream", srs_generate_stream_url("ossrs.io", "live", "livestream.m3u8").c_str());
 }
 

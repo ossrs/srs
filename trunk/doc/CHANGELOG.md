@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-08-30, STAT: Refine tcUrl for SRT/RTC. v5.0.54
 * v5.0, 2022-08-30, Refactor: Extract SrsNetworkKbps from SrsKbps. v5.0.53
 * v5.0, 2022-08-30, Remove bandwidth check because falsh is disabled. v5.0.52
 * v5.0, 2022-08-30, Refactor: Use compositor for ISrsKbpsDelta. v5.0.51

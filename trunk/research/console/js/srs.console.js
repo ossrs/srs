@@ -584,6 +584,8 @@ scApp.filter('sc_filter_streamURL', function(){
 
         const pos = v.url.lastIndexOf('/');
         const stream = pos < 0 ? '' : v.url.substr(pos);
+        // Use name or extract from url.
+        const streamName = v.name ? v.name : stream;
 
         const pos2 = v.tcUrl.indexOf('?');
         const tcUrl = pos2 < 0 ? v.tcUrl : v.tcUrl.substr(0, pos2);
@@ -591,7 +593,7 @@ scApp.filter('sc_filter_streamURL', function(){
         let params = pos2 < 0 ? '' : v.tcUrl.substr(pos2);
         if (params === '?vhost=__defaultVhost__' || params === '?domain=__defaultVhost__') params = '';
 
-        return `${tcUrl}${stream}${params}`;
+        return `${tcUrl}${streamName}${params}`;
     };
 });
 
