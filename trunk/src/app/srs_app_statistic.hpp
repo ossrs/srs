@@ -38,7 +38,6 @@ public:
 public:
     // The vhost total kbps.
     SrsKbps* kbps;
-    SrsWallClock* clk;
 public:
     SrsStatisticVhost();
     virtual ~SrsStatisticVhost();
@@ -61,7 +60,6 @@ public:
 public:
     // The stream total kbps.
     SrsKbps* kbps;
-    SrsWallClock* clk;
     // The fps of stream.
     SrsPps* frames;
 public:
@@ -110,7 +108,6 @@ public:
 public:
     // The stream total kbps.
     SrsKbps* kbps;
-    SrsWallClock* clk;
 public:
     SrsStatisticClient();
     virtual ~SrsStatisticClient();
@@ -141,7 +138,6 @@ private:
     std::map<std::string, SrsStatisticClient*> clients;
     // The server total kbps.
     SrsKbps* kbps;
-    SrsWallClock* clk;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();

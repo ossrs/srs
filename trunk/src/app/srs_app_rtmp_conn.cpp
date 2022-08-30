@@ -100,9 +100,12 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int cport)
     ip = cip;
     port = cport;
     create_time = srsu2ms(srs_get_system_time());
+    trd = new SrsSTCoroutine("rtmp", this, _srs_context->get_id());
+
+    kbps = new SrsNetworkKbps();
+    kbps->set_io(skt, skt);
     delta_ = new SrsNetworkDelta();
     delta_->set_io(skt, skt);
-    trd = new SrsSTCoroutine("rtmp", this, _srs_context->get_id());
     
     rtmp = new SrsRtmpServer(skt);
     refer = new SrsRefer();
@@ -134,6 +137,7 @@ SrsRtmpConn::~SrsRtmpConn()
     }
     srs_freep(trd);
 
+    srs_freep(kbps);
     srs_freep(delta_);
     srs_freep(skt);
     
@@ -752,7 +756,10 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
 
         // reportable
         if (pprint->can_print()) {
-            srs_trace("-> " SRS_CONSTS_LOG_PLAY " time=%d, msgs=%d, mw=%d/%d", (int)pprint->age(), count, srsu2msi(mw_sleep), mw_msgs);
+            kbps->sample();
+            srs_trace("-> " SRS_CONSTS_LOG_PLAY " time=%d, msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d/%d",
+                (int)pprint->age(), count, kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), srsu2msi(mw_sleep), mw_msgs);
         }
         
         if (count <= 0) {
@@ -918,9 +925,13 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
 
         // reportable
         if (pprint->can_print()) {
+            kbps->sample();
             bool mr = _srs_config->get_mr_enabled(req->vhost);
             srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost);
-            srs_trace("<- " SRS_CONSTS_LOG_CLIENT_PUBLISH " time=%d, mr=%d/%d, p1stpt=%d, pnt=%d", (int)pprint->age(), mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout));
+            srs_trace("<- " SRS_CONSTS_LOG_CLIENT_PUBLISH " time=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d",
+                (int)pprint->age(), kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), mr, srsu2msi(mr_sleep),
+                srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout));
         }
     }
     

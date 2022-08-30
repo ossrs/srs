@@ -71,7 +71,7 @@ public:
 public:
     virtual void selected(std::string& server, int& port) = 0;
     virtual void set_recv_timeout(srs_utime_t tm) = 0;
-    virtual void kbps_sample(const char* label, int64_t age) = 0;
+    virtual void kbps_sample(const char* label, srs_utime_t age) = 0;
 };
 
 class SrsEdgeRtmpUpstream : public SrsEdgeUpstream
@@ -97,7 +97,7 @@ public:
 public:
     virtual void selected(std::string& server, int& port);
     virtual void set_recv_timeout(srs_utime_t tm);
-    virtual void kbps_sample(const char* label, int64_t age);
+    virtual void kbps_sample(const char* label, srs_utime_t age);
 };
 
 class SrsEdgeFlvUpstream : public SrsEdgeUpstream
@@ -129,7 +129,7 @@ public:
 public:
     virtual void selected(std::string& server, int& port);
     virtual void set_recv_timeout(srs_utime_t tm);
-    virtual void kbps_sample(const char* label, int64_t age);
+    virtual void kbps_sample(const char* label, srs_utime_t age);
 };
 
 // The edge used to ingest stream from origin.

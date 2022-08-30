@@ -17,7 +17,7 @@ class SrsRtmpClient;
 class SrsCommonMessage;
 class SrsSharedPtrMessage;
 class SrsPacket;
-class SrsKbps;
+class SrsNetworkKbps;
 class SrsWallClock;
 
 // The simple RTMP client, provides friendly APIs.
@@ -38,8 +38,7 @@ protected:
 private:
     SrsTcpClient* transport;
     SrsRtmpClient* client;
-    SrsKbps* kbps;
-    SrsWallClock* clk;
+    SrsNetworkKbps* kbps;
     int stream_id;
 public:
     // Constructor.
@@ -59,8 +58,8 @@ protected:
 public:
     virtual srs_error_t publish(int chunk_size, bool with_vhost = true, std::string* pstream = NULL);
     virtual srs_error_t play(int chunk_size, bool with_vhost = true, std::string* pstream = NULL);
-    virtual void kbps_sample(const char* label, int64_t age);
-    virtual void kbps_sample(const char* label, int64_t age, int msgs);
+    virtual void kbps_sample(const char* label, srs_utime_t age);
+    virtual void kbps_sample(const char* label, srs_utime_t age, int msgs);
     virtual int sid();
 public:
     virtual srs_error_t recv_message(SrsCommonMessage** pmsg);

@@ -253,8 +253,7 @@ SrsHttpClient::SrsHttpClient()
 {
     transport = NULL;
     ssl_transport = NULL;
-    clk = new SrsWallClock();
-    kbps = new SrsKbps(clk);
+    kbps = new SrsNetworkKbps();
     parser = NULL;
     recv_timeout = timeout = SRS_UTIME_NO_TIMEOUT;
     port = 0;
@@ -263,9 +262,8 @@ SrsHttpClient::SrsHttpClient()
 SrsHttpClient::~SrsHttpClient()
 {
     disconnect();
-    
+
     srs_freep(kbps);
-    srs_freep(clk);
     srs_freep(parser);
 }
 
@@ -410,18 +408,18 @@ void SrsHttpClient::set_recv_timeout(srs_utime_t tm)
     recv_timeout = tm;
 }
 
-void SrsHttpClient::kbps_sample(const char* label, int64_t age)
+void SrsHttpClient::kbps_sample(const char* label, srs_utime_t age)
 {
     kbps->sample();
-    
+
     int sr = kbps->get_send_kbps();
     int sr30s = kbps->get_send_kbps_30s();
     int sr5m = kbps->get_send_kbps_5m();
     int rr = kbps->get_recv_kbps();
     int rr30s = kbps->get_recv_kbps_30s();
     int rr5m = kbps->get_recv_kbps_5m();
-    
-    srs_trace("<- %s time=%" PRId64 ", okbps=%d,%d,%d, ikbps=%d,%d,%d", label, age, sr, sr30s, sr5m, rr, rr30s, rr5m);
+
+    srs_trace("<- %s time=%" PRId64 ", okbps=%d,%d,%d, ikbps=%d,%d,%d", label, srsu2ms(age), sr, sr30s, sr5m, rr, rr30s, rr5m);
 }
 
 void SrsHttpClient::disconnect()
@@ -450,9 +448,9 @@ srs_error_t SrsHttpClient::connect()
     // Set the recv/send timeout in srs_utime_t.
     transport->set_recv_timeout(recv_timeout);
     transport->set_send_timeout(timeout);
-    
-    kbps->set_io(transport, transport);
 
+    kbps->set_io(transport, transport);
+    
     if (schema_ != "https") {
         return err;
     }

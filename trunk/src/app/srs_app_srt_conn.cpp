@@ -160,10 +160,13 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, s
 
     srt_fd_ = srt_fd;
     srt_conn_ = new SrsSrtConnection(srt_fd_);
-    delta_ = new SrsNetworkDelta();
-    delta_->set_io(srt_conn_, srt_conn_);
     ip_ = ip;
     port_ = port;
+
+    kbps_ = new SrsNetworkKbps();
+    kbps_->set_io(srt_conn_, srt_conn_);
+    delta_ = new SrsNetworkDelta();
+    delta_->set_io(srt_conn_, srt_conn_);
 
     trd_ = new SrsSTCoroutine("ts-srt", this, _srs_context->get_id());
 
@@ -176,6 +179,7 @@ SrsMpegtsSrtConn::~SrsMpegtsSrtConn()
 {
     srs_freep(trd_);
 
+    srs_freep(kbps_);
     srs_freep(delta_);
     srs_freep(srt_conn_);
     srs_freep(req_);
@@ -408,7 +412,10 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
                     s.pktRecv(), s.pktRcvLoss(), s.pktRcvRetrans(), s.pktRcvDrop());
             }
 
-            srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " time=%d, packets=%d", (int)pprint->age(), nb_packets);
+            kbps_->sample();
+            srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " time=%" PRId64 ", packets=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d",
+                srsu2ms(pprint->age()), nb_packets, kbps_->get_send_kbps(), kbps_->get_send_kbps_30s(), kbps_->get_send_kbps_5m(),
+                kbps_->get_recv_kbps(), kbps_->get_recv_kbps_30s(), kbps_->get_recv_kbps_5m());
             nb_packets = 0;
         }
 
@@ -485,7 +492,10 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
                     s.pktSent(), s.pktSndLoss(), s.pktRetrans(), s.pktSndDrop());
             }
 
-            srs_trace("-> " SRS_CONSTS_LOG_SRT_PLAY " time=%d, packets=%d", (int)pprint->age(), nb_packets);
+            kbps_->sample();
+            srs_trace("-> " SRS_CONSTS_LOG_SRT_PLAY " time=%" PRId64 ", packets=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d",
+                srsu2ms(pprint->age()), nb_packets, kbps_->get_send_kbps(), kbps_->get_send_kbps_30s(), kbps_->get_send_kbps_5m(),
+                kbps_->get_recv_kbps(), kbps_->get_recv_kbps_30s(), kbps_->get_recv_kbps_5m());
             nb_packets = 0;
         }
 

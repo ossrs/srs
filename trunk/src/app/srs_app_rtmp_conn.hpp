@@ -113,6 +113,7 @@ private:
     int port;
     // The delta for statistic.
     SrsNetworkDelta* delta_;
+    SrsNetworkKbps* kbps;
     // The create time in milliseconds.
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;

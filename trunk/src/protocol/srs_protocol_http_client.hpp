@@ -21,7 +21,7 @@ class SrsHttpUri;
 class SrsHttpParser;
 class ISrsHttpMessage;
 class SrsStSocket;
-class SrsKbps;
+class SrsNetworkKbps;
 class SrsWallClock;
 class SrsTcpClient;
 
@@ -63,8 +63,7 @@ private:
     SrsTcpClient* transport;
     SrsHttpParser* parser;
     std::map<std::string, std::string> headers;
-    SrsKbps* kbps;
-    SrsWallClock* clk;
+    SrsNetworkKbps* kbps;
 private:
     // The timeout in srs_utime_t.
     srs_utime_t timeout;
@@ -103,7 +102,7 @@ public:
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
 public:
-    virtual void kbps_sample(const char* label, int64_t age);
+    virtual void kbps_sample(const char* label, srs_utime_t age);
 private:
     virtual void disconnect();
     virtual srs_error_t connect();

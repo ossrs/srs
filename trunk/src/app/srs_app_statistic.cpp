@@ -31,10 +31,8 @@ SrsStatisticVhost::SrsStatisticVhost()
 {
     id = srs_generate_stat_vid();
     
-    clk = new SrsWallClock();
-    kbps = new SrsKbps(clk);
-    kbps->set_io(NULL, NULL);
-    
+    kbps = new SrsKbps();
+
     nb_clients = 0;
     nb_streams = 0;
 }
@@ -42,7 +40,6 @@ SrsStatisticVhost::SrsStatisticVhost()
 SrsStatisticVhost::~SrsStatisticVhost()
 {
     srs_freep(kbps);
-    srs_freep(clk);
 }
 
 srs_error_t SrsStatisticVhost::dumps(SrsJsonObject* obj)
@@ -97,10 +94,8 @@ SrsStatisticStream::SrsStatisticStream()
     width = 0;
     height = 0;
     
-    clk = new SrsWallClock();
-    kbps = new SrsKbps(clk);
-    kbps->set_io(NULL, NULL);
-    
+    kbps = new SrsKbps();
+
     nb_clients = 0;
     frames = new SrsPps();
 }
@@ -108,7 +103,6 @@ SrsStatisticStream::SrsStatisticStream()
 SrsStatisticStream::~SrsStatisticStream()
 {
     srs_freep(kbps);
-    srs_freep(clk);
     srs_freep(frames);
 }
 
@@ -203,15 +197,12 @@ SrsStatisticClient::SrsStatisticClient()
     type = SrsRtmpConnUnknown;
     create = srs_get_system_time();
 
-    clk = new SrsWallClock();
-    kbps = new SrsKbps(clk);
-    kbps->set_io(NULL, NULL);
+    kbps = new SrsKbps();
 }
 
 SrsStatisticClient::~SrsStatisticClient()
 {
     srs_freep(kbps);
-    srs_freep(clk);
 	srs_freep(req);
 }
 
@@ -246,16 +237,13 @@ SrsStatistic* SrsStatistic::_instance = NULL;
 
 SrsStatistic::SrsStatistic()
 {
-    clk = new SrsWallClock();
-    kbps = new SrsKbps(clk);
-    kbps->set_io(NULL, NULL);
+    kbps = new SrsKbps();
 }
 
 SrsStatistic::~SrsStatistic()
 {
     srs_freep(kbps);
-    srs_freep(clk);
-    
+
     if (true) {
         std::map<std::string, SrsStatisticVhost*>::iterator it;
         for (it = vhosts.begin(); it != vhosts.end(); it++) {

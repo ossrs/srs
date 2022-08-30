@@ -18,9 +18,8 @@ using namespace std;
 
 SrsBasicRtmpClient::SrsBasicRtmpClient(string r, srs_utime_t ctm, srs_utime_t stm)
 {
-    clk = new SrsWallClock();
-    kbps = new SrsKbps(clk);
-    
+    kbps = new SrsNetworkKbps();
+
     url = r;
     connect_timeout = ctm;
     stream_timeout = stm;
@@ -39,7 +38,6 @@ SrsBasicRtmpClient::~SrsBasicRtmpClient()
 {
     close();
     srs_freep(kbps);
-    srs_freep(clk);
     srs_freep(req);
 }
 
@@ -52,7 +50,7 @@ srs_error_t SrsBasicRtmpClient::connect()
     transport = new SrsTcpClient(req->host, req->port, srs_utime_t(connect_timeout));
     client = new SrsRtmpClient(transport);
     kbps->set_io(transport, transport);
-    
+
     if ((err = transport->connect()) != srs_success) {
         close();
         return srs_error_wrap(err, "connect");
@@ -168,32 +166,32 @@ srs_error_t SrsBasicRtmpClient::play(int chunk_size, bool with_vhost, std::strin
     return err;
 }
 
-void SrsBasicRtmpClient::kbps_sample(const char* label, int64_t age)
+void SrsBasicRtmpClient::kbps_sample(const char* label, srs_utime_t age)
 {
     kbps->sample();
-    
+
     int sr = kbps->get_send_kbps();
     int sr30s = kbps->get_send_kbps_30s();
     int sr5m = kbps->get_send_kbps_5m();
     int rr = kbps->get_recv_kbps();
     int rr30s = kbps->get_recv_kbps_30s();
     int rr5m = kbps->get_recv_kbps_5m();
-    
-    srs_trace("<- %s time=%" PRId64 ", okbps=%d,%d,%d, ikbps=%d,%d,%d", label, age, sr, sr30s, sr5m, rr, rr30s, rr5m);
+
+    srs_trace("<- %s time=%" PRId64 ", okbps=%d,%d,%d, ikbps=%d,%d,%d", label, srsu2ms(age), sr, sr30s, sr5m, rr, rr30s, rr5m);
 }
 
-void SrsBasicRtmpClient::kbps_sample(const char* label, int64_t age, int msgs)
+void SrsBasicRtmpClient::kbps_sample(const char* label, srs_utime_t age, int msgs)
 {
     kbps->sample();
-    
+
     int sr = kbps->get_send_kbps();
     int sr30s = kbps->get_send_kbps_30s();
     int sr5m = kbps->get_send_kbps_5m();
     int rr = kbps->get_recv_kbps();
     int rr30s = kbps->get_recv_kbps_30s();
     int rr5m = kbps->get_recv_kbps_5m();
-    
-    srs_trace("<- %s time=%" PRId64 ", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", label, age, msgs, sr, sr30s, sr5m, rr, rr30s, rr5m);
+
+    srs_trace("<- %s time=%" PRId64 ", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", label, srsu2ms(age), msgs, sr, sr30s, sr5m, rr, rr30s, rr5m);
 }
 
 int SrsBasicRtmpClient::sid()

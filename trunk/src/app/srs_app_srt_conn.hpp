@@ -116,6 +116,7 @@ private:
     srs_srt_t srt_fd_;
     SrsSrtConnection* srt_conn_;
     SrsNetworkDelta* delta_;
+    SrsNetworkKbps* kbps_;
     std::string ip_;
     int port_;
     SrsCoroutine* trd_;

@@ -150,7 +150,7 @@ void SrsEdgeRtmpUpstream::set_recv_timeout(srs_utime_t tm)
     sdk->set_recv_timeout(tm);
 }
 
-void SrsEdgeRtmpUpstream::kbps_sample(const char* label, int64_t age)
+void SrsEdgeRtmpUpstream::kbps_sample(const char* label, srs_utime_t age)
 {
     sdk->kbps_sample(label, age);
 }
@@ -377,7 +377,7 @@ void SrsEdgeFlvUpstream::set_recv_timeout(srs_utime_t tm)
     sdk_->set_recv_timeout(tm);
 }
 
-void SrsEdgeFlvUpstream::kbps_sample(const char* label, int64_t age)
+void SrsEdgeFlvUpstream::kbps_sample(const char* label, srs_utime_t age)
 {
     sdk_->kbps_sample(label, age);
 }
