@@ -16,7 +16,8 @@
                             <th>Stream</th>
                             <th>类型</th>
                             <th>时长</th>
-                            <th>TcUrl</th>
+                            <th>URL</th>
+                            <th>分类</th>
                             <th>管理</th>
                         </tr>
                         <tr ng-repeat="client in clients">
@@ -26,7 +27,8 @@
                             <td><a href="javascript:void(0)" ng-click="gogogo('/streams/' + client.stream)">{{client.stream}}</a></td>
                             <td>{{client.publish| sc_filter_ctype}}</td>
                             <td>{{client.alive| sc_filter_time}}</td>
-                            <td>{{client.tcUrl}}</td>
+                            <td>{{client |sc_filter_streamURL}}</td>
+                            <td>{{client.type}}</td>
                             <td>
                                 <a ng-click="kickoff(client)" href="javascript:void(0)">踢Ta</a>
                             </td>

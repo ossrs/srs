@@ -262,6 +262,12 @@ func run(ctx context.Context) error {
 	flag.Var(&skeys, "skey", "the SSL key for domain")
 	flag.Var(&scerts, "scert", "the SSL cert for domain")
 
+	var trimSlashLimit int
+	var noRedirectIndex, trimLastSlash bool
+	flag.BoolVar(&noRedirectIndex, "no-redirect-index", false, "Whether serve with index.html without redirect.")
+	flag.BoolVar(&trimLastSlash, "trim-last-slash", false, "Whether trim last slash by HTTP redirect(302).")
+	flag.IntVar(&trimSlashLimit, "trim-slash-limit", 0, "Only trim last slash when got enough directories.")
+
 	flag.Usage = func() {
 		fmt.Println(fmt.Sprintf("Usage: %v -t http -s https -d domains -r root -e cache -l lets -k ssk -c ssc -p proxy", os.Args[0]))
 		fmt.Println(fmt.Sprintf("	"))
@@ -272,6 +278,8 @@ func run(ctx context.Context) error {
 		fmt.Println(fmt.Sprintf("			Listen at port for HTTPS server. Default: 0, disable HTTPS."))
 		fmt.Println(fmt.Sprintf("	-r, -root string"))
 		fmt.Println(fmt.Sprintf("			The www root path. Supports relative to argv[0]=%v. Default: ./html", path.Dir(os.Args[0])))
+		fmt.Println(fmt.Sprintf("	-no-redirect-index=bool"))
+		fmt.Println(fmt.Sprintf("			Whether serve with index.html without redirect. Default: false"))
 		fmt.Println(fmt.Sprintf("	-p, -proxy string"))
 		fmt.Println(fmt.Sprintf("			Proxy path to backend. For example: http://127.0.0.1:8888/api/webrtc"))
 		fmt.Println(fmt.Sprintf("			Proxy path to backend. For example: http://127.0.0.1:8888/api/webrtc?modifyRequestHost=false"))
@@ -316,6 +324,12 @@ func run(ctx context.Context) error {
 		flag.Usage()
 		os.Exit(-1)
 	}
+
+	// If trim last slash, we should enable no redirect index, to avoid infinitely redirect.
+	if trimLastSlash {
+		noRedirectIndex = true
+	}
+	fmt.Println(fmt.Sprintf("Config trimLastSlash=%v, trimSlashLimit=%v, noRedirectIndex=%v", trimLastSlash, trimSlashLimit, noRedirectIndex))
 
 	var proxyUrls []*url.URL
 	proxies := make(map[string]*url.URL)
@@ -366,7 +380,34 @@ func run(ctx context.Context) error {
 		html = path.Join(path.Dir(os.Args[0]), html)
 	}
 
-	fs := http.FileServer(http.Dir(html))
+	serveFileNoRedirect := func (w http.ResponseWriter, r *http.Request, name string) {
+		upath := path.Join(html, path.Clean(r.URL.Path))
+
+		// Redirect without the last slash.
+		if trimLastSlash && r.URL.Path != "/" && strings.HasSuffix(r.URL.Path, "/") {
+			u := strings.TrimSuffix(r.URL.Path, "/")
+			if r.URL.RawQuery != "" {
+				u += "?" + r.URL.RawQuery
+			}
+			if strings.Count(u, "/") >= trimSlashLimit {
+				http.Redirect(w, r, u, http.StatusFound)
+				return
+			}
+		}
+
+		// Append the index.html path if access a directory.
+		if noRedirectIndex && !strings.Contains(path.Base(upath), ".") {
+			if d, err := os.Stat(upath); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			} else if d.IsDir() {
+				upath = path.Join(upath, "index.html")
+			}
+		}
+
+		http.ServeFile(w, r, upath)
+	}
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		oh.SetHeader(w)
 
@@ -388,7 +429,7 @@ func run(ctx context.Context) error {
 				return
 			}
 
-			fs.ServeHTTP(w, r)
+			serveFileNoRedirect(w, r, path.Join(html, path.Clean(r.URL.Path)))
 			return
 		}
 
@@ -417,7 +458,7 @@ func run(ctx context.Context) error {
 			}
 		}
 
-		fs.ServeHTTP(w, r)
+		serveFileNoRedirect(w, r, path.Join(html, path.Clean(r.URL.Path)))
 	})
 
 	var protos []string

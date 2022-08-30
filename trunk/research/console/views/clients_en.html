@@ -16,7 +16,8 @@
                             <th>Stream</th>
                             <th>Type</th>
                             <th>Duration</th>
-                            <th>TcUrl</th>
+                            <th>URL</th>
+                            <th>Category</th>
                             <th>Manage</th>
                         </tr>
                         <tr ng-repeat="client in clients">
@@ -26,7 +27,8 @@
                             <td><a href="javascript:void(0)" ng-click="gogogo('/streams/' + client.stream)">{{client.stream}}</a></td>
                             <td>{{client.publish| sc_filter_ctype}}</td>
                             <td>{{client.alive| sc_filter_time}}</td>
-                            <td>{{client.tcUrl}}</td>
+                            <td>{{client |sc_filter_streamURL}}</td>
+                            <td>{{client.type}}</td>
                             <td>
                                 <a ng-click="kickoff(client)" href="javascript:void(0)">Kickoff It</a>
                             </td>
