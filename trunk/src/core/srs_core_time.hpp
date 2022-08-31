@@ -7,10 +7,8 @@
 #ifndef SRS_CORE_TIME_HPP
 #define SRS_CORE_TIME_HPP
 
-#include <srs_core.hpp>
-
 // Time and duration unit, in us.
-typedef int64_t srs_utime_t;
+typedef signed long int srs_utime_t;
 
 // The time unit in ms, for example 100 * SRS_UTIME_MILLISECONDS means 100ms.
 #define SRS_UTIME_MILLISECONDS 1000
