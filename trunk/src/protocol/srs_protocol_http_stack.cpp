@@ -904,29 +904,41 @@ SrsHttpUri::~SrsHttpUri()
 {
 }
 
-srs_error_t SrsHttpUri::initialize(string _url)
+srs_error_t SrsHttpUri::initialize(string url)
 {
     schema = host = path = query = "";
+    url_ = url;
 
-    url = _url;
-    const char* purl = url.c_str();
-
-    http_parser_url hp_u;
-    int r0;
-    if ((r0 = http_parser_parse_url(purl, url.length(), 0, &hp_u)) != 0){
-        return srs_error_new(ERROR_HTTP_PARSE_URI, "parse url %s failed, code=%d", purl, r0);
+    // Replace the default vhost to a domain like string, or parse failed.
+    string parsing_url = url;
+    size_t pos_default_vhost = url.find("://__defaultVhost__");
+    if (pos_default_vhost != string::npos) {
+        parsing_url = srs_string_replace(parsing_url, "://__defaultVhost__", "://safe.vhost.default.ossrs.io");
     }
 
-    std::string field = get_uri_field(url, &hp_u, UF_SCHEMA);
+    http_parser_url hp_u;
+    http_parser_url_init(&hp_u);
+
+    int r0;
+    if ((r0 = http_parser_parse_url(parsing_url.c_str(), parsing_url.length(), 0, &hp_u)) != 0){
+        return srs_error_new(ERROR_HTTP_PARSE_URI, "parse url %s as %s failed, code=%d", url.c_str(), parsing_url.c_str(), r0);
+    }
+
+    std::string field = get_uri_field(parsing_url, &hp_u, UF_SCHEMA);
     if (!field.empty()){
         schema = field;
     }
 
-    host = get_uri_field(url, &hp_u, UF_HOST);
+    // Restore the default vhost.
+    if (pos_default_vhost == string::npos) {
+        host = get_uri_field(parsing_url, &hp_u, UF_HOST);
+    } else {
+        host = SRS_CONSTS_RTMP_DEFAULT_VHOST;
+    }
 
-    field = get_uri_field(url, &hp_u, UF_PORT);
+    field = get_uri_field(parsing_url, &hp_u, UF_PORT);
     if (!field.empty()) {
-        port = atoi(field.c_str());
+        port = ::atoi(field.c_str());
     }
     if (port <= 0) {
         if (schema == "https") {
@@ -940,10 +952,10 @@ srs_error_t SrsHttpUri::initialize(string _url)
         }
     }
 
-    path = get_uri_field(url, &hp_u, UF_PATH);
-    query = get_uri_field(url, &hp_u, UF_QUERY);
+    path = get_uri_field(parsing_url, &hp_u, UF_PATH);
+    query = get_uri_field(parsing_url, &hp_u, UF_QUERY);
 
-    username_ = get_uri_field(url, &hp_u, UF_USERINFO);
+    username_ = get_uri_field(parsing_url, &hp_u, UF_USERINFO);
     size_t pos = username_.find(":");
     if (pos != string::npos) {
         password_ = username_.substr(pos+1);
@@ -958,15 +970,15 @@ void SrsHttpUri::set_schema(std::string v)
     schema = v;
 
     // Update url with new schema.
-    size_t pos = url.find("://");
+    size_t pos = url_.find("://");
     if (pos != string::npos) {
-        url = schema + "://" + url.substr(pos + 3);
+        url_ = schema + "://" + url_.substr(pos + 3);
     }
 }
 
 string SrsHttpUri::get_url()
 {
-    return url;
+    return url_;
 }
 
 string SrsHttpUri::get_schema()
@@ -1013,7 +1025,7 @@ std::string SrsHttpUri::password()
     return password_;
 }
 
-string SrsHttpUri::get_uri_field(string uri, void* php_u, int ifield)
+string SrsHttpUri::get_uri_field(const string& uri, void* php_u, int ifield)
 {
 	http_parser_url* hp_u = (http_parser_url*)php_u;
 	http_parser_url_fields field = (http_parser_url_fields)ifield;

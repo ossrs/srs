@@ -584,8 +584,10 @@ scApp.filter('sc_filter_streamURL', function(){
 
         const pos = v.url.lastIndexOf('/');
         const stream = pos < 0 ? '' : v.url.substr(pos);
+
         // Use name or extract from url.
-        const streamName = v.name ? v.name : stream;
+        let streamName = v.name ? v.name : stream;
+        if (streamName && streamName.indexOf('/') !== 0) streamName = `/${streamName}`;
 
         const pos2 = v.tcUrl.indexOf('?');
         const tcUrl = pos2 < 0 ? v.tcUrl : v.tcUrl.substr(0, pos2);

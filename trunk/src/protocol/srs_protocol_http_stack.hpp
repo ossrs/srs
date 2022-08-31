@@ -505,7 +505,7 @@ public:
 class SrsHttpUri
 {
 private:
-    std::string url;
+    std::string url_;
     std::string schema;
     std::string host;
     int port;
@@ -535,7 +535,7 @@ public:
 private:
     // Get the parsed url field.
     // @return return empty string if not set.
-    virtual std::string get_uri_field(std::string uri, void* hp_u, int field);
+    virtual std::string get_uri_field(const std::string& uri, void* hp_u, int field);
     srs_error_t parse_query();
 public:
     static std::string query_escape(std::string s);

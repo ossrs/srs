@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-08-31, Fix URL parsing bug for `__defaultVhost__`. v5.0.55
 * v5.0, 2022-08-30, Fix [#2837](https://github.com/ossrs/srs/issues/2837): Callback: Support stream_url and stream_id. v5.0.55
 * v5.0, 2022-08-30, STAT: Refine tcUrl for SRT/RTC. v5.0.54
 * v5.0, 2022-08-30, Refactor: Extract SrsNetworkKbps from SrsKbps. v5.0.53

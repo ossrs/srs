@@ -20,17 +20,6 @@ using namespace std;
 #include <srs_protocol_protobuf.hpp>
 #include <srs_kernel_buffer.hpp>
 
-VOID TEST(ProtocolKbpsTest, ParseUrlFailed)
-{
-    string tcUrl = "rtmp://__defaultVhost__/live", stream = "livestream";
-    string schema, host, vhost, app, param; int port = 0;
-    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
-    EXPECT_STREQ("rtmp", schema.c_str());
-    EXPECT_STREQ("__defaultVhost__", host.c_str());
-    EXPECT_STREQ("__defaultVhost__", vhost.c_str());
-    EXPECT_EQ(1935, port);
-}
-
 /**
 * recv video, audio, video and video, interlaced in chunks.
 * the continue chunks use fmt=1, last video with fmt=1 header
@@ -3603,6 +3592,119 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         HELPER_EXPECT_SUCCESS(parser.parse("GET"));
         EXPECT_EQ(3, (int)parser.parsed);
         EXPECT_EQ(3, (int)parser.parser->nread);
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, ParseUrlFailed)
+{
+    if (true) {
+        string tcUrl = "rtmp://__defaultVhost__/live", stream = "livestream";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(1935, port);
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://__defaultVhost__:1936/live", stream = "livestream";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(1936, port);
+    }
+
+    if (true) {
+        string tcUrl = "http://__defaultVhost__/live", stream = "livestream.flv";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("http", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(80, port);
+    }
+
+    if (true) {
+        string tcUrl = "http://__defaultVhost__/live", stream = "livestream.m3u8";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("http", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(80, port);
+    }
+
+    if (true) {
+        string tcUrl = "http://__defaultVhost__:8080/live", stream = "livestream.m3u8";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("http", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(8080, port);
+    }
+
+    if (true) {
+        string tcUrl = "https://__defaultVhost__/live", stream = "livestream.flv";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("https", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(443, port);
+    }
+
+    if (true) {
+        string tcUrl = "https://__defaultVhost__/live", stream = "livestream.m3u8";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("https", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(443, port);
+    }
+
+    if (true) {
+        string tcUrl = "https://__defaultVhost__:8088/live", stream = "livestream.m3u8";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("https", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(8088, port);
+    }
+
+    if (true) {
+        string tcUrl = "webrtc://__defaultVhost__/live", stream = "livestream";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("webrtc", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(80, port);
+    }
+
+    if (true) {
+        string tcUrl = "webrtc://__defaultVhost__:8080/live", stream = "livestream";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("webrtc", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(8080, port);
     }
 }
 
