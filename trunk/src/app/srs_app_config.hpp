@@ -936,6 +936,8 @@ public:
     virtual bool get_vhost_hls_dts_directly(std::string vhost);
     // Whether enable hls_ctx
     virtual bool get_hls_ctx_enabled(std::string vhost);
+    // Whether enable session for ts file.
+    virtual bool get_hls_ts_ctx_enabled(std::string vhost);
 // hds section
 private:
     // Get the hds directive of vhost.

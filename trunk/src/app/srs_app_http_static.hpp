@@ -31,7 +31,7 @@ public:
     SrsHlsStream();
     virtual ~SrsHlsStream();
 public:
-    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, std::string fullpath, SrsRequest* req);
+    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, std::string fullpath, SrsRequest* req, bool* served);
     virtual void on_serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
     srs_error_t serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest *req);

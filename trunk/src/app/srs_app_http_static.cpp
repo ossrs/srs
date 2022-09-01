@@ -68,9 +68,15 @@ SrsHlsStream::~SrsHlsStream()
     map_ctx_info_.clear();
 }
 
-srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, string fullpath, SrsRequest* req)
+srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, string fullpath, SrsRequest* req, bool* served)
 {
     string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
+
+    // If HLS stream is disabled, use SrsHttpFileServer to serve HLS, which is normal file server.
+    if (!_srs_config->get_hls_ctx_enabled(req->vhost)) {
+        *served = false;
+        return srs_success;
+    }
 
     // Correct the app and stream by path, which is created from template.
     // @remark Be careful that the stream has extension now, might cause identify fail.
@@ -79,8 +85,16 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
     // Always make the ctx alive now.
     alive(ctx, req);
 
+    // Served by us.
+    *served = true;
+
     // Already exists context, response with rebuilt m3u8 content.
     if (!ctx.empty() && ctx_is_exist(ctx)) {
+        // If HLS stream is disabled, use SrsHttpFileServer to serve HLS, which is normal file server.
+        if (!_srs_config->get_hls_ts_ctx_enabled(req->vhost)) {
+            *served = false;
+            return srs_success;
+        }
         return serve_exists_session(w, r, factory, fullpath);
     }
 
@@ -470,6 +484,8 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
 
 srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
 {
+    srs_error_t err = srs_success;
+
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     srs_assert(hr);
 
@@ -482,14 +498,18 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
         req->vhost = parsed_vhost->arg0();
     }
 
-    // If HLS stream is disabled, use SrsHttpFileServer to serve HLS, which is normal file server.
-    if (!_srs_config->get_hls_ctx_enabled(req->vhost)) {
-        // Serve by default HLS handler.
+    // Try to serve by HLS streaming.
+    bool served = false;
+    if ((err = hls_.serve_m3u8_ctx(w, r, fs_factory, fullpath, req, &served)) != srs_success) {
+        return srs_error_wrap(err, "hls ctx");
+    }
+
+    // Serve by default HLS handler.
+    if (!served) {
         return SrsHttpFileServer::serve_m3u8_ctx(w, r, fullpath);
     }
 
-    // Try to serve by HLS streaming.
-    return hls_.serve_m3u8_ctx(w, r, fs_factory, fullpath, req);
+    return err;
 }
 
 srs_error_t SrsVodStream::serve_ts_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
