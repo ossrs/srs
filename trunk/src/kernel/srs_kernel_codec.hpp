@@ -759,8 +759,10 @@ private:
     virtual srs_error_t video_nalu_demux(SrsBuffer* stream);
     // Demux the avc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
     virtual srs_error_t avc_demux_annexb_format(SrsBuffer* stream);
+    virtual srs_error_t do_avc_demux_annexb_format(SrsBuffer* stream);
     // Demux the avc NALU in "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
     virtual srs_error_t avc_demux_ibmf_format(SrsBuffer* stream);
+    virtual srs_error_t do_avc_demux_ibmf_format(SrsBuffer* stream);
 private:
     // Demux the audio packet in AAC codec.
     //          Demux the asc from sequence header.
