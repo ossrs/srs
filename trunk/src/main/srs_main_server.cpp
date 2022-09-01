@@ -257,7 +257,7 @@ void show_macro_features()
     
     if (true) {
         stringstream ss;
-        ss << "SRS on ";
+        ss << "SRS on";
 #if defined(__amd64__)
         ss << " amd64";
 #endif
@@ -268,7 +268,7 @@ void show_macro_features()
         ss << " i386";
 #endif
 #if defined(__arm__)
-        ss << "arm";
+        ss << " arm";
 #endif
 #if defined(__aarch64__)
         ss << " aarch64";
