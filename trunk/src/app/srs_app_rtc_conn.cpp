@@ -3132,7 +3132,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
         SrsRtcTrackDescription* video_track = stream_desc->video_track_descs_.at(i);
 
         SrsVideoPayload* payload = (SrsVideoPayload*)video_track->media_;
-        if (payload == nullptr){
+        if (payload == NULL){
             break;
         }
 
