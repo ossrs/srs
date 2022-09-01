@@ -572,6 +572,7 @@ SrsFormat::SrsFormat()
     audio = NULL;
     video = NULL;
     avc_parse_sps = true;
+    try_annexb_first = true;
     raw = NULL;
     nb_raw = 0;
 }
@@ -1138,23 +1139,34 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
     
     // guess for the first time.
     if (vcodec->payload_format == SrsAvcPayloadFormatGuess) {
-        // One or more NALUs (Full frames are required)
-        // try  "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
-        if ((err = avc_demux_annexb_format(stream)) != srs_success) {
-            // stop try when system error.
-            if (srs_error_code(err) != ERROR_HLS_AVC_TRY_OTHERS) {
-                return srs_error_wrap(err, "avc demux for annexb");
-            }
-            srs_freep(err);
-            
-            // try "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
-            if ((err = avc_demux_ibmf_format(stream)) != srs_success) {
-                return srs_error_wrap(err, "avc demux ibmf");
+        if (try_annexb_first) {
+            // One or more NALUs (Full frames are required)
+            // try  "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
+            if ((err = avc_demux_annexb_format(stream)) != srs_success) {
+                srs_freep(err);
+
+                // try "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
+                if ((err = avc_demux_ibmf_format(stream)) != srs_success) {
+                    return srs_error_wrap(err, "avc demux ibmf");
+                } else {
+                    vcodec->payload_format = SrsAvcPayloadFormatIbmf;
+                }
             } else {
-                vcodec->payload_format = SrsAvcPayloadFormatIbmf;
+                vcodec->payload_format = SrsAvcPayloadFormatAnnexb;
             }
         } else {
-            vcodec->payload_format = SrsAvcPayloadFormatAnnexb;
+            // One or more NALUs (Full frames are required)
+            // try  "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
+            if ((err = avc_demux_ibmf_format(stream)) == srs_success) {
+                vcodec->payload_format = SrsAvcPayloadFormatIbmf;
+            } else {
+                srs_freep(err);
+                if ((err = avc_demux_annexb_format(stream)) == srs_success) {
+                    vcodec->payload_format = SrsAvcPayloadFormatAnnexb;
+                } else {
+                    return srs_error_wrap(err, "avc demux annexb");
+                }
+            }
         }
     } else if (vcodec->payload_format == SrsAvcPayloadFormatIbmf) {
         // try "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
@@ -1165,10 +1177,6 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
         // One or more NALUs (Full frames are required)
         // try  "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
         if ((err = avc_demux_annexb_format(stream)) != srs_success) {
-            // ok, we guess out the payload is annexb, but maybe changed to ibmf.
-            if (srs_error_code(err) != ERROR_HLS_AVC_TRY_OTHERS) {
-                return srs_error_wrap(err, "avc demux annexb");
-            }
             srs_freep(err);
             
             // try "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20

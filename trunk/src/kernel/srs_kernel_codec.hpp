@@ -724,6 +724,8 @@ public:
     // for sequence header, whether parse the h.264 sps.
     // TODO: FIXME: Refine it.
     bool avc_parse_sps;
+    // Whether try to parse in ANNEXB, then by IBMF.
+    bool try_annexb_first;
 public:
     SrsFormat();
     virtual ~SrsFormat();

@@ -752,6 +752,9 @@ srs_error_t SrsRtcFromRtmpBridge::initialize(SrsRequest* r)
             return srs_error_wrap(err, "format initialize");
         }
 
+        // Setup the SPS/PPS parsing strategy.
+        format->try_annexb_first = _srs_config->try_annexb_first(r->vhost);
+
         int bitrate = 48000; // The output bitrate in bps.
         if ((err = codec_->initialize(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate,
                                       bitrate)) != srs_success) {
@@ -1308,6 +1311,9 @@ srs_error_t SrsRtmpFromRtcBridge::initialize(SrsRequest* r)
     if ((err = format->initialize()) != srs_success) {
         return srs_error_wrap(err, "format initialize");
     }
+
+    // Setup the SPS/PPS parsing strategy.
+    format->try_annexb_first = _srs_config->try_annexb_first(r->vhost);
 
     return err;
 }

@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-09-01, Fix [#1405](https://github.com/ossrs/srs/issues/1405): Support guessing IBMF first. v5.0.58
 * v5.0, 2022-09-01, ST: Define and use a new jmpbuf. v5.0.57
 * v5.0, 2022-08-31, Fix URL parsing bug for `__defaultVhost__`. v5.0.56
 * v5.0, 2022-08-30, Fix [#2837](https://github.com/ossrs/srs/issues/2837): Callback: Support stream_url and stream_id. v5.0.55

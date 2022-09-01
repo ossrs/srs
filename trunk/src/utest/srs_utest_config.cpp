@@ -2928,6 +2928,7 @@ VOID TEST(ConfigMainTest, CheckVhostConfig2)
         EXPECT_EQ(2500000, conf.get_out_ack_size("ossrs.net"));
         EXPECT_EQ(60000, conf.get_chunk_size("ossrs.net"));
         EXPECT_TRUE(conf.get_parse_sps("ossrs.net"));
+        EXPECT_TRUE(conf.try_annexb_first("ossrs.net"));
         EXPECT_FALSE(conf.get_mr_enabled("ossrs.net"));
         EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mr_sleep("ossrs.net"));
         EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mw_sleep("ossrs.net"));
@@ -3018,6 +3019,12 @@ VOID TEST(ConfigMainTest, CheckVhostConfig2)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{publish{parse_sps off;}}"));
         EXPECT_FALSE(conf.get_parse_sps("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{publish{try_annexb_first off;}}"));
+        EXPECT_FALSE(conf.try_annexb_first("ossrs.net"));
     }
 
     if (true) {

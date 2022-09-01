@@ -593,6 +593,8 @@ public:
     virtual int get_chunk_size(std::string vhost);
     // Whether parse the sps when publish stream to SRS.
     virtual bool get_parse_sps(std::string vhost);
+    // Whether try ANNEXB first when parsing SPS/PPS.
+    virtual bool try_annexb_first(std::string vhost);
     // Whether mr is enabled for vhost.
     // @param vhost, the vhost to get the mr.
     virtual bool get_mr_enabled(std::string vhost);

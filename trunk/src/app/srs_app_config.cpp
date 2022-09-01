@@ -2499,7 +2499,8 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "publish") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
-                    if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout" && m != "parse_sps") {
+                    if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout"
+                        && m != "parse_sps" && m != "try_annexb_first") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.publish.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4379,23 +4380,46 @@ int SrsConfig::get_chunk_size(string vhost)
 bool SrsConfig::get_parse_sps(string vhost)
 {
     static bool DEFAULT = true;
-    
+
     SrsConfDirective* conf = get_vhost(vhost);
-    
+
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("publish");
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("parse_sps");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::try_annexb_first(string vhost)
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("publish");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("try_annexb_first");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
