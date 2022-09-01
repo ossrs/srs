@@ -56,6 +56,35 @@
     #define MAP_FAILED -1
 #endif
 
+/* We define the jmpbuf, because the system's is different in different OS */
+typedef struct _st_jmp_buf {
+    /*
+     *   OS         CPU                  SIZE
+     * Darwin   __amd64__/__x86_64__    long[8]
+     * Darwin   __aarch64__             long[22]
+     * Linux    __i386__                long[6]
+     * Linux    __amd64__/__x86_64__    long[8]
+     * Linux    __aarch64__             long[22]
+     * Linux    __arm__                 long[16]
+     * Linux    __mips__/__mips64       long[13]
+     * Linux    __riscv                 long[14]
+     * Linux    __loongarch64           long[12]
+     * Cygwin64 __amd64__/__x86_64__    long[8]
+     */
+    long __jmpbuf[22];
+} _st_jmp_buf_t[1];
+
+extern int _st_md_cxt_save(_st_jmp_buf_t env);
+extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
+
+/* Always use builtin setjmp/longjmp, use asm code. */
+#define MD_USE_BUILTIN_SETJMP
+#define MD_SETJMP(env) _st_md_cxt_save(env)
+#define MD_LONGJMP(env, val) _st_md_cxt_restore(env, val)
+#if defined(USE_LIBC_SETJMP)
+#error The libc setjmp is not supported now
+#endif
+
 /*****************************************
  * Platform specifics
  */
@@ -66,14 +95,10 @@
     #define MD_ACCEPT_NB_INHERITED
     #define MD_HAVE_SOCKLEN_T
 
-    #define MD_USE_BUILTIN_SETJMP
-
     #if defined(__amd64__) || defined(__x86_64__)
-        #define JB_SP  12 /* The jmpbuf is int(4B) array, while MD_GET_SP covert to long(8B) pointer, so the JB_SP should be 12 which is 6*sizeof(long)/sizeof(int) */
-        #define MD_GET_SP(_t) *((long *)&((_t)->context[JB_SP]))
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[6]))
     #elif defined(__aarch64__)
-        /* MUST be SP*2 because context is int array */
-        #define MD_GET_SP(_t) *((long *)&((_t)->context[13 * 2]))
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[13]))
     #else
         #error Unknown CPU architecture
     #endif
@@ -84,14 +109,6 @@
             _main();                                 \
         MD_GET_SP(_thread) = (long) (_sp);         \
         ST_END_MACRO
-
-    #if defined(MD_USE_BUILTIN_SETJMP)
-        #define MD_SETJMP(env) _st_md_cxt_save(env)
-        #define MD_LONGJMP(env, val) _st_md_cxt_restore(env, val)
-
-        extern int _st_md_cxt_save(jmp_buf env);
-        extern void _st_md_cxt_restore(jmp_buf env, int val);
-    #endif
 
     #define MD_GET_UTIME()            \
         struct timeval tv;              \
@@ -120,112 +137,38 @@
         (void) gettimeofday(&tv, NULL); \
         return (tv.tv_sec * 1000000LL + tv.tv_usec)
 
-    #if 1
-
-        /*
-         * On linux, there are a few styles of jmpbuf format.  These vary based
-         * on architecture/glibc combination.
-         *
-         * Most of the glibc based toggles were lifted from:
-         * mozilla/nsprpub/pr/include/md/_linux.h
-         */
-
-        /*
-         * Starting with glibc 2.4, JB_SP definitions are not public anymore.
-         * They, however, can still be found in glibc source tree in
-         * architecture-specific "jmpbuf-offsets.h" files.
-         * Most importantly, the content of jmp_buf is mangled by setjmp to make
-         * it completely opaque (the mangling can be disabled by setting the
-         * LD_POINTER_GUARD environment variable before application execution).
-         * Therefore we will use built-in _st_md_cxt_save/_st_md_cxt_restore
-         * functions as a setjmp/longjmp replacement wherever they are available
-         * unless USE_LIBC_SETJMP is defined.
-         */
-
-        #if defined(__i386__)
-            #define MD_USE_BUILTIN_SETJMP
-
-            #if defined(__GLIBC__) && __GLIBC__ >= 2
-                #ifndef JB_SP
-                    #define JB_SP 4
-                #endif
-                #define MD_GET_SP(_t) (_t)->context[0].__jmpbuf[JB_SP]
-            #else
-                /* not an error but certainly cause for caution */
-                #error "Untested use of old glibc on i386"
-                #define MD_GET_SP(_t) (_t)->context[0].__jmpbuf[0].__sp
-            #endif
-
-        #elif defined(__amd64__) || defined(__x86_64__)
-            #define MD_USE_BUILTIN_SETJMP
-
-            #ifndef JB_RSP
-                #define JB_RSP 6
-            #endif
-            #define MD_GET_SP(_t) (_t)->context[0].__jmpbuf[JB_RSP]
-
-        #elif defined(__aarch64__)
-            /* https://github.com/ossrs/state-threads/issues/9 */
-            #define MD_USE_BUILTIN_SETJMP
-            #define MD_GET_SP(_t) (_t)->context[0].__jmpbuf[13]
-
-        #elif defined(__arm__)
-            /* https://github.com/ossrs/state-threads/issues/1#issuecomment-244648573 */
-            #define MD_USE_BUILTIN_SETJMP
-
-            /* force to use glibc solution, hack the guard jmpbuf from michaeltalyansky */
-            #ifdef USE_LIBC_SETJMP
-                #undef MD_USE_BUILTIN_SETJMP
-            #endif
-
-            #if defined(__GLIBC__) && __GLIBC__ >= 2
-                /* Merge from https://github.com/michaeltalyansky/state-threads/commit/56554a5c425aee8e7a73782eae23d74d83c4120a */
-                #define MD_GET_SP(_t) (_t)->context[0].__jmpbuf[8]
-            #else
-                #error "ARM/Linux pre-glibc2 not supported yet"
-            #endif /* defined(__GLIBC__) && __GLIBC__ >= 2 */
-
-        #elif defined(__mips64)
-            /* https://github.com/ossrs/state-threads/issues/21 */
-            #define MD_USE_BUILTIN_SETJMP
-            #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
-        #elif defined(__mips__)
-            /* https://github.com/ossrs/state-threads/issues/21 */
-            #define MD_USE_BUILTIN_SETJMP
-            #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jb[0]))
-        #elif defined(__riscv)
-            /* https://github.com/ossrs/state-threads/pull/28 */
-            #define MD_USE_BUILTIN_SETJMP
-            #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
-
-        #elif defined(__loongarch64)
-            /* https://github.com/ossrs/state-threads/issues/24 */
-            #define MD_USE_BUILTIN_SETJMP
-            #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
-
-        #else
-            #error "Unknown CPU architecture"
-        #endif /* Cases with common MD_INIT_CONTEXT and different SP locations */
-
-        #define MD_INIT_CONTEXT(_thread, _sp, _main) \
-            ST_BEGIN_MACRO                             \
-            if (MD_SETJMP((_thread)->context))         \
-                _main();                                 \
-            MD_GET_SP(_thread) = (long) (_sp);         \
-            ST_END_MACRO
-
-    #endif /* Cases with different MD_INIT_CONTEXT */
-
-    #if defined(MD_USE_BUILTIN_SETJMP) && !defined(USE_LIBC_SETJMP)
-        #define MD_SETJMP(env) _st_md_cxt_save(env)
-        #define MD_LONGJMP(env, val) _st_md_cxt_restore(env, val)
-
-        extern int _st_md_cxt_save(jmp_buf env);
-        extern void _st_md_cxt_restore(jmp_buf env, int val);
+    #if defined(__i386__)
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[4]))
+    #elif defined(__amd64__) || defined(__x86_64__)
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[6]))
+    #elif defined(__aarch64__)
+        /* https://github.com/ossrs/state-threads/issues/9 */
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[13]))
+    #elif defined(__arm__)
+        /* https://github.com/ossrs/state-threads/issues/1#issuecomment-244648573 */
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[8]))
+    #elif defined(__mips64)
+        /* https://github.com/ossrs/state-threads/issues/21 */
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
+    #elif defined(__mips__)
+        /* https://github.com/ossrs/state-threads/issues/21 */
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
+    #elif defined(__riscv)
+        /* https://github.com/ossrs/state-threads/pull/28 */
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
+    #elif defined(__loongarch64)
+        /* https://github.com/ossrs/state-threads/issues/24 */
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
     #else
-        #define MD_SETJMP(env) setjmp(env)
-        #define MD_LONGJMP(env, val) longjmp(env, val)
-    #endif
+        #error "Unknown CPU architecture"
+    #endif /* Cases with common MD_INIT_CONTEXT and different SP locations */
+
+    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
+        ST_BEGIN_MACRO                             \
+        if (MD_SETJMP((_thread)->context))         \
+            _main();                                 \
+        MD_GET_SP(_thread) = (long) (_sp);         \
+        ST_END_MACRO
 
 #elif defined (CYGWIN64)
 
@@ -237,8 +180,7 @@
     #define MD_USE_BUILTIN_SETJMP
 
     #if defined(__amd64__) || defined(__x86_64__)
-        #define JB_SP  6 // The context is long(32) array, @see https://github.com/ossrs/state-threads/issues/20#issuecomment-887569093
-        #define MD_GET_SP(_t) *((long *)&((_t)->context[JB_SP]))
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[6]))
     #else
         #error Unknown CPU architecture
     #endif
@@ -249,14 +191,6 @@
             _main();                                 \
         MD_GET_SP(_thread) = (long) (_sp);         \
         ST_END_MACRO
-
-    #if defined(MD_USE_BUILTIN_SETJMP)
-        #define MD_SETJMP(env) _st_md_cxt_save(env)
-        #define MD_LONGJMP(env, val) _st_md_cxt_restore(env, val)
-
-        extern int _st_md_cxt_save(jmp_buf env);
-        extern void _st_md_cxt_restore(jmp_buf env, int val);
-    #endif
 
     #define MD_GET_UTIME()            \
         struct timeval tv;              \

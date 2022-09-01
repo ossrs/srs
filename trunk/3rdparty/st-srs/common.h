@@ -170,7 +170,6 @@ typedef struct _st_cond {
     _st_clist_t wait_q;          /* Condition variable wait queue */
 } _st_cond_t;
 
-
 typedef struct _st_thread _st_thread_t;
 
 struct _st_thread {
@@ -198,7 +197,7 @@ struct _st_thread {
 
     _st_cond_t *term;           /* Termination condition variable for join */
 
-    jmp_buf context;            /* Thread's context */
+    _st_jmp_buf_t context;            /* Thread's context */
 };
 
 

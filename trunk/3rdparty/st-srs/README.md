@@ -91,7 +91,7 @@ make cygwin64-debug
 
 ## Branch SRS
 
-The branch [srs](https://github.com/ossrs/state-threads/tree/srs) will be patched the following patches:
+The branch [srs](https://github.com/ossrs/state-threads/tree/srs) was patched and refined:
 
 - [x] ARM: Patch [st.arm.patch](https://github.com/ossrs/srs/blob/2.0release/trunk/3rdparty/patches/1.st.arm.patch), for ARM.
 - [x] OSX: Patch [st.osx.kqueue.patch](https://github.com/ossrs/srs/blob/2.0release/trunk/3rdparty/patches/3.st.osx.kqueue.patch), for osx.
@@ -114,7 +114,8 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) will be patche
 - [x] RISCV: Support RISCV for RISCV CPU, [#24](https://github.com/ossrs/state-threads/pull/28).
 - [x] MIPS: Support Linux/MIPS64 for loongson 3A4000/3B3000, [#21](https://github.com/ossrs/state-threads/pull/21).
 - [x] AppleM1: Support Apple Silicon M1(aarch64), [#30](https://github.com/ossrs/state-threads/issues/30).
-- [ ] IDE: Support CLion for debugging and learning.
+- [x] IDE: Support CLion for debugging and learning.
+- [x] Define and use a new jmpbuf, because the structure is different.
 - [ ] System: Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
 
 ## GDB Tools

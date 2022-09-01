@@ -618,15 +618,6 @@ void st_thread_interrupt(_st_thread_t *thread)
 }
 
 
-/* Merge from https://github.com/michaeltalyansky/state-threads/commit/cce736426c2320ffec7c9820df49ee7a18ae638c */
-#if defined(__arm__) && !defined(MD_USE_BUILTIN_SETJMP) && __GLIBC_MINOR__ >= 19
-    extern unsigned long  __pointer_chk_guard;
-    #define PTR_MANGLE(var) \
-        (var) = (__typeof (var)) ((unsigned long) (var) ^ __pointer_chk_guard)
-    #define PTR_DEMANGLE(var)     PTR_MANGLE (var)
-#endif
-
-
 _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinable, int stk_size)
 {
     _st_thread_t *thread;
@@ -662,17 +653,9 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     thread->stack = stack;
     thread->start = start;
     thread->arg = arg;
-    
-    /* Merge from https://github.com/michaeltalyansky/state-threads/commit/cce736426c2320ffec7c9820df49ee7a18ae638c */
-    #if defined(__arm__) && !defined(MD_USE_BUILTIN_SETJMP) && __GLIBC_MINOR__ >= 19
-        volatile void * lsp = PTR_MANGLE(stack->sp);
-        if (_setjmp ((thread)->context))
-            _st_thread_main();
-        (thread)->context[0].__jmpbuf[8] = (long) (lsp);
-    #else
-        _ST_INIT_CONTEXT(thread, stack->sp, _st_thread_main);
-    #endif
-    
+
+    _ST_INIT_CONTEXT(thread, stack->sp, _st_thread_main);
+
     /* If thread is joinable, allocate a termination condition variable */
     if (joinable) {
         thread->term = st_cond_new();
@@ -720,19 +703,19 @@ int _st_iterate_threads_flag = 0;
 void _st_iterate_threads(void)
 {
     static __thread _st_thread_t *thread = NULL;
-    static __thread jmp_buf orig_jb, save_jb;
+    static __thread _st_jmp_buf_t orig_jb, save_jb;
     _st_clist_t *q;
     
     if (!_st_iterate_threads_flag) {
         if (thread) {
-            memcpy(thread->context, save_jb, sizeof(jmp_buf));
+            memcpy(thread->context, save_jb, sizeof(_st_jmp_buf_t));
             MD_LONGJMP(orig_jb, 1);
         }
         return;
     }
     
     if (thread) {
-        memcpy(thread->context, save_jb, sizeof(jmp_buf));
+        memcpy(thread->context, save_jb, sizeof(_st_jmp_buf_t));
         _st_show_thread_stack(thread, NULL);
     } else {
         if (MD_SETJMP(orig_jb)) {
@@ -752,7 +735,7 @@ void _st_iterate_threads(void)
     thread = _ST_THREAD_THREADQ_PTR(q);
     if (thread == _ST_CURRENT_THREAD())
         MD_LONGJMP(orig_jb, 1);
-    memcpy(save_jb, thread->context, sizeof(jmp_buf));
+    memcpy(save_jb, thread->context, sizeof(_st_jmp_buf_t));
     MD_LONGJMP(thread->context, 1);
 }
 #endif /* DEBUG */

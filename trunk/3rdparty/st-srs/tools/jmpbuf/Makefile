@@ -1,5 +1,6 @@
 .PHONY: default clean
 
+LDLIBS=
 CFLAGS=-g -O0
 
 OS_NAME 	= $(shell uname -s)
@@ -13,7 +14,7 @@ endif
 
 default: ./jmpbuf ./jmpbuf.E.c
 
-./jmpbuf:  jmpbuf.c
+./jmpbuf:  jmpbuf.c $(LDLIBS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $^ $(LDLIBS)
 
 ./jmpbuf.E.c: jmpbuf.c
