@@ -3131,10 +3131,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
     for (int i = 0;  i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription* video_track = stream_desc->video_track_descs_.at(i);
 
-        SrsVideoPayload* payload = (SrsVideoPayload*)video_track->media_;
-        if (payload == NULL){
-            break;
-        }
+        if (!video_track->media_) continue;
 
         local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
@@ -3162,6 +3159,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
             local_media_desc.inactive_ = true;
         }
 
+        SrsVideoPayload* payload = (SrsVideoPayload*)video_track->media_;
         local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
 
         if (video_track->red_) {
@@ -3176,7 +3174,6 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
     }
 
     if (local_sdp.media_descs_.empty()){
-        srs_trace("empty media desc!");
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "has no valid stream description");
     }
 

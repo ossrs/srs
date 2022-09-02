@@ -59,7 +59,7 @@ srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264
     std::vector<std::string> vec = split_str(fmtp, ";");
     for (size_t i = 0; i < vec.size(); ++i) {
         std::vector<std::string> kv = split_str(vec[i], "=");
-        if( kv.size() >= 2 && kv[0] == "sprop-parameter-sets") { // ignore sprop-parameter-sets
+        if( !kv.empty() && kv[0] == "sprop-parameter-sets") { // ignore sprop-parameter-sets
             continue;
         }
         if (kv.size() == 2) {
