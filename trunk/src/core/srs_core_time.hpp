@@ -7,8 +7,15 @@
 #ifndef SRS_CORE_TIME_HPP
 #define SRS_CORE_TIME_HPP
 
+#if defined(_WIN32) && !defined(__MINGW32__) && (!defined(_MSC_VER) || _MSC_VER<1600) && !defined(__WINE__)
+#include <BaseTsd.h>
+typedef __int64 int64_t;
+#else
+#include <stdint.h>
+#endif
+
 // Time and duration unit, in us.
-typedef signed long int srs_utime_t;
+typedef int64_t srs_utime_t;
 
 // The time unit in ms, for example 100 * SRS_UTIME_MILLISECONDS means 100ms.
 #define SRS_UTIME_MILLISECONDS 1000
