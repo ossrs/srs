@@ -48,28 +48,6 @@ public:
 
 extern SrsRtcBlackhole* _srs_blackhole;
 
-// The handler for RTC server to call.
-class ISrsRtcServerHandler
-{
-public:
-    ISrsRtcServerHandler();
-    virtual ~ISrsRtcServerHandler();
-public:
-    // When server detect the timeout for session object.
-    virtual void on_timeout(SrsRtcConnection* session) = 0;
-};
-
-// The hijacker to hook server.
-class ISrsRtcServerHijacker
-{
-public:
-    ISrsRtcServerHijacker();
-    virtual ~ISrsRtcServerHijacker();
-public:
-    // If consumed set to true, server will ignore the packet.
-    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt, SrsRtcConnection* session, bool* pconsumed) = 0;
-};
-
 // The user config for RTC publish or play.
 class SrsRtcUserConfig
 {
@@ -95,8 +73,6 @@ class SrsRtcServer : public ISrsUdpMuxHandler, public ISrsFastTimer, public ISrs
 {
 private:
     std::vector<SrsUdpMuxListener*> listeners;
-    ISrsRtcServerHandler* handler;
-    ISrsRtcServerHijacker* hijacker;
     SrsAsyncCallWorker* async;
 public:
     SrsRtcServer();
@@ -107,9 +83,6 @@ public:
 public:
     virtual srs_error_t on_reload_rtc_server();
 public:
-    // Set the handler for server events.
-    void set_handler(ISrsRtcServerHandler* h);
-    void set_hijacker(ISrsRtcServerHijacker* h);
     srs_error_t exec_async_work(ISrsAsyncCallTask* t);
 public:
     // TODO: FIXME: Support gracefully quit.

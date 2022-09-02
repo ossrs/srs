@@ -29,6 +29,7 @@ using namespace std;
 #include <srs_app_rtc_api.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_log.hpp>
+#include <srs_app_rtc_network.hpp>
 
 extern SrsPps* _srs_pps_rpkts;
 SrsPps* _srs_pps_rstuns = NULL;
@@ -269,22 +270,6 @@ static set<string> discover_candidates(SrsRtcUserConfig* ruc)
     return candidate_ips;
 }
 
-ISrsRtcServerHandler::ISrsRtcServerHandler()
-{
-}
-
-ISrsRtcServerHandler::~ISrsRtcServerHandler()
-{
-}
-
-ISrsRtcServerHijacker::ISrsRtcServerHijacker()
-{
-}
-
-ISrsRtcServerHijacker::~ISrsRtcServerHijacker()
-{
-}
-
 SrsRtcUserConfig::SrsRtcUserConfig()
 {
     req_ = new SrsRequest();
@@ -299,8 +284,6 @@ SrsRtcUserConfig::~SrsRtcUserConfig()
 
 SrsRtcServer::SrsRtcServer()
 {
-    handler = NULL;
-    hijacker = NULL;
     async = new SrsAsyncCallWorker();
 
     _srs_config->subscribe(this);
@@ -343,16 +326,6 @@ srs_error_t SrsRtcServer::initialize()
 srs_error_t SrsRtcServer::on_reload_rtc_server()
 {
     return srs_success;
-}
-
-void SrsRtcServer::set_handler(ISrsRtcServerHandler* h)
-{
-    handler = h;
-}
-
-void SrsRtcServer::set_hijacker(ISrsRtcServerHijacker* h)
-{
-    hijacker = h;
 }
 
 srs_error_t SrsRtcServer::exec_async_work(ISrsAsyncCallTask * t)
@@ -416,21 +389,6 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         session->alive();
     }
 
-    // Notify hijack to handle the UDP packet.
-    if (hijacker && is_rtp_or_rtcp && is_rtcp) {
-        bool consumed = false;
-        if (session) {
-            session->switch_to_context();
-        }
-        if ((err = hijacker->on_udp_packet(skt, session, &consumed)) != srs_success) {
-            return srs_error_wrap(err, "hijack consumed=%u", consumed);
-        }
-
-        if (consumed) {
-            return err;
-        }
-    }
-
     // For STUN, the peer address may change.
     if (!is_rtp_or_rtcp && srs_is_stun((uint8_t*)data, size)) {
         ++_srs_pps_rstuns->sugar;
@@ -456,7 +414,12 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
                 ping.get_username().c_str(), peer_id.c_str(), fast_id);
         }
 
-        return session->on_stun(skt, &ping);
+        // For each binding request, update the UDP socket.
+        if (ping.is_binding_request()) {
+            session->udp()->update_sendonly_socket(skt);
+        }
+
+        return session->on_stun(&ping, data, size);
     }
 
     // For DTLS, RTCP or RTP, which does not support peer address changing.
@@ -584,15 +547,21 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
     // We allows to mock the eip of server.
     if (true) {
         int listen_port = _srs_config->get_rtc_server_listen();
+        string protocol = _srs_config->get_rtc_server_protocol();
         set<string> candidates = discover_candidates(ruc);
         for (set<string>::iterator it = candidates.begin(); it != candidates.end(); ++it) {
             string hostname; int port = listen_port;
             srs_parse_hostport(*it, hostname, port);
-            local_sdp.add_candidate(hostname, port, "host");
+            if (protocol == "udp" || protocol == "tcp") {
+                local_sdp.add_candidate(protocol, hostname, port, "host");
+            } else {
+                local_sdp.add_candidate("udp", hostname, port, "host");
+                local_sdp.add_candidate("tcp", hostname, port, "host");
+            }
         }
 
         vector<string> v = vector<string>(candidates.begin(), candidates.end());
-        srs_trace("RTC: Use candidates %s", srs_join_vector_string(v, ", ").c_str());
+        srs_trace("RTC: Use candidates %s, protocol=%s", srs_join_vector_string(v, ", ").c_str(), protocol.c_str());
     }
 
     // Setup the negotiate DTLS by config.

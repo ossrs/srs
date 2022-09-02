@@ -112,6 +112,7 @@ public:
 
 struct SrsCandidate
 {
+    std::string protocol_;
     std::string ip_;
     int port_;
     std::string type_;
@@ -187,7 +188,7 @@ public:
     void set_dtls_role(const std::string& dtls_role);
     void set_fingerprint_algo(const std::string& algo);
     void set_fingerprint(const std::string& fingerprint);
-    void add_candidate(const std::string& ip, const int& port, const std::string& type);
+    void add_candidate(const std::string& protocol, const std::string& ip, const int& port, const std::string& type);
 
     std::string get_ice_ufrag() const;
     std::string get_ice_pwd() const;

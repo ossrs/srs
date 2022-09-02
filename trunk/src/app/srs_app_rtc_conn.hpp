@@ -52,6 +52,9 @@ class SrsRtcUserConfig;
 class SrsRtcSendTrack;
 class SrsRtcPublishStream;
 class SrsEphemeralDelta;
+class SrsRtcNetwork;
+class SrsRtcUdpNetwork;
+class ISrsRtcNetwork;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -101,12 +104,12 @@ public:
 class SrsSecurityTransport : public ISrsRtcTransport
 {
 private:
-    SrsRtcConnection* session_;
+    ISrsRtcNetwork* network_;
     SrsDtls* dtls_;
     SrsSRTP* srtp_;
     bool handshake_done;
 public:
-    SrsSecurityTransport(SrsRtcConnection* s);
+    SrsSecurityTransport(ISrsRtcNetwork* s);
     virtual ~SrsSecurityTransport();
 
     srs_error_t initialize(SrsSessionConfig* cfg);
@@ -136,7 +139,7 @@ private:
 class SrsSemiSecurityTransport : public SrsSecurityTransport
 {
 public:
-    SrsSemiSecurityTransport(SrsRtcConnection* s);
+    SrsSemiSecurityTransport(ISrsRtcNetwork* s);
     virtual ~SrsSemiSecurityTransport();
 public:
     srs_error_t protect_rtp(void* packet, int* nb_cipher);
@@ -147,9 +150,9 @@ public:
 class SrsPlaintextTransport : public ISrsRtcTransport
 {
 private:
-    SrsRtcConnection* session_;
+    ISrsRtcNetwork* network_;
 public:
-    SrsPlaintextTransport(SrsRtcConnection* s);
+    SrsPlaintextTransport(ISrsRtcNetwork* s);
     virtual ~SrsPlaintextTransport();
 public:
     virtual srs_error_t initialize(SrsSessionConfig* cfg);
@@ -407,16 +410,6 @@ private:
     void update_send_report_time(uint32_t ssrc, const SrsNtp& ntp, uint32_t rtp_time);
 };
 
-// Callback for RTC connection.
-class ISrsRtcConnectionHijacker
-{
-public:
-    ISrsRtcConnectionHijacker();
-    virtual ~ISrsRtcConnectionHijacker();
-public:
-    virtual srs_error_t on_dtls_done() = 0;
-};
-
 // A fast timer for conntion, for NACK feedback.
 class SrsRtcConnectionNackTimer : public ISrsFastTimer
 {
@@ -444,11 +437,9 @@ private:
     SrsRtcConnectionNackTimer* timer_nack_;
 public:
     bool disposing_;
-    ISrsRtcConnectionHijacker* hijacker_;
 private:
     SrsRtcServer* server_;
     SrsRtcConnectionStateType state_;
-    ISrsRtcTransport* transport_;
 private:
     iovec* cache_iov_;
     SrsBuffer* cache_buffer_;
@@ -464,10 +455,8 @@ private:
 private:
     // The local:remote username, such as m5x0n128:jvOm where local name is m5x0n128.
     std::string username_;
-    // The peer address, client maybe use more than one address, it's the current selected one.
-    SrsUdpMuxSocket* sendonly_skt;
-    // The address list, client may use multiple addresses.
-    std::map<std::string, SrsUdpMuxSocket*> peer_addresses_;
+    // Use one UDP network and one TCP network.
+    SrsRtcNetwork* network_;
 private:
     // TODO: FIXME: Rename it.
     // The timeout of session, keep alive by STUN ping pong.
@@ -485,14 +474,10 @@ private:
     int twcc_id_;
     // Simulators.
     int nn_simulate_player_nack_drop;
-    // Pithy print for address change, use port as error code.
-    SrsErrorPithyPrint* pp_address_change;
     // Pithy print for PLI request.
     SrsErrorPithyPrint* pli_epp;
 private:
     bool nack_enabled_;
-private:
-    SrsEphemeralDelta* delta_;
 public:
     SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid);
     virtual ~SrsRtcConnection();
@@ -511,8 +496,6 @@ public:
     void set_state(SrsRtcConnectionStateType state);
     // Get username pair for this connection, used as ID of session.
     std::string username();
-    // Get all addresses client used.
-    std::vector<SrsUdpMuxSocket*> peer_addresses();
 public:
     virtual ISrsKbpsDelta* delta();
 // Interface ISrsResource.
@@ -532,7 +515,7 @@ public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
     srs_error_t initialize(SrsRequest* r, bool dtls, bool srtp, std::string username);
     // The peer address may change, we can identify that by STUN messages.
-    srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
+    srs_error_t on_stun(SrsStunPacket* r, char* data, int nb_data);
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t on_rtp(char* data, int nb_data);
 private:
@@ -546,15 +529,12 @@ public:
     srs_error_t on_rtcp_feedback_twcc(char* buf, int nb_buf);
     srs_error_t on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp);
 public:
-    void set_hijacker(ISrsRtcConnectionHijacker* h);
-public:
     srs_error_t on_connection_established();
     srs_error_t on_dtls_alert(std::string type, std::string desc);
-    srs_error_t start_play(std::string stream_uri);
-    srs_error_t start_publish(std::string stream_uri);
     bool is_alive();
     void alive();
-    void update_sendonly_socket(SrsUdpMuxSocket* skt);
+public:
+    SrsRtcUdpNetwork* udp();
 public:
     // send rtcp
     srs_error_t send_rtcp(char *data, int nb_data);
@@ -581,34 +561,6 @@ private:
     srs_error_t create_player(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
     srs_error_t create_publisher(SrsRequest* request, SrsRtcSourceDescription* stream_desc);
 };
-
-class ISrsRtcHijacker
-{
-public:
-    ISrsRtcHijacker();
-    virtual ~ISrsRtcHijacker();
-public:
-    // Initialize the hijacker.
-    virtual srs_error_t initialize() = 0;
-    // When create publisher, SDP is done, DTLS is not ready.
-    virtual srs_error_t on_create_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
-    // When start publisher by RTC, SDP and DTLS are done.
-    virtual srs_error_t on_start_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
-    // When stop publish by RTC.
-    virtual void on_stop_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
-    // When got RTP plaintext packet.
-    virtual srs_error_t on_rtp_packet(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req, SrsRtpPacket* pkt) = 0;
-    // When before play by RTC. (wait source to ready in cascade scenario)
-    virtual srs_error_t on_before_play(SrsRtcConnection* session, SrsRequest* req) = 0;
-    // When start player by RTC.
-    virtual srs_error_t on_start_play(SrsRtcConnection* session, SrsRtcPlayStream* player, SrsRequest* req) = 0;
-    // When stop player by RTC.
-    virtual void on_stop_play(SrsRtcConnection* session, SrsRtcPlayStream* player, SrsRequest* req) = 0;
-    // When start consuming for player for RTC.
-    virtual srs_error_t on_start_consume(SrsRtcConnection* session, SrsRtcPlayStream* player, SrsRequest* req, SrsRtcConsumer* consumer) = 0;
-};
-
-extern ISrsRtcHijacker* _srs_rtc_hijacker;
 
 #endif
 

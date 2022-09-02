@@ -2289,8 +2289,8 @@ srs_error_t SrsConfig::check_normal_config()
         SrsConfDirective* conf = root->get("rtc_server");
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
-                && n != "encrypt" && n != "reuseport" && n != "merge_nalus" && n != "black_hole"
+            if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa" && n != "tcp"
+                && n != "encrypt" && n != "reuseport" && n != "merge_nalus" && n != "black_hole" && n != "protocol"
                 && n != "ip_family" && n != "api_as_candidates" && n != "resolve_api_domain"
                 && n != "keep_api_domain" && n != "use_auto_detect_network_ip") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
@@ -3699,6 +3699,73 @@ bool SrsConfig::get_use_auto_detect_network_ip()
     }
 
     return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_server_tcp_enabled()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_RTC_SERVER_TCP_ENABLED");
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("tcp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+int SrsConfig::get_rtc_server_tcp_listen()
+{
+    SRS_OVERWRITE_BY_ENV_INT("SRS_RTC_SERVER_TCP_LISTEN");
+
+    static int DEFAULT = 8000;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("tcp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("listen");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+std::string SrsConfig::get_rtc_server_protocol()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_RTC_SERVER_PROTOCOL");
+
+    static string DEFAULT = "udp";
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("protocol");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
 }
 
 std::string SrsConfig::get_rtc_server_ip_family()

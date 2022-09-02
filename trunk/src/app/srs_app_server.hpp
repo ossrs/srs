@@ -56,6 +56,8 @@ enum SrsListenerType
     SrsListenerHttpsApi = 8,
     // HTTPS stream,
     SrsListenerHttpsStream = 9,
+    // WebRTC over TCP,
+    SrsListenerTcp = 10,
 };
 
 // A common tcp listener, for RTMP/HTTP server.

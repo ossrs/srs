@@ -434,11 +434,22 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-4.2
         uint32_t priority = (1<<24)*(126) + (1<<8)*(65535) + (1)*(256 - component_id);
 
+        // See ICE TCP at https://www.rfc-editor.org/rfc/rfc6544
+        if (iter->protocol_ == "tcp") {
+            os << "a=candidate:" << foundation++ << " "
+               << component_id << " tcp " << priority << " "
+               << iter->ip_ << " " << iter->port_
+               << " typ " << iter->type_
+               << " tcptype passive"
+               << kCRLF;
+            continue;
+        }
+
         // @see: https://tools.ietf.org/id/draft-ietf-mmusic-ice-sip-sdp-14.html#rfc.section.5.1
         os << "a=candidate:" << foundation++ << " "
            << component_id << " udp " << priority << " "
            << iter->ip_ << " " << iter->port_
-           << " typ " << iter->type_ 
+           << " typ " << iter->type_
            << " generation 0" << kCRLF;
 
         srs_verbose("local SDP candidate line=%s", os.str().c_str());
@@ -885,10 +896,11 @@ void SrsSdp::set_fingerprint(const std::string& fingerprint)
     }
 }
 
-void SrsSdp::add_candidate(const std::string& ip, const int& port, const std::string& type)
+void SrsSdp::add_candidate(const std::string& protocol, const std::string& ip, const int& port, const std::string& type)
 {
     // @see: https://tools.ietf.org/id/draft-ietf-mmusic-ice-sip-sdp-14.html#rfc.section.5.1
     SrsCandidate candidate;
+    candidate.protocol_ = protocol;
     candidate.ip_ = ip;
     candidate.port_ = port;
     candidate.type_ = type;

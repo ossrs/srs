@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_app_coworkers.hpp>
 #include <srs_protocol_log.hpp>
 #include <srs_app_latest_version.hpp>
+#include <srs_app_rtc_network.hpp>
 
 std::string srs_listener_type2string(SrsListenerType type)
 {
@@ -54,6 +55,8 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "MPEG-TS over UDP";
         case SrsListenerFlv:
             return "HTTP-FLV";
+        case SrsListenerTcp:
+            return "TCP";
         default:
             return "UNKONWN";
     }
@@ -583,6 +586,7 @@ void SrsServer::dispose()
     close_listeners(SrsListenerHttpsStream);
     close_listeners(SrsListenerMpegTsOverUdp);
     close_listeners(SrsListenerFlv);
+    close_listeners(SrsListenerTcp);
     
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
     ingester->dispose();
@@ -609,6 +613,7 @@ void SrsServer::gracefully_dispose()
     close_listeners(SrsListenerHttpsStream);
     close_listeners(SrsListenerMpegTsOverUdp);
     close_listeners(SrsListenerFlv);
+    close_listeners(SrsListenerTcp);
     srs_trace("listeners closed");
 
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
@@ -737,6 +742,23 @@ srs_error_t SrsServer::listen()
     
     if ((err = listen_stream_caster()) != srs_success) {
         return srs_error_wrap(err, "stream caster listen");
+    }
+
+    // TODO: FIXME: Refine the listeners.
+    close_listeners(SrsListenerTcp);
+    if (_srs_config->get_rtc_server_tcp_enabled()) {
+        SrsListener* listener = new SrsBufferListener(this, SrsListenerTcp);
+        listeners.push_back(listener);
+
+        std::string ep = srs_int2str(_srs_config->get_rtc_server_tcp_listen());
+
+        std::string ip;
+        int port;
+        srs_parse_endpoint(ep, ip, port);
+
+        if ((err = listener->listen(ip, port)) != srs_success) {
+            return srs_error_wrap(err, "tcp listen %s:%d", ip.c_str(), port);
+        }
     }
     
     if ((err = conn_manager->start()) != srs_success) {
@@ -1354,6 +1376,12 @@ void SrsServer::resample_kbps()
             continue;
         }
 
+        SrsRtcTcpConn* tcp = dynamic_cast<SrsRtcTcpConn*>(c);
+        if (tcp) {
+            stat->kbps_add_delta(c->get_id().c_str(), tcp->delta());
+            continue;
+        }
+
         // Impossible path, because we only create these connections above.
         srs_assert(false);
     }
@@ -1447,6 +1475,8 @@ srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, IS
         *pr = new SrsHttpxConn(false, this, stfd, http_server, ip, port);
     } else if (type == SrsListenerHttpsStream) {
         *pr = new SrsHttpxConn(true, this, stfd, http_server, ip, port);
+    } else if (type == SrsListenerTcp) {
+        *pr = new SrsRtcTcpConn(stfd, ip, port, this);
     } else {
         srs_warn("close for no service handler. fd=%d, ip=%s:%d", fd, ip.c_str(), port);
         srs_close_stfd(stfd);
