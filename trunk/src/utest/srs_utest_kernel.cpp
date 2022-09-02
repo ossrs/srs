@@ -3838,19 +3838,18 @@ VOID TEST(KernelCodecTest, VideoFormat)
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)spspps, sizeof(spspps)));
         EXPECT_EQ(1, f.video->frame_type);
         EXPECT_EQ(0, f.video->avc_packet_type);
-        
+
+        // If force to ANNEXB, other format is failed to parse.
         f.vcodec->payload_format = SrsAvcPayloadFormatAnnexb;
-        
-        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
+
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
+        EXPECT_EQ(0, f.video->nb_samples);
+
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)rawAnnexb, sizeof(rawAnnexb)));
         EXPECT_EQ(1, f.video->nb_samples);
-        
-        // If IBMF format parsed, we couldn't parse annexb anymore.
-        // Maybe FFMPEG use annexb format for some packets, then switch to IBMF.
-        srs_error_t err = f.on_video(0, (char*)rawAnnexb, sizeof(rawAnnexb));
-        HELPER_EXPECT_FAILED(err);
-        
-        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
-        EXPECT_EQ(1, f.video->nb_samples);
+
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
+        EXPECT_EQ(0, f.video->nb_samples);
     }
 }
 
