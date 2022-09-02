@@ -158,12 +158,7 @@ srs_error_t api_server_as_candidates(string api, set<string>& candidate_ips)
         return err;
     }
 
-    SrsHttpUri uri;
-    if ((err = uri.initialize(api)) != srs_success) {
-        return srs_error_wrap(err, "parse %s", api.c_str());
-    }
-
-    string hostname = uri.get_host();
+    string hostname = api;
     if (hostname.empty() || hostname == SRS_CONSTS_LOCALHOST_NAME) {
         return err;
     }
@@ -171,15 +166,27 @@ srs_error_t api_server_as_candidates(string api, set<string>& candidate_ips)
         return err;
     }
 
-    // Try to parse the domain name if not IP.
-    int family = 0;
-    string ip = srs_dns_resolve(hostname, family);
-    if (ip.empty() || ip == SRS_CONSTS_LOCALHOST || ip == SRS_CONSTS_LOOPBACK || ip == SRS_CONSTS_LOOPBACK6) {
-        return err;
+    // Whether add domain name.
+    if (!srs_is_ipv4(hostname) && _srs_config->get_keep_api_domain()) {
+        candidate_ips.insert(hostname);
     }
 
-    // Try to add the API server ip as candidates.
-    candidate_ips.insert(ip);
+    // Try to parse the domain name if not IP.
+    if (!srs_is_ipv4(hostname) && _srs_config->get_resolve_api_domain()) {
+        int family = 0;
+        string ip = srs_dns_resolve(hostname, family);
+        if (ip.empty() || ip == SRS_CONSTS_LOCALHOST || ip == SRS_CONSTS_LOOPBACK || ip == SRS_CONSTS_LOOPBACK6) {
+            return err;
+        }
+
+        // Try to add the API server ip as candidates.
+        candidate_ips.insert(ip);
+    }
+
+    // If hostname is IP, use it.
+    if (srs_is_ipv4(hostname)) {
+        candidate_ips.insert(hostname);
+    }
 
     return err;
 }
@@ -195,8 +202,8 @@ static set<string> discover_candidates(SrsRtcUserConfig* ruc)
     }
 
     // Try to discover from api of request, if api_as_candidates enabled.
-    if ((err = api_server_as_candidates(ruc->api_, candidate_ips)) != srs_success) {
-        srs_warn("ignore discovering ip from api %s, err %s", ruc->api_.c_str(), srs_error_summary(err).c_str());
+    if ((err = api_server_as_candidates(ruc->req_->host, candidate_ips)) != srs_success) {
+        srs_warn("ignore discovering ip from api %s, err %s", ruc->req_->host.c_str(), srs_error_summary(err).c_str());
         srs_freep(err);
     }
 
@@ -207,29 +214,32 @@ static set<string> discover_candidates(SrsRtcUserConfig* ruc)
         return candidate_ips;
     }
 
-    // Discover from local network interface addresses.
+    // All automatically detected IP list.
     vector<SrsIPAddress*>& ips = srs_get_local_ips();
     if (ips.empty()) {
         return candidate_ips;
     }
 
-    // We try to find the best match candidates, no loopback.
-    string family = _srs_config->get_rtc_server_ip_family();
-    for (int i = 0; i < (int)ips.size(); ++i) {
-        SrsIPAddress* ip = ips[i];
-        if (ip->is_loopback) {
-            continue;
-        }
+    // Discover from local network interface addresses.
+    if (_srs_config->get_use_auto_detect_network_ip()) {
+        // We try to find the best match candidates, no loopback.
+        string family = _srs_config->get_rtc_server_ip_family();
+        for (int i = 0; i < (int) ips.size(); ++i) {
+            SrsIPAddress* ip = ips[i];
+            if (ip->is_loopback) {
+                continue;
+            }
 
-        if (family == "ipv4" && !ip->is_ipv4) {
-            continue;
-        }
-        if (family == "ipv6" && ip->is_ipv4) {
-            continue;
-        }
+            if (family == "ipv4" && !ip->is_ipv4) {
+                continue;
+            }
+            if (family == "ipv6" && ip->is_ipv4) {
+                continue;
+            }
 
-        candidate_ips.insert(ip->ip);
-        srs_trace("Best matched ip=%s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
+            candidate_ips.insert(ip->ip);
+            srs_trace("Best matched ip=%s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
+        }
     }
 
     if (!candidate_ips.empty()) {
@@ -248,7 +258,7 @@ static set<string> discover_candidates(SrsRtcUserConfig* ruc)
         return candidate_ips;
     }
 
-    // We use the first one.
+    // We use the first one, to make sure there will be at least one CANDIDATE.
     if (candidate_ips.empty()) {
         SrsIPAddress* ip = ips[0];
         candidate_ips.insert(ip->ip);
@@ -577,7 +587,7 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
         set<string> candidates = discover_candidates(ruc);
         for (set<string>::iterator it = candidates.begin(); it != candidates.end(); ++it) {
             string hostname; int port = listen_port;
-            srs_parse_hostport(*it, hostname,port);
+            srs_parse_hostport(*it, hostname, port);
             local_sdp.add_candidate(hostname, port, "host");
         }
 

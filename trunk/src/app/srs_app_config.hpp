@@ -473,6 +473,9 @@ public:
     virtual int get_rtc_server_listen();
     virtual std::string get_rtc_server_candidates();
     virtual bool get_api_as_candidates();
+    virtual bool get_resolve_api_domain();
+    virtual bool get_keep_api_domain();
+    virtual bool get_use_auto_detect_network_ip();
     virtual std::string get_rtc_server_ip_family();
     virtual bool get_rtc_server_ecdsa();
     virtual bool get_rtc_server_encrypt();
