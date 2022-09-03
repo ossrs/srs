@@ -28,8 +28,49 @@ class ISrsRtcTransport;
 class SrsEphemeralDelta;
 class ISrsKbpsDelta;
 class SrsRtcUdpNetwork;
+class ISrsRtcNetwork;
 
-// For DTLS to call network service.
+// The network stat.
+enum SrsRtcNetworkState
+{
+    SrsRtcNetworkStateInit = -1,
+    SrsRtcNetworkStateWaitingAnswer = 1,
+    SrsRtcNetworkStateWaitingStun = 2,
+    SrsRtcNetworkStateDtls = 3,
+    SrsRtcNetworkStateEstablished = 4,
+    SrsRtcNetworkStateClosed = 5,
+};
+
+// A group of networks, each has its own DTLS and SRTP context.
+class SrsRtcNetworks
+{
+private:
+    // Network over UDP.
+    SrsRtcUdpNetwork* udp_;
+private:
+    // WebRTC session object.
+    SrsRtcConnection* conn_;
+    // Delta object for statistics.
+    SrsEphemeralDelta* delta_;
+public:
+    SrsRtcNetworks(SrsRtcConnection* conn);
+    virtual ~SrsRtcNetworks();
+// DTLS transport functions.
+public:
+    srs_error_t initialize(SrsSessionConfig* cfg, bool dtls, bool srtp);
+public:
+    // Connection level state machine, for ARQ of UDP packets.
+    void set_state(SrsRtcNetworkState state);
+    // Get the UDP network object.
+    SrsRtcUdpNetwork* udp();
+    // Get an available network.
+    ISrsRtcNetwork* available();
+public:
+    // Get the delta object for statistics.
+    virtual ISrsKbpsDelta* delta();
+};
+
+// For DTLS or Session to call network service.
 class ISrsRtcNetwork : public ISrsStreamWriter
 {
 public:
@@ -40,72 +81,41 @@ public:
     virtual srs_error_t on_connection_established() = 0;
     // Callback when DTLS disconnected.
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
-};
-
-// The UDP network, default for WebRTC.
-class SrsRtcNetwork : public ISrsRtcNetwork
-{
-private:
-    friend class SrsRtcUdpNetwork;
-private:
-    // WebRTC session object.
-    SrsRtcConnection* conn_;
-    // Network over UDP.
-    SrsRtcUdpNetwork* udp_;
-    // Delta object for statistics.
-    SrsEphemeralDelta* delta_;
 public:
-    SrsRtcNetwork(SrsRtcConnection* conn);
-    virtual ~SrsRtcNetwork();
-// DTLS transport functions.
-public:
-    srs_error_t initialize(SrsSessionConfig* cfg, bool dtls, bool srtp);
-    virtual srs_error_t start_active_handshake();
-    virtual srs_error_t on_dtls(char* data, int nb_data);
-    virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
-    srs_error_t on_connection_established();
-    srs_error_t protect_rtp(void* packet, int* nb_cipher);
-    srs_error_t protect_rtcp(void* packet, int* nb_cipher);
-    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
-    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
-// When got data from socket.
-public:
-    srs_error_t on_rtcp(char* data, int nb_data);
-    srs_error_t on_rtp(char* data, int nb_data);
-// Other functions.
-public:
-    // ICE reflexive address functions.
-    std::string get_peer_ip();
-    int get_peer_port();
-    // Get the UDP network object.
-    SrsRtcUdpNetwork* udp();
-    // Get the delta object for statistics.
-    virtual ISrsKbpsDelta* delta();
-// Interface ISrsStreamWriter.
-public:
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+    // Protect RTP packet by SRTP context.
+    virtual srs_error_t protect_rtp(void* packet, int* nb_cipher) = 0;
+    // Protect RTCP packet by SRTP context.
+    virtual srs_error_t protect_rtcp(void* packet, int* nb_cipher) = 0;
 };
 
 // The WebRTC over UDP network.
 class SrsRtcUdpNetwork : public ISrsRtcNetwork
 {
 private:
-    SrsRtcNetwork* network_;
+    // WebRTC session object.
+    SrsRtcConnection* conn_;
+    // Delta object for statistics.
+    SrsEphemeralDelta* delta_;
+    SrsRtcNetworkState state_;
 private:
     // Pithy print for address change, use port as error code.
     SrsErrorPithyPrint* pp_address_change_;
     // The peer address, client maybe use more than one address, it's the current selected one.
-    SrsUdpMuxSocket* sendonly_skt;
+    SrsUdpMuxSocket* sendonly_skt_;
     // The address list, client may use multiple addresses.
     std::map<std::string, SrsUdpMuxSocket*> peer_addresses_;
     // The DTLS transport over this network.
     ISrsRtcTransport* transport_;
 public:
-    SrsRtcUdpNetwork(SrsRtcNetwork* network);
+    SrsRtcUdpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* delta);
     virtual ~SrsRtcUdpNetwork();
 public:
     // Update the UDP connection.
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
+    // When got STUN ping message. The peer address may change, we can identify that by STUN messages.
+    srs_error_t on_stun(SrsStunPacket* r, char* data, int nb_data);
+private:
+    srs_error_t on_binding_request(SrsStunPacket* r, std::string ice_pwd);
 // DTLS transport functions.
 public:
     srs_error_t initialize(SrsSessionConfig* cfg, bool dtls, bool srtp);
@@ -115,14 +125,14 @@ public:
     srs_error_t on_connection_established();
     srs_error_t protect_rtp(void* packet, int* nb_cipher);
     srs_error_t protect_rtcp(void* packet, int* nb_cipher);
-    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
-    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 // When got data from socket.
 public:
     srs_error_t on_rtcp(char* data, int nb_data);
     srs_error_t on_rtp(char* data, int nb_data);
 // Other functions.
 public:
+    // Connection level state machine, for ARQ of UDP packets.
+    void set_state(SrsRtcNetworkState state);
     // ICE reflexive address functions.
     std::string get_peer_ip();
     int get_peer_port();
@@ -145,9 +155,9 @@ private:
     // The delta for statistic.
     SrsNetworkDelta* delta_;
     // TCP Transport object.
-    SrsTcpConnection* skt_;
+    ISrsProtocolReadWriter* skt_;
 public:
-    SrsRtcTcpConn(srs_netfd_t fd, std::string cip, int port, ISrsResourceManager* cm);
+    SrsRtcTcpConn(ISrsProtocolReadWriter* skt, std::string cip, int port, ISrsResourceManager* cm);
     virtual ~SrsRtcTcpConn();
 public:
     ISrsKbpsDelta* delta();

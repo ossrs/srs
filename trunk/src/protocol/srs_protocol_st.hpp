@@ -127,13 +127,13 @@ private:
     int64_t rbytes;
     int64_t sbytes;
     // The underlayer st fd.
-    srs_netfd_t stfd;
+    srs_netfd_t stfd_;
 public:
     SrsStSocket();
+    SrsStSocket(srs_netfd_t fd);
     virtual ~SrsStSocket();
-public:
-    // Initialize the socket with stfd, user must manage it.
-    virtual srs_error_t initialize(srs_netfd_t fd);
+private:
+    void init(srs_netfd_t fd);
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
@@ -161,7 +161,7 @@ public:
 class SrsTcpClient : public ISrsProtocolReadWriter
 {
 private:
-    srs_netfd_t stfd;
+    srs_netfd_t stfd_;
     SrsStSocket* io;
 private:
     std::string host;
@@ -179,10 +179,6 @@ public:
     // Connect to server over TCP.
     // @remark We will close the exists connection before do connect.
     virtual srs_error_t connect();
-private:
-    // Close the connection to server.
-    // @remark User should never use the client when close it.
-    virtual void close();
 // Interface ISrsProtocolReadWriter
 public:
     virtual void set_recv_timeout(srs_utime_t tm);

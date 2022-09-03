@@ -52,7 +52,7 @@ class SrsRtcUserConfig;
 class SrsRtcSendTrack;
 class SrsRtcPublishStream;
 class SrsEphemeralDelta;
-class SrsRtcNetwork;
+class SrsRtcNetworks;
 class SrsRtcUdpNetwork;
 class ISrsRtcNetwork;
 
@@ -66,17 +66,6 @@ const uint8_t kApp  = 204;
 const uint8_t kRtpFb = 205;
 const uint8_t kPsFb  = 206;
 const uint8_t kXR    = 207;
-
-enum SrsRtcConnectionStateType
-{
-    // TODO: FIXME: Should prefixed by enum name.
-    INIT = -1,
-    WAITING_ANSWER = 1,
-    WAITING_STUN = 2,
-    DOING_DTLS_HANDSHAKE = 3,
-    ESTABLISHED = 4,
-    CLOSED = 5,
-};
 
 // The transport for RTC connection.
 class ISrsRtcTransport : public ISrsDtlsCallback
@@ -378,10 +367,8 @@ private:
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
 public:
-    srs_error_t on_rtp(char* buf, int nb_buf);
-private:
-    // @remark We copy the plaintext, user should free it.
-    srs_error_t on_rtp_plaintext(char* plaintext, int nb_plaintext);
+    srs_error_t on_rtp_cipher(char* buf, int nb_buf);
+    srs_error_t on_rtp_plaintext(char* buf, int nb_buf);
 private:
     srs_error_t do_on_rtp_plaintext(SrsRtpPacket*& pkt, SrsBuffer* buf);
 public:
@@ -439,7 +426,6 @@ public:
     bool disposing_;
 private:
     SrsRtcServer* server_;
-    SrsRtcConnectionStateType state_;
 private:
     iovec* cache_iov_;
     SrsBuffer* cache_buffer_;
@@ -455,8 +441,8 @@ private:
 private:
     // The local:remote username, such as m5x0n128:jvOm where local name is m5x0n128.
     std::string username_;
-    // Use one UDP network and one TCP network.
-    SrsRtcNetwork* network_;
+    // A group of networks, each has its own DTLS and SRTP context.
+    SrsRtcNetworks* networks_;
 private:
     // TODO: FIXME: Rename it.
     // The timeout of session, keep alive by STUN ping pong.
@@ -491,9 +477,8 @@ public:
     void set_local_sdp(const SrsSdp& sdp);
     SrsSdp* get_remote_sdp();
     void set_remote_sdp(const SrsSdp& sdp);
-    // Connection level state machine, for ARQ of UDP packets.
-    SrsRtcConnectionStateType state();
-    void set_state(SrsRtcConnectionStateType state);
+    // Change network to waiting stun state.
+    void set_state_as_waiting_stun();
     // Get username pair for this connection, used as ID of session.
     std::string username();
 public:
@@ -514,10 +499,8 @@ public:
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
     srs_error_t initialize(SrsRequest* r, bool dtls, bool srtp, std::string username);
-    // The peer address may change, we can identify that by STUN messages.
-    srs_error_t on_stun(SrsStunPacket* r, char* data, int nb_data);
-    srs_error_t on_dtls(char* data, int nb_data);
-    srs_error_t on_rtp(char* data, int nb_data);
+    srs_error_t on_rtp_cipher(char* data, int nb_data);
+    srs_error_t on_rtp_plaintext(char* data, int nb_data);
 private:
     // Decode the RTP header from buf, find the publisher by SSRC.
     srs_error_t find_publisher(char* buf, int size, SrsRtcPublishStream** ppublisher);
@@ -549,8 +532,10 @@ public:
     srs_error_t do_send_packet(SrsRtpPacket* pkt);
     // Directly set the status of play track, generally for init to set the default value.
     void set_all_tracks_status(std::string stream_uri, bool is_publish, bool status);
+public:
+    // Notify by specified network.
+    srs_error_t on_binding_request(SrsStunPacket* r, std::string& ice_pwd);
 private:
-    srs_error_t on_binding_request(SrsStunPacket* r);
     // publish media capabilitiy negotiate
     srs_error_t negotiate_publish_capability(SrsRtcUserConfig* ruc, SrsRtcSourceDescription* stream_desc);
     srs_error_t generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan);

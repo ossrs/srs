@@ -203,8 +203,10 @@ private:
     // TODO: FIXME: Extract an HttpApiServer.
     ISrsHttpServeMux* http_api_mux;
     SrsHttpServer* http_server;
-    // If reuse, HTTP API use the same port of HTTP server.
+    // If reusing, HTTP API use the same port of HTTP server.
     bool reuse_api_over_server_;
+    // If reusing, WebRTC TCP use the same port of HTTP server.
+    bool reuse_rtc_over_server_;
 private:
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
@@ -313,7 +315,7 @@ public:
     // TODO: FIXME: Fetch from hybrid server manager.
     virtual ISrsHttpServeMux* api_server();
 private:
-    virtual srs_error_t fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsResource** pr);
+    virtual srs_error_t fd_to_resource(SrsListenerType type, srs_netfd_t& stfd, ISrsResource** pr);
 // Interface ISrsResourceManager
 public:
     // A callback for connection to remove itself.

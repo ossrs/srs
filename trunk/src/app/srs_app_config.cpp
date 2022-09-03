@@ -2868,6 +2868,12 @@ int SrsConfig::get_max_connections()
 vector<string> SrsConfig::get_listens()
 {
     std::vector<string> ports;
+
+    // SRS_OVERWRITE_BY_ENV_STRING("SRS_LISTEN")
+    if (getenv("SRS_LISTEN")) {
+        ports.push_back(getenv("SRS_LISTEN"));
+        return ports;
+    }
     
     SrsConfDirective* conf = root->get("listen");
     if (!conf) {
@@ -3575,6 +3581,8 @@ bool SrsConfig::get_rtc_server_enabled()
 
 bool SrsConfig::get_rtc_server_enabled(SrsConfDirective* conf)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_RTC_SERVER_ENABLED");
+
     static bool DEFAULT = false;
 
     if (!conf) {
@@ -3591,6 +3599,8 @@ bool SrsConfig::get_rtc_server_enabled(SrsConfDirective* conf)
 
 int SrsConfig::get_rtc_server_listen()
 {
+    SRS_OVERWRITE_BY_ENV_INT("SRS_RTC_SERVER_LISTEN");
+
     static int DEFAULT = 8000;
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -3608,6 +3618,8 @@ int SrsConfig::get_rtc_server_listen()
 
 std::string SrsConfig::get_rtc_server_candidates()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_RTC_SERVER_CANDIDATE");
+
     static string DEFAULT = "*";
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -3635,6 +3647,8 @@ std::string SrsConfig::get_rtc_server_candidates()
 
 bool SrsConfig::get_api_as_candidates()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_RTC_SERVER_API_AS_CANDIDATES");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -3652,6 +3666,8 @@ bool SrsConfig::get_api_as_candidates()
 
 bool SrsConfig::get_resolve_api_domain()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_RTC_SERVER_RESOLVE_API_DOMAIN");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -3669,6 +3685,8 @@ bool SrsConfig::get_resolve_api_domain()
 
 bool SrsConfig::get_keep_api_domain()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_RTC_SERVER_KEEP_API_DOMAIN");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -3686,6 +3704,8 @@ bool SrsConfig::get_keep_api_domain()
 
 bool SrsConfig::get_use_auto_detect_network_ip()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_RTC_SERVER_USE_AUTO_DETECT_NETWORK_IP");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -3770,6 +3790,8 @@ std::string SrsConfig::get_rtc_server_protocol()
 
 std::string SrsConfig::get_rtc_server_ip_family()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_RTC_SERVER_IP_FAMILY");
+
     static string DEFAULT = "ipv4";
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -3919,6 +3941,8 @@ SrsConfDirective* SrsConfig::get_rtc(string vhost)
 
 bool SrsConfig::get_rtc_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_VHOST_RTC_ENABLED");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -3955,6 +3979,8 @@ bool SrsConfig::get_rtc_keep_bframe(string vhost)
 
 bool SrsConfig::get_rtc_from_rtmp(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_VHOST_RTC_RTMP_TO_RTC");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -4062,6 +4088,8 @@ int SrsConfig::get_rtc_drop_for_pt(string vhost)
 
 bool SrsConfig::get_rtc_to_rtmp(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_VHOST_RTC_RTC_TO_RTMP");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -6686,6 +6714,8 @@ bool SrsConfig::get_http_api_enabled()
 
 bool SrsConfig::get_http_api_enabled(SrsConfDirective* conf)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_HTTP_API_ENABLED");
+
     static bool DEFAULT = false;
     
     if (!conf) {
@@ -6702,6 +6732,8 @@ bool SrsConfig::get_http_api_enabled(SrsConfDirective* conf)
 
 string SrsConfig::get_http_api_listen()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_HTTP_API_LISTEN");
+
     static string DEFAULT = "1985";
     
     SrsConfDirective* conf = root->get("http_api");
@@ -6803,6 +6835,8 @@ SrsConfDirective* SrsConfig::get_https_api()
 
 bool SrsConfig::get_https_api_enabled()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_HTTP_API_HTTPS_ENABLED");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_https_api();
@@ -6820,6 +6854,8 @@ bool SrsConfig::get_https_api_enabled()
 
 string SrsConfig::get_https_api_listen()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_HTTP_API_HTTPS_LISTEN");
+
 #ifdef SRS_UTEST
     // We should not use static default, because we need to reset for different testcase.
     string DEFAULT = "";
@@ -7178,6 +7214,8 @@ bool SrsConfig::get_http_stream_enabled()
 
 bool SrsConfig::get_http_stream_enabled(SrsConfDirective* conf)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_HTTP_SERVER_ENABLED");
+
     static bool DEFAULT = false;
     
     if (!conf) {
@@ -7194,6 +7232,8 @@ bool SrsConfig::get_http_stream_enabled(SrsConfDirective* conf)
 
 string SrsConfig::get_http_stream_listen()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_HTTP_SERVER_LISTEN");
+
     static string DEFAULT = "8080";
     
     SrsConfDirective* conf = root->get("http_server");
@@ -7255,6 +7295,8 @@ SrsConfDirective* SrsConfig::get_https_stream()
 
 bool SrsConfig::get_https_stream_enabled()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_HTTP_SERVER_HTTTPS_ENABLED");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_https_stream();
@@ -7272,6 +7314,8 @@ bool SrsConfig::get_https_stream_enabled()
 
 string SrsConfig::get_https_stream_listen()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_HTTP_SERVER_HTTTPS_LISTEN");
+
     static string DEFAULT = "8088";
 
     SrsConfDirective* conf = get_https_stream();

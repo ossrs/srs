@@ -21,6 +21,7 @@
 #include <srs_protocol_conn.hpp>
 
 class SrsWallClock;
+class SrsBuffer;
 
 // Hooks for connection manager, to handle the event when disposing connections.
 class ISrsDisposingHandler
@@ -149,8 +150,6 @@ public:
     SrsTcpConnection(srs_netfd_t c);
     virtual ~SrsTcpConnection();
 public:
-    virtual srs_error_t initialize();
-public:
     // Set socket option TCP_NODELAY.
     virtual srs_error_t set_tcp_nodelay(bool v);
     // Set socket option SO_SNDBUF in srs_utime_t.
@@ -163,6 +162,40 @@ public:
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
     virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+};
+
+// With a small fast read buffer, to support peek for protocol detecting. Note that directly write to io without any
+// cache or buffer.
+class SrsBufferedReader : public ISrsProtocolReadWriter
+{
+private:
+    // The under-layer transport.
+    ISrsProtocolReadWriter* io_;
+    // Fixed, small and fast buffer. Note that it must be very small piece of cache, make sure matches all protocols,
+    // because we will full fill it when peeking.
+    char cache_[16];
+    // Current reading position.
+    SrsBuffer* buf_;
+public:
+    SrsBufferedReader(ISrsProtocolReadWriter* io);
+    virtual ~SrsBufferedReader();
+public:
+    // Peek the head of cache to buf in size of bytes.
+    srs_error_t peek(char* buf, int* size);
+private:
+    srs_error_t reload_buffer();
+// Interface ISrsProtocolReadWriter
+public:
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);

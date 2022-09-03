@@ -1314,7 +1314,7 @@ srs_error_t SrsRtcPublishStream::on_twcc(uint16_t sn) {
     return err;
 }
 
-srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
+srs_error_t SrsRtcPublishStream::on_rtp_cipher(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
@@ -1348,33 +1348,6 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         if (pt_to_drop_ == pt) {
             return err;
         }
-    }
-
-    // Decrypt the cipher to plaintext RTP data.
-    char* plaintext = data;
-    int nb_plaintext = nb_data;
-    if ((err = session_->network_->unprotect_rtp(plaintext, &nb_plaintext)) != srs_success) {
-        // We try to decode the RTP header for more detail error informations.
-        SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true);
-        srs_error_t r0 = h.decode(&b); srs_freep(r0); // Ignore any error for header decoding.
-
-        err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h.get_marker(), h.get_payload_type(),
-            h.get_sequence(), h.get_timestamp(), h.get_ssrc(), h.get_padding(), nb_data - b.pos());
-
-        return err;
-    }
-
-    // Handle the plaintext RTP packet.
-    if ((err = on_rtp_plaintext(plaintext, nb_plaintext)) != srs_success) {
-        // We try to decode the RTP header for more detail error informations.
-        SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true);
-        srs_error_t r0 = h.decode(&b); srs_freep(r0); // Ignore any error for header decoding.
-
-        int nb_header = h.nb_bytes();
-        const char* body = data + nb_header;
-        int nb_body = nb_data - nb_header;
-        return srs_error_wrap(err, "cipher=%u, plaintext=%u, body=[%s]", nb_data, nb_plaintext,
-            srs_string_dumps_hex(body, nb_body, 8).c_str());
     }
 
     return err;
@@ -1769,14 +1742,13 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     cid_ = cid;
 
     server_ = s;
-    network_ = new SrsRtcNetwork(this);
+    networks_ = new SrsRtcNetworks(this);
 
     cache_iov_ = new iovec();
     cache_iov_->iov_base = new char[kRtpPacketSize];
     cache_iov_->iov_len = kRtpPacketSize;
     cache_buffer_ = new SrsBuffer((char*)cache_iov_->iov_base, kRtpPacketSize);
 
-    state_ = INIT;
     last_stun_time = 0;
     session_timeout = 0;
     disposing_ = false;
@@ -1814,7 +1786,7 @@ SrsRtcConnection::~SrsRtcConnection()
     players_ssrc_map_.clear();
 
     // Free network over UDP or TCP.
-    srs_freep(network_);
+    srs_freep(networks_);
 
     if (true) {
         char* iov_base = (char*)cache_iov_->iov_base;
@@ -1872,14 +1844,9 @@ void SrsRtcConnection::set_remote_sdp(const SrsSdp& sdp)
     remote_sdp = sdp;
 }
 
-SrsRtcConnectionStateType SrsRtcConnection::state()
+void SrsRtcConnection::set_state_as_waiting_stun()
 {
-    return state_;
-}
-
-void SrsRtcConnection::set_state(SrsRtcConnectionStateType state)
-{
-    state_ = state;
+    networks_->set_state(SrsRtcNetworkStateWaitingStun);
 }
 
 string SrsRtcConnection::username()
@@ -1889,7 +1856,7 @@ string SrsRtcConnection::username()
 
 ISrsKbpsDelta* SrsRtcConnection::delta()
 {
-    return network_->delta();
+    return networks_->delta();
 }
 
 const SrsContextId& SrsRtcConnection::get_id()
@@ -2010,7 +1977,7 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
     req_ = r->copy();
 
     SrsSessionConfig* cfg = &local_sdp.session_negotiate_;
-    if ((err = network_->initialize(cfg, dtls, srtp)) != srs_success) {
+    if ((err = networks_->initialize(cfg, dtls, srtp)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
@@ -2027,44 +1994,9 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
     return err;
 }
 
-srs_error_t SrsRtcConnection::on_stun(SrsStunPacket* r, char* data, int nb_data)
+srs_error_t SrsRtcConnection::on_rtcp(char* unprotected_buf, int nb_unprotected_buf)
 {
     srs_error_t err = srs_success;
-
-    // Write STUN messages to blackhole.
-    if (_srs_blackhole->blackhole) {
-        _srs_blackhole->sendto(data, nb_data);
-    }
-
-    if (!r->is_binding_request()) {
-        return err;
-    }
-
-    if ((err = on_binding_request(r)) != srs_success) {
-        return srs_error_wrap(err, "stun binding request failed");
-    }
-
-    return err;
-}
-
-srs_error_t SrsRtcConnection::on_dtls(char* data, int nb_data)
-{
-    return network_->on_dtls(data, nb_data);
-}
-
-srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
-{
-    srs_error_t err = srs_success;
-
-    int nb_unprotected_buf = nb_data;
-    if ((err = network_->unprotect_rtcp(data, &nb_unprotected_buf)) != srs_success) {
-        return srs_error_wrap(err, "rtcp unprotect");
-    }
-
-    char* unprotected_buf = data;
-    if (_srs_blackhole->blackhole) {
-        _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
-    }
 
     SrsBuffer* buffer = new SrsBuffer(unprotected_buf, nb_unprotected_buf);
     SrsAutoFree(SrsBuffer, buffer);
@@ -2082,7 +2014,7 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
         SrsAutoFree(SrsRtcpCommon, rtcp);
 
         if(srs_success != err) {
-            return srs_error_wrap(err, "cipher=%u, plaintext=%u, bytes=[%s], rtcp=(%u,%u,%u,%u)", nb_data, nb_unprotected_buf,
+            return srs_error_wrap(err, "plaintext=%u, bytes=[%s], rtcp=(%u,%u,%u,%u)", nb_unprotected_buf,
                 srs_string_dumps_hex(rtcp->data(), rtcp->size(), rtcp->size()).c_str(),
                 rtcp->get_rc(), rtcp->type(), rtcp->get_ssrc(), rtcp->size());
         }
@@ -2185,7 +2117,7 @@ srs_error_t SrsRtcConnection::on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp)
     return srs_success;
 }
 
-srs_error_t SrsRtcConnection::on_rtp(char* data, int nb_data)
+srs_error_t SrsRtcConnection::on_rtp_cipher(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
@@ -2195,7 +2127,20 @@ srs_error_t SrsRtcConnection::on_rtp(char* data, int nb_data)
     }
     srs_assert(publisher);
 
-    return publisher->on_rtp(data, nb_data);
+    return publisher->on_rtp_cipher(data, nb_data);
+}
+
+srs_error_t SrsRtcConnection::on_rtp_plaintext(char* data, int nb_data)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtcPublishStream* publisher = NULL;
+    if ((err = find_publisher(data, nb_data, &publisher)) != srs_success) {
+        return srs_error_wrap(err, "find");
+    }
+    srs_assert(publisher);
+
+    return publisher->on_rtp_plaintext(data, nb_data);
 }
 
 srs_error_t SrsRtcConnection::find_publisher(char* buf, int size, SrsRtcPublishStream** ppublisher)
@@ -2229,12 +2174,6 @@ srs_error_t SrsRtcConnection::on_connection_established()
     if (disposing_) {
         return err;
     }
-
-    // If DTLS done packet received many times, such as ARQ, ignore.
-    if(ESTABLISHED == state_) {
-        return err;
-    }
-    state_ = ESTABLISHED;
 
     srs_trace("RTC: session pub=%u, sub=%u, to=%dms connection established", publishers_.size(), players_.size(),
         srsu2msi(session_timeout));
@@ -2294,7 +2233,7 @@ void SrsRtcConnection::alive()
 
 SrsRtcUdpNetwork* SrsRtcConnection::udp()
 {
-    return network_->udp();
+    return networks_->udp();
 }
 
 srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
@@ -2304,11 +2243,11 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
     ++_srs_pps_srtcps->sugar;
 
     int  nb_buf = nb_data;
-    if ((err = network_->protect_rtcp(data, &nb_buf)) != srs_success) {
+    if ((err = networks_->available()->protect_rtcp(data, &nb_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp");
     }
 
-    if ((err = network_->write(data, nb_buf, NULL)) != srs_success) {
+    if ((err = networks_->available()->write(data, nb_buf, NULL)) != srs_success) {
         return srs_error_wrap(err, "send");
     }
 
@@ -2492,7 +2431,7 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket* pkt)
     // Cipher RTP to SRTP packet.
     if (true) {
         int nn_encrypt = (int)iov->iov_len;
-        if ((err = network_->protect_rtp(iov->iov_base, &nn_encrypt)) != srs_success) {
+        if ((err = networks_->available()->protect_rtp(iov->iov_base, &nn_encrypt)) != srs_success) {
             return srs_error_wrap(err, "srtp protect");
         }
         iov->iov_len = (size_t)nn_encrypt;
@@ -2507,7 +2446,7 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket* pkt)
 
     ++_srs_pps_srtps->sugar;
 
-    if ((err = network_->write(iov->iov_base, iov->iov_len, NULL)) != srs_success) {
+    if ((err = networks_->available()->write(iov->iov_base, iov->iov_len, NULL)) != srs_success) {
         srs_warn("RTC: Write %d bytes err %s", iov->iov_len, srs_error_desc(err).c_str());
         srs_freep(err);
         return err;
@@ -2544,14 +2483,7 @@ void SrsRtcConnection::set_all_tracks_status(std::string stream_uri, bool is_pub
     player->set_all_tracks_status(status);
 }
 
-#ifdef SRS_OSX
-// These functions are similar to the older byteorder(3) family of functions.
-// For example, be32toh() is identical to ntohl().
-// @see https://linux.die.net/man/3/be32toh
-#define be32toh ntohl
-#endif
-
-srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket* r)
+srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket* r, string& ice_pwd)
 {
     srs_error_t err = srs_success;
 
@@ -2564,40 +2496,8 @@ srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket* r)
         return srs_error_new(ERROR_RTC_STUN, "Peer must not in ice-controlled role in ice-lite mode.");
     }
 
-    SrsStunPacket stun_binding_response;
-    char buf[kRtpPacketSize];
-    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
-    SrsAutoFree(SrsBuffer, stream);
-
-    stun_binding_response.set_message_type(BindingResponse);
-    stun_binding_response.set_local_ufrag(r->get_remote_ufrag());
-    stun_binding_response.set_remote_ufrag(r->get_local_ufrag());
-    stun_binding_response.set_transcation_id(r->get_transcation_id());
-    // FIXME: inet_addr is deprecated, IPV6 support
-    stun_binding_response.set_mapped_address(be32toh(inet_addr(network_->get_peer_ip().c_str())));
-    stun_binding_response.set_mapped_port(network_->get_peer_port());
-
-    if ((err = stun_binding_response.encode(get_local_sdp()->get_ice_pwd(), stream)) != srs_success) {
-        return srs_error_wrap(err, "stun binding response encode failed");
-    }
-
-    if ((err = network_->write(stream->data(), stream->pos(), NULL)) != srs_success) {
-        return srs_error_wrap(err, "stun binding response send failed");
-    }
-
-    if (state_ == WAITING_STUN) {
-        state_ = DOING_DTLS_HANDSHAKE;
-        // TODO: FIXME: Add cost.
-        srs_trace("RTC: session STUN done, waiting DTLS handshake.");
-
-        if((err = network_->start_active_handshake()) != srs_success) {
-            return srs_error_wrap(err, "fail to dtls handshake");
-        }
-    }
-
-    if (_srs_blackhole->blackhole) {
-        _srs_blackhole->sendto(stream->data(), stream->pos());
-    }
+    // If success, return the ice password to verify the STUN response.
+    ice_pwd = local_sdp.get_ice_pwd();
 
     return err;
 }
@@ -3373,13 +3273,9 @@ srs_error_t SrsRtcConnection::create_player(SrsRequest* req, std::map<uint32_t, 
     }
     srs_trace("RTC connection player gcc=%d", twcc_id);
 
+    // TODO: Start player when DTLS done. Removed it because we don't support single PC now.
     // If DTLS done, start the player. Because maybe create some players after DTLS done.
     // For example, for single PC, we maybe start publisher when create it, because DTLS is done.
-    if(ESTABLISHED == state_) {
-        if(srs_success != (err = player->start())) {
-            return srs_error_wrap(err, "start player");
-        }
-    }
 
     return err;
 }
@@ -3453,13 +3349,9 @@ srs_error_t SrsRtcConnection::create_publisher(SrsRequest* req, SrsRtcSourceDesc
         }
     }
 
+    // TODO: Start player when DTLS done. Removed it because we don't support single PC now.
     // If DTLS done, start the publisher. Because maybe create some publishers after DTLS done.
     // For example, for single PC, we maybe start publisher when create it, because DTLS is done.
-    if(ESTABLISHED == state()) {
-        if(srs_success != (err = publisher->start())) {
-            return srs_error_wrap(err, "start publisher");
-        }
-    }
 
     return err;
 }

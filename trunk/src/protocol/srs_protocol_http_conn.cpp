@@ -220,7 +220,7 @@ int SrsHttpParser::on_url(http_parser* parser, const char* at, size_t length)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
     srs_assert(obj);
-    
+
     if (length > 0) {
         // Note that this function might be called for multiple times, and we got pieces of content.
         obj->url.append(at, (int)length);

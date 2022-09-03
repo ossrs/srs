@@ -628,19 +628,6 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // Note that the handler of hc now is hxc.
     SrsHttpxConn* hxc = dynamic_cast<SrsHttpxConn*>(hc->handler());
     srs_assert(hxc);
-    
-    // Set the socket options for transport.
-    bool tcp_nodelay = _srs_config->get_tcp_nodelay(req->vhost);
-    if (tcp_nodelay) {
-        if ((err = hxc->set_tcp_nodelay(tcp_nodelay)) != srs_success) {
-            return srs_error_wrap(err, "set tcp nodelay");
-        }
-    }
-    
-    srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost);
-    if ((err = hxc->set_socket_buffer(mw_sleep)) != srs_success) {
-        return srs_error_wrap(err, "set mw_sleep %" PRId64, mw_sleep);
-    }
 
     // Start a thread to receive all messages from client, then drop them.
     SrsHttpRecvThread* trd = new SrsHttpRecvThread(hxc);
@@ -649,10 +636,10 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "start recv thread");
     }
-    
-    srs_trace("FLV %s, encoder=%s, nodelay=%d, mw_sleep=%dms, cache=%d, msgs=%d",
-        entry->pattern.c_str(), enc_desc.c_str(), tcp_nodelay, srsu2msi(mw_sleep),
-        enc->has_cache(), msgs.max);
+
+    srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost);
+    srs_trace("FLV %s, encoder=%s, mw_sleep=%dms, cache=%d, msgs=%d", entry->pattern.c_str(), enc_desc.c_str(),
+        srsu2msi(mw_sleep), enc->has_cache(), msgs.max);
 
     // TODO: free and erase the disabled entry after all related connections is closed.
     // TODO: FXIME: Support timeout for player, quit infinite-loop.

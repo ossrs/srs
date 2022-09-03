@@ -128,13 +128,13 @@ class SrsHttpxConn : public ISrsConnection, public ISrsStartable, public ISrsHtt
 private:
     // The manager object to manage the connection.
     ISrsResourceManager* manager;
-    SrsTcpConnection* skt;
+    ISrsProtocolReadWriter* io_;
     SrsSslConnection* ssl;
     SrsHttpConn* conn;
     // We should never enable the stat, unless HTTP stream connection requires.
     bool enable_stat_;
 public:
-    SrsHttpxConn(bool https, ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
+    SrsHttpxConn(bool https, ISrsResourceManager* cm, ISrsProtocolReadWriter* io, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpxConn();
 public:
     // Require statistic about HTTP connection, for HTTP streaming clients only.
@@ -151,12 +151,6 @@ public:
     virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
     virtual srs_error_t on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
     virtual srs_error_t on_conn_done(srs_error_t r0);
-// Extract APIs from SrsTcpConnection.
-public:
-    // Set socket option TCP_NODELAY.
-    virtual srs_error_t set_tcp_nodelay(bool v);
-    // Set socket option SO_SNDBUF in srs_utime_t.
-    virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
 // Interface ISrsResource.
 public:
     virtual std::string desc();

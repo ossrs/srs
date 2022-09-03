@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-09-04, Fix [#2852](https://github.com/ossrs/srs/issues/2852): WebRTC: WebRTC over TCP directly, not TURN. v5.0.60
 * v5.0, 2022-09-01, Fix [#1405](https://github.com/ossrs/srs/issues/1405): Restore the stream when parsing failed. v5.0.59
 * v5.0, 2022-09-01, Fix [#1405](https://github.com/ossrs/srs/issues/1405): Support guessing IBMF first. v5.0.58
 * v5.0, 2022-09-01, ST: Define and use a new jmpbuf. v5.0.57

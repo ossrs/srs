@@ -1444,10 +1444,6 @@ srs_error_t SrsRtmpConn::start()
 {
     srs_error_t err = srs_success;
 
-    if ((err = skt->initialize()) != srs_success) {
-        return srs_error_wrap(err, "init socket");
-    }
-
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "coroutine");
     }

@@ -419,7 +419,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
             session->udp()->update_sendonly_socket(skt);
         }
 
-        return session->on_stun(&ping, data, size);
+        return session->udp()->on_stun(&ping, data, size);
     }
 
     // For DTLS, RTCP or RTP, which does not support peer address changing.
@@ -432,7 +432,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     if (is_rtp_or_rtcp && !is_rtcp) {
         ++_srs_pps_rrtps->sugar;
 
-        err = session->on_rtp(data, size);
+        err = session->udp()->on_rtp(data, size);
         if (err != srs_success) {
             session->switch_to_context();
         }
@@ -443,12 +443,12 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     if (is_rtp_or_rtcp && is_rtcp) {
         ++_srs_pps_rrtcps->sugar;
 
-        return session->on_rtcp(data, size);
+        return session->udp()->on_rtcp(data, size);
     }
     if (srs_is_dtls((uint8_t*)data, size)) {
         ++_srs_pps_rstuns->sugar;
 
-        return session->on_dtls(data, size);
+        return session->udp()->on_dtls(data, size);
     }
     return srs_error_new(ERROR_RTC_UDP, "unknown packet");
 }
@@ -546,17 +546,22 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
 
     // We allows to mock the eip of server.
     if (true) {
-        int listen_port = _srs_config->get_rtc_server_listen();
+        int udp_port = _srs_config->get_rtc_server_listen();
+        int tcp_port = _srs_config->get_rtc_server_tcp_listen();
         string protocol = _srs_config->get_rtc_server_protocol();
         set<string> candidates = discover_candidates(ruc);
         for (set<string>::iterator it = candidates.begin(); it != candidates.end(); ++it) {
-            string hostname; int port = listen_port;
-            srs_parse_hostport(*it, hostname, port);
-            if (protocol == "udp" || protocol == "tcp") {
-                local_sdp.add_candidate(protocol, hostname, port, "host");
+            string hostname;
+            int uport = udp_port; srs_parse_hostport(*it, hostname, uport);
+            int tport = tcp_port; srs_parse_hostport(*it, hostname, tport);
+
+            if (protocol == "udp") {
+                local_sdp.add_candidate("udp", hostname, uport, "host");
+            } else if (protocol == "tcp") {
+                local_sdp.add_candidate("tcp", hostname, tport, "host");
             } else {
-                local_sdp.add_candidate("udp", hostname, port, "host");
-                local_sdp.add_candidate("tcp", hostname, port, "host");
+                local_sdp.add_candidate("udp", hostname, uport, "host");
+                local_sdp.add_candidate("tcp", hostname, tport, "host");
             }
         }
 
@@ -585,7 +590,7 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
     session->set_remote_sdp(ruc->remote_sdp_);
     // We must setup the local SDP, then initialize the session object.
     session->set_local_sdp(local_sdp);
-    session->set_state(WAITING_STUN);
+    session->set_state_as_waiting_stun();
 
     // Before session initialize, we must setup the local SDP.
     if ((err = session->initialize(req, ruc->dtls_, ruc->srtp_, username)) != srs_success) {

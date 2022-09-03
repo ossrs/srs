@@ -290,10 +290,6 @@ srs_error_t SrsDynamicHttpConn::start()
         return srs_error_wrap(err, "set cors=%d", v);
     }
 
-    if ((err = skt->initialize()) != srs_success) {
-        return srs_error_wrap(err, "init socket");
-    }
-
     return conn->start();
 }
 

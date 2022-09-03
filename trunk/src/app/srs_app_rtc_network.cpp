@@ -6,7 +6,7 @@
 
 #include <srs_app_rtc_network.hpp>
 
-#include <string>
+#include <arpa/inet.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -19,31 +19,31 @@ using namespace std;
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_rtc_conn.hpp>
+#include <srs_protocol_rtc_stun.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_core_autofree.hpp>
 
-ISrsRtcNetwork::ISrsRtcNetwork()
-{
-}
+#ifdef SRS_OSX
+// These functions are similar to the older byteorder(3) family of functions.
+// For example, be32toh() is identical to ntohl().
+// @see https://linux.die.net/man/3/be32toh
+#define be32toh ntohl
+#endif
 
-ISrsRtcNetwork::~ISrsRtcNetwork()
-{
-}
-
-SrsRtcNetwork::SrsRtcNetwork(SrsRtcConnection* conn)
+SrsRtcNetworks::SrsRtcNetworks(SrsRtcConnection* conn)
 {
     conn_ = conn;
-    udp_ = new SrsRtcUdpNetwork(this);
     delta_ = new SrsEphemeralDelta();
+    udp_ = new SrsRtcUdpNetwork(conn_, delta_);
 }
 
-SrsRtcNetwork::~SrsRtcNetwork()
+SrsRtcNetworks::~SrsRtcNetworks()
 {
-    // Free the UDP network after transport deleted.
     srs_freep(udp_);
-
     srs_freep(delta_);
 }
 
-srs_error_t SrsRtcNetwork::initialize(SrsSessionConfig* cfg, bool dtls, bool srtp)
+srs_error_t SrsRtcNetworks::initialize(SrsSessionConfig* cfg, bool dtls, bool srtp)
 {
     srs_error_t err = srs_success;
 
@@ -54,91 +54,40 @@ srs_error_t SrsRtcNetwork::initialize(SrsSessionConfig* cfg, bool dtls, bool srt
     return err;
 }
 
-srs_error_t SrsRtcNetwork::start_active_handshake()
+void SrsRtcNetworks::set_state(SrsRtcNetworkState state)
 {
-    return udp_->start_active_handshake();
+    udp_->set_state(state);
 }
 
-srs_error_t SrsRtcNetwork::on_dtls(char* data, int nb_data)
-{
-    return udp_->on_dtls(data, nb_data);
-}
-
-srs_error_t SrsRtcNetwork::on_dtls_alert(std::string type, std::string desc)
-{
-    return conn_->on_dtls_alert(type, desc);
-}
-
-srs_error_t SrsRtcNetwork::on_connection_established()
-{
-    return conn_->on_connection_established();
-}
-
-srs_error_t SrsRtcNetwork::protect_rtp(void* packet, int* nb_cipher)
-{
-    return udp_->protect_rtp(packet, nb_cipher);
-}
-
-srs_error_t SrsRtcNetwork::protect_rtcp(void* packet, int* nb_cipher)
-{
-    return udp_->protect_rtcp(packet, nb_cipher);
-}
-
-srs_error_t SrsRtcNetwork::unprotect_rtp(void* packet, int* nb_plaintext)
-{
-    return udp_->unprotect_rtp(packet, nb_plaintext);
-}
-
-srs_error_t SrsRtcNetwork::unprotect_rtcp(void* packet, int* nb_plaintext)
-{
-    return udp_->unprotect_rtcp(packet, nb_plaintext);
-}
-
-srs_error_t SrsRtcNetwork::on_rtcp(char* data, int nb_data)
-{
-    // Update stat when we received data.
-    delta_->add_delta(nb_data, 0);
-
-    return conn_->on_rtcp(data, nb_data);
-}
-
-srs_error_t SrsRtcNetwork::on_rtp(char* data, int nb_data)
-{
-    // Update stat when we received data.
-    delta_->add_delta(nb_data, 0);
-
-    return conn_->on_rtp(data, nb_data);
-}
-
-string SrsRtcNetwork::get_peer_ip()
-{
-    return udp_->get_peer_ip();
-}
-
-int SrsRtcNetwork::get_peer_port()
-{
-    return udp_->get_peer_port();
-}
-
-SrsRtcUdpNetwork* SrsRtcNetwork::udp()
+SrsRtcUdpNetwork* SrsRtcNetworks::udp()
 {
     return udp_;
 }
 
-ISrsKbpsDelta* SrsRtcNetwork::delta()
+ISrsRtcNetwork* SrsRtcNetworks::available()
+{
+    return udp_;
+}
+
+ISrsKbpsDelta* SrsRtcNetworks::delta()
 {
     return delta_;
 }
 
-srs_error_t SrsRtcNetwork::write(void* buf, size_t size, ssize_t* nwrite)
+ISrsRtcNetwork::ISrsRtcNetwork()
 {
-    return udp_->write(buf, size, nwrite);
 }
 
-SrsRtcUdpNetwork::SrsRtcUdpNetwork(SrsRtcNetwork* network)
+ISrsRtcNetwork::~ISrsRtcNetwork()
 {
-    network_ = network;
-    sendonly_skt = NULL;
+}
+
+SrsRtcUdpNetwork::SrsRtcUdpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* delta)
+{
+    state_ = SrsRtcNetworkStateInit;
+    conn_ = conn;
+    delta_ = delta;
+    sendonly_skt_ = NULL;
     pp_address_change_ = new SrsErrorPithyPrint();
     transport_ = new SrsSecurityTransport(this);
 }
@@ -187,19 +136,31 @@ srs_error_t SrsRtcUdpNetwork::start_active_handshake()
 srs_error_t SrsRtcUdpNetwork::on_dtls(char* data, int nb_data)
 {
     // Update stat when we received data.
-    network_->delta_->add_delta(nb_data, 0);
+    delta_->add_delta(nb_data, 0);
 
     return transport_->on_dtls(data, nb_data);
 }
 
 srs_error_t SrsRtcUdpNetwork::on_dtls_alert(std::string type, std::string desc)
 {
-    return network_->conn_->on_dtls_alert(type, desc);
+    return conn_->on_dtls_alert(type, desc);
 }
 
 srs_error_t SrsRtcUdpNetwork::on_connection_established()
 {
-    return network_->conn_->on_connection_established();
+    srs_error_t err = srs_success;
+
+    // If DTLS done packet received many times, such as ARQ, ignore.
+    if(SrsRtcNetworkStateClosed == state_) {
+        return err;
+    }
+
+    if ((err = conn_->on_connection_established()) != srs_success) {
+        return srs_error_wrap(err, "udp");
+    }
+
+    state_ = SrsRtcNetworkStateClosed;
+    return err;
 }
 
 srs_error_t SrsRtcUdpNetwork::protect_rtp(void* packet, int* nb_cipher)
@@ -212,53 +173,86 @@ srs_error_t SrsRtcUdpNetwork::protect_rtcp(void* packet, int* nb_cipher)
     return transport_->protect_rtcp(packet, nb_cipher);
 }
 
-srs_error_t SrsRtcUdpNetwork::unprotect_rtp(void* packet, int* nb_plaintext)
-{
-    return transport_->unprotect_rtp(packet, nb_plaintext);
-}
-
-srs_error_t SrsRtcUdpNetwork::unprotect_rtcp(void* packet, int* nb_plaintext)
-{
-    // Update stat when we received data.
-    network_->delta_->add_delta(*nb_plaintext, 0);
-
-    return transport_->unprotect_rtcp(packet, nb_plaintext);
-}
-
 srs_error_t SrsRtcUdpNetwork::on_rtcp(char* data, int nb_data)
 {
-    // Update stat when we received data.
-    network_->delta_->add_delta(nb_data, 0);
+    srs_error_t err = srs_success;
 
-    return network_->conn_->on_rtcp(data, nb_data);
+    // Update stat when we received data.
+    delta_->add_delta(nb_data, 0);
+
+    int nb_unprotected_buf = nb_data;
+    if ((err = transport_->unprotect_rtcp(data, &nb_unprotected_buf)) != srs_success) {
+        return srs_error_wrap(err, "rtcp unprotect");
+    }
+
+    char* unprotected_buf = data;
+    if (_srs_blackhole->blackhole) {
+        _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
+    }
+
+    if ((err = conn_->on_rtcp(unprotected_buf, nb_unprotected_buf)) != srs_success) {
+        return srs_error_wrap(err, "cipher=%d", nb_data);
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcUdpNetwork::on_rtp(char* data, int nb_data)
 {
-    // Update stat when we received data.
-    network_->delta_->add_delta(nb_data, 0);
+    srs_error_t err = srs_success;
 
-    return network_->conn_->on_rtp(data, nb_data);
+    // Update stat when we received data.
+    delta_->add_delta(nb_data, 0);
+
+    if ((err = conn_->on_rtp_cipher(data, nb_data)) != srs_success) {
+        return srs_error_wrap(err, "cipher=%d", nb_data);
+    }
+
+    int nb_unprotected_buf = nb_data;
+    if ((err = transport_->unprotect_rtp(data, &nb_unprotected_buf)) != srs_success) {
+        return srs_error_wrap(err, "rtp unprotect");
+    }
+
+    char* unprotected_buf = data;
+    if (_srs_blackhole->blackhole) {
+        _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
+    }
+
+    if ((err = conn_->on_rtp_plaintext(unprotected_buf, nb_unprotected_buf)) != srs_success) {
+        return srs_error_wrap(err, "cipher=%d", nb_data);
+    }
+
+    return err;
+}
+
+void SrsRtcUdpNetwork::set_state(SrsRtcNetworkState state)
+{
+    if (state_ > state) {
+        srs_warn("RTC: Ignore setting state=%d, now=%d", state, state_);
+        return;
+    }
+
+    state_ = state;
 }
 
 string SrsRtcUdpNetwork::get_peer_ip()
 {
-    srs_assert(sendonly_skt);
-    return sendonly_skt->get_peer_ip();
+    srs_assert(sendonly_skt_);
+    return sendonly_skt_->get_peer_ip();
 }
 
 int SrsRtcUdpNetwork::get_peer_port()
 {
-    srs_assert(sendonly_skt);
-    return sendonly_skt->get_peer_port();
+    srs_assert(sendonly_skt_);
+    return sendonly_skt_->get_peer_port();
 }
 
 void SrsRtcUdpNetwork::update_sendonly_socket(SrsUdpMuxSocket* skt)
 {
     // TODO: FIXME: Refine performance.
     string prev_peer_id, peer_id = skt->peer_id();
-    if (sendonly_skt) {
-        prev_peer_id = sendonly_skt->peer_id();
+    if (sendonly_skt_) {
+        prev_peer_id = sendonly_skt_->peer_id();
     }
 
     // Ignore if same address.
@@ -289,33 +283,100 @@ void SrsRtcUdpNetwork::update_sendonly_socket(SrsUdpMuxSocket* skt)
     // If no cache, build cache and setup the relations in connection.
     if (!addr_cache) {
         peer_addresses_[peer_id] = addr_cache = skt->copy_sendonly();
-        _srs_rtc_manager->add_with_id(peer_id, network_->conn_);
+        _srs_rtc_manager->add_with_id(peer_id, conn_);
 
         uint64_t fast_id = skt->fast_id();
         if (fast_id) {
-            _srs_rtc_manager->add_with_fast_id(fast_id, network_->conn_);
+            _srs_rtc_manager->add_with_fast_id(fast_id, conn_);
         }
     }
 
     // Update the transport.
-    sendonly_skt = addr_cache;
+    sendonly_skt_ = addr_cache;
+}
+
+srs_error_t SrsRtcUdpNetwork::on_stun(SrsStunPacket* r, char* data, int nb_data)
+{
+    srs_error_t err = srs_success;
+
+    // Write STUN messages to blackhole.
+    if (_srs_blackhole->blackhole) {
+        _srs_blackhole->sendto(data, nb_data);
+    }
+
+    if (!r->is_binding_request()) {
+        return err;
+    }
+
+    string ice_pwd;
+    if ((err = conn_->on_binding_request(r, ice_pwd)) != srs_success) {
+        return srs_error_wrap(err, "udp");
+    }
+
+    if ((err = on_binding_request(r, ice_pwd)) != srs_success) {
+        return srs_error_wrap(err, "stun binding request failed");
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket* r, string ice_pwd)
+{
+    srs_error_t err = srs_success;
+
+    SrsStunPacket stun_binding_response;
+    char buf[kRtpPacketSize];
+    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
+    SrsAutoFree(SrsBuffer, stream);
+
+    stun_binding_response.set_message_type(BindingResponse);
+    stun_binding_response.set_local_ufrag(r->get_remote_ufrag());
+    stun_binding_response.set_remote_ufrag(r->get_local_ufrag());
+    stun_binding_response.set_transcation_id(r->get_transcation_id());
+    // FIXME: inet_addr is deprecated, IPV6 support
+    stun_binding_response.set_mapped_address(be32toh(inet_addr(get_peer_ip().c_str())));
+    stun_binding_response.set_mapped_port(get_peer_port());
+
+    if ((err = stun_binding_response.encode(ice_pwd, stream)) != srs_success) {
+        return srs_error_wrap(err, "stun binding response encode failed");
+    }
+
+    if ((err = write(stream->data(), stream->pos(), NULL)) != srs_success) {
+        return srs_error_wrap(err, "stun binding response send failed");
+    }
+
+    if (state_ == SrsRtcNetworkStateWaitingStun) {
+        state_ = SrsRtcNetworkStateDtls;
+        // TODO: FIXME: Add cost.
+        srs_trace("RTC: session STUN done, waiting DTLS handshake.");
+
+        if((err = start_active_handshake()) != srs_success) {
+            return srs_error_wrap(err, "fail to dtls handshake");
+        }
+    }
+
+    if (_srs_blackhole->blackhole) {
+        _srs_blackhole->sendto(stream->data(), stream->pos());
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcUdpNetwork::write(void* buf, size_t size, ssize_t* nwrite)
 {
     // Update stat when we sending data.
-    network_->delta_->add_delta(0, size);
+    delta_->add_delta(0, size);
 
     if (nwrite) *nwrite = size;
-    return sendonly_skt->sendto(buf, size, SRS_UTIME_NO_TIMEOUT);
+    return sendonly_skt_->sendto(buf, size, SRS_UTIME_NO_TIMEOUT);
 }
 
-SrsRtcTcpConn::SrsRtcTcpConn(srs_netfd_t fd, std::string cip, int port, ISrsResourceManager* cm)
+SrsRtcTcpConn::SrsRtcTcpConn(ISrsProtocolReadWriter* skt, std::string cip, int port, ISrsResourceManager* cm)
 {
     manager_ = cm;
     ip_ = cip;
     port_ = port;
-    skt_ = new SrsTcpConnection(fd);
+    skt_ = skt;
     delta_ = new SrsNetworkDelta();
     delta_->set_io(skt_, skt_);
     trd_ = new SrsSTCoroutine("tcp", this, _srs_context->get_id());

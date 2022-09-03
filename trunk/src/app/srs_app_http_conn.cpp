@@ -285,21 +285,21 @@ void SrsHttpConn::expire()
     trd->interrupt();
 }
 
-SrsHttpxConn::SrsHttpxConn(bool https, ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port)
+SrsHttpxConn::SrsHttpxConn(bool https, ISrsResourceManager* cm, ISrsProtocolReadWriter* io, ISrsHttpServeMux* m, string cip, int port)
 {
     // Create a identify for this client.
     _srs_context->set_id(_srs_context->generate_id());
 
+    io_ = io;
     manager = cm;
-    skt = new SrsTcpConnection(fd);
     enable_stat_ = false;
 
     if (https) {
-        ssl = new SrsSslConnection(skt);
+        ssl = new SrsSslConnection(io_);
         conn = new SrsHttpConn(this, ssl, m, cip, port);
     } else {
         ssl = NULL;
-        conn = new SrsHttpConn(this, skt, m, cip, port);
+        conn = new SrsHttpConn(this, io_, m, cip, port);
     }
 
     _srs_config->subscribe(this);
@@ -311,7 +311,7 @@ SrsHttpxConn::~SrsHttpxConn()
 
     srs_freep(conn);
     srs_freep(ssl);
-    srs_freep(skt);
+    srs_freep(io_);
 }
 
 void SrsHttpxConn::set_enable_stat(bool v)
@@ -323,7 +323,7 @@ srs_error_t SrsHttpxConn::pop_message(ISrsHttpMessage** preq)
 {
     srs_error_t err = srs_success;
 
-    ISrsProtocolReadWriter* io = skt;
+    ISrsProtocolReadWriter* io = io_;
     if (ssl) {
         io = ssl;
     }
@@ -424,16 +424,6 @@ srs_error_t SrsHttpxConn::on_conn_done(srs_error_t r0)
     return r0;
 }
 
-srs_error_t SrsHttpxConn::set_tcp_nodelay(bool v)
-{
-    return skt->set_tcp_nodelay(v);
-}
-
-srs_error_t SrsHttpxConn::set_socket_buffer(srs_utime_t buffer_v)
-{
-    return skt->set_socket_buffer(buffer_v);
-}
-
 std::string SrsHttpxConn::desc()
 {
     if (ssl) {
@@ -459,10 +449,6 @@ srs_error_t SrsHttpxConn::start()
     bool v = _srs_config->get_http_stream_crossdomain();
     if ((err = conn->set_crossdomain_enabled(v)) != srs_success) {
         return srs_error_wrap(err, "set cors=%d", v);
-    }
-
-    if ((err = skt->initialize()) != srs_success) {
-        return srs_error_wrap(err, "init socket");
     }
 
     return conn->start();

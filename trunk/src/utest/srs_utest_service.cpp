@@ -113,12 +113,11 @@ VOID TEST(TCPServerTest, PingPong)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
-		SrsStSocket skt;
 		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
-		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+        SrsStSocket skt(h.fd);
 
 		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello", 5, NULL));
 
@@ -135,12 +134,11 @@ VOID TEST(TCPServerTest, PingPong)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
-		SrsStSocket skt;
 		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
-		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+        SrsStSocket skt(h.fd);
 
 		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello", 5, NULL));
 		HELPER_EXPECT_SUCCESS(c.write((void*)" ", 1, NULL));
@@ -159,12 +157,11 @@ VOID TEST(TCPServerTest, PingPong)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
-		SrsStSocket skt;
 		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
-		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+        SrsStSocket skt(h.fd);
 
 		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello SRS", 9, NULL));
 		EXPECT_EQ(9, c.get_send_bytes());
@@ -194,12 +191,11 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
-		SrsStSocket skt;
 		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
-		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+        SrsStSocket skt(h.fd);
 		skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
 
 		char buf[16] = {0};
@@ -216,12 +212,11 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
-		SrsStSocket skt;
 		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
-		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+        SrsStSocket skt(h.fd);
 		skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
 
 		char buf[16] = {0};
@@ -238,12 +233,11 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
-		SrsStSocket skt;
 		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
-		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+        SrsStSocket skt(h.fd);
 		skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
 
 		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello", 5, NULL));
@@ -418,12 +412,11 @@ VOID TEST(TCPServerTest, WritevIOVC)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
-		SrsStSocket skt;
 		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
-		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+        SrsStSocket skt(h.fd);
 
 		iovec iovs[3];
 		iovs[0].iov_base = (void*)"H";
@@ -448,12 +441,11 @@ VOID TEST(TCPServerTest, WritevIOVC)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
-		SrsStSocket skt;
 		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
-		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+        SrsStSocket skt(h.fd);
 
 		iovec iovs[3];
 		iovs[0].iov_base = (void*)"H";
@@ -1012,11 +1004,7 @@ public:
     virtual srs_error_t do_cycle(srs_netfd_t cfd) {
         srs_error_t err = srs_success;
 
-        SrsStSocket skt;
-        if ((err = skt.initialize(cfd)) != srs_success) {
-            return err;
-        }
-
+        SrsStSocket skt(cfd);
         skt.set_recv_timeout(1 * SRS_UTIME_SECONDS);
         skt.set_send_timeout(1 * SRS_UTIME_SECONDS);
 
@@ -1085,7 +1073,7 @@ VOID TEST(TCPServerTest, TCPClientServer)
         HELPER_ASSERT_SUCCESS(c.write((void*)"Hello", 5, NULL));
 
         char buf[6]; HELPER_ARRAY_INIT(buf, 6, 0);
-        ASSERT_EQ(5, srs_read(c.stfd, buf, 5, 1*SRS_UTIME_SECONDS));
+        ASSERT_EQ(5, srs_read(c.stfd_, buf, 5, 1*SRS_UTIME_SECONDS));
         EXPECT_STREQ("Hello", buf);
     }
 }
@@ -1263,11 +1251,7 @@ public:
     virtual srs_error_t do_cycle(srs_netfd_t cfd) {
         srs_error_t err = srs_success;
 
-        SrsStSocket skt;
-        if ((err = skt.initialize(cfd)) != srs_success) {
-            return err;
-        }
-
+        SrsStSocket skt(cfd);
         skt.set_recv_timeout(1 * SRS_UTIME_SECONDS);
         skt.set_send_timeout(1 * SRS_UTIME_SECONDS);
 

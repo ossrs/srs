@@ -36,7 +36,10 @@ using namespace std;
 #include <srs_app_coworkers.hpp>
 #include <srs_protocol_log.hpp>
 #include <srs_app_latest_version.hpp>
+#include <srs_app_conn.hpp>
+#ifdef SRS_RTC
 #include <srs_app_rtc_network.hpp>
+#endif
 
 std::string srs_listener_type2string(SrsListenerType type)
 {
@@ -533,6 +536,7 @@ SrsServer::SrsServer()
     http_api_mux = new SrsHttpServeMux();
     http_server = new SrsHttpServer(this);
     reuse_api_over_server_ = false;
+    reuse_rtc_over_server_ = false;
 
     http_heartbeat = new SrsHttpHeartbeat();
     ingester = new SrsIngester();
@@ -655,16 +659,35 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
         return srs_error_wrap(err, "handler initialize");
     }
 
+    bool stream = _srs_config->get_http_stream_enabled();
+    string http_listen = _srs_config->get_http_stream_listen();
+    string https_listen = _srs_config->get_https_stream_listen();
+
+#ifdef SRS_RTC
+    bool rtc = _srs_config->get_rtc_server_enabled();
+    bool rtc_tcp = _srs_config->get_rtc_server_tcp_enabled();
+    string rtc_listen = srs_int2str(_srs_config->get_rtc_server_tcp_listen());
+    // If enabled and listen is the same value, resue port for WebRTC over TCP.
+    if (stream && rtc && rtc_tcp && http_listen == rtc_listen) {
+        srs_trace("WebRTC tcp=%s reuses http=%s server", rtc_listen.c_str(), http_listen.c_str());
+        reuse_rtc_over_server_ = true;
+    }
+    if (stream && rtc && rtc_tcp && https_listen == rtc_listen) {
+        srs_trace("WebRTC tcp=%s reuses https=%s server", rtc_listen.c_str(), https_listen.c_str());
+        reuse_rtc_over_server_ = true;
+    }
+#endif
+
     // If enabled and the listen is the same value, reuse port.
-    if (_srs_config->get_http_stream_enabled() && _srs_config->get_http_api_enabled()
-        && _srs_config->get_http_api_listen() == _srs_config->get_http_stream_listen()
-        && _srs_config->get_https_api_listen() == _srs_config->get_https_stream_listen()
-    ) {
-        srs_trace("API reuse listen to https server at %s", _srs_config->get_https_stream_listen().c_str());
+    bool api = _srs_config->get_http_api_enabled();
+    string api_listen = _srs_config->get_http_api_listen();
+    string apis_listen = _srs_config->get_https_api_listen();
+    if (stream && api && api_listen == http_listen && apis_listen == https_listen) {
+        srs_trace("API reuses http=%s and https=%s server", http_listen.c_str(), https_listen.c_str());
         reuse_api_over_server_ = true;
     }
 
-    // If reuse port, use the same object as server.
+    // Only init HTTP API when not reusing HTTP server.
     if (!reuse_api_over_server_) {
         SrsHttpServeMux *api = dynamic_cast<SrsHttpServeMux*>(http_api_mux);
         srs_assert(api);
@@ -744,22 +767,26 @@ srs_error_t SrsServer::listen()
         return srs_error_wrap(err, "stream caster listen");
     }
 
-    // TODO: FIXME: Refine the listeners.
-    close_listeners(SrsListenerTcp);
-    if (_srs_config->get_rtc_server_tcp_enabled()) {
-        SrsListener* listener = new SrsBufferListener(this, SrsListenerTcp);
-        listeners.push_back(listener);
+#ifdef SRS_RTC
+    if (!reuse_rtc_over_server_) {
+        // TODO: FIXME: Refine the listeners.
+        close_listeners(SrsListenerTcp);
+        if (_srs_config->get_rtc_server_tcp_enabled()) {
+            SrsListener* listener = new SrsBufferListener(this, SrsListenerTcp);
+            listeners.push_back(listener);
 
-        std::string ep = srs_int2str(_srs_config->get_rtc_server_tcp_listen());
+            std::string ep = srs_int2str(_srs_config->get_rtc_server_tcp_listen());
 
-        std::string ip;
-        int port;
-        srs_parse_endpoint(ep, ip, port);
+            std::string ip;
+            int port;
+            srs_parse_endpoint(ep, ip, port);
 
-        if ((err = listener->listen(ip, port)) != srs_success) {
-            return srs_error_wrap(err, "tcp listen %s:%d", ip.c_str(), port);
+            if ((err = listener->listen(ip, port)) != srs_success) {
+                return srs_error_wrap(err, "tcp listen %s:%d", ip.c_str(), port);
+            }
         }
     }
+#endif
     
     if ((err = conn_manager->start()) != srs_success) {
         return srs_error_wrap(err, "connection manager");
@@ -1376,11 +1403,13 @@ void SrsServer::resample_kbps()
             continue;
         }
 
+#ifdef SRS_RTC
         SrsRtcTcpConn* tcp = dynamic_cast<SrsRtcTcpConn*>(c);
         if (tcp) {
             stat->kbps_add_delta(c->get_id().c_str(), tcp->delta());
             continue;
         }
+#endif
 
         // Impossible path, because we only create these connections above.
         srs_assert(false);
@@ -1397,7 +1426,6 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     ISrsResource* resource = NULL;
     
     if ((err = fd_to_resource(type, stfd, &resource)) != srs_success) {
-        //close fd on conn error, otherwise will lead to fd leak -gs
         srs_close_stfd(stfd);
         if (srs_error_code(err) == ERROR_SOCKET_GET_PEER_IP && _srs_config->empty_ip_ok()) {
             srs_error_reset(err);
@@ -1405,7 +1433,11 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
         }
         return srs_error_wrap(err, "fd to resource");
     }
-    srs_assert(resource);
+
+    // Ignore if no resource found.
+    if (!resource) {
+        return err;
+    }
     
     // directly enqueue, the cycle thread will remove the client.
     conn_manager->add(resource);
@@ -1423,7 +1455,7 @@ ISrsHttpServeMux* SrsServer::api_server()
     return http_api_mux;
 }
 
-srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsResource** pr)
+srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t& stfd, ISrsResource** pr)
 {
     srs_error_t err = srs_success;
     
@@ -1462,24 +1494,56 @@ srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, IS
         }
     }
 
+    // We will free the stfd from now on.
+    srs_netfd_t fd2 = stfd;
+    stfd = NULL;
+
     // The context id may change during creating the bellow objects.
     SrsContextRestore(_srs_context->get_id());
+
+#ifdef SRS_RTC
+    // If reuse HTTP server with WebRTC TCP, peek to detect the client.
+    if (reuse_rtc_over_server_ && (type == SrsListenerHttpStream || type == SrsListenerHttpsStream)) {
+        SrsTcpConnection* skt = new SrsTcpConnection(fd2);
+        SrsBufferedReader* io = new SrsBufferedReader(skt);
+
+        uint8_t b[10]; int nn = sizeof(b);
+        if ((err = io->peek((char*)b, &nn)) != srs_success) {
+            srs_freep(io); srs_freep(skt);
+            return srs_error_wrap(err, "peek");
+        }
+
+        // If first message is BindingRequest(00 01), prefixed with length(2B), it's WebRTC client. Generally, the frame
+        // length minus message length should be 20, that is the header size of STUN is 20 bytes. For example:
+        //      00 6c # Frame length: 0x006c = 108
+        //      00 01 # Message Type: Binding Request(0x0001)
+        //      00 58 # Message Length: 0x005 = 88
+        //      21 12 a4 42 # Message Cookie: 0x2112a442
+        //      48 32 6c 61 6b 42 35 71 42 35 4a 71 # Message Transaction ID: 12 bytes
+        if (nn == 10 && b[0] == 0 && b[2] == 0 && b[3] == 1 && b[1] - b[5] == 20
+            && b[6] == 0x21 && b[7] == 0x12 && b[8] == 0xa4 && b[9] == 0x42
+        ) {
+            *pr = new SrsRtcTcpConn(io, ip, port, this);
+        } else {
+            *pr = new SrsHttpxConn(type == SrsListenerHttpsStream, this, io, http_server, ip, port);
+        }
+        return err;
+    }
+#endif
     
     if (type == SrsListenerRtmpStream) {
-        *pr = new SrsRtmpConn(this, stfd, ip, port);
-    } else if (type == SrsListenerHttpApi) {
-        *pr = new SrsHttpxConn(false, this, stfd, http_api_mux, ip, port);
-    } else if (type == SrsListenerHttpsApi) {
-        *pr = new SrsHttpxConn(true, this, stfd, http_api_mux, ip, port);
-    } else if (type == SrsListenerHttpStream) {
-        *pr = new SrsHttpxConn(false, this, stfd, http_server, ip, port);
-    } else if (type == SrsListenerHttpsStream) {
-        *pr = new SrsHttpxConn(true, this, stfd, http_server, ip, port);
+        *pr = new SrsRtmpConn(this, fd2, ip, port);
+    } else if (type == SrsListenerHttpApi || type == SrsListenerHttpsApi) {
+        *pr = new SrsHttpxConn(type == SrsListenerHttpsApi, this, new SrsTcpConnection(fd2), http_api_mux, ip, port);
+    } else if (type == SrsListenerHttpStream || type == SrsListenerHttpsStream) {
+        *pr = new SrsHttpxConn(type == SrsListenerHttpsStream, this, new SrsTcpConnection(fd2), http_server, ip, port);
+#ifdef SRS_RTC
     } else if (type == SrsListenerTcp) {
-        *pr = new SrsRtcTcpConn(stfd, ip, port, this);
+        *pr = new SrsRtcTcpConn(new SrsTcpConnection(fd2), ip, port, this);
+#endif
     } else {
         srs_warn("close for no service handler. fd=%d, ip=%s:%d", fd, ip.c_str(), port);
-        srs_close_stfd(stfd);
+        srs_close_stfd(fd2);
         return err;
     }
     
