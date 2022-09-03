@@ -61,6 +61,10 @@ inline int16_t srs_rtp_seq_distance(const uint16_t& prev_value, const uint16_t& 
 {
     return (int16_t)(value - prev_value);
 }
+inline int32_t srs_rtp_ts_distance(const uint32_t& prev_value, const uint32_t& value)
+{
+    return (int32_t)(value - prev_value);
+}
 
 // For map to compare the sequence of RTP.
 struct SrsSeqCompareLess {

@@ -510,10 +510,12 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
 
 void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription* desc)
 {
+    if (!desc) return;
+
     // Refresh the relation for audio.
     // TODO: FIMXE: Match by label?
     if (desc && desc->audio_track_desc_ && audio_tracks_.size() == 1) {
-        if (! audio_tracks_.empty()) {
+        if (!audio_tracks_.empty()) {
             uint32_t ssrc = desc->audio_track_desc_->ssrc_;
             SrsRtcAudioSendTrack* track = audio_tracks_.begin()->second;
 
@@ -525,7 +527,7 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription* desc)
     // Refresh the relation for video.
     // TODO: FIMXE: Match by label?
     if (desc && desc->video_track_descs_.size() == 1) {
-        if (! video_tracks_.empty()) {
+        if (!video_tracks_.empty()) {
             SrsRtcTrackDescription* vdesc = desc->video_track_descs_.at(0);
             uint32_t ssrc = vdesc->ssrc_;
             SrsRtcVideoSendTrack* track = video_tracks_.begin()->second;
@@ -533,6 +535,15 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription* desc)
             video_tracks_.clear();
             video_tracks_.insert(make_pair(ssrc, track));
         }
+    }
+
+    // Request keyframe(PLI) when stream changed.
+    if (desc->audio_track_desc_) {
+        pli_worker_->request_keyframe(desc->audio_track_desc_->ssrc_, cid_);
+    }
+    for (vector<SrsRtcTrackDescription*>::iterator it = desc->video_track_descs_.begin(); it != desc->video_track_descs_.end(); ++it) {
+        SrsRtcTrackDescription* vdesc = *it;
+        pli_worker_->request_keyframe(vdesc->ssrc_, cid_);
     }
 }
 

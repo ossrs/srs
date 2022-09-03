@@ -2546,11 +2546,52 @@ srs_error_t SrsRtcVideoRecvTrack::check_send_nacks()
     return err;
 }
 
+SrsRtcJitter::SrsRtcJitter(uint32_t base)
+{
+    pkt_base_ = pkt_last_ = 0;
+    correct_last_ = correct_base_ = 0;
+    base_ = base;
+    init_ = false;
+}
+
+SrsRtcJitter::~SrsRtcJitter()
+{
+}
+
+uint32_t SrsRtcJitter::correct(uint32_t ts)
+{
+    if (!init_) {
+        init_ = true;
+        correct_base_ = base_;
+        srs_trace("RTC: Jitter init base=%u, ts=%u", base_, ts);
+    }
+    if (!pkt_base_) pkt_base_ = ts;
+
+    if (pkt_last_) {
+        int32_t distance = srs_rtp_ts_distance(ts, pkt_last_);
+        static int32_t max_deviation = 90 * 3 * 1000;
+        if (distance > max_deviation || distance < -1 * max_deviation) {
+            srs_trace("RTC: Jitter rebase ts=%u, last=%u, distance=%d, pkt-base=%u/%u, correct-base=%u/%u", ts, pkt_last_, distance, pkt_base_, ts, correct_base_, correct_last_);
+            pkt_base_ = ts;
+            correct_base_ = correct_last_;
+        }
+    }
+    pkt_last_ = ts;
+
+    correct_last_ = correct_base_ + ts - pkt_base_;
+    return correct_last_;
+}
+
 SrsRtcSendTrack::SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio)
 {
     session_ = session;
     track_desc_ = track_desc->copy();
     nack_no_copy_ = false;
+
+    seqno_ = 0;
+    init_ = false;
+    // Make a different start of sequence number, for debugging.
+    jitter_ = new SrsRtcJitter(track_desc_->type_ == "audio" ? 10000 : 20000);
 
     if (is_audio) {
         rtp_queue_ = new SrsRtpRingBuffer(100);
@@ -2566,6 +2607,7 @@ SrsRtcSendTrack::~SrsRtcSendTrack()
     srs_freep(rtp_queue_);
     srs_freep(track_desc_);
     srs_freep(nack_epp);
+    srs_freep(jitter_);
 }
 
 bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
@@ -2614,6 +2656,23 @@ bool SrsRtcSendTrack::get_track_status()
 std::string SrsRtcSendTrack::get_track_id()
 {
     return track_desc_->id_;
+}
+
+void SrsRtcSendTrack::rebuild_packet(SrsRtpPacket* pkt)
+{
+    // Rebuild the sequence number.
+    if (!init_) {
+        init_ = true;
+        // Make a different start of sequence number, for debugging.
+        seqno_ = track_desc_->type_ == "audio" ? 1000 : 2000;
+        srs_trace("RTC: Seqno rebuild %s track=%s, ssrc=%d, seqno=%d to %d", track_desc_->type_.c_str(), track_desc_->id_.c_str(),
+            pkt->header.get_ssrc(), pkt->header.get_sequence(), seqno_);
+    }
+    pkt->header.set_sequence(seqno_++);
+
+    // Rebuild the timestamp.
+    uint32_t ts = pkt->header.get_timestamp();
+    pkt->header.set_timestamp(jitter_->correct(ts));
 }
 
 srs_error_t SrsRtcSendTrack::on_nack(SrsRtpPacket** ppkt)
@@ -2693,9 +2752,15 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket* pkt)
         // TODO: FIXME: Should update PT for RTX.
     }
 
+    // Rebuild the sequence number and timestamp of packet, see https://github.com/ossrs/srs/issues/3167
+    rebuild_packet(pkt);
+
     if ((err = session_->do_send_packet(pkt)) != srs_success) {
         return srs_error_wrap(err, "raw send");
     }
+
+    srs_info("RTC: Send audio ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header.get_ssrc(),
+        pkt->header.get_sequence(), pkt->is_keyframe(), pkt->header.get_timestamp());
 
     return err;
 }
@@ -2737,9 +2802,15 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket* pkt)
         // TODO: FIXME: Should update PT for RTX.
     }
 
+    // Rebuild the sequence number and timestamp of packet, see https://github.com/ossrs/srs/issues/3167
+    rebuild_packet(pkt);
+
     if ((err = session_->do_send_packet(pkt)) != srs_success) {
         return srs_error_wrap(err, "raw send");
     }
+
+    srs_info("RTC: Send video ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header.get_ssrc(),
+        pkt->header.get_sequence(), pkt->is_keyframe(), pkt->header.get_timestamp());
 
     return err;
 }
