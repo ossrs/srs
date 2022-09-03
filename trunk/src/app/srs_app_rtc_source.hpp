@@ -579,9 +579,29 @@ public:
     virtual srs_error_t check_send_nacks();
 };
 
+class SrsRtcJitter
+{
+private:
+    // The ts about packet.
+    uint32_t pkt_base_;
+    uint32_t pkt_last_;
+    // The ts after corrected.
+    uint32_t correct_base_;
+    uint32_t correct_last_;
+    // The base timestamp by config, start from it.
+    uint32_t base_;
+    // Whether initialized. Note that we should not use correct_base_(0) as init state, because it might flip back.
+    bool init_;
+public:
+    SrsRtcJitter(uint32_t base);
+    virtual ~SrsRtcJitter();
+public:
+    uint32_t correct(uint32_t ts);
+};
+
 class SrsRtcSendTrack
 {
-protected:
+public:
     // send track description
     SrsRtcTrackDescription* track_desc_;
 protected:
@@ -589,6 +609,13 @@ protected:
     SrsRtcConnection* session_;
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer* rtp_queue_;
+protected:
+    // Current sequence number.
+    uint64_t seqno_;
+    // Whether initialized. Note that we should not use seqno_(0) as init state, because it might flip back.
+    bool init_;
+    // The jitter to correct ts.
+    SrsRtcJitter* jitter_;
 private:
     // By config, whether no copy.
     bool nack_no_copy_;
@@ -605,6 +632,8 @@ public:
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
+protected:
+    void rebuild_packet(SrsRtpPacket* pkt);
 public:
     // Note that we can set the pkt to NULL to avoid copy, for example, if the NACK cache the pkt and
     // set to NULL, nack nerver copy it but set the pkt to NULL.

@@ -63,6 +63,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-09-03, For [#3167](https://github.com/ossrs/srs/issues/3167): WebRTC: Play stucked when republish. v4.0.260
 * v4.0, 2022-09-02, For [#307](https://github.com/ossrs/srs/issues/307): WebRTC: Support use domain name as CANDIDATE. v4.0.259
 * v4.0, 2022-08-29, Copy libxml2-dev for FFmpeg. v4.0.258
 * v4.0, 2022-08-24, STAT: Support config server_id and generate one if empty. v4.0.257
