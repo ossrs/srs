@@ -149,7 +149,7 @@ srs_error_t SrsSecurityTransport::on_dtls_handshake_done()
         return srs_error_wrap(err, "srtp init");
     }
 
-    return network_->on_connection_established();
+    return network_->on_dtls_handshake_done();
 }
 
 srs_error_t SrsSecurityTransport::on_dtls_application_data(const char* buf, const int nb_buf)
@@ -249,7 +249,7 @@ srs_error_t SrsPlaintextTransport::on_dtls_alert(std::string type, std::string d
 srs_error_t SrsPlaintextTransport::on_dtls_handshake_done()
 {
     srs_trace("RTC: DTLS handshake done.");
-    return network_->on_connection_established();
+    return network_->on_dtls_handshake_done();
 }
 
 srs_error_t SrsPlaintextTransport::on_dtls_application_data(const char* data, const int len)
@@ -2166,7 +2166,7 @@ srs_error_t SrsRtcConnection::find_publisher(char* buf, int size, SrsRtcPublishS
     return err;
 }
 
-srs_error_t SrsRtcConnection::on_connection_established()
+srs_error_t SrsRtcConnection::on_dtls_handshake_done()
 {
     srs_error_t err = srs_success;
 

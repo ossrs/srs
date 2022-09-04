@@ -394,6 +394,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         ++_srs_pps_rstuns->sugar;
         string peer_id = skt->peer_id();
 
+        // TODO: FIXME: Should support ICE renomination, to switch network between candidates.
         SrsStunPacket ping;
         if ((err = ping.decode(data, size)) != srs_success) {
             return srs_error_wrap(err, "decode stun packet failed");
@@ -549,6 +550,8 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
         int udp_port = _srs_config->get_rtc_server_listen();
         int tcp_port = _srs_config->get_rtc_server_tcp_listen();
         string protocol = _srs_config->get_rtc_server_protocol();
+
+        // TODO: FIXME: Should support only one TCP candidate.
         set<string> candidates = discover_candidates(ruc);
         for (set<string>::iterator it = candidates.begin(); it != candidates.end(); ++it) {
             string hostname;

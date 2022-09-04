@@ -80,15 +80,12 @@ public:
 // For DTLS or Session to call network service.
 class ISrsRtcNetwork : public ISrsStreamWriter
 {
-protected:
-    bool establelished_;
-
 public:
     ISrsRtcNetwork();
     virtual ~ISrsRtcNetwork();
 public:
     // Callback when DTLS connected.
-    virtual srs_error_t on_connection_established() = 0;
+    virtual srs_error_t on_dtls_handshake_done() = 0;
     // Callback when DTLS disconnected.
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
 public:
@@ -97,7 +94,7 @@ public:
     // Protect RTCP packet by SRTP context.
     virtual srs_error_t protect_rtcp(void* packet, int* nb_cipher) = 0;
 public:
-    bool is_establelished();
+    virtual bool is_establelished() = 0;
 };
 
 // Dummy networks
@@ -109,11 +106,12 @@ public:
 
 // The interface of ISrsRtcNetwork
 public:
-    virtual srs_error_t on_connection_established();
+    virtual srs_error_t on_dtls_handshake_done();
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
 public:
     virtual srs_error_t protect_rtp(void* packet, int* nb_cipher);
     virtual srs_error_t protect_rtcp(void* packet, int* nb_cipher);
+    virtual bool is_establelished();
 // Interface ISrsStreamWriter.
 public:
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
@@ -150,10 +148,9 @@ private:
 // DTLS transport functions.
 public:
     srs_error_t initialize(SrsSessionConfig* cfg, bool dtls, bool srtp);
-    virtual srs_error_t start_active_handshake();
     virtual srs_error_t on_dtls(char* data, int nb_data);
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
-    srs_error_t on_connection_established();
+    srs_error_t on_dtls_handshake_done();
     srs_error_t protect_rtp(void* packet, int* nb_cipher);
     srs_error_t protect_rtcp(void* packet, int* nb_cipher);
 // When got data from socket.
@@ -164,6 +161,7 @@ public:
 public:
     // Connection level state machine, for ARQ of UDP packets.
     void set_state(SrsRtcNetworkState state);
+    virtual bool is_establelished();
     // ICE reflexive address functions.
     std::string get_peer_ip();
     int get_peer_port();
@@ -193,7 +191,7 @@ public:
 //ISrsRtcNetwork 
 public:
     // Callback when DTLS connected.
-    virtual srs_error_t on_connection_established();
+    virtual srs_error_t on_dtls_handshake_done();
     // Callback when DTLS disconnected.
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
     // Protect RTP packet by SRTP context.
@@ -208,7 +206,6 @@ private:
 // DTLS transport functions.
 public:
     srs_error_t initialize(SrsSessionConfig* cfg, bool dtls, bool srtp);
-    virtual srs_error_t start_active_handshake();
     virtual srs_error_t on_dtls(char* data, int nb_data);
 // When got data from socket.
 public:
@@ -218,6 +215,7 @@ public:
 public:
     // Connection level state machine, for ARQ of UDP packets.
     void set_state(SrsRtcNetworkState state);
+    virtual bool is_establelished();
     // ICE reflexive address functions.
     std::string get_peer_ip();
     int get_peer_port();
@@ -226,6 +224,7 @@ public:
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 public:
     void set_peer_id(const std::string& ip, int port);
+    void dispose();
 };
 
 // For WebRTC over TCP.
@@ -241,11 +240,11 @@ private:
     int port_;
     // The delta for statistic.
     SrsNetworkDelta* delta_;
-
     // WebRTC session object.
     SrsRtcConnection* session_;
-    bool disposing_;
     ISrsProtocolReadWriter* skt_;
+    // Packet cache.
+    char* pkt_;
 public:
     SrsRtcTcpConn(ISrsProtocolReadWriter* skt, std::string cip, int port, ISrsResourceManager* cm);
     virtual ~SrsRtcTcpConn();
@@ -266,6 +265,9 @@ public:
     virtual srs_error_t cycle();
 private:
     virtual srs_error_t do_cycle();
+    srs_error_t handshake();
+    srs_error_t read_packet(char* pkt, int* nb_pkt);
+    srs_error_t on_stun(char* pkt, int nb_pkt);
     srs_error_t on_tcp_pkt(char* pkt, int nb_pkt);
 // Interface of ISrsDisposingHandler
 public:

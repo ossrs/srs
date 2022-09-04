@@ -170,7 +170,7 @@ public:
 
 // With a small fast read buffer, to support peek for protocol detecting. Note that directly write to io without any
 // cache or buffer.
-class SrsBufferedReader : public ISrsProtocolReadWriter
+class SrsBufferedReadWriter : public ISrsProtocolReadWriter
 {
 private:
     // The under-layer transport.
@@ -181,8 +181,8 @@ private:
     // Current reading position.
     SrsBuffer* buf_;
 public:
-    SrsBufferedReader(ISrsProtocolReadWriter* io);
-    virtual ~SrsBufferedReader();
+    SrsBufferedReadWriter(ISrsProtocolReadWriter* io);
+    virtual ~SrsBufferedReadWriter();
 public:
     // Peek the head of cache to buf in size of bytes.
     srs_error_t peek(char* buf, int* size);

@@ -513,7 +513,7 @@ public:
     srs_error_t on_rtcp_feedback_twcc(char* buf, int nb_buf);
     srs_error_t on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp);
 public:
-    srs_error_t on_connection_established();
+    srs_error_t on_dtls_handshake_done();
     srs_error_t on_dtls_alert(std::string type, std::string desc);
     bool is_alive();
     void alive();

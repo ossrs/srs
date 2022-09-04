@@ -1505,7 +1505,7 @@ srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t& stfd, I
     // If reuse HTTP server with WebRTC TCP, peek to detect the client.
     if (reuse_rtc_over_server_ && (type == SrsListenerHttpStream || type == SrsListenerHttpsStream)) {
         SrsTcpConnection* skt = new SrsTcpConnection(fd2);
-        SrsBufferedReader* io = new SrsBufferedReader(skt);
+        SrsBufferedReadWriter* io = new SrsBufferedReadWriter(skt);
 
         uint8_t b[10]; int nn = sizeof(b);
         if ((err = io->peek((char*)b, &nn)) != srs_success) {

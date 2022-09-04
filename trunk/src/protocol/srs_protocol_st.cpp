@@ -681,6 +681,7 @@ srs_error_t SrsTcpClient::connect()
         return srs_error_wrap(err, "tcp: connect %s:%d to=%dms", host.c_str(), port, srsu2msi(timeout));
     }
 
+    // TODO: FIMXE: The timeout set on io need to be set to new object.
     srs_freep(io);
     io = new SrsStSocket(stfd);
 

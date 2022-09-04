@@ -353,6 +353,8 @@
 #define ERROR_RTC_NO_TRACK                  5030
 #define ERROR_RTC_RTCP_EMPTY_RR             5031
 #define ERROR_RTC_TCP_SIZE                  5032
+#define ERROR_RTC_TCP_PACKET                5033
+#define ERROR_RTC_TCP_STUN                  5034
 
 ///////////////////////////////////////////////////////
 // SRT protocol error.

@@ -559,18 +559,18 @@ srs_error_t SrsTcpConnection::writev(const iovec *iov, int iov_size, ssize_t* nw
     return skt->writev(iov, iov_size, nwrite);
 }
 
-SrsBufferedReader::SrsBufferedReader(ISrsProtocolReadWriter* io)
+SrsBufferedReadWriter::SrsBufferedReadWriter(ISrsProtocolReadWriter* io)
 {
     io_ = io;
     buf_ = NULL;
 }
 
-SrsBufferedReader::~SrsBufferedReader()
+SrsBufferedReadWriter::~SrsBufferedReadWriter()
 {
     srs_freep(buf_);
 }
 
-srs_error_t SrsBufferedReader::peek(char* buf, int* size)
+srs_error_t SrsBufferedReadWriter::peek(char* buf, int* size)
 {
     srs_error_t err = srs_success;
 
@@ -588,7 +588,7 @@ srs_error_t SrsBufferedReader::peek(char* buf, int* size)
     return err;
 }
 
-srs_error_t SrsBufferedReader::reload_buffer()
+srs_error_t SrsBufferedReadWriter::reload_buffer()
 {
     srs_error_t err = srs_success;
 
@@ -608,7 +608,7 @@ srs_error_t SrsBufferedReader::reload_buffer()
     return err;
 }
 
-srs_error_t SrsBufferedReader::read(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsBufferedReadWriter::read(void* buf, size_t size, ssize_t* nread)
 {
     if (!buf_ || buf_->empty()) {
         return io_->read(buf, size, nread);
@@ -623,7 +623,7 @@ srs_error_t SrsBufferedReader::read(void* buf, size_t size, ssize_t* nread)
     return srs_success;
 }
 
-srs_error_t SrsBufferedReader::read_fully(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsBufferedReadWriter::read_fully(void* buf, size_t size, ssize_t* nread)
 {
     if (!buf_ || buf_->empty()) {
         return io_->read_fully(buf, size, nread);
@@ -643,42 +643,42 @@ srs_error_t SrsBufferedReader::read_fully(void* buf, size_t size, ssize_t* nread
     return srs_success;
 }
 
-void SrsBufferedReader::set_recv_timeout(srs_utime_t tm)
+void SrsBufferedReadWriter::set_recv_timeout(srs_utime_t tm)
 {
     return io_->set_recv_timeout(tm);
 }
 
-srs_utime_t SrsBufferedReader::get_recv_timeout()
+srs_utime_t SrsBufferedReadWriter::get_recv_timeout()
 {
     return io_->get_recv_timeout();
 }
 
-int64_t SrsBufferedReader::get_recv_bytes()
+int64_t SrsBufferedReadWriter::get_recv_bytes()
 {
     return io_->get_recv_bytes();
 }
 
-int64_t SrsBufferedReader::get_send_bytes()
+int64_t SrsBufferedReadWriter::get_send_bytes()
 {
     return io_->get_send_bytes();
 }
 
-void SrsBufferedReader::set_send_timeout(srs_utime_t tm)
+void SrsBufferedReadWriter::set_send_timeout(srs_utime_t tm)
 {
     return io_->set_send_timeout(tm);
 }
 
-srs_utime_t SrsBufferedReader::get_send_timeout()
+srs_utime_t SrsBufferedReadWriter::get_send_timeout()
 {
     return io_->get_send_timeout();
 }
 
-srs_error_t SrsBufferedReader::write(void* buf, size_t size, ssize_t* nwrite)
+srs_error_t SrsBufferedReadWriter::write(void* buf, size_t size, ssize_t* nwrite)
 {
     return io_->write(buf, size, nwrite);
 }
 
-srs_error_t SrsBufferedReader::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+srs_error_t SrsBufferedReadWriter::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
     return io_->writev(iov, iov_size, nwrite);
 }
