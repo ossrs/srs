@@ -352,6 +352,7 @@
 #define ERROR_RTC_DUPLICATED_SSRC           5029
 #define ERROR_RTC_NO_TRACK                  5030
 #define ERROR_RTC_RTCP_EMPTY_RR             5031
+#define ERROR_RTC_TCP_SIZE                  5032
 
 ///////////////////////////////////////////////////////
 // SRT protocol error.

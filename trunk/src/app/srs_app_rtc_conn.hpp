@@ -55,6 +55,7 @@ class SrsEphemeralDelta;
 class SrsRtcNetworks;
 class SrsRtcUdpNetwork;
 class ISrsRtcNetwork;
+class SrsRtcTcpNetwork;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -518,6 +519,7 @@ public:
     void alive();
 public:
     SrsRtcUdpNetwork* udp();
+    SrsRtcTcpNetwork* tcp();
 public:
     // send rtcp
     srs_error_t send_rtcp(char *data, int nb_data);

@@ -2236,6 +2236,11 @@ SrsRtcUdpNetwork* SrsRtcConnection::udp()
     return networks_->udp();
 }
 
+SrsRtcTcpNetwork* SrsRtcConnection::tcp()
+{
+    return networks_->tcp();
+}
+
 srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
 {
     srs_error_t err = srs_success;
