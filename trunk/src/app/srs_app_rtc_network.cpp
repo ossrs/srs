@@ -444,6 +444,7 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* de
     transport_ = new SrsSecurityTransport(this);
     peer_port_ = 0;
     state_ = SrsRtcNetworkStateInit;
+    owner_ = NULL;
 }
 
 SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
@@ -767,7 +768,31 @@ srs_error_t SrsRtcTcpConn::cycle()
         return srs_success;
     }
 
-    return err;
+    // success.
+    if (err == srs_success) {
+        srs_trace("client finished.");
+        return err;
+    }
+
+    // It maybe success with message.
+    if (srs_error_code(err) == ERROR_SUCCESS) {
+        srs_trace("client finished%s.", srs_error_summary(err).c_str());
+        srs_freep(err);
+        return err;
+    }
+
+    // client close peer.
+    // TODO: FIXME: Only reset the error when client closed it.
+    if (srs_is_client_gracefully_close(err)) {
+        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+    } else if (srs_is_server_gracefully_close(err)) {
+        srs_warn("server disconnect. ret=%d", srs_error_code(err));
+    } else {
+        srs_error("serve error %s", srs_error_desc(err).c_str());
+    }
+
+    srs_freep(err);
+    return srs_success;
 }
 
 srs_error_t SrsRtcTcpConn::do_cycle()
@@ -818,19 +843,26 @@ srs_error_t SrsRtcTcpConn::handshake()
     if ((err = ping.decode(pkt_, npkt)) != srs_success) {
         return srs_error_wrap(err, "decode stun packet failed");
     }
-    if (!session_) {
-        session_ = dynamic_cast<SrsRtcConnection*>(_srs_rtc_manager->find_by_name(ping.get_username()));
-    }
-    if (session_) {
-        session_->switch_to_context();
+
+    srs_assert(!session_);
+    SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(_srs_rtc_manager->find_by_name(ping.get_username()));
+    // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
+    if (!session) {
+        return srs_error_new(ERROR_RTC_TCP_STUN, "no session, stun username=%s", ping.get_username().c_str());
     }
 
+    session->switch_to_context();
     srs_trace("recv stun packet from %s:%d, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
         ip_.c_str(), port_, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
-    // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
-    if (!session_) {
-        return srs_error_new(ERROR_RTC_TCP_STUN, "no session, stun username=%s", ping.get_username().c_str());
+    // Should support only one TCP candidate.
+    SrsRtcTcpNetwork* network = dynamic_cast<SrsRtcTcpNetwork*>(session->tcp());
+    if (!network->owner()) {
+        network->set_owner(this);
+        session_ = session;
+    }
+    if (network->owner() != this) {
+        return srs_error_new(ERROR_RTC_TCP_UNIQUE, "only support one network");
     }
 
     // For each binding request, update the TCP socket.
@@ -838,6 +870,8 @@ srs_error_t SrsRtcTcpConn::handshake()
         session_->tcp()->update_sendonly_socket(skt_);
         session_->tcp()->set_peer_id(ip_, port_);
     }
+
+    // Use the session network to handle packet.
     return session_->tcp()->on_stun(&ping, pkt_, npkt);
 }
 

@@ -31,6 +31,7 @@ class SrsRtcUdpNetwork;
 class ISrsRtcNetwork;
 class SrsRtcTcpNetwork;
 class SrsRtcDummyNetwork;
+class SrsRtcTcpConn;
 
 // The network stat.
 enum SrsRtcNetworkState
@@ -176,17 +177,20 @@ private:
     SrsRtcConnection* conn_;
     SrsEphemeralDelta* delta_;
     ISrsProtocolReadWriter* sendonly_skt_;
-
+private:
      // The DTLS transport over this network.
     ISrsRtcTransport* transport_;
-
+    SrsRtcTcpConn* owner_;
+private:
     std::string peer_ip_;
     int peer_port_;
     SrsRtcNetworkState state_;
 public:
     SrsRtcTcpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* delta);
     virtual ~SrsRtcTcpNetwork();
-
+public:
+    void set_owner(SrsRtcTcpConn* v) { owner_ = v; }
+    SrsRtcTcpConn* owner() { return owner_; }
     void update_sendonly_socket(ISrsProtocolReadWriter* skt);
 //ISrsRtcNetwork 
 public:

@@ -355,6 +355,7 @@
 #define ERROR_RTC_TCP_SIZE                  5032
 #define ERROR_RTC_TCP_PACKET                5033
 #define ERROR_RTC_TCP_STUN                  5034
+#define ERROR_RTC_TCP_UNIQUE                5035
 
 ///////////////////////////////////////////////////////
 // SRT protocol error.

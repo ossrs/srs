@@ -551,7 +551,6 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
         int tcp_port = _srs_config->get_rtc_server_tcp_listen();
         string protocol = _srs_config->get_rtc_server_protocol();
 
-        // TODO: FIXME: Should support only one TCP candidate.
         set<string> candidates = discover_candidates(ruc);
         for (set<string>::iterator it = candidates.begin(); it != candidates.end(); ++it) {
             string hostname;
