@@ -7,8 +7,8 @@ Individual files contain the following tag instead of the full license text.
 
 	SPDX-License-Identifier: MPL-1.1 OR GPL-2.0-or-later
 
-All source code in the "tools", "utest" and "porting" directory is
-distributed under the MIT style license.
+New source code and all source code in the "tools" and "utest" directory
+is distributed under the MIT style license.
 
     SPDX-License-Identifier: MIT
 

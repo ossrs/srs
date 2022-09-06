@@ -110,7 +110,7 @@ DEFINES     += -DMD_HAVE_KQUEUE -DMD_HAVE_SELECT
 endif
 
 ifeq ($(OS), LINUX)
-EXTRA_OBJS  = $(TARGETDIR)/md_linux.o
+EXTRA_OBJS  = $(TARGETDIR)/md_linux.o $(TARGETDIR)/md_linux2.o
 SFLAGS      = -fPIC
 LDFLAGS     = -shared -soname=$(SONAME) -lc
 OTHER_FLAGS = -Wall
@@ -268,6 +268,9 @@ $(HEADER): public.h
 	cp public.h $@
 
 $(TARGETDIR)/md_linux.o: md_linux.S
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(TARGETDIR)/md_linux2.o: md_linux2.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGETDIR)/md_darwin.o: md_darwin.S
