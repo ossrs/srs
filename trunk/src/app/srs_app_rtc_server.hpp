@@ -75,10 +75,15 @@ class SrsRtcUserConfig
 {
 public:
     // Original variables from API.
+    std::string remote_sdp_str_;
     SrsSdp remote_sdp_;
     std::string eip_;
     std::string codec_;
     std::string api_;
+
+    // Session data.
+    std::string local_sdp_str_;
+    std::string session_id_;
 
     // Generated data.
     SrsRequest* req_;

@@ -505,6 +505,10 @@ srs_error_t SrsRtcServer::listen_api()
         return srs_error_wrap(err, "handle publish");
     }
 
+    if ((err = http_api_mux->handle("/rtc/v1/whip/", new SrsGoApiRtcWhip(this))) != srs_success) {
+        return srs_error_wrap(err, "handle whip");
+    }
+
 #ifdef SRS_SIMULATOR
     if ((err = http_api_mux->handle("/rtc/v1/nack/", new SrsGoApiRtcNACK(this))) != srs_success) {
         return srs_error_wrap(err, "handle nack");
