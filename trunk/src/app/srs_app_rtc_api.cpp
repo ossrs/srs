@@ -164,14 +164,6 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         return srs_error_wrap(err, "parse sdp failed: %s", remote_sdp_str.c_str());
     }
 
-    if ((err = check_remote_sdp(ruc.remote_sdp_)) != srs_success) {
-        return srs_error_wrap(err, "remote sdp check failed");
-    }
-
-    if ((err = http_hooks_on_play(ruc.req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: http_hooks_on_play");
-    }
-
     if ((err = serve_http(w, r, &ruc)) != srs_success) {
         return srs_error_wrap(err, "serve");
     }
@@ -189,6 +181,10 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRtcUserConfig* ruc)
 {
     srs_error_t  err = srs_success;
+
+    if ((err = check_remote_sdp(ruc->remote_sdp_)) != srs_success) {
+        return srs_error_wrap(err, "remote sdp check failed");
+    }
 
     SrsSdp local_sdp;
 
@@ -230,7 +226,7 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     }
 
     // We must do hook after stat, because depends on it.
-    if ((err = http_hooks_on_play(ruc.req_)) != srs_success) {
+    if ((err = http_hooks_on_play(ruc->req_)) != srs_success) {
         return srs_error_wrap(err, "RTC: http_hooks_on_play");
     }
 
@@ -324,7 +320,6 @@ SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsRtcServer* server)
 SrsGoApiRtcPublish::~SrsGoApiRtcPublish()
 {
 }
-
 
 // Request:
 //      POST /rtc/v1/publish/
@@ -472,10 +467,6 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         return srs_error_wrap(err, "remote sdp check failed");
     }
 
-    if ((err = http_hooks_on_publish(ruc->req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: http_hooks_on_publish");
-    }
-
     SrsSdp local_sdp;
 
     // TODO: FIXME: move to create_session.
@@ -502,7 +493,7 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
 
     // We must do hook after stat, because depends on it.
-    if ((err = http_hooks_on_publish(ruc.req_)) != srs_success) {
+    if ((err = http_hooks_on_publish(ruc->req_)) != srs_success) {
         return srs_error_wrap(err, "RTC: http_hooks_on_publish");
     }
 
