@@ -3035,6 +3035,11 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
             //local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
         }
 
+        // Error if track desc is invalid, that is failed to match SDP, for example, we require H264 but no H264 found.
+        if (track_desc->type_.empty() || !track_desc->media_) {
+            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no match for track=%s, mid=%s, tracker=%s", remote_media_desc.type_.c_str(), remote_media_desc.mid_.c_str(), remote_media_desc.msid_tracker_.c_str());
+        }
+
         // TODO: FIXME: use one parse payload from sdp.
 
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("red"));
