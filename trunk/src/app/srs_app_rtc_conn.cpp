@@ -3026,6 +3026,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                     }
                 }
 
+                track_desc->type_ = "video";
                 track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
                 srs_warn("choose backup H.264 payload type=%d", payload.payload_type_);
             }
