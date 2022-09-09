@@ -2977,6 +2977,9 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                     SrsVideoPayload* video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
                     video_payload->set_h264_param_desc(payload.format_specific_param_);
 
+                    // Set the codec parameter for H.264, to make Unity happy.
+                    video_payload->h264_param_ = h264_param;
+
                     // TODO: FIXME: Only support some transport algorithms.
                     for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
                         const string& rtcp_fb = payload.rtcp_fb_.at(k);
@@ -3061,6 +3064,8 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                     stream_desc->audio_track_desc_ = track_desc_copy;
                 } else if (remote_media_desc.is_video()) {
                     stream_desc->video_track_descs_.push_back(track_desc_copy);
+                } else {
+                    srs_freep(track_desc_copy);
                 }
             }
             track_id = ssrc_info.msid_tracker_;

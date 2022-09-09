@@ -577,11 +577,13 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
 SrsGoApiRtcWhip::SrsGoApiRtcWhip(SrsRtcServer* server)
 {
     publish_ = new SrsGoApiRtcPublish(server);
+    play_ = new SrsGoApiRtcPlay(server);
 }
 
 SrsGoApiRtcWhip::~SrsGoApiRtcWhip()
 {
     srs_freep(publish_);
+    srs_freep(play_);
 }
 
 srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -614,6 +616,13 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     string codec = r->query_get("codec");
     string app = r->query_get("app");
     string stream = r->query_get("stream");
+    string action = r->query_get("action");
+    if (action.empty()) {
+        action = "publish";
+    }
+    if (srs_string_ends_with(r->path(), "/whip-play/")) {
+        action = "play";
+    }
 
     // The RTC user config object.
     SrsRtcUserConfig ruc;
@@ -629,14 +638,14 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         ruc.req_->vhost = parsed_vhost->arg0();
     }
 
-    srs_trace("RTC whip %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
-        ruc.req_->get_stream_url().c_str(), clientip.c_str(), ruc.req_->app.c_str(), ruc.req_->stream.c_str(),
+    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
+        action.c_str(), ruc.req_->get_stream_url().c_str(), clientip.c_str(), ruc.req_->app.c_str(), ruc.req_->stream.c_str(),
         remote_sdp_str.length(), eip.c_str(), codec.c_str()
     );
 
     ruc.eip_ = eip;
     ruc.codec_ = codec;
-    ruc.publish_ = true;
+    ruc.publish_ = (action == "publish");
     ruc.dtls_ = ruc.srtp_ = true;
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
@@ -645,7 +654,8 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         return srs_error_wrap(err, "parse sdp failed: %s", remote_sdp_str.c_str());
     }
 
-    if ((err = publish_->serve_http(w, r, &ruc)) != srs_success) {
+    err = action == "publish" ? publish_->serve_http(w, r, &ruc) : play_->serve_http(w, r, &ruc);
+    if (err != srs_success) {
         return srs_error_wrap(err, "serve");
     }
 
