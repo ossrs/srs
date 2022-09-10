@@ -2693,6 +2693,9 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                     SrsVideoPayload* video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
                     video_payload->set_h264_param_desc(payload.format_specific_param_);
 
+                    // Set the codec parameter for H.264, to make Unity happy.
+                    video_payload->h264_param_ = h264_param;
+
                     // TODO: FIXME: Only support some transport algorithms.
                     for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
                         const string& rtcp_fb = payload.rtcp_fb_.at(k);
@@ -2742,12 +2745,18 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                     }
                 }
 
+                track_desc->type_ = "video";
                 track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
                 srs_warn("choose backup H.264 payload type=%d", payload.payload_type_);
             }
 
             // TODO: FIXME: Support RRTR?
             //local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
+        }
+
+        // Error if track desc is invalid, that is failed to match SDP, for example, we require H264 but no H264 found.
+        if (track_desc->type_.empty() || !track_desc->media_) {
+            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no match for track=%s, mid=%s, tracker=%s", remote_media_desc.type_.c_str(), remote_media_desc.mid_.c_str(), remote_media_desc.msid_tracker_.c_str());
         }
 
         // TODO: FIXME: use one parse payload from sdp.
@@ -2771,6 +2780,8 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                     stream_desc->audio_track_desc_ = track_desc_copy;
                 } else if (remote_media_desc.is_video()) {
                     stream_desc->video_track_descs_.push_back(track_desc_copy);
+                } else {
+                    srs_freep(track_desc_copy);
                 }
             }
             track_id = ssrc_info.msid_tracker_;

@@ -357,13 +357,7 @@ public:
 class SrsVideoPayload : public SrsCodecPayload
 {
 public:
-    struct H264SpecificParameter
-    {
-        std::string profile_level_id;
-        std::string packetization_mode;
-        std::string level_asymmerty_allow;
-    };
-    H264SpecificParameter h264_param_;
+    H264SpecificParam h264_param_;
 
 public:
     SrsVideoPayload();
