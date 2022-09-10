@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v4.0, 2022-09-10, For [#3174](https://github.com/ossrs/srs/issues/3174): WebRTC: Support Unity to publish or play stream. v5.0.62
 * v5.0, 2022-09-06, Fix [#3170](https://github.com/ossrs/srs/issues/3170): WebRTC: Support WHIP(WebRTC-HTTP ingestion protocol). v5.0.61
 * v5.0, 2022-09-04, Fix [#2852](https://github.com/ossrs/srs/issues/2852): WebRTC: WebRTC over TCP directly, not TURN. v5.0.60
 * v5.0, 2022-09-01, Fix [#1405](https://github.com/ossrs/srs/issues/1405): Restore the stream when parsing failed. v5.0.59
