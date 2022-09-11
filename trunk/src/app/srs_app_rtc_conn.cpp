@@ -1895,7 +1895,7 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRtcUserConfig* ruc, SrsSdp& local
 
     // TODO: FIXME: Change to api of stream desc.
     if ((err = negotiate_publish_capability(ruc, stream_desc)) != srs_success) {
-        return srs_error_wrap(err, "publish negotiate");
+        return srs_error_wrap(err, "publish negotiate, offer=%s", ruc->remote_sdp_str_.c_str());
     }
 
     if ((err = generate_publish_local_sdp(req, local_sdp, stream_desc, ruc->remote_sdp_.is_unified())) != srs_success) {
@@ -1934,7 +1934,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig* ruc, SrsSdp& local_sd
 
     std::map<uint32_t, SrsRtcTrackDescription*> play_sub_relations;
     if ((err = negotiate_play_capability(ruc, play_sub_relations)) != srs_success) {
-        return srs_error_wrap(err, "play negotiate");
+        return srs_error_wrap(err, "play negotiate, offer=%s", ruc->remote_sdp_str_.c_str());
     }
 
     if (!play_sub_relations.size()) {
