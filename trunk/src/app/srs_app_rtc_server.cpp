@@ -290,6 +290,7 @@ SrsRtcUserConfig::SrsRtcUserConfig()
     req_ = new SrsRequest();
     publish_ = false;
     dtls_ = srtp_ = true;
+    audio_before_video_ = false;
 }
 
 SrsRtcUserConfig::~SrsRtcUserConfig()

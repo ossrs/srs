@@ -54,6 +54,8 @@ function SrsRtcPublisherAsync() {
         var conf = self.__internal.prepareUrl(url);
         self.pc.addTransceiver("audio", {direction: "sendonly"});
         self.pc.addTransceiver("video", {direction: "sendonly"});
+        //self.pc.addTransceiver("video", {direction: "sendonly"});
+        //self.pc.addTransceiver("audio", {direction: "sendonly"});
 
         if (!navigator.mediaDevices && window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
             throw new SrsError('HttpsRequiredError', `Please use HTTPS or localhost to publish, read https://github.com/ossrs/srs/issues/2762#issuecomment-983147576`);
@@ -303,6 +305,8 @@ function SrsRtcPlayerAsync() {
         var conf = self.__internal.prepareUrl(url);
         self.pc.addTransceiver("audio", {direction: "recvonly"});
         self.pc.addTransceiver("video", {direction: "recvonly"});
+        //self.pc.addTransceiver("video", {direction: "recvonly"});
+        //self.pc.addTransceiver("audio", {direction: "recvonly"});
 
         var offer = await self.pc.createOffer();
         await self.pc.setLocalDescription(offer);

@@ -1992,7 +1992,7 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRtcUserConfig* ruc, SrsSdp& local
         return srs_error_wrap(err, "publish negotiate");
     }
 
-    if ((err = generate_publish_local_sdp(req, local_sdp, stream_desc, ruc->remote_sdp_.is_unified())) != srs_success) {
+    if ((err = generate_publish_local_sdp(req, local_sdp, stream_desc, ruc->remote_sdp_.is_unified(), ruc->audio_before_video_)) != srs_success) {
         return srs_error_wrap(err, "generate local sdp");
     }
 
@@ -2058,7 +2058,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig* ruc, SrsSdp& local_sd
         ++it;
     }
 
-    if ((err = generate_play_local_sdp(req, local_sdp, stream_desc, ruc->remote_sdp_.is_unified())) != srs_success) {
+    if ((err = generate_play_local_sdp(req, local_sdp, stream_desc, ruc->remote_sdp_.is_unified(), ruc->audio_before_video_)) != srs_success) {
         return srs_error_wrap(err, "generate local sdp");
     }
 
@@ -2853,8 +2853,13 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
     // TODO: FIME: Should check packetization-mode=1 also.
     bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
+    // How many video descriptions we have parsed.
+    int nn_any_video_parsed = 0;
+
     for (int i = 0; i < (int)remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_.at(i);
+
+        if (remote_media_desc.is_video()) nn_any_video_parsed++;
 
         SrsRtcTrackDescription* track_desc = new SrsRtcTrackDescription();
         SrsAutoFree(SrsRtcTrackDescription, track_desc);
@@ -2878,6 +2883,9 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
         }
 
         if (remote_media_desc.is_audio()) {
+            // Update the ruc, which is about user specified configuration.
+            ruc->audio_before_video_ = !nn_any_video_parsed;
+
             // TODO: check opus format specific param
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
             if (payloads.empty()) {
@@ -3091,7 +3099,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
     return err;
 }
 
-srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan)
+srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan, bool audio_before_video)
 {
     srs_error_t err = srs_success;
 
@@ -3115,6 +3123,29 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
     local_sdp.msids_.push_back(stream_id);
 
     local_sdp.group_policy_ = "BUNDLE";
+
+    if (audio_before_video) {
+        if ((err = generate_publish_local_sdp_for_audio(local_sdp, stream_desc)) != srs_success) {
+            return srs_error_wrap(err, "audio");
+        }
+        if ((err = generate_publish_local_sdp_for_video(local_sdp, stream_desc, unified_plan)) != srs_success) {
+            return srs_error_wrap(err, "video");
+        }
+    } else {
+        if ((err = generate_publish_local_sdp_for_video(local_sdp, stream_desc, unified_plan)) != srs_success) {
+            return srs_error_wrap(err, "video");
+        }
+        if ((err = generate_publish_local_sdp_for_audio(local_sdp, stream_desc)) != srs_success) {
+            return srs_error_wrap(err, "audio");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::generate_publish_local_sdp_for_audio(SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc)
+{
+    srs_error_t err = srs_success;
 
     // generate audio media desc
     if (stream_desc->audio_track_desc_) {
@@ -3149,6 +3180,13 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
         SrsAudioPayload* payload = (SrsAudioPayload*)audio_track->media_;
         local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
     }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::generate_publish_local_sdp_for_video(SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan)
+{
+    srs_error_t err = srs_success;
 
     for (int i = 0;  i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription* video_track = stream_desc->video_track_descs_.at(i);
@@ -3213,8 +3251,13 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
         return srs_error_wrap(err, "fetch rtc source");
     }
 
+    // How many video descriptions we have parsed.
+    int nn_any_video_parsed = 0;
+
     for (int i = 0; i < (int)remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_.at(i);
+
+        if (remote_media_desc.is_video()) nn_any_video_parsed++;
 
         // Whether feature enabled in remote extmap.
         int remote_twcc_id = 0;
@@ -3231,6 +3274,9 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
         std::vector<SrsRtcTrackDescription*> track_descs;
         SrsMediaPayloadType remote_payload(0);
         if (remote_media_desc.is_audio()) {
+            // Update the ruc, which is about user specified configuration.
+            ruc->audio_before_video_ = !nn_any_video_parsed;
+
             // TODO: check opus format specific param
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
             if (payloads.empty()) {
@@ -3390,7 +3436,7 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, 
     }
 }
 
-srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan)
+srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan, bool audio_before_video)
 {
     srs_error_t err = srs_success;
 
@@ -3416,6 +3462,29 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
     local_sdp.group_policy_ = "BUNDLE";
 
     std::string cname = srs_random_str(16);
+
+    if (audio_before_video) {
+        if ((err = generate_play_local_sdp_for_audio(local_sdp, stream_desc, cname)) != srs_success) {
+            return srs_error_wrap(err, "audio");
+        }
+        if ((err = generate_play_local_sdp_for_video(local_sdp, stream_desc, unified_plan, cname)) != srs_success) {
+            return srs_error_wrap(err, "video");
+        }
+    } else {
+        if ((err = generate_play_local_sdp_for_video(local_sdp, stream_desc, unified_plan, cname)) != srs_success) {
+            return srs_error_wrap(err, "video");
+        }
+        if ((err = generate_play_local_sdp_for_audio(local_sdp, stream_desc, cname)) != srs_success) {
+            return srs_error_wrap(err, "audio");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::generate_play_local_sdp_for_audio(SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, std::string cname)
+{
+    srs_error_t err = srs_success;
 
     // generate audio media desc
     if (stream_desc->audio_track_desc_) {
@@ -3475,6 +3544,13 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
             local_media_desc.ssrc_infos_.push_back(SrsSSRCInfo(audio_track->fec_ssrc_, cname, audio_track->msid_, audio_track->id_));
         }
     }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::generate_play_local_sdp_for_video(SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan, std::string cname)
+{
+    srs_error_t err = srs_success;
 
     for (int i = 0;  i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription* track = stream_desc->video_track_descs_[i];
