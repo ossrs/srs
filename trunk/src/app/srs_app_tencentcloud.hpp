@@ -492,6 +492,7 @@ class SrsApmClient
 {
 private:
     bool enabled_;
+    uint64_t nn_spans_;
     std::string token_;
     std::string endpoint_;
     std::string service_name_;
@@ -503,6 +504,8 @@ public:
 public:
     srs_error_t initialize();
     srs_error_t report();
+    bool enabled();
+    uint64_t nn_spans();
 public:
     // Create a span with specified name.
     ISrsApmSpan* span(const std::string& name);

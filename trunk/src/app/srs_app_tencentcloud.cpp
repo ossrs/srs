@@ -2086,6 +2086,7 @@ ISrsApmSpan* SrsApmSpan::load()
 SrsApmClient::SrsApmClient()
 {
     enabled_ = false;
+    nn_spans_ = 0;
 }
 
 SrsApmClient::~SrsApmClient()
@@ -2120,6 +2121,9 @@ srs_error_t SrsApmClient::report()
     srs_error_t err = srs_success;
 
     if (spans_.empty()) return err;
+
+    // Update statistaic for APM.
+    nn_spans_ += spans_.size();
 
     SrsOtelExportTraceServiceRequest* sugar = new SrsOtelExportTraceServiceRequest();
     SrsAutoFree(SrsOtelExportTraceServiceRequest, sugar);
@@ -2198,6 +2202,16 @@ srs_error_t SrsApmClient::report()
     }
 
     return err;
+}
+
+bool SrsApmClient::enabled()
+{
+    return enabled_;
+}
+
+uint64_t SrsApmClient::nn_spans()
+{
+    return nn_spans_;
 }
 
 ISrsApmSpan* SrsApmClient::span(const std::string& name)
