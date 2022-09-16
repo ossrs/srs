@@ -114,6 +114,21 @@ jobs:
             ossrs/srs:${{ env.SRS_VERSION }}
             ossrs/srs:${{ env.SRS_MAJOR }}
             ossrs/srs:v${{ env.SRS_MAJOR }}
+
+  aliyun-srs:
+    name: aliyun-srs
+    runs-on: ubuntu-20.04
+    needs:
+      - envs
+      - docker-srs
+      - test
+    steps:
+      ##################################################################################################################
+      - name: Covert output to env
+        run: |
+          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
+          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
+          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Login aliyun hub
@@ -137,7 +152,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - test
-      - docker-srs
+      - aliyun-srs
       - envs
     steps:
       ##################################################################################################################
