@@ -71,7 +71,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE3(!string(source).empty(), "source", source, ss);
 
     int nn_vhosts = 0;
-    bool rtsp = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
+    bool gb28181 = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
     bool hooks = false, dash = false, hds = false, exec = false, transcode = false, security = false;
     bool flv2 = false, oc = false;
 
@@ -80,10 +80,10 @@ void srs_build_features(stringstream& ss)
     for (int i = 0; i < (int)root->directives.size() && i < 128; i++) {
         SrsConfDirective* conf = root->at(i);
 
-        if (!rtsp && conf->is_stream_caster() && _srs_config->get_stream_caster_enabled(conf)) {
+        if (!gb28181 && conf->is_stream_caster() && _srs_config->get_stream_caster_enabled(conf)) {
             string engine = _srs_config->get_stream_caster_engine(conf);
-            if (engine == "rtsp") {
-                rtsp = true;
+            if (engine == "gb28181") {
+                gb28181 = true;
             } else if (engine == "flv") {
                 flv2 = true;
             }
@@ -144,7 +144,7 @@ void srs_build_features(stringstream& ss)
     }
 
     SRS_CHECK_FEATURE2(nn_vhosts, "vhosts", ss);
-    SRS_CHECK_FEATURE(rtsp, ss);
+    SRS_CHECK_FEATURE(gb28181, ss);
     SRS_CHECK_FEATURE(flv2, ss);
     SRS_CHECK_FEATURE(forward, ss);
     SRS_CHECK_FEATURE(ingest, ss);
