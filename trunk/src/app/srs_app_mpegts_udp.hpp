@@ -26,10 +26,26 @@ class SrsRawAacStream;
 struct SrsRawAacStreamCodec;
 class SrsPithyPrint;
 class SrsSimpleRtmpClient;
+class SrsMpegtsOverUdp;
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_app_listener.hpp>
+
+// A UDP listener, for udp stream caster server.
+class SrsUdpCasterListener : public ISrsListener
+{
+private:
+    SrsUdpListener* listener_;
+    SrsMpegtsOverUdp* caster_;
+public:
+    SrsUdpCasterListener();
+    virtual ~SrsUdpCasterListener();
+public:
+    srs_error_t initialize(SrsConfDirective* conf);
+    srs_error_t listen();
+    void close();
+};
 
 // The queue for mpegts over udp to send packets.
 // For the aac in mpegts contains many flv packets in a pes packet,
@@ -72,8 +88,10 @@ private:
     SrsMpegtsQueue* queue;
     SrsPithyPrint* pprint;
 public:
-    SrsMpegtsOverUdp(SrsConfDirective* c);
+    SrsMpegtsOverUdp();
     virtual ~SrsMpegtsOverUdp();
+public:
+    srs_error_t initialize(SrsConfDirective* c);
 // Interface ISrsUdpHandler
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);

@@ -76,7 +76,7 @@ public:
         srs_close_stfd(fd);
 	}
 public:
-    virtual srs_error_t on_tcp_client(srs_netfd_t stfd) {
+    virtual srs_error_t on_tcp_client(ISrsListener* listener, srs_netfd_t stfd) {
         fd = stfd;
         return srs_success;
 	}
@@ -87,15 +87,16 @@ VOID TEST(TCPServerTest, PingPong)
 	srs_error_t err;
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+		SrsTcpListener l(&h);
+        l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 
 		HELPER_EXPECT_SUCCESS(l.listen());
-		EXPECT_TRUE(l.fd() > 0);
 	}
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+		SrsTcpListener l(&h);
+        l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
@@ -107,7 +108,8 @@ VOID TEST(TCPServerTest, PingPong)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+		SrsTcpListener l(&h);
+        l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
@@ -128,7 +130,8 @@ VOID TEST(TCPServerTest, PingPong)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+		SrsTcpListener l(&h);
+        l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
@@ -151,7 +154,8 @@ VOID TEST(TCPServerTest, PingPong)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+		SrsTcpListener l(&h);
+        l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
@@ -185,7 +189,8 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+		SrsTcpListener l(&h);
+        l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
@@ -206,7 +211,8 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+		SrsTcpListener l(&h);
+        l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
@@ -227,7 +233,8 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+		SrsTcpListener l(&h);
+        l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
@@ -406,7 +413,8 @@ VOID TEST(TCPServerTest, WritevIOVC)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+		SrsTcpListener l(&h);
+        l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
@@ -435,7 +443,8 @@ VOID TEST(TCPServerTest, WritevIOVC)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+		SrsTcpListener l(&h);
+        l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
@@ -1516,7 +1525,8 @@ VOID TEST(ThreadCriticalTest, FailIfCloseActiveFD)
     srs_error_t err;
 
     MockTcpHandler h;
-    SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+    SrsTcpListener l(&h);
+    l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
     HELPER_EXPECT_SUCCESS(l.listen());
 
     SrsTcpClient c0(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);

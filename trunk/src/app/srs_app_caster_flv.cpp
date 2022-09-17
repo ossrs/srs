@@ -28,10 +28,66 @@ using namespace std;
 
 #define SRS_HTTP_FLV_STREAM_BUFFER 4096
 
-SrsAppCasterFlv::SrsAppCasterFlv(SrsConfDirective* c)
+SrsHttpFlvListener::SrsHttpFlvListener()
+{
+    listener_ = new SrsTcpListener(this);
+    caster_ = new SrsAppCasterFlv();
+}
+
+SrsHttpFlvListener::~SrsHttpFlvListener()
+{
+    srs_freep(caster_);
+    srs_freep(listener_);
+}
+
+srs_error_t SrsHttpFlvListener::initialize(SrsConfDirective* c)
+{
+    srs_error_t err = srs_success;
+
+    int port = _srs_config->get_stream_caster_listen(c);
+    if (port <= 0) {
+        return srs_error_new(ERROR_STREAM_CASTER_PORT, "invalid port=%d", port);
+    }
+
+    listener_->set_endpoint(srs_any_address_for_listener(), port)->set_label("PUSH-FLV");
+
+    if ((err = caster_->initialize(c)) != srs_success) {
+        return srs_error_wrap(err, "init caster port=%d", port);
+    }
+
+    return err;
+}
+
+srs_error_t SrsHttpFlvListener::listen()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = listener_->listen()) != srs_success) {
+        return srs_error_wrap(err, "listen");
+    }
+
+    return err;
+}
+
+void SrsHttpFlvListener::close()
+{
+    listener_->close();
+}
+
+srs_error_t SrsHttpFlvListener::on_tcp_client(ISrsListener* listener, srs_netfd_t stfd)
+{
+    srs_error_t err = caster_->on_tcp_client(listener, stfd);
+    if (err != srs_success) {
+        srs_warn("accept client failed, err is %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+
+    return err;
+}
+
+SrsAppCasterFlv::SrsAppCasterFlv()
 {
     http_mux = new SrsHttpServeMux();
-    output = _srs_config->get_stream_caster_output(c);
     manager = new SrsResourceManager("CFLV");
 }
 
@@ -41,9 +97,11 @@ SrsAppCasterFlv::~SrsAppCasterFlv()
     srs_freep(manager);
 }
 
-srs_error_t SrsAppCasterFlv::initialize()
+srs_error_t SrsAppCasterFlv::initialize(SrsConfDirective* c)
 {
     srs_error_t err = srs_success;
+
+    output = _srs_config->get_stream_caster_output(c);
     
     if ((err = http_mux->handle("/", this)) != srs_success) {
         return srs_error_wrap(err, "handle root");
@@ -56,7 +114,7 @@ srs_error_t SrsAppCasterFlv::initialize()
     return err;
 }
 
-srs_error_t SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
+srs_error_t SrsAppCasterFlv::on_tcp_client(ISrsListener* listener, srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
 

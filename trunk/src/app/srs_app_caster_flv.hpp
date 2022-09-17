@@ -22,12 +22,31 @@ class ISrsHttpResponseReader;
 class SrsFlvDecoder;
 class SrsTcpClient;
 class SrsSimpleRtmpClient;
+class SrsAppCasterFlv;
 
 #include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_kernel_file.hpp>
+
+// A TCP listener, for flv stream server.
+class SrsHttpFlvListener : public ISrsTcpHandler, public ISrsListener
+{
+private:
+    SrsTcpListener* listener_;
+    SrsAppCasterFlv* caster_;
+public:
+    SrsHttpFlvListener();
+    virtual ~SrsHttpFlvListener();
+public:
+    srs_error_t initialize(SrsConfDirective* c);
+    virtual srs_error_t listen();
+    void close();
+// Interface ISrsTcpHandler
+public:
+    virtual srs_error_t on_tcp_client(ISrsListener* listener, srs_netfd_t stfd);
+};
 
 // The stream caster for flv stream over HTTP POST.
 class SrsAppCasterFlv : public ISrsTcpHandler, public ISrsResourceManager, public ISrsHttpHandler
@@ -38,13 +57,13 @@ private:
     std::vector<ISrsConnection*> conns;
     SrsResourceManager* manager;
 public:
-    SrsAppCasterFlv(SrsConfDirective* c);
+    SrsAppCasterFlv();
     virtual ~SrsAppCasterFlv();
 public:
-    virtual srs_error_t initialize();
+    virtual srs_error_t initialize(SrsConfDirective* c);
 // Interface ISrsTcpHandler
 public:
-    virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
+    virtual srs_error_t on_tcp_client(ISrsListener* listener, srs_netfd_t stfd);
 // Interface ISrsResourceManager
 public:
     virtual void remove(ISrsResource* c);

@@ -49,11 +49,6 @@ ISrsUdpHandler::~ISrsUdpHandler()
 {
 }
 
-srs_error_t ISrsUdpHandler::on_stfd_change(srs_netfd_t /*fd*/)
-{
-    return srs_success;
-}
-
 ISrsUdpMuxHandler::ISrsUdpMuxHandler()
 {
 }
@@ -62,12 +57,11 @@ ISrsUdpMuxHandler::~ISrsUdpMuxHandler()
 {
 }
 
-srs_error_t ISrsUdpMuxHandler::on_stfd_change(srs_netfd_t /*fd*/)
+ISrsListener::ISrsListener()
 {
-    return srs_success;
 }
 
-void ISrsUdpHandler::set_stfd(srs_netfd_t /*fd*/)
+ISrsListener::~ISrsListener()
 {
 }
 
@@ -79,12 +73,12 @@ ISrsTcpHandler::~ISrsTcpHandler()
 {
 }
 
-SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, string i, int p)
+SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h)
 {
     handler = h;
-    ip = i;
-    port = p;
     lfd = NULL;
+    port = 0;
+    label_ = "UDP";
     
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
@@ -97,6 +91,19 @@ SrsUdpListener::~SrsUdpListener()
     srs_freep(trd);
     srs_close_stfd(lfd);
     srs_freepa(buf);
+}
+
+SrsUdpListener* SrsUdpListener::set_label(const std::string& label)
+{
+    label_ = label;
+    return this;
+}
+
+SrsUdpListener* SrsUdpListener::set_endpoint(const std::string& i, int p)
+{
+    ip = i;
+    port = p;
+    return this;
 }
 
 int SrsUdpListener::fd()
@@ -163,8 +170,6 @@ srs_error_t SrsUdpListener::listen()
     }
 
     set_socket_buffer();
-
-    handler->set_stfd(lfd);
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("udp", this, _srs_context->get_id());
@@ -173,6 +178,11 @@ srs_error_t SrsUdpListener::listen()
     }
     
     return err;
+}
+
+void SrsUdpListener::close()
+{
+    trd->stop();
 }
 
 srs_error_t SrsUdpListener::cycle()
@@ -211,14 +221,12 @@ srs_error_t SrsUdpListener::cycle()
     return err;
 }
 
-SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
+SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h)
 {
     handler = h;
-    ip = i;
-    port = p;
-
+    port = 0;
     lfd = NULL;
-    
+    label_ = "TCP";
     trd = new SrsDummyCoroutine();
 }
 
@@ -228,15 +236,31 @@ SrsTcpListener::~SrsTcpListener()
     srs_close_stfd(lfd);
 }
 
-int SrsTcpListener::fd()
+SrsTcpListener* SrsTcpListener::set_label(const std::string& label)
 {
-    return srs_netfd_fileno(lfd);;
+    label_ = label;
+    return this;
+}
+
+SrsTcpListener* SrsTcpListener::set_endpoint(const std::string& i, int p)
+{
+    ip = i;
+    port = p;
+    return this;
+}
+
+SrsTcpListener* SrsTcpListener::set_endpoint(const std::string& endpoint)
+{
+    std::string ip; int port;
+    srs_parse_endpoint(endpoint, ip, port);
+    return set_endpoint(ip, port);
 }
 
 srs_error_t SrsTcpListener::listen()
 {
     srs_error_t err = srs_success;
 
+    srs_close_stfd(lfd);
     if ((err = srs_tcp_listen(ip, port, &lfd)) != srs_success) {
         return srs_error_wrap(err, "listen at %s:%d", ip.c_str(), port);
     }
@@ -246,8 +270,17 @@ srs_error_t SrsTcpListener::listen()
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "start coroutine");
     }
+
+    int fd = srs_netfd_fileno(lfd);
+    srs_trace("%s listen at tcp://%s:%d, fd=%d", label_.c_str(), ip.c_str(), port, fd);
     
     return err;
+}
+
+void SrsTcpListener::close()
+{
+    trd->stop();
+    srs_close_stfd(lfd);
 }
 
 srs_error_t SrsTcpListener::cycle()
@@ -268,12 +301,77 @@ srs_error_t SrsTcpListener::cycle()
             return srs_error_wrap(err, "set closeexec");
         }
         
-        if ((err = handler->on_tcp_client(fd)) != srs_success) {
+        if ((err = handler->on_tcp_client(this, fd)) != srs_success) {
             return srs_error_wrap(err, "handle fd=%d", srs_netfd_fileno(fd));
         }
     }
     
     return err;
+}
+
+SrsMultipleTcpListeners::SrsMultipleTcpListeners(ISrsTcpHandler* h)
+{
+    handler_ = h;
+}
+
+SrsMultipleTcpListeners::~SrsMultipleTcpListeners()
+{
+    for (vector<SrsTcpListener*>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+        SrsTcpListener* l = *it;
+        srs_freep(l);
+    }
+}
+
+SrsMultipleTcpListeners* SrsMultipleTcpListeners::set_label(const std::string& label)
+{
+    for (vector<SrsTcpListener*>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+        SrsTcpListener* l = *it;
+        l->set_label(label);
+    }
+
+    return this;
+}
+
+SrsMultipleTcpListeners* SrsMultipleTcpListeners::add(const std::vector<std::string>& endpoints)
+{
+    for (int i = 0; i < (int) endpoints.size(); i++) {
+        string ip; int port;
+        srs_parse_endpoint(endpoints[i], ip, port);
+
+        SrsTcpListener* l = new SrsTcpListener(this);
+        listeners_.push_back(l->set_endpoint(ip, port));
+    }
+
+    return this;
+}
+
+srs_error_t SrsMultipleTcpListeners::listen()
+{
+    srs_error_t err = srs_success;
+
+    for (vector<SrsTcpListener*>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+        SrsTcpListener* l = *it;
+
+        if ((err = l->listen()) != srs_success) {
+            return srs_error_wrap(err, "listen");
+        }
+    }
+
+    return err;
+}
+
+void SrsMultipleTcpListeners::close()
+{
+    for (vector<SrsTcpListener*>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+        SrsTcpListener* l = *it;
+        srs_freep(l);
+    }
+    listeners_.clear();
+}
+
+srs_error_t SrsMultipleTcpListeners::on_tcp_client(ISrsListener* listener, srs_netfd_t stfd)
+{
+    return handler_->on_tcp_client(this, stfd);
 }
 
 SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
