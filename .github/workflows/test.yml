@@ -15,8 +15,8 @@ jobs:
       # Build for CentOS 7
       - name: Build on CentOS7, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-baseline .
-      - name: Build on CentOS7, with SRT
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-srt .
+      - name: Build on CentOS7, with all features
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-all .
       - name: Build on CentOS7, without WebRTC
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-webrtc .
       - name: Build on CentOS7, without ASM
@@ -35,8 +35,8 @@ jobs:
       # Build for CentOS 6
       - name: Build on CentOS6, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-baseline .
-      - name: Build on CentOS6, with SRT
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-srt .
+      - name: Build on CentOS6, with all features
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-all .
 
   build-ubuntu16:
     name: build-ubuntu16
@@ -49,8 +49,8 @@ jobs:
       # Build for Ubuntu16
       - name: Build on Ubuntu16, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-baseline .
-      - name: Build on Ubuntu16, with SRT
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-srt .
+      - name: Build on Ubuntu16, with all features
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-all .
 
   build-ubuntu18:
     name: build-ubuntu18
@@ -63,8 +63,8 @@ jobs:
       # Build for Ubuntu18
       - name: Build on Ubuntu18, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-baseline .
-      - name: Build on Ubuntu18, with SRT
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-srt .
+      - name: Build on Ubuntu18, with all features
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-all .
 
   build-ubuntu20:
     name: build-ubuntu20
@@ -77,8 +77,8 @@ jobs:
       # Build for Ubuntu20
       - name: Build on Ubuntu20, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-baseline .
-      - name: Build on Ubuntu20, with SRT
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-srt .
+      - name: Build on Ubuntu20, with all features
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-all .
 
   build-cross-arm:
     name: build-cross-arm

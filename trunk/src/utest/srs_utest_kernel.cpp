@@ -377,6 +377,40 @@ srs_error_t MockTsHandler::on_ts_message(SrsTsMessage* m)
     return srs_success;
 }
 
+MockPsHandler::MockPsHandler()
+{
+}
+
+MockPsHandler::~MockPsHandler()
+{
+    clear();
+}
+
+srs_error_t MockPsHandler::on_ts_message(SrsTsMessage* m)
+{
+    msgs_.push_back(m->detach());
+    return srs_success;
+}
+
+void MockPsHandler::on_recover_mode(int nn_recover)
+{
+}
+
+void MockPsHandler::on_recover_done(srs_utime_t duration)
+{
+}
+
+MockPsHandler* MockPsHandler::clear()
+{
+    for (vector<SrsTsMessage*>::iterator it = msgs_.begin(); it != msgs_.end(); ++it) {
+        SrsTsMessage* msg = *it;
+        srs_freep(msg);
+    }
+
+    msgs_.clear();
+    return this;
+}
+
 void mock_print_err(srs_error_t err)
 {
     fprintf(stderr, "err %s\n", srs_error_desc(err).c_str());

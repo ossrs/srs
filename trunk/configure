@@ -211,7 +211,7 @@ MODULE_DEPENDS=("CORE")
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
 MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_buffer"
         "srs_kernel_utility" "srs_kernel_flv" "srs_kernel_codec" "srs_kernel_io"
-        "srs_kernel_consts" "srs_kernel_aac" "srs_kernel_mp3" "srs_kernel_ts"
+        "srs_kernel_consts" "srs_kernel_aac" "srs_kernel_mp3" "srs_kernel_ts" "srs_kernel_ps"
         "srs_kernel_stream" "srs_kernel_balance" "srs_kernel_mp4" "srs_kernel_file"
         "srs_kernel_kbps")
 if [[ $SRS_RTC == YES ]]; then
@@ -273,6 +273,9 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     MODULE_FILES+=("srs_app_rtc_codec")
+fi
+if [[ $SRS_GB28181 == YES ]]; then
+    MODULE_FILES+=("srs_app_gb28181")
 fi
 
 DEFINES=""
@@ -393,6 +396,9 @@ if [ $SRS_UTEST = YES ]; then
         "srs_utest_protocol" "srs_utest_protocol2")
     if [[ $SRS_SRT == YES ]]; then
         MODULE_FILES+=("srs_utest_srt")
+    fi
+    if [[ $SRS_GB28181 == YES ]]; then
+        MODULE_FILES+=("srs_utest_gb28181")
     fi
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
     if [[ $SRS_RTC == YES ]]; then
@@ -644,6 +650,11 @@ if [ $SRS_HDS = YES ]; then
     echo -e "${YELLOW}Experiment: HDS is enabled.${BLACK}"
 else
     echo -e "${GREEN}Warning: HDS is disabled.${BLACK}"
+fi
+if [ $SRS_GB28181 = YES ]; then
+    echo -e "${YELLOW}Experiment: GB28181 is enabled. https://github.com/ossrs/srs/issues/3176${BLACK}"
+else
+    echo -e "${GREEN}Warning: GB28181 is disabled.${BLACK}"
 fi
 if [ $SRS_SRT = YES ]; then
     echo -e "${YELLOW}Experiment: SRT is enabled. https://github.com/ossrs/srs/issues/1147${BLACK}"

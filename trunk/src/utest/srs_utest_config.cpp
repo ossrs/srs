@@ -2857,46 +2857,6 @@ VOID TEST(ConfigMainTest, CheckStreamCaster)
 
         EXPECT_EQ(8080, conf.get_stream_caster_listen(arr.at(0)));
     }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster;"));
-
-        vector<SrsConfDirective*> arr = conf.get_stream_casters();
-        ASSERT_EQ(1, (int)arr.size());
-
-        EXPECT_EQ(0, (int)conf.get_stream_caster_rtp_port_min(arr.at(0)));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster {rtp_port_min 8080;}"));
-
-        vector<SrsConfDirective*> arr = conf.get_stream_casters();
-        ASSERT_EQ(1, (int)arr.size());
-
-        EXPECT_EQ(8080, conf.get_stream_caster_rtp_port_min(arr.at(0)));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster;"));
-
-        vector<SrsConfDirective*> arr = conf.get_stream_casters();
-        ASSERT_EQ(1, (int)arr.size());
-
-        EXPECT_EQ(0, (int)conf.get_stream_caster_rtp_port_max(arr.at(0)));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster {rtp_port_max 8080;}"));
-
-        vector<SrsConfDirective*> arr = conf.get_stream_casters();
-        ASSERT_EQ(1, (int)arr.size());
-
-        EXPECT_EQ(8080, conf.get_stream_caster_rtp_port_max(arr.at(0)));
-    }
 }
 
 VOID TEST(ConfigMainTest, CheckVhostConfig2)

@@ -101,6 +101,7 @@ extern bool srs_config_dvr_is_plan_segment(std::string plan);
 extern bool srs_config_dvr_is_plan_session(std::string plan);
 extern bool srs_stream_caster_is_udp(std::string caster);
 extern bool srs_stream_caster_is_flv(std::string caster);
+extern bool srs_stream_caster_is_gb28181(std::string caster);
 // Whether the dvr_apply active the stream specified by req.
 extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);
 
@@ -487,13 +488,16 @@ public:
     virtual std::string get_stream_caster_output(SrsConfDirective* conf);
     // Get the listen port of stream caster.
     virtual int get_stream_caster_listen(SrsConfDirective* conf);
-    // Get the listen port type of stream caster.
-    virtual bool get_stream_caster_tcp_enable(SrsConfDirective* conf);
-    // Get the min udp port for rtp of stream caster rtsp.
-    virtual int get_stream_caster_rtp_port_min(SrsConfDirective* conf);
-    // Get the max udp port for rtp of stream caster rtsp.
-    virtual int get_stream_caster_rtp_port_max(SrsConfDirective* conf);
-
+    // Get the sip.enabled configuration.
+    virtual bool get_stream_caster_sip_enable(SrsConfDirective* conf);
+    // Get the sip.listen port configuration.
+    virtual int get_stream_caster_sip_listen(SrsConfDirective* conf);
+    // Get the sip.timeout configuration.
+    virtual srs_utime_t get_stream_caster_sip_timeout(SrsConfDirective* conf);
+    // Get the sip.reinvite configuration.
+    virtual srs_utime_t get_stream_caster_sip_reinvite(SrsConfDirective* conf);
+    // Get the candidate for SDP.
+    virtual std::string get_stream_caster_sip_candidate(SrsConfDirective* conf);
 // rtc section
 public:
     virtual bool get_rtc_server_enabled();

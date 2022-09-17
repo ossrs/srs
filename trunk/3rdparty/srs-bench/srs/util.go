@@ -73,9 +73,7 @@ var srsPublishAvatar *string
 var srsPublishBBB *string
 var srsVnetClientIP *string
 
-func prepareTest() error {
-	var err error
-
+func prepareTest() (err error) {
 	srsHttps = flag.Bool("srs-https", false, "Whther connect to HTTPS-API")
 	srsServer = flag.String("srs-server", "127.0.0.1", "The RTC server to connect to")
 	srsStream = flag.String("srs-stream", "/rtc/regression", "The RTC app/stream to play")

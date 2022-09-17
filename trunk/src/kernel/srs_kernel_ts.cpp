@@ -68,6 +68,7 @@ SrsTsMessage::SrsTsMessage(SrsTsChannel* c, SrsTsPacket* p)
 {
     channel = c;
     packet = p;
+    ps_helper_ = NULL;
     
     dts = pts = 0;
     sid = (SrsTsPESStreamId)0x00;
@@ -108,7 +109,7 @@ srs_error_t SrsTsMessage::dump(SrsBuffer* stream, int* pnb_bytes)
         stream->skip(nb_bytes);
     }
     
-    *pnb_bytes = nb_bytes;
+    if (pnb_bytes) *pnb_bytes = nb_bytes;
     
     return err;
 }
@@ -123,7 +124,9 @@ bool SrsTsMessage::completed(int8_t payload_unit_start_indicator)
 
 bool SrsTsMessage::fresh()
 {
-    return payload->length() == 0;
+    // Note that both must be 0. For PS stream, the payload might be empty but PES_packet_length is not, see
+    // PsPacketDecodePrivateStream of KernelPSTest. For TS stream, both should be 0 in the same time.
+    return PES_packet_length == 0 && payload->length() == 0;
 }
 
 bool SrsTsMessage::is_audio()
@@ -1565,6 +1568,11 @@ srs_error_t SrsMpegPES::decode(SrsBuffer* stream)
         // for (i = 0; i < PES_packet_length; i++) {
         //         PES_packet_data_byte
         // }
+
+        // For PS, the PES packet should never be empty, because there is no continuity for PS packet.
+        if (PES_packet_length <= 0) {
+            return srs_error_new(ERROR_GB_PS_PSE, "ts: Invalid PES_packet_length=%d for PS", PES_packet_length);
+        }
 
         // The pos_packet equals to stream pos, so the PES_packet_length is actually the payload length.
         nb_payload_ = PES_packet_length;

@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-10-06, GB28181: Support GB28181-2016 protocol. v5.0.74
 * v5.0, 2022-10-05, HTTP: Skip body and left message by upgrade. v5.0.73
 * v5.0, 2022-10-02, ST: Support set context id while thread running. v5.0.72
 * v5.0, 2022-09-30, RTC: Refine SDP to support GB28181 SSRC spec. v5.0.71

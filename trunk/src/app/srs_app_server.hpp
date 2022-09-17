@@ -40,6 +40,7 @@ class SrsWaitGroup;
 class SrsMultipleTcpListeners;
 class SrsHttpFlvListener;
 class SrsUdpCasterListener;
+class SrsGbListener;
 
 // Convert signal to io,
 // @see: st-1.9/docs/notes.html
@@ -136,6 +137,10 @@ private:
     // Exporter server listener, over TCP. Please note that metrics request of HTTP is served by this
     // listener, and it might be reused by HTTP API.
     SrsTcpListener* exporter_listener_;
+#ifdef SRS_GB28181
+    // Stream Caster for GB28181.
+    SrsGbListener* stream_caster_gb28181_;
+#endif
 private:
     // Signal manager which convert gignal to io message.
     SrsSignalManager* signal_manager;

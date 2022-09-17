@@ -56,13 +56,13 @@ The features of SRS.
 - [x] Other: Support write log to tencent cloud CLS.
 - [x] Other: [Experimental] Support pushing MPEG-TS over UDP, please read [bug #250](https://github.com/ossrs/srs/issues/250).
 - [x] Other: [Experimental] Support pushing FLV over HTTP POST, please read wiki([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-http-flv-to-srs), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/streamer#push-http-flv-to-srs)).
+- [x] Other: [Experimental] Support push stream by GB28181, [#3176](https://github.com/ossrs/srs/issues/3176).
 - [ ] System: Support Windows/Cygwin 64bits, [#2532](https://github.com/ossrs/srs/issues/2532).
 - [ ] System: Support H.265 over RTMP and HLS, [#465](https://github.com/ossrs/srs/issues/465).
 - [ ] System: Support source cleanup for idle streams, [#413](https://github.com/ossrs/srs/issues/413).
 - [ ] Live: Support HLS variant, [#463](https://github.com/ossrs/srs/issues/463).
 - [ ] RTC: Support IETF-QUIC for WebRTC Cluster, [#2091](https://github.com/ossrs/srs/issues/2091).
 - [ ] RTC: Improve RTC performance to 5K by multiple threading, [#2188](https://github.com/ossrs/srs/issues/2188).
-- [ ] Other: Support push stream by GB28181, [#1500](https://github.com/ossrs/srs/issues/1500).
 - [ ] Other: Support change user to run SRS, [#1111](https://github.com/ossrs/srs/issues/1111).
 - [x] [Deprecated] Live: Support Adobe HDS(f4m), please read wiki([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hds), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/delivery-hds)) and [#1535](https://github.com/ossrs/srs/issues/1535).
 - [x] [Deprecated] Other: Support bandwidth testing, please read [#1535](https://github.com/ossrs/srs/issues/1535).
