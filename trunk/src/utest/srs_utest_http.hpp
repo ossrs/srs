@@ -37,6 +37,18 @@ public:
     virtual srs_error_t filter(SrsHttpHeader* h);
 };
 
+class MockMSegmentsReader : public ISrsReader
+{
+public:
+    std::vector<string> in_bytes;
+public:
+    MockMSegmentsReader();
+    virtual ~MockMSegmentsReader();
+public:
+    virtual void append(string b);
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+};
+
 string mock_http_response(int status, string content);
 string mock_http_response2(int status, string content);
 bool is_string_contain(string substr, string str);

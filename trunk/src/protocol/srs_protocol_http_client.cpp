@@ -324,6 +324,7 @@ srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg
         path = "/";
     }
 
+    // TODO: FIXME: Use SrsHttpMessageWriter, never use stringstream and headers.
     // send POST request to uri
     // POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;

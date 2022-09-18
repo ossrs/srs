@@ -19,26 +19,17 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
 
-class MockMSegmentsReader : public ISrsReader
-{
-public:
-    vector<string> in_bytes;
-public:
-    MockMSegmentsReader();
-    virtual ~MockMSegmentsReader();
-public:
-    virtual void append(string b) {
-        in_bytes.push_back(b);
-    }
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
-};
-
 MockMSegmentsReader::MockMSegmentsReader()
 {
 }
 
 MockMSegmentsReader::~MockMSegmentsReader()
 {
+}
+
+void MockMSegmentsReader::append(string b)
+{
+    in_bytes.push_back(b);
 }
 
 srs_error_t MockMSegmentsReader::read(void* buf, size_t size, ssize_t* nread)
@@ -76,7 +67,7 @@ srs_error_t MockMSegmentsReader::read(void* buf, size_t size, ssize_t* nread)
 MockResponseWriter::MockResponseWriter()
 {
     w = new SrsHttpResponseWriter(&io);
-    w->hf = this;
+    w->set_header_filter(this);
 }
 
 MockResponseWriter::~MockResponseWriter()
@@ -1053,7 +1044,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, 200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs;
@@ -1073,7 +1064,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, 200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs;
@@ -1093,7 +1084,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, 200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs;
@@ -1113,7 +1104,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, 200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs;
@@ -1778,7 +1769,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 
         SrsHttpMessage m;
         m.set_header(&h, false);
-        m.set_basic(HTTP_REQUEST, HTTP_POST, 200, 2);
+        m.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, 2);
         EXPECT_EQ(10, m.content_length());
     }
 
@@ -1788,7 +1779,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
         h.set("Content-Length", "10");
 
         SrsHttpMessage m;
-        m.set_basic(HTTP_REQUEST, HTTP_POST, 200, 2);
+        m.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, 2);
         m.set_header(&h, false);
         EXPECT_EQ(10, m.content_length());
     }
@@ -1822,7 +1813,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 
     if (true) {
         SrsHttpMessage m;
-        m.set_basic(HTTP_REQUEST, HTTP_POST, 200, 0);
+        m.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, 0);
         EXPECT_EQ(0, m.content_length());
     }
 
@@ -2117,6 +2108,7 @@ VOID TEST(ProtocolHTTPTest, QueryEscape)
 VOID TEST(ProtocolHTTPTest, PathEscape)
 {
     srs_error_t err = srs_success;
+
     struct EscapeTest path[] = {
         {"", "", srs_success},
 	    {"abc", "abc", srs_success},
@@ -2138,5 +2130,5 @@ VOID TEST(ProtocolHTTPTest, PathEscape)
         EXPECT_STREQ(d.in.c_str(), value.c_str());
         EXPECT_EQ(0, memcmp(d.in.c_str(), value.c_str(), d.in.length()));
     }
-
 }
+

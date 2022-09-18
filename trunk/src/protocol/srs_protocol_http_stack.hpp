@@ -207,6 +207,72 @@ public:
     virtual bool eof() = 0;
 };
 
+// A RequestWriter interface is used by an HTTP handler to
+// construct an HTTP request.
+// Usage 0, request with a message once:
+//      ISrsHttpRequestWriter* w; // create or get request.
+//      std::string msg = "Hello, HTTP!";
+//      w->write((char*)msg.data(), (int)msg.length());
+// Usage 1, request with specified length content, same to #0:
+//      ISrsHttpRequestWriter* w; // create or get request.
+//      std::string msg = "Hello, HTTP!";
+//      w->header()->set_content_type("text/plain; charset=utf-8");
+//      w->header()->set_content_length(msg.length());
+//      w->write_header("POST", "/");
+//      w->write((char*)msg.data(), (int)msg.length()); // write N times, N>0
+//      w->final_request(); // optional flush.
+// Usage 2, request with HTTP code only, zero content length.
+//      ISrsHttpRequestWriter* w; // create or get request.
+//      w->header()->set_content_length(0);
+//      w->write_header("GET", "/");
+//      w->final_request();
+// Usage 3, request in chunked encoding.
+//      ISrsHttpRequestWriter* w; // create or get request.
+//      std::string msg = "Hello, HTTP!";
+//      w->header()->set_content_type("application/octet-stream");
+//      w->write_header("POST", "/");
+//      w->write((char*)msg.data(), (int)msg.length());
+//      w->write((char*)msg.data(), (int)msg.length());
+//      w->write((char*)msg.data(), (int)msg.length());
+//      w->write((char*)msg.data(), (int)msg.length());
+//      w->final_request(); // required to end the chunked and flush.
+class ISrsHttpRequestWriter
+{
+public:
+    ISrsHttpRequestWriter();
+    virtual ~ISrsHttpRequestWriter();
+public:
+    // When chunked mode,
+    // final the request to complete the chunked encoding.
+    // For no-chunked mode,
+    // final to send request, for example, content-length is 0.
+    virtual srs_error_t final_request() = 0;
+
+    // Header returns the header map that will be sent by WriteHeader.
+    // Changing the header after a call to WriteHeader (or Write) has
+    // no effect.
+    virtual SrsHttpHeader* header() = 0;
+
+    // Write writes the data to the connection as part of an HTTP reply.
+    // If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
+    // before writing the data.  If the Header does not contain a
+    // Content-Type line, Write adds a Content-Type set to the result of passing
+    // The initial 512 bytes of written data to DetectContentType.
+    // @param data, the data to send. NULL to flush header only.
+    virtual srs_error_t write(char* data, int size) = 0;
+    // for the HTTP FLV, to writev to improve performance.
+    // @see https://github.com/ossrs/srs/issues/405
+    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
+
+    // WriteHeader sends an HTTP request header with status code.
+    // If WriteHeader is not called explicitly, the first call to Write
+    // will trigger an implicit WriteHeader(http.StatusOK).
+    // Thus explicit calls to WriteHeader are mainly used to
+    // send error codes.
+    // @remark, user must set header then write or write_header.
+    virtual void write_header(const char* method, const char* path) = 0;
+};
+
 // Objects implementing the Handler interface can be
 // registered to serve a particular path or subtree
 // in the HTTP server.
@@ -455,6 +521,7 @@ public:
     ISrsHttpMessage();
     virtual ~ISrsHttpMessage();
 public:
+    virtual uint8_t message_type() = 0;
     virtual uint8_t method() = 0;
     virtual uint16_t status_code() = 0;
     // Method helpers.
@@ -783,6 +850,12 @@ enum http_status
   XX(32, UNLINK,      UNLINK)       \
   /* icecast */                     \
   XX(33, SOURCE,      SOURCE)       \
+  /* SIP https://www.ietf.org/rfc/rfc3261.html */ \
+  XX(34, REGISTER,    REGISTER)     \
+  XX(35, INVITE,      INVITE)       \
+  XX(36, ACK,         ACK)          \
+  XX(37, MESSAGE,     MESSAGE)      \
+  XX(38, BYE,         BYE)          \
 
 enum http_method
   {

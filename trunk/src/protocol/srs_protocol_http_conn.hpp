@@ -10,6 +10,7 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <sstream>
 
 #include <srs_protocol_http_stack.hpp>
 
@@ -39,6 +40,7 @@ private:
     std::string url;
     SrsHttpHeader* header;
     enum http_parser_type type_;
+    enum http_parser_type parsed_type_;
 private:
     // Point to the start of body.
     const char* p_body_start;
@@ -92,8 +94,8 @@ private:
     //      enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
     uint8_t type_;
     // The HTTP method defined by HTTP_METHOD_MAP
-    uint8_t _method;
-    uint16_t _status;
+    http_method _method;
+    http_status _status;
     int64_t _content_length;
 private:
     // The http headers
@@ -123,7 +125,7 @@ public:
 public:
     // Set the basic information for HTTP request.
     // @remark User must call set_basic before set_header, because the content_length will be overwrite by header.
-    virtual void set_basic(uint8_t type, uint8_t method, uint16_t status, int64_t content_length);
+    virtual void set_basic(uint8_t type, http_method method, http_status status, int64_t content_length);
     // Set HTTP header and whether the request require keep alive.
     // @remark User must call set_header before set_url, because the Host in header is used for url.
     virtual void set_header(SrsHttpHeader* header, bool keep_alive);
@@ -138,6 +140,7 @@ public:
 public:
     // The schema, http or https.
     virtual std::string schema();
+    virtual uint8_t message_type();
     virtual uint8_t method();
     virtual uint16_t status_code();
     // The method helpers.
@@ -198,24 +201,38 @@ public:
     virtual srs_error_t filter(SrsHttpHeader* h) = 0;
 };
 
-// Response writer use st socket
-class SrsHttpResponseWriter : public ISrsHttpResponseWriter
+class ISrsHttpFirstLineWriter
+{
+public:
+    ISrsHttpFirstLineWriter();
+    virtual ~ISrsHttpFirstLineWriter();
+public:
+    // Build first line of HTTP message to ss. Note that data with size of bytes is the body to write, which enables us
+    // to setup the header by detecting the body, and it might be NULL.
+    virtual srs_error_t build_first_line(std::stringstream& ss, char* data, int size) = 0;
+    // Write a default header line if user does not specify one.
+    virtual void write_default_header() = 0;
+};
+
+// Message writer use st socket, for writing HTTP request or response, which is only different at the first line. For
+// HTTP request, the first line is RequestLine. While for HTTP response, it's StatusLine.
+class SrsHttpMessageWriter
 {
 private:
     ISrsProtocolReadWriter* skt;
     SrsHttpHeader* hdr;
     // Before writing header, there is a chance to filter it,
     // such as remove some headers or inject new.
-    ISrsHttpHeaderFilter* hf;
+    ISrsHttpHeaderFilter* hf_;
+    // The first line writer.
+    ISrsHttpFirstLineWriter* flw_;
 private:
     char header_cache[SRS_HTTP_HEADER_CACHE_SIZE];
     iovec* iovss_cache;
     int nb_iovss_cache;
 private:
     // Reply header has been (logically) written
-    bool header_wrote;
-    // The status code passed to WriteHeader
-    int status;
+    bool header_wrote_;
 private:
     // The explicitly-declared Content-Length; or -1
     int64_t content_length;
@@ -228,15 +245,67 @@ private:
     // logically written.
     bool header_sent;
 public:
+    SrsHttpMessageWriter(ISrsProtocolReadWriter* io, ISrsHttpFirstLineWriter* flw);
+    virtual ~SrsHttpMessageWriter();
+public:
+    virtual srs_error_t final_request();
+    virtual SrsHttpHeader* header();
+    virtual srs_error_t write(char* data, int size);
+    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual void write_header();
+    virtual srs_error_t send_header(char* data, int size);
+public:
+    bool header_wrote();
+    void set_header_filter(ISrsHttpHeaderFilter* hf);
+};
+
+// Response writer use st socket
+class SrsHttpResponseWriter : public ISrsHttpResponseWriter, public ISrsHttpFirstLineWriter
+{
+protected:
+    SrsHttpMessageWriter* writer_;
+    // The status code passed to WriteHeader, for response only.
+    int status;
+public:
     SrsHttpResponseWriter(ISrsProtocolReadWriter* io);
     virtual ~SrsHttpResponseWriter();
+public:
+    void set_header_filter(ISrsHttpHeaderFilter* hf);
+// Interface ISrsHttpResponseWriter
 public:
     virtual srs_error_t final_request();
     virtual SrsHttpHeader* header();
     virtual srs_error_t write(char* data, int size);
     virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
     virtual void write_header(int code);
-    virtual srs_error_t send_header(char* data, int size);
+// Interface ISrsHttpFirstLineWriter
+public:
+    virtual srs_error_t build_first_line(std::stringstream& ss, char* data, int size);
+    virtual void write_default_header();
+};
+
+// Request writer use st socket
+class SrsHttpRequestWriter : public ISrsHttpRequestWriter, public ISrsHttpFirstLineWriter
+{
+protected:
+    SrsHttpMessageWriter* writer_;
+    // The method and path passed to WriteHeader, for request only.
+    const char* method_;
+    const char* path_;
+public:
+    SrsHttpRequestWriter(ISrsProtocolReadWriter* io);
+    virtual ~SrsHttpRequestWriter();
+// Interface ISrsHttpResponseWriter
+public:
+    virtual srs_error_t final_request();
+    virtual SrsHttpHeader* header();
+    virtual srs_error_t write(char* data, int size);
+    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual void write_header(const char* method, const char* path);
+// Interface ISrsHttpFirstLineWriter
+public:
+    virtual srs_error_t build_first_line(std::stringstream& ss, char* data, int size);
+    virtual void write_default_header();
 };
 
 // Response reader use st socket.

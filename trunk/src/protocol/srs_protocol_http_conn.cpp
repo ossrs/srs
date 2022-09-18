@@ -28,6 +28,7 @@ SrsHttpParser::SrsHttpParser()
 
     p_body_start = p_header_tail = NULL;
     type_ = HTTP_REQUEST;
+    parsed_type_ = HTTP_BOTH;
 }
 
 SrsHttpParser::~SrsHttpParser()
@@ -70,7 +71,7 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
 
     *ppmsg = NULL;
     
-    // Reset request data.
+    // Reset parser data and state.
     state = SrsHttpParseStateInit;
     memset(&hp_header, 0, sizeof(http_parser));
     // The body that we have read from cache.
@@ -93,6 +94,8 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     // and the message fail.
     // @note You can comment the bellow line, the utest will fail.
     http_parser_init(&parser, type_);
+    // Reset the parsed type.
+    parsed_type_ = HTTP_BOTH;
     // callback object ptr.
     parser.data = (void*)this;
     
@@ -105,10 +108,10 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     SrsHttpMessage* msg = new SrsHttpMessage(reader, buffer);
 
     // Initialize the basic information.
-    msg->set_basic(hp_header.type, hp_header.method, hp_header.status_code, hp_header.content_length);
+    msg->set_basic(hp_header.type, (http_method)hp_header.method, (http_status)hp_header.status_code, hp_header.content_length);
     msg->set_header(header, http_should_keep_alive(&hp_header));
     // For HTTP response, no url.
-    if (type_ != HTTP_RESPONSE && (err = msg->set_url(url, jsonp)) != srs_success) {
+    if (parsed_type_ != HTTP_RESPONSE && (err = msg->set_url(url, jsonp)) != srs_success) {
         srs_freep(msg);
         return srs_error_wrap(err, "set url=%s, jsonp=%d", url.c_str(), jsonp);
     }
@@ -177,8 +180,12 @@ int SrsHttpParser::on_message_begin(http_parser* parser)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
     srs_assert(obj);
-    
+
+    // Now, we start to parse HTTP message.
     obj->state = SrsHttpParseStateStart;
+
+    // If we set to HTTP_BOTH, the type is detected and speicifed by parser.
+    obj->parsed_type_ = (http_parser_type)parser->type;
     
     srs_info("***MESSAGE BEGIN***");
     
@@ -305,9 +312,9 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer) : ISrs
     jsonp = false;
 
     // As 0 is DELETE, so we use GET as default.
-    _method = SRS_CONSTS_HTTP_GET;
+    _method = (http_method)SRS_CONSTS_HTTP_GET;
     // 200 is ok.
-    _status = SRS_CONSTS_HTTP_OK;
+    _status = (http_status)SRS_CONSTS_HTTP_OK;
     // -1 means infinity chunked mode.
     _content_length = -1;
     // From HTTP/1.1, default to keep alive.
@@ -323,7 +330,7 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_uri);
 }
 
-void SrsHttpMessage::set_basic(uint8_t type, uint8_t method, uint16_t status, int64_t content_length)
+void SrsHttpMessage::set_basic(uint8_t type, http_method method, http_status status, int64_t content_length)
 {
     type_ = type;
     _method = method;
@@ -376,6 +383,11 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
             host = srs_get_public_internet_address(true);
         }
 
+        // The url must starts with slash if no schema. For example, SIP request line starts with "sip".
+        if (!host.empty() && !srs_string_starts_with(_url, "/")) {
+            host += "/";
+        }
+
         if (!host.empty()) {
             uri = "http://" + host + _url;
         }
@@ -423,6 +435,11 @@ void SrsHttpMessage::set_connection(ISrsConnection* conn)
 string SrsHttpMessage::schema()
 {
     return schema_;
+}
+
+uint8_t SrsHttpMessage::message_type()
+{
+    return type_;
 }
 
 uint8_t SrsHttpMessage::method()
@@ -654,33 +671,41 @@ ISrsHttpHeaderFilter::~ISrsHttpHeaderFilter()
 {
 }
 
-SrsHttpResponseWriter::SrsHttpResponseWriter(ISrsProtocolReadWriter* io)
+ISrsHttpFirstLineWriter::ISrsHttpFirstLineWriter()
+{
+}
+
+ISrsHttpFirstLineWriter::~ISrsHttpFirstLineWriter()
+{
+}
+
+SrsHttpMessageWriter::SrsHttpMessageWriter(ISrsProtocolReadWriter* io, ISrsHttpFirstLineWriter* flw)
 {
     skt = io;
     hdr = new SrsHttpHeader();
-    header_wrote = false;
-    status = SRS_CONSTS_HTTP_OK;
+    header_wrote_ = false;
     content_length = -1;
     written = 0;
     header_sent = false;
     nb_iovss_cache = 0;
     iovss_cache = NULL;
-    hf = NULL;
+    hf_ = NULL;
+    flw_ = flw;
 }
 
-SrsHttpResponseWriter::~SrsHttpResponseWriter()
+SrsHttpMessageWriter::~SrsHttpMessageWriter()
 {
     srs_freep(hdr);
     srs_freepa(iovss_cache);
 }
 
-srs_error_t SrsHttpResponseWriter::final_request()
+srs_error_t SrsHttpMessageWriter::final_request()
 {
     srs_error_t err = srs_success;
 
     // write the header data in memory.
-    if (!header_wrote) {
-        write_header(SRS_CONSTS_HTTP_OK);
+    if (!header_wrote_) {
+        flw_->write_default_header();
     }
 
     // whatever header is wrote, we should try to send header.
@@ -700,24 +725,24 @@ srs_error_t SrsHttpResponseWriter::final_request()
     return write(NULL, 0);
 }
 
-SrsHttpHeader* SrsHttpResponseWriter::header()
+SrsHttpHeader* SrsHttpMessageWriter::header()
 {
     return hdr;
 }
 
-srs_error_t SrsHttpResponseWriter::write(char* data, int size)
+srs_error_t SrsHttpMessageWriter::write(char* data, int size)
 {
     srs_error_t err = srs_success;
     
     // write the header data in memory.
-    if (!header_wrote) {
+    if (!header_wrote_) {
         if (hdr->content_type().empty()) {
             hdr->set_content_type("text/plain; charset=utf-8");
         }
         if (hdr->content_length() == -1) {
             hdr->set_content_length(size);
         }
-        write_header(SRS_CONSTS_HTTP_OK);
+        flw_->write_default_header();
     }
     
     // whatever header is wrote, we should try to send header.
@@ -765,12 +790,12 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
     return err;
 }
 
-srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
+srs_error_t SrsHttpMessageWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
 {
     srs_error_t err = srs_success;
     
     // when header not ready, or not chunked, send one by one.
-    if (!header_wrote || content_length != -1) {
+    if (!header_wrote_ || content_length != -1) {
         ssize_t nwrite = 0;
         for (int i = 0; i < iovcnt; i++) {
             nwrite += iov[i].iov_len;
@@ -848,21 +873,16 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
     return err;
 }
 
-void SrsHttpResponseWriter::write_header(int code)
+void SrsHttpMessageWriter::write_header()
 {
-    if (header_wrote) {
-        srs_warn("http: multiple write_header calls, code=%d", code);
-        return;
-    }
-    
-    header_wrote = true;
-    status = code;
+    if (header_wrote_) return;
+    header_wrote_ = true;
     
     // parse the content length from header.
     content_length = hdr->content_length();
 }
 
-srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
+srs_error_t SrsHttpMessageWriter::send_header(char* data, int size)
 {
     srs_error_t err = srs_success;
     
@@ -872,16 +892,10 @@ srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
     header_sent = true;
     
     std::stringstream ss;
-    
-    // status_line
-    ss << "HTTP/1.1 " << status << " "
-    << srs_generate_http_status_text(status) << SRS_HTTP_CRLF;
-    
-    // detect content type
-    if (srs_go_http_body_allowd(status)) {
-        if (data && hdr->content_type().empty()) {
-            hdr->set_content_type(srs_go_http_detect(data, size));
-        }
+
+    // First line, the request line or status line.
+    if ((err = flw_->build_first_line(ss, data, size)) != srs_success) {
+        return srs_error_wrap(err, "first line");
     }
     
     // set server if not set.
@@ -900,7 +914,7 @@ srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
     }
 
     // Filter the header before writing it.
-    if (hf && ((err = hf->filter(hdr)) != srs_success)) {
+    if (hf_ && ((err = hf_->filter(hdr)) != srs_success)) {
         return srs_error_wrap(err, "filter header");
     }
     
@@ -912,6 +926,151 @@ srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
     
     std::string buf = ss.str();
     return skt->write((void*)buf.c_str(), buf.length(), NULL);
+}
+
+bool SrsHttpMessageWriter::header_wrote()
+{
+    return header_wrote_;
+}
+
+void SrsHttpMessageWriter::set_header_filter(ISrsHttpHeaderFilter* hf)
+{
+    hf_ = hf;
+}
+
+SrsHttpResponseWriter::SrsHttpResponseWriter(ISrsProtocolReadWriter* io)
+{
+    writer_ = new SrsHttpMessageWriter(io, this);
+    status = SRS_CONSTS_HTTP_OK;
+}
+
+SrsHttpResponseWriter::~SrsHttpResponseWriter()
+{
+    srs_freep(writer_);
+}
+
+void SrsHttpResponseWriter::set_header_filter(ISrsHttpHeaderFilter* hf)
+{
+    writer_->set_header_filter(hf);
+}
+
+srs_error_t SrsHttpResponseWriter::final_request()
+{
+    return writer_->final_request();
+}
+
+SrsHttpHeader* SrsHttpResponseWriter::header()
+{
+    return writer_->header();
+}
+
+srs_error_t SrsHttpResponseWriter::write(char* data, int size)
+{
+    return writer_->write(data, size);
+}
+
+srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
+{
+    return writer_->writev(iov, iovcnt, pnwrite);
+}
+
+void SrsHttpResponseWriter::write_header(int code)
+{
+    if (writer_->header_wrote()) {
+        srs_warn("http: multiple write_header calls, status=%d, code=%d", status, code);
+        return;
+    }
+
+    status = code;
+    return writer_->write_header();
+}
+
+srs_error_t SrsHttpResponseWriter::build_first_line(std::stringstream& ss, char* data, int size)
+{
+    srs_error_t err = srs_success;
+
+    // Write status line for response.
+    ss << "HTTP/1.1 " << status << " " << srs_generate_http_status_text(status) << SRS_HTTP_CRLF;
+
+    // Try to detect content type from response body data.
+    SrsHttpHeader* hdr = writer_->header();
+    if (srs_go_http_body_allowd(status)) {
+        if (data && hdr->content_type().empty()) {
+            hdr->set_content_type(srs_go_http_detect(data, size));
+        }
+    }
+
+    return err;
+}
+
+void SrsHttpResponseWriter::write_default_header()
+{
+    write_header(SRS_CONSTS_HTTP_OK);
+}
+
+SrsHttpRequestWriter::SrsHttpRequestWriter(ISrsProtocolReadWriter* io)
+{
+    writer_ = new SrsHttpMessageWriter(io, this);
+    method_ = NULL;
+    path_ = NULL;
+}
+
+SrsHttpRequestWriter::~SrsHttpRequestWriter()
+{
+    srs_freep(writer_);
+}
+
+srs_error_t SrsHttpRequestWriter::final_request()
+{
+    return writer_->final_request();
+}
+
+SrsHttpHeader* SrsHttpRequestWriter::header()
+{
+    return writer_->header();
+}
+
+srs_error_t SrsHttpRequestWriter::write(char* data, int size)
+{
+    return writer_->write(data, size);
+}
+
+srs_error_t SrsHttpRequestWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
+{
+    return writer_->writev(iov, iovcnt, pnwrite);
+}
+
+void SrsHttpRequestWriter::write_header(const char* method, const char* path)
+{
+    if (writer_->header_wrote()) {
+        srs_warn("http: multiple write_header calls, current=%s(%s), now=%s(%s)", method_, path_, method, path);
+        return;
+    }
+
+    method_ = method;
+    path_ = path;
+    return writer_->write_header();
+}
+
+srs_error_t SrsHttpRequestWriter::build_first_line(std::stringstream& ss, char* data, int size)
+{
+    srs_error_t err = srs_success;
+
+    // Write status line for response.
+    ss << method_ << " " << path_ << " HTTP/1.1" << SRS_HTTP_CRLF;
+
+    // Try to detect content type from request body data.
+    SrsHttpHeader* hdr = writer_->header();
+    if (data && hdr->content_type().empty()) {
+        hdr->set_content_type(srs_go_http_detect(data, size));
+    }
+
+    return err;
+}
+
+void SrsHttpRequestWriter::write_default_header()
+{
+    write_header("GET", "/");
 }
 
 SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* reader, SrsFastStream* body)
