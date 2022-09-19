@@ -1962,7 +1962,7 @@ ISrsApmSpan* SrsApmSpan::set_kind(SrsApmKind kind)
 
 ISrsApmSpan* SrsApmSpan::as_child(ISrsApmSpan* parent)
 {
-    // Should be child of different parents.
+    // Should not be child of multiple parent spans.
     if (child_) return this;
 
     // For child, always load parent from context.
@@ -2107,16 +2107,40 @@ srs_error_t SrsApmClient::initialize()
         return err;
     }
 
+    team_ = _srs_config->get_tencentcloud_apm_team();
     token_ = _srs_config->get_tencentcloud_apm_token();
     endpoint_ = _srs_config->get_tencentcloud_apm_endpoint();
     service_name_ = _srs_config->get_tencentcloud_apm_service_name();
     debug_logging_ = _srs_config->get_tencentcloud_apm_debug_logging();
-    srs_trace("Initialize TencentCloud APM, token=%dB, endpoint=%s, service_name=%s, debug_logging=%d", token_.length(), endpoint_.c_str(), service_name_.c_str(), debug_logging_);
+    srs_trace("Initialize TencentCloud APM, team=%s, token=%dB, endpoint=%s, service_name=%s, debug_logging=%d", team_.c_str(), token_.length(), endpoint_.c_str(), service_name_.c_str(), debug_logging_);
+
+    // Check authentication, the team or token.
+    if (team_.empty()) {
+        return srs_error_new(ERROR_APM_AUTH, "No authentication team for APM");
+    }
+    if (token_.empty()) {
+        return srs_error_new(ERROR_APM_AUTH, "No authentication token for APM");
+    }
+
+    // Please note that 4317 is for GRPC/HTTP2, while SRS only support HTTP and the port shoule be 55681.
+    if (srs_string_contains(endpoint_, ":4317")) {
+        return srs_error_new(ERROR_APM_ENDPOINT, "Port 4317 is for GRPC over HTTP2 for APM");
+    }
 
     return err;
 }
 
 srs_error_t SrsApmClient::report()
+{
+    srs_error_t err = do_report();
+    if (err != srs_success) {
+        return srs_error_wrap(err, "team=%s, token=%dB", team_.c_str(), token_.length());
+    }
+
+    return err;
+}
+
+srs_error_t SrsApmClient::do_report()
 {
     srs_error_t err = srs_success;
 
@@ -2133,6 +2157,8 @@ srs_error_t SrsApmClient::report()
     rs->resource()->add_addr(SrsOtelAttribute::kv("service.name", service_name_));
     // For Tencent Cloud APM authentication, see https://console.cloud.tencent.com/apm/monitor/access
     rs->resource()->add_addr(SrsOtelAttribute::kv("token", token_));
+    // For Tencent Cloud APM debugging, see https://console.cloud.tencent.com/apm/monitor/team
+    rs->resource()->add_addr(SrsOtelAttribute::kv("tapm.team", team_));
 
     SrsOtelScopeSpans* spans = rs->append();
     spans->scope()->name_ = "srs";
@@ -2198,7 +2224,7 @@ srs_error_t SrsApmClient::report()
 
     if (debug_logging_) {
         string server_id = SrsStatistic::instance()->server_id();
-        srs_trace("APM write logs=%d, size=%dB, server_id=%s", spans->size(), body.length(), server_id.c_str());
+        srs_trace("APM write team=%s, token=%dB, logs=%d, size=%dB, server_id=%s", team_.c_str(), token_.length(), spans->size(), body.length(), server_id.c_str());
     }
 
     return err;

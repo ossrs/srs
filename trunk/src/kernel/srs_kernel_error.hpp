@@ -97,7 +97,9 @@
     XX(ERROR_PB_NO_SPACE                   , 1084, "ProtobufNoSpace", "Failed to encode protobuf for no buffer space left") \
     XX(ERROR_CLS_INVALID_CONFIG            , 1085, "ClsConfig", "Invalid configuration for TencentCloud CLS") \
     XX(ERROR_CLS_EXCEED_SIZE               , 1086, "ClsExceedSize", "CLS logs exceed max size 5MB") \
-    XX(ERROR_APM_EXCEED_SIZE               , 1087, "ApmExceedSize", "APM logs exceed max size 5MB")
+    XX(ERROR_APM_EXCEED_SIZE               , 1087, "ApmExceedSize", "APM logs exceed max size 5MB") \
+    XX(ERROR_APM_ENDPOINT                  , 1088, "ApmEndpoint", "APM endpoint is invalid") \
+    XX(ERROR_APM_AUTH                      , 1089, "ApmAuth", "APM team or token is invalid") \
 
 /**************************************************/
 /* RTMP protocol error. */

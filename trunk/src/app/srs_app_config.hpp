@@ -470,6 +470,7 @@ public:
     virtual std::string get_tencentcloud_cls_endpoint();
     virtual std::string get_tencentcloud_cls_topic_id();
     virtual bool get_tencentcloud_apm_enabled();
+    virtual std::string get_tencentcloud_apm_team();
     virtual std::string get_tencentcloud_apm_token();
     virtual std::string get_tencentcloud_apm_endpoint();
     virtual std::string get_tencentcloud_apm_service_name();
