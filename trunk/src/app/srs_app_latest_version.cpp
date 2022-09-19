@@ -46,6 +46,8 @@ void srs_build_features(stringstream& ss)
     ss << "&x86=1";
 #elif defined(__arm__) || defined(__aarch64__)
     ss << "&arm=1";
+#elif defined(__riscv)
+    ss << "&riscv=1";
 #elif defined(__mips__)
     ss << "&mips=1";
 #elif defined(__loongarch__)
