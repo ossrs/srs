@@ -2113,6 +2113,11 @@ srs_error_t SrsApmClient::initialize()
     debug_logging_ = _srs_config->get_tencentcloud_apm_debug_logging();
     srs_trace("Initialize TencentCloud APM, token=%dB, endpoint=%s, service_name=%s, debug_logging=%d", token_.length(), endpoint_.c_str(), service_name_.c_str(), debug_logging_);
 
+    // Please note that 4317 is for GRPC/HTTP2, while SRS only support HTTP and the port shoule be 55681.
+    if (srs_string_contains(endpoint_, ":4317")) {
+        return srs_error_new(ERROR_APM_INVALID_ENDPOINT, "Port 4317 is for GRPC or HTTP2");
+    }
+
     return err;
 }
 
