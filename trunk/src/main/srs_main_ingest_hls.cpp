@@ -1073,7 +1073,7 @@ int SrsIngestHlsOutput::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     
     // h264 raw to h264 packet.
     std::string sh;
-    if ((err = avc->mux_sequence_header(h264_sps, h264_pps, dts, pts, sh)) != srs_success) {
+    if ((err = avc->mux_sequence_header(h264_sps, h264_pps, sh)) != srs_success) {
         // TODO: FIXME: Use error
         ret = srs_error_code(err);
         srs_freep(err);

@@ -113,7 +113,7 @@ VOID TEST(SrsAVCTest, H264SequenceHeader)
     // For muxing sequence header.
     if (true) {
         SrsRawH264Stream h; string sh;
-        HELPER_ASSERT_SUCCESS(h.mux_sequence_header("Hello", "world", 0, 0, sh));
+        HELPER_ASSERT_SUCCESS(h.mux_sequence_header("Hello", "world", sh));
         EXPECT_EQ(11+5+5, (int)sh.length());
         EXPECT_STREQ("Hello", sh.substr(8, 5).c_str());
         EXPECT_STREQ("world", sh.substr(16).c_str());

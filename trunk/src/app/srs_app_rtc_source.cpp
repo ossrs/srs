@@ -35,6 +35,7 @@
 #endif
 
 #include <srs_protocol_kbps.hpp>
+#include <srs_protocol_raw_avc.hpp>
 
 // The NACK sent by us(SFU).
 SrsPps* _srs_pps_snack = NULL;
@@ -1480,30 +1481,30 @@ srs_error_t SrsRtmpFromRtcBridge::packet_video_key_frame(SrsRtpPacket* pkt)
         if (NULL == sps || NULL == pps) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "no sps or pps in stap-a rtp. sps: %p, pps:%p", sps, pps);
         } else {
-            //type_codec1 + avc_type + composition time + fix header + count of sps + len of sps + sps + count of pps + len of pps + pps
-            int nb_payload = 1 + 1 + 3 + 5 + 1 + 2 + sps->size + 1 + 2 + pps->size;
+            // h264 raw to h264 packet.
+            std::string sh;
+            SrsRawH264Stream* avc = new SrsRawH264Stream();
+            SrsAutoFree(SrsRawH264Stream, avc);
+
+            if ((err = avc->mux_sequence_header(string(sps->bytes, sps->size), string(pps->bytes, pps->size), sh)) != srs_success) {
+                return srs_error_wrap(err, "mux sequence header");
+            }
+
+            // h264 packet to flv packet.
+            char* flv = NULL;
+            int nb_flv = 0;
+            if ((err = avc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoAvcFrameTraitSequenceHeader, pkt->get_avsync_time(),
+                    pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
+                return srs_error_wrap(err, "avc to flv");
+            }
+
+            SrsMessageHeader header;
+            header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
             SrsCommonMessage rtmp;
-            rtmp.header.initialize_video(nb_payload, pkt->get_avsync_time(), 1);
-            rtmp.create_payload(nb_payload);
-            rtmp.size = nb_payload;
-            SrsBuffer payload(rtmp.payload, rtmp.size);
-            //TODO: call api
-            payload.write_1bytes(0x17);// type(4 bits): key frame; code(4bits): avc
-            payload.write_1bytes(0x0); // avc_type: sequence header
-            payload.write_1bytes(0x0); // composition time
-            payload.write_1bytes(0x0);
-            payload.write_1bytes(0x0);
-            payload.write_1bytes(0x01); // version
-            payload.write_1bytes(sps->bytes[1]);
-            payload.write_1bytes(sps->bytes[2]);
-            payload.write_1bytes(sps->bytes[3]);
-            payload.write_1bytes(0xff);
-            payload.write_1bytes(0xe1);
-            payload.write_2bytes(sps->size);
-            payload.write_bytes(sps->bytes, sps->size);
-            payload.write_1bytes(0x01);
-            payload.write_2bytes(pps->size);
-            payload.write_bytes(pps->bytes, pps->size);
+            if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
+                return srs_error_wrap(err, "create rtmp");
+            }
+
             if ((err = source_->on_video(&rtmp)) != srs_success) {
                 return err;
             }

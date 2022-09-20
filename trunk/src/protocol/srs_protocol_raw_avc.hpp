@@ -38,7 +38,7 @@ public:
     // The h264 raw data to h264 packet, without flv payload header.
     // Mux the sps/pps to flv sequence header packet.
     // @param sh output the sequence header.
-    virtual srs_error_t mux_sequence_header(std::string sps, std::string pps, uint32_t dts, uint32_t pts, std::string& sh);
+    virtual srs_error_t mux_sequence_header(std::string sps, std::string pps, std::string& sh);
     // The h264 raw data to h264 packet, without flv payload header.
     // Mux the ibp to flv ibp packet.
     // @param ibp output the packet.
