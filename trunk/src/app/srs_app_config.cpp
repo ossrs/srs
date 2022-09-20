@@ -3468,6 +3468,25 @@ bool SrsConfig::get_tencentcloud_apm_enabled()
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
+string SrsConfig::get_tencentcloud_apm_team()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_APM_TEAM");
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("tencentcloud_apm");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("team");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
 string SrsConfig::get_tencentcloud_apm_token()
 {
     SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_APM_TOKEN");
