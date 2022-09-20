@@ -109,7 +109,7 @@ srs_error_t SrsRawH264Stream::pps_demux(char* frame, int nb_frame, string& pps)
     return err;
 }
 
-srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32_t dts, uint32_t pts, string& sh)
+srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, string& sh)
 {
     srs_error_t err = srs_success;
     
