@@ -1149,7 +1149,7 @@ srs_error_t SrsOriginHub::on_publish()
     
     // TODO: FIXME: use initialize to set req.
 #ifdef SRS_HDS
-    if ((err = hds->on_publish(req)) != srs_success) {
+    if ((err = hds->on_publish(req_)) != srs_success) {
         return srs_error_wrap(err, "hds publish");
     }
 #endif
@@ -1373,7 +1373,7 @@ srs_error_t SrsOriginHub::on_reload_vhost_hds(string vhost)
         return err;
     }
     
-    if ((err = hds->on_publish(req)) != srs_success) {
+    if ((err = hds->on_publish(req_)) != srs_success) {
         return srs_error_wrap(err, "hds publish failed");
     }
     srs_trace("vhost %s hds reload success", vhost.c_str());
