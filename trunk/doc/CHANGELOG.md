@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-09-22, Fix [#3164](https://github.com/ossrs/srs/issues/3164): SRT: Choppy when audio ts gap is too large. v5.0.65
 * v5.0, 2022-09-16, APM: Support distributed tracing by Tencent Cloud APM. v5.0.64
 * v5.0, 2022-09-16, For [#3179](https://github.com/ossrs/srs/issues/3179): WebRTC: Make sure the same m-lines order for offer and answer. v5.0.63
 * v5.0, 2022-09-10, For [#3174](https://github.com/ossrs/srs/issues/3174): WebRTC: Support Unity to publish or play stream. v5.0.62
