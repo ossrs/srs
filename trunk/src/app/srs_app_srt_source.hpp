@@ -20,6 +20,7 @@ class SrsSharedPtrMessage;
 class SrsRequest;
 class SrsLiveSource;
 class SrsSrtSource;
+class SrsAlonePithyPrint;
 
 // The SRT packet with shared message.
 class SrsSrtPacket
@@ -136,6 +137,13 @@ private:
 
     SrsRequest* req_;
     SrsLiveSource* live_source_;
+
+    // SRT to rtmp, video stream id.
+    int video_streamid_;
+    // SRT to rtmp, audio stream id.
+    int audio_streamid_;
+    // Cycle print when audio duration too large because mpegts may merge multi audio frame in one pes packet.
+    SrsAlonePithyPrint* pp_audio_duration_;
 };
 
 class SrsSrtSource

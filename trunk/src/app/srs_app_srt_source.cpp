@@ -18,6 +18,7 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_pithy_print.hpp>
 
 SrsSrtPacket::SrsSrtPacket()
 {
@@ -250,14 +251,21 @@ SrsRtmpFromSrtBridge::SrsRtmpFromSrtBridge(SrsLiveSource* source) : ISrsSrtSourc
     sps_ = "";
     pps_ = "";
 
-    live_source_ = source;
     req_ = NULL;
+    live_source_ = source;
+
+    video_streamid_ = 1;
+    audio_streamid_ = 2;
+
+    pp_audio_duration_ = new SrsAlonePithyPrint();
 }
 
 SrsRtmpFromSrtBridge::~SrsRtmpFromSrtBridge()
 {
     srs_freep(ts_ctx_);
     srs_freep(req_);
+
+    srs_freep(pp_audio_duration_);
 }
 
 srs_error_t SrsRtmpFromSrtBridge::on_publish()
@@ -450,7 +458,7 @@ srs_error_t SrsRtmpFromSrtBridge::check_sps_pps_change(SrsTsMessage* msg)
     }
 
     SrsMessageHeader header;
-    header.initialize_video(nb_flv, dts, 1);
+    header.initialize_video(nb_flv, dts, video_streamid_);
     SrsCommonMessage rtmp;
     if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
         return srs_error_wrap(err, "create rtmp");
@@ -488,7 +496,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_h264_frame(SrsTsMessage* msg, vector<pair<c
     }
 
     SrsCommonMessage rtmp;
-    rtmp.header.initialize_video(frame_size, dts, 1/*streamid*/);
+    rtmp.header.initialize_video(frame_size, dts, video_streamid_);
     rtmp.create_payload(frame_size);
     rtmp.size = frame_size;
     SrsBuffer payload(rtmp.payload, rtmp.size);
@@ -530,6 +538,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
     uint32_t pts = (uint32_t)(msg->pts / 90);
 
     int frame_idx = 0;
+    int duration_ms = 0;
     
     // send each frame.
     while (!avs->empty()) {
@@ -567,6 +576,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
             default: sample_rate = 44100; break;
         }
         uint32_t frame_pts = (double)pts + (frame_idx * (1024.0 * 1000.0 / sample_rate));
+        duration_ms += 1024.0 * 1000.0 / sample_rate;
         ++frame_idx;
 
         if ((err = check_audio_sh_change(msg, frame_pts)) != srs_success) {
@@ -576,6 +586,15 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
         if ((err = on_aac_frame(msg, frame_pts, frame, frame_size)) != srs_success) {
             return srs_error_wrap(err, "audio frame");
         }
+    }
+
+    pp_audio_duration_->elapse();
+
+    if ((duration_ms >= 200) && pp_audio_duration_->can_print()) {
+        // MPEG-TS always merge multi audio frame into one pes packet, may cause high latency and AV synchronization errors
+        // @see https://github.com/ossrs/srs/issues/3164
+        srs_warn("srt to rtmp, audio duration=%dms too large, audio frames=%d, may cause high latency and AV synchronization errors, "
+            "read https://ossrs.io/lts/en-us/docs/v5/doc/srt-codec#ffmpeg-push-srt-stream", duration_ms, frame_idx);
     }
     
     return err;
@@ -595,7 +614,7 @@ srs_error_t SrsRtmpFromSrtBridge::check_audio_sh_change(SrsTsMessage* msg, uint3
     int rtmp_len = audio_sh_.size() + 2;
 
     SrsCommonMessage rtmp;
-    rtmp.header.initialize_audio(rtmp_len, pts, 1);
+    rtmp.header.initialize_audio(rtmp_len, pts, audio_streamid_);
     rtmp.create_payload(rtmp_len);
     rtmp.size = rtmp_len;
 
@@ -619,7 +638,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_aac_frame(SrsTsMessage* msg, uint32_t pts, 
     int rtmp_len = frame_size + 2/* 2 bytes of flv audio tag header*/;
 
     SrsCommonMessage rtmp;
-    rtmp.header.initialize_audio(rtmp_len, pts, 2/*streamid*/);
+    rtmp.header.initialize_audio(rtmp_len, pts, audio_streamid_);
     rtmp.create_payload(rtmp_len);
     rtmp.size = rtmp_len;
 
