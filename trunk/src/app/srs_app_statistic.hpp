@@ -210,6 +210,10 @@ public:
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);
+public:
+    virtual void dumps_metric_vhosts(std::stringstream & send_bytes, std::stringstream & recv_bytes);
+    virtual void dumps_metric_streams(std::stringstream & ss);
+    virtual void dumps_metric_clients(std::stringstream & ss);
 };
 
 // Generate a random string id, with constant prefix.

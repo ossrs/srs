@@ -216,5 +216,14 @@ public:
 };
 #endif
 
+class SrsGoApiMetrics : public ISrsHttpHandler
+{
+public:
+    SrsGoApiMetrics();
+    virtual ~SrsGoApiMetrics();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+
 #endif
 

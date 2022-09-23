@@ -20,6 +20,9 @@
 #include <linux/version.h>
 #include <sys/utsname.h>
 #endif
+#ifdef SRS_OSX
+#include <sys/utsname.h>
+#endif
 
 #include <vector>
 #include <algorithm>
@@ -1209,6 +1212,8 @@ SrsConfig::SrsConfig()
     root = new SrsConfDirective();
     root->conf_line = 0;
     root->name = "root";
+
+    sys_uname_ = "None";
 }
 
 SrsConfig::~SrsConfig()
@@ -1789,6 +1794,22 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     
     // first hello message.
     srs_trace(_srs_version);
+
+#if defined(__linux__) || defined(SRS_OSX)
+    // labeled system information as provided by the uname system call.
+    struct utsname buf;
+    if (uname(&buf) < 0) {
+        return srs_error_wrap(err, "uname failed");
+    }
+
+    std::stringstream ss;
+    ss << "sysname=\"" << buf.sysname << "\","
+       << "nodename=\"" << buf.nodename << "\","
+       << "release=\"" << buf.release << "\","
+       << "version=\"" << buf.version << "\","
+       << "machine=\"" << buf.machine;
+    sys_uname_ = ss.str();
+#endif
 
     // Try config files as bellow:
     //      User specified config(not empty), like user/docker.conf
@@ -7767,4 +7788,9 @@ SrsConfDirective* SrsConfig::get_stats_disk_device()
     }
     
     return conf;
+}
+
+string SrsConfig::get_uname_info()
+{
+    return sys_uname_;
 }

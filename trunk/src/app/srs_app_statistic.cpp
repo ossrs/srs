@@ -721,3 +721,96 @@ SrsStatisticStream* SrsStatistic::create_stream(SrsStatisticVhost* vhost, SrsReq
     return stream;
 }
 
+void SrsStatistic::dumps_metric_vhosts(std::stringstream & send_bytes, std::stringstream & recv_bytes)
+{
+    std::map<std::string, SrsStatisticVhost*>::iterator it;
+    for (it = vhosts.begin(); it != vhosts.end(); it++) {
+        SrsStatisticVhost* vhost = it->second;
+
+        // srs_server_send_bytes_total{protocol=\"rtmp\", vhost=\"__defaultVhost__\"} 66271966\n
+        send_bytes << "srs_server_send_bytes_total{"
+                    << "vhost=\""
+                    << vhost->vhost
+                    << "\"} "
+                    << vhost->kbps->get_send_bytes()
+                    << "\n";
+
+        // srs_server_receive_bytes_total{protocol=\"rtmp\", vhost=\"__defaultVhost__\"} 38070789710\n
+        recv_bytes << "srs_server_receive_bytes_total{"
+                    << "vhost=\""
+                    << vhost->vhost
+                    << "\"} "
+                    << vhost->kbps->get_recv_bytes()
+                    << "\n";
+    }
+}
+
+void SrsStatistic::dumps_metric_streams(std::stringstream & ss)
+{
+    std::map<std::string, SrsStatisticStream*>::iterator it = streams.begin();
+    for (; it != streams.end(); it++) {
+        SrsStatisticStream* stream = it->second;
+
+        std::string protocol = "unknown";
+        size_t pos = string::npos;
+        if ((pos = stream->tcUrl.find("://")) != string::npos) {
+            protocol = stream->tcUrl.substr(0, pos);
+        }
+
+        // "srs_server_streams_total{protocol=\"rtmp\", stream=\"/live/livestream\"} 1\n"
+        ss << "srs_server_streams_total{"
+            << "protocol=\""
+            << protocol
+            << "\","
+            << "stream=\""
+            << stream->vhost->vhost << "/" << stream->app << "/" << stream->stream
+            << "\"} 1"
+            << "\n";
+    }
+}
+
+void SrsStatistic::dumps_metric_clients(std::stringstream & ss)
+{
+    std::map<std::string, int64_t> consumers;
+
+    std::map<std::string, SrsStatisticClient*>::iterator it = clients.begin();
+    for (; it != clients.end(); it++) {
+        SrsStatisticClient* client = it->second;
+
+        if (srs_client_type_is_publish(client->type)) {
+            continue;
+        }
+
+        std::string protocol = "unknown";
+        size_t pos = string::npos;
+        if ((pos = client->req->tcUrl.find("://")) != string::npos) {
+            protocol = client->req->tcUrl.substr(0, pos);
+        }
+
+        string key = protocol + ":::" + client->req->get_stream_url();
+        consumers[key]++;
+    }
+
+    std::map<std::string, int64_t>::iterator iter = consumers.begin();
+    for (; iter != consumers.end(); iter++) {
+        string key = iter->first;
+        string protocol = "unknown";
+        string stream = "";
+        size_t pos = string::npos;
+        if ((pos = key.find(":::")) != string::npos) {
+            protocol = key.substr(0, pos);
+            stream = key.substr(pos + 3);
+        }
+
+        // "srs_server_clients_total{protocol=\"rtmp\", stream=\"/live/livestream\"} 10\n"
+        ss << "srs_server_clients_total{"
+            << "protocol=\""
+            << protocol
+            << "\","
+            << "stream=\""
+            << stream
+            << "\"} "
+            << iter->second
+            << "\n";
+    }
+}
