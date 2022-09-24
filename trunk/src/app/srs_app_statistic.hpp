@@ -140,6 +140,11 @@ private:
     // The server total kbps.
     SrsKbps* kbps;
 private:
+    // The nb clients.
+    int64_t nb_clients_;
+    // The nb errors.
+    int64_t nb_errs_;
+private:
     SrsStatistic();
     virtual ~SrsStatistic();
 public:
@@ -177,7 +182,7 @@ public:
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not
     //      exists in stat.
-    virtual void on_disconnect(std::string id);
+    virtual void on_disconnect(std::string id, srs_error_t err);
 private:
     // Cleanup the stream if stream is not active and for the last client.
     void cleanup_stream(SrsStatisticStream* stream);
@@ -211,9 +216,8 @@ private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);
 public:
-    virtual void dumps_metric_vhosts(std::stringstream & send_bytes, std::stringstream & recv_bytes);
-    virtual void dumps_metric_streams(std::stringstream & ss);
-    virtual void dumps_metric_clients(std::stringstream & ss);
+    // Dumps exporter metrics.
+    virtual srs_error_t dumps_metrics(int64_t& send_bytes, int64_t& recv_bytes, int64_t& nstreams, int64_t& nclients, int64_t& total_nclients, int64_t& nerrs);
 };
 
 // Generate a random string id, with constant prefix.

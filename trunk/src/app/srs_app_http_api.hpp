@@ -218,6 +218,10 @@ public:
 
 class SrsGoApiMetrics : public ISrsHttpHandler
 {
+private:
+    bool enabled_;
+    std::string label_;
+    std::string tag_;
 public:
     SrsGoApiMetrics();
     virtual ~SrsGoApiMetrics();

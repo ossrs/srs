@@ -228,7 +228,7 @@ srs_error_t SrsMpegtsSrtConn::cycle()
     // Update statistic when done.
     SrsStatistic* stat = SrsStatistic::instance();
     stat->kbps_add_delta(get_id().c_str(), delta_);
-    stat->on_disconnect(get_id().c_str());
+    stat->on_disconnect(get_id().c_str(), err);
 
     // Notify manager to remove it.
     // Note that we create this object, so we use manager to remove it.

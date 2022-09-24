@@ -1065,6 +1065,9 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 
 SrsGoApiMetrics::SrsGoApiMetrics()
 {
+    enabled_ = _srs_config->get_exporter_enabled();
+    label_ = _srs_config->get_exporter_label();
+    tag_ = _srs_config->get_exporter_tag();
 }
 
 SrsGoApiMetrics::~SrsGoApiMetrics()
@@ -1073,14 +1076,24 @@ SrsGoApiMetrics::~SrsGoApiMetrics()
 
 srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    std::stringstream ss;
+    // whether enabled the HTTP Metrics API.
+    if (!enabled_) {
+        return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_EXPORTER_DISABLED);
+    }
+
+    /*
+     * build_info gauge
+     * send_bytes_total counter
+     * receive_bytes_total counter
+     * streams gauge
+     * clients gauge
+     * clients_total counter
+     * error counter
+    */
 
     SrsStatistic* stat = SrsStatistic::instance();
 
-    // srs_server_info gauge
-    ss << "# HELP node_uname_info Labeled system information as provided by the uname system call.\n"
-       << "# TYPE node_uname_info gauge\n"
-       << "node_uname_info{" << _srs_config->get_uname_info()<< "} 1\n";
+    std::stringstream ss;
 
     // srs_build_info gauge
     ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which srs was built.\n"
@@ -1088,43 +1101,56 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
        << "srs_build_info{"
        << "build_date=\"" << SRS_BUILD_DATE << "\","
        << "version=\"" << RTMP_SIG_SRS_VERSION << "\","
-       << "code=\"" << RTMP_SIG_SRS_CODE
+       << "code=\"" << RTMP_SIG_SRS_CODE<< "\","
+       << "label=\"" << label_<< "\","
+       << "tag=\"" << tag_
        << "\"} 1\n";
 
-    // dump_metric_bytes
-    std::stringstream send_bytes, recv_bytes;
-    stat->dumps_metric_vhosts(send_bytes, recv_bytes);
+    // dump_metrics
+    int64_t send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs;
+    stat->dumps_metrics(send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs);
 
-    // servers/vhosts send total bytes counter.
-    ss << "# HELP srs_server_send_bytes_total SRS server statistic send_bytes.\n"
-       << "# TYPE srs_server_send_bytes_total counter\n"
-       << send_bytes.str();
+    // server send total bytes counter.
+    ss << "# HELP srs_send_bytes_total SRS server send bytes.\n"
+       << "# TYPE srs_send_bytes_total counter\n"
+       << "srs_send_bytes_total "
+       << send_bytes
+       << "\n";
 
-    // servers/vhosts receive total bytes counter.
-    ss << "# HELP srs_server_receive_bytes_total SRS server statistic receive_bytes.\n"
-       << "# TYPE srs_server_receive_bytes_total counter\n"
-       << recv_bytes.str();
+    // servers receive total bytes counter.
+    ss << "# HELP srs_receive_bytes_total SRS server receive bytes.\n"
+       << "# TYPE srs_receive_bytes_total counter\n"
+       << "srs_receive_bytes_total "
+       << recv_bytes
+       << "\n";
 
-    // dump_metric_streams
-    std::stringstream ss_streams;
-    stat->dumps_metric_streams(ss_streams);
+    // servers srs_server_streams gauge
+    ss << "# HELP srs_streams_total SRS server concurrent stream counts.\n"
+       << "# TYPE srs_streams_total gauge\n"
+       << "srs_streams_total "
+       << nstreams
+       << "\n";
 
-    // servers srs_server_streams_total counter
-    ss << "# HELP srs_server_streams_total SRS server statistic publish stream counts.\n"
-       << "# TYPE srs_server_streams_total counter\n"
-       << ss_streams.str();
+    // servers srs_clients counter
+    ss << "# HELP srs_clients SRS server concurrent client counts.\n"
+       << "# TYPE srs_clients gauge\n"
+       << "srs_clients "
+       << nclients
+       << "\n";
 
-    // dump_metric_clients
-    std::stringstream ss_clients;
-    stat->dumps_metric_clients(ss_clients);
+    // servers srs_clients_total counter
+    ss << "# HELP srs_clients_total SRS server client total counts.\n"
+       << "# TYPE srs_clients_total counter\n"
+       << "srs_clients_total "
+       << total_nclients
+       << "\n";
 
-    // servers srs_server_clients_total counter
-    ss << "# HELP srs_server_clients_total SRS server statistic play client counts.\n"
-       << "# TYPE srs_server_clients_total counter\n"
-       << ss_clients.str();
-
-    /*SrsHttpHeader* hdr = w->header();
-    hdr->set("Content-Encoding", "gzip");*/
+    // errors
+    ss << "# HELP srs_clients_errs_total SRS server clients total errors.\n"
+       << "# TYPE srs_clients_errs_total counter\n"
+       << "srs_clients_errs_total "
+       << nerrs
+       << "\n";
 
     return srs_api_response(w, r, ss.str());
 }

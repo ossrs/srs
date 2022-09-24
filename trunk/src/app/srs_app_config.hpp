@@ -297,9 +297,6 @@ protected:
 private:
     // The reload subscribers, when reload, callback all handlers.
     std::vector<ISrsReloadHandler*> subscribes;
-private:
-    // uname info
-    std::string sys_uname_;
 public:
     SrsConfig();
     virtual ~SrsConfig();
@@ -1090,8 +1087,10 @@ public:
     // @return the disk device name to stat. NULL if not configed.
     virtual SrsConfDirective* get_stats_disk_device();
 public:
-    // Get sys uname info.
-    virtual std::string get_uname_info();
+    // Get Prometheus exporter info.
+    virtual bool get_exporter_enabled();
+    virtual std::string get_exporter_label();
+    virtual std::string get_exporter_tag();
 };
 
 #endif
