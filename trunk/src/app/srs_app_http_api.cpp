@@ -1100,6 +1100,7 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
        << "# TYPE srs_build_info gauge\n"
        << "srs_build_info{"
        << "build_date=\"" << SRS_BUILD_DATE << "\","
+       << "major=\"" << VERSION_MAJOR << "\","
        << "version=\"" << RTMP_SIG_SRS_VERSION << "\","
        << "code=\"" << RTMP_SIG_SRS_CODE<< "\","
        << "label=\"" << label_<< "\","
