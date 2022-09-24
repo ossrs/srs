@@ -1125,9 +1125,9 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
        << "\n";
 
     // servers srs_server_streams gauge
-    ss << "# HELP srs_streams_total SRS server concurrent stream counts.\n"
-       << "# TYPE srs_streams_total gauge\n"
-       << "srs_streams_total "
+    ss << "# HELP srs_streams SRS server concurrent stream counts.\n"
+       << "# TYPE srs_streams gauge\n"
+       << "srs_streams "
        << nstreams
        << "\n";
 
