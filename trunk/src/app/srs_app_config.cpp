@@ -20,9 +20,6 @@
 #include <linux/version.h>
 #include <sys/utsname.h>
 #endif
-#ifdef SRS_OSX
-#include <sys/utsname.h>
-#endif
 
 #include <vector>
 #include <algorithm>

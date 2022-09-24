@@ -1087,7 +1087,7 @@ public:
     // @return the disk device name to stat. NULL if not configed.
     virtual SrsConfDirective* get_stats_disk_device();
 public:
-    // Get Prometheus exporter info.
+    // Get Prometheus exporter config.
     virtual bool get_exporter_enabled();
     virtual std::string get_exporter_label();
     virtual std::string get_exporter_tag();
