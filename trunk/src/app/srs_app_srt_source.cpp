@@ -383,11 +383,6 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
         //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
         
-        // ignore the nalu type sps(7), pps(8), aud(9)
-        if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
-            continue;
-        }
-        
         // for sps
         if (avc->is_sps(frame, frame_size)) {
             std::string sps;
