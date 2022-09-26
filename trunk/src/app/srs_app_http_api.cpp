@@ -1095,7 +1095,7 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 
     std::stringstream ss;
 
-    // srs_build_info gauge
+    // Build info from Config.
     ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which srs was built.\n"
        << "# TYPE srs_build_info gauge\n"
        << "srs_build_info{"
@@ -1107,46 +1107,46 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
        << "tag=\"" << tag_
        << "\"} 1\n";
 
-    // dump_metrics
+    // Dump metrics by statistic.
     int64_t send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs;
     stat->dumps_metrics(send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs);
 
-    // server send total bytes counter.
+    // The total of bytes sent.
     ss << "# HELP srs_send_bytes_total SRS server send bytes.\n"
        << "# TYPE srs_send_bytes_total counter\n"
        << "srs_send_bytes_total "
        << send_bytes
        << "\n";
 
-    // servers receive total bytes counter.
+    // The total of bytes received.
     ss << "# HELP srs_receive_bytes_total SRS server receive bytes.\n"
        << "# TYPE srs_receive_bytes_total counter\n"
        << "srs_receive_bytes_total "
        << recv_bytes
        << "\n";
 
-    // servers srs_server_streams gauge
+    // Current number of online streams.
     ss << "# HELP srs_streams SRS server concurrent stream counts.\n"
        << "# TYPE srs_streams gauge\n"
        << "srs_streams "
        << nstreams
        << "\n";
 
-    // servers srs_clients counter
+    // Current number of online clients.
     ss << "# HELP srs_clients SRS server concurrent client counts.\n"
        << "# TYPE srs_clients gauge\n"
        << "srs_clients "
        << nclients
        << "\n";
 
-    // servers srs_clients_total counter
+    // The total of clients connections.
     ss << "# HELP srs_clients_total SRS server client total counts.\n"
        << "# TYPE srs_clients_total counter\n"
        << "srs_clients_total "
        << total_nclients
        << "\n";
 
-    // errors
+    // The total of clients errors.
     ss << "# HELP srs_clients_errs_total SRS server clients total errors.\n"
        << "# TYPE srs_clients_errs_total counter\n"
        << "srs_clients_errs_total "

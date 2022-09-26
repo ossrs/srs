@@ -331,6 +331,7 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
             http_hooks_on_stop(info->req);
 
             SrsStatistic* stat = SrsStatistic::instance();
+            // TODO: FIXME: Should finger out the err.
             stat->on_disconnect(ctx, srs_success);
 
             map_ctx_info_.erase(it);

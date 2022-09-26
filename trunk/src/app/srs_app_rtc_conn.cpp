@@ -458,6 +458,7 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
 	
     // update the statistic when client coveried.
     SrsStatistic* stat = SrsStatistic::instance();
+    // TODO: FIXME: Should finger out the err.
     stat->on_disconnect(cid_.c_str(), srs_success);
 }
 
@@ -1108,6 +1109,7 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
 	
     // update the statistic when client coveried.
     SrsStatistic* stat = SrsStatistic::instance();
+    // TODO: FIXME: Should finger out the err.
     stat->on_disconnect(cid_.c_str(), srs_success);
 }
 

@@ -140,9 +140,9 @@ private:
     // The server total kbps.
     SrsKbps* kbps;
 private:
-    // The nb clients.
+    // The total of clients connections.
     int64_t nb_clients_;
-    // The nb errors.
+    // The total of clients errors.
     int64_t nb_errs_;
 private:
     SrsStatistic();
