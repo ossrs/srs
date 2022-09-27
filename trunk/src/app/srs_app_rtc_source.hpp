@@ -573,24 +573,85 @@ public:
     virtual srs_error_t check_send_nacks();
 };
 
+// RTC jitter for TS or sequence number, only reset the base, and keep in original order.
+template<typename T, typename ST>
 class SrsRtcJitter
 {
 private:
-    // The ts about packet.
-    uint32_t pkt_base_;
-    uint32_t pkt_last_;
-    // The ts after corrected.
-    uint32_t correct_base_;
-    uint32_t correct_last_;
+    ST threshold_;
+    typedef ST (*PFN) (const T&, const T&);
+    PFN distance_;
+private:
+    // The value about packet.
+    T pkt_base_;
+    T pkt_last_;
+    // The value after corrected.
+    T correct_base_;
+    T correct_last_;
     // The base timestamp by config, start from it.
-    uint32_t base_;
+    T base_;
     // Whether initialized. Note that we should not use correct_base_(0) as init state, because it might flip back.
     bool init_;
 public:
-    SrsRtcJitter(uint32_t base);
-    virtual ~SrsRtcJitter();
+    SrsRtcJitter(T base, ST threshold, PFN distance) {
+        threshold_ = threshold;
+        distance_ = distance;
+        base_ = base;
+
+        pkt_base_ = pkt_last_ = 0;
+        correct_last_ = correct_base_ = 0;
+        init_ = false;
+    }
+    virtual ~SrsRtcJitter() {
+    }
 public:
-    uint32_t correct(uint32_t ts);
+    T correct(T value) {
+        if (!init_) {
+            init_ = true;
+            correct_base_ = base_;
+            pkt_base_ = value;
+            srs_trace("RTC: Jitter init base=%u, value=%u", base_, value);
+        }
+
+        if (true) {
+            ST distance = distance_(value, pkt_last_);
+            if (distance > threshold_ || distance < -1 * threshold_) {
+                srs_trace("RTC: Jitter rebase value=%u, last=%u, distance=%d, pkt-base=%u/%u, correct-base=%u/%u",
+                    value, pkt_last_, distance, pkt_base_, value, correct_base_, correct_last_);
+                pkt_base_ = value;
+                correct_base_ = correct_last_;
+            }
+        }
+
+        pkt_last_ = value;
+        correct_last_ = correct_base_ + value - pkt_base_;
+
+        return correct_last_;
+    }
+};
+
+// For RTC timestamp jitter.
+class SrsRtcTsJitter
+{
+private:
+    SrsRtcJitter<uint32_t, int32_t>* jitter_;
+public:
+    SrsRtcTsJitter(uint32_t base);
+    virtual ~SrsRtcTsJitter();
+public:
+    uint32_t correct(uint32_t value);
+};
+
+// For RTC sequence jitter.
+class SrsRtcSeqJitter
+{
+private:
+    SrsRtcJitter<uint16_t, int16_t>* jitter_;
+public:
+    SrsRtcSeqJitter(uint16_t base);
+    virtual ~SrsRtcSeqJitter();
+public:
+    uint16_t correct(uint16_t value);
 };
 
 class SrsRtcSendTrack
@@ -604,12 +665,9 @@ protected:
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer* rtp_queue_;
 protected:
-    // Current sequence number.
-    uint64_t seqno_;
-    // Whether initialized. Note that we should not use seqno_(0) as init state, because it might flip back.
-    bool init_;
-    // The jitter to correct ts.
-    SrsRtcJitter* jitter_;
+    // The jitter to correct ts and sequence number.
+    SrsRtcTsJitter* jitter_ts_;
+    SrsRtcSeqJitter* jitter_seq_;
 private:
     // By config, whether no copy.
     bool nack_no_copy_;
