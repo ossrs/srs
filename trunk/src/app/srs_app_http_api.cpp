@@ -1078,7 +1078,7 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 {
     // whether enabled the HTTP Metrics API.
     if (!enabled_) {
-        return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_EXPORTER_DISABLED);
+        return srs_api_response_code(w, r, ERROR_EXPORTER_DISABLED);
     }
 
     /*
@@ -1096,58 +1096,58 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     std::stringstream ss;
 
     // Build info from Config.
-    ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which srs was built.\n"
-       << "# TYPE srs_build_info gauge\n"
-       << "srs_build_info{"
-       << "build_date=\"" << SRS_BUILD_DATE << "\","
-       << "major=\"" << VERSION_MAJOR << "\","
-       << "version=\"" << RTMP_SIG_SRS_VERSION << "\","
-       << "code=\"" << RTMP_SIG_SRS_CODE<< "\","
-       << "label=\"" << label_<< "\","
-       << "tag=\"" << tag_
-       << "\"} 1\n";
+    ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which SRS was built.\n"
+        << "# TYPE srs_build_info gauge\n"
+        << "srs_build_info{"
+            << "build_date=\"" << SRS_BUILD_DATE << "\","
+            << "major=\"" << VERSION_MAJOR << "\","
+            << "version=\"" << RTMP_SIG_SRS_VERSION << "\","
+            << "code=\"" << RTMP_SIG_SRS_CODE<< "\"";
+    if (!label_.empty()) ss << ",label=\"" << label_ << "\"";
+    if (!tag_.empty()) ss << ",tag=\"" << tag_ << "\"";
+    ss << "} 1\n";
 
     // Dump metrics by statistic.
     int64_t send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs;
     stat->dumps_metrics(send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs);
 
     // The total of bytes sent.
-    ss << "# HELP srs_send_bytes_total SRS server send bytes.\n"
+    ss << "# HELP srs_send_bytes_total SRS total sent bytes.\n"
        << "# TYPE srs_send_bytes_total counter\n"
        << "srs_send_bytes_total "
        << send_bytes
        << "\n";
 
     // The total of bytes received.
-    ss << "# HELP srs_receive_bytes_total SRS server receive bytes.\n"
+    ss << "# HELP srs_receive_bytes_total SRS total received bytes.\n"
        << "# TYPE srs_receive_bytes_total counter\n"
        << "srs_receive_bytes_total "
        << recv_bytes
        << "\n";
 
     // Current number of online streams.
-    ss << "# HELP srs_streams SRS server concurrent stream counts.\n"
+    ss << "# HELP srs_streams The number of SRS concurrent streams.\n"
        << "# TYPE srs_streams gauge\n"
        << "srs_streams "
        << nstreams
        << "\n";
 
     // Current number of online clients.
-    ss << "# HELP srs_clients SRS server concurrent client counts.\n"
+    ss << "# HELP srs_clients The number of SRS concurrent clients.\n"
        << "# TYPE srs_clients gauge\n"
        << "srs_clients "
        << nclients
        << "\n";
 
     // The total of clients connections.
-    ss << "# HELP srs_clients_total SRS server client total counts.\n"
+    ss << "# HELP srs_clients_total The total counts of SRS clients.\n"
        << "# TYPE srs_clients_total counter\n"
        << "srs_clients_total "
        << total_nclients
        << "\n";
 
     // The total of clients errors.
-    ss << "# HELP srs_clients_errs_total SRS server clients total errors.\n"
+    ss << "# HELP srs_clients_errs_total The total errors of SRS clients.\n"
        << "# TYPE srs_clients_errs_total counter\n"
        << "srs_clients_errs_total "
        << nerrs

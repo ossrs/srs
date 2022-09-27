@@ -100,7 +100,7 @@
     XX(ERROR_APM_EXCEED_SIZE               , 1087, "ApmExceedSize", "APM logs exceed max size 5MB") \
     XX(ERROR_APM_ENDPOINT                  , 1088, "ApmEndpoint", "APM endpoint is invalid") \
     XX(ERROR_APM_AUTH                      , 1089, "ApmAuth", "APM team or token is invalid") \
-    XX(ERROR_SYSTEM_CONFIG_EXPORTER_DISABLED, 1090, "ConfigMetricsDisable", "Metrics API is disabled") \
+    XX(ERROR_EXPORTER_DISABLED             , 1090, "ExporterDisable", "Prometheus exporter is disabled") \
 
 /**************************************************/
 /* RTMP protocol error. */
