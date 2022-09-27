@@ -749,7 +749,7 @@ srs_error_t SrsRtcTcpConn::cycle()
     srs_error_t err = do_cycle();
 
     // Only stat the HTTP streaming clients, ignore all API clients.
-    SrsStatistic::instance()->on_disconnect(get_id().c_str());
+    SrsStatistic::instance()->on_disconnect(get_id().c_str(), err);
     SrsStatistic::instance()->kbps_add_delta(get_id().c_str(), delta_);
 
     // Because we use manager to manage this object, not the http connection object, so we must remove it here.

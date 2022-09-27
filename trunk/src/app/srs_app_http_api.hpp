@@ -216,5 +216,18 @@ public:
 };
 #endif
 
+class SrsGoApiMetrics : public ISrsHttpHandler
+{
+private:
+    bool enabled_;
+    std::string label_;
+    std::string tag_;
+public:
+    SrsGoApiMetrics();
+    virtual ~SrsGoApiMetrics();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+
 #endif
 

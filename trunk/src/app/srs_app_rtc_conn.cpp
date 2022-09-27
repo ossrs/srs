@@ -458,7 +458,8 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
 	
     // update the statistic when client coveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_disconnect(cid_.c_str());
+    // TODO: FIXME: Should finger out the err.
+    stat->on_disconnect(cid_.c_str(), srs_success);
 }
 
 srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations)
@@ -1108,7 +1109,8 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
 	
     // update the statistic when client coveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_disconnect(cid_.c_str());
+    // TODO: FIXME: Should finger out the err.
+    stat->on_disconnect(cid_.c_str(), srs_success);
 }
 
 srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescription* stream_desc)
