@@ -1274,3 +1274,97 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportDuplicated)
     }
 }
 
+VOID TEST(KernelRTCTest, JitterTimestamp)
+{
+    SrsRtcTsJitter jitter(1000);
+
+    // Starts from the base.
+    EXPECT_EQ(1000, jitter.correct(0));
+
+    // Start from here.
+    EXPECT_EQ(1010, jitter.correct(10));
+    EXPECT_EQ(1010, jitter.correct(10));
+    EXPECT_EQ(1020, jitter.correct(20));
+
+    // Reset the base for jitter detected.
+    EXPECT_EQ(1020, jitter.correct(20 + 90*3*1000 + 1));
+    EXPECT_EQ(1019, jitter.correct(20 + 90*3*1000));
+    EXPECT_EQ(1021, jitter.correct(20 + 90*3*1000 + 2));
+    EXPECT_EQ(1019, jitter.correct(20 + 90*3*1000));
+    EXPECT_EQ(1020, jitter.correct(20 + 90*3*1000 + 1));
+
+    // Rollback the timestamp.
+    EXPECT_EQ(1020, jitter.correct(20));
+    EXPECT_EQ(1021, jitter.correct(20 + 1));
+    EXPECT_EQ(1021, jitter.correct(21));
+
+    // Reset for jitter again.
+    EXPECT_EQ(1021, jitter.correct(21 + 90*3*1000 + 1));
+    EXPECT_EQ(1021, jitter.correct(21));
+
+    // No jitter at edge.
+    EXPECT_EQ(1021 + 90*3*1000, jitter.correct(21 + 90*3*1000));
+    EXPECT_EQ(1021 + 90*3*1000 + 1, jitter.correct(21 + 90*3*1000 + 1));
+    EXPECT_EQ(1021 + 1, jitter.correct(21 + 1));
+
+    // Also safety to decrease the value.
+    EXPECT_EQ(1021, jitter.correct(21));
+    EXPECT_EQ(1010, jitter.correct(10));
+
+    // Try to reset to 0 base.
+    EXPECT_EQ(1010, jitter.correct(10 + 90*3*1000 + 1010));
+    EXPECT_EQ(0, jitter.correct(10 + 90*3*1000));
+    EXPECT_EQ(0, jitter.correct(0));
+
+    // Also safety to start from zero.
+    EXPECT_EQ(10, jitter.correct(10));
+    EXPECT_EQ(11, jitter.correct(11));
+}
+
+VOID TEST(KernelRTCTest, JitterSequence)
+{
+    SrsRtcSeqJitter jitter(100);
+
+    // Starts from the base.
+    EXPECT_EQ(100, jitter.correct(0));
+
+    // Normal without jitter.
+    EXPECT_EQ(101, jitter.correct(1));
+    EXPECT_EQ(102, jitter.correct(2));
+    EXPECT_EQ(101, jitter.correct(1));
+    EXPECT_EQ(103, jitter.correct(3));
+    EXPECT_EQ(110, jitter.correct(10));
+
+    // Reset the base for jitter detected.
+    EXPECT_EQ(110, jitter.correct(10 + 128 + 1));
+    EXPECT_EQ(109, jitter.correct(10 + 128));
+    EXPECT_EQ(110, jitter.correct(10 + 128 + 1));
+
+    // Rollback the timestamp.
+    EXPECT_EQ(110, jitter.correct(10));
+    EXPECT_EQ(111, jitter.correct(10 + 1));
+    EXPECT_EQ(111, jitter.correct(11));
+
+    // Reset for jitter again.
+    EXPECT_EQ(111, jitter.correct(11 + 128 + 1));
+    EXPECT_EQ(111, jitter.correct(11));
+
+    // No jitter at edge.
+    EXPECT_EQ(111 + 128, jitter.correct(11 + 128));
+    EXPECT_EQ(111 + 128 + 1, jitter.correct(11 + 128 + 1));
+    EXPECT_EQ(111 + 1, jitter.correct(11 + 1));
+
+    // Also safety to decrease the value.
+    EXPECT_EQ(111, jitter.correct(11));
+    EXPECT_EQ(110, jitter.correct(10));
+
+    // Try to reset to 0 base.
+    EXPECT_EQ(110, jitter.correct(10 + 128 + 110));
+    EXPECT_EQ(0, jitter.correct(10 + 128));
+    EXPECT_EQ(0, jitter.correct(0));
+
+    // Also safety to start from zero.
+    EXPECT_EQ(10, jitter.correct(10));
+    EXPECT_EQ(11, jitter.correct(11));
+}
+
