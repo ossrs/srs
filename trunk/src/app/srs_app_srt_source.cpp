@@ -378,11 +378,6 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
             return srs_error_wrap(err, "demux annexb");
         }
         
-        // 5bits, 7.3.1 NAL unit syntax,
-        // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
-        //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
-        
         // for sps
         if (avc->is_sps(frame, frame_size)) {
             std::string sps;
