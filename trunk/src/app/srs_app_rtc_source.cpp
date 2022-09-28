@@ -2663,7 +2663,7 @@ void SrsRtcSendTrack::rebuild_packet(SrsRtpPacket* pkt)
     uint32_t ts = pkt->header.get_timestamp();
     pkt->header.set_timestamp(jitter_ts_->correct(ts));
 
-    srs_warn("RTC: Correct %s seq=%u/%u, ts=%u/%u", track_desc_->type_.c_str(), seq, pkt->header.get_sequence(), ts, pkt->header.get_timestamp());
+    srs_info("RTC: Correct %s seq=%u/%u, ts=%u/%u", track_desc_->type_.c_str(), seq, pkt->header.get_sequence(), ts, pkt->header.get_timestamp());
 }
 
 srs_error_t SrsRtcSendTrack::on_nack(SrsRtpPacket** ppkt)
