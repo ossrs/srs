@@ -63,6 +63,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE2(_srs_config->get_http_api_enabled(), "api", ss);
     SRS_CHECK_FEATURE2(_srs_config->get_https_api_enabled(), "https", ss);
     SRS_CHECK_FEATURE2(_srs_config->get_raw_api(), "raw", ss);
+    SRS_CHECK_FEATURE2(_srs_config->get_exporter_enabled(), "prom", ss);
 
     string region = srs_getenv("SRS_REGION");
     SRS_CHECK_FEATURE3(!string(region).empty(), "region", region, ss);
