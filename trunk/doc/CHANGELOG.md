@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-09-30, Kernel: Support lazy sweeping simple GC. v5.0.69
 * v5.0, 2022-09-30, HTTP: Support HTTP header in creating order. v5.0.68
 * v5.0, 2022-09-27, For [#2899](https://github.com/ossrs/srs/issues/2899): API: Support exporter for Prometheus. v5.0.67
 * v5.0, 2022-09-27, For [#3167](https://github.com/ossrs/srs/issues/3167): WebRTC: Refine sequence jitter algorithm. v5.0.66

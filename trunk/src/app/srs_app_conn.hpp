@@ -124,8 +124,93 @@ private:
     void dispose(ISrsResource* c);
 };
 
-// If a connection is able to be expired,
-// user can use HTTP-API to kick-off it.
+// A simple lazy-sweep GC, just wait for a long time to delete the disposable resources.
+class SrsSweepGc : public ISrsLazyGc
+{
+public:
+    SrsSweepGc();
+    virtual ~SrsSweepGc();
+public:
+    virtual srs_error_t start();
+    virtual void remove(ISrsLazyResource* c);
+};
+
+extern ISrsLazyGc* _srs_gc;
+
+// A wrapper template for lazy-sweep resource.
+// See https://github.com/ossrs/srs/issues/3176#lazy-sweep
+template<typename T>
+class SrsLazyResourceWrapper : public ISrsResource
+{
+private:
+    T* resource_;
+    ISrsResource* wrapper_;
+    bool is_root_;
+public:
+    SrsLazyResourceWrapper(T* resource = NULL, ISrsResource* wrapper = NULL) {
+        wrapper_ = wrapper ? wrapper : this;
+        resource_ = resource ? resource : new T();
+        resource_->gc_use(wrapper_);
+
+        is_root_ = !resource;
+        if (!resource) {
+            resource_->gc_set_creator_wrapper(wrapper_);
+        }
+    }
+    virtual ~SrsLazyResourceWrapper() {
+        resource_->gc_dispose(wrapper_);
+
+        if (is_root_) {
+            resource_->gc_set_creator_wrapper(NULL);
+        }
+
+        if (resource_->gc_ref() == 0) {
+            _srs_gc->remove(resource_);
+        }
+    }
+public:
+    SrsLazyResourceWrapper<T>* copy() {
+        return new SrsLazyResourceWrapper<T>(resource_);
+    }
+    T* resource() {
+        return resource_;
+    }
+// Interface ISrsResource
+public:
+    virtual const SrsContextId& get_id() {
+        return resource_->get_id();
+    }
+    virtual std::string desc() {
+        return resource_->desc();
+    }
+};
+
+// Use macro to generate a wrapper class, because typedef will cause IDE incorrect tips.
+// See https://github.com/ossrs/srs/issues/3176#lazy-sweep
+#define SRS_LAZY_WRAPPER_GENERATOR(Resource, IWrapper, IResource) \
+    private: \
+        SrsLazyResourceWrapper<Resource> impl_; \
+    public: \
+        Resource##Wrapper(Resource* resource = NULL) : impl_(resource, this) { \
+        } \
+        virtual ~Resource##Wrapper() { \
+        } \
+    public: \
+        IWrapper* copy() { \
+            return new Resource##Wrapper(impl_.resource()); \
+        } \
+        IResource* resource() { \
+            return impl_.resource(); \
+        } \
+    public: \
+        virtual const SrsContextId& get_id() { \
+            return impl_.get_id(); \
+        } \
+        virtual std::string desc() { \
+            return impl_.desc(); \
+        } \
+
+// If a connection is able be expired, user can use HTTP-API to kick-off it.
 class ISrsExpire
 {
 public:

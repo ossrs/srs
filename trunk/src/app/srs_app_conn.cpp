@@ -406,6 +406,28 @@ void SrsResourceManager::dispose(ISrsResource* c)
     }
 }
 
+SrsSweepGc::SrsSweepGc()
+{
+}
+
+SrsSweepGc::~SrsSweepGc()
+{
+}
+
+srs_error_t SrsSweepGc::start()
+{
+    srs_error_t err = srs_success;
+    return err;
+}
+
+void SrsSweepGc::remove(ISrsLazyResource* c)
+{
+    // TODO: FIXME: MUST lazy sweep.
+    srs_freep(c);
+}
+
+ISrsLazyGc* _srs_gc = NULL;
+
 ISrsExpire::ISrsExpire()
 {
 }
