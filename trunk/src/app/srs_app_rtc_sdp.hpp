@@ -172,6 +172,7 @@ public:
     std::string msid_tracker_;
     std::string protos_;
     std::vector<SrsMediaPayloadType> payload_types_;
+    std::string connection_;
 
     std::vector<SrsCandidate> candidates_;
     std::vector<SrsSSRCGroup> ssrc_groups_;
@@ -208,6 +209,7 @@ private:
     srs_error_t parse_session_name(const std::string& content);
     srs_error_t parse_timing(const std::string& content);
     srs_error_t parse_attribute(const std::string& content);
+    srs_error_t parse_gb28181_ssrc(const std::string& content);
     srs_error_t parse_media_description(const std::string& content);
     srs_error_t parse_attr_group(const std::string& content);
 private:
@@ -231,6 +233,9 @@ public:
     int64_t start_time_;
     int64_t end_time_;
 
+    // Connection data, see https://www.ietf.org/rfc/rfc4566.html#section-5.7
+    std::string connection_;
+
     SrsSessionInfo session_info_;
     SrsSessionConfig session_config_;
     SrsSessionConfig session_negotiate_;
@@ -238,6 +243,7 @@ public:
     std::vector<std::string> groups_;
     std::string group_policy_;
 
+    std::string ice_lite_;
     std::string msid_semantic_;
     std::vector<std::string> msids_;
 

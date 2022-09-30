@@ -199,6 +199,17 @@ srs_error_t SrsSSRCInfo::encode(std::ostringstream& os)
         return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid ssrc");
     }
 
+    // See AnnexF at page 101 of https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=469659DC56B9B8187671FF08748CEC89
+    // Encode the bellow format:
+    //      a=ssrc:0100008888 cname:0100008888
+    //      a=ssrc:0100008888 label:gb28181
+    // As GB28181 format:
+    //      y=0100008888
+    if (label_ == "gb28181") {
+        os << "y=" << (cname_.empty() ? srs_fmt("%u", ssrc_) : cname_) << kCRLF;
+        return err;
+    }
+
     os << "a=ssrc:" << ssrc_ << " cname:" << cname_ << kCRLF;
     if (!msid_.empty()) {
         os << "a=ssrc:" << ssrc_ << " msid:" << msid_;
@@ -297,6 +308,8 @@ SrsMediaDesc::SrsMediaDesc(const std::string& type)
     recvonly_ = false;
     sendonly_ = false;
     inactive_ = false;
+
+    connection_ = "c=IN IP4 0.0.0.0";
 }
 
 SrsMediaDesc::~SrsMediaDesc()
@@ -380,13 +393,13 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
     os << kCRLF;
 
     // TODO:nettype and address type
-    os << "c=IN IP4 0.0.0.0" << kCRLF;
+    if (!connection_.empty()) os << connection_ << kCRLF;
 
     if ((err = session_info_.encode(os)) != srs_success) {
         return srs_error_wrap(err, "encode session info failed");
     }
 
-    os << "a=mid:" << mid_ << kCRLF;
+    if (!mid_.empty()) os << "a=mid:" << mid_ << kCRLF;
     if (!msid_.empty()) {
         os << "a=msid:" << msid_;
         
@@ -738,6 +751,8 @@ SrsSdp::SrsSdp()
     
     start_time_ = 0;
     end_time_ = 0;
+
+    ice_lite_ = "a=ice-lite";
 }
 
 SrsSdp::~SrsSdp()
@@ -818,9 +833,12 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
     os << "v=" << version_ << kCRLF;
     os << "o=" << username_ << " " << session_id_ << " " << session_version_ << " " << nettype_ << " " << addrtype_ << " " << unicast_address_ << kCRLF;
     os << "s=" << session_name_ << kCRLF;
+    // Session level connection data, see https://www.ietf.org/rfc/rfc4566.html#section-5.7
+    if (!connection_.empty()) os << connection_ << kCRLF;
+    // Timing, see https://www.ietf.org/rfc/rfc4566.html#section-5.9
     os << "t=" << start_time_ << " " << end_time_ << kCRLF;
     // ice-lite is a minimal version of the ICE specification, intended for servers running on a public IP address.
-    os << "a=ice-lite" << kCRLF;
+    if (!ice_lite_.empty()) os << ice_lite_ << kCRLF;
 
     if (!groups_.empty()) {
         os << "a=group:" << group_policy_;
@@ -830,11 +848,13 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
         os << kCRLF;
     }
 
-    os << "a=msid-semantic: " << msid_semantic_;
-    for (std::vector<std::string>::iterator iter = msids_.begin(); iter != msids_.end(); ++iter) {
-        os << " " << *iter;
+    if (!msid_semantic_.empty() || !msids_.empty()) {
+        os << "a=msid-semantic: " << msid_semantic_;
+        for (std::vector<std::string>::iterator iter = msids_.begin(); iter != msids_.end(); ++iter) {
+            os << " " << *iter;
+        }
+        os << kCRLF;
     }
-    os << kCRLF;
 
     if ((err = session_info_.encode(os)) != srs_success) {
         return srs_error_wrap(err, "encode session info failed");
@@ -976,6 +996,9 @@ srs_error_t SrsSdp::parse_line(const std::string& line)
             }
             return parse_attribute(content);
         }
+        case 'y': {
+            return parse_gb28181_ssrc(content);
+        }
         case 'm': {
             return parse_media_description(content);
         }
@@ -1076,6 +1099,29 @@ srs_error_t SrsSdp::parse_attribute(const std::string& content)
         }
     } else {
         return session_info_.parse_attribute(attribute, value);
+    }
+
+    return err;
+}
+
+srs_error_t SrsSdp::parse_gb28181_ssrc(const std::string& content)
+{
+    srs_error_t err = srs_success;
+
+    // See AnnexF at page 101 of https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=469659DC56B9B8187671FF08748CEC89
+    // Convert SSRC of GB28181 from:
+    //      y=0100008888
+    // to standard format:
+    //      a=ssrc:0100008888 cname:0100008888
+    //      a=ssrc:0100008888 label:gb28181
+    string cname = srs_fmt("a=ssrc:%s cname:%s", content.c_str(), content.c_str());
+    if ((err = media_descs_.back().parse_line(cname)) != srs_success) {
+        return srs_error_wrap(err, "parse gb %s cname", content.c_str());
+    }
+
+    string label = srs_fmt("a=ssrc:%s label:gb28181", content.c_str());
+    if ((err = media_descs_.back().parse_line(label)) != srs_success) {
+        return srs_error_wrap(err, "parse gb %s label", content.c_str());
     }
 
     return err;
