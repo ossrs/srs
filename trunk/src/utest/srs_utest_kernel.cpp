@@ -373,7 +373,7 @@ srs_error_t MockTsHandler::on_ts_message(SrsTsMessage* m)
 {
     srs_freep(msg);
     msg = m->detach();
-    
+
     return srs_success;
 }
 
@@ -1391,7 +1391,7 @@ VOID TEST(KernelFlvTest, FlvVSDecoderStreamClosed)
     fs.close();
 
     SrsFlvVodStreamDecoder dec;
-    ASSERT_FALSE(srs_success == dec.initialize(&fs));
+    HELPER_ASSERT_FAILED(dec.initialize(&fs));
 }
 
 /**
@@ -4816,14 +4816,6 @@ VOID TEST(KernelTSTest, CoverContextUtility)
         
         EXPECT_EQ(100, ctx.get(100)->pid);
         EXPECT_TRUE(NULL == ctx.get(200));
-    }
-    
-    if (true) {
-        SrsTsContext ctx;
-        EXPECT_EQ(0x47, ctx.sync_byte);
-        
-        ctx.set_sync_byte(0x01);
-        EXPECT_EQ(0x01, ctx.sync_byte);
     }
 }
 

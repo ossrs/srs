@@ -51,7 +51,7 @@ srs_error_t prepare_main() {
     }
 
     srs_freep(_srs_log);
-    _srs_log = new MockEmptyLog(SrsLogLevelDisabled);
+    _srs_log = new MockEmptyLog(SrsLogLevelError);
 
     if ((err = _srs_rtc_dtls_certificate->initialize()) != srs_success) {
         return srs_error_wrap(err, "rtc dtls certificate initialize");

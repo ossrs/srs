@@ -17,12 +17,10 @@
 #include <srs_app_log.hpp>
 #include <srs_app_async_call.hpp>
 #include <srs_app_tencentcloud.hpp>
-
 #ifdef SRS_RTC
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_app_rtc_conn.hpp>
 #endif
-
 #ifdef SRS_SRT
 #include <srs_app_srt_source.hpp>
 #endif

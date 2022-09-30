@@ -741,7 +741,7 @@ void SrsSrtSource::on_consumer_destroy(SrsSrtConsumer* consumer)
     std::vector<SrsSrtConsumer*>::iterator it;
     it = std::find(consumers.begin(), consumers.end(), consumer);
     if (it != consumers.end()) {
-        consumers.erase(it);
+        it = consumers.erase(it);
     }
 }
 

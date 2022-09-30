@@ -2711,7 +2711,7 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer* consumer)
     std::vector<SrsLiveConsumer*>::iterator it;
     it = std::find(consumers.begin(), consumers.end(), consumer);
     if (it != consumers.end()) {
-        consumers.erase(it);
+        it = consumers.erase(it);
     }
     
     if (consumers.empty()) {

@@ -325,6 +325,8 @@ SrsServer::SrsServer()
     signal_manager = new SrsSignalManager(this);
     conn_manager = new SrsResourceManager("TCP", true);
     latest_version_ = new SrsLatestVersion();
+    ppid = ::getppid();
+
     rtmp_listener_ = new SrsMultipleTcpListeners(this);
     api_listener_ = new SrsTcpListener(this);
     apis_listener_ = new SrsTcpListener(this);
@@ -333,7 +335,6 @@ SrsServer::SrsServer()
     webrtc_listener_ = new SrsTcpListener(this);
     stream_caster_flv_listener_ = new SrsHttpFlvListener();
     stream_caster_mpegts_ = new SrsUdpCasterListener();
-    ppid = ::getppid();
     
     // donot new object in constructor,
     // for some global instance is not ready now,

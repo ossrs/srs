@@ -313,7 +313,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 SrsConfDirective* conf = *it;
 
                 if (conf->name == "perf_stat" || conf->name == "queue_length") {
-                    dir->directives.erase(it);
+                    it = dir->directives.erase(it);
                     srs_freep(conf);
                     continue;
                 }
@@ -835,7 +835,7 @@ void SrsConfDirective::remove(SrsConfDirective* v)
 {
     std::vector<SrsConfDirective*>::iterator it;
     if ((it = std::find(directives.begin(), directives.end(), v)) != directives.end()) {
-        directives.erase(it);
+        it = directives.erase(it);
     }
 }
 
@@ -1242,7 +1242,7 @@ void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
         return;
     }
     
-    subscribes.erase(it);
+    it = subscribes.erase(it);
 }
 
 // LCOV_EXCL_START

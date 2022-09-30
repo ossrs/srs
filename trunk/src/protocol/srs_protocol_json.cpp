@@ -1826,7 +1826,7 @@ SrsJsonObject* SrsJsonObject::set(string key, SrsJsonAny* value)
         
         if (key == name) {
             srs_freep(any);
-            properties.erase(it);
+            it = properties.erase(it);
             break;
         }
     }
