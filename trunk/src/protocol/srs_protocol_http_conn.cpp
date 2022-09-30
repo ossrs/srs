@@ -1011,8 +1011,6 @@ void SrsHttpResponseWriter::write_default_header()
 SrsHttpRequestWriter::SrsHttpRequestWriter(ISrsProtocolReadWriter* io)
 {
     writer_ = new SrsHttpMessageWriter(io, this);
-    method_ = NULL;
-    path_ = NULL;
 }
 
 SrsHttpRequestWriter::~SrsHttpRequestWriter()
@@ -1040,10 +1038,10 @@ srs_error_t SrsHttpRequestWriter::writev(const iovec* iov, int iovcnt, ssize_t* 
     return writer_->writev(iov, iovcnt, pnwrite);
 }
 
-void SrsHttpRequestWriter::write_header(const char* method, const char* path)
+void SrsHttpRequestWriter::write_header(const std::string& method, const std::string& path)
 {
     if (writer_->header_wrote()) {
-        srs_warn("http: multiple write_header calls, current=%s(%s), now=%s(%s)", method_, path_, method, path);
+        srs_warn("http: multiple write_header calls, current=%s(%s), now=%s(%s)", method_.c_str(), path_.c_str(), method.c_str(), path.c_str());
         return;
     }
 

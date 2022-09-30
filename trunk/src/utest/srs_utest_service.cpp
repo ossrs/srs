@@ -91,11 +91,12 @@ VOID TEST(TCPServerTest, PingPong)
         l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 
 		HELPER_EXPECT_SUCCESS(l.listen());
+		EXPECT_TRUE(srs_netfd_fileno(l.lfd) > 0);
 	}
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h);
+        SrsTcpListener l(&h);
         l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
@@ -108,7 +109,7 @@ VOID TEST(TCPServerTest, PingPong)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h);
+        SrsTcpListener l(&h);
         l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
@@ -130,7 +131,7 @@ VOID TEST(TCPServerTest, PingPong)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h);
+        SrsTcpListener l(&h);
         l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
@@ -154,7 +155,7 @@ VOID TEST(TCPServerTest, PingPong)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h);
+        SrsTcpListener l(&h);
         l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
@@ -189,7 +190,7 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h);
+        SrsTcpListener l(&h);
         l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
@@ -211,7 +212,7 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h);
+        SrsTcpListener l(&h);
         l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
@@ -233,7 +234,7 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h);
+        SrsTcpListener l(&h);
         l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
@@ -413,7 +414,7 @@ VOID TEST(TCPServerTest, WritevIOVC)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h);
+        SrsTcpListener l(&h);
         l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
@@ -443,7 +444,7 @@ VOID TEST(TCPServerTest, WritevIOVC)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h);
+        SrsTcpListener l(&h);
         l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
@@ -515,12 +516,12 @@ VOID TEST(HTTPServerTest, MessageConnection)
 
 	if (true) {
 	    SrsHttpMessage m;
-	    m.set_basic(HTTP_REQUEST, 100, 0, 0); EXPECT_STREQ("<unknown>", m.method_str().c_str());
-	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_GET, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_GET, m.method()); EXPECT_STREQ("GET", m.method_str().c_str());
-	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_PUT, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_PUT, m.method()); EXPECT_STREQ("PUT", m.method_str().c_str());
-	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_POST, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_POST, m.method()); EXPECT_STREQ("POST", m.method_str().c_str());
-	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_DELETE, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_DELETE, m.method()); EXPECT_STREQ("DELETE", m.method_str().c_str());
-	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_OPTIONS, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_OPTIONS, m.method()); EXPECT_STREQ("OPTIONS", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, (http_method)100, (http_status)0, 0); EXPECT_STREQ("<unknown>", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_GET, (http_status)0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_GET, m.method()); EXPECT_STREQ("GET", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_PUT, (http_status)0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_PUT, m.method()); EXPECT_STREQ("PUT", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_POST, (http_status)0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_POST, m.method()); EXPECT_STREQ("POST", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_DELETE, (http_status)0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_DELETE, m.method()); EXPECT_STREQ("DELETE", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_OPTIONS, (http_status)0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_OPTIONS, m.method()); EXPECT_STREQ("OPTIONS", m.method_str().c_str());
 	}
 
 	if (true) {

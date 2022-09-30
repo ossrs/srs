@@ -270,7 +270,7 @@ public:
     // Thus explicit calls to WriteHeader are mainly used to
     // send error codes.
     // @remark, user must set header then write or write_header.
-    virtual void write_header(const char* method, const char* path) = 0;
+    virtual void write_header(const std::string& method, const std::string& path) = 0;
 };
 
 // Objects implementing the Handler interface can be

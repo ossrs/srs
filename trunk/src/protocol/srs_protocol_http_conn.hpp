@@ -290,8 +290,8 @@ class SrsHttpRequestWriter : public ISrsHttpRequestWriter, public ISrsHttpFirstL
 protected:
     SrsHttpMessageWriter* writer_;
     // The method and path passed to WriteHeader, for request only.
-    const char* method_;
-    const char* path_;
+    std::string method_;
+    std::string path_;
 public:
     SrsHttpRequestWriter(ISrsProtocolReadWriter* io);
     virtual ~SrsHttpRequestWriter();
@@ -301,7 +301,7 @@ public:
     virtual SrsHttpHeader* header();
     virtual srs_error_t write(char* data, int size);
     virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
-    virtual void write_header(const char* method, const char* path);
+    virtual void write_header(const std::string& method, const std::string& path);
 // Interface ISrsHttpFirstLineWriter
 public:
     virtual srs_error_t build_first_line(std::stringstream& ss, char* data, int size);
