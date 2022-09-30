@@ -87,7 +87,9 @@ srs_error_t srs_api_response_json(ISrsHttpResponseWriter* w, string data)
     SrsHttpHeader* h = w->header();
     
     h->set_content_length(data.length());
-    h->set_content_type("application/json");
+    if (h->content_type().empty()) {
+        h->set_content_type("application/json");
+    }
     
     if ((err = w->write((char*)data.data(), (int)data.length())) != srs_success) {
         return srs_error_wrap(err, "write json");
@@ -1152,6 +1154,8 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
        << "srs_clients_errs_total "
        << nerrs
        << "\n";
+
+    w->header()->set_content_type("text/plain; charset=utf-8");
 
     return srs_api_response(w, r, ss.str());
 }

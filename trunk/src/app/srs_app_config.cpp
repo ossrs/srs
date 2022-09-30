@@ -2305,7 +2305,16 @@ srs_error_t SrsConfig::check_normal_config()
             }
         }
     }
-    
+    if (true) {
+        SrsConfDirective* conf = root->get("exporter");
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "enabled" && n != "listen" && n != "label" && n != "tag") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal exporter.%s", n.c_str());
+            }
+        }
+    }
+
     ////////////////////////////////////////////////////////////////////////
     // check listen for rtmp.
     ////////////////////////////////////////////////////////////////////////
@@ -3581,6 +3590,25 @@ bool SrsConfig::get_exporter_enabled()
     }
 
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+string SrsConfig::get_exporter_listen()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_EXPORTER_LISTEN");
+
+    static string DEFAULT = "9972";
+
+    SrsConfDirective* conf = root->get("exporter");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("listen");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
 }
 
 string SrsConfig::get_exporter_label()
