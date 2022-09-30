@@ -335,6 +335,7 @@ SrsServer::SrsServer()
     webrtc_listener_ = new SrsTcpListener(this);
     stream_caster_flv_listener_ = new SrsHttpFlvListener();
     stream_caster_mpegts_ = new SrsUdpCasterListener();
+    exporter_listener_ = new SrsTcpListener(this);
     
     // donot new object in constructor,
     // for some global instance is not ready now,
@@ -390,6 +391,7 @@ void SrsServer::destroy()
     srs_freep(webrtc_listener_);
     srs_freep(stream_caster_flv_listener_);
     srs_freep(stream_caster_mpegts_);
+    srs_freep(exporter_listener_);
 }
 
 void SrsServer::dispose()
@@ -405,6 +407,7 @@ void SrsServer::dispose()
     webrtc_listener_->close();
     stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
+    exporter_listener_->close();
 
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
     ingester->dispose();
@@ -432,6 +435,7 @@ void SrsServer::gracefully_dispose()
     webrtc_listener_->close();
     stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
+    exporter_listener_->close();
     srs_trace("listeners closed");
 
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
@@ -590,7 +594,7 @@ srs_error_t SrsServer::listen()
         }
     }
 
-    // Create HTTP server listener.
+    // Create HTTPS server listener.
     if (_srs_config->get_https_stream_enabled()) {
         https_listener_->set_endpoint(_srs_config->get_https_stream_listen())->set_label("HTTPS-Server");
         if ((err = https_listener_->listen()) != srs_success) {
@@ -637,7 +641,15 @@ srs_error_t SrsServer::listen()
             return srs_error_wrap(err, "listen");
         }
     }
-    
+
+    // Create exporter server listener.
+    if (_srs_config->get_exporter_enabled()) {
+        exporter_listener_->set_endpoint(_srs_config->get_exporter_listen())->set_label("Exporter-Server");
+        if ((err = exporter_listener_->listen()) != srs_success) {
+            return srs_error_wrap(err, "exporter server listen");
+        }
+    }
+
     if ((err = conn_manager->start()) != srs_success) {
         return srs_error_wrap(err, "connection manager");
     }
@@ -1159,6 +1171,10 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
             // TODO: FIXME: Should manage this connection by _srs_rtc_manager
             resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port, this);
 #endif
+        } else if (listener == exporter_listener_) {
+            // TODO: FIXME: Maybe should support https metrics.
+            bool is_https = false;
+            resource = new SrsHttpxConn(is_https, this, new SrsTcpConnection(stfd2), http_api_mux, ip, port);
         } else {
             srs_close_stfd(stfd2);
             srs_warn("Close for invalid fd=%d, ip=%s:%d", fd, ip.c_str(), port);

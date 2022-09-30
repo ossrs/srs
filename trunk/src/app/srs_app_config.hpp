@@ -1089,6 +1089,7 @@ public:
 public:
     // Get Prometheus exporter config.
     virtual bool get_exporter_enabled();
+    virtual std::string get_exporter_listen();
     virtual std::string get_exporter_label();
     virtual std::string get_exporter_tag();
 };

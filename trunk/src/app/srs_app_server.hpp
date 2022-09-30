@@ -133,6 +133,9 @@ private:
     SrsHttpFlvListener* stream_caster_flv_listener_;
     // Stream Caster for push over MPEGTS-UDP
     SrsUdpCasterListener* stream_caster_mpegts_;
+    // Exporter server listener, over TCP. Please note that metrics request of HTTP is served by this
+    // listener, and it might be reused by HTTP API.
+    SrsTcpListener* exporter_listener_;
 private:
     // Signal manager which convert gignal to io message.
     SrsSignalManager* signal_manager;
