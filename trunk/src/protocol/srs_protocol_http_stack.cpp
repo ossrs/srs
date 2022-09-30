@@ -152,6 +152,10 @@ void SrsHttpHeader::set(string key, string value)
         pchar = ch;
     }
 
+    if (headers.find(key) == headers.end()) {
+        keys_.push_back(key);
+    }
+
     headers[key] = value;
 }
 
@@ -169,9 +173,18 @@ string SrsHttpHeader::get(string key)
 
 void SrsHttpHeader::del(string key)
 {
-    map<string, string>::iterator it = headers.find(key);
-    if (it != headers.end()) {
-        headers.erase(it);
+    if (true) {
+        vector<string>::iterator it = std::find(keys_.begin(), keys_.end(), key);
+        if (it != keys_.end()) {
+            it = keys_.erase(it);
+        }
+    }
+
+    if (true) {
+        map<string, string>::iterator it = headers.find(key);
+        if (it != headers.end()) {
+            headers.erase(it);
+        }
     }
 }
 
@@ -182,10 +195,11 @@ int SrsHttpHeader::count()
 
 void SrsHttpHeader::dumps(SrsJsonObject* o)
 {
-    map<string, string>::iterator it;
-    for (it = headers.begin(); it != headers.end(); ++it) {
-        string v = it->second;
-        o->set(it->first, SrsJsonAny::str(v.c_str()));
+    vector<string>::iterator it;
+    for (it = keys_.begin(); it != keys_.end(); ++it) {
+        const string& key = *it;
+        const string& value = headers[key];
+        o->set(key, SrsJsonAny::str(value.c_str()));
     }
 }
 
@@ -217,9 +231,11 @@ void SrsHttpHeader::set_content_type(string ct)
 
 void SrsHttpHeader::write(stringstream& ss)
 {
-    map<string, string>::iterator it;
-    for (it = headers.begin(); it != headers.end(); ++it) {
-        ss << it->first << ": " << it->second << SRS_HTTP_CRLF;
+    vector<string>::iterator it;
+    for (it = keys_.begin(); it != keys_.end(); ++it) {
+        const string& key = *it;
+        const string& value = headers[key];
+        ss << key << ": " << value << SRS_HTTP_CRLF;
     }
 }
 
@@ -657,7 +673,7 @@ void SrsHttpServeMux::unhijack(ISrsHttpMatchHijacker* h)
     if (it == hijackers.end()) {
         return;
     }
-    hijackers.erase(it);
+    it = hijackers.erase(it);
 }
 
 srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handler)

@@ -93,6 +93,8 @@ private:
     // header fields, and ending with the entity-header fields.
     // @doc https://tools.ietf.org/html/rfc2616#section-4.2
     std::map<std::string, std::string> headers;
+    // Store keys to keep fields in order.
+    std::vector<std::string> keys_;
 public:
     SrsHttpHeader();
     virtual ~SrsHttpHeader();

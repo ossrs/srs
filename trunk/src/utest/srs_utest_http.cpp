@@ -608,6 +608,58 @@ VOID TEST(ProtocolHTTPTest, HTTPHeader)
     srs_freep(o);
 }
 
+VOID TEST(ProtocolHTTPTest, HTTPHeaderOrder)
+{
+    SrsHttpHeader h;
+    h.set("User-Agent", RTMP_SIG_SRS_SERVER);
+    h.set("Server", "SRS");
+    h.set("Connection", "Close");
+
+    if (true) {
+        SrsJsonObject* o = SrsJsonObject::object();
+        SrsAutoFree(SrsJsonObject, o);
+        h.dumps(o);
+
+        ASSERT_EQ(3, o->count());
+        EXPECT_STREQ("User-Agent", o->key_at(0).c_str());
+        EXPECT_STREQ("Server", o->key_at(1).c_str());
+        EXPECT_STREQ("Connection", o->key_at(2).c_str());
+    }
+
+    if (true) {
+        h.del("User-Agent");
+
+        SrsJsonObject* o = SrsJsonObject::object();
+        SrsAutoFree(SrsJsonObject, o);
+        h.dumps(o);
+
+        ASSERT_EQ(2, o->count());
+        EXPECT_STREQ("Server", o->key_at(0).c_str());
+        EXPECT_STREQ("Connection", o->key_at(1).c_str());
+    }
+
+    if (true) {
+        h.del("Server");
+
+        SrsJsonObject* o = SrsJsonObject::object();
+        SrsAutoFree(SrsJsonObject, o);
+        h.dumps(o);
+
+        ASSERT_EQ(1, o->count());
+        EXPECT_STREQ("Connection", o->key_at(0).c_str());
+    }
+
+    if (true) {
+        h.del("Connection");
+
+        SrsJsonObject* o = SrsJsonObject::object();
+        SrsAutoFree(SrsJsonObject, o);
+        h.dumps(o);
+
+        ASSERT_EQ(0, o->count());
+    }
+}
+
 VOID TEST(ProtocolHTTPTest, HTTPServerMuxerVhost)
 {
     srs_error_t err;
