@@ -17,6 +17,7 @@
 #include <srs_app_log.hpp>
 #include <srs_app_async_call.hpp>
 #include <srs_app_tencentcloud.hpp>
+#include <srs_app_conn.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_app_rtc_conn.hpp>
@@ -329,6 +330,7 @@ srs_error_t srs_global_initialize()
     _srs_rtc_manager = new SrsResourceManager("RTC", true);
     _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
 #endif
+    _srs_gc = new SrsSweepGc();
 
     // Initialize global pps, which depends on _srs_clock
     _srs_pps_ids = new SrsPps();
