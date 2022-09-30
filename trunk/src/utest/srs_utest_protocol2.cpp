@@ -1233,8 +1233,6 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid1BMin)
 
 VOID TEST(ProtocolKbpsTest, Connections)
 {
-    srs_error_t err = srs_success;
-
     if (true) {
         MockWallClock* clock = new MockWallClock();
         SrsAutoFree(MockWallClock, clock);
@@ -1400,8 +1398,6 @@ VOID TEST(ProtocolKbpsTest, Connections)
 
 VOID TEST(ProtocolKbpsTest, Delta)
 {
-    srs_error_t err = srs_success;
-
     if (true) {
         MockWallClock* clock = new MockWallClock();
         SrsAutoFree(MockWallClock, clock);
@@ -1484,8 +1480,6 @@ VOID TEST(ProtocolKbpsTest, Delta)
 
 VOID TEST(ProtocolKbpsTest, RAWStatistic)
 {
-    srs_error_t err = srs_success;
-
     if (true) {
         MockWallClock* clock = new MockWallClock();
         SrsAutoFree(MockWallClock, clock);
@@ -1650,8 +1644,6 @@ VOID TEST(ProtocolKbpsTest, WriteLargeIOVs)
 
 VOID TEST(ProtocolKbpsTest, ConnectionsSugar)
 {
-    srs_error_t err = srs_success;
-
     if (true) {
         MockWallClock* clock = new MockWallClock();
         SrsAutoFree(MockWallClock, clock);
@@ -1799,8 +1791,6 @@ VOID TEST(ProtocolKbpsTest, ConnectionsSugar)
 
 VOID TEST(ProtocolKbpsTest, DeltaSugar)
 {
-    srs_error_t err = srs_success;
-
     if (true) {
         MockWallClock* clock = new MockWallClock();
         SrsAutoFree(MockWallClock, clock);
@@ -1840,8 +1830,6 @@ VOID TEST(ProtocolKbpsTest, DeltaSugar)
 
 VOID TEST(ProtocolKbpsTest, RAWStatisticSugar)
 {
-    srs_error_t err = srs_success;
-
     if (true) {
         MockWallClock* clock = new MockWallClock();
         SrsAutoFree(MockWallClock, clock);
@@ -2286,8 +2274,6 @@ VOID TEST(ProtocolProtobufTest, FieldKey)
 
 VOID TEST(ProtocolKbpsTest, NewDelta)
 {
-    srs_error_t err = srs_success;
-
     if (true) {
         SrsEphemeralDelta ed;
 

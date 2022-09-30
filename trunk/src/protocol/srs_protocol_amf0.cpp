@@ -489,7 +489,7 @@ void SrsUnSortedHashtable::set(string key, SrsAmf0Any* value)
         
         if (key == name) {
             srs_freep(any);
-            properties.erase(it);
+            it = properties.erase(it);
             break;
         }
     }

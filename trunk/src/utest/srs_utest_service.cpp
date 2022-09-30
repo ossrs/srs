@@ -515,7 +515,7 @@ VOID TEST(HTTPServerTest, MessageConnection)
 
 	if (true) {
 	    SrsHttpMessage m;
-	    m.set_basic(HTTP_REQUEST, 100, 0, 0); EXPECT_STREQ("OTHER", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, 100, 0, 0); EXPECT_STREQ("<unknown>", m.method_str().c_str());
 	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_GET, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_GET, m.method()); EXPECT_STREQ("GET", m.method_str().c_str());
 	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_PUT, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_PUT, m.method()); EXPECT_STREQ("PUT", m.method_str().c_str());
 	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_POST, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_POST, m.method()); EXPECT_STREQ("POST", m.method_str().c_str());

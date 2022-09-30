@@ -3498,8 +3498,6 @@ VOID TEST(ProtocolStackTest, ProtocolExcpectMessage)
 
 VOID TEST(ProtocolRTMPTest, RTMPRequest)
 {
-    srs_error_t err = srs_success;
-
     SrsRequest req;
     std::string param;
 

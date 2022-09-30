@@ -142,7 +142,7 @@ void SrsAppCasterFlv::remove(ISrsResource* c)
     
     std::vector<ISrsConnection*>::iterator it;
     if ((it = std::find(conns.begin(), conns.end(), conn)) != conns.end()) {
-        conns.erase(it);
+        it = conns.erase(it);
     }
     
     // fixbug: ISrsConnection for CasterFlv is not freed, which could cause memory leak

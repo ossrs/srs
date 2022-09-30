@@ -206,7 +206,7 @@ void SrsResourceManager::subscribe(ISrsDisposingHandler* h)
     // Restore the handler from unsubscribing handlers.
     vector<ISrsDisposingHandler*>::iterator it;
     if ((it = std::find(unsubs_.begin(), unsubs_.end(), h)) != unsubs_.end()) {
-        unsubs_.erase(it);
+        it = unsubs_.erase(it);
     }
 }
 
@@ -214,7 +214,7 @@ void SrsResourceManager::unsubscribe(ISrsDisposingHandler* h)
 {
     vector<ISrsDisposingHandler*>::iterator it = find(handlers_.begin(), handlers_.end(), h);
     if (it != handlers_.end()) {
-        handlers_.erase(it);
+        it = handlers_.erase(it);
     }
 
     // Put it to the unsubscribing handlers.
@@ -385,7 +385,7 @@ void SrsResourceManager::dispose(ISrsResource* c)
 
     vector<ISrsResource*>::iterator it = std::find(conns_.begin(), conns_.end(), c);
     if (it != conns_.end()) {
-        conns_.erase(it);
+        it = conns_.erase(it);
     }
 
     // We should copy all handlers, because it may change during callback.

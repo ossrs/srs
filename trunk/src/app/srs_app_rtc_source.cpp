@@ -491,7 +491,7 @@ void SrsRtcSource::on_consumer_destroy(SrsRtcConsumer* consumer)
     std::vector<SrsRtcConsumer*>::iterator it;
     it = std::find(consumers.begin(), consumers.end(), consumer);
     if (it != consumers.end()) {
-        consumers.erase(it);
+        it = consumers.erase(it);
     }
 
     // When all consumers finished, notify publisher to handle it.
@@ -599,7 +599,7 @@ void SrsRtcSource::unsubscribe(ISrsRtcSourceEventHandler* h)
     std::vector<ISrsRtcSourceEventHandler*>::iterator it;
     it = std::find(event_handlers_.begin(), event_handlers_.end(), h);
     if (it != event_handlers_.end()) {
-        event_handlers_.erase(it);
+        it = event_handlers_.erase(it);
     }
 }
 

@@ -19,6 +19,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_conn.hpp>
+#include <srs_protocol_http_stack.hpp>
 
 SrsHttpParser::SrsHttpParser()
 {
@@ -451,24 +452,8 @@ string SrsHttpMessage::method_str()
     if (jsonp && !jsonp_method.empty()) {
         return jsonp_method;
     }
-    
-    if (is_http_get()) {
-        return "GET";
-    }
-    if (is_http_put()) {
-        return "PUT";
-    }
-    if (is_http_post()) {
-        return "POST";
-    }
-    if (is_http_delete()) {
-        return "DELETE";
-    }
-    if (is_http_options()) {
-        return "OPTIONS";
-    }
-    
-    return "OTHER";
+
+    return http_method_str((http_method)_method);
 }
 
 bool SrsHttpMessage::is_http_get()

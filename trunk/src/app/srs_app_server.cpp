@@ -1135,6 +1135,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         if (nn == 10 && b[0] == 0 && b[2] == 0 && b[3] == 1 && b[1] - b[5] == 20
             && b[6] == 0x21 && b[7] == 0x12 && b[8] == 0xa4 && b[9] == 0x42
         ) {
+            // TODO: FIXME: Should manage this connection by _srs_rtc_manager
             resource = new SrsRtcTcpConn(io, ip, port, this);
         } else {
             resource = new SrsHttpxConn(listener == http_listener_, this, io, http_server, ip, port);
@@ -1152,8 +1153,11 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         } else if (listener == http_listener_ || listener == https_listener_) {
             bool is_https = listener == https_listener_;
             resource = new SrsHttpxConn(is_https, this, new SrsTcpConnection(stfd2), http_server, ip, port);
+#ifdef SRS_RTC
         } else if (listener == webrtc_listener_) {
+            // TODO: FIXME: Should manage this connection by _srs_rtc_manager
             resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port, this);
+#endif
         } else {
             srs_close_stfd(stfd2);
             srs_warn("Close for invalid fd=%d, ip=%s:%d", fd, ip.c_str(), port);

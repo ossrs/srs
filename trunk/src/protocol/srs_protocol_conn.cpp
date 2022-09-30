@@ -14,6 +14,11 @@ ISrsResource::~ISrsResource()
 {
 }
 
+std::string ISrsResource::desc()
+{
+    return "Resource";
+}
+
 ISrsResourceManager::ISrsResourceManager()
 {
 }

@@ -752,9 +752,11 @@ srs_error_t SrsRtcTcpConn::cycle()
     SrsStatistic::instance()->on_disconnect(get_id().c_str(), err);
     SrsStatistic::instance()->kbps_add_delta(get_id().c_str(), delta_);
 
+    // TODO: FIXME: Should manage RTC TCP connection by _srs_rtc_manager.
     // Because we use manager to manage this object, not the http connection object, so we must remove it here.
     manager_->remove(this);
 
+    // TODO: FIXME: When TCP connection(transport) closed, should notify session to dispose, should not free them simultaneously.
     // Only remove session when network is established, because client might use other UDP network.
     if(session_ && session_->tcp()->is_establelished()) {
         session_->tcp()->set_state(SrsRtcNetworkStateClosed);

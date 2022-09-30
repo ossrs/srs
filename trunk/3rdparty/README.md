@@ -1,6 +1,7 @@
 http-parser-2.1.zip
 * for srs to support http callback.
-* https://github.com/joyent/http-parser
+* https://github.com/nodejs/http-parser
+* https://github.com/ossrs/http-parser
 * https://ossrs.net/lts/zh-cn/license#http-parser
 
 nginx-1.5.7.zip

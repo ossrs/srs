@@ -165,6 +165,10 @@ srs_error_t SrsUdpListener::listen()
 {
     srs_error_t err = srs_success;
 
+    // Ignore if not configured.
+    if (ip.empty() || !port) return err;
+
+    srs_close_stfd(lfd);
     if ((err = srs_udp_listen(ip, port, &lfd)) != srs_success) {
         return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
     }
@@ -224,7 +228,7 @@ srs_error_t SrsUdpListener::cycle()
 SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h)
 {
     handler = h;
-    port = 0;
+    port_ = 0;
     lfd = NULL;
     label_ = "TCP";
     trd = new SrsDummyCoroutine();
@@ -245,24 +249,32 @@ SrsTcpListener* SrsTcpListener::set_label(const std::string& label)
 SrsTcpListener* SrsTcpListener::set_endpoint(const std::string& i, int p)
 {
     ip = i;
-    port = p;
+    port_ = p;
     return this;
 }
 
 SrsTcpListener* SrsTcpListener::set_endpoint(const std::string& endpoint)
 {
-    std::string ip; int port;
-    srs_parse_endpoint(endpoint, ip, port);
-    return set_endpoint(ip, port);
+    std::string ip; int port_;
+    srs_parse_endpoint(endpoint, ip, port_);
+    return set_endpoint(ip, port_);
+}
+
+int SrsTcpListener::port()
+{
+    return port_;
 }
 
 srs_error_t SrsTcpListener::listen()
 {
     srs_error_t err = srs_success;
 
+    // Ignore if not configured.
+    if (ip.empty() || !port_) return err;
+
     srs_close_stfd(lfd);
-    if ((err = srs_tcp_listen(ip, port, &lfd)) != srs_success) {
-        return srs_error_wrap(err, "listen at %s:%d", ip.c_str(), port);
+    if ((err = srs_tcp_listen(ip, port_, &lfd)) != srs_success) {
+        return srs_error_wrap(err, "listen at %s:%d", ip.c_str(), port_);
     }
     
     srs_freep(trd);
@@ -272,7 +284,7 @@ srs_error_t SrsTcpListener::listen()
     }
 
     int fd = srs_netfd_fileno(lfd);
-    srs_trace("%s listen at tcp://%s:%d, fd=%d", label_.c_str(), ip.c_str(), port, fd);
+    srs_trace("%s listen at tcp://%s:%d, fd=%d", label_.c_str(), ip.c_str(), port_, fd);
     
     return err;
 }

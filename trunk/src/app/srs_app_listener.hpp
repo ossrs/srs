@@ -115,7 +115,7 @@ private:
 private:
     ISrsTcpHandler* handler;
     std::string ip;
-    int port;
+    int port_;
 public:
     SrsTcpListener(ISrsTcpHandler* h);
     virtual ~SrsTcpListener();
@@ -123,6 +123,7 @@ public:
     SrsTcpListener* set_label(const std::string& label);
     SrsTcpListener* set_endpoint(const std::string& i, int p);
     SrsTcpListener* set_endpoint(const std::string& endpoint);
+    int port();
 public:
     virtual srs_error_t listen();
     void close();

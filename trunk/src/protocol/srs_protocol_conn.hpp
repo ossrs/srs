@@ -21,7 +21,7 @@ public:
     // Get the context id of connection.
     virtual const SrsContextId& get_id() = 0;
     // The resource description, optional.
-    virtual std::string desc() = 0;
+    virtual std::string desc();
 };
 
 // The manager for resource.

@@ -57,14 +57,21 @@ public:
 public:
     srs_error_t encode(std::ostringstream& os);
 public:
+    // See https://webrtchacks.com/sdp-anatomy/
     uint32_t ssrc_;
+    // See https://webrtchacks.com/sdp-anatomy/
+    // a=ssrc:3570614608 cname:4TOk42mSjXCkVIa6
     std::string cname_;
     // See https://webrtchacks.com/sdp-anatomy/
-    // a=ssrc:2231627014 msid:lgsCFqt9kN2fVKw5wg3NKqGdATQoltEwOdMS daed9400-d0dd-4db3-b949-422499e96e2d
-    // a=ssrc:2231627014 msid:{msid_} {msid_tracker_}
+    // a=ssrc:3570614608 msid:lgsCFqt9kN2fVKw5wg3NKqGdATQoltEwOdMS 35429d94-5637-4686-9ecd-7d0622261ce8
+    // a=ssrc:3570614608 msid:{msid_} {msid_tracker_}
     std::string msid_;
     std::string msid_tracker_;
+    // See https://webrtchacks.com/sdp-anatomy/
+    // a=ssrc:3570614608 mslabel:lgsCFqt9kN2fVKw5wg3NKqGdATQoltEwOdMS
     std::string mslabel_;
+    // See https://webrtchacks.com/sdp-anatomy/
+    // a=ssrc:3570614608 label:35429d94-5637-4686-9ecd-7d0622261ce8
     std::string label_;
 };
 

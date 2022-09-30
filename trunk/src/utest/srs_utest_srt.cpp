@@ -178,7 +178,7 @@ VOID TEST(ServiceStSRTTest, ListenConnectAccept)
     srs_error_t err = srs_success;
 
     std::string server_ip = "127.0.0.1";
-    int server_port = 9000;
+    int server_port = 19000;
 
     MockSrtServer srt_server;
     HELPER_EXPECT_SUCCESS(srt_server.create_socket());
@@ -223,7 +223,7 @@ VOID TEST(ServiceStSRTTest, ConnectWithStreamid)
     srs_error_t err = srs_success;
 
     std::string server_ip = "127.0.0.1";
-    int server_port = 9000;
+    int server_port = 19000;
 
     MockSrtServer srt_server;
     HELPER_EXPECT_SUCCESS(srt_server.create_socket());
@@ -235,7 +235,7 @@ VOID TEST(ServiceStSRTTest, ConnectWithStreamid)
     HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
     SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
-    HELPER_EXPECT_SUCCESS(srt_client_socket->connect("127.0.0.1", 9000));
+    HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
 
     srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srt_server.accept(&srt_server_accepted_fd));
@@ -250,7 +250,7 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
     srs_error_t err = srs_success;
 
     std::string server_ip = "127.0.0.1";
-    int server_port = 9000;
+    int server_port = 19000;
 
     MockSrtServer srt_server;
     HELPER_EXPECT_SUCCESS(srt_server.create_socket());
