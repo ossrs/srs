@@ -74,6 +74,7 @@ extern int srs_mutex_unlock(srs_mutex_t mutex);
 
 extern int srs_key_create(int* keyp, void (*destructor)(void*));
 extern int srs_thread_setspecific(int key, void* value);
+extern int srs_thread_setspecific2(srs_thread_t thread, int key, void* value);
 extern void* srs_thread_getspecific(int key);
 
 extern int srs_netfd_fileno(srs_netfd_t stfd);

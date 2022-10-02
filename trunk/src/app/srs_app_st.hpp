@@ -76,13 +76,17 @@ public:
     // @return a copy of error, which should be freed by user.
     //      NULL if not terminated and user should pull again.
     virtual srs_error_t pull() = 0;
+    // Get and set the context id of coroutine.
     virtual const SrsContextId& cid() = 0;
+    virtual void set_cid(const SrsContextId& cid) = 0;
 };
 
 // An empty coroutine, user can default to this object before create any real coroutine.
 // @see https://github.com/ossrs/srs/pull/908
 class SrsDummyCoroutine : public SrsCoroutine
 {
+private:
+    SrsContextId cid_;
 public:
     SrsDummyCoroutine();
     virtual ~SrsDummyCoroutine();
@@ -92,6 +96,7 @@ public:
     virtual void interrupt();
     virtual srs_error_t pull();
     virtual const SrsContextId& cid();
+    virtual void set_cid(const SrsContextId& cid);
 };
 
 // A ST-coroutine is a lightweight thread, just like the goroutine.
@@ -138,8 +143,9 @@ public:
     // @remark Return ERROR_THREAD_TERMINATED when thread terminated normally without error.
     // @remark Return ERROR_THREAD_INTERRUPED when thread is interrupted.
     virtual srs_error_t pull();
-    // Get the context id of thread.
+    // Get and set the context id of thread.
     virtual const SrsContextId& cid();
+    virtual void set_cid(const SrsContextId& cid);
 };
 
 // High performance coroutine.
@@ -180,6 +186,7 @@ public:
         return srs_error_copy(trd_err);
     }
     const SrsContextId& cid();
+    virtual void set_cid(const SrsContextId& cid);
 private:
     srs_error_t cycle();
     static void* pfn(void* arg);

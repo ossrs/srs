@@ -133,7 +133,7 @@ VOID TEST(AppCoroutineTest, Dummy)
 
     if (true) {
         SrsContextId v = dc.cid();
-        EXPECT_FALSE(v.empty());
+        EXPECT_TRUE(v.empty());
 
         srs_error_t err = dc.pull();
         EXPECT_TRUE(err != srs_success);
@@ -150,7 +150,7 @@ VOID TEST(AppCoroutineTest, Dummy)
         dc.stop();
 
         SrsContextId v = dc.cid();
-        EXPECT_FALSE(v.empty());
+        EXPECT_TRUE(v.empty());
 
         srs_error_t err = dc.pull();
         EXPECT_TRUE(err != srs_success);
@@ -167,7 +167,7 @@ VOID TEST(AppCoroutineTest, Dummy)
         dc.interrupt();
 
         SrsContextId v = dc.cid();
-        EXPECT_FALSE(v.empty());
+        EXPECT_TRUE(v.empty());
 
         srs_error_t err = dc.pull();
         EXPECT_TRUE(err != srs_success);
@@ -205,6 +205,8 @@ public:
         srs_error_t r0 = srs_success;
 
         srs_cond_signal(running);
+
+        // The cid should be generated if empty.
         cid = _srs_context->get_id();
 
         while (!quit && (r0 = trd->pull()) == srs_success && err == srs_success) {
@@ -212,6 +214,9 @@ public:
         }
 
         srs_cond_signal(exited);
+
+        // The cid might be updated.
+        cid = _srs_context->get_id();
 
         if (err != srs_success) {
             srs_freep(r0);
@@ -221,6 +226,38 @@ public:
         return r0;
     }
 };
+
+VOID TEST(AppCoroutineTest, SetCidOfCoroutine)
+{
+    srs_error_t err = srs_success;
+
+    MockCoroutineHandler ch;
+    SrsSTCoroutine sc("test", &ch);
+    ch.trd = &sc;
+    EXPECT_TRUE(sc.cid().empty());
+
+    // Start coroutine, which will create the cid.
+    HELPER_ASSERT_SUCCESS(sc.start());
+    HELPER_ASSERT_SUCCESS(sc.pull());
+
+    srs_cond_timedwait(ch.running, 100 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(!sc.cid().empty());
+    EXPECT_TRUE(!ch.cid.empty());
+
+    // Should be a new cid.
+    SrsContextId cid = _srs_context->generate_id();
+    EXPECT_TRUE(sc.cid().compare(cid) != 0);
+    EXPECT_TRUE(ch.cid.compare(cid) != 0);
+
+    // Set the cid and stop the coroutine.
+    sc.set_cid(cid);
+    sc.stop();
+
+    // Now the cid should be the new one.
+    srs_cond_timedwait(ch.exited, 100 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(sc.cid().compare(cid) == 0);
+    EXPECT_TRUE(ch.cid.compare(cid) == 0);
+}
 
 VOID TEST(AppCoroutineTest, StartStop)
 {

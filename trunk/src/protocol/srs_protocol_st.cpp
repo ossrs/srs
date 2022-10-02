@@ -412,6 +412,11 @@ void *srs_thread_getspecific(int key)
     return st_thread_getspecific(key);
 }
 
+int srs_thread_setspecific2(srs_thread_t thread, int key, void* value)
+{
+    return st_thread_setspecific2((st_thread_t)thread, key, value);
+}
+
 int srs_netfd_fileno(srs_netfd_t stfd)
 {
     return st_netfd_fileno((st_netfd_t)stfd);

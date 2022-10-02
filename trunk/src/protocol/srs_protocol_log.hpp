@@ -28,9 +28,12 @@ public:
     virtual SrsContextId generate_id();
     virtual const SrsContextId& get_id();
     virtual const SrsContextId& set_id(const SrsContextId& v);
-public:
+private:
     virtual void clear_cid();
 };
+
+// Set the context id of specified thread, not self.
+extern const SrsContextId& srs_context_set_cid_of(srs_thread_t trd, const SrsContextId& v);
 
 // The context restore stores the context and restore it when done.
 // Usage:

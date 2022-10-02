@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-10-02, ST: Support set context id while thread running. v5.0.72
 * v5.0, 2022-09-30, RTC: Refine SDP to support GB28181 SSRC spec. v5.0.71
 * v5.0, 2022-09-30, GB28181: Refine HTTP parser to support SIP. v5.0.70
 * v5.0, 2022-09-30, Kernel: Support lazy sweeping simple GC. v5.0.69

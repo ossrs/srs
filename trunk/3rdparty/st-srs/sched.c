@@ -689,7 +689,6 @@ _st_thread_t *st_thread_self(void)
     return _ST_CURRENT_THREAD();
 }
 
-
 #ifdef DEBUG
 /* ARGSUSED */
 void _st_show_thread_stack(_st_thread_t *thread, const char *messg)

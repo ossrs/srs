@@ -63,9 +63,18 @@ const SrsContextId& SrsThreadContext::get_id()
 
 const SrsContextId& SrsThreadContext::set_id(const SrsContextId& v)
 {
+    return srs_context_set_cid_of(srs_thread_self(), v);
+}
+
+void SrsThreadContext::clear_cid()
+{
+}
+
+const SrsContextId& srs_context_set_cid_of(srs_thread_t trd, const SrsContextId& v)
+{
     ++_srs_pps_cids_set->sugar;
 
-    if (!srs_thread_self()) {
+    if (!trd) {
         _srs_context_default = v;
         return v;
     }
@@ -78,14 +87,10 @@ const SrsContextId& SrsThreadContext::set_id(const SrsContextId& v)
         srs_assert(r0 == 0);
     }
 
-    int r0 = srs_thread_setspecific(_srs_context_key, cid);
+    int r0 = srs_thread_setspecific2(trd, _srs_context_key, cid);
     srs_assert(r0 == 0);
 
     return v;
-}
-
-void SrsThreadContext::clear_cid()
-{
 }
 
 impl_SrsContextRestore::impl_SrsContextRestore(SrsContextId cid)

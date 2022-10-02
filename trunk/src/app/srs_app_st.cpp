@@ -66,7 +66,12 @@ srs_error_t SrsDummyCoroutine::pull()
 
 const SrsContextId& SrsDummyCoroutine::cid()
 {
-    return _srs_context->get_id();
+    return cid_;
+}
+
+void SrsDummyCoroutine::set_cid(const SrsContextId& cid)
+{
+    cid_ = cid;
 }
 
 SrsSTCoroutine::SrsSTCoroutine(string n, ISrsCoroutineHandler* h)
@@ -112,6 +117,11 @@ srs_error_t SrsSTCoroutine::pull()
 const SrsContextId& SrsSTCoroutine::cid()
 {
     return impl_->cid();
+}
+
+void SrsSTCoroutine::set_cid(const SrsContextId& cid)
+{
+    impl_->set_cid(cid);
 }
 
 SrsFastCoroutine::SrsFastCoroutine(string n, ISrsCoroutineHandler* h)
@@ -255,6 +265,12 @@ void SrsFastCoroutine::interrupt()
 const SrsContextId& SrsFastCoroutine::cid()
 {
     return cid_;
+}
+
+void SrsFastCoroutine::set_cid(const SrsContextId& cid)
+{
+    cid_ = cid;
+    srs_context_set_cid_of(trd, cid);
 }
 
 srs_error_t SrsFastCoroutine::cycle()
