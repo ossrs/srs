@@ -68,10 +68,13 @@ extern const char* _srs_version;
 // @global main SRS server, for debugging
 SrsServer* _srs_server = NULL;
 
+// Whether setup config by environment variables, see https://github.com/ossrs/srs/issues/2277
+bool _srs_config_by_env = false;
+
 /**
  * main entrance.
  */
-srs_error_t do_main(int argc, char** argv)
+srs_error_t do_main(int argc, char** argv, char** envp)
 {
     srs_error_t err = srs_success;
 
@@ -129,13 +132,22 @@ srs_error_t do_main(int argc, char** argv)
     if ((err = _srs_log->initialize()) != srs_success) {
         return srs_error_wrap(err, "log initialize");
     }
+
+    // Detect whether set SRS config by envrionment variables.
+    for (char** pp = envp; *pp; pp++) {
+        char* p = *pp;
+        if (p[0] == 'S' && p[1] == 'R' && p[2] == 'S' && p[3] == '_') {
+            _srs_config_by_env = true;
+            break;
+        }
+    }
     
     // config already applied to log.
-    srs_trace2(TAG_MAIN, "%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
+    srs_trace("%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
     srs_trace("authors: %sand %s", RTMP_SIG_SRS_AUTHORS, SRS_CONSTRIBUTORS);
-    srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s, osx: %d, pkg: %s, region: %s, source: %s",
-        _srs_config->cwd().c_str(), cwd.c_str(), SRS_BUILD_DATE, SRS_USER_CONFIGURE, SRS_UNAME, SRS_OSX_BOOL, SRS_PACKAGER,
-        srs_getenv("SRS_REGION").c_str(), srs_getenv("SRS_SOURCE").c_str());
+    srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s, osx: %d, env: %d, pkg: %s",
+        _srs_config->cwd().c_str(), cwd.c_str(), SRS_BUILD_DATE, SRS_USER_CONFIGURE, SRS_UNAME, SRS_OSX_BOOL,
+        _srs_config_by_env, SRS_PACKAGER);
     srs_trace("configure detail: " SRS_CONFIGURE);
 #ifdef SRS_EMBEDED_TOOL_CHAIN
     srs_trace("crossbuild tool chain: " SRS_EMBEDED_TOOL_CHAIN);
@@ -208,9 +220,9 @@ srs_error_t do_main(int argc, char** argv)
     return err;
 }
 
-int main(int argc, char** argv)
+int main(int argc, char** argv, char** envp)
 {
-    srs_error_t err = do_main(argc, argv);
+    srs_error_t err = do_main(argc, argv, envp);
 
     if (err != srs_success) {
         srs_error("Failed, %s", srs_error_desc(err).c_str());

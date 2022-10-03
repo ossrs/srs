@@ -27,6 +27,9 @@ using namespace std;
 // Whether we are in docker, defined in main module.
 extern bool _srs_in_docker;
 
+// Whether setup config by environment variables.
+extern bool _srs_config_by_env;
+
 // Check the feature by cond
 #define SRS_CHECK_FEATURE(cond, ss) if (cond) ss << "&" << #cond << "=1"
 #define SRS_CHECK_FEATURE2(cond, key, ss) if (cond) ss << "&" << key << "=1"
@@ -159,6 +162,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE(exec, ss);
     SRS_CHECK_FEATURE(transcode, ss);
     SRS_CHECK_FEATURE(security, ss);
+    SRS_CHECK_FEATURE2(_srs_config_by_env, "env", ss);
 
     SRS_CHECK_FEATURE2(_srs_cls->enabled(), "cls", ss);
     SRS_CHECK_FEATURE3(_srs_cls->nn_logs(), "logs", _srs_cls->nn_logs(), ss);
