@@ -4396,27 +4396,24 @@ bool SrsConfig::get_rtc_to_rtmp(string vhost)
 srs_utime_t SrsConfig::get_rtc_pli_for_rtmp(string vhost)
 {
     static srs_utime_t DEFAULT = 6 * SRS_UTIME_SECONDS;
+    srs_utime_t v = 0;
 
     if (!srs_getenv("srs.vhost.rtc.pli_for_rtmp").empty()) {
-        srs_utime_t v = (srs_utime_t)(::atof(srs_getenv("srs.vhost.rtc.pli_for_rtmp").c_str()) * SRS_UTIME_SECONDS);
-        if (v < 500 * SRS_UTIME_MILLISECONDS || v > 30 * SRS_UTIME_SECONDS) {
-            srs_warn("Reset getenv pli %dms to %dms", srsu2msi(v), srsu2msi(DEFAULT));
+        v = (srs_utime_t)(::atof(srs_getenv("srs.vhost.rtc.pli_for_rtmp").c_str()) * SRS_UTIME_SECONDS);
+    } else {
+        SrsConfDirective* conf = get_rtc(vhost);
+        if (!conf) {
             return DEFAULT;
         }
-        return v;
+
+        conf = conf->get("pli_for_rtmp");
+        if (!conf || conf->arg0().empty()) {
+            return DEFAULT;
+        }
+
+        v = (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
     }
 
-    SrsConfDirective* conf = get_rtc(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("pli_for_rtmp");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    srs_utime_t v = (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
     if (v < 500 * SRS_UTIME_MILLISECONDS || v > 30 * SRS_UTIME_SECONDS) {
         srs_warn("Reset pli %dms to %dms", srsu2msi(v), srsu2msi(DEFAULT));
         return DEFAULT;
