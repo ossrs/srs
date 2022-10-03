@@ -35,6 +35,7 @@ ISrsContext* _srs_context = NULL;
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
 bool _srs_in_docker = false;
+bool _srs_config_by_env = false;
 
 #include <srs_app_st.hpp>
 
