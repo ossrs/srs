@@ -59,11 +59,15 @@ const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 #define SRS_CR (char)SRS_CONSTS_CR
 
 // Overwrite the config by env.
-#define SRS_OVERWRITE_BY_ENV_STRING(key) if (getenv(key)) return getenv(key)
-#define SRS_OVERWRITE_BY_ENV_BOOL(key) if (getenv(key)) return SRS_CONF_PERFER_FALSE(string(getenv(key)))
-#define SRS_OVERWRITE_BY_ENV_BOOL2(key) if (getenv(key)) return SRS_CONF_PERFER_TRUE(string(getenv(key)))
-#define SRS_OVERWRITE_BY_ENV_INT(key) if (getenv(key)) return ::atoi(getenv(key))
-#define SRS_OVERWRITE_BY_ENV_SECONDS(key) if (getenv(key)) return ::atoi(getenv(key)) * SRS_UTIME_SECONDS
+#define SRS_OVERWRITE_BY_ENV_STRING(key) if (!srs_getenv(key).empty()) return srs_getenv(key)
+#define SRS_OVERWRITE_BY_ENV_BOOL(key) if (!srs_getenv(key).empty()) return SRS_CONF_PERFER_FALSE(srs_getenv(key))
+#define SRS_OVERWRITE_BY_ENV_BOOL2(key) if (!srs_getenv(key).empty()) return SRS_CONF_PERFER_TRUE(srs_getenv(key))
+#define SRS_OVERWRITE_BY_ENV_INT(key) if (!srs_getenv(key).empty()) return ::atoi(srs_getenv(key).c_str())
+#define SRS_OVERWRITE_BY_ENV_FLOAT(key) if (!srs_getenv(key).empty()) return ::atof(srs_getenv(key).c_str())
+#define SRS_OVERWRITE_BY_ENV_SECONDS(key) if (!srs_getenv(key).empty()) return srs_utime_t(::atoi(srs_getenv(key).c_str()) * SRS_UTIME_SECONDS)
+#define SRS_OVERWRITE_BY_ENV_MILLISECONDS(key) if (!srs_getenv(key).empty()) return (srs_utime_t)(::atoi(srs_getenv(key).c_str()) * SRS_UTIME_MILLISECONDS)
+#define SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS(key) if (!srs_getenv(key).empty()) return srs_utime_t(::atof(srs_getenv(key).c_str()) * SRS_UTIME_SECONDS)
+#define SRS_OVERWRITE_BY_ENV_FLOAT_MILLISECONDS(key) if (!srs_getenv(key).empty()) return srs_utime_t(::atof(srs_getenv(key).c_str()) * SRS_UTIME_MILLISECONDS)
 
 /**
  * dumps the ingest/transcode-engine in @param dir to amf0 object @param engine.
@@ -1827,9 +1831,9 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     }
 
     // Overwrite the config by env SRS_CONFIG_FILE.
-    if (::getenv("SRS_CONFIG_FILE")) {
+    if (!srs_getenv("srs.config.file").empty()) {
         string ov = config_file;
-        config_file = ::getenv("SRS_CONFIG_FILE");
+        config_file = srs_getenv("srs.config.file");
         srs_trace("ENV: Overwrite config %s to %s", ov.c_str(), config_file.c_str());
     }
 
@@ -2749,6 +2753,8 @@ string SrsConfig::argv()
 
 bool SrsConfig::get_daemon()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.daemon");
+
     SrsConfDirective* conf = root->get("daemon");
     if (!conf || conf->arg0().empty()) {
         return true;
@@ -2759,6 +2765,8 @@ bool SrsConfig::get_daemon()
 
 bool SrsConfig::get_in_docker()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.in_docker");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = root->get("in_docker");
@@ -2849,13 +2857,13 @@ string SrsConfig::get_server_id()
     // Get the server id from env, config or DEFAULT.
     string server_id;
 
-    if (getenv("SRS_SERVER_ID")) {
-        server_id = getenv("SRS_SERVER_ID");
-    }
-
-    SrsConfDirective* conf = root->get("server_id");
-    if (conf) {
-        server_id = conf->arg0();
+    if (!srs_getenv("srs.server_id").empty()) {
+        server_id = srs_getenv("srs.server_id");
+    } else {
+        SrsConfDirective* conf = root->get("server_id");
+        if (conf) {
+            server_id = conf->arg0();
+        }
     }
 
     if (server_id.empty()) {
@@ -2863,15 +2871,15 @@ string SrsConfig::get_server_id()
     }
 
     // Write server id to tmp file.
-    if (!server_id.empty()) {
-        srs_try_write_file(srs_server_id_path(get_pid_file()), server_id);
-    }
+    srs_try_write_file(srs_server_id_path(get_pid_file()), server_id);
 
     return server_id;
 }
 
 int SrsConfig::get_max_connections()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.max_connections");
+
     static int DEFAULT = 1000;
     
     SrsConfDirective* conf = root->get("max_connections");
@@ -2886,9 +2894,8 @@ vector<string> SrsConfig::get_listens()
 {
     std::vector<string> ports;
 
-    // SRS_OVERWRITE_BY_ENV_STRING("SRS_LISTEN")
-    if (getenv("SRS_LISTEN")) {
-        ports.push_back(getenv("SRS_LISTEN"));
+    if (!srs_getenv("srs.listen").empty()) {
+        ports.push_back(srs_getenv("srs.listen"));
         return ports;
     }
     
@@ -2906,6 +2913,8 @@ vector<string> SrsConfig::get_listens()
 
 string SrsConfig::get_pid_file()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.pid");
+
     static string DEFAULT = "./objs/srs.pid";
     
     SrsConfDirective* conf = root->get("pid");
@@ -2919,6 +2928,8 @@ string SrsConfig::get_pid_file()
 
 srs_utime_t SrsConfig::get_pithy_print()
 {
+    SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.pithy_print_ms");
+
     static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = root->get("pithy_print_ms");
@@ -2931,6 +2942,8 @@ srs_utime_t SrsConfig::get_pithy_print()
 
 bool SrsConfig::get_utc_time()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.utc_time");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = root->get("utc_time");
@@ -2941,7 +2954,10 @@ bool SrsConfig::get_utc_time()
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-string SrsConfig::get_work_dir() {
+string SrsConfig::get_work_dir()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.work_dir");
+
     static string DEFAULT = "./";
     
     SrsConfDirective* conf = root->get("work_dir");
@@ -2954,6 +2970,8 @@ string SrsConfig::get_work_dir() {
 
 bool SrsConfig::get_asprocess()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.asprocess");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = root->get("asprocess");
@@ -2966,6 +2984,8 @@ bool SrsConfig::get_asprocess()
 
 bool SrsConfig::whether_query_latest_version()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.query_latest_version");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("query_latest_version");
@@ -2978,7 +2998,7 @@ bool SrsConfig::whether_query_latest_version()
 
 srs_utime_t SrsConfig::first_wait_for_qlv()
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("SRS_FIRST_WAIT_FOR_QLV");
+    SRS_OVERWRITE_BY_ENV_SECONDS("srs.first_wait_for_qlv");
 
     static srs_utime_t DEFAULT = 5 * 60 * SRS_UTIME_SECONDS;
 
@@ -2992,6 +3012,8 @@ srs_utime_t SrsConfig::first_wait_for_qlv()
 
 bool SrsConfig::empty_ip_ok()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.empty_ip_ok");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("empty_ip_ok");
@@ -3004,6 +3026,8 @@ bool SrsConfig::empty_ip_ok()
 
 srs_utime_t SrsConfig::get_grace_start_wait()
 {
+    SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.grace_start_wait");
+
     static srs_utime_t DEFAULT = 2300 * SRS_UTIME_MILLISECONDS;
 
     SrsConfDirective* conf = root->get("grace_start_wait");
@@ -3016,6 +3040,8 @@ srs_utime_t SrsConfig::get_grace_start_wait()
 
 srs_utime_t SrsConfig::get_grace_final_wait()
 {
+    SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.grace_final_wait");
+
     static srs_utime_t DEFAULT = 3200 * SRS_UTIME_MILLISECONDS;
 
     SrsConfDirective* conf = root->get("grace_final_wait");
@@ -3028,6 +3054,8 @@ srs_utime_t SrsConfig::get_grace_final_wait()
 
 bool SrsConfig::is_force_grace_quit()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.force_grace_quit");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = root->get("force_grace_quit");
@@ -3040,6 +3068,8 @@ bool SrsConfig::is_force_grace_quit()
 
 bool SrsConfig::disable_daemon_for_docker()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.disable_daemon_for_docker");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("disable_daemon_for_docker");
@@ -3052,6 +3082,8 @@ bool SrsConfig::disable_daemon_for_docker()
 
 bool SrsConfig::inotify_auto_reload()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.inotify_auto_reload");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = root->get("inotify_auto_reload");
@@ -3064,6 +3096,8 @@ bool SrsConfig::inotify_auto_reload()
 
 bool SrsConfig::auto_reload_for_docker()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.auto_reload_for_docker");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("auto_reload_for_docker");
@@ -3077,6 +3111,13 @@ bool SrsConfig::auto_reload_for_docker()
 // TODO: FIXME: Support reload.
 double SrsConfig::tcmalloc_release_rate()
 {
+    if (!srs_getenv("srs.tcmalloc_release_rate").empty()) {
+        double trr = ::atof(srs_getenv("srs.tcmalloc_release_rate").c_str());
+        trr = srs_min(10, trr);
+        trr = srs_max(0, trr);
+        return trr;
+    }
+
     static double DEFAULT = SRS_PERF_TCMALLOC_RELEASE_RATE;
 
     SrsConfDirective* conf = root->get("tcmalloc_release_rate");
@@ -3092,6 +3133,8 @@ double SrsConfig::tcmalloc_release_rate()
 
 srs_utime_t SrsConfig::get_threads_interval()
 {
+    SRS_OVERWRITE_BY_ENV_SECONDS("srs.threads.interval");
+
     static srs_utime_t DEFAULT = 5 * SRS_UTIME_SECONDS;
 
     SrsConfDirective* conf = root->get("threads");
@@ -3114,6 +3157,8 @@ srs_utime_t SrsConfig::get_threads_interval()
 
 bool SrsConfig::get_circuit_breaker()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.circuit_breaker.enabled");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("circuit_breaker");
@@ -3131,6 +3176,8 @@ bool SrsConfig::get_circuit_breaker()
 
 int SrsConfig::get_high_threshold()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.circuit_breaker.high_threshold");
+
     static int DEFAULT = 90;
 
     SrsConfDirective* conf = root->get("circuit_breaker");
@@ -3148,6 +3195,8 @@ int SrsConfig::get_high_threshold()
 
 int SrsConfig::get_high_pulse()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.circuit_breaker.high_pulse");
+
     static int DEFAULT = 2;
 
     SrsConfDirective* conf = root->get("circuit_breaker");
@@ -3165,6 +3214,8 @@ int SrsConfig::get_high_pulse()
 
 int SrsConfig::get_critical_threshold()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.circuit_breaker.critical_threshold");
+
     static int DEFAULT = 95;
 
     SrsConfDirective* conf = root->get("circuit_breaker");
@@ -3182,6 +3233,8 @@ int SrsConfig::get_critical_threshold()
 
 int SrsConfig::get_critical_pulse()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.circuit_breaker.critical_pulse");
+
     static int DEFAULT = 1;
 
     SrsConfDirective* conf = root->get("circuit_breaker");
@@ -3199,6 +3252,8 @@ int SrsConfig::get_critical_pulse()
 
 int SrsConfig::get_dying_threshold()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.circuit_breaker.dying_threshold");
+
     static int DEFAULT = 99;
 
     SrsConfDirective* conf = root->get("circuit_breaker");
@@ -3216,6 +3271,8 @@ int SrsConfig::get_dying_threshold()
 
 int SrsConfig::get_dying_pulse()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.circuit_breaker.dying_threshold");
+
     static int DEFAULT = 5;
 
     SrsConfDirective* conf = root->get("circuit_breaker");
@@ -3233,7 +3290,7 @@ int SrsConfig::get_dying_pulse()
 
 bool SrsConfig::get_tencentcloud_cls_enabled()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_TENCENTCLOUD_CLS_ENABLED");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.tencentcloud_cls.enabled");
 
     static bool DEFAULT = false;
 
@@ -3252,7 +3309,7 @@ bool SrsConfig::get_tencentcloud_cls_enabled()
 
 bool SrsConfig::get_tencentcloud_cls_stat_heartbeat()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_TENCENTCLOUD_CLS_STAT_HEARTBEAT");
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.tencentcloud_cls.stat_heartbeat");
 
     static bool DEFAULT = true;
 
@@ -3271,7 +3328,7 @@ bool SrsConfig::get_tencentcloud_cls_stat_heartbeat()
 
 bool SrsConfig::get_tencentcloud_cls_stat_streams()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_TENCENTCLOUD_CLS_STAT_STREAMS");
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.tencentcloud_cls.stat_streams");
 
     static bool DEFAULT = true;
 
@@ -3290,7 +3347,7 @@ bool SrsConfig::get_tencentcloud_cls_stat_streams()
 
 bool SrsConfig::get_tencentcloud_cls_debug_logging()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_TENCENTCLOUD_CLS_DEBUG_LOGGING");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.tencentcloud_cls.debug_logging");
 
     static bool DEFAULT = false;
 
@@ -3309,7 +3366,7 @@ bool SrsConfig::get_tencentcloud_cls_debug_logging()
 
 int SrsConfig::get_tencentcloud_cls_heartbeat_ratio()
 {
-    SRS_OVERWRITE_BY_ENV_INT("SRS_TENCENTCLOUD_CLS_HEARTBEAT_RATIO");
+    SRS_OVERWRITE_BY_ENV_INT("srs.tencentcloud_cls.heartbeat_ratio");
 
     static int DEFAULT = 1;
 
@@ -3328,7 +3385,7 @@ int SrsConfig::get_tencentcloud_cls_heartbeat_ratio()
 
 int SrsConfig::get_tencentcloud_cls_streams_ratio()
 {
-    SRS_OVERWRITE_BY_ENV_INT("SRS_TENCENTCLOUD_CLS_STREAMS_RATIO");
+    SRS_OVERWRITE_BY_ENV_INT("srs.tencentcloud_cls.streams_ratio");
 
     static int DEFAULT = 1;
 
@@ -3347,7 +3404,7 @@ int SrsConfig::get_tencentcloud_cls_streams_ratio()
 
 string SrsConfig::get_tencentcloud_cls_label()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_LABEL");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.tencentcloud_cls.label");
 
     static string DEFAULT = "";
 
@@ -3366,7 +3423,7 @@ string SrsConfig::get_tencentcloud_cls_label()
 
 string SrsConfig::get_tencentcloud_cls_tag()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_TAG");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.tencentcloud_cls.tag");
 
     static string DEFAULT = "";
 
@@ -3385,7 +3442,7 @@ string SrsConfig::get_tencentcloud_cls_tag()
 
 string SrsConfig::get_tencentcloud_cls_secret_id()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_SECRET_ID");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.tencentcloud_cls.secret_id");
 
     static string DEFAULT = "";
 
@@ -3404,7 +3461,7 @@ string SrsConfig::get_tencentcloud_cls_secret_id()
 
 string SrsConfig::get_tencentcloud_cls_secret_key()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_SECRET_KEY");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.tencentcloud_cls.secret_key");
 
     static string DEFAULT = "";
 
@@ -3423,7 +3480,7 @@ string SrsConfig::get_tencentcloud_cls_secret_key()
 
 string SrsConfig::get_tencentcloud_cls_endpoint()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_ENDPOINT");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.tencentcloud_cls.endpoint");
 
     static string DEFAULT = "";
 
@@ -3442,7 +3499,7 @@ string SrsConfig::get_tencentcloud_cls_endpoint()
 
 string SrsConfig::get_tencentcloud_cls_topic_id()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_CLS_TOPIC_ID");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.tencentcloud_cls.topic_id");
 
     static string DEFAULT = "";
 
@@ -3461,7 +3518,7 @@ string SrsConfig::get_tencentcloud_cls_topic_id()
 
 bool SrsConfig::get_tencentcloud_apm_enabled()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_TENCENTCLOUD_APM_ENABLED");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.tencentcloud_apm.enabled");
 
     static bool DEFAULT = false;
 
@@ -3480,7 +3537,7 @@ bool SrsConfig::get_tencentcloud_apm_enabled()
 
 string SrsConfig::get_tencentcloud_apm_team()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_APM_TEAM");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.tencentcloud_apm.team");
 
     static string DEFAULT = "";
 
@@ -3499,7 +3556,7 @@ string SrsConfig::get_tencentcloud_apm_team()
 
 string SrsConfig::get_tencentcloud_apm_token()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_APM_TOKEN");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.tencentcloud_apm.token");
 
     static string DEFAULT = "";
 
@@ -3518,7 +3575,7 @@ string SrsConfig::get_tencentcloud_apm_token()
 
 string SrsConfig::get_tencentcloud_apm_endpoint()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_APM_ENDPOINT");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.tencentcloud_apm.endpoint");
 
     static string DEFAULT = "";
 
@@ -3537,7 +3594,7 @@ string SrsConfig::get_tencentcloud_apm_endpoint()
 
 string SrsConfig::get_tencentcloud_apm_service_name()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_TENCENTCLOUD_APM_SERVICE_NAME");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.tencentcloud_apm.service_name");
 
     static string DEFAULT = "srs-server";
 
@@ -3556,7 +3613,7 @@ string SrsConfig::get_tencentcloud_apm_service_name()
 
 bool SrsConfig::get_tencentcloud_apm_debug_logging()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_TENCENTCLOUD_APM_DEBUG_LOGGING");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.tencentcloud_apm.debug_logging");
 
     static bool DEFAULT = false;
 
@@ -3788,7 +3845,7 @@ bool SrsConfig::get_rtc_server_enabled()
 
 bool SrsConfig::get_rtc_server_enabled(SrsConfDirective* conf)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_RTC_SERVER_ENABLED");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.rtc_server.enabled");
 
     static bool DEFAULT = false;
 
@@ -3806,7 +3863,7 @@ bool SrsConfig::get_rtc_server_enabled(SrsConfDirective* conf)
 
 int SrsConfig::get_rtc_server_listen()
 {
-    SRS_OVERWRITE_BY_ENV_INT("SRS_RTC_SERVER_LISTEN");
+    SRS_OVERWRITE_BY_ENV_INT("srs.rtc_server.listen");
 
     static int DEFAULT = 8000;
 
@@ -3825,7 +3882,7 @@ int SrsConfig::get_rtc_server_listen()
 
 std::string SrsConfig::get_rtc_server_candidates()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_RTC_SERVER_CANDIDATE");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.rtc_server.candidate");
 
     static string DEFAULT = "*";
 
@@ -3854,7 +3911,7 @@ std::string SrsConfig::get_rtc_server_candidates()
 
 bool SrsConfig::get_api_as_candidates()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_RTC_SERVER_API_AS_CANDIDATES");
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.rtc_server.api_as_candidates");
 
     static bool DEFAULT = true;
 
@@ -3873,7 +3930,7 @@ bool SrsConfig::get_api_as_candidates()
 
 bool SrsConfig::get_resolve_api_domain()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_RTC_SERVER_RESOLVE_API_DOMAIN");
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.rtc_server.resolve_api_domain");
 
     static bool DEFAULT = true;
 
@@ -3892,7 +3949,7 @@ bool SrsConfig::get_resolve_api_domain()
 
 bool SrsConfig::get_keep_api_domain()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_RTC_SERVER_KEEP_API_DOMAIN");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.rtc_server.keep_api_domain");
 
     static bool DEFAULT = false;
 
@@ -3911,7 +3968,7 @@ bool SrsConfig::get_keep_api_domain()
 
 bool SrsConfig::get_use_auto_detect_network_ip()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_RTC_SERVER_USE_AUTO_DETECT_NETWORK_IP");
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.rtc_server.use_auto_detect_network_ip");
 
     static bool DEFAULT = true;
 
@@ -3930,7 +3987,7 @@ bool SrsConfig::get_use_auto_detect_network_ip()
 
 bool SrsConfig::get_rtc_server_tcp_enabled()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_RTC_SERVER_TCP_ENABLED");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.rtc_server.tcp.enabled");
 
     static bool DEFAULT = false;
 
@@ -3954,7 +4011,7 @@ bool SrsConfig::get_rtc_server_tcp_enabled()
 
 int SrsConfig::get_rtc_server_tcp_listen()
 {
-    SRS_OVERWRITE_BY_ENV_INT("SRS_RTC_SERVER_TCP_LISTEN");
+    SRS_OVERWRITE_BY_ENV_INT("srs.rtc_server.tcp.listen");
 
     static int DEFAULT = 8000;
 
@@ -3978,7 +4035,7 @@ int SrsConfig::get_rtc_server_tcp_listen()
 
 std::string SrsConfig::get_rtc_server_protocol()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_RTC_SERVER_PROTOCOL");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.rtc_server.protocol");
 
     static string DEFAULT = "udp";
 
@@ -3997,7 +4054,7 @@ std::string SrsConfig::get_rtc_server_protocol()
 
 std::string SrsConfig::get_rtc_server_ip_family()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_RTC_SERVER_IP_FAMILY");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.rtc_server.ip_family");
 
     static string DEFAULT = "ipv4";
 
@@ -4016,6 +4073,8 @@ std::string SrsConfig::get_rtc_server_ip_family()
 
 bool SrsConfig::get_rtc_server_ecdsa()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.rtc_server.ecdsa");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -4033,6 +4092,8 @@ bool SrsConfig::get_rtc_server_ecdsa()
 
 bool SrsConfig::get_rtc_server_encrypt()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.rtc_server.encrypt");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -4064,6 +4125,8 @@ int SrsConfig::get_rtc_server_reuseport()
 
 int SrsConfig::get_rtc_server_reuseport2()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.rtc_server.reuseport");
+
     static int DEFAULT = 1;
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -4081,6 +4144,8 @@ int SrsConfig::get_rtc_server_reuseport2()
 
 bool SrsConfig::get_rtc_server_merge_nalus()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.rtc_server.merge_nalus");
+
     static int DEFAULT = false;
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -4093,11 +4158,13 @@ bool SrsConfig::get_rtc_server_merge_nalus()
         return DEFAULT;
     }
 
-    return SRS_CONF_PERFER_TRUE(conf->arg0());
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 bool SrsConfig::get_rtc_server_black_hole()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.rtc_server.black_hole.enabled");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -4120,6 +4187,8 @@ bool SrsConfig::get_rtc_server_black_hole()
 
 std::string SrsConfig::get_rtc_server_black_hole_addr()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.rtc_server.black_hole.addr");
+
     static string DEFAULT = "";
 
     SrsConfDirective* conf = root->get("rtc_server");
@@ -4148,7 +4217,7 @@ SrsConfDirective* SrsConfig::get_rtc(string vhost)
 
 bool SrsConfig::get_rtc_enabled(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_VHOST_RTC_ENABLED");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.rtc.enabled");
 
     static bool DEFAULT = false;
 
@@ -4168,6 +4237,8 @@ bool SrsConfig::get_rtc_enabled(string vhost)
 
 bool SrsConfig::get_rtc_keep_bframe(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.rtc.keep_bframe");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -4186,7 +4257,7 @@ bool SrsConfig::get_rtc_keep_bframe(string vhost)
 
 bool SrsConfig::get_rtc_from_rtmp(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_VHOST_RTC_RTMP_TO_RTC");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.rtc.rtmp_to_rtc");
 
     static bool DEFAULT = false;
 
@@ -4206,6 +4277,8 @@ bool SrsConfig::get_rtc_from_rtmp(string vhost)
 
 srs_utime_t SrsConfig::get_rtc_stun_timeout(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.rtc.stun_timeout");
+
     static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -4224,6 +4297,8 @@ srs_utime_t SrsConfig::get_rtc_stun_timeout(string vhost)
 
 bool SrsConfig::get_rtc_stun_strict_check(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.rtc.stun_strict_check");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -4242,6 +4317,8 @@ bool SrsConfig::get_rtc_stun_strict_check(string vhost)
 
 std::string SrsConfig::get_rtc_dtls_role(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.rtc.dtls_role");
+
     static std::string DEFAULT = "passive";
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -4260,6 +4337,8 @@ std::string SrsConfig::get_rtc_dtls_role(string vhost)
 
 std::string SrsConfig::get_rtc_dtls_version(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.rtc.dtls_version");
+
     static std::string DEFAULT = "auto";
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -4278,6 +4357,8 @@ std::string SrsConfig::get_rtc_dtls_version(string vhost)
 
 int SrsConfig::get_rtc_drop_for_pt(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.rtc.drop_for_pt");
+
     static int DEFAULT = 0;
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -4295,7 +4376,7 @@ int SrsConfig::get_rtc_drop_for_pt(string vhost)
 
 bool SrsConfig::get_rtc_to_rtmp(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_VHOST_RTC_RTC_TO_RTMP");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.rtc.rtc_to_rtmp");
 
     static bool DEFAULT = false;
 
@@ -4315,18 +4396,24 @@ bool SrsConfig::get_rtc_to_rtmp(string vhost)
 srs_utime_t SrsConfig::get_rtc_pli_for_rtmp(string vhost)
 {
     static srs_utime_t DEFAULT = 6 * SRS_UTIME_SECONDS;
+    srs_utime_t v = 0;
 
-    SrsConfDirective* conf = get_rtc(vhost);
-    if (!conf) {
-        return DEFAULT;
+    if (!srs_getenv("srs.vhost.rtc.pli_for_rtmp").empty()) {
+        v = (srs_utime_t)(::atof(srs_getenv("srs.vhost.rtc.pli_for_rtmp").c_str()) * SRS_UTIME_SECONDS);
+    } else {
+        SrsConfDirective* conf = get_rtc(vhost);
+        if (!conf) {
+            return DEFAULT;
+        }
+
+        conf = conf->get("pli_for_rtmp");
+        if (!conf || conf->arg0().empty()) {
+            return DEFAULT;
+        }
+
+        v = (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
     }
 
-    conf = conf->get("pli_for_rtmp");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    srs_utime_t v = (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
     if (v < 500 * SRS_UTIME_MILLISECONDS || v > 30 * SRS_UTIME_SECONDS) {
         srs_warn("Reset pli %dms to %dms", srsu2msi(v), srsu2msi(DEFAULT));
         return DEFAULT;
@@ -4337,6 +4424,8 @@ srs_utime_t SrsConfig::get_rtc_pli_for_rtmp(string vhost)
 
 bool SrsConfig::get_rtc_nack_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.rtc.nack");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -4354,6 +4443,8 @@ bool SrsConfig::get_rtc_nack_enabled(string vhost)
 
 bool SrsConfig::get_rtc_nack_no_copy(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.rtc.nack_no_copy");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -4371,6 +4462,8 @@ bool SrsConfig::get_rtc_nack_no_copy(string vhost)
 
 bool SrsConfig::get_rtc_twcc_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.rtc.twcc");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_rtc(vhost);
@@ -4451,6 +4544,8 @@ bool SrsConfig::get_vhost_enabled(SrsConfDirective* conf)
 
 bool SrsConfig::get_gop_cache(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.play.gop_cache");
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
         return SRS_PERF_GOP_CACHE;
@@ -4493,6 +4588,8 @@ bool SrsConfig::get_debug_srs_upnode(string vhost)
 
 bool SrsConfig::get_atc(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.play.atc");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4515,6 +4612,8 @@ bool SrsConfig::get_atc(string vhost)
 
 bool SrsConfig::get_atc_auto(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.play.atc_auto");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4537,6 +4636,10 @@ bool SrsConfig::get_atc_auto(string vhost)
 
 int SrsConfig::get_time_jitter(string vhost)
 {
+    if (!srs_getenv("srs.vhost.play.mw_latency").empty()) {
+        return srs_time_jitter_string2int(srs_getenv("srs.vhost.play.mw_latency"));
+    }
+
     static string DEFAULT = "full";
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4559,6 +4662,8 @@ int SrsConfig::get_time_jitter(string vhost)
 
 bool SrsConfig::get_mix_correct(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.play.mix_correct");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4581,6 +4686,8 @@ bool SrsConfig::get_mix_correct(string vhost)
 
 srs_utime_t SrsConfig::get_queue_length(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.play.queue_length");
+
     static srs_utime_t DEFAULT = SRS_PERF_PLAY_QUEUE;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4733,6 +4840,8 @@ int SrsConfig::get_chunk_size(string vhost)
 
 bool SrsConfig::get_parse_sps(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.publish.parse_sps");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4756,6 +4865,8 @@ bool SrsConfig::get_parse_sps(string vhost)
 
 bool SrsConfig::try_annexb_first(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.publish.try_annexb_first");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4779,6 +4890,8 @@ bool SrsConfig::try_annexb_first(string vhost)
 
 bool SrsConfig::get_mr_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.publish.mr");
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
         return SRS_PERF_MR_ENABLED;
@@ -4799,6 +4912,8 @@ bool SrsConfig::get_mr_enabled(string vhost)
 
 srs_utime_t SrsConfig::get_mr_sleep(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.vhost.publish.mr_latency");
+
     static srs_utime_t DEFAULT = SRS_PERF_MR_SLEEP;
 
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4821,6 +4936,16 @@ srs_utime_t SrsConfig::get_mr_sleep(string vhost)
 
 srs_utime_t SrsConfig::get_mw_sleep(string vhost, bool is_rtc)
 {
+    if (!srs_getenv("srs.vhost.play.mw_latency").empty()) {
+        int v = ::atoi(srs_getenv("srs.vhost.play.mw_latency").c_str());
+        if (is_rtc && v > 0) {
+            srs_warn("For RTC, we ignore mw_latency");
+            return 0;
+        }
+
+        return (srs_utime_t)(v * SRS_UTIME_MILLISECONDS);
+    }
+
     static srs_utime_t SYS_DEFAULT = SRS_PERF_MW_SLEEP;
     static srs_utime_t RTC_DEFAULT = 0;
 
@@ -4852,6 +4977,16 @@ srs_utime_t SrsConfig::get_mw_sleep(string vhost, bool is_rtc)
 
 int SrsConfig::get_mw_msgs(string vhost, bool is_realtime, bool is_rtc)
 {
+    if (!srs_getenv("srs.vhost.play.mw_msgs").empty()) {
+        int v = ::atoi(srs_getenv("srs.vhost.play.mw_msgs").c_str());
+        if (v > SRS_PERF_MW_MSGS) {
+            srs_warn("reset mw_msgs %d to max %d", v, SRS_PERF_MW_MSGS);
+            v = SRS_PERF_MW_MSGS;
+        }
+
+        return v;
+    }
+
     int DEFAULT = SRS_PERF_MW_MIN_MSGS;
     if (is_rtc) {
         DEFAULT = SRS_PERF_MW_MIN_MSGS_FOR_RTC;
@@ -4886,6 +5021,12 @@ int SrsConfig::get_mw_msgs(string vhost, bool is_realtime, bool is_rtc)
 
 bool SrsConfig::get_realtime_enabled(string vhost, bool is_rtc)
 {
+    if (is_rtc) {
+        SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.min_latency");
+    } else {
+        SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.min_latency");
+    }
+
     static bool SYS_DEFAULT = SRS_PERF_MIN_LATENCY_ENABLED;
     static bool RTC_DEFAULT = true;
 
@@ -4910,6 +5051,8 @@ bool SrsConfig::get_realtime_enabled(string vhost, bool is_rtc)
 
 bool SrsConfig::get_tcp_nodelay(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.tcp_nodelay");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4927,6 +5070,8 @@ bool SrsConfig::get_tcp_nodelay(string vhost)
 
 srs_utime_t SrsConfig::get_send_min_interval(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_MILLISECONDS("srs.vhost.play.send_min_interval");
+
     static srs_utime_t DEFAULT = 0;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4949,6 +5094,8 @@ srs_utime_t SrsConfig::get_send_min_interval(string vhost)
 
 bool SrsConfig::get_reduce_sequence_header(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.play.reduce_sequence_header");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4971,6 +5118,8 @@ bool SrsConfig::get_reduce_sequence_header(string vhost)
 
 srs_utime_t SrsConfig::get_publish_1stpkt_timeout(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.vhost.publish.firstpkt_timeout");
+
     // when no msg recevied for publisher, use larger timeout.
     static srs_utime_t DEFAULT = 20 * SRS_UTIME_SECONDS;
     
@@ -4994,6 +5143,8 @@ srs_utime_t SrsConfig::get_publish_1stpkt_timeout(string vhost)
 
 srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.vhost.publish.normal_timeout");
+
     // the timeout for publish recv.
     // we must use more smaller timeout, for the recv never know the status
     // of underlayer socket.
@@ -5019,6 +5170,8 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
 
 int SrsConfig::get_global_chunk_size()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.chunk_size");
+
     SrsConfDirective* conf = root->get("chunk_size");
     if (!conf || conf->arg0().empty()) {
         return SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
@@ -6046,6 +6199,10 @@ extern bool _srs_in_docker;
 
 bool SrsConfig::get_log_tank_file()
 {
+    if (!srs_getenv("srs.srs_log_tank").empty()) {
+        return srs_getenv("srs.srs_log_tank") != "console";
+    }
+
     static bool DEFAULT = true;
 
     if (_srs_in_docker) {
@@ -6062,6 +6219,8 @@ bool SrsConfig::get_log_tank_file()
 
 string SrsConfig::get_log_level()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.srs_log_level");
+
     static string DEFAULT = "trace";
     
     SrsConfDirective* conf = root->get("srs_log_level");
@@ -6074,6 +6233,8 @@ string SrsConfig::get_log_level()
 
 string SrsConfig::get_log_file()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.srs_log_file");
+
     static string DEFAULT = "./objs/srs.log";
     
     SrsConfDirective* conf = root->get("srs_log_file");
@@ -6092,6 +6253,8 @@ bool SrsConfig::get_ff_log_enabled()
 
 string SrsConfig::get_ff_log_dir()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.ff_log_dir");
+
     static string DEFAULT = "./objs";
     
     SrsConfDirective* conf = root->get("ff_log_dir");
@@ -6104,6 +6267,8 @@ string SrsConfig::get_ff_log_dir()
 
 string SrsConfig::get_ff_log_level()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.ff_log_level");
+
     static string DEFAULT = "info";
 
     SrsConfDirective* conf = root->get("ff_log_level");
@@ -6122,6 +6287,8 @@ SrsConfDirective* SrsConfig::get_dash(string vhost)
 
 bool SrsConfig::get_dash_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.dash.enabled");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_vhost(vhost);
@@ -6151,6 +6318,8 @@ bool SrsConfig::get_dash_enabled(SrsConfDirective* vhost)
 
 srs_utime_t SrsConfig::get_dash_fragment(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_fragment");
+
     static int DEFAULT = 30 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
@@ -6168,6 +6337,8 @@ srs_utime_t SrsConfig::get_dash_fragment(string vhost)
 
 srs_utime_t SrsConfig::get_dash_update_period(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_update_period");
+
     static srs_utime_t DEFAULT = 150 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
@@ -6185,6 +6356,8 @@ srs_utime_t SrsConfig::get_dash_update_period(string vhost)
 
 srs_utime_t SrsConfig::get_dash_timeshift(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_timeshift");
+
     static srs_utime_t DEFAULT = 300 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
@@ -6202,6 +6375,8 @@ srs_utime_t SrsConfig::get_dash_timeshift(string vhost)
 
 string SrsConfig::get_dash_path(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.dash.dash_path");
+
     static string DEFAULT = "./objs/nginx/html";
     
     SrsConfDirective* conf = get_dash(vhost);
@@ -6219,6 +6394,8 @@ string SrsConfig::get_dash_path(string vhost)
 
 string SrsConfig::get_dash_mpd_file(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.dash.dash_mpd_file");
+
     static string DEFAULT = "[app]/[stream].mpd";
     
     SrsConfDirective* conf = get_dash(vhost);
@@ -6921,7 +7098,7 @@ bool SrsConfig::get_http_api_enabled()
 
 bool SrsConfig::get_http_api_enabled(SrsConfDirective* conf)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_HTTP_API_ENABLED");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_api.enabled");
 
     static bool DEFAULT = false;
     
@@ -6939,7 +7116,7 @@ bool SrsConfig::get_http_api_enabled(SrsConfDirective* conf)
 
 string SrsConfig::get_http_api_listen()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_HTTP_API_LISTEN");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_api.listen");
 
     static string DEFAULT = "1985";
     
@@ -6959,6 +7136,8 @@ string SrsConfig::get_http_api_listen()
 
 bool SrsConfig::get_http_api_crossdomain()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.http_api.crossdomain");
+
     static bool DEFAULT = true;
     
     SrsConfDirective* conf = root->get("http_api");
@@ -6976,6 +7155,8 @@ bool SrsConfig::get_http_api_crossdomain()
 
 bool SrsConfig::get_raw_api()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_api.raw_api.enabled");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = root->get("http_api");
@@ -6998,6 +7179,8 @@ bool SrsConfig::get_raw_api()
 
 bool SrsConfig::get_raw_api_allow_reload()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_api.raw_api.allow_reload");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = root->get("http_api");
@@ -7042,7 +7225,7 @@ SrsConfDirective* SrsConfig::get_https_api()
 
 bool SrsConfig::get_https_api_enabled()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_HTTP_API_HTTPS_ENABLED");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_api.https.enabled");
 
     static bool DEFAULT = false;
 
@@ -7061,7 +7244,7 @@ bool SrsConfig::get_https_api_enabled()
 
 string SrsConfig::get_https_api_listen()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_HTTP_API_HTTPS_LISTEN");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_api.https.listen");
 
 #ifdef SRS_UTEST
     // We should not use static default, because we need to reset for different testcase.
@@ -7094,6 +7277,8 @@ string SrsConfig::get_https_api_listen()
 
 string SrsConfig::get_https_api_ssl_key()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_api.https.key");
+
     static string DEFAULT = "./conf/server.key";
 
     SrsConfDirective* conf = get_https_api();
@@ -7111,6 +7296,8 @@ string SrsConfig::get_https_api_ssl_key()
 
 string SrsConfig::get_https_api_ssl_cert()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_api.https.cert");
+
     static string DEFAULT = "./conf/server.crt";
 
     SrsConfDirective* conf = get_https_api();
@@ -7128,6 +7315,8 @@ string SrsConfig::get_https_api_ssl_cert()
 
 bool SrsConfig::get_srt_enabled()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.srt_server.enabled");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = root->get("srt_server");
@@ -7145,6 +7334,8 @@ bool SrsConfig::get_srt_enabled()
 
 unsigned short SrsConfig::get_srt_listen_port()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.listen");
+
     static unsigned short DEFAULT = 10080;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7160,6 +7351,8 @@ unsigned short SrsConfig::get_srt_listen_port()
 
 int SrsConfig::get_srto_maxbw()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.maxbw");
+
     static int64_t DEFAULT = -1;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7175,6 +7368,8 @@ int SrsConfig::get_srto_maxbw()
 
 int SrsConfig::get_srto_mss()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.mms");
+
     static int DEFAULT = 1500;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7190,6 +7385,8 @@ int SrsConfig::get_srto_mss()
 
 bool SrsConfig::get_srto_tsbpdmode()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.srt_server.tsbpdmode");
+
     static bool DEFAULT = true;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7205,6 +7402,8 @@ bool SrsConfig::get_srto_tsbpdmode()
 
 int SrsConfig::get_srto_latency()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.latency");
+
     static int DEFAULT = 120;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7220,6 +7419,8 @@ int SrsConfig::get_srto_latency()
 
 int SrsConfig::get_srto_recv_latency()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.recvlatency");
+
     static int DEFAULT = 120;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7235,6 +7436,8 @@ int SrsConfig::get_srto_recv_latency()
 
 int SrsConfig::get_srto_peer_latency()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.peerlatency");
+
     static int DEFAULT = 0;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7250,6 +7453,8 @@ int SrsConfig::get_srto_peer_latency()
 
 bool SrsConfig::get_srt_sei_filter()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.srt_server.sei_filter");
+
     static bool DEFAULT = true;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7265,6 +7470,8 @@ bool SrsConfig::get_srt_sei_filter()
 
 bool SrsConfig::get_srto_tlpktdrop()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.srt_server.tlpkdrop.tlpktdrop");
+
     static bool DEFAULT = true;
     SrsConfDirective* srt_server_conf = root->get("srt_server");
     if (!srt_server_conf) {
@@ -7272,7 +7479,7 @@ bool SrsConfig::get_srto_tlpktdrop()
     }
     
     SrsConfDirective* conf = srt_server_conf->get("tlpkdrop");
-    if (! conf) {
+    if (!conf) {
         // make it compatible tlpkdrop and tlpktdrop opt.
         conf = srt_server_conf->get("tlpktdrop");
     }
@@ -7284,6 +7491,8 @@ bool SrsConfig::get_srto_tlpktdrop()
 
 srs_utime_t SrsConfig::get_srto_conntimeout()
 {
+    SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.srt_server.connect_timeout");
+
     static srs_utime_t DEFAULT = 3 * SRS_UTIME_SECONDS;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7299,6 +7508,8 @@ srs_utime_t SrsConfig::get_srto_conntimeout()
 
 srs_utime_t SrsConfig::get_srto_peeridletimeout()
 {
+    SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.srt_server.peer_idle_timeout");
+
     static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7314,6 +7525,8 @@ srs_utime_t SrsConfig::get_srto_peeridletimeout()
 
 int SrsConfig::get_srto_sendbuf()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.sendbuf");
+
     static int DEFAULT = 8192 * (1500-28);
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7329,6 +7542,8 @@ int SrsConfig::get_srto_sendbuf()
 
 int SrsConfig::get_srto_recvbuf()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.recvbuf");
+
     static int DEFAULT = 8192 * (1500-28);
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7344,6 +7559,8 @@ int SrsConfig::get_srto_recvbuf()
 
 int SrsConfig::get_srto_payloadsize()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.payloadsize");
+
     static int DEFAULT = 1316;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7359,6 +7576,8 @@ int SrsConfig::get_srto_payloadsize()
 
 string SrsConfig::get_default_app_name()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.srt_server.default_app");
+
     static string DEFAULT = "live";
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -7380,6 +7599,8 @@ SrsConfDirective* SrsConfig::get_srt(std::string vhost)
 
 bool SrsConfig::get_srt_enabled(std::string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.srt.enabled");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_srt(vhost);
@@ -7398,6 +7619,8 @@ bool SrsConfig::get_srt_enabled(std::string vhost)
 
 bool SrsConfig::get_srt_to_rtmp(std::string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.srt.srt_to_rtmp");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_srt(vhost);
@@ -7421,7 +7644,7 @@ bool SrsConfig::get_http_stream_enabled()
 
 bool SrsConfig::get_http_stream_enabled(SrsConfDirective* conf)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_HTTP_SERVER_ENABLED");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_server.enabled");
 
     static bool DEFAULT = false;
     
@@ -7439,7 +7662,7 @@ bool SrsConfig::get_http_stream_enabled(SrsConfDirective* conf)
 
 string SrsConfig::get_http_stream_listen()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_HTTP_SERVER_LISTEN");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_server.listen");
 
     static string DEFAULT = "8080";
     
@@ -7458,6 +7681,8 @@ string SrsConfig::get_http_stream_listen()
 
 string SrsConfig::get_http_stream_dir()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_server.dir");
+
     static string DEFAULT = "./objs/nginx/html";
     
     SrsConfDirective* conf = root->get("http_server");
@@ -7475,6 +7700,8 @@ string SrsConfig::get_http_stream_dir()
 
 bool SrsConfig::get_http_stream_crossdomain()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.http_server.crossdomain");
+
     static bool DEFAULT = true;
     
     SrsConfDirective* conf = root->get("http_server");
@@ -7502,7 +7729,7 @@ SrsConfDirective* SrsConfig::get_https_stream()
 
 bool SrsConfig::get_https_stream_enabled()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("SRS_HTTP_SERVER_HTTTPS_ENABLED");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_server.https.enabled");
 
     static bool DEFAULT = false;
 
@@ -7521,7 +7748,7 @@ bool SrsConfig::get_https_stream_enabled()
 
 string SrsConfig::get_https_stream_listen()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("SRS_HTTP_SERVER_HTTTPS_LISTEN");
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_server.https.listen");
 
     static string DEFAULT = "8088";
 
@@ -7540,6 +7767,8 @@ string SrsConfig::get_https_stream_listen()
 
 string SrsConfig::get_https_stream_ssl_key()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_server.https.key");
+
     static string DEFAULT = "./conf/server.key";
 
     SrsConfDirective* conf = get_https_stream();
@@ -7557,6 +7786,8 @@ string SrsConfig::get_https_stream_ssl_key()
 
 string SrsConfig::get_https_stream_ssl_cert()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_server.https.cert");
+
     static string DEFAULT = "./conf/server.crt";
 
     SrsConfDirective* conf = get_https_stream();
@@ -7574,6 +7805,8 @@ string SrsConfig::get_https_stream_ssl_cert()
 
 bool SrsConfig::get_vhost_http_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_static.enabled");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -7596,6 +7829,8 @@ bool SrsConfig::get_vhost_http_enabled(string vhost)
 
 string SrsConfig::get_vhost_http_mount(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_static.mount");
+
     static string DEFAULT = "[vhost]/";
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -7618,6 +7853,8 @@ string SrsConfig::get_vhost_http_mount(string vhost)
 
 string SrsConfig::get_vhost_http_dir(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_static.dir");
+
     static string DEFAULT = "./objs/nginx/html";
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -7652,6 +7889,8 @@ bool SrsConfig::get_vhost_http_remux_enabled(string vhost)
 
 bool SrsConfig::get_vhost_http_remux_enabled(SrsConfDirective* vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_remux.enabled");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = vhost->get("http_remux");
@@ -7669,6 +7908,8 @@ bool SrsConfig::get_vhost_http_remux_enabled(SrsConfDirective* vhost)
 
 srs_utime_t SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.http_remux.fast_cache");
+
     static srs_utime_t DEFAULT = 0;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -7691,6 +7932,8 @@ srs_utime_t SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
 
 string SrsConfig::get_vhost_http_remux_mount(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_remux.mount");
+
     static string DEFAULT = "[vhost]/[app]/[stream].flv";
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -7718,6 +7961,8 @@ SrsConfDirective* SrsConfig::get_heartbeart()
 
 bool SrsConfig::get_heartbeat_enabled()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.heartbeat.enabled");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_heartbeart();
@@ -7735,6 +7980,8 @@ bool SrsConfig::get_heartbeat_enabled()
 
 srs_utime_t SrsConfig::get_heartbeat_interval()
 {
+    SRS_OVERWRITE_BY_ENV_SECONDS("srs.heartbeat.interval");
+
     static srs_utime_t DEFAULT = (srs_utime_t)(10 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_heartbeart();
@@ -7752,6 +7999,8 @@ srs_utime_t SrsConfig::get_heartbeat_interval()
 
 string SrsConfig::get_heartbeat_url()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.heartbeat.url");
+
     static string DEFAULT = "http://" SRS_CONSTS_LOCALHOST ":8085/api/v1/servers";
     
     SrsConfDirective* conf = get_heartbeart();
@@ -7769,6 +8018,8 @@ string SrsConfig::get_heartbeat_url()
 
 string SrsConfig::get_heartbeat_device_id()
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.heartbeat.device_id");
+
     static string DEFAULT = "";
     
     SrsConfDirective* conf = get_heartbeart();
@@ -7786,6 +8037,8 @@ string SrsConfig::get_heartbeat_device_id()
 
 bool SrsConfig::get_heartbeat_summaries()
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.heartbeat.summaries");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_heartbeart();

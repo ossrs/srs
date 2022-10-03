@@ -685,7 +685,7 @@ extern std::string srs_string_dumps_hex(const char* str, int length, int limit, 
 
 // Get ENV variable, which may starts with $.
 //      srs_getenv("EIP") === srs_getenv("$EIP")
-extern std::string srs_getenv(std::string key);
+extern std::string srs_getenv(const std::string& key);
 
 #endif
 
