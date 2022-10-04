@@ -50,7 +50,7 @@ public:
 
 // Lazy-sweep resource, never sweep util all wrappers are freed.
 // See https://github.com/ossrs/srs/issues/3176#lazy-sweep
-class ISrsLazyResource : public ISrsResource
+class SrsLazyObject
 {
 private:
     // The reference count of resource, 0 is no wrapper and safe to sweep.
@@ -61,13 +61,13 @@ private:
     // All available wrappers.
     std::vector<ISrsResource*> gc_wrappers_;
 public:
-    ISrsLazyResource();
-    virtual ~ISrsLazyResource();
+    SrsLazyObject();
+    virtual ~SrsLazyObject();
 public:
     // For wrapper to use this resource.
-    virtual ISrsLazyResource* gc_use(ISrsResource* wrapper);
+    virtual SrsLazyObject* gc_use(ISrsResource* wrapper);
     // For wrapper to dispose this resource.
-    virtual ISrsLazyResource* gc_dispose(ISrsResource* wrapper);
+    virtual SrsLazyObject* gc_dispose(ISrsResource* wrapper);
     // The current reference count of resource.
     virtual int32_t gc_ref();
 public:
@@ -89,7 +89,7 @@ public:
     virtual ~ISrsLazyGc();
 public:
     // Remove then free the specified resource.
-    virtual void remove(ISrsLazyResource* c) = 0;
+    virtual void remove(SrsLazyObject* c) = 0;
 };
 
 #endif

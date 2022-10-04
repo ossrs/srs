@@ -38,17 +38,17 @@ ISrsConnection::~ISrsConnection()
 {
 }
 
-ISrsLazyResource::ISrsLazyResource()
+SrsLazyObject::SrsLazyObject()
 {
     gc_ref_ = 0;
     gc_creator_wrapper_ = NULL;
 }
 
-ISrsLazyResource::~ISrsLazyResource()
+SrsLazyObject::~SrsLazyObject()
 {
 }
 
-ISrsLazyResource* ISrsLazyResource::gc_use(ISrsResource* wrapper)
+SrsLazyObject* SrsLazyObject::gc_use(ISrsResource* wrapper)
 {
     srs_assert(wrapper);
     if (std::find(gc_wrappers_.begin(), gc_wrappers_.end(), wrapper) == gc_wrappers_.end()) {
@@ -59,7 +59,7 @@ ISrsLazyResource* ISrsLazyResource::gc_use(ISrsResource* wrapper)
     return this;
 }
 
-ISrsLazyResource* ISrsLazyResource::gc_dispose(ISrsResource* wrapper)
+SrsLazyObject* SrsLazyObject::gc_dispose(ISrsResource* wrapper)
 {
     srs_assert(wrapper);
     vector<ISrsResource*>::iterator it = std::find(gc_wrappers_.begin(), gc_wrappers_.end(), wrapper);
@@ -71,22 +71,22 @@ ISrsLazyResource* ISrsLazyResource::gc_dispose(ISrsResource* wrapper)
     return this;
 }
 
-int32_t ISrsLazyResource::gc_ref()
+int32_t SrsLazyObject::gc_ref()
 {
     return gc_ref_;
 }
 
-void ISrsLazyResource::gc_set_creator_wrapper(ISrsResource* wrapper)
+void SrsLazyObject::gc_set_creator_wrapper(ISrsResource* wrapper)
 {
     gc_creator_wrapper_ = wrapper;
 }
 
-ISrsResource* ISrsLazyResource::gc_creator_wrapper()
+ISrsResource* SrsLazyObject::gc_creator_wrapper()
 {
     return gc_creator_wrapper_;
 }
 
-ISrsResource* ISrsLazyResource::gc_available_wrapper()
+ISrsResource* SrsLazyObject::gc_available_wrapper()
 {
     return gc_wrappers_.empty() ? NULL : gc_wrappers_.front();
 }

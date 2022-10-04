@@ -132,7 +132,7 @@ public:
     virtual ~SrsSweepGc();
 public:
     virtual srs_error_t start();
-    virtual void remove(ISrsLazyResource* c);
+    virtual void remove(SrsLazyObject* c);
 };
 
 extern ISrsLazyGc* _srs_gc;
@@ -140,14 +140,14 @@ extern ISrsLazyGc* _srs_gc;
 // A wrapper template for lazy-sweep resource.
 // See https://github.com/ossrs/srs/issues/3176#lazy-sweep
 template<typename T>
-class SrsLazyResourceWrapper : public ISrsResource
+class SrsLazyObjectWrapper : public ISrsResource
 {
 private:
     T* resource_;
     ISrsResource* wrapper_;
     bool is_root_;
 public:
-    SrsLazyResourceWrapper(T* resource = NULL, ISrsResource* wrapper = NULL) {
+    SrsLazyObjectWrapper(T* resource = NULL, ISrsResource* wrapper = NULL) {
         wrapper_ = wrapper ? wrapper : this;
         resource_ = resource ? resource : new T();
         resource_->gc_use(wrapper_);
@@ -157,7 +157,7 @@ public:
             resource_->gc_set_creator_wrapper(wrapper_);
         }
     }
-    virtual ~SrsLazyResourceWrapper() {
+    virtual ~SrsLazyObjectWrapper() {
         resource_->gc_dispose(wrapper_);
 
         if (is_root_) {
@@ -169,8 +169,8 @@ public:
         }
     }
 public:
-    SrsLazyResourceWrapper<T>* copy() {
-        return new SrsLazyResourceWrapper<T>(resource_);
+    SrsLazyObjectWrapper<T>* copy() {
+        return new SrsLazyObjectWrapper<T>(resource_);
     }
     T* resource() {
         return resource_;
@@ -189,7 +189,7 @@ public:
 // See https://github.com/ossrs/srs/issues/3176#lazy-sweep
 #define SRS_LAZY_WRAPPER_GENERATOR(Resource, IWrapper, IResource) \
     private: \
-        SrsLazyResourceWrapper<Resource> impl_; \
+        SrsLazyObjectWrapper<Resource> impl_; \
     public: \
         Resource##Wrapper(Resource* resource = NULL) : impl_(resource, this) { \
         } \

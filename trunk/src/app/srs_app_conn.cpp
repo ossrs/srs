@@ -420,7 +420,7 @@ srs_error_t SrsSweepGc::start()
     return err;
 }
 
-void SrsSweepGc::remove(ISrsLazyResource* c)
+void SrsSweepGc::remove(SrsLazyObject* c)
 {
     // TODO: FIXME: MUST lazy sweep.
     srs_freep(c);
