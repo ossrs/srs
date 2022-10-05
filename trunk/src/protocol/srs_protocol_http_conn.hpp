@@ -41,11 +41,6 @@ private:
     SrsHttpHeader* header;
     enum http_parser_type type_;
     enum http_parser_type parsed_type_;
-private:
-    // Point to the start of body.
-    const char* p_body_start;
-    // To discover the length of header, point to the last few bytes in header.
-    const char* p_header_tail;
 public:
     SrsHttpParser();
     virtual ~SrsHttpParser();
