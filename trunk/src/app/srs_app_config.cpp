@@ -7246,20 +7246,11 @@ string SrsConfig::get_https_api_listen()
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.http_api.https.listen");
 
-#ifdef SRS_UTEST
-    // We should not use static default, because we need to reset for different testcase.
-    string DEFAULT = "";
-#else
-    static string DEFAULT = "";
-#endif
-
+    // We should not use static default, because we need to reset for different use scenarios.
+    string DEFAULT = "1990";
     // Follow the HTTPS server if config HTTP API as the same of HTTP server.
-    if (DEFAULT.empty()) {
-        if (get_http_api_listen() == get_http_stream_listen()) {
-            DEFAULT = get_https_stream_listen();
-        } else {
-            DEFAULT = "1990";
-        }
+    if (get_http_api_listen() == get_http_stream_listen()) {
+        DEFAULT = get_https_stream_listen();
     }
 
     SrsConfDirective* conf = get_https_api();

@@ -275,22 +275,22 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
         // Client send msg to server.
         ssize_t nb_write = 0;
         HELPER_EXPECT_SUCCESS(srt_client_socket->sendmsg((char*)content.data(), content.size(), &nb_write));
-        EXPECT_EQ(nb_write, content.size());
+        EXPECT_EQ((size_t)nb_write, content.size());
 
         // Server recv msg from client
         char buf[1500];
         ssize_t nb_read = 0;
         HELPER_EXPECT_SUCCESS(srt_server_accepted_socket->recvmsg(buf, sizeof(buf), &nb_read));
-        EXPECT_EQ(nb_read, content.size());
+        EXPECT_EQ((size_t)nb_read, content.size());
         EXPECT_EQ(std::string(buf, nb_read), content);
 
         // Server echo msg back to client.
         HELPER_EXPECT_SUCCESS(srt_server_accepted_socket->sendmsg(buf, nb_read, &nb_write));
-        EXPECT_EQ(nb_write, content.size());
+        EXPECT_EQ((size_t)nb_write, content.size());
 
         // Client recv echo msg from server.
         HELPER_EXPECT_SUCCESS(srt_client_socket->recvmsg(buf, sizeof(buf), &nb_read));
-        EXPECT_EQ(nb_read, content.size());
+        EXPECT_EQ((size_t)nb_read, content.size());
         EXPECT_EQ(std::string(buf, nb_read), content);
     }
 

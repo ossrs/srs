@@ -2047,7 +2047,7 @@ std::string SrsApmSpan::text_propagator()
     // For text based propagation, for example, HTTP header "Traceparent: 00-bb8dedf16c53ab4b6ceb1f4ca6d985bb-29247096662468ab-01"
     // About the "%.2x", please see https://www.quora.com/What-does-2x-do-in-C-code for detail.
     int nn = snprintf(buf, sizeof(buf), "%.2x-%s-%s-%.2x", supportedVersion, ctx_->trace_id_.c_str(), ctx_->span_id_.c_str(), FlagsSampled);
-    if (nn > 0 && nn < sizeof(buf)) {
+    if (nn > 0 && nn < (int)sizeof(buf)) {
         return string(buf, nn);
     }
 

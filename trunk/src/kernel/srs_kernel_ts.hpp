@@ -28,6 +28,7 @@ class SrsTsPayload;
 class SrsTsMessage;
 class SrsTsPacket;
 class SrsTsContext;
+class SrsPsPacket;
 
 // Transport Stream packets are 188 bytes in length.
 #define SRS_TS_PACKET_SIZE          188
@@ -90,14 +91,14 @@ enum SrsTsPidApply
 {
     SrsTsPidApplyReserved = 0, // TSPidTypeReserved, nothing parsed, used reserved.
     
-    SrsTsPidApplyPAT, // Program associtate table
-    SrsTsPidApplyPMT, // Program map table.
+    SrsTsPidApplyPAT, // Program associtate table for TS.
+    SrsTsPidApplyPMT, // Program map table for TS.
     
     SrsTsPidApplyVideo, // for video
     SrsTsPidApplyAudio, // vor audio
 };
 
-// Table 2-29 - Stream type assignments
+// Table 2-29 - Stream type assignments, hls-mpeg-ts-iso13818-1.pdf, page 66
 enum SrsTsStream
 {
     // ITU-T | ISO/IEC Reserved
@@ -215,9 +216,7 @@ enum SrsTsPESStreamId
 class SrsTsMessage
 {
 public:
-    // For decoder only,
-    // the ts messgae does not use them,
-    // for user to get the channel and packet.
+    // For decoder only, the ts message does not use them, for user to get the channel and packet.
     SrsTsChannel* channel;
     SrsTsPacket* packet;
 public:
@@ -294,12 +293,10 @@ private:
     // When PAT and PMT writen, the context is ready.
     // @see https://github.com/ossrs/srs/issues/834
     bool ready;
-// codec
 private:
     std::map<int, SrsTsChannel*> pids;
     bool pure_audio;
     int8_t sync_byte;
-    // encoder
 private:
     // when any codec changed, write the PAT/PMT.
     SrsVideoCodecId vcodec;
@@ -309,37 +306,33 @@ public:
     virtual ~SrsTsContext();
 public:
     // Whether the hls stream is pure audio stream.
-        // TODO: FIXME: merge with muxer codec detect.
+    // TODO: FIXME: merge with muxer codec detect.
     virtual bool is_pure_audio();
     // When PMT table parsed, we know some info about stream.
     virtual void on_pmt_parsed();
     // Reset the context for a new ts segment start.
     virtual void reset();
-    // codec
 public:
     // Get the pid apply, the parsed pid.
     // @return the apply channel; NULL for invalid.
     virtual SrsTsChannel* get(int pid);
     // Set the pid apply, the parsed pid.
     virtual void set(int pid, SrsTsPidApply apply_pid, SrsTsStream stream = SrsTsStreamReserved);
-    // decode methods
 public:
-    // The stream contains only one ts packet.
-    // @param handler the ts message handler to process the msg.
-    // @remark we will consume all bytes in stream.
+    // Feed with ts packets, decode as ts message, callback handler if got one ts message.
+    //      A ts video message can be decoded to NALUs by SrsRawH264Stream::annexb_demux.
+    //      A ts audio message can be decoded to RAW frame by SrsRawAacStream::adts_demux.
+    // @param handler The ts message handler to process the msg.
+    // @remark We will consume all bytes in stream.
     virtual srs_error_t decode(SrsBuffer* stream, ISrsTsHandler* handler);
-    // encode methods
 public:
-    // Write the PES packet, the video/audio stream.
-    // @param msg the video/audio msg to write to ts.
-    // @param vc the video codec, write the PAT/PMT table when changed.
-    // @param ac the audio codec, write the PAT/PMT table when changed.
+    // Encode ts video/audio messages to the PES packets, as PES stream.
+    // @param msg The video/audio msg to write to ts.
+    //      A ts video message is a frame with one or more NALUs, generally encoded by SrsTsMessageCache.cache_video.
+    //      A ts audio message is an audio packet, encoded by SrsTsMessageCache.cache_audio to ADTS for AAC.
+    // @param vc The video codec, write the PAT/PMT table when changed.
+    // @param ac The audio codec, write the PAT/PMT table when changed.
     virtual srs_error_t encode(ISrsStreamWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac);
-// drm methods
-public:
-    // Set sync byte of ts segment.
-    // replace the standard ts sync byte to bravo sync byte.
-    virtual void set_sync_byte(int8_t sb);
 private:
     virtual srs_error_t encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
     virtual srs_error_t encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio);
@@ -741,9 +734,8 @@ public:
     virtual srs_error_t encode(SrsBuffer* stream) = 0;
 };
 
-// The PES payload of ts packet.
-// 2.4.3.6 PES packet, hls-mpeg-ts-iso13818-1.pdf, page 49
-class SrsTsPayloadPES : public SrsTsPayload
+// Common MPEG PES packet for both TS and PS.
+class SrsMpegPES
 {
 public:
     // 3B
@@ -763,7 +755,7 @@ public:
     // field. A value of 0 indicates that the PES packet length is neither specified nor bounded and is allowed only in
     // PES packets whose payload consists of bytes from a video elementary stream contained in Transport Stream packets.
     uint16_t PES_packet_length; //16bits
-    
+
     // 1B
     // 2bits const '10'
     int8_t const2bits; //2bits
@@ -790,7 +782,7 @@ public:
     // This is a 1-bit field. When set to '1' the contents of the associated PES packet payload is an original.
     // When set to '0' it indicates that the contents of the associated PES packet payload is a copy.
     int8_t original_or_copy; //1bit
-    
+
     // 1B
     // This is a 2-bit field. When the PTS_DTS_flags field is set to '10', the PTS fields shall be present in
     // the PES packet header. When the PTS_DTS_flags field is set to '11', both the PTS fields and DTS fields shall be present
@@ -815,13 +807,13 @@ public:
     // A 1-bit flag, which when set to '1' indicates that an extension field exists in this PES packet
     // header. When set to '0' it indicates that this field is not present.
     int8_t PES_extension_flag; //1bit
-    
+
     // 1B
     // An 8-bit field specifying the total number of bytes occupied by the optional fields and any
     // stuffing bytes contained in this PES packet header. The presence of optional fields is indicated in the byte that precedes
     // the PES_header_data_length field.
     uint8_t PES_header_data_length; //8bits
-    
+
     // 5B
     // Presentation times shall be related to decoding times as follows: The PTS is a 33-bit
     // number coded in three separate fields. It indicates the time of presentation, tp n (k), in the system target decoder of a
@@ -839,7 +831,7 @@ public:
     // 15bits PTS [14..0]
     // 1bit const '1'
     int64_t pts; // 33bits
-    
+
     // 5B
     // The DTS is a 33-bit number coded in three separate fields. It indicates the decoding time,
     // td n (j), in the system target decoder of an access unit j of elementary stream n. The value of DTS is specified in units of
@@ -855,7 +847,7 @@ public:
     // 15bits DTS [14..0]
     // 1bit const '1'
     int64_t dts; // 33bits
-    
+
     // 6B
     // The elementary stream clock reference is a 42-bit field coded in two parts. The first
     // part, ESCR_base, is a 33-bit field whose value is given by ESCR_base(i), as given in equation 2-14. The second part,
@@ -873,7 +865,7 @@ public:
     // 1bit const '1'
     int64_t ESCR_base; //33bits
     int16_t ESCR_extension; //9bits
-    
+
     // 3B
     // The ES_rate field is a 22-bit unsigned integer specifying the rate at which the
     // system target decoder receives bytes of the PES packet in the case of a PES stream. The ES_rate is valid in the PES
@@ -885,24 +877,24 @@ public:
     // 22bits ES_rate
     // 1bit const '1'
     int32_t ES_rate; //22bits
-    
+
     // 1B
     // A 3-bit field that indicates which trick mode is applied to the associated video stream. In cases of
     // other types of elementary streams, the meanings of this field and those defined by the following five bits are undefined.
     // For the definition of trick_mode status, refer to the trick mode section of 2.4.2.3.
     int8_t trick_mode_control; //3bits
     int8_t trick_mode_value; //5bits
-    
+
     // 1B
     // 1bit const '1'
     // This 7-bit field contains private data relating to copyright information.
     int8_t additional_copy_info; //7bits
-    
+
     // 2B
     // The previous_PES_packet_CRC is a 16-bit field that contains the CRC value that yields
     // a zero output of the 16 registers in the decoder similar to the one defined in Annex A,
     int16_t previous_PES_packet_CRC; //16bits
-    
+
     // 1B
     // A 1-bit flag which when set to '1' indicates that the PES packet header contains private data.
     // When set to a value of '0' it indicates that private data is not present in the PES header.
@@ -926,15 +918,15 @@ public:
     // field and associated fields. When set to a value of '0' this indicates that the PES_extension_field_length field and any
     // associated fields are not present.
     int8_t PES_extension_flag_2; //1bit
-    
+
     // 16B
     // This is a 16-byte field which contains private data. This data, combined with the fields before and
     // after, shall not emulate the packet_start_code_prefix (0x000001).
     std::vector<char> PES_private_data; //128bits
-    
+
     // (1+x)B
     std::vector<char> pack_field; //[pack_field_length] bytes
-    
+
     // 2B
     // 1bit const '1'
     // The program_packet_sequence_counter field is a 7-bit field. It is an optional
@@ -952,7 +944,7 @@ public:
     // This 6-bit field specifies the number of stuffing bytes used in the original ITU-T
     // Rec. H.222.0 | ISO/IEC 13818-1 PES packet header or in the original ISO/IEC 11172-1 packet header.
     int8_t original_stuff_length; //6bits
-    
+
     // 2B
     // 2bits const '01'
     // The P-STD_buffer_scale is a 1-bit field, the meaning of which is only defined if this PES packet
@@ -966,17 +958,17 @@ public:
     // P-STD_buffer_scale has the value '0', then the P-STD_buffer_size measures the buffer size in units of 128 bytes. If
     // P-STD_buffer_scale has the value '1', then the P-STD_buffer_size measures the buffer size in units of 1024 bytes.
     int16_t P_STD_buffer_size; //13bits
-    
+
     // (1+x)B
     // 1bit const '1'
     std::vector<char> PES_extension_field; //[PES_extension_field_length] bytes
-    
+
     // NB
     // This is a fixed 8-bit value equal to '1111 1111' that can be inserted by the encoder, for example to meet
     // the requirements of the channel. It is discarded by the decoder. No more than 32 stuffing bytes shall be present in one
     // PES packet header.
     int nb_stuffings;
-    
+
     // NB
     // PES_packet_data_bytes shall be contiguous bytes of data from the elementary stream
     // indicated by the packet's stream_id or PID. When the elementary stream data conforms to ITU-T
@@ -989,10 +981,33 @@ public:
     // In the case of a private_stream_1, private_stream_2, ECM_stream, or EMM_stream, the contents of the
     // PES_packet_data_byte field are user definable and will not be specified by ITU-T | ISO/IEC in the future.
     int nb_bytes;
-    
+
     // NB
     // This is a fixed 8-bit value equal to '1111 1111'. It is discarded by the decoder.
     int nb_paddings;
+public:
+    // Whether contains payload to dump to message.
+    bool has_payload_;
+    int nb_payload_;
+public:
+    SrsMpegPES();
+    virtual ~SrsMpegPES();
+public:
+    virtual srs_error_t decode(SrsBuffer* stream);
+public:
+    virtual int size();
+    virtual srs_error_t encode(SrsBuffer* stream);
+private:
+    virtual srs_error_t decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv);
+    virtual srs_error_t encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_t v);
+};
+
+// The PES payload of ts packet.
+// 2.4.3.6 PES packet, hls-mpeg-ts-iso13818-1.pdf, page 49
+class SrsTsPayloadPES : public SrsTsPayload
+{
+public:
+    SrsMpegPES pes;
 public:
     SrsTsPayloadPES(SrsTsPacket* p);
     virtual ~SrsTsPayloadPES();
@@ -1001,9 +1016,6 @@ public:
 public:
     virtual int size();
     virtual srs_error_t encode(SrsBuffer* stream);
-private:
-    virtual srs_error_t decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv);
-    virtual srs_error_t encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_t v);
 };
 
 // The PSI payload of ts packet.

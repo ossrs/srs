@@ -91,6 +91,11 @@ std::string SrsCplxError::summary() {
     if (_summary.empty()) {
         stringstream ss;
 
+        ss << "code=" << code;
+
+        string code_str = srs_error_code_str(this);
+        if (!code_str.empty()) ss << "(" << code_str << ")";
+
         SrsCplxError* next = this;
         while (next) {
             ss << " : " << next->msg;

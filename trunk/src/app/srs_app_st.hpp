@@ -172,7 +172,7 @@ private:
 public:
     SrsFastCoroutine(std::string n, ISrsCoroutineHandler* h);
     SrsFastCoroutine(std::string n, ISrsCoroutineHandler* h, SrsContextId cid);
-    ~SrsFastCoroutine();
+    virtual ~SrsFastCoroutine();
 public:
     void set_stack_size(int v);
 public:
