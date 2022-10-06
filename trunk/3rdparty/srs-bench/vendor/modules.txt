@@ -1,5 +1,31 @@
+# github.com/ghettovoice/gosip v0.0.0-20220929080231-de8ba881be83
+## explicit
+github.com/ghettovoice/gosip/log
+github.com/ghettovoice/gosip/sip
+github.com/ghettovoice/gosip/sip/parser
+github.com/ghettovoice/gosip/timing
+github.com/ghettovoice/gosip/transport
+github.com/ghettovoice/gosip/util
+# github.com/gobwas/httphead v0.1.0
+github.com/gobwas/httphead
+# github.com/gobwas/pool v0.2.1
+github.com/gobwas/pool
+github.com/gobwas/pool/internal/pmath
+github.com/gobwas/pool/pbufio
+github.com/gobwas/pool/pbytes
+# github.com/gobwas/ws v1.1.0-rc.1
+github.com/gobwas/ws
+github.com/gobwas/ws/wsutil
 # github.com/google/uuid v1.1.5
 github.com/google/uuid
+# github.com/konsorten/go-windows-terminal-sequences v1.0.2
+github.com/konsorten/go-windows-terminal-sequences
+# github.com/mattn/go-colorable v0.1.4
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.8
+github.com/mattn/go-isatty
+# github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b
+github.com/mgutz/ansi
 # github.com/ossrs/go-oryx-lib v0.0.9
 ## explicit
 github.com/ossrs/go-oryx-lib/aac
@@ -91,10 +117,25 @@ github.com/pion/webrtc/v3/pkg/media/oggwriter
 github.com/pion/webrtc/v3/pkg/rtcerr
 # github.com/pkg/errors v0.9.1
 github.com/pkg/errors
+# github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
+github.com/satori/go.uuid
+# github.com/sirupsen/logrus v1.4.2
+github.com/sirupsen/logrus
+# github.com/tevino/abool v0.0.0-20170917061928-9b9efcf221b5
+github.com/tevino/abool
+# github.com/x-cray/logrus-prefixed-formatter v0.5.2
+github.com/x-cray/logrus-prefixed-formatter
+# github.com/yapingcat/gomedia/codec v0.0.0-20220617074658-94762898dc25
+## explicit
+github.com/yapingcat/gomedia/codec
+# github.com/yapingcat/gomedia/mpeg2 v0.0.0-20220617074658-94762898dc25
+## explicit
+github.com/yapingcat/gomedia/mpeg2
 # golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 golang.org/x/crypto/cryptobyte
 golang.org/x/crypto/cryptobyte/asn1
 golang.org/x/crypto/curve25519
+golang.org/x/crypto/ssh/terminal
 # golang.org/x/net v0.0.0-20210119194325-5f4716e94777
 golang.org/x/net/bpf
 golang.org/x/net/dns/dnsmessage
@@ -103,10 +144,13 @@ golang.org/x/net/internal/socket
 golang.org/x/net/internal/socks
 golang.org/x/net/ipv4
 golang.org/x/net/proxy
-# golang.org/x/sys v0.0.0-20201119102817-f84b799fce68
+# golang.org/x/sys v0.0.0-20201214095126-aec9a390925b
 golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
+# golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
+golang.org/x/term
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 golang.org/x/xerrors
 golang.org/x/xerrors/internal

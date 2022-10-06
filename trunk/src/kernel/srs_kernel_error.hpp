@@ -307,7 +307,15 @@
     XX(ERROR_HTTPS_HANDSHAKE               , 4042, "HttpsHandshake", "Failed to do handshake for HTTPS") \
     XX(ERROR_HTTPS_READ                    , 4043, "HttpsRead", "Failed to read data from HTTPS stream") \
     XX(ERROR_HTTPS_WRITE                   , 4044, "HttpsWrite", "Failed to write data to HTTPS stream") \
-    XX(ERROR_HTTPS_KEY_CRT                 , 4045, "HttpsSslFile", "Failed to load SSL key or crt file for HTTPS")
+    XX(ERROR_HTTPS_KEY_CRT                 , 4045, "HttpsSslFile", "Failed to load SSL key or crt file for HTTPS") \
+    XX(ERROR_GB_SIP_HEADER                 , 4046, "GbHeaderCallId", "Missing field of SIP header for GB28181") \
+    XX(ERROR_GB_SIP_MESSAGE                , 4047, "GbHeaderCallId", "Invalid SIP message for GB28181") \
+    XX(ERROR_GB_PS_HEADER                  , 4048, "GbPsHeader", "Invalid PS header for GB28181") \
+    XX(ERROR_GB_PS_PSE                     , 4049, "GbPsPSE", "Invalid PS PSE for GB28181") \
+    XX(ERROR_GB_PS_MEDIA                   , 4050, "GbPsMedia", "Invalid PS Media packet for GB28181") \
+    XX(ERROR_GB_SSRC_GENERATE              , 4051, "GbSsrcGenerate", "Failed to generate SSRC for GB28181") \
+    XX(ERROR_GB_CONFIG                     , 4052, "GbConfig", "Invalid configuration for GB28181") \
+    XX(ERROR_GB_TIMEOUT                    , 4053, "GbTimeout", "SIP or media connection timeout for GB28181") \
 
 /**************************************************/
 /* RTC protocol error. */

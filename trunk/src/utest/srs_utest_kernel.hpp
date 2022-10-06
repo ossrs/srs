@@ -13,10 +13,13 @@
 #include <srs_utest.hpp>
 
 #include <string>
+#include <vector>
+
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_protocol_stream.hpp>
 #include <srs_kernel_ts.hpp>
+#include <srs_kernel_ps.hpp>
 #include <srs_kernel_stream.hpp>
 
 class MockSrsFile
@@ -127,6 +130,20 @@ public:
     virtual ~MockTsHandler();
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage* m);
+};
+
+class MockPsHandler : public ISrsPsMessageHandler
+{
+public:
+    std::vector<SrsTsMessage*> msgs_;
+public:
+    MockPsHandler();
+    virtual ~MockPsHandler();
+public:
+    virtual srs_error_t on_ts_message(SrsTsMessage* m);
+    virtual void on_recover_mode(int nn_recover);
+    virtual void on_recover_done(srs_utime_t duration);
+    MockPsHandler* clear();
 };
 
 #endif

@@ -25,6 +25,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ossrs/go-oryx-lib/logger"
+	"github.com/ossrs/srs-bench/gb28181"
 	"github.com/ossrs/srs-bench/janus"
 	"github.com/ossrs/srs-bench/srs"
 	"io/ioutil"
@@ -37,18 +38,21 @@ func main() {
 	var sfu string
 	fl := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	fl.SetOutput(ioutil.Discard)
-	fl.StringVar(&sfu, "sfu", "srs", "The SFU server, srs or janus")
+	fl.StringVar(&sfu, "sfu", "srs", "The SFU server, srs or gb28181 or janus")
 	_ = fl.Parse(os.Args[1:])
 
 	ctx := context.Background()
+	var conf interface{}
 	if sfu == "srs" {
 		srs.Parse(ctx)
+	} else if sfu == "gb28181" {
+		conf = gb28181.Parse(ctx)
 	} else if sfu == "janus" {
 		janus.Parse(ctx)
 	} else {
 		fmt.Println(fmt.Sprintf("Usage: %v [Options]", os.Args[0]))
 		fmt.Println(fmt.Sprintf("Options:"))
-		fmt.Println(fmt.Sprintf("   -sfu    The target SFU, srs or janus. Default: srs"))
+		fmt.Println(fmt.Sprintf("   -sfu    The target SFU, srs or gb28181 or janus. Default: srs"))
 		os.Exit(-1)
 	}
 
@@ -65,6 +69,8 @@ func main() {
 	var err error
 	if sfu == "srs" {
 		err = srs.Run(ctx)
+	} else if sfu == "gb28181" {
+		err = gb28181.Run(ctx, conf)
 	} else if sfu == "janus" {
 		err = janus.Run(ctx)
 	}

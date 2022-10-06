@@ -219,6 +219,8 @@ public:
     // For decoder only, the ts message does not use them, for user to get the channel and packet.
     SrsTsChannel* channel;
     SrsTsPacket* packet;
+    // For decoder only, the ts message does not use them, to get the RTP packet source.
+    void* ps_helper_;
 public:
     // The audio cache buffer start pts, to flush audio if full.
     // @remark the pts is not the adjust one, it's the orignal pts.
@@ -229,6 +231,9 @@ public:
     // Whether got discontinuity ts, for example, sequence header changed.
     bool is_discontinuity;
 public:
+    // The chunk id of TS packet.
+    uint8_t continuity_counter;
+public:
     // The timestamp in 90khz
     int64_t dts;
     int64_t pts;
@@ -237,8 +242,6 @@ public:
     SrsTsPESStreamId sid;
     // The size of payload, 0 indicates the length() of payload.
     uint16_t PES_packet_length;
-    // The chunk id.
-    uint8_t continuity_counter;
     // The payload bytes.
     SrsSimpleStream* payload;
 public:

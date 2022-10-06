@@ -50,7 +50,7 @@ func Parse(ctx context.Context) {
 	fl := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
 	var sfu string
-	fl.StringVar(&sfu, "sfu", "srs", "The SFU server, srs or janus")
+	fl.StringVar(&sfu, "sfu", "srs", "The SFU server, srs or gb28181 or janus")
 
 	fl.StringVar(&sr, "sr", "", "")
 	fl.StringVar(&dumpAudio, "da", "", "")
@@ -74,7 +74,7 @@ func Parse(ctx context.Context) {
 	fl.Usage = func() {
 		fmt.Println(fmt.Sprintf("Usage: %v [Options]", os.Args[0]))
 		fmt.Println(fmt.Sprintf("Options:"))
-		fmt.Println(fmt.Sprintf("   -sfu    The target SFU, srs or janus. Default: srs"))
+		fmt.Println(fmt.Sprintf("   -sfu    The target SFU, srs or gb28181 or janus. Default: srs"))
 		fmt.Println(fmt.Sprintf("   -nn     The number of clients to simulate. Default: 1"))
 		fmt.Println(fmt.Sprintf("   -sn     The number of streams to simulate. Variable: %%d. Default: 1"))
 		fmt.Println(fmt.Sprintf("   -delay  The start delay in ms for each client or stream to simulate. Default: 50"))
@@ -88,7 +88,7 @@ func Parse(ctx context.Context) {
 		fmt.Println(fmt.Sprintf("   -pli    [Optional] PLI request interval in seconds. Default: 10"))
 		fmt.Println(fmt.Sprintf("Publisher:"))
 		fmt.Println(fmt.Sprintf("   -pr     The url to publish. If sn exceed 1, auto append variable %%d."))
-		fmt.Println(fmt.Sprintf("   -fps    The fps of .h264 source file."))
+		fmt.Println(fmt.Sprintf("   -fps    [Optional] The fps of .h264 source file."))
 		fmt.Println(fmt.Sprintf("   -sa     [Optional] The file path to read audio, ignore if empty."))
 		fmt.Println(fmt.Sprintf("   -sv     [Optional] The file path to read video, ignore if empty."))
 		fmt.Println(fmt.Sprintf("\n例如，1个播放，1个推流:"))

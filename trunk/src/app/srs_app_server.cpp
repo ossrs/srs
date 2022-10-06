@@ -40,6 +40,9 @@ using namespace std;
 #ifdef SRS_RTC
 #include <srs_app_rtc_network.hpp>
 #endif
+#ifdef SRS_GB28181
+#include <srs_app_gb28181.hpp>
+#endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
 
@@ -336,7 +339,10 @@ SrsServer::SrsServer()
     stream_caster_flv_listener_ = new SrsHttpFlvListener();
     stream_caster_mpegts_ = new SrsUdpCasterListener();
     exporter_listener_ = new SrsTcpListener(this);
-    
+#ifdef SRS_GB28181
+    stream_caster_gb28181_ = new SrsGbListener();
+#endif
+
     // donot new object in constructor,
     // for some global instance is not ready now,
     // new these objects in initialize instead.
@@ -392,6 +398,9 @@ void SrsServer::destroy()
     srs_freep(stream_caster_flv_listener_);
     srs_freep(stream_caster_mpegts_);
     srs_freep(exporter_listener_);
+#ifdef SRS_GB28181
+    srs_freep(stream_caster_gb28181_);
+#endif
 }
 
 void SrsServer::dispose()
@@ -408,6 +417,9 @@ void SrsServer::dispose()
     stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
+#ifdef SRS_GB28181
+    stream_caster_gb28181_->close();
+#endif
 
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
     ingester->dispose();
@@ -436,6 +448,9 @@ void SrsServer::gracefully_dispose()
     stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
+#ifdef SRS_GB28181
+    stream_caster_gb28181_->close();
+#endif
     srs_trace("listeners closed");
 
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
@@ -632,6 +647,15 @@ srs_error_t SrsServer::listen()
             if ((err = stream_caster_flv_listener_->initialize(conf)) != srs_success) {
                 return srs_error_wrap(err, "initialize");
             }
+        } else if (srs_stream_caster_is_gb28181(caster)) {
+        #ifdef SRS_GB28181
+            listener = stream_caster_gb28181_;
+            if ((err = stream_caster_gb28181_->initialize(conf)) != srs_success) {
+                return srs_error_wrap(err, "initialize");
+            }
+        #else
+            return srs_error_new(ERROR_STREAM_CASTER_ENGINE, "Please enable GB by: ./configure --gb28181=on");
+        #endif
         } else {
             return srs_error_new(ERROR_STREAM_CASTER_ENGINE, "invalid caster %s", caster.c_str());
         }
@@ -1316,6 +1340,17 @@ srs_error_t SrsServerAdapter::run(SrsWaitGroup* wg)
 
     if ((err = srs->start(wg)) != srs_success) {
         return srs_error_wrap(err, "start");
+    }
+
+#ifdef SRS_GB28181
+    if ((err = _srs_gb_manager->start()) != srs_success) {
+        return srs_error_wrap(err, "start manager");
+    }
+#endif
+
+    SrsSweepGc* gc = dynamic_cast<SrsSweepGc*>(_srs_gc);
+    if ((err = gc->start()) != srs_success) {
+        return srs_error_wrap(err, "start gc");
     }
 
     return err;

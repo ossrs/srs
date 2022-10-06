@@ -92,6 +92,12 @@ else
     srs_undefine_macro "SRS_HTTPS" $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_GB28181 = YES ]; then
+    srs_define_macro "SRS_GB28181" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_GB28181" $SRS_AUTO_HEADERS_H
+fi
+
 if [ $SRS_UTEST = YES ]; then
     srs_define_macro "SRS_UTEST" $SRS_AUTO_HEADERS_H
 else
