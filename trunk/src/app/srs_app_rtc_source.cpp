@@ -82,8 +82,14 @@ srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFor
         return err;
     }
 
+    // If no audio RAW frame, or not parsed for no sequence header, drop the packet.
+    if (format->audio->nb_samples == 0) {
+        srs_warn("RTC: Drop AAC %d bytes for no sample", shared_audio->size);
+        return err;
+    }
+
     if (format->audio->nb_samples != 1) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "adts");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "adts samples=%d", format->audio->nb_samples);
     }
 
     int nb_buf = format->audio->samples[0].size + 7;

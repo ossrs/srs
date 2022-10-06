@@ -276,6 +276,7 @@ function parse_user_option() {
 
         --with-stream-caster)           SRS_STREAM_CASTER=YES       ;;
         --stream-caster)                SRS_STREAM_CASTER=$(switch2value $value) ;;
+        --stream-converter)             SRS_STREAM_CASTER=$(switch2value $value) ;;
 
         --with-utest)                   SRS_UTEST=YES               ;;
         --without-utest)                SRS_UTEST=NO                ;;
@@ -474,7 +475,7 @@ fi
 function apply_detail_options() {
     # Always enable HTTP utilies.
     if [ $SRS_HTTP_CORE = NO ]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable HTTP utilies.${BLACK}"; fi
-    if [ $SRS_STREAM_CASTER = NO ]; then SRS_STREAM_CASTER=YES; echo -e "${YELLOW}[WARN] Always enable StreamCaster.${BLACK}"; fi
+    if [ $SRS_STREAM_CASTER = NO ]; then SRS_STREAM_CASTER=YES; echo -e "${YELLOW}[WARN] Always enable StreamConverter.${BLACK}"; fi
     if [ $SRS_INGEST = NO ]; then SRS_INGEST=YES; echo -e "${YELLOW}[WARN] Always enable Ingest.${BLACK}"; fi
     if [ $SRS_SSL = NO ]; then SRS_SSL=YES; echo -e "${YELLOW}[WARN] Always enable SSL.${BLACK}"; fi
     if [ $SRS_STAT = NO ]; then SRS_STAT=YES; echo -e "${YELLOW}[WARN] Always enable Statistic.${BLACK}"; fi
@@ -514,7 +515,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stat=$(value2switch $SRS_STAT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-callback=$(value2switch $SRS_HTTP_CALLBACK)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-server=$(value2switch $SRS_HTTP_SERVER)"
-    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=$(value2switch $SRS_STREAM_CASTER)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-converter=$(value2switch $SRS_STREAM_CASTER)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=$(value2switch $SRS_HTTP_API)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=$(value2switch $SRS_UTEST)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=$(value2switch $SRS_CHERRYPY)"
@@ -607,7 +608,7 @@ function check_option_conflicts() {
     # check variable neccessary
     if [ $SRS_HDS = RESERVED ]; then echo "you must specifies the hds, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_STREAM_CASTER = RESERVED ]; then echo "you must specifies the stream-caster, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_STREAM_CASTER = RESERVED ]; then echo "you must specifies the stream-converter, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_UTEST = RESERVED ]; then echo "you must specifies the utest, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF = RESERVED ]; then echo "you must specifies the gperf, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF_MC = RESERVED ]; then echo "you must specifies the gperf-mc, see: ./configure --help"; __check_ok=NO; fi

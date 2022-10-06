@@ -11,7 +11,7 @@ SrsIngestSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_INGEST = YES ]; then Sr
 SrsHttpCallbackSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_CALLBACK = YES ]; then SrsHttpCallbackSummaryColor="\${GREEN}"; fi
 SrsHttpServerSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_SERVER = YES ]; then SrsHttpServerSummaryColor="\${GREEN}"; fi
 SrsHttpApiSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_API = YES ]; then SrsHttpApiSummaryColor="\${GREEN}"; fi
-SrsStreamCasterSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_STREAM_CASTER = YES ]; then SrsStreamCasterSummaryColor="\${GREEN}"; fi
+SrsStreamConverterSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_STREAM_CASTER = YES ]; then SrsStreamConverterSummaryColor="\${GREEN}"; fi
 SrsUtestSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_UTEST = YES ]; then SrsUtestSummaryColor="\${GREEN}"; fi
 SrsGperfSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF = YES ]; then SrsGperfSummaryColor="\${GREEN}"; fi
 SrsGperfMCSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_MC = YES ]; then SrsGperfMCSummaryColor="\${YELLOW}"; fi
@@ -45,7 +45,7 @@ echo -e "     |     ${SrsIngestSummaryColor}About ingester, please read https://
 echo -e "     |     ${SrsHttpCallbackSummaryColor}About http-callback, please read https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback\${BLACK}"
 echo -e "     |     ${SrsHttpServerSummaryColor}Aoubt http-server, please read https://ossrs.net/lts/zh-cn/docs/v4/doc/http-server\${BLACK}"
 echo -e "     |     ${SrsHttpApiSummaryColor}About http-api, please read https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api\${BLACK}"
-echo -e "     |     ${SrsStreamCasterSummaryColor}About stream-caster, please read https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer\${BLACK}"
+echo -e "     |     ${SrsStreamConverterSummaryColor}About stream-caster, please read https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer\${BLACK}"
 echo -e "     |     ${SrsValgrindSummaryColor}About VALGRIND, please read https://github.com/ossrs/state-threads/issues/2\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "\${GREEN}binaries, please read https://ossrs.net/lts/zh-cn/docs/v4/doc/install\${BLACK}"

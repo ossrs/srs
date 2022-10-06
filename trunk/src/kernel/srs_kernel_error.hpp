@@ -268,7 +268,7 @@
     XX(ERROR_HTTP_WITH_BODY                , 3097, "HttpWithBody", "Failed for HTTP body")
 
 /**************************************************/
-/* HTTP/StreamCaster protocol error. */
+/* HTTP/StreamConverter protocol error. */
 #define SRS_ERRNO_MAP_HTTP(XX) \
     XX(ERROR_HTTP_PATTERN_EMPTY            , 4000, "HttpPatternEmpty", "Failed to handle HTTP request for no pattern") \
     XX(ERROR_HTTP_PATTERN_DUPLICATED       , 4001, "HttpPatternDuplicated", "Failed to handle HTTP request for pattern duplicated") \

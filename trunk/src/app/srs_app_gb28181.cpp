@@ -1745,7 +1745,7 @@ srs_error_t SrsGbMuxer::write_h264_ipb_frame(char* frame, int frame_size, uint32
 
     // when sps or pps not sent, ignore the packet.
     if (!h264_sps_pps_sent_) {
-        return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop sps/pps");
+        return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop for no sps/pps");
     }
 
     // 5bits, 7.3.1 NAL unit syntax,
@@ -1892,6 +1892,9 @@ srs_error_t SrsGbMuxer::connect()
         return err;
     }
 
+    // Cleanup the data before connect again.
+    close();
+
     string url = srs_string_replace(output_, "[stream]", session_->sip_transport()->resource()->device_id());
     srs_trace("Muxer: Convert GB to RTMP %s", url.c_str());
 
@@ -1915,6 +1918,14 @@ srs_error_t SrsGbMuxer::connect()
 void SrsGbMuxer::close()
 {
     srs_freep(sdk_);
+
+    // Regenerate the AAC sequence header.
+    aac_specific_config_ = "";
+
+    // Wait for the next AVC sequence header.
+    h264_sps_pps_sent_ = false;
+    h264_sps_ = "";
+    h264_pps_ = "";
 }
 
 SrsSipResponseWriter::SrsSipResponseWriter(ISrsProtocolReadWriter* io) : SrsHttpResponseWriter(io)

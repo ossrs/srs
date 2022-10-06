@@ -2766,7 +2766,7 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
     }
 }
 
-VOID TEST(ConfigMainTest, CheckStreamCaster)
+VOID TEST(ConfigMainTest, CheckStreamConverter)
 {
     srs_error_t err;
 

@@ -35,8 +35,8 @@ The stream architecture of SRS.
 +----------------------+                            |                |
 |  MediaSource(2)      |                            |                |
 |  (MPEGTSoverUDP      |                            |                |
-|   HTTP-FLV,   --push-+->- StreamCaster(4) -(rtmp)-+-> SRS          |
-|   SRT,               |                            |                |
+|   HTTP-FLV,   --push-+->--   Stream(4) ----(rtmp)-+-> SRS          |
+|   SRT,               |      Converter             |                |
 |   ......)            |                            |                |
 +----------------------+                            |                |
 |  FFMPEG --push(srt)--+->- SRTModule(5)  ---(rtmp)-+-> SRS          |
@@ -48,7 +48,7 @@ Remark:
 1. Encoder: Encoder pushs RTMP stream to SRS.
 1. MediaSource: Supports any media source, ingesting by ffmpeg.
 1. Ingester: Forks a ffmpeg(or other tools) to ingest as rtmp to SRS, please read [Ingest][v4_CN_Ingest].
-1. Streamer: Remuxs other protocols to RTMP, please read [Streamer][v4_CN_Streamer].
+1. Stream Converter: Remuxs other protocols to RTMP, please read [Stream Converter][v4_CN_Streamer].
 1. EXEC: Like NGINX-RTMP, EXEC forks external tools for events, please read [ng-exec][v4_CN_NgExec].
 1. SRTModule: A isolate module which run in [hybrid](https://github.com/ossrs/srs/issues/1147#issuecomment-577574883) model.
 

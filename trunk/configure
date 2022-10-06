@@ -642,9 +642,9 @@ else
     echo -e "${YELLOW}Warning: HLS is disabled.${BLACK}"
 fi
 if [ $SRS_STREAM_CASTER = YES ]; then
-    echo -e "${YELLOW}Experiment: StreamCaster is enabled.${BLACK}"
+    echo -e "${YELLOW}Experiment: StreamConverter is enabled.${BLACK}"
 else
-    echo -e "${GREEN}Note: StreamCaster is disabled.${BLACK}"
+    echo -e "${GREEN}Note: StreamConverter is disabled.${BLACK}"
 fi
 if [ $SRS_HDS = YES ]; then
     echo -e "${YELLOW}Experiment: HDS is enabled.${BLACK}"
