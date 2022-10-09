@@ -3934,6 +3934,11 @@ std::string SrsConfig::get_stream_caster_sip_candidate(SrsConfDirective* conf)
         return DEFAULT;
     }
 
+    conf = conf->get("sip");
+    if (!conf) {
+        return DEFAULT;
+    }
+
     conf = conf->get("candidate");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
