@@ -6534,6 +6534,8 @@ SrsConfDirective* SrsConfig::get_hls(string vhost)
 
 bool SrsConfig::get_hls_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.hls.enabled");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_vhost(vhost);
@@ -6564,6 +6566,8 @@ bool SrsConfig::get_hls_enabled(SrsConfDirective* vhost)
 
 string SrsConfig::get_hls_entry_prefix(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_entry_prefix");
+
     static string DEFAULT = "";
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6581,6 +6585,8 @@ string SrsConfig::get_hls_entry_prefix(string vhost)
 
 string SrsConfig::get_hls_path(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_path");
+
     static string DEFAULT = "./objs/nginx/html";
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6598,6 +6604,8 @@ string SrsConfig::get_hls_path(string vhost)
 
 string SrsConfig::get_hls_m3u8_file(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_m3u8_file");
+
     static string DEFAULT = "[app]/[stream].m3u8";
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6615,6 +6623,8 @@ string SrsConfig::get_hls_m3u8_file(string vhost)
 
 string SrsConfig::get_hls_ts_file(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_ts_file");
+
     static string DEFAULT = "[app]/[stream]-[seq].ts";
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6649,6 +6659,8 @@ bool SrsConfig::get_hls_ts_floor(string vhost)
 
 srs_utime_t SrsConfig::get_hls_fragment(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.hls.hls_fragment");
+
     static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6666,6 +6678,8 @@ srs_utime_t SrsConfig::get_hls_fragment(string vhost)
 
 double SrsConfig::get_hls_td_ratio(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT("srs.vhost.hls.hls_td_ratio");
+
     static double DEFAULT = 1.5;
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6683,6 +6697,8 @@ double SrsConfig::get_hls_td_ratio(string vhost)
 
 double SrsConfig::get_hls_aof_ratio(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT("srs.vhost.hls.hls_aof_ratio");
+
     static double DEFAULT = 2.0;
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6700,6 +6716,8 @@ double SrsConfig::get_hls_aof_ratio(string vhost)
 
 srs_utime_t SrsConfig::get_hls_window(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.hls.hls_window");
+
     static srs_utime_t DEFAULT = (60 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6717,6 +6735,8 @@ srs_utime_t SrsConfig::get_hls_window(string vhost)
 
 string SrsConfig::get_hls_on_error(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_on_error");
+
     // try to ignore the error.
     static string DEFAULT = "continue";
     
@@ -6735,6 +6755,8 @@ string SrsConfig::get_hls_on_error(string vhost)
 
 string SrsConfig::get_hls_acodec(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_acodec");
+
     static string DEFAULT = "aac";
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6752,6 +6774,8 @@ string SrsConfig::get_hls_acodec(string vhost)
 
 string SrsConfig::get_hls_vcodec(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_vcodec");
+
     static string DEFAULT = "h264";
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6769,6 +6793,8 @@ string SrsConfig::get_hls_vcodec(string vhost)
 
 int SrsConfig::get_vhost_hls_nb_notify(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.hls.hls_nb_notify");
+
     static int DEFAULT = 64;
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6786,6 +6812,8 @@ int SrsConfig::get_vhost_hls_nb_notify(string vhost)
 
 bool SrsConfig::get_vhost_hls_dts_directly(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.hls.hls_dts_directly");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_hls(vhost);
@@ -6803,6 +6831,8 @@ bool SrsConfig::get_vhost_hls_dts_directly(string vhost)
 
 bool SrsConfig::get_hls_ctx_enabled(std::string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.hls.hls_ctx");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_hls(vhost);
@@ -6820,6 +6850,8 @@ bool SrsConfig::get_hls_ctx_enabled(std::string vhost)
 
 bool SrsConfig::get_hls_ts_ctx_enabled(std::string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.hls.hls_ts_ctx");
+
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_hls(vhost);
@@ -6837,6 +6869,8 @@ bool SrsConfig::get_hls_ts_ctx_enabled(std::string vhost)
 
 bool SrsConfig::get_hls_cleanup(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.hls.hls_cleanup");
+
     static bool DEFAULT = true;
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6854,6 +6888,8 @@ bool SrsConfig::get_hls_cleanup(string vhost)
 
 srs_utime_t SrsConfig::get_hls_dispose(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.hls.hls_dispose");
+
     static srs_utime_t DEFAULT = 0;
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6871,6 +6907,8 @@ srs_utime_t SrsConfig::get_hls_dispose(string vhost)
 
 bool SrsConfig::get_hls_wait_keyframe(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.hls.hls_wait_keyframe");
+
     static bool DEFAULT = true;
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6888,6 +6926,8 @@ bool SrsConfig::get_hls_wait_keyframe(string vhost)
 
 bool SrsConfig::get_hls_keys(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.hls.hls_keys");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6905,6 +6945,8 @@ bool SrsConfig::get_hls_keys(string vhost)
 
 int SrsConfig::get_hls_fragments_per_key(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.hls.hls_fragments_per_key");
+
     static int DEFAULT = 5;
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6922,6 +6964,8 @@ int SrsConfig::get_hls_fragments_per_key(string vhost)
 
 string SrsConfig::get_hls_key_file(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_key_file");
+
     static string DEFAULT = "[app]/[stream]-[seq].key";
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -6939,6 +6983,8 @@ string SrsConfig::get_hls_key_file(string vhost)
 
 string SrsConfig::get_hls_key_file_path(std::string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_key_file_path");
+
      //put the key in ts path defaultly.
     static string DEFAULT = get_hls_path(vhost);
     
@@ -6957,6 +7003,8 @@ string SrsConfig::get_hls_key_file_path(std::string vhost)
 
 string SrsConfig::get_hls_key_url(std::string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_key_url");
+
      //put the key in ts path defaultly.
     static string DEFAULT = get_hls_path(vhost);
     
@@ -6986,6 +7034,8 @@ SrsConfDirective *SrsConfig::get_hds(const string &vhost)
 
 bool SrsConfig::get_hds_enabled(const string &vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.hds.enabled");
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -7015,6 +7065,8 @@ bool SrsConfig::get_hds_enabled(SrsConfDirective* vhost)
 
 string SrsConfig::get_hds_path(const string &vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hds.hds_path");
+
     static string DEFAULT = "./objs/nginx/html";
     
     SrsConfDirective* conf = get_hds(vhost);
@@ -7032,6 +7084,8 @@ string SrsConfig::get_hds_path(const string &vhost)
 
 srs_utime_t SrsConfig::get_hds_fragment(const string &vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.hds.hds_fragment");
+
     static srs_utime_t DEFAULT = (10 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_hds(vhost);
@@ -7049,6 +7103,8 @@ srs_utime_t SrsConfig::get_hds_fragment(const string &vhost)
 
 srs_utime_t SrsConfig::get_hds_window(const string &vhost)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.hds.hds_window");
+
     static srs_utime_t DEFAULT = (60 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_hds(vhost);
@@ -7076,6 +7132,8 @@ SrsConfDirective* SrsConfig::get_dvr(string vhost)
 
 bool SrsConfig::get_dvr_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.dvr.enabled");
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_vhost(vhost);
@@ -7116,11 +7174,12 @@ SrsConfDirective* SrsConfig::get_dvr_apply(string vhost)
     }
     
     return conf;
-    
 }
 
 string SrsConfig::get_dvr_path(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.dvr.dvr_path");
+
     static string DEFAULT = "./objs/nginx/html/[app]/[stream].[timestamp].flv";
     
     SrsConfDirective* conf = get_dvr(vhost);
@@ -7138,6 +7197,8 @@ string SrsConfig::get_dvr_path(string vhost)
 
 string SrsConfig::get_dvr_plan(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.dvr.dvr_plan");
+
     static string DEFAULT = "session";
     
     SrsConfDirective* conf = get_dvr(vhost);
@@ -7155,6 +7216,8 @@ string SrsConfig::get_dvr_plan(string vhost)
 
 srs_utime_t SrsConfig::get_dvr_duration(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.dvr.dvr_duration");
+
     static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dvr(vhost);
@@ -7172,6 +7235,8 @@ srs_utime_t SrsConfig::get_dvr_duration(string vhost)
 
 bool SrsConfig::get_dvr_wait_keyframe(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.dvr.dvr_wait_keyframe");
+
     static bool DEFAULT = true;
     
     SrsConfDirective* conf = get_dvr(vhost);
@@ -7189,6 +7254,10 @@ bool SrsConfig::get_dvr_wait_keyframe(string vhost)
 
 int SrsConfig::get_dvr_time_jitter(string vhost)
 {
+    if (!srs_getenv("srs.vhost.dvr.dvr_wait_keyframe").empty()) {
+        return srs_time_jitter_string2int(srs_getenv("srs.vhost.dvr.dvr_wait_keyframe"));
+    }
+
     static string DEFAULT = "full";
     
     SrsConfDirective* conf = get_dvr(vhost);
@@ -7705,7 +7774,7 @@ SrsConfDirective* SrsConfig::get_srt(std::string vhost)
 
 bool SrsConfig::get_srt_enabled(std::string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.srt.enabled");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.srt.enabled");
 
     static bool DEFAULT = false;
 
@@ -7725,7 +7794,7 @@ bool SrsConfig::get_srt_enabled(std::string vhost)
 
 bool SrsConfig::get_srt_to_rtmp(std::string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.srt.srt_to_rtmp");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.srt.srt_to_rtmp");
 
     static bool DEFAULT = true;
 
