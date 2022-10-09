@@ -256,9 +256,10 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
         return srs_error_wrap(err, "get srt streamid");
     }
 
-    // Must have streamid, because srt ts packet will convert to rtmp or rtc.
+    // If streamid empty, using default streamid instead.
     if (streamid.empty()) {
-        return srs_error_new(ERROR_SRT_CONN, "empty srt streamid");
+        streamid = "#!::r=live/livestream,m=publish";
+        srs_warn("srt get empty streamid, using default steramid %s instead", streamid.c_str());
     }
 
     // Detect streamid of srt to request.
