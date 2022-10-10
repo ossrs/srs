@@ -7,6 +7,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-10-10, For [#2901](https://github.com/ossrs/srs/issues/2901): Edge: Fast disconnect and reconnect. v5.0.78
 * v5.0, 2022-10-09, Fix [#3198](https://github.com/ossrs/srs/issues/3198): SRT: Support PUSH SRT by IP and optional port. v5.0.76
 * v5.0, 2022-10-06, GB28181: Support GB28181-2016 protocol. v5.0.74
 * v5.0, 2022-10-05, HTTP: Skip body and left message by upgrade. v5.0.73
@@ -79,6 +80,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-10-10, For [#2901](https://github.com/ossrs/srs/issues/2901): Edge: Fast disconnect and reconnect. v4.0.267
 * v4.0, 2022-09-27, For [#3167](https://github.com/ossrs/srs/issues/3167): WebRTC: Refine sequence jitter algorithm. v4.0.266
 * v4.0, 2022-09-16, For [#3179](https://github.com/ossrs/srs/issues/3179): WebRTC: Make sure the same m-lines order for offer and answer. v4.0.265
 * v4.0, 2022-09-09, For [#3174](https://github.com/ossrs/srs/issues/3174): WebRTC: Support Unity to publish or play stream. v4.0.264
