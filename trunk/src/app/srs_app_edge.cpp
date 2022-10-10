@@ -201,8 +201,8 @@ void SrsEdgeIngester::stop()
 {
     trd->stop();
     upstream->close();
-    
-    // notice to unpublish.
+
+    // Notify source to un-publish if exists.
     if (source) {
         source->on_unpublish();
     }
@@ -230,6 +230,11 @@ srs_error_t SrsEdgeIngester::cycle()
         if ((err = do_cycle()) != srs_success) {
             srs_warn("EdgeIngester: Ignore error, %s", srs_error_desc(err).c_str());
             srs_freep(err);
+        }
+
+        // Check whether coroutine is stopped, see https://github.com/ossrs/srs/issues/2901
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "edge ingester");
         }
 
         srs_usleep(SRS_EDGE_INGESTER_CIMS);
