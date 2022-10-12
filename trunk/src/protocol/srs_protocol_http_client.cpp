@@ -54,6 +54,8 @@ SrsSslClient::~SrsSslClient()
     }
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 srs_error_t SrsSslClient::handshake()
 {
     srs_error_t err = srs_success;
@@ -171,6 +173,7 @@ srs_error_t SrsSslClient::handshake()
 
     return err;
 }
+#pragma GCC diagnostic pop
 
 srs_error_t SrsSslClient::read(void* plaintext, size_t nn_plaintext, ssize_t* nread)
 {

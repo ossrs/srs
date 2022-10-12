@@ -114,6 +114,8 @@ void ssl_on_info(const SSL* dtls, int where, int ret)
     }
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
 {
     SSL_CTX* dtls_ctx;
@@ -188,6 +190,7 @@ SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
 
     return dtls_ctx;
 }
+#pragma GCC diagnostic pop
 
 SrsDtlsCertificate::SrsDtlsCertificate()
 {

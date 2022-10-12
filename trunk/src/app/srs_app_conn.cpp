@@ -726,6 +726,8 @@ SrsSslConnection::~SrsSslConnection()
     }
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 {
     srs_error_t err = srs_success;
@@ -867,6 +869,7 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 
     return err;
 }
+#pragma GCC diagnostic pop
 
 void SrsSslConnection::set_recv_timeout(srs_utime_t tm)
 {

@@ -83,7 +83,7 @@ END
 # enable gdb debug
 GDBDebug=" -g -O0"
 # the warning level.
-WarnLevel=" -Wall -Wno-deprecated-declarations"
+WarnLevel=" -Wall"
 # the compile standard.
 CppStd="-ansi"
 if [[ $SRS_CXX11 == YES ]]; then
