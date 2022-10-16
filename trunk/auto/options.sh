@@ -550,6 +550,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=$(value2switch $SRS_DEBUG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=$(value2switch $SRS_DEBUG_STATS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cross-build=$(value2switch $SRS_CROSS_BUILD)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer=$(value2switch $SRS_SANITIZER)"
     if [[ $SRS_CROSS_BUILD_ARCH != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --arch=$SRS_CROSS_BUILD_ARCH"; fi
     if [[ $SRS_CROSS_BUILD_CPU != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --cpu=$SRS_CROSS_BUILD_CPU"; fi
     if [[ $SRS_CROSS_BUILD_HOST != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --host=$SRS_CROSS_BUILD_HOST"; fi
