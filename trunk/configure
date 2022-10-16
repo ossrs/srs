@@ -112,6 +112,13 @@ fi
 if [[ $SRS_EXTRA_FLAGS != '' ]]; then
     CXXFLAGS="${CXXFLAGS} $SRS_EXTRA_FLAGS";
 fi
+
+# For Sanitizer
+# @doc: https://github.com/google/sanitizers/wiki/AddressSanitizer
+if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
+    CXXFLAGS="${CXXFLAGS} -fsanitize=address -fno-omit-frame-pointer";
+fi
+
 # Start to generate the Makefile.
 cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = ${SRS_TOOL_CC}
@@ -191,6 +198,12 @@ fi
 # For FFMPEG/RTC on Linux.
 if [[ $SRS_OSX != YES && $SRS_RTC == YES && $SRS_FFMPEG_FIT == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lrt";
+fi
+
+# For address sanitizer
+# @doc: https://github.com/google/sanitizers/wiki/AddressSanitizer
+if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
+    SrsLinkOptions="${SrsLinkOptions} -fsanitize=address -fno-omit-frame-pointer";
 fi
 
 #####################################################################################

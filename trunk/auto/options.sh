@@ -61,6 +61,7 @@ SRS_LOG_TRACE=YES
 # Experts options.
 SRS_USE_SYS_SSL=NO # Use system ssl(-lssl) if required.
 SRS_VALGRIND=NO
+SRS_SANITIZER=YES
 SRS_BUILD_TAG= # Set the object files tag name.
 SRS_CLEAN=YES # Whether do "make clean" when configure.
 SRS_SIMULATOR=NO # Whether enable RTC simulate API.
@@ -148,6 +149,7 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --gmp=on|off              Whether build memory profile with gperf tools. Default: $(value2switch $SRS_GPERF_MP)
   --gcp=on|off              Whether build cpu profile with gperf tools. Default: $(value2switch $SRS_GPERF_CP)
   --gprof=on|off            Whether build SRS with gprof(GNU profile tool). Default: $(value2switch $SRS_GPROF)
+  --sanitizer=on|off        Whether build SRS with address sanitizer. Default: $(value2switch $SRS_SANITIZER)
 
   --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
   --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
@@ -326,6 +328,8 @@ function parse_user_option() {
         --with-gprof)                   SRS_GPROF=YES               ;;
         --without-gprof)                SRS_GPROF=NO                ;;
         --gprof)                        SRS_GPROF=$(switch2value $value) ;;
+
+        --sanitizer)                    SRS_SANITIZER=$(switch2value $value) ;;
 
         --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
         --sys-ssl)                      SRS_USE_SYS_SSL=$(switch2value $value) ;;
