@@ -2,7 +2,7 @@ FROM ossrs/srs:dev-gcc7-cache
 
 # Install depends tools.
 #       devtoolset-8-libasan-devel      For AddressSanitizer, see https://github.com/google/sanitizers/issues/695
-RUN yum install -y gcc make gcc-c++ patch unzip perl git devtoolset-8-libasan-devel
+RUN yum install -y gcc make gcc-c++ patch unzip perl git devtoolset-7-libasan-devel
 
 # Build and install SRS.
 COPY . /srs
