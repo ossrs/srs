@@ -1,7 +1,7 @@
-.PHONY: clean
+.PHONY: default clean
 
-LDLIBS=../../obj/libst.a
-CFLAGS=-g -O0 -I../../obj
+LDLIBS=../../obj/libst.a -ldl
+CFLAGS=-g -O0 -rdynamic -I../../obj
 
 OS_NAME 	= $(shell uname -s)
 ST_TARGET 	= linux-debug
@@ -12,12 +12,12 @@ CPU_ARCHS 	+= $(shell g++ -dM -E - </dev/null |grep -q '__aarch64' && echo arm64
 CFLAGS      += -arch $(CPU_ARCHS)
 endif
 
-./verify:  verify.c $(LDLIBS)
+./backtrace: backtrace.c $(LDLIBS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $^ $(LDLIBS)
 
 clean:
 	cd ../.. && make clean
-	rm -rf verify verify.dSYM
+	rm -rf backtrace backtrace.dSYM
 
 $(LDLIBS):
 	cd ../.. && make $(ST_TARGET)

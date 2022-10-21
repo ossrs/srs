@@ -48,6 +48,7 @@ IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     list(APPEND SOURCE_FILES ${ST_DIR}/md_darwin.S)
 ELSE ()
     list(APPEND SOURCE_FILES ${ST_DIR}/md_linux.S)
+    list(APPEND SOURCE_FILES ${ST_DIR}/md_linux2.S)
 ENDIF ()
 
 ADD_DEFINITIONS("-g -O0")
@@ -65,6 +66,63 @@ TARGET_LINK_LIBRARIES(st_utest gtest gtest_main)
 TARGET_LINK_LIBRARIES(st_utest dl)
 TARGET_LINK_LIBRARIES(st_utest ${DEPS_LIBS})
 TARGET_LINK_LIBRARIES(st_utest -ldl -pthread)
+
+###########################################################
+# Setup tools/backtrace project
+set(ST_BACKTRACE_SOURCE_FILES ${SOURCE_FILES})
+AUX_SOURCE_DIRECTORY(${ST_DIR}/tools/backtrace ST_BACKTRACE_SOURCE_FILES)
+
+ADD_EXECUTABLE(st_backtrace ${ST_BACKTRACE_SOURCE_FILES})
+TARGET_LINK_LIBRARIES(st_backtrace ${DEPS_LIBS})
+TARGET_LINK_LIBRARIES(st_backtrace -ldl)
+
+###########################################################
+# Setup tools/helloworld project
+set(ST_HELLOWORLD_SOURCE_FILES ${SOURCE_FILES})
+AUX_SOURCE_DIRECTORY(${ST_DIR}/tools/helloworld ST_HELLOWORLD_SOURCE_FILES)
+
+ADD_EXECUTABLE(st_helloworld ${ST_HELLOWORLD_SOURCE_FILES})
+TARGET_LINK_LIBRARIES(st_helloworld ${DEPS_LIBS})
+
+###########################################################
+# Setup tools/jmpbuf project
+set(ST_JMPBUF_SOURCE_FILES ${SOURCE_FILES})
+AUX_SOURCE_DIRECTORY(${ST_DIR}/tools/jmpbuf ST_JMPBUF_SOURCE_FILES)
+
+ADD_EXECUTABLE(st_jmpbuf ${ST_JMPBUF_SOURCE_FILES})
+TARGET_LINK_LIBRARIES(st_jmpbuf ${DEPS_LIBS})
+
+###########################################################
+# Setup tools/pcs project
+set(ST_PCS_SOURCE_FILES ${SOURCE_FILES})
+AUX_SOURCE_DIRECTORY(${ST_DIR}/tools/pcs ST_PCS_SOURCE_FILES)
+
+ADD_EXECUTABLE(st_pcs ${ST_PCS_SOURCE_FILES})
+TARGET_LINK_LIBRARIES(st_pcs ${DEPS_LIBS})
+
+###########################################################
+# Setup tools/porting project
+set(ST_PORTING_SOURCE_FILES ${SOURCE_FILES})
+AUX_SOURCE_DIRECTORY(${ST_DIR}/tools/porting ST_PORTING_SOURCE_FILES)
+
+ADD_EXECUTABLE(st_porting ${ST_PORTING_SOURCE_FILES})
+TARGET_LINK_LIBRARIES(st_porting ${DEPS_LIBS})
+
+###########################################################
+# Setup tools/stack project
+set(ST_STACK_SOURCE_FILES ${SOURCE_FILES})
+AUX_SOURCE_DIRECTORY(${ST_DIR}/tools/stack ST_STACK_SOURCE_FILES)
+
+ADD_EXECUTABLE(st_stack ${ST_STACK_SOURCE_FILES})
+TARGET_LINK_LIBRARIES(st_stack ${DEPS_LIBS})
+
+###########################################################
+# Setup tools/verify project
+set(ST_VERIFY_SOURCE_FILES ${SOURCE_FILES})
+AUX_SOURCE_DIRECTORY(${ST_DIR}/tools/verify ST_VERIFY_SOURCE_FILES)
+
+ADD_EXECUTABLE(st_verify ${ST_VERIFY_SOURCE_FILES})
+TARGET_LINK_LIBRARIES(st_verify ${DEPS_LIBS})
 
 ###########################################################
 # Done

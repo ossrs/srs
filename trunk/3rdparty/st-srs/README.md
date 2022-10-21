@@ -116,6 +116,8 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) was patched an
 - [x] AppleM1: Support Apple Silicon M1(aarch64), [#30](https://github.com/ossrs/state-threads/issues/30).
 - [x] IDE: Support CLion for debugging and learning.
 - [x] Define and use a new jmpbuf, because the structure is different.
+- [x] Check capability for backtrack.
+- [x] Support set specifics for any thread.
 - [ ] System: Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
 
 ## GDB Tools
