@@ -6,6 +6,8 @@
 
 #include <srs_protocol_conn.hpp>
 
+#include <srs_kernel_error.hpp>
+
 #include <algorithm>
 using namespace std;
 

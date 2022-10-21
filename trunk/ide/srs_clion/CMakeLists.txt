@@ -87,6 +87,7 @@ ADD_EXECUTABLE(srs ${SRS_SOURCE_FILES})
 TARGET_LINK_LIBRARIES(srs dl)
 TARGET_LINK_LIBRARIES(srs ${DEPS_LIBS})
 TARGET_LINK_LIBRARIES(srs -ldl -pthread)
+TARGET_LINK_LIBRARIES(srs -rdynamic)
 
 ###########################################################
 # For utest.

@@ -37,6 +37,9 @@ SrsServer* _srs_server = NULL;
 bool _srs_in_docker = false;
 bool _srs_config_by_env = false;
 
+// The binary name of SRS.
+const char* _srs_binary = NULL;
+
 #include <srs_app_st.hpp>
 
 // Initialize global settings.
@@ -82,6 +85,8 @@ srs_error_t prepare_main() {
 // Copy from gtest-1.6.0/src/gtest_main.cc
 GTEST_API_ int main(int argc, char **argv) {
     srs_error_t err = srs_success;
+
+    _srs_binary = argv[0];
 
     if ((err = prepare_main()) != srs_success) {
         fprintf(stderr, "Failed, %s\n", srs_error_desc(err).c_str());

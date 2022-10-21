@@ -193,6 +193,11 @@ if [[ $SRS_OSX != YES && $SRS_RTC == YES && $SRS_FFMPEG_FIT == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lrt";
 fi
 
+# The backtrace symbol option.
+if [[ $SRS_BACKTRACE == YES ]]; then
+    SrsLinkOptions="${SrsLinkOptions} -rdynamic";
+fi
+
 #####################################################################################
 # Modules, compile each module, then link to binary
 #

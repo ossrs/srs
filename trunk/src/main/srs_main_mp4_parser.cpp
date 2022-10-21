@@ -30,6 +30,9 @@ SrsConfig* _srs_config = new SrsConfig();
 // @global Other variables.
 bool _srs_in_docker = false;
 
+// The binary name of SRS.
+const char* _srs_binary = NULL;
+
 srs_error_t parse(std::string mp4_file, bool verbose)
 {
     srs_error_t err = srs_success;
@@ -87,6 +90,8 @@ int main(int argc, char** argv)
 {
     printf("SRS MP4 parser/%d.%d.%d, parse and show the mp4 boxes structure.\n",
            VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION);
+
+    _srs_binary = argv[0];
     
     if (argc < 2) {
         printf("Usage: %s <mp4_file> [verbose]\n"

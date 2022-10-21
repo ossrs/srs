@@ -7,6 +7,7 @@
 #include <srs_kernel_kbps.hpp>
 
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_error.hpp>
 
 SrsRateSample::SrsRateSample()
 {
