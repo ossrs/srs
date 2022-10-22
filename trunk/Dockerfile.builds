@@ -1,32 +1,37 @@
 ########################################################
 FROM ossrs/srs:dev-cache AS centos7-baseline
+RUN yum install -y libasan
 COPY . /srs
 RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --gb28181=off && make -j2
 
 FROM ossrs/srs:dev-cache AS centos7-no-webrtc
+RUN yum install -y libasan
 COPY . /srs
 RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --gb28181=off --rtc=off && make -j2
 
 FROM ossrs/srs:dev-cache AS centos7-no-asm
+RUN yum install -y libasan
 COPY . /srs
 RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --gb28181=off --nasm=off --srtp-nasm=off && make -j2
 
 FROM ossrs/srs:dev-cache AS centos7-all
+RUN yum install -y libasan
 COPY . /srs
 RUN cd /srs/trunk && ./configure --jobs=2 --srt=on --gb28181=on && make -j2
 
 FROM ossrs/srs:dev-cache AS centos7-ansi-no-ffmpeg
+RUN yum install -y libasan
 COPY . /srs
 RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --gb28181=off --cxx11=off --cxx14=off --ffmpeg-fit=off && make -j2
 
 ########################################################
 FROM ossrs/srs:dev6-cache AS centos6-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --gb28181=off --cxx11=off --cxx14=off && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --gb28181=off --cxx11=off --cxx14=off --sanitizer=off && make -j2
 
 FROM ossrs/srs:dev6-cache AS centos6-all
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 --srt=on --gb28181=on --cxx11=off --cxx14=off && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=on --gb28181=on --cxx11=off --cxx14=off --sanitizer=off && make -j2
 
 ########################################################
 FROM ossrs/srs:ubuntu16-cache AS ubuntu16-baseline
