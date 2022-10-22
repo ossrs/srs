@@ -439,6 +439,8 @@ public:
     static int error_code(SrsCplxError* err);
     static std::string error_code_str(SrsCplxError* err);
     static std::string error_code_longstr(SrsCplxError* err);
+public:
+    static void srs_assert(bool expression);
 };
 
 // Error helpers, should use these functions to new or wrap an error.
@@ -452,6 +454,10 @@ public:
 #define srs_error_code_str(err) SrsCplxError::error_code_str(err)
 #define srs_error_code_longstr(err) SrsCplxError::error_code_longstr(err)
 #define srs_error_reset(err) srs_freep(err); err = srs_success
+
+#ifndef srs_assert
+#define srs_assert(expression) SrsCplxError::srs_assert(expression)
+#endif
 
 #endif
 

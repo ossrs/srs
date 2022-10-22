@@ -13,7 +13,7 @@ CFLAGS      += -arch $(CPU_ARCHS)
 endif
 
 ./helloworld: helloworld.c $(LDLIBS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o helloworld helloworld.c $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $^ $(LDLIBS)
 
 clean:
 	cd ../.. && make clean

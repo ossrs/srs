@@ -71,12 +71,18 @@ SrsServer* _srs_server = NULL;
 // Whether setup config by environment variables, see https://github.com/ossrs/srs/issues/2277
 bool _srs_config_by_env = false;
 
+// The binary name of SRS.
+const char* _srs_binary = NULL;
+
 /**
  * main entrance.
  */
 srs_error_t do_main(int argc, char** argv, char** envp)
 {
     srs_error_t err = srs_success;
+
+    // TODO: Might fail if change working directory.
+    _srs_binary = argv[0];
 
     // Initialize global and thread-local variables.
     if ((err = srs_global_initialize()) != srs_success) {

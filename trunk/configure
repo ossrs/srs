@@ -204,6 +204,11 @@ if [[ $SRS_OSX != YES && $SRS_RTC == YES && $SRS_FFMPEG_FIT == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lrt";
 fi
 
+# The backtrace symbol option.
+if [[ $SRS_BACKTRACE == YES ]]; then
+    SrsLinkOptions="${SrsLinkOptions} -rdynamic";
+fi
+
 # For address sanitizer
 # @doc: https://github.com/google/sanitizers/wiki/AddressSanitizer
 if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then

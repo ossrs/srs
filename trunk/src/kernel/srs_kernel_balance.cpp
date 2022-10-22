@@ -6,6 +6,8 @@
 
 #include <srs_kernel_balance.hpp>
 
+#include <srs_kernel_error.hpp>
+
 using namespace std;
 
 SrsLbRoundRobin::SrsLbRoundRobin()

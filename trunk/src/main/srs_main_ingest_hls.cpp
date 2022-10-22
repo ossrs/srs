@@ -44,6 +44,9 @@ SrsConfig* _srs_config = new SrsConfig();
 // @global Other variables.
 bool _srs_in_docker = false;
 
+// The binary name of SRS.
+const char* _srs_binary = NULL;
+
 /**
  * main entrance.
  */
@@ -51,6 +54,8 @@ int main(int argc, char** argv)
 {
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
+
+    _srs_binary = argv[0];
     
     // directly failed when compile limited.
 #if defined(SRS_GPERF_MP) || defined(SRS_GPERF_MP) \

@@ -66,7 +66,7 @@ SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
 srs_error_t SrsSimpleRtmpClient::connect_app()
 {
     std::vector<SrsIPAddress*>& ips = srs_get_local_ips();
-    assert(_srs_config->get_stats_network() < (int)ips.size());
+    srs_assert(_srs_config->get_stats_network() < (int)ips.size());
     SrsIPAddress* local_ip = ips[_srs_config->get_stats_network()];
     
     bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);

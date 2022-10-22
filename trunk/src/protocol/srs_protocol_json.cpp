@@ -6,6 +6,8 @@
 
 #include <srs_core.hpp>
 
+#include <srs_kernel_error.hpp>
+
 // LCOV_EXCL_START
 /* vim: set et ts=3 sw=3 sts=3 ft=c:
  *
