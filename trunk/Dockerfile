@@ -16,7 +16,7 @@ ENV DEBIAN_FRONTEND noninteractive
 SHELL ["/bin/bash", "-c"]
 
 # Install depends tools.
-RUN apt-get update && apt-get install -y gcc make g++ patch unzip perl git
+RUN apt-get update && apt-get install -y gcc make g++ patch unzip perl git libasan5
 
 # Copy source code to docker.
 COPY . /srs
@@ -24,7 +24,7 @@ WORKDIR /srs/trunk
 
 # Build and install SRS.
 # Note that SRT is enabled by default, so we configure without --srt=on.
-RUN ./configure --jobs=${JOBS} --gb28181=on && make -j${JOBS} && make install
+RUN ./configure --jobs=${JOBS} --gb28181=on  --sanitizer-static=on && make -j${JOBS} && make install
 
 # All config files for SRS.
 RUN cp -R conf /usr/local/srs/conf && \

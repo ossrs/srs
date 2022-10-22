@@ -117,6 +117,9 @@ fi
 # @doc: https://github.com/google/sanitizers/wiki/AddressSanitizer
 if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
     CXXFLAGS="${CXXFLAGS} -fsanitize=address -fno-omit-frame-pointer";
+    if [[ $SRS_SANITIZER_STATIC == YES ]]; then
+        CXXFLAGS="${CXXFLAGS} -static-libasan";
+    fi
 fi
 
 # Start to generate the Makefile.
@@ -209,6 +212,9 @@ fi
 # @doc: https://github.com/google/sanitizers/wiki/AddressSanitizer
 if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -fsanitize=address -fno-omit-frame-pointer";
+    if [[ $SRS_SANITIZER_STATIC == YES ]]; then
+        SrsLinkOptions="${SrsLinkOptions} -static-libasan";
+    fi
 fi
 
 #####################################################################################
