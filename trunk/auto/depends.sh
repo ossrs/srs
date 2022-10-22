@@ -317,7 +317,8 @@ OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$re
 OS_IS_LOONGARCH64=$(g++ -dM -E - </dev/null |grep '#define __loongarch64 1' -q && echo YES)
 OS_IS_MIPS64=$(g++ -dM -E - </dev/null |grep '#define __mips64 1' -q && echo YES)
 OS_IS_LOONGSON=$(uname -r |grep -q loongson && echo YES)
-echo "OS_IS_LOONGARCH64:$OS_IS_LOONGARCH64, OS_IS_MIPS64:$OS_IS_MIPS64, OS_IS_LOONGSON:$OS_IS_LOONGSON"
+OS_IS_X86_64=$(g++ -dM -E - </dev/null |grep -q '#define __x86_64 1' && echo YES)
+echo "OS_IS_LOONGARCH64:$OS_IS_LOONGARCH64, OS_IS_MIPS64:$OS_IS_MIPS64, OS_IS_LOONGSON:$OS_IS_LOONGSON, OS_IS_X86_64:$OS_IS_X86_64"
 
 #####################################################################################
 # for Centos, auto install tools by yum
