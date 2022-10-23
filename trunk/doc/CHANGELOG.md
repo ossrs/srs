@@ -1,4 +1,5 @@
 
+
 # Changelog
 
 The changelog for SRS.
@@ -7,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-10-23, For [#3216](https://github.com/ossrs/srs/issues/3216): Support Google Address Sanitizer. v5.0.81
 * v5.0, 2022-10-21, Kernel: Support grab backtrace stack when assert fail. v5.0.80
 * v5.0, 2022-10-21, ST: Refine tools and CMakeLists.txt. Add backtrace example. v5.0.79
 * v5.0, 2022-10-10, For [#2901](https://github.com/ossrs/srs/issues/2901): Edge: Fast disconnect and reconnect. v5.0.78
