@@ -98,6 +98,24 @@ static void srs_srt_log_handler(void* opaque, int level, const char* file, int l
     }
 }
 
+static string srt_sockstatus_to_str(const SRT_SOCKSTATUS& status)
+{
+    switch (status) {
+        case SRTS_INIT: return "SRTS_INIT";
+        case SRTS_OPENED: return "SRTS_OPENED";
+        case SRTS_LISTENING: return "SRTS_LISTENING";
+        case SRTS_CONNECTING: return "SRT_CONNECTING";
+        case SRTS_CONNECTED: return "SRTS_CONNECTED";
+        case SRTS_BROKEN: return "SRTS_BROKEN";
+        case SRTS_CLOSING: return "SRTS_CLOSING";
+        case SRTS_CLOSED: return "SRTS_CLOSED";
+        case SRTS_NONEXIST: return "SRTS_NONEXIST";
+        default: return "unknown";
+    }
+
+    return "unknown";
+}
+
 srs_error_t srs_srt_log_initialize()
 {
     srs_error_t err = srs_success;
@@ -963,7 +981,8 @@ srs_error_t SrsSrtSocket::check_error()
     srs_error_t err = srs_success;
 
     if (has_error_) {
-        return srs_error_new(ERROR_SRT_IO, "has error");
+        SRT_SOCKSTATUS status = srt_getsockstate(srt_fd_);
+        return srs_error_new(ERROR_SRT_IO, "error occured, socket status=%s", srt_sockstatus_to_str(status).c_str());
     }
 
     return err;
