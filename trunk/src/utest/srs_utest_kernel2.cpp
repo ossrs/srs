@@ -313,3 +313,14 @@ VOID TEST(KernelPSTest, PsPacketHeaderClockDecode)
     }
 }
 
+VOID TEST(KernelLogTest, LogLevelString)
+{
+    EXPECT_STREQ("Forbidden",        srs_log_level_strings[SrsLogLevelForbidden]);
+    EXPECT_STREQ("Verb",        srs_log_level_strings[SrsLogLevelVerbose]);
+    EXPECT_STREQ("Debug",       srs_log_level_strings[SrsLogLevelInfo]);
+    EXPECT_STREQ("Trace",       srs_log_level_strings[SrsLogLevelTrace]);
+    EXPECT_STREQ("Warn",        srs_log_level_strings[SrsLogLevelWarn]);
+    EXPECT_STREQ("Error",       srs_log_level_strings[SrsLogLevelError]);
+    EXPECT_STREQ("Disabled",    srs_log_level_strings[SrsLogLevelDisabled]);
+}
+

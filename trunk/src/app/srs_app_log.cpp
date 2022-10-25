@@ -30,7 +30,7 @@
 
 SrsFileLog::SrsFileLog()
 {
-    level = SrsLogLevelTrace;
+    level_ = SrsLogLevelTrace;
     log_data = new char[LOG_MAX_SIZE];
     
     fd = -1;
@@ -62,7 +62,7 @@ srs_error_t SrsFileLog::initialize()
         _srs_config->subscribe(this);
         
         log_to_file_tank = _srs_config->get_log_tank_file();
-        level = srs_get_log_level(_srs_config->get_log_level());
+        level_ = srs_get_log_level(_srs_config->get_log_level());
         utc = _srs_config->get_utc_time();
     }
     
@@ -82,141 +82,31 @@ void SrsFileLog::reopen()
     open_log_file();
 }
 
-void SrsFileLog::verbose(const char* tag, SrsContextId context_id, const char* fmt, ...)
+void SrsFileLog::log(SrsLogLevel level, const char* tag, const SrsContextId& context_id, const char* fmt, va_list args)
 {
+    if (level < level_ || level >= SrsLogLevelDisabled) {
+        return;
+    }
+
     SrsThreadLocker(mutex_);
 
-    if (level > SrsLogLevelVerbose) {
-        return;
-    }
-
     int size = 0;
-    if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Verb", &size)) {
+    bool header_ok = srs_log_header(
+        log_data, LOG_MAX_SIZE, utc, level >= SrsLogLevelWarn, tag, context_id, srs_log_level_strings[level], &size
+    );
+    if (!header_ok) {
         return;
     }
-
-    va_list ap;
-    va_start(ap, fmt);
-    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
-    va_end(ap);
 
     // Something not expected, drop the log.
+    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, args);
     if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
         return;
     }
     size += r0;
 
-    write_log(fd, log_data, size, SrsLogLevelVerbose);
-}
-
-void SrsFileLog::info(const char* tag, SrsContextId context_id, const char* fmt, ...)
-{
-    SrsThreadLocker(mutex_);
-
-    if (level > SrsLogLevelInfo) {
-        return;
-    }
-
-    int size = 0;
-    if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Debug", &size)) {
-        return;
-    }
-
-    va_list ap;
-    va_start(ap, fmt);
-    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
-    va_end(ap);
-
-    // Something not expected, drop the log.
-    if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
-        return;
-    }
-    size += r0;
-
-    write_log(fd, log_data, size, SrsLogLevelInfo);
-}
-
-void SrsFileLog::trace(const char* tag, SrsContextId context_id, const char* fmt, ...)
-{
-    SrsThreadLocker(mutex_);
-
-    if (level > SrsLogLevelTrace) {
-        return;
-    }
-
-    int size = 0;
-    if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Trace", &size)) {
-        return;
-    }
-
-    va_list ap;
-    va_start(ap, fmt);
-    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
-    va_end(ap);
-
-    // Something not expected, drop the log.
-    if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
-        return;
-    }
-    size += r0;
-
-    write_log(fd, log_data, size, SrsLogLevelTrace);
-}
-
-void SrsFileLog::warn(const char* tag, SrsContextId context_id, const char* fmt, ...)
-{
-    SrsThreadLocker(mutex_);
-
-    if (level > SrsLogLevelWarn) {
-        return;
-    }
-
-    int size = 0;
-    if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, true, tag, context_id, "Warn", &size)) {
-        return;
-    }
-
-    va_list ap;
-    va_start(ap, fmt);
-    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
-    va_end(ap);
-
-    // Something not expected, drop the log.
-    if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
-        return;
-    }
-    size += r0;
-
-    write_log(fd, log_data, size, SrsLogLevelWarn);
-}
-
-void SrsFileLog::error(const char* tag, SrsContextId context_id, const char* fmt, ...)
-{
-    SrsThreadLocker(mutex_);
-
-    if (level > SrsLogLevelError) {
-        return;
-    }
-    
-    int size = 0;
-    if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, true, tag, context_id, "Error", &size)) {
-        return;
-    }
-    
-    va_list ap;
-    va_start(ap, fmt);
-    int r0 = vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
-    va_end(ap);
-
-    // Something not expected, drop the log.
-    if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
-        return;
-    }
-    size += r0;
-    
-    // add strerror() to error msg.
-    // Check size to avoid security issue https://github.com/ossrs/srs/issues/1229
-    if (errno != 0 && size < LOG_MAX_SIZE) {
+    // Add errno and strerror() if error. Check size to avoid security issue https://github.com/ossrs/srs/issues/1229
+    if (level == SrsLogLevelError && errno != 0 && size < LOG_MAX_SIZE) {
         r0 = snprintf(log_data + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
 
         // Something not expected, drop the log.
@@ -225,8 +115,8 @@ void SrsFileLog::error(const char* tag, SrsContextId context_id, const char* fmt
         }
         size += r0;
     }
-    
-    write_log(fd, log_data, size, SrsLogLevelError);
+
+    write_log(fd, log_data, size, level);
 }
 
 void SrsFileLog::write_log(int& fd, char *str_log, int size, int level)

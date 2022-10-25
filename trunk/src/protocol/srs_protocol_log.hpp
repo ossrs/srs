@@ -52,7 +52,7 @@ public:
 class SrsConsoleLog : public ISrsLog
 {
 private:
-    SrsLogLevel level;
+    SrsLogLevel level_;
     bool utc;
 private:
     char* buffer;
@@ -63,11 +63,7 @@ public:
 public:
     virtual srs_error_t initialize();
     virtual void reopen();
-    virtual void verbose(const char* tag, SrsContextId context_id, const char* fmt, ...);
-    virtual void info(const char* tag, SrsContextId context_id, const char* fmt, ...);
-    virtual void trace(const char* tag, SrsContextId context_id, const char* fmt, ...);
-    virtual void warn(const char* tag, SrsContextId context_id, const char* fmt, ...);
-    virtual void error(const char* tag, SrsContextId context_id, const char* fmt, ...);
+    virtual void log(SrsLogLevel level, const char* tag, const SrsContextId& context_id, const char* fmt, va_list args);
 };
 
 // Generate the log header.

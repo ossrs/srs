@@ -102,7 +102,7 @@ GTEST_API_ int main(int argc, char **argv) {
 
 MockEmptyLog::MockEmptyLog(SrsLogLevel l)
 {
-    level = l;
+    level_ = l;
 }
 
 MockEmptyLog::~MockEmptyLog()

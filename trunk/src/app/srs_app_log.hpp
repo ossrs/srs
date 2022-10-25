@@ -32,7 +32,7 @@ class SrsFileLog : public ISrsLog, public ISrsReloadHandler
 {
 private:
     // Defined in SrsLogLevel.
-    SrsLogLevel level;
+    SrsLogLevel level_;
 private:
     char* log_data;
     // Log to file if specified srs_log_file
@@ -51,11 +51,7 @@ public:
 public:
     virtual srs_error_t initialize();
     virtual void reopen();
-    virtual void verbose(const char* tag, SrsContextId context_id, const char* fmt, ...);
-    virtual void info(const char* tag, SrsContextId context_id, const char* fmt, ...);
-    virtual void trace(const char* tag, SrsContextId context_id, const char* fmt, ...);
-    virtual void warn(const char* tag, SrsContextId context_id, const char* fmt, ...);
-    virtual void error(const char* tag, SrsContextId context_id, const char* fmt, ...);
+    virtual void log(SrsLogLevel level, const char* tag, const SrsContextId& context_id, const char* fmt, va_list args);
 private:
     virtual void write_log(int& fd, char* str_log, int size, int level);
     virtual void open_log_file();
