@@ -271,7 +271,7 @@ void show_macro_features()
         ss << ", stat:" << srs_bool2switch(true);
         // sc(stream-caster)
         ss << ", sc:" << srs_bool2switch(true);
-        srs_trace(ss.str().c_str());
+        srs_trace("%s", ss.str().c_str());
     }
     
     if (true) {
@@ -300,7 +300,7 @@ void show_macro_features()
         << ", writev:" << sysconf(_SC_IOV_MAX) << ", encoding:" << (srs_is_little_endian()? "little-endian":"big-endian")
         << ", HZ:" << (int)sysconf(_SC_CLK_TCK);
         
-        srs_trace(ss.str().c_str());
+        srs_trace("%s", ss.str().c_str());
     }
     
     if (true) {
@@ -318,7 +318,7 @@ void show_macro_features()
 #endif
         ss << ", default:" << SRS_PERF_MR_ENABLED << ", sleep:" << srsu2msi(SRS_PERF_MR_SLEEP) << "ms";
         
-        srs_trace(ss.str().c_str());
+        srs_trace("%s", ss.str().c_str());
     }
     
     if (true) {
@@ -354,7 +354,7 @@ void show_macro_features()
         ss << "auto(guess by merged write)";
 #endif
         
-        srs_trace(ss.str().c_str());
+        srs_trace("%s", ss.str().c_str());
     }
     
     // others
