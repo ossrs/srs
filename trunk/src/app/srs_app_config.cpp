@@ -2280,7 +2280,7 @@ srs_error_t SrsConfig::check_normal_config()
         SrsConfDirective* conf = root->at(i);
         std::string n = conf->name;
         if (n != "listen" && n != "pid" && n != "chunk_size" && n != "ff_log_dir"
-            && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
+            && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_level_v2" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "tencentcloud_apm"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
             && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server"
@@ -6342,12 +6342,26 @@ string SrsConfig::get_log_level()
     SRS_OVERWRITE_BY_ENV_STRING("srs.srs_log_level");
 
     static string DEFAULT = "trace";
-    
+
     SrsConfDirective* conf = root->get("srs_log_level");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_log_level_v2()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.srs_log_level_v2");
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("srs_log_level_v2");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
     return conf->arg0();
 }
 

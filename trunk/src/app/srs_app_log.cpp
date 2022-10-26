@@ -62,8 +62,11 @@ srs_error_t SrsFileLog::initialize()
         _srs_config->subscribe(this);
         
         log_to_file_tank = _srs_config->get_log_tank_file();
-        level_ = srs_get_log_level(_srs_config->get_log_level());
         utc = _srs_config->get_utc_time();
+
+        std::string level = _srs_config->get_log_level();
+        std::string level_v2 = _srs_config->get_log_level_v2();
+        level_ = level_v2.empty() ? srs_get_log_level(level) : srs_get_log_level_v2(level_v2);
     }
     
     return srs_success;

@@ -16,6 +16,7 @@ using namespace std;
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_kernel.hpp>
+#include <srs_app_utility.hpp>
 
 MockSrsConfigBuffer::MockSrsConfigBuffer(string buf)
 {
@@ -3830,5 +3831,28 @@ VOID TEST(ConfigMainTest, CheckIncludeConfig)
         MockSrsConfig conf;
 
         HELPER_ASSERT_FAILED(conf.parse("include ./conf/include_test/include.conf;"));
+    }
+}
+
+VOID TEST(ConfigMainTest, LogLevelV2)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_EQ(SrsLogLevelTrace, srs_get_log_level(conf.get_log_level()));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srs_log_level warn;"));
+        EXPECT_EQ(SrsLogLevelWarn, srs_get_log_level(conf.get_log_level()));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srs_log_level_v2 warn;"));
+        EXPECT_EQ(SrsLogLevelWarn, srs_get_log_level(conf.get_log_level_v2()));
     }
 }

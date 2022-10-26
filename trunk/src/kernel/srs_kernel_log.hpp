@@ -18,12 +18,12 @@
 
 #include <srs_kernel_consts.hpp>
 
-// The log level, for example:
-//      if specified Debug level, all level messages will be logged.
-//      if specified Warn level, only Warn/Error/Fatal level messages will be logged.
+// The log level, see https://github.com/apache/logging-log4j2/blob/release-2.x/log4j-api/src/main/java/org/apache/logging/log4j/Level.java
+// Please note that the enum name might not be the string, to keep compatible with previous definition.
 enum SrsLogLevel
 {
     SrsLogLevelForbidden = 0x00,
+
     // Only used for very verbose debug, generally,
     // we compile without this level for high performance.
     SrsLogLevelVerbose = 0x01,
@@ -31,6 +31,7 @@ enum SrsLogLevel
     SrsLogLevelTrace = 0x04,
     SrsLogLevelWarn = 0x08,
     SrsLogLevelError = 0x10,
+
     SrsLogLevelDisabled = 0x20,
 };
 

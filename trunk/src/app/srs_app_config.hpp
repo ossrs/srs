@@ -869,6 +869,7 @@ public:
     virtual bool get_log_tank_file();
     // Get the log level.
     virtual std::string get_log_level();
+    virtual std::string get_log_level_v2();
     // Get the log file path.
     virtual std::string get_log_file();
     // Whether ffmpeg log enabled
