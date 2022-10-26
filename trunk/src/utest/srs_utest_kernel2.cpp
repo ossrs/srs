@@ -10,6 +10,7 @@
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_rtc_rtcp.hpp>
 #include <srs_app_gb28181.hpp>
+#include <srs_app_utility.hpp>
 
 VOID TEST(KernelPSTest, PsPacketDecodeNormal)
 {
@@ -315,12 +316,39 @@ VOID TEST(KernelPSTest, PsPacketHeaderClockDecode)
 
 VOID TEST(KernelLogTest, LogLevelString)
 {
-    EXPECT_STREQ("Forbidden",        srs_log_level_strings[SrsLogLevelForbidden]);
-    EXPECT_STREQ("Verb",        srs_log_level_strings[SrsLogLevelVerbose]);
-    EXPECT_STREQ("Debug",       srs_log_level_strings[SrsLogLevelInfo]);
-    EXPECT_STREQ("Trace",       srs_log_level_strings[SrsLogLevelTrace]);
-    EXPECT_STREQ("Warn",        srs_log_level_strings[SrsLogLevelWarn]);
-    EXPECT_STREQ("Error",       srs_log_level_strings[SrsLogLevelError]);
-    EXPECT_STREQ("Disabled",    srs_log_level_strings[SrsLogLevelDisabled]);
+#ifdef SRS_LOG_LEVEL_V2
+    EXPECT_STREQ("FORB",    srs_log_level_strings[SrsLogLevelForbidden]);
+    EXPECT_STREQ("TRACE",   srs_log_level_strings[SrsLogLevelVerbose]);
+    EXPECT_STREQ("DEBUG",   srs_log_level_strings[SrsLogLevelInfo]);
+    EXPECT_STREQ("INFO",    srs_log_level_strings[SrsLogLevelTrace]);
+    EXPECT_STREQ("WARN",    srs_log_level_strings[SrsLogLevelWarn]);
+    EXPECT_STREQ("ERROR",   srs_log_level_strings[SrsLogLevelError]);
+    EXPECT_STREQ("OFF",     srs_log_level_strings[SrsLogLevelDisabled]);
+#else
+    EXPECT_STREQ("Forb",    srs_log_level_strings[SrsLogLevelForbidden]);
+    EXPECT_STREQ("Verb",    srs_log_level_strings[SrsLogLevelVerbose]);
+    EXPECT_STREQ("Debug",   srs_log_level_strings[SrsLogLevelInfo]);
+    EXPECT_STREQ("Trace",   srs_log_level_strings[SrsLogLevelTrace]);
+    EXPECT_STREQ("Warn",    srs_log_level_strings[SrsLogLevelWarn]);
+    EXPECT_STREQ("Error",   srs_log_level_strings[SrsLogLevelError]);
+    EXPECT_STREQ("Off",     srs_log_level_strings[SrsLogLevelDisabled]);
+#endif
+}
+
+VOID TEST(KernelLogTest, LogLevelStringV2)
+{
+    EXPECT_EQ(srs_get_log_level("verbose"),      SrsLogLevelVerbose);
+    EXPECT_EQ(srs_get_log_level("info"),      SrsLogLevelInfo);
+    EXPECT_EQ(srs_get_log_level("trace"),       SrsLogLevelTrace);
+    EXPECT_EQ(srs_get_log_level("warn"),       SrsLogLevelWarn);
+    EXPECT_EQ(srs_get_log_level("error"),      SrsLogLevelError);
+    EXPECT_EQ(srs_get_log_level("off"),        SrsLogLevelDisabled);
+
+    EXPECT_EQ(srs_get_log_level_v2("trace"),   SrsLogLevelVerbose);
+    EXPECT_EQ(srs_get_log_level_v2("debug"),   SrsLogLevelInfo);
+    EXPECT_EQ(srs_get_log_level_v2("info"),    SrsLogLevelTrace);
+    EXPECT_EQ(srs_get_log_level_v2("warn"),    SrsLogLevelWarn);
+    EXPECT_EQ(srs_get_log_level_v2("error"),   SrsLogLevelError);
+    EXPECT_EQ(srs_get_log_level_v2("off"),     SrsLogLevelDisabled);
 }
 

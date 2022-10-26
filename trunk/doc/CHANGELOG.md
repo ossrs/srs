@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-10-26, Fix [#3218](https://github.com/ossrs/srs/issues/3218): Log: Follow Java/log4j log level specs. v5.0.83
 * v5.0, 2022-10-25, Log: Refine the log interface. v5.0.82
 * v5.0, 2022-10-23, For [#3216](https://github.com/ossrs/srs/issues/3216): Support Google Address Sanitizer. v5.0.81
 * v5.0, 2022-10-21, Kernel: Support grab backtrace stack when assert fail. v5.0.80

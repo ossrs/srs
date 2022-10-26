@@ -28,6 +28,7 @@ class SrsJsonObject;
 // Convert level in string to log level in int.
 // @return the log level defined in SrsLogLevel.
 extern SrsLogLevel srs_get_log_level(std::string level);
+extern SrsLogLevel srs_get_log_level_v2(std::string level);
 
 // Build the path according to vhost/app/stream, where replace variables:
 //       [vhost], the vhost of stream.

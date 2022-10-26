@@ -57,6 +57,8 @@ SRS_GCOV=NO
 SRS_LOG_VERBOSE=NO
 SRS_LOG_INFO=NO
 SRS_LOG_TRACE=YES
+# Whether use new level definition, see https://stackoverflow.com/a/2031209/17679565
+SRS_LOG_LEVEL_V2=YES
 #
 ################################################################
 # Experts options.
@@ -143,6 +145,7 @@ Features:
   --log-verbose=on|off      Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
   --log-info=on|off         Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
   --log-trace=on|off        Whether enable the log trace level. Default: $(value2switch $SRS_LOG_TRACE)
+  --log-level_v2=on|off     Whether use v2.0 log level definition, see log4j specs. Default: $(value2switch $SRS_LOG_LEVEL_V2)
 
 Performance:                @see https://blog.csdn.net/win_lin/article/details/53503869
   --valgrind=on|off         Whether build valgrind for memory check. Default: $(value2switch $SRS_VALGRIND)
@@ -353,6 +356,7 @@ function parse_user_option() {
         --log-verbose)                  SRS_LOG_VERBOSE=$(switch2value $value) ;;
         --log-info)                     SRS_LOG_INFO=$(switch2value $value) ;;
         --log-trace)                    SRS_LOG_TRACE=$(switch2value $value) ;;
+        --log-level_v2)                 SRS_LOG_LEVEL_V2=$(switch2value $value) ;;
         --debug)                        SRS_DEBUG=$(switch2value $value) ;;
         --debug-stats)                  SRS_DEBUG_STATS=$(switch2value $value) ;;
 
@@ -553,6 +557,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-verbose=$(value2switch $SRS_LOG_VERBOSE)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info=$(value2switch $SRS_LOG_INFO)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace=$(value2switch $SRS_LOG_TRACE)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-level_v2=$(value2switch $SRS_LOG_LEVEL_V2)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov=$(value2switch $SRS_GCOV)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=$(value2switch $SRS_DEBUG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=$(value2switch $SRS_DEBUG_STATS)"
