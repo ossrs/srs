@@ -22,6 +22,7 @@ The features of SRS.
 - [x] API: Support HTTP API([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-api)) for system management.
 - [x] API: Support HTTP callback([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-callback)) for authentication and integration.
 - [x] API: Support reuse HTTP Stream port for HTTP API, [#2881](https://github.com/ossrs/srs/issues/2881).
+- [x] API: [Experimental] Support Prometheus exporter, [#2899](https://github.com/ossrs/srs/issues/2899).
 - [x] Live: Support Edge Cluster for live streaming, see ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/edge), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/edge)).
 - [x] Live: Support Origin server for converting RTMP to HTTP-FLV([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flv), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flv)) and HLS([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hls), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/delivery-hls)).
 - [x] Live: Support Edge server for converting RTMP to HTTP-FLV([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flv), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flv)).
