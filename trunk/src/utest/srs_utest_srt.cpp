@@ -20,6 +20,8 @@ using namespace std;
 
 extern SrsSrtEventLoop* _srt_eventloop;
 
+// TODO: FIXME: set srt log handler.
+
 // Test srt st service
 VOID TEST(ServiceSrtPoller, SrtPollOperateSocket) 
 {
@@ -144,6 +146,10 @@ public:
             return srs_error_wrap(err, "create srt socket");
         }
         return err;
+    }
+
+    srs_srt_t fd() {
+        return srt_server_fd_;
     }
 
     srs_error_t listen(std::string ip, int port) {
@@ -460,6 +466,82 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
         EXPECT_STREQ(req.app.c_str(), "live");
         EXPECT_STREQ(req.stream.c_str(), "livestream");
         EXPECT_STREQ(req.param.c_str(), "vhost=srs.srt.com.cn&key1=val1&key2=val2");
+    }
+}
+
+VOID TEST(ServiceSRTTest, Encrypt) 
+{
+    srs_error_t err = srs_success;
+
+    std::string server_ip = "127.0.0.1";
+    int server_port = 19000;
+
+    MockSrtServer srt_server;
+    HELPER_EXPECT_SUCCESS(srt_server.create_socket());
+
+    string passphrase = "srt_passphrase";
+    HELPER_EXPECT_SUCCESS(srs_srt_set_passphrase(srt_server.fd(), passphrase));
+    HELPER_EXPECT_SUCCESS(srt_server.listen(server_ip, server_port));
+
+    std::string streamid = "SRS_SRT_Streamid";
+    if (true) {
+        srs_srt_t srt_client_fd = srs_srt_socket_invalid();
+        HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
+        HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
+        SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+
+        // SRT connect without passphrase, will reject.
+        HELPER_EXPECT_FAILED(srt_client_socket->connect(server_ip, server_port));
+    }
+
+    if (true) {
+        srs_srt_t srt_client_fd = srs_srt_socket_invalid();
+        HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
+        HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
+        HELPER_EXPECT_SUCCESS(srs_srt_set_passphrase(srt_client_fd, "wrong_passphrase"));
+        SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+
+        // SRT connect with wrong passphrase, will reject.
+        HELPER_EXPECT_FAILED(srt_client_socket->connect(server_ip, server_port));
+    }
+
+    if (true) {
+        srs_srt_t srt_client_fd = srs_srt_socket_invalid();
+        HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
+        HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
+        // Set correct passphrase.
+        HELPER_EXPECT_SUCCESS(srs_srt_set_passphrase(srt_client_fd, passphrase));
+        SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+        HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
+
+        srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();
+        HELPER_EXPECT_SUCCESS(srt_server.accept(&srt_server_accepted_fd));
+        EXPECT_NE(srt_server_accepted_fd, srs_srt_socket_invalid());
+        std::string s;
+        HELPER_EXPECT_SUCCESS(srs_srt_get_streamid(srt_server_accepted_fd, s));
+        EXPECT_EQ(s, streamid);
+    }
+
+    if (true) {
+        int pbkeylens[4] = {0, 16, 24, 32};
+        for (int i = 0; i < sizeof(pbkeylens) / sizeof(pbkeylens[0]); ++i) {
+            srs_srt_t srt_client_fd = srs_srt_socket_invalid();
+            HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
+            HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
+            // Set correct passphrase.
+            HELPER_EXPECT_SUCCESS(srs_srt_set_passphrase(srt_client_fd, passphrase));
+            // Set different pbkeylen.
+            HELPER_EXPECT_SUCCESS(srs_srt_set_pbkeylen(srt_client_fd, pbkeylens[i]));
+            SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+            HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
+
+            srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();
+            HELPER_EXPECT_SUCCESS(srt_server.accept(&srt_server_accepted_fd));
+            EXPECT_NE(srt_server_accepted_fd, srs_srt_socket_invalid());
+            std::string s;
+            HELPER_EXPECT_SUCCESS(srs_srt_get_streamid(srt_server_accepted_fd, s));
+            EXPECT_EQ(s, streamid);
+        }
     }
 }
 

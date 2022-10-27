@@ -113,6 +113,18 @@ srs_error_t SrsSrtAcceptor::set_srt_opt()
         return srs_error_wrap(err, "set opt");
     }
 
+    string passphrase = _srs_config->get_srto_passphrase();
+    if (! passphrase.empty()) {
+        if ((err = srs_srt_set_passphrase(listener_->fd(), passphrase)) != srs_success) {
+            return srs_error_wrap(err, "set opt");
+        }
+
+        int pbkeylen = _srs_config->get_srto_pbkeylen();
+        if ((err = srs_srt_set_pbkeylen(listener_->fd(), pbkeylen)) != srs_success) {
+            return srs_error_wrap(err, "set opt");
+        }
+    }
+
     return err;
 }
 

@@ -684,6 +684,10 @@ public:
     virtual int get_srto_recvbuf();
     // SRTO_PAYLOADSIZE
     virtual int get_srto_payloadsize();
+    // Get the srt SRTO_PASSPHRASE, default is empty.
+    virtual std::string get_srto_passphrase();
+    // Get the srt SRTO_PBKEYLEN, default is 0.
+    virtual int get_srto_pbkeylen();
     // Get the default app.
     virtual std::string get_default_app_name();
 private:
