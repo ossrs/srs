@@ -47,6 +47,8 @@ extern srs_error_t srs_srt_set_latency(srs_srt_t srt_fd, int latency);
 extern srs_error_t srs_srt_set_rcv_latency(srs_srt_t srt_fd, int rcv_latency);
 extern srs_error_t srs_srt_set_peer_latency(srs_srt_t srt_fd, int peer_latency);
 extern srs_error_t srs_srt_set_streamid(srs_srt_t srt_fd, const std::string& streamid);
+extern srs_error_t srs_srt_set_passphrase(srs_srt_t srt_fd, const std::string& passphrase);
+extern srs_error_t srs_srt_set_pbkeylen(srs_srt_t srt_fd, int pbkeylen);
 
 // Get SRT options.
 extern srs_error_t srs_srt_get_maxbw(srs_srt_t srt_fd, int& maxbw);

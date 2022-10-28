@@ -299,6 +299,18 @@ srs_error_t srs_srt_set_streamid(srs_srt_t srt_fd, const std::string& streamid)
     return srs_success;
 }
 
+srs_error_t srs_srt_set_passphrase(srs_srt_t srt_fd, const std::string& passphrase)
+{
+    SET_SRT_OPT_STR(srt_fd, SRTO_PASSPHRASE, passphrase.data(), passphrase.size());
+    return srs_success;
+}
+
+srs_error_t srs_srt_set_pbkeylen(srs_srt_t srt_fd, int pbkeylen)
+{
+    SET_SRT_OPT(srt_fd, SRTO_PBKEYLEN, pbkeylen);
+    return srs_success;
+}
+
 srs_error_t srs_srt_get_maxbw(srs_srt_t srt_fd, int& maxbw)
 {
     GET_SRT_OPT(srt_fd, SRTO_MAXBW, maxbw);

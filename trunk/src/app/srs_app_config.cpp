@@ -2332,7 +2332,7 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "peerlatency" && n != "tlpkdrop" && n != "connect_timeout"
                 && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
                 && n != "default_app" && n != "sei_filter" && n != "mix_correct"
-                && n != "tlpktdrop" && n != "tsbpdmode") {
+                && n != "tlpktdrop" && n != "tsbpdmode" && n != "passphrase" && n != "pbkeylen") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_server.%s", n.c_str());
             }
         }
@@ -7762,6 +7762,40 @@ int SrsConfig::get_srto_payloadsize()
     }
     
     conf = conf->get("payloadsize");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
+}
+
+string SrsConfig::get_srto_passphrase()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.srt_server.passphrase");
+
+    static string DEFAULT = "";
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("passphrase");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return conf->arg0();
+}
+
+int SrsConfig::get_srto_pbkeylen()
+{
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.pbkeylen");
+
+    static int DEFAULT = 0;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("pbkeylen");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
