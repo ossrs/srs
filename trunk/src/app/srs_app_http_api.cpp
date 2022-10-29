@@ -1085,6 +1085,7 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 
     /*
      * build_info gauge
+     * cpu gauge
      * send_bytes_total counter
      * receive_bytes_total counter
      * streams gauge
@@ -1108,6 +1109,15 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     if (!label_.empty()) ss << ",label=\"" << label_ << "\"";
     if (!tag_.empty()) ss << ",tag=\"" << tag_ << "\"";
     ss << "} 1\n";
+
+    // Show ProcSelfStat
+    SrsProcSelfStat* u = srs_get_self_proc_stat();
+    // The cpu of proc used.
+    ss << "# HELP srs_cpu_stat SRS cpu used percent.\n"
+       << "# TYPE srs_cpu_stat gauge\n"
+       << "srs_cpu_stat "
+       << u->percent * 100
+       << "\n";
 
     // Dump metrics by statistic.
     int64_t send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs;
