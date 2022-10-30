@@ -266,11 +266,6 @@ class SrsConfig
     friend class SrsConfDirective;
 // user command
 private:
-    // Whether srs is run in dolphin mode.
-    // @see https://github.com/ossrs/srs-dolphin
-    bool dolphin;
-    std::string dolphin_rtmp_port;
-    std::string dolphin_http_port;
     // Whether show help and exit.
     bool show_help;
     // Whether test config file and exit.
@@ -279,6 +274,8 @@ private:
     bool show_version;
     // Whether show SRS signature and exit.
     bool show_signature;
+    // Whether only use environment variable, ignore config file.
+    bool env_only_;
 // global env variables.
 private:
     // The user parameters, the argc and argv.
@@ -301,10 +298,6 @@ private:
 public:
     SrsConfig();
     virtual ~SrsConfig();
-    // dolphin
-public:
-    // Whether srs is in dolphin mode.
-    virtual bool is_dolphin();
 // Reload
 public:
     // For reload handler to register itself,

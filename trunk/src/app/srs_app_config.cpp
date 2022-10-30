@@ -1262,7 +1262,7 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
 
 SrsConfig::SrsConfig()
 {
-    dolphin = false;
+    env_only_ = false;
     
     show_help = false;
     show_version = false;
@@ -1277,11 +1277,6 @@ SrsConfig::SrsConfig()
 SrsConfig::~SrsConfig()
 {
     srs_freep(root);
-}
-
-bool SrsConfig::is_dolphin()
-{
-    return dolphin;
 }
 
 void SrsConfig::subscribe(ISrsReloadHandler* handler)
@@ -1858,7 +1853,7 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     //      If user specified *docker.conf, try *srs.conf, like user/srs.conf
     //      Try the default srs config, defined as SRS_CONF_DEFAULT_COFNIG_FILE, like conf/srs.conf
     //      Try config for FHS, like /etc/srs/srs.conf @see https://github.com/ossrs/srs/pull/2711
-    if (true) {
+    if (!env_only_) {
         vector<string> try_config_files;
         if (!config_file.empty()) {
             try_config_files.push_back(config_file);
@@ -1897,7 +1892,9 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     }
 
     // Parse the matched config file.
-    err = parse_file(config_file.c_str());
+    if (!env_only_) {
+        err = parse_file(config_file.c_str());
+    }
 
     if (test_conf) {
         // the parse_file never check the config,
@@ -1922,6 +1919,13 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     // transform config to compatible with previous style of config.
     if ((err = srs_config_transform_vhost(root)) != srs_success) {
         return srs_error_wrap(err, "transform");
+    }
+
+    // If use env only, we set change to daemon(off) and console log.
+    if (env_only_) {
+        if (!getenv("SRS_DAEMON")) setenv("SRS_DAEMON", "off", 1);
+        if (!getenv("SRS_SRS_LOG_TANK")) setenv("SRS_SRS_LOG_TANK", "console", 1);
+        if (root->directives.empty()) root->get_or_create("vhost", "__defaultVhost__");
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -2127,28 +2131,10 @@ srs_error_t SrsConfig::parse_argv(int& i, char** argv)
                 show_help = false;
                 test_conf = true;
                 break;
-            case 'p':
-                dolphin = true;
-                if (*p) {
-                    dolphin_rtmp_port = p;
-                    continue;
-                }
-                if (argv[++i]) {
-                    dolphin_rtmp_port = argv[i];
-                    continue;
-                }
-                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "-p requires params");
-            case 'x':
-                dolphin = true;
-                if (*p) {
-                    dolphin_http_port = p;
-                    continue;
-                }
-                if (argv[++i]) {
-                    dolphin_http_port = argv[i];
-                    continue;
-                }
-                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "-x requires params");
+            case 'e':
+                show_help = false;
+                env_only_ = true;
+                break;
             case 'v':
             case 'V':
                 show_help = false;
@@ -2183,11 +2169,12 @@ void SrsConfig::print_help(char** argv)
 {
     printf(
            "%s, %s, %s, created by %sand %s\n\n"
-           "Usage: %s <-h?vVgG>|<[-t] -c filename>\n"
+           "Usage: %s <-h?vVgGe>|<[-t] -c filename>\n"
            "Options:\n"
            "   -?, -h              : Show this help and exit 0.\n"
            "   -v, -V              : Show version and exit 0.\n"
            "   -g, -G              : Show server signature and exit 0.\n"
+           "   -e                  : Use environment variable only, ignore config file.\n"
            "   -t                  : Test configuration file, exit with error code(0 for success).\n"
            "   -c filename         : Use config file to start server.\n"
            "For example:\n"
@@ -2269,7 +2256,7 @@ srs_error_t SrsConfig::check_normal_config()
     ////////////////////////////////////////////////////////////////////////
     // check empty
     ////////////////////////////////////////////////////////////////////////
-    if (root->directives.size() == 0) {
+    if (!env_only_ && root->directives.size() == 0) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "conf is empty");
     }
     
@@ -2383,7 +2370,7 @@ srs_error_t SrsConfig::check_normal_config()
     ////////////////////////////////////////////////////////////////////////
     if (true) {
         vector<string> listens = get_listens();
-        if (listens.size() <= 0) {
+        if (!env_only_ && listens.size() <= 0) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "listen requires params");
         }
         for (int i = 0; i < (int)listens.size(); i++) {
@@ -2772,23 +2759,6 @@ srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
     // Parse root tree from buffer.
     if ((err = root->parse(buffer, this)) != srs_success) {
         return srs_error_wrap(err, "root parse");
-    }
-    
-    // mock by dolphin mode.
-    // for the dolphin will start srs with specified params.
-    if (dolphin) {
-        // for RTMP.
-        set_config_directive(root, "listen", dolphin_rtmp_port);
-        
-        // for HTTP
-        set_config_directive(root, "http_server", "");
-        SrsConfDirective* http_server = root->get("http_server");
-        set_config_directive(http_server, "enabled", "on");
-        set_config_directive(http_server, "listen", dolphin_http_port);
-        
-        // others.
-        set_config_directive(root, "daemon", "off");
-        set_config_directive(root, "srs_log_tank", "console");
     }
     
     return err;
