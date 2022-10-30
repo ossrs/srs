@@ -1140,8 +1140,8 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
        << "\n";
 
     // The memory of proc used.(MBytes)
-    int memory = (int)(u->rss * 4 / 1024);
-    ss << "# HELP srs_memory SRS memory used(MB).\n"
+    int memory = (int)(u->rss * 4);
+    ss << "# HELP srs_memory SRS memory used.\n"
        << "# TYPE srs_memory gauge\n"
        << "srs_memory "
        << memory
