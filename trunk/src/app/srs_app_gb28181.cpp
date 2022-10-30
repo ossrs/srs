@@ -366,7 +366,7 @@ srs_error_t SrsLazyGbSession::drive_state()
             }
 
             // Now, we're able to query session by ssrc, for media packets.
-            SrsLazyGbSessionWrapper* wrapper = dynamic_cast<SrsLazyGbSessionWrapper*>(gc_available_wrapper());
+            SrsLazyGbSessionWrapper* wrapper = dynamic_cast<SrsLazyGbSessionWrapper*>(gc_creator_wrapper());
             srs_assert(wrapper); // It MUST never be NULL, because this method is in the cycle of coroutine.
             _srs_gb_manager->add_with_fast_id(ssrc, wrapper);
         }
@@ -998,7 +998,7 @@ srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyGbSessi
     if (msg->type_ != HTTP_REQUEST || msg->method_ != HTTP_REGISTER) return err;
 
     // The lazy-sweep wrapper for this resource.
-    SrsLazyGbSipTcpConnWrapper* wrapper = dynamic_cast<SrsLazyGbSipTcpConnWrapper*>(gc_available_wrapper());
+    SrsLazyGbSipTcpConnWrapper* wrapper = dynamic_cast<SrsLazyGbSipTcpConnWrapper*>(gc_creator_wrapper());
     srs_assert(wrapper); // It MUST never be NULL, because this method is in the cycle of coroutine of receiver.
 
     // Find exists session for register, might be created by another object and still alive.
@@ -1480,7 +1480,7 @@ srs_error_t SrsLazyGbMediaTcpConn::bind_session(uint32_t ssrc, SrsLazyGbSessionW
     if (!ssrc) return err;
 
     // The lazy-sweep wrapper for this resource.
-    SrsLazyGbMediaTcpConnWrapper* wrapper = dynamic_cast<SrsLazyGbMediaTcpConnWrapper*>(gc_available_wrapper());
+    SrsLazyGbMediaTcpConnWrapper* wrapper = dynamic_cast<SrsLazyGbMediaTcpConnWrapper*>(gc_creator_wrapper());
     srs_assert(wrapper); // It MUST never be NULL, because this method is in the cycle of coroutine.
 
     // Find exists session for register, might be created by another object and still alive.

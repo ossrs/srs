@@ -336,7 +336,7 @@ srs_error_t srs_global_initialize()
 #ifdef SRS_GB28181
     _srs_gb_manager = new SrsResourceManager("GB", true);
 #endif
-    _srs_gc = new SrsSweepGc();
+    _srs_gc = new SrsLazySweepGc();
 
     // Initialize global pps, which depends on _srs_clock
     _srs_pps_ids = new SrsPps();

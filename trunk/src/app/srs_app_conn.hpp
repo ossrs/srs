@@ -125,11 +125,11 @@ private:
 };
 
 // A simple lazy-sweep GC, just wait for a long time to delete the disposable resources.
-class SrsSweepGc : public ISrsLazyGc
+class SrsLazySweepGc : public ISrsLazyGc
 {
 public:
-    SrsSweepGc();
-    virtual ~SrsSweepGc();
+    SrsLazySweepGc();
+    virtual ~SrsLazySweepGc();
 public:
     virtual srs_error_t start();
     virtual void remove(SrsLazyObject* c);
@@ -144,21 +144,19 @@ class SrsLazyObjectWrapper : public ISrsResource
 {
 private:
     T* resource_;
-    ISrsResource* wrapper_;
     bool is_root_;
 public:
     SrsLazyObjectWrapper(T* resource = NULL, ISrsResource* wrapper = NULL) {
-        wrapper_ = wrapper ? wrapper : this;
         resource_ = resource ? resource : new T();
-        resource_->gc_use(wrapper_);
+        resource_->gc_use();
 
         is_root_ = !resource;
         if (!resource) {
-            resource_->gc_set_creator_wrapper(wrapper_);
+            resource_->gc_set_creator_wrapper(wrapper ? wrapper : this);
         }
     }
     virtual ~SrsLazyObjectWrapper() {
-        resource_->gc_dispose(wrapper_);
+        resource_->gc_dispose();
 
         if (is_root_) {
             resource_->gc_set_creator_wrapper(NULL);

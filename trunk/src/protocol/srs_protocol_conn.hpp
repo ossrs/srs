@@ -58,16 +58,14 @@ private:
     // The creator wrapper, which created this resource. Note that it might be disposed and the pointer is NULL, so be
     // careful and make sure to check it before use it.
     ISrsResource* gc_creator_wrapper_;
-    // All available wrappers.
-    std::vector<ISrsResource*> gc_wrappers_;
 public:
     SrsLazyObject();
     virtual ~SrsLazyObject();
 public:
     // For wrapper to use this resource.
-    virtual SrsLazyObject* gc_use(ISrsResource* wrapper);
+    virtual SrsLazyObject* gc_use();
     // For wrapper to dispose this resource.
-    virtual SrsLazyObject* gc_dispose(ISrsResource* wrapper);
+    virtual SrsLazyObject* gc_dispose();
     // The current reference count of resource.
     virtual int32_t gc_ref();
 public:
@@ -75,9 +73,6 @@ public:
     virtual void gc_set_creator_wrapper(ISrsResource* wrapper);
     // Get the first available wrapper. NULL if the creator wrapper disposed.
     virtual ISrsResource* gc_creator_wrapper();
-    // Get the first available wrapper. NULL if all wrappers disposed.
-    // It should be equal to the gc_creator_wrapper() if creator wrapper not disposed.
-    virtual ISrsResource* gc_available_wrapper();
 };
 
 // The lazy-sweep GC, wait for a long time to dispose resource even when resource is disposable.
