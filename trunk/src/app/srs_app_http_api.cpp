@@ -1095,8 +1095,12 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     */
 
     SrsStatistic* stat = SrsStatistic::instance();
-
     std::stringstream ss;
+
+    // Get system info
+    ss << "# HELP node_uname_info Labeled system information as provided by the uname system call.\n"
+       << "# TYPE node_uname_info gauge\n"
+       << "node_uname_info{" << srs_get_system_uname_info() << "} 1\n";
 
     // Build info from Config.
     ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which SRS was built.\n"
@@ -1110,13 +1114,22 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     if (!tag_.empty()) ss << ",tag=\"" << tag_ << "\"";
     ss << "} 1\n";
 
-    // Show ProcSelfStat
+    // Get ProcSelfStat
     SrsProcSelfStat* u = srs_get_self_proc_stat();
+
     // The cpu of proc used.
-    ss << "# HELP srs_cpu_stat SRS cpu used percent.\n"
-       << "# TYPE srs_cpu_stat gauge\n"
-       << "srs_cpu_stat "
+    ss << "# HELP srs_cpu_percent SRS cpu used percent.\n"
+       << "# TYPE srs_cpu_percent gauge\n"
+       << "srs_cpu_percent "
        << u->percent * 100
+       << "\n";
+
+    // The memory of proc used.(MBytes)
+    int memory = (int)(u->rss * 4 / 1024);
+    ss << "# HELP srs_memory SRS memory used(MB).\n"
+       << "# TYPE srs_memory gauge\n"
+       << "srs_memory "
+       << memory
        << "\n";
 
     // Dump metrics by statistic.

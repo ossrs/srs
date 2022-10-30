@@ -43,6 +43,10 @@ using namespace std;
 #include <srs_protocol_http_stack.hpp>
 #include <srs_core_autofree.hpp>
 
+#ifdef __linux__ || SRS_OSX
+#include <sys/utsname.h>
+#endif
+
 void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vhost, string& app, string& stream, int& port, string& param)
 {
     // Standard URL is:
@@ -930,3 +934,30 @@ srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content)
     return err;
 }
 
+string srs_get_system_uname_info()
+{
+    static string sys_uname = "";
+
+    if (!sys_uname.empty()) {
+        return sys_uname;
+    }
+
+    #if defined(__linux__) || defined(SRS_OSX)
+        // labeled system information as provided by the uname system call.
+        struct utsname buf;
+        if (uname(&buf) < 0) {
+            srs_warn("uname failed!");
+            return sys_uname;
+        }
+
+        std::stringstream ss;
+        ss << "sysname=\"" << buf.sysname << "\","
+        << "nodename=\"" << buf.nodename << "\","
+        << "release=\"" << buf.release << "\","
+        << "version=\"" << buf.version << "\","
+        << "machine=\"" << buf.machine;
+        sys_uname = ss.str();
+    #endif
+
+    return sys_uname;
+}

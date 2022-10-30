@@ -187,5 +187,8 @@ extern std::string srs_get_system_hostname(void);
 // Read all content util EOF.
 extern srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content);
 
+// Get system uname info.
+extern std::string srs_get_system_uname_info(void);
+
 #endif
 
