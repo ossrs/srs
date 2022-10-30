@@ -43,7 +43,7 @@ using namespace std;
 #include <srs_protocol_http_stack.hpp>
 #include <srs_core_autofree.hpp>
 
-#ifdef __linux__ || SRS_OSX
+#if defined(__linux__) || defined(SRS_OSX)
 #include <sys/utsname.h>
 #endif
 

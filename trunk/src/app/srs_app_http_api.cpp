@@ -1084,8 +1084,10 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     }
 
     /*
+     * node_uname gauge
      * build_info gauge
      * cpu gauge
+     * memory gauge
      * send_bytes_total counter
      * receive_bytes_total counter
      * streams gauge
@@ -1098,9 +1100,10 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     std::stringstream ss;
 
     // Get system info
-    ss << "# HELP node_uname_info Labeled system information as provided by the uname system call.\n"
-       << "# TYPE node_uname_info gauge\n"
-       << "node_uname_info{" << srs_get_system_uname_info() << "} 1\n";
+    ss << "# HELP srs_node_uname_info Labeled system information as provided by the uname system call.\n"
+       << "# TYPE srs_node_uname_info gauge\n"
+       << "srs_node_uname_info{" << srs_get_system_uname_info() << "\""
+    << "} 1\n";
 
     // Build info from Config.
     ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which SRS was built.\n"
