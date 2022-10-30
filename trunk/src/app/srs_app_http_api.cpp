@@ -31,6 +31,10 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
 
+#if defined(__linux__) || defined(SRS_OSX)
+#include <sys/utsname.h>
+#endif
+
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
 {
     srs_error_t err = srs_success;
@@ -1099,11 +1103,19 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
 
-    // Get system info
-    ss << "# HELP srs_node_uname_info Labeled system information as provided by the uname system call.\n"
-       << "# TYPE srs_node_uname_info gauge\n"
-       << "srs_node_uname_info{" << srs_get_system_uname_info() << "\""
-    << "} 1\n";
+    #if defined(__linux__) || defined(SRS_OSX)
+        // Get system info
+        utsname* system_info = srs_get_system_uname_info();
+        ss << "# HELP srs_node_uname_info Labeled system information as provided by the uname system call.\n"
+            << "# TYPE srs_node_uname_info gauge\n"
+            << "srs_node_uname_info{"
+                << "sysname=\"" << system_info->sysname << "\","
+                << "nodename=\"" << system_info->nodename << "\","
+                << "release=\"" << system_info->release << "\","
+                << "version=\"" << system_info->version << "\","
+                << "machine=\"" << system_info->machine << "\""
+            << "} 1\n";
+    #endif
 
     // Build info from Config.
     ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which SRS was built.\n"
