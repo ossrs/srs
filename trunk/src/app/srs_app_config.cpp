@@ -1848,6 +1848,9 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     // first hello message.
     srs_trace(_srs_version);
 
+    // Config the env_only_ by env.
+    if (getenv("SRS_ENV_ONLY")) env_only_ = true;
+
     // Try config files as bellow:
     //      User specified config(not empty), like user/docker.conf
     //      If user specified *docker.conf, try *srs.conf, like user/srs.conf

@@ -275,6 +275,7 @@ private:
     // Whether show SRS signature and exit.
     bool show_signature;
     // Whether only use environment variable, ignore config file.
+    // Set it by argv "-e" or env "SRS_ENV_ONLY=on".
     bool env_only_;
 // global env variables.
 private:
