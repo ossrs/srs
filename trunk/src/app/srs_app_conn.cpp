@@ -406,21 +406,21 @@ void SrsResourceManager::dispose(ISrsResource* c)
     }
 }
 
-SrsSweepGc::SrsSweepGc()
+SrsLazySweepGc::SrsLazySweepGc()
 {
 }
 
-SrsSweepGc::~SrsSweepGc()
+SrsLazySweepGc::~SrsLazySweepGc()
 {
 }
 
-srs_error_t SrsSweepGc::start()
+srs_error_t SrsLazySweepGc::start()
 {
     srs_error_t err = srs_success;
     return err;
 }
 
-void SrsSweepGc::remove(SrsLazyObject* c)
+void SrsLazySweepGc::remove(SrsLazyObject* c)
 {
     // TODO: FIXME: MUST lazy sweep.
     srs_freep(c);
