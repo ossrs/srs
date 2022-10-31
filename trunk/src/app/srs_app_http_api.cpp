@@ -31,6 +31,10 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
 
+#if defined(__linux__) || defined(SRS_OSX)
+#include <sys/utsname.h>
+#endif
+
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
 {
     srs_error_t err = srs_success;
@@ -1084,7 +1088,10 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     }
 
     /*
+     * node_uname gauge
      * build_info gauge
+     * cpu gauge
+     * memory gauge
      * send_bytes_total counter
      * receive_bytes_total counter
      * streams gauge
@@ -1094,8 +1101,21 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     */
 
     SrsStatistic* stat = SrsStatistic::instance();
-
     std::stringstream ss;
+
+    #if defined(__linux__) || defined(SRS_OSX)
+        // Get system info
+        utsname* system_info = srs_get_system_uname_info();
+        ss << "# HELP srs_node_uname_info Labeled system information as provided by the uname system call.\n"
+            << "# TYPE srs_node_uname_info gauge\n"
+            << "srs_node_uname_info{"
+                << "sysname=\"" << system_info->sysname << "\","
+                << "nodename=\"" << system_info->nodename << "\","
+                << "release=\"" << system_info->release << "\","
+                << "version=\"" << system_info->version << "\","
+                << "machine=\"" << system_info->machine << "\""
+            << "} 1\n";
+    #endif
 
     // Build info from Config.
     ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which SRS was built.\n"
@@ -1108,6 +1128,24 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     if (!label_.empty()) ss << ",label=\"" << label_ << "\"";
     if (!tag_.empty()) ss << ",tag=\"" << tag_ << "\"";
     ss << "} 1\n";
+
+    // Get ProcSelfStat
+    SrsProcSelfStat* u = srs_get_self_proc_stat();
+
+    // The cpu of proc used.
+    ss << "# HELP srs_cpu_percent SRS cpu used percent.\n"
+       << "# TYPE srs_cpu_percent gauge\n"
+       << "srs_cpu_percent "
+       << u->percent * 100
+       << "\n";
+
+    // The memory of proc used.(MBytes)
+    int memory = (int)(u->rss * 4);
+    ss << "# HELP srs_memory SRS memory used.\n"
+       << "# TYPE srs_memory gauge\n"
+       << "srs_memory "
+       << memory
+       << "\n";
 
     // Dump metrics by statistic.
     int64_t send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs;

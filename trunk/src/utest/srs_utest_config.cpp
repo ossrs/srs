@@ -3644,6 +3644,15 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
         EXPECT_EQ(0, (int)conf.get_stats_network());
         EXPECT_TRUE(conf.get_stats_disk_device() != NULL);
     }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "exporter{enabled on;listen 9972;label cn-beijing;tag cn-edge;}"));
+        EXPECT_TRUE(conf.get_exporter_enabled());
+        EXPECT_STREQ("9972", conf.get_exporter_listen().c_str());
+        EXPECT_STREQ("cn-beijing", conf.get_exporter_label().c_str());
+        EXPECT_STREQ("cn-edge", conf.get_exporter_tag().c_str());
+    }
 }
 
 VOID TEST(ConfigMainTest, CheckIncludeConfig)

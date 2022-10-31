@@ -930,3 +930,21 @@ srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content)
     return err;
 }
 
+#if defined(__linux__) || defined(SRS_OSX)
+utsname* srs_get_system_uname_info()
+{
+    static utsname* system_info = NULL;
+
+    if (system_info != NULL) {
+        return system_info;
+    }
+
+    system_info = new utsname();
+    memset(system_info, 0, sizeof(utsname));
+    if (uname(system_info) < 0) {
+        srs_warn("uname failed");
+    }
+
+    return system_info;
+}
+#endif

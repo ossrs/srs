@@ -26,6 +26,10 @@
 
 #include <srs_protocol_st.hpp>
 
+#if defined(__linux__) || defined(SRS_OSX)
+#include <sys/utsname.h>
+#endif
+
 class ISrsHttpMessage;
 
 class SrsMessageHeader;
@@ -186,6 +190,11 @@ extern std::string srs_get_system_hostname(void);
 
 // Read all content util EOF.
 extern srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content);
+
+#if defined(__linux__) || defined(SRS_OSX)
+// Get system uname info.
+extern utsname* srs_get_system_uname_info();
+#endif
 
 #endif
 
