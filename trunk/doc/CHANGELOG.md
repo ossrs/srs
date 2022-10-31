@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-10-31, For [#2899](https://github.com/ossrs/srs/issues/2899): Exporter: Add metrics cpu, memory and uname. v5.0.86
 * v5.0, 2022-10-30, Config: Support startting with environment variable only. v5.0.85
 * v5.0, 2022-10-26, Fix [#3218](https://github.com/ossrs/srs/issues/3218): Log: Follow Java/log4j log level specs. v5.0.83
 * v5.0, 2022-10-25, Log: Refine the log interface. v5.0.82
@@ -23,7 +24,7 @@ The changelog for SRS.
 * v5.0, 2022-09-30, GB28181: Refine HTTP parser to support SIP. v5.0.70
 * v5.0, 2022-09-30, Kernel: Support lazy sweeping simple GC. v5.0.69
 * v5.0, 2022-09-30, HTTP: Support HTTP header in creating order. v5.0.68
-* v5.0, 2022-09-27, For [#2899](https://github.com/ossrs/srs/issues/2899): API: Support exporter for Prometheus. v5.0.67
+* v5.0, 2022-09-27, For [#2899](https://github.com/ossrs/srs/issues/2899): Exporter: Support exporter for Prometheus. v5.0.67
 * v5.0, 2022-09-27, For [#3167](https://github.com/ossrs/srs/issues/3167): WebRTC: Refine sequence jitter algorithm. v5.0.66
 * v5.0, 2022-09-22, Fix [#3164](https://github.com/ossrs/srs/issues/3164): SRT: Choppy when audio ts gap is too large. v5.0.65
 * v5.0, 2022-09-16, APM: Support distributed tracing by Tencent Cloud APM. v5.0.64
