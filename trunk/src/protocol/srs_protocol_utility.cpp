@@ -940,10 +940,9 @@ utsname* srs_get_system_uname_info()
     }
 
     system_info = new utsname();
+    memset(system_info, 0, sizeof(utsname));
     if (uname(system_info) < 0) {
-        srs_warn("uname failed!");
-        srs_freep(system_info);
-        return NULL;
+        srs_warn("uname failed");
     }
 
     return system_info;
