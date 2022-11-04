@@ -19,6 +19,7 @@
 #include <map>
 
 class ISrsWriter;
+class ISrsStreamWriter;
 class ISrsWriteSeeker;
 class ISrsReadSeeker;
 class SrsMp4TrackBox;
@@ -199,6 +200,9 @@ public:
     // Get the contained box of specific type.
     // @return The first matched box.
     virtual SrsMp4Box* get(SrsMp4BoxType bt);
+    // Get the contained boxes of the specific type
+    // one box may have multiple same type sub-boxes
+    virtual std::vector<SrsMp4Box*> gets(SrsMp4BoxType bt);
     // Remove the contained box of specified type.
     // @return The removed count.
     virtual int remove(SrsMp4BoxType bt);
@@ -314,8 +318,9 @@ public:
     virtual SrsMp4MovieFragmentHeaderBox* mfhd();
     virtual void set_mfhd(SrsMp4MovieFragmentHeaderBox* v);
     // Get the traf.
-    virtual SrsMp4TrackFragmentBox* traf();
+    virtual SrsMp4TrackFragmentBox* traf(int track_id = -1);
     virtual void set_traf(SrsMp4TrackFragmentBox* v);
+    virtual void add_traf(SrsMp4TrackFragmentBox* v);
 };
 
 // 8.8.5 Movie Fragment Header Box (mfhd)
@@ -708,6 +713,7 @@ public:
     // Get the track extends box.
     virtual SrsMp4TrackExtendsBox* trex();
     virtual void set_trex(SrsMp4TrackExtendsBox* v);
+    virtual void add_trex(SrsMp4TrackExtendsBox* v);    
 };
 
 // 8.8.3 Track Extends Box(trex)
@@ -2240,6 +2246,102 @@ void srs_mp4_pfn_elem(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
 }
 
 // LCOV_EXCL_STOP
+
+
+// A fMP4 stream muxer, to geneterate fragmented mp4 stream
+class SrsFmp4Transmuxer
+{
+private:
+    ISrsStreamWriter* writer;
+    uint32_t sequence_number;           // moof sequence number
+
+    // moov box has been sent or not
+    bool moov_sent;
+
+public:
+    // The audio codec of first track, generally there is zero or one track.
+    // Forbidden if no audio stream.
+    SrsAudioCodecId acodec;
+    // The audio sample rate.avc
+    SrsAudioSampleRate sample_rate;
+    // The audio sound bits.
+    SrsAudioSampleBits sound_bits;
+    // The audio sound type.
+    SrsAudioChannels channels;
+
+private:
+    // For AAC, the asc in esds box.
+    std::vector<char> pasc;
+    // Whether asc is written to reader.
+    bool asc_written;
+    // The number of audio samples.
+    uint32_t nb_audios;
+
+public:
+    // The video codec of first track, generally there is zero or one track.
+    // Forbidden if no video stream.
+    // TODO: FIXME: Use SrsFormat instead.
+    SrsVideoCodecId vcodec;
+
+private:
+    // For H.264/AVC, the avcc contains the sps/pps.
+    std::vector<char> pavcc;
+
+    // The number of video samples.
+    uint32_t nb_videos;
+    // The size width/height of video.
+    uint32_t width;
+    uint32_t height;
+
+    uint32_t audio_track_id;
+    uint32_t video_track_id;
+
+    // frames cache
+    typedef std::vector<SrsMp4Sample*> sample_list_t;
+    sample_list_t *samples[2];
+    uint64_t  mdat_bytes[2];
+    uint64_t  decode_basetime[2];
+    int8_t    have_av[2];
+    uint64_t  start_dts[2];
+
+    // 当前已经分配的track编号
+    int cur_track_id;
+public:
+
+    SrsFmp4Transmuxer();
+    virtual ~SrsFmp4Transmuxer();
+
+public:
+    // Initialize the encoder with a writer w.
+    virtual srs_error_t initialize(ISrsStreamWriter* w);
+
+    // Write a sample to mp4.
+    // @param format, The av format parser
+    // @param ht, The sample handler type, audio/soun or video/vide.
+    // @param ft, The frame type. For video, it's SrsVideoAvcFrameType.
+    // @param ct, The codec type. For video, it's SrsVideoAvcFrameTrait. For audio, it's SrsAudioAacFrameTrait.
+    // @param dts The output dts in milliseconds.
+    // @param pts The output pts in milliseconds.
+    // @param sample The output payload, user must free it.
+    // @param nb_sample The output size of payload.
+    virtual srs_error_t write_sample(SrsFormat* format, SrsMp4HandlerType ht, uint16_t ft, uint16_t ct,
+        uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample);
+
+    // Flush the encoder, to write the moof and mdat.
+    virtual srs_error_t flush();
+
+private:
+    srs_error_t copy_sequence_header(SrsFormat* format, bool vsh, uint8_t* sample, uint32_t nb_sample);
+    srs_error_t write_moov( );
+    srs_error_t write_traf_trun(sample_list_t* samples, SrsMp4MovieFragmentBox* moof, uint32_t track_id, uint64_t& dts);
+
+    bool has_video();
+    bool has_audio();
+
+    void clear_samples();
+
+};
+
 
 #endif
 

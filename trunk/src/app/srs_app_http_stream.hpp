@@ -15,6 +15,8 @@ class SrsAacTransmuxer;
 class SrsMp3Transmuxer;
 class SrsFlvTransmuxer;
 class SrsTsTransmuxer;
+class SrsFmp4Transmuxer;
+
 
 // A cache for HTTP Live Streaming encoder, to make android(weixin) happy.
 class SrsBufferCache : public ISrsCoroutineHandler
@@ -104,6 +106,26 @@ public:
     virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
+// Transmux RTMP to HTTP fmp4 Streaming.
+class SrsFmp4StreamEncoder : public ISrsBufferEncoder
+{
+private:
+    SrsFmp4Transmuxer* enc;
+    SrsFormat* format;
+public:
+    SrsFmp4StreamEncoder();
+    virtual ~SrsFmp4StreamEncoder();
+public:
+    virtual srs_error_t initialize(SrsFileWriter* w, SrsBufferCache* c);
+    virtual srs_error_t write_audio(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_video(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
+public:
+    virtual bool has_cache();
+    virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+};
+
+
 // Transmux RTMP with AAC stream to HTTP AAC Streaming.
 class SrsAacStreamEncoder : public ISrsBufferEncoder
 {
@@ -186,10 +208,11 @@ private:
 struct SrsLiveEntry
 {
 private:
-    bool _is_flv;
-    bool _is_ts;
-    bool _is_aac;
-    bool _is_mp3;
+    bool _is_flv      : 1;
+    bool _is_ts       : 1;
+    bool _is_aac      : 1;
+    bool _is_mp3      : 1;
+    bool _is_mp4      : 1;
 public:
     // We will free the request.
     SrsRequest* req;
@@ -210,6 +233,7 @@ public:
     bool is_ts();
     bool is_mp3();
     bool is_aac();
+    bool is_mp4();
 };
 
 // The HTTP Live Streaming Server, to serve FLV/TS/MP3/AAC stream.
