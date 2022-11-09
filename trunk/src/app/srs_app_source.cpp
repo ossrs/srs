@@ -575,6 +575,7 @@ SrsGopCache::SrsGopCache()
     cached_video_count = 0;
     enable_gop_cache = true;
     audio_after_last_video_count = 0;
+    gop_cache_max_frames = 250;
 }
 
 SrsGopCache::~SrsGopCache()
@@ -594,6 +595,17 @@ void SrsGopCache::set(bool v)
     if (!v) {
         clear();
         return;
+    }
+}
+
+
+void SrsGopCache::set_max_frames(int m)
+{
+    gop_cache_max_frames = m;
+
+    if (cached_video_count > gop_cache_max_frames){
+        srs_warn("too much frames in the gop cache");
+        clear();
     }
 }
 
@@ -641,6 +653,11 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
         return err;
     }
     
+    if (cached_video_count > gop_cache_max_frames){
+        srs_warn("too much frames in the gop cache");
+        clear();
+    }
+
     // clear gop cache when got key frame
     if (msg->is_video() && SrsFlvVideo::keyframe(msg->payload, msg->size)) {
         clear();
@@ -2086,6 +2103,8 @@ srs_error_t SrsLiveSource::on_reload_vhost_play(string vhost)
             string url = req->get_stream_url();
             srs_trace("vhost %s gop_cache changed to %d, source url=%s", vhost.c_str(), v, url.c_str());
             gop_cache->set(v);
+
+            gop_cache->set_max_frames(_srs_config->get_gop_cache_max_frames(vhost));
         }
     }
     
@@ -2724,6 +2743,12 @@ void SrsLiveSource::set_cache(bool enabled)
 {
     gop_cache->set(enabled);
 }
+
+void SrsLiveSource::set_cache_max_frames(int max)
+{
+    gop_cache->set_max_frames(max);
+}
+
 
 SrsRtmpJitterAlgorithm SrsLiveSource::jitter()
 {
