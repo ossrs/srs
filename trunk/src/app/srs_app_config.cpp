@@ -517,7 +517,8 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
             //  SRS3+:
             //      vhost { play { shadow; } }
             if (n == "time_jitter" || n == "mix_correct" || n == "atc" || n == "atc_auto"
-                || n == "mw_latency" || n == "gop_cache" || n == "queue_length" || n == "send_min_interval"
+                || n == "mw_latency" || n == "gop_cache" || n == "gop_cache_max_frames" 
+                || n == "queue_length" || n == "send_min_interval"
                 || n == "reduce_sequence_header") {
                 it = dir->directives.erase(it);
                 
@@ -2548,7 +2549,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "time_jitter" && m != "mix_correct" && m != "atc" && m != "atc_auto" && m != "mw_latency"
-                        && m != "gop_cache" && m != "queue_length" && m != "send_min_interval" && m != "reduce_sequence_header"
+                        && m != "gop_cache" && m != "gop_cache_max_frames" && m != "queue_length" && m != "send_min_interval" && m != "reduce_sequence_header"
                         && m != "mw_msgs") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.play.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
@@ -4656,6 +4657,32 @@ bool SrsConfig::get_gop_cache(string vhost)
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
+
+
+int SrsConfig::get_gop_cache_max_frames(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.play.gop_cache_max_frames");
+
+    static int DEFAULT = 250;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("play");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("gop_cache_max_frames");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
 
 bool SrsConfig::get_debug_srs_upnode(string vhost)
 {
