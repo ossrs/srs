@@ -231,7 +231,7 @@ private:
     // to limit the max gop cache frames
     // without this limit, if ingest stream always has no IDR frame
     // it will cause srs run out of memory
-    int gop_cache_max_frames;
+    int gop_cache_max_frames_;
     // The video frame count, avoid cache for pure audio stream.
     int cached_video_count;
     // when user disabled video when publishing, and gop cache enalbed,
@@ -256,7 +256,7 @@ public:
     // To enable or disable the gop cache.
     virtual void set(bool v);
     // max gop frames
-    virtual void set_max_frames(int m);
+    virtual void set_max_frames(int v);
     virtual bool enabled();
     // only for h264 codec
     // 1. cache the gop when got h264 video packet.
@@ -595,7 +595,7 @@ public:
     virtual srs_error_t consumer_dumps(SrsLiveConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsLiveConsumer* consumer);
     virtual void set_cache(bool enabled);
-    virtual void set_cache_max_frames(int max);
+    virtual void set_cache_max_frames(int v);
     virtual SrsRtmpJitterAlgorithm jitter();
 public:
     // For edge, when publish edge stream, check the state
