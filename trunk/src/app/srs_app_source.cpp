@@ -575,7 +575,7 @@ SrsGopCache::SrsGopCache()
     cached_video_count = 0;
     enable_gop_cache = true;
     audio_after_last_video_count = 0;
-    gop_cache_max_frames = 250;
+    gop_cache_max_frames_ = 250;
 }
 
 SrsGopCache::~SrsGopCache()
@@ -599,11 +599,11 @@ void SrsGopCache::set(bool v)
 }
 
 
-void SrsGopCache::set_max_frames(int m)
+void SrsGopCache::set_max_frames(int v)
 {
-    gop_cache_max_frames = m;
+    gop_cache_max_frames_ = v;
 
-    if (cached_video_count > gop_cache_max_frames){
+    if (cached_video_count > gop_cache_max_frames_){
         srs_warn("too much frames in the gop cache");
         clear();
     }
@@ -653,7 +653,7 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
         return err;
     }
     
-    if (cached_video_count > gop_cache_max_frames){
+    if (cached_video_count > gop_cache_max_frames_){
         srs_warn("too much frames in the gop cache");
         clear();
     }
@@ -2744,9 +2744,9 @@ void SrsLiveSource::set_cache(bool enabled)
     gop_cache->set(enabled);
 }
 
-void SrsLiveSource::set_cache_max_frames(int max)
+void SrsLiveSource::set_cache_max_frames(int v)
 {
-    gop_cache->set_max_frames(max);
+    gop_cache->set_max_frames(v);
 }
 
 
