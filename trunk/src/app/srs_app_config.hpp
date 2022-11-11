@@ -553,9 +553,8 @@ public:
     // @return true when gop_cache is ok; otherwise, false.
     // @remark, default true.
     virtual bool get_gop_cache(std::string vhost);
-    // to set the max frames limit for gop cache
+    // to set the max frames limit in gop cache
     // @return gop cache frames limit
-    // @remark, default 250 (10s for 25fps)
     virtual int get_gop_cache_max_frames(std::string vhost);
     // Whether debug_srs_upnode is enabled of vhost.
     // debug_srs_upnode is very important feature for tracable log,

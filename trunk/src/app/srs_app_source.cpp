@@ -602,11 +602,6 @@ void SrsGopCache::set(bool v)
 void SrsGopCache::set_max_frames(int v)
 {
     gop_cache_max_frames_ = v;
-
-    if (cached_video_count > gop_cache_max_frames_){
-        srs_warn("too much frames in the gop cache");
-        clear();
-    }
 }
 
 bool SrsGopCache::enabled()
@@ -653,11 +648,6 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
         return err;
     }
     
-    if (cached_video_count > gop_cache_max_frames_){
-        srs_warn("too much frames in the gop cache");
-        clear();
-    }
-
     // clear gop cache when got key frame
     if (msg->is_video() && SrsFlvVideo::keyframe(msg->payload, msg->size)) {
         clear();
@@ -665,7 +655,16 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
         // curent msg is video frame, so we set to 1.
         cached_video_count = 1;
     }
-    
+
+    if (gop_cache.size() > gop_cache_max_frames_) {
+        srs_warn("too many frames in the gop cache,  %d video frames & %d audio frames dropped, "
+                 "audio_after_last_video_count: %d.", 
+                 cached_video_count, 
+                 (int)gop_cache.size() - cached_video_count,
+                 audio_after_last_video_count);
+        clear();
+    }
+
     // cache the frame.
     gop_cache.push_back(msg->copy());
     
