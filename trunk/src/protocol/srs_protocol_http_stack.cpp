@@ -461,8 +461,7 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
         _mime[".jpg"] = "image/jpeg";
         _mime[".gif"] = "image/gif";
         // For MPEG-DASH.
-        //_mime[".mpd"] = "application/dash+xml";
-        _mime[".mpd"] = "text/xml";
+        _mime[".mpd"] = "application/dash+xml";
         _mime[".m4s"] = "video/iso.segment";
         _mime[".mp4v"] = "video/mp4";
     }
