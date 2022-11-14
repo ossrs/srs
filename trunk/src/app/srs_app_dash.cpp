@@ -246,7 +246,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
                                             << "media=\"$RepresentationID$-$Time$.m4s\" "
                                             << "timescale=\"1000\">" << endl;
         ss << "                    <SegmentTimeline>" << endl;
-        for (size_t i = afragments->size() - window_size_; i < afragments->size(); ++i) {
+        for (int i = afragments->size() - window_size_; i < afragments->size(); ++i) {
             ss << "                        <S t=\"" << srsu2ms(afragments->at(i)->get_start_dts()) << "\" "
                                           << "d=\"" << srsu2ms(afragments->at(i)->duration()) << "\" />"  << endl;
         }
@@ -265,7 +265,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
                                             << "media=\"$RepresentationID$-$Time$.m4s\" "
                                             << "timescale=\"1000\">" << endl;
         ss << "                    <SegmentTimeline>" << endl;
-        for (size_t i = vfragments->size() - window_size_; i < vfragments->size(); ++i) {
+        for (int i = vfragments->size() - window_size_; i < vfragments->size(); ++i) {
             ss << "                        <S t=\"" << srsu2ms(vfragments->at(i)->get_start_dts()) << "\" "
                                           << "d=\"" << srsu2ms(vfragments->at(i)->duration()) << "\" />"  << endl;
         }

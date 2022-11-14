@@ -6452,7 +6452,6 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
         uint64_t duration = 0;
         if (samples && !samples->samples.empty()) {
             SrsMp4Sample* first = samples->samples[0];
-            SrsMp4Sample* last = samples->samples[samples->samples.size() - 1];
             duration = srs_max(0, dts - first->dts);
         }
 
