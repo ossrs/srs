@@ -48,7 +48,7 @@ public:
     virtual ~SrsFragmentedMp4();
 public:
     // Initialize the fragment, create the home dir, open the file.
-    virtual srs_error_t initialize(SrsRequest* r, bool video, SrsMpdWriter* mpd, uint32_t tid);
+    virtual srs_error_t initialize(SrsRequest* r, bool video, int64_t time, SrsMpdWriter* mpd, uint32_t tid);
     // Write media message to fragment.
     virtual srs_error_t write(SrsSharedPtrMessage* shared_msg, SrsFormat* format);
     // Reap the fragment, close the fd and rename tmp to official file.
@@ -72,6 +72,10 @@ private:
     std::string home;
     // The MPD path template, from which to build the file path.
     std::string mpd_file;
+    // The number of fragments in MPD file.
+    int window_size_;
+    // The availabilityStartTime in MPD file.
+    srs_utime_t availability_start_time_;
 private:
     // The home for fragment, relative to home.
     std::string fragment_home;
@@ -83,11 +87,13 @@ public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
     // Write MPD according to parsed format of stream.
-    virtual srs_error_t write(SrsFormat* format);
+    virtual srs_error_t write(SrsFormat* format, SrsFragmentWindow* afragments, SrsFragmentWindow* vfragments);
 public:
     // Get the fragment relative home and filename.
     // The basetime is the absolute time in srs_utime_t, while the sn(sequence number) is basetime/fragment.
-    virtual srs_error_t get_fragment(bool video, std::string& home, std::string& filename, int64_t& sn, srs_utime_t& basetime);
+    virtual srs_error_t get_fragment(bool video, std::string& home, std::string& filename, int64_t time, int64_t& sn);
+    // Set the availabilityStartTime once, map the timestamp in media to utc time.
+    virtual void set_availability_start_time(srs_utime_t t);
 };
 
 // The controller for DASH, control the MPD and FMP4 generating system.
@@ -101,14 +107,18 @@ private:
     SrsFragmentWindow* vfragments;
     SrsFragmentedMp4* acurrent;
     SrsFragmentWindow* afragments;
+    // Current audio dts.
     uint64_t audio_dts;
+    // Current video dts.
     uint64_t video_dts;
+    // First dts of the stream, use to calculate the availabilityStartTime in MPD.
+    uint64_t first_dts_;
 private:
     // The fragment duration in srs_utime_t to reap it.
     srs_utime_t fragment;
 private:
     std::string home;
-    int video_tack_id;
+    int video_track_id;
     int audio_track_id;
 public:
     SrsDashController();

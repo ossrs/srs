@@ -32,6 +32,8 @@ public:
     // Append a frame with dts into fragment.
     // @dts The dts of frame in ms.
     virtual void append(int64_t dts);
+    // Get the start dts of fragment.
+    virtual srs_utime_t get_start_dts();
     // Get the duration of fragment in srs_utime_t.
     virtual srs_utime_t duration();
     // Whether the fragment contains any sequence header.

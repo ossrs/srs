@@ -46,6 +46,11 @@ void SrsFragment::append(int64_t dts)
     dur = dts_in_tbn - start_dts;
 }
 
+srs_utime_t SrsFragment::get_start_dts()
+{
+    return start_dts;
+}
+
 srs_utime_t SrsFragment::duration()
 {
     return dur;
