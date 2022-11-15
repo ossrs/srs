@@ -64,7 +64,7 @@
                     <ul>
                         <li><a href="http://bilibili.github.io/flv.js/demo">flv.js</a>，H5/MSE播放HTTP-FLV</li>
                         <li><a href="https://hls-js.netlify.com/demo">hls.js</a>，H5/MSE播放HLS</li>
-                        <li><a href="http://reference.dashif.org/dash.js/nightly/samples/dash-if-reference-player/index.html">dash.js</a>，H5/MSE播放MPEG-DASH</li>
+                        <li><a href="https://reference.dashif.org/dash.js/latest/samples/dash-if-reference-player/index.html">dash.js</a>，H5/MSE播放MPEG-DASH</li>
                     </ul>
                 </p>
             </div>
@@ -99,6 +99,7 @@
 <script type="text/javascript" src="js/bootstrap.min.js"></script>
 <script type="text/javascript" src="js/flv-1.5.0.min.js"></script>
 <script type="text/javascript" src="js/hls-0.14.17.min.js"></script>
+<script type="text/javascript" src="js/dash-v4.5.1.all.min.js"></script>
 <script type="text/javascript" src="js/json2.js"></script>
 <script type="text/javascript" src="js/srs.page.js"></script>
 <script type="text/javascript" src="js/srs.log.js"></script>
@@ -107,6 +108,7 @@
 <script type="text/javascript">
     var flvPlayer = null;
     var hlsPlayer = null;
+    var dashPlayer = null;
 
     var stopPlayers = function () {
         if (flvPlayer) {
@@ -116,6 +118,10 @@
         if (hlsPlayer) {
             hlsPlayer.destroy();
             hlsPlayer = null;
+        }
+        if (dashPlayer) {
+            dashPlayer.destroy();
+            dashPlayer = null;
         }
     };
 
@@ -197,6 +203,15 @@
             hlsPlayer = new Hls();
             hlsPlayer.loadSource(r.url);
             hlsPlayer.attachMedia(document.getElementById('video_player'));
+            return;
+        }
+
+        // Start play MPEG-DASH.
+        if (r.stream.indexOf('.mpd') > 0) {
+            show_for_ok();
+
+            dashPlayer = dashjs.MediaPlayer().create();
+            dashPlayer.initialize(document.querySelector("#video_player"), r.url, true);
             return;
         }
 
