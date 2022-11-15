@@ -205,8 +205,6 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
         return err;
     }
 
-    double last_duration = srsu2s(srs_max(vfragments->at(vfragments->size() - 1)->duration(), afragments->at(afragments->size() - 1)->duration()));
-    
     // MPD is not expired?
     if (last_update_mpd != 0 && srs_get_system_time() - last_update_mpd < update_period) {
         return err;
@@ -222,6 +220,8 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
     if ((err = srs_create_dir_recursively(full_home)) != srs_success) {
         return srs_error_wrap(err, "Create MPD home failed, home=%s", full_home.c_str());
     }
+
+    double last_duration = srsu2s(srs_max(vfragments->at(vfragments->size() - 1)->duration(), afragments->at(afragments->size() - 1)->duration()));
     
     stringstream ss;
     ss << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << endl
@@ -443,10 +443,29 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFo
     if ((err = acurrent->write(shared_audio, format)) != srs_success) {
         return srs_error_wrap(err, "Write audio to fragment failed");
     }
+
+    srs_utime_t fragment = _srs_config->get_dash_fragment(req->vhost);
+    int window_size = _srs_config->get_dash_window_size(req->vhost);
+    int dash_window =  2 * window_size * fragment;
+    if (afragments->size() > window_size) {
+        int w = 0;
+        for (int i = afragments->size() - window_size; i < afragments->size(); ++i) {
+            w += afragments->at(i)->duration();
+        }
+        dash_window = srs_max(dash_window, w);
+
+        // shrink the segments.
+        afragments->shrink(dash_window);
+    }
     
     if ((err = refresh_mpd(format)) != srs_success) {
         return srs_error_wrap(err, "Refresh the MPD failed");
     }
+
+    // TODO: FIXME: read from config.
+    bool dash_cleanup = true;
+    // remove the m4s file.
+    afragments->clear_expired(dash_cleanup);
     
     return err;
 }
@@ -493,10 +512,30 @@ srs_error_t SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFo
     if ((err = vcurrent->write(shared_video, format)) != srs_success) {
         return srs_error_wrap(err, "Write video to fragment failed");
     }
+
+    srs_utime_t fragment = _srs_config->get_dash_fragment(req->vhost);
+    int window_size = _srs_config->get_dash_window_size(req->vhost);
+    int dash_window =  2 * window_size * fragment;
+    if (vfragments->size() > window_size) {
+        int w = 0;
+        for (int i = vfragments->size() - window_size; i < vfragments->size(); ++i) {
+            w += vfragments->at(i)->duration();
+        }
+        dash_window = srs_max(dash_window, w);
+
+        // shrink the segments.
+        vfragments->shrink(dash_window);
+    }
     
     if ((err = refresh_mpd(format)) != srs_success) {
         return srs_error_wrap(err, "Refresh the MPD failed");
     }
+
+    // TODO: FIXME: read from config.
+    bool dash_cleanup = true;
+    // remove the m4s file.
+    vfragments->clear_expired(dash_cleanup);
+    
     
     return err;
 }
