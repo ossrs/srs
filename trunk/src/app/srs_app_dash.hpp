@@ -83,6 +83,8 @@ public:
     SrsMpdWriter();
     virtual ~SrsMpdWriter();
 public:
+    virtual void dispose();
+public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
@@ -124,6 +126,8 @@ public:
     SrsDashController();
     virtual ~SrsDashController();
 public:
+    virtual void dispose();
+public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
@@ -139,6 +143,8 @@ class SrsDash
 {
 private:
     bool enabled;
+    bool disposable_;
+    srs_utime_t last_update_time_;
 private:
     SrsRequest* req;
     SrsOriginHub* hub;
@@ -146,6 +152,9 @@ private:
 public:
     SrsDash();
     virtual ~SrsDash();
+public:
+    virtual void dispose();
+    virtual srs_error_t cycle();
 public:
     // Initalize the encoder.
     virtual srs_error_t initialize(SrsOriginHub* h, SrsRequest* r);

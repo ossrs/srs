@@ -880,8 +880,7 @@ srs_error_t SrsOriginHub::initialize(SrsLiveSource* s, SrsRequest* r)
 void SrsOriginHub::dispose()
 {
     hls->dispose();
-    
-    // TODO: Support dispose DASH.
+    dash->dispose();
 }
 
 srs_error_t SrsOriginHub::cycle()
@@ -892,7 +891,9 @@ srs_error_t SrsOriginHub::cycle()
         return srs_error_wrap(err, "hls cycle");
     }
     
-    // TODO: Support cycle DASH.
+    if ((err = dash->cycle()) != srs_success) {
+        return srs_error_wrap(err, "dash cycle");
+    }
     
     return err;
 }

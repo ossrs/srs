@@ -19,6 +19,7 @@
 
 #include <stdlib.h>
 #include <sstream>
+#include <unistd.h>
 using namespace std;
 
 static std::string format_float(const double& d, int width = 3)
@@ -163,6 +164,17 @@ SrsMpdWriter::SrsMpdWriter()
 
 SrsMpdWriter::~SrsMpdWriter()
 {
+}
+
+void SrsMpdWriter::dispose()
+{
+    if (req) {
+        string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
+        string full_path = home + "/" + mpd_path;
+        if (unlink(full_path.c_str()) < 0) {
+            srs_warn("ignore remove mpd failed, %s", full_path.c_str());
+        }
+    }
 }
 
 srs_error_t SrsMpdWriter::initialize(SrsRequest* r)
@@ -348,6 +360,34 @@ SrsDashController::~SrsDashController()
     srs_freep(afragments);
 }
 
+void SrsDashController::dispose()
+{
+    srs_error_t err = srs_success;
+    
+    vfragments->dispose();
+    afragments->dispose();
+    
+    if (vcurrent) {
+        if ((err = vcurrent->unlink_tmpfile()) != srs_success) {
+            srs_warn("Unlink tmp video m4s failed %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        srs_freep(vcurrent);
+    }
+
+    if (acurrent) {
+        if ((err = acurrent->unlink_tmpfile()) != srs_success) {
+            srs_warn("Unlink tmp audio m4s failed %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        srs_freep(acurrent);
+    }
+    
+    mpd->dispose();
+    
+    srs_trace("gracefully dispose dash %s", req? req->get_stream_url().c_str() : "");
+}
+
 srs_error_t SrsDashController::initialize(SrsRequest* r)
 {
     srs_error_t err = srs_success;
@@ -462,8 +502,7 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFo
         return srs_error_wrap(err, "Refresh the MPD failed");
     }
 
-    // TODO: FIXME: read from config.
-    bool dash_cleanup = true;
+    bool dash_cleanup = _srs_config->get_dash_cleanup(req->vhost);
     // remove the m4s file.
     afragments->clear_expired(dash_cleanup);
     
@@ -531,11 +570,9 @@ srs_error_t SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFo
         return srs_error_wrap(err, "Refresh the MPD failed");
     }
 
-    // TODO: FIXME: read from config.
-    bool dash_cleanup = true;
+    bool dash_cleanup = _srs_config->get_dash_cleanup(req->vhost);
     // remove the m4s file.
     vfragments->clear_expired(dash_cleanup);
-    
     
     return err;
 }
@@ -604,11 +641,60 @@ SrsDash::SrsDash()
     controller = new SrsDashController();
     
     enabled = false;
+    disposable_ = false;
+    last_update_time_ = 0; 
 }
 
 SrsDash::~SrsDash()
 {
     srs_freep(controller);
+}
+
+void SrsDash::dispose()
+{
+    if (enabled) {
+        on_unpublish();
+    }
+    
+    // Ignore when dash_dispose disabled.
+    srs_utime_t dash_dispose = _srs_config->get_dash_dispose(req->vhost);
+    if (!dash_dispose) {
+        return;
+    }
+    
+    controller->dispose();
+}
+
+srs_error_t SrsDash::cycle()
+{
+    srs_error_t err = srs_success;
+    
+    if (last_update_time_ <= 0) {
+        last_update_time_ = srs_get_system_time();
+    }
+    
+    if (!req) {
+        return err;
+    }
+    
+    srs_utime_t dash_dispose = _srs_config->get_dash_dispose(req->vhost);
+    if (dash_dispose <= 0) {
+        return err;
+    }
+    if (srs_get_system_time() - last_update_time_ <= dash_dispose) {
+        return err;
+    }
+    last_update_time_ = srs_get_system_time();
+    
+    if (!disposable_) {
+        return err;
+    }
+    disposable_ = false;
+    
+    srs_trace("dash cycle to dispose dash %s, timeout=%dms", req->get_stream_url().c_str(), dash_dispose);
+    dispose();
+    
+    return err;
 }
 
 srs_error_t SrsDash::initialize(SrsOriginHub* h, SrsRequest* r)
@@ -639,9 +725,15 @@ srs_error_t SrsDash::on_publish()
     }
     enabled = true;
 
+    // update the dash time, for dash_dispose.
+    last_update_time_ = srs_get_system_time();
+
     if ((err = controller->on_publish()) != srs_success) {
         return srs_error_wrap(err, "controller");
     }
+
+    // ok, the dash can be dispose, or need to be dispose.
+    disposable_ = true;
     
     return err;
 }
@@ -657,6 +749,9 @@ srs_error_t SrsDash::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* form
     if (!format->acodec) {
         return err;
     }
+
+    // update the dash time, for dash_dispose.
+    last_update_time_ = srs_get_system_time();
 
     if ((err = controller->on_audio(shared_audio, format)) != srs_success) {
         return srs_error_wrap(err, "Consume audio failed");
@@ -677,6 +772,9 @@ srs_error_t SrsDash::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* form
         return err;
     }
  
+    // update the dash time, for dash_dispose.
+    last_update_time_ = srs_get_system_time();
+
     if ((err = controller->on_video(shared_video, format)) != srs_success) {
         return srs_error_wrap(err, "Consume video failed");
     }
