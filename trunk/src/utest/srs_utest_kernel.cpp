@@ -227,8 +227,11 @@ MockSrsFileReader::MockSrsFileReader(const char* src, int nb_src)
     seekable = true;
     uf = new MockSrsFile();
 
-    uf->write((void*)src, nb_src, NULL);
-    uf->lseek(0, SEEK_SET, NULL);
+    srs_error_t err = uf->write((void*)src, nb_src, NULL);
+    srs_freep(err);
+
+    err = uf->lseek(0, SEEK_SET, NULL);
+    srs_freep(err);
 }
 
 MockSrsFileReader::~MockSrsFileReader()
@@ -255,20 +258,25 @@ bool MockSrsFileReader::is_open()
 int64_t MockSrsFileReader::tellg()
 {
     off_t offset = 0;
-    lseek(0, SEEK_CUR, &offset);
+    srs_error_t err = lseek(0, SEEK_CUR, &offset);
+    srs_freep(err);
+
     return offset;
 }
 
 void MockSrsFileReader::skip(int64_t _size)
 {
     int64_t offset = tellg() + _size;
-    lseek(offset, SEEK_SET, NULL);
+    srs_error_t err = lseek(offset, SEEK_SET, NULL);
+    srs_freep(err);
 }
 
 int64_t MockSrsFileReader::seek2(int64_t _offset)
 {
     off_t offset = 0;
-    lseek(_offset, SEEK_SET, &offset);
+    srs_error_t err = lseek(_offset, SEEK_SET, &offset);
+    srs_freep(err);
+
     return offset;
 }
 
@@ -277,7 +285,8 @@ int64_t MockSrsFileReader::filesize()
     int64_t cur = tellg();
 
     off_t offset = 0;
-    lseek(0, SEEK_END, &offset);
+    srs_error_t err = lseek(0, SEEK_END, &offset);
+    srs_freep(err);
 
     seek2(cur);
     return offset;
@@ -298,7 +307,8 @@ srs_error_t MockSrsFileReader::lseek(off_t offset, int whence, off_t* seeked)
 
 void MockSrsFileReader::mock_append_data(const char* data, int size)
 {
-    uf->write((void*)data, size, NULL);
+    srs_error_t err = uf->write((void*)data, size, NULL);
+    srs_freep(err);
 }
 
 void MockSrsFileReader::mock_reset_offset()
@@ -1127,6 +1137,11 @@ VOID TEST(KernelFLVTest, CoverVodStreamErrorCase)
 
 		HELPER_EXPECT_FAILED(d.seek2(1));
 	}
+}
+
+VOID TEST(KernelFLVTest, CoverVodStreamErrorCase2)
+{
+    srs_error_t err;
 
 	if (true) {
 		MockSrsFileReader r("HELLO", 5);
@@ -3076,22 +3091,21 @@ VOID TEST(KernelUtility, RTMPUtils2)
 
 VOID TEST(KernelErrorTest, CoverAll)
 {
+    srs_error_t err;
     if (true) {
-        EXPECT_TRUE(srs_is_system_control_error(srs_error_new(ERROR_CONTROL_RTMP_CLOSE, "err")));
-        EXPECT_TRUE(srs_is_system_control_error(srs_error_new(ERROR_CONTROL_REPUBLISH, "err")));
-        EXPECT_TRUE(srs_is_system_control_error(srs_error_new(ERROR_CONTROL_REDIRECT, "err")));
+        EXPECT_TRUE(srs_is_system_control_error(err = srs_error_new(ERROR_CONTROL_RTMP_CLOSE, "err"))); srs_freep(err);
+        EXPECT_TRUE(srs_is_system_control_error(err = srs_error_new(ERROR_CONTROL_REPUBLISH, "err"))); srs_freep(err);
+        EXPECT_TRUE(srs_is_system_control_error(err = srs_error_new(ERROR_CONTROL_REDIRECT, "err"))); srs_freep(err);
     }
     
     if (true) {
-        srs_error_t err = srs_error_new(ERROR_CONTROL_RTMP_CLOSE, "control error");
-        EXPECT_TRUE(srs_is_system_control_error(err));
-        srs_freep(err);
+        EXPECT_TRUE(srs_is_system_control_error(err = srs_error_new(ERROR_CONTROL_RTMP_CLOSE, "control error"))); srs_freep(err);
     }
     
     if (true) {
-        EXPECT_TRUE(srs_is_client_gracefully_close(srs_error_new(ERROR_SOCKET_READ, "err")));
-        EXPECT_TRUE(srs_is_client_gracefully_close(srs_error_new(ERROR_SOCKET_READ_FULLY, "err")));
-        EXPECT_TRUE(srs_is_client_gracefully_close(srs_error_new(ERROR_SOCKET_WRITE, "err")));
+        EXPECT_TRUE(srs_is_client_gracefully_close(err = srs_error_new(ERROR_SOCKET_READ, "err"))); srs_freep(err);
+        EXPECT_TRUE(srs_is_client_gracefully_close(err = srs_error_new(ERROR_SOCKET_READ_FULLY, "err"))); srs_freep(err);
+        EXPECT_TRUE(srs_is_client_gracefully_close(err = srs_error_new(ERROR_SOCKET_WRITE, "err"))); srs_freep(err);
     }
     
     if (true) {
@@ -5646,8 +5660,11 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
             0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
         };
         HELPER_EXPECT_SUCCESS(fmt.on_video(0, (char*)raw, sizeof(raw)));
+
+        uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
+        SrsAutoFreeA(uint8_t, cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
-            SrsMp4HandlerTypeVIDE, fmt.video->frame_type, 0, 0, mock_copy_bytes(fmt.raw, fmt.nb_raw), fmt.nb_raw
+            SrsMp4HandlerTypeVIDE, fmt.video->frame_type, 0, 0, cp, fmt.nb_raw
         ));
     }
     
@@ -5656,8 +5673,11 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
             0xaf, 0x00, 0x12, 0x10
         };
         HELPER_EXPECT_SUCCESS(fmt.on_audio(0, (char*)raw, sizeof(raw)));
+
+        uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
+        SrsAutoFreeA(uint8_t, cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
-            SrsMp4HandlerTypeSOUN, 0x00, 0, 0, mock_copy_bytes(fmt.raw, fmt.nb_raw), fmt.nb_raw
+            SrsMp4HandlerTypeSOUN, 0x00, 0, 0, cp, fmt.nb_raw
         ));
     }
     
@@ -5672,8 +5692,11 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
             0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5e
         };
         HELPER_EXPECT_SUCCESS(fmt.on_audio(0, (char*)raw, sizeof(raw)));
+
+        uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
+        SrsAutoFreeA(uint8_t, cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
-            SrsMp4HandlerTypeSOUN, 0x00, 34, 34, mock_copy_bytes(fmt.raw, fmt.nb_raw), fmt.nb_raw
+            SrsMp4HandlerTypeSOUN, 0x00, 34, 34, cp, fmt.nb_raw
         ));
     }
     
@@ -5691,8 +5714,11 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
             0xb2, 0x72, 0x5a
         };
         HELPER_EXPECT_SUCCESS(fmt.on_video(0, (char*)raw, sizeof(raw)));
+
+        uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
+        SrsAutoFreeA(uint8_t, cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
-            SrsMp4HandlerTypeVIDE, fmt.video->frame_type, 40, 40, mock_copy_bytes(fmt.raw, fmt.nb_raw), fmt.nb_raw
+            SrsMp4HandlerTypeVIDE, fmt.video->frame_type, 40, 40, cp, fmt.nb_raw
         ));
     }
     

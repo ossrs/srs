@@ -435,10 +435,9 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages)
         // Always response ACK message.
         HELPER_EXPECT_SUCCESS(p.set_in_window_ack_size(1));
 
-        SrsCommonMessage* msg;
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         io.in_buffer.append(&bytes);
         HELPER_EXPECT_FAILED(p.recv_message(&msg));
-        srs_freep(msg);
     }
 }
 
@@ -884,8 +883,7 @@ VOID TEST(ProtocolRTMPTest, RecvMessage)
         uint8_t bytes[] = {0x01, 0x00, 0x00};
         io.in_buffer.append((char*)bytes, sizeof(bytes));
 
-        SrsCommonMessage* msg;
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_FAILED(p.recv_message(&msg));
     }
 
@@ -896,8 +894,7 @@ VOID TEST(ProtocolRTMPTest, RecvMessage)
         uint8_t bytes[] = {0x00, 0x00};
         io.in_buffer.append((char*)bytes, sizeof(bytes));
 
-        SrsCommonMessage* msg;
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_FAILED(p.recv_message(&msg));
     }
 
@@ -908,8 +905,7 @@ VOID TEST(ProtocolRTMPTest, RecvMessage)
         uint8_t bytes[] = {0x00};
         io.in_buffer.append((char*)bytes, sizeof(bytes));
 
-        SrsCommonMessage* msg;
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_FAILED(p.recv_message(&msg));
     }
 
@@ -917,8 +913,7 @@ VOID TEST(ProtocolRTMPTest, RecvMessage)
         MockBufferIO io;
         SrsProtocol p(&io);
 
-        SrsCommonMessage* msg;
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_FAILED(p.recv_message(&msg));
     }
 }
@@ -934,8 +929,7 @@ VOID TEST(ProtocolRTMPTest, RecvMessage2)
         uint8_t bytes[] = {0x03, 0,0,0, 0,0,4, 0, 0,0,0,0, 1,2,3};
         io.in_buffer.append((char*)bytes, sizeof(bytes));
 
-        SrsCommonMessage* msg;
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_FAILED(p.recv_message(&msg));
     }
 
@@ -948,10 +942,12 @@ VOID TEST(ProtocolRTMPTest, RecvMessage2)
         uint8_t bytes[] = {0x03, 0,0,0, 0,0,4, 0, 0,0,0,0, 1,2,3};
         io.in_buffer.append((char*)bytes, sizeof(bytes));
 
-        SrsCommonMessage* msg;
-        SrsAutoFree(SrsCommonMessage, msg);
-        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+        if (true) {
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
+            HELPER_EXPECT_FAILED(p.recv_message(&msg));
+        }
 
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         uint8_t bytes2[] = {0x43, 0,0,0, 0,0,5, 0, 0,0,0,0, 1,2,3};
         io.in_buffer.append((char*)bytes2, sizeof(bytes2));
         HELPER_EXPECT_FAILED(p.recv_message(&msg));
@@ -964,8 +960,7 @@ VOID TEST(ProtocolRTMPTest, RecvMessage2)
         uint8_t bytes[] = {0x03};
         io.in_buffer.append((char*)bytes, sizeof(bytes));
 
-        SrsCommonMessage* msg;
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_FAILED(p.recv_message(&msg));
     }
 
@@ -976,8 +971,7 @@ VOID TEST(ProtocolRTMPTest, RecvMessage2)
         uint8_t bytes[] = {0x43, 0,0,0, 0,0,0, 0};
         io.in_buffer.append((char*)bytes, sizeof(bytes));
 
-        SrsCommonMessage* msg;
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_FAILED(p.recv_message(&msg));
     }
 }
@@ -1060,8 +1054,7 @@ VOID TEST(ProtocolRTMPTest, RecvMessage4)
 
         io.in_buffer.append(&io.out_buffer);
 
-        SrsCommonMessage* msg;
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
 
         EXPECT_EQ(256, p.out_chunk_size);
@@ -1078,8 +1071,7 @@ VOID TEST(ProtocolRTMPTest, RecvMessage4)
 
         io.in_buffer.append(&io.out_buffer);
 
-        SrsCommonMessage* msg;
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
 
         EXPECT_EQ(256, p.in_buffer_length);
@@ -1534,9 +1526,8 @@ VOID TEST(ProtocolRTMPTest, ServerCommandMessage)
 
             SrsProtocol p(&tio);
 
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
-            srs_freep(msg);
 
             EXPECT_EQ(1024, p.in_chunk_size);
         }
@@ -2239,7 +2230,7 @@ VOID TEST(ProtocolRTMPTest, CoverAll)
         EXPECT_EQ(0, r.get_recv_bytes());
         EXPECT_EQ(0, r.get_send_bytes());
 
-        SrsCommonMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_FAILED(r.recv_message(&msg));
 
         SrsCallPacket* pkt = new SrsCallPacket();
@@ -2262,7 +2253,7 @@ VOID TEST(ProtocolRTMPTest, CoverAll)
         EXPECT_EQ(0, r.get_recv_bytes());
         EXPECT_EQ(0, r.get_send_bytes());
 
-        SrsCommonMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_FAILED(r.recv_message(&msg));
 
         SrsCallPacket* pkt = new SrsCallPacket();
@@ -2585,8 +2576,8 @@ VOID TEST(ProtocolRTMPTest, ConnectAppWithArgs)
         if (true) {
             tio.in_buffer.append(&io.out_buffer);
 
-            SrsCommonMessage* msg = NULL;
-            SrsConnectAppPacket* pkt = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
+            SrsConnectAppPacket* pkt = NULL; SrsAutoFree(SrsConnectAppPacket, pkt);
             HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
 
             SrsAmf0Any* prop = pkt->command_object->get_property("tcUrl");
@@ -2616,9 +2607,8 @@ VOID TEST(ProtocolRTMPTest, AgentMessageCodec)
         }
 
         if (true) {
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
-            srs_freep(msg);
         }
     }
 
@@ -2633,14 +2623,11 @@ VOID TEST(ProtocolRTMPTest, AgentMessageCodec)
         }
 
         if (true) {
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_ASSERT_SUCCESS(p.recv_message(&msg));
 
-            SrsPacket* pkt = NULL;
+            SrsPacket* pkt = NULL; SrsAutoFree(SrsPacket, pkt);
             HELPER_EXPECT_SUCCESS(p.decode_message(msg, &pkt));
-
-            srs_freep(msg);
-            srs_freep(pkt);
         }
     }
 
@@ -2655,9 +2642,8 @@ VOID TEST(ProtocolRTMPTest, AgentMessageCodec)
         }
 
         if (true) {
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
-            srs_freep(msg);
         }
     }
 
@@ -2672,14 +2658,11 @@ VOID TEST(ProtocolRTMPTest, AgentMessageCodec)
         }
 
         if (true) {
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_ASSERT_SUCCESS(p.recv_message(&msg));
 
-            SrsPacket* pkt = NULL;
+            SrsPacket* pkt = NULL; SrsAutoFree(SrsPacket, pkt);
             HELPER_EXPECT_SUCCESS(p.decode_message(msg, &pkt));
-
-            srs_freep(msg);
-            srs_freep(pkt);
         }
     }
 }
@@ -2733,17 +2716,15 @@ VOID TEST(ProtocolRTMPTest, CheckStreamID)
         }
 
         if (true) {
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
             EXPECT_EQ(1, msg->header.stream_id);
-            srs_freep(msg);
         }
 
         if (true) {
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
             EXPECT_EQ(2, msg->header.stream_id);
-            srs_freep(msg);
         }
     }
 }
@@ -2767,9 +2748,8 @@ VOID TEST(ProtocolRTMPTest, AgentMessageTransform)
         }
 
         if (true) {
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
-            srs_freep(msg);
         }
     }
 
@@ -2788,9 +2768,8 @@ VOID TEST(ProtocolRTMPTest, AgentMessageTransform)
         }
 
         if (true) {
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
-            srs_freep(msg);
         }
     }
 
@@ -2809,9 +2788,8 @@ VOID TEST(ProtocolRTMPTest, AgentMessageTransform)
         }
 
         if (true) {
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
-            srs_freep(msg);
         }
     }
 
@@ -2830,9 +2808,8 @@ VOID TEST(ProtocolRTMPTest, AgentMessageTransform)
         }
 
         if (true) {
-            SrsCommonMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
             HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
-            srs_freep(msg);
         }
     }
 }
@@ -2865,9 +2842,8 @@ VOID TEST(ProtocolRTMPTest, MergeReadHandler)
     r.set_merge_read(true, &h);
 
     if (true) {
-        SrsCommonMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_EXPECT_SUCCESS(r.recv_message(&msg));
-        srs_freep(msg);
     }
 
     EXPECT_TRUE(h.nn > 0);
@@ -2924,6 +2900,8 @@ VOID TEST(ProtocolRTMPTest, CreateRTMPMessage)
         srs_freep(msg);
     }
 }
+
+extern void srs_utest_free_message_array(SrsMessageArray* arr);
 
 VOID TEST(ProtocolRTMPTest, OthersAll)
 {
@@ -2995,6 +2973,10 @@ VOID TEST(ProtocolRTMPTest, OthersAll)
 
     if (true) {
         SrsMessageArray h(10);
+
+        SrsMessageArray* parr = &h;
+        SrsAutoFreeH(SrsMessageArray, parr, srs_utest_free_message_array);
+
         h.msgs[0] = new SrsSharedPtrMessage();
         h.msgs[1] = new SrsSharedPtrMessage();
         EXPECT_TRUE(NULL != h.msgs[0]);

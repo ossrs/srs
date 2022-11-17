@@ -68,7 +68,7 @@ VOID TEST(KernelRTCTest, RtpSTAPPayloadException)
     EXPECT_TRUE(nalu_type == kStapA);
     ISrsRtpPayloader* payload = new SrsRtpSTAPPayload();
 
-    EXPECT_TRUE((err = payload->decode(&buf)) != srs_success);
+    HELPER_ASSERT_FAILED(payload->decode(&buf));
     srs_freep(payload);
 }
 
@@ -710,7 +710,8 @@ VOID TEST(KernelRTCTest, NACKFetchRTPPacket)
     SrsRtcPlayStream play(&s, SrsContextId());
 
     SrsRtcTrackDescription ds;
-    SrsRtcVideoSendTrack *track = new SrsRtcVideoSendTrack(&s, &ds);
+    SrsRtcVideoSendTrack* track = new SrsRtcVideoSendTrack(&s, &ds);
+    SrsAutoFree(SrsRtcVideoSendTrack, track);
 
     // The RTP queue will free the packet.
     if (true) {

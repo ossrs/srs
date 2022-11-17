@@ -2081,6 +2081,7 @@ VOID TEST(ProtocolHTTPTest, QueryEscape)
             } else {
                 HELPER_ASSERT_FAILED(SrsHttpUri::query_unescape(d.in, value));
             }
+            srs_freep(d.err);
         }
     }
 

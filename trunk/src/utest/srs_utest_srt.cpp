@@ -11,6 +11,7 @@
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_srt_utility.hpp>
 #include <srs_app_srt_server.hpp>
+#include <srs_core_autofree.hpp>
 
 #include <sstream>
 #include <vector>
@@ -194,6 +195,7 @@ VOID TEST(ServiceStSRTTest, ListenConnectAccept)
     HELPER_EXPECT_SUCCESS(srs_srt_socket(&srt_client_fd));
 
     SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+    SrsAutoFree(SrsSrtSocket, srt_client_socket);
 
     // No client connected, accept will timeout.
     srs_srt_t srt_fd = srs_srt_socket_invalid();
@@ -202,6 +204,7 @@ VOID TEST(ServiceStSRTTest, ListenConnectAccept)
     err = srt_server.accept(&srt_fd);
     EXPECT_EQ(srs_error_code(err), ERROR_SRT_TIMEOUT);
     EXPECT_EQ(srt_fd, srs_srt_socket_invalid());
+    srs_freep(err);
 
     // Client connect to server
     HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
@@ -308,6 +311,7 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
         // Recv msg from client, but client no send any msg, so will be timeout.
         err = srt_server_accepted_socket->recvmsg(buf, sizeof(buf), &nb_read);
         EXPECT_EQ(srs_error_code(err), ERROR_SRT_TIMEOUT);
+        srs_freep(err);
     }
 }
 
@@ -524,7 +528,7 @@ VOID TEST(ServiceSRTTest, Encrypt)
 
     if (true) {
         int pbkeylens[4] = {0, 16, 24, 32};
-        for (int i = 0; i < sizeof(pbkeylens) / sizeof(pbkeylens[0]); ++i) {
+        for (int i = 0; i < (int)(sizeof(pbkeylens) / sizeof(pbkeylens[0])); ++i) {
             srs_srt_t srt_client_fd = srs_srt_socket_invalid();
             HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
             HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));

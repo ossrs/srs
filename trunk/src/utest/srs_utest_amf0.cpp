@@ -75,7 +75,7 @@ VOID TEST(ProtocolAMF0Test, ScenarioMain)
         EXPECT_EQ(0x03, bytes[0]);
         EXPECT_EQ(0x09, bytes[nb_bytes - 1]);
     }
-    SrsAutoFree(char, bytes);
+    SrsAutoFreeA(char, bytes);
     
     // decoding amf0 object from bytes
     // when user know the schema
@@ -1301,7 +1301,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesString)
         EXPECT_TRUE(string("hello") == pp->to_str());
 
         // For copy.
-        SrsAmf0Any* cp = p->copy();
+        SrsAmf0Any* cp = p->copy(); SrsAutoFree(SrsAmf0Any, cp);
         EXPECT_TRUE(string("hello") == cp->to_str());
     }
 
@@ -1430,7 +1430,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesBoolean)
         EXPECT_FALSE(p->to_boolean());
 
         // For copy.
-        SrsAmf0Any* cp = p->copy();
+        SrsAmf0Any* cp = p->copy(); SrsAutoFree(SrsAmf0Any, cp);
         EXPECT_FALSE(cp->to_boolean());
     }
 
@@ -1527,7 +1527,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesNumber)
         EXPECT_TRUE(100.1 == p->to_number());
 
         // For copy.
-        SrsAmf0Any* cp = p->copy();
+        SrsAmf0Any* cp = p->copy(); SrsAutoFree(SrsAmf0Any, cp);
         EXPECT_TRUE(100.1 == cp->to_number());
     }
 
@@ -1790,6 +1790,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject)
 
         // For copy.
         SrsAmf0Any* cp = p->copy();
+        SrsAutoFree(SrsAmf0Any, cp);
         EXPECT_TRUE(NULL != cp->to_object());
     }
 
@@ -1992,7 +1993,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesObjectEOF)
         HELPER_EXPECT_SUCCESS(pp->read(&b));
 
         // For copy.
-        SrsAmf0Any* cp = p->copy();
+        SrsAmf0Any* cp = p->copy(); SrsAutoFree(SrsAmf0Any, cp);
         EXPECT_TRUE(cp->is_object_eof());
     }
 
@@ -2084,7 +2085,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesEcmaArray)
         EXPECT_TRUE(NULL != pp->to_ecma_array());
 
         // For copy.
-        SrsAmf0Any* cp = p->copy();
+        SrsAmf0Any* cp = p->copy(); SrsAutoFree(SrsAmf0Any, cp);
         EXPECT_TRUE(NULL != cp->to_ecma_array());
     }
 
@@ -2211,7 +2212,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesStrictArray)
         EXPECT_TRUE(NULL != pp->to_strict_array());
 
         // For copy.
-        SrsAmf0Any* cp = p->copy();
+        SrsAmf0Any* cp = p->copy(); SrsAutoFree(SrsAmf0Any, cp);
         EXPECT_TRUE(NULL != cp->to_strict_array());
     }
 
