@@ -5508,14 +5508,8 @@ srs_error_t SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
     SrsMp4AudioSampleEntry* mp4a = soun? soun->mp4a():NULL;
     if (mp4a) {
         uint32_t sr = mp4a->samplerate>>16;
-        if (sr >= 44100) {
-            sample_rate = SrsAudioSampleRate44100;
-        } else if (sr >= 22050) {
-            sample_rate = SrsAudioSampleRate22050;
-        } else if (sr >= 11025) {
-            sample_rate = SrsAudioSampleRate11025;
-        } else {
-            sample_rate = SrsAudioSampleRate5512;
+        if ((sample_rate = srs_audio_sample_rate_from_number(sr)) == SrsAudioSampleRateForbidden) {
+            sample_rate = srs_audio_sample_rate_guess_number(sr);
         }
         
         if (mp4a->samplesize == 16) {
@@ -5939,7 +5933,7 @@ srs_error_t SrsMp4Encoder::flush()
             
             SrsMp4AudioSampleEntry* mp4a = new SrsMp4AudioSampleEntry();
             mp4a->data_reference_index = 1;
-            mp4a->samplerate = uint32_t(srs_flv_srates[sample_rate]) << 16;
+            mp4a->samplerate = srs_audio_sample_rate2number(sample_rate);
             if (sound_bits == SrsAudioSampleBits16bit) {
                 mp4a->samplesize = 16;
             } else {
@@ -6102,7 +6096,7 @@ SrsMp4ObjectType SrsMp4Encoder::get_audio_object_type()
     case SrsAudioCodecIdAAC:
         return SrsMp4ObjectTypeAac;
     case SrsAudioCodecIdMP3:
-        return (srs_flv_srates[sample_rate] > 24000) ? SrsMp4ObjectTypeMp1a : SrsMp4ObjectTypeMp3;  // 11172 - 3
+        return (srs_audio_sample_rate2number(sample_rate) > 24000) ? SrsMp4ObjectTypeMp1a : SrsMp4ObjectTypeMp3;  // 11172 - 3
     default:
         return SrsMp4ObjectTypeForbidden;
     }

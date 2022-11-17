@@ -196,6 +196,11 @@ enum SrsAudioSampleRate
     SrsAudioSampleRate11025 = 1,
     SrsAudioSampleRate22050 = 2,
     SrsAudioSampleRate44100 = 3,
+
+    // For MP4, extra sampling rate to FLV.
+    SrsAudioSampleRate12000 = 12,
+    SrsAudioSampleRate24000 = 24,
+    SrsAudioSampleRate48000 = 48,
     
     // For Opus, support 8, 12, 16, 24, 48KHz
     // We will write a UINT8 sampling rate after FLV audio tag header.
@@ -206,6 +211,9 @@ enum SrsAudioSampleRate
     SrsAudioSampleRateSWB24kHz = 24, // SWB (super-wideband)
     SrsAudioSampleRateFB48kHz  = 48, // FB (fullband)
 };
+SrsAudioSampleRate srs_audio_sample_rate_from_number(uint32_t v);
+SrsAudioSampleRate srs_audio_sample_rate_guess_number(uint32_t v);
+uint32_t srs_audio_sample_rate2number(SrsAudioSampleRate v);
 std::string srs_audio_sample_rate2str(SrsAudioSampleRate v);
 
 /**
