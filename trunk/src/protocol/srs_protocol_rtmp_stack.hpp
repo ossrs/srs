@@ -908,6 +908,8 @@ public:
 public:
     SrsCreateStreamPacket();
     virtual ~SrsCreateStreamPacket();
+public:
+    void set_command_object(SrsAmf0Any* v);
 // Decode functions for concrete packet to override.
 public:
     virtual srs_error_t decode(SrsBuffer* stream);
@@ -982,6 +984,8 @@ public:
 public:
     SrsFMLEStartPacket();
     virtual ~SrsFMLEStartPacket();
+public:
+    void set_command_object(SrsAmf0Any* v);
 // Decode functions for concrete packet to override.
 public:
     virtual srs_error_t decode(SrsBuffer* stream);
@@ -1014,6 +1018,9 @@ public:
 public:
     SrsFMLEStartResPacket(double _transaction_id);
     virtual ~SrsFMLEStartResPacket();
+public:
+    void set_args(SrsAmf0Any* v);
+    void set_command_object(SrsAmf0Any* v);
 // Decode functions for concrete packet to override.
 public:
     virtual srs_error_t decode(SrsBuffer* stream);
@@ -1057,6 +1064,8 @@ public:
 public:
     SrsPublishPacket();
     virtual ~SrsPublishPacket();
+public:
+    void set_command_object(SrsAmf0Any* v);
 // Decode functions for concrete packet to override.
 public:
     virtual srs_error_t decode(SrsBuffer* stream);
@@ -1181,6 +1190,9 @@ public:
 public:
     SrsPlayResPacket();
     virtual ~SrsPlayResPacket();
+public:
+    void set_command_object(SrsAmf0Any* v);
+    void set_desc(SrsAmf0Object* v);
 // Encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
@@ -1204,6 +1216,8 @@ public:
 public:
     SrsOnBWDonePacket();
     virtual ~SrsOnBWDonePacket();
+public:
+    void set_args(SrsAmf0Any* v);
 // Encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
@@ -1232,6 +1246,9 @@ public:
 public:
     SrsOnStatusCallPacket();
     virtual ~SrsOnStatusCallPacket();
+public:
+    void set_args(SrsAmf0Any* v);
+    void set_data(SrsAmf0Object* v);
 // Encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
@@ -1255,6 +1272,9 @@ public:
 public:
     SrsOnStatusDataPacket();
     virtual ~SrsOnStatusDataPacket();
+public:
+    void set_data(SrsAmf0Object* v);
+    SrsAmf0Object* get_data();
 // Encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
@@ -1303,6 +1323,8 @@ public:
 public:
     SrsOnMetaDataPacket();
     virtual ~SrsOnMetaDataPacket();
+public:
+    void set_metadata(SrsAmf0Object* v);
 // Decode functions for concrete packet to override.
 public:
     virtual srs_error_t decode(SrsBuffer* stream);
