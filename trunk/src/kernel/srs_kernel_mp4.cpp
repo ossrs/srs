@@ -5237,6 +5237,8 @@ srs_error_t SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
     srs_error_t err = srs_success;
     
     SrsMp4Box* box = NULL;
+    SrsAutoFree(SrsMp4Box, box);
+
     while (true) {
         // For the first time to read the box, maybe it's a basic box which is only 4bytes header.
         // When we disconvery the real box, we know the size of the whole box, then read again and decode it.
@@ -5277,10 +5279,9 @@ srs_error_t SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
             continue;
         }
         
-        if (err != srs_success) {
-            srs_freep(box);
-        } else {
+        if (err == srs_success) {
             *ppbox = box;
+            box = NULL;
         }
         
         break;
@@ -5352,6 +5353,7 @@ srs_error_t SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
     
     while (true) {
         SrsMp4Box* box = NULL;
+        SrsAutoFree(SrsMp4Box, box);
         
         if ((err = load_next_box(&box, 0)) != srs_success) {
             return srs_error_wrap(err, "load box");
@@ -5375,8 +5377,6 @@ srs_error_t SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
             }
             break;
         }
-        
-        srs_freep(box);
     }
     
     if (brand == SrsMp4BoxBrandForbidden) {
@@ -5580,16 +5580,17 @@ srs_error_t SrsMp4Decoder::load_next_box(SrsMp4Box** ppbox, uint32_t required_bo
     
     while (true) {
         SrsMp4Box* box = NULL;
+        SrsAutoFree(SrsMp4Box, box);
+
         if ((err = do_load_next_box(&box, required_box_type)) != srs_success) {
-            srs_freep(box);
             return srs_error_wrap(err, "load box");
         }
         
         if (!required_box_type || (uint32_t)box->type == required_box_type) {
             *ppbox = box;
+            box = NULL;
             break;
         }
-        srs_freep(box);
     }
     
     return err;
