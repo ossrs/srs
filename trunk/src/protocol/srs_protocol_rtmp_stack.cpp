@@ -3331,6 +3331,12 @@ SrsCreateStreamPacket::~SrsCreateStreamPacket()
     srs_freep(command_object);
 }
 
+void SrsCreateStreamPacket::set_command_object(SrsAmf0Any* v)
+{
+    srs_freep(command_object);
+    command_object = v;
+}
+
 srs_error_t SrsCreateStreamPacket::decode(SrsBuffer* stream)
 {
     srs_error_t err = srs_success;
@@ -3509,6 +3515,12 @@ SrsFMLEStartPacket::~SrsFMLEStartPacket()
     srs_freep(command_object);
 }
 
+void SrsFMLEStartPacket::set_command_object(SrsAmf0Any* v)
+{
+    srs_freep(command_object);
+    command_object = v;
+}
+
 srs_error_t SrsFMLEStartPacket::decode(SrsBuffer* stream)
 {
     srs_error_t err = srs_success;
@@ -3613,6 +3625,18 @@ SrsFMLEStartResPacket::~SrsFMLEStartResPacket()
     srs_freep(args);
 }
 
+void SrsFMLEStartResPacket::set_args(SrsAmf0Any* v)
+{
+    srs_freep(args);
+    args = v;
+}
+
+void SrsFMLEStartResPacket::set_command_object(SrsAmf0Any* v)
+{
+    srs_freep(command_object);
+    command_object = v;
+}
+
 srs_error_t SrsFMLEStartResPacket::decode(SrsBuffer* stream)
 {
     srs_error_t err = srs_success;
@@ -3689,6 +3713,12 @@ SrsPublishPacket::SrsPublishPacket()
 SrsPublishPacket::~SrsPublishPacket()
 {
     srs_freep(command_object);
+}
+
+void SrsPublishPacket::set_command_object(SrsAmf0Any* v)
+{
+    srs_freep(command_object);
+    command_object = v;
 }
 
 srs_error_t SrsPublishPacket::decode(SrsBuffer* stream)
@@ -3961,6 +3991,18 @@ SrsPlayResPacket::~SrsPlayResPacket()
     srs_freep(desc);
 }
 
+void SrsPlayResPacket::set_command_object(SrsAmf0Any* v)
+{
+    srs_freep(command_object);
+    command_object = v;
+}
+
+void SrsPlayResPacket::set_desc(SrsAmf0Object* v)
+{
+    srs_freep(desc);
+    desc = v;
+}
+
 int SrsPlayResPacket::get_prefer_cid()
 {
     return RTMP_CID_OverStream;
@@ -4012,6 +4054,12 @@ SrsOnBWDonePacket::~SrsOnBWDonePacket()
     srs_freep(args);
 }
 
+void SrsOnBWDonePacket::set_args(SrsAmf0Any* v)
+{
+    srs_freep(args);
+    args = v;
+}
+
 int SrsOnBWDonePacket::get_prefer_cid()
 {
     return RTMP_CID_OverConnection;
@@ -4059,6 +4107,18 @@ SrsOnStatusCallPacket::~SrsOnStatusCallPacket()
 {
     srs_freep(args);
     srs_freep(data);
+}
+
+void SrsOnStatusCallPacket::set_args(SrsAmf0Any* v)
+{
+    srs_freep(args);
+    args = v;
+}
+
+void SrsOnStatusCallPacket::set_data(SrsAmf0Object* v)
+{
+    srs_freep(data);
+    data = v;
 }
 
 int SrsOnStatusCallPacket::get_prefer_cid()
@@ -4109,6 +4169,12 @@ SrsOnStatusDataPacket::SrsOnStatusDataPacket()
 SrsOnStatusDataPacket::~SrsOnStatusDataPacket()
 {
     srs_freep(data);
+}
+
+void SrsOnStatusDataPacket::set_data(SrsAmf0Object* v)
+{
+    srs_freep(data);
+    data = v;
 }
 
 int SrsOnStatusDataPacket::get_prefer_cid()
@@ -4196,6 +4262,12 @@ SrsOnMetaDataPacket::SrsOnMetaDataPacket()
 SrsOnMetaDataPacket::~SrsOnMetaDataPacket()
 {
     srs_freep(metadata);
+}
+
+void SrsOnMetaDataPacket::set_metadata(SrsAmf0Object* v)
+{
+    srs_freep(metadata);
+    metadata = v;
 }
 
 srs_error_t SrsOnMetaDataPacket::decode(SrsBuffer* stream)

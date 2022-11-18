@@ -85,6 +85,8 @@ MockBufferIO::MockBufferIO()
 
 MockBufferIO::~MockBufferIO()
 {
+    srs_freep(in_err);
+    srs_freep(out_err);
 }
 
 int MockBufferIO::length()
@@ -397,7 +399,7 @@ VOID TEST(ProtocolHandshakeTest, VerifyFPC0C1)
     // manually validate the c1
     // @see: calc_c1_digest
     char* c1s1_joined_bytes = new char[1536 -32];
-    SrsAutoFree(char, c1s1_joined_bytes);
+    SrsAutoFreeA(char, c1s1_joined_bytes);
     HELPER_ASSERT_SUCCESS( c1.payload->copy_to(&c1, c1s1_joined_bytes, 1536 - 32, false));
     
     bool is_valid;
@@ -599,6 +601,13 @@ VOID TEST(ProtocolUtilityTest, GenerateTcUrl)
     EXPECT_STREQ("rtmp://demo:19351/live", tcUrl.c_str());
 }
 
+void srs_utest_free_message_array(SrsMessageArray* arr)
+{
+    for (int i = 0; i < arr->max; i++) {
+        srs_freep(arr->msgs[i]);
+    }
+}
+
 /**
 * shared ptr message array test
 */
@@ -614,6 +623,9 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
     
     if (true) {
         SrsMessageArray arr(3);
+
+        SrsMessageArray* parr = &arr;
+        SrsAutoFreeH(SrsMessageArray, parr, srs_utest_free_message_array);
         
         arr.msgs[0] = msg.copy();
         EXPECT_EQ(1, msg.count());
@@ -624,18 +636,21 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
         arr.msgs[2] = msg.copy();
         EXPECT_EQ(3, msg.count());
     }
-    EXPECT_EQ(3, msg.count());
+    EXPECT_EQ(0, msg.count());
     
     if (true) {
         SrsMessageArray arr(3);
+
+        SrsMessageArray* parr = &arr;
+        SrsAutoFreeH(SrsMessageArray, parr, srs_utest_free_message_array);
         
         arr.msgs[0] = msg.copy();
-        EXPECT_EQ(4, msg.count());
+        EXPECT_EQ(1, msg.count());
         
         arr.msgs[2] = msg.copy();
-        EXPECT_EQ(5, msg.count());
+        EXPECT_EQ(2, msg.count());
     }
-    EXPECT_EQ(5, msg.count());
+    EXPECT_EQ(0, msg.count());
 }
 
 /**
@@ -2720,7 +2735,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendVMessage)
 
     uint8_t data[] = {0x01, 0x02, 0x03, 0x04};
 
-    SrsCommonMessage* msg = new SrsCommonMessage();
+    SrsCommonMessage* msg = new SrsCommonMessage(); SrsAutoFree(SrsCommonMessage, msg);
     msg->size = sizeof(data);
     msg->payload = new char[msg->size];
     memcpy(msg->payload, data, msg->size);
@@ -2831,7 +2846,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsCreateStreamPacket)
     SrsProtocol proto(&bio);
 
     SrsCreateStreamPacket* pkt = new SrsCreateStreamPacket();
-    pkt->command_object = SrsAmf0Any::null();
+    pkt->set_command_object(SrsAmf0Any::null());
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
@@ -2856,7 +2871,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsFMLEStartPacket)
 
     SrsFMLEStartPacket* pkt = new SrsFMLEStartPacket();
     pkt->command_name = "FMLEStart";
-    pkt->command_object = SrsAmf0Any::null();
+    pkt->set_command_object(SrsAmf0Any::null());
     pkt->stream_name = "livestream";
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
@@ -2885,8 +2900,8 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsFMLEStartResPacket)
 
     SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(1);
     pkt->command_name = "FMLEStart";
-    pkt->command_object = SrsAmf0Any::null();
-    pkt->args = args;
+    pkt->set_command_object(SrsAmf0Any::null());
+    pkt->set_args(args);
 
     args->set("stream" , SrsAmf0Any::str("livestream"));
     args->set("start" , SrsAmf0Any::number(0));
@@ -2914,7 +2929,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsPublishPacket)
 
     SrsPublishPacket* pkt = new SrsPublishPacket();
     pkt->command_name = "publish";
-    pkt->command_object = SrsAmf0Any::null();
+    pkt->set_command_object(SrsAmf0Any::null());
     pkt->stream_name = "livestream";
     pkt->type = "live";
 
@@ -2945,8 +2960,8 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsPlayResPacket)
 
     SrsPlayResPacket* pkt = new SrsPlayResPacket();
     pkt->command_name = "_result";
-    pkt->command_object = SrsAmf0Any::null();
-    pkt->desc = args;
+    pkt->set_command_object(SrsAmf0Any::null());
+    pkt->set_desc(args);
 
     args->set("stream" , SrsAmf0Any::str("livestream"));
     args->set("start" , SrsAmf0Any::number(0));
@@ -2979,7 +2994,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnBWDonePacket)
 
     SrsOnBWDonePacket* pkt = new SrsOnBWDonePacket();
     pkt->command_name = "onBWDone";
-    pkt->args = SrsAmf0Any::null();
+    pkt->set_args(SrsAmf0Any::null());
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
@@ -3009,8 +3024,8 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnStatusCallPacket)
 
     SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
     pkt->command_name = "onStatus";
-    pkt->args = SrsAmf0Any::null();
-    pkt->data = args;
+    pkt->set_args(SrsAmf0Any::null());
+    pkt->set_data(args);
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
@@ -3045,7 +3060,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnStatusDataPacket)
 
     SrsOnStatusDataPacket* pkt = new SrsOnStatusDataPacket();
     pkt->command_name = "onData";
-    pkt->data = args;
+    pkt->set_data(args);
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
@@ -3104,7 +3119,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnMetaDataPacket)
 
     SrsOnMetaDataPacket* pkt = new SrsOnMetaDataPacket();
     pkt->name = "onMetaData";
-    pkt->metadata = args;
+    pkt->set_metadata(args);
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     uint8_t buf[] = {
@@ -3299,7 +3314,7 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
     }
 
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
+        SrsCommonMessage* msg = new SrsCommonMessage(); SrsAutoFree(SrsCommonMessage, msg);
         msg->header.payload_length = msg->size = 4096;
         msg->payload = new char[msg->size];
 
@@ -3340,15 +3355,14 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
     }
     // recv auto send acked size. #1
     if (true) {
-        SrsCommonMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
         ASSERT_TRUE(msg->header.is_ackledgement());
     }
 
     // send again
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
+        SrsCommonMessage* msg = new SrsCommonMessage(); SrsAutoFree(SrsCommonMessage, msg);
         msg->header.payload_length = msg->size = 4096;
         msg->payload = new char[msg->size];
 
@@ -3425,12 +3439,11 @@ VOID TEST(ProtocolStackTest, ProtocolPingFlow)
     }
     // recv ping
     if (true) {
-        SrsCommonMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL; SrsAutoFree(SrsCommonMessage, msg);
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
         ASSERT_TRUE(msg->header.is_user_control_message());
 
-        SrsPacket* pkt = NULL;
+        SrsPacket* pkt = NULL; SrsAutoFree(SrsPacket, pkt);
         HELPER_ASSERT_SUCCESS(proto.decode_message(msg, &pkt));
         SrsUserControlPacket* spkt = dynamic_cast<SrsUserControlPacket*>(pkt);
         ASSERT_TRUE(spkt != NULL);

@@ -5237,6 +5237,8 @@ srs_error_t SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
     srs_error_t err = srs_success;
     
     SrsMp4Box* box = NULL;
+    SrsAutoFree(SrsMp4Box, box);
+
     while (true) {
         // For the first time to read the box, maybe it's a basic box which is only 4bytes header.
         // When we disconvery the real box, we know the size of the whole box, then read again and decode it.
@@ -5277,10 +5279,9 @@ srs_error_t SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
             continue;
         }
         
-        if (err != srs_success) {
-            srs_freep(box);
-        } else {
+        if (err == srs_success) {
             *ppbox = box;
+            box = NULL;
         }
         
         break;
@@ -5352,6 +5353,7 @@ srs_error_t SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
     
     while (true) {
         SrsMp4Box* box = NULL;
+        SrsAutoFree(SrsMp4Box, box);
         
         if ((err = load_next_box(&box, 0)) != srs_success) {
             return srs_error_wrap(err, "load box");
@@ -5375,8 +5377,6 @@ srs_error_t SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
             }
             break;
         }
-        
-        srs_freep(box);
     }
     
     if (brand == SrsMp4BoxBrandForbidden) {
@@ -5508,14 +5508,8 @@ srs_error_t SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
     SrsMp4AudioSampleEntry* mp4a = soun? soun->mp4a():NULL;
     if (mp4a) {
         uint32_t sr = mp4a->samplerate>>16;
-        if (sr >= 44100) {
-            sample_rate = SrsAudioSampleRate44100;
-        } else if (sr >= 22050) {
-            sample_rate = SrsAudioSampleRate22050;
-        } else if (sr >= 11025) {
-            sample_rate = SrsAudioSampleRate11025;
-        } else {
-            sample_rate = SrsAudioSampleRate5512;
+        if ((sample_rate = srs_audio_sample_rate_from_number(sr)) == SrsAudioSampleRateForbidden) {
+            sample_rate = srs_audio_sample_rate_guess_number(sr);
         }
         
         if (mp4a->samplesize == 16) {
@@ -5580,16 +5574,17 @@ srs_error_t SrsMp4Decoder::load_next_box(SrsMp4Box** ppbox, uint32_t required_bo
     
     while (true) {
         SrsMp4Box* box = NULL;
+        SrsAutoFree(SrsMp4Box, box);
+
         if ((err = do_load_next_box(&box, required_box_type)) != srs_success) {
-            srs_freep(box);
             return srs_error_wrap(err, "load box");
         }
         
         if (!required_box_type || (uint32_t)box->type == required_box_type) {
             *ppbox = box;
+            box = NULL;
             break;
         }
-        srs_freep(box);
     }
     
     return err;
@@ -5938,7 +5933,7 @@ srs_error_t SrsMp4Encoder::flush()
             
             SrsMp4AudioSampleEntry* mp4a = new SrsMp4AudioSampleEntry();
             mp4a->data_reference_index = 1;
-            mp4a->samplerate = uint32_t(srs_flv_srates[sample_rate]) << 16;
+            mp4a->samplerate = srs_audio_sample_rate2number(sample_rate);
             if (sound_bits == SrsAudioSampleBits16bit) {
                 mp4a->samplesize = 16;
             } else {
@@ -6101,7 +6096,7 @@ SrsMp4ObjectType SrsMp4Encoder::get_audio_object_type()
     case SrsAudioCodecIdAAC:
         return SrsMp4ObjectTypeAac;
     case SrsAudioCodecIdMP3:
-        return (srs_flv_srates[sample_rate] > 24000) ? SrsMp4ObjectTypeMp1a : SrsMp4ObjectTypeMp3;  // 11172 - 3
+        return (srs_audio_sample_rate2number(sample_rate) > 24000) ? SrsMp4ObjectTypeMp1a : SrsMp4ObjectTypeMp3;  // 11172 - 3
     default:
         return SrsMp4ObjectTypeForbidden;
     }

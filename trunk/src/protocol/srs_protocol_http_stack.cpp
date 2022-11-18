@@ -689,12 +689,14 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handle
     srs_assert(handler);
     
     if (pattern.empty()) {
+        srs_freep(handler);
         return srs_error_new(ERROR_HTTP_PATTERN_EMPTY, "empty pattern");
     }
     
     if (entries.find(pattern) != entries.end()) {
         SrsHttpMuxEntry* exists = entries[pattern];
         if (exists->explicit_match) {
+            srs_freep(handler);
             return srs_error_new(ERROR_HTTP_PATTERN_DUPLICATED, "pattern=%s exists", pattern.c_str());
         }
     }
