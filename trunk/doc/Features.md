@@ -13,16 +13,20 @@ The features of SRS.
 - [x] System: Support docker by [srs-docker](https://hub.docker.com/r/ossrs/srs/tags).
 - [x] System: Support multiple processes by ReusePort([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/reuse-port), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/reuse-port)), [#775](https://github.com/ossrs/srs/issues/775).
 - [x] System: Support include directive for config file, [#2878](https://github.com/ossrs/srs/pull/2878).
-- [x] System: Support x86_64, armv7 and aarch64 docker image, [#3058](https://github.com/ossrs/srs/pull/3058).
+- [x] System: Support x86_64, armv7 and aarch64 docker image, [#3058](https://github.com/ossrs/srs/pull/3058). v5.0.29+
 - [x] System: [Experimental] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657](https://github.com/ossrs/srs/issues/1657).
 - [x] System: [Experimental] Support DVR in MP4 format, read [#738](https://github.com/ossrs/srs/issues/738).
-- [x] System: [Experimental] Support loongarch, loongson CPU, [#2689](https://github.com/ossrs/srs/issues/2689).
-- [x] System: [Experimental] Support Apple Silicon M1(aarch64), [#2747](https://github.com/ossrs/srs/issues/2747).
-- [x] System: [Experimental] Support distributed tracing by Tencent Cloud APM.
+- [x] System: [Experimental] Support Cygwin64 and MIPS cpu. v5.0.13+
+- [x] System: [Experimental] Support RISCV cpu, [#3115](https://github.com/ossrs/srs/pull/3115). v5.0.33+
+- [x] System: [Experimental] Support loongarch, loongson CPU, [#2689](https://github.com/ossrs/srs/issues/2689).  v5.0.38+
+- [x] System: [Experimental] Support Apple Silicon M1(aarch64), [#2747](https://github.com/ossrs/srs/issues/2747). v5.0.41+
+- [x] System: [Experimental] Support distributed tracing by Tencent Cloud APM. v5.0.64+
+- [x] System: [Experimental] Support grab backtrace stack when assert fail. v5.0.80+
+- [x] System: [Experimental] Support Google Address Sanitizer, [#3216](https://github.com/ossrs/srs/issues/3216). v5.0.81+
 - [x] API: Support HTTP API([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-api)) for system management.
 - [x] API: Support HTTP callback([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-callback)) for authentication and integration.
 - [x] API: Support reuse HTTP Stream port for HTTP API, [#2881](https://github.com/ossrs/srs/issues/2881).
-- [x] API: [Experimental] Support Prometheus exporter, [#2899](https://github.com/ossrs/srs/issues/2899).
+- [x] API: [Experimental] Support Prometheus exporter, [#2899](https://github.com/ossrs/srs/issues/2899). v5.0.67+
 - [x] Live: Support Edge Cluster for live streaming, see ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/edge), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/edge)).
 - [x] Live: Support Origin server for converting RTMP to HTTP-FLV([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flv), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flv)) and HLS([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hls), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/delivery-hls)).
 - [x] Live: Support Edge server for converting RTMP to HTTP-FLV([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flv), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flv)).
@@ -34,17 +38,20 @@ The features of SRS.
 - [x] Live: Enhanced RTMP url which supports vhost in stream, read [#1059](https://github.com/ossrs/srs/issues/1059).
 - [x] Live: Support origin cluster, please read [#464](https://github.com/ossrs/srs/issues/464), [RTMP 302](https://github.com/ossrs/srs/issues/92).
 - [x] Live: Support NGINX HLS Cluster, see [CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-hls-cluster) or [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-hls-cluster).
+- [x] Live: SRT: Support PUSH SRT by IP and optional port, see [#3198](https://github.com/ossrs/srs/issues/3198). v5.0.76+
 - [x] Live: [Experimental] Support MPEG-DASH, the future live streaming protocol, read [#299](https://github.com/ossrs/srs/issues/299).
 - [x] Live: [Experimental] Support SRT server, read [#1147](https://github.com/ossrs/srs/issues/1147).
-- [x] Live: [Experimental] Support Coroutine Native SRT over ST, [#3010](https://github.com/ossrs/srs/pull/3010).
-- [x] RTC: [Experimental] Support playing stream by WebRTC, [#307](https://github.com/ossrs/srs/issues/307).
-- [x] RTC: [Experimental] Support publishing stream by WebRTC, [#307](https://github.com/ossrs/srs/issues/307).
-- [x] RTC: [Experimental] Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307](https://github.com/ossrs/srs/issues/307).
-- [x] RTC: [Experimental] Support client address changing for WebRTC, [#307](https://github.com/ossrs/srs/issues/307).
-- [x] RTC: [Experimental] Support transcode RTMP/AAC to WebRTC/Opus, [#307](https://github.com/ossrs/srs/issues/307).
+- [x] Live: [Experimental] Support Coroutine Native SRT over ST, [#3010](https://github.com/ossrs/srs/pull/3010). v5.0.30+
+- [x] RTC: Support playing stream by WebRTC, [#307](https://github.com/ossrs/srs/issues/307).
+- [x] RTC: Support publishing stream by WebRTC, [#307](https://github.com/ossrs/srs/issues/307).
+- [x] RTC: Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307](https://github.com/ossrs/srs/issues/307).
+- [x] RTC: Support client address changing for WebRTC, [#307](https://github.com/ossrs/srs/issues/307).
+- [x] RTC: Support transcode RTMP/AAC to WebRTC/Opus, [#307](https://github.com/ossrs/srs/issues/307).
+- [x] RTC: Support [Unity](https://github.com/ossrs/srs-unity) to publish or play stream. v5.0.62+
 - [x] RTC: [Experimental] Support AV1 codec for WebRTC, [#2324](https://github.com/ossrs/srs/issues/2324).
 - [x] RTC: [Experimental] Support transmux RTC to RTMP, [#2093](https://github.com/ossrs/srs/issues/2093).
-- [x] RTC: [Experimental] Support WebRTC over TCP directly, [#2852](https://github.com/ossrs/srs/issues/2852).
+- [x] RTC: [Experimental] Support WebRTC over TCP directly, [#2852](https://github.com/ossrs/srs/issues/2852). v5.0.60+
+- [x] RTC: [Experimental] Support WHIP(WebRTC-HTTP ingestion protocol), [#2324](https://github.com/ossrs/srs/issues/2324). v5.0.61+
 - [x] Other: Support ingesting([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/ingest), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/ingest)) other protocols to SRS by FFMPEG.
 - [x] Other: Support forwarding([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/forward), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/forward)) to other RTMP servers.
 - [x] Other: Support transcoding([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/ffmpeg), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/ffmpeg)) by FFMPEG.
@@ -57,7 +64,7 @@ The features of SRS.
 - [x] Other: Support write log to tencent cloud CLS.
 - [x] Other: [Experimental] Support pushing MPEG-TS over UDP, please read [bug #250](https://github.com/ossrs/srs/issues/250).
 - [x] Other: [Experimental] Support pushing FLV over HTTP POST, please read wiki([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-http-flv-to-srs), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/streamer#push-http-flv-to-srs)).
-- [x] Other: [Experimental] Support push stream by GB28181, [#3176](https://github.com/ossrs/srs/issues/3176).
+- [x] Other: [Experimental] Support push stream by GB28181, [#3176](https://github.com/ossrs/srs/issues/3176). v5.0.74+
 - [ ] System: Support Windows/Cygwin 64bits, [#2532](https://github.com/ossrs/srs/issues/2532).
 - [ ] System: Support H.265 over RTMP and HLS, [#465](https://github.com/ossrs/srs/issues/465).
 - [ ] System: Support source cleanup for idle streams, [#413](https://github.com/ossrs/srs/issues/413).

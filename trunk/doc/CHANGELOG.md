@@ -56,6 +56,7 @@ The changelog for SRS.
 * v5.0, 2022-08-12, Support crossbuild for hisiv500. v5.0.40
 * v5.0, 2022-08-10, Build: Detect OS by packager. v5.0.39
 * v5.0, 2022-08-06, Support MIPS 64bits for loongson 3A4000/3B3000. v5.0.38
+* v5.0, 2022-07-20, Fix [#3115](https://github.com/ossrs/srs/pull/3115): ST: Support RISCV cpu. v5.0.33
 * v5.0, 2022-06-29, Support multiple threads by thread pool. v5.0.32
 * v5.0, 2022-06-28, ST: Support thread-local for multiple threads. v5.0.31
 * v5.0, 2022-06-17, Merge [#3010](https://github.com/ossrs/srs/pull/3010): SRT: Support Coroutine Native SRT over ST. (#3010). v5.0.30
