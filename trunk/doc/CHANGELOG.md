@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-11-18, Fix [#3215](https://github.com/ossrs/srs/issues/3215): Callback: Fix bug for response string 0. v5.0.88
 * v5.0, 2022-11-18, For [#2532](https://github.com/ossrs/srs/issues/2532): Windows: Replace ln by cp for windows. v5.0.87
 * v5.0, 2022-10-31, For [#2899](https://github.com/ossrs/srs/issues/2899): Exporter: Add metrics cpu, memory and uname. v5.0.86
 * v5.0, 2022-10-30, Config: Support startting with environment variable only. v5.0.85
