@@ -1,25 +1,25 @@
 #!/bin/bash
 
 # colorful summary
-SrsHlsSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HLS = YES ]; then SrsHlsSummaryColor="\${GREEN}"; fi
-SrsDvrSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_DVR = YES ]; then SrsDvrSummaryColor="\${GREEN}"; fi
-SrsNginxSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_NGINX = YES ]; then SrsNginxSummaryColor="\${GREEN}"; fi
-SrsSslSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_SSL = YES ]; then SrsSslSummaryColor="\${GREEN}"; fi
-SrsFfmpegSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_FFMPEG_TOOL = YES ]; then SrsFfmpegSummaryColor="\${GREEN}"; fi
-SrsTranscodeSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_TRANSCODE = YES ]; then SrsTranscodeSummaryColor="\${GREEN}"; fi
-SrsIngestSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_INGEST = YES ]; then SrsIngestSummaryColor="\${GREEN}"; fi
-SrsHttpCallbackSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_CALLBACK = YES ]; then SrsHttpCallbackSummaryColor="\${GREEN}"; fi
-SrsHttpServerSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_SERVER = YES ]; then SrsHttpServerSummaryColor="\${GREEN}"; fi
-SrsHttpApiSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_API = YES ]; then SrsHttpApiSummaryColor="\${GREEN}"; fi
-SrsStreamConverterSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_STREAM_CASTER = YES ]; then SrsStreamConverterSummaryColor="\${GREEN}"; fi
-SrsUtestSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_UTEST = YES ]; then SrsUtestSummaryColor="\${GREEN}"; fi
-SrsGperfSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF = YES ]; then SrsGperfSummaryColor="\${GREEN}"; fi
-SrsGperfMCSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_MC = YES ]; then SrsGperfMCSummaryColor="\${YELLOW}"; fi
-SrsGperfMDSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_MD = YES ]; then SrsGperfMDSummaryColor="\${YELLOW}"; fi
-SrsGperfMPSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_MP = YES ]; then SrsGperfMPSummaryColor="\${YELLOW}"; fi
-SrsGperfCPSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_CP = YES ]; then SrsGperfCPSummaryColor="\${YELLOW}"; fi
-SrsGprofSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPROF = YES ]; then SrsGprofSummaryColor="\${YELLOW}"; fi
-SrsValgrindSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_VALGRIND = YES ]; then SrsValgrindSummaryColor="\${GREEN}"; fi
+SrsHlsSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_HLS == YES ]]; then SrsHlsSummaryColor="\${GREEN}"; fi
+SrsDvrSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_DVR == YES ]]; then SrsDvrSummaryColor="\${GREEN}"; fi
+SrsNginxSummaryColor="\${GREEN}(Disabled) "; if [[ $SRS_NGINX == YES ]]; then SrsNginxSummaryColor="\${GREEN}"; fi
+SrsSslSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_SSL == YES ]]; then SrsSslSummaryColor="\${GREEN}"; fi
+SrsFfmpegSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_FFMPEG_TOOL == YES ]]; then SrsFfmpegSummaryColor="\${GREEN}"; fi
+SrsTranscodeSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_TRANSCODE == YES ]]; then SrsTranscodeSummaryColor="\${GREEN}"; fi
+SrsIngestSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_INGEST == YES ]]; then SrsIngestSummaryColor="\${GREEN}"; fi
+SrsHttpCallbackSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_HTTP_CALLBACK == YES ]]; then SrsHttpCallbackSummaryColor="\${GREEN}"; fi
+SrsHttpServerSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_HTTP_SERVER == YES ]]; then SrsHttpServerSummaryColor="\${GREEN}"; fi
+SrsHttpApiSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_HTTP_API == YES ]]; then SrsHttpApiSummaryColor="\${GREEN}"; fi
+SrsStreamConverterSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_STREAM_CASTER == YES ]]; then SrsStreamConverterSummaryColor="\${GREEN}"; fi
+SrsUtestSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_UTEST == YES ]]; then SrsUtestSummaryColor="\${GREEN}"; fi
+SrsGperfSummaryColor="\${GREEN}(Disabled) "; if [[ $SRS_GPERF == YES ]]; then SrsGperfSummaryColor="\${GREEN}"; fi
+SrsGperfMCSummaryColor="\${GREEN}(Disabled) "; if [[ $SRS_GPERF_MC == YES ]]; then SrsGperfMCSummaryColor="\${YELLOW}"; fi
+SrsGperfMDSummaryColor="\${GREEN}(Disabled) "; if [[ $SRS_GPERF_MD == YES ]]; then SrsGperfMDSummaryColor="\${YELLOW}"; fi
+SrsGperfMPSummaryColor="\${GREEN}(Disabled) "; if [[ $SRS_GPERF_MP == YES ]]; then SrsGperfMPSummaryColor="\${YELLOW}"; fi
+SrsGperfCPSummaryColor="\${GREEN}(Disabled) "; if [[ $SRS_GPERF_CP == YES ]]; then SrsGperfCPSummaryColor="\${YELLOW}"; fi
+SrsGprofSummaryColor="\${GREEN}(Disabled) "; if [[ $SRS_GPROF == YES ]]; then SrsGprofSummaryColor="\${YELLOW}"; fi
+SrsValgrindSummaryColor="\${YELLOW}(Disabled) "; if [[ $SRS_VALGRIND == YES ]]; then SrsValgrindSummaryColor="\${GREEN}"; fi
 
 cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
 #!/bin/bash

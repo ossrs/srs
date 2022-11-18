@@ -33,6 +33,7 @@
 
 .idea
 .DS_Store
+*.heap
 
 cmake-build-debug
 /trunk/ide/srs_clion/CMakeCache.txt
