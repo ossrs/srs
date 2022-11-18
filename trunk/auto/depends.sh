@@ -326,6 +326,7 @@ if [[ -d /usr/local/srs-cache/srs/trunk/objs && $(pwd) != "/usr/local/srs-cache/
         echo "Build from cache, source=$SOURCE_DIR, target=$TARGET_DIR" &&
         rm -rf $TARGET_DIR && mkdir -p ${SRS_OBJS} && cp -R $SOURCE_DIR $TARGET_DIR &&
         du -sh /usr/local/srs-cache/srs/trunk/objs/Platform-* &&
+        du -sh /usr/local/srs-cache/srs/trunk/objs/Platform-*/* &&
         du -sh objs/Platform-* &&
         ls -lh objs
     fi
