@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-11-18, For [#2532](https://github.com/ossrs/srs/issues/2532): Windows: Replace ln by cp for windows. v5.0.87
 * v5.0, 2022-10-31, For [#2899](https://github.com/ossrs/srs/issues/2899): Exporter: Add metrics cpu, memory and uname. v5.0.86
 * v5.0, 2022-10-30, Config: Support startting with environment variable only. v5.0.85
 * v5.0, 2022-10-26, Fix [#3218](https://github.com/ossrs/srs/issues/3218): Log: Follow Java/log4j log level specs. v5.0.83

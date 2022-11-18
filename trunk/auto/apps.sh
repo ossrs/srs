@@ -2,8 +2,7 @@
 #
 # params:
 #     $SRS_OBJS the objs directory to store the Makefile. ie. ./objs
-#     $SRS_OBJS_DIR the objs directory for Makefile. ie. objs
-#     $SRS_MAKEFILE the makefile name. ie. Makefile
+#     $SRS_OBJS the objs directory for Makefile. ie. objs
 #
 #     $MAIN_ENTRANCES array, disable all except the $APP_MAIN itself. ie. ["srs_main_server"]
 #     $APP_MAIN the object file that contains main function. ie. srs_main_server
@@ -13,9 +12,9 @@
 #     $ModuleLibFiles array, the 3rdpart library file to link with. ie. [objs/st-1.9/obj/libst.a objs/libx264/obj/libx264.a]
 #     $LINK_OPTIONS the linker options. ie. -ldl
 
-FILE=${SRS_OBJS}/${SRS_MAKEFILE}
+FILE=${SRS_OBJS}/Makefile
 
-APP_TARGET="${SRS_OBJS_DIR}/${APP_NAME}"
+APP_TARGET="${SRS_OBJS}/${APP_NAME}"
 
 echo "Generating app ${APP_NAME} depends.";
 
@@ -40,15 +39,16 @@ for item in ${MODULE_OBJS[*]}; do
         fi
     done
     
-    if [ ! -f ${item} ]; then
+    if [ ! -f ${SRS_WORKDIR}/${item} ]; then
         ignored=1
     fi
     
     if [ ${ignored} == 1 ]; then
+        echo "Ignore file ${FILE_NAME}"
         continue;
     fi
     
-    OBJ_FILE=${SRS_OBJS_DIR}/$item
+    OBJ_FILE=${SRS_OBJS}/$item
     OBJ_FILE="${OBJ_FILE%.*}.o"
     echo -n "${OBJ_FILE} " >> ${FILE}
 done
@@ -71,15 +71,16 @@ for item in ${MODULE_OBJS[*]}; do
         fi
     done
     
-    if [ ! -f ${item} ]; then
+    if [ ! -f ${SRS_WORKDIR}/${item} ]; then
         ignored=1
     fi
     
     if [ ${ignored} == 1 ]; then
+        echo "Ignore file ${FILE_NAME}"
         continue;
     fi
     
-    OBJ_FILE=${SRS_OBJS_DIR}/$item
+    OBJ_FILE=${SRS_OBJS}/$item
     OBJ_FILE="${OBJ_FILE%.*}.o"
     echo -n "${OBJ_FILE} " >> ${FILE}
 done
