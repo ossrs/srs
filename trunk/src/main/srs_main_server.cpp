@@ -74,6 +74,9 @@ bool _srs_config_by_env = false;
 // The binary name of SRS.
 const char* _srs_binary = NULL;
 
+// Free global data, for address sanitizer.
+extern void srs_free_global_system_ips();
+
 /**
  * main entrance.
  */
@@ -222,7 +225,9 @@ srs_error_t do_main(int argc, char** argv, char** envp)
     if ((err = run_directly_or_daemon()) != srs_success) {
         return srs_error_wrap(err, "run");
     }
-    
+
+    srs_free_global_system_ips();
+
     return err;
 }
 
@@ -447,6 +452,7 @@ srs_error_t run_directly_or_daemon()
         int status = 0;
         waitpid(pid, &status, 0);
         srs_trace("grandpa process exit.");
+        srs_free_global_system_ips();
         exit(0);
     }
     
@@ -459,6 +465,7 @@ srs_error_t run_directly_or_daemon()
     
     if(pid > 0) {
         srs_trace("father process exit");
+        srs_free_global_system_ips();
         exit(0);
     }
     
