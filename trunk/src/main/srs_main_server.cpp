@@ -475,6 +475,10 @@ srs_error_t run_directly_or_daemon()
 srs_error_t run_hybrid_server(void* arg);
 srs_error_t run_in_thread_pool()
 {
+#ifdef SRS_SINGLE_THREAD
+    srs_trace("Run in single thread mode");
+    return run_hybrid_server(NULL);
+#else
     srs_error_t err = srs_success;
 
     // Initialize the thread pool.
@@ -490,6 +494,7 @@ srs_error_t run_in_thread_pool()
     srs_trace("Pool: Start threads primordial=1, hybrids=1 ok");
 
     return _srs_thread_pool->run();
+#endif
 }
 
 #include <srs_app_tencentcloud.hpp>
