@@ -616,6 +616,15 @@ if [[ $SRS_RTC == YES ]]; then
             cd ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit &&
             $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/srtp2
         ) &&
+        # Sometimes it might fail because autoconf failed to generate crypto/include.config.h
+        if [[ $SRS_CYGWIN64 == YES ]]; then
+            SRS_PATCH_SOURCE=${SRS_WORKDIR}/3rdparty/patches/srtp/cygwin-crypto-include-config.h
+            if [[ $SRS_SRTP_ASM == YES ]]; then
+                SRS_PATCH_SOURCE=${SRS_WORKDIR}/3rdparty/patches/srtp/cygwin-gcm-crypto-include-config.h
+            fi
+            grep -q 'HAVE_UINT64_T 1' ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/crypto/include/config.h ||
+            cp -f $SRS_PATCH_SOURCE ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/crypto/include/config.h
+        fi &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit ${SRS_JOBS} &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit install &&
         cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srtp2 ${SRS_OBJS}/ &&

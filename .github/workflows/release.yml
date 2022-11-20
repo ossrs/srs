@@ -64,6 +64,165 @@ jobs:
         run: |
           docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && \
           cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
+    outputs:
+      SRS_TEST_DONE: ok
+
+  draft:
+    name: draft
+    runs-on: ubuntu-20.04
+    needs:
+      - envs
+    steps:
+      - name: Create release draft
+        id: create_draft
+        uses: ncipollo/release-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          allowUpdates: true
+          tag: ${{ github.ref }}
+          draft: true
+          prerelease: true
+    outputs:
+      SRS_RELEASE_ID: ${{ steps.create_draft.outputs.id }}
+
+  cygwin64:
+    name: cygwin64
+    runs-on: windows-latest
+    needs:
+      - envs
+      - draft
+    steps:
+      # See https://github.com/cygwin/cygwin-install-action#parameters
+      # Note that https://github.com/egor-tensin/setup-cygwin fails to install packages.
+      - name: Setup Cygwin
+        uses: cygwin/cygwin-install-action@master
+        with:
+          platform: x86_64
+          packages: bash make gcc-g++ cmake automake patch pkg-config tcl
+          install-dir: C:\cygwin64
+      ##################################################################################################################
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      ##################################################################################################################
+      - name: Covert output to env
+        env:
+          SHELLOPTS: igncr
+        shell: C:\cygwin64\bin\bash.exe --login '{0}'
+        run: |
+          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
+          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
+          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
+          echo "SRS_RELEASE_ID=${{ needs.draft.outputs.SRS_RELEASE_ID }}" >> $GITHUB_ENV
+      ##################################################################################################################
+      - name: Build SRS
+        env:
+          SHELLOPTS: igncr
+          SRS_WORKSPACE: ${{ github.workspace }}
+        shell: C:\cygwin64\bin\bash.exe --login '{0}'
+        run: |
+          export PATH=/usr/bin:/usr/local/bin &&
+          which make gcc g++ patch cmake pkg-config uname grep sed &&
+          (make --version; gcc --version; patch --version; cmake --version; pkg-config --version) && 
+          (aclocal --version; autoconf --version; automake --version; uname -a) &&
+          cd $(cygpath -u $SRS_WORKSPACE)/trunk && ./configure && make
+      ##################################################################################################################
+      - name: Package SRS
+        env:
+          SHELLOPTS: igncr
+          SRS_WORKSPACE: ${{ github.workspace }}
+        shell: C:\cygwin64\bin\bash.exe --login '{0}'
+        run: |
+          cd $(cygpath -u $SRS_WORKSPACE) &&
+          if [[ $(echo $SRS_TAG |grep -qE '^v' && echo YES) != YES ]]; then 
+              SRS_VERSION=$(./trunk/objs/srs -v 2>&1); echo "Change version to ${SRS_VERSION}"; 
+          fi &&
+          "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe" /DSRS_VERSION=${SRS_VERSION} \
+              /DCYGWIN_DIR="C:\cygwin64" trunk/packaging/nsis/srs.nsi &&
+          mv trunk/packaging/nsis/SRS-Windows-x86_64-${SRS_VERSION}-setup.exe . && ls -lh *.exe &&
+          echo "SRS_CYGWIN_TAR=SRS-Windows-x86_64-${SRS_VERSION}-setup.exe" >> $GITHUB_ENV &&
+          echo "SRS_CYGWIN_MD5=$(md5sum SRS-Windows-x86_64-${SRS_VERSION}-setup.exe| awk '{print $1}')" >> $GITHUB_ENV
+      ##################################################################################################################
+      - name: Upload Release Assets Cygwin
+        id: upload-release-assets-cygwin
+        uses: dwenegar/upload-release-assets@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ env.SRS_RELEASE_ID }}
+          assets_path: ${{ env.SRS_CYGWIN_TAR }}
+    outputs:
+      SRS_CYGWIN_TAR: ${{ env.SRS_CYGWIN_TAR }}
+      SRS_CYGWIN_MD5: ${{ env.SRS_CYGWIN_MD5 }}
+
+  linux:
+    name: linux
+    runs-on: ubuntu-20.04
+    needs:
+      - envs
+      - draft
+    steps:
+      ##################################################################################################################
+      - name: Covert output to env
+        run: |
+          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
+          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
+          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
+          echo "SRS_RELEASE_ID=${{ needs.draft.outputs.SRS_RELEASE_ID }}" >> $GITHUB_ENV
+      ##################################################################################################################
+      # Git checkout
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      ##################################################################################################################
+      # Create source tar for release. Note that it's for OpenWRT package srs-server, so the filename MUST be
+      # srs-server-xxx.tar.gz, because the package is named srs-server.
+      # Generate variables like:
+      #   SRS_SOURCE_TAR=srs-server-5.0.145.tar.gz
+      #   SRS_SOURCE_MD5=83e38700a80a26e30b2df054e69956e5
+      - name: Create source tar.gz
+        run: |
+          DEST_DIR=srs-server-$SRS_VERSION && mkdir -p $DEST_DIR &&
+          cp README.md $DEST_DIR && cp LICENSE $DEST_DIR && cp -R trunk $DEST_DIR/trunk &&
+          (cd $DEST_DIR/trunk/3rdparty && rm -rf *.zip openssl-*.gz srs-bench) &&
+          tar zcf ${DEST_DIR}.tar.gz ${DEST_DIR} && du -sh ${DEST_DIR}* && rm -rf ${DEST_DIR} &&
+          echo "SRS_SOURCE_TAR=${DEST_DIR}.tar.gz" >> $GITHUB_ENV &&
+          echo "SRS_SOURCE_MD5=$(md5sum ${DEST_DIR}.tar.gz| awk '{print $1}')" >> $GITHUB_ENV
+      # Create package tar for release
+      # Generate variables like:
+      #   SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-5.0.145.zip
+      #   SRS_PACKAGE_MD5=3880a26e30b283edf05700a4e69956e5
+      - name: Create package zip
+        env:
+          PACKAGER: ${{ secrets.SRS_PACKAGER_BINARY }}
+        run: |
+          docker build --tag srs:pkg --build-arg version=$SRS_VERSION --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile.pkg . &&
+          SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-$SRS_VERSION.zip &&
+          docker run --rm -v $(pwd):/output srs:pkg cp objs/$SRS_PACKAGE_ZIP /output/ &&
+          du -sh $SRS_PACKAGE_ZIP &&
+          echo "SRS_PACKAGE_ZIP=$SRS_PACKAGE_ZIP" >> $GITHUB_ENV &&
+          echo "SRS_PACKAGE_MD5=$(md5sum $SRS_PACKAGE_ZIP| awk '{print $1}')" >> $GITHUB_ENV
+      ##################################################################################################################
+      - name: Upload Release Assets Packager
+        id: upload-release-assets-packager
+        uses: dwenegar/upload-release-assets@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ env.SRS_RELEASE_ID }}
+          assets_path: ${{ env.SRS_PACKAGE_ZIP }}
+      - name: Upload Release Assets Source
+        id: upload-release-assets-source
+        uses: dwenegar/upload-release-assets@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ env.SRS_RELEASE_ID }}
+          assets_path: ${{ env.SRS_SOURCE_TAR }}
+    outputs:
+      SRS_PACKAGE_ZIP: ${{ env.SRS_PACKAGE_ZIP }}
+      SRS_PACKAGE_MD5: ${{ env.SRS_PACKAGE_MD5 }}
+      SRS_SOURCE_TAR: ${{ env.SRS_SOURCE_TAR }}
+      SRS_SOURCE_MD5: ${{ env.SRS_SOURCE_MD5 }}
 
   docker-srs:
     name: docker-srs
@@ -113,6 +272,8 @@ jobs:
             ossrs/srs:${{ env.SRS_VERSION }}
             ossrs/srs:${{ env.SRS_MAJOR }}
             ossrs/srs:v${{ env.SRS_MAJOR }}
+    outputs:
+      SRS_DOCKER_DONE: ok
 
   aliyun-srs:
     name: aliyun-srs
@@ -144,6 +305,8 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_VERSION }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_MAJOR }}
+    outputs:
+      SRS_ALIYUN_DONE: ok
 
   update:
     name: update
@@ -209,13 +372,18 @@ jobs:
               docker rmi -f $image
               echo "Remove image $image, r0=$?"
             done
+    outputs:
+      SRS_UPDATE_DONE: ok
 
   release:
     name: release
     runs-on: ubuntu-20.04
     needs:
-      - update
+      #- update
       - envs
+      - draft
+      - cygwin64
+      - linux
     steps:
       ##################################################################################################################
       - name: Covert output to env
@@ -223,54 +391,37 @@ jobs:
           echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
           echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
           echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
+          echo "SRS_RELEASE_ID=${{ needs.draft.outputs.SRS_RELEASE_ID }}" >> $GITHUB_ENV
+          echo "SRS_PACKAGE_ZIP=${{ needs.linux.outputs.SRS_PACKAGE_ZIP }}" >> $GITHUB_ENV
+          echo "SRS_PACKAGE_MD5=${{ needs.linux.outputs.SRS_PACKAGE_MD5 }}" >> $GITHUB_ENV
+          echo "SRS_SOURCE_TAR=${{ needs.linux.outputs.SRS_SOURCE_TAR }}" >> $GITHUB_ENV
+          echo "SRS_SOURCE_MD5=${{ needs.linux.outputs.SRS_SOURCE_MD5 }}" >> $GITHUB_ENV
+          echo "SRS_CYGWIN_TAR=${{ needs.cygwin64.outputs.SRS_CYGWIN_TAR }}" >> $GITHUB_ENV
+          echo "SRS_CYGWIN_MD5=${{ needs.cygwin64.outputs.SRS_CYGWIN_MD5 }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
         uses: actions/checkout@v2
-      ##################################################################################################################
-      # Create source tar for release. Note that it's for OpenWRT package srs-server, so the filename MUST be
-      # srs-server-xxx.tar.gz, because the package is named srs-server.
-      # Generate variables like:
-      #   SRS_SOURCE_TAR=srs-server-5.0.145.tar.gz
-      #   SRS_SOURCE_MD5=83e38700a80a26e30b2df054e69956e5
-      - name: Create source tar.gz
-        run: |
-          DEST_DIR=srs-server-$SRS_VERSION && mkdir -p $DEST_DIR &&
-          cp README.md $DEST_DIR && cp LICENSE $DEST_DIR && cp -R trunk $DEST_DIR/trunk &&
-          (cd $DEST_DIR/trunk/3rdparty && rm -rf *.zip openssl-*.gz srs-bench) &&
-          tar zcf ${DEST_DIR}.tar.gz ${DEST_DIR} && du -sh ${DEST_DIR}* && rm -rf ${DEST_DIR} &&
-          echo "SRS_SOURCE_TAR=${DEST_DIR}.tar.gz" >> $GITHUB_ENV &&
-          echo "SRS_SOURCE_MD5=$(md5sum ${DEST_DIR}.tar.gz| awk '{print $1}')" >> $GITHUB_ENV
-      # Create package tar for release
-      # Generate variables like:
-      #   SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-5.0.145.zip
-      #   SRS_PACKAGE_MD5=3880a26e30b283edf05700a4e69956e5
-      - name: Create package zip
-        env:
-          PACKAGER: ${{ secrets.SRS_PACKAGER_BINARY }}
-        run: |
-          docker build --tag srs:pkg --build-arg version=$SRS_VERSION --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile.pkg . &&
-          SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-$SRS_VERSION.zip &&
-          docker run --rm -v $(pwd):/output srs:pkg cp objs/$SRS_PACKAGE_ZIP /output/ &&
-          du -sh $SRS_PACKAGE_ZIP &&
-          echo "SRS_PACKAGE_ZIP=$SRS_PACKAGE_ZIP" >> $GITHUB_ENV &&
-          echo "SRS_PACKAGE_MD5=$(md5sum $SRS_PACKAGE_ZIP| awk '{print $1}')" >> $GITHUB_ENV
       # Create release.
       # TODO: FIXME: Refine the release when 5.0 released
       # TODO: FIXME: Change prerelease to false when 5.0 released
-      - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Update release
+        id: update_release
+        uses: ncipollo/release-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          allowUpdates: true
+          tag: ${{ github.ref }}
+          name: Release ${{ env.SRS_TAG }}
           body: |
-            [${{ github.event.head_commit.message }}](https://github.com/ossrs/srs/commit/${{ github.sha }})
+            [${{ github.sha }}](https://github.com/ossrs/srs/commit/${{ github.sha }})
+            ${{ github.event.head_commit.message }}
+            
             ## Resource
             * Source: ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
             * Binary: ${{ env.SRS_PACKAGE_MD5 }} [${{ env.SRS_PACKAGE_ZIP }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_PACKAGE_ZIP }})
+            * Binary: ${{ env.SRS_CYGWIN_MD5 }} [${{ env.SRS_CYGWIN_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_CYGWIN_TAR }})
             ## Docker
             * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started)
             * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started)
@@ -282,29 +433,12 @@ jobs:
             * [中文FAQ](https://ossrs.net/lts/zh-cn/faq) or [FAQ](https://ossrs.io/lts/en-us/faq), [Features](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) or [ChangeLogs](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false
           prerelease: true
-      # Upload release source files
-      - name: Upload Release Assets Source
-        id: upload-release-assets-source
-        uses: dwenegar/upload-release-assets@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          release_id: ${{ steps.create_release.outputs.id }}
-          assets_path: ${{ env.SRS_SOURCE_TAR }}
-      # Upload release package files
-      - name: Upload Release Assets Package
-        id: upload-release-assets-package
-        uses: dwenegar/upload-release-assets@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          release_id: ${{ steps.create_release.outputs.id }}
-          assets_path: ${{ env.SRS_PACKAGE_ZIP }}
 
   done:
     name: done
     runs-on: ubuntu-20.04
     needs:
+      - update
       - release
     steps:
       - run: echo 'All done'

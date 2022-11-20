@@ -23,6 +23,7 @@ The features of SRS.
 - [x] System: [Experimental] Support distributed tracing by Tencent Cloud APM. v5.0.64+
 - [x] System: [Experimental] Support grab backtrace stack when assert fail. v5.0.80+
 - [x] System: [Experimental] Support Google Address Sanitizer, [#3216](https://github.com/ossrs/srs/issues/3216). v5.0.81+
+- [x] System: [Experimental] Windows: Support cygwin pipline and packager, [#2532](https://github.com/ossrs/srs/issues/2532). v5.0.89+
 - [x] API: Support HTTP API([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-api)) for system management.
 - [x] API: Support HTTP callback([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-callback)) for authentication and integration.
 - [x] API: Support reuse HTTP Stream port for HTTP API, [#2881](https://github.com/ossrs/srs/issues/2881).
