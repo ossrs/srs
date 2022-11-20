@@ -22,6 +22,8 @@ typedef void* srs_mutex_t;
 
 // Initialize st, requires epoll.
 extern srs_error_t srs_st_init();
+// UnInitialize st
+extern void srs_st_uninit(void);
 
 // Close the netfd, and close the underlayer fd.
 // @remark when close, user must ensure io completed.
