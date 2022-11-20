@@ -5,6 +5,10 @@ OS_KERNEL_NAME=$(uname -s)
 OS_KERNRL_RELEASE=$(uname -r|awk -F '-' '{print $1}')
 OS_PREFIX="Platform"
 
+if [[ $OSTYPE == cygwin ]]; then
+    OS_KERNRL_RELEASE=$(uname -r|awk -F '(' '{print $1}')
+fi
+
 # Build platform cache.
 SRS_PLATFORM="${SRS_BUILD_TAG}${OS_PREFIX}-${OS_KERNEL_NAME}-${OS_KERNRL_RELEASE}"
 # Build platform cache with gcc version.

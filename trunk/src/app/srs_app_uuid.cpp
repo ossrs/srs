@@ -6,6 +6,10 @@
 
 #include <srs_app_uuid.hpp>
 
+#if defined(SRS_CYGWIN64)
+#define HAVE_LOFF_T
+#endif
+
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/file.h>
@@ -1082,7 +1086,9 @@ void uuid_generate(uuid_t out)
 #include <string.h>
 #include <sys/time.h>
 
+#if defined(__linux__) && defined(HAVE_SYS_SYSCALL_H)
 #include <sys/syscall.h>
+#endif
 
 //#include "randutils.h"
 

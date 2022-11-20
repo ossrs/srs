@@ -293,7 +293,7 @@ OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$re
 #####################################################################################
 # Check OS and CPU architectures.
 #####################################################################################
-if [[ $OS_IS_UBUNTU != YES && $OS_IS_CENTOS != YES && $OS_IS_OSX != YES && $SRS_CROSS_BUILD != YES ]]; then
+if [[ $OS_IS_UBUNTU != YES && $OS_IS_CENTOS != YES && $OS_IS_OSX != YES && $SRS_CROSS_BUILD != YES && $SRS_CYGWIN64 != YES ]]; then
     echo "Your OS `uname -s` is not supported."
     exit 1
 fi
@@ -346,6 +346,10 @@ fi
 # for osx, use darwin for st, donot use epoll.
 if [[ $SRS_OSX == YES ]]; then
     _ST_MAKE=darwin-debug && _ST_OBJ="DARWIN_`uname -r`_DBG"
+fi
+# for windows/cygwin
+if [[ $SRS_CYGWIN64 = YES ]]; then
+    _ST_MAKE=cygwin64-debug && _ST_OBJ="CYGWIN64_`uname -s`_DBG"
 fi
 # For Ubuntu, the epoll detection might be fail.
 if [[ $OS_IS_UBUNTU == YES ]]; then
@@ -598,8 +602,16 @@ if [[ $SRS_RTC == YES ]]; then
         rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srtp2 \
             ${SRS_OBJS}/srtp2 &&
         cp -rf ${SRS_WORKDIR}/3rdparty/libsrtp-2-fit ${SRS_OBJS}/${SRS_PLATFORM}/ &&
-        patch -p0 ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/crypto/math/datatypes.c ${SRS_WORKDIR}/3rdparty/patches/srtp/gcc10-01.patch &&
-        patch -p0 ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/config.guess ${SRS_WORKDIR}/3rdparty/patches/srtp/config.guess-02.patch &&
+        # For cygwin64, the patch is not available, so use sed instead.
+        if [[ $SRS_CYGWIN64 == YES ]]; then
+            sed -i 's/char bit_string/static char bit_string/g' ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/crypto/math/datatypes.c
+        else
+            patch -p0 ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/crypto/math/datatypes.c ${SRS_WORKDIR}/3rdparty/patches/srtp/gcc10-01.patch
+        fi &&
+        # Patch the cpu arch guessing for RISCV.
+        if [[ $OS_IS_RISCV == YES ]]; then
+            patch -p0 ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/config.guess ${SRS_WORKDIR}/3rdparty/patches/srtp/config.guess-02.patch
+        fi &&
         (
             cd ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit &&
             $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/srtp2
@@ -768,15 +780,15 @@ if [[ $SRS_SRT == YES ]]; then
     else
         LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=0"
     fi
+    # For windows build, over cygwin
+    if [[ $SRS_CYGWIN64 == YES ]]; then
+        LIBSRT_OPTIONS="$LIBSRT_OPTIONS --cygwin-use-posix"
+    fi
     # For cross-build.
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         TOOL_GCC_REALPATH=$(realpath $(which $SRS_TOOL_CC))
         SRT_COMPILER_PREFIX=$(echo $TOOL_GCC_REALPATH |sed 's/-gcc.*$/-/')
         LIBSRT_OPTIONS="$LIBSRT_OPTIONS --with-compiler-prefix=$SRT_COMPILER_PREFIX"
-    fi
-    # For windows build, over cygwin
-    if [[ $SRS_CYGWIN64 == YES ]]; then
-        LIBSRT_OPTIONS="$LIBSRT_OPTIONS --cygwin-use-posix"
     fi
 
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srt/lib/libsrt.a ]]; then
