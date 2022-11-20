@@ -24,6 +24,10 @@ using namespace std;
 #include <gperftools/malloc_extension.h>
 #endif
 
+#ifdef SRS_SANITIZER
+#include <sanitizer/asan_interface.h>
+#endif
+
 #include <unistd.h>
 using namespace std;
 
@@ -216,6 +220,14 @@ srs_error_t do_main(int argc, char** argv, char** envp)
         double otrr = MallocExtension::instance()->GetMemoryReleaseRate();
         MallocExtension::instance()->SetMemoryReleaseRate(trr);
         srs_trace("tcmalloc: set release-rate %.2f=>%.2f", otrr, trr);
+    }
+#endif
+
+#ifdef SRS_SANITIZER
+    bool log_tank_file = _srs_config->get_log_tank_file();
+    std::string asan_log = _srs_config->get_asan_log_file();
+    if (log_tank_file && !asan_log.empty()) {
+        __sanitizer_set_report_path(asan_log.c_str());
     }
 #endif
     

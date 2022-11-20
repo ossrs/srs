@@ -870,6 +870,8 @@ public:
     virtual std::string get_log_level_v2();
     // Get the log file path.
     virtual std::string get_log_file();
+    // Get the asan log file path.
+    virtual std::string get_asan_log_file();
     // Whether ffmpeg log enabled
     virtual bool get_ff_log_enabled();
     // The ffmpeg log dir.

@@ -6352,6 +6352,20 @@ string SrsConfig::get_log_file()
     return conf->arg0();
 }
 
+string SrsConfig::get_asan_log_file()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.srs_asan_log_file");
+
+    static string DEFAULT = "./objs/srs_asan";
+
+    SrsConfDirective* conf = root->get("srs_asan_log_file");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
 bool SrsConfig::get_ff_log_enabled()
 {
     string log = get_ff_log_dir();
