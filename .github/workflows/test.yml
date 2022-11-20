@@ -4,9 +4,29 @@ name: "Test"
 on: [push, pull_request]
 
 jobs:
+  cygwin64-cache:
+    name: cygwin64-cache
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Download Cache for Cygwin
+        run: |
+          docker run --rm -v $(pwd):/srs -w /usr/local/srs-cache/srs/trunk ossrs/srs:cygwin64-cache \
+            tar jcf /srs/objs.tar.bz2 objs &&
+          pwd && du -sh *
+      ##################################################################################################################
+      - uses: actions/upload-artifact@v2
+        with:
+          name: srs-cache
+          path: objs.tar.bz2
+          retention-days: 1
+    outputs:
+      SRS_CYGWIN_CACHE_DONE: ok
+
   cygwin64:
     name: cygwin64
     runs-on: windows-latest
+    needs:
+      - cygwin64-cache
     steps:
       # See https://github.com/cygwin/cygwin-install-action#parameters
       # Note that https://github.com/egor-tensin/setup-cygwin fails to install packages.
@@ -20,15 +40,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
       ##################################################################################################################
+      # Note that we must download artifact after checkout code, because it will change the files in workspace.
+      - uses: actions/download-artifact@v2
+        with:
+          name: srs-cache
+      - uses: geekyeggo/delete-artifact@v2
+        with:
+          name: srs-cache
+      ##################################################################################################################
       - name: Build and test SRS
         env:
           SHELLOPTS: igncr
           SRS_WORKSPACE: ${{ github.workspace }}
         shell: C:\cygwin64\bin\bash.exe --login '{0}'
         run: |
-          export PATH=/usr/bin:/usr/local/bin &&
-          cd $(cygpath -u $SRS_WORKSPACE)/trunk && ./configure --utest=on && make utest &&
-          ./objs/srs_utest
+          WORKDIR=$(cygpath -u $SRS_WORKSPACE) && export PATH=/usr/bin:/usr/local/bin && cd ${WORKDIR} &&
+          pwd && ls -lh && rm -rf trunk/objs && tar xf objs.tar.bz2 -C trunk/ && du -sh trunk/* &&
+          cd ${WORKDIR}/trunk && ./configure --utest=on && make utest && ./objs/srs_utest
     outputs:
       SRS_CYGWIN_DONE: ok
 
@@ -121,8 +149,6 @@ jobs:
   build-cross-arm:
     name: build-cross-arm
     runs-on: ubuntu-20.04
-    needs:
-      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -136,8 +162,6 @@ jobs:
   build-cross-aarch64:
     name: build-cross-aarch64
     runs-on: ubuntu-20.04
-    needs:
-      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2

@@ -317,8 +317,8 @@ echo ""
 #####################################################################################
 # Try to load cache if exists /usr/local/srs-cache
 #####################################################################################
-# Use srs-cache from base image.
-# See https://github.com/ossrs/dev-docker/blob/ubuntu20-cache/Dockerfile
+# Use srs-cache from base image. See https://github.com/ossrs/dev-docker/blob/ubuntu20-cache/Dockerfile
+# Note that the cache for cygwin is not under /usr/local, but copy to objs instead.
 if [[ -d /usr/local/srs-cache/srs/trunk/objs && $(pwd) != "/usr/local/srs-cache/srs/trunk" ]]; then
     SOURCE_DIR=$(ls -d /usr/local/srs-cache/srs/trunk/objs/Platform-* 2>/dev/null|head -n 1)
     if [[ -d $SOURCE_DIR ]]; then
