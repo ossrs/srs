@@ -380,7 +380,7 @@ jobs:
     name: release
     runs-on: ubuntu-20.04
     needs:
-      #- update
+      - update
       - envs
       - draft
       - cygwin64
