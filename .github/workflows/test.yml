@@ -202,7 +202,10 @@ jobs:
         run: docker run --rm srs:test bash -c 'make utest && ./objs/srs_utest'
       # For regression-test
       - name: Run SRS regression-test
-        run: docker run --rm srs:test bash -c 'make && (./objs/srs -c conf/regression-test.conf; ./etc/init.d/srs status) && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
+        run: |
+          docker run --rm srs:test bash -c 'make && \
+            (./objs/srs -c conf/regression-test.conf; ./etc/init.d/srs status) && \
+            cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
     outputs:
       SRS_UTEST_DONE: ok
 

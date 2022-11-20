@@ -62,8 +62,9 @@ jobs:
       # For regression-test
       - name: Run SRS regression-test
         run: |
-          docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && \
-          cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
+          docker run --rm srs:test bash -c 'make && \
+            (./objs/srs -c conf/regression-test.conf; ./etc/init.d/srs status) && \
+            cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
     outputs:
       SRS_TEST_DONE: ok
 
