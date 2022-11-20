@@ -330,7 +330,7 @@ SrsProcSystemStat* srs_get_system_proc_stat()
 
 bool get_proc_system_stat(SrsProcSystemStat& r)
 {
-#ifndef SRS_OSX
+#if !defined(SRS_OSX)
     FILE* f = fopen("/proc/stat", "r");
     if (f == NULL) {
         srs_warn("open system cpu stat failed, ignore");
@@ -369,7 +369,7 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
 
 bool get_proc_self_stat(SrsProcSelfStat& r)
 {
-#ifndef SRS_OSX
+#if !defined(SRS_OSX)
     FILE* f = fopen("/proc/self/stat", "r");
     if (f == NULL) {
         srs_warn("open self cpu stat failed, ignore");
@@ -493,7 +493,7 @@ SrsDiskStat* srs_get_disk_stat()
 
 bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
 {
-#ifndef SRS_OSX
+#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
     FILE* f = fopen("/proc/vmstat", "r");
     if (f == NULL) {
         srs_warn("open vmstat failed, ignore");
@@ -525,7 +525,7 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
     r.ok = true;
     r.sample_time = srsu2ms(srs_update_system_time());
 
-#ifndef SRS_OSX
+#if !defined(SRS_OSX)
     // if disabled, ignore all devices.
     SrsConfDirective* conf = _srs_config->get_stats_disk_device();
     if (conf == NULL) {
@@ -689,7 +689,7 @@ void srs_update_meminfo()
 {
     SrsMemInfo& r = _srs_system_meminfo;
 
-#ifndef SRS_OSX
+#if !defined(SRS_OSX)
     FILE* f = fopen("/proc/meminfo", "r");
     if (f == NULL) {
         srs_warn("open meminfo failed, ignore");
@@ -783,7 +783,7 @@ void srs_update_platform_info()
     
     r.srs_startup_time = srsu2ms(srs_get_system_startup_time());
 
-#ifndef SRS_OSX
+#if !defined(SRS_OSX)
     if (true) {
         FILE* f = fopen("/proc/uptime", "r");
         if (f == NULL) {
@@ -877,7 +877,7 @@ static SrsSnmpUdpStat _srs_snmp_udp_stat;
 
 bool get_udp_snmp_statistic(SrsSnmpUdpStat& r)
 {
-#ifndef SRS_OSX
+#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
     if (true) {
         FILE* f = fopen("/proc/net/snmp", "r");
         if (f == NULL) {
@@ -983,7 +983,7 @@ int srs_get_network_devices_count()
 
 void srs_update_network_devices()
 {
-#ifndef SRS_OSX
+#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
     if (true) {
         FILE* f = fopen("/proc/net/dev", "r");
         if (f == NULL) {
@@ -1071,7 +1071,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     int nb_tcp_mem = 0;
     int nb_udp4 = 0;
 
-#ifndef SRS_OSX
+#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
     if (true) {
         FILE* f = fopen("/proc/net/sockstat", "r");
         if (f == NULL) {
@@ -1119,7 +1119,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
 
     int nb_tcp_estab = 0;
 
-#ifndef SRS_OSX
+#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
     if (true) {
         FILE* f = fopen("/proc/net/snmp", "r");
         if (f == NULL) {

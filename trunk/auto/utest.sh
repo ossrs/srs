@@ -17,7 +17,13 @@ mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/utest
 # trunk of srs, which contains the src dir, relative to objs/utest, it's trunk
 SRS_TRUNK_PREFIX=../../..
 # gest dir, relative to objs/utest, it's trunk/objs/{Platform}/gtest
-GTEST_DIR=${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/gtest/googletest
+GTEST_DIR=../3rdpatry/gtest/googletest
+
+# Whether enable C++11 or higher versions.
+# For linux, always use C++11 for gtest required, see https://github.com/google/googletest
+# For cygwin64, ignore because it use -std=gnu++11 by default.
+SRS_CPP_VERSION="-std=c++11"
+if [[ $SRS_CYGWIN64 == YES ]]; then SRS_CPP_VERSION="-std=gnu++11"; fi
 
 cat << END > ${FILE}
 # user must run make the ${SRS_OBJS}/utest dir
@@ -51,9 +57,9 @@ CXX = ${SRS_TOOL_CXX}
 CPPFLAGS += -I\$(GTEST_DIR)/include
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += ${CXXFLAGS} ${UTEST_EXTRA_DEFINES} -Wno-unused-private-field -Wno-unused-command-line-argument
-# Always use C++11 for gtest required, see https://github.com/google/googletest
-CXXFLAGS += -std=c++11
+CXXFLAGS += ${CXXFLAGS} ${UTEST_EXTRA_DEFINES}
+CXXFLAGS += -Wno-unused-private-field -Wno-unused-command-line-argument
+CXXFLAGS += ${SRS_CPP_VERSION}
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.

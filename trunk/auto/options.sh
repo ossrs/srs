@@ -84,6 +84,7 @@ SRS_GPROF=NO # Performance test: gprof
 ################################################################
 # Preset options
 SRS_OSX= #For OSX/macOS/Darwin PC.
+SRS_CYGWIN64= # For Cygwin64 for Windows PC or servers.
 SRS_CROSS_BUILD= #For cross build, for example, on Ubuntu.
 # For cross build, the cpu, for example(FFmpeg), --cpu=24kc
 SRS_CROSS_BUILD_CPU=
@@ -119,6 +120,7 @@ function show_help() {
 Presets:
   --cross-build             Enable cross-build, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
   --osx                     Enable build for OSX/Darwin AppleOS. Default: $(value2switch $SRS_OSX)
+  --cygwin64                Use cygwin64 to build for Windows. Default: $(value2switch $SRS_CYGWIN64)
 
 Features:
   -h, --help                Print this message and exit 0.
@@ -253,6 +255,7 @@ function parse_user_option() {
         --build-tag)                    SRS_BUILD_TAG=${value}      ;;
 
         --osx)                          SRS_OSX=YES                 ;;
+        --cygwin64)                     SRS_CYGWIN64=YES            ;;
 
         --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
         --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;;
@@ -450,6 +453,10 @@ do
 done
 
 function apply_auto_options() {
+    if [[ $OS_IS_CYGWIN == YES ]]; then
+        SRS_CYGWIN64=YES
+    fi
+
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         if [[ $SRS_CROSS_BUILD_PREFIX != "" && $SRS_CROSS_BUILD_HOST == "" ]]; then
             SRS_CROSS_BUILD_HOST=$(echo $SRS_CROSS_BUILD_PREFIX| sed 's/-$//g')
@@ -500,6 +507,31 @@ function apply_auto_options() {
 
     if [[ $SRS_SRTP_ASM == YES && $SRS_NASM == NO ]]; then
         echo "Disable SRTP-ASM, because NASM is disabled."
+        SRS_SRTP_ASM=NO
+    fi
+
+    # TODO: FIXME: Should build address sanitizer for cygwin64.
+    # See https://github.com/ossrs/srs/issues/3252
+    if [[ $SRS_CYGWIN64 == YES && $SRS_SANITIZER == YES ]]; then
+        echo "Disable address sanitizer for cygwin64"
+        SRS_SANITIZER=NO
+    fi
+    # TODO: FIXME: Should fix bug for SRT for cygwin64. Build ok, but fail in SrsSrtSocket::accept.
+    # See https://github.com/ossrs/srs/issues/3251
+    if [[ $SRS_CYGWIN64 == YES && $SRS_SRT == YES ]]; then
+        echo "Disable SRT for cygwin64"
+        SRS_SRT=NO
+    fi
+    # TODO: FIXME: Cygwin: ST stuck when working in multiple threads mode.
+    # See https://github.com/ossrs/srs/issues/3253
+    if [[ $SRS_CYGWIN64 == YES && $SRS_SINGLE_THREAD != YES ]]; then
+        echo "Force single thread for cygwin64"
+        SRS_SINGLE_THREAD=YES
+    fi
+    # TODO: FIXME: Cygwin: Build srtp with openssl fail for no srtp_aes_icm_ctx_t
+    # See https://github.com/ossrs/srs/issues/3254
+    if [[ $SRS_CYGWIN64 == YES && $SRS_SRTP_ASM == YES ]]; then
+        echo "Disable SRTP with openssl for cygwin64"
         SRS_SRTP_ASM=NO
     fi
 
@@ -589,6 +621,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=$(value2switch $SRS_DEBUG_STATS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cross-build=$(value2switch $SRS_CROSS_BUILD)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer=$(value2switch $SRS_SANITIZER)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cygwin64=$(value2switch $SRS_CYGWIN64)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --single-thread=$(value2switch $SRS_SINGLE_THREAD)"
     if [[ $SRS_CROSS_BUILD_ARCH != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --arch=$SRS_CROSS_BUILD_ARCH"; fi
     if [[ $SRS_CROSS_BUILD_CPU != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --cpu=$SRS_CROSS_BUILD_CPU"; fi

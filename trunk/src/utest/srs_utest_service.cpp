@@ -870,7 +870,12 @@ VOID TEST(TCPServerTest, TCPListen)
 
         srs_close_stfd(pfd);
         srs_close_stfd(pfd2);
+#ifdef SRS_CYGWIN64
+        // Should failed because cygwin does not support REUSE_PORT.
+        HELPER_EXPECT_FAILED(err2);
+#else
         HELPER_EXPECT_SUCCESS(err2);
+#endif
     }
 
     // Typical listen.
