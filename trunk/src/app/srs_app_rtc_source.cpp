@@ -711,17 +711,6 @@ srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 
 #ifdef SRS_FFMPEG_FIT
 
-inline uint8_t srs_parse_video_payload_type_from(const std::vector<SrsRtcTrackDescription*>& descs) {
-    if (descs.empty()) {
-        return kVideoPayloadType;
-    }
-
-    SrsCodecPayload* media_ = descs.front()->media_;
-    // For publisher, pt should be equal to pt_of_publisher.
-    srs_assert(media_->pt_ == media_->pt_of_publisher_);
-    return media_->pt_;
-}
-
 SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source)
 {
     req = NULL;
@@ -741,6 +730,8 @@ SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source)
         if (!descs.empty()) {
             audio_ssrc = descs.at(0)->ssrc_;
         }
+        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
+        audio_payload_type_ = descs.empty() ? kAudioPayloadType : descs.front()->media_->pt_;
     }
 
     // video track ssrc
@@ -749,9 +740,8 @@ SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source)
         if (!descs.empty()) {
             video_ssrc = descs.at(0)->ssrc_;
         }
-
         // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
-        video_payload_type_ = srs_parse_video_payload_type_from(descs);
+        video_payload_type_ = descs.empty() ? kVideoPayloadType : descs.front()->media_->pt_;
     }
 }
 
@@ -925,7 +915,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_opus(SrsAudioFrame* audio, SrsRtpPacke
 {
     srs_error_t err = srs_success;
 
-    pkt->header.set_payload_type(kAudioPayloadType);
+    pkt->header.set_payload_type(audio_payload_type_);
     pkt->header.set_ssrc(audio_ssrc);
     pkt->frame_type = SrsFrameTypeAudio;
     pkt->header.set_marker(true);
