@@ -62,9 +62,10 @@
                 <p>
                     推荐的其他播放器：
                     <ul>
-                        <li><a href="http://bilibili.github.io/flv.js/demo">flv.js</a>，H5/MSE播放HTTP-FLV</li>
-                        <li><a href="https://hls-js.netlify.com/demo">hls.js</a>，H5/MSE播放HLS</li>
-                        <li><a href="http://reference.dashif.org/dash.js/nightly/samples/dash-if-reference-player/index.html">dash.js</a>，H5/MSE播放MPEG-DASH</li>
+                        <li><a href="https://github.com/xqq/mpegts.js">flv.js</a>，H5/MSE播放HTTP-FLV</li>
+                        <li><a href="https://github.com/xqq/mpegts.js">mpegts.js</a>，H5/MSE播放HTTP-TS</li>
+                        <li><a href="https://github.com/video-dev/hls.js/">hls.js</a>，H5/MSE播放HLS</li>
+                        <li><a href="https://github.com/Dash-Industry-Forum/dash.js">dash.js</a>，H5/MSE播放MPEG-DASH</li>
                     </ul>
                 </p>
             </div>
@@ -76,11 +77,12 @@
             <button type="button" class="close" data-dismiss="alert">×</button>
             <p>
                 <a href="https://www.adobe.com/products/flashplayer/end-of-life.html" target="_blank">Flash已死</a>，
-                无法播放RTMP流，可用VLC播放器播放。
+                无法播放RTMP流，可用ffplay或VLC播放器播放。
             </p>
             <ul>
-                <li>若希望做低延迟直播（3-5秒），可用HTTP-FLV，播放器用<a href="http://bilibili.github.io/flv.js/demo">flv.js</a>，H5/MSE播放HTTP-FLV</li>
-                <li>若对延迟不敏感（5-10秒），跨平台比较好，可用HLS，播放器用<a href="https://hls-js.netlify.com/demo">hls.js</a>，H5/MSE播放HLS</li>
+                <li>若希望做低延迟直播（3-5秒），可用HTTP-FLV，播放器用<a href="https://github.com/xqq/mpegts.js">flv.js</a>，H5/MSE播放HTTP-FLV</li>
+                <li>若希望做低延迟直播（3-5秒），可用HTTP-TS，播放器用<a href="https://github.com/xqq/mpegts.js">mpegts.js</a>，H5/MSE播放HTTP-TS</li>
+                <li>若对延迟不敏感（5-10秒），跨平台比较好，可用HLS，播放器用<a href="https://github.com/video-dev/hls.js/">hls.js</a>，H5/MSE播放HLS</li>
                 <li>若希望超低延迟（1秒内），只需要支持主流的浏览器，可用WebRTC，播放器用<a href="rtc_player.html">RTC播放器</a></li>
             </ul>
             <p>
@@ -97,7 +99,7 @@
 </body>
 <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
 <script type="text/javascript" src="js/bootstrap.min.js"></script>
-<script type="text/javascript" src="js/flv-1.5.0.min.js"></script>
+<script type="text/javascript" src="js/mpegts-1.6.10.min.js"></script>
 <script type="text/javascript" src="js/hls-0.14.17.min.js"></script>
 <script type="text/javascript" src="js/json2.js"></script>
 <script type="text/javascript" src="js/srs.page.js"></script>
@@ -106,12 +108,17 @@
 <script type="text/javascript" src="js/winlin.utility.js"></script>
 <script type="text/javascript">
     var flvPlayer = null;
+    var tsPlayer = null;
     var hlsPlayer = null;
 
     var stopPlayers = function () {
         if (flvPlayer) {
             flvPlayer.destroy();
             flvPlayer = null;
+        }
+        if (tsPlayer) {
+            tsPlayer.destroy();
+            tsPlayer = null;
         }
         if (hlsPlayer) {
             hlsPlayer.destroy();
@@ -177,17 +184,33 @@
 
         // Start play HTTP-FLV.
         if (r.stream.indexOf('.flv') > 0) {
-            if (!flvjs.isSupported()) {
+            if (!mpegts.getFeatureList().mseLivePlayback) {
                 hide_for_error();
                 return;
             }
 
             show_for_ok();
 
-            flvPlayer = flvjs.createPlayer({type: 'flv', url: r.url});
+            flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true});
             flvPlayer.attachMediaElement(document.getElementById('video_player'));
             flvPlayer.load();
             flvPlayer.play();
+            return;
+        }
+
+        // Start play HTTP-TS.
+        if (r.stream.indexOf('.ts') > 0) {
+            if (!mpegts.getFeatureList().mseLivePlayback) {
+                hide_for_error();
+                return;
+            }
+
+            show_for_ok();
+
+            tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true});
+            tsPlayer.attachMediaElement(document.getElementById('video_player'));
+            tsPlayer.load();
+            tsPlayer.play();
             return;
         }
 
