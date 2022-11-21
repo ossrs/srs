@@ -169,6 +169,12 @@
         stopPlayers();
         if (!r) return;
 
+        // Use H5 native to play mp4.
+        if (r.stream.indexOf('.mp4') > 0) {
+            $('#video_player').attr('src', r.url).show();
+            return;
+        }
+
         // Start play HTTP-FLV.
         if (r.stream.indexOf('.flv') > 0) {
             if (!flvjs.isSupported()) {
