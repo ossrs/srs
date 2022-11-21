@@ -717,7 +717,8 @@ inline uint8_t srs_parse_video_payload_type_from(const std::vector<SrsRtcTrackDe
     }
 
     SrsCodecPayload* media_ = descs.front()->media_;
-    assert(media_->pt_ == media_->pt_of_publisher_);
+    // For publisher, pt should be equal to pt_of_publisher.
+    srs_assert(media_->pt_ == media_->pt_of_publisher_);
     return media_->pt_;
 }
 
