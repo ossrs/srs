@@ -236,7 +236,7 @@ void SrsHybridServer::stop()
         server->stop();
     }
 
-    srs_st_uninit();
+    srs_st_destroy();
 }
 
 SrsServerAdapter* SrsHybridServer::srs()

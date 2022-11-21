@@ -76,10 +76,9 @@ srs_error_t srs_st_init()
     return srs_success;
 }
 
-void srs_st_uninit(void)
+void srs_st_destroy(void)
 {
-    srs_trace("st_uninit success, use %s", st_get_eventsys_name());
-    st_uninit();
+    st_destroy();
 }
 
 void srs_close_stfd(srs_netfd_t& stfd)
