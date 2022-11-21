@@ -722,6 +722,8 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
         if (!descs.empty()) {
             audio_ssrc = descs.at(0)->ssrc_;
         }
+        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
+        audio_payload_type_ = descs.empty() ? kAudioPayloadType : descs.front()->media_->pt_;
     }
 
     // video track ssrc
@@ -730,6 +732,8 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
         if (!descs.empty()) {
             video_ssrc = descs.at(0)->ssrc_;
         }
+        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
+        video_payload_type_ = descs.empty() ? kVideoPayloadType : descs.front()->media_->pt_;
     }
 }
 
@@ -900,7 +904,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(SrsAudioFrame* audio, SrsRtpPack
 {
     srs_error_t err = srs_success;
 
-    pkt->header.set_payload_type(kAudioPayloadType);
+    pkt->header.set_payload_type(audio_payload_type_);
     pkt->header.set_ssrc(audio_ssrc);
     pkt->frame_type = SrsFrameTypeAudio;
     pkt->header.set_marker(true);
@@ -1044,7 +1048,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
         return srs_error_new(ERROR_RTC_RTP_MUXER, "sps/pps empty");
     }
 
-    pkt->header.set_payload_type(kVideoPayloadType);
+    pkt->header.set_payload_type(video_payload_type_);
     pkt->header.set_ssrc(video_ssrc);
     pkt->frame_type = SrsFrameTypeVideo;
     pkt->nalu_type = (SrsAvcNaluType)kStapA;
@@ -1126,7 +1130,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
         SrsRtpPacket* pkt = new SrsRtpPacket();
         pkts.push_back(pkt);
 
-        pkt->header.set_payload_type(kVideoPayloadType);
+        pkt->header.set_payload_type(video_payload_type_);
         pkt->header.set_ssrc(video_ssrc);
         pkt->frame_type = SrsFrameTypeVideo;
         pkt->nalu_type = (SrsAvcNaluType)first_nalu_type;
@@ -1160,7 +1164,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
             SrsRtpPacket* pkt = new SrsRtpPacket();
             pkts.push_back(pkt);
 
-            pkt->header.set_payload_type(kVideoPayloadType);
+            pkt->header.set_payload_type(video_payload_type_);
             pkt->header.set_ssrc(video_ssrc);
             pkt->frame_type = SrsFrameTypeVideo;
             pkt->nalu_type = (SrsAvcNaluType)kFuA;
@@ -1190,7 +1194,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_single_nalu(SrsSharedPtrMessage* msg,
     SrsRtpPacket* pkt = new SrsRtpPacket();
     pkts.push_back(pkt);
 
-    pkt->header.set_payload_type(kVideoPayloadType);
+    pkt->header.set_payload_type(video_payload_type_);
     pkt->header.set_ssrc(video_ssrc);
     pkt->frame_type = SrsFrameTypeVideo;
     pkt->header.set_sequence(video_sequence++);
@@ -1223,7 +1227,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
         SrsRtpPacket* pkt = new SrsRtpPacket();
         pkts.push_back(pkt);
 
-        pkt->header.set_payload_type(kVideoPayloadType);
+        pkt->header.set_payload_type(video_payload_type_);
         pkt->header.set_ssrc(video_ssrc);
         pkt->frame_type = SrsFrameTypeVideo;
         pkt->header.set_sequence(video_sequence++);
