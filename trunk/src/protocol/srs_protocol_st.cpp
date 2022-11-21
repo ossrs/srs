@@ -76,6 +76,11 @@ srs_error_t srs_st_init()
     return srs_success;
 }
 
+void srs_st_destroy(void)
+{
+    st_destroy();
+}
+
 void srs_close_stfd(srs_netfd_t& stfd)
 {
     if (stfd) {
