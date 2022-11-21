@@ -235,6 +235,8 @@ void SrsHybridServer::stop()
         ISrsHybridServer* server = *it;
         server->stop();
     }
+
+    srs_st_uninit();
 }
 
 SrsServerAdapter* SrsHybridServer::srs()
