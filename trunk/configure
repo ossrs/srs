@@ -525,7 +525,7 @@ help:
 	@echo "     make help"
 
 doclean:
-	(cd ${SRS_OBJS} && rm -rf srs srs_utest $__mcleanups)
+	(cd ${SRS_OBJS} && rm -rf srs srs_utest srs.exe srs_utest.exe $__mcleanups)
 	(cd ${SRS_OBJS} && rm -rf src/* include lib)
 	(mkdir -p ${SRS_OBJS}/utest && cd ${SRS_OBJS}/utest && rm -rf *.o *.a)
 

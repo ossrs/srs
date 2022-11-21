@@ -2,8 +2,7 @@
 ; See https://nsis.sourceforge.io/Download
 ;       "C:\Program Files (x86)\NSIS\makensis.exe" /DSRS_VERSION=5.0.89 /DCYGWIN_DIR="C:\tools\cygwin" srs.nsi
 ;       "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe" /DSRS_VERSION=5.0.89 /DCYGWIN_DIR="C:\cygwin64" srs.nsi
-;       "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe" /DSRS_VERSION=$(../../objs/srs -v 2>&1) /DCYGWIN_DIR="C:\cygwin64" srs.nsi
-;       "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe" /DSRS_VERSION=$(./objs/srs -v 2>&1) /DCYGWIN_DIR="C:\cygwin64" packaging/nsis/srs.nsi
+;       "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe" /DSRS_VERSION=$(./objs/srs.exe -v 2>&1) /DCYGWIN_DIR="C:\cygwin64" packaging/nsis/srs.nsi
 
 ; HM NIS Edit Wizard helper defines
 !define PRODUCT_NAME "SRS"
