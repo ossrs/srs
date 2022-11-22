@@ -336,10 +336,10 @@ fi
 # Check for address sanitizer, see https://github.com/google/sanitizers
 #####################################################################################
 if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
-    echo 'int main() { return 0; }' > ${SRS_OBJS}/test_sanitizer.cc &&
-    gcc -fsanitize=address -fno-omit-frame-pointer -g -O0 ${SRS_OBJS}/test_sanitizer.cc \
+    echo 'int main() { return 0; }' > ${SRS_OBJS}/test_sanitizer.c &&
+    gcc -fsanitize=address -fno-omit-frame-pointer -g -O0 ${SRS_OBJS}/test_sanitizer.c \
         -o ${SRS_OBJS}/test_sanitizer 1>/dev/null 2>&1;
-    ret=$?; rm -f ${SRS_OBJS}/test_sanitizer ${SRS_OBJS}/test_sanitizer.cc
+    ret=$?; rm -rf ${SRS_OBJS}/test_sanitizer*
     if [[ $ret -ne 0 ]]; then
         echo "Please install libasan, see https://github.com/google/sanitizers";
         if [[ $OS_IS_CENTOS == YES ]]; then echo "    sudo yum install -y libasan"; fi
