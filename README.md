@@ -1,10 +1,10 @@
 # SRS(Simple Realtime Server)
 
-![](http://ossrs.net/gif/v1/sls.gif?site=github.com&path=/srs/5.0release)
-[![](https://github.com/ossrs/srs/actions/workflows/codeql-analysis.yml/badge.svg?branch=5.0release)](https://github.com/ossrs/srs/actions?query=workflow%3ACodeQL+branch%3A5.0release)
+![](http://ossrs.net/gif/v1/sls.gif?site=github.com&path=/srs/develop)
+[![](https://github.com/ossrs/srs/actions/workflows/codeql-analysis.yml/badge.svg?branch=develop)](https://github.com/ossrs/srs/actions?query=workflow%3ACodeQL+branch%3Adevelop)
 [![](https://github.com/ossrs/srs/actions/workflows/release.yml/badge.svg)](https://github.com/ossrs/srs/actions/workflows/release.yml?query=workflow%3ARelease)
-[![](https://github.com/ossrs/srs/actions/workflows/test.yml/badge.svg?branch=5.0release)](https://github.com/ossrs/srs/actions?query=workflow%3ATest+branch%3A5.0release)
-[![](https://codecov.io/gh/ossrs/srs/branch/5.0release/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/5.0release)
+[![](https://github.com/ossrs/srs/actions/workflows/test.yml/badge.svg?branch=develop)](https://github.com/ossrs/srs/actions?query=workflow%3ATest+branch%3Adevelop)
+[![](https://codecov.io/gh/ossrs/srs/branch/develop/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/develop)
 [![](https://ossrs.net/wiki/images/wechat-badge4.svg)](https://ossrs.net/lts/zh-cn/contact#discussion)
 [![](https://img.shields.io/twitter/follow/srs_server?style=social)](https://twitter.com/srs_server)
 [![](https://badgen.net/discord/members/yZ4BnPmHAd)](https://discord.gg/yZ4BnPmHAd)
@@ -21,7 +21,7 @@ SRS/5.0(Bee) is a simple, high efficiency and realtime video server, supports RT
 
 > Note:  The single node architecture for SRS, for detail please see [here](https://www.figma.com/file/333POxVznQ8Wz1Rxlppn36/SRS-4.0-Server-Arch).
 
-SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/5.0release/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
+SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
 and note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
 but some third-party libraries are distributed using their [own licenses](https://ossrs.io/lts/en-us/license).
 
@@ -33,7 +33,7 @@ Please read guide [Getting Started](https://ossrs.io/lts/en-us/docs/v4/doc/getti
 To build SRS from source:
 
 ```
-git clone -b 5.0release https://gitee.com/ossrs/srs.git &&
+git clone -b develop https://gitee.com/ossrs/srs.git &&
 cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
 ```
 
@@ -129,7 +129,7 @@ We are grateful to the community for contributing bugfix and improvements, pleas
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fossrs%2Fsrs.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2Fossrs%2Fsrs?ref=badge_small)
 
-SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/5.0release/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
+SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
 and note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
 but some third-party libraries are distributed using their [own licenses](https://ossrs.net/lts/zh-cn/license).
 
