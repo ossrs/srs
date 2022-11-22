@@ -162,11 +162,13 @@ bool SrsFlvVideo::keyframe(char* data, int size)
 
 bool SrsFlvVideo::sh(char* data, int size)
 {
-    // sequence header only for h264
-    if (!h264(data, size)) {
-        return false;
-    }
-    
+    // Check sequence header only for H.264 or H.265
+    bool codec_ok = h264(data, size);
+#ifdef SRS_H265
+    codec_ok = codec_ok? : hevc(data, size);
+#endif
+    if (!codec_ok) return false;
+
     // 2bytes required.
     if (size < 2) {
         return false;
@@ -194,6 +196,21 @@ bool SrsFlvVideo::h264(char* data, int size)
     return codec_id == SrsVideoCodecIdAVC;
 }
 
+#ifdef SRS_H265
+bool SrsFlvVideo::hevc(char* data, int size)
+{
+    // 1bytes required.
+    if (size < 1) {
+        return false;
+    }
+
+    char codec_id = data[0];
+    codec_id = codec_id & 0x0F;
+
+    return codec_id == SrsVideoCodecIdHEVC;
+}
+#endif
+
 bool SrsFlvVideo::acceptable(char* data, int size)
 {
     // 1bytes required.
@@ -202,14 +219,14 @@ bool SrsFlvVideo::acceptable(char* data, int size)
     }
     
     char frame_type = data[0];
-    char codec_id = frame_type & 0x0f;
+    SrsVideoCodecId codec_id = (SrsVideoCodecId)(uint8_t)(frame_type & 0x0f);
     frame_type = (frame_type >> 4) & 0x0f;
     
     if (frame_type < 1 || frame_type > 5) {
         return false;
     }
     
-    if (codec_id < 2 || codec_id > 7) {
+    if (codec_id != SrsVideoCodecIdAVC && codec_id != SrsVideoCodecIdAV1 && codec_id != SrsVideoCodecIdHEVC) {
         return false;
     }
     
@@ -596,6 +613,12 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     if ((err = SrsFrame::add_sample(bytes, size)) != srs_success) {
         return srs_error_wrap(err, "add frame");
     }
+
+#ifdef SRS_H265
+    SrsVideoCodecConfig* c = vcodec();
+    bool parse_nalus = !c || c->id == SrsVideoCodecIdAVC || c->id == SrsVideoCodecIdForbidden;
+    if (!parse_nalus) return err;
+#endif
     
     // for video, parse the nalu type, set the IDR flag.
     SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
@@ -707,11 +730,13 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
     int8_t frame_type = buffer->read_1bytes();
     SrsVideoCodecId codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
-    
-    // TODO: Support other codecs.
-    if (codec_id != SrsVideoCodecIdAVC) {
-        return err;
-    }
+
+    // Check codec for H.264 and H.265.
+    bool codec_ok = (codec_id == SrsVideoCodecIdAVC);
+#ifdef SRS_H265
+    codec_ok = codec_ok ? : (codec_id == SrsVideoCodecIdHEVC);
+#endif
+    if (!codec_ok) return err;
     
     if (!vcodec) {
         vcodec = new SrsVideoCodecConfig();
@@ -778,10 +803,14 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
         srs_warn("avc igone the info frame");
         return err;
     }
-    
-    // only support h.264/avc
-    if (codec_id != SrsVideoCodecIdAVC) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc only support video h.264/avc, actual=%d", codec_id);
+
+    // Check codec for H.264 and H.265.
+    bool codec_ok = (codec_id == SrsVideoCodecIdAVC);
+#ifdef SRS_H265
+    codec_ok = codec_ok ? : (codec_id == SrsVideoCodecIdHEVC);
+#endif
+    if (!codec_ok) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "only support video H.264/H.265, actual=%d", codec_id);
     }
     vcodec->id = codec_id;
     
@@ -799,7 +828,28 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     // Update the RAW AVC data.
     raw = stream->data() + stream->pos();
     nb_raw = stream->size() - stream->pos();
-    
+
+    // Parse sequence header for H.265/HEVC.
+    if (codec_id == SrsVideoCodecIdHEVC) {
+#ifdef SRS_H265
+        if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
+            // TODO: demux vps/sps/pps for hevc
+            if ((err = hevc_demux_hvcc(stream)) != srs_success) {
+                return srs_error_wrap(err, "demux hevc SPS/PPS");
+            }
+        } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU) {
+            // TODO: demux nalu for hevc
+            if ((err = video_nalu_demux(stream)) != srs_success) {
+                return srs_error_wrap(err, "demux hevc NALU");
+            }
+        }
+        return err;
+#else
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "H.265 is disabled");
+#endif
+    }
+
+    // Parse sequence header for H.264/AVC.
     if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         // TODO: FIXME: Maybe we should ignore any error for parsing sps/pps.
         if ((err = avc_demux_sps_pps(stream)) != srs_success) {
@@ -819,6 +869,175 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
 // For media server, we don't care the codec, so we just try to parse sps-pps, and we could ignore any error if fail.
 // LCOV_EXCL_START
 
+#ifdef SRS_H265
+// Parse the hevc vps/sps/pps
+srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
+{
+    int avc_extra_size = stream->size() - stream->pos();
+    if (avc_extra_size > 0) {
+        char *copy_stream_from = stream->data() + stream->pos();
+        vcodec->avc_extra_data = std::vector<char>(copy_stream_from, copy_stream_from + avc_extra_size);
+    }
+
+    const int HEVC_MIN_SIZE = 23; // From configuration_version to numOfArrays
+    if (!stream->require(HEVC_MIN_SIZE)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires %d only %d bytes", HEVC_MIN_SIZE, stream->left());
+    }
+
+    SrsHevcDecoderConfigurationRecord* dec_conf_rec_p = &(vcodec->hevc_dec_conf_record_);
+    dec_conf_rec_p->configuration_version = stream->read_1bytes();
+    if (dec_conf_rec_p->configuration_version != 1) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "invalid version=%d", dec_conf_rec_p->configuration_version);
+    }
+
+    // Read general_profile_space(2bits), general_tier_flag(1bit), general_profile_idc(5bits)
+    uint8_t data_byte = stream->read_1bytes();
+    dec_conf_rec_p->general_profile_space = (data_byte >> 6) & 0x03;
+    dec_conf_rec_p->general_tier_flag = (data_byte >> 5) & 0x01;
+    dec_conf_rec_p->general_profile_idc = data_byte & 0x1F;
+    srs_info("hevc version:%d, general_profile_space:%d, general_tier_flag:%d, general_profile_idc:%d",
+        dec_conf_rec_p->configuration_version, dec_conf_rec_p->general_profile_space, dec_conf_rec_p->general_tier_flag,
+        dec_conf_rec_p->general_profile_idc);
+
+    //general_profile_compatibility_flags: 32bits
+    dec_conf_rec_p->general_profile_compatibility_flags = (uint32_t)stream->read_4bytes();
+
+    //general_constraint_indicator_flags: 48bits
+    uint64_t data_64bit = (uint64_t)stream->read_4bytes();
+    data_64bit = (data_64bit << 16) | (stream->read_2bytes());
+    dec_conf_rec_p->general_constraint_indicator_flags = data_64bit;
+
+    //general_level_idc: 8bits
+    dec_conf_rec_p->general_level_idc = stream->read_1bytes();
+    //min_spatial_segmentation_idc: xxxx 14bits
+    dec_conf_rec_p->min_spatial_segmentation_idc = stream->read_2bytes() & 0x0fff;
+    //parallelism_type: xxxx xx 2bits
+    dec_conf_rec_p->parallelism_type = stream->read_1bytes() & 0x03;
+    //chroma_format: xxxx xx 2bits
+    dec_conf_rec_p->chroma_format = stream->read_1bytes() & 0x03;
+    //bit_depth_luma_minus8: xxxx x 3bits
+    dec_conf_rec_p->bit_depth_luma_minus8 = stream->read_1bytes() & 0x07;
+    //bit_depth_chroma_minus8: xxxx x 3bits
+    dec_conf_rec_p->bit_depth_chroma_minus8 = stream->read_1bytes() & 0x07;
+    srs_info("general_constraint_indicator_flags:0x%x, general_level_idc:%d, min_spatial_segmentation_idc:%d, parallelism_type:%d, chroma_format:%d, bit_depth_luma_minus8:%d, bit_depth_chroma_minus8:%d",
+        dec_conf_rec_p->general_constraint_indicator_flags, dec_conf_rec_p->general_level_idc,
+        dec_conf_rec_p->min_spatial_segmentation_idc, dec_conf_rec_p->parallelism_type, dec_conf_rec_p->chroma_format,
+        dec_conf_rec_p->bit_depth_luma_minus8, dec_conf_rec_p->bit_depth_chroma_minus8);
+
+    //avg_frame_rate: 16bits
+    dec_conf_rec_p->avg_frame_rate = stream->read_2bytes();
+    //8bits: constant_frame_rate(2bits), num_temporal_layers(3bits),
+    //       temporal_id_nested(1bit), length_size_minus_one(2bits)
+    data_byte = stream->read_1bytes();
+    dec_conf_rec_p->constant_frame_rate = (data_byte >> 6) & 0x03;
+    dec_conf_rec_p->num_temporal_layers = (data_byte >> 3) & 0x07;
+    dec_conf_rec_p->temporal_id_nested  = (data_byte >> 2) & 0x01;
+    dec_conf_rec_p->length_size_minus_one = data_byte & 0x03;
+
+    uint8_t numOfArrays = stream->read_1bytes();
+    srs_info("avg_frame_rate:%d, constant_frame_rate:%d, num_temporal_layers:%d, temporal_id_nested:%d, length_size_minus_one:%d, numOfArrays:%d",
+        dec_conf_rec_p->avg_frame_rate, dec_conf_rec_p->constant_frame_rate, dec_conf_rec_p->num_temporal_layers,
+        dec_conf_rec_p->temporal_id_nested, dec_conf_rec_p->length_size_minus_one, numOfArrays);
+
+    //parse vps/pps/sps
+    for (int index = 0; index < numOfArrays; index++) {
+        SrsHevcHvccNalu hevc_unit;
+
+        if (!stream->require(5)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires 5 only %d bytes", stream->left());
+        }
+        data_byte = stream->read_1bytes();
+        hevc_unit.array_completeness = (data_byte >> 7) & 0x01;
+        hevc_unit.nal_unit_type = data_byte & 0x3f;
+        hevc_unit.num_nalus = stream->read_2bytes();
+
+        for (int i = 0; i < hevc_unit.num_nalus; i++) {
+            SrsHevcNalData data_item;
+            data_item.nal_unit_length = stream->read_2bytes();
+
+            if (!stream->require(data_item.nal_unit_length)) {
+                return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires %d only %d bytes",
+                    data_item.nal_unit_length, stream->left());
+            }
+            //copy vps/pps/sps data
+            data_item.nal_unit_data.resize(data_item.nal_unit_length);
+
+            stream->read_bytes((char*)(&data_item.nal_unit_data[0]), data_item.nal_unit_length);
+            srs_info("hevc nalu type:%d, array_completeness:%d, num_nalus:%d, i:%d, nal_unit_length:%d",
+                hevc_unit.nal_unit_type, hevc_unit.array_completeness, hevc_unit.num_nalus, i, data_item.nal_unit_length);
+            hevc_unit.nal_data_vec.push_back(data_item);
+        }
+        dec_conf_rec_p->nalu_vec.push_back(hevc_unit);
+    }
+
+    return srs_success;
+}
+
+srs_error_t SrsFormat::hevc_demux_ibmf_format(SrsBuffer* stream)
+{
+    srs_error_t err = srs_success;
+
+    int PictureLength = stream->size() - stream->pos();
+    int nal_len_size = vcodec->hevc_dec_conf_record_.length_size_minus_one;
+
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
+    // 5.2.4.1 AVC decoder configuration record
+    // 5.2.4.1.2 Semantics
+    // The value of this field shall be one of 0, 1, or 3 corresponding to a
+    // length encoded with 1, 2, or 4 bytes, respectively.
+    srs_assert(nal_len_size != 2);
+
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
+    for (int i = 0; i < PictureLength;) {
+        if (i + nal_len_size >= PictureLength) {
+            break;
+        }
+        // unsigned int((NAL_unit_length+1)*8) NALUnitLength;
+        if (!stream->require(nal_len_size + 1)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "nal_len_size:%d, PictureLength:%d, i:%d",
+                nal_len_size, PictureLength, i);
+        }
+        int32_t NALUnitLength = 0;
+
+        if (nal_len_size == 3) {
+            NALUnitLength = stream->read_4bytes();
+        } else if (nal_len_size == 1) {
+            NALUnitLength = stream->read_2bytes();
+        } else {
+            NALUnitLength = stream->read_1bytes();
+        }
+
+        // maybe stream is invalid format.
+        // see: https://github.com/ossrs/srs/issues/183
+        if (NALUnitLength < 0) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "pic length:%d, NAL_unit_length:%d, NALUnitLength:%d",
+                PictureLength, nal_len_size, NALUnitLength);
+        }
+
+        // NALUnit
+        if (!stream->require(NALUnitLength)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode NALU data");
+        }
+
+        uint8_t* header_p = (uint8_t*)(stream->data() + stream->pos());
+        uint8_t nalu_type = (*header_p & 0x3f) >> 1;
+        bool irap = (SrsHevcNaluType_CODED_SLICE_BLA <= nalu_type) && (nalu_type <= SrsHevcNaluType_RESERVED_23);
+        if (irap) {
+            video->has_idr = true;
+        }
+
+        if ((err = video->add_sample(stream->data() + stream->pos(), NALUnitLength)) != srs_success) {
+            return srs_error_wrap(err, "avc add video frame");
+        }
+        stream->skip(NALUnitLength);
+
+        i += vcodec->NAL_unit_length + 1 + NALUnitLength;
+    }
+
+    return err;
+}
+#endif
+
 srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
 {
     // AVCDecoderConfigurationRecord
@@ -832,7 +1051,7 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
     if (!stream->require(6)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode sequence header");
     }
-    //int8_t configurationVersion = stream->read_1bytes();
+    //int8_t configuration_version = stream->read_1bytes();
     stream->read_1bytes();
     //int8_t AVCProfileIndication = stream->read_1bytes();
     vcodec->avc_profile = (SrsAvcProfile)stream->read_1bytes();
@@ -1191,6 +1410,13 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
         srs_warn("avc ignore type=%d for no sequence header", SrsVideoAvcFrameTraitNALU);
         return err;
     }
+
+#ifdef SRS_H265
+    if (vcodec->id == SrsVideoCodecIdHEVC) {
+        // TODO: FIXME: Might need to guess format?
+        return hevc_demux_ibmf_format(stream);
+    }
+#endif
 
     // Parse the SPS/PPS in ANNEXB or IBMF format.
     if (vcodec->payload_format == SrsAvcPayloadFormatIbmf) {

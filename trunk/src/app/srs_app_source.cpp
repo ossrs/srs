@@ -621,11 +621,13 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
     
     // got video, update the video count if acceptable
     if (msg->is_video()) {
-        // drop video when not h.264
-        if (!SrsFlvVideo::h264(msg->payload, msg->size)) {
-            return err;
-        }
-        
+        // Drop video when not h.264 or h.265.
+        bool codec_ok = SrsFlvVideo::h264(msg->payload, msg->size);
+#ifdef SRS_H265
+        codec_ok = codec_ok ? : SrsFlvVideo::hevc(msg->payload, msg->size);
+#endif
+        if (!codec_ok) return err;
+
         cached_video_count++;
         audio_after_last_video_count = 0;
     }
@@ -1063,14 +1065,22 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
         
         // when got video stream info.
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((err = stat->on_video_info(req_, SrsVideoCodecIdAVC, c->avc_profile, c->avc_level, c->width, c->height)) != srs_success) {
+
+        if (c->id == SrsVideoCodecIdAVC) {
+            err = stat->on_video_info(req_, c->id, c->avc_profile, c->avc_level, c->width, c->height);
+            srs_trace("%dB video sh, codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %.1ffps, %.1fs)",
+                msg->size, c->id, srs_avc_profile2str(c->avc_profile).c_str(), srs_avc_level2str(c->avc_level).c_str(),
+                c->width, c->height, c->video_data_rate / 1000, c->frame_rate, c->duration);
+#ifdef SRS_H265
+        } else if (c->id == SrsVideoCodecIdHEVC) {
+            // TODO: FIXME: Use the correct information for HEVC.
+            err = stat->on_video_info(req_, c->id, c->avc_profile, c->avc_level, c->width, c->height);
+            srs_trace("%dB video sh, codec(%d)", msg->size, c->id);
+#endif
+        }
+        if (err != srs_success) {
             return srs_error_wrap(err, "stat video");
         }
-        
-        srs_trace("%dB video sh,  codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %.1ffps, %.1fs)",
-                  msg->size, c->id, srs_avc_profile2str(c->avc_profile).c_str(),
-                  srs_avc_level2str(c->avc_level).c_str(), c->width, c->height,
-                  c->video_data_rate / 1000, c->frame_rate, c->duration);
     }
 
     // Ignore video data when no sps/pps

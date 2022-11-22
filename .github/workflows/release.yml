@@ -126,7 +126,7 @@ jobs:
           which make gcc g++ patch cmake pkg-config uname grep sed &&
           (make --version; gcc --version; patch --version; cmake --version; pkg-config --version) && 
           (aclocal --version; autoconf --version; automake --version; uname -a) &&
-          cd $(cygpath -u $SRS_WORKSPACE)/trunk && ./configure && make
+          cd $(cygpath -u $SRS_WORKSPACE)/trunk && ./configure --gb28181=on --h265=on && make
       ##################################################################################################################
       - name: Package SRS
         env:
