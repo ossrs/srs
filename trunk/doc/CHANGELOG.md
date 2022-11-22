@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-11-22, Asan: Check libasan and show tips. v5.0.92
 * v5.0, 2022-11-21, Merge [#3264](https://github.com/ossrs/srs/pull/3264): Asan: Try to fix st_memory_leak for asan check. (#3264). v5.0.91
 * v5.0, 2022-11-21, Asan: Fix global ip address leak check. v5.0.90
 * v5.0, 2022-11-20, For [#2532](https://github.com/ossrs/srs/issues/2532): Windows: Support cygwin pipline and packager. v5.0.89
