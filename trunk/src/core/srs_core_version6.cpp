@@ -4,4 +4,4 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#include <srs_core_version5.hpp>
+#include <srs_core_version6.hpp>

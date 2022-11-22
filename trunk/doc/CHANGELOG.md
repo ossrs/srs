@@ -4,6 +4,12 @@
 
 The changelog for SRS.
 
+<a name="v6-changes"></a>
+
+## SRS 6.0 Changelog
+
+* v6.0, 2022-11-22, Init SRS 6. v6.0.0
+
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
