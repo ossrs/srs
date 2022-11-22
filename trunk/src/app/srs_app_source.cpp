@@ -599,7 +599,7 @@ void SrsGopCache::set(bool v)
 }
 
 
-void SrsGopCache::set_max_frames(int v)
+void SrsGopCache::set_gop_cache_max_frames(int v)
 {
     gop_cache_max_frames_ = v;
 }
@@ -2104,7 +2104,7 @@ srs_error_t SrsLiveSource::on_reload_vhost_play(string vhost)
             srs_trace("vhost %s gop_cache changed to %d, source url=%s", vhost.c_str(), v, url.c_str());
             gop_cache->set(v);
 
-            gop_cache->set_max_frames(_srs_config->get_gop_cache_max_frames(vhost));
+            gop_cache->set_gop_cache_max_frames(_srs_config->get_gop_cache_max_frames(vhost));
         }
     }
     
@@ -2746,7 +2746,7 @@ void SrsLiveSource::set_cache(bool enabled)
 
 void SrsLiveSource::set_gop_cache_max_frames(int v)
 {
-    gop_cache->set_max_frames(v);
+    gop_cache->set_gop_cache_max_frames(v);
 }
 
 
