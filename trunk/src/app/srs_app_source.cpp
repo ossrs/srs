@@ -575,6 +575,7 @@ SrsGopCache::SrsGopCache()
     cached_video_count = 0;
     enable_gop_cache = true;
     audio_after_last_video_count = 0;
+    gop_cache_max_frames_ = 0;
 }
 
 SrsGopCache::~SrsGopCache()
@@ -595,6 +596,11 @@ void SrsGopCache::set(bool v)
         clear();
         return;
     }
+}
+
+void SrsGopCache::set_gop_cache_max_frames(int v)
+{
+    gop_cache_max_frames_ = v;
 }
 
 bool SrsGopCache::enabled()
@@ -648,10 +654,17 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
         // curent msg is video frame, so we set to 1.
         cached_video_count = 1;
     }
-    
+
     // cache the frame.
     gop_cache.push_back(msg->copy());
-    
+
+    // Clear gop cache if exceed the max frames.
+    if (gop_cache.size() > (size_t)gop_cache_max_frames_) {
+        srs_warn("Gop cache exceed max frames=%d, total=%d, videos=%d, aalvc=%d",
+            gop_cache_max_frames_, (int)gop_cache.size(), cached_video_count, audio_after_last_video_count);
+        clear();
+    }
+
     return err;
 }
 
@@ -2086,6 +2099,7 @@ srs_error_t SrsLiveSource::on_reload_vhost_play(string vhost)
             string url = req->get_stream_url();
             srs_trace("vhost %s gop_cache changed to %d, source url=%s", vhost.c_str(), v, url.c_str());
             gop_cache->set(v);
+            gop_cache->set_gop_cache_max_frames(_srs_config->get_gop_cache_max_frames(vhost));
         }
     }
     
@@ -2723,6 +2737,11 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer* consumer)
 void SrsLiveSource::set_cache(bool enabled)
 {
     gop_cache->set(enabled);
+}
+
+void SrsLiveSource::set_gop_cache_max_frames(int v)
+{
+    gop_cache->set_gop_cache_max_frames(v);
 }
 
 SrsRtmpJitterAlgorithm SrsLiveSource::jitter()
