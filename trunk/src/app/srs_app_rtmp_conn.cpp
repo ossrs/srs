@@ -557,10 +557,12 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     srs_assert(source != NULL);
 
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
-    srs_trace("source url=%s, ip=%s, cache=%d, is_edge=%d, source_id=%s/%s",
-        req->get_stream_url().c_str(), ip.c_str(), enabled_cache, info->edge, source->source_id().c_str(), source->pre_source_id().c_str());
+    int gcf = _srs_config->get_gop_cache_max_frames(req->vhost);
+
+    srs_trace("source url=%s, ip=%s, cache=%d, gop_cache_max_frames=%d, is_edge=%d, source_id=%s/%s",
+        req->get_stream_url().c_str(), ip.c_str(), enabled_cache, gcf, info->edge, source->source_id().c_str(), source->pre_source_id().c_str());
     source->set_cache(enabled_cache);
-    source->set_cache_max_frames(_srs_config->get_gop_cache_max_frames(req->vhost));
+    source->set_gop_cache_max_frames(gcf);
     
     switch (info->type) {
         case SrsRtmpConnPlay: {

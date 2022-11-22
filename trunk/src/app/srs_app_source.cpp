@@ -660,7 +660,7 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
     // cache the frame.
     gop_cache.push_back(msg->copy());
 
-    if (gop_cache.size() > gop_cache_max_frames_) {
+    if (gop_cache.size() > (size_t)gop_cache_max_frames_) {
         srs_warn("too many frames in the gop cache,  %d video frames & %d audio frames dropped, "
                  "audio_after_last_video_count: %d.", 
                  cached_video_count, 
@@ -2744,7 +2744,7 @@ void SrsLiveSource::set_cache(bool enabled)
     gop_cache->set(enabled);
 }
 
-void SrsLiveSource::set_cache_max_frames(int v)
+void SrsLiveSource::set_gop_cache_max_frames(int v)
 {
     gop_cache->set_max_frames(v);
 }

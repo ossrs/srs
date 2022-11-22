@@ -594,7 +594,7 @@ public:
     virtual srs_error_t consumer_dumps(SrsLiveConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsLiveConsumer* consumer);
     virtual void set_cache(bool enabled);
-    virtual void set_cache_max_frames(int v);
+    virtual void set_gop_cache_max_frames(int v);
     virtual SrsRtmpJitterAlgorithm jitter();
 public:
     // For edge, when publish edge stream, check the state
