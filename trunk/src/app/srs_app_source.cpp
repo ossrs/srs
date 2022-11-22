@@ -621,11 +621,13 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
     
     // got video, update the video count if acceptable
     if (msg->is_video()) {
-        // drop video when not h.264
-        if (!SrsFlvVideo::h264(msg->payload, msg->size)) {
-            return err;
-        }
-        
+        // Drop video when not h.264 or h.265.
+        bool codec_ok = SrsFlvVideo::h264(msg->payload, msg->size);
+#ifdef SRS_H265
+        codec_ok = codec_ok ? : SrsFlvVideo::hevc(msg->payload, msg->size);
+#endif
+        if (!codec_ok) return err;
+
         cached_video_count++;
         audio_after_last_video_count = 0;
     }
