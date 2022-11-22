@@ -255,7 +255,6 @@ public:
     virtual void dispose();
     // To enable or disable the gop cache.
     virtual void set(bool v);
-    // max gop frames
     virtual void set_max_frames(int v);
     virtual bool enabled();
     // only for h264 codec
