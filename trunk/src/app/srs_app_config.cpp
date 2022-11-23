@@ -4663,7 +4663,7 @@ int SrsConfig::get_gop_cache_max_frames(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.vhost.play.gop_cache_max_frames");
 
-    static int DEFAULT = 250;
+    static int DEFAULT = 2500;
 
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
