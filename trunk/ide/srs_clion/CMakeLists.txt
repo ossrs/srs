@@ -31,7 +31,7 @@ IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
         WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ELSE ()
     EXECUTE_PROCESS(
-        COMMAND ./configure --srt=on --gb28181=on --utest=on --jobs=${JOBS}
+        COMMAND ./configure --srt=on --gb28181=on --h265=on --utest=on --jobs=${JOBS}
         WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ENDIF ()
 if(NOT ret EQUAL 0)

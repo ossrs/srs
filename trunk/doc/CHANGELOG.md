@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2022-11-23, Merge [#3274](https://github.com/ossrs/srs/pull/3274): H265: Support parse multiple NALUs in a frame. v6.0.3
 * v6.0, 2022-11-22, Merge [#3272](https://github.com/ossrs/srs/pull/3272): H265: Support HEVC over RTMP or HTTP-FLV. v6.0.2
 * v6.0, 2022-11-22, Merge [#3268](https://github.com/ossrs/srs/pull/3268): H265: Update mpegts.js to play HEVC over HTTP-TS/FLV. v6.0.1
 * v6.0, 2022-11-22, Init SRS 6. v6.0.0
