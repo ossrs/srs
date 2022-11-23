@@ -620,11 +620,11 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     // For HEVC(H.265), try to parse the IDR from NALUs.
     if (c && c->id == SrsVideoCodecIdHEVC) {
 #ifdef SRS_H265
-        SrsHevcNaluType nalu_type = (SrsHevcNaluType)(uint8_t)((bytes[0] & 0x3f) >> 1);
+        SrsHevcNaluType nalu_type = SrsHevcNaluTypeParse(bytes[0]);
         has_idr = (SrsHevcNaluType_CODED_SLICE_BLA <= nalu_type) && (nalu_type <= SrsHevcNaluType_RESERVED_23);
         return err;
 #else
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "H.265 is disabled");
+        return srs_error_new(ERROR_HEVC_DISABLED, "H.265 is disabled");
 #endif
     }
 
@@ -854,7 +854,7 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
         }
         return err;
 #else
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "H.265 is disabled");
+        return srs_error_new(ERROR_HEVC_DISABLED, "H.265 is disabled");
 #endif
     }
 
@@ -1373,7 +1373,7 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
         // TODO: FIXME: Might need to guess format?
         return do_avc_demux_ibmf_format(stream);
 #else
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "H.265 is disabled");
+        return srs_error_new(ERROR_HEVC_DISABLED, "H.265 is disabled");
 #endif
     }
 
@@ -1500,6 +1500,7 @@ srs_error_t SrsFormat::do_avc_demux_ibmf_format(SrsBuffer* stream)
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
     for (int i = 0; i < PictureLength;) {
         // unsigned int((NAL_unit_length+1)*8) NALUnitLength;
+        // TODO: FIXME: Should ignore error? See https://github.com/ossrs/srs-gb28181/commit/a13b9b54938a14796abb9011e7a8ee779439a452
         if (!stream->require(vcodec->NAL_unit_length + 1)) {
             return srs_error_new(ERROR_HLS_DECODE_ERROR, "PictureLength:%d, i:%d, NaluLength:%d, left:%d",
                 PictureLength, i, vcodec->NAL_unit_length, stream->left());
