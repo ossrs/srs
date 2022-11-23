@@ -88,6 +88,7 @@ TARGET_LINK_LIBRARIES(srs dl)
 TARGET_LINK_LIBRARIES(srs ${DEPS_LIBS})
 TARGET_LINK_LIBRARIES(srs -ldl -pthread)
 TARGET_LINK_LIBRARIES(srs -rdynamic)
+TARGET_LINK_LIBRARIES(srs -fsanitize=address -fno-omit-frame-pointer)
 
 ###########################################################
 # For utest.
@@ -109,5 +110,5 @@ TARGET_LINK_LIBRARIES(utest -fsanitize=address -fno-omit-frame-pointer)
 
 ###########################################################
 # Done
-MESSAGE(STATUS "@see https://ossrs.net/lts/zh-cn/docs/v4/doc/ide")
+MESSAGE(STATUS "@see https://ossrs.net/lts/zh-cn/docs/v5/doc/ide")
 
