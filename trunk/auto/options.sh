@@ -6,6 +6,7 @@ help=no
 SRS_HDS=NO
 SRS_SRT=YES
 SRS_RTC=YES
+SRS_H265=NO
 SRS_GB28181=NO
 SRS_CXX11=YES
 SRS_CXX14=NO
@@ -136,6 +137,7 @@ Features:
   --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
   --backtrace=on|off        Whether show backtrace when crashing. Default: $(value2switch $SRS_BACKTRACE)
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
+  --h265=on|off             Whether build the HEVC(H.265) support. Default: $(value2switch $SRS_H265)
 
   --prefix=<path>           The absolute installation path. Default: $SRS_PREFIX
   --config=<path>           The default config file for SRS. Default: $SRS_DEFAULT_CONFIG
@@ -305,6 +307,7 @@ function parse_user_option() {
         --generate-objs)                SRS_GENERATE_OBJS=$(switch2value $value) ;;
         --single-thread)                SRS_SINGLE_THREAD=$(switch2value $value) ;;
         --ffmpeg-fit)                   SRS_FFMPEG_FIT=$(switch2value $value) ;;
+        --h265)                         SRS_H265=$(switch2value $value) ;;
         --gb28181)                      SRS_GB28181=$(switch2value $value) ;;
 
         --cxx11)                        SRS_CXX11=$(switch2value $value) ;;
@@ -587,6 +590,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=$(value2switch $SRS_CHERRYPY)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=$(value2switch $SRS_H265)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=$(value2switch $SRS_GB28181)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=$(value2switch $SRS_CXX11)"

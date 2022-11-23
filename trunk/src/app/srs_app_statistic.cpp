@@ -622,6 +622,17 @@ void SrsStatistic::dumps_hints_kv(std::stringstream & ss)
     if (kbps->get_send_kbps_30s()) {
         ss << "&send=" << kbps->get_send_kbps_30s();
     }
+
+#ifdef SRS_H265
+    // For HEVC, we should check active stream which is HEVC codec.
+    for (std::map<std::string, SrsStatisticStream*>::iterator it = streams.begin(); it != streams.end(); it++) {
+        SrsStatisticStream* stream = it->second;
+        if (stream->vcodec == SrsVideoCodecIdHEVC) {
+            ss << "&h265=1";
+            break;
+        }
+    }
+#endif
 }
 
 void SrsStatistic::dumps_cls_summaries(SrsClsSugar* sugar)

@@ -3327,7 +3327,9 @@ VOID TEST(KernelCodecTest, CoverAll)
         EXPECT_TRUE(!v.acceptable((char*)"\xf0", 1));
         EXPECT_TRUE(!v.acceptable((char*)"\x10", 1));
         EXPECT_TRUE(!v.acceptable((char*)"\x1f", 1));
-        EXPECT_TRUE(v.acceptable((char*)"\x13", 1));
+        EXPECT_TRUE(v.acceptable((char*)"\x17", 1)); // AVC = 7
+        EXPECT_TRUE(v.acceptable((char*)"\x1c", 1)); // HEVC = 12
+        EXPECT_TRUE(v.acceptable((char*)"\x1d", 1)); // AV1 = 13
     }
     
     if (true) {

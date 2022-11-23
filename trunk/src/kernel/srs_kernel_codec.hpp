@@ -25,6 +25,7 @@ class SrsBuffer;
  *      5 = On2 VP6 with alpha channel
  *      6 = Screen video version 2
  *      7 = AVC
+ *     12 = HEVC
  */
 enum SrsVideoCodecId
 {
@@ -258,6 +259,10 @@ public:
      * check codec h264.
      */
     static bool h264(char* data, int size);
+#ifdef SRS_H265
+    // Check whether codec is HEVC(H.265).
+    static bool hevc(char* data, int size);
+#endif
     /**
      * check the video RTMP/flv header info,
      * @return true if video RTMP/flv header is ok.
@@ -393,6 +398,110 @@ enum SrsAvcNaluType
     SrsAvcNaluTypeCodedSliceExt = 20,
 };
 std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
+
+#ifdef SRS_H265
+// The enum NALU type for HEVC.
+enum SrsHevcNaluType {
+    SrsHevcNaluType_CODED_SLICE_TRAIL_N =       0,
+    SrsHevcNaluType_CODED_SLICE_TRAIL_R, //1
+    SrsHevcNaluType_CODED_SLICE_TSA_N,   //2
+    SrsHevcNaluType_CODED_SLICE_TLA,     //3
+    SrsHevcNaluType_CODED_SLICE_STSA_N,  //4
+    SrsHevcNaluType_CODED_SLICE_STSA_R,  //5
+    SrsHevcNaluType_CODED_SLICE_RADL_N,  //6
+    SrsHevcNaluType_CODED_SLICE_DLP,     //7
+    SrsHevcNaluType_CODED_SLICE_RASL_N,  //8
+    SrsHevcNaluType_CODED_SLICE_TFD,     //9
+    SrsHevcNaluType_RESERVED_10,
+    SrsHevcNaluType_RESERVED_11,
+    SrsHevcNaluType_RESERVED_12,
+    SrsHevcNaluType_RESERVED_13,
+    SrsHevcNaluType_RESERVED_14,
+    SrsHevcNaluType_RESERVED_15,
+    SrsHevcNaluType_CODED_SLICE_BLA,      //16
+    SrsHevcNaluType_CODED_SLICE_BLANT,    //17
+    SrsHevcNaluType_CODED_SLICE_BLA_N_LP, //18
+    SrsHevcNaluType_CODED_SLICE_IDR,      //19
+    SrsHevcNaluType_CODED_SLICE_IDR_N_LP, //20
+    SrsHevcNaluType_CODED_SLICE_CRA,      //21
+    SrsHevcNaluType_RESERVED_22,
+    SrsHevcNaluType_RESERVED_23,
+    SrsHevcNaluType_RESERVED_24,
+    SrsHevcNaluType_RESERVED_25,
+    SrsHevcNaluType_RESERVED_26,
+    SrsHevcNaluType_RESERVED_27,
+    SrsHevcNaluType_RESERVED_28,
+    SrsHevcNaluType_RESERVED_29,
+    SrsHevcNaluType_RESERVED_30,
+    SrsHevcNaluType_RESERVED_31,
+    SrsHevcNaluType_VPS,                   // 32
+    SrsHevcNaluType_SPS,                   // 33
+    SrsHevcNaluType_PPS,                   // 34
+    SrsHevcNaluType_ACCESS_UNIT_DELIMITER, // 35
+    SrsHevcNaluType_EOS,                   // 36
+    SrsHevcNaluType_EOB,                   // 37
+    SrsHevcNaluType_FILLER_DATA,           // 38
+    SrsHevcNaluType_SEI ,                  // 39 Prefix SEI
+    SrsHevcNaluType_SEI_SUFFIX,            // 40 Suffix SEI
+    SrsHevcNaluType_RESERVED_41,
+    SrsHevcNaluType_RESERVED_42,
+    SrsHevcNaluType_RESERVED_43,
+    SrsHevcNaluType_RESERVED_44,
+    SrsHevcNaluType_RESERVED_45,
+    SrsHevcNaluType_RESERVED_46,
+    SrsHevcNaluType_RESERVED_47,
+    SrsHevcNaluType_UNSPECIFIED_48,
+    SrsHevcNaluType_UNSPECIFIED_49,
+    SrsHevcNaluType_UNSPECIFIED_50,
+    SrsHevcNaluType_UNSPECIFIED_51,
+    SrsHevcNaluType_UNSPECIFIED_52,
+    SrsHevcNaluType_UNSPECIFIED_53,
+    SrsHevcNaluType_UNSPECIFIED_54,
+    SrsHevcNaluType_UNSPECIFIED_55,
+    SrsHevcNaluType_UNSPECIFIED_56,
+    SrsHevcNaluType_UNSPECIFIED_57,
+    SrsHevcNaluType_UNSPECIFIED_58,
+    SrsHevcNaluType_UNSPECIFIED_59,
+    SrsHevcNaluType_UNSPECIFIED_60,
+    SrsHevcNaluType_UNSPECIFIED_61,
+    SrsHevcNaluType_UNSPECIFIED_62,
+    SrsHevcNaluType_UNSPECIFIED_63,
+    SrsHevcNaluType_INVALID,
+};
+
+struct SrsHevcNalData {
+    uint16_t nal_unit_length;
+    std::vector<uint8_t> nal_unit_data;
+};
+
+struct SrsHevcHvccNalu {
+    uint8_t array_completeness;
+    uint8_t nal_unit_type;
+    uint16_t num_nalus;
+    std::vector<SrsHevcNalData> nal_data_vec;
+};
+
+struct SrsHevcDecoderConfigurationRecord {
+    uint8_t  configuration_version;
+    uint8_t  general_profile_space;
+    uint8_t  general_tier_flag;
+    uint8_t  general_profile_idc;
+    uint32_t general_profile_compatibility_flags;
+    uint64_t general_constraint_indicator_flags;
+    uint8_t  general_level_idc;
+    uint16_t min_spatial_segmentation_idc;
+    uint8_t  parallelism_type;
+    uint8_t  chroma_format;
+    uint8_t  bit_depth_luma_minus8;
+    uint8_t  bit_depth_chroma_minus8;
+    uint16_t avg_frame_rate;
+    uint8_t  constant_frame_rate;
+    uint8_t  num_temporal_layers;
+    uint8_t  temporal_id_nested;
+    uint8_t  length_size_minus_one;
+    std::vector<SrsHevcHvccNalu> nalu_vec;
+};
+#endif
 
 /**
  * Table 7-6 – Name association to slice_type
@@ -639,6 +748,10 @@ public:
 public:
     // the avc payload format.
     SrsAvcPayloadFormat payload_format;
+#ifdef SRS_H265
+public:
+    SrsHevcDecoderConfigurationRecord hevc_dec_conf_record_;
+#endif
 public:
     SrsVideoCodecConfig();
     virtual ~SrsVideoCodecConfig();
@@ -757,13 +870,18 @@ private:
     //          Demux the sps/pps from sequence header.
     //          Demux the samples from NALUs.
     virtual srs_error_t video_avc_demux(SrsBuffer* stream, int64_t timestamp);
+#ifdef SRS_H265
+private:
+    virtual srs_error_t hevc_demux_hvcc(SrsBuffer* stream);
+    virtual srs_error_t hevc_demux_ibmf_format(SrsBuffer* stream);
+#endif
 private:
     // Parse the H.264 SPS/PPS.
     virtual srs_error_t avc_demux_sps_pps(SrsBuffer* stream);
     virtual srs_error_t avc_demux_sps();
     virtual srs_error_t avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
 private:
-    // Parse the H.264 NALUs.
+    // Parse the H.264 or H.265 NALUs.
     virtual srs_error_t video_nalu_demux(SrsBuffer* stream);
     // Demux the avc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
     virtual srs_error_t avc_demux_annexb_format(SrsBuffer* stream);

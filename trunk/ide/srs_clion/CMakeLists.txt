@@ -27,7 +27,7 @@ ProcessorCount(JOBS)
 # We should always configure SRS for switching between branches.
 IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     EXECUTE_PROCESS(
-        COMMAND ./configure --osx --srt=on --gb28181=on --utest=on --jobs=${JOBS}
+        COMMAND ./configure --osx --srt=on --gb28181=on --h265=on --utest=on --jobs=${JOBS}
         WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ELSE ()
     EXECUTE_PROCESS(
