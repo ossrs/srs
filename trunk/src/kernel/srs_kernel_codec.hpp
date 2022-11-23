@@ -873,7 +873,6 @@ private:
 #ifdef SRS_H265
 private:
     virtual srs_error_t hevc_demux_hvcc(SrsBuffer* stream);
-    virtual srs_error_t hevc_demux_ibmf_format(SrsBuffer* stream);
 #endif
 private:
     // Parse the H.264 SPS/PPS.

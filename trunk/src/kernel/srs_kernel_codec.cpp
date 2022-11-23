@@ -614,13 +614,22 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
         return srs_error_wrap(err, "add frame");
     }
 
-#ifdef SRS_H265
     SrsVideoCodecConfig* c = vcodec();
-    bool parse_nalus = !c || c->id == SrsVideoCodecIdAVC || c->id == SrsVideoCodecIdForbidden;
-    if (!parse_nalus) return err;
+    if (size <= 0) return err;
+
+    // For HEVC(H.265), try to parse the IDR from NALUs.
+    if (c && c->id == SrsVideoCodecIdHEVC) {
+#ifdef SRS_H265
+        SrsHevcNaluType nalu_type = (SrsHevcNaluType)(uint8_t)((bytes[0] & 0x3f) >> 1);
+        has_idr = (SrsHevcNaluType_CODED_SLICE_BLA <= nalu_type) && (nalu_type <= SrsHevcNaluType_RESERVED_23);
+        return err;
+#else
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "H.265 is disabled");
 #endif
-    
-    // for video, parse the nalu type, set the IDR flag.
+    }
+
+    // By default, use AVC(H.264) to parse NALU.
+    // For video, parse the nalu type, set the IDR flag.
     SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
     
     if (nal_unit_type == SrsAvcNaluTypeIDR) {
@@ -932,7 +941,19 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
     dec_conf_rec_p->constant_frame_rate = (data_byte >> 6) & 0x03;
     dec_conf_rec_p->num_temporal_layers = (data_byte >> 3) & 0x07;
     dec_conf_rec_p->temporal_id_nested  = (data_byte >> 2) & 0x01;
+
+    // Parse the NALU size.
     dec_conf_rec_p->length_size_minus_one = data_byte & 0x03;
+    vcodec->NAL_unit_length = dec_conf_rec_p->length_size_minus_one;
+
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
+    // 5.2.4.1 AVC decoder configuration record
+    // 5.2.4.1.2 Semantics
+    // The value of this field shall be one of 0, 1, or 3 corresponding to a
+    // length encoded with 1, 2, or 4 bytes, respectively.
+    if (vcodec->NAL_unit_length == 2) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
+    }
 
     uint8_t numOfArrays = stream->read_1bytes();
     srs_info("avg_frame_rate:%d, constant_frame_rate:%d, num_temporal_layers:%d, temporal_id_nested:%d, length_size_minus_one:%d, numOfArrays:%d",
@@ -971,70 +992,6 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
     }
 
     return srs_success;
-}
-
-srs_error_t SrsFormat::hevc_demux_ibmf_format(SrsBuffer* stream)
-{
-    srs_error_t err = srs_success;
-
-    int PictureLength = stream->size() - stream->pos();
-    int nal_len_size = vcodec->hevc_dec_conf_record_.length_size_minus_one;
-
-    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
-    // 5.2.4.1 AVC decoder configuration record
-    // 5.2.4.1.2 Semantics
-    // The value of this field shall be one of 0, 1, or 3 corresponding to a
-    // length encoded with 1, 2, or 4 bytes, respectively.
-    srs_assert(nal_len_size != 2);
-
-    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
-    for (int i = 0; i < PictureLength;) {
-        if (i + nal_len_size >= PictureLength) {
-            break;
-        }
-        // unsigned int((NAL_unit_length+1)*8) NALUnitLength;
-        if (!stream->require(nal_len_size + 1)) {
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "nal_len_size:%d, PictureLength:%d, i:%d",
-                nal_len_size, PictureLength, i);
-        }
-        int32_t NALUnitLength = 0;
-
-        if (nal_len_size == 3) {
-            NALUnitLength = stream->read_4bytes();
-        } else if (nal_len_size == 1) {
-            NALUnitLength = stream->read_2bytes();
-        } else {
-            NALUnitLength = stream->read_1bytes();
-        }
-
-        // maybe stream is invalid format.
-        // see: https://github.com/ossrs/srs/issues/183
-        if (NALUnitLength < 0) {
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "pic length:%d, NAL_unit_length:%d, NALUnitLength:%d",
-                PictureLength, nal_len_size, NALUnitLength);
-        }
-
-        // NALUnit
-        if (!stream->require(NALUnitLength)) {
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode NALU data");
-        }
-
-        uint8_t* header_p = (uint8_t*)(stream->data() + stream->pos());
-        uint8_t nalu_type = (*header_p & 0x3f) >> 1;
-        bool irap = (SrsHevcNaluType_CODED_SLICE_BLA <= nalu_type) && (nalu_type <= SrsHevcNaluType_RESERVED_23);
-        if (irap) {
-            video->has_idr = true;
-        }
-
-        if ((err = video->add_sample(stream->data() + stream->pos(), NALUnitLength)) != srs_success) {
-            return srs_error_wrap(err, "avc add video frame");
-        }
-        stream->skip(NALUnitLength);
-
-        i += vcodec->NAL_unit_length + 1 + NALUnitLength;
-    }
-
-    return err;
 }
 #endif
 
@@ -1411,12 +1368,14 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
         return err;
     }
 
-#ifdef SRS_H265
     if (vcodec->id == SrsVideoCodecIdHEVC) {
+#ifdef SRS_H265
         // TODO: FIXME: Might need to guess format?
-        return hevc_demux_ibmf_format(stream);
-    }
+        return do_avc_demux_ibmf_format(stream);
+#else
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "H.265 is disabled");
 #endif
+    }
 
     // Parse the SPS/PPS in ANNEXB or IBMF format.
     if (vcodec->payload_format == SrsAvcPayloadFormatIbmf) {
@@ -1542,7 +1501,8 @@ srs_error_t SrsFormat::do_avc_demux_ibmf_format(SrsBuffer* stream)
     for (int i = 0; i < PictureLength;) {
         // unsigned int((NAL_unit_length+1)*8) NALUnitLength;
         if (!stream->require(vcodec->NAL_unit_length + 1)) {
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode NALU size");
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "PictureLength:%d, i:%d, NaluLength:%d, left:%d",
+                PictureLength, i, vcodec->NAL_unit_length, stream->left());
         }
         int32_t NALUnitLength = 0;
         if (vcodec->NAL_unit_length == 3) {
@@ -1553,22 +1513,23 @@ srs_error_t SrsFormat::do_avc_demux_ibmf_format(SrsBuffer* stream)
             NALUnitLength = stream->read_1bytes();
         }
         
-        // maybe stream is invalid format.
-        // see: https://github.com/ossrs/srs/issues/183
+        // The stream format mighe be incorrect, see: https://github.com/ossrs/srs/issues/183
         if (NALUnitLength < 0) {
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "maybe stream is AnnexB format");
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "PictureLength:%d, i:%d, NaluLength:%d, left:%d, NALUnitLength:%d",
+                PictureLength, i, vcodec->NAL_unit_length, stream->left(), NALUnitLength);
         }
         
         // NALUnit
         if (!stream->require(NALUnitLength)) {
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode NALU data");
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "PictureLength:%d, i:%d, NaluLength:%d, left:%d, NALUnitLength:%d",
+                PictureLength, i, vcodec->NAL_unit_length, stream->left(), NALUnitLength);
         }
         // 7.3.1 NAL unit syntax, ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         if ((err = video->add_sample(stream->data() + stream->pos(), NALUnitLength)) != srs_success) {
             return srs_error_wrap(err, "avc add video frame");
         }
+
         stream->skip(NALUnitLength);
-        
         i += vcodec->NAL_unit_length + 1 + NALUnitLength;
     }
     

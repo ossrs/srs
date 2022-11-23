@@ -3525,12 +3525,31 @@ VOID TEST(KernelCodecTest, AVFrame)
     
     if (true) {
         SrsVideoFrame f;
+        SrsVideoCodecConfig cc;
+        HELPER_EXPECT_SUCCESS(f.initialize(&cc));
+        EXPECT_TRUE(f.vcodec() != NULL);
+
         for (int i = 0; i < SrsMaxNbSamples; i++) {
             HELPER_EXPECT_SUCCESS(f.add_sample((char*)"\x05", 1));
         }
         
         srs_error_t err = f.add_sample((char*)"\x05", 1);
         HELPER_EXPECT_FAILED(err);
+    }
+}
+
+VOID TEST(KernelCodecTest, AVFrameNoConfig)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsAudioFrame f;
+        HELPER_EXPECT_SUCCESS(f.add_sample((char*)1, 10));
+    }
+
+    if (true) {
+        SrsVideoFrame f;
+        HELPER_EXPECT_SUCCESS(f.add_sample((char*)"\x05", 1));
     }
 }
 
