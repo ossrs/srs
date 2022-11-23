@@ -468,6 +468,7 @@ enum SrsHevcNaluType {
     SrsHevcNaluType_UNSPECIFIED_63,
     SrsHevcNaluType_INVALID,
 };
+#define SrsHevcNaluTypeParse(code) (SrsHevcNaluType)((code & 0x7E) >> 1)
 
 struct SrsHevcNalData {
     uint16_t nal_unit_length;

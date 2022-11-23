@@ -193,7 +193,7 @@ public:
     // Whether current hls muxer is pure audio mode.
     virtual bool pure_audio();
     virtual srs_error_t flush_audio(SrsTsMessageCache* cache);
-    virtual srs_error_t flush_video(SrsTsMessageCache* cache);
+    virtual srs_error_t flush_video(SrsTsMessageCache* cache, SrsVideoFrame* frame);
     // Close segment(ts).
     virtual srs_error_t segment_close();
 private:

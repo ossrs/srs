@@ -4921,9 +4921,6 @@ VOID TEST(KernelTSTest, CoverContextEncode)
         
         srs_error_t err = ctx.encode(&f, &m, SrsVideoCodecIdDisabled, SrsAudioCodecIdDisabled);
         HELPER_EXPECT_FAILED(err);
-        
-        err = ctx.encode(&f, &m, SrsVideoCodecIdHEVC, SrsAudioCodecIdOpus);
-        HELPER_EXPECT_FAILED(err);
 
         err = ctx.encode(&f, &m, SrsVideoCodecIdAV1, SrsAudioCodecIdOpus);
         HELPER_EXPECT_FAILED(err);
@@ -4951,6 +4948,34 @@ VOID TEST(KernelTSTest, CoverContextEncode)
         m.payload->append("Hello, world!", 13);
         HELPER_EXPECT_SUCCESS(ctx.encode(&f, &m, SrsVideoCodecIdAVC, SrsAudioCodecIdAAC));
     }
+}
+
+VOID TEST(KernelTSTest, CoverContextEncodeHEVC)
+{
+    srs_error_t err;
+
+    SrsTsContext ctx;
+    MockTsHandler h;
+
+#ifndef SRS_H265
+    if (true) {
+        MockSrsFileWriter f;
+        SrsTsMessage m;
+
+        err = ctx.encode(&f, &m, SrsVideoCodecIdHEVC, SrsAudioCodecIdOpus);
+        HELPER_EXPECT_FAILED(err);
+    }
+#endif
+
+#ifdef SRS_H265
+    if (true) {
+        MockSrsFileWriter f;
+        SrsTsMessage m;
+
+        err = ctx.encode(&f, &m, SrsVideoCodecIdHEVC, SrsAudioCodecIdOpus);
+        HELPER_EXPECT_SUCCESS(err);
+    }
+#endif
 }
 
 VOID TEST(KernelTSTest, CoverContextDecode)

@@ -43,6 +43,9 @@ string srs_ts_stream2string(SrsTsStream stream)
         case SrsTsStreamAudioAC3: return "AC3";
         case SrsTsStreamAudioDTS: return "AudioDTS";
         case SrsTsStreamVideoH264: return "H.264";
+#ifdef SRS_H265
+        case SrsTsStreamVideoHEVC: return "H.265";
+#endif
         case SrsTsStreamVideoMpeg4: return "MP4";
         case SrsTsStreamAudioMpeg4: return "MP4A";
         default: return "Other";
@@ -285,6 +288,14 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter* writer, SrsTsMessage* msg, Sr
             vs = SrsTsStreamVideoH264;
             video_pid = TS_VIDEO_AVC_PID;
             break;
+        case SrsVideoCodecIdHEVC:
+#ifdef SRS_H265
+            vs = SrsTsStreamVideoHEVC;
+            video_pid = TS_VIDEO_AVC_PID;
+            break;
+#else
+            return srs_error_new(ERROR_HEVC_DISABLED, "H.265 is disabled");
+#endif
         case SrsVideoCodecIdDisabled:
             vs = SrsTsStreamReserved;
             break;
@@ -296,7 +307,6 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter* writer, SrsTsMessage* msg, Sr
         case SrsVideoCodecIdOn2VP6:
         case SrsVideoCodecIdOn2VP6WithAlphaChannel:
         case SrsVideoCodecIdScreenVideoVersion2:
-        case SrsVideoCodecIdHEVC:
         case SrsVideoCodecIdAV1:
             vs = SrsTsStreamReserved;
             break;
@@ -335,10 +345,13 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter* writer, SrsTsMessage* msg, Sr
         return srs_error_new(ERROR_HLS_NO_STREAM, "ts: no a/v stream, vcodec=%d, acodec=%d", vc, ac);
     }
     
-    // when any codec changed, write PAT/PMT table.
+    // When any codec changed, write PAT/PMT table.
     if (vcodec != vc || acodec != ac) {
-        vcodec = vc;
-        acodec = ac;
+        if (vcodec != SrsVideoCodecIdReserved || acodec != SrsAudioCodecIdReserved1) {
+            srs_trace("TS: Refresh PMT when vcodec=%d=>%d, acodec=%d=>%d", vcodec, vc, acodec, ac);
+        }
+        vcodec = vc; acodec = ac;
+
         if ((err = encode_pat_pmt(writer, video_pid, vs, audio_pid, as)) != srs_success) {
             return srs_error_wrap(err, "ts: encode PAT/PMT");
         }
@@ -355,8 +368,12 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter* writer, SrsTsMessage* msg, Sr
 srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
 {
     srs_error_t err = srs_success;
-    
-    if (vs != SrsTsStreamVideoH264 && as != SrsTsStreamAudioAAC && as != SrsTsStreamAudioMp3) {
+
+    bool codec_ok = (vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
+#ifdef SRS_H265
+    codec_ok = codec_ok ? : (vs == SrsTsStreamVideoHEVC);
+#endif
+    if (!codec_ok) {
         return srs_error_new(ERROR_HLS_NO_STREAM, "ts: no PID, vs=%d, as=%d", vs, as);
     }
     
@@ -425,8 +442,12 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
     if (msg->payload->length() == 0) {
         return err;
     }
-    
-    if (sid != SrsTsStreamVideoH264 && sid != SrsTsStreamAudioMp3 && sid != SrsTsStreamAudioAAC) {
+
+    bool codec_ok = (sid == SrsTsStreamVideoH264 || sid == SrsTsStreamAudioAAC || sid == SrsTsStreamAudioMp3);
+#ifdef SRS_H265
+    codec_ok = codec_ok ? : (sid == SrsTsStreamVideoHEVC);
+#endif
+    if (!codec_ok) {
         srs_info("ts: ignore the unknown stream, sid=%d", sid);
         return err;
     }
@@ -750,10 +771,14 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
     pmt->current_next_indicator = 1;
     pmt->section_number = 0;
     pmt->last_section_number = 0;
-    
-    // must got one valid codec.
-    srs_assert(vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
-    
+
+    // Here we must get the correct codec.
+    bool codec_ok = (vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
+#ifdef SRS_H265
+    codec_ok = codec_ok ? : (vs == SrsTsStreamVideoHEVC);
+#endif
+    srs_assert(codec_ok);
+
     // if mp3 or aac specified, use audio to carry pcr.
     if (as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3) {
         // use audio to carray pcr by default.
@@ -762,8 +787,12 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
         pmt->infos.push_back(new SrsTsPayloadPMTESInfo(as, apid));
     }
     
-    // if h.264 specified, use video to carry pcr.
-    if (vs == SrsTsStreamVideoH264) {
+    // If h.264/h.265 specified, use video to carry pcr.
+    codec_ok = (vs == SrsTsStreamVideoH264);
+#ifdef SRS_H265
+    codec_ok = codec_ok ? : (vs == SrsTsStreamVideoHEVC);
+#endif
+    if (codec_ok) {
         pmt->PCR_PID = vpid;
         pmt->infos.push_back(new SrsTsPayloadPMTESInfo(vs, vpid));
     }
@@ -2533,6 +2562,9 @@ srs_error_t SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
         // update the apply pid table
         switch (info->stream_type) {
             case SrsTsStreamVideoH264:
+#ifdef SRS_H265
+            case SrsTsStreamVideoHEVC:
+#endif
             case SrsTsStreamVideoMpeg4:
                 packet->context->set(info->elementary_PID, SrsTsPidApplyVideo, info->stream_type);
                 break;
@@ -2616,6 +2648,9 @@ srs_error_t SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
         // update the apply pid table
         switch (info->stream_type) {
             case SrsTsStreamVideoH264:
+#ifdef SRS_H265
+            case SrsTsStreamVideoHEVC:
+#endif
             case SrsTsStreamVideoMpeg4:
                 packet->context->set(info->elementary_PID, SrsTsPidApplyVideo, info->stream_type);
                 break;
@@ -2683,6 +2718,11 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
 SrsVideoCodecId SrsTsContextWriter::video_codec()
 {
     return vcodec;
+}
+
+void SrsTsContextWriter::update_video_codec(SrsVideoCodecId v)
+{
+    vcodec = v;
 }
 
 SrsEncFileWriter::SrsEncFileWriter()
@@ -2832,8 +2872,17 @@ srs_error_t SrsTsMessageCache::cache_video(SrsVideoFrame* frame, int64_t dts)
     video->dts = dts;
     video->pts = video->dts + frame->cts * 90;
     video->sid = SrsTsPESStreamIdVideoCommon;
-    
-    // write video to cache.
+
+    // Write H.265 video frame to cache.
+    if (frame && frame->vcodec()->id == SrsVideoCodecIdHEVC) {
+#ifdef SRS_H265
+        return do_cache_hevc(frame);
+#else
+        return srs_error_new(ERROR_HEVC_DISABLED, "H.265 is disabled");
+#endif
+    }
+
+    // Write H.264 video frame to cache.
     if ((err = do_cache_avc(frame)) != srs_success) {
         return srs_error_wrap(err, "ts: cache avc");
     }
@@ -2924,7 +2973,7 @@ srs_error_t SrsTsMessageCache::do_cache_aac(SrsAudioFrame* frame)
     return err;
 }
 
-void srs_avc_insert_aud(SrsSimpleStream* payload, bool& aud_inserted)
+void srs_avc_insert_aud(SrsSimpleStream* payload, bool aud_inserted)
 {
     // mux the samples in annexb format,
     // ISO_IEC_14496-10-AVC-2012.pdf, page 324.
@@ -3064,6 +3113,52 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
     return err;
 }
 
+#ifdef SRS_H265
+srs_error_t SrsTsMessageCache::do_cache_hevc(SrsVideoFrame* frame)
+{
+    srs_error_t err = srs_success;
+
+    // Whether aud inserted.
+    bool aud_inserted = false;
+
+    SrsVideoCodecConfig* codec = frame->vcodec();
+    srs_assert(codec);
+
+    bool is_sps_pps_appended = false;
+
+    // all sample use cont nalu header, except the sps-pps before IDR frame.
+    for (int i = 0; i < frame->nb_samples; i++) {
+        SrsSample* sample = &frame->samples[i];
+        int32_t size = sample->size;
+
+        if (!sample->bytes || size <= 0) {
+            return srs_error_new(ERROR_HLS_AVC_SAMPLE_SIZE, "ts: invalid avc sample length=%d", size);
+        }
+
+        // Insert aud before NALU for HEVC.
+        SrsHevcNaluType nalu_type = (SrsHevcNaluType)SrsHevcNaluTypeParse(sample->bytes[0]);
+        bool is_idr = (SrsHevcNaluType_CODED_SLICE_BLA <= nalu_type) && (nalu_type <= SrsHevcNaluType_RESERVED_23);
+        if (is_idr && !frame->has_sps_pps && !is_sps_pps_appended) {
+            for (size_t i = 0; i < codec->hevc_dec_conf_record_.nalu_vec.size(); i++) {
+                const SrsHevcHvccNalu& nalu = codec->hevc_dec_conf_record_.nalu_vec[i];
+                if (nalu.num_nalus <= 0 || nalu.nal_data_vec.empty()) continue;
+
+                srs_avc_insert_aud(video->payload, aud_inserted);
+                const SrsHevcNalData& data = nalu.nal_data_vec.at(0);
+                video->payload->append((char*)&data.nal_unit_data[0], (int)data.nal_unit_data.size());
+                is_sps_pps_appended = true;
+            }
+        }
+
+        // Insert the NALU to video in annexb.
+        srs_avc_insert_aud(video->payload, aud_inserted);
+        video->payload->append(sample->bytes, sample->size);
+    }
+
+    return err;
+}
+#endif
+
 SrsTsTransmuxer::SrsTsTransmuxer()
 {
     writer = NULL;
@@ -3158,10 +3253,17 @@ srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size
     if (format->video->frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
         return err;
     }
-    
-    if (format->vcodec->id != SrsVideoCodecIdAVC) {
+
+    bool codec_ok = (format->vcodec->id != SrsVideoCodecIdAVC);
+#ifdef SRS_H265
+    codec_ok = codec_ok ? : (format->vcodec->id != SrsVideoCodecIdHEVC);
+#endif
+    if (!codec_ok) {
         return err;
     }
+
+    // The video codec might change during streaming.
+    tscw->update_video_codec(format->vcodec->id);
     
     // ignore sequence header
     if (format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && format->video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {

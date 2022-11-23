@@ -555,7 +555,7 @@ srs_error_t SrsHlsMuxer::flush_audio(SrsTsMessageCache* cache)
     return err;
 }
 
-srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
+srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache, SrsVideoFrame* frame)
 {
     srs_error_t err = srs_success;
     
@@ -573,6 +573,12 @@ srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
     
     // update the duration of segment.
     current->append(cache->video->dts / 90);
+
+    // The video codec might change during streaming. Note that the frame might be NULL, when reap segment.
+    if (frame && frame->vcodec()) {
+        SrsTsContextWriter* tscw = current->tscw;
+        tscw->update_video_codec(frame->vcodec()->id);
+    }
     
     if ((err = current->tscw->write_video(cache->video)) != srs_success) {
         return srs_error_wrap(err, "hls: write video");
@@ -1025,7 +1031,7 @@ srs_error_t SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
     }
     
     // flush video when got one
-    if ((err = muxer->flush_video(tsmc)) != srs_success) {
+    if ((err = muxer->flush_video(tsmc, frame)) != srs_success) {
         return srs_error_wrap(err, "hls: flush video");
     }
     
@@ -1057,7 +1063,7 @@ srs_error_t SrsHlsController::reap_segment()
     }
     
     // segment open, flush video first.
-    if ((err = muxer->flush_video(tsmc)) != srs_success) {
+    if ((err = muxer->flush_video(tsmc, NULL)) != srs_success) {
         return srs_error_wrap(err, "hls: flush video");
     }
     
