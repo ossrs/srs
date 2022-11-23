@@ -23,7 +23,8 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_statistic.hpp>
 
-#define SRS_HTTP_RESPONSE_OK    SRS_XSTR(ERROR_SUCCESS)
+// The HTTP response body should be "0", see https://github.com/ossrs/srs/issues/3215#issuecomment-1319991512
+#define SRS_HTTP_RESPONSE_OK SRS_XSTR(0)
 
 #define SRS_HTTP_HEADER_BUFFER 1024
 #define SRS_HTTP_READ_BUFFER 4096

@@ -48,9 +48,15 @@ srs_error_t srs_st_init()
     
     // Select the best event system available on the OS. In Linux this is
     // epoll(). On BSD it will be kqueue.
+#if defined(SRS_CYGWIN64)
+    if (st_set_eventsys(ST_EVENTSYS_SELECT) == -1) {
+        return srs_error_new(ERROR_ST_SET_SELECT, "st enable st failed, current is %s", st_get_eventsys_name());
+    }
+#else
     if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
         return srs_error_new(ERROR_ST_SET_EPOLL, "st enable st failed, current is %s", st_get_eventsys_name());
     }
+#endif
 
     // Before ST init, we might have already initialized the background cid.
     SrsContextId cid = _srs_context->get_id();
@@ -68,6 +74,11 @@ srs_error_t srs_st_init()
     srs_info("st_init success, use %s", st_get_eventsys_name());
     
     return srs_success;
+}
+
+void srs_st_destroy(void)
+{
+    st_destroy();
 }
 
 void srs_close_stfd(srs_netfd_t& stfd)

@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # In .circleci/config.yml, generate *.gcno with
-#       ./configure --gcov --without-research --without-librtmp && make utest
+#       ./configure --gcov && make utest
 # and generate *.gcda by
 #       ./objs/srs_utest
 
 # Workdir is objs/cover.
-workdir=`pwd`/objs/cover
+workdir=$(cd `dirname $0`/.. && pwd)/objs/cover
 
 # Create trunk under workdir.
 mkdir -p $workdir && cd $workdir

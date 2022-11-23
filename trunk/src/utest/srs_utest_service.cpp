@@ -636,6 +636,7 @@ VOID TEST(HTTPServerTest, ContentLength)
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        SrsAutoFree(ISrsHttpMessage, msg);
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -664,6 +665,7 @@ VOID TEST(HTTPServerTest, HTTPChunked)
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        SrsAutoFree(ISrsHttpMessage, msg);
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -720,6 +722,7 @@ VOID TEST(HTTPServerTest, InfiniteChunked)
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        SrsAutoFree(ISrsHttpMessage, msg);
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -867,7 +870,12 @@ VOID TEST(TCPServerTest, TCPListen)
 
         srs_close_stfd(pfd);
         srs_close_stfd(pfd2);
+#ifdef SRS_CYGWIN64
+        // Should failed because cygwin does not support REUSE_PORT.
+        HELPER_EXPECT_FAILED(err2);
+#else
         HELPER_EXPECT_SUCCESS(err2);
+#endif
     }
 
     // Typical listen.
@@ -1110,7 +1118,7 @@ VOID TEST(TCPServerTest, CoverUtility)
         hints.ai_family = AF_INET;
 
         addrinfo* r = NULL;
-        SrsAutoFree(addrinfo, r);
+        SrsAutoFreeH(addrinfo, r, freeaddrinfo);
         ASSERT_TRUE(!getaddrinfo("127.0.0.1", NULL, &hints, &r));
 
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
@@ -1123,7 +1131,7 @@ VOID TEST(TCPServerTest, CoverUtility)
         hints.ai_family = AF_INET;
 
         addrinfo* r = NULL;
-        SrsAutoFree(addrinfo, r);
+        SrsAutoFreeH(addrinfo, r, freeaddrinfo);
         ASSERT_TRUE(!getaddrinfo("192.168.0.1", NULL, &hints, &r));
 
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
@@ -1168,7 +1176,7 @@ VOID TEST(TCPServerTest, CoverUtility)
         hints.ai_family = AF_INET6;
 
         addrinfo* r = NULL;
-        SrsAutoFree(addrinfo, r);
+        SrsAutoFreeH(addrinfo, r, freeaddrinfo);
         ASSERT_TRUE(!getaddrinfo("2001:da8:6000:291:21f:d0ff:fed4:928c", NULL, &hints, &r));
 
         EXPECT_TRUE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
@@ -1179,7 +1187,7 @@ VOID TEST(TCPServerTest, CoverUtility)
         hints.ai_family = AF_INET6;
 
         addrinfo* r = NULL;
-        SrsAutoFree(addrinfo, r);
+        SrsAutoFreeH(addrinfo, r, freeaddrinfo);
         ASSERT_TRUE(!getaddrinfo("3ffe:dead:beef::1", NULL, &hints, &r));
 
         EXPECT_TRUE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
@@ -1192,7 +1200,7 @@ VOID TEST(TCPServerTest, CoverUtility)
         hints.ai_family = AF_INET6;
 
         addrinfo* r = NULL;
-        SrsAutoFree(addrinfo, r);
+        SrsAutoFreeH(addrinfo, r, freeaddrinfo);
         ASSERT_TRUE(!getaddrinfo("::", NULL, &hints, &r));
 
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
@@ -1205,7 +1213,7 @@ VOID TEST(TCPServerTest, CoverUtility)
         hints.ai_family = AF_INET6;
 
         addrinfo* r = NULL;
-        SrsAutoFree(addrinfo, r);
+        SrsAutoFreeH(addrinfo, r, freeaddrinfo);
         ASSERT_TRUE(!getaddrinfo("fec0::", NULL, &hints, &r));
 
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
@@ -1218,7 +1226,7 @@ VOID TEST(TCPServerTest, CoverUtility)
         hints.ai_family = AF_INET6;
 
         addrinfo* r = NULL;
-        SrsAutoFree(addrinfo, r);
+        SrsAutoFreeH(addrinfo, r, freeaddrinfo);
         ASSERT_TRUE(!getaddrinfo("FE80::", NULL, &hints, &r));
 
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
@@ -1231,7 +1239,7 @@ VOID TEST(TCPServerTest, CoverUtility)
         hints.ai_family = AF_INET6;
 
         addrinfo* r = NULL;
-        SrsAutoFree(addrinfo, r);
+        SrsAutoFreeH(addrinfo, r, freeaddrinfo);
         ASSERT_TRUE(!getaddrinfo("::1", NULL, &hints, &r));
 
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));

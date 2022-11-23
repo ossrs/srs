@@ -229,6 +229,15 @@ int st_init(void)
 }
 
 
+/*
+ * Destroy this Virtual Processor
+ */
+void st_destroy(void)
+{
+    (*_st_eventsys->destroy)();
+}
+
+
 #ifdef ST_SWITCH_CB
 st_switch_cb_t st_set_switch_in_cb(st_switch_cb_t cb)
 {

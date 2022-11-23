@@ -13,7 +13,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <algorithm>
-#ifndef SRS_OSX
+#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
 #include <sys/inotify.h>
 #endif
 using namespace std;
@@ -191,7 +191,7 @@ srs_error_t SrsInotifyWorker::start()
 {
     srs_error_t err = srs_success;
 
-#ifndef SRS_OSX
+#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
     // Whether enable auto reload config.
     bool auto_reload = _srs_config->inotify_auto_reload();
     if (!auto_reload && _srs_in_docker && _srs_config->auto_reload_for_docker()) {
@@ -271,7 +271,7 @@ srs_error_t SrsInotifyWorker::cycle()
 {
     srs_error_t err = srs_success;
 
-#ifndef SRS_OSX
+#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
     string config_path = _srs_config->config();
     string config_file = srs_path_basename(config_path);
     string k8s_file = "..data";

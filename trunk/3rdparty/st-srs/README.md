@@ -118,6 +118,7 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) was patched an
 - [x] Define and use a new jmpbuf, because the structure is different.
 - [x] Check capability for backtrack.
 - [x] Support set specifics for any thread.
+- [x] Support st_destroy to free resources for asan.
 - [ ] System: Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
 
 ## GDB Tools

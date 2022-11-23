@@ -2333,7 +2333,7 @@ srs_error_t SrsRecoverablePsContext::decode_rtp(SrsBuffer* stream, int reserved,
     SrsRtpPacket rtp;
     int pos = stream->pos();
     if ((err = rtp.decode(stream)) != srs_success) {
-        return enter_recover_mode(stream, handler, pos, err = srs_error_new(ERROR_GB_PS_HEADER, "decode rtp"));
+        return enter_recover_mode(stream, handler, pos, srs_error_wrap(err, "decode rtp"));
     }
 
     SrsRtpRawPayload* rtp_raw = dynamic_cast<SrsRtpRawPayload*>(rtp.payload());

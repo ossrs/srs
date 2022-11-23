@@ -68,6 +68,61 @@ string srs_audio_codec_id2str(SrsAudioCodecId codec)
     }
 }
 
+SrsAudioSampleRate srs_audio_sample_rate_from_number(uint32_t v)
+{
+    if (v == 5512) return SrsAudioSampleRate5512;
+    if (v == 11025) return SrsAudioSampleRate11025;
+    if (v == 22050) return SrsAudioSampleRate22050;
+    if (v == 44100) return SrsAudioSampleRate44100;
+
+    if (v == 12000) return SrsAudioSampleRate12000;
+    if (v == 24000) return SrsAudioSampleRate24000;
+    if (v == 48000) return SrsAudioSampleRate48000;
+
+    if (v == 8000) return SrsAudioSampleRateNB8kHz;
+    if (v == 12000) return SrsAudioSampleRateMB12kHz;
+    if (v == 16000) return SrsAudioSampleRateWB16kHz;
+    if (v == 24000) return SrsAudioSampleRateSWB24kHz;
+    if (v == 48000) return SrsAudioSampleRateFB48kHz;
+
+    return SrsAudioSampleRateForbidden;
+}
+
+SrsAudioSampleRate srs_audio_sample_rate_guess_number(uint32_t v)
+{
+    if (v >= 48000) return SrsAudioSampleRate48000;
+    if (v >= 44100) return SrsAudioSampleRate44100;
+    if (v >= 24000) return SrsAudioSampleRate24000;
+    if (v >= 24000) return SrsAudioSampleRate24000;
+    if (v >= 22050) return SrsAudioSampleRate22050;
+    if (v >= 16000) return SrsAudioSampleRateWB16kHz;
+    if (v >= 12000) return SrsAudioSampleRate12000;
+    if (v >= 8000) return SrsAudioSampleRateNB8kHz;
+    if (v >= 5512) return SrsAudioSampleRate5512;
+
+    return SrsAudioSampleRateForbidden;
+}
+
+uint32_t srs_audio_sample_rate2number(SrsAudioSampleRate v)
+{
+    if (v == SrsAudioSampleRate5512) return 5512;
+    if (v == SrsAudioSampleRate11025) return 11025;
+    if (v == SrsAudioSampleRate22050) return 22050;
+    if (v == SrsAudioSampleRate44100) return 44100;
+
+    if (v == SrsAudioSampleRate12000) return 12000;
+    if (v == SrsAudioSampleRate24000) return 24000;
+    if (v == SrsAudioSampleRate48000) return 48000;
+
+    if (v == SrsAudioSampleRateNB8kHz) return 8000;
+    if (v == SrsAudioSampleRateMB12kHz) return 12000;
+    if (v == SrsAudioSampleRateWB16kHz) return 16000;
+    if (v == SrsAudioSampleRateSWB24kHz) return 24000;
+    if (v == SrsAudioSampleRateFB48kHz) return 48000;
+
+    return 0;
+}
+
 string srs_audio_sample_rate2str(SrsAudioSampleRate v)
 {
     switch (v) {

@@ -226,6 +226,7 @@ typedef struct _st_eventsys_ops {
     int  (*fd_new)(int);                       /* New descriptor allocated */
     int  (*fd_close)(int);                     /* Descriptor closed */
     int  (*fd_getlimit)(void);                 /* Descriptor hard limit */
+    void (*destroy)(void);                     /* Destroy the event object */
 } _st_eventsys_t;
 
 
