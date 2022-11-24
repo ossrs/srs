@@ -147,7 +147,7 @@ void SrsFragment::set_number(uint64_t n)
     number_ = n;
 }
 
-uint64_t SrsFragment::get_number()
+uint64_t SrsFragment::number()
 {
     return number_;
 }

@@ -4936,8 +4936,7 @@ srs_error_t SrsMp4SampleManager::write(SrsMp4MovieFragmentBox* moof, uint64_t dt
             entry->sample_flags = 0x01000000;
         }
         
-        vector<SrsMp4Sample*>::iterator iter = it;
-        ++iter;
+        vector<SrsMp4Sample*>::iterator iter = (it + 1);
         if (iter == samples.end()) {
             entry->sample_duration = dts - sample->dts;
         } else {

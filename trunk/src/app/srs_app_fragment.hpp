@@ -58,11 +58,10 @@ public:
     virtual srs_error_t unlink_tmpfile();
     // Rename the temp file to final file.
     virtual srs_error_t rename();
-    
-    // Set the number of this fragment.
+public:
+    // Get or set the number of this fragment.
     virtual void set_number(uint64_t n);
-    // Get the number of this fragment.
-    virtual uint64_t get_number();
+    virtual uint64_t number();
 };
 
 // The fragment window manage a series of fragment.

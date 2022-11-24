@@ -33,6 +33,18 @@ static std::string format_float(const double& d, int width = 3)
     return ss.str();
 }
 
+string srs_time_to_utc_format_str(srs_utime_t u)
+{
+    time_t s = srsu2s(u);
+    struct tm t;
+    srs_assert(gmtime_r(&s, &t) != NULL);
+
+    char print_buf[256];
+    size_t ret = strftime(print_buf, sizeof(print_buf), "%Y-%m-%dT%H:%M:%SZ", &t);
+
+    return std::string(print_buf, ret);
+}
+
 SrsInitMp4::SrsInitMp4()
 {
     fw = new SrsFileWriter();
@@ -203,7 +215,8 @@ srs_error_t SrsMpdWriter::on_publish()
 
     window_size_ = _srs_config->get_dash_window_size(r->vhost);
 
-    srs_trace("DASH: Config fragment=%" PRId64 ", period=%" PRId64 ", windows size=%d", fragment, update_period, window_size_);
+    srs_trace("DASH: Config fragment=%dms, period=%dms, windows size=%d, timeshit=%dms, home=%s, mpd=%s",
+        srsu2msi(fragment), srsu2msi(update_period), window_size_, srsu2msi(timeshit), home.c_str(), mpd_file.c_str());
 
     return srs_success;
 }
@@ -242,7 +255,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
        << "    minimumUpdatePeriod=\"PT" << format_float(srsu2s(update_period)) << "S\" " << endl
        << "    timeShiftBufferDepth=\"PT" << format_float(last_duration * window_size_) << "S\" " << endl
        << "    availabilityStartTime=\"" << srs_time_to_utc_format_str(availability_start_time_) << "\" " << endl
-       << "    publishTime=\"" << srs_get_system_time_utc_format_str() << "\" " << endl
+       << "    publishTime=\"" << srs_time_to_utc_format_str(srs_get_system_time()) << "\" " << endl
        << "    minBufferTime=\"PT" << format_float(2 * last_duration) << "S\" >" << endl;
 
     ss << "    <BaseURL>" << req->stream << "/" << "</BaseURL>" << endl;
@@ -255,7 +268,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
         ss << "            <Representation id=\"audio\" bandwidth=\"48000\" codecs=\"mp4a.40.2\">" << endl;
         ss << "                <SegmentTemplate initialization=\"$RepresentationID$-init.mp4\" "
                                             << "media=\"$RepresentationID$-$Number$.m4s\" " << endl
-                                            << "startNumber=\"" << afragments->at(start_index)->get_number() << "\"" << endl
+                                            << "startNumber=\"" << afragments->at(start_index)->number() << "\"" << endl
                                             << "timescale=\"1000\">" << endl;
         ss << "                    <SegmentTimeline>" << endl;
         for (int i = start_index; i < afragments->size(); ++i) {
@@ -276,7 +289,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
         ss << "            <Representation id=\"video\" bandwidth=\"800000\" codecs=\"avc1.64001e\" " << "width=\"" << w << "\" height=\"" << h << "\">" << endl;
         ss << "                <SegmentTemplate initialization=\"$RepresentationID$-init.mp4\" "
                                             << "media=\"$RepresentationID$-$Number$.m4s\" "
-                                            << "startNumber=\"" << vfragments->at(start_index)->get_number() << "\"" << endl
+                                            << "startNumber=\"" << vfragments->at(start_index)->number() << "\"" << endl
                                             << "timescale=\"1000\">" << endl;
         ss << "                    <SegmentTimeline>" << endl;
         for (int i = start_index; i < vfragments->size(); ++i) {
@@ -663,7 +676,7 @@ srs_error_t SrsDashController::refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFor
     
     init_mp4->set_path(path);
     
-    int tid = msg->is_video()? video_track_id:audio_track_id;
+    int tid = msg->is_video()? video_track_id : audio_track_id;
     if ((err = init_mp4->write(format, msg->is_video(), tid)) != srs_success) {
         return srs_error_wrap(err, "write init");
     }
@@ -672,7 +685,7 @@ srs_error_t SrsDashController::refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFor
         return srs_error_wrap(err, "rename init");
     }
     
-    srs_trace("DASH: Refresh media success, file=%s", path.c_str());
+    srs_trace("DASH: Refresh media type=%s, file=%s", (msg->is_video() ? "video": "audio"), path.c_str());
     
     return err;
 }

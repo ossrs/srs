@@ -148,37 +148,6 @@ srs_utime_t srs_update_system_time()
     return _srs_system_time_us_cache;
 }
 
-srs_utime_t srs_get_system_time_utc()
-{
-    return srs_time_to_utc(srs_get_system_time());
-}
-
-srs_utime_t srs_time_to_utc(srs_utime_t u)
-{
-    time_t s = srsu2s(u);
-    struct tm t;
-    srs_assert(gmtime_r(&s, &t) != NULL);
-
-    return t.tm_sec * SRS_UTIME_SECONDS + u % SRS_UTIME_SECONDS;
-}
-
-string srs_get_system_time_utc_format_str()
-{
-    return srs_time_to_utc_format_str(srs_get_system_time());
-}
-
-string srs_time_to_utc_format_str(srs_utime_t u)
-{
-    time_t s = srsu2s(u);
-    struct tm t;
-    srs_assert(gmtime_r(&s, &t) != NULL);
-
-    char print_buf[256];
-    size_t ret = strftime(print_buf, sizeof(print_buf), "%Y-%m-%dT%H:%M:%SZ", &t);
-
-    return std::string(print_buf, ret);
-}
-
 // TODO: FIXME: Replace by ST dns resolve.
 string srs_dns_resolve(string host, int& family)
 {
