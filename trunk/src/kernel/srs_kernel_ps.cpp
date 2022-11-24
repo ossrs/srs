@@ -48,6 +48,8 @@ SrsPsContext::SrsPsContext()
     current_ = NULL;
     helper_.ctx_ = this;
     detect_ps_integrity_ = false;
+    video_stream_type_ = SrsTsStreamReserved;
+    audio_stream_type_ = SrsTsStreamReserved;
 }
 
 SrsPsContext::~SrsPsContext()
@@ -121,9 +123,13 @@ srs_error_t SrsPsContext::decode(SrsBuffer* stream, ISrsPsMessageHandler* handle
                 return srs_error_wrap(err, "decode psm");
             }
 
-            srs_info("PS: Ignore PSM for video=%#x, audio=%#x", psm.video_elementary_stream_id_, psm.audio_elementary_stream_id_);
-            //context_->set(psm.video_elementary_stream_id_, SrsTsPidApplyVideo);
-            //context_->set(psm.audio_elementary_stream_id_, SrsTsPidApplyAudio);
+            if (video_stream_type_ == SrsTsStreamReserved || audio_stream_type_ == SrsTsStreamReserved) {
+                srs_trace("PS: Got PSM for video=%#x, audio=%#x", psm.video_elementary_stream_id_, psm.audio_elementary_stream_id_);
+            } else {
+                srs_info("PS: Got PSM for video=%#x, audio=%#x", psm.video_elementary_stream_id_, psm.audio_elementary_stream_id_);
+            }
+            video_stream_type_ = (SrsTsStream)psm.video_stream_type_;
+            audio_stream_type_ = (SrsTsStream)psm.audio_stream_type_;
         } else if (msg->is_video() || msg->is_audio()) {
             // Update the total messages in pack.
             helper_.pack_pre_msg_last_seq_ = helper_.rtp_seq_;
@@ -467,7 +473,7 @@ srs_error_t SrsPsPsmPacket::decode(SrsBuffer* stream)
         b.skip(elementary_stream_info_length);
         srs_info("PS: Ignore %d bytes descriptor for stream=%#x", elementary_stream_info_length, stream_type);
 
-        if (stream_type == SrsTsStreamVideoH264) {
+        if (stream_type == SrsTsStreamVideoH264 || stream_type == SrsTsStreamVideoHEVC) {
             video_stream_type_ = stream_type;
             video_elementary_stream_id_ = elementary_stream_id;
             video_elementary_stream_info_length_ = elementary_stream_info_length;

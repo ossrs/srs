@@ -1315,6 +1315,10 @@ srs_error_t SrsLazyGbMediaTcpConn::cycle()
 {
     srs_error_t err = do_cycle();
 
+    // Should disconnect the TCP connection when stop cycle, especially when we stop first. In this situation, the
+    // connection won't be closed because it's shared by other objects.
+    srs_freep(conn_);
+
     // Change state to disconnected.
     connected_ = false;
     srs_trace("PS: Media disconnect, code=%d", srs_error_code(err));
@@ -1642,10 +1646,19 @@ srs_error_t SrsGbMuxer::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
         // 5bits, 7.3.1 NAL unit syntax,
         // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
+        SrsAvcNaluType nt = (SrsAvcNaluType)(frame[0] & 0x1f);
 
-        // ignore the nalu type sps(7), pps(8), aud(9)
-        if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
+        // Ignore the nalu except video frames:
+        //      7: SPS, 8: PPS, 5: I Frame, 1: P Frame, 6: SEI, 9: AUD
+        if (
+            nt != SrsAvcNaluTypeSPS && nt != SrsAvcNaluTypePPS && nt != SrsAvcNaluTypeIDR &&
+            nt != SrsAvcNaluTypeNonIDR && nt != SrsAvcNaluTypeSEI && nt != SrsAvcNaluTypeAccessUnitDelimiter
+        ) {
+            string bytes = srs_string_dumps_hex(frame, frame_size, 4);
+            srs_warn("GB: Ignore NALU nt=%d, frame=[%s]", nt, bytes.c_str());
+            return err;
+        }
+        if (nt == SrsAvcNaluTypeSEI || nt == SrsAvcNaluTypeAccessUnitDelimiter) {
             continue;
         }
 
@@ -2390,6 +2403,11 @@ srs_error_t SrsRecoverablePsContext::decode(SrsBuffer* stream, ISrsPsMessageHand
     // Got packet to decode.
     if ((err = ctx_.decode(stream, handler)) != srs_success) {
         return enter_recover_mode(stream, handler, stream->pos(), srs_error_wrap(err, "decode pack"));
+    }
+
+    // Check stream type, error if HEVC, because not supported yet.
+    if (ctx_.video_stream_type_ == SrsTsStreamVideoHEVC) {
+        return srs_error_new(ERROR_GB_PS_HEADER, "HEVC is not supported");
     }
 
     return err;
