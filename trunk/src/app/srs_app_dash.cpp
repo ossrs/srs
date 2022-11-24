@@ -97,7 +97,8 @@ srs_error_t SrsFragmentedMp4::initialize(SrsRequest* r, bool video, int64_t time
     string file_name;
     int64_t sequence_number;
     if ((err = mpd->get_fragment(video, file_home, file_name, time, sequence_number)) != srs_success) {
-        return srs_error_wrap(err, "get fragment");
+        return srs_error_wrap(err, "get fragment, seq=%u, home=%s, file=%s",
+            (uint32_t)sequence_number, file_home.c_str(), file_name.c_str());
     }
 
     string home = _srs_config->get_dash_path(r->vhost);
@@ -115,7 +116,7 @@ srs_error_t SrsFragmentedMp4::initialize(SrsRequest* r, bool video, int64_t time
     }
     
     if ((err = enc->initialize(fw, (uint32_t)sequence_number, time, tid)) != srs_success) {
-        return srs_error_wrap(err, "init encoder");
+        return srs_error_wrap(err, "init encoder, seq=%u, time=%" PRId64 ", tid=%u", (uint32_t)sequence_number, time, tid);
     }
     
     return err;
@@ -212,10 +213,9 @@ srs_error_t SrsMpdWriter::on_publish()
 
     string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
     fragment_home = srs_path_dirname(mpd_path) + "/" + req->stream;
-
     window_size_ = _srs_config->get_dash_window_size(r->vhost);
 
-    srs_trace("DASH: Config fragment=%dms, period=%dms, windows size=%d, timeshit=%dms, home=%s, mpd=%s",
+    srs_trace("DASH: Config fragment=%dms, period=%dms, window=%d, timeshit=%dms, home=%s, mpd=%s",
         srsu2msi(fragment), srsu2msi(update_period), window_size_, srsu2msi(timeshit), home.c_str(), mpd_file.c_str());
 
     return srs_success;
@@ -454,7 +454,7 @@ void SrsDashController::on_unpublish()
     srs_error_t err = srs_success;
 
     if (vcurrent && (err = vcurrent->reap(video_dts)) != srs_success) {
-        srs_warn("reap video err %s", srs_error_desc(err).c_str());
+        srs_warn("reap video dts=%" PRId64 " err %s", video_dts, srs_error_desc(err).c_str());
         srs_freep(err);
     }
 
@@ -464,7 +464,7 @@ void SrsDashController::on_unpublish()
     }
 
     if (acurrent && (err = acurrent->reap(audio_dts)) != srs_success) {
-        srs_warn("reap audio err %s", srs_error_desc(err).c_str());
+        srs_warn("reap audio dts=%" PRId64 " err %s", audio_dts, srs_error_desc(err).c_str());
         srs_freep(err);
     }
 
