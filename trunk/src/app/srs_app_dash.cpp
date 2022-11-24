@@ -23,16 +23,6 @@
 
 using namespace std;
 
-static std::string format_float(const double& d, int width = 3)
-{
-    stringstream ss;
-    ss.setf(std::ios::fixed);
-    ss.precision(width);
-    ss << d;
-
-    return ss.str();
-}
-
 string srs_time_to_utc_format_str(srs_utime_t u)
 {
     time_t s = srsu2s(u);
@@ -252,11 +242,11 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
        << "    ns1:schemaLocation=\"urn:mpeg:dash:schema:mpd:2011 DASH-MPD.xsd\" " << endl
        << "    xmlns=\"urn:mpeg:dash:schema:mpd:2011\" xmlns:ns1=\"http://www.w3.org/2001/XMLSchema-instance\" " << endl
        << "    type=\"dynamic\" " << endl
-       << "    minimumUpdatePeriod=\"PT" << format_float(srsu2s(update_period)) << "S\" " << endl
-       << "    timeShiftBufferDepth=\"PT" << format_float(last_duration * window_size_) << "S\" " << endl
+       << "    minimumUpdatePeriod=\"PT" << srs_fmt("%.3f", srsu2s(update_period)) << "S\" " << endl
+       << "    timeShiftBufferDepth=\"PT" << srs_fmt("%.3f", last_duration * window_size_) << "S\" " << endl
        << "    availabilityStartTime=\"" << srs_time_to_utc_format_str(availability_start_time_) << "\" " << endl
        << "    publishTime=\"" << srs_time_to_utc_format_str(srs_get_system_time()) << "\" " << endl
-       << "    minBufferTime=\"PT" << format_float(2 * last_duration) << "S\" >" << endl;
+       << "    minBufferTime=\"PT" << srs_fmt("%.3f", 2 * last_duration) << "S\" >" << endl;
 
     ss << "    <BaseURL>" << req->stream << "/" << "</BaseURL>" << endl;
     
