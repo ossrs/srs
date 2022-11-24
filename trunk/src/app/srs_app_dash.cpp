@@ -366,7 +366,8 @@ SrsDashController::SrsDashController()
     audio_track_id = 2;
     mpd = new SrsMpdWriter();
     vcurrent = acurrent = NULL;
-    vfragments = afragments = NULL;
+    vfragments = new SrsFragmentWindow();
+    afragments = new SrsFragmentWindow();
     audio_dts = video_dts = 0;
     first_dts_ = -1;
     video_reaped_ = false;
@@ -389,22 +390,16 @@ void SrsDashController::dispose()
     vfragments->dispose();
     afragments->dispose();
     
-    if (vcurrent) {
-        if ((err = vcurrent->unlink_tmpfile()) != srs_success) {
-            srs_warn("Unlink tmp video m4s failed %s", srs_error_desc(err).c_str());
-            srs_freep(err);
-        }
-        srs_freep(vcurrent);
+    if (vcurrent && (err = vcurrent->unlink_tmpfile()) != srs_success) {
+        srs_warn("Unlink tmp video m4s failed %s", srs_error_desc(err).c_str());
+        srs_freep(err);
     }
 
-    if (acurrent) {
-        if ((err = acurrent->unlink_tmpfile()) != srs_success) {
-            srs_warn("Unlink tmp audio m4s failed %s", srs_error_desc(err).c_str());
-            srs_freep(err);
-        }
-        srs_freep(acurrent);
+    if (acurrent && (err = acurrent->unlink_tmpfile()) != srs_success) {
+        srs_warn("Unlink tmp audio m4s failed %s", srs_error_desc(err).c_str());
+        srs_freep(err);
     }
-    
+
     mpd->dispose();
     
     srs_trace("gracefully dispose dash %s", req? req->get_stream_url().c_str() : "");
@@ -458,19 +453,17 @@ void SrsDashController::on_unpublish()
 
     srs_error_t err = srs_success;
 
-    if ((err = vcurrent->reap(video_dts)) != srs_success) {
+    if (vcurrent && (err = vcurrent->reap(video_dts)) != srs_success) {
         srs_warn("reap video err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
 
-    if (vcurrent->duration() > 0) {
+    if (vcurrent && vcurrent->duration()) {
         vfragments->append(vcurrent);
         vcurrent = NULL;
-    } else {
-        srs_freep(vcurrent);
     }
 
-    if ((err = acurrent->reap(audio_dts)) != srs_success) {
+    if (acurrent && (err = acurrent->reap(audio_dts)) != srs_success) {
         srs_warn("reap audio err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
@@ -478,8 +471,6 @@ void SrsDashController::on_unpublish()
     if (acurrent->duration() > 0) {
         afragments->append(acurrent);
         acurrent = NULL;
-    } else {
-        srs_freep(acurrent);
     }
 
     if ((err = refresh_mpd(format_)) != srs_success) {
