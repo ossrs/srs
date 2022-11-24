@@ -1906,7 +1906,7 @@ public:
     virtual srs_error_t write(SrsMp4MovieBox* moov);
     // Write the samples info to moof.
     // @param The dts is the dts of last segment.
-    virtual srs_error_t write(SrsMp4MovieFragmentBox* moof, uint64_t& dts);
+    virtual srs_error_t write(SrsMp4MovieFragmentBox* moof, uint64_t dts);
 private:
     virtual srs_error_t write_track(SrsFrameType track,
         SrsMp4DecodingTime2SampleBox* stts, SrsMp4SyncSampleBox* stss, SrsMp4CompositionTime2SampleBox* ctts,

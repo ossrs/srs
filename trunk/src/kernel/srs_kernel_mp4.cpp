@@ -4912,7 +4912,7 @@ srs_error_t SrsMp4SampleManager::write(SrsMp4MovieBox* moov)
     return err;
 }
 
-srs_error_t SrsMp4SampleManager::write(SrsMp4MovieFragmentBox* moof, uint64_t& dts)
+srs_error_t SrsMp4SampleManager::write(SrsMp4MovieFragmentBox* moof, uint64_t dts)
 {
     srs_error_t err = srs_success;
     
@@ -4936,11 +4936,12 @@ srs_error_t SrsMp4SampleManager::write(SrsMp4MovieFragmentBox* moof, uint64_t& d
             entry->sample_flags = 0x01000000;
         }
         
-        entry->sample_duration = (uint32_t)srs_min(100, sample->dts - dts);
-        if (entry->sample_duration == 0) {
-            entry->sample_duration = 40;
+        vector<SrsMp4Sample*>::iterator iter = (it + 1);
+        if (iter == samples.end()) {
+            entry->sample_duration = dts - sample->dts;
+        } else {
+            entry->sample_duration = (*iter)->dts - sample->dts;
         }
-        dts = sample->dts;
         
         entry->sample_size = sample->nb_data;
         entry->sample_composition_time_offset = (int64_t)(sample->pts - sample->dts);
@@ -6445,8 +6446,7 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
         uint64_t duration = 0;
         if (samples && !samples->samples.empty()) {
             SrsMp4Sample* first = samples->samples[0];
-            SrsMp4Sample* last = samples->samples[samples->samples.size() - 1];
-            duration = srs_max(0, last->dts - first->dts);
+            duration = srs_max(0, dts - first->dts);
         }
 
         SrsMp4SegmentIndexEntry entry;

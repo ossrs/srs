@@ -19,6 +19,7 @@ SrsFragment::SrsFragment()
     dur = 0;
     start_dts = -1;
     sequence_header = false;
+    number_ = 0;
 }
 
 SrsFragment::~SrsFragment()
@@ -44,6 +45,11 @@ void SrsFragment::append(int64_t dts)
     // TODO: FIXME: Use cumulus dts.
     start_dts = srs_min(start_dts, dts_in_tbn);
     dur = dts_in_tbn - start_dts;
+}
+
+srs_utime_t SrsFragment::get_start_dts()
+{
+    return start_dts;
 }
 
 srs_utime_t SrsFragment::duration()
@@ -134,6 +140,16 @@ srs_error_t SrsFragment::rename()
 
     filepath = full_path;
     return err;
+}
+
+void SrsFragment::set_number(uint64_t n)
+{
+    number_ = n;
+}
+
+uint64_t SrsFragment::number()
+{
+    return number_;
 }
 
 SrsFragmentWindow::SrsFragmentWindow()

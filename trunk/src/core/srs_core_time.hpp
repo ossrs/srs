@@ -23,6 +23,10 @@ typedef int64_t srs_utime_t;
 #define srsu2ms(us) ((us) / SRS_UTIME_MILLISECONDS)
 #define srsu2msi(us) int((us) / SRS_UTIME_MILLISECONDS)
 
+// Convert srs_utime_t as second.
+#define srsu2s(us) ((us) / SRS_UTIME_SECONDS)
+#define srsu2si(us) ((us) / SRS_UTIME_SECONDS)
+
 // Them time duration = end - start. return 0, if start or end is 0.
 srs_utime_t srs_duration(srs_utime_t start, srs_utime_t end);
 

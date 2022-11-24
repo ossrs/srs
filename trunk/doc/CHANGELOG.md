@@ -18,6 +18,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-11-24, For [#299](https://github.com/ossrs/srs/issues/299), DASH: Fix number mode bug to make it run. 5.0.96
 * v5.0, 2022-11-23, For [#3176](https://github.com/ossrs/srs/pull/3176): GB28181: Error and logging for HEVC. v5.0.95
 * v5.0, 2022-11-22, Merge [#3236](https://github.com/ossrs/srs/pull/3236): Live: Limit cached max frames by gop_cache_max_frames. v5.0.93
 * v5.0, 2022-11-22, Asan: Check libasan and show tips. v5.0.92
