@@ -67,6 +67,10 @@ private:
     // Whether detect PS packet header integrity.
     bool detect_ps_integrity_;
 public:
+    // The stream type parsed from latest PSM packet.
+    SrsTsStream video_stream_type_;
+    SrsTsStream audio_stream_type_;
+public:
     SrsPsContext();
     virtual ~SrsPsContext();
 public:

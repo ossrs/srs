@@ -131,6 +131,7 @@ enum SrsTsStream
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved
     // 0x15-0x7F
     SrsTsStreamVideoH264 = 0x1b,
+    SrsTsStreamVideoHEVC = 0x24,
     // User Private
     // 0x80-0xFF
     SrsTsStreamAudioAC3 = 0x81,

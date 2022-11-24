@@ -4,7 +4,7 @@
 [![](https://github.com/ossrs/srs/actions/workflows/codeql-analysis.yml/badge.svg?branch=5.0release)](https://github.com/ossrs/srs/actions?query=workflow%3ACodeQL+branch%3A5.0release)
 [![](https://github.com/ossrs/srs/actions/workflows/release.yml/badge.svg)](https://github.com/ossrs/srs/actions/workflows/release.yml?query=workflow%3ARelease)
 [![](https://github.com/ossrs/srs/actions/workflows/test.yml/badge.svg?branch=5.0release)](https://github.com/ossrs/srs/actions?query=workflow%3ATest+branch%3A5.0release)
-[![](https://codecov.io/gh/ossrs/srs/branch/5.0release/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/5.0release)
+[![](https://codecov.io/gh/ossrs/srs/branch/5.0release/graph/badge.svg?token=Zx2LhdtA39)](https://app.codecov.io/gh/ossrs/srs/tree/5.0release)
 [![](https://ossrs.net/wiki/images/wechat-badge4.svg)](https://ossrs.net/lts/zh-cn/contact#discussion)
 [![](https://img.shields.io/twitter/follow/srs_server?style=social)](https://twitter.com/srs_server)
 [![](https://badgen.net/discord/members/yZ4BnPmHAd)](https://discord.gg/yZ4BnPmHAd)
