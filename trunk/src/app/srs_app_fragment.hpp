@@ -25,6 +25,8 @@ private:
     srs_utime_t start_dts;
     // Whether current segement contains sequence header.
     bool sequence_header;
+    // The number of this segment, use in dash mpd.
+    uint64_t number_;
 public:
     SrsFragment();
     virtual ~SrsFragment();
@@ -32,6 +34,8 @@ public:
     // Append a frame with dts into fragment.
     // @dts The dts of frame in ms.
     virtual void append(int64_t dts);
+    // Get the start dts of fragment.
+    virtual srs_utime_t get_start_dts();
     // Get the duration of fragment in srs_utime_t.
     virtual srs_utime_t duration();
     // Whether the fragment contains any sequence header.
@@ -54,6 +58,10 @@ public:
     virtual srs_error_t unlink_tmpfile();
     // Rename the temp file to final file.
     virtual srs_error_t rename();
+public:
+    // Get or set the number of this fragment.
+    virtual void set_number(uint64_t n);
+    virtual uint64_t number();
 };
 
 // The fragment window manage a series of fragment.

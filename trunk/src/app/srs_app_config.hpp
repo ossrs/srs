@@ -896,6 +896,12 @@ public:
     virtual std::string get_dash_path(std::string vhost);
     // Get the path for DASH MPD, to generate the MPD file.
     virtual std::string get_dash_mpd_file(std::string vhost);
+    // Get the number of fragments in MPD file.
+    virtual int get_dash_window_size(std::string vhost);
+    // Whether cleanup the old m4s files.
+    virtual bool get_dash_cleanup(std::string vhost);
+    // The timeout in srs_utime_t to dispose the dash.
+    virtual srs_utime_t get_dash_dispose(std::string vhost);
 // hls section
 private:
     // Get the hls directive of vhost.

@@ -2595,7 +2595,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "dash_fragment" && m != "dash_update_period" && m != "dash_timeshift" && m != "dash_path"
-                        && m != "dash_mpd_file") {
+                        && m != "dash_mpd_file" && m != "dash_window_size" && m != "dash_dispose" && m != "dash_cleanup") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.dash.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -6454,7 +6454,7 @@ srs_utime_t SrsConfig::get_dash_fragment(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_fragment");
 
-    static int DEFAULT = 30 * SRS_UTIME_SECONDS;
+    static int DEFAULT = 10 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
@@ -6473,7 +6473,7 @@ srs_utime_t SrsConfig::get_dash_update_period(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_update_period");
 
-    static srs_utime_t DEFAULT = 150 * SRS_UTIME_SECONDS;
+    static srs_utime_t DEFAULT = 5 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
@@ -6543,6 +6543,63 @@ string SrsConfig::get_dash_mpd_file(string vhost)
     }
     
     return conf->arg0();
+}
+
+int SrsConfig::get_dash_window_size(std::string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_window_size");
+
+    static int DEFAULT = 5;
+    
+    SrsConfDirective* conf = get_dash(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("dash_window_size");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_dash_cleanup(std::string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.dash.dash_cleanup");
+
+    static bool DEFAULT = true;
+    
+    SrsConfDirective* conf = get_dash(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("dash_cleanup");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+srs_utime_t SrsConfig::get_dash_dispose(std::string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.dash.dash_dispose");
+
+    static srs_utime_t DEFAULT = 0;
+    
+    SrsConfDirective* conf = get_dash(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("dash_dispose");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 SrsConfDirective* SrsConfig::get_hls(string vhost)
