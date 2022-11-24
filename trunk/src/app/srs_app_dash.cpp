@@ -257,8 +257,8 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
         ss << "        <AdaptationSet mimeType=\"audio/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
         ss << "            <Representation id=\"audio\" bandwidth=\"48000\" codecs=\"mp4a.40.2\">" << endl;
         ss << "                <SegmentTemplate initialization=\"$RepresentationID$-init.mp4\" "
-                                            << "media=\"$RepresentationID$-$Number$.m4s\" " << endl
-                                            << "startNumber=\"" << afragments->at(start_index)->number() << "\"" << endl
+                                            << "media=\"$RepresentationID$-$Number$.m4s\" "
+                                            << "startNumber=\"" << afragments->at(start_index)->number() << "\" "
                                             << "timescale=\"1000\">" << endl;
         ss << "                    <SegmentTimeline>" << endl;
         for (int i = start_index; i < afragments->size(); ++i) {
@@ -279,7 +279,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
         ss << "            <Representation id=\"video\" bandwidth=\"800000\" codecs=\"avc1.64001e\" " << "width=\"" << w << "\" height=\"" << h << "\">" << endl;
         ss << "                <SegmentTemplate initialization=\"$RepresentationID$-init.mp4\" "
                                             << "media=\"$RepresentationID$-$Number$.m4s\" "
-                                            << "startNumber=\"" << vfragments->at(start_index)->number() << "\"" << endl
+                                            << "startNumber=\"" << vfragments->at(start_index)->number() << "\" "
                                             << "timescale=\"1000\">" << endl;
         ss << "                    <SegmentTimeline>" << endl;
         for (int i = start_index; i < vfragments->size(); ++i) {
