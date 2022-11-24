@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <sstream>
 #include <unistd.h>
+
 using namespace std;
 
 static std::string format_float(const double& d, int width = 3)
@@ -89,6 +90,8 @@ srs_error_t SrsFragmentedMp4::initialize(SrsRequest* r, bool video, int64_t time
 
     string home = _srs_config->get_dash_path(r->vhost);
     set_path(home + "/" + file_home + "/" + file_name);
+    // Set number of the fragment, use in mpd SegmentTemplate@startNumber later.
+    set_number(sequence_number);
     
     if ((err = create_dir()) != srs_success) {
         return srs_error_wrap(err, "create dir");
@@ -156,10 +159,12 @@ SrsMpdWriter::SrsMpdWriter()
 {
     req = NULL;
     timeshit = update_period = fragment = 0;
-    last_update_mpd = 0;
 
     window_size_ = 0;
     availability_start_time_ = 0;
+
+    video_number_ = 0;
+    audio_number_ = 0;
 }
 
 SrsMpdWriter::~SrsMpdWriter()
@@ -197,7 +202,6 @@ srs_error_t SrsMpdWriter::on_publish()
     fragment_home = srs_path_dirname(mpd_path) + "/" + req->stream;
 
     window_size_ = _srs_config->get_dash_window_size(r->vhost);
-    availability_start_time_ = 0;
 
     srs_trace("DASH: Config fragment=%" PRId64 ", period=%" PRId64 ", windows size=%d", fragment, update_period, window_size_);
 
@@ -213,15 +217,9 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
     srs_error_t err = srs_success;
 
     // TODO: FIXME: pure audio/video support.
-    if (! window_size_ || afragments->size() < window_size_ || vfragments->size() < window_size_) {
+    if (afragments->empty() || vfragments->empty()) {
         return err;
     }
-
-    // MPD is not expired?
-    if (last_update_mpd != 0 && srs_get_system_time() - last_update_mpd < update_period) {
-        return err;
-    }
-    last_update_mpd = srs_get_system_time();
     
     string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
     string full_path = home + "/" + mpd_path;
@@ -234,7 +232,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
     }
 
     double last_duration = srsu2s(srs_max(vfragments->at(vfragments->size() - 1)->duration(), afragments->at(afragments->size() - 1)->duration()));
-    
+
     stringstream ss;
     ss << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << endl
        << "<MPD profiles=\"urn:mpeg:dash:profile:isoff-live:2011,http://dashif.org/guidelines/dash-if-simple\" " << endl
@@ -252,13 +250,15 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
     ss << "    <Period start=\"PT0S\">" << endl;
     
     if (format->acodec && ! afragments->empty()) {
+        int start_index = srs_max(0, afragments->size()-window_size_);
         ss << "        <AdaptationSet mimeType=\"audio/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
         ss << "            <Representation id=\"audio\" bandwidth=\"48000\" codecs=\"mp4a.40.2\">" << endl;
         ss << "                <SegmentTemplate initialization=\"$RepresentationID$-init.mp4\" "
-                                            << "media=\"$RepresentationID$-$Time$.m4s\" "
+                                            << "media=\"$RepresentationID$-$Number$.m4s\" " << endl
+                                            << "startNumber=\"" << afragments->at(start_index)->get_number() << "\"" << endl
                                             << "timescale=\"1000\">" << endl;
         ss << "                    <SegmentTimeline>" << endl;
-        for (int i = afragments->size() - window_size_; i < afragments->size(); ++i) {
+        for (int i = start_index; i < afragments->size(); ++i) {
             ss << "                        <S t=\"" << srsu2ms(afragments->at(i)->get_start_dts()) << "\" "
                                           << "d=\"" << srsu2ms(afragments->at(i)->duration()) << "\" />"  << endl;
         }
@@ -269,15 +269,17 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
     }
 
     if (format->vcodec && ! vfragments->empty()) {
+        int start_index = srs_max(0, vfragments->size()-window_size_);
         int w = format->vcodec->width;
         int h = format->vcodec->height;
         ss << "        <AdaptationSet mimeType=\"video/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
         ss << "            <Representation id=\"video\" bandwidth=\"800000\" codecs=\"avc1.64001e\" " << "width=\"" << w << "\" height=\"" << h << "\">" << endl;
         ss << "                <SegmentTemplate initialization=\"$RepresentationID$-init.mp4\" "
-                                            << "media=\"$RepresentationID$-$Time$.m4s\" "
+                                            << "media=\"$RepresentationID$-$Number$.m4s\" "
+                                            << "startNumber=\"" << vfragments->at(start_index)->get_number() << "\"" << endl
                                             << "timescale=\"1000\">" << endl;
         ss << "                    <SegmentTimeline>" << endl;
-        for (int i = vfragments->size() - window_size_; i < vfragments->size(); ++i) {
+        for (int i = start_index; i < vfragments->size(); ++i) {
             ss << "                        <S t=\"" << srsu2ms(vfragments->at(i)->get_start_dts()) << "\" "
                                           << "d=\"" << srsu2ms(vfragments->at(i)->duration()) << "\" />"  << endl;
         }
@@ -321,11 +323,12 @@ srs_error_t SrsMpdWriter::get_fragment(bool video, std::string& home, std::strin
     // the player may also request the current segment.
     srs_assert(fragment);
 
-    sn++;
     if (video) {
-        file_name = "video-" + srs_int2str(srsu2ms(time)) + ".m4s";
+        sn = video_number_++;
+        file_name = "video-" + srs_int2str(sn) + ".m4s";
     } else {
-        file_name = "audio-" + srs_int2str(srsu2ms(time)) + ".m4s";
+        sn = audio_number_++;
+        file_name = "audio-" + srs_int2str(sn) + ".m4s";
     }
     
     return err;
@@ -336,18 +339,24 @@ void SrsMpdWriter::set_availability_start_time(srs_utime_t t)
     availability_start_time_ = t;
 }
 
+srs_utime_t SrsMpdWriter::get_availability_start_time()
+{
+    return availability_start_time_;
+}
+
 SrsDashController::SrsDashController()
 {
     req = NULL;
+    format_ = NULL;
     // trackid start from 1, because some player will check if track id is greater than 0
     video_track_id = 1;
     audio_track_id = 2;
     mpd = new SrsMpdWriter();
     vcurrent = acurrent = NULL;
-    vfragments = new SrsFragmentWindow();
-    afragments = new SrsFragmentWindow();
+    vfragments = afragments = NULL;
     audio_dts = video_dts = 0;
-    first_dts_ = 0;
+    first_dts_ = -1;
+    video_reaped_ = false;
     fragment = 0;
 }
 
@@ -415,10 +424,17 @@ srs_error_t SrsDashController::on_publish()
     }
 
     srs_freep(vcurrent);
+    srs_freep(vfragments);
+    vfragments = new SrsFragmentWindow();
+
     srs_freep(acurrent);
+    srs_freep(afragments);
+    afragments = new SrsFragmentWindow();
+
     audio_dts = 0;
     video_dts = 0;
-    first_dts_ = 0;
+    first_dts_ = -1;
+    video_reaped_ = false;
 
     return err;
 }
@@ -433,18 +449,37 @@ void SrsDashController::on_unpublish()
         srs_warn("reap video err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
-    srs_freep(vcurrent);
+
+    if (vcurrent->duration() > 0) {
+        vfragments->append(vcurrent);
+        vcurrent = NULL;
+    } else {
+        srs_freep(vcurrent);
+    }
 
     if ((err = acurrent->reap(audio_dts)) != srs_success) {
         srs_warn("reap audio err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
-    srs_freep(acurrent);
+
+    if (acurrent->duration() > 0) {
+        afragments->append(acurrent);
+        acurrent = NULL;
+    } else {
+        srs_freep(acurrent);
+    }
+
+    if ((err = refresh_mpd(format_)) != srs_success) {
+        srs_warn("Refresh the MPD failed, err=%s", srs_error_desc(err).c_str());
+        srs_error_reset(err);
+    }
 }
 
 srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     srs_error_t err = srs_success;
+
+    format_ = format;
 
     if (format->is_aac_sequence_header()) {
         return refresh_init_mp4(shared_audio, format);
@@ -460,13 +495,16 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFo
         }
     }
     
-    if (! first_dts_) {
+    if (first_dts_ == -1) {
         first_dts_ = audio_dts;
         mpd->set_availability_start_time(srs_get_system_time() - first_dts_ * SRS_UTIME_MILLISECONDS);
     }
 
-    if (acurrent->duration() >= fragment) {
-        // TODO: FIXME: bad function name(use to calc the real duration of this fragment)
+    // TODO: FIXME: Support pure audio streaming.
+    if (video_reaped_) {
+        // The video is reaped, audio must be reaped right now to align the timestamp of video.
+        video_reaped_ = false;
+        // Append current timestamp to calculate right duration.
         acurrent->append(shared_audio->timestamp);
         if ((err = acurrent->reap(audio_dts)) != srs_success) {
             return srs_error_wrap(err, "reap current");
@@ -477,6 +515,10 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFo
         
         if ((err = acurrent->initialize(req, false, audio_dts * SRS_UTIME_MILLISECONDS, mpd, audio_track_id)) != srs_success) {
             return srs_error_wrap(err, "Initialize the audio fragment failed");
+        }
+
+        if ((err = refresh_mpd(format)) != srs_success) {
+            return srs_error_wrap(err, "Refresh the MPD failed");
         }
     }
     
@@ -498,10 +540,6 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFo
         afragments->shrink(dash_window);
     }
     
-    if ((err = refresh_mpd(format)) != srs_success) {
-        return srs_error_wrap(err, "Refresh the MPD failed");
-    }
-
     bool dash_cleanup = _srs_config->get_dash_cleanup(req->vhost);
     // remove the m4s file.
     afragments->clear_expired(dash_cleanup);
@@ -512,6 +550,8 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFo
 srs_error_t SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     srs_error_t err = srs_success;
+
+    format_ = format;
 
     if (format->is_avc_sequence_header()) {
         return refresh_init_mp4(shared_video, format);
@@ -527,24 +567,31 @@ srs_error_t SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFo
         }
     }
 
-    if (! first_dts_) {
+    if (first_dts_ == -1) {
         first_dts_ = video_dts;
         mpd->set_availability_start_time(srs_get_system_time() - first_dts_ * SRS_UTIME_MILLISECONDS);
     }
     
     bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && vcurrent->duration() >= fragment;
     if (reopen) {
-        // TODO: FIXME: bad function name(use to calc the real duration of this fragment)
+        // Append current timestamp to calculate right duration.
         vcurrent->append(shared_video->timestamp);
         if ((err = vcurrent->reap(video_dts)) != srs_success) {
             return srs_error_wrap(err, "reap current");
         }
+
+        // Mark the video has reaped, audio will reaped when recv next frame.
+        video_reaped_ = true;
 
         vfragments->append(vcurrent);
         vcurrent = new SrsFragmentedMp4();
         
         if ((err = vcurrent->initialize(req, true, video_dts * SRS_UTIME_MILLISECONDS, mpd, video_track_id)) != srs_success) {
             return srs_error_wrap(err, "Initialize the video fragment failed");
+        }
+    
+        if ((err = refresh_mpd(format)) != srs_success) {
+            return srs_error_wrap(err, "Refresh the MPD failed");
         }
     }
     
@@ -564,10 +611,6 @@ srs_error_t SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFo
 
         // shrink the segments.
         vfragments->shrink(dash_window);
-    }
-    
-    if ((err = refresh_mpd(format)) != srs_success) {
-        return srs_error_wrap(err, "Refresh the MPD failed");
     }
 
     bool dash_cleanup = _srs_config->get_dash_cleanup(req->vhost);

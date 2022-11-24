@@ -19,6 +19,7 @@ SrsFragment::SrsFragment()
     dur = 0;
     start_dts = -1;
     sequence_header = false;
+    number_ = 0;
 }
 
 SrsFragment::~SrsFragment()
@@ -139,6 +140,16 @@ srs_error_t SrsFragment::rename()
 
     filepath = full_path;
     return err;
+}
+
+void SrsFragment::set_number(uint64_t n)
+{
+    number_ = n;
+}
+
+uint64_t SrsFragment::get_number()
+{
+    return number_;
 }
 
 SrsFragmentWindow::SrsFragmentWindow()

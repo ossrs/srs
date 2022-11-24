@@ -60,7 +60,6 @@ class SrsMpdWriter
 {
 private:
     SrsRequest* req;
-    srs_utime_t last_update_mpd;
 private:
     // The duration of fragment in srs_utime_t.
     srs_utime_t fragment;
@@ -76,6 +75,10 @@ private:
     int window_size_;
     // The availabilityStartTime in MPD file.
     srs_utime_t availability_start_time_;
+    // The number of current video segment.
+    uint64_t video_number_;
+    // The number of current audio segment.
+    uint64_t audio_number_;
 private:
     // The home for fragment, relative to home.
     std::string fragment_home;
@@ -96,6 +99,7 @@ public:
     virtual srs_error_t get_fragment(bool video, std::string& home, std::string& filename, int64_t time, int64_t& sn);
     // Set the availabilityStartTime once, map the timestamp in media to utc time.
     virtual void set_availability_start_time(srs_utime_t t);
+    virtual srs_utime_t get_availability_start_time();
 };
 
 // The controller for DASH, control the MPD and FMP4 generating system.
@@ -103,6 +107,7 @@ class SrsDashController
 {
 private:
     SrsRequest* req;
+    SrsFormat* format_;
     SrsMpdWriter* mpd;
 private:
     SrsFragmentedMp4* vcurrent;
@@ -114,7 +119,9 @@ private:
     // Current video dts.
     uint64_t video_dts;
     // First dts of the stream, use to calculate the availabilityStartTime in MPD.
-    uint64_t first_dts_;
+    int64_t first_dts_;
+    // Had the video reaped, use to align audio/video segment's timestamp.
+    bool video_reaped_;
 private:
     // The fragment duration in srs_utime_t to reap it.
     srs_utime_t fragment;
