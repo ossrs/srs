@@ -41,9 +41,9 @@ The features of SRS.
 - [x] Live: Support origin cluster, please read [#464](https://github.com/ossrs/srs/issues/464), [RTMP 302](https://github.com/ossrs/srs/issues/92). v3.0.0+
 - [x] Live: Support NGINX HLS Cluster, see [CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-hls-cluster) or [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-hls-cluster). v5.0.28+
 - [x] Live: SRT: Support PUSH SRT by IP and optional port, see [#3198](https://github.com/ossrs/srs/issues/3198). v5.0.76+
-- [x] Live: [Experimental] Support MPEG-DASH, the future live streaming protocol, read [#299](https://github.com/ossrs/srs/issues/299). v5.0.95+
 - [x] Live: [Experimental] Support SRT server, read [#1147](https://github.com/ossrs/srs/issues/1147). v4.0.143+
 - [x] Live: [Experimental] Support Coroutine Native SRT over ST, [#3010](https://github.com/ossrs/srs/pull/3010). v5.0.30+
+- [x] Live: [Experimental] Support MPEG-DASH, Dynamic Adaptive Streaming over HTTP, read [#299](https://github.com/ossrs/srs/issues/299). v5.0.96+
 - [x] RTC: Support playing stream by WebRTC, [#307](https://github.com/ossrs/srs/issues/307). v4.0.17+
 - [x] RTC: Support publishing stream by WebRTC, [#307](https://github.com/ossrs/srs/issues/307). v4.0.17+
 - [x] RTC: Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307](https://github.com/ossrs/srs/issues/307). v4.0.17+
