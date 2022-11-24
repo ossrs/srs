@@ -101,6 +101,7 @@
     XX(ERROR_APM_ENDPOINT                  , 1088, "ApmEndpoint", "APM endpoint is invalid") \
     XX(ERROR_APM_AUTH                      , 1089, "ApmAuth", "APM team or token is invalid") \
     XX(ERROR_EXPORTER_DISABLED             , 1090, "ExporterDisable", "Prometheus exporter is disabled") \
+    XX(ERROR_ST_SET_SELECT                 , 1091, "StSetSelect", "ST set select failed") \
 
 /**************************************************/
 /* RTMP protocol error. */

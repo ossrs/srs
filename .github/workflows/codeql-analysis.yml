@@ -27,8 +27,8 @@ jobs:
         run: |
           echo "pwd: $(pwd), who: $(whoami)"
           docker run --rm -v $(pwd):$(pwd) -w $(pwd)/trunk ossrs/srs:ubuntu20-cache \
-              bash -c "./configure --jobs=2 && chmod 777 -R objs"
-          cd trunk && ./configure --jobs=2 && make -j2
+              bash -c "./configure && chmod 777 -R objs"
+          cd trunk && ./configure && make
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2

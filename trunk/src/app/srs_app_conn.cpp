@@ -59,6 +59,13 @@ SrsResourceManager::~SrsResourceManager()
 
     clear();
 
+    // Free all objects not in zombies.
+    std::vector<ISrsResource*>::iterator it;
+    for (it = conns_.begin(); it != conns_.end(); ++it) {
+        ISrsResource* resource = *it;
+        srs_freep(resource);
+    }
+
     srs_freepa(conns_level0_cache_);
 }
 

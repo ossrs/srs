@@ -4,9 +4,8 @@ FROM ${ARCH}${IMAGE} AS build
 
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
-ARG JOBS=2
 ARG SRS_AUTO_PACKAGER
-RUN echo "BUILDPLATFORM: $BUILDPLATFORM, TARGETPLATFORM: $TARGETPLATFORM, JOBS: $JOBS, PACKAGER: ${#SRS_AUTO_PACKAGER}"
+RUN echo "BUILDPLATFORM: $BUILDPLATFORM, TARGETPLATFORM: $TARGETPLATFORM, PACKAGER: ${#SRS_AUTO_PACKAGER}"
 
 # https://serverfault.com/questions/949991/how-to-install-tzdata-on-a-ubuntu-docker-image
 ENV DEBIAN_FRONTEND noninteractive
@@ -24,7 +23,7 @@ WORKDIR /srs/trunk
 
 # Build and install SRS.
 # Note that SRT is enabled by default, so we configure without --srt=on.
-RUN ./configure --jobs=${JOBS} --gb28181=on  --sanitizer-static=on && make -j${JOBS} && make install
+RUN ./configure --gb28181=on  --sanitizer-static=on && make && make install
 
 # All config files for SRS.
 RUN cp -R conf /usr/local/srs/conf && \

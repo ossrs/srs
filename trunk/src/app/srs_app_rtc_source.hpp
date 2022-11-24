@@ -261,6 +261,8 @@ private:
     uint16_t video_sequence;
     uint32_t audio_ssrc;
     uint32_t video_ssrc;
+    uint8_t audio_payload_type_;
+    uint8_t video_payload_type_;
 public:
     SrsRtcFromRtmpBridge(SrsRtcSource* source);
     virtual ~SrsRtcFromRtmpBridge();

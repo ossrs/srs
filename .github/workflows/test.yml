@@ -4,6 +4,62 @@ name: "Test"
 on: [push, pull_request]
 
 jobs:
+  cygwin64-cache:
+    name: cygwin64-cache
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Download Cache for Cygwin
+        run: |
+          docker run --rm -v $(pwd):/srs -w /usr/local/srs-cache/srs/trunk ossrs/srs:cygwin64-cache \
+            tar jcf /srs/objs.tar.bz2 objs &&
+          pwd && du -sh *
+      ##################################################################################################################
+      - uses: actions/upload-artifact@v2
+        with:
+          name: srs-cache
+          path: objs.tar.bz2
+          retention-days: 1
+    outputs:
+      SRS_CYGWIN_CACHE_DONE: ok
+
+  cygwin64:
+    name: cygwin64
+    runs-on: windows-latest
+    needs:
+      - cygwin64-cache
+    steps:
+      # See https://github.com/cygwin/cygwin-install-action#parameters
+      # Note that https://github.com/egor-tensin/setup-cygwin fails to install packages.
+      - name: Setup Cygwin
+        uses: cygwin/cygwin-install-action@master
+        with:
+          platform: x86_64
+          packages: bash make gcc-g++ cmake automake patch pkg-config tcl
+          install-dir: C:\cygwin64
+      ##################################################################################################################
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      ##################################################################################################################
+      # Note that we must download artifact after checkout code, because it will change the files in workspace.
+      - uses: actions/download-artifact@v2
+        with:
+          name: srs-cache
+      - uses: geekyeggo/delete-artifact@v2
+        with:
+          name: srs-cache
+      ##################################################################################################################
+      - name: Build and test SRS
+        env:
+          SHELLOPTS: igncr
+          SRS_WORKSPACE: ${{ github.workspace }}
+        shell: C:\cygwin64\bin\bash.exe --login '{0}'
+        run: |
+          WORKDIR=$(cygpath -u $SRS_WORKSPACE) && export PATH=/usr/bin:/usr/local/bin && cd ${WORKDIR} &&
+          pwd && ls -lh && rm -rf trunk/objs && tar xf objs.tar.bz2 -C trunk/ && du -sh trunk/* &&
+          cd ${WORKDIR}/trunk && ./configure --utest=on && make utest && ./objs/srs_utest
+    outputs:
+      SRS_CYGWIN_DONE: ok
+
   build-centos7:
     name: build-centos7
     runs-on: ubuntu-20.04
@@ -23,6 +79,8 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-asm .
       - name: Build on CentOS7, C++98, no FFmpeg
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
+    outputs:
+      SRS_BUILD_CENTOS7_DONE: ok
 
   build-centos6:
     name: build-centos6
@@ -37,6 +95,8 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-baseline .
       - name: Build on CentOS6, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-all .
+    outputs:
+      SRS_BUILD_CENTOS6_DONE: ok
 
   build-ubuntu16:
     name: build-ubuntu16
@@ -51,6 +111,8 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-baseline .
       - name: Build on Ubuntu16, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-all .
+    outputs:
+      SRS_BUILD_UBUNTU16_DONE: ok
 
   build-ubuntu18:
     name: build-ubuntu18
@@ -65,6 +127,8 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-baseline .
       - name: Build on Ubuntu18, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-all .
+    outputs:
+      SRS_BUILD_UBUNTU18_DONE: ok
 
   build-ubuntu20:
     name: build-ubuntu20
@@ -79,12 +143,12 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-baseline .
       - name: Build on Ubuntu20, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-all .
+    outputs:
+      SRS_BUILD_UBUNTU20_DONE: ok
 
   build-cross-arm:
     name: build-cross-arm
     runs-on: ubuntu-20.04
-    needs:
-      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -92,12 +156,12 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
       - name: Cross Build for ARMv7 on Ubuntu20
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-armv7 .
+    outputs:
+      SRS_BUILD_CROSS_ARM_DONE: ok
 
   build-cross-aarch64:
     name: build-cross-aarch64
     runs-on: ubuntu-20.04
-    needs:
-      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -105,6 +169,8 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-aarch64 .
       - name: Cross Build for AARCH64 on Ubuntu20
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-aarch64 .
+    outputs:
+      SRS_BUILD_CROSS_AARCH64_DONE: ok
 
   build:
     name: build
@@ -119,6 +185,8 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - run: echo 'Build done'
+    outputs:
+      SRS_BUILD_DONE: ok
 
   utest:
     name: utest
@@ -134,11 +202,18 @@ jobs:
         run: docker run --rm srs:test bash -c 'make utest && ./objs/srs_utest'
       # For regression-test
       - name: Run SRS regression-test
-        run: docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
+        run: |
+          docker run --rm srs:test bash -c 'make && \
+            ./objs/srs -c conf/regression-test.conf && \
+            cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
+    outputs:
+      SRS_UTEST_DONE: ok
 
   coverage:
     name: coverage
     runs-on: ubuntu-20.04
+    needs:
+      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -166,6 +241,8 @@ jobs:
             --env SRS_BRANCH=$SRS_BRANCH --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
             srs:cov bash -c 'make utest && ./objs/srs_utest && bash auto/codecov.sh'
           #
+    outputs:
+      SRS_COVERAGE_DONE: ok
 
   multile-arch-armv7:
     name: multile-arch-armv7
@@ -186,6 +263,8 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             -f trunk/Dockerfile .
+    outputs:
+      SRS_MULTIPLE_ARCH_ARMV7_DONE: ok
 
   multile-arch-aarch64:
     name: multile-arch-aarch64
@@ -206,10 +285,14 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             -f trunk/Dockerfile .
+    outputs:
+      SRS_MULTIPLE_ARCH_AARCH64_DONE: ok
 
   multile-arch-amd64:
     name: multile-arch-amd64
     runs-on: ubuntu-20.04
+    needs:
+      - utest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -226,10 +309,13 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             -f trunk/Dockerfile .
+    outputs:
+      SRS_MULTIPLE_ARCH_AMD64_DONE: ok
 
   done:
     name: done
     needs:
+      - cygwin64
       - build
       - coverage
       - multile-arch-armv7

@@ -136,7 +136,7 @@ namespace tencentcloud_api_sign {
             http_request_info[http_request_info.size() - 1] = '\n';
         }
         //printf("%s\nEOF\n", http_request_info.c_str());
-        char signed_time[SIGNLEN];
+        char signed_time[SIGNLEN] = {0};
         int signed_time_len = snprintf(signed_time, SIGNLEN,
                                        "%lu;%lu", time(0) - 60, time(0) + expire);
         //snprintf(signed_time, SIGNLEN, "1510109254;1510109314");
@@ -148,16 +148,14 @@ namespace tencentcloud_api_sign {
                 .append(sha1(http_request_info.c_str(), http_request_info.size()))
                 .append("\n");
         //printf("%s\nEOF\n", str_to_sign.c_str());
-        char c_signature[SIGNLEN];
-        snprintf(c_signature, SIGNLEN,
-                 "q-sign-algorithm=sha1&q-ak=%s"
-                 "&q-sign-time=%s&q-key-time=%s"
-                 "&q-header-list=%s&q-url-param-list=%s&q-signature=%s",
-                 secret_id.c_str(), signed_time, signed_time,
-                 header_list.c_str(), uri_parm_list.c_str(),
-                 hmac_sha1(signkey.c_str(), str_to_sign.c_str(),
-                           str_to_sign.size()).c_str());
-        return c_signature;
+        std::stringstream c_signature;
+        c_signature << "q-sign-algorithm=sha1&q-ak=" << secret_id.c_str()
+                    << "&q-sign-time=" << signed_time
+                    << "&q-key-time=" << signed_time
+                    << "&q-header-list=" << header_list.c_str()
+                    << "&q-url-param-list=" << uri_parm_list.c_str()
+                    << "&q-signature=" << hmac_sha1(signkey.c_str(), str_to_sign.c_str(), str_to_sign.size()).c_str();
+        return c_signature.str();
     }
 }
 

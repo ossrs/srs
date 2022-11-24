@@ -20,8 +20,10 @@ typedef void* srs_thread_t;
 typedef void* srs_cond_t;
 typedef void* srs_mutex_t;
 
-// Initialize st, requires epoll.
+// Initialize ST, requires epoll for linux.
 extern srs_error_t srs_st_init();
+// Destroy ST, free resources for asan detecting.
+extern void srs_st_destroy(void);
 
 // Close the netfd, and close the underlayer fd.
 // @remark when close, user must ensure io completed.
