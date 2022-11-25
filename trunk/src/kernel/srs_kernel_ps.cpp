@@ -130,6 +130,9 @@ srs_error_t SrsPsContext::decode(SrsBuffer* stream, ISrsPsMessageHandler* handle
             }
             video_stream_type_ = (SrsTsStream)psm.video_stream_type_;
             audio_stream_type_ = (SrsTsStream)psm.audio_stream_type_;
+
+            handler->notify_video_stream_type(video_stream_type_);
+
         } else if (msg->is_video() || msg->is_audio()) {
             // Update the total messages in pack.
             helper_.pack_pre_msg_last_seq_ = helper_.rtp_seq_;

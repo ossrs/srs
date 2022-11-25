@@ -38,7 +38,7 @@ public:
     // The h264 raw data to h264 packet, without flv payload header.
     // Mux the sps/pps to flv sequence header packet.
     // @param sh output the sequence header.
-    virtual srs_error_t mux_sequence_header(std::string sps, std::string pps, std::string& sh);
+    virtual srs_error_t mux_sequence_header(const std::string& sps, const std::string& pps, std::string& sh);
     // The h264 raw data to h264 packet, without flv payload header.
     // Mux the ibp to flv ibp packet.
     // @param ibp output the packet.
@@ -50,7 +50,7 @@ public:
     // @param video the h.264 raw data.
     // @param flv output the muxed flv packet.
     // @param nb_flv output the muxed flv size.
-    virtual srs_error_t mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv);
+    virtual srs_error_t mux_avc2flv(const std::string& video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv);
 };
 
 // The header of adts sample.
@@ -97,5 +97,46 @@ public:
     // @param nb_flv output the muxed flv size.
     virtual srs_error_t mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, uint32_t dts, char** flv, int* nb_flv);
 };
+
+
+#ifdef SRS_H265
+class SrsMiniBitsReader;
+
+// The raw hevc stream, in annexb.
+class SrsRawHevcStream : public SrsRawH264Stream
+{
+public:
+    SrsRawHevcStream();
+    virtual ~SrsRawHevcStream();
+public:
+    // whether the frame is sps or pps.
+    virtual bool is_vps(char* frame, int nb_frame);
+    virtual bool is_sps(char* frame, int nb_frame);
+    virtual bool is_pps(char* frame, int nb_frame);
+    // Demux the sps or pps to string.
+    // @param sps/pps output the vps/sps/pps.
+    virtual srs_error_t vps_demux(char* frame, int nb_frame, std::string& vps);
+    virtual srs_error_t sps_demux(char* frame, int nb_frame, std::string& sps);
+    virtual srs_error_t pps_demux(char* frame, int nb_frame, std::string& pps);
+public:
+    static size_t rbsp_unescape(uint8_t* buf, size_t size);
+    static uint32_t hevc_parseue(SrsMiniBitsReader *br);
+    static void hevc_parseptl(SrsMiniBitsReader &br, uint32_t max_sub_layers_minus1);
+public:
+    // The h264 raw data to h264 packet, without flv payload header.
+    // Mux the sps/pps to flv sequence header packet.
+    // @param sh output the sequence header.
+    virtual srs_error_t mux_sequence_header(const std::string& vps, const std::string& sps, const std::string& pps, uint32_t dts, uint32_t pts, std::string& sh);
+
+    // Mux the avc video packet to flv video packet.
+    // @param frame_type, SrsVideoAvcFrameTypeKeyFrame or SrsVideoAvcFrameTypeInterFrame.
+    // @param avc_packet_type, SrsVideoAvcFrameTraitSequenceHeader or SrsVideoAvcFrameTraitNALU.
+    // @param video the hevc raw data.
+    // @param flv output the muxed flv packet.
+    // @param nb_flv output the muxed flv size.
+    virtual srs_error_t mux_hevc2flv(const std::string& video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv);
+};
+
+#endif
 
 #endif

@@ -232,6 +232,7 @@ private:
 public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
+    virtual void notify_video_stream_type(SrsTsStream st);
 };
 
 // Lazy-sweep wrapper for GB session.
@@ -410,6 +411,8 @@ public:
     // When got a pack of PS/TS messages, contains one video frame and optional SPS/PPS message, one or generally more
     // audio frames. Note that the ps contains the pack information.
     virtual srs_error_t on_ps_pack(SrsPsPacket* ps, const std::vector<SrsTsMessage*>& msgs) = 0;
+    // notify the video codec parsed from ps map decode
+    virtual void notify_video_stream_type(SrsTsStream st) = 0;
 };
 
 // A GB28181 TCP media connection, for PS stream.
@@ -454,6 +457,7 @@ private:
 // Interface ISrsPsPackHandler
 public:
     virtual srs_error_t on_ps_pack(SrsPsPacket* ps, const std::vector<SrsTsMessage*>& msgs);
+    virtual void notify_video_stream_type(SrsTsStream st);
 private:
     // Create session if no one, or bind to an existed session.
     srs_error_t bind_session(uint32_t ssrc, SrsLazyGbSessionWrapper** psession);
@@ -497,6 +501,11 @@ private:
     std::string h264_pps_;
     bool h264_pps_changed_;
     bool h264_sps_pps_sent_;
+
+    std::string h265_vps_;
+    std::string h265_sps_;
+    std::string h265_pps_;
+    SrsTsStream video_codec_;
 private:
     SrsRawAacStream* aac_;
     std::string aac_specific_config_;
@@ -509,13 +518,20 @@ public:
 public:
     srs_error_t initialize(std::string output);
     srs_error_t on_ts_message(SrsTsMessage* msg);
+    void set_video_stream_type(SrsTsStream st);
 private:
     virtual srs_error_t on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
+    virtual srs_error_t mux_h264(uint32_t dts, uint32_t pts, char* frame, int frame_size);   
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
     virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
     virtual srs_error_t on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
     virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
+#ifdef SRS_H265
+    virtual srs_error_t mux_hevc(uint32_t dts, uint32_t pts, char* frame, int frame_size);
+    virtual srs_error_t write_h265_vps_sps_pps(uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_h265_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
+#endif
 private:
     // Connect to RTMP server.
     virtual srs_error_t connect();
@@ -714,6 +730,7 @@ private:
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage* msg);
     virtual void on_recover_mode(int nn_recover);
+    virtual void notify_video_stream_type(SrsTsStream st);
 };
 
 // Find the pack header which starts with bytes (00 00 01 ba).

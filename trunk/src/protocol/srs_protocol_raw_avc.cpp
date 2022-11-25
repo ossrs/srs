@@ -109,7 +109,7 @@ srs_error_t SrsRawH264Stream::pps_demux(char* frame, int nb_frame, string& pps)
     return err;
 }
 
-srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, string& sh)
+srs_error_t SrsRawH264Stream::mux_sequence_header(const string& sps, const string& pps, string& sh)
 {
     srs_error_t err = srs_success;
     
@@ -222,7 +222,7 @@ srs_error_t SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& i
     return err;
 }
 
-srs_error_t SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv)
+srs_error_t SrsRawH264Stream::mux_avc2flv(const string& video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv)
 {
     srs_error_t err = srs_success;
     
@@ -520,4 +520,491 @@ srs_error_t SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStr
     
     return err;
 }
+
+#ifdef SRS_H265
+SrsRawHevcStream::SrsRawHevcStream()
+{
+}
+
+SrsRawHevcStream::~SrsRawHevcStream()
+{
+}
+
+bool SrsRawHevcStream::is_vps(char* frame, int nb_frame)
+{
+    srs_assert(nb_frame > 0);
+
+    uint8_t nal_unit_type = ((char)frame[0] & 0x7f) >> 1;
+
+    return nal_unit_type == 0x20;
+}
+
+bool SrsRawHevcStream::is_sps(char* frame, int nb_frame)
+{
+    srs_assert(nb_frame > 0);
+
+    uint8_t nal_unit_type = ((char)frame[0] & 0x7f) >> 1;
+
+    return nal_unit_type == 0x21;
+}
+
+bool SrsRawHevcStream::is_pps(char* frame, int nb_frame)
+{
+    srs_assert(nb_frame > 0);
+
+    uint8_t nal_unit_type =  ((char)frame[0] & 0x7f) >> 1;
+
+    return nal_unit_type == 0x22;
+}
+
+srs_error_t SrsRawHevcStream::vps_demux(char* frame, int nb_frame, std::string& vps)
+{
+    srs_error_t err = srs_success;
+
+    if (nb_frame < 4) {
+        return err;
+    }
+
+    vps.assign(frame, nb_frame);
+
+    return err;
+}
+
+srs_error_t SrsRawHevcStream::sps_demux(char* frame, int nb_frame, string& sps)
+{
+    srs_error_t err = srs_success;
+
+    if (nb_frame < 4) {
+        return err;
+    }
+
+    sps.assign(frame, nb_frame);
+
+    return err;
+}
+
+srs_error_t SrsRawHevcStream::pps_demux(char* frame, int nb_frame, string& pps)
+{
+    srs_error_t err = srs_success;
+
+    if (nb_frame <= 0) {
+        return srs_error_new(ERROR_STREAM_CASTER_AVC_PPS, "no pps");
+    }
+
+    pps.assign(frame, nb_frame);
+
+    return err;
+}
+
+size_t SrsRawHevcStream::rbsp_unescape(uint8_t* buf, size_t size)
+{
+    uint8_t *end = buf + size;
+    uint8_t *w   = buf;
+    uint8_t *p   = buf;
+
+    while(p < end){
+        if ( p + 3 < end && p[0] == 0 && p[1] == 0 && p[2] == 3){
+            *w++ = p[0];
+            *w++ = p[1];
+            *w++ = p[3];
+            p += 4;
+
+        }else{
+            if (p != w){
+                *w = *p;
+            }
+            w++;
+            p++;
+        }
+    }
+    return (size_t)(w - buf);
+}
+
+
+class SrsMiniBitsReader
+{
+public:
+	SrsMiniBitsReader(unsigned char *data, unsigned int size)
+        : data_(data)
+        , size_(size)
+        , reservoir_(0)
+        , bits_left_(0)
+    {
+        ;
+    }
+
+    virtual ~SrsMiniBitsReader()
+    {
+        ;
+    }
+
+    uint32_t get_bits(size_t n)
+    {
+        uint32_t  result = 0;
+        while (n > 0) {
+            if (bits_left_ == 0)
+                fill_reservoir();
+
+            if (bits_left() == 0) {
+                break;
+            }
+
+            uint32_t  m = n;
+            if (m > bits_left_)
+                m = bits_left_;
+
+            result = (result << m) | (reservoir_ >> (32 - m));
+            reservoir_ <<= m;
+            bits_left_ -= m;
+
+            n -= m;
+        }
+
+        return result;
+    }
+
+    uint64_t get_bits64(size_t n)
+    {
+        uint64_t  result = 0;
+        while (n > 0) {
+            if (bits_left_ == 0)
+                fill_reservoir();
+
+            if (bits_left() == 0) {
+                break;
+            }
+
+            uint32_t  m = n;
+            if (m > bits_left_)
+                m = bits_left_;
+
+            result = (result << m) | (reservoir_ >> (32 - m));
+            reservoir_ <<= m;
+            bits_left_ -= m;
+
+            n -= m;
+        }
+
+        return result;
+    }
+
+
+    void skip_bits(uint32_t n)
+    {
+        while (n > 32)
+        {
+            get_bits(32);
+            n -= 32;
+        }
+
+        if (n > 0)
+            get_bits(n);
+    }
+
+	void put_bits(uint32_t  x, size_t n)
+    {
+        while (bits_left_ + n > 32)
+        {
+            bits_left_ -= 8;
+            --data_;
+            ++size_;
+        }
+
+        reservoir_ = (reservoir_ >> n) | (x << (32 - n));
+        bits_left_ += n;
+    }
+
+    uint32_t bits_left (void) const
+    {
+        return size_ * 8 + bits_left_;
+    }
+
+    uint8_t* data() const
+    {
+        return data_ - (bits_left_ + 7) / 8;
+    }
+
+    void fill_reservoir(void)
+    {
+        reservoir_ = 0;
+        uint32_t i;
+        for (i = 0; size_ > 0 && i < 4; ++i)
+        {
+            reservoir_ = (reservoir_ << 8) | *data_;
+
+            ++data_;
+            --size_;
+        }
+
+        bits_left_ = 8 * i;
+        reservoir_ <<= 32 - bits_left_;
+    }
+
+protected:
+
+    uint8_t   *data_;
+    uint32_t   size_;
+    uint32_t   reservoir_;              // left-aligned bits
+    uint32_t   bits_left_;
+
+};
+
+
+uint32_t SrsRawHevcStream::hevc_parseue(SrsMiniBitsReader *br)
+{
+    uint32_t numZeroes = 0;
+    while (br->get_bits(1) == 0 && br->bits_left() > 0)
+        ++numZeroes;
+
+    uint32_t x = br->get_bits(numZeroes);
+
+    return x + (1u << numZeroes) - 1;
+}
+
+void SrsRawHevcStream::hevc_parseptl(SrsMiniBitsReader &br, uint32_t max_sub_layers_minus1)
+{
+    unsigned int i;
+    unsigned char sub_layer_profile_present_flag[8];
+    unsigned char sub_layer_level_present_flag[8];
+
+    br.skip_bits(2);
+    br.skip_bits(1);
+    br.skip_bits(5);
+    br.skip_bits(32);
+    br.skip_bits(48);
+    br.skip_bits(8);
+
+    for (i = 0; i < max_sub_layers_minus1; i++) {
+        sub_layer_profile_present_flag[i] = br.get_bits(1);
+        sub_layer_level_present_flag[i]   = br.get_bits(1);
+    }
+
+	if (max_sub_layers_minus1 > 0) {
+        for (i = max_sub_layers_minus1; i < 8; i++)
+            br.get_bits(2); // reserved_zero_2bits[i]
+	}
+
+    for (i = 0; i < max_sub_layers_minus1; i++) {
+        if (sub_layer_profile_present_flag[i]) {
+
+            br.skip_bits(32);
+            br.skip_bits(32);
+            br.skip_bits(24);
+        }
+
+        if (sub_layer_level_present_flag[i])
+            br.skip_bits(8);
+    }
+}
+
+srs_error_t SrsRawHevcStream::mux_sequence_header(const string& vps, const string& sps,
+        const string& pps, uint32_t dts, uint32_t pts, string& sh)
+{
+    srs_error_t err = srs_success;
+
+    #define UNUSED_VARIABLE(v)  (void)v
+
+    uint8_t  vps_max_sub_layers_minus1 = 0;
+    uint8_t  vps_temporal_id_nesting_flag = 0;
+    uint8_t  general_profile_space = 0;
+    uint8_t  general_tier_flag = 0;
+    uint8_t  general_profile_idc = 0;
+    uint32_t general_profile_compatibility_flags = 0;
+    uint64_t general_constraint_indicator_flags = 0;
+    uint32_t general_level_idc = 0;
+
+    if (true) {
+        vector<uint8_t> vps_tmp((const uint8_t*)vps.c_str(), (const uint8_t*)vps.c_str() + vps.size());
+        size_t vps_size = rbsp_unescape(&vps_tmp[0], vps_tmp.size());
+
+        SrsMiniBitsReader vps_br(&vps_tmp[0], vps_size);
+        vps_br.skip_bits(16);                                     // nalu type
+        vps_br.skip_bits(4);                                      // vps_video_parameter_set_id
+        vps_br.skip_bits(1);                                      // vps_base_layer_internal_flag
+        vps_br.skip_bits(1);                                      // vps_base_layer_available_flag
+        vps_br.skip_bits(6);                                      // vps_max_layers_minus1
+        uint8_t vps_max_sub_layers_minus1   = vps_br.get_bits(3); 
+        vps_temporal_id_nesting_flag        = vps_br.get_bits(1); 
+        vps_br.skip_bits(16);                                     // vps_reserved_0xffff_16bits
+
+        general_profile_space               = vps_br.get_bits(2);
+        general_tier_flag                   = vps_br.get_bits(1);
+        general_profile_idc                 = vps_br.get_bits(5);
+        general_profile_compatibility_flags = vps_br.get_bits(32);
+        general_constraint_indicator_flags  = vps_br.get_bits64(48);
+        general_level_idc                   = vps_br.get_bits(8);
+
+        (void)vps_max_sub_layers_minus1;
+    }
+
+    uint32_t chroma_format_idc    = 0;
+    uint8_t  bitDepthLumaMinus8   = 0;
+    uint8_t  bitDepthChromaMinus8 = 0;
+
+    if (true) {
+        vector<uint8_t> sps_tmp((const uint8_t*)sps.c_str(), (const uint8_t*)sps.c_str() + sps.size());
+        size_t sps_size = rbsp_unescape(&sps_tmp[0], sps_tmp.size());
+
+        SrsMiniBitsReader sps_br(&sps_tmp[0], sps_size);
+        sps_br.skip_bits(16);                                    // nalu type
+        sps_br.skip_bits(4);                                     // sps_video_parameter_set_id
+        uint8_t sps_max_sub_layers_minus1 = sps_br.get_bits(3);
+        sps_br.get_bits(1);                                      //sps_temporal_id_nesting_flag
+        hevc_parseptl(sps_br, sps_max_sub_layers_minus1);
+        hevc_parseue(&sps_br);                                   // sps_seq_parameter_set_id
+
+        chroma_format_idc = hevc_parseue(&sps_br);
+        if (chroma_format_idc == 3) {
+                sps_br.get_bits(1);                              //separate_colour_plane_flag
+        }
+        int pic_width_in_luma_samples = hevc_parseue(&sps_br);   // pic_width_in_luma_samples
+        int pic_height_in_luma_samples = hevc_parseue(&sps_br);  // pic_height_in_luma_samples
+        int conformance_window_flag = sps_br.get_bits(1);
+
+        UNUSED_VARIABLE(pic_width_in_luma_samples);
+        UNUSED_VARIABLE(pic_height_in_luma_samples);
+
+        if (conformance_window_flag) {                           // conformance_window_flag
+            int conf_win_left_offset = hevc_parseue(&sps_br);    // conf_win_left_offset
+            int conf_win_right_offset = hevc_parseue(&sps_br);   // conf_win_right_offset
+            int conf_win_top_offset = hevc_parseue(&sps_br);     // conf_win_top_offset
+            int conf_win_bottom_offset = hevc_parseue(&sps_br);  // conf_win_bottom_offset
+
+            UNUSED_VARIABLE(conf_win_left_offset);
+            UNUSED_VARIABLE(conf_win_right_offset);
+            UNUSED_VARIABLE(conf_win_top_offset);
+            UNUSED_VARIABLE(conf_win_bottom_offset);
+        }
+        bitDepthLumaMinus8   = hevc_parseue(&sps_br);
+        bitDepthChromaMinus8 = hevc_parseue(&sps_br);
+    }
+
+    // 开始写265 sequence header
+    int nb_packet = 13 + 2 + 4 + 2 + 2     // 23 bytes
+                    + (5 + (int)vps.length())
+                    + (5 + (int)sps.length())
+                    + (5 + (int)pps.length());
+
+    char* packet = new char[nb_packet];
+    SrsAutoFreeA(char, packet);
+
+
+    SrsBuffer stream(packet, nb_packet);
+
+    // HEVCDecoderConfigurationRecord
+    // 13bytes
+    stream.write_1bytes(0x01);
+    stream.write_1bytes((general_profile_space << 6) | (general_tier_flag << 5) | (general_profile_idc&0x1f));
+    stream.write_1bytes((general_profile_compatibility_flags >> 24) & 0xff);
+    stream.write_1bytes((general_profile_compatibility_flags >> 16) & 0xff);
+    stream.write_1bytes((general_profile_compatibility_flags >>  8) & 0xff);
+    stream.write_1bytes(general_profile_compatibility_flags & 0xff);
+    stream.write_1bytes((general_constraint_indicator_flags >> 40) & 0xff);
+    stream.write_1bytes((general_constraint_indicator_flags >> 32) & 0xff);
+
+    stream.write_1bytes((general_constraint_indicator_flags >> 24) & 0xff);
+    stream.write_1bytes((general_constraint_indicator_flags >> 16) & 0xff);
+    stream.write_1bytes((general_constraint_indicator_flags >>  8) & 0xff);
+    stream.write_1bytes(general_constraint_indicator_flags & 0xff);
+    stream.write_1bytes(general_level_idc);
+
+    // 2bytes
+    uint16_t min_spatial_segmentation_idc = 0;
+    stream.write_1bytes(0xf0 | ((min_spatial_segmentation_idc>>8) & 0x0f));
+    stream.write_1bytes(min_spatial_segmentation_idc & 0xff);
+
+    // 4bytes
+    uint8_t parallelism_type = 0;
+    stream.write_1bytes(0xfc | (parallelism_type&0x03));
+    stream.write_1bytes(0xfc | (chroma_format_idc&0x03));
+    stream.write_1bytes(0xf8 | (bitDepthLumaMinus8&0x07));
+    stream.write_1bytes(0xf8 | (bitDepthChromaMinus8&0x07));
+
+    // 2bytes
+    uint16_t avg_frame_rate = 0;
+    stream.write_1bytes((avg_frame_rate>>8) & 0x0f);
+    stream.write_1bytes(avg_frame_rate & 0xff);
+
+    uint8_t num_temporal_layers = vps_max_sub_layers_minus1 + 1;
+
+    // lengthSizeMinusOne: 0x03->4bytes
+    // 2bytes
+    stream.write_1bytes((num_temporal_layers<<3) | (vps_temporal_id_nesting_flag<<2) | 0x03);
+    stream.write_1bytes(3);
+
+    // vps  5 + vps.size()
+    stream.write_1bytes(0x20);
+    stream.write_1bytes(0x00);
+    stream.write_1bytes(0x01);
+    stream.write_1bytes((vps.size() >> 8) & 0xff);
+    stream.write_1bytes(vps.size() & 0xff);
+    stream.write_bytes(const_cast<char*>(&vps[0]), vps.size());
+
+
+    // sps 5 + sps.size()
+    stream.write_1bytes(0x21);
+    stream.write_1bytes(0x00);
+    stream.write_1bytes(0x01);
+    stream.write_1bytes((sps.size() >> 8) & 0xff);
+    stream.write_1bytes(sps.size() & 0xff);
+    stream.write_bytes(const_cast<char*>(&sps[0]), sps.size());
+
+    // pps 5 + pps.size()
+    stream.write_1bytes(0x22);
+    stream.write_1bytes(0x00);
+    stream.write_1bytes(0x01);
+    stream.write_1bytes((pps.size() >> 8) & 0xff);
+    stream.write_1bytes(pps.size() & 0xff);
+    stream.write_bytes(const_cast<char*>(&pps[0]), pps.size());
+
+    srs_trace("vps size: %d pps size: %d sps size: %d", vps.size(), pps.size(), sps.size() );
+    sh = string(packet, nb_packet);
+
+    return err;
+}
+
+
+srs_error_t SrsRawHevcStream::mux_hevc2flv(const std::string& video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv)
+{
+    srs_error_t err = srs_success;
+    
+    // for h264 in RTMP video payload, there is 5bytes header:
+    //      1bytes, FrameType | CodecID
+    //      1bytes, AVCPacketType
+    //      3bytes, CompositionTime, the cts.
+    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
+    int size = (int)video.length() + 5;
+    char* data = new char[size];
+    char* p = data;
+    
+    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
+    // Frame Type, Type of video frame.
+    // CodecID, Codec Identifier.
+    // set the rtmp header
+    *p++ = (frame_type << 4) | SrsVideoCodecIdHEVC;
+    
+    // AVCPacketType
+    *p++ = avc_packet_type;
+    
+    // CompositionTime
+    // pts = dts + cts, or
+    // cts = pts - dts.
+    // where cts is the header in rtmp video packet payload header.
+    uint32_t cts = pts - dts;
+    char* pp = (char*)&cts;
+    *p++ = pp[2];
+    *p++ = pp[1];
+    *p++ = pp[0];
+    
+    // h.264 raw data.
+    memcpy(p, video.data(), video.length());
+    
+    *flv = data;
+    *nb_flv = size;
+    
+    return err;
+}
+
+#endif  // end of #ifdef SRS_H265
+
 

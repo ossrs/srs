@@ -52,6 +52,7 @@ public:
     // When enter recover mode, user should drop all messages in pack. The nn_recover indicates the number of retry
     // during recovery, that is 0 for the first time, and 1 for the second time.
     virtual void on_recover_mode(int nn_recover) = 0;
+    virtual void notify_video_stream_type(SrsTsStream codec) = 0;
 };
 
 // The PS context, to process PS PES stream.
