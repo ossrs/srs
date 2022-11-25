@@ -150,6 +150,7 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
 
     // We must do hook after stat, because depends on it.
     if ((err = http_hooks_on_play(req)) != srs_success) {
+        stat->on_disconnect(ctx);
         return srs_error_wrap(err, "HLS: http_hooks_on_play");
     }
 
