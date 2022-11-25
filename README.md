@@ -137,31 +137,12 @@ but some third-party libraries are distributed using their [own licenses](https:
 
 ## Releases
 
+* 2022-11-25, [Release v5.0-a0](https://github.com/ossrs/srs/releases/tag/v5.0-a0), v5.0-a0, 5.0 alpha0, v5.0.98, 159813 lines.
 * 2022-11-22, Release [v4.0-r4](https://github.com/ossrs/srs/releases/tag/v4.0-r4), v4.0-r4, 4.0 release4, v4.0.268, 145482 lines.
 * 2022-09-16, Release [v4.0-r3](https://github.com/ossrs/srs/releases/tag/v4.0-r3), v4.0-r3, 4.0 release3, v4.0.265, 145328 lines.
 * 2022-08-24, Release [v4.0-r2](https://github.com/ossrs/srs/releases/tag/v4.0-r2), v4.0-r2, 4.0 release2, v4.0.257, 144890 lines.
 * 2022-06-29, Release [v4.0-r1](https://github.com/ossrs/srs/releases/tag/v4.0-r1), v4.0-r1, 4.0 release1, v4.0.253, 144680 lines.
 * 2022-06-11, Release [v4.0-r0](https://github.com/ossrs/srs/releases/tag/v4.0-r0), v4.0-r0, 4.0 release0, v4.0.252, 144680 lines.
-* 2022-03-19, Release [v4.0-b10](https://github.com/ossrs/srs/releases/tag/v4.0-b10), v4.0-b10, 4.0 beta10, v4.0.251, 144665 lines.
-* 2022-02-15, Release [v4.0-b9](https://github.com/ossrs/srs/releases/tag/v4.0-b9), v4.0-b9, 4.0 beta9, v4.0.245, 144474 lines.
-* 2022-02-11, Release [v4.0-b8](https://github.com/ossrs/srs/releases/tag/v4.0-b8), v4.0-b8, 4.0 beta8, v4.0.241, 144445 lines.
-* 2022-02-09, Release [v4.0-b7](https://github.com/ossrs/srs/releases/tag/v4.0-b7), v4.0-b7, 4.0 beta7, v4.0.240, 144437 lines.
-* 2022-02-04, Release [v4.0-b6](https://github.com/ossrs/srs/releases/tag/v4.0-b6), v4.0-b6, 4.0 beta6, v4.0.238, 144437 lines.
-* 2022-01-30, Release [v4.0-b5](https://github.com/ossrs/srs/releases/tag/v4.0-b5), v4.0-b5, 4.0 beta5, v4.0.236, 144416 lines.
-* 2022-01-17, Release [v4.0-b4](https://github.com/ossrs/srs/releases/tag/v4.0-b4), v4.0-b4, 4.0 beta4, v4.0.230, 144393 lines.
-* 2022-01-13, Release [v4.0-b3](https://github.com/ossrs/srs/releases/tag/v4.0-b3), v4.0-b3, 4.0 beta3, v4.0.229, 144393 lines.
-* 2022-01-03, Release [v4.0-b2](https://github.com/ossrs/srs/releases/tag/v4.0-b2), v4.0-b2, 4.0 beta2, v4.0.215, 144278 lines.
-* 2021-12-19, Release [v4.0-b1](https://github.com/ossrs/srs/releases/tag/v4.0-b1), v4.0-b1, 4.0 beta1, v4.0.206, 144126 lines.
-* 2021-12-01, Release [v4.0-b0](https://github.com/ossrs/srs/releases/tag/v4.0-b0), v4.0-b0, 4.0 beta0, v4.0.201, 144022 lines.
-* 2021-11-15, Release [v4.0.198](https://github.com/ossrs/srs/releases/tag/v4.0.198), 4.0 dev8, v4.0.198, 144010 lines.
-* 2021-11-02, Release [v4.0.191](https://github.com/ossrs/srs/releases/tag/v4.0.191), 4.0 dev7, v4.0.191, 143890 lines.
-* 2021-10-12, Release [v4.0.177](https://github.com/ossrs/srs/releases/tag/v4.0.177), 4.0 dev6, v4.0.177, 143686 lines.
-* 2021-09-05, Release [v4.0.161](https://github.com/ossrs/srs/releases/tag/v4.0.161), 4.0 dev5, v4.0.161, 145865 lines.
-* 2021-08-15, Release [v4.0.156](https://github.com/ossrs/srs/releases/tag/v4.0.156), 4.0 dev4, v4.0.156, 145490 lines.
-* 2021-08-14, Release [v4.0.153](https://github.com/ossrs/srs/releases/tag/v4.0.153), 4.0 dev3, v4.0.153, 145506 lines.
-* 2021-08-07, Release [v4.0.150](https://github.com/ossrs/srs/releases/tag/v4.0.150), 4.0 dev2, v4.0.150, 145289 lines.
-* 2021-07-25, Release [v4.0.146](https://github.com/ossrs/srs/releases/tag/v4.0.146), 4.0 dev1, v4.0.146, 144026 lines.
-* 2021-07-04, Release [v4.0.139](https://github.com/ossrs/srs/releases/tag/v4.0.139), 4.0 dev0, v4.0.139, 143245 lines.
 * 2020-06-27, [Release v3.0-r0](https://github.com/ossrs/srs/releases/tag/v3.0-r0), 3.0 release0, 3.0.141, 122674 lines.
 * 2020-02-02, [Release v3.0-b0](https://github.com/ossrs/srs/releases/tag/v3.0-b0), 3.0 beta0, 3.0.112, 121709 lines.
 * 2019-10-04, [Release v3.0-a0](https://github.com/ossrs/srs/releases/tag/v3.0-a0), 3.0 alpha0, 3.0.56, 107946 lines.
