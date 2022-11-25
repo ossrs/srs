@@ -143,6 +143,7 @@ public:
     virtual srs_error_t on_ts_message(SrsTsMessage* m);
     virtual void on_recover_mode(int nn_recover);
     virtual void on_recover_done(srs_utime_t duration);
+    virtual void notify_video_stream_type(SrsTsStream st);
     MockPsHandler* clear();
 };
 

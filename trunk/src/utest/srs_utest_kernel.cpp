@@ -410,6 +410,11 @@ void MockPsHandler::on_recover_done(srs_utime_t duration)
 {
 }
 
+void MockPsHandler::notify_video_stream_type(SrsTsStream st)
+{
+
+}
+
 MockPsHandler* MockPsHandler::clear()
 {
     for (vector<SrsTsMessage*>::iterator it = msgs_.begin(); it != msgs_.end(); ++it) {
