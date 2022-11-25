@@ -90,7 +90,7 @@ srs_error_t SrsSrtAcceptor::set_srt_opt()
     }
 
     if ((err = srs_srt_set_tlpktdrop(listener_->fd(), _srs_config->get_srto_tlpktdrop())) != srs_success) {
-        return srs_error_wrap(err, "set opt tlpkdrop=%d failed", _srs_config->get_srto_tlpktdrop());
+        return srs_error_wrap(err, "set opt tlpktdrop=%d failed", _srs_config->get_srto_tlpktdrop());
     }
 
     if ((err = srs_srt_set_connect_timeout(listener_->fd(), srsu2msi(_srs_config->get_srto_conntimeout()))) != srs_success) {
