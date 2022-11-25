@@ -3865,3 +3865,27 @@ VOID TEST(ConfigMainTest, LogLevelV2)
         EXPECT_EQ(SrsLogLevelWarn, srs_get_log_level(conf.get_log_level_v2()));
     }
 }
+
+VOID TEST(ConfigMainTest, SrtServerTlpktDrop)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_TRUE(conf.get_srto_tlpktdrop());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srt_server{tlpktdrop off;}"));
+        EXPECT_FALSE(conf.get_srto_tlpktdrop());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srt_server{tlpkdrop off;}"));
+        EXPECT_FALSE(conf.get_srto_tlpktdrop());
+    }
+}
+
