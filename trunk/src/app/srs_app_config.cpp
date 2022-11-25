@@ -331,6 +331,19 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
             }
         }
 
+        // SRS4.0, rename the config:
+        //  SRS4:
+        //      srt_server { tlpkdrop; }
+        //  SRS5:
+        //      srt_server { tlpktdrop; }
+        if (dir->name == "srt_server") {
+            std::vector<SrsConfDirective*>::iterator it;
+            for (it = dir->directives.begin(); it != dir->directives.end(); ++it) {
+                SrsConfDirective* conf = *it;
+                if (conf->name == "tlpkdrop") conf->name = "tlpktdrop";
+            }
+        }
+
         // SRS5.0, GB28181 allows unused config.
         //      stream_caster {
         //          caster gb28181; tcp_enable; rtp_port_min; rtp_port_max; wait_keyframe; rtp_idle_timeout;
@@ -7733,11 +7746,7 @@ bool SrsConfig::get_srto_tlpktdrop()
         return DEFAULT;
     }
 
-    SrsConfDirective* conf = srt_server_conf->get("tlpkdrop");
-    if (!conf) {
-        // make it compatible tlpkdrop and tlpktdrop opt.
-        conf = srt_server_conf->get("tlpktdrop");
-    }
+    SrsConfDirective* conf = srt_server_conf->get("tlpktdrop");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
