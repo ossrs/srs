@@ -391,3 +391,75 @@ int8_t SrsBitBuffer::read_bit() {
     return v;
 }
 
+int SrsBitBuffer::bits_left()
+{
+    return cb_left + stream->left() * 8;
+}
+
+void SrsBitBuffer::skip_bits(int n)
+{
+    srs_assert(n <= bits_left());
+
+    for (int i = 0; i < n; i++) {
+        read_bit();
+    }
+}
+
+int32_t SrsBitBuffer::read_bits(int n)
+{
+    srs_assert(n <= bits_left());
+
+    int32_t v = 0;
+    for (int i = 0; i < n; i++) {
+        v |= (read_bit() << (n - i - 1));
+    }
+    return v;
+}
+
+int8_t SrsBitBuffer::read_8bits()
+{
+    // FAST_8
+    if (!cb_left) {
+        srs_assert(!stream->empty());
+        return stream->read_1bytes();
+    }
+
+    return read_bits(8);
+}
+
+int16_t SrsBitBuffer::read_16bits()
+{
+    // FAST_16
+    if (!cb_left) {
+        srs_assert(!stream->empty());
+        return stream->read_le2bytes();
+    }
+
+    return read_bits(16);
+}
+
+int32_t SrsBitBuffer::read_32bits()
+{
+    // FAST_32
+    if (!cb_left) {
+        srs_assert(!stream->empty());
+        return stream->read_le4bytes();
+    }
+
+    return read_bits(32);
+}
+
+int32_t SrsBitBuffer::read_bits_ue()
+{
+    int32_t r = 0;
+    int i = 0;
+
+    while((read_bit() == 0) && (i < 32) && (bits_left() > 0) ) {
+        i++;
+    }
+
+    r = read_bits(i);
+    r += (1 << i) - 1;
+
+    return r;
+}
