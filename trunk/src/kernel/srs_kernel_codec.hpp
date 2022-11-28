@@ -13,6 +13,7 @@
 #include <vector>
 
 class SrsBuffer;
+class SrsBitBuffer;
 
 /**
  * The video codec id.
@@ -502,6 +503,63 @@ struct SrsHevcDecoderConfigurationRecord {
     uint8_t  length_size_minus_one;
     std::vector<SrsHevcHvccNalu> nalu_vec;
 };
+
+
+/**
+   Profile, tier and level
+   @see 7.3.3 Profile, tier and level syntax
+*/
+struct SrsHevcSpsProfileTierLevel
+{
+    uint8_t general_profile_space;
+    uint8_t general_tier_flag;
+    uint8_t general_profile_idc;
+    uint8_t general_profile_compatibility_flag[32];
+    uint8_t general_progressive_source_flag;
+    uint8_t general_interlaced_source_flag;
+    uint8_t general_non_packed_constraint_flag;
+    uint8_t general_frame_only_constraint_flag;
+    uint8_t general_max_12bit_constraint_flag;
+    uint8_t general_max_10bit_constraint_flag;
+    uint8_t general_max_8bit_constraint_flag;
+    uint8_t general_max_422chroma_constraint_flag;
+    uint8_t general_max_420chroma_constraint_flag;
+    uint8_t general_max_monochrome_constraint_flag;
+    uint8_t general_intra_constraint_flag;
+    uint8_t general_one_picture_only_constraint_flag;
+    uint8_t general_lower_bit_rate_constraint_flag;
+    uint64_t general_reserved_zero_34bits; // todo
+    uint64_t general_reserved_zero_43bits; // todo
+    uint8_t general_inbld_flag;
+    uint8_t general_reserved_zero_bit;
+    uint8_t general_level_idc;
+    std::vector<uint8_t> sub_layer_profile_present_flag;
+    std::vector<uint8_t> sub_layer_level_present_flag;
+    uint8_t reserved_zero_2bits[8];
+    std::vector<uint8_t> sub_layer_profile_space;
+    std::vector<uint8_t> sub_layer_tier_flag;
+    std::vector<uint8_t> sub_layer_profile_idc;
+    std::vector<std::vector<uint8_t> > sub_layer_profile_compatibility_flag;
+    std::vector<uint8_t> sub_layer_progressive_source_flag;
+    std::vector<uint8_t> sub_layer_interlaced_source_flag;
+    std::vector<uint8_t> sub_layer_non_packed_constraint_flag;
+    std::vector<uint8_t> sub_layer_frame_only_constraint_flag;
+    std::vector<uint8_t> sub_layer_max_12bit_constraint_flag;
+    std::vector<uint8_t> sub_layer_max_10bit_constraint_flag;
+    std::vector<uint8_t> sub_layer_max_8bit_constraint_flag;
+    std::vector<uint8_t> sub_layer_max_422chroma_constraint_flag;
+    std::vector<uint8_t> sub_layer_max_420chroma_constraint_flag;
+    std::vector<uint8_t> sub_layer_max_monochrome_constraint_flag;
+    std::vector<uint8_t> sub_layer_intra_constraint_flag;
+    std::vector<uint8_t> sub_layer_one_picture_only_constraint_flag;
+    std::vector<uint8_t> sub_layer_lower_bit_rate_constraint_flag;
+    std::vector<uint64_t> sub_layer_reserved_zero_34bits;
+    std::vector<uint64_t> sub_layer_reserved_zero_43bits;
+    std::vector<uint8_t> sub_layer_inbld_flag;
+    std::vector<uint8_t> sub_layer_reserved_zero_bit;
+    std::vector<uint8_t> sub_layer_level_idc;
+};
+
 #endif
 
 /**
@@ -627,6 +685,50 @@ enum SrsAvcLevel
 };
 std::string srs_avc_level2str(SrsAvcLevel level);
 
+#ifdef SRS_H265
+
+/**
+ * the profile for hevc/h.265.
+ * @see Annex A Profiles and levels, T-REC-H.265-202108-I!!PDF-E.pdf, page 559.
+ */
+enum SrsHevcProfile
+{
+    SrsHevcProfileReserved = 0,
+
+    // @see ffmpeg, libavcodec/avcodec.h:2986
+    SrsHevcProfileMain = 1,
+    SrsHevcProfileMain10 = 2,
+    SrsHevcProfileMainStillPicture = 3,
+    SrsHevcProfileRext = 4,
+};
+std::string srs_hevc_profile2str(SrsHevcProfile profile);
+
+/**
+ * the level for hevc/h.265.
+ * @see Annex A Profiles and levels, T-REC-H.265-202108-I!!PDF-E.pdf, page 684.
+ */
+enum SrsHevcLevel
+{
+    SrsHevcLevelReserved = 0,
+
+    SrsHevcLevel_1  = 30,
+    SrsHevcLevel_2  = 60,
+    SrsHevcLevel_21 = 63,
+    SrsHevcLevel_3  = 90,
+    SrsHevcLevel_31 = 93,
+    SrsHevcLevel_4  = 120,
+    SrsHevcLevel_41 = 123,
+    SrsHevcLevel_5  = 150,
+    SrsHevcLevel_51 = 153,
+    SrsHevcLevel_52 = 156,
+    SrsHevcLevel_6  = 180,
+    SrsHevcLevel_61 = 183,
+    SrsHevcLevel_62 = 186,
+};
+std::string srs_hevc_level2str(SrsHevcLevel level);
+
+#endif
+
 /**
  * A sample is the unit of frame.
  * It's a NALU for H.264.
@@ -741,6 +843,12 @@ public:
     SrsAvcProfile avc_profile;
     // level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel avc_level;
+#ifdef SRS_H265
+    // The profile_idc, T-REC-H.265-202108-I!!PDF-E.pdf, page 559.
+    SrsHevcProfile hevc_profile;
+    // The level_idc, T-REC-H.265-202108-I!!PDF-E.pdf, page 684.
+    SrsHevcLevel hevc_level;
+#endif
     // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     int8_t NAL_unit_length;
     // Note that we may resize the vector, so the under-layer bytes may change.
@@ -874,6 +982,10 @@ private:
 #ifdef SRS_H265
 private:
     virtual srs_error_t hevc_demux_hvcc(SrsBuffer* stream);
+    virtual srs_error_t hevc_demux_vps_sps_pps(SrsHevcHvccNalu* nal);
+    virtual srs_error_t hevc_demux_sps(SrsHevcHvccNalu* nal);
+    virtual srs_error_t hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
+    virtual srs_error_t hevc_demux_sps_rbsp_ptl(SrsBitBuffer* bs, SrsHevcSpsProfileTierLevel* ptl, int profile_resent_flag, int max_sub_layers_minus1);
 #endif
 private:
     // Parse the H.264 SPS/PPS.
