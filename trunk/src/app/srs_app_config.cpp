@@ -4915,7 +4915,7 @@ SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
 
 int SrsConfig::get_in_ack_size(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.in_ack_size"); // SRS_IN_ACK_SIZE
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.in_ack_size"); // SRS_VHOST_IN_ACK_SIZE
 
     static int DEFAULT = 0;
     
@@ -4934,7 +4934,7 @@ int SrsConfig::get_in_ack_size(string vhost)
 
 int SrsConfig::get_out_ack_size(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.out_ack_size"); // SRS_OUT_ACK_SIZE
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.out_ack_size"); // SRS_VHOST_OUT_ACK_SIZE
 
     static int DEFAULT = 2500000;
     
@@ -4953,7 +4953,7 @@ int SrsConfig::get_out_ack_size(string vhost)
 
 int SrsConfig::get_chunk_size(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.chunk_size"); // SRS_CHUNK_SIZE
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.chunk_size"); // SRS_VHOST_CHUNK_SIZE
 
     if (vhost.empty()) {
         return get_global_chunk_size();
@@ -5308,7 +5308,7 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
 
 int SrsConfig::get_global_chunk_size()
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.chunk_size"); // SRS_CHUNK_SIZE
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.chunk_size"); // SRS_VHOST_CHUNK_SIZE
 
     SrsConfDirective* conf = root->get("chunk_size");
     if (!conf || conf->arg0().empty()) {

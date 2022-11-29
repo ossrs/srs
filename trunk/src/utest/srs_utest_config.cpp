@@ -4633,11 +4633,14 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesScope)
         SrsSetEnvConfig(tcp_nodelay, "SRS_VHOST_TCP_NODELAY", "on");
         EXPECT_TRUE(conf.get_tcp_nodelay("__defaultVhost__"));
 
-        SrsSetEnvConfig(out_ack_size, "SRS_OUT_ACK_SIZE", "2000000");
+        SrsSetEnvConfig(out_ack_size, "SRS_VHOST_OUT_ACK_SIZE", "2000000");
         EXPECT_EQ(2000000, conf.get_out_ack_size("__defaultVhost__"));
 
-        SrsSetEnvConfig(in_ack_size, "SRS_IN_ACK_SIZE", "1000");
+        SrsSetEnvConfig(in_ack_size, "SRS_VHOST_IN_ACK_SIZE", "1000");
         EXPECT_EQ(1000, conf.get_in_ack_size("__defaultVhost__"));
+
+        SrsSetEnvConfig(chunk_size, "SRS_VHOST_CHUNK_SIZE", "50000");
+        EXPECT_EQ(50000, conf.get_chunk_size("__defaultVhost__"));
     }
 }
 
