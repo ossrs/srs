@@ -367,6 +367,13 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
             return srs_error_wrap(err, "create source");
         }
 
+        srs_assert(live_source != NULL);
+        
+        bool enabled_cache = _srs_config->get_gop_cache(req_->vhost);
+        int gcmf = _srs_config->get_gop_cache_max_frames(req_->vhost);
+        live_source->set_cache(enabled_cache);
+        live_source->set_gop_cache_max_frames(gcmf);
+
         SrsRtmpFromSrtBridge *bridger = new SrsRtmpFromSrtBridge(live_source);
         if ((err = bridger->initialize(req_)) != srs_success) {
             srs_freep(bridger);

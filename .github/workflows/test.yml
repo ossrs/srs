@@ -82,22 +82,6 @@ jobs:
     outputs:
       SRS_BUILD_CENTOS7_DONE: ok
 
-  build-centos6:
-    name: build-centos6
-    runs-on: ubuntu-20.04
-    needs:
-      - utest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      # Build for CentOS 6
-      - name: Build on CentOS6, baseline
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-baseline .
-      - name: Build on CentOS6, with all features
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-all .
-    outputs:
-      SRS_BUILD_CENTOS6_DONE: ok
-
   build-ubuntu16:
     name: build-ubuntu16
     runs-on: ubuntu-20.04
@@ -176,7 +160,6 @@ jobs:
     name: build
     needs:
       - build-centos7
-      - build-centos6
       - build-ubuntu16
       - build-ubuntu18
       - build-ubuntu20
