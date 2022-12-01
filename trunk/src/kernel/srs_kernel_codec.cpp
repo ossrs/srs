@@ -917,6 +917,8 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
 // Parse the hevc vps/sps/pps
 srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
 {
+    srs_error_t err = srs_success;
+
     int avc_extra_size = stream->size() - stream->pos();
     if (avc_extra_size > 0) {
         char *copy_stream_from = stream->data() + stream->pos();
@@ -925,13 +927,13 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
 
     const int HEVC_MIN_SIZE = 23; // From configuration_version to numOfArrays
     if (!stream->require(HEVC_MIN_SIZE)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires %d only %d bytes", HEVC_MIN_SIZE, stream->left());
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires %d only %d bytes", HEVC_MIN_SIZE, stream->left());
     }
 
     SrsHevcDecoderConfigurationRecord* dec_conf_rec_p = &(vcodec->hevc_dec_conf_record_);
     dec_conf_rec_p->configuration_version = stream->read_1bytes();
     if (dec_conf_rec_p->configuration_version != 1) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "invalid version=%d", dec_conf_rec_p->configuration_version);
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "invalid version=%d", dec_conf_rec_p->configuration_version);
     }
 
     // Read general_profile_space(2bits), general_tier_flag(1bit), general_profile_idc(5bits)
@@ -987,7 +989,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
     // length encoded with 1, 2, or 4 bytes, respectively.
     if (vcodec->NAL_unit_length == 2) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
     }
 
     uint8_t numOfArrays = stream->read_1bytes();
@@ -1000,7 +1002,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
         SrsHevcHvccNalu hevc_unit;
 
         if (!stream->require(5)) {
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires 5 only %d bytes", stream->left());
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires 5 only %d bytes", stream->left());
         }
         data_byte = stream->read_1bytes();
         hevc_unit.array_completeness = (data_byte >> 7) & 0x01;
@@ -1012,7 +1014,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
             data_item.nal_unit_length = stream->read_2bytes();
 
             if (!stream->require(data_item.nal_unit_length)) {
-                return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires %d only %d bytes",
+                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires %d only %d bytes",
                     data_item.nal_unit_length, stream->left());
             }
             //copy vps/pps/sps data
@@ -1026,10 +1028,12 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
         dec_conf_rec_p->nalu_vec.push_back(hevc_unit);
 
         // demux nalu
-        hevc_demux_vps_sps_pps(&hevc_unit);
+        if ((err = hevc_demux_vps_sps_pps(&hevc_unit)) != srs_success) {
+            return srs_error_wrap(err, "hevc demux vps sps pps failed");
+        }
     }
 
-    return srs_success;
+    return err;
 }
 
 srs_error_t SrsFormat::hevc_demux_vps_sps_pps(SrsHevcHvccNalu* nal)
@@ -1072,14 +1076,14 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsHevcHvccNalu* nal)
     // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
     // T-REC-H.265-202108-I!!PDF-E.pdf, page 61.
     if (!stream.require(1)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS");
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode SPS");
     }
     int8_t nutv = stream.read_1bytes();
 
     // forbidden_zero_bit shall be equal to 0.
     int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
     if (forbidden_zero_bit) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "forbidden_zero_bit shall be equal to 0");
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "forbidden_zero_bit shall be equal to 0");
     }
 
     // 7.4.1 NAL unit semantics
@@ -1087,7 +1091,7 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsHevcHvccNalu* nal)
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_SPS) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "for sps, nal_unit_type shall be equal to 7");
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "for sps, nal_unit_type shall be equal to 7");
     }
 
     // nuh(nuh_layer_id + nuh_temporal_id_plus1)
@@ -1154,7 +1158,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
      *      }
      */
     if (!stream.require(2)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps shall atleast 3bytes");
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps shall atleast 3bytes");
     }
     uint8_t nutv = stream.read_1bytes();
     (void)nutv;
@@ -1172,7 +1176,10 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     // profile tier level...
     SrsHevcSpsProfileTierLevel profile_tier_level;
     memset(&profile_tier_level, 0, sizeof(SrsHevcSpsProfileTierLevel));
-    hevc_demux_sps_rbsp_ptl(&bs, &profile_tier_level, 1, sps_max_sub_layers_minus1);
+
+    if ((err = hevc_demux_sps_rbsp_ptl(&bs, &profile_tier_level, 1, sps_max_sub_layers_minus1)) != srs_success) {
+        return srs_error_wrap(err, "sps rbsp ptl demux failed");
+    }
 
     vcodec->hevc_profile = (SrsHevcProfile)profile_tier_level.general_profile_idc;
     vcodec->hevc_level = (SrsHevcLevel)profile_tier_level.general_level_idc;
