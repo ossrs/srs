@@ -20,15 +20,6 @@ COPY . /srs
 RUN cd /srs/trunk && ./configure --srt=off --gb28181=off --cxx11=off --cxx14=off --ffmpeg-fit=off && make
 
 ########################################################
-FROM ossrs/srs:dev6-cache AS centos6-baseline
-COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=off --gb28181=off --cxx11=off --cxx14=off --sanitizer=off && make
-
-FROM ossrs/srs:dev6-cache AS centos6-all
-COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=on --gb28181=on --cxx11=off --cxx14=off --sanitizer=off && make
-
-########################################################
 FROM ossrs/srs:ubuntu16-cache AS ubuntu16-baseline
 COPY . /srs
 RUN cd /srs/trunk && ./configure --srt=off --gb28181=off && make

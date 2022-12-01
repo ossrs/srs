@@ -1065,6 +1065,11 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     }
     srs_assert(s != NULL);
     
+    bool enabled_cache = _srs_config->get_gop_cache(r->vhost);
+    int gcmf = _srs_config->get_gop_cache_max_frames(r->vhost);
+    s->set_cache(enabled_cache);
+    s->set_gop_cache_max_frames(gcmf);
+
     // create http streaming handler.
     if ((err = http_mount(s, r)) != srs_success) {
         return srs_error_wrap(err, "http mount");

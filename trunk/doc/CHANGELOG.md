@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-12-01, Live: Fix bug for gop cache limits. v5.0.99
 * v5.0, 2022-11-25, SRT: Support transform tlpkdrop to tlpktdrop. 5.0.98
 * v5.0, 2022-11-25, Config: Add ENV tips for config. 5.0.97
 * v5.0, 2022-11-24, For [#299](https://github.com/ossrs/srs/issues/299), DASH: Fix number mode bug to make it run. 5.0.96
