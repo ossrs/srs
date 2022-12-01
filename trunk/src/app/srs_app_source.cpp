@@ -661,7 +661,7 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
     gop_cache.push_back(msg->copy());
 
     // Clear gop cache if exceed the max frames.
-    if (gop_cache.size() > (size_t)gop_cache_max_frames_) {
+    if (gop_cache_max_frames_ > 0 && gop_cache.size() > (size_t)gop_cache_max_frames_) {
         srs_warn("Gop cache exceed max frames=%d, total=%d, videos=%d, aalvc=%d",
             gop_cache_max_frames_, (int)gop_cache.size(), cached_video_count, audio_after_last_video_count);
         clear();

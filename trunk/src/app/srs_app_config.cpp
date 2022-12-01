@@ -2805,7 +2805,7 @@ bool SrsConfig::get_daemon()
 
 bool SrsConfig::get_in_docker()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.in_docker");
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.in_docker"); // SRS_IN_DOCKER
 
     static bool DEFAULT = false;
 
@@ -2897,7 +2897,7 @@ string SrsConfig::get_server_id()
     // Get the server id from env, config or DEFAULT.
     string server_id;
 
-    if (!srs_getenv("srs.server_id").empty()) {
+    if (!srs_getenv("srs.server_id").empty()) { // SRS_SERVER_ID
         server_id = srs_getenv("srs.server_id");
     } else {
         SrsConfDirective* conf = root->get("server_id");
@@ -2935,8 +2935,7 @@ vector<string> SrsConfig::get_listens()
     std::vector<string> ports;
 
     if (!srs_getenv("srs.listen").empty()) { // SRS_LISTEN
-        ports.push_back(srs_getenv("srs.listen"));
-        return ports;
+        return srs_string_split(srs_getenv("srs.listen"), " ");
     }
     
     SrsConfDirective* conf = root->get("listen");
@@ -3311,7 +3310,7 @@ int SrsConfig::get_dying_threshold()
 
 int SrsConfig::get_dying_pulse()
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.circuit_breaker.dying_threshold"); // SRS_CIRCUIT_BREAKER_DYING_THRESHOLD
+    SRS_OVERWRITE_BY_ENV_INT("srs.circuit_breaker.dying_pulse"); // SRS_CIRCUIT_BREAKER_DYING_PULSE
 
     static int DEFAULT = 5;
 
@@ -4505,7 +4504,7 @@ srs_utime_t SrsConfig::get_rtc_pli_for_rtmp(string vhost)
     static srs_utime_t DEFAULT = 6 * SRS_UTIME_SECONDS;
     srs_utime_t v = 0;
 
-    if (!srs_getenv("srs.vhost.rtc.pli_for_rtmp").empty()) { // SRS_
+    if (!srs_getenv("srs.vhost.rtc.pli_for_rtmp").empty()) { // SRS_VHOST_RTC_PLI_FOR_RTMP
         v = (srs_utime_t)(::atof(srs_getenv("srs.vhost.rtc.pli_for_rtmp").c_str()) * SRS_UTIME_SECONDS);
     } else {
         SrsConfDirective* conf = get_rtc(vhost);
@@ -4769,8 +4768,8 @@ bool SrsConfig::get_atc_auto(string vhost)
 
 int SrsConfig::get_time_jitter(string vhost)
 {
-    if (!srs_getenv("srs.vhost.play.mw_latency").empty()) { // SRS_
-        return srs_time_jitter_string2int(srs_getenv("srs.vhost.play.mw_latency"));
+    if (!srs_getenv("srs.vhost.play.time_jitter").empty()) { // SRS_VHOST_PLAY_TIME_JITTER
+        return srs_time_jitter_string2int(srs_getenv("srs.vhost.play.time_jitter"));
     }
 
     static string DEFAULT = "full";
@@ -4916,6 +4915,8 @@ SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
 
 int SrsConfig::get_in_ack_size(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.in_ack_size"); // SRS_VHOST_IN_ACK_SIZE
+
     static int DEFAULT = 0;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4933,6 +4934,8 @@ int SrsConfig::get_in_ack_size(string vhost)
 
 int SrsConfig::get_out_ack_size(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.out_ack_size"); // SRS_VHOST_OUT_ACK_SIZE
+
     static int DEFAULT = 2500000;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -4950,6 +4953,8 @@ int SrsConfig::get_out_ack_size(string vhost)
 
 int SrsConfig::get_chunk_size(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.chunk_size"); // SRS_VHOST_CHUNK_SIZE
+
     if (vhost.empty()) {
         return get_global_chunk_size();
     }
@@ -5069,7 +5074,7 @@ srs_utime_t SrsConfig::get_mr_sleep(string vhost)
 
 srs_utime_t SrsConfig::get_mw_sleep(string vhost, bool is_rtc)
 {
-    if (!srs_getenv("srs.vhost.play.mw_latency").empty()) { // SRS_
+    if (!srs_getenv("srs.vhost.play.mw_latency").empty()) { // SRS_VHOST_PLAY_MW_LATENCY
         int v = ::atoi(srs_getenv("srs.vhost.play.mw_latency").c_str());
         if (is_rtc && v > 0) {
             srs_warn("For RTC, we ignore mw_latency");
@@ -5110,7 +5115,7 @@ srs_utime_t SrsConfig::get_mw_sleep(string vhost, bool is_rtc)
 
 int SrsConfig::get_mw_msgs(string vhost, bool is_realtime, bool is_rtc)
 {
-    if (!srs_getenv("srs.vhost.play.mw_msgs").empty()) { // SRS_
+    if (!srs_getenv("srs.vhost.play.mw_msgs").empty()) { // SRS_VHOST_PLAY_MW_MSGS
         int v = ::atoi(srs_getenv("srs.vhost.play.mw_msgs").c_str());
         if (v > SRS_PERF_MW_MSGS) {
             srs_warn("reset mw_msgs %d to max %d", v, SRS_PERF_MW_MSGS);
@@ -5303,7 +5308,7 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
 
 int SrsConfig::get_global_chunk_size()
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.chunk_size"); // SRS_CHUNK_SIZE
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.chunk_size"); // SRS_VHOST_CHUNK_SIZE
 
     SrsConfDirective* conf = root->get("chunk_size");
     if (!conf || conf->arg0().empty()) {
@@ -6639,6 +6644,8 @@ bool SrsConfig::get_hls_enabled(string vhost)
 
 bool SrsConfig::get_hls_enabled(SrsConfDirective* vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.hls.enabled"); // SRS_VHOST_HLS_ENABLED
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = vhost->get("hls");
@@ -6733,6 +6740,8 @@ string SrsConfig::get_hls_ts_file(string vhost)
 
 bool SrsConfig::get_hls_ts_floor(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.hls.hls_ts_floor"); // SRS_VHOST_HLS_HLS_TS_FLOOR
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_hls(vhost);
@@ -7239,6 +7248,8 @@ bool SrsConfig::get_dvr_enabled(string vhost)
 
 bool SrsConfig::get_dvr_enabled(SrsConfDirective* vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.dvr.enabled"); // SRS_VHOST_DVR_ENABLED
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = vhost->get("dvr");
@@ -7347,8 +7358,8 @@ bool SrsConfig::get_dvr_wait_keyframe(string vhost)
 
 int SrsConfig::get_dvr_time_jitter(string vhost)
 {
-    if (!srs_getenv("srs.vhost.dvr.dvr_wait_keyframe").empty()) { // SRS_
-        return srs_time_jitter_string2int(srs_getenv("srs.vhost.dvr.dvr_wait_keyframe"));
+    if (!srs_getenv("srs.vhost.dvr.time_jitter").empty()) { // SRS_VHOST_DVR_TIME_JITTER
+        return srs_time_jitter_string2int(srs_getenv("srs.vhost.dvr.time_jitter"));
     }
 
     static string DEFAULT = "full";
@@ -8103,7 +8114,7 @@ string SrsConfig::get_https_stream_ssl_cert()
 
 bool SrsConfig::get_vhost_http_enabled(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_static.enabled"); // SRS_HTTP_STATIC_ENABLED
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.http_static.enabled"); // SRS_VHOST_HTTP_STATIC_ENABLED
 
     static bool DEFAULT = false;
     
@@ -8127,7 +8138,7 @@ bool SrsConfig::get_vhost_http_enabled(string vhost)
 
 string SrsConfig::get_vhost_http_mount(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_STRING("srs.http_static.mount"); // SRS_HTTP_STATIC_MOUNT
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.http_static.mount"); // SRS_VHOST_HTTP_STATIC_MOUNT
 
     static string DEFAULT = "[vhost]/";
     
@@ -8151,7 +8162,7 @@ string SrsConfig::get_vhost_http_mount(string vhost)
 
 string SrsConfig::get_vhost_http_dir(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_STRING("srs.http_static.dir"); // SRS_HTTP_STATIC_DIR
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.http_static.dir"); // SRS_VHOST_HTTP_STATIC_DIR
 
     static string DEFAULT = "./objs/nginx/html";
     
@@ -8175,6 +8186,8 @@ string SrsConfig::get_vhost_http_dir(string vhost)
 
 bool SrsConfig::get_vhost_http_remux_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.http_remux.enabled"); // SRS_VHOST_HTTP_REMUX_ENABLED
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_vhost(vhost);
@@ -8187,7 +8200,7 @@ bool SrsConfig::get_vhost_http_remux_enabled(string vhost)
 
 bool SrsConfig::get_vhost_http_remux_enabled(SrsConfDirective* vhost)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_remux.enabled"); // SRS_HTTP_REMUX_ENABLED
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.http_remux.enabled"); // SRS_VHOST_HTTP_REMUX_ENABLED
 
     static bool DEFAULT = false;
 
@@ -8206,7 +8219,7 @@ bool SrsConfig::get_vhost_http_remux_enabled(SrsConfDirective* vhost)
 
 srs_utime_t SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.http_remux.fast_cache"); // SRS_HTTP_REMUX_FAST_CACHE
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.http_remux.fast_cache"); // SRS_VHOST_HTTP_REMUX_FAST_CACHE
 
     static srs_utime_t DEFAULT = 0;
     
@@ -8230,7 +8243,7 @@ srs_utime_t SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
 
 string SrsConfig::get_vhost_http_remux_mount(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_STRING("srs.http_remux.mount"); // SRS_HTTP_REMUX_MOUNT
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.http_remux.mount"); // SRS_VHOST_HTTP_REMUX_MOUNT
 
     static string DEFAULT = "[vhost]/[app]/[stream].flv";
     
