@@ -379,6 +379,15 @@ bool SrsBitBuffer::empty() {
     return stream->empty();
 }
 
+bool SrsBitBuffer::require(int required_size)
+{
+    if (required_size < 0) {
+        return false;
+    }
+
+    return required_size <= bits_left();
+}
+
 int8_t SrsBitBuffer::read_bit() {
     if (!cb_left) {
         srs_assert(!stream->empty());
