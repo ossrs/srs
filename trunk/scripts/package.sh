@@ -19,6 +19,8 @@ EMBEDED=NO
 JOBS=1
 #
 SRS_TAG=
+#
+OPTIONS=
 
 ##################################################################################
 ##################################################################################
@@ -47,8 +49,8 @@ do
         --tag)                          SRS_TAG=$value               ;;
 
         *)
-            echo "$0: error: invalid option \"$option\", @see $0 --help"
-            exit 1
+            OPTIONS="${OPTIONS} ${option}=${value}"
+            echo "Apply option ${option}=${value}"
         ;;
     esac
 done
@@ -125,22 +127,22 @@ ok_msg "start build srs, ARM: $ARM, MIPS: $MIPS, PI: $PI, X86_64: $X86_X64, JOBS
 if [ $ARM = YES ]; then
     (
         cd $work_dir && 
-        ./configure --arm --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} && make
+        ./configure --arm --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} ${OPTIONS} && make
     ) >> $log 2>&1
 elif [ $MIPS = YES ]; then
     (
         cd $work_dir && 
-        ./configure --mips --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} && make
+        ./configure --mips --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} ${OPTIONS} && make
     ) >> $log 2>&1
 elif [ $PI = YES ]; then
     (
         cd $work_dir && 
-        ./configure --pi --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} && make
+        ./configure --pi --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} ${OPTIONS} && make
     ) >> $log 2>&1
 elif [ $X86_X64 = YES ]; then
     (
         cd $work_dir && 
-        ./configure --x86-x64 --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} && make
+        ./configure --x86-x64 --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} ${OPTIONS} && make
     ) >> $log 2>&1
 else
     failed_msg "invalid option, must be --x86-x64/--arm/--mips/--pi, see --help"; exit 1;
