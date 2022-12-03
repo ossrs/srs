@@ -13,7 +13,7 @@ RUN cd /srs/trunk && ./configure --srt=off --gb28181=off --nasm=off --srtp-nasm=
 
 FROM ossrs/srs:dev-cache AS centos7-all
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=on --gb28181=on && make
+RUN cd /srs/trunk && ./configure --srt=on --gb28181=on --apm=on && make
 
 FROM ossrs/srs:dev-cache AS centos7-ansi-no-ffmpeg
 COPY . /srs
@@ -44,7 +44,7 @@ RUN cd /srs/trunk && ./configure --srt=off --gb28181=off && make
 
 FROM ossrs/srs:ubuntu20-cache AS ubuntu20-all
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=on --gb28181=on && make
+RUN cd /srs/trunk && ./configure --srt=on --gb28181=on --apm=on && make
 
 ########################################################
 FROM ossrs/srs:ubuntu16-cross-arm AS ubuntu16-cross-armv7

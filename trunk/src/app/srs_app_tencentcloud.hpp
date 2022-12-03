@@ -8,6 +8,7 @@
 #define SRS_APP_TENCENTCLOUD_HPP
 
 #include <srs_core.hpp>
+#ifdef SRS_APM
 
 #include <srs_kernel_buffer.hpp>
 
@@ -532,5 +533,6 @@ public:
 
 extern SrsApmClient* _srs_apm;
 
+#endif
 #endif
 
