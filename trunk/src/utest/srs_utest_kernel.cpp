@@ -4518,6 +4518,17 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
     }
 
     if (true) {
+        SrsBuffer b((char*)"\x00\x28\x08\x02\xd1\x65\x95\x9a", 8);
+        SrsBitBuffer bb(&b);
+
+        int32_t v = bb.read_bits_ue();
+        EXPECT_EQ(1280, v);
+
+        v = bb.read_bits_ue();
+        EXPECT_EQ(720, v);
+    }
+
+    if (true) {
         SrsBuffer b((char*)"\x10\x00\x04\x00\x01\x01\x04\x00", 8);
         SrsBitBuffer bb(&b);
 
