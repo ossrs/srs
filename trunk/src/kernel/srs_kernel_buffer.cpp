@@ -441,7 +441,7 @@ int16_t SrsBitBuffer::read_16bits()
     // FAST_16
     if (!cb_left) {
         srs_assert(!stream->empty());
-        return stream->read_le2bytes();
+        return stream->read_2bytes();
     }
 
     return read_bits(16);
@@ -452,7 +452,7 @@ int32_t SrsBitBuffer::read_32bits()
     // FAST_32
     if (!cb_left) {
         srs_assert(!stream->empty());
-        return stream->read_le4bytes();
+        return stream->read_4bytes();
     }
 
     return read_bits(32);

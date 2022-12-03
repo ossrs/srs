@@ -4492,6 +4492,52 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
         srs_error_t err = srs_avc_nalu_read_bit(&bb, v);
         HELPER_EXPECT_FAILED(err);
     }
+
+    if (true) {
+        SrsBuffer b((char*)"\x20\x01", 2);
+        SrsBitBuffer bb(&b);
+
+        int8_t v = bb.read_8bits();
+        EXPECT_EQ(0x20, v);
+    }
+
+    if (true) {
+        SrsBuffer b((char*)"\x04\x00\x01\x01", 4);
+        SrsBitBuffer bb(&b);
+
+        int16_t v = bb.read_16bits();
+        EXPECT_EQ(0x0400, v);
+    }
+
+    if (true) {
+        SrsBuffer b((char*)"\x00\x00\x04\x00\x01\x01", 6);
+        SrsBitBuffer bb(&b);
+
+        int32_t v = bb.read_32bits();
+        EXPECT_EQ(0x0400, v);
+    }
+
+    if (true) {
+        SrsBuffer b((char*)"\x10\x00\x04\x00\x01\x01\x04\x00", 8);
+        SrsBitBuffer bb(&b);
+
+        int32_t v = bb.read_bits(1);
+        EXPECT_EQ(0, v);
+
+        v = bb.read_bits(7);
+        EXPECT_EQ(0x10, v);
+
+        v = bb.read_bits(13);
+        EXPECT_EQ(0, v);
+
+        v = bb.read_bits(20);
+        //100 0000 0000 0000 0001 0
+        EXPECT_EQ(0x80002, v);
+
+        v = bb.read_bits(23);
+        //000 0001 0000 0100 0000 0000
+        EXPECT_EQ(0x10400, v);
+    }
 }
 
 #ifndef SRS_OSX
