@@ -18,6 +18,9 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-12-02, GB28181: Enable GB for CentOS 7 package. v5.0.103
+* v5.0, 2022-12-02, Package script support extra options. v5.0.102
+* v5.0, 2022-12-02, Disable CLS and APM by default. v5.0.101
 * v5.0, 2022-12-01, Config: Add utest for configuring with ENV variables. v5.0.100
 * v5.0, 2022-12-01, Live: Fix bug for gop cache limits. v5.0.99
 * v5.0, 2022-11-25, SRT: Support transform tlpkdrop to tlpktdrop. 5.0.98

@@ -10,5 +10,5 @@ RUN yum install -y zip
 # Build and install SRS.
 ADD srs-server-${version}.tar.gz /srs
 WORKDIR /srs/srs-server-${version}/trunk
-RUN ./scripts/package.sh --x86-x64 --gb28181=on --h265=on --tag=${version}
+RUN ./scripts/package.sh --x86-x64 --gb28181=on --apm=on --h265=on --tag=${version}
 

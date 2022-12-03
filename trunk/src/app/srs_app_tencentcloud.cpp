@@ -5,6 +5,7 @@
 //
 
 #include <srs_app_tencentcloud.hpp>
+#ifdef SRS_APM
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
@@ -2280,4 +2281,5 @@ void SrsApmClient::snapshot(SrsOtelSpan* span)
 {
     spans_.push_back(span);
 }
+#endif
 

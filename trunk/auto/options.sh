@@ -53,6 +53,8 @@ SRS_SHARED_SRT=NO
 SRS_SHARED_FFMPEG=NO
 # whether enable the gcov
 SRS_GCOV=NO
+# Whether enable cloud logging and APM(Application Performance Monitor).
+SRS_APM=NO
 # whether enable the log verbose/info/trace level.
 # always enable the warn/error level.
 SRS_LOG_VERBOSE=NO
@@ -144,6 +146,7 @@ Features:
   --gcov=on|off             Whether enable the GCOV compiler options. Default: $(value2switch $SRS_GCOV)
   --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
   --debug-stats=on|off      Whether enable the debug stats, may hurt performance. Default: $(value2switch $SRS_DEBUG_STATS)
+  --apm=on|off              Whether enable cloud logging and APM(Application Performance Monitor). Default: $(value2switch $SRS_APM)
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
   --log-verbose=on|off      Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
   --log-info=on|off         Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
@@ -295,6 +298,7 @@ function parse_user_option() {
         --utest)                        SRS_UTEST=$(switch2value $value) ;;
         --cherrypy)                     SRS_CHERRYPY=$(switch2value $value) ;;
         --gcov)                         SRS_GCOV=$(switch2value $value) ;;
+        --apm)                          SRS_APM=$(switch2value $value) ;;
 
         --with-srt)                     SRS_SRT=YES                 ;;
         --without-srt)                  SRS_SRT=NO                  ;;
@@ -615,6 +619,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace=$(value2switch $SRS_LOG_TRACE)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-level_v2=$(value2switch $SRS_LOG_LEVEL_V2)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov=$(value2switch $SRS_GCOV)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --apm=$(value2switch $SRS_APM)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=$(value2switch $SRS_DEBUG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=$(value2switch $SRS_DEBUG_STATS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cross-build=$(value2switch $SRS_CROSS_BUILD)"

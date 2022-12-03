@@ -166,11 +166,13 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE(security, ss);
     SRS_CHECK_FEATURE2(_srs_config_by_env, "env", ss);
 
+#ifdef SRS_APM
     SRS_CHECK_FEATURE2(_srs_cls->enabled(), "cls", ss);
     SRS_CHECK_FEATURE3(_srs_cls->nn_logs(), "logs", _srs_cls->nn_logs(), ss);
 
     SRS_CHECK_FEATURE2(_srs_apm->enabled(), "apm", ss);
     SRS_CHECK_FEATURE3(_srs_apm->nn_spans(), "spans", _srs_apm->nn_spans(), ss);
+#endif
 }
 
 SrsLatestVersion::SrsLatestVersion()

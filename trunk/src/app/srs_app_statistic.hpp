@@ -208,10 +208,12 @@ public:
     virtual srs_error_t dumps_clients(SrsJsonArray* arr, int start, int count);
     // Dumps the hints about SRS server.
     void dumps_hints_kv(std::stringstream & ss);
+#ifdef SRS_APM
 public:
     // Dumps the CLS summary.
     void dumps_cls_summaries(SrsClsSugar* sugar);
     void dumps_cls_streams(SrsClsSugars* sugars);
+#endif
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);

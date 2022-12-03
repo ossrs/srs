@@ -635,6 +635,7 @@ void SrsStatistic::dumps_hints_kv(std::stringstream & ss)
 #endif
 }
 
+#ifdef SRS_APM
 void SrsStatistic::dumps_cls_summaries(SrsClsSugar* sugar)
 {
     if (!vhosts.empty()) {
@@ -693,6 +694,7 @@ void SrsStatistic::dumps_cls_streams(SrsClsSugars* sugars)
         }
     }
 }
+#endif
 
 SrsStatisticVhost* SrsStatistic::create_vhost(SrsRequest* req)
 {
