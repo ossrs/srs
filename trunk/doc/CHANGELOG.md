@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2022-12-04, Merge [#3271](https://github.com/ossrs/srs/pull/3271): H265: The codec information is incorrect. v6.0.5
 * v6.0, 2022-11-23, Merge [#3275](https://github.com/ossrs/srs/pull/3275): H265: Support HEVC over HTTP-TS. v6.0.4
 * v6.0, 2022-11-23, Merge [#3274](https://github.com/ossrs/srs/pull/3274): H265: Support parse multiple NALUs in a frame. v6.0.3
 * v6.0, 2022-11-22, Merge [#3272](https://github.com/ossrs/srs/pull/3272): H265: Support HEVC over RTMP or HTTP-FLV. v6.0.2
