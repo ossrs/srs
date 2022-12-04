@@ -24,6 +24,10 @@ using namespace std;
 #include <gperftools/malloc_extension.h>
 #endif
 
+#ifdef SRS_SANITIZER_LOG
+#include <sanitizer/asan_interface.h>
+#endif
+
 #include <unistd.h>
 using namespace std;
 
@@ -76,6 +80,13 @@ const char* _srs_binary = NULL;
 
 // Free global data, for address sanitizer.
 extern void srs_free_global_system_ips();
+
+#ifdef SRS_SANITIZER_LOG
+void asan_report_callback(const char* str)
+{
+    srs_trace("%s", str);
+}
+#endif
 
 /**
  * main entrance.
@@ -220,6 +231,10 @@ srs_error_t do_main(int argc, char** argv, char** envp)
         MallocExtension::instance()->SetMemoryReleaseRate(trr);
         srs_trace("tcmalloc: set release-rate %.2f=>%.2f", otrr, trr);
     }
+#endif
+
+#ifdef SRS_SANITIZER_LOG
+    __asan_set_error_report_callback(asan_report_callback);
 #endif
     
     if ((err = run_directly_or_daemon()) != srs_success) {

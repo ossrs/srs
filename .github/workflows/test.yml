@@ -56,7 +56,7 @@ jobs:
         run: |
           WORKDIR=$(cygpath -u $SRS_WORKSPACE) && export PATH=/usr/bin:/usr/local/bin && cd ${WORKDIR} &&
           pwd && ls -lh && rm -rf trunk/objs && tar xf objs.tar.bz2 -C trunk/ && du -sh trunk/* &&
-          cd ${WORKDIR}/trunk && ./configure --utest=on && make utest && ./objs/srs_utest
+          cd ${WORKDIR}/trunk && ./configure --gb28181=on --utest=on && make utest && ./objs/srs_utest
     outputs:
       SRS_CYGWIN_DONE: ok
 

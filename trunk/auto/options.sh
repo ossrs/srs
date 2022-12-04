@@ -69,6 +69,7 @@ SRS_USE_SYS_SSL=NO # Use system ssl(-lssl) if required.
 SRS_VALGRIND=NO
 SRS_SANITIZER=YES
 SRS_SANITIZER_STATIC=NO
+SRS_SANITIZER_LOG=NO
 SRS_BUILD_TAG= # Set the object files tag name.
 SRS_CLEAN=YES # Whether do "make clean" when configure.
 SRS_SIMULATOR=NO # Whether enable RTC simulate API.
@@ -163,6 +164,7 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --gprof=on|off            Whether build SRS with gprof(GNU profile tool). Default: $(value2switch $SRS_GPROF)
   --sanitizer=on|off        Whether build SRS with address sanitizer. Default: $(value2switch $SRS_SANITIZER)
   --sanitizer-static=on|off Whether build SRS with static libasan. Default: $(value2switch $SRS_SANITIZER_STATIC)
+  --sanitizer-log=on|off    Whether hijack the log for libasan. Default: $(value2switch $SRS_SANITIZER_LOG)
 
   --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
   --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
@@ -348,6 +350,7 @@ function parse_user_option() {
 
         --sanitizer)                    SRS_SANITIZER=$(switch2value $value) ;;
         --sanitizer-static)             SRS_SANITIZER_STATIC=$(switch2value $value) ;;
+        --sanitizer-log)                SRS_SANITIZER_LOG=$(switch2value $value) ;;
 
         --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
         --sys-ssl)                      SRS_USE_SYS_SSL=$(switch2value $value) ;;
@@ -624,6 +627,8 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=$(value2switch $SRS_DEBUG_STATS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cross-build=$(value2switch $SRS_CROSS_BUILD)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer=$(value2switch $SRS_SANITIZER)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer-static=$(value2switch $SRS_SANITIZER_STATIC)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer-log=$(value2switch $SRS_SANITIZER_LOG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cygwin64=$(value2switch $SRS_CYGWIN64)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --single-thread=$(value2switch $SRS_SINGLE_THREAD)"
     if [[ $SRS_CROSS_BUILD_ARCH != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --arch=$SRS_CROSS_BUILD_ARCH"; fi

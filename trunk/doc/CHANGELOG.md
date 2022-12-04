@@ -18,6 +18,8 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-12-04, Cygwin: Enable gb28181 for Windows. v5.0.105
+* v5.0, 2022-12-04, Asan: Set asan loging callback. v5.0.104
 * v5.0, 2022-12-02, GB28181: Enable GB for CentOS 7 package. v5.0.103
 * v5.0, 2022-12-02, Package script support extra options. v5.0.102
 * v5.0, 2022-12-02, Disable CLS and APM by default. v5.0.101
