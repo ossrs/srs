@@ -149,10 +149,10 @@ if [[ $SRS_GPERF_CP == YES ]]; then
 else
     srs_undefine_macro "SRS_GPERF_CP" $SRS_AUTO_HEADERS_H
 fi
-if [ $SRS_SANITIZER_USE_API == YES ]; then
-    srs_define_macro "SRS_SANITIZER_API" $SRS_AUTO_HEADERS_H
+if [ $SRS_SANITIZER_LOG == YES ]; then
+    srs_define_macro "SRS_SANITIZER_LOG" $SRS_AUTO_HEADERS_H
 else
-    srs_undefine_macro "SRS_SANITIZER_API" $SRS_AUTO_HEADERS_H
+    srs_undefine_macro "SRS_SANITIZER_LOG" $SRS_AUTO_HEADERS_H
 fi
 
 #####################################################################################
