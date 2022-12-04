@@ -1074,7 +1074,7 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsHevcHvccNalu* nal)
     SrsBuffer stream(sps, nb_sps);
 
     // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 61.
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 33.
     if (!stream.require(1)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 1 only %d bytes", stream.left());
     }
@@ -1086,8 +1086,8 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsHevcHvccNalu* nal)
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc forbidden_zero_bit=%d shall be equal to 0", forbidden_zero_bit);
     }
 
-    // 7.4.1 NAL unit semantics
-    // ISO_IEC_14496-10-AVC-2012.pdf, page 61.
+    // 7.4.2 NAL unit semantics
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 64.
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_SPS) {
@@ -1137,7 +1137,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
 
-    /*
+    /* Rec. ITU-T H.265 7.3.2.2.1, page 35.
      * seq_parameter_set_rbsp
      *      sps_video_parameter_set_id              4 bits
      *      sps_max_sub_layers_minus1               3 bits
@@ -1205,7 +1205,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         int conf_win_top_offset    = bs.read_bits_ue();
         int conf_win_bottom_offset = bs.read_bits_ue();
 
-        // Table6-1, 7.4.3.2.1
+        // Table 6-1, 7.4.3.2.1
         // Recalculate width and height
         // Note: 1 is added to the manual, but it is not actually used
         // https://github.com/mbunkus/mkvtoolnix/issues/1152
@@ -1215,10 +1215,15 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         vcodec->height -= (sub_height_c * conf_win_bottom_offset + sub_height_c * conf_win_top_offset);
     }
 
+    // TODO: FIXME: Implements it, you might parse remain bits for seq_parameter_set_rbsp.
+    // 7.4.3.2.1
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 35 ~ page 36.
     // bit_depth_luma_minus8
     // bit_depth_chroma_minus8
 
     // 7.3.2.11 RBSP trailing bits syntax
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 41.
+    // rbsp_trailing_bits()
 
     return err;
 }
