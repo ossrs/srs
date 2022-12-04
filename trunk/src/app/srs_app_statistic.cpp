@@ -143,8 +143,20 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
         obj->set("video", video);
         
         video->set("codec", SrsJsonAny::str(srs_video_codec_id2str(vcodec).c_str()));
-        video->set("profile", SrsJsonAny::str(srs_avc_profile2str(avc_profile).c_str()));
-        video->set("level", SrsJsonAny::str(srs_avc_level2str(avc_level).c_str()));
+
+        if (vcodec == SrsVideoCodecIdAVC) {
+            video->set("profile", SrsJsonAny::str(srs_avc_profile2str(avc_profile).c_str()));
+            video->set("level", SrsJsonAny::str(srs_avc_level2str(avc_level).c_str()));
+#ifdef SRS_H265
+        } else if (vcodec == SrsVideoCodecIdHEVC) {
+            video->set("profile", SrsJsonAny::str(srs_hevc_profile2str(hevc_profile).c_str()));
+            video->set("level", SrsJsonAny::str(srs_hevc_level2str(hevc_level).c_str()));
+#endif
+        } else {
+            video->set("profile", SrsJsonAny::str("Other"));
+            video->set("level", SrsJsonAny::str("Other"));
+        }
+
         video->set("width", SrsJsonAny::integer(width));
         video->set("height", SrsJsonAny::integer(height));
     }
@@ -335,7 +347,7 @@ SrsStatisticClient* SrsStatistic::find_client(string client_id)
     return NULL;
 }
 
-srs_error_t SrsStatistic::on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level, int width, int height)
+srs_error_t SrsStatistic::on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, int profile, int level, int width, int height)
 {
     srs_error_t err = srs_success;
     
@@ -344,9 +356,20 @@ srs_error_t SrsStatistic::on_video_info(SrsRequest* req, SrsVideoCodecId vcodec,
     
     stream->has_video = true;
     stream->vcodec = vcodec;
-    stream->avc_profile = avc_profile;
-    stream->avc_level = avc_level;
-    
+
+    if (vcodec == SrsVideoCodecIdAVC) {
+        stream->avc_profile = (SrsAvcProfile)profile;
+        stream->avc_level = (SrsAvcLevel)level;
+#ifdef SRS_H265
+    } else if (vcodec == SrsVideoCodecIdHEVC) {
+        stream->hevc_profile = (SrsHevcProfile)profile;
+        stream->hevc_level = (SrsHevcLevel)level;
+#endif
+    } else {
+        stream->avc_profile = (SrsAvcProfile)profile;
+        stream->avc_level = (SrsAvcLevel)level;
+    }
+
     stream->width = width;
     stream->height = height;
     

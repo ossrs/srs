@@ -267,7 +267,8 @@
     XX(ERROR_INOTIFY_WATCH                 , 3095, "InotfyWatch", "Failed to watch inotify for config listener") \
     XX(ERROR_HTTP_URL_UNESCAPE             , 3096, "HttpUrlUnescape", "Failed to unescape URL for HTTP") \
     XX(ERROR_HTTP_WITH_BODY                , 3097, "HttpWithBody", "Failed for HTTP body") \
-    XX(ERROR_HEVC_DISABLED                 , 3098, "HevcDisabled", "HEVC is disabled")
+    XX(ERROR_HEVC_DISABLED                 , 3098, "HevcDisabled", "HEVC is disabled") \
+    XX(ERROR_HEVC_DECODE_ERROR             , 3099, "HevcDecode", "HEVC decode av stream failed")
 
 /**************************************************/
 /* HTTP/StreamConverter protocol error. */

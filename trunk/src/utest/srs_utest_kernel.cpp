@@ -4455,6 +4455,25 @@ VOID TEST(KernelMp3Test, CoverAll)
     }
 }
 
+/**
+* test the bitbuffer utility, access require
+*/
+VOID TEST(KernelUtilityTest, BitBufferRequire)
+{
+    char data[128];
+    SrsBuffer b(data, 128);
+    SrsBitBuffer bb(&b);
+
+    EXPECT_TRUE(bb.require_bits(1));
+    EXPECT_TRUE(bb.require_bits(1024));
+
+    bb.read_bits(1000);
+    EXPECT_TRUE(bb.require_bits(1));
+
+    bb.read_bits(24);
+    EXPECT_FALSE(bb.require_bits(1));
+}
+
 VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
 {
     if (true) {
@@ -4491,6 +4510,63 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
         int8_t v = 0;
         srs_error_t err = srs_avc_nalu_read_bit(&bb, v);
         HELPER_EXPECT_FAILED(err);
+    }
+
+    if (true) {
+        SrsBuffer b((char*)"\x20\x01", 2);
+        SrsBitBuffer bb(&b);
+
+        int8_t v = bb.read_8bits();
+        EXPECT_EQ(0x20, v);
+    }
+
+    if (true) {
+        SrsBuffer b((char*)"\x04\x00\x01\x01", 4);
+        SrsBitBuffer bb(&b);
+
+        int16_t v = bb.read_16bits();
+        EXPECT_EQ(0x0400, v);
+    }
+
+    if (true) {
+        SrsBuffer b((char*)"\x00\x00\x04\x00\x01\x01", 6);
+        SrsBitBuffer bb(&b);
+
+        int32_t v = bb.read_32bits();
+        EXPECT_EQ(0x0400, v);
+    }
+
+    if (true) {
+        SrsBuffer b((char*)"\x00\x28\x08\x02\xd1\x65\x95\x9a", 8);
+        SrsBitBuffer bb(&b);
+
+        int32_t v = bb.read_bits_ue();
+        EXPECT_EQ(1280, v);
+
+        v = bb.read_bits_ue();
+        EXPECT_EQ(720, v);
+    }
+
+    if (true) {
+        SrsBuffer b((char*)"\x10\x00\x04\x00\x01\x01\x04\x00", 8);
+        SrsBitBuffer bb(&b);
+
+        int32_t v = bb.read_bits(1);
+        EXPECT_EQ(0, v);
+
+        v = bb.read_bits(7);
+        EXPECT_EQ(0x10, v);
+
+        v = bb.read_bits(13);
+        EXPECT_EQ(0, v);
+
+        v = bb.read_bits(20);
+        //100 0000 0000 0000 0001 0
+        EXPECT_EQ(0x80002, v);
+
+        v = bb.read_bits(23);
+        //000 0001 0000 0100 0000 0000
+        EXPECT_EQ(0x10400, v);
     }
 }
 

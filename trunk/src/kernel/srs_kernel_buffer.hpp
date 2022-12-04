@@ -174,6 +174,14 @@ public:
 public:
     bool empty();
     int8_t read_bit();
+    bool require_bits(int n);
+    int left_bits();
+    void skip_bits(int n);
+    int32_t read_bits(int n);
+    int8_t read_8bits();
+    int16_t read_16bits();
+    int32_t read_32bits();
+    int32_t read_bits_ue();
 };
 
 #endif

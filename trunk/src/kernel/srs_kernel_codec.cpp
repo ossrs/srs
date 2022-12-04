@@ -416,6 +416,41 @@ string srs_avc_level2str(SrsAvcLevel level)
     }
 }
 
+#ifdef SRS_H265
+
+string srs_hevc_profile2str(SrsHevcProfile profile)
+{
+    switch (profile) {
+        case SrsHevcProfileMain: return "Main";
+        case SrsHevcProfileMain10: return "Main10";
+        case SrsHevcProfileMainStillPicture: return "Main Still Picture";
+        case SrsHevcProfileRext: return "Rext";
+        default: return "Other";
+    }
+}
+
+string srs_hevc_level2str(SrsHevcLevel level)
+{
+    switch (level) {
+        case SrsHevcLevel_1: return "1";
+        case SrsHevcLevel_2: return "2";
+        case SrsHevcLevel_21: return "2.1";
+        case SrsHevcLevel_3: return "3";
+        case SrsHevcLevel_31: return "3.1";
+        case SrsHevcLevel_4: return "4";
+        case SrsHevcLevel_41: return "4.1";
+        case SrsHevcLevel_5: return "5";
+        case SrsHevcLevel_51: return "5.1";
+        case SrsHevcLevel_52: return "5.2";
+        case SrsHevcLevel_6: return "6";
+        case SrsHevcLevel_61: return "6.1";
+        case SrsHevcLevel_62: return "6.2";
+        default: return "Other";
+    }
+}
+
+#endif
+
 SrsSample::SrsSample()
 {
     size = 0;
@@ -882,6 +917,8 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
 // Parse the hevc vps/sps/pps
 srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
 {
+    srs_error_t err = srs_success;
+
     int avc_extra_size = stream->size() - stream->pos();
     if (avc_extra_size > 0) {
         char *copy_stream_from = stream->data() + stream->pos();
@@ -890,13 +927,13 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
 
     const int HEVC_MIN_SIZE = 23; // From configuration_version to numOfArrays
     if (!stream->require(HEVC_MIN_SIZE)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires %d only %d bytes", HEVC_MIN_SIZE, stream->left());
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires %d only %d bytes", HEVC_MIN_SIZE, stream->left());
     }
 
     SrsHevcDecoderConfigurationRecord* dec_conf_rec_p = &(vcodec->hevc_dec_conf_record_);
     dec_conf_rec_p->configuration_version = stream->read_1bytes();
     if (dec_conf_rec_p->configuration_version != 1) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "invalid version=%d", dec_conf_rec_p->configuration_version);
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "invalid version=%d", dec_conf_rec_p->configuration_version);
     }
 
     // Read general_profile_space(2bits), general_tier_flag(1bit), general_profile_idc(5bits)
@@ -934,7 +971,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
         dec_conf_rec_p->bit_depth_luma_minus8, dec_conf_rec_p->bit_depth_chroma_minus8);
 
     //avg_frame_rate: 16bits
-    dec_conf_rec_p->avg_frame_rate = stream->read_2bytes();
+    vcodec->frame_rate = dec_conf_rec_p->avg_frame_rate = stream->read_2bytes();
     //8bits: constant_frame_rate(2bits), num_temporal_layers(3bits),
     //       temporal_id_nested(1bit), length_size_minus_one(2bits)
     data_byte = stream->read_1bytes();
@@ -952,7 +989,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
     // length encoded with 1, 2, or 4 bytes, respectively.
     if (vcodec->NAL_unit_length == 2) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
     }
 
     uint8_t numOfArrays = stream->read_1bytes();
@@ -965,7 +1002,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
         SrsHevcHvccNalu hevc_unit;
 
         if (!stream->require(5)) {
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires 5 only %d bytes", stream->left());
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires 5 only %d bytes", stream->left());
         }
         data_byte = stream->read_1bytes();
         hevc_unit.array_completeness = (data_byte >> 7) & 0x01;
@@ -977,7 +1014,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
             data_item.nal_unit_length = stream->read_2bytes();
 
             if (!stream->require(data_item.nal_unit_length)) {
-                return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires %d only %d bytes",
+                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires %d only %d bytes",
                     data_item.nal_unit_length, stream->left());
             }
             //copy vps/pps/sps data
@@ -989,10 +1026,376 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
             hevc_unit.nal_data_vec.push_back(data_item);
         }
         dec_conf_rec_p->nalu_vec.push_back(hevc_unit);
+
+        // demux nalu
+        if ((err = hevc_demux_vps_sps_pps(&hevc_unit)) != srs_success) {
+            return srs_error_wrap(err, "hevc demux vps sps pps failed");
+        }
     }
 
-    return srs_success;
+    return err;
 }
+
+srs_error_t SrsFormat::hevc_demux_vps_sps_pps(SrsHevcHvccNalu* nal)
+{
+    srs_error_t err = srs_success;
+
+    // nal data
+    switch (nal->nal_unit_type)
+    {
+        case SrsHevcNaluType_VPS:
+            // TODO: FIXME: implements it.
+            break;
+        case SrsHevcNaluType_SPS:
+            err = hevc_demux_sps(nal);
+            break;
+        case SrsHevcNaluType_PPS:
+            // TODO: FIXME: implements it.
+            break;
+        default:
+            break;
+    }
+
+    return err;
+}
+
+srs_error_t SrsFormat::hevc_demux_sps(SrsHevcHvccNalu* nal)
+{
+    srs_error_t err = srs_success;
+
+    if (nal->nal_data_vec.empty()) {
+        return err;
+    }
+
+    // FIXME: Support for multiple SPS, then pick the first non-empty one.
+    char* sps = (char*)(&nal->nal_data_vec[0].nal_unit_data[0]);
+    int nb_sps = nal->nal_data_vec[0].nal_unit_length;
+
+    SrsBuffer stream(sps, nb_sps);
+
+    // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 33.
+    if (!stream.require(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 1 only %d bytes", stream.left());
+    }
+    int8_t nutv = stream.read_1bytes();
+
+    // forbidden_zero_bit shall be equal to 0.
+    int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
+    if (forbidden_zero_bit) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc forbidden_zero_bit=%d shall be equal to 0", forbidden_zero_bit);
+    }
+
+    // 7.4.2 NAL unit semantics
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 64.
+    // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
+    SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
+    if (nal_unit_type != SrsHevcNaluType_SPS) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc sps nal_unit_type=%d shall be equal to 33", nal_unit_type);
+    }
+
+    // nuh(nuh_layer_id + nuh_temporal_id_plus1)
+    int8_t nuh = stream.read_1bytes();
+    (void)nuh;
+
+    // decode the rbsp from sps.
+    // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
+    std::vector<int8_t> rbsp(nb_sps);
+
+    int nb_rbsp = 0;
+    while (!stream.empty()) {
+        rbsp[nb_rbsp] = stream.read_1bytes();
+
+        // XX 00 00 03 XX, the 03 byte should be drop.
+        if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
+            // read 1byte more.
+            if (stream.empty()) {
+                break;
+            }
+            rbsp[nb_rbsp] = stream.read_1bytes();
+            nb_rbsp++;
+
+            continue;
+        }
+
+        nb_rbsp++;
+    }
+
+    return hevc_demux_sps_rbsp((char*)&rbsp[0], nb_rbsp);
+}
+
+srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
+{
+    srs_error_t err = srs_success;
+
+    // we donot parse the detail of sps.
+    // @see https://github.com/ossrs/srs/issues/474
+    if (!avc_parse_sps) {
+        return err;
+    }
+
+    // reparse the rbsp.
+    SrsBuffer stream(rbsp, nb_rbsp);
+
+    /* Rec. ITU-T H.265 7.3.2.2.1, page 35.
+     * seq_parameter_set_rbsp
+     *      sps_video_parameter_set_id              4 bits
+     *      sps_max_sub_layers_minus1               3 bits
+     *      sps_temporal_id_nesting_flag            1 bit
+     *
+     *      sps_seq_parameter_set_id                v
+     *      chroma_format_idc                       v
+     *      if (chroma_format_idc == 3)
+     *          separate_colour_plane_flag          1 bit
+     *      pic_width_in_luma_samples               v
+     *      pic_height_in_luma_samples              v
+     *      conformance_window_flag                 1 bit
+     *      if (conformance_window_flag) {
+     *          conf_win_left_offset                v
+     *          conf_win_right_offset               v
+     *          conf_win_top_offset                 v
+     *          conf_win_bottom_offset              v
+     *      }
+     */
+    if (!stream.require(2)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps requires 2 only %d bytes", stream.left());
+    }
+    uint8_t nutv = stream.read_1bytes();
+    (void)nutv;
+
+    // id/minus/flag
+    int sps_video_parameter_set_id = (nutv >> 4) & 0x0f;
+    int sps_max_sub_layers_minus1 = (nutv >> 1) & 0x07;
+    int sps_temporal_id_nesting_flag = nutv & 0x01;
+    (void)sps_video_parameter_set_id;
+    (void)sps_temporal_id_nesting_flag;
+
+    SrsBitBuffer bs(&stream);
+
+    // profile tier level...
+    SrsHevcSpsProfileTierLevel profile_tier_level;
+    memset(&profile_tier_level, 0, sizeof(SrsHevcSpsProfileTierLevel));
+
+    if ((err = hevc_demux_sps_rbsp_ptl(&bs, &profile_tier_level, 1, sps_max_sub_layers_minus1)) != srs_success) {
+        return srs_error_wrap(err, "sps rbsp ptl sps_max_sub_layers_minus1=%d", sps_max_sub_layers_minus1);
+    }
+
+    vcodec->hevc_profile = (SrsHevcProfile)profile_tier_level.general_profile_idc;
+    vcodec->hevc_level = (SrsHevcLevel)profile_tier_level.general_level_idc;
+
+    // for sps_table
+    int sps_seq_parameter_set_id = bs.read_bits_ue();
+    (void)sps_seq_parameter_set_id;
+
+    int separate_colour_plane_flag = 0;
+    int chroma_format_idc = bs.read_bits_ue();
+    if (chroma_format_idc == 3) {
+        separate_colour_plane_flag = bs.read_bits_ue();
+    }
+
+    int pic_width_in_luma_samples  = bs.read_bits_ue();
+    int pic_height_in_luma_samples = bs.read_bits_ue();
+    vcodec->width  = pic_width_in_luma_samples;
+    vcodec->height = pic_height_in_luma_samples;
+
+    int conformance_window_flag    = bs.read_bit();
+    if (conformance_window_flag) {
+        int conf_win_left_offset   = bs.read_bits_ue();
+        int conf_win_right_offset  = bs.read_bits_ue();
+        int conf_win_top_offset    = bs.read_bits_ue();
+        int conf_win_bottom_offset = bs.read_bits_ue();
+
+        // Table 6-1, 7.4.3.2.1
+        // Recalculate width and height
+        // Note: 1 is added to the manual, but it is not actually used
+        // https://github.com/mbunkus/mkvtoolnix/issues/1152
+        int sub_width_c  = ((1 == chroma_format_idc) || (2 == chroma_format_idc)) && (0 == separate_colour_plane_flag) ? 2 : 1;
+        int sub_height_c =  (1 == chroma_format_idc) && (0 == separate_colour_plane_flag) ? 2 : 1;
+        vcodec->width  -= (sub_width_c * conf_win_right_offset + sub_width_c * conf_win_left_offset);
+        vcodec->height -= (sub_height_c * conf_win_bottom_offset + sub_height_c * conf_win_top_offset);
+    }
+
+    // TODO: FIXME: Implements it, you might parse remain bits for seq_parameter_set_rbsp.
+    // 7.4.3.2.1
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 35 ~ page 36.
+    // bit_depth_luma_minus8
+    // bit_depth_chroma_minus8
+
+    // 7.3.2.11 RBSP trailing bits syntax
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 41.
+    // rbsp_trailing_bits()
+
+    return err;
+}
+
+srs_error_t SrsFormat::hevc_demux_sps_rbsp_ptl(SrsBitBuffer* bs, SrsHevcSpsProfileTierLevel* ptl, int profile_resent_flag, int max_sub_layers_minus1)
+{
+    srs_error_t err = srs_success;
+
+    if (profile_resent_flag) {
+        if (!bs->require_bits(88)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl profile requires 88 only %d bits", bs->left_bits());
+        }
+
+        ptl->general_profile_space = bs->read_bits(2);
+        ptl->general_tier_flag     = bs->read_bit();
+        ptl->general_profile_idc   = bs->read_bits(5);
+        for (int i = 0; i < 32; i++) {
+            ptl->general_profile_compatibility_flag[i] = bs->read_bit();
+        }
+
+        ptl->general_progressive_source_flag    = bs->read_bit();
+        ptl->general_interlaced_source_flag     = bs->read_bit();
+        ptl->general_non_packed_constraint_flag = bs->read_bit();
+        ptl->general_frame_only_constraint_flag = bs->read_bit();
+        if (ptl->general_profile_idc == 4 || ptl->general_profile_compatibility_flag[4] ||
+            ptl->general_profile_idc == 5 || ptl->general_profile_compatibility_flag[5] ||
+            ptl->general_profile_idc == 6 || ptl->general_profile_compatibility_flag[6] ||
+            ptl->general_profile_idc == 7 || ptl->general_profile_compatibility_flag[7])
+        {
+            ptl->general_max_12bit_constraint_flag      = bs->read_bit();
+            ptl->general_max_10bit_constraint_flag      = bs->read_bit();
+            ptl->general_max_8bit_constraint_flag       = bs->read_bit();
+            ptl->general_max_422chroma_constraint_flag  = bs->read_bit();
+            ptl->general_max_420chroma_constraint_flag  = bs->read_bit();
+            ptl->general_max_monochrome_constraint_flag = bs->read_bit();
+            ptl->general_intra_constraint_flag          = bs->read_bit();
+            ptl->general_one_picture_only_constraint_flag = bs->read_bit();
+            ptl->general_lower_bit_rate_constraint_flag = bs->read_bit();
+            uint64_t tmp1 = bs->read_32bits();
+            uint64_t tmp2 = bs->read_bits(2);
+            ptl->general_reserved_zero_34bits = tmp1 + tmp2;
+        } else {
+            uint64_t tmp1 = bs->read_32bits();
+            uint64_t tmp2 = bs->read_bits(11);
+            ptl->general_reserved_zero_43bits = tmp1 + tmp2;
+        }
+
+        if ((ptl->general_profile_idc >= 1 && ptl->general_profile_idc<=5) ||
+            ptl->general_profile_compatibility_flag[1] || ptl->general_profile_compatibility_flag[2] ||
+            ptl->general_profile_compatibility_flag[3] || ptl->general_profile_compatibility_flag[4] ||
+            ptl->general_profile_compatibility_flag[5])
+        {
+            ptl->general_inbld_flag = bs->read_bit();
+        } else {
+            ptl->general_reserved_zero_bit = bs->read_bit();
+        }
+    }
+
+    if (!bs->require_bits(8)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl level requires 8 only %d bits", bs->left_bits());
+    }
+
+    // level
+    ptl->general_level_idc = bs->read_8bits();
+
+    ptl->sub_layer_profile_present_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_level_present_flag.resize(max_sub_layers_minus1);
+    for (int i = 0; i < max_sub_layers_minus1; i++) {
+        if (!bs->require_bits(2)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl present_flag requires 2 only %d bits", bs->left_bits());
+        }
+        ptl->sub_layer_profile_present_flag[i] = bs->read_bit();
+        ptl->sub_layer_level_present_flag[i]   = bs->read_bit();
+    }
+
+    for (int i = max_sub_layers_minus1; max_sub_layers_minus1 > 0 && i < 8; i++) {
+        if (!bs->require_bits(2)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl reserved_zero requires 2 only %d bits", bs->left_bits());
+        }
+        ptl->reserved_zero_2bits[i] = bs->read_bits(2);
+    }
+
+    ptl->sub_layer_profile_space.resize(max_sub_layers_minus1);
+    ptl->sub_layer_tier_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_profile_idc.resize(max_sub_layers_minus1);
+    ptl->sub_layer_profile_compatibility_flag.resize(max_sub_layers_minus1);
+    for (int i = 0; i < max_sub_layers_minus1; i++) {
+        ptl->sub_layer_profile_compatibility_flag[i].resize(32);
+    }
+
+    ptl->sub_layer_progressive_source_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_interlaced_source_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_non_packed_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_frame_only_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_max_12bit_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_max_10bit_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_max_8bit_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_max_422chroma_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_max_420chroma_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_max_monochrome_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_intra_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_one_picture_only_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_lower_bit_rate_constraint_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_reserved_zero_34bits.resize(max_sub_layers_minus1);
+    ptl->sub_layer_reserved_zero_43bits.resize(max_sub_layers_minus1);
+    ptl->sub_layer_inbld_flag.resize(max_sub_layers_minus1);
+    ptl->sub_layer_reserved_zero_bit.resize(max_sub_layers_minus1);
+    ptl->sub_layer_level_idc.resize(max_sub_layers_minus1);
+    for (int i = 0; i < max_sub_layers_minus1; i++) {
+        if (ptl->sub_layer_profile_present_flag[i]) {
+            if (!bs->require_bits(88)) {
+                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl sub_layer_profile requires 88 only %d bits", bs->left_bits());
+            }
+            ptl->sub_layer_profile_space[i] = bs->read_bits(2);
+            ptl->sub_layer_tier_flag[i]     = bs->read_bit();
+            ptl->sub_layer_profile_idc[i]   = bs->read_bits(5);
+            for (int j = 0; j < 32; j++) {
+                ptl->sub_layer_profile_compatibility_flag[i][j] = bs->read_bit();
+            }
+
+            ptl->sub_layer_progressive_source_flag[i]    = bs->read_bit();
+            ptl->sub_layer_interlaced_source_flag[i]     = bs->read_bit();
+            ptl->sub_layer_non_packed_constraint_flag[i] = bs->read_bit();
+            ptl->sub_layer_frame_only_constraint_flag[i] = bs->read_bit();
+            if (ptl->sub_layer_profile_idc[i] == 4 || ptl->sub_layer_profile_compatibility_flag[i][4] ||
+                ptl->sub_layer_profile_idc[i] == 5 || ptl->sub_layer_profile_compatibility_flag[i][5] ||
+                ptl->sub_layer_profile_idc[i] == 6 || ptl->sub_layer_profile_compatibility_flag[i][6] ||
+                ptl->sub_layer_profile_idc[i] == 7 || ptl->sub_layer_profile_compatibility_flag[i][7])
+            {
+                ptl->sub_layer_max_12bit_constraint_flag[i]        = bs->read_bit();
+                ptl->sub_layer_max_10bit_constraint_flag[i]        = bs->read_bit();
+                ptl->sub_layer_max_8bit_constraint_flag[i]         = bs->read_bit();
+                ptl->sub_layer_max_422chroma_constraint_flag[i]    = bs->read_bit();
+                ptl->sub_layer_max_420chroma_constraint_flag[i]    = bs->read_bit();
+                ptl->sub_layer_max_monochrome_constraint_flag[i]   = bs->read_bit();
+                ptl->sub_layer_intra_constraint_flag[i]            = bs->read_bit();
+                ptl->sub_layer_one_picture_only_constraint_flag[i] = bs->read_bit();
+                ptl->sub_layer_lower_bit_rate_constraint_flag[i]   = bs->read_bit();
+                uint64_t tmp1 = bs->read_32bits();
+                uint64_t tmp2 = bs->read_bits(2);
+                ptl->sub_layer_reserved_zero_34bits[i] = tmp1 + tmp2;
+            } else {
+                uint64_t tmp1 = bs->read_32bits();
+                uint64_t tmp2 = bs->read_bits(11);
+                ptl->sub_layer_reserved_zero_43bits[i] = tmp1 + tmp2;
+            }
+
+            // to check
+            if ((ptl->sub_layer_profile_idc[i]>=1 && ptl->sub_layer_profile_idc[i] <= 5) ||
+                ptl->sub_layer_profile_compatibility_flag[i][1] ||
+                ptl->sub_layer_profile_compatibility_flag[i][2] ||
+                ptl->sub_layer_profile_compatibility_flag[i][3] ||
+                ptl->sub_layer_profile_compatibility_flag[i][4] ||
+                ptl->sub_layer_profile_compatibility_flag[i][5])
+            {
+                ptl->sub_layer_inbld_flag[i] = bs->read_bit();
+            } else {
+                ptl->sub_layer_reserved_zero_bit[i] = bs->read_bit();
+            }
+        }
+
+        if (ptl->sub_layer_level_present_flag[i]) {
+            if (!bs->require_bits(8)) {
+                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl sub_layer_level requires 8 only %d bits", bs->left_bits());
+            }
+            ptl->sub_layer_level_idc[i] = bs->read_8bits();
+        }
+    }
+
+    return err;
+}
+
 #endif
 
 srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
