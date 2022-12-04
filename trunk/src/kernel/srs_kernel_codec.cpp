@@ -1076,14 +1076,14 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsHevcHvccNalu* nal)
     // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
     // T-REC-H.265-202108-I!!PDF-E.pdf, page 61.
     if (!stream.require(1)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode SPS");
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 1 only %d bytes", stream.left());
     }
     int8_t nutv = stream.read_1bytes();
 
     // forbidden_zero_bit shall be equal to 0.
     int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
     if (forbidden_zero_bit) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "forbidden_zero_bit shall be equal to 0");
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc forbidden_zero_bit=%d shall be equal to 0", forbidden_zero_bit);
     }
 
     // 7.4.1 NAL unit semantics
@@ -1091,7 +1091,7 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsHevcHvccNalu* nal)
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_SPS) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "for sps, nal_unit_type shall be equal to 33");
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc sps nal_unit_type=%d shall be equal to 33", nal_unit_type);
     }
 
     // nuh(nuh_layer_id + nuh_temporal_id_plus1)
@@ -1158,7 +1158,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
      *      }
      */
     if (!stream.require(2)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps shall atleast 3bytes");
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps requires 2 only %d bytes", stream.left());
     }
     uint8_t nutv = stream.read_1bytes();
     (void)nutv;
@@ -1228,8 +1228,8 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp_ptl(SrsBitBuffer* bs, SrsHevcSpsProfi
     srs_error_t err = srs_success;
 
     if (profile_resent_flag) {
-        if (!bs->require(88)) {
-            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl general profile tier shall atleast 88bits");
+        if (!bs->require_bits(88)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl profile requires 88 only %d bits", bs->left_bits());
         }
 
         ptl->general_profile_space = bs->read_bits(2);
@@ -1277,8 +1277,8 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp_ptl(SrsBitBuffer* bs, SrsHevcSpsProfi
         }
     }
 
-    if (!bs->require(8)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl general level idc shall atleast 8bits");
+    if (!bs->require_bits(8)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl level requires 8 only %d bits", bs->left_bits());
     }
 
     // level
@@ -1287,16 +1287,16 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp_ptl(SrsBitBuffer* bs, SrsHevcSpsProfi
     ptl->sub_layer_profile_present_flag.resize(max_sub_layers_minus1);
     ptl->sub_layer_level_present_flag.resize(max_sub_layers_minus1);
     for (int i = 0; i < max_sub_layers_minus1; i++) {
-        if (!bs->require(2)) {
-            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl sub layer present_flag shall atleast 2bits");
+        if (!bs->require_bits(2)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl present_flag requires 2 only %d bits", bs->left_bits());
         }
         ptl->sub_layer_profile_present_flag[i] = bs->read_bit();
         ptl->sub_layer_level_present_flag[i]   = bs->read_bit();
     }
 
     for (int i = max_sub_layers_minus1; max_sub_layers_minus1 > 0 && i < 8; i++) {
-        if (!bs->require(2)) {
-            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl reserved_zero shall atleast 2bits");
+        if (!bs->require_bits(2)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl reserved_zero requires 2 only %d bits", bs->left_bits());
         }
         ptl->reserved_zero_2bits[i] = bs->read_bits(2);
     }
@@ -1329,8 +1329,8 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp_ptl(SrsBitBuffer* bs, SrsHevcSpsProfi
     ptl->sub_layer_level_idc.resize(max_sub_layers_minus1);
     for (int i = 0; i < max_sub_layers_minus1; i++) {
         if (ptl->sub_layer_profile_present_flag[i]) {
-            if (!bs->require(88)) {
-                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl sub layer profile tier shall atleast 88bits");
+            if (!bs->require_bits(88)) {
+                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl sub_layer_profile requires 88 only %d bits", bs->left_bits());
             }
             ptl->sub_layer_profile_space[i] = bs->read_bits(2);
             ptl->sub_layer_tier_flag[i]     = bs->read_bit();
@@ -1381,8 +1381,8 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp_ptl(SrsBitBuffer* bs, SrsHevcSpsProfi
         }
 
         if (ptl->sub_layer_level_present_flag[i]) {
-            if (!bs->require(8)) {
-                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl sub_layer_level_idc shall atleast 8bits");
+            if (!bs->require_bits(8)) {
+                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl sub_layer_level requires 8 only %d bits", bs->left_bits());
             }
             ptl->sub_layer_level_idc[i] = bs->read_8bits();
         }

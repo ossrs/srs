@@ -379,13 +379,13 @@ bool SrsBitBuffer::empty() {
     return stream->empty();
 }
 
-bool SrsBitBuffer::require(int required_size)
+bool SrsBitBuffer::require_bits(int n)
 {
-    if (required_size < 0) {
+    if (n < 0) {
         return false;
     }
 
-    return required_size <= bits_left();
+    return n <= left_bits();
 }
 
 int8_t SrsBitBuffer::read_bit() {
@@ -400,14 +400,14 @@ int8_t SrsBitBuffer::read_bit() {
     return v;
 }
 
-int SrsBitBuffer::bits_left()
+int SrsBitBuffer::left_bits()
 {
     return cb_left + stream->left() * 8;
 }
 
 void SrsBitBuffer::skip_bits(int n)
 {
-    srs_assert(n <= bits_left());
+    srs_assert(n <= left_bits());
 
     for (int i = 0; i < n; i++) {
         read_bit();
@@ -416,7 +416,7 @@ void SrsBitBuffer::skip_bits(int n)
 
 int32_t SrsBitBuffer::read_bits(int n)
 {
-    srs_assert(n <= bits_left());
+    srs_assert(n <= left_bits());
 
     int32_t v = 0;
     for (int i = 0; i < n; i++) {
@@ -463,7 +463,7 @@ int32_t SrsBitBuffer::read_bits_ue()
     int32_t r = 0;
     int i = 0;
 
-    while((read_bit() == 0) && (i < 32) && (bits_left() > 0) ) {
+    while((read_bit() == 0) && (i < 32) && (left_bits() > 0) ) {
         i++;
     }
 

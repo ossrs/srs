@@ -4455,6 +4455,25 @@ VOID TEST(KernelMp3Test, CoverAll)
     }
 }
 
+/**
+* test the bitbuffer utility, access require
+*/
+VOID TEST(KernelUtilityTest, BitBufferRequire)
+{
+    char data[128];
+    SrsBuffer b(data, 128);
+    SrsBitBuffer bb(&b);
+
+    EXPECT_TRUE(bb.require_bits(1));
+    EXPECT_TRUE(bb.require_bits(1024));
+
+    bb.read_bits(1000);
+    EXPECT_TRUE(bb.require_bits(1));
+
+    bb.read_bits(24);
+    EXPECT_FALSE(bb.require_bits(1));
+}
+
 VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
 {
     if (true) {
