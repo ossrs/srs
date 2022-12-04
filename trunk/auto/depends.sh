@@ -347,6 +347,26 @@ if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
     fi
 fi
 
+if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
+    cat << END > ${SRS_OBJS}/test_sanitizer.c
+
+    #include <sanitizer/asan_interface.h>
+
+    int main() {
+        return 0;
+    }
+END
+    gcc -fsanitize=address -fno-omit-frame-pointer -g -O0 ${SRS_OBJS}/test_sanitizer.c \
+        -o ${SRS_OBJS}/test_sanitizer 1>/dev/null 2>&1;
+    ret=$?; rm -rf ${SRS_OBJS}/test_sanitizer*
+    if [[ $ret -ne 0 ]]; then
+        echo "Cannot found libasan api, asan log output to stderr";
+    else
+        echo "libasan api found ok!";
+        SRS_SANITIZER_USE_API=YES
+    fi
+fi
+
 #####################################################################################
 # state-threads
 #####################################################################################
