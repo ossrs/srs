@@ -81,6 +81,7 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     port = uri.get_port();
     stream = srs_path_basename(uri.get_path());
     param = uri.get_query().empty() ? "" : "?" + uri.get_query();
+    param += uri.get_fragment().empty() ? "" : "#" + uri.get_fragment();
 
     // Parse app without the prefix slash.
     app = srs_path_dirname(uri.get_path());

@@ -931,7 +931,7 @@ SrsHttpUri::~SrsHttpUri()
 
 srs_error_t SrsHttpUri::initialize(string url)
 {
-    schema = host = path = query = "";
+    schema = host = path = query = fragment_ = "";
     url_ = url;
 
     // Replace the default vhost to a domain like string, or parse failed.
@@ -979,6 +979,7 @@ srs_error_t SrsHttpUri::initialize(string url)
 
     path = get_uri_field(parsing_url, &hp_u, UF_PATH);
     query = get_uri_field(parsing_url, &hp_u, UF_QUERY);
+    fragment_ = get_uri_field(parsing_url, &hp_u, UF_FRAGMENT);
 
     username_ = get_uri_field(parsing_url, &hp_u, UF_USERINFO);
     size_t pos = username_.find(":");
@@ -1038,6 +1039,11 @@ string SrsHttpUri::get_query_by_key(std::string key)
       return "";
     }
     return it->second;
+}
+
+std::string SrsHttpUri::get_fragment()
+{
+    return fragment_;
 }
 
 std::string SrsHttpUri::username()
