@@ -62,6 +62,16 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
                   + fullUrl.substr(pos_query, pos_rslash - pos_query); // ?k=v
     }
 
+    // covert the FMLE URL to standard URL:
+    //       rtmp://ip/app/app2#k=v/stream
+    size_t pos_fragment = fullUrl.find("#");
+    pos_rslash = fullUrl.rfind("/");
+    if (pos_rslash != string::npos && pos_fragment != string::npos && pos_fragment < pos_rslash) {
+        fullUrl = fullUrl.substr(0, pos_fragment) // rtmp://ip/app/app2
+                  + fullUrl.substr(pos_rslash) // /stream
+                  + fullUrl.substr(pos_fragment, pos_rslash - pos_fragment); // #k=v
+    }
+
     // Remove the _definst_ of FMLE URL.
     if (fullUrl.find("/_definst_") != string::npos) {
         fullUrl = srs_string_replace(fullUrl, "/_definst_", "");
