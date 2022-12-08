@@ -53,8 +53,9 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     fullUrl += param.empty() ? "" : (param.at(0) == '?' ? param : "?" + param);
 
     // First, we covert the FMLE URL to standard URL:
-    //      rtmp://ip/app/app2?k=v/stream
-    size_t pos_query = fullUrl.find("?");
+    //      rtmp://ip/app/app2?k=v/stream , or:
+    //      rtmp://ip/app/app2#k=v/stream
+    size_t pos_query = fullUrl.find_first_of("?#");
     size_t pos_rslash = fullUrl.rfind("/");
     if (pos_rslash != string::npos && pos_query != string::npos && pos_query < pos_rslash) {
         fullUrl = fullUrl.substr(0, pos_query) // rtmp://ip/app/app2
@@ -81,6 +82,7 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     port = uri.get_port();
     stream = srs_path_basename(uri.get_path());
     param = uri.get_query().empty() ? "" : "?" + uri.get_query();
+    param += uri.get_fragment().empty() ? "" : "#" + uri.get_fragment();
 
     // Parse app without the prefix slash.
     app = srs_path_dirname(uri.get_path());

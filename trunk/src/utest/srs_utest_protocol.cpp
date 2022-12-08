@@ -3560,6 +3560,33 @@ VOID TEST(ProtocolRTMPTest, RTMPRequest)
     req.update_auth(&req1);
     EXPECT_TRUE(NULL != req.args);
     EXPECT_TRUE(req1.args != req.args);
+
+    param = "";
+    req.stream = "livestream";
+    srs_discovery_tc_url("rtmp://std.ossrs.net/live#b=2",
+                         req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+    EXPECT_STREQ("#b=2", param.c_str());
+
+    param = "";
+    req.stream = "livestream";
+    srs_discovery_tc_url("rtmp://std.ossrs.net/live?a=1#b=2",
+                         req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+    EXPECT_STREQ("?a=1#b=2", param.c_str());
+
+    param = "";
+    srs_discovery_tc_url("rtmp://std.ossrs.net/live?a=1&c=3#b=2",
+                         req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+    EXPECT_STREQ("?a=1&c=3#b=2", param.c_str());
+
+    param = "";
+    srs_discovery_tc_url("rtmp://std.ossrs.net/live?a=1&c=3#b=2#d=4",
+                         req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+    EXPECT_STREQ("?a=1&c=3#b=2#d=4", param.c_str());
+
+    param = "";
+    srs_discovery_tc_url("rtmp://std.ossrs.net/live?a=1#e=5&c=3#b=2#d=4",
+                         req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+    EXPECT_STREQ("?a=1#e=5&c=3#b=2#d=4", param.c_str());
 }
 
 VOID TEST(ProtocolRTMPTest, RTMPHandshakeBytes)
