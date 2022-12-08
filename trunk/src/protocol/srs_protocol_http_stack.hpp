@@ -580,6 +580,7 @@ private:
     int port;
     std::string path;
     std::string query;
+    std::string fragment_;
     std::string username_;
     std::string password_;
     std::map<std::string, std::string> query_values_;
@@ -599,6 +600,7 @@ public:
     virtual std::string get_path();
     virtual std::string get_query();
     virtual std::string get_query_by_key(std::string key);
+    virtual std::string get_fragment();
     virtual std::string username();
     virtual std::string password();
 private:

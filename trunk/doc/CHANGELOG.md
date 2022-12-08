@@ -19,6 +19,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-12-08, Merge [#3295](https://github.com/ossrs/srs/pull/3295): API: Parse fragment of URI. v5.0.106
 * v5.0, 2022-12-04, Cygwin: Enable gb28181 for Windows. v5.0.105
 * v5.0, 2022-12-04, Asan: Set asan loging callback. v5.0.104
 * v5.0, 2022-12-02, GB28181: Enable GB for CentOS 7 package. v5.0.103
