@@ -19,6 +19,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_srt_server.hpp>
 #include <srs_app_srt_source.hpp>
+#include <srs_app_rtc_source.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_utility.hpp>
@@ -373,6 +374,39 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
         int gcmf = _srs_config->get_gop_cache_max_frames(req_->vhost);
         live_source->set_cache(enabled_cache);
         live_source->set_gop_cache_max_frames(gcmf);
+
+        // srt->rtmp->rtc
+        // TODO: FIXME: the code below is repeat in srs_app_rtmp_conn.cpp, refactor it later, use function instead.
+
+        // Check whether RTC stream is busy.
+#ifdef SRS_RTC
+        SrsRtcSource *rtc = NULL;
+        bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
+        bool rtc_enabled = _srs_config->get_rtc_enabled(req_->vhost);
+        bool edge = _srs_config->get_vhost_is_edge(req_->vhost);
+        if (rtc_server_enabled && rtc_enabled && ! edge) {
+            if ((err = _srs_rtc_sources->fetch_or_create(req_, &rtc)) != srs_success) {
+                return srs_error_wrap(err, "create source");
+            }
+
+            if (!rtc->can_publish()) {
+                return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtc stream %s busy", req_->get_stream_url().c_str());
+            }
+        }
+#endif
+
+        // Bridge to RTC streaming.
+#if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
+        if (rtc) {
+            SrsRtcFromRtmpBridge *bridge = new SrsRtcFromRtmpBridge(rtc);
+            if ((err = bridge->initialize(req_)) != srs_success) {
+                srs_freep(bridge);
+                return srs_error_wrap(err, "bridge init");
+            }
+
+            live_source->set_bridge(bridge);
+        }
+#endif
 
         SrsRtmpFromSrtBridge *bridger = new SrsRtmpFromSrtBridge(live_source);
         if ((err = bridger->initialize(req_)) != srs_success) {
