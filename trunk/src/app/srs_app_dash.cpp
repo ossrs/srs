@@ -458,7 +458,7 @@ void SrsDashController::on_unpublish()
         srs_freep(err);
     }
 
-    if (acurrent->duration() > 0) {
+    if (acurrent && acurrent->duration() > 0) {
         afragments->append(acurrent);
         acurrent = NULL;
     }
