@@ -19,6 +19,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-12-12, Merge [#3301](https://github.com/ossrs/srs/pull/3301): DASH: Fix dash crash bug when writing file. v5.0.108
 * v5.0, 2022-12-09, Merge [#3296](https://github.com/ossrs/srs/pull/3296): SRT: Support SRT to RTMP to WebRTC. v5.0.107
 * v5.0, 2022-12-08, Merge [#3295](https://github.com/ossrs/srs/pull/3295): API: Parse fragment of URI. v5.0.106
 * v5.0, 2022-12-04, Cygwin: Enable gb28181 for Windows. v5.0.105

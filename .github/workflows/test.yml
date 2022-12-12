@@ -55,8 +55,10 @@ jobs:
         shell: C:\cygwin64\bin\bash.exe --login '{0}'
         run: |
           WORKDIR=$(cygpath -u $SRS_WORKSPACE) && export PATH=/usr/bin:/usr/local/bin && cd ${WORKDIR} &&
-          pwd && ls -lh && rm -rf trunk/objs && tar xf objs.tar.bz2 -C trunk/ && du -sh trunk/* && du -sh trunk/objs/* &&
-          cd ${WORKDIR}/trunk && ./configure --gb28181=on --utest=on && make utest && ./objs/srs_utest
+          pwd && rm -rf /usr/local/srs-cache && mkdir -p /usr/local/srs-cache/srs/trunk && 
+          tar xf objs.tar.bz2 -C /usr/local/srs-cache/srs/trunk/ && du -sh /usr/local/srs-cache/srs/trunk/* && 
+          cd ${WORKDIR}/trunk && ./configure --gb28181=on --utest=on && ls -lh && du -sh * && du -sh objs/* &&
+          cd ${WORKDIR}/trunk && make utest && ./objs/srs_utest
     outputs:
       SRS_CYGWIN_DONE: ok
 
