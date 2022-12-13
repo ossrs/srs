@@ -371,7 +371,7 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid,
 
     bool codec_ok = (vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
 #ifdef SRS_H265
-    codec_ok = codec_ok ? : (vs == SrsTsStreamVideoHEVC);
+    codec_ok = codec_ok ? true : (vs == SrsTsStreamVideoHEVC);
 #endif
     if (!codec_ok) {
         return srs_error_new(ERROR_HLS_NO_STREAM, "ts: no PID, vs=%d, as=%d", vs, as);
@@ -445,7 +445,7 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
 
     bool codec_ok = (sid == SrsTsStreamVideoH264 || sid == SrsTsStreamAudioAAC || sid == SrsTsStreamAudioMp3);
 #ifdef SRS_H265
-    codec_ok = codec_ok ? : (sid == SrsTsStreamVideoHEVC);
+    codec_ok = codec_ok ? true : (sid == SrsTsStreamVideoHEVC);
 #endif
     if (!codec_ok) {
         srs_info("ts: ignore the unknown stream, sid=%d", sid);
@@ -775,7 +775,7 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
     // Here we must get the correct codec.
     bool codec_ok = (vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
 #ifdef SRS_H265
-    codec_ok = codec_ok ? : (vs == SrsTsStreamVideoHEVC);
+    codec_ok = codec_ok ? true : (vs == SrsTsStreamVideoHEVC);
 #endif
     srs_assert(codec_ok);
 
@@ -790,7 +790,7 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
     // If h.264/h.265 specified, use video to carry pcr.
     codec_ok = (vs == SrsTsStreamVideoH264);
 #ifdef SRS_H265
-    codec_ok = codec_ok ? : (vs == SrsTsStreamVideoHEVC);
+    codec_ok = codec_ok ? true : (vs == SrsTsStreamVideoHEVC);
 #endif
     if (codec_ok) {
         pmt->PCR_PID = vpid;
@@ -3256,7 +3256,7 @@ srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size
 
     bool codec_ok = (format->vcodec->id != SrsVideoCodecIdAVC);
 #ifdef SRS_H265
-    codec_ok = codec_ok ? : (format->vcodec->id != SrsVideoCodecIdHEVC);
+    codec_ok = codec_ok ? true : (format->vcodec->id != SrsVideoCodecIdHEVC);
 #endif
     if (!codec_ok) {
         return err;
