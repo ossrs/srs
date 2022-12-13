@@ -624,7 +624,7 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
         // Drop video when not h.264 or h.265.
         bool codec_ok = SrsFlvVideo::h264(msg->payload, msg->size);
 #ifdef SRS_H265
-        codec_ok = codec_ok ? : SrsFlvVideo::hevc(msg->payload, msg->size);
+        codec_ok = codec_ok ? true : SrsFlvVideo::hevc(msg->payload, msg->size);
 #endif
         if (!codec_ok) return err;
 

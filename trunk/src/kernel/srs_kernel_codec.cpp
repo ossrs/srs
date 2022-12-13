@@ -165,7 +165,7 @@ bool SrsFlvVideo::sh(char* data, int size)
     // Check sequence header only for H.264 or H.265
     bool codec_ok = h264(data, size);
 #ifdef SRS_H265
-    codec_ok = codec_ok? : hevc(data, size);
+    codec_ok = codec_ok? true : hevc(data, size);
 #endif
     if (!codec_ok) return false;
 
@@ -778,7 +778,7 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
     // Check codec for H.264 and H.265.
     bool codec_ok = (codec_id == SrsVideoCodecIdAVC);
 #ifdef SRS_H265
-    codec_ok = codec_ok ? : (codec_id == SrsVideoCodecIdHEVC);
+    codec_ok = codec_ok ? true : (codec_id == SrsVideoCodecIdHEVC);
 #endif
     if (!codec_ok) return err;
     
@@ -851,7 +851,7 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     // Check codec for H.264 and H.265.
     bool codec_ok = (codec_id == SrsVideoCodecIdAVC);
 #ifdef SRS_H265
-    codec_ok = codec_ok ? : (codec_id == SrsVideoCodecIdHEVC);
+    codec_ok = codec_ok ? true : (codec_id == SrsVideoCodecIdHEVC);
 #endif
     if (!codec_ok) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "only support video H.264/H.265, actual=%d", codec_id);
@@ -1174,7 +1174,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 
     // profile tier level...
     SrsHevcSpsProfileTierLevel profile_tier_level;
-    memset(&profile_tier_level, 0, sizeof(SrsHevcSpsProfileTierLevel));
+    memset((void*)&profile_tier_level, 0, sizeof(SrsHevcSpsProfileTierLevel));
 
     if ((err = hevc_demux_sps_rbsp_ptl(&bs, &profile_tier_level, 1, sps_max_sub_layers_minus1)) != srs_success) {
         return srs_error_wrap(err, "sps rbsp ptl sps_max_sub_layers_minus1=%d", sps_max_sub_layers_minus1);
