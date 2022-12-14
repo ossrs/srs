@@ -77,6 +77,7 @@ public:
     virtual srs_error_t write_video(int64_t timestamp, char* data, int size);
     virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
 public:
+    void set_drop_if_not_match(bool v);
     virtual bool has_cache();
     virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 public:

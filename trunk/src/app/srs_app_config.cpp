@@ -2600,7 +2600,7 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "http_remux") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
-                    if (m != "enabled" && m != "mount" && m != "fast_cache") {
+                    if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "drop_if_not_match") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.http_remux.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -8239,6 +8239,30 @@ srs_utime_t SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
     }
     
     return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+}
+
+bool SrsConfig::get_vhost_http_remux_drop_if_not_match(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.http_remux.drop_if_not_match"); // SRS_VHOST_HTTP_REMUX_DROP_IF_NOT_MATCH
+
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("http_remux");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("drop_if_not_match");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 string SrsConfig::get_vhost_http_remux_mount(string vhost)

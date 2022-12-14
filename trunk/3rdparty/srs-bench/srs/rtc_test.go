@@ -2046,17 +2046,11 @@ func TestRtcPublish_FlvPlay(t *testing.T) {
 			}
 			defer f.Close()
 
-			var version uint8
 			var hasVideo, hasAudio bool
-			if version, hasVideo, hasAudio, err = f.ReadHeader(); err != nil {
+			if _, hasVideo, hasAudio, err = f.ReadHeader(); err != nil {
 				logger.Tf(ctx, "Flv demuxer read header failed, err=%v", err)
 				return
 			}
-
-			// Optional, user can check the header.
-			_ = version
-			_ = hasAudio
-			_ = hasVideo
 
 			var nnVideo, nnAudio int
 			var prevVideoTimestamp, prevAudioTimestamp int64
@@ -2083,14 +2077,12 @@ func TestRtcPublish_FlvPlay(t *testing.T) {
 					prevVideoTimestamp = (int64)(timestamp)
 				}
 
-				if nnAudio >= 10 && nnVideo >= 10 {
+				audioPacketsOK, videoPacketsOK := !hasAudio || nnAudio >= 10, !hasVideo || nnVideo >= 10
+				if audioPacketsOK && videoPacketsOK {
 					avDiff := prevVideoTimestamp - prevAudioTimestamp
-					// Check timestamp gap between video and audio, make sure audio timestamp align to video timestamp.
-					if avDiff <= 50 && avDiff >= -50 {
-						logger.Tf(ctx, "Flv recv %v audio, %v video, timestamp gap=%v", nnAudio, nnVideo, avDiff)
-						cancel()
-						break
-					}
+					logger.Tf(ctx, "Flv recv %v/%v audio, %v/%v video, avDiff=%v", hasAudio, nnAudio, hasVideo, nnVideo, avDiff)
+					cancel()
+					break
 				}
 
 				_ = tag

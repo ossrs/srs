@@ -289,6 +289,11 @@ srs_error_t SrsFlvStreamEncoder::write_metadata(int64_t timestamp, char* data, i
     return enc->write_metadata(SrsFrameTypeScript, data, size);
 }
 
+void SrsFlvStreamEncoder::set_drop_if_not_match(bool v)
+{
+    enc->set_drop_if_not_match(v);
+}
+
 bool SrsFlvStreamEncoder::has_cache()
 {
     // for flv stream, use gop cache of SrsLiveSource is ok.
@@ -356,7 +361,7 @@ srs_error_t SrsFlvStreamEncoder::write_header(bool has_video, bool has_audio)
             return srs_error_wrap(err, "write header");
         }
 
-        srs_trace("FLV: write header audio=%d, video=%d", has_audio, has_video);
+        srs_trace("FLV: write header audio=%d, video=%d, dinm=%d", has_audio, has_video, enc->drop_if_not_match());
     }
 
     return err;
@@ -576,12 +581,15 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     string enc_desc;
     ISrsBufferEncoder* enc = NULL;
-    
+
     srs_assert(entry);
+    bool drop_if_not_match = _srs_config->get_vhost_http_remux_drop_if_not_match(req->vhost);
+
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
         enc_desc = "FLV";
         enc = new SrsFlvStreamEncoder();
+        ((SrsFlvStreamEncoder*)enc)->set_drop_if_not_match(drop_if_not_match);
     } else if (srs_string_ends_with(entry->pattern, ".aac")) {
         w->header()->set_content_type("audio/x-aac");
         enc_desc = "AAC";
@@ -651,8 +659,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     }
 
     srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost);
-    srs_trace("FLV %s, encoder=%s, mw_sleep=%dms, cache=%d, msgs=%d", entry->pattern.c_str(), enc_desc.c_str(),
-        srsu2msi(mw_sleep), enc->has_cache(), msgs.max);
+    srs_trace("FLV %s, encoder=%s, mw_sleep=%dms, cache=%d, msgs=%d, dinm=%d", entry->pattern.c_str(), enc_desc.c_str(),
+        srsu2msi(mw_sleep), enc->has_cache(), msgs.max, drop_if_not_match);
 
     // TODO: free and erase the disabled entry after all related connections is closed.
     // TODO: FXIME: Support timeout for player, quit infinite-loop.
