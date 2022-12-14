@@ -4688,6 +4688,36 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHttpRemux)
         SrsSetEnvConfig(drop_if_not_match2, "SRS_VHOST_HTTP_REMUX_DROP_IF_NOT_MATCH", "on");
         EXPECT_TRUE(conf.get_vhost_http_remux_drop_if_not_match("__defaultVhost__"));
     }
+
+    if (true) {
+        EXPECT_TRUE(conf.get_vhost_http_remux_has_audio("__defaultVhost__"));
+
+        SrsSetEnvConfig(has_audio, "SRS_VHOST_HTTP_REMUX_HAS_AUDIO", "off");
+        EXPECT_FALSE(conf.get_vhost_http_remux_has_audio("__defaultVhost__"));
+
+        SrsSetEnvConfig(has_audio2, "SRS_VHOST_HTTP_REMUX_HAS_AUDIO", "on");
+        EXPECT_TRUE(conf.get_vhost_http_remux_has_audio("__defaultVhost__"));
+    }
+
+    if (true) {
+        EXPECT_TRUE(conf.get_vhost_http_remux_has_video("__defaultVhost__"));
+
+        SrsSetEnvConfig(has_video, "SRS_VHOST_HTTP_REMUX_HAS_VIDEO", "off");
+        EXPECT_FALSE(conf.get_vhost_http_remux_has_video("__defaultVhost__"));
+
+        SrsSetEnvConfig(has_video2, "SRS_VHOST_HTTP_REMUX_HAS_VIDEO", "on");
+        EXPECT_TRUE(conf.get_vhost_http_remux_has_video("__defaultVhost__"));
+    }
+
+    if (true) {
+        EXPECT_TRUE(conf.get_vhost_http_remux_guess_has_av("__defaultVhost__"));
+
+        SrsSetEnvConfig(guess_has_av, "SRS_VHOST_HTTP_REMUX_GUESS_HAS_AV", "off");
+        EXPECT_FALSE(conf.get_vhost_http_remux_guess_has_av("__defaultVhost__"));
+
+        SrsSetEnvConfig(guess_has_av2, "SRS_VHOST_HTTP_REMUX_GUESS_HAS_AV", "on");
+        EXPECT_TRUE(conf.get_vhost_http_remux_guess_has_av("__defaultVhost__"));
+    }
 }
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesDash)

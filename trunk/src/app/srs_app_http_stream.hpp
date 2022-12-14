@@ -68,6 +68,9 @@ class SrsFlvStreamEncoder : public ISrsBufferEncoder
 private:
     SrsFlvTransmuxer* enc;
     bool header_written;
+    bool has_audio_;
+    bool has_video_;
+    bool guess_has_av_;
 public:
     SrsFlvStreamEncoder();
     virtual ~SrsFlvStreamEncoder();
@@ -78,13 +81,17 @@ public:
     virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
 public:
     void set_drop_if_not_match(bool v);
+    void set_has_audio(bool v);
+    void set_has_video(bool v);
+    void set_guess_has_av(bool v);
+public:
     virtual bool has_cache();
     virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 public:
     // Write the tags in a time.
     virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
 private:
-    virtual srs_error_t write_header(bool has_video = true, bool has_audio = true);
+    virtual srs_error_t write_header(bool has_video, bool has_audio);
 };
 
 // Transmux RTMP to HTTP TS Streaming.
