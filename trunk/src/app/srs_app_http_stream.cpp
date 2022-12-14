@@ -307,16 +307,29 @@ srs_error_t SrsFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int coun
 
     // For https://github.com/ossrs/srs/issues/939
     if (!header_written) {
-        bool has_video = false;
-        bool has_audio = false;
+        bool has_video = false; bool has_audio = false;
+        int nn_video_frames = 0; int nn_audio_frames = 0;
 
-        for (int i = 0; i < count && (!has_video || !has_audio); i++) {
+        // Note that we must iterate all messages to count the audio and video frames.
+        for (int i = 0; i < count; i++) {
             SrsSharedPtrMessage* msg = msgs[i];
             if (msg->is_video()) {
+                if (!SrsFlvVideo::sh(msg->payload, msg->size)) nn_video_frames++;
                 has_video = true;
             } else if (msg->is_audio()) {
+                if (!SrsFlvAudio::sh(msg->payload, msg->size)) nn_audio_frames++;
                 has_audio = true;
             }
+        }
+
+        // See https://github.com/ossrs/srs/issues/939#issuecomment-1348541733
+        if (nn_video_frames > 0 && nn_audio_frames == 0) {
+            if (has_audio) srs_trace("FLV: Reset has_audio for videos=%d and audios=%d", nn_video_frames, nn_audio_frames);
+            has_audio = false;
+        }
+        if (nn_audio_frames > 0 && nn_video_frames == 0) {
+            if (has_video) srs_trace("FLV: Reset has_video for videos=%d and audios=%d", nn_video_frames, nn_audio_frames);
+            has_video = false;
         }
 
         // Drop data if no A+V.
