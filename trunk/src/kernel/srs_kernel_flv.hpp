@@ -336,6 +336,9 @@ public:
 class SrsFlvTransmuxer
 {
 private:
+    bool has_audio_;
+    bool has_video_;
+    bool drop_if_not_match_;
     ISrsWriter* writer;
 private:
     char tag_header[SRS_FLV_TAG_HEADER_SIZE];
@@ -347,6 +350,9 @@ public:
     // @remark user can initialize multiple times to encode multiple flv files.
     // @remark, user must free the @param fw, flv encoder never close/free it.
     virtual srs_error_t initialize(ISrsWriter* fw);
+    // Drop packet if not match FLV header.
+    void set_drop_if_not_match(bool v);
+    bool drop_if_not_match();
 public:
     // Write flv header.
     // Write following:

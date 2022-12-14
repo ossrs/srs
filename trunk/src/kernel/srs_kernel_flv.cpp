@@ -357,7 +357,10 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy2()
 SrsFlvTransmuxer::SrsFlvTransmuxer()
 {
     writer = NULL;
-    
+
+    drop_if_not_match_ = true;
+    has_audio_ = true;
+    has_video_ = true;
     nb_tag_headers = 0;
     tag_headers = NULL;
     nb_iovss_cache = 0;
@@ -380,9 +383,22 @@ srs_error_t SrsFlvTransmuxer::initialize(ISrsWriter* fw)
     return srs_success;
 }
 
+void SrsFlvTransmuxer::set_drop_if_not_match(bool v)
+{
+    drop_if_not_match_ = v;
+}
+
+bool SrsFlvTransmuxer::drop_if_not_match()
+{
+    return drop_if_not_match_;
+}
+
 srs_error_t SrsFlvTransmuxer::write_header(bool has_video, bool has_audio)
 {
     srs_error_t err = srs_success;
+
+    has_audio_ = has_audio;
+    has_video_ = has_video;
 
     uint8_t av_flag = 0;
     av_flag += (has_audio? 4:0);
@@ -444,6 +460,8 @@ srs_error_t SrsFlvTransmuxer::write_metadata(char type, char* data, int size)
 srs_error_t SrsFlvTransmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
     srs_error_t err = srs_success;
+
+    if (drop_if_not_match_ && !has_audio_) return err;
     
     if (size > 0) {
 	    cache_audio(timestamp, data, size, tag_header);
@@ -459,6 +477,8 @@ srs_error_t SrsFlvTransmuxer::write_audio(int64_t timestamp, char* data, int siz
 srs_error_t SrsFlvTransmuxer::write_video(int64_t timestamp, char* data, int size)
 {
     srs_error_t err = srs_success;
+
+    if (drop_if_not_match_ && !has_video_) return err;
     
     if (size > 0) {
 	    cache_video(timestamp, data, size, tag_header);
@@ -481,17 +501,19 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsSharedPtrMessage** msgs, int count)
 {
     srs_error_t err = srs_success;
     
-    // realloc the iovss.
-    int nb_iovss = 3 * count;
+    // Do realloc the iovss if required.
     iovec* iovss = iovss_cache;
-    if (nb_iovss_cache < nb_iovss) {
-        srs_freepa(iovss_cache);
-        
-        nb_iovss_cache = nb_iovss;
-        iovss = iovss_cache = new iovec[nb_iovss];
-    }
+    do {
+        int nn_might_iovss = 3 * count;
+        if (nb_iovss_cache < nn_might_iovss) {
+            srs_freepa(iovss_cache);
+
+            nb_iovss_cache = nn_might_iovss;
+            iovss = iovss_cache = new iovec[nn_might_iovss];
+        }
+    } while (false);
     
-    // realloc the tag headers.
+    // Do realloc the tag headers if required.
     char* cache = tag_headers;
     if (nb_tag_headers < count) {
         srs_freepa(tag_headers);
@@ -500,7 +522,7 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsSharedPtrMessage** msgs, int count)
         cache = tag_headers = new char[SRS_FLV_TAG_HEADER_SIZE * count];
     }
     
-    // realloc the pts.
+    // Do realloc the pts if required.
     char* pts = ppts;
     if (nb_ppts < count) {
         srs_freepa(ppts);
@@ -509,24 +531,26 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsSharedPtrMessage** msgs, int count)
         pts = ppts = new char[SRS_FLV_PREVIOUS_TAG_SIZE * count];
     }
     
-    // the cache is ok, write each messages.
-    iovec* iovs = iovss;
+    // Now all caches are ok, start to write all messages.
+    iovec* iovs = iovss; int nn_real_iovss = 0;
     for (int i = 0; i < count; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
         
-        // cache all flv header.
+        // Cache FLV packet header.
         if (msg->is_audio()) {
+            if (drop_if_not_match_ && !has_audio_) continue; // Ignore audio packets if no audio stream.
             cache_audio(msg->timestamp, msg->payload, msg->size, cache);
         } else if (msg->is_video()) {
+            if (drop_if_not_match_ && !has_video_) continue; // Ignore video packets if no video stream.
             cache_video(msg->timestamp, msg->payload, msg->size, cache);
         } else {
             cache_metadata(SrsFrameTypeScript, msg->payload, msg->size, cache);
         }
         
-        // cache all pts.
+        // Cache FLV pts.
         cache_pts(SRS_FLV_TAG_HEADER_SIZE + msg->size, pts);
         
-        // all ioves.
+        // Set cache to iovec.
         iovs[0].iov_base = cache;
         iovs[0].iov_len = SRS_FLV_TAG_HEADER_SIZE;
         iovs[1].iov_base = msg->payload;
@@ -534,13 +558,14 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsSharedPtrMessage** msgs, int count)
         iovs[2].iov_base = pts;
         iovs[2].iov_len = SRS_FLV_PREVIOUS_TAG_SIZE;
         
-        // move next.
+        // Move to next cache.
         cache += SRS_FLV_TAG_HEADER_SIZE;
         pts += SRS_FLV_PREVIOUS_TAG_SIZE;
-        iovs += 3;
+        iovs += 3; nn_real_iovss += 3;
     }
-    
-    if ((err = writer->writev(iovss, nb_iovss, NULL)) != srs_success) {
+
+    // Send out all data carried by iovec.
+    if ((err = writer->writev(iovss, nn_real_iovss, NULL)) != srs_success) {
         return srs_error_wrap(err, "write flv tags failed");
     }
     
