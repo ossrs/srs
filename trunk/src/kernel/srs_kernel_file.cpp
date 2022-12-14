@@ -121,16 +121,17 @@ bool SrsFileWriter::is_open()
 
 void SrsFileWriter::seek2(int64_t offset)
 {
+    srs_assert(is_open());
+
     int r0 = fseek(fd_, (long)offset, SEEK_SET);
     srs_assert(r0 != -1);
 }
 
 int64_t SrsFileWriter::tellg()
 {
-    fpos_t pos;
-    srs_assert(fgetpos(fd_, &pos) == 0);
-        
-    return (int64_t)pos.__pos;
+    srs_assert(is_open());
+
+    return ftell(fd_);
 }
 
 srs_error_t SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
@@ -176,16 +177,14 @@ srs_error_t SrsFileWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite
 
 srs_error_t SrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
 {
+    srs_assert(is_open());
+
     if (fseek(fd_, (long)offset, whence) == -1) {
         return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek file");
     }
 
     if (seeked) {
-        fpos_t pos;
-        if (fgetpos(fd_, &pos)){
-            return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "get pos");
-        }
-        *seeked = pos.__pos;
+        *seeked = ftell(fd_);
     }
 
     return srs_success;
