@@ -95,6 +95,11 @@ srs_error_t SrsDvrSegmenter::open()
         return srs_error_wrap(err, "open file %s", path.c_str());
     }
     
+    // set libc file write cache buffer size
+    if ((err = fs->srs_set_iobuf_size(65536)) != srs_success) {
+        return srs_error_wrap(err, "set iobuf size for file %s", path.c_str());
+    }
+
     // initialize the encoder.
     if ((err = open_encoder()) != srs_success) {
         return srs_error_wrap(err, "open encoder");

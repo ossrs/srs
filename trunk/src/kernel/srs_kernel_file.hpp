@@ -26,12 +26,18 @@ class SrsFileReader;
 class SrsFileWriter : public ISrsWriteSeeker
 {
 private:
-    std::string path;
-    int fd;
+    std::string path_;
+    FILE *fd_;
+    char *buf_;
 public:
     SrsFileWriter();
     virtual ~SrsFileWriter();
 public:
+    /**
+     * set io buf size
+    */
+   virtual srs_error_t srs_set_iobuf_size(int size);
+
     /**
      * open file writer, in truncate mode.
      * @param p a string indicates the path of file to open.

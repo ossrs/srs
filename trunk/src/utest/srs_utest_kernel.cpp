@@ -4123,20 +4123,6 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
 		HELPER_EXPECT_FAILED(f.open_append("/dev/null"));
 	}
 
-	// Always fail.
-	if (true) {
-		MockSystemIO _mockio(mock_open);
-		SrsFileWriter f;
-		HELPER_EXPECT_FAILED(f.open("/dev/null"));
-		HELPER_EXPECT_FAILED(f.open("/dev/null"));
-	}
-	if (true) {
-		MockSystemIO _mockio(mock_open);
-		SrsFileWriter f;
-		HELPER_EXPECT_FAILED(f.open_append("/dev/null"));
-		HELPER_EXPECT_FAILED(f.open_append("/dev/null"));
-	}
-
 	// Should ok for write, writev or lseek.
 	if (true) {
 		SrsFileWriter f;
@@ -4166,37 +4152,6 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
 #endif
 	}
 
-	// Always fail.
-	if (true) {
-		MockSystemIO _mockio(NULL, mock_write);
-		SrsFileWriter f;
-		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
-
-		ssize_t nn = 0;
-		HELPER_EXPECT_FAILED(f.write((void*)"Hello", 5, &nn));
-
-		iovec iovs[3];
-		iovs[0].iov_base = (void*)"H";
-		iovs[0].iov_len = 1;
-		iovs[1].iov_base = (void*)"e";
-		iovs[1].iov_len = 1;
-		iovs[2].iov_base = (void*)"llo";
-		iovs[2].iov_len = 3;
-		HELPER_EXPECT_FAILED(f.writev(iovs, 3, NULL));
-	}
-	if (true) {
-		MockSystemIO _mockio(NULL, NULL, NULL, mock_lseek);
-		SrsFileWriter f;
-		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
-
-		HELPER_EXPECT_FAILED(f.lseek(0, 0, NULL));
-	}
-	if (true) {
-		MockSystemIO _mockio(NULL, NULL, NULL, NULL, mock_close);
-		SrsFileWriter f;
-		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
-		f.close();
-	}
 }
 
 VOID TEST(KernelFileReaderTest, WriteSpecialCase)
@@ -4285,11 +4240,58 @@ VOID TEST(KernelFileTest, ReadWriteCase)
 	HELPER_EXPECT_SUCCESS(w.write((void*)"Hello", 5, &nn));
 	EXPECT_EQ(5, nn);
 
+	w.close();
+
 	char buf[16] = {0};
 	HELPER_EXPECT_SUCCESS(r.read(buf, sizeof(buf), &nn));
 	EXPECT_EQ(5, nn);
 
 	EXPECT_STREQ("Hello", buf);
+}
+
+
+VOID TEST(KernelFileTest, SeekCase)
+{
+	srs_error_t err;
+
+	string filepath = _srs_tmp_file_prefix + "kernel-file-read-write-case";
+	MockFileRemover _mfr(filepath);
+
+	SrsFileWriter w;
+	HELPER_EXPECT_SUCCESS(w.open(filepath.c_str()));
+
+    HELPER_EXPECT_SUCCESS(w.srs_set_iobuf_size(65536));
+
+	SrsFileReader r;
+	HELPER_EXPECT_SUCCESS(r.open(filepath.c_str()));
+
+	ssize_t nn = 0;
+	HELPER_EXPECT_SUCCESS(w.write((void*)"Hello", 5, &nn));
+	EXPECT_EQ(5, nn);
+
+    // over 4g file test
+    long seek_pos = 0x100000002l;
+    off_t pos;  
+    HELPER_EXPECT_SUCCESS(w.lseek(seek_pos, SEEK_SET, &pos));
+    EXPECT_EQ(seek_pos, pos);
+
+	HELPER_EXPECT_SUCCESS(w.write((void*)"World", 5, &nn));
+	EXPECT_EQ(5, nn);
+
+	w.close();
+
+	char buf[16] = {0};
+	HELPER_EXPECT_SUCCESS(r.read(buf, 5, &nn));
+	EXPECT_EQ(5, nn);
+
+	EXPECT_STREQ("Hello", buf);
+
+	HELPER_EXPECT_SUCCESS(r.lseek(seek_pos, SEEK_SET, NULL));
+	HELPER_EXPECT_SUCCESS(r.read(buf, 5, &nn));
+	EXPECT_EQ(5, nn);
+
+	EXPECT_STREQ("World", buf);
+
 }
 
 VOID TEST(KernelFLVTest, CoverAll)
