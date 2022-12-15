@@ -338,6 +338,7 @@ srs_error_t SrsFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int coun
         // See https://github.com/ossrs/srs/issues/939#issuecomment-1351385460
         if (guess_has_av_) {
             int nn_video_frames = 0; int nn_audio_frames = 0;
+            has_audio = has_video = false;
 
             // Note that we must iterate all messages to count the audio and video frames.
             for (int i = 0; i < count; i++) {
