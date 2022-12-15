@@ -28,7 +28,7 @@ srs_close_t _srs_close_fn = ::close;
 
 SrsFileWriter::SrsFileWriter()
 {
-    fd_  = NULL;
+    fp_  = NULL;
     buf_ = NULL;
 }
 
@@ -39,11 +39,11 @@ SrsFileWriter::~SrsFileWriter()
 }
 
 
-srs_error_t SrsFileWriter::srs_set_iobuf_size(int size)
+srs_error_t SrsFileWriter::set_iobuf_size(int size)
 {
     srs_error_t err = srs_success;
 
-    if (fd_ == NULL){
+    if (fp_ == NULL) {
         return srs_error_new(ERROR_SYSTEM_FILE_NOT_OPEN, "file %s is not opened", path_.c_str());
     }
 
@@ -51,14 +51,15 @@ srs_error_t SrsFileWriter::srs_set_iobuf_size(int size)
 
     int ret;
 
-    if (size > 0){
+    if (size > 0) {
         buf_ = new char[size];
-        ret = setvbuf(fd_, buf_, _IOFBF, size);
-    }else{
-        ret = setvbuf(fd_, NULL, _IONBF, size);
+        ret = setvbuf(fp_, buf_, _IOFBF, size);
+    }
+    else {
+        ret = setvbuf(fp_, NULL, _IONBF, size);
     }
 
-    if (ret != 0){
+    if (ret != 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_SETVBUF, "file %s set vbuf error", path_.c_str());
     }
 
@@ -70,11 +71,11 @@ srs_error_t SrsFileWriter::open(string p)
 {
     srs_error_t err = srs_success;
     
-    if (fd_ != NULL) {
+    if (fp_ != NULL) {
         return srs_error_new(ERROR_SYSTEM_FILE_ALREADY_OPENED, "file %s already opened", p.c_str());
     }
     
-    if ((fd_ = fopen(p.c_str(), "wb")) == NULL) {
+    if ((fp_ = fopen(p.c_str(), "wb")) == NULL) {
         return srs_error_new(ERROR_SYSTEM_FILE_OPENE, "open file %s failed", p.c_str());
     }
     
@@ -87,11 +88,11 @@ srs_error_t SrsFileWriter::open_append(string p)
 {
     srs_error_t err = srs_success;
     
-    if (fd_ != NULL) {
+    if (fp_ != NULL) {
         return srs_error_new(ERROR_SYSTEM_FILE_ALREADY_OPENED, "file %s already opened", p.c_str());
     }
     
-    if ((fd_ = fopen(p.c_str(), "ab")) == NULL) {
+    if ((fp_ = fopen(p.c_str(), "ab")) == NULL) {
         return srs_error_new(ERROR_SYSTEM_FILE_OPENE, "open file %s failed", p.c_str());
     }
     
@@ -102,28 +103,28 @@ srs_error_t SrsFileWriter::open_append(string p)
 
 void SrsFileWriter::close()
 {
-    if (fd_ ==  NULL) {
+    if (fp_ ==  NULL) {
         return;
     }
     
-    if (fclose(fd_) < 0) {
+    if (fclose(fp_) < 0) {
         srs_warn("close file %s failed", path_.c_str());
     }
-    fd_ = NULL;
+    fp_ = NULL;
     
     return;
 }
 
 bool SrsFileWriter::is_open()
 {
-    return fd_ != NULL;
+    return fp_ != NULL;
 }
 
 void SrsFileWriter::seek2(int64_t offset)
 {
     srs_assert(is_open());
 
-    int r0 = fseek(fd_, (long)offset, SEEK_SET);
+    int r0 = fseek(fp_, (long)offset, SEEK_SET);
     srs_assert(r0 != -1);
 }
 
@@ -131,23 +132,23 @@ int64_t SrsFileWriter::tellg()
 {
     srs_assert(is_open());
 
-    return ftell(fd_);
+    return ftell(fp_);
 }
 
 srs_error_t SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
 {
     srs_error_t err = srs_success;
 
-    if (fd_ == NULL) {
+    if (fp_ == NULL) {
         return srs_error_new(ERROR_SYSTEM_FILE_NOT_OPEN, "file %s is not opened", path_.c_str());
     }
     
-    size_t n = fwrite(buf, 1, count, fd_);
-    if (n != count){
+    size_t n = fwrite(buf, 1, count, fp_);
+    if (n != count) {
         return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "write to file %s failed", path_.c_str());
     }
 
-    if (pnwrite != NULL){
+    if (pnwrite != NULL) {
         *pnwrite = (ssize_t)n;
     }
 
@@ -162,7 +163,7 @@ srs_error_t SrsFileWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite
     for (int i = 0; i < iovcnt; i++) {
         const iovec* piov = iov + i;
         ssize_t this_nwrite = 0;
-        if ((err = write(piov->iov_base, piov->iov_len, &this_nwrite)) != NULL) {
+        if ((err = write(piov->iov_base, piov->iov_len, &this_nwrite)) != srs_success) {
             return srs_error_wrap(err, "writev");
         }
         nwrite += this_nwrite;
@@ -179,12 +180,12 @@ srs_error_t SrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
 {
     srs_assert(is_open());
 
-    if (fseek(fd_, (long)offset, whence) == -1) {
+    if (fseek(fp_, (long)offset, whence) == -1) {
         return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek file");
     }
 
     if (seeked) {
-        *seeked = ftell(fd_);
+        *seeked = ftell(fp_);
     }
 
     return srs_success;

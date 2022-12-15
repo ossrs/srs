@@ -4260,7 +4260,7 @@ VOID TEST(KernelFileTest, SeekCase)
 	SrsFileWriter w;
 	HELPER_EXPECT_SUCCESS(w.open(filepath.c_str()));
 
-    HELPER_EXPECT_SUCCESS(w.srs_set_iobuf_size(65536));
+	HELPER_EXPECT_SUCCESS(w.set_iobuf_size(65536));
 
 	SrsFileReader r;
 	HELPER_EXPECT_SUCCESS(r.open(filepath.c_str()));
@@ -4269,11 +4269,11 @@ VOID TEST(KernelFileTest, SeekCase)
 	HELPER_EXPECT_SUCCESS(w.write((void*)"Hello", 5, &nn));
 	EXPECT_EQ(5, nn);
 
-    // over 4g file test
-    long seek_pos = 0x100000002l;
-    off_t pos;  
-    HELPER_EXPECT_SUCCESS(w.lseek(seek_pos, SEEK_SET, &pos));
-    EXPECT_EQ(seek_pos, pos);
+	// over 4g file test
+	long seek_pos = 0x100000002l;
+	off_t pos;  
+	HELPER_EXPECT_SUCCESS(w.lseek(seek_pos, SEEK_SET, &pos));
+	EXPECT_EQ(seek_pos, pos);
 
 	HELPER_EXPECT_SUCCESS(w.write((void*)"World", 5, &nn));
 	EXPECT_EQ(5, nn);

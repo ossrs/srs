@@ -27,7 +27,7 @@ class SrsFileWriter : public ISrsWriteSeeker
 {
 private:
     std::string path_;
-    FILE *fd_;
+    FILE *fp_;
     char *buf_;
 public:
     SrsFileWriter();
@@ -36,7 +36,7 @@ public:
     /**
      * set io buf size
     */
-   virtual srs_error_t srs_set_iobuf_size(int size);
+   virtual srs_error_t set_iobuf_size(int size);
 
     /**
      * open file writer, in truncate mode.
