@@ -7,9 +7,9 @@ assignees: ''
 
 ---
 
-> Note: Please read FAQ before file an issue, see 2716
+> Note: Please read FAQ before file an issue, see #2716
 
-> Note: 提问前，请先看FAQ, 即 2716
+> Note: 提问前，请先看FAQ, 即 #2716
 
 **Description(描述)**
 
