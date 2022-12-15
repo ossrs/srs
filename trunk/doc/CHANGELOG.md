@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-12-15, For [#3300](https://github.com/ossrs/srs/issues/3300): GB28181: Fix memory overlap for small packets. v5.0.111
 * v5.0, 2022-12-14, For [#939](https://github.com/ossrs/srs/issues/939): FLV: Support set default has_av and disable guessing. v5.0.110
 * v5.0, 2022-12-13, For [#939](https://github.com/ossrs/srs/issues/939): FLV: Drop packet if header flag is not matched. v5.0.109
 * v5.0, 2022-12-13, For [#939](https://github.com/ossrs/srs/issues/939): FLV: Reset has_audio or has_video if only sequence header.
