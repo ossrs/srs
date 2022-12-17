@@ -1444,8 +1444,9 @@ srs_error_t SrsLazyGbMediaTcpConn::do_cycle()
             string bytes = srs_string_dumps_hex(b.head(), reserved, 16);
             srs_trace("PS: Reserved bytes for next loop, pos=%d, left=%d, total=%d, bytes=[%s]",
                 b.pos(), b.left(), b.size(), bytes.c_str());
-            // Copy the bytes left to the start of buffer.
-            b.read_bytes((char*)buffer_, reserved);
+            // Copy the bytes left to the start of buffer. Note that the left(reserved) bytes might be overlapped with
+            // buffer, so we must use memmove not memcpy, see https://github.com/ossrs/srs/issues/3300#issuecomment-1352907075
+            memmove(buffer_, b.head(), reserved);
             pack_->media_reserved_++;
         }
     }
