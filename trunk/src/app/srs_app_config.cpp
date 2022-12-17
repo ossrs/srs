@@ -2600,7 +2600,8 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "http_remux") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
-                    if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "drop_if_not_match") {
+                    if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "drop_if_not_match"
+                        && m != "has_audio" && m != "has_video" && m != "guess_has_av") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.http_remux.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -8258,6 +8259,78 @@ bool SrsConfig::get_vhost_http_remux_drop_if_not_match(string vhost)
     }
 
     conf = conf->get("drop_if_not_match");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_vhost_http_remux_has_audio(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.http_remux.has_audio"); // SRS_VHOST_HTTP_REMUX_HAS_AUDIO
+
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("http_remux");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("has_audio");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_vhost_http_remux_has_video(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.http_remux.has_video"); // SRS_VHOST_HTTP_REMUX_HAS_VIDEO
+
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("http_remux");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("has_video");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_vhost_http_remux_guess_has_av(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.http_remux.guess_has_av"); // SRS_VHOST_HTTP_REMUX_GUESS_HAS_AV
+
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("http_remux");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("guess_has_av");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

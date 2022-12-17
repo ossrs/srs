@@ -2022,71 +2022,44 @@ func TestRtcPublish_FlvPlay(t *testing.T) {
 
 		select {
 		case <-ctx.Done():
+			return
 		case <-publishReady.Done():
-			var url string = "http://127.0.0.1:8080" + *srsStream + "-" + streamSuffix + ".flv"
-			logger.Tf(ctx, "Run play flv url=%v", url)
+		}
 
-			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-			if err != nil {
-				logger.Tf(ctx, "New request for flv %v failed, err=%v", url, err)
-				return
-			}
+		player := NewFLVPlayer()
+		defer player.Close()
 
-			client := http.Client{}
-			resp, err := client.Do(req)
-			if err != nil {
-				logger.Tf(ctx, "Http get flv %v failed, err=%v", url, err)
-				return
-			}
-
-			var f flv.Demuxer
-			if f, err = flv.NewDemuxer(resp.Body); err != nil {
-				logger.Tf(ctx, "Create flv demuxer for %v failed, err=%v", url, err)
-				return
-			}
-			defer f.Close()
-
-			var hasVideo, hasAudio bool
-			if _, hasVideo, hasAudio, err = f.ReadHeader(); err != nil {
-				logger.Tf(ctx, "Flv demuxer read header failed, err=%v", err)
-				return
+		r3 = func() error {
+			flvUrl := fmt.Sprintf("http://%v%v-%v.flv", *srsHttpServer, *srsStream, streamSuffix)
+			if err := player.Play(ctx, flvUrl); err != nil {
+				return err
 			}
 
 			var nnVideo, nnAudio int
-			var prevVideoTimestamp, prevAudioTimestamp int64
-
-			for {
-				var tagType flv.TagType
-				var tagSize, timestamp uint32
-				if tagType, tagSize, timestamp, err = f.ReadTagHeader(); err != nil {
-					logger.Tf(ctx, "Flv demuxer read tag header failed, err=%v", err)
-					return
-				}
-
-				var tag []byte
-				if tag, err = f.ReadTag(tagSize); err != nil {
-					logger.Tf(ctx, "Flv demuxer read tag failed, err=%v", err)
-					return
-				}
-
+			var hasVideo, hasAudio bool
+			player.onRecvHeader = func(ha, hv bool) error {
+				hasAudio, hasVideo = ha, hv
+				return nil
+			}
+			player.onRecvTag = func(tagType flv.TagType, size, timestamp uint32, tag []byte) error {
 				if tagType == flv.TagTypeAudio {
 					nnAudio++
-					prevAudioTimestamp = (int64)(timestamp)
 				} else if tagType == flv.TagTypeVideo {
 					nnVideo++
-					prevVideoTimestamp = (int64)(timestamp)
 				}
+				logger.Tf(ctx, "got %v tag, %v %vms %vB", nnVideo+nnAudio, tagType, timestamp, len(tag))
 
-				audioPacketsOK, videoPacketsOK := !hasAudio || nnAudio >= 10, !hasVideo || nnVideo >= 10
-				if audioPacketsOK && videoPacketsOK {
-					avDiff := prevVideoTimestamp - prevAudioTimestamp
-					logger.Tf(ctx, "Flv recv %v/%v audio, %v/%v video, avDiff=%v", hasAudio, nnAudio, hasVideo, nnVideo, avDiff)
+				if audioPacketsOK, videoPacketsOK := !hasAudio || nnAudio >= 10, !hasVideo || nnVideo >= 10; audioPacketsOK && videoPacketsOK {
+					logger.Tf(ctx, "Flv recv %v/%v audio, %v/%v video", hasAudio, nnAudio, hasVideo, nnVideo)
 					cancel()
-					break
 				}
-
-				_ = tag
+				return nil
 			}
-		}
+			if err := player.Consume(ctx); err != nil {
+				return err
+			}
+
+			return nil
+		}()
 	}()
 }

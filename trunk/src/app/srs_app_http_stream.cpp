@@ -238,6 +238,9 @@ SrsFlvStreamEncoder::SrsFlvStreamEncoder()
 {
     header_written = false;
     enc = new SrsFlvTransmuxer();
+    has_audio_ = true;
+    has_video_ = true;
+    guess_has_av_ = true;
 }
 
 SrsFlvStreamEncoder::~SrsFlvStreamEncoder()
@@ -260,7 +263,7 @@ srs_error_t SrsFlvStreamEncoder::write_audio(int64_t timestamp, char* data, int 
 {
     srs_error_t err = srs_success;
 
-    if ((err = write_header())  != srs_success) {
+    if ((err = write_header(has_video_, has_audio_))  != srs_success) {
         return srs_error_wrap(err, "write header");
     }
 
@@ -271,7 +274,7 @@ srs_error_t SrsFlvStreamEncoder::write_video(int64_t timestamp, char* data, int 
 {
     srs_error_t err = srs_success;
 
-    if ((err = write_header())  != srs_success) {
+    if ((err = write_header(has_video_, has_audio_))  != srs_success) {
         return srs_error_wrap(err, "write header");
     }
 
@@ -282,7 +285,7 @@ srs_error_t SrsFlvStreamEncoder::write_metadata(int64_t timestamp, char* data, i
 {
     srs_error_t err = srs_success;
 
-    if ((err = write_header())  != srs_success) {
+    if ((err = write_header(has_video_, has_audio_))  != srs_success) {
         return srs_error_wrap(err, "write header");
     }
 
@@ -292,6 +295,21 @@ srs_error_t SrsFlvStreamEncoder::write_metadata(int64_t timestamp, char* data, i
 void SrsFlvStreamEncoder::set_drop_if_not_match(bool v)
 {
     enc->set_drop_if_not_match(v);
+}
+
+void SrsFlvStreamEncoder::set_has_audio(bool v)
+{
+    has_audio_ = v;
+}
+
+void SrsFlvStreamEncoder::set_has_video(bool v)
+{
+    has_video_ = v;
+}
+
+void SrsFlvStreamEncoder::set_guess_has_av(bool v)
+{
+    guess_has_av_ = v;
 }
 
 bool SrsFlvStreamEncoder::has_cache()
@@ -310,31 +328,39 @@ srs_error_t SrsFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int coun
 {
     srs_error_t err = srs_success;
 
+    // Ignore if no messages.
+    if (count <= 0) return err;
+
     // For https://github.com/ossrs/srs/issues/939
     if (!header_written) {
-        bool has_video = false; bool has_audio = false;
-        int nn_video_frames = 0; int nn_audio_frames = 0;
+        bool has_video = has_audio_; bool has_audio = has_video_;
 
-        // Note that we must iterate all messages to count the audio and video frames.
-        for (int i = 0; i < count; i++) {
-            SrsSharedPtrMessage* msg = msgs[i];
-            if (msg->is_video()) {
-                if (!SrsFlvVideo::sh(msg->payload, msg->size)) nn_video_frames++;
-                has_video = true;
-            } else if (msg->is_audio()) {
-                if (!SrsFlvAudio::sh(msg->payload, msg->size)) nn_audio_frames++;
-                has_audio = true;
+        // See https://github.com/ossrs/srs/issues/939#issuecomment-1351385460
+        if (guess_has_av_) {
+            int nn_video_frames = 0; int nn_audio_frames = 0;
+            has_audio = has_video = false;
+
+            // Note that we must iterate all messages to count the audio and video frames.
+            for (int i = 0; i < count; i++) {
+                SrsSharedPtrMessage* msg = msgs[i];
+                if (msg->is_video()) {
+                    if (!SrsFlvVideo::sh(msg->payload, msg->size)) nn_video_frames++;
+                    has_video = true;
+                } else if (msg->is_audio()) {
+                    if (!SrsFlvAudio::sh(msg->payload, msg->size)) nn_audio_frames++;
+                    has_audio = true;
+                }
             }
-        }
 
-        // See https://github.com/ossrs/srs/issues/939#issuecomment-1348541733
-        if (nn_video_frames > 0 && nn_audio_frames == 0) {
-            if (has_audio) srs_trace("FLV: Reset has_audio for videos=%d and audios=%d", nn_video_frames, nn_audio_frames);
-            has_audio = false;
-        }
-        if (nn_audio_frames > 0 && nn_video_frames == 0) {
-            if (has_video) srs_trace("FLV: Reset has_video for videos=%d and audios=%d", nn_video_frames, nn_audio_frames);
-            has_video = false;
+            // See https://github.com/ossrs/srs/issues/939#issuecomment-1348541733
+            if (nn_video_frames > 0 && nn_audio_frames == 0) {
+                if (has_audio) srs_trace("FLV: Reset has_audio for videos=%d and audios=%d", nn_video_frames, nn_audio_frames);
+                has_audio = false;
+            }
+            if (nn_audio_frames > 0 && nn_video_frames == 0) {
+                if (has_video) srs_trace("FLV: Reset has_video for videos=%d and audios=%d", nn_video_frames, nn_audio_frames);
+                has_video = false;
+            }
         }
 
         // Drop data if no A+V.
@@ -347,6 +373,7 @@ srs_error_t SrsFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int coun
         }
     }
 
+    // Write tags after header is done.
     return enc->write_tags(msgs, count);
 }
 
@@ -361,7 +388,8 @@ srs_error_t SrsFlvStreamEncoder::write_header(bool has_video, bool has_audio)
             return srs_error_wrap(err, "write header");
         }
 
-        srs_trace("FLV: write header audio=%d, video=%d, dinm=%d", has_audio, has_video, enc->drop_if_not_match());
+        srs_trace("FLV: write header audio=%d, video=%d, dinm=%d, config=%d/%d/%d", has_audio, has_video,
+            enc->drop_if_not_match(), has_audio_, has_video_, guess_has_av_);
     }
 
     return err;
@@ -584,12 +612,18 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 
     srs_assert(entry);
     bool drop_if_not_match = _srs_config->get_vhost_http_remux_drop_if_not_match(req->vhost);
+    bool has_audio = _srs_config->get_vhost_http_remux_has_audio(req->vhost);
+    bool has_video = _srs_config->get_vhost_http_remux_has_video(req->vhost);
+    bool guess_has_av = _srs_config->get_vhost_http_remux_guess_has_av(req->vhost);
 
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
         enc_desc = "FLV";
         enc = new SrsFlvStreamEncoder();
         ((SrsFlvStreamEncoder*)enc)->set_drop_if_not_match(drop_if_not_match);
+        ((SrsFlvStreamEncoder*)enc)->set_has_audio(has_audio);
+        ((SrsFlvStreamEncoder*)enc)->set_has_video(has_video);
+        ((SrsFlvStreamEncoder*)enc)->set_guess_has_av(guess_has_av);
     } else if (srs_string_ends_with(entry->pattern, ".aac")) {
         w->header()->set_content_type("audio/x-aac");
         enc_desc = "AAC";
@@ -659,8 +693,9 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     }
 
     srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost);
-    srs_trace("FLV %s, encoder=%s, mw_sleep=%dms, cache=%d, msgs=%d, dinm=%d", entry->pattern.c_str(), enc_desc.c_str(),
-        srsu2msi(mw_sleep), enc->has_cache(), msgs.max, drop_if_not_match);
+    srs_trace("FLV %s, encoder=%s, mw_sleep=%dms, cache=%d, msgs=%d, dinm=%d, guess_av=%d/%d/%d",
+        entry->pattern.c_str(), enc_desc.c_str(), srsu2msi(mw_sleep), enc->has_cache(), msgs.max, drop_if_not_match,
+        has_audio, has_video, guess_has_av);
 
     // TODO: free and erase the disabled entry after all related connections is closed.
     // TODO: FXIME: Support timeout for player, quit infinite-loop.

@@ -1066,6 +1066,12 @@ public:
     virtual srs_utime_t get_vhost_http_remux_fast_cache(std::string vhost);
     // Whether drop packet if not match header.
     bool get_vhost_http_remux_drop_if_not_match(std::string vhost);
+    // Whether stream has audio track.
+    bool get_vhost_http_remux_has_audio(std::string vhost);
+    // Whether stream has video track.
+    bool get_vhost_http_remux_has_video(std::string vhost);
+    // Whether guessing stream about audio or video track
+    bool get_vhost_http_remux_guess_has_av(std::string vhost);
     // Get the http flv live stream mount point for vhost.
     // used to generate the flv stream mount path.
     virtual std::string get_vhost_http_remux_mount(std::string vhost);
