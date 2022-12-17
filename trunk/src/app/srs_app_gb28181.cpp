@@ -70,42 +70,11 @@ std::string srs_sip_state(SrsGbSipState ostate, SrsGbSipState state)
     return srs_fmt("%s->%s", srs_gb_sip_state(ostate).c_str(), srs_gb_sip_state(state).c_str());
 }
 
-ISrsGbSipConn::ISrsGbSipConn()
+SrsLazyGbSession::SrsLazyGbSession(SrsLazyObjectWrapper<SrsLazyGbSession>* wrapper_root)
 {
-}
-
-ISrsGbSipConn::~ISrsGbSipConn()
-{
-}
-
-ISrsGbSipConnWrapper::ISrsGbSipConnWrapper()
-{
-}
-
-ISrsGbSipConnWrapper::~ISrsGbSipConnWrapper()
-{
-}
-
-ISrsGbMediaConn::ISrsGbMediaConn()
-{
-}
-
-ISrsGbMediaConn::~ISrsGbMediaConn()
-{
-}
-
-ISrsGbMediaConnWrapper::ISrsGbMediaConnWrapper()
-{
-}
-
-ISrsGbMediaConnWrapper::~ISrsGbMediaConnWrapper()
-{
-}
-
-SrsLazyGbSession::SrsLazyGbSession()
-{
-    sip_ = new ISrsGbSipConnWrapper();
-    media_ = new ISrsGbMediaConnWrapper();
+    wrapper_root_ = wrapper_root;
+    sip_ = new SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>();
+    media_ = new SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>();
     muxer_ = new SrsGbMuxer(this);
     state_ = SrsGbSessionStateInit;
 
@@ -225,7 +194,7 @@ void SrsLazyGbSession::on_ps_pack(SrsPackContext* ctx, SrsPsPacket* ps, const st
     }
 }
 
-void SrsLazyGbSession::on_sip_transport(ISrsGbSipConnWrapper* sip)
+void SrsLazyGbSession::on_sip_transport(SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* sip)
 {
     srs_freep(sip_);
     sip_ = sip->copy();
@@ -234,12 +203,12 @@ void SrsLazyGbSession::on_sip_transport(ISrsGbSipConnWrapper* sip)
     sip_->resource()->set_cid(cid_);
 }
 
-ISrsGbSipConnWrapper* SrsLazyGbSession::sip_transport()
+SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* SrsLazyGbSession::sip_transport()
 {
     return sip_;
 }
 
-void SrsLazyGbSession::on_media_transport(ISrsGbMediaConnWrapper* media)
+void SrsLazyGbSession::on_media_transport(SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* media)
 {
     srs_freep(media_);
     media_ = media->copy();
@@ -273,7 +242,7 @@ srs_error_t SrsLazyGbSession::cycle()
     media_->resource()->interrupt();
 
     // Note that we added wrapper to manager, so we must free the wrapper, not this connection.
-    SrsLazyGbSessionWrapper* wrapper = dynamic_cast<SrsLazyGbSessionWrapper*>(gc_creator_wrapper());
+    SrsLazyObjectWrapper<SrsLazyGbSession>* wrapper = wrapper_root_;
     srs_assert(wrapper); // The creator wrapper MUST never be null, because we created it.
     _srs_gb_manager->remove(wrapper);
 
@@ -366,7 +335,7 @@ srs_error_t SrsLazyGbSession::drive_state()
             }
 
             // Now, we're able to query session by ssrc, for media packets.
-            SrsLazyGbSessionWrapper* wrapper = dynamic_cast<SrsLazyGbSessionWrapper*>(gc_creator_wrapper());
+            SrsLazyObjectWrapper<SrsLazyGbSession>* wrapper = wrapper_root_;
             srs_assert(wrapper); // It MUST never be NULL, because this method is in the cycle of coroutine.
             _srs_gb_manager->add_with_fast_id(ssrc, wrapper);
         }
@@ -493,7 +462,7 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener* listener, srs_netfd_t stf
 
     // Handle TCP connections.
     if (listener == sip_listener_) {
-        SrsLazyGbSipTcpConnWrapper* conn = new SrsLazyGbSipTcpConnWrapper();
+        SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* conn = new SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>();
         SrsLazyGbSipTcpConn* resource = dynamic_cast<SrsLazyGbSipTcpConn*>(conn->resource());
         resource->setup(conf_, sip_listener_, media_listener_, stfd);
 
@@ -504,7 +473,7 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener* listener, srs_netfd_t stf
 
         _srs_gb_manager->add(conn, NULL);
     } else if (listener == media_listener_) {
-        SrsLazyGbMediaTcpConnWrapper* conn = new SrsLazyGbMediaTcpConnWrapper();
+        SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* conn = new SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>();
         SrsLazyGbMediaTcpConn* resource = dynamic_cast<SrsLazyGbMediaTcpConn*>(conn->resource());
         resource->setup(stfd);
 
@@ -522,8 +491,9 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener* listener, srs_netfd_t stf
     return err;
 }
 
-SrsLazyGbSipTcpConn::SrsLazyGbSipTcpConn()
+SrsLazyGbSipTcpConn::SrsLazyGbSipTcpConn(SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* wrapper_root)
 {
+    wrapper_root_ = wrapper_root;
     session_ = NULL;
     state_ = SrsGbSipStateInit;
     register_ = new SrsSipMessage();
@@ -940,7 +910,7 @@ srs_error_t SrsLazyGbSipTcpConn::cycle()
     sender_->interrupt();
 
     // Note that we added wrapper to manager, so we must free the wrapper, not this connection.
-    SrsLazyGbSipTcpConnWrapper* wrapper = dynamic_cast<SrsLazyGbSipTcpConnWrapper*>(gc_creator_wrapper());
+    SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* wrapper = wrapper_root_;
     srs_assert(wrapper); // The creator wrapper MUST never be null, because we created it.
     _srs_gb_manager->remove(wrapper);
 
@@ -987,7 +957,7 @@ srs_error_t SrsLazyGbSipTcpConn::do_cycle()
     return err;
 }
 
-srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyGbSessionWrapper** psession)
+srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyObjectWrapper<SrsLazyGbSession>** psession)
 {
     srs_error_t err = srs_success;
 
@@ -998,14 +968,14 @@ srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyGbSessi
     if (msg->type_ != HTTP_REQUEST || msg->method_ != HTTP_REGISTER) return err;
 
     // The lazy-sweep wrapper for this resource.
-    SrsLazyGbSipTcpConnWrapper* wrapper = dynamic_cast<SrsLazyGbSipTcpConnWrapper*>(gc_creator_wrapper());
+    SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* wrapper = wrapper_root_;
     srs_assert(wrapper); // It MUST never be NULL, because this method is in the cycle of coroutine of receiver.
 
     // Find exists session for register, might be created by another object and still alive.
-    SrsLazyGbSessionWrapper* session = dynamic_cast<SrsLazyGbSessionWrapper*>(_srs_gb_manager->find_by_id(device));
+    SrsLazyObjectWrapper<SrsLazyGbSession>* session = dynamic_cast<SrsLazyObjectWrapper<SrsLazyGbSession>*>(_srs_gb_manager->find_by_id(device));
     if (!session) {
         // Create new GB session.
-        session = new SrsLazyGbSessionWrapper();
+        session = new SrsLazyObjectWrapper<SrsLazyGbSession>();
 
         if ((err = session->resource()->initialize(conf_)) != srs_success) {
             srs_freep(session);
@@ -1248,8 +1218,9 @@ ISrsPsPackHandler::~ISrsPsPackHandler()
 {
 }
 
-SrsLazyGbMediaTcpConn::SrsLazyGbMediaTcpConn()
+SrsLazyGbMediaTcpConn::SrsLazyGbMediaTcpConn(SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* wrapper_root)
 {
+    wrapper_root_ = wrapper_root;
     pack_ = new SrsPackContext(this);
     trd_ = new SrsSTCoroutine("media", this);
     buffer_ = new uint8_t[65535];
@@ -1324,7 +1295,7 @@ srs_error_t SrsLazyGbMediaTcpConn::cycle()
     srs_trace("PS: Media disconnect, code=%d", srs_error_code(err));
 
     // Note that we added wrapper to manager, so we must free the wrapper, not this connection.
-    SrsLazyGbMediaTcpConnWrapper* wrapper = dynamic_cast<SrsLazyGbMediaTcpConnWrapper*>(gc_creator_wrapper());
+    SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* wrapper = wrapper_root_;
     srs_assert(wrapper); // The creator wrapper MUST never be null, because we created it.
     _srs_gb_manager->remove(wrapper);
 
@@ -1478,18 +1449,18 @@ srs_error_t SrsLazyGbMediaTcpConn::on_ps_pack(SrsPsPacket* ps, const std::vector
     return err;
 }
 
-srs_error_t SrsLazyGbMediaTcpConn::bind_session(uint32_t ssrc, SrsLazyGbSessionWrapper** psession)
+srs_error_t SrsLazyGbMediaTcpConn::bind_session(uint32_t ssrc, SrsLazyObjectWrapper<SrsLazyGbSession>** psession)
 {
     srs_error_t err = srs_success;
 
     if (!ssrc) return err;
 
     // The lazy-sweep wrapper for this resource.
-    SrsLazyGbMediaTcpConnWrapper* wrapper = dynamic_cast<SrsLazyGbMediaTcpConnWrapper*>(gc_creator_wrapper());
+    SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* wrapper = wrapper_root_;
     srs_assert(wrapper); // It MUST never be NULL, because this method is in the cycle of coroutine.
 
     // Find exists session for register, might be created by another object and still alive.
-    SrsLazyGbSessionWrapper* session = dynamic_cast<SrsLazyGbSessionWrapper*>(_srs_gb_manager->find_by_fast_id(ssrc));
+    SrsLazyObjectWrapper<SrsLazyGbSession>* session = dynamic_cast<SrsLazyObjectWrapper<SrsLazyGbSession>*>(_srs_gb_manager->find_by_fast_id(ssrc));
     if (!session) return err;
 
     _srs_gb_manager->add_with_fast_id(ssrc, session);

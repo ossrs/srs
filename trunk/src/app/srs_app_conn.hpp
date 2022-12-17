@@ -144,24 +144,13 @@ class SrsLazyObjectWrapper : public ISrsResource
 {
 private:
     T* resource_;
-    bool is_root_;
 public:
-    SrsLazyObjectWrapper(T* resource = NULL, ISrsResource* wrapper = NULL) {
-        resource_ = resource ? resource : new T();
+    SrsLazyObjectWrapper(T* resource = NULL) {
+        resource_ = resource ? resource : new T(this);
         resource_->gc_use();
-
-        is_root_ = !resource;
-        if (!resource) {
-            resource_->gc_set_creator_wrapper(wrapper ? wrapper : this);
-        }
     }
     virtual ~SrsLazyObjectWrapper() {
         resource_->gc_dispose();
-
-        if (is_root_) {
-            resource_->gc_set_creator_wrapper(NULL);
-        }
-
         if (resource_->gc_ref() == 0) {
             _srs_gc->remove(resource_);
         }
@@ -182,31 +171,6 @@ public:
         return resource_->desc();
     }
 };
-
-// Use macro to generate a wrapper class, because typedef will cause IDE incorrect tips.
-// See https://github.com/ossrs/srs/issues/3176#lazy-sweep
-#define SRS_LAZY_WRAPPER_GENERATOR(Resource, IWrapper, IResource) \
-    private: \
-        SrsLazyObjectWrapper<Resource> impl_; \
-    public: \
-        Resource##Wrapper(Resource* resource = NULL) : impl_(resource, this) { \
-        } \
-        virtual ~Resource##Wrapper() { \
-        } \
-    public: \
-        IWrapper* copy() { \
-            return new Resource##Wrapper(impl_.resource()); \
-        } \
-        IResource* resource() { \
-            return impl_.resource(); \
-        } \
-    public: \
-        virtual const SrsContextId& get_id() { \
-            return impl_.get_id(); \
-        } \
-        virtual std::string desc() { \
-            return impl_.desc(); \
-        } \
 
 // If a connection is able be expired, user can use HTTP-API to kick-off it.
 class ISrsExpire
