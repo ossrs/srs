@@ -116,5 +116,16 @@ typedef ssize_t (*srs_read_t)(int fildes, void* buf, size_t nbyte);
 typedef off_t (*srs_lseek_t)(int fildes, off_t offset, int whence);
 typedef int (*srs_close_t)(int fildes);
 
+
+typedef FILE* (*srs_fopen_t)(const char* path, const char* mode);
+typedef size_t (*srs_fwrite_t)(const void* ptr, size_t size, size_t nitems, 
+                             FILE* stream);
+typedef size_t (*srs_fread_t)(void* ptr, size_t size, size_t nitems, 
+                            FILE* stream);                             
+typedef int (*srs_fseek_t)(FILE* stream, long offset, int whence);
+typedef int (*srs_fclose_t)(FILE* stream);
+typedef long (*srs_ftell_t)(FILE* stream);
+typedef int (*srs_setvbuf_t)(FILE* stream, char* buf, int type, size_t size);
+
 #endif
 
