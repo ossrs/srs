@@ -19,6 +19,11 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-12-17, Merge [#3323](https://github.com/ossrs/srs/pull/3323): SRT: Fix srt to rtmp crash when sps or pps empty. v5.0.112
+* v5.0, 2022-12-15, For [#3300](https://github.com/ossrs/srs/issues/3300): GB28181: Fix memory overlap for small packets. v5.0.111
+* v5.0, 2022-12-14, For [#939](https://github.com/ossrs/srs/issues/939): FLV: Support set default has_av and disable guessing. v5.0.110
+* v5.0, 2022-12-13, For [#939](https://github.com/ossrs/srs/issues/939): FLV: Drop packet if header flag is not matched. v5.0.109
+* v5.0, 2022-12-13, For [#939](https://github.com/ossrs/srs/issues/939): FLV: Reset has_audio or has_video if only sequence header.
 * v5.0, 2022-12-12, Merge [#3301](https://github.com/ossrs/srs/pull/3301): DASH: Fix dash crash bug when writing file. v5.0.108
 * v5.0, 2022-12-09, Merge [#3296](https://github.com/ossrs/srs/pull/3296): SRT: Support SRT to RTMP to WebRTC. v5.0.107
 * v5.0, 2022-12-08, Merge [#3295](https://github.com/ossrs/srs/pull/3295): API: Parse fragment of URI. v5.0.106
