@@ -102,6 +102,9 @@
     XX(ERROR_APM_AUTH                      , 1089, "ApmAuth", "APM team or token is invalid") \
     XX(ERROR_EXPORTER_DISABLED             , 1090, "ExporterDisable", "Prometheus exporter is disabled") \
     XX(ERROR_ST_SET_SELECT                 , 1091, "StSetSelect", "ST set select failed") \
+    XX(ERROR_BACKTRACE_PARSE_NOT_SUPPORT   , 1092, "BacktraceParseNotSupport", "Backtrace parse not supported") \
+    XX(ERROR_BACKTRACE_PARSE_OFFSET        , 1093, "BacktraceParseOffset", "Parse backtrace offset failed") \
+    XX(ERROR_BACKTRACE_ADDR2LINE           , 1094, "BacktraceAddr2Line", "Backtrace addr2line failed") \
 
 /**************************************************/
 /* RTMP protocol error. */

@@ -7,6 +7,7 @@
 #include <srs_kernel_error.hpp>
 
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_utility.hpp>
 
 #include <errno.h>
 #include <sstream>
@@ -15,6 +16,7 @@
 #include <assert.h>
 
 #include <map>
+#include <vector>
 using namespace std;
 
 #if defined(SRS_BACKTRACE) && defined(__linux)
@@ -115,6 +117,53 @@ char* addr2line_format(void* addr, char* symbol, char* buffer, int nn_buffer)
     }
 
     return buffer;
+}
+#endif
+
+int srs_parse_asan_backtrace_symbols(char* symbol, char* out_buf)
+{
+#if defined(SRS_BACKTRACE) && defined(__linux)
+    void* frame = parse_symbol_offset(symbol);
+    if (!frame) {
+        return ERROR_BACKTRACE_PARSE_OFFSET;
+    }
+
+    char* fmt = addr2line_format(frame, symbol, out_buf, sizeof(out_buf));
+    if (fmt != out_buf) {
+        return ERROR_BACKTRACE_ADDR2LINE;
+    }
+
+    return ERROR_SUCCESS;
+#endif
+    return ERROR_BACKTRACE_PARSE_NOT_SUPPORT;
+}
+
+#ifdef SRS_SANITIZER_LOG
+void asan_report_callback(const char* str)
+{
+    static char buf[256];
+
+    // No error code for assert failed.
+    errno = 0;
+
+    std::vector<std::string> asan_logs = srs_string_split(string(str), "\n");
+    size_t log_count = asan_logs.size();
+    for (size_t i = 0; i < log_count; i++) {
+        std::string log = asan_logs[i];
+
+        if (!srs_string_starts_with(srs_string_trim_start(log, " "), "#")) {
+            srs_error("%s", log.c_str());
+            continue;
+        }
+
+        buf[0] = 0;
+        int r0 = srs_parse_asan_backtrace_symbols((char*)log.c_str(), buf);
+        if (r0 != ERROR_SUCCESS) {
+            srs_error("%s, r0=%d", log.c_str(), r0);
+        } else {
+            srs_error("%s, %s", log.c_str(), buf);
+        }
+    }
 }
 #endif
 
