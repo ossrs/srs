@@ -377,6 +377,10 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
         if ((err = avc->annexb_demux(avs, &frame, &frame_size)) != srs_success) {
             return srs_error_wrap(err, "demux annexb");
         }
+
+        if (frame == NULL || frame_size == 0) {
+            continue;
+        }
         
         // for sps
         if (avc->is_sps(frame, frame_size)) {
@@ -424,6 +428,10 @@ srs_error_t SrsRtmpFromSrtBridge::check_sps_pps_change(SrsTsMessage* msg)
 
     if (! sps_pps_change_) {
         return err;
+    }
+
+    if (sps_.empty() || pps_.empty()) {
+        return srs_error_new(ERROR_SRT_TO_RTMP_EMPTY_SPS_PPS, "sps or pps empty");
     }
 
     // sps/pps changed, generate new video sh frame and dispatch it.
