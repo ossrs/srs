@@ -83,28 +83,7 @@ const char* _srs_binary = NULL;
 extern void srs_free_global_system_ips();
 
 #ifdef SRS_SANITIZER_LOG
-void asan_report_callback(const char* str)
-{
-    char buf[256];
-
-    std::vector<std::string> asan_logs = srs_string_split(string(str), "\n");
-    size_t log_count = asan_logs.size();
-    for (size_t i = 0; i < log_count; i++) {
-        std::string log = srs_string_trim_start(asan_logs[i], " ");
-
-        if (!srs_string_starts_with(log, "#")) {
-            srs_trace("%s", asan_logs[i].c_str());
-            continue;
-        }
-
-        int r0 = srs_parse_asan_backtrace_symbols((char*)log.c_str(), buf);
-        if (r0 != ERROR_SUCCESS) {
-            srs_trace("%s, r0=%d", asan_logs[i].c_str(), r0);
-        } else {
-            srs_trace("%s, %s", asan_logs[i].c_str(), buf);
-        }
-    }
-}
+extern void asan_report_callback(const char* str);
 #endif
 
 /**
