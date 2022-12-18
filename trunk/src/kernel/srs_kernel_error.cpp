@@ -140,17 +140,22 @@ bool srs_is_server_gracefully_close(srs_error_t err)
     return code == ERROR_HTTP_STREAM_EOF;
 }
 
-bool srs_parse_asan_backtrace_symbols(char* symbol, char* out_buf)
+int srs_parse_asan_backtrace_symbols(char* symbol, char* out_buf)
 {
 #if defined(SRS_BACKTRACE) && defined(__linux)
     void* frame = parse_symbol_offset(symbol);
     if (!frame) {
-        return false;
+        return ERROR_BACKTRACE_PARSE_OFFSET;
     }
+
     char* fmt = addr2line_format(frame, symbol, out_buf, sizeof(out_buf));
-    return (fmt == out_buf);
+    if (fmt != out_buf) {
+        return ERROR_BACKTRACE_ADDR2LINE;
+    }
+
+    return ERROR_SUCCESS;
 #endif
-    return false;
+    return ERROR_BACKTRACE_PARSE_NOT_SUPPORT;
 }
 
 SrsCplxError::SrsCplxError()

@@ -102,6 +102,9 @@
     XX(ERROR_APM_AUTH                      , 1089, "ApmAuth", "APM team or token is invalid") \
     XX(ERROR_EXPORTER_DISABLED             , 1090, "ExporterDisable", "Prometheus exporter is disabled") \
     XX(ERROR_ST_SET_SELECT                 , 1091, "StSetSelect", "ST set select failed") \
+    XX(ERROR_BACKTRACE_PARSE_NOT_SUPPORT   , 1092, "BacktraceParseNotSupport", "Backtrace parse not supported") \
+    XX(ERROR_BACKTRACE_PARSE_OFFSET        , 1093, "BacktraceParseOffset", "Parse backtrace offset failed") \
+    XX(ERROR_BACKTRACE_ADDR2LINE           , 1094, "BacktraceAddr2Line", "Backtrace addr2line failed") \
 
 /**************************************************/
 /* RTMP protocol error. */
@@ -406,7 +409,7 @@ extern bool srs_is_client_gracefully_close(srs_error_t err);
 extern bool srs_is_server_gracefully_close(srs_error_t err);
 // On some platform, cannot find valid info from asan backtrace log,
 // Parse the symbols by ourself.
-extern bool srs_parse_asan_backtrace_symbols(char* symbol, char* out_buf);
+extern int srs_parse_asan_backtrace_symbols(char* symbol, char* out_buf);
 
 // The complex error carries code, message, callstack and instant variables,
 // which is more strong and easy to locate problem by log,
