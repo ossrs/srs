@@ -404,6 +404,9 @@ extern bool srs_is_system_control_error(srs_error_t err);
 extern bool srs_is_client_gracefully_close(srs_error_t err);
 // It's closed by server, such as streaming EOF.
 extern bool srs_is_server_gracefully_close(srs_error_t err);
+// On some platform, cannot find valid info from asan backtrace log,
+// Parse the symbols by ourself.
+extern bool srs_parse_asan_backtrace_symbols(char* symbol, char* out_buf);
 
 // The complex error carries code, message, callstack and instant variables,
 // which is more strong and easy to locate problem by log,

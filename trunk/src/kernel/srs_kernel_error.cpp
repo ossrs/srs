@@ -140,6 +140,19 @@ bool srs_is_server_gracefully_close(srs_error_t err)
     return code == ERROR_HTTP_STREAM_EOF;
 }
 
+bool srs_parse_asan_backtrace_symbols(char* symbol, char* out_buf)
+{
+#if defined(SRS_BACKTRACE) && defined(__linux)
+    void* frame = parse_symbol_offset(symbol);
+    if (!frame) {
+        return false;
+    }
+    char* fmt = addr2line_format(frame, symbol, out_buf, sizeof(out_buf));
+    return (fmt == out_buf);
+#endif
+    return false;
+}
+
 SrsCplxError::SrsCplxError()
 {
     code = ERROR_SUCCESS;

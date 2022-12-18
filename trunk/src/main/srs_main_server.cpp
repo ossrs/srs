@@ -42,6 +42,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
 #include <srs_app_threads.hpp>
+#include <srs_kernel_error.hpp>
 
 #ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
@@ -84,7 +85,20 @@ extern void srs_free_global_system_ips();
 #ifdef SRS_SANITIZER_LOG
 void asan_report_callback(const char* str)
 {
-    srs_trace("%s", str);
+    char buffer[256];
+
+    std::vector<std::string> asan_logs = srs_string_split(string(str), "\n");
+    size_t log_count = asan_logs.size();
+    for (size_t i = 0; i < log_count; i++) {
+        std::string l = srs_string_trim_start(asan_logs[i], " ");
+
+        if (srs_string_starts_with(l, "#")) {
+            if (srs_parse_asan_backtrace_symbols((char*)l.c_str(), buffer)) {
+                asan_logs[i] += "," + std::string(buffer);
+            }
+        }
+        srs_trace("%s", asan_logs[i].c_str());
+    }
 }
 #endif
 
