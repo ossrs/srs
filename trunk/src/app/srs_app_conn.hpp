@@ -139,32 +139,68 @@ extern ISrsLazyGc* _srs_gc;
 
 // A wrapper template for lazy-sweep resource.
 // See https://github.com/ossrs/srs/issues/3176#lazy-sweep
+//
+// Usage for resource which manages itself in coroutine cycle, see SrsLazyGbSession:
+//      class Resource {
+//      private:
+//          SrsLazyObjectWrapper<Resource>* wrapper_;
+//      private:
+//          friend class SrsLazyObjectWrapper<Resource>;
+//          Resource(SrsLazyObjectWrapper<Resource>* wrapper) { wrapper_ = wrapper; }
+//      public:
+//          srs_error_t Resource::cycle() {
+//              srs_error_t err = do_cycle();
+//              _srs_gb_manager->remove(wrapper_);
+//              return err;
+//          }
+//      };
+//      SrsLazyObjectWrapper<Resource>* obj = new SrsLazyObjectWrapper<Resource>*();
+//      _srs_gb_manager->add(obj); // Add wrapper to resource manager.
+//      Start a coroutine to do obj->resource()->cycle().
+//
+// Usage for resource managed by other object:
+//      class Resource {
+//      private:
+//          friend class SrsLazyObjectWrapper<Resource>;
+//          Resource(SrsLazyObjectWrapper<Resource>* /*wrapper*/) {
+//          }
+//      };
+//      class Manager {
+//      private:
+//          SrsLazyObjectWrapper<Resource>* wrapper_;
+//      public:
+//          Manager() { wrapper_ = new SrsLazyObjectWrapper<Resource>(); }
+//          ~Manager() { srs_freep(wrapper_); }
+//      };
+//      Manager* manager = new Manager();
+//      srs_freep(manager);
+//
+// Note that under-layer resource are destroyed by _srs_gc, which is literally equal to srs_freep. However, the root
+// wrapper might be managed by other resource manager, such as _srs_gb_manager for SrsLazyGbSession. Furthermore, other
+// copied out wrappers might be freed by srs_freep. All are ok, because all wrapper and resources are simply normal
+// object, so if you added to manager then you should use manager to remove it, and you can also directly delete it.
 template<typename T>
 class SrsLazyObjectWrapper : public ISrsResource
 {
 private:
     T* resource_;
-    bool is_root_;
 public:
-    SrsLazyObjectWrapper(T* resource = NULL, ISrsResource* wrapper = NULL) {
-        resource_ = resource ? resource : new T();
-        resource_->gc_use();
-
-        is_root_ = !resource;
-        if (!resource) {
-            resource_->gc_set_creator_wrapper(wrapper ? wrapper : this);
-        }
+    SrsLazyObjectWrapper() {
+        init(new T(this));
     }
     virtual ~SrsLazyObjectWrapper() {
         resource_->gc_dispose();
-
-        if (is_root_) {
-            resource_->gc_set_creator_wrapper(NULL);
-        }
-
         if (resource_->gc_ref() == 0) {
             _srs_gc->remove(resource_);
         }
+    }
+private:
+    SrsLazyObjectWrapper(T* resource) {
+        init(resource);
+    }
+    void init(T* resource) {
+        resource_ = resource;
+        resource_->gc_use();
     }
 public:
     SrsLazyObjectWrapper<T>* copy() {
@@ -182,31 +218,6 @@ public:
         return resource_->desc();
     }
 };
-
-// Use macro to generate a wrapper class, because typedef will cause IDE incorrect tips.
-// See https://github.com/ossrs/srs/issues/3176#lazy-sweep
-#define SRS_LAZY_WRAPPER_GENERATOR(Resource, IWrapper, IResource) \
-    private: \
-        SrsLazyObjectWrapper<Resource> impl_; \
-    public: \
-        Resource##Wrapper(Resource* resource = NULL) : impl_(resource, this) { \
-        } \
-        virtual ~Resource##Wrapper() { \
-        } \
-    public: \
-        IWrapper* copy() { \
-            return new Resource##Wrapper(impl_.resource()); \
-        } \
-        IResource* resource() { \
-            return impl_.resource(); \
-        } \
-    public: \
-        virtual const SrsContextId& get_id() { \
-            return impl_.get_id(); \
-        } \
-        virtual std::string desc() { \
-            return impl_.desc(); \
-        } \
 
 // If a connection is able be expired, user can use HTTP-API to kick-off it.
 class ISrsExpire

@@ -43,38 +43,25 @@ ISrsConnection::~ISrsConnection()
 SrsLazyObject::SrsLazyObject()
 {
     gc_ref_ = 0;
-    gc_creator_wrapper_ = NULL;
 }
 
 SrsLazyObject::~SrsLazyObject()
 {
 }
 
-SrsLazyObject* SrsLazyObject::gc_use()
+void SrsLazyObject::gc_use()
 {
     gc_ref_++;
-    return this;
 }
 
-SrsLazyObject* SrsLazyObject::gc_dispose()
+void SrsLazyObject::gc_dispose()
 {
     gc_ref_--;
-    return this;
 }
 
 int32_t SrsLazyObject::gc_ref()
 {
     return gc_ref_;
-}
-
-void SrsLazyObject::gc_set_creator_wrapper(ISrsResource* wrapper)
-{
-    gc_creator_wrapper_ = wrapper;
-}
-
-ISrsResource* SrsLazyObject::gc_creator_wrapper()
-{
-    return gc_creator_wrapper_;
 }
 
 ISrsLazyGc::ISrsLazyGc()
