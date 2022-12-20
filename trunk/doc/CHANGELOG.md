@@ -8,7 +8,8 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
-* v5.0, 2022-12-18, Merge [#3324](https://github.com/ossrs/srs/pull/3324): Asan: Support parse asan symbol backtrace log. v5.0.113
+* v5.0, 2022-12-18, Merge [#3324](https://github.com/ossrs/srs/pull/3324): Asan: Support parse asan symbol backtrace log. v5.0.114
+* v5.0, 2022-12-20, Merge [#3321](https://github.com/ossrs/srs/pull/3321): GB: Refine lazy object GC. v5.0.113
 * v5.0, 2022-12-17, Merge [#3323](https://github.com/ossrs/srs/pull/3323): SRT: Fix srt to rtmp crash when sps or pps empty. v5.0.112
 * v5.0, 2022-12-15, For [#3300](https://github.com/ossrs/srs/issues/3300): GB28181: Fix memory overlap for small packets. v5.0.111
 * v5.0, 2022-12-14, For [#939](https://github.com/ossrs/srs/issues/939): FLV: Support set default has_av and disable guessing. v5.0.110
