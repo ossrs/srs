@@ -157,6 +157,11 @@ function SrsRtcPublisherAsync() {
                 .replace("webrtc://", "http://")
                 .replace("rtc://", "http://");
 
+            var apihost = new URL(url).searchParams.get("apihost");
+            if (apihost) {
+                a.hostname = apihost;
+            }
+
             var vhost = a.hostname;
             var app = a.pathname.substring(1, a.pathname.lastIndexOf("/"));
             var stream = a.pathname.slice(a.pathname.lastIndexOf("/") + 1);
@@ -391,6 +396,11 @@ function SrsRtcPlayerAsync() {
             a.href = url.replace("rtmp://", "http://")
                 .replace("webrtc://", "http://")
                 .replace("rtc://", "http://");
+
+            var apihost = new URL(url).searchParams.get("apihost");
+            if (apihost) {
+                a.hostname = apihost;
+            }
 
             var vhost = a.hostname;
             var app = a.pathname.substring(1, a.pathname.lastIndexOf("/"));
