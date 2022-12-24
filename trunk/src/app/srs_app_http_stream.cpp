@@ -773,7 +773,9 @@ void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage* r)
 srs_error_t SrsLiveStream::streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs)
 {
     srs_error_t err = srs_success;
-    
+
+    // TODO: In gop cache, we know both the audio and video codec, so we should notice the encoder, which might depends
+    // on setting the correct codec information, for example, HTTP-TS or HLS will write PMT.
     for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
         
