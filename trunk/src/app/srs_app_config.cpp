@@ -1851,11 +1851,11 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     }
     
     if (show_version) {
-        fprintf(stderr, "%s\n", RTMP_SIG_SRS_VERSION);
+        fprintf(stdout, "%s\n", RTMP_SIG_SRS_VERSION);
         exit(0);
     }
     if (show_signature) {
-        fprintf(stderr, "%s\n", RTMP_SIG_SRS_SERVER);
+        fprintf(stdout, "%s\n", RTMP_SIG_SRS_SERVER);
         exit(0);
     }
     
