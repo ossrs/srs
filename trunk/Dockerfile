@@ -23,16 +23,8 @@ WORKDIR /srs/trunk
 
 # Build and install SRS.
 # Note that SRT is enabled by default, so we configure without --srt=on.
+# Note that we have copied all files by make install.
 RUN ./configure --gb28181=on --sanitizer-static=on && make && make install
-
-# All config files for SRS.
-RUN cp -R conf /usr/local/srs/conf && \
-    cp research/api-server/static-dir/index.html /usr/local/srs/objs/nginx/html/ && \
-    cp research/api-server/static-dir/favicon.ico /usr/local/srs/objs/nginx/html/ && \
-    cp research/players/crossdomain.xml /usr/local/srs/objs/nginx/html/ && \
-    cp -R research/console /usr/local/srs/objs/nginx/html/ && \
-    cp -R research/players /usr/local/srs/objs/nginx/html/ && \
-    cp -R 3rdparty/signaling/www/demos /usr/local/srs/objs/nginx/html/
 
 ############################################################
 # dist
