@@ -53,6 +53,7 @@
             <p></p>
             <div>
                 <video id="video_player" width="100%" autoplay controls></video>
+                <audio id="audio_player" width="100%" autoplay controls></audio>
             </div>
             <p>
                 分享：<a href="#" id="link_url" target="_blank">请右键拷贝此链接</a>
@@ -137,16 +138,27 @@
         $('#main_info').hide();
         $('#main_tips').hide();
         $('#video_player').hide();
+        $('#audio_player').hide();
         //$('#btn_play').hide();
 
         stopPlayers();
     };
 
-    var show_for_ok = function () {
+    var show_for_video_ok = function () {
         $('#main_flash_alert').hide();
         $('#main_info').show();
         $('#main_tips').show();
         $('#video_player').show();
+        $('#audio_player').hide();
+        //$('#btn_play').show();
+    };
+
+    var show_for_audio_ok = function () {
+        $('#main_flash_alert').hide();
+        $('#main_info').show();
+        $('#main_tips').show();
+        $('#video_player').hide();
+        $('#audio_player').show();
         //$('#btn_play').show();
     };
 
@@ -182,9 +194,17 @@
         stopPlayers();
         if (!r) return;
 
+        // Use H5 native to play aac/mp3.
+        if (r.stream.indexOf('.mp3') > 0 || r.stream.indexOf('.aac') > 0) {
+            $('#audio_player').attr('src', r.url).show();
+            show_for_audio_ok();
+            return;
+        }
+
         // Use H5 native to play mp4.
         if (r.stream.indexOf('.mp4') > 0) {
             $('#video_player').attr('src', r.url).show();
+            show_for_video_ok();
             return;
         }
 
@@ -195,7 +215,7 @@
                 return;
             }
 
-            show_for_ok();
+            show_for_video_ok();
 
             tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true});
             tsPlayer.attachMediaElement(document.getElementById('video_player'));
@@ -211,7 +231,7 @@
                 return;
             }
 
-            show_for_ok();
+            show_for_video_ok();
 
             hlsPlayer = new Hls();
             hlsPlayer.loadSource(r.url);
@@ -221,7 +241,7 @@
 
         // Start play MPEG-DASH.
         if (r.stream.indexOf('.mpd') > 0) {
-            show_for_ok();
+            show_for_video_ok();
 
             dashPlayer = dashjs.MediaPlayer().create();
             dashPlayer.initialize(document.querySelector("#video_player"), r.url, true);
@@ -240,7 +260,7 @@
                 return;
             }
 
-            show_for_ok();
+            show_for_video_ok();
 
             flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true});
             flvPlayer.attachMediaElement(document.getElementById('video_player'));
@@ -251,6 +271,7 @@
 
         console.error('不支持的URL', r.url, r);
         $('#video_player').hide();
+        $('#audio_player').hide();
     };
 
     $("#txt_url").change(function(){
@@ -259,6 +280,7 @@
 
     $("#btn_play").click(function(){
         $('#video_player').prop('muted', false);
+        $('#audio_player').prop('muted', false);
         var r = apply_url_change();
         start_play(r);
     });
@@ -286,6 +308,8 @@
     srs_init_flv("#txt_url");
 
     if (query.autostart === "true") {
+        // Note that only need to mute video player, because audio player is impossible to autostart whatever muted or
+        // not, however you can preload the audio stream by setting the src of audio, see https://developer.mozilla.org/en-US/docs/Web/Media/Autoplay_guide#example_allowing_autoplay_and_fullscreen_mode
         $('#video_player').prop('muted', true);
         console.warn('For autostart, we should mute it, see https://www.jianshu.com/p/c3c6944eed5a ' +
             'or https://developers.google.com/web/updates/2017/09/autoplay-policy-changes#audiovideo_elements');
@@ -294,6 +318,7 @@
         start_play(r);
     } else {
         $('#video_player').hide();
+        $('#audio_player').hide();
     }
 </script>
 </html>

@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v5.0, 2022-12-25, For [#296](https://github.com/ossrs/srs/issues/296): Fix [#3338](https://github.com/ossrs/srs/issues/3338): MP3: Support play HTTP-MP3 by H5(srs-player). v6.0.7
 * v6.0, 2022-12-17, Merge 5.0: FLV header and SRT bugfix. v6.0.6
 * v6.0, 2022-12-04, Merge [#3271](https://github.com/ossrs/srs/pull/3271): H265: The codec information is incorrect. v6.0.5
 * v6.0, 2022-11-23, Merge [#3275](https://github.com/ossrs/srs/pull/3275): H265: Support HEVC over HTTP-TS. v6.0.4
