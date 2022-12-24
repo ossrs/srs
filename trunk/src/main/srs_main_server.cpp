@@ -42,6 +42,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
 #include <srs_app_threads.hpp>
+#include <srs_kernel_error.hpp>
 
 #ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
@@ -82,10 +83,7 @@ const char* _srs_binary = NULL;
 extern void srs_free_global_system_ips();
 
 #ifdef SRS_SANITIZER_LOG
-void asan_report_callback(const char* str)
-{
-    srs_trace("%s", str);
-}
+extern void asan_report_callback(const char* str);
 #endif
 
 /**

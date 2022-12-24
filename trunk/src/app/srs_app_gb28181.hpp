@@ -29,8 +29,6 @@ class SrsSipMessage;
 class SrsLazyGbSession;
 class SrsLazyGbSipTcpConn;
 class SrsLazyGbMediaTcpConn;
-class SrsLazyGbSipTcpConnWrapper;
-class SrsLazyGbMediaTcpConnWrapper;
 class SrsLazyGbSipTcpReceiver;
 class SrsLazyGbSipTcpSender;
 class SrsAlonePithyPrint;
@@ -88,76 +86,6 @@ enum SrsGbSipState
 };
 std::string srs_gb_sip_state(SrsGbSipState state);
 
-// The interface for GB SIP or HTTP-API connection.
-class ISrsGbSipConn
-{
-public:
-    ISrsGbSipConn();
-    virtual ~ISrsGbSipConn();
-public:
-    // Interrupt the transport, because session is disposing.
-    virtual void interrupt() {}
-    // Get the device id of device, also used as RTMP stream name.
-    virtual std::string device_id() { return "livestream"; }
-    // Get the state of SIP.
-    virtual SrsGbSipState state() { return SrsGbSipStateInit; }
-    // Reset the SIP state to registered, for re-inviting.
-    virtual void reset_to_register() {}
-    // Whether device is already registered, which might drive the session to connecting state.
-    virtual bool is_registered() { return false; }
-    // Whether device is stable state, which means it's sending heartbeat message.
-    virtual bool is_stable() { return false; }
-    // Whether device is request to bye, which means there might be no stream ever and so the session should be
-    // disposed. This is the control event from client device.
-    virtual bool is_bye() { return false; }
-    // Send invite to device, for SIP it should be an "INVITE" request message. Output the ssrc as ID of session, for
-    // media connection to load from SSRC while receiving and handling RTP packets.
-    virtual srs_error_t invite_request(uint32_t* pssrc) { return srs_success; }
-    // Change id of coroutine.
-    virtual void set_cid(const SrsContextId& cid) {}
-};
-
-// The wrapper for ISrsGbSipConn.
-class ISrsGbSipConnWrapper
-{
-private:
-    ISrsGbSipConn dummy_;
-public:
-    ISrsGbSipConnWrapper();
-    virtual ~ISrsGbSipConnWrapper();
-public:
-    virtual ISrsGbSipConn* resource() { return &dummy_; }
-    virtual ISrsGbSipConnWrapper* copy() { return new ISrsGbSipConnWrapper(); }
-};
-
-// The interface for GB media over TCP or UDP transport.
-class ISrsGbMediaConn
-{
-public:
-    ISrsGbMediaConn();
-    virtual ~ISrsGbMediaConn();
-public:
-    // Interrupt the transport, because session is disposing.
-    virtual void interrupt() {}
-    // Whether media transport is connected. SRS will invite client to publish stream if not connected.
-    virtual bool is_connected() { return false; }
-    // Change id of coroutine.
-    virtual void set_cid(const SrsContextId& cid) {}
-};
-
-// The wrapper for ISrsGbMediaConn.
-class ISrsGbMediaConnWrapper
-{
-private:
-    ISrsGbMediaConn dummy_;
-public:
-    ISrsGbMediaConnWrapper();
-    virtual ~ISrsGbMediaConnWrapper();
-public:
-    virtual ISrsGbMediaConn* resource() { return &dummy_; }
-    virtual ISrsGbMediaConnWrapper* copy() { return new ISrsGbMediaConnWrapper(); }
-};
-
 // The main logic object for GB, the session.
 class SrsLazyGbSession : public SrsLazyObject, public ISrsResource, public ISrsStartable, public ISrsCoroutineHandler
 {
@@ -166,8 +94,9 @@ private:
     SrsContextId cid_;
 private:
     SrsGbSessionState state_;
-    ISrsGbSipConnWrapper* sip_;
-    ISrsGbMediaConnWrapper* media_;
+    SrsLazyObjectWrapper<SrsLazyGbSession>* wrapper_root_;
+    SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* sip_;
+    SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* media_;
     SrsGbMuxer* muxer_;
 private:
     // The candidate for SDP in configuration.
@@ -202,7 +131,7 @@ private:
     uint64_t media_reserved_;
 private:
     friend class SrsLazyObjectWrapper<SrsLazyGbSession>;
-    SrsLazyGbSession();
+    SrsLazyGbSession(SrsLazyObjectWrapper<SrsLazyGbSession>* wrapper_root);
 public:
     virtual ~SrsLazyGbSession();
 public:
@@ -211,10 +140,10 @@ public:
     // When got a pack of messages.
     void on_ps_pack(SrsPackContext* ctx, SrsPsPacket* ps, const std::vector<SrsTsMessage*>& msgs);
     // When got available SIP transport.
-    void on_sip_transport(ISrsGbSipConnWrapper* sip);
-    ISrsGbSipConnWrapper* sip_transport();
+    void on_sip_transport(SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* sip);
+    SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* sip_transport();
     // When got available media transport.
-    void on_media_transport(ISrsGbMediaConnWrapper* media);
+    void on_media_transport(SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* media);
     // Get the candidate for SDP generation, the public IP address for device to connect to.
     std::string pip();
 // Interface ISrsStartable
@@ -232,12 +161,6 @@ private:
 public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
-};
-
-// Lazy-sweep wrapper for GB session.
-class SrsLazyGbSessionWrapper : public ISrsResource
-{
-    SRS_LAZY_WRAPPER_GENERATOR(SrsLazyGbSession, SrsLazyGbSessionWrapper, SrsLazyGbSession);
 };
 
 // The SIP and Media listener for GB.
@@ -261,11 +184,11 @@ public:
 
 // A GB28181 TCP SIP connection.
 class SrsLazyGbSipTcpConn : public SrsLazyObject, public ISrsResource, public ISrsStartable, public ISrsCoroutineHandler
-    , public ISrsGbSipConn
 {
 private:
     SrsGbSipState state_;
-    SrsLazyGbSessionWrapper* session_;
+    SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* wrapper_root_;
+    SrsLazyObjectWrapper<SrsLazyGbSession>* session_;
     SrsSipMessage* register_;
     SrsSipMessage* invite_ok_;
 private:
@@ -282,7 +205,7 @@ private:
     SrsCoroutine* trd_;
 private:
     friend class SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>;
-    SrsLazyGbSipTcpConn();
+    SrsLazyGbSipTcpConn(SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* wrapper_root);
 public:
     virtual ~SrsLazyGbSipTcpConn();
 public:
@@ -337,13 +260,7 @@ private:
     virtual srs_error_t do_cycle();
 private:
     // Create session if no one, or bind to an existed session.
-    srs_error_t bind_session(SrsSipMessage* msg, SrsLazyGbSessionWrapper** psession);
-};
-
-// Lazy-sweep wrapper for GB SIP TCP connection.
-class SrsLazyGbSipTcpConnWrapper : public ISrsResource, public ISrsGbSipConnWrapper
-{
-    SRS_LAZY_WRAPPER_GENERATOR(SrsLazyGbSipTcpConn, ISrsGbSipConnWrapper, ISrsGbSipConn);
+    srs_error_t bind_session(SrsSipMessage* msg, SrsLazyObjectWrapper<SrsLazyGbSession>** psession);
 };
 
 // Start a coroutine to receive SIP messages.
@@ -414,11 +331,12 @@ public:
 
 // A GB28181 TCP media connection, for PS stream.
 class SrsLazyGbMediaTcpConn : public SrsLazyObject, public ISrsResource, public ISrsStartable, public ISrsCoroutineHandler
-    , public ISrsPsPackHandler, public ISrsGbMediaConn
+    , public ISrsPsPackHandler
 {
 private:
     bool connected_;
-    SrsLazyGbSessionWrapper* session_;
+    SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* wrapper_root_;
+    SrsLazyObjectWrapper<SrsLazyGbSession>* session_;
     uint32_t nn_rtcp_;
 private:
     SrsPackContext* pack_;
@@ -427,7 +345,7 @@ private:
     uint8_t* buffer_;
 private:
     friend class SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>;
-    SrsLazyGbMediaTcpConn();
+    SrsLazyGbMediaTcpConn(SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* wrapper_root);
 public:
     virtual ~SrsLazyGbMediaTcpConn();
 public:
@@ -456,13 +374,7 @@ public:
     virtual srs_error_t on_ps_pack(SrsPsPacket* ps, const std::vector<SrsTsMessage*>& msgs);
 private:
     // Create session if no one, or bind to an existed session.
-    srs_error_t bind_session(uint32_t ssrc, SrsLazyGbSessionWrapper** psession);
-};
-
-// Lazy-sweep wrapper for GB Media TCP connection.
-class SrsLazyGbMediaTcpConnWrapper : public ISrsResource, public ISrsGbMediaConnWrapper
-{
-    SRS_LAZY_WRAPPER_GENERATOR(SrsLazyGbMediaTcpConn, ISrsGbMediaConnWrapper, ISrsGbMediaConn);
+    srs_error_t bind_session(uint32_t ssrc, SrsLazyObjectWrapper<SrsLazyGbSession>** psession);
 };
 
 // The queue for mpegts over udp to send packets.
