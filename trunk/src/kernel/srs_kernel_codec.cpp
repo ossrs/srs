@@ -490,7 +490,7 @@ srs_error_t SrsFrame::add_sample(char* bytes, int size)
     srs_error_t err = srs_success;
 
     // Ignore empty sample.
-    if (size <= 0) return err;
+    if (!bytes || size <= 0) return err;
     
     if (nb_samples >= SrsMaxNbSamples) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "Frame samples overflow");

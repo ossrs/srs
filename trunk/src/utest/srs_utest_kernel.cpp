@@ -3391,11 +3391,23 @@ VOID TEST(KernelCodecTest, AVFrame)
         EXPECT_TRUE(20 == f.samples[1].size);
         EXPECT_TRUE(2 == f.nb_samples);
 	}
+
+
+    if (true) {
+        SrsAudioFrame f;
+        EXPECT_TRUE(0 == f.nb_samples);
+
+        HELPER_EXPECT_SUCCESS(f.add_sample((char*)1, 0));
+        EXPECT_TRUE(0 == f.nb_samples);
+
+        HELPER_EXPECT_SUCCESS(f.add_sample(NULL, 1));
+        EXPECT_TRUE(0 == f.nb_samples);
+    }
     
     if (true) {
         SrsAudioFrame f;
         for (int i = 0; i < SrsMaxNbSamples; i++) {
-            HELPER_EXPECT_SUCCESS(f.add_sample((char*)(int64_t)i, i*10));
+            HELPER_EXPECT_SUCCESS(f.add_sample((char*)(int64_t)(i + 1), i*10 + 1));
         }
         
         srs_error_t err = f.add_sample((char*)1, 1);
