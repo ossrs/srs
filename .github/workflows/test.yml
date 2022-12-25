@@ -16,13 +16,12 @@ on: [push, pull_request]
 #         build-cross-arm(3m)
 #         build-cross-aarch64(3m)
 #         multiple-arch-amd64(2m)
-# utest(3m)
-#     coverage(3m) - Must depends on utest.
+#         utest(3m)
+#         coverage(3m)
 
 jobs:
   cygwin64-cache:
     name: cygwin64-cache
-    runs-on: ubuntu-20.04
     steps:
       - name: Download Cache for Cygwin
         run: |
@@ -30,17 +29,15 @@ jobs:
             tar jcf /srs/objs.tar.bz2 objs &&
           pwd && du -sh *
       ##################################################################################################################
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: srs-cache
           path: objs.tar.bz2
           retention-days: 1
-    outputs:
-      SRS_CYGWIN_CACHE_DONE: ok
+    runs-on: ubuntu-20.04
 
   cygwin64:
     name: cygwin64
-    runs-on: windows-latest
     needs:
       - cygwin64-cache
     steps:
@@ -54,10 +51,10 @@ jobs:
           install-dir: C:\cygwin64
       ##################################################################################################################
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       ##################################################################################################################
       # Note that we must download artifact after checkout code, because it will change the files in workspace.
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: srs-cache
       - uses: geekyeggo/delete-artifact@v2
@@ -75,17 +72,15 @@ jobs:
           tar xf objs.tar.bz2 -C /usr/local/srs-cache/srs/trunk/ && du -sh /usr/local/srs-cache/srs/trunk/* && 
           cd ${WORKDIR}/trunk && ./configure --gb28181=on --utest=on && ls -lh && du -sh * && du -sh objs/* &&
           cd ${WORKDIR}/trunk && make utest && ./objs/srs_utest
-    outputs:
-      SRS_CYGWIN_DONE: ok
+    runs-on: windows-latest
 
   build-centos7:
     name: build-centos7
-    runs-on: ubuntu-20.04
     needs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # Build for CentOS 7
       - name: Build on CentOS7, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-baseline .
@@ -97,93 +92,83 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-asm .
       - name: Build on CentOS7, C++98, no FFmpeg
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
-    outputs:
-      SRS_BUILD_CENTOS7_DONE: ok
+    runs-on: ubuntu-20.04
 
   build-ubuntu16:
     name: build-ubuntu16
-    runs-on: ubuntu-20.04
     needs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # Build for Ubuntu16
       - name: Build on Ubuntu16, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-baseline .
       - name: Build on Ubuntu16, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-all .
-    outputs:
-      SRS_BUILD_UBUNTU16_DONE: ok
+    runs-on: ubuntu-20.04
 
   build-ubuntu18:
     name: build-ubuntu18
-    runs-on: ubuntu-20.04
     needs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # Build for Ubuntu18
       - name: Build on Ubuntu18, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-baseline .
       - name: Build on Ubuntu18, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-all .
-    outputs:
-      SRS_BUILD_UBUNTU18_DONE: ok
+    runs-on: ubuntu-20.04
 
   build-ubuntu20:
     name: build-ubuntu20
-    runs-on: ubuntu-20.04
     needs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # Build for Ubuntu20
       - name: Build on Ubuntu20, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-baseline .
       - name: Build on Ubuntu20, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-all .
-    outputs:
-      SRS_BUILD_UBUNTU20_DONE: ok
+    runs-on: ubuntu-20.04
 
   build-cross-arm:
     name: build-cross-arm
-    runs-on: ubuntu-20.04
     needs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Cross Build for ARMv7 on Ubuntu16
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
       - name: Cross Build for ARMv7 on Ubuntu20
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-armv7 .
-    outputs:
-      SRS_BUILD_CROSS_ARM_DONE: ok
+    runs-on: ubuntu-20.04
 
   build-cross-aarch64:
     name: build-cross-aarch64
-    runs-on: ubuntu-20.04
     needs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Cross Build for AARCH64 on Ubuntu16
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-aarch64 .
       - name: Cross Build for AARCH64 on Ubuntu20
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-aarch64 .
-    outputs:
-      SRS_BUILD_CROSS_AARCH64_DONE: ok
+    runs-on: ubuntu-20.04
 
   utest:
     name: utest
-    runs-on: ubuntu-20.04
+    needs:
+      - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # Tests
       - name: Build test image
         run: docker build --tag srs:test -f trunk/Dockerfile.test .
@@ -196,17 +181,15 @@ jobs:
           docker run --rm srs:test bash -c 'make && \
             ./objs/srs -c conf/regression-test.conf && \
             cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
-    outputs:
-      SRS_UTEST_DONE: ok
+    runs-on: ubuntu-20.04
 
   coverage:
     name: coverage
-    runs-on: ubuntu-20.04
     needs:
-      - utest
+      - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # Tests
       - name: Build coverage image
         run: docker build --tag srs:cov -f trunk/Dockerfile.cov .
@@ -231,92 +214,86 @@ jobs:
             --env SRS_BRANCH=$SRS_BRANCH --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
             srs:cov bash -c 'make utest && ./objs/srs_utest && bash auto/codecov.sh'
           #
-    outputs:
-      SRS_COVERAGE_DONE: ok
+    runs-on: ubuntu-20.04
 
   multiple-arch-armv7:
     name: multiple-arch-armv7
-    runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       - name: Build multiple archs image
         run: |
           docker buildx build --platform linux/arm/v7 \
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
+            --build-arg INSTALLDEPENDS="NO" \
             -f trunk/Dockerfile .
-    outputs:
-      SRS_MULTIPLE_ARCH_ARMV7_DONE: ok
+    runs-on: ubuntu-20.04
 
   multiple-arch-aarch64:
     name: multiple-arch-aarch64
-    runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       - name: Build multiple archs image
         run: |
           docker buildx build --platform linux/arm64/v8 \
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
+            --build-arg INSTALLDEPENDS="NO" \
             -f trunk/Dockerfile .
-    outputs:
-      SRS_MULTIPLE_ARCH_AARCH64_DONE: ok
+    runs-on: ubuntu-20.04
 
   multiple-arch-amd64:
     name: multiple-arch-amd64
-    runs-on: ubuntu-20.04
     needs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       - name: Build multiple archs image
         run: |
           docker buildx build --platform linux/amd64 \
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             -f trunk/Dockerfile .
-    outputs:
-      SRS_MULTIPLE_ARCH_AMD64_DONE: ok
+    runs-on: ubuntu-20.04
 
   fast:
     name: fast
     needs:
       - cygwin64-cache
-    runs-on: ubuntu-20.04
     steps:
       - run: echo 'Start fast jobs'
-    outputs:
-      SRS_FAST_DONE: ok
+    runs-on: ubuntu-20.04
 
   done:
     name: done
     needs:
       - cygwin64
       - coverage
+      - utest
       - build-centos7
       - build-ubuntu16
       - build-ubuntu18
