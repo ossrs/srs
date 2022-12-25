@@ -3,6 +3,22 @@ name: "Test"
 # @see https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#onpushpull_requestbranchestags
 on: [push, pull_request]
 
+# The dependency graph:
+# multiple-arch-armv7(13m)
+# multiple-arch-aarch64(7m)
+# cygwin64-cache(1m)
+#     cygwin64(6m) - Must depends on cygwin64-cache.
+#     fast(0s) - To limit all fastly run jobs after slow jobs.
+#         build-centos7(3m)
+#         build-ubuntu16(3m)
+#         build-ubuntu18(2m)
+#         build-ubuntu20(2m)
+#         build-cross-arm(3m)
+#         build-cross-aarch64(3m)
+#         multiple-arch-amd64(2m)
+# utest(3m)
+#     coverage(3m) - Must depends on utest.
+
 jobs:
   cygwin64-cache:
     name: cygwin64-cache
@@ -66,7 +82,7 @@ jobs:
     name: build-centos7
     runs-on: ubuntu-20.04
     needs:
-      - utest
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -88,7 +104,7 @@ jobs:
     name: build-ubuntu16
     runs-on: ubuntu-20.04
     needs:
-      - utest
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -104,7 +120,7 @@ jobs:
     name: build-ubuntu18
     runs-on: ubuntu-20.04
     needs:
-      - utest
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -120,7 +136,7 @@ jobs:
     name: build-ubuntu20
     runs-on: ubuntu-20.04
     needs:
-      - utest
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -135,6 +151,8 @@ jobs:
   build-cross-arm:
     name: build-cross-arm
     runs-on: ubuntu-20.04
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -148,6 +166,8 @@ jobs:
   build-cross-aarch64:
     name: build-cross-aarch64
     runs-on: ubuntu-20.04
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -157,21 +177,6 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-aarch64 .
     outputs:
       SRS_BUILD_CROSS_AARCH64_DONE: ok
-
-  build:
-    name: build
-    needs:
-      - build-centos7
-      - build-ubuntu16
-      - build-ubuntu18
-      - build-ubuntu20
-      - build-cross-arm
-      - build-cross-aarch64
-    runs-on: ubuntu-20.04
-    steps:
-      - run: echo 'Build done'
-    outputs:
-      SRS_BUILD_DONE: ok
 
   utest:
     name: utest
@@ -229,8 +234,8 @@ jobs:
     outputs:
       SRS_COVERAGE_DONE: ok
 
-  multile-arch-armv7:
-    name: multile-arch-armv7
+  multiple-arch-armv7:
+    name: multiple-arch-armv7
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
@@ -251,8 +256,8 @@ jobs:
     outputs:
       SRS_MULTIPLE_ARCH_ARMV7_DONE: ok
 
-  multile-arch-aarch64:
-    name: multile-arch-aarch64
+  multiple-arch-aarch64:
+    name: multiple-arch-aarch64
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
@@ -273,11 +278,11 @@ jobs:
     outputs:
       SRS_MULTIPLE_ARCH_AARCH64_DONE: ok
 
-  multile-arch-amd64:
-    name: multile-arch-amd64
+  multiple-arch-amd64:
+    name: multiple-arch-amd64
     runs-on: ubuntu-20.04
     needs:
-      - utest
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -297,15 +302,30 @@ jobs:
     outputs:
       SRS_MULTIPLE_ARCH_AMD64_DONE: ok
 
+  fast:
+    name: fast
+    needs:
+      - cygwin64-cache
+    runs-on: ubuntu-20.04
+    steps:
+      - run: echo 'Start fast jobs'
+    outputs:
+      SRS_FAST_DONE: ok
+
   done:
     name: done
     needs:
       - cygwin64
-      - build
       - coverage
-      - multile-arch-armv7
-      - multile-arch-aarch64
-      - multile-arch-amd64
+      - build-centos7
+      - build-ubuntu16
+      - build-ubuntu18
+      - build-ubuntu20
+      - build-cross-arm
+      - build-cross-aarch64
+      - multiple-arch-armv7
+      - multiple-arch-aarch64
+      - multiple-arch-amd64
     runs-on: ubuntu-20.04
     steps:
       - run: echo 'All done'
