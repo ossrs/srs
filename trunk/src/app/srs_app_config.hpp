@@ -32,11 +32,11 @@ class SrsConfDirective;
 
 /**
  * whether the two vector actual equals, for instance,
- *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2])      ==== true
- *      srs_vector_actual_equals([0, 1, 2], [2, 1, 0])      ==== true
- *      srs_vector_actual_equals([0, 1, 2], [0, 2, 1])      ==== true
- *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2, 3])   ==== false
- *      srs_vector_actual_equals([1, 2, 3], [0, 1, 2])      ==== false
+ *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2])      is true
+ *      srs_vector_actual_equals([0, 1, 2], [2, 1, 0])      is true
+ *      srs_vector_actual_equals([0, 1, 2], [0, 2, 1])      is true
+ *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2, 3])   is false
+ *      srs_vector_actual_equals([1, 2, 3], [0, 1, 2])      is false
  */
 template<typename T>
 bool srs_vector_actual_equals(const std::vector<T>& a, const std::vector<T>& b)

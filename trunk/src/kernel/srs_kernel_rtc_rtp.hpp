@@ -50,9 +50,9 @@ uint8_t srs_rtp_fast_parse_pt(char* buf, int size);
 srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, uint8_t twcc_id, uint16_t& twcc_sn);
 
 // The "distance" between two uint16 number, for example:
-//      distance(prev_value=3, value=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
-//      distance(prev_value=3, value=65534) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) === 5
-//      distance(prev_value=65532, value=65534) === (int16_t)(uint16_t)((uint16_t)65532-(uint16_t)65534) === -2
+//      distance(prev_value=3, value=5) is (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) is -2
+//      distance(prev_value=3, value=65534) is (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) is 5
+//      distance(prev_value=65532, value=65534) is (int16_t)(uint16_t)((uint16_t)65532-(uint16_t)65534) is -2
 // For RTP sequence, it's only uint16 and may flip back, so 3 maybe 3+0xffff.
 // @remark Note that srs_rtp_seq_distance(0, 32768)>0 is TRUE by https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
 //      but for WebRTC jitter buffer it's FALSE and we follow it.
