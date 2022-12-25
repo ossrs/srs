@@ -3391,11 +3391,23 @@ VOID TEST(KernelCodecTest, AVFrame)
         EXPECT_TRUE(20 == f.samples[1].size);
         EXPECT_TRUE(2 == f.nb_samples);
 	}
+
+
+    if (true) {
+        SrsAudioFrame f;
+        EXPECT_TRUE(0 == f.nb_samples);
+
+        HELPER_EXPECT_SUCCESS(f.add_sample((char*)1, 0));
+        EXPECT_TRUE(0 == f.nb_samples);
+
+        HELPER_EXPECT_SUCCESS(f.add_sample(NULL, 1));
+        EXPECT_TRUE(0 == f.nb_samples);
+    }
     
     if (true) {
         SrsAudioFrame f;
         for (int i = 0; i < SrsMaxNbSamples; i++) {
-            HELPER_EXPECT_SUCCESS(f.add_sample((char*)(int64_t)i, i*10));
+            HELPER_EXPECT_SUCCESS(f.add_sample((char*)(int64_t)(i + 1), i*10 + 1));
         }
         
         srs_error_t err = f.add_sample((char*)1, 1);
@@ -3502,16 +3514,37 @@ VOID TEST(KernelCodecTest, AudioFormat)
         HELPER_EXPECT_SUCCESS(f.on_audio(0, (char*)"\x00", 0));
         HELPER_EXPECT_SUCCESS(f.on_audio(0, (char*)"\x00", 1));
     }
-    
+
+    // For MP3
     if (true) {
         SrsFormat f;
         HELPER_EXPECT_SUCCESS(f.initialize());
+        HELPER_EXPECT_SUCCESS(f.on_audio(0, (char*)"\x20", 1));
+        EXPECT_TRUE(0 == f.nb_raw);
+        EXPECT_TRUE(0 == f.audio->nb_samples);
+
         HELPER_EXPECT_SUCCESS(f.on_audio(0, (char*)"\x20\x00", 2));
         EXPECT_TRUE(1 == f.nb_raw);
-        EXPECT_TRUE(0 == f.audio->nb_samples);
+        EXPECT_TRUE(1 == f.audio->nb_samples);
         
         HELPER_EXPECT_SUCCESS(f.on_audio(0, (char*)"\x20\x00\x00", 3));
         EXPECT_TRUE(2 == f.nb_raw);
+        EXPECT_TRUE(1 == f.audio->nb_samples);
+    }
+
+    // For AAC
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+        HELPER_EXPECT_FAILED(f.on_audio(0, (char*)"\xa0", 1));
+
+        HELPER_EXPECT_SUCCESS(f.on_audio(0, (char*)"\xaf\x00\x12\x10", 4));
+        HELPER_EXPECT_SUCCESS(f.on_audio(0, (char*)"\xa0\x01", 2));
+        EXPECT_TRUE(0 == f.nb_raw);
+        EXPECT_TRUE(0 == f.audio->nb_samples);
+
+        HELPER_EXPECT_SUCCESS(f.on_audio(0, (char*)"\xa0\x01\x00", 3));
+        EXPECT_TRUE(1 == f.nb_raw);
         EXPECT_TRUE(1 == f.audio->nb_samples);
     }
     

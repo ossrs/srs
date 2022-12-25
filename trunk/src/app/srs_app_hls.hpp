@@ -156,6 +156,9 @@ private:
     SrsHlsSegment* current;
     // The ts context, to keep cc continous between ts.
     SrsTsContext* context;
+private:
+    // Latest audio codec, parsed from stream.
+    SrsAudioCodecId latest_acodec_;
 public:
     SrsHlsMuxer();
     virtual ~SrsHlsMuxer();
@@ -166,6 +169,9 @@ public:
     virtual std::string ts_url();
     virtual srs_utime_t duration();
     virtual int deviation();
+public:
+    SrsAudioCodecId latest_acodec();
+    void set_latest_acodec(SrsAudioCodecId v);
 public:
     // Initialize the hls muxer.
     virtual srs_error_t initialize();
