@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-12-25, For [#296](https://github.com/ossrs/srs/issues/296): MP3: Support mp3 for RTMP/HLS/HTTP-FLV/HTTP-TS/HLS etc. v5.0.116
 * v5.0, 2022-12-24, Fix [#3328](https://github.com/ossrs/srs/issues/3328): Docker: Avoiding duplicated copy files. v5.0.115
 * v5.0, 2022-12-20, Merge [#3321](https://github.com/ossrs/srs/pull/3321): GB: Refine lazy object GC. v5.0.114
 * v5.0, 2022-12-18, Merge [#3324](https://github.com/ossrs/srs/pull/3324): Asan: Support parse asan symbol backtrace log. v5.0.113
