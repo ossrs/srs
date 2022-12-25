@@ -202,6 +202,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     async = new SrsAsyncCallWorker();
     context = new SrsTsContext();
     segments = new SrsFragmentWindow();
+    latest_acodec_ = SrsAudioCodecIdForbidden;
     
     memset(key, 0, 16);
     memset(iv, 0, 16);
@@ -261,6 +262,24 @@ int SrsHlsMuxer::deviation()
     }
     
     return deviation_ts;
+}
+
+SrsAudioCodecId SrsHlsMuxer::latest_acodec()
+{
+    // If current context writer exists, we query from it.
+    if (current && current->tscw) return current->tscw->acodec();
+
+    // Get the configured or updated config.
+    return latest_acodec_;
+}
+
+void SrsHlsMuxer::set_latest_acodec(SrsAudioCodecId v)
+{
+    // Refresh the codec in context writer for current segment.
+    if (current && current->tscw) current->tscw->set_acodec(v);
+
+    // Refresh the codec for future segments.
+    latest_acodec_ = v;
 }
 
 srs_error_t SrsHlsMuxer::initialize()
@@ -371,6 +390,8 @@ srs_error_t SrsHlsMuxer::segment_open()
             srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
         }
     }
+    // Now that we know the latest audio codec in stream, use it.
+    if (latest_acodec_ != SrsAudioCodecIdForbidden) default_acodec = latest_acodec_;
     
     // load the default vcodec from config.
     SrsVideoCodecId default_vcodec = SrsVideoCodecIdAVC;
@@ -969,6 +990,13 @@ srs_error_t SrsHlsController::on_sequence_header()
 srs_error_t SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
 {
     srs_error_t err = srs_success;
+
+    // Refresh the codec ASAP.
+    if (muxer->latest_acodec() != frame->acodec()->id) {
+        srs_trace("HLS: Switch audio codec %d(%s) to %d(%s)", muxer->latest_acodec(), srs_audio_codec_id2str(muxer->latest_acodec()).c_str(),
+            frame->acodec()->id, srs_audio_codec_id2str(frame->acodec()->id).c_str());
+        muxer->set_latest_acodec(frame->acodec()->id);
+    }
     
     // write audio to cache.
     if ((err = tsmc->cache_audio(frame, pts)) != srs_success) {

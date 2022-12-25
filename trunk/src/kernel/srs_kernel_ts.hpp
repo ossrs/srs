@@ -107,8 +107,8 @@ enum SrsTsStream
     // ISO/IEC 11172 Video
     // ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream
     // ISO/IEC 11172 Audio
+    SrsTsStreamAudioMp3 = 0x03,
     // ISO/IEC 13818-3 Audio
-    SrsTsStreamAudioMp3 = 0x04,
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 private_sections
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 PES packets containing private data
     // ISO/IEC 13522 MHEG
@@ -1260,7 +1260,7 @@ private:
     // User must config the codec in right way.
     // @see https://github.com/ossrs/srs/issues/301
     SrsVideoCodecId vcodec;
-    SrsAudioCodecId acodec;
+    SrsAudioCodecId acodec_;
 private:
     SrsTsContext* context;
     ISrsStreamWriter* writer;
@@ -1277,6 +1277,10 @@ public:
     // Get or update the video codec of ts muxer.
     virtual SrsVideoCodecId video_codec();
     virtual void update_video_codec(SrsVideoCodecId v);
+public:
+    // Get and set the audio codec.
+    SrsAudioCodecId acodec();
+    void set_acodec(SrsAudioCodecId v);
 };
 
 // Used for HLS Encryption

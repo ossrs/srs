@@ -2676,8 +2676,8 @@ SrsTsContextWriter::SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, Srs
 {
     writer = w;
     context = c;
-    
-    acodec = ac;
+
+    acodec_ = ac;
     vcodec = vc;
 }
 
@@ -2692,7 +2692,7 @@ srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
     srs_info("hls: write audio pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
         audio->pts, audio->dts, audio->PES_packet_length);
     
-    if ((err = context->encode(writer, audio, vcodec, acodec)) != srs_success) {
+    if ((err = context->encode(writer, audio, vcodec, acodec_)) != srs_success) {
         return srs_error_wrap(err, "ts: write audio");
     }
     srs_info("hls encode audio ok");
@@ -2707,7 +2707,7 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
     srs_info("hls: write video pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
         video->pts, video->dts, video->PES_packet_length);
     
-    if ((err = context->encode(writer, video, vcodec, acodec)) != srs_success) {
+    if ((err = context->encode(writer, video, vcodec, acodec_)) != srs_success) {
         return srs_error_wrap(err, "ts: write video");
     }
     srs_info("hls encode video ok");
@@ -2723,6 +2723,16 @@ SrsVideoCodecId SrsTsContextWriter::video_codec()
 void SrsTsContextWriter::update_video_codec(SrsVideoCodecId v)
 {
     vcodec = v;
+}
+
+SrsAudioCodecId SrsTsContextWriter::acodec()
+{
+    return acodec_;
+}
+
+void SrsTsContextWriter::set_acodec(SrsAudioCodecId v)
+{
+    acodec_ = v;
 }
 
 SrsEncFileWriter::SrsEncFileWriter()
@@ -3216,6 +3226,13 @@ srs_error_t SrsTsTransmuxer::write_audio(int64_t timestamp, char* data, int size
     // for aac: ignore sequence header
     if (format->acodec->id == SrsAudioCodecIdAAC && format->audio->aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
         return err;
+    }
+
+    // Switch audio codec if not AAC.
+    if (tscw->acodec() != format->acodec->id) {
+        srs_trace("TS: Switch audio codec %d(%s) to %d(%s)", tscw->acodec(), srs_audio_codec_id2str(tscw->acodec()).c_str(),
+            format->acodec->id, srs_audio_codec_id2str(format->acodec->id).c_str());
+        tscw->set_acodec(format->acodec->id);
     }
     
     // the dts calc from rtmp/flv header.
