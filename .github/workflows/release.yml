@@ -9,12 +9,11 @@ on:
 jobs:
   envs:
     name: envs
-    runs-on: ubuntu-20.04
     steps:
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
       # Generate variables like:
       #   SRS_TAG=v5.0-r8
@@ -31,14 +30,16 @@ jobs:
           echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
           SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
           echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
-    outputs:
-      SRS_TAG: ${{ env.SRS_TAG }}
-      SRS_VERSION: ${{ env.SRS_VERSION }}
-      SRS_MAJOR: ${{ env.SRS_MAJOR }}
+      # See https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
+      - name: Set output
+        run: |
+          echo "SRS_TAG=${{ env.SRS_TAG }}" >> $GITHUB_OUTPUT
+          echo "SRS_VERSION=${{ env.SRS_VERSION }}" >> $GITHUB_OUTPUT
+          echo "SRS_MAJOR=${{ env.SRS_MAJOR }}" >> $GITHUB_OUTPUT
+    runs-on: ubuntu-20.04
 
   test:
     name: test
-    runs-on: ubuntu-20.04
     needs:
       - envs
     steps:
@@ -51,7 +52,7 @@ jobs:
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       ##################################################################################################################
       # Tests
       - name: Build test image
@@ -65,12 +66,10 @@ jobs:
           docker run --rm srs:test bash -c 'make && \
             ./objs/srs -c conf/regression-test.conf && \
             cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
-    outputs:
-      SRS_TEST_DONE: ok
+    runs-on: ubuntu-20.04
 
   draft:
     name: draft
-    runs-on: ubuntu-20.04
     needs:
       - envs
     steps:
@@ -84,12 +83,14 @@ jobs:
           tag: ${{ github.ref }}
           draft: true
           prerelease: true
-    outputs:
-      SRS_RELEASE_ID: ${{ steps.create_draft.outputs.id }}
+      # See https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
+      - name: Set output
+        run: |
+          echo "SRS_RELEASE_ID=${{ steps.create_draft.outputs.id }}" >> $GITHUB_OUTPUT
+    runs-on: ubuntu-20.04
 
   cygwin64:
     name: cygwin64
-    runs-on: windows-latest
     needs:
       - envs
       - draft
@@ -104,7 +105,7 @@ jobs:
           install-dir: C:\cygwin64
       ##################################################################################################################
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       ##################################################################################################################
       - name: Covert output to env
         env:
@@ -152,13 +153,15 @@ jobs:
         with:
           release_id: ${{ env.SRS_RELEASE_ID }}
           assets_path: ${{ env.SRS_CYGWIN_TAR }}
-    outputs:
-      SRS_CYGWIN_TAR: ${{ env.SRS_CYGWIN_TAR }}
-      SRS_CYGWIN_MD5: ${{ env.SRS_CYGWIN_MD5 }}
+      # See https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
+      - name: Set output
+        run: |
+          echo "SRS_CYGWIN_TAR=${{ env.SRS_CYGWIN_TAR }}" >> $GITHUB_OUTPUT
+          echo "SRS_CYGWIN_MD5=${{ env.SRS_CYGWIN_MD5 }}" >> $GITHUB_OUTPUT
+    runs-on: windows-latest
 
   linux:
     name: linux
-    runs-on: ubuntu-20.04
     needs:
       - envs
       - draft
@@ -173,7 +176,7 @@ jobs:
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       ##################################################################################################################
       # Create source tar for release. Note that it's for OpenWRT package srs-server, so the filename MUST be
       # srs-server-xxx.tar.gz, because the package is named srs-server.
@@ -219,15 +222,17 @@ jobs:
         with:
           release_id: ${{ env.SRS_RELEASE_ID }}
           assets_path: ${{ env.SRS_SOURCE_TAR }}
-    outputs:
-      SRS_PACKAGE_ZIP: ${{ env.SRS_PACKAGE_ZIP }}
-      SRS_PACKAGE_MD5: ${{ env.SRS_PACKAGE_MD5 }}
-      SRS_SOURCE_TAR: ${{ env.SRS_SOURCE_TAR }}
-      SRS_SOURCE_MD5: ${{ env.SRS_SOURCE_MD5 }}
+      # See https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
+      - name: Set output
+        run: |
+          echo "SRS_PACKAGE_ZIP=${{ env.SRS_PACKAGE_ZIP }}" >> $GITHUB_OUTPUT
+          echo "SRS_PACKAGE_MD5=${{ env.SRS_PACKAGE_MD5 }}" >> $GITHUB_OUTPUT
+          echo "SRS_SOURCE_TAR=${{ env.SRS_SOURCE_TAR }}" >> $GITHUB_OUTPUT
+          echo "SRS_SOURCE_MD5=${{ env.SRS_SOURCE_MD5 }}" >> $GITHUB_OUTPUT
+    runs-on: ubuntu-20.04
 
   docker-srs:
     name: docker-srs
-    runs-on: ubuntu-20.04
     needs:
       - envs
     steps:
@@ -240,14 +245,14 @@ jobs:
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       ##################################################################################################################
       # Create main images for Docker
       - name: Login to docker hub
@@ -273,12 +278,10 @@ jobs:
             ossrs/srs:${{ env.SRS_VERSION }}
             ossrs/srs:${{ env.SRS_MAJOR }}
             ossrs/srs:v${{ env.SRS_MAJOR }}
-    outputs:
-      SRS_DOCKER_DONE: ok
+    runs-on: ubuntu-20.04
 
   aliyun-srs:
     name: aliyun-srs
-    runs-on: ubuntu-20.04
     needs:
       - envs
       - docker-srs
@@ -306,12 +309,10 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_VERSION }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_MAJOR }}
-    outputs:
-      SRS_ALIYUN_DONE: ok
+    runs-on: ubuntu-20.04
 
   update:
     name: update
-    runs-on: ubuntu-20.04
     needs:
       - aliyun-srs
       - envs
@@ -325,7 +326,7 @@ jobs:
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       ##################################################################################################################
       # Generate variables like:
       #   SRS_LH_OSSRS_NET=1.2.3.4
@@ -373,12 +374,10 @@ jobs:
               docker rmi -f $image
               echo "Remove image $image, r0=$?"
             done
-    outputs:
-      SRS_UPDATE_DONE: ok
+    runs-on: ubuntu-20.04
 
   release:
     name: release
-    runs-on: ubuntu-20.04
     needs:
       - update
       - envs
@@ -402,7 +401,7 @@ jobs:
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # Create release.
       # TODO: FIXME: Refine the release when 5.0 released
       # TODO: FIXME: Change prerelease to false when 5.0 released
@@ -448,6 +447,7 @@ jobs:
             * [中文FAQ](https://ossrs.net/lts/zh-cn/faq), [功能列表](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) 或 [修订历史](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false
           prerelease: true
+    runs-on: ubuntu-20.04
 
   done:
     name: done

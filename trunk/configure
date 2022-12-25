@@ -494,15 +494,22 @@ SRS_PREFIX=${SRS_PREFIX}
 SRS_DEFAULT_CONFIG=${SRS_DEFAULT_CONFIG}
 __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
 
+SRS_FORCE_MAKE_JOBS=${SRS_FORCE_MAKE_JOBS}
+END
+
+if [[ $SRS_FORCE_MAKE_JOBS == YES ]]; then
+    cat << END >> ${SRS_MAKEFILE}
 JOBS=\$(shell echo \$(MAKEFLAGS)| grep -qE '\-j[0-9]+' || echo " ${SRS_JOBS}")
+END
+fi
+
+# the real entry for all platform:
+cat << END >> ${SRS_MAKEFILE}
+
 default: server
 
 all: _default
 
-END
-
-# the real entry for all platform:
-cat << END >> ${SRS_MAKEFILE}
 _default: server srs_ingest_hls utest $__mdefaults
 
 help:
@@ -579,7 +586,7 @@ END
 
 cat << END >> ${SRS_MAKEFILE}
 server: _prepare_dir
-	@echo "Build the SRS server"
+	@echo "Build the SRS server, JOBS=\${JOBS}, FORCE_MAKE_JOBS=${SRS_FORCE_MAKE_JOBS}"
 	\$(MAKE)\$(JOBS) -f ${SRS_OBJS}/Makefile srs
 	@bash objs/_srs_build_summary.sh
 

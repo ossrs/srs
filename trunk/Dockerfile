@@ -2,10 +2,13 @@ ARG ARCH
 ARG IMAGE=ossrs/srs:ubuntu20
 FROM ${ARCH}${IMAGE} AS build
 
+ARG CONFARGS
+ARG MAKEARGS
+ARG INSTALLDEPENDS
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
 ARG SRS_AUTO_PACKAGER
-RUN echo "BUILDPLATFORM: $BUILDPLATFORM, TARGETPLATFORM: $TARGETPLATFORM, PACKAGER: ${#SRS_AUTO_PACKAGER}"
+RUN echo "BUILDPLATFORM: $BUILDPLATFORM, TARGETPLATFORM: $TARGETPLATFORM, PACKAGER: ${#SRS_AUTO_PACKAGER}, CONFARGS: ${CONFARGS}, MAKEARGS: ${MAKEARGS}, INSTALLDEPENDS: ${INSTALLDEPENDS}"
 
 # https://serverfault.com/questions/949991/how-to-install-tzdata-on-a-ubuntu-docker-image
 ENV DEBIAN_FRONTEND noninteractive
@@ -15,7 +18,9 @@ ENV DEBIAN_FRONTEND noninteractive
 SHELL ["/bin/bash", "-c"]
 
 # Install depends tools.
-RUN apt-get update && apt-get install -y gcc make g++ patch unzip perl git libasan5
+RUN if [[ $INSTALLDEPENDS != 'NO' ]]; then \
+        apt-get update && apt-get install -y gcc make g++ patch unzip perl git libasan5; \
+    fi
 
 # Copy source code to docker.
 COPY . /srs
@@ -24,7 +29,7 @@ WORKDIR /srs/trunk
 # Build and install SRS.
 # Note that SRT is enabled by default, so we configure without --srt=on.
 # Note that we have copied all files by make install.
-RUN ./configure --gb28181=on --h265=on --sanitizer-static=on && make && make install
+RUN ./configure --gb28181=on --h265=on --sanitizer-static=on ${CONFARGS} && make ${MAKEARGS} && make install
 
 ############################################################
 # dist

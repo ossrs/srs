@@ -41,6 +41,8 @@ SRS_FFMPEG_FIT=RESERVED
 SRS_PREFIX=/usr/local/srs
 SRS_DEFAULT_CONFIG=conf/srs.conf
 SRS_JOBS=1
+# If enabled, force to use SRS_JOBS for make on linux, however you're able to overwrite by -jN on macOS.
+SRS_FORCE_MAKE_JOBS=YES
 SRS_STATIC=NO
 # If enabled, link shared libraries for libst.so which uses MPL license.
 # See https://ossrs.net/lts/zh-cn/license#state-threads
@@ -245,6 +247,7 @@ function parse_user_option() {
         --help)                         help=yes                    ;;
         
         --jobs)                         SRS_JOBS=${value}           ;;
+        --force-make-jobs)              SRS_FORCE_MAKE_JOBS=${value} ;;
         --prefix)                       SRS_PREFIX=${value}         ;;
         --config)                       SRS_DEFAULT_CONFIG=${value} ;;
 
