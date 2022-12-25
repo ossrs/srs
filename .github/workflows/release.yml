@@ -30,12 +30,11 @@ jobs:
           echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
           SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
           echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
-      # See https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
-      - name: Set output
-        run: |
-          echo "SRS_TAG=${{ env.SRS_TAG }}" >> $GITHUB_OUTPUT
-          echo "SRS_VERSION=${{ env.SRS_VERSION }}" >> $GITHUB_OUTPUT
-          echo "SRS_MAJOR=${{ env.SRS_MAJOR }}" >> $GITHUB_OUTPUT
+    # Map a step output to a job output, see https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
+    outputs:
+      SRS_TAG: ${{ env.SRS_TAG }}
+      SRS_VERSION: ${{ env.SRS_VERSION }}
+      SRS_MAJOR: ${{ env.SRS_MAJOR }}
     runs-on: ubuntu-20.04
 
   test:
@@ -83,10 +82,9 @@ jobs:
           tag: ${{ github.ref }}
           draft: true
           prerelease: true
-      # See https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
-      - name: Set output
-        run: |
-          echo "SRS_RELEASE_ID=${{ steps.create_draft.outputs.id }}" >> $GITHUB_OUTPUT
+    # Map a step output to a job output, see https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
+    outputs:
+      SRS_RELEASE_ID: ${{ steps.create_draft.outputs.id }}
     runs-on: ubuntu-20.04
 
   cygwin64:
@@ -153,11 +151,10 @@ jobs:
         with:
           release_id: ${{ env.SRS_RELEASE_ID }}
           assets_path: ${{ env.SRS_CYGWIN_TAR }}
-      # See https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
-      - name: Set output
-        run: |
-          echo "SRS_CYGWIN_TAR=${{ env.SRS_CYGWIN_TAR }}" >> $GITHUB_OUTPUT
-          echo "SRS_CYGWIN_MD5=${{ env.SRS_CYGWIN_MD5 }}" >> $GITHUB_OUTPUT
+    # Map a step output to a job output, see https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
+    outputs:
+      SRS_CYGWIN_TAR: ${{ env.SRS_CYGWIN_TAR }}
+      SRS_CYGWIN_MD5: ${{ env.SRS_CYGWIN_MD5 }}
     runs-on: windows-latest
 
   linux:
@@ -222,13 +219,12 @@ jobs:
         with:
           release_id: ${{ env.SRS_RELEASE_ID }}
           assets_path: ${{ env.SRS_SOURCE_TAR }}
-      # See https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
-      - name: Set output
-        run: |
-          echo "SRS_PACKAGE_ZIP=${{ env.SRS_PACKAGE_ZIP }}" >> $GITHUB_OUTPUT
-          echo "SRS_PACKAGE_MD5=${{ env.SRS_PACKAGE_MD5 }}" >> $GITHUB_OUTPUT
-          echo "SRS_SOURCE_TAR=${{ env.SRS_SOURCE_TAR }}" >> $GITHUB_OUTPUT
-          echo "SRS_SOURCE_MD5=${{ env.SRS_SOURCE_MD5 }}" >> $GITHUB_OUTPUT
+    # Map a step output to a job output, see https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
+    outputs:
+      SRS_PACKAGE_ZIP: ${{ env.SRS_PACKAGE_ZIP }}
+      SRS_PACKAGE_MD5: ${{ env.SRS_PACKAGE_MD5 }}
+      SRS_SOURCE_TAR: ${{ env.SRS_SOURCE_TAR }}
+      SRS_SOURCE_MD5: ${{ env.SRS_SOURCE_MD5 }}
     runs-on: ubuntu-20.04
 
   docker-srs:
