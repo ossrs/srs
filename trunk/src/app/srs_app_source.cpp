@@ -834,7 +834,6 @@ SrsOriginHub::SrsOriginHub()
     hds = new SrsHds();
 #endif
     ng_exec = new SrsNgExec();
-    format = new SrsRtmpFormat();
     
     _srs_config->subscribe(this);
 }
@@ -852,8 +851,7 @@ SrsOriginHub::~SrsOriginHub()
         forwarders.clear();
     }
     srs_freep(ng_exec);
-    
-    srs_freep(format);
+
     srs_freep(hls);
     srs_freep(dash);
     srs_freep(dvr);
@@ -869,13 +867,6 @@ srs_error_t SrsOriginHub::initialize(SrsLiveSource* s, SrsRequest* r)
     
     req_ = r;
     source = s;
-    
-    if ((err = format->initialize()) != srs_success) {
-        return srs_error_wrap(err, "format initialize");
-    }
-
-    // Setup the SPS/PPS parsing strategy.
-    format->try_annexb_first = _srs_config->try_annexb_first(r->vhost);
     
     if ((err = hls->initialize(this, req_)) != srs_success) {
         return srs_error_wrap(err, "hls initialize");
@@ -922,10 +913,6 @@ srs_error_t SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata, Srs
 {
     srs_error_t err = srs_success;
     
-    if ((err = format->on_metadata(packet)) != srs_success) {
-        return srs_error_wrap(err, "Format parse metadata");
-    }
-    
     // copy to all forwarders
     if (true) {
         std::vector<SrsForwarder*>::iterator it;
@@ -949,21 +936,10 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_audio;
-
-    // TODO: FIXME: Support parsing OPUS for RTC.
-    if ((err = format->on_audio(msg)) != srs_success) {
-        return srs_error_wrap(err, "format consume audio");
-    }
-
-    // Ignore if no format->acodec, it means the codec is not parsed, or unsupport/unknown codec
-    // such as G.711 codec
-    if (!format->acodec) {
-        return err;
-    }
+    SrsRtmpFormat* format = source->format_;
     
-    // cache the sequence header if aac
-    // donot cache the sequence header to gop_cache, return here.
-    if (format->is_aac_sequence_header()) {
+    // Handle the metadata when got sequence header.
+    if (format->is_aac_sequence_header() || format->is_mp3_sequence_header()) {
         srs_assert(format->acodec);
         SrsAudioCodecConfig* c = format->acodec;
         
@@ -972,15 +948,21 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
         
         // when got audio stream info.
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((err = stat->on_audio_info(req_, SrsAudioCodecIdAAC, c->sound_rate, c->sound_type, c->aac_object)) != srs_success) {
+        if ((err = stat->on_audio_info(req_, format->acodec->id, c->sound_rate, c->sound_type, c->aac_object)) != srs_success) {
             return srs_error_wrap(err, "stat audio");
         }
-        
-        srs_trace("%dB audio sh, codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), flv(%dbits, %dchannels, %dHZ)",
-                  msg->size, c->id, srs_aac_object2str(c->aac_object).c_str(), c->aac_channels,
-                  c->audio_data_rate / 1000, srs_aac_srates[c->aac_sample_rate],
-                  flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
-                  srs_flv_srates[c->sound_rate]);
+
+        if (format->acodec->id == SrsAudioCodecIdMP3) {
+            srs_trace("%dB audio sh, codec(%d, %dbits, %dchannels, %dHZ)",
+                msg->size, c->id, flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
+                srs_flv_srates[c->sound_rate]);
+        } else {
+            srs_trace("%dB audio sh, codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), flv(%dbits, %dchannels, %dHZ)",
+                msg->size, c->id, srs_aac_object2str(c->aac_object).c_str(), c->aac_channels,
+                c->audio_data_rate / 1000, srs_aac_srates[c->aac_sample_rate],
+                flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
+                srs_flv_srates[c->sound_rate]);
+        }
     }
     
     if ((err = hls->on_audio(msg, format)) != srs_success) {
@@ -1041,22 +1023,7 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_video;
-    
-    // user can disable the sps parse to workaround when parse sps failed.
-    // @see https://github.com/ossrs/srs/issues/474
-    if (is_sequence_header) {
-        format->avc_parse_sps = _srs_config->get_parse_sps(req_->vhost);
-    }
-    
-    if ((err = format->on_video(msg)) != srs_success) {
-        return srs_error_wrap(err, "format consume video");
-    }
-   
-    // Ignore if no format->vcodec, it means the codec is not parsed, or unsupport/unknown codec
-    // such as H.263 codec
-    if (!format->vcodec) {
-        return err;
-    }
+    SrsRtmpFormat* format = source->format_;
  
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
@@ -1306,6 +1273,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_dash(string vhost)
     if ((err = dash->on_publish()) != srs_success) {
         return srs_error_wrap(err, "dash start publish");
     }
+
+    SrsRtmpFormat* format = source->format_;
     
     SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
     if (cache_sh_video) {
@@ -1351,6 +1320,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_hls(string vhost)
         return srs_error_wrap(err, "hls publish failed");
     }
     srs_trace("vhost %s hls reload success", vhost.c_str());
+
+    SrsRtmpFormat* format = source->format_;
     
     // when publish, don't need to fetch sequence header, which is old and maybe corrupt.
     // when reload, we must fetch the sequence header from source cache.
@@ -1675,8 +1646,10 @@ srs_error_t SrsMetaCache::dumps(SrsLiveConsumer* consumer, bool atc, SrsRtmpJitt
     // copy sequence header
     // copy audio sequence first, for hls to fast parse the "right" audio codec.
     // @see https://github.com/ossrs/srs/issues/301
-    if (ds && audio && (err = consumer->enqueue(audio, atc, ag)) != srs_success) {
-        return srs_error_wrap(err, "enqueue audio sh");
+    if (aformat && aformat->acodec && aformat->acodec->id != SrsAudioCodecIdMP3) {
+        if (ds && audio && (err = consumer->enqueue(audio, atc, ag)) != srs_success) {
+            return srs_error_wrap(err, "enqueue audio sh");
+        }
     }
     
     if (ds && video && (err = consumer->enqueue(video, atc, ag)) != srs_success) {
@@ -1963,6 +1936,7 @@ SrsLiveSource::SrsLiveSource()
     gop_cache = new SrsGopCache();
     hub = new SrsOriginHub();
     meta = new SrsMetaCache();
+    format_ = new SrsRtmpFormat();
     
     is_monotonically_increase = false;
     last_packet_time = 0;
@@ -1978,7 +1952,8 @@ SrsLiveSource::~SrsLiveSource()
     // never free the consumers,
     // for all consumers are auto free.
     consumers.clear();
-    
+
+    srs_freep(format_);
     srs_freep(hub);
     srs_freep(meta);
     srs_freep(mix_queue);
@@ -2043,6 +2018,13 @@ srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
     handler = h;
     req = r->copy();
     atc = _srs_config->get_atc(req->vhost);
+
+    if ((err = format_->initialize()) != srs_success) {
+        return srs_error_wrap(err, "format initialize");
+    }
+
+    // Setup the SPS/PPS parsing strategy.
+    format_->try_annexb_first = _srs_config->try_annexb_first(r->vhost);
     
     if ((err = hub->initialize(this, req)) != srs_success) {
         return srs_error_wrap(err, "hub");
@@ -2211,6 +2193,10 @@ bool SrsLiveSource::can_publish(bool is_edge)
 srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
     srs_error_t err = srs_success;
+
+    if ((err = format_->on_metadata(metadata)) != srs_success) {
+        return srs_error_wrap(err, "Format parse metadata");
+    }
     
     // if allow atc_auto and bravo-atc detected, open atc for vhost.
     SrsAmf0Any* prop = NULL;
@@ -2302,10 +2288,21 @@ srs_error_t SrsLiveSource::on_audio(SrsCommonMessage* shared_audio)
 srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
-    
-    bool is_aac_sequence_header = SrsFlvAudio::sh(msg->payload, msg->size);
-    bool is_sequence_header = is_aac_sequence_header;
-    
+
+    // TODO: FIXME: Support parsing OPUS for RTC.
+    if ((err = format_->on_audio(msg)) != srs_success) {
+        return srs_error_wrap(err, "format consume audio");
+    }
+
+    // Ignore if no format->acodec, it means the codec is not parsed, or unsupport/unknown codec
+    // such as G.711 codec
+    if (!format_->acodec) {
+        return err;
+    }
+
+    // Whether current packet is sequence header. Note that MP3 does not have one, but we use the first packet as it.
+    bool is_sequence_header = format_->is_aac_sequence_header() || format_->is_mp3_sequence_header();
+
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
     if (is_sequence_header && meta->previous_ash() && _srs_config->get_reduce_sequence_header(req->vhost)) {
@@ -2335,10 +2332,8 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
         }
     }
     
-    // cache the sequence header of aac, or first packet of mp3.
-    // for example, the mp3 is used for hls to write the "right" audio codec.
-    // TODO: FIXME: to refine the stream info system.
-    if (is_aac_sequence_header || !meta->ash()) {
+    // Refresh the sequence header in metadata.
+    if (is_sequence_header || !meta->ash()) {
         if ((err = meta->update_ash(msg)) != srs_success) {
             return srs_error_wrap(err, "meta consume audio");
         }
@@ -2427,8 +2422,24 @@ srs_error_t SrsLiveSource::on_video(SrsCommonMessage* shared_video)
 srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
-    
+
     bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
+
+    // user can disable the sps parse to workaround when parse sps failed.
+    // @see https://github.com/ossrs/srs/issues/474
+    if (is_sequence_header) {
+        format_->avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
+    }
+
+    if ((err = format_->on_video(msg)) != srs_success) {
+        return srs_error_wrap(err, "format consume video");
+    }
+
+    // Ignore if no format->vcodec, it means the codec is not parsed, or unsupport/unknown codec
+    // such as H.263 codec
+    if (!format_->vcodec) {
+        return err;
+    }
     
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;

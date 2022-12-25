@@ -737,7 +737,8 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     if (codec != SrsAudioCodecIdMP3 && codec != SrsAudioCodecIdAAC) {
         return err;
     }
-    
+
+    bool fresh = !acodec;
     if (!acodec) {
         acodec = new SrsAudioCodecConfig();
     }
@@ -753,7 +754,7 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     buffer->skip(-1 * buffer->pos());
     
     if (codec == SrsAudioCodecIdMP3) {
-        return audio_mp3_demux(buffer, timestamp);
+        return audio_mp3_demux(buffer, timestamp, fresh);
     }
     
     return audio_aac_demux(buffer, timestamp);
@@ -822,6 +823,12 @@ bool SrsFormat::is_aac_sequence_header()
 {
     return acodec && acodec->id == SrsAudioCodecIdAAC
         && audio && audio->aac_packet_type == SrsAudioAacFrameTraitSequenceHeader;
+}
+
+bool SrsFormat::is_mp3_sequence_header()
+{
+    return acodec && acodec->id == SrsAudioCodecIdMP3
+        && audio && audio->aac_packet_type == SrsAudioMp3FrameTraitSequenceHeader;
 }
 
 bool SrsFormat::is_avc_sequence_header()
@@ -2040,13 +2047,13 @@ srs_error_t SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
     return err;
 }
 
-srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
+srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp, bool fresh)
 {
     srs_error_t err = srs_success;
     
     audio->cts = 0;
     audio->dts = timestamp;
-    audio->aac_packet_type = SrsAudioMp3FrameTrait;
+    audio->aac_packet_type = fresh ? SrsAudioMp3FrameTraitSequenceHeader : SrsAudioMp3FrameTraitRawData;
     
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
     int8_t sound_format = stream->read_1bytes();

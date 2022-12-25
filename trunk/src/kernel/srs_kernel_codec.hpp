@@ -161,7 +161,8 @@ enum SrsAudioAacFrameTrait
     // set to the max value to reserved, for array map.
     SrsAudioAacFrameTraitReserved = 0xff,
     SrsAudioAacFrameTraitForbidden = 0xff,
-    
+
+    // For AAC, we detect the sequence header by content.
     SrsAudioAacFrameTraitSequenceHeader = 0,
     SrsAudioAacFrameTraitRawData = 1,
     
@@ -172,8 +173,10 @@ enum SrsAudioAacFrameTrait
 
     // 16/32 reserved for g711a/g711u 
 
-    // For MP3
-    SrsAudioMp3FrameTrait = 64,
+    // For MP3 we assume the first packet is sequence header, while it actually is not the same thing, because we do
+    // this to simplify the workflow, to make sure we can detect the audio codec from the sequence headers.
+    SrsAudioMp3FrameTraitSequenceHeader = 63,
+    SrsAudioMp3FrameTraitRawData = 64,
 };
 
 /**
@@ -972,6 +975,7 @@ public:
     virtual srs_error_t on_aac_sequence_header(char* data, int size);
 public:
     virtual bool is_aac_sequence_header();
+    virtual bool is_mp3_sequence_header();
     virtual bool is_avc_sequence_header();
 private:
     // Demux the video packet in H.264 codec.
@@ -1006,7 +1010,7 @@ private:
     //          Demux the asc from sequence header.
     //          Demux the sampels from RAW data.
     virtual srs_error_t audio_aac_demux(SrsBuffer* stream, int64_t timestamp);
-    virtual srs_error_t audio_mp3_demux(SrsBuffer* stream, int64_t timestamp);
+    virtual srs_error_t audio_mp3_demux(SrsBuffer* stream, int64_t timestamp, bool fresh);
 public:
     // Directly demux the sequence header, without RTMP packet header.
     virtual srs_error_t audio_aac_sequence_header_demux(char* data, int size);

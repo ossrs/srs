@@ -318,8 +318,6 @@ private:
     SrsRequest* req_;
     bool is_active;
 private:
-    // The format, codec information.
-    SrsRtmpFormat* format;
     // hls handler.
     SrsHls* hls;
     // The DASH encoder.
@@ -530,6 +528,8 @@ private:
     SrsOriginHub* hub;
     // The metadata cache.
     SrsMetaCache* meta;
+    // The format, codec information.
+    SrsRtmpFormat* format_;
 private:
     // Whether source is avaiable for publishing.
     bool _can_publish;

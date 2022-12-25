@@ -5734,7 +5734,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleAVsWithMp3)
 
         // Frames order by dts asc.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioMp3FrameTrait, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioMp3FrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
@@ -5746,7 +5746,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleAVsWithMp3)
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(40, (int)dts); EXPECT_EQ(40, (int)pts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioMp3FrameTrait, ct);
+        EXPECT_EQ(40, (int)dts); EXPECT_EQ(40, (int)pts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioMp3FrameTraitSequenceHeader, ct);
         srs_freepa(sample);
     }
 }
