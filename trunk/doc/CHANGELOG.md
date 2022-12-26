@@ -21,6 +21,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-12-26, For [#939](https://github.com/ossrs/srs/issues/939): FLV: Fix bug for header flag gussing. v5.0.119
 * v5.0, 2022-12-26, For [#296](https://github.com/ossrs/srs/issues/296): MP3: Convert RTMP(MP3) to WebRTC(OPUS). v5.0.118
 * v5.0, 2022-12-25, For [#296](https://github.com/ossrs/srs/issues/296): MP3: Support dump stream information. v5.0.117
 * v5.0, 2022-12-25, For [#296](https://github.com/ossrs/srs/issues/296): MP3: Support mp3 for RTMP/HLS/HTTP-FLV/HTTP-TS/HLS etc. v5.0.116

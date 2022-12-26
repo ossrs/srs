@@ -333,7 +333,7 @@ srs_error_t SrsFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int coun
 
     // For https://github.com/ossrs/srs/issues/939
     if (!header_written) {
-        bool has_video = has_audio_; bool has_audio = has_video_;
+        bool has_video = has_video_; bool has_audio = has_audio_;
 
         // See https://github.com/ossrs/srs/issues/939#issuecomment-1351385460
         if (guess_has_av_) {
