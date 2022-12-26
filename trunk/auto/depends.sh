@@ -695,15 +695,16 @@ fi
 # ffmpeg-fit, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
-    FFMPEG_OPTIONS=""
     if [[ $SRS_CROSS_BUILD == YES ]]; then
-      FFMPEG_CONFIGURE=./configure
+      FFMPEG_CONFIGURE="./configure"
     else
       FFMPEG_CONFIGURE="env PKG_CONFIG_PATH=${SRS_DEPENDS_LIBS}/opus/lib/pkgconfig ./configure"
     fi
 
+    # Disable all features, note that there are still some options need to be disabled.
+    FFMPEG_OPTIONS="--disable-everything"
     # Disable all asm for FFmpeg, to compatible with ARM CPU.
-    FFMPEG_OPTIONS="--disable-asm --disable-x86asm --disable-inline-asm"
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-asm --disable-x86asm --disable-inline-asm"
     # Only build static libraries if no shared FFmpeg.
     if [[ $SRS_SHARED_FFMPEG == YES ]]; then
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-shared"
@@ -725,6 +726,17 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     else
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=libopus --enable-encoder=libopus --enable-libopus"
     fi
+    # Disable features of ffmpeg.
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network"
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils"
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-hwaccels --disable-devices --disable-audiotoolbox --disable-videotoolbox --disable-cuvid"
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-d3d11va --disable-dxva2 --disable-ffnvcodec --disable-nvdec --disable-nvenc --disable-v4l2-m2m --disable-vaapi"
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-vdpau --disable-appkit --disable-coreimage --disable-avfoundation --disable-securetransport --disable-iconv"
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-lzma --disable-sdl2"
+    # Enable FFmpeg native AAC encoder and decoder.
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm --enable-encoder=aac"
+    # Enable FFmpeg native MP3 decoder, which depends on dct.
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=mp3 --enable-dct"
 
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg/lib/libavcodec.a ]]; then
         rm -rf ${SRS_OBJS}/ffmpeg && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg ${SRS_OBJS}/ &&
@@ -736,18 +748,9 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
         cp -rf ${SRS_WORKDIR}/3rdparty/ffmpeg-4-fit ${SRS_OBJS}/${SRS_PLATFORM}/ &&
         (
             cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit &&
-            $FFMPEG_CONFIGURE \
-              --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/ffmpeg --pkg-config=pkg-config \
-              --pkg-config-flags="--static" --extra-libs="-lpthread" --extra-libs="-lm" \
-              --disable-everything ${FFMPEG_OPTIONS} \
-              --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
-              --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
-              --disable-dct --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils \
-              --disable-hwaccels --disable-devices --disable-audiotoolbox --disable-videotoolbox --disable-cuvid \
-              --disable-d3d11va --disable-dxva2 --disable-ffnvcodec --disable-nvdec --disable-nvenc --disable-v4l2-m2m --disable-vaapi \
-              --disable-vdpau --disable-appkit --disable-coreimage --disable-avfoundation --disable-securetransport --disable-iconv \
-              --disable-lzma --disable-sdl2 --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm \
-              --enable-encoder=aac
+            $FFMPEG_CONFIGURE --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/ffmpeg \
+                --pkg-config=pkg-config --pkg-config-flags='--static' --extra-libs='-lpthread' --extra-libs='-lm' \
+                ${FFMPEG_OPTIONS}
         ) &&
         # See https://www.laoyuyu.me/2019/05/23/android/clang_compile_ffmpeg/
         if [[ $SRS_CROSS_BUILD == YES ]]; then

@@ -254,6 +254,7 @@ private:
     SrsMetaCache* meta;
 private:
     bool rtmp_to_rtc;
+    SrsAudioCodecId latest_codec_;
     SrsAudioTranscoder* codec_;
     bool keep_bframe;
     bool merge_nalus;
@@ -272,6 +273,7 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
 private:
+    srs_error_t init_codec(SrsAudioCodecId codec);
     srs_error_t transcode(SrsAudioFrame* audio);
     srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt);
 public:

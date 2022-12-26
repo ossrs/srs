@@ -14,6 +14,8 @@ static const AVCodec* srs_find_decoder_by_id(SrsAudioCodecId id)
 {
     if (id == SrsAudioCodecIdAAC) {
         return avcodec_find_decoder_by_name("aac");
+    } else if (id == SrsAudioCodecIdMP3) {
+        return avcodec_find_decoder_by_name("mp3");
     } else if (id == SrsAudioCodecIdOpus) {
         const AVCodec* codec = avcodec_find_decoder_by_name("libopus");
         if (!codec) {

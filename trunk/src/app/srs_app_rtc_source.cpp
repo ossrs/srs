@@ -717,6 +717,7 @@ SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source)
     source_ = source;
     format = new SrsRtmpFormat();
     codec_ = new SrsAudioTranscoder();
+    latest_codec_ = SrsAudioCodecIdForbidden;
     rtmp_to_rtc = false;
     keep_bframe = false;
     merge_nalus = false;
@@ -766,12 +767,6 @@ srs_error_t SrsRtcFromRtmpBridge::initialize(SrsRequest* r)
 
         // Setup the SPS/PPS parsing strategy.
         format->try_annexb_first = _srs_config->try_annexb_first(r->vhost);
-
-        int bitrate = 48000; // The output bitrate in bps.
-        if ((err = codec_->initialize(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate,
-                                      bitrate)) != srs_success) {
-            return srs_error_wrap(err, "init codec");
-        }
     }
 
     keep_bframe = _srs_config->get_rtc_keep_bframe(req->vhost);
@@ -831,6 +826,11 @@ srs_error_t SrsRtcFromRtmpBridge::on_audio(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "format consume audio");
     }
 
+    // Try to init codec when startup or codec changed.
+    if (format->acodec && (err = init_codec(format->acodec->id)) != srs_success) {
+        return srs_error_wrap(err, "init codec");
+    }
+
     // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
     if (!format->acodec) {
@@ -843,13 +843,17 @@ srs_error_t SrsRtcFromRtmpBridge::on_audio(SrsSharedPtrMessage* msg)
         return err;
     }
 
+    // ignore sequence header
+    srs_assert(format->audio);
+
+    if (format->acodec->id == SrsAudioCodecIdMP3) {
+        return transcode(format->audio);
+    }
+
     // When drop aac audio packet, never transcode.
     if (acodec != SrsAudioCodecIdAAC) {
         return err;
     }
-
-    // ignore sequence header
-    srs_assert(format->audio);
 
     char* adts_audio = NULL;
     int nn_adts_audio = 0;
@@ -871,6 +875,35 @@ srs_error_t SrsRtcFromRtmpBridge::on_audio(SrsSharedPtrMessage* msg)
     }
 
     srs_freepa(adts_audio);
+
+    return err;
+}
+
+srs_error_t SrsRtcFromRtmpBridge::init_codec(SrsAudioCodecId codec)
+{
+    srs_error_t err = srs_success;
+
+    // Ignore if not changed.
+    if (latest_codec_ == codec) return err;
+
+    // Create a new codec.
+    srs_freep(codec_);
+    codec_ = new SrsAudioTranscoder();
+
+    // Initialize the codec according to the codec in stream.
+    int bitrate = 48000; // The output bitrate in bps.
+    if ((err = codec_->initialize(codec, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate, bitrate)) != srs_success) {
+        return srs_error_wrap(err, "init codec=%d", codec);
+    }
+
+    // Update the latest codec in stream.
+    if (latest_codec_ == SrsAudioCodecIdForbidden) {
+        srs_trace("RTMP2RTC: Init audio codec to %d(%s)", codec, srs_audio_codec_id2str(codec).c_str());
+    } else {
+        srs_trace("RTMP2RTC: Switch audio codec %d(%s) to %d(%s)", latest_codec_, srs_audio_codec_id2str(latest_codec_).c_str(),
+            codec, srs_audio_codec_id2str(codec).c_str());
+    }
+    latest_codec_ = codec;
 
     return err;
 }
