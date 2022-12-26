@@ -3271,9 +3271,9 @@ srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size
         return err;
     }
 
-    bool codec_ok = (format->vcodec->id != SrsVideoCodecIdAVC);
+    bool codec_ok = (format->vcodec->id == SrsVideoCodecIdAVC);
 #ifdef SRS_H265
-    codec_ok = codec_ok ? true : (format->vcodec->id != SrsVideoCodecIdHEVC);
+    codec_ok = codec_ok ? true : (format->vcodec->id == SrsVideoCodecIdHEVC);
 #endif
     if (!codec_ok) {
         return err;
