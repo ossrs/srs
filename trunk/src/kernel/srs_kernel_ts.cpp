@@ -3176,6 +3176,7 @@ SrsTsTransmuxer::SrsTsTransmuxer()
     tsmc = new SrsTsMessageCache();
     context = new SrsTsContext();
     tscw = NULL;
+    has_audio_ = has_video_ = true;
 }
 
 SrsTsTransmuxer::~SrsTsTransmuxer()
@@ -3184,6 +3185,16 @@ SrsTsTransmuxer::~SrsTsTransmuxer()
     srs_freep(tsmc);
     srs_freep(tscw);
     srs_freep(context);
+}
+
+void SrsTsTransmuxer::set_has_audio(bool v)
+{
+    has_audio_ = v;
+}
+
+void SrsTsTransmuxer::set_has_video(bool v)
+{
+    has_video_ = v;
 }
 
 srs_error_t SrsTsTransmuxer::initialize(ISrsStreamWriter* fw)
@@ -3197,11 +3208,13 @@ srs_error_t SrsTsTransmuxer::initialize(ISrsStreamWriter* fw)
     srs_assert(fw);
     
     writer = fw;
-    
+
+    SrsAudioCodecId acodec = has_audio_ ? SrsAudioCodecIdAAC : SrsAudioCodecIdForbidden;
+    SrsVideoCodecId vcodec = has_video_ ? SrsVideoCodecIdAVC : SrsVideoCodecIdForbidden;
+
     srs_freep(tscw);
-    // TODO: FIXME: Support config the codec.
-    tscw = new SrsTsContextWriter(fw, context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
-    
+    tscw = new SrsTsContextWriter(fw, context, acodec, vcodec);
+
     return err;
 }
 

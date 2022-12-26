@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v5.0, 2022-12-26, For [#465](https://github.com/ossrs/srs/issues/465): TS: Support disable audio or video to make mpegts.js happy. v6.0.9
 * v5.0, 2022-12-26, For [#465](https://github.com/ossrs/srs/issues/465): TS: Fix bug for codec detecting for HTTP-TS. v6.0.8
 * v5.0, 2022-12-25, For [#296](https://github.com/ossrs/srs/issues/296): Fix [#3338](https://github.com/ossrs/srs/issues/3338): MP3: Support play HTTP-MP3 by H5(srs-player). v6.0.7
 * v6.0, 2022-12-17, Merge 5.0: FLV header and SRT bugfix. v6.0.6

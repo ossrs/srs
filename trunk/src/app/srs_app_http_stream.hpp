@@ -110,6 +110,9 @@ public:
 public:
     virtual bool has_cache();
     virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+public:
+    void set_has_audio(bool v);
+    void set_has_video(bool v);
 };
 
 // Transmux RTMP with AAC stream to HTTP AAC Streaming.

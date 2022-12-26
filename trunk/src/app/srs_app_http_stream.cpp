@@ -234,6 +234,15 @@ srs_error_t SrsTsStreamEncoder::dump_cache(SrsLiveConsumer* /*consumer*/, SrsRtm
     return srs_success;
 }
 
+void SrsTsStreamEncoder::set_has_audio(bool v)
+{
+    enc->set_has_audio(v);
+}
+void SrsTsStreamEncoder::set_has_video(bool v)
+{
+    enc->set_has_video(v);
+}
+
 SrsFlvStreamEncoder::SrsFlvStreamEncoder()
 {
     header_written = false;
@@ -636,6 +645,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         w->header()->set_content_type("video/MP2T");
         enc_desc = "TS";
         enc = new SrsTsStreamEncoder();
+        ((SrsTsStreamEncoder*)enc)->set_has_audio(has_audio);
+        ((SrsTsStreamEncoder*)enc)->set_has_video(has_video);
     } else {
         return srs_error_new(ERROR_HTTP_LIVE_STREAM_EXT, "invalid pattern=%s", entry->pattern.c_str());
     }
