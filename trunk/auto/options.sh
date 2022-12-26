@@ -164,9 +164,9 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --gmp=on|off              Whether build memory profile with gperf tools. Default: $(value2switch $SRS_GPERF_MP)
   --gcp=on|off              Whether build cpu profile with gperf tools. Default: $(value2switch $SRS_GPERF_CP)
   --gprof=on|off            Whether build SRS with gprof(GNU profile tool). Default: $(value2switch $SRS_GPROF)
-  --sanitizer=on|off        Whether build SRS with address sanitizer. Default: $(value2switch $SRS_SANITIZER)
-  --sanitizer-static=on|off Whether build SRS with static libasan. Default: $(value2switch $SRS_SANITIZER_STATIC)
-  --sanitizer-log=on|off    Whether hijack the log for libasan. Default: $(value2switch $SRS_SANITIZER_LOG)
+  --sanitizer=on|off        Whether build SRS with address sanitizer(asan). Default: $(value2switch $SRS_SANITIZER)
+  --sanitizer-static=on|off Whether build SRS with static libasan(asan). Default: $(value2switch $SRS_SANITIZER_STATIC)
+  --sanitizer-log=on|off    Whether hijack the log for libasan(asan). Default: $(value2switch $SRS_SANITIZER_LOG)
 
   --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
   --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
@@ -243,8 +243,8 @@ function parse_user_option() {
 
     # Parse options to variables.
     case "$option" in
-        -h)                             help=yes                    ;;
-        --help)                         help=yes                    ;;
+        -h)                             help=YES                    ;;
+        --help)                         help=YES                    ;;
         
         --jobs)                         SRS_JOBS=${value}           ;;
         --force-make-jobs)              SRS_FORCE_MAKE_JOBS=${value} ;;
