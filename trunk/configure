@@ -124,9 +124,6 @@ fi
 # @doc: https://github.com/google/sanitizers/wiki/AddressSanitizer
 if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
     CXXFLAGS="${CXXFLAGS} -fsanitize=address -fno-omit-frame-pointer";
-    if [[ $SRS_SANITIZER_STATIC == YES ]]; then
-        CXXFLAGS="${CXXFLAGS} -static-libasan";
-    fi
 fi
 
 # Start to generate the Makefile.
@@ -198,6 +195,11 @@ fi
 # @see https://stackoverflow.com/a/26107550
 if [[ $SRS_STATIC == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -static-libstdc++";
+fi
+
+# For asan(Google Address Sanitizer)
+if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES && $SRS_SANITIZER_STATIC == YES ]]; then
+    SrsLinkOptions="${SrsLinkOptions} -static-libasan";
 fi
 
 # For coverage.
