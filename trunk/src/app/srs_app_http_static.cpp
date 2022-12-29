@@ -44,6 +44,7 @@ using namespace std;
 SrsM3u8CtxInfo::SrsM3u8CtxInfo()
 {
     req = NULL;
+    alive = true;
 }
 
 SrsM3u8CtxInfo::~SrsM3u8CtxInfo()
@@ -82,9 +83,6 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
     // @remark Be careful that the stream has extension now, might cause identify fail.
     req->stream = srs_path_basename(r->path());
 
-    // Always make the ctx alive now.
-    alive(ctx, req);
-
     // Served by us.
     *served = true;
 
@@ -95,6 +93,13 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
             *served = false;
             return srs_success;
         }
+
+        if (!can_serve_m3u8(ctx))
+            return srs_error_new(ERROR_HTTP_STREAM_EOF, "HTTP stream is EOF");
+
+        // Always make the ctx alive now.
+        alive(ctx, req);
+
         return serve_exists_session(w, r, factory, fullpath);
     }
 
@@ -132,19 +137,17 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
     srs_assert(hr);
 
     string ctx;
-    if (ctx.empty()) {
-        // make sure unique
-        do {
-            ctx = srs_random_str(8);  // the same as cid
-        } while (ctx_is_exist(ctx));
-    }
+    // make sure unique
+    do {
+        ctx = srs_random_str(8);  // 8: the same as length of cid
+    } while (ctx_is_exist(ctx));
 
     SrsContextRestore(_srs_context->get_id());
     _srs_context->set_id(SrsContextId().set_value(ctx));
 
     // We must do stat the client before hooks, because hooks depends on it.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(ctx, req, NULL, SrsHlsPlay)) != srs_success) {
+    if ((err = stat->on_client(ctx, req, this, SrsHlsPlay)) != srs_success) {
         return srs_error_wrap(err, "stat on client");
     }
 
@@ -175,6 +178,8 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
     if ((err = w->final_request()) != srs_success) {
         return srs_error_wrap(err, "final request");
     }
+
+    alive(ctx, req);
 
     return err;
 }
@@ -248,7 +253,8 @@ void SrsHlsStream::alive(std::string ctx, SrsRequest* req)
 
     // Update alive time of context.
     SrsM3u8CtxInfo* info = it->second;
-    info->request_time = srs_get_system_time();
+    if (info->alive)
+        info->request_time = srs_get_system_time();
 }
 
 srs_error_t SrsHlsStream::http_hooks_on_play(SrsRequest* req)
@@ -342,6 +348,28 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
     }
 
     return err;
+}
+
+void SrsHlsStream::expire(std::string id)
+{
+    std::map<std::string, SrsM3u8CtxInfo*>::iterator it = map_ctx_info_.find(id);
+    if (it != map_ctx_info_.end()) {
+        SrsM3u8CtxInfo* info = it->second;
+        info->alive = false;
+
+        // remove statistic quickly
+        SrsStatistic* stat = SrsStatistic::instance();
+        stat->on_disconnect(id, srs_success);
+    }
+}
+
+bool SrsHlsStream::can_serve_m3u8(std::string id) {
+    std::map<std::string, SrsM3u8CtxInfo*>::iterator it = map_ctx_info_.find(id);
+    if (it != map_ctx_info_.end()) {
+        SrsM3u8CtxInfo* info = it->second;
+        return info->alive;
+    }
+    return true;
 }
 
 SrsVodStream::SrsVodStream(string root_dir) : SrsHttpFileServer(root_dir)

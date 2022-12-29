@@ -227,7 +227,7 @@ public:
     virtual ~ISrsExpire();
 public:
     // Set connection to expired to kick-off it.
-    virtual void expire() = 0;
+    virtual void expire(std::string id = "") = 0;
 };
 
 // The basic connection of SRS, for TCP based protocols,

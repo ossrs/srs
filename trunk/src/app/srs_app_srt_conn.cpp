@@ -196,7 +196,7 @@ ISrsKbpsDelta* SrsMpegtsSrtConn::delta()
     return delta_;
 }
 
-void SrsMpegtsSrtConn::expire()
+void SrsMpegtsSrtConn::expire(std::string id)
 {
     trd_->interrupt();
 }

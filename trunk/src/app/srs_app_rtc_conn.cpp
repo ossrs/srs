@@ -1871,7 +1871,7 @@ std::string SrsRtcConnection::desc()
     return "RtcConn";
 }
 
-void SrsRtcConnection::expire()
+void SrsRtcConnection::expire(std::string id)
 {
     _srs_rtc_manager->remove(this);
 }

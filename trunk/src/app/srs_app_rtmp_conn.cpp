@@ -1635,7 +1635,7 @@ const SrsContextId& SrsRtmpConn::get_id()
     return trd->cid();
 }
 
-void SrsRtmpConn::expire()
+void SrsRtmpConn::expire(std::string id)
 {
     trd->interrupt();
 }
