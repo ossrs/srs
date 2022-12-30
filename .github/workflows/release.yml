@@ -4,7 +4,7 @@ name: "Release"
 on:
   push:
     tags:
-      - v5*
+      - v6*
 
 jobs:
   envs:
@@ -14,13 +14,13 @@ jobs:
       # Git checkout
       - name: Checkout repository
         uses: actions/checkout@v3
-      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
+      # The github.ref is, for example, refs/tags/v6.0.145 or refs/tags/v6.0-r8
       # Generate variables like:
-      #   SRS_TAG=v5.0-r8
-      #   SRS_TAG=v5.0.145
-      #   SRS_VERSION=5.0.145
-      #   SRS_VERSION=5.0-r8
-      #   SRS_MAJOR=5
+      #   SRS_TAG=v6.0-r8
+      #   SRS_TAG=v6.0.145
+      #   SRS_VERSION=6.0.145
+      #   SRS_VERSION=6.0-r8
+      #   SRS_MAJOR=6
       # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
       - name: Generate varaiables
         run: |
@@ -178,7 +178,7 @@ jobs:
       # Create source tar for release. Note that it's for OpenWRT package srs-server, so the filename MUST be
       # srs-server-xxx.tar.gz, because the package is named srs-server.
       # Generate variables like:
-      #   SRS_SOURCE_TAR=srs-server-5.0.145.tar.gz
+      #   SRS_SOURCE_TAR=srs-server-6.0.145.tar.gz
       #   SRS_SOURCE_MD5=83e38700a80a26e30b2df054e69956e5
       - name: Create source tar.gz
         run: |
@@ -190,7 +190,7 @@ jobs:
           echo "SRS_SOURCE_MD5=$(md5sum ${DEST_DIR}.tar.gz| awk '{print $1}')" >> $GITHUB_ENV
       # Create package tar for release
       # Generate variables like:
-      #   SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-5.0.145.zip
+      #   SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-6.0.145.zip
       #   SRS_PACKAGE_MD5=3880a26e30b283edf05700a4e69956e5
       - name: Create package zip
         env:
@@ -265,7 +265,7 @@ jobs:
             --output "type=image,push=true" \
             -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile .
       # Docker alias images
-      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
+      # TODO: FIXME: If stable, please set the latest from 5.0 to 6.0
       - name: Docker alias images for ossrs/srs
         uses: akhilerm/tag-push-action@v2.0.0
         with:
@@ -289,7 +289,7 @@ jobs:
           echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
           echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
       # Aliyun ACR
-      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
+      # TODO: FIXME: If stable, please set the latest from 5.0 to 6.0
       - name: Login aliyun hub
         uses: docker/login-action@v1
         with:
@@ -399,8 +399,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
       # Create release.
-      # TODO: FIXME: Refine the release when 5.0 released
-      # TODO: FIXME: Change prerelease to false when 5.0 released
+      # TODO: FIXME: Refine the release when 6.0 released
+      # TODO: FIXME: Change prerelease to false when 6.0 released
       - name: Update release
         id: update_release
         uses: ncipollo/release-action@v1
