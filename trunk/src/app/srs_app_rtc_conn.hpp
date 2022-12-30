@@ -490,7 +490,7 @@ public:
     virtual std::string desc();
 // Interface ISrsExpire.
 public:
-    virtual void expire();
+    virtual void expire(std::string id);
 public:
     void switch_to_context();
     const SrsContextId& context_id();

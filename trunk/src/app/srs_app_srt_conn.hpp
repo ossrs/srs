@@ -83,7 +83,7 @@ public:
     ISrsKbpsDelta* delta();
 // Interface ISrsExpire
 public:
-    virtual void expire();
+    virtual void expire(std::string id);
 public:
     virtual srs_error_t start();
 // Interface ISrsConnection.

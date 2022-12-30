@@ -119,7 +119,7 @@ public:
     virtual const SrsContextId& get_id();
 // Interface ISrsExpire.
 public:
-    virtual void expire();
+    virtual void expire(std::string id);
 };
 
 // Drop body of request, only process the response.

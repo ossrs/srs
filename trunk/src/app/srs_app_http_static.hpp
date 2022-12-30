@@ -17,12 +17,13 @@ struct SrsM3u8CtxInfo
 {
     srs_utime_t request_time;
     SrsRequest* req;
+    bool alive;
     SrsM3u8CtxInfo();
     virtual ~SrsM3u8CtxInfo();
 };
 
 // Server HLS streaming.
-class SrsHlsStream : public ISrsFastTimer
+class SrsHlsStream : public ISrsFastTimer, public ISrsExpire
 {
 private:
     // The period of validity of the ctx
@@ -33,13 +34,17 @@ public:
 public:
     virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, std::string fullpath, SrsRequest* req, bool* served);
     virtual void on_serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+// Interface ISrsExpire.
+public:
+    virtual void expire(std::string id);
 private:
-    srs_error_t serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest *req);
+    srs_error_t serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest *req, std::string& ctx);
     srs_error_t serve_exists_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, std::string fullpath);
     bool ctx_is_exist(std::string ctx);
     void alive(std::string ctx, SrsRequest* req);
     srs_error_t http_hooks_on_play(SrsRequest* req);
     void http_hooks_on_stop(SrsRequest* req);
+    bool can_serve_m3u8(std::string id);
 // interface ISrsFastTimer
 private:
     srs_error_t on_timer(srs_utime_t interval);
