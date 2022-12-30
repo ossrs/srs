@@ -83,12 +83,12 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
     // @remark Be careful that the stream has extension now, might cause identify fail.
     req->stream = srs_path_basename(r->path());
 
-    // Served by us.
-    *served = true;
-
     // Always make the ctx alive now.
     if (!ctx.empty())
         alive(ctx, req);
+        
+    // Served by us.
+    *served = true;
 
     // Already exists context, response with rebuilt m3u8 content.
     if (!ctx.empty() && ctx_is_exist(ctx)) {
