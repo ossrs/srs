@@ -586,6 +586,7 @@ ffmpeg:
 
 END
 
+# Generate Makefile entry for srs-server.
 cat << END >> ${SRS_MAKEFILE}
 server: _prepare_dir
 	@echo "Build the SRS server, JOBS=\${JOBS}, FORCE_MAKE_JOBS=${SRS_FORCE_MAKE_JOBS}"
@@ -593,6 +594,7 @@ server: _prepare_dir
 	@bash objs/_srs_build_summary.sh
 
 END
+
 # generate all modules entry
 for SRS_MODULE in ${SRS_MODULES[*]}; do
     . $SRS_WORKDIR/auto/reset_module.sh && . $SRS_MODULE/config
