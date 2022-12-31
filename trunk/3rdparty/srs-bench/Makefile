@@ -3,7 +3,7 @@
 default: bench test
 
 clean:
-	rm -f ./objs/srs_bench ./objs/srs_test
+	rm -f ./objs/srs_bench ./objs/srs_test ./objs/srs_gb28181_test
 
 .format.txt: *.go srs/*.go vnet/*.go janus/*.go gb28181/*.go
 	gofmt -w .
@@ -14,12 +14,16 @@ bench: ./objs/srs_bench
 ./objs/srs_bench: .format.txt *.go srs/*.go vnet/*.go janus/*.go gb28181/*.go Makefile
 	go build -mod=vendor -o objs/srs_bench .
 
-test: ./objs/srs_test
+test: ./objs/srs_test ./objs/srs_gb28181_test
 
 ./objs/srs_test: .format.txt *.go srs/*.go vnet/*.go Makefile
 	go test ./srs -mod=vendor -c -o ./objs/srs_test
 
+./objs/srs_gb28181_test: .format.txt *.go gb28181/*.go Makefile
+	go test ./gb28181 -mod=vendor -c -o ./objs/srs_gb28181_test
+
 help:
 	@echo "Usage: make [bench|test]"
 	@echo "     bench       Make the bench to ./objs/srs_bench"
-	@echo "     test        Make the test tool to ./objs/srs_test"
+	@echo "     test        Make the test tool to ./objs/srs_test and ./objs/srs_gb28181_test"
+

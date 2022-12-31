@@ -171,16 +171,15 @@ jobs:
         uses: actions/checkout@v3
       # Tests
       - name: Build test image
-        run: docker build --tag srs:test -f trunk/Dockerfile.test .
+        run: docker build --tag srs:test --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.test .
       # For utest
       - name: Run SRS utest
-        run: docker run --rm srs:test bash -c 'make utest && ./objs/srs_utest'
+        run: docker run --rm srs:test ./objs/srs_utest
       # For regression-test
       - name: Run SRS regression-test
         run: |
-          docker run --rm srs:test bash -c 'make && \
-            ./objs/srs -c conf/regression-test.conf && \
-            cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
+          docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && \
+              cd 3rdparty/srs-bench && ./objs/srs_test -test.v && ./objs/srs_gb28181_test -test.v'
     runs-on: ubuntu-20.04
 
   coverage:
@@ -192,7 +191,7 @@ jobs:
         uses: actions/checkout@v3
       # Tests
       - name: Build coverage image
-        run: docker build --tag srs:cov -f trunk/Dockerfile.cov .
+        run: docker build --tag srs:cov --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.cov .
       # For coverage
       - name: Run SRS covergae
         if: ${{ startsWith(github.ref, 'refs/heads/') || startsWith(github.ref, 'refs/pull/') }}
@@ -210,9 +209,9 @@ jobs:
           #
           echo "For github.ref=${{ github.ref }}, github.sha=${{ github.sha }}"
           echo "SRS_BRANCH=$SRS_BRANCH, SRS_PR=$SRS_PR, SRS_SHA=$SRS_SHA, SRS_PROJECT=$SRS_PROJECT"
-          docker run --rm --env CODECOV_TOKEN=$CODECOV_TOKEN \
-            --env SRS_BRANCH=$SRS_BRANCH --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
-            srs:cov bash -c 'make utest && ./objs/srs_utest && bash auto/codecov.sh'
+          docker run --rm --env CODECOV_TOKEN=$CODECOV_TOKEN --env SRS_BRANCH=$SRS_BRANCH \
+            --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
+            srs:cov bash -c './objs/srs_utest && bash auto/codecov.sh'
           #
     runs-on: ubuntu-20.04
 
