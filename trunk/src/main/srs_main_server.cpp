@@ -96,6 +96,13 @@ srs_error_t do_main(int argc, char** argv, char** envp)
     // TODO: Might fail if change working directory.
     _srs_binary = argv[0];
 
+    // For sanitizer on macOS, to avoid the warning on startup.
+#if defined(SRS_OSX) && defined(SRS_SANITIZER)
+    if (!getenv("MallocNanoZone")) {
+        fprintf(stderr, "Asan: Please setup the env MallocNanoZone=0 to disable the warning, see https://stackoverflow.com/a/70209891/17679565\n");
+    }
+#endif
+
     // Initialize global and thread-local variables.
     if ((err = srs_global_initialize()) != srs_success) {
         return srs_error_wrap(err, "global init");
