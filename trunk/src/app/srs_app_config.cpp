@@ -1837,8 +1837,8 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         }
     }
     
-    // Show help if has any argv
-    show_help = argc > 1;
+    // Show help if it has no argv
+    show_help = argc == 1;
     for (int i = 1; i < argc; i++) {
         if ((err = parse_argv(i, argv)) != srs_success) {
             return srs_error_wrap(err, "parse argv");
@@ -1858,54 +1858,22 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         fprintf(stdout, "%s\n", RTMP_SIG_SRS_SERVER);
         exit(0);
     }
-    
-    // first hello message.
+
+    // The first hello message.
     srs_trace(_srs_version);
 
     // Config the env_only_ by env.
     if (getenv("SRS_ENV_ONLY")) env_only_ = true;
 
-    // Try config files as bellow:
-    //      User specified config(not empty), like user/docker.conf
-    //      If user specified *docker.conf, try *srs.conf, like user/srs.conf
-    //      Try the default srs config, defined as SRS_CONF_DEFAULT_COFNIG_FILE, like conf/srs.conf
-    //      Try config for FHS, like /etc/srs/srs.conf @see https://github.com/ossrs/srs/pull/2711
-    if (!env_only_) {
-        vector<string> try_config_files;
-        if (!config_file.empty()) {
-            try_config_files.push_back(config_file);
-        }
-        if (srs_string_ends_with(config_file, "docker.conf")) {
-            try_config_files.push_back(srs_string_replace(config_file, "docker.conf", "srs.conf"));
-        }
-        try_config_files.push_back(SRS_CONF_DEFAULT_COFNIG_FILE);
-        try_config_files.push_back("/etc/srs/srs.conf");
-
-        // Match the first exists file.
-        string exists_config_file;
-        for (int i = 0; i < (int) try_config_files.size(); i++) {
-            string try_config_file = try_config_files.at(i);
-            if (srs_path_exists(try_config_file)) {
-                exists_config_file = try_config_file;
-                break;
-            }
-        }
-
-        if (exists_config_file.empty()) {
-            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config file at %s", srs_join_vector_string(try_config_files, ", ").c_str());
-        }
-
-        if (config_file != exists_config_file) {
-            srs_warn("user config %s does not exists, use %s instead", config_file.c_str(), exists_config_file.c_str());
-            config_file = exists_config_file;
-        }
+    // Overwrite the config by env SRS_CONFIG_FILE.
+    if (!env_only_ && !srs_getenv("srs.config.file").empty()) { // SRS_CONFIG_FILE
+        string ov = config_file; config_file = srs_getenv("srs.config.file");
+        srs_trace("ENV: Overwrite config %s to %s", ov.c_str(), config_file.c_str());
     }
 
-    // Overwrite the config by env SRS_CONFIG_FILE.
-    if (!srs_getenv("srs.config.file").empty()) {
-        string ov = config_file;
-        config_file = srs_getenv("srs.config.file");
-        srs_trace("ENV: Overwrite config %s to %s", ov.c_str(), config_file.c_str());
+    // Make sure config file exists.
+    if (!env_only_ && !srs_path_exists(config_file)) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config file at %s", config_file.c_str());
     }
 
     // Parse the matched config file.
