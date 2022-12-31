@@ -7,9 +7,19 @@ WebRTC benchmark on [pion/webrtc](https://github.com/pion/webrtc) for [SRS](http
 编译和使用：
 
 ```bash
-git clone https://github.com/ossrs/srs-bench.git && git checkout feature/rtc && 
-make && ./objs/srs_bench -h
+git clone -b feature/rtc https://github.com/ossrs/srs-bench.git && 
+cd srs-bench && make && ./objs/srs_bench -h
 ```
+
+编译和启动SRS:
+
+```bash
+git clone https://github.com/ossrs/srs.git &&
+cd srs/trunk && ./configure && make &&
+./objs/srs -c conf/console.conf
+```
+
+请按下面的操作启动测试。
 
 ## Player for Live
 
@@ -102,11 +112,7 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 回归测试需要先启动[SRS](https://github.com/ossrs/srs/issues/307)，支持WebRTC推拉流：
 
 ```bash
-if [[ ! -z $(ifconfig en0 inet| grep 'inet '|awk '{print $2}') ]]; then 
-  docker run -p 1935:1935 -p 8080:8080 -p 1985:1985 -p 8000:8000/udp \
-      --rm --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}')\
-      registry.cn-hangzhou.aliyuncs.com/ossrs/srs:4 objs/srs -c conf/rtc.conf
-fi
+./objs/srs -c conf/rtc.conf
 ```
 
 然后运行回归测试用例，如果只跑一次，可以直接运行：
@@ -233,6 +239,12 @@ make && ./objs/srs_bench -sfu gb28181 --help
 
 ```bash
 go test ./gb28181 -mod=vendor -v -count=1
+```
+
+也可以用make编译出重复使用的二进制：
+
+```bash
+make && ./objs/srs_gb28181_test -test.v
 ```
 
 支持的参数如下：
