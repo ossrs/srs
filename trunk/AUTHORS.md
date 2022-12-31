@@ -16,10 +16,10 @@ The TOC(Technical Oversight Committee):
 
 Active developers:
 
-- `Johzzy<hellojinqiang@gmail.com>`
-- `Zhouxiaojun2008<279686030@qq.com>`
-- `Pengfei.ma<pengfei.ma.chn@outlook.com>`
-- `ZhangJunqin<zhangjunqin@jd.com>`
+* `Johzzy<hellojinqiang@gmail.com>`
+* `Zhouxiaojun2008<279686030@qq.com>`
+* `Pengfei.ma<pengfei.ma.chn@outlook.com>`
+* `ZhangJunqin<zhangjunqin@jd.com>`
 
 ## CONTRIBUTORS
 
@@ -40,6 +40,8 @@ CONTRIBUTORS ordered by first contribution.
 * `Johnny<fengjihu@163.com>`
 * `karthikeyan<keyanmca@gmail.com>`
 * `StevenLiu<lq@chinaffmpeg.org>`
+* `StevenLiu<lingjiujianke@gmail.com>`
+* `StevenLiu<liuqi05@kuaishou.com>`
 * `zhengfl<zhengfl_1989@126.com>`
 * `tufang14<breadbean1449@gmail.com>`
 * `allspace<allspace@gmail.com>`
@@ -72,7 +74,6 @@ CONTRIBUTORS ordered by first contribution.
 * `hankun<hankun@bravovcloud.com>`
 * `JonathanBarratt<jonathan.barratt@gmail.com>`
 * `KeeganH<keeganwharris@gmail.com>`
-* `StevenLiu<lingjiujianke@gmail.com>`
 * `liuxc0116<liuxc0116@gmail.com>`
 * `ChengdongZhang<lmajzcd@sina.com>`
 * `lovacat<lovecat@china.sina.com>`
@@ -144,4 +145,10 @@ CONTRIBUTORS ordered by first contribution.
 * `xmedia-systems<xmedia.systems@gmail.com>`
 * `MatinZadehDolatabad<zadehdolatabad@gmail.com>`
 * `zozobreakzou<zozobreak@163.com>`
+* `mingo-wu<57790355+mingo-wu1@users.noreply.github.com>`
+* `CommanderRoot<CommanderRoot@users.noreply.github.com>`
+* `dev-clavis<declavis.company@gmail.com>`
+* `everything411<everything411@163.com>`
+* `faicker<faicker.mo@gmail.com>`
+* `Matthew<matthewgao@gmail.com>`
 
