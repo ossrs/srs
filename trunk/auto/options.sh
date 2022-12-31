@@ -118,7 +118,37 @@ SRS_DEBUG=NO
 SRS_DEBUG_STATS=NO
 
 #####################################################################################
-# menu
+function apply_system_options() {
+    OS_IS_OSX=$(uname -s |grep -q Darwin && echo YES)
+    OS_IS_LINUX=$(uname -s |grep -q Linux && echo YES)
+    OS_IS_CYGWIN=$(uname -s |grep -q CYGWIN && echo YES)
+
+    OS_IS_CENTOS=$(yum --version >/dev/null 2>&1 && echo YES)
+    # For Debian, we think it's ubuntu also.
+    # For example, the wheezy/sid which is debian armv7 linux, can not identified by uname -v.
+    OS_IS_UBUNTU=$(apt-get --version >/dev/null 2>&1 && echo YES)
+    OS_IS_LOONGSON=$(uname -r |grep -q loongson && echo YES)
+
+    # Use gcc to detect the CPU arch.
+    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then echo "Please install gcc"; exit 1; fi
+    OS_IS_LOONGARCH64=$(gcc -dM -E - </dev/null |grep '#define __loongarch64 1' -q && echo YES)
+    OS_IS_MIPS64=$(gcc -dM -E - </dev/null |grep '#define __mips64 1' -q && echo YES)
+    OS_IS_X86_64=$(gcc -dM -E - </dev/null |grep -q '#define __x86_64 1' && echo YES)
+    OS_IS_RISCV=$(gcc -dM -E - </dev/null |grep -q '#define __riscv 1' && echo YES)
+
+    # Set the os option automatically.
+    if [[ $OS_IS_OSX == YES ]]; then SRS_OSX=YES; fi
+    if [[ $OS_IS_CYGWIN == YES ]]; then SRS_CYGWIN64=YES; fi
+
+    if [[ $OS_IS_OSX == YES ]]; then SRS_JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1); fi
+    if [[ $OS_IS_LINUX == YES || $OS_IS_CYGWIN == YES ]]; then
+        SRS_JOBS=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || echo 1)
+    fi
+}
+apply_system_options
+
+#####################################################################################
+# Show help menu.
 #####################################################################################
 function show_help() {
     cat << END
@@ -208,6 +238,9 @@ For example:
 END
 }
 
+#####################################################################################
+# Parse user options
+#####################################################################################
 function parse_user_option() {
     # Ignore the options.
     if [[ $option == '--demo' || $option == '--dev' || $option == '--fast-dev' || $option == '--pi'
@@ -424,39 +457,6 @@ function switch2value() {
     fi
 }
 
-#####################################################################################
-function apply_system_options() {
-    OS_IS_OSX=$(uname -s |grep -q Darwin && echo YES)
-    OS_IS_LINUX=$(uname -s |grep -q Linux && echo YES)
-    OS_IS_CYGWIN=$(uname -s |grep -q CYGWIN && echo YES)
-
-    OS_IS_CENTOS=$(yum --version >/dev/null 2>&1 && echo YES)
-    # For Debian, we think it's ubuntu also.
-    # For example, the wheezy/sid which is debian armv7 linux, can not identified by uname -v.
-    OS_IS_UBUNTU=$(apt-get --version >/dev/null 2>&1 && echo YES)
-    OS_IS_LOONGSON=$(uname -r |grep -q loongson && echo YES)
-
-    # Use gcc to detect the CPU arch.
-    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then echo "Please install gcc"; exit 1; fi
-    OS_IS_LOONGARCH64=$(gcc -dM -E - </dev/null |grep '#define __loongarch64 1' -q && echo YES)
-    OS_IS_MIPS64=$(gcc -dM -E - </dev/null |grep '#define __mips64 1' -q && echo YES)
-    OS_IS_X86_64=$(gcc -dM -E - </dev/null |grep -q '#define __x86_64 1' && echo YES)
-    OS_IS_RISCV=$(gcc -dM -E - </dev/null |grep -q '#define __riscv 1' && echo YES)
-
-    # Set the os option automatically.
-    if [[ $OS_IS_OSX == YES ]]; then SRS_OSX=YES; fi
-    if [[ $OS_IS_CYGWIN == YES ]]; then SRS_CYGWIN64=YES; fi
-
-    if [[ $OS_IS_OSX == YES ]]; then SRS_JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1); fi
-    if [[ $OS_IS_LINUX == YES || $OS_IS_CYGWIN == YES ]]; then
-        SRS_JOBS=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || echo 1)
-    fi
-}
-apply_system_options
-
-#####################################################################################
-# parse preset options
-#####################################################################################
 opt=
 
 for option
@@ -466,6 +466,9 @@ do
     parse_user_option
 done
 
+#####################################################################################
+# Apply auto options
+#####################################################################################
 function apply_auto_options() {
     if [[ $OS_IS_CYGWIN == YES ]]; then
         SRS_CYGWIN64=YES
@@ -548,17 +551,16 @@ function apply_auto_options() {
         export SRS_JOBS="--jobs=${SRS_JOBS}"
     fi
 }
+apply_auto_options
 
 if [[ $help == YES ]]; then
-    apply_auto_options
     show_help
     exit 0
 fi
 
 #####################################################################################
-# apply options
+# Apply detail options
 #####################################################################################
-
 function apply_detail_options() {
     # Always enable HTTP utilies.
     if [[ $SRS_HTTP_CORE == NO ]]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable HTTP utilies.${BLACK}"; fi
@@ -573,9 +575,11 @@ function apply_detail_options() {
     if [[ $SRS_HLS == NO ]]; then SRS_HLS=YES; echo -e "${YELLOW}[WARN] Always enable HLS.${BLACK}"; fi
     if [[ $SRS_DVR == NO ]]; then SRS_DVR=YES; echo -e "${YELLOW}[WARN] Always enable DVR.${BLACK}"; fi
 }
-apply_auto_options
 apply_detail_options
 
+#####################################################################################
+# Regenerate options for tracing.
+#####################################################################################
 function regenerate_options() {
     # save all config options to macro to write to auto headers file
     SRS_AUTO_USER_CONFIGURE=`echo $opt`
@@ -653,7 +657,7 @@ function regenerate_options() {
 regenerate_options
 
 #####################################################################################
-# check user options
+# Check conflicted options
 #####################################################################################
 function check_option_conflicts() {
     if [[ $SRS_TOOL_CC == '' ||  $SRS_TOOL_CXX == '' ||  $SRS_TOOL_AR == '' ||  $SRS_TOOL_LD == '' ||  $SRS_TOOL_RANDLIB == '' ]]; then
