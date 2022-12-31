@@ -123,40 +123,26 @@ SRS_DEBUG_STATS=NO
 function show_help() {
     cat << END
 
-Presets:
-  --cross-build             Enable cross-build, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
-  --osx                     Enable build for OSX/Darwin AppleOS. Default: $(value2switch $SRS_OSX)
-  --cygwin64                Use cygwin64 to build for Windows. Default: $(value2switch $SRS_CYGWIN64)
-
-Features:
+Configure to generate Makefile.
   -h, --help                Print this message and exit 0.
 
+Features:
   --https=on|off            Whether enable HTTPS client and server. Default: $(value2switch $SRS_HTTPS)
-  --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files. Default: $(value2switch $SRS_HDS)
-  --cherrypy=on|off         Whether install CherryPy for demo api-server. Default: $(value2switch $SRS_CHERRYPY)
   --utest=on|off            Whether build the utest. Default: $(value2switch $SRS_UTEST)
   --srt=on|off              Whether build the SRT. Default: $(value2switch $SRS_SRT)
   --rtc=on|off              Whether build the WebRTC. Default: $(value2switch $SRS_RTC)
   --gb28181=on|off          Whether build the GB28181. Default: $(value2switch $SRS_GB28181)
   --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
   --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
-  --backtrace=on|off        Whether show backtrace when crashing. Default: $(value2switch $SRS_BACKTRACE)
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
+  --apm=on|off              Whether enable cloud logging and APM(Application Performance Monitor). Default: $(value2switch $SRS_APM)
   --h265=on|off             Whether build the HEVC(H.265) support. Default: $(value2switch $SRS_H265)
 
   --prefix=<path>           The absolute installation path. Default: $SRS_PREFIX
-  --config=<path>           The default config file for SRS. Default: $SRS_DEFAULT_CONFIG
-  --gcov=on|off             Whether enable the GCOV compiler options. Default: $(value2switch $SRS_GCOV)
-  --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
-  --debug-stats=on|off      Whether enable the debug stats, may hurt performance. Default: $(value2switch $SRS_DEBUG_STATS)
-  --apm=on|off              Whether enable cloud logging and APM(Application Performance Monitor). Default: $(value2switch $SRS_APM)
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
-  --log-verbose=on|off      Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
-  --log-info=on|off         Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
-  --log-trace=on|off        Whether enable the log trace level. Default: $(value2switch $SRS_LOG_TRACE)
-  --log-level_v2=on|off     Whether use v2.0 log level definition, see log4j specs. Default: $(value2switch $SRS_LOG_LEVEL_V2)
+  --config=<path>           The default config file for SRS. Default: $SRS_DEFAULT_CONFIG
 
-Performance:                @see https://blog.csdn.net/win_lin/article/details/53503869
+Performance:                @see https://ossrs.net/lts/zh-cn/docs/v5/doc/performance
   --valgrind=on|off         Whether build valgrind for memory check. Default: $(value2switch $SRS_VALGRIND)
   --gperf=on|off            Whether build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only). Default: $(value2switch $SRS_GPERF)
   --gmc=on|off              Whether build memory check with gperf tools. Default: $(value2switch $SRS_GPERF_MC)
@@ -167,7 +153,6 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --sanitizer=on|off        Whether build SRS with address sanitizer(asan). Default: $(value2switch $SRS_SANITIZER)
   --sanitizer-static=on|off Whether build SRS with static libasan(asan). Default: $(value2switch $SRS_SANITIZER_STATIC)
   --sanitizer-log=on|off    Whether hijack the log for libasan(asan). Default: $(value2switch $SRS_SANITIZER_LOG)
-
   --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
   --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
 
@@ -181,6 +166,7 @@ Toolchain options:
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
 
 Cross Build options:        @see https://ossrs.net/lts/zh-cn/docs/v4/doc/arm#ubuntu-cross-build-srs
+  --cross-build             Enable cross-build, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
   --cpu=<CPU>               Toolchain: Select the minimum required CPU for cross-build. For example: --cpu=24kc
   --arch=<ARCH>             Toolchain: Select architecture for cross-build. For example: --arch=aarch64
   --host=<BUILD>            Toolchain: Cross-compile to build programs to run on HOST. For example: --host=aarch64-linux-gnu
@@ -198,15 +184,27 @@ Experts:
   --generate-objs=on|off    RTC: Whether generate objs and quit. Default: $(value2switch $SRS_GENERATE_OBJS)
   --single-thread=on|off    Whether force single thread mode. Default: $(value2switch $SRS_SINGLE_THREAD)
   --build-tag=<TAG>         Set the build object directory suffix.
+  --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
+  --debug-stats=on|off      Whether enable the debug stats, may hurt performance. Default: $(value2switch $SRS_DEBUG_STATS)
+  --gcov=on|off             Whether enable the GCOV for coverage. Default: $(value2switch $SRS_GCOV)
+  --log-verbose=on|off      Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
+  --log-info=on|off         Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
+  --log-trace=on|off        Whether enable the log trace level. Default: $(value2switch $SRS_LOG_TRACE)
+  --log-level_v2=on|off     Whether use v2.0 log level definition, see log4j specs. Default: $(value2switch $SRS_LOG_LEVEL_V2)
+  --backtrace=on|off        Whether show backtrace when crashing. Default: $(value2switch $SRS_BACKTRACE)
 
-Workflow:
-  1. Apply "Presets". if not specified, use default preset.
-  2. Apply "Features", "Performance" and others. user specified option will override the preset.
-  3. Check configs and generate Makefile.
+Deprecated:
+  --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files. Default: $(value2switch $SRS_HDS)
+  --cherrypy=on|off         Whether install CherryPy for demo api-server. Default: $(value2switch $SRS_CHERRYPY)
+  --osx                     Enable build for OSX/Darwin AppleOS. Deprecated for automatically detecting the OS.
+  --x86-64                  Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
+  --x86-x64                 Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
+  --cygwin64                Use cygwin64 to build for Windows. Deprecated for automatically detecting the OS.
+  --nginx                   Build nginx tool. Deprecated for not depends on it.
+  --ffmpeg                  Build FFmpeg tool. Deprecated for not build it, user should do it.
 
-Remark:
-  1. For performance, read https://blog.csdn.net/win_lin/article/details/53503869
-
+For example:
+    ./configure
 END
 }
 
@@ -263,9 +261,6 @@ function parse_user_option() {
         --randlib)                      SRS_TOOL_RANDLIB=${value}   ;;
         --extra-flags)                  SRS_EXTRA_FLAGS=${value}    ;;
         --build-tag)                    SRS_BUILD_TAG=${value}      ;;
-
-        --osx)                          SRS_OSX=YES                 ;;
-        --cygwin64)                     SRS_CYGWIN64=YES            ;;
 
         --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
         --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;;
@@ -380,6 +375,8 @@ function parse_user_option() {
         --enable-cross-compile)         SRS_CROSS_BUILD=YES         ;;
 
         # Deprecated, might be removed in future.
+        --osx)                          SRS_OSX=YES                 ;;
+        --cygwin64)                     SRS_CYGWIN64=YES            ;;
         --x86-x64)                      SRS_X86_X64=YES             ;;
         --x86-64)                       SRS_X86_X64=YES             ;;
         --with-nginx)                   SRS_NGINX=YES               ;;
@@ -445,6 +442,10 @@ function apply_system_options() {
     OS_IS_MIPS64=$(gcc -dM -E - </dev/null |grep '#define __mips64 1' -q && echo YES)
     OS_IS_X86_64=$(gcc -dM -E - </dev/null |grep -q '#define __x86_64 1' && echo YES)
     OS_IS_RISCV=$(gcc -dM -E - </dev/null |grep -q '#define __riscv 1' && echo YES)
+
+    # Set the os option automatically.
+    if [[ $OS_IS_OSX == YES ]]; then SRS_OSX=YES; fi
+    if [[ $OS_IS_CYGWIN == YES ]]; then SRS_CYGWIN64=YES; fi
 
     if [[ $OS_IS_OSX == YES ]]; then SRS_JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1); fi
     if [[ $OS_IS_LINUX == YES || $OS_IS_CYGWIN == YES ]]; then
@@ -581,6 +582,7 @@ function regenerate_options() {
     # regenerate the options for default values.
     SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --config=$SRS_DEFAULT_CONFIG"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --osx=$(value2switch $SRS_OSX)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hls=$(value2switch $SRS_HLS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=$(value2switch $SRS_HDS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=$(value2switch $SRS_DVR)"
