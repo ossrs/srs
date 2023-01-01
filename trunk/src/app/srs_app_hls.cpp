@@ -203,6 +203,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     context = new SrsTsContext();
     segments = new SrsFragmentWindow();
     latest_acodec_ = SrsAudioCodecIdForbidden;
+    latest_vcodec_ = SrsVideoCodecIdForbidden;
     
     memset(key, 0, 16);
     memset(iv, 0, 16);
@@ -280,6 +281,24 @@ void SrsHlsMuxer::set_latest_acodec(SrsAudioCodecId v)
 
     // Refresh the codec for future segments.
     latest_acodec_ = v;
+}
+
+SrsVideoCodecId SrsHlsMuxer::latest_vcodec()
+{
+    // If current context writer exists, we query from it.
+    if (current && current->tscw) return current->tscw->vcodec();
+
+    // Get the configured or updated config.
+    return latest_vcodec_;
+}
+
+void SrsHlsMuxer::set_latest_vcodec(SrsVideoCodecId v)
+{
+    // Refresh the codec in context writer for current segment.
+    if (current && current->tscw) current->tscw->set_vcodec(v);
+
+    // Refresh the codec for future segments.
+    latest_vcodec_ = v;
 }
 
 srs_error_t SrsHlsMuxer::initialize()
@@ -399,13 +418,17 @@ srs_error_t SrsHlsMuxer::segment_open()
         std::string default_vcodec_str = _srs_config->get_hls_vcodec(req->vhost);
         if (default_vcodec_str == "h264") {
             default_vcodec = SrsVideoCodecIdAVC;
+        } else if (default_vcodec_str == "h265") {
+            default_vcodec = SrsVideoCodecIdHEVC;
         } else if (default_vcodec_str == "vn") {
             default_vcodec = SrsVideoCodecIdDisabled;
         } else {
             srs_warn("hls: use h264 for other codec=%s", default_vcodec_str.c_str());
         }
     }
-    
+    // Now that we know the latest video codec in stream, use it.
+    if (latest_vcodec_ != SrsVideoCodecIdForbidden) default_vcodec = latest_vcodec_;
+
     // new segment.
     current = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
     current->sequence_no = _sequence_no++;
@@ -546,7 +569,7 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
 
 bool SrsHlsMuxer::pure_audio()
 {
-    return current && current->tscw && current->tscw->video_codec() == SrsVideoCodecIdDisabled;
+    return current && current->tscw && current->tscw->vcodec() == SrsVideoCodecIdDisabled;
 }
 
 srs_error_t SrsHlsMuxer::flush_audio(SrsTsMessageCache* cache)
@@ -576,7 +599,7 @@ srs_error_t SrsHlsMuxer::flush_audio(SrsTsMessageCache* cache)
     return err;
 }
 
-srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache, SrsVideoFrame* frame)
+srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
 {
     srs_error_t err = srs_success;
     
@@ -595,12 +618,6 @@ srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache, SrsVideoFrame* fr
     // update the duration of segment.
     current->append(cache->video->dts / 90);
 
-    // The video codec might change during streaming. Note that the frame might be NULL, when reap segment.
-    if (frame && frame->vcodec()) {
-        SrsTsContextWriter* tscw = current->tscw;
-        tscw->update_video_codec(frame->vcodec()->id);
-    }
-    
     if ((err = current->tscw->write_video(cache->video)) != srs_success) {
         return srs_error_wrap(err, "hls: write video");
     }
@@ -1039,7 +1056,14 @@ srs_error_t SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
 srs_error_t SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
 {
     srs_error_t err = srs_success;
-    
+
+    // Refresh the codec ASAP.
+    if (muxer->latest_vcodec() != frame->vcodec()->id) {
+        srs_trace("HLS: Switch video codec %d(%s) to %d(%s)", muxer->latest_acodec(), srs_video_codec_id2str(muxer->latest_vcodec()).c_str(),
+                  frame->vcodec()->id, srs_video_codec_id2str(frame->vcodec()->id).c_str());
+        muxer->set_latest_vcodec(frame->vcodec()->id);
+    }
+
     // write video to cache.
     if ((err = tsmc->cache_video(frame, dts)) != srs_success) {
         return srs_error_wrap(err, "hls: cache video");
@@ -1059,7 +1083,7 @@ srs_error_t SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
     }
     
     // flush video when got one
-    if ((err = muxer->flush_video(tsmc, frame)) != srs_success) {
+    if ((err = muxer->flush_video(tsmc)) != srs_success) {
         return srs_error_wrap(err, "hls: flush video");
     }
     
@@ -1091,7 +1115,7 @@ srs_error_t SrsHlsController::reap_segment()
     }
     
     // segment open, flush video first.
-    if ((err = muxer->flush_video(tsmc, NULL)) != srs_success) {
+    if ((err = muxer->flush_video(tsmc)) != srs_success) {
         return srs_error_wrap(err, "hls: flush video");
     }
     
@@ -1351,9 +1375,9 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     if (format->video->frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
         return err;
     }
-    
+
     srs_assert(format->vcodec);
-    if (format->vcodec->id != SrsVideoCodecIdAVC) {
+    if (format->vcodec->id != SrsVideoCodecIdAVC && format->vcodec->id != SrsVideoCodecIdHEVC) {
         return err;
     }
     

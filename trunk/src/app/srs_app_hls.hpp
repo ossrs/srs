@@ -159,6 +159,8 @@ private:
 private:
     // Latest audio codec, parsed from stream.
     SrsAudioCodecId latest_acodec_;
+    // Latest audio codec, parsed from stream.
+    SrsVideoCodecId latest_vcodec_;
 public:
     SrsHlsMuxer();
     virtual ~SrsHlsMuxer();
@@ -172,6 +174,8 @@ public:
 public:
     SrsAudioCodecId latest_acodec();
     void set_latest_acodec(SrsAudioCodecId v);
+    SrsVideoCodecId latest_vcodec();
+    void set_latest_vcodec(SrsVideoCodecId v);
 public:
     // Initialize the hls muxer.
     virtual srs_error_t initialize();
@@ -199,7 +203,7 @@ public:
     // Whether current hls muxer is pure audio mode.
     virtual bool pure_audio();
     virtual srs_error_t flush_audio(SrsTsMessageCache* cache);
-    virtual srs_error_t flush_video(SrsTsMessageCache* cache, SrsVideoFrame* frame);
+    virtual srs_error_t flush_video(SrsTsMessageCache* cache);
     // Close segment(ts).
     virtual srs_error_t segment_close();
 private:

@@ -1259,7 +1259,7 @@ class SrsTsContextWriter
 private:
     // User must config the codec in right way.
     // @see https://github.com/ossrs/srs/issues/301
-    SrsVideoCodecId vcodec;
+    SrsVideoCodecId vcodec_;
     SrsAudioCodecId acodec_;
 private:
     SrsTsContext* context;
@@ -1275,8 +1275,8 @@ public:
     virtual srs_error_t write_video(SrsTsMessage* video);
 public:
     // Get or update the video codec of ts muxer.
-    virtual SrsVideoCodecId video_codec();
-    virtual void update_video_codec(SrsVideoCodecId v);
+    virtual SrsVideoCodecId vcodec();
+    virtual void set_vcodec(SrsVideoCodecId v);
 public:
     // Get and set the audio codec.
     SrsAudioCodecId acodec();
