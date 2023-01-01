@@ -1,17 +1,29 @@
 # srs-bench
 
-WebRTC benchmark on [pion/webrtc](https://github.com/pion/webrtc) for [SRS](https://github.com/ossrs/srs).
+SB(SRS Bench) is a set of benchmark and regression test tools, for SRS and other media servers, supports HTTP-FLV, RTMP,
+HLS, WebRTC and GB28181.
+
+For RTMP/HLS/FLV benchmark, please use branch [master](https://github.com/ossrs/srs-bench/tree/master).
 
 ## Usage
 
-编译和使用：
+下载代码和编译：
 
 ```bash
 git clone -b feature/rtc https://github.com/ossrs/srs-bench.git && 
-cd srs-bench && make && ./objs/srs_bench -h
+cd srs-bench && make
 ```
 
-编译和启动SRS:
+编译会生成下面的工具：
+
+* `./objs/srs_bench` 压测，模拟大量客户端的负载测试，支持SRS、GB28181和Janus三种场景。 
+* `./objs/srs_test` 回归测试(SRS)，SRS服务器的回归测试。
+* `./objs/srs_gb28181_test` 回归测试(GB28181)，GB服务器的回归测试。
+* `./objs/srs_blackbox_test` 黑盒测试(SRS)，SRS服务器的黑盒测试，也可以换成其他媒体服务器。
+
+> Note: 查看工具的全部参数请执行`./objs/xx -h`
+
+有些场景，若需要编译和启动SRS:
 
 ```bash
 git clone https://github.com/ossrs/srs.git &&
@@ -19,7 +31,7 @@ cd srs/trunk && ./configure && make &&
 ./objs/srs -c conf/console.conf
 ```
 
-请按下面的操作启动测试。
+具体场景，请按下面的操作启动测试。
 
 ## Player for Live
 
@@ -71,7 +83,8 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 
 > 备注：URL的变量格式参考Go的`fmt.Sprintf`，比如可以用`webrtc://localhost/live/livestream_%03d`。
 
-## DVR
+<a name="dvr"></a>
+## DVR for Benchmark
 
 录制场景，主要是把内容录制下来后，可分析，也可以用于推流。
 
@@ -173,6 +186,86 @@ make && ./objs/srs_test -test.v -srs-log -test.run TestRtcBasic_PublishPlay
 * `-srs-play-pli`，播放时，PLI的间隔，毫秒。默认值：`5000`，即5秒。
 * `-srs-dtls-drop-packets`，DTLS丢包测试，丢了多少个包算成功，默认值：`5`
 
+> Note: 查看全部参数请执行`./objs/srs_test -h`
+
+<a name="gb28181"></a>
+## GB28181 Test
+
+支持GB28181的压测，使用选项`-sfu gb28181`可以查看帮助：
+
+```bash
+make && ./objs/srs_bench -sfu gb28181 --help
+```
+
+运行回归测试用例，更多命令请参考[Regression Test](#regression-test)：
+
+```bash
+go test ./gb28181 -mod=vendor -v -count=1
+```
+
+也可以用make编译出重复使用的二进制：
+
+```bash
+make && ./objs/srs_gb28181_test -test.v
+```
+
+支持的参数如下：
+
+* `-srs-sip`，SIP服务器地址。默认值：`tcp://127.0.0.1:5060`
+* `-srs-stream`，GB的user，即流名称，一般会加上随机的后缀。默认值：`3402000000`
+* `-srs-timeout`，每个Case的超时时间，毫秒。默认值：`11000`，即11秒。
+* `-srs-publish-audio`，推流时，使用的音频文件。默认值：`avatar.aac`
+* `-srs-publish-video`，推流时，使用的视频文件。默认值：`avatar.h264`
+* `-srs-publish-video-fps`，推流时，视频文件的FPS。默认值：`25`
+
+其他不常用参数：
+
+* `-srs-log`，是否开启详细日志。默认值：`false`
+
+> Note: 查看全部参数请执行`./objs/srs_gb28181_test -h`
+
+## Blackbox Test
+
+使用FFmpeg作为客户端，对流媒体服务器SRS进行黑盒压测，完全黑盒的回归测试。
+
+运行回归测试用例，如果只跑一次，可以直接运行：
+
+```bash
+go test ./blackbox -mod=vendor -v -count=1
+```
+
+也可以用make编译出重复使用的二进制：
+
+```bash
+make && ./objs/srs_blackbox_test -test.v
+```
+
+支持的参数如下：
+
+* `-srs-binary`，每个测试用例都需要启动一个SRS服务，因此需要设置SRS的位置。默认值：`../../objs/srs`
+* `-srs-ffmpeg`，FFmpeg工具的位置，用来推流和录制。默认值：`ffmpeg`
+* `-srs-ffprobe`，ffprobe工具的位置，用来分析流的信息。默认值：`ffprobe`
+* `-srs-timeout`，每个Case的超时时间，毫秒。默认值：`64000`，即64秒。
+* `-srs-publish-avatar`，测试源文件路径。默认值：`avatar.flv`。
+* `-srs-ffprobe-duration`，每个Case的探测时间，毫秒。默认值：`16000`，即16秒。
+* `-srs-ffprobe-timeout`，每个Case的探测超时时间，毫秒。默认值：`21000`，即21秒。
+
+其他不常用参数：
+
+* `-srs-log`，是否开启详细日志。默认值：`false`
+* `-srs-stdout`，是否开启SRS的stdout详细日志。默认值：`false`
+* `-srs-ffmpeg-stderr`，是否开启FFmpeg的stderr详细日志。默认值：`false`
+* `-srs-dvr-stderr`，是否开启DVR的stderr详细日志。默认值：`false`
+* `-srs-ffprobe-stdout`，是否开启FFprobe的stdout详细日志。默认值：`false`
+
+由于每个黑盒的用例时间都很长，可以开启并行：
+
+```bash
+./objs/srs_blackbox_test -test.v -test.parallel 8
+```
+
+> Note: 查看全部参数请执行`./objs/srs_blackbox_test -h`
+
 ## GCOVR
 
 本机生成覆盖率时，我们使用工具[gcovr](https://gcovr.com/en/stable/guide.html)。
@@ -226,38 +319,5 @@ make -j10 && ./objs/srs_bench -sfu janus \
   -sr webrtc://localhost:8080/2345/livestream \
   -nn 5
 ```
-
-## GB28181
-
-支持GB28181的压测，使用选项`-sfu gb28181`可以查看帮助：
-
-```bash
-make && ./objs/srs_bench -sfu gb28181 --help
-```
-
-运行回归测试用例，更多命令请参考[Regression Test](#regression-test)：
-
-```bash
-go test ./gb28181 -mod=vendor -v -count=1
-```
-
-也可以用make编译出重复使用的二进制：
-
-```bash
-make && ./objs/srs_gb28181_test -test.v
-```
-
-支持的参数如下：
-
-* `-srs-sip`，SIP服务器地址。默认值：`tcp://127.0.0.1:5060`
-* `-srs-stream`，GB的user，即流名称，一般会加上随机的后缀。默认值：`3402000000`
-* `-srs-timeout`，每个Case的超时时间，毫秒。默认值：`11000`，即11秒。
-* `-srs-publish-audio`，推流时，使用的音频文件。默认值：`avatar.aac`
-* `-srs-publish-video`，推流时，使用的视频文件。默认值：`avatar.h264`
-* `-srs-publish-video-fps`，推流时，视频文件的FPS。默认值：`25`
-
-其他不常用参数：
-
-* `-srs-log`，是否开启详细日志。默认值：`false`
 
 2021.01, Winlin
