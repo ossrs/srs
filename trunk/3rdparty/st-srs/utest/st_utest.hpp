@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT */
-/* Copyright (c) 2013-2022 Winlin */
+/* Copyright (c) 2013-2023 Winlin */
 
 #ifndef ST_UTEST_PUBLIC_HPP
 #define ST_UTEST_PUBLIC_HPP

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2022 Winlin
+// Copyright (c) 2013-2023 Winlin
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_UTEST_SRT_HPP
