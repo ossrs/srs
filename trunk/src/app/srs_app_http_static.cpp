@@ -88,7 +88,7 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
     *served = true;
 
     // Already exists context, response with rebuilt m3u8 content.
-    if (!ctx.empty()) {
+    if (!ctx.empty() && ctx_is_exist(ctx)) {
         // If HLS stream is disabled, use SrsHttpFileServer to serve HLS, which is normal file server.
         if (!_srs_config->get_hls_ts_ctx_enabled(req->vhost)) {
             *served = false;
