@@ -2653,12 +2653,12 @@ SrsTsContextWriter::~SrsTsContextWriter()
 srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
 {
     srs_error_t err = srs_success;
-    
-    srs_info("hls: write audio pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
-        audio->pts, audio->dts, audio->PES_packet_length);
+
+    srs_info("hls: write audio codec=%d/%d, pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
+        acodec_, vcodec_, audio->pts, audio->dts, audio->PES_packet_length);
     
     if ((err = context->encode(writer, audio, vcodec, acodec_)) != srs_success) {
-        return srs_error_wrap(err, "ts: write audio");
+        return srs_error_wrap(err, "ts: write audio acodec=%d, vcodec=%d", acodec_, vcodec);
     }
     srs_info("hls encode audio ok");
     
@@ -2669,11 +2669,11 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
 {
     srs_error_t err = srs_success;
     
-    srs_info("hls: write video pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
-        video->pts, video->dts, video->PES_packet_length);
+    srs_info("hls: write video codec=%d/%d, pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
+        acodec_, vcodec_, video->pts, video->dts, video->PES_packet_length);
     
     if ((err = context->encode(writer, video, vcodec, acodec_)) != srs_success) {
-        return srs_error_wrap(err, "ts: write video");
+        return srs_error_wrap(err, "ts: write video acodec=%d, vcodec=%d", acodec_, vcodec);
     }
     srs_info("hls encode video ok");
     
@@ -3105,7 +3105,7 @@ srs_error_t SrsTsTransmuxer::initialize(ISrsStreamWriter* fw)
     
     srs_freep(tscw);
     // TODO: FIXME: Support config the codec.
-    tscw = new SrsTsContextWriter(fw, context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
+    tscw = new SrsTsContextWriter(fw, context, SrsAudioCodecIdForbidden, SrsVideoCodecIdAVC);
     
     return err;
 }
