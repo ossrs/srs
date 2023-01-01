@@ -70,6 +70,8 @@ SrsHlsStream::~SrsHlsStream()
 
 srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, string fullpath, SrsRequest* req, bool* served)
 {
+    srs_error_t err = srs_success;
+
     string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
 
     // If HLS stream is disabled, use SrsHttpFileServer to serve HLS, which is normal file server.
@@ -82,9 +84,6 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
     // @remark Be careful that the stream has extension now, might cause identify fail.
     req->stream = srs_path_basename(r->path());
 
-    // Always make the ctx alive now.
-    alive(ctx, req);
-
     // Served by us.
     *served = true;
 
@@ -95,11 +94,16 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
             *served = false;
             return srs_success;
         }
-        return serve_exists_session(w, r, factory, fullpath);
+        err = serve_exists_session(w, r, factory, fullpath);
+    } else {
+        // Create a m3u8 in memory, contains the session id(ctx).
+        err = serve_new_session(w, r, req, ctx);
     }
 
-    // Create a m3u8 in memory, contains the session id(ctx).
-    return serve_new_session(w, r, req);
+    // Always make the ctx alive now.
+    alive(ctx, req);
+
+    return err;
 }
 
 void SrsHlsStream::on_serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -124,14 +128,13 @@ void SrsHlsStream::on_serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     SrsStatistic::instance()->kbps_add_delta(ctx, delta);
 }
 
-srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest* req)
+srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest* req, std::string& ctx)
 {
     srs_error_t err = srs_success;
 
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     srs_assert(hr);
 
-    string ctx;
     if (ctx.empty()) {
         // make sure unique
         do {

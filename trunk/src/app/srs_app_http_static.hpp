@@ -34,7 +34,7 @@ public:
     virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, std::string fullpath, SrsRequest* req, bool* served);
     virtual void on_serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
-    srs_error_t serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest *req);
+    srs_error_t serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest *req, std::string& ctx);
     srs_error_t serve_exists_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, std::string fullpath);
     bool ctx_is_exist(std::string ctx);
     void alive(std::string ctx, SrsRequest* req);

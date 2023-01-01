@@ -144,6 +144,18 @@ string mock_http_response3(int status, string content)
     return ss.str();
 }
 
+string mock_http_response4(int status, string content)
+{
+    string m3u8_header = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1\n";
+
+    stringstream ss;
+    ss << "HTTP/1.1 " << status << " " << srs_generate_http_status_text(status) << "\r\n"
+        << "Content-Length: " << content.length() + m3u8_header.length() << "\r\n\r\n"
+        << m3u8_header
+        << content;
+    return ss.str();
+}
+
 bool is_string_contain(string substr, string str)
 {
     return (string::npos != str.find(substr));
@@ -1286,7 +1298,11 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456", w);
+
+        MockResponseWriter w2;
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w2, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w2);
     }
 
     // Should return "hls_ctx"
@@ -1304,7 +1320,11 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ(200, "livestream-13.ts?hls_ctx=123456", w);
+        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456", w);
+
+        MockResponseWriter w2;
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w2, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "livestream-13.ts?hls_ctx=123456", w2);
     }
 }
 

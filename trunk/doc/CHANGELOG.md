@@ -24,6 +24,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-01-01, For [#3349](https://github.com/ossrs/srs/issues/3349): API: Fix duplicated on_stop callback event bug. v5.0.125
 * v5.0, 2022-12-31, GB28181: Enable regression test for gb28181. v5.0.122
 * v5.0, 2022-12-31, Refine configure to guess OS automatically. v5.0.121
 * v5.0, 2022-12-31, Refine default config file for SRS. v5.0.120
