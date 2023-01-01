@@ -192,7 +192,7 @@ public:
     virtual const SrsContextId& get_id();
 // Interface ISrsExpire.
 public:
-    virtual void expire();
+    virtual void expire(std::string id);
 };
 
 #endif

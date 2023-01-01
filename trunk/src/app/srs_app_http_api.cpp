@@ -847,7 +847,7 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         }
 
         if (client->conn) {
-            client->conn->expire();
+            client->conn->expire(client_id);
             srs_warn("kickoff client id=%s ok", client_id.c_str());
         } else {
             srs_error("kickoff client id=%s error", client_id.c_str());

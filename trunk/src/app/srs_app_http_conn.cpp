@@ -280,7 +280,7 @@ const SrsContextId& SrsHttpConn::get_id()
     return trd->cid();
 }
 
-void SrsHttpConn::expire()
+void SrsHttpConn::expire(std::string id)
 {
     trd->interrupt();
 }
