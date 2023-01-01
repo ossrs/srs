@@ -99,6 +99,7 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
         // Create a m3u8 in memory, contains the session id(ctx).
         err = serve_new_session(w, r, req, ctx);
     }
+
     // Always make the ctx alive now.
     alive(ctx, req);
 

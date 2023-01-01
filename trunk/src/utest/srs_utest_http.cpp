@@ -146,10 +146,12 @@ string mock_http_response3(int status, string content)
 
 string mock_http_response4(int status, string content)
 {
+    string m3u8_header = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1\n";
+
     stringstream ss;
     ss << "HTTP/1.1 " << status << " " << srs_generate_http_status_text(status) << "\r\n"
-        << "Content-Length: " << content.length() + 58 << "\r\n\r\n"
-        << "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1\n" // length is 58
+        << "Content-Length: " << content.length() + m3u8_header.length() << "\r\n\r\n"
+        << m3u8_header
         << content;
     return ss.str();
 }
