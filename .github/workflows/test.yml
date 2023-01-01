@@ -47,7 +47,7 @@ jobs:
         uses: cygwin/cygwin-install-action@master
         with:
           platform: x86_64
-          packages: bash make gcc-g++ cmake automake patch pkg-config tcl
+          packages: bash make gcc-g++ cmake automake patch pkg-config tcl unzip
           install-dir: C:\cygwin64
       ##################################################################################################################
       - name: Checkout repository

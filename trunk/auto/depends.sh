@@ -12,285 +12,6 @@
 #####################################################################################
 
 #####################################################################################
-# utilities
-#####################################################################################
-function require_sudoer() {
-    sudo echo "" >/dev/null 2>&1
-    
-    ret=$?; if [[ 0 -ne $ret ]]; then 
-        echo "\"$1\" require sudoer failed. ret=$ret";
-        exit $ret; 
-    fi
-}
-
-#####################################################################################
-# for Ubuntu, auto install tools by apt-get
-#####################################################################################
-function Ubuntu_prepare() {
-    if [[ $OS_IS_UBUNTU != YES ]]; then return 0; fi
-    echo "Installing tools for Ubuntu."
-    
-    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing gcc."
-        require_sudoer "sudo apt-get install -y --force-yes gcc"
-        sudo apt-get install -y --force-yes gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The gcc is installed."
-    fi
-    
-    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing g++."
-        require_sudoer "sudo apt-get install -y --force-yes g++"
-        sudo apt-get install -y --force-yes g++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The g++ is installed."
-    fi
-    
-    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing make."
-        require_sudoer "sudo apt-get install -y --force-yes make"
-        sudo apt-get install -y --force-yes make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The make is installed."
-    fi
-    
-    patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing patch."
-        require_sudoer "sudo apt-get install -y --force-yes patch"
-        sudo apt-get install -y --force-yes patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The patch is installed."
-    fi
-    
-    unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing unzip."
-        require_sudoer "sudo apt-get install -y --force-yes unzip"
-        sudo apt-get install -y --force-yes unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The unzip is installed."
-    fi
-
-    if [[ $SRS_VALGRIND == YES ]]; then
-        valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing valgrind."
-            require_sudoer "sudo apt-get install -y --force-yes valgrind"
-            sudo apt-get install -y --force-yes valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The valgrind is installed."
-        fi
-    fi
-
-    if [[ $SRS_VALGRIND == YES ]]; then
-        if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
-            echo "Installing valgrind-dev."
-            require_sudoer "sudo apt-get install -y --force-yes valgrind-dbg"
-            sudo apt-get install -y --force-yes valgrind-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The valgrind-dev is installed."
-        fi
-    fi
-
-    if [[ $SRS_SRT == YES ]]; then
-        echo "SRT enable, install depend tools"
-        tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing tcl."
-            require_sudoer "sudo apt-get install -y --force-yes tcl"
-            sudo apt-get install -y --force-yes tcl; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The tcl is installed."
-        fi
-
-        cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing cmake."
-            require_sudoer "sudo apt-get install -y --force-yes cmake"
-            sudo apt-get install -y --force-yes cmake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The cmake is installed."
-        fi
-    fi
-
-    pkg-config --version >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing pkg-config."
-        require_sudoer "sudo apt-get install -y --force-yes pkg-config"
-        sudo apt-get install -y --force-yes pkg-config; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The pkg-config is installed."
-    fi
-
-    echo "Tools for Ubuntu are installed."
-    return 0
-}
-# donot prepare tools, for srs-librtmp depends only gcc and g++.
-Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for ubuntu failed, ret=$ret"; exit $ret; fi
-
-#####################################################################################
-# for Centos, auto install tools by yum
-#####################################################################################
-function Centos_prepare() {
-    if [[ $OS_IS_CENTOS != YES ]]; then return 0; fi
-    echo "Installing tools for Centos."
-    
-    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing gcc."
-        require_sudoer "sudo yum install -y gcc"
-        sudo yum install -y gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The gcc is installed."
-    fi
-    
-    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing gcc-c++."
-        require_sudoer "sudo yum install -y gcc-c++"
-        sudo yum install -y gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The gcc-c++ is installed."
-    fi
-    
-    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing make."
-        require_sudoer "sudo yum install -y make"
-        sudo yum install -y make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The make is installed."
-    fi
-    
-    patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing patch."
-        require_sudoer "sudo yum install -y patch"
-        sudo yum install -y patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The patch is installed."
-    fi
-    
-    unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing unzip."
-        require_sudoer "sudo yum install -y unzip"
-        sudo yum install -y unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The unzip is installed."
-    fi
-
-    if [[ $SRS_VALGRIND == YES ]]; then
-        valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing valgrind."
-            require_sudoer "sudo yum install -y valgrind"
-            sudo yum install -y valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The valgrind is installed."
-        fi
-    fi
-
-    if [[ $SRS_VALGRIND == YES ]]; then
-        if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
-            echo "Installing valgrind-devel."
-            require_sudoer "sudo yum install -y valgrind-devel"
-            sudo yum install -y valgrind-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The valgrind-devel is installed."
-        fi
-    fi
-
-    if [[ $SRS_SRT == YES ]]; then
-        echo "SRT enable, install depend tools"
-        tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing tcl."
-            require_sudoer "sudo yum install -y tcl"
-            sudo yum install -y tcl; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The tcl is installed."
-        fi
-
-        cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing cmake."
-            require_sudoer "sudo  yum install -y cmake"
-            sudo yum install -y cmake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The cmake is installed."
-        fi
-    fi
-
-    pkg-config --version --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Please install pkg-config"; exit -1;
-    fi
-    
-    echo "Tools for Centos are installed."
-    return 0
-}
-# donot prepare tools, for srs-librtmp depends only gcc and g++.
-Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for CentOS failed, ret=$ret"; exit $ret; fi
-
-#####################################################################################
-# For OSX, auto install tools by brew
-#####################################################################################
-function OSX_prepare() {
-    if [[ $OS_IS_OSX != YES ]]; then
-        if [[ $SRS_OSX == YES ]]; then echo "OSX check failed, actual is `uname -s`"; exit 1; fi
-        return 0
-    fi
-
-    # cross build for arm, install the cross build tool chain.
-    if [[ $SRS_CROSS_BUILD == YES ]]; then
-        echo "The embeded(arm/mips) is invalid for OSX"
-        return 1
-    fi
-
-    # Requires the osx when darwin detected
-    if [[ $OS_IS_OSX == YES && $SRS_OSX != YES ]]; then
-        echo "OSX detected, please use: ./configure --osx"
-        exit 1
-    fi
-
-    echo "OSX detected, install tools if needed"
-
-    brew --version >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Please install brew at https://brew.sh/"
-        exit $ret
-    fi
-
-    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install gcc"
-        echo "brew install gcc"
-        brew install gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install gcc success"
-    fi
-
-    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install gcc-c++"
-        echo "brew install gcc-c++"
-        brew install gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install gcc-c++ success"
-    fi
-
-    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install make"
-        echo "brew install make"
-        brew install make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install make success"
-    fi
-
-    patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install patch"
-        echo "brew install patch"
-        brew install patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install patch success"
-    fi
-
-    unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install unzip"
-        echo "brew install unzip"
-        brew install unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install unzip success"
-    fi
-
-    pkg-config --version >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Please install pkg-config"; exit -1;
-    fi
-
-    if [[ $SRS_SRT == YES ]]; then
-        echo "SRT enable, install depend tools"
-        tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing tcl."
-            echo "brew install tcl."
-            brew install tcl; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install tcl success"
-        fi
-
-        cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing cmake."
-            echo "brew install cmake."
-            brew install cmake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install cmake success"
-        fi
-    fi
-
-    echo "OSX install tools success"
-    return 0
-}
-# donot prepare tools, for srs-librtmp depends only gcc and g++.
-OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
-
-#####################################################################################
 # Check OS and CPU architectures.
 #####################################################################################
 if [[ $OS_IS_UBUNTU != YES && $OS_IS_CENTOS != YES && $OS_IS_OSX != YES && $SRS_CROSS_BUILD != YES && $SRS_CYGWIN64 != YES ]]; then
@@ -313,6 +34,55 @@ if [[ ! -z $OS_IS_LOONGSON ]]; then echo -n ", OS_IS_LOONGSON: $OS_IS_LOONGSON";
 if [[ ! -z $OS_IS_X86_64 ]]; then echo -n ", OS_IS_X86_64: $OS_IS_X86_64"; fi
 if [[ ! -z $OS_IS_RISCV ]]; then echo -n ", OS_IS_RISCV: $OS_IS_RISCV"; fi
 echo ""
+
+#####################################################################################
+# Check dependency tools.
+#####################################################################################
+if [[ $SRS_OSX == YES ]]; then
+    brew --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Please install brew at https://brew.sh/"; exit $ret;
+    fi
+fi
+# Check perl, which is depended by automake for building libopus etc.
+perl --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+    echo "Please install perl"; exit $ret;
+fi
+gcc --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+    echo "Please install gcc"; exit $ret;
+fi
+g++ --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+    if [[ $OS_IS_UBUNTU == YES ]]; then echo "Please install g++"; else echo "Please install gcc-c++"; fi
+    exit $ret;
+fi
+make --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+    echo "Please install make"; exit $ret;
+fi
+patch --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+    echo "Please install patch"; exit $ret;
+fi
+unzip -v >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+    echo "Please install unzip"; exit $ret;
+fi
+if [[ $SRS_VALGRIND == YES ]]; then
+    valgrind --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Please install valgrind"; exit $ret;
+    fi
+    if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
+        echo "Please install valgrind-dev"; exit $ret;
+    fi
+fi
+# Check tclsh, which is depended by SRT.
+if [[ $SRS_SRT == YES ]]; then
+    tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Please install tclsh"; exit $ret;
+    fi
+    cmake --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Please install cmake"; exit $ret;
+    fi
+fi
+pkg-config --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+    echo "Please install pkg-config"; exit $ret;
+fi
 
 #####################################################################################
 # Try to load cache if exists /usr/local/srs-cache

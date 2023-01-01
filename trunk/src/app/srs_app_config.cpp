@@ -2111,7 +2111,7 @@ srs_error_t SrsConfig::parse_argv(int& i, char** argv)
             case '?':
             case 'h':
                 show_help = true;
-                break;
+                return err;
             case 't':
                 show_help = false;
                 test_conf = true;
@@ -2124,7 +2124,7 @@ srs_error_t SrsConfig::parse_argv(int& i, char** argv)
             case 'V':
                 show_help = false;
                 show_version = true;
-                break;
+                return err;
             case 'g':
             case 'G':
                 show_help = false;
@@ -2141,6 +2141,8 @@ srs_error_t SrsConfig::parse_argv(int& i, char** argv)
                     continue;
                 }
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "-c requires params");
+            case '-':
+                continue;
             default:
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid option: \"%c\", read help: %s -h",
                     *(p - 1), argv[0]);
@@ -2156,8 +2158,8 @@ void SrsConfig::print_help(char** argv)
            "%s, %s, %s, created by %sand %s\n\n"
            "Usage: %s <-h?vVgGe>|<[-t] -c filename>\n"
            "Options:\n"
-           "   -?, -h              : Show this help and exit 0.\n"
-           "   -v, -V              : Show version and exit 0.\n"
+           "   -?, -h, --help      : Show this help and exit 0.\n"
+           "   -v, -V, --version   : Show version and exit 0.\n"
            "   -g, -G              : Show server signature and exit 0.\n"
            "   -e                  : Use environment variable only, ignore config file.\n"
            "   -t                  : Test configuration file, exit with error code(0 for success).\n"
