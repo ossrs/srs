@@ -2678,7 +2678,7 @@ SrsTsContextWriter::SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, Srs
     context = c;
 
     acodec_ = ac;
-    vcodec = vc;
+    vcodec_ = vc;
 }
 
 SrsTsContextWriter::~SrsTsContextWriter()
@@ -2692,8 +2692,8 @@ srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
     srs_info("hls: write audio codec=%d/%d, pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
         acodec_, vcodec_, audio->pts, audio->dts, audio->PES_packet_length);
     
-    if ((err = context->encode(writer, audio, vcodec, acodec_)) != srs_success) {
-        return srs_error_wrap(err, "ts: write audio acodec=%d, vcodec=%d", acodec_, vcodec);
+    if ((err = context->encode(writer, audio, vcodec_, acodec_)) != srs_success) {
+        return srs_error_wrap(err, "ts: write audio");
     }
     srs_info("hls encode audio ok");
     
@@ -2707,22 +2707,22 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
     srs_info("hls: write video codec=%d/%d, pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
         acodec_, vcodec_, video->pts, video->dts, video->PES_packet_length);
     
-    if ((err = context->encode(writer, video, vcodec, acodec_)) != srs_success) {
-        return srs_error_wrap(err, "ts: write video acodec=%d, vcodec=%d", acodec_, vcodec);
+    if ((err = context->encode(writer, video, vcodec_, acodec_)) != srs_success) {
+        return srs_error_wrap(err, "ts: write video");
     }
     srs_info("hls encode video ok");
     
     return err;
 }
 
-SrsVideoCodecId SrsTsContextWriter::video_codec()
+SrsVideoCodecId SrsTsContextWriter::vcodec()
 {
-    return vcodec;
+    return vcodec_;
 }
 
-void SrsTsContextWriter::update_video_codec(SrsVideoCodecId v)
+void SrsTsContextWriter::set_vcodec(SrsVideoCodecId v)
 {
-    vcodec = v;
+    vcodec_ = v;
 }
 
 SrsAudioCodecId SrsTsContextWriter::acodec()
@@ -3293,7 +3293,7 @@ srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size
     }
 
     // The video codec might change during streaming.
-    tscw->update_video_codec(format->vcodec->id);
+    tscw->set_vcodec(format->vcodec->id);
     
     // ignore sequence header
     if (format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && format->video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
