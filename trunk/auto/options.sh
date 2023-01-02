@@ -69,7 +69,7 @@ SRS_LOG_LEVEL_V2=YES
 # Experts options.
 SRS_USE_SYS_SSL=NO # Use system ssl(-lssl) if required.
 SRS_VALGRIND=NO
-SRS_SANITIZER=YES
+SRS_SANITIZER=NO
 SRS_SANITIZER_STATIC=NO
 SRS_SANITIZER_LOG=NO
 SRS_BUILD_TAG= # Set the object files tag name.
@@ -504,6 +504,13 @@ function apply_auto_options() {
     # Enable FFmpeg fit for RTC to transcode audio from AAC to OPUS, if user enabled it.
     if [[ $SRS_RTC == YES && $SRS_FFMPEG_FIT == RESERVED ]]; then
         SRS_FFMPEG_FIT=YES
+    fi
+
+    # Enable asan, but disable for Centos
+    # @see https://github.com/ossrs/srs/issues/3347
+    if [[ $SRS_SANITIZER == NO && $OS_IS_CENTOS != YES ]]; then
+        echo "Enable asan by auto options."
+        SRS_SANITIZER=YES
     fi
 
     # If enable gperf, disable sanitizer.

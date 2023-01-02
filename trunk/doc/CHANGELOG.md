@@ -25,6 +25,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-01-02, Fix [#3347](https://github.com/ossrs/srs/issues/3347): Asan: Disable asan for CentOS and use statically link if possible. v5.0.127
 * v5.0, 2023-01-01, For [#296](https://github.com/ossrs/srs/issues/296): MP3: Upgrade mpegts.js to support HTTP-TS with mp3. v5.0.126
 * v5.0, 2023-01-01, For [#3349](https://github.com/ossrs/srs/issues/3349): API: Fix duplicated on_stop callback event bug. v5.0.125
 * v5.0, 2022-12-31, GB28181: Enable regression test for gb28181. v5.0.122
