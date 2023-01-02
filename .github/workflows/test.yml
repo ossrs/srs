@@ -18,6 +18,7 @@ on: [push, pull_request]
 #         multiple-arch-amd64(2m)
 #         utest(3m)
 #         coverage(3m)
+#         blackbox(3m)
 
 jobs:
   cygwin64-cache:
@@ -182,6 +183,23 @@ jobs:
               cd 3rdparty/srs-bench && ./objs/srs_test -test.v && ./objs/srs_gb28181_test -test.v'
     runs-on: ubuntu-20.04
 
+  blackbox:
+    name: blackbox
+    needs:
+      - fast
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      # Tests
+      - name: Build test image
+        run: docker build --tag srs:test --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.test .
+      # For blackbox-test
+      - name: Run SRS blackbox-test
+        run: |
+          docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
+            ./objs/srs_blackbox_test -test.v -test.parallel 64
+    runs-on: ubuntu-20.04
+
   coverage:
     name: coverage
     needs:
@@ -292,6 +310,7 @@ jobs:
     needs:
       - cygwin64
       - coverage
+      - blackbox
       - utest
       - build-centos7
       - build-ubuntu16
