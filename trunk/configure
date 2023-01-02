@@ -197,11 +197,6 @@ if [[ $SRS_STATIC == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -static-libstdc++";
 fi
 
-# For asan(Google Address Sanitizer)
-if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES && $SRS_SANITIZER_STATIC == YES ]]; then
-    SrsLinkOptions="${SrsLinkOptions} -static-libasan";
-fi
-
 # For coverage.
 if [[ $SRS_GCOV == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
