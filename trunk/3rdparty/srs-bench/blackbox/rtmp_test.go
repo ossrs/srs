@@ -110,7 +110,7 @@ func TestRtmpPublish_RtmpPlay_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_FlvPlay_Basic(t *testing.T) {
+func TestRtmpPublish_HttpFlvPlay_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -165,6 +165,168 @@ func TestRtmpPublish_FlvPlay_Basic(t *testing.T) {
 		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.flv", streamID))
 		v.streamURL = fmt.Sprintf("http://localhost:%v/live/%v.flv", svr.HTTPPort(), streamID)
 		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-svr.ReadyCtx().Done()
+		r2 = ffprobe.Run(ctx, cancel)
+	}()
+
+	// Fast quit for probe done.
+	select {
+	case <-ctx.Done():
+	case <-ffprobe.ProbeDoneCtx().Done():
+		defer cancel()
+
+		str, m := ffprobe.Result()
+		if len(m.Streams) != 2 {
+			r3 = errors.Errorf("invalid streams=%v, %v, %v", len(m.Streams), m.String(), str)
+		}
+
+		if ts := 90; m.Format.ProbeScore < ts {
+			r4 = errors.Errorf("low score=%v < %v, %v, %v", m.Format.ProbeScore, ts, m.String(), str)
+		}
+		if dv := m.Duration(); dv < duration {
+			r5 = errors.Errorf("short duration=%v < %v, %v, %v", dv, duration, m.String(), str)
+		}
+	}
+}
+
+func TestRtmpPublish_RtmpPlay_ChunkSize128(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	// Setup the max timeout for this case.
+	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	// Check a set of errors.
+	var r0, r1, r2, r3, r4, r5 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3, r4, r5); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// Start SRS server and wait for it to be ready.
+	svr := NewSRSServer(func(v *srsServer) {
+		v.envs = []string{
+			"SRS_CHUNK_SIZE=128",
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r0 = svr.Run(ctx, cancel)
+	}()
+
+	// Start FFmpeg to publish stream.
+	streamID := fmt.Sprintf("stream-%v-%v", os.Getpid(), rand.Int())
+	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", svr.RTMPPort(), streamID)
+	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
+		v.args = []string{
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-c", "copy", "-f", "flv", streamURL,
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-svr.ReadyCtx().Done()
+		r1 = ffmpeg.Run(ctx, cancel)
+	}()
+
+	// Start FFprobe to detect and verify stream.
+	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
+	ffprobe := NewFFprobe(func(v *ffprobeClient) {
+		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.flv", streamID))
+		v.streamURL, v.duration, v.timeout = streamURL, duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-svr.ReadyCtx().Done()
+		r2 = ffprobe.Run(ctx, cancel)
+	}()
+
+	// Fast quit for probe done.
+	select {
+	case <-ctx.Done():
+	case <-ffprobe.ProbeDoneCtx().Done():
+		defer cancel()
+
+		str, m := ffprobe.Result()
+		if len(m.Streams) != 2 {
+			r3 = errors.Errorf("invalid streams=%v, %v, %v", len(m.Streams), m.String(), str)
+		}
+
+		if ts := 90; m.Format.ProbeScore < ts {
+			r4 = errors.Errorf("low score=%v < %v, %v, %v", m.Format.ProbeScore, ts, m.String(), str)
+		}
+		if dv := m.Duration(); dv < duration {
+			r5 = errors.Errorf("short duration=%v < %v, %v, %v", dv, duration, m.String(), str)
+		}
+	}
+}
+
+func TestRtmpPublish_RtmpPlay_EnableATC(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	// Setup the max timeout for this case.
+	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	// Check a set of errors.
+	var r0, r1, r2, r3, r4, r5 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3, r4, r5); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// Start SRS server and wait for it to be ready.
+	svr := NewSRSServer(func(v *srsServer) {
+		v.envs = []string{
+			"SRS_VHOST_PLAY_ATC=on",
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r0 = svr.Run(ctx, cancel)
+	}()
+
+	// Start FFmpeg to publish stream.
+	streamID := fmt.Sprintf("stream-%v-%v", os.Getpid(), rand.Int())
+	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", svr.RTMPPort(), streamID)
+	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
+		v.args = []string{
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-c", "copy", "-f", "flv", streamURL,
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-svr.ReadyCtx().Done()
+		r1 = ffmpeg.Run(ctx, cancel)
+	}()
+
+	// Start FFprobe to detect and verify stream.
+	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
+	ffprobe := NewFFprobe(func(v *ffprobeClient) {
+		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.flv", streamID))
+		v.streamURL, v.duration, v.timeout = streamURL, duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
 	})
 	wg.Add(1)
 	go func() {

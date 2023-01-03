@@ -27,7 +27,7 @@ cd srs-bench && make
 
 ```bash
 git clone https://github.com/ossrs/srs.git &&
-cd srs/trunk && ./configure && make &&
+cd srs/trunk && ./configure --h265=on --gb28181=on && make &&
 ./objs/srs -c conf/console.conf
 ```
 
@@ -239,6 +239,15 @@ go test ./blackbox -mod=vendor -v -count=1
 ```bash
 make && ./objs/srs_blackbox_test -test.v
 ```
+
+由于黑盒测试依赖特殊的FFmpeg，可以在Docker中编译和启动：
+
+```bash
+docker run --rm -it -v $(pwd):/g -w /g ossrs/srs:ubuntu20 bash
+make && ./objs/srs_blackbox_test -test.v
+```
+
+> Note: 依赖SRS二进制，当然也可以在这个Docker中编译SRS，具体请参考SRS的Wiki。
 
 支持的参数如下：
 
