@@ -395,7 +395,7 @@ func TestRtmpPublish_MultipleSequences_RtcPlay(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_FlvPlay(t *testing.T) {
+func TestRtmpPublish_HttpFlvPlay(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
 
@@ -472,7 +472,7 @@ func TestRtmpPublish_FlvPlay(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_FlvPlayNoAudio(t *testing.T) {
+func TestRtmpPublish_HttpFlvPlayNoAudio(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
 
@@ -555,7 +555,7 @@ func TestRtmpPublish_FlvPlayNoAudio(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_FlvPlayNoVideo(t *testing.T) {
+func TestRtmpPublish_HttpFlvPlayNoVideo(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
 

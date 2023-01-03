@@ -117,7 +117,7 @@ func TestRtmpPublish_RtmpPlay_CodecMP3_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_FlvPlay_CodecMP3_Basic(t *testing.T) {
+func TestRtmpPublish_HttpFlvPlay_CodecMP3_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
