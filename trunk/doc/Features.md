@@ -6,6 +6,7 @@ The features of SRS.
 - [x] System: Support native HTTP server([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-http)) for http api and http live streaming.
 - [x] System: Support DVR([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/dvr), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/dvr)) to record live streaming to FLV file.
 - [x] System: Support security strategy including allow/deny publish/play IP([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/security), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/security)).
+- [x] System: Security: Enable CIDR for allow/deny play/publish, [#2914](https://github.com/ossrs/srs/pull/2914). v4.0.248+
 - [x] System: Support Vhost([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/rtmp-url-vhost), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/rtmp-url-vhost)) and \_\_defaultVhost\_\_.
 - [x] System: Support reloading([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/reload), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/reload)) to apply changes of config.
 - [x] System: Support traceable and session-based log([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/log), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/log)).

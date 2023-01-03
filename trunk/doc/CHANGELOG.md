@@ -152,6 +152,7 @@ The changelog for SRS.
 * v4.0, 2022-03-19, Merge [#2908](https://github.com/ossrs/srs/pull/2908): SRT: url supports multiple QueryStrings (#2908). v4.0.250
 * v4.0, 2022-03-17, SRT: Support debug and run with CLion. v4.0.249
 * v4.0, 2022-03-15, Merge [#2966](https://github.com/ossrs/srs/pull/2966): Bugfix: Fix rtcp nack blp encode bug (#2966). v4.0.248
+* v4.0, 2022-03-11, Merge [#2914](https://github.com/ossrs/srs/pull/2914): Security: Enable CIDR for allow/deny play/publish.
 * v4.0, 2022-03-07, RTC: Identify the WebRTC publisher in param for hooks. v4.0.247
 * v4.0, 2022-03-07, SRT: Append vhost to stream, not app. v4.0.246
 * v4.0, 2022-02-15, Fix warnings for uuid. v4.0.245
