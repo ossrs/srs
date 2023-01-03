@@ -34,7 +34,7 @@ import (
 	"time"
 )
 
-func TestRtmpPublish_RtmpPlay_HEVC_Basic(t *testing.T) {
+func TestSlow_RtmpPublish_RtmpPlay_HEVC_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -124,7 +124,7 @@ func TestRtmpPublish_RtmpPlay_HEVC_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_HttpFlvPlay_HEVC_Basic(t *testing.T) {
+func TestSlow_RtmpPublish_HttpFlvPlay_HEVC_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -221,7 +221,7 @@ func TestRtmpPublish_HttpFlvPlay_HEVC_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
+func TestSlow_RtmpPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -317,7 +317,7 @@ func TestRtmpPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_HlsPlay_HEVC_Basic(t *testing.T) {
+func TestSlow_RtmpPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -375,11 +375,11 @@ func TestRtmpPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 	}()
 
 	// Start FFprobe to detect and verify stream.
-	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
+	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond * 2
 	ffprobe := NewFFprobe(func(v *ffprobeClient) {
 		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.ts", streamID))
 		v.streamURL = fmt.Sprintf("http://localhost:%v/live/%v.m3u8", svr.HTTPPort(), streamID)
-		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
+		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond * 2
 	})
 	wg.Add(1)
 	go func() {

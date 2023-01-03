@@ -33,7 +33,7 @@ import (
 	"time"
 )
 
-func TestRtmpPublish_RtmpPlay_CodecMP3_Basic(t *testing.T) {
+func TestFast_RtmpPublish_RtmpPlay_CodecMP3_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -117,7 +117,7 @@ func TestRtmpPublish_RtmpPlay_CodecMP3_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_HttpFlvPlay_CodecMP3_Basic(t *testing.T) {
+func TestFast_RtmpPublish_HttpFlvPlay_CodecMP3_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -208,7 +208,7 @@ func TestRtmpPublish_HttpFlvPlay_CodecMP3_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_HttpMp3Play_CodecMP3_Basic(t *testing.T) {
+func TestFast_RtmpPublish_HttpMp3Play_CodecMP3_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -296,7 +296,7 @@ func TestRtmpPublish_HttpMp3Play_CodecMP3_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_HttpTsPlay_CodecMP3_Basic(t *testing.T) {
+func TestFast_RtmpPublish_HttpTsPlay_CodecMP3_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -384,7 +384,7 @@ func TestRtmpPublish_HttpTsPlay_CodecMP3_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_HlsPlay_CodecMP3_Basic(t *testing.T) {
+func TestFast_RtmpPublish_HlsPlay_CodecMP3_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 

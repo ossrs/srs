@@ -33,7 +33,7 @@ import (
 	"time"
 )
 
-func TestRtmpPublish_RtmpPlay_Basic(t *testing.T) {
+func TestFast_RtmpPublish_RtmpPlay_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -110,7 +110,7 @@ func TestRtmpPublish_RtmpPlay_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_HttpFlvPlay_Basic(t *testing.T) {
+func TestFast_RtmpPublish_HttpFlvPlay_Basic(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -193,7 +193,7 @@ func TestRtmpPublish_HttpFlvPlay_Basic(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_RtmpPlay_ChunkSize128(t *testing.T) {
+func TestFast_RtmpPublish_RtmpPlay_ChunkSize128(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
@@ -274,7 +274,7 @@ func TestRtmpPublish_RtmpPlay_ChunkSize128(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_RtmpPlay_EnableATC(t *testing.T) {
+func TestFast_RtmpPublish_RtmpPlay_EnableATC(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
