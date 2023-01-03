@@ -74,7 +74,9 @@ func TestRtmpPublish_RtmpPlay_HEVC_Basic(t *testing.T) {
 	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", svr.RTMPPort(), streamID)
 	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
 		v.args = []string{
-			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-acodec", "copy", "-vcodec", "libx265", "-f", "flv", streamURL,
+			// Use the fastest preset of x265, see https://x265.readthedocs.io/en/master/presets.html
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-acodec", "copy", "-vcodec", "libx265",
+			"-profile:v", "main", "-preset", "ultrafast", "-f", "flv", streamURL,
 		}
 	})
 	wg.Add(1)
@@ -169,7 +171,9 @@ func TestRtmpPublish_HttpFlvPlay_HEVC_Basic(t *testing.T) {
 	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", svr.RTMPPort(), streamID)
 	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
 		v.args = []string{
-			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-acodec", "copy", "-vcodec", "libx265", "-f", "flv", streamURL,
+			// Use the fastest preset of x265, see https://x265.readthedocs.io/en/master/presets.html
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-acodec", "copy", "-vcodec", "libx265",
+			"-profile:v", "main", "-preset", "ultrafast", "-f", "flv", streamURL,
 		}
 	})
 	wg.Add(1)
@@ -263,7 +267,9 @@ func TestRtmpPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
 	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", svr.RTMPPort(), streamID)
 	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
 		v.args = []string{
-			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-acodec", "copy", "-vcodec", "libx265", "-f", "flv", streamURL,
+			// Use the fastest preset of x265, see https://x265.readthedocs.io/en/master/presets.html
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-acodec", "copy", "-vcodec", "libx265",
+			"-profile:v", "main", "-preset", "ultrafast", "-f", "flv", streamURL,
 		}
 	})
 	wg.Add(1)
@@ -356,7 +362,9 @@ func TestRtmpPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", svr.RTMPPort(), streamID)
 	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
 		v.args = []string{
-			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-acodec", "copy", "-vcodec", "libx265", "-f", "flv", streamURL,
+			// Use the fastest preset of x265, see https://x265.readthedocs.io/en/master/presets.html
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-acodec", "copy", "-vcodec", "libx265",
+			"-profile:v", "main", "-preset", "ultrafast", "-f", "flv", streamURL,
 		}
 	})
 	wg.Add(1)
