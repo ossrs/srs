@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-01-03, Add blackbox test for HLS and MP3 codec. v5.0.129
 * v5.0, 2023-01-02, Merge [#3355](https://github.com/ossrs/srs/pull/3355): Test: Support blackbox test by FFmpeg. v5.0.128
 * v5.0, 2023-01-02, Fix [#3347](https://github.com/ossrs/srs/issues/3347): Asan: Disable asan for CentOS and use statically link if possible. v5.0.127
 * v5.0, 2023-01-01, For [#296](https://github.com/ossrs/srs/issues/296): MP3: Upgrade mpegts.js to support HTTP-TS with mp3. v5.0.126
