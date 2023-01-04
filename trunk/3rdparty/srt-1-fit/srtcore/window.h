@@ -50,28 +50,31 @@ modified by
    Haivision Systems Inc.
 *****************************************************************************/
 
-#ifndef __UDT_WINDOW_H__
-#define __UDT_WINDOW_H__
+#ifndef INC_SRT_WINDOW_H
+#define INC_SRT_WINDOW_H
 
 
 #ifndef _WIN32
    #include <sys/time.h>
    #include <time.h>
 #endif
-#include "udt.h"
 #include "packet.h"
+#include "udt.h"
+
+namespace srt
+{
 
 namespace ACKWindowTools
 {
    struct Seq
    {
-       int32_t iACKSeqNo;       // Seq. No. for the ACK packet
-       int32_t iACK;            // Data Seq. No. carried by the ACK packet
-       uint64_t TimeStamp;      // The timestamp when the ACK was sent
+       int32_t iACKSeqNo;                                   // Seq. No. of the ACK packet
+       int32_t iACK;                                        // Data packet Seq. No. carried by the ACK packet
+       sync::steady_clock::time_point tsTimeStamp;     // The timestamp when the ACK was sent
    };
 
    void store(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int32_t seq, int32_t ack);
-   int acknowledge(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int32_t seq, int32_t& r_ack);
+   int acknowledge(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int32_t seq, int32_t& r_ack, const sync::steady_clock::time_point& currtime);
 }
 
 template <size_t SIZE>
@@ -83,28 +86,30 @@ public:
         m_iHead(0),
         m_iTail(0)
     {
-        m_aSeq[0].iACKSeqNo = -1;
+        m_aSeq[0].iACKSeqNo = SRT_SEQNO_NONE;
     }
 
    ~CACKWindow() {}
 
       /// Write an ACK record into the window.
-      /// @param [in] seq ACK seq. no.
-      /// @param [in] ack DATA ACK no.
+      /// @param [in] seq Seq. No. of the ACK packet
+      /// @param [in] ack Data packet Seq. No. carried by the ACK packet
 
    void store(int32_t seq, int32_t ack)
    {
        return ACKWindowTools::store(m_aSeq, SIZE, m_iHead, m_iTail, seq, ack);
    }
 
-      /// Search the ACK-2 "seq" in the window, find out the DATA "ack" and caluclate RTT .
-      /// @param [in] seq ACK-2 seq. no.
-      /// @param [out] ack the DATA ACK no. that matches the ACK-2 no.
-      /// @return RTT.
+      /// Search the ACKACK "seq" in the window, find out the data packet "ack"
+      /// and calculate RTT estimate based on the ACK/ACKACK pair
+      /// @param [in] seq Seq. No. of the ACK packet carried within ACKACK
+      /// @param [out] ack Acknowledged data packet Seq. No. from the ACK packet that matches the ACKACK
+      /// @param [in] currtime The timestamp of ACKACK packet reception by the receiver
+      /// @return RTT
 
-   int acknowledge(int32_t seq, int32_t& r_ack)
+   int acknowledge(int32_t seq, int32_t& r_ack, const sync::steady_clock::time_point& currtime)
    {
-       return ACKWindowTools::acknowledge(m_aSeq, SIZE, m_iHead, m_iTail, seq, r_ack);
+       return ACKWindowTools::acknowledge(m_aSeq, SIZE, m_iHead, m_iTail, seq, r_ack, currtime);
    }
 
 private:
@@ -112,7 +117,7 @@ private:
    typedef ACKWindowTools::Seq Seq;
 
    Seq m_aSeq[SIZE];
-   int m_iHead;                 // Pointer to the lastest ACK record
+   int m_iHead;                 // Pointer to the latest ACK record
    int m_iTail;                 // Pointer to the oldest ACK record
 
 private:
@@ -143,24 +148,22 @@ public:
         m_iProbeWindowPtr(0),
         m_iLastSentTime(0),
         m_iMinPktSndInt(1000000),
-        m_LastArrTime(),
-        m_CurrArrTime(),
-        m_ProbeTime(),
-        m_Probe1Sequence(-1)
+        m_tsLastArrTime(sync::steady_clock::now()),
+        m_tsCurrArrTime(),
+        m_tsProbeTime(),
+        m_Probe1Sequence(SRT_SEQNO_NONE)
     {
-        pthread_mutex_init(&m_lockPktWindow, NULL);
-        pthread_mutex_init(&m_lockProbeWindow, NULL);
-        m_LastArrTime = CTimer::getTime();
+        // Exception: up to CUDT ctor
+        sync::setupMutex(m_lockPktWindow, "PktWindow");
+        sync::setupMutex(m_lockProbeWindow, "ProbeWindow");
         CPktTimeWindowTools::initializeWindowArrays(m_aPktWindow, m_aProbeWindow, m_aBytesWindow, ASIZE, PSIZE);
     }
 
    ~CPktTimeWindow()
    {
-       pthread_mutex_destroy(&m_lockPktWindow);
-       pthread_mutex_destroy(&m_lockProbeWindow);
    }
 
-
+public:
    /// read the minimum packet sending interval.
    /// @return minimum packet sending interval (microseconds).
 
@@ -169,19 +172,19 @@ public:
    /// Calculate the packets arrival speed.
    /// @return Packet arrival speed (packets per second).
 
-   int getPktRcvSpeed(ref_t<int> bytesps) const
+   int getPktRcvSpeed(int& w_bytesps) const
    {
        // Lock access to the packet Window
-       CGuard cg(m_lockPktWindow);
+       sync::ScopedLock cg(m_lockPktWindow);
 
        int pktReplica[ASIZE];          // packet information window (inter-packet time)
-       return getPktRcvSpeed_in(m_aPktWindow, pktReplica, m_aBytesWindow, ASIZE, *bytesps);
+       return getPktRcvSpeed_in(m_aPktWindow, pktReplica, m_aBytesWindow, ASIZE, (w_bytesps));
    }
 
    int getPktRcvSpeed() const
    {
        int bytesps;
-       return getPktRcvSpeed(Ref(bytesps));
+       return getPktRcvSpeed((bytesps));
    }
 
    /// Estimate the bandwidth.
@@ -190,7 +193,7 @@ public:
    int getBandwidth() const
    {
        // Lock access to the packet Window
-       CGuard cg(m_lockProbeWindow);
+       sync::ScopedLock cg(m_lockProbeWindow);
 
        int probeReplica[PSIZE];
        return getBandwidth_in(m_aProbeWindow, probeReplica, PSIZE);
@@ -213,12 +216,12 @@ public:
 
    void onPktArrival(int pktsz = 0)
    {
-       CGuard cg(m_lockPktWindow);
+       sync::ScopedLock cg(m_lockPktWindow);
 
-       m_CurrArrTime = CTimer::getTime();
+       m_tsCurrArrTime = sync::steady_clock::now();
 
        // record the packet interval between the current and the last one
-       m_aPktWindow[m_iPktWindowPtr] = int(m_CurrArrTime - m_LastArrTime);
+       m_aPktWindow[m_iPktWindowPtr] = (int) sync::count_microseconds(m_tsCurrArrTime - m_tsLastArrTime);
        m_aBytesWindow[m_iPktWindowPtr] = pktsz;
 
        // the window is logically circular
@@ -227,7 +230,7 @@ public:
            m_iPktWindowPtr = 0;
 
        // remember last packet arrival time
-       m_LastArrTime = m_CurrArrTime;
+       m_tsLastArrTime = m_tsCurrArrTime;
    }
 
    /// Shortcut to test a packet for possible probe 1 or 2
@@ -259,11 +262,11 @@ public:
            // Reset the starting probe into "undefined", when
            // a packet has come as retransmitted before the
            // measurement at arrival of 17th could be taken.
-           m_Probe1Sequence = -1;
+           m_Probe1Sequence = SRT_SEQNO_NONE;
            return;
        }
 
-       m_ProbeTime = CTimer::getTime();
+       m_tsProbeTime = sync::steady_clock::now();
        m_Probe1Sequence = pkt.m_iSeqNo; // Record the sequence where 16th packet probe was taken
    }
 
@@ -279,26 +282,26 @@ public:
        // expected packet pair, behave as if the 17th packet was lost.
 
        // no start point yet (or was reset) OR not very next packet
-       if (m_Probe1Sequence == -1 || CSeqNo::incseq(m_Probe1Sequence) != pkt.m_iSeqNo)
+       if (m_Probe1Sequence == SRT_SEQNO_NONE || CSeqNo::incseq(m_Probe1Sequence) != pkt.m_iSeqNo)
            return;
 
        // Grab the current time before trying to acquire
        // a mutex. This might add extra delay and therefore
        // screw up the measurement.
-       const uint64_t now = CTimer::getTime();
+       const sync::steady_clock::time_point now = sync::steady_clock::now();
 
        // Lock access to the packet Window
-       CGuard cg(m_lockProbeWindow);
+       sync::ScopedLock cg(m_lockProbeWindow);
 
-       m_CurrArrTime = now;
+       m_tsCurrArrTime = now;
 
        // Reset the starting probe to prevent checking if the
        // measurement was already taken.
-       m_Probe1Sequence = -1;
+       m_Probe1Sequence = SRT_SEQNO_NONE;
 
        // record the probing packets interval
        // Adjust the time for what a complete packet would have take
-       const int64_t timediff = m_CurrArrTime - m_ProbeTime;
+       const int64_t timediff = sync::count_microseconds(m_tsCurrArrTime - m_tsProbeTime);
        const int64_t timediff_times_pl_size = timediff * CPacket::SRT_MAX_PAYLOAD_SIZE;
 
        // Let's take it simpler than it is coded here:
@@ -312,11 +315,11 @@ public:
        // the ETH+IP+UDP+SRT header part elliminates the constant packet delivery time influence.
        //
        const size_t pktsz = pkt.getLength();
-       m_aProbeWindow[m_iProbeWindowPtr] = pktsz ? timediff_times_pl_size / pktsz : int(timediff);
+       m_aProbeWindow[m_iProbeWindowPtr] = pktsz ? int(timediff_times_pl_size / pktsz) : int(timediff);
 
        // OLD CODE BEFORE BSTATS:
        // record the probing packets interval
-       // m_aProbeWindow[m_iProbeWindowPtr] = int(m_CurrArrTime - m_ProbeTime);
+       // m_aProbeWindow[m_iProbeWindowPtr] = int(m_tsCurrArrTime - m_tsProbeTime);
 
        // the window is logically circular
        ++ m_iProbeWindowPtr;
@@ -324,29 +327,29 @@ public:
            m_iProbeWindowPtr = 0;
    }
 
-
 private:
-   int m_aPktWindow[ASIZE];          // packet information window (inter-packet time)
-   int m_aBytesWindow[ASIZE];        // 
-   int m_iPktWindowPtr;         // position pointer of the packet info. window.
-   mutable pthread_mutex_t m_lockPktWindow; // used to synchronize access to the packet window
+   int m_aPktWindow[ASIZE];                            // Packet information window (inter-packet time)
+   int m_aBytesWindow[ASIZE];
+   int m_iPktWindowPtr;                                // Position pointer of the packet info. window
+   mutable sync::Mutex m_lockPktWindow;                // Used to synchronize access to the packet window
 
-   int m_aProbeWindow[PSIZE];        // record inter-packet time for probing packet pairs
-   int m_iProbeWindowPtr;       // position pointer to the probing window
-   mutable pthread_mutex_t m_lockProbeWindow; // used to synchronize access to the probe window
+   int m_aProbeWindow[PSIZE];                          // Record inter-packet time for probing packet pairs
+   int m_iProbeWindowPtr;                              // Position pointer to the probing window
+   mutable sync::Mutex m_lockProbeWindow;              // Used to synchronize access to the probe window
 
-   int m_iLastSentTime;         // last packet sending time
-   int m_iMinPktSndInt;         // Minimum packet sending interval
+   int m_iLastSentTime;                                // Last packet sending time
+   int m_iMinPktSndInt;                                // Minimum packet sending interval
 
-   uint64_t m_LastArrTime;      // last packet arrival time
-   uint64_t m_CurrArrTime;      // current packet arrival time
-   uint64_t m_ProbeTime;        // arrival time of the first probing packet
-   int32_t m_Probe1Sequence;    // sequence number for which the arrival time was notified
+   sync::steady_clock::time_point m_tsLastArrTime;     // Last packet arrival time
+   sync::steady_clock::time_point m_tsCurrArrTime;     // Current packet arrival time
+   sync::steady_clock::time_point m_tsProbeTime;       // Arrival time of the first probing packet
+   int32_t m_Probe1Sequence;                           // Sequence number for which the arrival time was notified
 
 private:
    CPktTimeWindow(const CPktTimeWindow&);
    CPktTimeWindow &operator=(const CPktTimeWindow&);
 };
 
+} // namespace srt
 
 #endif

@@ -74,9 +74,10 @@ int hcryptCtx_Tx_Rekey(hcrypt_Session *crypto, hcrypt_Ctx *ctx)
 	HCRYPT_PRINTKEY(ctx->sek, ctx->sek_len, "sek");
 
 	/* Regenerate KEK if Password-based (uses newly generated salt and sek_len) */
-	if ((0 < ctx->cfg.pwd_len)
-	&&	(0 > (iret = hcryptCtx_GenSecret(crypto, ctx)))) {
-		return(iret);
+	if (0 < ctx->cfg.pwd_len) {
+		iret = hcryptCtx_GenSecret(crypto, ctx);
+		if (iret < 0)
+			return(iret);
 	}
 
 	/* Assemble the new Keying Material message */
@@ -106,22 +107,22 @@ int hcryptCtx_Tx_CloneKey(hcrypt_Session *crypto, hcrypt_Ctx *ctx, const hcrypt_
 
 	ASSERT(HCRYPT_CTX_S_SARDY <= ctx->status);
 
-    const hcrypt_Ctx* ctxSrc = cryptoSrc->ctx;
-    if (!ctxSrc)
-    {
-        /* Probbly the context is not yet completely initialized, so
-         * use blindly the first context from the pair
-         */
-        ctxSrc = &cryptoSrc->ctx_pair[0];
-    }
+	const hcrypt_Ctx* ctxSrc = cryptoSrc->ctx;
+	if (!ctxSrc)
+	{
+		/* Probbly the context is not yet completely initialized, so
+		 * use blindly the first context from the pair
+		 */
+		ctxSrc = &cryptoSrc->ctx_pair[0];
+	}
 
-    /* Copy SALT (instead of generating) */
-    ctx->salt_len = ctxSrc->salt_len;
-    memcpy(ctx->salt, ctxSrc->salt, ctx->salt_len);
+	/* Copy SALT (instead of generating) */
+	ctx->salt_len = ctxSrc->salt_len;
+	memcpy(ctx->salt, ctxSrc->salt, ctx->salt_len);
 
-    /* Copy SEK */
-    ctx->sek_len = ctxSrc->sek_len;
-    memcpy(ctx->sek, ctxSrc->sek, ctx->sek_len);
+	/* Copy SEK */
+	ctx->sek_len = ctxSrc->sek_len;
+	memcpy(ctx->sek, ctxSrc->sek, ctx->sek_len);
 
 	/* Set SEK in cryspr */
 	if (crypto->cryspr->ms_setkey(crypto->cryspr_cb, ctx, ctx->sek, ctx->sek_len)) {
@@ -133,11 +134,12 @@ int hcryptCtx_Tx_CloneKey(hcrypt_Session *crypto, hcrypt_Ctx *ctx, const hcrypt_
 	HCRYPT_PRINTKEY(ctx->sek, ctx->sek_len, "sek");
 
 	/* Regenerate KEK if Password-based (uses newly generated salt and sek_len) */
-    /* (note for CloneKey imp: it's expected that the same passphrase-salt pair
-       shall generate the same KEK. GenSecret also prints the KEK */
-	if ((0 < ctx->cfg.pwd_len)
-    &&	(0 > (iret = hcryptCtx_GenSecret(crypto, ctx)))) {
-		return(iret);
+	/* (note for CloneKey imp: it's expected that the same passphrase-salt pair
+	   shall generate the same KEK. GenSecret also prints the KEK */
+	if (0 < ctx->cfg.pwd_len) {
+		iret = hcryptCtx_GenSecret(crypto, ctx);
+		if (iret < 0)
+			return(iret);
 	}
 
 	/* Assemble the new Keying Material message */
@@ -336,8 +338,8 @@ int hcryptCtx_Tx_ManageKM(hcrypt_Session *crypto)
 	ASSERT(NULL != ctx);
 
 	HCRYPT_LOG(LOG_DEBUG, "KM[%d] KEY STATUS: pkt_cnt=%u against ref.rate=%u and pre.announce=%u\n",
-                          (ctx->alt->flags & HCRYPT_CTX_F_xSEK)/2,
-                          ctx->pkt_cnt, crypto->km.refresh_rate, crypto->km.pre_announce);
+						  (ctx->alt->flags & HCRYPT_CTX_F_xSEK)/2,
+						  ctx->pkt_cnt, crypto->km.refresh_rate, crypto->km.pre_announce);
 
 	if ((ctx->pkt_cnt > crypto->km.refresh_rate)
 	||  (ctx->pkt_cnt == 0)) {	//rolled over

@@ -55,11 +55,11 @@ int HaiCrypt_Tx_GetBuf(HaiCrypt_Handle hhc, size_t data_len, unsigned char **in_
 int HaiCrypt_Tx_ManageKeys(HaiCrypt_Handle hhc, void *out_p[], size_t out_len_p[], int maxout) 
 {
 	hcrypt_Session *crypto = (hcrypt_Session *)hhc;
-	hcrypt_Ctx *ctx = NULL;
+	hcrypt_Ctx *ctx = crypto->ctx;
 	int nbout = 0;
 
 	if ((NULL == crypto)
-	||  (NULL == (ctx = crypto->ctx))
+	||  (NULL == ctx)
 	||  (NULL == out_p)
 	||  (NULL == out_len_p)) {
 		HCRYPT_LOG(LOG_ERR, "ManageKeys: invalid params: crypto=%p crypto->ctx=%p\n", crypto, ctx);
@@ -69,7 +69,8 @@ int HaiCrypt_Tx_ManageKeys(HaiCrypt_Handle hhc, void *out_p[], size_t out_len_p[
 	/* Manage Key Material (refresh, announce, decommission) */
 	hcryptCtx_Tx_ManageKM(crypto);
 
-	if (NULL == (ctx = crypto->ctx)) {
+	ctx = crypto->ctx;
+	if (NULL == ctx) {
 		HCRYPT_LOG(LOG_ERR, "%s", "crypto context not defined\n");
 		return(-1);
 	}
@@ -82,10 +83,10 @@ int HaiCrypt_Tx_ManageKeys(HaiCrypt_Handle hhc, void *out_p[], size_t out_len_p[
 int HaiCrypt_Tx_GetKeyFlags(HaiCrypt_Handle hhc)
 {
 	hcrypt_Session *crypto = (hcrypt_Session *)hhc;
-	hcrypt_Ctx *ctx = NULL;
+	hcrypt_Ctx *ctx = crypto->ctx;
 
 	if ((NULL == crypto)
-	||  (NULL == (ctx = crypto->ctx))){
+	||  (NULL == ctx)){
 		HCRYPT_LOG(LOG_ERR, "GetKeyFlags: invalid params: crypto=%p crypto->ctx=%p\n", crypto, ctx);
 		return(-1);
 	}
@@ -96,11 +97,11 @@ int HaiCrypt_Tx_Data(HaiCrypt_Handle hhc,
 	unsigned char *in_pfx, unsigned char *in_data, size_t in_len) 
 {
 	hcrypt_Session *crypto = (hcrypt_Session *)hhc;
-	hcrypt_Ctx *ctx = NULL;
+	hcrypt_Ctx *ctx = crypto->ctx;
 	int nbout = 0;
 
 	if ((NULL == crypto)
-	||  (NULL == (ctx = crypto->ctx))){
+	||  (NULL == ctx)){
 		HCRYPT_LOG(LOG_ERR, "Tx_Data: invalid params: crypto=%p crypto->ctx=%p\n", crypto, ctx);
 		return(-1);
 	}
@@ -129,11 +130,11 @@ int HaiCrypt_Tx_Process(HaiCrypt_Handle hhc,
 	void *out_p[], size_t out_len_p[], int maxout)
 {
 	hcrypt_Session *crypto = (hcrypt_Session *)hhc;
-	hcrypt_Ctx *ctx = NULL;
+	hcrypt_Ctx *ctx = crypto->ctx;
 	int nb, nbout = 0;
 
 	if ((NULL == crypto)
-	||  (NULL == (ctx = crypto->ctx))
+	||  (NULL == ctx)
 	||  (NULL == out_p)
 	||  (NULL == out_len_p)) {
 		HCRYPT_LOG(LOG_ERR, "Tx_Process: invalid params: crypto=%p crypto->ctx=%p\n", crypto, ctx);
@@ -143,7 +144,8 @@ int HaiCrypt_Tx_Process(HaiCrypt_Handle hhc,
 	/* Manage Key Material (refresh, announce, decommission) */
 	hcryptCtx_Tx_ManageKM(crypto);
 
-	if (NULL == (ctx = crypto->ctx)) {
+	ctx = crypto->ctx;
+	if (NULL == ctx) {
 		HCRYPT_LOG(LOG_ERR, "%s", "crypto context not defined\n");
 		return(-1);
 	}

@@ -54,6 +54,12 @@
 #include "md5.h"
 #include <string.h>
 
+/*
+ * All symbols have been put under the srt namespace
+ * to avoid potential linkage conflicts.
+ */
+namespace srt {
+
 #undef BYTE_ORDER	/* 1 = big-endian, -1 = little-endian, 0 = unknown */
 #ifdef ARCH_IS_BIG_ENDIAN
 #  define BYTE_ORDER (ARCH_IS_BIG_ENDIAN ? 1 : -1)
@@ -166,7 +172,7 @@ md5_process(md5_state_t *pms, const md5_byte_t *data /*[64]*/)
 		X = (const md5_word_t *)data;
 	    } else {
 		/* not aligned */
-		memcpy(xbuf, data, 64);
+		memcpy((xbuf), data, 64);
 		X = xbuf;
 	    }
 	}
@@ -340,7 +346,7 @@ md5_append(md5_state_t *pms, const md5_byte_t *data, int nbytes)
     if (offset) {
 	int copy = (offset + nbytes > 64 ? 64 - offset : nbytes);
 
-	memcpy(pms->buf + offset, p, copy);
+	memcpy((pms->buf + offset), p, copy);
 	if (offset + copy < 64)
 	    return;
 	p += copy;
@@ -354,7 +360,7 @@ md5_append(md5_state_t *pms, const md5_byte_t *data, int nbytes)
 
     /* Process a final partial block. */
     if (left)
-	memcpy(pms->buf, p, left);
+	memcpy((pms->buf), p, left);
 }
 
 void
@@ -379,3 +385,5 @@ md5_finish(md5_state_t *pms, md5_byte_t digest[16])
     for (i = 0; i < 16; ++i)
 	digest[i] = (md5_byte_t)(pms->abcd[i >> 2] >> ((i & 3) << 3));
 }
+
+} // namespace srt

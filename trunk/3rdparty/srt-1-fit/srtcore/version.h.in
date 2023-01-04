@@ -13,8 +13,8 @@ written by
    Haivision Systems Inc.
  *****************************************************************************/
 
-#ifndef INC__SRT_VERSION_H
-#define INC__SRT_VERSION_H
+#ifndef INC_SRT_VERSION_H
+#define INC_SRT_VERSION_H
 
 // To construct version value
 #define SRT_MAKE_VERSION(major, minor, patch) \
@@ -24,11 +24,11 @@ written by
 #define SRT_VERSION_MAJOR @SRT_VERSION_MAJOR@
 #define SRT_VERSION_MINOR @SRT_VERSION_MINOR@
 #define SRT_VERSION_PATCH @SRT_VERSION_PATCH@
-#cmakedefine SRT_VERSION_BUILD @APPVEYOR_BUILD_NUMBER_STRING@
+#cmakedefine SRT_VERSION_BUILD @CI_BUILD_NUMBER_STRING@
 
 #define SRT_VERSION_STRING "@SRT_VERSION@"
 #define SRT_VERSION_VALUE \
    SRT_MAKE_VERSION_VALUE( \
       SRT_VERSION_MAJOR, SRT_VERSION_MINOR, SRT_VERSION_PATCH )
 
-#endif // INC__SRT_VERSION_H
+#endif // INC_SRT_VERSION_H

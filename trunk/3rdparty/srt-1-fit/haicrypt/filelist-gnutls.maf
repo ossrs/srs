@@ -23,5 +23,4 @@ hcrypt_rx.c
 hcrypt_sa.c
 hcrypt_tx.c
 hcrypt_xpt_srt.c
-hcrypt_xpt_sta.c
 haicrypt_log.cpp

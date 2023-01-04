@@ -102,7 +102,7 @@ foreach {o desc} $options {
 }
 
 
-if { $argv == "--help" } {
+if { $argv == "--help" || $argv == "-h" } {
 	puts stderr "Usage: ./configure \[options\]"
 	puts stderr "OPTIONS:"
 	foreach o [lsort [array names opt]] {
@@ -153,8 +153,10 @@ foreach a $argv {
 
 	set type ""
 
-	if { [string first = $a] != -1 } {
-		lassign [split $a =] a val
+	if { [set a1 [string first = $a]] != -1 } {
+		# Do not split. Options may include =.
+		set val [string range $a $a1+1 end]
+		set a [string range $a 0 $a1-1]
 	}
 
 	if { [dict exists $::alias $a] } {
@@ -193,6 +195,23 @@ foreach a $argv {
 if { $saveopt != "" } {
 	error "Extra unhandled argument: $saveopt"
 }
+
+# Save the original call into config-status.sh
+
+set ofd [open config-status.sh w]
+puts $ofd "#!/bin/bash"
+puts -nonewline $ofd "$argv0 "
+foreach a $argv {
+	set len 1
+	if {[catch {llength $a} len] || $len > 1 } {
+		puts -nonewline $ofd "'$a' "
+	} else {
+		puts -nonewline $ofd "$a "
+	}
+}
+puts $ofd ""
+close $ofd
+file attributes config-status.sh -permissions +x
 
 set cmakeopt ""
 
