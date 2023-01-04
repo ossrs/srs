@@ -111,5 +111,5 @@ endif()
 
 # Now we've accounted for the 3-vs-1 library case:
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Libmbedtls DEFAULT_MSG MBEDTLS_LIBRARIES MBEDTLS_INCLUDE_DIRS)
+find_package_handle_standard_args(MbedTLS DEFAULT_MSG MBEDTLS_LIBRARIES MBEDTLS_INCLUDE_DIRS)
 mark_as_advanced(MBEDTLS_INCLUDE_DIR MBEDTLS_LIBRARIES MBEDTLS_INCLUDE_DIRS)

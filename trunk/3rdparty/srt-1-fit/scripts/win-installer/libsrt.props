@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- Visual Studio or MSBuild property file to use SRT static library -->
+
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- Normalize platform name to x64 and Win32 (some projects use x86 or Win64) -->
+  <Choose>
+    <When Condition="'$(Platform)' == 'x86'">
+      <PropertyGroup Label="UserMacros">
+        <SrtPlatform>Win32</SrtPlatform>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(Platform)' == 'Win64'">
+      <PropertyGroup Label="UserMacros">
+        <SrtPlatform>x64</SrtPlatform>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup Label="UserMacros">
+        <SrtPlatform>$(Platform)</SrtPlatform>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <!-- Compilation and link options -->
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(LIBSRT)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>srt.lib;libssl.lib;libcrypto.lib;crypt32.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(LIBSRT)\lib\$(Configuration)-$(SrtPlatform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+
+</Project>

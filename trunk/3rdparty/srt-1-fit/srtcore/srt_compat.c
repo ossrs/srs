@@ -16,12 +16,14 @@ written by
 
 // Prevents from misconfiguration through preprocessor.
 
+#include "platform_sys.h"
+
 #include <srt_compat.h>
 
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#if defined(__unix__) && !defined(BSD)
+#if defined(__unix__) && !defined(BSD) && !defined(SUNOS)
 #include <features.h>
 #endif
 

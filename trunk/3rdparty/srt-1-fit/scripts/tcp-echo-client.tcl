@@ -41,7 +41,7 @@ proc ReadBack {fd} {
 
 	# Nothing more to read
 	if {$remain == 0} {
-		puts stderr "NOTHING MORE TO BE WRITTEN - exitting"
+		puts stderr "NOTHING MORE TO BE WRITTEN - exiting"
 		set ::theend 1
 		return
 	}

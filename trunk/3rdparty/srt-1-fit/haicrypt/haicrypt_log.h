@@ -1,5 +1,5 @@
-#ifndef IMC__HAICRYPT_LOG_H
-#define IMC__HAICRYPT_LOG_H
+#ifndef INC_SRT_HAICRYPT_LOG_H
+#define INC_SRT_HAICRYPT_LOG_H
 
 #ifdef __cplusplus
 extern "C" {

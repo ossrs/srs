@@ -74,7 +74,7 @@ VOID TEST(ServiceSrtPoller, SrtSetGetSocketOpt)
     HELPER_EXPECT_SUCCESS(srs_srt_socket(&srt_fd));
     HELPER_EXPECT_SUCCESS(srs_srt_nonblock(srt_fd));
 
-    int maxbw = 20000;
+    int64_t maxbw = 20000;
     int mss = 1400;
     int payload_size = 1316;
     int connect_timeout = 5000;
@@ -104,10 +104,11 @@ VOID TEST(ServiceSrtPoller, SrtSetGetSocketOpt)
 
     bool b;
     int i = 0;
+    int64_t i64 = 0;
     std::string s;
 
-    HELPER_EXPECT_SUCCESS(srs_srt_get_maxbw(srt_fd, i));
-    EXPECT_EQ(i, maxbw);
+    HELPER_EXPECT_SUCCESS(srs_srt_get_maxbw(srt_fd, i64));
+    EXPECT_EQ(i64, maxbw);
     HELPER_EXPECT_SUCCESS(srs_srt_get_mss(srt_fd, i));
     EXPECT_EQ(i, mss);
     HELPER_EXPECT_SUCCESS(srs_srt_get_payload_size(srt_fd, i));

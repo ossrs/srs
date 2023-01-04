@@ -13,6 +13,8 @@
 written by
    Haivision Systems Inc.
 
+   2022-05-19 (jdube)
+        CRYSPR2 adaptation
    2019-06-27 (jdube)
         GnuTLS/Nettle CRYSPR/4SRT (CRYypto Service PRovider for SRT)
 *****************************************************************************/
@@ -29,11 +31,14 @@ written by
 // Static members of cryspr::mbedtls class.
 static mbedtls_ctr_drbg_context crysprMbedtls_ctr_drbg;
 static mbedtls_entropy_context crysprMbedtls_entropy;
-static mbedtls_md_context_t crysprMbedtls_mdctx;
 
 typedef struct tag_crysprGnuTLS_AES_cb {
         CRYSPR_cb       ccb;        /* CRYSPR control block */
         /* Add other cryptolib specific data here */
+#ifdef CRYSPR2
+        CRYSPR_AESCTX   aes_kek_buf;		/* Key Encrypting Key (KEK) */
+        CRYSPR_AESCTX   aes_sek_buf[2];		/* even/odd Stream Encrypting Key (SEK) */
+#endif
 } crysprMbedtls_cb;
 
 
@@ -49,18 +54,23 @@ int crysprMbedtls_Prng(unsigned char *rn, int len)
 }
 
 int crysprMbedtls_AES_SetKey(
+        int cipher_type,            /* One of HCRYPT_CTX_MODE_[CLRTXT|AESECB|AESCTR] */
         bool bEncrypt,              /* true:encrypt key, false:decrypt key*/
         const unsigned char *kstr,  /* key string */
         size_t kstr_len,            /* kstr length in  bytes (16, 24, or 32 bytes, for AES128,AES192, or AES256) */
         CRYSPR_AESCTX *aes_key)     /* Cryptolib Specific AES key context */
 {
+    (void)cipher_type;
+
     if (!(kstr_len == 16 || kstr_len == 24 || kstr_len == 32)) {
         HCRYPT_LOG(LOG_ERR, "%s", "AES_set_encrypt_key(kek) bad length\n");
         return -1;
     }
 
     int ret;
-
+#ifdef CRYSPR2
+    (void)cipher_type;
+#endif
     // mbedtls uses the "bits" convention (128, 192, 254), just like openssl.
     // kstr_len is in "bytes" convention (16, 24, 32).
 
@@ -146,6 +156,31 @@ int crysprMbedtls_AES_CtrCipher( /* AES-CTR128 Encryption */
     return 0;
 }
 
+#ifdef CRYSPR2
+static CRYSPR_cb *crysprMbedtls_Open(CRYSPR_methods *cryspr, size_t max_len)
+{
+    crysprMbedtls_cb *aes_data;
+    CRYSPR_cb *cryspr_cb;
+
+    aes_data = (crysprMbedtls_cb *)crysprHelper_Open(cryspr, sizeof(crysprMbedtls_cb), max_len);
+    if (NULL == aes_data) {
+        HCRYPT_LOG(LOG_ERR, "crysprHelper_Open(%p, %zd, %zd) failed\n", cryspr, sizeof(crysprMbedtls_cb), max_len);
+        return(NULL);
+    }
+
+    aes_data->ccb.aes_kek = &aes_data->aes_kek_buf; //key encrypting key
+    aes_data->ccb.aes_sek[0] = &aes_data->aes_sek_buf[0]; //stream encrypting key
+    aes_data->ccb.aes_sek[1] = &aes_data->aes_sek_buf[1]; //stream encrypting key
+
+    return(&aes_data->ccb);
+}
+
+static int crysprMbedtls_Close(CRYSPR_cb *cryspr_cb)
+{
+    return(crysprHelper_Close(cryspr_cb));
+}
+#endif /* CRYSPR2 */
+
 /*
 * Password-based Key Derivation Function
 */
@@ -161,9 +196,29 @@ int crysprMbedtls_KmPbkdf2(
 {
     (void)cryspr_cb;
 
-    int ret = mbedtls_pkcs5_pbkdf2_hmac(&crysprMbedtls_mdctx,
+    const mbedtls_md_info_t* ifo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
+    if ( ifo == NULL ) {
+        // XXX report error, log?
+        return -1;
+    }
+
+    mbedtls_md_context_t mdctx;
+    mbedtls_md_init(&mdctx);
+
+    const int yes_use_hmac = 1;
+    int ret;
+    if ( (ret = mbedtls_md_setup(&mdctx, ifo, yes_use_hmac)) != 0 ) {
+        mbedtls_md_free(&mdctx);
+
+        // XXX report error, log?
+        return ret;
+    }
+
+    ret = mbedtls_pkcs5_pbkdf2_hmac(&mdctx,
             (unsigned char*)passwd, passwd_len, salt, salt_len,
             itr, key_len, out);
+
+    mbedtls_md_free(&mdctx);
 
     if (ret == 0)
         return 0;
@@ -196,8 +251,13 @@ CRYSPR_methods *crysprMbedtls(void)
 #endif
 
     //--Crypto Session (Top API)
+#ifdef CRYSPR2
+        crysprMbedtls_methods.open     = crysprMbedtls_Open;
+        crysprMbedtls_methods.close    = crysprMbedtls_Close;
+#else
     //  crysprMbedtls_methods.open     =
     //  crysprMbedtls_methods.close    =
+#endif
     //--Keying material (km) encryption
     crysprMbedtls_methods.km_pbkdf2  = crysprMbedtls_KmPbkdf2;
     //	crysprMbedtls_methods.km_setkey  =
@@ -219,14 +279,6 @@ CRYSPR_methods *crysprMbedtls(void)
         HCRYPT_LOG(LOG_CRIT, "crysprMbedtls: STATIC INIT FAILED on mbedtls_ctr_drbg_init: -0x%04x", -ret);
         return NULL;
     }
-
-    // Ok, mbedtls with all flexibility you couldn't make it more complicated.
-
-    mbedtls_md_init(&crysprMbedtls_mdctx);
-    const mbedtls_md_info_t* ifo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
-    const int yes_use_hmac = 1;
-    mbedtls_md_setup(&crysprMbedtls_mdctx, ifo, yes_use_hmac);
-
 
     return(&crysprMbedtls_methods);
 }

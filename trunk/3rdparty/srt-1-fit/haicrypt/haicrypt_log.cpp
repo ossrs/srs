@@ -10,6 +10,8 @@
 
 #if ENABLE_HAICRYPT_LOGGING
 
+#include "haicrypt_log.h"
+
 #include "hcrypt.h"
 #include "haicrypt.h"
 #include "../srtcore/srt.h"
@@ -18,7 +20,7 @@
 extern srt_logging::LogConfig srt_logger_config;
 
 // LOGFA symbol defined in srt.h
-srt_logging::Logger hclog(SRT_LOGFA_HAICRYPT, srt_logger_config, "SRT.k");
+srt_logging::Logger hclog(SRT_LOGFA_HAICRYPT, srt_logger_config, "SRT.hc");
 
 extern "C" {
 
@@ -97,12 +99,7 @@ void HaiCrypt_DumpConfig(const HaiCrypt_Cfg* cfg)
     LOGC(hclog.Debug, log << "CFG DUMP: flags=" << cfg_flags.str()
             << " xport=" << (cfg->xport == HAICRYPT_XPT_SRT ? "SRT" : "INVALID")
             << " cipher="
-            << (cfg->cipher == HaiCryptCipher_OpenSSL_EVP_CTR() ? "OSSL-EVP-CTR":
-                cfg->cipher == HaiCryptCipher_OpenSSL_AES() ? "OSSL-AES":
-                // This below is used as the only one when Nettle is used. When OpenSSL
-                // is used, one of the above will trigger, and the one below will then never trigger.
-                cfg->cipher == HaiCryptCipher_Get_Instance() ? "Nettle-AES":
-                "UNKNOWN")
+            << CRYSPR_IMPL_DESC
             << " key_len=" << cfg->key_len << " data_max_len=" << cfg->data_max_len);
 
 

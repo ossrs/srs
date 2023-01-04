@@ -50,6 +50,8 @@ modified by
    Haivision Systems Inc.
 *****************************************************************************/
 
+#include "platform_sys.h"
+
 #include <cmath>
 #include <cstring>
 #include "common.h"
@@ -57,7 +59,10 @@ modified by
 #include <algorithm>
 
 using namespace std;
+using namespace srt::sync;
 
+namespace srt
+{
 namespace ACKWindowTools
 {
 
@@ -65,7 +70,7 @@ void store(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int32_t s
 {
    r_aSeq[r_iHead].iACKSeqNo = seq;
    r_aSeq[r_iHead].iACK = ack;
-   r_aSeq[r_iHead].TimeStamp = CTimer::getTime();
+   r_aSeq[r_iHead].tsTimeStamp = steady_clock::now();
 
    r_iHead = (r_iHead + 1) % size;
 
@@ -74,27 +79,26 @@ void store(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int32_t s
       r_iTail = (r_iTail + 1) % size;
 }
 
-int acknowledge(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int32_t seq, int32_t& r_ack)
+int acknowledge(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int32_t seq, int32_t& r_ack, const steady_clock::time_point& currtime)
 {
+   // Head has not exceeded the physical boundary of the window
    if (r_iHead >= r_iTail)
    {
-      // Head has not exceeded the physical boundary of the window
-
       for (int i = r_iTail, n = r_iHead; i < n; ++ i)
       {
-         // looking for indentical ACK Seq. No.
+         // Looking for an identical ACK Seq. No.
          if (seq == r_aSeq[i].iACKSeqNo)
          {
-            // return the Data ACK it carried
+            // Return the Data ACK it carried
             r_ack = r_aSeq[i].iACK;
 
-            // calculate RTT
-            int rtt = int(CTimer::getTime() - r_aSeq[i].TimeStamp);
+            // Calculate RTT estimate
+            const int rtt = count_microseconds(currtime - r_aSeq[i].tsTimeStamp);
 
             if (i + 1 == r_iHead)
             {
                r_iTail = r_iHead = 0;
-               r_aSeq[0].iACKSeqNo = -1;
+               r_aSeq[0].iACKSeqNo = SRT_SEQNO_NONE;
             }
             else
                r_iTail = (i + 1) % size;
@@ -103,22 +107,22 @@ int acknowledge(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int3
          }
       }
 
-      // Bad input, the ACK node has been overwritten
+      // The record about ACK is not found in the buffer, RTT can not be calculated
       return -1;
    }
 
    // Head has exceeded the physical window boundary, so it is behind tail
    for (int j = r_iTail, n = r_iHead + size; j < n; ++ j)
    {
-      // looking for indentical ACK seq. no.
+      // Looking for an identical ACK Seq. No.
       if (seq == r_aSeq[j % size].iACKSeqNo)
       {
-         // return Data ACK
+         // Return the Data ACK it carried
          j %= size;
          r_ack = r_aSeq[j].iACK;
 
-         // calculate RTT
-         int rtt = int(CTimer::getTime() - r_aSeq[j].TimeStamp);
+         // Calculate RTT estimate
+         const int rtt = count_microseconds(currtime - r_aSeq[j].tsTimeStamp);
 
          if (j == r_iHead)
          {
@@ -132,14 +136,16 @@ int acknowledge(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int3
       }
    }
 
-   // bad input, the ACK node has been overwritten
+   // The record about ACK is not found in the buffer, RTT can not be calculated
    return -1;
 }
-}
+
+} // namespace AckTools
+} // namespace srt
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void CPktTimeWindowTools::initializeWindowArrays(int* r_pktWindow, int* r_probeWindow, int* r_bytesWindow, size_t asize, size_t psize)
+void srt::CPktTimeWindowTools::initializeWindowArrays(int* r_pktWindow, int* r_probeWindow, int* r_bytesWindow, size_t asize, size_t psize)
 {
    for (size_t i = 0; i < asize; ++ i)
       r_pktWindow[i] = 1000000;   //1 sec -> 1 pkt/sec
@@ -148,11 +154,11 @@ void CPktTimeWindowTools::initializeWindowArrays(int* r_pktWindow, int* r_probeW
       r_probeWindow[k] = 1000;    //1 msec -> 1000 pkts/sec
 
    for (size_t i = 0; i < asize; ++ i)
-      r_bytesWindow[i] = CPacket::SRT_MAX_PAYLOAD_SIZE; //based on 1 pkt/sec set in r_pktWindow[i]
+      r_bytesWindow[i] = srt::CPacket::SRT_MAX_PAYLOAD_SIZE; //based on 1 pkt/sec set in r_pktWindow[i]
 }
 
 
-int CPktTimeWindowTools::getPktRcvSpeed_in(const int* window, int* replica, const int* abytes, size_t asize, int& bytesps)
+int srt::CPktTimeWindowTools::getPktRcvSpeed_in(const int* window, int* replica, const int* abytes, size_t asize, int& bytesps)
 {
    // get median value, but cannot change the original value order in the window
    std::copy(window, window + asize, replica);
@@ -185,7 +191,7 @@ int CPktTimeWindowTools::getPktRcvSpeed_in(const int* window, int* replica, cons
    // claculate speed, or return 0 if not enough valid value
    if (count > (asize >> 1))
    {
-      bytes += (CPacket::SRT_DATA_HDR_SIZE * count); //Add protocol headers to bytes received
+      bytes += (srt::CPacket::SRT_DATA_HDR_SIZE * count); //Add protocol headers to bytes received
       bytesps = (unsigned long)ceil(1000000.0 / (double(sum) / double(bytes)));
       return (int)ceil(1000000.0 / (sum / count));
    }
@@ -196,7 +202,7 @@ int CPktTimeWindowTools::getPktRcvSpeed_in(const int* window, int* replica, cons
    }
 }
 
-int CPktTimeWindowTools::getBandwidth_in(const int* window, int* replica, size_t psize)
+int srt::CPktTimeWindowTools::getBandwidth_in(const int* window, int* replica, size_t psize)
 {
     // This calculation does more-less the following:
     //

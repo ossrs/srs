@@ -151,10 +151,10 @@ if (NOT DEFINED IOS_ARCH)
 		set (IOS_ARCH x86_64)
 	endif (${IOS_PLATFORM} STREQUAL OS)
 endif(NOT DEFINED IOS_ARCH)
-set (CMAKE_OSX_ARCHITECTURES ${IOS_ARCH} CACHE string  "Build architecture for iOS")
+set (CMAKE_OSX_ARCHITECTURES ${IOS_ARCH} CACHE STRING "Build architecture for iOS")
 
 # Set the find root to the iOS developer roots and to user defined paths
-set (CMAKE_FIND_ROOT_PATH ${CMAKE_IOS_DEVELOPER_ROOT} ${CMAKE_IOS_SDK_ROOT} ${CMAKE_PREFIX_PATH} CACHE string  "iOS find search path root")
+set (CMAKE_FIND_ROOT_PATH ${CMAKE_IOS_DEVELOPER_ROOT} ${CMAKE_IOS_SDK_ROOT} ${CMAKE_PREFIX_PATH} CACHE STRING "iOS find search path root")
 
 # default to searching for frameworks first
 set (CMAKE_FIND_FRAMEWORK FIRST)

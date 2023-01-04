@@ -74,10 +74,6 @@ static hcrypt_Session* sHaiCrypt_PrepareHandle(const HaiCrypt_Cfg* cfg, HaiCrypt
 
     /* Setup transport packet info */
     switch (cfg->xport) {
-    case HAICRYPT_XPT_STANDALONE:
-        crypto->se = HCRYPT_SE_TSUDP;
-        crypto->msg_info = hcryptMsg_STA_MsgInfo();
-        break;
     case HAICRYPT_XPT_SRT:
         crypto->se = HCRYPT_SE_TSSRT;
         crypto->msg_info = hcryptMsg_SRT_MsgInfo();

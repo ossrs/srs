@@ -24,8 +24,8 @@ written by
         MINGW-W64 Build.
 *****************************************************************************/
 
-#ifndef HCRYPT_H
-#define HCRYPT_H
+#ifndef INC_SRT_HCRYPT_H
+#define INC_SRT_HCRYPT_H
 
 #include <sys/types.h>
 
