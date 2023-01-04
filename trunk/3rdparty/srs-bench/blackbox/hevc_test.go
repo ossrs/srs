@@ -379,7 +379,7 @@ func TestSlow_RtmpPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 	ffprobe := NewFFprobe(func(v *ffprobeClient) {
 		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.ts", streamID))
 		v.streamURL = fmt.Sprintf("http://localhost:%v/live/%v.m3u8", svr.HTTPPort(), streamID)
-		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond * 2
+		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond*2
 	})
 	wg.Add(1)
 	go func() {

@@ -199,7 +199,7 @@ jobs:
           docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
             ./objs/srs_blackbox_test -test.v -test.run '^TestFast' -test.parallel 64
           docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
-            ./objs/srs_blackbox_test -test.v -test.run '^TestSlow' -test.parallel 2
+            ./objs/srs_blackbox_test -test.v -test.run '^TestSlow' -test.parallel 4
     runs-on: ubuntu-20.04
 
   coverage:
