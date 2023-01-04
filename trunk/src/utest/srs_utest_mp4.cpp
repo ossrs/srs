@@ -1322,7 +1322,7 @@ VOID TEST(KernelMp4Test, SampleDescBox)
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
-            SrsMp4VisualSampleEntry box;
+            SrsMp4VisualSampleEntry box = SrsMp4VisualSampleEntry(SrsMp4BoxTypeAVC1);
             box.data_reference_index = 1;
             EXPECT_EQ((int)sizeof(buf), (int)box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
@@ -1337,7 +1337,7 @@ VOID TEST(KernelMp4Test, SampleDescBox)
 
         if (true) {
             b.skip(-1 * b.pos());
-            SrsMp4VisualSampleEntry box;
+            SrsMp4VisualSampleEntry box = SrsMp4VisualSampleEntry(SrsMp4BoxTypeAVC1);
             HELPER_EXPECT_SUCCESS(box.decode(&b));
         }
     }
@@ -1362,6 +1362,55 @@ VOID TEST(KernelMp4Test, SampleDescBox)
         if (true) {
             b.skip(-1 * b.pos());
             SrsMp4AvccBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[8+8+70];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4VisualSampleEntry box = SrsMp4VisualSampleEntry(SrsMp4BoxTypeHEV1);
+            box.data_reference_index = 1;
+            EXPECT_EQ((int)sizeof(buf), (int)box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ("hev1, 86B, refs#1, size=0x0\n", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4VisualSampleEntry box = SrsMp4VisualSampleEntry(SrsMp4BoxTypeHEV1);
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[8];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4HvcCBox box;
+            EXPECT_EQ((int)sizeof(buf), (int)box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ("hvcC, 8B, HEVC Config: 0B\n    \n", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4HvcCBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
         }
     }
