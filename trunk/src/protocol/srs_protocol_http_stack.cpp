@@ -891,10 +891,21 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
     // When CORS required, set the CORS headers.
     if (required) {
         SrsHttpHeader* h = w->header();
+        // SRS does not need cookie or credentials, so we disable CORS credentials, and use * for CORS origin,
+        // headers, expose headers and methods.
         h->set("Access-Control-Allow-Origin", "*");
-        h->set("Access-Control-Allow-Methods", "GET, POST, HEAD, PUT, DELETE, OPTIONS");
-        h->set("Access-Control-Expose-Headers", "Server,range,Content-Length,Content-Range");
-        h->set("Access-Control-Allow-Headers", "origin,range,accept-encoding,referer,Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type");
+        // See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
+        h->set("Access-Control-Allow-Headers", "*");
+        // See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods
+        h->set("Access-Control-Allow-Methods", "*");
+        // See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Expose-Headers
+        // Only the CORS-safelisted response headers are exposed by default. That is Cache-Control, Content-Language,
+        // Content-Length, Content-Type, Expires, Last-Modified, Pragma.
+        // See https://developer.mozilla.org/en-US/docs/Glossary/CORS-safelisted_response_header
+        h->set("Access-Control-Expose-Headers", "*");
+        // https://stackoverflow.com/a/24689738/17679565
+        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials
+        h->set("Access-Control-Allow-Credentials", "false");
     }
     
     // handle the http options.

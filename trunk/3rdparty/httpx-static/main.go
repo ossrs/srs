@@ -412,10 +412,18 @@ func run(ctx context.Context) error {
 		oh.SetHeader(w)
 
 		if o := r.Header.Get("Origin"); len(o) > 0 {
+			// SRS does not need cookie or credentials, so we disable CORS credentials, and use * for CORS origin,
+			// headers, expose headers and methods.
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, HEAD, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Expose-Headers", "Server,range,Content-Length,Content-Range")
-			w.Header().Set("Access-Control-Allow-Headers", "origin,range,accept-encoding,referer,Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type")
+			// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods
+			w.Header().Set("Access-Control-Allow-Methods", "*")
+			// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Expose-Headers
+			w.Header().Set("Access-Control-Expose-Headers", "*")
+			// https://stackoverflow.com/a/24689738/17679565
+			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials
+			w.Header().Set("Access-Control-Allow-Credentials", "false")
 		}
 
 		// For matched OPTIONS, directly return without response.
