@@ -163,6 +163,8 @@ func (v *SRSPortAllocator) Allocate() int {
 		if _, ok := v.ports.LoadOrStore(port, true); !ok {
 			return port
 		}
+
+		time.Sleep(time.Duration(rand.Int()%1000) * time.Microsecond)
 	}
 
 	panic("Allocate port failed")
@@ -395,6 +397,8 @@ type SRSServer interface {
 	RTMPPort() int
 	// HTTPPort is the HTTP stream port.
 	HTTPPort() int
+	// SRTPort is the SRT UDP port.
+	SRTPort() int
 }
 
 // srsServer is a SRS server instance.
@@ -421,6 +425,8 @@ type srsServer struct {
 	apiListen int
 	// HTTP server listen port.
 	httpListen int
+	// SRT UDP server listen port.
+	srtListen int
 
 	// The envs from user.
 	envs []string
@@ -446,12 +452,14 @@ func NewSRSServer(opts ...func(v *srsServer)) SRSServer {
 	v.rtmpListen = allocator.Allocate()
 	v.apiListen = allocator.Allocate()
 	v.httpListen = allocator.Allocate()
+	v.srtListen = allocator.Allocate()
 
 	// Do cleanup.
 	v.process.onDispose = func(ctx context.Context, bs *backendService) error {
 		allocator.Free(v.rtmpListen)
 		allocator.Free(v.apiListen)
 		allocator.Free(v.httpListen)
+		allocator.Free(v.srtListen)
 
 		pidFile := path.Join(v.workDir, v.srsRelativePidFile)
 		if _, err := os.Stat(pidFile); err == nil {
@@ -489,6 +497,10 @@ func (v *srsServer) RTMPPort() int {
 
 func (v *srsServer) HTTPPort() int {
 	return v.httpListen
+}
+
+func (v *srsServer) SRTPort() int {
+	return v.srtListen
 }
 
 func (v *srsServer) WorkDir() string {
@@ -531,6 +543,8 @@ func (v *srsServer) Run(ctx context.Context, cancel context.CancelFunc) error {
 		fmt.Sprintf("SRS_LISTEN=%v", v.rtmpListen),
 		// Setup the HTTP sever listen port.
 		fmt.Sprintf("SRS_HTTP_SERVER_LISTEN=%v", v.httpListen),
+		// Setup the SRT server listen port.
+		fmt.Sprintf("SRS_SRT_SERVER_LISTEN=%v", v.srtListen),
 	}
 	// Rewrite envs by case.
 	if v.envs != nil {
