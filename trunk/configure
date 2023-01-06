@@ -156,11 +156,17 @@ fi
 
 # FFMPEG for WebRTC transcoding, such as aac to opus.
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
-    LibFfmpegRoot="${SRS_OBJS}/ffmpeg/include"; LibFfmpegFile="${SRS_OBJS}/ffmpeg/lib/libavcodec.a ${SRS_OBJS}/ffmpeg/lib/libswresample.a ${SRS_OBJS}/ffmpeg/lib/libavutil.a"
-    if [[ $SRS_CROSS_BUILD != YES ]]; then
+    LibFfmpegRoot="${SRS_OBJS}/ffmpeg/include"
+    LibFfmpegFile="${SRS_OBJS}/ffmpeg/lib/libavcodec.a ${SRS_OBJS}/ffmpeg/lib/libswresample.a ${SRS_OBJS}/ffmpeg/lib/libavutil.a"
+    if [[ $SRS_FFMPEG_OPUS != YES ]]; then
         LibFfmpegFile="${LibFfmpegFile} ${SRS_OBJS}/opus/lib/libopus.a"
     fi
-    if [[ $SRS_SHARED_FFMPEG == YES ]]; then LibFfmpegFile="-L${SRS_OBJS}/ffmpeg/lib -lavcodec -lswresample -lavutil -L${SRS_OBJS}/opus/lib -lopus"; fi
+    if [[ $SRS_SHARED_FFMPEG == YES ]]; then
+        LibFfmpegFile="-L${SRS_OBJS}/ffmpeg/lib -lavcodec -lswresample -lavutil";
+        if [[ $SRS_FFMPEG_OPUS != YES ]]; then
+            LibFfmpegFile="$LibFfmpegFile -L${SRS_OBJS}/opus/lib -lopus"
+        fi
+    fi
 fi
 
 # openssl-1.1.0e, for the RTMP complex handshake.

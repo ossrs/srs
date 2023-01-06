@@ -528,7 +528,7 @@ fi
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 # For cross build, we use opus of FFmpeg, so we don't build the libopus.
-if [[ $SRS_RTC == YES && $SRS_CROSS_BUILD != YES ]]; then
+if [[ $SRS_RTC == YES && $SRS_FFMPEG_OPUS != YES ]]; then
     # Only build static libraries if no shared FFmpeg.
     if [[ $SRS_SHARED_FFMPEG == NO ]]; then
         OPUS_OPTIONS="--disable-shared --disable-doc"
@@ -559,11 +559,11 @@ fi
 # ffmpeg-fit, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
-    if [[ $SRS_CROSS_BUILD == YES ]]; then
-      FFMPEG_CONFIGURE="./configure"
-    else
-      FFMPEG_CONFIGURE="env PKG_CONFIG_PATH=${SRS_DEPENDS_LIBS}/opus/lib/pkgconfig ./configure"
+    FFMPEG_CONFIGURE="env SRS_FFMPEG_FIT=on"
+    if [[ $SRS_FFMPEG_OPUS != YES ]]; then
+        FFMPEG_CONFIGURE="$FFMPEG_CONFIGURE PKG_CONFIG_PATH=${SRS_DEPENDS_LIBS}/opus/lib/pkgconfig"
     fi
+    FFMPEG_CONFIGURE="$FFMPEG_CONFIGURE ./configure"
 
     # Disable all features, note that there are still some options need to be disabled.
     FFMPEG_OPTIONS="--disable-everything"
@@ -583,9 +583,9 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cross-prefix=$SRS_CROSS_BUILD_PREFIX"
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cc=${SRS_TOOL_CC} --cxx=${SRS_TOOL_CXX} --ar=${SRS_TOOL_AR} --ld=${SRS_TOOL_LD}"
     fi
-    # For cross-build.
-    if [[ $SRS_CROSS_BUILD == YES ]]; then
-        # Note that the audio might be corrupted, if use FFmpeg native opus.
+    # For audio codec opus, use FFmpeg native one, or external libopus.
+    if [[ $SRS_FFMPEG_OPUS == YES ]]; then
+        # TODO: FIXME: Note that the audio might be corrupted, see https://github.com/ossrs/srs/issues/3140
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=opus --enable-encoder=opus"
     else
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=libopus --enable-encoder=libopus --enable-libopus"

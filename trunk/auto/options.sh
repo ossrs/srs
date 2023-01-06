@@ -37,6 +37,8 @@ SRS_FFMPEG_STUB=NO
 SRS_FFMPEG_TOOL=NO
 # FFmpeg fit is the source code for RTC, to transcode audio or video in SRS.
 SRS_FFMPEG_FIT=RESERVED
+# Whether use FFmpeg native opus codec for RTC. If not, use libopus instead.
+SRS_FFMPEG_OPUS=NO
 # arguments
 SRS_PREFIX=/usr/local/srs
 SRS_DEFAULT_CONFIG=conf/srs.conf
@@ -165,6 +167,7 @@ Features:
   --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
   --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
+  --ffmpeg-opus=on|off      Whether enable the FFmpeg native opus codec. Default: $(value2switch $SRS_FFMPEG_OPUS)
   --apm=on|off              Whether enable cloud logging and APM(Application Performance Monitor). Default: $(value2switch $SRS_APM)
   --h265=on|off             Whether build the HEVC(H.265) support. Default: $(value2switch $SRS_H265)
 
@@ -344,6 +347,7 @@ function parse_user_option() {
         --generate-objs)                SRS_GENERATE_OBJS=$(switch2value $value) ;;
         --single-thread)                SRS_SINGLE_THREAD=$(switch2value $value) ;;
         --ffmpeg-fit)                   SRS_FFMPEG_FIT=$(switch2value $value) ;;
+        --ffmpeg-opus)                  SRS_FFMPEG_OPUS=$(switch2value $value) ;;
         --h265)                         SRS_H265=$(switch2value $value) ;;
         --gb28181)                      SRS_GB28181=$(switch2value $value) ;;
 
@@ -505,6 +509,10 @@ function apply_auto_options() {
     if [[ $SRS_RTC == YES && $SRS_FFMPEG_FIT == RESERVED ]]; then
         SRS_FFMPEG_FIT=YES
     fi
+    if [[ $SRS_CROSS_BUILD == YES && $SRS_FFMPEG_OPUS != YES ]]; then
+        echo "Enable FFmpeg native opus for cross building"
+        SRS_FFMPEG_OPUS=YES
+    fi
 
     # Enable asan, but disable for Centos
     # @see https://github.com/ossrs/srs/issues/3347
@@ -620,6 +628,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=$(value2switch $SRS_CXX14)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --backtrace=$(value2switch $SRS_BACKTRACE)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=$(value2switch $SRS_FFMPEG_FIT)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-opus=$(value2switch $SRS_FFMPEG_OPUS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=$(value2switch $SRS_NASM)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=$(value2switch $SRS_SRTP_ASM)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --clean=$(value2switch $SRS_CLEAN)"
