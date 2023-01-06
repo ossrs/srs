@@ -86,6 +86,12 @@ else
     srs_undefine_macro "SRS_FFMPEG_FIT" $SRS_AUTO_HEADERS_H
 fi
 
+if [[ $SRS_FFMPEG_OPUS == YES ]]; then
+    srs_define_macro "SRS_FFMPEG_OPUS" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_FFMPEG_OPUS" $SRS_AUTO_HEADERS_H
+fi
+
 if [[ $SRS_SIMULATOR == YES ]]; then
     srs_define_macro "SRS_SIMULATOR" $SRS_AUTO_HEADERS_H
 else
