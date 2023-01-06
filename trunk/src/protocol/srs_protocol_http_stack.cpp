@@ -895,6 +895,8 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
         h->set("Access-Control-Allow-Methods", "GET, POST, HEAD, PUT, DELETE, OPTIONS");
         h->set("Access-Control-Expose-Headers", "Server,range,Content-Length,Content-Range");
         h->set("Access-Control-Allow-Headers", "origin,range,accept-encoding,referer,Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type");
+        // CORS header for private network access, starting in Chrome 104
+        h->set("Access-Control-Request-Private-Network", "true");
     }
     
     // handle the http options.
