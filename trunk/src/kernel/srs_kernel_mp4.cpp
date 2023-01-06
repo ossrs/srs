@@ -342,6 +342,7 @@ srs_error_t SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeAVC1: box = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeAVC1); break;
         case SrsMp4BoxTypeHEV1: box = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeHEV1); break;
         case SrsMp4BoxTypeAVCC: box = new SrsMp4AvccBox(); break;
+        case SrsMp4BoxTypeHVCC: box = new SrsMp4HvcCBox(); break;
         case SrsMp4BoxTypeMP4A: box = new SrsMp4AudioSampleEntry(); break;
         case SrsMp4BoxTypeESDS: box = new SrsMp4EsdsBox(); break;
         case SrsMp4BoxTypeUDTA: box = new SrsMp4UserDataBox(); break;
@@ -6129,20 +6130,21 @@ srs_error_t SrsMp4Encoder::copy_sequence_header(SrsFormat* format, bool vsh, uin
     srs_error_t err = srs_success;
 
     if (vsh) {
+        // HEVC
         if (format->vcodec->id == SrsVideoCodecIdHEVC && !phvcc.empty()) {
             if (nb_sample == (uint32_t)phvcc.size() && srs_bytes_equals(sample, &phvcc[0], (int)phvcc.size())) {
                 return err;
             }
 
             return srs_error_new(ERROR_MP4_HVCC_CHANGE, "doesn't support hvcC change");
-        } else {
-            if (format->vcodec->id == SrsVideoCodecIdAVC && !pavcc.empty()) {
-                if (nb_sample == (uint32_t)pavcc.size() && srs_bytes_equals(sample, &pavcc[0], (int)pavcc.size())) {
-                    return err;
-                }
-
-                return srs_error_new(ERROR_MP4_AVCC_CHANGE, "doesn't support avcc change");
+        }
+        // AVC
+        if (format->vcodec->id == SrsVideoCodecIdAVC && !pavcc.empty()) {
+            if (nb_sample == (uint32_t)pavcc.size() && srs_bytes_equals(sample, &pavcc[0], (int)pavcc.size())) {
+                return err;
             }
+
+            return srs_error_new(ERROR_MP4_AVCC_CHANGE, "doesn't support avcc change");
         }
     }
     
