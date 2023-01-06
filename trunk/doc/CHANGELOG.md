@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2023-01-06, Merge [#3363](https://github.com/ossrs/srs/issues/3363): HTTP: Add CORS Header for private network access. v6.0.13
 * v6.0, 2023-01-04, Merge [#3362](https://github.com/ossrs/srs/issues/3362): SRT: Upgrade libsrt from 1.4.1 to 1.5.1. v6.0.12
 * v6.0, 2023-01-02, For [#465](https://github.com/ossrs/srs/issues/465): HLS: Support HEVC over HLS. v6.0.11
 * v6.0, 2022-12-30, Support first SRS6 version. v6.0.10

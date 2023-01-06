@@ -906,6 +906,8 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
         // https://stackoverflow.com/a/24689738/17679565
         // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials
         h->set("Access-Control-Allow-Credentials", "false");
+        // CORS header for private network access, starting in Chrome 104
+        h->set("Access-Control-Request-Private-Network", "true");
     }
     
     // handle the http options.
