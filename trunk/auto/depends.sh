@@ -45,23 +45,76 @@ if [[ $SRS_OSX == YES ]]; then
 fi
 # Check perl, which is depended by automake for building libopus etc.
 perl --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    echo "Please install perl"; exit $ret;
+    if [[ $OS_IS_CENTOS == YES ]]; then
+        echo "Please install perl by:"
+        echo "  yum install -y perl"
+    elif [[ $OS_IS_UBUNTU == YES ]]; then
+        echo "Please install perl by:"
+        echo "  apt install -y perl"
+    else
+        echo "Please install perl"
+    fi
+    exit $ret;
 fi
 gcc --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    echo "Please install gcc"; exit $ret;
+    if [[ $OS_IS_CENTOS == YES ]]; then
+        echo "Please install gcc by:"
+        echo "  yum install -y gcc"
+    elif [[ $OS_IS_UBUNTU == YES ]]; then
+        echo "Please install gcc by:"
+        echo "  apt install -y gcc"
+    else
+        echo "Please install gcc"
+    fi
+    exit $ret;
 fi
 g++ --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_UBUNTU == YES ]]; then echo "Please install g++"; else echo "Please install gcc-c++"; fi
+    if [[ $OS_IS_CENTOS == YES ]]; then
+        echo "Please install g++ by:"
+        echo "  yum install -y gcc-c++"
+    elif [[ $OS_IS_UBUNTU == YES ]]; then
+        echo "Please install g++ by:"
+        echo "  apt install -y g++"
+    else
+        echo "Please install gcc-c++"
+    fi
     exit $ret;
 fi
 make --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    echo "Please install make"; exit $ret;
+    if [[ $OS_IS_CENTOS == YES ]]; then
+        echo "Please install make by:"
+        echo "  yum install -y make"
+    elif [[ $OS_IS_UBUNTU == YES ]]; then
+        echo "Please install make by:"
+        echo "  apt install -y make"
+    else
+        echo "Please install make"
+    fi
+    exit $ret;
 fi
 patch --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    echo "Please install patch"; exit $ret;
+    if [[ $OS_IS_CENTOS == YES ]]; then
+        echo "Please install patch by:"
+        echo "  yum install -y patch"
+    elif [[ $OS_IS_UBUNTU == YES ]]; then
+        echo "Please install patch by:"
+        echo "  apt install -y patch"
+    else
+        echo "Please install patch"
+    fi
+    exit $ret;
 fi
 unzip -v >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    echo "Please install unzip"; exit $ret;
+    if [[ $OS_IS_CENTOS == YES ]]; then
+        echo "Please install unzip by:"
+        echo "  yum install -y unzip"
+    elif [[ $OS_IS_UBUNTU == YES ]]; then
+        echo "Please install unzip by:"
+        echo "  apt install -y unzip"
+    else
+        echo "Please install unzip"
+    fi
+    exit $ret;
 fi
 if [[ $SRS_VALGRIND == YES ]]; then
     valgrind --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
@@ -74,14 +127,44 @@ fi
 # Check tclsh, which is depended by SRT.
 if [[ $SRS_SRT == YES ]]; then
     tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Please install tclsh"; exit $ret;
+        if [[ $OS_IS_CENTOS == YES ]]; then
+            echo "Please install tclsh by:"
+            echo "  yum install -y tcl"
+        elif [[ $OS_IS_UBUNTU == YES ]]; then
+            echo "Please install tclsh by:"
+            echo "  apt install -y tclsh"
+        else
+            echo "Please install tclsh"
+        fi
+        exit $ret;
     fi
     cmake --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Please install cmake"; exit $ret;
+        if [[ $OS_IS_CENTOS == YES ]]; then
+            echo "Please install cmake by:"
+            echo "  yum install -y cmake"
+        elif [[ $OS_IS_UBUNTU == YES ]]; then
+            echo "Please install cmake by:"
+            echo "  apt install -y cmake"
+        else
+            echo "Please install cmake"
+        fi
+        exit $ret;
     fi
 fi
 pkg-config --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
     echo "Please install pkg-config"; exit $ret;
+fi
+which ls >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+    if [[ $OS_IS_CENTOS == YES ]]; then
+        echo "Please install which by:"
+        echo "  yum install -y which"
+    elif [[ $OS_IS_UBUNTU == YES ]]; then
+        echo "Please install which by:"
+        echo "  apt install -y which"
+    else
+        echo "Please install which"
+    fi
+    exit $ret;
 fi
 
 #####################################################################################
