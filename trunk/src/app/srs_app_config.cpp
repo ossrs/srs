@@ -68,6 +68,16 @@ const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 #define SRS_OVERWRITE_BY_ENV_MILLISECONDS(key) if (!srs_getenv(key).empty()) return (srs_utime_t)(::atoi(srs_getenv(key).c_str()) * SRS_UTIME_MILLISECONDS)
 #define SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS(key) if (!srs_getenv(key).empty()) return srs_utime_t(::atof(srs_getenv(key).c_str()) * SRS_UTIME_SECONDS)
 #define SRS_OVERWRITE_BY_ENV_FLOAT_MILLISECONDS(key) if (!srs_getenv(key).empty()) return srs_utime_t(::atof(srs_getenv(key).c_str()) * SRS_UTIME_MILLISECONDS)
+#define SRS_OVERWRITE_BY_ENV_DIRECTIVE(key) { \
+        static SrsConfDirective* dir = NULL;      \
+        if (!dir && !srs_getenv(key).empty()) {   \
+            string v = srs_getenv(key);           \
+            dir = new SrsConfDirective();         \
+            dir->name = key;                      \
+            dir->args.push_back(v);               \
+        }                                         \
+        if (dir) return dir;                      \
+    }
 
 /**
  * dumps the ingest/transcode-engine in @param dir to amf0 object @param engine.
@@ -5359,6 +5369,8 @@ SrsConfDirective* SrsConfig::get_vhost_http_hooks(string vhost)
 
 bool SrsConfig::get_vhost_http_hooks_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.http_hooks.enabled"); // SRS_VHOST_HTTP_HOOKS_ENABLED
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -5371,6 +5383,8 @@ bool SrsConfig::get_vhost_http_hooks_enabled(string vhost)
 
 bool SrsConfig::get_vhost_http_hooks_enabled(SrsConfDirective* vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.http_hooks.enabled"); // SRS_VHOST_HTTP_HOOKS_ENABLED
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = vhost->get("http_hooks");
@@ -5388,6 +5402,8 @@ bool SrsConfig::get_vhost_http_hooks_enabled(SrsConfDirective* vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.http_hooks.on_connect"); // SRS_VHOST_HTTP_HOOKS_ON_CONNECT
+
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
     if (!conf) {
         return NULL;
@@ -5398,6 +5414,8 @@ SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_close(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.http_hooks.on_close"); // SRS_VHOST_HTTP_HOOKS_ON_CLOSE
+
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
     if (!conf) {
         return NULL;
@@ -5408,6 +5426,8 @@ SrsConfDirective* SrsConfig::get_vhost_on_close(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_publish(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.http_hooks.on_publish"); // SRS_VHOST_HTTP_HOOKS_ON_PUBLISH
+
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
     if (!conf) {
         return NULL;
@@ -5418,6 +5438,8 @@ SrsConfDirective* SrsConfig::get_vhost_on_publish(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_unpublish(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.http_hooks.on_unpublish"); // SRS_VHOST_HTTP_HOOKS_ON_UNPUBLISH
+
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
     if (!conf) {
         return NULL;
@@ -5428,6 +5450,8 @@ SrsConfDirective* SrsConfig::get_vhost_on_unpublish(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_play(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.http_hooks.on_play"); // SRS_VHOST_HTTP_HOOKS_ON_PLAY
+
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
     if (!conf) {
         return NULL;
@@ -5438,6 +5462,8 @@ SrsConfDirective* SrsConfig::get_vhost_on_play(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_stop(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.http_hooks.on_stop"); // SRS_VHOST_HTTP_HOOKS_ON_STOP
+
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
     if (!conf) {
         return NULL;
@@ -5448,6 +5474,8 @@ SrsConfDirective* SrsConfig::get_vhost_on_stop(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_dvr(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.http_hooks.on_dvr"); // SRS_VHOST_HTTP_HOOKS_ON_DVR
+
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
     if (!conf) {
         return NULL;
@@ -5458,6 +5486,8 @@ SrsConfDirective* SrsConfig::get_vhost_on_dvr(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_hls(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.http_hooks.on_hls"); // SRS_VHOST_HTTP_HOOKS_ON_HLS
+
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
     if (!conf) {
         return NULL;
@@ -5468,6 +5498,8 @@ SrsConfDirective* SrsConfig::get_vhost_on_hls(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_hls_notify(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.http_hooks.on_hls_notify"); // SRS_VHOST_HTTP_HOOKS_ON_HLS_NOTIFY
+
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
     if (!conf) {
         return NULL;
