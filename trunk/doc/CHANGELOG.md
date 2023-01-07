@@ -27,7 +27,8 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
-* v5.0, 2023-01-05, FFmpeg: Support build with FFmpeg native opus. v5.0.131 (#3140)
+* v5.0, 2023-01-06, DVR: Support blackbox test based on hooks. v5.0.132
+* v5.0, 2023-01-06, FFmpeg: Support build with FFmpeg native opus. v5.0.131 (#3140)
 * v5.0, 2023-01-05, CORS: Refine HTTP CORS headers. v5.0.130
 * v5.0, 2023-01-03, Add blackbox test for HLS and MP3 codec. v5.0.129
 * v5.0, 2023-01-02, Merge [#3355](https://github.com/ossrs/srs/pull/3355): Test: Support blackbox test by FFmpeg. v5.0.128

@@ -4,6 +4,7 @@ name: "Test"
 on: [push, pull_request]
 
 # The dependency graph:
+# test(6m)
 # multiple-arch-armv7(13m)
 # multiple-arch-aarch64(7m)
 # cygwin64-cache(1m)
@@ -16,9 +17,7 @@ on: [push, pull_request]
 #         build-cross-arm(3m)
 #         build-cross-aarch64(3m)
 #         multiple-arch-amd64(2m)
-#         utest(3m)
 #         coverage(3m)
-#         blackbox(3m)
 
 jobs:
   cygwin64-cache:
@@ -163,30 +162,8 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-aarch64 .
     runs-on: ubuntu-20.04
 
-  utest:
-    name: utest
-    needs:
-      - fast
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      # Tests
-      - name: Build test image
-        run: docker build --tag srs:test --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.test .
-      # For utest
-      - name: Run SRS utest
-        run: docker run --rm srs:test ./objs/srs_utest
-      # For regression-test
-      - name: Run SRS regression-test
-        run: |
-          docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && \
-              cd 3rdparty/srs-bench && ./objs/srs_test -test.v && ./objs/srs_gb28181_test -test.v'
-    runs-on: ubuntu-20.04
-
-  blackbox:
-    name: blackbox
-    needs:
-      - fast
+  test:
+    name: utest-regression-blackbox-test
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -196,10 +173,21 @@ jobs:
       # For blackbox-test
       - name: Run SRS blackbox-test
         run: |
+          #docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test ./objs/srs_blackbox_test -test.v \
+          #  -test.run 'TestFast_RtmpPublish_DvrFlv_Basic' -srs-log -srs-stdout srs-ffmpeg-stderr -srs-dvr-stderr \
+          #  -srs-ffprobe-stdout
           docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
             ./objs/srs_blackbox_test -test.v -test.run '^TestFast' -test.parallel 64
           docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
             ./objs/srs_blackbox_test -test.v -test.run '^TestSlow' -test.parallel 4
+      # For utest
+      - name: Run SRS utest
+        run: docker run --rm srs:test ./objs/srs_utest
+      # For regression-test
+      - name: Run SRS regression-test
+        run: |
+          docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && \
+              cd 3rdparty/srs-bench && ./objs/srs_test -test.v && ./objs/srs_gb28181_test -test.v'
     runs-on: ubuntu-20.04
 
   coverage:
@@ -312,8 +300,7 @@ jobs:
     needs:
       - cygwin64
       - coverage
-      - blackbox
-      - utest
+      - test
       - build-centos7
       - build-ubuntu16
       - build-ubuntu18

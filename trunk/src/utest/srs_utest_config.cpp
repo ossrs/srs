@@ -3937,8 +3937,6 @@ VOID TEST(ConfigMainTest, SrtServerTlpktDrop)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesGlobal)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4035,8 +4033,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesGlobal)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesthreads)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4047,8 +4043,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesthreads)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesRtmp)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4082,8 +4076,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesRtmp)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesHttpApi)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4126,8 +4118,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHttpApi)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesHttpServer)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4163,8 +4153,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHttpServer)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesSrtServer)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4220,8 +4208,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesSrtServer)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesVhostSrt)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4235,8 +4221,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostSrt)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesRtcServer)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4303,8 +4287,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesRtcServer)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesVhostRtc)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4362,8 +4344,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostRtc)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesVhostPlay)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4433,8 +4413,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostPlay)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesVhostPublish)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4460,8 +4438,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostPublish)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesCircuitBreaker)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4490,8 +4466,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesCircuitBreaker)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesTencentcloudCls)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4539,8 +4513,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesTencentcloudCls)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesTencentcloudApm)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4566,8 +4538,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesTencentcloudApm)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesExporter)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4587,8 +4557,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesExporter)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesHeartbeat)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4611,8 +4579,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHeartbeat)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesScope)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4646,8 +4612,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesScope)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesHttpStatic)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4664,8 +4628,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHttpStatic)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesHttpRemux)
 {
-    srs_error_t err;
-
     MockSrsConfig conf;
 
     if (true) {
@@ -4722,8 +4684,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHttpRemux)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesDash)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4776,8 +4736,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHds)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesDvr)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4806,8 +4764,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesDvr)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesHls)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 
@@ -4887,3 +4843,70 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHls)
         EXPECT_FALSE(conf.get_vhost_hls_dts_directly("__defaultVhost__"));
     }
 }
+
+VOID TEST(ConfigEnvTest, CheckEnvValuesHooks)
+{
+    MockSrsConfig conf;
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ENABLED", "on");
+        EXPECT_TRUE(conf.get_vhost_http_hooks_enabled("__defaultVhost__"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PUBLISH", "http://server/api/publish");
+        SrsConfDirective* dir = conf.get_vhost_on_publish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/publish", dir->arg0().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_UNPUBLISH", "http://server/api/unpublish");
+        SrsConfDirective* dir = conf.get_vhost_on_unpublish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/unpublish", dir->arg0().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PLAY", "http://server/api/play");
+        SrsConfDirective* dir = conf.get_vhost_on_play("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/play", dir->arg0().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_STOP", "http://server/api/stop");
+        SrsConfDirective* dir = conf.get_vhost_on_stop("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/stop", dir->arg0().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_DVR", "http://server/api/dvr");
+        SrsConfDirective* dir = conf.get_vhost_on_dvr("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/dvr", dir->arg0().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_HLS", "http://server/api/hls");
+        SrsConfDirective* dir = conf.get_vhost_on_hls("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/hls", dir->arg0().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_HLS_NOTIFY", "http://server/api/hls_notify");
+        SrsConfDirective* dir = conf.get_vhost_on_hls_notify("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/hls_notify", dir->arg0().c_str());
+    }
+}
+
