@@ -33,6 +33,7 @@ github.com/ossrs/go-oryx-lib/amf0
 github.com/ossrs/go-oryx-lib/avc
 github.com/ossrs/go-oryx-lib/errors
 github.com/ossrs/go-oryx-lib/flv
+github.com/ossrs/go-oryx-lib/http
 github.com/ossrs/go-oryx-lib/logger
 github.com/ossrs/go-oryx-lib/rtmp
 # github.com/pion/datachannel v1.4.21
@@ -116,6 +117,7 @@ github.com/pion/webrtc/v3/pkg/media/oggreader
 github.com/pion/webrtc/v3/pkg/media/oggwriter
 github.com/pion/webrtc/v3/pkg/rtcerr
 # github.com/pkg/errors v0.9.1
+## explicit
 github.com/pkg/errors
 # github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 github.com/satori/go.uuid
