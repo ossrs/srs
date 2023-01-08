@@ -6305,18 +6305,32 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
             
             SrsMp4SampleDescriptionBox* stsd = new SrsMp4SampleDescriptionBox();
             stbl->set_stsd(stsd);
-            
-            SrsMp4VisualSampleEntry* avc1 = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeAVC1);
-            stsd->append(avc1);
-            
-            avc1->width = format->vcodec->width;
-            avc1->height = format->vcodec->height;
-            avc1->data_reference_index = 1;
-            
-            SrsMp4AvccBox* avcC = new SrsMp4AvccBox();
-            avc1->set_avcC(avcC);
-            
-            avcC->avc_config = format->vcodec->avc_extra_data;
+
+            if (format->vcodec->id == SrsVideoCodecIdAVC) {
+                SrsMp4VisualSampleEntry* avc1 = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeAVC1);
+                stsd->append(avc1);
+
+                avc1->width = format->vcodec->width;
+                avc1->height = format->vcodec->height;
+                avc1->data_reference_index = 1;
+
+                SrsMp4AvccBox* avcC = new SrsMp4AvccBox();
+                avc1->set_avcC(avcC);
+
+                avcC->avc_config = format->vcodec->avc_extra_data;
+            } else {
+                SrsMp4VisualSampleEntry* hev1 = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeHEV1);
+                stsd->append(hev1);
+
+                hev1->width = format->vcodec->width;
+                hev1->height = format->vcodec->height;
+                hev1->data_reference_index = 1;
+
+                SrsMp4HvcCBox* hvcC = new SrsMp4HvcCBox();
+                hev1->set_hvcC(hvcC);
+
+                hvcC->hevc_config = format->vcodec->avc_extra_data;
+            }
             
             SrsMp4DecodingTime2SampleBox* stts = new SrsMp4DecodingTime2SampleBox();
             stbl->set_stts(stts);
