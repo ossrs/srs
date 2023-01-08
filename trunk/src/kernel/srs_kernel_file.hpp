@@ -26,12 +26,18 @@ class SrsFileReader;
 class SrsFileWriter : public ISrsWriteSeeker
 {
 private:
-    std::string path;
-    int fd;
+    std::string path_;
+    FILE *fp_;
+    char *buf_;
 public:
     SrsFileWriter();
     virtual ~SrsFileWriter();
 public:
+    /**
+     * set io buf size
+    */
+   virtual srs_error_t set_iobuf_size(int size);
+
     /**
      * open file writer, in truncate mode.
      * @param p a string indicates the path of file to open.
@@ -109,6 +115,17 @@ typedef ssize_t (*srs_write_t)(int fildes, const void* buf, size_t nbyte);
 typedef ssize_t (*srs_read_t)(int fildes, void* buf, size_t nbyte);
 typedef off_t (*srs_lseek_t)(int fildes, off_t offset, int whence);
 typedef int (*srs_close_t)(int fildes);
+
+
+typedef FILE* (*srs_fopen_t)(const char* path, const char* mode);
+typedef size_t (*srs_fwrite_t)(const void* ptr, size_t size, size_t nitems, 
+                             FILE* stream);
+typedef size_t (*srs_fread_t)(void* ptr, size_t size, size_t nitems, 
+                            FILE* stream);                             
+typedef int (*srs_fseek_t)(FILE* stream, long offset, int whence);
+typedef int (*srs_fclose_t)(FILE* stream);
+typedef long (*srs_ftell_t)(FILE* stream);
+typedef int (*srs_setvbuf_t)(FILE* stream, char* buf, int type, size_t size);
 
 #endif
 
