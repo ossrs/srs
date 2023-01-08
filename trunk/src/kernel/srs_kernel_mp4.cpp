@@ -5947,19 +5947,7 @@ srs_error_t SrsMp4Encoder::flush()
             SrsMp4SampleDescriptionBox* stsd = new SrsMp4SampleDescriptionBox();
             stbl->set_stsd(stsd);
 
-            if (vcodec == SrsVideoCodecIdHEVC) {
-                SrsMp4VisualSampleEntry* hev1 = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeHEV1);
-                stsd->append(hev1);
-
-                hev1->width = width;
-                hev1->height = height;
-                hev1->data_reference_index = 1;
-
-                SrsMp4HvcCBox* hvcC = new SrsMp4HvcCBox();
-                hev1->set_hvcC(hvcC);
-
-                hvcC->hevc_config = phvcc;
-            } else {
+            if (vcodec == SrsVideoCodecIdAVC) {
                 SrsMp4VisualSampleEntry* avc1 = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeAVC1);
                 stsd->append(avc1);
 
@@ -5971,6 +5959,18 @@ srs_error_t SrsMp4Encoder::flush()
                 avc1->set_avcC(avcC);
 
                 avcC->avc_config = pavcc;
+            } else {
+                SrsMp4VisualSampleEntry* hev1 = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeHEV1);
+                stsd->append(hev1);
+
+                hev1->width = width;
+                hev1->height = height;
+                hev1->data_reference_index = 1;
+
+                SrsMp4HvcCBox* hvcC = new SrsMp4HvcCBox();
+                hev1->set_hvcC(hvcC);
+
+                hvcC->hevc_config = phvcc;
             }
         }
         
@@ -6130,14 +6130,6 @@ srs_error_t SrsMp4Encoder::copy_sequence_header(SrsFormat* format, bool vsh, uin
     srs_error_t err = srs_success;
 
     if (vsh) {
-        // HEVC
-        if (format->vcodec->id == SrsVideoCodecIdHEVC && !phvcc.empty()) {
-            if (nb_sample == (uint32_t)phvcc.size() && srs_bytes_equals(sample, &phvcc[0], (int)phvcc.size())) {
-                return err;
-            }
-
-            return srs_error_new(ERROR_MP4_HVCC_CHANGE, "doesn't support hvcC change");
-        }
         // AVC
         if (format->vcodec->id == SrsVideoCodecIdAVC && !pavcc.empty()) {
             if (nb_sample == (uint32_t)pavcc.size() && srs_bytes_equals(sample, &pavcc[0], (int)pavcc.size())) {
@@ -6145,6 +6137,14 @@ srs_error_t SrsMp4Encoder::copy_sequence_header(SrsFormat* format, bool vsh, uin
             }
 
             return srs_error_new(ERROR_MP4_AVCC_CHANGE, "doesn't support avcc change");
+        }
+        // HEVC
+        if (format->vcodec->id == SrsVideoCodecIdHEVC && !phvcc.empty()) {
+            if (nb_sample == (uint32_t)phvcc.size() && srs_bytes_equals(sample, &phvcc[0], (int)phvcc.size())) {
+                return err;
+            }
+
+            return srs_error_new(ERROR_MP4_HVCC_CHANGE, "doesn't support hvcC change");
         }
     }
     

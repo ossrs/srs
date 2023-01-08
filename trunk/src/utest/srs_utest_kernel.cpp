@@ -5266,6 +5266,7 @@ VOID TEST(KernelMP4Test, CoverMP4CodecSingleFrame)
         }
 
         enc.acodec = SrsAudioCodecIdAAC;
+        enc.vcodec = SrsVideoCodecIdAVC;
 
         HELPER_EXPECT_SUCCESS(enc.flush());
         //mock_print_mp4(string(f.data(), f.filesize()));
@@ -5382,6 +5383,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleVideos)
         }
 
         enc.acodec = SrsAudioCodecIdAAC;
+        enc.vcodec = SrsVideoCodecIdAVC;
 
         // Flush encoder.
         HELPER_EXPECT_SUCCESS(enc.flush());
@@ -5482,6 +5484,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleCTTs)
         }
 
         enc.acodec = SrsAudioCodecIdAAC;
+        enc.vcodec = SrsVideoCodecIdAVC;
 
         // Flush encoder.
         HELPER_EXPECT_SUCCESS(enc.flush());
@@ -5596,6 +5599,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleAVs)
         }
 
         enc.acodec = SrsAudioCodecIdAAC;
+        enc.vcodec = SrsVideoCodecIdAVC;
 
         // Flush encoder.
         HELPER_EXPECT_SUCCESS(enc.flush());
@@ -5714,6 +5718,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleAVsWithMp3)
         }
 
         enc.acodec = SrsAudioCodecIdMP3;
+        enc.vcodec = SrsVideoCodecIdAVC;
 
         // Flush encoder.
         HELPER_EXPECT_SUCCESS(enc.flush());
