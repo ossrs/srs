@@ -46,7 +46,6 @@ SrsFileWriter::~SrsFileWriter()
     srs_freepa(buf_);
 }
 
-
 srs_error_t SrsFileWriter::set_iobuf_size(int size)
 {
     srs_error_t err = srs_success;
@@ -56,24 +55,14 @@ srs_error_t SrsFileWriter::set_iobuf_size(int size)
     }
 
     srs_freepa(buf_);
-
-    int ret;
-
-    if (size > 0) {
-        buf_ = new char[size];
-        ret = _srs_setvbuf_fn(fp_, buf_, _IOFBF, size);
-    }
-    else {
-        ret = _srs_setvbuf_fn(fp_, NULL, _IONBF, size);
-    }
-
-    if (ret != 0) {
-        return srs_error_new(ERROR_SYSTEM_FILE_SETVBUF, "file %s set vbuf error", path_.c_str());
+    buf_ = size > 0 ? new char[size] : NULL;
+    int r0 = _srs_setvbuf_fn(fp_, buf_, _IOFBF, size);
+    if (r0) {
+        return srs_error_new(ERROR_SYSTEM_FILE_SETVBUF, "setvbuf err, file=%s, r0=%d", path_.c_str(), r0);
     }
 
     return err;
 }
-
 
 srs_error_t SrsFileWriter::open(string p)
 {

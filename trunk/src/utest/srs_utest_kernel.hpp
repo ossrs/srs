@@ -39,6 +39,15 @@ public:
     virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked);
 };
 
+class MockFileRemover
+{
+private:
+    std::string path_;
+public:
+    MockFileRemover(std::string p);
+    virtual ~MockFileRemover();
+};
+
 class MockSrsFileWriter : public SrsFileWriter
 {
 public:

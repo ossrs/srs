@@ -4328,7 +4328,6 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
 
 		EXPECT_EQ(f.tellg(), -1);
 	}
-
 }
 
 VOID TEST(KernelFileReaderTest, WriteSpecialCase)
@@ -4385,26 +4384,24 @@ VOID TEST(KernelFileReaderTest, WriteSpecialCase)
 	}
 }
 
-class MockFileRemover
+MockFileRemover::MockFileRemover(string p)
 {
-private:
-	string f;
-public:
-	MockFileRemover(string p) {
-		f = p;
-	}
-	virtual ~MockFileRemover() {
-		if (f != "") {
-			::unlink(f.c_str());
-		}
-	}
-};
+    path_ = p;
+}
+
+MockFileRemover::~MockFileRemover()
+{
+    // Only remove {_srs_tmp_file_prefix}*.log file.
+    if (path_.find(_srs_tmp_file_prefix) != 0) return;
+    if (path_.find(".log") == string::npos) return;
+    ::unlink(path_.c_str());
+}
 
 VOID TEST(KernelFileTest, ReadWriteCase)
 {
 	srs_error_t err;
 
-	string filepath = _srs_tmp_file_prefix + "kernel-file-read-write-case";
+	string filepath = _srs_tmp_file_prefix + "kernel-file-read-write-case.log";
 	MockFileRemover _mfr(filepath);
 
 	SrsFileWriter w;
@@ -4431,7 +4428,7 @@ VOID TEST(KernelFileTest, SeekCase)
 {
 	srs_error_t err;
 
-	string filepath = _srs_tmp_file_prefix + "kernel-file-read-write-case";
+	string filepath = _srs_tmp_file_prefix + "kernel-file-read-write-case.log";
 	MockFileRemover _mfr(filepath);
 
 	SrsFileWriter w;
@@ -4468,7 +4465,6 @@ VOID TEST(KernelFileTest, SeekCase)
 	EXPECT_EQ(5, nn);
 
 	EXPECT_STREQ("World", buf);
-
 }
 
 VOID TEST(KernelFLVTest, CoverAll)
