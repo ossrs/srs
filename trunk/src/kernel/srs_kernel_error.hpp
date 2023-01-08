@@ -105,6 +105,8 @@
     XX(ERROR_BACKTRACE_PARSE_NOT_SUPPORT   , 1092, "BacktraceParseNotSupport", "Backtrace parse not supported") \
     XX(ERROR_BACKTRACE_PARSE_OFFSET        , 1093, "BacktraceParseOffset", "Parse backtrace offset failed") \
     XX(ERROR_BACKTRACE_ADDR2LINE           , 1094, "BacktraceAddr2Line", "Backtrace addr2line failed") \
+    XX(ERROR_SYSTEM_FILE_NOT_OPEN          , 1095, "FileNotOpen", "File is not opened") \
+    XX(ERROR_SYSTEM_FILE_SETVBUF           , 1096, "FileSetVBuf", "Failed to set file vbuf") \
 
 /**************************************************/
 /* RTMP protocol error. */

@@ -26,6 +26,8 @@ using namespace std;
 #include <srs_kernel_mp4.hpp>
 #include <srs_app_fragment.hpp>
 
+#define SRS_FWRITE_CACHE_SIZE 65536
+
 SrsDvrSegmenter::SrsDvrSegmenter()
 {
     req = NULL;
@@ -95,6 +97,11 @@ srs_error_t SrsDvrSegmenter::open()
         return srs_error_wrap(err, "open file %s", path.c_str());
     }
     
+    // Set libc file write cache buffer size
+    if ((err = fs->set_iobuf_size(SRS_FWRITE_CACHE_SIZE)) != srs_success) {
+        return srs_error_wrap(err, "set iobuf size for file %s", path.c_str());
+    }
+
     // initialize the encoder.
     if ((err = open_encoder()) != srs_success) {
         return srs_error_wrap(err, "open encoder");

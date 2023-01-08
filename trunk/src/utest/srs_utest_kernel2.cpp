@@ -352,3 +352,62 @@ VOID TEST(KernelLogTest, LogLevelStringV2)
     EXPECT_EQ(srs_get_log_level_v2("off"),     SrsLogLevelDisabled);
 }
 
+VOID TEST(KernelFileWriterTest, RealfileTest)
+{
+    srs_error_t err;
+
+    string filename = "./test-realfile.log";
+    MockFileRemover disposer(filename);
+
+    if (true) {
+        SrsFileWriter f;
+        HELPER_EXPECT_SUCCESS(f.open(filename));
+        EXPECT_TRUE(f.is_open());
+        EXPECT_EQ(0, f.tellg());
+
+        HELPER_EXPECT_SUCCESS(f.write((void*) "HelloWorld", 10, NULL));
+        EXPECT_EQ(10, f.tellg());
+
+        f.seek2(5);
+        EXPECT_EQ(5, f.tellg());
+
+        HELPER_EXPECT_SUCCESS(f.write((void*) "HelloWorld", 10, NULL));
+        EXPECT_EQ(15, f.tellg());
+
+        off_t v = 0;
+        HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_CUR, &v));
+        EXPECT_EQ(15, v);
+
+        HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_SET, &v));
+        EXPECT_EQ(0, v);
+
+        HELPER_EXPECT_SUCCESS(f.lseek(10, SEEK_SET, &v));
+        EXPECT_EQ(10, v);
+
+        HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_END, &v));
+        EXPECT_EQ(15, v);
+
+        // There are 5 bytes empty lagging in file.
+        HELPER_EXPECT_SUCCESS(f.lseek(5, SEEK_END, &v));
+        EXPECT_EQ(20, v);
+
+        HELPER_EXPECT_SUCCESS(f.write((void*) "HelloWorld", 10, NULL));
+        EXPECT_EQ(30, f.tellg());
+
+        HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_SET, &v));
+        EXPECT_EQ(0, v);
+
+        HELPER_EXPECT_SUCCESS(f.write((void*) "HelloWorld", 10, NULL));
+        EXPECT_EQ(10, f.tellg());
+    }
+
+    SrsFileReader fr;
+    HELPER_ASSERT_SUCCESS(fr.open(filename));
+
+    // "HelloWorldWorld\0\0\0\0\0HelloWorld"
+    string str;
+    HELPER_ASSERT_SUCCESS(srs_ioutil_read_all(&fr, str));
+    EXPECT_STREQ("HelloWorldWorld", str.c_str());
+    EXPECT_STREQ("HelloWorld", str.substr(20).c_str());
+}
+

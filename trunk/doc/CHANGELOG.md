@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-01-08, Merge [#3308](https://github.com/ossrs/srs/pull/3308): DVR: Improve file write performance by fwrite with cache. v5.0.133
 * v5.0, 2023-01-06, DVR: Support blackbox test based on hooks. v5.0.132
 * v5.0, 2023-01-06, FFmpeg: Support build with FFmpeg native opus. v5.0.131 (#3140)
 * v5.0, 2023-01-05, CORS: Refine HTTP CORS headers. v5.0.130
