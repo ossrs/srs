@@ -32,7 +32,7 @@ class SrsMp4SampleDescriptionBox;
 class SrsMp4AvccBox;
 class SrsMp4DecoderSpecificInfo;
 class SrsMp4VisualSampleEntry;
-class SrsMp4AvccBox;
+class SrsMp4HvcCBox;
 class SrsMp4AudioSampleEntry;
 class SrsMp4EsdsBox;
 class SrsMp4ChunkOffsetBox;
@@ -111,6 +111,8 @@ enum SrsMp4BoxType
     SrsMp4BoxTypeTFDT = 0x74666474, // 'tfdt'
     SrsMp4BoxTypeTRUN = 0x7472756e, // 'trun'
     SrsMp4BoxTypeSIDX = 0x73696478, // 'sidx'
+    SrsMp4BoxTypeHEV1 = 0x68657631, // 'hev1'
+    SrsMp4BoxTypeHVCC = 0x68766343, // 'hvcC'
 };
 
 // 8.4.3.3 Semantics
@@ -138,6 +140,7 @@ enum SrsMp4BoxBrand
     SrsMp4BoxBrandDASH = 0x64617368, // 'dash'
     SrsMp4BoxBrandMSDH = 0x6d736468, // 'msdh'
     SrsMp4BoxBrandMSIX = 0x6d736978, // 'msix'
+    SrsMp4BoxBrandHEV1 = 0x68657631, // 'hev1'
 };
 
 // The context to dump.
@@ -277,6 +280,7 @@ public:
     virtual ~SrsMp4FileTypeBox();
 public:
     virtual void set_compatible_brands(SrsMp4BoxBrand b0, SrsMp4BoxBrand b1);
+    virtual void set_compatible_brands(SrsMp4BoxBrand b0, SrsMp4BoxBrand b1, SrsMp4BoxBrand b2);
     virtual void set_compatible_brands(SrsMp4BoxBrand b0, SrsMp4BoxBrand b1, SrsMp4BoxBrand b2, SrsMp4BoxBrand b3);
 protected:
     virtual int nb_header();
@@ -1261,12 +1265,16 @@ public:
     uint16_t depth;
     int16_t pre_defined2;
 public:
-    SrsMp4VisualSampleEntry();
+    SrsMp4VisualSampleEntry(SrsMp4BoxType boxType);
     virtual ~SrsMp4VisualSampleEntry();
 public:
     // For avc1, get the avcc box.
     virtual SrsMp4AvccBox* avcC();
     virtual void set_avcC(SrsMp4AvccBox* v);
+public:
+    // For hev1, get the hvcC box.
+    virtual SrsMp4HvcCBox* hvcC();
+    virtual void set_hvcC(SrsMp4HvcCBox* v);
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
@@ -1284,6 +1292,23 @@ public:
 public:
     SrsMp4AvccBox();
     virtual ~SrsMp4AvccBox();
+protected:
+    virtual int nb_header();
+    virtual srs_error_t encode_header(SrsBuffer* buf);
+    virtual srs_error_t decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+// 8.4.1 HEVC Video Stream Definition (hvcC)
+// ISO-14496-15-AVC-file-format-2017.pdf, page 73
+class SrsMp4HvcCBox : public SrsMp4Box
+{
+public:
+    std::vector<char> hevc_config;
+public:
+    SrsMp4HvcCBox();
+    virtual ~SrsMp4HvcCBox();
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
@@ -2051,6 +2076,8 @@ public:
 private:
     // For H.264/AVC, the avcc contains the sps/pps.
     std::vector<char> pavcc;
+    // For H.265/HEVC, the hvcC contains the vps/sps/pps.
+    std::vector<char> phvcc;
     // The number of video samples.
     uint32_t nb_videos;
     // The duration of video stream.
