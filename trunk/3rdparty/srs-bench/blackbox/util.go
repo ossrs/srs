@@ -44,10 +44,10 @@ import (
 )
 
 var srsLog *bool
-var srsStdout *bool
-var srsFFmpegStderr *bool
-var srsDVRStderr *bool
-var srsFFprobeStdout *bool
+var srsServerLog *bool
+var srsFFmpegLog *bool
+var srsDVRLog *bool
+var srsFFprobeLog *bool
 
 var srsTimeout *int
 var srsFFprobeDuration *int
@@ -61,10 +61,10 @@ var srsPublishAvatar *string
 
 func prepareTest() (err error) {
 	srsLog = flag.Bool("srs-log", false, "Whether enable the detail log")
-	srsStdout = flag.Bool("srs-stdout", false, "Whether enable the SRS stdout log")
-	srsFFmpegStderr = flag.Bool("srs-ffmpeg-stderr", false, "Whether enable the FFmpeg stderr log")
-	srsDVRStderr = flag.Bool("srs-dvr-stderr", false, "Whether enable the DVR stderr log")
-	srsFFprobeStdout = flag.Bool("srs-ffprobe-stdout", false, "Whether enable the FFprobe stdout log")
+	srsServerLog = flag.Bool("srs-server-log", false, "Whether enable the SRS stdout log")
+	srsFFmpegLog = flag.Bool("srs-ffmpeg-log", false, "Whether enable the FFmpeg stderr log")
+	srsDVRLog = flag.Bool("srs-dvr-log", false, "Whether enable the DVR stderr log")
+	srsFFprobeLog = flag.Bool("srs-ffprobe-log", false, "Whether enable the FFprobe stdout log")
 	srsTimeout = flag.Int("srs-timeout", 64000, "For each case, the timeout in ms")
 	srsFFprobeDuration = flag.Int("srs-ffprobe-duration", 16000, "For each case, the duration for ffprobe in ms")
 	srsFFprobeTimeout = flag.Int("srs-ffprobe-timeout", 21000, "For each case, the timeout for ffprobe in ms")
@@ -623,7 +623,7 @@ func (v *srsServer) Run(ctx context.Context, cancel context.CancelFunc) error {
 		defer v.readyCtxCancel()
 
 		logger.Tf(ctx, "SRS process pid=%v exit, r0=%v", bs.pid, r0)
-		if *srsStdout == true {
+		if *srsServerLog == true {
 			logger.Tf(ctx, "SRS process pid=%v, stdout is \n%v", bs.pid, stdout.String())
 		}
 		if stderr.Len() > 0 {
@@ -688,7 +688,7 @@ func (v *ffmpegClient) Run(ctx context.Context, cancel context.CancelFunc) error
 
 	v.process.onStop = func(ctx context.Context, bs *backendService, cmd *exec.Cmd, r0 error, stdout, stderr *bytes.Buffer) error {
 		logger.Tf(ctx, "FFmpeg process pid=%v exit, r0=%v, stdout=%v", bs.pid, r0, stdout.String())
-		if *srsFFmpegStderr && stderr.Len() > 0 {
+		if *srsFFmpegLog && stderr.Len() > 0 {
 			logger.Tf(ctx, "FFmpeg process pid=%v, stderr is \n%v", bs.pid, stderr.String())
 		}
 		return nil
@@ -837,7 +837,7 @@ func (v *ffprobeClient) doDVR(ctx context.Context) error {
 	}
 	process.onStop = func(ctx context.Context, bs *backendService, cmd *exec.Cmd, r0 error, stdout, stderr *bytes.Buffer) error {
 		logger.Tf(ctx, "DVR process pid=%v exit, r0=%v, stdout=%v", bs.pid, r0, stdout.String())
-		if *srsDVRStderr && stderr.Len() > 0 {
+		if *srsDVRLog && stderr.Len() > 0 {
 			logger.Tf(ctx, "DVR process pid=%v, stderr is \n%v", bs.pid, stderr.String())
 		}
 		return nil
@@ -868,7 +868,7 @@ func (v *ffprobeClient) doProbe(ctx context.Context, cancel context.CancelFunc) 
 	}
 	process.onStop = func(ctx context.Context, bs *backendService, cmd *exec.Cmd, r0 error, stdout, stderr *bytes.Buffer) error {
 		logger.Tf(ctx, "FFprobe process pid=%v exit, r0=%v, stderr=%v", bs.pid, r0, stderr.String())
-		if *srsFFprobeStdout && stdout.Len() > 0 {
+		if *srsFFprobeLog && stdout.Len() > 0 {
 			logger.Tf(ctx, "FFprobe process pid=%v, stdout is \n%v", bs.pid, stdout.String())
 		}
 

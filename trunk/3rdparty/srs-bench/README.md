@@ -262,10 +262,10 @@ make && ./objs/srs_blackbox_test -test.v
 其他不常用参数：
 
 * `-srs-log`，是否开启详细日志。默认值：`false`
-* `-srs-stdout`，是否开启SRS的stdout详细日志。默认值：`false`
-* `-srs-ffmpeg-stderr`，是否开启FFmpeg的stderr详细日志。默认值：`false`
-* `-srs-dvr-stderr`，是否开启DVR的stderr详细日志。默认值：`false`
-* `-srs-ffprobe-stdout`，是否开启FFprobe的stdout详细日志。默认值：`false`
+* `-srs-server-log`，是否开启SRS的stdout详细日志。默认值：`false`
+* `-srs-ffmpeg-log`，是否开启FFmpeg的stderr详细日志。默认值：`false`
+* `-srs-dvr-log`，是否开启DVR的stderr详细日志。默认值：`false`
+* `-srs-ffprobe-log`，是否开启FFprobe的stdout详细日志。默认值：`false`
 
 由于每个黑盒的用例时间都很长，可以开启并行：
 
