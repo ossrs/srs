@@ -6,6 +6,9 @@ on:
     tags:
       - v6*
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   envs:
     name: envs
