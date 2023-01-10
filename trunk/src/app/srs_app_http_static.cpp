@@ -105,8 +105,9 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
             return srs_success;
         }
 
-        if (is_interrupt(ctx))
+        if (is_interrupt(ctx)) {
             return srs_error_new(ERROR_HTTP_STREAM_EOF, "HTTP stream is EOF");
+        }
 
         err = serve_exists_session(w, r, factory, fullpath);
     } else {
@@ -274,8 +275,9 @@ void SrsHlsStream::alive(std::string ctx, SrsRequest* req)
 
     // Update alive time of context.
     SrsM3u8CtxInfo* info = it->second;
-    if (!info->interrupt)
+    if (!info->interrupt) {
         info->request_time = srs_get_system_time();
+    }
 }
 
 srs_error_t SrsHlsStream::http_hooks_on_play(SrsRequest* req)
