@@ -13,12 +13,17 @@
 
 class ISrsFileReaderFactory;
 
-struct SrsM3u8CtxInfo
+struct SrsM3u8CtxInfo: public ISrsExpire
 {
     srs_utime_t request_time;
     SrsRequest* req;
+    std::string ctx;
+    bool interrupt;
     SrsM3u8CtxInfo();
     virtual ~SrsM3u8CtxInfo();
+// Interface ISrsExpire.
+public:
+    virtual void expire();
 };
 
 // Server HLS streaming.
@@ -40,6 +45,7 @@ private:
     void alive(std::string ctx, SrsRequest* req);
     srs_error_t http_hooks_on_play(SrsRequest* req);
     void http_hooks_on_stop(SrsRequest* req);
+    bool is_interrupt(std::string id);
 // interface ISrsFastTimer
 private:
     srs_error_t on_timer(srs_utime_t interval);

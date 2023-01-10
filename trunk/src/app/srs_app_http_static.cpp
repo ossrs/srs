@@ -44,11 +44,21 @@ using namespace std;
 SrsM3u8CtxInfo::SrsM3u8CtxInfo()
 {
     req = NULL;
+    interrupt = false;
 }
 
 SrsM3u8CtxInfo::~SrsM3u8CtxInfo()
 {
     srs_freep(req);
+}
+
+void SrsM3u8CtxInfo::expire()
+{
+    interrupt = true;
+
+    // remove statistic quickly
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_disconnect(ctx, srs_success);
 }
 
 SrsHlsStream::SrsHlsStream()
@@ -94,6 +104,10 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
             *served = false;
             return srs_success;
         }
+
+        if (is_interrupt(ctx))
+            return srs_error_new(ERROR_HTTP_STREAM_EOF, "HTTP stream is EOF");
+
         err = serve_exists_session(w, r, factory, fullpath);
     } else {
         // Create a m3u8 in memory, contains the session id(ctx).
@@ -244,14 +258,24 @@ void SrsHlsStream::alive(std::string ctx, SrsRequest* req)
     if (it == map_ctx_info_.end()) {
         SrsM3u8CtxInfo *info = new SrsM3u8CtxInfo();
         info->req = req->copy();
+        info->ctx = ctx;
         info->request_time = srs_get_system_time();
         map_ctx_info_.insert(make_pair(ctx, info));
+
+        // update conn of stat
+        SrsStatistic* stat = SrsStatistic::instance();
+        SrsStatisticClient* client = stat->find_client(ctx);
+        if (client) {
+            client->conn = info;
+        }
+
         return;
     }
 
     // Update alive time of context.
     SrsM3u8CtxInfo* info = it->second;
-    info->request_time = srs_get_system_time();
+    if (!info->interrupt)
+        info->request_time = srs_get_system_time();
 }
 
 srs_error_t SrsHlsStream::http_hooks_on_play(SrsRequest* req)
@@ -345,6 +369,14 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
     }
 
     return err;
+}
+
+bool SrsHlsStream::is_interrupt(std::string id) {
+    std::map<std::string, SrsM3u8CtxInfo*>::iterator it = map_ctx_info_.find(id);
+    if (it != map_ctx_info_.end()) {
+        return it->second->interrupt;
+    }
+    return false;
 }
 
 SrsVodStream::SrsVodStream(string root_dir) : SrsHttpFileServer(root_dir)
