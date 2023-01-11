@@ -13,7 +13,7 @@ on:
   #schedule:
   #  - cron: '00 00 * * 6' # At 00:00 on Saturday, see https://crontab.guru/#00_00_*_*_6
   push:
-    branches: [ "5.0release" ]
+    branches: [ "develop" ]
 
 # Declare default permissions as read only.
 permissions: read-all
