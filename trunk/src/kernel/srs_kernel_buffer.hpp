@@ -182,6 +182,7 @@ public:
     int16_t read_16bits();
     int32_t read_32bits();
     int32_t read_bits_ue();
+    int32_t read_bits_se();
 };
 
 #endif
