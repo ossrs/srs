@@ -448,8 +448,7 @@ jobs:
           prerelease: true
     runs-on: ubuntu-20.04
 
-  done:
-    name: done
+  release-done:
     runs-on: ubuntu-20.04
     needs:
       - update

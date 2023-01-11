@@ -298,8 +298,7 @@ jobs:
       - run: echo 'Start fast jobs'
     runs-on: ubuntu-20.04
 
-  done:
-    name: done
+  test-done:
     needs:
       - cygwin64
       - coverage
