@@ -472,3 +472,15 @@ int32_t SrsBitBuffer::read_bits_ue()
 
     return r;
 }
+
+int32_t SrsBitBuffer::read_bits_se()
+{
+    int32_t r = read_bits_ue();
+    if (r & 0x01) {
+        r = (r + 1) / 2;
+    } else {
+        r = -(r / 2);
+    }
+
+    return r;
+}
