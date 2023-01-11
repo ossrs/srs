@@ -33,6 +33,9 @@ private:
     std::string ep_forward;
     SrsRequest* req;
 private:
+    // The source or stream context id to bind to.
+    SrsContextId source_cid_;
+private:
     SrsCoroutine* trd;
 private:
     SrsOriginHub* hub;

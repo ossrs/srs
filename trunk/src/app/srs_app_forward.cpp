@@ -66,6 +66,9 @@ srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
     
     // the ep(endpoint) to forward to
     ep_forward = ep;
+
+    // Remember the source context id.
+    source_cid_ = _srs_context->get_id();
     
     return err;
 }
@@ -164,7 +167,10 @@ srs_error_t SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
 srs_error_t SrsForwarder::cycle()
 {
     srs_error_t err = srs_success;
-    
+
+    srs_trace("Forwarder: Start forward %s of source=[%s] to %s",
+        req->get_stream_url().c_str(), source_cid_.c_str(), ep_forward.c_str());
+
     while (true) {
         // We always check status first.
         // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
