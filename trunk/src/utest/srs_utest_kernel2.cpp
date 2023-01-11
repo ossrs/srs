@@ -356,7 +356,7 @@ VOID TEST(KernelFileWriterTest, RealfileTest)
 {
     srs_error_t err;
 
-    string filename = "./test-realfile.log";
+    string filename = _srs_tmp_file_prefix + "test-realfile.log";
     MockFileRemover disposer(filename);
 
     if (true) {
