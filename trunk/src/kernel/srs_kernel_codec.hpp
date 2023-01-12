@@ -404,7 +404,11 @@ enum SrsAvcNaluType
 std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
 
 #ifdef SRS_H265
-// The enum NALU type for HEVC.
+/**
+ * The enum NALU type for HEVC
+ * @see Table 7-1 – NAL unit type codes and NAL unit type classes
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 86.
+ */
 enum SrsHevcNaluType {
     SrsHevcNaluType_CODED_SLICE_TRAIL_N =       0,
     SrsHevcNaluType_CODED_SLICE_TRAIL_R, //1
@@ -487,9 +491,10 @@ struct SrsHevcHvccNalu {
 };
 
 /**
-   Profile, tier and level
-   @see 7.3.3 Profile, tier and level syntax
-*/
+ * Profile, tier and level
+ * @see 7.3.3 Profile, tier and level syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 62.
+ */
 struct SrsHevcProfileTierLevel
 {
     uint8_t general_profile_space;
@@ -541,6 +546,11 @@ struct SrsHevcProfileTierLevel
     std::vector<uint8_t> sub_layer_level_idc;
 };
 
+/**
+ * Sub-layer HRD parameters
+ * @see E.2.3 Sub-layer HRD parameters syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 440.
+ */
 struct SrsHevcSubLayerHrdParameters
 {
     std::vector<int> bit_rate_value_minus1;
@@ -551,9 +561,10 @@ struct SrsHevcSubLayerHrdParameters
 };
 
 /**
-    HRD parameters syntax
-    @see E.2.2
-*/
+ * HRD parameters
+ * @see E.2.2 HRD parameters syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 439.
+ */
 struct SrsHevcHrdParameters
 {
     uint8_t nal_hrd_parameters_present_flag;
@@ -579,9 +590,10 @@ struct SrsHevcHrdParameters
 };
 
 /**
-    Scaling list data
-    @see 7.3.4  Scaling list data syntax
-*/
+ * Scaling list data
+ * @see 7.3.4 Scaling list data syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 65.
+ */
 struct SrsHevcScalingListData
 {
     int scaling_list_pred_mode_flag[4][6];
@@ -592,9 +604,10 @@ struct SrsHevcScalingListData
 };
 
 /**
-sps_range_extension
-@see 7.3.2.3.1  General picture parameter set RBSP syntax
-*/
+ * Sequence parameter set range extension
+ * @see 7.3.2.2.2 Sequence parameter set range extension syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 57.
+ */
 struct SrsHevcSpsRangeExtension
 {
     uint8_t transform_skip_rotation_enabled_flag;
@@ -609,8 +622,10 @@ struct SrsHevcSpsRangeExtension
 };
 
 /**
- @see 7.3.2.3.2  Picture parameter set range extension syntax
-*/
+ * Picture parameter set RBSP syntax
+ * @see 7.3.2.3.1 General picture parameter set RBSP syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 57.
+ */
 struct SrsHevcPpsRangeExtension
 {
     int log2_max_transform_skip_block_size_minus2;
@@ -624,6 +639,11 @@ struct SrsHevcPpsRangeExtension
     int log2_sao_offset_scale_chroma;
 };
 
+/**
+ * Short-term reference picture set
+ * @see 7.3.7 Short-term reference picture set syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 70.
+ */
 struct SrsHevcStRefPicSet
 {
     uint8_t inter_ref_pic_set_prediction_flag;
@@ -641,31 +661,11 @@ struct SrsHevcStRefPicSet
     std::vector<uint8_t> used_by_curr_pic_s1_flag;
 };
 
-#define MAX_NUM_REF_PICS 16 ///< max. number of pictures used for reference
-
-struct SrsHevcReferencePictureSets
-{
-    int m_numberOfPictures;
-    int m_numberOfNegativePictures;
-    int m_numberOfPositivePictures;
-    int m_numberOfLongtermPictures;
-    int m_deltaPOC[MAX_NUM_REF_PICS];
-    int m_POC[MAX_NUM_REF_PICS];
-    int m_used[MAX_NUM_REF_PICS];
-    int m_interRPSPrediction;
-    int m_deltaRIdxMinus1;
-    int m_deltaRPS;
-    int m_numRefIdc;
-    int m_refIdc[MAX_NUM_REF_PICS + 1];
-    int m_bCheckLTMSB[MAX_NUM_REF_PICS];
-    int m_pocLSBLT[MAX_NUM_REF_PICS];
-    int m_deltaPOCMSBCycleLT[MAX_NUM_REF_PICS];
-    int m_deltaPocMSBPresentFlag[MAX_NUM_REF_PICS];
-};
-
 /**
-E.2.1  VUI parameters syntax
-*/
+ * VUI parameters
+ * @see E.2.1 VUI parameters syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 437.
+ */
 struct SrsHevcVuiParameters
 {
     uint8_t aspect_ratio_info_present_flag;
@@ -711,9 +711,10 @@ struct SrsHevcVuiParameters
 };
 
 /**
-   Video Parameter Set
-   @see 7.3.2.1 Video parameter set RBSP syntax
-*/
+ * Video Parameter Set
+ * @see 7.3.2.1 Video parameter set RBSP syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 54.
+ */
 struct SrsHevcRbspVps
 {
     uint8_t vps_video_parameter_set_id;    // u(4)
@@ -746,9 +747,11 @@ struct SrsHevcRbspVps
 };
 
 /**
-   Sequence Parameter Set
-   @see 7.3.2.2 Sequence parameter set RBSP syntax
-*/
+ * Sequence Parameter Set
+ * @see 7.3.2.2 Sequence parameter set RBSP syntax
+ *      7.3.2.2.1 General sequence parameter set RBSP syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 55.
+ */
 struct SrsHevcRbspSps
 {
     uint8_t sps_video_parameter_set_id;
@@ -793,7 +796,6 @@ struct SrsHevcRbspSps
     uint8_t pcm_loop_filter_disabled_flag;
     int num_short_term_ref_pic_sets;
     std::vector<SrsHevcStRefPicSet> st_ref_pic_set;
-    std::vector<SrsHevcReferencePictureSets> m_RPSList; // store
     uint8_t long_term_ref_pics_present_flag;
     int num_long_term_ref_pics_sps;
     int lt_ref_pic_poc_lsb_sps_bytes;
@@ -812,13 +814,15 @@ struct SrsHevcRbspSps
     uint8_t inter_view_mv_vert_constraint_flag; // sps_multilayer_extension_t sps_multilayer_extension;
     // sps_3d_extension_t sps_3d_extension;
     // int sps_extension_data_flag; // no need
-    //  rbsp_trailing_bits()...
+    // rbsp_trailing_bits()...
 };
 
 /**
-   Picture Parameter Set
-   @see 7.3.2.3.1 General picture parameter set RBSP syntax
-*/
+ * Picture Parameter Set
+ * @see 7.3.2.3 Picture parameter set RBSP syntax
+ *      7.3.2.3.1 General picture parameter set RBSP syntax
+ * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 57.
+ */
 struct SrsHevcRbspPps
 {
     uint8_t pps_pic_parameter_set_id;
