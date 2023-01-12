@@ -1083,8 +1083,10 @@ srs_error_t SrsFormat::hevc_demux_vps_sps_pps(SrsHevcHvccNalu* nal)
 
 srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
 {
-    // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 33.
+    // for NALU, ITU-T H.265 7.3.2.1 Video parameter set RBSP syntax
+    // @see 7.3.1.2 NAL unit header syntax
+    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 53.
+
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc vps requires 1 only %d bytes", stream->left());
     }
@@ -1096,19 +1098,18 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc forbidden_zero_bit=%d shall be equal to 0", forbidden_zero_bit);
     }
 
-    // 7.4.2 NAL unit semantics
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 64.
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
+    // @see 7.4.2 NAL unit semantics
+    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 64.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_VPS) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc vps nal_unit_type=%d shall be equal to 33", nal_unit_type);
     }
 
-    // nuh(nuh_layer_id + nuh_temporal_id_plus1)
-    int8_t nuh = stream->read_1bytes();
-    (void)nuh;
+    // nuh_layer_id + nuh_temporal_id_plus1
+    stream->skip(1);
 
-    // decode the rbsp from sps.
+    // decode the rbsp from vps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     std::vector<int8_t> rbsp(stream->size());
 
@@ -1141,12 +1142,13 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
     // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
 
+    // for VPS, 7.3.2.1 Video parameter set RBSP syntax
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 53.
     if (!stream.require(4)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps requires 4 only %d bytes", stream.left());
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "vps requires 4 only %d bytes", stream.left());
     }
 
     SrsBitBuffer bs(&stream);
-
     int vps_video_parameter_set_id = bs.read_bits(4);
     if (vps_video_parameter_set_id < 0 || vps_video_parameter_set_id > 16) {
         return err;
@@ -1173,6 +1175,10 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
     dec_conf_rec->general_level_idc = vps->ptl.general_level_idc;
     dec_conf_rec->general_tier_flag = vps->ptl.general_tier_flag;
 
+    if (!bs.require_bits(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sublayer flag requires 1 only %d bits", bs.left_bits());
+    }
+
     // Sublayers
     vps->vps_sub_layer_ordering_info_present_flag = bs.read_bit();
     for (int i = (vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1);
@@ -1181,6 +1187,10 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
         vps->vps_max_dec_pic_buffering_minus1[i] = bs.read_bits_ue();
         vps->vps_max_num_reorder_pics[i] = bs.read_bits_ue();
         vps->vps_max_latency_increase_plus1[i] = bs.read_bits_ue();
+    }
+
+    if (!bs.require_bits(10)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "vps maxlayer requires 10 only %d bits", bs.left_bits());
     }
 
     vps->vps_max_layer_id = bs.read_bits(6);
@@ -1194,29 +1204,58 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
         vps->layer_id_included_flag[i].resize(vps->vps_num_layer_sets_minus1 + 1);
     }
 
+    if (!bs.require_bits(vps->vps_num_layer_sets_minus1 * vps->vps_max_layer_id)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "vps numlayer requires %d only %d bits",
+                             vps->vps_num_layer_sets_minus1 * vps->vps_max_layer_id, bs.left_bits());
+    }
+
     for (int i = 1; i <= vps->vps_num_layer_sets_minus1; i++) {
         for (int j = 0; j <= vps->vps_max_layer_id; j++) {
             vps->layer_id_included_flag[i][j] = bs.read_bit();
         }
     }
 
+    if (!bs.require_bits(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "timing flag requires 1 only %d bits", bs.left_bits());
+    }
+
     vps->vps_timing_info_present_flag = bs.read_bit();
     if (vps->vps_timing_info_present_flag) {
+        if (!bs.require_bits(65)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "num time poc requires 1 only %d bits", bs.left_bits());
+        }
+
         vps->vps_num_units_in_tick = bs.read_bits(32);
         vps->vps_time_scale = bs.read_bits(32);
         vps->vps_poc_proportional_to_timing_flag = bs.read_bit();
         if (vps->vps_poc_proportional_to_timing_flag) {
+            if (!bs.require_bits(32)) {
+                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "timing flag requires 32 only %d bits", bs.left_bits());
+            }
             vps->vps_num_ticks_poc_diff_one_minus1 = bs.read_bits_ue();
+        }
+
+        if (!bs.require_bits(32)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "num hrd requires 32 only %d bits", bs.left_bits());
         }
 
         vps->vps_num_hrd_parameters = bs.read_bits_ue();
         vps->hrd_layer_set_idx.resize(vps->vps_num_hrd_parameters);
         vps->cprms_present_flag.resize(vps->vps_num_hrd_parameters);
         for (int i = 0; i < vps->vps_num_hrd_parameters; i++) {
+            if (!bs.require_bits(32)) {
+                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hrd layer set requires 32 only %d bits", bs.left_bits());
+            }
             vps->hrd_layer_set_idx[i] = bs.read_bits_ue();
-            if (i > 0) vps->cprms_present_flag[i] = bs.read_bit();
 
-            //  hrd_parameters()
+            if (i > 0) {
+                if (!bs.require_bits(1)) {
+                    return srs_error_new(ERROR_HEVC_DECODE_ERROR, "cprms present flag requires 1 only %d bits", bs.left_bits());
+                }
+                vps->cprms_present_flag[i] = bs.read_bit();
+            }
+
+            // hrd_parameters()
         }
     }
 
@@ -1230,7 +1269,9 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
 srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
 {
     // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 33.
+    // @see 7.3.2.2.1 General sequence parameter set RBSP syntax
+    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 55.
+
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 1 only %d bytes", stream->left());
     }
@@ -1242,17 +1283,16 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc forbidden_zero_bit=%d shall be equal to 0", forbidden_zero_bit);
     }
 
-    // 7.4.2 NAL unit semantics
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 64.
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
+    // @see 7.4.2 NAL unit semantics
+    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 64.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_SPS) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc sps nal_unit_type=%d shall be equal to 33", nal_unit_type);
     }
 
-    // nuh(nuh_layer_id + nuh_temporal_id_plus1)
-    int8_t nuh = stream->read_1bytes();
-    (void)nuh;
+    // nuh_layer_id + nuh_temporal_id_plus1
+    stream->skip(1);
 
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
@@ -1293,38 +1333,17 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
 
-    /* Rec. ITU-T H.265 7.3.2.2.1, page 35.
-     * seq_parameter_set_rbsp
-     *      sps_video_parameter_set_id              4 bits
-     *      sps_max_sub_layers_minus1               3 bits
-     *      sps_temporal_id_nesting_flag            1 bit
-     *
-     *      sps_seq_parameter_set_id                v
-     *      chroma_format_idc                       v
-     *      if (chroma_format_idc == 3)
-     *          separate_colour_plane_flag          1 bit
-     *      pic_width_in_luma_samples               v
-     *      pic_height_in_luma_samples              v
-     *      conformance_window_flag                 1 bit
-     *      if (conformance_window_flag) {
-     *          conf_win_left_offset                v
-     *          conf_win_right_offset               v
-     *          conf_win_top_offset                 v
-     *          conf_win_bottom_offset              v
-     *      }
-     */
+    // for SPS, F.7.3.2.2.1 General sequence parameter set RBSP syntax
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 55.
     if (!stream.require(2)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps requires 2 only %d bytes", stream.left());
     }
     uint8_t nutv = stream.read_1bytes();
-    (void)nutv;
 
     // id/minus/flag
     int sps_video_parameter_set_id = (nutv >> 4) & 0x0f;
     int sps_max_sub_layers_minus1 = (nutv >> 1) & 0x07;
     int sps_temporal_id_nesting_flag = nutv & 0x01;
-    (void)sps_video_parameter_set_id;
-    (void)sps_temporal_id_nesting_flag;
 
     SrsBitBuffer bs(&stream);
 
@@ -1339,46 +1358,70 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     vcodec->hevc_profile = (SrsHevcProfile)profile_tier_level.general_profile_idc;
     vcodec->hevc_level = (SrsHevcLevel)profile_tier_level.general_level_idc;
 
+    SrsHevcDecoderConfigurationRecord *dec_conf_rec = &(vcodec->hevc_dec_conf_record_);
     // for sps_table
     int sps_seq_parameter_set_id = bs.read_bits_ue();
-    (void)sps_seq_parameter_set_id;
+    SrsHevcRbspSps *sps = &(dec_conf_rec->sps_table[sps_seq_parameter_set_id]);
 
-    int separate_colour_plane_flag = 0;
+    sps->sps_video_parameter_set_id = sps_video_parameter_set_id;
+    sps->sps_max_sub_layers_minus1 = sps_max_sub_layers_minus1;
+    sps->sps_temporal_id_nesting_flag = sps_temporal_id_nesting_flag;
+    sps->sps_seq_parameter_set_id = sps_seq_parameter_set_id;
+
+    memcpy(&(sps->ptl), &profile_tier_level, sizeof(SrsHevcProfileTierLevel));
+
     int chroma_format_idc = bs.read_bits_ue();
     if (chroma_format_idc == 3) {
-        separate_colour_plane_flag = bs.read_bits_ue();
+        sps->separate_colour_plane_flag = bs.read_bits_ue();
     }
 
-    int pic_width_in_luma_samples  = bs.read_bits_ue();
-    int pic_height_in_luma_samples = bs.read_bits_ue();
-    vcodec->width  = pic_width_in_luma_samples;
-    vcodec->height = pic_height_in_luma_samples;
+    if (!bs.require_bits(65)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps pic resolution requires 65 only %d bits", bs.left_bits());
+    }
 
-    int conformance_window_flag    = bs.read_bit();
-    if (conformance_window_flag) {
-        int conf_win_left_offset   = bs.read_bits_ue();
-        int conf_win_right_offset  = bs.read_bits_ue();
-        int conf_win_top_offset    = bs.read_bits_ue();
-        int conf_win_bottom_offset = bs.read_bits_ue();
+    sps->pic_width_in_luma_samples = bs.read_bits_ue();
+    sps->pic_height_in_luma_samples = bs.read_bits_ue();
+
+    vcodec->width  = sps->pic_width_in_luma_samples;
+    vcodec->height = sps->pic_height_in_luma_samples;
+
+    sps->conformance_window_flag = bs.read_bit();
+    if (sps->conformance_window_flag) {
+        sps->conf_win_left_offset   = bs.read_bits_ue();
+        sps->conf_win_right_offset  = bs.read_bits_ue();
+        sps->conf_win_top_offset    = bs.read_bits_ue();
+        sps->conf_win_bottom_offset = bs.read_bits_ue();
 
         // Table 6-1, 7.4.3.2.1
+        // T-REC-H.265-202108-I!!PDF-E.pdf, page 42.
         // Recalculate width and height
         // Note: 1 is added to the manual, but it is not actually used
-        // https://github.com/mbunkus/mkvtoolnix/issues/1152
-        int sub_width_c  = ((1 == chroma_format_idc) || (2 == chroma_format_idc)) && (0 == separate_colour_plane_flag) ? 2 : 1;
-        int sub_height_c =  (1 == chroma_format_idc) && (0 == separate_colour_plane_flag) ? 2 : 1;
-        vcodec->width  -= (sub_width_c * conf_win_right_offset + sub_width_c * conf_win_left_offset);
-        vcodec->height -= (sub_height_c * conf_win_bottom_offset + sub_height_c * conf_win_top_offset);
+        // https://gitlab.com/mbunkus/mkvtoolnix/-/issues/1152
+        int sub_width_c = ((1 == sps->chroma_format_idc) || (2 == sps->chroma_format_idc)) && (0 == sps->separate_colour_plane_flag) ? 2 : 1;
+        int sub_height_c = (1 == sps->chroma_format_idc) && (0 == sps->separate_colour_plane_flag) ? 2 : 1;
+        vcodec->width -= (sub_width_c * sps->conf_win_right_offset + sub_width_c * sps->conf_win_left_offset);
+        vcodec->height -= (sub_height_c * sps->conf_win_bottom_offset + sub_height_c * sps->conf_win_top_offset);
     }
 
+    if (!bs.require_bits(96)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps bit depth requires 96 only %d bits", bs.left_bits());
+    }
+
+    sps->bit_depth_luma_minus8 = bs.read_bits_ue();
+    sps->bit_depth_chroma_minus8 = bs.read_bits_ue();
+
+    // bit depth
+    dec_conf_rec->bit_depth_luma_minus8 = sps->bit_depth_luma_minus8 + 8;
+    dec_conf_rec->bit_depth_chroma_minus8 = sps->bit_depth_chroma_minus8 + 8;
+
+    sps->log2_max_pic_order_cnt_lsb_minus4 = bs.read_bits_ue();
+
     // TODO: FIXME: Implements it, you might parse remain bits for seq_parameter_set_rbsp.
-    // 7.4.3.2.1
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 35 ~ page 36.
-    // bit_depth_luma_minus8
-    // bit_depth_chroma_minus8
+    // 7.3.2.2 Sequence parameter set RBSP syntax
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 55 ~ page 57.
 
     // 7.3.2.11 RBSP trailing bits syntax
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 41.
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 61.
     // rbsp_trailing_bits()
 
     return err;
@@ -1386,8 +1429,9 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 
 srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
 {
-    // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 33.
+    // for NALU, ITU-T H.265 7.3.2.3 Picture parameter set RBSP syntax
+    // @see 7.3.2.3.1 General picture parameter set RBSP syntax
+    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 57.
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc pps requires 1 only %d bytes", stream->left());
     }
@@ -1399,17 +1443,16 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc forbidden_zero_bit=%d shall be equal to 0", forbidden_zero_bit);
     }
 
-    // 7.4.2 NAL unit semantics
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 64.
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
+    // @see 7.4.2.2 NAL unit header semantics
+    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 86.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_PPS) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc pps nal_unit_type=%d shall be equal to 33", nal_unit_type);
     }
 
-    // nuh(nuh_layer_id + nuh_temporal_id_plus1)
-    int8_t nuh = stream->read_1bytes();
-    (void)nuh;
+    // nuh_layer_id + nuh_temporal_id_plus1
+    stream->skip(1);
 
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
@@ -1443,6 +1486,9 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
 
     // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
+
+    // for PPS, 7.3.2.3 Picture parameter set RBSP syntax
+    // T-REC-H.265-202108-I!!PDF-E.pdf, page 57.
     SrsBitBuffer bs(&stream);
     if (!bs.require_bits(32)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps requires 32 only %d bits", bs.left_bits());
@@ -1471,18 +1517,15 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
     pps->transform_skip_enabled_flag = bs.read_bit();
     pps->cu_qp_delta_enabled_flag = bs.read_bit();
     if (pps->cu_qp_delta_enabled_flag) {
-        if (!bs.require_bits(4)) {
-            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "diff_cu_qp_delta_depth requires 4 only %d bits", bs.left_bits());
-        }
         pps->diff_cu_qp_delta_depth = bs.read_bits_ue();
     }
-
-    if (!bs.require_bits(14)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps_cb_qp_offset requires 14 only %d bits", bs.left_bits());
-    }
-
     pps->pps_cb_qp_offset = bs.read_bits_ue();
     pps->pps_cr_qp_offset = bs.read_bits_ue();
+
+    if (!bs.require_bits(6)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps slice_chroma_qp requires 6 only %d bits", bs.left_bits());
+    }
+
     pps->pps_slice_chroma_qp_offsets_present_flag = bs.read_bit();
     pps->weighted_pred_flag = bs.read_bit();
     pps->weighted_bipred_flag = bs.read_bit();
@@ -1491,12 +1534,13 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
     pps->entropy_coding_sync_enabled_flag = bs.read_bit();
 
     if (pps->tiles_enabled_flag) {
-        if (!bs.require_bits(9)) {
-            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "num_tile_columns_minus1 requires 9 only %d bits", bs.left_bits());
-        }
-
         pps->num_tile_columns_minus1 = bs.read_bits_ue();
         pps->num_tile_rows_minus1 = bs.read_bits_ue();
+
+        if (!bs.require_bits(1)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "num_tile_columns_minus1 requires 1 only %d bits", bs.left_bits());
+        }
+
         pps->uniform_spacing_flag = bs.read_bit();
         if (!pps->uniform_spacing_flag) {
             pps->column_width_minus1.resize(pps->num_tile_columns_minus1);
@@ -1510,6 +1554,11 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
                 pps->row_height_minus1[i] = bs.read_bits_ue();
             }
         }
+
+        if (!bs.require_bits(1)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "loop_filter_across_tiles_enabled_flag requires 1 only %d bits", bs.left_bits());
+        }
+
         pps->loop_filter_across_tiles_enabled_flag = bs.read_bit();
     }
 
@@ -1535,7 +1584,7 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
                     sld->scaling_list_pred_matrix_id_delta[sizeId][matrixId] = bs.read_bits_ue();
                 } else {
                     int nextCoef = 8;
-                    int coefNum = min(64, (1 << (4 + (sizeId << 1))));
+                    int coefNum = srs_min(64, (1 << (4 + (sizeId << 1))));
                     sld->coefNum = coefNum; // tmp store
                     if (sizeId > 1) {
                         sld->scaling_list_dc_coef_minus8[sizeId - 2][matrixId] = bs.read_bits_se();
