@@ -712,6 +712,10 @@ SrsFormat::~SrsFormat()
 
 srs_error_t SrsFormat::initialize()
 {
+    if (!vcodec) {
+        vcodec = new SrsVideoCodecConfig();
+    }
+
     return srs_success;
 }
 

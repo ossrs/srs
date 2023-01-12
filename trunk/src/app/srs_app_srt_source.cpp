@@ -558,7 +558,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_hevc(SrsTsMessage *msg, SrsBuffer *avs)
         // for vps
         if (hevc->is_vps(frame, frame_size)) {
             std::string vps;
-            if ((err = hevc->sps_demux(frame, frame_size, vps)) != srs_success) {
+            if ((err = hevc->vps_demux(frame, frame_size, vps)) != srs_success) {
                 return srs_error_wrap(err, "demux vps");
             }
 
