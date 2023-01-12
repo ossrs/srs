@@ -1050,17 +1050,25 @@ srs_error_t SrsFormat::hevc_demux_vps_sps_pps(SrsHevcHvccNalu* nal)
 {
     srs_error_t err = srs_success;
 
+    if (nal->nal_data_vec.empty()) {
+        return err;
+    }
+
+    // TODO: FIXME: Support for multiple VPS/SPS/PPS, then pick the first non-empty one.
+    char *frame = (char *)(&nal->nal_data_vec[0].nal_unit_data[0]);
+    int nb_frame = nal->nal_data_vec[0].nal_unit_length;
+    SrsBuffer stream(frame, nb_frame);
+
     // nal data
-    switch (nal->nal_unit_type)
-    {
+    switch (nal->nal_unit_type) {
         case SrsHevcNaluType_VPS:
-            err = hevc_demux_vps(nal);
+            err = hevc_demux_vps(&stream);
             break;
         case SrsHevcNaluType_SPS:
-            err = hevc_demux_sps(nal);
+            err = hevc_demux_sps(&stream);
             break;
         case SrsHevcNaluType_PPS:
-            err = hevc_demux_pps(nal);
+            err = hevc_demux_pps(&stream);
             break;
         default:
             break;
@@ -1069,26 +1077,14 @@ srs_error_t SrsFormat::hevc_demux_vps_sps_pps(SrsHevcHvccNalu* nal)
     return err;
 }
 
-srs_error_t SrsFormat::hevc_demux_vps(SrsHevcHvccNalu* nal)
+srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
 {
-    srs_error_t err = srs_success;
-
-    if (nal->nal_data_vec.empty()) {
-        return err;
-    }
-
-    // FIXME: Support for multiple SPS, then pick the first non-empty one.
-    char* vps = (char*)(&nal->nal_data_vec[0].nal_unit_data[0]);
-    int nb_vps = nal->nal_data_vec[0].nal_unit_length;
-
-    SrsBuffer stream(vps, nb_vps);
-
     // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
     // T-REC-H.265-202108-I!!PDF-E.pdf, page 33.
-    if (!stream.require(1)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc vps requires 1 only %d bytes", stream.left());
+    if (!stream->require(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc vps requires 1 only %d bytes", stream->left());
     }
-    int8_t nutv = stream.read_1bytes();
+    int8_t nutv = stream->read_1bytes();
 
     // forbidden_zero_bit shall be equal to 0.
     int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
@@ -1105,24 +1101,24 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsHevcHvccNalu* nal)
     }
 
     // nuh(nuh_layer_id + nuh_temporal_id_plus1)
-    int8_t nuh = stream.read_1bytes();
+    int8_t nuh = stream->read_1bytes();
     (void)nuh;
 
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(nb_vps);
+    std::vector<int8_t> rbsp(stream->size());
 
     int nb_rbsp = 0;
-    while (!stream.empty()) {
-        rbsp[nb_rbsp] = stream.read_1bytes();
+    while (!stream->empty()) {
+        rbsp[nb_rbsp] = stream->read_1bytes();
 
         // XX 00 00 03 XX, the 03 byte should be drop.
         if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
             // read 1byte more.
-            if (stream.empty()) {
+            if (stream->empty()) {
                 break;
             }
-            rbsp[nb_rbsp] = stream.read_1bytes();
+            rbsp[nb_rbsp] = stream->read_1bytes();
             nb_rbsp++;
 
             continue;
@@ -1227,26 +1223,14 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
     return err;
 }
 
-srs_error_t SrsFormat::hevc_demux_sps(SrsHevcHvccNalu* nal)
+srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
 {
-    srs_error_t err = srs_success;
-
-    if (nal->nal_data_vec.empty()) {
-        return err;
-    }
-
-    // FIXME: Support for multiple SPS, then pick the first non-empty one.
-    char* sps = (char*)(&nal->nal_data_vec[0].nal_unit_data[0]);
-    int nb_sps = nal->nal_data_vec[0].nal_unit_length;
-
-    SrsBuffer stream(sps, nb_sps);
-
     // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
     // T-REC-H.265-202108-I!!PDF-E.pdf, page 33.
-    if (!stream.require(1)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 1 only %d bytes", stream.left());
+    if (!stream->require(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 1 only %d bytes", stream->left());
     }
-    int8_t nutv = stream.read_1bytes();
+    int8_t nutv = stream->read_1bytes();
 
     // forbidden_zero_bit shall be equal to 0.
     int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
@@ -1263,24 +1247,24 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsHevcHvccNalu* nal)
     }
 
     // nuh(nuh_layer_id + nuh_temporal_id_plus1)
-    int8_t nuh = stream.read_1bytes();
+    int8_t nuh = stream->read_1bytes();
     (void)nuh;
 
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(nb_sps);
+    std::vector<int8_t> rbsp(stream->size());
 
     int nb_rbsp = 0;
-    while (!stream.empty()) {
-        rbsp[nb_rbsp] = stream.read_1bytes();
+    while (!stream->empty()) {
+        rbsp[nb_rbsp] = stream->read_1bytes();
 
         // XX 00 00 03 XX, the 03 byte should be drop.
         if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
             // read 1byte more.
-            if (stream.empty()) {
+            if (stream->empty()) {
                 break;
             }
-            rbsp[nb_rbsp] = stream.read_1bytes();
+            rbsp[nb_rbsp] = stream->read_1bytes();
             nb_rbsp++;
 
             continue;
@@ -1396,26 +1380,14 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     return err;
 }
 
-srs_error_t SrsFormat::hevc_demux_pps(SrsHevcHvccNalu* nal)
+srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
 {
-    srs_error_t err = srs_success;
-
-    if (nal->nal_data_vec.empty()) {
-        return err;
-    }
-
-    // TODO: FIXME: Support for multiple SPS, then pick the first non-empty one.
-    char* pps = (char*)(&nal->nal_data_vec[0].nal_unit_data[0]);
-    int nb_pps = nal->nal_data_vec[0].nal_unit_length;
-
-    SrsBuffer stream(pps, nb_pps);
-
     // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
     // T-REC-H.265-202108-I!!PDF-E.pdf, page 33.
-    if (!stream.require(1)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc pps requires 1 only %d bytes", stream.left());
+    if (!stream->require(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc pps requires 1 only %d bytes", stream->left());
     }
-    int8_t nutv = stream.read_1bytes();
+    int8_t nutv = stream->read_1bytes();
 
     // forbidden_zero_bit shall be equal to 0.
     int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
@@ -1432,24 +1404,24 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsHevcHvccNalu* nal)
     }
 
     // nuh(nuh_layer_id + nuh_temporal_id_plus1)
-    int8_t nuh = stream.read_1bytes();
+    int8_t nuh = stream->read_1bytes();
     (void)nuh;
 
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(nb_pps);
+    std::vector<int8_t> rbsp(stream->size());
 
     int nb_rbsp = 0;
-    while (!stream.empty()) {
-        rbsp[nb_rbsp] = stream.read_1bytes();
+    while (!stream->empty()) {
+        rbsp[nb_rbsp] = stream->read_1bytes();
 
         // XX 00 00 03 XX, the 03 byte should be drop.
         if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
             // read 1byte more.
-            if (stream.empty()) {
+            if (stream->empty()) {
                 break;
             }
-            rbsp[nb_rbsp] = stream.read_1bytes();
+            rbsp[nb_rbsp] = stream->read_1bytes();
             nb_rbsp++;
 
             continue;
