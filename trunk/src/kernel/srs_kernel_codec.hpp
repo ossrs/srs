@@ -1321,14 +1321,16 @@ private:
 #ifdef SRS_H265
 private:
     virtual srs_error_t hevc_demux_hvcc(SrsBuffer* stream);
+private:
     virtual srs_error_t hevc_demux_vps_sps_pps(SrsHevcHvccNalu *nal);
-    virtual srs_error_t hevc_demux_vps(SrsHevcHvccNalu *nal);
     virtual srs_error_t hevc_demux_vps_rbsp(char *rbsp, int nb_rbsp);
-    virtual srs_error_t hevc_demux_sps(SrsHevcHvccNalu* nal);
     virtual srs_error_t hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp);
-    virtual srs_error_t hevc_demux_pps(SrsHevcHvccNalu *nal);
     virtual srs_error_t hevc_demux_pps_rbsp(char *rbsp, int nb_rbsp);
     virtual srs_error_t hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierLevel* ptl, int profile_resent_flag, int max_sub_layers_minus1);
+public:
+    virtual srs_error_t hevc_demux_vps(SrsBuffer *stream);
+    virtual srs_error_t hevc_demux_sps(SrsBuffer *stream);
+    virtual srs_error_t hevc_demux_pps(SrsBuffer *stream);
 #endif
 private:
     // Parse the H.264 SPS/PPS.
