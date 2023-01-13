@@ -407,7 +407,7 @@ std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
 /**
  * The enum NALU type for HEVC
  * @see Table 7-1 – NAL unit type codes and NAL unit type classes
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 86.
+ * @doc ITU-T-H.265-2021.pdf, page 86.
  */
 enum SrsHevcNaluType {
     SrsHevcNaluType_CODED_SLICE_TRAIL_N =       0,
@@ -493,7 +493,7 @@ struct SrsHevcHvccNalu {
 /**
  * Profile, tier and level
  * @see 7.3.3 Profile, tier and level syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 62.
+ * @doc ITU-T-H.265-2021.pdf, page 62.
  */
 struct SrsHevcProfileTierLevel
 {
@@ -549,7 +549,7 @@ struct SrsHevcProfileTierLevel
 /**
  * Sub-layer HRD parameters
  * @see E.2.3 Sub-layer HRD parameters syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 440.
+ * @doc ITU-T-H.265-2021.pdf, page 440.
  */
 struct SrsHevcSubLayerHrdParameters
 {
@@ -563,7 +563,7 @@ struct SrsHevcSubLayerHrdParameters
 /**
  * HRD parameters
  * @see E.2.2 HRD parameters syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 439.
+ * @doc ITU-T-H.265-2021.pdf, page 439.
  */
 struct SrsHevcHrdParameters
 {
@@ -592,7 +592,7 @@ struct SrsHevcHrdParameters
 /**
  * Scaling list data
  * @see 7.3.4 Scaling list data syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 65.
+ * @doc ITU-T-H.265-2021.pdf, page 65.
  */
 struct SrsHevcScalingListData
 {
@@ -606,7 +606,7 @@ struct SrsHevcScalingListData
 /**
  * Sequence parameter set range extension
  * @see 7.3.2.2.2 Sequence parameter set range extension syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 57.
+ * @doc ITU-T-H.265-2021.pdf, page 57.
  */
 struct SrsHevcSpsRangeExtension
 {
@@ -624,7 +624,7 @@ struct SrsHevcSpsRangeExtension
 /**
  * Picture parameter set RBSP syntax
  * @see 7.3.2.3.1 General picture parameter set RBSP syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 57.
+ * @doc ITU-T-H.265-2021.pdf, page 57.
  */
 struct SrsHevcPpsRangeExtension
 {
@@ -642,7 +642,7 @@ struct SrsHevcPpsRangeExtension
 /**
  * Short-term reference picture set
  * @see 7.3.7 Short-term reference picture set syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 70.
+ * @doc ITU-T-H.265-2021.pdf, page 70.
  */
 struct SrsHevcStRefPicSet
 {
@@ -664,7 +664,7 @@ struct SrsHevcStRefPicSet
 /**
  * VUI parameters
  * @see E.2.1 VUI parameters syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 437.
+ * @doc ITU-T-H.265-2021.pdf, page 437.
  */
 struct SrsHevcVuiParameters
 {
@@ -713,7 +713,7 @@ struct SrsHevcVuiParameters
 /**
  * Video Parameter Set
  * @see 7.3.2.1 Video parameter set RBSP syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 54.
+ * @doc ITU-T-H.265-2021.pdf, page 54.
  */
 struct SrsHevcRbspVps
 {
@@ -750,7 +750,7 @@ struct SrsHevcRbspVps
  * Sequence Parameter Set
  * @see 7.3.2.2 Sequence parameter set RBSP syntax
  *      7.3.2.2.1 General sequence parameter set RBSP syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 55.
+ * @doc ITU-T-H.265-2021.pdf, page 55.
  */
 struct SrsHevcRbspSps
 {
@@ -821,7 +821,7 @@ struct SrsHevcRbspSps
  * Picture Parameter Set
  * @see 7.3.2.3 Picture parameter set RBSP syntax
  *      7.3.2.3.1 General picture parameter set RBSP syntax
- * @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 57.
+ * @doc ITU-T-H.265-2021.pdf, page 57.
  */
 struct SrsHevcRbspPps
 {
@@ -1031,7 +1031,7 @@ std::string srs_avc_level2str(SrsAvcLevel level);
 
 /**
  * the profile for hevc/h.265.
- * @see Annex A Profiles and levels, T-REC-H.265-202108-I!!PDF-E.pdf, page 559.
+ * @see Annex A Profiles and levels, ITU-T-H.265-2021.pdf, page 559.
  */
 enum SrsHevcProfile
 {
@@ -1047,7 +1047,7 @@ std::string srs_hevc_profile2str(SrsHevcProfile profile);
 
 /**
  * the level for hevc/h.265.
- * @see Annex A Profiles and levels, T-REC-H.265-202108-I!!PDF-E.pdf, page 684.
+ * @see Annex A Profiles and levels, ITU-T-H.265-2021.pdf, page 684.
  */
 enum SrsHevcLevel
 {
@@ -1186,9 +1186,9 @@ public:
     // level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel avc_level;
 #ifdef SRS_H265
-    // The profile_idc, T-REC-H.265-202108-I!!PDF-E.pdf, page 559.
+    // The profile_idc, ITU-T-H.265-2021.pdf, page 559.
     SrsHevcProfile hevc_profile;
-    // The level_idc, T-REC-H.265-202108-I!!PDF-E.pdf, page 684.
+    // The level_idc, ITU-T-H.265-2021.pdf, page 684.
     SrsHevcLevel hevc_level;
 #endif
     // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
