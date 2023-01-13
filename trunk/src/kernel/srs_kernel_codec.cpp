@@ -1081,7 +1081,7 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
 {
     // for NALU, ITU-T H.265 7.3.2.1 Video parameter set RBSP syntax
     // @see 7.3.1.2 NAL unit header syntax
-    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 53.
+    // @doc ITU-T-H.265-2021.pdf, page 53.
 
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc vps requires 1 only %d bytes", stream->left());
@@ -1096,7 +1096,7 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
 
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
     // @see 7.4.2 NAL unit semantics
-    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 64.
+    // @doc ITU-T-H.265-2021.pdf, page 64.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_VPS) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc vps nal_unit_type=%d shall be equal to 33", nal_unit_type);
@@ -1139,7 +1139,7 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
     SrsBuffer stream(rbsp, nb_rbsp);
 
     // for VPS, 7.3.2.1 Video parameter set RBSP syntax
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 53.
+    // ITU-T-H.265-2021.pdf, page 53.
     if (!stream.require(4)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "vps requires 4 only %d bytes", stream.left());
     }
@@ -1266,7 +1266,7 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
 {
     // for NALU, ITU-T H.265 7.3.2.2 Sequence parameter set RBSP syntax
     // @see 7.3.2.2.1 General sequence parameter set RBSP syntax
-    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 55.
+    // @doc ITU-T-H.265-2021.pdf, page 55.
 
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 1 only %d bytes", stream->left());
@@ -1281,7 +1281,7 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
 
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
     // @see 7.4.2 NAL unit semantics
-    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 64.
+    // @doc ITU-T-H.265-2021.pdf, page 64.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_SPS) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc sps nal_unit_type=%d shall be equal to 33", nal_unit_type);
@@ -1330,7 +1330,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     SrsBuffer stream(rbsp, nb_rbsp);
 
     // for SPS, F.7.3.2.2.1 General sequence parameter set RBSP syntax
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 55.
+    // ITU-T-H.265-2021.pdf, page 55.
     if (!stream.require(2)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps requires 2 only %d bytes", stream.left());
     }
@@ -1389,7 +1389,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         sps->conf_win_bottom_offset = bs.read_bits_ue();
 
         // Table 6-1, 7.4.3.2.1
-        // T-REC-H.265-202108-I!!PDF-E.pdf, page 42.
+        // ITU-T-H.265-2021.pdf, page 42.
         // Recalculate width and height
         // Note: 1 is added to the manual, but it is not actually used
         // https://gitlab.com/mbunkus/mkvtoolnix/-/issues/1152
@@ -1414,10 +1414,10 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 
     // TODO: FIXME: Implements it, you might parse remain bits for seq_parameter_set_rbsp.
     // 7.3.2.2 Sequence parameter set RBSP syntax
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 55 ~ page 57.
+    // ITU-T-H.265-2021.pdf, page 55 ~ page 57.
 
     // 7.3.2.11 RBSP trailing bits syntax
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 61.
+    // ITU-T-H.265-2021.pdf, page 61.
     // rbsp_trailing_bits()
 
     return err;
@@ -1427,7 +1427,7 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
 {
     // for NALU, ITU-T H.265 7.3.2.3 Picture parameter set RBSP syntax
     // @see 7.3.2.3.1 General picture parameter set RBSP syntax
-    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 57.
+    // @doc ITU-T-H.265-2021.pdf, page 57.
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc pps requires 1 only %d bytes", stream->left());
     }
@@ -1441,7 +1441,7 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
 
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
     // @see 7.4.2.2 NAL unit header semantics
-    // @doc T-REC-H.265-202108-I!!PDF-E.pdf, page 86.
+    // @doc ITU-T-H.265-2021.pdf, page 86.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_PPS) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc pps nal_unit_type=%d shall be equal to 33", nal_unit_type);
@@ -1484,7 +1484,7 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
     SrsBuffer stream(rbsp, nb_rbsp);
 
     // for PPS, 7.3.2.3 Picture parameter set RBSP syntax
-    // T-REC-H.265-202108-I!!PDF-E.pdf, page 57.
+    // ITU-T-H.265-2021.pdf, page 57.
     SrsBitBuffer bs(&stream);
     if (!bs.require_bits(32)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps requires 32 only %d bits", bs.left_bits());
