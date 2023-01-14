@@ -28,6 +28,8 @@ The features of SRS.
 - [x] System: [Experimental] Support H.265 over RTMP and HLS, [#465](https://github.com/ossrs/srs/issues/465). v6.0.2+
 - [x] API: Support HTTP API([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-api)) for system management. v1.0.0+
 - [x] API: Support HTTP callback([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-callback)) for authentication and integration. v2.0.0+
+- [x] API: Support on_play/stop/publish/unpublish for WebRTC, [#2509](https://github.com/ossrs/srs/issues/2509). v4.0.163+
+- [x] API: Support statistic and on_play/stop for HLS stream, [#2578](https://github.com/ossrs/srs/issues/2578). v4.0.163+
 - [x] API: Support reuse HTTP Stream port for HTTP API, [#2881](https://github.com/ossrs/srs/issues/2881). v5.0.47+
 - [x] API: [Experimental] Support Prometheus exporter, [#2899](https://github.com/ossrs/srs/issues/2899). v5.0.67+
 - [x] Live: Support Edge Cluster for live streaming, see ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/edge), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/edge)). v1.0.0+
