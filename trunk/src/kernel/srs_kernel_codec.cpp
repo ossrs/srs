@@ -1013,17 +1013,21 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
 
     //parse vps/pps/sps
     for (int index = 0; index < numOfArrays; index++) {
-        SrsHevcHvccNalu hevc_unit;
-
-        if (!stream->require(5)) {
-            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires 5 only %d bytes", stream->left());
+        if (!stream->require(3)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires 3 only %d bytes", stream->left());
         }
         data_byte = stream->read_1bytes();
+
+        SrsHevcHvccNalu hevc_unit;
         hevc_unit.array_completeness = (data_byte >> 7) & 0x01;
         hevc_unit.nal_unit_type = data_byte & 0x3f;
         hevc_unit.num_nalus = stream->read_2bytes();
 
         for (int i = 0; i < hevc_unit.num_nalus; i++) {
+            if (!stream->require(2)) {
+                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "num_nalus requires 2 only %d bytes", stream->left());
+            }
+
             SrsHevcNalData data_item;
             data_item.nal_unit_length = stream->read_2bytes();
 
