@@ -25,7 +25,9 @@ The features of SRS.
 - [x] System: [Experimental] Support grab backtrace stack when assert fail. v5.0.80+
 - [x] System: [Experimental] Support Google Address Sanitizer, [#3216](https://github.com/ossrs/srs/issues/3216). v5.0.81+
 - [x] System: [Experimental] Windows: Support cygwin pipline and packager, [#2532](https://github.com/ossrs/srs/issues/2532). v5.0.89+
-- [x] System: [Experimental] Support H.265 over RTMP and HLS, [#465](https://github.com/ossrs/srs/issues/465). v6.0.2+
+- [x] System: [Experimental] Support H.265 over RTMP and HTTP-FLV, [#465](https://github.com/ossrs/srs/issues/465). v6.0.2+
+- [x] System: [Experimental] Support H.265 over HTTP-TS and HLS, [#465](https://github.com/ossrs/srs/issues/465). v6.0.11+
+- [x] System: [Experimental] Support H.265 over MPEG-DASH and DVR to MP4/FLV, [#465](https://github.com/ossrs/srs/issues/465). v6.0.14+
 - [x] API: Support HTTP API([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-api)) for system management. v1.0.0+
 - [x] API: Support HTTP callback([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-callback)) for authentication and integration. v2.0.0+
 - [x] API: Support on_play/stop/publish/unpublish for WebRTC, [#2509](https://github.com/ossrs/srs/issues/2509). v4.0.163+
