@@ -514,6 +514,8 @@ struct SrsHevcProfileTierLevel
     uint8_t general_intra_constraint_flag;
     uint8_t general_one_picture_only_constraint_flag;
     uint8_t general_lower_bit_rate_constraint_flag;
+    uint32_t general_max_14bit_constraint_flag;
+    uint64_t general_reserved_zero_33bits;
     uint64_t general_reserved_zero_34bits; // todo
     uint64_t general_reserved_zero_43bits; // todo
     uint8_t general_inbld_flag;
@@ -539,6 +541,7 @@ struct SrsHevcProfileTierLevel
     std::vector<uint8_t> sub_layer_intra_constraint_flag;
     std::vector<uint8_t> sub_layer_one_picture_only_constraint_flag;
     std::vector<uint8_t> sub_layer_lower_bit_rate_constraint_flag;
+    std::vector<uint64_t> sub_layer_reserved_zero_33bits;
     std::vector<uint64_t> sub_layer_reserved_zero_34bits;
     std::vector<uint64_t> sub_layer_reserved_zero_43bits;
     std::vector<uint8_t> sub_layer_inbld_flag;
