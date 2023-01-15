@@ -82,12 +82,17 @@ var StaticDir string
 var cm *ChatManager
 var sw *SnapshotWorker
 
+// All
 type CommonRequest struct {
 	Action   string `json:"action"`
 	ClientId string `json:"client_id"`
 	Ip       string `json:"ip"`
 	Vhost    string `json:"vhost"`
 	App      string `json:"app"`
+}
+
+func (v *CommonRequest) String() string {
+	return fmt.Sprintf("action=%v, client_id=%v, ip=%v, vhost=%v", v.Action, v.ClientId, v.Ip, v.Vhost)
 }
 
 /*
@@ -140,7 +145,7 @@ func (v *ClientMsg) Parse(b []byte) error {
 
 func (v *ClientMsg) String() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("action=%v, client_id=%v, ip=%v, vhost=%v", v.Action, v.ClientId, v.Ip, v.Vhost))
+	sb.WriteString(v.CommonRequest.String())
 	if v.Action == "on_connect" {
 		sb.WriteString(fmt.Sprintf(", tcUrl=%v, pageUrl=%v", v.TcUrl, v.PageUrl))
 	} else if v.Action == "on_close" {
@@ -180,11 +185,7 @@ func (v *ClientMsg) String() string {
          0
 */
 type StreamMsg struct {
-	Action   string `json:"action"`
-	ClientId string `json:"client_id"`
-	Ip       string `json:"ip"`
-	Vhost    string `json:"vhost"`
-	App      string `json:"app"`
+	CommonRequest
 	Stream   string `json:"stream"`
 	Param    string `json:"param"`
 }
@@ -261,11 +262,7 @@ func StreamServe(w http.ResponseWriter, r *http.Request) {
 */
 
 type SessionMsg struct {
-	Action   string `json:"action"`
-	ClientId string `json:"client_id"`
-	Ip       string `json:"ip"`
-	Vhost    string `json:"vhost"`
-	App      string `json:"app"`
+	CommonRequest
 	Stream   string `json:"stream"`
 	Param    string `json:"param"`
 }
@@ -358,11 +355,7 @@ func SessionServe(w http.ResponseWriter, r *http.Request) {
 */
 
 type DvrMsg struct {
-	Action   string `json:"action"`
-	ClientId string `json:"client_id"`
-	Ip       string `json:"ip"`
-	Vhost    string `json:"vhost"`
-	App      string `json:"app"`
+	CommonRequest
 	Stream   string `json:"stream"`
 	Param    string `json:"param"`
 	Cwd      string `json:"cwd"`
