@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -41,7 +42,10 @@ func SrsWriteDataResponse(w http.ResponseWriter, data interface{}) {
 const Example = `
 SRS api callback server, Copyright (c) 2013-2016 SRS(ossrs)
 Example:
+	the suggest start method:
 	./api-server -p 8085 -s ./static-dir
+	or the simple start method:
+	./api-server 8085
 See also: https://github.com/ossrs/srs
 `
 
@@ -561,6 +565,18 @@ func main() {
 	}
 
 	log.SetFlags(log.Lshortfile | log.Ldate | log.Ltime | log.Lmicroseconds)
+
+	// check if only one number arg
+	if len(os.Args[1:]) == 1 {
+		portArg := os.Args[1]
+		var err error
+		if port, err = strconv.Atoi(portArg); err != nil {
+			log.Println(fmt.Sprintf("parse port arg:%v to int failed, err %v", portArg, err))
+			flag.Usage()
+			os.Exit(1)
+		}
+	}
+
 	sw = NewSnapshotWorker(ffmpegPath)
 	go sw.Serve()
 
