@@ -34,11 +34,11 @@ const (
 )
 
 const (
-	HttpJson       = "application/json"
+	HttpJson = "application/json"
 )
 
 type SrsError struct {
-	Code int `json:"code"`
+	Code int         `json:"code"`
 	Data interface{} `json:"data"`
 }
 
@@ -51,7 +51,7 @@ func Response(se *SrsError) http.Handler {
 }
 
 type SrsCommonResponse struct {
-	Code int `json:"code"`
+	Code int         `json:"code"`
 	Data interface{} `json:"data"`
 }
 
@@ -124,7 +124,7 @@ handle the clients requests: connect/disconnect vhost/app.
 type ClientMsg struct {
 	CommonRequest
 	// For on_connect message
-	TcUrl string `json:"tcUrl"`
+	TcUrl   string `json:"tcUrl"`
 	PageUrl string `json:"pageUrl"`
 	// For on_close message
 	SendBytes int64 `json:"send_bytes"`
@@ -180,20 +180,20 @@ func (v *ClientMsg) String() string {
          0
 */
 type StreamMsg struct {
-	Action string `json:"action"`
+	Action   string `json:"action"`
 	ClientId string `json:"client_id"`
-	Ip string `json:"ip"`
-	Vhost string `json:"vhost"`
-	App string `json:"app"`
-	Stream string `json:"stream"`
-	Param string `json:"param"`
+	Ip       string `json:"ip"`
+	Vhost    string `json:"vhost"`
+	App      string `json:"app"`
+	Stream   string `json:"stream"`
+	Param    string `json:"param"`
 }
 
 func (v *StreamMsg) String() string {
 	return fmt.Sprintf("srs %v: client id=%v, ip=%v, vhost=%v, app=%v, stream=%v, param=%v", v.Action, v.ClientId, v.Ip, v.Vhost, v.App, v.Stream, v.Param)
 }
 
-type Stream struct {}
+type Stream struct{}
 
 func (v *Stream) Parse(body []byte) (se *SrsError) {
 	msg := &StreamMsg{}
@@ -208,7 +208,7 @@ func (v *Stream) Parse(body []byte) (se *SrsError) {
 
 func StreamServe(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		res := struct {}{}
+		res := struct{}{}
 		body, _ := json.Marshal(res)
 		w.Write(body)
 	} else if r.Method == "POST" {
@@ -227,7 +227,6 @@ func StreamServe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
 
 /*
    for SRS hook: on_play/on_stop
@@ -262,13 +261,13 @@ func StreamServe(w http.ResponseWriter, r *http.Request) {
 */
 
 type SessionMsg struct {
-	Action string `json:"action"`
+	Action   string `json:"action"`
 	ClientId string `json:"client_id"`
-	Ip string `json:"ip"`
-	Vhost string `json:"vhost"`
-	App string `json:"app"`
-	Stream string `json:"stream"`
-	Param string `json:"param"`
+	Ip       string `json:"ip"`
+	Vhost    string `json:"vhost"`
+	App      string `json:"app"`
+	Stream   string `json:"stream"`
+	Param    string `json:"param"`
 }
 
 type SessionOnPlayMsg struct {
@@ -288,7 +287,7 @@ func (v *SessionOnStopMsg) String() string {
 	return fmt.Sprintf("srs %v: client id=%v, ip=%v, vhost=%v, app=%v, stream=%v, param=%v", v.Action, v.ClientId, v.Ip, v.Vhost, v.App, v.Stream, v.Param)
 }
 
-type Session struct {}
+type Session struct{}
 
 func (v *Session) Parse(body []byte) (se *SrsError) {
 	data := &struct {
@@ -317,7 +316,7 @@ func (v *Session) Parse(body []byte) (se *SrsError) {
 // handle the sessions requests: client play/stop stream
 func SessionServe(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		res := struct {}{}
+		res := struct{}{}
 		body, _ := json.Marshal(res)
 		w.Write(body)
 	} else if r.Method == "POST" {
@@ -336,7 +335,6 @@ func SessionServe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
 
 /*
    for SRS hook: on_dvr
@@ -360,22 +358,22 @@ func SessionServe(w http.ResponseWriter, r *http.Request) {
 */
 
 type DvrMsg struct {
-	Action string `json:"action"`
+	Action   string `json:"action"`
 	ClientId string `json:"client_id"`
-	Ip string `json:"ip"`
-	Vhost string `json:"vhost"`
-	App string `json:"app"`
-	Stream string `json:"stream"`
-	Param string `json:"param"`
-	Cwd string `json:"cwd"`
-	File string `json:"file"`
+	Ip       string `json:"ip"`
+	Vhost    string `json:"vhost"`
+	App      string `json:"app"`
+	Stream   string `json:"stream"`
+	Param    string `json:"param"`
+	Cwd      string `json:"cwd"`
+	File     string `json:"file"`
 }
 
 func (v *DvrMsg) String() string {
 	return fmt.Sprintf("srs %v: client id=%v, ip=%v, vhost=%v, app=%v, stream=%v, param=%v, cwd=%v, file=%v", v.Action, v.ClientId, v.Ip, v.Vhost, v.App, v.Stream, v.Param, v.Cwd, v.File)
 }
 
-type Dvr struct {}
+type Dvr struct{}
 
 func (v *Dvr) Parse(body []byte) (se *SrsError) {
 	msg := &DvrMsg{}
@@ -389,7 +387,7 @@ func (v *Dvr) Parse(body []byte) (se *SrsError) {
 // handle the dvrs requests: dvr stream.
 func DvrServe(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		res := struct {}{}
+		res := struct{}{}
 		body, _ := json.Marshal(res)
 		w.Write(body)
 	} else if r.Method == "POST" {
@@ -408,7 +406,6 @@ func DvrServe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
 
 /*
    for SRS hook: on_hls_notify
@@ -445,24 +442,24 @@ func DvrServe(w http.ResponseWriter, r *http.Request) {
 */
 
 type HlsMsg struct {
-	Action string `json:"action"`
-	ClientId string `json:"client_id"`
-	Ip string `json:"ip"`
-	Vhost string `json:"vhost"`
-	App string `json:"app"`
-	Stream string `json:"stream"`
-	Param string `json:"param"`
+	Action   string  `json:"action"`
+	ClientId string  `json:"client_id"`
+	Ip       string  `json:"ip"`
+	Vhost    string  `json:"vhost"`
+	App      string  `json:"app"`
+	Stream   string  `json:"stream"`
+	Param    string  `json:"param"`
 	Duration float64 `json:"duration"`
-	Cwd string `json:"cwd"`
-	File string `json:"file"`
-	SeqNo int `json:"seq_no"`
+	Cwd      string  `json:"cwd"`
+	File     string  `json:"file"`
+	SeqNo    int     `json:"seq_no"`
 }
 
 func (v *HlsMsg) String() string {
 	return fmt.Sprintf("srs %v: client id=%v, ip=%v, vhost=%v, app=%v, stream=%v, param=%v, duration=%v, cwd=%v, file=%v, seq_no=%v", v.Action, v.ClientId, v.Ip, v.Vhost, v.App, v.Stream, v.Param, v.Duration, v.Cwd, v.File, v.SeqNo)
 }
 
-type Hls struct {}
+type Hls struct{}
 
 func (v *Hls) Parse(body []byte) (se *SrsError) {
 	msg := &HlsMsg{}
@@ -479,10 +476,10 @@ func HlsServe(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		subPath := r.URL.Path[len("/api/v1/hls/"):]
 		res := struct {
-			Args []string `json:"args"`
+			Args   []string   `json:"args"`
 			KwArgs url.Values `json:"kwargs"`
 		}{
-			Args: strings.Split(subPath, "/"),
+			Args:   strings.Split(subPath, "/"),
 			KwArgs: r.URL.Query(),
 		}
 		body, _ := json.Marshal(res)
@@ -504,7 +501,6 @@ func HlsServe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 /*
 # object fields:
 # id: an int value indicates the id of user.
@@ -521,17 +517,17 @@ func HlsServe(w http.ResponseWriter, r *http.Request) {
 */
 
 type Chat struct {
-	Id int `json:"id"`
-	Username string `json:"username"`
-	Url string `json:"url"`
-	JoinDate int64 `json:"join_date"`
+	Id          int    `json:"id"`
+	Username    string `json:"username"`
+	Url         string `json:"url"`
+	JoinDate    int64  `json:"join_date"`
 	JoinDateStr string `json:"join_date_str"`
-	Heartbeat int64 `json:"heartbeat"`
+	Heartbeat   int64  `json:"heartbeat"`
 }
 
 type ChatManager struct {
 	globalId int
-	chats *sync.Map
+	chats    *sync.Map
 	deadTime int
 }
 
@@ -539,7 +535,7 @@ func NewChatManager() *ChatManager {
 	v := &ChatManager{
 		globalId: 100,
 		// key is globalId, value is chat
-		chats: new(sync.Map),
+		chats:    new(sync.Map),
 		deadTime: 15,
 	}
 	return v
@@ -626,7 +622,7 @@ stop the snapshot worker when stream finished.
 {"action":"on_unpublish","client_id":108,"ip":"127.0.0.1","vhost":"__defaultVhost__","app":"live","stream":"livestream"}
 */
 
-type SnapShot struct {}
+type SnapShot struct{}
 
 func (v *SnapShot) Parse(body []byte) (se *SrsError) {
 	msg := &StreamMsg{}
@@ -689,13 +685,13 @@ func (v *SnapshotJob) IsAbort() bool {
 }
 
 type SnapshotWorker struct {
-	snapshots *sync.Map // key is stream url
+	snapshots  *sync.Map // key is stream url
 	ffmpegPath string
 }
 
 func NewSnapshotWorker(ffmpegPath string) *SnapshotWorker {
 	sw := &SnapshotWorker{
-		snapshots: new(sync.Map),
+		snapshots:  new(sync.Map),
 		ffmpegPath: ffmpegPath,
 	}
 	return sw
@@ -724,7 +720,7 @@ func (v *SnapshotWorker) Serve() {
 			}
 
 			if sj.cmd == nil { // start a ffmpeg snap cmd
-				outputDir := path.Join(StaticDir, sj.App, fmt.Sprintf("%v", sj.Stream) + "-%03d.png")
+				outputDir := path.Join(StaticDir, sj.App, fmt.Sprintf("%v", sj.Stream)+"-%03d.png")
 				bestPng := path.Join(StaticDir, sj.App, fmt.Sprintf("%v-best.png", sj.Stream))
 				if err := os.MkdirAll(path.Dir(outputDir), 0777); err != nil {
 					log.Println(fmt.Sprintf("create snapshot image dir:%v failed, err is %v", path.Base(outputDir), err))
@@ -732,7 +728,7 @@ func (v *SnapshotWorker) Serve() {
 				}
 				vframes := 5
 				param := fmt.Sprintf("%v -i %v -vf fps=1 -vcodec png -f image2 -an -y -vframes %v -y %v", v.ffmpegPath, streamUrl, vframes, outputDir)
-				timeoutCtx, _ := context.WithTimeout(context.Background(), time.Duration(30) * time.Second)
+				timeoutCtx, _ := context.WithTimeout(context.Background(), time.Duration(30)*time.Second)
 				cmd := exec.CommandContext(timeoutCtx, "/bin/bash", "-c", param)
 				if err := cmd.Start(); err != nil {
 					log.Println(fmt.Sprintf("start snapshot %v cmd failed, err is %v", streamTag, err))
@@ -745,7 +741,7 @@ func (v *SnapshotWorker) Serve() {
 						log.Println(fmt.Sprintf("snapshot %v cmd wait failed, err is %v", streamTag, err))
 					} else { // choose the best quality image
 						bestFileSize := int64(0)
-						for  i := 1; i <= vframes; i ++ {
+						for i := 1; i <= vframes; i++ {
 							pic := path.Join(StaticDir, sj.App, fmt.Sprintf("%v-%03d.png", sj.Stream, i))
 							fi, err := os.Stat(pic)
 							if err != nil {
@@ -820,22 +816,22 @@ an int value specifies the error code(0 corresponding to success):
 */
 
 type ForwardMsg struct {
-	Action string `json:"action"`
+	Action   string `json:"action"`
 	ServerId string `json:"server_id"`
 	ClientId string `json:"client_id"`
-	Ip string `json:"ip"`
-	Vhost string `json:"vhost"`
-	App string `json:"app"`
-	TcUrl string `json:"tc_url"`
-	Stream string `json:"stream"`
-	Param string `json:"param"`
+	Ip       string `json:"ip"`
+	Vhost    string `json:"vhost"`
+	App      string `json:"app"`
+	TcUrl    string `json:"tc_url"`
+	Stream   string `json:"stream"`
+	Param    string `json:"param"`
 }
 
 func (v *ForwardMsg) String() string {
 	return fmt.Sprintf("srs %v: client id=%v, ip=%v, vhost=%v, app=%v, tcUrl=%v, stream=%v, param=%v", v.Action, v.ClientId, v.Ip, v.Vhost, v.App, v.TcUrl, v.Stream, v.Param)
 }
 
-type Forward struct {}
+type Forward struct{}
 
 /*
 backend service config description:
@@ -863,9 +859,9 @@ func (v *Forward) Parse(body []byte) (se *SrsError) {
 	return
 }
 
-func ForwardServe(w http.ResponseWriter, r *http.Request)  {
+func ForwardServe(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		res := struct {}{}
+		res := struct{}{}
 		body, _ := json.Marshal(res)
 		w.Write(body)
 	} else if r.Method == "POST" {
@@ -885,7 +881,7 @@ func ForwardServe(w http.ResponseWriter, r *http.Request)  {
 	}
 }
 
-func main()  {
+func main() {
 	var port int
 	var ffmpegPath string
 	flag.IntVar(&port, "p", 8085, "use -p to specify listen port, default is 8085")
@@ -920,16 +916,16 @@ func main()  {
 	http.HandleFunc("/api/v1", func(writer http.ResponseWriter, request *http.Request) {
 		res := &struct {
 			Code int `json:"code"`
-			Urls struct{
-				Clients string `json:"clients"`
-				Streams string `json:"streams"`
+			Urls struct {
+				Clients  string `json:"clients"`
+				Streams  string `json:"streams"`
 				Sessions string `json:"sessions"`
-				Dvrs string `json:"dvrs"`
-				Chats string `json:"chats"`
-				Servers struct{
+				Dvrs     string `json:"dvrs"`
+				Chats    string `json:"chats"`
+				Servers  struct {
 					Summary string `json:"summary"`
-					Get string `json:"GET"`
-					Post string `json:"POST ip=node_ip&device_id=device_id"`
+					Get     string `json:"GET"`
+					Post    string `json:"POST ip=node_ip&device_id=device_id"`
 				}
 			} `json:"urls"`
 		}{
@@ -951,7 +947,7 @@ func main()  {
 	// handle the clients requests: connect/disconnect vhost/app.
 	http.HandleFunc("/api/v1/clients", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			WriteDataResponse(w, struct {}{})
+			WriteDataResponse(w, struct{}{})
 			return
 		}
 
@@ -970,7 +966,7 @@ func main()  {
 
 			WriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
-		} ();  err != nil {
+		}(); err != nil {
 			WriteErrorResponse(w, err)
 		}
 	})
