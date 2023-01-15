@@ -3985,6 +3985,7 @@ VOID TEST(KernelCodecTest, VideoFormat)
     }
 }
 
+#ifdef SRS_H265
 VOID TEST(KernelCodecTest, HevcVideoFormat)
 {
     srs_error_t err;
@@ -4047,7 +4048,7 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
         SrsFormat f;
         HELPER_EXPECT_SUCCESS(f.initialize());
 
-        /*HELPER_EXPECT_SUCCESS(f.on_video(0, (char *)vps_sps_pps, sizeof(vps_sps_pps)));
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char *)vps_sps_pps, sizeof(vps_sps_pps)));
         EXPECT_EQ(1, f.video->frame_type);
         EXPECT_EQ(0, f.video->avc_packet_type);
 
@@ -4058,9 +4059,10 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
         EXPECT_EQ(1, f.video->nb_samples);
 
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
-        EXPECT_EQ(1, f.video->nb_samples);*/
+        EXPECT_EQ(1, f.video->nb_samples);
     }
 }
+#endif
 
 VOID TEST(KernelFileTest, FileWriteReader)
 {
