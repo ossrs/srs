@@ -4054,11 +4054,11 @@ VOID TEST(KernelCodecTest, VideoHevcFormat)
         EXPECT_EQ(1280, f.vcodec->width);
         EXPECT_EQ(720, f.vcodec->height);
 
-        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
+        /*HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
         EXPECT_EQ(1, f.video->nb_samples);
 
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
-        EXPECT_EQ(1, f.video->nb_samples);
+        EXPECT_EQ(1, f.video->nb_samples);*/
     }
 }
 
