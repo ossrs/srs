@@ -1066,13 +1066,13 @@ srs_error_t SrsFormat::hevc_demux_vps_sps_pps(SrsHevcHvccNalu* nal)
     // nal data
     switch (nal->nal_unit_type) {
         case SrsHevcNaluType_VPS:
-            err = hevc_demux_vps(&stream);
+            //err = hevc_demux_vps(&stream);
             break;
         case SrsHevcNaluType_SPS:
             err = hevc_demux_sps(&stream);
             break;
         case SrsHevcNaluType_PPS:
-            err = hevc_demux_pps(&stream);
+            //err = hevc_demux_pps(&stream);
             break;
         default:
             break;
