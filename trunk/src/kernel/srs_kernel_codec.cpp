@@ -1146,31 +1146,40 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
     // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
 
-    // for VPS, 7.3.2.1 Video parameter set RBSP syntax
+    // H265 VPS (video_parameter_set_rbsp()) NAL Unit.
+    // Section 7.3.2.1 ("Video parameter set data syntax") of the H.265
     // ITU-T-H.265-2021.pdf, page 53.
     if (!stream.require(4)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "vps requires 4 only %d bytes", stream.left());
     }
 
     SrsBitBuffer bs(&stream);
+
+    // vps_video_parameter_set_id  u(4)
     int vps_video_parameter_set_id = bs.read_bits(4);
     if (vps_video_parameter_set_id < 0 || vps_video_parameter_set_id > 16) {
         return err;
     }
 
-    SrsHevcDecoderConfigurationRecord *dec_conf_rec = &(vcodec->hevc_dec_conf_record_);
     // select table
+    SrsHevcDecoderConfigurationRecord *dec_conf_rec = &(vcodec->hevc_dec_conf_record_);
     SrsHevcRbspVps *vps = &(dec_conf_rec->vps_table[vps_video_parameter_set_id]);
 
     vps->vps_video_parameter_set_id = vps_video_parameter_set_id;
+    // vps_base_layer_internal_flag  u(1)
     vps->vps_base_layer_internal_flag = bs.read_bit();
+    // vps_base_layer_available_flag  u(1)
     vps->vps_base_layer_available_flag = bs.read_bit();
+    // vps_max_layers_minus1  u(6)
     vps->vps_max_layers_minus1 = bs.read_bits(6);
+    // vps_max_sub_layers_minus1  u(3)
     vps->vps_max_sub_layers_minus1 = bs.read_bits(3);
+    // vps_temporal_id_nesting_flag  u(1)
     vps->vps_temporal_id_nesting_flag = bs.read_bit();
+    // vps_reserved_0xffff_16bits  u(16)
     vps->vps_reserved_0xffff_16bits = bs.read_bits(16);
 
-    // profile tier level...
+    // profile_tier_level(1, vps_max_sub_layers_minus1)
     if ((err = hevc_demux_rbsp_ptl(&bs, &vps->ptl, 1, vps->vps_max_sub_layers_minus1)) != srs_success) {
         return srs_error_wrap(err, "vps rbsp ptl vps_max_sub_layers_minus1=%d", vps->vps_max_sub_layers_minus1);
     }
@@ -1183,23 +1192,39 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sublayer flag requires 1 only %d bits", bs.left_bits());
     }
 
-    // Sublayers
+    // vps_sub_layer_ordering_info_present_flag  u(1)
     vps->vps_sub_layer_ordering_info_present_flag = bs.read_bit();
+
     for (int i = (vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1);
         i <= vps->vps_max_sub_layers_minus1; i++)
     {
-        vps->vps_max_dec_pic_buffering_minus1[i] = bs.read_bits_ue();
-        vps->vps_max_num_reorder_pics[i] = bs.read_bits_ue();
-        vps->vps_max_latency_increase_plus1[i] = bs.read_bits_ue();
+        // vps_max_dec_pic_buffering_minus1[i]  ue(v)
+        if ((err = bs.read_bits_ue(vps->vps_max_dec_pic_buffering_minus1[i])) != srs_success) {
+            return srs_error_wrap(err, "max_dec_pic_buffering_minus1");
+        }
+        // vps_max_num_reorder_pics[i]  ue(v)
+        if ((err = bs.read_bits_ue(vps->vps_max_num_reorder_pics[i])) != srs_success) {
+            return srs_error_wrap(err, "max_num_reorder_pics");
+        }
+        // vps_max_latency_increase_plus1[i]  ue(v)
+        if ((err = bs.read_bits_ue(vps->vps_max_latency_increase_plus1[i])) != srs_success) {
+            return srs_error_wrap(err, "max_latency_increase_plus1");
+        }
     }
 
-    if (!bs.require_bits(10)) {
+    if (!bs.require_bits(6)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "vps maxlayer requires 10 only %d bits", bs.left_bits());
     }
 
+    // vps_max_layer_id  u(6)
     vps->vps_max_layer_id = bs.read_bits(6);
-    vps->vps_num_layer_sets_minus1 = bs.read_bits_ue();
-    vps->layer_id_included_flag.resize(vps->vps_num_layer_sets_minus1+1);
+
+    // vps_num_layer_sets_minus1  ue(v)
+    if ((err = bs.read_bits_ue(vps->vps_num_layer_sets_minus1)) != srs_success) {
+        return srs_error_wrap(err, "num_layer_sets_minus1");
+    }
+
+    vps->layer_id_included_flag.resize(vps->vps_num_layer_sets_minus1 + 1);
     for (int i = 0; i < (int)vps->layer_id_included_flag.size(); i++) {
         vps->layer_id_included_flag[i].resize(vps->vps_max_layer_id);
     }
@@ -1215,6 +1240,7 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
 
     for (int i = 1; i <= vps->vps_num_layer_sets_minus1; i++) {
         for (int j = 0; j <= vps->vps_max_layer_id; j++) {
+            // layer_id_included_flag[i][j]  u(1)
             vps->layer_id_included_flag[i][j] = bs.read_bit();
         }
     }
@@ -1223,49 +1249,67 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "timing flag requires 1 only %d bits", bs.left_bits());
     }
 
+    // vps_timing_info_present_flag  u(1)
     vps->vps_timing_info_present_flag = bs.read_bit();
     if (vps->vps_timing_info_present_flag) {
         if (!bs.require_bits(65)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "num time poc requires 1 only %d bits", bs.left_bits());
         }
 
+        // vps_num_units_in_tick  u(32)
         vps->vps_num_units_in_tick = bs.read_bits(32);
+        // vps_time_scale  u(32)
         vps->vps_time_scale = bs.read_bits(32);
+        // vps_poc_proportional_to_timing_flag  u(1)
         vps->vps_poc_proportional_to_timing_flag = bs.read_bit();
         if (vps->vps_poc_proportional_to_timing_flag) {
-            if (!bs.require_bits(32)) {
-                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "timing flag requires 32 only %d bits", bs.left_bits());
+            // vps_num_ticks_poc_diff_one_minus1  ue(v)
+            if ((err = bs.read_bits_ue(vps->vps_num_ticks_poc_diff_one_minus1)) != srs_success) {
+                return srs_error_wrap(err, "num_ticks_poc_diff_one_minus1");
             }
-            vps->vps_num_ticks_poc_diff_one_minus1 = bs.read_bits_ue();
         }
 
-        if (!bs.require_bits(32)) {
-            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "num hrd requires 32 only %d bits", bs.left_bits());
+        // vps_num_hrd_parameters  ue(v)
+        if ((err = bs.read_bits_ue(vps->vps_num_hrd_parameters)) != srs_success) {
+            return srs_error_wrap(err, "num_hrd_parameters");
         }
-
-        vps->vps_num_hrd_parameters = bs.read_bits_ue();
         vps->hrd_layer_set_idx.resize(vps->vps_num_hrd_parameters);
         vps->cprms_present_flag.resize(vps->vps_num_hrd_parameters);
+
         for (int i = 0; i < vps->vps_num_hrd_parameters; i++) {
-            if (!bs.require_bits(32)) {
-                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hrd layer set requires 32 only %d bits", bs.left_bits());
+            // hrd_layer_set_idx[i]  ue(v)
+            if ((err = bs.read_bits_ue(vps->hrd_layer_set_idx[i])) != srs_success) {
+                return srs_error_wrap(err, "hrd_layer_set_idx");
             }
-            vps->hrd_layer_set_idx[i] = bs.read_bits_ue();
 
             if (i > 0) {
                 if (!bs.require_bits(1)) {
                     return srs_error_new(ERROR_HEVC_DECODE_ERROR, "cprms present flag requires 1 only %d bits", bs.left_bits());
                 }
+
+                // cprms_present_flag[i]  u(1)
                 vps->cprms_present_flag[i] = bs.read_bit();
             }
 
-            // hrd_parameters()
+            // hrd_parameters(cprms_present_flag[i], vps_max_sub_layers_minus1)
+            // TODO: FIXME: add support for hrd_parameters()
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "not support for hrd_parameters remain %d bits", bs.left_bits());
         }
     }
 
-    // vps_extension_flag
-    // more_rbsp_trailing_data
-    // rbsp_trailing_bits
+    if (!bs.require_bits(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "vps_extension_flag requires 1 only %d bits", bs.left_bits());
+    }
+
+    // vps_extension_flag  u(1)
+    vps->vps_extension_flag = bs.read_bit();
+
+    if (vps->vps_extension_flag) {
+        // more_rbsp_data
+        // TODO: FIXME: add support for more_rbsp_data()
+    }
+
+    // TODO: FIXME: rbsp_trailing_bits
 
     return err;
 }
@@ -1337,16 +1381,19 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
 
-    // for SPS, F.7.3.2.2.1 General sequence parameter set RBSP syntax
+    // H265 SPS Nal Unit (seq_parameter_set_rbsp()) parser.
+    // Section 7.3.2.2 ("Sequence parameter set data syntax") of the H.265
     // ITU-T-H.265-2021.pdf, page 55.
     if (!stream.require(2)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps requires 2 only %d bytes", stream.left());
     }
     uint8_t nutv = stream.read_1bytes();
 
-    // id/minus/flag
+    // sps_video_parameter_set_id  u(4)
     int sps_video_parameter_set_id = (nutv >> 4) & 0x0f;
+    // sps_max_sub_layers_minus1  u(3)
     int sps_max_sub_layers_minus1 = (nutv >> 1) & 0x07;
+    // sps_temporal_id_nesting_flag  u(1)
     int sps_temporal_id_nesting_flag = nutv & 0x01;
 
     SrsBitBuffer bs(&stream);
@@ -1354,7 +1401,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     // profile tier level...
     SrsHevcProfileTierLevel profile_tier_level;
     memset((void*)&profile_tier_level, 0, sizeof(SrsHevcProfileTierLevel));
-
+    // profile_tier_level(1, sps_max_sub_layers_minus1)
     if ((err = hevc_demux_rbsp_ptl(&bs, &profile_tier_level, 1, sps_max_sub_layers_minus1)) != srs_success) {
         return srs_error_wrap(err, "sps rbsp ptl sps_max_sub_layers_minus1=%d", sps_max_sub_layers_minus1);
     }
@@ -1362,39 +1409,73 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     vcodec->hevc_profile = (SrsHevcProfile)profile_tier_level.general_profile_idc;
     vcodec->hevc_level = (SrsHevcLevel)profile_tier_level.general_level_idc;
 
-    SrsHevcDecoderConfigurationRecord *dec_conf_rec = &(vcodec->hevc_dec_conf_record_);
+    // sps_seq_parameter_set_id  ue(v)
+    int sps_seq_parameter_set_id = 0;
+    if ((err = bs.read_bits_ue(sps_seq_parameter_set_id)) != srs_success) {
+        return srs_error_wrap(err, "sps_seq_parameter_set_id");
+    }
+
     // for sps_table
-    int sps_seq_parameter_set_id = bs.read_bits_ue();
+    SrsHevcDecoderConfigurationRecord *dec_conf_rec = &(vcodec->hevc_dec_conf_record_);
     SrsHevcRbspSps *sps = &(dec_conf_rec->sps_table[sps_seq_parameter_set_id]);
 
     sps->sps_video_parameter_set_id = sps_video_parameter_set_id;
     sps->sps_max_sub_layers_minus1 = sps_max_sub_layers_minus1;
     sps->sps_temporal_id_nesting_flag = sps_temporal_id_nesting_flag;
     sps->sps_seq_parameter_set_id = sps_seq_parameter_set_id;
-
     memcpy(&(sps->ptl), &profile_tier_level, sizeof(SrsHevcProfileTierLevel));
 
-    int chroma_format_idc = bs.read_bits_ue();
+    // chroma_format_idc  ue(v)
+    int chroma_format_idc = 0;
+    if ((err = bs.read_bits_ue(chroma_format_idc)) != srs_success) {
+        return srs_error_wrap(err, "chroma_format_idc");
+    }
+
     if (chroma_format_idc == 3) {
-        sps->separate_colour_plane_flag = bs.read_bits_ue();
+        if (!bs.require_bits(1)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "separate_colour_plane_flag requires 1 only %d bits", bs.left_bits());
+        }
+
+        // separate_colour_plane_flag  u(1)
+        sps->separate_colour_plane_flag = bs.read_bit();
     }
 
-    if (!bs.require_bits(65)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps pic resolution requires 65 only %d bits", bs.left_bits());
+    // pic_width_in_luma_samples  ue(v)
+    if ((err = bs.read_bits_ue(sps->pic_width_in_luma_samples)) != srs_success) {
+        return srs_error_wrap(err, "pic_width_in_luma_samples");
     }
 
-    sps->pic_width_in_luma_samples = bs.read_bits_ue();
-    sps->pic_height_in_luma_samples = bs.read_bits_ue();
+    // pic_height_in_luma_samples  ue(v)
+    if ((err = bs.read_bits_ue(sps->pic_height_in_luma_samples)) != srs_success) {
+        return srs_error_wrap(err, "pic_height_in_luma_samples");
+    }
 
     vcodec->width  = sps->pic_width_in_luma_samples;
     vcodec->height = sps->pic_height_in_luma_samples;
 
+    if (!bs.require_bits(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "conformance_window_flag requires 1 only %d bits", bs.left_bits());
+    }
+
+    // conformance_window_flag  u(1)
     sps->conformance_window_flag = bs.read_bit();
     if (sps->conformance_window_flag) {
-        sps->conf_win_left_offset   = bs.read_bits_ue();
-        sps->conf_win_right_offset  = bs.read_bits_ue();
-        sps->conf_win_top_offset    = bs.read_bits_ue();
-        sps->conf_win_bottom_offset = bs.read_bits_ue();
+        // conf_win_left_offset  ue(v)
+        if ((err = bs.read_bits_ue(sps->conf_win_left_offset)) != srs_success) {
+            return srs_error_wrap(err, "conf_win_left_offset");
+        }
+        // conf_win_right_offset  ue(v)
+        if ((err = bs.read_bits_ue(sps->conf_win_right_offset)) != srs_success) {
+            return srs_error_wrap(err, "conf_win_right_offset");
+        }
+        // conf_win_top_offset  ue(v)
+        if ((err = bs.read_bits_ue(sps->conf_win_top_offset)) != srs_success) {
+            return srs_error_wrap(err, "conf_win_top_offset");
+        }
+        // conf_win_bottom_offset  ue(v)
+        if ((err = bs.read_bits_ue(sps->conf_win_bottom_offset)) != srs_success) {
+            return srs_error_wrap(err, "conf_win_bottom_offset");
+        }
 
         // Table 6-1, 7.4.3.2.1
         // ITU-T-H.265-2021.pdf, page 42.
@@ -1407,18 +1488,23 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         vcodec->height -= (sub_height_c * sps->conf_win_bottom_offset + sub_height_c * sps->conf_win_top_offset);
     }
 
-    if (!bs.require_bits(96)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps bit depth requires 96 only %d bits", bs.left_bits());
+    // bit_depth_luma_minus8  ue(v)
+    if ((err = bs.read_bits_ue(sps->bit_depth_luma_minus8)) != srs_success) {
+        return srs_error_wrap(err, "bit_depth_luma_minus8");
     }
-
-    sps->bit_depth_luma_minus8 = bs.read_bits_ue();
-    sps->bit_depth_chroma_minus8 = bs.read_bits_ue();
+    // bit_depth_chroma_minus8  ue(v)
+    if ((err = bs.read_bits_ue(sps->bit_depth_chroma_minus8)) != srs_success) {
+        return srs_error_wrap(err, "bit_depth_chroma_minus8");
+    }
 
     // bit depth
     dec_conf_rec->bit_depth_luma_minus8 = sps->bit_depth_luma_minus8 + 8;
     dec_conf_rec->bit_depth_chroma_minus8 = sps->bit_depth_chroma_minus8 + 8;
 
-    sps->log2_max_pic_order_cnt_lsb_minus4 = bs.read_bits_ue();
+    // log2_max_pic_order_cnt_lsb_minus4  ue(v)
+    if ((err = bs.read_bits_ue(sps->log2_max_pic_order_cnt_lsb_minus4)) != srs_success) {
+        return srs_error_wrap(err, "log2_max_pic_order_cnt_lsb_minus4");
+    }
 
     // TODO: FIXME: Implements it, you might parse remain bits for seq_parameter_set_rbsp.
     // 7.3.2.2 Sequence parameter set RBSP syntax
@@ -1491,71 +1577,134 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
     // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
 
-    // for PPS, 7.3.2.3 Picture parameter set RBSP syntax
+    // H265 PPS NAL Unit (pic_parameter_set_rbsp()) parser.
+    // Section 7.3.2.3 ("Parameter parameter set data syntax") of the H.265
     // ITU-T-H.265-2021.pdf, page 57.
     SrsBitBuffer bs(&stream);
-    if (!bs.require_bits(32)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps requires 32 only %d bits", bs.left_bits());
-    }
 
-    int pps_pic_parameter_set_id = bs.read_bits_ue(); // get id
+    // pps_pic_parameter_set_id  ue(v)
+    int pps_pic_parameter_set_id = 0;
+    if ((err = bs.read_bits_ue(pps_pic_parameter_set_id)) != srs_success) {
+        return srs_error_wrap(err, "pps_pic_parameter_set_id");
+    }
     if (pps_pic_parameter_set_id < 0 || pps_pic_parameter_set_id > 256) {
         return err;
     }
 
-    SrsHevcDecoderConfigurationRecord *dec_conf_rec = &(vcodec->hevc_dec_conf_record_);
     // select table
+    SrsHevcDecoderConfigurationRecord *dec_conf_rec = &(vcodec->hevc_dec_conf_record_);
     SrsHevcRbspPps *pps = &(dec_conf_rec->pps_table[pps_pic_parameter_set_id]);
-
     pps->pps_pic_parameter_set_id = pps_pic_parameter_set_id;
-    pps->pps_seq_parameter_set_id = bs.read_bits_ue();
+
+    // pps_seq_parameter_set_id  ue(v)
+    int pps_seq_parameter_set_id = 0;
+    if ((err = bs.read_bits_ue(pps_seq_parameter_set_id)) != srs_success) {
+        return srs_error_wrap(err, "pps_seq_parameter_set_id");
+    }
+    pps->pps_seq_parameter_set_id = pps_seq_parameter_set_id;
+
+    if (!bs.require_bits(7)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps slice requires 7 only %d bits", bs.left_bits());
+    }
+
+    // dependent_slice_segments_enabled_flag  u(1)
     pps->dependent_slice_segments_enabled_flag = bs.read_bit();
+    // output_flag_present_flag  u(1)
     pps->output_flag_present_flag = bs.read_bit();
+    // num_extra_slice_header_bits  u(3)
     pps->num_extra_slice_header_bits = bs.read_bits(3);
+    // sign_data_hiding_enabled_flag  u(1)
     pps->sign_data_hiding_enabled_flag = bs.read_bit();
+    // cabac_init_present_flag  u(1)
     pps->cabac_init_present_flag = bs.read_bit();
-    pps->num_ref_idx_l0_default_active_minus1 = bs.read_bits_ue();
-    pps->num_ref_idx_l1_default_active_minus1 = bs.read_bits_ue();
-    pps->init_qp_minus26 = bs.read_bits_se();
+
+    // num_ref_idx_l0_default_active_minus1  ue(v)
+    if ((err = bs.read_bits_ue(pps->num_ref_idx_l0_default_active_minus1)) != srs_success) {
+        return srs_error_wrap(err, "num_ref_idx_l0_default_active_minus1");
+    }
+    // num_ref_idx_l1_default_active_minus1  ue(v)
+    if ((err = bs.read_bits_ue(pps->num_ref_idx_l1_default_active_minus1)) != srs_success) {
+        return srs_error_wrap(err, "num_ref_idx_l1_default_active_minus1");
+    }
+    // init_qp_minus26  se(v)
+    if ((err = bs.read_bits_se(pps->init_qp_minus26)) != srs_success) {
+        return srs_error_wrap(err, "init_qp_minus26");
+    }
+
+    if (!bs.require_bits(3)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps requires 3 only %d bits", bs.left_bits());
+    }
+
+    // constrained_intra_pred_flag  u(1)
     pps->constrained_intra_pred_flag = bs.read_bit();
+    // transform_skip_enabled_flag  u(1)
     pps->transform_skip_enabled_flag = bs.read_bit();
+    // cu_qp_delta_enabled_flag  u(1)
     pps->cu_qp_delta_enabled_flag = bs.read_bit();
     if (pps->cu_qp_delta_enabled_flag) {
-        pps->diff_cu_qp_delta_depth = bs.read_bits_ue();
+        // diff_cu_qp_delta_depth  ue(v)
+        if ((err = bs.read_bits_ue(pps->diff_cu_qp_delta_depth)) != srs_success) {
+            return srs_error_wrap(err, "diff_cu_qp_delta_depth");
+        }
     }
-    pps->pps_cb_qp_offset = bs.read_bits_ue();
-    pps->pps_cr_qp_offset = bs.read_bits_ue();
+    // pps_cb_qp_offset  se(v)
+    if ((err = bs.read_bits_se(pps->pps_cb_qp_offset)) != srs_success) {
+        return srs_error_wrap(err, "pps_cb_qp_offset");
+    }
+    // pps_cr_qp_offset  se(v)
+    if ((err = bs.read_bits_se(pps->pps_cr_qp_offset)) != srs_success) {
+        return srs_error_wrap(err, "pps_cr_qp_offset");
+    }
 
     if (!bs.require_bits(6)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps slice_chroma_qp requires 6 only %d bits", bs.left_bits());
     }
 
+    // pps_slice_chroma_qp_offsets_present_flag  u(1)
     pps->pps_slice_chroma_qp_offsets_present_flag = bs.read_bit();
+    // weighted_pred_flag  u(1)
     pps->weighted_pred_flag = bs.read_bit();
+    // weighted_bipred_flag  u(1)
     pps->weighted_bipred_flag = bs.read_bit();
+    // transquant_bypass_enabled_flag  u(1)
     pps->transquant_bypass_enabled_flag = bs.read_bit();
+    // tiles_enabled_flag  u(1)
     pps->tiles_enabled_flag = bs.read_bit();
+    // entropy_coding_sync_enabled_flag  u(1)
     pps->entropy_coding_sync_enabled_flag = bs.read_bit();
 
     if (pps->tiles_enabled_flag) {
-        pps->num_tile_columns_minus1 = bs.read_bits_ue();
-        pps->num_tile_rows_minus1 = bs.read_bits_ue();
-
-        if (!bs.require_bits(1)) {
-            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "num_tile_columns_minus1 requires 1 only %d bits", bs.left_bits());
+        // num_tile_columns_minus1  ue(v)
+        if ((err = bs.read_bits_ue(pps->num_tile_columns_minus1)) != srs_success) {
+            return srs_error_wrap(err, "num_tile_columns_minus1");
+        }
+        // num_tile_rows_minus1  ue(v)
+        if ((err = bs.read_bits_ue(pps->num_tile_rows_minus1)) != srs_success) {
+            return srs_error_wrap(err, "num_tile_rows_minus1");
         }
 
+        if (!bs.require_bits(1)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "uniform_spacing_flag requires 1 only %d bits", bs.left_bits());
+        }
+
+        // uniform_spacing_flag  u(1)
         pps->uniform_spacing_flag = bs.read_bit();
         if (!pps->uniform_spacing_flag) {
             pps->column_width_minus1.resize(pps->num_tile_columns_minus1);
             pps->row_height_minus1.resize(pps->num_tile_rows_minus1);
 
             for (int i = 0; i < pps->num_tile_columns_minus1; i++) {
-                pps->column_width_minus1[i] = bs.read_bits_ue();
+                // column_width_minus1[i]  ue(v)
+                if ((err = bs.read_bits_ue(pps->column_width_minus1[i])) != srs_success) {
+                    return srs_error_wrap(err, "column_width_minus1");
+                }
             }
 
             for (int i = 0; i < pps->num_tile_rows_minus1; i++) {
-                pps->row_height_minus1[i] = bs.read_bits_ue();
+                // row_height_minus1[i]  ue(v)
+                if ((err = bs.read_bits_ue(pps->row_height_minus1[i])) != srs_success) {
+                    return srs_error_wrap(err, "row_height_minus1");
+                }
             }
         }
 
@@ -1563,20 +1712,44 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "loop_filter_across_tiles_enabled_flag requires 1 only %d bits", bs.left_bits());
         }
 
+        // loop_filter_across_tiles_enabled_flag u(1)
         pps->loop_filter_across_tiles_enabled_flag = bs.read_bit();
     }
 
+    if (!bs.require_bits(2)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps loop deblocking filter requires 2 only %d bits", bs.left_bits());
+    }
+
+    // pps_loop_filter_across_slices_enabled_flag u(1)
     pps->pps_loop_filter_across_slices_enabled_flag = bs.read_bit();
+    // deblocking_filter_control_present_flag  u(1)
     pps->deblocking_filter_control_present_flag = bs.read_bit();
     if (pps->deblocking_filter_control_present_flag) {
+        if (!bs.require_bits(2)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps loop deblocking filter flag requires 2 only %d bits", bs.left_bits());
+        }
+
+        // deblocking_filter_override_enabled_flag u(1)
         pps->deblocking_filter_override_enabled_flag = bs.read_bit();
+        // pps_deblocking_filter_disabled_flag  u(1)
         pps->pps_deblocking_filter_disabled_flag = bs.read_bit();
         if (pps->pps_deblocking_filter_disabled_flag) {
-            pps->pps_beta_offset_div2 = bs.read_bits_se();
-            pps->pps_tc_offset_div2 = bs.read_bits_se();
+            // pps_beta_offset_div2  se(v)
+            if ((err = bs.read_bits_se(pps->pps_beta_offset_div2)) != srs_success) {
+                return srs_error_wrap(err, "pps_beta_offset_div2");
+            }
+            // pps_tc_offset_div2  se(v)
+            if ((err = bs.read_bits_se(pps->pps_tc_offset_div2)) != srs_success) {
+                return srs_error_wrap(err, "pps_tc_offset_div2");
+            }
         }
     }
 
+    if (!bs.require_bits(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps scaling_list_data requires 1 only %d bits", bs.left_bits());
+    }
+
+    // pps_scaling_list_data_present_flag  u(1)
     pps->pps_scaling_list_data_present_flag = bs.read_bit();
     if (pps->pps_scaling_list_data_present_flag) {
         // 7.3.4  Scaling list data syntax
@@ -1585,18 +1758,25 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
             for (int matrixId = 0; matrixId < 6; matrixId += (sizeId == 3) ? 3 : 1) {
                 sld->scaling_list_pred_mode_flag[sizeId][matrixId] = bs.read_bit();
                 if (!sld->scaling_list_pred_mode_flag[sizeId][matrixId]) {
-                    sld->scaling_list_pred_matrix_id_delta[sizeId][matrixId] = bs.read_bits_ue();
+                    if ((err = bs.read_bits_ue(sld->scaling_list_pred_matrix_id_delta[sizeId][matrixId])) != srs_success) {
+                        return srs_error_wrap(err, "scaling_list_pred_matrix_id_delta");
+                    }
                 } else {
                     int nextCoef = 8;
                     int coefNum = srs_min(64, (1 << (4 + (sizeId << 1))));
                     sld->coefNum = coefNum; // tmp store
                     if (sizeId > 1) {
-                        sld->scaling_list_dc_coef_minus8[sizeId - 2][matrixId] = bs.read_bits_se();
+                        if ((err = bs.read_bits_se(sld->scaling_list_dc_coef_minus8[sizeId - 2][matrixId])) != srs_success) {
+                            return srs_error_wrap(err, "scaling_list_dc_coef_minus8");
+                        }
                         nextCoef = sld->scaling_list_dc_coef_minus8[sizeId - 2][matrixId] + 8;
                     }
 
                     for (int i = 0; i < sld->coefNum; i++) {
-                        int scaling_list_delta_coef = bs.read_bits_se();
+                        int scaling_list_delta_coef = 0;
+                        if ((err = bs.read_bits_se(scaling_list_delta_coef)) != srs_success) {
+                            return srs_error_wrap(err, "scaling_list_delta_coef");
+                        }
                         nextCoef = (nextCoef + scaling_list_delta_coef + 256) % 256;
                         sld->ScalingList[sizeId][matrixId][i] = nextCoef;
                     }
@@ -1605,50 +1785,107 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
         }
     }
 
+    if (!bs.require_bits(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "lists_modification_present_flag requires 1 only %d bits", bs.left_bits());
+    }
+    // lists_modification_present_flag  u(1)
     pps->lists_modification_present_flag = bs.read_bit();
-    pps->log2_parallel_merge_level_minus2 = bs.read_bits_ue();
+
+    // log2_parallel_merge_level_minus2  ue(v)
+    if ((err = bs.read_bits_ue(pps->log2_parallel_merge_level_minus2)) != srs_success) {
+        return srs_error_wrap(err, "log2_parallel_merge_level_minus2");
+    }
+
+    if (!bs.require_bits(2)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "extension_present_flag requires 2 only %d bits", bs.left_bits());
+    }
+
+    // slice_segment_header_extension_present_flag  u(1)
     pps->slice_segment_header_extension_present_flag = bs.read_bit();
+    // pps_extension_present_flag  u(1)
     pps->pps_extension_present_flag = bs.read_bit();
     if (pps->pps_extension_present_flag) {
+        if (!bs.require_bits(8)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps_range_extension_flag requires 8 only %d bits", bs.left_bits());
+        }
+
+        // pps_range_extension_flag  u(1)
         pps->pps_range_extension_flag = bs.read_bit();
+        // pps_multilayer_extension_flag  u(1)
         pps->pps_multilayer_extension_flag = bs.read_bit();
+        // pps_3d_extension_flag  u(1)
         pps->pps_3d_extension_flag = bs.read_bit();
-        pps->pps_extension_5bits = bs.read_bits(5);
+        // pps_scc_extension_flag  u(1)
+        pps->pps_scc_extension_flag = bs.read_bit();
+        // pps_extension_4bits  u(4)
+        pps->pps_extension_4bits = bs.read_bits(4);
     }
 
     if (pps->pps_range_extension_flag) {
         if (pps->transform_skip_enabled_flag) {
-            pps->pps_range_extension.log2_max_transform_skip_block_size_minus2 = bs.read_bits_ue();
+            if ((err = bs.read_bits_ue(pps->pps_range_extension.log2_max_transform_skip_block_size_minus2)) != srs_success) {
+                return srs_error_wrap(err, "log2_max_transform_skip_block_size_minus2");
+            }
         }
 
+        if (!bs.require_bits(2)) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "cross_component_prediction_enabled_flag requires 2 only %d bits", bs.left_bits());
+        }
         pps->pps_range_extension.cross_component_prediction_enabled_flag = bs.read_bit();
         pps->pps_range_extension.chroma_qp_offset_list_enabled_flag = bs.read_bit();
         if (pps->pps_range_extension.chroma_qp_offset_list_enabled_flag) {
-            pps->pps_range_extension.diff_cu_chroma_qp_offset_depth = bs.read_bits_ue();
-            pps->pps_range_extension.chroma_qp_offset_list_len_minus1 = bs.read_bits_ue();
+            if ((err = bs.read_bits_ue(pps->pps_range_extension.diff_cu_chroma_qp_offset_depth)) != srs_success) {
+                return srs_error_wrap(err, "diff_cu_chroma_qp_offset_depth");
+            }
+
+            if ((err = bs.read_bits_ue(pps->pps_range_extension.chroma_qp_offset_list_len_minus1)) != srs_success) {
+                return srs_error_wrap(err, "chroma_qp_offset_list_len_minus1");
+            }
+
             pps->pps_range_extension.cb_qp_offset_list.resize(pps->pps_range_extension.chroma_qp_offset_list_len_minus1);
             pps->pps_range_extension.cr_qp_offset_list.resize(pps->pps_range_extension.chroma_qp_offset_list_len_minus1);
 
             for (int i = 0; i < pps->pps_range_extension.chroma_qp_offset_list_len_minus1; i++) {
-                pps->pps_range_extension.cb_qp_offset_list[i] = bs.read_bits_se();
-                pps->pps_range_extension.cr_qp_offset_list[i] = bs.read_bits_se();
+                if ((err = bs.read_bits_se(pps->pps_range_extension.cb_qp_offset_list[i])) != srs_success) {
+                    return srs_error_wrap(err, "cb_qp_offset_list");
+                }
+
+                if ((err = bs.read_bits_se(pps->pps_range_extension.cr_qp_offset_list[i])) != srs_success) {
+                    return srs_error_wrap(err, "cr_qp_offset_list");
+                }
             }
         }
 
-        pps->pps_range_extension.log2_sao_offset_scale_luma = bs.read_bits_ue();
-        pps->pps_range_extension.log2_sao_offset_scale_chroma = bs.read_bits_ue();
+        if ((err = bs.read_bits_se(pps->pps_range_extension.log2_sao_offset_scale_luma)) != srs_success) {
+            return srs_error_wrap(err, "log2_sao_offset_scale_luma");
+        }
+
+        if ((err = bs.read_bits_se(pps->pps_range_extension.log2_sao_offset_scale_chroma)) != srs_success) {
+            return srs_error_wrap(err, "log2_sao_offset_scale_chroma");
+        }
     }
 
     if (pps->pps_multilayer_extension_flag){
-        // TODO: sps_multilayer_extension( )
+        // pps_multilayer_extension, specified in Annex F
+        // TODO: FIXME: add support for pps_multilayer_extension()
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "unimplemented pps_multilayer_extension in pps");
     }
 
     if (pps->pps_3d_extension_flag) {
-        // TODO: sps_3d_extension( )
+        // pps_3d_extension, specified in Annex I
+        // TODO: FIXME: add support for pps_3d_extension()
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "unimplemented pps_3d_extension in pps");
     }
 
-    if (pps->pps_extension_5bits) {
-        // TODO: more_rbsp_trailing_data
+    if (pps->pps_scc_extension_flag) {
+        // pps_scc_extension_flag
+        // TODO: FIXME: add support for pps_scc_extension()
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "unimplemented pps_scc_extension in pps");
+    }
+
+    if (pps->pps_extension_4bits) {
+        // more_rbsp_data
+        // TODO: FIXME: add support for more_rbsp_data()
     }
 
     // TODO: rbsp_trailing_bits
