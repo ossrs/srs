@@ -44,15 +44,15 @@ type SrsCommonResponse struct {
 	Data interface{} `json:"data"`
 }
 
-func WriteErrorResponse(w http.ResponseWriter, err error) {
+func SrsWriteErrorResponse(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Write([]byte(err.Error()))
 }
 
-func WriteDataResponse(w http.ResponseWriter, data interface{}) {
+func SrsWriteDataResponse(w http.ResponseWriter, data interface{}) {
 	j, err := json.Marshal(data)
 	if err != nil {
-		WriteErrorResponse(w, fmt.Errorf("marshal %v, err %v", err))
+		SrsWriteErrorResponse(w, fmt.Errorf("marshal %v, err %v", err))
 		return
 	}
 
@@ -70,8 +70,8 @@ See also: https://github.com/ossrs/srs
 var StaticDir string
 var sw *SnapshotWorker
 
-// All
-type CommonRequest struct {
+// SrsCommonRequest is the common fields of request messages from SRS HTTP callback.
+type SrsCommonRequest struct {
 	Action   string `json:"action"`
 	ClientId string `json:"client_id"`
 	Ip       string `json:"ip"`
@@ -79,7 +79,7 @@ type CommonRequest struct {
 	App      string `json:"app"`
 }
 
-func (v *CommonRequest) String() string {
+func (v *SrsCommonRequest) String() string {
 	return fmt.Sprintf("action=%v, client_id=%v, ip=%v, vhost=%v", v.Action, v.ClientId, v.Ip, v.Vhost)
 }
 
@@ -114,8 +114,8 @@ handle the clients requests: connect/disconnect vhost/app.
     an int value specifies the error code(0 corresponding to success):
           0
 */
-type ClientMsg struct {
-	CommonRequest
+type SrsClientRequest struct {
+	SrsCommonRequest
 	// For on_connect message
 	TcUrl   string `json:"tcUrl"`
 	PageUrl string `json:"pageUrl"`
@@ -124,16 +124,16 @@ type ClientMsg struct {
 	RecvBytes int64 `json:"recv_bytes"`
 }
 
-func (v *ClientMsg) Parse(b []byte) error {
+func (v *SrsClientRequest) Parse(b []byte) error {
 	if err := json.Unmarshal(b, v); err != nil {
 		return fmt.Errorf("parse message from %v, err %v", string(b), err)
 	}
 	return nil
 }
 
-func (v *ClientMsg) String() string {
+func (v *SrsClientRequest) String() string {
 	var sb strings.Builder
-	sb.WriteString(v.CommonRequest.String())
+	sb.WriteString(v.SrsCommonRequest.String())
 	if v.Action == "on_connect" {
 		sb.WriteString(fmt.Sprintf(", tcUrl=%v, pageUrl=%v", v.TcUrl, v.PageUrl))
 	} else if v.Action == "on_close" {
@@ -172,22 +172,22 @@ func (v *ClientMsg) String() string {
    an int value specifies the error code(0 corresponding to success):
          0
 */
-type StreamMsg struct {
-	CommonRequest
+type SrsStreamRequest struct {
+	SrsCommonRequest
 	Stream string `json:"stream"`
 	Param  string `json:"param"`
 }
 
-func (v *StreamMsg) Parse(b []byte) error {
+func (v *SrsStreamRequest) Parse(b []byte) error {
 	if err := json.Unmarshal(b, v); err != nil {
 		return fmt.Errorf("parse message from %v, err %v", string(b), err)
 	}
 	return nil
 }
 
-func (v *StreamMsg) String() string {
+func (v *SrsStreamRequest) String() string {
 	var sb strings.Builder
-	sb.WriteString(v.CommonRequest.String())
+	sb.WriteString(v.SrsCommonRequest.String())
 	if v.Action == "on_publish" || v.Action == "on_unpublish" {
 		sb.WriteString(fmt.Sprintf(", stream=%v, param=%v", v.Stream, v.Param))
 	}
@@ -226,24 +226,24 @@ func (v *StreamMsg) String() string {
          0
 */
 
-type SessionMsg struct {
-	CommonRequest
+type SrsSessionRequest struct {
+	SrsCommonRequest
 	Stream string `json:"stream"`
 	Param  string `json:"param"`
 	// For on_play only.
 	PageUrl string `json:"pageUrl"`
 }
 
-func (v *SessionMsg) Parse(b []byte) error {
+func (v *SrsSessionRequest) Parse(b []byte) error {
 	if err := json.Unmarshal(b, v); err != nil {
 		return fmt.Errorf("parse message from %v, err %v", string(b), err)
 	}
 	return nil
 }
 
-func (v *SessionMsg) String() string {
+func (v *SrsSessionRequest) String() string {
 	var sb strings.Builder
-	sb.WriteString(v.CommonRequest.String())
+	sb.WriteString(v.SrsCommonRequest.String())
 	if v.Action == "on_play" || v.Action == "on_stop" {
 		sb.WriteString(fmt.Sprintf(", stream=%v, param=%v", v.Stream, v.Param))
 	}
@@ -274,24 +274,24 @@ func (v *SessionMsg) String() string {
          0
 */
 
-type DvrMsg struct {
-	CommonRequest
+type SrsDvrRequest struct {
+	SrsCommonRequest
 	Stream string `json:"stream"`
 	Param  string `json:"param"`
 	Cwd    string `json:"cwd"`
 	File   string `json:"file"`
 }
 
-func (v *DvrMsg) Parse(b []byte) error {
+func (v *SrsDvrRequest) Parse(b []byte) error {
 	if err := json.Unmarshal(b, v); err != nil {
 		return fmt.Errorf("parse message from %v, err %v", string(b), err)
 	}
 	return nil
 }
 
-func (v *DvrMsg) String() string {
+func (v *SrsDvrRequest) String() string {
 	var sb strings.Builder
-	sb.WriteString(v.CommonRequest.String())
+	sb.WriteString(v.SrsCommonRequest.String())
 	if v.Action == "on_dvr" {
 		sb.WriteString(fmt.Sprintf(", stream=%v, param=%v, cwd=%v, file=%v", v.Stream, v.Param, v.Cwd, v.File))
 	}
@@ -332,8 +332,8 @@ func (v *DvrMsg) String() string {
           0
 */
 
-type HlsMsg struct {
-	CommonRequest
+type SrsHlsRequest struct {
+	SrsCommonRequest
 	Stream   string  `json:"stream"`
 	Param    string  `json:"param"`
 	Duration float64 `json:"duration"`
@@ -342,16 +342,16 @@ type HlsMsg struct {
 	SeqNo    int     `json:"seq_no"`
 }
 
-func (v *HlsMsg) Parse(b []byte) error {
+func (v *SrsHlsRequest) Parse(b []byte) error {
 	if err := json.Unmarshal(b, v); err != nil {
 		return fmt.Errorf("parse message from %v, err %v", string(b), err)
 	}
 	return nil
 }
 
-func (v *HlsMsg) String() string {
+func (v *SrsHlsRequest) String() string {
 	var sb strings.Builder
-	sb.WriteString(v.CommonRequest.String())
+	sb.WriteString(v.SrsCommonRequest.String())
 	if v.Action == "on_hls" {
 		sb.WriteString(fmt.Sprintf(", stream=%v, param=%v, cwd=%v, file=%v, duration=%v, seq_no=%v", v.Stream, v.Param, v.Cwd, v.File, v.Duration, v.SeqNo))
 	}
@@ -370,7 +370,7 @@ stop the snapshot worker when stream finished.
 type SnapShot struct{}
 
 func (v *SnapShot) Parse(body []byte) (se *SrsError) {
-	msg := &StreamMsg{}
+	msg := &SrsStreamRequest{}
 	if err := json.Unmarshal(body, msg); err != nil {
 		return &SrsError{Code: error_system_parse_json, Data: fmt.Sprintf("parse snapshot msg failed, err is %v", err.Error())}
 	}
@@ -403,7 +403,7 @@ func SnapshotServe(w http.ResponseWriter, r *http.Request) {
 }
 
 type SnapshotJob struct {
-	StreamMsg
+	SrsStreamRequest
 	cmd       *exec.Cmd
 	abort     bool
 	timestamp time.Time
@@ -513,18 +513,18 @@ func (v *SnapshotWorker) Serve() {
 	}
 }
 
-func (v *SnapshotWorker) Create(sm *StreamMsg) {
+func (v *SnapshotWorker) Create(sm *SrsStreamRequest) {
 	streamUrl := fmt.Sprintf("rtmp://127.0.0.1/%v?vhost=%v/%v", sm.App, sm.Vhost, sm.Stream)
 	if _, ok := v.snapshots.Load(streamUrl); ok {
 		return
 	}
 	sj := NewSnapshotJob()
-	sj.StreamMsg = *sm
+	sj.SrsStreamRequest = *sm
 	sj.timestamp = time.Now()
 	v.snapshots.Store(streamUrl, sj)
 }
 
-func (v *SnapshotWorker) Destroy(sm *StreamMsg) {
+func (v *SnapshotWorker) Destroy(sm *SrsStreamRequest) {
 	streamUrl := fmt.Sprintf("rtmp://127.0.0.1/%v?vhost=%v/%v", sm.App, sm.Vhost, sm.Stream)
 	value, ok := v.snapshots.Load(streamUrl)
 	if ok {
@@ -560,19 +560,14 @@ an int value specifies the error code(0 corresponding to success):
 	  0
 */
 
-type ForwardMsg struct {
-	Action   string `json:"action"`
-	ServerId string `json:"server_id"`
-	ClientId string `json:"client_id"`
-	Ip       string `json:"ip"`
-	Vhost    string `json:"vhost"`
-	App      string `json:"app"`
+type SrsForwardMsg struct {
+	SrsCommonRequest
 	TcUrl    string `json:"tc_url"`
 	Stream   string `json:"stream"`
 	Param    string `json:"param"`
 }
 
-func (v *ForwardMsg) String() string {
+func (v *SrsForwardMsg) String() string {
 	return fmt.Sprintf("srs %v: client id=%v, ip=%v, vhost=%v, app=%v, tcUrl=%v, stream=%v, param=%v", v.Action, v.ClientId, v.Ip, v.Vhost, v.App, v.TcUrl, v.Stream, v.Param)
 }
 
@@ -586,7 +581,7 @@ For example:
    ["rtmp://127.0.0.1:19350/test/teststream", "rtmp://127.0.0.1:19350/test/teststream?token=xxxx"]
 */
 func (v *Forward) Parse(body []byte) (se *SrsError) {
-	msg := &ForwardMsg{}
+	msg := &SrsForwardMsg{}
 	if err := json.Unmarshal(body, msg); err != nil {
 		return &SrsError{Code: error_system_parse_json, Data: fmt.Sprintf("parse forward msg failed, err is %v", err.Error())}
 	}
@@ -691,7 +686,7 @@ func main() {
 	// handle the clients requests: connect/disconnect vhost/app.
 	http.HandleFunc("/api/v1/clients", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			WriteDataResponse(w, struct{}{})
+			SrsWriteDataResponse(w, struct{}{})
 			return
 		}
 
@@ -702,23 +697,23 @@ func main() {
 			}
 			log.Println(fmt.Sprintf("post to clients, req=%v", string(body)))
 
-			msg := &ClientMsg{}
+			msg := &SrsClientRequest{}
 			if err := msg.Parse(body); err != nil {
 				return err
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
 
-			WriteDataResponse(w, &SrsCommonResponse{Code: 0})
+			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
 		}(); err != nil {
-			WriteErrorResponse(w, err)
+			SrsWriteErrorResponse(w, err)
 		}
 	})
 
 	// handle the streams requests: publish/unpublish stream.
 	http.HandleFunc("/api/v1/streams", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			WriteDataResponse(w, struct{}{})
+			SrsWriteDataResponse(w, struct{}{})
 			return
 		}
 
@@ -729,23 +724,23 @@ func main() {
 			}
 			log.Println(fmt.Sprintf("post to streams, req=%v", string(body)))
 
-			msg := &StreamMsg{}
+			msg := &SrsStreamRequest{}
 			if err := msg.Parse(body); err != nil {
 				return err
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
 
-			WriteDataResponse(w, &SrsCommonResponse{Code: 0})
+			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
 		}(); err != nil {
-			WriteErrorResponse(w, err)
+			SrsWriteErrorResponse(w, err)
 		}
 	})
 
 	// handle the sessions requests: client play/stop stream
 	http.HandleFunc("/api/v1/sessions", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			WriteDataResponse(w, struct{}{})
+			SrsWriteDataResponse(w, struct{}{})
 			return
 		}
 
@@ -756,23 +751,23 @@ func main() {
 			}
 			log.Println(fmt.Sprintf("post to sessions, req=%v", string(body)))
 
-			msg := &SessionMsg{}
+			msg := &SrsSessionRequest{}
 			if err := msg.Parse(body); err != nil {
 				return err
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
 
-			WriteDataResponse(w, &SrsCommonResponse{Code: 0})
+			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
 		}(); err != nil {
-			WriteErrorResponse(w, err)
+			SrsWriteErrorResponse(w, err)
 		}
 	})
 
 	// handle the dvrs requests: dvr stream.
 	http.HandleFunc("/api/v1/dvrs", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			WriteDataResponse(w, struct{}{})
+			SrsWriteDataResponse(w, struct{}{})
 			return
 		}
 
@@ -783,23 +778,23 @@ func main() {
 			}
 			log.Println(fmt.Sprintf("post to dvrs, req=%v", string(body)))
 
-			msg := &DvrMsg{}
+			msg := &SrsDvrRequest{}
 			if err := msg.Parse(body); err != nil {
 				return err
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
 
-			WriteDataResponse(w, &SrsCommonResponse{Code: 0})
+			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
 		}(); err != nil {
-			WriteErrorResponse(w, err)
+			SrsWriteErrorResponse(w, err)
 		}
 	})
 
 	// handle the dvrs requests: on_hls stream.
 	http.HandleFunc("/api/v1/hls", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			WriteDataResponse(w, struct{}{})
+			SrsWriteDataResponse(w, struct{}{})
 			return
 		}
 
@@ -810,22 +805,22 @@ func main() {
 			}
 			log.Println(fmt.Sprintf("post to hls, req=%v", string(body)))
 
-			msg := &HlsMsg{}
+			msg := &SrsHlsRequest{}
 			if err := msg.Parse(body); err != nil {
 				return err
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
 
-			WriteDataResponse(w, &SrsCommonResponse{Code: 0})
+			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
 		}(); err != nil {
-			WriteErrorResponse(w, err)
+			SrsWriteErrorResponse(w, err)
 		}
 	})
 
 	// not support yet
 	http.HandleFunc("/api/v1/chat", func(w http.ResponseWriter, r *http.Request) {
-		WriteErrorResponse(w, fmt.Errorf("not implemented"))
+		SrsWriteErrorResponse(w, fmt.Errorf("not implemented"))
 	})
 
 	http.HandleFunc("/api/v1/snapshots", SnapshotServe)
