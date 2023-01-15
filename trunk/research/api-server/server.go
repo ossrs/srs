@@ -17,28 +17,6 @@ import (
 	"time"
 )
 
-const (
-	// error when read http request
-	error_system_read_request = 100
-	// error when parse json
-	error_system_parse_json = 101
-	// request action invalid
-	error_request_invalid_action = 200
-)
-
-type SrsError struct {
-	Code int         `json:"code"`
-	Data interface{} `json:"data"`
-}
-
-func Response(se *SrsError) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := json.Marshal(se)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(body)
-	})
-}
-
 type SrsCommonResponse struct {
 	Code int         `json:"code"`
 	Data interface{} `json:"data"`
@@ -179,20 +157,21 @@ type SrsStreamRequest struct {
 	Param  string `json:"param"`
 }
 
-func (v *SrsStreamRequest) Parse(b []byte) error {
-	if err := json.Unmarshal(b, v); err != nil {
-		return fmt.Errorf("parse message from %v, err %v", string(b), err)
-	}
-	return nil
-}
-
 func (v *SrsStreamRequest) String() string {
 	var sb strings.Builder
 	sb.WriteString(v.SrsCommonRequest.String())
-	if v.Action == "on_publish" || v.Action == "on_unpublish" {
+	if v.IsOnPublish() || v.IsOnUnPublish() {
 		sb.WriteString(fmt.Sprintf(", stream=%v, param=%v", v.Stream, v.Param))
 	}
 	return sb.String()
+}
+
+func (v *SrsStreamRequest) IsOnPublish() bool {
+	return v.Action == "on_publish"
+}
+
+func (v *SrsStreamRequest) IsOnUnPublish() bool {
+	return v.Action == "on_unpublish"
 }
 
 /*
@@ -235,23 +214,24 @@ type SrsSessionRequest struct {
 	PageUrl string `json:"pageUrl"`
 }
 
-func (v *SrsSessionRequest) Parse(b []byte) error {
-	if err := json.Unmarshal(b, v); err != nil {
-		return fmt.Errorf("parse message from %v, err %v", string(b), err)
-	}
-	return nil
-}
-
 func (v *SrsSessionRequest) String() string {
 	var sb strings.Builder
 	sb.WriteString(v.SrsCommonRequest.String())
-	if v.Action == "on_play" || v.Action == "on_stop" {
+	if v.IsOnPlay() || v.IsOnStop() {
 		sb.WriteString(fmt.Sprintf(", stream=%v, param=%v", v.Stream, v.Param))
 	}
-	if v.Action == "on_play" {
+	if v.IsOnPlay() {
 		sb.WriteString(fmt.Sprintf(", pageUrl=%v", v.PageUrl))
 	}
 	return sb.String()
+}
+
+func (v *SrsSessionRequest) IsOnPlay() bool {
+	return v.Action == "on_play"
+}
+
+func (v *SrsSessionRequest) IsOnStop() bool {
+	return v.Action == "on_stop"
 }
 
 /*
@@ -283,20 +263,17 @@ type SrsDvrRequest struct {
 	File   string `json:"file"`
 }
 
-func (v *SrsDvrRequest) Parse(b []byte) error {
-	if err := json.Unmarshal(b, v); err != nil {
-		return fmt.Errorf("parse message from %v, err %v", string(b), err)
-	}
-	return nil
-}
-
 func (v *SrsDvrRequest) String() string {
 	var sb strings.Builder
 	sb.WriteString(v.SrsCommonRequest.String())
-	if v.Action == "on_dvr" {
+	if v.IsOnDvr() {
 		sb.WriteString(fmt.Sprintf(", stream=%v, param=%v, cwd=%v, file=%v", v.Stream, v.Param, v.Cwd, v.File))
 	}
 	return sb.String()
+}
+
+func (v *SrsDvrRequest) IsOnDvr() bool {
+	return v.Action == "on_dvr"
 }
 
 /*
@@ -343,20 +320,17 @@ type SrsHlsRequest struct {
 	SeqNo    int     `json:"seq_no"`
 }
 
-func (v *SrsHlsRequest) Parse(b []byte) error {
-	if err := json.Unmarshal(b, v); err != nil {
-		return fmt.Errorf("parse message from %v, err %v", string(b), err)
-	}
-	return nil
-}
-
 func (v *SrsHlsRequest) String() string {
 	var sb strings.Builder
 	sb.WriteString(v.SrsCommonRequest.String())
-	if v.Action == "on_hls" {
+	if v.IsOnHls() {
 		sb.WriteString(fmt.Sprintf(", stream=%v, param=%v, cwd=%v, file=%v, duration=%v, seq_no=%v", v.Stream, v.Param, v.Cwd, v.File, v.Duration, v.SeqNo))
 	}
 	return sb.String()
+}
+
+func (v *SrsHlsRequest) IsOnHls() bool {
+	return v.Action == "on_hls"
 }
 
 /*
@@ -368,43 +342,30 @@ stop the snapshot worker when stream finished.
 {"action":"on_unpublish","client_id":108,"ip":"127.0.0.1","vhost":"__defaultVhost__","app":"live","stream":"livestream"}
 */
 
-type SnapShot struct{}
-
-func (v *SnapShot) Parse(body []byte) (se *SrsError) {
-	msg := &SrsStreamRequest{}
-	if err := json.Unmarshal(body, msg); err != nil {
-		return &SrsError{Code: error_system_parse_json, Data: fmt.Sprintf("parse snapshot msg failed, err is %v", err.Error())}
-	}
-	if msg.Action == "on_publish" {
-		sw.Create(msg)
-		return &SrsError{Code: 0, Data: nil}
-	} else if msg.Action == "on_unpublish" {
-		sw.Destroy(msg)
-		return &SrsError{Code: 0, Data: nil}
-	} else {
-		return &SrsError{Code: error_request_invalid_action, Data: fmt.Sprintf("invalid req action:%v", msg.Action)}
-	}
+type SrsSnapShotRequest struct {
+	SrsCommonRequest
+	Stream string `json:"stream"`
 }
 
-func SnapshotServe(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			Response(&SrsError{Code: error_system_read_request, Data: fmt.Sprintf("read request body failed, err is %v", err)}).ServeHTTP(w, r)
-			return
-		}
-		log.Println(fmt.Sprintf("post to snapshot, req=%v", string(body)))
-		s := &SnapShot{}
-		if se := s.Parse(body); se != nil {
-			Response(se).ServeHTTP(w, r)
-			return
-		}
-		Response(&SrsError{Code: 0, Data: nil}).ServeHTTP(w, r)
+func (v *SrsSnapShotRequest) String() string {
+	var sb strings.Builder
+	sb.WriteString(v.SrsCommonRequest.String())
+	if v.IsOnPublish() || v.IsOnUnPublish() {
+		sb.WriteString(fmt.Sprintf(", stream=%v", v.Stream))
 	}
+	return sb.String()
+}
+
+func (v *SrsSnapShotRequest) IsOnPublish() bool {
+	return v.Action == "on_publish"
+}
+
+func (v *SrsSnapShotRequest) IsOnUnPublish() bool {
+	return v.Action == "on_unpublish"
 }
 
 type SnapshotJob struct {
-	SrsStreamRequest
+	SrsSnapShotRequest
 	cmd       *exec.Cmd
 	abort     bool
 	timestamp time.Time
@@ -514,18 +475,18 @@ func (v *SnapshotWorker) Serve() {
 	}
 }
 
-func (v *SnapshotWorker) Create(sm *SrsStreamRequest) {
+func (v *SnapshotWorker) Create(sm *SrsSnapShotRequest) {
 	streamUrl := fmt.Sprintf("rtmp://127.0.0.1/%v?vhost=%v/%v", sm.App, sm.Vhost, sm.Stream)
 	if _, ok := v.snapshots.Load(streamUrl); ok {
 		return
 	}
 	sj := NewSnapshotJob()
-	sj.SrsStreamRequest = *sm
+	sj.SrsSnapShotRequest = *sm
 	sj.timestamp = time.Now()
 	v.snapshots.Store(streamUrl, sj)
 }
 
-func (v *SnapshotWorker) Destroy(sm *SrsStreamRequest) {
+func (v *SnapshotWorker) Destroy(sm *SrsSnapShotRequest) {
 	streamUrl := fmt.Sprintf("rtmp://127.0.0.1/%v?vhost=%v/%v", sm.App, sm.Vhost, sm.Stream)
 	value, ok := v.snapshots.Load(streamUrl)
 	if ok {
@@ -568,20 +529,17 @@ type SrsForwardRequest struct {
 	Param  string `json:"param"`
 }
 
-func (v *SrsForwardRequest) Parse(b []byte) error {
-	if err := json.Unmarshal(b, v); err != nil {
-		return fmt.Errorf("parse message from %v, err %v", string(b), err)
-	}
-	return nil
-}
-
 func (v *SrsForwardRequest) String() string {
 	var sb strings.Builder
 	sb.WriteString(v.SrsCommonRequest.String())
-	if v.Action == "on_forward" {
+	if v.IsOnForward() {
 		sb.WriteString(fmt.Sprintf(", tcUrl=%v, stream=%v, param=%v", v.TcUrl, v.Stream, v.Param))
 	}
 	return sb.String()
+}
+
+func (v *SrsForwardRequest) IsOnForward() bool {
+	return v.Action == "on_forward"
 }
 
 func main() {
@@ -692,10 +650,14 @@ func main() {
 			log.Println(fmt.Sprintf("post to streams, req=%v", string(body)))
 
 			msg := &SrsStreamRequest{}
-			if err := msg.Parse(body); err != nil {
-				return err
+			if err := json.Unmarshal(body, msg); err != nil {
+				return fmt.Errorf("parse message from %v, err %v", string(body), err)
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
+
+			if !msg.IsOnPublish() && !msg.IsOnUnPublish() {
+				return fmt.Errorf("invalid message %v", msg.String())
+			}
 
 			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
@@ -719,10 +681,14 @@ func main() {
 			log.Println(fmt.Sprintf("post to sessions, req=%v", string(body)))
 
 			msg := &SrsSessionRequest{}
-			if err := msg.Parse(body); err != nil {
-				return err
+			if err := json.Unmarshal(body, msg); err != nil {
+				return fmt.Errorf("parse message from %v, err %v", string(body), err)
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
+
+			if !msg.IsOnPlay() && !msg.IsOnStop() {
+				return fmt.Errorf("invalid message %v", msg.String())
+			}
 
 			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
@@ -746,10 +712,14 @@ func main() {
 			log.Println(fmt.Sprintf("post to dvrs, req=%v", string(body)))
 
 			msg := &SrsDvrRequest{}
-			if err := msg.Parse(body); err != nil {
-				return err
+			if err := json.Unmarshal(body, msg); err != nil {
+				return fmt.Errorf("parse message from %v, err %v", string(body), err)
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
+
+			if !msg.IsOnDvr() {
+				return fmt.Errorf("invalid message %v", msg.String())
+			}
 
 			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
@@ -773,10 +743,14 @@ func main() {
 			log.Println(fmt.Sprintf("post to hls, req=%v", string(body)))
 
 			msg := &SrsHlsRequest{}
-			if err := msg.Parse(body); err != nil {
-				return err
+			if err := json.Unmarshal(body, msg); err != nil {
+				return fmt.Errorf("parse message from %v, err %v", string(body), err)
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
+
+			if !msg.IsOnHls() {
+				return fmt.Errorf("invalid message %v", msg.String())
+			}
 
 			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
@@ -790,7 +764,39 @@ func main() {
 		SrsWriteErrorResponse(w, fmt.Errorf("not implemented"))
 	})
 
-	http.HandleFunc("/api/v1/snapshots", SnapshotServe)
+	http.HandleFunc("/api/v1/snapshots", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			SrsWriteDataResponse(w, struct{}{})
+			return
+		}
+
+		if err := func() error {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				return fmt.Errorf("read request body, err %v", err)
+			}
+			log.Println(fmt.Sprintf("post to snapshots, req=%v", string(body)))
+
+			msg := &SrsSnapShotRequest{}
+			if err := json.Unmarshal(body, msg); err != nil {
+				return fmt.Errorf("parse message from %v, err %v", string(body), err)
+			}
+			log.Println(fmt.Sprintf("Got %v", msg.String()))
+
+			if msg.IsOnPublish() {
+				sw.Create(msg)
+			} else if msg.IsOnUnPublish() {
+				sw.Destroy(msg)
+			} else {
+				return fmt.Errorf("invalid message %v", msg.String())
+			}
+
+			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
+			return nil
+		}(); err != nil {
+			SrsWriteErrorResponse(w, err)
+		}
+	})
 
 	// handle the dynamic forward requests: on_forward stream.
 	http.HandleFunc("/api/v1/forward", func(w http.ResponseWriter, r *http.Request) {
@@ -807,10 +813,14 @@ func main() {
 			log.Println(fmt.Sprintf("post to forward, req=%v", string(body)))
 
 			msg := &SrsForwardRequest{}
-			if err := msg.Parse(body); err != nil {
-				return err
+			if err := json.Unmarshal(body, msg); err != nil {
+				return fmt.Errorf("parse message from %v, err %v", string(body), err)
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
+
+			if !msg.IsOnForward() {
+				return fmt.Errorf("invalid message %v", msg.String())
+			}
 
 			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0, Data: &struct {
 				Urls []string `json:"urls"`
