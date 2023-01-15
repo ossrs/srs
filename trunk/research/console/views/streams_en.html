@@ -28,7 +28,7 @@
                             <td>{{stream |sc_filter_streamURL}}</td>
                             <td><a href="javascript:void(0)" ng-click="gogogo('/vhosts/' + stream.vhost)">{{stream.owner.name}}</a></td>
                             <td>{{stream.publish.active| sc_filter_has_stream}}</td>
-                            <td>{{stream.clients}}人</td>
+                            <td>{{stream.clients}}</td>
                             <td>{{stream.kbps.recv_30s| sc_filter_bitrate_k}}</td>
                             <td>{{stream.kbps.send_30s| sc_filter_bitrate_k}}</td>
                             <td><span ng-if="stream.video">{{stream.video| sc_filter_video}}</span></td>
