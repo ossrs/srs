@@ -124,13 +124,6 @@ type SrsClientRequest struct {
 	RecvBytes int64 `json:"recv_bytes"`
 }
 
-func (v *SrsClientRequest) Parse(b []byte) error {
-	if err := json.Unmarshal(b, v); err != nil {
-		return fmt.Errorf("parse message from %v, err %v", string(b), err)
-	}
-	return nil
-}
-
 func (v *SrsClientRequest) String() string {
 	var sb strings.Builder
 	sb.WriteString(v.SrsCommonRequest.String())
@@ -660,8 +653,8 @@ func main() {
 			log.Println(fmt.Sprintf("post to clients, req=%v", string(body)))
 
 			msg := &SrsClientRequest{}
-			if err := msg.Parse(body); err != nil {
-				return err
+			if err := json.Unmarshal(body, msg); err != nil {
+				return fmt.Errorf("parse message from %v, err %v", string(body), err)
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
 
