@@ -578,7 +578,7 @@ func NewChatManager() *ChatManager {
 
 func (v *ChatManager) List() (chats []*Chat) {
 	chats = []*Chat{}
-	v.chats.Range(func(key, value any) bool {
+	v.chats.Range(func(key, value interface{}) bool {
 		_, chat := key.(int), value.(*Chat)
 		if (time.Now().Unix() - chat.Heartbeat) > int64(v.deadTime) {
 			v.chats.Delete(key)
@@ -739,7 +739,7 @@ func NewSnapshotWorker(ffmpegPath string) *SnapshotWorker {
 func (v *SnapshotWorker) Serve() {
 	for {
 		time.Sleep(time.Second)
-		v.snapshots.Range(func(key, value any) bool {
+		v.snapshots.Range(func(key, value interface{}) bool {
 			// range each snapshot job
 			streamUrl := key.(string)
 			sj := value.(*SnapshotJob)
