@@ -19,25 +19,16 @@ import (
 )
 
 const (
-	// ok, success, completed.
-	success = 0
 	// error when read http request
 	error_system_read_request = 100
 	// error when parse json
 	error_system_parse_json = 101
 	// request action invalid
 	error_request_invalid_action = 200
-	// cdn node not exists
-	error_cdn_node_not_exists = 201
-	// http request failed
-	error_http_request_failed = 202
 
 	// chat id not exist
 	error_chat_id_not_exist = 300
-	//
 
-	client_action_on_connect = "on_connect"
-	client_action_on_close = "on_close"
 	session_action_on_play = "on_play"
 	session_action_on_stop = "on_stop"
 )
@@ -59,6 +50,27 @@ func Response(se *SrsError) http.Handler {
 	})
 }
 
+type SrsCommonResponse struct {
+	Code int `json:"code"`
+	Data interface{} `json:"data"`
+}
+
+func WriteErrorResponse(w http.ResponseWriter, err error) {
+	w.WriteHeader(http.StatusInternalServerError)
+	w.Write([]byte(err.Error()))
+}
+
+func WriteDataResponse(w http.ResponseWriter, data interface{}) {
+	j, err := json.Marshal(data)
+	if err != nil {
+		WriteErrorResponse(w, fmt.Errorf("marshal %v, err %v", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", HttpJson)
+	w.Write(j)
+}
+
 const Example = `
 SRS api callback server, Copyright (c) 2013-2016 SRS(ossrs)
 Example:
@@ -70,6 +82,13 @@ var StaticDir string
 var cm *ChatManager
 var sw *SnapshotWorker
 
+type CommonRequest struct {
+	Action   string `json:"action"`
+	ClientId string `json:"client_id"`
+	Ip       string `json:"ip"`
+	Vhost    string `json:"vhost"`
+	App      string `json:"app"`
+}
 
 /*
 handle the clients requests: connect/disconnect vhost/app.
@@ -103,82 +122,32 @@ handle the clients requests: connect/disconnect vhost/app.
           0
 */
 type ClientMsg struct {
-	Action string `json:"action"`
-	ClientId string `json:"client_id"`
-	Ip string `json:"ip"`
-	Vhost string `json:"vhost"`
-	App string `json:"app"`
-}
-
-type ClientOnConnectMsg struct {
-	ClientMsg
+	CommonRequest
+	// For on_connect message
 	TcUrl string `json:"tcUrl"`
 	PageUrl string `json:"pageUrl"`
-}
-
-func (v *ClientOnConnectMsg) String() string {
-	return fmt.Sprintf("srs:%v, client id=%v, ip=%v, vhost=%v, app=%v, tcUrl=%v, pageUrl=%v", v.Action, v.ClientId, v.Ip, v.Vhost, v.App, v.TcUrl, v.PageUrl)
-}
-
-type ClientOnCloseMsg struct {
-	ClientMsg
+	// For on_close message
 	SendBytes int64 `json:"send_bytes"`
 	RecvBytes int64 `json:"recv_bytes"`
 }
 
-func (v *ClientOnCloseMsg) String() string {
-	return fmt.Sprintf("srs:%v, client id=%v, ip=%v, vhost=%v, app=%v, send_bytes=%v, recv_bytes=%v", v.Action, v.ClientId, v.Ip, v.Vhost, v.App, v.SendBytes, v.RecvBytes)
-}
-
-type Client struct {}
-
-func (v *Client) Parse(body []byte) (se *SrsError) {
-	data := &struct {
-		Action string `json:"action"`
-	}{}
-	if err := json.Unmarshal(body, data); err != nil {
-		return &SrsError{Code: error_system_parse_json, Data: fmt.Sprintf("parse client action failed, err is %v", err.Error())}
-	}
-
-	if data.Action == client_action_on_connect {
-		msg := &ClientOnConnectMsg{}
-		if err := json.Unmarshal(body, msg); err != nil {
-			return &SrsError{Code: error_system_parse_json, Data: fmt.Sprintf("parse client %v msg failed, err is %v", client_action_on_connect, err.Error())}
-		}
-		log.Println(msg)
-	} else if data.Action == client_action_on_close {
-		msg := &ClientOnCloseMsg{}
-		if err := json.Unmarshal(body, msg); err != nil {
-			return &SrsError{Code: error_system_parse_json, Data: fmt.Sprintf("parse client %v msg failed, err is %v", client_action_on_close, err.Error())}
-		}
-		log.Println(msg)
+func (v *ClientMsg) Parse(b []byte) error {
+	if err := json.Unmarshal(b, v); err != nil {
+		return fmt.Errorf("parse action from %v, err %v", string(b), err)
 	}
 	return nil
 }
 
-// handle the clients requests: connect/disconnect vhost/app.
-func ClientServe(w http.ResponseWriter, r *http.Request)  {
-	if r.Method == "GET" {
-		res := struct {}{}
-		body, _ := json.Marshal(res)
-		w.Write(body)
-	} else if r.Method == "POST" {
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			Response(&SrsError{Code: error_system_read_request, Data: fmt.Sprintf("read request body failed, err is %v", err)}).ServeHTTP(w, r)
-			return
-		}
-		log.Println(fmt.Sprintf("post to clients, req=%v", string(body)))
-		c := &Client{}
-		if se := c.Parse(body); se != nil {
-			Response(se).ServeHTTP(w, r)
-			return
-		}
-		Response(&SrsError{Code: 0, Data: nil}).ServeHTTP(w, r)
-		return
+func (v *ClientMsg) String() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("action=%v, client_id=%v, ip=%v, vhost=%v", v.Action, v.ClientId, v.Ip, v.Vhost))
+	if v.Action == "on_connect" {
+		sb.WriteString(fmt.Sprintf(", tcUrl=%v, pageUrl=%v", v.TcUrl, v.PageUrl))
+	} else if v.Action == "on_close" {
+		sb.WriteString(fmt.Sprintf(", send_bytes=%v, recv_bytes=%v", v.SendBytes, v.RecvBytes))
 	}
+	return sb.String()
 }
-
 
 /*
    for SRS hook: on_publish/on_unpublish
@@ -979,7 +948,33 @@ func main()  {
 		writer.Write(body)
 	})
 
-	http.HandleFunc("/api/v1/clients", ClientServe)
+	// handle the clients requests: connect/disconnect vhost/app.
+	http.HandleFunc("/api/v1/clients", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			WriteDataResponse(w, struct {}{})
+			return
+		}
+
+		if err := func() error {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				return fmt.Errorf("read request body, err %v", err)
+			}
+			log.Println(fmt.Sprintf("post to clients, req=%v", string(body)))
+
+			msg := &ClientMsg{}
+			if err := msg.Parse(body); err != nil {
+				return err
+			}
+			log.Println(fmt.Sprintf("Got %v", msg.String()))
+
+			WriteDataResponse(w, &SrsCommonResponse{Code: 0})
+			return nil
+		} ();  err != nil {
+			WriteErrorResponse(w, err)
+		}
+	})
+
 	http.HandleFunc("/api/v1/streams", StreamServe)
 	http.HandleFunc("/api/v1/sessions", SessionServe)
 	http.HandleFunc("/api/v1/dvrs", DvrServe)
