@@ -124,12 +124,20 @@ type SrsClientRequest struct {
 	RecvBytes int64 `json:"recv_bytes"`
 }
 
+func (v *SrsClientRequest) IsOnConnect() bool {
+	return v.Action == "on_connect"
+}
+
+func (v *SrsClientRequest) IsOnClose() bool {
+	return v.Action == "on_close"
+}
+
 func (v *SrsClientRequest) String() string {
 	var sb strings.Builder
 	sb.WriteString(v.SrsCommonRequest.String())
-	if v.Action == "on_connect" {
+	if v.IsOnConnect() {
 		sb.WriteString(fmt.Sprintf(", tcUrl=%v, pageUrl=%v", v.TcUrl, v.PageUrl))
-	} else if v.Action == "on_close" {
+	} else if v.IsOnClose() {
 		sb.WriteString(fmt.Sprintf(", send_bytes=%v, recv_bytes=%v", v.SendBytes, v.RecvBytes))
 	}
 	return sb.String()
@@ -657,6 +665,10 @@ func main() {
 				return fmt.Errorf("parse message from %v, err %v", string(body), err)
 			}
 			log.Println(fmt.Sprintf("Got %v", msg.String()))
+
+			if !msg.IsOnConnect() && !msg.IsOnClose() {
+				return fmt.Errorf("invalid message %v", msg.String())
+			}
 
 			SrsWriteDataResponse(w, &SrsCommonResponse{Code: 0})
 			return nil
