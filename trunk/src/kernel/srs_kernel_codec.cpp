@@ -1893,52 +1893,95 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
 {
     srs_error_t err = srs_success;
 
+    // profile_tier_level() parser.
+    // Section 7.3.3 ("Profile, tier and level syntax") of the H.265
+    // ITU-T-H.265-2021.pdf, page 62.
     if (profile_resent_flag) {
         if (!bs->require_bits(88)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl profile requires 88 only %d bits", bs->left_bits());
         }
 
+        // profile_space  u(2)
         ptl->general_profile_space = bs->read_bits(2);
+        // tier_flag  u(1)
         ptl->general_tier_flag     = bs->read_bit();
+        // profile_idc  u(5)
         ptl->general_profile_idc   = bs->read_bits(5);
         for (int i = 0; i < 32; i++) {
+            // profile_compatibility_flag[j]  u(1)
             ptl->general_profile_compatibility_flag[i] = bs->read_bit();
         }
-
+        // progressive_source_flag  u(1)
         ptl->general_progressive_source_flag    = bs->read_bit();
+        // interlaced_source_flag  u(1)
         ptl->general_interlaced_source_flag     = bs->read_bit();
+        // non_packed_constraint_flag  u(1)
         ptl->general_non_packed_constraint_flag = bs->read_bit();
+        // frame_only_constraint_flag  u(1)
         ptl->general_frame_only_constraint_flag = bs->read_bit();
         if (ptl->general_profile_idc == 4 || ptl->general_profile_compatibility_flag[4] ||
             ptl->general_profile_idc == 5 || ptl->general_profile_compatibility_flag[5] ||
             ptl->general_profile_idc == 6 || ptl->general_profile_compatibility_flag[6] ||
             ptl->general_profile_idc == 7 || ptl->general_profile_compatibility_flag[7])
         {
+            // The number of bits in this syntax structure is not affected by
+            // this condition
+            // max_12bit_constraint_flag  u(1)
             ptl->general_max_12bit_constraint_flag      = bs->read_bit();
+            // max_10bit_constraint_flag  u(1)
             ptl->general_max_10bit_constraint_flag      = bs->read_bit();
+            // max_8bit_constraint_flag  u(1)
             ptl->general_max_8bit_constraint_flag       = bs->read_bit();
+            // max_422chroma_constraint_flag  u(1)
             ptl->general_max_422chroma_constraint_flag  = bs->read_bit();
+            // max_420chroma_constraint_flag  u(1)
             ptl->general_max_420chroma_constraint_flag  = bs->read_bit();
+            // max_monochrome_constraint_flag  u(1)
             ptl->general_max_monochrome_constraint_flag = bs->read_bit();
+            // intra_constraint_flag  u(1)
             ptl->general_intra_constraint_flag          = bs->read_bit();
+            // one_picture_only_constraint_flag  u(1)
             ptl->general_one_picture_only_constraint_flag = bs->read_bit();
+            // lower_bit_rate_constraint_flag  u(1)
             ptl->general_lower_bit_rate_constraint_flag = bs->read_bit();
-            uint64_t tmp1 = bs->read_32bits();
-            uint64_t tmp2 = bs->read_bits(2);
-            ptl->general_reserved_zero_34bits = tmp1 + tmp2;
+
+            if (ptl->general_profile_idc == 5 ||
+                ptl->general_profile_compatibility_flag[5] == 1 ||
+                ptl->general_profile_idc == 9 ||
+                ptl->general_profile_compatibility_flag[9] == 1 ||
+                ptl->general_profile_idc == 10 ||
+                ptl->general_profile_compatibility_flag[10] == 1)
+            {
+                // max_14bit_constraint_flag  u(1)
+                ptl->general_max_14bit_constraint_flag = bs->read_bit();
+                // reserved_zero_33bits  u(33)
+                uint32_t bits_tmp_hi = bs->read_bit();
+                uint32_t bits_tmp = bs->read_bits(32);
+                ptl->general_reserved_zero_33bits = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
+            } else {
+                // reserved_zero_34bits  u(34)
+                uint32_t bits_tmp_hi = bs->read_bits(2);
+                uint32_t bits_tmp = bs->read_bits(32);
+                ptl->general_reserved_zero_34bits = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
+            }
         } else {
-            uint64_t tmp1 = bs->read_32bits();
-            uint64_t tmp2 = bs->read_bits(11);
-            ptl->general_reserved_zero_43bits = tmp1 + tmp2;
+            // reserved_zero_43bits  u(43)
+            uint32_t bits_tmp_hi = bs->read_bits(11);
+            uint32_t bits_tmp = bs->read_bits(32);
+            ptl->general_reserved_zero_43bits = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
         }
 
+        // The number of bits in this syntax structure is not affected by
+        // this condition
         if ((ptl->general_profile_idc >= 1 && ptl->general_profile_idc<=5) ||
             ptl->general_profile_compatibility_flag[1] || ptl->general_profile_compatibility_flag[2] ||
             ptl->general_profile_compatibility_flag[3] || ptl->general_profile_compatibility_flag[4] ||
             ptl->general_profile_compatibility_flag[5])
         {
+            // inbld_flag  u(1)
             ptl->general_inbld_flag = bs->read_bit();
         } else {
+            // reserved_zero_bit  u(1)
             ptl->general_reserved_zero_bit = bs->read_bit();
         }
     }
@@ -1947,7 +1990,7 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl level requires 8 only %d bits", bs->left_bits());
     }
 
-    // level
+    // general_level_idc  u(8)
     ptl->general_level_idc = bs->read_8bits();
 
     ptl->sub_layer_profile_present_flag.resize(max_sub_layers_minus1);
@@ -1956,7 +1999,9 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
         if (!bs->require_bits(2)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl present_flag requires 2 only %d bits", bs->left_bits());
         }
+        // sub_layer_profile_present_flag[i]  u(1)
         ptl->sub_layer_profile_present_flag[i] = bs->read_bit();
+        // sub_layer_level_present_flag[i]  u(1)
         ptl->sub_layer_level_present_flag[i]   = bs->read_bit();
     }
 
@@ -1964,6 +2009,7 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
         if (!bs->require_bits(2)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl reserved_zero requires 2 only %d bits", bs->left_bits());
         }
+        // reserved_zero_2bits[i]  u(2)
         ptl->reserved_zero_2bits[i] = bs->read_bits(2);
     }
 
@@ -1974,7 +2020,6 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
     for (int i = 0; i < max_sub_layers_minus1; i++) {
         ptl->sub_layer_profile_compatibility_flag[i].resize(32);
     }
-
     ptl->sub_layer_progressive_source_flag.resize(max_sub_layers_minus1);
     ptl->sub_layer_interlaced_source_flag.resize(max_sub_layers_minus1);
     ptl->sub_layer_non_packed_constraint_flag.resize(max_sub_layers_minus1);
@@ -1998,50 +2043,86 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
             if (!bs->require_bits(88)) {
                 return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl sub_layer_profile requires 88 only %d bits", bs->left_bits());
             }
+            // profile_space  u(2)
             ptl->sub_layer_profile_space[i] = bs->read_bits(2);
+            // tier_flag  u(1)
             ptl->sub_layer_tier_flag[i]     = bs->read_bit();
+            // profile_idc  u(5)
             ptl->sub_layer_profile_idc[i]   = bs->read_bits(5);
             for (int j = 0; j < 32; j++) {
+                // profile_compatibility_flag[j]  u(1)
                 ptl->sub_layer_profile_compatibility_flag[i][j] = bs->read_bit();
             }
-
+            // progressive_source_flag  u(1)
             ptl->sub_layer_progressive_source_flag[i]    = bs->read_bit();
+            // interlaced_source_flag  u(1)
             ptl->sub_layer_interlaced_source_flag[i]     = bs->read_bit();
+            // non_packed_constraint_flag  u(1)
             ptl->sub_layer_non_packed_constraint_flag[i] = bs->read_bit();
+            // frame_only_constraint_flag  u(1)
             ptl->sub_layer_frame_only_constraint_flag[i] = bs->read_bit();
             if (ptl->sub_layer_profile_idc[i] == 4 || ptl->sub_layer_profile_compatibility_flag[i][4] ||
                 ptl->sub_layer_profile_idc[i] == 5 || ptl->sub_layer_profile_compatibility_flag[i][5] ||
                 ptl->sub_layer_profile_idc[i] == 6 || ptl->sub_layer_profile_compatibility_flag[i][6] ||
                 ptl->sub_layer_profile_idc[i] == 7 || ptl->sub_layer_profile_compatibility_flag[i][7])
             {
+                // max_12bit_constraint_flag  u(1)
                 ptl->sub_layer_max_12bit_constraint_flag[i]        = bs->read_bit();
+                // max_10bit_constraint_flag  u(1)
                 ptl->sub_layer_max_10bit_constraint_flag[i]        = bs->read_bit();
+                // max_8bit_constraint_flag  u(1)
                 ptl->sub_layer_max_8bit_constraint_flag[i]         = bs->read_bit();
+                // max_422chroma_constraint_flag  u(1)
                 ptl->sub_layer_max_422chroma_constraint_flag[i]    = bs->read_bit();
+                // max_420chroma_constraint_flag  u(1)
                 ptl->sub_layer_max_420chroma_constraint_flag[i]    = bs->read_bit();
+                // max_monochrome_constraint_flag  u(1)
                 ptl->sub_layer_max_monochrome_constraint_flag[i]   = bs->read_bit();
+                // intra_constraint_flag  u(1)
                 ptl->sub_layer_intra_constraint_flag[i]            = bs->read_bit();
+                // one_picture_only_constraint_flag  u(1)
                 ptl->sub_layer_one_picture_only_constraint_flag[i] = bs->read_bit();
+                // lower_bit_rate_constraint_flag  u(1)
                 ptl->sub_layer_lower_bit_rate_constraint_flag[i]   = bs->read_bit();
-                uint64_t tmp1 = bs->read_32bits();
-                uint64_t tmp2 = bs->read_bits(2);
-                ptl->sub_layer_reserved_zero_34bits[i] = tmp1 + tmp2;
+
+                if (ptl->general_profile_idc == 5 ||
+                    ptl->general_profile_compatibility_flag[5] == 1 ||
+                    ptl->general_profile_idc == 9 ||
+                    ptl->general_profile_compatibility_flag[9] == 1 ||
+                    ptl->general_profile_idc == 10 ||
+                    ptl->general_profile_compatibility_flag[10] == 1)
+                {
+                    // max_14bit_constraint_flag  u(1)
+                    ptl->general_max_14bit_constraint_flag = bs->read_bit();
+                    // reserved_zero_33bits  u(33)
+                    uint32_t bits_tmp_hi = bs->read_bit();
+                    uint32_t bits_tmp = bs->read_bits(32);
+                    ptl->sub_layer_reserved_zero_33bits[i] = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
+                } else {
+                    // reserved_zero_34bits  u(34)
+                    uint32_t bits_tmp_hi = bs->read_bits(2);
+                    uint32_t bits_tmp = bs->read_bits(32);
+                    ptl->sub_layer_reserved_zero_34bits[i] = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
+                }
             } else {
-                uint64_t tmp1 = bs->read_32bits();
-                uint64_t tmp2 = bs->read_bits(11);
-                ptl->sub_layer_reserved_zero_43bits[i] = tmp1 + tmp2;
+                // reserved_zero_43bits  u(43)
+                uint32_t bits_tmp_hi = bs->read_bits(11);
+                uint32_t bits_tmp = bs->read_bits(32);
+                ptl->sub_layer_reserved_zero_43bits[i] = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
             }
 
             // to check
-            if ((ptl->sub_layer_profile_idc[i]>=1 && ptl->sub_layer_profile_idc[i] <= 5) ||
+            if ((ptl->sub_layer_profile_idc[i] >= 1 && ptl->sub_layer_profile_idc[i] <= 5) ||
                 ptl->sub_layer_profile_compatibility_flag[i][1] ||
                 ptl->sub_layer_profile_compatibility_flag[i][2] ||
                 ptl->sub_layer_profile_compatibility_flag[i][3] ||
                 ptl->sub_layer_profile_compatibility_flag[i][4] ||
                 ptl->sub_layer_profile_compatibility_flag[i][5])
             {
+                // inbld_flag  u(1)
                 ptl->sub_layer_inbld_flag[i] = bs->read_bit();
             } else {
+                // reserved_zero_bit  u(1)
                 ptl->sub_layer_reserved_zero_bit[i] = bs->read_bit();
             }
         }
@@ -2050,7 +2131,8 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
             if (!bs->require_bits(8)) {
                 return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl sub_layer_level requires 8 only %d bits", bs->left_bits());
             }
-            ptl->sub_layer_level_idc[i] = bs->read_8bits();
+            // sub_layer_level_idc  u(8)
+            ptl->sub_layer_level_idc[i] = bs->read_bits(8);
         }
     }
 
