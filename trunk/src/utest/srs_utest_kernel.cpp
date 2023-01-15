@@ -3985,7 +3985,7 @@ VOID TEST(KernelCodecTest, VideoFormat)
     }
 }
 
-VOID TEST(KernelCodecTest, VideoHevcFormat)
+VOID TEST(KernelCodecTest, HevcVideoFormat)
 {
     srs_error_t err;
 
