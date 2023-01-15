@@ -868,7 +868,8 @@ struct SrsHevcRbspPps
     uint8_t pps_range_extension_flag;
     uint8_t pps_multilayer_extension_flag;
     uint8_t pps_3d_extension_flag;
-    uint8_t pps_extension_5bits;
+    uint8_t pps_scc_extension_flag;
+    uint8_t pps_extension_4bits;
     SrsHevcPpsRangeExtension pps_range_extension;
     // pps_multilayer_extension_t pps_multilayer_extension;
     // pps_3d_extension_t pps_3d_extension;

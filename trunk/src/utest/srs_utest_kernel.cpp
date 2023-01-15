@@ -4825,10 +4825,13 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
         SrsBuffer b((char*)"\x00\x28\x08\x02\xd1\x65\x95\x9a", 8);
         SrsBitBuffer bb(&b);
 
-        int32_t v = bb.read_bits_ue();
+        int32_t v = 0;
+        srs_error_t err = bb.read_bits_ue(v);
+        HELPER_EXPECT_SUCCESS(err);
         EXPECT_EQ(1280, v);
 
-        v = bb.read_bits_ue();
+        err = bb.read_bits_ue(v);
+        HELPER_EXPECT_SUCCESS(err);
         EXPECT_EQ(720, v);
     }
 
@@ -4858,14 +4861,19 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
         SrsBuffer b((char*)"\xb4\x62\x40\x00\x00\x00\x88\x00", 8);
         SrsBitBuffer bb(&b);
 
-        int32_t v = bb.read_bits_se();
-        // init_qp_minus26
+        int32_t v = 0;
+        srs_error_t err = bb.read_bits_se(v);
+        HELPER_EXPECT_SUCCESS(err);
         EXPECT_EQ(0, v);
 
-        v = bb.read_bits_se();
+        v = 0;
+        err = bb.read_bits_se(v);
+        HELPER_EXPECT_SUCCESS(err);
         EXPECT_EQ(-1, v);
 
-        v = bb.read_bits_se();
+        v = 0;
+        err = bb.read_bits_se(v);
+        HELPER_EXPECT_SUCCESS(err);
         EXPECT_EQ(1, v);
     }
 }
