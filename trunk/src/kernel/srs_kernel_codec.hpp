@@ -752,7 +752,6 @@ struct SrsHevcRbspVps
 /**
  * Sequence Parameter Set
  * @see 7.3.2.2 Sequence parameter set RBSP syntax
- *      7.3.2.2.1 General sequence parameter set RBSP syntax
  * @doc ITU-T-H.265-2021.pdf, page 55.
  */
 struct SrsHevcRbspSps
@@ -823,7 +822,6 @@ struct SrsHevcRbspSps
 /**
  * Picture Parameter Set
  * @see 7.3.2.3 Picture parameter set RBSP syntax
- *      7.3.2.3.1 General picture parameter set RBSP syntax
  * @doc ITU-T-H.265-2021.pdf, page 57.
  */
 struct SrsHevcRbspPps
@@ -1034,8 +1032,9 @@ std::string srs_avc_level2str(SrsAvcLevel level);
 #ifdef SRS_H265
 
 /**
- * the profile for hevc/h.265.
- * @see Annex A Profiles and levels, ITU-T-H.265-2021.pdf, page 559.
+ * the profile for hevc/h.265, Annex A Profiles, tiers and levels
+ * @see A.3 Profiles
+ * @doc ITU-T-H.265-2021.pdf, page 268.
  */
 enum SrsHevcProfile
 {
@@ -1050,8 +1049,9 @@ enum SrsHevcProfile
 std::string srs_hevc_profile2str(SrsHevcProfile profile);
 
 /**
- * the level for hevc/h.265.
- * @see Annex A Profiles and levels, ITU-T-H.265-2021.pdf, page 684.
+ * the level for hevc/h.265, Annex A Profiles, tiers and levels
+ * @see A.4 Tiers and levels
+ * @doc ITU-T-H.265-2021.pdf, page 283.
  */
 enum SrsHevcLevel
 {
@@ -1190,9 +1190,9 @@ public:
     // level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel avc_level;
 #ifdef SRS_H265
-    // The profile_idc, ITU-T-H.265-2021.pdf, page 559.
+    // The profile_idc, ITU-T-H.265-2021.pdf, page 62.
     SrsHevcProfile hevc_profile;
-    // The level_idc, ITU-T-H.265-2021.pdf, page 684.
+    // The level_idc, ITU-T-H.265-2021.pdf, page 63.
     SrsHevcLevel hevc_level;
 #endif
     // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16

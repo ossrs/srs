@@ -1103,8 +1103,8 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
     }
 
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
-    // @see 7.4.2 NAL unit semantics
-    // @doc ITU-T-H.265-2021.pdf, page 64.
+    // @see 7.4.2.2 NAL unit header semantics
+    // @doc ITU-T-H.265-2021.pdf, page 86.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_VPS) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc vps nal_unit_type=%d shall be equal to 33", nal_unit_type);
@@ -1147,8 +1147,8 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
     SrsBuffer stream(rbsp, nb_rbsp);
 
     // H265 VPS (video_parameter_set_rbsp()) NAL Unit.
-    // Section 7.3.2.1 ("Video parameter set data syntax") of the H.265
-    // ITU-T-H.265-2021.pdf, page 53.
+    // Section 7.3.2.1 ("Video parameter set RBSP syntax") of the H.265
+    // ITU-T-H.265-2021.pdf, page 54.
     if (!stream.require(4)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "vps requires 4 only %d bytes", stream.left());
     }
@@ -1332,8 +1332,8 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
     }
 
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
-    // @see 7.4.2 NAL unit semantics
-    // @doc ITU-T-H.265-2021.pdf, page 64.
+    // @see 7.4.2.2 NAL unit header semantics
+    // @doc ITU-T-H.265-2021.pdf, page 86.
     SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((nutv >> 1) & 0x3f);
     if (nal_unit_type != SrsHevcNaluType_SPS) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc sps nal_unit_type=%d shall be equal to 33", nal_unit_type);
@@ -1382,7 +1382,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     SrsBuffer stream(rbsp, nb_rbsp);
 
     // H265 SPS Nal Unit (seq_parameter_set_rbsp()) parser.
-    // Section 7.3.2.2 ("Sequence parameter set data syntax") of the H.265
+    // Section 7.3.2.2 ("Sequence parameter set RBSP syntax") of the H.265
     // ITU-T-H.265-2021.pdf, page 55.
     if (!stream.require(2)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps requires 2 only %d bytes", stream.left());
@@ -1520,7 +1520,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
 {
     // for NALU, ITU-T H.265 7.3.2.3 Picture parameter set RBSP syntax
-    // @see 7.3.2.3.1 General picture parameter set RBSP syntax
+    // @see 7.3.2.3 Picture parameter set RBSP syntax
     // @doc ITU-T-H.265-2021.pdf, page 57.
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc pps requires 1 only %d bytes", stream->left());
@@ -1578,7 +1578,7 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
     SrsBuffer stream(rbsp, nb_rbsp);
 
     // H265 PPS NAL Unit (pic_parameter_set_rbsp()) parser.
-    // Section 7.3.2.3 ("Parameter parameter set data syntax") of the H.265
+    // Section 7.3.2.3 ("Picture parameter set RBSP syntax") of the H.265
     // ITU-T-H.265-2021.pdf, page 57.
     SrsBitBuffer bs(&stream);
 
@@ -1926,7 +1926,11 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
         if (ptl->general_profile_idc == 4 || ptl->general_profile_compatibility_flag[4] ||
             ptl->general_profile_idc == 5 || ptl->general_profile_compatibility_flag[5] ||
             ptl->general_profile_idc == 6 || ptl->general_profile_compatibility_flag[6] ||
-            ptl->general_profile_idc == 7 || ptl->general_profile_compatibility_flag[7])
+            ptl->general_profile_idc == 7 || ptl->general_profile_compatibility_flag[7] ||
+            ptl->general_profile_idc == 8 || ptl->general_profile_compatibility_flag[8] ||
+            ptl->general_profile_idc == 9 || ptl->general_profile_compatibility_flag[9] ||
+            ptl->general_profile_idc == 10 || ptl->general_profile_compatibility_flag[10] ||
+            ptl->general_profile_idc == 11 || ptl->general_profile_compatibility_flag[11])
         {
             // The number of bits in this syntax structure is not affected by
             // this condition
@@ -1949,12 +1953,10 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
             // lower_bit_rate_constraint_flag  u(1)
             ptl->general_lower_bit_rate_constraint_flag = bs->read_bit();
 
-            if (ptl->general_profile_idc == 5 ||
-                ptl->general_profile_compatibility_flag[5] == 1 ||
-                ptl->general_profile_idc == 9 ||
-                ptl->general_profile_compatibility_flag[9] == 1 ||
-                ptl->general_profile_idc == 10 ||
-                ptl->general_profile_compatibility_flag[10] == 1)
+            if (ptl->general_profile_idc == 5 || ptl->general_profile_compatibility_flag[5] == 1 ||
+                ptl->general_profile_idc == 9 || ptl->general_profile_compatibility_flag[9] == 1 ||
+                ptl->general_profile_idc == 10 || ptl->general_profile_compatibility_flag[10] == 1 ||
+                ptl->general_profile_idc == 11 || ptl->general_profile_compatibility_flag[11] == 1)
             {
                 // max_14bit_constraint_flag  u(1)
                 ptl->general_max_14bit_constraint_flag = bs->read_bit();
@@ -1975,13 +1977,14 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
             ptl->general_reserved_zero_43bits = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
         }
 
-        // The number of bits in this syntax structure is not affected by
-        // this condition
-        if ((ptl->general_profile_idc >= 1 && ptl->general_profile_idc<=5) ||
-            ptl->general_profile_compatibility_flag[1] || ptl->general_profile_compatibility_flag[2] ||
-            ptl->general_profile_compatibility_flag[3] || ptl->general_profile_compatibility_flag[4] ||
-            ptl->general_profile_compatibility_flag[5])
-        {
+        // The number of bits in this syntax structure is not affected by this condition
+        if (ptl->general_profile_idc == 1 || ptl->general_profile_compatibility_flag[1] ||
+            ptl->general_profile_idc == 2 || ptl->general_profile_compatibility_flag[2] ||
+            ptl->general_profile_idc == 3 || ptl->general_profile_compatibility_flag[3] ||
+            ptl->general_profile_idc == 4 || ptl->general_profile_compatibility_flag[4] ||
+            ptl->general_profile_idc == 5 || ptl->general_profile_compatibility_flag[5] ||
+            ptl->general_profile_idc == 9 || ptl->general_profile_compatibility_flag[9] ||
+            ptl->general_profile_idc == 11 || ptl->general_profile_compatibility_flag[11]) {
             // inbld_flag  u(1)
             ptl->general_inbld_flag = bs->read_bit();
         } else {
@@ -2068,7 +2071,11 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
             if (ptl->sub_layer_profile_idc[i] == 4 || ptl->sub_layer_profile_compatibility_flag[i][4] ||
                 ptl->sub_layer_profile_idc[i] == 5 || ptl->sub_layer_profile_compatibility_flag[i][5] ||
                 ptl->sub_layer_profile_idc[i] == 6 || ptl->sub_layer_profile_compatibility_flag[i][6] ||
-                ptl->sub_layer_profile_idc[i] == 7 || ptl->sub_layer_profile_compatibility_flag[i][7])
+                ptl->sub_layer_profile_idc[i] == 7 || ptl->sub_layer_profile_compatibility_flag[i][7] ||
+                ptl->sub_layer_profile_idc[i] == 8 || ptl->sub_layer_profile_compatibility_flag[i][8] ||
+                ptl->sub_layer_profile_idc[i] == 9 || ptl->sub_layer_profile_compatibility_flag[i][9] ||
+                ptl->sub_layer_profile_idc[i] == 10 || ptl->sub_layer_profile_compatibility_flag[i][10] ||
+                ptl->sub_layer_profile_idc[i] == 11|| ptl->sub_layer_profile_compatibility_flag[i][11])
             {
                 // max_12bit_constraint_flag  u(1)
                 ptl->sub_layer_max_12bit_constraint_flag[i]        = bs->read_bit();
@@ -2089,12 +2096,12 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
                 // lower_bit_rate_constraint_flag  u(1)
                 ptl->sub_layer_lower_bit_rate_constraint_flag[i]   = bs->read_bit();
 
-                if (ptl->general_profile_idc == 5 ||
-                    ptl->general_profile_compatibility_flag[5] == 1 ||
-                    ptl->general_profile_idc == 9 ||
-                    ptl->general_profile_compatibility_flag[9] == 1 ||
-                    ptl->general_profile_idc == 10 ||
-                    ptl->general_profile_compatibility_flag[10] == 1)
+                if (ptl->sub_layer_profile_idc[i] == 5 ||
+                    ptl->sub_layer_profile_compatibility_flag[i][5] == 1 ||
+                    ptl->sub_layer_profile_idc[i] == 9 ||
+                    ptl->sub_layer_profile_compatibility_flag[i][9] == 1 ||
+                    ptl->sub_layer_profile_idc[i] == 10 ||
+                    ptl->sub_layer_profile_compatibility_flag[i][10] == 1)
                 {
                     // max_14bit_constraint_flag  u(1)
                     ptl->general_max_14bit_constraint_flag = bs->read_bit();
@@ -2115,14 +2122,21 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
                 ptl->sub_layer_reserved_zero_43bits[i] = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
             }
 
-            // to check
-            if ((ptl->sub_layer_profile_idc[i] >= 1 && ptl->sub_layer_profile_idc[i] <= 5) ||
+            // The number of bits in this syntax structure is not affected by this condition
+            if (ptl->sub_layer_profile_idc[i] == 1 ||
                 ptl->sub_layer_profile_compatibility_flag[i][1] ||
+                ptl->sub_layer_profile_idc[i] == 2 ||
                 ptl->sub_layer_profile_compatibility_flag[i][2] ||
+                ptl->sub_layer_profile_idc[i] == 3 ||
                 ptl->sub_layer_profile_compatibility_flag[i][3] ||
+                ptl->sub_layer_profile_idc[i] == 4 ||
                 ptl->sub_layer_profile_compatibility_flag[i][4] ||
-                ptl->sub_layer_profile_compatibility_flag[i][5])
-            {
+                ptl->sub_layer_profile_idc[i] == 5 ||
+                ptl->sub_layer_profile_compatibility_flag[i][5] ||
+                ptl->sub_layer_profile_idc[i] == 9 ||
+                ptl->sub_layer_profile_compatibility_flag[i][9] ||
+                ptl->sub_layer_profile_idc[i] == 11 ||
+                ptl->sub_layer_profile_compatibility_flag[i][11]) {
                 // inbld_flag  u(1)
                 ptl->sub_layer_inbld_flag[i] = bs->read_bit();
             } else {
