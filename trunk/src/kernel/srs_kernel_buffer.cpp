@@ -458,7 +458,7 @@ int32_t SrsBitBuffer::read_32bits()
     return read_bits(32);
 }
 
-srs_error_t SrsBitBuffer::read_bits_ue(int32_t& v)
+srs_error_t SrsBitBuffer::read_bits_ue(uint32_t& v)
 {
     srs_error_t err = srs_success;
 
@@ -489,7 +489,7 @@ srs_error_t SrsBitBuffer::read_bits_ue(int32_t& v)
             return srs_error_new(ERROR_HEVC_NALU_UEV, "no bytes for leadingZeroBits=%d", leadingZeroBits);
         }
 
-        int32_t b = read_bit();
+        uint32_t b = read_bit();
         v += b << (leadingZeroBits - 1 - i);
     }
 
@@ -506,7 +506,7 @@ srs_error_t SrsBitBuffer::read_bits_se(int32_t& v)
 
     // ue(v) in 9.2.1 General Parsing process for Exp-Golomb codes
     // ITU-T-H.265-2021.pdf, page 221.
-    int32_t val = 0;
+    uint32_t val = 0;
     if ((err = read_bits_ue(val)) != srs_success) {
         return srs_error_wrap(err, "read uev");
     }

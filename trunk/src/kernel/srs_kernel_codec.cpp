@@ -1225,7 +1225,7 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
         vps->layer_id_included_flag[i].resize(vps->vps_max_layer_id);
     }
 
-    for (int i = 1; i <= vps->vps_num_layer_sets_minus1; i++) {
+    for (int i = 1; i <= (int)vps->vps_num_layer_sets_minus1; i++) {
         vps->layer_id_included_flag[i].resize(vps->vps_num_layer_sets_minus1 + 1);
     }
 
@@ -1234,7 +1234,7 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
                              vps->vps_num_layer_sets_minus1 * vps->vps_max_layer_id, bs.left_bits());
     }
 
-    for (int i = 1; i <= vps->vps_num_layer_sets_minus1; i++) {
+    for (int i = 1; i <= (int)vps->vps_num_layer_sets_minus1; i++) {
         for (int j = 0; j <= vps->vps_max_layer_id; j++) {
             // layer_id_included_flag[i][j]  u(1)
             vps->layer_id_included_flag[i][j] = bs.read_bit();
@@ -1272,7 +1272,7 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
         vps->hrd_layer_set_idx.resize(vps->vps_num_hrd_parameters);
         vps->cprms_present_flag.resize(vps->vps_num_hrd_parameters);
 
-        for (int i = 0; i < vps->vps_num_hrd_parameters; i++) {
+        for (int i = 0; i < (int)vps->vps_num_hrd_parameters; i++) {
             // hrd_layer_set_idx[i]  ue(v)
             if ((err = bs.read_bits_ue(vps->hrd_layer_set_idx[i])) != srs_success) {
                 return srs_error_wrap(err, "hrd_layer_set_idx");
@@ -1406,7 +1406,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     vcodec->hevc_level = (SrsHevcLevel)profile_tier_level.general_level_idc;
 
     // sps_seq_parameter_set_id  ue(v)
-    int sps_seq_parameter_set_id = 0;
+    uint32_t sps_seq_parameter_set_id = 0;
     if ((err = bs.read_bits_ue(sps_seq_parameter_set_id)) != srs_success) {
         return srs_error_wrap(err, "sps_seq_parameter_set_id");
     }
@@ -1422,12 +1422,11 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     memcpy(&(sps->ptl), &profile_tier_level, sizeof(SrsHevcProfileTierLevel));
 
     // chroma_format_idc  ue(v)
-    int chroma_format_idc = 0;
-    if ((err = bs.read_bits_ue(chroma_format_idc)) != srs_success) {
+    if ((err = bs.read_bits_ue(sps->chroma_format_idc)) != srs_success) {
         return srs_error_wrap(err, "chroma_format_idc");
     }
 
-    if (chroma_format_idc == 3) {
+    if (sps->chroma_format_idc == 3) {
         if (!bs.require_bits(1)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "separate_colour_plane_flag requires 1 only %d bits", bs.left_bits());
         }
@@ -1579,7 +1578,7 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
     SrsBitBuffer bs(&stream);
 
     // pps_pic_parameter_set_id  ue(v)
-    int pps_pic_parameter_set_id = 0;
+    uint32_t pps_pic_parameter_set_id = 0;
     if ((err = bs.read_bits_ue(pps_pic_parameter_set_id)) != srs_success) {
         return srs_error_wrap(err, "pps_pic_parameter_set_id");
     }
@@ -1593,7 +1592,7 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
     pps->pps_pic_parameter_set_id = pps_pic_parameter_set_id;
 
     // pps_seq_parameter_set_id  ue(v)
-    int pps_seq_parameter_set_id = 0;
+    uint32_t pps_seq_parameter_set_id = 0;
     if ((err = bs.read_bits_ue(pps_seq_parameter_set_id)) != srs_success) {
         return srs_error_wrap(err, "pps_seq_parameter_set_id");
     }
@@ -1689,14 +1688,14 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
             pps->column_width_minus1.resize(pps->num_tile_columns_minus1);
             pps->row_height_minus1.resize(pps->num_tile_rows_minus1);
 
-            for (int i = 0; i < pps->num_tile_columns_minus1; i++) {
+            for (int i = 0; i < (int)pps->num_tile_columns_minus1; i++) {
                 // column_width_minus1[i]  ue(v)
                 if ((err = bs.read_bits_ue(pps->column_width_minus1[i])) != srs_success) {
                     return srs_error_wrap(err, "column_width_minus1");
                 }
             }
 
-            for (int i = 0; i < pps->num_tile_rows_minus1; i++) {
+            for (int i = 0; i < (int)pps->num_tile_rows_minus1; i++) {
                 // row_height_minus1[i]  ue(v)
                 if ((err = bs.read_bits_ue(pps->row_height_minus1[i])) != srs_success) {
                     return srs_error_wrap(err, "row_height_minus1");
@@ -1752,8 +1751,10 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
         SrsHevcScalingListData* sld = &pps->scaling_list_data;
         for (int sizeId = 0; sizeId < 4; sizeId++) {
             for (int matrixId = 0; matrixId < 6; matrixId += (sizeId == 3) ? 3 : 1) {
+                // scaling_list_pred_mode_flag  u(1)
                 sld->scaling_list_pred_mode_flag[sizeId][matrixId] = bs.read_bit();
                 if (!sld->scaling_list_pred_mode_flag[sizeId][matrixId]) {
+                    // scaling_list_pred_matrix_id_delta  ue(v)
                     if ((err = bs.read_bits_ue(sld->scaling_list_pred_matrix_id_delta[sizeId][matrixId])) != srs_success) {
                         return srs_error_wrap(err, "scaling_list_pred_matrix_id_delta");
                     }
@@ -1762,6 +1763,7 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
                     int coefNum = srs_min(64, (1 << (4 + (sizeId << 1))));
                     sld->coefNum = coefNum; // tmp store
                     if (sizeId > 1) {
+                        // scaling_list_dc_coef_minus8  se(v)
                         if ((err = bs.read_bits_se(sld->scaling_list_dc_coef_minus8[sizeId - 2][matrixId])) != srs_success) {
                             return srs_error_wrap(err, "scaling_list_dc_coef_minus8");
                         }
@@ -1769,6 +1771,7 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
                     }
 
                     for (int i = 0; i < sld->coefNum; i++) {
+                        // scaling_list_delta_coef  se(v)
                         int scaling_list_delta_coef = 0;
                         if ((err = bs.read_bits_se(scaling_list_delta_coef)) != srs_success) {
                             return srs_error_wrap(err, "scaling_list_delta_coef");
@@ -1827,13 +1830,18 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
         if (!bs.require_bits(2)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "cross_component_prediction_enabled_flag requires 2 only %d bits", bs.left_bits());
         }
+
+        // cross_component_prediction_enabled_flag  u(1)
         pps->pps_range_extension.cross_component_prediction_enabled_flag = bs.read_bit();
+        // chroma_qp_offset_list_enabled_flag  u(1)
         pps->pps_range_extension.chroma_qp_offset_list_enabled_flag = bs.read_bit();
         if (pps->pps_range_extension.chroma_qp_offset_list_enabled_flag) {
+            // diff_cu_chroma_qp_offset_depth  ue(v)
             if ((err = bs.read_bits_ue(pps->pps_range_extension.diff_cu_chroma_qp_offset_depth)) != srs_success) {
                 return srs_error_wrap(err, "diff_cu_chroma_qp_offset_depth");
             }
 
+            // chroma_qp_offset_list_len_minus1  ue(v)
             if ((err = bs.read_bits_ue(pps->pps_range_extension.chroma_qp_offset_list_len_minus1)) != srs_success) {
                 return srs_error_wrap(err, "chroma_qp_offset_list_len_minus1");
             }
@@ -1841,21 +1849,25 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
             pps->pps_range_extension.cb_qp_offset_list.resize(pps->pps_range_extension.chroma_qp_offset_list_len_minus1);
             pps->pps_range_extension.cr_qp_offset_list.resize(pps->pps_range_extension.chroma_qp_offset_list_len_minus1);
 
-            for (int i = 0; i < pps->pps_range_extension.chroma_qp_offset_list_len_minus1; i++) {
+            for (int i = 0; i < (int)pps->pps_range_extension.chroma_qp_offset_list_len_minus1; i++) {
+                // cb_qp_offset_list[i]  se(v)
                 if ((err = bs.read_bits_se(pps->pps_range_extension.cb_qp_offset_list[i])) != srs_success) {
                     return srs_error_wrap(err, "cb_qp_offset_list");
                 }
 
+                // cr_qp_offset_list[i] se(v)
                 if ((err = bs.read_bits_se(pps->pps_range_extension.cr_qp_offset_list[i])) != srs_success) {
                     return srs_error_wrap(err, "cr_qp_offset_list");
                 }
             }
         }
 
+        // log2_sao_offset_scale_luma  ue(v)
         if ((err = bs.read_bits_se(pps->pps_range_extension.log2_sao_offset_scale_luma)) != srs_success) {
             return srs_error_wrap(err, "log2_sao_offset_scale_luma");
         }
 
+        // log2_sao_offset_scale_chroma  ue(v)
         if ((err = bs.read_bits_se(pps->pps_range_extension.log2_sao_offset_scale_chroma)) != srs_success) {
             return srs_error_wrap(err, "log2_sao_offset_scale_chroma");
         }
