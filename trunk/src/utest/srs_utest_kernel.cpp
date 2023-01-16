@@ -4827,7 +4827,7 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
         SrsBuffer b((char*)"\x00\x28\x08\x02\xd1\x65\x95\x9a", 8);
         SrsBitBuffer bb(&b);
 
-        int32_t v = 0;
+        uint32_t v = 0;
         srs_error_t err = bb.read_bits_ue(v);
         HELPER_EXPECT_SUCCESS(err);
         EXPECT_EQ(1280, v);
