@@ -506,7 +506,7 @@ srs_error_t SrsRawHEVCStream::mux_ipb_frame(char *frame, int nb_frame, std::stri
     char *packet = new char[nb_packet];
     SrsAutoFreeA(char, packet);
 
-    // use stream to generate the h264 packet.
+    // use stream to generate the h265 packet.
     SrsBuffer stream(packet, nb_packet);
 
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
@@ -529,7 +529,7 @@ srs_error_t SrsRawHEVCStream::mux_avc2flv(std::string video, int8_t frame_type, 
 {
     srs_error_t err = srs_success;
 
-    // for h264 in RTMP video payload, there is 5bytes header:
+    // for h265 in RTMP video payload, there is 5bytes header:
     //      1bytes, FrameType | CodecID
     //      1bytes, AVCPacketType
     //      3bytes, CompositionTime, the cts.

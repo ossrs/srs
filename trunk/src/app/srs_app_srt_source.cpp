@@ -636,7 +636,7 @@ srs_error_t SrsRtmpFromSrtBridge::check_vps_sps_pps_change(SrsTsMessage* msg)
         return srs_error_wrap(err, "mux sequence header");
     }
 
-    // h264 packet to flv packet.
+    // h265 packet to flv packet.
     char* flv = NULL;
     int nb_flv = 0;
     if ((err = hevc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoAvcFrameTraitSequenceHeader, dts, dts, &flv, &nb_flv)) != srs_success) {
@@ -678,8 +678,8 @@ srs_error_t SrsRtmpFromSrtBridge::on_hevc_frame(SrsTsMessage* msg, vector<pair<c
     for (size_t i = 0; i != ipb_frames.size(); ++i) {
         // 4 bytes for nalu length.
         frame_size += 4 + ipb_frames[i].second;
-        SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((ipb_frames[i].first[0] & 0x7e) >> 1);
-        if ((nal_unit_type >= SrsHevcNaluType_CODED_SLICE_BLA) && (nal_unit_type <= SrsHevcNaluType_RESERVED_23)) {
+        SrsHevcNaluType nalu_type = SrsHevcNaluTypeParse(ipb_frames[i].first[0]);
+        if ((nalu_type >= SrsHevcNaluType_CODED_SLICE_BLA) && (nalu_type <= SrsHevcNaluType_RESERVED_23)) {
             frame_type = SrsVideoAvcFrameTypeKeyFrame;
         }
     }
