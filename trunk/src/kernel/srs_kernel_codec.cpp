@@ -1876,19 +1876,16 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
     if (pps->pps_multilayer_extension_flag){
         // pps_multilayer_extension, specified in Annex F
         // TODO: FIXME: add support for pps_multilayer_extension()
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "unimplemented pps_multilayer_extension in pps");
     }
 
     if (pps->pps_3d_extension_flag) {
         // pps_3d_extension, specified in Annex I
         // TODO: FIXME: add support for pps_3d_extension()
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "unimplemented pps_3d_extension in pps");
     }
 
     if (pps->pps_scc_extension_flag) {
         // pps_scc_extension_flag
         // TODO: FIXME: add support for pps_scc_extension()
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "unimplemented pps_scc_extension in pps");
     }
 
     if (pps->pps_extension_4bits) {
@@ -1896,19 +1893,19 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
         // TODO: FIXME: add support for more_rbsp_data()
     }
 
-    // TODO: rbsp_trailing_bits
+    // TODO: FIXME: rbsp_trailing_bits
 
     return err;
 }
 
-srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierLevel* ptl, int profile_resent_flag, int max_sub_layers_minus1)
+srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierLevel* ptl, int profile_present_flag, int max_sub_layers_minus1)
 {
     srs_error_t err = srs_success;
 
     // profile_tier_level() parser.
     // Section 7.3.3 ("Profile, tier and level syntax") of the H.265
     // ITU-T-H.265-2021.pdf, page 62.
-    if (profile_resent_flag) {
+    if (profile_present_flag) {
         if (!bs->require_bits(88)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ptl profile requires 88 only %d bits", bs->left_bits());
         }
@@ -1940,8 +1937,7 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
             ptl->general_profile_idc == 10 || ptl->general_profile_compatibility_flag[10] ||
             ptl->general_profile_idc == 11 || ptl->general_profile_compatibility_flag[11])
         {
-            // The number of bits in this syntax structure is not affected by
-            // this condition
+            // The number of bits in this syntax structure is not affected by this condition
             // max_12bit_constraint_flag  u(1)
             ptl->general_max_12bit_constraint_flag      = bs->read_bit();
             // max_10bit_constraint_flag  u(1)
@@ -1978,6 +1974,15 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
                 uint32_t bits_tmp = bs->read_bits(32);
                 ptl->general_reserved_zero_34bits = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
             }
+        } else if (ptl->general_profile_idc == 2 || ptl->general_profile_compatibility_flag[2]) {
+            // general_reserved_zero_7bits  u(7)
+            ptl->general_reserved_zero_7bits = bs->read_bits(7);
+            // general_one_picture_only_constraint_flag  u(1)
+            ptl->general_one_picture_only_constraint_flag = bs->read_bit();
+            // general_reserved_zero_35bits  u(35)
+            uint32_t bits_tmp_hi = bs->read_bits(3);
+            uint32_t bits_tmp = bs->read_bits(32);
+            ptl->general_reserved_zero_35bits = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
         } else {
             // reserved_zero_43bits  u(43)
             uint32_t bits_tmp_hi = bs->read_bits(11);
@@ -2083,8 +2088,9 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
                 ptl->sub_layer_profile_idc[i] == 8 || ptl->sub_layer_profile_compatibility_flag[i][8] ||
                 ptl->sub_layer_profile_idc[i] == 9 || ptl->sub_layer_profile_compatibility_flag[i][9] ||
                 ptl->sub_layer_profile_idc[i] == 10 || ptl->sub_layer_profile_compatibility_flag[i][10] ||
-                ptl->sub_layer_profile_idc[i] == 11|| ptl->sub_layer_profile_compatibility_flag[i][11])
+                ptl->sub_layer_profile_idc[i] == 11 || ptl->sub_layer_profile_compatibility_flag[i][11])
             {
+                // The number of bits in this syntax structure is not affected by this condition.
                 // max_12bit_constraint_flag  u(1)
                 ptl->sub_layer_max_12bit_constraint_flag[i]        = bs->read_bit();
                 // max_10bit_constraint_flag  u(1)
@@ -2109,7 +2115,9 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
                     ptl->sub_layer_profile_idc[i] == 9 ||
                     ptl->sub_layer_profile_compatibility_flag[i][9] == 1 ||
                     ptl->sub_layer_profile_idc[i] == 10 ||
-                    ptl->sub_layer_profile_compatibility_flag[i][10] == 1)
+                    ptl->sub_layer_profile_compatibility_flag[i][10] == 1 ||
+                    ptl->sub_layer_profile_idc[i] == 11 ||
+                    ptl->sub_layer_profile_compatibility_flag[i][11] == 1)
                 {
                     // max_14bit_constraint_flag  u(1)
                     ptl->general_max_14bit_constraint_flag = bs->read_bit();
@@ -2123,6 +2131,15 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierL
                     uint32_t bits_tmp = bs->read_bits(32);
                     ptl->sub_layer_reserved_zero_34bits[i] = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
                 }
+            } else if (ptl->sub_layer_profile_idc[i] == 2 || ptl->sub_layer_profile_compatibility_flag[i][2]) {
+                // sub_layer_reserved_zero_7bits  u(7)
+                ptl->sub_layer_reserved_zero_7bits[i] = bs->read_bits(7);
+                // sub_layer_one_picture_only_constraint_flag  u(1)
+                ptl->sub_layer_one_picture_only_constraint_flag[i] = bs->read_bit();
+                // sub_layer_reserved_zero_35bits  u(35)
+                uint32_t bits_tmp_hi = bs->read_bits(3);
+                uint32_t bits_tmp = bs->read_bits(32);
+                ptl->sub_layer_reserved_zero_35bits[i] = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
             } else {
                 // reserved_zero_43bits  u(43)
                 uint32_t bits_tmp_hi = bs->read_bits(11);
