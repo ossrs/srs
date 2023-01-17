@@ -67,34 +67,34 @@ func (v *SrsCommonRequest) String() string {
 
 /*
 handle the clients requests: connect/disconnect vhost/app.
-    for SRS hook: on_connect/on_close
-    on_connect:
-        when client connect to vhost/app, call the hook,
-        the request in the POST data string is a object encode by json:
-              {
-                  "action": "on_connect",
-                  "client_id": "9308h583",
-                  "ip": "192.168.1.10",
-    			  "vhost": "video.test.com",
-                  "app": "live",
-                  "tcUrl": "rtmp://video.test.com/live?key=d2fa801d08e3f90ed1e1670e6e52651a",
-                  "pageUrl": "http://www.test.com/live.html"
-              }
-    on_close:
-        when client close/disconnect to vhost/app/stream, call the hook,
-        the request in the POST data string is a object encode by json:
-              {
-                  "action": "on_close",
-                  "client_id": "9308h583",
-                  "ip": "192.168.1.10",
-				  "vhost": "video.test.com",
-                  "app": "live",
-                  "send_bytes": 10240,
-				  "recv_bytes": 10240
-              }
-    if valid, the hook must return HTTP code 200(Stauts OK) and response
-    an int value specifies the error code(0 corresponding to success):
-          0
+for SRS hook: on_connect/on_close
+on_connect:
+	when client connect to vhost/app, call the hook,
+	the request in the POST data string is a object encode by json:
+		  {
+			  "action": "on_connect",
+			  "client_id": "9308h583",
+			  "ip": "192.168.1.10",
+			  "vhost": "video.test.com",
+			  "app": "live",
+			  "tcUrl": "rtmp://video.test.com/live?key=d2fa801d08e3f90ed1e1670e6e52651a",
+			  "pageUrl": "http://www.test.com/live.html"
+		  }
+on_close:
+	when client close/disconnect to vhost/app/stream, call the hook,
+	the request in the POST data string is a object encode by json:
+		  {
+			  "action": "on_close",
+			  "client_id": "9308h583",
+			  "ip": "192.168.1.10",
+			  "vhost": "video.test.com",
+			  "app": "live",
+			  "send_bytes": 10240,
+			  "recv_bytes": 10240
+		  }
+if valid, the hook must return HTTP code 200(Stauts OK) and response
+an int value specifies the error code(0 corresponding to success):
+	  0
 */
 type SrsClientRequest struct {
 	SrsCommonRequest
@@ -126,34 +126,34 @@ func (v *SrsClientRequest) String() string {
 }
 
 /*
-   for SRS hook: on_publish/on_unpublish
-   on_publish:
-       when client(encoder) publish to vhost/app/stream, call the hook,
-       the request in the POST data string is a object encode by json:
-             {
-                 "action": "on_publish",
-                 "client_id": "9308h583",
-                 "ip": "192.168.1.10",
-				 "vhost": "video.test.com",
-				 "app": "live",
-                 "stream": "livestream",
-				 "param":"?token=xxx&salt=yyy"
-             }
-   on_unpublish:
-       when client(encoder) stop publish to vhost/app/stream, call the hook,
-       the request in the POST data string is a object encode by json:
-             {
-                 "action": "on_unpublish",
-                 "client_id": "9308h583",
-                 "ip": "192.168.1.10",
-				 "vhost": "video.test.com",
-                 "app": "live",
-                 "stream": "livestream",
-				 "param":"?token=xxx&salt=yyy"
-             }
-   if valid, the hook must return HTTP code 200(Stauts OK) and response
-   an int value specifies the error code(0 corresponding to success):
-         0
+for SRS hook: on_publish/on_unpublish
+on_publish:
+   when client(encoder) publish to vhost/app/stream, call the hook,
+   the request in the POST data string is a object encode by json:
+		 {
+			 "action": "on_publish",
+			 "client_id": "9308h583",
+			 "ip": "192.168.1.10",
+			 "vhost": "video.test.com",
+			 "app": "live",
+			 "stream": "livestream",
+			 "param":"?token=xxx&salt=yyy"
+		 }
+on_unpublish:
+   when client(encoder) stop publish to vhost/app/stream, call the hook,
+   the request in the POST data string is a object encode by json:
+		 {
+			 "action": "on_unpublish",
+			 "client_id": "9308h583",
+			 "ip": "192.168.1.10",
+			 "vhost": "video.test.com",
+			 "app": "live",
+			 "stream": "livestream",
+			 "param":"?token=xxx&salt=yyy"
+		 }
+if valid, the hook must return HTTP code 200(Stauts OK) and response
+an int value specifies the error code(0 corresponding to success):
+	 0
 */
 type SrsStreamRequest struct {
 	SrsCommonRequest
@@ -179,35 +179,35 @@ func (v *SrsStreamRequest) IsOnUnPublish() bool {
 }
 
 /*
-   for SRS hook: on_play/on_stop
-   on_play:
-       when client(encoder) publish to vhost/app/stream, call the hook,
-       the request in the POST data string is a object encode by json:
-             {
-                 "action": "on_play",
-                 "client_id": "9308h583",
-                 "ip": "192.168.1.10",
-				 "vhost": "video.test.com",
-				 "app": "live",
-                 "stream": "livestream",
-                 "param":"?token=xxx&salt=yyy",
-                 "pageUrl": "http://www.test.com/live.html"
-             }
-   on_stop:
-       when client(encoder) stop publish to vhost/app/stream, call the hook,
-       the request in the POST data string is a object encode by json:
-             {
-                 "action": "on_stop",
-                 "client_id": "9308h583",
-                 "ip": "192.168.1.10",
-				 "vhost": "video.test.com",
-				 "app": "live",
-                 "stream": "livestream",
-				 "param":"?token=xxx&salt=yyy"
-             }
-   if valid, the hook must return HTTP code 200(Stauts OK) and response
-   an int value specifies the error code(0 corresponding to success):
-         0
+for SRS hook: on_play/on_stop
+on_play:
+   when client(encoder) publish to vhost/app/stream, call the hook,
+   the request in the POST data string is a object encode by json:
+		 {
+			 "action": "on_play",
+			 "client_id": "9308h583",
+			 "ip": "192.168.1.10",
+			 "vhost": "video.test.com",
+			 "app": "live",
+			 "stream": "livestream",
+			 "param":"?token=xxx&salt=yyy",
+			 "pageUrl": "http://www.test.com/live.html"
+		 }
+on_stop:
+   when client(encoder) stop publish to vhost/app/stream, call the hook,
+   the request in the POST data string is a object encode by json:
+		 {
+			 "action": "on_stop",
+			 "client_id": "9308h583",
+			 "ip": "192.168.1.10",
+			 "vhost": "video.test.com",
+			 "app": "live",
+			 "stream": "livestream",
+			 "param":"?token=xxx&salt=yyy"
+		 }
+if valid, the hook must return HTTP code 200(Stauts OK) and response
+an int value specifies the error code(0 corresponding to success):
+	 0
 */
 
 type SrsSessionRequest struct {
@@ -239,24 +239,24 @@ func (v *SrsSessionRequest) IsOnStop() bool {
 }
 
 /*
-   for SRS hook: on_dvr
-   on_dvr:
-       when srs reap a dvr file, call the hook,
-       the request in the POST data string is a object encode by json:
-             {
-                 "action": "on_dvr",
-                 "client_id": "9308h583",
-                 "ip": "192.168.1.10",
-				 "vhost": "video.test.com",
-				 "app": "live",
-                 "stream": "livestream",
-                 "param":"?token=xxx&salt=yyy",
-                 "cwd": "/usr/local/srs",
-                 "file": "./objs/nginx/html/live/livestream.1420254068776.flv"
-             }
-   if valid, the hook must return HTTP code 200(Stauts OK) and response
-   an int value specifies the error code(0 corresponding to success):
-         0
+for SRS hook: on_dvr
+on_dvr:
+   when srs reap a dvr file, call the hook,
+   the request in the POST data string is a object encode by json:
+		 {
+			 "action": "on_dvr",
+			 "client_id": "9308h583",
+			 "ip": "192.168.1.10",
+			 "vhost": "video.test.com",
+			 "app": "live",
+			 "stream": "livestream",
+			 "param":"?token=xxx&salt=yyy",
+			 "cwd": "/usr/local/srs",
+			 "file": "./objs/nginx/html/live/livestream.1420254068776.flv"
+		 }
+if valid, the hook must return HTTP code 200(Stauts OK) and response
+an int value specifies the error code(0 corresponding to success):
+	 0
 */
 
 type SrsDvrRequest struct {
@@ -281,37 +281,37 @@ func (v *SrsDvrRequest) IsOnDvr() bool {
 }
 
 /*
-   for SRS hook: on_hls_notify
-   on_hls_notify:
-       when srs reap a ts file of hls, call this hook,
-       used to push file to cdn network, by get the ts file from cdn network.
-       so we use HTTP GET and use the variable following:
-             [app], replace with the app.
-             [stream], replace with the stream.
-             [param], replace with the param.
-             [ts_url], replace with the ts url.
-       ignore any return data of server.
+for SRS hook: on_hls_notify
+on_hls_notify:
+   when srs reap a ts file of hls, call this hook,
+   used to push file to cdn network, by get the ts file from cdn network.
+   so we use HTTP GET and use the variable following:
+		 [app], replace with the app.
+		 [stream], replace with the stream.
+		 [param], replace with the param.
+		 [ts_url], replace with the ts url.
+   ignore any return data of server.
 
-    for SRS hook: on_hls
-    on_hls:
-        when srs reap a dvr file, call the hook,
-        the request in the POST data string is a object encode by json:
-              {
-                  "action": "on_hls",
-                  "client_id": "9308h583",
-                  "ip": "192.168.1.10",
-                  "vhost": "video.test.com",
-                  "app": "live",
-                  "stream": "livestream",
-				  "param":"?token=xxx&salt=yyy",
-                  "duration": 9.68, // in seconds
-                  "cwd": "/usr/local/srs",
-                  "file": "./objs/nginx/html/live/livestream.1420254068776-100.ts",
-                  "seq_no": 100
-              }
-    if valid, the hook must return HTTP code 200(Stauts OK) and response
-    an int value specifies the error code(0 corresponding to success):
-          0
+for SRS hook: on_hls
+on_hls:
+	when srs reap a dvr file, call the hook,
+	the request in the POST data string is a object encode by json:
+		  {
+			  "action": "on_hls",
+			  "client_id": "9308h583",
+			  "ip": "192.168.1.10",
+			  "vhost": "video.test.com",
+			  "app": "live",
+			  "stream": "livestream",
+			  "param":"?token=xxx&salt=yyy",
+			  "duration": 9.68, // in seconds
+			  "cwd": "/usr/local/srs",
+			  "file": "./objs/nginx/html/live/livestream.1420254068776-100.ts",
+			  "seq_no": 100
+		  }
+if valid, the hook must return HTTP code 200(Stauts OK) and response
+an int value specifies the error code(0 corresponding to success):
+	  0
 */
 
 type SrsHlsRequest struct {
@@ -396,7 +396,7 @@ func (v *SnapshotJob) Abort() {
 }
 
 /*
-./objs/ffmpeg/bin/ffmpeg -i rtmp://127.0.0.1/live?vhost=__defaultVhost__/panda -vf fps=1 -vcodec png -f image2 -an -y -vframes 5 -y static-dir/live/panda-%03d.png
+./objs/ffmpeg/bin/ffmpeg -i rtmp://127.0.0.1/live/livestream?vhost=__defaultVhost__ -vf fps=1 -vcodec png -f image2 -an -y -vframes 5 -y static-dir/live/panda-%03d.png
 */
 func (v *SnapshotJob) do(ffmpegPath, inputUrl string) (err error) {
 	outputPicDir := path.Join(StaticDir, v.App)
@@ -466,7 +466,7 @@ func NewSnapshotWorker(ffmpegPath string) *SnapshotWorker {
 }
 
 func (v *SnapshotWorker) Create(sm *SrsSnapShotRequest) {
-	streamUrl := fmt.Sprintf("rtmp://127.0.0.1/%v?vhost=%v/%v", sm.App, sm.Vhost, sm.Stream)
+	streamUrl := fmt.Sprintf("rtmp://127.0.0.1/%v/%v?vhost=%v", sm.App, sm.Stream, sm.Vhost)
 	if _, ok := v.snapshots.Load(streamUrl); ok {
 		return
 	}
@@ -478,7 +478,7 @@ func (v *SnapshotWorker) Create(sm *SrsSnapShotRequest) {
 }
 
 func (v *SnapshotWorker) Destroy(sm *SrsSnapShotRequest) {
-	streamUrl := fmt.Sprintf("rtmp://127.0.0.1/%v?vhost=%v/%v", sm.App, sm.Vhost, sm.Stream)
+	streamUrl := fmt.Sprintf("rtmp://127.0.0.1/%v/%v?vhost=%v", sm.App, sm.Stream, sm.Vhost)
 	value, ok := v.snapshots.Load(streamUrl)
 	if ok {
 		sj := value.(*SnapshotJob)
