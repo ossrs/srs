@@ -217,6 +217,11 @@ void SrsLazyGbSession::on_media_transport(SrsLazyObjectWrapper<SrsLazyGbMediaTcp
     media_->resource()->set_cid(cid_);
 }
 
+SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn> *SrsLazyGbSession::media_transport()
+{
+    return media_;
+}
+
 std::string SrsLazyGbSession::pip()
 {
     return pip_;
@@ -428,11 +433,11 @@ srs_error_t SrsGbListener::initialize(SrsConfDirective* conf)
 
     bool sip_enabled = _srs_config->get_stream_caster_sip_enable(conf);
     if (!sip_enabled) {
-        return srs_error_new(ERROR_GB_CONFIG, "GB SIP is required");
+        srs_warn("GB SIP is disabled.");
+    } else {
+        int port = _srs_config->get_stream_caster_sip_listen(conf);
+        sip_listener_->set_endpoint(ip, port)->set_label("SIP-TCP");
     }
-
-    int port = _srs_config->get_stream_caster_sip_listen(conf);
-    sip_listener_->set_endpoint(ip, port)->set_label("SIP-TCP");
 
     return err;
 }
@@ -475,7 +480,7 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener* listener, srs_netfd_t stf
     } else if (listener == media_listener_) {
         SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* conn = new SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>();
         SrsLazyGbMediaTcpConn* resource = dynamic_cast<SrsLazyGbMediaTcpConn*>(conn->resource());
-        resource->setup(stfd);
+        resource->setup(conf_, stfd);
 
         if ((err = resource->start()) != srs_success) {
             srs_freep(conn);
@@ -1225,10 +1230,12 @@ SrsLazyGbMediaTcpConn::SrsLazyGbMediaTcpConn(SrsLazyObjectWrapper<SrsLazyGbMedia
     trd_ = new SrsSTCoroutine("media", this);
     buffer_ = new uint8_t[65535];
     conn_ = NULL;
+    conf_ = NULL;
 
     session_ = NULL;
     connected_ = false;
     nn_rtcp_ = 0;
+    ssrc_ = 0;
 }
 
 SrsLazyGbMediaTcpConn::~SrsLazyGbMediaTcpConn()
@@ -1238,12 +1245,16 @@ SrsLazyGbMediaTcpConn::~SrsLazyGbMediaTcpConn()
     srs_freepa(buffer_);
     srs_freep(pack_);
     srs_freep(session_);
+    srs_freep(conf_);
 }
 
-void SrsLazyGbMediaTcpConn::setup(srs_netfd_t stfd)
+void SrsLazyGbMediaTcpConn::setup(SrsConfDirective* conf, srs_netfd_t stfd)
 {
     srs_freep(conn_);
     conn_ = new SrsTcpConnection(stfd);
+
+    srs_freep(conf_);
+    conf_ = conf->copy();
 }
 
 bool SrsLazyGbMediaTcpConn::is_connected()
@@ -1269,6 +1280,11 @@ const SrsContextId& SrsLazyGbMediaTcpConn::get_id()
 std::string SrsLazyGbMediaTcpConn::desc()
 {
     return "GB-Media-TCP";
+}
+
+uint32_t SrsLazyGbMediaTcpConn::ssrc()
+{
+    return ssrc_;
 }
 
 srs_error_t SrsLazyGbMediaTcpConn::start()
@@ -1461,11 +1477,27 @@ srs_error_t SrsLazyGbMediaTcpConn::bind_session(uint32_t ssrc, SrsLazyObjectWrap
 
     // Find exists session for register, might be created by another object and still alive.
     SrsLazyObjectWrapper<SrsLazyGbSession>* session = dynamic_cast<SrsLazyObjectWrapper<SrsLazyGbSession>*>(_srs_gb_manager->find_by_fast_id(ssrc));
-    if (!session) return err;
+    if (!session) {
+        // Create new GB session.
+        session = new SrsLazyObjectWrapper<SrsLazyGbSession>();
+
+        if ((err = session->resource()->initialize(conf_)) != srs_success) {
+            srs_freep(session);
+            return srs_error_wrap(err, "initialize");
+        }
+
+        if ((err = session->resource()->start()) != srs_success) {
+            srs_freep(session);
+            return srs_error_wrap(err, "start");
+        }
+
+        _srs_gb_manager->add_with_id(std::to_string(ssrc), session);
+    }
 
     _srs_gb_manager->add_with_fast_id(ssrc, session);
     session->resource()->on_media_transport(wrapper);
     *psession = session->copy();
+    ssrc_ = ssrc;
 
     return err;
 }
@@ -1880,7 +1912,11 @@ srs_error_t SrsGbMuxer::connect()
     // Cleanup the data before connect again.
     close();
 
-    string url = srs_string_replace(output_, "[stream]", session_->sip_transport()->resource()->device_id());
+    string stream = session_->sip_transport()->resource()->device_id();
+    if (stream.empty()) {
+        stream = std::to_string(session_->media_transport()->resource()->ssrc());
+    }
+    string url = srs_string_replace(output_, "[stream]", stream);
     srs_trace("Muxer: Convert GB to RTMP %s", url.c_str());
 
     srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;

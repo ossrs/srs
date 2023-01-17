@@ -144,6 +144,7 @@ public:
     SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* sip_transport();
     // When got available media transport.
     void on_media_transport(SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* media);
+    SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* media_transport();
     // Get the candidate for SDP generation, the public IP address for device to connect to.
     std::string pip();
 // Interface ISrsStartable
@@ -334,10 +335,12 @@ class SrsLazyGbMediaTcpConn : public SrsLazyObject, public ISrsResource, public 
     , public ISrsPsPackHandler
 {
 private:
+    SrsConfDirective* conf_;
     bool connected_;
     SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* wrapper_root_;
     SrsLazyObjectWrapper<SrsLazyGbSession>* session_;
     uint32_t nn_rtcp_;
+    uint32_t ssrc_;
 private:
     SrsPackContext* pack_;
     SrsTcpConnection* conn_;
@@ -350,7 +353,7 @@ public:
     virtual ~SrsLazyGbMediaTcpConn();
 public:
     // Setup object, to keep empty constructor.
-    void setup(srs_netfd_t stfd);
+    void setup(SrsConfDirective* conf, srs_netfd_t stfd);
     // Whether media is connected.
     bool is_connected();
     // Interrupt transport by session.
@@ -361,6 +364,7 @@ public:
 public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
+    virtual uint32_t ssrc();
 // Interface ISrsStartable
 public:
     virtual srs_error_t start();
