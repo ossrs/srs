@@ -122,6 +122,10 @@ private:
     static SrsStatistic *_instance;
     // The id to identify the sever.
     std::string server_id_;
+    // The id to identify the service.
+    std::string service_id_;
+    // The pid to identify the service process.
+    std::string service_pid_;
 private:
     // The key: vhost id, value: vhost object.
     std::map<std::string, SrsStatisticVhost*> vhosts;
@@ -196,6 +200,10 @@ public:
     // Get the server id, used to identify the server.
     // For example, when restart, the server id must changed.
     virtual std::string server_id();
+    // Get the service id, used to identify the restart of service.
+    virtual std::string service_id();
+    // Get the service pid, used to identify the service process.
+    virtual std::string service_pid();
     // Dumps the vhosts to amf0 array.
     virtual srs_error_t dumps_vhosts(SrsJsonArray* arr);
     // Dumps the streams to amf0 array.
