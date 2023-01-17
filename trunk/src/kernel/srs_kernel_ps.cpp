@@ -427,15 +427,16 @@ srs_error_t SrsPsPsmPacket::decode(SrsBuffer* stream)
         return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
     }
 
-    uint16_t r0 = stream->read_2bytes();
-    if ((r0&0x01) != 0x01) {
-        return srs_error_new(ERROR_GB_PS_HEADER, "invalid marker of 0x%#x", r0);
-    }
-
-    program_stream_map_version_ = (uint8_t)(r0&0x1f);
-    current_next_indicator_ = (uint8_t)((r0>>7) & 0x01);
+    uint8_t r0 = stream->read_1bytes();
+    program_stream_map_version_ = r0&0x1f;
+    current_next_indicator_ = (r0>>7) & 0x01;
     if (!current_next_indicator_) {
         return srs_error_new(ERROR_GB_PS_HEADER, "invalid indicator of 0x%#x", r0);
+    }
+
+    uint8_t r1 = stream->read_1bytes();
+    if ((r1&0x01) != 0x01) {
+        return srs_error_new(ERROR_GB_PS_HEADER, "invalid marker of 0x%#x", r1);
     }
 
     program_stream_info_length_ = stream->read_2bytes();
