@@ -370,29 +370,86 @@ func (v *SrsSnapShotRequest) IsOnUnPublish() bool {
 
 type SnapshotJob struct {
 	SrsSnapShotRequest
-	cmd       *exec.Cmd
-	abort     bool
-	timestamp time.Time
-	lock      *sync.RWMutex
+	updatedAt  time.Time
+	cancelCtx  context.Context
+	cancelFunc context.CancelFunc
+	vframes    int
+	timeout    time.Duration
 }
 
 func NewSnapshotJob() *SnapshotJob {
 	v := &SnapshotJob{
-		lock: new(sync.RWMutex),
+		vframes: 5,
+		timeout: time.Duration(30) * time.Second,
 	}
+	v.cancelCtx, v.cancelFunc = context.WithCancel(context.Background())
 	return v
 }
 
-func (v *SnapshotJob) UpdateAbort(status bool) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	v.abort = status
+func (v *SnapshotJob) Tag() string {
+	return fmt.Sprintf("%v/%v/%v", v.Vhost, v.App, v.Stream)
 }
 
-func (v *SnapshotJob) IsAbort() bool {
-	v.lock.RLock()
-	defer v.lock.RUnlock()
-	return v.abort
+func (v *SnapshotJob) Abort() {
+	v.cancelFunc()
+	log.Println(fmt.Sprintf("cancel snapshot job %v", v.Tag()))
+}
+
+/*
+./objs/ffmpeg/bin/ffmpeg -i rtmp://127.0.0.1/live?vhost=__defaultVhost__/panda -vf fps=1 -vcodec png -f image2 -an -y -vframes 5 -y static-dir/live/panda-%03d.png
+*/
+func (v *SnapshotJob) do(ffmpegPath, inputUrl string) (err error) {
+	outputPicDir := path.Join(StaticDir, v.App)
+	if err = os.MkdirAll(outputPicDir, 0777); err != nil {
+		log.Println(fmt.Sprintf("create snapshot image dir:%v failed, err is %v", outputPicDir, err))
+		return
+	}
+
+	normalPicPath := path.Join(outputPicDir, fmt.Sprintf("%v", v.Stream)+"-%03d.png")
+	bestPng := path.Join(outputPicDir, fmt.Sprintf("%v-best.png", v.Stream))
+
+	param := fmt.Sprintf("%v -i %v -vf fps=1 -vcodec png -f image2 -an -y -vframes %v -y %v", ffmpegPath, inputUrl, v.vframes, normalPicPath)
+	log.Println(fmt.Sprintf("start snapshot, cmd param=%v", param))
+	timeoutCtx, _ := context.WithTimeout(v.cancelCtx, v.timeout)
+	cmd := exec.CommandContext(timeoutCtx, "/bin/bash", "-c", param)
+	if err = cmd.Run(); err != nil {
+		log.Println(fmt.Sprintf("run snapshot %v cmd failed, err is %v", v.Tag(), err))
+		return
+	}
+
+	bestFileSize := int64(0)
+	for i := 1; i <= v.vframes; i++ {
+		pic := path.Join(outputPicDir, fmt.Sprintf("%v-%03d.png", v.Stream, i))
+		fi, err := os.Stat(pic)
+		if err != nil {
+			log.Println(fmt.Sprintf("stat pic:%v failed, err is %v", pic, err))
+			continue
+		}
+		if bestFileSize == 0 {
+			bestFileSize = fi.Size()
+		} else if fi.Size() > bestFileSize {
+			os.Remove(bestPng)
+			os.Symlink(pic, bestPng)
+			bestFileSize = fi.Size()
+		}
+	}
+	log.Println(fmt.Sprintf("%v the best thumbnail is %v", v.Tag(), bestPng))
+	return
+}
+
+func (v *SnapshotJob) Serve(ffmpegPath, inputUrl string) {
+	sleep := time.Duration(1) * time.Second
+	for {
+		v.do(ffmpegPath, inputUrl)
+		select {
+		case <-time.After(sleep):
+			log.Println(fmt.Sprintf("%v sleep %v to redo snapshot", v.Tag(), sleep))
+			break
+		case <-v.cancelCtx.Done():
+			log.Println(fmt.Sprintf("snapshot job %v cancelled", v.Tag()))
+			return
+		}
+	}
 }
 
 type SnapshotWorker struct {
@@ -408,77 +465,6 @@ func NewSnapshotWorker(ffmpegPath string) *SnapshotWorker {
 	return sw
 }
 
-/*
-./objs/ffmpeg/bin/ffmpeg -i rtmp://127.0.0.1/live?vhost=__defaultVhost__/panda -vf fps=1 -vcodec png -f image2 -an -y -vframes 5 -y static-dir/live/panda-%03d.png
-*/
-
-func (v *SnapshotWorker) Serve() {
-	for {
-		time.Sleep(time.Second)
-		v.snapshots.Range(func(key, value interface{}) bool {
-			// range each snapshot job
-			streamUrl := key.(string)
-			sj := value.(*SnapshotJob)
-			streamTag := fmt.Sprintf("%v/%v/%v", sj.Vhost, sj.App, sj.Stream)
-			if sj.IsAbort() { // delete aborted snapshot job
-				if sj.cmd != nil && sj.cmd.Process != nil {
-					if err := sj.cmd.Process.Kill(); err != nil {
-						log.Println(fmt.Sprintf("snapshot job:%v kill running cmd failed, err is %v", streamTag, err))
-					}
-				}
-				v.snapshots.Delete(key)
-				return true
-			}
-
-			if sj.cmd == nil { // start a ffmpeg snap cmd
-				outputDir := path.Join(StaticDir, sj.App, fmt.Sprintf("%v", sj.Stream)+"-%03d.png")
-				bestPng := path.Join(StaticDir, sj.App, fmt.Sprintf("%v-best.png", sj.Stream))
-				if err := os.MkdirAll(path.Dir(outputDir), 0777); err != nil {
-					log.Println(fmt.Sprintf("create snapshot image dir:%v failed, err is %v", path.Base(outputDir), err))
-					return true
-				}
-				vframes := 5
-				param := fmt.Sprintf("%v -i %v -vf fps=1 -vcodec png -f image2 -an -y -vframes %v -y %v", v.ffmpegPath, streamUrl, vframes, outputDir)
-				timeoutCtx, _ := context.WithTimeout(context.Background(), time.Duration(30)*time.Second)
-				cmd := exec.CommandContext(timeoutCtx, "/bin/bash", "-c", param)
-				if err := cmd.Start(); err != nil {
-					log.Println(fmt.Sprintf("start snapshot %v cmd failed, err is %v", streamTag, err))
-					return true
-				}
-				sj.cmd = cmd
-				log.Println(fmt.Sprintf("start snapshot success, cmd param=%v", param))
-				go func() {
-					if err := sj.cmd.Wait(); err != nil {
-						log.Println(fmt.Sprintf("snapshot %v cmd wait failed, err is %v", streamTag, err))
-					} else { // choose the best quality image
-						bestFileSize := int64(0)
-						for i := 1; i <= vframes; i++ {
-							pic := path.Join(StaticDir, sj.App, fmt.Sprintf("%v-%03d.png", sj.Stream, i))
-							fi, err := os.Stat(pic)
-							if err != nil {
-								log.Println(fmt.Sprintf("stat pic:%v failed, err is %v", pic, err))
-								continue
-							}
-							if bestFileSize == 0 {
-								bestFileSize = fi.Size()
-							} else if fi.Size() > bestFileSize {
-								os.Remove(bestPng)
-								os.Link(pic, bestPng)
-								bestFileSize = fi.Size()
-							}
-						}
-						log.Println(fmt.Sprintf("%v the best thumbnail is %v", streamTag, bestPng))
-					}
-					sj.cmd = nil
-				}()
-			} else {
-				log.Println(fmt.Sprintf("snapshot %v cmd process is running, status=%v", streamTag, sj.cmd.ProcessState))
-			}
-			return true
-		})
-	}
-}
-
 func (v *SnapshotWorker) Create(sm *SrsSnapShotRequest) {
 	streamUrl := fmt.Sprintf("rtmp://127.0.0.1/%v?vhost=%v/%v", sm.App, sm.Vhost, sm.Stream)
 	if _, ok := v.snapshots.Load(streamUrl); ok {
@@ -486,7 +472,8 @@ func (v *SnapshotWorker) Create(sm *SrsSnapShotRequest) {
 	}
 	sj := NewSnapshotJob()
 	sj.SrsSnapShotRequest = *sm
-	sj.timestamp = time.Now()
+	sj.updatedAt = time.Now()
+	go sj.Serve(v.ffmpegPath, streamUrl)
 	v.snapshots.Store(streamUrl, sj)
 }
 
@@ -495,8 +482,8 @@ func (v *SnapshotWorker) Destroy(sm *SrsSnapShotRequest) {
 	value, ok := v.snapshots.Load(streamUrl)
 	if ok {
 		sj := value.(*SnapshotJob)
-		sj.UpdateAbort(true)
-		v.snapshots.Store(streamUrl, sj)
+		sj.Abort()
+		v.snapshots.Delete(streamUrl)
 		log.Println(fmt.Sprintf("set stream:%v to destroy, update abort", sm.Stream))
 	} else {
 		log.Println(fmt.Sprintf("cannot find stream:%v in snapshot worker", streamUrl))
@@ -578,7 +565,6 @@ func main() {
 	}
 
 	sw = NewSnapshotWorker(ffmpegPath)
-	go sw.Serve()
 
 	if len(StaticDir) == 0 {
 		curAbsDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
