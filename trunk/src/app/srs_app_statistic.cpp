@@ -569,7 +569,7 @@ std::string SrsStatistic::server_id()
 std::string SrsStatistic::service_id()
 {
     if (service_id_.empty()) {
-        service_id_ = srs_int2str(getpid());
+        service_id_ = srs_random_str(10);
     }
 
     return service_id_;

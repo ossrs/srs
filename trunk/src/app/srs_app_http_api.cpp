@@ -184,6 +184,8 @@ srs_error_t SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* urls = SrsJsonAny::object();
     obj->set("urls", urls);
@@ -222,6 +224,8 @@ srs_error_t SrsGoApiApi::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* urls = SrsJsonAny::object();
     obj->set("urls", urls);
@@ -248,6 +252,8 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* urls = SrsJsonAny::object();
     obj->set("urls", urls);
@@ -297,6 +303,8 @@ srs_error_t SrsGoApiVersion::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
@@ -326,6 +334,8 @@ srs_error_t SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     srs_api_dump_summaries(obj);
     
@@ -349,6 +359,8 @@ srs_error_t SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
@@ -394,6 +406,8 @@ srs_error_t SrsGoApiSelfProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
@@ -471,6 +485,8 @@ srs_error_t SrsGoApiSystemProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsH
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
@@ -510,6 +526,8 @@ srs_error_t SrsGoApiMemInfos::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
@@ -550,6 +568,8 @@ srs_error_t SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
@@ -577,6 +597,8 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
@@ -645,6 +667,8 @@ srs_error_t SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
@@ -700,6 +724,8 @@ srs_error_t SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     if (r->is_http_get()) {
         if (!vhost) {
@@ -756,6 +782,8 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     if (r->is_http_get()) {
         if (!stream) {
@@ -816,6 +844,8 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     if (r->is_http_get()) {
         if (!client) {
