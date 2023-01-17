@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2023-01-17, Merge [#3379](https://github.com/ossrs/srs/pull/3379): H265: Support demux vps/pps info. v6.0.15
 * v6.0, 2023-01-08, Merge [#3360](https://github.com/ossrs/srs/pull/3360): H265: Support DVR HEVC stream to MP4. v6.0.14
 * v6.0, 2023-01-06, Merge [#3363](https://github.com/ossrs/srs/issues/3363): HTTP: Add CORS Header for private network access. v6.0.13
 * v6.0, 2023-01-04, Merge [#3362](https://github.com/ossrs/srs/issues/3362): SRT: Upgrade libsrt from 1.4.1 to 1.5.1. v6.0.12
@@ -28,6 +29,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-01-17, Merge [#3383](https://github.com/ossrs/srs/pull/3383): GB: Fix PSM parsing indicator bug. v5.0.134 (#3383)
 * v5.0, 2023-01-08, Merge [#3308](https://github.com/ossrs/srs/pull/3308): DVR: Improve file write performance by fwrite with cache. v5.0.133
 * v5.0, 2023-01-06, DVR: Support blackbox test based on hooks. v5.0.132
 * v5.0, 2023-01-06, FFmpeg: Support build with FFmpeg native opus. v5.0.131 (#3140)

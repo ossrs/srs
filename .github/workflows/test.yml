@@ -32,7 +32,7 @@ jobs:
             tar jcf /srs/objs.tar.bz2 objs &&
           pwd && du -sh *
       ##################################################################################################################
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: srs-cache
           path: objs.tar.bz2
@@ -47,20 +47,20 @@ jobs:
       # See https://github.com/cygwin/cygwin-install-action#parameters
       # Note that https://github.com/egor-tensin/setup-cygwin fails to install packages.
       - name: Setup Cygwin
-        uses: cygwin/cygwin-install-action@master
+        uses: cygwin/cygwin-install-action@db475590d56881c6cef7b3f96f6f3dd9532ea1f4 # master
         with:
           platform: x86_64
           packages: bash make gcc-g++ cmake automake patch pkg-config tcl unzip
           install-dir: C:\cygwin64
       ##################################################################################################################
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       ##################################################################################################################
       # Note that we must download artifact after checkout code, because it will change the files in workspace.
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         with:
           name: srs-cache
-      - uses: geekyeggo/delete-artifact@v2
+      - uses: geekyeggo/delete-artifact@54ab544f12cdb7b71613a16a2b5a37a9ade990af # v2.0.0
         with:
           name: srs-cache
       ##################################################################################################################
@@ -83,7 +83,7 @@ jobs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # Build for CentOS 7
       - name: Build on CentOS7, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-baseline .
@@ -103,7 +103,7 @@ jobs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # Build for Ubuntu16
       - name: Build on Ubuntu16, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-baseline .
@@ -117,7 +117,7 @@ jobs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # Build for Ubuntu18
       - name: Build on Ubuntu18, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-baseline .
@@ -131,7 +131,7 @@ jobs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # Build for Ubuntu20
       - name: Build on Ubuntu20, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-baseline .
@@ -145,7 +145,7 @@ jobs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       - name: Cross Build for ARMv7 on Ubuntu16
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
       - name: Cross Build for ARMv7 on Ubuntu20
@@ -158,7 +158,7 @@ jobs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       - name: Cross Build for AARCH64 on Ubuntu16
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-aarch64 .
       - name: Cross Build for AARCH64 on Ubuntu20
@@ -169,7 +169,7 @@ jobs:
     name: utest-regression-blackbox-test
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # Tests
       - name: Build test image
         run: docker build --tag srs:test --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.test .
@@ -199,7 +199,7 @@ jobs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # Tests
       - name: Build coverage image
         run: docker build --tag srs:cov --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.cov .
@@ -230,14 +230,14 @@ jobs:
     name: multiple-arch-armv7
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325 # v2.2.1
       - name: Build multiple archs image
         run: |
           docker buildx build --platform linux/arm/v7 \
@@ -251,14 +251,14 @@ jobs:
     name: multiple-arch-aarch64
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325 # v2.2.1
       - name: Build multiple archs image
         run: |
           docker buildx build --platform linux/arm64/v8 \
@@ -274,14 +274,14 @@ jobs:
       - fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325 # v2.2.1
       - name: Build multiple archs image
         run: |
           docker buildx build --platform linux/amd64 \
