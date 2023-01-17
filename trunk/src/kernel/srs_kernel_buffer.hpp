@@ -181,7 +181,8 @@ public:
     int8_t read_8bits();
     int16_t read_16bits();
     int32_t read_32bits();
-    int32_t read_bits_ue();
+    srs_error_t read_bits_ue(uint32_t& v);
+    srs_error_t read_bits_se(int32_t& v);
 };
 
 #endif

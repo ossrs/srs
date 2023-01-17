@@ -3985,6 +3985,85 @@ VOID TEST(KernelCodecTest, VideoFormat)
     }
 }
 
+#ifdef SRS_H265
+VOID TEST(KernelCodecTest, HevcVideoFormat)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        HELPER_EXPECT_SUCCESS(f.on_video(0, NULL, 0));
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x00", 0));
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x00", 1));
+    }
+
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        //HEVC: 0x5c
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x5c", 1));
+
+        // CodecId: 0x00
+        SrsBuffer b((char*)"\x00", 1);
+        srs_error_t err = f.video_avc_demux(&b, 0);
+        HELPER_EXPECT_FAILED(err);
+    }
+
+    uint8_t vps_sps_pps[] = {
+        // frame_type
+        0x1c,
+        // avc_packet_type
+        0x00,
+        // composition_time
+        0x00, 0x00, 0x00,
+        // SrsHevcDecoderConfigurationRecord
+        0x01, 0x01, 0x60, 0x00, 0x00, 0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5d, 0xf0, 0x00, 0xfc, 0xfd, 0xf8, 0xf8, 0x00, 0x00, 0x0f, 0x03,
+        // Nalus
+        // data_byte(1B)+num_nalus(2B)+nal_unit_length(2B)
+        0x20, 0x00, 0x01, 0x00, 0x18,
+        // VPS
+        0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5d, 0x95, 0x98, 0x09,
+        // data_byte(1B)+num_nalus(2B)+nal_unit_length(2B)
+        0x21, 0x00, 0x01, 0x00, 0x28,
+        // SPS
+        0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5d, 0xa0, 0x02, 0x80, 0x80, 0x2d, 0x16,
+        0x59, 0x59, 0xa4, 0x93, 0x2b, 0xc0, 0x40, 0x40, 0x00, 0x00, 0xfa, 0x40, 0x00, 0x17, 0x70, 0x02,
+        // data_byte(1B)+num_nalus(2B)+nal_unit_length(2B)
+        0x22, 0x00, 0x01, 0x00, 0x07,
+        // PPS
+        0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40
+    };
+    uint8_t rawIBMF[] = {
+        0x2c,
+        0x01,
+        0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x0b,
+        0x28, 0x1, 0xaf, 0x1d, 0x18, 0x38, 0xd4, 0x38, 0x32, 0xda, 0x23
+    };
+
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char *)vps_sps_pps, sizeof(vps_sps_pps)));
+        EXPECT_EQ(1, f.video->frame_type);
+        EXPECT_EQ(0, f.video->avc_packet_type);
+
+        EXPECT_EQ(1280, f.vcodec->width);
+        EXPECT_EQ(720, f.vcodec->height);
+
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
+        EXPECT_EQ(1, f.video->nb_samples);
+
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
+        EXPECT_EQ(1, f.video->nb_samples);
+    }
+}
+#endif
+
 VOID TEST(KernelFileTest, FileWriteReader)
 {
 	srs_error_t err;
@@ -4748,10 +4827,13 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
         SrsBuffer b((char*)"\x00\x28\x08\x02\xd1\x65\x95\x9a", 8);
         SrsBitBuffer bb(&b);
 
-        int32_t v = bb.read_bits_ue();
+        uint32_t v = 0;
+        srs_error_t err = bb.read_bits_ue(v);
+        HELPER_EXPECT_SUCCESS(err);
         EXPECT_EQ(1280, v);
 
-        v = bb.read_bits_ue();
+        err = bb.read_bits_ue(v);
+        HELPER_EXPECT_SUCCESS(err);
         EXPECT_EQ(720, v);
     }
 
@@ -4775,6 +4857,26 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
         v = bb.read_bits(23);
         //000 0001 0000 0100 0000 0000
         EXPECT_EQ(0x10400, v);
+    }
+
+    if (true) {
+        SrsBuffer b((char*)"\xb4\x62\x40\x00\x00\x00\x88\x00", 8);
+        SrsBitBuffer bb(&b);
+
+        int32_t v = 0;
+        srs_error_t err = bb.read_bits_se(v);
+        HELPER_EXPECT_SUCCESS(err);
+        EXPECT_EQ(0, v);
+
+        v = 0;
+        err = bb.read_bits_se(v);
+        HELPER_EXPECT_SUCCESS(err);
+        EXPECT_EQ(-1, v);
+
+        v = 0;
+        err = bb.read_bits_se(v);
+        HELPER_EXPECT_SUCCESS(err);
+        EXPECT_EQ(1, v);
     }
 }
 
