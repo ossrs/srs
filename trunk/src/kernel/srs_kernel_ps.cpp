@@ -428,7 +428,7 @@ srs_error_t SrsPsPsmPacket::decode(SrsBuffer* stream)
     }
 
     uint8_t r0 = stream->read_1bytes();
-    program_stream_map_version_ = (r0&0x1f);
+    program_stream_map_version_ = r0&0x1f;
     current_next_indicator_ = (r0>>7) & 0x01;
     if (!current_next_indicator_) {
         return srs_error_new(ERROR_GB_PS_HEADER, "invalid indicator of 0x%#x", r0);
