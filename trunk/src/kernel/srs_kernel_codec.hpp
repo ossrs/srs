@@ -642,8 +642,8 @@ struct SrsHevcPpsRangeExtension
     uint32_t chroma_qp_offset_list_len_minus1;
     std::vector<int> cb_qp_offset_list;
     std::vector<int> cr_qp_offset_list;
-    int log2_sao_offset_scale_luma;
-    int log2_sao_offset_scale_chroma;
+    uint32_t log2_sao_offset_scale_luma;
+    uint32_t log2_sao_offset_scale_chroma;
 };
 
 /**
