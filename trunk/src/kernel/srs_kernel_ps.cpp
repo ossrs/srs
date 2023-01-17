@@ -436,7 +436,7 @@ srs_error_t SrsPsPsmPacket::decode(SrsBuffer* stream)
 
     uint8_t r1 = stream->read_1bytes();
     if ((r1&0x01) != 0x01) {
-        return srs_error_new(ERROR_GB_PS_HEADER, "invalid marker of 0x%#x", r0);
+        return srs_error_new(ERROR_GB_PS_HEADER, "invalid marker of 0x%#x", r1);
     }
 
     program_stream_info_length_ = stream->read_2bytes();
