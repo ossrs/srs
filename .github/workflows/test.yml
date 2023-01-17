@@ -3,6 +3,9 @@ name: "Test"
 # @see https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#onpushpull_requestbranchestags
 on: [push, pull_request]
 
+# Declare default permissions as read only.
+permissions: read-all
+
 # The dependency graph:
 # test(6m)
 # multiple-arch-armv7(13m)
@@ -295,8 +298,7 @@ jobs:
       - run: echo 'Start fast jobs'
     runs-on: ubuntu-20.04
 
-  done:
-    name: done
+  test-done:
     needs:
       - cygwin64
       - coverage

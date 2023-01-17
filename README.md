@@ -14,6 +14,8 @@
 [![](https://opencollective.com/srs-server/tiers/badge.svg)](https://opencollective.com/srs-server/contribute)
 [![](https://img.shields.io/docker/pulls/ossrs/srs)](https://hub.docker.com/r/ossrs/srs/tags)
 [![](https://ossrs.net/wiki/images/do-btn-srs-125x20.svg)](https://cloud.digitalocean.com/droplets/new?appId=104916642&size=s-1vcpu-1gb&region=sgp1&image=ossrs-srs&type=applications)
+[![](https://api.securityscorecards.dev/projects/github.com/ossrs/srs/badge)](https://api.securityscorecards.dev/projects/github.com/ossrs/srs)
+[![](https://bestpractices.coreinfrastructure.org/projects/5619/badge)](https://bestpractices.coreinfrastructure.org/projects/5619)
 
 SRS/6.0 is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/Windows/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS, and essential [features](trunk/doc/Features.md#features).
 
