@@ -566,6 +566,24 @@ std::string SrsStatistic::server_id()
     return server_id_;
 }
 
+std::string SrsStatistic::service_id()
+{
+    if (service_id_.empty()) {
+        service_id_ = srs_int2str(getpid());
+    }
+
+    return service_id_;
+}
+
+std::string SrsStatistic::service_pid()
+{
+    if (service_pid_.empty()) {
+        service_pid_ = srs_int2str(getpid());
+    }
+
+    return service_pid_;
+}
+
 srs_error_t SrsStatistic::dumps_vhosts(SrsJsonArray* arr)
 {
     srs_error_t err = srs_success;
