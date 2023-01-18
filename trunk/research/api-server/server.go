@@ -39,16 +39,6 @@ func SrsWriteDataResponse(w http.ResponseWriter, data interface{}) {
 	w.Write(j)
 }
 
-const Example = `
-SRS api callback server, Copyright (c) 2013-2016 SRS(ossrs)
-Example:
-	the suggest start method:
-	./api-server -p 8085 -s ./static-dir
-	or the simple start method:
-	./api-server 8085
-See also: https://github.com/ossrs/srs
-`
-
 var StaticDir string
 var sw *SnapshotWorker
 
@@ -534,22 +524,25 @@ func (v *SrsForwardRequest) IsOnForward() bool {
 }
 
 func main() {
+	srsBin := os.Args[0]
+	if strings.HasPrefix(srsBin, "/var") {
+		srsBin = "go run ."
+	}
+
 	var port int
 	var ffmpegPath string
-	flag.IntVar(&port, "p", 8085, "use -p to specify listen port, default is 8085")
-	flag.StringVar(&StaticDir, "s", "./static-dir", "use -s to specify static-dir, default is ./static-dir")
-	flag.StringVar(&ffmpegPath, "ffmpeg", "./objs/ffmpeg/bin/ffmpeg", "use -ffmpeg to specify ffmpegPath, default is ./objs/ffmpeg/bin/ffmpeg")
+	flag.IntVar(&port, "p", 8085, "HTTP listen port. Default is 8085")
+	flag.StringVar(&StaticDir, "s", "./static-dir", "HTML home for snapshot. Default is ./static-dir")
+	flag.StringVar(&ffmpegPath, "ffmpeg", "/usr/local/bin/ffmpeg", "FFmpeg for snapshot. Default is /usr/local/bin/ffmpeg")
 	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "Usage: apiServer [flags]")
+		fmt.Println("A demo api-server for SRS\n")
+		fmt.Println(fmt.Sprintf("Usage: %v [flags]", srsBin))
 		flag.PrintDefaults()
-		fmt.Fprintln(flag.CommandLine.Output(), Example)
+		fmt.Println(fmt.Sprintf("For example:"))
+		fmt.Println(fmt.Sprintf(" 		%v -p 8085", srsBin))
+		fmt.Println(fmt.Sprintf(" 		%v 8085", srsBin))
 	}
 	flag.Parse()
-
-	if len(os.Args[1:]) == 0 {
-		flag.Usage()
-		os.Exit(0)
-	}
 
 	log.SetFlags(log.Lshortfile | log.Ldate | log.Ltime | log.Lmicroseconds)
 
@@ -565,12 +558,9 @@ func main() {
 	}
 
 	sw = NewSnapshotWorker(ffmpegPath)
-
-	if len(StaticDir) == 0 {
-		curAbsDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-		StaticDir = path.Join(curAbsDir, "./static-dir")
-	} else {
-		StaticDir, _ = filepath.Abs(StaticDir)
+	StaticDir, err := filepath.Abs(StaticDir)
+	if err != nil {
+		panic(err)
 	}
 	log.Println(fmt.Sprintf("api server listen at port:%v, static_dir:%v", port, StaticDir))
 
