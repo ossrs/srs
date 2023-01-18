@@ -2606,7 +2606,7 @@ srs_error_t SrsConfig::check_normal_config()
                     
                     // TODO: FIXME: remove it in future.
                     if (m == "hls_storage" || m == "hls_mount") {
-                        srs_warn("HLS RAM is removed in SRS3+, read https://github.com/ossrs/srs/issues/513.");
+                        srs_warn("HLS RAM is removed in SRS3+");
                     }
                 }
             } else if (n == "http_hooks") {
