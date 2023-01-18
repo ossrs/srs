@@ -386,7 +386,9 @@ func (v *SnapshotJob) Abort() {
 }
 
 /*
-./objs/ffmpeg/bin/ffmpeg -i rtmp://127.0.0.1/live/livestream?vhost=__defaultVhost__ -vf fps=1 -vcodec png -f image2 -an -y -vframes 5 -y static-dir/live/panda-%03d.png
+./objs/ffmpeg/bin/ffmpeg -i rtmp://127.0.0.1/live/livestream \
+    -vf fps=1 -vcodec png -f image2 -an -vframes 5 \
+    -y static-dir/live/livestream-%03d.png
 */
 func (v *SnapshotJob) do(ffmpegPath, inputUrl string) (err error) {
 	outputPicDir := path.Join(StaticDir, v.App)
