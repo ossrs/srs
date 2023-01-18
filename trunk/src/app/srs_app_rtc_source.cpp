@@ -703,6 +703,7 @@ srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 
     for (int i = 0; i < (int)stream_desc_->video_track_descs_.size(); i++) {
         SrsRtcTrackDescription* desc = stream_desc_->video_track_descs_.at(i);
+        srs_trace("RTC: to rtmp bridge request key frame, ssrc=%u, publisher cid=%s", desc->ssrc_, publish_stream_->context_id().c_str());
         publish_stream_->request_keyframe(desc->ssrc_, publish_stream_->context_id());
     }
 
