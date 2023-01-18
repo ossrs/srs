@@ -347,7 +347,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_message(SrsTsMessage* msg)
     
     // publish audio or video.
     if (msg->channel->stream == SrsTsStreamVideoH264) {
-        if ((err = on_ts_video(msg, &avs)) != srs_success) {
+        if ((err = on_ts_video_avc(msg, &avs)) != srs_success) {
             return srs_error_wrap(err, "ts: consume video");
         }
     }
@@ -360,7 +360,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_message(SrsTsMessage* msg)
     // TODO: FIXME: implements other codec?
 #ifdef SRS_H265
     if (msg->channel->stream == SrsTsStreamVideoHEVC) {
-        if ((err = on_ts_hevc(msg, &avs)) != srs_success) {
+        if ((err = on_ts_video_hevc(msg, &avs)) != srs_success) {
             return srs_error_wrap(err, "ts: consume hevc video");
         }
     }
@@ -369,7 +369,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_message(SrsTsMessage* msg)
     return err;
 }
 
-srs_error_t SrsRtmpFromSrtBridge::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
+srs_error_t SrsRtmpFromSrtBridge::on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* avs)
 {
     srs_error_t err = srs_success;
 
@@ -534,7 +534,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_h264_frame(SrsTsMessage* msg, vector<pair<c
 }
 
 #ifdef SRS_H265
-srs_error_t SrsRtmpFromSrtBridge::on_ts_hevc(SrsTsMessage *msg, SrsBuffer *avs)
+srs_error_t SrsRtmpFromSrtBridge::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
