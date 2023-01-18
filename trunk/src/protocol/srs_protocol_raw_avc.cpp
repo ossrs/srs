@@ -283,7 +283,8 @@ srs_error_t SrsRawHEVCStream::annexb_demux(SrsBuffer *stream, char **pframe, int
 
     while (!stream->empty()) {
         // each frame must prefixed by annexb format.
-        // about annexb, @see ISO_IEC_14496-10-AVC-2003.pdf, page 211.
+        // @see B.2 Byte stream NAL unit syntax and semantics
+        // @doc ITU-T-H.265-2021.pdf, page 292.
         int pnb_start_code = 0;
         if (!srs_avc_startswith_annexb(stream, &pnb_start_code)) {
             return srs_error_new(ERROR_HEVC_API_NO_PREFIXED, "hevc annexb start code");
@@ -313,36 +314,33 @@ bool SrsRawHEVCStream::is_vps(char *frame, int nb_frame)
 {
     srs_assert(nb_frame > 0);
 
-    // 5bits, 7.3.1 NAL unit syntax,
-    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
-    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((frame[0] & 0x7E) >> 1);
+    // 7bits, 7.4.2.2 NAL unit header semantics,
+    // @see Table 7-1 – NAL unit type codes and NAL unit type classes
+    // @doc ITU-T-H.265-2021.pdf, page 86.
 
-    return nal_unit_type == SrsHevcNaluType_VPS;
+    return SrsHevcNaluTypeParse(frame[0]) == SrsHevcNaluType_VPS;
 }
 
 bool SrsRawHEVCStream::is_sps(char *frame, int nb_frame)
 {
     srs_assert(nb_frame > 0);
 
-    // 5bits, 7.3.1 NAL unit syntax,
-    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
-    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((frame[0] & 0x7E) >> 1);
+    // 7bits, 7.4.2.2 NAL unit header semantics,
+    // @see Table 7-1 – NAL unit type codes and NAL unit type classes
+    // @doc ITU-T-H.265-2021.pdf, page 86.
 
-    return nal_unit_type == SrsHevcNaluType_SPS;
+    return SrsHevcNaluTypeParse(frame[0]) == SrsHevcNaluType_SPS;
 }
 
 bool SrsRawHEVCStream::is_pps(char *frame, int nb_frame)
 {
     srs_assert(nb_frame > 0);
 
-    // 5bits, 7.3.1 NAL unit syntax,
-    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
-    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    SrsHevcNaluType nal_unit_type = (SrsHevcNaluType)((frame[0] & 0x7E) >> 1);
+    // 7bits, 7.4.2.2 NAL unit header semantics,
+    // @see Table 7-1 – NAL unit type codes and NAL unit type classes
+    // @doc ITU-T-H.265-2021.pdf, page 86.
 
-    return nal_unit_type == SrsHevcNaluType_PPS;
+    return SrsHevcNaluTypeParse(frame[0]) == SrsHevcNaluType_PPS;
 }
 
 srs_error_t SrsRawHEVCStream::vps_demux(char *frame, int nb_frame, std::string &vps)
@@ -387,6 +385,7 @@ srs_error_t SrsRawHEVCStream::pps_demux(char *frame, int nb_frame, std::string &
     }
 
     pps = string(frame, nb_frame);
+
     SrsBuffer stream(frame, nb_frame);
     err = format_.hevc_demux_pps(&stream);
 
