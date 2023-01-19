@@ -912,7 +912,7 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
         return err;
     }
 
-    publisher->request_keyframe(ssrc);
+    publisher->request_keyframe(ssrc, cid);
 
     return err;
 }
@@ -1611,15 +1611,14 @@ srs_error_t SrsRtcPublishStream::on_rtcp_xr(SrsRtcpXr* rtcp)
     return err;
 }
 
-void SrsRtcPublishStream::request_keyframe(uint32_t ssrc)
+void SrsRtcPublishStream::request_keyframe(uint32_t ssrc, SrsContextId cid)
 {
-    SrsContextId sub_cid = _srs_context->get_id();
-    pli_worker_->request_keyframe(ssrc, sub_cid);
+    pli_worker_->request_keyframe(ssrc, cid);
 	
     uint32_t nn = 0;
     if (pli_epp->can_print(ssrc, &nn)) {
         // The player(subscriber) cid, which requires PLI.
-        srs_trace("RTC: Need PLI ssrc=%u, play=[%s], publish=[%s], count=%u/%u", ssrc, sub_cid.c_str(),
+        srs_trace("RTC: Need PLI ssrc=%u, play=[%s], publish=[%s], count=%u/%u", ssrc, cid.c_str(),
             cid_.c_str(), nn, pli_epp->nn_count);
     }
 }
