@@ -267,7 +267,6 @@ srs_error_t SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_
 
 SrsRawHEVCStream::SrsRawHEVCStream()
 {
-    format_.initialize();
 }
 
 SrsRawHEVCStream::~SrsRawHEVCStream()
@@ -353,9 +352,6 @@ srs_error_t SrsRawHEVCStream::vps_demux(char *frame, int nb_frame, std::string &
 
     vps = string(frame, nb_frame);
 
-    SrsBuffer stream(frame, nb_frame);
-    err = format_.hevc_demux_vps(&stream);
-
     return err;
 }
 
@@ -370,9 +366,6 @@ srs_error_t SrsRawHEVCStream::sps_demux(char *frame, int nb_frame, std::string &
 
     sps = string(frame, nb_frame);
 
-    SrsBuffer stream(frame, nb_frame);
-    err = format_.hevc_demux_sps(&stream);
-
     return err;
 }
 
@@ -385,9 +378,6 @@ srs_error_t SrsRawHEVCStream::pps_demux(char *frame, int nb_frame, std::string &
     }
 
     pps = string(frame, nb_frame);
-
-    SrsBuffer stream(frame, nb_frame);
-    err = format_.hevc_demux_pps(&stream);
 
     return err;
 }
@@ -417,13 +407,41 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
     // use stream to generate the hevc packet.
     SrsBuffer stream(packet, nb_packet);
 
+    // hevc_dec_conf_record
+    SrsHevcDecoderConfigurationRecord *hevc_info = NULL;
+
+    if (true) {
+        SrsFormat format;
+        if ((err = format.initialize()) != srs_success) {
+            return srs_error_new(ERROR_STREAM_CASTER_HEVC_FORMAT, "format failed");
+        }
+        hevc_info = &format.vcodec->hevc_dec_conf_record_;
+
+        // H265 VPS (video_parameter_set_rbsp()) NAL Unit.
+        // @see Section 7.3.2.1 ("Video parameter set RBSP syntax") of the H.265
+        // @doc ITU-T-H.265-2021.pdf, page 54.
+        SrsBuffer vps_stream((char*)vps.data(), vps.length());
+        if ((err = format.hevc_demux_vps(&vps_stream)) != srs_success) {
+            return srs_error_new(ERROR_STREAM_CASTER_HEVC_VPS, "vps demux failed, len=%d", vps.length());
+        }
+
+        // H265 SPS Nal Unit (seq_parameter_set_rbsp()) parser.
+        // @see Section 7.3.2.2 ("Sequence parameter set RBSP syntax") of the H.265
+        // @doc ITU-T-H.265-2021.pdf, page 55.
+        SrsBuffer sps_stream((char*)sps.data(), sps.length());
+        if ((err = format.hevc_demux_sps(&sps_stream)) != srs_success) {
+            return srs_error_new(ERROR_STREAM_CASTER_HEVC_SPS, "sps demux failed, len=%d",sps.length());
+        }
+    }
+
+    // configurationVersion
     stream.write_1bytes(0x01);
 
-    SrsHevcDecoderConfigurationRecord *hevc_info = &format_.vcodec->hevc_dec_conf_record_;
     uint8_t temp8bits = 0;
-    temp8bits |= ((hevc_info->general_profile_space << 6) & 0xc0);
-    temp8bits |= ((hevc_info->general_tier_flag << 5) & 0x20);
-    temp8bits |= hevc_info->general_profile_idc & 0x1f;
+    // general_profile_space(2bits), general_tier_flag(1bit), general_profile_idc(5bits)
+    temp8bits |= ((hevc_info->general_profile_space & 0x03) << 6);
+    temp8bits |= ((hevc_info->general_tier_flag & 0x01) << 5);
+    temp8bits |= (hevc_info->general_profile_idc & 0x1f);
     stream.write_1bytes(temp8bits);
 
     stream.write_4bytes(hevc_info->general_profile_compatibility_flags);
@@ -439,54 +457,53 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
 
     hevc_info->length_size_minus_one = 3;
     temp8bits = 0;
+
+    //8bits: constant_frame_rate(2bits), num_temporal_layers(3bits),
+    //       temporal_id_nested(1bit), length_size_minus_one(2bits)
     temp8bits |= (hevc_info->constant_frame_rate << 6) | 0xc0;
     temp8bits |= (hevc_info->num_temporal_layers << 3) | 0x38;
     temp8bits |= (hevc_info->temporal_id_nested << 2) | 0x04;
-    temp8bits |= hevc_info->length_size_minus_one & 0x03;
-
+    temp8bits |= (hevc_info->length_size_minus_one & 0x03);
     stream.write_1bytes(temp8bits);
 
-    uint8_t numOfArrays = 3; // vps,sps,pps
-    stream.write_1bytes(numOfArrays);
-
-    uint8_t array_completeness = 0; // 1bit
-    // uint8_t reserved = 0;//1bit
-    uint8_t nal_unit_type = 0; // 6bits;
+    // numOfArrays, default 3
+    stream.write_1bytes(0x03);
 
     // vps
-    nal_unit_type = ((array_completeness << 7) & 0x80) | (SrsHevcNaluType_VPS & 0x3f);
-    stream.write_1bytes(nal_unit_type);
-
-    uint16_t namNalus = 1;
-    stream.write_2bytes(namNalus);
-
-    uint16_t nalUnitLength = vps.length();
-    stream.write_2bytes(nalUnitLength);
-
-    stream.write_string(vps);
+    if (true) {
+        // nal_type
+        stream.write_1bytes(SrsHevcNaluType_VPS & 0x3f);
+        // numOfVideoParameterSets, always 1
+        stream.write_2bytes(0x01);
+        // videoParameterSetLength
+        stream.write_2bytes((int16_t)vps.length());
+        // videoParameterSetNALUnit
+        stream.write_string(vps);
+    }
 
     // sps
-    nal_unit_type = ((array_completeness << 7) & 0x80) | (SrsHevcNaluType_SPS & 0x3f);
-    stream.write_1bytes(nal_unit_type);
-
-    namNalus = 1;
-    stream.write_2bytes(namNalus);
-
-    nalUnitLength = sps.length();
-    stream.write_2bytes(nalUnitLength);
-
-    stream.write_string(sps);
+    if (true) {
+        // nal_type
+        stream.write_1bytes(SrsHevcNaluType_SPS & 0x3f);
+        // numOfSequenceParameterSets, always 1
+        stream.write_2bytes(0x01);
+        // sequenceParameterSetLength
+        stream.write_2bytes((int16_t)sps.length());
+        // sequenceParameterSetNALUnit
+        stream.write_string(sps);
+    }
 
     // pps
-    nal_unit_type = ((array_completeness << 7) & 0x80) | (SrsHevcNaluType_PPS & 0x3f);
-    stream.write_1bytes(nal_unit_type);
-
-    namNalus = 1;
-    stream.write_2bytes(namNalus);
-
-    nalUnitLength = pps.length();
-    stream.write_2bytes(nalUnitLength);
-    stream.write_string(pps);
+    if (true) {
+        // nal_type
+        stream.write_1bytes(SrsHevcNaluType_PPS & 0x3f);
+        // numOfPictureParameterSets, always 1
+        stream.write_2bytes(0x01);
+        // pictureParameterSetLength
+        stream.write_2bytes((int16_t)pps.length());
+        // pictureParameterSetNALUnit
+        stream.write_string(pps);
+    }
 
     hvcC = string(packet, nb_packet);
 

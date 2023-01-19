@@ -330,7 +330,9 @@
     XX(ERROR_HEVC_NALU_SEV                 , 4055, "HevcNaluSev", "Failed to read SEV for HEVC NALU") \
     XX(ERROR_STREAM_CASTER_HEVC_VPS        , 4054, "CasterTsHevcVps", "Invalid ts HEVC VPS for stream caster") \
     XX(ERROR_STREAM_CASTER_HEVC_SPS        , 4055, "CasterTsHevcSps", "Invalid ts HEVC SPS for stream caster") \
-    XX(ERROR_STREAM_CASTER_HEVC_PPS        , 4056, "CasterTsHevcPps", "Invalid ts HEVC PPS for stream caster")
+    XX(ERROR_STREAM_CASTER_HEVC_PPS        , 4056, "CasterTsHevcPps", "Invalid ts HEVC PPS for stream caster") \
+    XX(ERROR_STREAM_CASTER_HEVC_FORMAT     , 4057, "CasterTsHevcFormat", "Invalid ts HEVC Format for stream caster")
+
 
 /**************************************************/
 /* RTC protocol error. */

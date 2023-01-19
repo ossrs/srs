@@ -57,9 +57,6 @@ public:
 // The raw h.265 stream, in annexb.
 class SrsRawHEVCStream
 {
-private:
-    SrsFormat format_;
-
 public:
     SrsRawHEVCStream();
     virtual ~SrsRawHEVCStream();
