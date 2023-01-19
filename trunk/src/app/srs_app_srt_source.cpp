@@ -964,7 +964,7 @@ srs_error_t SrsSrtSource::on_publish()
         return srs_error_wrap(err, "source id change");
     }
 
-    if ((err = bridge_->on_publish()) != srs_success) {
+    if (bridge_ && (err = bridge_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "bridge on publish");
     }
 
@@ -983,7 +983,9 @@ void SrsSrtSource::on_unpublish()
 
     can_publish_ = true;
 
-    bridge_->on_unpublish();
+    if (bridge_) {
+        bridge_->on_unpublish();
+    }
     srs_freep(bridge_);
 }
 
@@ -998,7 +1000,7 @@ srs_error_t SrsSrtSource::on_packet(SrsSrtPacket* packet)
         }
     }
 
-    if ((err = bridge_->on_packet(packet)) != srs_success) {
+    if (bridge_ && (err = bridge_->on_packet(packet)) != srs_success) {
         return srs_error_wrap(err, "bridge consume message");
     }
 
