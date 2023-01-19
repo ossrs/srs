@@ -407,16 +407,14 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
     // use stream to generate the hevc packet.
     SrsBuffer stream(packet, nb_packet);
 
+    SrsFormat format;
+    if ((err = format.initialize()) != srs_success) {
+        return srs_error_new(ERROR_STREAM_CASTER_HEVC_FORMAT, "format failed");
+    }
     // hevc_dec_conf_record
-    SrsHevcDecoderConfigurationRecord *hevc_info = NULL;
+    SrsHevcDecoderConfigurationRecord *hevc_info = &format.vcodec->hevc_dec_conf_record_;
 
     if (true) {
-        SrsFormat format;
-        if ((err = format.initialize()) != srs_success) {
-            return srs_error_new(ERROR_STREAM_CASTER_HEVC_FORMAT, "format failed");
-        }
-        hevc_info = &format.vcodec->hevc_dec_conf_record_;
-
         // H265 VPS (video_parameter_set_rbsp()) NAL Unit.
         // @see Section 7.3.2.1 ("Video parameter set RBSP syntax") of the H.265
         // @doc ITU-T-H.265-2021.pdf, page 54.
