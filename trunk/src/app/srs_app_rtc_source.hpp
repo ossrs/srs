@@ -128,7 +128,9 @@ public:
     virtual ~ISrsRtcPublishStream();
 public:
     // Request keyframe(PLI) from publisher, for fresh consumer.
-    virtual void request_keyframe(uint32_t ssrc) = 0;
+    virtual void request_keyframe(uint32_t ssrc, SrsContextId cid) = 0;
+    // Get context id.
+    virtual const SrsContextId& context_id() = 0;
 };
 
 class ISrsRtcSourceEventHandler

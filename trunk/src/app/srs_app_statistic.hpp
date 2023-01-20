@@ -71,9 +71,9 @@ public:
     // The level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel avc_level;
 #ifdef SRS_H265
-    // The profile_idc, T-REC-H.265-202108-I!!PDF-E.pdf, page 559.
+    // The profile_idc, ITU-T-H.265-2021.pdf, page 62.
     SrsHevcProfile hevc_profile;
-    // The level_idc, T-REC-H.265-202108-I!!PDF-E.pdf, page 684.
+    // The level_idc, ITU-T-H.265-2021.pdf, page 63.
     SrsHevcLevel hevc_level;
 #endif
     // The width and height in codec info.
@@ -128,6 +128,10 @@ private:
     static SrsStatistic *_instance;
     // The id to identify the sever.
     std::string server_id_;
+    // The id to identify the service.
+    std::string service_id_;
+    // The pid to identify the service process.
+    std::string service_pid_;
 private:
     // The key: vhost id, value: vhost object.
     std::map<std::string, SrsStatisticVhost*> vhosts;
@@ -201,6 +205,10 @@ public:
     // Get the server id, used to identify the server.
     // For example, when restart, the server id must changed.
     virtual std::string server_id();
+    // Get the service id, used to identify the restart of service.
+    virtual std::string service_id();
+    // Get the service pid, used to identify the service process.
+    virtual std::string service_pid();
     // Dumps the vhosts to amf0 array.
     virtual srs_error_t dumps_vhosts(SrsJsonArray* arr);
     // Dumps the streams to amf0 array.

@@ -324,6 +324,8 @@
     XX(ERROR_GB_SSRC_GENERATE              , 4051, "GbSsrcGenerate", "Failed to generate SSRC for GB28181") \
     XX(ERROR_GB_CONFIG                     , 4052, "GbConfig", "Invalid configuration for GB28181") \
     XX(ERROR_GB_TIMEOUT                    , 4053, "GbTimeout", "SIP or media connection timeout for GB28181") \
+    XX(ERROR_HEVC_NALU_UEV                 , 4054, "HevcNaluUev", "Failed to read UEV for HEVC NALU") \
+    XX(ERROR_HEVC_NALU_SEV                 , 4055, "HevcNaluSev", "Failed to read SEV for HEVC NALU")
 
 /**************************************************/
 /* RTC protocol error. */

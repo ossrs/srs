@@ -384,7 +384,7 @@ private:
     srs_error_t on_rtcp_sr(SrsRtcpSR* rtcp);
     srs_error_t on_rtcp_xr(SrsRtcpXr* rtcp);
 public:
-    void request_keyframe(uint32_t ssrc);
+    void request_keyframe(uint32_t ssrc, SrsContextId cid);
     virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
 public:
     void simulate_nack_drop(int nn);
