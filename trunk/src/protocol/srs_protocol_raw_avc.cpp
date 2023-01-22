@@ -263,6 +263,324 @@ srs_error_t SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_
     return err;
 }
 
+#ifdef SRS_H265
+
+SrsRawHEVCStream::SrsRawHEVCStream()
+{
+}
+
+SrsRawHEVCStream::~SrsRawHEVCStream()
+{
+}
+
+srs_error_t SrsRawHEVCStream::annexb_demux(SrsBuffer *stream, char **pframe, int *pnb_frame)
+{
+    srs_error_t err = srs_success;
+
+    *pframe = NULL;
+    *pnb_frame = 0;
+
+    while (!stream->empty()) {
+        // each frame must prefixed by annexb format.
+        // @see B.2 Byte stream NAL unit syntax and semantics
+        // @doc ITU-T-H.265-2021.pdf, page 292.
+        int pnb_start_code = 0;
+        if (!srs_avc_startswith_annexb(stream, &pnb_start_code)) {
+            return srs_error_new(ERROR_HEVC_API_NO_PREFIXED, "hevc annexb start code");
+        }
+        int start = stream->pos() + pnb_start_code;
+
+        // find the last frame prefixed by annexb format.
+        stream->skip(pnb_start_code);
+        while (!stream->empty()) {
+            if (srs_avc_startswith_annexb(stream, NULL)) {
+                break;
+            }
+            stream->skip(1);
+        }
+
+        // demux the frame.
+        *pnb_frame = stream->pos() - start;
+        *pframe = stream->data() + start;
+        break;
+    }
+
+    return err;
+}
+
+// whether the frame is vps or sps or pps.
+bool SrsRawHEVCStream::is_vps(char *frame, int nb_frame)
+{
+    srs_assert(nb_frame > 0);
+
+    // 7bits, 7.4.2.2 NAL unit header semantics,
+    // @see Table 7-1 – NAL unit type codes and NAL unit type classes
+    // @doc ITU-T-H.265-2021.pdf, page 86.
+
+    return SrsHevcNaluTypeParse(frame[0]) == SrsHevcNaluType_VPS;
+}
+
+bool SrsRawHEVCStream::is_sps(char *frame, int nb_frame)
+{
+    srs_assert(nb_frame > 0);
+
+    // 7bits, 7.4.2.2 NAL unit header semantics,
+    // @see Table 7-1 – NAL unit type codes and NAL unit type classes
+    // @doc ITU-T-H.265-2021.pdf, page 86.
+
+    return SrsHevcNaluTypeParse(frame[0]) == SrsHevcNaluType_SPS;
+}
+
+bool SrsRawHEVCStream::is_pps(char *frame, int nb_frame)
+{
+    srs_assert(nb_frame > 0);
+
+    // 7bits, 7.4.2.2 NAL unit header semantics,
+    // @see Table 7-1 – NAL unit type codes and NAL unit type classes
+    // @doc ITU-T-H.265-2021.pdf, page 86.
+
+    return SrsHevcNaluTypeParse(frame[0]) == SrsHevcNaluType_PPS;
+}
+
+srs_error_t SrsRawHEVCStream::vps_demux(char *frame, int nb_frame, std::string &vps)
+{
+    srs_error_t err = srs_success;
+
+    if (nb_frame <= 0) {
+        return srs_error_new(ERROR_STREAM_CASTER_HEVC_VPS, "no hevc vps");
+    }
+
+    vps = string(frame, nb_frame);
+
+    return err;
+}
+
+srs_error_t SrsRawHEVCStream::sps_demux(char *frame, int nb_frame, std::string &sps)
+{
+    srs_error_t err = srs_success;
+
+    // atleast 1bytes for SPS to decode the type, profile, constrain and level.
+    if (nb_frame < 4) {
+        return err;
+    }
+
+    sps = string(frame, nb_frame);
+
+    return err;
+}
+
+srs_error_t SrsRawHEVCStream::pps_demux(char *frame, int nb_frame, std::string &pps)
+{
+    srs_error_t err = srs_success;
+
+    if (nb_frame <= 0) {
+        return srs_error_new(ERROR_STREAM_CASTER_HEVC_PPS, "no hevc pps");
+    }
+
+    pps = string(frame, nb_frame);
+
+    return err;
+}
+
+srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string sps, std::string pps, std::string &hvcC)
+{
+    srs_error_t err = srs_success;
+
+    // hevc header information:
+    // 23bytes header:
+    //      configurationVersion, general_profile_space, general_tier_flag, general_profile_idc
+    //      general_profile_compatibility_flags, general_constraint_indicator_flags,
+    //      general_level_idc, min_spatial_segmentation_idc, parallelismType,
+    //      chromaFormat, bitDepthLumaMinus8, bitDepthChromaMinus8,
+    //      avgFrameRate, constantFrameRate, numTemporalLayers, temporalIdNested,
+    //      lengthSizeMinusOne, numOfArrays
+    // 5bytes size of vps/sps/pps:
+    //      array_completeness, nal_unit_type, numNalus, nalUnitLength,
+    // Nbytes of vps/sps/pps.
+    //      sequenceParameterSetNALUnit
+
+    // use simple mode: nalu size + nalu data
+    int nb_packet = 23 + 5 + (int)vps.length() + 5 + (int)sps.length() + 5 + (int)pps.length();
+    char *packet = new char[nb_packet];
+    SrsAutoFreeA(char, packet);
+
+    // use stream to generate the hevc packet.
+    SrsBuffer stream(packet, nb_packet);
+
+    SrsFormat format;
+    if ((err = format.initialize()) != srs_success) {
+        return srs_error_new(ERROR_STREAM_CASTER_HEVC_FORMAT, "format failed");
+    }
+    // hevc_dec_conf_record
+    SrsHevcDecoderConfigurationRecord *hevc_info = &format.vcodec->hevc_dec_conf_record_;
+
+    if (true) {
+        // H265 VPS (video_parameter_set_rbsp()) NAL Unit.
+        // @see Section 7.3.2.1 ("Video parameter set RBSP syntax") of the H.265
+        // @doc ITU-T-H.265-2021.pdf, page 54.
+        SrsBuffer vps_stream((char*)vps.data(), vps.length());
+        if ((err = format.hevc_demux_vps(&vps_stream)) != srs_success) {
+            return srs_error_new(ERROR_STREAM_CASTER_HEVC_VPS, "vps demux failed, len=%d", vps.length());
+        }
+
+        // H265 SPS Nal Unit (seq_parameter_set_rbsp()) parser.
+        // @see Section 7.3.2.2 ("Sequence parameter set RBSP syntax") of the H.265
+        // @doc ITU-T-H.265-2021.pdf, page 55.
+        SrsBuffer sps_stream((char*)sps.data(), sps.length());
+        if ((err = format.hevc_demux_sps(&sps_stream)) != srs_success) {
+            return srs_error_new(ERROR_STREAM_CASTER_HEVC_SPS, "sps demux failed, len=%d",sps.length());
+        }
+    }
+
+    // configurationVersion
+    stream.write_1bytes(0x01);
+
+    uint8_t temp8bits = 0;
+    // general_profile_space(2bits), general_tier_flag(1bit), general_profile_idc(5bits)
+    temp8bits |= ((hevc_info->general_profile_space & 0x03) << 6);
+    temp8bits |= ((hevc_info->general_tier_flag & 0x01) << 5);
+    temp8bits |= (hevc_info->general_profile_idc & 0x1f);
+    stream.write_1bytes(temp8bits);
+
+    stream.write_4bytes(hevc_info->general_profile_compatibility_flags);
+    stream.write_2bytes((hevc_info->general_constraint_indicator_flags >> 32) & 0xffff);
+    stream.write_4bytes(hevc_info->general_constraint_indicator_flags & 0xffffffff);
+    stream.write_1bytes(hevc_info->general_level_idc);
+    stream.write_2bytes(0xf000 | (hevc_info->min_spatial_segmentation_idc & 0x0fff));
+    stream.write_1bytes(0xfc | (hevc_info->parallelism_type & 0x03));
+    stream.write_1bytes(0xfc | (hevc_info->chroma_format & 0x03));
+    stream.write_1bytes(0xf8 | (hevc_info->bit_depth_luma_minus8 & 0x07));
+    stream.write_1bytes(0xf8 | (hevc_info->bit_depth_chroma_minus8 & 0x07));
+    stream.write_2bytes(hevc_info->avg_frame_rate);
+
+    hevc_info->length_size_minus_one = 3;
+    temp8bits = 0;
+
+    //8bits: constant_frame_rate(2bits), num_temporal_layers(3bits),
+    //       temporal_id_nested(1bit), length_size_minus_one(2bits)
+    temp8bits |= (hevc_info->constant_frame_rate << 6) | 0xc0;
+    temp8bits |= (hevc_info->num_temporal_layers << 3) | 0x38;
+    temp8bits |= (hevc_info->temporal_id_nested << 2) | 0x04;
+    temp8bits |= (hevc_info->length_size_minus_one & 0x03);
+    stream.write_1bytes(temp8bits);
+
+    // numOfArrays, default 3
+    stream.write_1bytes(0x03);
+
+    // vps
+    if (true) {
+        // nal_type
+        stream.write_1bytes(SrsHevcNaluType_VPS & 0x3f);
+        // numOfVideoParameterSets, always 1
+        stream.write_2bytes(0x01);
+        // videoParameterSetLength
+        stream.write_2bytes((int16_t)vps.length());
+        // videoParameterSetNALUnit
+        stream.write_string(vps);
+    }
+
+    // sps
+    if (true) {
+        // nal_type
+        stream.write_1bytes(SrsHevcNaluType_SPS & 0x3f);
+        // numOfSequenceParameterSets, always 1
+        stream.write_2bytes(0x01);
+        // sequenceParameterSetLength
+        stream.write_2bytes((int16_t)sps.length());
+        // sequenceParameterSetNALUnit
+        stream.write_string(sps);
+    }
+
+    // pps
+    if (true) {
+        // nal_type
+        stream.write_1bytes(SrsHevcNaluType_PPS & 0x3f);
+        // numOfPictureParameterSets, always 1
+        stream.write_2bytes(0x01);
+        // pictureParameterSetLength
+        stream.write_2bytes((int16_t)pps.length());
+        // pictureParameterSetNALUnit
+        stream.write_string(pps);
+    }
+
+    hvcC = string(packet, nb_packet);
+
+    return err;
+}
+
+srs_error_t SrsRawHEVCStream::mux_ipb_frame(char *frame, int nb_frame, std::string &ibp)
+{
+    srs_error_t err = srs_success;
+
+    // 4bytes size of nalu:
+    //      NALUnitLength
+    // Nbytes of nalu.
+    //      NALUnit
+    int nb_packet = 4 + nb_frame;
+    char *packet = new char[nb_packet];
+    SrsAutoFreeA(char, packet);
+
+    // use stream to generate the h265 packet.
+    SrsBuffer stream(packet, nb_packet);
+
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
+    // lengthSizeMinusOne, or NAL_unit_length, always use 4bytes size
+    uint32_t NAL_unit_length = nb_frame;
+
+    // mux the avc NALU in "ISO Base Media File Format"
+    // from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
+    // NALUnitLength
+    stream.write_4bytes(NAL_unit_length);
+    // NALUnit
+    stream.write_bytes(frame, nb_frame);
+
+    ibp = string(packet, nb_packet);
+
+    return err;
+}
+
+srs_error_t SrsRawHEVCStream::mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv)
+{
+    srs_error_t err = srs_success;
+
+    // for h265 in RTMP video payload, there is 5bytes header:
+    //      1bytes, FrameType | CodecID
+    //      1bytes, AVCPacketType
+    //      3bytes, CompositionTime, the cts.
+    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
+    int size = (int)video.length() + 5;
+    char *data = new char[size];
+    char *p = data;
+
+    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
+    // Frame Type, Type of video frame.
+    // CodecID, Codec Identifier.
+    // set the rtmp header
+    *p++ = (frame_type << 4) | SrsVideoCodecIdHEVC;
+
+    // AVCPacketType
+    *p++ = avc_packet_type;
+
+    // CompositionTime
+    // pts = dts + cts, or
+    // cts = pts - dts.
+    // where cts is the header in rtmp video packet payload header.
+    uint32_t cts = pts - dts;
+    char *pp = (char *)&cts;
+    *p++ = pp[2];
+    *p++ = pp[1];
+    *p++ = pp[0];
+
+    // hevc raw data.
+    memcpy(p, video.data(), video.length());
+
+    *flv = data;
+    *nb_flv = size;
+
+    return err;
+}
+#endif
+
 SrsRawAacStream::SrsRawAacStream()
 {
 }
