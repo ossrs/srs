@@ -4241,6 +4241,9 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostSrt)
 
         SrsSetEnvConfig(srt_to_rtmp, "SRS_VHOST_SRT_SRT_TO_RTMP", "off");
         EXPECT_FALSE(conf.get_srt_to_rtmp("__defaultVhost__"));
+
+        SrsSetEnvConfig(srt_to_rtmp2, "SRS_VHOST_SRT_TO_RTMP", "off");
+        EXPECT_FALSE(conf.get_srt_to_rtmp("__defaultVhost__"));
     }
 }
 
