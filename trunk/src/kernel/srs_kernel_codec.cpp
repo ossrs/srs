@@ -1317,7 +1317,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 
     // profile tier level...
     SrsHevcProfileTierLevel profile_tier_level;
-    memset((void*)&profile_tier_level, 0, sizeof(SrsHevcProfileTierLevel));
+    memset((void*)&profile_tier_level, 0, sizeof(profile_tier_level));
     // profile_tier_level(1, sps_max_sub_layers_minus1)
     if ((err = hevc_demux_rbsp_ptl(&bs, &profile_tier_level, 1, sps_max_sub_layers_minus1)) != srs_success) {
         return srs_error_wrap(err, "sps rbsp ptl sps_max_sub_layers_minus1=%d", sps_max_sub_layers_minus1);
@@ -1340,7 +1340,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     sps->sps_max_sub_layers_minus1 = sps_max_sub_layers_minus1;
     sps->sps_temporal_id_nesting_flag = sps_temporal_id_nesting_flag;
     sps->sps_seq_parameter_set_id = sps_seq_parameter_set_id;
-    memcpy(&(sps->ptl), &profile_tier_level, sizeof(SrsHevcProfileTierLevel));
+    memcpy((void*)&sps->ptl, &profile_tier_level, sizeof(profile_tier_level));
 
     // chroma_format_idc  ue(v)
     if ((err = bs.read_bits_ue(sps->chroma_format_idc)) != srs_success) {
