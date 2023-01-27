@@ -651,7 +651,7 @@ srs_error_t SrsRtmpFromSrtBridge::check_vps_sps_pps_change(SrsTsMessage* msg)
     }
 
     if ((err = live_source_->on_video(&rtmp)) != srs_success) {
-        return srs_error_wrap(err, "srt to rtmp sps/pps");
+        return srs_error_wrap(err, "srt to rtmp vps/sps/pps");
     }
 
     return err;

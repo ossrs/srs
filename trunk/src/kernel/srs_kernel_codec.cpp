@@ -893,7 +893,7 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
         if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
             // TODO: demux vps/sps/pps for hevc
             if ((err = hevc_demux_hvcc(stream)) != srs_success) {
-                return srs_error_wrap(err, "demux hevc SPS/PPS");
+                return srs_error_wrap(err, "demux hevc VPS/SPS/PPS");
             }
         } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU) {
             // TODO: demux nalu for hevc
@@ -1047,7 +1047,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
 
         // demux nalu
         if ((err = hevc_demux_vps_sps_pps(&hevc_unit)) != srs_success) {
-            return srs_error_wrap(err, "hevc demux vps sps pps failed");
+            return srs_error_wrap(err, "hevc demux vps/sps/pps failed");
         }
     }
 
@@ -1649,7 +1649,7 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
         pps->deblocking_filter_override_enabled_flag = bs.read_bit();
         // pps_deblocking_filter_disabled_flag  u(1)
         pps->pps_deblocking_filter_disabled_flag = bs.read_bit();
-        if (pps->pps_deblocking_filter_disabled_flag) {
+        if (!pps->pps_deblocking_filter_disabled_flag) {
             // pps_beta_offset_div2  se(v)
             if ((err = bs.read_bits_se(pps->pps_beta_offset_div2)) != srs_success) {
                 return srs_error_wrap(err, "pps_beta_offset_div2");
