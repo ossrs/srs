@@ -72,5 +72,24 @@ public:
     srs_error_t on_rtp(SrsRtpPacket* pkt);
 };
 
+// A bridge chain, a set of bridges.
+class SrsCompositeBridge : public ISrsStreamBridge
+{
+public:
+    SrsCompositeBridge();
+    virtual ~SrsCompositeBridge();
+public:
+    srs_error_t initialize(SrsRequest* r);
+public:
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
+public:
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
+public:
+    SrsCompositeBridge* append(ISrsStreamBridge* bridge);
+private:
+    std::vector<ISrsStreamBridge*> bridges_;
+};
+
 #endif
 
