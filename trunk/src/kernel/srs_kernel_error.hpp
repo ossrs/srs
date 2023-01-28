@@ -274,7 +274,9 @@
     XX(ERROR_HTTP_WITH_BODY                , 3097, "HttpWithBody", "Failed for HTTP body") \
     XX(ERROR_HEVC_DISABLED                 , 3098, "HevcDisabled", "HEVC is disabled") \
     XX(ERROR_HEVC_DECODE_ERROR             , 3099, "HevcDecode", "HEVC decode av stream failed")  \
-    XX(ERROR_MP4_HVCC_CHANGE               , 3100, "Mp4HvcCChange", "MP4 does not support video HvcC change")
+    XX(ERROR_MP4_HVCC_CHANGE               , 3100, "Mp4HvcCChange", "MP4 does not support video HvcC change") \
+    XX(ERROR_HEVC_API_NO_PREFIXED          , 3101, "HevcAnnexbPrefix", "No annexb prefix for HEVC decoder")
+
 /**************************************************/
 /* HTTP/StreamConverter protocol error. */
 #define SRS_ERRNO_MAP_HTTP(XX) \
@@ -325,7 +327,12 @@
     XX(ERROR_GB_CONFIG                     , 4052, "GbConfig", "Invalid configuration for GB28181") \
     XX(ERROR_GB_TIMEOUT                    , 4053, "GbTimeout", "SIP or media connection timeout for GB28181") \
     XX(ERROR_HEVC_NALU_UEV                 , 4054, "HevcNaluUev", "Failed to read UEV for HEVC NALU") \
-    XX(ERROR_HEVC_NALU_SEV                 , 4055, "HevcNaluSev", "Failed to read SEV for HEVC NALU")
+    XX(ERROR_HEVC_NALU_SEV                 , 4055, "HevcNaluSev", "Failed to read SEV for HEVC NALU") \
+    XX(ERROR_STREAM_CASTER_HEVC_VPS        , 4054, "CasterTsHevcVps", "Invalid ts HEVC VPS for stream caster") \
+    XX(ERROR_STREAM_CASTER_HEVC_SPS        , 4055, "CasterTsHevcSps", "Invalid ts HEVC SPS for stream caster") \
+    XX(ERROR_STREAM_CASTER_HEVC_PPS        , 4056, "CasterTsHevcPps", "Invalid ts HEVC PPS for stream caster") \
+    XX(ERROR_STREAM_CASTER_HEVC_FORMAT     , 4057, "CasterTsHevcFormat", "Invalid ts HEVC Format for stream caster")
+
 
 /**************************************************/
 /* RTC protocol error. */

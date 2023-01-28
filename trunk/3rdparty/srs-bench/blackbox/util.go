@@ -52,6 +52,7 @@ var srsFFprobeStdout *bool
 var srsTimeout *int
 var srsFFprobeDuration *int
 var srsFFprobeTimeout *int
+var srsFFprobeHEVCTimeout *int
 
 var srsBinary *string
 var srsFFmpeg *string
@@ -72,6 +73,7 @@ func prepareTest() (err error) {
 	srsFFmpeg = flag.String("srs-ffmpeg", "ffmpeg", "The FFmpeg tool")
 	srsFFprobe = flag.String("srs-ffprobe", "ffprobe", "The FFprobe tool")
 	srsPublishAvatar = flag.String("srs-publish-avatar", "avatar.flv", "The avatar file for publisher.")
+	srsFFprobeHEVCTimeout = flag.Int("srs-ffprobe-hevc-timeout", 30000, "For each case, the timeout for ffprobe in ms")
 
 	// Parse user options.
 	flag.Parse()
