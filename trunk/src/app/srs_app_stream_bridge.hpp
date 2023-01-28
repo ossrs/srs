@@ -56,8 +56,8 @@ public:
 
 #ifdef SRS_FFMPEG_FIT
 
-// A bridge to covert RTMP to WebRTC stream.
-class SrsRtmpToRtcBridge : public ISrsStreamBridge
+// A bridge to covert AV frame to WebRTC stream.
+class SrsFrameToRtcBridge : public ISrsStreamBridge
 {
 private:
     SrsRequest* req;
@@ -67,7 +67,6 @@ private:
     // The metadata cache.
     SrsMetaCache* meta;
 private:
-    bool rtmp_to_rtc;
     SrsAudioCodecId latest_codec_;
     SrsAudioTranscoder* codec_;
     bool keep_bframe;
@@ -79,8 +78,8 @@ private:
     uint8_t audio_payload_type_;
     uint8_t video_payload_type_;
 public:
-    SrsRtmpToRtcBridge(SrsRtcSource* source);
-    virtual ~SrsRtmpToRtcBridge();
+    SrsFrameToRtcBridge(SrsRtcSource* source);
+    virtual ~SrsFrameToRtcBridge();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();

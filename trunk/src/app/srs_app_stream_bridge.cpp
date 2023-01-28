@@ -115,14 +115,13 @@ srs_error_t SrsFrameToRtmpBridge::on_frame(SrsSharedPtrMessage* frame)
 
 #ifdef SRS_FFMPEG_FIT
 
-SrsRtmpToRtcBridge::SrsRtmpToRtcBridge(SrsRtcSource* source)
+SrsFrameToRtcBridge::SrsFrameToRtcBridge(SrsRtcSource* source)
 {
     req = NULL;
     source_ = source;
     format = new SrsRtmpFormat();
     codec_ = new SrsAudioTranscoder();
     latest_codec_ = SrsAudioCodecIdForbidden;
-    rtmp_to_rtc = false;
     keep_bframe = false;
     merge_nalus = false;
     meta = new SrsMetaCache();
@@ -150,44 +149,36 @@ SrsRtmpToRtcBridge::SrsRtmpToRtcBridge(SrsRtcSource* source)
     }
 }
 
-SrsRtmpToRtcBridge::~SrsRtmpToRtcBridge()
+SrsFrameToRtcBridge::~SrsFrameToRtcBridge()
 {
     srs_freep(format);
     srs_freep(codec_);
     srs_freep(meta);
 }
 
-srs_error_t SrsRtmpToRtcBridge::initialize(SrsRequest* r)
+srs_error_t SrsFrameToRtcBridge::initialize(SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
     req = r;
-    rtmp_to_rtc = _srs_config->get_rtc_from_rtmp(req->vhost);
 
-    if (rtmp_to_rtc) {
-        if ((err = format->initialize()) != srs_success) {
-            return srs_error_wrap(err, "format initialize");
-        }
-
-        // Setup the SPS/PPS parsing strategy.
-        format->try_annexb_first = _srs_config->try_annexb_first(r->vhost);
+    if ((err = format->initialize()) != srs_success) {
+        return srs_error_wrap(err, "format initialize");
     }
+
+    // Setup the SPS/PPS parsing strategy.
+    format->try_annexb_first = _srs_config->try_annexb_first(r->vhost);
 
     keep_bframe = _srs_config->get_rtc_keep_bframe(req->vhost);
     merge_nalus = _srs_config->get_rtc_server_merge_nalus();
-    srs_trace("RTC bridge from RTMP, rtmp2rtc=%d, keep_bframe=%d, merge_nalus=%d",
-              rtmp_to_rtc, keep_bframe, merge_nalus);
+    srs_trace("RTC bridge from RTMP, keep_bframe=%d, merge_nalus=%d", keep_bframe, merge_nalus);
 
     return err;
 }
 
-srs_error_t SrsRtmpToRtcBridge::on_publish()
+srs_error_t SrsFrameToRtcBridge::on_publish()
 {
     srs_error_t err = srs_success;
-
-    if (!rtmp_to_rtc) {
-        return err;
-    }
 
     // TODO: FIXME: Should sync with bridge?
     if ((err = source_->on_publish()) != srs_success) {
@@ -201,12 +192,8 @@ srs_error_t SrsRtmpToRtcBridge::on_publish()
     return err;
 }
 
-void SrsRtmpToRtcBridge::on_unpublish()
+void SrsFrameToRtcBridge::on_unpublish()
 {
-    if (!rtmp_to_rtc) {
-        return;
-    }
-
     // Reset the metadata cache, to make VLC happy when disable/enable stream.
     // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
     meta->update_previous_vsh();
@@ -217,7 +204,7 @@ void SrsRtmpToRtcBridge::on_unpublish()
     source_->on_unpublish();
 }
 
-srs_error_t SrsRtmpToRtcBridge::on_frame(SrsSharedPtrMessage* frame)
+srs_error_t SrsFrameToRtcBridge::on_frame(SrsSharedPtrMessage* frame)
 {
     if (frame->is_audio()) {
         return on_audio(frame);
@@ -227,13 +214,9 @@ srs_error_t SrsRtmpToRtcBridge::on_frame(SrsSharedPtrMessage* frame)
     return srs_success;
 }
 
-srs_error_t SrsRtmpToRtcBridge::on_audio(SrsSharedPtrMessage* msg)
+srs_error_t SrsFrameToRtcBridge::on_audio(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
-
-    if (!rtmp_to_rtc) {
-        return err;
-    }
 
     // TODO: FIXME: Support parsing OPUS for RTC.
     if ((err = format->on_audio(msg)) != srs_success) {
@@ -293,7 +276,7 @@ srs_error_t SrsRtmpToRtcBridge::on_audio(SrsSharedPtrMessage* msg)
     return err;
 }
 
-srs_error_t SrsRtmpToRtcBridge::init_codec(SrsAudioCodecId codec)
+srs_error_t SrsFrameToRtcBridge::init_codec(SrsAudioCodecId codec)
 {
     srs_error_t err = srs_success;
 
@@ -315,14 +298,14 @@ srs_error_t SrsRtmpToRtcBridge::init_codec(SrsAudioCodecId codec)
         srs_trace("RTMP2RTC: Init audio codec to %d(%s)", codec, srs_audio_codec_id2str(codec).c_str());
     } else {
         srs_trace("RTMP2RTC: Switch audio codec %d(%s) to %d(%s)", latest_codec_, srs_audio_codec_id2str(latest_codec_).c_str(),
-                  codec, srs_audio_codec_id2str(codec).c_str());
+            codec, srs_audio_codec_id2str(codec).c_str());
     }
     latest_codec_ = codec;
 
     return err;
 }
 
-srs_error_t SrsRtmpToRtcBridge::transcode(SrsAudioFrame* audio)
+srs_error_t SrsFrameToRtcBridge::transcode(SrsAudioFrame* audio)
 {
     srs_error_t err = srs_success;
 
@@ -358,7 +341,7 @@ srs_error_t SrsRtmpToRtcBridge::transcode(SrsAudioFrame* audio)
     return err;
 }
 
-srs_error_t SrsRtmpToRtcBridge::package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt)
+srs_error_t SrsFrameToRtcBridge::package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -379,13 +362,9 @@ srs_error_t SrsRtmpToRtcBridge::package_opus(SrsAudioFrame* audio, SrsRtpPacket*
     return err;
 }
 
-srs_error_t SrsRtmpToRtcBridge::on_video(SrsSharedPtrMessage* msg)
+srs_error_t SrsFrameToRtcBridge::on_video(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
-
-    if (!rtmp_to_rtc) {
-        return err;
-    }
 
     // cache the sequence header if h264
     bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
@@ -460,7 +439,7 @@ srs_error_t SrsRtmpToRtcBridge::on_video(SrsSharedPtrMessage* msg)
     return consume_packets(pkts);
 }
 
-srs_error_t SrsRtmpToRtcBridge::filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, vector<SrsSample*>& samples)
+srs_error_t SrsFrameToRtcBridge::filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, vector<SrsSample*>& samples)
 {
     srs_error_t err = srs_success;
 
@@ -490,7 +469,7 @@ srs_error_t SrsRtmpToRtcBridge::filter(SrsSharedPtrMessage* msg, SrsFormat* form
     return err;
 }
 
-srs_error_t SrsRtmpToRtcBridge::package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket* pkt)
+srs_error_t SrsFrameToRtcBridge::package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -549,7 +528,7 @@ srs_error_t SrsRtmpToRtcBridge::package_stap_a(SrsRtcSource* source, SrsSharedPt
     return err;
 }
 
-srs_error_t SrsRtmpToRtcBridge::package_nalus(SrsSharedPtrMessage* msg, const vector<SrsSample*>& samples, vector<SrsRtpPacket*>& pkts)
+srs_error_t SrsFrameToRtcBridge::package_nalus(SrsSharedPtrMessage* msg, const vector<SrsSample*>& samples, vector<SrsRtpPacket*>& pkts)
 {
     srs_error_t err = srs_success;
 
@@ -645,7 +624,7 @@ srs_error_t SrsRtmpToRtcBridge::package_nalus(SrsSharedPtrMessage* msg, const ve
 }
 
 // Single NAL Unit Packet @see https://tools.ietf.org/html/rfc6184#section-5.6
-srs_error_t SrsRtmpToRtcBridge::package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, vector<SrsRtpPacket*>& pkts)
+srs_error_t SrsFrameToRtcBridge::package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, vector<SrsRtpPacket*>& pkts)
 {
     srs_error_t err = srs_success;
 
@@ -669,7 +648,7 @@ srs_error_t SrsRtmpToRtcBridge::package_single_nalu(SrsSharedPtrMessage* msg, Sr
     return err;
 }
 
-srs_error_t SrsRtmpToRtcBridge::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, vector<SrsRtpPacket*>& pkts)
+srs_error_t SrsFrameToRtcBridge::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, vector<SrsRtpPacket*>& pkts)
 {
     srs_error_t err = srs_success;
 
@@ -711,7 +690,7 @@ srs_error_t SrsRtmpToRtcBridge::package_fu_a(SrsSharedPtrMessage* msg, SrsSample
     return err;
 }
 
-srs_error_t SrsRtmpToRtcBridge::consume_packets(vector<SrsRtpPacket*>& pkts)
+srs_error_t SrsFrameToRtcBridge::consume_packets(vector<SrsRtpPacket*>& pkts)
 {
     srs_error_t err = srs_success;
 
