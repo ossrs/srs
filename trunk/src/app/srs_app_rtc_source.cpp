@@ -464,7 +464,7 @@ SrsContextId SrsRtcSource::pre_source_id()
     return _pre_source_id;
 }
 
-void SrsRtcSource::set_bridge(ISrsRtcSourceBridge *bridge)
+void SrsRtcSource::set_bridge(ISrsRtcSourceBridge* bridge)
 {
     srs_freep(bridge_);
     bridge_ = bridge;

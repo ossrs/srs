@@ -361,7 +361,7 @@
     XX(ERROR_RTC_DISABLED                  , 5021, "RtcDisabled", "RTC is disabled by configuration") \
     XX(ERROR_RTC_NO_SESSION                , 5022, "RtcNoSession", "Invalid packet for no RTC session matched") \
     XX(ERROR_RTC_INVALID_PARAMS            , 5023, "RtcInvalidParams", "Invalid API parameters for RTC") \
-    XX(ERROR_RTC_DUMMY_BRIDGER             , 5024, "RtcDummyBridger", "RTC dummy bridger error") \
+    XX(ERROR_RTC_DUMMY_BRIDGE              , 5024, "RtcDummyBridge", "RTC dummy bridge error") \
     XX(ERROR_RTC_STREM_STARTED             , 5025, "RtcStreamStarted", "RTC stream already started") \
     XX(ERROR_RTC_TRACK_CODEC               , 5026, "RtcTrackCodec", "RTC track codec error") \
     XX(ERROR_RTC_NO_PLAYER                 , 5027, "RtcNoPlayer", "RTC player not found") \

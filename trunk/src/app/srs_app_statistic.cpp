@@ -178,7 +178,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
 
 void SrsStatisticStream::publish(std::string id)
 {
-    // To prevent duplicated publish event by bridger.
+    // To prevent duplicated publish event by bridge.
     if (active) {
         return;
     }

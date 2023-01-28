@@ -398,7 +398,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
         // Bridge to RTC streaming.
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
         if (rtc) {
-            SrsRtmpToRtcBridge *bridge = new SrsRtmpToRtcBridge(rtc);
+            SrsRtmpToRtcBridge* bridge = new SrsRtmpToRtcBridge(rtc);
             if ((err = bridge->initialize(req_)) != srs_success) {
                 srs_freep(bridge);
                 return srs_error_wrap(err, "bridge init");
@@ -408,13 +408,13 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
         }
 #endif
 
-        SrsSrtToRtmpBridge *bridger = new SrsSrtToRtmpBridge(live_source);
-        if ((err = bridger->initialize(req_)) != srs_success) {
-            srs_freep(bridger);
-            return srs_error_wrap(err, "create bridger");
+        SrsSrtToRtmpBridge* bridge = new SrsSrtToRtmpBridge(live_source);
+        if ((err = bridge->initialize(req_)) != srs_success) {
+            srs_freep(bridge);
+            return srs_error_wrap(err, "create bridge");
         }
 
-        srt_source_->set_bridge(bridger);
+        srt_source_->set_bridge(bridge);
     }
 
     if ((err = srt_source_->on_publish()) != srs_success) {

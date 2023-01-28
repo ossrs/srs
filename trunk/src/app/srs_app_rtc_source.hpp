@@ -205,7 +205,7 @@ public:
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
 public:
-    void set_bridge(ISrsRtcSourceBridge *bridge);
+    void set_bridge(ISrsRtcSourceBridge* bridge);
 public:
     // Create consumer
     // @param consumer, output the create consumer.

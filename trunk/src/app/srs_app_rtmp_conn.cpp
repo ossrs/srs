@@ -1092,7 +1092,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     // Bridge to RTC streaming.
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
     if (rtc) {
-        SrsRtmpToRtcBridge *bridge = new SrsRtmpToRtcBridge(rtc);
+        SrsRtmpToRtcBridge* bridge = new SrsRtmpToRtcBridge(rtc);
         if ((err = bridge->initialize(req)) != srs_success) {
             srs_freep(bridge);
             return srs_error_wrap(err, "bridge init");

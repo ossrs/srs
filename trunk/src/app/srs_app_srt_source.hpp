@@ -176,7 +176,7 @@ public:
     // Update the authentication information in request.
     virtual void update_auth(SrsRequest* r);
 public:
-    void set_bridge(ISrsSrtSourceBridge *bridger);
+    void set_bridge(ISrsSrtSourceBridge* bridge);
 public:
     // Create consumer
     // @param consumer, output the create consumer.
