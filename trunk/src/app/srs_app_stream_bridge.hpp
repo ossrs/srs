@@ -11,6 +11,7 @@
 
 class SrsRequest;
 class SrsSharedPtrMessage;
+class SrsLiveSource;
 
 // A stream bridge is used to convert stream via different protocols, such as bridge for RTMP and RTC. Generally, we use
 // frame as message for bridge. A frame is a audio or video frame, such as an I/B/P frame, a general frame for decoder.
@@ -25,6 +26,23 @@ public:
     virtual srs_error_t on_publish() = 0;
     virtual srs_error_t on_frame(SrsSharedPtrMessage* frame) = 0;
     virtual void on_unpublish() = 0;
+};
+
+// A bridge to feed AV frame to RTMP stream.
+class SrsFrameToRtmpBridge : public ISrsStreamBridge
+{
+private:
+    SrsLiveSource *source_;
+public:
+    SrsFrameToRtmpBridge(SrsLiveSource *src);
+    virtual ~SrsFrameToRtmpBridge();
+public:
+    srs_error_t initialize(SrsRequest* r);
+public:
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
+public:
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
 };
 
 #endif

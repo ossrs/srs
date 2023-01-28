@@ -408,7 +408,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
         }
 #endif
 
-        SrsSrtToRtmpBridge* bridge = new SrsSrtToRtmpBridge(live_source);
+        SrsFrameToRtmpBridge* bridge = new SrsFrameToRtmpBridge(live_source);
         if ((err = bridge->initialize(req_)) != srs_success) {
             srs_freep(bridge);
             return srs_error_wrap(err, "create bridge");

@@ -235,41 +235,6 @@ void SrsSrtConsumer::wait(int nb_msgs, srs_utime_t timeout)
     srs_cond_timedwait(mw_wait, timeout);
 }
 
-SrsSrtToRtmpBridge::SrsSrtToRtmpBridge(SrsLiveSource* source)
-{
-    live_source_ = source;
-}
-
-SrsSrtToRtmpBridge::~SrsSrtToRtmpBridge()
-{
-}
-
-srs_error_t SrsSrtToRtmpBridge::on_publish()
-{
-    srs_error_t err = srs_success;
-
-    if ((err = live_source_->on_publish()) != srs_success) {
-        return srs_error_wrap(err, "on publish");
-    }
-
-    return err;
-}
-
-srs_error_t SrsSrtToRtmpBridge::on_frame(SrsSharedPtrMessage* frame)
-{
-    return live_source_->on_frame(frame);
-}
-
-void SrsSrtToRtmpBridge::on_unpublish()
-{
-    live_source_->on_unpublish();
-}
-
-srs_error_t SrsSrtToRtmpBridge::initialize(SrsRequest* req)
-{
-    return srs_success;
-}
-
 SrsSrtFrameBuilder::SrsSrtFrameBuilder(ISrsStreamBridge* bridge)
 {
     ts_ctx_ = new SrsTsContext();

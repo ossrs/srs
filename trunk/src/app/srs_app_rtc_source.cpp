@@ -1349,43 +1349,6 @@ srs_error_t SrsRtmpToRtcBridge::consume_packets(vector<SrsRtpPacket*>& pkts)
     return err;
 }
 
-SrsRtcToRtmpBridge::SrsRtcToRtmpBridge(SrsLiveSource *src)
-{
-    source_ = src;
-}
-
-SrsRtcToRtmpBridge::~SrsRtcToRtmpBridge()
-{
-}
-
-srs_error_t SrsRtcToRtmpBridge::initialize(SrsRequest* r)
-{
-    return srs_success;
-}
-
-srs_error_t SrsRtcToRtmpBridge::on_publish()
-{
-    srs_error_t err = srs_success;
-
-    // TODO: FIXME: Should sync with bridge?
-    if ((err = source_->on_publish()) != srs_success) {
-        return srs_error_wrap(err, "source publish");
-    }
-
-    return err;
-}
-
-void SrsRtcToRtmpBridge::on_unpublish()
-{
-    // TODO: FIXME: Should sync with bridge?
-    source_->on_unpublish();
-}
-
-srs_error_t SrsRtcToRtmpBridge::on_frame(SrsSharedPtrMessage* frame)
-{
-    return source_->on_frame(frame);
-}
-
 SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
 {
     bridge_ = bridge;

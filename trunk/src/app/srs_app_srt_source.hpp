@@ -92,22 +92,6 @@ public:
     virtual void wait(int nb_msgs, srs_utime_t timeout);
 };
 
-// A bridge to covert SRT to RTMP stream.
-class SrsSrtToRtmpBridge : public ISrsStreamBridge
-{
-public:
-    SrsSrtToRtmpBridge(SrsLiveSource* source);
-    virtual ~SrsSrtToRtmpBridge();
-public:
-    virtual srs_error_t on_publish();
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
-    virtual void on_unpublish();
-public:
-    srs_error_t initialize(SrsRequest* req);
-private:
-    SrsLiveSource* live_source_;
-};
-
 // Collect and build SRT TS packet to AV frames.
 class SrsSrtFrameBuilder : public ISrsTsHandler
 {

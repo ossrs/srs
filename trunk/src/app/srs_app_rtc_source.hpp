@@ -290,22 +290,6 @@ private:
     srs_error_t consume_packets(std::vector<SrsRtpPacket*>& pkts);
 };
 
-// A bridge to covert WebRTC to RTMP stream.
-class SrsRtcToRtmpBridge : public ISrsStreamBridge
-{
-private:
-    SrsLiveSource *source_;
-public:
-    SrsRtcToRtmpBridge(SrsLiveSource *src);
-    virtual ~SrsRtcToRtmpBridge();
-public:
-    srs_error_t initialize(SrsRequest* r);
-public:
-    virtual srs_error_t on_publish();
-    virtual void on_unpublish();
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
-};
-
 // Collect and build WebRTC RTP packets to AV frames.
 class SrsRtcFrameBuilder
 {
