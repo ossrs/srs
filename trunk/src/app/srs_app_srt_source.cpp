@@ -243,29 +243,13 @@ ISrsSrtSourceBridge::~ISrsSrtSourceBridge()
 {
 }
 
-SrsSrtToRtmpBridge::SrsSrtToRtmpBridge(SrsLiveSource* source) : ISrsSrtSourceBridge()
+SrsSrtToRtmpBridge::SrsSrtToRtmpBridge(SrsLiveSource* source)
 {
-    ts_ctx_ = new SrsTsContext();
-
-    sps_pps_change_ = false;
-    sps_ = "";
-    pps_ = "";
-
-    req_ = NULL;
     live_source_ = source;
-
-    video_streamid_ = 1;
-    audio_streamid_ = 2;
-
-    pp_audio_duration_ = new SrsAlonePithyPrint();
 }
 
 SrsSrtToRtmpBridge::~SrsSrtToRtmpBridge()
 {
-    srs_freep(ts_ctx_);
-    srs_freep(req_);
-
-    srs_freep(pp_audio_duration_);
 }
 
 srs_error_t SrsSrtToRtmpBridge::on_publish()
@@ -279,7 +263,52 @@ srs_error_t SrsSrtToRtmpBridge::on_publish()
     return err;
 }
 
-srs_error_t SrsSrtToRtmpBridge::on_packet(SrsSrtPacket *pkt)
+srs_error_t SrsSrtToRtmpBridge::on_frame(SrsSharedPtrMessage* frame)
+{
+    return live_source_->on_frame(frame);
+}
+
+void SrsSrtToRtmpBridge::on_unpublish()
+{
+    live_source_->on_unpublish();
+}
+
+srs_error_t SrsSrtToRtmpBridge::initialize(SrsRequest* req)
+{
+    return srs_success;
+}
+
+SrsSrtFrameBuilder::SrsSrtFrameBuilder(ISrsSrtSourceBridge* bridge)
+{
+    ts_ctx_ = new SrsTsContext();
+
+    sps_pps_change_ = false;
+    sps_ = "";
+    pps_ = "";
+
+    req_ = NULL;
+    bridge_ = bridge;
+
+    video_streamid_ = 1;
+    audio_streamid_ = 2;
+
+    pp_audio_duration_ = new SrsAlonePithyPrint();
+}
+
+SrsSrtFrameBuilder::~SrsSrtFrameBuilder()
+{
+    srs_freep(ts_ctx_);
+    srs_freep(req_);
+
+    srs_freep(pp_audio_duration_);
+}
+
+srs_error_t SrsSrtFrameBuilder::on_publish()
+{
+    return srs_success;
+}
+
+srs_error_t SrsSrtFrameBuilder::on_packet(SrsSrtPacket *pkt)
 {
     srs_error_t err = srs_success;
 
@@ -290,10 +319,10 @@ srs_error_t SrsSrtToRtmpBridge::on_packet(SrsSrtPacket *pkt)
     int nb_packet = nb_buf / SRS_TS_PACKET_SIZE;
     for (int i = 0; i < nb_packet; i++) {
         char* p = buf + (i * SRS_TS_PACKET_SIZE);
-        
+
         SrsBuffer* stream = new SrsBuffer(p, SRS_TS_PACKET_SIZE);
         SrsAutoFree(SrsBuffer, stream);
-        
+
         // Process each ts packet. Note that the jitter of UDP may cause video glitch when packet loss or wrong seq. We
         // don't handle it because SRT will, see tlpktdrop at https://ossrs.net/lts/zh-cn/docs/v4/doc/srt-params
         if ((err = ts_ctx_->decode(stream, this)) != srs_success) {
@@ -302,16 +331,15 @@ srs_error_t SrsSrtToRtmpBridge::on_packet(SrsSrtPacket *pkt)
             continue;
         }
     }
-    
+
     return err;
 }
 
-void SrsSrtToRtmpBridge::on_unpublish()
+void SrsSrtFrameBuilder::on_unpublish()
 {
-    live_source_->on_unpublish();
 }
 
-srs_error_t SrsSrtToRtmpBridge::initialize(SrsRequest* req)
+srs_error_t SrsSrtFrameBuilder::initialize(SrsRequest* req)
 {
     srs_error_t err = srs_success;
 
@@ -321,7 +349,7 @@ srs_error_t SrsSrtToRtmpBridge::initialize(SrsRequest* req)
     return err;
 }
 
-srs_error_t SrsSrtToRtmpBridge::on_ts_message(SrsTsMessage* msg)
+srs_error_t SrsSrtFrameBuilder::on_ts_message(SrsTsMessage* msg)
 {
     srs_error_t err = srs_success;
     
@@ -369,7 +397,7 @@ srs_error_t SrsSrtToRtmpBridge::on_ts_message(SrsTsMessage* msg)
     return err;
 }
 
-srs_error_t SrsSrtToRtmpBridge::on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* avs)
+srs_error_t SrsSrtFrameBuilder::on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* avs)
 {
     srs_error_t err = srs_success;
 
@@ -430,7 +458,7 @@ srs_error_t SrsSrtToRtmpBridge::on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* av
     return on_h264_frame(msg, ipb_frames);
 }
 
-srs_error_t SrsSrtToRtmpBridge::check_sps_pps_change(SrsTsMessage* msg)
+srs_error_t SrsSrtFrameBuilder::check_sps_pps_change(SrsTsMessage* msg)
 {
     srs_error_t err = srs_success;
 
@@ -470,14 +498,19 @@ srs_error_t SrsSrtToRtmpBridge::check_sps_pps_change(SrsTsMessage* msg)
         return srs_error_wrap(err, "create rtmp");
     }
 
-    if ((err = live_source_->on_video(&rtmp)) != srs_success) {
+    SrsSharedPtrMessage frame;
+    if ((err = frame.create(&rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create frame");
+    }
+
+    if ((err = bridge_->on_frame(&frame)) != srs_success) {
         return srs_error_wrap(err, "srt to rtmp sps/pps");
     }
 
     return err;
 }
 
-srs_error_t SrsSrtToRtmpBridge::on_h264_frame(SrsTsMessage* msg, vector<pair<char*, int> >& ipb_frames)
+srs_error_t SrsSrtFrameBuilder::on_h264_frame(SrsTsMessage* msg, vector<pair<char*, int> >& ipb_frames)
 {
     srs_error_t err = srs_success;
 
@@ -526,7 +559,12 @@ srs_error_t SrsSrtToRtmpBridge::on_h264_frame(SrsTsMessage* msg, vector<pair<cha
         payload.write_bytes(nal, nal_size);
     }
 
-    if ((err = live_source_->on_video(&rtmp)) != srs_success) {
+    SrsSharedPtrMessage frame;
+    if ((err = frame.create(&rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create frame");
+    }
+
+    if ((err = bridge_->on_frame(&frame)) != srs_success) {
         return srs_error_wrap(err ,"srt ts video to rtmp");
     }
 
@@ -534,7 +572,7 @@ srs_error_t SrsSrtToRtmpBridge::on_h264_frame(SrsTsMessage* msg, vector<pair<cha
 }
 
 #ifdef SRS_H265
-srs_error_t SrsSrtToRtmpBridge::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs)
+srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
@@ -610,7 +648,7 @@ srs_error_t SrsSrtToRtmpBridge::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
     return on_hevc_frame(msg, ipb_frames);
 }
 
-srs_error_t SrsSrtToRtmpBridge::check_vps_sps_pps_change(SrsTsMessage* msg)
+srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage* msg)
 {
     srs_error_t err = srs_success;
 
@@ -650,14 +688,19 @@ srs_error_t SrsSrtToRtmpBridge::check_vps_sps_pps_change(SrsTsMessage* msg)
         return srs_error_wrap(err, "create rtmp");
     }
 
-    if ((err = live_source_->on_video(&rtmp)) != srs_success) {
+    SrsSharedPtrMessage frame;
+    if ((err = frame.create(&rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create frame");
+    }
+
+    if ((err = bridge_->on_frame(&frame)) != srs_success) {
         return srs_error_wrap(err, "srt to rtmp sps/pps");
     }
 
     return err;
 }
 
-srs_error_t SrsSrtToRtmpBridge::on_hevc_frame(SrsTsMessage* msg, vector<pair<char*, int> >& ipb_frames)
+srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage* msg, vector<pair<char*, int> >& ipb_frames)
 {
     srs_error_t err = srs_success;
 
@@ -713,7 +756,12 @@ srs_error_t SrsSrtToRtmpBridge::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
         payload.write_bytes(nal, nal_size);
     }
 
-    if ((err = live_source_->on_video(&rtmp)) != srs_success) {
+    SrsSharedPtrMessage frame;
+    if ((err = frame.create(&rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create frame");
+    }
+
+    if ((err = bridge_->on_frame(&frame)) != srs_success) {
         return srs_error_wrap(err ,"srt ts hevc video to rtmp");
     }
 
@@ -721,7 +769,7 @@ srs_error_t SrsSrtToRtmpBridge::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
 }
 #endif
 
-srs_error_t SrsSrtToRtmpBridge::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
+srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
     srs_error_t err = srs_success;
     
@@ -794,7 +842,7 @@ srs_error_t SrsSrtToRtmpBridge::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
     return err;
 }
 
-srs_error_t SrsSrtToRtmpBridge::check_audio_sh_change(SrsTsMessage* msg, uint32_t pts)
+srs_error_t SrsSrtFrameBuilder::check_audio_sh_change(SrsTsMessage* msg, uint32_t pts)
 {
     srs_error_t err = srs_success;
     
@@ -817,19 +865,24 @@ srs_error_t SrsSrtToRtmpBridge::check_audio_sh_change(SrsTsMessage* msg, uint32_
     stream.write_1bytes(aac_flag);
     stream.write_1bytes(0);
     stream.write_bytes((char*)audio_sh_.data(), audio_sh_.size());
+
+    SrsSharedPtrMessage frame;
+    if ((err = frame.create(&rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create frame");
+    }
     
-    if ((err = live_source_->on_audio(&rtmp)) != srs_success) {
+    if ((err = bridge_->on_frame(&frame)) != srs_success) {
         return srs_error_wrap(err, "srt to rtmp audio sh");
     }
 
     return err;
 }
 
-srs_error_t SrsSrtToRtmpBridge::on_aac_frame(SrsTsMessage* msg, uint32_t pts, char* frame, int frame_size)
+srs_error_t SrsSrtFrameBuilder::on_aac_frame(SrsTsMessage* msg, uint32_t pts, char* data, int data_size)
 {
     srs_error_t err = srs_success;
     
-    int rtmp_len = frame_size + 2/* 2 bytes of flv audio tag header*/;
+    int rtmp_len = data_size + 2/* 2 bytes of flv audio tag header*/;
 
     SrsCommonMessage rtmp;
     rtmp.header.initialize_audio(rtmp_len, pts, audio_streamid_);
@@ -842,9 +895,14 @@ srs_error_t SrsSrtToRtmpBridge::on_aac_frame(SrsTsMessage* msg, uint32_t pts, ch
     stream.write_1bytes(aac_flag);
     stream.write_1bytes(1);
     // Write audio frame.
-    stream.write_bytes(frame, frame_size);
+    stream.write_bytes(data, data_size);
+
+    SrsSharedPtrMessage frame;
+    if ((err = frame.create(&rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create frame");
+    }
     
-    if ((err = live_source_->on_audio(&rtmp)) != srs_success) {
+    if ((err = bridge_->on_frame(&frame)) != srs_success) {
         return srs_error_wrap(err, "srt to rtmp audio sh");
     }
 
@@ -855,6 +913,7 @@ SrsSrtSource::SrsSrtSource()
 {
     req = NULL;
     can_publish_ = true;
+    frame_builder_ = NULL;
     bridge_ = NULL;
 }
 
@@ -864,6 +923,7 @@ SrsSrtSource::~SrsSrtSource()
     // for all consumers are auto free.
     consumers.clear();
 
+    srs_freep(frame_builder_);
     srs_freep(bridge_);
 }
 
@@ -918,6 +978,9 @@ void SrsSrtSource::set_bridge(ISrsSrtSourceBridge* bridge)
 {
     srs_freep(bridge_);
     bridge_ = bridge;
+
+    srs_freep(frame_builder_);
+    frame_builder_ = new SrsSrtFrameBuilder(bridge);
 }
 
 srs_error_t SrsSrtSource::create_consumer(SrsSrtConsumer*& consumer)
@@ -964,8 +1027,18 @@ srs_error_t SrsSrtSource::on_publish()
         return srs_error_wrap(err, "source id change");
     }
 
-    if (bridge_ && (err = bridge_->on_publish()) != srs_success) {
-        return srs_error_wrap(err, "bridge on publish");
+    if (bridge_) {
+        if ((err = frame_builder_->initialize(req)) != srs_success) {
+            return srs_error_wrap(err, "frame builder initialize");
+        }
+
+        if ((err = frame_builder_->on_publish()) != srs_success) {
+            return srs_error_wrap(err, "frame builder on publish");
+        }
+
+        if ((err = bridge_->on_publish()) != srs_success) {
+            return srs_error_wrap(err, "bridge on publish");
+        }
     }
 
     SrsStatistic* stat = SrsStatistic::instance();
@@ -984,9 +1057,12 @@ void SrsSrtSource::on_unpublish()
     can_publish_ = true;
 
     if (bridge_) {
+        frame_builder_->on_unpublish();
+        srs_freep(frame_builder_);
+
         bridge_->on_unpublish();
+        srs_freep(bridge_);
     }
-    srs_freep(bridge_);
 }
 
 srs_error_t SrsSrtSource::on_packet(SrsSrtPacket* packet)
@@ -1000,7 +1076,7 @@ srs_error_t SrsSrtSource::on_packet(SrsSrtPacket* packet)
         }
     }
 
-    if (bridge_ && (err = bridge_->on_packet(packet)) != srs_success) {
+    if (frame_builder_ && (err = frame_builder_->on_packet(packet)) != srs_success) {
         return srs_error_wrap(err, "bridge consume message");
     }
 

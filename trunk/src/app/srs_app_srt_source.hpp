@@ -21,6 +21,7 @@ class SrsRequest;
 class SrsLiveSource;
 class SrsSrtSource;
 class SrsAlonePithyPrint;
+class SrsSrtFrameBuilder;
 
 // The SRT packet with shared message.
 class SrsSrtPacket
@@ -98,21 +99,38 @@ public:
     virtual ~ISrsSrtSourceBridge();
 public:
     virtual srs_error_t on_publish() = 0;
-    virtual srs_error_t on_packet(SrsSrtPacket *pkt) = 0;
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame) = 0;
     virtual void on_unpublish() = 0;
 };
 
-class SrsSrtToRtmpBridge : public ISrsSrtSourceBridge, public ISrsTsHandler
+// A bridge to covert SRT to RTMP stream.
+class SrsSrtToRtmpBridge : public ISrsSrtSourceBridge
 {
 public:
     SrsSrtToRtmpBridge(SrsLiveSource* source);
     virtual ~SrsSrtToRtmpBridge();
 public:
     virtual srs_error_t on_publish();
-    virtual srs_error_t on_packet(SrsSrtPacket *pkt);
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
     virtual void on_unpublish();
 public:
     srs_error_t initialize(SrsRequest* req);
+private:
+    SrsLiveSource* live_source_;
+};
+
+// Collect and build SRT TS packet to AV frames.
+class SrsSrtFrameBuilder : public ISrsTsHandler
+{
+public:
+    SrsSrtFrameBuilder(ISrsSrtSourceBridge* bridge);
+    virtual ~SrsSrtFrameBuilder();
+public:
+    srs_error_t initialize(SrsRequest* r);
+public:
+    virtual srs_error_t on_publish();
+    virtual srs_error_t on_packet(SrsSrtPacket* pkt);
+    virtual void on_unpublish();
 // Interface ISrsTsHandler
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage* msg);
@@ -123,35 +141,31 @@ private:
     srs_error_t on_h264_frame(SrsTsMessage* msg, std::vector<std::pair<char*, int> >& ipb_frames);
     srs_error_t check_audio_sh_change(SrsTsMessage* msg, uint32_t pts);
     srs_error_t on_aac_frame(SrsTsMessage* msg, uint32_t pts, char* frame, int frame_size);
-
 #ifdef SRS_H265
     srs_error_t on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs);
     srs_error_t check_vps_sps_pps_change(SrsTsMessage *msg);
     srs_error_t on_hevc_frame(SrsTsMessage *msg, std::vector<std::pair<char *, int>> &ipb_frames);
 #endif
-
+private:
+    ISrsSrtSourceBridge* bridge_;
 private:
     SrsTsContext* ts_ctx_;
-
     // Record sps/pps had changed, if change, need to generate new video sh frame.
     bool sps_pps_change_;
     std::string sps_;
     std::string pps_;
-
 #ifdef SRS_H265
     bool vps_sps_pps_change_;
     std::string hevc_vps_;
     std::string hevc_sps_;
     std::string hevc_pps_;
 #endif
-
     // Record audio sepcific config had changed, if change, need to generate new audio sh frame.
     bool audio_sh_change_;
     std::string audio_sh_;
-
+private:
     SrsRequest* req_;
-    SrsLiveSource* live_source_;
-
+private:
     // SRT to rtmp, video stream id.
     int video_streamid_;
     // SRT to rtmp, audio stream id.
@@ -201,6 +215,8 @@ private:
     // To delivery packets to clients.
     std::vector<SrsSrtConsumer*> consumers;
     bool can_publish_;
+private:
+    SrsSrtFrameBuilder* frame_builder_;
     ISrsSrtSourceBridge* bridge_;
 };
 
