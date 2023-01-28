@@ -479,8 +479,7 @@ public:
     virtual ~ISrsLiveSourceBridge();
 public:
     virtual srs_error_t on_publish() = 0;
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio) = 0;
-    virtual srs_error_t on_video(SrsSharedPtrMessage* video) = 0;
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame) = 0;
     virtual void on_unpublish() = 0;
 };
 

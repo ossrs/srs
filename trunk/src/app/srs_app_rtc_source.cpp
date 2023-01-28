@@ -814,6 +814,16 @@ void SrsRtmpToRtcBridge::on_unpublish()
     source_->on_unpublish();
 }
 
+srs_error_t SrsRtmpToRtcBridge::on_frame(SrsSharedPtrMessage* frame)
+{
+    if (frame->is_audio()) {
+        return on_audio(frame);
+    } else if (frame->is_video()) {
+        return on_video(frame);
+    }
+    return srs_success;
+}
+
 srs_error_t SrsRtmpToRtcBridge::on_audio(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;

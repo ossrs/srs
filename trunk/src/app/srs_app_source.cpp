@@ -2319,7 +2319,7 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
     }
 
     // For bridge to consume the message.
-    if (bridge_ && (err = bridge_->on_audio(msg)) != srs_success) {
+    if (bridge_ && (err = bridge_->on_frame(msg)) != srs_success) {
         return srs_error_wrap(err, "bridge consume audio");
     }
 
@@ -2464,7 +2464,7 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
     }
 
     // For bridge to consume the message.
-    if (bridge_ && (err = bridge_->on_video(msg)) != srs_success) {
+    if (bridge_ && (err = bridge_->on_frame(msg)) != srs_success) {
         return srs_error_wrap(err, "bridge consume video");
     }
 

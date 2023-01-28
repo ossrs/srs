@@ -273,12 +273,14 @@ public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
+private:
     virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
 private:
     srs_error_t init_codec(SrsAudioCodecId codec);
     srs_error_t transcode(SrsAudioFrame* audio);
     srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt);
-public:
+private:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:
     srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, std::vector<SrsSample*>& samples);
