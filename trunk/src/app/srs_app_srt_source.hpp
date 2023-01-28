@@ -102,11 +102,11 @@ public:
     virtual void on_unpublish() = 0;
 };
 
-class SrsRtmpFromSrtBridge : public ISrsSrtSourceBridge, public ISrsTsHandler
+class SrsSrtToRtmpBridge : public ISrsSrtSourceBridge, public ISrsTsHandler
 {
 public:
-    SrsRtmpFromSrtBridge(SrsLiveSource* source);
-    virtual ~SrsRtmpFromSrtBridge();
+    SrsSrtToRtmpBridge(SrsLiveSource* source);
+    virtual ~SrsSrtToRtmpBridge();
 public:
     virtual srs_error_t on_publish();
     virtual srs_error_t on_packet(SrsSrtPacket *pkt);

@@ -243,7 +243,7 @@ ISrsSrtSourceBridge::~ISrsSrtSourceBridge()
 {
 }
 
-SrsRtmpFromSrtBridge::SrsRtmpFromSrtBridge(SrsLiveSource* source) : ISrsSrtSourceBridge()
+SrsSrtToRtmpBridge::SrsSrtToRtmpBridge(SrsLiveSource* source) : ISrsSrtSourceBridge()
 {
     ts_ctx_ = new SrsTsContext();
 
@@ -260,7 +260,7 @@ SrsRtmpFromSrtBridge::SrsRtmpFromSrtBridge(SrsLiveSource* source) : ISrsSrtSourc
     pp_audio_duration_ = new SrsAlonePithyPrint();
 }
 
-SrsRtmpFromSrtBridge::~SrsRtmpFromSrtBridge()
+SrsSrtToRtmpBridge::~SrsSrtToRtmpBridge()
 {
     srs_freep(ts_ctx_);
     srs_freep(req_);
@@ -268,7 +268,7 @@ SrsRtmpFromSrtBridge::~SrsRtmpFromSrtBridge()
     srs_freep(pp_audio_duration_);
 }
 
-srs_error_t SrsRtmpFromSrtBridge::on_publish()
+srs_error_t SrsSrtToRtmpBridge::on_publish()
 {
     srs_error_t err = srs_success;
 
@@ -279,7 +279,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_publish()
     return err;
 }
 
-srs_error_t SrsRtmpFromSrtBridge::on_packet(SrsSrtPacket *pkt)
+srs_error_t SrsSrtToRtmpBridge::on_packet(SrsSrtPacket *pkt)
 {
     srs_error_t err = srs_success;
 
@@ -306,12 +306,12 @@ srs_error_t SrsRtmpFromSrtBridge::on_packet(SrsSrtPacket *pkt)
     return err;
 }
 
-void SrsRtmpFromSrtBridge::on_unpublish()
+void SrsSrtToRtmpBridge::on_unpublish()
 {
     live_source_->on_unpublish();
 }
 
-srs_error_t SrsRtmpFromSrtBridge::initialize(SrsRequest* req)
+srs_error_t SrsSrtToRtmpBridge::initialize(SrsRequest* req)
 {
     srs_error_t err = srs_success;
 
@@ -321,7 +321,7 @@ srs_error_t SrsRtmpFromSrtBridge::initialize(SrsRequest* req)
     return err;
 }
 
-srs_error_t SrsRtmpFromSrtBridge::on_ts_message(SrsTsMessage* msg)
+srs_error_t SrsSrtToRtmpBridge::on_ts_message(SrsTsMessage* msg)
 {
     srs_error_t err = srs_success;
     
@@ -369,7 +369,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_message(SrsTsMessage* msg)
     return err;
 }
 
-srs_error_t SrsRtmpFromSrtBridge::on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* avs)
+srs_error_t SrsSrtToRtmpBridge::on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* avs)
 {
     srs_error_t err = srs_success;
 
@@ -430,7 +430,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* 
     return on_h264_frame(msg, ipb_frames);
 }
 
-srs_error_t SrsRtmpFromSrtBridge::check_sps_pps_change(SrsTsMessage* msg)
+srs_error_t SrsSrtToRtmpBridge::check_sps_pps_change(SrsTsMessage* msg)
 {
     srs_error_t err = srs_success;
 
@@ -477,7 +477,7 @@ srs_error_t SrsRtmpFromSrtBridge::check_sps_pps_change(SrsTsMessage* msg)
     return err;
 }
 
-srs_error_t SrsRtmpFromSrtBridge::on_h264_frame(SrsTsMessage* msg, vector<pair<char*, int> >& ipb_frames)
+srs_error_t SrsSrtToRtmpBridge::on_h264_frame(SrsTsMessage* msg, vector<pair<char*, int> >& ipb_frames)
 {
     srs_error_t err = srs_success;
 
@@ -534,7 +534,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_h264_frame(SrsTsMessage* msg, vector<pair<c
 }
 
 #ifdef SRS_H265
-srs_error_t SrsRtmpFromSrtBridge::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs)
+srs_error_t SrsSrtToRtmpBridge::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
@@ -610,7 +610,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer 
     return on_hevc_frame(msg, ipb_frames);
 }
 
-srs_error_t SrsRtmpFromSrtBridge::check_vps_sps_pps_change(SrsTsMessage* msg)
+srs_error_t SrsSrtToRtmpBridge::check_vps_sps_pps_change(SrsTsMessage* msg)
 {
     srs_error_t err = srs_success;
 
@@ -657,7 +657,7 @@ srs_error_t SrsRtmpFromSrtBridge::check_vps_sps_pps_change(SrsTsMessage* msg)
     return err;
 }
 
-srs_error_t SrsRtmpFromSrtBridge::on_hevc_frame(SrsTsMessage* msg, vector<pair<char*, int> >& ipb_frames)
+srs_error_t SrsSrtToRtmpBridge::on_hevc_frame(SrsTsMessage* msg, vector<pair<char*, int> >& ipb_frames)
 {
     srs_error_t err = srs_success;
 
@@ -721,7 +721,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_hevc_frame(SrsTsMessage* msg, vector<pair<c
 }
 #endif
 
-srs_error_t SrsRtmpFromSrtBridge::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
+srs_error_t SrsSrtToRtmpBridge::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
     srs_error_t err = srs_success;
     
@@ -794,7 +794,7 @@ srs_error_t SrsRtmpFromSrtBridge::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
     return err;
 }
 
-srs_error_t SrsRtmpFromSrtBridge::check_audio_sh_change(SrsTsMessage* msg, uint32_t pts)
+srs_error_t SrsSrtToRtmpBridge::check_audio_sh_change(SrsTsMessage* msg, uint32_t pts)
 {
     srs_error_t err = srs_success;
     
@@ -825,7 +825,7 @@ srs_error_t SrsRtmpFromSrtBridge::check_audio_sh_change(SrsTsMessage* msg, uint3
     return err;
 }
 
-srs_error_t SrsRtmpFromSrtBridge::on_aac_frame(SrsTsMessage* msg, uint32_t pts, char* frame, int frame_size)
+srs_error_t SrsSrtToRtmpBridge::on_aac_frame(SrsTsMessage* msg, uint32_t pts, char* frame, int frame_size)
 {
     srs_error_t err = srs_success;
     

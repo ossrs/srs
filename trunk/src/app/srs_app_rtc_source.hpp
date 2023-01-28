@@ -27,7 +27,7 @@ class SrsSharedPtrMessage;
 class SrsCommonMessage;
 class SrsMessageArray;
 class SrsRtcSource;
-class SrsRtcFromRtmpBridge;
+class SrsRtmpToRtcBridge;
 class SrsAudioTranscoder;
 class SrsRtpPacket;
 class SrsSample;
@@ -245,7 +245,7 @@ private:
 };
 
 #ifdef SRS_FFMPEG_FIT
-class SrsRtcFromRtmpBridge : public ISrsLiveSourceBridge
+class SrsRtmpToRtcBridge : public ISrsLiveSourceBridge
 {
 private:
     SrsRequest* req;
@@ -267,8 +267,8 @@ private:
     uint8_t audio_payload_type_;
     uint8_t video_payload_type_;
 public:
-    SrsRtcFromRtmpBridge(SrsRtcSource* source);
-    virtual ~SrsRtcFromRtmpBridge();
+    SrsRtmpToRtcBridge(SrsRtcSource* source);
+    virtual ~SrsRtmpToRtcBridge();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();
@@ -289,7 +289,7 @@ private:
     srs_error_t consume_packets(std::vector<SrsRtpPacket*>& pkts);
 };
 
-class SrsRtmpFromRtcBridge : public ISrsRtcSourceBridge
+class SrsRtcToRtmpBridge : public ISrsRtcSourceBridge
 {
 private:
     SrsLiveSource *source_;
@@ -314,8 +314,8 @@ private:
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
 public:
-    SrsRtmpFromRtcBridge(SrsLiveSource *src);
-    virtual ~SrsRtmpFromRtcBridge();
+    SrsRtcToRtmpBridge(SrsLiveSource *src);
+    virtual ~SrsRtcToRtmpBridge();
 public:
     srs_error_t initialize(SrsRequest* r);
 public:

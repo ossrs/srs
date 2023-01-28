@@ -712,7 +712,7 @@ srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 
 #ifdef SRS_FFMPEG_FIT
 
-SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source)
+SrsRtmpToRtcBridge::SrsRtmpToRtcBridge(SrsRtcSource* source)
 {
     req = NULL;
     source_ = source;
@@ -747,14 +747,14 @@ SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source)
     }
 }
 
-SrsRtcFromRtmpBridge::~SrsRtcFromRtmpBridge()
+SrsRtmpToRtcBridge::~SrsRtmpToRtcBridge()
 {
     srs_freep(format);
     srs_freep(codec_);
     srs_freep(meta);
 }
 
-srs_error_t SrsRtcFromRtmpBridge::initialize(SrsRequest* r)
+srs_error_t SrsRtmpToRtcBridge::initialize(SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
@@ -778,7 +778,7 @@ srs_error_t SrsRtcFromRtmpBridge::initialize(SrsRequest* r)
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridge::on_publish()
+srs_error_t SrsRtmpToRtcBridge::on_publish()
 {
     srs_error_t err = srs_success;
 
@@ -798,7 +798,7 @@ srs_error_t SrsRtcFromRtmpBridge::on_publish()
     return err;
 }
 
-void SrsRtcFromRtmpBridge::on_unpublish()
+void SrsRtmpToRtcBridge::on_unpublish()
 {
     if (!rtmp_to_rtc) {
         return;
@@ -814,7 +814,7 @@ void SrsRtcFromRtmpBridge::on_unpublish()
     source_->on_unpublish();
 }
 
-srs_error_t SrsRtcFromRtmpBridge::on_audio(SrsSharedPtrMessage* msg)
+srs_error_t SrsRtmpToRtcBridge::on_audio(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
 
@@ -880,7 +880,7 @@ srs_error_t SrsRtcFromRtmpBridge::on_audio(SrsSharedPtrMessage* msg)
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridge::init_codec(SrsAudioCodecId codec)
+srs_error_t SrsRtmpToRtcBridge::init_codec(SrsAudioCodecId codec)
 {
     srs_error_t err = srs_success;
 
@@ -909,7 +909,7 @@ srs_error_t SrsRtcFromRtmpBridge::init_codec(SrsAudioCodecId codec)
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridge::transcode(SrsAudioFrame* audio)
+srs_error_t SrsRtmpToRtcBridge::transcode(SrsAudioFrame* audio)
 {
     srs_error_t err = srs_success;
 
@@ -945,7 +945,7 @@ srs_error_t SrsRtcFromRtmpBridge::transcode(SrsAudioFrame* audio)
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridge::package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt)
+srs_error_t SrsRtmpToRtcBridge::package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -966,7 +966,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_opus(SrsAudioFrame* audio, SrsRtpPacke
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridge::on_video(SrsSharedPtrMessage* msg)
+srs_error_t SrsRtmpToRtcBridge::on_video(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
 
@@ -1047,7 +1047,7 @@ srs_error_t SrsRtcFromRtmpBridge::on_video(SrsSharedPtrMessage* msg)
     return consume_packets(pkts);
 }
 
-srs_error_t SrsRtcFromRtmpBridge::filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, vector<SrsSample*>& samples)
+srs_error_t SrsRtmpToRtcBridge::filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, vector<SrsSample*>& samples)
 {
     srs_error_t err = srs_success;
 
@@ -1077,7 +1077,7 @@ srs_error_t SrsRtcFromRtmpBridge::filter(SrsSharedPtrMessage* msg, SrsFormat* fo
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridge::package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket* pkt)
+srs_error_t SrsRtmpToRtcBridge::package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -1136,7 +1136,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_stap_a(SrsRtcSource* source, SrsShared
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridge::package_nalus(SrsSharedPtrMessage* msg, const vector<SrsSample*>& samples, vector<SrsRtpPacket*>& pkts)
+srs_error_t SrsRtmpToRtcBridge::package_nalus(SrsSharedPtrMessage* msg, const vector<SrsSample*>& samples, vector<SrsRtpPacket*>& pkts)
 {
     srs_error_t err = srs_success;
 
@@ -1232,7 +1232,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_nalus(SrsSharedPtrMessage* msg, const 
 }
 
 // Single NAL Unit Packet @see https://tools.ietf.org/html/rfc6184#section-5.6
-srs_error_t SrsRtcFromRtmpBridge::package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, vector<SrsRtpPacket*>& pkts)
+srs_error_t SrsRtmpToRtcBridge::package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, vector<SrsRtpPacket*>& pkts)
 {
     srs_error_t err = srs_success;
 
@@ -1256,7 +1256,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_single_nalu(SrsSharedPtrMessage* msg, 
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridge::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, vector<SrsRtpPacket*>& pkts)
+srs_error_t SrsRtmpToRtcBridge::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, vector<SrsRtpPacket*>& pkts)
 {
     srs_error_t err = srs_success;
 
@@ -1298,7 +1298,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_fu_a(SrsSharedPtrMessage* msg, SrsSamp
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridge::consume_packets(vector<SrsRtpPacket*>& pkts)
+srs_error_t SrsRtmpToRtcBridge::consume_packets(vector<SrsRtpPacket*>& pkts)
 {
     srs_error_t err = srs_success;
 
@@ -1319,7 +1319,7 @@ srs_error_t SrsRtcFromRtmpBridge::consume_packets(vector<SrsRtpPacket*>& pkts)
     return err;
 }
 
-SrsRtmpFromRtcBridge::SrsRtmpFromRtcBridge(SrsLiveSource *src)
+SrsRtcToRtmpBridge::SrsRtcToRtmpBridge(SrsLiveSource *src)
 {
     source_ = src;
     codec_ = NULL;
@@ -1331,14 +1331,14 @@ SrsRtmpFromRtcBridge::SrsRtmpFromRtcBridge(SrsLiveSource *src)
     memset(cache_video_pkts_, 0, sizeof(cache_video_pkts_));
 }
 
-SrsRtmpFromRtcBridge::~SrsRtmpFromRtcBridge()
+SrsRtcToRtmpBridge::~SrsRtcToRtmpBridge()
 {
     srs_freep(codec_);
     srs_freep(format);
     clear_cached_video();
 }
 
-srs_error_t SrsRtmpFromRtcBridge::initialize(SrsRequest* r)
+srs_error_t SrsRtcToRtmpBridge::initialize(SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
@@ -1364,7 +1364,7 @@ srs_error_t SrsRtmpFromRtcBridge::initialize(SrsRequest* r)
     return err;
 }
 
-srs_error_t SrsRtmpFromRtcBridge::on_publish()
+srs_error_t SrsRtcToRtmpBridge::on_publish()
 {
     srs_error_t err = srs_success;
 
@@ -1379,7 +1379,7 @@ srs_error_t SrsRtmpFromRtcBridge::on_publish()
     return err;
 }
 
-srs_error_t SrsRtmpFromRtcBridge::on_rtp(SrsRtpPacket *pkt)
+srs_error_t SrsRtcToRtmpBridge::on_rtp(SrsRtpPacket *pkt)
 {
     srs_error_t err = srs_success;
 
@@ -1402,13 +1402,13 @@ srs_error_t SrsRtmpFromRtcBridge::on_rtp(SrsRtpPacket *pkt)
     return err;
 }
 
-void SrsRtmpFromRtcBridge::on_unpublish()
+void SrsRtcToRtmpBridge::on_unpublish()
 {
     // TODO: FIXME: Should sync with bridge?
     source_->on_unpublish();
 }
 
-srs_error_t SrsRtmpFromRtcBridge::transcode_audio(SrsRtpPacket *pkt)
+srs_error_t SrsRtcToRtmpBridge::transcode_audio(SrsRtpPacket *pkt)
 {
     srs_error_t err = srs_success;
 
@@ -1457,7 +1457,7 @@ srs_error_t SrsRtmpFromRtcBridge::transcode_audio(SrsRtpPacket *pkt)
     return err;
 }
 
-void SrsRtmpFromRtcBridge::packet_aac(SrsCommonMessage* audio, char* data, int len, uint32_t pts, bool is_header)
+void SrsRtcToRtmpBridge::packet_aac(SrsCommonMessage* audio, char* data, int len, uint32_t pts, bool is_header)
 {
     int rtmp_len = len + 2;
     audio->header.initialize_audio(rtmp_len, pts, 1);
@@ -1474,7 +1474,7 @@ void SrsRtmpFromRtcBridge::packet_aac(SrsCommonMessage* audio, char* data, int l
     audio->size = rtmp_len;
 }
 
-srs_error_t SrsRtmpFromRtcBridge::packet_video(SrsRtpPacket* src)
+srs_error_t SrsRtcToRtmpBridge::packet_video(SrsRtpPacket* src)
 {
     srs_error_t err = srs_success;
 
@@ -1514,7 +1514,7 @@ srs_error_t SrsRtmpFromRtcBridge::packet_video(SrsRtpPacket* src)
     return err;
 }
 
-srs_error_t SrsRtmpFromRtcBridge::packet_video_key_frame(SrsRtpPacket* pkt)
+srs_error_t SrsRtcToRtmpBridge::packet_video_key_frame(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -1609,7 +1609,7 @@ srs_error_t SrsRtmpFromRtcBridge::packet_video_key_frame(SrsRtpPacket* pkt)
     return err;
 }
 
-srs_error_t SrsRtmpFromRtcBridge::packet_video_rtmp(const uint16_t start, const uint16_t end)
+srs_error_t SrsRtcToRtmpBridge::packet_video_rtmp(const uint16_t start, const uint16_t end)
 {
     srs_error_t err = srs_success;
 
@@ -1758,7 +1758,7 @@ srs_error_t SrsRtmpFromRtcBridge::packet_video_rtmp(const uint16_t start, const 
     return err;
 }
 
-int32_t SrsRtmpFromRtcBridge::find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn)
+int32_t SrsRtcToRtmpBridge::find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn)
 {
     uint32_t last_rtp_ts = cache_video_pkts_[cache_index(header_sn_)].rtp_ts;
     for (int i = 0; i < s_cache_size; ++i) {
@@ -1784,7 +1784,7 @@ int32_t SrsRtmpFromRtcBridge::find_next_lost_sn(uint16_t current_sn, uint16_t& e
     return -2;
 }
 
-void SrsRtmpFromRtcBridge::clear_cached_video()
+void SrsRtcToRtmpBridge::clear_cached_video()
 {
     for (size_t i = 0; i < s_cache_size; i++)
     {
@@ -1798,7 +1798,7 @@ void SrsRtmpFromRtcBridge::clear_cached_video()
     }
 }
 
-bool SrsRtmpFromRtcBridge::check_frame_complete(const uint16_t start, const uint16_t end)
+bool SrsRtcToRtmpBridge::check_frame_complete(const uint16_t start, const uint16_t end)
 {
     int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
     srs_assert(cnt >= 1);
