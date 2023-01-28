@@ -43,6 +43,15 @@ class SrsErrorPithyPrint;
 class SrsRtcFrameBuilder;
 class SrsLiveSource;
 
+// Firefox defaults as 109, Chrome is 111.
+const int kAudioPayloadType     = 111;
+const int kAudioChannel         = 2;
+const int kAudioSamplerate      = 48000;
+
+// Firefox defaults as 126, Chrome is 102.
+const int kVideoPayloadType = 102;
+const int kVideoSamplerate  = 90000;
+
 class SrsNtp
 {
 public:
@@ -242,53 +251,6 @@ private:
 };
 
 #ifdef SRS_FFMPEG_FIT
-
-// A bridge to covert RTMP to WebRTC stream.
-class SrsRtmpToRtcBridge : public ISrsStreamBridge
-{
-private:
-    SrsRequest* req;
-    SrsRtcSource* source_;
-    // The format, codec information.
-    SrsRtmpFormat* format;
-    // The metadata cache.
-    SrsMetaCache* meta;
-private:
-    bool rtmp_to_rtc;
-    SrsAudioCodecId latest_codec_;
-    SrsAudioTranscoder* codec_;
-    bool keep_bframe;
-    bool merge_nalus;
-    uint16_t audio_sequence;
-    uint16_t video_sequence;
-    uint32_t audio_ssrc;
-    uint32_t video_ssrc;
-    uint8_t audio_payload_type_;
-    uint8_t video_payload_type_;
-public:
-    SrsRtmpToRtcBridge(SrsRtcSource* source);
-    virtual ~SrsRtmpToRtcBridge();
-public:
-    virtual srs_error_t initialize(SrsRequest* r);
-    virtual srs_error_t on_publish();
-    virtual void on_unpublish();
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
-private:
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
-private:
-    srs_error_t init_codec(SrsAudioCodecId codec);
-    srs_error_t transcode(SrsAudioFrame* audio);
-    srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt);
-private:
-    virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
-private:
-    srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, std::vector<SrsSample*>& samples);
-    srs_error_t package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket* pkt);
-    srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacket*>& pkts);
-    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket*>& pkts);
-    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket*>& pkts);
-    srs_error_t consume_packets(std::vector<SrsRtpPacket*>& pkts);
-};
 
 // Collect and build WebRTC RTP packets to AV frames.
 class SrsRtcFrameBuilder

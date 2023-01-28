@@ -490,14 +490,14 @@ void SrsStatistic::cleanup_stream(SrsStatisticStream* stream)
 
     // Do cleanup streams.
     if (true) {
-        std::map<std::string, SrsStatisticStream *>::iterator it;
+        std::map<std::string, SrsStatisticStream*>::iterator it;
         if ((it = streams.find(stream->id)) != streams.end()) {
             streams.erase(it);
         }
     }
 
     if (true) {
-        std::map<std::string, SrsStatisticStream *>::iterator it;
+        std::map<std::string, SrsStatisticStream*>::iterator it;
         if ((it = rstreams.find(stream->url)) != rstreams.end()) {
             rstreams.erase(it);
         }
