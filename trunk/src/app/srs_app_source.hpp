@@ -18,6 +18,7 @@
 #include <srs_core_performance.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_app_hourglass.hpp>
+#include <srs_app_stream_bridge.hpp>
 
 class SrsFormat;
 class SrsRtmpFormat;
@@ -471,19 +472,6 @@ public:
 // Global singleton instance.
 extern SrsLiveSourceManager* _srs_sources;
 
-// For RTMP2RTC, bridge SrsLiveSource to SrsRtcSource
-class ISrsLiveSourceBridge
-{
-public:
-    ISrsLiveSourceBridge();
-    virtual ~ISrsLiveSourceBridge();
-public:
-    virtual srs_error_t initialize(SrsRequest* r) = 0;
-    virtual srs_error_t on_publish() = 0;
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame) = 0;
-    virtual void on_unpublish() = 0;
-};
-
 // The live streaming source.
 class SrsLiveSource : public ISrsReloadHandler
 {
@@ -518,7 +506,7 @@ private:
     // The event handler.
     ISrsLiveSourceHandler* handler;
     // The source bridge for other source.
-    ISrsLiveSourceBridge* bridge_;
+    ISrsStreamBridge* bridge_;
     // The edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
@@ -548,7 +536,7 @@ public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsLiveSourceHandler* h);
     // Bridge to other source, forward packets to it.
-    void set_bridge(ISrsLiveSourceBridge* v);
+    void set_bridge(ISrsStreamBridge* v);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);

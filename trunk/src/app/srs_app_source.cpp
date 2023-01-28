@@ -1910,14 +1910,6 @@ void SrsLiveSourceManager::destroy()
     pool.clear();
 }
 
-ISrsLiveSourceBridge::ISrsLiveSourceBridge()
-{
-}
-
-ISrsLiveSourceBridge::~ISrsLiveSourceBridge()
-{
-}
-
 SrsLiveSource::SrsLiveSource()
 {
     req = NULL;
@@ -2046,7 +2038,7 @@ srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
     return err;
 }
 
-void SrsLiveSource::set_bridge(ISrsLiveSourceBridge* v)
+void SrsLiveSource::set_bridge(ISrsStreamBridge* v)
 {
     srs_freep(bridge_);
     bridge_ = v;

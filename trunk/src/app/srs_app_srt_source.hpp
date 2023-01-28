@@ -14,7 +14,7 @@
 
 #include <srs_kernel_ts.hpp>
 #include <srs_protocol_st.hpp>
-#include <srs_app_source.hpp>
+#include <srs_app_stream_bridge.hpp>
 
 class SrsSharedPtrMessage;
 class SrsRequest;
@@ -92,19 +92,8 @@ public:
     virtual void wait(int nb_msgs, srs_utime_t timeout);
 };
 
-class ISrsSrtSourceBridge
-{
-public:
-    ISrsSrtSourceBridge();
-    virtual ~ISrsSrtSourceBridge();
-public:
-    virtual srs_error_t on_publish() = 0;
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame) = 0;
-    virtual void on_unpublish() = 0;
-};
-
 // A bridge to covert SRT to RTMP stream.
-class SrsSrtToRtmpBridge : public ISrsSrtSourceBridge
+class SrsSrtToRtmpBridge : public ISrsStreamBridge
 {
 public:
     SrsSrtToRtmpBridge(SrsLiveSource* source);
@@ -123,7 +112,7 @@ private:
 class SrsSrtFrameBuilder : public ISrsTsHandler
 {
 public:
-    SrsSrtFrameBuilder(ISrsSrtSourceBridge* bridge);
+    SrsSrtFrameBuilder(ISrsStreamBridge* bridge);
     virtual ~SrsSrtFrameBuilder();
 public:
     srs_error_t initialize(SrsRequest* r);
@@ -147,7 +136,7 @@ private:
     srs_error_t on_hevc_frame(SrsTsMessage *msg, std::vector<std::pair<char *, int>> &ipb_frames);
 #endif
 private:
-    ISrsSrtSourceBridge* bridge_;
+    ISrsStreamBridge* bridge_;
 private:
     SrsTsContext* ts_ctx_;
     // Record sps/pps had changed, if change, need to generate new video sh frame.
@@ -190,7 +179,7 @@ public:
     // Update the authentication information in request.
     virtual void update_auth(SrsRequest* r);
 public:
-    void set_bridge(ISrsSrtSourceBridge* bridge);
+    void set_bridge(ISrsStreamBridge* bridge);
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -217,7 +206,7 @@ private:
     bool can_publish_;
 private:
     SrsSrtFrameBuilder* frame_builder_;
-    ISrsSrtSourceBridge* bridge_;
+    ISrsStreamBridge* bridge_;
 };
 
 #endif

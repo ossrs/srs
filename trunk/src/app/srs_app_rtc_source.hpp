@@ -18,8 +18,10 @@
 
 #include <srs_app_rtc_sdp.hpp>
 #include <srs_protocol_st.hpp>
-#include <srs_app_source.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_app_hourglass.hpp>
+#include <srs_protocol_format.hpp>
+#include <srs_app_stream_bridge.hpp>
 
 class SrsRequest;
 class SrsMetaCache;
@@ -39,6 +41,7 @@ class SrsRtpNackForReceiver;
 class SrsJsonObject;
 class SrsErrorPithyPrint;
 class SrsRtcFrameBuilder;
+class SrsLiveSource;
 
 class SrsNtp
 {
@@ -146,18 +149,6 @@ public:
     virtual void on_consumers_finished() = 0;
 };
 
-// SrsRtcSource bridge to SrsLiveSource
-class ISrsRtcSourceBridge
-{
-public:
-    ISrsRtcSourceBridge();
-    virtual ~ISrsRtcSourceBridge();
-public:
-    virtual srs_error_t on_publish() = 0;
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame) = 0;
-    virtual void on_unpublish() = 0;
-};
-
 // A Source is a stream, to publish and to play with, binding to SrsRtcPublishStream and SrsRtcPlayStream.
 class SrsRtcSource : public ISrsFastTimer
 {
@@ -179,7 +170,7 @@ private:
     SrsRtcFrameBuilder* frame_builder_;
 #endif
     // The Source bridge, bridge stream to other source.
-    ISrsRtcSourceBridge* bridge_;
+    ISrsStreamBridge* bridge_;
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
@@ -211,7 +202,7 @@ public:
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
 public:
-    void set_bridge(ISrsRtcSourceBridge* bridge);
+    void set_bridge(ISrsStreamBridge* bridge);
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -253,7 +244,7 @@ private:
 #ifdef SRS_FFMPEG_FIT
 
 // A bridge to covert RTMP to WebRTC stream.
-class SrsRtmpToRtcBridge : public ISrsLiveSourceBridge
+class SrsRtmpToRtcBridge : public ISrsStreamBridge
 {
 private:
     SrsRequest* req;
@@ -300,7 +291,7 @@ private:
 };
 
 // A bridge to covert WebRTC to RTMP stream.
-class SrsRtcToRtmpBridge : public ISrsRtcSourceBridge
+class SrsRtcToRtmpBridge : public ISrsStreamBridge
 {
 private:
     SrsLiveSource *source_;
@@ -319,7 +310,7 @@ public:
 class SrsRtcFrameBuilder
 {
 private:
-    ISrsRtcSourceBridge* bridge_;
+    ISrsStreamBridge* bridge_;
 private:
     bool is_first_audio_;
     SrsAudioTranscoder *codec_;
@@ -339,7 +330,7 @@ private:
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
 public:
-    SrsRtcFrameBuilder(ISrsRtcSourceBridge* bridge);
+    SrsRtcFrameBuilder(ISrsStreamBridge* bridge);
     virtual ~SrsRtcFrameBuilder();
 public:
     srs_error_t initialize(SrsRequest* r);

@@ -235,14 +235,6 @@ void SrsSrtConsumer::wait(int nb_msgs, srs_utime_t timeout)
     srs_cond_timedwait(mw_wait, timeout);
 }
 
-ISrsSrtSourceBridge::ISrsSrtSourceBridge()
-{
-}
-
-ISrsSrtSourceBridge::~ISrsSrtSourceBridge()
-{
-}
-
 SrsSrtToRtmpBridge::SrsSrtToRtmpBridge(SrsLiveSource* source)
 {
     live_source_ = source;
@@ -278,7 +270,7 @@ srs_error_t SrsSrtToRtmpBridge::initialize(SrsRequest* req)
     return srs_success;
 }
 
-SrsSrtFrameBuilder::SrsSrtFrameBuilder(ISrsSrtSourceBridge* bridge)
+SrsSrtFrameBuilder::SrsSrtFrameBuilder(ISrsStreamBridge* bridge)
 {
     ts_ctx_ = new SrsTsContext();
 
@@ -974,7 +966,7 @@ void SrsSrtSource::update_auth(SrsRequest* r)
     req->update_auth(r);
 }
 
-void SrsSrtSource::set_bridge(ISrsSrtSourceBridge* bridge)
+void SrsSrtSource::set_bridge(ISrsStreamBridge* bridge)
 {
     srs_freep(bridge_);
     bridge_ = bridge;

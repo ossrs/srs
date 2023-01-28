@@ -323,14 +323,6 @@ ISrsRtcSourceEventHandler::~ISrsRtcSourceEventHandler()
 {
 }
 
-ISrsRtcSourceBridge::ISrsRtcSourceBridge()
-{
-}
-
-ISrsRtcSourceBridge::~ISrsRtcSourceBridge()
-{
-}
-
 SrsRtcSource::SrsRtcSource()
 {
     is_created_ = false;
@@ -470,7 +462,7 @@ SrsContextId SrsRtcSource::pre_source_id()
     return _pre_source_id;
 }
 
-void SrsRtcSource::set_bridge(ISrsRtcSourceBridge* bridge)
+void SrsRtcSource::set_bridge(ISrsStreamBridge* bridge)
 {
     srs_freep(bridge_);
     bridge_ = bridge;
@@ -1394,7 +1386,7 @@ srs_error_t SrsRtcToRtmpBridge::on_frame(SrsSharedPtrMessage* frame)
     return source_->on_frame(frame);
 }
 
-SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsRtcSourceBridge* bridge)
+SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
 {
     bridge_ = bridge;
     is_first_audio_ = true;
