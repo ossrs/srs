@@ -478,6 +478,7 @@ public:
     ISrsLiveSourceBridge();
     virtual ~ISrsLiveSourceBridge();
 public:
+    virtual srs_error_t initialize(SrsRequest* r) = 0;
     virtual srs_error_t on_publish() = 0;
     virtual srs_error_t on_frame(SrsSharedPtrMessage* frame) = 0;
     virtual void on_unpublish() = 0;
@@ -568,6 +569,7 @@ public:
 public:
     // TODO: FIXME: Use SrsSharedPtrMessage instead.
     virtual srs_error_t on_audio(SrsCommonMessage* audio);
+    srs_error_t on_frame(SrsSharedPtrMessage* msg);
 private:
     virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
 public:

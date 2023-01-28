@@ -38,6 +38,7 @@ class SrsRtpRingBuffer;
 class SrsRtpNackForReceiver;
 class SrsJsonObject;
 class SrsErrorPithyPrint;
+class SrsRtcFrameBuilder;
 
 class SrsNtp
 {
@@ -153,7 +154,7 @@ public:
     virtual ~ISrsRtcSourceBridge();
 public:
     virtual srs_error_t on_publish() = 0;
-    virtual srs_error_t on_rtp(SrsRtpPacket *pkt) = 0;
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame) = 0;
     virtual void on_unpublish() = 0;
 };
 
@@ -172,6 +173,9 @@ private:
     ISrsRtcPublishStream* publish_stream_;
     // Steam description for this steam.
     SrsRtcSourceDescription* stream_desc_;
+private:
+    // Collect and build WebRTC RTP packets to AV frames.
+    SrsRtcFrameBuilder* frame_builder_;
     // The Source bridge, bridge stream to other source.
     ISrsRtcSourceBridge* bridge_;
 private:
@@ -245,6 +249,8 @@ private:
 };
 
 #ifdef SRS_FFMPEG_FIT
+
+// A bridge to covert RTMP to WebRTC stream.
 class SrsRtmpToRtcBridge : public ISrsLiveSourceBridge
 {
 private:
@@ -291,16 +297,32 @@ private:
     srs_error_t consume_packets(std::vector<SrsRtpPacket*>& pkts);
 };
 
+// A bridge to covert WebRTC to RTMP stream.
 class SrsRtcToRtmpBridge : public ISrsRtcSourceBridge
 {
 private:
     SrsLiveSource *source_;
-    SrsAudioTranscoder *codec_;
-    bool is_first_audio;
-    bool is_first_video;
-    // The format, codec information.
-    SrsRtmpFormat* format;
+public:
+    SrsRtcToRtmpBridge(SrsLiveSource *src);
+    virtual ~SrsRtcToRtmpBridge();
+public:
+    srs_error_t initialize(SrsRequest* r);
+public:
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
+};
 
+// Collect and build WebRTC RTP packets to AV frames.
+class SrsRtcFrameBuilder
+{
+private:
+    ISrsRtcSourceBridge* bridge_;
+private:
+    bool is_first_audio_;
+    SrsAudioTranscoder *codec_;
+private:
+    const static uint16_t s_cache_size = 512;
     //TODO:use SrsRtpRingBuffer
     //TODO:jitter buffer class
     struct RtcPacketCache {
@@ -310,33 +332,33 @@ private:
         uint32_t rtp_ts;
         SrsRtpPacket* pkt;
     };
-    const static uint16_t s_cache_size = 512;
     RtcPacketCache cache_video_pkts_[s_cache_size];
     uint16_t header_sn_;
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
 public:
-    SrsRtcToRtmpBridge(SrsLiveSource *src);
-    virtual ~SrsRtcToRtmpBridge();
+    SrsRtcFrameBuilder(ISrsRtcSourceBridge* bridge);
+    virtual ~SrsRtcFrameBuilder();
 public:
     srs_error_t initialize(SrsRequest* r);
-public:
     virtual srs_error_t on_publish();
-    virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
     virtual void on_unpublish();
+    virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
 private:
     srs_error_t transcode_audio(SrsRtpPacket *pkt);
     void packet_aac(SrsCommonMessage* audio, char* data, int len, uint32_t pts, bool is_header);
+private:
     srs_error_t packet_video(SrsRtpPacket* pkt);
     srs_error_t packet_video_key_frame(SrsRtpPacket* pkt);
-    srs_error_t packet_video_rtmp(const uint16_t start, const uint16_t end);
-    int32_t find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn);
-    void clear_cached_video();
     inline uint16_t cache_index(uint16_t current_sn) {
         return current_sn % s_cache_size;
     }
+    int32_t find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn);
     bool check_frame_complete(const uint16_t start, const uint16_t end);
+    srs_error_t packet_video_rtmp(const uint16_t start, const uint16_t end);
+    void clear_cached_video();
 };
+
 #endif
 
 // TODO: FIXME: Rename it.
