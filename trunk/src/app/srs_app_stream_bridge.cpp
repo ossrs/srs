@@ -65,9 +65,11 @@ srs_error_t SrsFrameToRtmpBridge::on_frame(SrsSharedPtrMessage* frame)
 
 SrsFrameToRtcBridge::SrsFrameToRtcBridge(SrsRtcSource* source)
 {
+#ifdef SRS_RTC
     source_ = source;
+#endif
 
-#ifdef SRS_FFMPEG_FIT
+#if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
     uint32_t audio_ssrc = 0;
     uint8_t audio_payload_type = 0;
     uint32_t video_ssrc = 0;
@@ -117,10 +119,12 @@ srs_error_t SrsFrameToRtcBridge::on_publish()
 {
     srs_error_t err = srs_success;
 
+#ifdef SRS_RTC
     // TODO: FIXME: Should sync with bridge?
     if ((err = source_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "source publish");
     }
+#endif
 
 #ifdef SRS_FFMPEG_FIT
     if ((err = rtp_builder_->on_publish()) != srs_success) {
@@ -137,9 +141,11 @@ void SrsFrameToRtcBridge::on_unpublish()
     rtp_builder_->on_unpublish();
 #endif
 
+#ifdef SRS_RTC
     // @remark This bridge might be disposed here, so never use it.
     // TODO: FIXME: Should sync with bridge?
     source_->on_unpublish();
+#endif
 }
 
 srs_error_t SrsFrameToRtcBridge::on_frame(SrsSharedPtrMessage* frame)
@@ -153,7 +159,11 @@ srs_error_t SrsFrameToRtcBridge::on_frame(SrsSharedPtrMessage* frame)
 
 srs_error_t SrsFrameToRtcBridge::on_rtp(SrsRtpPacket* pkt)
 {
+#ifdef SRS_RTC
     return source_->on_rtp(pkt);
+#else
+    return srs_success;
+#endif
 }
 
 SrsCompositeBridge::SrsCompositeBridge()
