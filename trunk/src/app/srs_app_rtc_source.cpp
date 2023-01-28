@@ -341,7 +341,9 @@ SrsRtcSource::SrsRtcSource()
 
     req = NULL;
     bridge_ = NULL;
+#ifdef SRS_FFMPEG_FIT
     frame_builder_ = NULL;
+#endif
 
     pli_for_rtmp_ = pli_elapsed_ = 0;
 }
@@ -352,7 +354,9 @@ SrsRtcSource::~SrsRtcSource()
     // for all consumers are auto free.
     consumers.clear();
 
+#ifdef SRS_FFMPEG_FIT
     srs_freep(frame_builder_);
+#endif
     srs_freep(bridge_);
     srs_freep(req);
     srs_freep(stream_desc_);
@@ -471,8 +475,10 @@ void SrsRtcSource::set_bridge(ISrsRtcSourceBridge* bridge)
     srs_freep(bridge_);
     bridge_ = bridge;
 
+#ifdef SRS_FFMPEG_FIT
     srs_freep(frame_builder_);
     frame_builder_ = new SrsRtcFrameBuilder(bridge);
+#endif
 }
 
 srs_error_t SrsRtcSource::create_consumer(SrsRtcConsumer*& consumer)
@@ -546,6 +552,7 @@ srs_error_t SrsRtcSource::on_publish()
 
     // If bridge to other source, handle event and start timer to request PLI.
     if (bridge_) {
+#ifdef SRS_FFMPEG_FIT
         if ((err = frame_builder_->initialize(req)) != srs_success) {
             return srs_error_wrap(err, "frame builder initialize");
         }
@@ -553,6 +560,7 @@ srs_error_t SrsRtcSource::on_publish()
         if ((err = frame_builder_->on_publish()) != srs_success) {
             return srs_error_wrap(err, "frame builder on publish");
         }
+#endif
 
         if ((err = bridge_->on_publish()) != srs_success) {
             return srs_error_wrap(err, "bridge on publish");
@@ -598,8 +606,10 @@ void SrsRtcSource::on_unpublish()
         // For SrsRtcSource::on_timer()
         _srs_hybrid->timer100ms()->unsubscribe(this);
 
+#ifdef SRS_FFMPEG_FIT
         frame_builder_->on_unpublish();
         srs_freep(frame_builder_);
+#endif
 
         bridge_->on_unpublish();
         srs_freep(bridge_);
@@ -652,9 +662,11 @@ srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket* pkt)
         }
     }
 
+#ifdef SRS_FFMPEG_FIT
     if (frame_builder_ && (err = frame_builder_->on_rtp(pkt)) != srs_success) {
         return srs_error_wrap(err, "frame builder consume packet");
     }
+#endif
 
     return err;
 }

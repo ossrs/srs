@@ -174,8 +174,10 @@ private:
     // Steam description for this steam.
     SrsRtcSourceDescription* stream_desc_;
 private:
+#ifdef SRS_FFMPEG_FIT
     // Collect and build WebRTC RTP packets to AV frames.
     SrsRtcFrameBuilder* frame_builder_;
+#endif
     // The Source bridge, bridge stream to other source.
     ISrsRtcSourceBridge* bridge_;
 private:
