@@ -41,14 +41,24 @@ using namespace std;
 
 #define SRS_CONTEXT_IN_HLS "hls_ctx"
 
-SrsM3u8CtxInfo::SrsM3u8CtxInfo()
+SrsHlsVirtualConn::SrsHlsVirtualConn()
 {
     req = NULL;
+    interrupt = false;
 }
 
-SrsM3u8CtxInfo::~SrsM3u8CtxInfo()
+SrsHlsVirtualConn::~SrsHlsVirtualConn()
 {
     srs_freep(req);
+}
+
+void SrsHlsVirtualConn::expire()
+{
+    interrupt = true;
+
+    // remove statistic quickly
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_disconnect(ctx, srs_success);
 }
 
 SrsHlsStream::SrsHlsStream()
@@ -60,9 +70,9 @@ SrsHlsStream::~SrsHlsStream()
 {
     _srs_hybrid->timer5s()->unsubscribe(this);
 
-    std::map<std::string, SrsM3u8CtxInfo*>::iterator it;
+    std::map<std::string, SrsHlsVirtualConn*>::iterator it;
     for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {
-        SrsM3u8CtxInfo* info = it->second;
+        SrsHlsVirtualConn* info = it->second;
         srs_freep(info);
     }
     map_ctx_info_.clear();
@@ -94,6 +104,12 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
             *served = false;
             return srs_success;
         }
+
+        if (is_interrupt(ctx)) {
+            srs_warn("Reject: HLS stream is EOF, ctx=%s", ctx.c_str());
+            return srs_go_http_error(w, SRS_CONSTS_HTTP_NotFound, srs_fmt("HLS stream %s is EOF", ctx.c_str()));
+        }
+
         err = serve_exists_session(w, r, factory, fullpath);
     } else {
         // Create a m3u8 in memory, contains the session id(ctx).
@@ -238,20 +254,31 @@ bool SrsHlsStream::ctx_is_exist(std::string ctx)
 
 void SrsHlsStream::alive(std::string ctx, SrsRequest* req)
 {
-    std::map<std::string, SrsM3u8CtxInfo*>::iterator it = map_ctx_info_.find(ctx);
+    std::map<std::string, SrsHlsVirtualConn*>::iterator it = map_ctx_info_.find(ctx);
 
     // Create new context.
     if (it == map_ctx_info_.end()) {
-        SrsM3u8CtxInfo *info = new SrsM3u8CtxInfo();
-        info->req = req->copy();
-        info->request_time = srs_get_system_time();
-        map_ctx_info_.insert(make_pair(ctx, info));
+        SrsHlsVirtualConn* conn = new SrsHlsVirtualConn();
+        conn->req = req->copy();
+        conn->ctx = ctx;
+        conn->request_time = srs_get_system_time();
+        map_ctx_info_.insert(make_pair(ctx, conn));
+
+        // Update the conn of stat client, which is used for receiving the event of kickoff.
+        SrsStatistic* stat = SrsStatistic::instance();
+        SrsStatisticClient* client = stat->find_client(ctx);
+        if (client) {
+            client->conn = conn;
+        }
+
         return;
     }
 
-    // Update alive time of context.
-    SrsM3u8CtxInfo* info = it->second;
-    info->request_time = srs_get_system_time();
+    // Update alive time of context for virtual connection.
+    SrsHlsVirtualConn* conn = it->second;
+    if (!conn->interrupt) {
+        conn->request_time = srs_get_system_time();
+    }
 }
 
 srs_error_t SrsHlsStream::http_hooks_on_play(SrsRequest* req)
@@ -321,10 +348,10 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
-    std::map<std::string, SrsM3u8CtxInfo*>::iterator it;
+    std::map<std::string, SrsHlsVirtualConn*>::iterator it;
     for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {
         string ctx = it->first;
-        SrsM3u8CtxInfo* info = it->second;
+        SrsHlsVirtualConn* info = it->second;
 
         srs_utime_t hls_window = _srs_config->get_hls_window(info->req->vhost);
         if (info->request_time + (2 * hls_window) < srs_get_system_time()) {
@@ -345,6 +372,14 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
     }
 
     return err;
+}
+
+bool SrsHlsStream::is_interrupt(std::string id) {
+    std::map<std::string, SrsHlsVirtualConn*>::iterator it = map_ctx_info_.find(id);
+    if (it != map_ctx_info_.end()) {
+        return it->second->interrupt;
+    }
+    return false;
 }
 
 SrsVodStream::SrsVodStream(string root_dir) : SrsHttpFileServer(root_dir)

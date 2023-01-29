@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-01-29, Merge [#3371](https://github.com/ossrs/srs/pull/3371): HLS: support kick-off hls client. v5.0.139 (#3371)
 * v5.0, 2023-01-19, Merge [#3318](https://github.com/ossrs/srs/pull/3318): RTC: fix rtc publisher pli cid. v5.0.138 (#3318)
 * v5.0, 2023-01-18, Merge [#3382](https://github.com/ossrs/srs/pull/3382): Rewrite research/api-server code by Go, remove Python. v5.0.137 (#3382)
 * v5.0, 2023-01-18, Merge [#3386](https://github.com/ossrs/srs/pull/3386): SRT: fix crash when srt_to_rtmp off. v5.0.136 (#3386)
