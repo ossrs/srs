@@ -106,7 +106,8 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
         }
 
         if (is_interrupt(ctx)) {
-            return srs_error_new(ERROR_HTTP_STREAM_EOF, "HTTP stream is EOF");
+            srs_warn("Reject: HLS stream is EOF, ctx=%s", ctx.c_str());
+            return srs_go_http_error(w, SRS_CONSTS_HTTP_NotFound, srs_fmt("HLS stream %s is EOF", ctx.c_str()));
         }
 
         err = serve_exists_session(w, r, factory, fullpath);
@@ -263,7 +264,7 @@ void SrsHlsStream::alive(std::string ctx, SrsRequest* req)
         info->request_time = srs_get_system_time();
         map_ctx_info_.insert(make_pair(ctx, info));
 
-        // update conn of stat
+        // Update the conn of stat client, which is used for receiving the event of kickoff.
         SrsStatistic* stat = SrsStatistic::instance();
         SrsStatisticClient* client = stat->find_client(ctx);
         if (client) {
