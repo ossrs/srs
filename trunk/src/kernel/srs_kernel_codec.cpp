@@ -653,7 +653,7 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     }
 
     SrsVideoCodecConfig* c = vcodec();
-    if (size <= 0) return err;
+    if (!bytes || size <= 0) return err;
 
     // For HEVC(H.265), try to parse the IDR from NALUs.
     if (c && c->id == SrsVideoCodecIdHEVC) {
