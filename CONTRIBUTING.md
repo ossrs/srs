@@ -5,3 +5,7 @@ Welome to contribute to SRS!
 1. Then follow the [guide](https://ossrs.io/lts/en-us/how-to-file-pr) or [贡献代码](https://ossrs.net/lts/zh-cn/how-to-file-pr) to file a PR.
 1. We will review your PR ASAP.
 
+If exceed [50 commits](https://github.com/ossrs/srs/graphs/contributors), you will be [TOC of SRS](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#toc).
+
+All [contributors](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#contributors) are listed in SRS authors.
+
