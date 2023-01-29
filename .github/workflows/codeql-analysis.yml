@@ -3,6 +3,9 @@ name: "CodeQL"
 # @see https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#onpushpull_requestbranchestags
 on: [push, pull_request]
 
+# See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+permissions: write-all
+
 jobs:
   analyze:
     name: actions-codeql-analyze
@@ -15,11 +18,11 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@515828d97454b8354517688ddc5b48402b723750 # v2.1.38
         with:
           languages: ${{ matrix.language }}
 
@@ -31,4 +34,4 @@ jobs:
           cd trunk && ./configure && make
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@515828d97454b8354517688ddc5b48402b723750 # v2.1.38

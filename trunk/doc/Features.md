@@ -25,9 +25,13 @@ The features of SRS.
 - [x] System: [Experimental] Support grab backtrace stack when assert fail. v5.0.80+
 - [x] System: [Experimental] Support Google Address Sanitizer, [#3216](https://github.com/ossrs/srs/issues/3216). v5.0.81+
 - [x] System: [Experimental] Windows: Support cygwin pipline and packager, [#2532](https://github.com/ossrs/srs/issues/2532). v5.0.89+
-- [x] System: [Experimental] Support H.265 over RTMP and HLS, [#465](https://github.com/ossrs/srs/issues/465). v6.0.2+
+- [x] System: [Experimental] Support H.265 over RTMP and HTTP-FLV, [#465](https://github.com/ossrs/srs/issues/465). v6.0.2+
+- [x] System: [Experimental] Support H.265 over HTTP-TS and HLS, [#465](https://github.com/ossrs/srs/issues/465). v6.0.11+
+- [x] System: [Experimental] Support H.265 over MPEG-DASH and DVR to MP4/FLV, [#465](https://github.com/ossrs/srs/issues/465). v6.0.14+
 - [x] API: Support HTTP API([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-api)) for system management. v1.0.0+
 - [x] API: Support HTTP callback([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-callback)) for authentication and integration. v2.0.0+
+- [x] API: Support on_play/stop/publish/unpublish for WebRTC, [#2509](https://github.com/ossrs/srs/issues/2509). v4.0.163+
+- [x] API: Support statistic and on_play/stop for HLS stream, [#2578](https://github.com/ossrs/srs/issues/2578). v4.0.163+
 - [x] API: Support reuse HTTP Stream port for HTTP API, [#2881](https://github.com/ossrs/srs/issues/2881). v5.0.47+
 - [x] API: [Experimental] Support Prometheus exporter, [#2899](https://github.com/ossrs/srs/issues/2899). v5.0.67+
 - [x] Live: Support Edge Cluster for live streaming, see ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/edge), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/edge)). v1.0.0+
@@ -54,7 +58,7 @@ The features of SRS.
 - [x] RTC: [Experimental] Support AV1 codec for WebRTC, [#2324](https://github.com/ossrs/srs/issues/2324). v4.0.207+
 - [x] RTC: [Experimental] Support transmux RTC to RTMP, [#2093](https://github.com/ossrs/srs/issues/2093). v4.0.95
 - [x] RTC: [Experimental] Support WebRTC over TCP directly, [#2852](https://github.com/ossrs/srs/issues/2852). v5.0.60+
-- [x] RTC: [Experimental] Support WHIP(WebRTC-HTTP ingestion protocol), [#2324](https://github.com/ossrs/srs/issues/2324). v5.0.61+
+- [x] RTC: [Experimental] Support WHIP(WebRTC-HTTP ingestion protocol), [#3170](https://github.com/ossrs/srs/issues/3170). v5.0.61+
 - [x] Other: Support ingesting([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/ingest), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/ingest)) other protocols to SRS by FFMPEG. v1.0.0+
 - [x] Other: Support forwarding([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/forward), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/forward)) to other RTMP servers. v1.0.0+
 - [x] Other: Support transcoding([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/ffmpeg), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/ffmpeg)) by FFMPEG. v1.0.0+

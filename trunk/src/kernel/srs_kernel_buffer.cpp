@@ -458,17 +458,66 @@ int32_t SrsBitBuffer::read_32bits()
     return read_bits(32);
 }
 
-int32_t SrsBitBuffer::read_bits_ue()
+srs_error_t SrsBitBuffer::read_bits_ue(uint32_t& v)
 {
-    int32_t r = 0;
-    int i = 0;
+    srs_error_t err = srs_success;
 
-    while((read_bit() == 0) && (i < 32) && (left_bits() > 0) ) {
-        i++;
+    if (empty()) {
+        return srs_error_new(ERROR_HEVC_NALU_UEV, "empty stream");
     }
 
-    r = read_bits(i);
-    r += (1 << i) - 1;
+    // ue(v) in 9.2 Parsing process for Exp-Golomb codes
+    // ITU-T-H.265-2021.pdf, page 221.
+    // Syntax elements coded as ue(v), me(v), or se(v) are Exp-Golomb-coded.
+    //      leadingZeroBits = -1;
+    //      for( b = 0; !b; leadingZeroBits++ )
+    //          b = read_bits( 1 )
+    // The variable codeNum is then assigned as follows:
+    //      codeNum = (2<<leadingZeroBits) - 1 + read_bits( leadingZeroBits )
+    int leadingZeroBits = -1;
+    for (int8_t b = 0; !b && !empty(); leadingZeroBits++) {
+        b = read_bit();
+    }
 
-    return r;
+    if (leadingZeroBits >= 31) {
+        return srs_error_new(ERROR_HEVC_NALU_UEV, "%dbits overflow 31bits", leadingZeroBits);
+    }
+
+    v = (1 << leadingZeroBits) - 1;
+    for (int i = 0; i < (int)leadingZeroBits; i++) {
+        if (empty()) {
+            return srs_error_new(ERROR_HEVC_NALU_UEV, "no bytes for leadingZeroBits=%d", leadingZeroBits);
+        }
+
+        uint32_t b = read_bit();
+        v += b << (leadingZeroBits - 1 - i);
+    }
+
+    return err;
+}
+
+srs_error_t SrsBitBuffer::read_bits_se(int32_t& v)
+{
+    srs_error_t err = srs_success;
+
+    if (empty()) {
+        return srs_error_new(ERROR_HEVC_NALU_SEV, "empty stream");
+    }
+
+    // ue(v) in 9.2.1 General Parsing process for Exp-Golomb codes
+    // ITU-T-H.265-2021.pdf, page 221.
+    uint32_t val = 0;
+    if ((err = read_bits_ue(val)) != srs_success) {
+        return srs_error_wrap(err, "read uev");
+    }
+
+    // se(v) in 9.2.2 Mapping process for signed Exp-Golomb codes
+    // ITU-T-H.265-2021.pdf, page 222.
+    if (val & 0x01) {
+        v = (val + 1) / 2;
+    } else {
+        v = -(val / 2);
+    }
+
+    return err;
 }

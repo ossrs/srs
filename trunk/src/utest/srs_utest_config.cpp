@@ -3943,6 +3943,9 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesGlobal)
         SrsSetEnvConfig(pid, "SRS_PID", "xxx");
         EXPECT_STREQ("xxx", conf.get_pid_file().c_str());
 
+        SrsSetEnvConfig(log_tank, "SRS_SRS_LOG_TANK", "console");
+        EXPECT_FALSE(conf.get_log_tank_file());
+
         SrsSetEnvConfig(log_file, "SRS_SRS_LOG_FILE", "xxx2");
         EXPECT_STREQ("xxx2", conf.get_log_file().c_str());
 
@@ -3950,6 +3953,28 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesGlobal)
         EXPECT_STREQ("xxx3", conf.get_log_level().c_str());
 
         SrsSetEnvConfig(log_level_v2, "SRS_SRS_LOG_LEVEL_V2", "xxx4");
+        EXPECT_STREQ("xxx4", conf.get_log_level_v2().c_str());
+
+        SrsSetEnvConfig(work_dir, "SRS_WORK_DIR", "xxx5");
+        EXPECT_STREQ("xxx5", conf.get_work_dir().c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+
+        SrsSetEnvConfig(pid, "SRS_PID", "xxx");
+        EXPECT_STREQ("xxx", conf.get_pid_file().c_str());
+
+        SrsSetEnvConfig(log_tank, "SRS_LOG_TANK", "console");
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        SrsSetEnvConfig(log_file, "SRS_LOG_FILE", "xxx2");
+        EXPECT_STREQ("xxx2", conf.get_log_file().c_str());
+
+        SrsSetEnvConfig(log_level, "SRS_LOG_LEVEL", "xxx3");
+        EXPECT_STREQ("xxx3", conf.get_log_level().c_str());
+
+        SrsSetEnvConfig(log_level_v2, "SRS_LOG_LEVEL_V2", "xxx4");
         EXPECT_STREQ("xxx4", conf.get_log_level_v2().c_str());
 
         SrsSetEnvConfig(work_dir, "SRS_WORK_DIR", "xxx5");
@@ -4215,6 +4240,9 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostSrt)
         EXPECT_TRUE(conf.get_srt_enabled("__defaultVhost__"));
 
         SrsSetEnvConfig(srt_to_rtmp, "SRS_VHOST_SRT_SRT_TO_RTMP", "off");
+        EXPECT_FALSE(conf.get_srt_to_rtmp("__defaultVhost__"));
+
+        SrsSetEnvConfig(srt_to_rtmp2, "SRS_VHOST_SRT_TO_RTMP", "off");
         EXPECT_FALSE(conf.get_srt_to_rtmp("__defaultVhost__"));
     }
 }

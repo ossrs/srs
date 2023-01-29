@@ -1919,7 +1919,7 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     // If use env only, we set change to daemon(off) and console log.
     if (env_only_) {
         if (!getenv("SRS_DAEMON")) setenv("SRS_DAEMON", "off", 1);
-        if (!getenv("SRS_SRS_LOG_TANK")) setenv("SRS_SRS_LOG_TANK", "console", 1);
+        if (!getenv("SRS_SRS_LOG_TANK") && !getenv("SRS_LOG_TANK")) setenv("SRS_SRS_LOG_TANK", "console", 1);
         if (root->directives.empty()) root->get_or_create("vhost", "__defaultVhost__");
     }
 
@@ -2606,7 +2606,7 @@ srs_error_t SrsConfig::check_normal_config()
                     
                     // TODO: FIXME: remove it in future.
                     if (m == "hls_storage" || m == "hls_mount") {
-                        srs_warn("HLS RAM is removed in SRS3+, read https://github.com/ossrs/srs/issues/513.");
+                        srs_warn("HLS RAM is removed in SRS3+");
                     }
                 }
             } else if (n == "http_hooks") {
@@ -6340,8 +6340,11 @@ extern bool _srs_in_docker;
 
 bool SrsConfig::get_log_tank_file()
 {
-    if (!srs_getenv("srs.srs_log_tank").empty()) { // SRS_
+    if (!srs_getenv("srs.srs_log_tank").empty()) { // SRS_SRS_LOG_TANK
         return srs_getenv("srs.srs_log_tank") != "console";
+    }
+    if (!srs_getenv("srs.log_tank").empty()) { // SRS_LOG_TANK
+        return srs_getenv("srs.log_tank") != "console";
     }
 
     static bool DEFAULT = true;
@@ -6361,6 +6364,7 @@ bool SrsConfig::get_log_tank_file()
 string SrsConfig::get_log_level()
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.srs_log_level"); // SRS_SRS_LOG_LEVEL
+    SRS_OVERWRITE_BY_ENV_STRING("srs.log_level"); // SRS_LOG_LEVEL
 
     static string DEFAULT = "trace";
 
@@ -6375,6 +6379,7 @@ string SrsConfig::get_log_level()
 string SrsConfig::get_log_level_v2()
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.srs_log_level_v2"); // SRS_SRS_LOG_LEVEL_V2
+    SRS_OVERWRITE_BY_ENV_STRING("srs.log_level_v2"); // SRS_LOG_LEVEL_V2
 
     static string DEFAULT = "";
 
@@ -6389,6 +6394,7 @@ string SrsConfig::get_log_level_v2()
 string SrsConfig::get_log_file()
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.srs_log_file"); // SRS_SRS_LOG_FILE
+    SRS_OVERWRITE_BY_ENV_STRING("srs.log_file"); // SRS_LOG_FILE
 
     static string DEFAULT = "./objs/srs.log";
     
@@ -7932,6 +7938,7 @@ bool SrsConfig::get_srt_enabled(std::string vhost)
 bool SrsConfig::get_srt_to_rtmp(std::string vhost)
 {
     SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.srt.srt_to_rtmp"); // SRS_VHOST_SRT_SRT_TO_RTMP
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.srt.to_rtmp"); // SRS_VHOST_SRT_TO_RTMP
 
     static bool DEFAULT = true;
 

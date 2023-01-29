@@ -117,12 +117,19 @@ public:
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage* msg);
 private:
-    srs_error_t on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
+    srs_error_t on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* avs);
     srs_error_t on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
     srs_error_t check_sps_pps_change(SrsTsMessage* msg);
     srs_error_t on_h264_frame(SrsTsMessage* msg, std::vector<std::pair<char*, int> >& ipb_frames);
     srs_error_t check_audio_sh_change(SrsTsMessage* msg, uint32_t pts);
     srs_error_t on_aac_frame(SrsTsMessage* msg, uint32_t pts, char* frame, int frame_size);
+
+#ifdef SRS_H265
+    srs_error_t on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs);
+    srs_error_t check_vps_sps_pps_change(SrsTsMessage *msg);
+    srs_error_t on_hevc_frame(SrsTsMessage *msg, std::vector<std::pair<char *, int>> &ipb_frames);
+#endif
+
 private:
     SrsTsContext* ts_ctx_;
 
@@ -130,6 +137,13 @@ private:
     bool sps_pps_change_;
     std::string sps_;
     std::string pps_;
+
+#ifdef SRS_H265
+    bool vps_sps_pps_change_;
+    std::string hevc_vps_;
+    std::string hevc_sps_;
+    std::string hevc_pps_;
+#endif
 
     // Record audio sepcific config had changed, if change, need to generate new audio sh frame.
     bool audio_sh_change_;
