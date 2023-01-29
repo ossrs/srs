@@ -100,9 +100,9 @@ Other important wiki:
 
 Thank you to all our contributors! 🙏
 
-[![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)](https://opencollective.com/srs-server/contribute)
+You may provide financial support for this project by donating [via Open Collective](https://opencollective.com/srs-server/contribute/backer-34941/checkout?interval=month&amount=5). Thank you for your support!
 
-> Note: You may provide financial support for this project by donating [via Open Collective](https://opencollective.com/srs-server/contribute). Thank you for your support!
+[![](https://opencollective.com/srs-server/backers.svg?width=800&button=true)](https://opencollective.com/srs-server/contribute/backer-34941/checkout?interval=month&amount=5)
 
 The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc), [Developers](trunk/AUTHORS.md#developers) and [contributors](trunk/AUTHORS.md#contributors):
 
