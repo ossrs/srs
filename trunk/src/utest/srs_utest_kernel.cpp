@@ -3457,21 +3457,21 @@ VOID TEST(KernelCodecTest, AVFrame)
 
 	if (true) {
 		SrsAudioFrame f;
-        SrsAudioCodecConfig cc;
-        HELPER_EXPECT_SUCCESS(f.initialize(&cc));
+        SrsAudioCodecConfig* cc = new SrsAudioCodecConfig();
+        SrsAutoFree(SrsAudioCodecConfig, cc);
+        HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.acodec() != NULL);
-        
+
         HELPER_EXPECT_SUCCESS(f.add_sample((char*)1, 10));
         EXPECT_TRUE((char*)1 == f.samples[0].bytes);
         EXPECT_TRUE(10 == f.samples[0].size);
         EXPECT_TRUE(1 == f.nb_samples);
-        
+
         HELPER_EXPECT_SUCCESS(f.add_sample((char*)2, 20));
         EXPECT_TRUE((char*)2 == f.samples[1].bytes);
         EXPECT_TRUE(20 == f.samples[1].size);
         EXPECT_TRUE(2 == f.nb_samples);
 	}
-
 
     if (true) {
         SrsAudioFrame f;
@@ -3483,23 +3483,24 @@ VOID TEST(KernelCodecTest, AVFrame)
         HELPER_EXPECT_SUCCESS(f.add_sample(NULL, 1));
         EXPECT_TRUE(0 == f.nb_samples);
     }
-    
+
     if (true) {
         SrsAudioFrame f;
         for (int i = 0; i < SrsMaxNbSamples; i++) {
             HELPER_EXPECT_SUCCESS(f.add_sample((char*)(int64_t)(i + 1), i*10 + 1));
         }
-        
+
         srs_error_t err = f.add_sample((char*)1, 1);
         HELPER_EXPECT_FAILED(err);
     }
     
     if (true) {
         SrsVideoFrame f;
-        SrsVideoCodecConfig cc;
-        HELPER_EXPECT_SUCCESS(f.initialize(&cc));
+        SrsVideoCodecConfig* cc = new SrsVideoCodecConfig();
+        SrsAutoFree(SrsVideoCodecConfig, cc);
+        HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.vcodec() != NULL);
-        
+
         HELPER_EXPECT_SUCCESS(f.add_sample((char*)"\x05", 1));
         EXPECT_TRUE(f.has_idr == true);
         EXPECT_TRUE(f.first_nalu_type == SrsAvcNaluTypeIDR);
@@ -3507,44 +3508,48 @@ VOID TEST(KernelCodecTest, AVFrame)
     
     if (true) {
         SrsVideoFrame f;
-        SrsVideoCodecConfig cc;
-        HELPER_EXPECT_SUCCESS(f.initialize(&cc));
+        SrsVideoCodecConfig* cc = new SrsVideoCodecConfig();
+        SrsAutoFree(SrsVideoCodecConfig, cc);
+        HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.vcodec() != NULL);
-        
+
         HELPER_EXPECT_SUCCESS(f.add_sample((char*)"\x07", 1));
         EXPECT_TRUE(f.has_sps_pps == true);
     }
     
     if (true) {
         SrsVideoFrame f;
-        SrsVideoCodecConfig cc;
-        HELPER_EXPECT_SUCCESS(f.initialize(&cc));
+        SrsVideoCodecConfig* cc = new SrsVideoCodecConfig();
+        SrsAutoFree(SrsVideoCodecConfig, cc);
+        HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.vcodec() != NULL);
-        
+
         HELPER_EXPECT_SUCCESS(f.add_sample((char*)"\x08", 1));
         EXPECT_TRUE(f.has_sps_pps == true);
     }
-    
+
     if (true) {
         SrsVideoFrame f;
-        SrsVideoCodecConfig cc;
-        HELPER_EXPECT_SUCCESS(f.initialize(&cc));
+        SrsVideoCodecConfig* cc = new SrsVideoCodecConfig();
+        SrsAutoFree(SrsVideoCodecConfig, cc);
+        HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.vcodec() != NULL);
-        
+
         HELPER_EXPECT_SUCCESS(f.add_sample((char*)"\x09", 1));
         EXPECT_TRUE(f.has_aud == true);
     }
-    
+
     if (true) {
         SrsVideoFrame f;
-        SrsVideoCodecConfig cc;
-        HELPER_EXPECT_SUCCESS(f.initialize(&cc));
+        SrsVideoCodecConfig* cc = new SrsVideoCodecConfig();
+        SrsAutoFree(SrsVideoCodecConfig, cc);
+        HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.vcodec() != NULL);
 
         for (int i = 0; i < SrsMaxNbSamples; i++) {
             HELPER_EXPECT_SUCCESS(f.add_sample((char*)"\x05", 1));
         }
-        
+
         srs_error_t err = f.add_sample((char*)"\x05", 1);
         HELPER_EXPECT_FAILED(err);
     }
@@ -4830,11 +4835,11 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
         uint32_t v = 0;
         srs_error_t err = bb.read_bits_ue(v);
         HELPER_EXPECT_SUCCESS(err);
-        EXPECT_EQ(1280, v);
+        EXPECT_EQ(1280, (int)v);
 
         err = bb.read_bits_ue(v);
         HELPER_EXPECT_SUCCESS(err);
-        EXPECT_EQ(720, v);
+        EXPECT_EQ(720, (int)v);
     }
 
     if (true) {
