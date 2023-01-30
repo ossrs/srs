@@ -494,17 +494,15 @@ struct SrsHevcHvccNalu {
  * HEVC Common Max define.
  * @doc ITU-T-H.265-2021.pdf
  */
-enum {
-    // @see F.7.3.2.1: vps_video_parameter_set_id is u(4).
-    // @doc ITU-T-H.265-2021.pdf, page 464.
-    SrsHevcMax_VPS_COUNT = 16,
-    // @see 7.4.3.2.1: sps_seq_parameter_set_id is in [0, 15].
-    // @doc ITU-T-H.265-2021.pdf, page 95.
-    SrsHevcMax_SPS_COUNT = 16,
-    // @see 7.4.3.3.1: pps_pic_parameter_set_id is in [0, 63].
-    // @doc ITU-T-H.265-2021.pdf, page 102.
-    SrsHevcMax_PPS_COUNT = 64,
-};
+// @see F.7.3.2.1: vps_video_parameter_set_id is u(4).
+// @doc ITU-T-H.265-2021.pdf, page 464.
+const int SrsHevcMax_VPS_COUNT = 16;
+// @see 7.4.3.2.1: sps_seq_parameter_set_id is in [0, 15].
+// @doc ITU-T-H.265-2021.pdf, page 95.
+const int SrsHevcMax_SPS_COUNT = 16;
+// @see 7.4.3.3.1: pps_pic_parameter_set_id is in [0, 63].
+// @doc ITU-T-H.265-2021.pdf, page 102.
+const int SrsHevcMax_PPS_COUNT = 64;
 
 /**
  * Profile, tier and level
