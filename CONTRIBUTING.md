@@ -7,5 +7,9 @@ Welome to contribute to SRS!
 
 If exceed [50 commits](https://github.com/ossrs/srs/graphs/contributors), you will be [TOC of SRS](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#toc).
 
+* The update of this file MUST be approved by [Winlin](https://github.com/winlinvip) and 3+ [TOC](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#toc).
+* Each [PullRequest](https://github.com/ossrs/srs/pulls) MUST be approved by 2+ [TOC](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#toc) or [Developers](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#developers).
+* The name of TOC will be listed at [README](https://github.com/ossrs/srs#authors) forever.
+
 All [contributors](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#contributors) are listed in SRS authors.
 
