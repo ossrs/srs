@@ -5,7 +5,7 @@ Welome to contribute to SRS!
 1. Then follow the [guide](https://ossrs.io/lts/en-us/how-to-file-pr) or [贡献代码](https://ossrs.net/lts/zh-cn/how-to-file-pr) to file a PR.
 1. We will review your PR ASAP.
 
-If exceed [50 commits](https://github.com/ossrs/srs/graphs/contributors), you will be [TOC of SRS](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#toc).
+If achieve [50 commits](https://github.com/ossrs/srs/graphs/contributors), you will be [TOC of SRS](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#toc).
 
 * The update of this file MUST be approved by [Winlin](https://github.com/winlinvip) and 3+ [TOC](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#toc).
 * Each [PullRequest](https://github.com/ossrs/srs/pulls) MUST be approved by 2+ [TOC](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#toc) or [Developers](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#developers).
