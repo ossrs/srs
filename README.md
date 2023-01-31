@@ -17,7 +17,7 @@
 [![](https://api.securityscorecards.dev/projects/github.com/ossrs/srs/badge)](https://api.securityscorecards.dev/projects/github.com/ossrs/srs)
 [![](https://bestpractices.coreinfrastructure.org/projects/5619/badge)](https://bestpractices.coreinfrastructure.org/projects/5619)
 
-SRS/6.0 is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/Windows/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS, and essential [features](trunk/doc/Features.md#features).
+SRS/6.0 ([Hang](https://ossrs.net/lts/zh-cn/product#release60)) is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/Windows/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS, and essential [features](trunk/doc/Features.md#features).
 
 [![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-sd.png?v=114)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-hd.png)
 
