@@ -1742,76 +1742,35 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
     }
 
     if (pps->pps_range_extension_flag) {
-        if (pps->transform_skip_enabled_flag) {
-            if ((err = bs.read_bits_ue(pps->pps_range_extension.log2_max_transform_skip_block_size_minus2)) != srs_success) {
-                return srs_error_wrap(err, "log2_max_transform_skip_block_size_minus2");
-            }
-        }
-
-        if (!bs.require_bits(2)) {
-            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "cross_component_prediction_enabled_flag requires 2 only %d bits", bs.left_bits());
-        }
-
-        // cross_component_prediction_enabled_flag  u(1)
-        pps->pps_range_extension.cross_component_prediction_enabled_flag = bs.read_bit();
-        // chroma_qp_offset_list_enabled_flag  u(1)
-        pps->pps_range_extension.chroma_qp_offset_list_enabled_flag = bs.read_bit();
-        if (pps->pps_range_extension.chroma_qp_offset_list_enabled_flag) {
-            // diff_cu_chroma_qp_offset_depth  ue(v)
-            if ((err = bs.read_bits_ue(pps->pps_range_extension.diff_cu_chroma_qp_offset_depth)) != srs_success) {
-                return srs_error_wrap(err, "diff_cu_chroma_qp_offset_depth");
-            }
-
-            // chroma_qp_offset_list_len_minus1  ue(v)
-            if ((err = bs.read_bits_ue(pps->pps_range_extension.chroma_qp_offset_list_len_minus1)) != srs_success) {
-                return srs_error_wrap(err, "chroma_qp_offset_list_len_minus1");
-            }
-
-            pps->pps_range_extension.cb_qp_offset_list.resize(pps->pps_range_extension.chroma_qp_offset_list_len_minus1);
-            pps->pps_range_extension.cr_qp_offset_list.resize(pps->pps_range_extension.chroma_qp_offset_list_len_minus1);
-
-            for (int i = 0; i < (int)pps->pps_range_extension.chroma_qp_offset_list_len_minus1; i++) {
-                // cb_qp_offset_list[i]  se(v)
-                if ((err = bs.read_bits_se(pps->pps_range_extension.cb_qp_offset_list[i])) != srs_success) {
-                    return srs_error_wrap(err, "cb_qp_offset_list");
-                }
-
-                // cr_qp_offset_list[i] se(v)
-                if ((err = bs.read_bits_se(pps->pps_range_extension.cr_qp_offset_list[i])) != srs_success) {
-                    return srs_error_wrap(err, "cr_qp_offset_list");
-                }
-            }
-        }
-
-        // log2_sao_offset_scale_luma  ue(v)
-        if ((err = bs.read_bits_ue(pps->pps_range_extension.log2_sao_offset_scale_luma)) != srs_success) {
-            return srs_error_wrap(err, "log2_sao_offset_scale_luma");
-        }
-
-        // log2_sao_offset_scale_chroma  ue(v)
-        if ((err = bs.read_bits_ue(pps->pps_range_extension.log2_sao_offset_scale_chroma)) != srs_success) {
-            return srs_error_wrap(err, "log2_sao_offset_scale_chroma");
-        }
+        // TODO: FIXME: add support for pps_range_extension()
+        // @see 7.3.2.3.2 Picture parameter set range extension syntax
+        // @doc ITU-T-H.265-2021.pdf, page 59.
     }
 
     if (pps->pps_multilayer_extension_flag){
         // pps_multilayer_extension, specified in Annex F
         // TODO: FIXME: add support for pps_multilayer_extension()
+        // @see F.7.3.2.3.4 Picture parameter set multilayer extension syntax
+        // @doc ITU-T-H.265-2021.pdf, page 475.
     }
 
     if (pps->pps_3d_extension_flag) {
         // pps_3d_extension, specified in Annex I
         // TODO: FIXME: add support for pps_3d_extension()
+        // @see I.7.3.2.3.7 Picture parameter set 3D extension syntax
+        // @doc ITU-T-H.265-2021.pdf, page 627.
     }
 
     if (pps->pps_scc_extension_flag) {
-        // pps_scc_extension_flag
         // TODO: FIXME: add support for pps_scc_extension()
+        // @see 7.3.2.3.3 Picture parameter set screen content coding extension syntax
+        // @doc ITU-T-H.265-2021.pdf, page 60.
     }
 
     if (pps->pps_extension_4bits) {
-        // more_rbsp_data
         // TODO: FIXME: add support for more_rbsp_data()
+        // @see 7.2 Specification of syntax functions and descriptors
+        // @doc ITU-T-H.265-2021.pdf, page 52.
     }
 
     // TODO: FIXME: rbsp_trailing_bits
