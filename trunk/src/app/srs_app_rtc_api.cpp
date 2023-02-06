@@ -627,7 +627,8 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     if (action.empty()) {
         action = "publish";
     }
-    if (srs_string_ends_with(r->path(), "/whip-play/")) {
+    // For whip-play or whep, parsed to https://datatracker.ietf.org/doc/draft-murillo-whep/
+    if (srs_string_ends_with(r->path(), "/whip-play/") || srs_string_ends_with(r->path(), "/whep/")) {
         action = "play";
     }
 
