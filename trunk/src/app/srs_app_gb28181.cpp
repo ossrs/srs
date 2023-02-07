@@ -1565,6 +1565,9 @@ SrsGbMuxer::~SrsGbMuxer()
     close();
 
     srs_freep(avc_);
+    srs_freep(aac_);
+    srs_freep(queue_);
+    srs_freep(pprint_);
 }
 
 srs_error_t SrsGbMuxer::initialize(std::string output)
