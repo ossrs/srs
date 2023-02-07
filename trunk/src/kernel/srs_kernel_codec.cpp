@@ -962,96 +962,6 @@ SrsHevcProfileTierLevel::SrsHevcProfileTierLevel()
 
 SrsHevcProfileTierLevel::~SrsHevcProfileTierLevel()
 {
-    sub_layer_profile_present_flag.clear();
-    sub_layer_level_present_flag.clear();
-    sub_layer_profile_space.clear();
-    sub_layer_tier_flag.clear();
-    sub_layer_profile_idc.clear();
-    sub_layer_profile_compatibility_flag.clear();
-    sub_layer_progressive_source_flag.clear();
-    sub_layer_interlaced_source_flag.clear();
-    sub_layer_non_packed_constraint_flag.clear();
-    sub_layer_frame_only_constraint_flag.clear();
-    sub_layer_max_12bit_constraint_flag.clear();
-    sub_layer_max_10bit_constraint_flag.clear();
-    sub_layer_max_8bit_constraint_flag.clear();
-    sub_layer_max_422chroma_constraint_flag.clear();
-    sub_layer_max_420chroma_constraint_flag.clear();
-    sub_layer_max_monochrome_constraint_flag.clear();
-    sub_layer_intra_constraint_flag.clear();
-    sub_layer_one_picture_only_constraint_flag.clear();
-    sub_layer_lower_bit_rate_constraint_flag.clear();
-    sub_layer_reserved_zero_7bits.clear();
-    sub_layer_reserved_zero_33bits.clear();
-    sub_layer_reserved_zero_34bits.clear();
-    sub_layer_reserved_zero_35bits.clear();
-    sub_layer_reserved_zero_43bits.clear();
-    sub_layer_inbld_flag.clear();
-    sub_layer_reserved_zero_bit.clear();
-    sub_layer_level_idc.clear();
-}
-
-srs_error_t SrsHevcProfileTierLevel::dumps(SrsHevcProfileTierLevel* ptl)
-{
-    srs_error_t err = srs_success;
-
-    general_profile_space = ptl->general_profile_space;
-    general_tier_flag = ptl->general_tier_flag;
-    general_profile_idc = ptl->general_profile_idc;
-    memcpy(general_profile_compatibility_flag, ptl->general_profile_compatibility_flag, 32);
-    general_progressive_source_flag = ptl->general_progressive_source_flag;
-    general_interlaced_source_flag = ptl->general_interlaced_source_flag;
-    general_non_packed_constraint_flag = ptl->general_non_packed_constraint_flag;
-    general_frame_only_constraint_flag = ptl->general_frame_only_constraint_flag;
-    general_max_12bit_constraint_flag = ptl->general_max_12bit_constraint_flag;
-    general_max_10bit_constraint_flag = ptl->general_max_10bit_constraint_flag;
-    general_max_8bit_constraint_flag = ptl->general_max_8bit_constraint_flag;
-    general_max_422chroma_constraint_flag = ptl->general_max_422chroma_constraint_flag;
-    general_max_420chroma_constraint_flag = ptl->general_max_420chroma_constraint_flag;
-    general_max_monochrome_constraint_flag = ptl->general_max_monochrome_constraint_flag;
-    general_intra_constraint_flag = ptl->general_intra_constraint_flag;
-    general_one_picture_only_constraint_flag = ptl->general_one_picture_only_constraint_flag;
-    general_lower_bit_rate_constraint_flag = ptl->general_lower_bit_rate_constraint_flag;
-    general_max_14bit_constraint_flag = ptl->general_max_14bit_constraint_flag;
-    general_reserved_zero_7bits = ptl->general_reserved_zero_7bits;
-    general_reserved_zero_33bits = ptl->general_reserved_zero_33bits;
-    general_reserved_zero_34bits = ptl->general_reserved_zero_34bits;
-    general_reserved_zero_35bits = ptl->general_reserved_zero_35bits;
-    general_reserved_zero_43bits = ptl->general_reserved_zero_43bits;
-    general_inbld_flag = ptl->general_inbld_flag;
-    general_reserved_zero_bit = ptl->general_reserved_zero_bit;
-    general_level_idc = ptl->general_level_idc;
-    memcpy(reserved_zero_2bits, ptl->reserved_zero_2bits, 8);
-
-    sub_layer_profile_present_flag.swap(ptl->sub_layer_profile_present_flag);
-    sub_layer_level_present_flag.swap(ptl->sub_layer_level_present_flag);
-    sub_layer_profile_space.swap(ptl->sub_layer_profile_space);
-    sub_layer_tier_flag.swap(ptl->sub_layer_tier_flag);
-    sub_layer_profile_idc.swap(ptl->sub_layer_profile_idc);
-    sub_layer_profile_compatibility_flag.swap(ptl->sub_layer_profile_compatibility_flag);
-    sub_layer_progressive_source_flag.swap(ptl->sub_layer_progressive_source_flag);
-    sub_layer_interlaced_source_flag.swap(ptl->sub_layer_interlaced_source_flag);
-    sub_layer_non_packed_constraint_flag.swap(ptl->sub_layer_non_packed_constraint_flag);
-    sub_layer_frame_only_constraint_flag.swap(ptl->sub_layer_frame_only_constraint_flag);
-    sub_layer_max_12bit_constraint_flag.swap(ptl->sub_layer_max_12bit_constraint_flag);
-    sub_layer_max_10bit_constraint_flag.swap(ptl->sub_layer_max_10bit_constraint_flag);
-    sub_layer_max_8bit_constraint_flag.swap(ptl->sub_layer_max_8bit_constraint_flag);
-    sub_layer_max_422chroma_constraint_flag.swap(ptl->sub_layer_max_422chroma_constraint_flag);
-    sub_layer_max_420chroma_constraint_flag.swap(ptl->sub_layer_max_420chroma_constraint_flag);
-    sub_layer_max_monochrome_constraint_flag.swap(ptl->sub_layer_max_monochrome_constraint_flag);
-    sub_layer_intra_constraint_flag.swap(ptl->sub_layer_intra_constraint_flag);
-    sub_layer_one_picture_only_constraint_flag.swap(ptl->sub_layer_one_picture_only_constraint_flag);
-    sub_layer_lower_bit_rate_constraint_flag.swap(ptl->sub_layer_lower_bit_rate_constraint_flag);
-    sub_layer_reserved_zero_7bits.swap(ptl->sub_layer_reserved_zero_7bits);
-    sub_layer_reserved_zero_33bits.swap(ptl->sub_layer_reserved_zero_33bits);
-    sub_layer_reserved_zero_34bits.swap(ptl->sub_layer_reserved_zero_34bits);
-    sub_layer_reserved_zero_35bits.swap(ptl->sub_layer_reserved_zero_35bits);
-    sub_layer_reserved_zero_43bits.swap(ptl->sub_layer_reserved_zero_43bits);
-    sub_layer_inbld_flag.swap(ptl->sub_layer_inbld_flag);
-    sub_layer_reserved_zero_bit.swap(ptl->sub_layer_reserved_zero_bit);
-    sub_layer_level_idc.swap(ptl->sub_layer_level_idc);
-
-    return err;
 }
 
 // Parse the hevc vps/sps/pps
@@ -1465,7 +1375,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     sps->sps_max_sub_layers_minus1 = sps_max_sub_layers_minus1;
     sps->sps_temporal_id_nesting_flag = sps_temporal_id_nesting_flag;
     sps->sps_seq_parameter_set_id = sps_seq_parameter_set_id;
-    sps->ptl.dumps(&profile_tier_level);
+    sps->ptl = profile_tier_level;
 
     // chroma_format_idc  ue(v)
     if ((err = bs.read_bits_ue(sps->chroma_format_idc)) != srs_success) {
@@ -1866,37 +1776,9 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
         pps->pps_extension_4bits = bs.read_bits(4);
     }
 
-    if (pps->pps_range_extension_flag) {
-        // TODO: FIXME: add support for pps_range_extension()
-        // @see 7.3.2.3.2 Picture parameter set range extension syntax
-        // @doc ITU-T-H.265-2021.pdf, page 59.
-    }
-
-    if (pps->pps_multilayer_extension_flag){
-        // pps_multilayer_extension, specified in Annex F
-        // TODO: FIXME: add support for pps_multilayer_extension()
-        // @see F.7.3.2.3.4 Picture parameter set multilayer extension syntax
-        // @doc ITU-T-H.265-2021.pdf, page 475.
-    }
-
-    if (pps->pps_3d_extension_flag) {
-        // pps_3d_extension, specified in Annex I
-        // TODO: FIXME: add support for pps_3d_extension()
-        // @see I.7.3.2.3.7 Picture parameter set 3D extension syntax
-        // @doc ITU-T-H.265-2021.pdf, page 627.
-    }
-
-    if (pps->pps_scc_extension_flag) {
-        // TODO: FIXME: add support for pps_scc_extension()
-        // @see 7.3.2.3.3 Picture parameter set screen content coding extension syntax
-        // @doc ITU-T-H.265-2021.pdf, page 60.
-    }
-
-    if (pps->pps_extension_4bits) {
-        // TODO: FIXME: add support for more_rbsp_data()
-        // @see 7.2 Specification of syntax functions and descriptors
-        // @doc ITU-T-H.265-2021.pdf, page 52.
-    }
+    // TODO: FIXME: Implements it, you might parse remain bits for pic_parameter_set_rbsp.
+    // @see 7.3.2.3 Picture parameter set RBSP syntax
+    // @doc ITU-T-H.265-2021.pdf, page 59.
 
     // TODO: FIXME: rbsp_trailing_bits
 

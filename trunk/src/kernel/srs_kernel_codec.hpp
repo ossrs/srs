@@ -556,9 +556,6 @@ public:
 public:
     SrsHevcProfileTierLevel();
     virtual ~SrsHevcProfileTierLevel();
-
-public:
-    virtual srs_error_t dumps(SrsHevcProfileTierLevel* ptl);
 };
 
 /**
