@@ -2503,6 +2503,9 @@ srs_error_t SrsConfig::check_normal_config()
     for (int n = 0; n < (int)vhosts.size(); n++) {
         SrsConfDirective* vhost = vhosts[n];
 
+        bool hls_enabled = false;
+        bool http_remux_ts = false;
+        int http_remux_cnt = 0;
         for (int i = 0; vhost && i < (int)vhost->directives.size(); i++) {
             SrsConfDirective* conf = vhost->at(i);
             string n = conf->name;
@@ -2578,13 +2581,25 @@ srs_error_t SrsConfig::check_normal_config()
                     }
                 }
             } else if (n == "http_remux") {
+                bool http_remux_enabled = false;
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "drop_if_not_match"
                         && m != "has_audio" && m != "has_video" && m != "guess_has_av") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.http_remux.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
+
+                    // http_remux enabled
+                    if (m == "enabled" && conf->at(j)->arg0() == "on") {
+                        http_remux_enabled = true;
+                    }
+
+                    // check mount suffix '.ts'
+                    if (http_remux_enabled && m == "mount" && srs_string_ends_with(conf->at(j)->arg0(), ".ts")) {
+                        http_remux_ts = true;
+                    }
                 }
+                http_remux_cnt++;
             } else if (n == "dash") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
@@ -2607,6 +2622,10 @@ srs_error_t SrsConfig::check_normal_config()
                     // TODO: FIXME: remove it in future.
                     if (m == "hls_storage" || m == "hls_mount") {
                         srs_warn("HLS RAM is removed in SRS3+");
+                    }
+
+                    if (m == "enabled" && conf->at(j)->arg0() == "on") {
+                        hls_enabled = true;
                     }
                 }
             } else if (n == "http_hooks") {
@@ -2672,6 +2691,16 @@ srs_error_t SrsConfig::check_normal_config()
                     }
                 }
             }
+        }
+
+        // check valid http-remux count
+        if (http_remux_cnt > 1) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.http_remux only one but count=%d of %s", http_remux_cnt, vhost->arg0().c_str());
+        }
+
+        // check hls conflict with http-ts
+        if (hls_enabled && http_remux_ts) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.hls conflict with vhost.http-ts of %s", vhost->arg0().c_str());
         }
     }
 
