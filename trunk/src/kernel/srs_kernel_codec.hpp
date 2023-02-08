@@ -511,6 +511,7 @@ const int SrsHevcMax_PPS_COUNT = 64;
  */
 struct SrsHevcProfileTierLevel
 {
+public:
     uint8_t general_profile_space;
     uint8_t general_tier_flag;
     uint8_t general_profile_idc;
@@ -565,6 +566,10 @@ struct SrsHevcProfileTierLevel
     std::vector<uint8_t> sub_layer_inbld_flag;
     std::vector<uint8_t> sub_layer_reserved_zero_bit;
     std::vector<uint8_t> sub_layer_level_idc;
+
+public:
+    SrsHevcProfileTierLevel();
+    virtual ~SrsHevcProfileTierLevel();
 };
 
 /**

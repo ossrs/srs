@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2023-02-08, Merge [#3389](https://github.com/ossrs/srs/pull/3389): Kernel: Fix demux SPS error for NVENC and LARIX. v6.0.22 (#3389)
 * v6.0, 2023-01-29, Merge [#3371](https://github.com/ossrs/srs/pull/3371): HLS: support kick-off hls client. v6.0.21 (#3371)
 * v6.0, 2023-01-19, Merge [#3366](https://github.com/ossrs/srs/pull/3366): H265: Support HEVC over SRT. v6.0.20 (#465) (#3366)
 * v6.0, 2023-01-19, Merge [#3318](https://github.com/ossrs/srs/pull/3318): RTC: fix rtc publisher pli cid. v6.0.19 (#3318)
