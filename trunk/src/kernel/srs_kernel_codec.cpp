@@ -653,7 +653,7 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     }
 
     SrsVideoCodecConfig* c = vcodec();
-    if (size <= 0) return err;
+    if (!bytes || size <= 0) return err;
 
     // For HEVC(H.265), try to parse the IDR from NALUs.
     if (c && c->id == SrsVideoCodecIdHEVC) {
@@ -1193,8 +1193,8 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char* rbsp, int nb_rbsp)
 
     // vps_video_parameter_set_id  u(4)
     int vps_video_parameter_set_id = bs.read_bits(4);
-    if (vps_video_parameter_set_id < 0 || vps_video_parameter_set_id > 16) {
-        return err;
+    if (vps_video_parameter_set_id < 0 || vps_video_parameter_set_id > SrsHevcMax_VPS_COUNT) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "vps id out of range: %d", vps_video_parameter_set_id);
     }
 
     // select table
@@ -1365,6 +1365,9 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     uint32_t sps_seq_parameter_set_id = 0;
     if ((err = bs.read_bits_ue(sps_seq_parameter_set_id)) != srs_success) {
         return srs_error_wrap(err, "sps_seq_parameter_set_id");
+    }
+    if (sps_seq_parameter_set_id < 0 || sps_seq_parameter_set_id >= SrsHevcMax_SPS_COUNT) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps id out of range: %d", sps_seq_parameter_set_id);
     }
 
     // for sps_table
@@ -1538,8 +1541,8 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
     if ((err = bs.read_bits_ue(pps_pic_parameter_set_id)) != srs_success) {
         return srs_error_wrap(err, "pps_pic_parameter_set_id");
     }
-    if (pps_pic_parameter_set_id < 0 || pps_pic_parameter_set_id > 256) {
-        return err;
+    if (pps_pic_parameter_set_id < 0 || pps_pic_parameter_set_id >= SrsHevcMax_PPS_COUNT) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps id out of range: %d", pps_pic_parameter_set_id);
     }
 
     // select table
