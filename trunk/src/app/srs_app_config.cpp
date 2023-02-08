@@ -2674,6 +2674,59 @@ srs_error_t SrsConfig::check_normal_config()
             }
         }
     }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check HLS with HTTP-TS
+    ////////////////////////////////////////////////////////////////////////
+    for (int n = 0; n < (int)vhosts.size(); n++) {
+        SrsConfDirective* vhost = vhosts[n];
+
+        bool hls_enabled = false;
+        bool http_remux_ts = false;
+        int http_remux_cnt = 0;
+
+        for (int i = 0; vhost && i < (int)vhost->directives.size(); i++) {
+            SrsConfDirective* conf = vhost->at(i);
+            string n = conf->name;
+            if (n == "http_remux") {
+                bool http_remux_enabled = false;
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name;
+
+                    // http_remux enabled
+                    if (m == "enabled" && conf->at(j)->arg0() == "on") {
+                        http_remux_enabled = true;
+                    }
+
+                    // check mount suffix '.ts'
+                    if (http_remux_enabled && m == "mount" && srs_string_ends_with(conf->at(j)->arg0(), ".ts")) {
+                        http_remux_ts = true;
+                    }
+                }
+                http_remux_cnt++;
+            } else if (n == "hls") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name;
+
+                    // hls enabled
+                    if (m == "enabled" && conf->at(j)->arg0() == "on") {
+                        hls_enabled = true;
+                    }
+                }
+            }
+        }
+
+        // check valid http-remux count
+        if (http_remux_cnt > 1) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.http_remux only one but count=%d of %s", http_remux_cnt, vhost->arg0().c_str());
+        }
+
+        // check hls conflict with http-ts
+        if (hls_enabled && http_remux_ts) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.hls conflict with vhost.http-ts of %s", vhost->arg0().c_str());
+        }
+    }
+
     // check ingest id unique.
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective* vhost = vhosts[i];
