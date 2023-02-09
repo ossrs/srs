@@ -156,6 +156,7 @@ SrsTsMessage* SrsTsMessage::detach()
 {
     // @remark the packet cannot be used, but channel is ok.
     SrsTsMessage* cp = new SrsTsMessage(channel, NULL);
+    cp->ps_helper_ = ps_helper_;
     cp->start_pts = start_pts;
     cp->write_pcr = write_pcr;
     cp->is_discontinuity = is_discontinuity;
