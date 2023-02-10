@@ -1557,7 +1557,7 @@ SrsGbMuxer::SrsGbMuxer(SrsLazyGbSession* session)
 
 #ifdef SRS_H265
     hevc_ = new SrsRawHEVCStream();
-    h265_sps_pps_sent_ = false;
+    vps_sps_pps_sent_ = false;
     vps_sps_pps_change_ = false;
 #endif
 
@@ -1816,9 +1816,9 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
         }
 
         // 6bits, 7.4.2.2 NAL unit header semantics
-        // T-REC-H.265-202108.pdf, page 65.
+        // T-REC-H.265-202108.pdf, page 85.
         // 32: VPS, 33: SPS, 34: PPS ...
-        SrsHevcNaluType nt = (SrsHevcNaluType)((frame[0] & 0x7f) >> 1);
+        SrsHevcNaluType nt = SrsHevcNaluTypeParse(frame[0]);
         if (nt == SrsHevcNaluType_SEI || nt == SrsHevcNaluType_SEI_SUFFIX || nt == SrsHevcNaluType_ACCESS_UNIT_DELIMITER) {
             continue;
         }
@@ -1928,7 +1928,7 @@ srs_error_t SrsGbMuxer::write_h265_vps_sps_pps(uint32_t dts, uint32_t pts)
 
     // reset vps/sps/pps.
     vps_sps_pps_change_ = false;
-    h265_sps_pps_sent_ = true;
+    vps_sps_pps_sent_ = true;
 
     return err;
 }
@@ -1939,15 +1939,15 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(char* frame, int frame_size, uint32
     srs_error_t err = srs_success;
 
     // when sps or pps not sent, ignore the packet.
-    if (!h265_sps_pps_sent_) {
+    if (!vps_sps_pps_sent_) {
         return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop for no vps/sps/pps");
     }
 
-    SrsHevcNaluType nt = (SrsHevcNaluType)((frame[0] & 0x7f) >> 1);
+    SrsHevcNaluType nt = SrsHevcNaluTypeParse(frame[0]);
 
     // for IDR frame, the frame is keyframe.
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (nt == SrsHevcNaluType_CODED_SLICE_IDR || nt == SrsHevcNaluType_CODED_SLICE_IDR_N_LP) {
+    if (nt >= SrsHevcNaluType_CODED_SLICE_BLA || nt <= SrsHevcNaluType_CODED_SLICE_CRA) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
 

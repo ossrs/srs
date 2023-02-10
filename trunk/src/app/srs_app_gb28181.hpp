@@ -36,7 +36,9 @@ class SrsGbMuxer;
 class SrsSimpleRtmpClient;
 struct SrsRawAacStreamCodec;
 class SrsRawH264Stream;
+#ifdef SRS_H265
 class SrsRawHEVCStream;
+#endif
 class SrsSharedPtrMessage;
 class SrsPithyPrint;
 class SrsRawAacStream;
@@ -417,7 +419,7 @@ private:
     std::string h265_vps_;
     std::string h265_sps_;
     std::string h265_pps_;
-    bool h265_sps_pps_sent_;
+    bool vps_sps_pps_sent_;
 #endif
 private:
     SrsRawAacStream* aac_;
