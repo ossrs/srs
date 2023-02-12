@@ -1048,6 +1048,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
         dec_conf_rec_p->temporal_id_nested, dec_conf_rec_p->length_size_minus_one, numOfArrays);
 
     //parse vps/pps/sps
+    dec_conf_rec_p->nalu_vec.clear();
     for (int index = 0; index < numOfArrays; index++) {
         if (!stream->require(3)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires 3 only %d bytes", stream->left());
