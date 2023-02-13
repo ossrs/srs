@@ -1816,7 +1816,7 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
         }
 
         // 6bits, 7.4.2.2 NAL unit header semantics
-        // T-REC-H.265-202108.pdf, page 85.
+        // ITU-T-H.265-2021.pdf, page 85.
         // 32: VPS, 33: SPS, 34: PPS ...
         SrsHevcNaluType nt = SrsHevcNaluTypeParse(frame[0]);
         if (nt == SrsHevcNaluType_SEI || nt == SrsHevcNaluType_SEI_SUFFIX || nt == SrsHevcNaluType_ACCESS_UNIT_DELIMITER) {
@@ -1945,9 +1945,10 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(char* frame, int frame_size, uint32
 
     SrsHevcNaluType nt = SrsHevcNaluTypeParse(frame[0]);
 
-    // for IDR frame, the frame is keyframe.
+    // F.3.29 intra random access point (IRAP) picture
+    // ITU-T-H.265-2021.pdf, page 28.
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (nt >= SrsHevcNaluType_CODED_SLICE_BLA || nt <= SrsHevcNaluType_CODED_SLICE_CRA) {
+    if (nt >= SrsHevcNaluType_CODED_SLICE_BLA || nt <= SrsHevcNaluType_RESERVED_23) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
 
