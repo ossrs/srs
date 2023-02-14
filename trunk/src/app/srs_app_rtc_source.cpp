@@ -974,6 +974,13 @@ srs_error_t SrsRtcFromRtmpBridge::on_video(SrsSharedPtrMessage* msg)
         return err;
     }
 
+    // WebRTC NOT support HEVC.
+#ifdef SRS_H265
+    if (format->vcodec->id == SrsVideoCodecIdHEVC) {
+        return err;
+    }
+#endif
+
     // cache the sequence header if h264
     bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
     if (is_sequence_header && (err = meta->update_vsh(msg)) != srs_success) {
