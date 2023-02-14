@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2022 Winlin
+// # Copyright (c) 2022 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +26,7 @@ import (
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
 	"github.com/pion/webrtc/v3/pkg/media/h264reader"
+	"github.com/yapingcat/gomedia/mpeg2"
 	"io"
 	"os"
 	"strconv"
@@ -357,7 +358,154 @@ func (v *PSIngester) Ingest(ctx context.Context) error {
 			videoDTS = uint64(v.conf.clockRate*avcSamples) / uint64(videoSampleRate)
 
 			if sps != nil || pps != nil {
-				err = pack.WriteHeader(videoDTS)
+				err = pack.WriteHeader(mpeg2.PS_STREAM_H264, videoDTS)
+			} else {
+				err = pack.WritePackHeader(videoDTS)
+			}
+			if err != nil {
+				return errors.Wrap(err, "pack header")
+			}
+
+			for _, frame := range videoFrames {
+				if err = pack.WriteVideo(frame.Data, videoDTS); err != nil {
+					return errors.Wrapf(err, "write video %v", len(frame.Data))
+				}
+			}
+		}
+
+		// Always read and consume one audio frame each time.
+		if true {
+			audioFrame, err := audio.NextADTSFrame()
+			if err != nil {
+				return errors.Wrap(err, "Read AAC")
+			}
+
+			// Each AAC frame contains 1024 samples, DTS = total-samples / sample-rate
+			aacSamples += 1024
+			audioDTS = uint64(v.conf.clockRate*aacSamples) / uint64(audioSampleRate)
+			if time.Now().Sub(lastPrint) > 3*time.Second {
+				lastPrint = time.Now()
+				logger.Tf(ctx, "Consume Video(samples=%v, dts=%v, ts=%.2f) and Audio(samples=%v, dts=%v, ts=%.2f)",
+					avcSamples, videoDTS, float64(videoDTS)/90.0, aacSamples, audioDTS, float64(audioDTS)/90.0,
+				)
+			}
+
+			if err = pack.WriteAudio(audioFrame, audioDTS); err != nil {
+				return errors.Wrapf(err, "write audio %v", len(audioFrame))
+			}
+		}
+
+		// Send pack when got video and enough audio frames.
+		if pack.hasVideo && videoDTS < audioDTS {
+			if err := ps.WritePacksOverRTP(pack.packets); err != nil {
+				return errors.Wrap(err, "write")
+			}
+			if v.onSendPacket != nil {
+				if err := v.onSendPacket(pack); err != nil {
+					return errors.Wrap(err, "callback")
+				}
+			}
+			pack = nil // Reset pack.
+		}
+
+		// One audio frame(1024 samples), the duration is 1024/audioSampleRate in seconds.
+		sampleDuration := time.Duration(uint64(time.Second) * 1024 / uint64(audioSampleRate))
+		if d := clock.Tick(sampleDuration); d > 0 {
+			time.Sleep(d)
+		}
+	}
+
+	return nil
+}
+
+func (v *PSIngester) IngestH265(ctx context.Context) error {
+	ctx, v.cancel = context.WithCancel(ctx)
+
+	ps := NewPSClient(uint32(v.conf.ssrc), v.conf.serverAddr)
+	if err := ps.Connect(ctx); err != nil {
+		return errors.Wrapf(err, "connect media=%v", v.conf.serverAddr)
+	}
+	defer ps.Close()
+
+	videoFile, err := os.Open(v.conf.psConfig.video)
+	if err != nil {
+		return errors.Wrapf(err, "Open file %v", v.conf.psConfig.video)
+	}
+	defer videoFile.Close()
+
+	f, err := os.Open(v.conf.psConfig.audio)
+	if err != nil {
+		return errors.Wrapf(err, "Open file %v", v.conf.psConfig.audio)
+	}
+	defer f.Close()
+
+	h265, err := NewReader(videoFile)
+	if err != nil {
+		return errors.Wrapf(err, "Open h265 %v", v.conf.psConfig.video)
+	}
+
+	audio, err := NewAACReader(f)
+	if err != nil {
+		return errors.Wrapf(err, "Open ogg %v", v.conf.psConfig.audio)
+	}
+
+	// Scale the video samples to 1024 according to AAC, that is 1 video frame means 1024 samples.
+	audioSampleRate := audio.codec.ASC().SampleRate.ToHz()
+	videoSampleRate := 1024 * 1000 / v.conf.psConfig.fps
+	logger.Tf(ctx, "PS: Media stream, tbn=%v, ssrc=%v, pt=%v, Video(%v, fps=%v, rate=%v), Audio(%v, rate=%v, channels=%v)",
+		v.conf.clockRate, v.conf.ssrc, v.conf.payloadType, v.conf.psConfig.video, v.conf.psConfig.fps, videoSampleRate,
+		v.conf.psConfig.audio, audioSampleRate, audio.codec.ASC().Channels)
+
+	lastPrint := time.Now()
+	var aacSamples, avcSamples uint64
+	var audioDTS, videoDTS uint64
+	defer func() {
+		logger.Tf(ctx, "Consume Video(samples=%v, dts=%v, ts=%.2f) and Audio(samples=%v, dts=%v, ts=%.2f)",
+			avcSamples, videoDTS, float64(videoDTS)/90.0, aacSamples, audioDTS, float64(audioDTS)/90.0,
+		)
+	}()
+
+	clock := newWallClock()
+	var pack *PSPackStream
+	for ctx.Err() == nil {
+		if pack == nil {
+			pack = NewPSPackStream(v.conf.payloadType)
+		}
+
+		// One pack should only contains one video frame.
+		if !pack.hasVideo {
+			var vps, sps, pps *NAL
+			var videoFrames []*NAL
+			for ctx.Err() == nil {
+				frame, err := h265.NextNAL()
+				if err == io.EOF {
+					return io.EOF
+				}
+				if err != nil {
+					return errors.Wrapf(err, "Read h265")
+				}
+
+				videoFrames = append(videoFrames, frame)
+				logger.If(ctx, "NALU %v PictureOrderCount=%v, ForbiddenZeroBit=%v, %v bytes",
+					frame.UnitType, frame.PictureOrderCount, frame.ForbiddenZeroBit, len(frame.Data))
+
+				if frame.UnitType == NaluTypeVps {
+					vps = frame
+				} else if frame.UnitType == NaluTypeSps {
+					sps = frame
+				} else if frame.UnitType == NaluTypePps {
+					pps = frame
+				} else {
+					break
+				}
+			}
+
+			// We convert the video sample rate to be based over 1024, that is 1024 samples means one video frame.
+			avcSamples += 1024
+			videoDTS = uint64(v.conf.clockRate*avcSamples) / uint64(videoSampleRate)
+
+			if vps != nil || sps != nil || pps != nil {
+				err = pack.WriteHeader(mpeg2.PS_STREAM_H265, videoDTS)
 			} else {
 				err = pack.WritePackHeader(videoDTS)
 			}

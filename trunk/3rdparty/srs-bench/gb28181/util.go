@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2022 Winlin
+// # Copyright (c) 2022 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -157,9 +157,10 @@ func NewGBTestPublisher() *GBTestPublisher {
 		server: *srsSipSvrID,
 	}
 	psConfig := PSConfig{
-		video: *srsPublishVideo,
-		fps:   *srsPublishVideoFps,
-		audio: *srsPublishAudio,
+		video:      *srsPublishVideo,
+		videoCodec: mpeg2.PS_STREAM_H264,
+		fps:        *srsPublishVideoFps,
+		audio:      *srsPublishAudio,
 	}
 	return &GBTestPublisher{
 		session: NewGBSession(&GBSessionConfig{
@@ -199,8 +200,14 @@ func (v *GBTestPublisher) Run(ctx context.Context) (err error) {
 	v.ingester.conf.clockRate = v.session.out.clockRate
 	v.ingester.conf.payloadType = uint8(v.session.out.payloadType)
 
-	if err := v.ingester.Ingest(ctx); err != nil {
-		return errors.Wrap(err, "ingest")
+	if v.ingester.conf.psConfig.videoCodec == mpeg2.PS_STREAM_H265 {
+		if err := v.ingester.IngestH265(ctx); err != nil {
+			return errors.Wrap(err, "ingest")
+		}
+	} else {
+		if err := v.ingester.Ingest(ctx); err != nil {
+			return errors.Wrap(err, "ingest")
+		}
 	}
 
 	return nil

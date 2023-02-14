@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2022 Winlin
+// # Copyright (c) 2022 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +26,7 @@ import (
 	"github.com/ghettovoice/gosip/sip"
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
+	"github.com/yapingcat/gomedia/mpeg2"
 	"testing"
 	"time"
 )
@@ -47,6 +48,37 @@ func TestGbPublishRegularly(t *testing.T) {
 			return nil
 		}
 
+		t.ingester.conf.psConfig.videoCodec = mpeg2.PS_STREAM_H264
+		if err := t.Run(ctx); err != nil {
+			return err
+		}
+
+		return nil
+	}()
+	if err := filterTestError(ctx.Err(), err); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+func TestGbPublishRegularlyH265(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	err := func() error {
+		t := NewGBTestPublisher()
+		defer t.Close()
+
+		var nnPackets int
+		t.ingester.onSendPacket = func(pack *PSPackStream) error {
+			if nnPackets += 1; nnPackets > 10 {
+				cancel()
+			}
+			return nil
+		}
+
+		t.ingester.conf.psConfig.video = "../avatar.h265"
+		t.ingester.conf.psConfig.videoCodec = mpeg2.PS_STREAM_H265
 		if err := t.Run(ctx); err != nil {
 			return err
 		}
