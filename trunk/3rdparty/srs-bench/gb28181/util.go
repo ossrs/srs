@@ -65,7 +65,7 @@ func prepareTest() (err error) {
 	srsMediaTimeout = flag.Int("srs-media-timeout", 2100, "PS media disconnect timeout in ms")
 	srsReinviteTimeout = flag.Int("srs-reinvite-timeout", 1200, "When disconnect, SIP re-invite timeout in ms")
 	srsPublishAudio = flag.String("srs-publish-audio", "avatar.aac", "The audio file for publisher.")
-	srsPublishVideo = flag.String("srs-publish-video", "avatar.h264", "The video file for publisher.")
+	srsPublishVideo = flag.String("srs-publish-video", "avatar.h264", "The video file for publisher. codec indicate by extension")
 	srsPublishVideoFps = flag.Int("srs-publish-video-fps", 25, "The video fps for publisher.")
 
 	// Should parse it first.
@@ -157,10 +157,9 @@ func NewGBTestPublisher() *GBTestPublisher {
 		server: *srsSipSvrID,
 	}
 	psConfig := PSConfig{
-		video:      *srsPublishVideo,
-		videoCodec: mpeg2.PS_STREAM_H264,
-		fps:        *srsPublishVideoFps,
-		audio:      *srsPublishAudio,
+		video: *srsPublishVideo,
+		fps:   *srsPublishVideoFps,
+		audio: *srsPublishAudio,
 	}
 	return &GBTestPublisher{
 		session: NewGBSession(&GBSessionConfig{
@@ -200,14 +199,8 @@ func (v *GBTestPublisher) Run(ctx context.Context) (err error) {
 	v.ingester.conf.clockRate = v.session.out.clockRate
 	v.ingester.conf.payloadType = uint8(v.session.out.payloadType)
 
-	if v.ingester.conf.psConfig.videoCodec == mpeg2.PS_STREAM_H265 {
-		if err := v.ingester.IngestH265(ctx); err != nil {
-			return errors.Wrap(err, "ingest")
-		}
-	} else {
-		if err := v.ingester.Ingest(ctx); err != nil {
-			return errors.Wrap(err, "ingest")
-		}
+	if err := v.ingester.Ingest(ctx); err != nil {
+		return errors.Wrap(err, "ingest")
 	}
 
 	return nil

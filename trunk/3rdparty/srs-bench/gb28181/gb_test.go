@@ -26,7 +26,6 @@ import (
 	"github.com/ghettovoice/gosip/sip"
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
-	"github.com/yapingcat/gomedia/mpeg2"
 	"testing"
 	"time"
 )
@@ -48,7 +47,7 @@ func TestGbPublishRegularly(t *testing.T) {
 			return nil
 		}
 
-		t.ingester.conf.psConfig.videoCodec = mpeg2.PS_STREAM_H264
+		t.ingester.conf.psConfig.video = "avatar.h264"
 		if err := t.Run(ctx); err != nil {
 			return err
 		}
@@ -78,7 +77,6 @@ func TestGbPublishRegularlyH265(t *testing.T) {
 		}
 
 		t.ingester.conf.psConfig.video = "avatar.h265"
-		t.ingester.conf.psConfig.videoCodec = mpeg2.PS_STREAM_H265
 		if err := t.Run(ctx); err != nil {
 			return err
 		}

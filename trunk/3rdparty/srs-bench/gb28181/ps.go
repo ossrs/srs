@@ -36,8 +36,6 @@ import (
 type PSConfig struct {
 	// The video source file.
 	video string
-	// The video codec
-	videoCodec mpeg2.PS_STREAM_TYPE
 	// The fps for h264 file.
 	fps int
 	// The audio source file.
