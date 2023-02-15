@@ -77,7 +77,7 @@ func TestGbPublishRegularlyH265(t *testing.T) {
 			return nil
 		}
 
-		t.ingester.conf.psConfig.video = "../avatar.h265"
+		t.ingester.conf.psConfig.video = "avatar.h265"
 		t.ingester.conf.psConfig.videoCodec = mpeg2.PS_STREAM_H265
 		if err := t.Run(ctx); err != nil {
 			return err
