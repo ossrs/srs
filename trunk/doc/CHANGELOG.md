@@ -8,7 +8,8 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
-* v6.0, 2023-02-16, Merge [#3411](https://github.com/ossrs/srs/pull/3411): HEVC: Fix nalu vec duplicate when h265 vps/sps/pps demux. v6.0.25 (#3411)
+* v6.0, 2023-02-16, Merge [#3411](https://github.com/ossrs/srs/pull/3411): HEVC: Fix nalu vec duplicate when h265 vps/sps/pps demux. v6.0.26 (#3411)
+* v6.0, 2023-02-14, Merge [#3408](https://github.com/ossrs/srs/pull/3408): GB: Support H.265 for GB28181. v6.0.25 (#3408)
 * v6.0, 2023-02-12, Merge [#3409](https://github.com/ossrs/srs/pull/3409): SRT: Reduce latency to 200ms of srt2rtc.conf. v6.0.24 (#3409)
 * v6.0, 2023-02-08, Merge [#3391](https://github.com/ossrs/srs/pull/3391): Config: Error when both HLS and HTTP-TS enabled. v6.0.23 (#3391)
 * v6.0, 2023-02-08, Merge [#3389](https://github.com/ossrs/srs/pull/3389): Kernel: Fix demux SPS error for NVENC and LARIX. v6.0.22 (#3389)
