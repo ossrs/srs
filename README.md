@@ -139,6 +139,8 @@ but some third-party libraries are distributed using their [own licenses](https:
 
 ## Releases
 
+* 2023-02-12, [Release v5.0-a4](https://github.com/ossrs/srs/releases/tag/v5.0-a4), v5.0-a4, 5.0 alpha4, v5.0.141, 161897 lines.
+* 2023-01-02, [Release v5.0-a3](https://github.com/ossrs/srs/releases/tag/v5.0-a3), v5.0-a3, 5.0 alpha3, v5.0.128, 161327 lines.
 * 2022-12-18, [Release v5.0-a2](https://github.com/ossrs/srs/releases/tag/v5.0-a2), v5.0-a2, 5.0 alpha2, v5.0.112, 161233 lines.
 * 2022-12-01, [Release v5.0-a1](https://github.com/ossrs/srs/releases/tag/v5.0-a1), v5.0-a1, 5.0 alpha1, v5.0.100, 160817 lines.
 * 2022-11-25, [Release v5.0-a0](https://github.com/ossrs/srs/releases/tag/v5.0-a0), v5.0-a0, 5.0 alpha0, v5.0.98, 159813 lines.
