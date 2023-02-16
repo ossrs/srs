@@ -25,6 +25,14 @@ if (!(is >> word)) {\
     return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch failed");\
 }\
 
+#define FETCH_WITH_WILDCARD(is,word,str) \
+if (!(is >> word)) {\
+    is.clear();\
+    if(!(is >> str)) {\
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch failed");\
+    }\
+}\
+
 #define FETCH_WITH_DELIM(is,word,delim) \
 if (!getline(is,word,delim)) {\
     return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch with delim failed");\
@@ -570,17 +578,37 @@ srs_error_t SrsMediaDesc::parse_attr_rtcp_fb(const std::string& value)
     std::istringstream is(value);
 
     int payload_type = 0;
-    FETCH(is, payload_type);
+    std::string str = "";
+    FETCH_WITH_WILDCARD(is, payload_type, str);
 
-    SrsMediaPayloadType* payload = find_media_with_payload_type(payload_type);
-    if (payload == NULL) {
-        return srs_error_new(ERROR_RTC_SDP_DECODE, "can not find payload %d when pase rtcp-fb", payload_type);
+    if (str.empty()) {
+        SrsMediaPayloadType* payload = find_media_with_payload_type(payload_type);
+        if (payload == NULL) {
+            return srs_error_new(ERROR_RTC_SDP_DECODE, "can not find payload %d when pase rtcp-fb", payload_type);
+        }
+
+        std::string rtcp_fb = is.str().substr(is.tellg());
+        skip_first_spaces(rtcp_fb);
+
+        if(std::find(payload->rtcp_fb_.begin(), payload->rtcp_fb_.end(), rtcp_fb) == payload->rtcp_fb_.end())
+        {
+            payload->rtcp_fb_.push_back(rtcp_fb);
+        }
+    } else {
+        if (str == "*") {
+            for (size_t i = 0; i < payload_types_.size(); ++i) {
+                SrsMediaPayloadType* payload = &payload_types_[i];
+
+                std::string rtcp_fb = is.str().substr(is.tellg());
+                skip_first_spaces(rtcp_fb);
+
+                if(std::find(payload->rtcp_fb_.begin(), payload->rtcp_fb_.end(), rtcp_fb) == payload->rtcp_fb_.end())
+                {
+                    payload->rtcp_fb_.push_back(rtcp_fb);
+                }
+            }
+        }
     }
-
-    std::string rtcp_fb = is.str().substr(is.tellg());
-    skip_first_spaces(rtcp_fb);
-
-    payload->rtcp_fb_.push_back(rtcp_fb);
 
     return err;
 }
