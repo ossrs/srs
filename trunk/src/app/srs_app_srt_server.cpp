@@ -225,7 +225,6 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
                             ip.c_str(), port);
         }
     }
-
     return err;
 }
 
