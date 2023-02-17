@@ -295,9 +295,9 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
         return srs_error_wrap(err, "on connect");
     }
 
-    if (mode_ == SrtModePush) {
+    if (mode == SrtModePush) {
         err = publishing();
-    } else if (mode_ == SrtModePull) {
+    } else if (mode == SrtModePull) {
         err = playing();
     }
     
