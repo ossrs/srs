@@ -28,5 +28,6 @@ extern bool srs_srt_streamid_info(const std::string& streamid, SrtMode& mode, st
 // SRT streamid to request.
 extern bool srs_srt_streamid_to_request(const std::string& streamid, SrtMode& mode, SrsRequest* request);
 
+extern std::string SrtMode2String(enum SrtMode mode);
 #endif
 

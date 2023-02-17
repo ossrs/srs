@@ -19,11 +19,12 @@ using namespace std;
 SrsSrtEventLoop* _srt_eventloop = NULL;
 #endif
 
-SrsSrtAcceptor::SrsSrtAcceptor(SrsSrtServer* srt_server)
+SrsSrtAcceptor::SrsSrtAcceptor(SrsSrtServer* srt_server, enum SrtMode mode)
 {
     port_ = 0;
     srt_server_ = srt_server;
     listener_ = NULL;
+    mode_ = mode;
 }
 
 SrsSrtAcceptor::~SrsSrtAcceptor()
@@ -133,7 +134,7 @@ srs_error_t SrsSrtAcceptor::on_srt_client(srs_srt_t srt_fd)
     srs_error_t err = srs_success;
 
     // Notify srt server to accept srt client, and create new SrsSrtConn on it.
-    if ((err = srt_server_->accept_srt_client(srt_fd)) != srs_success) {
+    if ((err = srt_server_->accept_srt_client(srt_fd, mode_)) != srs_success) {
         srs_warn("accept srt client failed, err is %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
@@ -195,16 +196,27 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
     // Close all listener for SRT if exists.
     close_listeners();
 
-    // Start a listener for SRT, we might need multiple listeners in the future.
-    SrsSrtAcceptor* acceptor = new SrsSrtAcceptor(this);
-    acceptors_.push_back(acceptor);
+    // Start a push listener for SRT
+    SrsSrtAcceptor* pushAcceptor = new SrsSrtAcceptor(this, SrtModePush);
+    acceptors_.push_back(pushAcceptor);
 
     int port; string ip;
-    srs_parse_endpoint(srs_int2str(_srs_config->get_srt_listen_port()), ip, port);
+    srs_parse_endpoint(srs_int2str(_srs_config->get_srt_push_port()), ip, port);
 
-    if ((err = acceptor->listen(ip, port)) != srs_success) {
-        return srs_error_wrap(err, "srt listen %s:%d", ip.c_str(), port);
+    if ((err = pushAcceptor->listen(ip, port)) != srs_success) {
+        return srs_error_wrap(err, "srt push listen %s:%d", ip.c_str(), port);
     }
+    srs_trace("srt push listen:%s:%d", ip.c_str(), port);
+
+    // Start a pull listener for SRT
+    SrsSrtAcceptor* pullAcceptor = new SrsSrtAcceptor(this, SrtModePull);
+    acceptors_.push_back(pullAcceptor);
+
+    srs_parse_endpoint(srs_int2str(_srs_config->get_srt_pull_port()), ip, port);
+    if ((err = pullAcceptor->listen(ip, port)) != srs_success) {
+        return srs_error_wrap(err, "srt pull listen %s:%d", ip.c_str(), port);
+    }
+    srs_trace("srt pull listen:%s:%d", ip.c_str(), port);
 
     return err;
 }
@@ -220,12 +232,12 @@ void SrsSrtServer::close_listeners()
     }
 }
 
-srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd)
+srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd, enum SrtMode mode)
 {
     srs_error_t err = srs_success;
 
     ISrsResource* resource = NULL;
-    if ((err = fd_to_resource(srt_fd, &resource)) != srs_success) {
+    if ((err = fd_to_resource(srt_fd, mode, &resource)) != srs_success) {
         //close fd on conn error, otherwise will lead to fd leak -gs
         // TODO: FIXME: Handle error.
         srs_srt_close(srt_fd);
@@ -244,7 +256,7 @@ srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd)
     return err;
 }
 
-srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsResource** pr)
+srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, enum SrtMode mode, ISrsResource** pr)
 {
     srs_error_t err = srs_success;
     
@@ -260,7 +272,7 @@ srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsResource** pr)
     SrsContextRestore(_srs_context->get_id());
 
     // Covert to SRT conection.
-    *pr = new SrsMpegtsSrtConn(this, srt_fd, ip, port);
+    *pr = new SrsMpegtsSrtConn(this, srt_fd, ip, port, mode);
     
     return err;
 }

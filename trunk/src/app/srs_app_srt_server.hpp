@@ -12,6 +12,7 @@
 #include <srs_protocol_srt.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_srt_listener.hpp>
+#include <srs_app_srt_utility.hpp>
 
 class SrsSrtServer;
 class SrsHourGlass;
@@ -22,11 +23,12 @@ class SrsSrtAcceptor : public ISrsSrtHandler
 private:
     std::string ip_;
     int port_;
+    enum SrtMode mode_;
     SrsSrtServer* srt_server_;
 private:
     SrsSrtListener* listener_;
 public:
-    SrsSrtAcceptor(SrsSrtServer* srt_server);
+    SrsSrtAcceptor(SrsSrtServer* srt_server, enum SrtMode mode);
     virtual ~SrsSrtAcceptor();
 public:
     virtual srs_error_t listen(std::string ip, int port);
@@ -60,9 +62,9 @@ private:
 public:
     // When listener got a fd, notice server to accept it.
     // @param srt_fd, the client fd in srt boxed, the underlayer fd.
-    virtual srs_error_t accept_srt_client(srs_srt_t srt_fd);
+    virtual srs_error_t accept_srt_client(srs_srt_t srt_fd, enum SrtMode mode);
 private:
-    virtual srs_error_t fd_to_resource(srs_srt_t srt_fd, ISrsResource** pr);
+    virtual srs_error_t fd_to_resource(srs_srt_t srt_fd, enum SrtMode mode, ISrsResource** pr);
 // Interface ISrsResourceManager
 public:
     // A callback for connection to remove itself.

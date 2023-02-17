@@ -145,3 +145,15 @@ bool srs_srt_streamid_to_request(const std::string& streamid, SrtMode& mode, Srs
 
     return ret;
 }
+
+std::string SrtMode2String(enum SrtMode mode) {
+    if (mode == SrtModePull) {
+        return "srtPull";
+    }
+    
+    if (mode == SrtModePush) {
+        return "srtPush";
+    }
+
+    return "unkown";
+}

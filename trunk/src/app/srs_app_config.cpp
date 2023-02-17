@@ -2311,7 +2311,7 @@ srs_error_t SrsConfig::check_normal_config()
         SrsConfDirective* conf = root->get("srt_server");
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "listen" && n != "maxbw"
+            if (n != "enabled" && n != "pullport" && n != "pushport" && n != "maxbw"
                 && n != "mss" && n != "latency" && n != "recvlatency"
                 && n != "peerlatency" && n != "connect_timeout"
                 && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
@@ -7710,9 +7710,9 @@ bool SrsConfig::get_srt_enabled()
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-unsigned short SrsConfig::get_srt_listen_port()
+unsigned short SrsConfig::get_srt_push_port()
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.listen"); // SRS_SRT_SERVER_LISTEN
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.pushport"); // SRS_SRT_SERVER_LISTEN
 
     static unsigned short DEFAULT = 10080;
     SrsConfDirective* conf = root->get("srt_server");
@@ -7720,7 +7720,24 @@ unsigned short SrsConfig::get_srt_listen_port()
         return DEFAULT;
     }
     
-    conf = conf->get("listen");
+    conf = conf->get("pushport");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return (unsigned short)atoi(conf->arg0().c_str());
+}
+
+unsigned short SrsConfig::get_srt_pull_port()
+{
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.pullport"); // SRS_SRT_SERVER_LISTEN
+
+    static unsigned short DEFAULT = 10080;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("pullport");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

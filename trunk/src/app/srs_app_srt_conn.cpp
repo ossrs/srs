@@ -152,7 +152,7 @@ srs_error_t SrsSrtRecvThread::get_recv_err()
     return srs_error_copy(recv_err_);
 }
 
-SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port)
+SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port, enum SrtMode mode)
 {
     // Create a identify for this client.
     _srs_context->set_id(_srs_context->generate_id());
@@ -163,6 +163,7 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, s
     srt_conn_ = new SrsSrtConnection(srt_fd_);
     ip_ = ip;
     port_ = port;
+    mode_ = mode;
 
     kbps_ = new SrsNetworkKbps();
     kbps_->set_io(srt_conn_, srt_conn_);
@@ -269,6 +270,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
         return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
     }
 
+    (void)mode;
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req_->vhost);
     if (parsed_vhost) {
@@ -279,8 +281,8 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
         return srs_error_new(ERROR_SRT_CONN, "srt disabled, vhost=%s", req_->vhost.c_str());
     }
 
-    srs_trace("@srt, streamid=%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
-              streamid.c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
+    srs_trace("@srt, streamid=%s, mode:%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
+              streamid.c_str(), SrtMode2String(mode_).c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
 
     if ((err = _srs_srt_sources->fetch_or_create(req_, &srt_source_)) != srs_success) {
         return srs_error_wrap(err, "fetch srt source");
@@ -290,9 +292,9 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
         return srs_error_wrap(err, "on connect");
     }
 
-    if (mode == SrtModePush) {
+    if (mode_ == SrtModePush) {
         err = publishing();
-    } else if (mode == SrtModePull) {
+    } else if (mode_ == SrtModePull) {
         err = playing();
     }
     

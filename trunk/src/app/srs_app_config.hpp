@@ -656,7 +656,8 @@ public:
     // Whether the srt sevice enabled
     virtual bool get_srt_enabled();
     // Get the srt service listen port
-    virtual unsigned short get_srt_listen_port();
+    virtual unsigned short get_srt_push_port();
+    virtual unsigned short get_srt_pull_port();
     // Get the srt SRTO_MAXBW, max bandwith, default is -1.
     virtual int64_t get_srto_maxbw();
     // Get the srt SRTO_MSS, Maximum Segment Size, default is 1500.
