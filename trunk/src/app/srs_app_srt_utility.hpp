@@ -18,8 +18,9 @@ class SrsRequest;
 
 enum SrtMode 
 {
-    SrtModePull = 1,
-    SrtModePush = 2,
+    SrtModeUnkown = 0,
+    SrtModePull   = 1,
+    SrtModePush   = 2,
 };
 
 // Get SRT streamid info.

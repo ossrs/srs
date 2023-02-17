@@ -265,12 +265,14 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     }
 
     // Detect streamid of srt to request.
-    SrtMode mode = SrtModePull;
+    SrtMode mode = SrtModeUnkown;
     if (!srs_srt_streamid_to_request(streamid, mode, req_)) {
         return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
     }
 
-    (void)mode;
+    if (mode == SrtModeUnkown) {
+        mode = mode_;
+    }
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req_->vhost);
     if (parsed_vhost) {
@@ -282,7 +284,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     }
 
     srs_trace("@srt, streamid=%s, mode:%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
-              streamid.c_str(), SrtMode2String(mode_).c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
+              streamid.c_str(), SrtMode2String(mode).c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
 
     if ((err = _srs_srt_sources->fetch_or_create(req_, &srt_source_)) != srs_success) {
         return srs_error_wrap(err, "fetch srt source");
@@ -292,9 +294,9 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
         return srs_error_wrap(err, "on connect");
     }
 
-    if (mode_ == SrtModePush) {
+    if (mode == SrtModePush) {
         err = publishing();
-    } else if (mode_ == SrtModePull) {
+    } else if (mode == SrtModePull) {
         err = playing();
     }
     
