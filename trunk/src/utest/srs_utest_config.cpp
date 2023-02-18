@@ -4737,8 +4737,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesDash)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesHds)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 

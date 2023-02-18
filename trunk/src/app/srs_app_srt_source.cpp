@@ -651,7 +651,7 @@ srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage* msg)
     }
 
     if ((err = bridge_->on_frame(&frame)) != srs_success) {
-        return srs_error_wrap(err, "srt to rtmp sps/pps");
+        return srs_error_wrap(err, "srt to rtmp vps/sps/pps");
     }
 
     return err;
@@ -882,6 +882,7 @@ SrsSrtSource::~SrsSrtSource()
 
     srs_freep(frame_builder_);
     srs_freep(bridge_);
+    srs_freep(req);
 }
 
 srs_error_t SrsSrtSource::initialize(SrsRequest* r)

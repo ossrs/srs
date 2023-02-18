@@ -971,6 +971,13 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
         return err;
     }
 
+    // WebRTC does NOT support HEVC.
+#ifdef SRS_H265
+    if (format->vcodec->id == SrsVideoCodecIdHEVC) {
+        return err;
+    }
+#endif
+
     bool has_idr = false;
     vector<SrsSample*> samples;
     if ((err = filter(msg, format, has_idr, samples)) != srs_success) {

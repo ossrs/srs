@@ -13,12 +13,20 @@
 
 class ISrsFileReaderFactory;
 
-struct SrsM3u8CtxInfo
+// HLS virtual connection, build on query string ctx of hls stream.
+class SrsHlsVirtualConn: public ISrsExpire
 {
+public:
     srs_utime_t request_time;
     SrsRequest* req;
-    SrsM3u8CtxInfo();
-    virtual ~SrsM3u8CtxInfo();
+    std::string ctx;
+    bool interrupt;
+public:
+    SrsHlsVirtualConn();
+    virtual ~SrsHlsVirtualConn();
+// Interface ISrsExpire.
+public:
+    virtual void expire();
 };
 
 // Server HLS streaming.
@@ -26,7 +34,7 @@ class SrsHlsStream : public ISrsFastTimer
 {
 private:
     // The period of validity of the ctx
-    std::map<std::string, SrsM3u8CtxInfo*> map_ctx_info_;
+    std::map<std::string, SrsHlsVirtualConn*> map_ctx_info_;
 public:
     SrsHlsStream();
     virtual ~SrsHlsStream();
@@ -40,6 +48,7 @@ private:
     void alive(std::string ctx, SrsRequest* req);
     srs_error_t http_hooks_on_play(SrsRequest* req);
     void http_hooks_on_stop(SrsRequest* req);
+    bool is_interrupt(std::string id);
 // interface ISrsFastTimer
 private:
     srs_error_t on_timer(srs_utime_t interval);

@@ -491,12 +491,27 @@ struct SrsHevcHvccNalu {
 };
 
 /**
+ * HEVC Common Max define.
+ * @doc ITU-T-H.265-2021.pdf
+ */
+// @see F.7.3.2.1: vps_video_parameter_set_id is u(4).
+// @doc ITU-T-H.265-2021.pdf, page 464.
+const int SrsHevcMax_VPS_COUNT = 16;
+// @see 7.4.3.2.1: sps_seq_parameter_set_id is in [0, 15].
+// @doc ITU-T-H.265-2021.pdf, page 95.
+const int SrsHevcMax_SPS_COUNT = 16;
+// @see 7.4.3.3.1: pps_pic_parameter_set_id is in [0, 63].
+// @doc ITU-T-H.265-2021.pdf, page 102.
+const int SrsHevcMax_PPS_COUNT = 64;
+
+/**
  * Profile, tier and level
  * @see 7.3.3 Profile, tier and level syntax
  * @doc ITU-T-H.265-2021.pdf, page 62.
  */
 struct SrsHevcProfileTierLevel
 {
+public:
     uint8_t general_profile_space;
     uint8_t general_tier_flag;
     uint8_t general_profile_idc;
@@ -551,6 +566,10 @@ struct SrsHevcProfileTierLevel
     std::vector<uint8_t> sub_layer_inbld_flag;
     std::vector<uint8_t> sub_layer_reserved_zero_bit;
     std::vector<uint8_t> sub_layer_level_idc;
+
+public:
+    SrsHevcProfileTierLevel();
+    virtual ~SrsHevcProfileTierLevel();
 };
 
 /**
@@ -903,9 +922,9 @@ struct SrsHevcDecoderConfigurationRecord
     uint8_t length_size_minus_one;
     std::vector<SrsHevcHvccNalu> nalu_vec;
 
-    SrsHevcRbspVps vps_table[16];
-    SrsHevcRbspSps sps_table[32];
-    SrsHevcRbspPps pps_table[256];
+    SrsHevcRbspVps vps_table[SrsHevcMax_VPS_COUNT];
+    SrsHevcRbspSps sps_table[SrsHevcMax_SPS_COUNT];
+    SrsHevcRbspPps pps_table[SrsHevcMax_PPS_COUNT];
 };
 
 #endif
