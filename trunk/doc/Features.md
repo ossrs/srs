@@ -28,6 +28,7 @@ The features of SRS.
 - [x] System: [Experimental] Support H.265 over RTMP and HTTP-FLV, [#465](https://github.com/ossrs/srs/issues/465). v6.0.2+
 - [x] System: [Experimental] Support H.265 over HTTP-TS and HLS, [#465](https://github.com/ossrs/srs/issues/465). v6.0.11+
 - [x] System: [Experimental] Support H.265 over MPEG-DASH and DVR to MP4/FLV, [#465](https://github.com/ossrs/srs/issues/465). v6.0.14+
+- [x] System: [Experimental] Support H.265 over SRT and GB, [#465](https://github.com/ossrs/srs/issues/465). v6.0.25+
 - [x] API: Support HTTP API([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-api)) for system management. v1.0.0+
 - [x] API: Support HTTP callback([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-callback)) for authentication and integration. v2.0.0+
 - [x] API: Support on_play/stop/publish/unpublish for WebRTC, [#2509](https://github.com/ossrs/srs/issues/2509). v4.0.163+
@@ -72,8 +73,10 @@ The features of SRS.
 - [x] Other: [Experimental] Support pushing MPEG-TS over UDP, please read [bug #250](https://github.com/ossrs/srs/issues/250). v2.0.111+
 - [x] Other: [Experimental] Support pushing FLV over HTTP POST, please read wiki([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-http-flv-to-srs), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/streamer#push-http-flv-to-srs)). v2.0.163+
 - [x] Other: [Experimental] Support push stream by GB28181, [#3176](https://github.com/ossrs/srs/issues/3176). v5.0.74+
-- [ ] System: Support H.265 over SRT, TS, HLS and DASH, [#465](https://github.com/ossrs/srs/issues/465).
+- [ ] System: Proxy to extend origin servers, [#3138](https://github.com/ossrs/srs/issues/3138).
 - [ ] System: Support source cleanup for idle streams, [#413](https://github.com/ossrs/srs/issues/413).
+- [ ] System: Support JT808 and JT1708 for transport, [#3420](https://github.com/ossrs/srs/issues/3420).
+- [ ] System: SRS integrates with kaldi or K2 for live and WebRTC, [#3421](https://github.com/ossrs/srs/issues/3421).
 - [ ] Live: Support HLS variant, [#463](https://github.com/ossrs/srs/issues/463).
 - [ ] RTC: Support IETF-QUIC for WebRTC Cluster, [#2091](https://github.com/ossrs/srs/issues/2091).
 - [ ] RTC: Improve RTC performance to 5K by multiple threading, [#2188](https://github.com/ossrs/srs/issues/2188).

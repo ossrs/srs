@@ -865,6 +865,7 @@ SrsSrtSource::~SrsSrtSource()
     consumers.clear();
 
     srs_freep(bridge_);
+    srs_freep(req);
 }
 
 srs_error_t SrsSrtSource::initialize(SrsRequest* r)
