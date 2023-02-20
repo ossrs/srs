@@ -600,6 +600,14 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     // For each RTC session, we use short-term HTTP connection.
     w->header()->set("Connection", "Close");
 
+    // Client stop publish.
+    // TODO: FIXME: Stop and cleanup the RTC session.
+    if (r->method() == SRS_CONSTS_HTTP_DELETE) {
+        srs_trace("WHIP: Delete stream %s", r->url().c_str());
+        w->write_header(SRS_CONSTS_HTTP_OK);
+        return w->write(NULL, 0);
+    }
+
     string remote_sdp_str;
     if ((err = r->body_read_all(remote_sdp_str)) != srs_success) {
         return srs_error_wrap(err, "read sdp");
