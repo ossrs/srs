@@ -45,10 +45,15 @@ using namespace std;
 
 void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vhost, string& app, string& stream, int& port, string& param)
 {
+    // For compatibility, transform
+    //      rtmp://ip/app...vhost...VHOST/stream
+    // to typical format:
+    //      rtmp://ip/app?vhost=VHOST/stream
+    string fullUrl = srs_string_replace(tcUrl, "...vhost...", "?vhost=");
+
     // Standard URL is:
     //      rtmp://ip/app/app2/stream?k=v
     // Where after last slash is stream.
-    string fullUrl = tcUrl;
     fullUrl += stream.empty() ? "/" : (stream.at(0) == '/' ? stream : "/" + stream);
     fullUrl += param.empty() ? "" : (param.at(0) == '?' ? param : "?" + param);
 
