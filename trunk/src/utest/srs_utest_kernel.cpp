@@ -4053,10 +4053,19 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
         SrsFormat f;
         HELPER_EXPECT_SUCCESS(f.initialize());
 
-        HELPER_EXPECT_SUCCESS(f.on_video(0, (char *)vps_sps_pps, sizeof(vps_sps_pps)));
+        // firstly demux sequence header
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)vps_sps_pps, sizeof(vps_sps_pps)));
         EXPECT_EQ(1, f.video->frame_type);
         EXPECT_EQ(0, f.video->avc_packet_type);
+        EXPECT_EQ(3, f.vcodec->hevc_dec_conf_record_.nalu_vec.size());
+        EXPECT_EQ(1280, f.vcodec->width);
+        EXPECT_EQ(720, f.vcodec->height);
 
+        // secondly demux sequence header
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)vps_sps_pps, sizeof(vps_sps_pps)));
+        EXPECT_EQ(1, f.video->frame_type);
+        EXPECT_EQ(0, f.video->avc_packet_type);
+        EXPECT_EQ(3, f.vcodec->hevc_dec_conf_record_.nalu_vec.size());
         EXPECT_EQ(1280, f.vcodec->width);
         EXPECT_EQ(720, f.vcodec->height);
 

@@ -397,11 +397,14 @@ public:
     // The client ip.
     std::string ip;
 public:
-    // The tcUrl: rtmp://request_vhost:port/app/stream
-    // support pass vhost in query string, such as:
-    //    rtmp://ip:port/app?vhost=request_vhost/stream
-    //    rtmp://ip:port/app...vhost...request_vhost/stream
+    // Support pass vhost in RTMP URL, such as:
+    //    rtmp://VHOST:port/app/stream
+    //    rtmp://ip:port/app/stream?vhost=VHOST
+    //    rtmp://ip:port/app?vhost=VHOST/stream
+    //    rtmp://ip:port/app...vhost...VHOST/stream
+    // While tcUrl is url without stream.
     std::string tcUrl;
+public:
     std::string pageUrl;
     std::string swfUrl;
     double objectEncoding;
