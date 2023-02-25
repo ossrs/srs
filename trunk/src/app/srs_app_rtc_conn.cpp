@@ -1197,7 +1197,9 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
         // especially for stream merging.
         rtmp->set_cache(false);
 
-        SrsFrameToRtmpBridge* bridge = new SrsFrameToRtmpBridge(rtmp);
+        SrsCompositeBridge* bridge = new SrsCompositeBridge();
+        bridge->append(new SrsFrameToRtmpBridge(rtmp));
+
         if ((err = bridge->initialize(r)) != srs_success) {
             srs_freep(bridge);
             return srs_error_wrap(err, "create bridge");
