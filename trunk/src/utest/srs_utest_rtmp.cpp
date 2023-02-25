@@ -3049,6 +3049,34 @@ VOID TEST(ProtocolRTMPTest, GenerateURL)
     }
 }
 
+VOID TEST(ProtocolRTMPTest, GenerateURLForFFmpeg)
+{
+    // For https://github.com/ossrs/srs/issues/3405
+    if (true) {
+        string host("192.168.1.100"), vhost("localhost"), stream("stream"), param("?vhost=localhost");
+        string url = srs_generate_stream_with_query(host, vhost, stream, param, false);
+        EXPECT_STREQ("stream", url.c_str());
+    }
+
+    if (true) {
+        string host("192.168.1.100"), vhost("localhost"), stream("stream"), param("?k=v&vhost=localhost");
+        string url = srs_generate_stream_with_query(host, vhost, stream, param, false);
+        EXPECT_STREQ("stream?k=v", url.c_str());
+    }
+
+    if (true) {
+        string host("192.168.1.100"), vhost("localhost"), stream("stream"), param("?vhost=localhost&k=v");
+        string url = srs_generate_stream_with_query(host, vhost, stream, param, false);
+        EXPECT_STREQ("stream?k=v", url.c_str());
+    }
+
+    if (true) {
+        string host("192.168.1.100"), vhost("localhost"), stream("stream"), param("?k=v");
+        string url = srs_generate_stream_with_query(host, vhost, stream, param, false);
+        EXPECT_STREQ("stream?k=v", url.c_str());
+    }
+}
+
 VOID TEST(ProtocolRTMPTest, DiscoveryTcUrlLegacy)
 {
     if (true) {
