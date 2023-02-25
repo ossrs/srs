@@ -238,7 +238,7 @@ string srs_generate_stream_with_query(string host, string vhost, string stream, 
         }
     }
     
-    // Remove the start & when param is empty.
+    // Remove the start & and ? when param is empty.
     query = srs_string_trim_start(query, "&?");
 
     // Prefix query with ?.
