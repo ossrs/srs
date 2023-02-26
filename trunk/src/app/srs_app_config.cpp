@@ -2559,7 +2559,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout"
-                        && m != "parse_sps" && m != "try_annexb_first") {
+                        && m != "parse_sps" && m != "try_annexb_first" && m != "kickoff_for_idle") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.publish.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5333,6 +5333,30 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
     }
     
     conf = conf->get("normal_timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
+}
+
+srs_utime_t SrsConfig::get_publish_kickoff_timeout(std::string vhost)
+{
+    // the timeout to kickoff publish as no one watching,
+    // the default value is 3 minutes.
+    static srs_utime_t DEFAULT = 180 * SRS_UTIME_SECONDS;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("publish");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("kickoff_for_idle");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

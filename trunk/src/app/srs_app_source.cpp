@@ -1927,6 +1927,7 @@ SrsLiveSource::SrsLiveSource()
     
     _can_publish = true;
     die_at = 0;
+    idle_at = 0;
 
     handler = NULL;
     bridge_ = NULL;
@@ -2005,6 +2006,18 @@ bool SrsLiveSource::expired()
         return true;
     }
     
+    return false;
+}
+
+bool SrsLiveSource::idle_for(srs_utime_t timeout)
+{
+    if (idle_at == 0 || timeout <= 0) {
+        return false;
+    }
+    srs_utime_t now = srs_get_system_time();
+    if (now > idle_at + timeout) {
+        return true;
+    }
     return false;
 }
 
@@ -2634,6 +2647,10 @@ srs_error_t SrsLiveSource::on_publish()
 
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_publish(req, _source_id.c_str());
+
+    if (consumers.empty()) {
+        idle_at = srs_get_system_time();
+    }
     
     return err;
 }
@@ -2690,7 +2707,8 @@ srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)
     
     consumer = new SrsLiveConsumer(this);
     consumers.push_back(consumer);
-    
+    idle_at = 0;
+
     // for edge, when play edge stream, check the state
     if (_srs_config->get_vhost_is_edge(req->vhost)) {
         // notice edge to start for the first client.
@@ -2756,6 +2774,7 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer* consumer)
     if (consumers.empty()) {
         play_edge->on_all_client_stop();
         die_at = srs_get_system_time();
+        idle_at = srs_get_system_time();
     }
 }
 

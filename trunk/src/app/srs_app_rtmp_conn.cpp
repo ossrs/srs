@@ -985,6 +985,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     // initialize the publish timeout.
     publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
     publish_normal_timeout = _srs_config->get_publish_normal_timeout(req->vhost);
+    srs_utime_t publish_kickoff_timeout = _srs_config->get_publish_kickoff_timeout(req->vhost);
     
     // set the sock options.
     set_sock_options();
@@ -1006,6 +1007,11 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
+        }
+
+        // Check if the source is expired or idle (no consumers or players).
+        if (source->idle_for(publish_kickoff_timeout)) {
+            return srs_error_wrap(err, "rtmp: kickoff publisher as no one watching for a while, url=%s, timeout=%ds", req->tcUrl.c_str(), srsu2si(publish_kickoff_timeout));
         }
 
         pprint->elapse();

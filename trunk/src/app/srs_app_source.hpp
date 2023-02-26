@@ -536,6 +536,8 @@ private:
     // The last die time, when all consumers quit and no publisher,
     // We will remove the source when source die.
     srs_utime_t die_at;
+    // The last idle time, when all consumers quit but at least one publisher is alive.
+    srs_utime_t idle_at;
 public:
     SrsLiveSource();
     virtual ~SrsLiveSource();
@@ -544,6 +546,7 @@ public:
     virtual srs_error_t cycle();
     // Remove source when expired.
     virtual bool expired();
+    bool idle_for(srs_utime_t timeout);
 public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsLiveSourceHandler* h);
