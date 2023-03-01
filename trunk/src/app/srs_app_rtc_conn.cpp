@@ -2674,6 +2674,92 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                 track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
                 break;
             }
+        } else if (remote_media_desc.is_video() && ruc->codec_ == "hevc") {
+            srs_trace("remote_media_desc.is_video");
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
+            if (payloads.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid H.265 payload type");
+            }
+
+            std::deque<SrsMediaPayloadType> backup_payloads;
+            for (int j = 0; j < (int)payloads.size(); j++) {
+                const SrsMediaPayloadType& payload = payloads.at(j);
+                if (payload.format_specific_param_.empty()) {
+                    backup_payloads.push_front(payload);
+                    continue;
+                }
+
+                H264SpecificParam h264_param;
+                if ((err = srs_parse_h264_fmtp(payload.format_specific_param_, h264_param)) != srs_success) {
+                    srs_error_reset(err); continue;
+                }
+
+                // If not exists 42e01f, we pick up any profile such as 42001f.
+                bool profile_matched = (!has_42e01f || h264_param.profile_level_id == "42e01f");
+
+                // Try to pick the "best match" H.264 payload type.
+                if (profile_matched && h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1") {
+                    // if the playload is opus, and the encoding_param_ is channel
+                    SrsVideoPayload* video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
+                    video_payload->set_h264_param_desc(payload.format_specific_param_);
+
+                    // TODO: FIXME: Only support some transport algorithms.
+                    for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
+                        const string& rtcp_fb = payload.rtcp_fb_.at(k);
+
+                        if (nack_enabled) {
+                            if (rtcp_fb == "nack" || rtcp_fb == "nack pli") {
+                                video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                            }
+                        }
+
+                        if (twcc_enabled && remote_twcc_id) {
+                            if (rtcp_fb == "transport-cc") {
+                                video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                            }
+                        }
+                    }
+
+                    track_desc->type_ = "video";
+                    track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
+                    // Only choose first match H.265 payload type.
+                    break;
+                }
+
+                backup_payloads.push_back(payload);
+            }
+
+            // Try my best to pick at least one media payload type.
+            if (!track_desc->media_ && !backup_payloads.empty()) {
+                const SrsMediaPayloadType& payload = backup_payloads.front();
+
+                // if the playload is opus, and the encoding_param_ is channel
+                SrsVideoPayload* video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
+
+                // TODO: FIXME: Only support some transport algorithms.
+                for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
+                    const string& rtcp_fb = payload.rtcp_fb_.at(k);
+
+                    if (nack_enabled) {
+                        if (rtcp_fb == "nack" || rtcp_fb == "nack pli") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+
+                    if (twcc_enabled && remote_twcc_id) {
+                        if (rtcp_fb == "transport-cc") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                }
+
+                track_desc->type_ = "video";
+                track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
+                srs_warn("choose backup H.265 payload type=%d", payload.payload_type_);
+            }
+
+            // TODO: FIXME: Support RRTR?
+            //local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
         } else if (remote_media_desc.is_video()) {
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
             if (payloads.empty()) {
@@ -3020,6 +3106,25 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
                 // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
                 track_descs = source->get_track_desc("video", "AV1X");
             }
+        } else if (remote_media_desc.is_video() && ruc->codec_ == "hevc") {
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
+            if (payloads.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h265 payload type");
+            }
+
+            remote_payload = payloads.at(0);
+            for (int j = 0; j < (int)payloads.size(); j++) {
+                const SrsMediaPayloadType& payload = payloads.at(j);
+
+                // If exists 42e01f profile, choose it; otherwise, use the first payload.
+                // TODO: FIME: Should check packetization-mode=1 also.
+                if (!has_42e01f || srs_sdp_has_h264_profile(payload, "42e01f")) {
+                    remote_payload = payload;
+                    break;
+                }
+            }
+
+            track_descs = source->get_track_desc("video", "H265");
         } else if (remote_media_desc.is_video()) {
             // TODO: check opus format specific param
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
