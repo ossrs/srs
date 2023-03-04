@@ -5340,11 +5340,12 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-srs_utime_t SrsConfig::get_publish_kickoff_timeout(std::string vhost)
+srs_utime_t SrsConfig::get_publish_kickoff_for_idle(std::string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.vhost.publish.kickoff_for_idle"); // SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE
     // the timeout to kickoff publish as no one watching,
-    // the default value is 3 minutes.
-    static srs_utime_t DEFAULT = 180 * SRS_UTIME_SECONDS;
+    // the default value is 0.
+    static srs_utime_t DEFAULT = 0 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
