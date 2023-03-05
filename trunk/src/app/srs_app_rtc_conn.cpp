@@ -2675,7 +2675,6 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                 break;
             }
         } else if (remote_media_desc.is_video() && ruc->codec_ == "hevc") {
-            srs_trace("remote_media_desc.is_video");
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
             if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid H.265 payload type");
