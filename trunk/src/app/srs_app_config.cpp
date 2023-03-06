@@ -5355,7 +5355,7 @@ srs_utime_t SrsConfig::get_publish_kickoff_for_idle(std::string vhost)
 
 srs_utime_t SrsConfig::get_publish_kickoff_for_idle(SrsConfDirective* vhost)
 {
-    SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.vhost.publish.kickoff_for_idle"); // SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.publish.kickoff_for_idle"); // SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE
 
     static srs_utime_t DEFAULT = 0 * SRS_UTIME_SECONDS;
     
@@ -5374,7 +5374,7 @@ srs_utime_t SrsConfig::get_publish_kickoff_for_idle(SrsConfDirective* vhost)
         return DEFAULT;
     }
     
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 int SrsConfig::get_global_chunk_size()

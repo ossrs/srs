@@ -1011,7 +1011,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
 
         // Kick off the publisher when idle for a period of timeout.
         if (source->publisher_is_idle_for(publish_kickoff_for_idle)) {
-            return srs_error_wrap(err, "kicked for idle, url=%s, timeout=%ds", req->tcUrl.c_str(), srsu2si(publish_kickoff_for_idle));
+            return srs_error_new(ERROR_KICKOFF_FOR_IDLE, "kicked for idle, url=%s, timeout=%ds", req->tcUrl.c_str(), srsu2si(publish_kickoff_for_idle));
         }
 
         pprint->elapse();
