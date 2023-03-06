@@ -254,7 +254,7 @@ srs_error_t SrsLazyGbSession::cycle()
 
     // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
-        srs_trace("client finished%s.", srs_error_summary(err).c_str());
+        srs_trace("client finished %s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }

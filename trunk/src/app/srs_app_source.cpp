@@ -1866,7 +1866,7 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
         // @see https://github.com/ossrs/srs/issues/714
 #if 0
         // When source expired, remove it.
-        if (source->expired()) {
+        if (source->stream_is_dead()) {
             int cid = source->source_id();
             if (cid == -1 && source->pre_source_id() > 0) {
                 cid = source->pre_source_id();
@@ -1915,7 +1915,8 @@ SrsLiveSource::SrsLiveSource()
     mix_queue = new SrsMixQueue();
     
     _can_publish = true;
-    die_at = 0;
+    stream_die_at_ = 0;
+    publisher_idle_at_ = 0;
 
     handler = NULL;
     bridge_ = NULL;
@@ -1972,10 +1973,10 @@ srs_error_t SrsLiveSource::cycle()
     return srs_success;
 }
 
-bool SrsLiveSource::expired()
+bool SrsLiveSource::stream_is_dead()
 {
     // unknown state?
-    if (die_at == 0) {
+    if (stream_die_at_ == 0) {
         return false;
     }
     
@@ -1990,10 +1991,23 @@ bool SrsLiveSource::expired()
     }
     
     srs_utime_t now = srs_get_system_time();
-    if (now > die_at + SRS_SOURCE_CLEANUP) {
+    if (now > stream_die_at_ + SRS_SOURCE_CLEANUP) {
         return true;
     }
     
+    return false;
+}
+
+bool SrsLiveSource::publisher_is_idle_for(srs_utime_t timeout)
+{
+    if (!publisher_idle_at_ || !timeout) {
+        return false;
+    }
+
+    srs_utime_t now = srs_get_system_time();
+    if (now > publisher_idle_at_ + timeout) {
+        return true;
+    }
     return false;
 }
 
@@ -2623,6 +2637,11 @@ srs_error_t SrsLiveSource::on_publish()
 
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_publish(req, _source_id.c_str());
+
+    // When no players, the publisher is idle now.
+    if (consumers.empty()) {
+        publisher_idle_at_ = srs_get_system_time();
+    }
     
     return err;
 }
@@ -2669,7 +2688,7 @@ void SrsLiveSource::on_unpublish()
 
     // no consumer, stream is die.
     if (consumers.empty()) {
-        die_at = srs_get_system_time();
+        stream_die_at_ = srs_get_system_time();
     }
 }
 
@@ -2679,7 +2698,11 @@ srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)
     
     consumer = new SrsLiveConsumer(this);
     consumers.push_back(consumer);
-    
+
+    // There should be one consumer, so reset the timeout.
+    stream_die_at_ = 0;
+    publisher_idle_at_ = 0;
+
     // for edge, when play edge stream, check the state
     if (_srs_config->get_vhost_is_edge(req->vhost)) {
         // notice edge to start for the first client.
@@ -2741,10 +2764,18 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer* consumer)
     if (it != consumers.end()) {
         it = consumers.erase(it);
     }
-    
+
     if (consumers.empty()) {
         play_edge->on_all_client_stop();
-        die_at = srs_get_system_time();
+
+        // For edge server, the stream die when the last player quit, because the edge stream is created by player
+        // activities, so it should die when all players quit.
+        if (_srs_config->get_vhost_is_edge(req->vhost)) {
+            stream_die_at_ = srs_get_system_time();
+        }
+
+        // When no players, the publisher is idle now.
+        publisher_idle_at_ = srs_get_system_time();
     }
 }
 

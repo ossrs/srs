@@ -4458,6 +4458,9 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostPublish)
 
         SrsSetEnvConfig(try_annexb_first, "SRS_VHOST_PUBLISH_TRY_ANNEXB_FIRST", "off");
         EXPECT_FALSE(conf.try_annexb_first("__defaultVhost__"));
+
+        SrsSetEnvConfig(kickoff_for_idle, "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "30");
+        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_publish_kickoff_for_idle("__defaultVhost__"));
     }
 }
 
