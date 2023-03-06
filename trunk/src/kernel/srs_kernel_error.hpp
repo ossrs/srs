@@ -413,6 +413,8 @@ enum SrsErrorCode {
 };
 #undef SRS_ERRNO_GEN
 
+const int maxLogBuf = 4 * 1024 * 1024;
+
 // Whether the error code is an system control error.
 // TODO: FIXME: Remove it from underlayer for confused with error and logger.
 extern bool srs_is_system_control_error(srs_error_t err);
