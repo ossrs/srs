@@ -2559,7 +2559,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout"
-                        && m != "parse_sps" && m != "try_annexb_first") {
+                        && m != "parse_sps" && m != "try_annexb_first" && m != "kickoff_for_idle") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.publish.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -2724,6 +2724,14 @@ srs_error_t SrsConfig::check_normal_config()
         // check hls conflict with http-ts
         if (hls_enabled && http_remux_ts) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.hls conflict with vhost.http-ts of %s", vhost->arg0().c_str());
+        }
+    }
+
+    // Check forward dnd kickoff for publsher idle.
+    for (int n = 0; n < (int)vhosts.size(); n++) {
+        SrsConfDirective* vhost = vhosts[n];
+        if (get_forward_enabled(vhost) && get_publish_kickoff_for_idle(vhost)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.forward conflicts with vhost.publish.kickoff_for_idle");
         }
     }
 
@@ -5338,6 +5346,35 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
     }
     
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
+}
+
+srs_utime_t SrsConfig::get_publish_kickoff_for_idle(std::string vhost)
+{
+    return get_publish_kickoff_for_idle(get_vhost(vhost));
+}
+
+srs_utime_t SrsConfig::get_publish_kickoff_for_idle(SrsConfDirective* vhost)
+{
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.publish.kickoff_for_idle"); // SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE
+
+    static srs_utime_t DEFAULT = 0 * SRS_UTIME_SECONDS;
+    
+    SrsConfDirective* conf = vhost;
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("publish");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("kickoff_for_idle");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 int SrsConfig::get_global_chunk_size()
