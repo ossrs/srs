@@ -2727,6 +2727,14 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
+    // Check forward dnd kickoff for publsher idle.
+    for (int n = 0; n < (int)vhosts.size(); n++) {
+        SrsConfDirective* vhost = vhosts[n];
+        if (get_forward_enabled(vhost) && get_publish_kickoff_for_idle(vhost)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.forward conflicts with vhost.publish.kickoff_for_idle");
+        }
+    }
+
     // check ingest id unique.
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective* vhost = vhosts[i];
@@ -5342,12 +5350,16 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
 
 srs_utime_t SrsConfig::get_publish_kickoff_for_idle(std::string vhost)
 {
+    return get_publish_kickoff_for_idle(get_vhost(vhost));
+}
+
+srs_utime_t SrsConfig::get_publish_kickoff_for_idle(SrsConfDirective* vhost)
+{
     SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.vhost.publish.kickoff_for_idle"); // SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE
-    // the timeout to kickoff publish as no one watching,
-    // the default value is 0.
+
     static srs_utime_t DEFAULT = 0 * SRS_UTIME_SECONDS;
     
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = vhost;
     if (!conf) {
         return DEFAULT;
     }

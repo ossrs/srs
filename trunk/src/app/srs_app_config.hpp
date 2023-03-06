@@ -638,6 +638,7 @@ public:
     virtual srs_utime_t get_publish_normal_timeout(std::string vhost);
     // The kickoff timeout in srs_utime_t for publisher.
     virtual srs_utime_t get_publish_kickoff_for_idle(std::string vhost);
+    virtual srs_utime_t get_publish_kickoff_for_idle(SrsConfDirective* vhost);
 private:
     // Get the global chunk size.
     virtual int get_global_chunk_size();
