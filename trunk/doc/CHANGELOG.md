@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2023-03-07, Merge [#3446](https://github.com/ossrs/srs/pull/3446): WebRTC: Warning if no ideal profile. v6.0.33 (#3446)
 * v6.0, 2023-03-06, Merge [#3445](https://github.com/ossrs/srs/pull/3445): Support configure for generic linux. v6.0.32 (#3445)
 * v6.0, 2023-03-04, Merge [#3105](https://github.com/ossrs/srs/pull/3105): Kickoff publisher when stream is idle, which means no players. v6.0.31 (#3105)
 * v6.0, 2023-02-25, Merge [#3438](https://github.com/ossrs/srs/pull/3438): Forward add question mark to the end. v6.0.30 (#3438)
@@ -46,6 +47,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-03-07, Merge [#3446](https://github.com/ossrs/srs/pull/3446): WebRTC: Warning if no ideal profile. v5.0.146 (#3446)
 * v5.0, 2023-03-06, Merge [#3445](https://github.com/ossrs/srs/pull/3445): Support configure for generic linux. v5.0.145 (#3445)
 * v5.0, 2023-03-04, Merge [#3105](https://github.com/ossrs/srs/pull/3105): Kickoff publisher when stream is idle, which means no players. v5.0.144 (#3105)
 * v5.0, 2023-02-25, Merge [#3424](https://github.com/ossrs/srs/pull/3424): API: Add service_id for http_hooks, which identify the process. v5.0.143 (#3424)
