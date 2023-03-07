@@ -91,6 +91,7 @@ SRS_GPROF=NO # Performance test: gprof
 #
 ################################################################
 # Preset options
+SRS_GENERIC_LINUX= # Try to run as generic linux, not CentOS or Ubuntu.
 SRS_OSX= #For OSX/macOS/Darwin PC.
 SRS_CYGWIN64= # For Cygwin64 for Windows PC or servers.
 SRS_CROSS_BUILD= #For cross build, for example, on Ubuntu.
@@ -145,6 +146,10 @@ function apply_system_options() {
     if [[ $OS_IS_OSX == YES ]]; then SRS_JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1); fi
     if [[ $OS_IS_LINUX == YES || $OS_IS_CYGWIN == YES ]]; then
         SRS_JOBS=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || echo 1)
+    fi
+
+    if [[ $OS_IS_UBUNTU != YES && $OS_IS_CENTOS != YES && $OS_IS_OSX != YES && $SRS_CYGWIN64 != YES ]]; then
+        echo "Warning: Your OS is not Ubuntu(no apt-get), CentOS(no yum), maxOS(not Darwin), Windows(not CYGWIN)"
     fi
 }
 apply_system_options
@@ -225,6 +230,7 @@ Experts:
   --log-trace=on|off        Whether enable the log trace level. Default: $(value2switch $SRS_LOG_TRACE)
   --log-level_v2=on|off     Whether use v2.0 log level definition, see log4j specs. Default: $(value2switch $SRS_LOG_LEVEL_V2)
   --backtrace=on|off        Whether show backtrace when crashing. Default: $(value2switch $SRS_BACKTRACE)
+  --generic-linux=on|off    Whether run as generic linux, if not CentOS or Ubuntu. Default: $(value2switch $SRS_GENERIC_LINUX)
 
 Deprecated:
   --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files. Default: $(value2switch $SRS_HDS)
@@ -406,6 +412,8 @@ function parse_user_option() {
         --log-level_v2)                 SRS_LOG_LEVEL_V2=$(switch2value $value) ;;
         --debug)                        SRS_DEBUG=$(switch2value $value) ;;
         --debug-stats)                  SRS_DEBUG_STATS=$(switch2value $value) ;;
+
+        --generic-linux)                SRS_GENERIC_LINUX=$(switch2value $value) ;;
 
         # Alias for --arm, cross build.
         --cross-build)                  SRS_CROSS_BUILD=YES         ;;
@@ -656,6 +664,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer-log=$(value2switch $SRS_SANITIZER_LOG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cygwin64=$(value2switch $SRS_CYGWIN64)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --single-thread=$(value2switch $SRS_SINGLE_THREAD)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --generic-linux=$(value2switch $SRS_GENERIC_LINUX)"
     if [[ $SRS_CROSS_BUILD_ARCH != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --arch=$SRS_CROSS_BUILD_ARCH"; fi
     if [[ $SRS_CROSS_BUILD_CPU != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --cpu=$SRS_CROSS_BUILD_CPU"; fi
     if [[ $SRS_CROSS_BUILD_HOST != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --host=$SRS_CROSS_BUILD_HOST"; fi
