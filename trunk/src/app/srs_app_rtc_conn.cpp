@@ -2723,6 +2723,10 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
 
                     track_desc->type_ = "video";
                     track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
+
+                    if (!has_42e01f) {
+                        srs_warn("not ideal H.264 pt=%d %s", payload.payload_type_, payload.format_specific_param_.c_str());
+                    }
                     // Only choose first match H.264 payload type.
                     break;
                 }
@@ -2756,7 +2760,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
 
                 track_desc->type_ = "video";
                 track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
-                srs_warn("choose backup H.264 payload type=%d", payload.payload_type_);
+                srs_warn("choose backup H.264 pt=%d %s", payload.payload_type_, payload.format_specific_param_.c_str());
             }
 
             // TODO: FIXME: Support RRTR?
