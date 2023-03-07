@@ -104,6 +104,7 @@ private:
     // e.g. log msg of connection and report to other system.
     // @param request: request which is converted by the last http message.
     virtual srs_error_t on_disconnect(SrsRequest* req);
+    virtual srs_error_t do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 public:
     // Get the HTTP message handler.
     virtual ISrsHttpConnOwner* handler();
