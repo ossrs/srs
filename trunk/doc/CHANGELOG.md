@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2023-03-07, Merge [#3441](https://github.com/ossrs/srs/pull/3441): HEVC: webrtc support hevc on safari. v6.0.34 (#3441)
 * v6.0, 2023-03-07, Merge [#3446](https://github.com/ossrs/srs/pull/3446): WebRTC: Warning if no ideal profile. v6.0.33 (#3446)
 * v6.0, 2023-03-06, Merge [#3445](https://github.com/ossrs/srs/pull/3445): Support configure for generic linux. v6.0.32 (#3445)
 * v6.0, 2023-03-04, Merge [#3105](https://github.com/ossrs/srs/pull/3105): Kickoff publisher when stream is idle, which means no players. v6.0.31 (#3105)
