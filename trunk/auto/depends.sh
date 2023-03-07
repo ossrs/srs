@@ -14,9 +14,14 @@
 #####################################################################################
 # Check OS and CPU architectures.
 #####################################################################################
-if [[ $OS_IS_UBUNTU != YES && $OS_IS_CENTOS != YES && $OS_IS_OSX != YES && $SRS_CROSS_BUILD != YES && $SRS_CYGWIN64 != YES ]]; then
-    echo "Your OS `uname -s` is not supported."
-    exit 1
+if [[ $OS_IS_UBUNTU != YES && $OS_IS_CENTOS != YES && $OS_IS_OSX != YES && $SRS_CYGWIN64 != YES ]]; then
+    if [[ $SRS_CROSS_BUILD != YES && $SRS_GENERIC_LINUX != YES ]]; then
+        echo "Your OS `uname -s` is not supported."
+        if [[ $(uname -s) == "Linux" ]]; then
+            echo "Please try --generic-linux=on for other Linux systems."
+        fi
+        exit 1
+    fi
 fi
 
 # The absolute path of SRS_OBJS, for prefix and PKG_CONFIG_PATH
