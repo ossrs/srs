@@ -2284,7 +2284,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             SrsConfDirective* obj = conf->at(i);
             string n = obj->name;
-            if (n != "enabled" && n != "listen" && n != "crossdomain" && n != "raw_api" && n != "https") {
+            if (n != "enabled" && n != "listen" && n != "crossdomain" && n != "raw_api" && n != "auth" && n != "https") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_api.%s", n.c_str());
             }
             
@@ -2293,6 +2293,15 @@ srs_error_t SrsConfig::check_normal_config()
                     string m = obj->at(j)->name;
                     if (m != "enabled" && m != "allow_reload" && m != "allow_query" && m != "allow_update") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_api.raw_api.%s", m.c_str());
+                    }
+                }
+            }
+
+            if (n == "auth") {
+                for (int j = 0; j < (int)obj->directives.size(); j++) {
+                    string m = obj->at(j)->name;
+                    if (m != "enabled" && m != "username" && m != "password") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_api.auth.%s", m.c_str());
                     }
                 }
             }
@@ -7598,6 +7607,78 @@ bool SrsConfig::get_raw_api_allow_update()
 {
     // Disable RAW API update, @see https://github.com/ossrs/srs/issues/2653#issuecomment-939389178
     return false;
+}
+
+bool SrsConfig::get_http_api_auth_enabled()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_api.auth.enabled"); // SRS_HTTP_API_AUTH_ENABLED
+
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = root->get("http_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("auth");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+std::string SrsConfig::get_http_api_auth_username()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_api.auth.username"); // SRS_HTTP_API_AUTH_USERNAME
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("http_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("auth");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("username");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+std::string SrsConfig::get_http_api_auth_password()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_api.auth.password"); // SRS_HTTP_API_AUTH_PASSWORD
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("http_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("auth");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("password");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
 }
 
 SrsConfDirective* SrsConfig::get_https_api()

@@ -482,22 +482,43 @@ private:
     virtual bool path_match(std::string pattern, std::string path);
 };
 
-// The filter http mux, directly serve the http CORS requests,
-// while proxy to the worker mux for services.
+// The filter http mux, directly serve the http CORS requests
 class SrsHttpCorsMux : public ISrsHttpHandler
 {
 private:
     bool required;
     bool enabled;
-    ISrsHttpServeMux* next;
+
 public:
     SrsHttpCorsMux();
     virtual ~SrsHttpCorsMux();
 public:
-    virtual srs_error_t initialize(ISrsHttpServeMux* worker, bool cros_enabled);
+    virtual srs_error_t initialize(bool cros_enabled);
 // Interface ISrsHttpServeMux
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+
+// The filter http mux, directly serve the http AUTH requests,
+// while proxy to the worker mux for services.
+// @see: https://www.rfc-editor.org/rfc/rfc7617
+class SrsHttpAuthMux : public ISrsHttpHandler
+{
+private:
+    bool enabled;
+    std::string username;
+    std::string password; 
+    ISrsHttpServeMux* next;
+public:
+    SrsHttpAuthMux();
+    virtual ~SrsHttpAuthMux();
+public:
+    virtual srs_error_t initialize(ISrsHttpServeMux* worker, bool auth_enabled, std::string auth_username, std::string auth_password);
+// Interface ISrsHttpServeMux
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    virtual srs_error_t do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 // A Request represents an HTTP request received by a server

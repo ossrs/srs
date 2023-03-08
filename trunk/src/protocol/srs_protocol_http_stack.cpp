@@ -24,6 +24,8 @@ using namespace std;
 // @see ISrsHttpMessage._http_ts_send_buffer
 #define SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
+#define SRS_HTTP_AUTH_PREFIX_BASIC "Basic "
+
 // get the status text of code.
 string srs_generate_http_status_text(int status)
 {
@@ -863,7 +865,6 @@ bool SrsHttpServeMux::path_match(string pattern, string path)
 
 SrsHttpCorsMux::SrsHttpCorsMux()
 {
-    next = NULL;
     enabled = false;
     required = false;
 }
@@ -872,11 +873,9 @@ SrsHttpCorsMux::~SrsHttpCorsMux()
 {
 }
 
-srs_error_t SrsHttpCorsMux::initialize(ISrsHttpServeMux* worker, bool cros_enabled)
+srs_error_t SrsHttpCorsMux::initialize(bool cros_enabled)
 {
-    next = worker;
     enabled = cros_enabled;
-    
     return srs_success;
 }
 
@@ -920,9 +919,82 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
         }
         return w->final_request();
     }
-    
+
+    return srs_success;
+}
+
+SrsHttpAuthMux::SrsHttpAuthMux()
+{
+    next = NULL;
+    enabled = false;
+}
+
+SrsHttpAuthMux::~SrsHttpAuthMux()
+{
+}
+
+srs_error_t SrsHttpAuthMux::initialize(ISrsHttpServeMux* worker, bool auth_enabled, std::string auth_username, std::string auth_password)
+{
+    next = worker;
+    enabled = auth_enabled;
+    username = auth_username;
+    password = auth_password;
+
+    return srs_success;
+}
+
+srs_error_t SrsHttpAuthMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err;
+    if ((err = do_auth(w, r)) != srs_success) {
+        srs_error("do_auth %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+        w->write_header(SRS_CONSTS_HTTP_Unauthorized);
+        return w->final_request();
+    }
+
     srs_assert(next);
     return next->serve_http(w, r);
+}
+
+srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    if (!enabled) {
+        return srs_success;
+    }
+
+    std::string path = r->path();
+    std::string auth = r->header()->get("Authorization");
+    if (auth.empty()) {
+        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_PREFIX_BASIC);
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");
+    }
+
+    if (!srs_string_contains(auth, SRS_HTTP_AUTH_PREFIX_BASIC)) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, 
+            "invalid authorization header. Must start with %s", SRS_HTTP_AUTH_PREFIX_BASIC);
+    }
+
+    std::string token = srs_string_trim_start(auth, SRS_HTTP_AUTH_PREFIX_BASIC);
+    if (token.empty()) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token");
+    }
+
+    std::string base64 = base64_decode(token);
+
+    // should be 'username:password'
+    std::vector<std::string> user_pwd = srs_string_split(base64, ":");
+    if (user_pwd.size() != 2) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token");
+    }
+
+    srs_warn("get auth %s/%s, expect %s/%s", user_pwd[0].c_str(), user_pwd[1].c_str(), username.c_str(), password.c_str());
+    if (username != user_pwd[0] || password != user_pwd[1]) {
+        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_PREFIX_BASIC);
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "match token");
+    }
+
+    return srs_success;
 }
 
 ISrsHttpMessage::ISrsHttpMessage()

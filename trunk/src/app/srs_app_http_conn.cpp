@@ -55,6 +55,8 @@ SrsHttpConn::SrsHttpConn(ISrsHttpConnOwner* handler, ISrsProtocolReadWriter* fd,
 {
     parser = new SrsHttpParser();
     cors = new SrsHttpCorsMux();
+    auth = new SrsHttpAuthMux();
+
     http_mux = m;
     handler_ = handler;
 
@@ -74,6 +76,7 @@ SrsHttpConn::~SrsHttpConn()
 
     srs_freep(parser);
     srs_freep(cors);
+    srs_freep(auth);
 
     srs_freep(delta_);
 }
@@ -228,8 +231,12 @@ srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMess
     srs_trace("HTTP #%d %s:%d %s %s, content-length=%" PRId64 "", rid, ip.c_str(), port,
         r->method_str().c_str(), r->url().c_str(), r->content_length());
     
-    // use cors server mux to serve http request, which will proxy to http_remux.
     if ((err = cors->serve_http(w, r)) != srs_success) {
+        return srs_error_wrap(err, "cors serve");
+    }
+
+    // use auth server mux to serve http request, which will proxy to http_remux.
+    if ((err = auth->serve_http(w, r)) != srs_success) {
         return srs_error_wrap(err, "mux serve");
     }
     
@@ -256,9 +263,30 @@ srs_error_t SrsHttpConn::set_crossdomain_enabled(bool v)
 {
     srs_error_t err = srs_success;
 
-    // initialize the cors, which will proxy to mux.
-    if ((err = cors->initialize(http_mux, v)) != srs_success) {
+    // initialize the cors, which will proxy to auth.
+    if ((err = cors->initialize(v)) != srs_success) {
         return srs_error_wrap(err, "init cors");
+    }
+
+    return err;
+}
+
+srs_error_t SrsHttpConn::set_auth_enabled()
+{
+    srs_error_t err = srs_success;
+
+    // there are 2 class type of http_mux:
+    //      SrsHttpServer for http_server, listen on 8080 by default;
+    //      ISrsHttpServeMux for http_api, listen on 1985 by default;
+    // auth only for http_api
+    SrsHttpServer* mux = dynamic_cast<SrsHttpServer*>(http_mux);
+    bool auth_enabled = _srs_config->get_http_api_auth_enabled() && (!mux);
+
+    // initialize the cors, which will proxy to mux.
+    if ((err = auth->initialize(http_mux, auth_enabled, 
+                    _srs_config->get_http_api_auth_username(), 
+                    _srs_config->get_http_api_auth_password())) != srs_success) {
+        return srs_error_wrap(err, "init auth");
     }
 
     return err;
@@ -449,6 +477,10 @@ srs_error_t SrsHttpxConn::start()
     bool v = _srs_config->get_http_stream_crossdomain();
     if ((err = conn->set_crossdomain_enabled(v)) != srs_success) {
         return srs_error_wrap(err, "set cors=%d", v);
+    }
+
+    if ((err = conn->set_auth_enabled()) != srs_success) {
+        return srs_error_wrap(err, "set auth");
     }
 
     return conn->start();
