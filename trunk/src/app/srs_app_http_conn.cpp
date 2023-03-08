@@ -230,11 +230,9 @@ srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMess
     srs_trace("HTTP #%d %s:%d %s %s, content-length=%" PRId64 "", rid, ip.c_str(), port,
         r->method_str().c_str(), r->url().c_str(), r->content_length());
 
-    if (_srs_config->get_http_api_auth_enabled()) {
-        if ((err = do_auth(w, r)) != srs_success) {
-            w->write_header(SRS_CONSTS_HTTP_Unauthorized);
-            return w->final_request();
-        }
+    if ((err = do_auth(w, r)) != srs_success) {
+        w->write_header(SRS_CONSTS_HTTP_Unauthorized);
+        return w->final_request();
     }
 
     // use cors server mux to serve http request, which will proxy to http_remux.
@@ -253,36 +251,47 @@ srs_error_t SrsHttpConn::on_disconnect(SrsRequest* req)
 
 srs_error_t SrsHttpConn::do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    // there are 2 class type of http_mux:
+    //      SrsHttpServer for http_server, listen on 8080 by default;
+    //      ISrsHttpServeMux for http_api, listen on 1985 by default;
+    // 'do_auth' only for http_api
+    SrsHttpServer* mux = dynamic_cast<SrsHttpServer*>(http_mux);
+    if (mux) {
+        return srs_success;
+    }
+
+    if (!_srs_config->get_http_api_auth_enabled()) {
+        return srs_success;
+    }
+
     std::string path = r->path();
-    // For /api/, /rtc/, Basic Auth
-    if (path.find("/api/") != std::string::npos || 
-        path.find("/rtc/") != std::string::npos) {
-        std::string auth = r->header()->get("Authorization");
-        if (auth.empty()) {
-            w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_PREFIX_BASIC);
-            return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");
-        }
+    std::string auth = r->header()->get("Authorization");
+    if (auth.empty()) {
+        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_PREFIX_BASIC);
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");
+    }
 
-        if (!srs_string_contains(auth, SRS_HTTP_AUTH_PREFIX_BASIC)) {
-            return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, 
-                "invalid authorization header. Must start with %s", SRS_HTTP_AUTH_PREFIX_BASIC);
-        }
+    if (!srs_string_contains(auth, SRS_HTTP_AUTH_PREFIX_BASIC)) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, 
+            "invalid authorization header. Must start with %s", SRS_HTTP_AUTH_PREFIX_BASIC);
+    }
 
-        std::string token = srs_string_trim_start(auth, SRS_HTTP_AUTH_PREFIX_BASIC);
-        if (token.empty()) {
-            return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token");
-        }
+    std::string token = srs_string_trim_start(auth, SRS_HTTP_AUTH_PREFIX_BASIC);
+    if (token.empty()) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token");
+    }
 
-        std::string base64 = base64_decode(token);
-        std::vector<std::string> user_pwd = srs_string_split(base64, ":");
-        if (user_pwd.size() != 2) {
-            return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token");
-        }
+    std::string base64 = base64_decode(token);
 
-        srs_warn("Get Authorization: %s, username: %s, password: %s", auth.c_str(), user_pwd[0].c_str(), user_pwd[1].c_str());
-        if (_srs_config->get_http_api_auth_username() != user_pwd[0] || _srs_config->get_http_api_auth_password() != user_pwd[1]) {
-            return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "match token");
-        }
+    // should be 'username:password'
+    std::vector<std::string> user_pwd = srs_string_split(base64, ":");
+    if (user_pwd.size() != 2) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token");
+    }
+
+    srs_warn("Get Authorization: %s, username: %s, password: %s", auth.c_str(), user_pwd[0].c_str(), user_pwd[1].c_str());
+    if (_srs_config->get_http_api_auth_username() != user_pwd[0] || _srs_config->get_http_api_auth_password() != user_pwd[1]) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "match token");
     }
 
     return srs_success;
