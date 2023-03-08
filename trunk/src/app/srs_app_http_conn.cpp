@@ -282,7 +282,7 @@ srs_error_t SrsHttpConn::set_auth_enabled()
     SrsHttpServer* mux = dynamic_cast<SrsHttpServer*>(http_mux);
     bool auth_enabled = _srs_config->get_http_api_auth_enabled() && (!mux);
 
-    // initialize the cors, which will proxy to mux.
+    // initialize the auth, which will proxy to mux.
     if ((err = auth->initialize(http_mux, auth_enabled, 
                     _srs_config->get_http_api_auth_username(), 
                     _srs_config->get_http_api_auth_password())) != srs_success) {
