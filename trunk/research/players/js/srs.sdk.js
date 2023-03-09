@@ -512,7 +512,7 @@ function SrsRtcPlayerAsync() {
 
 // Depends on adapter-7.4.0.min.js from https://github.com/webrtc/adapter
 // Async-awat-prmise based SRS RTC Publisher by WHIP.
-function SrsRtcWhipAsync() {
+function SrsRtcWhipWhepAsync() {
     var self = {};
 
     // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
