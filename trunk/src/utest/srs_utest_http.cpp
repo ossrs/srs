@@ -1186,7 +1186,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
         r.set_header(&h, false);
 
-        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
         SrsHttpAuthMux auth;
         HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "123456"));
@@ -1211,7 +1211,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         h.set("Authorization", "YWRtaW46YWRtaW4="); // admin:admin
         r.set_header(&h, false);
 
-        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
         SrsHttpAuthMux auth;
         HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "admin"));
@@ -1236,7 +1236,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         h.set("Authorization", "Basic admin:admin"); // admin:admin
         r.set_header(&h, false);
 
-        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
         SrsHttpAuthMux auth;
         HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "admin"));
@@ -1256,7 +1256,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
         r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
-        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
         SrsHttpAuthMux auth;
         HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "admin"));
@@ -1276,7 +1276,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
         r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
-        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
         SrsHttpAuthMux auth;
         HELPER_ASSERT_SUCCESS(auth.initialize(&s, false, "admin", "admin"));
@@ -1286,6 +1286,56 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
     }
 
     // auth disabled, response with 200 ok, even though wrong token
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+
+        SrsHttpHeader h ;
+        h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
+
+        SrsHttpAuthMux auth;
+        HELPER_ASSERT_SUCCESS(auth.initialize(&s, false, "admin", "123456"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // always response with 200 ok, for /rtc/*/
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+
+        SrsHttpHeader h ;
+        h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/rtc/play/", false));
+
+        SrsHttpAuthMux auth;
+        HELPER_ASSERT_SUCCESS(auth.initialize(&s, false, "admin", "123456"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // always response with 200 ok, for /rtc/*/
     if (true) {
         SrsHttpServeMux s;
         HELPER_ASSERT_SUCCESS(s.initialize());

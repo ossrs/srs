@@ -964,6 +964,11 @@ srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     }
 
     std::string path = r->path();
+    // only for /api/
+    if (path.find("/api/") == std::string::npos) {
+        return srs_success;
+    }
+
     std::string auth = r->header()->get("Authorization");
     if (auth.empty()) {
         w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_PREFIX_BASIC);

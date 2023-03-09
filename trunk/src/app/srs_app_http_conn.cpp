@@ -263,7 +263,6 @@ srs_error_t SrsHttpConn::set_crossdomain_enabled(bool v)
 {
     srs_error_t err = srs_success;
 
-    // initialize the cors, which will proxy to auth.
     if ((err = cors->initialize(v)) != srs_success) {
         return srs_error_wrap(err, "init cors");
     }
@@ -271,16 +270,9 @@ srs_error_t SrsHttpConn::set_crossdomain_enabled(bool v)
     return err;
 }
 
-srs_error_t SrsHttpConn::set_auth_enabled()
+srs_error_t SrsHttpConn::set_auth_enabled(bool auth_enabled)
 {
     srs_error_t err = srs_success;
-
-    // there are 2 class type of http_mux:
-    //      SrsHttpServer for http_server, listen on 8080 by default;
-    //      ISrsHttpServeMux for http_api, listen on 1985 by default;
-    // auth only for http_api
-    SrsHttpServer* mux = dynamic_cast<SrsHttpServer*>(http_mux);
-    bool auth_enabled = _srs_config->get_http_api_auth_enabled() && (!mux);
 
     // initialize the auth, which will proxy to mux.
     if ((err = auth->initialize(http_mux, auth_enabled, 
@@ -479,7 +471,8 @@ srs_error_t SrsHttpxConn::start()
         return srs_error_wrap(err, "set cors=%d", v);
     }
 
-    if ((err = conn->set_auth_enabled()) != srs_success) {
+    bool auth_enabled = _srs_config->get_http_api_auth_enabled();
+    if ((err = conn->set_auth_enabled(auth_enabled)) != srs_success) {
         return srs_error_wrap(err, "set auth");
     }
 
