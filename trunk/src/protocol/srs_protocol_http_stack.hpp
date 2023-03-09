@@ -505,15 +505,15 @@ public:
 class SrsHttpAuthMux : public ISrsHttpHandler
 {
 private:
-    bool enabled;
-    std::string username;
-    std::string password; 
-    ISrsHttpServeMux* next;
+    bool enabled_;
+    std::string username_;
+    std::string password_; 
+    ISrsHttpServeMux* next_;
 public:
     SrsHttpAuthMux();
     virtual ~SrsHttpAuthMux();
 public:
-    virtual srs_error_t initialize(ISrsHttpServeMux* worker, bool auth_enabled, std::string auth_username, std::string auth_password);
+    virtual srs_error_t initialize(ISrsHttpServeMux* worker, bool enabled, std::string username, std::string password);
 // Interface ISrsHttpServeMux
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);

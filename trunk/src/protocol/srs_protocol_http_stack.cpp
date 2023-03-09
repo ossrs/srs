@@ -925,20 +925,20 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
 
 SrsHttpAuthMux::SrsHttpAuthMux()
 {
-    next = NULL;
-    enabled = false;
+    next_ = NULL;
+    enabled_ = false;
 }
 
 SrsHttpAuthMux::~SrsHttpAuthMux()
 {
 }
 
-srs_error_t SrsHttpAuthMux::initialize(ISrsHttpServeMux* worker, bool auth_enabled, std::string auth_username, std::string auth_password)
+srs_error_t SrsHttpAuthMux::initialize(ISrsHttpServeMux* worker, bool enabled, std::string username, std::string password)
 {
-    next = worker;
-    enabled = auth_enabled;
-    username = auth_username;
-    password = auth_password;
+    next_ = worker;
+    enabled_ = enabled;
+    username_ = username;
+    password_ = password;
 
     return srs_success;
 }
@@ -953,13 +953,13 @@ srs_error_t SrsHttpAuthMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
         return w->final_request();
     }
 
-    srs_assert(next);
-    return next->serve_http(w, r);
+    srs_assert(next_);
+    return next_->serve_http(w, r);
 }
 
 srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    if (!enabled) {
+    if (!enabled_) {
         return srs_success;
     }
 
@@ -993,10 +993,10 @@ srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token");
     }
 
-    srs_warn("get auth %s/%s, expect %s/%s", user_pwd[0].c_str(), user_pwd[1].c_str(), username.c_str(), password.c_str());
-    if (username != user_pwd[0] || password != user_pwd[1]) {
+    if (username_ != user_pwd[0] || password_ != user_pwd[1]) {
         w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_PREFIX_BASIC);
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "match token");
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "token %s:%s NOT match %s:%s",
+            user_pwd[0].c_str(), user_pwd[1].c_str(), username_.c_str(), password_.c_str());
     }
 
     return srs_success;

@@ -6210,3 +6210,13 @@ VOID TEST(KernelUtilityTest, CoverCheckIPAddrValid)
 #endif
     ASSERT_FALSE(srs_check_ip_addr_valid("1e1.4.5.6"));
 }
+
+VOID TEST(KernelUtilityTest, Base64Decode)
+{
+    if (true) {
+        EXPECT_TRUE("admin:admin" == base64_decode("YWRtaW46YWRtaW4="));
+        EXPECT_TRUE("admin:123456" == base64_decode("YWRtaW46MTIzNDU2"));
+        EXPECT_FALSE("admin:admin" == base64_decode("YWRtaW46MTIzNDU2"));
+        EXPECT_FALSE("admin:admin" == base64_decode("YWRtaW46YWRtaW"));
+    }
+}
