@@ -58,7 +58,8 @@ srs_error_t SrsSrtAcceptor::listen(std::string ip, int port)
         return srs_error_wrap(err, "message srt acceptor");
     }
 
-    srs_trace("srt listen at udp://%s:%d, fd=%d", ip_.c_str(), port_, listener_->fd());
+    srs_trace("srt listen at udp://%s:%d, fd=%d, mode:%s",
+            ip_.c_str(), port_, listener_->fd(), SrtMode2String(mode_).c_str());
 
     return err;
 }
@@ -223,9 +224,6 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
                             srt_mode == SrtModePull ? "pull" : "push",
                             ip.c_str(), port);
         }
-        srs_trace("srt %s listen:%s:%d",
-                srt_mode == SrtModePull ? "pull" : "push",
-                ip.c_str(), port);
     }
 
     return err;

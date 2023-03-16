@@ -284,7 +284,8 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     }
 
     srs_trace("@srt, streamid=%s, mode:%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
-              streamid.c_str(), SrtMode2String(mode).c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
+              streamid.c_str(), SrtMode2String(mode).c_str(), req_->get_stream_url().c_str(),
+              req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
 
     if ((err = _srs_srt_sources->fetch_or_create(req_, &srt_source_)) != srs_success) {
         return srs_error_wrap(err, "fetch srt source");

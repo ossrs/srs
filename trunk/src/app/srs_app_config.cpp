@@ -7716,7 +7716,6 @@ bool SrsConfig::get_srt_enabled()
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* conf = root->at(i);
 
-        srs_trace("name:%s", conf->name.c_str());
         if (!is_srt_server(conf)) {
             continue;
         }
