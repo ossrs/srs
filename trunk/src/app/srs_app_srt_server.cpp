@@ -224,9 +224,6 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
                             srt_mode == SrtModePull ? "pull" : "push",
                             ip.c_str(), port);
         }
-        srs_trace("srt %s listen:%s:%d",
-                srt_mode == SrtModePull ? "pull" : "push",
-                ip.c_str(), port);
     }
 
     return err;
