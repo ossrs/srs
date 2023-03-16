@@ -21,6 +21,7 @@ class SrsHourGlass;
 class SrsSrtAcceptor : public ISrsSrtHandler
 {
 private:
+    SrsConfDirective* srt_conf_;
     std::string ip_;
     int port_;
     enum SrtMode mode_;
@@ -28,7 +29,7 @@ private:
 private:
     SrsSrtListener* listener_;
 public:
-    SrsSrtAcceptor(SrsSrtServer* srt_server, enum SrtMode mode);
+    SrsSrtAcceptor(SrsSrtServer* srt_server, enum SrtMode mode, SrsConfDirective* srt_conf);
     virtual ~SrsSrtAcceptor();
 public:
     virtual srs_error_t listen(std::string ip, int port);
