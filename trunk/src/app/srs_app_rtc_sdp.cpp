@@ -390,6 +390,10 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         os << " " << iter->payload_type_;
     }
 
+    if (is_application()) {
+        os << " webrtc-datachannel";
+    }
+
     os << kCRLF;
 
     // TODO:nettype and address type

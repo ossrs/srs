@@ -2269,11 +2269,13 @@ SrsRtcTrackDescription* SrsRtcTrackDescription::copy()
 SrsRtcSourceDescription::SrsRtcSourceDescription()
 {
     audio_track_desc_ = NULL;
+    application_track_desc_ = NULL;
 }
 
 SrsRtcSourceDescription::~SrsRtcSourceDescription()
 {
     srs_freep(audio_track_desc_);
+    srs_freep(application_track_desc_);
 
     for (int i = 0; i < (int)video_track_descs_.size(); ++i) {
         srs_freep(video_track_descs_.at(i));
@@ -2289,6 +2291,10 @@ SrsRtcSourceDescription* SrsRtcSourceDescription::copy()
         stream_desc->audio_track_desc_ = audio_track_desc_->copy();
     }
 
+    if (application_track_desc_) {
+        stream_desc->application_track_desc_ = application_track_desc_->copy();
+    }
+
     for (int i = 0; i < (int)video_track_descs_.size(); ++i) {
         stream_desc->video_track_descs_.push_back(video_track_descs_.at(i)->copy());
     }
@@ -2300,6 +2306,10 @@ SrsRtcTrackDescription* SrsRtcSourceDescription::find_track_description_by_ssrc(
 {
     if (audio_track_desc_ && audio_track_desc_->has_ssrc(ssrc)) {
         return audio_track_desc_;
+    }
+
+    if (application_track_desc_ && application_track_desc_->has_ssrc(ssrc)) {
+        return application_track_desc_;
     }
 
     for (int i = 0; i < (int)video_track_descs_.size(); ++i) {

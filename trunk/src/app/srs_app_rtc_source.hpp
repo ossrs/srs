@@ -497,6 +497,7 @@ public:
 
     SrsRtcTrackDescription* audio_track_desc_;
     std::vector<SrsRtcTrackDescription*> video_track_descs_;
+    SrsRtcTrackDescription* application_track_desc_;
 public:
     SrsRtcSourceDescription();
     virtual ~SrsRtcSourceDescription();
