@@ -2308,10 +2308,6 @@ SrsRtcTrackDescription* SrsRtcSourceDescription::find_track_description_by_ssrc(
         return audio_track_desc_;
     }
 
-    if (application_track_desc_ && application_track_desc_->has_ssrc(ssrc)) {
-        return application_track_desc_;
-    }
-
     for (int i = 0; i < (int)video_track_descs_.size(); ++i) {
         if (video_track_descs_.at(i)->has_ssrc(ssrc)) {
             return video_track_descs_.at(i);
