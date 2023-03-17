@@ -2802,6 +2802,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
         } else if (remote_media_desc.is_application()) {
             track_desc->type_ = "application";
             stream_desc->application_track_desc_ = track_desc->copy();
+	    // the "application" have NOT media and ssrc, so we just copy it
             continue;
         }
 
