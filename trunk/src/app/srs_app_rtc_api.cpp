@@ -534,6 +534,7 @@ srs_error_t SrsGoApiRtcPublish::check_remote_sdp(const SrsSdp& remote_sdp)
     }
 
     for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+        // donot need check "application"
         if (iter->type_ == "application") {
             continue;
         }
