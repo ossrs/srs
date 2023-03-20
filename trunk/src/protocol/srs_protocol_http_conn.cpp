@@ -1162,7 +1162,9 @@ srs_error_t SrsHttpResponseReader::read_chunked(void* data, size_t nb_data, ssiz
     if (nb_chunk <= 0) {
         // for the last chunk, eof.
         is_eof = true;
-        *nb_read = 0;
+        if (nb_read) {
+            *nb_read = 0;
+        }
     } else {
         // for not the last chunk, there must always exists bytes.
         // left bytes in chunk, read some.
