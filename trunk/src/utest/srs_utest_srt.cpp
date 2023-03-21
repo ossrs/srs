@@ -203,12 +203,16 @@ VOID TEST(ServiceStSRTTest, ListenConnectAccept)
     // Make utest fast timeout.
     srt_server.srt_socket_->set_recv_timeout(50 * SRS_UTIME_MILLISECONDS);
     err = srt_server.accept(&srt_fd);
+
+    std::cout << "srt accept err code:" << srs_error_code(err) << ", timeout:" << ERROR_SRT_TIMEOUT << "\r\n";
     EXPECT_EQ(srs_error_code(err), ERROR_SRT_TIMEOUT);
     EXPECT_EQ(srt_fd, srs_srt_socket_invalid());
     srs_freep(err);
 
     // Client connect to server
-    HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
+    err = srt_client_socket->connect(server_ip, server_port);
+    std::cout << "srt client connect return:" << err << "\r\n";
+    HELPER_EXPECT_SUCCESS(err);
 
     // Server will accept one client.
     HELPER_EXPECT_SUCCESS(srt_server.accept(&srt_fd));
@@ -352,7 +356,7 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoNormal)
 {
     if (true) {
         SrtMode mode; string vhost; string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::r=live/livestream,key1=value1,key2=value2", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info("#!::r=live/livestream,key1=value1,key2=value2,m=request", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("", vhost.c_str());
         EXPECT_STREQ("live/livestream?key1=value1&key2=value2", subpath.c_str());
@@ -360,7 +364,7 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoNormal)
 
     if (true) {
         SrtMode mode; string vhost; string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::h=host.com,r=live/livestream,key1=value1,key2=value2", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info("#!::h=host.com,r=live/livestream,key1=value1,key2=value2,m=request", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("host.com", vhost.c_str());
         EXPECT_STREQ("live/livestream?vhost=host.com&key1=value1&key2=value2", subpath.c_str());
@@ -432,7 +436,7 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
     if (true) {
         SrtMode mode;
         SrsRequest req;
-        EXPECT_TRUE(srs_srt_streamid_to_request("#!::r=live/livestream?key1=val1,key2=val2", mode, &req));
+        EXPECT_TRUE(srs_srt_streamid_to_request("#!::r=live/livestream?key1=val1,key2=val2,m=request", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
         EXPECT_STREQ(req.vhost.c_str(), srs_get_public_internet_address().c_str());
         EXPECT_STREQ(req.app.c_str(), "live");
@@ -443,7 +447,7 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
     if (true) {
         SrtMode mode;
         SrsRequest req;
-        EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=srs.srt.com.cn,r=live/livestream?key1=val1,key2=val2", mode, &req));
+        EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=srs.srt.com.cn,r=live/livestream?key1=val1,key2=val2,m=request", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
         EXPECT_STREQ(req.vhost.c_str(), "srs.srt.com.cn");
         EXPECT_STREQ(req.app.c_str(), "live");
@@ -454,7 +458,7 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
     if (true) {
         SrtMode mode;
         SrsRequest req;
-        EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=live/livestream?key1=val1,key2=val2", mode, &req));
+        EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=live/livestream?key1=val1,key2=val2,m=request", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
         EXPECT_STREQ(req.vhost.c_str(), srs_get_public_internet_address().c_str());
         EXPECT_STREQ(req.app.c_str(), "live");
@@ -465,7 +469,7 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
     if (true) {
         SrtMode mode;
         SrsRequest req;
-        EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=srs.srt.com.cn/live/livestream?key1=val1,key2=val2", mode, &req));
+        EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=srs.srt.com.cn/live/livestream?key1=val1,key2=val2,m=request", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
         EXPECT_STREQ(req.vhost.c_str(), "srs.srt.com.cn");
         EXPECT_STREQ(req.app.c_str(), "live");
