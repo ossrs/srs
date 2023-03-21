@@ -3918,20 +3918,27 @@ VOID TEST(ConfigMainTest, SrtServerTlpktDrop)
 
     if (true) {
         MockSrsConfig conf;
+
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
         EXPECT_TRUE(conf.get_srto_tlpktdrop(nullptr));
     }
 
     if (true) {
         MockSrsConfig conf;
+
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srt_server{tlpktdrop off;}"));
-        EXPECT_FALSE(conf.get_srto_tlpktdrop(nullptr));
+        std::vector<SrsConfDirective*> srt_server_confs;
+        conf.get_srt_servers(srt_server_confs);
+        EXPECT_FALSE(conf.get_srto_tlpktdrop(srt_server_confs[0]));
     }
 
     if (true) {
         MockSrsConfig conf;
+
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srt_server{tlpkdrop off;}"));
-        EXPECT_FALSE(conf.get_srto_tlpktdrop(nullptr));
+        std::vector<SrsConfDirective*> srt_server_confs;
+        conf.get_srt_servers(srt_server_confs);
+        EXPECT_FALSE(conf.get_srto_tlpktdrop(srt_server_confs[0]));
     }
 }
 

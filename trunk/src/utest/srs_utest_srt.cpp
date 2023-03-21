@@ -204,14 +204,12 @@ VOID TEST(ServiceStSRTTest, ListenConnectAccept)
     srt_server.srt_socket_->set_recv_timeout(50 * SRS_UTIME_MILLISECONDS);
     err = srt_server.accept(&srt_fd);
 
-    std::cout << "srt accept err code:" << srs_error_code(err) << ", timeout:" << ERROR_SRT_TIMEOUT << "\r\n";
     EXPECT_EQ(srs_error_code(err), ERROR_SRT_TIMEOUT);
     EXPECT_EQ(srt_fd, srs_srt_socket_invalid());
     srs_freep(err);
 
     // Client connect to server
     err = srt_client_socket->connect(server_ip, server_port);
-    std::cout << "srt client connect return:" << err << "\r\n";
     HELPER_EXPECT_SUCCESS(err);
 
     // Server will accept one client.
