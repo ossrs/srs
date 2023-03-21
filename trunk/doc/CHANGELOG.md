@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-03-20, Merge [#3460](https://github.com/ossrs/srs/pull/3460): WebRTC: Support WHIP/WHEP players. v5.0.147 (#3460)
 * v5.0, 2023-03-07, Merge [#3446](https://github.com/ossrs/srs/pull/3446): WebRTC: Warning if no ideal profile. v5.0.146 (#3446)
 * v5.0, 2023-03-06, Merge [#3445](https://github.com/ossrs/srs/pull/3445): Support configure for generic linux. v5.0.145 (#3445)
 * v5.0, 2023-03-04, Merge [#3105](https://github.com/ossrs/srs/pull/3105): Kickoff publisher when stream is idle, which means no players. v5.0.144 (#3105)
