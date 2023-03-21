@@ -7748,7 +7748,7 @@ std::string SrsConfig::get_srt_type(SrsConfDirective* srt_conf)
 
 unsigned short SrsConfig::get_srt_port(SrsConfDirective* srt_conf)
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.pushport"); // SRS_SRT_SERVER_LISTEN
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.listen"); // SRS_SRT_SERVER_LISTEN
 
     static unsigned short DEFAULT = 10080;
 
