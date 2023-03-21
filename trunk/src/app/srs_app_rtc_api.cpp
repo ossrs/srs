@@ -638,6 +638,7 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     ruc.req_->vhost = ruc.req_->host;
     ruc.req_->app = app.empty() ? "live" : app;
     ruc.req_->stream = stream.empty() ? "livestream" : stream;
+    ruc.req_->param = r->query();
 
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
@@ -645,9 +646,9 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         ruc.req_->vhost = parsed_vhost->arg0();
     }
 
-    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
+    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, param=%s",
         action.c_str(), ruc.req_->get_stream_url().c_str(), clientip.c_str(), ruc.req_->app.c_str(), ruc.req_->stream.c_str(),
-        remote_sdp_str.length(), eip.c_str(), codec.c_str()
+        remote_sdp_str.length(), eip.c_str(), codec.c_str(), ruc.req_->param.c_str()
     );
 
     ruc.eip_ = eip;
