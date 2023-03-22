@@ -329,7 +329,7 @@ func (v *backendService) Run(ctx context.Context, cancel context.CancelFunc) err
 		}
 
 		select {
-		case <- ctx.Done():
+		case <-ctx.Done():
 		case <-time.After(v.duration):
 			logger.Tf(ctx, "Process killed duration=%v, pid=%v, name=%v, args=%v", v.duration, v.pid, v.name, v.args)
 			cmd.Process.Kill()
@@ -418,6 +418,8 @@ type SRSServer interface {
 	RTMPPort() int
 	// HTTPPort is the HTTP stream port.
 	HTTPPort() int
+	// APIPort is the HTTP API port.
+	APIPort() int
 	// SRTPort is the SRT UDP port.
 	SRTPort() int
 }
@@ -510,6 +512,10 @@ func (v *srsServer) HTTPPort() int {
 	return v.httpListen
 }
 
+func (v *srsServer) APIPort() int {
+	return v.apiListen
+}
+
 func (v *srsServer) SRTPort() int {
 	return v.srtListen
 }
@@ -524,7 +530,7 @@ func (v *srsServer) Run(ctx context.Context, cancel context.CancelFunc) error {
 	)
 
 	// Create directories.
-	if err := os.MkdirAll(path.Join(v.workDir, "./objs/nginx/html"), os.FileMode(0755) | os.ModeDir); err != nil {
+	if err := os.MkdirAll(path.Join(v.workDir, "./objs/nginx/html"), os.FileMode(0755)|os.ModeDir); err != nil {
 		return errors.Wrapf(err, "SRS create directory %v", path.Join(v.workDir, "./objs/nginx/html"))
 	}
 
@@ -657,7 +663,7 @@ type ffmpegClient struct {
 
 func NewFFmpeg(opts ...func(v *ffmpegClient)) FFmpegClient {
 	v := &ffmpegClient{
-		process: newBackendService(),
+		process:            newBackendService(),
 		cancelCaseWhenQuit: true,
 	}
 
@@ -701,7 +707,7 @@ func (v *ffmpegClient) Run(ctx context.Context, cancel context.CancelFunc) error
 	ffCtx, ffCancel := context.WithCancel(ctx)
 	go func() {
 		select {
-		case <- ctx.Done():
+		case <-ctx.Done():
 		case <-ffCtx.Done():
 			if v.cancelCaseWhenQuit {
 				cancel()
@@ -1144,17 +1150,17 @@ func (v *HooksEventBase) HookAction() string {
 
 type HooksEventOnDvr struct {
 	HooksEventBase
-	Stream string `json:"stream"`
+	Stream    string `json:"stream"`
 	StreamUrl string `json:"stream_url"`
-	StreamID string `json:"stream_id"`
-	CWD string `json:"cwd"`
-	File string `json:"file"`
-	TcUrl string `json:"tcUrl"`
-	App string `json:"app"`
-	Vhost string `json:"vhost"`
-	IP string `json:"ip"`
-	ClientIP string `json:"client_id"`
-	ServerID string `json:"server_id"`
+	StreamID  string `json:"stream_id"`
+	CWD       string `json:"cwd"`
+	File      string `json:"file"`
+	TcUrl     string `json:"tcUrl"`
+	App       string `json:"app"`
+	Vhost     string `json:"vhost"`
+	IP        string `json:"ip"`
+	ClientIP  string `json:"client_id"`
+	ServerID  string `json:"server_id"`
 }
 
 type HooksService interface {
@@ -1171,7 +1177,7 @@ type hooksService struct {
 	httpPort int
 	dispose  func()
 
-	r0 error
+	r0         error
 	hooksOnDvr chan HooksEvent
 }
 
