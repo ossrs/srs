@@ -83,7 +83,7 @@ function SrsRtcPublisherAsync() {
             const xhr = new XMLHttpRequest();
             xhr.onload = function() {
                 if (xhr.readyState !== xhr.DONE) return;
-                if (xhr.status !== 200) return reject(xhr);
+                if (xhr.status !== 200 && xhr.status !== 201) return reject(xhr);
                 const data = JSON.parse(xhr.responseText);
                 console.log("Got answer: ", data);
                 return data.code ? reject(xhr) : resolve(data);
@@ -318,7 +318,7 @@ function SrsRtcPlayerAsync() {
             const xhr = new XMLHttpRequest();
             xhr.onload = function() {
                 if (xhr.readyState !== xhr.DONE) return;
-                if (xhr.status !== 200) return reject(xhr);
+                if (xhr.status !== 200 && xhr.status !== 201) return reject(xhr);
                 const data = JSON.parse(xhr.responseText);
                 console.log("Got answer: ", data);
                 return data.code ? reject(xhr) : resolve(data);
@@ -553,7 +553,7 @@ function SrsRtcWhipWhepAsync() {
             const xhr = new XMLHttpRequest();
             xhr.onload = function() {
                 if (xhr.readyState !== xhr.DONE) return;
-                if (xhr.status !== 200) return reject(xhr);
+                if (xhr.status !== 200 && xhr.status !== 201) return reject(xhr);
                 const data = xhr.responseText;
                 console.log("Got answer: ", data);
                 return data.code ? reject(xhr) : resolve(data);
@@ -586,7 +586,7 @@ function SrsRtcWhipWhepAsync() {
             const xhr = new XMLHttpRequest();
             xhr.onload = function() {
                 if (xhr.readyState !== xhr.DONE) return;
-                if (xhr.status !== 200) return reject(xhr);
+                if (xhr.status !== 200 && xhr.status !== 201) return reject(xhr);
                 const data = xhr.responseText;
                 console.log("Got answer: ", data);
                 return data.code ? reject(xhr) : resolve(data);

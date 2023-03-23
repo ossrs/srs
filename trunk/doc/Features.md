@@ -61,6 +61,7 @@ The features of SRS.
 - [x] RTC: [Experimental] Support transmux RTC to RTMP, [#2093](https://github.com/ossrs/srs/issues/2093). v4.0.95
 - [x] RTC: [Experimental] Support WebRTC over TCP directly, [#2852](https://github.com/ossrs/srs/issues/2852). v5.0.60+
 - [x] RTC: [Experimental] Support WHIP(WebRTC-HTTP ingestion protocol), [#3170](https://github.com/ossrs/srs/issues/3170). v5.0.61+
+- [x] RTC: [Experimental] Support [Larix Broadcaster](https://softvelum.com/larix/), [#3476](https://github.com/ossrs/srs/issues/3476). v5.0.148+
 - [x] Other: Support ingesting([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/ingest), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/ingest)) other protocols to SRS by FFMPEG. v1.0.0+
 - [x] Other: Support forwarding([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/forward), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/forward)) to other RTMP servers. v1.0.0+
 - [x] Other: Support transcoding([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/ffmpeg), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/ffmpeg)) by FFMPEG. v1.0.0+
