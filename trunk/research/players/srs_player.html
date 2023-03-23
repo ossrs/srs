@@ -190,22 +190,6 @@
             return;
         }
 
-        // Start play HTTP-FLV.
-        if (r.stream.indexOf('.flv') > 0) {
-            if (!mpegts.getFeatureList().mseLivePlayback) {
-                hide_for_error();
-                return;
-            }
-
-            show_for_ok();
-
-            flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true});
-            flvPlayer.attachMediaElement(document.getElementById('video_player'));
-            flvPlayer.load();
-            flvPlayer.play();
-            return;
-        }
-
         // Start play HTTP-TS.
         if (r.stream.indexOf('.ts') > 0) {
             if (!mpegts.getFeatureList().mseLivePlayback) {
@@ -215,7 +199,7 @@
 
             show_for_ok();
 
-            tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true});
+            tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true, enableStashBuffer: false});
             tsPlayer.attachMediaElement(document.getElementById('video_player'));
             tsPlayer.load();
             tsPlayer.play();
@@ -243,6 +227,27 @@
 
             dashPlayer = dashjs.MediaPlayer().create();
             dashPlayer.initialize(document.querySelector("#video_player"), r.url, true);
+            return;
+        }
+
+        // Start play HTTP-FLV.
+        let isFlv = r.stream.indexOf('.flv') > 0;
+        // Compatible with NGINX-HTTP-FLV module, see https://github.com/winshining/nginx-http-flv-module and the stream
+        // url without .flv, such as:
+        //          http://localhost:8080/live?app=live&stream=livestream
+        isFlv = isFlv || r.stream && r.url.indexOf('http') === 0;
+        if (isFlv) {
+            if (!mpegts.getFeatureList().mseLivePlayback) {
+                hide_for_error();
+                return;
+            }
+
+            show_for_video_ok();
+
+            flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true, enableStashBuffer: false});
+            flvPlayer.attachMediaElement(document.getElementById('video_player'));
+            flvPlayer.load();
+            flvPlayer.play();
             return;
         }
 
