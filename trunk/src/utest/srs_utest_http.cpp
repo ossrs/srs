@@ -1170,7 +1170,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
 
-    // wrong token
+    // incorrect token
     if (true) {
         SrsHttpServeMux s;
         HELPER_ASSERT_SUCCESS(s.initialize());
@@ -1190,6 +1190,31 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         SrsHttpAuthMux auth;
         HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "123456"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        EXPECT_EQ(401, w.w->status);
+    }
+
+    // incorrect token, duplicate Basic
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+
+        SrsHttpHeader h ;
+        h.set("Authorization", "Basic BasicYWRtaW46YWRtaW4="); // duplicate 'Basic'
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
+
+        SrsHttpAuthMux auth;
+        HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         EXPECT_EQ(401, w.w->status);

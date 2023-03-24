@@ -980,7 +980,7 @@ srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
             "invalid authorization header. Must start with %s", SRS_HTTP_AUTH_PREFIX_BASIC);
     }
 
-    std::string token = srs_string_trim_start(auth, SRS_HTTP_AUTH_PREFIX_BASIC);
+    std::string token = srs_erase_first_substr(auth, SRS_HTTP_AUTH_PREFIX_BASIC);
     if (token.empty()) {
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token");
     }
