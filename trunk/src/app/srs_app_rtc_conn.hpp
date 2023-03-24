@@ -550,6 +550,7 @@ private:
     srs_error_t generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan, bool audio_before_video);
     srs_error_t generate_play_local_sdp_for_audio(SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, std::string cname);
     srs_error_t generate_play_local_sdp_for_video(SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan, std::string cname);
+    srs_error_t generate_play_local_sdp_for_application(SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc);
     srs_error_t create_player(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
     srs_error_t create_publisher(SrsRequest* request, SrsRtcSourceDescription* stream_desc);
 };

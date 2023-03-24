@@ -681,6 +681,13 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
         }
     }
 
+    if (type == "application") {
+        if (!stream_desc_->application_track_desc_) {
+            return track_descs;
+        }
+        track_descs.push_back(stream_desc_->application_track_desc_);
+    }
+
     return track_descs;
 }
 
