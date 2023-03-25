@@ -995,8 +995,74 @@ srs_error_t SrsGoApiClusters::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     SrsCoWorkers* coworkers = SrsCoWorkers::instance();
     data->set("origin", coworkers->dumps(vhost, coworker, app, stream));
+
+    string rsp = obj->dumps();
+    srs_trace("origin cluster response %s", rsp.c_str());
     
-    return srs_api_response(w, r, obj->dumps());
+    return srs_api_response(w, r, rsp);
+}
+
+SrsGoApiCoordinators::SrsGoApiCoordinators()
+{
+}
+
+SrsGoApiCoordinators::~SrsGoApiCoordinators()
+{
+}
+
+srs_error_t SrsGoApiCoordinators::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    SrsJsonObject* data = SrsJsonAny::object();
+    obj->set("data", data);
+
+    string vhost = r->query_get("vhost");
+    string app = r->query_get("app");
+    string stream = r->query_get("stream");
+    string protocol = r->query_get("protocol");
+    string publish = r->query_get("publish");
+    string coworker = r->query_get("coworker");
+
+    data->set("query", SrsJsonAny::object()
+              ->set("vhost", SrsJsonAny::str(vhost.c_str()))
+              ->set("app", SrsJsonAny::str(app.c_str()))
+              ->set("stream", SrsJsonAny::str(stream.c_str()))
+              ->set("coworker",SrsJsonAny::str(coworker.c_str()))
+              ->set("publish",SrsJsonAny::str(publish.c_str()))
+              ->set("protocol",SrsJsonAny::str(protocol.c_str()))
+              );
+    
+    SrsCoWorkers* coworkers = SrsCoWorkers::instance();
+    data->set("source", coworkers->dumps(vhost, coworker, app, stream));
+
+    string host_port = _srs_config->get_listens().at(0);
+    string host; int port;
+    if (host_port.find(":") != string::npos) {
+        srs_parse_hostport(host_port, host, port);
+    } else {
+        port = atoi(host_port.c_str());
+    }
+    
+    if (host.empty()) {
+        int coworker_port;
+        string coworker_host = coworker;
+        if (coworker.find(":") != string::npos) {
+            srs_parse_hostport(coworker, coworker_host, coworker_port);
+        }
+
+        host = coworker_host;
+    }
+    data->set("origin", SrsJsonAny::object()
+        ->set("ip", SrsJsonAny::str(host.c_str()))
+        ->set("port", SrsJsonAny::integer(port)));
+    
+    string rsp = obj->dumps();
+    srs_trace("proxy coordinators response %s", rsp.c_str());
+    
+    return srs_api_response(w, r, rsp);
 }
 
 SrsGoApiError::SrsGoApiError()

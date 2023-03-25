@@ -80,6 +80,9 @@ public:
     static srs_error_t on_hls_notify(SrsContextId cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify);
     // Discover co-workers for origin cluster.
     static srs_error_t discover_co_workers(std::string url, std::string& host, int& port);
+    // Disocover coordinators.
+    static srs_error_t discover_coordinators(std::string url, std::string& shost, int& sport, std::string& ohost, int& oport);
+    
     // The on_forward_backend hook, when publish stream start to forward
     // @param url the api server url, to valid the client.
     //         ignore if empty.

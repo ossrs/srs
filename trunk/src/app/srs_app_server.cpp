@@ -748,6 +748,9 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
         return srs_error_wrap(err, "handle clusters");
     }
+    if ((err = http_api_mux->handle("/api/v1/coordinators", new SrsGoApiCoordinators())) != srs_success) {
+        return srs_error_wrap(err, "handle coordinators");
+    }
     
     // test the request info.
     if ((err = http_api_mux->handle("/api/v1/tests/requests", new SrsGoApiRequests())) != srs_success) {

@@ -533,6 +533,80 @@ srs_error_t SrsHttpHooks::discover_co_workers(string url, string& host, int& por
     return err;
 }
 
+srs_error_t SrsHttpHooks::discover_coordinators(string url, string& shost, int& sport, string& ohost, int& oport)
+{
+    srs_error_t err = srs_success;
+    
+    std::string res;
+    int status_code;
+    
+    SrsHttpClient http;
+    if ((err = do_post(&http, url, "", status_code, res)) != srs_success) {
+        return srs_error_wrap(err, "http: post %s, status=%d, res=%s", url.c_str(), status_code, res.c_str());
+    }
+    
+    SrsJsonObject* robj = NULL;
+    SrsAutoFree(SrsJsonObject, robj);
+    
+    if (true) {
+        SrsJsonAny* jr = NULL;
+        if ((jr = SrsJsonAny::loads(res)) == NULL) {
+            return srs_error_new(ERROR_PROXY_DISCOVER, "load json from %s", res.c_str());
+        }
+        
+        if (!jr->is_object()) {
+            srs_freep(jr);
+            return srs_error_new(ERROR_PROXY_DISCOVER, "response %s", res.c_str());
+        }
+
+        robj = jr->to_object();
+    }
+
+    SrsJsonAny* data = NULL;
+    if ((data = robj->ensure_property_object("data")) == NULL) {
+        return srs_error_new(ERROR_PROXY_DISCOVER, "parse data %s", res.c_str());
+    }
+
+    SrsJsonAny* prop = NULL;
+    SrsJsonObject* p = data->to_object();
+    if ((prop = p->ensure_property_object("source")) != NULL) {
+        p = prop->to_object();
+
+        if ((prop = p->ensure_property_string("ip")) == NULL) {
+            return srs_error_new(ERROR_PROXY_DISCOVER, "parse ip %s", res.c_str());
+        }
+        shost = prop->to_str();
+
+        if ((prop = p->ensure_property_integer("port")) == NULL) {
+            return srs_error_new(ERROR_PROXY_DISCOVER, "parse port %s", res.c_str());
+        }
+        sport = (int)prop->to_integer();
+    }
+
+    if (true) {
+        p = data->to_object();
+        if ((prop = p->ensure_property_object("origin")) == NULL) {
+            return srs_error_new(ERROR_PROXY_DISCOVER, "parse origin %s", res.c_str());
+        }
+        p = prop->to_object();
+
+        if ((prop = p->ensure_property_string("ip")) == NULL) {
+            return srs_error_new(ERROR_PROXY_DISCOVER, "parse ip %s", res.c_str());
+        }
+        ohost = prop->to_str();
+
+        if ((prop = p->ensure_property_integer("port")) == NULL) {
+            return srs_error_new(ERROR_PROXY_DISCOVER, "parse port %s", res.c_str());
+        }
+        oport = (int)prop->to_integer();
+    }
+
+    srs_trace("http: proxy discover source=%s:%d, origin=%s:%d  ok, url=%s, response=%s",
+            shost.c_str(), sport, ohost.c_str(), oport, url.c_str(), res.c_str());
+    
+    return err;
+}
+
 srs_error_t SrsHttpHooks::on_forward_backend(string url, SrsRequest* req, std::vector<std::string>& rtmp_urls)
 {
     srs_error_t err = srs_success;

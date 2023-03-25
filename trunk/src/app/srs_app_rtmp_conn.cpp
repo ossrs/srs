@@ -568,6 +568,11 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     // client is identified, set the timeout to service timeout.
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
+
+    // do proxy.
+    if (_srs_config->get_vhost_is_proxy(req->vhost)) {
+        return do_proxy();
+    }
     
     // find a source to serve.
     SrsLiveSource* source = NULL;
@@ -664,6 +669,40 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     return err;
 }
 
+srs_error_t SrsRtmpConn::do_proxy()
+{
+    srs_error_t err = srs_success;
+
+    SrsRequest* req = info->req;
+
+    // get origin address.
+    string shost, ohost; int sport, oport;
+    vector<string> coordinators = _srs_config->get_vhost_proxy_cluster_coordinators(req->vhost);
+    for (int i = 0; i < coordinators.size(); i++) {
+        string coworker = coordinators.at(i);
+        string url = srs_fmt("http://%s/api/v1/coordinators?vhost=%s&app=%s&stream=%s"
+            "&protocol=rtmp&publish=%d&coworker=%s", 
+            coworker.c_str(), req->vhost.c_str(), req->app.c_str(), 
+            req->stream.c_str(), srs_client_type_is_publish(info->type), coworker.c_str());
+
+        if ((err = SrsHttpHooks::discover_coordinators(url, shost, sport, ohost, oport)) != srs_success) {
+            // If failed to discovery coordinator in this peer, we should request the next one util the last.
+            if (i < (int)coordinators.size() - 1) {
+                srs_freep(err);
+                continue;
+            }
+            return srs_error_wrap(err, "discover coordinator, url=%s", url.c_str());
+        }
+
+        if (!shost.empty()) {
+            break;
+        }
+    }
+    
+
+    return err;
+}
+
 srs_error_t SrsRtmpConn::check_vhost(bool try_default_vhost)
 {
     srs_error_t err = srs_success;
@@ -725,6 +764,7 @@ srs_error_t SrsRtmpConn::playing(SrsLiveSource* source)
                 // If failed to discovery stream in this coworker, we should request the next one util the last.
                 // @see https://github.com/ossrs/srs/issues/1223
                 if (i < (int)coworkers.size() - 1) {
+                    srs_freep(err);
                     continue;
                 }
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());

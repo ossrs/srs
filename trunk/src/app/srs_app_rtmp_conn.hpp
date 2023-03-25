@@ -144,6 +144,7 @@ private:
     virtual srs_error_t service_cycle();
     // The stream(play/publish) service cycle, identify client first.
     virtual srs_error_t stream_service_cycle();
+    virtual srs_error_t do_proxy();
     virtual srs_error_t check_vhost(bool try_default_vhost);
     virtual srs_error_t playing(SrsLiveSource* source);
     virtual srs_error_t do_playing(SrsLiveSource* source, SrsLiveConsumer* consumer, SrsQueueRecvThread* trd);
