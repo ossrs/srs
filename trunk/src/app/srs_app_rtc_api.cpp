@@ -220,16 +220,14 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         }
     }
 
+    if ((err = http_hooks_on_play(ruc->req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: http_hooks_on_play");
+    }
+
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    // We must do stat the client before hooks, because hooks depends on it.
     SrsRtcConnection* session = NULL;
     if ((err = server_->create_session(ruc, local_sdp, &session)) != srs_success) {
         return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", ruc->dtls_, ruc->srtp_, ruc->eip_.c_str());
-    }
-
-    // We must do hook after stat, because depends on it.
-    if ((err = http_hooks_on_play(ruc->req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: http_hooks_on_play");
     }
 
     ostringstream os;
