@@ -6,8 +6,9 @@ on:
     tags:
       - v6*
 
-# Declare default permissions as read only.
-permissions: read-all
+# For draft, need write permission.
+permissions:
+  contents: write
 
 jobs:
   envs:
@@ -284,6 +285,7 @@ jobs:
     needs:
       - envs
       - docker-srs
+      - test
     steps:
       ##################################################################################################################
       - name: Covert output to env

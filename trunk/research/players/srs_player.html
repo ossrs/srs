@@ -219,7 +219,7 @@
 
             show_for_video_ok();
 
-            tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true});
+            tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true, enableStashBuffer: false});
             tsPlayer.attachMediaElement(document.getElementById('video_player'));
             tsPlayer.load();
             tsPlayer.play();
@@ -264,7 +264,7 @@
 
             show_for_video_ok();
 
-            flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true});
+            flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true, enableStashBuffer: false});
             flvPlayer.attachMediaElement(document.getElementById('video_player'));
             flvPlayer.load();
             flvPlayer.play();
