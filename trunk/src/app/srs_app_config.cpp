@@ -2551,7 +2551,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "mode" && m != "origin" && m != "token_traverse" && m != "vhost" && m != "debug_srs_upnode" && m != "coworkers"
-                        && m != "origin_cluster" && m != "protocol" && m != "follow_client") {
+                        && m != "origin_cluster" && m != "protocol" && m != "follow_client" && m != "coordinators") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.cluster.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5606,6 +5606,9 @@ bool SrsConfig::get_vhost_is_edge(string vhost)
 
 bool SrsConfig::get_vhost_is_edge(SrsConfDirective* vhost)
 {
+    string val = srs_getenv("srs.vhost.cluster.mode"); // SRS_VHOST_CLUSTER_MODE
+    if (!val.empty()) return "remote" == val;
+
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = vhost;
@@ -5757,7 +5760,7 @@ bool SrsConfig::get_vhost_origin_cluster(SrsConfDirective* vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-vector<string> SrsConfig::get_vhost_coworkers(string vhost)
+vector<string> SrsConfig::get_vhost_origin_cluster_coworkers(string vhost)
 {
     vector<string> coworkers;
 
@@ -5772,6 +5775,62 @@ vector<string> SrsConfig::get_vhost_coworkers(string vhost)
     }
 
     conf = conf->get("coworkers");
+    if (!conf) {
+        return coworkers;
+    }
+    for (int i = 0; i < (int)conf->args.size(); i++) {
+        coworkers.push_back(conf->args.at(i));
+    }
+
+    return coworkers;
+}
+
+bool SrsConfig::get_vhost_is_proxy(string vhost)
+{
+    string val = srs_getenv("srs.vhost.cluster.mode"); // SRS_VHOST_CLUSTER_MODE
+    if (!val.empty()) return "proxy" == val;
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("cluster");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("mode");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return "proxy" == conf->arg0();
+}
+
+vector<string> SrsConfig::get_vhost_proxy_cluster_coordinators(string vhost)
+{
+    vector<string> coworkers;
+
+    string val = srs_getenv("srs.vhost.cluster.coordinators"); // SRS_VHOST_CLUSTER_COORDINATORS
+    if (!val.empty()) {
+        coworkers.push_back(val);
+        return coworkers;
+    }
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return coworkers;
+    }
+
+    conf = conf->get("cluster");
+    if (!conf) {
+        return coworkers;
+    }
+
+    conf = conf->get("coordinators");
     if (!conf) {
         return coworkers;
     }

@@ -3154,7 +3154,7 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
         EXPECT_FALSE(conf.get_vhost_edge_token_traverse("ossrs.net"));
         EXPECT_STREQ("[vhost]", conf.get_vhost_edge_transform_vhost("ossrs.net").c_str());
         EXPECT_FALSE(conf.get_vhost_origin_cluster("ossrs.net"));
-        EXPECT_EQ(0, (int)conf.get_vhost_coworkers("ossrs.net").size());
+        EXPECT_EQ(0, (int)conf.get_vhost_origin_cluster_coworkers("ossrs.net").size());
         EXPECT_FALSE(conf.get_security_enabled("ossrs.net"));
         EXPECT_TRUE(conf.get_security_rules("ossrs.net") == NULL);
     }
@@ -3174,7 +3174,7 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{cluster{coworkers xxx;}}"));
-        EXPECT_EQ(1, (int)conf.get_vhost_coworkers("ossrs.net").size());
+        EXPECT_EQ(1, (int)conf.get_vhost_origin_cluster_coworkers("ossrs.net").size());
     }
 
     if (true) {

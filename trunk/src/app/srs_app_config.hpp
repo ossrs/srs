@@ -761,7 +761,11 @@ public:
     virtual bool get_vhost_origin_cluster(SrsConfDirective* conf);
     // Get the co-workers of origin cluster.
     // @see https://ossrs.net/lts/zh-cn/docs/v4/doc/origin-cluster
-    virtual std::vector<std::string> get_vhost_coworkers(std::string vhost);
+    virtual std::vector<std::string> get_vhost_origin_cluster_coworkers(std::string vhost);
+    // Whether the cluster is proxy.
+    virtual bool get_vhost_is_proxy(std::string vhost);
+    // Get the coordinators for proxy server.
+    virtual std::vector<std::string> get_vhost_proxy_cluster_coordinators(std::string vhost);
 // vhost security section
 public:
     // Whether the secrity of vhost enabled.
