@@ -220,16 +220,14 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         }
     }
 
+    if ((err = http_hooks_on_play(ruc->req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: http_hooks_on_play");
+    }
+
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    // We must do stat the client before hooks, because hooks depends on it.
     SrsRtcConnection* session = NULL;
     if ((err = server_->create_session(ruc, local_sdp, &session)) != srs_success) {
         return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", ruc->dtls_, ruc->srtp_, ruc->eip_.c_str());
-    }
-
-    // We must do hook after stat, because depends on it.
-    if ((err = http_hooks_on_play(ruc->req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: http_hooks_on_play");
     }
 
     ostringstream os;
@@ -600,6 +598,41 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     // For each RTC session, we use short-term HTTP connection.
     w->header()->set("Connection", "Close");
 
+    // Client stop publish.
+    // TODO: FIXME: Stop and cleanup the RTC session.
+    if (r->method() == SRS_CONSTS_HTTP_DELETE) {
+        srs_trace("WHIP: Delete stream %s", r->url().c_str());
+        w->write_header(SRS_CONSTS_HTTP_OK);
+        return w->write(NULL, 0);
+    }
+
+    SrsRtcUserConfig ruc;
+    if ((err = do_serve_http(w, r, &ruc)) != srs_success) {
+        return srs_error_wrap(err, "serve");
+    }
+    if (ruc.local_sdp_str_.empty()) {
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_InternalServerError);
+    }
+
+    // The SDP to response.
+    string sdp = ruc.local_sdp_str_;
+
+    // Setup the content type to SDP.
+    w->header()->set("Content-Type", "application/sdp");
+    // The location for DELETE resource, not required by SRS, but required by WHIP.
+    w->header()->set("Location", srs_fmt("/rtc/v1/whip/?app=%s&stream=%s", ruc.req_->app.c_str(), ruc.req_->stream.c_str()));
+    w->header()->set_content_length((int64_t)sdp.length());
+    // Must be 201, see https://datatracker.ietf.org/doc/draft-ietf-wish-whip/
+    w->write_header(201);
+
+    // Response the SDP content.
+    return w->write((char*)sdp.data(), (int)sdp.length());
+}
+
+srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRtcUserConfig* ruc)
+{
+    srs_error_t err = srs_success;
+
     string remote_sdp_str;
     if ((err = r->body_read_all(remote_sdp_str)) != srs_success) {
         return srs_error_wrap(err, "read sdp");
@@ -632,47 +665,41 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     }
 
     // The RTC user config object.
-    SrsRtcUserConfig ruc;
-    ruc.req_->ip = clientip;
-    ruc.req_->host = r->host();
-    ruc.req_->vhost = ruc.req_->host;
-    ruc.req_->app = app.empty() ? "live" : app;
-    ruc.req_->stream = stream.empty() ? "livestream" : stream;
+    ruc->req_->ip = clientip;
+    ruc->req_->host = r->host();
+    ruc->req_->vhost = ruc->req_->host;
+    ruc->req_->app = app.empty() ? "live" : app;
+    ruc->req_->stream = stream.empty() ? "livestream" : stream;
+    ruc->req_->param = r->query();
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc->req_->vhost);
     if (parsed_vhost) {
-        ruc.req_->vhost = parsed_vhost->arg0();
+        ruc->req_->vhost = parsed_vhost->arg0();
     }
 
-    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
-        action.c_str(), ruc.req_->get_stream_url().c_str(), clientip.c_str(), ruc.req_->app.c_str(), ruc.req_->stream.c_str(),
-        remote_sdp_str.length(), eip.c_str(), codec.c_str()
+    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, param=%s",
+        action.c_str(), ruc->req_->get_stream_url().c_str(), clientip.c_str(), ruc->req_->app.c_str(), ruc->req_->stream.c_str(),
+        remote_sdp_str.length(), eip.c_str(), codec.c_str(), ruc->req_->param.c_str()
     );
 
-    ruc.eip_ = eip;
-    ruc.codec_ = codec;
-    ruc.publish_ = (action == "publish");
-    ruc.dtls_ = ruc.srtp_ = true;
+    ruc->eip_ = eip;
+    ruc->codec_ = codec;
+    ruc->publish_ = (action == "publish");
+    ruc->dtls_ = ruc->srtp_ = true;
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
-    ruc.remote_sdp_str_ = remote_sdp_str;
-    if ((err = ruc.remote_sdp_.parse(remote_sdp_str)) != srs_success) {
+    ruc->remote_sdp_str_ = remote_sdp_str;
+    if ((err = ruc->remote_sdp_.parse(remote_sdp_str)) != srs_success) {
         return srs_error_wrap(err, "parse sdp failed: %s", remote_sdp_str.c_str());
     }
 
-    err = action == "publish" ? publish_->serve_http(w, r, &ruc) : play_->serve_http(w, r, &ruc);
+    err = action == "publish" ? publish_->serve_http(w, r, ruc) : play_->serve_http(w, r, ruc);
     if (err != srs_success) {
         return srs_error_wrap(err, "serve");
     }
 
-    if (ruc.local_sdp_str_.empty()) {
-        return srs_go_http_error(w, SRS_CONSTS_HTTP_InternalServerError);
-    }
-
-    string sdp = ruc.local_sdp_str_;
-    w->header()->set("Content-Type", "application/sdp");
-    return w->write((char*)sdp.data(), (int)sdp.length());
+    return err;
 }
 
 SrsGoApiRtcNACK::SrsGoApiRtcNACK(SrsRtcServer* server)
