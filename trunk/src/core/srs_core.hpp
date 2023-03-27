@@ -44,17 +44,13 @@
 // To free the p and set to NULL.
 // @remark The p must be a pointer T*.
 #define srs_freep(p) \
-    if (p) { \
-        delete p; \
-        p = NULL; \
-    } \
+    delete p; \
+    p = NULL; \
     (void)0
 // Please use the freepa(T[]) to free an array, otherwise the behavior is undefined.
 #define srs_freepa(pa) \
-    if (pa) { \
-        delete[] pa; \
-        pa = NULL; \
-    } \
+    delete[] pa; \
+    pa = NULL; \
     (void)0
 
 // Check CPU for ST(state-threads), please read https://github.com/ossrs/state-threads/issues/22

@@ -47,6 +47,7 @@ The features of SRS.
 - [x] Live: Support origin cluster, please read [#464](https://github.com/ossrs/srs/issues/464), [RTMP 302](https://github.com/ossrs/srs/issues/92). v3.0.0+
 - [x] Live: Support NGINX HLS Cluster, see [CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-hls-cluster) or [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-hls-cluster). v5.0.28+
 - [x] Live: SRT: Support PUSH SRT by IP and optional port, see [#3198](https://github.com/ossrs/srs/issues/3198). v5.0.76+
+- [x] Live: Kickoff publisher when stream is idle, which means no players. v5.0.144+
 - [x] Live: [Experimental] Support SRT server, read [#1147](https://github.com/ossrs/srs/issues/1147). v4.0.143+
 - [x] Live: [Experimental] Support Coroutine Native SRT over ST, [#3010](https://github.com/ossrs/srs/pull/3010). v5.0.30+
 - [x] Live: [Experimental] Support MPEG-DASH, Dynamic Adaptive Streaming over HTTP, read [#299](https://github.com/ossrs/srs/issues/299). v5.0.96+
@@ -60,6 +61,7 @@ The features of SRS.
 - [x] RTC: [Experimental] Support transmux RTC to RTMP, [#2093](https://github.com/ossrs/srs/issues/2093). v4.0.95
 - [x] RTC: [Experimental] Support WebRTC over TCP directly, [#2852](https://github.com/ossrs/srs/issues/2852). v5.0.60+
 - [x] RTC: [Experimental] Support WHIP(WebRTC-HTTP ingestion protocol), [#3170](https://github.com/ossrs/srs/issues/3170). v5.0.61+
+- [x] RTC: [Experimental] Support [Larix Broadcaster](https://softvelum.com/larix/), [#3476](https://github.com/ossrs/srs/issues/3476). v5.0.148+
 - [x] Other: Support ingesting([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/ingest), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/ingest)) other protocols to SRS by FFMPEG. v1.0.0+
 - [x] Other: Support forwarding([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/forward), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/forward)) to other RTMP servers. v1.0.0+
 - [x] Other: Support transcoding([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/ffmpeg), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/ffmpeg)) by FFMPEG. v1.0.0+
@@ -73,6 +75,7 @@ The features of SRS.
 - [x] Other: [Experimental] Support pushing MPEG-TS over UDP, please read [bug #250](https://github.com/ossrs/srs/issues/250). v2.0.111+
 - [x] Other: [Experimental] Support pushing FLV over HTTP POST, please read wiki([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-http-flv-to-srs), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/streamer#push-http-flv-to-srs)). v2.0.163+
 - [x] Other: [Experimental] Support push stream by GB28181, [#3176](https://github.com/ossrs/srs/issues/3176). v5.0.74+
+- [x] Other: Support WHIP/WHEP player, [#3460](https://github.com/ossrs/srs/pull/3460). v5.0.147+
 - [ ] System: Proxy to extend origin servers, [#3138](https://github.com/ossrs/srs/issues/3138).
 - [ ] System: Support source cleanup for idle streams, [#413](https://github.com/ossrs/srs/issues/413).
 - [ ] System: Support JT808 and JT1708 for transport, [#3420](https://github.com/ossrs/srs/issues/3420).

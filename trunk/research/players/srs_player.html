@@ -21,6 +21,8 @@
                     <li class="active"><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
                     <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
                     <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
+                    <li><a id="nav_whip" href="whip.html">WHIP</a></li>
+                    <li><a id="nav_whep" href="whip.html">WHEP</a></li>
                     <li><a  href="http://ossrs.net/srs.release/releases/app.html">iOS/Andriod</a></li>
                     <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
                     <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
@@ -217,7 +219,7 @@
 
             show_for_video_ok();
 
-            tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true});
+            tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true, enableStashBuffer: false});
             tsPlayer.attachMediaElement(document.getElementById('video_player'));
             tsPlayer.load();
             tsPlayer.play();
@@ -262,7 +264,7 @@
 
             show_for_video_ok();
 
-            flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true});
+            flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true, enableStashBuffer: false});
             flvPlayer.attachMediaElement(document.getElementById('video_player'));
             flvPlayer.load();
             flvPlayer.play();
