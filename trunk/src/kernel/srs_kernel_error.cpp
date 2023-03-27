@@ -19,6 +19,8 @@
 #include <vector>
 using namespace std;
 
+const int maxLogBuf = 4 * 1024 * 1024;
+
 #if defined(SRS_BACKTRACE) && defined(__linux)
 #include <execinfo.h>
 #include <dlfcn.h>
