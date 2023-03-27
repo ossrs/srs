@@ -549,7 +549,8 @@ if [[ $SRS_RTC == YES && $SRS_FFMPEG_OPUS != YES ]]; then
         rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/opus ${SRS_OBJS}/opus &&
         tar xf ${SRS_WORKDIR}/3rdparty/opus-1.3.1.tar.gz -C ${SRS_OBJS}/${SRS_PLATFORM} &&
         (
-            cd ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 &&
+            # Opus requires automake 1.15, and fails for automake 1.16+, so we run autoreconf to fix it.
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 && autoreconf &&
             ./configure --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/opus --enable-static $OPUS_OPTIONS
         ) &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 ${SRS_JOBS} &&

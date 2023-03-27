@@ -4308,6 +4308,23 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesRtcServer)
         SrsSetEnvConfig(rtc_server_black_hole_addr, "SRS_RTC_SERVER_BLACK_HOLE_ADDR", "xxx");
         EXPECT_STREQ("xxx", conf.get_rtc_server_black_hole_addr().c_str());
     }
+
+    if (true) {
+        MockSrsConfig conf;
+
+        SrsSetEnvConfig(rtc_server_candidates, "SRS_RTC_SERVER_CANDIDATE", "192.168.0.1");
+        EXPECT_STREQ("192.168.0.1", conf.get_rtc_server_candidates().c_str());
+
+        SrsSetEnvConfig(rtc_server_candidates2, "SRS_RTC_SERVER_CANDIDATE", "MY_CANDIDATE");
+        EXPECT_STREQ("MY_CANDIDATE", conf.get_rtc_server_candidates().c_str());
+
+        SrsSetEnvConfig(rtc_server_candidates3, "SRS_RTC_SERVER_CANDIDATE", "$MY_CANDIDATE");
+        EXPECT_STREQ("*", conf.get_rtc_server_candidates().c_str());
+
+        SrsSetEnvConfig(candidates, "MY_CANDIDATE", "192.168.0.11");
+        SrsSetEnvConfig(rtc_server_candidates4, "SRS_RTC_SERVER_CANDIDATE", "$MY_CANDIDATE");
+        EXPECT_STREQ("192.168.0.11", conf.get_rtc_server_candidates().c_str());
+    }
 }
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesVhostRtc)
