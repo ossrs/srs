@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-03-27, Merge [#3450](https://github.com/ossrs/srs/pull/3450): WebRTC: Error message carries the SDP when failed. v5.0.151 (#3450)
 * v5.0, 2023-03-25, Merge [#3477](https://github.com/ossrs/srs/pull/3477): Remove unneccessary NULL check in srs_freep. v5.0.150 (#3477)
 * v5.0, 2023-03-25, Merge [#3455](https://github.com/ossrs/srs/pull/3455): RTC: Call on_play before create session, for it might be freed for timeout. v5.0.149 (#3455)
 * v5.0, 2023-03-22, Merge [#3427](https://github.com/ossrs/srs/pull/3427): WHIP: Support DELETE resource for Larix Broadcaster. v5.0.148 (#3427)
