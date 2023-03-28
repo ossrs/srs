@@ -215,7 +215,7 @@ make && ./objs/srs_gb28181_test -test.v
 * `-srs-stream`，GB的user，即流名称，一般会加上随机的后缀。默认值：`3402000000`
 * `-srs-timeout`，每个Case的超时时间，毫秒。默认值：`11000`，即11秒。
 * `-srs-publish-audio`，推流时，使用的音频文件。默认值：`avatar.aac`
-* `-srs-publish-video`，推流时，使用的视频文件。默认值：`avatar.h264`
+* `-srs-publish-video`，推流时，使用的视频文件，注意：扩展名`.h264`表明编码格式为`AVC`，`.h265`表明编码格式为`HEVC`。默认值：`avatar.h264`
 * `-srs-publish-video-fps`，推流时，视频文件的FPS。默认值：`25`
 
 其他不常用参数：

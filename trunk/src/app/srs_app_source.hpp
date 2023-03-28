@@ -521,17 +521,20 @@ private:
 private:
     // Whether source is avaiable for publishing.
     bool _can_publish;
-    // The last die time, when all consumers quit and no publisher,
-    // We will remove the source when source die.
-    srs_utime_t die_at;
+    // The last die time, while die means neither publishers nor players.
+    srs_utime_t stream_die_at_;
+    // The last idle time, while idle means no players.
+    srs_utime_t publisher_idle_at_;
 public:
     SrsLiveSource();
     virtual ~SrsLiveSource();
 public:
     virtual void dispose();
     virtual srs_error_t cycle();
-    // Remove source when expired.
-    virtual bool expired();
+    // Whether stream is dead, which is no publisher or player.
+    virtual bool stream_is_dead();
+    // Whether publisher is idle for a period of timeout.
+    bool publisher_is_idle_for(srs_utime_t timeout);
 public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsLiveSourceHandler* h);

@@ -167,6 +167,7 @@
     XX(ERROR_RTMP_MESSAGE_CREATE           , 2053, "MessageCreate", "Failed to create shared pointer message") \
     XX(ERROR_RTMP_PROXY_EXCEED             , 2054, "RtmpProxy", "Failed to decode message of RTMP proxy") \
     XX(ERROR_RTMP_CREATE_STREAM_DEPTH      , 2055, "RtmpIdentify", "Failed to identify RTMP client") \
+    XX(ERROR_KICKOFF_FOR_IDLE              , 2056, "KickoffForIdle", "Kickoff for publisher is idle") \
     XX(ERROR_CONTROL_REDIRECT              , 2997, "RtmpRedirect", "RTMP 302 redirection") \
     XX(ERROR_CONTROL_RTMP_CLOSE            , 2998, "RtmpClose", "RTMP connection is closed") \
     XX(ERROR_CONTROL_REPUBLISH             , 2999, "RtmpRepublish", "RTMP stream is republished")

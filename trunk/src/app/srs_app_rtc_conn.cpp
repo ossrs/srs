@@ -1898,7 +1898,7 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRtcUserConfig* ruc, SrsSdp& local
 
     // TODO: FIXME: Change to api of stream desc.
     if ((err = negotiate_publish_capability(ruc, stream_desc)) != srs_success) {
-        return srs_error_wrap(err, "publish negotiate, offer=%s", ruc->remote_sdp_str_.c_str());
+        return srs_error_wrap(err, "publish negotiate, offer=%s", srs_string_replace(ruc->remote_sdp_str_.c_str(), "\r\n", "\\r\\n").c_str());
     }
 
     if ((err = generate_publish_local_sdp(req, local_sdp, stream_desc, ruc->remote_sdp_.is_unified(), ruc->audio_before_video_)) != srs_success) {
@@ -1937,7 +1937,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig* ruc, SrsSdp& local_sd
 
     std::map<uint32_t, SrsRtcTrackDescription*> play_sub_relations;
     if ((err = negotiate_play_capability(ruc, play_sub_relations)) != srs_success) {
-        return srs_error_wrap(err, "play negotiate, offer=%s", ruc->remote_sdp_str_.c_str());
+        return srs_error_wrap(err, "play negotiate, offer=%s", srs_string_replace(ruc->remote_sdp_str_.c_str(), "\r\n", "\\r\\n").c_str());
     }
 
     if (!play_sub_relations.size()) {
@@ -2676,6 +2676,40 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                 track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
                 break;
             }
+        } else if (remote_media_desc.is_video() && ruc->codec_ == "hevc") {
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
+            if (payloads.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid H.265 payload type");
+            }
+
+            // TODO: FIXME: pick up a profile for HEVC.
+            // @see https://www.rfc-editor.org/rfc/rfc7798#section-7.2.1
+            for (int j = 0; j < (int)payloads.size(); j++) {
+                const SrsMediaPayloadType& payload = payloads.at(j);
+
+                // Generate video payload for hevc.
+                SrsVideoPayload* video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
+
+                // TODO: FIXME: Only support some transport algorithms.
+                for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
+                    const string& rtcp_fb = payload.rtcp_fb_.at(k);
+
+                    if (nack_enabled) {
+                        if (rtcp_fb == "nack" || rtcp_fb == "nack pli") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                    if (twcc_enabled && remote_twcc_id) {
+                        if (rtcp_fb == "transport-cc") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                }
+
+                track_desc->type_ = "video";
+                track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
+                break;
+            }
         } else if (remote_media_desc.is_video()) {
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
             if (payloads.empty()) {
@@ -2725,6 +2759,10 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
 
                     track_desc->type_ = "video";
                     track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
+
+                    if (!has_42e01f) {
+                        srs_warn("not ideal H.264 pt=%d %s", payload.payload_type_, payload.format_specific_param_.c_str());
+                    }
                     // Only choose first match H.264 payload type.
                     break;
                 }
@@ -2758,7 +2796,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
 
                 track_desc->type_ = "video";
                 track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
-                srs_warn("choose backup H.264 payload type=%d", payload.payload_type_);
+                srs_warn("choose backup H.264 pt=%d %s", payload.payload_type_, payload.format_specific_param_.c_str());
             }
 
             // TODO: FIXME: Support RRTR?
@@ -3022,6 +3060,18 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
                 // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
                 track_descs = source->get_track_desc("video", "AV1X");
             }
+        } else if (remote_media_desc.is_video() && ruc->codec_ == "hevc") {
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
+            if (payloads.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h265 payload type");
+            }
+
+            remote_payload = payloads.at(0);
+
+            // TODO: FIXME: pick up a profile for HEVC.
+            // @see https://www.rfc-editor.org/rfc/rfc7798#section-7.2.1
+
+            track_descs = source->get_track_desc("video", "H265");
         } else if (remote_media_desc.is_video()) {
             // TODO: check opus format specific param
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");

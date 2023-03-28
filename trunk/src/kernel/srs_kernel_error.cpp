@@ -19,6 +19,8 @@
 #include <vector>
 using namespace std;
 
+const int maxLogBuf = 4 * 1024 * 1024;
+
 #if defined(SRS_BACKTRACE) && defined(__linux)
 #include <execinfo.h>
 #include <dlfcn.h>
@@ -264,8 +266,8 @@ SrsCplxError* SrsCplxError::create(const char* func, const char* file, int line,
 
     va_list ap;
     va_start(ap, fmt);
-    static char buffer[4096];
-    int r0 = vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    static char* buffer = new char[maxLogBuf];
+    int r0 = vsnprintf(buffer, maxLogBuf, fmt, ap);
     va_end(ap);
     
     SrsCplxError* err = new SrsCplxError();
@@ -275,7 +277,7 @@ SrsCplxError* SrsCplxError::create(const char* func, const char* file, int line,
     err->line = line;
     err->code = code;
     err->rerrno = rerrno;
-    if (r0 > 0 && r0 < (int)sizeof(buffer)) {
+    if (r0 > 0 && r0 < maxLogBuf) {
         err->msg = string(buffer, r0);
     }
     err->wrapped = NULL;
@@ -291,8 +293,8 @@ SrsCplxError* SrsCplxError::wrap(const char* func, const char* file, int line, S
     
     va_list ap;
     va_start(ap, fmt);
-    static char buffer[4096];
-    int r0 = vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    static char* buffer = new char[maxLogBuf];
+    int r0 = vsnprintf(buffer, maxLogBuf, fmt, ap);
     va_end(ap);
     
     SrsCplxError* err = new SrsCplxError();
@@ -304,7 +306,7 @@ SrsCplxError* SrsCplxError::wrap(const char* func, const char* file, int line, S
         err->code = v->code;
     }
     err->rerrno = rerrno;
-    if (r0 > 0 && r0 < (int)sizeof(buffer)) {
+    if (r0 > 0 && r0 < maxLogBuf) {
         err->msg = string(buffer, r0);
     }
     err->wrapped = v;

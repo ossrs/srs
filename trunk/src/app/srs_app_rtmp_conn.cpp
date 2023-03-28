@@ -985,6 +985,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     // initialize the publish timeout.
     publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
     publish_normal_timeout = _srs_config->get_publish_normal_timeout(req->vhost);
+    srs_utime_t publish_kickoff_for_idle = _srs_config->get_publish_kickoff_for_idle(req->vhost);
     
     // set the sock options.
     set_sock_options();
@@ -1006,6 +1007,11 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
+        }
+
+        // Kick off the publisher when idle for a period of timeout.
+        if (source->publisher_is_idle_for(publish_kickoff_for_idle)) {
+            return srs_error_new(ERROR_KICKOFF_FOR_IDLE, "kicked for idle, url=%s, timeout=%ds", req->tcUrl.c_str(), srsu2si(publish_kickoff_for_idle));
         }
 
         pprint->elapse();
