@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_protocol_kbps.hpp>
 #include <srs_kernel_kbps.hpp>
 #include <srs_app_rtc_network.hpp>
+#include <srs_app_srt_source.hpp>
 
 SrsPps* _srs_pps_sstuns = NULL;
 SrsPps* _srs_pps_srtcps = NULL;
@@ -1184,6 +1185,22 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
     if (rtmp && !rtmp->can_publish(false)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp stream %s busy", r->get_stream_url().c_str());
     }
+
+    // Check whether SRT stream is busy.
+#ifdef SRS_SRT
+    SrsSrtSource* srt = NULL;
+    bool srt_server_enabled = _srs_config->get_srt_enabled();
+    bool srt_enabled = _srs_config->get_srt_enabled(r->vhost);
+    if (srt_server_enabled && srt_enabled) {
+        if ((err = _srs_srt_sources->fetch_or_create(r, &srt)) != srs_success) {
+            return srs_error_wrap(err, "create source");
+        }
+
+        if (!srt->can_publish()) {
+            return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "srt stream %s busy", r->get_stream_url().c_str());
+        }
+    }
+#endif
 
     // Bridge to rtmp
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
