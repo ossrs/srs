@@ -36,6 +36,9 @@
 *.heap
 *.exe
 
+/tools/extras/out
+/tools/extras/tmp
+
 cmake-build-debug
 /trunk/ide/srs_clion/CMakeCache.txt
 /trunk/ide/srs_clion/CMakeFiles
