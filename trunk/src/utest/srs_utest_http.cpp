@@ -1059,7 +1059,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpCorsMux cs;
+        SrsHttpCorsMux cs(&s);
         HELPER_ASSERT_SUCCESS(cs.initialize(true));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
@@ -1078,7 +1078,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpCorsMux cs;
+        SrsHttpCorsMux cs(&s);
         HELPER_ASSERT_SUCCESS(cs.initialize(true));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
@@ -1098,7 +1098,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpCorsMux cs;
+        SrsHttpCorsMux cs(&s);
         HELPER_ASSERT_SUCCESS(cs.initialize(false));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
@@ -1117,7 +1117,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpCorsMux cs;
+        SrsHttpCorsMux cs(&s);
         HELPER_ASSERT_SUCCESS(cs.initialize(false));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
@@ -1135,7 +1135,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         SrsHttpMessage r(NULL, NULL);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpCorsMux cs;
+        SrsHttpCorsMux cs(&s);
         HELPER_ASSERT_SUCCESS(cs.initialize(true));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
@@ -1163,8 +1163,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpAuthMux auth;
-        HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "admin"));
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
@@ -1188,8 +1188,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
-        SrsHttpAuthMux auth;
-        HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "123456"));
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "123456"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         EXPECT_EQ(401, w.w->status);
@@ -1213,8 +1213,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
-        SrsHttpAuthMux auth;
-        HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "admin"));
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         EXPECT_EQ(401, w.w->status);
@@ -1238,8 +1238,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
-        SrsHttpAuthMux auth;
-        HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "admin"));
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         EXPECT_EQ(401, w.w->status);
@@ -1263,8 +1263,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
-        SrsHttpAuthMux auth;
-        HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "admin"));
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         EXPECT_EQ(401, w.w->status);
@@ -1283,8 +1283,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
-        SrsHttpAuthMux auth;
-        HELPER_ASSERT_SUCCESS(auth.initialize(&s, true, "admin", "admin"));
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         EXPECT_EQ(401, w.w->status);
@@ -1303,8 +1303,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
-        SrsHttpAuthMux auth;
-        HELPER_ASSERT_SUCCESS(auth.initialize(&s, false, "admin", "admin"));
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(false, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
@@ -1328,8 +1328,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
-        SrsHttpAuthMux auth;
-        HELPER_ASSERT_SUCCESS(auth.initialize(&s, false, "admin", "123456"));
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(false, "admin", "123456"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
@@ -1353,8 +1353,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         HELPER_ASSERT_SUCCESS(r.set_url("/rtc/play/", false));
 
-        SrsHttpAuthMux auth;
-        HELPER_ASSERT_SUCCESS(auth.initialize(&s, false, "admin", "123456"));
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(false, "admin", "123456"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
@@ -1378,8 +1378,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpAuthMux auth;
-        HELPER_ASSERT_SUCCESS(auth.initialize(&s, false, "admin", "123456"));
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(false, "admin", "123456"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);

@@ -54,8 +54,8 @@ ISrsHttpConnOwner::~ISrsHttpConnOwner()
 SrsHttpConn::SrsHttpConn(ISrsHttpConnOwner* handler, ISrsProtocolReadWriter* fd, ISrsHttpServeMux* m, string cip, int cport)
 {
     parser = new SrsHttpParser();
-    cors = new SrsHttpCorsMux();
-    auth = new SrsHttpAuthMux();
+    auth = new SrsHttpAuthMux(m);
+    cors = new SrsHttpCorsMux(auth);
 
     http_mux = m;
     handler_ = handler;
@@ -230,14 +230,10 @@ srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     srs_trace("HTTP #%d %s:%d %s %s, content-length=%" PRId64 "", rid, ip.c_str(), port,
         r->method_str().c_str(), r->url().c_str(), r->content_length());
-    
+
+    // proxy to cors-->auth-->http_remux.
     if ((err = cors->serve_http(w, r)) != srs_success) {
         return srs_error_wrap(err, "cors serve");
-    }
-
-    // use auth server mux to serve http request, which will proxy to http_remux.
-    if ((err = auth->serve_http(w, r)) != srs_success) {
-        return srs_error_wrap(err, "mux serve");
     }
     
     return err;
@@ -275,7 +271,7 @@ srs_error_t SrsHttpConn::set_auth_enabled(bool auth_enabled)
     srs_error_t err = srs_success;
 
     // initialize the auth, which will proxy to mux.
-    if ((err = auth->initialize(http_mux, auth_enabled, 
+    if ((err = auth->initialize(auth_enabled,
                     _srs_config->get_http_api_auth_username(), 
                     _srs_config->get_http_api_auth_password())) != srs_success) {
         return srs_error_wrap(err, "init auth");

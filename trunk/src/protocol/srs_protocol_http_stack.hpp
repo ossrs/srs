@@ -488,9 +488,9 @@ class SrsHttpCorsMux : public ISrsHttpHandler
 private:
     bool required;
     bool enabled;
-
+    ISrsHttpHandler* next_;
 public:
-    SrsHttpCorsMux();
+    SrsHttpCorsMux(ISrsHttpHandler* h);
     virtual ~SrsHttpCorsMux();
 public:
     virtual srs_error_t initialize(bool cros_enabled);
@@ -507,13 +507,13 @@ class SrsHttpAuthMux : public ISrsHttpHandler
 private:
     bool enabled_;
     std::string username_;
-    std::string password_; 
-    ISrsHttpServeMux* next_;
+    std::string password_;
+    ISrsHttpHandler* next_;
 public:
-    SrsHttpAuthMux();
+    SrsHttpAuthMux(ISrsHttpHandler* h);
     virtual ~SrsHttpAuthMux();
 public:
-    virtual srs_error_t initialize(ISrsHttpServeMux* worker, bool enabled, std::string username, std::string password);
+    virtual srs_error_t initialize(bool enabled, std::string username, std::string password);
 // Interface ISrsHttpServeMux
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);

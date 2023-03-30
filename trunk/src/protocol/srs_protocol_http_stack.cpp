@@ -863,10 +863,11 @@ bool SrsHttpServeMux::path_match(string pattern, string path)
     return false;
 }
 
-SrsHttpCorsMux::SrsHttpCorsMux()
+SrsHttpCorsMux::SrsHttpCorsMux(ISrsHttpHandler* h)
 {
     enabled = false;
     required = false;
+    next_ = h;
 }
 
 SrsHttpCorsMux::~SrsHttpCorsMux()
@@ -920,12 +921,12 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
         return w->final_request();
     }
 
-    return srs_success;
+    return next_->serve_http(w, r);
 }
 
-SrsHttpAuthMux::SrsHttpAuthMux()
+SrsHttpAuthMux::SrsHttpAuthMux(ISrsHttpHandler* h)
 {
-    next_ = NULL;
+    next_ = h;
     enabled_ = false;
 }
 
@@ -933,9 +934,8 @@ SrsHttpAuthMux::~SrsHttpAuthMux()
 {
 }
 
-srs_error_t SrsHttpAuthMux::initialize(ISrsHttpServeMux* worker, bool enabled, std::string username, std::string password)
+srs_error_t SrsHttpAuthMux::initialize(bool enabled, std::string username, std::string password)
 {
-    next_ = worker;
     enabled_ = enabled;
     username_ = username;
     password_ = password;
