@@ -1335,6 +1335,7 @@ SrsRtmpFromRtcBridge::SrsRtmpFromRtcBridge(SrsLiveSource *src)
     format = NULL;
     rtp_key_frame_ts_ = -1;
     header_sn_ = 0;
+    lost_sn_ = -1;
     memset(cache_video_pkts_, 0, sizeof(cache_video_pkts_));
 }
 
@@ -1503,9 +1504,11 @@ srs_error_t SrsRtmpFromRtcBridge::packet_video(SrsRtpPacket* src)
 
     // check whether to recovery lost packet and can construct a video frame
     if (lost_sn_ == pkt->header.get_sequence()) {
+        // It'll never reach here before the first key_frame arriving.
+        // fixed issue@https://github.com/ossrs/srs/issues/3034
         uint16_t tail_sn = 0;
         int sn = find_next_lost_sn(lost_sn_, tail_sn);
-        if (-1 == sn ) {
+        if (-1 == sn) {
             if (check_frame_complete(header_sn_, tail_sn)) {
                 if ((err = packet_video_rtmp(header_sn_, tail_sn)) != srs_success) {
                     err = srs_error_wrap(err, "fail to pack video frame");
@@ -1514,7 +1517,7 @@ srs_error_t SrsRtmpFromRtcBridge::packet_video(SrsRtpPacket* src)
         } else if (-2 == sn) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
         } else {
-            lost_sn_ = (uint16_t)sn;
+            lost_sn_ = sn;
         }
     }
 
@@ -1569,17 +1572,17 @@ srs_error_t SrsRtmpFromRtcBridge::packet_video_key_frame(SrsRtpPacket* pkt)
         lost_sn_ = header_sn_ + 1;
         // Received key frame and clean cache of old p frame pkts
         clear_cached_video();
-        srs_trace("set ts=%u, header=%hu, lost=%hu", (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
+        srs_trace("set ts=%u, header=%hu, lost=%d", (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
     } else if (rtp_key_frame_ts_ != pkt->header.get_timestamp()) {
         //new key frame, clean cache
         int64_t old_ts = rtp_key_frame_ts_;
         uint16_t old_header_sn = header_sn_;
-        uint16_t old_lost_sn = lost_sn_;
+        uint16_t old_lost_sn = (uint16_t)lost_sn_;
         rtp_key_frame_ts_ = pkt->header.get_timestamp();
         header_sn_ = pkt->header.get_sequence();
         lost_sn_ = header_sn_ + 1;
         clear_cached_video();
-        srs_warn("drop old ts=%u, header=%hu, lost=%hu, set new ts=%u, header=%hu, lost=%hu",
+        srs_warn("drop old ts=%u, header=%hu, lost=%hu, set new ts=%u, header=%hu, lost=%d",
             (uint32_t)old_ts, old_header_sn, old_lost_sn, (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
     }
 
@@ -1610,7 +1613,7 @@ srs_error_t SrsRtmpFromRtcBridge::packet_video_key_frame(SrsRtpPacket* pkt)
     } else if (-2 == sn) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
     } else {
-        lost_sn_ = (uint16_t)sn;
+        lost_sn_ = sn;
     }
 
     return err;

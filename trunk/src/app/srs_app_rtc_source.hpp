@@ -311,7 +311,7 @@ private:
     const static uint16_t s_cache_size = 512;
     RtcPacketCache cache_video_pkts_[s_cache_size];
     uint16_t header_sn_;
-    uint16_t lost_sn_;
+    int32_t lost_sn_;
     int64_t rtp_key_frame_ts_;
 public:
     SrsRtmpFromRtcBridge(SrsLiveSource *src);
