@@ -11,6 +11,8 @@
 
 #include <string>
 
+#include <cassert>
+
 /**************************************************/
 /* The system error. */
 #define SRS_ERRNO_MAP_SYSTEM(XX) \
@@ -373,7 +375,24 @@
     XX(ERROR_RTC_TCP_SIZE                  , 5032, "RtcTcpSize", "RTC TCP packet size is invalid") \
     XX(ERROR_RTC_TCP_PACKET                , 5033, "RtcTcpStun", "RTC TCP first packet must be STUN") \
     XX(ERROR_RTC_TCP_STUN                  , 5034, "RtcTcpSession", "RTC TCP packet is invalid for session not found") \
-    XX(ERROR_RTC_TCP_UNIQUE                , 5035, "RtcUnique", "RTC only support one UDP or TCP network")
+    XX(ERROR_RTC_TCP_UNIQUE                , 5035, "RtcUnique", "RTC only support one UDP or TCP network") \
+    XX(ERROR_RTC_RTP_NO_SN                 , 5036, "RtcNoSN", "RTC no seq num") \
+    XX(ERROR_RTC_NO_PLUBLSHER              , 5037, "RtcNoPublisher", "RTC no publisher") \
+    XX(ERROR_STREAM_URL_INVALID_FORMAT     , 5038, "RtcStreamUrlInvalidFormat", "RTC stream url invaild format")    \
+    XX(ERROR_RTC_STREAM_DESC               , 5039, "ERROR_RTC_STREAM_DESC", "ERROR_RTC_SCTP")    \
+    XX(ERROR_RTC_SCTP                      , 5040, "ERROR_RTC_SCTP", "ERROR_RTC_SCTP")    \
+    XX(ERROR_RTC_DATACHANNEL               , 5041, "ERROR_RTC_DATACHANNEL", "ERROR_RTC_DATACHANNEL")       \
+
+
+// note: add eror code for extra feature
+// #define ERROR_RTC_RTP_NO_SN                 5032
+// #define ERROR_RTC_NO_PLUBLSHER              5033
+// #define ERROR_STREAM_URL_INVALID_FORMAT     5034
+
+// SCTP: For #1809: Support WebRTC DataChannel by SCTP.
+// #define ERROR_RTC_STREAM_DESC               5035
+// #define ERROR_RTC_SCTP                      5036
+// #define ERROR_RTC_DATACHANNEL               5037
 
 /**************************************************/
 /* SRT protocol error. */

@@ -518,12 +518,25 @@ srs_error_t SrsRtcServer::create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sd
     return err;
 }
 
+
+
+bool SrsSdp::has_media_line() const {
+    for (int i=0; i<media_descs_.size(); ++i) {
+        const SrsMediaDesc& desc = media_descs_[i];
+        if (desc.is_audio() || desc.is_video()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection* session)
 {
     srs_error_t err = srs_success;
 
     SrsRequest* req = ruc->req_;
 
+    if (ruc->remote_sdp_.has_media_line()) {
     // first add publisher/player for negotiate sdp media info
     if (ruc->publish_) {
         if ((err = session->add_publisher(ruc, local_sdp)) != srs_success) {
@@ -533,6 +546,7 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
         if ((err = session->add_player(ruc, local_sdp)) != srs_success) {
             return srs_error_wrap(err, "add player");
         }
+    }
     }
 
     // All tracks default as inactive, so we must enable them.

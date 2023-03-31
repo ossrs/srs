@@ -250,6 +250,22 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     return err;
 }
 
+bool check_order_sdp_media_section(const SrsSdp& sdp) {
+    size_t size = sdp.media_descs_.size();
+    if (size != sdp.groups_.size()) {
+        return false;
+    }
+
+    for (size_t i=0; i<size; ++i) {
+        if (sdp.media_descs_[i].mid_ != sdp.groups_[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
 {
     srs_error_t err = srs_success;
@@ -262,12 +278,20 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no media descriptions");
     }
 
+    if (!check_order_sdp_media_section(remote_sdp)) {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "The mid order does not match the group bundle order");
+    }
+
     for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+        if (iter->is_application()) {
+            continue;
+        }
+
         if (iter->type_ != "audio" && iter->type_ != "video") {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
         }
 
-        if (! iter->rtcp_mux_) {
+        if (!iter->rtcp_mux_) {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only suppor rtcp-mux");
         }
 
@@ -531,12 +555,20 @@ srs_error_t SrsGoApiRtcPublish::check_remote_sdp(const SrsSdp& remote_sdp)
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no media descriptions");
     }
 
+    if (!check_order_sdp_media_section(remote_sdp)) {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "The mid order does not match the group bundle order");
+    }
+
     for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+        if (iter->is_application()) {
+            continue;
+        }
+
         if (iter->type_ != "audio" && iter->type_ != "video") {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
         }
 
-        if (! iter->rtcp_mux_) {
+        if (!iter->rtcp_mux_) {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only suppor rtcp-mux");
         }
 
