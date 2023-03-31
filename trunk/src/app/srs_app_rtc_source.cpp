@@ -974,13 +974,6 @@ srs_error_t SrsRtcFromRtmpBridge::on_video(SrsSharedPtrMessage* msg)
         return err;
     }
 
-    // WebRTC NOT support HEVC.
-#ifdef SRS_H265
-    if (format->vcodec->id == SrsVideoCodecIdHEVC) {
-        return err;
-    }
-#endif
-
     // cache the sequence header if h264
     bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
     if (is_sequence_header && (err = meta->update_vsh(msg)) != srs_success) {
@@ -995,6 +988,11 @@ srs_error_t SrsRtcFromRtmpBridge::on_video(SrsSharedPtrMessage* msg)
     // such as H.263 codec
     if (!format->vcodec) {
         return err;
+    }
+
+    // WebRTC NOT support HEVC, RTMP NOT support VP8/VP9.
+    if (format->vcodec->id != SrsVideoCodecIdAVC && format->vcodec->id != SrsVideoCodecIdAV1) {
+        return srs_error_new(ERROR_RTC_CODEC_ERROR, "WebRTC not support %s", srs_video_codec_id2str(format->vcodec->id).c_str());
     }
 
     bool has_idr = false;
