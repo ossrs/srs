@@ -542,6 +542,34 @@ if [[ $SRS_RTC == YES ]]; then
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build libsrtp failed, ret=$ret"; exit $ret; fi
 fi
 
+
+
+#####################################################################################
+# sctp, for WebRTC datachannel
+#####################################################################################
+# aclocal
+# https://github.com/Homebrew/homebrew-core/issues/21125
+# brew install automake
+
+if [[ $SRS_SCTP == YES ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/sctp/lib/libusrsctp.a ]]; then
+        echo "The usrsctp is ok.";
+    else
+        echo "Building usrsctp.";
+        (
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/usrsctp && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            mkdir -p usrsctp && cd usrsctp && cp -R ../../../3rdparty/usrsctp/* . &&
+            ./bootstrap && ./configure --prefix=`pwd`/_release --enable-static --disable-shared && make ${SRS_JOBS} && make install
+            cd .. && rm -rf sctp && ln -sf usrsctp/_release sctp
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build usrsctp failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -rf sctp && ln -sf ${SRS_PLATFORM}/usrsctp/_release sctp)
+    if [ ! -f ${SRS_OBJS}/sctp/lib/libusrsctp.a ]; then echo "Build usrsctp failed."; exit -1; fi
+fi
+
 #####################################################################################
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
