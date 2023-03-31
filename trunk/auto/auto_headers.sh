@@ -17,6 +17,7 @@ echo "#define SRS_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUTO_HEA
 echo "#define SRS_UNAME \"`uname -a`\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_USER_CONFIGURE \"${SRS_AUTO_USER_CONFIGURE}\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_CONFIGURE \"${SRS_AUTO_CONFIGURE}\"" >> $SRS_AUTO_HEADERS_H
+echo "#define GIT_COMMIT_ID \"`git rev-parse --short HEAD`\"" >> $SRS_AUTO_HEADERS_H
 echo "" >> $SRS_AUTO_HEADERS_H
 
 function srs_define_macro()
@@ -102,6 +103,12 @@ if [[ $SRS_SIMULATOR == YES ]]; then
     srs_define_macro "SRS_SIMULATOR" $SRS_AUTO_HEADERS_H
 else
     srs_undefine_macro "SRS_SIMULATOR" $SRS_AUTO_HEADERS_H
+fi
+
+if [[ $SRS_SCTP == YES ]]; then
+    srs_define_macro "SRS_SCTP" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_SCTP" $SRS_AUTO_HEADERS_H
 fi
 
 if [[ $SRS_HTTPS == YES ]]; then
