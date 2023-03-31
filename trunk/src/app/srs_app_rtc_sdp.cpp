@@ -7,6 +7,8 @@
 #include <srs_app_rtc_sdp.hpp>
 
 #include <stdlib.h>
+#include <string.h> // for memset
+#include <arpa/inet.h> // for ntohs in linux
 
 #include <iostream>
 #include <sstream>
@@ -46,7 +48,7 @@ std::vector<std::string> split_str(const std::string& str, const std::string& de
     return ret;
 }
 
-static void skip_first_spaces(std::string& str)
+void skip_first_spaces(std::string& str)
 {
     while (! str.empty() && str[0] == ' ') {
         str.erase(0, 1);
@@ -388,6 +390,10 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
     os << "m=" << type_ << " " << port_ << " " << protos_;
     for (std::vector<SrsMediaPayloadType>::iterator iter = payload_types_.begin(); iter != payload_types_.end(); ++iter) {
         os << " " << iter->payload_type_;
+    }
+
+    if (is_application()) {
+        os << " webrtc-datachannel";
     }
 
     os << kCRLF;
