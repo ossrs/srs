@@ -1,0 +1,10 @@
+option('sctp_invariants', type: 'boolean', value: false,
+    description: 'Add runtime checks')
+option('sctp_debug', type: 'boolean', value: false,
+    description: 'Provide debug information')
+option('sctp_inet', type: 'boolean', value: true,
+    description: 'Support IPv4')
+option('sctp_inet6', type: 'boolean', value: true,
+    description: 'Support IPv6')
+option('sctp_build_programs', type: 'boolean', value: true,
+    description: 'Build example programs')
