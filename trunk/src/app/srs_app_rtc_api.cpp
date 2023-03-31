@@ -263,6 +263,11 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
     }
 
     for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+        // NOT need check "application"
+        if (iter->type_ == "application") {
+            continue;
+        }
+
         if (iter->type_ != "audio" && iter->type_ != "video") {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
         }
@@ -532,11 +537,16 @@ srs_error_t SrsGoApiRtcPublish::check_remote_sdp(const SrsSdp& remote_sdp)
     }
 
     for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+        // NOT need check "application"
+        if (iter->type_ == "application") {
+            continue;
+        }
+        
         if (iter->type_ != "audio" && iter->type_ != "video") {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
         }
 
-        if (! iter->rtcp_mux_) {
+        if (!iter->rtcp_mux_) {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only suppor rtcp-mux");
         }
 

@@ -413,6 +413,19 @@ void SrsRtcSource::init_for_play_before_publishing()
         video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
     }
 
+    // application track description
+    if (true) {
+        SrsRtcTrackDescription* app_track_desc = new SrsRtcTrackDescription();
+        stream_desc->application_track_desc_ = app_track_desc;
+
+        app_track_desc->type_ = "application";
+        app_track_desc->id_ = "application-" + srs_random_str(8);
+
+        uint32_t app_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        app_track_desc->ssrc_ = app_ssrc;
+        app_track_desc->direction_ = "sendrecv";
+    }
+
     set_stream_desc(stream_desc);
 }
 
@@ -679,6 +692,13 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
             track_descs.push_back(*it);
             ++it;
         }
+    }
+
+    if (type == "application") {
+        if (!stream_desc_->application_track_desc_) {
+            return track_descs;
+        }
+        track_descs.push_back(stream_desc_->application_track_desc_);
     }
 
     return track_descs;
@@ -2269,11 +2289,13 @@ SrsRtcTrackDescription* SrsRtcTrackDescription::copy()
 SrsRtcSourceDescription::SrsRtcSourceDescription()
 {
     audio_track_desc_ = NULL;
+    application_track_desc_ = NULL;
 }
 
 SrsRtcSourceDescription::~SrsRtcSourceDescription()
 {
     srs_freep(audio_track_desc_);
+    srs_freep(application_track_desc_);
 
     for (int i = 0; i < (int)video_track_descs_.size(); ++i) {
         srs_freep(video_track_descs_.at(i));
@@ -2287,6 +2309,10 @@ SrsRtcSourceDescription* SrsRtcSourceDescription::copy()
 
     if (audio_track_desc_) {
         stream_desc->audio_track_desc_ = audio_track_desc_->copy();
+    }
+
+    if (application_track_desc_) {
+        stream_desc->application_track_desc_ = application_track_desc_->copy();
     }
 
     for (int i = 0; i < (int)video_track_descs_.size(); ++i) {

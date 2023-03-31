@@ -1948,6 +1948,11 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig* ruc, SrsSdp& local_sd
     while (it != play_sub_relations.end()) {
         SrsRtcTrackDescription* track_desc = it->second;
 
+
+        if (track_desc->type_ == "application") {
+            stream_desc->application_track_desc_ = track_desc->copy();
+        }
+
         // TODO: FIXME: we only support one audio track.
         if (track_desc->type_ == "audio" && !stream_desc->audio_track_desc_) {
             stream_desc->audio_track_desc_ = track_desc->copy();
@@ -2799,6 +2804,11 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
 
             // TODO: FIXME: Support RRTR?
             //local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
+        } else if (remote_media_desc.is_application()) {
+            track_desc->type_ = "application";
+            stream_desc->application_track_desc_ = track_desc->copy();
+	        // the "application" have NOT media and ssrc, so we just copy it
+            continue;
         }
 
         // Error if track desc is invalid, that is failed to match SDP, for example, we require H264 but no H264 found.
@@ -2895,6 +2905,10 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
         }
     }
 
+    if ((err = generate_publish_local_sdp_for_application(local_sdp, stream_desc)) != srs_success) {
+        return srs_error_wrap(err, "application");
+    }
+
     return err;
 }
 
@@ -2934,6 +2948,29 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp_for_audio(SrsSdp& local
 
         SrsAudioPayload* payload = (SrsAudioPayload*)audio_track->media_;
         local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::generate_publish_local_sdp_for_application(SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc)
+{
+    srs_error_t err = srs_success;
+
+    // generate application desc
+    if (stream_desc->application_track_desc_) {
+        SrsRtcTrackDescription* app_track = stream_desc->application_track_desc_;
+
+        local_sdp.media_descs_.push_back(SrsMediaDesc("application"));
+        SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
+
+        local_media_desc.port_ = 9;
+        local_media_desc.protos_ = "UDP/DTLS/SCTP";
+
+        local_media_desc.mid_ = app_track->mid_;
+        local_sdp.groups_.push_back(local_media_desc.mid_);
+
+        local_media_desc.extmaps_ = app_track->extmaps_;
     }
 
     return err;
@@ -3090,6 +3127,13 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             }
 
             track_descs = source->get_track_desc("video", "H264");
+        } else if (remote_media_desc.is_application()) {
+            track_descs = source->get_track_desc("application", "");
+            for (int j = 0; j < (int)track_descs.size(); ++j) {
+                SrsRtcTrackDescription* track = track_descs.at(j)->copy();
+                sub_relations.insert(make_pair(track->ssrc_, track));
+            }
+            continue;
         }
 
         for (int j = 0; j < (int)track_descs.size(); ++j) {
@@ -3246,6 +3290,10 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
         }
     }
 
+    if ((err = generate_publish_local_sdp_for_application(local_sdp, stream_desc)) != srs_success) {
+        return srs_error_wrap(err, "application");
+    }
+
     return err;
 }
 
@@ -3352,6 +3400,28 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp_for_video(SrsSdp& local_sd
 
             local_media_desc.ssrc_infos_.push_back(SrsSSRCInfo(track->fec_ssrc_, cname, track->msid_, track->id_));
         }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::generate_play_local_sdp_for_application(SrsSdp &local_sdp, SrsRtcSourceDescription *stream_desc) {
+    srs_error_t err = srs_success;
+
+    // generate application desc
+    if (stream_desc->application_track_desc_) {
+        SrsRtcTrackDescription* app_track = stream_desc->application_track_desc_;
+
+        local_sdp.media_descs_.push_back(SrsMediaDesc("application"));
+        SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
+
+        local_media_desc.port_ = 9;
+        local_media_desc.protos_ = "UDP/DTLS/SCTP";
+
+        local_media_desc.mid_ = app_track->mid_;
+        local_sdp.groups_.push_back(local_media_desc.mid_);
+
+        local_media_desc.extmaps_ = app_track->extmaps_;
     }
 
     return err;
