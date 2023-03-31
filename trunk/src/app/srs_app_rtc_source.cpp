@@ -413,6 +413,19 @@ void SrsRtcSource::init_for_play_before_publishing()
         video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
     }
 
+    // application track description
+    if (true) {
+        SrsRtcTrackDescription* app_track_desc = new SrsRtcTrackDescription();
+        stream_desc->application_track_desc_ = app_track_desc;
+
+        app_track_desc->type_ = "application";
+        app_track_desc->id_ = "application-" + srs_random_str(8);
+
+        uint32_t app_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        app_track_desc->ssrc_ = app_ssrc;
+        app_track_desc->direction_ = "sendrecv";
+    }
+
     set_stream_desc(stream_desc);
 }
 

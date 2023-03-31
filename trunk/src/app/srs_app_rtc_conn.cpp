@@ -1948,6 +1948,11 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig* ruc, SrsSdp& local_sd
     while (it != play_sub_relations.end()) {
         SrsRtcTrackDescription* track_desc = it->second;
 
+
+        if (track_desc->type_ == "application") {
+            stream_desc->application_track_desc_ = track_desc->copy();
+        }
+
         // TODO: FIXME: we only support one audio track.
         if (track_desc->type_ == "audio" && !stream_desc->audio_track_desc_) {
             stream_desc->audio_track_desc_ = track_desc->copy();
