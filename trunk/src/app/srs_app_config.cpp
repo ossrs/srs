@@ -4039,7 +4039,12 @@ int SrsConfig::get_rtc_server_listen()
 
 std::string SrsConfig::get_rtc_server_candidates()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("srs.rtc_server.candidate"); // SRS_RTC_SERVER_CANDIDATE
+    // Note that the value content might be an environment variable.
+    std::string eval = srs_getenv("srs.rtc_server.candidate"); // SRS_RTC_SERVER_CANDIDATE
+    if (!eval.empty()) {
+        if (!srs_string_starts_with(eval, "$")) return eval;
+        SRS_OVERWRITE_BY_ENV_STRING(eval);
+    }
 
     static string DEFAULT = "*";
 

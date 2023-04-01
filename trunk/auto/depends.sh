@@ -14,9 +14,14 @@
 #####################################################################################
 # Check OS and CPU architectures.
 #####################################################################################
-if [[ $OS_IS_UBUNTU != YES && $OS_IS_CENTOS != YES && $OS_IS_OSX != YES && $SRS_CROSS_BUILD != YES && $SRS_CYGWIN64 != YES ]]; then
-    echo "Your OS `uname -s` is not supported."
-    exit 1
+if [[ $OS_IS_UBUNTU != YES && $OS_IS_CENTOS != YES && $OS_IS_OSX != YES && $SRS_CYGWIN64 != YES ]]; then
+    if [[ $SRS_CROSS_BUILD != YES && $SRS_GENERIC_LINUX != YES ]]; then
+        echo "Your OS `uname -s` is not supported."
+        if [[ $(uname -s) == "Linux" ]]; then
+            echo "Please try --generic-linux=on for other Linux systems."
+        fi
+        exit 1
+    fi
 fi
 
 # The absolute path of SRS_OBJS, for prefix and PKG_CONFIG_PATH
@@ -544,7 +549,8 @@ if [[ $SRS_RTC == YES && $SRS_FFMPEG_OPUS != YES ]]; then
         rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/opus ${SRS_OBJS}/opus &&
         tar xf ${SRS_WORKDIR}/3rdparty/opus-1.3.1.tar.gz -C ${SRS_OBJS}/${SRS_PLATFORM} &&
         (
-            cd ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 &&
+            # Opus requires automake 1.15, and fails for automake 1.16+, so we run autoreconf to fix it.
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 && autoreconf &&
             ./configure --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/opus --enable-static $OPUS_OPTIONS
         ) &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 ${SRS_JOBS} &&
