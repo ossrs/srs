@@ -692,6 +692,7 @@ public:
 private:
     SrsConfDirective* get_srt(std::string vhost);
 public:
+    // TODO: FIXME: Rename to get_vhost_srt_enabled.
     bool get_srt_enabled(std::string vhost);
     bool get_srt_to_rtmp(std::string vhost);
 

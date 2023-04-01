@@ -1910,14 +1910,6 @@ void SrsLiveSourceManager::destroy()
     pool.clear();
 }
 
-ISrsLiveSourceBridge::ISrsLiveSourceBridge()
-{
-}
-
-ISrsLiveSourceBridge::~ISrsLiveSourceBridge()
-{
-}
-
 SrsLiveSource::SrsLiveSource()
 {
     req = NULL;
@@ -2060,7 +2052,7 @@ srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
     return err;
 }
 
-void SrsLiveSource::set_bridge(ISrsLiveSourceBridge* v)
+void SrsLiveSource::set_bridge(ISrsStreamBridge* v)
 {
     srs_freep(bridge_);
     bridge_ = v;
@@ -2257,31 +2249,42 @@ srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPack
 srs_error_t SrsLiveSource::on_audio(SrsCommonMessage* shared_audio)
 {
     srs_error_t err = srs_success;
-    
+
     // Detect where stream is monotonically increasing.
     if (!mix_correct && is_monotonically_increase) {
         if (last_packet_time > 0 && shared_audio->header.timestamp < last_packet_time) {
             is_monotonically_increase = false;
             srs_warn("AUDIO: Timestamp %" PRId64 "=>%" PRId64 ", may need mix_correct.",
-                last_packet_time, shared_audio->header.timestamp);
+                     last_packet_time, shared_audio->header.timestamp);
         }
     }
     last_packet_time = shared_audio->header.timestamp;
-    
+
     // convert shared_audio to msg, user should not use shared_audio again.
     // the payload is transfer to msg, and set to NULL in shared_audio.
     SrsSharedPtrMessage msg;
     if ((err = msg.create(shared_audio)) != srs_success) {
         return srs_error_wrap(err, "create message");
     }
+
+    return on_frame(&msg);
+}
+
+srs_error_t SrsLiveSource::on_frame(SrsSharedPtrMessage* msg)
+{
+    srs_error_t err = srs_success;
     
     // directly process the audio message.
     if (!mix_correct) {
-        return on_audio_imp(&msg);
+        if (msg->is_audio()) {
+            return on_audio_imp(msg);
+        } else {
+            return on_video_imp(msg);
+        }
     }
     
     // insert msg to the queue.
-    mix_queue->push(msg.copy());
+    mix_queue->push(msg->copy());
     
     // fetch someone from mix queue.
     SrsSharedPtrMessage* m = mix_queue->pop();
@@ -2333,7 +2336,7 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
     }
 
     // For bridge to consume the message.
-    if (bridge_ && (err = bridge_->on_audio(msg)) != srs_success) {
+    if (bridge_ && (err = bridge_->on_frame(msg)) != srs_success) {
         return srs_error_wrap(err, "bridge consume audio");
     }
 
@@ -2386,11 +2389,11 @@ srs_error_t SrsLiveSource::on_video(SrsCommonMessage* shared_video)
         if (last_packet_time > 0 && shared_video->header.timestamp < last_packet_time) {
             is_monotonically_increase = false;
             srs_warn("VIDEO: Timestamp %" PRId64 "=>%" PRId64 ", may need mix_correct.",
-                last_packet_time, shared_video->header.timestamp);
+                     last_packet_time, shared_video->header.timestamp);
         }
     }
     last_packet_time = shared_video->header.timestamp;
-    
+
     // drop any unknown header video.
     // @see https://github.com/ossrs/srs/issues/421
     if (!SrsFlvVideo::acceptable(shared_video->payload, shared_video->size)) {
@@ -2398,41 +2401,19 @@ srs_error_t SrsLiveSource::on_video(SrsCommonMessage* shared_video)
         if (shared_video->size > 0) {
             b0 = shared_video->payload[0];
         }
-        
+
         srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
         return err;
     }
-    
+
     // convert shared_video to msg, user should not use shared_video again.
     // the payload is transfer to msg, and set to NULL in shared_video.
     SrsSharedPtrMessage msg;
     if ((err = msg.create(shared_video)) != srs_success) {
         return srs_error_wrap(err, "create message");
     }
-    
-    // directly process the video message.
-    if (!mix_correct) {
-        return on_video_imp(&msg);
-    }
-    
-    // insert msg to the queue.
-    mix_queue->push(msg.copy());
-    
-    // fetch someone from mix queue.
-    SrsSharedPtrMessage* m = mix_queue->pop();
-    if (!m) {
-        return err;
-    }
-    
-    // consume the monotonically increase message.
-    if (m->is_audio()) {
-        err = on_audio_imp(m);
-    } else {
-        err = on_video_imp(m);
-    }
-    srs_freep(m);
-    
-    return err;
+
+    return on_frame(&msg);
 }
 
 srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
@@ -2478,7 +2459,7 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
     }
 
     // For bridge to consume the message.
-    if (bridge_ && (err = bridge_->on_video(msg)) != srs_success) {
+    if (bridge_ && (err = bridge_->on_frame(msg)) != srs_success) {
         return srs_error_wrap(err, "bridge consume video");
     }
 
