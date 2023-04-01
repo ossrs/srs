@@ -959,6 +959,8 @@ srs_error_t SrsHttpAuthMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
 
 srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    srs_error_t err = srs_success;
+
     if (!enabled_) {
         return srs_success;
     }
@@ -985,10 +987,13 @@ srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token");
     }
 
-    std::string base64 = base64_decode(token);
+    std::string plaintext;
+    if ((err = srs_av_base64_decode(token, plaintext)) != srs_success) {
+        return srs_error_wrap(err, "decode token %s", token.c_str());
+    }
 
     // should be 'username:password'
-    std::vector<std::string> user_pwd = srs_string_split(base64, ":");
+    std::vector<std::string> user_pwd = srs_string_split(plaintext, ":");
     if (user_pwd.size() != 2) {
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token");
     }

@@ -6213,10 +6213,29 @@ VOID TEST(KernelUtilityTest, CoverCheckIPAddrValid)
 
 VOID TEST(KernelUtilityTest, Base64Decode)
 {
+    srs_error_t err = srs_success;
+
     if (true) {
-        EXPECT_TRUE("admin:admin" == base64_decode("YWRtaW46YWRtaW4="));
-        EXPECT_TRUE("admin:123456" == base64_decode("YWRtaW46MTIzNDU2"));
-        EXPECT_FALSE("admin:admin" == base64_decode("YWRtaW46MTIzNDU2"));
-        EXPECT_FALSE("admin:admin" == base64_decode("YWRtaW46YWRtaW"));
+        string plaintext;
+        HELPER_EXPECT_SUCCESS(srs_av_base64_decode("YWRtaW46YWRtaW4=", plaintext));
+        EXPECT_STREQ("admin:admin", plaintext.c_str());
+    }
+
+    if (true) {
+        string plaintext;
+        HELPER_EXPECT_SUCCESS(srs_av_base64_decode("YWRtaW46MTIzNDU2", plaintext));
+        EXPECT_STREQ("admin:123456", plaintext.c_str());
+    }
+
+    if (true) {
+        string plaintext;
+        HELPER_EXPECT_SUCCESS(srs_av_base64_decode("YWRtaW46MTIzNDU2", plaintext));
+        EXPECT_STRNE("admin:admin", plaintext.c_str());
+    }
+
+    if (true) {
+        string plaintext;
+        HELPER_EXPECT_FAILED(srs_av_base64_decode("YWRtaW46YWRtaW", plaintext));
+        EXPECT_STRNE("admin:admin", plaintext.c_str());
     }
 }

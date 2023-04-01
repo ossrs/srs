@@ -167,8 +167,5 @@ extern int srs_chunk_header_c3(int perfer_cid, uint32_t timestamp, char* cache, 
     typedef int (*srs_gettimeofday_t) (struct timeval* tv, struct timezone* tz);
 #endif
 
-// 
-extern std::string base64_decode(const std::string &encoded_string);
-
 #endif
 
