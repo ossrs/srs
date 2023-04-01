@@ -1021,6 +1021,12 @@ public:
     virtual bool get_raw_api_allow_query();
     // Whether allow rpc update.
     virtual bool get_raw_api_allow_update();
+    // Whether http api auth enabled.
+    virtual bool get_http_api_auth_enabled();
+    // Get the http api auth username.
+    virtual std::string get_http_api_auth_username();
+    // Get the http api auth password.
+    virtual std::string get_http_api_auth_password();
 // https api section
 private:
     SrsConfDirective* get_https_api();

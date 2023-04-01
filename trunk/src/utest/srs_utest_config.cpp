@@ -3639,7 +3639,7 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "http_api{enabled on;listen xxx;crossdomain off;raw_api {enabled on;allow_reload on;allow_query on;allow_update on;}}"));
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "http_api{enabled on;listen xxx;crossdomain off;auth {enabled on;username admin;password 123456;}raw_api {enabled on;allow_reload on;allow_query on;allow_update on;}}"));
         EXPECT_TRUE(conf.get_http_api_enabled());
         EXPECT_STREQ("xxx", conf.get_http_api_listen().c_str());
         EXPECT_FALSE(conf.get_http_api_crossdomain());
@@ -3647,6 +3647,9 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
         EXPECT_TRUE(conf.get_raw_api_allow_reload());
         EXPECT_FALSE(conf.get_raw_api_allow_query()); // Always disabled
         EXPECT_FALSE(conf.get_raw_api_allow_update()); // Always disabled
+        EXPECT_TRUE(conf.get_http_api_auth_enabled());
+        EXPECT_STREQ("admin", conf.get_http_api_auth_username().c_str());
+        EXPECT_STREQ("123456", conf.get_http_api_auth_password().c_str());
     }
 
     if (true) {
@@ -4112,6 +4115,15 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHttpApi)
 
         SrsSetEnvConfig(http_api_crossdomain, "SRS_HTTP_API_CROSSDOMAIN", "off");
         EXPECT_FALSE(conf.get_http_api_crossdomain());
+
+        SrsSetEnvConfig(http_api_auth_enabled, "SRS_HTTP_API_AUTH_ENABLED", "on");
+        EXPECT_TRUE(conf.get_http_api_auth_enabled());
+
+        SrsSetEnvConfig(http_api_auth_username, "SRS_HTTP_API_AUTH_USERNAME", "admin");
+        EXPECT_STREQ("admin", conf.get_http_api_auth_username().c_str());
+
+        SrsSetEnvConfig(http_api_auth_password, "SRS_HTTP_API_AUTH_PASSWORD", "123456");
+        EXPECT_STREQ("123456", conf.get_http_api_auth_password().c_str());
     }
 
     if (true) {
