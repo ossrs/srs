@@ -501,7 +501,8 @@ public:
 
 // The filter http mux, directly serve the http AUTH requests,
 // while proxy to the worker mux for services.
-// @see: https://www.rfc-editor.org/rfc/rfc7617
+// @see https://www.rfc-editor.org/rfc/rfc7617
+// @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/WWW-Authenticate
 class SrsHttpAuthMux : public ISrsHttpHandler
 {
 private:
