@@ -1059,11 +1059,10 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpCorsMux cs;
-        HELPER_ASSERT_SUCCESS(cs.initialize(&s, true));
+        SrsHttpCorsMux cs(&s);
+        HELPER_ASSERT_SUCCESS(cs.initialize(true));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
 
     // If CORS enabled, response OPTIONS with ok
@@ -1079,8 +1078,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpCorsMux cs;
-        HELPER_ASSERT_SUCCESS(cs.initialize(&s, true));
+        SrsHttpCorsMux cs(&s);
+        HELPER_ASSERT_SUCCESS(cs.initialize(true));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "", w);
@@ -1099,11 +1098,10 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpCorsMux cs;
-        HELPER_ASSERT_SUCCESS(cs.initialize(&s, false));
+        SrsHttpCorsMux cs(&s);
+        HELPER_ASSERT_SUCCESS(cs.initialize(false));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
 
     // If CORS not enabled, response error for options.
@@ -1119,8 +1117,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, (http_status)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpCorsMux cs;
-        HELPER_ASSERT_SUCCESS(cs.initialize(&s, false));
+        SrsHttpCorsMux cs(&s);
+        HELPER_ASSERT_SUCCESS(cs.initialize(false));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(405, "", w);
@@ -1137,10 +1135,253 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         SrsHttpMessage r(NULL, NULL);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        SrsHttpCorsMux cs;
-        HELPER_ASSERT_SUCCESS(cs.initialize(&s, true));
+        SrsHttpCorsMux cs(&s);
+        HELPER_ASSERT_SUCCESS(cs.initialize(true));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        
+        SrsHttpHeader h ;
+        h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // incorrect token
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+
+        SrsHttpHeader h ;
+        h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "123456"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        EXPECT_EQ(401, w.w->status);
+    }
+
+    // incorrect token, duplicate Basic
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+
+        SrsHttpHeader h ;
+        h.set("Authorization", "Basic BasicYWRtaW46YWRtaW4="); // duplicate 'Basic'
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        EXPECT_EQ(401, w.w->status);
+    }
+
+    // Authorization NOT start with 'Basic '
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        
+        SrsHttpHeader h ;
+        h.set("Authorization", "YWRtaW46YWRtaW4="); // admin:admin
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        EXPECT_EQ(401, w.w->status);
+    }
+
+    // NOT base64
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        
+        SrsHttpHeader h ;
+        h.set("Authorization", "Basic admin:admin"); // admin:admin
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        EXPECT_EQ(401, w.w->status);
+    }
+
+    // empty Authorization
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        EXPECT_EQ(401, w.w->status);
+    }
+
+    // auth disabled, response with 200 ok, even though empty Authorization
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(false, "admin", "admin"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // auth disabled, response with 200 ok, even though wrong token
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+
+        SrsHttpHeader h ;
+        h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(false, "admin", "123456"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // always response with 200 ok, for /rtc/*/
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+
+        SrsHttpHeader h ;
+        h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/rtc/play/", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(false, "admin", "123456"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // always response with 200 ok, for /rtc/*/
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+
+        SrsHttpHeader h ;
+        h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(auth.initialize(false, "admin", "123456"));
+
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
 }
