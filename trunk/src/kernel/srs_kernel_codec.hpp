@@ -64,12 +64,32 @@ std::string srs_video_codec_id2str(SrsVideoCodecId codec);
 enum SrsVideoAvcFrameTrait
 {
     // set to the max value to reserved, for array map.
-    SrsVideoAvcFrameTraitReserved = 3,
-    SrsVideoAvcFrameTraitForbidden = 3,
+    SrsVideoAvcFrameTraitReserved = 6,
+    SrsVideoAvcFrameTraitForbidden = 6,
     
     SrsVideoAvcFrameTraitSequenceHeader = 0,
     SrsVideoAvcFrameTraitNALU = 1,
     SrsVideoAvcFrameTraitSequenceHeaderEOF = 2,
+
+    SrsVideoAvcFrameTraitHEVCPacketTypeSequenceStart = 0,
+    SrsVideoAvcFrameTraitHEVCPacketTypeCodedFrames = 1,
+    SrsVideoAvcFrameTraitHEVCPacketTypeSequenceEnd = 2,
+    // CompositionTime Offset is implied to equal zero. This is
+    // an optimization to save putting SI24 composition time value of zero on
+    // the wire. See pseudo code below in the VideoTagBody section
+    SrsVideoAvcFrameTraitHEVCPacketTypeCodedFramesX = 3,
+    // VideoTagBody does not contain video data. VideoTagBody
+    // instead contains an AMF encoded metadata. See Metadata Frame
+    // section for an illustration of its usage. As an example, the metadata
+    // can be HDR information. This is a good way to signal HDR
+    // information. This also opens up future ways to express additional
+    // metadata that is meant for the next video sequence.
+    //
+    // note: presence of PacketTypeMetadata means that FrameType
+    // flags at the top of this table should be ignored
+    SrsVideoAvcFrameTraitHEVCPacketTypeMetadata = 4,
+    // Carriage of bitstream in MPEG-2 TS format
+    SrsVideoAvcFrameTraitHEVCPacketTypeMPEG2TSSequenceStart = 5,
 };
 
 /**
