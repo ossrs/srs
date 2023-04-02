@@ -571,6 +571,7 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
         }
     }
 
+    local_sdp.root_ice_empty = ruc->remote_sdp_.session_info_.ice_ufrag_.empty();
     local_sdp.set_ice_ufrag(local_ufrag);
     local_sdp.set_ice_pwd(local_pwd);
     local_sdp.set_fingerprint_algo("sha-256");

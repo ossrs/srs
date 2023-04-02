@@ -192,6 +192,7 @@ public:
 public:
     std::vector<SrsMediaDesc*> find_media_descs(const std::string& type);
 public:
+    bool root_ice_empty = true;
     void set_ice_ufrag(const std::string& ufrag);
     void set_ice_pwd(const std::string& pwd);
     void set_dtls_role(const std::string& dtls_role);
