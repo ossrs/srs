@@ -178,20 +178,20 @@ bool SrsFlvVideo::sh(char* data, int size)
 
     uint8_t frame_type = data[0];
     bool is_ext_header = frame_type & 0x80;
-    SrsVideoAvcFrameTrait packet_type = SrsVideoAvcFrameTraitForbidden;
+    SrsVideoAvcFrameTrait avc_packet_type = SrsVideoAvcFrameTraitForbidden;
     if (!is_ext_header) {
         // See rtmp_specification_1.0.pdf
         frame_type = (frame_type >> 4) & 0x0F;
-        packet_type = (SrsVideoAvcFrameTrait) data[1];
+        avc_packet_type = (SrsVideoAvcFrameTrait)data[1];
     } else {
         // See https://github.com/veovera/enhanced-rtmp
-        packet_type = (SrsVideoAvcFrameTrait)(frame_type & 0x0f);
+        avc_packet_type = (SrsVideoAvcFrameTrait)(frame_type & 0x0f);
         frame_type = (frame_type >> 4) & 0x07;
     }
 
-    // Note that SrsVideoAvcFrameTraitHEVCPacketTypeSequenceStart is equal to SrsVideoAvcFrameTraitSequenceHeader
+    // Note that SrsVideoHEVCFrameTraitPacketTypeSequenceStart is equal to SrsVideoAvcFrameTraitSequenceHeader
     return frame_type == SrsVideoAvcFrameTypeKeyFrame
-        && packet_type == SrsVideoAvcFrameTraitSequenceHeader;
+        && avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
 bool SrsFlvVideo::h264(char* data, int size)
@@ -226,6 +226,8 @@ bool SrsFlvVideo::hevc(char* data, int size)
         if (size < 5) {
             return false;
         }
+
+        // Video FourCC
         if (data[1] != 'h' || data[2] != 'v' || data[3] != 'c' || data[4] != '1') {
             return false;
         }
@@ -248,7 +250,7 @@ bool SrsFlvVideo::acceptable(char* data, int size)
     SrsVideoCodecId codec_id = SrsVideoCodecIdForbidden;
     if (!is_ext_header) {
         // See rtmp_specification_1.0.pdf
-        codec_id = (SrsVideoCodecId)(uint8_t)(frame_type & 0x0f);
+        codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
         frame_type = (frame_type >> 4) & 0x0f;
 
         if (frame_type < 1 || frame_type > 5) {
@@ -259,13 +261,14 @@ bool SrsFlvVideo::acceptable(char* data, int size)
         uint8_t packet_type = frame_type & 0x0f;
         frame_type = (frame_type >> 4) & 0x07;
 
-        if (packet_type > 6 || frame_type > 7) {
+        if (packet_type > SrsVideoHEVCFrameTraitPacketTypeMPEG2TSSequenceStart || frame_type > SrsVideoAvcFrameTypeVideoInfoFrame) {
             return false;
         }
 
         if (size < 5) {
             return false;
         }
+
         if (data[1] != 'h' || data[2] != 'v' || data[3] != 'c' || data[4] != '1') {
             return false;
         }
@@ -821,46 +824,7 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
     
     SrsBuffer* buffer = new SrsBuffer(data, size);
     SrsAutoFree(SrsBuffer, buffer);
-    
-    // We already checked the size is positive and data is not NULL.
-    srs_assert(buffer->require(1));
-    
-    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
-    uint8_t frame_type = buffer->read_1bytes();
-    bool is_ext_header = frame_type & 0x80;
-    SrsVideoCodecId codec_id = SrsVideoCodecIdForbidden;
-    if (!is_ext_header) {
-        // See rtmp_specification_1.0.pdf
-        codec_id = (SrsVideoCodecId)(frame_type & 0x0F);
-    } else {
-        // See https://github.com/veovera/enhanced-rtmp
-        if (!buffer->require(4)) {
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "fourCC requires 4bytes, only %dbytes", buffer->left());
-        }
-        if (data[1] == 'h' && data[2] == 'v' && data[3] == 'c' && data[4] == '1') {
-            codec_id = SrsVideoCodecIdHEVC;
-        }
-    }
 
-    // Check codec for H.264 and H.265.
-    bool codec_ok = (codec_id == SrsVideoCodecIdAVC);
-#ifdef SRS_H265
-    codec_ok = codec_ok ? true : (codec_id == SrsVideoCodecIdHEVC);
-#endif
-    if (!codec_ok) return err;
-    
-    if (!vcodec) {
-        vcodec = new SrsVideoCodecConfig();
-    }
-    if (!video) {
-        video = new SrsVideoFrame();
-    }
-    
-    if ((err = video->initialize(vcodec)) != srs_success) {
-        return srs_error_wrap(err, "init video");
-    }
-    
-    buffer->skip(-1 * buffer->pos());
     return video_avc_demux(buffer, timestamp);
 }
 
@@ -907,13 +871,15 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
 {
     srs_error_t err = srs_success;
 
-    char* data = stream->head();
+    if (!stream->require(1)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps shall atleast 1bytes");
+    }
 
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
-    uint8_t frame_type = stream->read_1bytes();
     SrsVideoCodecId codec_id = SrsVideoCodecIdForbidden;
+    SrsVideoAvcFrameTrait avc_packet_type = SrsVideoAvcFrameTraitForbidden;
+    uint8_t frame_type = stream->read_1bytes();
     bool is_ext_header = frame_type & 0x80;
-    uint8_t packet_type = 0;
     if (!is_ext_header) {
         // See rtmp_specification_1.0.pdf
         codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
@@ -923,15 +889,27 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
         if (!stream->require(4)) {
             return srs_error_new(ERROR_HLS_DECODE_ERROR, "fourCC requires 4bytes, only %dbytes", stream->left());
         }
-        if (data[1] == 'h' && data[2] == 'v' && data[3] == 'c' && data[4] == '1') {
+
+        uint32_t four_cc= stream->read_4bytes();
+        if (four_cc == 0x68766331) {// 'hvc1'=0x68766331
             codec_id = SrsVideoCodecIdHEVC;
         }
-        stream->skip(4);
-
-        packet_type = frame_type & 0x0f;
+        avc_packet_type = (SrsVideoAvcFrameTrait)(frame_type & 0x0f);
         frame_type = (frame_type >> 4) & 0x07;
     }
-    
+
+    if (!vcodec) {
+        vcodec = new SrsVideoCodecConfig();
+    }
+
+    if (!video) {
+        video = new SrsVideoFrame();
+    }
+
+    if ((err = video->initialize(vcodec)) != srs_success) {
+        return srs_error_wrap(err, "init video");
+    }
+
     video->frame_type = (SrsVideoAvcFrameType)frame_type;
     
     // ignore info frame without error,
@@ -951,25 +929,21 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     }
     vcodec->id = codec_id;
 
-    SrsVideoAvcFrameTrait avc_packet_type = SrsVideoAvcFrameTraitForbidden;
     int32_t composition_time = 0;
     if (!is_ext_header) {
         // See rtmp_specification_1.0.pdf
         if (!stream->require(4)) {
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode avc_packet_type");
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc_packet_type and composition_time requires 4bytes, only %dbytes", stream->left());
         }
         avc_packet_type = (SrsVideoAvcFrameTrait)stream->read_1bytes();
         composition_time = stream->read_3bytes();
     } else {
         // See https://github.com/veovera/enhanced-rtmp
-        avc_packet_type = (SrsVideoAvcFrameTrait)packet_type;
-        if (avc_packet_type == SrsVideoAvcFrameTraitHEVCPacketTypeCodedFrames || avc_packet_type == SrsVideoAvcFrameTraitHEVCPacketTypeCodedFramesX) {
-            if (avc_packet_type == SrsVideoAvcFrameTraitHEVCPacketTypeCodedFrames) {
-                if (!stream->require(3)) {
-                    return srs_error_new(ERROR_HLS_DECODE_ERROR, "hevc decode cts");
-                }
-                composition_time = stream->read_3bytes();
+        if (avc_packet_type == SrsVideoHEVCFrameTraitPacketTypeCodedFrames) {
+            if (!stream->require(3)) {
+                return srs_error_new(ERROR_HLS_DECODE_ERROR, "hevc decode cts");
             }
+            composition_time = stream->read_3bytes();
         }
     }
 
@@ -990,7 +964,7 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
             if ((err = hevc_demux_hvcc(stream)) != srs_success) {
                 return srs_error_wrap(err, "demux hevc VPS/SPS/PPS");
             }
-        } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU || avc_packet_type == SrsVideoAvcFrameTraitHEVCPacketTypeCodedFramesX) {
+        } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU || avc_packet_type == SrsVideoHEVCFrameTraitPacketTypeCodedFramesX) {
             // TODO: demux nalu for hevc
             if ((err = video_nalu_demux(stream)) != srs_success) {
                 return srs_error_wrap(err, "demux hevc NALU");

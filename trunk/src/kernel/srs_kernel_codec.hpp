@@ -71,13 +71,13 @@ enum SrsVideoAvcFrameTrait
     SrsVideoAvcFrameTraitNALU = 1,
     SrsVideoAvcFrameTraitSequenceHeaderEOF = 2,
 
-    SrsVideoAvcFrameTraitHEVCPacketTypeSequenceStart = 0,
-    SrsVideoAvcFrameTraitHEVCPacketTypeCodedFrames = 1,
-    SrsVideoAvcFrameTraitHEVCPacketTypeSequenceEnd = 2,
+    SrsVideoHEVCFrameTraitPacketTypeSequenceStart = 0,
+    SrsVideoHEVCFrameTraitPacketTypeCodedFrames = 1,
+    SrsVideoHEVCFrameTraitPacketTypeSequenceEnd = 2,
     // CompositionTime Offset is implied to equal zero. This is
     // an optimization to save putting SI24 composition time value of zero on
     // the wire. See pseudo code below in the VideoTagBody section
-    SrsVideoAvcFrameTraitHEVCPacketTypeCodedFramesX = 3,
+    SrsVideoHEVCFrameTraitPacketTypeCodedFramesX = 3,
     // VideoTagBody does not contain video data. VideoTagBody
     // instead contains an AMF encoded metadata. See Metadata Frame
     // section for an illustration of its usage. As an example, the metadata
@@ -87,9 +87,9 @@ enum SrsVideoAvcFrameTrait
     //
     // note: presence of PacketTypeMetadata means that FrameType
     // flags at the top of this table should be ignored
-    SrsVideoAvcFrameTraitHEVCPacketTypeMetadata = 4,
+    SrsVideoHEVCFrameTraitPacketTypeMetadata = 4,
     // Carriage of bitstream in MPEG-2 TS format
-    SrsVideoAvcFrameTraitHEVCPacketTypeMPEG2TSSequenceStart = 5,
+    SrsVideoHEVCFrameTraitPacketTypeMPEG2TSSequenceStart = 5,
 };
 
 /**
