@@ -3897,7 +3897,7 @@ VOID TEST(KernelCodecTest, VideoFormat)
         
         HELPER_EXPECT_SUCCESS(f.on_video(0, NULL, 0));
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x00", 0));
-        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x00", 1));
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x00", 1));
     }
     
     if (true) {
@@ -4001,7 +4001,12 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
 
         HELPER_EXPECT_SUCCESS(f.on_video(0, NULL, 0));
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x00", 0));
-        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x00", 1));
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x00", 1));
+
+        // enhanced rtmp/flv
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x80", 1));
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x90", 1));
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x90\x68\x76\x63\x31", 5));
     }
 
     if (true) {
@@ -4015,6 +4020,14 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
         SrsBuffer b((char*)"\x00", 1);
         srs_error_t err = f.video_avc_demux(&b, 0);
         HELPER_EXPECT_FAILED(err);
+
+        // enhanced rtmp/flv
+        SrsBuffer b1((char*)"\x80", 1);
+        HELPER_EXPECT_FAILED(f.video_avc_demux(&b1, 0));
+        SrsBuffer b2((char*)"\x90", 1);
+        HELPER_EXPECT_FAILED(f.video_avc_demux(&b2, 0));
+        SrsBuffer b3((char*)"\x90\x68\x76\x63\x31", 5);
+        HELPER_EXPECT_FAILED(f.video_avc_demux(&b3, 0));
     }
 
     uint8_t vps_sps_pps[] = {
@@ -4073,6 +4086,69 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
         EXPECT_EQ(1, f.video->nb_samples);
 
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
+        EXPECT_EQ(1, f.video->nb_samples);
+    }
+
+    // enhanced rtmp
+    uint8_t ext_vps_sps_pps[] = {
+        // IsExHeader | FrameType: UB[4]
+        // PacketType: UB[4]
+        0x90,
+        // Video FourCC
+        0x68, 0x76, 0x63, 0x31,
+        // SrsHevcDecoderConfigurationRecord
+        0x01, 0x01, 0x60, 0x00, 0x00, 0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5d, 0xf0, 0x00, 0xfc, 0xfd, 0xf8, 0xf8, 0x00, 0x00, 0x0f, 0x03,
+        // Nalus
+        // data_byte(1B)+num_nalus(2B)+nal_unit_length(2B)
+        0x20, 0x00, 0x01, 0x00, 0x18,
+        // VPS
+        0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5d, 0x95, 0x98, 0x09,
+        // data_byte(1B)+num_nalus(2B)+nal_unit_length(2B)
+        0x21, 0x00, 0x01, 0x00, 0x28,
+        // SPS
+        0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5d, 0xa0, 0x02, 0x80, 0x80, 0x2d, 0x16,
+        0x59, 0x59, 0xa4, 0x93, 0x2b, 0xc0, 0x40, 0x40, 0x00, 0x00, 0xfa, 0x40, 0x00, 0x17, 0x70, 0x02,
+        // data_byte(1B)+num_nalus(2B)+nal_unit_length(2B)
+        0x22, 0x00, 0x01, 0x00, 0x07,
+        // PPS
+        0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40
+    };
+
+    uint8_t ext_rawIBMF[] = {
+        // IsExHeader | FrameType: UB[4]
+        // PacketType: UB[4]
+        0x93,
+        // Video FourCC
+        0x68, 0x76, 0x63, 0x31,
+        // HEVC NALU
+        0x00, 0x00, 0x00, 0x0b,
+        0x28, 0x1, 0xaf, 0x1d, 0x18, 0x38, 0xd4, 0x38, 0x32, 0xda, 0x23
+    };
+
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // firstly demux sequence header
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)ext_vps_sps_pps, sizeof(ext_vps_sps_pps)));
+        EXPECT_EQ(1, f.video->frame_type);
+        EXPECT_EQ(0, f.video->avc_packet_type);
+        EXPECT_EQ(3, f.vcodec->hevc_dec_conf_record_.nalu_vec.size());
+        EXPECT_EQ(1280, f.vcodec->width);
+        EXPECT_EQ(720, f.vcodec->height);
+
+        // secondly demux sequence header
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)ext_vps_sps_pps, sizeof(ext_vps_sps_pps)));
+        EXPECT_EQ(1, f.video->frame_type);
+        EXPECT_EQ(0, f.video->avc_packet_type);
+        EXPECT_EQ(3, f.vcodec->hevc_dec_conf_record_.nalu_vec.size());
+        EXPECT_EQ(1280, f.vcodec->width);
+        EXPECT_EQ(720, f.vcodec->height);
+
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)ext_rawIBMF, sizeof(ext_rawIBMF)));
+        EXPECT_EQ(1, f.video->nb_samples);
+
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)ext_rawIBMF, sizeof(ext_rawIBMF)));
         EXPECT_EQ(1, f.video->nb_samples);
     }
 }
