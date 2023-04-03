@@ -564,7 +564,18 @@ if [[ $SRS_SCTP == YES ]]; then
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build usrsctp failed, ret=$ret"; exit $ret; fi
+    ret=$?
+    if [[ $ret -ne 0 ]]; then
+        echo "Build usrsctp failed, ret=$ret"
+        if [[ $OS_IS_CENTOS == YES ]]; then
+            echo "Please install libtool by:"
+            echo "  yum install -y libtool"
+        elif [[ $OS_IS_UBUNTU == YES ]]; then
+            echo "Please install libtool by:"
+            echo "  apt install -y libtool"
+        fi
+        exit $ret;
+    fi
     # Always update the links.
     (cd ${SRS_OBJS} && rm -rf sctp && ln -sf ${SRS_PLATFORM}/usrsctp/_release sctp)
     if [ ! -f ${SRS_OBJS}/sctp/lib/libusrsctp.a ]; then echo "Build usrsctp failed."; exit -1; fi
