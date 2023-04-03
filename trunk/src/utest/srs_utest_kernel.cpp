@@ -3898,6 +3898,7 @@ VOID TEST(KernelCodecTest, VideoFormat)
         HELPER_EXPECT_SUCCESS(f.on_video(0, NULL, 0));
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x00", 0));
         HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x00", 1));
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x57", 1));
     }
     
     if (true) {
@@ -4004,6 +4005,10 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
         HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x00", 1));
 
         // enhanced rtmp/flv
+        HELPER_EXPECT_SUCCESS(f.on_video(0, NULL, 0));
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x80", 0));
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x90", 0));
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\xd0\x68\x76\x63\x31", 5));
         HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x80", 1));
         HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x90", 1));
         HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x90\x68\x76\x63\x31", 5));
@@ -4015,6 +4020,7 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
 
         //HEVC: 0x5c
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)"\x5c", 1));
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x1c", 1));
 
         // CodecId: 0x00
         SrsBuffer b((char*)"\x00", 1);
@@ -4028,6 +4034,8 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
         HELPER_EXPECT_FAILED(f.video_avc_demux(&b2, 0));
         SrsBuffer b3((char*)"\x90\x68\x76\x63\x31", 5);
         HELPER_EXPECT_FAILED(f.video_avc_demux(&b3, 0));
+        SrsBuffer b4((char*)"\xd0\x68\x76\x63\x31", 5);
+        HELPER_EXPECT_SUCCESS(f.video_avc_demux(&b4, 0));
     }
 
     uint8_t vps_sps_pps[] = {
@@ -4125,6 +4133,19 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
         0x28, 0x1, 0xaf, 0x1d, 0x18, 0x38, 0xd4, 0x38, 0x32, 0xda, 0x23
     };
 
+    uint8_t ext_rawIBMF1[] = {
+        // IsExHeader | FrameType: UB[4]
+        // PacketType: UB[4]
+        0x91,
+        // Video FourCC
+        0x68, 0x76, 0x63, 0x31,
+        // CompositionTime Offset
+        0x00, 0x00, 0x7d,
+        // HEVC NALU
+        0x00, 0x00, 0x00, 0x0b,
+        0x28, 0x1, 0xaf, 0x1d, 0x18, 0x38, 0xd4, 0x38, 0x32, 0xda, 0x23
+    };
+
     if (true) {
         SrsFormat f;
         HELPER_EXPECT_SUCCESS(f.initialize());
@@ -4146,9 +4167,20 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
         EXPECT_EQ(720, f.vcodec->height);
 
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)ext_rawIBMF, sizeof(ext_rawIBMF)));
+        EXPECT_EQ(1, f.video->frame_type);
+        EXPECT_EQ(3, f.video->avc_packet_type);
         EXPECT_EQ(1, f.video->nb_samples);
 
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)ext_rawIBMF, sizeof(ext_rawIBMF)));
+        EXPECT_EQ(1, f.video->frame_type);
+        EXPECT_EQ(3, f.video->avc_packet_type);
+        EXPECT_EQ(1, f.video->nb_samples);
+
+        // check cts
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)ext_rawIBMF1, sizeof(ext_rawIBMF1)));
+        EXPECT_EQ(1, f.video->frame_type);
+        EXPECT_EQ(125, f.video->cts);
+        EXPECT_EQ(1, f.video->avc_packet_type);
         EXPECT_EQ(1, f.video->nb_samples);
     }
 }

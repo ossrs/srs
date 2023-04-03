@@ -872,7 +872,7 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     srs_error_t err = srs_success;
 
     if (!stream->require(1)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps shall atleast 1bytes");
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "video avc demux shall atleast 1bytes");
     }
 
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
