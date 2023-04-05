@@ -454,28 +454,28 @@ VOID TEST(KernelRTMPExtTest, ExtRTMPTest)
         EXPECT_EQ(0, f.video->cts);
     }
 
-    // Should fail if only 1 byte for ext tag header.
+    // Should fail if only 1 byte for ext tag header, should be more bytes for fourcc.
     if (true) {
         SrsFormat f;
         HELPER_ASSERT_SUCCESS(f.initialize());
         HELPER_EXPECT_FAILED(f.on_video(0, (char*) "\x91", 1));
     }
 
-    // Should fail if only 5 bytes for ext tag header.
+    // Should fail if only 5 bytes for ext tag header, should be more bytes for fourcc.
     if (true) {
         SrsFormat f;
         HELPER_ASSERT_SUCCESS(f.initialize());
         HELPER_EXPECT_FAILED(f.on_video(0, (char*) "\x91hvc1", 5));
     }
 
-    // Should fail if not hvc1 for ext tag header.
+    // Should fail if codec id is hvc2 for ext tag header, should be hvc1.
     if (true) {
         SrsFormat f;
         HELPER_ASSERT_SUCCESS(f.initialize());
         HELPER_EXPECT_FAILED(f.on_video(0, (char*) "\x93hvc2", 5));
     }
 
-    // Should fail if codec id is mvc1 for ext tag header.
+    // Should fail if codec id is mvc1 for ext tag header, should be hvc1.
     if (true) {
         SrsFormat f;
         HELPER_ASSERT_SUCCESS(f.initialize());
