@@ -153,8 +153,10 @@ bool SrsFlvVideo::keyframe(char* data, int size)
     if (size < 1) {
         return false;
     }
-    
-    char frame_type = data[0];
+
+    // See rtmp_specification_1.0.pdf
+    // See https://github.com/veovera/enhanced-rtmp
+    uint8_t frame_type = data[0] & 0x7f;
     frame_type = (frame_type >> 4) & 0x0F;
     
     return frame_type == SrsVideoAvcFrameTypeKeyFrame;
@@ -173,14 +175,23 @@ bool SrsFlvVideo::sh(char* data, int size)
     if (size < 2) {
         return false;
     }
-    
-    char frame_type = data[0];
-    frame_type = (frame_type >> 4) & 0x0F;
-    
-    char avc_packet_type = data[1];
-    
+
+    uint8_t frame_type = data[0];
+    bool is_ext_header = frame_type & 0x80;
+    SrsVideoAvcFrameTrait avc_packet_type = SrsVideoAvcFrameTraitForbidden;
+    if (!is_ext_header) {
+        // See rtmp_specification_1.0.pdf
+        frame_type = (frame_type >> 4) & 0x0F;
+        avc_packet_type = (SrsVideoAvcFrameTrait)data[1];
+    } else {
+        // See https://github.com/veovera/enhanced-rtmp
+        avc_packet_type = (SrsVideoAvcFrameTrait)(frame_type & 0x0f);
+        frame_type = (frame_type >> 4) & 0x07;
+    }
+
+    // Note that SrsVideoHEVCFrameTraitPacketTypeSequenceStart is equal to SrsVideoAvcFrameTraitSequenceHeader
     return frame_type == SrsVideoAvcFrameTypeKeyFrame
-    && avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
+        && avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
 bool SrsFlvVideo::h264(char* data, int size)
@@ -204,8 +215,24 @@ bool SrsFlvVideo::hevc(char* data, int size)
         return false;
     }
 
-    char codec_id = data[0];
-    codec_id = codec_id & 0x0F;
+    uint8_t frame_type = data[0];
+    bool is_ext_header = frame_type & 0x80;
+    SrsVideoCodecId codec_id = SrsVideoCodecIdForbidden;
+    if (!is_ext_header) {
+        // See rtmp_specification_1.0.pdf
+        codec_id = (SrsVideoCodecId)(frame_type & 0x0F);
+    } else {
+        // See https://github.com/veovera/enhanced-rtmp
+        if (size < 5) {
+            return false;
+        }
+
+        // Video FourCC
+        if (data[1] != 'h' || data[2] != 'v' || data[3] != 'c' || data[4] != '1') {
+            return false;
+        }
+        codec_id = SrsVideoCodecIdHEVC;
+    }
 
     return codec_id == SrsVideoCodecIdHEVC;
 }
@@ -218,12 +245,34 @@ bool SrsFlvVideo::acceptable(char* data, int size)
         return false;
     }
     
-    char frame_type = data[0];
-    SrsVideoCodecId codec_id = (SrsVideoCodecId)(uint8_t)(frame_type & 0x0f);
-    frame_type = (frame_type >> 4) & 0x0f;
-    
-    if (frame_type < 1 || frame_type > 5) {
-        return false;
+    uint8_t frame_type = data[0];
+    bool is_ext_header = frame_type & 0x80;
+    SrsVideoCodecId codec_id = SrsVideoCodecIdForbidden;
+    if (!is_ext_header) {
+        // See rtmp_specification_1.0.pdf
+        codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
+        frame_type = (frame_type >> 4) & 0x0f;
+
+        if (frame_type < 1 || frame_type > 5) {
+            return false;
+        }
+    } else {
+        // See https://github.com/veovera/enhanced-rtmp
+        uint8_t packet_type = frame_type & 0x0f;
+        frame_type = (frame_type >> 4) & 0x07;
+
+        if (packet_type > SrsVideoHEVCFrameTraitPacketTypeMPEG2TSSequenceStart || frame_type > SrsVideoAvcFrameTypeVideoInfoFrame) {
+            return false;
+        }
+
+        if (size < 5) {
+            return false;
+        }
+
+        if (data[1] != 'h' || data[2] != 'v' || data[3] != 'c' || data[4] != '1') {
+            return false;
+        }
+        codec_id = SrsVideoCodecIdHEVC;
     }
     
     if (codec_id != SrsVideoCodecIdAVC && codec_id != SrsVideoCodecIdAV1 && codec_id != SrsVideoCodecIdHEVC) {
@@ -775,33 +824,7 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
     
     SrsBuffer* buffer = new SrsBuffer(data, size);
     SrsAutoFree(SrsBuffer, buffer);
-    
-    // We already checked the size is positive and data is not NULL.
-    srs_assert(buffer->require(1));
-    
-    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
-    int8_t frame_type = buffer->read_1bytes();
-    SrsVideoCodecId codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
 
-    // Check codec for H.264 and H.265.
-    bool codec_ok = (codec_id == SrsVideoCodecIdAVC);
-#ifdef SRS_H265
-    codec_ok = codec_ok ? true : (codec_id == SrsVideoCodecIdHEVC);
-#endif
-    if (!codec_ok) return err;
-    
-    if (!vcodec) {
-        vcodec = new SrsVideoCodecConfig();
-    }
-    if (!video) {
-        video = new SrsVideoFrame();
-    }
-    
-    if ((err = video->initialize(vcodec)) != srs_success) {
-        return srs_error_wrap(err, "init video");
-    }
-    
-    buffer->skip(-1 * buffer->pos());
     return video_avc_demux(buffer, timestamp);
 }
 
@@ -847,18 +870,55 @@ bool SrsFormat::is_avc_sequence_header()
 srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
 {
     srs_error_t err = srs_success;
-    
+
+    if (!stream->require(1)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "video avc demux shall atleast 1bytes");
+    }
+
+    // Parse the frame type and the first bit indicates the ext header.
+    uint8_t frame_type = stream->read_1bytes();
+    bool is_ext_header = frame_type & 0x80;
+
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
-    int8_t frame_type = stream->read_1bytes();
-    SrsVideoCodecId codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
-    frame_type = (frame_type >> 4) & 0x0f;
-    
+    SrsVideoCodecId codec_id = SrsVideoCodecIdForbidden;
+    SrsVideoAvcFrameTrait packet_type = SrsVideoAvcFrameTraitForbidden;
+    if (!is_ext_header) {
+        // See rtmp_specification_1.0.pdf
+        codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
+        frame_type = (frame_type >> 4) & 0x0f;
+    } else {
+        // See https://github.com/veovera/enhanced-rtmp
+        packet_type = (SrsVideoAvcFrameTrait)(frame_type & 0x0f);
+        frame_type = (frame_type >> 4) & 0x07;
+
+        if (!stream->require(4)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "fourCC requires 4bytes, only %dbytes", stream->left());
+        }
+
+        uint32_t four_cc = stream->read_4bytes();
+        if (four_cc == 0x68766331) { // 'hvc1'=0x68766331
+            codec_id = SrsVideoCodecIdHEVC;
+        }
+    }
+
+    if (!vcodec) {
+        vcodec = new SrsVideoCodecConfig();
+    }
+
+    if (!video) {
+        video = new SrsVideoFrame();
+    }
+
+    if ((err = video->initialize(vcodec)) != srs_success) {
+        return srs_error_wrap(err, "init video");
+    }
+
     video->frame_type = (SrsVideoAvcFrameType)frame_type;
     
     // ignore info frame without error,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     if (video->frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
-        srs_warn("avc igone the info frame");
+        srs_warn("avc ignore the info frame");
         return err;
     }
 
@@ -871,17 +931,29 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "only support video H.264/H.265, actual=%d", codec_id);
     }
     vcodec->id = codec_id;
-    
-    if (!stream->require(4)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode avc_packet_type");
+
+    int32_t composition_time = 0;
+    if (!is_ext_header) {
+        // See rtmp_specification_1.0.pdf
+        if (!stream->require(4)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires 4bytes, only %dbytes", stream->left());
+        }
+        packet_type = (SrsVideoAvcFrameTrait)stream->read_1bytes();
+        composition_time = stream->read_3bytes();
+    } else {
+        // See https://github.com/veovera/enhanced-rtmp
+        if (packet_type == SrsVideoHEVCFrameTraitPacketTypeCodedFrames) {
+            if (!stream->require(3)) {
+                return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires 3 bytes, only %dbytes", stream->left());
+            }
+            composition_time = stream->read_3bytes();
+        }
     }
-    int8_t avc_packet_type = stream->read_1bytes();
-    int32_t composition_time = stream->read_3bytes();
-    
+
     // pts = dts + cts.
     video->dts = timestamp;
     video->cts = composition_time;
-    video->avc_packet_type = (SrsVideoAvcFrameTrait)avc_packet_type;
+    video->avc_packet_type = packet_type;
     
     // Update the RAW AVC data.
     raw = stream->data() + stream->pos();
@@ -890,12 +962,12 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     // Parse sequence header for H.265/HEVC.
     if (codec_id == SrsVideoCodecIdHEVC) {
 #ifdef SRS_H265
-        if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
+        if (packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
             // TODO: demux vps/sps/pps for hevc
             if ((err = hevc_demux_hvcc(stream)) != srs_success) {
                 return srs_error_wrap(err, "demux hevc VPS/SPS/PPS");
             }
-        } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU) {
+        } else if (packet_type == SrsVideoAvcFrameTraitNALU || packet_type == SrsVideoHEVCFrameTraitPacketTypeCodedFramesX) {
             // TODO: demux nalu for hevc
             if ((err = video_nalu_demux(stream)) != srs_success) {
                 return srs_error_wrap(err, "demux hevc NALU");
@@ -908,12 +980,12 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     }
 
     // Parse sequence header for H.264/AVC.
-    if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
+    if (packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         // TODO: FIXME: Maybe we should ignore any error for parsing sps/pps.
         if ((err = avc_demux_sps_pps(stream)) != srs_success) {
             return srs_error_wrap(err, "demux SPS/PPS");
         }
-    } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU){
+    } else if (packet_type == SrsVideoAvcFrameTraitNALU){
         if ((err = video_nalu_demux(stream)) != srs_success) {
             return srs_error_wrap(err, "demux NALU");
         }
