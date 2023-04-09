@@ -27,11 +27,11 @@ ProcessorCount(JOBS)
 # We should always configure SRS for switching between branches.
 IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     EXECUTE_PROCESS(
-        COMMAND ./configure --osx --srt=on --sctp=on --gb28181=on --apm=on --h265=on --utest=on --jobs=${JOBS}
+        COMMAND ./configure --osx --srt=on --gb28181=on --apm=on --h265=on --utest=on --jobs=${JOBS}
         WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ELSE ()
     EXECUTE_PROCESS(
-        COMMAND ./configure --srt=on --sctp=on --gb28181=on --apm=on --h265=on --utest=on --jobs=${JOBS}
+        COMMAND ./configure --srt=on --gb28181=on --apm=on --h265=on --utest=on --jobs=${JOBS}
         WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ENDIF ()
 if(NOT ret EQUAL 0)
@@ -46,7 +46,6 @@ set(DEPS_LIBS ${SRS_DIR}/objs/st/libst.a
         ${SRS_DIR}/objs/ffmpeg/lib/libavutil.a
         ${SRS_DIR}/objs/opus/lib/libopus.a
         ${SRS_DIR}/objs/ffmpeg/lib/libswresample.a
-        ${SRS_DIR}/objs/sctp/lib/libusrsctp.a
         ${SRS_DIR}/objs/srt/lib/libsrt.a)
 foreach(DEPS_LIB ${DEPS_LIBS})
     IF (NOT EXISTS ${DEPS_LIB})
@@ -63,7 +62,6 @@ INCLUDE_DIRECTORIES(${SRS_DIR}/objs
         ${SRS_DIR}/objs/openssl/include
         ${SRS_DIR}/objs/srtp2/include
         ${SRS_DIR}/objs/ffmpeg/include
-        ${SRS_DIR}/objs/sctp/include
         ${SRS_DIR}/objs/srt/include
         ${SRS_DIR}/src/core
         ${SRS_DIR}/src/kernel
