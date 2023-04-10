@@ -409,7 +409,7 @@ srs_error_t SrsHlsMuxer::restore_stream()
     }
     fr.close();
 
-    std::string body = fbuf;
+    std::string body(fbuf, nb_fbuf);
 
     // parse
     if (body.empty()) {
