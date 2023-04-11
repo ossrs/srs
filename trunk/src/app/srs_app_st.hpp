@@ -54,7 +54,7 @@ public:
     virtual srs_error_t cycle() = 0;
 };
 
-// Start the object, generally a croutine.
+// Start the object, generally a coroutine.
 class ISrsStartable
 {
 public:
