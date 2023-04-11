@@ -53,6 +53,7 @@ srs_error_t SrsHttpHooks::on_connect(string url, SrsRequest* req)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_connect"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -91,6 +92,7 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_close"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -130,6 +132,7 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
     SrsAutoFree(SrsJsonObject, obj);
 
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_publish"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -173,6 +176,7 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_unpublish"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -219,6 +223,7 @@ srs_error_t SrsHttpHooks::on_play(string url, SrsRequest* req)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_play"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -263,6 +268,7 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_stop"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -310,6 +316,7 @@ srs_error_t SrsHttpHooks::on_dvr(SrsContextId c, string url, SrsRequest* req, st
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_dvr"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -362,6 +369,7 @@ srs_error_t SrsHttpHooks::on_hls(SrsContextId c, string url, SrsRequest* req, st
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_hls"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -413,6 +421,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, SrsRequ
     SrsStatistic* stat = SrsStatistic::instance();
 
     url = srs_string_replace(url, "[server_id]", stat->server_id().c_str());
+    url = srs_string_replace(url, "[service_id]", stat->service_id().c_str());
     url = srs_string_replace(url, "[app]", req->app);
     url = srs_string_replace(url, "[stream]", req->stream);
     url = srs_string_replace(url, "[ts_url]", ts_url);
@@ -537,6 +546,7 @@ srs_error_t SrsHttpHooks::on_forward_backend(string url, SrsRequest* req, std::v
 
     obj->set("action", SrsJsonAny::str("on_forward"));
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));

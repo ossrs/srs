@@ -16,7 +16,7 @@
     <script type="text/javascript" src="js/srs.page.js"></script>
 </head>
 <body>
-<img src='//ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtcplayer'/>
+<img src='//ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtcpublisher'/>
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
@@ -24,10 +24,10 @@
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
-                    <li class="active"><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
+                    <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
                     <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
                     <li><a id="nav_whip" href="whip.html">WHIP</a></li>
-                    <li><a id="nav_whep" href="whip.html">WHEP</a></li>
+                    <li class="active"><a id="nav_whep" href="whip.html">WHEP</a></li>
                     <li><a  href="http://ossrs.net/srs.release/releases/app.html">iOS/Andriod</a></li>
                     <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
                     <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
@@ -48,7 +48,7 @@
     <div class="form-inline">
         URL:
         <input type="text" id="txt_url" class="input-xxlarge" value="">
-        <button class="btn btn-primary" id="btn_play">播放视频</button>
+        <button class="btn btn-primary" id="btn_play">Play</button>
     </div>
 
     <label></label>
@@ -67,7 +67,7 @@
 </div>
 <script type="text/javascript">
 $(function(){
-    var sdk = null; // Global handler to do cleanup when replaying.
+    var sdk = null; // Global handler to do cleanup when republishing.
     var startPlay = function() {
         $('#rtc_media_player').show();
 
@@ -75,9 +75,10 @@ $(function(){
         if (sdk) {
             sdk.close();
         }
-        sdk = new SrsRtcPlayerAsync();
+        sdk = new SrsRtcWhipWhepAsync();
 
-        // https://webrtc.org/getting-started/remote-streams
+        // User should set the stream when publish is done, @see https://webrtc.org/getting-started/media-devices
+        // However SRS SDK provides a consist API like https://webrtc.org/getting-started/remote-streams
         $('#rtc_media_player').prop('srcObject', sdk.stream);
         // Optional callback, SDK will add track to stream.
         // sdk.ontrack = function (event) { console.log('Got track', event); sdk.stream.addTrack(event.track); };
@@ -96,13 +97,10 @@ $(function(){
 
     $('#rtc_media_player').hide();
     var query = parse_query_string();
-    srs_init_rtc("#txt_url", query);
+    srs_init_whep("#txt_url", query);
 
-    $("#btn_play").click(function() {
-        $('#rtc_media_player').prop('muted', false);
-        startPlay();
-    });
-
+    $("#btn_play").click(startPlay);
+    // Never play util windows loaded @see https://github.com/ossrs/srs/issues/2732
     if (query.autostart === 'true') {
         $('#rtc_media_player').prop('muted', true);
         console.warn('For autostart, we should mute it, see https://www.jianshu.com/p/c3c6944eed5a ' +
@@ -113,3 +111,4 @@ $(function(){
 </script>
 </body>
 </html>
+

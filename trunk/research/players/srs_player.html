@@ -21,6 +21,8 @@
                     <li class="active"><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
                     <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
                     <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
+                    <li><a id="nav_whip" href="whip.html">WHIP</a></li>
+                    <li><a id="nav_whep" href="whip.html">WHEP</a></li>
                     <li><a  href="http://ossrs.net/srs.release/releases/app.html">iOS/Andriod</a></li>
                     <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
                     <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
@@ -100,7 +102,7 @@
 </body>
 <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
 <script type="text/javascript" src="js/bootstrap.min.js"></script>
-<script type="text/javascript" src="js/mpegts-1.7.2.min.js"></script>
+<script type="text/javascript" src="js/mpegts-1.7.3.min.js"></script>
 <script type="text/javascript" src="js/hls-0.14.17.min.js"></script>
 <script type="text/javascript" src="js/dash-v4.5.1.all.min.js"></script>
 <script type="text/javascript" src="js/json2.js"></script>
@@ -217,7 +219,7 @@
 
             show_for_video_ok();
 
-            tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true});
+            tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true, enableStashBuffer: false});
             tsPlayer.attachMediaElement(document.getElementById('video_player'));
             tsPlayer.load();
             tsPlayer.play();
@@ -262,7 +264,7 @@
 
             show_for_video_ok();
 
-            flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true});
+            flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true, enableStashBuffer: false});
             flvPlayer.attachMediaElement(document.getElementById('video_player'));
             flvPlayer.load();
             flvPlayer.play();

@@ -17,7 +17,7 @@
 [![](https://api.securityscorecards.dev/projects/github.com/ossrs/srs/badge)](https://api.securityscorecards.dev/projects/github.com/ossrs/srs)
 [![](https://bestpractices.coreinfrastructure.org/projects/5619/badge)](https://bestpractices.coreinfrastructure.org/projects/5619)
 
-SRS/6.0 is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/Windows/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS, and essential [features](trunk/doc/Features.md#features).
+SRS/6.0 ([Hang](https://ossrs.net/lts/zh-cn/product#release60)) is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/Windows/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS, and essential [features](trunk/doc/Features.md#features).
 
 [![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-sd.png?v=114)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-hd.png)
 
@@ -100,11 +100,11 @@ Other important wiki:
 
 Thank you to all our contributors! 🙏
 
-[![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)](https://opencollective.com/srs-server/contribute)
+You may provide financial support for this project by donating [via Open Collective](https://opencollective.com/srs-server/contribute/backer-34941/checkout?interval=month&amount=5). Thank you for your support!
 
-> Note: You may provide financial support for this project by donating [via Open Collective](https://opencollective.com/srs-server/contribute). Thank you for your support!
+[![](https://opencollective.com/srs-server/backers.svg?width=800&button=true)](https://opencollective.com/srs-server/contribute/backer-34941/checkout?interval=month&amount=5)
 
-The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc), [Developers](trunk/AUTHORS.md#developers) and [contributors](trunk/AUTHORS.md#contributors):
+The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc) and [contributors](trunk/AUTHORS.md#contributors):
 
 * [Winlin](https://github.com/winlinvip): Focus on [ST](https://github.com/ossrs/state-threads) and [Issues/PR](https://github.com/ossrs/srs/issues).
 * [ZhaoWenjie](https://github.com/wenjiegit): Focus on [HDS](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_DeliveryHDS) and [Windows](https://github.com/ossrs/srs/issues/2532).
@@ -139,6 +139,8 @@ but some third-party libraries are distributed using their [own licenses](https:
 
 ## Releases
 
+* 2023-02-12, [Release v5.0-a4](https://github.com/ossrs/srs/releases/tag/v5.0-a4), v5.0-a4, 5.0 alpha4, v5.0.141, 161897 lines.
+* 2023-01-02, [Release v5.0-a3](https://github.com/ossrs/srs/releases/tag/v5.0-a3), v5.0-a3, 5.0 alpha3, v5.0.128, 161327 lines.
 * 2022-12-18, [Release v5.0-a2](https://github.com/ossrs/srs/releases/tag/v5.0-a2), v5.0-a2, 5.0 alpha2, v5.0.112, 161233 lines.
 * 2022-12-01, [Release v5.0-a1](https://github.com/ossrs/srs/releases/tag/v5.0-a1), v5.0-a1, 5.0 alpha1, v5.0.100, 160817 lines.
 * 2022-11-25, [Release v5.0-a0](https://github.com/ossrs/srs/releases/tag/v5.0-a0), v5.0-a0, 5.0 alpha0, v5.0.98, 159813 lines.

@@ -6,8 +6,9 @@ on:
     tags:
       - v6*
 
-# Declare default permissions as read only.
-permissions: read-all
+# For draft, need write permission.
+permissions:
+  contents: write
 
 jobs:
   envs:
@@ -284,6 +285,7 @@ jobs:
     needs:
       - envs
       - docker-srs
+      - test
     steps:
       ##################################################################################################################
       - name: Covert output to env
@@ -414,6 +416,8 @@ jobs:
           tag: ${{ github.ref }}
           name: Release ${{ env.SRS_TAG }}
           body: |
+            If you would like to support SRS, please consider contributing to our [OpenCollective](https://opencollective.com/srs-server).
+            
             [${{ github.sha }}](https://github.com/ossrs/srs/commit/${{ github.sha }})
             ${{ github.event.head_commit.message }}
             

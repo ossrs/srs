@@ -2284,7 +2284,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             SrsConfDirective* obj = conf->at(i);
             string n = obj->name;
-            if (n != "enabled" && n != "listen" && n != "crossdomain" && n != "raw_api" && n != "https") {
+            if (n != "enabled" && n != "listen" && n != "crossdomain" && n != "raw_api" && n != "auth" && n != "https") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_api.%s", n.c_str());
             }
             
@@ -2293,6 +2293,15 @@ srs_error_t SrsConfig::check_normal_config()
                     string m = obj->at(j)->name;
                     if (m != "enabled" && m != "allow_reload" && m != "allow_query" && m != "allow_update") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_api.raw_api.%s", m.c_str());
+                    }
+                }
+            }
+
+            if (n == "auth") {
+                for (int j = 0; j < (int)obj->directives.size(); j++) {
+                    string m = obj->at(j)->name;
+                    if (m != "enabled" && m != "username" && m != "password") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_api.auth.%s", m.c_str());
                     }
                 }
             }
@@ -2559,7 +2568,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout"
-                        && m != "parse_sps" && m != "try_annexb_first") {
+                        && m != "parse_sps" && m != "try_annexb_first" && m != "kickoff_for_idle") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.publish.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -2674,6 +2683,67 @@ srs_error_t SrsConfig::check_normal_config()
             }
         }
     }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check HLS with HTTP-TS
+    ////////////////////////////////////////////////////////////////////////
+    for (int n = 0; n < (int)vhosts.size(); n++) {
+        SrsConfDirective* vhost = vhosts[n];
+
+        bool hls_enabled = false;
+        bool http_remux_ts = false;
+        int http_remux_cnt = 0;
+
+        for (int i = 0; vhost && i < (int)vhost->directives.size(); i++) {
+            SrsConfDirective* conf = vhost->at(i);
+            string n = conf->name;
+            if (n == "http_remux") {
+                bool http_remux_enabled = false;
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name;
+
+                    // http_remux enabled
+                    if (m == "enabled" && conf->at(j)->arg0() == "on") {
+                        http_remux_enabled = true;
+                    }
+
+                    // check mount suffix '.ts'
+                    if (http_remux_enabled && m == "mount" && srs_string_ends_with(conf->at(j)->arg0(), ".ts")) {
+                        http_remux_ts = true;
+                    }
+                }
+                http_remux_cnt++;
+            } else if (n == "hls") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name;
+
+                    // hls enabled
+                    if (m == "enabled" && conf->at(j)->arg0() == "on") {
+                        hls_enabled = true;
+                    }
+                }
+            }
+        }
+
+        // check valid http-remux count
+        if (http_remux_cnt > 1) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.http_remux only one but count=%d of %s", http_remux_cnt, vhost->arg0().c_str());
+        }
+
+        // check hls conflict with http-ts
+        if (hls_enabled && http_remux_ts) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.hls conflict with vhost.http-ts of %s", vhost->arg0().c_str());
+        }
+    }
+
+    // Check forward dnd kickoff for publsher idle.
+    for (int n = 0; n < (int)vhosts.size(); n++) {
+        SrsConfDirective* vhost = vhosts[n];
+        if (get_forward_enabled(vhost) && get_publish_kickoff_for_idle(vhost)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.forward conflicts with vhost.publish.kickoff_for_idle");
+        }
+    }
+
     // check ingest id unique.
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective* vhost = vhosts[i];
@@ -3969,7 +4039,12 @@ int SrsConfig::get_rtc_server_listen()
 
 std::string SrsConfig::get_rtc_server_candidates()
 {
-    SRS_OVERWRITE_BY_ENV_STRING("srs.rtc_server.candidate"); // SRS_RTC_SERVER_CANDIDATE
+    // Note that the value content might be an environment variable.
+    std::string eval = srs_getenv("srs.rtc_server.candidate"); // SRS_RTC_SERVER_CANDIDATE
+    if (!eval.empty()) {
+        if (!srs_string_starts_with(eval, "$")) return eval;
+        SRS_OVERWRITE_BY_ENV_STRING(eval);
+    }
 
     static string DEFAULT = "*";
 
@@ -5285,6 +5360,35 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
     }
     
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
+}
+
+srs_utime_t SrsConfig::get_publish_kickoff_for_idle(std::string vhost)
+{
+    return get_publish_kickoff_for_idle(get_vhost(vhost));
+}
+
+srs_utime_t SrsConfig::get_publish_kickoff_for_idle(SrsConfDirective* vhost)
+{
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.publish.kickoff_for_idle"); // SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE
+
+    static srs_utime_t DEFAULT = 0 * SRS_UTIME_SECONDS;
+    
+    SrsConfDirective* conf = vhost;
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("publish");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("kickoff_for_idle");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 int SrsConfig::get_global_chunk_size()
@@ -7508,6 +7612,78 @@ bool SrsConfig::get_raw_api_allow_update()
 {
     // Disable RAW API update, @see https://github.com/ossrs/srs/issues/2653#issuecomment-939389178
     return false;
+}
+
+bool SrsConfig::get_http_api_auth_enabled()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_api.auth.enabled"); // SRS_HTTP_API_AUTH_ENABLED
+
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = root->get("http_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("auth");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+std::string SrsConfig::get_http_api_auth_username()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_api.auth.username"); // SRS_HTTP_API_AUTH_USERNAME
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("http_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("auth");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("username");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+std::string SrsConfig::get_http_api_auth_password()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_api.auth.password"); // SRS_HTTP_API_AUTH_PASSWORD
+
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("http_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("auth");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("password");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
 }
 
 SrsConfDirective* SrsConfig::get_https_api()

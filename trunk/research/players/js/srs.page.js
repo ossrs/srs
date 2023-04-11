@@ -17,6 +17,8 @@ function update_nav() {
     $("#nav_srs_player").attr("href", "srs_player.html" + window.location.search);
     $("#nav_rtc_player").attr("href", "rtc_player.html" + window.location.search);
     $("#nav_rtc_publisher").attr("href", "rtc_publisher.html" + window.location.search);
+    $("#nav_whip").attr("href", "whip.html" + window.location.search);
+    $("#nav_whep").attr("href", "whep.html" + window.location.search);
     $("#nav_srs_publisher").attr("href", "srs_publisher.html" + window.location.search);
     $("#nav_srs_chat").attr("href", "srs_chat.html" + window.location.search);
     $("#nav_srs_bwt").attr("href", "srs_bwt.html" + window.location.search);
@@ -116,6 +118,38 @@ function build_default_rtc_url(query) {
     return uri;
 };
 
+function build_default_whip_whep_url(query, apiPath) {
+    // The format for query string to overwrite configs of server.
+    console.log('?eip=x.x.x.x to overwrite candidate. 覆盖服务器candidate(外网IP)配置');
+    console.log('?api=x to overwrite WebRTC API(1985).');
+    console.log('?schema=http|https to overwrite WebRTC API protocol.');
+
+    var server = (!query.server)? window.location.hostname:query.server;
+    var vhost = (!query.vhost)? window.location.hostname:query.vhost;
+    var app = (!query.app)? "live":query.app;
+    var stream = (!query.stream)? "livestream":query.stream;
+    var api = ':' + (query.api || (window.location.protocol === 'http:' ? '1985' : '1990'));
+
+    var queries = [];
+    if (server !== vhost && vhost !== "__defaultVhost__") {
+        queries.push("vhost=" + vhost);
+    }
+    if (query.schema && window.location.protocol !== query.schema + ':') {
+        queries.push('schema=' + query.schema);
+    }
+    queries = user_extra_params(query, queries, true);
+
+    var uri = window.location.protocol + "//" + server + api + apiPath + "?app=" + app + "&stream=" + stream + "&" + queries.join('&');
+    while (uri.lastIndexOf("?") === uri.length - 1) {
+        uri = uri.slice(0, uri.length - 1);
+    }
+    while (uri.lastIndexOf("&") === uri.length - 1) {
+        uri = uri.slice(0, uri.length - 1);
+    }
+
+    return uri;
+}
+
 /**
 * initialize the page.
 * @param flv_url the div id contains the flv stream url to play
@@ -135,4 +169,12 @@ function srs_init_flv(flv_url, modal_player) {
 function srs_init_rtc(id, query) {
     update_nav();
     $(id).val(build_default_rtc_url(query));
+}
+function srs_init_whip(id, query) {
+    update_nav();
+    $(id).val(build_default_whip_whep_url(query, '/rtc/v1/whip/'));
+}
+function srs_init_whep(id, query) {
+    update_nav();
+    $(id).val(build_default_whip_whep_url(query, '/rtc/v1/whip-play/'));
 }

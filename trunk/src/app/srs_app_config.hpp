@@ -636,6 +636,9 @@ public:
     virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost);
     // The normal packet timeout in srs_utime_t for encoder.
     virtual srs_utime_t get_publish_normal_timeout(std::string vhost);
+    // The kickoff timeout in srs_utime_t for publisher.
+    virtual srs_utime_t get_publish_kickoff_for_idle(std::string vhost);
+    virtual srs_utime_t get_publish_kickoff_for_idle(SrsConfDirective* vhost);
 private:
     // Get the global chunk size.
     virtual int get_global_chunk_size();
@@ -689,6 +692,7 @@ public:
 private:
     SrsConfDirective* get_srt(std::string vhost);
 public:
+    // TODO: FIXME: Rename to get_vhost_srt_enabled.
     bool get_srt_enabled(std::string vhost);
     bool get_srt_to_rtmp(std::string vhost);
 
@@ -1018,6 +1022,12 @@ public:
     virtual bool get_raw_api_allow_query();
     // Whether allow rpc update.
     virtual bool get_raw_api_allow_update();
+    // Whether http api auth enabled.
+    virtual bool get_http_api_auth_enabled();
+    // Get the http api auth username.
+    virtual std::string get_http_api_auth_username();
+    // Get the http api auth password.
+    virtual std::string get_http_api_auth_password();
 // https api section
 private:
     SrsConfDirective* get_https_api();

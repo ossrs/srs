@@ -167,6 +167,7 @@
     XX(ERROR_RTMP_MESSAGE_CREATE           , 2053, "MessageCreate", "Failed to create shared pointer message") \
     XX(ERROR_RTMP_PROXY_EXCEED             , 2054, "RtmpProxy", "Failed to decode message of RTMP proxy") \
     XX(ERROR_RTMP_CREATE_STREAM_DEPTH      , 2055, "RtmpIdentify", "Failed to identify RTMP client") \
+    XX(ERROR_KICKOFF_FOR_IDLE              , 2056, "KickoffForIdle", "Kickoff for publisher is idle") \
     XX(ERROR_CONTROL_REDIRECT              , 2997, "RtmpRedirect", "RTMP 302 redirection") \
     XX(ERROR_CONTROL_RTMP_CLOSE            , 2998, "RtmpClose", "RTMP connection is closed") \
     XX(ERROR_CONTROL_REPUBLISH             , 2999, "RtmpRepublish", "RTMP stream is republished")
@@ -361,7 +362,7 @@
     XX(ERROR_RTC_DISABLED                  , 5021, "RtcDisabled", "RTC is disabled by configuration") \
     XX(ERROR_RTC_NO_SESSION                , 5022, "RtcNoSession", "Invalid packet for no RTC session matched") \
     XX(ERROR_RTC_INVALID_PARAMS            , 5023, "RtcInvalidParams", "Invalid API parameters for RTC") \
-    XX(ERROR_RTC_DUMMY_BRIDGER             , 5024, "RtcDummyBridger", "RTC dummy bridger error") \
+    XX(ERROR_RTC_DUMMY_BRIDGE              , 5024, "RtcDummyBridge", "RTC dummy bridge error") \
     XX(ERROR_RTC_STREM_STARTED             , 5025, "RtcStreamStarted", "RTC stream already started") \
     XX(ERROR_RTC_TRACK_CODEC               , 5026, "RtcTrackCodec", "RTC track codec error") \
     XX(ERROR_RTC_NO_PLAYER                 , 5027, "RtcNoPlayer", "RTC player not found") \

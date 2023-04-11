@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2022 Winlin
+// # Copyright (c) 2022 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -162,14 +162,14 @@ func NewPSPackStream(pt uint8) *PSPackStream {
 	return &PSPackStream{ideaPesLength: 1400, pt: pt}
 }
 
-func (v *PSPackStream) WriteHeader(dts uint64) error {
+func (v *PSPackStream) WriteHeader(videoCodec mpeg2.PS_STREAM_TYPE, dts uint64) error {
 	if err := v.WritePackHeader(dts); err != nil {
 		return err
 	}
 	if err := v.WriteSystemHeader(dts); err != nil {
 		return err
 	}
-	if err := v.WriteProgramStreamMap(dts); err != nil {
+	if err := v.WriteProgramStreamMap(videoCodec, dts); err != nil {
 		return err
 	}
 	return nil
@@ -215,18 +215,19 @@ func (v *PSPackStream) WriteSystemHeader(dts uint64) error {
 	return nil
 }
 
-func (v *PSPackStream) WriteProgramStreamMap(dts uint64) error {
+func (v *PSPackStream) WriteProgramStreamMap(videoCodec mpeg2.PS_STREAM_TYPE, dts uint64) error {
 	w := codec.NewBitStreamWriter(1500)
 
 	psm := &mpeg2.Program_stream_map{
 		Stream_map: []*mpeg2.Elementary_stream_elem{
 			// SrsTsPESStreamIdVideoCommon = 0xe0
-			mpeg2.NewElementary_stream_elem(uint8(mpeg2.PS_STREAM_H264), 0xe0),
+			mpeg2.NewElementary_stream_elem(uint8(videoCodec), 0xe0),
 			// SrsTsPESStreamIdAudioCommon = 0xc0
 			mpeg2.NewElementary_stream_elem(uint8(mpeg2.PS_STREAM_AAC), 0xc0),
 		},
 	}
 
+	psm.Current_next_indicator = 1
 	psm.Encode(w)
 
 	v.packets = append(v.packets, NewPSPacket(PSPacketTypeProgramStramMap, w.Bits(), dts, v.pt))
