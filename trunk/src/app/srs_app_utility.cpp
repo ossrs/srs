@@ -21,7 +21,6 @@
 #ifdef SRS_OSX
 #include <sys/sysctl.h>
 #endif
-using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
@@ -36,7 +35,7 @@ using namespace std;
 // the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
 
-SrsLogLevel srs_get_log_level(string level)
+SrsLogLevel srs_get_log_level(std::string level)
 {
     if ("verbose" == level) {
         return SrsLogLevelVerbose;
@@ -53,7 +52,7 @@ SrsLogLevel srs_get_log_level(string level)
     }
 }
 
-SrsLogLevel srs_get_log_level_v2(string level)
+SrsLogLevel srs_get_log_level_v2(std::string level)
 {
     if ("trace" == level) {
         return SrsLogLevelVerbose;
@@ -70,7 +69,7 @@ SrsLogLevel srs_get_log_level_v2(string level)
     }
 }
 
-string srs_path_build_stream(string template_path, string vhost, string app, string stream)
+std::string srs_path_build_stream(std::string template_path, std::string vhost, std::string app, std::string stream)
 {
     std::string path = template_path;
     
@@ -84,7 +83,7 @@ string srs_path_build_stream(string template_path, string vhost, string app, str
     return path;
 }
 
-string srs_path_build_timestamp(string template_path)
+std::string srs_path_build_timestamp(std::string template_path)
 {
     std::string path = template_path;
     
@@ -573,7 +572,7 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
                &aveq);
         
         for (int i = 0; i < (int)conf->args.size(); i++) {
-            string name_ok = conf->args.at(i);
+            std::string name_ok = conf->args.at(i);
             
             if (strcmp(name_ok.c_str(), name) != 0) {
                 continue;
@@ -1179,7 +1178,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     }
 }
 
-string srs_get_local_ip(int fd)
+std::string srs_get_local_ip(int fd)
 {
     // discovery client information
     sockaddr_storage addr;
@@ -1221,7 +1220,7 @@ int srs_get_local_port(int fd)
     return port;
 }
 
-string srs_get_peer_ip(int fd)
+std::string srs_get_peer_ip(int fd)
 {
     // discovery client information
     sockaddr_storage addr;
@@ -1263,7 +1262,7 @@ int srs_get_peer_port(int fd)
     return port;
 }
 
-bool srs_is_boolean(string str)
+bool srs_is_boolean(std::string str)
 {
     return str == "true" || str == "false";
 }
@@ -1379,22 +1378,22 @@ void srs_api_dump_summaries(SrsJsonObject* obj)
     sys->set("conn_srs", SrsJsonAny::integer(nrs->nb_conn_srs));
 }
 
-string srs_string_dumps_hex(const std::string& str)
+std::string srs_string_dumps_hex(const std::string& str)
 {
     return srs_string_dumps_hex(str.c_str(), str.size());
 }
 
-string srs_string_dumps_hex(const char* str, int length)
+std::string srs_string_dumps_hex(const char* str, int length)
 {
     return srs_string_dumps_hex(str, length, INT_MAX);
 }
 
-string srs_string_dumps_hex(const char* str, int length, int limit)
+std::string srs_string_dumps_hex(const char* str, int length, int limit)
 {
     return srs_string_dumps_hex(str, length, limit, ' ', 128, '\n');
 }
 
-string srs_string_dumps_hex(const char* str, int length, int limit, char seperator, int line_limit, char newline)
+std::string srs_string_dumps_hex(const char* str, int length, int limit, char seperator, int line_limit, char newline)
 {
     // 1 byte trailing '\0'.
     const int LIMIT = 1024*16 + 1;
@@ -1435,12 +1434,12 @@ string srs_string_dumps_hex(const char* str, int length, int limit, char seperat
         len--;
     }
 
-    return string(buf, len);
+    return std::string(buf, len);
 }
 
-string srs_getenv(const string& key)
+std::string srs_getenv(const std::string& key)
 {
-    string ekey = key;
+    std::string ekey = key;
     if (srs_string_starts_with(key, "$")) {
         ekey = key.substr(1);
     }
@@ -1458,7 +1457,7 @@ string srs_getenv(const string& key)
         }
     }
 
-    char* value = ::getenv(ekey.c_str());
+    char* value = std::getenv(ekey.c_str());
     if (value) {
         return value;
     }
