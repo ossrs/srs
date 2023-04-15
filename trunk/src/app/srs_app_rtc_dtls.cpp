@@ -581,6 +581,7 @@ srs_error_t SrsDtlsImpl::do_handshake()
 
     // Fatal SSL error, for example, no available suite when peer is DTLS 1.0 while we are DTLS 1.2.
     if (r0 < 0 && (r1 != SSL_ERROR_NONE && r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE)) {
+        ERR_clear_error();
         return srs_error_new(ERROR_RTC_DTLS, "handshake r0=%d, r1=%d", r0, r1);
     }
 
@@ -863,6 +864,7 @@ srs_error_t SrsDtlsClientImpl::cycle()
         // The timeout is 0, so there must be a ARQ packet to transmit in openssl.
         r0 = BIO_reset(bio_out); int r1 = SSL_get_error(dtls, r0);
         if (r0 != 1) {
+            ERR_clear_error();
             return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset r0=%d, r1=%d", r0, r1);
         }
 
@@ -875,6 +877,7 @@ srs_error_t SrsDtlsClientImpl::cycle()
             continue; // No timeout had expired.
         }
         if (r0 != 1) {
+            ERR_clear_error();
             return srs_error_new(ERROR_RTC_DTLS, "ARQ r0=%d, r1=%d", r0, r1);
         }
 

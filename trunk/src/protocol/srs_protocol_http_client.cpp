@@ -92,6 +92,7 @@ srs_error_t SrsSslClient::handshake()
     // Send ClientHello.
     int r0 = SSL_do_handshake(ssl); int r1 = SSL_get_error(ssl, r0);
     if (r0 != -1 || r1 != SSL_ERROR_WANT_READ) {
+        ERR_clear_error();
         return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake r0=%d, r1=%d", r0, r1);
     }
 
@@ -122,6 +123,7 @@ srs_error_t SrsSslClient::handshake()
         }
 
         if ((r0 = SSL_do_handshake(ssl)) != -1 || (r1 = SSL_get_error(ssl, r0)) != SSL_ERROR_WANT_READ) {
+            ERR_clear_error();
             return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake r0=%d, r1=%d", r0, r1);
         }
 
@@ -165,6 +167,7 @@ srs_error_t SrsSslClient::handshake()
         }
 
         if (r0 != -1 || r1 != SSL_ERROR_WANT_READ) {
+            ERR_clear_error();
             return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake r0=%d, r1=%d", r0, r1);
         }
     }
@@ -215,6 +218,7 @@ srs_error_t SrsSslClient::read(void* plaintext, size_t nn_plaintext, ssize_t* nr
 
         // Fail for error.
         if (r0 <= 0) {
+            ERR_clear_error();
             return srs_error_new(ERROR_HTTPS_READ, "SSL_read r0=%d, r1=%d, r2=%d, r3=%d",
                 r0, r1, r2, r3);
         }
@@ -230,6 +234,7 @@ srs_error_t SrsSslClient::write(void* plaintext, size_t nn_plaintext, ssize_t* n
         int r0 = SSL_write(ssl, (const void*)p, left);
         int r1 = SSL_get_error(ssl, r0);
         if (r0 <= 0) {
+            ERR_clear_error();
             return srs_error_new(ERROR_HTTPS_WRITE, "https: write data=%p, size=%d, r0=%d, r1=%d", p, left, r0, r1);
         }
 

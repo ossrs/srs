@@ -13,6 +13,7 @@
 #include <map>
 
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_http_stack.hpp>
