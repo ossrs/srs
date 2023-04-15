@@ -4641,6 +4641,44 @@ bool SrsConfig::get_rtc_twcc_enabled(string vhost)
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
+int SrsConfig::get_rtc_opus_bitrate(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.rtc.opus_bitrate"); // SRS_VHOST_RTC_OPUS_BITRATE
+
+    static int DEFAULT = 48000;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("opus_bitrate");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_rtc_aac_bitrate(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.rtc.aac_bitrate"); // SRS_VHOST_RTC_AAC_BITRATE
+
+    static int DEFAULT = 48000;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("aac_bitrate");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
     srs_assert(root);
