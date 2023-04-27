@@ -2669,7 +2669,8 @@ srs_error_t SrsConfig::check_normal_config()
                     if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy"
                         && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
                         && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp"
-                        && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe") {
+                        && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe" && m != "opus_bitrate"
+                        && m != "aac_bitrate") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4643,9 +4644,18 @@ bool SrsConfig::get_rtc_twcc_enabled(string vhost)
 
 int SrsConfig::get_rtc_opus_bitrate(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.rtc.opus_bitrate"); // SRS_VHOST_RTC_OPUS_BITRATE
-
     static int DEFAULT = 48000;
+
+    string opus_bitrate = srs_getenv("srs.vhost.rtc.opus_bitrate"); // SRS_VHOST_RTC_OPUS_BITRATE
+    if (!opus_bitrate.empty()) {
+        int v = ::atoi(opus_bitrate.c_str());
+        if (v < 8000 || v > 320000) {
+            srs_warn("Reset opus btirate %d to %d", v, DEFAULT);
+            v = DEFAULT;
+        }
+
+        return v;
+    }
 
     SrsConfDirective* conf = get_rtc(vhost);
     if (!conf) {
@@ -4657,14 +4667,29 @@ int SrsConfig::get_rtc_opus_bitrate(string vhost)
         return DEFAULT;
     }
 
-    return ::atoi(conf->arg0().c_str());
+    int v = ::atoi(conf->arg0().c_str());
+    if (v < 8000 || v > 320000) {
+        srs_warn("Reset opus btirate %d to %d", v, DEFAULT);
+        return DEFAULT;
+    }
+
+    return v;
 }
 
 int SrsConfig::get_rtc_aac_bitrate(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.rtc.aac_bitrate"); // SRS_VHOST_RTC_AAC_BITRATE
-
     static int DEFAULT = 48000;
+
+    string aac_bitrate = srs_getenv("srs.vhost.rtc.aac_bitrate"); // SRS_VHOST_RTC_AAC_BITRATE
+    if (!aac_bitrate.empty()) {
+        int v = ::atoi(aac_bitrate.c_str());
+        if (v < 8000 || v > 320000) {
+            srs_warn("Reset aac btirate %d to %d", v, DEFAULT);
+            v = DEFAULT;
+        }
+
+        return v;
+    }
 
     SrsConfDirective* conf = get_rtc(vhost);
     if (!conf) {
@@ -4676,7 +4701,13 @@ int SrsConfig::get_rtc_aac_bitrate(string vhost)
         return DEFAULT;
     }
 
-    return ::atoi(conf->arg0().c_str());
+    int v = ::atoi(conf->arg0().c_str());
+    if (v < 8000 || v > 320000) {
+        srs_warn("Reset aac btirate %d to %d", v, DEFAULT);
+        return DEFAULT;
+    }
+
+    return v;
 }
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
