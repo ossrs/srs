@@ -90,9 +90,8 @@ srs_error_t SrsSslClient::handshake()
     SSL_set_mode(ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
 
     // Send ClientHello.
-    int r0 = SSL_do_handshake(ssl); int r1 = SSL_get_error(ssl, r0);
+    int r0 = SSL_do_handshake(ssl); int r1 = SSL_get_error(ssl, r0); ERR_clear_error();
     if (r0 != -1 || r1 != SSL_ERROR_WANT_READ) {
-        ERR_clear_error();
         return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake r0=%d, r1=%d", r0, r1);
     }
 
@@ -122,8 +121,8 @@ srs_error_t SrsSslClient::handshake()
             return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_write r0=%d, data=%p, size=%d", r0, buf, nn);
         }
 
-        if ((r0 = SSL_do_handshake(ssl)) != -1 || (r1 = SSL_get_error(ssl, r0)) != SSL_ERROR_WANT_READ) {
-            ERR_clear_error();
+        r0 = SSL_do_handshake(ssl); r1 = SSL_get_error(ssl, r0); ERR_clear_error();
+        if (r0 != -1 || r1 != SSL_ERROR_WANT_READ) {
             return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake r0=%d, r1=%d", r0, r1);
         }
 
@@ -161,13 +160,12 @@ srs_error_t SrsSslClient::handshake()
             return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_write r0=%d, data=%p, size=%d", r0, buf, nn);
         }
 
-        r0 = SSL_do_handshake(ssl); r1 = SSL_get_error(ssl, r0);
+        r0 = SSL_do_handshake(ssl); r1 = SSL_get_error(ssl, r0); ERR_clear_error();
         if (r0 == 1 && r1 == SSL_ERROR_NONE) {
             break;
         }
 
         if (r0 != -1 || r1 != SSL_ERROR_WANT_READ) {
-            ERR_clear_error();
             return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake r0=%d, r1=%d", r0, r1);
         }
     }
@@ -183,7 +181,7 @@ srs_error_t SrsSslClient::read(void* plaintext, size_t nn_plaintext, ssize_t* nr
     srs_error_t err = srs_success;
 
     while (true) {
-        int r0 = SSL_read(ssl, plaintext, nn_plaintext); int r1 = SSL_get_error(ssl, r0);
+        int r0 = SSL_read(ssl, plaintext, nn_plaintext); int r1 = SSL_get_error(ssl, r0); ERR_clear_error();
         int r2 = BIO_ctrl_pending(bio_in); int r3 = SSL_is_init_finished(ssl);
 
         // OK, got data.
@@ -218,7 +216,6 @@ srs_error_t SrsSslClient::read(void* plaintext, size_t nn_plaintext, ssize_t* nr
 
         // Fail for error.
         if (r0 <= 0) {
-            ERR_clear_error();
             return srs_error_new(ERROR_HTTPS_READ, "SSL_read r0=%d, r1=%d, r2=%d, r3=%d",
                 r0, r1, r2, r3);
         }
@@ -232,9 +229,8 @@ srs_error_t SrsSslClient::write(void* plaintext, size_t nn_plaintext, ssize_t* n
     for (char* p = (char*)plaintext; p < (char*)plaintext + nn_plaintext;) {
         int left = (int)nn_plaintext - (p - (char*)plaintext);
         int r0 = SSL_write(ssl, (const void*)p, left);
-        int r1 = SSL_get_error(ssl, r0);
+        int r1 = SSL_get_error(ssl, r0); ERR_clear_error();
         if (r0 <= 0) {
-            ERR_clear_error();
             return srs_error_new(ERROR_HTTPS_WRITE, "https: write data=%p, size=%d, r0=%d, r1=%d", p, left, r0, r1);
         }
 
