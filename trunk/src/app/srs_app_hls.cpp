@@ -407,16 +407,13 @@ srs_error_t SrsHlsMuxer::restore_stream()
     if ((err = fr.read(fbuf, nb_fbuf, NULL)) != srs_success) {
         return srs_error_wrap(err, "read data");
     }
-    fr.close();
-
-    std::string body(fbuf, nb_fbuf);
 
     // parse
+    std::string body(fbuf, nb_fbuf);
     if (body.empty()) {
         return srs_error_wrap(err, "read empty m3u8");
     }
 
-    int sequence_num = 0;
     srs_utime_t max_target_duration = 0;
     bool discon = false;
 
@@ -455,7 +452,7 @@ srs_error_t SrsHlsMuxer::restore_stream()
         // #EXT-X-MEDIA-SEQUENCE:4294967295
         // the media sequence no.
         if (srs_string_starts_with(line, "#EXT-X-MEDIA-SEQUENCE:")) {
-            sequence_num = ::atof(line.substr(string("#EXT-X-MEDIA-SEQUENCE:").length()).c_str());
+            _sequence_no = ::atof(line.substr(string("#EXT-X-MEDIA-SEQUENCE:").length()).c_str());
         }
 
         // #EXT-X-TARGETDURATION:12
@@ -531,7 +528,7 @@ srs_error_t SrsHlsMuxer::restore_stream()
 
         // new segment.
         SrsHlsSegment* seg = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
-        seg->sequence_no = sequence_num++;
+        seg->sequence_no = _sequence_no++;
         seg->set_path(hls_path + "/" + req->app + "/" + ts_url);
         seg->uri = ts_url;
         seg->set_sequence_header(discon);
