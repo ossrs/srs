@@ -650,7 +650,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     fi
     # Disable features of ffmpeg.
     FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network"
-    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils"
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-dwt --disable-error-resilience --disable-lsp --disable-faan --disable-pixelutils"
     FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-hwaccels --disable-devices --disable-audiotoolbox --disable-videotoolbox --disable-cuvid"
     FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-d3d11va --disable-dxva2 --disable-ffnvcodec --disable-nvdec --disable-nvenc --disable-v4l2-m2m --disable-vaapi"
     FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-vdpau --disable-appkit --disable-coreimage --disable-avfoundation --disable-securetransport --disable-iconv"
