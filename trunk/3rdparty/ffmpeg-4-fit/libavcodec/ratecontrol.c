@@ -29,10 +29,9 @@
 #include "libavutil/internal.h"
 
 #include "avcodec.h"
-#include "internal.h"
 #include "ratecontrol.h"
 #include "mpegutils.h"
-#include "mpegvideo.h"
+#include "mpegvideoenc.h"
 #include "libavutil/eval.h"
 
 void ff_write_pass1_stats(MpegEncContext *s)
@@ -40,8 +39,8 @@ void ff_write_pass1_stats(MpegEncContext *s)
     snprintf(s->avctx->stats_out, 256,
              "in:%d out:%d type:%d q:%d itex:%d ptex:%d mv:%d misc:%d "
              "fcode:%d bcode:%d mc-var:%"PRId64" var:%"PRId64" icount:%d skipcount:%d hbits:%d;\n",
-             s->current_picture_ptr->f->display_picture_number,
-             s->current_picture_ptr->f->coded_picture_number,
+             s->current_picture_ptr->display_picture_number,
+             s->current_picture_ptr->coded_picture_number,
              s->pict_type,
              s->current_picture.f->quality,
              s->i_tex_bits,
@@ -50,8 +49,8 @@ void ff_write_pass1_stats(MpegEncContext *s)
              s->misc_bits,
              s->f_code,
              s->b_code,
-             s->current_picture.mc_mb_var_sum,
-             s->current_picture.mb_var_sum,
+             s->mc_mb_var_sum,
+             s->mb_var_sum,
              s->i_count, s->skip_count,
              s->header_bits);
 }
@@ -752,15 +751,14 @@ static void adaptive_quantization(MpegEncContext *s, double q)
     float *bits_tab                  = s->bits_tab;
     const int qmin                   = s->avctx->mb_lmin;
     const int qmax                   = s->avctx->mb_lmax;
-    Picture *const pic               = &s->current_picture;
     const int mb_width               = s->mb_width;
     const int mb_height              = s->mb_height;
 
     for (i = 0; i < s->mb_num; i++) {
         const int mb_xy = s->mb_index2xy[i];
-        float temp_cplx = sqrt(pic->mc_mb_var[mb_xy]); // FIXME merge in pow()
-        float spat_cplx = sqrt(pic->mb_var[mb_xy]);
-        const int lumi  = pic->mb_mean[mb_xy];
+        float temp_cplx = sqrt(s->mc_mb_var[mb_xy]); // FIXME merge in pow()
+        float spat_cplx = sqrt(s->mb_var[mb_xy]);
+        const int lumi  = s->mb_mean[mb_xy];
         float bits, cplx, factor;
         int mb_x = mb_xy % s->mb_stride;
         int mb_y = mb_xy / s->mb_stride;
@@ -882,7 +880,6 @@ float ff_rate_estimate_qscale(MpegEncContext *s, int dry_run)
     double rate_factor;
     int64_t var;
     const int pict_type = s->pict_type;
-    Picture * const pic = &s->current_picture;
     emms_c();
 
     get_qminmax(&qmin, &qmax, s, pict_type);
@@ -931,7 +928,7 @@ float ff_rate_estimate_qscale(MpegEncContext *s, int dry_run)
     if (br_compensation <= 0.0)
         br_compensation = 0.001;
 
-    var = pict_type == AV_PICTURE_TYPE_I ? pic->mb_var_sum : pic->mc_mb_var_sum;
+    var = pict_type == AV_PICTURE_TYPE_I ? s->mb_var_sum : s->mc_mb_var_sum;
 
     short_term_q = 0; /* avoid warning */
     if (s->avctx->flags & AV_CODEC_FLAG_PASS2) {
@@ -944,8 +941,8 @@ float ff_rate_estimate_qscale(MpegEncContext *s, int dry_run)
     } else {
         rce->pict_type     =
         rce->new_pict_type = pict_type;
-        rce->mc_mb_var_sum = pic->mc_mb_var_sum;
-        rce->mb_var_sum    = pic->mb_var_sum;
+        rce->mc_mb_var_sum = s->mc_mb_var_sum;
+        rce->mb_var_sum    = s->mb_var_sum;
         rce->qscale        = FF_QP2LAMBDA * 2;
         rce->f_code        = s->f_code;
         rce->b_code        = s->b_code;
@@ -999,13 +996,13 @@ float ff_rate_estimate_qscale(MpegEncContext *s, int dry_run)
 
     if (s->avctx->debug & FF_DEBUG_RC) {
         av_log(s->avctx, AV_LOG_DEBUG,
-               "%c qp:%d<%2.1f<%d %d want:%d total:%d comp:%f st_q:%2.2f "
+               "%c qp:%d<%2.1f<%d %d want:%"PRId64" total:%"PRId64" comp:%f st_q:%2.2f "
                "size:%d var:%"PRId64"/%"PRId64" br:%"PRId64" fps:%d\n",
                av_get_picture_type_char(pict_type),
                qmin, q, qmax, picture_number,
-               (int)wanted_bits / 1000, (int)s->total_bits / 1000,
+               wanted_bits / 1000, s->total_bits / 1000,
                br_compensation, short_term_q, s->frame_bits,
-               pic->mb_var_sum, pic->mc_mb_var_sum,
+               s->mb_var_sum, s->mc_mb_var_sum,
                s->bit_rate / 1000, (int)fps);
     }
 
@@ -1021,8 +1018,8 @@ float ff_rate_estimate_qscale(MpegEncContext *s, int dry_run)
 
     if (!dry_run) {
         rcc->last_qscale        = q;
-        rcc->last_mc_mb_var_sum = pic->mc_mb_var_sum;
-        rcc->last_mb_var_sum    = pic->mb_var_sum;
+        rcc->last_mc_mb_var_sum = s->mc_mb_var_sum;
+        rcc->last_mb_var_sum    = s->mb_var_sum;
     }
     return q;
 }

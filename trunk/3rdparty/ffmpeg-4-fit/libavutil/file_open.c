@@ -17,7 +17,8 @@
  */
 
 #include "config.h"
-#include "internal.h"
+#include "avutil.h"
+#include "file_open.h"
 #include "mem.h"
 #include <stdarg.h>
 #include <fcntl.h>
@@ -45,7 +46,7 @@ static int win32_open(const char *filename_utf8, int oflag, int pmode)
     wchar_t *filename_w;
 
     /* convert UTF-8 to wide chars */
-    if (utf8towchar(filename_utf8, &filename_w))
+    if (get_extended_win32_path(filename_utf8, &filename_w))
         return -1;
     if (!filename_w)
         goto fallback;
@@ -138,7 +139,7 @@ int avpriv_tempfile(const char *prefix, char **filename, int log_offset, void *l
 #else
     snprintf(*filename, len, "/tmp/%sXXXXXX", prefix);
     fd = mkstemp(*filename);
-#if defined(_WIN32) || defined (__ANDROID__)
+#if defined(_WIN32) || defined (__ANDROID__) || defined(__DJGPP__)
     if (fd < 0) {
         snprintf(*filename, len, "./%sXXXXXX", prefix);
         fd = mkstemp(*filename);
@@ -155,7 +156,7 @@ int avpriv_tempfile(const char *prefix, char **filename, int log_offset, void *l
     return fd; /* success */
 }
 
-FILE *av_fopen_utf8(const char *path, const char *mode)
+FILE *avpriv_fopen_utf8(const char *path, const char *mode)
 {
     int fd;
     int access;
@@ -188,3 +189,10 @@ FILE *av_fopen_utf8(const char *path, const char *mode)
         return NULL;
     return fdopen(fd, mode);
 }
+
+#if FF_API_AV_FOPEN_UTF8
+FILE *av_fopen_utf8(const char *path, const char *mode)
+{
+    return avpriv_fopen_utf8(path, mode);
+}
+#endif

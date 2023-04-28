@@ -19,9 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "avcodec.h"
-#include "ac3.h"
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "config.h"
+#include "libavutil/attributes.h"
+#include "libavutil/common.h"
+#include "libavutil/intmath.h"
+#include "libavutil/mem_internal.h"
+
+#include "ac3defs.h"
 #include "ac3dsp.h"
+#include "ac3tab.h"
 #include "mathops.h"
 
 static void ac3_exponent_min_c(uint8_t *exp, int num_reuse_blocks, int nb_coefs)
@@ -42,49 +52,6 @@ static void ac3_exponent_min_c(uint8_t *exp, int num_reuse_blocks, int nb_coefs)
         }
         *exp++ = min_exp;
     }
-}
-
-static int ac3_max_msb_abs_int16_c(const int16_t *src, int len)
-{
-    int i, v = 0;
-    for (i = 0; i < len; i++)
-        v |= abs(src[i]);
-    return v;
-}
-
-static void ac3_lshift_int16_c(int16_t *src, unsigned int len,
-                               unsigned int shift)
-{
-    uint32_t *src32 = (uint32_t *)src;
-    const uint32_t mask = ~(((1 << shift) - 1) << 16);
-    int i;
-    len >>= 1;
-    for (i = 0; i < len; i += 8) {
-        src32[i  ] = (src32[i  ] << shift) & mask;
-        src32[i+1] = (src32[i+1] << shift) & mask;
-        src32[i+2] = (src32[i+2] << shift) & mask;
-        src32[i+3] = (src32[i+3] << shift) & mask;
-        src32[i+4] = (src32[i+4] << shift) & mask;
-        src32[i+5] = (src32[i+5] << shift) & mask;
-        src32[i+6] = (src32[i+6] << shift) & mask;
-        src32[i+7] = (src32[i+7] << shift) & mask;
-    }
-}
-
-static void ac3_rshift_int32_c(int32_t *src, unsigned int len,
-                               unsigned int shift)
-{
-    do {
-        *src++ >>= shift;
-        *src++ >>= shift;
-        *src++ >>= shift;
-        *src++ >>= shift;
-        *src++ >>= shift;
-        *src++ >>= shift;
-        *src++ >>= shift;
-        *src++ >>= shift;
-        len -= 8;
-    } while (len > 0);
 }
 
 static void float_to_fixed24_c(int32_t *dst, const float *src, unsigned int len)
@@ -374,19 +341,6 @@ void ff_ac3dsp_downmix_fixed(AC3DSPContext *c, int32_t **samples, int16_t **matr
         ac3_downmix_c_fixed(samples, matrix, out_ch, in_ch, len);
 }
 
-static void apply_window_int16_c(int16_t *output, const int16_t *input,
-                                 const int16_t *window, unsigned int len)
-{
-    int i;
-    int len2 = len >> 1;
-
-    for (i = 0; i < len2; i++) {
-        int16_t w       = window[i];
-        output[i]       = (MUL16(input[i],       w) + (1 << 14)) >> 15;
-        output[len-i-1] = (MUL16(input[len-i-1], w) + (1 << 14)) >> 15;
-    }
-}
-
 void ff_ac3dsp_downmix(AC3DSPContext *c, float **samples, float **matrix,
                        int out_ch, int in_ch, int len)
 {
@@ -409,8 +363,9 @@ void ff_ac3dsp_downmix(AC3DSPContext *c, float **samples, float **matrix,
             c->downmix = ac3_downmix_5_to_1_symmetric_c;
         }
 
-        if (ARCH_X86)
-            ff_ac3dsp_set_downmix_x86(c);
+#if ARCH_X86
+        ff_ac3dsp_set_downmix_x86(c);
+#endif
     }
 
     if (c->downmix)
@@ -419,12 +374,9 @@ void ff_ac3dsp_downmix(AC3DSPContext *c, float **samples, float **matrix,
         ac3_downmix_c(samples, matrix, out_ch, in_ch, len);
 }
 
-av_cold void ff_ac3dsp_init(AC3DSPContext *c, int bit_exact)
+av_cold void ff_ac3dsp_init(AC3DSPContext *c)
 {
     c->ac3_exponent_min = ac3_exponent_min_c;
-    c->ac3_max_msb_abs_int16 = ac3_max_msb_abs_int16_c;
-    c->ac3_lshift_int16 = ac3_lshift_int16_c;
-    c->ac3_rshift_int32 = ac3_rshift_int32_c;
     c->float_to_fixed24 = float_to_fixed24_c;
     c->bit_alloc_calc_bap = ac3_bit_alloc_calc_bap_c;
     c->update_bap_counts = ac3_update_bap_counts_c;
@@ -436,12 +388,12 @@ av_cold void ff_ac3dsp_init(AC3DSPContext *c, int bit_exact)
     c->out_channels          = 0;
     c->downmix               = NULL;
     c->downmix_fixed         = NULL;
-    c->apply_window_int16 = apply_window_int16_c;
 
-    if (ARCH_ARM)
-        ff_ac3dsp_init_arm(c, bit_exact);
-    if (ARCH_X86)
-        ff_ac3dsp_init_x86(c, bit_exact);
-    if (ARCH_MIPS)
-        ff_ac3dsp_init_mips(c, bit_exact);
+#if ARCH_ARM
+    ff_ac3dsp_init_arm(c);
+#elif ARCH_X86
+    ff_ac3dsp_init_x86(c);
+#elif ARCH_MIPS
+    ff_ac3dsp_init_mips(c);
+#endif
 }

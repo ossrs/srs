@@ -22,8 +22,8 @@
 #ifndef AVCODEC_OPUSENC_H
 #define AVCODEC_OPUSENC_H
 
-#include "internal.h"
-#include "opus_celt.h"
+#include "libavutil/intmath.h"
+#include "opus.h"
 
 /* Determines the maximum delay the psychoacoustic system will use for lookahead */
 #define FF_BUFQUEUE_SIZE 145
@@ -42,6 +42,7 @@
 
 typedef struct OpusEncOptions {
     float max_delay_ms;
+    int apply_phase_inv;
 } OpusEncOptions;
 
 typedef struct OpusPacketInfo {

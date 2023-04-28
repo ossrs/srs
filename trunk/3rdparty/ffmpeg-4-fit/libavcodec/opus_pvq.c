@@ -23,8 +23,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <float.h>
+
+#include "config_components.h"
+
+#include "mathops.h"
 #include "opustab.h"
 #include "opus_pvq.h"
+
+#define ROUND_MUL16(a,b)  ((MUL16(a, b) + 16384) >> 15)
 
 #define CELT_PVQ_U(n, k) (ff_celt_pvq_u_row[FFMIN(n, k)][FFMAX(n, k)])
 #define CELT_PVQ_V(n, k) (CELT_PVQ_U(n, k) + CELT_PVQ_U(n, (k) + 1))
@@ -359,6 +366,7 @@ static inline float celt_decode_pulses(OpusRangeCoder *rc, int *y, uint32_t N, u
     return celt_cwrsi(N, K, idx, y);
 }
 
+#if CONFIG_OPUS_ENCODER
 /*
  * Faster than libopus's search, operates entirely in the signed domain.
  * Slightly worse/better depending on N, K and the input vector.
@@ -411,6 +419,7 @@ static float ppp_pvq_search_c(float *X, int *y, int K, int N)
 
     return (float)y_norm;
 }
+#endif
 
 static uint32_t celt_alg_quant(OpusRangeCoder *rc, float *X, uint32_t N, uint32_t K,
                                enum CeltSpread spread, uint32_t blocks, float gain,
@@ -627,7 +636,7 @@ static av_always_inline uint32_t quant_band_template(CeltPVQ *pvq, CeltFrame *f,
             }
         } else if (stereo) {
             if (quant) {
-                inv = itheta > 8192;
+                inv = f->apply_phase_inv ? itheta > 8192 : 0;
                  if (inv) {
                     for (i = 0; i < N; i++)
                        Y[i] *= -1;
@@ -900,11 +909,14 @@ int av_cold ff_celt_pvq_init(CeltPVQ **pvq, int encode)
     if (!s)
         return AVERROR(ENOMEM);
 
-    s->pvq_search = ppp_pvq_search_c;
     s->quant_band = encode ? pvq_encode_band : pvq_decode_band;
 
-    if (ARCH_X86)
-        ff_opus_dsp_init_x86(s);
+#if CONFIG_OPUS_ENCODER
+    s->pvq_search = ppp_pvq_search_c;
+#if ARCH_X86
+    ff_celt_pvq_init_x86(s);
+#endif
+#endif
 
     *pvq = s;
 

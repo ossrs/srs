@@ -1,0 +1,129 @@
+#!/bin/sh
+
+# Copyright (c) 2013, Derek Buitenhuis
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+# mktemp isn't POSIX, so supply an implementation
+mktemp() {
+    echo "${2%%XXX*}.${HOSTNAME}.${UID}.$$"
+}
+
+if [ $# -lt 2 ]; then
+    echo "Usage: makedef <version_script> <objects>" >&2
+    exit 0
+fi
+
+vscript=$1
+shift
+
+if [ ! -f "$vscript" ]; then
+    echo "Version script does not exist" >&2
+    exit 1
+fi
+
+for object in "$@"; do
+    if [ ! -f "$object" ]; then
+        echo "Object does not exist: ${object}" >&2
+        exit 1
+    fi
+done
+
+# Create a lib temporarily to dump symbols from.
+# It's just much easier to do it this way
+libname=$(mktemp -u "library").lib
+
+trap 'rm -f -- $libname' EXIT
+
+if [ -n "$AR" ]; then
+    $AR rcs ${libname} $@ >/dev/null
+else
+    lib.exe -out:${libname} $@ >/dev/null
+fi
+if [ $? != 0 ]; then
+    echo "Could not create temporary library." >&2
+    exit 1
+fi
+
+IFS='
+'
+
+prefix="$EXTERN_PREFIX"
+
+started=0
+regex="none"
+
+for line in $(cat ${vscript} | tr '\t' ' '); do
+    # We only care about global symbols
+    echo "${line}" | grep -q '^ \+global:'
+    if [ $? = 0 ]; then
+        started=1
+        line=$(echo "${line}" | sed -e 's/^ \{1,\}global: *//')
+    else
+        echo "${line}" | grep -q '^ \+local:'
+        if [ $? = 0 ]; then
+            started=0
+        fi
+    fi
+
+    if [ ${started} = 0 ]; then
+        continue
+    fi
+
+    # Handle multiple symbols on one line
+    IFS=';'
+
+    # Work around stupid expansion to filenames
+    line=$(echo "${line}" | sed -e 's/\*/.\\+/g')
+    for exp in ${line}; do
+        # Remove leading and trailing whitespace
+        exp=$(echo "${exp}" | sed -e 's/^ *//' -e 's/ *$//')
+
+        if [ "${regex}" = "none" ]; then
+            regex="${exp}"
+        else
+            regex="${regex};${exp}"
+        fi
+    done
+
+    IFS='
+'
+done
+
+if [ -n "$NM" ]; then
+    # Use eval, since NM="nm -g"
+    dump=$(eval "$NM --defined-only -g ${libname}" |
+              grep -v : |
+              grep -v ^$ |
+              cut -d' ' -f3 |
+              sed -e "s/^${prefix}//")
+else
+    dump=$(dumpbin.exe -linkermember:1 ${libname} |
+              sed -e '/public symbols/,$!d' -e '/^ \{1,\}Summary/,$d' -e "s/ \{1,\}${prefix}/ /" -e 's/ \{1,\}/ /g' |
+              tail -n +2 |
+              cut -d' ' -f3)
+fi
+
+rm ${libname}
+
+IFS=';'
+list=""
+for exp in ${regex}; do
+    list="${list}"'
+'$(echo "${dump}" |
+          grep "^${exp}" |
+          sed -e 's/^/    /')
+done
+
+echo "EXPORTS"
+echo "${list}" | sort | uniq | tail -n +2

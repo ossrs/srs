@@ -1,0 +1,388 @@
+/*
+ * Xiph RTP Protocols
+ * Copyright (c) 2009 Colin McQuillian
+ * Copyright (c) 2010 Josh Allmann
+ *
+ * This file is part of FFmpeg.
+ *
+ * FFmpeg is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * FFmpeg is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with FFmpeg; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ */
+
+/**
+ * @file
+ * @brief Xiph / RTP Code
+ * @author Colin McQuillan <m.niloc@gmail.com>
+ * @author Josh Allmann <joshua.allmann@gmail.com>
+ */
+
+#include "libavutil/attributes.h"
+#include "libavutil/avassert.h"
+#include "libavutil/avstring.h"
+#include "libavutil/base64.h"
+#include "libavcodec/bytestream.h"
+
+#include "avio_internal.h"
+#include "internal.h"
+#include "rtpdec.h"
+#include "rtpdec_formats.h"
+
+/**
+ * RTP/Xiph specific private data.
+ */
+struct PayloadContext {
+    unsigned ident;             ///< 24-bit stream configuration identifier
+    uint32_t timestamp;
+    AVIOContext* fragment;    ///< buffer for split payloads
+    uint8_t *split_buf;
+    int split_pos, split_buf_len, split_buf_size;
+    int split_pkts;
+};
+
+static void xiph_close_context(PayloadContext * data)
+{
+    ffio_free_dyn_buf(&data->fragment);
+    av_freep(&data->split_buf);
+}
+
+
+static int xiph_handle_packet(AVFormatContext *ctx, PayloadContext *data,
+                              AVStream *st, AVPacket *pkt, uint32_t *timestamp,
+                              const uint8_t *buf, int len, uint16_t seq,
+                              int flags)
+{
+
+    int ident, fragmented, tdt, num_pkts, pkt_len, ret;
+
+    if (!buf) {
+        if (!data->split_buf || data->split_pos + 2 > data->split_buf_len ||
+            data->split_pkts <= 0) {
+            av_log(ctx, AV_LOG_ERROR, "No more data to return\n");
+            return AVERROR_INVALIDDATA;
+        }
+        pkt_len = AV_RB16(data->split_buf + data->split_pos);
+        data->split_pos += 2;
+        if (pkt_len > data->split_buf_len - data->split_pos) {
+            av_log(ctx, AV_LOG_ERROR, "Not enough data to return\n");
+            return AVERROR_INVALIDDATA;
+        }
+        if ((ret = av_new_packet(pkt, pkt_len)) < 0) {
+            av_log(ctx, AV_LOG_ERROR, "Out of memory.\n");
+            return ret;
+        }
+        pkt->stream_index = st->index;
+        memcpy(pkt->data, data->split_buf + data->split_pos, pkt_len);
+        data->split_pos += pkt_len;
+        data->split_pkts--;
+        return data->split_pkts > 0;
+    }
+
+    if (len < 6 || len > INT_MAX/2) {
+        av_log(ctx, AV_LOG_ERROR, "Invalid %d byte packet\n", len);
+        return AVERROR_INVALIDDATA;
+    }
+
+    // read xiph rtp headers
+    ident       = AV_RB24(buf);
+    fragmented  = buf[3] >> 6;
+    tdt         = (buf[3] >> 4) & 3;
+    num_pkts    = buf[3] & 0xf;
+    pkt_len     = AV_RB16(buf + 4);
+
+    if (pkt_len > len - 6) {
+        av_log(ctx, AV_LOG_ERROR,
+               "Invalid packet length %d in %d byte packet\n", pkt_len,
+               len);
+        return AVERROR_INVALIDDATA;
+    }
+
+    if (ident != data->ident) {
+        avpriv_report_missing_feature(ctx, "Xiph SDP configuration change");
+        return AVERROR_PATCHWELCOME;
+    }
+
+    if (tdt) {
+        avpriv_report_missing_feature(ctx,
+                                      "RTP Xiph packet settings (%d,%d,%d)",
+                                      fragmented, tdt, num_pkts);
+        return AVERROR_PATCHWELCOME;
+    }
+
+    buf += 6; // move past header bits
+    len -= 6;
+
+    if (fragmented == 0) {
+        if ((ret = av_new_packet(pkt, pkt_len)) < 0) {
+            av_log(ctx, AV_LOG_ERROR, "Out of memory.\n");
+            return ret;
+        }
+        pkt->stream_index = st->index;
+        memcpy(pkt->data, buf, pkt_len);
+        buf += pkt_len;
+        len -= pkt_len;
+        num_pkts--;
+
+        if (num_pkts > 0) {
+            if (len > data->split_buf_size || !data->split_buf) {
+                av_freep(&data->split_buf);
+                data->split_buf_size = 2 * len;
+                data->split_buf = av_malloc(data->split_buf_size);
+                if (!data->split_buf) {
+                    av_log(ctx, AV_LOG_ERROR, "Out of memory.\n");
+                    av_packet_unref(pkt);
+                    return AVERROR(ENOMEM);
+                }
+            }
+            memcpy(data->split_buf, buf, len);
+            data->split_buf_len = len;
+            data->split_pos = 0;
+            data->split_pkts = num_pkts;
+            return 1;
+        }
+
+        return 0;
+
+    } else if (fragmented == 1) {
+        // start of xiph data fragment
+        int res;
+
+        // end packet has been lost somewhere, so drop buffered data
+        ffio_free_dyn_buf(&data->fragment);
+
+        if((res = avio_open_dyn_buf(&data->fragment)) < 0)
+            return res;
+
+        avio_write(data->fragment, buf, pkt_len);
+        data->timestamp = *timestamp;
+
+    } else {
+        av_assert1(fragmented < 4);
+        if (data->timestamp != *timestamp) {
+            // skip if fragmented timestamp is incorrect;
+            // a start packet has been lost somewhere
+            ffio_free_dyn_buf(&data->fragment);
+            av_log(ctx, AV_LOG_ERROR, "RTP timestamps don't match!\n");
+            return AVERROR_INVALIDDATA;
+        }
+        if (!data->fragment) {
+            av_log(ctx, AV_LOG_WARNING,
+                   "Received packet without a start fragment; dropping.\n");
+            return AVERROR(EAGAIN);
+        }
+
+        // copy data to fragment buffer
+        avio_write(data->fragment, buf, pkt_len);
+
+        if (fragmented == 3) {
+            // end of xiph data packet
+            int ret = ff_rtp_finalize_packet(pkt, &data->fragment, st->index);
+            if (ret < 0) {
+                av_log(ctx, AV_LOG_ERROR,
+                       "Error occurred when getting fragment buffer.");
+                return ret;
+            }
+
+            return 0;
+        }
+    }
+
+   return AVERROR(EAGAIN);
+}
+
+/**
+ * Length encoding described in RFC5215 section 3.1.1.
+ */
+static int get_base128(const uint8_t ** buf, const uint8_t * buf_end)
+{
+    int n = 0;
+    for (; *buf < buf_end; ++*buf) {
+        n <<= 7;
+        n += **buf & 0x7f;
+        if (!(**buf & 0x80)) {
+            ++*buf;
+            return n;
+        }
+    }
+    return 0;
+}
+
+/**
+ * Based off parse_packed_headers in Vorbis RTP
+ */
+static int
+parse_packed_headers(AVFormatContext *s,
+                     const uint8_t * packed_headers,
+                     const uint8_t * packed_headers_end,
+                     AVCodecParameters *par, PayloadContext * xiph_data)
+{
+
+    unsigned num_packed, num_headers, length, length1, length2, extradata_alloc;
+    int ret;
+    uint8_t *ptr;
+
+    if (packed_headers_end - packed_headers < 9) {
+        av_log(s, AV_LOG_ERROR,
+               "Invalid %"PTRDIFF_SPECIFIER" byte packed header.",
+               packed_headers_end - packed_headers);
+        return AVERROR_INVALIDDATA;
+    }
+
+    num_packed         = bytestream_get_be32(&packed_headers);
+    xiph_data->ident   = bytestream_get_be24(&packed_headers);
+    length             = bytestream_get_be16(&packed_headers);
+    num_headers        = get_base128(&packed_headers, packed_headers_end);
+    length1            = get_base128(&packed_headers, packed_headers_end);
+    length2            = get_base128(&packed_headers, packed_headers_end);
+
+    if (num_packed != 1 || num_headers > 3) {
+        avpriv_report_missing_feature(s, "%u packed headers, %u headers",
+                                      num_packed, num_headers);
+        return AVERROR_PATCHWELCOME;
+    }
+
+    if (packed_headers_end - packed_headers != length ||
+        length1 > length || length2 > length - length1) {
+        av_log(s, AV_LOG_ERROR,
+               "Bad packed header lengths (%d,%d,%"PTRDIFF_SPECIFIER",%u)\n", length1,
+               length2, packed_headers_end - packed_headers, length);
+        return AVERROR_INVALIDDATA;
+    }
+
+    /* allocate extra space:
+     * -- length/255 +2 for xiphlacing
+     * -- one for the '2' marker
+     * -- AV_INPUT_BUFFER_PADDING_SIZE required */
+    extradata_alloc = length + length/255 + 3 + AV_INPUT_BUFFER_PADDING_SIZE;
+
+    if ((ret = ff_alloc_extradata(par, extradata_alloc)) < 0) {
+        av_log(s, AV_LOG_ERROR, "Out of memory\n");
+        return ret;
+    }
+    ptr = par->extradata;
+    *ptr++ = 2;
+    ptr += av_xiphlacing(ptr, length1);
+    ptr += av_xiphlacing(ptr, length2);
+    memcpy(ptr, packed_headers, length);
+    ptr += length;
+    par->extradata_size = ptr - par->extradata;
+    // clear out remaining parts of the buffer
+    memset(ptr, 0, extradata_alloc - par->extradata_size);
+
+    return 0;
+}
+
+static int xiph_parse_fmtp_pair(AVFormatContext *s,
+                                AVStream* stream,
+                                PayloadContext *xiph_data,
+                                const char *attr, const char *value)
+{
+    AVCodecParameters *par = stream->codecpar;
+    int result = 0;
+
+    if (!strcmp(attr, "sampling")) {
+        if (!strcmp(value, "YCbCr-4:2:0")) {
+            par->format = AV_PIX_FMT_YUV420P;
+        } else if (!strcmp(value, "YCbCr-4:4:2")) {
+            par->format = AV_PIX_FMT_YUV422P;
+        } else if (!strcmp(value, "YCbCr-4:4:4")) {
+            par->format = AV_PIX_FMT_YUV444P;
+        } else {
+            av_log(s, AV_LOG_ERROR,
+                   "Unsupported pixel format %s\n", attr);
+            return AVERROR_INVALIDDATA;
+        }
+    } else if (!strcmp(attr, "width")) {
+        /* This is an integer between 1 and 1048561
+         * and MUST be in multiples of 16. */
+        par->width = atoi(value);
+        return 0;
+    } else if (!strcmp(attr, "height")) {
+        /* This is an integer between 1 and 1048561
+         * and MUST be in multiples of 16. */
+        par->height = atoi(value);
+        return 0;
+    } else if (!strcmp(attr, "delivery-method")) {
+        /* Possible values are: inline, in_band, out_band/specific_name. */
+        return AVERROR_PATCHWELCOME;
+    } else if (!strcmp(attr, "configuration-uri")) {
+        /* NOTE: configuration-uri is supported only under 2 conditions:
+         *--after the delivery-method tag
+         * --with a delivery-method value of out_band */
+        return AVERROR_PATCHWELCOME;
+    } else if (!strcmp(attr, "configuration")) {
+        /* NOTE: configuration is supported only AFTER the delivery-method tag
+         * The configuration value is a base64 encoded packed header */
+        uint8_t *decoded_packet = NULL;
+        int packet_size;
+        size_t decoded_alloc = strlen(value) / 4 * 3 + 4;
+
+        if (decoded_alloc <= INT_MAX) {
+            decoded_packet = av_malloc(decoded_alloc);
+            if (decoded_packet) {
+                packet_size =
+                    av_base64_decode(decoded_packet, value, decoded_alloc);
+
+                result = parse_packed_headers
+                    (s, decoded_packet, decoded_packet + packet_size, par,
+                    xiph_data);
+            } else {
+                av_log(s, AV_LOG_ERROR,
+                       "Out of memory while decoding SDP configuration.\n");
+                result = AVERROR(ENOMEM);
+            }
+        } else {
+            av_log(s, AV_LOG_ERROR, "Packet too large\n");
+            result = AVERROR_INVALIDDATA;
+        }
+        av_free(decoded_packet);
+    }
+    return result;
+}
+
+static int xiph_parse_sdp_line(AVFormatContext *s, int st_index,
+                               PayloadContext *data, const char *line)
+{
+    const char *p;
+
+    if (st_index < 0)
+        return 0;
+
+    if (av_strstart(line, "fmtp:", &p)) {
+        return ff_parse_fmtp(s, s->streams[st_index], data, p,
+                             xiph_parse_fmtp_pair);
+    }
+
+    return 0;
+}
+
+const RTPDynamicProtocolHandler ff_theora_dynamic_handler = {
+    .enc_name         = "theora",
+    .codec_type       = AVMEDIA_TYPE_VIDEO,
+    .codec_id         = AV_CODEC_ID_THEORA,
+    .priv_data_size   = sizeof(PayloadContext),
+    .parse_sdp_a_line = xiph_parse_sdp_line,
+    .close            = xiph_close_context,
+    .parse_packet     = xiph_handle_packet,
+};
+
+const RTPDynamicProtocolHandler ff_vorbis_dynamic_handler = {
+    .enc_name         = "vorbis",
+    .codec_type       = AVMEDIA_TYPE_AUDIO,
+    .codec_id         = AV_CODEC_ID_VORBIS,
+    .need_parsing     = AVSTREAM_PARSE_HEADERS,
+    .priv_data_size   = sizeof(PayloadContext),
+    .parse_sdp_a_line = xiph_parse_sdp_line,
+    .close            = xiph_close_context,
+    .parse_packet     = xiph_handle_packet,
+};

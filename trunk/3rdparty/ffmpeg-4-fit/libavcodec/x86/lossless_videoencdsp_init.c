@@ -29,14 +29,12 @@
 #include "libavcodec/lossless_videoencdsp.h"
 #include "libavcodec/mathops.h"
 
-void ff_diff_bytes_mmx(uint8_t *dst, const uint8_t *src1, const uint8_t *src2,
-                       intptr_t w);
 void ff_diff_bytes_sse2(uint8_t *dst, const uint8_t *src1, const uint8_t *src2,
                         intptr_t w);
 void ff_diff_bytes_avx2(uint8_t *dst, const uint8_t *src1, const uint8_t *src2,
                         intptr_t w);
 
-void ff_sub_left_predict_avx(uint8_t *dst, uint8_t *src,
+void ff_sub_left_predict_avx(uint8_t *dst, const uint8_t *src,
                             ptrdiff_t stride, ptrdiff_t width, int height);
 
 #if HAVE_INLINE_ASM
@@ -86,10 +84,6 @@ static void sub_median_pred_mmxext(uint8_t *dst, const uint8_t *src1,
 av_cold void ff_llvidencdsp_init_x86(LLVidEncDSPContext *c)
 {
     av_unused int cpu_flags = av_get_cpu_flags();
-
-    if (ARCH_X86_32 && EXTERNAL_MMX(cpu_flags)) {
-        c->diff_bytes = ff_diff_bytes_mmx;
-    }
 
 #if HAVE_INLINE_ASM
     if (INLINE_MMXEXT(cpu_flags)) {

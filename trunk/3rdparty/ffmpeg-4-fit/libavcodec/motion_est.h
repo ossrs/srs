@@ -51,10 +51,7 @@ typedef struct MotionEstContext {
     int direct_basis_mv[4][2];
     uint8_t *scratchpad;            /**< data area for the ME algo, so that
                                      * the ME does not need to malloc/free. */
-    uint8_t *best_mb;
-    uint8_t *temp_mb[2];
     uint8_t *temp;
-    int best_bits;
     uint32_t *map;                  ///< map to avoid duplicate evaluations
     uint32_t *score_map;            ///< map to store the scores
     unsigned map_generation;
@@ -77,8 +74,8 @@ typedef struct MotionEstContext {
     int ymax;
     int pred_x;
     int pred_y;
-    uint8_t *src[4][4];
-    uint8_t *ref[4][4];
+    const uint8_t *src[4][4];
+    const uint8_t *ref[4][4];
     int stride;
     int uvstride;
     /* temp variables for picture complexity calculation */
@@ -90,8 +87,8 @@ typedef struct MotionEstContext {
     op_pixels_func(*hpel_avg)[4];
     qpel_mc_func(*qpel_put)[16];
     qpel_mc_func(*qpel_avg)[16];
-    uint8_t (*mv_penalty)[MAX_DMV * 2 + 1]; ///< bit amount needed to encode a MV
-    uint8_t *current_mv_penalty;
+    const uint8_t (*mv_penalty)[MAX_DMV * 2 + 1]; ///< bit amount needed to encode a MV
+    const uint8_t *current_mv_penalty;
     int (*sub_motion_search)(struct MpegEncContext *s,
                              int *mx_ptr, int *my_ptr, int dmin,
                              int src_index, int ref_index,
@@ -118,16 +115,16 @@ int ff_pre_estimate_p_frame_motion(struct MpegEncContext *s,
 
 int ff_epzs_motion_search(struct MpegEncContext *s, int *mx_ptr, int *my_ptr,
                           int P[10][2], int src_index, int ref_index,
-                          int16_t (*last_mv)[2], int ref_mv_scale, int size,
-                          int h);
+                          const int16_t (*last_mv)[2], int ref_mv_scale,
+                          int size, int h);
 
 int ff_get_mb_score(struct MpegEncContext *s, int mx, int my, int src_index,
                     int ref_index, int size, int h, int add_rate);
 
 int ff_get_best_fcode(struct MpegEncContext *s,
-                      int16_t (*mv_table)[2], int type);
+                      const int16_t (*mv_table)[2], int type);
 
-void ff_fix_long_p_mvs(struct MpegEncContext *s);
+void ff_fix_long_p_mvs(struct MpegEncContext *s, int type);
 void ff_fix_long_mvs(struct MpegEncContext *s, uint8_t *field_select_table,
                      int field_select, int16_t (*mv_table)[2], int f_code,
                      int type, int truncate);

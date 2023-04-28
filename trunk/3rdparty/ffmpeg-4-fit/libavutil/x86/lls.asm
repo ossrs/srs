@@ -20,7 +20,7 @@
 ;* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 ;******************************************************************************
 
-%include "x86util.asm"
+%include "libavutil/x86/x86util.asm"
 
 SECTION .text
 
@@ -123,7 +123,7 @@ cglobal update_lls, 2,5,8, ctx, var, i, j, covar2
     test    id, id
     jle .loop2x1
 .ret:
-    REP_RET
+    RET
 
 %macro UPDATE_LLS 0
 cglobal update_lls, 3,6,8, ctx, var, count, i, j, count2
@@ -240,7 +240,7 @@ cglobal update_lls, 3,6,8, ctx, var, count, i, j, count2
     cmp     id, countd
     jle .loop2x1
 .ret:
-    REP_RET
+    RET
 %endmacro ; UPDATE_LLS
 
 %if HAVE_AVX_EXTERNAL

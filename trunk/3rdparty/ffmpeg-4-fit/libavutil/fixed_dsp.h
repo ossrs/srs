@@ -49,8 +49,8 @@
 #define AVUTIL_FIXED_DSP_H
 
 #include <stdint.h>
+#include "config.h"
 #include "attributes.h"
-#include "common.h"
 #include "libavcodec/mathops.h"
 
 typedef struct AVFixedDSPContext {
@@ -161,6 +161,7 @@ typedef struct AVFixedDSPContext {
  */
 AVFixedDSPContext * avpriv_alloc_fixed_dsp(int strict);
 
+void ff_fixed_dsp_init_riscv(AVFixedDSPContext *fdsp);
 void ff_fixed_dsp_init_x86(AVFixedDSPContext *fdsp);
 
 /**

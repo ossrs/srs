@@ -26,7 +26,6 @@
 #define USE_FIXED 1
 
 #include "aac.h"
-#include "config.h"
 #include "libavutil/attributes.h"
 #include "libavutil/intfloat.h"
 #include "sbrdsp.h"
@@ -87,7 +86,7 @@ static void sbr_neg_odd_64_c(int *x)
 {
     int i;
     for (i = 1; i < 64; i += 2)
-        x[i] = -x[i];
+        x[i] = -(unsigned)x[i];
 }
 
 static void sbr_qmf_pre_shuffle_c(int *z)
@@ -114,8 +113,8 @@ static void sbr_qmf_deint_neg_c(int *v, const int *src)
 {
     int i;
     for (i = 0; i < 32; i++) {
-        v[     i] = ( src[63 - 2*i    ] + 0x10) >> 5;
-        v[63 - i] = (-src[63 - 2*i - 1] + 0x10) >> 5;
+        v[     i] = (int)(0x10U + src[63 - 2*i    ]) >> 5;
+        v[63 - i] = (int)(0x10U - src[63 - 2*i - 1]) >> 5;
     }
 }
 

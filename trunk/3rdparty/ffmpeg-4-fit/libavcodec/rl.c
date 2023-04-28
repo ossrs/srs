@@ -21,34 +21,36 @@
 
 #include "libavutil/attributes.h"
 #include "libavutil/avassert.h"
-#include "libavutil/mem.h"
 
 #include "rl.h"
 
-void ff_rl_free(RLTable *rl)
+av_cold void ff_rl_init_level_run(uint8_t max_level[MAX_LEVEL + 1],
+                                  uint8_t index_run[MAX_RUN + 1],
+                                  const uint8_t table_run[/* n */],
+                                  const uint8_t table_level[/* n*/],
+                                  int n)
 {
-    int i;
-
-    for (i = 0; i < 2; i++) {
-        av_freep(&rl->max_run[i]);
-        av_freep(&rl->max_level[i]);
-        av_freep(&rl->index_run[i]);
+    memset(index_run, n, MAX_RUN + 1);
+    for (int i = 0; i < n; i++) {
+        int run   = table_run[i];
+        int level = table_level[i];
+        if (index_run[run] == n)
+            index_run[run] = i;
+        if (level > max_level[run])
+            max_level[run] = level;
     }
 }
 
-av_cold int ff_rl_init(RLTable *rl,
-                       uint8_t static_store[2][2 * MAX_RUN + MAX_LEVEL + 3])
+av_cold void ff_rl_init(RLTable *rl,
+                        uint8_t static_store[2][2 * MAX_RUN + MAX_LEVEL + 3])
 {
-    int8_t  max_level[MAX_RUN + 1], max_run[MAX_LEVEL + 1];
-    uint8_t index_run[MAX_RUN + 1];
     int last, run, level, start, end, i;
-
-    /* If table is static, we can quit if rl->max_level[0] is not NULL */
-    if (static_store && rl->max_level[0])
-        return 0;
 
     /* compute max_level[], max_run[] and index_run[] */
     for (last = 0; last < 2; last++) {
+        int8_t *max_level  = static_store[last];
+        int8_t *max_run    = static_store[last] + MAX_RUN + 1;
+        uint8_t *index_run = static_store[last] + MAX_RUN + 1 + MAX_LEVEL + 1;
         if (last == 0) {
             start = 0;
             end = rl->last;
@@ -57,8 +59,6 @@ av_cold int ff_rl_init(RLTable *rl,
             end = rl->n;
         }
 
-        memset(max_level, 0, MAX_RUN + 1);
-        memset(max_run, 0, MAX_LEVEL + 1);
         memset(index_run, rl->n, MAX_RUN + 1);
         for (i = start; i < end; i++) {
             run   = rl->table_run[i];
@@ -70,42 +70,16 @@ av_cold int ff_rl_init(RLTable *rl,
             if (run > max_run[level])
                 max_run[level] = run;
         }
-        if (static_store)
-            rl->max_level[last] = static_store[last];
-        else {
-            rl->max_level[last] = av_malloc(MAX_RUN + 1);
-            if (!rl->max_level[last])
-                goto fail;
-        }
-        memcpy(rl->max_level[last], max_level, MAX_RUN + 1);
-        if (static_store)
-            rl->max_run[last]   = static_store[last] + MAX_RUN + 1;
-        else {
-            rl->max_run[last]   = av_malloc(MAX_LEVEL + 1);
-            if (!rl->max_run[last])
-                goto fail;
-        }
-        memcpy(rl->max_run[last], max_run, MAX_LEVEL + 1);
-        if (static_store)
-            rl->index_run[last] = static_store[last] + MAX_RUN + MAX_LEVEL + 2;
-        else {
-            rl->index_run[last] = av_malloc(MAX_RUN + 1);
-            if (!rl->index_run[last])
-                goto fail;
-        }
-        memcpy(rl->index_run[last], index_run, MAX_RUN + 1);
+        rl->max_level[last] = max_level;
+        rl->max_run[last]   = max_run;
+        rl->index_run[last] = index_run;
     }
-    return 0;
-
-fail:
-    ff_rl_free(rl);
-    return AVERROR(ENOMEM);
 }
 
 av_cold void ff_rl_init_vlc(RLTable *rl, unsigned static_size)
 {
     int i, q;
-    VLC_TYPE table[1500][2] = {{0}};
+    VLCElem table[1500] = { 0 };
     VLC vlc = { .table = table, .table_allocated = static_size };
     av_assert0(static_size <= FF_ARRAY_ELEMS(table));
     init_vlc(&vlc, 9, rl->n + 1, &rl->table_vlc[0][1], 4, 2, &rl->table_vlc[0][0], 4, 2, INIT_VLC_USE_NEW_STATIC);
@@ -114,13 +88,16 @@ av_cold void ff_rl_init_vlc(RLTable *rl, unsigned static_size)
         int qmul = q * 2;
         int qadd = (q - 1) | 1;
 
+        if (!rl->rl_vlc[q])
+            return;
+
         if (q == 0) {
             qmul = 1;
             qadd = 0;
         }
         for (i = 0; i < vlc.table_size; i++) {
-            int code = vlc.table[i][0];
-            int len  = vlc.table[i][1];
+            int code = vlc.table[i].sym;
+            int len  = vlc.table[i].len;
             int level, run;
 
             if (len == 0) { // illegal code

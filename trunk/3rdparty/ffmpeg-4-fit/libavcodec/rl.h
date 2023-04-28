@@ -49,29 +49,54 @@ typedef struct RLTable {
 } RLTable;
 
 /**
- * @param static_store static uint8_t array[2][2*MAX_RUN + MAX_LEVEL + 3] which will hold
- *                     the level and run tables, if this is NULL av_malloc() will be used
+ * Initialize max_level and index_run from table_run and table_level;
+ * this is equivalent to initializing RLTable.max_level[0] and
+ * RLTable.index_run[0] with ff_rl_init().
  */
-int ff_rl_init(RLTable *rl, uint8_t static_store[2][2*MAX_RUN + MAX_LEVEL + 3]);
-void ff_rl_init_vlc(RLTable *rl, unsigned static_size);
+void ff_rl_init_level_run(uint8_t max_level[MAX_LEVEL + 1],
+                          uint8_t index_run[MAX_RUN + 1],
+                          const uint8_t table_run[/* n */],
+                          const uint8_t table_level[/* n*/], int n);
 
 /**
- * Free the contents of a dynamically allocated table.
+ * Initialize index_run, max_level and max_run from n, last, table_vlc,
+ * table_run and table_level.
+ * @param static_store static uint8_t array[2][2*MAX_RUN + MAX_LEVEL + 3]
+ *                     to hold the level and run tables.
+ * @note  This function does not touch rl_vlc at all, hence there is no need
+ *        to synchronize calls to ff_rl_init() and ff_rl_init_vlc() using the
+ *        same RLTable.
  */
-void ff_rl_free(RLTable *rl);
+void ff_rl_init(RLTable *rl, uint8_t static_store[2][2*MAX_RUN + MAX_LEVEL + 3]);
+
+/**
+ * Initialize rl_vlc from n, last, table_vlc, table_run and table_level.
+ * All rl_vlc pointers to be initialized must already point to a static
+ * buffer of `static_size` RL_VLC_ELEM elements; if a pointer is NULL,
+ * initializing further VLCs stops.
+ * @note  This function does not touch what ff_rl_init() initializes at all,
+ *        hence there is no need to synchronize calls to ff_rl_init() and
+ *        ff_rl_init_vlc() using the same RLTable.
+ */
+void ff_rl_init_vlc(RLTable *rl, unsigned static_size);
 
 #define INIT_VLC_RL(rl, static_size)\
 {\
-    int q;\
     static RL_VLC_ELEM rl_vlc_table[32][static_size];\
 \
-    if(!rl.rl_vlc[0]){\
-        for(q=0; q<32; q++)\
-            rl.rl_vlc[q]= rl_vlc_table[q];\
+    for (int q = 0; q < 32; q++) \
+        rl.rl_vlc[q] = rl_vlc_table[q]; \
 \
-        ff_rl_init_vlc(&rl, static_size);\
-    }\
+    ff_rl_init_vlc(&rl, static_size); \
 }
+
+#define INIT_FIRST_VLC_RL(rl, static_size)              \
+do {                                                    \
+    static RL_VLC_ELEM rl_vlc_table[static_size];       \
+                                                        \
+    rl.rl_vlc[0] = rl_vlc_table;                        \
+    ff_rl_init_vlc(&rl, static_size);                   \
+} while (0)
 
 static inline int get_rl_index(const RLTable *rl, int last, int run, int level)
 {
