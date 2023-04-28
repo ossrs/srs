@@ -39,6 +39,7 @@
 #include "pixdesc.h"
 #include "pixfmt.h"
 #include "thread.h"
+#include "compat/w32dlfcn.h"
 
 typedef HRESULT(WINAPI *PFN_CREATE_DXGI_FACTORY)(REFIID riid, void **ppFactory);
 
@@ -55,8 +56,8 @@ static av_cold void load_functions(void)
     // from too many LoadLibrary calls.
     HANDLE d3dlib, dxgilib;
 
-    d3dlib  = LoadLibrary("d3d11.dll");
-    dxgilib = LoadLibrary("dxgi.dll");
+    d3dlib  = dlopen("d3d11.dll", 0);
+    dxgilib = dlopen("dxgi.dll", 0);
     if (!d3dlib || !dxgilib)
         return;
 
@@ -71,6 +72,7 @@ static av_cold void load_functions(void)
 }
 
 typedef struct D3D11VAFramesContext {
+    int nb_surfaces;
     int nb_surfaces_used;
 
     DXGI_FORMAT format;
@@ -84,6 +86,16 @@ static const struct {
 } supported_formats[] = {
     { DXGI_FORMAT_NV12,         AV_PIX_FMT_NV12 },
     { DXGI_FORMAT_P010,         AV_PIX_FMT_P010 },
+    { DXGI_FORMAT_B8G8R8A8_UNORM,    AV_PIX_FMT_BGRA },
+    { DXGI_FORMAT_R10G10B10A2_UNORM, AV_PIX_FMT_X2BGR10 },
+    { DXGI_FORMAT_R16G16B16A16_FLOAT, AV_PIX_FMT_RGBAF16 },
+    { DXGI_FORMAT_AYUV,         AV_PIX_FMT_VUYX },
+    { DXGI_FORMAT_YUY2,         AV_PIX_FMT_YUYV422 },
+    { DXGI_FORMAT_Y210,         AV_PIX_FMT_Y210 },
+    { DXGI_FORMAT_Y410,         AV_PIX_FMT_XV30 },
+    { DXGI_FORMAT_P016,         AV_PIX_FMT_P012 },
+    { DXGI_FORMAT_Y216,         AV_PIX_FMT_Y212 },
+    { DXGI_FORMAT_Y416,         AV_PIX_FMT_XV36 },
     // Special opaque formats. The pix_fmt is merely a place holder, as the
     // opaque format cannot be accessed directly.
     { DXGI_FORMAT_420_OPAQUE,   AV_PIX_FMT_YUV420P },
@@ -111,6 +123,8 @@ static void d3d11va_frames_uninit(AVHWFramesContext *ctx)
     if (s->staging_texture)
         ID3D11Texture2D_Release(s->staging_texture);
     s->staging_texture = NULL;
+
+    av_freep(&frames_hwctx->texture_infos);
 }
 
 static int d3d11va_frames_get_constraints(AVHWDeviceContext *ctx,
@@ -151,14 +165,31 @@ static void free_texture(void *opaque, uint8_t *data)
     av_free(data);
 }
 
-static AVBufferRef *wrap_texture_buf(ID3D11Texture2D *tex, int index)
+static AVBufferRef *wrap_texture_buf(AVHWFramesContext *ctx, ID3D11Texture2D *tex, int index)
 {
     AVBufferRef *buf;
-    AVD3D11FrameDescriptor *desc = av_mallocz(sizeof(*desc));
+    AVD3D11FrameDescriptor         *desc = av_mallocz(sizeof(*desc));
+    D3D11VAFramesContext              *s = ctx->internal->priv;
+    AVD3D11VAFramesContext *frames_hwctx = ctx->hwctx;
     if (!desc) {
         ID3D11Texture2D_Release(tex);
         return NULL;
     }
+
+    if (s->nb_surfaces <= s->nb_surfaces_used) {
+        frames_hwctx->texture_infos = av_realloc_f(frames_hwctx->texture_infos,
+                                                   s->nb_surfaces_used + 1,
+                                                   sizeof(*frames_hwctx->texture_infos));
+        if (!frames_hwctx->texture_infos) {
+            ID3D11Texture2D_Release(tex);
+            return NULL;
+        }
+        s->nb_surfaces = s->nb_surfaces_used + 1;
+    }
+
+    frames_hwctx->texture_infos[s->nb_surfaces_used].texture = tex;
+    frames_hwctx->texture_infos[s->nb_surfaces_used].index = index;
+    s->nb_surfaces_used++;
 
     desc->texture = tex;
     desc->index   = index;
@@ -198,10 +229,10 @@ static AVBufferRef *d3d11va_alloc_single(AVHWFramesContext *ctx)
         return NULL;
     }
 
-    return wrap_texture_buf(tex, 0);
+    return wrap_texture_buf(ctx, tex, 0);
 }
 
-static AVBufferRef *d3d11va_pool_alloc(void *opaque, int size)
+static AVBufferRef *d3d11va_pool_alloc(void *opaque, size_t size)
 {
     AVHWFramesContext        *ctx = (AVHWFramesContext*)opaque;
     D3D11VAFramesContext       *s = ctx->internal->priv;
@@ -219,7 +250,7 @@ static AVBufferRef *d3d11va_pool_alloc(void *opaque, int size)
     }
 
     ID3D11Texture2D_AddRef(hwctx->texture);
-    return wrap_texture_buf(hwctx->texture, s->nb_surfaces_used++);
+    return wrap_texture_buf(ctx, hwctx->texture, s->nb_surfaces_used);
 }
 
 static int d3d11va_frames_init(AVHWFramesContext *ctx)
@@ -266,13 +297,22 @@ static int d3d11va_frames_init(AVHWFramesContext *ctx)
             av_log(ctx, AV_LOG_ERROR, "User-provided texture has mismatching parameters\n");
             return AVERROR(EINVAL);
         }
-    } else if (texDesc.ArraySize > 0) {
+
+        ctx->initial_pool_size = texDesc2.ArraySize;
+        hwctx->BindFlags = texDesc2.BindFlags;
+        hwctx->MiscFlags = texDesc2.MiscFlags;
+    } else if (!(texDesc.BindFlags & D3D11_BIND_RENDER_TARGET) && texDesc.ArraySize > 0) {
         hr = ID3D11Device_CreateTexture2D(device_hwctx->device, &texDesc, NULL, &hwctx->texture);
         if (FAILED(hr)) {
             av_log(ctx, AV_LOG_ERROR, "Could not create the texture (%lx)\n", (long)hr);
             return AVERROR_UNKNOWN;
         }
     }
+
+    hwctx->texture_infos = av_realloc_f(NULL, ctx->initial_pool_size, sizeof(*hwctx->texture_infos));
+    if (!hwctx->texture_infos)
+        return AVERROR(ENOMEM);
+    s->nb_surfaces = ctx->initial_pool_size;
 
     ctx->internal->pool_internal = av_buffer_pool_init2(sizeof(AVD3D11FrameDescriptor),
                                                         ctx, d3d11va_pool_alloc, NULL);
@@ -324,7 +364,7 @@ static int d3d11va_transfer_get_formats(AVHWFramesContext *ctx,
     return 0;
 }
 
-static int d3d11va_create_staging_texture(AVHWFramesContext *ctx)
+static int d3d11va_create_staging_texture(AVHWFramesContext *ctx, DXGI_FORMAT format)
 {
     AVD3D11VADeviceContext *device_hwctx = ctx->device_ctx->hwctx;
     D3D11VAFramesContext              *s = ctx->internal->priv;
@@ -333,7 +373,7 @@ static int d3d11va_create_staging_texture(AVHWFramesContext *ctx)
         .Width          = ctx->width,
         .Height         = ctx->height,
         .MipLevels      = 1,
-        .Format         = s->format,
+        .Format         = format,
         .SampleDesc     = { .Count = 1 },
         .ArraySize      = 1,
         .Usage          = D3D11_USAGE_STAGING,
@@ -382,6 +422,7 @@ static int d3d11va_transfer_data(AVHWFramesContext *ctx, AVFrame *dst,
     D3D11_TEXTURE2D_DESC desc;
     D3D11_MAPPED_SUBRESOURCE map;
     HRESULT hr;
+    int res;
 
     if (frame->hw_frames_ctx->data != (uint8_t *)ctx || other->format != ctx->sw_format)
         return AVERROR(EINVAL);
@@ -389,7 +430,8 @@ static int d3d11va_transfer_data(AVHWFramesContext *ctx, AVFrame *dst,
     device_hwctx->lock(device_hwctx->lock_ctx);
 
     if (!s->staging_texture) {
-        int res = d3d11va_create_staging_texture(ctx);
+        ID3D11Texture2D_GetDesc((ID3D11Texture2D *)texture, &desc);
+        res = d3d11va_create_staging_texture(ctx, desc.Format);
         if (res < 0)
             return res;
     }
@@ -410,7 +452,7 @@ static int d3d11va_transfer_data(AVHWFramesContext *ctx, AVFrame *dst,
 
         fill_texture_ptrs(map_data, map_linesize, ctx, &desc, &map);
 
-        av_image_copy(dst->data, dst->linesize, map_data, map_linesize,
+        av_image_copy(dst->data, dst->linesize, (const uint8_t **)map_data, map_linesize,
                       ctx->sw_format, w, h);
 
         ID3D11DeviceContext_Unmap(device_hwctx->device_context, staging, 0);
@@ -422,7 +464,7 @@ static int d3d11va_transfer_data(AVHWFramesContext *ctx, AVFrame *dst,
 
         fill_texture_ptrs(map_data, map_linesize, ctx, &desc, &map);
 
-        av_image_copy(map_data, map_linesize, src->data, src->linesize,
+        av_image_copy(map_data, map_linesize, (const uint8_t **)src->data, src->linesize,
                       ctx->sw_format, w, h);
 
         ID3D11DeviceContext_Unmap(device_hwctx->device_context, staging, 0);

@@ -1,0 +1,4 @@
+8edcf0fd7f066972ff77d5b891ed6dde *tests/data/fate/vsynth2-snow-hpel.avi
+79798 tests/data/fate/vsynth2-snow-hpel.avi
+7e0f2a24feda6fb3e54b85511a28c45f *tests/data/fate/vsynth2-snow-hpel.out.rawvideo
+stddev:   13.35 PSNR: 25.62 MAXDIFF:  157 bytes:  7603200/  7603200

@@ -27,8 +27,9 @@
 
 #include "avcodec.h"
 #include "motion_est.h"
-#include "thread.h"
+#include "threadframe.h"
 
+#define MPEGVIDEO_MAX_PLANES 4
 #define MAX_PICTURE_COUNT 36
 #define EDGE_WIDTH 16
 
@@ -61,25 +62,14 @@ typedef struct Picture {
     AVBufferRef *ref_index_buf[2];
     int8_t *ref_index[2];
 
-    AVBufferRef *mb_var_buf;
-    uint16_t *mb_var;           ///< Table for MB variances
-
-    AVBufferRef *mc_mb_var_buf;
-    uint16_t *mc_mb_var;        ///< Table for motion compensated MB variances
-
     int alloc_mb_width;         ///< mb_width used to allocate tables
     int alloc_mb_height;        ///< mb_height used to allocate tables
-
-    AVBufferRef *mb_mean_buf;
-    uint8_t *mb_mean;           ///< Table for MB luminance
+    int alloc_mb_stride;        ///< mb_stride used to allocate tables
 
     AVBufferRef *hwaccel_priv_buf;
     void *hwaccel_picture_private; ///< Hardware accelerator private data
 
     int field_picture;          ///< whether or not the picture was encoded in separate fields
-
-    int64_t mb_var_sum;         ///< sum of MB variance for current frame
-    int64_t mc_mb_var_sum;      ///< motion compensated MB variance for current frame
 
     int b_frame_score;
     int needs_realloc;          ///< Picture needs to be reallocated (eg due to a frame size change)
@@ -87,7 +77,8 @@ typedef struct Picture {
     int reference;
     int shared;
 
-    uint64_t encoding_error[AV_NUM_DATA_POINTERS];
+    int display_picture_number;
+    int coded_picture_number;
 } Picture;
 
 /**
@@ -106,8 +97,8 @@ int ff_mpeg_framesize_alloc(AVCodecContext *avctx, MotionEstContext *me,
 int ff_mpeg_ref_picture(AVCodecContext *avctx, Picture *dst, Picture *src);
 void ff_mpeg_unref_picture(AVCodecContext *avctx, Picture *picture);
 
-void ff_free_picture_tables(Picture *pic);
-int ff_update_picture_tables(Picture *dst, Picture *src);
+void ff_mpv_picture_free(AVCodecContext *avctx, Picture *pic);
+int ff_update_picture_tables(Picture *dst, const Picture *src);
 
 int ff_find_unused_picture(AVCodecContext *avctx, Picture *picture, int shared);
 

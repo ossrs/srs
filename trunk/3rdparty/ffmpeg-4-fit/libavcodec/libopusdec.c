@@ -28,10 +28,12 @@
 #include "libavutil/opt.h"
 
 #include "avcodec.h"
+#include "codec_internal.h"
+#include "decode.h"
 #include "internal.h"
-#include "vorbis.h"
 #include "mathops.h"
 #include "libopus.h"
+#include "vorbis_data.h"
 
 struct libopus_context {
     AVClass *class;
@@ -50,74 +52,60 @@ struct libopus_context {
 static av_cold int libopus_decode_init(AVCodecContext *avc)
 {
     struct libopus_context *opus = avc->priv_data;
-    int ret, channel_map = 0, gain_db = 0, nb_streams, nb_coupled;
+    int ret, channel_map = 0, gain_db = 0, nb_streams, nb_coupled, channels;
     uint8_t mapping_arr[8] = { 0, 1 }, *mapping;
 
-    avc->channels = avc->extradata_size >= 10 ? avc->extradata[9] : (avc->channels == 1) ? 1 : 2;
-    if (avc->channels <= 0) {
+    channels = avc->extradata_size >= 10 ? avc->extradata[9] : (avc->ch_layout.nb_channels == 1) ? 1 : 2;
+    if (channels <= 0) {
         av_log(avc, AV_LOG_WARNING,
-               "Invalid number of channels %d, defaulting to stereo\n", avc->channels);
-        avc->channels = 2;
+               "Invalid number of channels %d, defaulting to stereo\n", channels);
+        channels = 2;
     }
 
     avc->sample_rate    = 48000;
     avc->sample_fmt     = avc->request_sample_fmt == AV_SAMPLE_FMT_FLT ?
                           AV_SAMPLE_FMT_FLT : AV_SAMPLE_FMT_S16;
+    av_channel_layout_uninit(&avc->ch_layout);
+    if (channels > 8) {
+        avc->ch_layout.order       = AV_CHANNEL_ORDER_UNSPEC;
+        avc->ch_layout.nb_channels = channels;
+    } else {
+        av_channel_layout_copy(&avc->ch_layout, &ff_vorbis_ch_layouts[channels - 1]);
+    }
 
     if (avc->extradata_size >= OPUS_HEAD_SIZE) {
         opus->pre_skip = AV_RL16(avc->extradata + 10);
         gain_db     = sign_extend(AV_RL16(avc->extradata + 16), 16);
         channel_map = AV_RL8 (avc->extradata + 18);
     }
-    if (avc->extradata_size >= OPUS_HEAD_SIZE + 2 + avc->channels) {
+    if (avc->extradata_size >= OPUS_HEAD_SIZE + 2 + channels) {
         nb_streams = avc->extradata[OPUS_HEAD_SIZE + 0];
         nb_coupled = avc->extradata[OPUS_HEAD_SIZE + 1];
-        if (nb_streams + nb_coupled != avc->channels)
+        if (nb_streams + nb_coupled != channels)
             av_log(avc, AV_LOG_WARNING, "Inconsistent channel mapping.\n");
         mapping = avc->extradata + OPUS_HEAD_SIZE + 2;
     } else {
-        if (avc->channels > 2 || channel_map) {
+        if (channels > 2 || channel_map) {
             av_log(avc, AV_LOG_ERROR,
-                   "No channel mapping for %d channels.\n", avc->channels);
+                   "No channel mapping for %d channels.\n", channels);
             return AVERROR(EINVAL);
         }
         nb_streams = 1;
-        nb_coupled = avc->channels > 1;
+        nb_coupled = channels > 1;
         mapping    = mapping_arr;
     }
 
-    if (channel_map == 1) {
-        avc->channel_layout = avc->channels > 8 ? 0 :
-                              ff_vorbis_channel_layouts[avc->channels - 1];
-        if (avc->channels > 2 && avc->channels <= 8) {
-            const uint8_t *vorbis_offset = ff_vorbis_channel_layout_offsets[avc->channels - 1];
-            int ch;
+    if (channels > 2 && channels <= 8) {
+        const uint8_t *vorbis_offset = ff_vorbis_channel_layout_offsets[channels - 1];
+        int ch;
 
-            /* Remap channels from Vorbis order to ffmpeg order */
-            for (ch = 0; ch < avc->channels; ch++)
-                mapping_arr[ch] = mapping[vorbis_offset[ch]];
-            mapping = mapping_arr;
-        }
-    } else if (channel_map == 2) {
-        int ambisonic_order = ff_sqrt(avc->channels) - 1;
-        if (avc->channels != (ambisonic_order + 1) * (ambisonic_order + 1) &&
-            avc->channels != (ambisonic_order + 1) * (ambisonic_order + 1) + 2) {
-            av_log(avc, AV_LOG_ERROR,
-                   "Channel mapping 2 is only specified for channel counts"
-                   " which can be written as (n + 1)^2 or (n + 2)^2 + 2"
-                   " for nonnegative integer n\n");
-            return AVERROR_INVALIDDATA;
-        }
-        if (avc->channels > 227) {
-            av_log(avc, AV_LOG_ERROR, "Too many channels\n");
-            return AVERROR_INVALIDDATA;
-        }
-        avc->channel_layout = 0;
-    } else {
-        avc->channel_layout = 0;
+        /* Remap channels from Vorbis order to ffmpeg order */
+        for (ch = 0; ch < channels; ch++)
+            mapping_arr[ch] = mapping[vorbis_offset[ch]];
+        mapping = mapping_arr;
     }
 
-    opus->dec = opus_multistream_decoder_create(avc->sample_rate, avc->channels,
+    opus->dec = opus_multistream_decoder_create(avc->sample_rate, channels,
                                                 nb_streams, nb_coupled,
                                                 mapping, &ret);
     if (!opus->dec) {
@@ -169,11 +157,10 @@ static av_cold int libopus_decode_close(AVCodecContext *avc)
 
 #define MAX_FRAME_SIZE (960 * 6)
 
-static int libopus_decode(AVCodecContext *avc, void *data,
+static int libopus_decode(AVCodecContext *avc, AVFrame *frame,
                           int *got_frame_ptr, AVPacket *pkt)
 {
     struct libopus_context *opus = avc->priv_data;
-    AVFrame *frame               = data;
     int ret, nb_samples;
 
     frame->nb_samples = MAX_FRAME_SIZE;
@@ -197,7 +184,7 @@ static int libopus_decode(AVCodecContext *avc, void *data,
 
 #ifndef OPUS_SET_GAIN
     {
-        int i = avc->channels * nb_samples;
+        int i = avc->ch_layout.nb_channels * nb_samples;
         if (avc->sample_fmt == AV_SAMPLE_FMT_FLT) {
             float *pcm = (float *)frame->data[0];
             for (; i > 0; i--, pcm++)
@@ -244,21 +231,22 @@ static const AVClass libopusdec_class = {
 };
 
 
-AVCodec ff_libopus_decoder = {
-    .name           = "libopus",
-    .long_name      = NULL_IF_CONFIG_SMALL("libopus Opus"),
-    .type           = AVMEDIA_TYPE_AUDIO,
-    .id             = AV_CODEC_ID_OPUS,
+const FFCodec ff_libopus_decoder = {
+    .p.name         = "libopus",
+    CODEC_LONG_NAME("libopus Opus"),
+    .p.type         = AVMEDIA_TYPE_AUDIO,
+    .p.id           = AV_CODEC_ID_OPUS,
     .priv_data_size = sizeof(struct libopus_context),
     .init           = libopus_decode_init,
     .close          = libopus_decode_close,
-    .decode         = libopus_decode,
+    FF_CODEC_DECODE_CB(libopus_decode),
     .flush          = libopus_flush,
-    .capabilities   = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
-    .sample_fmts    = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_FLT,
+    .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_CHANNEL_CONF,
+    .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
+                      FF_CODEC_CAP_INIT_CLEANUP,
+    .p.sample_fmts  = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_FLT,
                                                      AV_SAMPLE_FMT_S16,
                                                      AV_SAMPLE_FMT_NONE },
-    .priv_class     = &libopusdec_class,
-    .wrapper_name   = "libopus",
+    .p.priv_class   = &libopusdec_class,
+    .p.wrapper_name = "libopus",
 };

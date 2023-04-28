@@ -1,0 +1,10 @@
+d9c8efb9d64addce3cac97e6c417d985 *tests/data/fate/matroska-zero-length-block.matroska
+630 tests/data/fate/matroska-zero-length-block.matroska
+#tb 0: 1/1000
+#media_type 0: subtitle
+#codec_id 0: subrip
+0,       1000,       1000,     2000,        5, 0x05b801df
+0,       3300,       3300,     3700,       16, 0x300705b2
+[STREAM]
+TAG:DESCRIPTION=This track uses header removal compression and has a Block of size zero before reversing it.
+[/STREAM]

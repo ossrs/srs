@@ -27,38 +27,16 @@
 #ifndef AVCODEC_AC3_H
 #define AVCODEC_AC3_H
 
-#define AC3_MAX_CODED_FRAME_SIZE 3840 /* in bytes */
-#define EAC3_MAX_CHANNELS 16          /**< maximum number of channels in EAC3 */
-#define AC3_MAX_CHANNELS 7            /**< maximum number of channels, including coupling channel */
-#define CPL_CH 0                      /**< coupling channel index */
+#include <math.h>
+#include <stdint.h>
 
-#define AC3_MAX_COEFS   256
-#define AC3_BLOCK_SIZE  256
-#define AC3_MAX_BLOCKS    6
-#define AC3_FRAME_SIZE (AC3_MAX_BLOCKS * 256)
-#define AC3_WINDOW_SIZE (AC3_BLOCK_SIZE * 2)
-#define AC3_CRITICAL_BANDS 50
-#define AC3_MAX_CPL_BANDS  18
-
-#include "libavutil/opt.h"
-#include "avcodec.h"
 #include "ac3tab.h"
-
-/* exponent encoding strategy */
-#define EXP_REUSE 0
-#define EXP_NEW   1
-
-#define EXP_D15   1
-#define EXP_D25   2
-#define EXP_D45   3
 
 #ifndef USE_FIXED
 #define USE_FIXED 0
 #endif
 
 #if USE_FIXED
-
-#define FFT_FLOAT 0
 
 #define FIXR(a)                 ((int)((a) * 0 + 0.5))
 #define FIXR12(a)               ((int)((a) * 4096 + 0.5))
@@ -75,9 +53,11 @@
 #define AC3_DYNAMIC_RANGE1      0
 
 typedef int                     INTFLOAT;
+typedef unsigned int            UINTFLOAT;
 typedef int16_t                 SHORTFLOAT;
 
 #else /* USE_FIXED */
+#include "libavutil/libm.h"
 
 #define FIXR(x)                 ((float)(x))
 #define FIXR12(x)               ((float)(x))
@@ -94,6 +74,7 @@ typedef int16_t                 SHORTFLOAT;
 #define AC3_DYNAMIC_RANGE1      1.0f
 
 typedef float                   INTFLOAT;
+typedef float                   UINTFLOAT;
 typedef float                   SHORTFLOAT;
 
 #endif /* USE_FIXED */
@@ -111,109 +92,12 @@ typedef float                   SHORTFLOAT;
 #define LEVEL_ZERO              0.0000000000000000
 #define LEVEL_ONE               1.0000000000000000
 
-/** Delta bit allocation strategy */
-typedef enum {
-    DBA_REUSE = 0,
-    DBA_NEW,
-    DBA_NONE,
-    DBA_RESERVED
-} AC3DeltaStrategy;
-
-/** Channel mode (audio coding mode) */
-typedef enum {
-    AC3_CHMODE_DUALMONO = 0,
-    AC3_CHMODE_MONO,
-    AC3_CHMODE_STEREO,
-    AC3_CHMODE_3F,
-    AC3_CHMODE_2F1R,
-    AC3_CHMODE_3F1R,
-    AC3_CHMODE_2F2R,
-    AC3_CHMODE_3F2R
-} AC3ChannelMode;
-
-/** Dolby Surround mode */
-typedef enum AC3DolbySurroundMode {
-    AC3_DSURMOD_NOTINDICATED = 0,
-    AC3_DSURMOD_OFF,
-    AC3_DSURMOD_ON,
-    AC3_DSURMOD_RESERVED
-} AC3DolbySurroundMode;
-
-/** Dolby Surround EX mode */
-typedef enum AC3DolbySurroundEXMode {
-    AC3_DSUREXMOD_NOTINDICATED = 0,
-    AC3_DSUREXMOD_OFF,
-    AC3_DSUREXMOD_ON,
-    AC3_DSUREXMOD_PLIIZ
-} AC3DolbySurroundEXMode;
-
-/** Dolby Headphone mode */
-typedef enum AC3DolbyHeadphoneMode {
-    AC3_DHEADPHONMOD_NOTINDICATED = 0,
-    AC3_DHEADPHONMOD_OFF,
-    AC3_DHEADPHONMOD_ON,
-    AC3_DHEADPHONMOD_RESERVED
-} AC3DolbyHeadphoneMode;
-
-/** Preferred Stereo Downmix mode */
-typedef enum AC3PreferredStereoDownmixMode {
-    AC3_DMIXMOD_NOTINDICATED = 0,
-    AC3_DMIXMOD_LTRT,
-    AC3_DMIXMOD_LORO,
-    AC3_DMIXMOD_DPLII // reserved value in A/52, but used by encoders to indicate DPL2
-} AC3PreferredStereoDownmixMode;
-
 typedef struct AC3BitAllocParameters {
     int sr_code;
     int sr_shift;
     int slow_gain, slow_decay, fast_decay, db_per_bit, floor;
     int cpl_fast_leak, cpl_slow_leak;
 } AC3BitAllocParameters;
-
-/**
- * @struct AC3HeaderInfo
- * Coded AC-3 header values up to the lfeon element, plus derived values.
- */
-typedef struct AC3HeaderInfo {
-    /** @name Coded elements
-     * @{
-     */
-    uint16_t sync_word;
-    uint16_t crc1;
-    uint8_t sr_code;
-    uint8_t bitstream_id;
-    uint8_t bitstream_mode;
-    uint8_t channel_mode;
-    uint8_t lfe_on;
-    uint8_t frame_type;
-    int substreamid;                        ///< substream identification
-    int center_mix_level;                   ///< Center mix level index
-    int surround_mix_level;                 ///< Surround mix level index
-    uint16_t channel_map;
-    int num_blocks;                         ///< number of audio blocks
-    int dolby_surround_mode;
-    /** @} */
-
-    /** @name Derived values
-     * @{
-     */
-    uint8_t sr_shift;
-    uint16_t sample_rate;
-    uint32_t bit_rate;
-    uint8_t channels;
-    uint16_t frame_size;
-    uint64_t channel_layout;
-    /** @} */
-} AC3HeaderInfo;
-
-typedef enum {
-    EAC3_FRAME_TYPE_INDEPENDENT = 0,
-    EAC3_FRAME_TYPE_DEPENDENT,
-    EAC3_FRAME_TYPE_AC3_CONVERT,
-    EAC3_FRAME_TYPE_RESERVED
-} EAC3FrameType;
-
-void ff_ac3_common_init(void);
 
 /**
  * Calculate the log power-spectral density of the input signal.

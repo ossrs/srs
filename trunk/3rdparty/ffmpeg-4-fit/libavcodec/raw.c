@@ -24,11 +24,11 @@
  * Raw Video Codec
  */
 
+#include "libavutil/macros.h"
 #include "avcodec.h"
 #include "raw.h"
-#include "libavutil/common.h"
 
-const PixelFormatTag ff_raw_pix_fmt_tags[] = {
+static const PixelFormatTag raw_pix_fmt_tags[] = {
     { AV_PIX_FMT_YUV420P, MKTAG('I', '4', '2', '0') }, /* Planar formats */
     { AV_PIX_FMT_YUV420P, MKTAG('I', 'Y', 'U', 'V') },
     { AV_PIX_FMT_YUV420P, MKTAG('y', 'v', '1', '2') },
@@ -72,6 +72,7 @@ const PixelFormatTag ff_raw_pix_fmt_tags[] = {
     { AV_PIX_FMT_GRAY8,   MKTAG('G', 'R', 'E', 'Y') },
     { AV_PIX_FMT_NV12,    MKTAG('N', 'V', '1', '2') },
     { AV_PIX_FMT_NV21,    MKTAG('N', 'V', '2', '1') },
+    { AV_PIX_FMT_VUYA,    MKTAG('A', 'Y', 'U', 'V') }, /* MS 4:4:4:4 */
 
     /* nut */
     { AV_PIX_FMT_RGB555LE, MKTAG('R', 'G', 'B', 15) },
@@ -177,6 +178,10 @@ const PixelFormatTag ff_raw_pix_fmt_tags[] = {
     { AV_PIX_FMT_YUVA422P10BE, MKTAG(10 , 10 , '4', 'Y') },
     { AV_PIX_FMT_YUVA444P10LE, MKTAG('Y', '4',  0 , 10 ) },
     { AV_PIX_FMT_YUVA444P10BE, MKTAG(10 ,  0 , '4', 'Y') },
+    { AV_PIX_FMT_YUVA422P12LE, MKTAG('Y', '4', 10 , 12 ) },
+    { AV_PIX_FMT_YUVA422P12BE, MKTAG(12 , 10 , '4', 'Y') },
+    { AV_PIX_FMT_YUVA444P12LE, MKTAG('Y', '4',  0 , 12 ) },
+    { AV_PIX_FMT_YUVA444P12BE, MKTAG(12 ,  0 , '4', 'Y') },
     { AV_PIX_FMT_YUVA420P16LE, MKTAG('Y', '4', 11 , 16 ) },
     { AV_PIX_FMT_YUVA420P16BE, MKTAG(16 , 11 , '4', 'Y') },
     { AV_PIX_FMT_YUVA422P16LE, MKTAG('Y', '4', 10 , 16 ) },
@@ -242,6 +247,7 @@ const PixelFormatTag ff_raw_pix_fmt_tags[] = {
     { AV_PIX_FMT_GRAY16BE,MKTAG('b', '1', '6', 'g') },
     { AV_PIX_FMT_RGB48BE, MKTAG('b', '4', '8', 'r') },
     { AV_PIX_FMT_RGBA64BE,MKTAG('b', '6', '4', 'a') },
+    { AV_PIX_FMT_BAYER_RGGB16BE, MKTAG('B', 'G', 'G', 'R') },
 
     /* vlc */
     { AV_PIX_FMT_YUV410P,     MKTAG('I', '4', '1', '0') },
@@ -294,12 +300,12 @@ const PixelFormatTag ff_raw_pix_fmt_tags[] = {
 
 const struct PixelFormatTag *avpriv_get_raw_pix_fmt_tags(void)
 {
-    return ff_raw_pix_fmt_tags;
+    return raw_pix_fmt_tags;
 }
 
 unsigned int avcodec_pix_fmt_to_codec_tag(enum AVPixelFormat fmt)
 {
-    const PixelFormatTag *tags = ff_raw_pix_fmt_tags;
+    const PixelFormatTag *tags = raw_pix_fmt_tags;
     while (tags->pix_fmt >= 0) {
         if (tags->pix_fmt == fmt)
             return tags->fourcc;
@@ -308,7 +314,7 @@ unsigned int avcodec_pix_fmt_to_codec_tag(enum AVPixelFormat fmt)
     return 0;
 }
 
-const PixelFormatTag avpriv_pix_fmt_bps_avi[] = {
+static const PixelFormatTag pix_fmt_bps_avi[] = {
     { AV_PIX_FMT_PAL8,    1 },
     { AV_PIX_FMT_PAL8,    2 },
     { AV_PIX_FMT_PAL8,    4 },
@@ -321,7 +327,7 @@ const PixelFormatTag avpriv_pix_fmt_bps_avi[] = {
     { AV_PIX_FMT_NONE,    0 },
 };
 
-const PixelFormatTag avpriv_pix_fmt_bps_mov[] = {
+static const PixelFormatTag pix_fmt_bps_mov[] = {
     { AV_PIX_FMT_PAL8,      1 },
     { AV_PIX_FMT_PAL8,      2 },
     { AV_PIX_FMT_PAL8,      4 },
@@ -332,3 +338,33 @@ const PixelFormatTag avpriv_pix_fmt_bps_mov[] = {
     { AV_PIX_FMT_PAL8,     33 },
     { AV_PIX_FMT_NONE,      0 },
 };
+
+static enum AVPixelFormat find_pix_fmt(const PixelFormatTag *tags,
+                                       unsigned int fourcc)
+{
+    while (tags->pix_fmt != AV_PIX_FMT_NONE) {
+        if (tags->fourcc == fourcc)
+            return tags->pix_fmt;
+        tags++;
+    }
+    return AV_PIX_FMT_NONE;
+}
+
+enum AVPixelFormat avpriv_pix_fmt_find(enum PixelFormatTagLists list,
+                                       unsigned fourcc)
+{
+    const PixelFormatTag *tags;
+
+    switch (list) {
+    case PIX_FMT_LIST_RAW:
+        tags = raw_pix_fmt_tags;
+        break;
+    case PIX_FMT_LIST_AVI:
+        tags = pix_fmt_bps_avi;
+        break;
+    case PIX_FMT_LIST_MOV:
+        tags = pix_fmt_bps_mov;
+        break;
+    }
+    return find_pix_fmt(tags, fourcc);
+}

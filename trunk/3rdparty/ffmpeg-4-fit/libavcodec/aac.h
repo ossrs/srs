@@ -32,13 +32,12 @@
 
 
 #include "aac_defines.h"
+#include "libavutil/channel_layout.h"
 #include "libavutil/float_dsp.h"
 #include "libavutil/fixed_dsp.h"
+#include "libavutil/mem_internal.h"
+#include "libavutil/tx.h"
 #include "avcodec.h"
-#if !USE_FIXED
-#include "mdct15.h"
-#endif
-#include "fft.h"
 #include "mpeg4audio.h"
 #include "sbr.h"
 
@@ -124,8 +123,7 @@ typedef struct OutputConfiguration {
     MPEG4AudioConfig m4ac;
     uint8_t layout_map[MAX_ELEM_ID*4][3];
     int layout_map_tags;
-    int channels;
-    uint64_t channel_layout;
+    AVChannelLayout ch_layout;
     enum OCStatus status;
 } OutputConfiguration;
 
@@ -287,6 +285,11 @@ typedef struct ChannelElement {
     SpectralBandReplication sbr;
 } ChannelElement;
 
+enum AACOutputChannelOrder {
+    CHANNEL_ORDER_DEFAULT,
+    CHANNEL_ORDER_CODED,
+};
+
 /**
  * main AAC context
  */
@@ -320,16 +323,24 @@ struct AACContext {
      * @name Computed / set up during initialization
      * @{
      */
-    FFTContext mdct;
-    FFTContext mdct_small;
-    FFTContext mdct_ld;
-    FFTContext mdct_ltp;
+    AVTXContext *mdct120;
+    AVTXContext *mdct128;
+    AVTXContext *mdct480;
+    AVTXContext *mdct512;
+    AVTXContext *mdct960;
+    AVTXContext *mdct1024;
+    AVTXContext *mdct_ltp;
+
+    av_tx_fn mdct120_fn;
+    av_tx_fn mdct128_fn;
+    av_tx_fn mdct480_fn;
+    av_tx_fn mdct512_fn;
+    av_tx_fn mdct960_fn;
+    av_tx_fn mdct1024_fn;
+    av_tx_fn mdct_ltp_fn;
 #if USE_FIXED
     AVFixedDSPContext *fdsp;
 #else
-    MDCT15Context *mdct120;
-    MDCT15Context *mdct480;
-    MDCT15Context *mdct960;
     AVFloatDSPContext *fdsp;
 #endif /* USE_FIXED */
     int random_state;
@@ -351,13 +362,16 @@ struct AACContext {
     int dmono_mode;      ///< 0->not dmono, 1->use first channel, 2->use second channel
     /** @} */
 
+    enum AACOutputChannelOrder output_channel_order;
+
     DECLARE_ALIGNED(32, INTFLOAT, temp)[128];
 
     OutputConfiguration oc[2];
     int warned_num_aac_frames;
     int warned_960_sbr;
-
+    unsigned warned_71_wide;
     int warned_gain_control;
+    int warned_he_aac_mono;
 
     /* aacdec functions pointers */
     void (*imdct_and_windowing)(AACContext *ac, SingleChannelElement *sce);
@@ -368,7 +382,7 @@ struct AACContext {
                                    INTFLOAT *in, IndividualChannelStream *ics);
     void (*update_ltp)(AACContext *ac, SingleChannelElement *sce);
     void (*vector_pow43)(int *coefs, int len);
-    void (*subband_scale)(int *dst, int *src, int scale, int offset, int len);
+    void (*subband_scale)(int *dst, int *src, int scale, int offset, int len, void *log_context);
 
 };
 

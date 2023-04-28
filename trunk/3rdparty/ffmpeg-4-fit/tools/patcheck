@@ -1,0 +1,180 @@
+#!/bin/sh
+
+# if no argument provided, write stdin to a file and re-run the script
+if [ $# = 0 ]; then
+    cat > patcheck.stdout
+    $0 patcheck.stdout
+    rm -f patcheck.stdout
+    exit
+fi
+
+GREP=grep
+EGREP=egrep
+TMP=patcheck.tmp
+OPT="-nH"
+#FILES=$($GREP '^+++' $* | sed 's/+++ //g')
+
+echo patCHeck 1e10.0
+echo This tool is intended to help a human check/review patches. It is very far from
+echo being free of false positives and negatives, and its output are just hints of what
+echo may or may not be bad. When you use it and it misses something or detects
+echo something wrong, fix it and send a patch to the ffmpeg-devel mailing list.
+echo License: GPL, Author: Michael Niedermayer
+
+ERE_PRITYP='(unsigned *|)(char|short|long|int|long *int|short *int|void|float|double|(u|)int(8|16|32|64)_t)'
+ERE_TYPES='(const|static|av_cold|inline| *)*('$ERE_PRITYP'|[a-zA-Z][a-zA-Z0-9_]*)[* ]{1,}[a-zA-Z][a-zA-Z0-9_]*'
+ERE_FUNCS="$ERE_TYPES"' *\('
+
+hiegrep(){
+    arg="$1"
+    msg="$2"
+    shift 2
+    $GREP $OPT '^+' $* | $GREP -v ':+++'| $EGREP --color=always -- "$arg"> $TMP && printf "\n$msg\n"
+    cat $TMP
+}
+
+hiegrep2(){
+    arg="$1"
+    varg="$2"
+    msg="$3"
+    shift 3
+    $GREP $OPT '^+' $* | $GREP -v ':+++' | $EGREP -v -- "$varg" | $EGREP --color=always -- "$arg" > $TMP && printf "\n$msg\n"
+    cat $TMP
+}
+
+hiegrep 'static[^(]*\*[a-zA-Z_]*\[' 'pointer array is not const' $*
+hiegrep '[[:space:]]$'    'trailing whitespace' $*
+hiegrep "$(echo x | tr 'x' '\t')"         'tabs' $*
+#hiegrep ':\+$'          'Empty lines' $*
+hiegrep ';;'              'double ;' $*
+hiegrep2 '\b_[a-zA-Z0-9_]{1,}' '__(asm|attribute)([^a-zA-Z0-9]|$)' 'reserved identifer' $*
+hiegrep '//[-/<\* ]*$'    'empty comment' $*
+hiegrep '/\*[-<\* ]*\*/'  'empty comment' $*
+hiegrep '(static|inline|const) *\1[^_a-zA-Z]'  'duplicate word' $*
+hiegrep 'INIT_VLC_USE_STATIC' 'forbidden ancient vlc type' $*
+hiegrep '=[-+\*\&] ' 'looks like compound assignment' $*
+hiegrep2 '/\*\* *[a-zA-Z0-9].*' '\*/' 'Inconsistently formatted doxygen comment' $*
+hiegrep '; */\*\*[^<]' 'Misformatted doxygen comment' $*
+hiegrep '//!|/\*!' 'inconsistent doxygen syntax' $*
+
+hiegrep2 '(int|unsigned|static|void)[a-zA-Z0-9 _]*(init|end)[a-zA-Z0-9 _]*\(.*[^;]$' '(av_cold|:\+[^a-zA-Z_])' 'These functions may need av_cold, please review the whole patch for similar functions needing av_cold' $*
+
+hiegrep '\+= *1 *;'     'can be simplified to ++' $*
+hiegrep '-= *1 *;'      'can be simplified to --' $*
+hiegrep '((!|=)= *(0|NULL)[^0-9a-z]|[^0-9a-z](0|NULL) *(!|=)=)' 'x==0 / x!=0 can be simplified to !x / x' $*
+
+$EGREP $OPT '^\+ *(const *|)static' $*| $EGREP --color=always '[^=]= *(0|NULL)[^0-9a-zA-Z]'> $TMP && printf '\nuseless 0 init\n'
+cat $TMP
+hiegrep '# *ifdef * (HAVE|CONFIG)_' 'ifdefs that should be #if' $*
+
+hiegrep '\b(awnser|cant|dont|wont|doesnt|usefull|successfull|occured|teh|alot|wether|skiped|skiping|heigth|informations|colums|loosy|loosing|ouput|seperate|preceed|upto|paket|posible|unkown|inpossible|dimention|acheive|funtions|overriden|outputing|seperation|initalize|compatibilty|bistream|knwon|unknwon|choosen|additonal|gurantee|availble|wich|begining|milisecond|missmatch|threshhold)\b' 'common typos' $*
+
+hiegrep 'av_log\( *NULL' 'Missing context in av_log' $*
+hiegrep '[^sn]printf' 'Please use av_log' $*
+hiegrep '\bmalloc' 'Please use av_malloc' $*
+hiegrep '\) *av_malloc' 'useless casts' $*
+hiegrep ':\+ *'"$ERE_PRITYP"' *inline' 'non static inline or strangely ordered inline+static' $*
+hiegrep "$ERE_FUNCS"' *\)' 'missing void' $*
+hiegrep '(sprintf|strcat|strcpy)' 'Possible security issue, make sure this is safe or use snprintf/av_strl*' $*
+hiegrep '/ *(2|4|8|16|32|64|128|256|512|1024|2048|4096|8192|16384|32768|65536)[^0-9]' 'divide by 2^x could use >> maybe' $*
+hiegrep '#(el|)if *(0|1)' 'useless #if' $*
+hiegrep 'if *\( *(0|1) *\)' 'useless if()' $*
+hiegrep '& *[a-zA-Z0-9_]* *\[ *0 *\]' 'useless & [0]' $*
+hiegrep '(\( *[0-9] *(&&|\|\|)|(&&|\|\|) *[0-9] *\))' 'overriding condition' $*
+hiegrep '(:\+|,|;)( *|static|\*)*'"$ERE_PRITYP"' *\*( |\*)*(src|source|input|in[^a-z])' 'missing const?' $*
+hiegrep '(:\+|,|;)( *|static|\*)*'"$ERE_PRITYP"' *(src|source|input|in)([0-9A-Z_][0-9A-Za-z_]*){1,} *\[' 'missing const (test2)?' $*
+hiegrep ' *static *'"$ERE_FUNCS"'[^)]*\);' 'static prototype, maybe you should reorder your functions' $*
+hiegrep '@file: *[a-zA-Z0-9_]' 'doxy filetag with filename can in the future cause problems when forgotten during a rename' $*
+hiegrep '\bassert' 'Please use av_assert0, av_assert1 or av_assert2' $*
+
+hiegrep2 '\.long_name *=' 'NULL_IF_CONFIG_SMAL' 'missing NULL_IF_CONFIG_SMAL' $*
+hiegrep2 '\.pix_fmts *= *\(' 'const' 'missing const for pix_fmts array' $*
+hiegrep2 '\.sample_fmts *= *\(' 'const' 'missing const for sample_fmts array' $*
+hiegrep2 '\.supported_framerates *= *\(' 'const' 'missing const for supported_framerates array' $*
+hiegrep2 '\.channel_layouts *= *\(' 'const' 'missing const for channel_layouts array' $*
+
+#$EGREP $OPT '^\+.*const ' $*| $GREP -v 'static'> $TMP && printf '\nnon static const\n'
+#cat $TMP
+
+hiegrep2 "$ERE_TYPES" '(static|av_|ff_|typedef|:\+[^a-zA-Z_])' 'Non static with no ff_/av_ prefix' $*
+
+hiegrep ':\+[^}#]*else' 'missing } prior to else' $*
+hiegrep '(if|while|for)\(' 'missing whitespace between keyword and ( (feel free to ignore)' $*
+hiegrep '(else|do){'       'missing whitespace between keyword and { (feel free to ignore)' $*
+hiegrep '}(else|while)'    'missing whitespace between } and keyword (feel free to ignore)' $*
+
+#FIXME this should print the previous statement maybe
+hiegrep ':\+  *{ *$' '{ should be on the same line as the related previous statement' $*
+
+
+rm $TMP
+for i in $($GREP -H '^+.*@param' $*| sed 's/^\([^:]*\):.*@param\(\[.*\]\|\) *\([a-zA-Z0-9_]*\) .*$/\1:\3/') ; do
+    doxpar=$(echo $i | sed 's/^.*:\(.*\)$/\1/')
+    file=$(echo $i | sed 's/^\([^:]*\):.*$/\1/')
+    $GREP " *$doxpar *[),]" $file | $GREP -v '@param' >/dev/null || $GREP --color=always "@param *$doxpar" $file >>$TMP
+done
+if test -e $TMP ; then
+    printf '\nmismatching doxy params\n'
+    cat $TMP
+fi
+
+$EGREP -B2 $OPT '^(\+|) *('"$ERE_TYPES"'|# *define)' $* | $EGREP -A2 --color=always '(:|-)\+[^/]*/(\*([^*]|$)|/([^/]|$))' > $TMP && printf "\n Non doxy comments\n"
+cat $TMP
+
+rm $TMP
+for i in \
+    $($EGREP -H '^\+ *'"$ERE_TYPES" $*  |\
+    $GREP -v '(' | $EGREP -v '\Wgoto\W' |\
+    xargs -d '\n' -n 1 |\
+    $GREP -o '[* ][* ]*[a-zA-Z][0-9a-zA-Z_]* *[,;=]' |\
+    sed 's/.[* ]*\([a-zA-Z][0-9a-zA-Z_]*\) *[,;=]/\1/') \
+    ; do
+    echo $i | $GREP '^NULL$' && continue
+    $EGREP $i' *(\+|-|\*|/|\||&|%|)=[^=]' $* >/dev/null || echo "possibly never written:"$i >> $TMP
+    $EGREP '(=|\(|return).*'$i'(==|[^=])*$'    $* >/dev/null || echo "possibly never read   :"$i >> $TMP
+    $EGREP -o $i' *((\+|-|\*|/|\||&|%|)=[^=]|\+\+|--) *(0x|)[0-9]*(;|)'   $* |\
+           $EGREP -v $i' *= *(0x|)[0-9]{1,};'>/dev/null || echo "possibly constant     :"$i >> $TMP
+done
+if test -e $TMP ; then
+    printf '\npossibly unused variables\n'
+    cat $TMP
+fi
+
+$GREP '^+++ .*Changelog' $* >/dev/null || printf "\nMissing changelog entry (ignore if minor change)\n"
+
+cat $* | $GREP -v '^-' | tr '\n' '@' | $EGREP --color=always -o '(fprintf|av_log|printf)\([^)]*\)[+ ;@]*\1'  >$TMP && printf "\nMergeable calls\n"
+cat $TMP | tr '@' '\n'
+
+cat $* | tr '\n' '@' | $EGREP --color=always -o '\+ *if *\( *([A-Za-z0-9_]*) *[<>]=? *[0-9]* *\) * \1 *= *[0-9]* *;[ @\\+]*else *if *\( *\1 *[<>]=? *[0-9]* *\) *\1 *= *[0-9]* *;'  >$TMP && printf "\nav_clip / av_clip_uint8 / av_clip_int16 / ...\n"
+cat $TMP | tr '@' '\n'
+
+cat $* | tr '\n' '@' | $EGREP --color=always -o '\+ *if *\( *([A-Za-z0-9_]*) *[<>]=? *([A-Za-z0-9_]*) *\)[ @\\+]*(\1|\2) *= *(\1|\2) *;'  >$TMP && printf "\nFFMIN/FFMAX\n"
+cat $TMP | tr '@' '\n'
+
+cat $* | tr '\n' '@' | $EGREP --color=always -o '\+ *if *\( *([A-Za-z0-9_]*) *\)[ @\\+]*av_free(p|) *\( *(&|) *\1[^-.]'  >$TMP && printf "\nav_free(NULL) is safe\n"
+cat $TMP | tr '@' '\n'
+
+cat $* | tr '\n' '@' | $EGREP --color=always -o '[^a-zA-Z0-9_]([a-zA-Z0-9_]*) *= *av_malloc *\([^)]*\)[ @;\\+]*memset *\( *\1'  >$TMP && printf "\nav_mallocz()\n"
+cat $TMP | tr '@' '\n'
+
+
+# does not work
+#cat $* | tr '\n' '@' | $EGREP -o '[^a-zA-Z_0-9]([a-zA-Z][a-zA-Z_0-9]*) *=[^=].*\1' | $EGREP -o '[^a-zA-Z_0-9]([a-zA-Z][a-zA-Z_0-9]*) *=[^=].*\1 *=[^=]'  >$TMP && printf "\nPossibly written 2x before read\n"
+#cat $TMP | tr '@' '\n'
+
+exit
+
+TODO/idea list:
+
+for all demuxers & muxers
+    $EGREP for "avctx->priv_data"
+
+vertical align =
+/* and * align
+arrays fitting in smaller types
+variables written to twice with no interspaced read
+memset(block, 0, 6*64*sizeof(int16_t)); -> clear_blocks
+check existence of long_name in AVCodec
+check that the patch does not touch codec & (de)muxer layer at the same time ->split
+
+write a regression test containing at least a line that triggers each warning once

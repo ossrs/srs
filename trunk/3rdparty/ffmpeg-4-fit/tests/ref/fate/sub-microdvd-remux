@@ -1,0 +1,11 @@
+{DEFAULT}{}{F:Comic Sans MS}{S:30}{c:$123456}
+{1000}{1300}{c:$345678}foo|{c:$abcdef}bar|bla
+{1300}{1400}{Y:ib}{y:us}italic bold underline strike|italic bold no-underline no-strike
+{1400}{1500}back to
+{1500}{1600}the future
+{2000}{2123}{o:10,20}Some more crazy stuff
+{3350}{3390}this subtitle...
+{3390}{4000}...continues up to...
+{4000}{4500}this one.
+{4600}{4800}and now...
+{4800}{}...to the end of the presentation

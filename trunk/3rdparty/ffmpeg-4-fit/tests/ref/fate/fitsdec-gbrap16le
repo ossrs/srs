@@ -1,0 +1,8 @@
+64526d8da12d1fa07ceea5725647076f *tests/data/fate/fitsdec-gbrap16le.fits
+135360 tests/data/fate/fitsdec-gbrap16le.fits
+#tb 0: 1/1
+#media_type 0: video
+#codec_id 0: rawvideo
+#dimensions 0: 128x128
+#sar 0: 0/1
+0,          0,          0,        1,   131072, 0x487894b2

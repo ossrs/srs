@@ -1,0 +1,10 @@
+[STREAM]
+codec_name=ac3
+sample_fmt=fltp
+channels=6
+channel_layout=5.1(side)
+[SIDE_DATA]
+side_data_type=Audio Service Type
+service_type=0
+[/SIDE_DATA]
+[/STREAM]
