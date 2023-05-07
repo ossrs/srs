@@ -338,7 +338,7 @@ srs_error_t SrsDtlsCertificate::initialize()
         /*int r = */X509_digest(dtls_cert, EVP_sha256(), md, &n);
 
         for (unsigned int i = 0; i < n; i++, ++p) {
-            sprintf(p, "%02X", md[i]);
+            snprintf(p, 3, "%02X", md[i]);
             p += 2;
 
             if(i < (n-1)) {
