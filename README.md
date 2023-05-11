@@ -73,7 +73,7 @@ Please note that to convert RTMP to WebRTC, you should use the file [rtmp2rtc.co
 > Note: It is highly recommended to run SRS directly with docker([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started)), 
 > CVM([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started-cloud) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started-cloud)), 
 > or K8s([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started-k8s) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started-k8s)). 
-> However, building SRS from source code is also possible and easy. For detailed instructions, please refer to the 
+> However, compiling SRS from source code is also possible and easy. For detailed instructions, please refer to the 
 > "Getting Started"([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started)) guide.
 
 > Note: If you require HTTPS for WebRTC and modern browsers, please refer to the HTTPS API([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api#https-api) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-api#https-api)), 
