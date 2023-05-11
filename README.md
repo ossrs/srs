@@ -42,7 +42,7 @@ git clone -b develop https://gitee.com/ossrs/srs.git &&
 cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
 ```
 
-Open [http://localhost:8080/](http://localhost:8080/) to verify, and then stream using follwing
+Open [http://localhost:8080/](http://localhost:8080/) to verify, and then stream using following
 [FFmpeg](https://ffmpeg.org/download.html) command: 
 
 ```bash
