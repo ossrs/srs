@@ -581,6 +581,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
 
 SrsGoApiRtcWhip::SrsGoApiRtcWhip(SrsRtcServer* server)
 {
+    server_ = server;
     publish_ = new SrsGoApiRtcPublish(server);
     play_ = new SrsGoApiRtcPlay(server);
 }
@@ -601,7 +602,12 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     // Client stop publish.
     // TODO: FIXME: Stop and cleanup the RTC session.
     if (r->method() == SRS_CONSTS_HTTP_DELETE) {
-        srs_trace("WHIP: Delete stream %s", r->url().c_str());
+        string username = r->query_get("session");
+        SrsRtcConnection* session = server_->find_session_by_username(username);
+        if (session) session->expire();
+        srs_trace("WHIP: Delete session=%s, p=%p, url=%s", username.c_str(), session, r->url().c_str());
+
+        w->header()->set_content_length(0);
         w->write_header(SRS_CONSTS_HTTP_OK);
         return w->write(NULL, 0);
     }
@@ -620,7 +626,8 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     // Setup the content type to SDP.
     w->header()->set("Content-Type", "application/sdp");
     // The location for DELETE resource, not required by SRS, but required by WHIP.
-    w->header()->set("Location", srs_fmt("/rtc/v1/whip/?app=%s&stream=%s", ruc.req_->app.c_str(), ruc.req_->stream.c_str()));
+    w->header()->set("Location", srs_fmt("/rtc/v1/whip/?action=delete&app=%s&stream=%s&session=%s",
+        ruc.req_->app.c_str(), ruc.req_->stream.c_str(), ruc.session_id_.c_str()));
     w->header()->set_content_length((int64_t)sdp.length());
     // Must be 201, see https://datatracker.ietf.org/doc/draft-ietf-wish-whip/
     w->write_header(201);

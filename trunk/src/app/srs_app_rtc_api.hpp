@@ -58,6 +58,7 @@ private:
 class SrsGoApiRtcWhip : public ISrsHttpHandler
 {
 private:
+    SrsRtcServer* server_;
     SrsGoApiRtcPublish* publish_;
     SrsGoApiRtcPlay* play_;
 public:
