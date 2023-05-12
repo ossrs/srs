@@ -685,15 +685,26 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         ruc->req_->vhost = parsed_vhost->arg0();
     }
 
-    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, param=%s",
+    // For client to specifies whether encrypt by SRTP.
+    string srtp = r->query_get("encrypt");
+    string dtls = r->query_get("dtls");
+
+    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s, param=%s",
         action.c_str(), ruc->req_->get_stream_url().c_str(), clientip.c_str(), ruc->req_->app.c_str(), ruc->req_->stream.c_str(),
-        remote_sdp_str.length(), eip.c_str(), codec.c_str(), ruc->req_->param.c_str()
+        remote_sdp_str.length(), eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str(), ruc->req_->param.c_str()
     );
 
     ruc->eip_ = eip;
     ruc->codec_ = codec;
     ruc->publish_ = (action == "publish");
-    ruc->dtls_ = ruc->srtp_ = true;
+
+    // For client to specifies whether encrypt by SRTP.
+    ruc->dtls_ = (dtls != "false");
+    if (srtp.empty()) {
+        ruc->srtp_ = _srs_config->get_rtc_server_encrypt();
+    } else {
+        ruc->srtp_ = (srtp != "false");
+    }
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     ruc->remote_sdp_str_ = remote_sdp_str;

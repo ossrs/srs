@@ -121,6 +121,18 @@ unzip -v >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
     fi
     exit $ret;
 fi
+automake --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+    if [[ $OS_IS_CENTOS == YES ]]; then
+        echo "Please install automake by:"
+        echo "  yum install -y automake"
+    elif [[ $OS_IS_UBUNTU == YES ]]; then
+        echo "Please install automake by:"
+        echo "  apt install -y automake"
+    else
+        echo "Please install automake"
+    fi
+    exit $ret;
+fi
 if [[ $SRS_VALGRIND == YES ]]; then
     valgrind --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "Please install valgrind"; exit $ret;
