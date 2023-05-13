@@ -243,6 +243,7 @@ srs_error_t do_main(int argc, char** argv, char** envp)
 #endif
     
     if ((err = run_directly_or_daemon()) != srs_success) {
+        srs_free_global_system_ips();
         return srs_error_wrap(err, "run");
     }
 
