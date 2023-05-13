@@ -329,17 +329,20 @@ srs_error_t SrsDtlsCertificate::initialize()
 
     // Show DTLS fingerprint
     if (true) {
-        char fp[100] = {0};
-        char *p = fp;
         unsigned char md[EVP_MAX_MD_SIZE];
         unsigned int n = 0;
 
         // TODO: FIXME: Unused variable.
         /*int r = */X509_digest(dtls_cert, EVP_sha256(), md, &n);
 
+        char* fp = new char[3 * n];
+        SrsAutoFreeA(char, fp);
+        char *p = fp;
+
         for (unsigned int i = 0; i < n; i++, ++p) {
-            snprintf(p, 3, "%02X", md[i]);
-            p += 2;
+            int nb = snprintf(p, 3, "%02X", md[i]);
+            srs_assert(nb > 0 && nb < (3 * n - (p - fp)));
+            p += nb;
 
             if(i < (n-1)) {
                 *p = ':';
