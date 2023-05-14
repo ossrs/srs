@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-05-13, Merge [#3541](https://github.com/ossrs/srs/pull/3541): asan: Fix memory leak in asan by releasing global IPs when run_directly_or_daemon fails. v5.0.154 (#3541)
 * v5.0, 2023-05-12, Merge [#3539](https://github.com/ossrs/srs/pull/3539): WHIP: Improve HTTP DELETE for notifying server unpublish event. v5.0.153 (#3539)
 * v5.0, 2023-03-27, Merge [#3450](https://github.com/ossrs/srs/pull/3450): WebRTC: Error message carries the SDP when failed. v5.0.151 (#3450)
 * v5.0, 2023-03-25, Merge [#3477](https://github.com/ossrs/srs/pull/3477): Remove unneccessary NULL check in srs_freep. v5.0.150 (#3477)
