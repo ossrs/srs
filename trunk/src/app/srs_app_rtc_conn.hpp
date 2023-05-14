@@ -134,6 +134,8 @@ public:
 public:
     srs_error_t protect_rtp(void* packet, int* nb_cipher);
     srs_error_t protect_rtcp(void* packet, int* nb_cipher);
+    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
+    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 };
 
 // Plaintext transport, without DTLS or SRTP.
