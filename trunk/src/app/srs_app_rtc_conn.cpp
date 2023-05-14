@@ -218,6 +218,16 @@ srs_error_t SrsSemiSecurityTransport::protect_rtcp(void* packet, int* nb_cipher)
     return srs_success;
 }
 
+srs_error_t SrsSemiSecurityTransport::unprotect_rtp(void* packet, int* nb_plaintext)
+{
+    return srs_success;
+}
+
+srs_error_t SrsSemiSecurityTransport::unprotect_rtcp(void* packet, int* nb_plaintext)
+{
+    return srs_success;
+}
+
 SrsPlaintextTransport::SrsPlaintextTransport(ISrsRtcNetwork* s)
 {
     network_ = s;
