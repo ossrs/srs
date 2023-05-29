@@ -77,7 +77,7 @@ void ssl_on_info(const SSL* dtls, int where, int ret)
         method = "undefined";
     }
 
-    int r1 = SSL_get_error(dtls, ret);
+    int r1 = SSL_get_error(dtls, ret); ERR_clear_error();
     if (where & SSL_CB_LOOP) {
         srs_info("DTLS: method=%s state=%s(%s), where=%d, ret=%d, r1=%d", method, SSL_state_string(dtls),
             SSL_state_string_long(dtls), where, ret, r1);
@@ -525,7 +525,7 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
     for (int i = 0; i < 1024 && BIO_ctrl_pending(bio_in) > 0; i++) {
         char buf[8092];
         int r0 = SSL_read(dtls, buf, sizeof(buf));
-        int r1 = SSL_get_error(dtls, r0);
+        int r1 = SSL_get_error(dtls, r0); ERR_clear_error();
 
         if (r0 <= 0) {
             // SSL_ERROR_ZERO_RETURN
@@ -577,7 +577,7 @@ srs_error_t SrsDtlsImpl::do_handshake()
 
     // Do handshake and get the result.
     int r0 = SSL_do_handshake(dtls);
-    int r1 = SSL_get_error(dtls, r0);
+    int r1 = SSL_get_error(dtls, r0); ERR_clear_error();
 
     // Fatal SSL error, for example, no available suite when peer is DTLS 1.0 while we are DTLS 1.2.
     if (r0 < 0 && (r1 != SSL_ERROR_NONE && r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE)) {
@@ -861,7 +861,7 @@ srs_error_t SrsDtlsClientImpl::cycle()
         }
 
         // The timeout is 0, so there must be a ARQ packet to transmit in openssl.
-        r0 = BIO_reset(bio_out); int r1 = SSL_get_error(dtls, r0);
+        r0 = BIO_reset(bio_out); int r1 = SSL_get_error(dtls, r0); ERR_clear_error();
         if (r0 != 1) {
             return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset r0=%d, r1=%d", r0, r1);
         }
@@ -870,7 +870,7 @@ srs_error_t SrsDtlsClientImpl::cycle()
         // had expired, it returns 0. Otherwise, it retransmits the previous flight of handshake
         // messages and returns 1. If too many timeouts had expired without progress or an error
         // occurs, it returns -1.
-        r0 = DTLSv1_handle_timeout(dtls); r1 = SSL_get_error(dtls, r0);
+        r0 = DTLSv1_handle_timeout(dtls); r1 = SSL_get_error(dtls, r0); ERR_clear_error();
         if (r0 == 0) {
             continue; // No timeout had expired.
         }
