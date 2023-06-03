@@ -102,6 +102,8 @@ protected:
     bool handshake_done_for_us;
     // The stat for ARQ packets.
     int nn_arq_packets;
+    uint8_t last_handshake_type;
+    uint8_t last_content_type;
 public:
     SrsDtlsImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsImpl();
@@ -114,7 +116,7 @@ public:
     virtual srs_error_t on_dtls(char* data, int nb_data);
 protected:
     srs_error_t do_on_dtls(char* data, int nb_data);
-    void state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool arq);
+    void state_trace(uint8_t* data, int length, bool incoming, int r0);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
     void callback_by_ssl(std::string type, std::string desc);

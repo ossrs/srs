@@ -50,7 +50,6 @@ unsigned int dtls_timer_cb(SSL* dtls, unsigned int previous_us)
     // limit the timeout in [50ms, 30s].
     timeout_us = srs_max(timeout_us, 50 * 1000);
     timeout_us = srs_min(timeout_us, 30 * 1000 * 1000);
-
     srs_info("DTLS: ARQ timer cb timeout=%ums, previous=%ums", timeout_us/1000, previous_us/1000);
 
     return timeout_us;
@@ -395,8 +394,9 @@ SrsDtlsImpl::SrsDtlsImpl(ISrsDtlsCallback* callback)
 
     callback_ = callback;
     handshake_done_for_us = false;
-
     nn_arq_packets = 0;
+    last_handshake_type = 0;
+    last_content_type = 0;
 
     version_ = SrsDtlsVersionAuto;
 }
@@ -443,8 +443,18 @@ srs_error_t SrsDtlsImpl::write_dtls_data(void* data, int size)
             srs_string_dumps_hex((char*)data, size, 32).c_str());
     }
 
+    // change_cipher_spec(20), alert(21), handshake(22), application_data(23)
+    // @see https://tools.ietf.org/html/rfc2246#section-6.2.1
+    uint8_t content_type = size >= 1 ? ((uint8_t*)data)[0] : 0;
+    uint8_t handshake_type = size >= 14 ? ((uint8_t*)data)[13] : 0;
+    if (content_type && handshake_type && last_content_type == content_type && last_handshake_type == handshake_type) {
+        nn_arq_packets++;
+    }
+    last_content_type = content_type;
+    last_handshake_type = handshake_type;
+
     // Logging when got SSL original data.
-    state_trace((uint8_t*)data, size, false, 0, 0, false);
+    state_trace((uint8_t*)data, size, false, 0);
 
     return err;
 }
@@ -574,13 +584,17 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
         // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
         return srs_error_new(ERROR_OpenSslBIOWrite, "BIO_write r0=%d", r0);
     }
-    state_trace((uint8_t*)data, nb_data, true, r0, SSL_ERROR_NONE, false);
+    state_trace((uint8_t*)data, nb_data, true, r0);
 
     // If there is data available in bio_in, use SSL_read to allow SSL to process it.
     char buf[kRtpPacketSize];
     r0 = SSL_read(dtls, buf, sizeof(buf));
     int r1 = SSL_get_error(dtls, r0); ERR_clear_error();
-    if (r0 > 0) {
+    if (r0 <= 0) {
+        if (r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE && r1 != SSL_ERROR_ZERO_RETURN) {
+            return srs_error_new(ERROR_RTC_DTLS, "DTLS: read r0=%d, r1=%d, done=%d", r0, r1, handshake_done_for_us);
+        }
+    } else if (r0 > 0) {
         srs_trace("DTLS: read r0=%d, r1=%d, padding=%d, done=%d, data=[%s]",
             r0, r1, BIO_ctrl_pending(bio_in), handshake_done_for_us, srs_string_dumps_hex(buf, r0, 32).c_str());
 
@@ -601,7 +615,7 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
     return err;
 }
 
-void SrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool arq)
+void SrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0)
 {
     // change_cipher_spec(20), alert(21), handshake(22), application_data(23)
     // @see https://tools.ietf.org/html/rfc2246#section-6.2.1
@@ -620,9 +634,9 @@ void SrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0, 
         handshake_type = (uint8_t)data[13];
     }
 
-    srs_trace("DTLS: State %s %s, done=%u, arq=%u/%u, r0=%d, r1=%d, len=%u, cnt=%u, size=%u, hs=%u",
-        (is_dtls_client()? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us, arq,
-        nn_arq_packets, r0, r1, length, content_type, size, handshake_type);
+    srs_trace("DTLS: State %s %s, done=%u, arq=%u, r0=%d, len=%u, cnt=%u, size=%u, hs=%u",
+        (is_dtls_client()? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us,
+        nn_arq_packets, r0, length, content_type, size, handshake_type);
 }
 
 const int SRTP_MASTER_KEY_KEY_LEN = 16;
@@ -744,6 +758,7 @@ void SrsDtlsClientImpl::stop_arq()
     srs_freep(trd);
 }
 
+// The timeout is set by dtls_timer_cb.
 srs_error_t SrsDtlsClientImpl::cycle()
 {
     srs_error_t err = srs_success;
@@ -778,6 +793,12 @@ srs_error_t SrsDtlsClientImpl::cycle()
 
         // There is timeout to wait, so we should wait, because there is no packet in openssl.
         if (timeout > 0) {
+            // Sleeping for an excessively long period of time may result in a significant slowdown
+            // of the ARQ, even if the timeout is reset by the receipt of a packet. To ensure timely
+            // response, it is recommended to decrease the timeout duration and increase the frequency
+            // of checks.
+            timeout = srs_min(timeout, 100 * SRS_UTIME_MILLISECONDS);
+            srs_info("DTLS: ARQ wait timeout=%dms, to=%dms, r0=%d", srsu2msi(timeout), srsu2msi(to.tv_sec + to.tv_usec), r0);
             srs_usleep(timeout);
             continue;
         }
