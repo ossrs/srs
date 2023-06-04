@@ -2148,6 +2148,122 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_After_ClientHello(t *testing.T) {
 	}
 }
 
+// The srs-server is DTLS server, srs-bench is DTLS client which is active mode.
+// This case is used to test the corruption of DTLS packets, which is expected to result in a failed handshake. In this
+// case, we corrupt the ClientHello packet sent by srs-bench.
+// Note that the passive mode is not being tested as the focus is solely on testing srs-server.
+//
+//     [Corrupt] No.1  srs-bench: ClientHello(Epoch=0, Sequence=0), change length from 129 to 0xf.
+//     No.2 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
+func TestRtcDTLS_ClientActive_Corrupt_ClientHello(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	r0 := fmt.Errorf("DTLS should failed.")
+	err := func() error {
+		streamSuffix := fmt.Sprintf("dtls-active-corrupt-client-hello-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupActive
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		p.onDTLSStateChange = func(state webrtc.DTLSTransportState) {
+			if state == webrtc.DTLSTransportStateFailed {
+				logger.Tf(ctx, "Got expected DTLS failed message, reset err to ok")
+				r0, p.ignorePCStateError, p.ignoreDTLSStateError = nil, true, true
+				cancel()
+			}
+		}
+
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			nnClientHello := 0
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				b, chunk, parsed, record, err := newChunkAll(c)
+				if !parsed || chunk.chunk != chunkTypeDTLS || chunk.content != dtlsContentTypeHandshake ||
+					chunk.handshake != dtlsHandshakeTypeClientHello || err != nil {
+					return true
+				}
+
+				b[14], b[15], b[16], nnClientHello = 0, 0, 0xf, nnClientHello+1
+				logger.Tf(ctx, "NN=%v, Chunk %v, %v, %v bytes", nnClientHello, chunk, record, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()
+	if err := filterTestError(ctx.Err(), err, r0); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// The srs-server is DTLS server, srs-bench is DTLS client which is active mode.
+// This case is used to test the corruption of DTLS packets, which is expected to result in a failed handshake. In this
+// case, we corrupt the ClientHello packet sent by srs-bench.
+// Note that the passive mode is not being tested as the focus is solely on testing srs-server.
+//
+//     No.1  srs-bench: ClientHello
+//     No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//     [Corrupt] No.3  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//     No.4 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
+// [Corrupt] No.1  srs-bench: ClientHello(Epoch=0, Sequence=0), change length from 129 to 0xf.
+// No.2 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
+func TestRtcDTLS_ClientActive_Corrupt_Certificate(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	r0 := fmt.Errorf("DTLS should failed.")
+	err := func() error {
+		streamSuffix := fmt.Sprintf("dtls-active-corrupt-certificate-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupActive
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		p.onDTLSStateChange = func(state webrtc.DTLSTransportState) {
+			if state == webrtc.DTLSTransportStateFailed {
+				logger.Tf(ctx, "Got expected DTLS failed message, reset err to ok")
+				r0, p.ignorePCStateError, p.ignoreDTLSStateError = nil, true, true
+				cancel()
+			}
+		}
+
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			nnClientHello := 0
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				b, chunk, parsed, record, err := newChunkAll(c)
+				if !parsed || chunk.chunk != chunkTypeDTLS || chunk.content != dtlsContentTypeHandshake ||
+					chunk.handshake != dtlsHandshakeTypeCertificate || err != nil {
+					return true
+				}
+
+				b[14], b[15], b[16], nnClientHello = 0, 0, 0xf, nnClientHello+1
+				logger.Tf(ctx, "NN=%v, Chunk %v, %v, %v bytes", nnClientHello, chunk, record, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()
+	if err := filterTestError(ctx.Err(), err, r0); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
 func TestRTCServerVersion(t *testing.T) {
 	api := fmt.Sprintf("http://%v:1985/api/v1/versions", *srsServer)
 	req, err := http.NewRequest("POST", api, nil)

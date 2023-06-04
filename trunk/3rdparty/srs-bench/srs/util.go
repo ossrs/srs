@@ -471,6 +471,13 @@ func (v dtlsHandshakeType) String() string {
 	}
 }
 
+func newChunkAll(c vnet.Chunk) ([]byte, *chunkMessageType, bool, *dtlsRecord, error) {
+	b := c.UserData()
+	chunk, parsed := newChunkMessageType(c)
+	record, err := newDTLSRecord(c.UserData())
+	return b, chunk, parsed, record, err
+}
+
 type chunkMessageType struct {
 	chunk     chunkType
 	content   dtlsContentType
@@ -1022,8 +1029,19 @@ func createLargeEcdsaCertificate(p *testPublisher) error {
 }
 
 type testPublisher struct {
-	onOffer        func(s *webrtc.SessionDescription) error
-	onAnswer       func(s *webrtc.SessionDescription) error
+	// When got offer.
+	onOffer func(s *webrtc.SessionDescription) error
+	// When got answer.
+	onAnswer func(s *webrtc.SessionDescription) error
+	// Whether ignore any PC state error, for error scenario test.
+	ignorePCStateError bool
+	// When PC state change.
+	onPeerConnectionStateChange func(state webrtc.PeerConnectionState)
+	// Whether ignore any DTLS error, for error scenario test.
+	ignoreDTLSStateError bool
+	// When DTLS state change.
+	onDTLSStateChange func(state webrtc.DTLSTransportState)
+	// When ICE is ready.
 	iceReadyCancel context.CancelFunc
 	// internal objects
 	aIngester *audioIngester
@@ -1213,9 +1231,15 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 	var finalErr error
 	if v.aIngester != nil {
 		v.aIngester.sAudioSender.Transport().OnStateChange(func(state webrtc.DTLSTransportState) {
+			if v.onDTLSStateChange != nil {
+				v.onDTLSStateChange(state)
+			}
 			logger.Tf(ctx, "DTLS state %v", state)
+
 			if state == webrtc.DTLSTransportStateFailed {
-				finalErr = errors.Errorf("DTLS failed")
+				if !v.ignoreDTLSStateError {
+					finalErr = errors.Errorf("DTLS failed")
+				}
 				cancel()
 			}
 		})
@@ -1223,6 +1247,9 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 
 	pcDone, pcDoneCancel := context.WithCancel(context.Background())
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
+		if v.onPeerConnectionStateChange != nil {
+			v.onPeerConnectionStateChange(state)
+		}
 		logger.Tf(ctx, "PC state %v", state)
 
 		if state == webrtc.PeerConnectionStateConnected {
@@ -1233,7 +1260,7 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 		}
 
 		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
-			if finalErr == nil {
+			if finalErr == nil && !v.ignorePCStateError {
 				finalErr = errors.Errorf("Close for PC state %v", state)
 			}
 			cancel()
