@@ -734,6 +734,238 @@ func TestRtcDTLS_ClientPassive_Default(t *testing.T) {
 	}
 }
 
+// The srs-server is DTLS server(passive), srs-bench is DTLS client which is active mode.
+//
+//	No.1  srs-bench: ClientHello
+//	No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4 srs-server: ChangeCipherSpec, Finished
+//
+// We utilized a large certificate to evaluate DTLS, which resulted in the fragmentation of the protocol.
+func TestRtcDTLS_ClientActive_With_Large_Rsa_Certificate(t *testing.T) {
+	if err := filterTestError(func() error {
+		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupActive
+			return nil
+		}, createLargeRsaCertificate)
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			var nnRTCP, nnRTP int64
+			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
+				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(newRTCPInterceptor(func(i *rtcpInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(*srsPublishOKPackets) && nnRTP >= int64(*srsPublishOKPackets) {
+						cancel() // Send enough packets, done.
+					}
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
+				}
+			}))
+		}, func(api *testWebRTCAPI) {
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				chunk, parsed := newChunkMessageType(c)
+				if !parsed {
+					return true
+				}
+				logger.Tf(ctx, "Chunk %v, ok=%v %v bytes", chunk, ok, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// The srs-server is DTLS client(client), srs-bench is DTLS server which is passive mode.
+//
+//	No.1 srs-server: ClientHello
+//	No.2  srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3 srs-server: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4  srs-bench: ChangeCipherSpec, Finished
+//
+// We utilized a large certificate to evaluate DTLS, which resulted in the fragmentation of the protocol.
+func TestRtcDTLS_ClientPassive_With_Large_Rsa_Certificate(t *testing.T) {
+	if err := filterTestError(func() error {
+		streamSuffix := fmt.Sprintf("dtls-active-no-arq-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupPassive
+			return nil
+		}, createLargeRsaCertificate)
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			var nnRTCP, nnRTP int64
+			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
+				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(newRTCPInterceptor(func(i *rtcpInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(*srsPublishOKPackets) && nnRTP >= int64(*srsPublishOKPackets) {
+						cancel() // Send enough packets, done.
+					}
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
+				}
+			}))
+		}, func(api *testWebRTCAPI) {
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				chunk, parsed := newChunkMessageType(c)
+				if !parsed {
+					return true
+				}
+				logger.Tf(ctx, "Chunk %v, ok=%v %v bytes", chunk, ok, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// The srs-server is DTLS server(passive), srs-bench is DTLS client which is active mode.
+//
+//	No.1  srs-bench: ClientHello
+//	No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4 srs-server: ChangeCipherSpec, Finished
+//
+// We utilized a large certificate to evaluate DTLS, which resulted in the fragmentation of the protocol.
+func TestRtcDTLS_ClientActive_With_Large_Ecdsa_Certificate(t *testing.T) {
+	if err := filterTestError(func() error {
+		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupActive
+			return nil
+		}, createLargeEcdsaCertificate)
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			var nnRTCP, nnRTP int64
+			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
+				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(newRTCPInterceptor(func(i *rtcpInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(*srsPublishOKPackets) && nnRTP >= int64(*srsPublishOKPackets) {
+						cancel() // Send enough packets, done.
+					}
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
+				}
+			}))
+		}, func(api *testWebRTCAPI) {
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				chunk, parsed := newChunkMessageType(c)
+				if !parsed {
+					return true
+				}
+				logger.Tf(ctx, "Chunk %v, ok=%v %v bytes", chunk, ok, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// The srs-server is DTLS client(client), srs-bench is DTLS server which is passive mode.
+//
+//	No.1 srs-server: ClientHello
+//	No.2  srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3 srs-server: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4  srs-bench: ChangeCipherSpec, Finished
+//
+// We utilized a large certificate to evaluate DTLS, which resulted in the fragmentation of the protocol.
+func TestRtcDTLS_ClientPassive_With_Large_Ecdsa_Certificate(t *testing.T) {
+	if err := filterTestError(func() error {
+		streamSuffix := fmt.Sprintf("dtls-active-no-arq-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupPassive
+			return nil
+		}, createLargeEcdsaCertificate)
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			var nnRTCP, nnRTP int64
+			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
+				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(newRTCPInterceptor(func(i *rtcpInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(*srsPublishOKPackets) && nnRTP >= int64(*srsPublishOKPackets) {
+						cancel() // Send enough packets, done.
+					}
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
+				}
+			}))
+		}, func(api *testWebRTCAPI) {
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				chunk, parsed := newChunkMessageType(c)
+				if !parsed {
+					return true
+				}
+				logger.Tf(ctx, "Chunk %v, ok=%v %v bytes", chunk, ok, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
 // The srs-server is DTLS server, srs-bench is DTLS client which is active mode.
 // When srs-bench close the PC, it will send DTLS alert and might retransmit it.
 func TestRtcDTLS_ClientActive_Duplicated_Alert(t *testing.T) {
