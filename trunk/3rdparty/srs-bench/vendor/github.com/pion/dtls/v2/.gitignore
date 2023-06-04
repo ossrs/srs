@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+# SPDX-License-Identifier: MIT
+
 ### JetBrains IDE ###
 #####################
 .idea/
@@ -22,3 +25,4 @@ cover.out
 *.wasm
 examples/sfu-ws/cert.pem
 examples/sfu-ws/key.pem
+wasm_exec.js

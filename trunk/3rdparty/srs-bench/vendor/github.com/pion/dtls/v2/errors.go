@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package dtls
 
 import (
@@ -10,14 +13,13 @@ import (
 
 	"github.com/pion/dtls/v2/pkg/protocol"
 	"github.com/pion/dtls/v2/pkg/protocol/alert"
-	"golang.org/x/xerrors"
 )
 
 // Typed errors
 var (
 	ErrConnClosed = &FatalError{Err: errors.New("conn is closed")} //nolint:goerr113
 
-	errDeadlineExceeded   = &TimeoutError{Err: xerrors.Errorf("read/write timeout: %w", context.DeadlineExceeded)}
+	errDeadlineExceeded   = &TimeoutError{Err: fmt.Errorf("read/write timeout: %w", context.DeadlineExceeded)}
 	errInvalidContentType = &TemporaryError{Err: errors.New("invalid content type")} //nolint:goerr113
 
 	errBufferTooSmall               = &TemporaryError{Err: errors.New("buffer is too small")}                                        //nolint:goerr113
@@ -55,6 +57,7 @@ var (
 	errServerNoMatchingSRTPProfile       = &FatalError{Err: errors.New("client requested SRTP but we have no matching profiles")}                                   //nolint:goerr113
 	errServerRequiredButNoClientEMS      = &FatalError{Err: errors.New("server requires the Extended Master Secret extension, but the client does not support it")} //nolint:goerr113
 	errVerifyDataMismatch                = &FatalError{Err: errors.New("expected and actual verify data does not match")}                                           //nolint:goerr113
+	errNotAcceptableCertificateChain     = &FatalError{Err: errors.New("certificate chain is not signed by an acceptable CA")}                                      //nolint:goerr113
 
 	errInvalidFlight                     = &InternalError{Err: errors.New("invalid flight number")}                           //nolint:goerr113
 	errKeySignatureGenerateUnimplemented = &InternalError{Err: errors.New("unable to generate key signature, unimplemented")} //nolint:goerr113
@@ -62,6 +65,8 @@ var (
 	errLengthMismatch                    = &InternalError{Err: errors.New("data length and declared length do not match")}    //nolint:goerr113
 	errSequenceNumberOverflow            = &InternalError{Err: errors.New("sequence number overflow")}                        //nolint:goerr113
 	errInvalidFSMTransition              = &InternalError{Err: errors.New("invalid state machine transition")}                //nolint:goerr113
+	errFailedToAccessPoolReadBuffer      = &InternalError{Err: errors.New("failed to access pool read buffer")}               //nolint:goerr113
+	errFragmentBufferOverflow            = &InternalError{Err: errors.New("fragment buffer overflow")}                        //nolint:goerr113
 )
 
 // FatalError indicates that the DTLS connection is no longer available.
@@ -81,37 +86,39 @@ type TimeoutError = protocol.TimeoutError
 // HandshakeError indicates that the handshake failed.
 type HandshakeError = protocol.HandshakeError
 
-// invalidCipherSuite indicates an attempt at using an unsupported cipher suite.
-type invalidCipherSuite struct {
+// errInvalidCipherSuite indicates an attempt at using an unsupported cipher suite.
+type invalidCipherSuiteError struct {
 	id CipherSuiteID
 }
 
-func (e *invalidCipherSuite) Error() string {
+func (e *invalidCipherSuiteError) Error() string {
 	return fmt.Sprintf("CipherSuite with id(%d) is not valid", e.id)
 }
 
-func (e *invalidCipherSuite) Is(err error) bool {
-	if other, ok := err.(*invalidCipherSuite); ok {
+func (e *invalidCipherSuiteError) Is(err error) bool {
+	var other *invalidCipherSuiteError
+	if errors.As(err, &other) {
 		return e.id == other.id
 	}
 	return false
 }
 
 // errAlert wraps DTLS alert notification as an error
-type errAlert struct {
+type alertError struct {
 	*alert.Alert
 }
 
-func (e *errAlert) Error() string {
+func (e *alertError) Error() string {
 	return fmt.Sprintf("alert: %s", e.Alert.String())
 }
 
-func (e *errAlert) IsFatalOrCloseNotify() bool {
+func (e *alertError) IsFatalOrCloseNotify() bool {
 	return e.Level == alert.Fatal || e.Description == alert.CloseNotify
 }
 
-func (e *errAlert) Is(err error) bool {
-	if other, ok := err.(*errAlert); ok {
+func (e *alertError) Is(err error) bool {
+	var other *alertError
+	if errors.As(err, &other) {
 		return e.Level == other.Level && e.Description == other.Description
 	}
 	return false
@@ -119,14 +126,20 @@ func (e *errAlert) Is(err error) bool {
 
 // netError translates an error from underlying Conn to corresponding net.Error.
 func netError(err error) error {
-	switch err {
-	case io.EOF, context.Canceled, context.DeadlineExceeded:
+	switch {
+	case errors.Is(err, io.EOF), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		// Return io.EOF and context errors as is.
 		return err
 	}
-	switch e := err.(type) {
-	case (*net.OpError):
-		if se, ok := e.Err.(*os.SyscallError); ok {
+
+	var (
+		ne      net.Error
+		opError *net.OpError
+		se      *os.SyscallError
+	)
+
+	if errors.As(err, &opError) {
+		if errors.As(opError, &se) {
 			if se.Timeout() {
 				return &TimeoutError{Err: err}
 			}
@@ -134,8 +147,11 @@ func netError(err error) error {
 				return &TemporaryError{Err: err}
 			}
 		}
-	case (net.Error):
+	}
+
+	if errors.As(err, &ne) {
 		return err
 	}
+
 	return &FatalError{Err: err}
 }

@@ -2,9 +2,8 @@ package sctp
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 // errorCauseCode is a cause code that appears in either a ERROR or ABORT chunk
@@ -19,6 +18,11 @@ type errorCause interface {
 	errorCauseCode() errorCauseCode
 }
 
+// Error and abort chunk errors
+var (
+	ErrBuildErrorCaseHandle = errors.New("BuildErrorCause does not handle")
+)
+
 // buildErrorCause delegates the building of a error cause from raw bytes to the correct structure
 func buildErrorCause(raw []byte) (errorCause, error) {
 	var e errorCause
@@ -31,13 +35,16 @@ func buildErrorCause(raw []byte) (errorCause, error) {
 		e = &errorCauseUnrecognizedChunkType{}
 	case protocolViolation:
 		e = &errorCauseProtocolViolation{}
+	case userInitiatedAbort:
+		e = &errorCauseUserInitiatedAbort{}
 	default:
-		return nil, errors.Errorf("BuildErrorCause does not handle %s", c.String())
+		return nil, fmt.Errorf("%w: %s", ErrBuildErrorCaseHandle, c.String())
 	}
 
 	if err := e.unmarshal(raw); err != nil {
 		return nil, err
 	}
+
 	return e, nil
 }
 

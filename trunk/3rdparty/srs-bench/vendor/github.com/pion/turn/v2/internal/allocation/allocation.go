@@ -4,6 +4,7 @@ package allocation
 import (
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pion/logging"
@@ -11,6 +12,11 @@ import (
 	"github.com/pion/turn/v2/internal/ipnet"
 	"github.com/pion/turn/v2/internal/proto"
 )
+
+type allocationResponse struct {
+	transactionID [stun.TransactionIDSize]byte
+	responseAttrs []stun.Setter
+}
 
 // Allocation is tied to a FiveTuple and relays traffic
 // use CreateAllocation and GetAllocation to operate
@@ -27,6 +33,12 @@ type Allocation struct {
 	lifetimeTimer       *time.Timer
 	closed              chan interface{}
 	log                 logging.LeveledLogger
+
+	// some clients (Firefox or others using resiprocate's nICE lib) may retry allocation
+	// with same 5 tuple when received 413, for compatible with these clients,
+	// cache for response lost and client retry to implement 'stateless stack approach'
+	// https://datatracker.ietf.org/doc/html/rfc5766#section-6.2
+	responseCache atomic.Value // *allocationResponse
 }
 
 func addr2IPFingerprint(addr net.Addr) string {
@@ -36,7 +48,7 @@ func addr2IPFingerprint(addr net.Addr) string {
 	case *net.TCPAddr: // Do we really need this case?
 		return a.IP.String()
 	}
-	return "" // shoud never happen
+	return "" // should never happen
 }
 
 // NewAllocation creates a new instance of NewAllocation.
@@ -164,6 +176,22 @@ func (a *Allocation) Refresh(lifetime time.Duration) {
 	}
 }
 
+// SetResponseCache cache allocation response for retransmit allocation request
+func (a *Allocation) SetResponseCache(transactionID [stun.TransactionIDSize]byte, attrs []stun.Setter) {
+	a.responseCache.Store(&allocationResponse{
+		transactionID: transactionID,
+		responseAttrs: attrs,
+	})
+}
+
+// GetResponseCache return response cache for retransmit allocation request
+func (a *Allocation) GetResponseCache() (id [stun.TransactionIDSize]byte, attrs []stun.Setter) {
+	if res, ok := a.responseCache.Load().(*allocationResponse); ok && res != nil {
+		id, attrs = res.transactionID, res.responseAttrs
+	}
+	return
+}
+
 // Close closes the allocation
 func (a *Allocation) Close() error {
 	select {
@@ -210,7 +238,7 @@ func (a *Allocation) Close() error {
 //  transport address of the received UDP datagram.  The Data indication
 //  is then sent on the 5-tuple associated with the allocation.
 
-const rtpMTU = 1500
+const rtpMTU = 1600
 
 func (a *Allocation) packetHandler(m *Manager) {
 	buffer := make([]byte, rtpMTU)
@@ -238,13 +266,19 @@ func (a *Allocation) packetHandler(m *Manager) {
 				a.log.Errorf("Failed to send ChannelData from allocation %v %v", srcAddr, err)
 			}
 		} else if p := a.GetPermission(srcAddr); p != nil {
-			udpAddr := srcAddr.(*net.UDPAddr)
+			udpAddr, ok := srcAddr.(*net.UDPAddr)
+			if !ok {
+				a.log.Errorf("Failed to send DataIndication from allocation %v %v", srcAddr, err)
+				return
+			}
+
 			peerAddressAttr := proto.PeerAddress{IP: udpAddr.IP, Port: udpAddr.Port}
 			dataAttr := proto.Data(buffer[:n])
 
 			msg, err := stun.Build(stun.TransactionID, stun.NewType(stun.MethodData, stun.ClassIndication), peerAddressAttr, dataAttr)
 			if err != nil {
 				a.log.Errorf("Failed to send DataIndication from allocation %v %v", srcAddr, err)
+				return
 			}
 			a.log.Debugf("relaying message from %s to client at %s",
 				srcAddr.String(),

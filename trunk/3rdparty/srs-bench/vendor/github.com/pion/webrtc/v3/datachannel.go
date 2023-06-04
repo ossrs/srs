@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
+//go:build !js
 // +build !js
 
 package webrtc
@@ -48,6 +52,8 @@ type DataChannel struct {
 	onMessageHandler    func(DataChannelMessage)
 	openHandlerOnce     sync.Once
 	onOpenHandler       func()
+	dialHandlerOnce     sync.Once
+	onDialHandler       func()
 	onCloseHandler      func()
 	onBufferedAmountLow func()
 	onErrorHandler      func(error)
@@ -64,7 +70,7 @@ type DataChannel struct {
 // This constructor is part of the ORTC API. It is not
 // meant to be used together with the basic WebRTC API.
 func (api *API) NewDataChannel(transport *SCTPTransport, params *DataChannelParameters) (*DataChannel, error) {
-	d, err := api.newDataChannel(params, api.settingEngine.LoggerFactory.NewLogger("ortc"))
+	d, err := api.newDataChannel(params, nil, api.settingEngine.LoggerFactory.NewLogger("ortc"))
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +85,14 @@ func (api *API) NewDataChannel(transport *SCTPTransport, params *DataChannelPara
 
 // newDataChannel is an internal constructor for the data channel used to
 // create the DataChannel object before the networking is set up.
-func (api *API) newDataChannel(params *DataChannelParameters, log logging.LeveledLogger) (*DataChannel, error) {
+func (api *API) newDataChannel(params *DataChannelParameters, sctpTransport *SCTPTransport, log logging.LeveledLogger) (*DataChannel, error) {
 	// https://w3c.github.io/webrtc-pc/#peer-to-peer-data-api (Step #5)
 	if len(params.Label) > 65535 {
 		return nil, &rtcerr.TypeError{Err: ErrStringSizeLimit}
 	}
 
 	d := &DataChannel{
+		sctpTransport:     sctpTransport,
 		statsID:           fmt.Sprintf("DataChannel-%d", time.Now().UnixNano()),
 		label:             params.Label,
 		protocol:          params.Protocol,
@@ -104,19 +111,17 @@ func (api *API) newDataChannel(params *DataChannelParameters, log logging.Levele
 
 // open opens the datachannel over the sctp transport
 func (d *DataChannel) open(sctpTransport *SCTPTransport) error {
+	association := sctpTransport.association()
+	if association == nil {
+		return errSCTPNotEstablished
+	}
+
 	d.mu.Lock()
-	if d.sctpTransport != nil {
-		// already open
+	if d.sctpTransport != nil { // already open
 		d.mu.Unlock()
 		return nil
 	}
 	d.sctpTransport = sctpTransport
-
-	if err := d.ensureSCTP(); err != nil {
-		d.mu.Unlock()
-		return err
-	}
-
 	var channelType datachannel.ChannelType
 	var reliabilityParameter uint32
 
@@ -155,13 +160,17 @@ func (d *DataChannel) open(sctpTransport *SCTPTransport) error {
 	}
 
 	if d.id == nil {
-		err := d.sctpTransport.generateAndSetDataChannelID(d.sctpTransport.dtlsTransport.role(), &d.id)
+		// avoid holding lock when generating ID, since id generation locks
+		d.mu.Unlock()
+		var dcID *uint16
+		err := d.sctpTransport.generateAndSetDataChannelID(d.sctpTransport.dtlsTransport.role(), &dcID)
 		if err != nil {
 			return err
 		}
+		d.mu.Lock()
+		d.id = dcID
 	}
-
-	dc, err := datachannel.Dial(d.sctpTransport.association, *d.id, cfg)
+	dc, err := datachannel.Dial(association, *d.id, cfg)
 	if err != nil {
 		d.mu.Unlock()
 		return err
@@ -172,20 +181,8 @@ func (d *DataChannel) open(sctpTransport *SCTPTransport) error {
 	dc.OnBufferedAmountLow(d.onBufferedAmountLow)
 	d.mu.Unlock()
 
-	d.handleOpen(dc)
-	return nil
-}
-
-func (d *DataChannel) ensureSCTP() error {
-	if d.sctpTransport == nil {
-		return errSCTPNotEstablished
-	}
-
-	d.sctpTransport.lock.RLock()
-	defer d.sctpTransport.lock.RUnlock()
-	if d.sctpTransport.association == nil {
-		return errSCTPNotEstablished
-	}
+	d.onDial()
+	d.handleOpen(dc, false, d.negotiated)
 	return nil
 }
 
@@ -238,6 +235,30 @@ func (d *DataChannel) onOpen() {
 	}
 }
 
+// OnDial sets an event handler which is invoked when the
+// peer has been dialed, but before said peer has responsed
+func (d *DataChannel) OnDial(f func()) {
+	d.mu.Lock()
+	d.dialHandlerOnce = sync.Once{}
+	d.onDialHandler = f
+	d.mu.Unlock()
+
+	if d.ReadyState() == DataChannelStateOpen {
+		// If the data channel is already open, call the handler immediately.
+		go d.dialHandlerOnce.Do(f)
+	}
+}
+
+func (d *DataChannel) onDial() {
+	d.mu.RLock()
+	handler := d.onDialHandler
+	d.mu.RUnlock()
+
+	if handler != nil {
+		go d.dialHandlerOnce.Do(handler)
+	}
+}
+
 // OnClose sets an event handler which is invoked when
 // the underlying data transport has been closed.
 func (d *DataChannel) OnClose(f func()) {
@@ -279,13 +300,26 @@ func (d *DataChannel) onMessage(msg DataChannelMessage) {
 	handler(msg)
 }
 
-func (d *DataChannel) handleOpen(dc *datachannel.DataChannel) {
+func (d *DataChannel) handleOpen(dc *datachannel.DataChannel, isRemote, isAlreadyNegotiated bool) {
 	d.mu.Lock()
 	d.dataChannel = dc
 	d.mu.Unlock()
 	d.setReadyState(DataChannelStateOpen)
 
-	d.onOpen()
+	// Fire the OnOpen handler immediately not using pion/datachannel
+	// * detached datachannels have no read loop, the user needs to read and query themselves
+	// * remote datachannels should fire OnOpened. This isn't spec compliant, but we can't break behavior yet
+	// * already negotiated datachannels should fire OnOpened
+	if d.api.settingEngine.detach.DataChannels || isRemote || isAlreadyNegotiated {
+		// bufferedAmountLowThreshold and onBufferedAmountLow might be set earlier
+		d.dataChannel.SetBufferedAmountLowThreshold(d.bufferedAmountLowThreshold)
+		d.dataChannel.OnBufferedAmountLow(d.onBufferedAmountLow)
+		d.onOpen()
+	} else {
+		dc.OnOpen(func() {
+			d.onOpen()
+		})
+	}
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -321,12 +355,12 @@ var rlBufPool = sync.Pool{New: func() interface{} {
 
 func (d *DataChannel) readLoop() {
 	for {
-		buffer := rlBufPool.Get().([]byte)
+		buffer := rlBufPool.Get().([]byte) //nolint:forcetypeassert
 		n, isString, err := d.dataChannel.ReadDataChannel(buffer)
 		if err != nil {
 			rlBufPool.Put(buffer) // nolint:staticcheck
 			d.setReadyState(DataChannelStateClosed)
-			if err != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				d.onError(err)
 			}
 			d.onClose()
@@ -428,7 +462,7 @@ func (d *DataChannel) Label() string {
 	return d.label
 }
 
-// Ordered represents if the DataChannel is ordered, and false if
+// Ordered returns true if the DataChannel is ordered, and false if
 // out-of-order delivery is allowed.
 func (d *DataChannel) Ordered() bool {
 	d.mu.RLock()
@@ -488,8 +522,8 @@ func (d *DataChannel) ID() *uint16 {
 
 // ReadyState represents the state of the DataChannel object.
 func (d *DataChannel) ReadyState() DataChannelState {
-	if v := d.readyState.Load(); v != nil {
-		return v.(DataChannelState)
+	if v, ok := d.readyState.Load().(DataChannelState); ok {
+		return v
 	}
 	return DataChannelState(0)
 }

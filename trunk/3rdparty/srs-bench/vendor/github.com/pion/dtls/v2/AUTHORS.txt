@@ -1,0 +1,57 @@
+# Thank you to everyone that made Pion possible. If you are interested in contributing
+# we would love to have you https://github.com/pion/webrtc/wiki/Contributing
+#
+# This file is auto generated, using git to list all individuals contributors.
+# see https://github.com/pion/.goassets/blob/master/scripts/generate-authors.sh for the scripting
+Aleksandr Razumov <ar@gortc.io>
+alvarowolfx <alvarowolfx@gmail.com>
+Arlo Breault <arlolra@gmail.com>
+Atsushi Watanabe <atsushi.w@ieee.org>
+backkem <mail@backkem.me>
+bjdgyc <bjdgyc@163.com>
+boks1971 <raja.gobi@tutanota.com>
+Bragadeesh <bragboy@gmail.com>
+Carson Hoffman <c@rsonhoffman.com>
+Cecylia Bocovich <cohosh@torproject.org>
+Chris Hiszpanski <thinkski@users.noreply.github.com>
+cnderrauber <zengjie9004@gmail.com>
+Daniele Sluijters <daenney@users.noreply.github.com>
+folbrich <frank.olbricht@gmail.com>
+Hayden James <hayden.james@gmail.com>
+Hugo Arregui <hugo.arregui@gmail.com>
+Hugo Arregui <hugo@decentraland.org>
+igolaizola <11333576+igolaizola@users.noreply.github.com>
+Jeffrey Stoke <me@arhat.dev>
+Jeroen de Bruijn <vidavidorra+jdbruijn@gmail.com>
+Jeroen de Bruijn <vidavidorra@gmail.com>
+Jim Wert <jimwert@gmail.com>
+jinleileiking <jinleileiking@gmail.com>
+Jozef Kralik <jojo.lwin@gmail.com>
+Julien Salleyron <julien.salleyron@gmail.com>
+Juliusz Chroboczek <jch@irif.fr>
+Kegan Dougal <kegan@matrix.org>
+Kevin Wang <kevmo314@gmail.com>
+Lander Noterman <lander.noterman@basalte.be>
+Len <len@hpcnt.com>
+Lukas Lihotzki <lukas@lihotzki.de>
+ManuelBk <26275612+ManuelBk@users.noreply.github.com>
+Michael Zabka <zabka.michael@gmail.com>
+Michiel De Backker <mail@backkem.me>
+Rachel Chen <rachel@chens.email>
+Robert Eperjesi <eperjesi@uber.com>
+Ryan Gordon <ryan.gordon@getcruise.com>
+Sam Lancia <sam.lancia@motorolasolutions.com>
+Sean DuBois <duboisea@justin.tv>
+Sean DuBois <seaduboi@amazon.com>
+Sean DuBois <sean@siobud.com>
+Shelikhoo <xiaokangwang@outlook.com>
+Stefan Tatschner <stefan@rumpelsepp.org>
+Steffen Vogel <post@steffenvogel.de>
+Vadim <fffilimonov@yandex.ru>
+Vadim Filimonov <fffilimonov@yandex.ru>
+wmiao <wu.miao@viasat.com>
+ZHENK <chengzhenyang@gmail.com>
+吕海涛 <hi@taoshu.in>
+
+# List of contributors not appearing in Git history
+

@@ -1,9 +1,8 @@
 package sctp // nolint:dupl
 
 import (
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 /*
@@ -17,20 +16,26 @@ SHUTDOWN COMPLETE) MAY be bundled with an ABORT, but they MUST be
 placed before the ABORT in the SCTP packet or they will be ignored by
 the receiver.
 
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|   Type = 6    |Reserved     |T|           Length              |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                                                               |
-|                   zero or more Error Causes                   |
-|                                                               |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 0                   1                   2                   3
+	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|   Type = 6    |Reserved     |T|           Length              |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|                                                               |
+	|                   zero or more Error Causes                   |
+	|                                                               |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
 type chunkAbort struct {
 	chunkHeader
 	errorCauses []errorCause
 }
+
+// Abort chunk errors
+var (
+	ErrChunkTypeNotAbort     = errors.New("ChunkType is not of type ABORT")
+	ErrBuildAbortChunkFailed = errors.New("failed build Abort Chunk")
+)
 
 func (a *chunkAbort) unmarshal(raw []byte) error {
 	if err := a.chunkHeader.unmarshal(raw); err != nil {
@@ -38,7 +43,7 @@ func (a *chunkAbort) unmarshal(raw []byte) error {
 	}
 
 	if a.typ != ctAbort {
-		return errors.Errorf("ChunkType is not of type ABORT, actually is %s", a.typ.String())
+		return fmt.Errorf("%w: actually is %s", ErrChunkTypeNotAbort, a.typ.String())
 	}
 
 	offset := chunkHeaderSize
@@ -49,7 +54,7 @@ func (a *chunkAbort) unmarshal(raw []byte) error {
 
 		e, err := buildErrorCause(raw[offset:])
 		if err != nil {
-			return errors.Wrap(err, "Failed build Abort Chunk")
+			return fmt.Errorf("%w: %v", ErrBuildAbortChunkFailed, err) //nolint:errorlint
 		}
 
 		offset += int(e.length())

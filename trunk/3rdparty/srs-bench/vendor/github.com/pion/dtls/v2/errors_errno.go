@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
+//go:build aix || darwin || dragonfly || freebsd || linux || nacl || nacljs || netbsd || openbsd || solaris || windows
 // +build aix darwin dragonfly freebsd linux nacl nacljs netbsd openbsd solaris windows
 
 // For systems having syscall.Errno.
@@ -8,18 +12,11 @@
 package dtls
 
 import (
+	"errors"
 	"os"
 	"syscall"
 )
 
 func isOpErrorTemporary(err *os.SyscallError) bool {
-	if ne, ok := err.Err.(syscall.Errno); ok {
-		switch ne {
-		case syscall.ECONNREFUSED:
-			return true
-		default:
-			return false
-		}
-	}
-	return false
+	return errors.Is(err.Err, syscall.ECONNREFUSED)
 }

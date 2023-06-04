@@ -139,7 +139,7 @@ func NewTransactionMap() *TransactionMap {
 	}
 }
 
-// Insert inserts a trasaction to the map
+// Insert inserts a transaction to the map
 func (m *TransactionMap) Insert(key string, tr *Transaction) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()

@@ -98,7 +98,7 @@ func parseRtpmap(rtpmap string) (Codec, error) {
 		return codec, parsingFailed
 	}
 
-	ptInt, err := strconv.Atoi(ptSplit[1])
+	ptInt, err := strconv.ParseUint(ptSplit[1], 10, 8)
 	if err != nil {
 		return codec, parsingFailed
 	}
@@ -109,7 +109,7 @@ func parseRtpmap(rtpmap string) (Codec, error) {
 	codec.Name = split[0]
 	parts := len(split)
 	if parts > 1 {
-		rate, err := strconv.Atoi(split[1])
+		rate, err := strconv.ParseUint(split[1], 10, 32)
 		if err != nil {
 			return codec, parsingFailed
 		}
@@ -139,7 +139,7 @@ func parseFmtp(fmtp string) (Codec, error) {
 		return codec, parsingFailed
 	}
 
-	ptInt, err := strconv.Atoi(split[1])
+	ptInt, err := strconv.ParseUint(split[1], 10, 8)
 	if err != nil {
 		return codec, parsingFailed
 	}
@@ -165,7 +165,7 @@ func parseRtcpFb(rtcpFb string) (Codec, error) {
 		return codec, parsingFailed
 	}
 
-	ptInt, err := strconv.Atoi(ptSplit[1])
+	ptInt, err := strconv.ParseUint(ptSplit[1], 10, 8)
 	if err != nil {
 		return codec, parsingFailed
 	}
@@ -304,8 +304,8 @@ type keyToState func(key string) stateFn
 
 func (l *lexer) handleType(fn keyToState) (stateFn, error) {
 	key, err := l.readType()
-	if err == io.EOF && key == "" {
-		return nil, nil
+	if errors.Is(err, io.EOF) && key == "" {
+		return nil, nil //nolint:nilnil
 	} else if err != nil {
 		return nil, err
 	}

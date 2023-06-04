@@ -1,7 +1,7 @@
 package sctp
 
 import (
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // pendingBaseQueue
@@ -48,10 +48,11 @@ type pendingQueue struct {
 	unorderedIsSelected bool
 }
 
+// Pending queue errors
 var (
-	errUnexpectedChuckPoppedUnordered = errors.New("unexpected chunk popped (unordered)")
-	errUnexpectedChuckPoppedOrdered   = errors.New("unexpected chunk popped (ordered)")
-	errUnexpectedQState               = errors.New("unexpected q state (should've been selected)")
+	ErrUnexpectedChuckPoppedUnordered = errors.New("unexpected chunk popped (unordered)")
+	ErrUnexpectedChuckPoppedOrdered   = errors.New("unexpected chunk popped (ordered)")
+	ErrUnexpectedQState               = errors.New("unexpected q state (should've been selected)")
 )
 
 func newPendingQueue() *pendingQueue {
@@ -90,12 +91,12 @@ func (q *pendingQueue) pop(c *chunkPayloadData) error {
 		if q.unorderedIsSelected {
 			popped = q.unorderedQueue.pop()
 			if popped != c {
-				return errUnexpectedChuckPoppedUnordered
+				return ErrUnexpectedChuckPoppedUnordered
 			}
 		} else {
 			popped = q.orderedQueue.pop()
 			if popped != c {
-				return errUnexpectedChuckPoppedOrdered
+				return ErrUnexpectedChuckPoppedOrdered
 			}
 		}
 		if popped.endingFragment {
@@ -103,12 +104,12 @@ func (q *pendingQueue) pop(c *chunkPayloadData) error {
 		}
 	} else {
 		if !c.beginningFragment {
-			return errUnexpectedQState
+			return ErrUnexpectedQState
 		}
 		if c.unordered {
 			popped := q.unorderedQueue.pop()
 			if popped != c {
-				return errUnexpectedChuckPoppedUnordered
+				return ErrUnexpectedChuckPoppedUnordered
 			}
 			if !popped.endingFragment {
 				q.selected = true
@@ -117,7 +118,7 @@ func (q *pendingQueue) pop(c *chunkPayloadData) error {
 		} else {
 			popped := q.orderedQueue.pop()
 			if popped != c {
-				return errUnexpectedChuckPoppedOrdered
+				return ErrUnexpectedChuckPoppedOrdered
 			}
 			if !popped.endingFragment {
 				q.selected = true
