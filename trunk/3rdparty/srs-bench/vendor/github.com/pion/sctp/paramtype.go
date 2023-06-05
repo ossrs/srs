@@ -2,9 +2,8 @@ package sctp
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 // paramType represents a SCTP INIT/INITACK parameter
@@ -25,6 +24,7 @@ const (
 	reconfigResp       paramType = 16    // Re-configuration Response Parameter	[RFC6525]
 	addOutStreamsReq   paramType = 17    // Add Outgoing Streams Request Parameter	[RFC6525]
 	addIncStreamsReq   paramType = 18    // Add Incoming Streams Request Parameter	[RFC6525]
+	ecnCapable         paramType = 32768 // ECN Capable (0x8000)	[RFC2960]
 	random             paramType = 32770 // Random (0x8002)	[RFC4805]
 	chunkList          paramType = 32771 // Chunk List (0x8003)	[RFC4895]
 	reqHMACAlgo        paramType = 32772 // Requested HMAC Algorithm Parameter (0x8004)	[RFC4895]
@@ -39,9 +39,14 @@ const (
 	adaptLayerInd      paramType = 49158 // Adaptation Layer Indication (0xC006)	[RFC5061]
 )
 
+// Parameter packet errors
+var (
+	ErrParamPacketTooShort = errors.New("packet to short")
+)
+
 func parseParamType(raw []byte) (paramType, error) {
 	if len(raw) < 2 {
-		return paramType(0), errors.New("packet to short")
+		return paramType(0), ErrParamPacketTooShort
 	}
 	return paramType(binary.BigEndian.Uint16(raw)), nil
 }
@@ -76,6 +81,8 @@ func (p paramType) String() string {
 		return "Add Outgoing Streams Request Parameter"
 	case addIncStreamsReq:
 		return "Add Incoming Streams Request Parameter"
+	case ecnCapable:
+		return "ECN Capable"
 	case random:
 		return "Random"
 	case chunkList:

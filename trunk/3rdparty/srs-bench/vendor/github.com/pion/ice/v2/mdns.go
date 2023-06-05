@@ -1,11 +1,13 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package ice
 
 import (
-	"net"
-
 	"github.com/google/uuid"
 	"github.com/pion/logging"
 	"github.com/pion/mdns"
+	"github.com/pion/transport/v2"
 	"golang.org/x/net/ipv4"
 )
 
@@ -31,17 +33,17 @@ func generateMulticastDNSName() (string, error) {
 	return u.String() + ".local", err
 }
 
-func createMulticastDNS(mDNSMode MulticastDNSMode, mDNSName string, log logging.LeveledLogger) (*mdns.Conn, MulticastDNSMode, error) {
+func createMulticastDNS(n transport.Net, mDNSMode MulticastDNSMode, mDNSName string, log logging.LeveledLogger) (*mdns.Conn, MulticastDNSMode, error) {
 	if mDNSMode == MulticastDNSModeDisabled {
 		return nil, mDNSMode, nil
 	}
 
-	addr, mdnsErr := net.ResolveUDPAddr("udp4", mdns.DefaultAddress)
+	addr, mdnsErr := n.ResolveUDPAddr("udp4", mdns.DefaultAddress)
 	if mdnsErr != nil {
 		return nil, mDNSMode, mdnsErr
 	}
 
-	l, mdnsErr := net.ListenUDP("udp4", addr)
+	l, mdnsErr := n.ListenUDP("udp4", addr)
 	if mdnsErr != nil {
 		// If ICE fails to start MulticastDNS server just warn the user and continue
 		log.Errorf("Failed to enable mDNS, continuing in mDNS disabled mode: (%s)", mdnsErr)

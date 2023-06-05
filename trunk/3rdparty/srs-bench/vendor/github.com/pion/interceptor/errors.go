@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package interceptor
 
 import (
@@ -18,7 +21,7 @@ func flattenErrs(errs []error) error {
 	return multiError(errs2)
 }
 
-type multiError []error
+type multiError []error //nolint
 
 func (me multiError) Error() string {
 	var errstrings []string
@@ -41,7 +44,7 @@ func (me multiError) Is(err error) bool {
 		if errors.Is(e, err) {
 			return true
 		}
-		if me2, ok := e.(multiError); ok {
+		if me2, ok := e.(multiError); ok { //nolint
 			if me2.Is(err) {
 				return true
 			}

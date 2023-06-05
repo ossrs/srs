@@ -1,0 +1,214 @@
+# Thank you to everyone that made Pion possible. If you are interested in contributing
+# we would love to have you https://github.com/pion/webrtc/wiki/Contributing
+#
+# This file is auto generated, using git to list all individuals contributors.
+# see https://github.com/pion/.goassets/blob/master/scripts/generate-authors.sh for the scripting
+a-wing <1@233.email>
+Aaron Boushley <boushley@pretzelaux.com>
+Aaron France <aaron.l.france@gmail.com>
+Adam Kiss <masterada@gmail.com>
+Aditya Kumar <k.aditya00@gmail.com>
+Adrian Cable <adrian.cable@gmail.com>
+adwpc <adwpc@hotmail.com>
+aggresss <aggresss@163.com>
+akil <akil@everycrave.me>
+Aleksandr Razumov <ar@gortc.io>
+aler9 <46489434+aler9@users.noreply.github.com>
+Alex Browne <stephenalexbrowne@gmail.com>
+Alex Harford <harford@gmail.com>
+Alexey Khit <alexey.khit@gmail.com>
+AlexWoo(武杰) <wj19840501@gmail.com>
+Ali Error <alipadida@live.com>
+Andrew N. Shalaev <isqad88@gmail.com>
+Antoine Baché <antoine.bache@epitech.eu>
+Antoine Baché <antoine@tenten.app>
+Anton <leonardspbox@gmail.com>
+Artur Shellunts <shellunts.artur@gmail.com>
+Assad Obaid <assad@lap5cg901003r.se.axis.com>
+Ato Araki <ato.araki@gmail.com>
+Atsushi Watanabe <atsushi.w@ieee.org>
+backkem <mail@backkem.me>
+baiyufei <baiyufei@outlook.com>
+Bao Nguyen <bao@n4n.dev>
+Ben Weitzman <benweitzman@gmail.com>
+Benny Daon <benny@tuzig.com>
+bkim <bruce.kim.it@gmail.com>
+Bo Shi <boshi@mural.co>
+boks1971 <raja.gobi@tutanota.com>
+Brendan Rius <brendan.rius@gmail.com>
+brian <brian@cyalive.com>
+Bryan Phelps <bryan@coder.com>
+Cameron Elliott <cameron-elliott@users.noreply.github.com>
+Cecylia Bocovich <cohosh@torproject.org>
+Cedric Fung <cedric@vec.io>
+cgojin <gongjin21@hotmail.com>
+Chad Retz <chad.retz@stackpath.com>
+chenkaiC4 <chenkaic4@gmail.com>
+Chinmay Kousik <chinmaykousik1@gmail.com>
+Chris Hiszpanski <chris@hiszpanski.name>
+Christopher Fry <chris.fry@getcruise.com>
+Clayton McCray <cpmdmccray@gmail.com>
+cnderrauber <zengjie9004@gmail.com>
+cyannuk <cyannuk@issart.com>
+Daniele Sluijters <daenney@users.noreply.github.com>
+David Hamilton <davidhamiltron@gmail.com>
+David Zhao <david@davidzhao.com>
+David Zhao <dz@livekit.io>
+david.s <david.s@hpcnt.com>
+Dean Sheather <dean@coder.com>
+decanus <7621705+decanus@users.noreply.github.com>
+Denis <Hixon10@yandex.ru>
+digitalix <digitalix4@gmail.com>
+donotanswer <viktor.ferter@doclerholding.com>
+earle <aguilar@dm.ai>
+Egon Elbre <egonelbre@gmail.com>
+Eric Daniels <eric@erdaniels.com>
+Eric Fontaine <ericfontainejazz@gmail.com>
+feixiao <feixiao2020@sina.com>
+Forest Johnson <forest.n.johnson@gmail.com>
+frank <frank@huzhedeMacBook-Pro.local>
+funvit <funvit@gmail.com>
+Gabor Pongracz <gabor.pongracz@proemergotech.com>
+Gareth Hayes <gareth.hayes@gmail.com>
+Guilherme <gqgs@protonmail.com>
+Hanjun Kim <hallazzang@gmail.com>
+Hendrik Hofstadt <hendrik@nexantic.com>
+Henry <cryptix@riseup.net>
+Hongchao Ma <hongchao.ma@synaptop.com>
+Hugo Arregui <hugo.arregui@gmail.com>
+Hugo Arregui <hugo@decentraland.org>
+Ilya Mayorov <faroyam1@yandex.ru>
+imalic3 <manovisut.ktp@gmail.com>
+Ivan Egorov <vany.egorov@gmail.com>
+JacobZwang <59858341+JacobZwang@users.noreply.github.com>
+Jake B <doogie1012@gmail.com>
+Jamie Good <jamie.good@gmail.com>
+Jason <jabrady42@gmail.com>
+Jeff Tchang <jeff.tchang@gmail.com>
+jeremija
+Jerko Steiner <jerko.steiner@gmail.com>
+Jerry Tao <taojay315@gmail.com>
+jinleileiking <jinleileiking@gmail.com>
+John Berthels <john.berthels@gmail.com>
+John Bradley <jrb@turrettech.com>
+John Selbie <jselbie@gmail.com>
+JooYoung <qkdlql@naver.com>
+Jorropo <jorropo.pgm@gmail.com>
+Josh Bleecher Snyder <josharian@gmail.com>
+juberti <juberti@alphaexplorationco.com>
+Juliusz Chroboczek <jch@irif.fr>
+Justin Okamoto <jdokamoto@gmail.com>
+Justin Okamoto <justmoto@amazon.com>
+Kevin Staunton-Lambert <kevin.staunton-lambert@metacdn.com>
+Kevin Wang <kevmo314@gmail.com>
+Konstantin Chugalinskiy <kchugalinskiy@yandex.ru>
+Konstantin Itskov <konstantin.itskov@kovits.com>
+krishna chiatanya <kittuov@gmail.com>
+Kuzmin Vladimir <vova-kyzmin@yandex.ru>
+lawl <github@dumbinter.net>
+Len <len@hpcnt.com>
+Leslie Wang <wqyuwss@gmail.com>
+lisa yan <lisa.yan@nokia-sbell.com>
+Lukas Herman <lherman.cs@gmail.com>
+Luke <luke@street.dev>
+Luke Curley <kixelated@gmail.com>
+Luke S <luke@street.dev>
+Magnus Wahlstrand <magnus.wahlstrand@gmail.com>
+Manish <itzmanish108@gmail.com>
+Markus Tzoe <chou.marcus@gmail.com>
+Marouane <6729798+nindolabs@users.noreply.github.com>
+Marouane <marouane@gamestream.biz>
+Masahiro Nakamura <13937915+tsuu32@users.noreply.github.com>
+Mathis Engelbart <mathis.engelbart@gmail.com>
+Max Hawkins <maxhawkins@gmail.com>
+mchlrhw <4028654+mchlrhw@users.noreply.github.com>
+Michael MacDonald <github@macdonald.cx>
+Michael MacDonald <mike.macdonald@savantsystems.com>
+Michiel De Backker <38858977+backkem@users.noreply.github.com>
+Mike Coleman <mc@fivebats.com>
+Mindgamesnl <matsmoolhuizen@gmail.com>
+mission-liao <missionaryliao@gmail.com>
+mohammadne <mohammadne@mail.ru>
+mr-shitij <21.shitijagrawal@gmail.com>
+mxmCherry <mxmCherry@gmail.com>
+Nam V. Do <vannam12a7@gmail.com>
+Nick Mykins <nmykins@digitalocean.com>
+nindolabs <6729798+nindolabs@users.noreply.github.com>
+Norman Rasmussen <norman@rasmussen.co.za>
+notedit <notedit@gmail.com>
+o0olele <liangruipeng@ztgame.com>
+obasajujoshua31 <obasajujoshua31@gmail.com>
+Oleg Kovalov <iamolegkovalov@gmail.com>
+opennota <opennota@gmail.com>
+OrlandoCo <luisorlando.co@gmail.com>
+Pascal Benoit <pascal.benoit@acemediastools.fr>
+pascal-ace <47424881+pascal-ace@users.noreply.github.com>
+Patrice Ferlet <patrice.ferlet@smile.fr>
+Patrick Lange <mail@langep.com>
+Patryk Rogalski <digitalix4@gmail.com>
+Pieere Pi <pihuibin@hotmail.com>
+Pouget-Abadie <thomas.pougetabadie@gmail.com>
+q191201771 <191201771@qq.com>
+Quentin Renard <contact@asticode.com>
+Rafael Viscarra <rafael@viscarra.dev>
+rahulnakre <rahulnakre@gmail.com>
+Raphael Randschau <nicolai86@me.com>
+Raphael Randschau <nicolai86@users.noreply.github.com>
+Reese <3253971+figadore@users.noreply.github.com>
+rob <me@iamcalledrob.com>
+rob-deutsch <robzyb+altgithub@gmail.com>
+Robert Eperjesi <eperjesi@uber.com>
+Robin Raymond <robin-raymond@users.noreply.github.com>
+Roman Romanenko <roman.romanenko@aliexpress.ru>
+Roman Romanenko <romandafe94@gmail.com>
+ronan <ronan.jezequel@gmail.com>
+Ryan Shumate <Ryan.Shumate@garmin.com>
+salmān aljammāz <s@aljmz.com>
+Sam Lancia <sam@vaion.com>
+Sean DuBois <duboisea@justin.tv>
+Sean DuBois <duboisea@twitch.tv>
+Sean DuBois <seaduboi@amazon.com>
+Sean DuBois <sean@siobud.com>
+Sean DuBois <sean_dubois@apple.com>
+Sean Knight <git@seanknight.com>
+Sebastian Waisbrot <seppo0010@gmail.com>
+Sidney San Martín <sidney@s4y.us>
+Simon Eisenmann <simon@longsleep.org>
+simonacca-fotokite <47634061+simonacca-fotokite@users.noreply.github.com>
+Simone Gotti <simone.gotti@gmail.com>
+Slugalisk <slugalisk@gmail.com>
+Somers Matthews <somersbmatthews@gmail.com>
+soolaugust <soolaugust@gmail.com>
+spaceCh1mp <drimboat@gmail.com>
+Steffen Vogel <post@steffenvogel.de>
+stephanrotolante <stephanrotolante@gmail.com>
+streamer45 <cstcld91@gmail.com>
+Suhas Gaddam <suhas.g.2011@gmail.com>
+Suzuki Takeo <takeo@stko.info>
+sylba2050 <masataka.hisasue@optim.co.jp>
+Tarrence van As <tarrencev@users.noreply.github.com>
+tarrencev <tarrence13@gmail.com>
+Thomas Miller <tmiv74@gmail.com>
+Tobias Fridén <tobias.friden@gmail.com>
+Tomek <tomek@pop-os.localdomain>
+treyhakanson <treyhakanson@gmail.com>
+Tristan Matthews <tmatth@videolan.org>
+Twometer <twometer@outlook.de>
+Vicken Simonian <vsimon@gmail.com>
+wattanakorn495 <wattanakorn.i@ku.th>
+Will Forcey <wsforc3y@gmail.com>
+Will Watson <william.a.watson@gmail.com>
+WofWca <wofwca@protonmail.com>
+Woodrow Douglass <wdouglass@carnegierobotics.com>
+xsbchen <xsbchen@qq.com>
+Yoon SeungYong <simon.y@hpcnt.com>
+Yuki Igarashi <me@bonprosoft.com>
+yusuke <yusuke.m99@gmail.com>
+Yutaka Takeda <yt0916@gmail.com>
+ZHENK <chengzhenyang@gmail.com>
+zigazeljko <ziga.zeljko@gmail.com>
+Štefan Uram <SterverSVK@users.noreply.github.com>
+박종훈 <jonghun.park.194@gmail.com>
+
+# List of contributors not appearing in Git history
+

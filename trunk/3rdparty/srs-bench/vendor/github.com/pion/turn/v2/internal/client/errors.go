@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	errFakeErr                             = errors.New("fake error")
+	errFake                                = errors.New("fake error")
 	errTryAgain                            = errors.New("try again")
 	errClosed                              = errors.New("use of closed network connection")
 	errUDPAddrCast                         = errors.New("addr is not a net.UDPAddr")

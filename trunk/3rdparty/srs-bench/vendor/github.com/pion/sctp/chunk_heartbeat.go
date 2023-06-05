@@ -1,7 +1,8 @@
 package sctp
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
 )
 
 /*
@@ -14,16 +15,15 @@ the present association.
 The parameter field contains the Heartbeat Information, which is a
 variable-length opaque data structure understood only by the sender.
 
-
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|   Type = 4    | Chunk  Flags  |      Heartbeat Length         |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                                                               |
-|            Heartbeat Information TLV (Variable-Length)        |
-|                                                               |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 0                   1                   2                   3
+	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|   Type = 4    | Chunk  Flags  |      Heartbeat Length         |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|                                                               |
+	|            Heartbeat Information TLV (Variable-Length)        |
+	|                                                               |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 Defined as a variable-length parameter using the format described
 in Section 3.2.1, i.e.:
@@ -31,35 +31,43 @@ in Section 3.2.1, i.e.:
 Variable Parameters                  Status     Type Value
 -------------------------------------------------------------
 heartbeat Info                       Mandatory   1
-
 */
 type chunkHeartbeat struct {
 	chunkHeader
 	params []param
 }
 
+// Heartbeat chunk errors
+var (
+	ErrChunkTypeNotHeartbeat      = errors.New("ChunkType is not of type HEARTBEAT")
+	ErrHeartbeatNotLongEnoughInfo = errors.New("heartbeat is not long enough to contain Heartbeat Info")
+	ErrParseParamTypeFailed       = errors.New("failed to parse param type")
+	ErrHeartbeatParam             = errors.New("heartbeat should only have HEARTBEAT param")
+	ErrHeartbeatChunkUnmarshal    = errors.New("failed unmarshalling param in Heartbeat Chunk")
+)
+
 func (h *chunkHeartbeat) unmarshal(raw []byte) error {
 	if err := h.chunkHeader.unmarshal(raw); err != nil {
 		return err
 	} else if h.typ != ctHeartbeat {
-		return errors.Errorf("ChunkType is not of type HEARTBEAT, actually is %s", h.typ.String())
+		return fmt.Errorf("%w: actually is %s", ErrChunkTypeNotHeartbeat, h.typ.String())
 	}
 
 	if len(raw) <= chunkHeaderSize {
-		return errors.Errorf("Heartbeat is not long enough to contain Heartbeat Info %d", len(raw))
+		return fmt.Errorf("%w: %d", ErrHeartbeatNotLongEnoughInfo, len(raw))
 	}
 
 	pType, err := parseParamType(raw[chunkHeaderSize:])
 	if err != nil {
-		return errors.Wrap(err, "failed to parse param type")
+		return fmt.Errorf("%w: %v", ErrParseParamTypeFailed, err) //nolint:errorlint
 	}
 	if pType != heartbeatInfo {
-		return errors.Errorf("Heartbeat should only have HEARTBEAT param, instead have %s", pType.String())
+		return fmt.Errorf("%w: instead have %s", ErrHeartbeatParam, pType.String())
 	}
 
 	p, err := buildParam(pType, raw[chunkHeaderSize:])
 	if err != nil {
-		return errors.Wrap(err, "Failed unmarshalling param in Heartbeat Chunk")
+		return fmt.Errorf("%w: %v", ErrHeartbeatChunkUnmarshal, err) //nolint:errorlint
 	}
 	h.params = append(h.params, p)
 
@@ -67,7 +75,7 @@ func (h *chunkHeartbeat) unmarshal(raw []byte) error {
 }
 
 func (h *chunkHeartbeat) Marshal() ([]byte, error) {
-	return nil, errors.Errorf("Unimplemented")
+	return nil, ErrUnimplemented
 }
 
 func (h *chunkHeartbeat) check() (abort bool, err error) {

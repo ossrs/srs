@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package protocol
 
 // ChangeCipherSpec protocol exists to signal transitions in
@@ -5,8 +8,7 @@ package protocol
 // which is encrypted and compressed under the current (not the pending)
 // connection state.  The message consists of a single byte of value 1.
 // https://tools.ietf.org/html/rfc5246#section-7.1
-type ChangeCipherSpec struct {
-}
+type ChangeCipherSpec struct{}
 
 // ContentType returns the ContentType of this content
 func (c ChangeCipherSpec) ContentType() ContentType {

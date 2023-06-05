@@ -1,0 +1,17 @@
+# Thank you to everyone that made Pion possible. If you are interested in contributing
+# we would love to have you https://github.com/pion/webrtc/wiki/Contributing
+#
+# This file is auto generated, using git to list all individuals contributors.
+# see https://github.com/pion/.goassets/blob/master/scripts/generate-authors.sh for the scripting
+Atsushi Watanabe <atsushi.w@ieee.org>
+Bjørn Remseth <la3lma@gmail.com>
+Doug Cone <nullvariable@users.noreply.github.com>
+Hugo Arregui <hugo.arregui@gmail.com>
+Javier Peletier <jm@epiclabs.io>
+Jonas van den Berg <24623262+vonas@users.noreply.github.com>
+Konstantin Itskov <konstantin.itskov@kovits.com>
+Sean DuBois <seaduboi@amazon.com>
+Sean DuBois <sean@siobud.com>
+
+# List of contributors not appearing in Git history
+

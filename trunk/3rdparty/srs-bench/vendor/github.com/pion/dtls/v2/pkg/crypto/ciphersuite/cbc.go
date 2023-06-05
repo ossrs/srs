@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package ciphersuite
 
 import ( //nolint:gci
@@ -39,11 +42,21 @@ func NewCBC(localKey, localWriteIV, localMac, remoteKey, remoteWriteIV, remoteMa
 		return nil, err
 	}
 
+	writeCBC, ok := cipher.NewCBCEncrypter(writeBlock, localWriteIV).(cbcMode)
+	if !ok {
+		return nil, errFailedToCast
+	}
+
+	readCBC, ok := cipher.NewCBCDecrypter(readBlock, remoteWriteIV).(cbcMode)
+	if !ok {
+		return nil, errFailedToCast
+	}
+
 	return &CBC{
-		writeCBC: cipher.NewCBCEncrypter(writeBlock, localWriteIV).(cbcMode),
+		writeCBC: writeCBC,
 		writeMac: localMac,
 
-		readCBC: cipher.NewCBCDecrypter(readBlock, remoteWriteIV).(cbcMode),
+		readCBC: readCBC,
 		readMac: remoteMac,
 		h:       h,
 	}, nil

@@ -1,0 +1,36 @@
+# Thank you to everyone that made Pion possible. If you are interested in contributing
+# we would love to have you https://github.com/pion/webrtc/wiki/Contributing
+#
+# This file is auto generated, using git to list all individuals contributors.
+# see https://github.com/pion/.goassets/blob/master/scripts/generate-authors.sh for the scripting
+adamroach <adam@nostrum.com>
+Adrian Cable <adrian.cable@gmail.com>
+Agniva De Sarker <agnivade@yahoo.co.in>
+Antoine Baché <antoine@tenten.app>
+Atsushi Watanabe <atsushi.w@ieee.org>
+backkem <mail@backkem.me>
+chenkaiC4 <chenkaic4@gmail.com>
+Chris Hiszpanski <chris@hiszpanski.name>
+cszdlt <cszdlt@qq.com>
+Hugo Arregui <hugo.arregui@gmail.com>
+Jerko Steiner <jerko.steiner@gmail.com>
+Juliusz Chroboczek <jch@irif.fr>
+Luke Curley <kixelated@gmail.com>
+Luke Curley <lcurley@twitch.tv>
+Max Hawkins <maxhawkins@gmail.com>
+mission-liao <missionaryliao@gmail.com>
+Novel Corpse <romandafe94@gmail.com>
+OrlandoCo <luisorlando.co@gmail.com>
+Patryk <digitalix4@gmail.com>
+Patryk Rogalski <digitalix4@gmail.com>
+Sean DuBois <seaduboi@amazon.com>
+Sean DuBois <sean@siobud.com>
+SeongGyu Park <tawny.port@kakaoenterprise.com>
+Steffen <post@steffenvogel.de>
+Steffen Vogel <post@steffenvogel.de>
+Tobias Fridén <tobias.friden@gmail.com>
+Woodrow Douglass <wdouglass@carnegierobotics.com>
+Yutaka Takeda <yt0916@gmail.com>
+
+# List of contributors not appearing in Git history
+

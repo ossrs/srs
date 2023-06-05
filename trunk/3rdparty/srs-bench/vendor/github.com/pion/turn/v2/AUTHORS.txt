@@ -1,0 +1,43 @@
+# Thank you to everyone that made Pion possible. If you are interested in contributing
+# we would love to have you https://github.com/pion/webrtc/wiki/Contributing
+#
+# This file is auto generated, using git to list all individuals contributors.
+# see https://github.com/pion/.goassets/blob/master/scripts/generate-authors.sh for the scripting
+Aaron France <aaron.l.france@gmail.com>
+Aleksandr Razumov <ar@gortc.io>
+andrefsp <andrefsp@gmail.com>
+Antonio Sorrentino <ansorrenltd@gmail.com>
+Atsushi Watanabe <atsushi.w@ieee.org>
+backkem <mail@backkem.me>
+Caleb Phillips <calebrphillips@gmail.com>
+cnderrauber <zengjie9004@gmail.com>
+David Colburn <xero73@gmail.com>
+Gabor Retvari <retvari@tmit.bme.hu>
+Herman Banken <hermanbanken@gmail.com>
+Hugo Arregui <hugo.arregui@gmail.com>
+Igor German <igor.german@synesis.ru>
+Ingmar Wittkau <iwittkau@users.noreply.github.com>
+Jannis Mattheis <contact@jmattheis.de>
+John Bradley <john@pion.ly>
+jose nazario <jose.monkey.org@gmail.com>
+Juliusz Chroboczek <jch@irif.fr>
+lllf <littlelightlittlefire@gmail.com>
+Lukas Rezek <lukas@miratronix.com>
+Marouane <6729798+nindolabs@users.noreply.github.com>
+Mészáros Mihály <bakfitty@gmail.com>
+nindolabs <6729798+nindolabs@users.noreply.github.com>
+Onwuka Gideon <dongidomed@gmail.com>
+Robert Eperjesi <eperjesi@uber.com>
+Sean DuBois <duboisea@twitch.tv>
+Sean DuBois <seaduboi@amazon.com>
+Sean DuBois <sean@pion.ly>
+Sean DuBois <sean@siobud.com>
+songjiayang <songjiayang@jd.com>
+Steffen Vogel <post@steffenvogel.de>
+ted <ted@skydio.com>
+Tom Clift <tom@clift.id.au>
+Yusuke Nakamura <yusuke1994525@gmail.com>
+Yutaka Takeda <yt0916@gmail.com>
+
+# List of contributors not appearing in Git history
+

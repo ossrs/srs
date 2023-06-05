@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 Winlin
+// # Copyright (c) 2021 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -25,14 +25,15 @@ import (
 
 	vnet_proxy "github.com/ossrs/srs-bench/vnet"
 	"github.com/pion/logging"
-	"github.com/pion/transport/vnet"
+	"github.com/pion/transport/v2/vnet"
 )
 
 // Proxy many vnet endpoint to one real server endpoint.
 // For example:
-//		vnet(10.0.0.11:5787) => proxy => 192.168.1.10:8000
-//		vnet(10.0.0.11:5788) => proxy => 192.168.1.10:8000
-//		vnet(10.0.0.11:5789) => proxy => 192.168.1.10:8000
+//
+//	vnet(10.0.0.11:5787) => proxy => 192.168.1.10:8000
+//	vnet(10.0.0.11:5788) => proxy => 192.168.1.10:8000
+//	vnet(10.0.0.11:5789) => proxy => 192.168.1.10:8000
 func ExampleUDPProxyManyToOne() { // nolint:govet
 	var clientNetwork *vnet.Net
 
@@ -105,8 +106,9 @@ func ExampleUDPProxyManyToOne() { // nolint:govet
 
 // Proxy many vnet endpoint to one real server endpoint.
 // For example:
-//		vnet(10.0.0.11:5787) => proxy => 192.168.1.10:8000
-//		vnet(10.0.0.11:5788) => proxy => 192.168.1.10:8000
+//
+//	vnet(10.0.0.11:5787) => proxy => 192.168.1.10:8000
+//	vnet(10.0.0.11:5788) => proxy => 192.168.1.10:8000
 func ExampleUDPProxyMultileTimes() { // nolint:govet
 	var clientNetwork *vnet.Net
 
@@ -184,9 +186,10 @@ func ExampleUDPProxyMultileTimes() { // nolint:govet
 
 // Proxy one vnet endpoint to one real server endpoint.
 // For example:
-//		vnet(10.0.0.11:5787) => proxy0 => 192.168.1.10:8000
-//		vnet(10.0.0.11:5788) => proxy1 => 192.168.1.10:8001
-//		vnet(10.0.0.11:5789) => proxy2 => 192.168.1.10:8002
+//
+//	vnet(10.0.0.11:5787) => proxy0 => 192.168.1.10:8000
+//	vnet(10.0.0.11:5788) => proxy1 => 192.168.1.10:8001
+//	vnet(10.0.0.11:5789) => proxy2 => 192.168.1.10:8002
 func ExampleUDPProxyOneToOne() { // nolint:govet
 	var clientNetwork *vnet.Net
 

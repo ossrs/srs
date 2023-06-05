@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package extension
 
 import (
@@ -7,6 +10,9 @@ import (
 )
 
 var (
+	// ErrALPNInvalidFormat is raised when the ALPN format is invalid
+	ErrALPNInvalidFormat    = &protocol.FatalError{Err: errors.New("invalid alpn format")}                             //nolint:goerr113
+	errALPNNoAppProto       = &protocol.FatalError{Err: errors.New("no application protocol")}                         //nolint:goerr113
 	errBufferTooSmall       = &protocol.TemporaryError{Err: errors.New("buffer is too small")}                         //nolint:goerr113
 	errInvalidExtensionType = &protocol.FatalError{Err: errors.New("invalid extension type")}                          //nolint:goerr113
 	errInvalidSNIFormat     = &protocol.FatalError{Err: errors.New("invalid server name format")}                      //nolint:goerr113

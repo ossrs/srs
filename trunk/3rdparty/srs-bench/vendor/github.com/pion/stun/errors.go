@@ -1,8 +1,13 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package stun
 
 import "errors"
 
 // DecodeErr records an error and place when it is occurred.
+//
+//nolint:errname
 type DecodeErr struct {
 	Place   DecodeErrPlace
 	Message string
@@ -50,7 +55,6 @@ func newDecodeErr(parent, children, message string) *DecodeErr {
 	}
 }
 
-// TODO(ar): rewrite errors to be more precise.
 func newAttrDecodeErr(children, message string) *DecodeErr {
 	return newDecodeErr("attribute", children, message)
 }

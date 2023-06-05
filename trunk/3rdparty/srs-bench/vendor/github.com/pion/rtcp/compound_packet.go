@@ -1,5 +1,10 @@
 package rtcp
 
+import (
+	"fmt"
+	"strings"
+)
+
 // A CompoundPacket is a collection of RTCP packets transmitted as a single packet with
 // the underlying protocol (for example UDP).
 //
@@ -13,8 +18,6 @@ package rtcp
 //
 // Other RTCP packet types may follow in any order. Packet types may appear more than once.
 type CompoundPacket []Packet
-
-var _ Packet = (*CompoundPacket)(nil) // assert is a Packet
 
 // Validate returns an error if this is not an RFC-compliant CompoundPacket.
 func (c CompoundPacket) Validate() error {
@@ -133,4 +136,18 @@ func (c CompoundPacket) DestinationSSRC() []uint32 {
 	}
 
 	return c[0].DestinationSSRC()
+}
+
+func (c CompoundPacket) String() string {
+	out := "CompoundPacket\n"
+	for _, p := range c {
+		stringer, canString := p.(fmt.Stringer)
+		if canString {
+			out += stringer.String()
+		} else {
+			out += stringify(p)
+		}
+	}
+	out = strings.TrimSuffix(strings.ReplaceAll(out, "\n", "\n\t"), "\t")
+	return out
 }

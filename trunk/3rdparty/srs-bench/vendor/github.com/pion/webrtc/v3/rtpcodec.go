@@ -1,7 +1,12 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package webrtc
 
 import (
 	"strings"
+
+	"github.com/pion/webrtc/v3/internal/fmtp"
 )
 
 // RTPCodecType determines the type of a codec
@@ -97,19 +102,19 @@ const (
 // Used for lookup up a codec in an existing list to find a match
 // Returns codecMatchExact, codecMatchPartial, or codecMatchNone
 func codecParametersFuzzySearch(needle RTPCodecParameters, haystack []RTPCodecParameters) (RTPCodecParameters, codecMatchType) {
+	needleFmtp := fmtp.Parse(needle.RTPCodecCapability.MimeType, needle.RTPCodecCapability.SDPFmtpLine)
+
 	// First attempt to match on MimeType + SDPFmtpLine
-	// Exact matches means fmtp line cannot be empty
 	for _, c := range haystack {
-		if strings.EqualFold(c.RTPCodecCapability.MimeType, needle.RTPCodecCapability.MimeType) &&
-			c.RTPCodecCapability.SDPFmtpLine == needle.RTPCodecCapability.SDPFmtpLine {
+		cfmtp := fmtp.Parse(c.RTPCodecCapability.MimeType, c.RTPCodecCapability.SDPFmtpLine)
+		if needleFmtp.Match(cfmtp) {
 			return c, codecMatchExact
 		}
 	}
 
-	// Fallback to just MimeType if either haystack or needle does not have fmtpline set
+	// Fallback to just MimeType
 	for _, c := range haystack {
-		if strings.EqualFold(c.RTPCodecCapability.MimeType, needle.RTPCodecCapability.MimeType) &&
-			(c.RTPCodecCapability.SDPFmtpLine == "" || needle.RTPCodecCapability.SDPFmtpLine == "") {
+		if strings.EqualFold(c.RTPCodecCapability.MimeType, needle.RTPCodecCapability.MimeType) {
 			return c, codecMatchPartial
 		}
 	}

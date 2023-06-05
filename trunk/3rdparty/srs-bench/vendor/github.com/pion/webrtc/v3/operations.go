@@ -1,6 +1,10 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package webrtc
 
 import (
+	"container/list"
 	"sync"
 )
 
@@ -11,11 +15,13 @@ type operation func()
 type operations struct {
 	mu   sync.Mutex
 	busy bool
-	ops  []operation
+	ops  *list.List
 }
 
 func newOperations() *operations {
-	return &operations{}
+	return &operations{
+		ops: list.New(),
+	}
 }
 
 // Enqueue adds a new action to be executed. If there are no actions scheduled,
@@ -27,7 +33,7 @@ func (o *operations) Enqueue(op operation) {
 
 	o.mu.Lock()
 	running := o.busy
-	o.ops = append(o.ops, op)
+	o.ops.PushBack(op)
 	o.busy = true
 	o.mu.Unlock()
 
@@ -40,7 +46,7 @@ func (o *operations) Enqueue(op operation) {
 func (o *operations) IsEmpty() bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	return len(o.ops) == 0
+	return o.ops.Len() == 0
 }
 
 // Done blocks until all currently enqueued operations are finished executing.
@@ -57,20 +63,23 @@ func (o *operations) Done() {
 func (o *operations) pop() func() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if len(o.ops) == 0 {
+	if o.ops.Len() == 0 {
 		return nil
 	}
 
-	fn := o.ops[0]
-	o.ops = o.ops[1:]
-	return fn
+	e := o.ops.Front()
+	o.ops.Remove(e)
+	if op, ok := e.Value.(operation); ok {
+		return op
+	}
+	return nil
 }
 
 func (o *operations) start() {
 	defer func() {
 		o.mu.Lock()
 		defer o.mu.Unlock()
-		if len(o.ops) == 0 {
+		if o.ops.Len() == 0 {
 			o.busy = false
 			return
 		}

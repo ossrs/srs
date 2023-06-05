@@ -1,6 +1,13 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package dtls
 
 import (
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
+	"crypto/tls"
 	"fmt"
 	"hash"
 
@@ -15,21 +22,27 @@ type CipherSuiteID = ciphersuite.ID
 // Supported Cipher Suites
 const (
 	// AES-128-CCM
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM   CipherSuiteID = ciphersuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM   //nolint:golint,stylecheck
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 CipherSuiteID = ciphersuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 //nolint:golint,stylecheck
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM   CipherSuiteID = ciphersuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM   //nolint:revive,stylecheck
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 CipherSuiteID = ciphersuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 //nolint:revive,stylecheck
 
 	// AES-128-GCM-SHA256
-	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 CipherSuiteID = ciphersuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 //nolint:golint,stylecheck
-	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256   CipherSuiteID = ciphersuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256   //nolint:golint,stylecheck
+	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 CipherSuiteID = ciphersuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 //nolint:revive,stylecheck
+	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256   CipherSuiteID = ciphersuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256   //nolint:revive,stylecheck
+
+	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 CipherSuiteID = ciphersuite.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 //nolint:revive,stylecheck
+	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384   CipherSuiteID = ciphersuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384   //nolint:revive,stylecheck
 
 	// AES-256-CBC-SHA
-	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA CipherSuiteID = ciphersuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA //nolint:golint,stylecheck
-	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA   CipherSuiteID = ciphersuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA   //nolint:golint,stylecheck
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA CipherSuiteID = ciphersuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA //nolint:revive,stylecheck
+	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA   CipherSuiteID = ciphersuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA   //nolint:revive,stylecheck
 
-	TLS_PSK_WITH_AES_128_CCM        CipherSuiteID = ciphersuite.TLS_PSK_WITH_AES_128_CCM        //nolint:golint,stylecheck
-	TLS_PSK_WITH_AES_128_CCM_8      CipherSuiteID = ciphersuite.TLS_PSK_WITH_AES_128_CCM_8      //nolint:golint,stylecheck
-	TLS_PSK_WITH_AES_128_GCM_SHA256 CipherSuiteID = ciphersuite.TLS_PSK_WITH_AES_128_GCM_SHA256 //nolint:golint,stylecheck
-	TLS_PSK_WITH_AES_128_CBC_SHA256 CipherSuiteID = ciphersuite.TLS_PSK_WITH_AES_128_CBC_SHA256 //nolint:golint,stylecheck
+	TLS_PSK_WITH_AES_128_CCM        CipherSuiteID = ciphersuite.TLS_PSK_WITH_AES_128_CCM        //nolint:revive,stylecheck
+	TLS_PSK_WITH_AES_128_CCM_8      CipherSuiteID = ciphersuite.TLS_PSK_WITH_AES_128_CCM_8      //nolint:revive,stylecheck
+	TLS_PSK_WITH_AES_256_CCM_8      CipherSuiteID = ciphersuite.TLS_PSK_WITH_AES_256_CCM_8      //nolint:revive,stylecheck
+	TLS_PSK_WITH_AES_128_GCM_SHA256 CipherSuiteID = ciphersuite.TLS_PSK_WITH_AES_128_GCM_SHA256 //nolint:revive,stylecheck
+	TLS_PSK_WITH_AES_128_CBC_SHA256 CipherSuiteID = ciphersuite.TLS_PSK_WITH_AES_128_CBC_SHA256 //nolint:revive,stylecheck
+
+	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256 CipherSuiteID = ciphersuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256 //nolint:revive,stylecheck
 )
 
 // CipherSuiteAuthenticationType controls what authentication method is using during the handshake for a CipherSuite
@@ -40,6 +53,16 @@ const (
 	CipherSuiteAuthenticationTypeCertificate  CipherSuiteAuthenticationType = ciphersuite.AuthenticationTypeCertificate
 	CipherSuiteAuthenticationTypePreSharedKey CipherSuiteAuthenticationType = ciphersuite.AuthenticationTypePreSharedKey
 	CipherSuiteAuthenticationTypeAnonymous    CipherSuiteAuthenticationType = ciphersuite.AuthenticationTypeAnonymous
+)
+
+// CipherSuiteKeyExchangeAlgorithm controls what exchange algorithm is using during the handshake for a CipherSuite
+type CipherSuiteKeyExchangeAlgorithm = ciphersuite.KeyExchangeAlgorithm
+
+// CipherSuiteKeyExchangeAlgorithm Bitmask
+const (
+	CipherSuiteKeyExchangeAlgorithmNone  CipherSuiteKeyExchangeAlgorithm = ciphersuite.KeyExchangeAlgorithmNone
+	CipherSuiteKeyExchangeAlgorithmPsk   CipherSuiteKeyExchangeAlgorithm = ciphersuite.KeyExchangeAlgorithmPsk
+	CipherSuiteKeyExchangeAlgorithmEcdhe CipherSuiteKeyExchangeAlgorithm = ciphersuite.KeyExchangeAlgorithmEcdhe
 )
 
 var _ = allCipherSuites() // Necessary until this function isn't only used by Go 1.14
@@ -61,10 +84,16 @@ type CipherSuite interface {
 	// AuthenticationType controls what authentication method is using during the handshake
 	AuthenticationType() CipherSuiteAuthenticationType
 
+	// KeyExchangeAlgorithm controls what exchange algorithm is using during the handshake
+	KeyExchangeAlgorithm() CipherSuiteKeyExchangeAlgorithm
+
+	// ECC (Elliptic Curve Cryptography) determines whether ECC extesions will be send during handshake.
+	// https://datatracker.ietf.org/doc/html/rfc4492#page-10
+	ECC() bool
+
 	// Called when keying material has been generated, should initialize the internal cipher
 	Init(masterSecret, clientRandom, serverRandom []byte, isClient bool) error
 	IsInitialized() bool
-
 	Encrypt(pkt *recordlayer.RecordLayer, raw []byte) ([]byte, error)
 	Decrypt(in []byte) ([]byte, error)
 }
@@ -103,10 +132,18 @@ func cipherSuiteForID(id CipherSuiteID, customCiphers func() []CipherSuite) Ciph
 		return ciphersuite.NewTLSPskWithAes128Ccm()
 	case TLS_PSK_WITH_AES_128_CCM_8:
 		return ciphersuite.NewTLSPskWithAes128Ccm8()
+	case TLS_PSK_WITH_AES_256_CCM_8:
+		return ciphersuite.NewTLSPskWithAes256Ccm8()
 	case TLS_PSK_WITH_AES_128_GCM_SHA256:
 		return &ciphersuite.TLSPskWithAes128GcmSha256{}
 	case TLS_PSK_WITH_AES_128_CBC_SHA256:
 		return &ciphersuite.TLSPskWithAes128CbcSha256{}
+	case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
+		return &ciphersuite.TLSEcdheEcdsaWithAes256GcmSha384{}
+	case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
+		return &ciphersuite.TLSEcdheRsaWithAes256GcmSha384{}
+	case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256:
+		return ciphersuite.NewTLSEcdhePskWithAes128CbcSha256()
 	}
 
 	if customCiphers != nil {
@@ -127,6 +164,8 @@ func defaultCipherSuites() []CipherSuite {
 		&ciphersuite.TLSEcdheRsaWithAes128GcmSha256{},
 		&ciphersuite.TLSEcdheEcdsaWithAes256CbcSha{},
 		&ciphersuite.TLSEcdheRsaWithAes256CbcSha{},
+		&ciphersuite.TLSEcdheEcdsaWithAes256GcmSha384{},
+		&ciphersuite.TLSEcdheRsaWithAes256GcmSha384{},
 	}
 }
 
@@ -140,7 +179,10 @@ func allCipherSuites() []CipherSuite {
 		&ciphersuite.TLSEcdheRsaWithAes256CbcSha{},
 		ciphersuite.NewTLSPskWithAes128Ccm(),
 		ciphersuite.NewTLSPskWithAes128Ccm8(),
+		ciphersuite.NewTLSPskWithAes256Ccm8(),
 		&ciphersuite.TLSPskWithAes128GcmSha256{},
+		&ciphersuite.TLSEcdheEcdsaWithAes256GcmSha384{},
+		&ciphersuite.TLSEcdheRsaWithAes256GcmSha384{},
 	}
 }
 
@@ -158,7 +200,7 @@ func parseCipherSuites(userSelectedSuites []CipherSuiteID, customCipherSuites fu
 		for _, id := range ids {
 			c := cipherSuiteForID(id, nil)
 			if c == nil {
-				return nil, &invalidCipherSuite{id}
+				return nil, &invalidCipherSuiteError{id}
 			}
 			cipherSuites = append(cipherSuites, c)
 		}
@@ -210,4 +252,25 @@ func parseCipherSuites(userSelectedSuites []CipherSuiteID, customCipherSuites fu
 	}
 
 	return cipherSuites[:i], nil
+}
+
+func filterCipherSuitesForCertificate(cert *tls.Certificate, cipherSuites []CipherSuite) []CipherSuite {
+	if cert == nil || cert.PrivateKey == nil {
+		return cipherSuites
+	}
+	var certType clientcertificate.Type
+	switch cert.PrivateKey.(type) {
+	case ed25519.PrivateKey, *ecdsa.PrivateKey:
+		certType = clientcertificate.ECDSASign
+	case *rsa.PrivateKey:
+		certType = clientcertificate.RSASign
+	}
+
+	filtered := []CipherSuite{}
+	for _, c := range cipherSuites {
+		if c.AuthenticationType() != CipherSuiteAuthenticationTypeCertificate || certType == c.CertificateType() {
+			filtered = append(filtered, c)
+		}
+	}
+	return filtered
 }

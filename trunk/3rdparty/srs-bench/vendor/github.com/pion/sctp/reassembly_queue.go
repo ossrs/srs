@@ -1,11 +1,10 @@
 package sctp
 
 import (
+	"errors"
 	"io"
 	"sort"
 	"sync/atomic"
-
-	"github.com/pkg/errors"
 )
 
 func sortChunksByTSN(a []*chunkPayloadData) {

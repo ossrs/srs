@@ -1,14 +1,19 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package dtls
 
 import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"io"
 	"time"
 
+	"github.com/pion/dtls/v2/pkg/crypto/elliptic"
 	"github.com/pion/logging"
 )
 
@@ -81,6 +86,16 @@ type Config struct {
 	// be considered but the verifiedChains will always be nil.
 	VerifyPeerCertificate func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
 
+	// VerifyConnection, if not nil, is called after normal certificate
+	// verification/PSK and after VerifyPeerCertificate by either a TLS client
+	// or server. If it returns a non-nil error, the handshake is aborted
+	// and that error results.
+	//
+	// If normal verification fails then the handshake will abort before
+	// considering this callback. This callback will run for all connections
+	// regardless of InsecureSkipVerify or ClientAuth settings.
+	VerifyConnection func(*State) error
+
 	// RootCAs defines the set of root certificate authorities
 	// that one peer uses when verifying the other peer's certificates.
 	// If RootCAs is nil, TLS uses the host's root CA set.
@@ -123,6 +138,44 @@ type Config struct {
 	// Use of KeyLogWriter compromises security and should only be
 	// used for debugging.
 	KeyLogWriter io.Writer
+
+	// SessionStore is the container to store session for resumption.
+	SessionStore SessionStore
+
+	// List of application protocols the peer supports, for ALPN
+	SupportedProtocols []string
+
+	// List of Elliptic Curves to use
+	//
+	// If an ECC ciphersuite is configured and EllipticCurves is empty
+	// it will default to X25519, P-256, P-384 in this specific order.
+	EllipticCurves []elliptic.Curve
+
+	// GetCertificate returns a Certificate based on the given
+	// ClientHelloInfo. It will only be called if the client supplies SNI
+	// information or if Certificates is empty.
+	//
+	// If GetCertificate is nil or returns nil, then the certificate is
+	// retrieved from NameToCertificate. If NameToCertificate is nil, the
+	// best element of Certificates will be used.
+	GetCertificate func(*ClientHelloInfo) (*tls.Certificate, error)
+
+	// GetClientCertificate, if not nil, is called when a server requests a
+	// certificate from a client. If set, the contents of Certificates will
+	// be ignored.
+	//
+	// If GetClientCertificate returns an error, the handshake will be
+	// aborted and that error will be returned. Otherwise
+	// GetClientCertificate must return a non-nil Certificate. If
+	// Certificate.Certificate is empty then no certificate will be sent to
+	// the server. If this is unacceptable to the server then it may abort
+	// the handshake.
+	GetClientCertificate func(*CertificateRequestInfo) (*tls.Certificate, error)
+
+	// InsecureSkipVerifyHello, if true and when acting as server, allow client to
+	// skip hello verify phase and receive ServerHello after initial ClientHello.
+	// This have implication on DoS attack resistance.
+	InsecureSkipVerifyHello bool
 }
 
 func defaultConnectContextMaker() (context.Context, func()) {
@@ -136,7 +189,13 @@ func (c *Config) connectContextMaker() (context.Context, func()) {
 	return c.ConnectContextMaker()
 }
 
+func (c *Config) includeCertificateSuites() bool {
+	return c.PSK == nil || len(c.Certificates) > 0 || c.GetCertificate != nil || c.GetClientCertificate != nil
+}
+
 const defaultMTU = 1200 // bytes
+
+var defaultCurves = []elliptic.Curve{elliptic.X25519, elliptic.P256, elliptic.P384} //nolint:gochecknoglobals
 
 // PSKCallback is called once we have the remote's PSKIdentityHint.
 // If the remote provided none it will be nil
@@ -182,12 +241,13 @@ func validateConfig(config *Config) error {
 			switch cert.PrivateKey.(type) {
 			case ed25519.PrivateKey:
 			case *ecdsa.PrivateKey:
+			case *rsa.PrivateKey:
 			default:
 				return errInvalidPrivateKey
 			}
 		}
 	}
 
-	_, err := parseCipherSuites(config.CipherSuites, config.CustomCipherSuites, config.PSK == nil || len(config.Certificates) > 0, config.PSK != nil)
+	_, err := parseCipherSuites(config.CipherSuites, config.CustomCipherSuites, config.includeCertificateSuites(), config.PSK != nil)
 	return err
 }
