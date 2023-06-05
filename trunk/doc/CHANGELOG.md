@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-06-05, Fix command injection in demonstration api-server for HTTP callback. v5.0.157
 * v5.0, 2023-06-05, Merge [#3565](https://github.com/ossrs/srs/pull/3565): DTLS: Use bio callback to get fragment packet. v5.0.156 (#3565)
 * v5.0, 2023-05-29, Merge [#3513](https://github.com/ossrs/srs/pull/3513): SSL: Fix SSL_get_error get the error of other coroutine. v5.0.155 (#3513)
 * v5.0, 2023-05-14, Support the publishing of RTP plaintext packets using WHIP. v5.0.155
