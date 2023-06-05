@@ -587,6 +587,10 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
     state_trace((uint8_t*)data, nb_data, true, r0);
 
     // If there is data available in bio_in, use SSL_read to allow SSL to process it.
+    // We limit the MTU to 1200 for DTLS handshake, which ensures that the buffer is large enough for reading.
+    // TODO: FIXME: DTLS application messages, such as DataChannel messages, may exceed 1500 bytes, but they should be
+    //  fragmented. This fragmentation should be done at the application level. However, I'm not certain about this
+    //  and will leave it to the developer who is responsible for developing the DataChannel.
     char buf[kRtpPacketSize];
     r0 = SSL_read(dtls, buf, sizeof(buf));
     int r1 = SSL_get_error(dtls, r0); ERR_clear_error();
@@ -594,7 +598,7 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
         if (r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE && r1 != SSL_ERROR_ZERO_RETURN) {
             return srs_error_new(ERROR_RTC_DTLS, "DTLS: read r0=%d, r1=%d, done=%d", r0, r1, handshake_done_for_us);
         }
-    } else if (r0 > 0) {
+    } else {
         srs_trace("DTLS: read r0=%d, r1=%d, padding=%d, done=%d, data=[%s]",
             r0, r1, BIO_ctrl_pending(bio_in), handshake_done_for_us, srs_string_dumps_hex(buf, r0, 32).c_str());
 
