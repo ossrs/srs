@@ -400,6 +400,7 @@ func (v *SnapshotJob) do(ffmpegPath, inputUrl string) (err error) {
 	normalPicPath := path.Join(outputPicDir, fmt.Sprintf("%v", v.Stream)+"-%03d.png")
 	bestPng := path.Join(outputPicDir, fmt.Sprintf("%v-best.png", v.Stream))
 
+	inputUrl = strings.Replace(strconv.Quote(inputUrl), "`", "'", -1)
 	param := fmt.Sprintf("%v -i %v -vf fps=1 -vcodec png -f image2 -an -y -vframes %v -y %v", ffmpegPath, inputUrl, v.vframes, normalPicPath)
 	log.Println(fmt.Sprintf("start snapshot, cmd param=%v", param))
 	timeoutCtx, _ := context.WithTimeout(v.cancelCtx, v.timeout)
