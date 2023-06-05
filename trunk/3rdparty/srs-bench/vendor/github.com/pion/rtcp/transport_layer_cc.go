@@ -75,8 +75,6 @@ func numOfBitsOfSymbolSize() map[uint16]uint16 {
 	}
 }
 
-var _ Packet = (*TransportLayerCC)(nil) // assert is a Packet
-
 var (
 	errPacketStatusChunkLength = errors.New("packet status chunk must be 2 bytes")
 	errDeltaExceedLimit        = errors.New("delta exceed limit")
@@ -351,10 +349,7 @@ type TransportLayerCC struct {
 func (t *TransportLayerCC) packetLen() uint16 {
 	n := uint16(headerLength + packetChunkOffset + len(t.PacketChunks)*2)
 	for _, d := range t.RecvDeltas {
-		delta := d.Delta / TypeTCCDeltaScaleFactor
-
-		// small delta
-		if delta >= 0 && delta <= math.MaxUint8 {
+		if d.Type == TypeTCCPacketReceivedSmallDelta {
 			n++
 		} else {
 			n += 2
@@ -452,7 +447,7 @@ func (t *TransportLayerCC) Unmarshal(rawPacket []byte) error { //nolint:gocognit
 	// header's length + payload's length
 	totalLength := 4 * (t.Header.Length + 1)
 
-	if totalLength <= headerLength+packetChunkOffset {
+	if totalLength < headerLength+packetChunkOffset {
 		return errPacketTooShort
 	}
 

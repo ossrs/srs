@@ -15,7 +15,7 @@ type AbsSendTimeExtension struct {
 }
 
 // Marshal serializes the members to buffer.
-func (t *AbsSendTimeExtension) Marshal() ([]byte, error) {
+func (t AbsSendTimeExtension) Marshal() ([]byte, error) {
 	return []byte{
 		byte(t.Timestamp & 0xFF0000 >> 16),
 		byte(t.Timestamp & 0xFF00 >> 8),

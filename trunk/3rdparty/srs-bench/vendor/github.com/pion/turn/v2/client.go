@@ -10,7 +10,9 @@ import (
 
 	"github.com/pion/logging"
 	"github.com/pion/stun"
-	"github.com/pion/transport/vnet"
+	"github.com/pion/transport/v2"
+	"github.com/pion/transport/v2/stdnet"
+	"github.com/pion/transport/v2/vnet"
 	"github.com/pion/turn/v2/internal/client"
 	"github.com/pion/turn/v2/internal/proto"
 )
@@ -34,7 +36,7 @@ const (
 // ClientConfig is a bag of config parameters for Client.
 type ClientConfig struct {
 	STUNServerAddr string // STUN server address (e.g. "stun.abc.com:3478")
-	TURNServerAddr string // TURN server addrees (e.g. "turn.abc.com:3478")
+	TURNServerAddr string // TURN server address (e.g. "turn.abc.com:3478")
 	Username       string
 	Password       string
 	Realm          string
@@ -42,7 +44,7 @@ type ClientConfig struct {
 	RTO            time.Duration
 	Conn           net.PacketConn // Listening socket (net.PacketConn)
 	LoggerFactory  logging.LoggerFactory
-	Net            *vnet.Net
+	Net            transport.Net
 }
 
 // Client is a STUN server client
@@ -50,8 +52,8 @@ type Client struct {
 	conn          net.PacketConn         // read-only
 	stunServ      net.Addr               // read-only
 	turnServ      net.Addr               // read-only
-	stunServStr   string                 // read-only, used for dmuxing
-	turnServStr   string                 // read-only, used for dmuxing
+	stunServStr   string                 // read-only, used for de-multiplexing
+	turnServStr   string                 // read-only, used for de-multiplexing
 	username      stun.Username          // read-only
 	password      string                 // read-only
 	realm         stun.Realm             // read-only
@@ -62,7 +64,7 @@ type Client struct {
 	relayedConn   *client.UDPConn        // protected by mutex ***
 	allocTryLock  client.TryLock         // thread-safe
 	listenTryLock client.TryLock         // thread-safe
-	net           *vnet.Net              // read-only
+	net           transport.Net          // read-only
 	mutex         sync.RWMutex           // thread-safe
 	mutexTrMap    sync.Mutex             // thread-safe
 	log           logging.LeveledLogger  // read-only
@@ -81,15 +83,18 @@ func NewClient(config *ClientConfig) (*Client, error) {
 		return nil, errNilConn
 	}
 
+	var err error
 	if config.Net == nil {
-		config.Net = vnet.NewNet(nil) // defaults to native operation
-	} else if config.Net.IsVirtual() {
-		log.Warn("vnet is enabled")
+		config.Net, err = stdnet.NewNet() // defaults to native operation
+		if err != nil {
+			return nil, err
+		}
+	} else if _, ok := config.Net.(*vnet.Net); ok {
+		log.Warn("Virtual network is enabled")
 	}
 
 	var stunServ, turnServ net.Addr
 	var stunServStr, turnServStr string
-	var err error
 	if len(config.STUNServerAddr) > 0 {
 		log.Debugf("resolving %s", config.STUNServerAddr)
 		stunServ, err = config.Net.ResolveUDPAddr("udp4", config.STUNServerAddr)
@@ -333,9 +338,16 @@ func (c *Client) Allocate() (net.PacketConn, error) {
 	return relayedConn, nil
 }
 
+// CreatePermission Issues a CreatePermission request for the supplied addresses
+// as described in https://datatracker.ietf.org/doc/html/rfc5766#section-9
+func (c *Client) CreatePermission(addrs ...net.Addr) error {
+	return c.relayedUDPConn().CreatePermissions(addrs...)
+}
+
 // PerformTransaction performs STUN transaction
 func (c *Client) PerformTransaction(msg *stun.Message, to net.Addr, ignoreResult bool) (client.TransactionResult,
-	error) {
+	error,
+) {
 	trKey := b64.StdEncoding.EncodeToString(msg.TransactionID[:])
 
 	raw := make([]byte, len(msg.Raw))
@@ -371,16 +383,16 @@ func (c *Client) PerformTransaction(msg *stun.Message, to net.Addr, ignoreResult
 	return res, nil
 }
 
-// OnDeallocated is called when deallocation of relay address has been complete.
+// OnDeallocated is called when de-allocation of relay address has been complete.
 // (Called by UDPConn)
 func (c *Client) OnDeallocated(relayedAddr net.Addr) {
 	c.setRelayedUDPConn(nil)
 }
 
 // HandleInbound handles data received.
-// This method handles incoming packet demultiplex it by the source address
+// This method handles incoming packet de-multiplex it by the source address
 // and the types of the message.
-// This return a booleen (handled or not) and if there was an error.
+// This return a boolean (handled or not) and if there was an error.
 // Caller should check if the packet was handled by this client or not.
 // If not handled, it is assumed that the packet is application data.
 // If an error is returned, the caller should discard the packet regardless.
@@ -413,7 +425,7 @@ func (c *Client) HandleInbound(data []byte, from net.Addr) (bool, error) {
 		return true, errNonSTUNMessage
 	default:
 		// assume, this is an application data
-		c.log.Tracef("non-STUN/TURN packect, unhandled")
+		c.log.Tracef("non-STUN/TURN packet, unhandled")
 	}
 
 	return false, nil
@@ -529,7 +541,7 @@ func (c *Client) onRtxTimeout(trKey string, nRtx int) {
 	}
 
 	if nRtx == maxRtxCount {
-		// all retransmisstions failed
+		// all retransmissions failed
 		c.trMap.Delete(trKey)
 		if !tr.WriteResult(client.TransactionResult{
 			Err: fmt.Errorf("%w %s", errAllRetransmissionsFailed, trKey),

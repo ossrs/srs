@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
+//go:build !js
 // +build !js
 
 package webrtc
@@ -20,12 +24,10 @@ type ICETransport struct {
 	lock sync.RWMutex
 
 	role ICERole
-	// Component ICEComponent
-	// State ICETransportState
-	// gatheringState ICEGathererState
 
-	onConnectionStateChangeHandler       atomic.Value // func(ICETransportState)
-	onSelectedCandidatePairChangeHandler atomic.Value // func(*ICECandidatePair)
+	onConnectionStateChangeHandler         atomic.Value // func(ICETransportState)
+	internalOnConnectionStateChangeHandler atomic.Value // func(ICETransportState)
+	onSelectedCandidatePairChangeHandler   atomic.Value // func(*ICECandidatePair)
 
 	state atomic.Value // ICETransportState
 
@@ -41,25 +43,31 @@ type ICETransport struct {
 	log logging.LeveledLogger
 }
 
-// func (t *ICETransport) GetLocalCandidates() []ICECandidate {
-//
-// }
-//
-// func (t *ICETransport) GetRemoteCandidates() []ICECandidate {
-//
-// }
-//
-// func (t *ICETransport) GetSelectedCandidatePair() ICECandidatePair {
-//
-// }
-//
-// func (t *ICETransport) GetLocalParameters() ICEParameters {
-//
-// }
-//
-// func (t *ICETransport) GetRemoteParameters() ICEParameters {
-//
-// }
+// GetSelectedCandidatePair returns the selected candidate pair on which packets are sent
+// if there is no selected pair nil is returned
+func (t *ICETransport) GetSelectedCandidatePair() (*ICECandidatePair, error) {
+	agent := t.gatherer.getAgent()
+	if agent == nil {
+		return nil, nil //nolint:nilnil
+	}
+
+	icePair, err := agent.GetSelectedCandidatePair()
+	if icePair == nil || err != nil {
+		return nil, err
+	}
+
+	local, err := newICECandidateFromICE(icePair.Local)
+	if err != nil {
+		return nil, err
+	}
+
+	remote, err := newICECandidateFromICE(icePair.Remote)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ICECandidatePair{Local: &local, Remote: &remote}, nil
+}
 
 // NewICETransport creates a new NewICETransport.
 func NewICETransport(gatherer *ICEGatherer, loggerFactory logging.LoggerFactory) *ICETransport {
@@ -152,7 +160,7 @@ func (t *ICETransport) Start(gatherer *ICEGatherer, params ICEParameters, role *
 
 	config := mux.Config{
 		Conn:          t.conn,
-		BufferSize:    receiveMTU,
+		BufferSize:    int(t.gatherer.api.settingEngine.getReceiveMTU()),
 		LoggerFactory: t.loggerFactory,
 	}
 	t.mux = mux.NewMux(config)
@@ -203,9 +211,8 @@ func (t *ICETransport) OnSelectedCandidatePairChange(f func(*ICECandidatePair)) 
 }
 
 func (t *ICETransport) onSelectedCandidatePairChange(pair *ICECandidatePair) {
-	handler := t.onSelectedCandidatePairChangeHandler.Load()
-	if handler != nil {
-		handler.(func(*ICECandidatePair))(pair)
+	if handler, ok := t.onSelectedCandidatePairChangeHandler.Load().(func(*ICECandidatePair)); ok {
+		handler(pair)
 	}
 }
 
@@ -216,9 +223,11 @@ func (t *ICETransport) OnConnectionStateChange(f func(ICETransportState)) {
 }
 
 func (t *ICETransport) onConnectionStateChange(state ICETransportState) {
-	handler := t.onConnectionStateChangeHandler.Load()
-	if handler != nil {
-		handler.(func(ICETransportState))(state)
+	if handler, ok := t.onConnectionStateChangeHandler.Load().(func(ICETransportState)); ok {
+		handler(state)
+	}
+	if handler, ok := t.internalOnConnectionStateChangeHandler.Load().(func(ICETransportState)); ok {
+		handler(state)
 	}
 }
 
@@ -288,8 +297,8 @@ func (t *ICETransport) AddRemoteCandidate(remoteCandidate *ICECandidate) error {
 
 // State returns the current ice transport state.
 func (t *ICETransport) State() ICETransportState {
-	if v := t.state.Load(); v != nil {
-		return v.(ICETransportState)
+	if v, ok := t.state.Load().(ICETransportState); ok {
+		return v
 	}
 	return ICETransportState(0)
 }
@@ -298,8 +307,7 @@ func (t *ICETransport) setState(i ICETransportState) {
 	t.state.Store(i)
 }
 
-// NewEndpoint registers a new endpoint on the underlying mux.
-func (t *ICETransport) NewEndpoint(f mux.MatchFunc) *mux.Endpoint {
+func (t *ICETransport) newEndpoint(f mux.MatchFunc) *mux.Endpoint {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	return t.mux.NewEndpoint(f)

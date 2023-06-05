@@ -32,18 +32,5 @@ If you need commercial support or don't want to use public methods you can conta
 ### Contributing
 Check out the **[contributing wiki](https://github.com/pion/webrtc/wiki/Contributing)** to join the group of amazing people making this project possible:
 
-* [Max Hawkins](https://github.com/maxhawkins) - *Original Author*
-* [Woodrow Douglass](https://github.com/wdouglass) *RTCP, RTP improvements, G.722 support, Bugfixes*
-* [Sean DuBois](https://github.com/Sean-Der) - *Linter fixes*
-* [adwpc](https://github.com/adwpc)
-* [Luke Curley](https://github.com/kixelated)
-* [Hugo Arregui](https://github.com/hugoArregui)
-* [Atsushi Watanabe](https://github.com/at-wat)
-* [Juliusz Chroboczek](https://github.com/jech)
-* [Gabor Pongracz](https://github.com/pongraczgabor87)
-* [Simone Gotti](https://github.com/sgotti)
-* [lllf](https://github.com/LittleLightLittleFire)
-* [cnderrauber](https://github.com/cnderrauber)
-
 ### License
 MIT License - see [LICENSE](LICENSE) for full text

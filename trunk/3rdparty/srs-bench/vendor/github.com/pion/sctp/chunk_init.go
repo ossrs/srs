@@ -1,9 +1,8 @@
 package sctp // nolint:dupl
 
 import (
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 /*
@@ -11,19 +10,32 @@ Init represents an SCTP Chunk of type INIT
 
 See chunkInitCommon for the fixed headers
 
-Variable Parameters                  Status     Type Value
--------------------------------------------------------------
-IPv4 IP (Note 1)               Optional    5
-IPv6 IP (Note 1)               Optional    6
-Cookie Preservative                 Optional    9
-Reserved for ECN Capable (Note 2)   Optional    32768 (0x8000)
-Host Name IP (Note 3)          Optional    11
-Supported IP Types (Note 4)    Optional    12
+	Variable Parameters               	Status     	Type Value
+	-------------------------------------------------------------
+	IPv4 IP (Note 1)               		Optional    5
+	IPv6 IP (Note 1)               		Optional    6
+	Cookie Preservative                 Optional    9
+	Reserved for ECN Capable (Note 2)   Optional    32768 (0x8000)
+	Host Name IP (Note 3)          		Optional    11
+	Supported IP Types (Note 4)    		Optional    12
 */
 type chunkInit struct {
 	chunkHeader
 	chunkInitCommon
 }
+
+// Init chunk errors
+var (
+	ErrChunkTypeNotTypeInit          = errors.New("ChunkType is not of type INIT")
+	ErrChunkValueNotLongEnough       = errors.New("chunk Value isn't long enough for mandatory parameters exp")
+	ErrChunkTypeInitFlagZero         = errors.New("ChunkType of type INIT flags must be all 0")
+	ErrChunkTypeInitUnmarshalFailed  = errors.New("failed to unmarshal INIT body")
+	ErrChunkTypeInitMarshalFailed    = errors.New("failed marshaling INIT common data")
+	ErrChunkTypeInitInitateTagZero   = errors.New("ChunkType of type INIT ACK InitiateTag must not be 0")
+	ErrInitInboundStreamRequestZero  = errors.New("INIT ACK inbound stream request must be > 0")
+	ErrInitOutboundStreamRequestZero = errors.New("INIT ACK outbound stream request must be > 0")
+	ErrInitAdvertisedReceiver1500    = errors.New("INIT ACK Advertised Receiver Window Credit (a_rwnd) must be >= 1500")
+)
 
 func (i *chunkInit) unmarshal(raw []byte) error {
 	if err := i.chunkHeader.unmarshal(raw); err != nil {
@@ -31,20 +43,20 @@ func (i *chunkInit) unmarshal(raw []byte) error {
 	}
 
 	if i.typ != ctInit {
-		return errors.Errorf("ChunkType is not of type INIT, actually is %s", i.typ.String())
+		return fmt.Errorf("%w: actually is %s", ErrChunkTypeNotTypeInit, i.typ.String())
 	} else if len(i.raw) < initChunkMinLength {
-		return errors.Errorf("Chunk Value isn't long enough for mandatory parameters exp: %d actual: %d", initChunkMinLength, len(i.raw))
+		return fmt.Errorf("%w: %d actual: %d", ErrChunkValueNotLongEnough, initChunkMinLength, len(i.raw))
 	}
 
 	// The Chunk Flags field in INIT is reserved, and all bits in it should
 	// be set to 0 by the sender and ignored by the receiver.  The sequence
 	// of parameters within an INIT can be processed in any order.
 	if i.flags != 0 {
-		return errors.New("ChunkType of type INIT flags must be all 0")
+		return ErrChunkTypeInitFlagZero
 	}
 
 	if err := i.chunkInitCommon.unmarshal(i.raw); err != nil {
-		return errors.Wrap(err, "Failed to unmarshal INIT body")
+		return fmt.Errorf("%w: %v", ErrChunkTypeInitUnmarshalFailed, err) //nolint:errorlint
 	}
 
 	return nil
@@ -53,7 +65,7 @@ func (i *chunkInit) unmarshal(raw []byte) error {
 func (i *chunkInit) marshal() ([]byte, error) {
 	initShared, err := i.chunkInitCommon.marshal()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed marshaling INIT common data")
+		return nil, fmt.Errorf("%w: %v", ErrChunkTypeInitMarshalFailed, err) //nolint:errorlint
 	}
 
 	i.chunkHeader.typ = ctInit
@@ -75,7 +87,7 @@ func (i *chunkInit) check() (abort bool, err error) {
 	// association by transmitting an ABORT.
 	if i.initiateTag == 0 {
 		abort = true
-		return abort, errors.New("ChunkType of type INIT InitiateTag must not be 0")
+		return abort, ErrChunkTypeInitInitateTagZero
 	}
 
 	// Defines the maximum number of streams the sender of this INIT
@@ -90,7 +102,7 @@ func (i *chunkInit) check() (abort bool, err error) {
 	// the association.
 	if i.numInboundStreams == 0 {
 		abort = true
-		return abort, errors.New("INIT inbound stream request must be > 0")
+		return abort, ErrInitInboundStreamRequestZero
 	}
 
 	// Defines the number of outbound streams the sender of this INIT
@@ -102,7 +114,7 @@ func (i *chunkInit) check() (abort bool, err error) {
 
 	if i.numOutboundStreams == 0 {
 		abort = true
-		return abort, errors.New("INIT outbound stream request must be > 0")
+		return abort, ErrInitOutboundStreamRequestZero
 	}
 
 	// An SCTP receiver MUST be able to receive a minimum of 1500 bytes in
@@ -111,7 +123,7 @@ func (i *chunkInit) check() (abort bool, err error) {
 	// ACK.
 	if i.advertisedReceiverWindowCredit < 1500 {
 		abort = true
-		return abort, errors.New("INIT Advertised Receiver Window Credit (a_rwnd) must be >= 1500")
+		return abort, ErrInitAdvertisedReceiver1500
 	}
 
 	return false, nil

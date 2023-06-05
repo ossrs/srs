@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	inboundMTU = 1500
+	defaultInboundMTU = 1600
 )
 
 // Server is an instance of the Pion TURN Server
@@ -25,11 +25,15 @@ type Server struct {
 	channelBindTimeout time.Duration
 	nonces             *sync.Map
 
-	packetConnConfigs []PacketConnConfig
-	listenerConfigs   []ListenerConfig
+	packetConnConfigs  []PacketConnConfig
+	listenerConfigs    []ListenerConfig
+	allocationManagers []*allocation.Manager
+	inboundMTU         int
 }
 
 // NewServer creates the Pion TURN server
+//
+//nolint:gocognit
 func NewServer(config ServerConfig) (*Server, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
@@ -40,6 +44,11 @@ func NewServer(config ServerConfig) (*Server, error) {
 		loggerFactory = logging.NewDefaultLoggerFactory()
 	}
 
+	mtu := defaultInboundMTU
+	if config.InboundMTU != 0 {
+		mtu = config.InboundMTU
+	}
+
 	s := &Server{
 		log:                loggerFactory.NewLogger("turn"),
 		authHandler:        config.AuthHandler,
@@ -48,77 +57,55 @@ func NewServer(config ServerConfig) (*Server, error) {
 		packetConnConfigs:  config.PacketConnConfigs,
 		listenerConfigs:    config.ListenerConfigs,
 		nonces:             &sync.Map{},
+		inboundMTU:         mtu,
 	}
 
 	if s.channelBindTimeout == 0 {
 		s.channelBindTimeout = proto.DefaultLifetime
 	}
 
-	for i := range s.packetConnConfigs {
-		go func(p PacketConnConfig) {
-			allocationManager, err := allocation.NewManager(allocation.ManagerConfig{
-				AllocatePacketConn: p.RelayAddressGenerator.AllocatePacketConn,
-				AllocateConn:       p.RelayAddressGenerator.AllocateConn,
-				LeveledLogger:      s.log,
-			})
-			if err != nil {
-				s.log.Errorf("exit read loop on error: %s", err.Error())
-				return
-			}
-			defer func() {
-				if err := allocationManager.Close(); err != nil {
-					s.log.Errorf("Failed to close AllocationManager: %s", err.Error())
-				}
-			}()
+	for _, cfg := range s.packetConnConfigs {
+		am, err := s.createAllocationManager(cfg.RelayAddressGenerator, cfg.PermissionHandler)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create AllocationManager: %w", err)
+		}
 
-			s.readLoop(p.PacketConn, allocationManager)
-		}(s.packetConnConfigs[i])
+		go s.readPacketConn(cfg, am)
 	}
 
-	for _, listener := range s.listenerConfigs {
-		go func(l ListenerConfig) {
-			allocationManager, err := allocation.NewManager(allocation.ManagerConfig{
-				AllocatePacketConn: l.RelayAddressGenerator.AllocatePacketConn,
-				AllocateConn:       l.RelayAddressGenerator.AllocateConn,
-				LeveledLogger:      s.log,
-			})
-			if err != nil {
-				s.log.Errorf("exit read loop on error: %s", err.Error())
-				return
-			}
-			defer func() {
-				if err := allocationManager.Close(); err != nil {
-					s.log.Errorf("Failed to close AllocationManager: %s", err.Error())
-				}
-			}()
+	for _, cfg := range s.listenerConfigs {
+		am, err := s.createAllocationManager(cfg.RelayAddressGenerator, cfg.PermissionHandler)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create AllocationManager: %w", err)
+		}
 
-			for {
-				conn, err := l.Listener.Accept()
-				if err != nil {
-					s.log.Debugf("exit accept loop on error: %s", err.Error())
-					return
-				}
-
-				go s.readLoop(NewSTUNConn(conn), allocationManager)
-			}
-		}(listener)
+		go s.readListener(cfg, am)
 	}
 
 	return s, nil
+}
+
+// AllocationCount returns the number of active allocations. It can be used to drain the server before closing
+func (s *Server) AllocationCount() int {
+	allocs := 0
+	for _, am := range s.allocationManagers {
+		allocs += am.AllocationCount()
+	}
+	return allocs
 }
 
 // Close stops the TURN Server. It cleans up any associated state and closes all connections it is managing
 func (s *Server) Close() error {
 	var errors []error
 
-	for _, p := range s.packetConnConfigs {
-		if err := p.PacketConn.Close(); err != nil {
+	for _, cfg := range s.packetConnConfigs {
+		if err := cfg.PacketConn.Close(); err != nil {
 			errors = append(errors, err)
 		}
 	}
 
-	for _, l := range s.listenerConfigs {
-		if err := l.Listener.Close(); err != nil {
+	for _, cfg := range s.listenerConfigs {
+		if err := cfg.Listener.Close(); err != nil {
 			errors = append(errors, err)
 		}
 	}
@@ -129,19 +116,68 @@ func (s *Server) Close() error {
 
 	err := errFailedToClose
 	for _, e := range errors {
-		err = fmt.Errorf("%s; Close error (%v) ", err.Error(), e) //nolint:goerr113
+		err = fmt.Errorf("%s; close error (%w) ", err, e)
 	}
 
 	return err
 }
 
+func (s *Server) readPacketConn(p PacketConnConfig, am *allocation.Manager) {
+	s.readLoop(p.PacketConn, am)
+
+	if err := am.Close(); err != nil {
+		s.log.Errorf("Failed to close AllocationManager: %s", err)
+	}
+}
+
+func (s *Server) readListener(l ListenerConfig, am *allocation.Manager) {
+	defer func() {
+		if err := am.Close(); err != nil {
+			s.log.Errorf("Failed to close AllocationManager: %s", err)
+		}
+	}()
+
+	for {
+		conn, err := l.Listener.Accept()
+		if err != nil {
+			s.log.Debugf("Failed to accept: %s", err)
+			return
+		}
+
+		go s.readLoop(NewSTUNConn(conn), am)
+	}
+}
+
+func (s *Server) createAllocationManager(addrGenerator RelayAddressGenerator, handler PermissionHandler) (*allocation.Manager, error) {
+	if handler == nil {
+		handler = DefaultPermissionHandler
+	}
+
+	am, err := allocation.NewManager(allocation.ManagerConfig{
+		AllocatePacketConn: addrGenerator.AllocatePacketConn,
+		AllocateConn:       addrGenerator.AllocateConn,
+		PermissionHandler:  handler,
+		LeveledLogger:      s.log,
+	})
+	if err != nil {
+		return am, err
+	}
+
+	s.allocationManagers = append(s.allocationManagers, am)
+
+	return am, err
+}
+
 func (s *Server) readLoop(p net.PacketConn, allocationManager *allocation.Manager) {
-	buf := make([]byte, inboundMTU)
+	buf := make([]byte, s.inboundMTU)
 	for {
 		n, addr, err := p.ReadFrom(buf)
-		if err != nil {
+		switch {
+		case err != nil:
 			s.log.Debugf("exit read loop on error: %s", err.Error())
 			return
+		case n >= s.inboundMTU:
+			s.log.Debugf("Read bytes exceeded MTU, packet is possibly truncated")
 		}
 
 		if err := server.HandleRequest(server.Request{

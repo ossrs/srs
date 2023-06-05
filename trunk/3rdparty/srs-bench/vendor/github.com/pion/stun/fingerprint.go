@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package stun
 
 import (
@@ -17,9 +20,9 @@ var ErrFingerprintMismatch = errors.New("fingerprint check failed")
 //
 // Example:
 //
-//  m := New()
-//  Fingerprint.AddTo(m)
-var Fingerprint FingerprintAttr
+//	m := New()
+//	Fingerprint.AddTo(m)
+var Fingerprint FingerprintAttr //nolint:gochecknoglobals
 
 const (
 	fingerprintXORValue uint32 = 0x5354554e //nolint:staticcheck

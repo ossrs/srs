@@ -1,8 +1,16 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
+//go:build !debug
 // +build !debug
 
 package stun
 
-import "github.com/pion/stun/internal/hmac"
+import (
+	"errors"
+
+	"github.com/pion/stun/internal/hmac"
+)
 
 // CheckSize returns ErrAttrSizeInvalid if got is not equal to expected.
 func CheckSize(_ AttrType, got, expected int) error {
@@ -28,7 +36,7 @@ func checkFingerprint(got, expected uint32) error {
 
 // IsAttrSizeInvalid returns true if error means that attribute size is invalid.
 func IsAttrSizeInvalid(err error) bool {
-	return err == ErrAttributeSizeInvalid
+	return errors.Is(err, ErrAttributeSizeInvalid)
 }
 
 // CheckOverflow returns ErrAttributeSizeOverflow if got is bigger that max.
@@ -41,5 +49,5 @@ func CheckOverflow(_ AttrType, got, max int) error {
 
 // IsAttrSizeOverflow returns true if error means that attribute size is too big.
 func IsAttrSizeOverflow(err error) bool {
-	return err == ErrAttributeSizeOverflow
+	return errors.Is(err, ErrAttributeSizeOverflow)
 }

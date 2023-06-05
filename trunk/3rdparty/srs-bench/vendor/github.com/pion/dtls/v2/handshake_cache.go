@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package dtls
 
 import (
@@ -31,16 +34,9 @@ func newHandshakeCache() *handshakeCache {
 	return &handshakeCache{}
 }
 
-func (h *handshakeCache) push(data []byte, epoch, messageSequence uint16, typ handshake.Type, isClient bool) bool { //nolint
+func (h *handshakeCache) push(data []byte, epoch, messageSequence uint16, typ handshake.Type, isClient bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-
-	for _, i := range h.cache {
-		if i.messageSequence == messageSequence &&
-			i.isClient == isClient {
-			return false
-		}
-	}
 
 	h.cache = append(h.cache, &handshakeCacheItem{
 		data:            append([]byte{}, data...),
@@ -49,7 +45,6 @@ func (h *handshakeCache) push(data []byte, epoch, messageSequence uint16, typ ha
 		typ:             typ,
 		isClient:        isClient,
 	})
-	return true
 }
 
 // returns a list handshakes that match the requested rules
@@ -77,7 +72,7 @@ func (h *handshakeCache) pull(rules ...handshakeCachePullRule) []*handshakeCache
 }
 
 // fullPullMap pulls all handshakes between rules[0] to rules[len(rules)-1] as map.
-func (h *handshakeCache) fullPullMap(startSeq int, rules ...handshakeCachePullRule) (int, map[handshake.Type]handshake.Message, bool) {
+func (h *handshakeCache) fullPullMap(startSeq int, cipherSuite CipherSuite, rules ...handshakeCachePullRule) (int, map[handshake.Type]handshake.Message, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -108,7 +103,13 @@ func (h *handshakeCache) fullPullMap(startSeq int, rules ...handshakeCachePullRu
 		if i == nil {
 			continue
 		}
-		rawHandshake := &handshake.Handshake{}
+		var keyExchangeAlgorithm CipherSuiteKeyExchangeAlgorithm
+		if cipherSuite != nil {
+			keyExchangeAlgorithm = cipherSuite.KeyExchangeAlgorithm()
+		}
+		rawHandshake := &handshake.Handshake{
+			KeyExchangeAlgorithm: keyExchangeAlgorithm,
+		}
 		if err := rawHandshake.Unmarshal(i.data); err != nil {
 			return startSeq, nil, false
 		}

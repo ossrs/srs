@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package stun
 
 import (
@@ -6,6 +9,8 @@ import (
 	"io"
 	"net"
 	"strconv"
+
+	"github.com/pion/transport/v2/utils/xor"
 )
 
 const (
@@ -66,7 +71,7 @@ func (a XORMappedAddress) AddToAs(m *Message, t AttrType) error {
 	bin.PutUint32(xorValue[0:4], magicCookie)
 	bin.PutUint16(value[0:2], family)
 	bin.PutUint16(value[2:4], uint16(a.Port^magicCookie>>16))
-	xorBytes(value[4:4+len(ip)], ip, xorValue)
+	xor.XorBytes(value[4:4+len(ip)], ip, xorValue)
 	m.Add(t, value[:4+len(ip)])
 	return nil
 }
@@ -115,7 +120,7 @@ func (a *XORMappedAddress) GetFromAs(m *Message, t AttrType) error {
 	xorValue := make([]byte, 4+TransactionIDSize)
 	bin.PutUint32(xorValue[0:4], magicCookie)
 	copy(xorValue[4:], m.TransactionID[:])
-	xorBytes(a.IP, v[4:], xorValue)
+	xor.XorBytes(a.IP, v[4:], xorValue)
 	return nil
 }
 
@@ -126,20 +131,20 @@ func (a *XORMappedAddress) GetFromAs(m *Message, t AttrType) error {
 //
 // Example:
 //
-//  expectedIP := net.ParseIP("213.141.156.236")
-//  expectedIP.String() // 213.141.156.236, 16 bytes, first 12 of them are zeroes
-//  expectedPort := 21254
-//  addr := &XORMappedAddress{
-//    IP:   expectedIP,
-//    Port: expectedPort,
-//  }
-//  // addr were added to message that is decoded as newMessage
-//  // ...
+//	expectedIP := net.ParseIP("213.141.156.236")
+//	expectedIP.String() // 213.141.156.236, 16 bytes, first 12 of them are zeroes
+//	expectedPort := 21254
+//	addr := &XORMappedAddress{
+//	  IP:   expectedIP,
+//	  Port: expectedPort,
+//	}
+//	// addr were added to message that is decoded as newMessage
+//	// ...
 //
-//  addr.GetFrom(newMessage)
-//  addr.IP.String()    // 213.141.156.236, net.IPv4Len
-//  expectedIP.String() // d58d:9cec::ffff:d58d:9cec, 16 bytes, first 4 are IPv4
-//  // now we have len(expectedIP) = 16 and len(addr.IP) = 4.
+//	addr.GetFrom(newMessage)
+//	addr.IP.String()    // 213.141.156.236, net.IPv4Len
+//	expectedIP.String() // d58d:9cec::ffff:d58d:9cec, 16 bytes, first 4 are IPv4
+//	// now we have len(expectedIP) = 16 and len(addr.IP) = 4.
 func (a *XORMappedAddress) GetFrom(m *Message) error {
 	return a.GetFromAs(m, AttrXORMappedAddress)
 }

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
+//go:build js && wasm
 // +build js,wasm
 
 package webrtc
@@ -162,7 +166,7 @@ func (d *DataChannel) Label() string {
 // out-of-order delivery is allowed.
 func (d *DataChannel) Ordered() bool {
 	ordered := d.underlying.Get("ordered")
-	if jsValueIsUndefined(ordered) {
+	if ordered.IsUndefined() {
 		return true // default is true
 	}
 	return ordered.Bool()
@@ -171,13 +175,13 @@ func (d *DataChannel) Ordered() bool {
 // MaxPacketLifeTime represents the length of the time window (msec) during
 // which transmissions and retransmissions may occur in unreliable mode.
 func (d *DataChannel) MaxPacketLifeTime() *uint16 {
-	if !jsValueIsUndefined(d.underlying.Get("maxPacketLifeTime")) {
+	if !d.underlying.Get("maxPacketLifeTime").IsUndefined() {
 		return valueToUint16Pointer(d.underlying.Get("maxPacketLifeTime"))
-	} else {
-		// See https://bugs.chromium.org/p/chromium/issues/detail?id=696681
-		// Chrome calls this "maxRetransmitTime"
-		return valueToUint16Pointer(d.underlying.Get("maxRetransmitTime"))
 	}
+
+	// See https://bugs.chromium.org/p/chromium/issues/detail?id=696681
+	// Chrome calls this "maxRetransmitTime"
+	return valueToUint16Pointer(d.underlying.Get("maxRetransmitTime"))
 }
 
 // MaxRetransmits represents the maximum number of retransmissions that are

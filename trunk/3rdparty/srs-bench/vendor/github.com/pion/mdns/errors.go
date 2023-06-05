@@ -7,4 +7,5 @@ var (
 	errConnectionClosed      = errors.New("mDNS: connection is closed")
 	errContextElapsed        = errors.New("mDNS: context has elapsed")
 	errNilConfig             = errors.New("mDNS: config must not be nil")
+	errFailedCast            = errors.New("mDNS: failed to cast listener to UDPAddr")
 )
