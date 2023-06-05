@@ -2221,11 +2221,12 @@ srs_error_t SrsRtcConnection::on_dtls_alert(std::string type, std::string desc)
     srs_error_t err = srs_success;
 
     // CN(Close Notify) is sent when client close the PeerConnection.
-    if (type == "warning" && desc == "CN") {
+    // fatal, IP(Illegal Parameter) is sent when DTLS failed.
+    if (type == "fatal" || (type == "warning" && desc == "CN")) {
         SrsContextRestore(_srs_context->get_id());
         switch_to_context();
 
-        srs_trace("RTC: session destroy by DTLS alert, username=%s", username_.c_str());
+        srs_trace("RTC: session destroy by DTLS alert(%s %s), username=%s", type.c_str(), desc.c_str(), username_.c_str());
         _srs_rtc_manager->remove(this);
     }
 
