@@ -1948,7 +1948,7 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(char* frame, int frame_size, uint32
     // F.3.29 intra random access point (IRAP) picture
     // ITU-T-H.265-2021.pdf, page 28.
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (nt >= SrsHevcNaluType_CODED_SLICE_BLA || nt <= SrsHevcNaluType_RESERVED_23) {
+    if (nt >= SrsHevcNaluType_CODED_SLICE_BLA && nt <= SrsHevcNaluType_RESERVED_23) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
 
