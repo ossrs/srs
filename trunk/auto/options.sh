@@ -28,7 +28,6 @@ SRS_HTTP_API=YES
 SRS_HTTP_CORE=YES
 SRS_HLS=YES
 SRS_DVR=YES
-SRS_CHERRYPY=NO
 # 
 ################################################################
 # FFmpeg stub is the stub code in SRS for ingester or encoder.
@@ -234,7 +233,6 @@ Experts:
 
 Deprecated:
   --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files. Default: $(value2switch $SRS_HDS)
-  --cherrypy=on|off         Whether install CherryPy for demo api-server. Default: $(value2switch $SRS_CHERRYPY)
   --osx                     Enable build for OSX/Darwin AppleOS. Deprecated for automatically detecting the OS.
   --x86-64                  Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
   --x86-x64                 Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
@@ -338,7 +336,6 @@ function parse_user_option() {
         --with-utest)                   SRS_UTEST=YES               ;;
         --without-utest)                SRS_UTEST=NO                ;;
         --utest)                        SRS_UTEST=$(switch2value $value) ;;
-        --cherrypy)                     SRS_CHERRYPY=$(switch2value $value) ;;
         --gcov)                         SRS_GCOV=$(switch2value $value) ;;
         --apm)                          SRS_APM=$(switch2value $value) ;;
 
@@ -626,7 +623,6 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-converter=$(value2switch $SRS_STREAM_CASTER)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=$(value2switch $SRS_HTTP_API)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=$(value2switch $SRS_UTEST)"
-    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=$(value2switch $SRS_CHERRYPY)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=$(value2switch $SRS_H265)"
