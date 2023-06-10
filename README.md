@@ -125,6 +125,7 @@ The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc) and [contributors
 * [LiPeng](https://github.com/lipeng19811218): Concentrates on WebRTC and contributes to memory management and smart pointers.
 * [ChenGuanghua](https://github.com/chen-guanghua): Focused on WebRTC/QoS and introduced the Asan toolchain to SRS.
 * [ChenHaibo](https://github.com/duiniuluantanqin): Specializes in GB28181 and HTTP API, contributing to patches for FFmpeg with WHIP.
+* [ZhangJunqin](https://github.com/chundonglinlin): Focused on H.265, Prometheus Exporter, and API module.
 
 A big `THANK YOU` also goes to:
 
