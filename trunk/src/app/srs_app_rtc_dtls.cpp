@@ -438,6 +438,11 @@ srs_error_t SrsDtlsImpl::write_dtls_data(void* data, int size)
 {
     srs_error_t err = srs_success;
 
+    // For test only, never enable it.
+#if 0
+    srs_usleep(5 * SRS_UTIME_SECONDS);
+#endif
+
     if (size > 0 && (err = callback_->write_dtls_data(data, size)) != srs_success) {
         return srs_error_wrap(err, "dtls send size=%u, data=[%s]", size,
             srs_string_dumps_hex((char*)data, size, 32).c_str());
@@ -566,6 +571,11 @@ srs_error_t SrsDtlsImpl::on_dtls(char* data, int nb_data)
     }
 
     return err;
+}
+
+void SrsDtlsImpl::shutdown()
+{
+    SSL_shutdown(dtls);
 }
 
 srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
@@ -940,6 +950,11 @@ srs_error_t SrsDtls::start_active_handshake()
 srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
 {
     return impl->on_dtls(data, nb_data);
+}
+
+void SrsDtls::shutdown()
+{
+    impl->shutdown();
 }
 
 srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)

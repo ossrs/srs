@@ -378,6 +378,11 @@ srs_error_t SrsRtcUdpNetwork::on_stun(SrsStunPacket* r, char* data, int nb_data)
         return srs_error_wrap(err, "udp");
     }
 
+    // For test only, never enable it.
+#if 0
+    srs_usleep(5 * SRS_UTIME_SECONDS);
+#endif
+
     if ((err = on_binding_request(r, ice_pwd)) != srs_success) {
         return srs_error_wrap(err, "stun binding request failed");
     }

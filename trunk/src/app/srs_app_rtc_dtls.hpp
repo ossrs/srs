@@ -114,6 +114,8 @@ public:
     virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake();
     virtual srs_error_t on_dtls(char* data, int nb_data);
+public:
+    void shutdown();
 protected:
     srs_error_t do_on_dtls(char* data, int nb_data);
     void state_trace(uint8_t* data, int length, bool incoming, int r0);
@@ -197,6 +199,8 @@ public:
     // When got DTLS packet, may handshake packets or application data.
     // @remark When we are passive(DTLS server), we start handshake when got DTLS packet.
     srs_error_t on_dtls(char* data, int nb_data);
+public:
+    void shutdown();
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
 };

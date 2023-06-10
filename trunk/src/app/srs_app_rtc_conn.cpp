@@ -113,6 +113,18 @@ srs_error_t SrsSecurityTransport::write_dtls_data(void* data, int size)
 
     ++_srs_pps_sstuns->sugar;
 
+    // For test only, never enable it.
+#if 0
+    uint8_t* p = (uint8_t*)data;
+    uint8_t content_type = size > 0 ? p[0]: 0;
+    uint8_t handshake_type = size > 13 ? p[13] : 0;
+    bool is_client_hello = content_type == 22 && handshake_type == 1;
+    bool is_certificate = content_type == 22 && handshake_type == 11;
+    if (is_client_hello && size > 16) {
+        p[14] = p[15] = p[16] = 0x0; // Corrupt the DTLS message length.
+    }
+#endif
+
     if ((err = network_->write(data, size, NULL)) != srs_success) {
         return srs_error_wrap(err, "send dtls packet");
     }
@@ -149,6 +161,11 @@ srs_error_t SrsSecurityTransport::on_dtls_handshake_done()
     if ((err = srtp_initialize()) != srs_success) {
         return srs_error_wrap(err, "srtp init");
     }
+
+    // For test only, never enable it.
+#if 0
+    dtls_->shutdown();
+#endif
 
     return network_->on_dtls_handshake_done();
 }
