@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2023-06-12, Merge [#3570](https://github.com/ossrs/srs/pull/3570): GB: Correct the range of keyframe error for compile warning. v6.0.49 (#3570)
 * v6.0, 2023-06-05, Fix command injection in demonstration api-server for HTTP callback. v6.0.48
 * v6.0, 2023-06-05, Merge [#3565](https://github.com/ossrs/srs/pull/3565): DTLS: Use bio callback to get fragment packet. v6.0.47 (#3565)
 * v6.0, 2023-05-29, Merge [#3513](https://github.com/ossrs/srs/pull/3513): SSL: Fix SSL_get_error get the error of other coroutine. v6.0.46 (#3513)
