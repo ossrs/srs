@@ -144,7 +144,7 @@ void ff_aac_adjust_common_ltp(AACEncContext *s, ChannelElement *cpe)
         int sum = sce0->ics.ltp.used[sfb] + sce1->ics.ltp.used[sfb];
         if (sum != 2) {
             sce0->ics.ltp.used[sfb] = 0;
-        } else if (sum == 2) {
+        } else {
             count++;
         }
     }
@@ -194,11 +194,11 @@ void ff_aac_search_for_ltp(AACEncContext *s, SingleChannelElement *sce,
                 s->abs_pow34(PCD34, PCD, sce->ics.swb_sizes[g]);
                 dist1 += quantize_band_cost(s, &sce->coeffs[start+(w+w2)*128], C34, sce->ics.swb_sizes[g],
                                             sce->sf_idx[(w+w2)*16+g], sce->band_type[(w+w2)*16+g],
-                                            s->lambda/band->threshold, INFINITY, &bits_tmp1, NULL, 0);
+                                            s->lambda/band->threshold, INFINITY, &bits_tmp1, NULL);
                 dist2 += quantize_band_cost(s, PCD, PCD34, sce->ics.swb_sizes[g],
                                             sce->sf_idx[(w+w2)*16+g],
                                             sce->band_type[(w+w2)*16+g],
-                                            s->lambda/band->threshold, INFINITY, &bits_tmp2, NULL, 0);
+                                            s->lambda/band->threshold, INFINITY, &bits_tmp2, NULL);
                 bits1 += bits_tmp1;
                 bits2 += bits_tmp2;
             }

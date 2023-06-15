@@ -1,0 +1,1334 @@
+%
+% Copyright (C) 2012-2015 Irene Ruengeler
+% Copyright (C) 2012-2015 Michael Tuexen
+%
+% All rights reserved.
+%
+% Redistribution and use in source and binary forms, with or without
+% modification, are permitted provided that the following conditions
+% are met:
+% 1. Redistributions of source code must retain the above copyright
+%    notice, this list of conditions and the following disclaimer.
+% 2. Redistributions in binary form must reproduce the above copyright
+%    notice, this list of conditions and the following disclaimer in the
+%    documentation and/or other materials provided with the distribution.
+% 3. Neither the name of the project nor the names of its contributors
+%    may be used to endorse or promote products derived from this software
+%    without specific prior written permission.
+%
+% THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+% ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+% IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+% ARE DISCLAIMED.	IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+% FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+% DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+% OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+% HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+% LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+% OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+% SUCH DAMAGE.
+%
+\documentclass[a4paper]{article}
+%
+\usepackage{longtable}
+%
+\title{Socket API for the SCTP User-land Implementation (usrsctp)}
+\author{I.~R\"ungeler%
+        \thanks{M\"unster University of Applied Sciences,
+                Department of Electrical Engineering
+                and Computer Science,
+                Stegerwaldstr.~39,
+                D-48565 Steinfurt,
+                Germany,
+                \texttt{i.ruengeler@fh-muenster.de}.}
+        \and
+        M.~T\"uxen%
+        \thanks{M\"unster University of Applied Sciences,
+                Department of Electrical Engineering
+                and Computer Science,
+                Stegerwaldstr.~39,
+                D-48565 Steinfurt,
+                Germany,
+                \texttt{tuexen@fh-muenster.de}.}
+}
+%
+\begin{document}
+\setcounter{secnumdepth}{4}
+\setcounter{tocdepth}{4}
+\maketitle
+\tableofcontents
+
+\section{Introduction}
+In this manual the socket API for the SCTP User-land implementation will be described. 
+It is based on RFC 6458~\cite{socketAPI}. The main focus of this document is on pointing out
+ the differences to the SCTP Sockets API. For all aspects of the sockets API that are not
+ mentioned in this document, please refer to RFC~6458. Questions about SCTP can hopefully be
+ answered by RFC~4960~\cite{SCTP}.
+ 
+\section{Getting Started}
+The User-land stack has been tested on FreeBSD 10.0, Ubuntu 11.10, Windows 7, Mac OS X 10.6, 
+and MAC OS X 10.7.
+The current version of the User-land stack is provided on \textit{http://sctp.fh-muenster.de/sctp-user-land-stack.html}.
+Download the tarball and untar it in a folder of your choice. 
+The tarball contains all the sources to build the libusrsctp, which has to be linked to the object file of an 
+example program. In addition there are two applications in the folder \textit{programs} that can be built and run.
+ 
+\subsection{Building the Library and the Applications}
+\subsubsection{Unix-like Operating Systems}
+In the folder \textit{usrsctp} type
+\begin{verbatim}
+./bootstrap
+./configure
+make
+\end{verbatim}
+Now, the library \textit{libusrsctp.la} has been built in the subdirectory \textit{usrsctplib}, and the example 
+programs are ready to run from the subdirectory \textit{programs}.
+
+If you have root privileges or are in the sudoer group, you can install the library in \textit{/usr/local/lib} 
+and copy the header file to \textit{/usr/include} with the command
+\begin{verbatim}
+sudo make install
+\end{verbatim}
+
+\subsubsection{Windows}
+On Windows you need a compiler like Microsoft Visual Studio. You can build the library and the
+example programs with the command line tool of the compiler by typing
+\begin{verbatim}
+nmake -f Makefile.nmake
+\end{verbatim}
+in the directory \textit{usrsctp}.
+
+\subsection{Running the Test Programs}
+There are two test programs included, a discard server and a client. You can run both to send data from the
+client to the server. The client reads data from stdin and sends them to the server, which prints the message
+in the terminal and discards it. The sources of the server are also provided in Section~\ref{server} and those
+of the client in Section~\ref{client}.
+
+\subsubsection{Using UDP Encapsulation}
+Both programs can either send data over SCTP directly or use UDP encapsulation, thus encapsulating the
+SCTP packet in a UDP datagram. The first mode works on loopback or in a protected setup without any 
+NAT boxes involved. In all other cases it is better to use UDP encapsulation.
+
+The usage of the discard\_server is
+\begin{verbatim}
+discard_server [local_encaps_port remote_encaps_port]
+\end{verbatim}
+For UDP encapsulation the ports have to be specified. The local and remote encapsulation ports can be arbitrarily
+set.
+For example, you can call
+\begin{verbatim}
+./discard_server 11111 22222
+\end{verbatim}
+on a Unix-like OS and
+\begin{verbatim}
+discard_server.exe 11111 22222
+\end{verbatim}
+on Windows.
+
+The client needs two additional parameters, the server's address and its port.
+Its usage is
+\begin{verbatim}
+client remote_addr remote_port [local_port local_encaps_port remote_encaps_port]
+\end{verbatim}
+The remote address is the server's address. If client and server are started on the same machine,
+the loopback address 127.0.0.1 can be used for Unix-like OSs and the local address on Windows.
+The discard port is 9, thus 9 has to be taken as remote port. The encapsulation ports have to
+match those of the server, i.e. the server's local\_encaps\_port is the client's
+remote\_encaps\_port and vice versa. Thus, the client can be started with
+\begin{verbatim}
+./client 127.0.0.1 9 0 22222 11111
+\end{verbatim}
+on a Unix-like OS and
+\begin{verbatim}
+client.exe 192.168.0.1 9 0 22222 11111
+\end{verbatim}
+on Windows provided your local IP address is 192.168.0.1.
+
+\subsubsection{Sending over SCTP}
+To send data over SCTP directly you might need root privileges because raw sockets are used.
+Thus instead of specifying the encapsulation ports you have to start the programs prepending 
+\texttt{sudo} or in case of Windows start the program from an administrator console.
+
+\subsubsection{Using the Callback API}
+Instead of asking constantly for new data, a callback API can be used that is triggered by 
+SCTP. A callback function has to be registered that will be called whenever data is ready to
+be delivered to the application.
+
+The discard\_server has a flag to switch between the two modi. If  use\_cb is set to 1, the
+callback API will be used. To change the setting, just set the flag and compile the program again.
+
+
+
+
+\section{Basic Operations}
+All system calls start with the prefix \textit{usrsctp\_} to distinguish them from the kernel variants. 
+Some of them are changed to account for the different demands in the userland environment. 
+
+\subsection{Differences to RFC 6458}
+\subsubsection{usrsctp\_init()}
+Every application has to start with \textit{usrsctp\_init()}. This function calls \textit{sctp\_init()} and reserves
+the memory necessary to administer the data transfer.
+The function prototype is 
+\begin{verbatim}
+void
+usrsctp_init(uint16_t udp_port)
+\end{verbatim}
+As it is not always possible to send data directly over SCTP because not all NAT boxes can
+process SCTP packets, the data can be sent over UDP. To encapsulate SCTP into UDP
+a UDP port has to be specified, to which the datagrams can be sent. This local UDP port  is set 
+with the parameter \texttt{udp\_port}. The default value is 9899, the standard UDP encapsulation port.
+If UDP encapsulation is not necessary, the UDP port has to be set to 0.
+
+\subsubsection{usrsctp\_finish()}
+At the end of the program \textit{usrsctp\_finish()} should be called to free all the memory that has been
+allocated before.
+The function prototype is 
+\begin{verbatim}
+int
+usrsctp_finish(void).
+\end{verbatim}
+The return code is 0 on success and -1 in case of an error.
+
+\subsubsection{usrsctp\_socket()}
+A representation of an SCTP endpoint is a socket. Is it created with \textit{usrsctp\_socket()}.
+The function prototype is:
+\begin{verbatim}
+struct socket *
+usrsctp_socket(int domain, 
+               int type, 
+               int protocol,
+               int (*receive_cb)(struct socket *sock, 
+                                 union sctp_sockstore addr, 
+                                 void *data,
+                                 size_t datalen, 
+                                 struct sctp_rcvinfo, 
+                                 int flags,
+                                 void *ulp_info),
+               int (*send_cb)(struct socket *sock, 
+                              uint32_t sb_free, 
+                              void *ulp_info), 
+               uint32_t sb_threshold,
+               void *ulp_info).
+\end{verbatim}
+The arguments taken from RFC~6458 are:
+\begin{itemize}
+\item domain: PF\_INET or PF\_INET6 can be used.
+\item type: In case of a one-to-many style socket it is SOCK\_SEQPACKET, in case of a one-to-one style 
+socket it is SOCK\_STREAM. For an explanation of the differences between the socket types please
+refer to RFC~6458.
+\item protocol: Set IPPROTO\_SCTP.
+\end{itemize}
+
+In usrsctp, a callback API can be used.
+\begin{itemize}
+\item The function pointers of the receive and send callbacks are new arguments to the socket call. If no callback API is used, these must be \textit{NULL}.
+\item The \textit{sb\_threshold} specifies the amount of free space in the send socket buffer before the send function in the application is called. If a send callback function is specified and \textit{sb\_threshold} is 0, the function is called whenever there is room in the send socket buffer.
+\item Additional data may be passed along within the \textit{ulp\_info} parameter. This value will be passed to the \textit{receive\_cb} when it is invoked.
+\end{itemize}
+
+On success \textit{usrsctp\_socket()} returns the pointer to the new socket in the \texttt{struct socket} data type. 
+It will be needed in all other system calls. In case of a failure NULL is returned and
+errno is set to the appropriate error code.
+
+\subsubsection{usrsctp\_close()}
+
+The function prototype of \textit{usrsctp\_close()} is 
+\begin{verbatim}   
+void
+usrsctp_close(struct socket *so).
+ \end{verbatim}
+Thus the only difference is the absence of a return code. 
+ 
+\subsection{Same Functionality as RFC 6458}
+The following functions have the same functionality as their kernel pendants. There prototypes
+are described in the following subsections. For a detailed description please refer to RFC~6458.
+
+\subsubsection{usrsctp\_bind()}
+The function prototype of \textit{usrsctp\_bind()} is 
+\begin{verbatim}
+int
+usrsctp_bind(struct socket *so,
+             struct sockaddr *addr,
+             socklen_t addrlen).
+\end{verbatim}     
+The arguments are
+\begin{itemize}
+\item so: Pointer to the socket as returned by \textit{usrsctp\_socket()}.
+\item addr: The address structure (struct sockaddr\_in for an IPv4 address
+      or struct sockaddr\_in6 for an IPv6 address).
+\item addrlen: The size of the address structure.
+\end{itemize}
+\textit{usrsctp\_bind()} returns 0 on success and -1 in case of an error.
+
+\subsubsection{usrsctp\_listen()}
+The function prototype of \textit{usrsctp\_listen()} is 
+\begin{verbatim}
+int
+usrsctp_listen(struct socket *so,
+               int backlog).
+ \end{verbatim}      
+The arguments are
+\begin{itemize}
+\item so: Pointer to the socket as returned by \textit{usrsctp\_socket()}.
+\item backlog: If backlog is non-zero, enable listening, else disable
+      listening.
+\end{itemize}
+\textit{usrsctp\_listen()} returns 0 on success and -1 in case of an error.
+
+\subsubsection{usrsctp\_accept()}
+The function prototype of \textit{usrsctp\_accept()} is 
+\begin{verbatim}                
+struct socket *
+usrsctp_accept(struct socket *so,
+               struct sockaddr * addr,
+               socklen_t * addrlen).
+ \end{verbatim}
+ The arguments are
+\begin{itemize}
+\item so: Pointer to the socket as returned by \textit{usrsctp\_socket()}.
+\item addr: On return,  the primary address of the peer (struct sockaddr\_in for an IPv4 address or
+      struct sockaddr\_in6 for an IPv6 address).
+\item addrlen: Size of the returned address structure.
+\end{itemize}
+\textit{usrsctp\_accept()} returns the accepted socket on success and NULL in case of an error.
+
+\subsubsection{usrsctp\_connect()}
+The function prototype of \textit{usrsctp\_connect()} is 
+\begin{verbatim}     
+int
+usrsctp_connect(struct socket *so,
+                struct sockaddr *name,
+                socklen_t addrlen)
+ \end{verbatim}
+The arguments are
+\begin{itemize}
+\item so: Pointer to the socket as returned by \textit{usrsctp\_socket()}.
+ \item name: Address of the peer to connect to (struct sockaddr\_in for an IPv4 address or
+      struct sockaddr\_in6 for an IPv6 address).
+\item addrlen: Size of the peer's address.
+\end{itemize}
+\textit{usrsctp\_connect()} returns 0 on success and -1 in case of an error.
+
+\subsubsection{usrsctp\_shutdown()} 
+The function prototype of \textit{usrsctp\_shutdown()} is 
+\begin{verbatim}   
+int
+usrsctp_shutdown(struct socket *so, int how).
+\end{verbatim}
+The arguments are
+\begin{itemize}
+\item so: Pointer to the socket of the association to be closed.
+\item how: Specifies the type of shutdown.  The values are as follows:
+\begin{itemize}
+\item SHUT\_RD:  Disables further receive operations.  No SCTP protocol
+         action is taken.
+\item SHUT\_WR:  Disables further send operations, and initiates the SCTP
+         shutdown sequence.
+\item SHUT\_RDWR:  Disables further send and receive operations, and
+         initiates the SCTP shutdown sequence.
+\end{itemize}
+\end{itemize}
+\textit{usrsctp\_shutdown()} returns 0 on success and -1 in case of an error.
+
+\section{Sending and Receiving Data}
+Since the publication of RFC~6458 there is only one function for sending and one for receiving
+that is not deprecated. Therefore, only these two are described here.
+
+\subsection{usrsctp\_sendv()}
+The function prototype is
+\begin{verbatim}
+ssize_t
+usrsctp_sendv(struct socket *so,
+              const void *data,
+              size_t len,
+              struct sockaddr *addrs,
+              int addrcnt,
+              void *info,
+              socklen_t infolen,
+              unsigned int infotype,
+              int flags).
+\end{verbatim}
+The arguments are
+\begin{itemize}
+\item so: The socket to send data on.
+\item data: As it is more convenient to send data in a buffer and not a \texttt{struct iovec} data structure, we
+chose to pass the data as a void pointer.
+\item len: Length of the data.
+\item addrs: In this version of usrsctp at most one destination address is supported. In the case of a connected
+socket, the parameter \texttt{addrs} can be set to NULL.
+\item addrcnt: Number of addresses. As at most one address is supported, addrcnt is 0 if addrs is NULL and 
+1 otherwise.
+\item info: Additional information for a message is stored in \texttt{void *info}. The data types \texttt{struct~sctp\_sndinfo},
+\texttt{struct~sctp\_prinfo}, and \texttt{struct} \linebreak \texttt{sctp\_sendv\_spa} are supported as defined in 
+RFC~6458. Support for \texttt{structsctp\_authinfo} is not implemented yet, therefore, errno is set EINVAL
+and -1 will be returned, if it is used.
+\item infolen: Length of info in bytes.
+\item infotype: Identifies the type of the information provided in info. Possible values are
+SCTP\_SENDV\_NOINFO, SCTP\_SENDV\_SNDINFO, \linebreak SCTP\_SENDV\_PRINFO, SCTP\_SENDV\_SPA. 
+For additional information please refer to RFC~6458.
+\item flags: Flags as described in RFC~6458.
+\end{itemize}
+
+\textit{usrsctp\_sendv()} returns the number of bytes sent, or -1 if an error
+occurred.  The variable errno is then set appropriately.
+
+\subsection{usrsctp\_recvv()}
+The function prototype is
+\begin{verbatim}
+ssize_t
+usrsctp_recvv(struct socket *so,
+             void *dbuf,
+             size_t len,
+             struct sockaddr *from,
+             socklen_t * fromlen,
+             void *info,
+             socklen_t *infolen,
+             unsigned int *infotype,
+             int *msg_flags).
+\end{verbatim}
+The arguments are
+\begin{itemize}
+\item so: The socket to receive data on.
+\item dbuf: Analog to \textit{usrsctp\_sendv()} the data is returned in a buffer.
+\item len: Length of the buffer in bytes.
+\item from: A pointer to an address to be filled with the sender of the
+      received message's address.
+\item fromlen: An in/out parameter describing the from length.
+\item info: A pointer to the buffer to hold the attributes of the received
+      message.  The structure type of info is determined by the
+      infotype parameter. The attributes returned in \texttt{info} have to be 
+      handled in the same way as specified in RFC~6458.
+\item infolen:  An in/out parameter describing the size of the info buffer.
+\item infotype:  On return, *infotype is set to the type of the info
+      buffer.  The current defined values are SCTP\_RECVV\_NOINFO, 
+      SCTP\_RECVV\_RCVINFO, SCTP\_RECVV\_NXTINFO, and
+      SCTP\_RECVV\_RN. A detailed description is given in RFC~6458.
+\item flags: A pointer to an integer to be filled with any message flags
+      (e.g., MSG\_NOTIFICATION).  Note that this field is an in/out
+      parameter.  Options for the receive may also be passed into the
+      value (e.g., MSG\_EOR).  Returning from the call, the flags' value
+      will differ from its original value.
+\end{itemize}
+
+\textit{usrsctp\_recvv()} returns the number of bytes sent, or -1 if an error
+occurred.  The variable errno is then set appropriately.
+
+  
+
+\section{Socket Options}
+Socket options are used to change the default behavior of socket calls.
+Their behavior is specified in RFC~6458. The functions to get or set them are
+
+\begin{verbatim}
+int
+usrsctp_getsockopt(struct socket *so,
+                     int level,
+                     int optname,
+                     void *optval,
+                     socklen_t *optlen)
+\end{verbatim}
+and
+\begin{verbatim}
+int
+usrsctp_setsockopt(struct socket *so,
+                     int level,
+                     int optname,
+                     const void *optval,
+                     socklen_t optlen).
+\end{verbatim}
+
+and the arguments are
+\begin{itemize}
+\item so:  The socket of type struct socket.
+\item level:  Set to IPPROTO\_SCTP for all SCTP options.
+\item optname:  The option name as specified in Table~\ref{options}.
+\item optval: The buffer to store the value of the option as specified in the second column of Table~\ref{options}.
+\item optlen:  The size of the buffer (or the length of the option
+      returned in case of \textit{usrsctp\_getsockopt}).
+\end{itemize}
+
+These functions return 0 on success and -1 in case of an error.
+
+\begin{longtable}{|l|l|c|} 
+\hline
+{\bfseries Option}&{\bfseries Datatype} &{\bfseries r/w}\tabularnewline 
+\endhead
+\hline
+SCTP\_RTOINFO&struct sctp\_rtoinfo&r/w\tabularnewline \hline
+SCTP\_ASSOCINFO&struct sctp\_assocparams&r/w\tabularnewline \hline
+SCTP\_INITMSG&struct sctp\_initmsg&r/w\tabularnewline \hline
+SCTP\_NODELAY&int&r/w\tabularnewline \hline
+SCTP\_AUTOCLOSE&int&r/w\tabularnewline \hline
+SCTP\_PRIMARY\_ADDR&struct sctp\_setprim&r/w\tabularnewline \hline
+SCTP\_ADAPTATION\_LAYER&struct sctp\_setadaptation&r/w\tabularnewline \hline
+SCTP\_DISABLE\_FRAGMENTS&int&r/w\tabularnewline \hline
+SCTP\_PEER\_ADDR\_PARAMS&struct sctp\_paddrparams&r/w\tabularnewline \hline
+SCTP\_I\_WANT\_MAPPED\_V4\_ADDR&int&r/w\tabularnewline \hline
+SCTP\_MAXSEG&struct sctp\_assoc\_value&r/w\tabularnewline \hline
+SCTP\_DELAYED\_SACK&struct sctp\_sack\_info&r/w\tabularnewline \hline
+SCTP\_FRAGMENT\_INTERLEAVE&int&r/w\tabularnewline \hline
+SCTP\_PARTIAL\_DELIVERY\_POINT&int&r/w\tabularnewline \hline
+SCTP\_HMAC\_IDENT&struct sctp\_hmacalgo&r/w\tabularnewline \hline
+SCTP\_AUTH\_ACTIVE\_KEY&struct sctp\_authkeyid&r/w\tabularnewline \hline
+SCTP\_AUTO\_ASCONF&int&r/w\tabularnewline \hline
+SCTP\_MAX\_BURST&struct sctp\_assoc\_value&r/w\tabularnewline \hline
+SCTP\_CONTEXT&struct sctp\_assoc\_value&r/w\tabularnewline \hline
+SCTP\_EXPLICIT\_EOR&int&r/w\tabularnewline \hline
+SCTP\_REUSE\_PORT&int&r/w\tabularnewline \hline
+SCTP\_EVENT&struct sctp\_event&r/w\tabularnewline \hline
+SCTP\_RECVRCVINFO&int&r/w\tabularnewline \hline
+SCTP\_RECVNXTINFO&int&r/w\tabularnewline \hline
+SCTP\_DEFAULT\_SNDINFO&struct sctp\_sndinfo&r/w\tabularnewline \hline
+SCTP\_DEFAULT\_PRINFO&struct sctp\_default\_prinfo&r/w\tabularnewline \hline
+SCTP\_REMOTE\_UDP\_ENCAPS\_PORT&int&r/w\tabularnewline \hline
+SCTP\_ENABLE\_STREAM\_RESET&struct sctp\_assoc\_value&r/w\tabularnewline \hline
+SCTP\_STATUS&struct sctp\_status&r\tabularnewline \hline
+SCTP\_GET\_PEER\_ADDR\_INFO&struct sctp\_paddrinfo&r\tabularnewline \hline
+SCTP\_PEER\_AUTH\_CHUNKS&struct sctp\_authchunks&r\tabularnewline \hline
+SCTP\_LOCAL\_AUTH\_CHUNKS&struct sctp\_authchunks&r\tabularnewline \hline
+SCTP\_GET\_ASSOC\_NUMBER&uint32\_t&r\tabularnewline \hline
+SCTP\_GET\_ASSOC\_ID\_LIST&struct sctp\_assoc\_ids&r\tabularnewline \hline
+SCTP\_RESET\_STREAMS&struct sctp\_reset\_streams&w\tabularnewline \hline
+SCTP\_RESET\_ASSOC&struct sctp\_assoc\_t&w\tabularnewline \hline
+SCTP\_ADD\_STREAMS&struct sctp\_add\_streams&w\tabularnewline \hline
+\caption{Socket Options supported by usrsctp}
+\label{options}
+\end{longtable}
+An overview of the supported options is given in Table~\ref{options}. Their use is described in RFC~6458~\cite{socketAPI}, RFC~6525~\cite{streamReset}, and~\cite{udpencaps}.
+
+\section{Sysctl variables}
+
+In kernel implementations like for instance FreeBSD, it is possible to change parameters
+in the operating system. These parameters are called sysctl variables.
+
+In usrsctp applications can set or retrieve these variables with the functions
+\begin{verbatim}
+void
+usrsctp_sysctl_set_ ## (uint32_t value)
+\end{verbatim}
+and
+\begin{verbatim}
+uint32_t
+usrsctp_sysctl_get_ ## (void)
+\end{verbatim}
+respectively, where \#\# stands for the name of the variable.
+
+In the following paragraphs a short description of the parameters will be given.
+
+\subsection{Manipulate Memory}
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_sendspace()}
+The space of the available send buffer can be changed from its default value of 262,144 bytes
+to a value between 0 and $2^{32}-1$ bytes.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_recvspace()}
+The space of the available receive buffer can be changed from its default value of 262,144 bytes
+to a value between 0 and $2^{32}-1$ bytes.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_hashtblsize()}
+The TCB (Thread Control Block) hash table sizes, i.e. the size of one TCB in the hash table, can be tuned between 
+1 and $2^{32}-1$ bytes. The default value is 1,024 bytes. A TCB contains for instance pointers to the socket, the
+endpoint, information about the association and some statistic data.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_pcbtblsize()}
+The PCB (Protocol Control Block) hash table sizes, i.e. the size of one PCB in the hash table, can be tuned between 
+1 and $2^{32}-1$ bytes. The default value is 256 bytes. The PCB contains all variables that characterize an endpoint.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_system\_free\_resc\_limit()}
+This parameters tunes the maximum number of cached resources in the system. It can be set between 
+0 and $2^{32}-1$. The default value is 1000.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_asoc\_free\_resc\_limit()}
+This parameters tunes the maximum number of cached resources in an association. It can be set between 
+0 and $2^{32}-1$. The default value is 10.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_mbuf\_threshold\_count()}
+Data is stored in mbufs. Several mbufs can be chained together. The maximum number of small mbufs in a chain
+can be set with this parameter, before an mbuf cluset is used. The default is 5.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_add\_more\_threshold()}
+TBD
+This parameter configures the threshold below which more space should be added to a socket send buffer.
+The default value is 1452 bytes.
+
+
+\subsection{Configure RTO}
+The retransmission timeout (RTO), i.e. the time that controls the retransmission of messages, has
+several parameters, that can be changed, for example to shorten the time, before a message is
+retransmitted. The range of these parameters is between 0 and $2^{32}-1$~ms. 
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_rto\_max\_default()}
+The default value for the maximum retransmission timeout in ms is 60,000 (60~secs). 
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_rto\_min\_default()}
+The default value for the minimum retransmission timeout in ms is 1,000 (1~sec). 
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_rto\_initial\_default()}
+The default value for the initial retransmission timeout in ms is 3,000 (3~sec). This value is only
+needed before the first calculation of a round trip time took place.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_init\_rto\_max\_default()}
+The default value for the maximum retransmission timeout for an INIT chunk in ms is 60,000 (60~secs). 
+
+
+\subsection{Set Timers}
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_valid\_cookie\_life\_default()}
+A cookie has a specified life time. If it expires the cookie is not valid any more and an ABORT is sent.
+The default value in ms is 60,000 (60~secs).
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_heartbeat\_interval\_default()}
+Set the default time between two heartbeats. The default is 30,000~ms.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_shutdown\_guard\_time\_default()}
+If a SHUTDOWN is not answered with a SHUTDOWN-ACK while the shutdown guard timer is still
+running, the association will be aborted after the default of 180~secs.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_pmtu\_raise\_time\_default()}
+TBD
+To set the size of the packets to the highest value possible, the maximum transfer unit (MTU)
+of the complete path has to be known. The default time interval for the path mtu discovery
+is 600~secs.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_secret\_lifetime\_default()}
+TBD
+The default secret lifetime of a server is 3600~secs.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_vtag\_time\_wait()}
+TBD
+Vtag time wait time, 0 disables it. Default: 60~secs
+
+
+\subsection{Set Failure Limits}
+Transmissions and retransmissions of messages might fail. To protect the system against too many
+retransmissions, limits have to be defined.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_init\_rtx\_max\_default()}
+The default maximum number of retransmissions of an INIT chunks is 8, before an ABORT is sent.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_assoc\_rtx\_max\_default()}
+This parameter sets the maximum number of failed retransmissions before the association is aborted.
+The default value is 10.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_path\_rtx\_max\_default()}
+This parameter sets the maximum number of path failures before the association is aborted.
+The default value is 5. Notice that the number of paths multiplied by this value should be 
+equal to sctp\_assoc\_rtx\_max\_default. That means that the default configuration is good for two 
+paths.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_max\_retran\_chunk()}
+The parameter configures how many times an unlucky chunk can be retransmitted before the 
+association aborts. The default is set to 30.
+				
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_path\_pf\_threshold()}
+TBD
+Default potentially failed threshold. Default: 65535		
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_abort\_if\_one\_2\_one\_hits\_limit()}
+TBD
+When one-2-one hits qlimit abort. Default: 0
+
+		
+\subsection{Control the Sending of SACKs}
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_sack\_freq\_default()}
+The SACK frequency defines the number of packets that are awaited, before a SACK is sent. 
+The default value is 2.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_delayed\_sack\_time\_default()}
+As a SACK (Selective Acknowledgment) is sent after every other packet, a timer is set to send a
+SACK in case another packet does not arrive in due time. The default value for this timer is
+200~ms.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_strict\_sacks()}
+TBD
+This is a flag to turn the controlling of the coherence of SACKs on or off. The default value is
+1 (on).
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_nr\_sack\_on\_off()}
+If a slow hosts receives data on a lossy link it is possible that its receiver window is full and new 
+data can only be accepted if one chunk with a higher TSN (Transmission Sequence Number) that has 
+previously been acknowledged is dropped. As a consequence the sender has to store data, even if
+they have been acknowledged in case they have to be retransmitted. If this behavior is not necessary,
+non-renegable SACKs can be turned on. 
+By default the use of non-renegable SACKs is turned off.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_enable\_sack\_immediately()}
+In some cases it is not desirable to wait for the SACK timer to expire before a SACK is sent. In these
+cases a bit called SACK-IMMEDIATELY~\cite{sack-imm} can be set to provoke the instant sending of a SACK. 
+The default is to turn it off. 
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_L2\_abc\_variable()}
+TBD
+SCTP ABC max increase per SACK (L). Default: 1
+
+\subsection{Change Max Burst}
+Max burst defines the maximum number of packets that may be sent in one flight.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_max\_burst\_default()}
+The default value for max burst is 0, which means that the number of packets sent as a flight
+is not limited by this parameter, but may be by another one, see the next paragraph.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_use\_cwnd\_based\_maxburst()}
+The use of max burst is based on the size of the congestion window (cwnd). 
+This parameter is set by default.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_hb\_maxburst()}
+Heartbeats are mostly used to verify a path. Their number can be limited. The default is 4.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_fr\_max\_burst\_default()}
+In the state of fast retransmission the number of packet bursts can be limited. The default
+value is 4.
+
+
+\subsection{Handle Chunks}
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_peer\_chunk\_oh()}
+In order to keep track of the peer's advertised receiver window, the sender calculates the window by
+subtracting the amount of data sent. Yet, some OSs reduce the receiver window by the real space needed
+to store the data. This parameter sets the additional amount to debit the peer's receiver window per
+chunk sent. The default value is 256, which is the value needed by FreeBSD.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_max\_chunks\_on\_queue()}
+This parameter sets the maximum number of chunks that can be queued per association. The default 
+value is 512.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_min\_split\_point()}
+TBD
+The minimum size when splitting a chunk is 2904 bytes by default.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_chunkscale()}
+TBD
+This parameter can be tuned for scaling of number of chunks and messages. The default is10.		
+				
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_min\_residual()}
+TBD
+This parameter configures the minimum size of the residual data chunk in the second
+part of the split. The default is 1452.
+
+
+\subsection{Calculate RTT}
+The calculation of the round trip time (RTT) depends on several parameters.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_rttvar\_bw()}
+TBD
+Shift amount for bw smoothing on rtt calc. Default: 4
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_rttvar\_rtt()}
+TBD
+Shift amount for rtt smoothing on rtt calc. Default: 5
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_rttvar\_eqret()}
+TBD
+What to return when rtt and bw are unchanged. Default: 0
+
+
+\subsection{Influence the Congestion Control}
+The congestion control should protect the network against fast senders. 
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_ecn\_enable}
+Explicit congestion notifications are turned on by default.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_default\_cc\_module()}
+This parameter sets the default algorithm for the congestion control.
+Default is 0, i.e. the one specified in RFC~4960.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_initial\_cwnd()}
+Set the initial congestion window in MTUs. The default is 3.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_use\_dccc\_ecn()}
+TBD
+Enable for RTCC CC datacenter ECN. Default: 1
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_steady\_step()}
+TBD
+How many the sames it takes to try step down of cwnd. Default: 20
+
+
+\subsection{Configure AUTH and ADD-IP}
+An important extension of SCTP is the dynamic address reconfiguration~\cite{addip}, also known as
+ADD-IP, which allows the changing of addresses during the lifetime of an association.
+For this feature the AUTH extension~\cite{auth} is necessary.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_auto\_asconf()}
+If SCTP Auto-ASCONF is enabled, the peer is informed automatically when a new address
+is added or removed. This feature is enabled by default.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_multiple\_asconfs()}
+By default the sending of multiple ASCONFs is disabled.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_auth\_disable()}
+The use of AUTH, which is normally turned on, can be disabled by setting this parameter to 1.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_asconf\_auth\_nochk()}
+It is also possible to disable the requirement to use AUTH in conjunction with ADD-IP by setting this parameter
+to 1.
+
+
+\subsection{Concurrent Multipath Transfer (CMT)}
+A prominent feature of SCTP is the possibility to use several addresses for the same association.
+One is the primary path, and the others are needed in case of a path failure. Using CMT the data is sent 
+on several paths to enhance the throughput.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_cmt\_on\_off()}
+To turn CMT on, this parameter has to be set to 1.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_cmt\_use\_dac()}
+To use delayed acknowledgments with CMT this parameter has to be set to 1.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_buffer\_splitting()}
+For CMT it makes sense to split the send and receive buffer to have shares for each path. 
+By default buffer splitting is turned off.
+
+
+\subsection{Network Address Translation (NAT)}
+To be able to pass NAT boxes, the boxes have to handle SCTP packets in a specific way.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_nat\_friendly()}
+SCTP NAT friendly operation. Default:1
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_inits\_include\_nat\_friendly()}
+Enable sending of the nat-friendly SCTP option on INITs. Default: 0
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_udp\_tunneling\_port()}
+Set the SCTP/UDP tunneling port. Default: 9899
+
+\subsection{SCTP Mobility}
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_mobility\_base()}
+TBD
+Enable SCTP base mobility. Default: 0
+
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_mobility\_fasthandoff()}
+TBD
+Enable SCTP fast handoff. default: 0
+
+
+\subsection{Miscellaneous}
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_no\_csum\_on\_loopback()}
+Calculating the checksum for packets sent on loopback is turned off by default.
+To turn it on, set this parameter to 0.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_nr\_outgoing\_streams\_default()}
+The peer is notified about the number of outgoing streams in the INIT or INIT-ACK chunk.
+The default is 10. 
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_do\_drain()}
+Determines whether SCTP should respond to the drain calls. Default: 1		
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_strict\_data\_order()}
+TBD
+Enforce strict data ordering, abort if control inside data. Default: 0
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_default\_ss\_module()}
+Set the default stream scheduling module. Implemented modules are:
+SCTP\_SS\_DEFAULT, SCTP\_SS\_ROUND\_ROBIN, SCTP\_SS\_ROUND\_ROBIN\_PACKET,
+SCTP\_SS\_PRIORITY, SCTP\_SS\_FAIR\_BANDWITH, and SCTP\_SS\_FIRST\_COME.
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_default\_frag\_interleave()}
+TBD
+Default fragment interleave level. Default: 1
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_blackhole()}
+TBD
+Enable SCTP blackholing. Default: 0
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_logging\_level()}
+Set the logging level. The default is 0.
+
+
+\subsubsection{usrsctp\_sysctl\_set\_sctp\_debug\_on()}
+Turn debug output on or off. It is disabled by default. To obtain debug output,
+SCTP\_DEBUG has to be set as a compile flag.
+
+						
+%The following variables are supported:
+%\begin{longtable}{|l|l|c|} 
+%\hline
+%{\bfseries Parameter}&{\bfseries Meaning}&{\bfseries Default Value} \tabularnewline 
+%\endhead
+%\hline
+%sctp\_sendspace&Send buffer space&1864135\tabularnewline \hline
+%sctp\_recvspace&Receive buffer space&1864135 \tabularnewline \hline
+%sctp\_hashtblsize&Tunable for TCB hash table sizes&1024 \tabularnewline \hline
+%sctp\_pcbtblsize&Tunable for PCB hash table sizes&256 \tabularnewline \hline
+%sctp\_system\_free\_resc\_limit&Cached resources in the system&1000 \tabularnewline \hline
+%sctp\_asoc\_free\_resc\_limit&Cashed resources in an association&10 \tabularnewline \hline
+%sctp\_rto\_max\_default&Default value for RTO\_max&60000~ms \tabularnewline \hline
+%sctp\_rto\_min\_default&Default value for RTO\_min&1000~ms \tabularnewline \hline
+%sctp\_rto\_initial\_default&Default value for RTO\_initial&3000~ms \tabularnewline \hline
+%sctp\_init\_rto\_max\_default&Default value for the maximum RTO&60000~ms \tabularnewline
+ %                                                  &for sending an INIT& \tabularnewline \hline
+%sctp\_valid\_cookie\_life\_default&Valid cookie life time&60000~ms \tabularnewline \hline
+%sctp\_init\_rtx\_max\_default&Maximum number of INIT retransmissions&8 \tabularnewline \hline
+%sctp\_assoc\_rtx\_max\_default&Maximum number of failed retransmissions&10\tabularnewline
+%						& before the association is aborted&\tabularnewline \hline
+%sctp\_path\_rtx\_max\_default&Maximum number of failed retransmissions&5\tabularnewline
+%						&before a path fails&\tabularnewline \hline
+%sctp\_ecn\_enable&Enabling explicit congestion notifications&1\tabularnewline \hline
+%sctp\_strict\_sacks&Control the coherence of SACKs&1 \tabularnewline \hline
+%sctp\_delayed\_sack\_time\_default&Default delayed SACK timer&200~ms\tabularnewline \hline
+%sctp\_sack\_freq\_default&Default SACK frequency&2 \tabularnewline \hline
+%sctp\_nr\_sack\_on\_off&Turn non-renegable SACKs on or off&0 \tabularnewline \hline
+%sctp\_enable\_sack\_immediately&Enable sending of the SACK-&0 \tabularnewline 						&IMMEDIATELY bit.&\tabularnewline \hline
+%sctp\_no\_csum\_on\_loopback&Enable the compilation of the checksum on&1 \tabularnewline
+%						&packets sent on loopback&\tabularnewline \hline
+%sctp\_peer\_chunk\_oh&Amount to debit peers rwnd per chunk sent&256 \tabularnewline \hline
+%sctp\_max\_burst\_default&Default max burst for SCTP endpoints&0 \tabularnewline \hline
+%sctp\_use\_cwnd\_based\_maxburst&Use max burst based on the size of &1\tabularnewline				%							&the congestion window&\tabularnewline \hline
+%sctp\_hb\_maxburst&Confirmation Heartbeat max burst&4 \tabularnewline \hline
+%sctp\_max\_chunks\_on\_queue&Default max chunks on queue per asoc&512 \tabularnewline \hline
+%sctp\_min\_split\_point&Minimum size when splitting a chunk&2904 \tabularnewline \hline
+%sctp\_chunkscale&Tunable for Scaling of number of chunks and&10\tabularnewline 
+%						&messages&\tabularnewline \hline
+%sctp\_mbuf\_threshold\_count&Maximum number of small mbufs in a chain&5\tabularnewline \hline
+%sctp\_heartbeat\_interval\_default&Default time between two Heartbeats&30000~ms\tabularnewline \hline
+%sctp\_pmtu\_raise\_time\_default&Default PMTU raise timer&600~secs\tabularnewline \hline
+%sctp\_shutdown\_guard\_time\_default&Default shutdown guard timer&180~secs\tabularnewline \hline
+%sctp\_secret\_lifetime\_default&Default secret lifetime&3600~secs \tabularnewline \hline
+%sctp\_add\_more\_threshold&Threshold when more space should &1452\tabularnewline 
+%						&be added to a socket send buffer&\tabularnewline \hline
+%sctp\_nr\_outgoing\_streams\_default&Default number of outgoing streams&10\tabularnewline \hline
+%sctp\_cmt\_on\_off&Turn CMT on or off.&0\tabularnewline \hline
+%sctp\_cmt\_use\_dac&Use delayed acknowledgment for CMT&0\tabularnewline \hline
+%sctp\_fr\_max\_burst\_default&Default max burst for SCTP endpoints when &4\tabularnewline
+%						&fast retransmitting&\tabularnewline \hline
+%sctp\_auto\_asconf&Enable SCTP Auto-ASCONF&1\tabularnewline \hline
+%sctp\_multiple\_asconfs&Enable SCTP Multiple-ASCONFs&0 \tabularnewline \hline
+%sctp\_asconf\_auth\_nochk&Disable SCTP ASCONF AUTH requirement&0\tabularnewline \hline
+%sctp\_auth\_disable&Disable SCTP AUTH function&0\tabularnewline \hline
+%sctp\_nat\_friendly&SCTP NAT friendly operation&1\tabularnewline \hline
+%sctp\_inits\_include\_nat\_friendly&Enable sending of the nat-friendly &0\tabularnewline
+%					&SCTP option on INITs.&\tabularnewline \hline
+%sctp\_udp\_tunneling\_port&Set the SCTP/UDP tunneling port&9899\tabularnewline \hline
+%sctp\_do\_drain&Determines whether SCTP should respond&1\tabularnewline
+%					&to the drain calls&\tabularnewline \hline
+%sctp\_abort\_if\_one\_2\_one\_hits\_limit&When one-2-one hits qlimit abort&0 \tabularnewline \hline
+%sctp\_strict\_data\_order&Enforce strict data ordering, abort if control&0\tabularnewline
+%					&inside data&\tabularnewline \hline
+%sctp\_min\_residual&Minimum residual data chunk in second&1452\tabularnewline
+%					&part of split&\tabularnewline \hline
+%sctp\_max\_retran\_chunk&Maximum times an unlucky chunk can be&30\tabularnewline
+%				& retransmitted before the association aborts&\tabularnewline \hline
+%sctp\_default\_cc\_module&Default congestion control module&0\tabularnewline \hline
+%sctp\_default\_ss\_module&Default stream scheduling module&0 \tabularnewline \hline
+%sctp\_default\_frag\_interleave&Default fragment interleave level&1\tabularnewline \hline
+%sctp\_mobility\_base&Enable SCTP base mobility&0\tabularnewline \hline
+%sctp\_mobility\_fasthandoff&Enable SCTP fast handoff&0\tabularnewline \hline
+%sctp\_L2\_abc\_variable&SCTP ABC max increase per SACK (L)&1\tabularnewline \hline
+%sctp\_vtag\_time\_wait&Vtag time wait time, 0 disables it.&60~secs\tabularnewline \hline
+%sctp\_blackhole&Enable SCTP blackholing&0\tabularnewline \hline
+%sctp\_path\_pf\_threshold&Default potentially failed threshold&65535\tabularnewline \hline
+%sctp\_rttvar\_bw&Shift amount for bw smoothing on rtt calc&4 \tabularnewline \hline
+%sctp\_rttvar\_rtt&Shift amount for rtt smoothing on rtt calc&5 \tabularnewline \hline
+%sctp\_rttvar\_eqret &What to return when rtt and bw are&0\tabularnewline
+%					&unchanged&\tabularnewline \hline
+%sctp\_steady\_step&How many the sames it takes to try step&20\tabularnewline
+%					&down of cwnd&\tabularnewline \hline
+%sctp\_use\_dccc\_ecn&Enable for RTCC CC datacenter ECN&1 \tabularnewline \hline
+%sctp\_buffer\_splitting&Enable send/receive buffer splitting&0 \tabularnewline \hline
+%sctp\_initial\_cwnd&Initial congestion window in MTUs&3\tabularnewline \hline
+%sctp\_logging\_level&Logging level&0 \tabularnewline \hline
+%sctp\_debug\_on&Turns debug output on or off.&0 \tabularnewline \hline
+
+%\caption{Sysctl variables supported by usrsctp}
+%\end{longtable}
+
+\section{Examples}
+\subsection{Discard Server}\label{server}
+\begin{verbatim}
+/*
+ * Copyright (C) 2011-2012 Michael Tuexen
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the project nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/*
+ * Usage: discard_server [local_encaps_port] [remote_encaps_port]
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#if !defined(_WIN32)
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
+#include <usrsctp.h>
+
+#define BUFFER_SIZE 10240
+
+const int use_cb = 0;
+
+static int
+receive_cb(struct socket *sock, union sctp_sockstore addr, void *data,
+           size_t datalen, struct sctp_rcvinfo rcv, int flags)
+{
+    char name[INET6_ADDRSTRLEN];
+
+    if (data) {
+        if (flags & MSG_NOTIFICATION) {
+            printf("Notification of length %d received.\n", (int)datalen);
+        } else {
+            printf("Msg of length %d received from %s:%u on stream %d with "
+                   "SSN %u and TSN %u, PPID %d, context %u.\n",
+                   (int)datalen,
+                   addr.sa.sa_family == AF_INET ?
+                       inet_ntop(AF_INET, &addr.sin.sin_addr, name, 
+                                 INET6_ADDRSTRLEN):
+                       inet_ntop(AF_INET6, &addr.sin6.sin6_addr, name, 
+                                 INET6_ADDRSTRLEN),
+                   ntohs(addr.sin.sin_port),
+                   rcv.rcv_sid,
+                   rcv.rcv_ssn,
+                   rcv.rcv_tsn,
+                   ntohl(rcv.rcv_ppid),
+                   rcv.rcv_context);
+        }
+        free(data);
+    }
+    return 1;
+}
+
+int
+main(int argc, char *argv[])
+{
+    struct socket *sock;
+    struct sockaddr_in6 addr;
+    struct sctp_udpencaps encaps;
+    struct sctp_event event;
+    uint16_t event_types[] = {SCTP_ASSOC_CHANGE,
+	                              SCTP_PEER_ADDR_CHANGE,
+	                              SCTP_REMOTE_ERROR,
+	                              SCTP_SHUTDOWN_EVENT,
+	                              SCTP_ADAPTATION_INDICATION,
+	                              SCTP_PARTIAL_DELIVERY_EVENT};
+    unsigned int i;
+    struct sctp_assoc_value av;
+    const int on = 1;
+    int n, flags;
+    socklen_t from_len;
+    char buffer[BUFFER_SIZE];
+    char name[INET6_ADDRSTRLEN];
+    struct sctp_recvv_rn rn;
+    socklen_t infolen = sizeof(struct sctp_recvv_rn);
+    struct sctp_rcvinfo rcv;
+    struct sctp_nxtinfo nxt;
+    unsigned int infotype = 0;
+
+    if (argc > 1) {
+        usrsctp_init(atoi(argv[1]));
+    } else {
+        usrsctp_init(9899);
+    }
+    usrsctp_sysctl_set_sctp_debug_on(0);
+    usrsctp_sysctl_set_sctp_blackhole(2);
+
+    if ((sock = usrsctp_socket(AF_INET6, SOCK_SEQPACKET, IPPROTO_SCTP, 
+    	                          use_cb?receive_cb:NULL, NULL, 0)) == NULL) {
+        perror("userspace_socket");
+    }
+    if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_I_WANT_MAPPED_V4_ADDR, 
+                           (const void*)&on, (socklen_t)sizeof(int)) < 0) {
+        perror("setsockopt");
+    }
+    memset(&av, 0, sizeof(struct sctp_assoc_value));
+    av.assoc_id = SCTP_ALL_ASSOC;
+    av.assoc_value = 47;
+
+    if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_CONTEXT, (const void*)&av, 
+                           (socklen_t)sizeof(struct sctp_assoc_value)) < 0) {
+        perror("setsockopt");
+    }
+    if (argc > 2) {
+        memset(&encaps, 0, sizeof(struct sctp_udpencaps));
+        encaps.sue_address.ss_family = AF_INET6;
+        encaps.sue_port = htons(atoi(argv[2]));
+        if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_REMOTE_UDP_ENCAPS_PORT, 
+                               (const void*)&encaps, 
+                               (socklen_t)sizeof(struct sctp_udpencaps)) < 0) {
+            perror("setsockopt");
+        }
+    }
+    memset(&event, 0, sizeof(event));
+    event.se_assoc_id = SCTP_FUTURE_ASSOC;
+    event.se_on = 1;
+    for (i = 0; i < (unsigned int)(sizeof(event_types)/sizeof(uint16_t)); i++) {
+        event.se_type = event_types[i];
+        if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_EVENT, &event, 
+                               sizeof(struct sctp_event)) < 0) {
+            perror("userspace_setsockopt");
+        }
+    }
+    memset((void *)&addr, 0, sizeof(struct sockaddr_in6));
+#ifdef HAVE_SIN_LEN
+    addr.sin6_len = sizeof(struct sockaddr_in6);
+#endif
+    addr.sin6_family = AF_INET6;
+    addr.sin6_port = htons(9);
+    addr.sin6_addr = in6addr_any;
+    if (usrsctp_bind(sock, (struct sockaddr *)&addr, 
+                     sizeof(struct sockaddr_in6)) < 0) {
+        perror("userspace_bind");
+    }
+    if (usrsctp_listen(sock, 1) < 0) {
+        perror("userspace_listen");
+    }
+    while (1) {
+        if (use_cb) {
+#if defined(_WIN32)
+            Sleep(1*1000);
+#else
+            sleep(1);
+#endif
+        } else {
+            from_len = (socklen_t)sizeof(struct sockaddr_in6);
+            flags = 0;
+            rn.recvv_rcvinfo = rcv;
+            rn.recvv_nxtinfo = nxt;
+            n = usrsctp_recvv(sock, (void*)buffer, BUFFER_SIZE, 
+                              (struct sockaddr *) &addr, &from_len, (void *)&rn,
+	                     &infolen, &infotype, &flags);
+            if (n > 0) {
+                if (flags & MSG_NOTIFICATION) {
+                    printf("Notification of length %d received.\n", n);
+                } else {
+                    printf("Msg of length %d received from %s:%u on stream "
+                           "%d with SSN %u and TSN %u, PPID %d, context %u, "
+                           "complete %d.\n",
+                           n,
+                           inet_ntop(AF_INET6, &addr.sin6_addr, name, 
+                                     INET6_ADDRSTRLEN), ntohs(addr.sin6_port),
+                           rn.recvv_rcvinfo.rcv_sid,
+                           rn.recvv_rcvinfo.rcv_ssn,
+                           rn.recvv_rcvinfo.rcv_tsn,
+                           ntohl(rn.recvv_rcvinfo.rcv_ppid),
+                           rn.recvv_rcvinfo.rcv_context,
+                           (flags & MSG_EOR) ? 1 : 0);
+                }
+            }
+        }
+    }
+    usrsctp_close(sock);
+    while (usrsctp_finish() != 0) {
+#if defined(_WIN32)
+        Sleep(1000);
+#else
+        sleep(1);
+#endif
+    }
+    return (0);
+}
+
+\end{verbatim}
+
+\subsection{Client}\label{client}
+\begin{verbatim}
+/*
+ * Copyright (C) 2011-2012 Michael Tuexen
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the project nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/*
+ * Usage: client remote_addr remote_port [local_encaps_port remote_encaps_port]
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
+#include <sys/types.h>
+#if !defined(_WIN32)
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
+#include <usrsctp.h>
+
+int done = 0;
+
+static int
+receive_cb(struct socket *sock, union sctp_sockstore addr, void *data,
+           size_t datalen, struct sctp_rcvinfo rcv, int flags)
+{
+    if (data == NULL) {
+        done = 1;
+        usrsctp_close(sock);
+    } else {
+        write(fileno(stdout), data, datalen);
+        free(data);
+    }
+    return 1;
+}
+
+int
+main(int argc, char *argv[])
+{
+    struct socket *sock;
+    struct sockaddr_in addr4;
+    struct sockaddr_in6 addr6;
+    struct sctp_udpencaps encaps;
+    char buffer[80];
+
+    if (argc > 3) {
+        usrsctp_init(atoi(argv[3]));
+    } else {
+        usrsctp_init(9899);
+    }
+    usrsctp_sysctl_set_sctp_debug_on(0);
+    usrsctp_sysctl_set_sctp_blackhole(2);
+    if ((sock = usrsctp_socket(AF_INET, SOCK_STREAM, IPPROTO_SCTP, 
+                               receive_cb, NULL, 0)) == NULL) {
+        perror("userspace_socket ipv6");
+    }
+    if (argc > 4) {
+        memset(&encaps, 0, sizeof(struct sctp_udpencaps));
+        encaps.sue_address.ss_family = AF_INET6;
+        encaps.sue_port = htons(atoi(argv[4]));
+        if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_REMOTE_UDP_ENCAPS_PORT, 
+                               (const void*)&encaps, 
+                               (socklen_t)sizeof(struct sctp_udpencaps)) < 0) {
+            perror("setsockopt");
+        }
+    }
+    memset((void *)&addr4, 0, sizeof(struct sockaddr_in));
+    memset((void *)&addr6, 0, sizeof(struct sockaddr_in6));
+#if !defined(__linux__) && !defined(_WIN32)
+    addr4.sin_len = sizeof(struct sockaddr_in);
+    addr6.sin6_len = sizeof(struct sockaddr_in6);
+#endif
+    addr4.sin_family = AF_INET;
+    addr6.sin6_family = AF_INET6;
+    addr4.sin_port = htons(atoi(argv[2]));
+    addr6.sin6_port = htons(atoi(argv[2]));
+    if (inet_pton(AF_INET6, argv[1], &addr6.sin6_addr) == 1) {
+        if (usrsctp_connect(sock, (struct sockaddr *)&addr6, 
+                            sizeof(struct sockaddr_in6)) < 0) {
+            perror("userspace_connect");
+        }
+    } else if (inet_pton(AF_INET, argv[1], &addr4.sin_addr) == 1) {
+        if (usrsctp_connect(sock, (struct sockaddr *)&addr4, 
+                            sizeof(struct sockaddr_in)) < 0) {
+            perror("userspace_connect");
+        }
+    } else {
+        printf("Illegal destination address.\n");
+    }
+    while ((fgets(buffer, sizeof(buffer), stdin) != NULL) && !done) {
+        usrsctp_sendv(sock, buffer, strlen(buffer), NULL, 0,
+				                  NULL, 0, SCTP_SENDV_NOINFO, 0);
+    }
+    if (!done) {
+        usrsctp_shutdown(sock, SHUT_WR);
+    }
+    while (!done) {
+#if defined(_WIN32)
+        Sleep(1*1000);
+#else
+        sleep(1);
+#endif
+    }
+    while (usrsctp_finish() != 0) {
+#if defined(_WIN32)
+        Sleep(1000);
+#else
+        sleep(1);
+#endif
+    }
+    return(0);
+}
+
+\end{verbatim}
+\bibliographystyle{plain}
+%
+\begin{thebibliography}{99}
+
+\bibitem{socketAPI}
+R.~Stewart, M.~T\"uxen, K.~Poon, and V.~Yasevich:
+\textit{Sockets API Extensions for the Stream Control Transmission Protocol (SCTP)}.
+RFC~6458, Dezember~2011.
+
+\bibitem{SCTP}
+R.~Stewart:
+\textit{Stream Control Transmission Protocol}.
+RFC~4960, September~2007.
+
+
+\bibitem{auth}
+M.~T\"uxen, R.~Stewart, P.~Lei, and E.~Rescorla:
+\textit{Authenticated Chunks for the Stream Control Transmission Protocol (SCTP)}.
+RFC~4895, August~2007.
+
+\bibitem{streamReset}
+R.~Stewart, M.~T\"uxen, and P.~Lei:
+\textit{Stream Control Transmission Protocol (SCTP) Stream Reconfiguration}.
+RFC~6525, February~2012.
+
+
+\bibitem{addip}
+R.~Stewart,  Q.~Xie, M.~T\"uxen, S.~Maruyama, and M.~Kozuka:
+\textit{Stream Control Transmission Protocol (SCTP) Dynamic Address Reconfiguration}.
+RFC~5061, September~2007.
+
+\bibitem{sack-imm}
+M.~T\"uxen, I.~R\"ungeler, and R.~Stewart:
+\textit{SACK-IMMEDIATELY Extension for the Stream Control Transmission Protocol}.
+draft-tuexen-tsvwg-sctp-sack-immediately-09 (work in progress), April~2012.
+
+\bibitem{udpencaps}
+M.~T\"uxen and R.~Stewart
+\textit{UDP Encapsulation of SCTP Packetsl}.
+draft-ietf-tsvwg-sctp-udp-encaps-03 (work in progress), March~2012.
+
+\end{thebibliography}
+\end{document}

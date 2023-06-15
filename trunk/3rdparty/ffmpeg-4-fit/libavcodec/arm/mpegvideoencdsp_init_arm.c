@@ -18,13 +18,14 @@
 
 #include <stdint.h>
 
+#include "libavutil/attributes.h"
 #include "libavutil/cpu.h"
 #include "libavutil/arm/cpu.h"
 #include "libavcodec/avcodec.h"
 #include "libavcodec/mpegvideoencdsp.h"
 
-int ff_pix_norm1_armv6(uint8_t *pix, int line_size);
-int ff_pix_sum_armv6(uint8_t *pix, int line_size);
+int ff_pix_norm1_armv6(const uint8_t *pix, int line_size);
+int ff_pix_sum_armv6(const uint8_t *pix, int line_size);
 
 av_cold void ff_mpegvideoencdsp_init_arm(MpegvideoEncDSPContext *c,
                                          AVCodecContext *avctx)

@@ -24,14 +24,54 @@
 
 #include <math.h>
 #include "libavutil/avassert.h"
+#include "libavutil/common.h"
 
 enum WindowFunc     { WFUNC_RECT, WFUNC_HANNING, WFUNC_HAMMING, WFUNC_BLACKMAN,
                       WFUNC_BARTLETT, WFUNC_WELCH, WFUNC_FLATTOP,
                       WFUNC_BHARRIS, WFUNC_BNUTTALL, WFUNC_SINE, WFUNC_NUTTALL,
                       WFUNC_BHANN, WFUNC_LANCZOS, WFUNC_GAUSS, WFUNC_TUKEY,
                       WFUNC_DOLPH, WFUNC_CAUCHY, WFUNC_PARZEN, WFUNC_POISSON,
-                      WFUNC_BOHMAN,
+                      WFUNC_BOHMAN, WFUNC_KAISER,
                       NB_WFUNC };
+
+#define WIN_FUNC_OPTION(win_func_opt_name, win_func_offset, flag, default_window_func)                              \
+    { win_func_opt_name, "set window function", win_func_offset, AV_OPT_TYPE_INT, {.i64 = default_window_func}, 0, NB_WFUNC-1, flag, "win_func" }, \
+        { "rect",     "Rectangular",      0, AV_OPT_TYPE_CONST, {.i64=WFUNC_RECT},     0, 0, flag, "win_func" }, \
+        { "bartlett", "Bartlett",         0, AV_OPT_TYPE_CONST, {.i64=WFUNC_BARTLETT}, 0, 0, flag, "win_func" }, \
+        { "hann",     "Hann",             0, AV_OPT_TYPE_CONST, {.i64=WFUNC_HANNING},  0, 0, flag, "win_func" }, \
+        { "hanning",  "Hanning",          0, AV_OPT_TYPE_CONST, {.i64=WFUNC_HANNING},  0, 0, flag, "win_func" }, \
+        { "hamming",  "Hamming",          0, AV_OPT_TYPE_CONST, {.i64=WFUNC_HAMMING},  0, 0, flag, "win_func" }, \
+        { "blackman", "Blackman",         0, AV_OPT_TYPE_CONST, {.i64=WFUNC_BLACKMAN}, 0, 0, flag, "win_func" }, \
+        { "welch",    "Welch",            0, AV_OPT_TYPE_CONST, {.i64=WFUNC_WELCH},    0, 0, flag, "win_func" }, \
+        { "flattop",  "Flat-top",         0, AV_OPT_TYPE_CONST, {.i64=WFUNC_FLATTOP},  0, 0, flag, "win_func" }, \
+        { "bharris",  "Blackman-Harris",  0, AV_OPT_TYPE_CONST, {.i64=WFUNC_BHARRIS},  0, 0, flag, "win_func" }, \
+        { "bnuttall", "Blackman-Nuttall", 0, AV_OPT_TYPE_CONST, {.i64=WFUNC_BNUTTALL}, 0, 0, flag, "win_func" }, \
+        { "bhann",    "Bartlett-Hann",    0, AV_OPT_TYPE_CONST, {.i64=WFUNC_BHANN},    0, 0, flag, "win_func" }, \
+        { "sine",     "Sine",             0, AV_OPT_TYPE_CONST, {.i64=WFUNC_SINE},     0, 0, flag, "win_func" }, \
+        { "nuttall",  "Nuttall",          0, AV_OPT_TYPE_CONST, {.i64=WFUNC_NUTTALL},  0, 0, flag, "win_func" }, \
+        { "lanczos",  "Lanczos",          0, AV_OPT_TYPE_CONST, {.i64=WFUNC_LANCZOS},  0, 0, flag, "win_func" }, \
+        { "gauss",    "Gauss",            0, AV_OPT_TYPE_CONST, {.i64=WFUNC_GAUSS},    0, 0, flag, "win_func" }, \
+        { "tukey",    "Tukey",            0, AV_OPT_TYPE_CONST, {.i64=WFUNC_TUKEY},    0, 0, flag, "win_func" }, \
+        { "dolph",    "Dolph-Chebyshev",  0, AV_OPT_TYPE_CONST, {.i64=WFUNC_DOLPH},    0, 0, flag, "win_func" }, \
+        { "cauchy",   "Cauchy",           0, AV_OPT_TYPE_CONST, {.i64=WFUNC_CAUCHY},   0, 0, flag, "win_func" }, \
+        { "parzen",   "Parzen",           0, AV_OPT_TYPE_CONST, {.i64=WFUNC_PARZEN},   0, 0, flag, "win_func" }, \
+        { "poisson",  "Poisson",          0, AV_OPT_TYPE_CONST, {.i64=WFUNC_POISSON},  0, 0, flag, "win_func" }, \
+        { "bohman",   "Bohman",           0, AV_OPT_TYPE_CONST, {.i64=WFUNC_BOHMAN},   0, 0, flag, "win_func" }, \
+        { "kaiser",   "Kaiser",           0, AV_OPT_TYPE_CONST, {.i64=WFUNC_KAISER},   0, 0, flag, "win_func" }
+
+static inline double get_i0(double x)
+{
+    double y = 1.0, prev = 1.0, i = 1.0;
+
+    while (fabs(prev) > 1e-20) {
+        double summand = prev * x * x / (4 * i * i);
+        y += summand;
+        prev = summand;
+        i++;
+    }
+
+    return y;
+}
 
 static inline void generate_window_func(float *lut, int N, int win_func,
                                         float *overlap)
@@ -133,7 +173,7 @@ static inline void generate_window_func(float *lut, int N, int win_func,
         for (c = 1 - 1 / (b*b), n = (N-1) / 2; n >= 0; --n) {
             for (sum = !n, b = t = j = 1; j <= n && sum != t; b *= (n-j) * (1./j), ++j)
                 t = sum, sum += (b *= c * (N - n - j) * (1./j));
-            sum /= (N - 1 - n), sum /= (norm = norm ? norm : sum);
+            sum /= (N - 1 - n), norm = norm ? norm : sum, sum /= norm;
             lut[n] = sum;
             lut[N - 1 - n] = sum;
         }
@@ -188,6 +228,14 @@ static inline void generate_window_func(float *lut, int N, int win_func,
             double x = 2 * ((n / (double)(N - 1))) - 1.;
 
             lut[n] = (1 - fabs(x)) * cos(M_PI*fabs(x)) + 1./M_PI*sin(M_PI*fabs(x));
+        }
+        *overlap = 0.75;
+        break;
+    case WFUNC_KAISER:
+        for (n = 0; n < N; n++) {
+            double x = 2.0 / (double)(N - 1);
+
+            lut[n] = get_i0(12. * sqrt(1. - SQR(n * x - 1.))) / get_i0(12.);
         }
         *overlap = 0.75;
         break;

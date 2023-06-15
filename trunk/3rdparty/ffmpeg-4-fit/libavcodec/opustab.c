@@ -20,11 +20,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "libavutil/mem_internal.h"
+
 #include "opustab.h"
 
 const uint8_t ff_opus_default_coupled_streams[] = { 0, 1, 1, 2, 2, 2, 2, 3 };
 
 const uint8_t ff_celt_band_end[] = { 13, 17, 17, 19, 21 };
+
+const uint16_t ff_silk_model_lbrr_flags_40[] = { 256, 0, 53, 106, 256 };
+const uint16_t ff_silk_model_lbrr_flags_60[] = { 256, 0, 41, 61, 90, 131, 146, 174, 256 };
 
 const uint16_t ff_silk_model_stereo_s1[] = {
     256,   7,   9,  10,  11,  12,  22,  46,  54,  55,  56,  59,  82, 174, 197, 200,
@@ -947,7 +952,7 @@ const uint16_t ff_celt_qn_exp2[] = {
     16384, 17866, 19483, 21247, 23170, 25267, 27554, 30048
 };
 
-const uint32_t ff_celt_pvq_u[1272] = {
+static const uint32_t celt_pvq_u[1272] = {
     /* N = 0, K = 0...176 */
     1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1096,7 +1101,7 @@ const float ff_celt_postfilter_taps[3][3] = {
     { 0.7998046875f, 0.1000976562f, 0.0           }
 };
 
-DECLARE_ALIGNED(32, static const float, ff_celt_window_padded)[136] = {
+DECLARE_ALIGNED(32, const float, ff_celt_window_padded)[136] = {
     0.00000000f, 0.00000000f, 0.00000000f, 0.00000000f,
     0.00000000f, 0.00000000f, 0.00000000f, 0.00000000f,
     6.7286966e-05f, 0.00060551348f, 0.0016815970f, 0.0032947962f, 0.0054439943f,
@@ -1127,8 +1132,6 @@ DECLARE_ALIGNED(32, static const float, ff_celt_window_padded)[136] = {
     1.00000000f, 1.00000000f, 1.00000000f,
 };
 
-const float *ff_celt_window = &ff_celt_window_padded[8];
-
 /* square of the window, used for the postfilter */
 const float ff_celt_window2[120] = {
     4.5275357e-09f, 3.66647e-07f, 2.82777e-06f, 1.08557e-05f, 2.96371e-05f, 6.60594e-05f,
@@ -1150,9 +1153,9 @@ const float ff_celt_window2[120] = {
 };
 
 const uint32_t * const ff_celt_pvq_u_row[15] = {
-    ff_celt_pvq_u +    0, ff_celt_pvq_u +  176, ff_celt_pvq_u +  351,
-    ff_celt_pvq_u +  525, ff_celt_pvq_u +  698, ff_celt_pvq_u +  870,
-    ff_celt_pvq_u + 1041, ff_celt_pvq_u + 1131, ff_celt_pvq_u + 1178,
-    ff_celt_pvq_u + 1207, ff_celt_pvq_u + 1226, ff_celt_pvq_u + 1240,
-    ff_celt_pvq_u + 1248, ff_celt_pvq_u + 1254, ff_celt_pvq_u + 1257
+    celt_pvq_u +    0, celt_pvq_u +  176, celt_pvq_u +  351,
+    celt_pvq_u +  525, celt_pvq_u +  698, celt_pvq_u +  870,
+    celt_pvq_u + 1041, celt_pvq_u + 1131, celt_pvq_u + 1178,
+    celt_pvq_u + 1207, celt_pvq_u + 1226, celt_pvq_u + 1240,
+    celt_pvq_u + 1248, celt_pvq_u + 1254, celt_pvq_u + 1257
 };

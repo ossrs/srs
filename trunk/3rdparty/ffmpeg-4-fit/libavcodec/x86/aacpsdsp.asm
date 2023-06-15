@@ -49,7 +49,7 @@ align 16
     add  dstq, mmsize
     add    nq, mmsize*2
     jl .loop
-    REP_RET
+    RET
 %endmacro
 
 INIT_XMM sse
@@ -83,7 +83,7 @@ align 16
     add   src2q, mmsize
     add      nq, mmsize*2
     jl .loop
-    REP_RET
+    RET
 
 ;***********************************************************************
 ;void ff_ps_stereo_interpolate_sse3(float (*l)[2], float (*r)[2],
@@ -116,7 +116,7 @@ align 16
     movhps [rq+nq], m2
     add      nq, 8
     jl .loop
-    REP_RET
+    RET
 
 ;***************************************************************************
 ;void ps_stereo_interpolate_ipdopd_sse3(float (*l)[2], float (*r)[2],
@@ -164,7 +164,7 @@ align 16
     movhps [rq+nq], m2
     add      nq, 8
     jl .loop
-    REP_RET
+    RET
 
 ;**********************************************************
 ;void ps_hybrid_analysis_ileave_sse(float out[2][38][64],
@@ -400,49 +400,63 @@ HYBRID_SYNTHESIS_DEINT
 ;                                 const float (*filter)[8][2],
 ;                                 ptrdiff_t stride, int n);
 ;*******************************************************************
-%macro PS_HYBRID_ANALYSIS_LOOP 3
-    movu     %1, [inq+mmsize*%3]
-    movu     m1, [inq+mmsize*(5-%3)+8]
-%if cpuflag(sse3)
-    pshufd   %2, %1, q2301
-    pshufd   m4, m1, q0123
-    pshufd   m1, m1, q1032
-    pshufd   m2, [filterq+nq+mmsize*%3], q2301
-    addsubps %2, m4
-    addsubps %1, m1
-%else
-    mova     m2, [filterq+nq+mmsize*%3]
-    mova     %2, %1
-    mova     m4, m1
-    shufps   %2, %2, q2301
-    shufps   m4, m4, q0123
+%macro PS_HYBRID_ANALYSIS_IN 1
+    movu     m0, [inq+mmsize*%1]
+    movu     m1, [inq+mmsize*(5-%1)+8]
+    shufps   m3, m0, m0, q2301
+    shufps   m4, m1, m1, q0123
     shufps   m1, m1, q1032
-    shufps   m2, m2, q2301
+%if cpuflag(sse3)
+    addsubps m3, m4
+    addsubps m0, m1
+%else
     xorps    m4, m7
     xorps    m1, m7
-    subps    %2, m4
-    subps    %1, m1
+    subps    m3, m4
+    subps    m0, m1
 %endif
+    mova  [rsp+mmsize*%1*2], m3
+    mova  [rsp+mmsize+mmsize*%1*2], m0
+%endmacro
+
+%macro PS_HYBRID_ANALYSIS_LOOP 3
+    mova     m2, [filterq+nq+mmsize*%3]
+    shufps   m2, m2, q2301
+%if cpuflag(fma3)
+%if %3
+    fmaddps  m3, m2, [rsp+mmsize*%3*2], m3
+    fmaddps  m0, m2, [rsp+mmsize+mmsize*%3*2], m0
+%else
+    mulps    m3, m2, [rsp]
+    mulps    m0, m2, [rsp+mmsize]
+%endif
+%else ; cpuflag(sse)
+    mova     %2, [rsp+mmsize*%3*2]
+    mova     %1, [rsp+mmsize+mmsize*%3*2]
     mulps    %2, m2
     mulps    %1, m2
 %if %3
     addps    m3, %2
     addps    m0, %1
 %endif
+%endif
 %endmacro
 
 %macro PS_HYBRID_ANALYSIS 0
-cglobal ps_hybrid_analysis, 5, 5, 8, out, in, filter, stride, n
+cglobal ps_hybrid_analysis, 5, 5, 5 + notcpuflag(fma3) * 3, 24 * 4, out, in, filter, stride, n
 %if cpuflag(sse3)
 %define MOVH movsd
 %else
 %define MOVH movlps
+    mova m7, [ps_p1m1p1m1]
 %endif
     shl strideq, 3
     shl nd, 6
     add filterq, nq
     neg nq
-    mova m7, [ps_p1m1p1m1]
+    PS_HYBRID_ANALYSIS_IN 0
+    PS_HYBRID_ANALYSIS_IN 1
+    PS_HYBRID_ANALYSIS_IN 2
 
 align 16
 .loop:
@@ -450,38 +464,30 @@ align 16
     PS_HYBRID_ANALYSIS_LOOP m5, m6, 1
     PS_HYBRID_ANALYSIS_LOOP m5, m6, 2
 
-%if cpuflag(sse3)
-    pshufd   m3, m3, q2301
-    xorps    m0, m7
-    hsubps   m3, m0
-    pshufd   m1, m3, q0020
-    pshufd   m3, m3, q0031
-    addps    m1, m3
-    movsd    m2, [inq+6*8]
-%else
-    mova     m1, m3
-    mova     m2, m0
-    shufps   m1, m1, q2301
-    shufps   m2, m2, q2301
+    shufps   m1, m3, m3, q2301
+    shufps   m2, m0, m0, q2301
     subps    m1, m3
     addps    m2, m0
     unpcklps m3, m1, m2
     unpckhps m1, m2
     addps    m1, m3
     movu     m2, [inq+6*8] ; faster than movlps and no risk of overread
-%endif
     movss    m3, [filterq+nq+8*6]
     SPLATD   m3
+%if cpuflag(fma3)
+    fmaddps  m1, m2, m3, m1
+%else
     mulps    m2, m3
     addps    m1, m2
+%endif
     MOVH [outq], m1
     add    outq, strideq
     add      nq, 64
     jl .loop
-    REP_RET
+    RET
 %endmacro
 
 INIT_XMM sse
 PS_HYBRID_ANALYSIS
-INIT_XMM sse3
+INIT_XMM fma3
 PS_HYBRID_ANALYSIS

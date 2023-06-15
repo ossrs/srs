@@ -7,6 +7,8 @@
 #include <srs_app_rtc_sdp.hpp>
 
 #include <stdlib.h>
+#include <string.h> // for memset
+#include <arpa/inet.h> // for ntohs in linux
 
 #include <iostream>
 #include <sstream>
@@ -46,7 +48,7 @@ std::vector<std::string> split_str(const std::string& str, const std::string& de
     return ret;
 }
 
-static void skip_first_spaces(std::string& str)
+void skip_first_spaces(std::string& str)
 {
     while (! str.empty() && str[0] == ' ') {
         str.erase(0, 1);
@@ -388,6 +390,10 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
     os << "m=" << type_ << " " << port_ << " " << protos_;
     for (std::vector<SrsMediaPayloadType>::iterator iter = payload_types_.begin(); iter != payload_types_.end(); ++iter) {
         os << " " << iter->payload_type_;
+    }
+
+    if (is_application()) {
+        os << " webrtc-datachannel";
     }
 
     os << kCRLF;
@@ -889,6 +895,7 @@ void SrsSdp::set_ice_ufrag(const std::string& ufrag)
         SrsMediaDesc* desc = &(*iter);
         desc->session_info_.ice_ufrag_ = ufrag;
     }
+    if (!root_ice_empty) session_info_.ice_ufrag_ = ufrag;
 }
 
 void SrsSdp::set_ice_pwd(const std::string& pwd)
@@ -897,6 +904,7 @@ void SrsSdp::set_ice_pwd(const std::string& pwd)
         SrsMediaDesc* desc = &(*iter);
         desc->session_info_.ice_pwd_ = pwd;
     }
+    if (!root_ice_empty) session_info_.ice_pwd_ = pwd;
 }
 
 void SrsSdp::set_dtls_role(const std::string& dtls_role)
@@ -905,6 +913,7 @@ void SrsSdp::set_dtls_role(const std::string& dtls_role)
         SrsMediaDesc* desc = &(*iter);
         desc->session_info_.setup_ = dtls_role;
     }
+    if (!root_ice_empty) session_info_.setup_ = dtls_role;
 }
 
 void SrsSdp::set_fingerprint_algo(const std::string& algo)
@@ -913,6 +922,7 @@ void SrsSdp::set_fingerprint_algo(const std::string& algo)
         SrsMediaDesc* desc = &(*iter);
         desc->session_info_.fingerprint_algo_ = algo;
     }
+    if (!root_ice_empty) session_info_.fingerprint_algo_ = algo;
 }
 
 void SrsSdp::set_fingerprint(const std::string& fingerprint)
@@ -921,6 +931,7 @@ void SrsSdp::set_fingerprint(const std::string& fingerprint)
         SrsMediaDesc* desc = &(*iter);
         desc->session_info_.fingerprint_ = fingerprint;
     }
+    if (!root_ice_empty) session_info_.fingerprint_ = fingerprint;
 }
 
 void SrsSdp::add_candidate(const std::string& protocol, const std::string& ip, const int& port, const std::string& type)
@@ -940,13 +951,20 @@ void SrsSdp::add_candidate(const std::string& protocol, const std::string& ip, c
 
 std::string SrsSdp::get_ice_ufrag() const
 {
+    std::string ice_ufrag_;
     // Becaues we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         const SrsMediaDesc* desc = &(*iter);
-        return desc->session_info_.ice_ufrag_;
+        ice_ufrag_ = desc->session_info_.ice_ufrag_;
+        if (!ice_ufrag_.empty()) {
+            break;
+        }
     }
 
-    return "";
+    if (ice_ufrag_.empty()) {
+        ice_ufrag_ = session_info_.ice_ufrag_;
+    }
+    return ice_ufrag_;
 }
 
 std::string SrsSdp::get_ice_pwd() const

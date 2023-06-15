@@ -28,8 +28,8 @@
 #include "me_cmp.h"
 #include "mpegvideoencdsp.h"
 
-static int try_8x8basis_c(int16_t rem[64], int16_t weight[64],
-                          int16_t basis[64], int scale)
+static int try_8x8basis_c(const int16_t rem[64], const int16_t weight[64],
+                          const int16_t basis[64], int scale)
 {
     int i;
     unsigned int sum = 0;
@@ -47,7 +47,7 @@ static int try_8x8basis_c(int16_t rem[64], int16_t weight[64],
     return sum >> 2;
 }
 
-static void add_8x8basis_c(int16_t rem[64], int16_t basis[64], int scale)
+static void add_8x8basis_c(int16_t rem[64], const int16_t basis[64], int scale)
 {
     int i;
 
@@ -57,7 +57,7 @@ static void add_8x8basis_c(int16_t rem[64], int16_t basis[64], int scale)
                   (BASIS_SHIFT - RECON_SHIFT);
 }
 
-static int pix_sum_c(uint8_t *pix, int line_size)
+static int pix_sum_c(const uint8_t *pix, int line_size)
 {
     int s = 0, i, j;
 
@@ -78,7 +78,7 @@ static int pix_sum_c(uint8_t *pix, int line_size)
     return s;
 }
 
-static int pix_norm1_c(uint8_t *pix, int line_size)
+static int pix_norm1_c(const uint8_t *pix, int line_size)
 {
     int s = 0, i, j;
     const uint32_t *sq = ff_square_tab + 256;
@@ -245,12 +245,13 @@ av_cold void ff_mpegvideoencdsp_init(MpegvideoEncDSPContext *c,
 
     c->draw_edges = draw_edges_8_c;
 
-    if (ARCH_ARM)
-        ff_mpegvideoencdsp_init_arm(c, avctx);
-    if (ARCH_PPC)
-        ff_mpegvideoencdsp_init_ppc(c, avctx);
-    if (ARCH_X86)
-        ff_mpegvideoencdsp_init_x86(c, avctx);
-    if (ARCH_MIPS)
-        ff_mpegvideoencdsp_init_mips(c, avctx);
+#if ARCH_ARM
+    ff_mpegvideoencdsp_init_arm(c, avctx);
+#elif ARCH_PPC
+    ff_mpegvideoencdsp_init_ppc(c, avctx);
+#elif ARCH_X86
+    ff_mpegvideoencdsp_init_x86(c, avctx);
+#elif ARCH_MIPS
+    ff_mpegvideoencdsp_init_mips(c, avctx);
+#endif
 }

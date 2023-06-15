@@ -486,6 +486,12 @@ srs_error_t SrsRtcServer::listen_api()
     }
 #endif
 
+#ifdef SRS_SCTP
+    if ((err = http_api_mux->handle("/rtc/v1/data/", new SrsGoApiRtcDataChannel(this))) != srs_success) {
+        return srs_error_wrap(err, "handle data-channel");
+    }
+#endif
+
     return err;
 }
 
@@ -518,12 +524,25 @@ srs_error_t SrsRtcServer::create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sd
     return err;
 }
 
+
+
+bool SrsSdp::has_media_line() const {
+    for (int i=0; i<media_descs_.size(); ++i) {
+        const SrsMediaDesc& desc = media_descs_[i];
+        if (desc.is_audio() || desc.is_video()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection* session)
 {
     srs_error_t err = srs_success;
 
     SrsRequest* req = ruc->req_;
 
+    if (ruc->remote_sdp_.has_media_line()) {
     // first add publisher/player for negotiate sdp media info
     if (ruc->publish_) {
         if ((err = session->add_publisher(ruc, local_sdp)) != srs_success) {
@@ -533,6 +552,7 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
         if ((err = session->add_player(ruc, local_sdp)) != srs_success) {
             return srs_error_wrap(err, "add player");
         }
+    }
     }
 
     // All tracks default as inactive, so we must enable them.
@@ -551,6 +571,7 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
         }
     }
 
+    local_sdp.root_ice_empty = ruc->remote_sdp_.session_info_.ice_ufrag_.empty();
     local_sdp.set_ice_ufrag(local_ufrag);
     local_sdp.set_ice_pwd(local_pwd);
     local_sdp.set_fingerprint_algo("sha-256");

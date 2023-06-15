@@ -24,13 +24,14 @@
 #ifndef AVCODEC_V4L2_CONTEXT_H
 #define AVCODEC_V4L2_CONTEXT_H
 
-#include <stdatomic.h>
+#include <stdint.h>
 #include <linux/videodev2.h>
 
-#include "libavcodec/avcodec.h"
 #include "libavutil/pixfmt.h"
 #include "libavutil/frame.h"
-#include "libavutil/buffer.h"
+#include "libavutil/rational.h"
+#include "codec_id.h"
+#include "packet.h"
 #include "v4l2_buffers.h"
 
 typedef struct V4L2Context {
@@ -69,6 +70,7 @@ typedef struct V4L2Context {
      * or accepts (in case of an output context, e.g. when encoding).
      */
     int width, height;
+    AVRational sample_aspect_ratio;
 
     /**
      * Indexed array of V4L2Buffers
@@ -113,9 +115,10 @@ int ff_v4l2_context_set_format(V4L2Context* ctx);
  * Queries the driver for a valid v4l2 format and copies it to the context.
  *
  * @param[in] ctx A pointer to a V4L2Context. See V4L2Context description for required variables.
+ * @param[in] probe Probe only and ignore changes to the format.
  * @return 0 in case of success, a negative value representing the error otherwise.
  */
-int ff_v4l2_context_get_format(V4L2Context* ctx);
+int ff_v4l2_context_get_format(V4L2Context* ctx, int probe);
 
 /**
  * Releases a V4L2Context.
@@ -153,9 +156,10 @@ int ff_v4l2_context_dequeue_packet(V4L2Context* ctx, AVPacket* pkt);
  * The frame must be non NULL.
  * @param[in] ctx The V4L2Context to dequeue from.
  * @param[inout] f The AVFrame to dequeue to.
+ * @param[in] timeout The timeout for dequeue (-1 to block, 0 to return immediately, or milliseconds)
  * @return 0 in case of success, AVERROR(EAGAIN) if no buffer was ready, another negative error in case of error.
  */
-int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* f);
+int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* f, int timeout);
 
 /**
  * Enqueues a buffer to a V4L2Context from an AVPacket

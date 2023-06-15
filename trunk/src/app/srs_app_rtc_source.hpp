@@ -167,7 +167,7 @@ private:
     SrsContextId _pre_source_id;
     SrsRequest* req;
     ISrsRtcPublishStream* publish_stream_;
-    // Steam description for this steam.
+    // Stream description for this stream.
     SrsRtcSourceDescription* stream_desc_;
 private:
 #ifdef SRS_FFMPEG_FIT
@@ -467,7 +467,7 @@ public:
     // msid_: track stream id
     std::string msid_;
 
-    // meida payload, such as opus, h264.
+    // media payload, such as opus, h264.
     SrsCodecPayload* media_;
     SrsCodecPayload* red_;
     SrsCodecPayload* rtx_;

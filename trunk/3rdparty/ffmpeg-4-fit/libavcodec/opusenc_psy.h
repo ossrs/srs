@@ -22,9 +22,12 @@
 #ifndef AVCODEC_OPUSENC_PSY_H
 #define AVCODEC_OPUSENC_PSY_H
 
+#include "libavutil/tx.h"
+#include "libavutil/mem_internal.h"
+
 #include "opusenc.h"
+#include "opus_celt.h"
 #include "opusenc_utils.h"
-#include "libavfilter/window_func.h"
 
 /* Each step is 2.5ms */
 typedef struct OpusPsyStep {
@@ -46,19 +49,11 @@ typedef struct OpusBandExcitation {
     float excitation_init;
 } OpusBandExcitation;
 
-typedef struct PsyChain {
-    int start;
-    int end;
-} PsyChain;
-
 typedef struct OpusPsyContext {
     AVCodecContext *avctx;
     AVFloatDSPContext *dsp;
     struct FFBufQueue *bufqueue;
     OpusEncOptions *options;
-
-    PsyChain cs[128];
-    int cs_num;
 
     OpusBandExcitation ex[OPUS_MAX_CHANNELS][CELT_MAX_BANDS];
     FFBesselFilter bfilter_lo[OPUS_MAX_CHANNELS][CELT_MAX_BANDS];
@@ -68,21 +63,19 @@ typedef struct OpusPsyContext {
     int max_steps;
 
     float *window[CELT_BLOCK_NB];
-    MDCT15Context *mdct[CELT_BLOCK_NB];
+    AVTXContext *mdct[CELT_BLOCK_NB];
+    av_tx_fn mdct_fn[CELT_BLOCK_NB];
     int bsize_analysis;
 
     DECLARE_ALIGNED(32, float, scratch)[2048];
 
     /* Stats */
-    float rc_waste;
     float avg_is_band;
     int64_t dual_stereo_used;
     int64_t total_packets_out;
 
     /* State */
-    FFBesselFilter lambda_lp;
     OpusPacketInfo p;
-    int redo_analysis;
     int buffered_steps;
     int steps_to_process;
     int eof;
@@ -94,7 +87,7 @@ typedef struct OpusPsyContext {
 int  ff_opus_psy_process           (OpusPsyContext *s, OpusPacketInfo *p);
 void ff_opus_psy_celt_frame_init   (OpusPsyContext *s, CeltFrame *f, int index);
 int  ff_opus_psy_celt_frame_process(OpusPsyContext *s, CeltFrame *f, int index);
-void ff_opus_psy_postencode_update (OpusPsyContext *s, CeltFrame *f, OpusRangeCoder *rc);
+void ff_opus_psy_postencode_update (OpusPsyContext *s, CeltFrame *f);
 
 int  ff_opus_psy_init(OpusPsyContext *s, AVCodecContext *avctx,
                       struct FFBufQueue *bufqueue, OpusEncOptions *options);

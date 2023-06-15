@@ -1,0 +1,153 @@
+Testing ff_url_decompose:
+
+http://user:pass@ffmpeg:8080/dir/file?query#fragment =>
+  scheme: http:
+  authority: //
+  userinfo: user:pass@
+  host: ffmpeg
+  port: :8080
+  path: /dir/file
+  query: ?query
+  fragment: #fragment
+
+http://ffmpeg/dir/file =>
+  scheme: http:
+  authority: //
+  host: ffmpeg
+  path: /dir/file
+
+file:///dev/null =>
+  scheme: file:
+  authority: //
+  path: /dev/null
+
+file:/dev/null =>
+  scheme: file:
+  path: /dev/null
+
+http://[::1]/dev/null =>
+  scheme: http:
+  authority: //
+  host: [::1]
+  path: /dev/null
+
+http://[::1]:8080/dev/null =>
+  scheme: http:
+  authority: //
+  host: [::1]
+  port: :8080
+  path: /dev/null
+
+//ffmpeg/dev/null =>
+  authority: //
+  host: ffmpeg
+  path: /dev/null
+
+test?url=http://server/path =>
+  path: test
+  query: ?url=http://server/path
+
+dummy.mp4#t=0:02:00,121.5 =>
+  path: dummy.mp4
+  fragment: #t=0:02:00,121.5
+
+Testing ff_make_absolute_url:
+                                            (null) baz                  => baz
+                                          /foo/bar baz                  => /foo/baz
+                                          /foo/bar ../baz               => /foo/../baz
+                                          /foo/bar /baz                 => /baz
+                                          /foo/bar ../../../baz         => /foo/../../../baz
+                                http://server/foo/ baz                  => http://server/foo/baz
+                             http://server/foo/bar baz                  => http://server/foo/baz
+                                http://server/foo/ ../baz               => http://server/baz
+                         http://server/foo/bar/123 ../../baz            => http://server/baz
+                         http://server/foo/bar/123 /baz                 => http://server/baz
+                         http://server/foo/bar/123 https://other/url    => https://other/url
+    http://server/foo/bar?param=value/with/slashes /baz                 => http://server/baz
+            http://server/foo/bar?param&otherparam ?someparam           => http://server/foo/bar?someparam
+                             http://server/foo/bar //other/url          => http://other/url
+                             http://server/foo/bar ../../../../../other/url => http://server/other/url
+                             http://server/foo/bar /../../../../../other/url => http://server/other/url
+                             http://server/foo/bar /test/../../../../../other/url => http://server/other/url
+                             http://server/foo/bar /test/../../test/../../../other/url => http://server/other/url
+                             http://server/foo/bar file:../baz/qux      => file:../baz/qux
+                           http://server/foo//bar/ ../../               => http://server/foo/
+                                   file:../tmp/foo ../bar/              => file:../tmp/../bar/
+                                   file:../tmp/foo file:../bar/         => file:../bar/
+                             http://server/foo/bar ./                   => http://server/foo/
+                             http://server/foo/bar .dotfile             => http://server/foo/.dotfile
+                             http://server/foo/bar ..doubledotfile      => http://server/foo/..doubledotfile
+                             http://server/foo/bar double..dotfile      => http://server/foo/double..dotfile
+                             http://server/foo/bar doubledotfile..      => http://server/foo/doubledotfile..
+                                             file1 file2                => file2
+                                         dir/file1 file2                => dir/file2
+                                         dir/file1 ../file2             => dir/../file2
+                                         dir\file1 file2                => file2
+                                         dir\file1 file2               DOS dir\file2
+                                    \\srv\shr\file ..\..\dummy          => ..\..\dummy
+                                    \\srv\shr\file ..\..\dummy         DOS \\srv\shr\..\..\dummy
+                                    \\srv\shr\file dummy                => dummy
+                                    \\srv\shr\file dummy               DOS \\srv\shr\dummy
+                                    \\srv\shr\file \\srv2\shr2\file2    => \\srv2\shr2\file2
+                                    \\srv\shr\file d:/file              => d:/file
+                                          C:\dir\a ..\file              => C:..\file
+                                          C:\dir\a ..\file             DOS C:\dir\..\file
+                                          C:\dir\a \\srv\shr\file       => C:\\srv\shr\file
+                                          C:\dir\a \\srv\shr\file      DOS \\srv\shr\file
+                                          C:\dir\a d:\file              => d:\file
+                                        http://a/b \\srv\shr\file       => http://a/\\srv\shr\file
+                                        http://a/b //srv/shr/file       => http://srv/shr/file
+                                        http://a/b d:\file              => d:\file
+                                        http://a/b C:/file              => C:/file
+                                http://a/b/c/d;p?q g:h                  => g:h
+                                http://a/b/c/d;p?q g                    => http://a/b/c/g
+                                http://a/b/c/d;p?q ./g                  => http://a/b/c/g
+                                http://a/b/c/d;p?q g/                   => http://a/b/c/g/
+                                http://a/b/c/d;p?q /g                   => http://a/g
+                                http://a/b/c/d;p?q //g                  => http://g
+                                http://a/b/c/d;p?q ?y                   => http://a/b/c/d;p?y
+                                http://a/b/c/d;p?q g?y                  => http://a/b/c/g?y
+                                http://a/b/c/d;p?q #s                   => http://a/b/c/d;p?q#s
+                                http://a/b/c/d;p?q g#s                  => http://a/b/c/g#s
+                                http://a/b/c/d;p?q g?y#s                => http://a/b/c/g?y#s
+                                http://a/b/c/d;p?q ;x                   => http://a/b/c/;x
+                                http://a/b/c/d;p?q g;x                  => http://a/b/c/g;x
+                                http://a/b/c/d;p?q g;x?y#s              => http://a/b/c/g;x?y#s
+                                http://a/b/c/d;p?q                      => http://a/b/c/d;p?q
+                                http://a/b/c/d;p?q .                    => http://a/b/c/
+                                http://a/b/c/d;p?q ./                   => http://a/b/c/
+                                http://a/b/c/d;p?q ..                   => http://a/b/
+                                http://a/b/c/d;p?q ../                  => http://a/b/
+                                http://a/b/c/d;p?q ../g                 => http://a/b/g
+                                http://a/b/c/d;p?q ../..                => http://a/
+                                http://a/b/c/d;p?q ../../               => http://a/
+                                http://a/b/c/d;p?q ../../g              => http://a/g
+                                http://a/b/c/d;p?q ../../../g           => http://a/g
+                                http://a/b/c/d;p?q ../../../../g        => http://a/g
+                                http://a/b/c/d;p?q /./g                 => http://a/g
+                                http://a/b/c/d;p?q /../g                => http://a/g
+                                http://a/b/c/d;p?q g.                   => http://a/b/c/g.
+                                http://a/b/c/d;p?q .g                   => http://a/b/c/.g
+                                http://a/b/c/d;p?q g..                  => http://a/b/c/g..
+                                http://a/b/c/d;p?q ..g                  => http://a/b/c/..g
+                                http://a/b/c/d;p?q ./../g               => http://a/b/g
+                                http://a/b/c/d;p?q ./g/.                => http://a/b/c/g/
+                                http://a/b/c/d;p?q g/./h                => http://a/b/c/g/h
+                                http://a/b/c/d;p?q g/../h               => http://a/b/c/h
+                                http://a/b/c/d;p?q g;x=1/./y            => http://a/b/c/g;x=1/y
+                                http://a/b/c/d;p?q g;x=1/../y           => http://a/b/c/y
+                                http://a/b/c/d;p?q g?y/./x              => http://a/b/c/g?y/./x
+                                http://a/b/c/d;p?q g?y/../x             => http://a/b/c/g?y/../x
+                                http://a/b/c/d;p?q g#s/./x              => http://a/b/c/g#s/./x
+                                http://a/b/c/d;p?q g#s/../x             => http://a/b/c/g#s/../x
+
+Testing av_url_split:
+/foo/bar                                                     =>                                                    -1 /foo/bar
+http://server/foo/                                           => http                            server             -1 /foo/
+http://example.com/foo/bar                                   => http                            example.com        -1 /foo/bar
+http://user:pass@localhost:8080/foo/bar/123                  => http            user:pass       localhost        8080 /foo/bar/123
+http://server/foo/bar?param=value/with/slashes               => http                            server             -1 /foo/bar?param=value/with/slashes
+https://1l-lh.a.net/i/1LIVE_HDS@179577/master.m3u8           => https                           1l-lh.a.net        -1 /i/1LIVE_HDS@179577/master.m3u8
+ftp://u:p%2B%2F2@ftp.pbt.com/ExportHD.mpg                    => ftp             u:p%2B%2F2      ftp.pbt.com        -1 /ExportHD.mpg
+https://key.dns.com?key_id=2&model_id=12345&&access_key=     => https                           key.dns.com        -1 ?key_id=2&model_id=12345&&access_key=
+http://example.com#tag                                       => http                            example.com        -1 #tag

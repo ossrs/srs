@@ -23,8 +23,8 @@
                             <td><a href="javascript:void(0)" ng-click="gogogo('/vhosts/' + vhost.id)">{{vhost.id}}</a></td>
                             <td>{{vhost.name}}</td>
                             <td>{{vhost.enabled| sc_filter_enabled}}</td>
-                            <td>{{vhost.streams}}个</td>
-                            <td>{{vhost.clients}}人</td>
+                            <td>{{vhost.streams}}</td>
+                            <td>{{vhost.clients}}</td>
                             <td>{{vhost.kbps.recv_30s| sc_filter_bitrate_k}}</td>
                             <td>{{vhost.kbps.send_30s| sc_filter_bitrate_k}}</td>
                             <td>{{vhost.hls.enabled| sc_filter_enabled}}</td>

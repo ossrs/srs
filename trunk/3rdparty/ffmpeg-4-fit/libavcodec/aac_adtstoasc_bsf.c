@@ -21,12 +21,12 @@
 
 #include "adts_header.h"
 #include "adts_parser.h"
-#include "avcodec.h"
 #include "bsf.h"
+#include "bsf_internal.h"
 #include "put_bits.h"
 #include "get_bits.h"
 #include "mpeg4audio.h"
-#include "internal.h"
+#include "mpeg4audio_copy_pce.h"
 
 typedef struct AACBSFContext {
     int first_frame_done;
@@ -134,8 +134,8 @@ static int aac_adtstoasc_init(AVBSFContext *ctx)
     /* Validate the extradata if the stream is already MPEG-4 AudioSpecificConfig */
     if (ctx->par_in->extradata) {
         MPEG4AudioConfig mp4ac;
-        int ret = avpriv_mpeg4audio_get_config(&mp4ac, ctx->par_in->extradata,
-                                               ctx->par_in->extradata_size * 8, 1);
+        int ret = avpriv_mpeg4audio_get_config2(&mp4ac, ctx->par_in->extradata,
+                                                ctx->par_in->extradata_size, 1, ctx);
         if (ret < 0) {
             av_log(ctx, AV_LOG_ERROR, "Error parsing AudioSpecificConfig extradata!\n");
             return ret;
@@ -149,10 +149,10 @@ static const enum AVCodecID codec_ids[] = {
     AV_CODEC_ID_AAC, AV_CODEC_ID_NONE,
 };
 
-const AVBitStreamFilter ff_aac_adtstoasc_bsf = {
-    .name           = "aac_adtstoasc",
+const FFBitStreamFilter ff_aac_adtstoasc_bsf = {
+    .p.name         = "aac_adtstoasc",
+    .p.codec_ids    = codec_ids,
     .priv_data_size = sizeof(AACBSFContext),
     .init           = aac_adtstoasc_init,
     .filter         = aac_adtstoasc_filter,
-    .codec_ids      = codec_ids,
 };

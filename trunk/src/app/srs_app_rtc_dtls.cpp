@@ -650,8 +650,8 @@ srs_error_t SrsDtlsImpl::get_srtp_key(std::string& recv_key, std::string& send_k
     srs_error_t err = srs_success;
 
     unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
-    static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
-    if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {
+    static const string dtls_srtp_label = "EXTRACTOR-dtls_srtp";
+    if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_label.c_str(), dtls_srtp_label.size(), NULL, 0, 0)) {
         return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL export key r0=%lu", ERR_get_error());
     }
 
@@ -683,6 +683,34 @@ void SrsDtlsImpl::callback_by_ssl(std::string type, std::string desc)
         srs_warn2(TAG_DTLS_ALERT, "DTLS: handler alert err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
+}
+
+srs_error_t SrsDtlsImpl::send(const char* data, const int len)
+{
+    srs_error_t err = srs_success;
+
+    int ret = SSL_write(dtls, data, len);
+
+    // TODO: FIXME: Handle error.
+    // Call SSL_get_error() with the return value ret to find out the reason.
+    // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_write.html
+    if (ret <= 0) {
+        return srs_error_new(ERROR_RTC_DTLS, "SSL_write");
+    }
+
+    uint8_t dtls_send_buffer[4096];
+
+    // TODO: FIXME: Handle error.
+    while (BIO_ctrl_pending(bio_out) > 0) {
+        int dtls_send_bytes = BIO_read(bio_out, dtls_send_buffer, sizeof(dtls_send_buffer));
+        if (dtls_send_bytes && callback_) {
+            if ((err = callback_->write_dtls_data(dtls_send_buffer, dtls_send_bytes)) != srs_success) {
+                return srs_error_wrap(err, "send dtls packet");
+            }
+        }
+    }
+
+    return err;
 }
 
 SrsDtlsClientImpl::SrsDtlsClientImpl(ISrsDtlsCallback* callback) : SrsDtlsImpl(callback)
@@ -945,6 +973,11 @@ srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
 srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
 {
     return impl->get_srtp_key(recv_key, send_key);
+}
+
+srs_error_t SrsDtls::send(const char* data, const int len)
+{
+    return impl->send(data, len);
 }
 
 SrsSRTP::SrsSRTP()

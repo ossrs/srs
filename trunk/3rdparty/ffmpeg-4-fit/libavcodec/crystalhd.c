@@ -45,6 +45,8 @@
  * Includes
  ****************************************************************************/
 
+#include "config_components.h"
+
 #define _XOPEN_SOURCE 600
 #include <inttypes.h>
 #include <stdio.h>
@@ -55,6 +57,7 @@
 #include <libcrystalhd/libcrystalhd_if.h>
 
 #include "avcodec.h"
+#include "codec_internal.h"
 #include "decode.h"
 #include "internal.h"
 #include "libavutil/imgutils.h"
@@ -90,6 +93,9 @@ typedef struct OpaqueList {
 typedef struct {
     AVClass *av_class;
     AVCodecContext *avctx;
+    /* This packet coincides with AVCodecInternal.in_pkt
+     * and is not owned by us. */
+    AVPacket *pkt;
     HANDLE dev;
 
     uint8_t is_70012;
@@ -323,11 +329,16 @@ static av_cold int init(AVCodecContext *avctx)
     av_log(avctx, AV_LOG_VERBOSE, "CrystalHD Init for %s\n",
            avctx->codec->name);
 
+    av_log(avctx, AV_LOG_WARNING, "CrystalHD support is deprecated and will "
+           "be removed. Please contact the developers if you are interested in "
+           "maintaining it.\n");
+
     avctx->pix_fmt = AV_PIX_FMT_YUYV422;
 
     /* Initialize the library */
     priv               = avctx->priv_data;
     priv->avctx        = avctx;
+    priv->pkt          = avctx->internal->in_pkt;
     priv->draining     = 0;
 
     subtype = id2subtype(priv, avctx->codec->id);
@@ -537,15 +548,14 @@ static inline CopyRet copy_frame(AVCodecContext *avctx,
         frame->top_field_first = !bottom_first;
 
     frame->pts = pkt_pts;
-#if FF_API_PKT_PTS
+
+    frame->duration = 0;
+#if FF_API_FRAME_PKT
 FF_DISABLE_DEPRECATION_WARNINGS
-    frame->pkt_pts = pkt_pts;
+    frame->pkt_pos = -1;
+    frame->pkt_size = -1;
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
-
-    frame->pkt_pos = -1;
-    frame->pkt_duration = 0;
-    frame->pkt_size = -1;
 
     if (!priv->need_second_field) {
         *got_frame       = 1;
@@ -708,19 +718,19 @@ static int crystalhd_receive_frame(AVCodecContext *avctx, AVFrame *frame)
     BC_DTS_STATUS decoder_status = { 0, };
     CopyRet rec_ret;
     CHDContext *priv   = avctx->priv_data;
+    AVPacket *const pkt = priv->pkt;
     HANDLE dev         = priv->dev;
     int got_frame = 0;
     int ret = 0;
-    AVPacket pkt = {0};
 
     av_log(avctx, AV_LOG_VERBOSE, "CrystalHD: receive_frame\n");
 
-    ret = ff_decode_get_packet(avctx, &pkt);
+    ret = ff_decode_get_packet(avctx, pkt);
     if (ret < 0 && ret != AVERROR_EOF) {
         return ret;
     }
 
-    while (pkt.size > DtsTxFreeSize(dev)) {
+    while (pkt->size > DtsTxFreeSize(dev)) {
         /*
          * Block until there is space in the buffer for the next packet.
          * We assume that the hardware will make forward progress at this
@@ -729,8 +739,8 @@ static int crystalhd_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         av_log(avctx, AV_LOG_TRACE, "CrystalHD: Waiting for space in input buffer\n");
     }
 
-    ret = crystalhd_decode_packet(avctx, &pkt);
-    av_packet_unref(&pkt);
+    ret = crystalhd_decode_packet(avctx, pkt);
+    av_packet_unref(pkt);
     // crystalhd_is_buffer_full() should avoid this.
     if (ret == AVERROR(EAGAIN)) {
         ret = AVERROR_EXTERNAL;
@@ -772,21 +782,23 @@ static int crystalhd_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         .option = options, \
         .version = LIBAVUTIL_VERSION_INT, \
     }; \
-    AVCodec ff_##x##_crystalhd_decoder = { \
-        .name           = #x "_crystalhd", \
-        .long_name      = NULL_IF_CONFIG_SMALL("CrystalHD " #X " decoder"), \
-        .type           = AVMEDIA_TYPE_VIDEO, \
-        .id             = AV_CODEC_ID_##X, \
+    const FFCodec ff_##x##_crystalhd_decoder = { \
+        .p.name         = #x "_crystalhd", \
+        CODEC_LONG_NAME("CrystalHD " #X " decoder"), \
+        .p.type         = AVMEDIA_TYPE_VIDEO, \
+        .p.id           = AV_CODEC_ID_##X, \
         .priv_data_size = sizeof(CHDContext), \
-        .priv_class     = &x##_crystalhd_class, \
+        .p.priv_class   = &x##_crystalhd_class, \
         .init           = init, \
         .close          = uninit, \
-        .receive_frame  = crystalhd_receive_frame, \
+        FF_CODEC_RECEIVE_FRAME_CB(crystalhd_receive_frame), \
         .flush          = flush, \
         .bsfs           = bsf_name, \
-        .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_AVOID_PROBING | AV_CODEC_CAP_HARDWARE, \
-        .pix_fmts       = (const enum AVPixelFormat[]){AV_PIX_FMT_YUYV422, AV_PIX_FMT_NONE}, \
-        .wrapper_name   = "crystalhd", \
+        .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_AVOID_PROBING | AV_CODEC_CAP_HARDWARE, \
+        .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE | \
+                          FF_CODEC_CAP_SETS_FRAME_PROPS, \
+        .p.pix_fmts     = (const enum AVPixelFormat[]){AV_PIX_FMT_YUYV422, AV_PIX_FMT_NONE}, \
+        .p.wrapper_name = "crystalhd", \
     };
 
 #if CONFIG_H264_CRYSTALHD_DECODER
