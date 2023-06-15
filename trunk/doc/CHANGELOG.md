@@ -8,7 +8,8 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
-* v6.0, 2023-06-15, Merge [#3581](https://github.com/ossrs/srs/pull/3581): WHIP: Add OBS support, ensuring compatibility with a unique SDP. v6.0.50 (#3581)
+* v6.0, 2023-06-15, Merge [#3581](https://github.com/ossrs/srs/pull/3581): WHIP: Add OBS support, ensuring compatibility with a unique SDP. v6.0.51 (#3581)
+* v6.0, 2023-06-13, Merge [#3579](https://github.com/ossrs/srs/pull/3579): TOC: Welcome to the new TOC member, ZhangJunqin. v6.0.50 (#3579)
 * v6.0, 2023-06-12, Merge [#3570](https://github.com/ossrs/srs/pull/3570): GB: Correct the range of keyframe error for compile warning. v6.0.49 (#3570)
 * v6.0, 2023-06-05, Fix command injection in demonstration api-server for HTTP callback. v6.0.48
 * v6.0, 2023-06-05, Merge [#3565](https://github.com/ossrs/srs/pull/3565): DTLS: Use bio callback to get fragment packet. v6.0.47 (#3565)

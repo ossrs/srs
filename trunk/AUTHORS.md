@@ -11,6 +11,7 @@ The TOC(Technical Oversight Committee):
 - `LiPeng<mozhan.lp@alibaba-inc.com>`
 - `ChenGuanghua<jinxue.cgh@alibaba-inc.com>`
 - `ChenHaibo<nmgchenhaibo@foxmail.com>`
+- `ZhangJunqin<chundonglinlin@126.com>`
 
 ## CONTRIBUTORS
 
