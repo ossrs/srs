@@ -267,7 +267,7 @@ jobs:
           echo "Release ossrs/srs:$SRS_TAG"
           docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
             --output "type=image,push=true" \
-            -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile .
+            -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f Dockerfile .
       # Docker alias images
       # TODO: FIXME: If stable, please set the latest from 5.0 to 6.0
       - name: Docker alias images for ossrs/srs
