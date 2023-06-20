@@ -28,8 +28,15 @@ jobs:
     steps:
       - name: Download Cache for Cygwin
         run: |
+          echo "Generate convert.sh" &&
+          echo "for file in \$(find objs -type l); do" > convert.sh &&
+          echo "    REAL=\$(readlink -f \$file) &&" >> convert.sh &&
+          echo "    echo \"convert \$file to \$REAL\" &&" >> convert.sh &&
+          echo "    rm -rf \$file &&" >> convert.sh &&
+          echo "    cp -r \$REAL \$file" >> convert.sh &&
+          echo "done" >> convert.sh &&
           docker run --rm -v $(pwd):/srs -w /usr/local/srs-cache/srs/trunk ossrs/srs:cygwin64-cache \
-            tar jcf /srs/objs.tar.bz2 objs &&
+              bash -c "bash /srs/convert.sh && tar cf /srs/objs.tar.bz2 objs" &&
           pwd && du -sh *
       ##################################################################################################################
       - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
@@ -72,7 +79,7 @@ jobs:
         run: |
           WORKDIR=$(cygpath -u $SRS_WORKSPACE) && export PATH=/usr/bin:/usr/local/bin && cd ${WORKDIR} &&
           pwd && rm -rf /usr/local/srs-cache && mkdir -p /usr/local/srs-cache/srs/trunk && ls -lh &&
-          tar --no-same-permissions -xf objs.tar.bz2 -C /usr/local/srs-cache/srs/trunk/ && du -sh /usr/local/srs-cache/srs/trunk/* && 
+          tar xf objs.tar.bz2 -C /usr/local/srs-cache/srs/trunk/ && du -sh /usr/local/srs-cache/srs/trunk/* && 
           cd ${WORKDIR}/trunk && ./configure --gb28181=on --utest=on && ls -lh && du -sh * && du -sh objs/* &&
           cd ${WORKDIR}/trunk && make utest && ./objs/srs_utest
     runs-on: windows-latest
