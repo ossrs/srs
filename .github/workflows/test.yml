@@ -35,6 +35,7 @@ jobs:
           echo "    rm -rf \$file &&" >> convert.sh &&
           echo "    cp -r \$REAL \$file" >> convert.sh &&
           echo "done" >> convert.sh &&
+          cat convert.sh &&
           docker run --rm -v $(pwd):/srs -w /usr/local/srs-cache/srs/trunk ossrs/srs:cygwin64-cache \
               bash -c "bash /srs/convert.sh && tar cf /srs/objs.tar.bz2 objs" &&
           pwd && du -sh *
