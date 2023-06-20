@@ -451,6 +451,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         ${OPENSSL_UNZIP} &&
         (
             cd ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} &&
+            chmod +x ./config ./Configure &&
             ${OPENSSL_CONFIG} --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/openssl $OPENSSL_OPTIONS
         ) &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} CC=${SRS_TOOL_CC} AR="${OPENSSL_AR}" \

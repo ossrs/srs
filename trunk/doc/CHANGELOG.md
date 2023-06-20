@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-06-20, Merge [#3592](https://github.com/ossrs/srs/pull/3592): Fix Permission Issue in depend.sh for OpenSSL Compilation. v5.0.159 (#3592)
 * v5.0, 2023-06-20, Merge [#3591](https://github.com/ossrs/srs/pull/3591): Fix crash when process rtcp feedback message. v5.0.159 (#3591)
 * v5.0, 2023-06-15, Merge [#3581](https://github.com/ossrs/srs/pull/3581): WHIP: Add OBS support, ensuring compatibility with a unique SDP. v5.0.158 (#3581)
 * v5.0, 2023-06-05, Fix command injection in demonstration api-server for HTTP callback. v5.0.157
