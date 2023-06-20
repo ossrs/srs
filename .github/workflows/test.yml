@@ -72,7 +72,7 @@ jobs:
         run: |
           WORKDIR=$(cygpath -u $SRS_WORKSPACE) && export PATH=/usr/bin:/usr/local/bin && cd ${WORKDIR} &&
           pwd && rm -rf /usr/local/srs-cache && mkdir -p /usr/local/srs-cache/srs/trunk && ls -lh &&
-          tar --no-same-permissions -xf -C /usr/local/srs-cache/srs/trunk/ objs.tar.bz2 && du -sh /usr/local/srs-cache/srs/trunk/* && 
+          tar --no-same-permissions -xf objs.tar.bz2 -C /usr/local/srs-cache/srs/trunk/ && du -sh /usr/local/srs-cache/srs/trunk/* && 
           cd ${WORKDIR}/trunk && ./configure --gb28181=on --utest=on && ls -lh && du -sh * && du -sh objs/* &&
           cd ${WORKDIR}/trunk && make utest && ./objs/srs_utest
     runs-on: windows-latest
