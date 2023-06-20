@@ -269,7 +269,7 @@ public:
 private:
     srs_error_t on_rtcp_xr(SrsRtcpXr* rtcp);
     srs_error_t on_rtcp_nack(SrsRtcpNack* rtcp);
-    srs_error_t on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp);
+    srs_error_t on_rtcp_ps_feedback(SrsRtcpFbCommon* rtcp);
     srs_error_t on_rtcp_rr(SrsRtcpRR* rtcp);
     uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
 // Interface ISrsRtcPLIWorkerHandler
@@ -513,7 +513,7 @@ private:
     srs_error_t dispatch_rtcp(SrsRtcpCommon* rtcp);
 public:
     srs_error_t on_rtcp_feedback_twcc(char* buf, int nb_buf);
-    srs_error_t on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp);
+    srs_error_t on_rtcp_feedback_remb(SrsRtcpFbCommon *rtcp);
 public:
     srs_error_t on_dtls_handshake_done();
     srs_error_t on_dtls_alert(std::string type, std::string desc);

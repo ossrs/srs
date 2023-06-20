@@ -786,7 +786,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp(SrsRtcpCommon* rtcp)
         SrsRtcpNack* nack = dynamic_cast<SrsRtcpNack*>(rtcp);
         return on_rtcp_nack(nack);
     } else if(SrsRtcpType_psfb == rtcp->type()) {
-        SrsRtcpPsfbCommon* psfb = dynamic_cast<SrsRtcpPsfbCommon*>(rtcp);
+        SrsRtcpFbCommon* psfb = dynamic_cast<SrsRtcpFbCommon*>(rtcp);
         return on_rtcp_ps_feedback(psfb);
     } else if(SrsRtcpType_xr == rtcp->type()) {
         SrsRtcpXr* xr = dynamic_cast<SrsRtcpXr*>(rtcp);
@@ -866,7 +866,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack* rtcp)
     return err;
 }
 
-srs_error_t SrsRtcPlayStream::on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp)
+srs_error_t SrsRtcPlayStream::on_rtcp_ps_feedback(SrsRtcpFbCommon* rtcp)
 {
     srs_error_t err = srs_success;
 
@@ -2064,7 +2064,7 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
 
     // For REMB packet.
     if (SrsRtcpType_psfb == rtcp->type()) {
-        SrsRtcpPsfbCommon* psfb = dynamic_cast<SrsRtcpPsfbCommon*>(rtcp);
+        SrsRtcpFbCommon* psfb = dynamic_cast<SrsRtcpFbCommon*>(rtcp);
         if (15 == psfb->get_rc()) {
             return on_rtcp_feedback_remb(psfb);
         }
@@ -2092,7 +2092,7 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
             required_player_ssrc = nack->get_media_ssrc();
         }
     } else if(SrsRtcpType_psfb == rtcp->type()) {
-        SrsRtcpPsfbCommon* psfb = dynamic_cast<SrsRtcpPsfbCommon*>(rtcp);
+        SrsRtcpFbCommon* psfb = dynamic_cast<SrsRtcpFbCommon*>(rtcp);
         required_player_ssrc = psfb->get_media_ssrc();
     }
 
@@ -2141,7 +2141,7 @@ srs_error_t SrsRtcConnection::on_rtcp_feedback_twcc(char* data, int nb_data)
     return srs_success;
 }
 
-srs_error_t SrsRtcConnection::on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp)
+srs_error_t SrsRtcConnection::on_rtcp_feedback_remb(SrsRtcpFbCommon *rtcp)
 {
     //ignore REMB
     return srs_success;
