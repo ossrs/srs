@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2023-06-20, Merge [#3594](https://github.com/ossrs/srs/pull/3594): Docker: Refine the main dockerfile. v6.0.54 (#3592)
 * v6.0, 2023-06-20, Merge [#3592](https://github.com/ossrs/srs/pull/3592): Fix Permission Issue in depend.sh for OpenSSL Compilation. v6.0.53 (#3592)
 * v6.0, 2023-06-20, Merge [#3591](https://github.com/ossrs/srs/pull/3591): Fix crash when process rtcp feedback message. v6.0.52 (#3591)
 * v6.0, 2023-06-15, Merge [#3581](https://github.com/ossrs/srs/pull/3581): WHIP: Add OBS support, ensuring compatibility with a unique SDP. v6.0.51 (#3581)
