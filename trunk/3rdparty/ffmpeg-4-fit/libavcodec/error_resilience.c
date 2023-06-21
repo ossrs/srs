@@ -34,8 +34,7 @@
 #include "mpegutils.h"
 #include "mpegvideo.h"
 #include "rectangle.h"
-#include "thread.h"
-#include "version.h"
+#include "threadframe.h"
 
 /**
  * @param stride the number of MVs to get to the next row
@@ -477,8 +476,6 @@ static void guess_mv(ERContext *s)
         none_left = 1;
         changed   = 1;
         for (pass = 0; (changed || pass < 2) && pass < 10; pass++) {
-            int score_sum = 0;
-
             changed = 0;
             for (blocklist_index = 0; blocklist_index < blocklist_length; blocklist_index++) {
                 const int mb_x = blocklist[blocklist_index][0];
@@ -669,7 +666,6 @@ skip_mean_and_median:
                         best_pred  = j;
                     }
                 }
-                score_sum += best_score;
                 s->mv[0][0][0] = mv_predictor[best_pred][0];
                 s->mv[0][0][1] = mv_predictor[best_pred][1];
 
@@ -740,12 +736,6 @@ static int is_intra_more_likely(ERContext *s)
     if (undamaged_count < 5)
         return 0; // almost all MBs damaged -> use temporal prediction
 
-    // prevent dsp.sad() check, that requires access to the image
-    if (CONFIG_XVMC    &&
-        s->avctx->hwaccel && s->avctx->hwaccel->decode_mb &&
-        s->cur_pic.f->pict_type == AV_PICTURE_TYPE_I)
-        return 1;
-
     skip_amount     = FFMAX(undamaged_count / 50, 1); // check only up to 50 MBs
     is_intra_likely = 0;
 
@@ -776,12 +766,12 @@ static int is_intra_more_likely(ERContext *s)
                 } else {
                     ff_thread_await_progress(s->last_pic.tf, mb_y, 0);
                 }
-                is_intra_likely += s->mecc.sad[0](NULL, last_mb_ptr, mb_ptr,
-                                                  linesize[0], 16);
+                is_intra_likely += s->sad(NULL, last_mb_ptr, mb_ptr,
+                                          linesize[0], 16);
                 // FIXME need await_progress() here
-                is_intra_likely -= s->mecc.sad[0](NULL, last_mb_ptr,
-                                                  last_mb_ptr + linesize[0] * 16,
-                                                  linesize[0], 16);
+                is_intra_likely -= s->sad(NULL, last_mb_ptr,
+                                          last_mb_ptr + linesize[0] * 16,
+                                          linesize[0], 16);
             } else {
                 if (IS_INTRA(s->cur_pic.mb_type[mb_xy]))
                    is_intra_likely++;
@@ -800,7 +790,9 @@ void ff_er_frame_start(ERContext *s)
         return;
 
     if (!s->mecc_inited) {
-        ff_me_cmp_init(&s->mecc, s->avctx);
+        MECmpContext mecc;
+        ff_me_cmp_init(&mecc, s->avctx);
+        s->sad = mecc.sad[0];
         s->mecc_inited = 1;
     }
 
@@ -917,19 +909,20 @@ void ff_er_frame_end(ERContext *s)
         return;
     }
     linesize = s->cur_pic.f->linesize;
-    for (mb_x = 0; mb_x < s->mb_width; mb_x++) {
-        int status = s->error_status_table[mb_x + (s->mb_height - 1) * s->mb_stride];
-        if (status != 0x7F)
-            break;
-    }
 
-    if (   mb_x == s->mb_width
-        && s->avctx->codec_id == AV_CODEC_ID_MPEG2VIDEO
+    if (   s->avctx->codec_id == AV_CODEC_ID_MPEG2VIDEO
         && (FFALIGN(s->avctx->height, 16)&16)
-        && atomic_load(&s->error_count) == 3 * s->mb_width * (s->avctx->skip_top + s->avctx->skip_bottom + 1)
-    ) {
-        av_log(s->avctx, AV_LOG_DEBUG, "ignoring last missing slice\n");
-        return;
+        && atomic_load(&s->error_count) == 3 * s->mb_width * (s->avctx->skip_top + s->avctx->skip_bottom + 1)) {
+        for (mb_x = 0; mb_x < s->mb_width; mb_x++) {
+            int status = s->error_status_table[mb_x + (s->mb_height - 1) * s->mb_stride];
+            if (status != 0x7F)
+                break;
+        }
+
+        if (mb_x == s->mb_width) {
+            av_log(s->avctx, AV_LOG_DEBUG, "ignoring last missing slice\n");
+            return;
+        }
     }
 
     if (s->last_pic.f) {
@@ -953,17 +946,17 @@ void ff_er_frame_end(ERContext *s)
         av_log(s->avctx, AV_LOG_ERROR, "Warning MVs not available\n");
 
         for (i = 0; i < 2; i++) {
-            s->ref_index_buf[i]  = av_buffer_allocz(s->mb_stride * s->mb_height * 4 * sizeof(uint8_t));
-            s->motion_val_buf[i] = av_buffer_allocz((size + 4) * 2 * sizeof(uint16_t));
-            if (!s->ref_index_buf[i] || !s->motion_val_buf[i])
+            s->ref_index[i]       = av_calloc(s->mb_stride * s->mb_height, 4 * sizeof(uint8_t));
+            s->motion_val_base[i] = av_calloc(size + 4, 2 * sizeof(uint16_t));
+            if (!s->ref_index[i] || !s->motion_val_base[i])
                 break;
-            s->cur_pic.ref_index[i]  = s->ref_index_buf[i]->data;
-            s->cur_pic.motion_val[i] = (int16_t (*)[2])s->motion_val_buf[i]->data + 4;
+            s->cur_pic.ref_index[i]  = s->ref_index[i];
+            s->cur_pic.motion_val[i] = s->motion_val_base[i] + 4;
         }
         if (i < 2) {
             for (i = 0; i < 2; i++) {
-                av_buffer_unref(&s->ref_index_buf[i]);
-                av_buffer_unref(&s->motion_val_buf[i]);
+                av_freep(&s->ref_index[i]);
+                av_freep(&s->motion_val_base[i]);
                 s->cur_pic.ref_index[i]  = NULL;
                 s->cur_pic.motion_val[i] = NULL;
             }
@@ -1121,6 +1114,8 @@ void ff_er_frame_end(ERContext *s)
     av_log(s->avctx, AV_LOG_INFO, "concealing %d DC, %d AC, %d MV errors in %c frame\n",
            dc_error, ac_error, mv_error, av_get_picture_type_char(s->cur_pic.f->pict_type));
 
+    s->cur_pic.f->decode_error_flags |= FF_DECODE_ERROR_CONCEALMENT_ACTIVE;
+
     is_intra_likely = is_intra_more_likely(s);
 
     /* set unknown mb-type to most likely */
@@ -1230,9 +1225,6 @@ void ff_er_frame_end(ERContext *s)
     } else
         guess_mv(s);
 
-    /* the filters below manipulate raw image, skip them */
-    if (CONFIG_XVMC && s->avctx->hwaccel && s->avctx->hwaccel->decode_mb)
-        goto ec_clean;
     /* fill DC for inter blocks */
     for (mb_y = 0; mb_y < s->mb_height; mb_y++) {
         for (mb_x = 0; mb_x < s->mb_width; mb_x++) {
@@ -1337,7 +1329,6 @@ void ff_er_frame_end(ERContext *s)
         }
     }
 
-ec_clean:
     /* clean a few tables */
     for (i = 0; i < s->mb_num; i++) {
         const int mb_xy = s->mb_index2xy[i];
@@ -1352,8 +1343,8 @@ ec_clean:
     }
 
     for (i = 0; i < 2; i++) {
-        av_buffer_unref(&s->ref_index_buf[i]);
-        av_buffer_unref(&s->motion_val_buf[i]);
+        av_freep(&s->ref_index[i]);
+        av_freep(&s->motion_val_base[i]);
         s->cur_pic.ref_index[i]  = NULL;
         s->cur_pic.motion_val[i] = NULL;
     }

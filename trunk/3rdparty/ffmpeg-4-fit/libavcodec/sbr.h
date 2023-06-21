@@ -30,7 +30,10 @@
 #define AVCODEC_SBR_H
 
 #include <stdint.h>
-#include "fft.h"
+
+#include "libavutil/mem_internal.h"
+#include "libavutil/tx.h"
+
 #include "aacps.h"
 #include "sbrdsp.h"
 
@@ -208,8 +211,10 @@ struct SpectralBandReplication {
     AAC_FLOAT          s_m[7][48];
     AAC_FLOAT          gain[7][48];
     DECLARE_ALIGNED(32, INTFLOAT, qmf_filter_scratch)[5][64];
-    FFTContext         mdct_ana;
-    FFTContext         mdct;
+    AVTXContext       *mdct_ana;
+    av_tx_fn           mdct_ana_fn;
+    AVTXContext       *mdct;
+    av_tx_fn           mdct_fn;
     SBRDSPContext      dsp;
     AACSBRContext      c;
 };

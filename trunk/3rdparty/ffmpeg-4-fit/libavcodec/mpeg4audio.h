@@ -24,11 +24,7 @@
 
 #include <stdint.h>
 
-#include "libavutil/attributes.h"
-
 #include "get_bits.h"
-#include "internal.h"
-#include "put_bits.h"
 
 typedef struct MPEG4AudioConfig {
     int object_type;
@@ -45,29 +41,31 @@ typedef struct MPEG4AudioConfig {
     int frame_length_short;
 } MPEG4AudioConfig;
 
-extern av_export_avcodec const int avpriv_mpeg4audio_sample_rates[16];
-extern const uint8_t ff_mpeg4audio_channels[8];
+extern const int     ff_mpeg4audio_sample_rates[16];
+extern const uint8_t ff_mpeg4audio_channels[15];
 
 /**
  * Parse MPEG-4 systems extradata from a potentially unaligned GetBitContext to retrieve audio configuration.
  * @param[in] c        MPEG4AudioConfig structure to fill.
  * @param[in] gb       Extradata from container.
  * @param[in] sync_extension look for a sync extension after config if true.
- * @return On error -1 is returned, on success AudioSpecificConfig bit index in extradata.
+ * @param[in] logctx opaque struct starting with an AVClass element, used for logging.
+ * @return negative AVERROR code on error, on success AudioSpecificConfig bit index in extradata.
  */
 int ff_mpeg4audio_get_config_gb(MPEG4AudioConfig *c, GetBitContext *gb,
-                                int sync_extension);
+                                int sync_extension, void *logctx);
 
 /**
  * Parse MPEG-4 systems extradata from a raw buffer to retrieve audio configuration.
  * @param[in] c        MPEG4AudioConfig structure to fill.
  * @param[in] buf      Extradata from container.
- * @param[in] bit_size Extradata size in bits.
+ * @param[in] size     Extradata size in bytes.
  * @param[in] sync_extension look for a sync extension after config if true.
- * @return On error -1 is returned, on success AudioSpecificConfig bit index in extradata.
+ * @param[in] logctx opaque struct starting with an AVClass element, used for logging.
+ * @return negative AVERROR code on error, AudioSpecificConfig bit index in extradata on success.
  */
-int avpriv_mpeg4audio_get_config(MPEG4AudioConfig *c, const uint8_t *buf,
-                                 int bit_size, int sync_extension);
+int avpriv_mpeg4audio_get_config2(MPEG4AudioConfig *c, const uint8_t *buf,
+                                  int size, int sync_extension, void *logctx);
 
 enum AudioObjectType {
     AOT_NULL,
@@ -118,45 +116,5 @@ enum AudioObjectType {
 
 #define MAX_PCE_SIZE 320 ///<Maximum size of a PCE including the 3-bit ID_PCE
                          ///<marker and the comment
-
-static av_always_inline unsigned int ff_pce_copy_bits(PutBitContext *pb,
-                                                      GetBitContext *gb,
-                                                      int bits)
-{
-    unsigned int el = get_bits(gb, bits);
-    put_bits(pb, bits, el);
-    return el;
-}
-
-static inline int ff_copy_pce_data(PutBitContext *pb, GetBitContext *gb)
-{
-    int five_bit_ch, four_bit_ch, comment_size, bits;
-    int offset = put_bits_count(pb);
-
-    ff_pce_copy_bits(pb, gb, 10);               // Tag, Object Type, Frequency
-    five_bit_ch  = ff_pce_copy_bits(pb, gb, 4); // Front
-    five_bit_ch += ff_pce_copy_bits(pb, gb, 4); // Side
-    five_bit_ch += ff_pce_copy_bits(pb, gb, 4); // Back
-    four_bit_ch  = ff_pce_copy_bits(pb, gb, 2); // LFE
-    four_bit_ch += ff_pce_copy_bits(pb, gb, 3); // Data
-    five_bit_ch += ff_pce_copy_bits(pb, gb, 4); // Coupling
-    if (ff_pce_copy_bits(pb, gb, 1))            // Mono Mixdown
-        ff_pce_copy_bits(pb, gb, 4);
-    if (ff_pce_copy_bits(pb, gb, 1))            // Stereo Mixdown
-        ff_pce_copy_bits(pb, gb, 4);
-    if (ff_pce_copy_bits(pb, gb, 1))            // Matrix Mixdown
-        ff_pce_copy_bits(pb, gb, 3);
-    for (bits = five_bit_ch*5+four_bit_ch*4; bits > 16; bits -= 16)
-        ff_pce_copy_bits(pb, gb, 16);
-    if (bits)
-        ff_pce_copy_bits(pb, gb, bits);
-    avpriv_align_put_bits(pb);
-    align_get_bits(gb);
-    comment_size = ff_pce_copy_bits(pb, gb, 8);
-    for (; comment_size > 0; comment_size--)
-        ff_pce_copy_bits(pb, gb, 8);
-
-    return put_bits_count(pb) - offset;
-}
 
 #endif /* AVCODEC_MPEG4AUDIO_H */

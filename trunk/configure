@@ -154,6 +154,11 @@ if [[ $SRS_RTC == YES ]]; then
   LibSrtpRoot="${SRS_OBJS}/srtp2/include"; LibSrtpFile="${SRS_OBJS}/srtp2/lib/libsrtp2.a"
 fi
 
+# sctp
+if [[ $SRS_SCTP == YES ]]; then
+  LibSctpRoot="${SRS_OBJS}/sctp/include"; LibSctpFile="${SRS_OBJS}/sctp/lib/libusrsctp.a"
+fi
+
 # FFMPEG for WebRTC transcoding, such as aac to opus.
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     LibFfmpegRoot="${SRS_OBJS}/ffmpeg/include"
@@ -289,6 +294,9 @@ fi
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=(${LibSrtpRoot})
 fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=(${LibSctpRoot})
+fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
@@ -319,6 +327,9 @@ fi
 if [[ $SRS_GB28181 == YES ]]; then
     MODULE_FILES+=("srs_app_gb28181")
 fi
+if [[ $SRS_SCTP == YES ]]; then
+    MODULE_FILES+=("srs_app_sctp")
+fi
 
 DEFINES=""
 # add each modules for app
@@ -340,6 +351,9 @@ fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=(${LibSctpRoot})
+fi
 MODULE_FILES=("srs_main_server")
 SERVER_INCS="src/main"; MODULE_DIR=${SERVER_INCS} . $SRS_WORKDIR/auto/modules.sh
 SERVER_OBJS="${MODULE_OBJS[@]}"
@@ -353,6 +367,9 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
+fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=(${LibSctpRoot})
 fi
 MODULE_FILES=()
 DEFINES=""
@@ -384,6 +401,9 @@ fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibFiles+=("${LibFfmpegFile[*]}")
 fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibFiles+=(${LibSctpFile})
+fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibFiles+=("${LibSRTfile[*]}")
 fi
@@ -395,6 +415,9 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
+fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=(${LibSctpRoot})
 fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibIncs+=(${LibSRTRoot})
@@ -449,6 +472,9 @@ if [[ $SRS_UTEST == YES ]]; then
     if [[ $SRS_FFMPEG_FIT == YES ]]; then
         ModuleLibIncs+=("${LibFfmpegRoot[*]}")
     fi
+    if [[ $SRS_SCTP == YES ]]; then
+        ModuleLibIncs+=(${LibSctpRoot})
+    fi
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibIncs+=("${LibSRTRoot[*]}")
     fi
@@ -458,6 +484,9 @@ if [[ $SRS_UTEST == YES ]]; then
     fi
     if [[ $SRS_FFMPEG_FIT == YES ]]; then
         ModuleLibFiles+=("${LibFfmpegFile[*]}")
+    fi
+    if [[ $SRS_SCTP == YES ]]; then
+        ModuleLibFiles+=(${LibSctpFile})
     fi
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")
@@ -526,7 +555,7 @@ help:
 	@echo "     uninstall       Uninstall srs from prefix path"
 	@echo "To rebuild special module:"
 	@echo "     st              Rebuild st-srs in ${SRS_OBJS}/${SRS_PLATFORM}/st-srs"
-	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit"
+	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit"
 	@echo "To reconfigure special depends:"
 	@echo "     clean_openssl   Remove the openssl cache."
 	@echo "     clean_srtp2     Remove the libsrtp2 cache."
@@ -581,8 +610,8 @@ st:
 
 ffmpeg:
 	@rm -f ${SRS_OBJS}/srs srs_utest
-	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit
-	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit install-libs
+	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit
+	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit install-libs
 	@echo "Please rebuild srs by: make"
 
 END

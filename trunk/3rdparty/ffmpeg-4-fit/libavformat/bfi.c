@@ -1,0 +1,186 @@
+/*
+ * Brute Force & Ignorance (BFI) demuxer
+ * Copyright (c) 2008 Sisir Koppaka
+ *
+ * This file is part of FFmpeg.
+ *
+ * FFmpeg is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * FFmpeg is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with FFmpeg; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ */
+
+/**
+ * @file
+ * @brief Brute Force & Ignorance (.bfi) file demuxer
+ * @author Sisir Koppaka ( sisir.koppaka at gmail dot com )
+ * @see http://wiki.multimedia.cx/index.php?title=BFI
+ */
+
+#include "libavutil/channel_layout.h"
+#include "libavutil/intreadwrite.h"
+#include "avformat.h"
+#include "demux.h"
+#include "internal.h"
+
+typedef struct BFIContext {
+    int nframes;
+    int audio_frame;
+    int video_frame;
+    int video_size;
+    int avflag;
+} BFIContext;
+
+static int bfi_probe(const AVProbeData * p)
+{
+    /* Check file header */
+    if (AV_RL32(p->buf) == MKTAG('B', 'F', '&', 'I'))
+        return AVPROBE_SCORE_MAX;
+    else
+        return 0;
+}
+
+static int bfi_read_header(AVFormatContext * s)
+{
+    BFIContext *bfi = s->priv_data;
+    AVIOContext *pb = s->pb;
+    AVStream *vstream;
+    AVStream *astream;
+    int ret, fps, chunk_header;
+
+    /* Initialize the video codec... */
+    vstream = avformat_new_stream(s, NULL);
+    if (!vstream)
+        return AVERROR(ENOMEM);
+
+    /* Initialize the audio codec... */
+    astream = avformat_new_stream(s, NULL);
+    if (!astream)
+        return AVERROR(ENOMEM);
+
+    /* Set the total number of frames. */
+    avio_skip(pb, 8);
+    chunk_header           = avio_rl32(pb);
+    if (chunk_header < 3)
+        return AVERROR_INVALIDDATA;
+
+    bfi->nframes           = avio_rl32(pb);
+    if (bfi->nframes < 0)
+        return AVERROR_INVALIDDATA;
+    avio_rl32(pb);
+    avio_rl32(pb);
+    avio_rl32(pb);
+    fps                    = avio_rl32(pb);
+    avio_skip(pb, 12);
+    vstream->codecpar->width  = avio_rl32(pb);
+    vstream->codecpar->height = avio_rl32(pb);
+
+    /*Load the palette to extradata */
+    avio_skip(pb, 8);
+    ret = ff_get_extradata(s, vstream->codecpar, pb, 768);
+    if (ret < 0)
+        return ret;
+
+    astream->codecpar->sample_rate = avio_rl32(pb);
+    if (astream->codecpar->sample_rate <= 0) {
+        av_log(s, AV_LOG_ERROR, "Invalid sample rate %d\n", astream->codecpar->sample_rate);
+        return AVERROR_INVALIDDATA;
+    }
+
+    /* Set up the video codec... */
+    avpriv_set_pts_info(vstream, 32, 1, fps);
+    vstream->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
+    vstream->codecpar->codec_id   = AV_CODEC_ID_BFI;
+    vstream->codecpar->format     = AV_PIX_FMT_PAL8;
+    vstream->nb_frames            =
+    vstream->duration             = bfi->nframes;
+
+    /* Set up the audio codec now... */
+    astream->codecpar->codec_type      = AVMEDIA_TYPE_AUDIO;
+    astream->codecpar->codec_id        = AV_CODEC_ID_PCM_U8;
+    astream->codecpar->ch_layout       = (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
+    astream->codecpar->bits_per_coded_sample = 8;
+    astream->codecpar->bit_rate        =
+        (int64_t)astream->codecpar->sample_rate * astream->codecpar->bits_per_coded_sample;
+    avio_seek(pb, chunk_header - 3, SEEK_SET);
+    avpriv_set_pts_info(astream, 64, 1, astream->codecpar->sample_rate);
+    return 0;
+}
+
+
+static int bfi_read_packet(AVFormatContext * s, AVPacket * pkt)
+{
+    BFIContext *bfi = s->priv_data;
+    AVIOContext *pb = s->pb;
+    int ret, audio_offset, video_offset, chunk_size, audio_size = 0;
+    if (bfi->nframes == 0 || avio_feof(pb)) {
+        return AVERROR_EOF;
+    }
+
+    /* If all previous chunks were completely read, then find a new one... */
+    if (!bfi->avflag) {
+        uint32_t state = 0;
+        while(state != MKTAG('S','A','V','I')){
+            if (avio_feof(pb))
+                return AVERROR(EIO);
+            state = 256*state + avio_r8(pb);
+        }
+        /* Now that the chunk's location is confirmed, we proceed... */
+        chunk_size      = avio_rl32(pb);
+        avio_rl32(pb);
+        audio_offset    = avio_rl32(pb);
+        avio_rl32(pb);
+        video_offset    = avio_rl32(pb);
+        if (audio_offset < 0 || video_offset < audio_offset || chunk_size < video_offset) {
+            av_log(s, AV_LOG_ERROR, "Invalid audio/video offsets or chunk size\n");
+            return AVERROR_INVALIDDATA;
+        }
+        audio_size      = video_offset - audio_offset;
+        bfi->video_size = chunk_size - video_offset;
+
+        //Tossing an audio packet at the audio decoder.
+        ret = av_get_packet(pb, pkt, audio_size);
+        if (ret < 0)
+            return ret;
+
+        pkt->pts          = bfi->audio_frame;
+        bfi->audio_frame += ret;
+    } else if (bfi->video_size > 0) {
+
+        //Tossing a video packet at the video decoder.
+        ret = av_get_packet(pb, pkt, bfi->video_size);
+        if (ret < 0)
+            return ret;
+
+        pkt->pts          = bfi->video_frame;
+        bfi->video_frame += ret / bfi->video_size;
+
+        /* One less frame to read. A cursory decrement. */
+        bfi->nframes--;
+    } else {
+        /* Empty video packet */
+        ret = AVERROR(EAGAIN);
+    }
+
+    bfi->avflag       = !bfi->avflag;
+    pkt->stream_index = bfi->avflag;
+    return ret;
+}
+
+const AVInputFormat ff_bfi_demuxer = {
+    .name           = "bfi",
+    .long_name      = NULL_IF_CONFIG_SMALL("Brute Force & Ignorance"),
+    .priv_data_size = sizeof(BFIContext),
+    .read_probe     = bfi_probe,
+    .read_header    = bfi_read_header,
+    .read_packet    = bfi_read_packet,
+};

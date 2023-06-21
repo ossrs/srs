@@ -4034,7 +4034,13 @@ int SrsConfig::get_rtc_server_listen()
         return DEFAULT;
     }
 
-    return ::atoi(conf->arg0().c_str());
+    int port = ::atoi(conf->arg0().c_str());
+#if defined(SRS_OSX)
+    // fix in mac, port := rtc_server.listen + offset:=[100, 1000), default is [8100, 9000)
+    static int offset = srs_random() % 900 + 100;
+    port += offset;
+#endif
+    return port;
 }
 
 std::string SrsConfig::get_rtc_server_candidates()

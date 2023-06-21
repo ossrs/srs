@@ -1,9 +1,16 @@
-static const AVCodec * const codec_list[] = {
+static const FFCodec * const codec_list[] = {
     &ff_aac_encoder,
-    &ff_opus_encoder,
     &ff_libopus_encoder,
+    &ff_libx264_encoder,
+    &ff_libx265_encoder,
+    &ff_h263_decoder,
+    &ff_h264_decoder,
+    &ff_hevc_decoder,
+    &ff_mpeg1video_decoder,
+    &ff_mpeg2video_decoder,
+    &ff_mpeg4_decoder,
+    &ff_prores_decoder,
+    &ff_vp9_decoder,
     &ff_aac_decoder,
-    &ff_aac_fixed_decoder,
-    &ff_aac_latm_decoder,
     &ff_libopus_decoder,
     NULL };

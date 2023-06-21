@@ -1,5 +1,5 @@
 /*
- * Opus decoder/demuxer common functions
+ * Opus decoder/encoder CELT functions
  * Copyright (c) 2012 Andrew D'Addesio
  * Copyright (c) 2013-2014 Mozilla Corporation
  * Copyright (c) 2016 Rostislav Pehlivanov <atomnuker@gmail.com>
@@ -24,14 +24,22 @@
 #ifndef AVCODEC_OPUS_CELT_H
 #define AVCODEC_OPUS_CELT_H
 
-#include <float.h>
+#include <stdint.h>
 
-#include "opus.h"
-#include "opus_pvq.h"
+#include "avcodec.h"
+#include "opusdsp.h"
+#include "opus_rc.h"
 
-#include "mdct15.h"
 #include "libavutil/float_dsp.h"
 #include "libavutil/libm.h"
+#include "libavutil/mem_internal.h"
+#include "libavutil/tx.h"
+
+#define CELT_SHORT_BLOCKSIZE         120
+#define CELT_OVERLAP                 CELT_SHORT_BLOCKSIZE
+#define CELT_MAX_LOG_BLOCKS          3
+#define CELT_MAX_FRAME_SIZE          (CELT_SHORT_BLOCKSIZE * (1 << CELT_MAX_LOG_BLOCKS))
+#define CELT_MAX_BANDS               21
 
 #define CELT_VECTORS                 11
 #define CELT_ALLOC_STEPS             6
@@ -40,11 +48,8 @@
 #define CELT_NORM_SCALE              16384
 #define CELT_QTHETA_OFFSET           4
 #define CELT_QTHETA_OFFSET_TWOPHASE  16
-#define CELT_EMPH_COEFF              0.85000610f
 #define CELT_POSTFILTER_MINPERIOD    15
 #define CELT_ENERGY_SILENCE          (-28.0f)
-
-typedef struct CeltPVQ CeltPVQ;
 
 enum CeltSpread {
     CELT_SPREAD_NONE,
@@ -89,13 +94,15 @@ typedef struct CeltBlock {
     float emph_coeff;
 } CeltBlock;
 
-struct CeltFrame {
+typedef struct CeltFrame {
     // constant values that do not change during context lifetime
     AVCodecContext      *avctx;
-    MDCT15Context       *imdct[4];
+    AVTXContext        *tx[4];
+    av_tx_fn            tx_fn[4];
     AVFloatDSPContext   *dsp;
     CeltBlock           block[2];
-    CeltPVQ             *pvq;
+    struct CeltPVQ      *pvq;
+    OpusDSP             opusdsp;
     int channels;
     int output_channels;
     int apply_phase_inv;
@@ -136,7 +143,7 @@ struct CeltFrame {
     int fine_priority[CELT_MAX_BANDS];
     int pulses       [CELT_MAX_BANDS];
     int tf_change    [CELT_MAX_BANDS];
-};
+} CeltFrame;
 
 /* LCG for noise generation */
 static av_always_inline uint32_t celt_rng(CeltFrame *f)
@@ -166,5 +173,11 @@ void ff_celt_flush(CeltFrame *f);
 
 int ff_celt_decode_frame(CeltFrame *f, OpusRangeCoder *rc, float **output,
                          int coded_channels, int frame_size, int startband, int endband);
+
+/* Encode or decode CELT bands */
+void ff_celt_quant_bands(CeltFrame *f, OpusRangeCoder *rc);
+
+/* Encode or decode CELT bitallocation */
+void ff_celt_bitalloc(CeltFrame *f, OpusRangeCoder *rc, int encode);
 
 #endif /* AVCODEC_OPUS_CELT_H */

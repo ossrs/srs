@@ -23,6 +23,7 @@
 #define AVCODEC_LPC_H
 
 #include <stdint.h>
+#include <stddef.h>
 #include "libavutil/avassert.h"
 #include "libavutil/lls.h"
 #include "aac_defines.h"
@@ -64,7 +65,7 @@ typedef struct LPCContext {
      * @param len     number of input samples
      * @param w_data  output samples
      */
-    void (*lpc_apply_welch_window)(const int32_t *data, int len,
+    void (*lpc_apply_welch_window)(const int32_t *data, ptrdiff_t len,
                                    double *w_data);
     /**
      * Perform autocorrelation on input samples with delay of 0 to lag.
@@ -79,7 +80,7 @@ typedef struct LPCContext {
      * @param autoc output autocorrelation coefficients.
      *              constraints: array size must be at least lag+1.
      */
-    void (*lpc_compute_autocorr)(const double *data, int len, int lag,
+    void (*lpc_compute_autocorr)(const double *data, ptrdiff_t len, int lag,
                                  double *autoc);
 
     // TODO: these should be allocated to reduce ABI compatibility issues
@@ -143,7 +144,7 @@ static inline void compute_ref_coefs(const LPC_TYPE *autoc, int max_order,
         gen0[i] = gen1[i] = autoc[i + 1];
 
     err    = autoc[0];
-    ref[0] = -gen1[0] / err;
+    ref[0] = -gen1[0] / ((USE_FIXED || err) ? err : 1);
     err   +=  gen1[0] * ref[0];
     if (error)
         error[0] = err;
@@ -152,7 +153,7 @@ static inline void compute_ref_coefs(const LPC_TYPE *autoc, int max_order,
             gen1[j] = gen1[j + 1] + ref[i - 1] * gen0[j];
             gen0[j] = gen1[j + 1] * ref[i - 1] + gen0[j];
         }
-        ref[i] = -gen1[0] / err;
+        ref[i] = -gen1[0] / ((USE_FIXED || err) ? err : 1);
         err   +=  gen1[0] * ref[i];
         if (error)
             error[i] = err;
@@ -186,7 +187,8 @@ static inline int AAC_RENAME(compute_lpc_coefs)(const LPC_TYPE *autoc, int max_o
             for(j=0; j<i; j++)
                 r -= lpc_last[j] * autoc[i-j-1];
 
-            r /= err;
+            if (err)
+                r /= err;
             err *= FIXR(1.0) - (r * r);
         }
 

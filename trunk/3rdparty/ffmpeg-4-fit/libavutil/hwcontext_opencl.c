@@ -47,10 +47,10 @@
 
 #if HAVE_OPENCL_VAAPI_INTEL_MEDIA
 #if CONFIG_LIBMFX
-#include <mfx/mfxstructures.h>
+#include <mfxstructures.h>
 #endif
 #include <va/va.h>
-#include <CL/va_ext.h>
+#include <CL/cl_va_api_media_sharing_intel.h>
 #include "hwcontext_vaapi.h"
 #endif
 
@@ -70,6 +70,12 @@
 #include <CL/cl_ext.h>
 #include <drm_fourcc.h>
 #include "hwcontext_drm.h"
+#endif
+
+#if HAVE_OPENCL_VAAPI_INTEL_MEDIA && CONFIG_LIBMFX
+extern int ff_qsv_get_surface_base_handle(mfxFrameSurface1 *surf,
+                                          enum AVHWDeviceType base_dev_typ,
+                                          void **base_handle);
 #endif
 
 
@@ -500,6 +506,9 @@ static int opencl_device_create_internal(AVHWDeviceContext *hwdev,
          *device_name_src   = NULL;
     int err, found, p, d;
 
+    av_assert0(selector->enumerate_platforms &&
+               selector->enumerate_devices);
+
     err = selector->enumerate_platforms(hwdev, &nb_platforms, &platforms,
                                         selector->context);
     if (err)
@@ -531,9 +540,9 @@ static int opencl_device_create_internal(AVHWDeviceContext *hwdev,
                 continue;
         }
 
-        err = opencl_enumerate_devices(hwdev, platforms[p], platform_name,
-                                       &nb_devices, &devices,
-                                       selector->context);
+        err = selector->enumerate_devices(hwdev, platforms[p], platform_name,
+                                          &nb_devices, &devices,
+                                          selector->context);
         if (err < 0)
             continue;
 
@@ -1191,7 +1200,7 @@ static int opencl_filter_drm_arm_device(AVHWDeviceContext *hwdev,
 #endif
 
 static int opencl_device_derive(AVHWDeviceContext *hwdev,
-                                AVHWDeviceContext *src_ctx,
+                                AVHWDeviceContext *src_ctx, AVDictionary *opts,
                                 int flags)
 {
     int err;
@@ -1204,16 +1213,16 @@ static int opencl_device_derive(AVHWDeviceContext *hwdev,
             // Surface mapping works via DRM PRIME fds with no special
             // initialisation required in advance.  This just finds the
             // Beignet ICD by name.
-            AVDictionary *opts = NULL;
+            AVDictionary *selector_opts = NULL;
 
-            err = av_dict_set(&opts, "platform_vendor", "Intel", 0);
+            err = av_dict_set(&selector_opts, "platform_vendor", "Intel", 0);
             if (err >= 0)
-                err = av_dict_set(&opts, "platform_version", "beignet", 0);
+                err = av_dict_set(&selector_opts, "platform_version", "beignet", 0);
             if (err >= 0) {
                 OpenCLDeviceSelector selector = {
                     .platform_index      = -1,
                     .device_index        = 0,
-                    .context             = opts,
+                    .context             = selector_opts,
                     .enumerate_platforms = &opencl_enumerate_platforms,
                     .filter_platform     = &opencl_filter_platform,
                     .enumerate_devices   = &opencl_enumerate_devices,
@@ -1221,7 +1230,7 @@ static int opencl_device_derive(AVHWDeviceContext *hwdev,
                 };
                 err = opencl_device_create_internal(hwdev, &selector, NULL);
             }
-            av_dict_free(&opts);
+            av_dict_free(&selector_opts);
         }
         break;
 #endif
@@ -1402,7 +1411,8 @@ static int opencl_get_plane_format(enum AVPixelFormat pixfmt,
         // The bits in each component must be packed in the
         // most-significant-bits of the relevant bytes.
         if (comp->shift + comp->depth != 8 &&
-            comp->shift + comp->depth != 16)
+            comp->shift + comp->depth != 16 &&
+            comp->shift + comp->depth != 32)
             return AVERROR(EINVAL);
         // The depth must not vary between components.
         if (depth && comp->depth != depth)
@@ -1416,8 +1426,9 @@ static int opencl_get_plane_format(enum AVPixelFormat pixfmt,
         // from the same component.
         if (step && comp->step != step)
             return AVERROR(EINVAL);
-        order = order * 10 + c + 1;
+
         depth = comp->depth;
+        order = order * 10 + comp->offset / ((depth + 7) / 8) + 1;
         step  = comp->step;
         alpha = (desc->flags & AV_PIX_FMT_FLAG_ALPHA &&
                  c == desc->nb_components - 1);
@@ -1445,6 +1456,8 @@ static int opencl_get_plane_format(enum AVPixelFormat pixfmt,
     } else {
         if (depth <= 16)
             image_format->image_channel_data_type = CL_UNORM_INT16;
+        else if (depth == 32)
+            image_format->image_channel_data_type = CL_FLOAT;
         else
             return AVERROR(EINVAL);
     }
@@ -1453,14 +1466,10 @@ static int opencl_get_plane_format(enum AVPixelFormat pixfmt,
     case order: image_format->image_channel_order = type; break;
     switch (order) {
         CHANNEL_ORDER(1,    CL_R);
-        CHANNEL_ORDER(2,    CL_R);
-        CHANNEL_ORDER(3,    CL_R);
-        CHANNEL_ORDER(4,    CL_R);
         CHANNEL_ORDER(12,   CL_RG);
-        CHANNEL_ORDER(23,   CL_RG);
         CHANNEL_ORDER(1234, CL_RGBA);
+        CHANNEL_ORDER(2341, CL_ARGB);
         CHANNEL_ORDER(3214, CL_BGRA);
-        CHANNEL_ORDER(4123, CL_ARGB);
 #ifdef CL_ABGR
         CHANNEL_ORDER(4321, CL_ABGR);
 #endif
@@ -1617,7 +1626,7 @@ static void opencl_pool_free(void *opaque, uint8_t *data)
     av_free(desc);
 }
 
-static AVBufferRef *opencl_pool_alloc(void *opaque, int size)
+static AVBufferRef *opencl_pool_alloc(void *opaque, size_t size)
 {
     AVHWFramesContext      *hwfc = opaque;
     AVOpenCLDeviceContext *hwctx = hwfc->device_ctx->hwctx;
@@ -1726,10 +1735,13 @@ static void opencl_frames_uninit(AVHWFramesContext *hwfc)
     av_freep(&priv->mapped_frames);
 #endif
 
-    cle = clReleaseCommandQueue(priv->command_queue);
-    if (cle != CL_SUCCESS) {
-        av_log(hwfc, AV_LOG_ERROR, "Failed to release frame "
-               "command queue: %d.\n", cle);
+    if (priv->command_queue) {
+        cle = clReleaseCommandQueue(priv->command_queue);
+        if (cle != CL_SUCCESS) {
+            av_log(hwfc, AV_LOG_ERROR, "Failed to release frame "
+                   "command queue: %d.\n", cle);
+        }
+        priv->command_queue = NULL;
     }
 }
 
@@ -2143,6 +2155,7 @@ fail:
             clReleaseMemObject(mapping->frame.planes[p]);
     }
     av_free(mapping);
+    memset(dst->data, 0, sizeof(dst->data));
     return err;
 }
 
@@ -2245,8 +2258,14 @@ static int opencl_map_from_qsv(AVHWFramesContext *dst_fc, AVFrame *dst,
 
 #if CONFIG_LIBMFX
     if (src->format == AV_PIX_FMT_QSV) {
+        void *base_handle;
         mfxFrameSurface1 *mfx_surface = (mfxFrameSurface1*)src->data[3];
-        va_surface = *(VASurfaceID*)mfx_surface->Data.MemId;
+        err = ff_qsv_get_surface_base_handle(mfx_surface,
+                                             AV_HWDEVICE_TYPE_VAAPI,
+                                             &base_handle);
+        if (err < 0)
+            return err;
+        va_surface = *(VASurfaceID *)base_handle;
     } else
 #endif
         if (src->format == AV_PIX_FMT_VAAPI) {
@@ -2314,6 +2333,7 @@ fail:
         if (desc->planes[p])
             clReleaseMemObject(desc->planes[p]);
     av_freep(&desc);
+    memset(dst->data, 0, sizeof(dst->data));
     return err;
 }
 
@@ -2404,6 +2424,7 @@ fail:
         0, NULL, &event);
     if (cle == CL_SUCCESS)
         opencl_wait_events(dst_fc, &event, 1);
+    memset(dst->data, 0, sizeof(dst->data));
     return err;
 }
 
@@ -2438,8 +2459,8 @@ static int opencl_frames_derive_from_dxva2(AVHWFramesContext *dst_fc,
     frames_priv->nb_mapped_frames = src_hwctx->nb_surfaces;
 
     frames_priv->mapped_frames =
-        av_mallocz_array(frames_priv->nb_mapped_frames,
-                         sizeof(*frames_priv->mapped_frames));
+        av_calloc(frames_priv->nb_mapped_frames,
+                  sizeof(*frames_priv->mapped_frames));
     if (!frames_priv->mapped_frames)
         return AVERROR(ENOMEM);
 
@@ -2559,6 +2580,7 @@ fail:
         0, NULL, &event);
     if (cle == CL_SUCCESS)
         opencl_wait_events(dst_fc, &event, 1);
+    memset(dst->data, 0, sizeof(dst->data));
     return err;
 }
 
@@ -2593,8 +2615,8 @@ static int opencl_frames_derive_from_d3d11(AVHWFramesContext *dst_fc,
     frames_priv->nb_mapped_frames = src_fc->initial_pool_size;
 
     frames_priv->mapped_frames =
-        av_mallocz_array(frames_priv->nb_mapped_frames,
-                         sizeof(*frames_priv->mapped_frames));
+        av_calloc(frames_priv->nb_mapped_frames,
+                  sizeof(*frames_priv->mapped_frames));
     if (!frames_priv->mapped_frames)
         return AVERROR(ENOMEM);
 
@@ -2790,6 +2812,7 @@ fail:
             clReleaseMemObject(mapping->object_buffers[i]);
     }
     av_free(mapping);
+    memset(dst->data, 0, sizeof(dst->data));
     return err;
 }
 

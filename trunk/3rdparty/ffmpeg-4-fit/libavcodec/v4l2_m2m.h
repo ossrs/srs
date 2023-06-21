@@ -38,7 +38,7 @@
 
 #define V4L_M2M_DEFAULT_OPTS \
     { "num_output_buffers", "Number of buffers in the output context",\
-        OFFSET(num_output_buffers), AV_OPT_TYPE_INT, { .i64 = 16 }, 6, INT_MAX, FLAGS }
+        OFFSET(num_output_buffers), AV_OPT_TYPE_INT, { .i64 = 16 }, 2, INT_MAX, FLAGS }
 
 typedef struct V4L2m2mContext {
     char devname[PATH_MAX];
@@ -56,13 +56,19 @@ typedef struct V4L2m2mContext {
 
     /* null frame/packet received */
     int draining;
+    AVPacket buf_pkt;
+
+    /* Reference to a frame. Only used during encoding */
+    AVFrame *frame;
 
     /* Reference to self; only valid while codec is active. */
     AVBufferRef *self_ref;
+
+    /* reference back to V4L2m2mPriv */
+    void *priv;
 } V4L2m2mContext;
 
-typedef struct V4L2m2mPriv
-{
+typedef struct V4L2m2mPriv {
     AVClass *class;
 
     V4L2m2mContext *context;
@@ -75,33 +81,33 @@ typedef struct V4L2m2mPriv
 /**
  * Allocate a new context and references for a V4L2 M2M instance.
  *
- * @param[in] ctx The AVCodecContext instantiated by the encoder/decoder.
+ * @param[in] ctx The V4L2m2mPriv instantiated by the encoder/decoder.
  * @param[out] ctx The V4L2m2mContext.
  *
  * @returns 0 in success, a negative error code otherwise.
  */
-int ff_v4l2_m2m_create_context(AVCodecContext *avctx, V4L2m2mContext **s);
+int ff_v4l2_m2m_create_context(V4L2m2mPriv *priv, V4L2m2mContext **s);
 
 
 /**
  * Probes the video nodes looking for the required codec capabilities.
  *
- * @param[in] ctx The AVCodecContext instantiated by the encoder/decoder.
+ * @param[in] ctx The V4L2m2mPriv instantiated by the encoder/decoder.
  *
  * @returns 0 if a driver is found, a negative number otherwise.
  */
-int ff_v4l2_m2m_codec_init(AVCodecContext *avctx);
+int ff_v4l2_m2m_codec_init(V4L2m2mPriv *priv);
 
 /**
  * Releases all the codec resources if all AVBufferRefs have been returned to the
  * ctx. Otherwise keep the driver open.
  *
- * @param[in] The AVCodecContext instantiated by the encoder/decoder.
+ * @param[in] The V4L2m2mPriv instantiated by the encoder/decoder.
  *
  * @returns 0
  *
  */
-int ff_v4l2_m2m_codec_end(AVCodecContext *avctx);
+int ff_v4l2_m2m_codec_end(V4L2m2mPriv *priv);
 
 /**
  * Reinitializes the V4L2m2mContext when the driver cannot continue processing

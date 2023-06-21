@@ -250,6 +250,22 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     return err;
 }
 
+bool check_order_sdp_media_section(const SrsSdp& sdp) {
+    size_t size = sdp.media_descs_.size();
+    if (size != sdp.groups_.size()) {
+        return false;
+    }
+
+    for (size_t i=0; i<size; ++i) {
+        if (sdp.media_descs_[i].mid_ != sdp.groups_[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
 {
     srs_error_t err = srs_success;
@@ -262,12 +278,20 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no media descriptions");
     }
 
+    if (!check_order_sdp_media_section(remote_sdp)) {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "The mid order does not match the group bundle order");
+    }
+
     for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+        if (iter->is_application()) {
+            continue;
+        }
+
         if (iter->type_ != "audio" && iter->type_ != "video") {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
         }
 
-        if (! iter->rtcp_mux_) {
+        if (!iter->rtcp_mux_) {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only suppor rtcp-mux");
         }
 
@@ -311,6 +335,264 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(SrsRequest* req)
 
     return err;
 }
+
+#ifdef SRS_SCTP
+
+SrsGoApiRtcDataChannel::SrsGoApiRtcDataChannel(SrsRtcServer* server)
+{
+    server_ = server;
+}
+
+SrsGoApiRtcDataChannel::~SrsGoApiRtcDataChannel()
+{
+}
+
+
+// Request:
+//      POST /rtc/v1/data/
+//      {
+//          "sdp":"offer...", "streamurl":"webrtc://r.ossrs.net/live/livestream",
+//          "api":'http...", "clientip":"..."
+//      }
+// Response:
+//      {"sdp":"answer...", "sid":"..."}
+// @see https://github.com/rtcdn/rtcdn-draft
+srs_error_t SrsGoApiRtcDataChannel::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+
+    SrsJsonObject* res = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, res);
+
+    if ((err = do_serve_http(w, r, res)) != srs_success) {
+        srs_warn("RTC error %s", srs_error_desc(err).c_str()); srs_freep(err);
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
+
+    return srs_api_response(w, r, res->dumps());
+}
+
+srs_error_t SrsGoApiRtcDataChannel::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res)
+{
+    srs_error_t err = srs_success;
+
+    // For each RTC session, we use short-term HTTP connection.
+    SrsHttpHeader* hdr = w->header();
+    hdr->set("Connection", "Close");
+
+    // Parse req, the request json object, from body.
+    SrsJsonObject* req = NULL;
+    SrsAutoFree(SrsJsonObject, req);
+    if (true) {
+        string req_json;
+        if ((err = r->body_read_all(req_json)) != srs_success) {
+            return srs_error_wrap(err, "read body");
+        }
+
+        SrsJsonAny* json = SrsJsonAny::loads(req_json);
+        if (!json || !json->is_object()) {
+            return srs_error_new(ERROR_RTC_API_BODY, "invalid body %s", req_json.c_str());
+        }
+
+        req = json->to_object();
+    }
+
+    // Fetch params from req object.
+    SrsJsonAny* prop = NULL;
+    if ((prop = req->ensure_property_string("sdp")) == NULL) {
+        return srs_error_wrap(err, "not sdp");
+    }
+    string remote_sdp_str = prop->to_str();
+
+    if ((prop = req->ensure_property_string("streamurl")) == NULL) {
+        return srs_error_wrap(err, "not streamurl");
+    }
+    string streamurl = prop->to_str();
+
+    string clientip;
+    if ((prop = req->ensure_property_string("clientip")) != NULL) {
+        clientip = prop->to_str();
+    }
+
+    string api;
+    if ((prop = req->ensure_property_string("api")) != NULL) {
+        api = prop->to_str();
+    }
+
+    // The RTC user config object.
+    SrsRtcUserConfig ruc;
+    ruc.req_->ip = clientip;
+
+    srs_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
+
+    srs_discovery_tc_url(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost,
+                         ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
+
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
+    if (parsed_vhost) {
+        ruc.req_->vhost = parsed_vhost->arg0();
+    }
+
+    // For client to specifies the EIP of server.
+    string eip = r->query_get("eip");
+    // For client to specifies whether encrypt by SRTP.
+    string srtp = r->query_get("encrypt");
+    string dtls = r->query_get("dtls");
+
+    srs_trace("RTC data %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, srtp=%s, dtls=%s",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), ruc.req_->app.c_str(), ruc.req_->stream.c_str(), remote_sdp_str.length(), eip.c_str(),
+        srtp.c_str(), dtls.c_str());
+
+    ruc.eip_ = eip;
+    ruc.publish_ = false;
+    ruc.dtls_ = (dtls != "false");
+
+    if (srtp.empty()) {
+        ruc.srtp_ = _srs_config->get_rtc_server_encrypt();
+    } else {
+        ruc.srtp_ = (srtp != "false");
+    }
+
+    // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
+    if ((err = ruc.remote_sdp_.parse(remote_sdp_str)) != srs_success) {
+        return srs_error_wrap(err, "parse sdp failed: %s", remote_sdp_str.c_str());
+    }
+
+    if ((err = check_remote_sdp(ruc.remote_sdp_)) != srs_success) {
+        return srs_error_wrap(err, "remote sdp check failed");
+    }
+
+    SrsSdp local_sdp;
+
+    // Config for SDP and session.
+    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(ruc.req_->vhost);
+    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(ruc.req_->vhost);
+
+    if ((err = exchange_sdp(ruc.req_, ruc.remote_sdp_, local_sdp)) != srs_success) {
+        return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
+    }
+
+    // Whether enabled.
+    bool server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(ruc.req_->vhost);
+    if (server_enabled && !rtc_enabled) {
+        srs_warn("RTC disabled in vhost %s", ruc.req_->vhost.c_str());
+    }
+    if (!server_enabled || !rtc_enabled) {
+        return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
+            server_enabled, rtc_enabled, ruc.req_->vhost.c_str());
+    }
+
+    // TODO: FIXME: When server enabled, but vhost disabled, should report error.
+    SrsRtcConnection* session = NULL;
+    if ((err = server_->create_session(&ruc, local_sdp, &session)) != srs_success) {
+        return srs_error_wrap(err, "create session");
+    }
+
+    ostringstream os;
+    if ((err = local_sdp.encode(os)) != srs_success) {
+        return srs_error_wrap(err, "encode sdp");
+    }
+
+    string local_sdp_str = os.str();
+
+    srs_verbose("local_sdp=%s", local_sdp_str.c_str());
+
+    res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    res->set("server", SrsJsonAny::str(SrsStatistic::instance()->server_id().c_str()));
+
+    // TODO: add candidates in response json?
+
+    res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
+    res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
+
+    srs_trace("RTC data username=%s, offer=%dB, answer=%dB", session->username().c_str(),
+        remote_sdp_str.length(), local_sdp_str.length());
+
+    return err;
+}
+
+srs_error_t SrsGoApiRtcDataChannel::check_remote_sdp(const SrsSdp& remote_sdp)
+{
+    srs_error_t err = srs_success;
+
+    if (remote_sdp.group_policy_ != "BUNDLE") {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only support BUNDLE, group policy=%s", remote_sdp.group_policy_.c_str());
+    }
+
+    if (remote_sdp.media_descs_.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no media descriptions");
+    }
+
+    if (!check_order_sdp_media_section(remote_sdp)) {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "The mid order does not match the group bundle order");
+    }
+
+    for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+        if (!iter->is_application()) {
+            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsGoApiRtcDataChannel::exchange_sdp(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
+{
+    srs_error_t err = srs_success;
+    local_sdp.version_ = "0";
+
+    local_sdp.username_        = RTMP_SIG_SRS_SERVER;
+    local_sdp.session_id_      = srs_int2str((int64_t)this);
+    local_sdp.session_version_ = "2";
+    local_sdp.nettype_         = "IN";
+    local_sdp.addrtype_        = "IP4";
+    local_sdp.unicast_address_ = "0.0.0.0";
+
+    local_sdp.session_name_ = "SRSDataSession";
+
+    local_sdp.msid_semantic_ = "WMS";
+    local_sdp.msids_.push_back(req->app + "/" + req->stream);
+
+    local_sdp.group_policy_ = "BUNDLE";
+
+    for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
+        const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
+        if (!remote_media_desc.is_application()) {
+            continue;
+        }
+
+        local_sdp.media_descs_.push_back(SrsMediaDesc("application"));
+
+        SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
+
+        local_media_desc.mid_ = remote_media_desc.mid_;
+        local_sdp.groups_.push_back(local_media_desc.mid_);
+
+        local_media_desc.port_ = 9;
+        local_media_desc.protos_ = "UDP/DTLS/SCTP";
+
+        if (remote_media_desc.session_info_.setup_ == "active") {
+            local_media_desc.session_info_.setup_ = "passive";
+        } else if (remote_media_desc.session_info_.setup_ == "passive") {
+            local_media_desc.session_info_.setup_ = "active";
+        } else if (remote_media_desc.session_info_.setup_ == "actpass") {
+            local_media_desc.session_info_.setup_ = "passive";
+        } else {
+            // @see: https://tools.ietf.org/html/rfc4145#section-4.1
+            // The default value of the setup attribute in an offer/answer exchange
+            // is 'active' in the offer and 'passive' in the answer.
+            local_media_desc.session_info_.setup_ = "passive";
+        }
+
+        local_media_desc.rtcp_mux_ = true;
+        local_media_desc.rtcp_rsize_ = true;
+    }
+
+    return err;
+}
+#endif
 
 SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsRtcServer* server)
 {
@@ -531,12 +813,20 @@ srs_error_t SrsGoApiRtcPublish::check_remote_sdp(const SrsSdp& remote_sdp)
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no media descriptions");
     }
 
+    if (!check_order_sdp_media_section(remote_sdp)) {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "The mid order does not match the group bundle order");
+    }
+
     for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+        if (iter->is_application()) {
+            continue;
+        }
+
         if (iter->type_ != "audio" && iter->type_ != "video") {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
         }
 
-        if (! iter->rtcp_mux_) {
+        if (!iter->rtcp_mux_) {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only suppor rtcp-mux");
         }
 

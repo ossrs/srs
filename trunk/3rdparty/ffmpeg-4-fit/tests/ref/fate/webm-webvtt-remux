@@ -1,0 +1,458 @@
+0b43695bf27bbe48ea44e969d8908e1f *tests/data/fate/webm-webvtt-remux.webm
+6528 tests/data/fate/webm-webvtt-remux.webm
+#tb 0: 1/1000
+#media_type 0: subtitle
+#codec_id 0: webvtt
+#tb 1: 1/1000
+#media_type 1: subtitle
+#codec_id 1: webvtt
+0,      11000,      11000,     2000,       58, 0x45bb13fd
+1,      11000,      11000,     2000,       58, 0x45bb13fd
+0,      13000,      13000,     3000,       73, 0xb3c21a1b
+1,      13000,      13000,     3000,       73, 0xb3c21a1b
+0,      16000,      16000,     2000,       60, 0x89f515d4
+1,      16000,      16000,     2000,       60, 0x89f515d4
+0,      18000,      18000,     2000,       51, 0xc84211f5
+1,      18000,      18000,     2000,       51, 0xc84211f5
+0,      20000,      20000,     2000,       67, 0x3e2918c7
+1,      20000,      20000,     2000,       67, 0x3e2918c7
+0,      22000,      22000,     2000,       29, 0x93f7098d, S=1,        3
+1,      22000,      22000,     2000,       29, 0x93f7098d, S=1,        3
+0,      24000,      24000,     2000,       49, 0xb2d91196
+1,      24000,      24000,     2000,       49, 0xb2d91196
+0,      27000,      27000,     3000,       99, 0xb750231a, S=1,       14
+1,      27000,      27000,     3000,       99, 0xb750231a, S=1,       14
+0,      30000,      30000,     1500,       36, 0xe7f70d87, S=1,       18
+1,      30000,      30000,     1500,       36, 0xe7f70d87, S=1,       18
+0,      30500,      30500,     2000,      112, 0x6961267d, S=1,       20
+1,      30500,      30500,     2000,      112, 0x6961267d, S=1,       20
+0,      32000,      32000,     3500,       58, 0x32d11382, S=1,       18
+1,      32000,      32000,     3500,       58, 0x32d11382, S=1,       18
+0,      32500,      32500,     1000,       36, 0xe6650c7c, S=1,       20
+1,      32500,      32500,     1000,       36, 0xe6650c7c, S=1,       20
+0,      35500,      35500,     2500,       73, 0xb13f19c0
+1,      35500,      35500,     2500,       73, 0xb13f19c0
+0,      50000,      50000,     1134,       43, 0x534b0ee3
+1,      50000,      50000,     1134,       43, 0x534b0ee3
+0,    3540123,    3540123,  1485555,       13, 0x216a04d8
+1,    3540123,    3540123,  1485555,       13, 0x216a04d8
+[PACKET]
+stream_index=0
+pts=11000
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=11000
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=11000
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=11000
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=13000
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=13000
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=13000
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=13000
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=16000
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=16000
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=16000
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=16000
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=18000
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=18000
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=18000
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=18000
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=20000
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=20000
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=20000
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=20000
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=22000
+[SIDE_DATA]
+side_data_type=WebVTT ID
+data_hash=CRC32:884863d2
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=22000
+[SIDE_DATA]
+side_data_type=WebVTT ID
+data_hash=CRC32:884863d2
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=22000
+[SIDE_DATA]
+side_data_type=WebVTT ID
+data_hash=CRC32:884863d2
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=22000
+[SIDE_DATA]
+side_data_type=WebVTT ID
+data_hash=CRC32:884863d2
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=24000
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=24000
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=24000
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=24000
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=27000
+[SIDE_DATA]
+side_data_type=WebVTT ID
+data_hash=CRC32:38ea6650
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=27000
+[SIDE_DATA]
+side_data_type=WebVTT ID
+data_hash=CRC32:38ea6650
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=27000
+[SIDE_DATA]
+side_data_type=WebVTT ID
+data_hash=CRC32:38ea6650
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=27000
+[SIDE_DATA]
+side_data_type=WebVTT ID
+data_hash=CRC32:38ea6650
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=30000
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:c85a02f9
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=30000
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:c85a02f9
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=30000
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:c85a02f9
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=30000
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:c85a02f9
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=30500
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:5a60fed3
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=30500
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:5a60fed3
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=30500
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:5a60fed3
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=30500
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:5a60fed3
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=32000
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:c85a02f9
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=32000
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:c85a02f9
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=32000
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:c85a02f9
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=32000
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:c85a02f9
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=32500
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:36b6655e
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=32500
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:36b6655e
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=32500
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:36b6655e
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=32500
+[SIDE_DATA]
+side_data_type=WebVTT Settings
+data_hash=CRC32:36b6655e
+[/SIDE_DATA]
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=35500
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=35500
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=35500
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=35500
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=50000
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=50000
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=50000
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=50000
+[/PACKET]
+[PACKET]
+stream_index=0
+pts=3540123
+[/PACKET]
+[PACKET]
+stream_index=1
+pts=3540123
+[/PACKET]
+[PACKET]
+stream_index=2
+pts=3540123
+[/PACKET]
+[PACKET]
+stream_index=3
+pts=3540123
+[/PACKET]
+[STREAM]
+index=0
+codec_name=webvtt
+DISPOSITION:default=0
+DISPOSITION:dub=0
+DISPOSITION:original=0
+DISPOSITION:comment=0
+DISPOSITION:lyrics=0
+DISPOSITION:karaoke=0
+DISPOSITION:forced=0
+DISPOSITION:hearing_impaired=0
+DISPOSITION:visual_impaired=0
+DISPOSITION:clean_effects=0
+DISPOSITION:attached_pic=0
+DISPOSITION:timed_thumbnails=0
+DISPOSITION:captions=0
+DISPOSITION:descriptions=1
+DISPOSITION:metadata=0
+DISPOSITION:dependent=0
+DISPOSITION:still_image=0
+[/STREAM]
+[STREAM]
+index=1
+codec_name=webvtt
+DISPOSITION:default=1
+DISPOSITION:dub=0
+DISPOSITION:original=0
+DISPOSITION:comment=0
+DISPOSITION:lyrics=0
+DISPOSITION:karaoke=0
+DISPOSITION:forced=0
+DISPOSITION:hearing_impaired=0
+DISPOSITION:visual_impaired=0
+DISPOSITION:clean_effects=0
+DISPOSITION:attached_pic=0
+DISPOSITION:timed_thumbnails=0
+DISPOSITION:captions=0
+DISPOSITION:descriptions=0
+DISPOSITION:metadata=1
+DISPOSITION:dependent=0
+DISPOSITION:still_image=0
+[/STREAM]
+[STREAM]
+index=2
+codec_name=webvtt
+DISPOSITION:default=0
+DISPOSITION:dub=0
+DISPOSITION:original=0
+DISPOSITION:comment=0
+DISPOSITION:lyrics=0
+DISPOSITION:karaoke=0
+DISPOSITION:forced=1
+DISPOSITION:hearing_impaired=0
+DISPOSITION:visual_impaired=0
+DISPOSITION:clean_effects=0
+DISPOSITION:attached_pic=0
+DISPOSITION:timed_thumbnails=0
+DISPOSITION:captions=0
+DISPOSITION:descriptions=0
+DISPOSITION:metadata=0
+DISPOSITION:dependent=0
+DISPOSITION:still_image=0
+[/STREAM]
+[STREAM]
+index=3
+codec_name=webvtt
+DISPOSITION:default=0
+DISPOSITION:dub=0
+DISPOSITION:original=0
+DISPOSITION:comment=0
+DISPOSITION:lyrics=0
+DISPOSITION:karaoke=0
+DISPOSITION:forced=0
+DISPOSITION:hearing_impaired=0
+DISPOSITION:visual_impaired=0
+DISPOSITION:clean_effects=0
+DISPOSITION:attached_pic=0
+DISPOSITION:timed_thumbnails=0
+DISPOSITION:captions=1
+DISPOSITION:descriptions=0
+DISPOSITION:metadata=0
+DISPOSITION:dependent=0
+DISPOSITION:still_image=0
+[/STREAM]

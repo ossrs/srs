@@ -2480,7 +2480,7 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
     
     // cache the last gop packets
     if ((err = gop_cache->cache(msg)) != srs_success) {
-        return srs_error_wrap(err, "gop cache consume vdieo");
+        return srs_error_wrap(err, "gop cache consume video");
     }
     
     // if atc, update the sequence header to abs time.

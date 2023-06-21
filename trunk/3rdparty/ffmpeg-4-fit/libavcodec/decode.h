@@ -54,6 +54,11 @@ typedef struct FrameDecodeData {
 } FrameDecodeData;
 
 /**
+ * avcodec_receive_frame() implementation for decoders.
+ */
+int ff_decode_receive_frame(AVCodecContext *avctx, AVFrame *frame);
+
+/**
  * Called by decoders to get the next packet for decoding.
  *
  * @param pkt An empty packet to be filled with data.
@@ -64,9 +69,16 @@ typedef struct FrameDecodeData {
  */
 int ff_decode_get_packet(AVCodecContext *avctx, AVPacket *pkt);
 
-int ff_decode_bsfs_init(AVCodecContext *avctx);
+/**
+ * Set various frame properties from the provided packet.
+ */
+int ff_decode_frame_props_from_pkt(const AVCodecContext *avctx,
+                                   AVFrame *frame, const AVPacket *pkt);
 
-void ff_decode_bsfs_uninit(AVCodecContext *avctx);
+/**
+ * Set various frame properties from the codec context / packet data.
+ */
+int ff_decode_frame_props(AVCodecContext *avctx, AVFrame *frame);
 
 /**
  * Make sure avctx.hw_frames_ctx is set. If it's not set, the function will
@@ -77,5 +89,65 @@ int ff_decode_get_hw_frames_ctx(AVCodecContext *avctx,
                                 enum AVHWDeviceType dev_type);
 
 int ff_attach_decode_data(AVFrame *frame);
+
+/**
+ * Check whether the side-data of src contains a palette of
+ * size AVPALETTE_SIZE; if so, copy it to dst and return 1;
+ * else return 0.
+ * Also emit an error message upon encountering a palette
+ * with invalid size.
+ */
+int ff_copy_palette(void *dst, const AVPacket *src, void *logctx);
+
+/**
+ * Perform decoder initialization and validation.
+ * Called when opening the decoder, before the FFCodec.init() call.
+ */
+int ff_decode_preinit(AVCodecContext *avctx);
+
+/**
+ * Check that the provided frame dimensions are valid and set them on the codec
+ * context.
+ */
+int ff_set_dimensions(AVCodecContext *s, int width, int height);
+
+/**
+ * Check that the provided sample aspect ratio is valid and set it on the codec
+ * context.
+ */
+int ff_set_sar(AVCodecContext *avctx, AVRational sar);
+
+/**
+ * Select the (possibly hardware accelerated) pixel format.
+ * This is a wrapper around AVCodecContext.get_format() and should be used
+ * instead of calling get_format() directly.
+ *
+ * The list of pixel formats must contain at least one valid entry, and is
+ * terminated with AV_PIX_FMT_NONE.  If it is possible to decode to software,
+ * the last entry in the list must be the most accurate software format.
+ * If it is not possible to decode to software, AVCodecContext.sw_pix_fmt
+ * must be set before calling this function.
+ */
+int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt);
+
+/**
+ * Get a buffer for a frame. This is a wrapper around
+ * AVCodecContext.get_buffer() and should be used instead calling get_buffer()
+ * directly.
+ */
+int ff_get_buffer(AVCodecContext *avctx, AVFrame *frame, int flags);
+
+#define FF_REGET_BUFFER_FLAG_READONLY 1 ///< the returned buffer does not need to be writable
+/**
+ * Identical in function to ff_get_buffer(), except it reuses the existing buffer
+ * if available.
+ */
+int ff_reget_buffer(AVCodecContext *avctx, AVFrame *frame, int flags);
+
+/**
+ * Add or update AV_FRAME_DATA_MATRIXENCODING side data.
+ */
+int ff_side_data_update_matrix_encoding(AVFrame *frame,
+                                        enum AVMatrixEncoding matrix_encoding);
 
 #endif /* AVCODEC_DECODE_H */

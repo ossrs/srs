@@ -18,14 +18,14 @@ class SrsRtcUserConfig;
 
 class SrsGoApiRtcPlay : public ISrsHttpHandler
 {
-private:
+protected:
     SrsRtcServer* server_;
 public:
     SrsGoApiRtcPlay(SrsRtcServer* server);
     virtual ~SrsGoApiRtcPlay();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-private:
+protected:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRtcUserConfig* ruc);
@@ -37,14 +37,14 @@ private:
 
 class SrsGoApiRtcPublish : public ISrsHttpHandler
 {
-private:
+protected:
     SrsRtcServer* server_;
 public:
     SrsGoApiRtcPublish(SrsRtcServer* server);
     virtual ~SrsGoApiRtcPublish();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-private:
+protected:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRtcUserConfig* ruc);
@@ -82,6 +82,25 @@ public:
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
 };
+
+
+
+#ifdef SRS_SCTP
+class SrsGoApiRtcDataChannel : public ISrsHttpHandler
+{
+private:
+    SrsRtcServer* server_;
+public:
+    SrsGoApiRtcDataChannel(SrsRtcServer* server);
+    virtual ~SrsGoApiRtcDataChannel();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
+    srs_error_t exchange_sdp(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
+    srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
+};
+#endif
 
 #endif
 
