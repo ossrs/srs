@@ -14,7 +14,7 @@
 [![](https://badgen.net/badge/srs/stackoverflow/orange?icon=terminal)](https://stackoverflow.com/questions/tagged/simple-realtime-server)
 [![](https://opencollective.com/srs-server/tiers/badge.svg)](https://opencollective.com/srs-server/contribute)
 [![](https://img.shields.io/docker/pulls/ossrs/srs)](https://hub.docker.com/r/ossrs/srs/tags)
-[![](https://ossrs.net/wiki/images/do-btn-srs-125x20.svg)](https://cloud.digitalocean.com/droplets/new?appId=104916642&size=s-1vcpu-1gb&region=sgp1&image=ossrs-srs&type=applications)
+[![](https://ossrs.net/wiki/images/do-btn-srs-125x20.svg)](https://cloud.digitalocean.com/droplets/new?appId=133468816&size=s-1vcpu-512mb-10gb&region=sgp1&image=ossrs-srs&type=applications)
 [![](https://api.securityscorecards.dev/projects/github.com/ossrs/srs/badge)](https://api.securityscorecards.dev/projects/github.com/ossrs/srs)
 [![](https://bestpractices.coreinfrastructure.org/projects/5619/badge)](https://bestpractices.coreinfrastructure.org/projects/5619)
 
@@ -125,6 +125,7 @@ The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc) and [contributors
 * [LiPeng](https://github.com/lipeng19811218): Concentrates on WebRTC and contributes to memory management and smart pointers.
 * [ChenGuanghua](https://github.com/chen-guanghua): Focused on WebRTC/QoS and introduced the Asan toolchain to SRS.
 * [ChenHaibo](https://github.com/duiniuluantanqin): Specializes in GB28181 and HTTP API, contributing to patches for FFmpeg with WHIP.
+* [ZhangJunqin](https://github.com/chundonglinlin): Focused on H.265, Prometheus Exporter, and API module.
 
 A big `THANK YOU` also goes to:
 

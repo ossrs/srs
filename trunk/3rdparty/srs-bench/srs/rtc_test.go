@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 Winlin
+// # Copyright (c) 2021 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -34,7 +34,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pion/transport/vnet"
+	"github.com/pion/transport/v2/vnet"
 	"github.com/pion/webrtc/v3"
 
 	"github.com/ossrs/go-oryx-lib/errors"
@@ -623,10 +623,11 @@ func TestRtcBasic_PublishPlay(t *testing.T) {
 }
 
 // The srs-server is DTLS server(passive), srs-bench is DTLS client which is active mode.
-//     No.1  srs-bench: ClientHello
-//     No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
-//     No.3  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
-//     No.4 srs-server: ChangeCipherSpec, Finished
+//
+//	No.1  srs-bench: ClientHello
+//	No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4 srs-server: ChangeCipherSpec, Finished
 func TestRtcDTLS_ClientActive_Default(t *testing.T) {
 	if err := filterTestError(func() error {
 		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
@@ -678,10 +679,11 @@ func TestRtcDTLS_ClientActive_Default(t *testing.T) {
 }
 
 // The srs-server is DTLS client(client), srs-bench is DTLS server which is passive mode.
-//     No.1 srs-server: ClientHello
-//     No.2  srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
-//     No.3 srs-server: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
-//     No.4  srs-bench: ChangeCipherSpec, Finished
+//
+//	No.1 srs-server: ClientHello
+//	No.2  srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3 srs-server: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4  srs-bench: ChangeCipherSpec, Finished
 func TestRtcDTLS_ClientPassive_Default(t *testing.T) {
 	if err := filterTestError(func() error {
 		streamSuffix := fmt.Sprintf("dtls-active-no-arq-%v-%v", os.Getpid(), rand.Int())
@@ -690,6 +692,238 @@ func TestRtcDTLS_ClientPassive_Default(t *testing.T) {
 			p.onOffer = testUtilSetupPassive
 			return nil
 		})
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			var nnRTCP, nnRTP int64
+			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
+				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(newRTCPInterceptor(func(i *rtcpInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(*srsPublishOKPackets) && nnRTP >= int64(*srsPublishOKPackets) {
+						cancel() // Send enough packets, done.
+					}
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
+				}
+			}))
+		}, func(api *testWebRTCAPI) {
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				chunk, parsed := newChunkMessageType(c)
+				if !parsed {
+					return true
+				}
+				logger.Tf(ctx, "Chunk %v, ok=%v %v bytes", chunk, ok, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// The srs-server is DTLS server(passive), srs-bench is DTLS client which is active mode.
+//
+//	No.1  srs-bench: ClientHello
+//	No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4 srs-server: ChangeCipherSpec, Finished
+//
+// We utilized a large certificate to evaluate DTLS, which resulted in the fragmentation of the protocol.
+func TestRtcDTLS_ClientActive_With_Large_Rsa_Certificate(t *testing.T) {
+	if err := filterTestError(func() error {
+		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupActive
+			return nil
+		}, createLargeRsaCertificate)
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			var nnRTCP, nnRTP int64
+			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
+				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(newRTCPInterceptor(func(i *rtcpInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(*srsPublishOKPackets) && nnRTP >= int64(*srsPublishOKPackets) {
+						cancel() // Send enough packets, done.
+					}
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
+				}
+			}))
+		}, func(api *testWebRTCAPI) {
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				chunk, parsed := newChunkMessageType(c)
+				if !parsed {
+					return true
+				}
+				logger.Tf(ctx, "Chunk %v, ok=%v %v bytes", chunk, ok, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// The srs-server is DTLS client(client), srs-bench is DTLS server which is passive mode.
+//
+//	No.1 srs-server: ClientHello
+//	No.2  srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3 srs-server: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4  srs-bench: ChangeCipherSpec, Finished
+//
+// We utilized a large certificate to evaluate DTLS, which resulted in the fragmentation of the protocol.
+func TestRtcDTLS_ClientPassive_With_Large_Rsa_Certificate(t *testing.T) {
+	if err := filterTestError(func() error {
+		streamSuffix := fmt.Sprintf("dtls-active-no-arq-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupPassive
+			return nil
+		}, createLargeRsaCertificate)
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			var nnRTCP, nnRTP int64
+			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
+				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(newRTCPInterceptor(func(i *rtcpInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(*srsPublishOKPackets) && nnRTP >= int64(*srsPublishOKPackets) {
+						cancel() // Send enough packets, done.
+					}
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
+				}
+			}))
+		}, func(api *testWebRTCAPI) {
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				chunk, parsed := newChunkMessageType(c)
+				if !parsed {
+					return true
+				}
+				logger.Tf(ctx, "Chunk %v, ok=%v %v bytes", chunk, ok, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// The srs-server is DTLS server(passive), srs-bench is DTLS client which is active mode.
+//
+//	No.1  srs-bench: ClientHello
+//	No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4 srs-server: ChangeCipherSpec, Finished
+//
+// We utilized a large certificate to evaluate DTLS, which resulted in the fragmentation of the protocol.
+func TestRtcDTLS_ClientActive_With_Large_Ecdsa_Certificate(t *testing.T) {
+	if err := filterTestError(func() error {
+		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupActive
+			return nil
+		}, createLargeEcdsaCertificate)
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			var nnRTCP, nnRTP int64
+			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
+				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(newRTCPInterceptor(func(i *rtcpInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(*srsPublishOKPackets) && nnRTP >= int64(*srsPublishOKPackets) {
+						cancel() // Send enough packets, done.
+					}
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
+				}
+			}))
+		}, func(api *testWebRTCAPI) {
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				chunk, parsed := newChunkMessageType(c)
+				if !parsed {
+					return true
+				}
+				logger.Tf(ctx, "Chunk %v, ok=%v %v bytes", chunk, ok, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// The srs-server is DTLS client(client), srs-bench is DTLS server which is passive mode.
+//
+//	No.1 srs-server: ClientHello
+//	No.2  srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3 srs-server: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4  srs-bench: ChangeCipherSpec, Finished
+//
+// We utilized a large certificate to evaluate DTLS, which resulted in the fragmentation of the protocol.
+func TestRtcDTLS_ClientPassive_With_Large_Ecdsa_Certificate(t *testing.T) {
+	if err := filterTestError(func() error {
+		streamSuffix := fmt.Sprintf("dtls-active-no-arq-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupPassive
+			return nil
+		}, createLargeEcdsaCertificate)
 		if err != nil {
 			return err
 		}
@@ -853,9 +1087,10 @@ func TestRtcDTLS_ClientPassive_Duplicated_Alert(t *testing.T) {
 // The srs-server is DTLS server, srs-bench is DTLS client which is active mode.
 // [Drop] No.1  srs-bench: ClientHello(Epoch=0, Sequence=0)
 // [ARQ]  No.2  srs-bench: ClientHello(Epoch=0, Sequence=1)
-//        No.3 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
-//        No.4  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
-//        No.5 srs-server: ChangeCipherSpec, Finished
+//
+//	No.3 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.4  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.5 srs-server: ChangeCipherSpec, Finished
 //
 // @remark The pion is active, so it can be consider a benchmark for DTLS server.
 func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.T) {
@@ -931,9 +1166,10 @@ func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.T
 // The srs-server is DTLS client, srs-bench is DTLS server which is passive mode.
 // [Drop] No.1 srs-server: ClientHello(Epoch=0, Sequence=0)
 // [ARQ]  No.2 srs-server: ClientHello(Epoch=0, Sequence=1)
-//        No.3  srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
-//        No.4 srs-server: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
-//        No.5  srs-bench: ChangeCipherSpec, Finished
+//
+//	No.3  srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.4 srs-server: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.5  srs-bench: ChangeCipherSpec, Finished
 //
 // @remark If retransmit the ClientHello, with the same epoch+sequence, peer will request HelloVerifyRequest, then
 // openssl will create a new ClientHello with increased sequence. It's ok, but waste a lots of duplicated ClientHello
@@ -1009,12 +1245,15 @@ func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.
 }
 
 // The srs-server is DTLS server, srs-bench is DTLS client which is active mode.
-//        No.1  srs-bench: ClientHello(Epoch=0, Sequence=0)
+//
+//	No.1  srs-bench: ClientHello(Epoch=0, Sequence=0)
+//
 // [Drop] No.2 srs-server: ServerHello(Epoch=0, Sequence=0), Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
 // [ARQ]  No.2  srs-bench: ClientHello(Epoch=0, Sequence=1)
 // [ARQ]  No.3 srs-server: ServerHello(Epoch=0, Sequence=5), Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
-//        No.4  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
-//        No.5 srs-server: ChangeCipherSpec, Finished
+//
+//	No.4  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.5 srs-server: ChangeCipherSpec, Finished
 //
 // @remark The pion is active, so it can be consider a benchmark for DTLS server.
 func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.T) {
@@ -1097,12 +1336,15 @@ func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.T
 }
 
 // The srs-server is DTLS client, srs-bench is DTLS server which is passive mode.
-//        No.1 srs-server: ClientHello(Epoch=0, Sequence=0)
+//
+//	No.1 srs-server: ClientHello(Epoch=0, Sequence=0)
+//
 // [Drop] No.2  srs-bench: ServerHello(Epoch=0, Sequence=0), Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
 // [ARQ]  No.2 srs-server: ClientHello(Epoch=0, Sequence=1)
 // [ARQ]  No.3  srs-bench: ServerHello(Epoch=0, Sequence=5), Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
-//        No.4 srs-server: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
-//        No.5  srs-bench: ChangeCipherSpec, Finished
+//
+//	No.4 srs-server: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.5  srs-bench: ChangeCipherSpec, Finished
 //
 // @remark If retransmit the ClientHello, with the same epoch+sequence, peer will request HelloVerifyRequest, then
 // openssl will create a new ClientHello with increased sequence. It's ok, but waste a lots of duplicated ClientHello
@@ -1187,11 +1429,14 @@ func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.
 }
 
 // The srs-server is DTLS server, srs-bench is DTLS client which is active mode.
-//        No.1  srs-bench: ClientHello
-//        No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//
+//	No.1  srs-bench: ClientHello
+//	No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//
 // [Drop] No.3  srs-bench: Certificate(Epoch=0, Sequence=0), ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
 // [ARQ]  No.4  srs-bench: Certificate(Epoch=0, Sequence=5), ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
-//        No.5 srs-server: ChangeCipherSpec, Finished
+//
+//	No.5 srs-server: ChangeCipherSpec, Finished
 //
 // @remark The pion is active, so it can be consider a benchmark for DTLS server.
 func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_Certificate(t *testing.T) {
@@ -1265,11 +1510,14 @@ func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_Certificate(t *testing.T
 }
 
 // The srs-server is DTLS client, srs-bench is DTLS server which is passive mode.
-//        No.1 srs-server: ClientHello
-//        No.2  srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//
+//	No.1 srs-server: ClientHello
+//	No.2  srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//
 // [Drop] No.3 srs-server: Certificate(Epoch=0, Sequence=0), ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
 // [ARQ]  No.4 srs-server: Certificate(Epoch=0, Sequence=5), ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
-//        No.5  srs-bench: ChangeCipherSpec, Finished
+//
+//	No.5  srs-bench: ChangeCipherSpec, Finished
 //
 // @remark If retransmit the Certificate, with the same epoch+sequence, peer will drop the message. It's ok right now, but
 // wast some packets, so we check the epoch+sequence which should never dup, even for ARQ.
@@ -1344,9 +1592,11 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_ByDropped_Certificate(t *testing.
 }
 
 // The srs-server is DTLS server, srs-bench is DTLS client which is active mode.
-//        No.1  srs-bench: ClientHello
-//        No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
-//        No.3  srs-bench: Certificate(Epoch=0, Sequence=0), ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//
+//	No.1  srs-bench: ClientHello
+//	No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3  srs-bench: Certificate(Epoch=0, Sequence=0), ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//
 // [Drop] No.5 srs-server: ChangeCipherSpec, Finished
 // [ARQ]  No.6  srs-bench: Certificate(Epoch=0, Sequence=5), ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
 // [ARQ]  No.7 srs-server: ChangeCipherSpec, Finished
@@ -1431,9 +1681,11 @@ func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_ChangeCipherSpec(t *test
 }
 
 // The srs-server is DTLS client, srs-bench is DTLS server which is passive mode.
-//        No.1  srs-server: ClientHello
-//        No.2 srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
-//        No.3  srs-server: Certificate(Epoch=0, Sequence=0), ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//
+//	No.1  srs-server: ClientHello
+//	No.2 srs-bench: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	No.3  srs-server: Certificate(Epoch=0, Sequence=0), ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//
 // [Drop] No.5 srs-bench: ChangeCipherSpec, Finished
 // [ARQ]  No.6  srs-server: Certificate(Epoch=0, Sequence=5), ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
 // [ARQ]  No.7 srs-bench: ChangeCipherSpec, Finished
@@ -1883,6 +2135,122 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_After_ClientHello(t *testing.T) {
 					return false
 				}
 
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()
+	if err := filterTestError(ctx.Err(), err, r0); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// The srs-server is DTLS server, srs-bench is DTLS client which is active mode.
+// This case is used to test the corruption of DTLS packets, which is expected to result in a failed handshake. In this
+// case, we corrupt the ClientHello packet sent by srs-bench.
+// Note that the passive mode is not being tested as the focus is solely on testing srs-server.
+//
+//     [Corrupt] No.1  srs-bench: ClientHello(Epoch=0, Sequence=0), change length from 129 to 0xf.
+//     No.2 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
+func TestRtcDTLS_ClientActive_Corrupt_ClientHello(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	r0 := fmt.Errorf("DTLS should failed.")
+	err := func() error {
+		streamSuffix := fmt.Sprintf("dtls-active-corrupt-client-hello-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupActive
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		p.onDTLSStateChange = func(state webrtc.DTLSTransportState) {
+			if state == webrtc.DTLSTransportStateFailed {
+				logger.Tf(ctx, "Got expected DTLS failed message, reset err to ok")
+				r0, p.ignorePCStateError, p.ignoreDTLSStateError = nil, true, true
+				cancel()
+			}
+		}
+
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			nnClientHello := 0
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				b, chunk, parsed, record, err := newChunkAll(c)
+				if !parsed || chunk.chunk != chunkTypeDTLS || chunk.content != dtlsContentTypeHandshake ||
+					chunk.handshake != dtlsHandshakeTypeClientHello || err != nil {
+					return true
+				}
+
+				b[14], b[15], b[16], nnClientHello = 0, 0, 0xf, nnClientHello+1
+				logger.Tf(ctx, "NN=%v, Chunk %v, %v, %v bytes", nnClientHello, chunk, record, len(c.UserData()))
+				return true
+			})
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()
+	if err := filterTestError(ctx.Err(), err, r0); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// The srs-server is DTLS server, srs-bench is DTLS client which is active mode.
+// This case is used to test the corruption of DTLS packets, which is expected to result in a failed handshake. In this
+// case, we corrupt the ClientHello packet sent by srs-bench.
+// Note that the passive mode is not being tested as the focus is solely on testing srs-server.
+//
+//     No.1  srs-bench: ClientHello
+//     No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//     [Corrupt] No.3  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//     No.4 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
+// [Corrupt] No.1  srs-bench: ClientHello(Epoch=0, Sequence=0), change length from 129 to 0xf.
+// No.2 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
+func TestRtcDTLS_ClientActive_Corrupt_Certificate(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	r0 := fmt.Errorf("DTLS should failed.")
+	err := func() error {
+		streamSuffix := fmt.Sprintf("dtls-active-corrupt-certificate-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(registerDefaultCodecs, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			p.onOffer = testUtilSetupActive
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		p.onDTLSStateChange = func(state webrtc.DTLSTransportState) {
+			if state == webrtc.DTLSTransportStateFailed {
+				logger.Tf(ctx, "Got expected DTLS failed message, reset err to ok")
+				r0, p.ignorePCStateError, p.ignoreDTLSStateError = nil, true, true
+				cancel()
+			}
+		}
+
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			nnClientHello := 0
+			api.router.AddChunkFilter(func(c vnet.Chunk) (ok bool) {
+				b, chunk, parsed, record, err := newChunkAll(c)
+				if !parsed || chunk.chunk != chunkTypeDTLS || chunk.content != dtlsContentTypeHandshake ||
+					chunk.handshake != dtlsHandshakeTypeCertificate || err != nil {
+					return true
+				}
+
+				b[14], b[15], b[16], nnClientHello = 0, 0, 0xf, nnClientHello+1
+				logger.Tf(ctx, "NN=%v, Chunk %v, %v, %v bytes", nnClientHello, chunk, record, len(c.UserData()))
 				return true
 			})
 		}); err != nil {

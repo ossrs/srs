@@ -39,8 +39,6 @@ type SenderReport struct {
 	ProfileExtensions []byte
 }
 
-var _ Packet = (*SenderReport)(nil) // assert is a Packet
-
 const (
 	srHeaderLength      = 24
 	srSSRCOffset        = 0

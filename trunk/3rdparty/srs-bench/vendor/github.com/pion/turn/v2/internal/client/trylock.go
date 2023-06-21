@@ -10,7 +10,7 @@ type TryLock struct {
 }
 
 // Lock tries to lock the try-lock. If successful, it returns true.
-// Otherwise, it returns false immedidately.
+// Otherwise, it returns false immediately.
 func (c *TryLock) Lock() error {
 	if !atomic.CompareAndSwapInt32(&c.n, 0, 1) {
 		return errDoubleLock

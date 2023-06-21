@@ -400,10 +400,18 @@ func (v *SnapshotJob) do(ffmpegPath, inputUrl string) (err error) {
 	normalPicPath := path.Join(outputPicDir, fmt.Sprintf("%v", v.Stream)+"-%03d.png")
 	bestPng := path.Join(outputPicDir, fmt.Sprintf("%v-best.png", v.Stream))
 
-	param := fmt.Sprintf("%v -i %v -vf fps=1 -vcodec png -f image2 -an -y -vframes %v -y %v", ffmpegPath, inputUrl, v.vframes, normalPicPath)
-	log.Println(fmt.Sprintf("start snapshot, cmd param=%v", param))
+	params := []string{
+		"-i", inputUrl,
+		"-vf", "fps=1",
+		"-vcodec", "png",
+		"-f", "image2",
+		"-an",
+		"-vframes", strconv.Itoa(v.vframes),
+		"-y", normalPicPath,
+	}
+	log.Println(fmt.Sprintf("start snapshot, cmd param=%v %v", ffmpegPath, strings.Join(params, " ")))
 	timeoutCtx, _ := context.WithTimeout(v.cancelCtx, v.timeout)
-	cmd := exec.CommandContext(timeoutCtx, "/bin/bash", "-c", param)
+	cmd := exec.CommandContext(timeoutCtx, ffmpegPath, params...)
 	if err = cmd.Run(); err != nil {
 		log.Println(fmt.Sprintf("run snapshot %v cmd failed, err is %v", v.Tag(), err))
 		return

@@ -1,8 +1,12 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package fingerprint
 
 import (
 	"crypto"
 	"errors"
+	"strings"
 )
 
 var errInvalidHashAlgorithm = errors.New("fingerprint: invalid hash algorithm")
@@ -20,7 +24,7 @@ func nameToHash() map[string]crypto.Hash {
 
 // HashFromString allows looking up a hash algorithm by it's string representation
 func HashFromString(s string) (crypto.Hash, error) {
-	if h, ok := nameToHash()[s]; ok {
+	if h, ok := nameToHash()[strings.ToLower(s)]; ok {
 		return h, nil
 	}
 	return 0, errInvalidHashAlgorithm

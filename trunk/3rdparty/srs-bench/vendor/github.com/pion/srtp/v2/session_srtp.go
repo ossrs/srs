@@ -1,7 +1,11 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package srtp
 
 import (
 	"net"
+	"sync"
 	"time"
 
 	"github.com/pion/logging"
@@ -46,15 +50,16 @@ func NewSessionSRTP(conn net.Conn, config *Config) (*SessionSRTP, error) { //nol
 
 	s := &SessionSRTP{
 		session: session{
-			nextConn:      conn,
-			localOptions:  localOpts,
-			remoteOptions: remoteOpts,
-			readStreams:   map[uint32]readStream{},
-			newStream:     make(chan readStream),
-			started:       make(chan interface{}),
-			closed:        make(chan interface{}),
-			bufferFactory: config.BufferFactory,
-			log:           loggerFactory.NewLogger("srtp"),
+			nextConn:            conn,
+			localOptions:        localOpts,
+			remoteOptions:       remoteOpts,
+			readStreams:         map[uint32]readStream{},
+			newStream:           make(chan readStream),
+			acceptStreamTimeout: config.AcceptStreamTimeout,
+			started:             make(chan interface{}),
+			closed:              make(chan interface{}),
+			bufferFactory:       config.BufferFactory,
+			log:                 loggerFactory.NewLogger("srtp"),
 		},
 	}
 	s.writeStream = &WriteStreamSRTP{s}
@@ -111,12 +116,25 @@ func (s *SessionSRTP) Close() error {
 func (s *SessionSRTP) write(b []byte) (int, error) {
 	packet := &rtp.Packet{}
 
-	err := packet.Unmarshal(b)
-	if err != nil {
-		return 0, nil
+	if err := packet.Unmarshal(b); err != nil {
+		return 0, err
 	}
 
 	return s.writeRTP(&packet.Header, packet.Payload)
+}
+
+// bufferpool is a global pool of buffers used for encrypted packets in
+// writeRTP below.  Since it's global, buffers can be shared between
+// different sessions, which amortizes the cost of allocating the pool.
+//
+// 1472 is the maximum Ethernet UDP payload.  We give ourselves 20 bytes
+// of slack for any authentication tags, which is more than enough for
+// either CTR or GCM.  If the buffer is too small, no harm, it will just
+// get expanded by growBuffer.
+var bufferpool = sync.Pool{ // nolint:gochecknoglobals
+	New: func() interface{} {
+		return make([]byte, 1492)
+	},
 }
 
 func (s *SessionSRTP) writeRTP(header *rtp.Header, payload []byte) (int, error) {
@@ -124,8 +142,15 @@ func (s *SessionSRTP) writeRTP(header *rtp.Header, payload []byte) (int, error) 
 		return 0, errStartedChannelUsedIncorrectly
 	}
 
+	// encryptRTP will either return our buffer, or, if it is too
+	// small, allocate a new buffer itself.  In either case, it is
+	// safe to put the buffer back into the pool, but only after
+	// nextConn.Write has returned.
+	ibuf := bufferpool.Get()
+	defer bufferpool.Put(ibuf)
+
 	s.session.localContextMutex.Lock()
-	encrypted, err := s.localContext.encryptRTP(nil, header, payload)
+	encrypted, err := s.localContext.encryptRTP(ibuf.([]byte), header, payload)
 	s.session.localContextMutex.Unlock()
 
 	if err != nil {
@@ -141,7 +166,8 @@ func (s *SessionSRTP) setWriteDeadline(t time.Time) error {
 
 func (s *SessionSRTP) decrypt(buf []byte) error {
 	h := &rtp.Header{}
-	if err := h.Unmarshal(buf); err != nil {
+	headerLen, err := h.Unmarshal(buf)
+	if err != nil {
 		return err
 	}
 
@@ -149,6 +175,9 @@ func (s *SessionSRTP) decrypt(buf []byte) error {
 	if r == nil {
 		return nil // Session has been closed
 	} else if isNew {
+		if !s.session.acceptStreamTimeout.IsZero() {
+			_ = s.session.nextConn.SetReadDeadline(time.Time{})
+		}
 		s.session.newStream <- r // Notify AcceptStream
 	}
 
@@ -157,7 +186,7 @@ func (s *SessionSRTP) decrypt(buf []byte) error {
 		return errFailedTypeAssertion
 	}
 
-	decrypted, err := s.remoteContext.decryptRTP(buf, buf, h)
+	decrypted, err := s.remoteContext.decryptRTP(buf, buf, h, headerLen)
 	if err != nil {
 		return err
 	}

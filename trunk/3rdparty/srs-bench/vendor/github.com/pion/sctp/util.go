@@ -4,8 +4,8 @@ const (
 	paddingMultiple = 4
 )
 
-func getPadding(len int) int {
-	return (paddingMultiple - (len % paddingMultiple)) % paddingMultiple
+func getPadding(l int) int {
+	return (paddingMultiple - (l % paddingMultiple)) % paddingMultiple
 }
 
 func padByte(in []byte, cnt int) []byte {

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package handshake
 
 import (
@@ -6,19 +9,19 @@ import (
 
 // MessageHelloVerifyRequest is as follows:
 //
-//   struct {
-//     ProtocolVersion server_version;
-//     opaque cookie<0..2^8-1>;
-//   } HelloVerifyRequest;
+//	struct {
+//	  ProtocolVersion server_version;
+//	  opaque cookie<0..2^8-1>;
+//	} HelloVerifyRequest;
 //
-//   The HelloVerifyRequest message type is hello_verify_request(3).
+//	The HelloVerifyRequest message type is hello_verify_request(3).
 //
-//   When the client sends its ClientHello message to the server, the server
-//   MAY respond with a HelloVerifyRequest message.  This message contains
-//   a stateless cookie generated using the technique of [PHOTURIS].  The
-//   client MUST retransmit the ClientHello with the cookie added.
+//	When the client sends its ClientHello message to the server, the server
+//	MAY respond with a HelloVerifyRequest message.  This message contains
+//	a stateless cookie generated using the technique of [PHOTURIS].  The
+//	client MUST retransmit the ClientHello with the cookie added.
 //
-//   https://tools.ietf.org/html/rfc6347#section-4.2.1
+//	https://tools.ietf.org/html/rfc6347#section-4.2.1
 type MessageHelloVerifyRequest struct {
 	Version protocol.Version
 	Cookie  []byte
@@ -51,8 +54,8 @@ func (m *MessageHelloVerifyRequest) Unmarshal(data []byte) error {
 	}
 	m.Version.Major = data[0]
 	m.Version.Minor = data[1]
-	cookieLength := data[2]
-	if len(data) < (int(cookieLength) + 3) {
+	cookieLength := int(data[2])
+	if len(data) < cookieLength+3 {
 		return errBufferTooSmall
 	}
 	m.Cookie = make([]byte, cookieLength)

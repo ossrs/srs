@@ -1,10 +1,12 @@
 package turn
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 
-	"github.com/pion/transport/vnet"
+	"github.com/pion/transport/v2"
+	"github.com/pion/transport/v2/stdnet"
 )
 
 // RelayAddressGeneratorNone returns the listener with no modifications
@@ -12,13 +14,17 @@ type RelayAddressGeneratorNone struct {
 	// Address is passed to Listen/ListenPacket when creating the Relay
 	Address string
 
-	Net *vnet.Net
+	Net transport.Net
 }
 
-// Validate is caled on server startup and confirms the RelayAddressGenerator is properly configured
+// Validate is called on server startup and confirms the RelayAddressGenerator is properly configured
 func (r *RelayAddressGeneratorNone) Validate() error {
 	if r.Net == nil {
-		r.Net = vnet.NewNet(nil)
+		var err error
+		r.Net, err = stdnet.NewNet()
+		if err != nil {
+			return fmt.Errorf("failed to create network: %w", err)
+		}
 	}
 
 	switch {
