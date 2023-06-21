@@ -2275,17 +2275,20 @@ srs_error_t SrsFormat::avc_demux_sps()
     int nb_rbsp = 0;
     while (!stream.empty()) {
         rbsp[nb_rbsp] = stream.read_1bytes();
-        
-        // XX 00 00 03 XX, the 03 byte should be drop.
+
+        // .. 00 00 03 xx, the 03 byte should be drop where xx represents any
+        // 2 bit pattern: 00, 01, 10, or 11.
         if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
             // read 1byte more.
             if (stream.empty()) {
                 break;
             }
-            rbsp[nb_rbsp] = stream.read_1bytes();
-            nb_rbsp++;
-            
-            continue;
+
+            char tmp = stream.read_1bytes();
+            if (tmp > 3) {
+                nb_rbsp++;
+            }
+            rbsp[nb_rbsp] = tmp;
         }
         
         nb_rbsp++;
