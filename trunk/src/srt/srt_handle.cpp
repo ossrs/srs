@@ -263,7 +263,7 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& path
 void srt_handle::check_alive() {
     long long diff_t;
     std::list<SRT_CONN_PTR> conn_list;
-    auto srt_now_ms = now_ms();
+    srt_now_ms = now_ms();
 
     if (_last_check_alive_ts == 0) {
         _last_check_alive_ts = srt_now_ms;
