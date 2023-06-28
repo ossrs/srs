@@ -708,6 +708,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         entry->pattern.c_str(), enc_desc.c_str(), srsu2msi(mw_sleep), enc->has_cache(), msgs.max, drop_if_not_match,
         has_audio, has_video, guess_has_av);
 
+    uint64_t nb_frames = 0;
+
     // TODO: free and erase the disabled entry after all related connections is closed.
     // TODO: FXIME: Support timeout for player, quit infinite-loop.
     while (entry->enabled) {
@@ -746,6 +748,12 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         }
 
         // TODO: FIXME: Update the stat.
+        // FIXED: update the downstream fps stat.
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((err = stat->on_video_frames(req, (int)(source->get_play_edge_video_frames() - nb_frames))) != srs_success) {
+            return srs_error_wrap(err, "rtmp: stat video frames");
+        }
+        nb_frames = source->get_play_edge_video_frames();
 
         // free the messages.
         for (int i = 0; i < count; i++) {

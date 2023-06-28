@@ -159,6 +159,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
 
         video->set("width", SrsJsonAny::integer(width));
         video->set("height", SrsJsonAny::integer(height));
+        video->set("fps", SrsJsonAny::integer(frames->r10s() / (nb_clients > 1 ? nb_clients : 1)));
     }
     
     if (!has_audio) {

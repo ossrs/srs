@@ -821,6 +821,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
     SrsAutoFree(ISrsApmSpan, span);
 #endif
     
+    uint64_t nb_frames = 0;
     while (true) {
         // when source is set to expired, disconnect it.
         if ((err = trd->pull()) != srs_success) {
@@ -856,6 +857,13 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
         if ((err = consumer->dump_packets(&msgs, count)) != srs_success) {
             return srs_error_wrap(err, "rtmp: consumer dump packets");
         }
+
+        // Update the stat for downstream video fps stat.
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((err = stat->on_video_frames(req, (int)(source->get_play_edge_video_frames() - nb_frames))) != srs_success) {
+            return srs_error_wrap(err, "rtmp: stat video frames");
+        }
+        nb_frames = source->get_play_edge_video_frames();
 
         // reportable
         if (pprint->can_print()) {

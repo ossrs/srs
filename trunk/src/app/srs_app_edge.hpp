@@ -143,6 +143,7 @@ private:
     SrsCoroutine* trd;
     SrsLbRoundRobin* lb;
     SrsEdgeUpstream* upstream;
+    uint64_t video_frames;
 #ifdef SRS_APM
     ISrsApmSpan* span_main_;
 #endif
@@ -154,6 +155,7 @@ public:
     virtual srs_error_t start();
     virtual void stop();
     virtual std::string get_curr_origin();
+    virtual uint64_t nb_video_frames();
 #ifdef SRS_APM
     // Get the current main span. Note that it might be NULL.
     ISrsApmSpan* span();
@@ -225,6 +227,8 @@ public:
 public:
     // When ingester start to play stream.
     virtual srs_error_t on_ingest_play();
+    // Get video fps from ingester.
+    virtual uint64_t get_ingester_video_frames();
 };
 
 // The publish edge control service.
