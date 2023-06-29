@@ -24,10 +24,6 @@ openssl-OpenSSL_1_0_2u.tar.gz
 * SRTP depends on openssl 1.0.*, so we use both ssl versions.
 * https://ossrs.net/lts/zh-cn/license#openssl
 
-CherryPy-3.2.4.zip
-* sample api server for srs.
-* https://pypi.python.org/pypi/CherryPy/3.2.4
-
 libsrtp-2.3.0.tar.gz
 * For WebRTC, SRTP to encrypt and decrypt RTP.
 * https://github.com/cisco/libsrtp/releases/tag/v2.3.0
