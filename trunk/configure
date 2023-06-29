@@ -827,13 +827,6 @@ fi
 #####################################################################################
 # next step
 #####################################################################################
-if [[ $SRS_CHERRYPY == YES ]]; then
-  echo ""
-  echo "You can run 3rdparty applications:"
-  if [[ $SRS_HTTP_CALLBACK == YES ]]; then
-      echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
-  fi
-fi
 echo ""
 echo "You can build SRS:"
 echo "\" make \" to build the SRS server"
