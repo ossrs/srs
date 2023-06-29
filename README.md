@@ -33,7 +33,7 @@ some third-party libraries are distributed under their [licenses](https://ossrs.
 <a name="product"></a> <a name="usage-docker"></a>
 ## Usage
 
-Please refer to the [Getting Started](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started) or [中文文档：起步](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started) guide.
+Please refer to the [Getting Started](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started) or [中文文档：起步](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started) guide.
 
 To compile SRS from source:
 
@@ -66,42 +66,42 @@ Please note that to convert RTMP to WebRTC, you should use the file [rtmp2rtc.co
 * Use the srs-player to play the WebRTC stream with URL [http://localhost:1985/rtc/v1/whip-play/?app=live&stream=livestream](http://localhost:8080/players/whep.html?autostart=true) via WHEP.
 
 > Note: In addition to FFmpeg or OBS, it is possible to [publish by H5](http://localhost:8080/players/whip.html) via WHIP as well.
-> To enable WebRTC to publish and convert it to RTMP, please refer to the wiki([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/webrtc#rtc-to-rtmp), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/webrtc#rtc-to-rtmp)) documentation.
-> It is essential to ensure the candidate([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/webrtc#config-candidate) or [EN](https://ossrs.io/lts/en-us/docs/v4/doc/webrtc#config-candidate)) 
+> To enable WebRTC to publish and convert it to RTMP, please refer to the wiki([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/webrtc#rtc-to-rtmp), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/webrtc#rtc-to-rtmp)) documentation.
+> It is essential to ensure the candidate([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/webrtc#config-candidate) or [EN](https://ossrs.io/lts/en-us/docs/v5/doc/webrtc#config-candidate)) 
 > is set correctly for WebRTC to avoid potential issues, as it can cause significant problems.
 
-> Note: It is highly recommended to run SRS directly with docker([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started)), 
-> CVM([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started-cloud) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started-cloud)), 
-> or K8s([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started-k8s) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started-k8s)). 
+> Note: It is highly recommended to run SRS directly with docker([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started) / [EN](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)), 
+> CVM([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started-cloud) / [EN](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started-cloud)), 
+> or K8s([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started-k8s) / [EN](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started-k8s)). 
 > However, compiling SRS from source code is also possible and easy. For detailed instructions, please refer to the 
-> "Getting Started"([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/getting-started) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/getting-started)) guide.
+> "Getting Started"([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started) / [EN](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)) guide.
 
-> Note: If you require HTTPS for WebRTC and modern browsers, please refer to the HTTPS API([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-api#https-api) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-api#https-api)), 
-> HTTPS Callback([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/http-callback#https-callback) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/http-callback#https-callback)), 
-> and HTTPS Live Streaming([CN](https://ossrs.io/lts/en-us/docs/v4/doc/delivery-http-flv#https-flv-live-stream) / [EN](https://ossrs.io/lts/en-us/docs/v4/doc/delivery-http-flv#https-flv-live-stream)) 
+> Note: If you require HTTPS for WebRTC and modern browsers, please refer to the HTTPS API([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/http-api#https-api) / [EN](https://ossrs.io/lts/en-us/docs/v5/doc/http-api#https-api)), 
+> HTTPS Callback([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/http-callback#https-callback) / [EN](https://ossrs.io/lts/en-us/docs/v5/doc/http-callback#https-callback)), 
+> and HTTPS Live Streaming([CN](https://ossrs.io/lts/en-us/docs/v5/doc/delivery-http-flv#https-flv-live-stream) / [EN](https://ossrs.io/lts/en-us/docs/v5/doc/delivery-http-flv#https-flv-live-stream)) 
 > documentation. Additionally, SRS works perfectly with an HTTPS proxy like Nginx.
 
 <a name="srs-40-wiki"></a> <a name="wiki"></a>
 Please refer to the following wikis for more information:
 
-* What are the steps to deliver RTMP streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-rtmp), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-rtmp))
-* What is the process for delivering WebRTC streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/webrtc), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/webrtc))
-* What are the steps to convert RTMP to HTTP-FLV streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flv), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flv))
-* How can RTMP be converted to HLS streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-hls), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-hls))
-* What is the best approach for delivering low-latency streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-realtime), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-realtime))
-* How can an RTMP Edge-Cluster be constructed? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-rtmp-cluster), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-rtmp-cluster))
-* What is the process for building an RTMP Origin-Cluster? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-origin-cluster), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-origin-cluster))
-* How can an HLS Edge-Cluster be set up?([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-hls-cluster), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-hls-cluster))
+* What are the steps to deliver RTMP streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-rtmp), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-rtmp))
+* What is the process for delivering WebRTC streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/webrtc), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/webrtc))
+* What are the steps to convert RTMP to HTTP-FLV streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-http-flv), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-http-flv))
+* How can RTMP be converted to HLS streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-hls), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-hls))
+* What is the best approach for delivering low-latency streaming? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-realtime), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-realtime))
+* How can an RTMP Edge-Cluster be constructed? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-rtmp-cluster), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-rtmp-cluster))
+* What is the process for building an RTMP Origin-Cluster? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-origin-cluster), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-origin-cluster))
+* How can an HLS Edge-Cluster be set up?([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-hls-cluster), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-hls-cluster))
 
 Here are some other important wikis:
 
-* Usage: What is the method for delivering DASH (Experimental)? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-dash), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-dash))
-* Usage: How can an RTMP stream be transcoded using FFMPEG? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-ffmpeg), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-ffmpeg))
-* Usage: What is the process for setting up an HTTP FLV Live Streaming Cluster? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flvCluster), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flvCluster))
-* Usage: How can HLS be delivered using an NGINX Cluster? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-hls-cluster), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-hls-cluster))
-* Usage: What steps are to ingest a file, stream, or device to RTMP? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-ingest), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-ingest))
-* Usage: How can a stream be forwarded to other servers? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-forward), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/sample-forward))
-* Usage: What are the strategies for improving edge performance on multiple CPUs? ([CN](https://ossrs.net/lts/zh-cn/docs/v4/doc/reuse-port), [EN](https://ossrs.io/lts/en-us/docs/v4/doc/reuse-port))
+* Usage: What is the method for delivering DASH (Experimental)? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-dash), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-dash))
+* Usage: How can an RTMP stream be transcoded using FFMPEG? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-ffmpeg), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-ffmpeg))
+* Usage: What is the process for setting up an HTTP FLV Live Streaming Cluster? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-http-flvCluster), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-http-flvCluster))
+* Usage: How can HLS be delivered using an NGINX Cluster? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-hls-cluster), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-hls-cluster))
+* Usage: What steps are to ingest a file, stream, or device to RTMP? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-ingest), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-ingest))
+* Usage: How can a stream be forwarded to other servers? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/sample-forward), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/sample-forward))
+* Usage: What are the strategies for improving edge performance on multiple CPUs? ([CN](https://ossrs.net/lts/zh-cn/docs/v5/doc/reuse-port), [EN](https://ossrs.io/lts/en-us/docs/v5/doc/reuse-port))
 * Usage: How can bugs be reported or contact be made with us? ([CN](https://ossrs.net/lts/zh-cn/contact), [EN](https://ossrs.io/lts/en-us/contact))
 
 ## AUTHORS
@@ -125,6 +125,7 @@ The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc) and [contributors
 * [LiPeng](https://github.com/lipeng19811218): Concentrates on WebRTC and contributes to memory management and smart pointers.
 * [ChenGuanghua](https://github.com/chen-guanghua): Focused on WebRTC/QoS and introduced the Asan toolchain to SRS.
 * [ChenHaibo](https://github.com/duiniuluantanqin): Specializes in GB28181 and HTTP API, contributing to patches for FFmpeg with WHIP.
+* [ZhangJunqin](https://github.com/chundonglinlin): Focused on H.265, Prometheus Exporter, and API module.
 
 A big `THANK YOU` also goes to:
 
