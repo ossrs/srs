@@ -611,7 +611,7 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         }
 
         SrsRtcConnection* session = server_->find_session_by_username(username);
-        if (token != session->token()) {
+        if (session && token != session->token()) {
             return srs_error_new(ERROR_RTC_INVALID_SESSION, "token %s not match", token.c_str());
         }
 
