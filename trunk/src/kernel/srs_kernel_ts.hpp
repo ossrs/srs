@@ -824,14 +824,14 @@ public:
     // presentation unit k of elementary stream n. The value of PTS is specified in units of the period of the system clock
     // frequency divided by 300 (yielding 90 kHz). The presentation time is derived from the PTS according to equation 2-11
     // below. Refer to 2.7.4 for constraints on the frequency of coding presentation timestamps.
-    // ===========1B
+    // ----------1B
     // 4bits const
     // 3bits PTS [32..30]
     // 1bit const '1'
-    // ===========2B
+    // ----------2B
     // 15bits PTS [29..15]
     // 1bit const '1'
-    // ===========2B
+    // ----------2B
     // 15bits PTS [14..0]
     // 1bit const '1'
     int64_t pts; // 33bits
@@ -840,14 +840,14 @@ public:
     // The DTS is a 33-bit number coded in three separate fields. It indicates the decoding time,
     // td n (j), in the system target decoder of an access unit j of elementary stream n. The value of DTS is specified in units of
     // the period of the system clock frequency divided by 300 (yielding 90 kHz).
-    // ===========1B
+    // ----------1B
     // 4bits const
     // 3bits DTS [32..30]
     // 1bit const '1'
-    // ===========2B
+    // ----------2B
     // 15bits DTS [29..15]
     // 1bit const '1'
-    // ===========2B
+    // ----------2B
     // 15bits DTS [14..0]
     // 1bit const '1'
     int64_t dts; // 33bits

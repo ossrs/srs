@@ -1820,7 +1820,7 @@ srs_error_t SrsMpegPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
     }
 
     // decode the 33bits schema.
-    // ===========1B
+    // ----------1B
     // 4bits const maybe '0001', '0010' or '0011'.
     // 3bits DTS/PTS [32..30]
     // 1bit const '1'
@@ -1835,7 +1835,7 @@ srs_error_t SrsMpegPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
     }
     dts_pts_30_32 = (dts_pts_30_32 >> 1) & 0x07;
 
-    // ===========2B
+    // ----------2B
     // 15bits DTS/PTS [29..15]
     // 1bit const '1'
     int64_t dts_pts_15_29 = stream->read_2bytes();
@@ -1844,7 +1844,7 @@ srs_error_t SrsMpegPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
     }
     dts_pts_15_29 = (dts_pts_15_29 >> 1) & 0x7fff;
 
-    // ===========2B
+    // ----------2B
     // 15bits DTS/PTS [14..0]
     // 1bit const '1'
     int64_t dts_pts_0_14 = stream->read_2bytes();
