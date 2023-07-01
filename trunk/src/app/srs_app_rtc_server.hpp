@@ -62,6 +62,7 @@ public:
     // Session data.
     std::string local_sdp_str_;
     std::string session_id_;
+    std::string token_;
 
     // Generated data.
     SrsRequest* req_;
