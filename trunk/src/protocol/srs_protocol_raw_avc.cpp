@@ -157,14 +157,14 @@ srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, string
         stream.write_1bytes(level_idc);
         // lengthSizeMinusOne, or NAL_unit_length, always use 4bytes size,
         // so we always set it to 0x03.
-        stream.write_1bytes(0xfc | 0x03);
+        stream.write_1bytes(uint8_t(0xfc | 0x03));
     }
     
     // sps
     if (true) {
         // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
         // numOfSequenceParameterSets, always 1
-        stream.write_1bytes(0xe0 | 0x01);
+        stream.write_1bytes(uint8_t(0xe0 | 0x01));
         // sequenceParameterSetLength
         stream.write_2bytes((int16_t)sps.length());
         // sequenceParameterSetNALUnit

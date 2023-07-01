@@ -1865,6 +1865,11 @@ string SrsRtcConnection::username()
     return username_;
 }
 
+string SrsRtcConnection::token()
+{
+    return token_;
+}
+
 ISrsKbpsDelta* SrsRtcConnection::delta()
 {
     return networks_->delta();
@@ -1985,6 +1990,7 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
     srs_error_t err = srs_success;
 
     username_ = username;
+    token_ = srs_random_str(9);
     req_ = r->copy();
 
     SrsSessionConfig* cfg = &local_sdp.session_negotiate_;

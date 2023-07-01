@@ -444,6 +444,8 @@ private:
 private:
     // The local:remote username, such as m5x0n128:jvOm where local name is m5x0n128.
     std::string username_;
+    // The random token to verify the WHIP DELETE request etc.
+    std::string token_;
     // A group of networks, each has its own DTLS and SRTP context.
     SrsRtcNetworks* networks_;
 private:
@@ -484,6 +486,8 @@ public:
     void set_state_as_waiting_stun();
     // Get username pair for this connection, used as ID of session.
     std::string username();
+    // Get the token for verify this session, for example, when delete session by WHIP API.
+    std::string token();
 public:
     virtual ISrsKbpsDelta* delta();
 // Interface ISrsResource.
