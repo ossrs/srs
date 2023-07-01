@@ -409,7 +409,7 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
 
     SrsFormat format;
     if ((err = format.initialize()) != srs_success) {
-        return srs_error_new(ERROR_STREAM_CASTER_HEVC_FORMAT, "format failed");
+        return srs_error_wrap(err, "format failed");
     }
     // hevc_dec_conf_record
     SrsHevcDecoderConfigurationRecord *hevc_info = &format.vcodec->hevc_dec_conf_record_;
@@ -420,7 +420,7 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
         // @doc ITU-T-H.265-2021.pdf, page 54.
         SrsBuffer vps_stream((char*)vps.data(), vps.length());
         if ((err = format.hevc_demux_vps(&vps_stream)) != srs_success) {
-            return srs_error_new(ERROR_STREAM_CASTER_HEVC_VPS, "vps demux failed, len=%d", vps.length());
+            return srs_error_wrap(err, "vps demux failed, len=%d", vps.length());
         }
 
         // H265 SPS Nal Unit (seq_parameter_set_rbsp()) parser.
@@ -428,7 +428,7 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
         // @doc ITU-T-H.265-2021.pdf, page 55.
         SrsBuffer sps_stream((char*)sps.data(), sps.length());
         if ((err = format.hevc_demux_sps(&sps_stream)) != srs_success) {
-            return srs_error_new(ERROR_STREAM_CASTER_HEVC_SPS, "sps demux failed, len=%d",sps.length());
+            return srs_error_wrap(err, "sps demux failed, len=%d",sps.length());
         }
     }
 
