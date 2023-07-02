@@ -287,6 +287,7 @@ jobs:
             ossrs/srs:${{ env.SRS_VERSION }}
             ossrs/srs:${{ env.SRS_MAJOR }}
             ossrs/srs:v${{ env.SRS_MAJOR }}
+            ossrs/srs:${{ env.SRS_XYZ }}
             ossrs/srs:v${{ env.SRS_XYZ }}
     runs-on: ubuntu-20.04
 
@@ -321,6 +322,7 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_VERSION }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_MAJOR }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_XYZ }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_XYZ }}
     runs-on: ubuntu-20.04
 
