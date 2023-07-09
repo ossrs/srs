@@ -249,7 +249,7 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             --build-arg INSTALLDEPENDS="NO" \
-            -f trunk/Dockerfile .
+            -f Dockerfile .
     runs-on: ubuntu-20.04
 
   multiple-arch-aarch64:
@@ -270,7 +270,7 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             --build-arg INSTALLDEPENDS="NO" \
-            -f trunk/Dockerfile .
+            -f Dockerfile .
     runs-on: ubuntu-20.04
 
   multiple-arch-amd64:
@@ -292,7 +292,7 @@ jobs:
           docker buildx build --platform linux/amd64 \
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
-            -f trunk/Dockerfile .
+            -f Dockerfile .
     runs-on: ubuntu-20.04
 
   fast:
