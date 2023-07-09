@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2023-07-09, Merge [#3615](https://github.com/ossrs/srs/pull/3615): Compile: Fix typo for 3rdparty. v6.0.59 (#3615)
 * v6.0, 2023-07-01, Merge [#3595](https://github.com/ossrs/srs/pull/3595): WHIP: Improve WHIP deletion by token verification. v6.0.58 (#3595)
 * v6.0, 2023-07-01, Merge [#3605](https://github.com/ossrs/srs/pull/3605): BugFix: Resolve the problem of srs_error_t memory leak. v6.0.57 (#3605)
 * v6.0, 2023-06-30, Merge [#3596](https://github.com/ossrs/srs/pull/3596): Improve the usage of "transcode" in the "full.conf" file. v6.0.56 (#3596)
@@ -72,6 +73,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2023-07-09, Merge [#3615](https://github.com/ossrs/srs/pull/3615): Compile: Fix typo for 3rdparty. v5.0.166 (#3615)
 * v5.0, 2023-07-01, Merge [#3595](https://github.com/ossrs/srs/pull/3595): WHIP: Improve WHIP deletion by token verification. v5.0.164 (#3595)
 * v5.0, 2023-07-01, Merge [#3605](https://github.com/ossrs/srs/pull/3605): BugFix: Resolve the problem of srs_error_t memory leak. v5.0.163 (#3605)
 * v5.0, 2023-06-30, Merge [#3596](https://github.com/ossrs/srs/pull/3596): Improve the usage of "transcode" in the "full.conf" file. v5.0.162 (#3596)
