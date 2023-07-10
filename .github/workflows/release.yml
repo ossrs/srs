@@ -448,10 +448,12 @@ jobs:
             ## Docker
             * [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
             * [docker pull ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
+            * [docker pull ossrs/srs:${{ env.SRS_XYZ }}](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
             
             ## Docker Mirror: aliyun.com
             * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started)
             * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started)
+            * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_XYZ }}](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started)
             
             ## Doc: ossrs.io
             * [Getting Started](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
