@@ -54,13 +54,13 @@ echo "All outputs to: ${SRS_OBJS}/${SRS_PLATFORM}"
     (cd ${SRS_OBJS} && rm -rf src utest srs srs_utest research include lib srs_hls_ingester srs_mp4_parser) &&
     mkdir -p ${SRS_OBJS}/src ${SRS_OBJS}/research ${SRS_OBJS}/utest &&
 
-    mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry &&
+    mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty &&
     (cd ${SRS_OBJS} && rm -rf st ffmpeg opus srtp2 openssl srt) &&
     mkdir -p ${SRS_OBJS}/st ${SRS_OBJS}/ffmpeg ${SRS_OBJS}/opus ${SRS_OBJS}/srtp2 ${SRS_OBJS}/openssl \
         ${SRS_OBJS}/srt &&
-    mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/st ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg \
-        ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/opus ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srtp2 \
-        ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srt
+    mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg \
+        ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/opus ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2 \
+        ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt
 )
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Create build directory failed, ret=$ret"; exit $ret; fi
 
