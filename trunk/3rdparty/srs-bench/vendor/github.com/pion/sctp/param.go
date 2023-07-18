@@ -1,7 +1,8 @@
 package sctp
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
 )
 
 type param interface {
@@ -9,12 +10,17 @@ type param interface {
 	length() int
 }
 
+// ErrParamTypeUnhandled is returned if unknown parameter type is specified.
+var ErrParamTypeUnhandled = errors.New("unhandled ParamType")
+
 func buildParam(t paramType, rawParam []byte) (param, error) {
 	switch t {
 	case forwardTSNSupp:
 		return (&paramForwardTSNSupported{}).unmarshal(rawParam)
 	case supportedExt:
 		return (&paramSupportedExtensions{}).unmarshal(rawParam)
+	case ecnCapable:
+		return (&paramECNCapable{}).unmarshal(rawParam)
 	case random:
 		return (&paramRandom{}).unmarshal(rawParam)
 	case reqHMACAlgo:
@@ -30,6 +36,6 @@ func buildParam(t paramType, rawParam []byte) (param, error) {
 	case reconfigResp:
 		return (&paramReconfigResponse{}).unmarshal(rawParam)
 	default:
-		return nil, errors.Errorf("Unhandled ParamType %v", t)
+		return nil, fmt.Errorf("%w: %v", ErrParamTypeUnhandled, t)
 	}
 }

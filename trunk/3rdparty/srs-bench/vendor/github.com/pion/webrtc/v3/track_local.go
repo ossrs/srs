@@ -1,6 +1,12 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package webrtc
 
-import "github.com/pion/rtp"
+import (
+	"github.com/pion/interceptor"
+	"github.com/pion/rtp"
+)
 
 // TrackLocalWriter is the Writer for outbound RTP Packets
 type TrackLocalWriter interface {
@@ -14,10 +20,11 @@ type TrackLocalWriter interface {
 // TrackLocalContext is the Context passed when a TrackLocal has been Binded/Unbinded from a PeerConnection, and used
 // in Interceptors.
 type TrackLocalContext struct {
-	id          string
-	params      RTPParameters
-	ssrc        SSRC
-	writeStream TrackLocalWriter
+	id              string
+	params          RTPParameters
+	ssrc            SSRC
+	writeStream     TrackLocalWriter
+	rtcpInterceptor interceptor.RTCPReader
 }
 
 // CodecParameters returns the negotiated RTPCodecParameters. These are the codecs supported by both
@@ -49,8 +56,13 @@ func (t *TrackLocalContext) ID() string {
 	return t.id
 }
 
+// RTCPReader returns the RTCP interceptor for this TrackLocal. Used to read RTCP of this TrackLocal.
+func (t *TrackLocalContext) RTCPReader() interceptor.RTCPReader {
+	return t.rtcpInterceptor
+}
+
 // TrackLocal is an interface that controls how the user can send media
-// The user can provide their own TrackLocal implementatiosn, or use
+// The user can provide their own TrackLocal implementations, or use
 // the implementations in pkg/media
 type TrackLocal interface {
 	// Bind should implement the way how the media data flows from the Track to the PeerConnection
@@ -66,6 +78,9 @@ type TrackLocal interface {
 	// stream, but doesn't have to globally unique. A common example would be 'audio' or 'video'
 	// and StreamID would be 'desktop' or 'webcam'
 	ID() string
+
+	// RID is the RTP Stream ID for this track.
+	RID() string
 
 	// StreamID is the group this track belongs too. This must be unique
 	StreamID() string

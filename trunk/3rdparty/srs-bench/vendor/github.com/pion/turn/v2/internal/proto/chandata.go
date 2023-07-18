@@ -11,7 +11,7 @@ import (
 //
 // See RFC 5766 Section 11.4
 type ChannelData struct {
-	Data   []byte // can be subslice of Raw
+	Data   []byte // can be sub slice of Raw
 	Length int    // ignored while encoding, len(Data) is used
 	Number ChannelNumber
 	Raw    []byte

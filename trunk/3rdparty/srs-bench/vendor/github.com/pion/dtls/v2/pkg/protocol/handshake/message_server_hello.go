@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package handshake
 
 import (
@@ -16,6 +19,8 @@ import (
 type MessageServerHello struct {
 	Version protocol.Version
 	Random  Random
+
+	SessionID []byte
 
 	CipherSuiteID     *uint16
 	CompressionMethod *protocol.CompressionMethod
@@ -44,7 +49,8 @@ func (m *MessageServerHello) Marshal() ([]byte, error) {
 	rand := m.Random.MarshalFixed()
 	copy(out[2:], rand[:])
 
-	out = append(out, 0x00) // SessionID
+	out = append(out, byte(len(m.SessionID)))
+	out = append(out, m.SessionID...)
 
 	out = append(out, []byte{0x00, 0x00}...)
 	binary.BigEndian.PutUint16(out[len(out)-2:], *m.CipherSuiteID)
@@ -73,16 +79,26 @@ func (m *MessageServerHello) Unmarshal(data []byte) error {
 	m.Random.UnmarshalFixed(random)
 
 	currOffset := messageServerHelloVariableWidthStart
-	currOffset += int(data[currOffset]) + 1 // SessionID
-	if len(data) < (currOffset + 2) {
+	currOffset++
+	if len(data) <= currOffset {
 		return errBufferTooSmall
 	}
 
+	n := int(data[currOffset-1])
+	if len(data) <= currOffset+n {
+		return errBufferTooSmall
+	}
+	m.SessionID = append([]byte{}, data[currOffset:currOffset+n]...)
+	currOffset += len(m.SessionID)
+
+	if len(data) < currOffset+2 {
+		return errBufferTooSmall
+	}
 	m.CipherSuiteID = new(uint16)
 	*m.CipherSuiteID = binary.BigEndian.Uint16(data[currOffset:])
 	currOffset += 2
 
-	if len(data) < currOffset {
+	if len(data) <= currOffset {
 		return errBufferTooSmall
 	}
 	if compressionMethod, ok := protocol.CompressionMethods()[protocol.CompressionMethodID(data[currOffset])]; ok {

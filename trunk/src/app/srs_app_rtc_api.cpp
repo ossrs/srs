@@ -241,6 +241,7 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 
     ruc->local_sdp_str_ = local_sdp_str;
     ruc->session_id_ = session->username();
+    ruc->token_ = session->token();
 
     srs_trace("RTC username=%s, dtls=%u, srtp=%u, offer=%dB, answer=%dB", session->username().c_str(),
         ruc->dtls_, ruc->srtp_, ruc->remote_sdp_str_.length(), local_sdp_escaped.length());
@@ -510,6 +511,7 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     ruc->local_sdp_str_ = local_sdp_str;
     ruc->session_id_ = session->username();
+    ruc->token_ = session->token();
 
     srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
         ruc->remote_sdp_str_.length(), local_sdp_escaped.length());
@@ -581,6 +583,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
 
 SrsGoApiRtcWhip::SrsGoApiRtcWhip(SrsRtcServer* server)
 {
+    server_ = server;
     publish_ = new SrsGoApiRtcPublish(server);
     play_ = new SrsGoApiRtcPlay(server);
 }
@@ -601,7 +604,21 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     // Client stop publish.
     // TODO: FIXME: Stop and cleanup the RTC session.
     if (r->method() == SRS_CONSTS_HTTP_DELETE) {
-        srs_trace("WHIP: Delete stream %s", r->url().c_str());
+        string username = r->query_get("session");
+        string token = r->query_get("token");
+        if (token.empty()) {
+            return srs_error_new(ERROR_RTC_INVALID_SESSION, "token empty");
+        }
+
+        SrsRtcConnection* session = server_->find_session_by_username(username);
+        if (session && token != session->token()) {
+            return srs_error_new(ERROR_RTC_INVALID_SESSION, "token %s not match", token.c_str());
+        }
+
+        if (session) session->expire();
+        srs_trace("WHIP: Delete session=%s, p=%p, url=%s", username.c_str(), session, r->url().c_str());
+
+        w->header()->set_content_length(0);
         w->write_header(SRS_CONSTS_HTTP_OK);
         return w->write(NULL, 0);
     }
@@ -620,7 +637,8 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     // Setup the content type to SDP.
     w->header()->set("Content-Type", "application/sdp");
     // The location for DELETE resource, not required by SRS, but required by WHIP.
-    w->header()->set("Location", srs_fmt("/rtc/v1/whip/?app=%s&stream=%s", ruc.req_->app.c_str(), ruc.req_->stream.c_str()));
+    w->header()->set("Location", srs_fmt("/rtc/v1/whip/?action=delete&token=%s&app=%s&stream=%s&session=%s",
+        ruc.token_.c_str(), ruc.req_->app.c_str(), ruc.req_->stream.c_str(), ruc.session_id_.c_str()));
     w->header()->set_content_length((int64_t)sdp.length());
     // Must be 201, see https://datatracker.ietf.org/doc/draft-ietf-wish-whip/
     w->write_header(201);
@@ -678,15 +696,26 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         ruc->req_->vhost = parsed_vhost->arg0();
     }
 
-    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, param=%s",
+    // For client to specifies whether encrypt by SRTP.
+    string srtp = r->query_get("encrypt");
+    string dtls = r->query_get("dtls");
+
+    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s, param=%s",
         action.c_str(), ruc->req_->get_stream_url().c_str(), clientip.c_str(), ruc->req_->app.c_str(), ruc->req_->stream.c_str(),
-        remote_sdp_str.length(), eip.c_str(), codec.c_str(), ruc->req_->param.c_str()
+        remote_sdp_str.length(), eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str(), ruc->req_->param.c_str()
     );
 
     ruc->eip_ = eip;
     ruc->codec_ = codec;
     ruc->publish_ = (action == "publish");
-    ruc->dtls_ = ruc->srtp_ = true;
+
+    // For client to specifies whether encrypt by SRTP.
+    ruc->dtls_ = (dtls != "false");
+    if (srtp.empty()) {
+        ruc->srtp_ = _srs_config->get_rtc_server_encrypt();
+    } else {
+        ruc->srtp_ = (srtp != "false");
+    }
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     ruc->remote_sdp_str_ = remote_sdp_str;

@@ -23,7 +23,7 @@ type TransportCCExtension struct {
 }
 
 // Marshal serializes the members to buffer
-func (t *TransportCCExtension) Marshal() ([]byte, error) {
+func (t TransportCCExtension) Marshal() ([]byte, error) {
 	buf := make([]byte, transportCCExtensionSize)
 	binary.BigEndian.PutUint16(buf[0:2], t.TransportSequence)
 	return buf, nil

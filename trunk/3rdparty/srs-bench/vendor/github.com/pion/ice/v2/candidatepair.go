@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package ice
 
 import (
@@ -6,42 +9,44 @@ import (
 	"github.com/pion/stun"
 )
 
-func newCandidatePair(local, remote Candidate, controlling bool) *candidatePair {
-	return &candidatePair{
+func newCandidatePair(local, remote Candidate, controlling bool) *CandidatePair {
+	return &CandidatePair{
 		iceRoleControlling: controlling,
-		remote:             remote,
-		local:              local,
+		Remote:             remote,
+		Local:              local,
 		state:              CandidatePairStateWaiting,
 	}
 }
 
-// candidatePair represents a combination of a local and remote candidate
-type candidatePair struct {
-	iceRoleControlling  bool
-	remote              Candidate
-	local               Candidate
-	bindingRequestCount uint16
-	state               CandidatePairState
-	nominated           bool
+// CandidatePair is a combination of a
+// local and remote candidate
+type CandidatePair struct {
+	iceRoleControlling       bool
+	Remote                   Candidate
+	Local                    Candidate
+	bindingRequestCount      uint16
+	state                    CandidatePairState
+	nominated                bool
+	nominateOnBindingSuccess bool
 }
 
-func (p *candidatePair) String() string {
+func (p *CandidatePair) String() string {
 	if p == nil {
 		return ""
 	}
 
 	return fmt.Sprintf("prio %d (local, prio %d) %s <-> %s (remote, prio %d)",
-		p.Priority(), p.local.Priority(), p.local, p.remote, p.remote.Priority())
+		p.priority(), p.Local.Priority(), p.Local, p.Remote, p.Remote.Priority())
 }
 
-func (p *candidatePair) Equal(other *candidatePair) bool {
+func (p *CandidatePair) equal(other *CandidatePair) bool {
 	if p == nil && other == nil {
 		return true
 	}
 	if p == nil || other == nil {
 		return false
 	}
-	return p.local.Equal(other.local) && p.remote.Equal(other.remote)
+	return p.Local.Equal(other.Local) && p.Remote.Equal(other.Remote)
 }
 
 // RFC 5245 - 5.7.2.  Computing Pair Priority and Ordering Pairs
@@ -49,15 +54,14 @@ func (p *candidatePair) Equal(other *candidatePair) bool {
 // agent.  Let D be the priority for the candidate provided by the
 // controlled agent.
 // pair priority = 2^32*MIN(G,D) + 2*MAX(G,D) + (G>D?1:0)
-func (p *candidatePair) Priority() uint64 {
-	var g uint32
-	var d uint32
+func (p *CandidatePair) priority() uint64 {
+	var g, d uint32
 	if p.iceRoleControlling {
-		g = p.local.Priority()
-		d = p.remote.Priority()
+		g = p.Local.Priority()
+		d = p.Remote.Priority()
 	} else {
-		g = p.remote.Priority()
-		d = p.local.Priority()
+		g = p.Remote.Priority()
+		d = p.Local.Priority()
 	}
 
 	// Just implement these here rather
@@ -86,8 +90,8 @@ func (p *candidatePair) Priority() uint64 {
 	return (1<<32-1)*min(g, d) + 2*max(g, d) + cmp(g, d)
 }
 
-func (p *candidatePair) Write(b []byte) (int, error) {
-	return p.local.writeTo(b, p.remote)
+func (p *CandidatePair) Write(b []byte) (int, error) {
+	return p.Local.writeTo(b, p.Remote)
 }
 
 func (a *Agent) sendSTUN(msg *stun.Message, local, remote Candidate) {

@@ -15,7 +15,7 @@ const (
 
 // Config is used to configure a mDNS client or server.
 type Config struct {
-	// QueryInterval controls how ofter we sends Queries until we
+	// QueryInterval controls how often we sends Queries until we
 	// get a response for the requested name
 	QueryInterval time.Duration
 

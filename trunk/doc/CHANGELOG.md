@@ -8,6 +8,23 @@ The changelog for SRS.
 
 ## SRS 6.0 Changelog
 
+* v6.0, 2023-07-09, Merge [#3615](https://github.com/ossrs/srs/pull/3615): Compile: Fix typo for 3rdparty. v6.0.59 (#3615)
+* v6.0, 2023-07-01, Merge [#3595](https://github.com/ossrs/srs/pull/3595): WHIP: Improve WHIP deletion by token verification. v6.0.58 (#3595)
+* v6.0, 2023-07-01, Merge [#3605](https://github.com/ossrs/srs/pull/3605): BugFix: Resolve the problem of srs_error_t memory leak. v6.0.57 (#3605)
+* v6.0, 2023-06-30, Merge [#3596](https://github.com/ossrs/srs/pull/3596): Improve the usage of "transcode" in the "full.conf" file. v6.0.56 (#3596)
+* v6.0, 2023-06-21, Merge [#3551](https://github.com/ossrs/srs/pull/3551): H264: Fix H.264 ISOM reserved bit value. v6.0.55 (#3551)
+* v6.0, 2023-06-20, Merge [#3594](https://github.com/ossrs/srs/pull/3594): Docker: Refine the main dockerfile. v6.0.54 (#3592)
+* v6.0, 2023-06-20, Merge [#3592](https://github.com/ossrs/srs/pull/3592): Fix Permission Issue in depend.sh for OpenSSL Compilation. v6.0.53 (#3592)
+* v6.0, 2023-06-20, Merge [#3591](https://github.com/ossrs/srs/pull/3591): Fix crash when process rtcp feedback message. v6.0.52 (#3591)
+* v6.0, 2023-06-15, Merge [#3581](https://github.com/ossrs/srs/pull/3581): WHIP: Add OBS support, ensuring compatibility with a unique SDP. v6.0.51 (#3581)
+* v6.0, 2023-06-13, Merge [#3579](https://github.com/ossrs/srs/pull/3579): TOC: Welcome to the new TOC member, ZhangJunqin. v6.0.50 (#3579)
+* v6.0, 2023-06-12, Merge [#3570](https://github.com/ossrs/srs/pull/3570): GB: Correct the range of keyframe error for compile warning. v6.0.49 (#3570)
+* v6.0, 2023-06-05, Fix command injection in demonstration api-server for HTTP callback. v6.0.48
+* v6.0, 2023-06-05, Merge [#3565](https://github.com/ossrs/srs/pull/3565): DTLS: Use bio callback to get fragment packet. v6.0.47 (#3565)
+* v6.0, 2023-05-29, Merge [#3513](https://github.com/ossrs/srs/pull/3513): SSL: Fix SSL_get_error get the error of other coroutine. v6.0.46 (#3513)
+* v6.0, 2023-05-14, Merge [#3534](https://github.com/ossrs/srs/pull/3534): Replace sprintf with snprintf to eliminate compile warnings. v6.0.45 (#3534)
+* v6.0, 2023-05-13, Merge [#3541](https://github.com/ossrs/srs/pull/3541): asan: Fix memory leak in asan by releasing global IPs when run_directly_or_daemon fails. v6.0.44 (#3541)
+* v6.0, 2023-05-12, Merge [#3539](https://github.com/ossrs/srs/pull/3539): WHIP: Improve HTTP DELETE for notifying server unpublish event. v6.0.43 (#3539)
 * v6.0, 2023-04-08, Merge [#3495](https://github.com/ossrs/srs/pull/3495): RTMP: Support enhanced RTMP specification for HEVC. v6.0.42 (#3495)
 * v6.0, 2023-04-01, Merge [#3392](https://github.com/ossrs/srs/pull/3392): Support composited bridges for 1:N protocols converting. v6.0.41 (#3392)
 * v6.0, 2023-04-01, Merge [#3458](https://github.com/ossrs/srs/pull/3450): API: Support HTTP basic authentication for API. v6.0.40 (#3458)
@@ -56,7 +73,19 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
-* v5.0, 2023-04-01, Merge [#3458](https://github.com/ossrs/srs/pull/3450): API: Support HTTP basic authentication for API. v5.0.152 (#3458)
+* v5.0, 2023-07-09, Merge [#3615](https://github.com/ossrs/srs/pull/3615): Compile: Fix typo for 3rdparty. v5.0.166 (#3615)
+* v5.0, 2023-07-01, Merge [#3595](https://github.com/ossrs/srs/pull/3595): WHIP: Improve WHIP deletion by token verification. v5.0.164 (#3595)
+* v5.0, 2023-07-01, Merge [#3605](https://github.com/ossrs/srs/pull/3605): BugFix: Resolve the problem of srs_error_t memory leak. v5.0.163 (#3605)
+* v5.0, 2023-06-30, Merge [#3596](https://github.com/ossrs/srs/pull/3596): Improve the usage of "transcode" in the "full.conf" file. v5.0.162 (#3596)
+* v5.0, 2023-06-21, Merge [#3551](https://github.com/ossrs/srs/pull/3551): H264: Fix H.264 ISOM reserved bit value. v5.0.161 (#3551)
+* v5.0, 2023-06-20, Merge [#3592](https://github.com/ossrs/srs/pull/3592): Fix Permission Issue in depend.sh for OpenSSL Compilation. v5.0.159 (#3592)
+* v5.0, 2023-06-20, Merge [#3591](https://github.com/ossrs/srs/pull/3591): Fix crash when process rtcp feedback message. v5.0.159 (#3591)
+* v5.0, 2023-06-15, Merge [#3581](https://github.com/ossrs/srs/pull/3581): WHIP: Add OBS support, ensuring compatibility with a unique SDP. v5.0.158 (#3581)
+* v5.0, 2023-06-05, Fix command injection in demonstration api-server for HTTP callback. v5.0.157
+* v5.0, 2023-06-05, Merge [#3565](https://github.com/ossrs/srs/pull/3565): DTLS: Use bio callback to get fragment packet. v5.0.156 (#3565)
+* v5.0, 2023-05-29, Merge [#3513](https://github.com/ossrs/srs/pull/3513): SSL: Fix SSL_get_error get the error of other coroutine. v5.0.155 (#3513)
+* v5.0, 2023-05-13, Merge [#3541](https://github.com/ossrs/srs/pull/3541): asan: Fix memory leak in asan by releasing global IPs when run_directly_or_daemon fails. v5.0.154 (#3541)
+* v5.0, 2023-05-12, Merge [#3539](https://github.com/ossrs/srs/pull/3539): WHIP: Improve HTTP DELETE for notifying server unpublish event. v5.0.153 (#3539)
 * v5.0, 2023-03-27, Merge [#3450](https://github.com/ossrs/srs/pull/3450): WebRTC: Error message carries the SDP when failed. v5.0.151 (#3450)
 * v5.0, 2023-03-25, Merge [#3477](https://github.com/ossrs/srs/pull/3477): Remove unneccessary NULL check in srs_freep. v5.0.150 (#3477)
 * v5.0, 2023-03-25, Merge [#3455](https://github.com/ossrs/srs/pull/3455): RTC: Call on_play before create session, for it might be freed for timeout. v5.0.149 (#3455)

@@ -157,14 +157,14 @@ srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, string
         stream.write_1bytes(level_idc);
         // lengthSizeMinusOne, or NAL_unit_length, always use 4bytes size,
         // so we always set it to 0x03.
-        stream.write_1bytes(0x03);
+        stream.write_1bytes(uint8_t(0xfc | 0x03));
     }
     
     // sps
     if (true) {
         // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
         // numOfSequenceParameterSets, always 1
-        stream.write_1bytes(0x01);
+        stream.write_1bytes(uint8_t(0xe0 | 0x01));
         // sequenceParameterSetLength
         stream.write_2bytes((int16_t)sps.length());
         // sequenceParameterSetNALUnit
@@ -409,7 +409,7 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
 
     SrsFormat format;
     if ((err = format.initialize()) != srs_success) {
-        return srs_error_new(ERROR_STREAM_CASTER_HEVC_FORMAT, "format failed");
+        return srs_error_wrap(err, "format failed");
     }
     // hevc_dec_conf_record
     SrsHevcDecoderConfigurationRecord *hevc_info = &format.vcodec->hevc_dec_conf_record_;
@@ -420,7 +420,7 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
         // @doc ITU-T-H.265-2021.pdf, page 54.
         SrsBuffer vps_stream((char*)vps.data(), vps.length());
         if ((err = format.hevc_demux_vps(&vps_stream)) != srs_success) {
-            return srs_error_new(ERROR_STREAM_CASTER_HEVC_VPS, "vps demux failed, len=%d", vps.length());
+            return srs_error_wrap(err, "vps demux failed, len=%d", vps.length());
         }
 
         // H265 SPS Nal Unit (seq_parameter_set_rbsp()) parser.
@@ -428,7 +428,7 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
         // @doc ITU-T-H.265-2021.pdf, page 55.
         SrsBuffer sps_stream((char*)sps.data(), sps.length());
         if ((err = format.hevc_demux_sps(&sps_stream)) != srs_success) {
-            return srs_error_new(ERROR_STREAM_CASTER_HEVC_SPS, "sps demux failed, len=%d",sps.length());
+            return srs_error_wrap(err, "sps demux failed, len=%d",sps.length());
         }
     }
 

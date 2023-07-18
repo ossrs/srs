@@ -1,10 +1,12 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package handshake
 
 // MessageServerHelloDone is final non-encrypted message from server
 // this communicates server has sent all its handshake messages and next
 // should be MessageFinished
-type MessageServerHelloDone struct {
-}
+type MessageServerHelloDone struct{}
 
 // Type returns the Handshake Type
 func (m MessageServerHelloDone) Type() Type {
@@ -17,6 +19,6 @@ func (m *MessageServerHelloDone) Marshal() ([]byte, error) {
 }
 
 // Unmarshal populates the message from encoded data
-func (m *MessageServerHelloDone) Unmarshal(data []byte) error {
+func (m *MessageServerHelloDone) Unmarshal([]byte) error {
 	return nil
 }

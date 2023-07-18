@@ -554,23 +554,23 @@ clean_modules:
 	@(cd ${SRS_OBJS} && rm -rf $__mdefaults)
 
 clean_openssl:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl
 	@echo "Please rebuild openssl by: ./configure"
 
 clean_srtp2:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srtp2
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2
 	@echo "Please rebuild libsrtp2 by: ./configure"
 
 clean_opus:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/opus
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/opus
 	@echo "Please rebuild opus by: ./configure"
 
 clean_ffmpeg:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg
 	@echo "Please rebuild FFmpeg by: ./configure"
 
 clean_st:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/st
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st
 	@echo "Please rebuild ST by: ./configure"
 
 st:
@@ -832,13 +832,6 @@ fi
 #####################################################################################
 # next step
 #####################################################################################
-if [[ $SRS_CHERRYPY == YES ]]; then
-  echo ""
-  echo "You can run 3rdparty applications:"
-  if [[ $SRS_HTTP_CALLBACK == YES ]]; then
-      echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
-  fi
-fi
 echo ""
 echo "You can build SRS:"
 echo "\" make \" to build the SRS server"

@@ -1,16 +1,28 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package stun
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/pion/dtls/v2"
+	"github.com/pion/transport/v2"
+	"github.com/pion/transport/v2/stdnet"
 )
+
+// ErrUnsupportedURI is an error thrown if the user passes an unsupported STUN or TURN URI
+var ErrUnsupportedURI = fmt.Errorf("invalid schema or transport")
 
 // Dial connects to the address on the named network and then
 // initializes Client on that connection, returning error if any.
@@ -19,6 +31,77 @@ func Dial(network, address string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	return NewClient(conn)
+}
+
+// DialConfig is used to pass configuration to DialURI()
+type DialConfig struct {
+	DTLSConfig dtls.Config
+	TLSConfig  tls.Config
+
+	Net transport.Net
+}
+
+// DialURI connect to the STUN/TURN URI and then
+// initializes Client on that connection, returning error if any.
+func DialURI(uri *URI, cfg *DialConfig) (*Client, error) {
+	var conn Connection
+	var err error
+
+	nw := cfg.Net
+	if nw == nil {
+		nw, err = stdnet.NewNet()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create net: %w", err)
+		}
+	}
+
+	addr := net.JoinHostPort(uri.Host, strconv.Itoa(uri.Port))
+
+	switch {
+	case uri.Scheme == SchemeTypeSTUN:
+		if conn, err = nw.Dial("udp", addr); err != nil {
+			return nil, fmt.Errorf("failed to listen: %w", err)
+		}
+
+	case uri.Scheme == SchemeTypeTURN:
+		network := "udp" //nolint:goconst
+		if uri.Proto == ProtoTypeTCP {
+			network = "tcp" //nolint:goconst
+		}
+
+		if conn, err = nw.Dial(network, addr); err != nil {
+			return nil, fmt.Errorf("failed to dial: %w", err)
+		}
+
+	case uri.Scheme == SchemeTypeTURNS && uri.Proto == ProtoTypeUDP:
+		dtlsCfg := cfg.DTLSConfig // Copy
+		dtlsCfg.ServerName = uri.Host
+
+		udpConn, err := nw.Dial("udp", addr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to dial: %w", err)
+		}
+
+		if conn, err = dtls.Client(udpConn, &dtlsCfg); err != nil {
+			return nil, fmt.Errorf("failed to connect to '%s': %w", addr, err)
+		}
+
+	case (uri.Scheme == SchemeTypeTURNS || uri.Scheme == SchemeTypeSTUNS) && uri.Proto == ProtoTypeTCP:
+		tlsCfg := cfg.TLSConfig //nolint:govet
+		tlsCfg.ServerName = uri.Host
+
+		tcpConn, err := nw.Dial("tcp", addr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to dial: %w", err)
+		}
+
+		conn = tls.Client(tcpConn, &tlsCfg)
+
+	default:
+		return nil, ErrUnsupportedURI
+	}
+
 	return NewClient(conn)
 }
 
@@ -79,8 +162,10 @@ func WithCollector(coll Collector) ClientOption {
 
 // WithNoConnClose prevents client from closing underlying connection when
 // the Close() method is called.
-var WithNoConnClose ClientOption = func(c *Client) {
-	c.closeConn = false
+func WithNoConnClose() ClientOption {
+	return func(c *Client) {
+		c.closeConn = false
+	}
 }
 
 // WithNoRetransmit disables retransmissions and sets RTO to
@@ -116,7 +201,7 @@ func NewClient(conn Connection, options ...ClientOption) (*Client, error) {
 	c := &Client{
 		close:       make(chan struct{}),
 		c:           conn,
-		clock:       systemClock,
+		clock:       systemClock(),
 		rto:         int64(defaultRTO),
 		rtoRate:     defaultTimeoutRate,
 		t:           make(map[transactionID]*clientTransaction, 100),
@@ -157,7 +242,7 @@ func clientFinalizer(c *Client) {
 		return
 	}
 	err := c.Close()
-	if err == ErrClientClosed {
+	if errors.Is(err, ErrClientClosed) {
 		return
 	}
 	if err == nil {
@@ -225,7 +310,7 @@ func (t *clientTransaction) handle(e Event) {
 	}
 }
 
-var clientTransactionPool = &sync.Pool{
+var clientTransactionPool = &sync.Pool{ //nolint:gochecknoglobals
 	New: func() interface{} {
 		return &clientTransaction{
 			raw: make([]byte, 1500),
@@ -234,7 +319,7 @@ var clientTransactionPool = &sync.Pool{
 }
 
 func acquireClientTransaction() *clientTransaction {
-	return clientTransactionPool.Get().(*clientTransaction)
+	return clientTransactionPool.Get().(*clientTransaction) //nolint:forcetypeassert
 }
 
 func putClientTransaction(t *clientTransaction) {
@@ -275,7 +360,9 @@ type systemClockService struct{}
 
 func (systemClockService) Now() time.Time { return time.Now() }
 
-var systemClock = systemClockService{}
+func systemClock() systemClockService {
+	return systemClockService{}
+}
 
 // SetRTO sets current RTO value.
 func (c *Client) SetRTO(rto time.Duration) {
@@ -284,6 +371,8 @@ func (c *Client) SetRTO(rto time.Duration) {
 
 // StopErr occurs when Client fails to stop transaction while
 // processing error.
+//
+//nolint:errname
 type StopErr struct {
 	Err   error // value returned by Stop()
 	Cause error // error that caused Stop() call
@@ -294,6 +383,8 @@ func (e StopErr) Error() string {
 }
 
 // CloseErr indicates client close failure.
+//
+//nolint:errname
 type CloseErr struct {
 	AgentErr      error
 	ConnectionErr error
@@ -301,7 +392,7 @@ type CloseErr struct {
 
 func sprintErr(err error) string {
 	if err == nil {
-		return "<nil>"
+		return "<nil>" //nolint:goconst
 	}
 	return err.Error()
 }
@@ -322,7 +413,7 @@ func (c *Client) readUntilClosed() {
 		}
 		_, err := m.ReadFrom(c.c)
 		if err == nil {
-			if pErr := c.a.Process(m); pErr == ErrAgentClosed {
+			if pErr := c.a.Process(m); errors.Is(pErr, ErrAgentClosed) {
 				return
 			}
 		}
@@ -330,10 +421,10 @@ func (c *Client) readUntilClosed() {
 }
 
 func closedOrPanic(err error) {
-	if err == nil || err == ErrAgentClosed {
+	if err == nil || errors.Is(err, ErrAgentClosed) {
 		return
 	}
-	panic(err) // nolint
+	panic(err) //nolint
 }
 
 type tickerCollector struct {
@@ -425,7 +516,7 @@ type callbackWaitHandler struct {
 func (s *callbackWaitHandler) HandleEvent(e Event) {
 	s.cond.L.Lock()
 	if s.callback == nil {
-		panic("s.callback is nil") // nolint
+		panic("s.callback is nil") //nolint
 	}
 	s.callback(e)
 	s.processed = true
@@ -445,7 +536,7 @@ func (s *callbackWaitHandler) wait() {
 
 func (s *callbackWaitHandler) setCallback(f func(event Event)) {
 	if f == nil {
-		panic("f is nil") // nolint
+		panic("f is nil") //nolint
 	}
 	s.cond.L.Lock()
 	s.callback = f
@@ -455,7 +546,7 @@ func (s *callbackWaitHandler) setCallback(f func(event Event)) {
 	s.cond.L.Unlock()
 }
 
-var callbackWaitHandlerPool = sync.Pool{
+var callbackWaitHandlerPool = sync.Pool{ //nolint:gochecknoglobals
 	New: func() interface{} {
 		return &callbackWaitHandler{
 			cond: sync.NewCond(new(sync.Mutex)),
@@ -485,7 +576,7 @@ func (c *Client) Do(m *Message, f func(Event)) error {
 	if f == nil {
 		return c.Indicate(m)
 	}
-	h := callbackWaitHandlerPool.Get().(*callbackWaitHandler)
+	h := callbackWaitHandlerPool.Get().(*callbackWaitHandler) //nolint:forcetypeassert
 	h.setCallback(f)
 	defer func() {
 		callbackWaitHandlerPool.Put(h)
@@ -509,7 +600,7 @@ type buffer struct {
 	buf []byte
 }
 
-var bufferPool = &sync.Pool{
+var bufferPool = &sync.Pool{ //nolint:gochecknoglobals
 	New: func() interface{} {
 		return &buffer{buf: make([]byte, 2048)}
 	},
@@ -527,7 +618,7 @@ func (c *Client) handleAgentCallback(e Event) {
 	}
 	c.mux.Unlock()
 	if !found {
-		if c.handler != nil && e.Error != ErrTransactionStopped {
+		if c.handler != nil && !errors.Is(e.Error, ErrTransactionStopped) {
 			c.handler(e)
 		}
 		// Ignoring.
@@ -541,7 +632,7 @@ func (c *Client) handleAgentCallback(e Event) {
 	}
 	// Doing re-transmission.
 	t.attempt++
-	b := bufferPool.Get().(*buffer)
+	b := bufferPool.Get().(*buffer) //nolint:forcetypeassert
 	b.buf = b.buf[:copy(b.buf[:cap(b.buf)], t.raw)]
 	defer bufferPool.Put(b)
 	var (

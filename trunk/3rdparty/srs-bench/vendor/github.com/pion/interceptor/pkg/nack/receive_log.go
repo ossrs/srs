@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package nack
 
 import (
@@ -127,8 +130,9 @@ func (s *receiveLog) getReceived(seq uint16) bool {
 
 func (s *receiveLog) fixLastConsecutive() {
 	i := s.lastConsecutive + 1
-	for ; i != s.end+1 && s.getReceived(i); i++ {
+	for ; i != s.end+1 && s.getReceived(i); i++ { //nolint:revive
 		// find all consecutive packets
 	}
+
 	s.lastConsecutive = i - 1
 }

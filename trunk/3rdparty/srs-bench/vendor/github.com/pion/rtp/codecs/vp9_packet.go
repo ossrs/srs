@@ -23,14 +23,14 @@ const (
 )
 
 // Payload fragments an VP9 packet across one or more byte arrays
-func (p *VP9Payloader) Payload(mtu int, payload []byte) [][]byte {
+func (p *VP9Payloader) Payload(mtu uint16, payload []byte) [][]byte {
 	/*
-	 * https://www.ietf.org/id/draft-ietf-payload-vp9-10.txt
+	 * https://www.ietf.org/id/draft-ietf-payload-vp9-13.txt
 	 *
 	 * Flexible mode (F=1)
 	 *        0 1 2 3 4 5 6 7
 	 *       +-+-+-+-+-+-+-+-+
-	 *       |I|P|L|F|B|E|V|-| (REQUIRED)
+	 *       |I|P|L|F|B|E|V|Z| (REQUIRED)
 	 *       +-+-+-+-+-+-+-+-+
 	 *  I:   |M| PICTURE ID  | (REQUIRED)
 	 *       +-+-+-+-+-+-+-+-+
@@ -47,7 +47,7 @@ func (p *VP9Payloader) Payload(mtu int, payload []byte) [][]byte {
 	 * Non-flexible mode (F=0)
 	 *        0 1 2 3 4 5 6 7
 	 *       +-+-+-+-+-+-+-+-+
-	 *       |I|P|L|F|B|E|V|-| (REQUIRED)
+	 *       |I|P|L|F|B|E|V|Z| (REQUIRED)
 	 *       +-+-+-+-+-+-+-+-+
 	 *  I:   |M| PICTURE ID  | (RECOMMENDED)
 	 *       +-+-+-+-+-+-+-+-+
@@ -75,7 +75,7 @@ func (p *VP9Payloader) Payload(mtu int, payload []byte) [][]byte {
 		return [][]byte{}
 	}
 
-	maxFragmentSize := mtu - vp9HeaderSize
+	maxFragmentSize := int(mtu) - vp9HeaderSize
 	payloadDataRemaining := len(payload)
 	payloadDataIndex := 0
 
@@ -121,6 +121,7 @@ type VP9Packet struct {
 	B bool // Start of a frame
 	E bool // End of a frame
 	V bool // Scalability structure (SS) data present
+	Z bool // Not a reference frame for upper spatial layers
 
 	// Recommended headers
 	PictureID uint16 // 7 or 16 bits, picture ID
@@ -147,6 +148,8 @@ type VP9Packet struct {
 	PGPDiff [][]uint8 // Reference indecies of pictures in a Picture Group
 
 	Payload []byte
+
+	videoDepacketizer
 }
 
 // Unmarshal parses the passed byte slice and stores the result in the VP9Packet this method is called upon
@@ -165,6 +168,7 @@ func (p *VP9Packet) Unmarshal(packet []byte) ([]byte, error) {
 	p.B = packet[0]&0x08 != 0
 	p.E = packet[0]&0x04 != 0
 	p.V = packet[0]&0x02 != 0
+	p.Z = packet[0]&0x01 != 0
 
 	pos := 1
 	var err error
@@ -372,14 +376,13 @@ func (p *VP9Packet) parseSSData(packet []byte, pos int) (int, error) {
 	return pos, nil
 }
 
-// VP9PartitionHeadChecker checks VP9 partition head
+// VP9PartitionHeadChecker is obsolete
 type VP9PartitionHeadChecker struct{}
 
 // IsPartitionHead checks whether if this is a head of the VP9 partition
-func (*VP9PartitionHeadChecker) IsPartitionHead(packet []byte) bool {
-	p := &VP9Packet{}
-	if _, err := p.Unmarshal(packet); err != nil {
+func (*VP9Packet) IsPartitionHead(payload []byte) bool {
+	if len(payload) < 1 {
 		return false
 	}
-	return p.B
+	return (payload[0] & 0x08) != 0
 }

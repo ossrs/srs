@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package stun
 
 import (
@@ -63,7 +66,7 @@ func Decode(data []byte, m *Message) error {
 // buffering to enable zero-allocation encoding and decoding,
 // so there are some usage constraints:
 //
-// 	Message, its fields, results of m.Get or any attribute a.GetFrom
+//	Message, its fields, results of m.Get or any attribute a.GetFrom
 //	are valid only until Message.Raw is not modified.
 type Message struct {
 	Type          MessageType
@@ -71,6 +74,32 @@ type Message struct {
 	TransactionID [TransactionIDSize]byte
 	Attributes    Attributes
 	Raw           []byte
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+func (m Message) MarshalBinary() (data []byte, err error) {
+	// We can't return m.Raw, allocation is expected by implicit interface
+	// contract induced by other implementations.
+	b := make([]byte, len(m.Raw))
+	copy(b, m.Raw)
+	return b, nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+func (m *Message) UnmarshalBinary(data []byte) error {
+	// We can't retain data, copy is expected by interface contract.
+	m.Raw = append(m.Raw[:0], data...)
+	return m.Decode()
+}
+
+// GobEncode implements the gob.GobEncoder interface.
+func (m Message) GobEncode() ([]byte, error) {
+	return m.MarshalBinary()
+}
+
+// GobDecode implements the gob.GobDecoder interface.
+func (m *Message) GobDecode(data []byte) error {
+	return m.UnmarshalBinary(data)
 }
 
 // AddTo sets b.TransactionID to m.TransactionID.
@@ -94,7 +123,11 @@ func (m *Message) NewTransactionID() error {
 
 func (m *Message) String() string {
 	tID := base64.StdEncoding.EncodeToString(m.TransactionID[:])
-	return fmt.Sprintf("%s l=%d attrs=%d id=%s", m.Type, m.Length, len(m.Attributes), tID)
+	aInfo := ""
+	for k, a := range m.Attributes {
+		aInfo += fmt.Sprintf("attr%d=%s ", k, a.Type)
+	}
+	return fmt.Sprintf("%s l=%d attrs=%d id=%s, %s", m.Type, m.Length, len(m.Attributes), tID, aInfo)
 }
 
 // Reset resets Message, attributes and underlying buffer length.
@@ -384,7 +417,6 @@ func (m *Message) Write(tBuf []byte) (int, error) {
 
 // CloneTo clones m to b securing any further m mutations.
 func (m *Message) CloneTo(b *Message) error {
-	// TODO(ar): implement low-level copy.
 	b.Raw = append(b.Raw[:0], m.Raw...)
 	return b.Decode()
 }
@@ -403,11 +435,11 @@ const (
 // Common STUN message types.
 var (
 	// Binding request message type.
-	BindingRequest = NewType(MethodBinding, ClassRequest)
+	BindingRequest = NewType(MethodBinding, ClassRequest) //nolint:gochecknoglobals
 	// Binding success response message type
-	BindingSuccess = NewType(MethodBinding, ClassSuccessResponse)
+	BindingSuccess = NewType(MethodBinding, ClassSuccessResponse) //nolint:gochecknoglobals
 	// Binding error response message type.
-	BindingError = NewType(MethodBinding, ClassErrorResponse)
+	BindingError = NewType(MethodBinding, ClassErrorResponse) //nolint:gochecknoglobals
 )
 
 func (c MessageClass) String() string {
@@ -421,7 +453,7 @@ func (c MessageClass) String() string {
 	case ClassErrorResponse:
 		return "error response"
 	default:
-		panic("unknown message class") // nolint: never happens unless wrongly casted
+		panic("unknown message class") //nolint
 	}
 }
 
@@ -446,23 +478,25 @@ const (
 	MethodConnectionAttempt Method = 0x000c
 )
 
-var methodName = map[Method]string{
-	MethodBinding:          "Binding",
-	MethodAllocate:         "Allocate",
-	MethodRefresh:          "Refresh",
-	MethodSend:             "Send",
-	MethodData:             "Data",
-	MethodCreatePermission: "CreatePermission",
-	MethodChannelBind:      "ChannelBind",
+func methodName() map[Method]string {
+	return map[Method]string{
+		MethodBinding:          "Binding",
+		MethodAllocate:         "Allocate",
+		MethodRefresh:          "Refresh",
+		MethodSend:             "Send",
+		MethodData:             "Data",
+		MethodCreatePermission: "CreatePermission",
+		MethodChannelBind:      "ChannelBind",
 
-	// RFC 6062.
-	MethodConnect:           "Connect",
-	MethodConnectionBind:    "ConnectionBind",
-	MethodConnectionAttempt: "ConnectionAttempt",
+		// RFC 6062.
+		MethodConnect:           "Connect",
+		MethodConnectionBind:    "ConnectionBind",
+		MethodConnectionAttempt: "ConnectionAttempt",
+	}
 }
 
 func (m Method) String() string {
-	s, ok := methodName[m]
+	s, ok := methodName()[m]
 	if !ok {
 		// Falling back to hex representation.
 		s = fmt.Sprintf("0x%x", uint16(m))

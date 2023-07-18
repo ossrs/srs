@@ -153,6 +153,21 @@ func (c *UDPConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 	}
 }
 
+func (c *UDPConn) createPermission(perm *permission, addr net.Addr) error {
+	perm.mutex.Lock()
+	defer perm.mutex.Unlock()
+
+	if perm.state() == permStateIdle {
+		// punch a hole! (this would block a bit..)
+		if err := c.CreatePermissions(addr); err != nil {
+			c.permMap.delete(addr)
+			return err
+		}
+		perm.setState(permStatePermitted)
+	}
+	return nil
+}
+
 // WriteTo writes a packet with payload p to addr.
 // WriteTo can be made to time out and return
 // an Error with Timeout() == true after a fixed time limit;
@@ -172,30 +187,15 @@ func (c *UDPConn) WriteTo(p []byte, addr net.Addr) (int, error) { //nolint: goco
 		c.permMap.insert(addr, perm)
 	}
 
-	// This func-block would block, per destination IP (, or perm), until
-	// the perm state becomes "requested". Purpose of this is to guarantee
-	// the order of packets (within the same perm).
-	// Note that CreatePermission transaction may not be complete before
-	// all the data transmission. This is done assuming that the request
-	// will be mostly likely successful and we can tolerate some loss of
-	// UDP packet (or reorder), inorder to minimize the latency in most cases.
-	createPermission := func() error {
-		perm.mutex.Lock()
-		defer perm.mutex.Unlock()
-
-		if perm.state() == permStateIdle {
-			// punch a hole! (this would block a bit..)
-			if err = c.createPermissions(addr); err != nil {
-				c.permMap.delete(addr)
-				return err
-			}
-			perm.setState(permStatePermitted)
-		}
-		return nil
-	}
-
 	for i := 0; i < maxRetryAttempts; i++ {
-		if err = createPermission(); !errors.Is(err, errTryAgain) {
+		// c.createPermission() would block, per destination IP (, or perm),
+		// until the perm state becomes "requested". Purpose of this is to
+		// guarantee the order of packets (within the same perm).
+		// Note that CreatePermission transaction may not be complete before
+		// all the data transmission. This is done assuming that the request
+		// will be most likely successful and we can tolerate some loss of
+		// UDP packet (or reorder), inorder to minimize the latency in most cases.
+		if err = c.createPermission(perm, addr); !errors.Is(err, errTryAgain) {
 			break
 		}
 	}
@@ -277,7 +277,11 @@ func (c *UDPConn) WriteTo(p []byte, addr net.Addr) (int, error) { //nolint: goco
 	}()
 
 	// send via ChannelData
-	return c.sendChannelData(p, b.number)
+	_, err = c.sendChannelData(p, b.number)
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 // Close closes the connection.
@@ -359,7 +363,9 @@ func addr2PeerAddress(addr net.Addr) proto.PeerAddress {
 	return peerAddr
 }
 
-func (c *UDPConn) createPermissions(addrs ...net.Addr) error {
+// CreatePermissions Issues a CreatePermission request for the supplied addresses
+// as described in https://datatracker.ietf.org/doc/html/rfc5766#section-9
+func (c *UDPConn) CreatePermissions(addrs ...net.Addr) error {
 	setters := []stun.Setter{
 		stun.TransactionID,
 		stun.NewType(stun.MethodCreatePermission, stun.ClassRequest),
@@ -496,7 +502,7 @@ func (c *UDPConn) refreshPermissions() error {
 		c.log.Debug("no permission to refresh")
 		return nil
 	}
-	if err := c.createPermissions(addrs...); err != nil {
+	if err := c.CreatePermissions(addrs...); err != nil {
 		if errors.Is(err, errTryAgain) {
 			return errTryAgain
 		}
@@ -549,7 +555,11 @@ func (c *UDPConn) sendChannelData(data []byte, chNum uint16) (int, error) {
 		Number: proto.ChannelNumber(chNum),
 	}
 	chData.Encode()
-	return c.obs.WriteTo(chData.Raw, c.obs.TURNServerAddr())
+	_, err := c.obs.WriteTo(chData.Raw, c.obs.TURNServerAddr())
+	if err != nil {
+		return 0, err
+	}
+	return len(data), nil
 }
 
 func (c *UDPConn) onRefreshTimers(id int) {

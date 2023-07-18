@@ -30,24 +30,5 @@ If you need commercial support or don't want to use public methods you can conta
 ### Contributing
 Check out the **[contributing wiki](https://github.com/pion/webrtc/wiki/Contributing)** to join the group of amazing people making this project possible:
 
-* [John Bradley](https://github.com/kc5nra) - *Original Author*
-* [Sean DuBois](https://github.com/Sean-Der) - *Original Author*
-* [Woodrow Douglass](https://github.com/wdouglass) *RTCP, RTP improvements, G.722 support, Bugfixes*
-* [Michael MacDonald](https://github.com/mjmac)
-* [Luke Curley](https://github.com/kixelated) *Performance*
-* [Antoine Baché](https://github.com/Antonito) *Fixed crashes*
-* [Hugo Arregui](https://github.com/hugoArregui)
-* [Raphael Derosso Pereira](https://github.com/raphaelpereira)
-* [Atsushi Watanabe](https://github.com/at-wat)
-* [adwpc](https://github.com/adwpc) *add transport-cc extension*
-* [Bao Nguyen](https://github.com/sysbot) *add VP9 noop, bug fixes.
-* [Tarrence van As](https://github.com/tarrencev) *add audio level extension*
-* [Simone Gotti](https://github.com/sgotti)
-* [Guilherme Souza](https://github.com/gqgs)
-* [Rob Lofthouse](https://github.com/roblofthouse)
-* [Kazuyuki Honda](https://github.com/hakobera)
-* [Haiyang Wang](https://github.com/ocean2811)
-* [lxb](https://github.com/lxb531)
-
 ### License
 MIT License - see [LICENSE](LICENSE) for full text

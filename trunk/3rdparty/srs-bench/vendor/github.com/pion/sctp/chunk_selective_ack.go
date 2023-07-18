@@ -2,9 +2,8 @@ package sctp
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 /*
@@ -47,6 +46,13 @@ type gapAckBlock struct {
 	end   uint16
 }
 
+// Selective ack chunk errors
+var (
+	ErrChunkTypeNotSack           = errors.New("ChunkType is not of type SACK")
+	ErrSackSizeNotLargeEnoughInfo = errors.New("SACK Chunk size is not large enough to contain header")
+	ErrSackSizeNotMatchPredicted  = errors.New("SACK Chunk size does not match predicted amount from header values")
+)
+
 // String makes gapAckBlock printable
 func (g gapAckBlock) String() string {
 	return fmt.Sprintf("%d - %d", g.start, g.end)
@@ -70,11 +76,11 @@ func (s *chunkSelectiveAck) unmarshal(raw []byte) error {
 	}
 
 	if s.typ != ctSack {
-		return errors.Errorf("ChunkType is not of type SACK, actually is %s", s.typ.String())
+		return fmt.Errorf("%w: actually is %s", ErrChunkTypeNotSack, s.typ.String())
 	}
 
 	if len(s.raw) < selectiveAckHeaderSize {
-		return errors.Errorf("SACK Chunk size is not large enough to contain header (%v remaining, needs %v bytes)",
+		return fmt.Errorf("%w: %v remaining, needs %v bytes", ErrSackSizeNotLargeEnoughInfo,
 			len(s.raw), selectiveAckHeaderSize)
 	}
 
@@ -84,7 +90,7 @@ func (s *chunkSelectiveAck) unmarshal(raw []byte) error {
 	s.duplicateTSN = make([]uint32, binary.BigEndian.Uint16(s.raw[10:]))
 
 	if len(s.raw) != selectiveAckHeaderSize+(4*len(s.gapAckBlocks)+(4*len(s.duplicateTSN))) {
-		return errors.Errorf("SACK Chunk size does not match predicted amount from header values")
+		return ErrSackSizeNotMatchPredicted
 	}
 
 	offset := selectiveAckHeaderSize

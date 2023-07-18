@@ -14,8 +14,6 @@ type PictureLossIndication struct {
 	MediaSSRC uint32
 }
 
-var _ Packet = (*PictureLossIndication)(nil) // assert is a Packet
-
 const (
 	pliLength = 2
 )

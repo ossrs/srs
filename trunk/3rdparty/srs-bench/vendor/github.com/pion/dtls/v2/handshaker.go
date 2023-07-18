@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package dtls
 
 import (
@@ -9,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pion/dtls/v2/pkg/crypto/elliptic"
 	"github.com/pion/dtls/v2/pkg/crypto/signaturehash"
 	"github.com/pion/dtls/v2/pkg/protocol/alert"
 	"github.com/pion/dtls/v2/pkg/protocol/handshake"
@@ -95,19 +99,27 @@ type handshakeConfig struct {
 	extendedMasterSecret        ExtendedMasterSecretType  // Policy for the Extended Master Support extension
 	localSRTPProtectionProfiles []SRTPProtectionProfile   // Available SRTPProtectionProfiles, if empty no SRTP support
 	serverName                  string
+	supportedProtocols          []string
 	clientAuth                  ClientAuthType // If we are a client should we request a client certificate
 	localCertificates           []tls.Certificate
 	nameToCertificate           map[string]*tls.Certificate
 	insecureSkipVerify          bool
 	verifyPeerCertificate       func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
+	verifyConnection            func(*State) error
+	sessionStore                SessionStore
 	rootCAs                     *x509.CertPool
 	clientCAs                   *x509.CertPool
 	retransmitInterval          time.Duration
 	customCipherSuites          func() []CipherSuite
+	ellipticCurves              []elliptic.Curve
+	insecureSkipHelloVerify     bool
 
 	onFlightState func(flightVal, handshakeState)
 	log           logging.LeveledLogger
 	keyLogWriter  io.Writer
+
+	localGetCertificate       func(*ClientHelloInfo) (*tls.Certificate, error)
+	localGetClientCertificate func(*CertificateRequestInfo) (*tls.Certificate, error)
 
 	initialEpoch uint16
 
@@ -120,6 +132,7 @@ type flightConn interface {
 	recvHandshake() <-chan chan struct{}
 	setLocalEpoch(epoch uint16)
 	handleQueuedPackets(context.Context) error
+	sessionKey() []byte
 }
 
 func (c *handshakeConfig) writeKeyLog(label string, clientRandom, secret []byte) {
@@ -322,6 +335,9 @@ func (s *handshakeFSM) finish(ctx context.Context, c flightConn) (handshakeState
 		}
 		if nextFlight == 0 {
 			break
+		}
+		if nextFlight.isLastRecvFlight() && s.currentFlight == nextFlight {
+			return handshakeFinished, nil
 		}
 		<-retransmitTimer.C
 		// Retransmit last flight

@@ -7,13 +7,13 @@ clean:
 
 #########################################################################################################
 # SRS benchmark tool for SRS, janus, GB28181.
-./objs/.format.bench.txt: *.go srs/*.go vnet/*.go janus/*.go gb28181/*.go
-	gofmt -w .
+./objs/.format.bench.txt: *.go janus/*.go ./objs/.format.srs.txt ./objs/.format.gb28181.txt
+	gofmt -w *.go janus
 	mkdir -p objs && echo "done" > ./objs/.format.bench.txt
 
 bench: ./objs/srs_bench
 
-./objs/srs_bench: ./objs/.format.bench.txt *.go srs/*.go vnet/*.go janus/*.go gb28181/*.go Makefile
+./objs/srs_bench: ./objs/.format.bench.txt *.go janus/*.go srs/*.go vnet/*.go gb28181/*.go Makefile
 	go build -mod=vendor -o objs/srs_bench .
 
 #########################################################################################################

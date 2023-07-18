@@ -1,9 +1,11 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package nack
 
 import (
 	"fmt"
-
-	"github.com/pion/rtp"
+	"sync"
 )
 
 const (
@@ -11,10 +13,12 @@ const (
 )
 
 type sendBuffer struct {
-	packets   []*rtp.Packet
+	packets   []*retainablePacket
 	size      uint16
 	lastAdded uint16
 	started   bool
+
+	m sync.RWMutex
 }
 
 func newSendBuffer(size uint16) (*sendBuffer, error) {
@@ -33,13 +37,16 @@ func newSendBuffer(size uint16) (*sendBuffer, error) {
 	}
 
 	return &sendBuffer{
-		packets: make([]*rtp.Packet, size),
+		packets: make([]*retainablePacket, size),
 		size:    size,
 	}, nil
 }
 
-func (s *sendBuffer) add(packet *rtp.Packet) {
-	seq := packet.SequenceNumber
+func (s *sendBuffer) add(packet *retainablePacket) {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	seq := packet.Header().SequenceNumber
 	if !s.started {
 		s.packets[seq%s.size] = packet
 		s.lastAdded = seq
@@ -52,15 +59,28 @@ func (s *sendBuffer) add(packet *rtp.Packet) {
 		return
 	} else if diff < uint16SizeHalf {
 		for i := s.lastAdded + 1; i != seq; i++ {
-			s.packets[i%s.size] = nil
+			idx := i % s.size
+			prevPacket := s.packets[idx]
+			if prevPacket != nil {
+				prevPacket.Release()
+			}
+			s.packets[idx] = nil
 		}
 	}
 
-	s.packets[seq%s.size] = packet
+	idx := seq % s.size
+	prevPacket := s.packets[idx]
+	if prevPacket != nil {
+		prevPacket.Release()
+	}
+	s.packets[idx] = packet
 	s.lastAdded = seq
 }
 
-func (s *sendBuffer) get(seq uint16) *rtp.Packet {
+func (s *sendBuffer) get(seq uint16) *retainablePacket {
+	s.m.RLock()
+	defer s.m.RUnlock()
+
 	diff := s.lastAdded - seq
 	if diff >= uint16SizeHalf {
 		return nil
@@ -70,5 +90,15 @@ func (s *sendBuffer) get(seq uint16) *rtp.Packet {
 		return nil
 	}
 
-	return s.packets[seq%s.size]
+	pkt := s.packets[seq%s.size]
+	if pkt != nil {
+		if pkt.Header().SequenceNumber != seq {
+			return nil
+		}
+		// already released
+		if err := pkt.Retain(); err != nil {
+			return nil
+		}
+	}
+	return pkt
 }

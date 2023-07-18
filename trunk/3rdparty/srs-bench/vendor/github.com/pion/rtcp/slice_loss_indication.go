@@ -30,8 +30,6 @@ type SliceLossIndication struct {
 	SLI []SLIEntry
 }
 
-var _ Packet = (*SliceLossIndication)(nil) // assert is a Packet
-
 const (
 	sliLength = 2
 	sliOffset = 8
