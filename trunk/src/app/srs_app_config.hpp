@@ -531,6 +531,8 @@ public:
     bool get_rtc_nack_enabled(std::string vhost);
     bool get_rtc_nack_no_copy(std::string vhost);
     bool get_rtc_twcc_enabled(std::string vhost);
+    int get_rtc_opus_bitrate(std::string vhost);
+    int get_rtc_aac_bitrate(std::string vhost);
 
 // vhost specified section
 public:
