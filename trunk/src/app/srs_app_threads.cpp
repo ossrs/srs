@@ -64,7 +64,6 @@ extern SrsStageManager* _srs_stages;
 extern SrsRtcBlackhole* _srs_blackhole;
 extern SrsResourceManager* _srs_rtc_manager;
 
-extern SrsResourceManager* _srs_rtc_manager;
 extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 #endif
 
