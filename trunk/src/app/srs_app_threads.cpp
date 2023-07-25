@@ -69,10 +69,6 @@ extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 
 #include <srs_protocol_kbps.hpp>
 
-extern SrsPps* _srs_pps_snack2;
-extern SrsPps* _srs_pps_snack3;
-extern SrsPps* _srs_pps_snack4;
-
 SrsPps* _srs_pps_aloss2 = NULL;
 
 extern SrsPps* _srs_pps_ids;
