@@ -681,6 +681,26 @@ srs_error_t SrsRtcPlayStream::cycle()
     }
 }
 
+srs_error_t SrsRtcPlayStream::send_rtcp_sr() {
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < (int)video_tracks_.size(); ++i) {
+        SrsRtcVideoSendTrack* track = video_tracks_.at(i);
+        if ((err = track->send_rtcp_sr()) != srs_success) {
+            return srs_error_wrap(err, "video send rtcp sr error track=%s", track->get_track_id().c_str());
+        }
+    }
+
+    for (int i = 0; i < (int)audio_tracks_.size(); ++i) {
+        SrsRtcAudioSendTrack* track = audio_tracks_.at(i);
+        if ((err = track->send_rtcp_sr()) != srs_success) {
+            return srs_error_wrap(err, "video send rtcp sr error track=%s", track->get_track_id().c_str());
+        }
+    }
+
+    return err;
+}
+
 srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket*& pkt)
 {
     srs_error_t err = srs_success;
@@ -924,6 +944,32 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
     }
 
     publisher->request_keyframe(ssrc, cid);
+
+    return err;
+}
+
+SrsRtcPlayRtcpTimer::SrsRtcPlayRtcpTimer(SrsRtcPlayStream* p) : p_(p)
+{
+    _srs_hybrid->timer1s()->subscribe(this);
+}
+
+SrsRtcPlayRtcpTimer::~SrsRtcPlayRtcpTimer()
+{
+    _srs_hybrid->timer1s()->unsubscribe(this);
+}
+
+srs_error_t SrsRtcPlayRtcpTimer::on_timer(srs_utime_t interval)
+{
+    srs_error_t err = srs_success;
+
+    if (!p_->is_started) {
+        return err;
+    }
+
+    if ((err = p_->send_rtcp_sr()) != srs_success) {
+        srs_warn("RR err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
 
     return err;
 }
