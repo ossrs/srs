@@ -69,7 +69,7 @@ SRS_LOG_LEVEL_V2=YES
 # Experts options.
 SRS_USE_SYS_SSL=NO # Use system ssl(-lssl) if required.
 SRS_VALGRIND=NO
-SRS_SANITIZER=NO
+SRS_SANITIZER=RESERVED
 SRS_SANITIZER_STATIC=NO
 SRS_SANITIZER_LOG=NO
 SRS_BUILD_TAG= # Set the object files tag name.
@@ -518,7 +518,7 @@ function apply_auto_options() {
 
     # Enable asan, but disable for Centos
     # @see https://github.com/ossrs/srs/issues/3347
-    if [[ $SRS_SANITIZER == NO && $OS_IS_CENTOS != YES ]]; then
+    if [[ $SRS_SANITIZER == RESERVED && $OS_IS_CENTOS != YES ]]; then
         echo "Enable asan by auto options."
         SRS_SANITIZER=YES
     fi
@@ -591,6 +591,8 @@ function apply_detail_options() {
     if [[ $SRS_HTTP_API == NO ]]; then SRS_HTTP_API=YES; echo -e "${YELLOW}[WARN] Always enable HTTP API.${BLACK}"; fi
     if [[ $SRS_HLS == NO ]]; then SRS_HLS=YES; echo -e "${YELLOW}[WARN] Always enable HLS.${BLACK}"; fi
     if [[ $SRS_DVR == NO ]]; then SRS_DVR=YES; echo -e "${YELLOW}[WARN] Always enable DVR.${BLACK}"; fi
+
+    if [[ $SRS_SANITIZER == RESERVED ]]; then SRS_SANITIZER == NO; fi
 }
 apply_detail_options
 
