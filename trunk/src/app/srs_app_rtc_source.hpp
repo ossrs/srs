@@ -706,6 +706,16 @@ public:
     virtual srs_error_t on_rtp(SrsRtpPacket* pkt) = 0;
     virtual srs_error_t on_rtcp(SrsRtpPacket* pkt) = 0;
     virtual srs_error_t on_recv_nack(const std::vector<uint16_t>& lost_seqs);
+public:
+    srs_error_t send_rtcp_sr();
+    void update_rtp_static(int64_t len, uint32_t rtp_ts);
+
+protected:
+    int64_t send_bytes_      = 0;
+    int64_t send_count_      = 0;
+    int64_t last_rtp_pkt_ts_ = 0;
+    int64_t last_rtp_ms_     = 0;
+    SrsNtp  last_sr_ntp_;
 };
 
 class SrsRtcAudioSendTrack : public SrsRtcSendTrack

@@ -2710,6 +2710,42 @@ void SrsRtcSendTrack::rebuild_packet(SrsRtpPacket* pkt)
     srs_info("RTC: Correct %s seq=%u/%u, ts=%u/%u", track_desc_->type_.c_str(), seq, pkt->header.get_sequence(), ts, pkt->header.get_timestamp());
 }
 
+srs_error_t SrsRtcSendTrack::send_rtcp_sr() {
+    srs_error_t err = srs_success;
+    SrsRtcpSR* video_sr = new SrsRtcpSR();
+    uint32_t ssrc = track_desc_->ssrc_;
+    int64_t now_ms = srs_get_system_time() / 1000;//ms
+    
+    last_sr_ntp_ = SrsNtp::from_time_ms(now_ms);
+
+    int64_t diff_ms = now_ms - last_rtp_ms_;
+    int64_t diff_ts = diff_ms * track_desc_->media_->sample_ / 1000;
+    int64_t video_rtp_ts = last_rtp_pkt_ts_ + diff_ts;
+
+    video_sr->set_ssrc(ssrc);
+    video_sr->set_ntp(last_sr_ntp_.ntp_);
+    video_sr->set_rtp_ts(video_rtp_ts);
+    video_sr->set_rtp_send_packets(send_count_);
+    video_sr->set_rtp_send_bytes(send_bytes_);
+   
+    char data[1500];
+    SrsBuffer buffer(data, sizeof(data));
+    video_sr->encode(&buffer);
+    delete video_sr;
+    
+    session_->send_rtcp(buffer.data(), buffer.size());
+
+   
+    return err;
+}
+
+void SrsRtcSendTrack::update_rtp_static(int64_t len, uint32_t rtp_ts) {
+    send_count_++;
+    send_bytes_ += len;
+    last_rtp_pkt_ts_ = rtp_ts;
+    last_rtp_ms_     = srs_get_system_time() / 1000;//ms
+}
+
 srs_error_t SrsRtcSendTrack::on_nack(SrsRtpPacket** ppkt)
 {
     srs_error_t err = srs_success;
@@ -2789,6 +2825,7 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket* pkt)
 
     // Rebuild the sequence number and timestamp of packet, see https://github.com/ossrs/srs/issues/3167
     rebuild_packet(pkt);
+    update_rtp_static(pkt->nb_bytes(), pkt->header.get_timestamp());
 
     if ((err = session_->do_send_packet(pkt)) != srs_success) {
         return srs_error_wrap(err, "raw send");
@@ -2839,6 +2876,7 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket* pkt)
 
     // Rebuild the sequence number and timestamp of packet, see https://github.com/ossrs/srs/issues/3167
     rebuild_packet(pkt);
+    update_rtp_static(pkt->nb_bytes(), pkt->header.get_timestamp());
 
     if ((err = session_->do_send_packet(pkt)) != srs_success) {
         return srs_error_wrap(err, "raw send");
