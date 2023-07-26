@@ -1413,7 +1413,7 @@ void SrsHls::hls_show_mux_log()
     // the run time is not equals to stream time,
     // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
     // it's ok.
-    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%dms, sno=%d, ts=%s, dur=%dms, dva=%dp",
+    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%lldms, sno=%d, ts=%s, dur=%dms, dva=%dp",
               pprint->age(), controller->sequence_no(), controller->ts_url().c_str(),
               srsu2msi(controller->duration()), controller->deviation());
 }
