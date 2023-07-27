@@ -7,7 +7,9 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
-
+* v6.0, 2023-07-27, Merge [#3611](https://github.com/ossrs/srs/pull/3611): Design and implement helm capabilities to streamline the deployment process of an SRS cluster.. v6.0.63 (#3611)
+* v6.0, 2023-07-27, Merge [#3703](https://github.com/ossrs/srs/pull/3703): The identifier "ShowCouroutines" needs to be modified to "ShowCoroutines" in order to rectify the typographical error.. v6.0.62 (#3703)
+* v6.0, 2023-07-26, Merge [#3699](https://github.com/ossrs/srs/pull/3699): Bugfix: Eliminate the redundant declaration of the _srs_rtc_manager variable.. v6.0.61 (#3699)
 * v6.0, 2023-07-21, Merge [#3695](https://github.com/ossrs/srs/pull/3695): API: Fix HTTPS callback issue using SNI in TLS client handshake. v6.0.61 (#3695)
 * v6.0, 2023-07-18, Merge [#3515](https://github.com/ossrs/srs/pull/3515): WebRTC: Support config the bitrate of transcoding AAC to Opus. v6.0.60 (#3515)
 * v6.0, 2023-07-09, Merge [#3615](https://github.com/ossrs/srs/pull/3615): Compile: Fix typo for 3rdparty. v6.0.59 (#3615)
@@ -74,7 +76,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
-
+* v5.0, 2023-07-26, Merge [#3699](https://github.com/ossrs/srs/pull/3699): Bugfix: Eliminate the redundant declaration of the _srs_rtc_manager variable.. v5.0.168 (#3699)
 * v5.0, 2023-07-21, Merge [#3695](https://github.com/ossrs/srs/pull/3695): API: Fix HTTPS callback issue using SNI in TLS client handshake. v5.0.168 (#3695)
 * v5.0, 2023-07-18, Merge [#3515](https://github.com/ossrs/srs/pull/3515): WebRTC: Support config the bitrate of transcoding AAC to Opus. v5.0.167 (#3515)
 * v5.0, 2023-07-09, Merge [#3615](https://github.com/ossrs/srs/pull/3615): Compile: Fix typo for 3rdparty. v5.0.166 (#3615)
@@ -233,7 +235,6 @@ The changelog for SRS.
 <a name="v4-changes"></a>
 
 ## SRS 4.0 Changelog
-
 * v4.0, 2023-07-21, Merge [#3695](https://github.com/ossrs/srs/pull/3695): API: Fix HTTPS callback issue using SNI in TLS client handshake. v4.0.270 (#3695)
 * v4.0, 2022-12-24, For [#296](https://github.com/ossrs/srs/issues/296): MP3: Fix bug for TS or HLS with mp3 codec. v4.0.269
 * v4.0, 2022-11-22, Pick [#3079](https://github.com/ossrs/srs/issues/3079): WebRTC: Fix no audio and video issue for Firefox. v4.0.268
@@ -476,7 +477,6 @@ The changelog for SRS.
 <a name="v3-changes"></a>
 
 ## SRS 3.0 Changelog
-
 * v3.0, 2021-05-12, Fix [#2311](https://github.com/ossrs/srs/issues/2311), Copy the request for stat client. 3.0.162
 * <strong>v3.0, 2021-04-28, [3.0 release5(3.0.161)](https://github.com/ossrs/srs/releases/tag/v3.0-r5) released. 122750 lines.</strong>
 * v3.0, 2021-04-28, Upgrade players. 3.0.161
@@ -681,7 +681,6 @@ The changelog for SRS.
 <a name="v2-changes"></a>
 
 ## SRS 2.0 Changelog
-
 * <strong>v2.0, 2020-01-25, [2.0 release8(2.0.272)](https://github.com/ossrs/srs/releases/tag/v2.0-r8) released. 87292 lines.</strong>
 * v2.0, 2020-01-08, Merge [#1554](https://github.com/ossrs/srs/issues/1554), support logrotate copytruncate. 2.0.272
 * v2.0, 2020-01-05, Merge [#1551](https://github.com/ossrs/srs/issues/1551), fix memory leak in RTSP stack. 2.0.270
