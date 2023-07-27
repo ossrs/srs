@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-07-27, Merge [#3611](https://github.com/ossrs/srs/pull/3611): Design and implement helm capabilities to streamline the deployment process of an SRS cluster.. v6.0.63 (#3611)
 * v6.0, 2023-07-27, Merge [#3703](https://github.com/ossrs/srs/pull/3703): The identifier "ShowCouroutines" needs to be modified to "ShowCoroutines" in order to rectify the typographical error.. v6.0.62 (#3703)
 * v6.0, 2023-07-26, Merge [#3699](https://github.com/ossrs/srs/pull/3699): Bugfix: Eliminate the redundant declaration of the _srs_rtc_manager variable.. v6.0.61 (#3699)
 * v6.0, 2023-07-21, Merge [#3695](https://github.com/ossrs/srs/pull/3695): API: Fix HTTPS callback issue using SNI in TLS client handshake. v6.0.61 (#3695)
