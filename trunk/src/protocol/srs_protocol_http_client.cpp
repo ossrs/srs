@@ -56,7 +56,7 @@ SrsSslClient::~SrsSslClient()
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-srs_error_t SrsSslClient::handshake()
+srs_error_t SrsSslClient::handshake(const std::string& host)
 {
     srs_error_t err = srs_success;
 
@@ -88,6 +88,10 @@ srs_error_t SrsSslClient::handshake()
     // SSL setup active, as client role.
     SSL_set_connect_state(ssl);
     SSL_set_mode(ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
+    // If the server address is not in IP address format, set the host in the Server Name Indication (SNI) field.
+    if (!srs_check_ip_addr_valid(host)) {
+        SSL_set_tlsext_host_name(ssl, host.c_str());
+    }
 
     // Send ClientHello.
     int r0 = SSL_do_handshake(ssl); int r1 = SSL_get_error(ssl, r0); ERR_clear_error();
@@ -468,7 +472,7 @@ srs_error_t SrsHttpClient::connect()
 
     srs_utime_t starttime = srs_update_system_time();
 
-    if ((err = ssl_transport->handshake()) != srs_success) {
+    if ((err = ssl_transport->handshake(host)) != srs_success) {
         disconnect();
         return srs_error_wrap(err, "http: ssl connect %s %s:%d to=%dms, rto=%dms",
             schema_.c_str(), host.c_str(), port, srsu2msi(timeout), srsu2msi(recv_timeout));
