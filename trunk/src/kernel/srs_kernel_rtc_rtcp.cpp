@@ -474,7 +474,6 @@ SrsRtcpRR::SrsRtcpRR(uint32_t sender_ssrc)
     header_.version = kRtcpVersion;
     header_.length = 7;
     ssrc_ = sender_ssrc;
-    memset((void*)&rb_, 0, sizeof(SrsRtcpRB));
 }
 
 SrsRtcpRR::~SrsRtcpRR()
@@ -484,82 +483,6 @@ SrsRtcpRR::~SrsRtcpRR()
 uint8_t SrsRtcpRR::type() const
 {
     return SrsRtcpType_rr;
-}
-
-uint32_t SrsRtcpRR::get_rb_ssrc() const
-{
-    return rb_.ssrc;
-}
-
-float SrsRtcpRR::get_lost_rate() const
-{
-    return rb_.fraction_lost / 256;
-}
-
-uint32_t SrsRtcpRR::get_lost_packets() const
-{
-    return rb_.lost_packets;
-}
-
-uint32_t SrsRtcpRR::get_highest_sn() const
-{
-    return rb_.highest_sn;
-}
-
-uint32_t SrsRtcpRR::get_jitter() const
-{
-    return rb_.jitter;
-}
-
-uint32_t SrsRtcpRR::get_lsr() const
-{
-    return rb_.lsr;
-}
-
-uint32_t SrsRtcpRR::get_dlsr() const
-{
-    return rb_.dlsr;
-}
-
-void SrsRtcpRR::set_rb_ssrc(uint32_t ssrc)
-{
-    rb_.ssrc = ssrc;
-}
-
-void SrsRtcpRR::set_lost_rate(float rate)
-{
-    rb_.fraction_lost = rate * 256;
-}
-
-void SrsRtcpRR::set_lost_packets(uint32_t count)
-{
-    rb_.lost_packets = count;
-}
-
-void SrsRtcpRR::set_highest_sn(uint32_t sn)
-{
-    rb_.highest_sn = sn;
-}
-
-void SrsRtcpRR::set_jitter(uint32_t jitter)
-{
-    rb_.jitter = jitter;
-}
-
-void SrsRtcpRR::set_lsr(uint32_t lsr)
-{
-    rb_.lsr = lsr;
-}
-
-void SrsRtcpRR::set_dlsr(uint32_t dlsr)
-{
-    rb_.dlsr = dlsr;
-}
-
-void SrsRtcpRR::set_sender_ntp(uint64_t ntp)
-{
-    uint32_t lsr = (uint32_t)((ntp >> 16) & 0x00000000FFFFFFFF);
-    rb_.lsr = lsr;
 }
 
 srs_error_t SrsRtcpRR::decode(SrsBuffer *buffer)
@@ -609,19 +532,17 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         return srs_error_new(ERROR_RTC_RTCP_EMPTY_RR, "rc=0");
     }
 
-    // TODO: FIXME: Security check for read.
-    rb_.ssrc = buffer->read_4bytes();
-    rb_.fraction_lost = buffer->read_1bytes();
-    rb_.lost_packets = buffer->read_3bytes();
-    rb_.highest_sn = buffer->read_4bytes();
-    rb_.jitter = buffer->read_4bytes();
-    rb_.lsr = buffer->read_4bytes();
-    rb_.dlsr = buffer->read_4bytes();
+    while(buffer->require(24)) {
+        SrsRtcpRB rb;
+        rb.ssrc = buffer->read_4bytes();
+        rb.fraction_lost = buffer->read_1bytes();
+        rb.lost_packets = buffer->read_3bytes();
+        rb.highest_sn = buffer->read_4bytes();
+        rb.jitter = buffer->read_4bytes();
+        rb.lsr = buffer->read_4bytes();
+        rb.dlsr = buffer->read_4bytes();
 
-    // TODO: FIXME: Security check for read.
-    if(header_.rc > 1) {
-        char buf[1500];
-        buffer->read_bytes(buf, (header_.rc -1 ) * 24);
+        rr_blocks_.push_back(rb);
     }
 
     return err;
@@ -674,13 +595,15 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         return srs_error_wrap(err, "encode header");
     }
     
-    buffer->write_4bytes(rb_.ssrc);
-    buffer->write_1bytes(rb_.fraction_lost);
-    buffer->write_3bytes(rb_.lost_packets);
-    buffer->write_4bytes(rb_.highest_sn);
-    buffer->write_4bytes(rb_.jitter);
-    buffer->write_4bytes(rb_.lsr);
-    buffer->write_4bytes(rb_.dlsr);
+    for (SrsRtcpRB& rb : this->rr_blocks_) {
+        buffer->write_4bytes(rb.ssrc);
+        buffer->write_1bytes(rb.fraction_lost);
+        buffer->write_3bytes(rb.lost_packets);
+        buffer->write_4bytes(rb.highest_sn);
+        buffer->write_4bytes(rb.jitter);
+        buffer->write_4bytes(rb.lsr);
+        buffer->write_4bytes(rb.dlsr);
+    }
 
     return err;
 }

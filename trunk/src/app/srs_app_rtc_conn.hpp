@@ -276,7 +276,7 @@ private:
     srs_error_t on_rtcp_xr(SrsRtcpXr* rtcp);
     srs_error_t on_rtcp_nack(SrsRtcpNack* rtcp);
     srs_error_t on_rtcp_ps_feedback(SrsRtcpFbCommon* rtcp);
-    srs_error_t on_rtcp_rr(SrsRtcpRR* rtcp);
+    srs_error_t on_rtcp_rr(SrsRtcpRR* rtcp, int64_t now_ms);
     uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
 // Interface ISrsRtcPLIWorkerHandler
 public:

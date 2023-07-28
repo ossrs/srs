@@ -438,6 +438,8 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 
     cache_ssrc0_ = cache_ssrc1_ = cache_ssrc2_ = 0;
     cache_track0_ = cache_track1_ = cache_track2_ = NULL;
+    
+    timer_rtcp_ = new SrsRtcPlayRtcpTimer(this);
 }
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
@@ -448,6 +450,9 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
 
     _srs_config->unsubscribe(this);
 
+    if (timer_rtcp_) {
+        srs_freep(timer_rtcp_);
+    }
     srs_freep(nack_epp);
     srs_freep(pli_worker_);
     srs_freep(trd_);
@@ -684,15 +689,15 @@ srs_error_t SrsRtcPlayStream::cycle()
 srs_error_t SrsRtcPlayStream::send_rtcp_sr() {
     srs_error_t err = srs_success;
 
-    for (int i = 0; i < (int)video_tracks_.size(); ++i) {
-        SrsRtcVideoSendTrack* track = video_tracks_.at(i);
+    for (auto& item : video_tracks_) {
+        SrsRtcVideoSendTrack* track = item.second;
         if ((err = track->send_rtcp_sr()) != srs_success) {
             return srs_error_wrap(err, "video send rtcp sr error track=%s", track->get_track_id().c_str());
         }
     }
 
-    for (int i = 0; i < (int)audio_tracks_.size(); ++i) {
-        SrsRtcAudioSendTrack* track = audio_tracks_.at(i);
+    for (auto& item : audio_tracks_) {
+        SrsRtcAudioSendTrack* track = item.second;
         if ((err = track->send_rtcp_sr()) != srs_success) {
             return srs_error_wrap(err, "video send rtcp sr error track=%s", track->get_track_id().c_str());
         }
@@ -799,8 +804,9 @@ void SrsRtcPlayStream::set_all_tracks_status(bool status)
 srs_error_t SrsRtcPlayStream::on_rtcp(SrsRtcpCommon* rtcp)
 {
     if(SrsRtcpType_rr == rtcp->type()) {
+        int64_t now_ms = srs_update_system_time()/1000;
         SrsRtcpRR* rr = dynamic_cast<SrsRtcpRR*>(rtcp);
-        return on_rtcp_rr(rr);
+        return on_rtcp_rr(rr, now_ms);
     } else if(SrsRtcpType_rtpfb == rtcp->type()) {
         //currently rtpfb of nack will be handle by player. TWCC will be handled by SrsRtcConnection
         SrsRtcpNack* nack = dynamic_cast<SrsRtcpNack*>(rtcp);
@@ -819,12 +825,29 @@ srs_error_t SrsRtcPlayStream::on_rtcp(SrsRtcpCommon* rtcp)
     }
 }
 
-srs_error_t SrsRtcPlayStream::on_rtcp_rr(SrsRtcpRR* rtcp)
+srs_error_t SrsRtcPlayStream::on_rtcp_rr(SrsRtcpRR* rtcp, int64_t now_ms)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Implements it.
+    //srs_trace("receive rtcp rr block count:%lu", rtcp->rr_blocks_.size());
+    for (SrsRtcpRB& rb : rtcp->rr_blocks_) {
+        uint32_t ssrc = rb.ssrc;
 
+        for(auto item : audio_tracks_) {
+            if(ssrc == item.second->track_desc_->ssrc_) {
+                item.second->handle_rtcp_rr(rb, now_ms);
+                return err;
+            }
+        }
+
+        for(auto item : video_tracks_) {
+            if(ssrc == item.second->track_desc_->ssrc_) {
+                item.second->handle_rtcp_rr(rb, now_ms);
+                return err;
+            }
+        }
+        srs_warn("rtcp rr find to find track by ssrc:%u", ssrc);
+    }
     return err;
 }
 
@@ -1344,15 +1367,15 @@ srs_error_t SrsRtcPublishStream::send_rtcp_rr()
 {
     srs_error_t err = srs_success;
 
-    for (int i = 0; i < (int)video_tracks_.size(); ++i) {
-        SrsRtcVideoRecvTrack* track = video_tracks_.at(i);
+    for (auto& item : video_tracks_) {
+        SrsRtcVideoRecvTrack* track = item;
         if ((err = track->send_rtcp_rr()) != srs_success) {
             return srs_error_wrap(err, "track=%s", track->get_track_id().c_str());
         }
     }
 
-    for (int i = 0; i < (int)audio_tracks_.size(); ++i) {
-        SrsRtcAudioRecvTrack* track = audio_tracks_.at(i);
+    for (auto& item : audio_tracks_) {
+        SrsRtcAudioRecvTrack* track = item;
         if ((err = track->send_rtcp_rr()) != srs_success) {
             return srs_error_wrap(err, "track=%s", track->get_track_id().c_str());
         }
@@ -2125,8 +2148,13 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
     // Ignore special packet.
     if (SrsRtcpType_rr == rtcp->type()) {
         SrsRtcpRR* rr = dynamic_cast<SrsRtcpRR*>(rtcp);
-        if (rr->get_rb_ssrc() == 0) { //for native client
+        if (rr->rr_blocks_.empty()) { //for native client
             return err;
+        }
+        for (auto& rb : rr->rr_blocks_) {
+            if (rb.ssrc == 0) {
+                return err;
+            }
         }
     }
 
@@ -2137,7 +2165,14 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
         required_publisher_ssrc = rtcp->get_ssrc();
     } else if (SrsRtcpType_rr == rtcp->type()) {
         SrsRtcpRR* rr = dynamic_cast<SrsRtcpRR*>(rtcp);
-        required_player_ssrc = rr->get_rb_ssrc();
+        for(auto& rb : rr->rr_blocks_) {
+            uint32_t ssrc = rb.ssrc;
+            auto it = players_ssrc_map_.find(ssrc);
+            if (it != players_ssrc_map_.end()) {
+                it->second->on_rtcp(rtcp);
+                break;
+            }
+        }
     } else if (SrsRtcpType_rtpfb == rtcp->type()) {
         if(1 == rtcp->get_rc()) {
             SrsRtcpNack* nack = dynamic_cast<SrsRtcpNack*>(rtcp);
