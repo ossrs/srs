@@ -22,6 +22,7 @@
 #include <srs_app_hourglass.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_app_stream_bridge.hpp>
+#include <srs_kernel_rtc_rtcp.hpp>
 
 class SrsRequest;
 class SrsMetaCache;
@@ -685,6 +686,13 @@ private:
     bool nack_no_copy_;
     // The pithy print for special stage.
     SrsErrorPithyPrint* nack_epp;
+private:
+    //for rtcp rr
+    int64_t jitter_;
+    float lost_rate_;
+    int64_t lost_total_;
+    float rtt_;
+    float avg_rtt_;
 public:
     SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio);
     virtual ~SrsRtcSendTrack();
@@ -709,12 +717,15 @@ public:
 public:
     srs_error_t send_rtcp_sr();
     void update_rtp_static(int64_t len, uint32_t rtp_ts);
-
+public:
+    srs_error_t handle_rtcp_rr(const SrsRtcpRB& rb, int64_t now_ms);
 protected:
     int64_t send_bytes_      = 0;
     int64_t send_count_      = 0;
     int64_t last_rtp_pkt_ts_ = 0;
     int64_t last_rtp_ms_     = 0;
+    int64_t last_sr_         = 0;//for debug
+    int64_t last_ms_         = 0;//for debug
     SrsNtp  last_sr_ntp_;
 };
 

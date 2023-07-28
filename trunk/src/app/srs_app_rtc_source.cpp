@@ -2638,6 +2638,13 @@ SrsRtcSendTrack::SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
     }
 
     nack_epp = new SrsErrorPithyPrint();
+
+    //for rtcp rr
+    lost_total_ = 0;
+    jitter_     = 0;
+    lost_rate_  = 0.0;
+    rtt_        = 0.0;
+    avg_rtt_    = 10.0;
 }
 
 SrsRtcSendTrack::~SrsRtcSendTrack()
@@ -2712,30 +2719,34 @@ void SrsRtcSendTrack::rebuild_packet(SrsRtpPacket* pkt)
 
 srs_error_t SrsRtcSendTrack::send_rtcp_sr() {
     srs_error_t err = srs_success;
-    SrsRtcpSR* video_sr = new SrsRtcpSR();
+    SrsRtcpSR* sr = new SrsRtcpSR();
     uint32_t ssrc = track_desc_->ssrc_;
-    int64_t now_ms = srs_get_system_time() / 1000;//ms
+    int64_t now_ms = srs_update_system_time()/1000;
     
     last_sr_ntp_ = SrsNtp::from_time_ms(now_ms);
-
+    int64_t current_sr = ((last_sr_ntp_.ntp_second_ & 0xffff) << 16) | (last_sr_ntp_.ntp_fractions_ & 0xffff);
     int64_t diff_ms = now_ms - last_rtp_ms_;
     int64_t diff_ts = diff_ms * track_desc_->media_->sample_ / 1000;
     int64_t video_rtp_ts = last_rtp_pkt_ts_ + diff_ts;
 
-    video_sr->set_ssrc(ssrc);
-    video_sr->set_ntp(last_sr_ntp_.ntp_);
-    video_sr->set_rtp_ts(video_rtp_ts);
-    video_sr->set_rtp_send_packets(send_count_);
-    video_sr->set_rtp_send_bytes(send_bytes_);
+    //srs_trace("send rtcp sr ssrc:%u, current_sr:%ld, last_sr:%ld, diff:%ld", ssrc, current_sr, last_sr_, current_sr - last_sr_);
+    //srs_trace("send rtcp sr ssrc:%u, current ms:%ld, last ms:%ld, diff:%ld", ssrc, now_ms, last_ms_, now_ms - last_ms_);
+    last_sr_ = current_sr;
+    last_ms_ = now_ms;
+    sr->set_ssrc(ssrc);
+    sr->set_ntp(last_sr_ntp_.ntp_);
+    sr->set_rtp_ts(video_rtp_ts);
+    sr->set_rtp_send_packets(send_count_);
+    sr->set_rtp_send_bytes(send_bytes_);
    
     char data[1500];
-    SrsBuffer buffer(data, sizeof(data));
-    video_sr->encode(&buffer);
-    delete video_sr;
-    
+    SrsBuffer buffer(data, sr->nb_bytes());
+    sr->encode(&buffer);
+    delete sr;
+    sr = nullptr;
+
     session_->send_rtcp(buffer.data(), buffer.size());
 
-   
     return err;
 }
 
@@ -2744,6 +2755,34 @@ void SrsRtcSendTrack::update_rtp_static(int64_t len, uint32_t rtp_ts) {
     send_bytes_ += len;
     last_rtp_pkt_ts_ = rtp_ts;
     last_rtp_ms_     = srs_get_system_time() / 1000;//ms
+}
+
+srs_error_t SrsRtcSendTrack::handle_rtcp_rr(const SrsRtcpRB& rb, int64_t now_ms) {
+    jitter_     = rb.jitter;
+    lost_rate_  = rb.fraction_lost / 256.0;
+    lost_total_ = rb.lost_packets;
+
+    int64_t lsr  = rb.lsr;
+    int64_t dlsr = rb.dlsr;
+
+    SrsNtp now_ntp = SrsNtp::from_time_ms(now_ms);
+
+    uint32_t compact_ntp = (now_ntp.ntp_second_ & 0x0000FFFF) << 16;
+    compact_ntp |= (now_ntp.ntp_fractions_ & 0xFFFF0000) >> 16;
+
+    uint32_t rtt = 0;
+    if (lsr && dlsr && (compact_ntp > dlsr + lsr)) {
+        rtt = compact_ntp - dlsr - lsr;
+    }
+    //srs_trace("hand rtcp rr ssrc:%u, compact ntp:%lu, dlsr:%u, lsr:%u",
+    //        rb.ssrc, compact_ntp, dlsr, lsr);
+    rtt_ = static_cast<float>(rtt >> 16) * 1000.0;
+    rtt_ += (static_cast<float>(rtt & 0x0000FFFF) / 65536.0) * 1000.0;
+
+    avg_rtt_ += (rtt_ - avg_rtt_) / 4.0;
+    //srs_trace("handle rtcp rr ssrc:%u, lost total:%u, lost rate:%.03f, jitter:%u, rtt_:%.02f, avg rtt:%.02f",
+    //        rb.ssrc, lost_total_, lost_rate_, jitter_, rtt_, avg_rtt_);
+    return srs_success;
 }
 
 srs_error_t SrsRtcSendTrack::on_nack(SrsRtpPacket** ppkt)
