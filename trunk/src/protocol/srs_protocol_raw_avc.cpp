@@ -382,7 +382,7 @@ srs_error_t SrsRawHEVCStream::pps_demux(char *frame, int nb_frame, std::string &
     return err;
 }
 
-srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string sps, std::string pps, std::string &hvcC)
+srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string sps, std::vector<std::string> *pps, std::string &hvcC)
 {
     srs_error_t err = srs_success;
 
@@ -400,7 +400,16 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
     //      sequenceParameterSetNALUnit
 
     // use simple mode: nalu size + nalu data
-    int nb_packet = 23 + 5 + (int)vps.length() + 5 + (int)sps.length() + 5 + (int)pps.length();
+    /**/
+	int nPPSSize = 0;
+	for (auto stl_VectorIterator = pps->begin(); stl_VectorIterator != pps->end(); stl_VectorIterator++)
+	{
+		nPPSSize += stl_VectorIterator->length();
+        nPPSSize += 2;
+	}
+    int nb_packet = 23 + 5 + (int)vps.length() + 5 + (int)sps.length() + 5 + (int)nPPSSize - 2;
+    
+    //int nb_packet = 23 + 5 + (int)vps.length() + 5 + (int)sps.length() + 5 + (int)pps->front().length();
     char *packet = new char[nb_packet];
     SrsAutoFreeA(char, packet);
 
@@ -496,11 +505,21 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
         // nal_type
         stream.write_1bytes(SrsHevcNaluType_PPS & 0x3f);
         // numOfPictureParameterSets, always 1
-        stream.write_2bytes(0x01);
-        // pictureParameterSetLength
-        stream.write_2bytes((int16_t)pps.length());
-        // pictureParameterSetNALUnit
-        stream.write_string(pps);
+         /*
+		stream.write_2bytes(0x01);
+		// pictureParameterSetLength
+		stream.write_2bytes((int16_t)pps->front().length());
+		// pictureParameterSetNALUnit
+		stream.write_string(pps->front());
+		*/
+		stream.write_2bytes(pps->size());
+		//pictureParameterSetLength
+		for (auto stl_VecIterator = pps->begin(); stl_VecIterator != pps->end(); stl_VecIterator++)
+		{
+			stream.write_2bytes((int16_t)stl_VecIterator->length());
+			// pictureParameterSetNALUnit
+			stream.write_string(*stl_VecIterator);
+		}
     }
 
     hvcC = string(packet, nb_packet);

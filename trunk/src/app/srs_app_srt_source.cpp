@@ -538,6 +538,7 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
     SrsRawHEVCStream *hevc = new SrsRawHEVCStream();
     SrsAutoFree(SrsRawHEVCStream, hevc);
 
+    hevc_pps_.clear();
     // send each frame.
     while (!avs->empty()) {
         char* frame = NULL;
@@ -586,12 +587,11 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
             if ((err = hevc->pps_demux(frame, frame_size, pps)) != srs_success) {
                 return srs_error_wrap(err, "demux pps");
             }
-
-            if (! pps.empty() && hevc_pps_ != pps) {
+            if (! pps.empty()) {
                 vps_sps_pps_change_ = true;
             }
-
-            hevc_pps_ = pps;
+            //hevc_pps_ = = pps;
+            hevc_pps_.push_back(pps);
             continue;
         }
 
@@ -627,7 +627,7 @@ srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage* msg)
     SrsRawHEVCStream* hevc = new SrsRawHEVCStream();
     SrsAutoFree(SrsRawHEVCStream, hevc);
 
-    if ((err = hevc->mux_sequence_header(hevc_vps_, hevc_sps_, hevc_pps_, sh)) != srs_success) {
+    if ((err = hevc->mux_sequence_header(hevc_vps_, hevc_sps_, &hevc_pps_, sh)) != srs_success) {
         return srs_error_wrap(err, "mux sequence header");
     }
 
