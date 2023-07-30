@@ -2774,14 +2774,14 @@ srs_error_t SrsRtcSendTrack::handle_rtcp_rr(const SrsRtcpRB& rb, int64_t now_ms)
     if (lsr && dlsr && (compact_ntp > dlsr + lsr)) {
         rtt = compact_ntp - dlsr - lsr;
     }
-    //srs_trace("hand rtcp rr ssrc:%u, compact ntp:%lu, dlsr:%u, lsr:%u",
-    //        rb.ssrc, compact_ntp, dlsr, lsr);
+    srs_info("hand rtcp rr ssrc:%u, compact ntp:%lu, dlsr:%u, lsr:%u",
+            rb.ssrc, compact_ntp, dlsr, lsr);
     rtt_ = static_cast<float>(rtt >> 16) * 1000.0;
     rtt_ += (static_cast<float>(rtt & 0x0000FFFF) / 65536.0) * 1000.0;
 
     avg_rtt_ += (rtt_ - avg_rtt_) / 4.0;
-    //srs_trace("handle rtcp rr ssrc:%u, lost total:%u, lost rate:%.03f, jitter:%u, rtt_:%.02f, avg rtt:%.02f",
-    //        rb.ssrc, lost_total_, lost_rate_, jitter_, rtt_, avg_rtt_);
+    srs_info("handle rtcp rr ssrc:%u, lost total:%u, lost rate:%.03f, jitter:%u, rtt_:%.02f, avg rtt:%.02f",
+            rb.ssrc, lost_total_, lost_rate_, jitter_, rtt_, avg_rtt_);
     return srs_success;
 }
 
