@@ -2736,12 +2736,11 @@ void SrsRtcSendTrack::rebuild_packet(SrsRtpPacket* pkt)
     srs_info("RTC: Correct %s seq=%u/%u, ts=%u/%u", track_desc_->type_.c_str(), seq, pkt->header.get_sequence(), ts, pkt->header.get_timestamp());
 }
 
-srs_error_t SrsRtcSendTrack::send_rtcp_sr() {
+srs_error_t SrsRtcSendTrack::send_rtcp_sr(int64_t now_ms) {
     srs_error_t err = srs_success;
     SrsRtcpSR* sr = new SrsRtcpSR();
     uint32_t ssrc = track_desc_->ssrc_;
-    int64_t now_ms = srs_update_system_time()/1000;
-    
+
     last_sr_ntp_ = SrsNtp::from_time_ms(now_ms);
     int64_t current_sr = ((last_sr_ntp_.ntp_second_ & 0xffff) << 16) | (last_sr_ntp_.ntp_fractions_ & 0xffff);
     int64_t diff_ms = now_ms - last_rtp_ms_;

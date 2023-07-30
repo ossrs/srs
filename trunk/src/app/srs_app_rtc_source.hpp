@@ -715,7 +715,7 @@ public:
     virtual srs_error_t on_rtcp(SrsRtpPacket* pkt) = 0;
     virtual srs_error_t on_recv_nack(const std::vector<uint16_t>& lost_seqs);
 public:
-    srs_error_t send_rtcp_sr();
+    srs_error_t send_rtcp_sr(int64_t now_ms);
     void update_rtp_static(int64_t len, uint32_t rtp_ts);
 public:
     srs_error_t handle_rtcp_rr(const SrsRtcpRB& rb, int64_t now_ms);

@@ -686,13 +686,13 @@ srs_error_t SrsRtcPlayStream::cycle()
     }
 }
 
-srs_error_t SrsRtcPlayStream::send_rtcp_sr() {
+srs_error_t SrsRtcPlayStream::send_rtcp_sr(int64_t now_ms) {
     srs_error_t err = srs_success;
     for(std::map<uint32_t, SrsRtcVideoSendTrack*>::iterator iter = video_tracks_.begin();
         iter != video_tracks_.end();
         iter++) {
         SrsRtcVideoSendTrack* track = iter->second;
-        if ((err = track->send_rtcp_sr()) != srs_success) {
+        if ((err = track->send_rtcp_sr(now_ms)) != srs_success) {
             return srs_error_wrap(err, "video send rtcp sr error track=%s", track->get_track_id().c_str());
         }
     }
@@ -701,7 +701,7 @@ srs_error_t SrsRtcPlayStream::send_rtcp_sr() {
         iter != audio_tracks_.end();
         iter++) {
         SrsRtcAudioSendTrack* track = iter->second;
-        if ((err = track->send_rtcp_sr()) != srs_success) {
+        if ((err = track->send_rtcp_sr(now_ms)) != srs_success) {
             return srs_error_wrap(err, "audiosend rtcp sr error track=%s", track->get_track_id().c_str());
         }
     }
@@ -842,8 +842,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp_rr(SrsRtcpRR* rtcp, int64_t now_ms)
             audio_iter != audio_tracks_.end();
             audio_iter++) {
             if(ssrc == audio_iter->second->track_desc_->ssrc_) {
-                audio_iter->second->handle_rtcp_rr(rb, now_ms);
-                return err;
+                return audio_iter->second->handle_rtcp_rr(rb, now_ms);
             }
         }
 
@@ -851,8 +850,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp_rr(SrsRtcpRR* rtcp, int64_t now_ms)
             video_iter != video_tracks_.end();
             video_iter++) {
             if(ssrc == video_iter->second->track_desc_->ssrc_) {
-                video_iter->second->handle_rtcp_rr(rb, now_ms);
-                return err;
+                return video_iter->second->handle_rtcp_rr(rb, now_ms);
             }
         }
         srs_warn("rtcp rr find to find track by ssrc:%u", ssrc);
@@ -998,7 +996,8 @@ srs_error_t SrsRtcPlayRtcpTimer::on_timer(srs_utime_t interval)
         return err;
     }
 
-    if ((err = p_->send_rtcp_sr()) != srs_success) {
+    int64_t now_ms = srs_update_system_time();
+    if ((err = p_->send_rtcp_sr(now_ms)) != srs_success) {
         srs_warn("RR err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }

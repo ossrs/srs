@@ -264,7 +264,7 @@ public:
 public:
     virtual srs_error_t cycle();
 public:
-    srs_error_t send_rtcp_sr();
+    srs_error_t send_rtcp_sr(int64_t now_ms);
 private:
     srs_error_t send_packet(SrsRtpPacket*& pkt);
 public:
