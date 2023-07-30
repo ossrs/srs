@@ -2773,7 +2773,7 @@ void SrsRtcSendTrack::update_rtp_static(int64_t len, uint32_t rtp_ts) {
     send_count_++;
     send_bytes_ += len;
     last_rtp_pkt_ts_ = rtp_ts;
-    last_rtp_ms_     = srs_get_system_time() / 1000;//ms
+    last_rtp_ms_     = srs_update_system_time() / 1000;//ms
 }
 
 srs_error_t SrsRtcSendTrack::handle_rtcp_rr(const SrsRtcpRB& rb, int64_t now_ms) {
