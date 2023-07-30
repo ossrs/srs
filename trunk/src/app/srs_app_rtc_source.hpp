@@ -700,7 +700,7 @@ public:
     // SrsRtcSendTrack::set_nack_no_copy
     void set_nack_no_copy(bool v) { nack_no_copy_ = v; }
     bool has_ssrc(uint32_t ssrc);
-    SrsRtpPacket* fetch_rtp_packet(uint16_t seq);
+    SrsRtpPacket* fetch_rtp_packet(uint16_t seq, int64_t now_ms);
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();

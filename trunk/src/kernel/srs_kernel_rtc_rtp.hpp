@@ -292,6 +292,10 @@ public:
     SrsAvcNaluType nalu_type;
     // The frame type, for RTMP bridge or SFU source.
     SrsFrameType frame_type;
+//Rtp resend for rtcp nack
+public:
+    int resend_count_;
+    int64_t resend_ms_;
 // Fast cache for performance.
 private:
     // The cached payload size for packet.

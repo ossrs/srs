@@ -2661,9 +2661,10 @@ bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
     return track_desc_->has_ssrc(ssrc);
 }
 
-SrsRtpPacket* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
+SrsRtpPacket* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq, int64_t now_ms)
 {
     SrsRtpPacket* pkt = rtp_queue_->at(seq);
+    const int RESEND_MAX = 20;
 
     if (pkt == NULL) {
         return pkt;
@@ -2673,6 +2674,24 @@ SrsRtpPacket* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
     // Return packet only when sequence is equal.
     if (pkt->header.get_sequence() == seq) {
         ++_srs_pps_rhnack->sugar;
+
+        if ((pkt->resend_ms_ <= 0) || (pkt->resend_count_ == 0)) {
+            pkt->resend_ms_ = now_ms;
+            pkt->resend_count_++;
+        } else {
+            int64_t diff_t = now_ms - pkt->resend_ms_;
+            int64_t interval = (int64_t)avg_rtt_;
+            interval = (interval > 10) ? (interval - 10) : interval;//for resend interval Residual
+            if (diff_t < (int64_t)interval) {
+                return NULL;
+            }
+            if (pkt->resend_count_ > RESEND_MAX) {
+                srs_warn("the rtp packet(seq=%d) resend count(%d) is too many", seq, pkt->resend_count_);
+                return NULL;
+            }
+            pkt->resend_ms_ = now_ms;
+            pkt->resend_count_++;
+        }
         return pkt;
     }
     ++_srs_pps_rmnack->sugar;
@@ -2807,12 +2826,13 @@ srs_error_t SrsRtcSendTrack::on_nack(SrsRtpPacket** ppkt)
 srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t>& lost_seqs)
 {
     srs_error_t err = srs_success;
+    int64_t now_ms = srs_update_system_time();
 
     ++_srs_pps_rnack2->sugar;
 
     for(int i = 0; i < (int)lost_seqs.size(); ++i) {
         uint16_t seq = lost_seqs.at(i);
-        SrsRtpPacket* pkt = fetch_rtp_packet(seq);
+        SrsRtpPacket* pkt = fetch_rtp_packet(seq, now_ms);
         if (pkt == NULL) {
             continue;
         }
