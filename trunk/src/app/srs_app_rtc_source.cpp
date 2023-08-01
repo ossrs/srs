@@ -2761,7 +2761,7 @@ srs_error_t SrsRtcSendTrack::send_rtcp_sr(int64_t now_ms) {
     SrsBuffer buffer(data, sr->nb_bytes());
     sr->encode(&buffer);
     delete sr;
-    sr = nullptr;
+    sr = NULL;
 
     session_->send_rtcp(buffer.data(), buffer.size());
 

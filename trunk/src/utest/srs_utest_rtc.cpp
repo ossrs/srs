@@ -720,15 +720,16 @@ VOID TEST(KernelRTCTest, NACKFetchRTPPacket)
         track->rtp_queue_->set(pkt->header.get_sequence(), pkt);
     }
 
+    int64_t now_ms = srs_update_system_time();
     // If sequence not match, packet not found.
     if (true) {
-        SrsRtpPacket* pkt = track->fetch_rtp_packet(10);
+        SrsRtpPacket* pkt = track->fetch_rtp_packet(10, now_ms);
         EXPECT_TRUE(pkt == NULL);
     }
 
     // The sequence matched, we got the packet.
     if (true) {
-        SrsRtpPacket* pkt = track->fetch_rtp_packet(100);
+        SrsRtpPacket* pkt = track->fetch_rtp_packet(100, now_ms);
         EXPECT_TRUE(pkt != NULL);
     }
 
@@ -740,7 +741,7 @@ VOID TEST(KernelRTCTest, NACKFetchRTPPacket)
         EXPECT_TRUE(pkt != NULL);
 
         // But the track requires exactly match, so it returns NULL.
-        pkt = track->fetch_rtp_packet(1100);
+        pkt = track->fetch_rtp_packet(1100, now_ms);
         EXPECT_TRUE(pkt == NULL);
     }
 }
