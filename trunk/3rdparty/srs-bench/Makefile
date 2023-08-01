@@ -11,7 +11,7 @@ clean:
 	gofmt -w *.go janus
 	mkdir -p objs && echo "done" > ./objs/.format.bench.txt
 
-bench: ./objs/srs_bench
+bench: ./objs/srs_bench ./objs/pcap_simulator
 
 ./objs/srs_bench: ./objs/.format.bench.txt *.go janus/*.go srs/*.go vnet/*.go gb28181/*.go Makefile
 	go build -mod=vendor -o objs/srs_bench .
@@ -28,6 +28,15 @@ test: ./objs/srs_test ./objs/srs_gb28181_test ./objs/srs_blackbox_test
 
 ./objs/srs_test: ./objs/.format.srs.txt *.go srs/*.go vnet/*.go Makefile
 	go test ./srs -mod=vendor -c -o ./objs/srs_test
+
+#########################################################################################################
+# For pcap simulator test.
+./objs/.format.pcap.txt: pcap/*.go
+	gofmt -w pcap
+	mkdir -p objs && echo "done" > ./objs/.format.pcap.txt
+
+./objs/pcap_simulator: ./objs/.format.pcap.txt pcap/*.go Makefile
+	go build -mod=vendor -o ./objs/pcap_simulator ./pcap
 
 #########################################################################################################
 # For gb28181 test.

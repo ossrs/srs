@@ -9,8 +9,10 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_rtc_rtcp.hpp>
-#include <srs_app_gb28181.hpp>
 #include <srs_app_utility.hpp>
+
+#include <sys/types.h>
+#include <sys/mman.h>
 
 VOID TEST(KernelPSTest, PsPacketDecodeNormal)
 {
@@ -483,3 +485,83 @@ VOID TEST(KernelRTMPExtTest, ExtRTMPTest)
     }
 }
 
+class MockProtectedBuffer
+{
+public:
+    int size_;
+    char* data_;
+    char* p_;
+    MockProtectedBuffer() : size_(0), data_(NULL) {
+    }
+    virtual ~MockProtectedBuffer() {
+        if (size_ && data_) {
+            long page_size = sysconf(_SC_PAGESIZE);
+            munmap(data_, page_size * 2);
+        }
+    }
+    int alloc(int size) {
+        srs_assert(!data_);
+
+        long page_size = sysconf(_SC_PAGESIZE);
+        srs_assert(size < page_size);
+
+        char* data = (char*)mmap(NULL, page_size * 2, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        if (data == MAP_FAILED) {
+            return -1;
+        }
+
+        size_ = size;
+        data_ = data;
+        p_ = data + page_size - size;
+
+        int r0 = mprotect(data + page_size, page_size, PROT_NONE);
+        if (r0 < 0) {
+            return r0;
+        }
+
+        return 0;
+    }
+};
+
+VOID TEST(KernelCodecTest, VideoFormatSepcialMProtect_DJI_M30)
+{
+    srs_error_t err;
+
+    SrsFormat f;
+    HELPER_EXPECT_SUCCESS(f.initialize());
+
+    // Sequence Header, wireshark filter:
+    //      rtmpt && rtmpt.video.type==1 && rtmpt.video.format==7
+    HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)""
+        "\x17\x00\x00\x00\x00\x01\x64\x00\x28\xff\xe1\x00\x12\x67\x64\x00" \
+        "\x28\xac\xb4\x03\xc0\x11\x34\xa4\x14\x18\x18\x1b\x42\x84\xd4\x01" \
+        "\x00\x05\x68\xee\x06\xf2\xc0", 39));
+
+    MockProtectedBuffer buffer;
+    if (buffer.alloc(9)) {
+        EXPECT_TRUE(false) << "mmap failed, errno=" << errno;
+        return;
+    }
+
+    memcpy(buffer.p_, "\x27\x01\x00\x00\x00\x00\x00\x00\x00", buffer.size_);
+    HELPER_EXPECT_SUCCESS(f.on_video(0, buffer.p_, buffer.size_));
+}
+
+VOID TEST(KernelCodecTest, VideoFormatSepcialAsan_DJI_M30)
+{
+    srs_error_t err;
+
+    SrsFormat f;
+    HELPER_EXPECT_SUCCESS(f.initialize());
+
+    // Sequence Header, wireshark filter:
+    //      rtmpt && rtmpt.video.type==1 && rtmpt.video.format==7
+    HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)""
+        "\x17\x00\x00\x00\x00\x01\x64\x00\x28\xff\xe1\x00\x12\x67\x64\x00" \
+        "\x28\xac\xb4\x03\xc0\x11\x34\xa4\x14\x18\x18\x1b\x42\x84\xd4\x01" \
+        "\x00\x05\x68\xee\x06\xf2\xc0", 39));
+
+    char data[9];
+    memcpy(data, "\x27\x01\x00\x00\x00\x00\x00\x00\x00", sizeof(data));
+    HELPER_EXPECT_SUCCESS(f.on_video(0, data, sizeof(data)));
+}
