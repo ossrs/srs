@@ -595,7 +595,10 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         return srs_error_wrap(err, "encode header");
     }
     
-    for (SrsRtcpRB& rb : this->rr_blocks_) {
+    for (std::vector<SrsRtcpRB>::iterator iter = this->rr_blocks_.begin();
+         iter != this->rr_blocks_.end();
+         iter++) {
+        SrsRtcpRB& rb = *iter;
         buffer->write_4bytes(rb.ssrc);
         buffer->write_1bytes(rb.fraction_lost);
         buffer->write_3bytes(rb.lost_packets);
