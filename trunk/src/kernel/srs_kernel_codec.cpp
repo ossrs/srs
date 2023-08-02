@@ -544,6 +544,8 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     if ((err = SrsFrame::add_sample(bytes, size)) != srs_success) {
         return srs_error_wrap(err, "add frame");
     }
+
+    if (!bytes || size <= 0) return err;
     
     // for video, parse the nalu type, set the IDR flag.
     SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
