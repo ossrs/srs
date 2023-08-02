@@ -419,7 +419,7 @@ jobs:
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # Create release.
       # TODO: FIXME: Refine the release when 6.0 released
-      # TODO: FIXME: Change prerelease to false when 6.0 released
+      # TODO: FIXME: Change prerelease to false and makeLatest to true when 6.0 released
       - name: Update release
         id: update_release
         uses: ncipollo/release-action@a2e71bdd4e7dab70ca26a852f29600c98b33153e # v1.12.0
@@ -466,6 +466,7 @@ jobs:
             * [中文FAQ](https://ossrs.net/lts/zh-cn/faq), [功能列表](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) 或 [修订历史](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false
           prerelease: true
+          makeLatest: false
     runs-on: ubuntu-20.04
 
   release-done:

@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/ghettovoice/gosip v0.0.0-20220929080231-de8ba881be83
+	github.com/google/gopacket v1.1.19
 	github.com/ossrs/go-oryx-lib v0.0.9
 	github.com/pion/ice/v2 v2.3.6
 	github.com/pion/interceptor v0.1.17

@@ -1,4 +1,3 @@
-//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 // +build darwin dragonfly freebsd netbsd openbsd
 
 package logrus
@@ -11,3 +10,4 @@ func isTerminal(fd int) bool {
 	_, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
 	return err == nil
 }
+

@@ -475,6 +475,11 @@ do
     parse_user_option
 done
 
+if [[ $help == YES ]]; then
+    show_help
+    exit 0
+fi
+
 #####################################################################################
 # Apply auto options
 #####################################################################################
@@ -572,11 +577,6 @@ function apply_auto_options() {
     fi
 }
 apply_auto_options
-
-if [[ $help == YES ]]; then
-    show_help
-    exit 0
-fi
 
 #####################################################################################
 # Apply detail options
