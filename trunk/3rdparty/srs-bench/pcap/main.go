@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"net"
+	"os"
+	"time"
+
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
-	"net"
-	"os"
-	"time"
 )
 
 func main() {
@@ -26,7 +27,7 @@ func trace(format string, args ...interface{}) {
 }
 
 func doMain(ctx context.Context) error {
-	filename := "/Users/video/Downloads/t2.tcpstream.pcapng"
+	filename := "/Users/video/Downloads/t2.pcapng"
 	address := "127.0.0.1:1935"
 	logger.Tf(ctx, "Forward pcap %v to %v", filename, address)
 
