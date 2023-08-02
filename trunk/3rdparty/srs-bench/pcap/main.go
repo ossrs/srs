@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -27,9 +28,33 @@ func trace(format string, args ...interface{}) {
 }
 
 func doMain(ctx context.Context) error {
-	filename := "/Users/video/Downloads/t2.pcapng"
-	address := "127.0.0.1:1935"
-	logger.Tf(ctx, "Forward pcap %v to %v", filename, address)
+	var doRE, doTrace, help bool
+	var pauseNumber, abortNumber uint64
+	var filename string
+	var server string
+	flag.BoolVar(&help, "h", false, "whether show this help")
+	flag.BoolVar(&help, "help", false, "whether show this help")
+	flag.BoolVar(&doRE, "re", true, "whether do real-time emulation")
+	flag.BoolVar(&doTrace, "trace", true, "whether trace the packet")
+	flag.Uint64Var(&pauseNumber, "pause", 0, "the packet number to pause")
+	flag.Uint64Var(&abortNumber, "abort", 0, "the packet number to abort")
+	flag.StringVar(&filename, "f", "", "the pcap filename, like ./t.pcapng")
+	flag.StringVar(&server, "s", "", "the server address, like 127.0.0.1:1935")
+
+	flag.Parse()
+
+	if help {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	if filename == "" || server == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	logger.Tf(ctx, "Forward pcap %v to %v, re=%v, trace=%v, pause=%v, abort=%v",
+		filename, server, doRE, doTrace, pauseNumber, abortNumber)
 
 	f, err := os.Open(filename)
 	if err != nil {
@@ -42,19 +67,18 @@ func doMain(ctx context.Context) error {
 		return errors.Wrapf(err, "new reader")
 	}
 
-	conn, err := net.Dial("tcp", address)
+	// TODO: FIXME: Should start a goroutine to consume bytes from conn.
+	conn, err := net.Dial("tcp", server)
 	if err != nil {
-		return errors.Wrapf(err, "dial %v", address)
+		return errors.Wrapf(err, "dial %v", server)
 	}
 	defer conn.Close()
 
-	source := gopacket.NewPacketSource(r, r.LinkType())
-	var printIndex uint64
+	var packetNumber uint64
 	var previousTime *time.Time
-	var doRE, doTrace bool
-	var pauseIndex, cancelIndex uint64
+	source := gopacket.NewPacketSource(r, r.LinkType())
 	for packet := range source.Packets() {
-		printIndex++
+		packetNumber++
 
 		if packet.Layer(layers.LayerTypeTCP) == nil {
 			continue
@@ -70,30 +94,31 @@ func doMain(ctx context.Context) error {
 			continue
 		}
 
-		if pauseIndex > 0 && printIndex == pauseIndex {
+		if pauseNumber > 0 && packetNumber == pauseNumber {
 			reader := bufio.NewReader(os.Stdin)
-			trace("#%v Press Enter to continue...", printIndex)
+			trace("#%v Press Enter to continue...", packetNumber)
 			_, _ = reader.ReadString('\n')
 		}
-		if cancelIndex > 0 && printIndex > cancelIndex {
+		if abortNumber > 0 && packetNumber > abortNumber {
 			break
 		}
 
 		if _, err := conn.Write(payload); err != nil {
-			return errors.Wrapf(err, "write to %v", address)
+			return errors.Wrapf(err, "write to %v", server)
 		}
 
 		if doRE {
-			if previousTime == nil {
-				previousTime = &ci.Timestamp
-			} else if diff := ci.Timestamp.Sub(*previousTime); diff > 0 {
-				time.Sleep(diff)
+			if previousTime != nil {
+				if diff := ci.Timestamp.Sub(*previousTime); diff > 0 {
+					time.Sleep(diff)
+				}
 			}
+			previousTime = &ci.Timestamp
 		}
 
 		if doTrace {
 			trace("#%v TCP %v=>%v %v Len:%v",
-				printIndex, uint16(tcp.SrcPort), uint16(tcp.DstPort),
+				packetNumber, uint16(tcp.SrcPort), uint16(tcp.DstPort),
 				ci.Timestamp.Format("15:04:05.000"),
 				len(payload))
 		}
