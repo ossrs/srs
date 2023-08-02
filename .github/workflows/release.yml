@@ -431,6 +431,7 @@ jobs:
             * [中文FAQ](https://ossrs.net/lts/zh-cn/faq), [功能列表](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) 或 [修订历史](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false
           prerelease: false
+          makeLatest: true
     runs-on: ubuntu-20.04
 
   done:
