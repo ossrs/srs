@@ -89,7 +89,7 @@ jobs:
           allowUpdates: true
           tag: ${{ github.ref }}
           draft: true
-          prerelease: true
+          prerelease: false
     # Map a step output to a job output, see https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
     outputs:
       SRS_RELEASE_ID: ${{ steps.create_draft.outputs.id }}
@@ -387,8 +387,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
       # Create release.
-      # TODO: FIXME: Refine the release when 5.0 released
-      # TODO: FIXME: Change prerelease to false when 5.0 released
       - name: Update release
         id: update_release
         uses: ncipollo/release-action@v1
@@ -432,7 +430,7 @@ jobs:
             * [中文Wiki首页](https://ossrs.net/lts/zh-cn/docs/v5/doc/introduction)
             * [中文FAQ](https://ossrs.net/lts/zh-cn/faq), [功能列表](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) 或 [修订历史](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false
-          prerelease: true
+          prerelease: false
     runs-on: ubuntu-20.04
 
   done:
