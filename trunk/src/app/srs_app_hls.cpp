@@ -1005,7 +1005,7 @@ srs_error_t SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
     // @see https://github.com/ossrs/srs/issues/151
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
     // @see https://github.com/ossrs/srs/issues/151#issuecomment-71155184
-    if (tsmc->audio && muxer->is_segment_absolutely_overflow()) {
+    if (muxer->pure_audio() && tsmc->audio && muxer->is_segment_absolutely_overflow()) {
         if ((err = reap_segment()) != srs_success) {
             return srs_error_wrap(err, "hls: reap segment");
         }
