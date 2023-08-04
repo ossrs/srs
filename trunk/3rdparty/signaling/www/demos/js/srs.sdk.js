@@ -304,8 +304,9 @@ function SrsRtcPlayerAsync() {
         self.pc.addTransceiver("video", {direction: "recvonly"});
 
         var offer = await self.pc.createOffer();
-        await self.pc.setLocalDescription(offer);
         var session = await new Promise(function(resolve, reject) {
+            offer.sdp = offer.sdp.replace("useinbandfec=1", "useinbandfec=1;stereo=1");
+            self.pc.setLocalDescription(offer);
             // @see https://github.com/rtcdn/rtcdn-draft
             var data = {
                 api: conf.apiUrl, tid: conf.tid, streamurl: conf.streamUrl,
