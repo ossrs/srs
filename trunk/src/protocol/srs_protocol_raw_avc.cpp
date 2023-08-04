@@ -402,7 +402,7 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
     // use simple mode: nalu size + nalu data
     /**/
 	int nPPSSize = 0;
-	for (auto stl_VectorIterator = pps->begin(); stl_VectorIterator != pps->end(); stl_VectorIterator++)
+	for (std::vector<std::string>::iterator stl_VectorIterator = pps->begin(); stl_VectorIterator != pps->end(); stl_VectorIterator++)
 	{
 		nPPSSize += stl_VectorIterator->length();
         nPPSSize += 2;
@@ -514,7 +514,7 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
 		*/
 		stream.write_2bytes(pps->size());
 		//pictureParameterSetLength
-		for (auto stl_VecIterator = pps->begin(); stl_VecIterator != pps->end(); stl_VecIterator++)
+		for (std::vector<std::string>::iterator stl_VecIterator = pps->begin(); stl_VecIterator != pps->end(); stl_VecIterator++)
 		{
 			stream.write_2bytes((int16_t)stl_VecIterator->length());
 			// pictureParameterSetNALUnit
