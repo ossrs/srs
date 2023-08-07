@@ -94,6 +94,38 @@ bool is_common_space(char ch)
     return (ch == ' ' || ch == '\t' || ch == SRS_CR || ch == SRS_LF);
 }
 
+extern bool _srs_in_docker;
+
+// Detect docker by https://stackoverflow.com/a/41559867
+srs_error_t srs_detect_docker()
+{
+    srs_error_t err = srs_success;
+
+    _srs_in_docker = false;
+
+    SrsFileReader fr;
+    if ((err = fr.open("/proc/1/cgroup")) != srs_success) {
+        return err;
+    }
+
+    ssize_t nn;
+    char buf[1024];
+    if ((err = fr.read(buf, sizeof(buf), &nn)) != srs_success) {
+        return err;
+    }
+
+    if (nn <= 0) {
+        return err;
+    }
+
+    string s(buf, nn);
+    if (srs_string_contains(s, "/docker")) {
+        _srs_in_docker = true;
+    }
+
+    return err;
+}
+
 namespace srs_internal
 {
     SrsConfigBuffer::SrsConfigBuffer()
@@ -1921,6 +1953,19 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         if (!getenv("SRS_DAEMON")) setenv("SRS_DAEMON", "off", 1);
         if (!getenv("SRS_SRS_LOG_TANK") && !getenv("SRS_LOG_TANK")) setenv("SRS_SRS_LOG_TANK", "console", 1);
         if (root->directives.empty()) root->get_or_create("vhost", "__defaultVhost__");
+    }
+
+    // Ignore any error while detecting docker.
+    if ((err = srs_detect_docker()) != srs_success) {
+        srs_error_reset(err);
+    }
+
+    // Try to load the config if docker detect failed.
+    if (!_srs_in_docker) {
+        _srs_in_docker = _srs_config->get_in_docker();
+        if (_srs_in_docker) {
+            srs_trace("enable in_docker by config");
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -6508,8 +6553,6 @@ string SrsConfig::get_ingest_input_url(SrsConfDirective* conf)
     
     return conf->arg0();
 }
-
-extern bool _srs_in_docker;
 
 bool SrsConfig::get_log_tank_file()
 {
