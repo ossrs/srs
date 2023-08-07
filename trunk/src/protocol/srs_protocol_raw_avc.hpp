@@ -82,7 +82,7 @@ public:
     // The hevc raw data to hevc packet, without flv payload header.
     // Mux the sps/pps/vps to flv sequence header packet.
     // @param sh output the sequence header.
-    virtual srs_error_t mux_sequence_header(std::string vps, std::string sps, std::vector<std::string>* pps, std::string& sh);
+    virtual srs_error_t mux_sequence_header(std::string vps, std::string sps, std::vector<std::string>& pps, std::string& sh);
     // The hevc raw data to hevc packet, without flv payload header.
     // Mux the ibp to flv ibp packet.
     // @param ibp output the packet.

@@ -382,7 +382,7 @@ srs_error_t SrsRawHEVCStream::pps_demux(char *frame, int nb_frame, std::string &
     return err;
 }
 
-srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string sps, std::vector<std::string> *pps, std::string &hvcC)
+srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string sps, std::vector<std::string>& pps, std::string &hvcC)
 {
     srs_error_t err = srs_success;
 
@@ -401,16 +401,14 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
 
     // use simple mode: nalu size + nalu data
     /**/
-	int nPPSSize = 0;
-	for (std::vector<std::string>::iterator stl_VectorIterator = pps->begin(); stl_VectorIterator != pps->end(); stl_VectorIterator++)
-	{
-		nPPSSize += stl_VectorIterator->length();
-        nPPSSize += 2;
+	// pps size
+	int pps_size = 0;
+	for (std::vector<std::string>::iterator it = pps.begin(); it != pps.end(); it++) {
+		pps_size += 2 + it->length();
 	}
-    int nb_packet = 23 + 5 + (int)vps.length() + 5 + (int)sps.length() + 5 + (int)nPPSSize - 2;
-    
-    //int nb_packet = 23 + 5 + (int)vps.length() + 5 + (int)sps.length() + 5 + (int)pps->front().length();
-    char *packet = new char[nb_packet];
+
+	int nb_packet = 23 + 5 + (int)vps.length() + 5 + (int)sps.length() + 5 + pps_size - 2;
+	char* packet = new char[nb_packet];
     SrsAutoFreeA(char, packet);
 
     // use stream to generate the hevc packet.
@@ -504,21 +502,14 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
     if (true) {
         // nal_type
         stream.write_1bytes(SrsHevcNaluType_PPS & 0x3f);
-        // numOfPictureParameterSets, always 1
-         /*
-		stream.write_2bytes(0x01);
-		// pictureParameterSetLength
-		stream.write_2bytes((int16_t)pps->front().length());
-		// pictureParameterSetNALUnit
-		stream.write_string(pps->front());
-		*/
-		stream.write_2bytes(pps->size());
-		//pictureParameterSetLength
-		for (std::vector<std::string>::iterator stl_VecIterator = pps->begin(); stl_VecIterator != pps->end(); stl_VecIterator++)
+        // numOfPictureParameterSets
+		stream.write_2bytes(pps.size());
+		for (std::vector<std::string>::iterator it = pps.begin(); it != pps.end(); it++)
 		{
-			stream.write_2bytes((int16_t)stl_VecIterator->length());
+            //pictureParameterSetLength
+			stream.write_2bytes((int16_t)it->length());
 			// pictureParameterSetNALUnit
-			stream.write_string(*stl_VecIterator);
+			stream.write_string(*it);
 		}
     }
 
