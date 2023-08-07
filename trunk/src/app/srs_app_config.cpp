@@ -2890,7 +2890,7 @@ string SrsConfig::argv()
 
 bool SrsConfig::get_daemon()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL2("srs.daemon");
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.daemon"); // SRS_DAEMON
 
     SrsConfDirective* conf = root->get("daemon");
     if (!conf || conf->arg0().empty()) {
