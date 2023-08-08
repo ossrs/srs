@@ -1364,18 +1364,14 @@ srs_error_t SrsRtcPublishStream::send_rtcp_rr()
 {
     srs_error_t err = srs_success;
 
-    for (std::vector<SrsRtcVideoRecvTrack*>::iterator iter = video_tracks_.begin();
-         iter != video_tracks_.end();
-         iter++) {
+    for (std::vector<SrsRtcVideoRecvTrack*>::iterator iter = video_tracks_.begin(); iter != video_tracks_.end(); iter++) {
         SrsRtcVideoRecvTrack* track = *iter;
         if ((err = track->send_rtcp_rr()) != srs_success) {
             return srs_error_wrap(err, "send rtcp rr error, videotrack=%s", track->get_track_id().c_str());
         }
     }
 
-    for (std::vector<SrsRtcAudioRecvTrack*>::iterator iter = audio_tracks_.begin();
-         iter != audio_tracks_.end();
-         iter++) {
+    for (std::vector<SrsRtcAudioRecvTrack*>::iterator iter = audio_tracks_.begin(); iter != audio_tracks_.end(); iter++) {
         SrsRtcAudioRecvTrack* track = *iter;
         if ((err = track->send_rtcp_rr()) != srs_success) {
             return srs_error_wrap(err, "send rtcp rr error: audiotrack=%s", track->get_track_id().c_str());
