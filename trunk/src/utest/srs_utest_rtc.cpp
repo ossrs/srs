@@ -720,7 +720,7 @@ VOID TEST(KernelRTCTest, NACKFetchRTPPacket)
         track->rtp_queue_->set(pkt->header.get_sequence(), pkt);
     }
 
-    int64_t now_ms = srs_update_system_time();
+    srs_utime_t now_ms = srs_update_system_time();
     // If sequence not match, packet not found.
     if (true) {
         SrsRtpPacket* pkt = track->fetch_rtp_packet(10, now_ms);

@@ -700,7 +700,7 @@ public:
     // SrsRtcSendTrack::set_nack_no_copy
     void set_nack_no_copy(bool v) { nack_no_copy_ = v; }
     bool has_ssrc(uint32_t ssrc);
-    SrsRtpPacket* fetch_rtp_packet(uint16_t seq, int64_t now_ms);
+    SrsRtpPacket* fetch_rtp_packet(uint16_t seq, srs_utime_t now_ms);
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
@@ -715,17 +715,17 @@ public:
     virtual srs_error_t on_rtcp(SrsRtpPacket* pkt) = 0;
     virtual srs_error_t on_recv_nack(const std::vector<uint16_t>& lost_seqs);
 public:
-    srs_error_t send_rtcp_sr(int64_t now_ms);
+    srs_error_t send_rtcp_sr(srs_utime_t now_ms);
     void update_rtp_static(int64_t len, uint32_t rtp_ts);
 public:
-    srs_error_t handle_rtcp_rr(const SrsRtcpRB& rb, int64_t now_ms);
+    srs_error_t handle_rtcp_rr(const SrsRtcpRB& rb, srs_utime_t now_ms);
 protected:
-    int64_t send_bytes_      = 0;
-    int64_t send_count_      = 0;
-    int64_t last_rtp_pkt_ts_ = 0;
-    int64_t last_rtp_ms_     = 0;
-    int64_t last_sr_         = 0;//for debug
-    int64_t last_ms_         = 0;//for debug
+    int64_t send_bytes_;
+    int64_t send_count_;
+    int64_t last_rtp_pkt_ts_;
+    srs_utime_t last_rtp_ms_;
+    srs_utime_t last_sr_;
+    srs_utime_t last_ms_;
     SrsNtp  last_sr_ntp_;
 };
 

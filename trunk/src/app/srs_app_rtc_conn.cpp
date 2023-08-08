@@ -450,9 +450,7 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
 
     _srs_config->unsubscribe(this);
 
-    if (timer_rtcp_) {
-        srs_freep(timer_rtcp_);
-    }
+    srs_freep(timer_rtcp_);
     srs_freep(nack_epp);
     srs_freep(pli_worker_);
     srs_freep(trd_);
@@ -686,20 +684,17 @@ srs_error_t SrsRtcPlayStream::cycle()
     }
 }
 
-srs_error_t SrsRtcPlayStream::send_rtcp_sr(int64_t now_ms) {
+srs_error_t SrsRtcPlayStream::send_rtcp_sr(srs_utime_t now_ms)
+{
     srs_error_t err = srs_success;
-    for(std::map<uint32_t, SrsRtcVideoSendTrack*>::iterator iter = video_tracks_.begin();
-        iter != video_tracks_.end();
-        iter++) {
+    for(std::map<uint32_t, SrsRtcVideoSendTrack*>::iterator iter = video_tracks_.begin(); iter != video_tracks_.end(); iter++) {
         SrsRtcVideoSendTrack* track = iter->second;
         if ((err = track->send_rtcp_sr(now_ms)) != srs_success) {
             return srs_error_wrap(err, "video send rtcp sr error track=%s", track->get_track_id().c_str());
         }
     }
 
-    for(std::map<uint32_t, SrsRtcAudioSendTrack*>::iterator iter = audio_tracks_.begin();
-        iter != audio_tracks_.end();
-        iter++) {
+    for(std::map<uint32_t, SrsRtcAudioSendTrack*>::iterator iter = audio_tracks_.begin(); iter != audio_tracks_.end(); iter++) {
         SrsRtcAudioSendTrack* track = iter->second;
         if ((err = track->send_rtcp_sr(now_ms)) != srs_success) {
             return srs_error_wrap(err, "audiosend rtcp sr error track=%s", track->get_track_id().c_str());
@@ -807,7 +802,7 @@ void SrsRtcPlayStream::set_all_tracks_status(bool status)
 srs_error_t SrsRtcPlayStream::on_rtcp(SrsRtcpCommon* rtcp)
 {
     if(SrsRtcpType_rr == rtcp->type()) {
-        int64_t now_ms = srs_update_system_time()/1000;
+        srs_utime_t now_ms = srs_update_system_time()/1000;
         SrsRtcpRR* rr = dynamic_cast<SrsRtcpRR*>(rtcp);
         return on_rtcp_rr(rr, now_ms);
     } else if(SrsRtcpType_rtpfb == rtcp->type()) {
@@ -828,27 +823,21 @@ srs_error_t SrsRtcPlayStream::on_rtcp(SrsRtcpCommon* rtcp)
     }
 }
 
-srs_error_t SrsRtcPlayStream::on_rtcp_rr(SrsRtcpRR* rtcp, int64_t now_ms)
+srs_error_t SrsRtcPlayStream::on_rtcp_rr(SrsRtcpRR* rtcp, srs_utime_t now_ms)
 {
     srs_error_t err = srs_success;
-    
-    for(std::vector<SrsRtcpRB>::iterator iter = rtcp->rr_blocks_.begin();
-        iter != rtcp->rr_blocks_.end();
-        iter++) {
+
+    for(std::vector<SrsRtcpRB>::iterator iter = rtcp->rr_blocks_.begin(); iter != rtcp->rr_blocks_.end(); iter++) {
         SrsRtcpRB& rb = *iter;
         uint32_t ssrc = rb.ssrc;
 
-        for(std::map<uint32_t, SrsRtcAudioSendTrack*>::iterator audio_iter = audio_tracks_.begin();
-            audio_iter != audio_tracks_.end();
-            audio_iter++) {
+        for(std::map<uint32_t, SrsRtcAudioSendTrack*>::iterator audio_iter = audio_tracks_.begin(); audio_iter != audio_tracks_.end(); audio_iter++) {
             if(ssrc == audio_iter->second->track_desc_->ssrc_) {
                 return audio_iter->second->handle_rtcp_rr(rb, now_ms);
             }
         }
 
-        for(std::map<uint32_t, SrsRtcVideoSendTrack*>::iterator video_iter = video_tracks_.begin();
-            video_iter != video_tracks_.end();
-            video_iter++) {
+        for(std::map<uint32_t, SrsRtcVideoSendTrack*>::iterator video_iter = video_tracks_.begin(); video_iter != video_tracks_.end(); video_iter++) {
             if(ssrc == video_iter->second->track_desc_->ssrc_) {
                 return video_iter->second->handle_rtcp_rr(rb, now_ms);
             }
@@ -996,7 +985,7 @@ srs_error_t SrsRtcPlayRtcpTimer::on_timer(srs_utime_t interval)
         return err;
     }
 
-    int64_t now_ms = srs_update_system_time();
+    srs_utime_t now_ms = srs_update_system_time();
     if ((err = p_->send_rtcp_sr(now_ms)) != srs_success) {
         srs_warn("RR err %s", srs_error_desc(err).c_str());
         srs_freep(err);
