@@ -2148,9 +2148,7 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
         if (rr->rr_blocks_.empty()) { //for native client
             return err;
         }
-        for (std::vector<SrsRtcpRB>::iterator iter = rr->rr_blocks_.begin();
-             iter != rr->rr_blocks_.end();
-             iter++) {
+        for (std::vector<SrsRtcpRB>::iterator iter = rr->rr_blocks_.begin(); iter != rr->rr_blocks_.end(); iter++) {
             SrsRtcpRB& rb = *iter;
             if (rb.ssrc == 0) {
                 return err;
@@ -2166,9 +2164,7 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
     } else if (SrsRtcpType_rr == rtcp->type()) {
         SrsRtcpRR* rr = dynamic_cast<SrsRtcpRR*>(rtcp);
 
-        for (std::vector<SrsRtcpRB>::iterator iter = rr->rr_blocks_.begin();
-             iter != rr->rr_blocks_.end();
-             iter++) {
+        for (std::vector<SrsRtcpRB>::iterator iter = rr->rr_blocks_.begin(); iter != rr->rr_blocks_.end(); iter++) {
             SrsRtcpRB& rb = *iter;
             uint32_t ssrc = rb.ssrc;
             std::map<uint32_t, SrsRtcPlayStream*>::iterator it = players_ssrc_map_.find(ssrc);
