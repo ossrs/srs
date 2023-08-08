@@ -985,7 +985,7 @@ srs_error_t SrsRtcPlayRtcpTimer::on_timer(srs_utime_t interval)
         return err;
     }
 
-    srs_utime_t now_ms = srs_update_system_time();
+    srs_utime_t now_ms = srs_update_system_time() / 1000;
     if ((err = p_->send_rtcp_sr(now_ms)) != srs_success) {
         srs_warn("RR err %s", srs_error_desc(err).c_str());
         srs_freep(err);

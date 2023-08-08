@@ -2829,7 +2829,7 @@ srs_error_t SrsRtcSendTrack::on_nack(SrsRtpPacket** ppkt)
 srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t>& lost_seqs)
 {
     srs_error_t err = srs_success;
-    srs_utime_t now_ms = srs_update_system_time();
+    srs_utime_t now_ms = srs_update_system_time() / 1000;
 
     ++_srs_pps_rnack2->sugar;
 
