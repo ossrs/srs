@@ -693,8 +693,8 @@ srs_error_t SrsThreadPool::run()
         // Check the threads status fastly.
         int loops = (int)(interval_ / SRS_UTIME_SECONDS);
         for (int i = 0; i < loops; i++) {
-            for (int i = 0; i < (int)threads.size(); i++) {
-                SrsThreadEntry* entry = threads.at(i);
+            for (int j = 0; j < (int)threads.size(); j++) {
+                SrsThreadEntry* entry = threads.at(j);
                 if (entry->err != srs_success) {
                     // Quit with success.
                     if (srs_error_code(entry->err) == ERROR_THREAD_FINISHED) {
