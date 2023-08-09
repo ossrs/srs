@@ -618,7 +618,7 @@ srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage* msg)
     }
 
     if (hevc_vps_.empty() || hevc_sps_.empty() || hevc_pps_.empty()) {
-        return srs_error_new(ERROR_SRT_TO_RTMP_EMPTY_SPS_PPS, "vps or sps or pps empty");
+        return err;
     }
 
     // vps/sps/pps changed, generate new video sh frame and dispatch it.
@@ -666,7 +666,7 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
     srs_error_t err = srs_success;
 
     if (ipb_frames.empty()) {
-        return srs_error_new(ERROR_SRT_CONN, "empty frame");
+        return err;
     }
 
     // ts tbn to flv tbn.
