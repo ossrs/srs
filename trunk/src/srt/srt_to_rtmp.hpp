@@ -55,6 +55,9 @@ public:
     void insert_rtmp_data(unsigned char* data, int len, int64_t dts, char media_type);
     bool get_rtmp_data(rtmp_packet_info_s& packet_info);
 
+    //clear send queue
+    void clear_queue();
+
 private:
     bool is_ready();
 

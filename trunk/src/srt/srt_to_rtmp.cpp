@@ -308,6 +308,10 @@ void rtmp_client::close() {
     _rtmp_conn_ptr->close();
     _rtmp_conn_ptr = nullptr;
     
+    //when close connection, reset audio and video dec parameters
+    _aac_specific_config = "";
+    _h264_sps = "";
+    _h264_pps = "";
 }
 
 int64_t rtmp_client::get_last_live_ts() {
@@ -334,6 +338,10 @@ srs_error_t rtmp_client::connect() {
     }
 
     _rtmp_conn_ptr = std::make_shared<SrsSimpleRtmpClient>(_url, cto, sto);
+
+     //clear send queue
+     srs_trace("clear send queue url:%s", _url.c_str());
+     _rtmp_queue.clear_queue();
 
     if ((err = _rtmp_conn_ptr->connect()) != srs_success) {
         close();
@@ -772,4 +780,9 @@ bool rtmp_packet_queue::get_rtmp_data(rtmp_packet_info_s& packet_info) {
     _send_map.erase(iter);
 
     return true;
+}
+
+//clear send queue
+void rtmp_packet_queue::clear_queue() {
+    _send_map.clear();
 }
