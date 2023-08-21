@@ -1,0 +1,9 @@
+convert `markdown` to `man-page` by `pandoc`:
+```bash
+pandoc srs-server.8.md -s -t man -o srs-server.8
+```
+
+Also, you can preview as follows:
+```bash
+pandoc srs-server.8.md -s -t man | /usr/bin/man -l -
+```
