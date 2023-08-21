@@ -599,7 +599,6 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
 
     if (!hevc_pps_tmp.empty())
     {
-        hevc_pps_.clear();
         hevc_pps_ = hevc_pps_tmp;
     }
     if ((err = check_vps_sps_pps_change(msg)) != srs_success) {

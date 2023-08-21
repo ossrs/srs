@@ -503,7 +503,7 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
         // nal_type
         stream.write_1bytes(SrsHevcNaluType_PPS & 0x3f);
         // numOfPictureParameterSets
-		stream.write_2bytes(pps.size());
+        stream.write_2bytes(pps.size());
 		for (std::vector<std::string>::iterator it = pps.begin(); it != pps.end(); it++)
 		{
             //pictureParameterSetLength
