@@ -6,7 +6,7 @@ date: 30 July, 2023
 
 # NAME
 
-**srs-server** - a video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
+**srs-server** - an open-source video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
 # SYNOPSIS
 
@@ -45,8 +45,8 @@ Exit status is 0 on success, or 1 if the command fails.
 For example:
 
     srs-server -v
-	srs-server -t -c conf/srs.conf
-	srs-server -c conf/srs.conf
+    srs-server -t -c conf/srs.conf
+    srs-server -c conf/srs.conf
 
 # SEE ALSO
 
