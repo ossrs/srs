@@ -256,6 +256,25 @@ private:
     virtual srs_error_t read_token(srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start, SrsDirectiveState& state);
 };
 
+// The state for reloading config.
+enum SrsReloadState {
+    SrsReloadStateInit,
+    // Start to parse the new config file.
+    SrsReloadStateParsing,
+    // The new config file is parsed.
+    SrsReloadStateParsed,
+    // Start to transform the new config file to new version.
+    SrsReloadStateTransforming,
+    // The new config file is transformed to new version.
+    SrsReloadStateTransformed,
+    // Start to apply the new config file.
+    SrsReloadStateApplying,
+    // The new config file is applied and merged to current config.
+    SrsReloadStateApplied,
+    // The reload is finished.
+    SrsReloadStateFinished,
+};
+
 // The config service provider.
 // For the config supports reload, so never keep the reference cross st-thread,
 // that is, never save the SrsConfDirective* get by any api of config,
@@ -308,7 +327,7 @@ public:
     virtual void unsubscribe(ISrsReloadHandler* handler);
     // Reload  the config file.
     // @remark, user can test the config before reload it.
-    virtual srs_error_t reload();
+    virtual srs_error_t reload(SrsReloadState *pstate);
 private:
     // Reload  the vhost section of config.
     virtual srs_error_t reload_vhost(SrsConfDirective* old_root);

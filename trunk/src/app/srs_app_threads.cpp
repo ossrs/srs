@@ -295,6 +295,10 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
 SrsCircuitBreaker* _srs_circuit_breaker = NULL;
 SrsAsyncCallWorker* _srs_dvr_async = NULL;
 
+extern srs_error_t _srs_reload_err;
+extern SrsReloadState _srs_reload_state;
+extern std::string _srs_reload_id;
+
 srs_error_t srs_global_initialize()
 {
     srs_error_t err = srs_success;
@@ -445,6 +449,10 @@ srs_error_t srs_global_initialize()
     _srs_cls = new SrsClsClient();
     _srs_apm = new SrsApmClient();
 #endif
+
+    _srs_reload_err = srs_success;
+    _srs_reload_state = SrsReloadStateInit;
+    _srs_reload_id = srs_random_str(7);
 
     return err;
 }
