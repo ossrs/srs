@@ -504,13 +504,14 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
         stream.write_1bytes(SrsHevcNaluType_PPS & 0x3f);
         // numOfPictureParameterSets
         stream.write_2bytes(pps.size());
-		for (std::vector<std::string>::iterator it = pps.begin(); it != pps.end(); it++)
-		{
+
+        for (std::vector<std::string>::iterator it = pps.begin(); it != pps.end(); it++)
+        {
             //pictureParameterSetLength
-			stream.write_2bytes((int16_t)it->length());
-			// pictureParameterSetNALUnit
-			stream.write_string(*it);
-		}
+            stream.write_2bytes((int16_t)it->length());
+            //pictureParameterSetNALUnit
+            stream.write_string(*it);
+        }
     }
 
     hvcC = string(packet, nb_packet);
