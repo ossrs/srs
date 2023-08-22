@@ -402,13 +402,13 @@ srs_error_t SrsRawHEVCStream::mux_sequence_header(std::string vps, std::string s
     // use simple mode: nalu size + nalu data
     /**/
 	// pps size
-	int pps_size = 0;
-	for (std::vector<std::string>::iterator it = pps.begin(); it != pps.end(); it++) {
-		pps_size += 2 + it->length();
-	}
+    int pps_size = 0;
+    for (std::vector<std::string>::iterator it = pps.begin(); it != pps.end(); it++) {
+        pps_size += 2 + it->length();
+    }
 
-	int nb_packet = 23 + 5 + (int)vps.length() + 5 + (int)sps.length() + 5 + pps_size - 2;
-	char* packet = new char[nb_packet];
+    int nb_packet = 23 + 5 + (int)vps.length() + 5 + (int)sps.length() + 5 + pps_size - 2;
+    char* packet = new char[nb_packet];
     SrsAutoFreeA(char, packet);
 
     // use stream to generate the hevc packet.

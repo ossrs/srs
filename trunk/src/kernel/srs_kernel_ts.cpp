@@ -1956,7 +1956,7 @@ srs_error_t SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
             msg->PES_packet_length, packet->payload_unit_start_indicator, packet->continuity_counter);
 
         stream->skip(stream->size() - stream->pos());
-		srs_freep(msg);
+        srs_freep(msg);
 		channel->msg = NULL;
         return err;
     }
