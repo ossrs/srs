@@ -280,6 +280,7 @@ private:
     // Whether the HLS stream is able to be disposed.
     bool disposable;
     // Whether requires HLS to do reload asynchronously.
+    bool async_reload_;
     bool reloading_;
     // To detect heartbeat and dipose it if configured.
     srs_utime_t last_update_time;

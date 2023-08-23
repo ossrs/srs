@@ -1136,7 +1136,7 @@ SrsHls::SrsHls()
     
     enabled = false;
     disposable = false;
-    reloading_ = false;
+    async_reload_ = reloading_ = false;
     last_update_time = 0;
     hls_dts_directly = false;
     
@@ -1158,7 +1158,7 @@ SrsHls::~SrsHls()
 
 void SrsHls::async_reload()
 {
-    reloading_ = true;
+    async_reload_ = true;
 }
 
 srs_error_t SrsHls::reload()
@@ -1168,6 +1168,8 @@ srs_error_t SrsHls::reload()
     // Ignore if not active.
     if (!enabled) return err;
 
+    if (!async_reload_ || reloading_) return err;
+    reloading_ = true;
     srs_trace("start async reload hls %s", req->get_stream_url().c_str());
 
     on_unpublish();
@@ -1178,6 +1180,7 @@ srs_error_t SrsHls::reload()
 
     // Before feed the sequence header, must reset the reloading.
     reloading_ = false;
+    async_reload_ = false;
 
     // After reloading, we must request the sequence header again.
     if ((err = hub->on_hls_request_sh()) != srs_success) {
@@ -1218,10 +1221,7 @@ srs_error_t SrsHls::cycle()
     }
 
     // When reloading, we must wait for it done.
-    if (reloading_) {
-        reload();
-        return err;
-    }
+    if (async_reload_) return err;
 
     // If not unpublishing and not reloading, try to dispose HLS stream.
     srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
@@ -1314,7 +1314,7 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
 
     // If not able to transmux to HLS, ignore.
     if (!enabled) return err;
-    if (reloading_) return err;
+    if (async_reload_) return reload();
 
     // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
@@ -1396,7 +1396,7 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
 
     // If not able to transmux to HLS, ignore.
     if (!enabled) return err;
-    if (reloading_) return err;
+    if (async_reload_) return reload();
 
     // Ignore if no format->vcodec, it means the codec is not parsed, or unknown codec.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
