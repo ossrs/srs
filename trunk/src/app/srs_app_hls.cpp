@@ -1136,6 +1136,7 @@ SrsHls::SrsHls()
     
     enabled = false;
     disposable = false;
+    unpublishing_ = false;
     last_update_time = 0;
     hls_dts_directly = false;
     
@@ -1174,7 +1175,7 @@ void SrsHls::dispose()
 srs_error_t SrsHls::cycle()
 {
     srs_error_t err = srs_success;
-    
+
     if (last_update_time <= 0) {
         last_update_time = srs_get_system_time();
     }
@@ -1182,6 +1183,9 @@ srs_error_t SrsHls::cycle()
     if (!req) {
         return err;
     }
+
+    // When unpublishing, we must wait for it done.
+    if (unpublishing_) return err;
     
     srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
     if (hls_dispose <= 0) {
@@ -1191,12 +1195,12 @@ srs_error_t SrsHls::cycle()
         return err;
     }
     last_update_time = srs_get_system_time();
-    
+
     if (!disposable) {
         return err;
     }
     disposable = false;
-    
+
     srs_trace("hls cycle to dispose hls %s, timeout=%dms", req->get_stream_url().c_str(), hls_dispose);
     dispose();
     
@@ -1243,6 +1247,8 @@ srs_error_t SrsHls::on_publish()
     
     // if enabled, open the muxer.
     enabled = true;
+    // Reset the unpublishing state.
+    unpublishing_ = false;
     
     // ok, the hls can be dispose, or need to be dispose.
     disposable = true;
@@ -1258,6 +1264,10 @@ void SrsHls::on_unpublish()
     if (!enabled) {
         return;
     }
+
+    // During unpublishing, there maybe callback that switch to other coroutines.
+    if (unpublishing_) return;
+    unpublishing_ = true;
     
     if ((err = controller->on_unpublish()) != srs_success) {
         srs_warn("hls: ignore unpublish failed %s", srs_error_desc(err).c_str());
@@ -1265,6 +1275,7 @@ void SrsHls::on_unpublish()
     }
     
     enabled = false;
+    unpublishing_ = false;
 }
 
 srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)

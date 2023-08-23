@@ -277,6 +277,7 @@ private:
     SrsRequest* req;
     bool enabled;
     bool disposable;
+    bool unpublishing_;
     srs_utime_t last_update_time;
 private:
     // If the diff=dts-previous_audio_dts is about 23,
