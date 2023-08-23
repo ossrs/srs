@@ -1136,6 +1136,7 @@ SrsHls::SrsHls()
     
     enabled = false;
     disposable = false;
+    reloading_ = false;
     last_update_time = 0;
     hls_dts_directly = false;
     
@@ -1153,6 +1154,39 @@ SrsHls::~SrsHls()
     srs_freep(jitter);
     srs_freep(controller);
     srs_freep(pprint);
+}
+
+void SrsHls::async_reload()
+{
+    reloading_ = true;
+}
+
+srs_error_t SrsHls::reload()
+{
+    srs_error_t err = srs_success;
+
+    // Ignore if not active.
+    if (!enabled) return err;
+
+    srs_trace("start async reload hls %s", req->get_stream_url().c_str());
+
+    on_unpublish();
+    if ((err = on_publish()) != srs_success) {
+        return srs_error_wrap(err, "hls publish failed");
+    }
+    srs_trace("vhost hls async reload ok");
+
+    // Before feed the sequence header, must reset the reloading.
+    reloading_ = false;
+
+    // After reloading, we must request the sequence header again.
+    if ((err = hub->on_hls_request_sh()) != srs_success) {
+        return srs_error_wrap(err, "hls request sh");
+    }
+
+    srs_trace("vhost hls async reload done");
+
+    return err;
 }
 
 void SrsHls::dispose()
@@ -1182,7 +1216,14 @@ srs_error_t SrsHls::cycle()
     if (!req) {
         return err;
     }
-    
+
+    // When reloading, we must wait for it done.
+    if (reloading_) {
+        reload();
+        return err;
+    }
+
+    // If not unpublishing and not reloading, try to dispose HLS stream.
     srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
     if (hls_dispose <= 0) {
         return err;
@@ -1270,10 +1311,10 @@ void SrsHls::on_unpublish()
 srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     srs_error_t err = srs_success;
-    
-    if (!enabled) {
-        return err;
-    }
+
+    // If not able to transmux to HLS, ignore.
+    if (!enabled) return err;
+    if (reloading_) return err;
 
     // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
@@ -1352,10 +1393,10 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
 srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     srs_error_t err = srs_success;
-    
-    if (!enabled) {
-        return err;
-    }
+
+    // If not able to transmux to HLS, ignore.
+    if (!enabled) return err;
+    if (reloading_) return err;
 
     // Ignore if no format->vcodec, it means the codec is not parsed, or unknown codec.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
