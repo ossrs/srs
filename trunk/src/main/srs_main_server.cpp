@@ -136,11 +136,6 @@ srs_error_t do_main(int argc, char** argv, char** envp)
     if ((err = srs_detect_docker()) != srs_success) {
         srs_error_reset(err);
     }
-
-    // Parse the CWD before parsing config file.
-    if ((err = _srs_config->initialize_cwd()) != srs_success) {
-        return srs_error_wrap(err, "config cwd");
-    }
     
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
     // which will load the log config and apply it.
