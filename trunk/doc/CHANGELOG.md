@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-08-25, Merge [#3782](https://github.com/ossrs/srs/pull/3782): HLS: Support reload HLS asynchronously. v5.0.172 (#3782)
 * v5.0, 2023-08-22, Merge [#3775](https://github.com/ossrs/srs/pull/3775): Bugfix: Log format output type does not match. v5.0.171 (#3699)
 * v5.0, 2023-08-02, HLS: Ignore empty NALU to avoid error. v5.0.170
 * v5.0, 2023-07-26, Merge [#3699](https://github.com/ossrs/srs/pull/3699): Bugfix: Eliminate the redundant declaration of the _srs_rtc_manager variable. v5.0.168 (#3699)
