@@ -1168,15 +1168,27 @@ srs_error_t SrsHls::reload()
     // Ignore if not active.
     if (!enabled) return err;
 
+    int reloading = 0, reloaded = 0, refreshed = 0;
+    err = do_reload(&reloading, &reloaded, &refreshed);
+    srs_trace("async reload hls %s, reloading=%d, reloaded=%d, refreshed=%d",
+        req->get_stream_url().c_str(), reloading, reloaded, refreshed);
+
+    return err;
+}
+
+srs_error_t SrsHls::do_reload(int *reloading, int *reloaded, int *refreshed)
+{
+    srs_error_t err = srs_success;
+
     if (!async_reload_ || reloading_) return err;
     reloading_ = true;
-    srs_trace("start async reload hls %s", req->get_stream_url().c_str());
+    *reloading = 1;
 
     on_unpublish();
     if ((err = on_publish()) != srs_success) {
         return srs_error_wrap(err, "hls publish failed");
     }
-    srs_trace("vhost hls async reload ok");
+    *reloaded = 1;
 
     // Before feed the sequence header, must reset the reloading.
     reloading_ = false;
@@ -1186,8 +1198,7 @@ srs_error_t SrsHls::reload()
     if ((err = hub->on_hls_request_sh()) != srs_success) {
         return srs_error_wrap(err, "hls request sh");
     }
-
-    srs_trace("vhost hls async reload done");
+    *refreshed = 1;
 
     return err;
 }

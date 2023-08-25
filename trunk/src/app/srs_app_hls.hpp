@@ -303,6 +303,7 @@ public:
     virtual void async_reload();
 private:
     srs_error_t reload();
+    srs_error_t do_reload(int *reloading, int *reloaded, int *refreshed);
 public:
     virtual void dispose();
     virtual srs_error_t cycle();
