@@ -275,9 +275,16 @@ private:
     SrsHlsController* controller;
 private:
     SrsRequest* req;
+    // Whether the HLS is enabled.
     bool enabled;
+    // Whether the HLS stream is able to be disposed.
     bool disposable;
+    // Whether the HLS stream is unpublishing.
     bool unpublishing_;
+    // Whether requires HLS to do reload asynchronously.
+    bool async_reload_;
+    bool reloading_;
+    // To detect heartbeat and dispose it if configured.
     srs_utime_t last_update_time;
 private:
     // If the diff=dts-previous_audio_dts is about 23,
@@ -294,6 +301,11 @@ private:
 public:
     SrsHls();
     virtual ~SrsHls();
+public:
+    virtual void async_reload();
+private:
+    srs_error_t reload();
+    srs_error_t do_reload(int *reloading, int *reloaded, int *refreshed);
 public:
     virtual void dispose();
     virtual srs_error_t cycle();
