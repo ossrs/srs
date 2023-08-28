@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-08-28, Merge [#3768](https://github.com/ossrs/srs/pull/3768): Support include empty config file. v6.0.67 (#3768)
 * v6.0, 2023-08-25, Merge [#3782](https://github.com/ossrs/srs/pull/3782): HLS: Support reload HLS asynchronously. v6.0.67 (#3782)
 * v6.0, 2023-08-22, Merge [#3775](https://github.com/ossrs/srs/pull/3775): Bugfix: Log format output type does not match. v6.0.66 (#3699)
 * v6.0, 2023-08-02, Merge [#3750](https://github.com/ossrs/srs/pull/3750): HLS: Ignore empty NALU to avoid error. v6.0.64 (#3750)
@@ -79,6 +80,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-08-28, Merge [#3768](https://github.com/ossrs/srs/pull/3768): Support include empty config file. v5.0.172 (#3768)
 * v5.0, 2023-08-25, Merge [#3782](https://github.com/ossrs/srs/pull/3782): HLS: Support reload HLS asynchronously.. v5.0.171 (#3782)
 * v5.0, 2023-08-22, Merge [#3775](https://github.com/ossrs/srs/pull/3775): Bugfix: Log format output type does not match. v5.0.171 (#3699)
 * v5.0, 2023-08-02, HLS: Ignore empty NALU to avoid error. v5.0.170
