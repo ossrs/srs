@@ -119,7 +119,7 @@ developers listed below:
 [![](https://opencollective.com/srs-server/backers.svg?width=800&button=false)](https://opencollective.com/srs-server)
 
 We at SRS aim to establish a non-profit, open-source community that assists developers worldwide in creating 
-their own high-quality streaming and RTC platforms to support your businesses.
+your own high-quality streaming and RTC platforms to support your businesses.
 
 ## AUTHORS
 

@@ -1106,6 +1106,7 @@ SrsHls::SrsHls()
     
     enabled = false;
     disposable = false;
+    unpublishing_ = false;
     async_reload_ = reloading_ = false;
     last_update_time = 0;
     hls_dts_directly = false;
@@ -1192,7 +1193,7 @@ void SrsHls::dispose()
 srs_error_t SrsHls::cycle()
 {
     srs_error_t err = srs_success;
-    
+
     if (last_update_time <= 0) {
         last_update_time = srs_get_system_time();
     }
@@ -1201,6 +1202,9 @@ srs_error_t SrsHls::cycle()
         return err;
     }
 
+    // When unpublishing, we must wait for it done.
+    if (unpublishing_) return err;
+    
     // When reloading, we must wait for it done.
     if (async_reload_) return err;
 
@@ -1213,12 +1217,12 @@ srs_error_t SrsHls::cycle()
         return err;
     }
     last_update_time = srs_get_system_time();
-    
+
     if (!disposable) {
         return err;
     }
     disposable = false;
-    
+
     srs_trace("hls cycle to dispose hls %s, timeout=%dms", req->get_stream_url().c_str(), hls_dispose);
     dispose();
     
@@ -1265,6 +1269,8 @@ srs_error_t SrsHls::on_publish()
     
     // if enabled, open the muxer.
     enabled = true;
+    // Reset the unpublishing state.
+    unpublishing_ = false;
     
     // ok, the hls can be dispose, or need to be dispose.
     disposable = true;
@@ -1280,6 +1286,10 @@ void SrsHls::on_unpublish()
     if (!enabled) {
         return;
     }
+
+    // During unpublishing, there maybe callback that switch to other coroutines.
+    if (unpublishing_) return;
+    unpublishing_ = true;
     
     if ((err = controller->on_unpublish()) != srs_success) {
         srs_warn("hls: ignore unpublish failed %s", srs_error_desc(err).c_str());
@@ -1287,6 +1297,7 @@ void SrsHls::on_unpublish()
     }
     
     enabled = false;
+    unpublishing_ = false;
 }
 
 srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
@@ -1294,7 +1305,7 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     srs_error_t err = srs_success;
 
     // If not able to transmux to HLS, ignore.
-    if (!enabled) return err;
+    if (!enabled || unpublishing_) return err;
     if (async_reload_) return reload();
 
     // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
@@ -1376,7 +1387,7 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     srs_error_t err = srs_success;
 
     // If not able to transmux to HLS, ignore.
-    if (!enabled) return err;
+    if (!enabled || unpublishing_) return err;
     if (async_reload_) return reload();
 
     // Ignore if no format->vcodec, it means the codec is not parsed, or unknown codec.
