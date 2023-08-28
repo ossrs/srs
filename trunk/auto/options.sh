@@ -28,7 +28,6 @@ SRS_HTTP_API=YES
 SRS_HTTP_CORE=YES
 SRS_HLS=YES
 SRS_DVR=YES
-SRS_CHERRYPY=NO
 # 
 ################################################################
 # FFmpeg stub is the stub code in SRS for ingester or encoder.
@@ -71,7 +70,7 @@ SRS_LOG_LEVEL_V2=YES
 # Experts options.
 SRS_USE_SYS_SSL=NO # Use system ssl(-lssl) if required.
 SRS_VALGRIND=NO
-SRS_SANITIZER=NO
+SRS_SANITIZER=RESERVED
 SRS_SANITIZER_STATIC=NO
 SRS_SANITIZER_LOG=NO
 SRS_BUILD_TAG= # Set the object files tag name.
@@ -234,7 +233,6 @@ Experts:
 
 Deprecated:
   --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files. Default: $(value2switch $SRS_HDS)
-  --cherrypy=on|off         Whether install CherryPy for demo api-server. Default: $(value2switch $SRS_CHERRYPY)
   --osx                     Enable build for OSX/Darwin AppleOS. Deprecated for automatically detecting the OS.
   --x86-64                  Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
   --x86-x64                 Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
@@ -338,7 +336,6 @@ function parse_user_option() {
         --with-utest)                   SRS_UTEST=YES               ;;
         --without-utest)                SRS_UTEST=NO                ;;
         --utest)                        SRS_UTEST=$(switch2value $value) ;;
-        --cherrypy)                     SRS_CHERRYPY=$(switch2value $value) ;;
         --gcov)                         SRS_GCOV=$(switch2value $value) ;;
         --apm)                          SRS_APM=$(switch2value $value) ;;
 
@@ -478,6 +475,11 @@ do
     parse_user_option
 done
 
+if [[ $help == YES ]]; then
+    show_help
+    exit 0
+fi
+
 #####################################################################################
 # Apply auto options
 #####################################################################################
@@ -524,7 +526,7 @@ function apply_auto_options() {
 
     # Enable asan, but disable for Centos
     # @see https://github.com/ossrs/srs/issues/3347
-    if [[ $SRS_SANITIZER == NO && $OS_IS_CENTOS != YES ]]; then
+    if [[ $SRS_SANITIZER == RESERVED && $OS_IS_CENTOS != YES ]]; then
         echo "Enable asan by auto options."
         SRS_SANITIZER=YES
     fi
@@ -576,11 +578,6 @@ function apply_auto_options() {
 }
 apply_auto_options
 
-if [[ $help == YES ]]; then
-    show_help
-    exit 0
-fi
-
 #####################################################################################
 # Apply detail options
 #####################################################################################
@@ -597,6 +594,8 @@ function apply_detail_options() {
     if [[ $SRS_HTTP_API == NO ]]; then SRS_HTTP_API=YES; echo -e "${YELLOW}[WARN] Always enable HTTP API.${BLACK}"; fi
     if [[ $SRS_HLS == NO ]]; then SRS_HLS=YES; echo -e "${YELLOW}[WARN] Always enable HLS.${BLACK}"; fi
     if [[ $SRS_DVR == NO ]]; then SRS_DVR=YES; echo -e "${YELLOW}[WARN] Always enable DVR.${BLACK}"; fi
+
+    if [[ $SRS_SANITIZER == RESERVED ]]; then SRS_SANITIZER == NO; fi
 }
 apply_detail_options
 
@@ -626,7 +625,6 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-converter=$(value2switch $SRS_STREAM_CASTER)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=$(value2switch $SRS_HTTP_API)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=$(value2switch $SRS_UTEST)"
-    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=$(value2switch $SRS_CHERRYPY)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=$(value2switch $SRS_H265)"

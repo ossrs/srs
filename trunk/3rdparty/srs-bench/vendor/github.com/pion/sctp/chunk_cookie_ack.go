@@ -1,21 +1,27 @@
 package sctp
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
 )
 
 /*
 chunkCookieAck represents an SCTP Chunk of type chunkCookieAck
 
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|   Type = 11   |Chunk  Flags   |     Length = 4                |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 0                   1                   2                   3
+	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|   Type = 11   |Chunk  Flags   |     Length = 4                |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
 type chunkCookieAck struct {
 	chunkHeader
 }
+
+// Cookie ack chunk errors
+var (
+	ErrChunkTypeNotCookieAck = errors.New("ChunkType is not of type COOKIEACK")
+)
 
 func (c *chunkCookieAck) unmarshal(raw []byte) error {
 	if err := c.chunkHeader.unmarshal(raw); err != nil {
@@ -23,7 +29,7 @@ func (c *chunkCookieAck) unmarshal(raw []byte) error {
 	}
 
 	if c.typ != ctCookieAck {
-		return errors.Errorf("ChunkType is not of type COOKIEACK, actually is %s", c.typ.String())
+		return fmt.Errorf("%w: actually is %s", ErrChunkTypeNotCookieAck, c.typ.String())
 	}
 
 	return nil

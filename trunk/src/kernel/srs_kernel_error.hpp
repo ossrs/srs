@@ -373,7 +373,8 @@
     XX(ERROR_RTC_TCP_SIZE                  , 5032, "RtcTcpSize", "RTC TCP packet size is invalid") \
     XX(ERROR_RTC_TCP_PACKET                , 5033, "RtcTcpStun", "RTC TCP first packet must be STUN") \
     XX(ERROR_RTC_TCP_STUN                  , 5034, "RtcTcpSession", "RTC TCP packet is invalid for session not found") \
-    XX(ERROR_RTC_TCP_UNIQUE                , 5035, "RtcUnique", "RTC only support one UDP or TCP network")
+    XX(ERROR_RTC_TCP_UNIQUE                , 5035, "RtcUnique", "RTC only support one UDP or TCP network") \
+    XX(ERROR_RTC_INVALID_SESSION           , 5036, "RtcInvalidSession", "Invalid request for no RTC session matched")
 
 /**************************************************/
 /* SRT protocol error. */

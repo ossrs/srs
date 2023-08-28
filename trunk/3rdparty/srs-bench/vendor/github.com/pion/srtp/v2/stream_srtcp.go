@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package srtp
 
 import (
@@ -7,7 +10,7 @@ import (
 	"time"
 
 	"github.com/pion/rtcp"
-	"github.com/pion/transport/packetio"
+	"github.com/pion/transport/v2/packetio"
 )
 
 // Limit the buffer size to 100KB
@@ -17,11 +20,11 @@ const srtcpBufferSize = 100 * 1000
 type ReadStreamSRTCP struct {
 	mu sync.Mutex
 
-	isInited bool
 	isClosed chan bool
 
-	session *SessionSRTCP
-	ssrc    uint32
+	session  *SessionSRTCP
+	ssrc     uint32
+	isInited bool
 
 	buffer io.ReadWriteCloser
 }
@@ -66,7 +69,12 @@ func (r *ReadStreamSRTCP) Read(buf []byte) (int, error) {
 // SetReadDeadline sets the deadline for the Read operation.
 // Setting to zero means no deadline.
 func (r *ReadStreamSRTCP) SetReadDeadline(t time.Time) error {
-	return r.buffer.(*packetio.Buffer).SetReadDeadline(t)
+	if b, ok := r.buffer.(interface {
+		SetReadDeadline(time.Time) error
+	}); ok {
+		return b.SetReadDeadline(t)
+	}
+	return nil
 }
 
 // Close removes the ReadStream from the session and cleans up any associated state

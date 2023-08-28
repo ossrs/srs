@@ -241,12 +241,12 @@ srs_error_t do_main(int argc, char** argv, char** envp)
 #ifdef SRS_SANITIZER_LOG
     __asan_set_error_report_callback(asan_report_callback);
 #endif
-    
-    if ((err = run_directly_or_daemon()) != srs_success) {
+
+    err = run_directly_or_daemon();
+    srs_free_global_system_ips();
+    if (err != srs_success) {
         return srs_error_wrap(err, "run");
     }
-
-    srs_free_global_system_ips();
 
     return err;
 }

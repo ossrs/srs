@@ -1,14 +1,77 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package ice
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pion/logging"
+	"github.com/pion/transport/v2/packetio"
 )
+
+type bufferedConn struct {
+	net.Conn
+	buf    *packetio.Buffer
+	logger logging.LeveledLogger
+	closed int32
+}
+
+func newBufferedConn(conn net.Conn, bufSize int, logger logging.LeveledLogger) net.Conn {
+	buf := packetio.NewBuffer()
+	if bufSize > 0 {
+		buf.SetLimitSize(bufSize)
+	}
+
+	bc := &bufferedConn{
+		Conn:   conn,
+		buf:    buf,
+		logger: logger,
+	}
+
+	go bc.writeProcess()
+	return bc
+}
+
+func (bc *bufferedConn) Write(b []byte) (int, error) {
+	n, err := bc.buf.Write(b)
+	if err != nil {
+		return n, err
+	}
+	return n, nil
+}
+
+func (bc *bufferedConn) writeProcess() {
+	pktBuf := make([]byte, receiveMTU)
+	for atomic.LoadInt32(&bc.closed) == 0 {
+		n, err := bc.buf.Read(pktBuf)
+		if errors.Is(err, io.EOF) {
+			return
+		}
+
+		if err != nil {
+			bc.logger.Warnf("read buffer error: %s", err)
+			continue
+		}
+
+		if _, err := bc.Conn.Write(pktBuf[:n]); err != nil {
+			bc.logger.Warnf("write error: %s", err)
+			continue
+		}
+	}
+}
+
+func (bc *bufferedConn) Close() error {
+	atomic.StoreInt32(&bc.closed, 1)
+	_ = bc.buf.Close()
+	return bc.Conn.Close()
+}
 
 type tcpPacketConn struct {
 	params *tcpPacketParams
@@ -31,9 +94,10 @@ type streamingPacket struct {
 }
 
 type tcpPacketParams struct {
-	ReadBuffer int
-	LocalAddr  net.Addr
-	Logger     logging.LeveledLogger
+	ReadBuffer  int
+	LocalAddr   net.Addr
+	Logger      logging.LeveledLogger
+	WriteBuffer int
 }
 
 func newTCPPacketConn(params tcpPacketParams) *tcpPacketConn {
@@ -50,7 +114,7 @@ func newTCPPacketConn(params tcpPacketParams) *tcpPacketConn {
 }
 
 func (t *tcpPacketConn) AddConn(conn net.Conn, firstPacketData []byte) error {
-	t.params.Logger.Infof("AddConn: %s %s", conn.RemoteAddr().Network(), conn.RemoteAddr())
+	t.params.Logger.Infof("AddConn: %s remote %s to local %s", conn.RemoteAddr().Network(), conn.RemoteAddr(), conn.LocalAddr())
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -65,14 +129,25 @@ func (t *tcpPacketConn) AddConn(conn net.Conn, firstPacketData []byte) error {
 		return fmt.Errorf("%w: %s", errConnectionAddrAlreadyExist, conn.RemoteAddr().String())
 	}
 
+	if t.params.WriteBuffer > 0 {
+		conn = newBufferedConn(conn, t.params.WriteBuffer, t.params.Logger)
+	}
 	t.conns[conn.RemoteAddr().String()] = conn
 
 	t.wg.Add(1)
 	go func() {
-		if firstPacketData != nil {
-			t.recvChan <- streamingPacket{firstPacketData, conn.RemoteAddr(), nil}
-		}
 		defer t.wg.Done()
+		if firstPacketData != nil {
+			select {
+			case <-t.closedChan:
+				// NOTE: recvChan can fill up and never drain in edge
+				// cases while closing a connection, which can cause the
+				// packetConn to never finish closing. Bail out early
+				// here to prevent that.
+				return
+			case t.recvChan <- streamingPacket{firstPacketData, conn.RemoteAddr(), nil}:
+			}
+		}
 		t.startReading(conn)
 	}()
 
@@ -84,9 +159,8 @@ func (t *tcpPacketConn) startReading(conn net.Conn) {
 
 	for {
 		n, err := readStreamingPacket(conn, buf)
-		// t.params.Logger.Infof("readStreamingPacket read %d bytes", n)
 		if err != nil {
-			t.params.Logger.Infof("%w: %s\n", errReadingStreamingPacket, err)
+			t.params.Logger.Infof("%v: %s", errReadingStreamingPacket, err)
 			t.handleRecv(streamingPacket{nil, conn.RemoteAddr(), err})
 			t.removeConn(conn)
 			return
@@ -95,7 +169,6 @@ func (t *tcpPacketConn) startReading(conn net.Conn) {
 		data := make([]byte, n)
 		copy(data, buf[:n])
 
-		// t.params.Logger.Infof("Writing read streaming packet to recvChan: %d bytes", len(data))
 		t.handleRecv(streamingPacket{data, conn.RemoteAddr(), nil})
 	}
 }
@@ -126,7 +199,7 @@ func (t *tcpPacketConn) isClosed() bool {
 }
 
 // WriteTo is for passive and s-o candidates.
-func (t *tcpPacketConn) ReadFrom(b []byte) (n int, raddr net.Addr, err error) {
+func (t *tcpPacketConn) ReadFrom(b []byte) (n int, rAddr net.Addr, err error) {
 	pkt, ok := <-t.recvChan
 
 	if !ok {
@@ -147,27 +220,18 @@ func (t *tcpPacketConn) ReadFrom(b []byte) (n int, raddr net.Addr, err error) {
 }
 
 // WriteTo is for active and s-o candidates.
-func (t *tcpPacketConn) WriteTo(buf []byte, raddr net.Addr) (n int, err error) {
+func (t *tcpPacketConn) WriteTo(buf []byte, rAddr net.Addr) (n int, err error) {
 	t.mu.Lock()
-	defer t.mu.Unlock()
+	conn, ok := t.conns[rAddr.String()]
+	t.mu.Unlock()
 
-	conn, ok := t.conns[raddr.String()]
 	if !ok {
 		return 0, io.ErrClosedPipe
-		// conn, err := net.DialTCP(tcp, nil, raddr.(*net.TCPAddr))
-
-		// if err != nil {
-		// 	t.params.Logger.Tracef("DialTCP error: %s", err)
-		// 	return 0, err
-		// }
-
-		// go t.startReading(conn)
-		// t.conns[raddr.String()] = conn
 	}
 
 	n, err = writeStreamingPacket(conn, buf)
 	if err != nil {
-		t.params.Logger.Tracef("%w %s\n", errWriting, raddr)
+		t.params.Logger.Tracef("%w %s", errWriting, rAddr)
 		return n, err
 	}
 
@@ -177,7 +241,7 @@ func (t *tcpPacketConn) WriteTo(buf []byte, raddr net.Addr) (n int, err error) {
 func (t *tcpPacketConn) closeAndLogError(closer io.Closer) {
 	err := closer.Close()
 	if err != nil {
-		t.params.Logger.Warnf("%w: %s", errClosingConnection, err)
+		t.params.Logger.Warnf("%v: %s", errClosingConnection, err)
 	}
 }
 
@@ -219,15 +283,15 @@ func (t *tcpPacketConn) LocalAddr() net.Addr {
 	return t.params.LocalAddr
 }
 
-func (t *tcpPacketConn) SetDeadline(tm time.Time) error {
+func (t *tcpPacketConn) SetDeadline(time.Time) error {
 	return nil
 }
 
-func (t *tcpPacketConn) SetReadDeadline(tm time.Time) error {
+func (t *tcpPacketConn) SetReadDeadline(time.Time) error {
 	return nil
 }
 
-func (t *tcpPacketConn) SetWriteDeadline(tm time.Time) error {
+func (t *tcpPacketConn) SetWriteDeadline(time.Time) error {
 	return nil
 }
 

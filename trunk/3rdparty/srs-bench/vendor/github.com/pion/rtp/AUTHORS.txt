@@ -1,0 +1,36 @@
+# Thank you to everyone that made Pion possible. If you are interested in contributing
+# we would love to have you https://github.com/pion/webrtc/wiki/Contributing
+#
+# This file is auto generated, using git to list all individuals contributors.
+# see `.github/generate-authors.sh` for the scripting
+adwpc <adwpc@hotmail.com>
+aler9 <46489434+aler9@users.noreply.github.com>
+Antoine Baché <antoine.bache@epitech.eu>
+Antoine Baché <antoine@tenten.app>
+Atsushi Watanabe <atsushi.w@ieee.org>
+baiyufei <baiyufei@outlook.com>
+Bao Nguyen <bao@n4n.dev>
+boks1971 <raja.gobi@tutanota.com>
+debiandebiandebian <debiandebiandebiandebian@gmail.com>
+ffmiyo <leffmiyo@gmail.com>
+Guilherme <gqgs@protonmail.com>
+Haiyang Wang <ocean2811@outlook.com>
+Hugo Arregui <hugo@decentraland.org>
+John Bradley <jrb@turrettech.com>
+Juliusz Chroboczek <jch@irif.fr>
+Kazuyuki Honda <hakobera@gmail.com>
+Luke Curley <kixelated@gmail.com>
+lxb <xiangbing.li@uama.com.cn>
+Michael MacDonald <github@macdonald.cx>
+Michael MacDonald <mike.macdonald@savantsystems.com>
+Michael Uti <utimichael9@gmail.com>
+Raphael Derosso Pereira <raphaelpereira@gmail.com>
+Rob Lofthouse <ri.lofthouse@gmail.com>
+Robin Raymond <robin@goheadroom.com>
+Sean DuBois <duboisea@twitch.tv>
+Sean DuBois <seaduboi@amazon.com>
+Sean DuBois <sean@siobud.com>
+Simone Gotti <simone.gotti@gmail.com>
+Tarrence van As <tarrence13@gmail.com>
+wangzixiang <wangzixiang@onething.net>
+Woodrow Douglass <wdouglass@carnegierobotics.com>

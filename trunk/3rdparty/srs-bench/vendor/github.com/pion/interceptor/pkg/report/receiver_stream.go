@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package report
 
 import (
@@ -40,21 +43,21 @@ func newReceiverStream(ssrc uint32, clockRate uint32) *receiverStream {
 	}
 }
 
-func (stream *receiverStream) processRTP(now time.Time, pkt *rtp.Packet) {
+func (stream *receiverStream) processRTP(now time.Time, pktHeader *rtp.Header) {
 	stream.m.Lock()
 	defer stream.m.Unlock()
 
 	if !stream.started { // first frame
 		stream.started = true
-		stream.setReceived(pkt.SequenceNumber)
-		stream.lastSeqnum = pkt.SequenceNumber
-		stream.lastReportSeqnum = pkt.SequenceNumber - 1
-		stream.lastRTPTimeRTP = pkt.Timestamp
+		stream.setReceived(pktHeader.SequenceNumber)
+		stream.lastSeqnum = pktHeader.SequenceNumber
+		stream.lastReportSeqnum = pktHeader.SequenceNumber - 1
+		stream.lastRTPTimeRTP = pktHeader.Timestamp
 		stream.lastRTPTimeTime = now
 	} else { // following frames
-		stream.setReceived(pkt.SequenceNumber)
+		stream.setReceived(pktHeader.SequenceNumber)
 
-		diff := int32(pkt.SequenceNumber) - int32(stream.lastSeqnum)
+		diff := int32(pktHeader.SequenceNumber) - int32(stream.lastSeqnum)
 		if diff > 0 || diff < -0x0FFF {
 			// overflow
 			if diff < -0x0FFF {
@@ -62,22 +65,22 @@ func (stream *receiverStream) processRTP(now time.Time, pkt *rtp.Packet) {
 			}
 
 			// set missing packets as missing
-			for i := stream.lastSeqnum + 1; i != pkt.SequenceNumber; i++ {
+			for i := stream.lastSeqnum + 1; i != pktHeader.SequenceNumber; i++ {
 				stream.delReceived(i)
 			}
 
-			stream.lastSeqnum = pkt.SequenceNumber
+			stream.lastSeqnum = pktHeader.SequenceNumber
 		}
 
 		// compute jitter
 		// https://tools.ietf.org/html/rfc3550#page-39
 		D := now.Sub(stream.lastRTPTimeTime).Seconds()*stream.clockRate -
-			(float64(pkt.Timestamp) - float64(stream.lastRTPTimeRTP))
+			(float64(pktHeader.Timestamp) - float64(stream.lastRTPTimeRTP))
 		if D < 0 {
 			D = -D
 		}
 		stream.jitter += (D - stream.jitter) / 16
-		stream.lastRTPTimeRTP = pkt.Timestamp
+		stream.lastRTPTimeRTP = pktHeader.Timestamp
 		stream.lastRTPTimeTime = now
 	}
 }

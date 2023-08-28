@@ -52,7 +52,10 @@ type paramOutgoingResetRequest struct {
 	streamIdentifiers []uint16
 }
 
-var errSSNResetRequestParamTooShort = errors.New("outgoing SSN reset request parameter too short")
+// Outgoing reset request parameter errors
+var (
+	ErrSSNResetRequestParamTooShort = errors.New("outgoing SSN reset request parameter too short")
+)
 
 func (r *paramOutgoingResetRequest) marshal() ([]byte, error) {
 	r.typ = outSSNResetReq
@@ -72,7 +75,7 @@ func (r *paramOutgoingResetRequest) unmarshal(raw []byte) (param, error) {
 		return nil, err
 	}
 	if len(r.raw) < paramOutgoingResetRequestStreamIdentifiersOffset {
-		return nil, errSSNResetRequestParamTooShort
+		return nil, ErrSSNResetRequestParamTooShort
 	}
 	r.reconfigRequestSequenceNumber = binary.BigEndian.Uint32(r.raw)
 	r.reconfigResponseSequenceNumber = binary.BigEndian.Uint32(r.raw[4:])

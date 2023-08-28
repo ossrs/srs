@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 Winlin
+// # Copyright (c) 2021 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -28,6 +28,14 @@ import (
 
 type rtpInterceptorOptionFunc func(i *rtpInterceptor)
 
+type rtpInteceptorFactory struct {
+	p *rtpInterceptor
+}
+
+func (v *rtpInteceptorFactory) NewInterceptor(id string) (interceptor.Interceptor, error) {
+	return v.p, nil
+}
+
 // Common RTP packet interceptor for benchmark.
 // @remark Should never merge with rtcpInterceptor, because they has the same Write interface.
 type rtpInterceptor struct {
@@ -41,12 +49,12 @@ type rtpInterceptor struct {
 	bypassInterceptor
 }
 
-func newRTPInterceptor(options ...rtpInterceptorOptionFunc) *rtpInterceptor {
+func newRTPInterceptor(options ...rtpInterceptorOptionFunc) *rtpInteceptorFactory {
 	v := &rtpInterceptor{}
 	for _, opt := range options {
 		opt(v)
 	}
-	return v
+	return &rtpInteceptorFactory{v}
 }
 
 func (v *rtpInterceptor) BindLocalStream(info *interceptor.StreamInfo, writer interceptor.RTPWriter) interceptor.RTPWriter {
@@ -81,6 +89,14 @@ func (v *rtpInterceptor) UnbindRemoteStream(info *interceptor.StreamInfo) {
 
 type rtcpInterceptorOptionFunc func(i *rtcpInterceptor)
 
+type rtcpInteceptorFactory struct {
+	p *rtcpInterceptor
+}
+
+func (v *rtcpInteceptorFactory) NewInterceptor(id string) (interceptor.Interceptor, error) {
+	return v.p, nil
+}
+
 // Common RTCP packet interceptor for benchmark.
 // @remark Should never merge with rtpInterceptor, because they has the same Write interface.
 type rtcpInterceptor struct {
@@ -94,12 +110,12 @@ type rtcpInterceptor struct {
 	bypassInterceptor
 }
 
-func newRTCPInterceptor(options ...rtcpInterceptorOptionFunc) *rtcpInterceptor {
+func newRTCPInterceptor(options ...rtcpInterceptorOptionFunc) *rtcpInteceptorFactory {
 	v := &rtcpInterceptor{}
 	for _, opt := range options {
 		opt(v)
 	}
-	return v
+	return &rtcpInteceptorFactory{v}
 }
 
 func (v *rtcpInterceptor) BindRTCPReader(reader interceptor.RTCPReader) interceptor.RTCPReader {

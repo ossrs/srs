@@ -218,6 +218,16 @@ srs_error_t SrsSemiSecurityTransport::protect_rtcp(void* packet, int* nb_cipher)
     return srs_success;
 }
 
+srs_error_t SrsSemiSecurityTransport::unprotect_rtp(void* packet, int* nb_plaintext)
+{
+    return srs_success;
+}
+
+srs_error_t SrsSemiSecurityTransport::unprotect_rtcp(void* packet, int* nb_plaintext)
+{
+    return srs_success;
+}
+
 SrsPlaintextTransport::SrsPlaintextTransport(ISrsRtcNetwork* s)
 {
     network_ = s;
@@ -776,7 +786,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp(SrsRtcpCommon* rtcp)
         SrsRtcpNack* nack = dynamic_cast<SrsRtcpNack*>(rtcp);
         return on_rtcp_nack(nack);
     } else if(SrsRtcpType_psfb == rtcp->type()) {
-        SrsRtcpPsfbCommon* psfb = dynamic_cast<SrsRtcpPsfbCommon*>(rtcp);
+        SrsRtcpFbCommon* psfb = dynamic_cast<SrsRtcpFbCommon*>(rtcp);
         return on_rtcp_ps_feedback(psfb);
     } else if(SrsRtcpType_xr == rtcp->type()) {
         SrsRtcpXr* xr = dynamic_cast<SrsRtcpXr*>(rtcp);
@@ -856,7 +866,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack* rtcp)
     return err;
 }
 
-srs_error_t SrsRtcPlayStream::on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp)
+srs_error_t SrsRtcPlayStream::on_rtcp_ps_feedback(SrsRtcpFbCommon* rtcp)
 {
     srs_error_t err = srs_success;
 
@@ -1874,6 +1884,11 @@ string SrsRtcConnection::username()
     return username_;
 }
 
+string SrsRtcConnection::token()
+{
+    return token_;
+}
+
 ISrsKbpsDelta* SrsRtcConnection::delta()
 {
     return networks_->delta();
@@ -1994,6 +2009,7 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
     srs_error_t err = srs_success;
 
     username_ = username;
+    token_ = srs_random_str(9);
     req_ = r->copy();
 
     SrsSessionConfig* cfg = &local_sdp.session_negotiate_;
@@ -2054,7 +2070,7 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
 
     // For REMB packet.
     if (SrsRtcpType_psfb == rtcp->type()) {
-        SrsRtcpPsfbCommon* psfb = dynamic_cast<SrsRtcpPsfbCommon*>(rtcp);
+        SrsRtcpFbCommon* psfb = dynamic_cast<SrsRtcpFbCommon*>(rtcp);
         if (15 == psfb->get_rc()) {
             return on_rtcp_feedback_remb(psfb);
         }
@@ -2082,7 +2098,7 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
             required_player_ssrc = nack->get_media_ssrc();
         }
     } else if(SrsRtcpType_psfb == rtcp->type()) {
-        SrsRtcpPsfbCommon* psfb = dynamic_cast<SrsRtcpPsfbCommon*>(rtcp);
+        SrsRtcpFbCommon* psfb = dynamic_cast<SrsRtcpFbCommon*>(rtcp);
         required_player_ssrc = psfb->get_media_ssrc();
     }
 
@@ -2131,7 +2147,7 @@ srs_error_t SrsRtcConnection::on_rtcp_feedback_twcc(char* data, int nb_data)
     return srs_success;
 }
 
-srs_error_t SrsRtcConnection::on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp)
+srs_error_t SrsRtcConnection::on_rtcp_feedback_remb(SrsRtcpFbCommon *rtcp)
 {
     //ignore REMB
     return srs_success;
@@ -2230,11 +2246,12 @@ srs_error_t SrsRtcConnection::on_dtls_alert(std::string type, std::string desc)
     srs_error_t err = srs_success;
 
     // CN(Close Notify) is sent when client close the PeerConnection.
-    if (type == "warning" && desc == "CN") {
+    // fatal, IP(Illegal Parameter) is sent when DTLS failed.
+    if (type == "fatal" || (type == "warning" && desc == "CN")) {
         SrsContextRestore(_srs_context->get_id());
         switch_to_context();
 
-        srs_trace("RTC: session destroy by DTLS alert, username=%s", username_.c_str());
+        srs_trace("RTC: session destroy by DTLS alert(%s %s), username=%s", type.c_str(), desc.c_str(), username_.c_str());
         _srs_rtc_manager->remove(this);
     }
 

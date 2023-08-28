@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 // Package media provides media writer and filters
 package media
 
@@ -9,9 +12,11 @@ import (
 
 // A Sample contains encoded media and timing information
 type Sample struct {
-	Data      []byte
-	Timestamp time.Time
-	Duration  time.Duration
+	Data               []byte
+	Timestamp          time.Time
+	Duration           time.Duration
+	PacketTimestamp    uint32
+	PrevDroppedPackets uint16
 }
 
 // Writer defines an interface to handle

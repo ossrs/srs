@@ -10,19 +10,20 @@ import (
 // UDPProxy is a proxy between real server(net.UDPConn) and vnet.UDPConn.
 //
 // High level design:
-//                           ..............................................
-//                           :         Virtual Network (vnet)             :
-//                           :                                            :
-//   +-------+ *         1 +----+         +--------+                      :
-//   | :App  |------------>|:Net|--o<-----|:Router |          .............................
-//   +-------+             +----+         |        |          :        UDPProxy           :
-//                           :            |        |       +----+     +---------+     +---------+     +--------+
-//                           :            |        |--->o--|:Net|-->o-| vnet.   |-->o-|  net.   |--->-| :Real  |
-//                           :            |        |       +----+     | UDPConn |     | UDPConn |     | Server |
-//                           :            |        |          :       +---------+     +---------+     +--------+
-//                           :            |        |          ............................:
-//                           :            +--------+                       :
-//                           ...............................................
+//
+//	                        ..............................................
+//	                        :         Virtual Network (vnet)             :
+//	                        :                                            :
+//	+-------+ *         1 +----+         +--------+                      :
+//	| :App  |------------>|:Net|--o<-----|:Router |          .............................
+//	+-------+             +----+         |        |          :        UDPProxy           :
+//	                        :            |        |       +----+     +---------+     +---------+     +--------+
+//	                        :            |        |--->o--|:Net|-->o-| vnet.   |-->o-|  net.   |--->-| :Real  |
+//	                        :            |        |       +----+     | UDPConn |     | UDPConn |     | Server |
+//	                        :            |        |          :       +---------+     +---------+     +--------+
+//	                        :            |        |          ............................:
+//	                        :            +--------+                       :
+//	                        ...............................................
 type UDPProxy struct {
 	// The router bind to.
 	router *Router
@@ -109,9 +110,12 @@ func (v *aUDPProxyWorker) Close() error {
 
 func (v *aUDPProxyWorker) Proxy(ctx context.Context, client *Net, serverAddr *net.UDPAddr) error { // nolint:gocognit
 	// Create vnet for real server by serverAddr.
-	nw := NewNet(&NetConfig{
+	nw, err := NewNet(&NetConfig{
 		StaticIP: serverAddr.IP.String(),
 	})
+	if err != nil {
+		return err
+	}
 	if err := v.router.AddNet(nw); err != nil {
 		return err
 	}

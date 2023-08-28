@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math/bits"
+	"math"
 )
 
 // ReceiverEstimatedMaximumBitrate contains the receiver's estimated maximum bitrate.
@@ -14,13 +14,11 @@ type ReceiverEstimatedMaximumBitrate struct {
 	SenderSSRC uint32
 
 	// Estimated maximum bitrate
-	Bitrate uint64
+	Bitrate float32
 
 	// SSRC entries which this packet applies to
 	SSRCs []uint32
 }
-
-var _ Packet = (*ReceiverEstimatedMaximumBitrate)(nil) // assert is a Packet
 
 // Marshal serializes the packet and returns a byte slice.
 func (p ReceiverEstimatedMaximumBitrate) Marshal() (buf []byte, err error) {
@@ -49,6 +47,7 @@ func (p ReceiverEstimatedMaximumBitrate) MarshalSize() (n int) {
 
 // MarshalTo serializes the packet to the given byte slice.
 func (p ReceiverEstimatedMaximumBitrate) MarshalTo(buf []byte) (n int, err error) {
+	const bitratemax = 0x3FFFFp+63
 	/*
 	    0                   1                   2                   3
 	    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -92,35 +91,32 @@ func (p ReceiverEstimatedMaximumBitrate) MarshalTo(buf []byte) (n int, err error
 	// Write the length of the ssrcs to follow at the end
 	buf[16] = byte(len(p.SSRCs))
 
-	// We can only encode 18 bits of information in the mantissa.
-	// The exponent lets us shift to the left up to 64 places (6-bits).
-	// We actually need a uint82 to encode the largest possible number,
-	// but uint64 should be good enough for 2.3 exabytes per second.
+	exp := 0
+	bitrate := p.Bitrate
 
-	// So we need to truncate the bitrate and use the exponent for the shift.
-	// bitrate = mantissa * (1 << exp)
-
-	// Calculate the total shift based on the leading number of zeroes.
-	// This will be negative if there is no shift required.
-	shift := uint(64 - bits.LeadingZeros64(p.Bitrate))
-
-	var mantissa uint
-	var exp uint
-
-	if shift <= 18 {
-		// Fit everything in the mantissa because we can.
-		mantissa = uint(p.Bitrate)
-		exp = 0
-	} else {
-		// We can only use 18 bits of precision, so truncate.
-		mantissa = uint(p.Bitrate >> (shift - 18))
-		exp = shift - 18
+	if bitrate >= bitratemax {
+		bitrate = bitratemax
 	}
+
+	if bitrate < 0 {
+		return 0, errInvalidBitrate
+	}
+
+	for bitrate >= (1 << 18) {
+		bitrate /= 2.0
+		exp++
+	}
+
+	if exp >= (1 << 6) {
+		return 0, errInvalidBitrate
+	}
+
+	mantissa := uint(math.Floor(float64(bitrate)))
 
 	// We can't quite use the binary package because
 	// a) it's a uint24 and b) the exponent is only 6-bits
 	// Just trust me; this is big-endian encoding.
-	buf[17] = byte((exp << 2) | (mantissa >> 16))
+	buf[17] = byte(exp<<2) | byte(mantissa>>16)
 	buf[18] = byte(mantissa >> 8)
 	buf[19] = byte(mantissa)
 
@@ -136,6 +132,7 @@ func (p ReceiverEstimatedMaximumBitrate) MarshalTo(buf []byte) (n int, err error
 
 // Unmarshal reads a REMB packet from the given byte slice.
 func (p *ReceiverEstimatedMaximumBitrate) Unmarshal(buf []byte) (err error) {
+	const mantissamax = 0x7FFFFF
 	/*
 	    0                   1                   2                   3
 	    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -221,20 +218,22 @@ func (p *ReceiverEstimatedMaximumBitrate) Unmarshal(buf []byte) (err error) {
 
 	// Get the 6-bit exponent value.
 	exp := buf[17] >> 2
+	exp += 127 // bias for IEEE754
+	exp += 23  // IEEE754 biases the decimal to the left, abs-send-time biases it to the right
 
 	// The remaining 2-bits plus the next 16-bits are the mantissa.
-	mantissa := uint64(buf[17]&3)<<16 | uint64(buf[18])<<8 | uint64(buf[19])
+	mantissa := uint32(buf[17]&3)<<16 | uint32(buf[18])<<8 | uint32(buf[19])
+
+	if mantissa != 0 {
+		// ieee754 requires an implicit leading bit
+		for (mantissa & (mantissamax + 1)) == 0 {
+			exp--
+			mantissa *= 2
+		}
+	}
 
 	// bitrate = mantissa * 2^exp
-
-	if exp > 46 {
-		// NOTE: We intentionally truncate values so they fit in a uint64.
-		// Otherwise we would need a uint82.
-		// This is 2.3 exabytes per second, which should be good enough.
-		p.Bitrate = ^uint64(0)
-	} else {
-		p.Bitrate = mantissa << exp
-	}
+	p.Bitrate = math.Float32frombits((uint32(exp) << 23) | (mantissa & mantissamax))
 
 	// Clear any existing SSRCs
 	p.SSRCs = nil
@@ -264,7 +263,7 @@ func (p *ReceiverEstimatedMaximumBitrate) String() string {
 	bitUnits := []string{"b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb"}
 
 	// Do some unit conversions because b/s is far too difficult to read.
-	bitrate := float64(p.Bitrate)
+	bitrate := p.Bitrate
 	powers := 0
 
 	// Keep dividing the bitrate until it's under 1000

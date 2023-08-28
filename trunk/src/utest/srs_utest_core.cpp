@@ -54,7 +54,7 @@ VOID TEST(CoreLogger, CheckVsnprintf)
         HELPER_ARRAY_INIT(buf, sizeof(buf), 0xf);
 
         // Return the number of characters printed.
-        EXPECT_EQ(6, sprintf(buf, "%s", "Hello!"));
+        EXPECT_EQ(6, snprintf(buf, sizeof(buf), "%s", "Hello!"));
         EXPECT_EQ('H', buf[0]);
         EXPECT_EQ('!', buf[5]);
         EXPECT_EQ(0x0, buf[6]);

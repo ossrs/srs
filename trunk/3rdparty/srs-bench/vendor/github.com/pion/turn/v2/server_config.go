@@ -23,6 +23,19 @@ type RelayAddressGenerator interface {
 	AllocateConn(network string, requestedPort int) (net.Conn, net.Addr, error)
 }
 
+// PermissionHandler is a callback to filter incoming CreatePermission and ChannelBindRequest
+// requests based on the client IP address and port and the peer IP address the client intends to
+// connect to. If the client is behind a NAT then the filter acts on the server reflexive
+// ("mapped") address instead of the real client IP address and port. Note that TURN permissions
+// are per-allocation and per-peer-IP-address, to mimic the address-restricted filtering mechanism
+// of NATs that comply with [RFC4787], see https://tools.ietf.org/html/rfc5766#section-2.3.
+type PermissionHandler func(clientAddr net.Addr, peerIP net.IP) (ok bool)
+
+// DefaultPermissionHandler is convince function that grants permission to all peers
+func DefaultPermissionHandler(clientAddr net.Addr, peerIP net.IP) (ok bool) {
+	return true
+}
+
 // PacketConnConfig is a single net.PacketConn to listen/write on. This will be used for UDP listeners
 type PacketConnConfig struct {
 	PacketConn net.PacketConn
@@ -30,6 +43,11 @@ type PacketConnConfig struct {
 	// When an allocation is generated the RelayAddressGenerator
 	// creates the net.PacketConn and returns the IP/Port it is available at
 	RelayAddressGenerator RelayAddressGenerator
+
+	// PermissionHandler is a callback to filter peer addresses. Can be set as nil, in which
+	// case the DefaultPermissionHandler is automatically instantiated to admit all peer
+	// connections
+	PermissionHandler PermissionHandler
 }
 
 func (c *PacketConnConfig) validate() error {
@@ -50,6 +68,11 @@ type ListenerConfig struct {
 	// When an allocation is generated the RelayAddressGenerator
 	// creates the net.PacketConn and returns the IP/Port it is available at
 	RelayAddressGenerator RelayAddressGenerator
+
+	// PermissionHandler is a callback to filter peer addresses. Can be set as nil, in which
+	// case the DefaultPermissionHandler is automatically instantiated to admit all peer
+	// connections
+	PermissionHandler PermissionHandler
 }
 
 func (c *ListenerConfig) validate() error {
@@ -67,7 +90,7 @@ func (c *ListenerConfig) validate() error {
 // AuthHandler is a callback used to handle incoming auth requests, allowing users to customize Pion TURN with custom behavior
 type AuthHandler func(username, realm string, srcAddr net.Addr) (key []byte, ok bool)
 
-// GenerateAuthKey is a convince function to easily generate keys in the format used by AuthHandler
+// GenerateAuthKey is a convenience function to easily generate keys in the format used by AuthHandler
 func GenerateAuthKey(username, realm, password string) []byte {
 	// #nosec
 	h := md5.New()
@@ -93,6 +116,9 @@ type ServerConfig struct {
 
 	// ChannelBindTimeout sets the lifetime of channel binding. Defaults to 10 minutes.
 	ChannelBindTimeout time.Duration
+
+	// Sets the server inbound MTU(Maximum transmition unit). Defaults to 1600 bytes.
+	InboundMTU int
 }
 
 func (s *ServerConfig) validate() error {

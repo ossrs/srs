@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package ciphersuite
 
 import (
@@ -20,6 +23,16 @@ type TLSPskWithAes128CbcSha256 struct {
 // CertificateType returns what type of certificate this CipherSuite exchanges
 func (c *TLSPskWithAes128CbcSha256) CertificateType() clientcertificate.Type {
 	return clientcertificate.Type(0)
+}
+
+// KeyExchangeAlgorithm controls what key exchange algorithm is using during the handshake
+func (c *TLSPskWithAes128CbcSha256) KeyExchangeAlgorithm() KeyExchangeAlgorithm {
+	return KeyExchangeAlgorithmPsk
+}
+
+// ECC uses Elliptic Curve Cryptography
+func (c *TLSPskWithAes128CbcSha256) ECC() bool {
+	return false
 }
 
 // ID returns the ID of the CipherSuite
@@ -81,20 +94,20 @@ func (c *TLSPskWithAes128CbcSha256) Init(masterSecret, clientRandom, serverRando
 
 // Encrypt encrypts a single TLS RecordLayer
 func (c *TLSPskWithAes128CbcSha256) Encrypt(pkt *recordlayer.RecordLayer, raw []byte) ([]byte, error) {
-	cbc := c.cbc.Load()
-	if cbc == nil { // !c.isInitialized()
-		return nil, fmt.Errorf("%w, unable to decrypt", errCipherSuiteNotInit)
+	cipherSuite, ok := c.cbc.Load().(*ciphersuite.CBC)
+	if !ok {
+		return nil, fmt.Errorf("%w, unable to encrypt", errCipherSuiteNotInit)
 	}
 
-	return cbc.(*ciphersuite.CBC).Encrypt(pkt, raw)
+	return cipherSuite.Encrypt(pkt, raw)
 }
 
 // Decrypt decrypts a single TLS RecordLayer
 func (c *TLSPskWithAes128CbcSha256) Decrypt(raw []byte) ([]byte, error) {
-	cbc := c.cbc.Load()
-	if cbc == nil { // !c.isInitialized()
+	cipherSuite, ok := c.cbc.Load().(*ciphersuite.CBC)
+	if !ok {
 		return nil, fmt.Errorf("%w, unable to decrypt", errCipherSuiteNotInit)
 	}
 
-	return cbc.(*ciphersuite.CBC).Decrypt(raw)
+	return cipherSuite.Decrypt(raw)
 }

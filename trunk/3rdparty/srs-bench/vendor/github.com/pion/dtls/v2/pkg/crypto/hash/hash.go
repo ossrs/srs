@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 // Package hash provides TLS HashAlgorithm as defined in TLS 1.2
 package hash
 

@@ -24,7 +24,7 @@ func AddrIPPort(a net.Addr) (net.IP, int, error) {
 }
 
 // AddrEqual asserts that two net.Addrs are equal
-// Currently only supprots UDP but will be extended in the future to support others
+// Currently only supports UDP but will be extended in the future to support others
 func AddrEqual(a, b net.Addr) bool {
 	aUDP, ok := a.(*net.UDPAddr)
 	if !ok {

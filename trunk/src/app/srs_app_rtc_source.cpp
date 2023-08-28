@@ -684,7 +684,10 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
         if (! stream_desc_->audio_track_desc_) {
             return track_descs;
         }
-        if (stream_desc_->audio_track_desc_->media_->name_ == media_name) {
+
+        string name = stream_desc_->audio_track_desc_->media_->name_;
+        std::transform(name.begin(), name.end(), name.begin(), static_cast<int(*)(int)>(std::tolower));
+        if (name == media_name) {
             track_descs.push_back(stream_desc_->audio_track_desc_);
         }
     }
@@ -877,7 +880,7 @@ srs_error_t SrsRtcRtpBuilder::init_codec(SrsAudioCodecId codec)
     codec_ = new SrsAudioTranscoder();
 
     // Initialize the codec according to the codec in stream.
-    int bitrate = 48000; // The output bitrate in bps.
+    int bitrate = _srs_config->get_rtc_opus_bitrate(req->vhost);// The output bitrate in bps.
     if ((err = codec_->initialize(codec, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "init codec=%d", codec);
     }
@@ -1334,7 +1337,7 @@ srs_error_t SrsRtcFrameBuilder::initialize(SrsRequest* r)
     SrsAudioCodecId to = SrsAudioCodecIdAAC; // The output audio codec.
     int channels = 2; // The output audio channels.
     int sample_rate = 48000; // The output audio sample rate in HZ.
-    int bitrate = 48000; // The output audio bitrate in bps.
+    int bitrate = _srs_config->get_rtc_aac_bitrate(r->vhost); // The output audio bitrate in bps.
     if ((err = codec_->initialize(from, to, channels, sample_rate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "bridge initialize");
     }

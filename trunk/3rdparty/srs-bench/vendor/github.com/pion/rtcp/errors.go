@@ -27,4 +27,8 @@ var (
 	errMissingREMBidentifier    = errors.New("missing REMB identifier")
 	errSSRCNumAndLengthMismatch = errors.New("SSRC num and length do not match")
 	errInvalidSizeOrStartIndex  = errors.New("invalid size or startIndex")
+	errInvalidBitrate           = errors.New("invalid bitrate")
+	errWrongChunkType           = errors.New("rtcp: wrong chunk type")
+	errBadStructMemberType      = errors.New("rtcp: struct contains unexpected member type")
+	errBadReadParameter         = errors.New("rtcp: cannot read into non-pointer")
 )

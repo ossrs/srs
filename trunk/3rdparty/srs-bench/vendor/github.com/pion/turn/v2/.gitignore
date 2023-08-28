@@ -1,9 +1,25 @@
+### JetBrains IDE ###
+#####################
+.idea/
+
+### Emacs Temporary Files ###
+#############################
+*~
+
+### Folders ###
+###############
+bin/
+vendor/
+node_modules/
+
+### Files ###
+#############
+*.ivf
+*.ogg
+tags
+cover.out
 *.sw[poe]
-examples/turn-client/tcp/tcp
-examples/turn-client/udp/udp
-examples/turn-server/add-software-attribute/add-software-attribute
-examples/turn-server/log/log
-examples/turn-server/simple/simple
-examples/turn-server/tcp/tcp
-examples/lt-cred-generator/lt-cred-generator
-examples/turn-server/lt-cred/lt-cred
+*.wasm
+examples/sfu-ws/cert.pem
+examples/sfu-ws/key.pem
+wasm_exec.js

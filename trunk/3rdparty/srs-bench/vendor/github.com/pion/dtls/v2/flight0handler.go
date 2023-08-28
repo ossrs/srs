@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package dtls
 
 import (
@@ -11,8 +14,8 @@ import (
 	"github.com/pion/dtls/v2/pkg/protocol/handshake"
 )
 
-func flight0Parse(ctx context.Context, c flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) (flightVal, *alert.Alert, error) {
-	seq, msgs, ok := cache.fullPullMap(0,
+func flight0Parse(_ context.Context, _ flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) (flightVal, *alert.Alert, error) {
+	seq, msgs, ok := cache.fullPullMap(0, state.cipherSuite,
 		handshakeCachePullRule{handshake.TypeClientHello, cfg.initialEpoch, true, false},
 	)
 	if !ok {
@@ -64,6 +67,8 @@ func flight0Parse(ctx context.Context, c flightConn, state *State, cache *handsh
 			}
 		case *extension.ServerName:
 			state.serverName = e.ServerName // remote server name
+		case *extension.ALPN:
+			state.peerSupportedProtocols = e.ProtocolNameList
 		}
 	}
 
@@ -79,14 +84,45 @@ func flight0Parse(ctx context.Context, c flightConn, state *State, cache *handsh
 		}
 	}
 
-	return flight2, nil, nil
+	nextFlight := flight2
+
+	if cfg.insecureSkipHelloVerify {
+		nextFlight = flight4
+	}
+
+	return handleHelloResume(clientHello.SessionID, state, cfg, nextFlight)
 }
 
-func flight0Generate(c flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) ([]*packet, *alert.Alert, error) {
+func handleHelloResume(sessionID []byte, state *State, cfg *handshakeConfig, next flightVal) (flightVal, *alert.Alert, error) {
+	if len(sessionID) > 0 && cfg.sessionStore != nil {
+		if s, err := cfg.sessionStore.Get(sessionID); err != nil {
+			return 0, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, err
+		} else if s.ID != nil {
+			cfg.log.Tracef("[handshake] resume session: %x", sessionID)
+
+			state.SessionID = sessionID
+			state.masterSecret = s.Secret
+
+			if err := state.initCipherSuite(); err != nil {
+				return 0, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, err
+			}
+
+			clientRandom := state.localRandom.MarshalFixed()
+			cfg.writeKeyLog(keyLogLabelTLS12, clientRandom[:], state.masterSecret)
+
+			return flight4b, nil, nil
+		}
+	}
+	return next, nil, nil
+}
+
+func flight0Generate(_ flightConn, state *State, _ *handshakeCache, cfg *handshakeConfig) ([]*packet, *alert.Alert, error) {
 	// Initialize
-	state.cookie = make([]byte, cookieLength)
-	if _, err := rand.Read(state.cookie); err != nil {
-		return nil, nil, err
+	if !cfg.insecureSkipHelloVerify {
+		state.cookie = make([]byte, cookieLength)
+		if _, err := rand.Read(state.cookie); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	var zeroEpoch uint16

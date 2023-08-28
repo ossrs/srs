@@ -64,15 +64,10 @@ extern SrsStageManager* _srs_stages;
 extern SrsRtcBlackhole* _srs_blackhole;
 extern SrsResourceManager* _srs_rtc_manager;
 
-extern SrsResourceManager* _srs_rtc_manager;
 extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 #endif
 
 #include <srs_protocol_kbps.hpp>
-
-extern SrsPps* _srs_pps_snack2;
-extern SrsPps* _srs_pps_snack3;
-extern SrsPps* _srs_pps_snack4;
 
 SrsPps* _srs_pps_aloss2 = NULL;
 
@@ -698,8 +693,8 @@ srs_error_t SrsThreadPool::run()
         // Check the threads status fastly.
         int loops = (int)(interval_ / SRS_UTIME_SECONDS);
         for (int i = 0; i < loops; i++) {
-            for (int i = 0; i < (int)threads.size(); i++) {
-                SrsThreadEntry* entry = threads.at(i);
+            for (int j = 0; j < (int)threads.size(); j++) {
+                SrsThreadEntry* entry = threads.at(j);
                 if (entry->err != srs_success) {
                     // Quit with success.
                     if (srs_error_code(entry->err) == ERROR_THREAD_FINISHED) {
