@@ -1345,7 +1345,6 @@ srs_error_t SrsConfig::reload(SrsReloadState *pstate)
     if ((err = conf.parse_file(config_file.c_str())) != srs_success) {
         return srs_error_wrap(err, "parse file");
     }
-    *pstate = SrsReloadStateParsed;
     srs_info("config reloader parse file success.");
     
     // transform config to compatible with previous style of config.
@@ -1357,13 +1356,11 @@ srs_error_t SrsConfig::reload(SrsReloadState *pstate)
     if ((err = conf.check_config()) != srs_success) {
         return srs_error_wrap(err, "check config");
     }
-    *pstate = SrsReloadStateTransformed;
 
     *pstate = SrsReloadStateApplying;
     if ((err = reload_conf(&conf)) != srs_success) {
         return srs_error_wrap(err, "reload config");
     }
-    *pstate = SrsReloadStateApplied;
 
     *pstate = SrsReloadStateFinished;
     return err;

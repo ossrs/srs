@@ -258,21 +258,15 @@ private:
 
 // The state for reloading config.
 enum SrsReloadState {
-    SrsReloadStateInit,
+    SrsReloadStateInit = 0,
     // Start to parse the new config file.
-    SrsReloadStateParsing,
-    // The new config file is parsed.
-    SrsReloadStateParsed,
+    SrsReloadStateParsing = 10,
     // Start to transform the new config file to new version.
-    SrsReloadStateTransforming,
-    // The new config file is transformed to new version.
-    SrsReloadStateTransformed,
+    SrsReloadStateTransforming = 20,
     // Start to apply the new config file.
-    SrsReloadStateApplying,
-    // The new config file is applied and merged to current config.
-    SrsReloadStateApplied,
+    SrsReloadStateApplying = 30,
     // The reload is finished.
-    SrsReloadStateFinished,
+    SrsReloadStateFinished = 90,
 };
 
 // The config service provider.
