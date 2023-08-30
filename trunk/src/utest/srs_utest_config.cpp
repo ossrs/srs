@@ -85,11 +85,14 @@ srs_error_t MockSrsConfig::build_buffer(std::string src, srs_internal::SrsConfig
 {
     srs_error_t err = srs_success;
 
-    string content = included_files[src];
-    if(content.empty()) {
+    // No file, error.
+    if(included_files.find(src) == included_files.end()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "file %s: no found", src.c_str());
     }
 
+    string content = included_files[src];
+
+    // Empty file, ok.
     *pbuffer = new MockSrsConfigBuffer(content);
 
     return err;
@@ -689,10 +692,30 @@ VOID TEST(ConfigDirectiveTest, ParseInvalidNoEndOfDirective)
 VOID TEST(ConfigDirectiveTest, ParseInvalidNoEndOfSubDirective)
 {
     srs_error_t err;
-    
-    MockSrsConfigBuffer buf("dir0 {");
-    SrsConfDirective conf;
-    HELPER_ASSERT_FAILED(conf.parse(&buf));
+
+    if (true) {
+        MockSrsConfigBuffer buf("");
+        SrsConfDirective conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("# OK");
+        SrsConfDirective conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 {");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 {} dir1 {");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+    }
 }
 
 VOID TEST(ConfigDirectiveTest, ParseInvalidNoStartOfSubDirective)
