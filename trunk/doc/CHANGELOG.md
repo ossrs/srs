@@ -7,6 +7,12 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-08-30, Merge [#3779](https://github.com/ossrs/srs/pull/3779): Support HTTP-API for fetching reload result. v6.0.71 (#3779)
+* v6.0, 2023-08-28, Merge [#3503](https://github.com/ossrs/srs/pull/3503): SrsContextId assignment can be improved without create a duplicated one. v6.0.70 (#3503)
+* v6.0, 2023-08-28, Merge [#3781](https://github.com/ossrs/srs/pull/3781): HLS: Fix on_hls and hls_dispose critical zone issue. v6.0.69 (#3781)
+* v6.0, 2023-08-28, Merge [#3768](https://github.com/ossrs/srs/pull/3768): Support include empty config file. v6.0.68 (#3768)
+* v6.0, 2023-08-25, Merge [#3782](https://github.com/ossrs/srs/pull/3782): HLS: Support reload HLS asynchronously. v6.0.67 (#3782)
+* v6.0, 2023-08-22, Merge [#3775](https://github.com/ossrs/srs/pull/3775): Bugfix: Log format output type does not match. v6.0.66 (#3699)
 * v6.0, 2023-08-02, Merge [#3750](https://github.com/ossrs/srs/pull/3750): HLS: Ignore empty NALU to avoid error. v6.0.64 (#3750)
 * v6.0, 2023-07-27, Merge [#3611](https://github.com/ossrs/srs/pull/3611): Design and implement helm capabilities to streamline the deployment process of an SRS cluster.. v6.0.63 (#3611)
 * v6.0, 2023-07-27, Merge [#3703](https://github.com/ossrs/srs/pull/3703): The identifier "ShowCouroutines" needs to be modified to "ShowCoroutines" in order to rectify the typographical error.. v6.0.62 (#3703)
@@ -77,8 +83,14 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-08-30, Merge [#3779](https://github.com/ossrs/srs/pull/3779): Support HTTP-API for fetching reload result. v5.0.176 (#3779)
+* v5.0, 2023-08-28, Merge [#3503](https://github.com/ossrs/srs/pull/3503): SrsContextId assignment can be improved without create a duplicated one. v5.0.175 (#3503)
+* v5.0, 2023-08-28, Merge [#3781](https://github.com/ossrs/srs/pull/3781): HLS: Fix on_hls and hls_dispose critical zone issue. v5.0.174 (#3781)
+* v5.0, 2023-08-28, Merge [#3768](https://github.com/ossrs/srs/pull/3768): Support include empty config file. v5.0.173 (#3768)
+* v5.0, 2023-08-25, Merge [#3782](https://github.com/ossrs/srs/pull/3782): HLS: Support reload HLS asynchronously. v5.0.172 (#3782)
+* v5.0, 2023-08-22, Merge [#3775](https://github.com/ossrs/srs/pull/3775): Bugfix: Log format output type does not match. v5.0.171 (#3699)
 * v5.0, 2023-08-02, HLS: Ignore empty NALU to avoid error. v5.0.170
-* v5.0, 2023-07-26, Merge [#3699](https://github.com/ossrs/srs/pull/3699): Bugfix: Eliminate the redundant declaration of the _srs_rtc_manager variable.. v5.0.168 (#3699)
+* v5.0, 2023-07-26, Merge [#3699](https://github.com/ossrs/srs/pull/3699): Bugfix: Eliminate the redundant declaration of the _srs_rtc_manager variable. v5.0.168 (#3699)
 * v5.0, 2023-07-21, Merge [#3695](https://github.com/ossrs/srs/pull/3695): API: Fix HTTPS callback issue using SNI in TLS client handshake. v5.0.168 (#3695)
 * v5.0, 2023-07-18, Merge [#3515](https://github.com/ossrs/srs/pull/3515): WebRTC: Support config the bitrate of transcoding AAC to Opus. v5.0.167 (#3515)
 * v5.0, 2023-07-09, Merge [#3615](https://github.com/ossrs/srs/pull/3615): Compile: Fix typo for 3rdparty. v5.0.166 (#3615)

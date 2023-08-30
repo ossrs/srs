@@ -1136,6 +1136,8 @@ SrsHls::SrsHls()
     
     enabled = false;
     disposable = false;
+    unpublishing_ = false;
+    async_reload_ = reloading_ = false;
     last_update_time = 0;
     hls_dts_directly = false;
     
@@ -1153,6 +1155,53 @@ SrsHls::~SrsHls()
     srs_freep(jitter);
     srs_freep(controller);
     srs_freep(pprint);
+}
+
+void SrsHls::async_reload()
+{
+    async_reload_ = true;
+}
+
+srs_error_t SrsHls::reload()
+{
+    srs_error_t err = srs_success;
+
+    // Ignore if not active.
+    if (!enabled) return err;
+
+    int reloading = 0, reloaded = 0, refreshed = 0;
+    err = do_reload(&reloading, &reloaded, &refreshed);
+    srs_trace("async reload hls %s, reloading=%d, reloaded=%d, refreshed=%d",
+        req->get_stream_url().c_str(), reloading, reloaded, refreshed);
+
+    return err;
+}
+
+srs_error_t SrsHls::do_reload(int *reloading, int *reloaded, int *refreshed)
+{
+    srs_error_t err = srs_success;
+
+    if (!async_reload_ || reloading_) return err;
+    reloading_ = true;
+    *reloading = 1;
+
+    on_unpublish();
+    if ((err = on_publish()) != srs_success) {
+        return srs_error_wrap(err, "hls publish failed");
+    }
+    *reloaded = 1;
+
+    // Before feed the sequence header, must reset the reloading.
+    reloading_ = false;
+    async_reload_ = false;
+
+    // After reloading, we must request the sequence header again.
+    if ((err = hub->on_hls_request_sh()) != srs_success) {
+        return srs_error_wrap(err, "hls request sh");
+    }
+    *refreshed = 1;
+
+    return err;
 }
 
 void SrsHls::dispose()
@@ -1174,7 +1223,7 @@ void SrsHls::dispose()
 srs_error_t SrsHls::cycle()
 {
     srs_error_t err = srs_success;
-    
+
     if (last_update_time <= 0) {
         last_update_time = srs_get_system_time();
     }
@@ -1182,7 +1231,14 @@ srs_error_t SrsHls::cycle()
     if (!req) {
         return err;
     }
+
+    // When unpublishing, we must wait for it done.
+    if (unpublishing_) return err;
     
+    // When reloading, we must wait for it done.
+    if (async_reload_) return err;
+
+    // If not unpublishing and not reloading, try to dispose HLS stream.
     srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
     if (hls_dispose <= 0) {
         return err;
@@ -1191,12 +1247,12 @@ srs_error_t SrsHls::cycle()
         return err;
     }
     last_update_time = srs_get_system_time();
-    
+
     if (!disposable) {
         return err;
     }
     disposable = false;
-    
+
     srs_trace("hls cycle to dispose hls %s, timeout=%dms", req->get_stream_url().c_str(), hls_dispose);
     dispose();
     
@@ -1243,6 +1299,8 @@ srs_error_t SrsHls::on_publish()
     
     // if enabled, open the muxer.
     enabled = true;
+    // Reset the unpublishing state.
+    unpublishing_ = false;
     
     // ok, the hls can be dispose, or need to be dispose.
     disposable = true;
@@ -1258,6 +1316,10 @@ void SrsHls::on_unpublish()
     if (!enabled) {
         return;
     }
+
+    // During unpublishing, there maybe callback that switch to other coroutines.
+    if (unpublishing_) return;
+    unpublishing_ = true;
     
     if ((err = controller->on_unpublish()) != srs_success) {
         srs_warn("hls: ignore unpublish failed %s", srs_error_desc(err).c_str());
@@ -1265,15 +1327,16 @@ void SrsHls::on_unpublish()
     }
     
     enabled = false;
+    unpublishing_ = false;
 }
 
 srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     srs_error_t err = srs_success;
-    
-    if (!enabled) {
-        return err;
-    }
+
+    // If not able to transmux to HLS, ignore.
+    if (!enabled || unpublishing_) return err;
+    if (async_reload_) return reload();
 
     // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
@@ -1352,10 +1415,10 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
 srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     srs_error_t err = srs_success;
-    
-    if (!enabled) {
-        return err;
-    }
+
+    // If not able to transmux to HLS, ignore.
+    if (!enabled || unpublishing_) return err;
+    if (async_reload_) return reload();
 
     // Ignore if no format->vcodec, it means the codec is not parsed, or unknown codec.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
@@ -1413,7 +1476,7 @@ void SrsHls::hls_show_mux_log()
     // the run time is not equals to stream time,
     // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
     // it's ok.
-    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%dms, sno=%d, ts=%s, dur=%dms, dva=%dp",
+    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%" PRId64 "ms, sno=%d, ts=%s, dur=%dms, dva=%dp",
               pprint->age(), controller->sequence_no(), controller->ts_url().c_str(),
               srsu2msi(controller->duration()), controller->deviation());
 }

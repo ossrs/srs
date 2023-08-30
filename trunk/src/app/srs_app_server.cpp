@@ -870,7 +870,9 @@ srs_error_t SrsServer::cycle()
     }
 
     // Do server main cycle.
-     err = do_cycle();
+    if ((err = do_cycle()) != srs_success) {
+        srs_error("server err %s", srs_error_desc(err).c_str());
+    }
 
     // OK, SRS server is done.
     wg_->done();
@@ -942,6 +944,10 @@ void SrsServer::on_signal(int signo)
     }
 }
 
+srs_error_t _srs_reload_err;
+SrsReloadState _srs_reload_state;
+std::string _srs_reload_id;
+
 srs_error_t SrsServer::do_cycle()
 {
     srs_error_t err = srs_success;
@@ -991,12 +997,27 @@ srs_error_t SrsServer::do_cycle()
         // do reload the config.
         if (signal_reload) {
             signal_reload = false;
-            srs_info("get signal to reload the config.");
+            srs_trace("starting reload config.");
 
-            if ((err = _srs_config->reload()) != srs_success) {
-                return srs_error_wrap(err, "config reload");
+            SrsReloadState state = SrsReloadStateInit;
+            _srs_reload_state = SrsReloadStateInit; srs_freep(_srs_reload_err); _srs_reload_id = srs_random_str(7);
+            err = _srs_config->reload(&state);
+            _srs_reload_state = state; _srs_reload_err = srs_error_copy(err);
+            if (err != srs_success) {
+                // If the parsing and transformation of the configuration fail, we can tolerate it by simply
+                // ignoring the new configuration and continuing to use the current one. However, if the
+                // application of the new configuration fails, some configurations may be applied while
+                // others may not. For instance, the listening port may be closed when the configuration
+                // is set to listen on an unavailable port. In such cases, we should terminate the service.
+                if (state == SrsReloadStateApplying) {
+                    return srs_error_wrap(err, "reload fatal error state=%d", state);
+                }
+
+                srs_warn("reload failed, state=%d, err %s", state, srs_error_desc(err).c_str());
+                srs_freep(err);
+            } else {
+                srs_trace("reload config success, state=%d.", state);
             }
-            srs_trace("reload config success.");
         }
 
         srs_usleep(1 * SRS_UTIME_SECONDS);
