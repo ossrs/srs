@@ -1333,18 +1333,22 @@ void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
 }
 
 // LCOV_EXCL_START
-srs_error_t SrsConfig::reload()
+srs_error_t SrsConfig::reload(SrsReloadState *pstate)
 {
+    *pstate = SrsReloadStateInit;
+
     srs_error_t err = srs_success;
-    
+
     SrsConfig conf;
-    
+
+    *pstate = SrsReloadStateParsing;
     if ((err = conf.parse_file(config_file.c_str())) != srs_success) {
         return srs_error_wrap(err, "parse file");
     }
     srs_info("config reloader parse file success.");
     
     // transform config to compatible with previous style of config.
+    *pstate = SrsReloadStateTransforming;
     if ((err = srs_config_transform_vhost(conf.root)) != srs_success) {
         return srs_error_wrap(err, "transform config");
     }
@@ -1352,11 +1356,13 @@ srs_error_t SrsConfig::reload()
     if ((err = conf.check_config()) != srs_success) {
         return srs_error_wrap(err, "check config");
     }
-    
+
+    *pstate = SrsReloadStateApplying;
     if ((err = reload_conf(&conf)) != srs_success) {
         return srs_error_wrap(err, "reload config");
     }
-    
+
+    *pstate = SrsReloadStateFinished;
     return err;
 }
 // LCOV_EXCL_STOP
