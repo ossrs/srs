@@ -967,7 +967,6 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     
     if ((err = hls->on_audio(msg, format)) != srs_success) {
         // apply the error strategy for hls.
-        // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req_->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls: ignore audio error %s", srs_error_desc(err).c_str());
@@ -1061,7 +1060,6 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
     if ((err = hls->on_video(msg, format)) != srs_success) {
         // TODO: We should support more strategies.
         // apply the error strategy for hls.
-        // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req_->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls: ignore video error %s", srs_error_desc(err).c_str());
@@ -1629,7 +1627,6 @@ srs_error_t SrsMetaCache::dumps(SrsLiveConsumer* consumer, bool atc, SrsRtmpJitt
     
     // copy sequence header
     // copy audio sequence first, for hls to fast parse the "right" audio codec.
-    // @see https://github.com/ossrs/srs/issues/301
     if (aformat && aformat->acodec && aformat->acodec->id != SrsAudioCodecIdMP3) {
         if (ds && audio && (err = consumer->enqueue(audio, atc, ag)) != srs_success) {
             return srs_error_wrap(err, "enqueue audio sh");
@@ -1858,7 +1855,6 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
 
         // TODO: FIXME: support source cleanup.
         // @see https://github.com/ossrs/srs/issues/713
-        // @see https://github.com/ossrs/srs/issues/714
 #if 0
         // When source expired, remove it.
         if (source->stream_is_dead()) {

@@ -799,7 +799,6 @@ srs_error_t SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
     SrsChunkStream* chunk = NULL;
     
     // use chunk stream cache to get the chunk info.
-    // @see https://github.com/ossrs/srs/issues/249
     if (cid < SRS_PERF_CHUNK_STREAM_CACHE) {
         // already init, use it direclty
         chunk = cs_cache[cid];
@@ -2469,7 +2468,6 @@ srs_error_t SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type,
 
         // call msg,
         // support response null first,
-        // @see https://github.com/ossrs/srs/issues/106
         // TODO: FIXME: response in right way, or forward in edge mode.
         SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
         if (call) {

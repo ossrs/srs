@@ -554,7 +554,6 @@ bool SrsHlsMuxer::wait_keyframe()
 
 bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
-    // @see https://github.com/ossrs/srs/issues/151#issuecomment-83553950
     srs_assert(current);
     
     // to prevent very small segment.
@@ -812,7 +811,6 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
      * rounded to the nearest integer. Its value MUST NOT change. A
      * typical target duration is 10 seconds.
      */
-    // @see https://github.com/ossrs/srs/issues/304#issuecomment-74000081
     srs_utime_t max_duration = segments->max_duration();
     int target_duration = (int)ceil(srsu2msi(srs_max(max_duration, max_td)) / 1000.0);
     
@@ -1025,9 +1023,7 @@ srs_error_t SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
     // for example, pure audio when start, audio/video when publishing,
     // pure audio again for audio disabled.
     // so we reap event when the audio incoming when segment overflow.
-    // @see https://github.com/ossrs/srs/issues/151
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
-    // @see https://github.com/ossrs/srs/issues/151#issuecomment-71155184
     if (tsmc->audio && muxer->is_segment_absolutely_overflow()) {
         if ((err = reap_segment()) != srs_success) {
             return srs_error_wrap(err, "hls: reap segment");
