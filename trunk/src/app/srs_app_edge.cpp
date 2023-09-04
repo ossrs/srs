@@ -201,7 +201,6 @@ srs_error_t SrsEdgeFlvUpstream::do_connect(SrsRequest* r, SrsLbRoundRobin* lb, i
     if (redirect_depth == 0) {
         SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
 
-        // @see https://github.com/ossrs/srs/issues/79
         // when origin is error, for instance, server is shutdown,
         // then user remove the vhost then reload, the conf is empty.
         if (!conf) {

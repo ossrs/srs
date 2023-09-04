@@ -173,7 +173,6 @@ srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     
     // for not rtmp input, donot append the iformat,
     // for example, "-f flv" before "-i udp://192.168.1.252:2222"
-    // @see https://github.com/ossrs/srs/issues/290
     if (!srs_string_starts_with(input, "rtmp://")) {
         iformat = "";
     }

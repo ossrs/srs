@@ -56,7 +56,6 @@ private:
 #endif
     // the user-space buffer to fill by reader,
     // which use fast index and reset when chunk body read ok.
-    // @see https://github.com/ossrs/srs/issues/248
     // ptr to the current read position.
     char* p;
     // ptr to the content end.
