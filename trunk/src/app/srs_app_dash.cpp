@@ -619,7 +619,7 @@ srs_error_t SrsDashController::refresh_mpd(SrsFormat* format)
     srs_error_t err = srs_success;
     
     // TODO: FIXME: Support pure audio streaming.
-    if (!format->acodec || !format->vcodec) {
+    if (!format || !format->acodec || !format->vcodec) {
         return err;
     }
     
