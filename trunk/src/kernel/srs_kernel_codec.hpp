@@ -1364,6 +1364,8 @@ public:
     virtual bool is_mp3_sequence_header();
     virtual bool is_avc_sequence_header();
 private:
+    virtual int remove_emulation_bytes(std::vector<uint8_t>& rbsp, SrsBuffer* stream);
+private:
     // Demux the video packet in H.264 codec.
     // The packet is muxed in FLV format, defined in flv specification.
     //          Demux the sps/pps from sequence header.
