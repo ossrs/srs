@@ -880,7 +880,7 @@ srs_error_t SrsRtcRtpBuilder::init_codec(SrsAudioCodecId codec)
     codec_ = new SrsAudioTranscoder();
 
     // Initialize the codec according to the codec in stream.
-    int bitrate = 48000; // The output bitrate in bps.
+    int bitrate = _srs_config->get_rtc_opus_bitrate(req->vhost);// The output bitrate in bps.
     if ((err = codec_->initialize(codec, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "init codec=%d", codec);
     }
@@ -1337,7 +1337,7 @@ srs_error_t SrsRtcFrameBuilder::initialize(SrsRequest* r)
     SrsAudioCodecId to = SrsAudioCodecIdAAC; // The output audio codec.
     int channels = 2; // The output audio channels.
     int sample_rate = 48000; // The output audio sample rate in HZ.
-    int bitrate = 48000; // The output audio bitrate in bps.
+    int bitrate = _srs_config->get_rtc_aac_bitrate(r->vhost); // The output audio bitrate in bps.
     if ((err = codec_->initialize(from, to, channels, sample_rate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "bridge initialize");
     }
@@ -2502,6 +2502,7 @@ srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt
     srs_error_t err = srs_success;
 
     pkt->set_avsync_time(cal_avsync_time(pkt->header.get_timestamp()));
+    srs_info("Audio async rate=%d, rtp=%u, corrected=%" PRId64, (int)rate_, pkt->header.get_timestamp(), pkt->get_avsync_time());
 
     if ((err = source->on_rtp(pkt)) != srs_success) {
         return srs_error_wrap(err, "source on rtp");
@@ -2560,6 +2561,7 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt
     srs_error_t err = srs_success;
 
     pkt->set_avsync_time(cal_avsync_time(pkt->header.get_timestamp()));
+    srs_info("Video async rate=%d, rtp=%u, corrected=%" PRId64, (int)rate_, pkt->header.get_timestamp(), pkt->get_avsync_time());
 
     if ((err = source->on_rtp(pkt)) != srs_success) {
         return srs_error_wrap(err, "source on rtp");

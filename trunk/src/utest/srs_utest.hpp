@@ -95,5 +95,32 @@ public:
     virtual ~MockEmptyLog();
 };
 
+// To test the memory corruption, we protect the memory by mprotect.
+//          MockProtectedBuffer buffer;
+//          if (buffer.alloc(8)) { EXPECT_TRUE(false); return; }
+// Crash when write beyond the data:
+//          buffer.data_[0] = 0; // OK
+//          buffer.data_[7] = 0; // OK
+//          buffer.data_[8] = 0; // Crash
+// Crash when read beyond the data:
+//          char v = buffer.data_[0]; // OK
+//          char v = buffer.data_[7]; // OK
+//          char v = buffer.data_[8]; // Crash
+// @remark The size of memory to allocate, should smaller than page size, generally 4096 bytes.
+class MockProtectedBuffer
+{
+private:
+    char* raw_memory_;
+public:
+    int size_;
+    // Should use this as data.
+    char* data_;
+public:
+    MockProtectedBuffer();
+    virtual ~MockProtectedBuffer();
+    // Return 0 for success.
+    int alloc(int size);
+};
+
 #endif
 

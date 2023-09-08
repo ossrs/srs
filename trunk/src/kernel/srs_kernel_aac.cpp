@@ -115,7 +115,6 @@ srs_error_t SrsAacTransmuxer::write_audio(int64_t timestamp, char* data, int siz
     // write the ADTS header.
     // @see ISO_IEC_14496-3-AAC-2001.pdf, page 75,
     //      1.A.2.2 Audio_Data_Transport_Stream frame, ADTS
-    // @see https://github.com/ossrs/srs/issues/212#issuecomment-64145885
     // byte_alignment()
     
     // adts_fixed_header:

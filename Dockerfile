@@ -41,7 +41,7 @@ ARG TARGETPLATFORM
 RUN echo "BUILDPLATFORM: $BUILDPLATFORM, TARGETPLATFORM: $TARGETPLATFORM"
 
 # Expose ports for streaming @see https://github.com/ossrs/srs#ports
-EXPOSE 1935 1985 8080 8000/udp 10080/udp
+EXPOSE 1935 1985 8080 5060 9000 8000/udp 10080/udp
 
 # FFMPEG 4.1
 COPY --from=build /usr/local/bin/ffmpeg /usr/local/srs/objs/ffmpeg/bin/ffmpeg
@@ -56,6 +56,6 @@ RUN ldd /usr/local/srs/objs/ffmpeg/bin/ffmpeg && \
 
 # Default workdir and command.
 WORKDIR /usr/local/srs
-ENV SRS_LOG_TANK=console SRS_DAEMON=off
+ENV SRS_DAEMON=off
 CMD ["./objs/srs", "-c", "conf/srs.conf"]
 

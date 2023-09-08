@@ -1020,7 +1020,6 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
         // cond wait for timeout.
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
-            // @see https://github.com/ossrs/srs/issues/441
             rtrd->wait(publish_1stpkt_timeout);
         } else {
             rtrd->wait(publish_normal_timeout);

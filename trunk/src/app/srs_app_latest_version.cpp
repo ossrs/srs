@@ -70,6 +70,8 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE2(_srs_config->get_raw_api(), "raw", ss);
     SRS_CHECK_FEATURE2(_srs_config->get_exporter_enabled(), "prom", ss);
 
+    string platform = srs_getenv("SRS_PLATFORM");
+    SRS_CHECK_FEATURE3(!string(platform).empty(), "plat", platform, ss);
     string region = srs_getenv("SRS_REGION");
     SRS_CHECK_FEATURE3(!string(region).empty(), "region", region, ss);
     string source = srs_getenv("SRS_SOURCE");

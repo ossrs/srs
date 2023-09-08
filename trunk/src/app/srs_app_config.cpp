@@ -123,6 +123,8 @@ namespace srs_internal
         
         // read all.
         int filesize = (int)reader.filesize();
+        // Ignore if empty file.
+        if (filesize <= 0) return err;
         
         // create buffer
         srs_freepa(start);
@@ -1068,6 +1070,9 @@ SrsJsonAny* SrsConfDirective::dumps_arg0_to_boolean()
 srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveContext ctx, SrsConfig* conf)
 {
     srs_error_t err = srs_success;
+
+    // Ignore empty config file.
+    if (ctx == SrsDirectiveContextFile && buffer->empty()) return err;
     
     while (true) {
         std::vector<string> args;
@@ -1127,7 +1132,7 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveCo
             }
 
             if ((err = parse_conf(include_file_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
-                return srs_error_wrap(err, "parse include buffer");
+                return srs_error_wrap(err, "parse include buffer %s", file.c_str());
             }
         }
     }
@@ -1328,18 +1333,22 @@ void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
 }
 
 // LCOV_EXCL_START
-srs_error_t SrsConfig::reload()
+srs_error_t SrsConfig::reload(SrsReloadState *pstate)
 {
+    *pstate = SrsReloadStateInit;
+
     srs_error_t err = srs_success;
-    
+
     SrsConfig conf;
-    
+
+    *pstate = SrsReloadStateParsing;
     if ((err = conf.parse_file(config_file.c_str())) != srs_success) {
         return srs_error_wrap(err, "parse file");
     }
     srs_info("config reloader parse file success.");
     
     // transform config to compatible with previous style of config.
+    *pstate = SrsReloadStateTransforming;
     if ((err = srs_config_transform_vhost(conf.root)) != srs_success) {
         return srs_error_wrap(err, "transform config");
     }
@@ -1347,11 +1356,13 @@ srs_error_t SrsConfig::reload()
     if ((err = conf.check_config()) != srs_success) {
         return srs_error_wrap(err, "check config");
     }
-    
+
+    *pstate = SrsReloadStateApplying;
     if ((err = reload_conf(&conf)) != srs_success) {
         return srs_error_wrap(err, "reload config");
     }
-    
+
+    *pstate = SrsReloadStateFinished;
     return err;
 }
 // LCOV_EXCL_STOP
@@ -2197,11 +2208,11 @@ srs_error_t SrsConfig::parse_file(const char* filename)
     SrsConfigBuffer* buffer = NULL;
     SrsAutoFree(SrsConfigBuffer, buffer);
     if ((err = build_buffer(config_file, &buffer)) != srs_success) {
-        return srs_error_wrap(err, "buffer fullfill %s", config_file.c_str());
+        return srs_error_wrap(err, "buffer fullfill %s", filename);
     }
     
     if ((err = parse_buffer(buffer)) != srs_success) {
-        return srs_error_wrap(err, "parse buffer");
+        return srs_error_wrap(err, "parse buffer %s", filename);
     }
     
     return err;
@@ -2669,7 +2680,8 @@ srs_error_t SrsConfig::check_normal_config()
                     if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy"
                         && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
                         && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp"
-                        && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe") {
+                        && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe" && m != "opus_bitrate"
+                        && m != "aac_bitrate") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4639,6 +4651,74 @@ bool SrsConfig::get_rtc_twcc_enabled(string vhost)
     }
 
     return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+int SrsConfig::get_rtc_opus_bitrate(string vhost)
+{
+    static int DEFAULT = 48000;
+
+    string opus_bitrate = srs_getenv("srs.vhost.rtc.opus_bitrate"); // SRS_VHOST_RTC_OPUS_BITRATE
+    if (!opus_bitrate.empty()) {
+        int v = ::atoi(opus_bitrate.c_str());
+        if (v < 8000 || v > 320000) {
+            srs_warn("Reset opus btirate %d to %d", v, DEFAULT);
+            v = DEFAULT;
+        }
+
+        return v;
+    }
+
+    SrsConfDirective* conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("opus_bitrate");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    int v = ::atoi(conf->arg0().c_str());
+    if (v < 8000 || v > 320000) {
+        srs_warn("Reset opus btirate %d to %d", v, DEFAULT);
+        return DEFAULT;
+    }
+
+    return v;
+}
+
+int SrsConfig::get_rtc_aac_bitrate(string vhost)
+{
+    static int DEFAULT = 48000;
+
+    string aac_bitrate = srs_getenv("srs.vhost.rtc.aac_bitrate"); // SRS_VHOST_RTC_AAC_BITRATE
+    if (!aac_bitrate.empty()) {
+        int v = ::atoi(aac_bitrate.c_str());
+        if (v < 8000 || v > 320000) {
+            srs_warn("Reset aac btirate %d to %d", v, DEFAULT);
+            v = DEFAULT;
+        }
+
+        return v;
+    }
+
+    SrsConfDirective* conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("aac_bitrate");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    int v = ::atoi(conf->arg0().c_str());
+    if (v < 8000 || v > 320000) {
+        srs_warn("Reset aac btirate %d to %d", v, DEFAULT);
+        return DEFAULT;
+    }
+
+    return v;
 }
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)

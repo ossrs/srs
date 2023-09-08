@@ -256,6 +256,19 @@ private:
     virtual srs_error_t read_token(srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start, SrsDirectiveState& state);
 };
 
+// The state for reloading config.
+enum SrsReloadState {
+    SrsReloadStateInit = 0,
+    // Start to parse the new config file.
+    SrsReloadStateParsing = 10,
+    // Start to transform the new config file to new version.
+    SrsReloadStateTransforming = 20,
+    // Start to apply the new config file.
+    SrsReloadStateApplying = 30,
+    // The reload is finished.
+    SrsReloadStateFinished = 90,
+};
+
 // The config service provider.
 // For the config supports reload, so never keep the reference cross st-thread,
 // that is, never save the SrsConfDirective* get by any api of config,
@@ -308,7 +321,7 @@ public:
     virtual void unsubscribe(ISrsReloadHandler* handler);
     // Reload  the config file.
     // @remark, user can test the config before reload it.
-    virtual srs_error_t reload();
+    virtual srs_error_t reload(SrsReloadState *pstate);
 private:
     // Reload  the vhost section of config.
     virtual srs_error_t reload_vhost(SrsConfDirective* old_root);
@@ -531,6 +544,8 @@ public:
     bool get_rtc_nack_enabled(std::string vhost);
     bool get_rtc_nack_no_copy(std::string vhost);
     bool get_rtc_twcc_enabled(std::string vhost);
+    int get_rtc_opus_bitrate(std::string vhost);
+    int get_rtc_aac_bitrate(std::string vhost);
 
 // vhost specified section
 public:

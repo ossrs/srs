@@ -1,4 +1,3 @@
-//go:build pool_sanitize
 // +build pool_sanitize
 
 package pbytes
