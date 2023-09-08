@@ -1364,6 +1364,7 @@ public:
     virtual bool is_mp3_sequence_header();
     virtual bool is_avc_sequence_header();
 private:
+    // Remove the emulation bytes from stream, and return num of bytes of the rbsp.
     virtual int remove_emulation_bytes(std::vector<uint8_t>& rbsp, SrsBuffer* stream);
 private:
     // Demux the video packet in H.264 codec.

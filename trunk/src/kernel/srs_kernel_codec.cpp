@@ -1564,7 +1564,7 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
     // nuh_layer_id + nuh_temporal_id_plus1
     stream->skip(1);
 
-    // decode the rbsp from sps.
+    // decode the rbsp from pps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     std::vector<uint8_t> rbsp(stream->size());
 
