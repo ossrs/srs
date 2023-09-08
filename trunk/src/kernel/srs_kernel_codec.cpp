@@ -867,7 +867,8 @@ bool SrsFormat::is_avc_sequence_header()
         && video && video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
-int SrsFormat::remove_emulation_bytes(std::vector<uint8_t>& rbsp, SrsBuffer* stream)
+// Remove the emulation bytes from stream, and return num of bytes of the rbsp.
+int srs_rbsp_remove_emulation_bytes(SrsBuffer* stream, std::vector<uint8_t>& rbsp)
 {
     int nb_rbsp = 0;
     while (!stream->empty()) {
@@ -881,11 +882,20 @@ int SrsFormat::remove_emulation_bytes(std::vector<uint8_t>& rbsp, SrsBuffer* str
                 break;
             }
 
-            uint8_t tmp = stream->read_1bytes();
-            if (tmp > 3) {
+            // |---------------------|----------------------------|
+            // |      rbsp           |  nalu with emulation bytes |
+            // |---------------------|----------------------------|
+            // | 0x00 0x00 0x00      |     0x00 0x00 0x03 0x00    |
+            // | 0x00 0x00 0x01      |     0x00 0x00 0x03 0x01    |
+            // | 0x00 0x00 0x02      |     0x00 0x00 0x03 0x02    |
+            // | 0x00 0x00 0x03      |     0x00 0x00 0x03 0x03    |
+            // | 0x00 0x00 0x03 0x04 |     0x00 0x00 0x03 0x04    |
+            // |---------------------|----------------------------|
+            uint8_t ev = stream->read_1bytes();
+            if (ev > 3) {
                 nb_rbsp++;
             }
-            rbsp[nb_rbsp] = tmp;
+            rbsp[nb_rbsp] = ev;
         }
         
         nb_rbsp++;
@@ -1253,7 +1263,7 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     std::vector<uint8_t> rbsp(stream->size());
 
-    int nb_rbsp = remove_emulation_bytes(rbsp, stream);
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
 
     return hevc_demux_vps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
@@ -1382,7 +1392,7 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     std::vector<uint8_t> rbsp(stream->size());
 
-    int nb_rbsp = remove_emulation_bytes(rbsp, stream);
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
 
     return hevc_demux_sps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
@@ -1568,7 +1578,7 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     std::vector<uint8_t> rbsp(stream->size());
 
-    int nb_rbsp = remove_emulation_bytes(rbsp, stream);
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
 
     return hevc_demux_pps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
@@ -2248,7 +2258,7 @@ srs_error_t SrsFormat::avc_demux_sps()
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     std::vector<uint8_t> rbsp(vcodec->sequenceParameterSetNALUnit.size());
     
-    int nb_rbsp = remove_emulation_bytes(rbsp, &stream);
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(&stream, rbsp);
     
     return avc_demux_sps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
