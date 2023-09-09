@@ -3861,6 +3861,80 @@ VOID TEST(KernelCodecTest, VideoFormatSepcial)
     }
 }
 
+VOID TEST(KernelCoecTest, VideoFormatRbspData)
+{
+    if (true) {
+        vector<uint8_t> nalu = {
+                0x25, 0x00, 0x1f, 0xe2, 0x22, 0x00, 0x00, 0x02, 0x00, 0x00, 0x80, 0xab, 0xff
+        };
+
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        vector<uint8_t> rbsp(nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)nalu.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), nalu.data(), nb_rbsp));
+    }
+
+    if (true) {
+        SrsFormat f;
+        vector<uint8_t> nalu = {
+                0x25, 0x00, 0x1f, 0xe2, 0x22, 0x00, 0x00, 0x03, 0x02, 0x00, 0x00, 0x80, 0xab, 0xff
+        };
+        vector<uint8_t> expect = {
+                0x25, 0x00, 0x1f, 0xe2, 0x22, 0x00, 0x00, 0x02, 0x00, 0x00, 0x80, 0xab, 0xff
+        };
+
+        // |----------------|----------------------------|
+        // |      rbsp      |  nalu with emulation bytes |
+        // |----------------|----------------------------|
+        // | 0x00 0x00 0x00 |     0x00 0x00 0x03 0x00    |
+        // | 0x00 0x00 0x01 |     0x00 0x00 0x03 0x01    |
+        // | 0x00 0x00 0x02 |     0x00 0x00 0x03 0x02    |
+        // | 0x00 0x00 0x03 |     0x00 0x00 0x03 0x03    |
+        // |----------------|----------------------------|
+        for (int i = 0; i <= 3; ++i) {
+            nalu[8] = uint8_t(i);
+            expect[7] = uint8_t(i);
+
+            SrsBuffer b((char*)nalu.data(), nalu.size());
+            vector<uint8_t> rbsp(nalu.size());
+            int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+            ASSERT_EQ(nb_rbsp, (int)expect.size());
+            EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+        }
+
+        // 0x00 0x00 0x04 ~ 0x00 0x00 0xFF, no need to add emulation bytes.
+        for (int i = 4; i <= 0xff; ++i) {
+            nalu[8] = uint8_t(i);
+
+            SrsBuffer b((char*)nalu.data(), nalu.size());
+            vector<uint8_t> rbsp(nalu.size());
+            int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+            ASSERT_EQ(nb_rbsp, (int)nalu.size());
+            EXPECT_TRUE(srs_bytes_equals(rbsp.data(), nalu.data(), nb_rbsp));
+        }
+    }
+
+    if (true) {
+        vector<uint8_t> nalu = {
+                0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x03, 0x02, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x04
+        };
+        vector<uint8_t> expect = {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x02, 0x00, 0x00, 0x03, 0x00, 0x00, 0x04
+        };
+
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        vector<uint8_t> rbsp(nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+}
+
 VOID TEST(KernelCodecTest, VideoFormat)
 {
 	srs_error_t err;

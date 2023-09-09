@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-09-08, Merge [#3597](https://github.com/ossrs/srs/pull/3597): Fix RBSP stream parsing bug, should drop 0x03. v5.0.178 (#3597)
 * v5.0, 2023-09-07, Merge [#3795](https://github.com/ossrs/srs/pull/3795): Fix dash crash if format not supported. v5.0.177 (#3795)
 * v5.0, 2023-08-30, Merge [#3779](https://github.com/ossrs/srs/pull/3779): Support HTTP-API for fetching reload result. v5.0.176 (#3779)
 * v5.0, 2023-08-28, Merge [#3503](https://github.com/ossrs/srs/pull/3503): SrsContextId assignment can be improved without create a duplicated one. v5.0.175 (#3503)
