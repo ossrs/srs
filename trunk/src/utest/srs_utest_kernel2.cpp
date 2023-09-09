@@ -637,9 +637,9 @@ VOID TEST(KernelCodecTest, VideoFormatRbspEdge)
         EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
     }
 
-    if (true) {
-        vector<uint8_t> nalu = {0xff, 0xff, 0xff, 0x00, 0x00, 0x03};
-        vector<uint8_t> expect = {0xff, 0xff, 0xff, 0x00, 0x00, 0x03};
+    for (uint16_t v = 0x01; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {(uint8_t)v, 0x00, 0x00, 0x03};
+        vector<uint8_t> expect = {(uint8_t)v, 0x00, 0x00, 0x03};
 
         vector<uint8_t> rbsp(nalu.size());
         SrsBuffer b((char*)nalu.data(), nalu.size());
@@ -652,9 +652,9 @@ VOID TEST(KernelCodecTest, VideoFormatRbspEdge)
 
 VOID TEST(KernelCodecTest, VideoFormatRbspNormal)
 {
-    if (true) {
-        vector<uint8_t> nalu = {0x00, 0x01, 0x03, 0x00};
-        vector<uint8_t> expect = {0x00, 0x01, 0x03, 0x00};
+    for (uint16_t v = 0x01; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {0x00, (uint8_t)v, 0x03, 0x00};
+        vector<uint8_t> expect = {0x00, (uint8_t)v, 0x03, 0x00};
 
         vector<uint8_t> rbsp(nalu.size());
         SrsBuffer b((char*)nalu.data(), nalu.size());
@@ -664,9 +664,9 @@ VOID TEST(KernelCodecTest, VideoFormatRbspNormal)
         EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
     }
 
-    if (true) {
-        vector<uint8_t> nalu = {0x01, 0x00, 0x03, 0x00};
-        vector<uint8_t> expect = {0x01, 0x00, 0x03, 0x00};
+    for (uint16_t v = 0x01; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {(uint8_t)v, 0x00, 0x03, 0x00};
+        vector<uint8_t> expect = {(uint8_t)v, 0x00, 0x03, 0x00};
 
         vector<uint8_t> rbsp(nalu.size());
         SrsBuffer b((char*)nalu.data(), nalu.size());
@@ -676,9 +676,9 @@ VOID TEST(KernelCodecTest, VideoFormatRbspNormal)
         EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
     }
 
-    if (true) {
-        vector<uint8_t> nalu = {0x00, 0x00, 0x03};
-        vector<uint8_t> expect = {0x00, 0x00, 0x03};
+    for (uint16_t v = 0x00; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {0x00, 0x00, (uint8_t)v};
+        vector<uint8_t> expect = {0x00, 0x00, (uint8_t)v};
 
         vector<uint8_t> rbsp(nalu.size());
         SrsBuffer b((char*)nalu.data(), nalu.size());
@@ -688,9 +688,9 @@ VOID TEST(KernelCodecTest, VideoFormatRbspNormal)
         EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
     }
 
-    if (true) {
-        vector<uint8_t> nalu = {0x00, 0x00};
-        vector<uint8_t> expect = {0x00, 0x00};
+    for (uint16_t v = 0x00; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {0x00, (uint8_t)v};
+        vector<uint8_t> expect = {0x00, (uint8_t)v};
 
         vector<uint8_t> rbsp(nalu.size());
         SrsBuffer b((char*)nalu.data(), nalu.size());
@@ -700,9 +700,33 @@ VOID TEST(KernelCodecTest, VideoFormatRbspNormal)
         EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
     }
 
-    if (true) {
-        vector<uint8_t> nalu = {0x00};
-        vector<uint8_t> expect = {0x00};
+    for (uint16_t v = 0x00; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {(uint8_t)v};
+        vector<uint8_t> expect = {(uint8_t)v};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    for (uint16_t v = 0x00; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {(uint8_t)v, (uint8_t)v};
+        vector<uint8_t> expect = {(uint8_t)v, (uint8_t)v};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    for (uint16_t v = 0x00; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {(uint8_t)v, (uint8_t)v, (uint8_t)v};
+        vector<uint8_t> expect = {(uint8_t)v, (uint8_t)v, (uint8_t)v};
 
         vector<uint8_t> rbsp(nalu.size());
         SrsBuffer b((char*)nalu.data(), nalu.size());
