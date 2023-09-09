@@ -879,6 +879,7 @@ int srs_rbsp_remove_emulation_bytes(SrsBuffer* stream, std::vector<uint8_t>& rbs
         if (nb_rbsp >= 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
             // read 1byte more.
             if (stream->empty()) {
+                nb_rbsp++;
                 break;
             }
 
