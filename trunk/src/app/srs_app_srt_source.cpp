@@ -538,7 +538,7 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
     SrsRawHEVCStream *hevc = new SrsRawHEVCStream();
     SrsAutoFree(SrsRawHEVCStream, hevc);
 
-    std::vector<std::string> hevc_pps_tmp;
+    std::vector<std::string> hevc_pps;
     // send each frame.
     while (!avs->empty()) {
         char* frame = NULL;
@@ -587,20 +587,22 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
             if ((err = hevc->pps_demux(frame, frame_size, pps)) != srs_success) {
                 return srs_error_wrap(err, "demux pps");
             }
-            if (! pps.empty()) {
+
+            if (!pps.empty()) {
                 vps_sps_pps_change_ = true;
             }
-            hevc_pps_tmp.push_back(pps);
+
+            hevc_pps.push_back(pps);
             continue;
         }
 
         ipb_frames.push_back(make_pair(frame, frame_size));
     }
 
-    if (!hevc_pps_tmp.empty())
-    {
-        hevc_pps_ = hevc_pps_tmp;
+    if (!hevc_pps.empty()) {
+        hevc_pps_ = hevc_pps;
     }
+
     if ((err = check_vps_sps_pps_change(msg)) != srs_success) {
         return srs_error_wrap(err, "check vps sps pps");
     }

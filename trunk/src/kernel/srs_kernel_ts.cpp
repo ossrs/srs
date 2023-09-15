@@ -1957,7 +1957,7 @@ srs_error_t SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
 
         stream->skip(stream->size() - stream->pos());
         srs_freep(msg);
-		channel->msg = NULL;
+        channel->msg = NULL;
         return err;
     }
 
