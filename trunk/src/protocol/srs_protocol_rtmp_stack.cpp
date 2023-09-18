@@ -14,7 +14,6 @@
 #include <srs_protocol_stream.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_rtmp_handshake.hpp>
-#include <srs_app_utility.hpp>
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
