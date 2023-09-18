@@ -538,6 +538,7 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
     SrsRawHEVCStream *hevc = new SrsRawHEVCStream();
     SrsAutoFree(SrsRawHEVCStream, hevc);
 
+    std::vector<std::string> hevc_pps;
     // send each frame.
     while (!avs->empty()) {
         char* frame = NULL;
@@ -587,15 +588,19 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
                 return srs_error_wrap(err, "demux pps");
             }
 
-            if (! pps.empty() && hevc_pps_ != pps) {
+            if (!pps.empty()) {
                 vps_sps_pps_change_ = true;
             }
 
-            hevc_pps_ = pps;
+            hevc_pps.push_back(pps);
             continue;
         }
 
         ipb_frames.push_back(make_pair(frame, frame_size));
+    }
+
+    if (!hevc_pps.empty()) {
+        hevc_pps_ = hevc_pps;
     }
 
     if ((err = check_vps_sps_pps_change(msg)) != srs_success) {
@@ -614,7 +619,7 @@ srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage* msg)
     }
 
     if (hevc_vps_.empty() || hevc_sps_.empty() || hevc_pps_.empty()) {
-        return srs_error_new(ERROR_SRT_TO_RTMP_EMPTY_SPS_PPS, "vps or sps or pps empty");
+        return err;
     }
 
     // vps/sps/pps changed, generate new video sh frame and dispatch it.
@@ -662,7 +667,7 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
     srs_error_t err = srs_success;
 
     if (ipb_frames.empty()) {
-        return srs_error_new(ERROR_SRT_CONN, "empty frame");
+        return err;
     }
 
     // ts tbn to flv tbn.

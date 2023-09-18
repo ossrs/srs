@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-09-18, Merge [#3722](https://github.com/ossrs/srs/pull/3722): Bugfix: HEVC SRT stream supports multiple PPS fields. v6.0.76 (#3722)
 * v6.0, 2023-09-08, Merge [#3597](https://github.com/ossrs/srs/pull/3597): Fix RBSP stream parsing bug, should drop 0x03. v6.0.75 (#3597)
 * v6.0, 2023-09-08, Merge [#3794](https://github.com/ossrs/srs/pull/3794): Support SRS Stack token for authentication. v6.0.74 (#3794)
 * v6.0, 2023-09-07, Merge [#3795](https://github.com/ossrs/srs/pull/3795): Fix dash crash if format not supported. v6.0.73 (#3795)

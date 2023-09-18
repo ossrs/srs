@@ -131,7 +131,7 @@ private:
     bool vps_sps_pps_change_;
     std::string hevc_vps_;
     std::string hevc_sps_;
-    std::string hevc_pps_;
+    std::vector<std::string> hevc_pps_;
 #endif
     // Record audio sepcific config had changed, if change, need to generate new audio sh frame.
     bool audio_sh_change_;
