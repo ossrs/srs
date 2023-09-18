@@ -24,6 +24,7 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_io.hpp>
 
+#include <limits.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <net/if.h>
