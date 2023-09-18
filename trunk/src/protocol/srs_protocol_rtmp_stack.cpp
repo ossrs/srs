@@ -595,6 +595,12 @@ srs_error_t SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsBuffer* 
     
     // decode specified packet type
     if (header.is_amf0_command() || header.is_amf3_command() || header.is_amf0_data() || header.is_amf3_data()) {
+        // Ignore FFmpeg timecode, see https://github.com/ossrs/srs/issues/3803
+        if (stream->left() == 4 && (uint8_t)*stream->head() == 0x00) {
+            srs_warn("Ignore FFmpeg timecode, data=[%s]", srs_string_dumps_hex(stream->head(), 4).c_str());
+            return err;
+        }
+
         // skip 1bytes to decode the amf3 command.
         if (header.is_amf3_command() && stream->require(1)) {
             stream->skip(1);
