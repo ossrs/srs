@@ -682,7 +682,7 @@ if [[ $SRS_SRT == YES ]]; then
         rm -rf ${SRS_OBJS}/srt && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt ${SRS_OBJS}/ &&
         echo "libsrt-1-fit is ok."
     else
-        if [[ ! -d ${SRS_OBJS}/openssl/lib/pkgconfig ]]; then
+        if [[ $SRS_USE_SYS_SSL != YES && ! -d ${SRS_OBJS}/openssl/lib/pkgconfig ]]; then
             echo "OpenSSL pkgconfig no found, build srt-1-fit failed."
             exit -1
         fi
