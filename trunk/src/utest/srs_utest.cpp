@@ -21,6 +21,7 @@ using namespace std;
 #include <sys/mman.h>
 
 #ifdef SRS_SRT
+#include <srt/srt.h>
 #include <srs_app_srt_server.hpp>
 #endif
 
@@ -44,6 +45,14 @@ bool _srs_config_by_env = false;
 const char* _srs_binary = NULL;
 
 #include <srs_app_st.hpp>
+
+#ifdef SRS_SRT
+static void srs_srt_utest_null_log_handler(void* opaque, int level, const char* file, int line,
+                                           const char* area, const char* message)
+{
+    // srt null log handler, do no print any log.
+}
+#endif
 
 // Initialize global settings.
 srs_error_t prepare_main() {
@@ -71,6 +80,9 @@ srs_error_t prepare_main() {
     if ((err = srs_srt_log_initialize()) != srs_success) {
         return srs_error_wrap(err, "srt log initialize");
     }
+
+    // Prevent the output of srt logs in utest.
+    srt_setloghandler(NULL, srs_srt_utest_null_log_handler);
 
     _srt_eventloop = new SrsSrtEventLoop();
     if ((err = _srt_eventloop->initialize()) != srs_success) {
