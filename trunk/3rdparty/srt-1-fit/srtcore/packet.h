@@ -150,7 +150,7 @@ const int32_t LOSSDATA_SEQNO_RANGE_LAST = 0, LOSSDATA_SEQNO_SOLO = 0;
 
 inline int32_t CreateControlSeqNo(UDTMessageType type)
 {
-    return SEQNO_CONTROL::mask | SEQNO_MSGTYPE::wrap(size_t(type));
+    return SEQNO_CONTROL::mask | SEQNO_MSGTYPE::wrap(uint32_t(type));
 }
 
 inline int32_t CreateControlExtSeqNo(int exttype)
@@ -236,6 +236,11 @@ public:
     /// @param len [in] the payload or the control information field length.
     void setLength(size_t len);
 
+    /// Set the payload or the control information field length.
+    /// @param len [in] the payload or the control information field length.
+    /// @param cap [in] capacity (if known).
+    void setLength(size_t len, size_t cap);
+
     /// Pack a Control packet.
     /// @param pkttype [in] packet type filed.
     /// @param lparam [in] pointer to the first data structure, explained by the packet type.
@@ -286,6 +291,8 @@ public:
     /// (because the peer will understand this bit as a part of MSGNO field).
     bool getRexmitFlag() const;
 
+    void setRexmitFlag(bool bRexmit);
+
     /// Read the message sequence number.
     /// @return packet header field [1]
     int32_t getMsgSeq(bool has_rexmit = true) const;
@@ -299,6 +306,8 @@ public:
     /// Read the message time stamp.
     /// @return packet header field [2] (bit 0~31, bit 0-26 if SRT_DEBUG_TSBPD_WRAP).
     uint32_t getMsgTimeStamp() const;
+
+    sockaddr_any udpDestAddr() const { return m_DestAddr; }
 
 #ifdef SRT_DEBUG_TSBPD_WRAP                           // Receiver
     static const uint32_t MAX_TIMESTAMP = 0x07FFFFFF; // 27 bit fast wraparound for tests (~2m15s)
@@ -335,6 +344,8 @@ protected:
 
     int32_t m_extra_pad;
     bool    m_data_owned;
+    sockaddr_any m_DestAddr;
+    size_t  m_zCapacity;
 
 protected:
     CPacket& operator=(const CPacket&);
@@ -368,6 +379,8 @@ public:
     char*       data() { return m_pcData; }
     const char* data() const { return m_pcData; }
     size_t      size() const { return getLength(); }
+    size_t      capacity() const { return m_zCapacity; }
+    void        setCapacity(size_t cap) { m_zCapacity = cap; }
     uint32_t    header(SrtPktHeaderFields field) const { return m_nHeader[field]; }
 
 #if ENABLE_LOGGING

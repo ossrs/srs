@@ -53,6 +53,8 @@ modified by
 #ifndef INC_SRT_LIST_H
 #define INC_SRT_LIST_H
 
+#include <deque>
+
 #include "udt.h"
 #include "common.h"
 
@@ -83,6 +85,12 @@ public:
     int32_t popLostSeq();
 
     void traceState() const;
+
+    // Debug/unittest support.
+
+    int head() const { return m_iHead; }
+    int next(int loc) const { return m_caSeq[loc].inext; }
+    int last() const { return m_iLastInsertPos; }
 
 private:
     struct Seq
@@ -118,6 +126,8 @@ private:
     /// @param seqno2  last sequence number in range (SRT_SEQNO_NONE if no range)
     bool updateElement(int pos, int32_t seqno1, int32_t seqno2);
 
+    static const int LOC_NONE = -1;
+
 private:
     CSndLossList(const CSndLossList&);
     CSndLossList& operator=(const CSndLossList&);
@@ -134,8 +144,8 @@ public:
     /// Insert a series of loss seq. no. between "seqno1" and "seqno2" into the receiver's loss list.
     /// @param [in] seqno1 sequence number starts.
     /// @param [in] seqno2 seqeunce number ends.
-
-    void insert(int32_t seqno1, int32_t seqno2);
+    /// @return length of the loss record inserted (seqlen(seqno1, seqno2)), -1 on error.
+    int insert(int32_t seqno1, int32_t seqno2);
 
     /// Remove a loss seq. no. from the receiver's loss list.
     /// @param [in] seqno sequence number.
@@ -149,6 +159,12 @@ public:
     /// @return if the packet is removed (true) or no such lost packet is found (false).
 
     bool remove(int32_t seqno1, int32_t seqno2);
+
+
+    /// Remove all numbers that precede the given sequence number.
+    /// @param [in] seqno sequence number.
+    /// @return the first removed sequence number
+    int32_t removeUpTo(int32_t seqno);
 
     /// Find if there is any lost packets whose sequence number falling seqno1 and seqno2.
     /// @param [in] seqno1 start sequence number.
@@ -264,6 +280,8 @@ struct CRcvFreshLoss
 
     Emod revoke(int32_t sequence);
     Emod revoke(int32_t lo, int32_t hi);
+
+    static bool removeOne(std::deque<CRcvFreshLoss>& w_container, int32_t sequence, int* had_ttl = NULL);
 };
 
 } // namespace srt

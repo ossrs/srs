@@ -140,7 +140,8 @@ const char* srt_rejectreason_name [] = {
     "CONGESTION",
     "FILTER",
     "GROUP",
-    "TIMEOUT"
+    "TIMEOUT",
+    "CRYPTO"
 };
 }
 
