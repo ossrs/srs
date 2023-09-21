@@ -13,8 +13,8 @@ written by
    Haivision Systems Inc.
  *****************************************************************************/
 
-#ifndef INC__SRT_LOGGING_H
-#define INC__SRT_LOGGING_H
+#ifndef INC_SRT_LOGGING_H
+#define INC_SRT_LOGGING_H
 
 
 #include <iostream>
@@ -28,16 +28,13 @@ written by
 #else
 #include <sys/time.h>
 #endif
-#include <pthread.h>
-#if HAVE_CXX11
-#include <mutex>
-#endif
 
 #include "srt.h"
 #include "utilities.h"
 #include "threadname.h"
 #include "logging_api.h"
 #include "srt_compat.h"
+#include "sync.h"
 
 #ifdef __GNUC__
 #define PRINTF_LIKE __attribute__((format(printf,2,3)))
@@ -53,16 +50,24 @@ written by
 
 // LOGC uses an iostream-like syntax, using the special 'log' symbol.
 // This symbol isn't visible outside the log macro parameters.
-// Usage: LOGC(mglog.Debug, log << param1 << param2 << param3);
-#define LOGC(logdes, args) if (logdes.CheckEnabled()) { srt_logging::LogDispatcher::Proxy log(logdes); log.setloc(__FILE__, __LINE__, __FUNCTION__); args; }
+// Usage: LOGC(gglog.Debug, log << param1 << param2 << param3);
+#define LOGC(logdes, args) if (logdes.CheckEnabled()) \
+{ \
+    srt_logging::LogDispatcher::Proxy log(logdes); \
+    log.setloc(__FILE__, __LINE__, __FUNCTION__); \
+    const srt_logging::LogDispatcher::Proxy& log_prox SRT_ATR_UNUSED = args; \
+}
 
 // LOGF uses printf-like style formatting.
-// Usage: LOGF(mglog.Debug, "%s: %d", param1.c_str(), int(param2));
+// Usage: LOGF(gglog.Debug, "%s: %d", param1.c_str(), int(param2));
+// NOTE: LOGF is deprecated and should not be used
 #define LOGF(logdes, ...) if (logdes.CheckEnabled()) logdes().setloc(__FILE__, __LINE__, __FUNCTION__).form(__VA_ARGS__)
 
 // LOGP is C++11 only OR with only one string argument.
-// Usage: LOGP(mglog.Debug, param1, param2, param3);
+// Usage: LOGP(gglog.Debug, param1, param2, param3);
 #define LOGP(logdes, ...) if (logdes.CheckEnabled()) logdes.printloc(__FILE__, __LINE__, __FUNCTION__,##__VA_ARGS__)
+
+#define IF_LOGGING(instr) instr
 
 #if ENABLE_HEAVY_LOGGING
 
@@ -93,6 +98,7 @@ written by
 #define HLOGP(...)
 
 #define IF_HEAVY_LOGGING(instr) (void)0
+#define IF_LOGGING(instr) (void)0
 
 #endif
 
@@ -107,29 +113,30 @@ struct LogConfig
     std::ostream* log_stream;
     SRT_LOG_HANDLER_FN* loghandler_fn;
     void* loghandler_opaque;
-    pthread_mutex_t mutex;
+    srt::sync::Mutex mutex;
     int flags;
 
-    LogConfig(const fa_bitset_t& initial_fa):
-        enabled_fa(initial_fa),
-        max_level(LogLevel::warning),
-        log_stream(&std::cerr)
+    LogConfig(const fa_bitset_t& efa,
+            LogLevel::type l = LogLevel::warning,
+            std::ostream* ls = &std::cerr)
+        : enabled_fa(efa)
+        , max_level(l)
+        , log_stream(ls)
+        , loghandler_fn()
+        , loghandler_opaque()
+        , flags()
     {
-        pthread_mutex_init(&mutex, 0);
-    }
-    LogConfig(const fa_bitset_t& efa, LogLevel::type l, std::ostream* ls):
-        enabled_fa(efa), max_level(l), log_stream(ls)
-    {
-        pthread_mutex_init(&mutex, 0);
     }
 
     ~LogConfig()
     {
-        pthread_mutex_destroy(&mutex);
     }
 
-    void lock() { pthread_mutex_lock(&mutex); }
-    void unlock() { pthread_mutex_unlock(&mutex); }
+    SRT_ATTR_ACQUIRE(mutex)
+    void lock() { mutex.lock(); }
+
+    SRT_ATTR_RELEASE(mutex)
+    void unlock() { mutex.unlock(); }
 };
 
 // The LogDispatcher class represents the object that is responsible for
@@ -142,7 +149,6 @@ private:
     static const size_t MAX_PREFIX_SIZE = 32;
     char prefix[MAX_PREFIX_SIZE+1];
     LogConfig* src_config;
-    pthread_mutex_t mutex;
 
     bool isset(int flg) { return (src_config->flags & flg) != 0; }
 
@@ -160,21 +166,29 @@ public:
 
         // See Logger::Logger; we know this has normally 2 characters,
         // except !!FATAL!!, which has 9. Still less than 32.
-        strcpy(prefix, your_pfx);
-
         // If the size of the FA name together with severity exceeds the size,
         // just skip the former.
         if (logger_pfx && strlen(prefix) + strlen(logger_pfx) + 1 < MAX_PREFIX_SIZE)
         {
-            strcat(prefix, ":");
-            strcat(prefix, logger_pfx);
+#if defined(_MSC_VER) && _MSC_VER < 1900
+            _snprintf(prefix, MAX_PREFIX_SIZE, "%s:%s", your_pfx, logger_pfx);
+#else
+            snprintf(prefix, MAX_PREFIX_SIZE + 1, "%s:%s", your_pfx, logger_pfx);
+#endif
         }
-        pthread_mutex_init(&mutex, 0);
+        else
+        {
+#ifdef _MSC_VER
+            strncpy_s(prefix, MAX_PREFIX_SIZE + 1, your_pfx, _TRUNCATE);
+#else
+            strncpy(prefix, your_pfx, MAX_PREFIX_SIZE);
+            prefix[MAX_PREFIX_SIZE] = '\0';
+#endif
+        }
     }
 
     ~LogDispatcher()
     {
-        pthread_mutex_destroy(&mutex);
     }
 
     bool CheckEnabled();
@@ -239,7 +253,14 @@ public:
             return *this;
         }
 
-        DummyProxy& form(const char*, ...)
+        // DEPRECATED: DO NOT use LOGF/HLOGF macros anymore.
+        // Use iostream-style formatting with LOGC or a direct argument with LOGP.
+        SRT_ATR_DEPRECATED_PX DummyProxy& form(const char*, ...) SRT_ATR_DEPRECATED
+        {
+            return *this;
+        }
+
+        DummyProxy& vform(const char*, va_list)
         {
             return *this;
         }
@@ -292,7 +313,7 @@ struct LogDispatcher::Proxy
     // or better __func__.
     std::string ExtractName(std::string pretty_function);
 
-	Proxy(LogDispatcher& guy);
+    Proxy(LogDispatcher& guy);
 
     // Copy constructor is needed due to noncopyable ostringstream.
     // This is used only in creation of the default object, so just
@@ -348,7 +369,11 @@ struct LogDispatcher::Proxy
     {
         char buf[512];
 
-        vsprintf(buf, fmts, ap);
+#if defined(_MSC_VER) && _MSC_VER < 1900
+        _vsnprintf(buf, sizeof(buf) - 1, fmts, ap);
+#else
+        vsnprintf(buf, sizeof(buf), fmts, ap);
+#endif
         size_t len = strlen(buf);
         if ( buf[len-1] == '\n' )
         {
@@ -407,7 +432,6 @@ inline bool LogDispatcher::CheckEnabled()
     return configured_enabled_fa && level <= configured_maxlevel;
 }
 
-SRT_API std::string FormatTime(uint64_t time);
 
 #if HAVE_CXX11
 
@@ -423,7 +447,7 @@ inline void PrintArgs(std::ostream& serr, Arg1&& arg1, Args&&... args)
 }
 
 template <class... Args>
-inline void LogDispatcher::PrintLogLine(const char* file ATR_UNUSED, int line ATR_UNUSED, const std::string& area ATR_UNUSED, Args&&... args ATR_UNUSED)
+inline void LogDispatcher::PrintLogLine(const char* file SRT_ATR_UNUSED, int line SRT_ATR_UNUSED, const std::string& area SRT_ATR_UNUSED, Args&&... args SRT_ATR_UNUSED)
 {
 #ifdef ENABLE_LOGGING
     std::ostringstream serr;
@@ -441,7 +465,7 @@ inline void LogDispatcher::PrintLogLine(const char* file ATR_UNUSED, int line AT
 #else
 
 template <class Arg>
-inline void LogDispatcher::PrintLogLine(const char* file ATR_UNUSED, int line ATR_UNUSED, const std::string& area ATR_UNUSED, const Arg& arg ATR_UNUSED)
+inline void LogDispatcher::PrintLogLine(const char* file SRT_ATR_UNUSED, int line SRT_ATR_UNUSED, const std::string& area SRT_ATR_UNUSED, const Arg& arg SRT_ATR_UNUSED)
 {
 #ifdef ENABLE_LOGGING
     std::ostringstream serr;

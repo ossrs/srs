@@ -50,12 +50,12 @@ modified by
    Haivision Systems Inc.
 *****************************************************************************/
 
-#ifndef __UDT_COMMON_H__
-#define __UDT_COMMON_H__
+#ifndef INC_SRT_COMMON_H
+#define INC_SRT_COMMON_H
 
-#define _CRT_SECURE_NO_WARNINGS 1 // silences windows complaints for sscanf
-
+#include <memory>
 #include <cstdlib>
+#include <cstdio>
 #ifndef _WIN32
    #include <sys/time.h>
    #include <sys/uio.h>
@@ -63,10 +63,19 @@ modified by
    // #include <winsock2.h>
    //#include <windows.h>
 #endif
-#include <pthread.h>
-#include "udt.h"
-#include "utilities.h"
 
+#include "srt.h"
+#include "utilities.h"
+#include "sync.h"
+#include "netinet_any.h"
+#include "packetfilter_api.h"
+
+// System-independent errno
+#ifndef _WIN32
+   #define NET_ERROR errno
+#else
+   #define NET_ERROR WSAGetLastError()
+#endif
 
 #ifdef _DEBUG
 #include <assert.h>
@@ -74,6 +83,114 @@ modified by
 #else
 #define SRT_ASSERT(cond)
 #endif
+
+#if HAVE_FULL_CXX11
+#define SRT_STATIC_ASSERT(cond, msg) static_assert(cond, msg)
+#else
+#define SRT_STATIC_ASSERT(cond, msg)
+#endif
+
+#include <exception>
+
+namespace srt_logging
+{
+    std::string SockStatusStr(SRT_SOCKSTATUS s);
+#if ENABLE_BONDING
+    std::string MemberStatusStr(SRT_MEMBERSTATUS s);
+#endif
+}
+
+namespace srt
+{
+
+// Class CUDTException exposed for C++ API.
+// This is actually useless, unless you'd use a DIRECT C++ API,
+// however there's no such API so far. The current C++ API for UDT/SRT
+// is predicted to NEVER LET ANY EXCEPTION out of implementation,
+// so it's useless to catch this exception anyway.
+
+class CUDTException: public std::exception
+{
+public:
+
+    CUDTException(CodeMajor major = MJ_SUCCESS, CodeMinor minor = MN_NONE, int err = -1);
+    virtual ~CUDTException() ATR_NOTHROW {}
+
+    /// Get the description of the exception.
+    /// @return Text message for the exception description.
+    const char* getErrorMessage() const ATR_NOTHROW;
+
+    virtual const char* what() const ATR_NOTHROW ATR_OVERRIDE
+    {
+        return getErrorMessage();
+    }
+
+    std::string getErrorString() const;
+
+    /// Get the system errno for the exception.
+    /// @return errno.
+    int getErrorCode() const;
+
+    /// Get the system network errno for the exception.
+    /// @return errno.
+    int getErrno() const;
+
+    /// Clear the error code.
+    void clear();
+
+private:
+    CodeMajor m_iMajor;        // major exception categories
+    CodeMinor m_iMinor;		// for specific error reasons
+    int m_iErrno;		// errno returned by the system if there is any
+    mutable std::string m_strMsg; // text error message (cache)
+
+    std::string m_strAPI;	// the name of UDT function that returns the error
+    std::string m_strDebug;	// debug information, set to the original place that causes the error
+
+public: // Legacy Error Code
+
+    static const int EUNKNOWN = SRT_EUNKNOWN;
+    static const int SUCCESS = SRT_SUCCESS;
+    static const int ECONNSETUP = SRT_ECONNSETUP;
+    static const int ENOSERVER = SRT_ENOSERVER;
+    static const int ECONNREJ = SRT_ECONNREJ;
+    static const int ESOCKFAIL = SRT_ESOCKFAIL;
+    static const int ESECFAIL = SRT_ESECFAIL;
+    static const int ECONNFAIL = SRT_ECONNFAIL;
+    static const int ECONNLOST = SRT_ECONNLOST;
+    static const int ENOCONN = SRT_ENOCONN;
+    static const int ERESOURCE = SRT_ERESOURCE;
+    static const int ETHREAD = SRT_ETHREAD;
+    static const int ENOBUF = SRT_ENOBUF;
+    static const int EFILE = SRT_EFILE;
+    static const int EINVRDOFF = SRT_EINVRDOFF;
+    static const int ERDPERM = SRT_ERDPERM;
+    static const int EINVWROFF = SRT_EINVWROFF;
+    static const int EWRPERM = SRT_EWRPERM;
+    static const int EINVOP = SRT_EINVOP;
+    static const int EBOUNDSOCK = SRT_EBOUNDSOCK;
+    static const int ECONNSOCK = SRT_ECONNSOCK;
+    static const int EINVPARAM = SRT_EINVPARAM;
+    static const int EINVSOCK = SRT_EINVSOCK;
+    static const int EUNBOUNDSOCK = SRT_EUNBOUNDSOCK;
+    static const int ESTREAMILL = SRT_EINVALMSGAPI;
+    static const int EDGRAMILL = SRT_EINVALBUFFERAPI;
+    static const int ENOLISTEN = SRT_ENOLISTEN;
+    static const int ERDVNOSERV = SRT_ERDVNOSERV;
+    static const int ERDVUNBOUND = SRT_ERDVUNBOUND;
+    static const int EINVALMSGAPI = SRT_EINVALMSGAPI;
+    static const int EINVALBUFFERAPI = SRT_EINVALBUFFERAPI;
+    static const int EDUPLISTEN = SRT_EDUPLISTEN;
+    static const int ELARGEMSG = SRT_ELARGEMSG;
+    static const int EINVPOLLID = SRT_EINVPOLLID;
+    static const int EASYNCFAIL = SRT_EASYNCFAIL;
+    static const int EASYNCSND = SRT_EASYNCSND;
+    static const int EASYNCRCV = SRT_EASYNCRCV;
+    static const int ETIMEOUT = SRT_ETIMEOUT;
+    static const int ECONGEST = SRT_ECONGEST;
+    static const int EPEERERR = SRT_EPEERERR;
+};
+
 
 
 enum UDTSockType
@@ -161,6 +278,12 @@ enum EConnectStatus
     CONN_AGAIN = -2      //< No data was read, don't change any state.
 };
 
+enum EConnectMethod
+{
+    COM_ASYNCHRO,
+    COM_SYNCHRO
+};
+
 std::string ConnectStatusStr(EConnectStatus est);
 
 
@@ -171,14 +294,15 @@ enum ETransmissionEvent
 {
     TEV_INIT,       // --> After creation, and after any parameters were updated.
     TEV_ACK,        // --> When handling UMSG_ACK - older CCC:onAck()
-    TEV_ACKACK,     // --> UDT does only RTT sync, can be read from CUDT::RTT().
+    TEV_ACKACK,     // --> UDT does only RTT sync, can be read from CUDT::SRTT().
     TEV_LOSSREPORT, // --> When handling UMSG_LOSSREPORT - older CCC::onLoss()
     TEV_CHECKTIMER, // --> See TEV_CHT_REXMIT
     TEV_SEND,       // --> When the packet is scheduled for sending - older CCC::onPktSent
     TEV_RECEIVE,    // --> When a data packet was received - older CCC::onPktReceived
     TEV_CUSTOM,     // --> probably dead call - older CCC::processCustomMsg
+    TEV_SYNC,       // --> Backup group. When rate estimation is derived from an active member, and update is needed.
 
-    TEV__SIZE
+    TEV_E_SIZE
 };
 
 std::string TransmissionEventStr(ETransmissionEvent ev);
@@ -209,47 +333,47 @@ struct EventVariant
     enum Type {UNDEFINED, PACKET, ARRAY, ACK, STAGE, INIT} type;
     union U
     {
-        CPacket* packet;
+        const srt::CPacket* packet;
         int32_t ack;
         struct
         {
-            int32_t* ptr;
+            const int32_t* ptr;
             size_t len;
         } array;
         ECheckTimerStage stage;
         EInitEvent init;
     } u;
 
-    EventVariant()
-    {
-        type = UNDEFINED;
-        memset(&u, 0, sizeof u);
-    }
 
     template<Type t>
     struct VariantFor;
 
-    template <Type tp, typename Arg>
-    void Assign(Arg arg)
-    {
-        type = tp;
-        (u.*(VariantFor<tp>::field())) = arg;
-        //(u.*field) = arg;
-    }
-
-    void operator=(CPacket* arg) { Assign<PACKET>(arg); };
-    void operator=(int32_t  arg) { Assign<ACK>(arg); };
-    void operator=(ECheckTimerStage arg) { Assign<STAGE>(arg); };
-    void operator=(EInitEvent arg) { Assign<INIT>(arg); };
 
     // Note: UNDEFINED and ARRAY don't have assignment operator.
     // For ARRAY you'll use 'set' function. For UNDEFINED there's nothing.
 
-
-    template <class T>
-    EventVariant(T arg)
+    explicit EventVariant(const srt::CPacket* arg)
     {
-        *this = arg;
+        type = PACKET;
+        u.packet = arg;
+    }
+
+    explicit EventVariant(int32_t arg)
+    {
+        type = ACK;
+        u.ack = arg;
+    }
+
+    explicit EventVariant(ECheckTimerStage arg)
+    {
+        type = STAGE;
+        u.stage = arg;
+    }
+
+    explicit EventVariant(EInitEvent arg)
+    {
+        type = INIT;
+        u.init = arg;
     }
 
     const int32_t* get_ptr() const
@@ -257,25 +381,25 @@ struct EventVariant
         return u.array.ptr;
     }
 
-    size_t get_len()
+    size_t get_len() const
     {
         return u.array.len;
     }
 
-    void set(int32_t* ptr, size_t len)
+    void set(const int32_t* ptr, size_t len)
     {
         type = ARRAY;
         u.array.ptr = ptr;
         u.array.len = len;
     }
 
-    EventVariant(int32_t* ptr, size_t len)
+    EventVariant(const int32_t* ptr, size_t len)
     {
         set(ptr, len);
     }
 
     template<Type T>
-    typename VariantFor<T>::type get()
+    typename VariantFor<T>::type get() const
     {
         return u.*(VariantFor<T>::field());
     }
@@ -314,10 +438,10 @@ class EventArgType;
 
 
 // The 'type' field wouldn't be even necessary if we
-
+// use a full-templated version. TBD.
 template<> struct EventVariant::VariantFor<EventVariant::PACKET>
 {
-    typedef CPacket* type;
+    typedef const srt::CPacket* type;
     static type U::*field() {return &U::packet;}
 };
 
@@ -400,11 +524,14 @@ struct EventSlot
     // "Stealing" copy constructor, following the auto_ptr method.
     // This isn't very nice, but no other way to do it in C++03
     // without rvalue-reference and move.
-    EventSlot(const EventSlot& victim)
+    void moveFrom(const EventSlot& victim)
     {
         slot = victim.slot; // Should MOVE.
         victim.slot = 0;
     }
+
+    EventSlot(const EventSlot& victim) { moveFrom(victim); }
+    EventSlot& operator=(const EventSlot& victim) { moveFrom(victim); return *this; }
 
     EventSlot(void* op, EventSlotBase::dispatcher_t* disp)
     {
@@ -426,156 +553,10 @@ struct EventSlot
 
     ~EventSlot()
     {
-        if (slot)
-            delete slot;
+        delete slot;
     }
 };
 
-
-// Old UDT library specific classes, moved from utilities as utilities
-// should now be general-purpose.
-
-class CTimer
-{
-public:
-   CTimer();
-   ~CTimer();
-
-public:
-
-      /// Sleep for "interval_tk" CCs.
-      /// @param [in] interval_tk CCs to sleep.
-
-   void sleep(uint64_t interval_tk);
-
-      /// Seelp until CC "nexttime_tk".
-      /// @param [in] nexttime_tk next time the caller is waken up.
-
-   void sleepto(uint64_t nexttime_tk);
-
-      /// Stop the sleep() or sleepto() methods.
-
-   void interrupt();
-
-      /// trigger the clock for a tick, for better granuality in no_busy_waiting timer.
-
-   void tick();
-
-public:
-
-      /// Read the CPU clock cycle into x.
-      /// @param [out] x to record cpu clock cycles.
-
-   static void rdtsc(uint64_t &x);
-
-      /// return the CPU frequency.
-      /// @return CPU frequency.
-
-   static uint64_t getCPUFrequency();
-
-      /// check the current time, 64bit, in microseconds.
-      /// @return current time in microseconds.
-
-   static uint64_t getTime();
-
-      /// trigger an event such as new connection, close, new data, etc. for "select" call.
-
-   static void triggerEvent();
-
-   enum EWait {WT_EVENT, WT_ERROR, WT_TIMEOUT};
-
-      /// wait for an event to br triggered by "triggerEvent".
-      /// @retval WT_EVENT The event has happened
-      /// @retval WT_TIMEOUT The event hasn't happened, the function exited due to timeout
-      /// @retval WT_ERROR The function has exit due to an error
-
-   static EWait waitForEvent();
-
-      /// sleep for a short interval. exact sleep time does not matter
-
-   static void sleep();
-   
-      /// Wait for condition with timeout 
-      /// @param [in] cond Condition variable to wait for
-      /// @param [in] mutex locked mutex associated with the condition variable
-      /// @param [in] delay timeout in microseconds
-      /// @retval 0 Wait was successfull
-      /// @retval ETIMEDOUT The wait timed out
-
-   static int condTimedWaitUS(pthread_cond_t* cond, pthread_mutex_t* mutex, uint64_t delay);
-
-private:
-   uint64_t getTimeInMicroSec();
-
-private:
-   uint64_t m_ullSchedTime_tk;             // next schedulled time
-
-   pthread_cond_t m_TickCond;
-   pthread_mutex_t m_TickLock;
-
-   static pthread_cond_t m_EventCond;
-   static pthread_mutex_t m_EventLock;
-
-private:
-   static uint64_t s_ullCPUFrequency;	// CPU frequency : clock cycles per microsecond
-   static uint64_t readCPUFrequency();
-   static bool m_bUseMicroSecond;       // No higher resolution timer available, use gettimeofday().
-};
-
-////////////////////////////////////////////////////////////////////////////////
-
-class CGuard
-{
-public:
-   /// Constructs CGuard, which locks the given mutex for
-   /// the scope where this object exists.
-   /// @param lock Mutex to lock
-   /// @param if_condition If this is false, CGuard will do completely nothing
-   CGuard(pthread_mutex_t& lock, bool if_condition = true);
-   ~CGuard();
-
-public:
-   static int enterCS(pthread_mutex_t& lock);
-   static int leaveCS(pthread_mutex_t& lock);
-
-   static void createMutex(pthread_mutex_t& lock);
-   static void releaseMutex(pthread_mutex_t& lock);
-
-   static void createCond(pthread_cond_t& cond);
-   static void releaseCond(pthread_cond_t& cond);
-
-   void forceUnlock();
-
-private:
-   pthread_mutex_t& m_Mutex;            // Alias name of the mutex to be protected
-   int m_iLocked;                       // Locking status
-
-   CGuard& operator=(const CGuard&);
-};
-
-class InvertedGuard
-{
-    pthread_mutex_t* m_pMutex;
-public:
-
-    InvertedGuard(pthread_mutex_t* smutex): m_pMutex(smutex)
-    {
-        if ( !smutex )
-            return;
-
-        CGuard::leaveCS(*smutex);
-    }
-
-    ~InvertedGuard()
-    {
-        if ( !m_pMutex )
-            return;
-
-        CGuard::enterCS(*m_pMutex);
-    }
-};
-
-////////////////////////////////////////////////////////////////////////////////
 
 // UDT Sequence Number 0 - (2^31 - 1)
 
@@ -588,11 +569,63 @@ public:
 
 class CSeqNo
 {
+    int32_t value;
+
 public:
+
+   explicit CSeqNo(int32_t v): value(v) {}
+
+   // Comparison
+   bool operator == (const CSeqNo& other) const { return other.value == value; }
+   bool operator < (const CSeqNo& other) const
+   {
+       return seqcmp(value, other.value) < 0;
+   }
+
+   // The std::rel_ops namespace cannot be "imported"
+   // as a whole into the class - it can only be used
+   // in the application code. 
+   bool operator != (const CSeqNo& other) const { return other.value != value; }
+   bool operator > (const CSeqNo& other) const { return other < *this; }
+   bool operator >= (const CSeqNo& other) const
+   {
+       return seqcmp(value, other.value) >= 0;
+   }
+   bool operator <=(const CSeqNo& other) const
+   {
+       return seqcmp(value, other.value) <= 0;
+   }
+
+   // circular arithmetics
+   friend int operator-(const CSeqNo& c1, const CSeqNo& c2)
+   {
+       return seqoff(c2.value, c1.value);
+   }
+
+   friend CSeqNo operator-(const CSeqNo& c1, int off)
+   {
+       return CSeqNo(decseq(c1.value, off));
+   }
+
+   friend CSeqNo operator+(const CSeqNo& c1, int off)
+   {
+       return CSeqNo(incseq(c1.value, off));
+   }
+
+   friend CSeqNo operator+(int off, const CSeqNo& c1)
+   {
+       return CSeqNo(incseq(c1.value, off));
+   }
+
+   CSeqNo& operator++()
+   {
+       value = incseq(value);
+       return *this;
+   }
 
    /// This behaves like seq1 - seq2, in comparison to numbers,
    /// and with the statement that only the sign of the result matters.
-   /// That is, it returns a negative value if seq1 < seq2,
+   /// Returns a negative value if seq1 < seq2,
    /// positive if seq1 > seq2, and zero if they are equal.
    /// The only correct application of this function is when you
    /// compare two values and it works faster than seqoff. However
@@ -601,19 +634,25 @@ public:
    /// distance between two sequence numbers.
    ///
    /// Example: to check if (seq1 %> seq2): seqcmp(seq1, seq2) > 0.
+   /// Note: %> stands for "later than".
    inline static int seqcmp(int32_t seq1, int32_t seq2)
    {return (abs(seq1 - seq2) < m_iSeqNoTH) ? (seq1 - seq2) : (seq2 - seq1);}
 
    /// This function measures a length of the range from seq1 to seq2,
+   /// including endpoints (seqlen(a, a) = 1; seqlen(a, a + 1) = 2),
    /// WITH A PRECONDITION that certainly @a seq1 is earlier than @a seq2.
    /// This can also include an enormously large distance between them,
    /// that is, exceeding the m_iSeqNoTH value (can be also used to test
-   /// if this distance is larger). Prior to calling this function the
-   /// caller must be certain that @a seq2 is a sequence coming from a
-   /// later time than @a seq1, and still, of course, this distance didn't
-   /// exceed m_iMaxSeqNo.
+   /// if this distance is larger).
+   /// Prior to calling this function the caller must be certain that
+   /// @a seq2 is a sequence coming from a later time than @a seq1,
+   /// and that the distance does not exceed m_iMaxSeqNo.
    inline static int seqlen(int32_t seq1, int32_t seq2)
-   {return (seq1 <= seq2) ? (seq2 - seq1 + 1) : (seq2 - seq1 + m_iMaxSeqNo + 2);}
+   {
+       SRT_ASSERT(seq1 >= 0 && seq1 <= m_iMaxSeqNo);
+       SRT_ASSERT(seq2 >= 0 && seq2 <= m_iMaxSeqNo);
+       return (seq1 <= seq2) ? (seq2 - seq1 + 1) : (seq2 - seq1 + m_iMaxSeqNo + 2);
+   }
 
    /// This behaves like seq2 - seq1, with the precondition that the true
    /// distance between two sequence numbers never exceeds m_iSeqNoTH.
@@ -659,6 +698,13 @@ public:
        return seq - dec;
    }
 
+   static int32_t maxseq(int32_t seq1, int32_t seq2)
+   {
+       if (seqcmp(seq1, seq2) < 0)
+           return seq2;
+       return seq1;
+   }
+
 public:
    static const int32_t m_iSeqNoTH = 0x3FFFFFFF;             // threshold for comparing seq. no.
    static const int32_t m_iMaxSeqNo = 0x7FFFFFFF;            // maximum sequence number used in UDT
@@ -678,15 +724,138 @@ public:
    static const int32_t m_iMaxAckSeqNo = 0x7FFFFFFF;         // maximum ACK sub-sequence number used in UDT
 };
 
+template <size_t BITS, uint32_t MIN = 0>
+class RollNumber
+{
+    typedef RollNumber<BITS, MIN> this_t;
+    typedef Bits<BITS, 0> number_t;
+    uint32_t number;
 
+public:
+
+    static const size_t OVER = number_t::mask+1;
+    static const size_t HALF = (OVER-MIN)/2;
+
+private:
+    static int Diff(uint32_t left, uint32_t right)
+    {
+        // UNExpected order, diff is negative
+        if ( left < right )
+        {
+            int32_t diff = right - left;
+            if ( diff >= int32_t(HALF) ) // over barrier
+            {
+                // It means that left is less than right because it was overflown
+                // For example: left = 0x0005, right = 0xFFF0; diff = 0xFFEB > HALF
+                left += OVER - MIN;  // left was really 0x00010005, just narrowed.
+                // Now the difference is 0x0015, not 0xFFFF0015
+            }
+        }
+        else
+        {
+            int32_t diff = left - right;
+            if ( diff >= int32_t(HALF) )
+            {
+                right += OVER - MIN;
+            }
+        }
+
+        return left - right;
+    }
+
+public:
+    explicit RollNumber(uint32_t val): number(val)
+    {
+    }
+
+    bool operator<(const this_t& right) const
+    {
+        int32_t ndiff = number - right.number;
+        if (ndiff < -int32_t(HALF))
+        {
+            // it' like ndiff > 0
+            return false;
+        }
+
+        if (ndiff > int32_t(HALF))
+        {
+            // it's like ndiff < 0
+            return true;
+        }
+
+        return ndiff < 0;
+    }
+
+    bool operator>(const this_t& right) const
+    {
+        return right < *this;
+    }
+
+    bool operator==(const this_t& right) const
+    {
+        return number == right.number;
+    }
+
+    bool operator<=(const this_t& right) const
+    {
+        return !(*this > right);
+    }
+
+    bool operator>=(const this_t& right) const
+    {
+        return !(*this < right);
+    }
+
+    void operator++(int)
+    {
+        ++number;
+        if (number > number_t::mask)
+            number = MIN;
+    }
+
+    this_t& operator++() { (*this)++; return *this; }
+
+    void operator--(int)
+    {
+        if (number == MIN)
+            number = number_t::mask;
+        else
+            --number;
+    }
+    this_t& operator--() { (*this)--; return *this; }
+
+    int32_t operator-(this_t right)
+    {
+        return Diff(this->number, right.number);
+    }
+
+    void operator+=(int32_t delta)
+    {
+        // NOTE: this condition in practice tests if delta is negative.
+        // That's because `number` is always positive, so negated delta
+        // can't be ever greater than this, unless it's negative.
+        if (-delta > int64_t(number))
+        {
+            number = OVER - MIN + number + delta; // NOTE: delta is negative
+        }
+        else
+        {
+            number += delta;
+            if (number >= OVER)
+                number -= OVER - MIN;
+        }
+    }
+
+    operator uint32_t() const { return number; }
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 
 struct CIPAddress
 {
    static bool ipcmp(const struct sockaddr* addr1, const struct sockaddr* addr2, int ver = AF_INET);
-   static void ntop(const struct sockaddr* addr, uint32_t ip[4], int ver = AF_INET);
-   static void pton(struct sockaddr* addr, const uint32_t ip[4], int ver = AF_INET);
+   static void ntop(const struct sockaddr_any& addr, uint32_t ip[4]);
+   static void pton(sockaddr_any& addr, const uint32_t ip[4], const sockaddr_any& peer);
    static std::string show(const struct sockaddr* adr);
 };
 
@@ -705,22 +874,21 @@ class StatsLossRecords
     std::bitset<SIZE> array;
 
 public:
-
-    StatsLossRecords(): initseq(-1) {}
+    StatsLossRecords(): initseq(SRT_SEQNO_NONE) {}
 
     // To check if this structure still keeps record of that sequence.
     // This is to check if the information about this not being found
     // is still reliable.
     bool exists(int32_t seq)
     {
-        return initseq != -1 && CSeqNo::seqcmp(seq, initseq) >= 0;
+        return initseq != SRT_SEQNO_NONE && CSeqNo::seqcmp(seq, initseq) >= 0;
     }
 
     int32_t base() { return initseq; }
 
     void clear()
     {
-        initseq = -1;
+        initseq = SRT_SEQNO_NONE;
         array.reset();
     }
 
@@ -817,6 +985,404 @@ public:
 };
 
 
+// There are some better or worse things you can find outside,
+// there's also boost::circular_buffer, but it's too overspoken
+// to be included here. We also can't rely on boost. Maybe in future
+// when it's added to the standard and SRT can heighten C++ standard
+// requirements; until then it needs this replacement.
+template <class Value>
+class CircularBuffer
+{
+#ifdef SRT_TEST_CIRCULAR_BUFFER
+public:
+#endif
+    int m_iSize;
+    Value* m_aStorage;
+    int m_xBegin;
+    int m_xEnd;
+
+    static void destr(Value& v)
+    {
+        v.~Value();
+    }
+
+    static void constr(Value& v)
+    {
+        new ((void*)&v) Value();
+    }
+
+    template <class V>
+    static void constr(Value& v, const V& source)
+    {
+        new ((void*)&v) Value(source);
+    }
+
+    // Wipe the copy constructor
+    CircularBuffer(const CircularBuffer&);
+
+public:
+    typedef Value value_type;
+
+    CircularBuffer(int size)
+        :m_iSize(size+1),
+         m_xBegin(0),
+         m_xEnd(0)
+    {
+        // We reserve one spare element just for a case.
+        if (size == 0)
+            m_aStorage = 0;
+        else
+            m_aStorage = (Value*)::operator new (sizeof(Value) * m_iSize);
+    }
+
+    void set_capacity(int size)
+    {
+        reset();
+
+        // This isn't called resize (the size is 0 after the operation)
+        // nor reserve (the existing elements are removed).
+        if (size != m_iSize)
+        {
+            if (m_aStorage)
+                ::operator delete (m_aStorage);
+            m_iSize = size+1;
+            m_aStorage = (Value*)::operator new (sizeof(Value) * m_iSize);
+        }
+    }
+
+    void reset()
+    {
+        if (m_xEnd < m_xBegin)
+        {
+            for (int i = m_xBegin; i < m_iSize; ++i)
+                destr(m_aStorage[i]);
+            for (int i = 0; i < m_xEnd; ++i)
+                destr(m_aStorage[i]);
+        }
+        else
+        {
+            for (int i = m_xBegin; i < m_xEnd; ++i)
+                destr(m_aStorage[i]);
+        }
+
+        m_xBegin = 0;
+        m_xEnd = 0;
+    }
+
+    ~CircularBuffer()
+    {
+        reset();
+        ::operator delete (m_aStorage);
+    }
+
+    // In the beginning, m_xBegin == m_xEnd, which
+    // means that the container is empty. Adding can
+    // be done exactly at the place pointed to by m_xEnd,
+    // and m_xEnd must be then shifted to the next unused one.
+    // When (m_xEnd + 1) % m_zSize == m_xBegin, the container
+    // is considered full and the element adding is rejected.
+    //
+    // This container is not designed to be STL-compatible
+    // because it doesn't make much sense. It's not a typical
+    // container, even treated as random-access container.
+
+    int shift(int basepos, int shift) const
+    {
+        return (basepos + shift) % m_iSize;
+    }
+
+    // Simplified versions with ++ and --; avoid using division instruction
+    int shift_forward(int basepos) const
+    {
+        if (++basepos == m_iSize)
+            return 0;
+        return basepos;
+    }
+
+    int shift_backward(int basepos) const
+    {
+        if (basepos == 0)
+            return m_iSize-1;
+        return --basepos;
+    }
+
+    int size() const
+    {
+        // Count the distance between begin and end
+        if (m_xEnd < m_xBegin)
+        {
+            // Use "merge two slices" method.
+            // (BEGIN - END) is the distance of the unused
+            // space in the middle. Used space is left to END
+            // and right to BEGIN, the sum of the left and right
+            // slice and the free space is the size.
+
+            // This includes also a case when begin and end
+            // are equal, which means that it's empty, so
+            // spaceleft() should simply return m_iSize.
+            return m_iSize - (m_xBegin - m_xEnd);
+        }
+
+        return m_xEnd - m_xBegin;
+    }
+
+    bool empty() const { return m_xEnd == m_xBegin; }
+
+    size_t capacity() const { return m_iSize-1; }
+
+    int spaceleft() const
+    {
+        // It's kinda tautology, but this will be more efficient.
+        if (m_xEnd < m_xBegin)
+        {
+            return m_xBegin - m_xEnd;
+        }
+
+        return m_iSize - (m_xEnd - m_xBegin);
+    }
+
+    // This is rather written for testing and rather won't
+    // be used in the real code.
+    template <class V>
+    int push(const V& v)
+    {
+        // Check if you can add
+        int nend = shift_forward(m_xEnd);
+        if ( nend == m_xBegin)
+            return -1;
+
+        constr(m_aStorage[m_xEnd], v);
+        m_xEnd = nend;
+        return size() - 1;
+    }
+
+    Value* push()
+    {
+        int nend = shift_forward(m_xEnd);
+        if ( nend == m_xBegin)
+            return NULL;
+
+        Value* pos = &m_aStorage[m_xEnd];
+        constr(*pos);
+        m_xEnd = nend;
+        return pos;
+    }
+
+    bool access(int position, Value*& w_v)
+    {
+        // This version doesn't require the boolean value to report
+        // whether the element is newly added because it never adds
+        // a new element.
+        int ipos, vend;
+
+        if (!INT_checkAccess(position, ipos, vend))
+            return false;
+        if (ipos >= vend) // exceeds
+            return false;
+
+        INT_access(ipos, false, (w_v)); // never exceeds
+        return true;
+    }
+
+    // Ok, now it's the real deal.
+    bool access(int position, Value*& w_v, bool& w_isnew)
+    {
+        int ipos, vend;
+
+        if (!INT_checkAccess(position, ipos, vend))
+            return false;
+        bool exceeds = (ipos >= vend);
+        w_isnew = exceeds;
+
+        INT_access(ipos, exceeds, (w_v));
+        return true;
+    }
+
+private:
+    bool INT_checkAccess(int position, int& ipos, int& vend)
+    {
+        // Reject if no space left.
+        // Also INVAL if negative position.
+        if (position >= (m_iSize-1) || position < 0)
+            return false; // That's way to far, we can't even calculate
+
+        ipos = m_xBegin + position;
+
+        vend = m_xEnd;
+        if (m_xEnd < m_xBegin)
+            vend += m_iSize;
+
+        return true;
+    }
+
+    void INT_access(int ipos, bool exceeds, Value*& w_v)
+    {
+        if (ipos >= m_iSize)
+            ipos -= m_iSize; // wrap around
+
+        // Update the end position.
+        if (exceeds)
+        {
+            int nend = ipos+1;
+            if (m_xEnd > nend)
+            {
+                // Here we know that the current index exceeds the size.
+                // So, if this happens, it's m_xEnd wrapped around.
+                // Clear out elements in two slices:
+                // - from m_xEnd to m_iSize-1
+                // - from 0 to nend
+                for (int i = m_xEnd; i < m_iSize; ++i)
+                    constr(m_aStorage[i]);
+                for (int i = 0; i < nend; ++i)
+                    constr(m_aStorage[i]);
+            }
+            else
+            {
+                for (int i = m_xEnd; i < nend; ++i)
+                    constr(m_aStorage[i]);
+            }
+
+            if (nend == m_iSize)
+                nend = 0;
+
+            m_xEnd = nend;
+        }
+
+        w_v = &m_aStorage[ipos];
+    }
+
+public:
+    bool set(int position, const Value& newval, bool overwrite = true)
+    {
+        Value* pval = 0;
+        bool isnew = false;
+        if (!access(position, (pval), (isnew)))
+            return false;
+
+        if (isnew || overwrite)
+            *pval = newval;
+        return true;
+    }
+
+    template<class Updater>
+    bool update(int position, Updater updater)
+    {
+        Value* pval = 0;
+        bool isnew = false;
+        if (!access(position, (pval), (isnew)))
+            return false;
+
+        updater(*pval, isnew);
+        return true;
+    }
+
+    int getIndexFor(int position) const
+    {
+        int ipos = m_xBegin + position;
+
+        int vend = m_xEnd;
+        if (vend < m_xBegin)
+            vend += m_iSize;
+
+        if (ipos >= vend)
+            return -1;
+
+        if (ipos >= m_iSize)
+            ipos -= m_iSize;
+
+        return ipos;
+    }
+
+    bool get(int position, Value& w_out) const
+    {
+        // Check if that position is occupied
+        if (position > m_iSize || position < 0)
+            return false;
+
+        int ipos = getIndexFor(position);
+        if (ipos == -1)
+            return false;
+
+        w_out = m_aStorage[ipos];
+        return true;
+    }
+
+    bool drop(int position)
+    {
+        // This function "deletes" items by shifting the
+        // given position to position 0. That is,
+        // elements from the beginning are being deleted
+        // up to (including) the given position.
+        if (position > m_iSize || position < 1)
+            return false;
+
+        int ipos = m_xBegin + position;
+        int vend = m_xEnd;
+        if (vend < m_xBegin)
+            vend += m_iSize;
+
+        // Destroy the elements in the removed range
+
+        if (ipos >= vend)
+        {
+            // There was a request to drop; the position
+            // is higher than the number of items. Allow this
+            // and simply make the container empty.
+            reset();
+            return true;
+        }
+
+        // Otherwise we have a new beginning.
+        int nbegin = ipos;
+
+        // Destroy the old elements
+        if (nbegin >= m_iSize)
+        {
+            nbegin -= m_iSize;
+
+            for (int i = m_xBegin; i < m_iSize; ++i)
+                destr(m_aStorage[i]);
+            for (int i = 0; i < nbegin; ++i)
+                destr(m_aStorage[i]);
+        }
+        else
+        {
+            for (int i = m_xBegin; i < nbegin; ++i)
+                destr(m_aStorage[i]);
+        }
+
+        m_xBegin = nbegin;
+
+        return true;
+    }
+
+    // This function searches for an element that satisfies
+    // the given predicate. If none found, returns -1.
+    template <class Predicate>
+    int find_if(Predicate pred)
+    {
+        if (m_xEnd < m_xBegin)
+        {
+            // Loop in two slices
+            for (int i = m_xBegin; i < m_iSize; ++i)
+                if (pred(m_aStorage[i]))
+                    return i - m_xBegin;
+
+            for (int i = 0; i < m_xEnd; ++i)
+                if (pred(m_aStorage[i]))
+                    return i + m_iSize - m_xBegin;
+        }
+        else
+        {
+            for (int i = m_xBegin; i < m_xEnd; ++i)
+                if (pred(m_aStorage[i]))
+                    return i - m_xBegin;
+        }
+
+        return -1;
+    }
+};
+
 // Version parsing
 inline ATR_CONSTEXPR uint32_t SrtVersion(int major, int minor, int patch)
 {
@@ -826,14 +1392,17 @@ inline ATR_CONSTEXPR uint32_t SrtVersion(int major, int minor, int patch)
 inline int32_t SrtParseVersion(const char* v)
 {
     int major, minor, patch;
+#if defined(_MSC_VER)
+    int result = sscanf_s(v, "%d.%d.%d", &major, &minor, &patch);
+#else
     int result = sscanf(v, "%d.%d.%d", &major, &minor, &patch);
-
+#endif
     if (result != 3)
     {
         return 0;
     }
 
-    return major*0x10000 + minor*0x100 + patch;
+    return SrtVersion(major, minor, patch);
 }
 
 inline std::string SrtVersionString(int version)
@@ -842,9 +1411,17 @@ inline std::string SrtVersionString(int version)
     int minor = (version/0x100)%0x100;
     int major = version/0x10000;
 
-    char buf[20];
-    sprintf(buf, "%d.%d.%d", major, minor, patch);
+    char buf[22];
+#if defined(_MSC_VER) && _MSC_VER < 1900
+    _snprintf(buf, sizeof(buf) - 1, "%d.%d.%d", major, minor, patch);
+#else
+    snprintf(buf, sizeof(buf), "%d.%d.%d", major, minor, patch);
+#endif
     return buf;
 }
+
+bool SrtParseConfig(const std::string& s, SrtConfig& w_config);
+
+} // namespace srt
 
 #endif

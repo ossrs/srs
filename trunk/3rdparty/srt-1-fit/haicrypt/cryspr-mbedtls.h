@@ -13,12 +13,12 @@ written by
    Haivision Systems Inc.
 
    2019-06-27 (jdube)
-        GnuTLS/Nettle CRYSPR/4SRT (CRYypto Service PRovider for SRT)
+        MBedTLS CRYSPR/4SRT (CRYypto Service PRovider for SRT)
 
 *****************************************************************************/
 
-#ifndef CRYSPR_GNUTLS_H
-#define CRYSPR_GNUTLS_H
+#ifndef CRYSPR_MBEDTLS_H
+#define CRYSPR_MBEDTLS_H
 
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/aes.h>
@@ -52,12 +52,12 @@ written by
 /*
 #define CRYSPR_AESCTX to the CRYSPR specifix AES key context object.
 This type reserves room in the CRYPSPR control block for Haicrypt KEK and SEK
-It is set from hte keystring through CRYSPR_methods.aes_set_key and passed
+It is set from the keystring through CRYSPR_methods.aes_set_key and passed
 to CRYSPR_methods.aes_XXX.
 */
-typedef struct mbedtls_aes_context CRYSPR_AESCTX;   /* CRYpto Service PRovider AES key context */
+typedef mbedtls_aes_context CRYSPR_AESCTX;   /* CRYpto Service PRovider AES key context */
 
 struct tag_CRYSPR_methods *crysprMbedtls(void);
 
-#endif /* CRYSPR_GNUTLS_H */
+#endif /* CRYSPR_MBEDTLS_H */
 

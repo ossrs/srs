@@ -39,24 +39,33 @@ extern "C" {
 #include "cryspr-config.h"
 
 typedef struct tag_CRYSPR_cb {
-	CRYSPR_AESCTX   aes_kek;		/* Key Encrypting Key (KEK) */
-	CRYSPR_AESCTX   aes_sek[2];		/* even/odd Stream Encrypting Key (SEK) */
+#ifdef CRYSPR2
+    CRYSPR_AESCTX  *aes_kek;		/* Key Encrypting Key (KEK) */
+    CRYSPR_AESCTX  *aes_sek[2];		/* even/odd Stream Encrypting Key (SEK) */
+#define CRYSPR_GETKEK(cb)       ((cb)->aes_kek)
+#define CRYSPR_GETSEK(cb,kk)    ((cb)->aes_sek[kk])
+#else /*CRYSPR2*/
+    CRYSPR_AESCTX   aes_kek;		/* Key Encrypting Key (KEK) */
+    CRYSPR_AESCTX   aes_sek[2];		/* even/odd Stream Encrypting Key (SEK) */
+#define CRYSPR_GETKEK(cb)       (&((cb)->aes_kek))
+#define CRYSPR_GETSEK(cb,kk)    (&((cb)->aes_sek[kk]))
+#endif /*CRYSPR2*/
 
-	struct tag_CRYSPR_methods *cryspr;
+    struct tag_CRYSPR_methods *cryspr;
 
 #if !CRYSPR_HAS_AESCTR
                                         /* Reserve room to build the counter stream ourself */
 #define HCRYPT_CTR_BLK_SZ       CRYSPR_AESBLKSZ
 #define HCRYPT_CTR_STREAM_SZ	2048
-	unsigned char * ctr_stream;
-	size_t          ctr_stream_len; /* Content size */
-	size_t          ctr_stream_siz; /* Allocated length */
+    unsigned char * ctr_stream;
+    size_t          ctr_stream_len; /* Content size */
+    size_t          ctr_stream_siz; /* Allocated length */
 #endif /* !CRYSPR_HAS_AESCTR */
 
 #define	CRYSPR_OUTMSGMAX		6
-	uint8_t *       outbuf; 		/* output circle buffer */
-	size_t          outbuf_ofs;		/* write offset in circle buffer */
-	size_t          outbuf_siz;		/* circle buffer size */
+    uint8_t *       outbuf; 		/* output circle buffer */
+    size_t          outbuf_ofs;		/* write offset in circle buffer */
+    size_t          outbuf_siz;		/* circle buffer size */
 } CRYSPR_cb;
 
 typedef struct tag_CRYSPR_methods {
@@ -69,6 +78,7 @@ typedef struct tag_CRYSPR_methods {
             int rn_len);
 
         int (*aes_set_key)(
+            int cipher_type,        /* One of HCRYPT_CTX_MODE_[CLRTXT|AESECB|AESCTR|AESGDM] */
             bool bEncrypt,          /* true Enxcrypt key, false: decrypt */
             const unsigned char *kstr,/* key string*/
             size_t kstr_len,        /* kstr len in  bytes (16, 24, or 32 bytes (for AES128,AES192, or AES256) */
@@ -89,6 +99,17 @@ typedef struct tag_CRYSPR_methods {
             const unsigned char *indata,  /* src (clear text) */
             size_t inlen,           /* src length */
             unsigned char *out_txt);/* dest */
+
+        int (*aes_gcm_cipher)(
+            bool bEncrypt,          /* true:encrypt false:decrypt (don't care with CTR) */
+            CRYSPR_AESCTX* aes_key, /* ctx */
+            unsigned char* iv,      /* iv */
+            const unsigned char* aad, /* associated data */
+            size_t aadlen,
+            const unsigned char* indata,  /* src (clear text) */
+            size_t inlen,           /* src length */
+            unsigned char* out_txt, /* dest */
+            unsigned char* out_tag);
 
         unsigned char *(*sha1_msg_digest)(
             const unsigned char *m, /* in: message */
@@ -193,6 +214,9 @@ typedef struct tag_CRYSPR_methods {
             void *out_p[], size_t out_len_p[], int *nbout); /* Encrypted packets */
 
 } CRYSPR_methods;
+
+CRYSPR_cb  *crysprHelper_Open(CRYSPR_methods *cryspr, size_t cb_len, size_t max_len);
+int         crysprHelper_Close(CRYSPR_cb *cryspr_cb);
 
 CRYSPR_methods *crysprInit(CRYSPR_methods *cryspr);
 

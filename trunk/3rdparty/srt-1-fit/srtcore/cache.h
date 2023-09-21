@@ -38,14 +38,18 @@ written by
    Yunhong Gu, last updated 01/27/2011
 *****************************************************************************/
 
-#ifndef __UDT_CACHE_H__
-#define __UDT_CACHE_H__
+#ifndef INC_SRT_CACHE_H
+#define INC_SRT_CACHE_H
 
 #include <list>
 #include <vector>
 
-#include "common.h"
+#include "sync.h"
+#include "netinet_any.h"
 #include "udt.h"
+
+namespace srt
+{
 
 class CCacheItem
 {
@@ -82,13 +86,13 @@ public:
    m_iCurrSize(0)
    {
       m_vHashPtr.resize(m_iHashSize);
-      CGuard::createMutex(m_Lock);
+      // Exception: -> CUDTUnited ctor
+      srt::sync::setupMutex(m_Lock, "Cache");
    }
 
    ~CCache()
    {
       clear();
-      CGuard::releaseMutex(m_Lock);
    }
 
 public:
@@ -98,7 +102,7 @@ public:
 
    int lookup(T* data)
    {
-      CGuard cacheguard(m_Lock);
+      srt::sync::ScopedLock cacheguard(m_Lock);
 
       int key = data->getKey();
       if (key < 0)
@@ -126,7 +130,7 @@ public:
 
    int update(T* data)
    {
-      CGuard cacheguard(m_Lock);
+      srt::sync::ScopedLock cacheguard(m_Lock);
 
       int key = data->getKey();
       if (key < 0)
@@ -223,7 +227,7 @@ private:
    int m_iHashSize;
    int m_iCurrSize;
 
-   pthread_mutex_t m_Lock;
+   srt::sync::Mutex m_Lock;
 
 private:
    CCache(const CCache&);
@@ -234,23 +238,25 @@ private:
 class CInfoBlock
 {
 public:
-   uint32_t m_piIP[4];		// IP address, machine read only, not human readable format
-   int m_iIPversion;		// IP version
-   uint64_t m_ullTimeStamp;	// last update time
-   int m_iRTT;			// RTT
-   int m_iBandwidth;		// estimated bandwidth
-   int m_iLossRate;		// average loss rate
-   int m_iReorderDistance;	// packet reordering distance
-   double m_dInterval;		// inter-packet time, congestion control
-   double m_dCWnd;		// congestion window size, congestion control
+   uint32_t m_piIP[4];        // IP address, machine read only, not human readable format.
+   int m_iIPversion;          // Address family: AF_INET or AF_INET6.
+   uint64_t m_ullTimeStamp;   // Last update time.
+   int m_iSRTT;               // Smoothed RTT.
+   int m_iBandwidth;          // Estimated link bandwidth.
+   int m_iLossRate;           // Average loss rate.
+   int m_iReorderDistance;    // Packet reordering distance.
+   double m_dInterval;        // Inter-packet time (Congestion Control).
+   double m_dCWnd;            // Congestion window size (Congestion Control).
 
 public:
-   virtual ~CInfoBlock() {}
-   virtual CInfoBlock& operator=(const CInfoBlock& obj);
-   virtual bool operator==(const CInfoBlock& obj);
-   virtual CInfoBlock* clone();
-   virtual int getKey();
-   virtual void release() {}
+   CInfoBlock() {} // NOTE: leaves uninitialized
+   CInfoBlock& copyFrom(const CInfoBlock& obj);
+   CInfoBlock(const CInfoBlock& src) { copyFrom(src); }
+   CInfoBlock& operator=(const CInfoBlock& src) { return copyFrom(src); }
+   bool operator==(const CInfoBlock& obj) const;
+   CInfoBlock* clone();
+   int getKey();
+   void release() {}
 
 public:
 
@@ -259,8 +265,9 @@ public:
       /// @param [in] ver IP version
       /// @param [out] ip the result machine readable IP address in integer array
 
-   static void convert(const sockaddr* addr, int ver, uint32_t ip[]);
+   static void convert(const sockaddr_any& addr, uint32_t ip[4]);
 };
 
+} // namespace srt
 
 #endif

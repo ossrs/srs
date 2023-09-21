@@ -8,17 +8,19 @@
  * 
  */
 
-#ifndef INC__CONGCTL_H
-#define INC__CONGCTL_H
+#ifndef INC_SRT_CONGCTL_H
+#define INC_SRT_CONGCTL_H
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <utility>
 
+namespace srt {
+
 class CUDT;
 class SrtCongestionControlBase;
-
-typedef SrtCongestionControlBase* srtcc_create_t(CUDT* parent);
+typedef SrtCongestionControlBase* srtcc_create_t(srt::CUDT* parent);
 
 class SrtCongestion
 {
@@ -50,18 +52,29 @@ public:
 
     struct IsName
     {
-        std::string n;
-        IsName(std::string nn): n(nn) {}
+        const std::string n;
+        IsName(const std::string& nn): n(nn) {}
         bool operator()(NamePtr np) { return n == np.first; }
     };
+
+    static NamePtr* find(const std::string& name)
+    {
+        NamePtr* end = congctls+N_CONTROLLERS;
+        NamePtr* try_selector = std::find_if(congctls, end, IsName(name));
+        return try_selector != end ? try_selector : NULL;
+    }
+
+    static bool exists(const std::string& name)
+    {
+        return find(name);
+    }
 
     // You can call select() multiple times, until finally
     // the 'configure' method is called.
     bool select(const std::string& name)
     {
-        NamePtr* end = congctls+N_CONTROLLERS;
-        NamePtr* try_selector = std::find_if(congctls, end, IsName(name));
-        if (try_selector == end)
+        NamePtr* try_selector = find(name);
+        if (!try_selector)
             return false;
         selector = try_selector - congctls;
         return true;
@@ -79,12 +92,18 @@ public:
     // 1. The congctl is individual, so don't copy it. Set NULL.
     // 2. The selected name is copied so that it's configured correctly.
     SrtCongestion(const SrtCongestion& source): congctl(), selector(source.selector) {}
+    void operator=(const SrtCongestion& source) { congctl = 0; selector = source.selector; }
 
     // This function will be called by the parent CUDT
     // in appropriate time. It should select appropriate
     // congctl basing on the value in selector, then
     // pin oneself in into CUDT for receiving event signals.
-    bool configure(CUDT* parent);
+    bool configure(srt::CUDT* parent);
+
+    // This function will intentionally delete the contained object.
+    // This makes future calls to ready() return false. Calling
+    // configure on it again will create it again.
+    void dispose();
 
     // Will delete the pinned in congctl object.
     // This must be defined in *.cpp file due to virtual
@@ -111,12 +130,13 @@ public:
     };
 };
 
+class CPacket;
 
 class SrtCongestionControlBase
 {
 protected:
     // Here can be some common fields
-    CUDT* m_parent;
+    srt::CUDT* m_parent;
 
     double m_dPktSndPeriod;
     double m_dCWndSize;
@@ -127,11 +147,11 @@ protected:
     //int m_iMSS;              // NOT REQUIRED. Use m_parent->MSS() instead.
     //int32_t m_iSndCurrSeqNo; // NOT REQUIRED. Use m_parent->sndSeqNo().
     //int m_iRcvRate;          // NOT REQUIRED. Use m_parent->deliveryRate() instead.
-    //int m_RTT;               // NOT REQUIRED. Use m_parent->RTT() instead.
+    //int m_RTT;               // NOT REQUIRED. Use m_parent->SRTT() instead.
     //char* m_pcParam;         // Used to access m_llMaxBw. Use m_parent->maxBandwidth() instead.
 
     // Constructor in protected section so that this class is semi-abstract.
-    SrtCongestionControlBase(CUDT* parent);
+    SrtCongestionControlBase(srt::CUDT* parent);
 public:
 
     // This could be also made abstract, but this causes a linkage
@@ -169,11 +189,11 @@ public:
     virtual int ACKTimeout_us() const { return 0; }
 
     // Called when the settings concerning m_llMaxBW were changed.
-    // Arg 1: value of CUDT::m_llMaxBW
-    // Arg 2: value calculated out of CUDT::m_llInputBW and CUDT::m_iOverheadBW.
+    // Arg 1: value of CUDT's m_config.m_llMaxBW
+    // Arg 2: value calculated out of CUDT's m_config.llInputBW and m_config.iOverheadBW.
     virtual void updateBandwidth(int64_t, int64_t) {}
 
-    virtual bool needsQuickACK(const CPacket&)
+    virtual bool needsQuickACK(const srt::CPacket&)
     {
         return false;
     }
@@ -186,21 +206,21 @@ public:
 
     virtual SrtCongestion::RexmitMethod rexmitMethod() = 0; // Implementation enforced.
 
-    virtual uint64_t updateNAKInterval(uint64_t nakint_tk, int rcv_speed, size_t loss_length)
+    virtual int64_t updateNAKInterval(int64_t nakint_us, int rcv_speed, size_t loss_length)
     {
         if (rcv_speed > 0)
-            nakint_tk += (loss_length * uint64_t(1000000) / rcv_speed) * CTimer::getCPUFrequency();
+            nakint_us += (loss_length * int64_t(1000000) / rcv_speed);
 
-        return nakint_tk;
+        return nakint_us;
     }
 
-    virtual uint64_t minNAKInterval()
+    virtual int64_t minNAKInterval()
     {
         return 0; // Leave default
     }
 };
 
 
-
+} // namespace srt
 
 #endif

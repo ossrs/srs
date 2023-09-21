@@ -1,0 +1,24 @@
+# HaiCrypt library contents
+
+PUBLIC HEADERS
+haicrypt.h
+hcrypt_ctx.h
+hcrypt_msg.h
+
+PRIVATE HEADERS
+hcrypt.h
+cryspr.h
+cryspr-openssl-evp.h
+haicrypt_log.h
+
+SOURCES
+cryspr.c
+cryspr-openssl-evp.c
+hcrypt.c
+hcrypt_ctx_rx.c
+hcrypt_ctx_tx.c
+hcrypt_rx.c
+hcrypt_sa.c
+hcrypt_tx.c
+hcrypt_xpt_srt.c
+haicrypt_log.cpp

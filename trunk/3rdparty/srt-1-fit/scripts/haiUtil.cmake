@@ -12,11 +12,11 @@ include(CheckCXXSourceCompiles)
 # Useful for combinging paths
 
 function(adddirname prefix lst out_lst)
-        set(output)
-        foreach(item ${lst})
-                list(APPEND output "${prefix}/${item}")
-        endforeach()
-        set(${out_lst} ${${out_lst}} ${output} PARENT_SCOPE)
+	set(output)
+	foreach(item ${lst})
+		list(APPEND output "${prefix}/${item}")
+	endforeach()
+	set(${out_lst} ${${out_lst}} ${output} PARENT_SCOPE)
 endfunction()
 
 # Splits a version formed as "major.minor.patch" recorded in variable 'prefix'
@@ -32,11 +32,11 @@ ENDMACRO(set_version_variables)
 # Sets given variable to 1, if the condition that follows it is satisfied.
 # Otherwise set it to 0.
 MACRO(set_if varname)
-   IF(${ARGN})
-     SET(${varname} 1)
-   ELSE(${ARGN})
-     SET(${varname} 0)
-   ENDIF(${ARGN})
+	IF(${ARGN})
+		SET(${varname} 1)
+	ELSE(${ARGN})
+		SET(${varname} 0)
+	ENDIF(${ARGN})
 ENDMACRO(set_if)
 
 FUNCTION(join_arguments outvar)
@@ -49,83 +49,8 @@ FUNCTION(join_arguments outvar)
 	set (${outvar} ${output} PARENT_SCOPE)
 ENDFUNCTION()
 
-# LEGACY. PLEASE DON'T USE ANYMORE.
-MACRO(MafRead maffile)
-	message(WARNING "MafRead is deprecated. Please use MafReadDir instead")
-	# ARGN contains the extra "section-variable" pairs
-	# If empty, return nothing
-	set (MAFREAD_TAGS
-		SOURCES            # source files
-		PUBLIC_HEADERS     # installable headers for include
-		PROTECTED_HEADERS  # installable headers used by other headers
-		PRIVATE_HEADERS    # non-installable headers
-	)
-	cmake_parse_arguments(MAFREAD_VAR "" "${MAFREAD_TAGS}" "" ${ARGN})
-	# Arguments for these tags are variables to be filled
-	# with the contents of particular section.
-	# While reading the file, extract the section.
-	# Section is recognized by either first uppercase character or space.
-
-	# @c http://cmake.org/pipermail/cmake/2007-May/014222.html
-	FILE(READ ${maffile} MAFREAD_CONTENTS)
-	STRING(REGEX REPLACE ";" "\\\\;" MAFREAD_CONTENTS "${MAFREAD_CONTENTS}")
-	STRING(REGEX REPLACE "\n" ";" MAFREAD_CONTENTS "${MAFREAD_CONTENTS}")
-
-    #message("DEBUG: MAF FILE CONTENTS: ${MAFREAD_CONTENTS}")
-    #message("DEBUG: PASSED VARIABLES:")
-    #foreach(DEBUG_VAR ${MAFREAD_TAGS})
-    #	message("DEBUG: ${DEBUG_VAR}=${MAFREAD_VAR_${DEBUG_VAR}}")
-    #endforeach()
-
-	# The unnamed section becomes SOURCES
-	set (MAFREAD_VARIABLE ${MAFREAD_VAR_SOURCES})
-	set (MAFREAD_UNASSIGNED "")
-
-	FOREACH(MAFREAD_LINE ${MAFREAD_CONTENTS})
-		# Test what this line is
-		string(STRIP ${MAFREAD_LINE} MAFREAD_OLINE)
-		string(SUBSTRING ${MAFREAD_OLINE} 0 1 MAFREAD_FIRST)
-		#message("DEBUG: LINE='${MAFREAD_LINE}' FIRST='${MAFREAD_FIRST}'")
-
-		# The 'continue' command is cmake 3.2 - very late discovery
-		if (MAFREAD_FIRST STREQUAL "")
-			#message("DEBUG: ... skipped: empty")
-		elseif (MAFREAD_FIRST STREQUAL "#")
-			#message("DEBUG: ... skipped: comment")
-		else()
-			# Will be skipped if the line was a comment/empty
-			string(REGEX MATCH "[ A-Z]" MAFREAD_SECMARK ${MAFREAD_FIRST})
-			if (MAFREAD_SECMARK STREQUAL "")
-				# This isn't a section, it's a list element.
-				#message("DEBUG: ITEM: ${MAFREAD_OLINE} --> ${MAFREAD_VARIABLE}")
-				LIST(APPEND ${MAFREAD_VARIABLE} ${MAFREAD_OLINE})
-			else()
-				# It's a section - change the running variable
-				# Make it section name
-				STRING(REPLACE  " " "_" MAFREAD_SECNAME ${MAFREAD_OLINE})
-				set(MAFREAD_VARIABLE ${MAFREAD_VAR_${MAFREAD_SECNAME}})
-				if (MAFREAD_VARIABLE STREQUAL "")
-					set(MAFREAD_VARIABLE MAFREAD_UNASSIGNED)
-				endif()
-				#message("DEBUG: NEW SECTION: '${MAFREAD_SECNAME}' --> VARIABLE: '${MAFREAD_VARIABLE}'")
-			endif()
-		endif()
-	ENDFOREACH()
-	
-	# Final debug report
-    #set (ALL_VARS "")
-    #message("DEBUG: extracted variables:")
-    #foreach(DEBUG_VAR ${MAFREAD_TAGS})
-    #	list(APPEND ALL_VARS ${MAFREAD_VAR_${DEBUG_VAR}})
-    #endforeach()
-    #list(REMOVE_DUPLICATES ALL_VARS)
-    #foreach(DEBUG_VAR ${ALL_VARS})
-    #	message("DEBUG: --> ${DEBUG_VAR} = ${${DEBUG_VAR}}")
-    #endforeach()
-ENDMACRO(MafRead)
-
-# New version of MafRead macro, which automatically adds directory
-# prefix. This should also resolve each relative path.
+# The directory specifies the location of maffile and
+# all files specified in the list.
 MACRO(MafReadDir directory maffile)
 	# ARGN contains the extra "section-variable" pairs
 	# If empty, return nothing
@@ -155,11 +80,11 @@ MACRO(MafReadDir directory maffile)
 	configure_file(${directory}/${maffile} dummy_${maffile}.cmake.out)
 	file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/dummy_${maffile}.cmake.out)
 
-    #message("DEBUG: MAF FILE CONTENTS: ${MAFREAD_CONTENTS}")
-    #message("DEBUG: PASSED VARIABLES:")
-    #foreach(DEBUG_VAR ${MAFREAD_TAGS})
-    #	message("DEBUG: ${DEBUG_VAR}=${MAFREAD_VAR_${DEBUG_VAR}}")
-    #endforeach()
+	#message("DEBUG: MAF FILE CONTENTS: ${MAFREAD_CONTENTS}")
+	#message("DEBUG: PASSED VARIABLES:")
+	#foreach(DEBUG_VAR ${MAFREAD_TAGS})
+	#	message("DEBUG: ${DEBUG_VAR}=${MAFREAD_VAR_${DEBUG_VAR}}")
+	#endforeach()
 
 	# The unnamed section becomes SOURCES
 	set (MAFREAD_VARIABLE ${MAFREAD_VAR_SOURCES})
@@ -188,11 +113,60 @@ MACRO(MafReadDir directory maffile)
 				if (${MAFREAD_SECTION_TYPE} STREQUAL file)
 					get_filename_component(MAFREAD_OLINE ${directory}/${MAFREAD_OLINE} ABSOLUTE)
 				endif()
-				LIST(APPEND ${MAFREAD_VARIABLE} ${MAFREAD_OLINE})
+
+				set (MAFREAD_CONDITION_OK 1)
+				if (DEFINED MAFREAD_CONDITION_LIST)
+					FOREACH(MFITEM IN ITEMS ${MAFREAD_CONDITION_LIST})
+						separate_arguments(MFITEM)
+						FOREACH(MFVAR IN ITEMS ${MFITEM})
+							STRING(SUBSTRING ${MFVAR} 0 1 MFPREFIX)
+							if (MFPREFIX STREQUAL "!")
+								STRING(SUBSTRING ${MFVAR} 1 -1 MFVAR)
+								if (${MFVAR})
+									set (MFCONDITION_RESULT 0)
+								else()
+									set (MFCONDITION_RESULT 1)
+								endif()
+							else()
+								if (${MFVAR})
+									set (MFCONDITION_RESULT 1)
+								else()
+									set (MFCONDITION_RESULT 0)
+								endif()
+							endif()
+							#message("CONDITION: ${MFPREFIX} ${MFVAR} -> ${MFCONDITION_RESULT}")
+
+							MATH(EXPR MAFREAD_CONDITION_OK "${MAFREAD_CONDITION_OK} & (${MFCONDITION_RESULT})")
+						ENDFOREACH()
+					ENDFOREACH()
+				endif()
+
+				if (MAFREAD_CONDITION_OK)
+					LIST(APPEND ${MAFREAD_VARIABLE} ${MAFREAD_OLINE})
+				else()
+					#message("... NOT ADDED ITEM: ${MAFREAD_OLINE}")
+				endif()
 			else()
-				# It's a section - change the running variable
+				# It's a section
+				# Check for conditionals (clear current conditions first)
+				unset(MAFREAD_CONDITION_LIST)
+
+				STRING(FIND ${MAFREAD_OLINE} " -" MAFREAD_HAVE_CONDITION)
+				if (NOT MAFREAD_HAVE_CONDITION EQUAL -1)
+					# Cut off conditional specification, and 
+					# grab the section name and condition list
+					STRING(REPLACE " -" ";" MAFREAD_CONDITION_LIST ${MAFREAD_OLINE})
+
+					#message("CONDITION READ: ${MAFREAD_CONDITION_LIST}")
+
+					LIST(GET MAFREAD_CONDITION_LIST 0 MAFREAD_OLINE)
+					LIST(REMOVE_AT MAFREAD_CONDITION_LIST 0)
+					#message("EXTRACTING SECTION=${MAFREAD_OLINE} CONDITIONS=${MAFREAD_CONDITION_LIST}")
+				endif()
+				# change the running variable
 				# Make it section name
 				STRING(REPLACE  " " "_" MAFREAD_SECNAME ${MAFREAD_OLINE})
+				#message("MAF SECTION: ${MAFREAD_SECNAME}")
 
 				# The cmake's version of 'if (MAFREAD_SECNAME[0] == '-')' - sigh...
 				string(SUBSTRING ${MAFREAD_SECNAME} 0 1 MAFREAD_SECNAME0)
@@ -212,15 +186,15 @@ MACRO(MafReadDir directory maffile)
 	ENDFOREACH()
 	
 	# Final debug report
-    #set (ALL_VARS "")
-    #message("DEBUG: extracted variables:")
-    #foreach(DEBUG_VAR ${MAFREAD_TAGS})
-    #	list(APPEND ALL_VARS ${MAFREAD_VAR_${DEBUG_VAR}})
-    #endforeach()
-    #list(REMOVE_DUPLICATES ALL_VARS)
-    #foreach(DEBUG_VAR ${ALL_VARS})
-    #	message("DEBUG: --> ${DEBUG_VAR} = ${${DEBUG_VAR}}")
-    #endforeach()
+	#set (ALL_VARS "")
+	#message("DEBUG: extracted variables:")
+	#foreach(DEBUG_VAR ${MAFREAD_TAGS})
+	#	list(APPEND ALL_VARS ${MAFREAD_VAR_${DEBUG_VAR}})
+	#endforeach()
+	#list(REMOVE_DUPLICATES ALL_VARS)
+	#foreach(DEBUG_VAR ${ALL_VARS})
+	#	message("DEBUG: --> ${DEBUG_VAR} = ${${DEBUG_VAR}}")
+	#endforeach()
 ENDMACRO(MafReadDir)
 
 # NOTE: This is historical only. Not in use.
@@ -240,9 +214,9 @@ MACRO(GetMafHeaders directory outvar)
 ENDMACRO(GetMafHeaders)
 
 function (getVarsWith _prefix _varResult)
-    get_cmake_property(_vars VARIABLES)
-    string (REGEX MATCHALL "(^|;)${_prefix}[A-Za-z0-9_]*" _matchedVars "${_vars}")
-    set (${_varResult} ${_matchedVars} PARENT_SCOPE)
+	get_cmake_property(_vars VARIABLES)
+	string (REGEX MATCHALL "(^|;)${_prefix}[A-Za-z0-9_]*" _matchedVars "${_vars}")
+	set (${_varResult} ${_matchedVars} PARENT_SCOPE)
 endfunction()
 
 function (check_testcode_compiles testcode libraries _successful)
@@ -254,15 +228,18 @@ function (check_testcode_compiles testcode libraries _successful)
 	set (CMAKE_REQUIRED_LIBRARIES ${save_required_libraries})
 endfunction()
 
-function (test_requires_clock_gettime _result)
+function (test_requires_clock_gettime _enable _linklib)
 	# This function tests if clock_gettime can be used
 	# - at all
 	# - with or without librt
 
 	# Result will be:
-	# rt (if librt required)
-	# "" (if no extra libraries required)
-	# -- killed by FATAL_ERROR if clock_gettime is not available
+	# - CLOCK_MONOTONIC is available, link with librt:
+	#   _enable = ON; _linklib = "-lrt".
+	# - CLOCK_MONOTONIC is available, link without librt:
+	#   _enable = ON; _linklib = "".
+	# - CLOCK_MONOTONIC is not available:
+	#   _enable = OFF; _linklib = "-".
 
 	set (code "
 		#include <time.h>
@@ -275,17 +252,39 @@ function (test_requires_clock_gettime _result)
 
 	check_testcode_compiles(${code} "" HAVE_CLOCK_GETTIME_IN)
 	if (HAVE_CLOCK_GETTIME_IN)
-		message(STATUS "Checked clock_gettime(): no extra libs needed")
-		set (${_result} "" PARENT_SCOPE)
+		message(STATUS "CLOCK_MONOTONIC: available, no extra libs needed")
+		set (${_enable}  ON PARENT_SCOPE)
+		set (${_linklib} "" PARENT_SCOPE)
 		return()
 	endif()
 
 	check_testcode_compiles(${code} "rt" HAVE_CLOCK_GETTIME_LIBRT)
 	if (HAVE_CLOCK_GETTIME_LIBRT)
-		message(STATUS "Checked clock_gettime(): requires -lrt")
-		set (${_result} "-lrt" PARENT_SCOPE)
+		message(STATUS "CLOCK_MONOTONIC: available, requires -lrt")
+		set (${_enable}  ON PARENT_SCOPE)
+		set (${_linklib} "-lrt" PARENT_SCOPE)
 		return()
 	endif()
 
-	message(FATAL_ERROR "clock_gettime() is not available on this system")
+	set (${_enable}  OFF PARENT_SCOPE)
+	set (${_linklib} "-" PARENT_SCOPE)
+	message(STATUS "CLOCK_MONOTONIC: not available on this system")
+endfunction()
+
+function (parse_compiler_type wct _type _suffix)
+	if (wct STREQUAL "")
+		set(${_type} "" PARENT_SCOPE)
+		set(${_suffix} "" PARENT_SCOPE)
+	else()
+		string(REPLACE "-" ";" OUTLIST ${wct})
+		list(LENGTH OUTLIST OUTLEN)
+		list(GET OUTLIST 0 ITEM)
+		set(${_type} ${ITEM} PARENT_SCOPE)
+		if (OUTLEN LESS 2)
+			set(_suffix "" PARENT_SCOPE)
+		else()
+			list(GET OUTLIST 1 ITEM)
+			set(${_suffix} "-${ITEM}" PARENT_SCOPE)
+		endif()
+	endif()
 endfunction()

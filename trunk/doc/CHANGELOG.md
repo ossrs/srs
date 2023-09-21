@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-09-21, Merge [#3808](https://github.com/ossrs/srs/pull/3808): Upgrade libsrt to v1.5.3. v5.0.183 (#3808)
 * v5.0, 2023-09-21, Merge [#3404](https://github.com/ossrs/srs/pull/3404): WebRTC: Support WHEP for play. v5.0.182 (#3404)
 * v5.0, 2023-09-21, Merge [#3807](https://github.com/ossrs/srs/pull/3807): Prevent the output of srt logs in utest. v5.0.181 (#3807)
 * v5.0, 2023-09-21, Merge [#3696](https://github.com/ossrs/srs/pull/3696): SRT: modify log level from error to debug when no socket to accept. v5.0.180 (#3696)

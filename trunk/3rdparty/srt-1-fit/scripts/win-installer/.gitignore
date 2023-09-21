@@ -1,0 +1,10 @@
+tmp
+installers
+*.exe
+*~
+~*
+.#*
+*.bak
+*.autosave
+.DS_Store
+._*

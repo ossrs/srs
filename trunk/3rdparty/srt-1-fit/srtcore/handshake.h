@@ -43,11 +43,16 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *****************************************************************************/
 
-#ifndef INC__HANDSHAKE_H
-#define INC__HANDSHAKE_H
+#ifndef INC_SRT_HANDSHAKE_H
+#define INC_SRT_HANDSHAKE_H
+
+#include <vector>
 
 #include "crypto.h"
 #include "utilities.h"
+
+namespace srt
+{
 
 typedef Bits<31, 16> HS_CMDSPEC_CMD;
 typedef Bits<15, 0> HS_CMDSPEC_SIZE;
@@ -93,6 +98,7 @@ const int SRT_CMD_REJECT = 0, // REJECT is only a symbol for return type
       SRT_CMD_SID = 5,
       SRT_CMD_CONGESTION = 6,
       SRT_CMD_FILTER = 7,
+      SRT_CMD_GROUP = 8,
       SRT_CMD_NONE = -1; // for cases when {no pong for ping is required} | {no extension block found}
 
 enum SrtDataStruct
@@ -102,7 +108,7 @@ enum SrtDataStruct
     SRT_HS_LATENCY,
 
     // Keep it always last
-    SRT_HS__SIZE
+    SRT_HS_E_SIZE
 };
 
 // For HSv5 the lo and hi part is used for particular side's latency
@@ -112,30 +118,21 @@ typedef Bits<15, 0> SRT_HS_LATENCY_SND;
 typedef Bits<15, 0> SRT_HS_LATENCY_LEG;
 
 
-// XXX These structures are currently unused. The code can be changed
-// so that these are used instead of manual tailoring of the messages.
 struct SrtHandshakeExtension
 {
-protected:
+    int16_t type;
+    std::vector<uint32_t> contents;
 
-   uint32_t m_SrtCommand; // Used only in extension
-
-public:
-   SrtHandshakeExtension(int cmd)
-   {
-       m_SrtCommand = cmd;
-   }
-
-   void setCommand(int cmd)
-   {
-       m_SrtCommand = cmd;
-   }
-
+    SrtHandshakeExtension(int16_t cmd): type(cmd) {}
 };
+
+// Implemented in core.cpp, so far
+void SrtExtractHandshakeExtensions(const char* bufbegin, size_t size,
+        std::vector<SrtHandshakeExtension>& w_output);
+
 
 struct SrtHSRequest: public SrtHandshakeExtension
 {
-
     typedef Bits<31, 16> SRT_HSTYPE_ENCFLAGS;
     typedef Bits<15, 0> SRT_HSTYPE_HSFLAGS;
 
@@ -153,6 +150,19 @@ struct SrtHSRequest: public SrtHandshakeExtension
         int32_t base = withmagic ? SRT_MAGIC_CODE : 0;
         return base | SRT_HSTYPE_ENCFLAGS::wrap( SRT_PBKEYLEN_BITS::unwrap(crypto_keylen) );
     }
+
+    // Group handshake extension layout
+
+    //  0                   1                   2                   3
+    //  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //  |                           Group ID                            |
+    //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //  | Group Type  | Group's Flags |       Group's Weight            |
+    //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    typedef Bits<31, 24> HS_GROUP_TYPE;
+    typedef Bits<23, 16> HS_GROUP_FLAGS;
+    typedef Bits<15, 0> HS_GROUP_WEIGHT;
 
 private:
     friend class CHandShake;
@@ -229,25 +239,37 @@ enum UDTRequestType
     // --> CONCLUSION (with response extensions, if RESPONDER)
     // <-- AGREEMENT (sent exclusively by INITIATOR upon reception of CONCLUSIOn with response extensions)
 
-    // Errors reported by the peer, also used as useless error codes
-    // in handshake processing functions.
-    URQ_FAILURE_TYPES = 1000
+    // This marks the beginning of values that are error codes.
+    URQ_FAILURE_TYPES = 1000,
 
     // NOTE: codes above 1000 are reserved for failure codes for
-    // rejection reason, as per `SRT_REJECT_REASON` enum. DO NOT
-    // add any new values here.
+    // rejection reason, as per `SRT_REJECT_REASON` enum. The
+    // actual rejection code is the value of the request type
+    // minus URQ_FAILURE_TYPES.
+
+    // This is in order to return standard error codes for server
+    // data retrieval failures.
+    URQ_SERVER_FAILURE_TYPES = URQ_FAILURE_TYPES + SRT_REJC_PREDEFINED,
+
+    // This is for a completely user-defined reject reasons.
+    URQ_USER_FAILURE_TYPES = URQ_FAILURE_TYPES + SRT_REJC_USERDEFINED
 };
 
-inline UDTRequestType URQFailure(SRT_REJECT_REASON reason)
+inline UDTRequestType URQFailure(int reason)
 {
     return UDTRequestType(URQ_FAILURE_TYPES + int(reason));
 }
 
-inline SRT_REJECT_REASON RejectReasonForURQ(UDTRequestType req)
+inline int RejectReasonForURQ(UDTRequestType req)
 {
-    if (req < URQ_FAILURE_TYPES || req - URQ_FAILURE_TYPES >= SRT_REJ__SIZE)
+    if (req < URQ_FAILURE_TYPES)
         return SRT_REJ_UNKNOWN;
-    return SRT_REJECT_REASON(req - URQ_FAILURE_TYPES);
+
+    int reason = req - URQ_FAILURE_TYPES;
+    if (reason < SRT_REJC_PREDEFINED && reason >= SRT_REJ_E_SIZE)
+        return SRT_REJ_UNKNOWN;
+
+    return reason;
 }
 
 // DEPRECATED values. Use URQFailure(SRT_REJECT_REASON).
@@ -265,20 +287,20 @@ inline std::string RequestTypeStr(UDTRequestType) { return ""; }
 class CHandShake
 {
 public:
-   CHandShake();
+    CHandShake();
 
-   int store_to(char* buf, ref_t<size_t> size);
-   int load_from(const char* buf, size_t size);
+    int store_to(char* buf, size_t& size);
+    int load_from(const char* buf, size_t size);
 
 public:
-   // This is the size of SERIALIZED handshake.
-   // Might be defined as simply sizeof(CHandShake), but the
-   // enum values would have to be forced as int32_t, which is only
-   // available in C++11. Theoretically they are all 32-bit, but
-   // such a statement is not reliable and not portable.
-   static const size_t m_iContentSize = 48;	// Size of hand shake data
+    // This is the size of SERIALIZED handshake.
+    // Might be defined as simply sizeof(CHandShake), but the
+    // enum values would have to be forced as int32_t, which is only
+    // available in C++11. Theoretically they are all 32-bit, but
+    // such a statement is not reliable and not portable.
+    static const size_t m_iContentSize = 48;	// Size of hand shake data
 
-   // Extension flags
+    // Extension flags
 
     static const int32_t HS_EXT_HSREQ = BIT(0);
     static const int32_t HS_EXT_KMREQ = BIT(1);
@@ -290,53 +312,55 @@ public:
     int32_t flags() { return m_iType; }
 
 public:
-   int32_t m_iVersion;          // UDT version (HS_VERSION_* symbols)
-   int32_t m_iType;             // UDT4: socket type (only UDT_DGRAM is valid); SRT1: extension flags
-   int32_t m_iISN;              // random initial sequence number
-   int32_t m_iMSS;              // maximum segment size
-   int32_t m_iFlightFlagSize;   // flow control window size
-   UDTRequestType m_iReqType;   // handshake stage
-   int32_t m_iID;		// socket ID
-   int32_t m_iCookie;		// cookie
-   uint32_t m_piPeerIP[4];	// The IP address that the peer's UDP port is bound to
+    int32_t m_iVersion;          // UDT version (HS_VERSION_* symbols)
+    int32_t m_iType;             // UDT4: socket type (only UDT_DGRAM is valid); SRT1: extension flags
+    int32_t m_iISN;              // random initial sequence number
+    int32_t m_iMSS;              // maximum segment size
+    int32_t m_iFlightFlagSize;   // flow control window size
+    UDTRequestType m_iReqType;   // handshake stage
+    int32_t m_iID;               // SRT socket ID of HS sender
+    int32_t m_iCookie;		// cookie
+    uint32_t m_piPeerIP[4];	// The IP address that the peer's UDP port is bound to
 
-   bool m_extension;
+    bool m_extension;
 
-   std::string show();
+    bool valid();
+    std::string show();
 
-// The rendezvous state machine used in HSv5 only (in HSv4 everything is happening the old way).
-//
-// The WAVING state is the very initial state of the rendezvous connection and restored after the
-// connection is closed.
-// The ATTENTION and FINE are two alternative states that are transited to from WAVING. The possible
-// situations are:
-// - "serial arrangement": one party transits to ATTENTION and the other party transits to FINE
-// - "parallel arrangement" both parties transit to ATTENTION
-//
-// Parallel arrangement is a "virtually impossible" case, in which both parties must send the first
-// URQ_WAVEAHAND message in a perfect time synchronization, when they are started at exactly the same
-// time, on machines with exactly the same performance and all things preceding the message sending
-// have taken perfectly identical amount of time. This isn't anyhow possible otherwise because if
-// the clients have started at different times, the one who started first sends a message and the
-// system of the receiver buffers this message even before the client binds the port for enough long
-// time so that it outlasts also the possible second, repeated waveahand.
-enum RendezvousState
-{
-    RDV_INVALID,    //< This socket wasn't prepared for rendezvous process. Reject any events.
-    RDV_WAVING,     //< Initial state for rendezvous. No contact seen from the peer.
-    RDV_ATTENTION,  //< When received URQ_WAVEAHAND. [WAVING]:URQ_WAVEAHAND  --> [ATTENTION].
-    RDV_FINE,       //< When received URQ_CONCLUSION. [WAVING]:URQ_CONCLUSION --> [FINE].
-    RDV_INITIATED,  //< When received URQ_CONCLUSION+HSREQ extension in ATTENTION state. 
-    RDV_CONNECTED   //< Final connected state. [ATTENTION]:URQ_CONCLUSION --> [CONNECTED] <-- [FINE]:URQ_AGREEMENT.
-};
+    // The rendezvous state machine used in HSv5 only (in HSv4 everything is happening the old way).
+    //
+    // The WAVING state is the very initial state of the rendezvous connection and restored after the
+    // connection is closed.
+    // The ATTENTION and FINE are two alternative states that are transited to from WAVING. The possible
+    // situations are:
+    // - "serial arrangement": one party transits to ATTENTION and the other party transits to FINE
+    // - "parallel arrangement" both parties transit to ATTENTION
+    //
+    // Parallel arrangement is a "virtually impossible" case, in which both parties must send the first
+    // URQ_WAVEAHAND message in a perfect time synchronization, when they are started at exactly the same
+    // time, on machines with exactly the same performance and all things preceding the message sending
+    // have taken perfectly identical amount of time. This isn't anyhow possible otherwise because if
+    // the clients have started at different times, the one who started first sends a message and the
+    // system of the receiver buffers this message even before the client binds the port for enough long
+    // time so that it outlasts also the possible second, repeated waveahand.
+    enum RendezvousState
+    {
+        RDV_INVALID,    //< This socket wasn't prepared for rendezvous process. Reject any events.
+        RDV_WAVING,     //< Initial state for rendezvous. No contact seen from the peer.
+        RDV_ATTENTION,  //< When received URQ_WAVEAHAND. [WAVING]:URQ_WAVEAHAND  --> [ATTENTION].
+        RDV_FINE,       //< When received URQ_CONCLUSION. [WAVING]:URQ_CONCLUSION --> [FINE].
+        RDV_INITIATED,  //< When received URQ_CONCLUSION+HSREQ extension in ATTENTION state. 
+        RDV_CONNECTED   //< Final connected state. [ATTENTION]:URQ_CONCLUSION --> [CONNECTED] <-- [FINE]:URQ_AGREEMENT.
+    };
 
 #if ENABLE_LOGGING
-static std::string RdvStateStr(RendezvousState s);
+    static std::string RdvStateStr(RendezvousState s);
 #else
-static std::string RdvStateStr(RendezvousState) { return ""; }
+    static std::string RdvStateStr(RendezvousState) { return ""; }
 #endif
 
 };
 
+} // namespace srt
 
 #endif

@@ -37,7 +37,7 @@ int hcryptCtx_SetSecret(hcrypt_Session *crypto, hcrypt_Ctx *ctx, const HaiCrypt_
 		ctx->cfg.pwd_len = 0;
 		/* KEK: Key Encrypting Key */
 		if (0 > (iret = crypto->cryspr->km_setkey(crypto->cryspr_cb,
-							  (HCRYPT_CTX_F_ENCRYPT & ctx->flags ? true : false),
+							  ((HCRYPT_CTX_F_ENCRYPT & ctx->flags) ? true : false),
 							  secret->str, secret->len))) {
 			HCRYPT_LOG(LOG_ERR, "km_setkey(pdkek[%zd]) failed (rc=%d)\n", secret->len, iret);
 			return(-1);
@@ -87,7 +87,7 @@ int hcryptCtx_GenSecret(hcrypt_Session *crypto, hcrypt_Ctx *ctx)
 	HCRYPT_PRINTKEY(kek, kek_len, "kek");
 	
 	/* KEK: Key Encrypting Key */
-	if (0 > (iret = crypto->cryspr->km_setkey(crypto->cryspr_cb, (HCRYPT_CTX_F_ENCRYPT & ctx->flags ? true : false), kek, kek_len))) {
+	if (0 > (iret = crypto->cryspr->km_setkey(crypto->cryspr_cb, ((HCRYPT_CTX_F_ENCRYPT & ctx->flags) ? true : false), kek, kek_len))) {
 		HCRYPT_LOG(LOG_ERR, "km_setkey(pdkek[%zd]) failed (rc=%d)\n", kek_len, iret);
 		return(-1);
 	}
