@@ -11,15 +11,7 @@ The TOC(Technical Oversight Committee):
 - `LiPeng<mozhan.lp@alibaba-inc.com>`
 - `ChenGuanghua<jinxue.cgh@alibaba-inc.com>`
 - `ChenHaibo<nmgchenhaibo@foxmail.com>`
-
-## Developers
-
-Active developers:
-
-* `Johzzy<hellojinqiang@gmail.com>`
-* `Zhouxiaojun2008<279686030@qq.com>`
-* `Pengfei.ma<pengfei.ma.chn@outlook.com>`
-* `ZhangJunqin<zhangjunqin@jd.com>`
+- `ZhangJunqin<chundonglinlin@126.com>`
 
 ## CONTRIBUTORS
 
@@ -151,4 +143,7 @@ CONTRIBUTORS ordered by first contribution.
 * `everything411<everything411@163.com>`
 * `faicker<faicker.mo@gmail.com>`
 * `Matthew<matthewgao@gmail.com>`
+* `simon1tan1<107955289+simon1tan1@users.noreply.github.com>`
+* `feng<308276366@qq.com>`
+* `wangzhen<wrennywang@hotmail.com>`
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package srtp
 
 import (
@@ -19,7 +22,7 @@ func aesCmKeyDerivation(label byte, masterKey, masterSalt []byte, indexOverKdr i
 	nMasterKey := len(masterKey)
 	nMasterSalt := len(masterSalt)
 
-	prfIn := make([]byte, nMasterKey)
+	prfIn := make([]byte, 16)
 	copy(prfIn[:nMasterSalt], masterSalt)
 
 	prfIn[7] ^= label
@@ -32,8 +35,8 @@ func aesCmKeyDerivation(label byte, masterKey, masterSalt []byte, indexOverKdr i
 
 	out := make([]byte, ((outLen+nMasterKey)/nMasterKey)*nMasterKey)
 	var i uint16
-	for n := 0; n < outLen; n += nMasterKey {
-		binary.BigEndian.PutUint16(prfIn[nMasterKey-2:], i)
+	for n := 0; n < outLen; n += block.BlockSize() {
+		binary.BigEndian.PutUint16(prfIn[len(prfIn)-2:], i)
 		block.Encrypt(out[n:n+nMasterKey], prfIn)
 		i++
 	}
@@ -48,16 +51,19 @@ func aesCmKeyDerivation(label byte, masterKey, masterSalt []byte, indexOverKdr i
 // -       passing through 65,535
 // i = 2^16 * ROC + SEQ
 // IV = (salt*2 ^ 16) | (ssrc*2 ^ 64) | (i*2 ^ 16)
-func generateCounter(sequenceNumber uint16, rolloverCounter uint32, ssrc uint32, sessionSalt []byte) []byte {
-	counter := make([]byte, 16)
+func generateCounter(sequenceNumber uint16, rolloverCounter uint32, ssrc uint32, sessionSalt []byte) (counter [16]byte) {
+	copy(counter[:], sessionSalt)
 
-	binary.BigEndian.PutUint32(counter[4:], ssrc)
-	binary.BigEndian.PutUint32(counter[8:], rolloverCounter)
-	binary.BigEndian.PutUint32(counter[12:], uint32(sequenceNumber)<<16)
-
-	for i := range sessionSalt {
-		counter[i] ^= sessionSalt[i]
-	}
+	counter[4] ^= byte(ssrc >> 24)
+	counter[5] ^= byte(ssrc >> 16)
+	counter[6] ^= byte(ssrc >> 8)
+	counter[7] ^= byte(ssrc)
+	counter[8] ^= byte(rolloverCounter >> 24)
+	counter[9] ^= byte(rolloverCounter >> 16)
+	counter[10] ^= byte(rolloverCounter >> 8)
+	counter[11] ^= byte(rolloverCounter)
+	counter[12] ^= byte(sequenceNumber >> 8)
+	counter[13] ^= byte(sequenceNumber)
 
 	return counter
 }

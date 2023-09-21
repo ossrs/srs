@@ -13,6 +13,7 @@
 #include <map>
 
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_http_stack.hpp>
@@ -42,7 +43,7 @@ public:
     SrsSslClient(SrsTcpClient* tcp);
     virtual ~SrsSslClient();
 public:
-    virtual srs_error_t handshake();
+    virtual srs_error_t handshake(const std::string& host);
 public:
     virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);

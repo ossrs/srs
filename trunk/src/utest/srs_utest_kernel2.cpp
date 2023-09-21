@@ -9,7 +9,6 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_rtc_rtcp.hpp>
-#include <srs_app_gb28181.hpp>
 #include <srs_app_utility.hpp>
 
 VOID TEST(KernelPSTest, PsPacketDecodeNormal)
@@ -411,3 +410,329 @@ VOID TEST(KernelFileWriterTest, RealfileTest)
     EXPECT_STREQ("HelloWorld", str.substr(20).c_str());
 }
 
+VOID TEST(KernelRTMPExtTest, ExtRTMPTest)
+{
+    srs_error_t err;
+
+    // For legacy RTMP specification, without ext tag header.
+    if (true) {
+        SrsFormat f;
+        HELPER_ASSERT_SUCCESS(f.initialize());
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*) "\x17\x01\x00\x00\x12", 5));
+
+        // Verify the frame type, codec id, avc packet type and composition time.
+        EXPECT_EQ(SrsVideoAvcFrameTypeKeyFrame, f.video->frame_type);
+        EXPECT_EQ(SrsVideoCodecIdAVC, f.vcodec->id);
+        EXPECT_EQ(SrsVideoAvcFrameTraitNALU, f.video->avc_packet_type);
+        EXPECT_EQ(0x12, f.video->cts);
+    }
+
+    // For new RTMP enhanced specification, with ext tag header.
+    if (true) {
+        SrsFormat f;
+        HELPER_ASSERT_SUCCESS(f.initialize());
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*) "\x91hvc1\x00\x00\x12", 8));
+
+        // Verify the frame type, codec id, avc packet type and composition time.
+        EXPECT_EQ(SrsVideoAvcFrameTypeKeyFrame, f.video->frame_type);
+        EXPECT_EQ(SrsVideoCodecIdHEVC, f.vcodec->id);
+        EXPECT_EQ(SrsVideoHEVCFrameTraitPacketTypeCodedFrames, f.video->avc_packet_type);
+        EXPECT_EQ(0x12, f.video->cts);
+    }
+
+    // If packet type is 3, which is coded frame X, the composition time is 0.
+    if (true) {
+        SrsFormat f;
+        HELPER_ASSERT_SUCCESS(f.initialize());
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*) "\x93hvc1", 5));
+
+        // Verify the frame type, codec id, avc packet type and composition time.
+        EXPECT_EQ(SrsVideoAvcFrameTypeKeyFrame, f.video->frame_type);
+        EXPECT_EQ(SrsVideoCodecIdHEVC, f.vcodec->id);
+        EXPECT_EQ(SrsVideoHEVCFrameTraitPacketTypeCodedFramesX, f.video->avc_packet_type);
+        EXPECT_EQ(0, f.video->cts);
+    }
+
+    // Should fail if only 1 byte for ext tag header, should be more bytes for fourcc.
+    if (true) {
+        SrsFormat f;
+        HELPER_ASSERT_SUCCESS(f.initialize());
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*) "\x91", 1));
+    }
+
+    // Should fail if only 5 bytes for ext tag header, should be more bytes for fourcc.
+    if (true) {
+        SrsFormat f;
+        HELPER_ASSERT_SUCCESS(f.initialize());
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*) "\x91hvc1", 5));
+    }
+
+    // Should fail if codec id is hvc2 for ext tag header, should be hvc1.
+    if (true) {
+        SrsFormat f;
+        HELPER_ASSERT_SUCCESS(f.initialize());
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*) "\x93hvc2", 5));
+    }
+
+    // Should fail if codec id is mvc1 for ext tag header, should be hvc1.
+    if (true) {
+        SrsFormat f;
+        HELPER_ASSERT_SUCCESS(f.initialize());
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*) "\x93mvc1", 5));
+    }
+}
+
+VOID TEST(KernelCodecTest, VideoFormatSepcialMProtect_DJI_M30)
+{
+    srs_error_t err;
+
+    SrsFormat f;
+    HELPER_EXPECT_SUCCESS(f.initialize());
+
+    // Frame 80442, the sequence header, wireshark filter:
+    //      rtmpt && rtmpt.video.type==1 && rtmpt.video.format==7
+    HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)""
+        "\x17\x00\x00\x00\x00\x01\x64\x00\x28\xff\xe1\x00\x12\x67\x64\x00" \
+        "\x28\xac\xb4\x03\xc0\x11\x34\xa4\x14\x18\x18\x1b\x42\x84\xd4\x01" \
+        "\x00\x05\x68\xee\x06\xf2\xc0", 39));
+
+    MockProtectedBuffer buffer;
+    if (buffer.alloc(9)) {
+        EXPECT_TRUE(false) << "mmap failed, errno=" << errno;
+        return;
+    }
+
+    // Frame 82749
+    memcpy(buffer.data_, "\x27\x01\x00\x00\x00\x00\x00\x00\x00", buffer.size_);
+    HELPER_EXPECT_SUCCESS(f.on_video(0, buffer.data_, buffer.size_));
+}
+
+VOID TEST(KernelCodecTest, VideoFormatSepcialAsan_DJI_M30)
+{
+    srs_error_t err;
+
+    SrsFormat f;
+    HELPER_EXPECT_SUCCESS(f.initialize());
+
+    // Frame 80442, the sequence header, wireshark filter:
+    //      rtmpt && rtmpt.video.type==1 && rtmpt.video.format==7
+    HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)""
+        "\x17\x00\x00\x00\x00\x01\x64\x00\x28\xff\xe1\x00\x12\x67\x64\x00" \
+        "\x28\xac\xb4\x03\xc0\x11\x34\xa4\x14\x18\x18\x1b\x42\x84\xd4\x01" \
+        "\x00\x05\x68\xee\x06\xf2\xc0", 39));
+
+    // Frame 82749
+    char data[9];
+    memcpy(data, "\x27\x01\x00\x00\x00\x00\x00\x00\x00", sizeof(data));
+    HELPER_EXPECT_SUCCESS(f.on_video(0, data, sizeof(data)));
+}
+
+VOID TEST(KernelCodecTest, VideoFormatRbspSimple)
+{
+    // |---------------------|----------------------------|
+    // |      rbsp           |  nalu with emulation bytes |
+    // |---------------------|----------------------------|
+    // | 0x00 0x00 0x00      |     0x00 0x00 0x03 0x00    |
+    // | 0x00 0x00 0x01      |     0x00 0x00 0x03 0x01    |
+    // | 0x00 0x00 0x02      |     0x00 0x00 0x03 0x02    |
+    // | 0x00 0x00 0x03      |     0x00 0x00 0x03 0x03    |
+    // | 0x00 0x00 0x03 0x04 |     0x00 0x00 0x03 0x04    |
+    // |---------------------|----------------------------|
+    if (true) {
+        vector<uint8_t> nalu = {0x00, 0x00, 0x03, 0x00};
+        vector<uint8_t> expect = {0x00, 0x00, 0x00};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    if (true) {
+        vector<uint8_t> nalu = {0x00, 0x00, 0x03, 0x01};
+        vector<uint8_t> expect = {0x00, 0x00, 0x01};
+
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        vector<uint8_t> rbsp(nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    if (true) {
+        vector<uint8_t> nalu = {0x00, 0x00, 0x03, 0x02};
+        vector<uint8_t> expect = {0x00, 0x00, 0x02};
+
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        vector<uint8_t> rbsp(nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    if (true) {
+        vector<uint8_t> nalu = {0x00, 0x00, 0x03, 0x03};
+        vector<uint8_t> expect = {0x00, 0x00, 0x03};
+
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        vector<uint8_t> rbsp(nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    if (true) {
+        vector<uint8_t> nalu = {0x00, 0x00, 0x03, 0x04};
+        vector<uint8_t> expect = {0x00, 0x00, 0x03, 0x04};
+
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        vector<uint8_t> rbsp(nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    if (true) {
+        vector<uint8_t> nalu = {0x00, 0x00, 0x03, 0xff};
+        vector<uint8_t> expect = {0x00, 0x00, 0x03, 0xff};
+
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        vector<uint8_t> rbsp(nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+}
+
+VOID TEST(KernelCodecTest, VideoFormatRbspEdge)
+{
+    if (true) {
+        vector<uint8_t> nalu = {0x00, 0x00, 0x03};
+        vector<uint8_t> expect = {0x00, 0x00, 0x03};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    if (true) {
+        vector<uint8_t> nalu = {0xff, 0x00, 0x00, 0x03};
+        vector<uint8_t> expect = {0xff, 0x00, 0x00, 0x03};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    for (uint16_t v = 0x01; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {(uint8_t)v, 0x00, 0x00, 0x03};
+        vector<uint8_t> expect = {(uint8_t)v, 0x00, 0x00, 0x03};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+}
+
+VOID TEST(KernelCodecTest, VideoFormatRbspNormal)
+{
+    for (uint16_t v = 0x01; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {0x00, (uint8_t)v, 0x03, 0x00};
+        vector<uint8_t> expect = {0x00, (uint8_t)v, 0x03, 0x00};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    for (uint16_t v = 0x01; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {(uint8_t)v, 0x00, 0x03, 0x00};
+        vector<uint8_t> expect = {(uint8_t)v, 0x00, 0x03, 0x00};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    for (uint16_t v = 0x00; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {0x00, 0x00, (uint8_t)v};
+        vector<uint8_t> expect = {0x00, 0x00, (uint8_t)v};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    for (uint16_t v = 0x00; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {0x00, (uint8_t)v};
+        vector<uint8_t> expect = {0x00, (uint8_t)v};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    for (uint16_t v = 0x00; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {(uint8_t)v};
+        vector<uint8_t> expect = {(uint8_t)v};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    for (uint16_t v = 0x00; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {(uint8_t)v, (uint8_t)v};
+        vector<uint8_t> expect = {(uint8_t)v, (uint8_t)v};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+
+    for (uint16_t v = 0x00; v <= 0xff; v++) {
+        vector<uint8_t> nalu = {(uint8_t)v, (uint8_t)v, (uint8_t)v};
+        vector<uint8_t> expect = {(uint8_t)v, (uint8_t)v, (uint8_t)v};
+
+        vector<uint8_t> rbsp(nalu.size());
+        SrsBuffer b((char*)nalu.data(), nalu.size());
+        int nb_rbsp = srs_rbsp_remove_emulation_bytes(&b, rbsp);
+
+        ASSERT_EQ(nb_rbsp, (int)expect.size());
+        EXPECT_TRUE(srs_bytes_equals(rbsp.data(), expect.data(), nb_rbsp));
+    }
+}

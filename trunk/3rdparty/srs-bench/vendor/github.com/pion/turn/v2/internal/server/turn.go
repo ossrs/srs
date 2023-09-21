@@ -33,14 +33,20 @@ func handleAllocateRequest(r Request, m *stun.Message) error {
 	reservationToken := ""
 
 	badRequestMsg := buildMsg(m.TransactionID, stun.NewType(stun.MethodAllocate, stun.ClassErrorResponse), &stun.ErrorCodeAttribute{Code: stun.CodeBadRequest})
-	insufficentCapacityMsg := buildMsg(m.TransactionID, stun.NewType(stun.MethodAllocate, stun.ClassErrorResponse), &stun.ErrorCodeAttribute{Code: stun.CodeInsufficientCapacity})
+	insufficientCapacityMsg := buildMsg(m.TransactionID, stun.NewType(stun.MethodAllocate, stun.ClassErrorResponse), &stun.ErrorCodeAttribute{Code: stun.CodeInsufficientCapacity})
 
 	// 2. The server checks if the 5-tuple is currently in use by an
 	//    existing allocation.  If yes, the server rejects the request with
 	//    a 437 (Allocation Mismatch) error.
 	if alloc := r.AllocationManager.GetAllocation(fiveTuple); alloc != nil {
-		msg := buildMsg(m.TransactionID, stun.NewType(stun.MethodAllocate, stun.ClassErrorResponse), &stun.ErrorCodeAttribute{Code: stun.CodeAllocMismatch})
-		return buildAndSendErr(r.Conn, r.SrcAddr, errRelayAlreadyAllocatedForFiveTuple, msg...)
+		id, attrs := alloc.GetResponseCache()
+		if id != m.TransactionID {
+			msg := buildMsg(m.TransactionID, stun.NewType(stun.MethodAllocate, stun.ClassErrorResponse), &stun.ErrorCodeAttribute{Code: stun.CodeAllocMismatch})
+			return buildAndSendErr(r.Conn, r.SrcAddr, errRelayAlreadyAllocatedForFiveTuple, msg...)
+		}
+		// a retry allocation
+		msg := buildMsg(m.TransactionID, stun.NewType(stun.MethodAllocate, stun.ClassSuccessResponse), append(attrs, messageIntegrity)...)
+		return buildAndSend(r.Conn, r.SrcAddr, msg...)
 	}
 
 	// 3. The server checks if the request contains a REQUESTED-TRANSPORT
@@ -91,10 +97,10 @@ func handleAllocateRequest(r Request, m *stun.Message) error {
 	//    error.
 	var evenPort proto.EvenPort
 	if err = evenPort.GetFrom(m); err == nil {
-		randomPort := 0
+		var randomPort int
 		randomPort, err = r.AllocationManager.GetRandomEvenPort()
 		if err != nil {
-			return buildAndSendErr(r.Conn, r.SrcAddr, err, insufficentCapacityMsg...)
+			return buildAndSendErr(r.Conn, r.SrcAddr, err, insufficientCapacityMsg...)
 		}
 		requestedPort = randomPort
 		reservationToken = randSeq(8)
@@ -118,7 +124,7 @@ func handleAllocateRequest(r Request, m *stun.Message) error {
 		requestedPort,
 		lifetimeDuration)
 	if err != nil {
-		return buildAndSendErr(r.Conn, r.SrcAddr, err, insufficentCapacityMsg...)
+		return buildAndSendErr(r.Conn, r.SrcAddr, err, insufficientCapacityMsg...)
 	}
 
 	// Once the allocation is created, the server replies with a success
@@ -162,6 +168,7 @@ func handleAllocateRequest(r Request, m *stun.Message) error {
 	}
 
 	msg := buildMsg(m.TransactionID, stun.NewType(stun.MethodAllocate, stun.ClassSuccessResponse), append(responseAttrs, messageIntegrity)...)
+	a.SetResponseCache(m.TransactionID, responseAttrs)
 	return buildAndSend(r.Conn, r.SrcAddr, msg...)
 }
 
@@ -224,8 +231,15 @@ func handleCreatePermissionRequest(r Request, m *stun.Message) error {
 			return err
 		}
 
+		if err := r.AllocationManager.GrantPermission(r.SrcAddr, peerAddress.IP); err != nil {
+			r.Log.Infof("permission denied for client %s to peer %s", r.SrcAddr.String(),
+				peerAddress.IP.String())
+			return err
+		}
+
 		r.Log.Debugf("adding permission for %s", fmt.Sprintf("%s:%d",
 			peerAddress.IP.String(), peerAddress.Port))
+
 		a.AddPermission(allocation.NewPermission(
 			&net.UDPAddr{
 				IP:   peerAddress.IP,
@@ -307,6 +321,16 @@ func handleChannelBindRequest(r Request, m *stun.Message) error {
 	peerAddr := proto.PeerAddress{}
 	if err = peerAddr.GetFrom(m); err != nil {
 		return buildAndSendErr(r.Conn, r.SrcAddr, err, badRequestMsg...)
+	}
+
+	if err = r.AllocationManager.GrantPermission(r.SrcAddr, peerAddr.IP); err != nil {
+		r.Log.Infof("permission denied for client %s to peer %s", r.SrcAddr.String(),
+			peerAddr.IP.String())
+
+		unauthorizedRequestMsg := buildMsg(m.TransactionID,
+			stun.NewType(stun.MethodChannelBind, stun.ClassErrorResponse),
+			&stun.ErrorCodeAttribute{Code: stun.CodeUnauthorized})
+		return buildAndSendErr(r.Conn, r.SrcAddr, err, unauthorizedRequestMsg...)
 	}
 
 	r.Log.Debugf("binding channel %d to %s",

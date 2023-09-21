@@ -178,7 +178,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
 
 void SrsStatisticStream::publish(std::string id)
 {
-    // To prevent duplicated publish event by bridger.
+    // To prevent duplicated publish event by bridge.
     if (active) {
         return;
     }
@@ -490,14 +490,14 @@ void SrsStatistic::cleanup_stream(SrsStatisticStream* stream)
 
     // Do cleanup streams.
     if (true) {
-        std::map<std::string, SrsStatisticStream *>::iterator it;
+        std::map<std::string, SrsStatisticStream*>::iterator it;
         if ((it = streams.find(stream->id)) != streams.end()) {
             streams.erase(it);
         }
     }
 
     if (true) {
-        std::map<std::string, SrsStatisticStream *>::iterator it;
+        std::map<std::string, SrsStatisticStream*>::iterator it;
         if ((it = rstreams.find(stream->url)) != rstreams.end()) {
             rstreams.erase(it);
         }

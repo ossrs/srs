@@ -64,12 +64,32 @@ std::string srs_video_codec_id2str(SrsVideoCodecId codec);
 enum SrsVideoAvcFrameTrait
 {
     // set to the max value to reserved, for array map.
-    SrsVideoAvcFrameTraitReserved = 3,
-    SrsVideoAvcFrameTraitForbidden = 3,
+    SrsVideoAvcFrameTraitReserved = 6,
+    SrsVideoAvcFrameTraitForbidden = 6,
     
     SrsVideoAvcFrameTraitSequenceHeader = 0,
     SrsVideoAvcFrameTraitNALU = 1,
     SrsVideoAvcFrameTraitSequenceHeaderEOF = 2,
+
+    SrsVideoHEVCFrameTraitPacketTypeSequenceStart = 0,
+    SrsVideoHEVCFrameTraitPacketTypeCodedFrames = 1,
+    SrsVideoHEVCFrameTraitPacketTypeSequenceEnd = 2,
+    // CompositionTime Offset is implied to equal zero. This is
+    // an optimization to save putting SI24 composition time value of zero on
+    // the wire. See pseudo code below in the VideoTagBody section
+    SrsVideoHEVCFrameTraitPacketTypeCodedFramesX = 3,
+    // VideoTagBody does not contain video data. VideoTagBody
+    // instead contains an AMF encoded metadata. See Metadata Frame
+    // section for an illustration of its usage. As an example, the metadata
+    // can be HDR information. This is a good way to signal HDR
+    // information. This also opens up future ways to express additional
+    // metadata that is meant for the next video sequence.
+    //
+    // note: presence of PacketTypeMetadata means that FrameType
+    // flags at the top of this table should be ignored
+    SrsVideoHEVCFrameTraitPacketTypeMetadata = 4,
+    // Carriage of bitstream in MPEG-2 TS format
+    SrsVideoHEVCFrameTraitPacketTypeMPEG2TSSequenceStart = 5,
 };
 
 /**
@@ -511,6 +531,7 @@ const int SrsHevcMax_PPS_COUNT = 64;
  */
 struct SrsHevcProfileTierLevel
 {
+public:
     uint8_t general_profile_space;
     uint8_t general_tier_flag;
     uint8_t general_profile_idc;
@@ -565,6 +586,10 @@ struct SrsHevcProfileTierLevel
     std::vector<uint8_t> sub_layer_inbld_flag;
     std::vector<uint8_t> sub_layer_reserved_zero_bit;
     std::vector<uint8_t> sub_layer_level_idc;
+
+public:
+    SrsHevcProfileTierLevel();
+    virtual ~SrsHevcProfileTierLevel();
 };
 
 /**

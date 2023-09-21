@@ -156,6 +156,7 @@ SrsTsMessage* SrsTsMessage::detach()
 {
     // @remark the packet cannot be used, but channel is ok.
     SrsTsMessage* cp = new SrsTsMessage(channel, NULL);
+    cp->ps_helper_ = ps_helper_;
     cp->start_pts = start_pts;
     cp->write_pcr = write_pcr;
     cp->is_discontinuity = is_discontinuity;
@@ -1951,8 +1952,13 @@ srs_error_t SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
     // check when fresh, the payload_unit_start_indicator
     // should be 1 for the fresh msg.
     if (is_fresh_msg && !packet->payload_unit_start_indicator) {
-        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: PES fresh packet length=%d, us=%d, cc=%d",
+        srs_warn("ts: PES fresh packet length=%d, us=%d, cc=%d",
             msg->PES_packet_length, packet->payload_unit_start_indicator, packet->continuity_counter);
+
+        stream->skip(stream->size() - stream->pos());
+        srs_freep(msg);
+        channel->msg = NULL;
+        return err;
     }
 
     // check when not fresh and PES_packet_length>0,

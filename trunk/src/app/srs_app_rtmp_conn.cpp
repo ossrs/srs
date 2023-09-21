@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_tencentcloud.hpp>
+#include <srs_app_srt_source.hpp>
 
 // the timeout in srs_utime_t to wait encoder to republish
 // if timeout, close the connection.
@@ -985,6 +986,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     // initialize the publish timeout.
     publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
     publish_normal_timeout = _srs_config->get_publish_normal_timeout(req->vhost);
+    srs_utime_t publish_kickoff_for_idle = _srs_config->get_publish_kickoff_for_idle(req->vhost);
     
     // set the sock options.
     set_sock_options();
@@ -1008,12 +1010,16 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
             return srs_error_wrap(err, "rtmp: thread quit");
         }
 
+        // Kick off the publisher when idle for a period of timeout.
+        if (source->publisher_is_idle_for(publish_kickoff_for_idle)) {
+            return srs_error_new(ERROR_KICKOFF_FOR_IDLE, "kicked for idle, url=%s, timeout=%ds", req->tcUrl.c_str(), srsu2si(publish_kickoff_for_idle));
+        }
+
         pprint->elapse();
 
         // cond wait for timeout.
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
-            // @see https://github.com/ossrs/srs/issues/441
             rtrd->wait(publish_1stpkt_timeout);
         } else {
             rtrd->wait(publish_normal_timeout);
@@ -1075,7 +1081,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 
     // Check whether RTC stream is busy.
 #ifdef SRS_RTC
-    SrsRtcSource *rtc = NULL;
+    SrsRtcSource* rtc = NULL;
     bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
     bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost);
     if (rtc_server_enabled && rtc_enabled && !info->edge) {
@@ -1089,10 +1095,28 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     }
 #endif
 
+    // Check whether SRT stream is busy.
+#ifdef SRS_SRT
+    SrsSrtSource* srt = NULL;
+    bool srt_server_enabled = _srs_config->get_srt_enabled();
+    bool srt_enabled = _srs_config->get_srt_enabled(req->vhost);
+    if (srt_server_enabled && srt_enabled && !info->edge) {
+        if ((err = _srs_srt_sources->fetch_or_create(req, &srt)) != srs_success) {
+            return srs_error_wrap(err, "create source");
+        }
+
+        if (!srt->can_publish()) {
+            return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "srt stream %s busy", req->get_stream_url().c_str());
+        }
+    }
+#endif
+
     // Bridge to RTC streaming.
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
-    if (rtc) {
-        SrsRtcFromRtmpBridge *bridge = new SrsRtcFromRtmpBridge(rtc);
+    if (rtc && _srs_config->get_rtc_from_rtmp(req->vhost)) {
+        SrsCompositeBridge* bridge = new SrsCompositeBridge();
+        bridge->append(new SrsFrameToRtcBridge(rtc));
+
         if ((err = bridge->initialize(req)) != srs_success) {
             srs_freep(bridge);
             return srs_error_wrap(err, "bridge init");

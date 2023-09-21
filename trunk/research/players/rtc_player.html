@@ -9,7 +9,7 @@
         }
     </style>
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
-    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/jquery-1.12.2.min.js"></script>
     <script type="text/javascript" src="js/adapter-7.4.0.min.js"></script>
     <script type="text/javascript" src="js/srs.sdk.js"></script>
     <script type="text/javascript" src="js/winlin.utility.js"></script>
@@ -26,6 +26,8 @@
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
                     <li class="active"><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
                     <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
+                    <li><a id="nav_whip" href="whip.html">WHIP</a></li>
+                    <li><a id="nav_whep" href="whip.html">WHEP</a></li>
                     <li><a  href="http://ossrs.net/srs.release/releases/app.html">iOS/Andriod</a></li>
                     <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
                     <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
@@ -105,8 +107,7 @@ $(function(){
         $('#rtc_media_player').prop('muted', true);
         console.warn('For autostart, we should mute it, see https://www.jianshu.com/p/c3c6944eed5a ' +
             'or https://developers.google.com/web/updates/2017/09/autoplay-policy-changes#audiovideo_elements');
-
-        startPlay();
+        window.addEventListener("load", function(){ startPlay(); });
     }
 });
 </script>

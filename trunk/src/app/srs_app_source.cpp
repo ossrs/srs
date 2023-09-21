@@ -967,7 +967,6 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     
     if ((err = hls->on_audio(msg, format)) != srs_success) {
         // apply the error strategy for hls.
-        // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req_->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls: ignore audio error %s", srs_error_desc(err).c_str());
@@ -1061,7 +1060,6 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
     if ((err = hls->on_video(msg, format)) != srs_success) {
         // TODO: We should support more strategies.
         // apply the error strategy for hls.
-        // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req_->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls: ignore video error %s", srs_error_desc(err).c_str());
@@ -1228,6 +1226,27 @@ srs_error_t SrsOriginHub::on_dvr_request_sh()
     return err;
 }
 
+srs_error_t SrsOriginHub::on_hls_request_sh()
+{
+    srs_error_t err = srs_success;
+
+    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    if (cache_sh_video) {
+        if ((err = hls->on_video(cache_sh_video, source->meta->vsh_format())) != srs_success) {
+            return srs_error_wrap(err, "hls video");
+        }
+    }
+
+    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    if (cache_sh_audio) {
+        if ((err = hls->on_audio(cache_sh_audio, source->meta->ash_format())) != srs_success) {
+            return srs_error_wrap(err, "hls audio");
+        }
+    }
+
+    return err;
+}
+
 srs_error_t SrsOriginHub::on_reload_vhost_forward(string vhost)
 {
     srs_error_t err = srs_success;
@@ -1236,7 +1255,7 @@ srs_error_t SrsOriginHub::on_reload_vhost_forward(string vhost)
         return err;
     }
     
-    // TODO: FIXME: maybe should ignore when publish already stopped?
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
     
     // forwarders
     destroy_forwarders();
@@ -1262,7 +1281,9 @@ srs_error_t SrsOriginHub::on_reload_vhost_dash(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
+
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
+
     dash->on_unpublish();
     
     // Don't start DASH when source is not active.
@@ -1306,47 +1327,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_hls(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
-    
-    hls->on_unpublish();
-    
-    // Don't start HLS when source is not active.
-    if (!is_active) {
-        return err;
-    }
-    
-    if ((err = hls->on_publish()) != srs_success) {
-        return srs_error_wrap(err, "hls publish failed");
-    }
-    srs_trace("vhost %s hls reload success", vhost.c_str());
 
-    SrsRtmpFormat* format = source->format_;
-    
-    // when publish, don't need to fetch sequence header, which is old and maybe corrupt.
-    // when reload, we must fetch the sequence header from source cache.
-    // notice the source to get the cached sequence header.
-    // when reload to start hls, hls will never get the sequence header in stream,
-    // use the SrsLiveSource.on_hls_start to push the sequence header to HLS.
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
-    if (cache_sh_video) {
-        if ((err = format->on_video(cache_sh_video)) != srs_success) {
-            return srs_error_wrap(err, "format on_video");
-        }
-        if ((err = hls->on_video(cache_sh_video, format)) != srs_success) {
-            return srs_error_wrap(err, "hls on_video");
-        }
-    }
-    
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
-    if (cache_sh_audio) {
-        if ((err = format->on_audio(cache_sh_audio)) != srs_success) {
-            return srs_error_wrap(err, "format on_audio");
-        }
-        if ((err = hls->on_audio(cache_sh_audio, format)) != srs_success) {
-            return srs_error_wrap(err, "hls on_audio");
-        }
-    }
+    hls->async_reload();
     
     return err;
 }
@@ -1358,8 +1340,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_hds(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
+
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
     
 #ifdef SRS_HDS
     hds->on_unpublish();
@@ -1385,8 +1367,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_dvr(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
+
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
     
     // cleanup dvr
     dvr->on_unpublish();
@@ -1422,8 +1404,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_transcode(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
+
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
     
     encoder->on_unpublish();
     
@@ -1447,8 +1429,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_exec(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
+
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
     
     ng_exec->on_unpublish();
     
@@ -1645,7 +1627,6 @@ srs_error_t SrsMetaCache::dumps(SrsLiveConsumer* consumer, bool atc, SrsRtmpJitt
     
     // copy sequence header
     // copy audio sequence first, for hls to fast parse the "right" audio codec.
-    // @see https://github.com/ossrs/srs/issues/301
     if (aformat && aformat->acodec && aformat->acodec->id != SrsAudioCodecIdMP3) {
         if (ds && audio && (err = consumer->enqueue(audio, atc, ag)) != srs_success) {
             return srs_error_wrap(err, "enqueue audio sh");
@@ -1874,10 +1855,9 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
 
         // TODO: FIXME: support source cleanup.
         // @see https://github.com/ossrs/srs/issues/713
-        // @see https://github.com/ossrs/srs/issues/714
 #if 0
         // When source expired, remove it.
-        if (source->expired()) {
+        if (source->stream_is_dead()) {
             int cid = source->source_id();
             if (cid == -1 && source->pre_source_id() > 0) {
                 cid = source->pre_source_id();
@@ -1910,14 +1890,6 @@ void SrsLiveSourceManager::destroy()
     pool.clear();
 }
 
-ISrsLiveSourceBridge::ISrsLiveSourceBridge()
-{
-}
-
-ISrsLiveSourceBridge::~ISrsLiveSourceBridge()
-{
-}
-
 SrsLiveSource::SrsLiveSource()
 {
     req = NULL;
@@ -1926,7 +1898,8 @@ SrsLiveSource::SrsLiveSource()
     mix_queue = new SrsMixQueue();
     
     _can_publish = true;
-    die_at = 0;
+    stream_die_at_ = 0;
+    publisher_idle_at_ = 0;
 
     handler = NULL;
     bridge_ = NULL;
@@ -1983,10 +1956,10 @@ srs_error_t SrsLiveSource::cycle()
     return srs_success;
 }
 
-bool SrsLiveSource::expired()
+bool SrsLiveSource::stream_is_dead()
 {
     // unknown state?
-    if (die_at == 0) {
+    if (stream_die_at_ == 0) {
         return false;
     }
     
@@ -2001,10 +1974,23 @@ bool SrsLiveSource::expired()
     }
     
     srs_utime_t now = srs_get_system_time();
-    if (now > die_at + SRS_SOURCE_CLEANUP) {
+    if (now > stream_die_at_ + SRS_SOURCE_CLEANUP) {
         return true;
     }
     
+    return false;
+}
+
+bool SrsLiveSource::publisher_is_idle_for(srs_utime_t timeout)
+{
+    if (!publisher_idle_at_ || !timeout) {
+        return false;
+    }
+
+    srs_utime_t now = srs_get_system_time();
+    if (now > publisher_idle_at_ + timeout) {
+        return true;
+    }
     return false;
 }
 
@@ -2046,7 +2032,7 @@ srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
     return err;
 }
 
-void SrsLiveSource::set_bridge(ISrsLiveSourceBridge* v)
+void SrsLiveSource::set_bridge(ISrsStreamBridge* v)
 {
     srs_freep(bridge_);
     bridge_ = v;
@@ -2243,31 +2229,42 @@ srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPack
 srs_error_t SrsLiveSource::on_audio(SrsCommonMessage* shared_audio)
 {
     srs_error_t err = srs_success;
-    
+
     // Detect where stream is monotonically increasing.
     if (!mix_correct && is_monotonically_increase) {
         if (last_packet_time > 0 && shared_audio->header.timestamp < last_packet_time) {
             is_monotonically_increase = false;
             srs_warn("AUDIO: Timestamp %" PRId64 "=>%" PRId64 ", may need mix_correct.",
-                last_packet_time, shared_audio->header.timestamp);
+                     last_packet_time, shared_audio->header.timestamp);
         }
     }
     last_packet_time = shared_audio->header.timestamp;
-    
+
     // convert shared_audio to msg, user should not use shared_audio again.
     // the payload is transfer to msg, and set to NULL in shared_audio.
     SrsSharedPtrMessage msg;
     if ((err = msg.create(shared_audio)) != srs_success) {
         return srs_error_wrap(err, "create message");
     }
+
+    return on_frame(&msg);
+}
+
+srs_error_t SrsLiveSource::on_frame(SrsSharedPtrMessage* msg)
+{
+    srs_error_t err = srs_success;
     
     // directly process the audio message.
     if (!mix_correct) {
-        return on_audio_imp(&msg);
+        if (msg->is_audio()) {
+            return on_audio_imp(msg);
+        } else {
+            return on_video_imp(msg);
+        }
     }
     
     // insert msg to the queue.
-    mix_queue->push(msg.copy());
+    mix_queue->push(msg->copy());
     
     // fetch someone from mix queue.
     SrsSharedPtrMessage* m = mix_queue->pop();
@@ -2319,7 +2316,7 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
     }
 
     // For bridge to consume the message.
-    if (bridge_ && (err = bridge_->on_audio(msg)) != srs_success) {
+    if (bridge_ && (err = bridge_->on_frame(msg)) != srs_success) {
         return srs_error_wrap(err, "bridge consume audio");
     }
 
@@ -2372,11 +2369,11 @@ srs_error_t SrsLiveSource::on_video(SrsCommonMessage* shared_video)
         if (last_packet_time > 0 && shared_video->header.timestamp < last_packet_time) {
             is_monotonically_increase = false;
             srs_warn("VIDEO: Timestamp %" PRId64 "=>%" PRId64 ", may need mix_correct.",
-                last_packet_time, shared_video->header.timestamp);
+                     last_packet_time, shared_video->header.timestamp);
         }
     }
     last_packet_time = shared_video->header.timestamp;
-    
+
     // drop any unknown header video.
     // @see https://github.com/ossrs/srs/issues/421
     if (!SrsFlvVideo::acceptable(shared_video->payload, shared_video->size)) {
@@ -2384,41 +2381,19 @@ srs_error_t SrsLiveSource::on_video(SrsCommonMessage* shared_video)
         if (shared_video->size > 0) {
             b0 = shared_video->payload[0];
         }
-        
+
         srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
         return err;
     }
-    
+
     // convert shared_video to msg, user should not use shared_video again.
     // the payload is transfer to msg, and set to NULL in shared_video.
     SrsSharedPtrMessage msg;
     if ((err = msg.create(shared_video)) != srs_success) {
         return srs_error_wrap(err, "create message");
     }
-    
-    // directly process the video message.
-    if (!mix_correct) {
-        return on_video_imp(&msg);
-    }
-    
-    // insert msg to the queue.
-    mix_queue->push(msg.copy());
-    
-    // fetch someone from mix queue.
-    SrsSharedPtrMessage* m = mix_queue->pop();
-    if (!m) {
-        return err;
-    }
-    
-    // consume the monotonically increase message.
-    if (m->is_audio()) {
-        err = on_audio_imp(m);
-    } else {
-        err = on_video_imp(m);
-    }
-    srs_freep(m);
-    
-    return err;
+
+    return on_frame(&msg);
 }
 
 srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
@@ -2464,7 +2439,7 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
     }
 
     // For bridge to consume the message.
-    if (bridge_ && (err = bridge_->on_video(msg)) != srs_success) {
+    if (bridge_ && (err = bridge_->on_frame(msg)) != srs_success) {
         return srs_error_wrap(err, "bridge consume video");
     }
 
@@ -2634,6 +2609,11 @@ srs_error_t SrsLiveSource::on_publish()
 
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_publish(req, _source_id.c_str());
+
+    // When no players, the publisher is idle now.
+    if (consumers.empty()) {
+        publisher_idle_at_ = srs_get_system_time();
+    }
     
     return err;
 }
@@ -2680,7 +2660,7 @@ void SrsLiveSource::on_unpublish()
 
     // no consumer, stream is die.
     if (consumers.empty()) {
-        die_at = srs_get_system_time();
+        stream_die_at_ = srs_get_system_time();
     }
 }
 
@@ -2690,7 +2670,11 @@ srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)
     
     consumer = new SrsLiveConsumer(this);
     consumers.push_back(consumer);
-    
+
+    // There should be one consumer, so reset the timeout.
+    stream_die_at_ = 0;
+    publisher_idle_at_ = 0;
+
     // for edge, when play edge stream, check the state
     if (_srs_config->get_vhost_is_edge(req->vhost)) {
         // notice edge to start for the first client.
@@ -2752,10 +2736,18 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer* consumer)
     if (it != consumers.end()) {
         it = consumers.erase(it);
     }
-    
+
     if (consumers.empty()) {
         play_edge->on_all_client_stop();
-        die_at = srs_get_system_time();
+
+        // For edge server, the stream die when the last player quit, because the edge stream is created by player
+        // activities, so it should die when all players quit.
+        if (_srs_config->get_vhost_is_edge(req->vhost)) {
+            stream_die_at_ = srs_get_system_time();
+        }
+
+        // When no players, the publisher is idle now.
+        publisher_idle_at_ = srs_get_system_time();
     }
 }
 

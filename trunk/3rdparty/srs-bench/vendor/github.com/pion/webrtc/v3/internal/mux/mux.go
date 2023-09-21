@@ -1,12 +1,18 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 // Package mux multiplexes packets on a single socket (RFC7983)
 package mux
 
 import (
+	"errors"
+	"io"
 	"net"
 	"sync"
 
+	"github.com/pion/ice/v2"
 	"github.com/pion/logging"
-	"github.com/pion/transport/packetio"
+	"github.com/pion/transport/v2/packetio"
 )
 
 // The maximum amount of data that can be buffered before returning errors.
@@ -54,8 +60,6 @@ func (m *Mux) NewEndpoint(f MatchFunc) *Endpoint {
 	}
 
 	// Set a maximum size of the buffer in bytes.
-	// NOTE: We actually won't get anywhere close to this limit.
-	// SRTP will constantly read from the endpoint and drop packets if it's full.
 	e.buffer.SetLimitSize(maxBufferSize)
 
 	m.lock.Lock()
@@ -76,8 +80,8 @@ func (m *Mux) RemoveEndpoint(e *Endpoint) {
 func (m *Mux) Close() error {
 	m.lock.Lock()
 	for e := range m.endpoints {
-		err := e.close()
-		if err != nil {
+		if err := e.close(); err != nil {
+			m.lock.Unlock()
 			return err
 		}
 
@@ -104,12 +108,19 @@ func (m *Mux) readLoop() {
 	buf := make([]byte, m.bufferSize)
 	for {
 		n, err := m.nextConn.Read(buf)
-		if err != nil {
+		switch {
+		case errors.Is(err, io.EOF), errors.Is(err, ice.ErrClosed):
+			return
+		case errors.Is(err, io.ErrShortBuffer), errors.Is(err, packetio.ErrTimeout):
+			m.log.Errorf("mux: failed to read from packetio.Buffer %s", err.Error())
+			continue
+		case err != nil:
+			m.log.Errorf("mux: ending readLoop packetio.Buffer error %s", err.Error())
 			return
 		}
 
-		err = m.dispatch(buf[:n])
-		if err != nil {
+		if err = m.dispatch(buf[:n]); err != nil {
+			m.log.Errorf("mux: ending readLoop dispatch error %s", err.Error())
 			return
 		}
 	}
@@ -129,7 +140,7 @@ func (m *Mux) dispatch(buf []byte) error {
 
 	if endpoint == nil {
 		if len(buf) > 0 {
-			m.log.Warnf("Warning: mux: no endpoint for packet starting with %d\n", buf[0])
+			m.log.Warnf("Warning: mux: no endpoint for packet starting with %d", buf[0])
 		} else {
 			m.log.Warnf("Warning: mux: no endpoint for zero length packet")
 		}
@@ -137,9 +148,12 @@ func (m *Mux) dispatch(buf []byte) error {
 	}
 
 	_, err := endpoint.buffer.Write(buf)
-	if err != nil {
-		return err
+
+	// Expected when bytes are received faster than the endpoint can process them (#2152, #2180)
+	if errors.Is(err, packetio.ErrFull) {
+		m.log.Infof("mux: endpoint buffer is full, dropping packet")
+		return nil
 	}
 
-	return nil
+	return err
 }

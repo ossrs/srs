@@ -26,8 +26,10 @@ import (
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
 	"github.com/pion/webrtc/v3/pkg/media/h264reader"
+	"github.com/yapingcat/gomedia/mpeg2"
 	"io"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -293,9 +295,16 @@ func (v *PSIngester) Ingest(ctx context.Context) error {
 	}
 	defer f.Close()
 
-	h264, err := h264reader.NewReader(videoFile)
+	fileSuffix := path.Ext(v.conf.psConfig.video)
+	var h264 *h264reader.H264Reader
+	var h265 *H265Reader
+	if fileSuffix == ".h265" {
+		h265, err = NewReader(videoFile)
+	} else {
+		h264, err = h264reader.NewReader(videoFile)
+	}
 	if err != nil {
-		return errors.Wrapf(err, "Open h264 %v", v.conf.psConfig.video)
+		return errors.Wrapf(err, "Open %v", v.conf.psConfig.video)
 	}
 
 	audio, err := NewAACReader(f)
@@ -328,47 +337,13 @@ func (v *PSIngester) Ingest(ctx context.Context) error {
 
 		// One pack should only contains one video frame.
 		if !pack.hasVideo {
-			var sps, pps *h264reader.NAL
-			var videoFrames []*h264reader.NAL
-			for ctx.Err() == nil {
-				frame, err := h264.NextNAL()
-				if err == io.EOF {
-					return io.EOF
-				}
-				if err != nil {
-					return errors.Wrapf(err, "Read h264")
-				}
-
-				videoFrames = append(videoFrames, frame)
-				logger.If(ctx, "NALU %v PictureOrderCount=%v, ForbiddenZeroBit=%v, RefIdc=%v, %v bytes",
-					frame.UnitType.String(), frame.PictureOrderCount, frame.ForbiddenZeroBit, frame.RefIdc, len(frame.Data))
-
-				if frame.UnitType == h264reader.NalUnitTypeSPS {
-					sps = frame
-				} else if frame.UnitType == h264reader.NalUnitTypePPS {
-					pps = frame
-				} else {
-					break
-				}
-			}
-
-			// We convert the video sample rate to be based over 1024, that is 1024 samples means one video frame.
-			avcSamples += 1024
-			videoDTS = uint64(v.conf.clockRate*avcSamples) / uint64(videoSampleRate)
-
-			if sps != nil || pps != nil {
-				err = pack.WriteHeader(videoDTS)
+			if fileSuffix == ".h265" {
+				err = v.writeH265(ctx, pack, h265, videoSampleRate, &avcSamples, &videoDTS)
 			} else {
-				err = pack.WritePackHeader(videoDTS)
+				err = v.writeH264(ctx, pack, h264, videoSampleRate, &avcSamples, &videoDTS)
 			}
 			if err != nil {
-				return errors.Wrap(err, "pack header")
-			}
-
-			for _, frame := range videoFrames {
-				if err = pack.WriteVideo(frame.Data, videoDTS); err != nil {
-					return errors.Wrapf(err, "write video %v", len(frame.Data))
-				}
+				return errors.Wrap(err, "WriteVideo")
 			}
 		}
 
@@ -414,5 +389,103 @@ func (v *PSIngester) Ingest(ctx context.Context) error {
 		}
 	}
 
+	return nil
+}
+
+func (v *PSIngester) writeH264(ctx context.Context, pack *PSPackStream, h264 *h264reader.H264Reader,
+	videoSampleRate int, avcSamples, videoDTS *uint64) error {
+	var sps, pps *h264reader.NAL
+	var videoFrames []*h264reader.NAL
+	for ctx.Err() == nil {
+		frame, err := h264.NextNAL()
+		if err == io.EOF {
+			return io.EOF
+		}
+		if err != nil {
+			return errors.Wrapf(err, "Read h264")
+		}
+
+		videoFrames = append(videoFrames, frame)
+		logger.If(ctx, "NALU %v PictureOrderCount=%v, ForbiddenZeroBit=%v, RefIdc=%v, %v bytes",
+			frame.UnitType.String(), frame.PictureOrderCount, frame.ForbiddenZeroBit, frame.RefIdc, len(frame.Data))
+
+		if frame.UnitType == h264reader.NalUnitTypeSPS {
+			sps = frame
+		} else if frame.UnitType == h264reader.NalUnitTypePPS {
+			pps = frame
+		} else {
+			break
+		}
+	}
+
+	// We convert the video sample rate to be based over 1024, that is 1024 samples means one video frame.
+	*avcSamples += 1024
+	*videoDTS = uint64(v.conf.clockRate*(*avcSamples)) / uint64(videoSampleRate)
+
+	var err error
+	if sps != nil || pps != nil {
+		err = pack.WriteHeader(mpeg2.PS_STREAM_H264, *videoDTS)
+	} else {
+		err = pack.WritePackHeader(*videoDTS)
+	}
+	if err != nil {
+		return errors.Wrap(err, "pack header")
+	}
+
+	for _, frame := range videoFrames {
+		if err = pack.WriteVideo(frame.Data, *videoDTS); err != nil {
+			return errors.Wrapf(err, "write video %v", len(frame.Data))
+		}
+	}
+	return nil
+}
+
+func (v *PSIngester) writeH265(ctx context.Context, pack *PSPackStream, h265 *H265Reader,
+	videoSampleRate int, avcSamples, videoDTS *uint64) error {
+	var vps, sps, pps *NAL
+	var videoFrames []*NAL
+	for ctx.Err() == nil {
+		frame, err := h265.NextNAL()
+		if err == io.EOF {
+			return io.EOF
+		}
+		if err != nil {
+			return errors.Wrapf(err, "Read h265")
+		}
+
+		videoFrames = append(videoFrames, frame)
+		logger.If(ctx, "NALU %v PictureOrderCount=%v, ForbiddenZeroBit=%v, %v bytes",
+			frame.UnitType, frame.PictureOrderCount, frame.ForbiddenZeroBit, len(frame.Data))
+
+		if frame.UnitType == NaluTypeVps {
+			vps = frame
+		} else if frame.UnitType == NaluTypeSps {
+			sps = frame
+		} else if frame.UnitType == NaluTypePps {
+			pps = frame
+		} else {
+			break
+		}
+	}
+
+	// We convert the video sample rate to be based over 1024, that is 1024 samples means one video frame.
+	*avcSamples += 1024
+	*videoDTS = uint64(v.conf.clockRate*(*avcSamples)) / uint64(videoSampleRate)
+
+	var err error
+	if vps != nil || sps != nil || pps != nil {
+		err = pack.WriteHeader(mpeg2.PS_STREAM_H265, *videoDTS)
+	} else {
+		err = pack.WritePackHeader(*videoDTS)
+	}
+	if err != nil {
+		return errors.Wrap(err, "pack header")
+	}
+
+	for _, frame := range videoFrames {
+		if err = pack.WriteVideo(frame.Data, *videoDTS); err != nil {
+			return errors.Wrapf(err, "write video %v", len(frame.Data))
+		}
+	}
 	return nil
 }

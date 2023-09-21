@@ -28,7 +28,6 @@ SRS_HTTP_API=YES
 SRS_HTTP_CORE=YES
 SRS_HLS=YES
 SRS_DVR=YES
-SRS_CHERRYPY=NO
 # 
 ################################################################
 # FFmpeg stub is the stub code in SRS for ingester or encoder.
@@ -71,7 +70,7 @@ SRS_LOG_LEVEL_V2=YES
 # Experts options.
 SRS_USE_SYS_SSL=NO # Use system ssl(-lssl) if required.
 SRS_VALGRIND=NO
-SRS_SANITIZER=NO
+SRS_SANITIZER=RESERVED
 SRS_SANITIZER_STATIC=NO
 SRS_SANITIZER_LOG=NO
 SRS_BUILD_TAG= # Set the object files tag name.
@@ -91,6 +90,7 @@ SRS_GPROF=NO # Performance test: gprof
 #
 ################################################################
 # Preset options
+SRS_GENERIC_LINUX= # Try to run as generic linux, not CentOS or Ubuntu.
 SRS_OSX= #For OSX/macOS/Darwin PC.
 SRS_CYGWIN64= # For Cygwin64 for Windows PC or servers.
 SRS_CROSS_BUILD= #For cross build, for example, on Ubuntu.
@@ -145,6 +145,10 @@ function apply_system_options() {
     if [[ $OS_IS_OSX == YES ]]; then SRS_JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1); fi
     if [[ $OS_IS_LINUX == YES || $OS_IS_CYGWIN == YES ]]; then
         SRS_JOBS=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || echo 1)
+    fi
+
+    if [[ $OS_IS_UBUNTU != YES && $OS_IS_CENTOS != YES && $OS_IS_OSX != YES && $SRS_CYGWIN64 != YES ]]; then
+        echo "Warning: Your OS is not Ubuntu(no apt-get), CentOS(no yum), maxOS(not Darwin), Windows(not CYGWIN)"
     fi
 }
 apply_system_options
@@ -225,10 +229,10 @@ Experts:
   --log-trace=on|off        Whether enable the log trace level. Default: $(value2switch $SRS_LOG_TRACE)
   --log-level_v2=on|off     Whether use v2.0 log level definition, see log4j specs. Default: $(value2switch $SRS_LOG_LEVEL_V2)
   --backtrace=on|off        Whether show backtrace when crashing. Default: $(value2switch $SRS_BACKTRACE)
+  --generic-linux=on|off    Whether run as generic linux, if not CentOS or Ubuntu. Default: $(value2switch $SRS_GENERIC_LINUX)
 
 Deprecated:
   --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files. Default: $(value2switch $SRS_HDS)
-  --cherrypy=on|off         Whether install CherryPy for demo api-server. Default: $(value2switch $SRS_CHERRYPY)
   --osx                     Enable build for OSX/Darwin AppleOS. Deprecated for automatically detecting the OS.
   --x86-64                  Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
   --x86-x64                 Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
@@ -332,7 +336,6 @@ function parse_user_option() {
         --with-utest)                   SRS_UTEST=YES               ;;
         --without-utest)                SRS_UTEST=NO                ;;
         --utest)                        SRS_UTEST=$(switch2value $value) ;;
-        --cherrypy)                     SRS_CHERRYPY=$(switch2value $value) ;;
         --gcov)                         SRS_GCOV=$(switch2value $value) ;;
         --apm)                          SRS_APM=$(switch2value $value) ;;
 
@@ -407,6 +410,8 @@ function parse_user_option() {
         --debug)                        SRS_DEBUG=$(switch2value $value) ;;
         --debug-stats)                  SRS_DEBUG_STATS=$(switch2value $value) ;;
 
+        --generic-linux)                SRS_GENERIC_LINUX=$(switch2value $value) ;;
+
         # Alias for --arm, cross build.
         --cross-build)                  SRS_CROSS_BUILD=YES         ;;
         --enable-cross-compile)         SRS_CROSS_BUILD=YES         ;;
@@ -470,6 +475,11 @@ do
     parse_user_option
 done
 
+if [[ $help == YES ]]; then
+    show_help
+    exit 0
+fi
+
 #####################################################################################
 # Apply auto options
 #####################################################################################
@@ -516,7 +526,7 @@ function apply_auto_options() {
 
     # Enable asan, but disable for Centos
     # @see https://github.com/ossrs/srs/issues/3347
-    if [[ $SRS_SANITIZER == NO && $OS_IS_CENTOS != YES ]]; then
+    if [[ $SRS_SANITIZER == RESERVED && $OS_IS_CENTOS != YES ]]; then
         echo "Enable asan by auto options."
         SRS_SANITIZER=YES
     fi
@@ -568,11 +578,6 @@ function apply_auto_options() {
 }
 apply_auto_options
 
-if [[ $help == YES ]]; then
-    show_help
-    exit 0
-fi
-
 #####################################################################################
 # Apply detail options
 #####################################################################################
@@ -589,6 +594,8 @@ function apply_detail_options() {
     if [[ $SRS_HTTP_API == NO ]]; then SRS_HTTP_API=YES; echo -e "${YELLOW}[WARN] Always enable HTTP API.${BLACK}"; fi
     if [[ $SRS_HLS == NO ]]; then SRS_HLS=YES; echo -e "${YELLOW}[WARN] Always enable HLS.${BLACK}"; fi
     if [[ $SRS_DVR == NO ]]; then SRS_DVR=YES; echo -e "${YELLOW}[WARN] Always enable DVR.${BLACK}"; fi
+
+    if [[ $SRS_SANITIZER == RESERVED ]]; then SRS_SANITIZER == NO; fi
 }
 apply_detail_options
 
@@ -618,7 +625,6 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-converter=$(value2switch $SRS_STREAM_CASTER)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=$(value2switch $SRS_HTTP_API)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=$(value2switch $SRS_UTEST)"
-    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=$(value2switch $SRS_CHERRYPY)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=$(value2switch $SRS_H265)"
@@ -656,6 +662,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer-log=$(value2switch $SRS_SANITIZER_LOG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cygwin64=$(value2switch $SRS_CYGWIN64)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --single-thread=$(value2switch $SRS_SINGLE_THREAD)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --generic-linux=$(value2switch $SRS_GENERIC_LINUX)"
     if [[ $SRS_CROSS_BUILD_ARCH != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --arch=$SRS_CROSS_BUILD_ARCH"; fi
     if [[ $SRS_CROSS_BUILD_CPU != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --cpu=$SRS_CROSS_BUILD_CPU"; fi
     if [[ $SRS_CROSS_BUILD_HOST != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --host=$SRS_CROSS_BUILD_HOST"; fi

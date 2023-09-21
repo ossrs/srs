@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 // Package oggreader implements the Ogg media container reader
 package oggreader
 
@@ -29,7 +32,7 @@ var (
 
 // OggReader is used to read Ogg files and return page payloads
 type OggReader struct {
-	stream               io.ReadSeeker
+	stream               io.Reader
 	bytesReadSuccesfully int64
 	checksumTable        *[256]uint32
 	doChecksum           bool
@@ -64,12 +67,12 @@ type OggPageHeader struct {
 }
 
 // NewWith returns a new Ogg reader and Ogg header
-// with an io.ReadSeeker input
-func NewWith(in io.ReadSeeker) (*OggReader, *OggHeader, error) {
+// with an io.Reader input
+func NewWith(in io.Reader) (*OggReader, *OggHeader, error) {
 	return newWith(in /* doChecksum */, true)
 }
 
-func newWith(in io.ReadSeeker, doChecksum bool) (*OggReader, *OggHeader, error) {
+func newWith(in io.Reader, doChecksum bool) (*OggReader, *OggHeader, error) {
 	if in == nil {
 		return nil, nil, errNilStream
 	}
@@ -192,7 +195,7 @@ func (o *OggReader) ParseNextPage() ([]byte, *OggPageHeader, error) {
 // ResetReader resets the internal stream of OggReader. This is useful
 // for live streams, where the end of the file might be read without the
 // data being finished.
-func (o *OggReader) ResetReader(reset func(bytesRead int64) io.ReadSeeker) {
+func (o *OggReader) ResetReader(reset func(bytesRead int64) io.Reader) {
 	o.stream = reset(o.bytesReadSuccesfully)
 }
 

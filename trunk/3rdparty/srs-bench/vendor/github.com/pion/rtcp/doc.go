@@ -14,16 +14,17 @@ service parameters, perhaps by limiting flow, or using a different codec.
 
 Decoding RTCP packets:
 
-	pkt, err := rtcp.Unmarshal(rtcpData)
+	pkts, err := rtcp.Unmarshal(rtcpData)
 	// ...
-
-	switch p := pkt.(type) {
-	case *rtcp.CompoundPacket:
-		...
-	case *rtcp.PictureLossIndication:
-		...
-	default:
-		...
+	for _, pkt := range pkts {
+		switch p := pkt.(type) {
+		case *rtcp.CompoundPacket:
+			...
+		case *rtcp.PictureLossIndication:
+			...
+		default:
+			...
+		}
 	}
 
 Encoding RTCP packets:

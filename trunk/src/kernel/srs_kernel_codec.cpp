@@ -153,8 +153,10 @@ bool SrsFlvVideo::keyframe(char* data, int size)
     if (size < 1) {
         return false;
     }
-    
-    char frame_type = data[0];
+
+    // See rtmp_specification_1.0.pdf
+    // See https://github.com/veovera/enhanced-rtmp
+    uint8_t frame_type = data[0] & 0x7f;
     frame_type = (frame_type >> 4) & 0x0F;
     
     return frame_type == SrsVideoAvcFrameTypeKeyFrame;
@@ -173,14 +175,23 @@ bool SrsFlvVideo::sh(char* data, int size)
     if (size < 2) {
         return false;
     }
-    
-    char frame_type = data[0];
-    frame_type = (frame_type >> 4) & 0x0F;
-    
-    char avc_packet_type = data[1];
-    
+
+    uint8_t frame_type = data[0];
+    bool is_ext_header = frame_type & 0x80;
+    SrsVideoAvcFrameTrait avc_packet_type = SrsVideoAvcFrameTraitForbidden;
+    if (!is_ext_header) {
+        // See rtmp_specification_1.0.pdf
+        frame_type = (frame_type >> 4) & 0x0F;
+        avc_packet_type = (SrsVideoAvcFrameTrait)data[1];
+    } else {
+        // See https://github.com/veovera/enhanced-rtmp
+        avc_packet_type = (SrsVideoAvcFrameTrait)(frame_type & 0x0f);
+        frame_type = (frame_type >> 4) & 0x07;
+    }
+
+    // Note that SrsVideoHEVCFrameTraitPacketTypeSequenceStart is equal to SrsVideoAvcFrameTraitSequenceHeader
     return frame_type == SrsVideoAvcFrameTypeKeyFrame
-    && avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
+        && avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
 bool SrsFlvVideo::h264(char* data, int size)
@@ -204,8 +215,24 @@ bool SrsFlvVideo::hevc(char* data, int size)
         return false;
     }
 
-    char codec_id = data[0];
-    codec_id = codec_id & 0x0F;
+    uint8_t frame_type = data[0];
+    bool is_ext_header = frame_type & 0x80;
+    SrsVideoCodecId codec_id = SrsVideoCodecIdForbidden;
+    if (!is_ext_header) {
+        // See rtmp_specification_1.0.pdf
+        codec_id = (SrsVideoCodecId)(frame_type & 0x0F);
+    } else {
+        // See https://github.com/veovera/enhanced-rtmp
+        if (size < 5) {
+            return false;
+        }
+
+        // Video FourCC
+        if (data[1] != 'h' || data[2] != 'v' || data[3] != 'c' || data[4] != '1') {
+            return false;
+        }
+        codec_id = SrsVideoCodecIdHEVC;
+    }
 
     return codec_id == SrsVideoCodecIdHEVC;
 }
@@ -218,12 +245,34 @@ bool SrsFlvVideo::acceptable(char* data, int size)
         return false;
     }
     
-    char frame_type = data[0];
-    SrsVideoCodecId codec_id = (SrsVideoCodecId)(uint8_t)(frame_type & 0x0f);
-    frame_type = (frame_type >> 4) & 0x0f;
-    
-    if (frame_type < 1 || frame_type > 5) {
-        return false;
+    uint8_t frame_type = data[0];
+    bool is_ext_header = frame_type & 0x80;
+    SrsVideoCodecId codec_id = SrsVideoCodecIdForbidden;
+    if (!is_ext_header) {
+        // See rtmp_specification_1.0.pdf
+        codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
+        frame_type = (frame_type >> 4) & 0x0f;
+
+        if (frame_type < 1 || frame_type > 5) {
+            return false;
+        }
+    } else {
+        // See https://github.com/veovera/enhanced-rtmp
+        uint8_t packet_type = frame_type & 0x0f;
+        frame_type = (frame_type >> 4) & 0x07;
+
+        if (packet_type > SrsVideoHEVCFrameTraitPacketTypeMPEG2TSSequenceStart || frame_type > SrsVideoAvcFrameTypeVideoInfoFrame) {
+            return false;
+        }
+
+        if (size < 5) {
+            return false;
+        }
+
+        if (data[1] != 'h' || data[2] != 'v' || data[3] != 'c' || data[4] != '1') {
+            return false;
+        }
+        codec_id = SrsVideoCodecIdHEVC;
     }
     
     if (codec_id != SrsVideoCodecIdAVC && codec_id != SrsVideoCodecIdAV1 && codec_id != SrsVideoCodecIdHEVC) {
@@ -775,33 +824,7 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
     
     SrsBuffer* buffer = new SrsBuffer(data, size);
     SrsAutoFree(SrsBuffer, buffer);
-    
-    // We already checked the size is positive and data is not NULL.
-    srs_assert(buffer->require(1));
-    
-    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
-    int8_t frame_type = buffer->read_1bytes();
-    SrsVideoCodecId codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
 
-    // Check codec for H.264 and H.265.
-    bool codec_ok = (codec_id == SrsVideoCodecIdAVC);
-#ifdef SRS_H265
-    codec_ok = codec_ok ? true : (codec_id == SrsVideoCodecIdHEVC);
-#endif
-    if (!codec_ok) return err;
-    
-    if (!vcodec) {
-        vcodec = new SrsVideoCodecConfig();
-    }
-    if (!video) {
-        video = new SrsVideoFrame();
-    }
-    
-    if ((err = video->initialize(vcodec)) != srs_success) {
-        return srs_error_wrap(err, "init video");
-    }
-    
-    buffer->skip(-1 * buffer->pos());
     return video_avc_demux(buffer, timestamp);
 }
 
@@ -844,21 +867,96 @@ bool SrsFormat::is_avc_sequence_header()
         && video && video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
+// Remove the emulation bytes from stream, and return num of bytes of the rbsp.
+int srs_rbsp_remove_emulation_bytes(SrsBuffer* stream, std::vector<uint8_t>& rbsp)
+{
+    int nb_rbsp = 0;
+    while (!stream->empty()) {
+        rbsp[nb_rbsp] = stream->read_1bytes();
+
+        // .. 00 00 03 xx, the 03 byte should be drop where xx represents any
+        // 2 bit pattern: 00, 01, 10, or 11.
+        if (nb_rbsp >= 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
+            // read 1byte more.
+            if (stream->empty()) {
+                nb_rbsp++;
+                break;
+            }
+
+            // |---------------------|----------------------------|
+            // |      rbsp           |  nalu with emulation bytes |
+            // |---------------------|----------------------------|
+            // | 0x00 0x00 0x00      |     0x00 0x00 0x03 0x00    |
+            // | 0x00 0x00 0x01      |     0x00 0x00 0x03 0x01    |
+            // | 0x00 0x00 0x02      |     0x00 0x00 0x03 0x02    |
+            // | 0x00 0x00 0x03      |     0x00 0x00 0x03 0x03    |
+            // | 0x00 0x00 0x03 0x04 |     0x00 0x00 0x03 0x04    |
+            // |---------------------|----------------------------|
+            uint8_t ev = stream->read_1bytes();
+            if (ev > 3) {
+                nb_rbsp++;
+            }
+            rbsp[nb_rbsp] = ev;
+        }
+        
+        nb_rbsp++;
+    }
+
+    return nb_rbsp;
+}
+
 srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
 {
     srs_error_t err = srs_success;
-    
+
+    if (!stream->require(1)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "video avc demux shall atleast 1bytes");
+    }
+
+    // Parse the frame type and the first bit indicates the ext header.
+    uint8_t frame_type = stream->read_1bytes();
+    bool is_ext_header = frame_type & 0x80;
+
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
-    int8_t frame_type = stream->read_1bytes();
-    SrsVideoCodecId codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
-    frame_type = (frame_type >> 4) & 0x0f;
-    
+    SrsVideoCodecId codec_id = SrsVideoCodecIdForbidden;
+    SrsVideoAvcFrameTrait packet_type = SrsVideoAvcFrameTraitForbidden;
+    if (!is_ext_header) {
+        // See rtmp_specification_1.0.pdf
+        codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
+        frame_type = (frame_type >> 4) & 0x0f;
+    } else {
+        // See https://github.com/veovera/enhanced-rtmp
+        packet_type = (SrsVideoAvcFrameTrait)(frame_type & 0x0f);
+        frame_type = (frame_type >> 4) & 0x07;
+
+        if (!stream->require(4)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "fourCC requires 4bytes, only %dbytes", stream->left());
+        }
+
+        uint32_t four_cc = stream->read_4bytes();
+        if (four_cc == 0x68766331) { // 'hvc1'=0x68766331
+            codec_id = SrsVideoCodecIdHEVC;
+        }
+    }
+
+    if (!vcodec) {
+        vcodec = new SrsVideoCodecConfig();
+    }
+
+    if (!video) {
+        video = new SrsVideoFrame();
+    }
+
+    if ((err = video->initialize(vcodec)) != srs_success) {
+        return srs_error_wrap(err, "init video");
+    }
+
     video->frame_type = (SrsVideoAvcFrameType)frame_type;
     
     // ignore info frame without error,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     if (video->frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
-        srs_warn("avc igone the info frame");
+        srs_warn("avc ignore the info frame");
         return err;
     }
 
@@ -871,17 +969,29 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "only support video H.264/H.265, actual=%d", codec_id);
     }
     vcodec->id = codec_id;
-    
-    if (!stream->require(4)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode avc_packet_type");
+
+    int32_t composition_time = 0;
+    if (!is_ext_header) {
+        // See rtmp_specification_1.0.pdf
+        if (!stream->require(4)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires 4bytes, only %dbytes", stream->left());
+        }
+        packet_type = (SrsVideoAvcFrameTrait)stream->read_1bytes();
+        composition_time = stream->read_3bytes();
+    } else {
+        // See https://github.com/veovera/enhanced-rtmp
+        if (packet_type == SrsVideoHEVCFrameTraitPacketTypeCodedFrames) {
+            if (!stream->require(3)) {
+                return srs_error_new(ERROR_HLS_DECODE_ERROR, "requires 3 bytes, only %dbytes", stream->left());
+            }
+            composition_time = stream->read_3bytes();
+        }
     }
-    int8_t avc_packet_type = stream->read_1bytes();
-    int32_t composition_time = stream->read_3bytes();
-    
+
     // pts = dts + cts.
     video->dts = timestamp;
     video->cts = composition_time;
-    video->avc_packet_type = (SrsVideoAvcFrameTrait)avc_packet_type;
+    video->avc_packet_type = packet_type;
     
     // Update the RAW AVC data.
     raw = stream->data() + stream->pos();
@@ -890,12 +1000,12 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     // Parse sequence header for H.265/HEVC.
     if (codec_id == SrsVideoCodecIdHEVC) {
 #ifdef SRS_H265
-        if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
+        if (packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
             // TODO: demux vps/sps/pps for hevc
             if ((err = hevc_demux_hvcc(stream)) != srs_success) {
-                return srs_error_wrap(err, "demux hevc SPS/PPS");
+                return srs_error_wrap(err, "demux hevc VPS/SPS/PPS");
             }
-        } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU) {
+        } else if (packet_type == SrsVideoAvcFrameTraitNALU || packet_type == SrsVideoHEVCFrameTraitPacketTypeCodedFramesX) {
             // TODO: demux nalu for hevc
             if ((err = video_nalu_demux(stream)) != srs_success) {
                 return srs_error_wrap(err, "demux hevc NALU");
@@ -908,12 +1018,12 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     }
 
     // Parse sequence header for H.264/AVC.
-    if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
+    if (packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         // TODO: FIXME: Maybe we should ignore any error for parsing sps/pps.
         if ((err = avc_demux_sps_pps(stream)) != srs_success) {
             return srs_error_wrap(err, "demux SPS/PPS");
         }
-    } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU){
+    } else if (packet_type == SrsVideoAvcFrameTraitNALU){
         if ((err = video_nalu_demux(stream)) != srs_success) {
             return srs_error_wrap(err, "demux NALU");
         }
@@ -928,6 +1038,42 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
 // LCOV_EXCL_START
 
 #ifdef SRS_H265
+// struct ptl
+SrsHevcProfileTierLevel::SrsHevcProfileTierLevel()
+{
+    general_profile_space = 0;
+    general_tier_flag = 0;
+    general_profile_idc = 0;
+    memset(general_profile_compatibility_flag, 0, 32);
+    general_progressive_source_flag = 0;
+    general_interlaced_source_flag = 0;
+    general_non_packed_constraint_flag = 0;
+    general_frame_only_constraint_flag = 0;
+    general_max_12bit_constraint_flag = 0;
+    general_max_10bit_constraint_flag = 0;
+    general_max_8bit_constraint_flag = 0;
+    general_max_422chroma_constraint_flag = 0;
+    general_max_420chroma_constraint_flag = 0;
+    general_max_monochrome_constraint_flag = 0;
+    general_intra_constraint_flag = 0;
+    general_one_picture_only_constraint_flag = 0;
+    general_lower_bit_rate_constraint_flag = 0;
+    general_max_14bit_constraint_flag = 0;
+    general_reserved_zero_7bits = 0;
+    general_reserved_zero_33bits = 0;
+    general_reserved_zero_34bits = 0;
+    general_reserved_zero_35bits = 0;
+    general_reserved_zero_43bits = 0;
+    general_inbld_flag = 0;
+    general_reserved_zero_bit = 0;
+    general_level_idc = 0;
+    memset(reserved_zero_2bits, 0, 8);
+}
+
+SrsHevcProfileTierLevel::~SrsHevcProfileTierLevel()
+{
+}
+
 // Parse the hevc vps/sps/pps
 srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
 {
@@ -1012,6 +1158,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
         dec_conf_rec_p->temporal_id_nested, dec_conf_rec_p->length_size_minus_one, numOfArrays);
 
     //parse vps/pps/sps
+    dec_conf_rec_p->nalu_vec.clear();
     for (int index = 0; index < numOfArrays; index++) {
         if (!stream->require(3)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires 3 only %d bytes", stream->left());
@@ -1047,7 +1194,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream)
 
         // demux nalu
         if ((err = hevc_demux_vps_sps_pps(&hevc_unit)) != srs_success) {
-            return srs_error_wrap(err, "hevc demux vps sps pps failed");
+            return srs_error_wrap(err, "hevc demux vps/sps/pps failed");
         }
     }
 
@@ -1115,26 +1262,9 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
 
     // decode the rbsp from vps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(stream->size());
+    std::vector<uint8_t> rbsp(stream->size());
 
-    int nb_rbsp = 0;
-    while (!stream->empty()) {
-        rbsp[nb_rbsp] = stream->read_1bytes();
-
-        // XX 00 00 03 XX, the 03 byte should be drop.
-        if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
-            // read 1byte more.
-            if (stream->empty()) {
-                break;
-            }
-            rbsp[nb_rbsp] = stream->read_1bytes();
-            nb_rbsp++;
-
-            continue;
-        }
-
-        nb_rbsp++;
-    }
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
 
     return hevc_demux_vps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
@@ -1261,26 +1391,9 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
 
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(stream->size());
+    std::vector<uint8_t> rbsp(stream->size());
 
-    int nb_rbsp = 0;
-    while (!stream->empty()) {
-        rbsp[nb_rbsp] = stream->read_1bytes();
-
-        // XX 00 00 03 XX, the 03 byte should be drop.
-        if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
-            // read 1byte more.
-            if (stream->empty()) {
-                break;
-            }
-            rbsp[nb_rbsp] = stream->read_1bytes();
-            nb_rbsp++;
-
-            continue;
-        }
-
-        nb_rbsp++;
-    }
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
 
     return hevc_demux_sps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
@@ -1317,7 +1430,6 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 
     // profile tier level...
     SrsHevcProfileTierLevel profile_tier_level;
-    memset((void*)&profile_tier_level, 0, sizeof(SrsHevcProfileTierLevel));
     // profile_tier_level(1, sps_max_sub_layers_minus1)
     if ((err = hevc_demux_rbsp_ptl(&bs, &profile_tier_level, 1, sps_max_sub_layers_minus1)) != srs_success) {
         return srs_error_wrap(err, "sps rbsp ptl sps_max_sub_layers_minus1=%d", sps_max_sub_layers_minus1);
@@ -1343,7 +1455,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     sps->sps_max_sub_layers_minus1 = sps_max_sub_layers_minus1;
     sps->sps_temporal_id_nesting_flag = sps_temporal_id_nesting_flag;
     sps->sps_seq_parameter_set_id = sps_seq_parameter_set_id;
-    memcpy(&(sps->ptl), &profile_tier_level, sizeof(SrsHevcProfileTierLevel));
+    sps->ptl = profile_tier_level;
 
     // chroma_format_idc  ue(v)
     if ((err = bs.read_bits_ue(sps->chroma_format_idc)) != srs_success) {
@@ -1463,28 +1575,11 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
     // nuh_layer_id + nuh_temporal_id_plus1
     stream->skip(1);
 
-    // decode the rbsp from sps.
+    // decode the rbsp from pps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(stream->size());
+    std::vector<uint8_t> rbsp(stream->size());
 
-    int nb_rbsp = 0;
-    while (!stream->empty()) {
-        rbsp[nb_rbsp] = stream->read_1bytes();
-
-        // XX 00 00 03 XX, the 03 byte should be drop.
-        if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
-            // read 1byte more.
-            if (stream->empty()) {
-                break;
-            }
-            rbsp[nb_rbsp] = stream->read_1bytes();
-            nb_rbsp++;
-
-            continue;
-        }
-
-        nb_rbsp++;
-    }
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
 
     return hevc_demux_pps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
@@ -1652,7 +1747,7 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
         pps->deblocking_filter_override_enabled_flag = bs.read_bit();
         // pps_deblocking_filter_disabled_flag  u(1)
         pps->pps_deblocking_filter_disabled_flag = bs.read_bit();
-        if (pps->pps_deblocking_filter_disabled_flag) {
+        if (!pps->pps_deblocking_filter_disabled_flag) {
             // pps_beta_offset_div2  se(v)
             if ((err = bs.read_bits_se(pps->pps_beta_offset_div2)) != srs_success) {
                 return srs_error_wrap(err, "pps_beta_offset_div2");
@@ -1744,78 +1839,9 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
         pps->pps_extension_4bits = bs.read_bits(4);
     }
 
-    if (pps->pps_range_extension_flag) {
-        if (pps->transform_skip_enabled_flag) {
-            if ((err = bs.read_bits_ue(pps->pps_range_extension.log2_max_transform_skip_block_size_minus2)) != srs_success) {
-                return srs_error_wrap(err, "log2_max_transform_skip_block_size_minus2");
-            }
-        }
-
-        if (!bs.require_bits(2)) {
-            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "cross_component_prediction_enabled_flag requires 2 only %d bits", bs.left_bits());
-        }
-
-        // cross_component_prediction_enabled_flag  u(1)
-        pps->pps_range_extension.cross_component_prediction_enabled_flag = bs.read_bit();
-        // chroma_qp_offset_list_enabled_flag  u(1)
-        pps->pps_range_extension.chroma_qp_offset_list_enabled_flag = bs.read_bit();
-        if (pps->pps_range_extension.chroma_qp_offset_list_enabled_flag) {
-            // diff_cu_chroma_qp_offset_depth  ue(v)
-            if ((err = bs.read_bits_ue(pps->pps_range_extension.diff_cu_chroma_qp_offset_depth)) != srs_success) {
-                return srs_error_wrap(err, "diff_cu_chroma_qp_offset_depth");
-            }
-
-            // chroma_qp_offset_list_len_minus1  ue(v)
-            if ((err = bs.read_bits_ue(pps->pps_range_extension.chroma_qp_offset_list_len_minus1)) != srs_success) {
-                return srs_error_wrap(err, "chroma_qp_offset_list_len_minus1");
-            }
-
-            pps->pps_range_extension.cb_qp_offset_list.resize(pps->pps_range_extension.chroma_qp_offset_list_len_minus1);
-            pps->pps_range_extension.cr_qp_offset_list.resize(pps->pps_range_extension.chroma_qp_offset_list_len_minus1);
-
-            for (int i = 0; i < (int)pps->pps_range_extension.chroma_qp_offset_list_len_minus1; i++) {
-                // cb_qp_offset_list[i]  se(v)
-                if ((err = bs.read_bits_se(pps->pps_range_extension.cb_qp_offset_list[i])) != srs_success) {
-                    return srs_error_wrap(err, "cb_qp_offset_list");
-                }
-
-                // cr_qp_offset_list[i] se(v)
-                if ((err = bs.read_bits_se(pps->pps_range_extension.cr_qp_offset_list[i])) != srs_success) {
-                    return srs_error_wrap(err, "cr_qp_offset_list");
-                }
-            }
-        }
-
-        // log2_sao_offset_scale_luma  ue(v)
-        if ((err = bs.read_bits_ue(pps->pps_range_extension.log2_sao_offset_scale_luma)) != srs_success) {
-            return srs_error_wrap(err, "log2_sao_offset_scale_luma");
-        }
-
-        // log2_sao_offset_scale_chroma  ue(v)
-        if ((err = bs.read_bits_ue(pps->pps_range_extension.log2_sao_offset_scale_chroma)) != srs_success) {
-            return srs_error_wrap(err, "log2_sao_offset_scale_chroma");
-        }
-    }
-
-    if (pps->pps_multilayer_extension_flag){
-        // pps_multilayer_extension, specified in Annex F
-        // TODO: FIXME: add support for pps_multilayer_extension()
-    }
-
-    if (pps->pps_3d_extension_flag) {
-        // pps_3d_extension, specified in Annex I
-        // TODO: FIXME: add support for pps_3d_extension()
-    }
-
-    if (pps->pps_scc_extension_flag) {
-        // pps_scc_extension_flag
-        // TODO: FIXME: add support for pps_scc_extension()
-    }
-
-    if (pps->pps_extension_4bits) {
-        // more_rbsp_data
-        // TODO: FIXME: add support for more_rbsp_data()
-    }
+    // TODO: FIXME: Implements it, you might parse remain bits for pic_parameter_set_rbsp.
+    // @see 7.3.2.3 Picture parameter set RBSP syntax
+    // @doc ITU-T-H.265-2021.pdf, page 59.
 
     // TODO: FIXME: rbsp_trailing_bits
 
@@ -2231,30 +2257,12 @@ srs_error_t SrsFormat::avc_demux_sps()
     
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(vcodec->sequenceParameterSetNALUnit.size());
+    std::vector<uint8_t> rbsp(vcodec->sequenceParameterSetNALUnit.size());
     
-    int nb_rbsp = 0;
-    while (!stream.empty()) {
-        rbsp[nb_rbsp] = stream.read_1bytes();
-        
-        // XX 00 00 03 XX, the 03 byte should be drop.
-        if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
-            // read 1byte more.
-            if (stream.empty()) {
-                break;
-            }
-            rbsp[nb_rbsp] = stream.read_1bytes();
-            nb_rbsp++;
-            
-            continue;
-        }
-        
-        nb_rbsp++;
-    }
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(&stream, rbsp);
     
     return avc_demux_sps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
-
 
 srs_error_t SrsFormat::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 {

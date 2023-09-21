@@ -65,7 +65,7 @@ func prepareTest() (err error) {
 	srsMediaTimeout = flag.Int("srs-media-timeout", 2100, "PS media disconnect timeout in ms")
 	srsReinviteTimeout = flag.Int("srs-reinvite-timeout", 1200, "When disconnect, SIP re-invite timeout in ms")
 	srsPublishAudio = flag.String("srs-publish-audio", "avatar.aac", "The audio file for publisher.")
-	srsPublishVideo = flag.String("srs-publish-video", "avatar.h264", "The video file for publisher.")
+	srsPublishVideo = flag.String("srs-publish-video", "avatar.h264", "The video file for publisher. Note that *.h264 is for AVC, *.h265 is for HEVC.")
 	srsPublishVideoFps = flag.Int("srs-publish-video-fps", 25, "The video fps for publisher.")
 
 	// Should parse it first.

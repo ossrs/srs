@@ -3049,6 +3049,63 @@ VOID TEST(ProtocolRTMPTest, GenerateURL)
     }
 }
 
+VOID TEST(ProtocolRTMPTest, GenerateURLForFFmpeg)
+{
+    // For https://github.com/ossrs/srs/issues/3405
+    if (true) {
+        string host("192.168.1.100"), vhost("localhost"), stream("stream"), param("?vhost=localhost");
+        string url = srs_generate_stream_with_query(host, vhost, stream, param, false);
+        EXPECT_STREQ("stream", url.c_str());
+    }
+
+    if (true) {
+        string host("192.168.1.100"), vhost("localhost"), stream("stream"), param("?k=v&vhost=localhost");
+        string url = srs_generate_stream_with_query(host, vhost, stream, param, false);
+        EXPECT_STREQ("stream?k=v", url.c_str());
+    }
+
+    if (true) {
+        string host("192.168.1.100"), vhost("localhost"), stream("stream"), param("?vhost=localhost&k=v");
+        string url = srs_generate_stream_with_query(host, vhost, stream, param, false);
+        EXPECT_STREQ("stream?k=v", url.c_str());
+    }
+
+    if (true) {
+        string host("192.168.1.100"), vhost("localhost"), stream("stream"), param("?k=v");
+        string url = srs_generate_stream_with_query(host, vhost, stream, param, false);
+        EXPECT_STREQ("stream?k=v", url.c_str());
+    }
+}
+
+VOID TEST(ProtocolRTMPTest, DiscoveryTcUrlLegacy)
+{
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://127.0.0.1:19351/live...vhost...demo"; stream= "show";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("127.0.0.1", ip.c_str());
+        EXPECT_STREQ("demo", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(19351, port);
+    }
+
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://127.0.0.1:19351/live...vhost...demo&token=abc"; stream= "show";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("127.0.0.1", ip.c_str());
+        EXPECT_STREQ("demo", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(19351, port);
+    }
+}
+
 /**
 * discovery tcUrl to schema/vhost/host/port/app
 */

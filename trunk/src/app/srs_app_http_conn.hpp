@@ -67,6 +67,7 @@ protected:
     SrsHttpParser* parser;
     ISrsHttpServeMux* http_mux;
     SrsHttpCorsMux* cors;
+    SrsHttpAuthMux* auth;
     ISrsHttpConnOwner* handler_;
 protected:
     ISrsProtocolReadWriter* skt;
@@ -111,6 +112,8 @@ public:
     virtual srs_error_t pull();
     // Whether enable the CORS(cross-domain).
     virtual srs_error_t set_crossdomain_enabled(bool v);
+    // Whether enable the Auth.
+    virtual srs_error_t set_auth_enabled(bool auth_enabled);
     // Whether enable the JSONP.
     virtual srs_error_t set_jsonp(bool v);
 // Interface ISrsConnection.

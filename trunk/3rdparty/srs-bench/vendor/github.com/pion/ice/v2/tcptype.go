@@ -1,9 +1,12 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package ice
 
 import "strings"
 
 // TCPType is the type of ICE TCP candidate as described in
-// ttps://tools.ietf.org/html/rfc6544#section-4.5
+// https://tools.ietf.org/html/rfc6544#section-4.5
 type TCPType int
 
 const (

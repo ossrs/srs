@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="srs-stack" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-c containers/conf/srs.release-local.conf" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" WORKING_DIR="file://$USER_HOME$/git/srs-stack/platform" PASS_PARENT_ENVS_2="true" PROJECT_NAME="srs" TARGET_NAME="srs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="srs" RUN_TARGET_NAME="srs">
+    <envs>
+      <env name="SRS_RTC_SERVER_ENABLED" value="on" />
+      <env name="MallocNanoZone" value="0" />
+    </envs>
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>

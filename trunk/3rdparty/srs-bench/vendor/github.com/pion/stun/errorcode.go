@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package stun
 
 import (
@@ -29,7 +32,7 @@ const (
 
 // AddTo adds ERROR-CODE to m.
 func (c ErrorCodeAttribute) AddTo(m *Message) error {
-	value := make([]byte, 0, errorCodeReasonMaxB)
+	value := make([]byte, 0, errorCodeReasonStart+errorCodeReasonMaxB)
 	if err := CheckOverflow(AttrErrorCode,
 		len(c.Reason)+errorCodeReasonStart,
 		errorCodeReasonMaxB+errorCodeReasonStart,
@@ -131,6 +134,7 @@ const (
 	CodePeerAddrFamilyMismatch ErrorCode = 443 // Peer Address Family Mismatch
 )
 
+//nolint:gochecknoglobals
 var errorReasons = map[ErrorCode][]byte{
 	CodeTryAlternate:     []byte("Try Alternate"),
 	CodeBadRequest:       []byte("Bad Request"),

@@ -134,6 +134,8 @@ public:
 public:
     srs_error_t protect_rtp(void* packet, int* nb_cipher);
     srs_error_t protect_rtcp(void* packet, int* nb_cipher);
+    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
+    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 };
 
 // Plaintext transport, without DTLS or SRTP.
@@ -267,7 +269,7 @@ public:
 private:
     srs_error_t on_rtcp_xr(SrsRtcpXr* rtcp);
     srs_error_t on_rtcp_nack(SrsRtcpNack* rtcp);
-    srs_error_t on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp);
+    srs_error_t on_rtcp_ps_feedback(SrsRtcpFbCommon* rtcp);
     srs_error_t on_rtcp_rr(SrsRtcpRR* rtcp);
     uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
 // Interface ISrsRtcPLIWorkerHandler
@@ -442,6 +444,8 @@ private:
 private:
     // The local:remote username, such as m5x0n128:jvOm where local name is m5x0n128.
     std::string username_;
+    // The random token to verify the WHIP DELETE request etc.
+    std::string token_;
     // A group of networks, each has its own DTLS and SRTP context.
     SrsRtcNetworks* networks_;
 private:
@@ -482,6 +486,8 @@ public:
     void set_state_as_waiting_stun();
     // Get username pair for this connection, used as ID of session.
     std::string username();
+    // Get the token for verify this session, for example, when delete session by WHIP API.
+    std::string token();
 public:
     virtual ISrsKbpsDelta* delta();
 // Interface ISrsResource.
@@ -511,7 +517,7 @@ private:
     srs_error_t dispatch_rtcp(SrsRtcpCommon* rtcp);
 public:
     srs_error_t on_rtcp_feedback_twcc(char* buf, int nb_buf);
-    srs_error_t on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp);
+    srs_error_t on_rtcp_feedback_remb(SrsRtcpFbCommon *rtcp);
 public:
     srs_error_t on_dtls_handshake_done();
     srs_error_t on_dtls_alert(std::string type, std::string desc);

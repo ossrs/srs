@@ -33,13 +33,5 @@ If you need commercial support or don't want to use public methods you can conta
 ### Contributing
 Check out the **[contributing wiki](https://github.com/pion/webrtc/wiki/Contributing)** to join the group of amazing people making this project possible:
 
-* [John Bradley](https://github.com/kc5nra) - *Original Author*
-* [Sean DuBois](https://github.com/Sean-Der) - *Original Author*
-* [Michiel De Backker](https://github.com/backkem) - *Public API*
-* [Yutaka Takeda](https://github.com/enobufs) - *PR-SCTP*
-* [Hugo Arregui](https://github.com/hugoArregui)
-* [Atsushi Watanabe](https://github.com/at-wat)
-* [Norman Rasmussen](https://github.com/normanr) - *Fix Empty DataChannel messages*
-
 ### License
 MIT License - see [LICENSE](LICENSE) for full text

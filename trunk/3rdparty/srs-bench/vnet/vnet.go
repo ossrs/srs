@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 Winlin
+// # Copyright (c) 2021 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -21,7 +21,7 @@
 package vnet
 
 import (
-	"github.com/pion/transport/vnet"
+	"github.com/pion/transport/v2/vnet"
 )
 
 type Router = vnet.Router
@@ -30,7 +30,7 @@ type Net = vnet.Net
 type NetConfig = vnet.NetConfig
 type RouterConfig = vnet.RouterConfig
 
-func NewNet(config *NetConfig) *Net {
+func NewNet(config *NetConfig) (*Net, error) {
 	return vnet.NewNet(config)
 }
 func NewRouter(config *RouterConfig) (*Router, error) {

@@ -1258,7 +1258,6 @@ class SrsTsContextWriter
 {
 private:
     // User must config the codec in right way.
-    // @see https://github.com/ossrs/srs/issues/301
     SrsVideoCodecId vcodec_;
     SrsAudioCodecId acodec_;
 private:

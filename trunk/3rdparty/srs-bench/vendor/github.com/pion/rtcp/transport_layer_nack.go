@@ -33,8 +33,6 @@ type TransportLayerNack struct {
 	Nacks []NackPair
 }
 
-var _ Packet = (*TransportLayerNack)(nil) // assert is a Packet
-
 // NackPairsFromSequenceNumbers generates a slice of NackPair from a list of SequenceNumbers
 // This handles generating the proper values for PacketID/LostPackets
 func NackPairsFromSequenceNumbers(sequenceNumbers []uint16) (pairs []NackPair) {

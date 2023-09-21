@@ -85,11 +85,14 @@ srs_error_t MockSrsConfig::build_buffer(std::string src, srs_internal::SrsConfig
 {
     srs_error_t err = srs_success;
 
-    string content = included_files[src];
-    if(content.empty()) {
+    // No file, error.
+    if(included_files.find(src) == included_files.end()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "file %s: no found", src.c_str());
     }
 
+    string content = included_files[src];
+
+    // Empty file, ok.
     *pbuffer = new MockSrsConfigBuffer(content);
 
     return err;
@@ -689,10 +692,30 @@ VOID TEST(ConfigDirectiveTest, ParseInvalidNoEndOfDirective)
 VOID TEST(ConfigDirectiveTest, ParseInvalidNoEndOfSubDirective)
 {
     srs_error_t err;
-    
-    MockSrsConfigBuffer buf("dir0 {");
-    SrsConfDirective conf;
-    HELPER_ASSERT_FAILED(conf.parse(&buf));
+
+    if (true) {
+        MockSrsConfigBuffer buf("");
+        SrsConfDirective conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("# OK");
+        SrsConfDirective conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 {");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 {} dir1 {");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+    }
 }
 
 VOID TEST(ConfigDirectiveTest, ParseInvalidNoStartOfSubDirective)
@@ -3639,7 +3662,7 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "http_api{enabled on;listen xxx;crossdomain off;raw_api {enabled on;allow_reload on;allow_query on;allow_update on;}}"));
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "http_api{enabled on;listen xxx;crossdomain off;auth {enabled on;username admin;password 123456;}raw_api {enabled on;allow_reload on;allow_query on;allow_update on;}}"));
         EXPECT_TRUE(conf.get_http_api_enabled());
         EXPECT_STREQ("xxx", conf.get_http_api_listen().c_str());
         EXPECT_FALSE(conf.get_http_api_crossdomain());
@@ -3647,6 +3670,9 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
         EXPECT_TRUE(conf.get_raw_api_allow_reload());
         EXPECT_FALSE(conf.get_raw_api_allow_query()); // Always disabled
         EXPECT_FALSE(conf.get_raw_api_allow_update()); // Always disabled
+        EXPECT_TRUE(conf.get_http_api_auth_enabled());
+        EXPECT_STREQ("admin", conf.get_http_api_auth_username().c_str());
+        EXPECT_STREQ("123456", conf.get_http_api_auth_password().c_str());
     }
 
     if (true) {
@@ -4112,6 +4138,15 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHttpApi)
 
         SrsSetEnvConfig(http_api_crossdomain, "SRS_HTTP_API_CROSSDOMAIN", "off");
         EXPECT_FALSE(conf.get_http_api_crossdomain());
+
+        SrsSetEnvConfig(http_api_auth_enabled, "SRS_HTTP_API_AUTH_ENABLED", "on");
+        EXPECT_TRUE(conf.get_http_api_auth_enabled());
+
+        SrsSetEnvConfig(http_api_auth_username, "SRS_HTTP_API_AUTH_USERNAME", "admin");
+        EXPECT_STREQ("admin", conf.get_http_api_auth_username().c_str());
+
+        SrsSetEnvConfig(http_api_auth_password, "SRS_HTTP_API_AUTH_PASSWORD", "123456");
+        EXPECT_STREQ("123456", conf.get_http_api_auth_password().c_str());
     }
 
     if (true) {
@@ -4311,6 +4346,23 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesRtcServer)
         SrsSetEnvConfig(rtc_server_black_hole_addr, "SRS_RTC_SERVER_BLACK_HOLE_ADDR", "xxx");
         EXPECT_STREQ("xxx", conf.get_rtc_server_black_hole_addr().c_str());
     }
+
+    if (true) {
+        MockSrsConfig conf;
+
+        SrsSetEnvConfig(rtc_server_candidates, "SRS_RTC_SERVER_CANDIDATE", "192.168.0.1");
+        EXPECT_STREQ("192.168.0.1", conf.get_rtc_server_candidates().c_str());
+
+        SrsSetEnvConfig(rtc_server_candidates2, "SRS_RTC_SERVER_CANDIDATE", "MY_CANDIDATE");
+        EXPECT_STREQ("MY_CANDIDATE", conf.get_rtc_server_candidates().c_str());
+
+        SrsSetEnvConfig(rtc_server_candidates3, "SRS_RTC_SERVER_CANDIDATE", "$MY_CANDIDATE");
+        EXPECT_STREQ("*", conf.get_rtc_server_candidates().c_str());
+
+        SrsSetEnvConfig(candidates, "MY_CANDIDATE", "192.168.0.11");
+        SrsSetEnvConfig(rtc_server_candidates4, "SRS_RTC_SERVER_CANDIDATE", "$MY_CANDIDATE");
+        EXPECT_STREQ("192.168.0.11", conf.get_rtc_server_candidates().c_str());
+    }
 }
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesVhostRtc)
@@ -4461,6 +4513,9 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostPublish)
 
         SrsSetEnvConfig(try_annexb_first, "SRS_VHOST_PUBLISH_TRY_ANNEXB_FIRST", "off");
         EXPECT_FALSE(conf.try_annexb_first("__defaultVhost__"));
+
+        SrsSetEnvConfig(kickoff_for_idle, "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "30");
+        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_publish_kickoff_for_idle("__defaultVhost__"));
     }
 }
 
@@ -4737,8 +4792,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesDash)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesHds)
 {
-    srs_error_t err;
-
     if (true) {
         MockSrsConfig conf;
 

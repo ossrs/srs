@@ -5,9 +5,9 @@ Usage:
     nn_coroutines
     nn_coroutines 1000
 '''
-class NnCouroutines(gdb.Command):
+class NnCoroutines(gdb.Command):
     def __init__(self):
-        super(NnCouroutines, self).__init__('nn_coroutines', gdb.COMMAND_DATA)
+        super(NnCoroutines, self).__init__('nn_coroutines', gdb.COMMAND_DATA)
 
     # https://sourceware.org/gdb/current/onlinedocs/gdb/Python-API.html#Python-API
     def invoke(self, arg, from_tty):
@@ -34,15 +34,15 @@ class NnCouroutines(gdb.Command):
         # Result.
         print('total coroutines: %s'%(nn_coroutines))
 
-NnCouroutines()
+NnCoroutines()
 
 '''
 Usage:
     show_coroutines
 '''
-class ShowCouroutines(gdb.Command):
+class ShowCoroutines(gdb.Command):
     def __init__(self):
-        super(ShowCouroutines, self).__init__('show_coroutines', gdb.COMMAND_DATA)
+        super(ShowCoroutines, self).__init__('show_coroutines', gdb.COMMAND_DATA)
 
     # https://sourceware.org/gdb/current/onlinedocs/gdb/Python-API.html#Python-API
     def invoke(self, arg, from_tty):
@@ -67,4 +67,4 @@ class ShowCouroutines(gdb.Command):
             print('Error: prev=%s, this=%s, next=%s'%(prev, pthis, pnext))
             traceback.print_exc()
 
-ShowCouroutines()
+ShowCoroutines()

@@ -58,6 +58,7 @@ private:
 class SrsGoApiRtcWhip : public ISrsHttpHandler
 {
 private:
+    SrsRtcServer* server_;
     SrsGoApiRtcPublish* publish_;
     SrsGoApiRtcPlay* play_;
 public:
@@ -65,6 +66,8 @@ public:
     virtual ~SrsGoApiRtcWhip();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRtcUserConfig* ruc);
 };
 
 class SrsGoApiRtcNACK : public ISrsHttpHandler

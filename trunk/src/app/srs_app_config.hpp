@@ -256,6 +256,19 @@ private:
     virtual srs_error_t read_token(srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start, SrsDirectiveState& state);
 };
 
+// The state for reloading config.
+enum SrsReloadState {
+    SrsReloadStateInit = 0,
+    // Start to parse the new config file.
+    SrsReloadStateParsing = 10,
+    // Start to transform the new config file to new version.
+    SrsReloadStateTransforming = 20,
+    // Start to apply the new config file.
+    SrsReloadStateApplying = 30,
+    // The reload is finished.
+    SrsReloadStateFinished = 90,
+};
+
 // The config service provider.
 // For the config supports reload, so never keep the reference cross st-thread,
 // that is, never save the SrsConfDirective* get by any api of config,
@@ -308,7 +321,7 @@ public:
     virtual void unsubscribe(ISrsReloadHandler* handler);
     // Reload  the config file.
     // @remark, user can test the config before reload it.
-    virtual srs_error_t reload();
+    virtual srs_error_t reload(SrsReloadState *pstate);
 private:
     // Reload  the vhost section of config.
     virtual srs_error_t reload_vhost(SrsConfDirective* old_root);
@@ -531,6 +544,8 @@ public:
     bool get_rtc_nack_enabled(std::string vhost);
     bool get_rtc_nack_no_copy(std::string vhost);
     bool get_rtc_twcc_enabled(std::string vhost);
+    int get_rtc_opus_bitrate(std::string vhost);
+    int get_rtc_aac_bitrate(std::string vhost);
 
 // vhost specified section
 public:
@@ -636,6 +651,9 @@ public:
     virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost);
     // The normal packet timeout in srs_utime_t for encoder.
     virtual srs_utime_t get_publish_normal_timeout(std::string vhost);
+    // The kickoff timeout in srs_utime_t for publisher.
+    virtual srs_utime_t get_publish_kickoff_for_idle(std::string vhost);
+    virtual srs_utime_t get_publish_kickoff_for_idle(SrsConfDirective* vhost);
 private:
     // Get the global chunk size.
     virtual int get_global_chunk_size();
@@ -689,6 +707,7 @@ public:
 private:
     SrsConfDirective* get_srt(std::string vhost);
 public:
+    // TODO: FIXME: Rename to get_vhost_srt_enabled.
     bool get_srt_enabled(std::string vhost);
     bool get_srt_to_rtmp(std::string vhost);
 
@@ -1018,6 +1037,12 @@ public:
     virtual bool get_raw_api_allow_query();
     // Whether allow rpc update.
     virtual bool get_raw_api_allow_update();
+    // Whether http api auth enabled.
+    virtual bool get_http_api_auth_enabled();
+    // Get the http api auth username.
+    virtual std::string get_http_api_auth_username();
+    // Get the http api auth password.
+    virtual std::string get_http_api_auth_password();
 // https api section
 private:
     SrsConfDirective* get_https_api();

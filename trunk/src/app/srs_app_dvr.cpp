@@ -737,6 +737,7 @@ void SrsDvrSessionPlan::on_unpublish()
     srs_error_t err = segment->close();
     if (err != srs_success) {
         srs_warn("ignore flv close error %s", srs_error_desc(err).c_str());
+        srs_error_reset(err);
     }
     
     dvr_enabled = false;
@@ -867,7 +868,6 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     }
     
     // when wait keyframe, ignore if no frame arrived.
-    // @see https://github.com/ossrs/srs/issues/177
     if (wait_keyframe) {
         if (!msg->is_video()) {
             return err;

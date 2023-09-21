@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package nack
 
 import (
@@ -9,11 +12,46 @@ import (
 	"github.com/pion/rtp"
 )
 
+// ResponderInterceptorFactory is a interceptor.Factory for a ResponderInterceptor
+type ResponderInterceptorFactory struct {
+	opts []ResponderOption
+}
+
+type packetFactory interface {
+	NewPacket(header *rtp.Header, payload []byte) (*retainablePacket, error)
+}
+
+// NewInterceptor constructs a new ResponderInterceptor
+func (r *ResponderInterceptorFactory) NewInterceptor(_ string) (interceptor.Interceptor, error) {
+	i := &ResponderInterceptor{
+		size:    1024,
+		log:     logging.NewDefaultLoggerFactory().NewLogger("nack_responder"),
+		streams: map[uint32]*localStream{},
+	}
+
+	for _, opt := range r.opts {
+		if err := opt(i); err != nil {
+			return nil, err
+		}
+	}
+
+	if i.packetFactory == nil {
+		i.packetFactory = newPacketManager()
+	}
+
+	if _, err := newSendBuffer(i.size); err != nil {
+		return nil, err
+	}
+
+	return i, nil
+}
+
 // ResponderInterceptor responds to nack feedback messages
 type ResponderInterceptor struct {
 	interceptor.NoOp
-	size uint16
-	log  logging.LeveledLogger
+	size          uint16
+	log           logging.LeveledLogger
+	packetFactory packetFactory
 
 	streams   map[uint32]*localStream
 	streamsMu sync.Mutex
@@ -24,25 +62,9 @@ type localStream struct {
 	rtpWriter  interceptor.RTPWriter
 }
 
-// NewResponderInterceptor returns a new GeneratorInterceptor interceptor
-func NewResponderInterceptor(opts ...ResponderOption) (*ResponderInterceptor, error) {
-	r := &ResponderInterceptor{
-		size:    8192,
-		log:     logging.NewDefaultLoggerFactory().NewLogger("nack_responder"),
-		streams: map[uint32]*localStream{},
-	}
-
-	for _, opt := range opts {
-		if err := opt(r); err != nil {
-			return nil, err
-		}
-	}
-
-	if _, err := newSendBuffer(r.size); err != nil {
-		return nil, err
-	}
-
-	return r, nil
+// NewResponderInterceptor returns a new ResponderInterceptorFactor
+func NewResponderInterceptor(opts ...ResponderOption) (*ResponderInterceptorFactory, error) {
+	return &ResponderInterceptorFactory{opts}, nil
 }
 
 // BindRTCPReader lets you modify any incoming RTCP packets. It is called once per sender/receiver, however this might
@@ -54,7 +76,10 @@ func (n *ResponderInterceptor) BindRTCPReader(reader interceptor.RTCPReader) int
 			return 0, nil, err
 		}
 
-		pkts, err := rtcp.Unmarshal(b[:i])
+		if attr == nil {
+			attr = make(interceptor.Attributes)
+		}
+		pkts, err := attr.GetRTCPPackets(b[:i])
 		if err != nil {
 			return 0, nil, err
 		}
@@ -85,7 +110,11 @@ func (n *ResponderInterceptor) BindLocalStream(info *interceptor.StreamInfo, wri
 	n.streamsMu.Unlock()
 
 	return interceptor.RTPWriterFunc(func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-		sendBuffer.add(&rtp.Packet{Header: *header, Payload: payload})
+		pkt, err := n.packetFactory.NewPacket(header, payload)
+		if err != nil {
+			return 0, err
+		}
+		sendBuffer.add(pkt)
 		return writer.Write(header, payload, attributes)
 	})
 }
@@ -108,9 +137,10 @@ func (n *ResponderInterceptor) resendPackets(nack *rtcp.TransportLayerNack) {
 	for i := range nack.Nacks {
 		nack.Nacks[i].Range(func(seq uint16) bool {
 			if p := stream.sendBuffer.get(seq); p != nil {
-				if _, err := stream.rtpWriter.Write(&p.Header, p.Payload, interceptor.Attributes{}); err != nil {
+				if _, err := stream.rtpWriter.Write(p.Header(), p.Payload(), interceptor.Attributes{}); err != nil {
 					n.log.Warnf("failed resending nacked packet: %+v", err)
 				}
+				p.Release()
 			}
 
 			return true

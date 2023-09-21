@@ -4,13 +4,13 @@ package codecs
 type G711Payloader struct{}
 
 // Payload fragments an G711 packet across one or more byte arrays
-func (p *G711Payloader) Payload(mtu int, payload []byte) [][]byte {
+func (p *G711Payloader) Payload(mtu uint16, payload []byte) [][]byte {
 	var out [][]byte
-	if payload == nil || mtu <= 0 {
+	if payload == nil || mtu == 0 {
 		return out
 	}
 
-	for len(payload) > mtu {
+	for len(payload) > int(mtu) {
 		o := make([]byte, mtu)
 		copy(o, payload[:mtu])
 		payload = payload[mtu:]

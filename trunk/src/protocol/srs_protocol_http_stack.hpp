@@ -184,7 +184,6 @@ public:
     // @param data, the data to send. NULL to flush header only.
     virtual srs_error_t write(char* data, int size) = 0;
     // for the HTTP FLV, to writev to improve performance.
-    // @see https://github.com/ossrs/srs/issues/405
     virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
     
     // WriteHeader sends an HTTP response header with status code.
@@ -261,7 +260,6 @@ public:
     // @param data, the data to send. NULL to flush header only.
     virtual srs_error_t write(char* data, int size) = 0;
     // for the HTTP FLV, to writev to improve performance.
-    // @see https://github.com/ossrs/srs/issues/405
     virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
 
     // WriteHeader sends an HTTP request header with status code.
@@ -482,22 +480,44 @@ private:
     virtual bool path_match(std::string pattern, std::string path);
 };
 
-// The filter http mux, directly serve the http CORS requests,
-// while proxy to the worker mux for services.
+// The filter http mux, directly serve the http CORS requests
 class SrsHttpCorsMux : public ISrsHttpHandler
 {
 private:
     bool required;
     bool enabled;
-    ISrsHttpServeMux* next;
+    ISrsHttpHandler* next_;
 public:
-    SrsHttpCorsMux();
+    SrsHttpCorsMux(ISrsHttpHandler* h);
     virtual ~SrsHttpCorsMux();
 public:
-    virtual srs_error_t initialize(ISrsHttpServeMux* worker, bool cros_enabled);
+    virtual srs_error_t initialize(bool cros_enabled);
 // Interface ISrsHttpServeMux
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+
+// The filter http mux, directly serve the http AUTH requests,
+// while proxy to the worker mux for services.
+// @see https://www.rfc-editor.org/rfc/rfc7617
+// @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/WWW-Authenticate
+class SrsHttpAuthMux : public ISrsHttpHandler
+{
+private:
+    bool enabled_;
+    std::string username_;
+    std::string password_;
+    ISrsHttpHandler* next_;
+public:
+    SrsHttpAuthMux(ISrsHttpHandler* h);
+    virtual ~SrsHttpAuthMux();
+public:
+    virtual srs_error_t initialize(bool enabled, std::string username, std::string password);
+// Interface ISrsHttpServeMux
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    virtual srs_error_t do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 // A Request represents an HTTP request received by a server
