@@ -677,6 +677,7 @@ if [[ $SRS_SRT == YES ]]; then
         echo "Build srt-1-fit" &&
         rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt ${SRS_OBJS}/srt &&
         cp -rf ${SRS_WORKDIR}/3rdparty/srt-1-fit ${SRS_OBJS}/${SRS_PLATFORM}/ &&
+        patch -p0 -R ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit/srtcore/api.cpp ${SRS_WORKDIR}/3rdparty/patches/srt/api.cpp-01.patch &&
         (
             cd ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit &&
             env PKG_CONFIG_PATH=${SRS_DEPENDS_LIBS}/openssl/lib/pkgconfig \
