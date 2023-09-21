@@ -179,5 +179,5 @@ function srs_init_whip(id, query) {
 }
 function srs_init_whep(id, query) {
     update_nav();
-    $(id).val(build_default_whip_whep_url(query, '/rtc/v1/whip-play/'));
+    $(id).val(build_default_whip_whep_url(query, '/rtc/v1/whep/'));
 }
