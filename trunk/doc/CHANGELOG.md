@@ -7,6 +7,9 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-09-21, Merge [#3404](https://github.com/ossrs/srs/pull/3404): WebRTC: Support WHEP for play. v6.0.80 (#3404)
+* v6.0, 2023-09-21, Merge [#3807](https://github.com/ossrs/srs/pull/3807): Prevent the output of srt logs in utest. v6.0.79 (#3807)
+* v6.0, 2023-09-21, Merge [#3696](https://github.com/ossrs/srs/pull/3696): SRT: modify log level from error to debug when no socket to accept. v6.0.78 (#3696)
 * v6.0, 2023-09-18, Merge [#3804](https://github.com/ossrs/srs/pull/3804): Support FFmpeg timecode, fix AMF0 parsing failed. v6.0.77 (#3804)
 * v6.0, 2023-09-18, Merge [#3722](https://github.com/ossrs/srs/pull/3722): Bugfix: HEVC SRT stream supports multiple PPS fields. v6.0.76 (#3722)
 * v6.0, 2023-09-08, Merge [#3597](https://github.com/ossrs/srs/pull/3597): Fix RBSP stream parsing bug, should drop 0x03. v6.0.75 (#3597)
@@ -89,6 +92,9 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-09-21, Merge [#3404](https://github.com/ossrs/srs/pull/3404): WebRTC: Support WHEP for play. v5.0.182 (#3404)
+* v5.0, 2023-09-21, Merge [#3807](https://github.com/ossrs/srs/pull/3807): Prevent the output of srt logs in utest. v5.0.181 (#3807)
+* v5.0, 2023-09-21, Merge [#3696](https://github.com/ossrs/srs/pull/3696): SRT: modify log level from error to debug when no socket to accept. v5.0.180 (#3696)
 * v5.0, 2023-09-18, Merge [#3804](https://github.com/ossrs/srs/pull/3804): Support FFmpeg timecode, fix AMF0 parsing failed. v5.0.179 (#3804)
 * v5.0, 2023-09-08, Merge [#3597](https://github.com/ossrs/srs/pull/3597): Fix RBSP stream parsing bug, should drop 0x03. v5.0.178 (#3597)
 * v5.0, 2023-09-07, Merge [#3795](https://github.com/ossrs/srs/pull/3795): Fix dash crash if format not supported. v5.0.177 (#3795)
