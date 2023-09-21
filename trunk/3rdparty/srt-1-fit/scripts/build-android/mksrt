@@ -1,0 +1,32 @@
+#!/bin/sh
+
+while getopts s:i:t:n:a:e: option
+do
+ case "${option}"
+ in
+ s) SRC_DIR=${OPTARG};;
+ i) INSTALL_DIR=${OPTARG};;
+ t) ARCH_ABI=${OPTARG};;
+ n) NDK_ROOT=${OPTARG};;
+ a) API_LEVEL=${OPTARG};;
+ e) ENC_LIB=${OPTARG};;
+ *) twentytwo=${OPTARG};;
+ esac
+done
+
+
+cd $SRC_DIR
+./configure --use-enclib=$ENC_LIB \
+--use-openssl-pc=OFF \
+--OPENSSL_INCLUDE_DIR=$INSTALL_DIR/include \
+--OPENSSL_CRYPTO_LIBRARY=$INSTALL_DIR/lib/libcrypto.a --OPENSSL_SSL_LIBRARY=$INSTALL_DIR/lib/libssl.a \
+--STATIC_MBEDTLS=FALSE \
+--MBEDTLS_INCLUDE_DIR=$INSTALL_DIR/include --MBEDTLS_INCLUDE_DIRS=$INSTALL_DIR/include \
+--MBEDTLS_LIBRARIES=$INSTALL_DIR/lib/libmbedtls.so \
+--CMAKE_PREFIX_PATH=$INSTALL_DIR --CMAKE_INSTALL_PREFIX=$INSTALL_DIR --CMAKE_ANDROID_NDK=$NDK_ROOT \
+--CMAKE_SYSTEM_NAME=Android --CMAKE_SYSTEM_VERSION=$API_LEVEL --CMAKE_ANDROID_ARCH_ABI=$ARCH_ABI \
+--CMAKE_C_FLAGS="-fPIC" --CMAKE_SHARED_LINKER_FLAGS="-Wl,--build-id" \
+--enable-c++11 --enable-stdcxx-sync \
+--enable-debug=2 --enable-logging=0 --enable-heavy-logging=0 --enable-apps=0
+make
+make install

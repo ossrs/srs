@@ -168,11 +168,7 @@ void srt::CIPAddress::ntop(const sockaddr_any& addr, uint32_t ip[4])
     }
     else
     {
-      const sockaddr_in6* a = &addr.sin6;
-      ip[3] = (a->sin6_addr.s6_addr[15] << 24) + (a->sin6_addr.s6_addr[14] << 16) + (a->sin6_addr.s6_addr[13] << 8) + a->sin6_addr.s6_addr[12];
-      ip[2] = (a->sin6_addr.s6_addr[11] << 24) + (a->sin6_addr.s6_addr[10] << 16) + (a->sin6_addr.s6_addr[9] << 8) + a->sin6_addr.s6_addr[8];
-      ip[1] = (a->sin6_addr.s6_addr[7] << 24) + (a->sin6_addr.s6_addr[6] << 16) + (a->sin6_addr.s6_addr[5] << 8) + a->sin6_addr.s6_addr[4];
-      ip[0] = (a->sin6_addr.s6_addr[3] << 24) + (a->sin6_addr.s6_addr[2] << 16) + (a->sin6_addr.s6_addr[1] << 8) + a->sin6_addr.s6_addr[0];
+        std::memcpy(ip, addr.sin6.sin6_addr.s6_addr, 16);
     }
 }
 
@@ -223,18 +219,7 @@ void srt::CIPAddress::pton(sockaddr_any& w_addr, const uint32_t ip[4], const soc
             // Here both agent and peer use IPv6, in which case
             // `ip` contains the full IPv6 address, so just copy
             // it as is.
-
-            // XXX Possibly, a simple
-            // memcpy( (a->sin6_addr.s6_addr), ip, 16);
-            // would do the same thing, and faster. The address in `ip`,
-            // even though coded here as uint32_t, is still big endian.
-            for (int i = 0; i < 4; ++ i)
-            {
-                a->sin6_addr.s6_addr[i * 4 + 0] = ip[i] & 0xFF;
-                a->sin6_addr.s6_addr[i * 4 + 1] = (unsigned char)((ip[i] & 0xFF00) >> 8);
-                a->sin6_addr.s6_addr[i * 4 + 2] = (unsigned char)((ip[i] & 0xFF0000) >> 16);
-                a->sin6_addr.s6_addr[i * 4 + 3] = (unsigned char)((ip[i] & 0xFF000000) >> 24);
-            }
+            std::memcpy(a->sin6_addr.s6_addr, ip, 16);
             return; // The address is written, nothing left to do.
         }
 
@@ -457,7 +442,7 @@ std::string TransmissionEventStr(ETransmissionEvent ev)
     return vals[ev];
 }
 
-bool SrtParseConfig(string s, SrtConfig& w_config)
+bool SrtParseConfig(const string& s, SrtConfig& w_config)
 {
     using namespace std;
 
