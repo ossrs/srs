@@ -571,7 +571,7 @@ function SrsRtcWhipWhepAsync() {
 
     // See https://datatracker.ietf.org/doc/draft-ietf-wish-whip/
     // @url The WebRTC url to play with, for example:
-    //      http://localhost:1985/rtc/v1/whip-play/?app=live&stream=livestream
+    //      http://localhost:1985/rtc/v1/whep/?app=live&stream=livestream
     self.play = async function(url) {
         if (url.indexOf('/whip-play/') === -1 && url.indexOf('/whep/') === -1) throw new Error(`invalid WHEP url ${url}`);
 
