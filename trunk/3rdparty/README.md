@@ -9,8 +9,8 @@ nginx-1.5.7.zip
 * for srs to support hls streaming.
 
 srt-1-fit
-srt-1.4.1.tar.gz
-* https://github.com/Haivision/srt/releases/tag/v1.4.1
+srt-1.5.3.tar.gz
+* https://github.com/Haivision/srt/releases/tag/v1.5.3
 * https://ossrs.net/lts/zh-cn/license#srt
 
 openssl-1.1-fit
