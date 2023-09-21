@@ -114,7 +114,7 @@ set errortypes {
         SIDINVAL       "Invalid socket ID"
         ISUNBOUND      "Cannot do this operation on an UNBOUND socket"
         NOLISTEN       "Socket is not in listening state"
-        ISRENDEZVOUS   "Listen/accept is not supported in rendezous connection setup"
+        ISRENDEZVOUS   "Listen/accept is not supported in rendezvous connection setup"
         ISRENDUNBOUND  "Cannot call connect on UNBOUND socket in rendezvous connection setup"
         INVALMSGAPI    "Incorrect use of Message API (sendmsg/recvmsg)."
         INVALBUFFERAPI "Incorrect use of Buffer API (send/recv) or File API (sendfile/recvfile)."
