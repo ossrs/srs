@@ -49,7 +49,7 @@ using namespace std;
 
 // These functions first appeared in glibc in version 2.12.
 // See https://man7.org/linux/man-pages/man3/pthread_setname_np.3.html
-#if defined(SRS_CYGWIN64) || (defined(SRS_CROSSBUILD) && ((__GLIBC__ < 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 12)))
+#if defined(SRS_CYGWIN64) || (defined(SRS_CROSSBUILD) && defined(__GLIBC__) && ((__GLIBC__ < 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 12)))
     void pthread_setname_np(pthread_t trd, const char* name) {
     }
 #endif
