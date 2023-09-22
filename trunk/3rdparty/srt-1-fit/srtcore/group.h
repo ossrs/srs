@@ -155,7 +155,7 @@ public:
         srt::sync::ScopedLock g(m_GroupLock);
 
         bool empty = false;
-        HLOGC(gmlog.Debug, log << "group/remove: going to remove @" << id << " from $" << m_GroupID);
+        LOGC(gmlog.Note, log << "group/remove: removing member @" << id << " from group $" << m_GroupID);
 
         gli_t f = std::find_if(m_Group.begin(), m_Group.end(), HaveID(id));
         if (f != m_Group.end())
@@ -193,9 +193,6 @@ public:
             m_bOpened    = false;
             m_bConnected = false;
         }
-
-        // XXX BUGFIX
-        m_Positions.erase(id);
 
         return !empty;
     }
@@ -265,7 +262,7 @@ private:
     /// @param[in]  pktseq         Packet sequence number currently tried to be sent
     /// @param[out] w_u            CUDT unit of the current member (to allow calling overrideSndSeqNo)
     /// @param[out] w_curseq       Group's current sequence number (either -1 or the value used already for other links)
-    /// @param[out] w_final_stat   w_final_stat = send_status if sending succeded.
+    /// @param[out] w_final_stat   w_final_stat = send_status if sending succeeded.
     ///
     /// @returns true if the sending operation result (submitted in stat) is a success, false otherwise.
     bool sendBackup_CheckSendStatus(const time_point&   currtime,
@@ -406,7 +403,9 @@ private:
     SRTSOCKET m_PeerGroupID;
     struct GroupContainer
     {
-        std::list<SocketData>        m_List;
+    private:
+        std::list<SocketData>  m_List;
+        sync::atomic<size_t>   m_SizeCache;
 
         /// This field is used only by some types of groups that need
         /// to keep track as to which link was lately used. Note that
@@ -414,8 +413,11 @@ private:
         /// must be appropriately reset.
         gli_t m_LastActiveLink;
 
+    public:
+
         GroupContainer()
-            : m_LastActiveLink(m_List.end())
+            : m_SizeCache(0)
+            , m_LastActiveLink(m_List.end())
         {
         }
 
@@ -425,18 +427,18 @@ private:
         gli_t        begin() { return m_List.begin(); }
         gli_t        end() { return m_List.end(); }
         bool         empty() { return m_List.empty(); }
-        void         push_back(const SocketData& data) { m_List.push_back(data); }
+        void         push_back(const SocketData& data) { m_List.push_back(data); ++m_SizeCache; }
         void         clear()
         {
             m_LastActiveLink = end();
             m_List.clear();
+            m_SizeCache = 0;
         }
-        size_t size() { return m_List.size(); }
+        size_t size() { return m_SizeCache; }
 
         void erase(gli_t it);
     };
     GroupContainer m_Group;
-    const bool     m_bSyncOnMsgNo; // It goes into a dedicated HS field. Could be true for balancing groups (not implemented).
     SRT_GROUP_TYPE m_type;
     CUDTSocket*    m_listener; // A "group" can only have one listener.
     srt::sync::atomic<int> m_iBusy;
@@ -641,20 +643,6 @@ private:
     time_point m_tsStartTime;
     time_point m_tsRcvPeerStartTime;
 
-    struct ReadPos
-    {
-        std::vector<char> packet;
-        SRT_MSGCTRL       mctrl;
-        ReadPos(int32_t s)
-            : mctrl(srt_msgctrl_default)
-        {
-            mctrl.pktseq = s;
-        }
-    };
-    std::map<SRTSOCKET, ReadPos> m_Positions;
-
-    ReadPos* checkPacketAhead();
-
     void recv_CollectAliveAndBroken(std::vector<srt::CUDTSocket*>& w_alive, std::set<srt::CUDTSocket*>& w_broken);
 
     /// The function polls alive member sockets and retrieves a list of read-ready.
@@ -813,7 +801,6 @@ public:
     SRTU_PROPERTY_RW_CHAIN(CUDTGroup, int32_t, currentSchedSequence, m_iLastSchedSeqNo);
     SRTU_PROPERTY_RRW(std::set<int>&, epollset, m_sPollID);
     SRTU_PROPERTY_RW_CHAIN(CUDTGroup, int64_t, latency, m_iTsbPdDelay_us);
-    SRTU_PROPERTY_RO(bool, synconmsgno, m_bSyncOnMsgNo);
     SRTU_PROPERTY_RO(bool, closing, m_bClosing);
 };
 

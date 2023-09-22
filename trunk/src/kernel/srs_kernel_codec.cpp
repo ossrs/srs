@@ -867,6 +867,44 @@ bool SrsFormat::is_avc_sequence_header()
         && video && video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
+// Remove the emulation bytes from stream, and return num of bytes of the rbsp.
+int srs_rbsp_remove_emulation_bytes(SrsBuffer* stream, std::vector<uint8_t>& rbsp)
+{
+    int nb_rbsp = 0;
+    while (!stream->empty()) {
+        rbsp[nb_rbsp] = stream->read_1bytes();
+
+        // .. 00 00 03 xx, the 03 byte should be drop where xx represents any
+        // 2 bit pattern: 00, 01, 10, or 11.
+        if (nb_rbsp >= 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
+            // read 1byte more.
+            if (stream->empty()) {
+                nb_rbsp++;
+                break;
+            }
+
+            // |---------------------|----------------------------|
+            // |      rbsp           |  nalu with emulation bytes |
+            // |---------------------|----------------------------|
+            // | 0x00 0x00 0x00      |     0x00 0x00 0x03 0x00    |
+            // | 0x00 0x00 0x01      |     0x00 0x00 0x03 0x01    |
+            // | 0x00 0x00 0x02      |     0x00 0x00 0x03 0x02    |
+            // | 0x00 0x00 0x03      |     0x00 0x00 0x03 0x03    |
+            // | 0x00 0x00 0x03 0x04 |     0x00 0x00 0x03 0x04    |
+            // |---------------------|----------------------------|
+            uint8_t ev = stream->read_1bytes();
+            if (ev > 3) {
+                nb_rbsp++;
+            }
+            rbsp[nb_rbsp] = ev;
+        }
+        
+        nb_rbsp++;
+    }
+
+    return nb_rbsp;
+}
+
 srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
 {
     srs_error_t err = srs_success;
@@ -1224,26 +1262,9 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
 
     // decode the rbsp from vps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(stream->size());
+    std::vector<uint8_t> rbsp(stream->size());
 
-    int nb_rbsp = 0;
-    while (!stream->empty()) {
-        rbsp[nb_rbsp] = stream->read_1bytes();
-
-        // XX 00 00 03 XX, the 03 byte should be drop.
-        if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
-            // read 1byte more.
-            if (stream->empty()) {
-                break;
-            }
-            rbsp[nb_rbsp] = stream->read_1bytes();
-            nb_rbsp++;
-
-            continue;
-        }
-
-        nb_rbsp++;
-    }
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
 
     return hevc_demux_vps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
@@ -1370,26 +1391,9 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
 
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(stream->size());
+    std::vector<uint8_t> rbsp(stream->size());
 
-    int nb_rbsp = 0;
-    while (!stream->empty()) {
-        rbsp[nb_rbsp] = stream->read_1bytes();
-
-        // XX 00 00 03 XX, the 03 byte should be drop.
-        if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
-            // read 1byte more.
-            if (stream->empty()) {
-                break;
-            }
-            rbsp[nb_rbsp] = stream->read_1bytes();
-            nb_rbsp++;
-
-            continue;
-        }
-
-        nb_rbsp++;
-    }
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
 
     return hevc_demux_sps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
@@ -1571,28 +1575,11 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
     // nuh_layer_id + nuh_temporal_id_plus1
     stream->skip(1);
 
-    // decode the rbsp from sps.
+    // decode the rbsp from pps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(stream->size());
+    std::vector<uint8_t> rbsp(stream->size());
 
-    int nb_rbsp = 0;
-    while (!stream->empty()) {
-        rbsp[nb_rbsp] = stream->read_1bytes();
-
-        // XX 00 00 03 XX, the 03 byte should be drop.
-        if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
-            // read 1byte more.
-            if (stream->empty()) {
-                break;
-            }
-            rbsp[nb_rbsp] = stream->read_1bytes();
-            nb_rbsp++;
-
-            continue;
-        }
-
-        nb_rbsp++;
-    }
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
 
     return hevc_demux_pps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
@@ -2270,30 +2257,12 @@ srs_error_t SrsFormat::avc_demux_sps()
     
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    std::vector<int8_t> rbsp(vcodec->sequenceParameterSetNALUnit.size());
+    std::vector<uint8_t> rbsp(vcodec->sequenceParameterSetNALUnit.size());
     
-    int nb_rbsp = 0;
-    while (!stream.empty()) {
-        rbsp[nb_rbsp] = stream.read_1bytes();
-        
-        // XX 00 00 03 XX, the 03 byte should be drop.
-        if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
-            // read 1byte more.
-            if (stream.empty()) {
-                break;
-            }
-            rbsp[nb_rbsp] = stream.read_1bytes();
-            nb_rbsp++;
-            
-            continue;
-        }
-        
-        nb_rbsp++;
-    }
+    int nb_rbsp = srs_rbsp_remove_emulation_bytes(&stream, rbsp);
     
     return avc_demux_sps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
-
 
 srs_error_t SrsFormat::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 {

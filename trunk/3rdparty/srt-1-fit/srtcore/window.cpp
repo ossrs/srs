@@ -93,7 +93,7 @@ int acknowledge(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int3
             r_ack = r_aSeq[i].iACK;
 
             // Calculate RTT estimate
-            const int rtt = count_microseconds(currtime - r_aSeq[i].tsTimeStamp);
+            const int rtt = (int)count_microseconds(currtime - r_aSeq[i].tsTimeStamp);
 
             if (i + 1 == r_iHead)
             {
@@ -112,7 +112,7 @@ int acknowledge(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int3
    }
 
    // Head has exceeded the physical window boundary, so it is behind tail
-   for (int j = r_iTail, n = r_iHead + size; j < n; ++ j)
+   for (int j = r_iTail, n = r_iHead + (int)size; j < n; ++ j)
    {
       // Looking for an identical ACK Seq. No.
       if (seq == r_aSeq[j % size].iACKSeqNo)
@@ -122,7 +122,7 @@ int acknowledge(Seq* r_aSeq, const size_t size, int& r_iHead, int& r_iTail, int3
          r_ack = r_aSeq[j].iACK;
 
          // Calculate RTT estimate
-         const int rtt = count_microseconds(currtime - r_aSeq[j].tsTimeStamp);
+         const int rtt = (int)count_microseconds(currtime - r_aSeq[j].tsTimeStamp);
 
          if (j == r_iHead)
          {
@@ -176,7 +176,7 @@ int srt::CPktTimeWindowTools::getPktRcvSpeed_in(const int* window, int* replica,
    const int* bp = abytes;
    // median filtering
    const int* p = window;
-   for (int i = 0, n = asize; i < n; ++ i)
+   for (int i = 0, n = (int)asize; i < n; ++ i)
    {
       if ((*p < upper) && (*p > lower))
       {
@@ -192,7 +192,7 @@ int srt::CPktTimeWindowTools::getPktRcvSpeed_in(const int* window, int* replica,
    if (count > (asize >> 1))
    {
       bytes += (srt::CPacket::SRT_DATA_HDR_SIZE * count); //Add protocol headers to bytes received
-      bytesps = (unsigned long)ceil(1000000.0 / (double(sum) / double(bytes)));
+      bytesps = (int)ceil(1000000.0 / (double(sum) / double(bytes)));
       return (int)ceil(1000000.0 / (sum / count));
    }
    else
@@ -240,7 +240,7 @@ int srt::CPktTimeWindowTools::getBandwidth_in(const int* window, int* replica, s
 
    // median filtering
    const int* p = window;
-   for (int i = 0, n = psize; i < n; ++ i)
+   for (int i = 0, n = (int)psize; i < n; ++ i)
    {
       if ((*p < upper) && (*p > lower))
       {

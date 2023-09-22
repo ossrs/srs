@@ -230,7 +230,7 @@ private:
          * For realtime Transport Stream content, pkts/sec is not a good indication of time to transmit
          * since packets are not filled to m_iMSS and packet size average is lower than (7*188)
          * for low bit rates.
-         * If NAK report is lost, another cycle (RTT) is requred which is bad for low latency so we
+         * If NAK report is lost, another cycle (RTT) is required which is bad for low latency so we
          * accelerate the NAK Reports frequency, at the cost of possible duplicate resend.
          * Finally, the UDT4 native minimum NAK interval (m_ullMinNakInt_tk) is 300 ms which is too high
          * (~10 i30 video frames) to maintain low latency.

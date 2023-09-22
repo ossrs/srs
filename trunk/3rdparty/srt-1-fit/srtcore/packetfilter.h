@@ -51,7 +51,7 @@ public:
         virtual ~Factory();
     };
 private:
-    friend bool ParseFilterConfig(std::string s, SrtFilterConfig& out, PacketFilter::Factory** ppf);
+    friend bool ParseFilterConfig(const std::string& s, SrtFilterConfig& out, PacketFilter::Factory** ppf);
 
     template <class Target>
     class Creator: public Factory
@@ -212,7 +212,7 @@ bool CheckFilterCompat(SrtFilterConfig& w_agent, SrtFilterConfig peer);
 inline void PacketFilter::feedSource(CPacket& w_packet) { SRT_ASSERT(m_filter); return m_filter->feedSource((w_packet)); }
 inline SRT_ARQLevel PacketFilter::arqLevel() { SRT_ASSERT(m_filter); return m_filter->arqLevel(); }
 
-bool ParseFilterConfig(std::string s, SrtFilterConfig& out, PacketFilter::Factory** ppf);
+bool ParseFilterConfig(const std::string& s, SrtFilterConfig& out, PacketFilter::Factory** ppf);
 
 } // namespace srt
 

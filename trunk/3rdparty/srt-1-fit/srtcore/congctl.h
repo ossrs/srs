@@ -52,8 +52,8 @@ public:
 
     struct IsName
     {
-        std::string n;
-        IsName(std::string nn): n(nn) {}
+        const std::string n;
+        IsName(const std::string& nn): n(nn) {}
         bool operator()(NamePtr np) { return n == np.first; }
     };
 
