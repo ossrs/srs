@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-09-25, Merge [#3810](https://github.com/ossrs/srs/pull/3810): Change dev code for John. v6.0.84 (#3810)
 * v6.0, 2023-09-22, Merge [#3777](https://github.com/ossrs/srs/pull/3777): Compile: Add a __GLIBC__ definition for the pthread_setname_np. v6.0.83 (#3777)
 * v6.0, 2023-09-21, Merge [#3806](https://github.com/ossrs/srs/pull/3806): Build: Support sys-ssl for srt. v6.0.82 (#3806)
 * v6.0, 2023-09-21, Merge [#3808](https://github.com/ossrs/srs/pull/3808): Upgrade libsrt to v1.5.3. v6.0.81 (#3808)
