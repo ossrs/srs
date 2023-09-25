@@ -39,6 +39,7 @@ class SrsCommonMessage;
 class SrsPacket;
 class SrsNetworkDelta;
 class ISrsApmSpan;
+class SrsSslConnection;
 
 // The simple rtmp client for SRS.
 class SrsSimpleRtmpClient : public SrsBasicRtmpClient
@@ -122,8 +123,11 @@ private:
     ISrsApmSpan* span_main_;
     ISrsApmSpan* span_connect_;
     ISrsApmSpan* span_client_;
+    // Rtmps.
+    bool rtmps_;
+    SrsSslConnection* ssl_;
 public:
-    SrsRtmpConn(SrsServer* svr, srs_netfd_t c, std::string cip, int port);
+    SrsRtmpConn(SrsServer* svr, srs_netfd_t c, std::string cip, int port, bool rtmps);
     virtual ~SrsRtmpConn();
 // Interface ISrsResource.
 public:
