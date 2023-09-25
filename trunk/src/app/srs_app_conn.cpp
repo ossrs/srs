@@ -771,13 +771,13 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
     uint8_t* data = NULL;
     int r0, r1, size;
 
-    // Setup the key and cert file for server.
-    if ((r0 = SSL_use_certificate_file(ssl, crt_file.c_str(), SSL_FILETYPE_PEM)) != 1) {
-        return srs_error_new(ERROR_HTTPS_KEY_CRT, "use cert %s", crt_file.c_str());
-    }
-
     if ((r0 = SSL_use_RSAPrivateKey_file(ssl, key_file.c_str(), SSL_FILETYPE_PEM)) != 1) {
         return srs_error_new(ERROR_HTTPS_KEY_CRT, "use key %s", key_file.c_str());
+    }
+
+    // Setup the key and cert file for server.
+    if ((r0 = SSL_use_certificate_chain_file(ssl, crt_file.c_str())) != 1) {
+        return srs_error_new(ERROR_HTTPS_KEY_CRT, "use cert %s", crt_file.c_str());
     }
 
     if ((r0 = SSL_check_private_key(ssl)) != 1) {
@@ -890,7 +890,22 @@ srs_utime_t SrsSslConnection::get_recv_timeout()
 
 srs_error_t SrsSslConnection::read_fully(void* buf, size_t size, ssize_t* nread)
 {
-    return transport->read_fully(buf, size, nread);
+    srs_error_t err = srs_success;
+    ssize_t nb = 0;
+    void* p = buf;
+    while (nb < size) {
+        ssize_t once_nb = 0;
+        if ((err = read((char*)p + nb, size - nb, &once_nb)) != srs_success) {
+            return srs_error_wrap(err, "https: read");
+        }
+        nb += once_nb;
+    }
+
+    if (nread) {
+        *nread = nb;
+    }
+
+    return  err;
 }
 
 int64_t SrsSslConnection::get_recv_bytes()
