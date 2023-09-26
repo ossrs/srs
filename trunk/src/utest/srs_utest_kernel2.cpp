@@ -426,7 +426,8 @@ VOID TEST(KernelRTMPExtTest, ExtRTMPTest)
         EXPECT_EQ(SrsVideoAvcFrameTraitNALU, f.video->avc_packet_type);
         EXPECT_EQ(0x12, f.video->cts);
     }
-
+    
+#ifdef SRS_H265
     // For new RTMP enhanced specification, with ext tag header.
     if (true) {
         SrsFormat f;
@@ -480,6 +481,7 @@ VOID TEST(KernelRTMPExtTest, ExtRTMPTest)
         HELPER_ASSERT_SUCCESS(f.initialize());
         HELPER_EXPECT_FAILED(f.on_video(0, (char*) "\x93mvc1", 5));
     }
+#endif
 }
 
 VOID TEST(KernelCodecTest, VideoFormatSepcialMProtect_DJI_M30)
