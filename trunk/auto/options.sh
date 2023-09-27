@@ -203,7 +203,7 @@ Toolchain options:
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
 
 Cross Build options:        @see https://ossrs.net/lts/zh-cn/docs/v4/doc/arm#ubuntu-cross-build-srs
-  --cross-build             Enable cross-build, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
+  --cross=on|off            Enable cross-build, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
   --cpu=<CPU>               Toolchain: Select the minimum required CPU for cross-build. For example: --cpu=24kc
   --arch=<ARCH>             Toolchain: Select architecture for cross-build. For example: --arch=aarch64
   --host=<BUILD>            Toolchain: Cross-compile to build programs to run on HOST. For example: --host=aarch64-linux-gnu
@@ -232,6 +232,7 @@ Experts:
   --generic-linux=on|off    Whether run as generic linux, if not CentOS or Ubuntu. Default: $(value2switch $SRS_GENERIC_LINUX)
 
 Deprecated:
+  --cross-build             Enable cross-build, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
   --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files. Default: $(value2switch $SRS_HDS)
   --osx                     Enable build for OSX/Darwin AppleOS. Deprecated for automatically detecting the OS.
   --x86-64                  Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
@@ -413,6 +414,7 @@ function parse_user_option() {
         --generic-linux)                SRS_GENERIC_LINUX=$(switch2value $value) ;;
 
         # Alias for --arm, cross build.
+        --cross)                        SRS_CROSS_BUILD=$(switch2value $value) ;;
         --cross-build)                  SRS_CROSS_BUILD=YES         ;;
         --enable-cross-compile)         SRS_CROSS_BUILD=YES         ;;
 
@@ -595,7 +597,7 @@ function apply_detail_options() {
     if [[ $SRS_HLS == NO ]]; then SRS_HLS=YES; echo -e "${YELLOW}[WARN] Always enable HLS.${BLACK}"; fi
     if [[ $SRS_DVR == NO ]]; then SRS_DVR=YES; echo -e "${YELLOW}[WARN] Always enable DVR.${BLACK}"; fi
 
-    if [[ $SRS_SANITIZER == RESERVED ]]; then SRS_SANITIZER == NO; fi
+    if [[ $SRS_SANITIZER == RESERVED ]]; then SRS_SANITIZER=NO; fi
 }
 apply_detail_options
 
