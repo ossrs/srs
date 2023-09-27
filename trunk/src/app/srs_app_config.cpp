@@ -7893,7 +7893,7 @@ unsigned short SrsConfig::get_srt_listen_port()
     return (unsigned short)atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_maxbw()
+int64_t SrsConfig::get_srto_maxbw()
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.maxbw"); // SRS_SRT_SERVER_MAXBW
 
@@ -7907,7 +7907,7 @@ int SrsConfig::get_srto_maxbw()
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    return atoi(conf->arg0().c_str());
+    return atoll(conf->arg0().c_str());
 }
 
 int SrsConfig::get_srto_mss()

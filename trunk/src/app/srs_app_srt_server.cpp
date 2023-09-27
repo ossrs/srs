@@ -66,7 +66,7 @@ srs_error_t SrsSrtAcceptor::set_srt_opt()
     srs_error_t err = srs_success;
 
     if ((err = srs_srt_set_maxbw(listener_->fd(), _srs_config->get_srto_maxbw())) != srs_success) {
-        return srs_error_wrap(err, "set opt maxbw=%d failed", _srs_config->get_srto_maxbw());
+        return srs_error_wrap(err, "set opt maxbw=%" PRId64 " failed", _srs_config->get_srto_maxbw());
     }
 
     if ((err = srs_srt_set_mss(listener_->fd(), _srs_config->get_srto_mss())) != srs_success) {
