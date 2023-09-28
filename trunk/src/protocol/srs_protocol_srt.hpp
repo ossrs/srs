@@ -34,7 +34,7 @@ extern srs_error_t srs_srt_listen(srs_srt_t srt_fd, std::string ip, int port);
 extern srs_error_t srs_srt_nonblock(srs_srt_t srt_fd);
 
 // Set SRT options.
-extern srs_error_t srs_srt_set_maxbw(srs_srt_t srt_fd, int maxbw);
+extern srs_error_t srs_srt_set_maxbw(srs_srt_t srt_fd, int64_t maxbw);
 extern srs_error_t srs_srt_set_mss(srs_srt_t srt_fd, int mss);
 extern srs_error_t srs_srt_set_payload_size(srs_srt_t srt_fd, int payload_size);
 extern srs_error_t srs_srt_set_connect_timeout(srs_srt_t srt_fd, int timeout);
@@ -51,7 +51,7 @@ extern srs_error_t srs_srt_set_passphrase(srs_srt_t srt_fd, const std::string& p
 extern srs_error_t srs_srt_set_pbkeylen(srs_srt_t srt_fd, int pbkeylen);
 
 // Get SRT options.
-extern srs_error_t srs_srt_get_maxbw(srs_srt_t srt_fd, int& maxbw);
+extern srs_error_t srs_srt_get_maxbw(srs_srt_t srt_fd, int64_t& maxbw);
 extern srs_error_t srs_srt_get_mss(srs_srt_t srt_fd, int& mss);
 extern srs_error_t srs_srt_get_payload_size(srs_srt_t srt_fd, int& payload_size);
 extern srs_error_t srs_srt_get_connect_timeout(srs_srt_t srt_fd, int& timeout);

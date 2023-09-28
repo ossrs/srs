@@ -673,7 +673,7 @@ public:
     // Get the srt service listen port
     virtual unsigned short get_srt_listen_port();
     // Get the srt SRTO_MAXBW, max bandwith, default is -1.
-    virtual int get_srto_maxbw();
+    virtual int64_t get_srto_maxbw();
     // Get the srt SRTO_MSS, Maximum Segment Size, default is 1500.
     virtual int get_srto_mss();
     // Get the srt SRTO_TSBPDMODE, timestamp base packet delivery mode, default is false.
