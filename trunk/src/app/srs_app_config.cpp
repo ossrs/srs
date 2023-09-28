@@ -5,7 +5,6 @@
 //
 
 #include <srs_app_config.hpp>
-
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -2331,7 +2330,7 @@ srs_error_t SrsConfig::check_normal_config()
         SrsConfDirective* conf = root->get("srt_server");
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "listen" && n != "maxbw"
+            if (n != "enabled" && n != "type" && n != "port" && n != "maxbw"
                 && n != "mss" && n != "latency" && n != "recvlatency"
                 && n != "peerlatency" && n != "connect_timeout"
                 && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
@@ -7857,291 +7856,314 @@ string SrsConfig::get_https_api_ssl_cert()
     return conf->arg0();
 }
 
+bool SrsConfig::is_srt_server(SrsConfDirective* srt_conf) {
+    return srt_conf && srt_conf->name == "srt_server";
+}
+
+void SrsConfig::get_srt_servers(vector<SrsConfDirective*>& servers)
+{
+    srs_assert(root);
+    
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* conf = root->at(i);
+        if (!is_srt_server(conf)) {
+            continue;
+        }
+        servers.push_back(conf);
+    }
+}
+
 bool SrsConfig::get_srt_enabled()
 {
     SRS_OVERWRITE_BY_ENV_BOOL("srs.srt_server.enabled"); // SRS_SRT_SERVER_ENABLED
+    bool ret = false;
 
-    static bool DEFAULT = false;
-    
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
-        return DEFAULT;
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* conf = root->at(i);
+
+        if (!is_srt_server(conf)) {
+            continue;
+        }
+        conf = conf->get("enabled");
+        if (!conf || conf->arg0().empty()) {
+            ret = false;
+        } else {
+            ret = true;
+            break;
+        }
     }
-    
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-    
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+
+    return ret;
 }
 
-unsigned short SrsConfig::get_srt_listen_port()
+std::string SrsConfig::get_srt_type(SrsConfDirective* srt_conf)
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.srt_server.type");
+
+    static std::string DEFAULT("push");
+
+    if (!srt_conf) {
+        return DEFAULT;
+    }
+    SrsConfDirective* type_conf = srt_conf->get("type");
+    if (!type_conf || type_conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return type_conf->arg0();
+}
+
+unsigned short SrsConfig::get_srt_port(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.listen"); // SRS_SRT_SERVER_LISTEN
 
     static unsigned short DEFAULT = 10080;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("listen");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
+
+    SrsConfDirective* port_conf = srt_conf->get("port");
+    if (!port_conf || port_conf->arg0().empty()) {
+       return DEFAULT;
     }
-    return (unsigned short)atoi(conf->arg0().c_str());
+    return (unsigned short)atoi(port_conf->arg0().c_str());
 }
 
-int64_t SrsConfig::get_srto_maxbw()
+int64_t SrsConfig::get_srto_maxbw(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.maxbw"); // SRS_SRT_SERVER_MAXBW
 
     static int64_t DEFAULT = -1;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("maxbw");
+    SrsConfDirective* conf = srt_conf->get("maxbw");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return atoll(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_mss()
+int SrsConfig::get_srto_mss(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.mms"); // SRS_SRT_SERVER_MMS
 
     static int DEFAULT = 1500;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("mms");
+
+    SrsConfDirective* conf = srt_conf->get("mms");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return atoi(conf->arg0().c_str());
 }
 
-bool SrsConfig::get_srto_tsbpdmode()
+bool SrsConfig::get_srto_tsbpdmode(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_BOOL2("srs.srt_server.tsbpdmode"); // SRS_SRT_SERVER_TSBPDMODE
 
     static bool DEFAULT = true;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("tsbpdmode");
+    SrsConfDirective* conf = srt_conf->get("tsbpdmode");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-int SrsConfig::get_srto_latency()
+int SrsConfig::get_srto_latency(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.latency"); // SRS_SRT_SERVER_LATENCY
 
     static int DEFAULT = 120;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("latency");
+    SrsConfDirective* conf = srt_conf->get("latency");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_recv_latency()
+int SrsConfig::get_srto_recv_latency(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.recvlatency"); // SRS_SRT_SERVER_RECVLATENCY
 
     static int DEFAULT = 120;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("recvlatency");
+    SrsConfDirective* conf = srt_conf->get("recvlatency");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_peer_latency()
+int SrsConfig::get_srto_peer_latency(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.peerlatency"); // SRS_SRT_SERVER_PEERLATENCY
 
     static int DEFAULT = 0;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("peerlatency");
+    SrsConfDirective* conf = srt_conf->get("peerlatency");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return atoi(conf->arg0().c_str());
 }
 
-bool SrsConfig::get_srt_sei_filter()
+bool SrsConfig::get_srt_sei_filter(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_BOOL2("srs.srt_server.sei_filter"); // SRS_SRT_SERVER_SEI_FILTER
 
     static bool DEFAULT = true;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("sei_filter");
+    SrsConfDirective* conf = srt_conf->get("sei_filter");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-bool SrsConfig::get_srto_tlpktdrop()
+bool SrsConfig::get_srto_tlpktdrop(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_BOOL2("srs.srt_server.tlpktdrop"); // SRS_SRT_SERVER_TLPKTDROP
 
     static bool DEFAULT = true;
-    SrsConfDirective* srt_server_conf = root->get("srt_server");
-    if (!srt_server_conf) {
+
+    if (!srt_conf) {
         return DEFAULT;
     }
-
-    SrsConfDirective* conf = srt_server_conf->get("tlpktdrop");
+    SrsConfDirective* conf = srt_conf->get("tlpktdrop");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-srs_utime_t SrsConfig::get_srto_conntimeout()
+srs_utime_t SrsConfig::get_srto_conntimeout(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.srt_server.connect_timeout"); // SRS_SRT_SERVER_CONNECT_TIMEOUT
 
     static srs_utime_t DEFAULT = 3 * SRS_UTIME_SECONDS;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
-        return DEFAULT;
+
+    if (!srt_conf) {
+       return DEFAULT;
     }
-    
-    conf = conf->get("connect_timeout");
+    SrsConfDirective* conf = srt_conf->get("connect_timeout");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-srs_utime_t SrsConfig::get_srto_peeridletimeout()
+srs_utime_t SrsConfig::get_srto_peeridletimeout(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.srt_server.peer_idle_timeout"); // SRS_SRT_SERVER_PEER_IDLE_TIMEOUT
 
     static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("peer_idle_timeout");
+    SrsConfDirective* conf = srt_conf->get("peer_idle_timeout");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-int SrsConfig::get_srto_sendbuf()
+int SrsConfig::get_srto_sendbuf(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.sendbuf"); // SRS_SRT_SERVER_SENDBUF
 
     static int DEFAULT = 8192 * (1500-28);
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("sendbuf");
+    SrsConfDirective* conf = srt_conf->get("sendbuf");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_recvbuf()
+int SrsConfig::get_srto_recvbuf(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.recvbuf"); // SRS_SRT_SERVER_RECVBUF
 
     static int DEFAULT = 8192 * (1500-28);
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("recvbuf");
+    SrsConfDirective* conf = srt_conf->get("recvbuf");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_payloadsize()
+int SrsConfig::get_srto_payloadsize(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.payloadsize"); // SRS_SRT_SERVER_PAYLOADSIZE
 
     static int DEFAULT = 1316;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("payloadsize");
+    SrsConfDirective* conf = srt_conf->get("payloadsize");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return atoi(conf->arg0().c_str());
 }
 
-string SrsConfig::get_srto_passphrase()
+string SrsConfig::get_srto_passphrase(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.srt_server.passphrase"); // SRS_SRT_SERVER_PASSPHRASE
 
     static string DEFAULT = "";
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("passphrase");
+    SrsConfDirective* conf = srt_conf->get("passphrase");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     return conf->arg0();
 }
 
-int SrsConfig::get_srto_pbkeylen()
+int SrsConfig::get_srto_pbkeylen(SrsConfDirective* srt_conf)
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.pbkeylen"); // SRS_SRT_SERVER_PBKEYLEN
 
     static int DEFAULT = 0;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    
+    if (!srt_conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("pbkeylen");
+    SrsConfDirective* conf = srt_conf->get("pbkeylen");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
@@ -8152,17 +8174,21 @@ string SrsConfig::get_default_app_name()
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.srt_server.default_app"); // SRS_SRT_SERVER_DEFAULT_APP
 
-    static string DEFAULT = "live";
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
-        return DEFAULT;
-    }
+    string ret = "live";
 
-    conf = conf->get("default_app");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* conf = root->at(i);
+        
+        if (!is_srt_server(conf)) {
+            continue;
+        }
+        conf = conf->get("default_app");
+        if (!conf || conf->arg0().empty()) {
+            ret = conf->arg0();
+            break;
+        }
     }
-    return conf->arg0();
+    return ret;
 }
 
 SrsConfDirective* SrsConfig::get_srt(std::string vhost)

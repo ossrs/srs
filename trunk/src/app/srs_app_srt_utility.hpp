@@ -18,8 +18,9 @@ class SrsRequest;
 
 enum SrtMode 
 {
-    SrtModePull = 1,
-    SrtModePush = 2,
+    SrtModeUnkown = 0,
+    SrtModePull   = 1,
+    SrtModePush   = 2,
 };
 
 // Get SRT streamid info.
@@ -28,5 +29,6 @@ extern bool srs_srt_streamid_info(const std::string& streamid, SrtMode& mode, st
 // SRT streamid to request.
 extern bool srs_srt_streamid_to_request(const std::string& streamid, SrtMode& mode, SrsRequest* request);
 
+extern std::string SrtMode2String(enum SrtMode mode);
 #endif
 

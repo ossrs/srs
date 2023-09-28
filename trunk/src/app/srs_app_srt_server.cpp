@@ -19,11 +19,13 @@ using namespace std;
 SrsSrtEventLoop* _srt_eventloop = NULL;
 #endif
 
-SrsSrtAcceptor::SrsSrtAcceptor(SrsSrtServer* srt_server)
+SrsSrtAcceptor::SrsSrtAcceptor(SrsSrtServer* srt_server, enum SrtMode mode, SrsConfDirective* srt_conf)
 {
+    srt_conf_ = srt_conf;
     port_ = 0;
     srt_server_ = srt_server;
     listener_ = NULL;
+    mode_ = mode;
 }
 
 SrsSrtAcceptor::~SrsSrtAcceptor()
@@ -56,7 +58,8 @@ srs_error_t SrsSrtAcceptor::listen(std::string ip, int port)
         return srs_error_wrap(err, "message srt acceptor");
     }
 
-    srs_trace("srt listen at udp://%s:%d, fd=%d", ip_.c_str(), port_, listener_->fd());
+    srs_trace("srt listen at udp://%s:%d, fd=%d, mode:%s",
+            ip_.c_str(), port_, listener_->fd(), SrtMode2String(mode_).c_str());
 
     return err;
 }
@@ -65,61 +68,61 @@ srs_error_t SrsSrtAcceptor::set_srt_opt()
 {
     srs_error_t err = srs_success;
 
-    if ((err = srs_srt_set_maxbw(listener_->fd(), _srs_config->get_srto_maxbw())) != srs_success) {
-        return srs_error_wrap(err, "set opt maxbw=%" PRId64 " failed", _srs_config->get_srto_maxbw());
+    if ((err = srs_srt_set_maxbw(listener_->fd(), _srs_config->get_srto_maxbw(srt_conf_))) != srs_success) {
+        return srs_error_wrap(err, "set opt maxbw=%" PRId64 " failed", _srs_config->get_srto_maxbw(srt_conf_));
     }
 
-    if ((err = srs_srt_set_mss(listener_->fd(), _srs_config->get_srto_mss())) != srs_success) {
-        return srs_error_wrap(err, "set opt mss=%d failed", _srs_config->get_srto_mss());
+    if ((err = srs_srt_set_mss(listener_->fd(), _srs_config->get_srto_mss(srt_conf_))) != srs_success) {
+        return srs_error_wrap(err, "set opt mss=%d failed", _srs_config->get_srto_mss(srt_conf_));
     }
 
-    if ((err = srs_srt_set_tsbpdmode(listener_->fd(), _srs_config->get_srto_tsbpdmode())) != srs_success) {
-        return srs_error_wrap(err, "set opt tsbpdmode=%d failed", _srs_config->get_srto_tsbpdmode());
+    if ((err = srs_srt_set_tsbpdmode(listener_->fd(), _srs_config->get_srto_tsbpdmode(srt_conf_))) != srs_success) {
+        return srs_error_wrap(err, "set opt tsbpdmode=%d failed", _srs_config->get_srto_tsbpdmode(srt_conf_));
     }
 
-    if ((err = srs_srt_set_latency(listener_->fd(), _srs_config->get_srto_latency())) != srs_success) {
-        return srs_error_wrap(err, "set opt latency=%d failed", _srs_config->get_srto_latency());
+    if ((err = srs_srt_set_latency(listener_->fd(), _srs_config->get_srto_latency(srt_conf_))) != srs_success) {
+        return srs_error_wrap(err, "set opt latency=%d failed", _srs_config->get_srto_latency(srt_conf_));
     }
 
-    if ((err = srs_srt_set_rcv_latency(listener_->fd(), _srs_config->get_srto_recv_latency())) != srs_success) {
-        return srs_error_wrap(err, "set opt recvlatency=%d failed", _srs_config->get_srto_recv_latency());
+    if ((err = srs_srt_set_rcv_latency(listener_->fd(), _srs_config->get_srto_recv_latency(srt_conf_))) != srs_success) {
+        return srs_error_wrap(err, "set opt recvlatency=%d failed", _srs_config->get_srto_recv_latency(srt_conf_));
     }
 
-    if ((err = srs_srt_set_peer_latency(listener_->fd(), _srs_config->get_srto_peer_latency())) != srs_success) {
-        return srs_error_wrap(err, "set opt peerlatency=%d failed", _srs_config->get_srto_peer_latency());
+    if ((err = srs_srt_set_peer_latency(listener_->fd(), _srs_config->get_srto_peer_latency(srt_conf_))) != srs_success) {
+        return srs_error_wrap(err, "set opt peerlatency=%d failed", _srs_config->get_srto_peer_latency(srt_conf_));
     }
 
-    if ((err = srs_srt_set_tlpktdrop(listener_->fd(), _srs_config->get_srto_tlpktdrop())) != srs_success) {
-        return srs_error_wrap(err, "set opt tlpktdrop=%d failed", _srs_config->get_srto_tlpktdrop());
+    if ((err = srs_srt_set_tlpktdrop(listener_->fd(), _srs_config->get_srto_tlpktdrop(srt_conf_))) != srs_success) {
+        return srs_error_wrap(err, "set opt tlpktdrop=%d failed", _srs_config->get_srto_tlpktdrop(srt_conf_));
     }
 
-    if ((err = srs_srt_set_connect_timeout(listener_->fd(), srsu2msi(_srs_config->get_srto_conntimeout()))) != srs_success) {
-        return srs_error_wrap(err, "set opt connect_timeout=%d failed", _srs_config->get_srto_conntimeout());
+    if ((err = srs_srt_set_connect_timeout(listener_->fd(), srsu2msi(_srs_config->get_srto_conntimeout(srt_conf_)))) != srs_success) {
+        return srs_error_wrap(err, "set opt connect_timeout=%d failed", _srs_config->get_srto_conntimeout(srt_conf_));
     }
 
-    if ((err = srs_srt_set_peer_idle_timeout(listener_->fd(), srsu2msi(_srs_config->get_srto_peeridletimeout()))) != srs_success) {
-        return srs_error_wrap(err, "set opt peer_idle_timeout=%d failed", _srs_config->get_srto_peeridletimeout());
+    if ((err = srs_srt_set_peer_idle_timeout(listener_->fd(), srsu2msi(_srs_config->get_srto_peeridletimeout(srt_conf_)))) != srs_success) {
+        return srs_error_wrap(err, "set opt peer_idle_timeout=%d failed", _srs_config->get_srto_peeridletimeout(srt_conf_));
     }
 
-    if ((err = srs_srt_set_sndbuf(listener_->fd(), _srs_config->get_srto_sendbuf())) != srs_success) {
-        return srs_error_wrap(err, "set opt sendbuf=%d failed", _srs_config->get_srto_sendbuf());
+    if ((err = srs_srt_set_sndbuf(listener_->fd(), _srs_config->get_srto_sendbuf(srt_conf_))) != srs_success) {
+        return srs_error_wrap(err, "set opt sendbuf=%d failed", _srs_config->get_srto_sendbuf(srt_conf_));
     }
 
-    if ((err = srs_srt_set_rcvbuf(listener_->fd(), _srs_config->get_srto_recvbuf())) != srs_success) {
-        return srs_error_wrap(err, "set opt recvbuf=%d failed", _srs_config->get_srto_recvbuf());
+    if ((err = srs_srt_set_rcvbuf(listener_->fd(), _srs_config->get_srto_recvbuf(srt_conf_))) != srs_success) {
+        return srs_error_wrap(err, "set opt recvbuf=%d failed", _srs_config->get_srto_recvbuf(srt_conf_));
     }
 
-    if ((err = srs_srt_set_payload_size(listener_->fd(), _srs_config->get_srto_payloadsize())) != srs_success) {
-        return srs_error_wrap(err, "set opt payload_size=%d failed", _srs_config->get_srto_payloadsize());
+    if ((err = srs_srt_set_payload_size(listener_->fd(), _srs_config->get_srto_payloadsize(srt_conf_))) != srs_success) {
+        return srs_error_wrap(err, "set opt payload_size=%d failed", _srs_config->get_srto_payloadsize(srt_conf_));
     }
 
-    string passphrase = _srs_config->get_srto_passphrase();
+    string passphrase = _srs_config->get_srto_passphrase(srt_conf_);
     if (! passphrase.empty()) {
         if ((err = srs_srt_set_passphrase(listener_->fd(), passphrase)) != srs_success) {
             return srs_error_wrap(err, "set opt passphrase=%s failed", passphrase.c_str());
         }
 
-        int pbkeylen = _srs_config->get_srto_pbkeylen();
+        int pbkeylen = _srs_config->get_srto_pbkeylen(srt_conf_);
         if ((err = srs_srt_set_pbkeylen(listener_->fd(), pbkeylen)) != srs_success) {
             return srs_error_wrap(err, "set opt pbkeylen=%d failed", pbkeylen);
         }
@@ -133,7 +136,7 @@ srs_error_t SrsSrtAcceptor::on_srt_client(srs_srt_t srt_fd)
     srs_error_t err = srs_success;
 
     // Notify srt server to accept srt client, and create new SrsSrtConn on it.
-    if ((err = srt_server_->accept_srt_client(srt_fd)) != srs_success) {
+    if ((err = srt_server_->accept_srt_client(srt_fd, mode_)) != srs_success) {
         srs_warn("accept srt client failed, err is %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
@@ -188,6 +191,7 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
 {
     srs_error_t err = srs_success;
 
+    srs_trace("srt enable:%s", _srs_config->get_srt_enabled() ? "true" : "false");
     if (! _srs_config->get_srt_enabled()) {
         return err;
     }
@@ -195,15 +199,31 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
     // Close all listener for SRT if exists.
     close_listeners();
 
-    // Start a listener for SRT, we might need multiple listeners in the future.
-    SrsSrtAcceptor* acceptor = new SrsSrtAcceptor(this);
-    acceptors_.push_back(acceptor);
+    std::vector<SrsConfDirective*> srt_conf_vec;
 
-    int port; string ip;
-    srs_parse_endpoint(srs_int2str(_srs_config->get_srt_listen_port()), ip, port);
+    _srs_config->get_srt_servers(srt_conf_vec);
 
-    if ((err = acceptor->listen(ip, port)) != srs_success) {
-        return srs_error_wrap(err, "srt listen %s:%d", ip.c_str(), port);
+    for (auto srt_conf : srt_conf_vec) {
+        std::string srt_type = _srs_config->get_srt_type(srt_conf);
+        int port;
+        std::string ip;
+        enum SrtMode srt_mode = SrtModePush;
+
+        srs_parse_endpoint(srs_int2str(_srs_config->get_srt_port(srt_conf)), ip, port);
+        if (srt_type == "pull") {
+            srt_mode = SrtModePull;
+        } else {
+            srt_mode = SrtModePush;
+        }
+
+        SrsSrtAcceptor* acceptor = new SrsSrtAcceptor(this, srt_mode, srt_conf);
+        acceptors_.push_back(acceptor);
+        
+        if ((err =  acceptor->listen(ip, port)) != srs_success) {
+            return srs_error_wrap(err, "srt %s listen %s:%d",
+                            srt_mode == SrtModePull ? "pull" : "push",
+                            ip.c_str(), port);
+        }
     }
 
     return err;
@@ -220,12 +240,12 @@ void SrsSrtServer::close_listeners()
     }
 }
 
-srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd)
+srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd, enum SrtMode mode)
 {
     srs_error_t err = srs_success;
 
     ISrsResource* resource = NULL;
-    if ((err = fd_to_resource(srt_fd, &resource)) != srs_success) {
+    if ((err = fd_to_resource(srt_fd, mode, &resource)) != srs_success) {
         //close fd on conn error, otherwise will lead to fd leak -gs
         // TODO: FIXME: Handle error.
         srs_srt_close(srt_fd);
@@ -244,7 +264,7 @@ srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd)
     return err;
 }
 
-srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsResource** pr)
+srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, enum SrtMode mode, ISrsResource** pr)
 {
     srs_error_t err = srs_success;
     
@@ -260,7 +280,7 @@ srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsResource** pr)
     SrsContextRestore(_srs_context->get_id());
 
     // Covert to SRT conection.
-    *pr = new SrsMpegtsSrtConn(this, srt_fd, ip, port);
+    *pr = new SrsMpegtsSrtConn(this, srt_fd, ip, port, mode);
     
     return err;
 }

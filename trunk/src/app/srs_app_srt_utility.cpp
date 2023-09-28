@@ -20,7 +20,7 @@ using namespace std;
 // TODO: FIMXE: We should parse SRT streamid to URL object, rather than a HTTP url subpath.
 bool srs_srt_streamid_info(const std::string& streamid, SrtMode& mode, std::string& vhost, std::string& url_subpath)
 {
-    mode = SrtModePull;
+    mode = SrtModeUnkown;
 
     size_t pos = streamid.find("#!::");
     if (pos != 0) {
@@ -89,6 +89,7 @@ bool srs_srt_streamid_info(const std::string& streamid, SrtMode& mode, std::stri
             }  else if (mode_str == "request") {
                 mode = SrtModePull;
             }  else {
+                mode = SrtModeUnkown;
                 srs_warn("unknown mode_str:%s", mode_str.c_str());
                 return false;
             }
@@ -144,4 +145,16 @@ bool srs_srt_streamid_to_request(const std::string& streamid, SrtMode& mode, Srs
     request->tcUrl = srs_generate_tc_url("srt", request->host, request->vhost, request->app, request->port);
 
     return ret;
+}
+
+std::string SrtMode2String(enum SrtMode mode) {
+    if (mode == SrtModePull) {
+        return "srtPull";
+    }
+    
+    if (mode == SrtModePush) {
+        return "srtPush";
+    }
+
+    return "unkown";
 }

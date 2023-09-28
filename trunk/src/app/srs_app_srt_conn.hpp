@@ -74,7 +74,7 @@ private:
 class SrsMpegtsSrtConn : public ISrsConnection, public ISrsStartable, public ISrsCoroutineHandler, public ISrsExpire
 {
 public:
-    SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port);
+    SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port, enum SrtMode mode);
     virtual ~SrsMpegtsSrtConn();
 // Interface ISrsResource.
 public:
@@ -119,6 +119,7 @@ private:
     SrsNetworkKbps* kbps_;
     std::string ip_;
     int port_;
+    enum SrtMode mode_;
     SrsCoroutine* trd_;
 
     SrsRequest* req_;

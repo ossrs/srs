@@ -668,40 +668,43 @@ public:
     virtual SrsConfDirective* get_forward_backend(std::string vhost);
 
 public:
+    virtual bool is_srt_server(SrsConfDirective* srt_conf);
+    virtual void get_srt_servers(std::vector<SrsConfDirective*>& servers);
     // Whether the srt sevice enabled
     virtual bool get_srt_enabled();
     // Get the srt service listen port
-    virtual unsigned short get_srt_listen_port();
+    virtual unsigned short get_srt_port(SrsConfDirective* srt_conf);
+    virtual std::string get_srt_type(SrsConfDirective* srt_conf);
     // Get the srt SRTO_MAXBW, max bandwith, default is -1.
-    virtual int64_t get_srto_maxbw();
+    virtual int64_t get_srto_maxbw(SrsConfDirective* srt_conf);
     // Get the srt SRTO_MSS, Maximum Segment Size, default is 1500.
-    virtual int get_srto_mss();
+    virtual int get_srto_mss(SrsConfDirective* srt_conf);
     // Get the srt SRTO_TSBPDMODE, timestamp base packet delivery mode, default is false.
-    virtual bool get_srto_tsbpdmode();
+    virtual bool get_srto_tsbpdmode(SrsConfDirective* srt_conf);
     // Get the srt SRTO_LATENCY, latency, default is 0 which means peer/recv latency is 120ms.
-    virtual int get_srto_latency();
+    virtual int get_srto_latency(SrsConfDirective* srt_conf);
     // Get the srt SRTO_RCVLATENCY, recv latency, default is 120ms.
-    virtual int get_srto_recv_latency();
+    virtual int get_srto_recv_latency(SrsConfDirective* srt_conf);
     // Get the srt SRTO_PEERLATENCY, peer latency, default is 0..
-    virtual int get_srto_peer_latency();
+    virtual int get_srto_peer_latency(SrsConfDirective* srt_conf);
     // Get the srt h264 sei filter, default is on, it will drop h264 sei packet.
-    virtual bool get_srt_sei_filter();
+    virtual bool get_srt_sei_filter(SrsConfDirective* srt_conf);
     // Get the srt SRTO_TLPKTDROP, Too-late Packet Drop, default is true.
-    virtual bool get_srto_tlpktdrop();
+    virtual bool get_srto_tlpktdrop(SrsConfDirective* srt_conf);
     // Get the srt SRTO_CONNTIMEO, connection timeout, default is 3000ms.
-    virtual srs_utime_t get_srto_conntimeout();
+    virtual srs_utime_t get_srto_conntimeout(SrsConfDirective* srt_conf);
     // Get the srt SRTO_PEERIDLETIMEO, peer idle timeout, default is 10000ms.
-    virtual srs_utime_t get_srto_peeridletimeout();
+    virtual srs_utime_t get_srto_peeridletimeout(SrsConfDirective* srt_conf);
     // Get the srt SRTO_SNDBUF, send buffer, default is 8192 × (1500-28).
-    virtual int get_srto_sendbuf();
+    virtual int get_srto_sendbuf(SrsConfDirective* srt_conf);
     // Get the srt SRTO_RCVBUF, recv buffer, default is 8192 × (1500-28).
-    virtual int get_srto_recvbuf();
+    virtual int get_srto_recvbuf(SrsConfDirective* srt_conf);
     // SRTO_PAYLOADSIZE
-    virtual int get_srto_payloadsize();
+    virtual int get_srto_payloadsize(SrsConfDirective* srt_conf);
     // Get the srt SRTO_PASSPHRASE, default is empty.
-    virtual std::string get_srto_passphrase();
+    virtual std::string get_srto_passphrase(SrsConfDirective* srt_conf);
     // Get the srt SRTO_PBKEYLEN, default is 0.
-    virtual int get_srto_pbkeylen();
+    virtual int get_srto_pbkeylen(SrsConfDirective* srt_conf);
     // Get the default app.
     virtual std::string get_default_app_name();
 private:

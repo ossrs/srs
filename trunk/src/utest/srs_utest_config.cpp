@@ -3944,20 +3944,27 @@ VOID TEST(ConfigMainTest, SrtServerTlpktDrop)
 
     if (true) {
         MockSrsConfig conf;
+
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
-        EXPECT_TRUE(conf.get_srto_tlpktdrop());
+        EXPECT_TRUE(conf.get_srto_tlpktdrop(nullptr));
     }
 
     if (true) {
         MockSrsConfig conf;
+
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srt_server{tlpktdrop off;}"));
-        EXPECT_FALSE(conf.get_srto_tlpktdrop());
+        std::vector<SrsConfDirective*> srt_server_confs;
+        conf.get_srt_servers(srt_server_confs);
+        EXPECT_FALSE(conf.get_srto_tlpktdrop(srt_server_confs[0]));
     }
 
     if (true) {
         MockSrsConfig conf;
+
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srt_server{tlpkdrop off;}"));
-        EXPECT_FALSE(conf.get_srto_tlpktdrop());
+        std::vector<SrsConfDirective*> srt_server_confs;
+        conf.get_srt_servers(srt_server_confs);
+        EXPECT_FALSE(conf.get_srto_tlpktdrop(srt_server_confs[0]));
     }
 }
 
@@ -4220,49 +4227,49 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesSrtServer)
         EXPECT_TRUE(conf.get_srt_enabled());
 
         SrsSetEnvConfig(srt_listen_port, "SRS_SRT_SERVER_LISTEN", "10000");
-        EXPECT_EQ(10000, conf.get_srt_listen_port());
+        EXPECT_EQ(10000, conf.get_srt_port(nullptr));
 
         SrsSetEnvConfig(srto_maxbw, "SRS_SRT_SERVER_MAXBW", "1000000000");
-        EXPECT_EQ(1000000000, conf.get_srto_maxbw());
+        EXPECT_EQ(1000000000, conf.get_srto_maxbw(nullptr));
 
         SrsSetEnvConfig(srto_mss, "SRS_SRT_SERVER_MMS", "1000");
-        EXPECT_EQ(1000, conf.get_srto_mss());
+        EXPECT_EQ(1000, conf.get_srto_mss(nullptr));
 
         SrsSetEnvConfig(srto_conntimeout, "SRS_SRT_SERVER_CONNECT_TIMEOUT", "2000");
-        EXPECT_EQ(2000 * SRS_UTIME_MILLISECONDS, conf.get_srto_conntimeout());
+        EXPECT_EQ(2000 * SRS_UTIME_MILLISECONDS, conf.get_srto_conntimeout(nullptr));
 
         SrsSetEnvConfig(srto_peeridletimeout, "SRS_SRT_SERVER_PEER_IDLE_TIMEOUT", "2000");
-        EXPECT_EQ(2000 * SRS_UTIME_MILLISECONDS, conf.get_srto_peeridletimeout());
+        EXPECT_EQ(2000 * SRS_UTIME_MILLISECONDS, conf.get_srto_peeridletimeout(nullptr));
 
         SrsSetEnvConfig(default_app_name, "SRS_SRT_SERVER_DEFAULT_APP", "xxx");
         EXPECT_STREQ("xxx", conf.get_default_app_name().c_str());
 
         SrsSetEnvConfig(srto_peer_latency, "SRS_SRT_SERVER_PEERLATENCY", "1");
-        EXPECT_EQ(1, conf.get_srto_peer_latency());
+        EXPECT_EQ(1, conf.get_srto_peer_latency(nullptr));
 
         SrsSetEnvConfig(srto_recv_latency, "SRS_SRT_SERVER_RECVLATENCY", "100");
-        EXPECT_EQ(100, conf.get_srto_recv_latency());
+        EXPECT_EQ(100, conf.get_srto_recv_latency(nullptr));
 
         SrsSetEnvConfig(srto_latency, "SRS_SRT_SERVER_LATENCY", "100");
-        EXPECT_EQ(100, conf.get_srto_latency());
+        EXPECT_EQ(100, conf.get_srto_latency(nullptr));
 
         SrsSetEnvConfig(srto_tsbpdmode, "SRS_SRT_SERVER_TSBPDMODE", "off");
-        EXPECT_FALSE(conf.get_srto_tsbpdmode());
+        EXPECT_FALSE(conf.get_srto_tsbpdmode(nullptr));
 
         SrsSetEnvConfig(srto_tlpktdrop, "SRS_SRT_SERVER_TLPKTDROP", "off");
-        EXPECT_FALSE(conf.get_srto_tlpktdrop());
+        EXPECT_FALSE(conf.get_srto_tlpktdrop(nullptr));
 
         SrsSetEnvConfig(srto_sendbuf, "SRS_SRT_SERVER_SENDBUF", "2100000");
-        EXPECT_EQ(2100000, conf.get_srto_sendbuf());
+        EXPECT_EQ(2100000, conf.get_srto_sendbuf(nullptr));
 
         SrsSetEnvConfig(srto_recvbuf, "SRS_SRT_SERVER_RECVBUF", "2100000");
-        EXPECT_EQ(2100000, conf.get_srto_recvbuf());
+        EXPECT_EQ(2100000, conf.get_srto_recvbuf(nullptr));
 
         SrsSetEnvConfig(srto_passphrase, "SRS_SRT_SERVER_PASSPHRASE", "xxx2");
-        EXPECT_STREQ("xxx2", conf.get_srto_passphrase().c_str());
+        EXPECT_STREQ("xxx2", conf.get_srto_passphrase(nullptr).c_str());
 
         SrsSetEnvConfig(srto_pbkeylen, "SRS_SRT_SERVER_PBKEYLEN", "16");
-        EXPECT_EQ(16, conf.get_srto_pbkeylen());
+        EXPECT_EQ(16, conf.get_srto_pbkeylen(nullptr));
     }
 }
 
