@@ -1027,7 +1027,7 @@ srs_error_t SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
         return srs_error_wrap(err, "hls: cache audio");
     }
 
-    // First, update the duration of the segment, as we might collect the segment. The duration should
+    // First, update the duration of the segment, as we might reap the segment. The duration should
     // cover from the first frame to the last frame.
     muxer->update_duration(tsmc->audio->dts);
     
@@ -1078,7 +1078,7 @@ srs_error_t SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
         return srs_error_wrap(err, "hls: cache video");
     }
 
-    // First, update the duration of the segment, as we might collect the segment. The duration should
+    // First, update the duration of the segment, as we might reap the segment. The duration should
     // cover from the first frame to the last frame.
     muxer->update_duration(tsmc->video->dts);
     
