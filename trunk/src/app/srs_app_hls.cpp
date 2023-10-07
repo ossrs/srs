@@ -665,9 +665,9 @@ srs_error_t SrsHlsMuxer::do_segment_close()
     // valid, add to segments if segment duration is ok
     // when too small, it maybe not enough data to play.
     // when too large, it maybe timestamp corrupt.
-    // make the segment more acceptable, when in [min, max_td * 2], it's ok.
+    // make the segment more acceptable, when in [min, max_td * 3], it's ok.
     bool matchMinDuration = current->duration() >= SRS_HLS_SEGMENT_MIN_DURATION;
-    bool matchMaxDuration = current->duration() <= max_td * 2 * 1000;
+    bool matchMaxDuration = current->duration() <= max_td * 3 * 1000;
     if (matchMinDuration && matchMaxDuration) {
         // rename from tmp to real path
         if ((err = current->rename()) != srs_success) {
