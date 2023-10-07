@@ -589,8 +589,8 @@ srs_error_t SrsHlsMuxer::flush_audio(SrsTsMessageCache* cache)
     }
     
     // update the duration of segment.
-    current->append(cache->audio->pts / 90);
-    
+    update_duration(cache->audio->dts);
+
     if ((err = current->tscw->write_audio(cache->audio)) != srs_success) {
         return srs_error_wrap(err, "hls: write audio");
     }
@@ -618,7 +618,7 @@ srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
     srs_assert(current);
     
     // update the duration of segment.
-    current->append(cache->video->dts / 90);
+    update_duration(cache->video->dts);
 
     if ((err = current->tscw->write_video(cache->video)) != srs_success) {
         return srs_error_wrap(err, "hls: write video");
