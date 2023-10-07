@@ -6973,7 +6973,7 @@ double SrsConfig::get_hls_td_ratio(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_FLOAT("srs.vhost.hls.hls_td_ratio"); // SRS_VHOST_HLS_HLS_TD_RATIO
 
-    static double DEFAULT = 1.5;
+    static double DEFAULT = 1.0;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
