@@ -302,6 +302,50 @@ namespace srs_internal
         
         close();
         
+    #if OPENSSL_VERSION_NUMBER >= 0x30000000L
+
+        #define RETURN_ERROR_AND_CLEANUP(err_code, err_msg)  \
+        if (true) {                                          \
+            EVP_PKEY_free(pkey);                             \
+            EVP_PKEY_CTX_free(pctx);                         \
+            EVP_PKEY_CTX_free(kctx);                         \
+            return srs_error_new(err_code, err_msg);         \
+        }
+
+        EVP_PKEY_CTX *pctx, *kctx;
+        EVP_PKEY* pkey = NULL;
+
+        pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, NULL);
+        if (!pctx) {
+            RETURN_ERROR_AND_CLEANUP(ERROR_OpenSslCreateDH, "ctx new");
+        }
+        if (EVP_PKEY_paramgen_init(pctx) <= 0) {
+            RETURN_ERROR_AND_CLEANUP(ERROR_OpenSslCreateDH, "param gen init");
+        }
+        if (EVP_PKEY_CTX_set_dh_paramgen_prime_len(pctx, bits_count) <= 0) {
+            RETURN_ERROR_AND_CLEANUP(ERROR_OpenSslCreateDH, "set length");
+        }
+        if (EVP_PKEY_paramgen(pctx, &pkey) <= 0) {
+            RETURN_ERROR_AND_CLEANUP(ERROR_OpenSslCreateDH, "param gen");
+        }
+
+        if (!(kctx = EVP_PKEY_CTX_new(pkey, NULL))){
+            RETURN_ERROR_AND_CLEANUP(ERROR_OpenSslCreateDH, "ctx new form param");
+        }
+        if (EVP_PKEY_keygen_init(kctx) <= 0){
+            RETURN_ERROR_AND_CLEANUP(ERROR_OpenSslCreateDH, "keygen init");
+        }
+        if (EVP_PKEY_keygen(kctx, &pkey) <= 0){
+            RETURN_ERROR_AND_CLEANUP(ERROR_OpenSslCreateDH, "keygen");
+        }
+        const DH* dh = EVP_PKEY_get0_DH(pkey);
+        pdh = const_cast<DH*>(dh);
+        DH_up_ref(pdh); //Increase the reference count of the DH object, because the pkey will be freed
+
+        EVP_PKEY_free(pkey);
+        EVP_PKEY_CTX_free(pctx);
+        EVP_PKEY_CTX_free(kctx);
+    #else
         //1. Create the DH
         if ((pdh = DH_new()) == NULL) {
             return srs_error_new(ERROR_OpenSslCreateDH, "dh new");
@@ -335,6 +379,7 @@ namespace srs_internal
         if (!DH_generate_key(pdh)) {
             return srs_error_new(ERROR_OpenSslGenerateDHKeys, "dh generate key");
         }
+    #endif
         
         return err;
     }
