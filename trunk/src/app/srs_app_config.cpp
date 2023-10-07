@@ -7183,7 +7183,7 @@ srs_utime_t SrsConfig::get_hls_dispose(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.hls.hls_dispose"); // SRS_VHOST_HLS_HLS_DISPOSE
 
-    static srs_utime_t DEFAULT = 120;
+    static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
