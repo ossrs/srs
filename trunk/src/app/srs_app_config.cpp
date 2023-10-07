@@ -6992,7 +6992,7 @@ double SrsConfig::get_hls_aof_ratio(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_FLOAT("srs.vhost.hls.hls_aof_ratio"); // SRS_VHOST_HLS_HLS_AOF_RATIO
 
-    static double DEFAULT = 2.0;
+    static double DEFAULT = 1.2;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
