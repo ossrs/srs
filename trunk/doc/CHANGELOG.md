@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-10-08, Merge [#3815](https://github.com/ossrs/srs/pull/3815): Use new cache image name. v6.0.86 (#3815)
 * v6.0, 2023-09-26, Merge [#3811](https://github.com/ossrs/srs/pull/3811): Turn off the related utests H265 option. v6.0.85 (#3811)
 * v6.0, 2023-09-25, Merge [#3810](https://github.com/ossrs/srs/pull/3810): Change dev code for John. v6.0.84 (#3810)
 * v6.0, 2023-09-22, Merge [#3777](https://github.com/ossrs/srs/pull/3777): Compile: Add a __GLIBC__ definition for the pthread_setname_np. v6.0.83 (#3777)
@@ -97,6 +98,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-09-28, Merge [#3816](https://github.com/ossrs/srs/pull/3816): cherry-pick from develop, for srt utest. v5.0.185 (#3816)
 * v5.0, 2023-09-21, Merge [#3806](https://github.com/ossrs/srs/pull/3806): Build: Support sys-ssl for srt. v5.0.184 (#3806)
 * v5.0, 2023-09-21, Merge [#3808](https://github.com/ossrs/srs/pull/3808): Upgrade libsrt to v1.5.3. v5.0.183 (#3808)
 * v5.0, 2023-09-21, Merge [#3404](https://github.com/ossrs/srs/pull/3404): WebRTC: Support WHEP for play. v5.0.182 (#3404)
