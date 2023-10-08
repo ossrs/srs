@@ -328,7 +328,7 @@ namespace srs_internal
         }
         
         // 4. Set the key length
-        DH_set_length(pdh, bits_count);
+        // DH_set_length(pdh, bits_count);
         
         // 5. Generate private and public key
         // @see ./test/dhtest.c:152
