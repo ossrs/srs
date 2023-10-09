@@ -2085,7 +2085,7 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 
     if (true) {
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
-        EXPECT_EQ(0, (int)conf.get_hls_dispose(""));
+        EXPECT_EQ(120 * SRS_UTIME_SECONDS, (int)conf.get_hls_dispose(""));
         EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hls_fragment(""));
         EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hls_window(""));
 
