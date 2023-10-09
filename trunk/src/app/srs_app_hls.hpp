@@ -200,6 +200,10 @@ public:
     virtual bool pure_audio();
     virtual srs_error_t flush_audio(SrsTsMessageCache* cache);
     virtual srs_error_t flush_video(SrsTsMessageCache* cache);
+    // When flushing video or audio, we update the duration. But, we should also update the
+    // duration before closing the segment. Keep in mind that it's fine to update the duration
+    // several times using the same dts timestamp.
+    void update_duration(uint64_t dts);
     // Close segment(ts).
     virtual srs_error_t segment_close();
 private:
