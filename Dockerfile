@@ -58,4 +58,5 @@ RUN ldd /usr/local/srs/objs/ffmpeg/bin/ffmpeg && \
 WORKDIR /usr/local/srs
 ENV SRS_DAEMON=off
 CMD ["./objs/srs", "-c", "conf/srs.conf"]
+# CMD ["./objs/srs", "-c", "conf/_development.conf"]
 
