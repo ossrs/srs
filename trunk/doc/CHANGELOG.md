@@ -7,6 +7,8 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-10-08, Merge [#3824](https://github.com/ossrs/srs/pull/3824): Solve the problem of inaccurate HLS TS duration. v6.0.87 (#3824)
+* v6.0, 2023-10-08, Merge [#3815](https://github.com/ossrs/srs/pull/3815): Use new cache image name. v6.0.86 (#3815)
 * v6.0, 2023-09-26, Merge [#3811](https://github.com/ossrs/srs/pull/3811): Turn off the related utests H265 option. v6.0.85 (#3811)
 * v6.0, 2023-09-25, Merge [#3810](https://github.com/ossrs/srs/pull/3810): Change dev code for John. v6.0.84 (#3810)
 * v6.0, 2023-09-22, Merge [#3777](https://github.com/ossrs/srs/pull/3777): Compile: Add a __GLIBC__ definition for the pthread_setname_np. v6.0.83 (#3777)
@@ -76,7 +78,7 @@ The changelog for SRS.
 * v6.0, 2023-01-19, Merge [#3318](https://github.com/ossrs/srs/pull/3318): RTC: fix rtc publisher pli cid. v6.0.19 (#3318)
 * v6.0, 2023-01-18, Merge [#3382](https://github.com/ossrs/srs/pull/3382): Rewrite research/api-server code by Go, remove Python. v6.0.18 (#3382)
 * v6.0, 2023-01-18, Merge [#3386](https://github.com/ossrs/srs/pull/3386): SRT: fix crash when srt_to_rtmp off. v6.0.17 (#3386)
-* v5.0, 2023-01-17, Merge [#3385](https://github.com/ossrs/srs/pull/3385): API: Support server/pid/service label for exporter and api. v6.0.16 (#3385)
+* v6.0, 2023-01-17, Merge [#3385](https://github.com/ossrs/srs/pull/3385): API: Support server/pid/service label for exporter and api. v6.0.16 (#3385)
 * v6.0, 2023-01-17, Merge [#3379](https://github.com/ossrs/srs/pull/3379): H265: Support demux vps/pps info. v6.0.15
 * v6.0, 2023-01-08, Merge [#3360](https://github.com/ossrs/srs/pull/3360): H265: Support DVR HEVC stream to MP4. v6.0.14
 * v6.0, 2023-01-06, Merge [#3363](https://github.com/ossrs/srs/issues/3363): HTTP: Add CORS Header for private network access. v6.0.13
@@ -97,6 +99,9 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-10-08, Merge [#3824](https://github.com/ossrs/srs/pull/3824): Solve the problem of inaccurate HLS TS duration. v5.0.187 (#3824)
+* v5.0, 2023-10-08, Merge [#3815](https://github.com/ossrs/srs/pull/3815): Use new cache image name. v5.0.186 (#3815)
+* v5.0, 2023-09-28, Merge [#3816](https://github.com/ossrs/srs/pull/3816): cherry-pick from develop, for srt utest. v5.0.185 (#3816)
 * v5.0, 2023-09-21, Merge [#3806](https://github.com/ossrs/srs/pull/3806): Build: Support sys-ssl for srt. v5.0.184 (#3806)
 * v5.0, 2023-09-21, Merge [#3808](https://github.com/ossrs/srs/pull/3808): Upgrade libsrt to v1.5.3. v5.0.183 (#3808)
 * v5.0, 2023-09-21, Merge [#3404](https://github.com/ossrs/srs/pull/3404): WebRTC: Support WHEP for play. v5.0.182 (#3404)
