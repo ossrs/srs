@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-10-10, Merge [#3825](https://github.com/ossrs/srs/pull/3825): SRT: Fix the missing config mss. v6.0.88 (#3825)
 * v6.0, 2023-10-08, Merge [#3824](https://github.com/ossrs/srs/pull/3824): Solve the problem of inaccurate HLS TS duration. v6.0.87 (#3824)
 * v6.0, 2023-10-08, Merge [#3815](https://github.com/ossrs/srs/pull/3815): Use new cache image name. v6.0.86 (#3815)
 * v6.0, 2023-09-26, Merge [#3811](https://github.com/ossrs/srs/pull/3811): Turn off the related utests H265 option. v6.0.85 (#3811)
@@ -99,6 +100,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-10-10, Merge [#3825](https://github.com/ossrs/srs/pull/3825): SRT: Fix the missing config mss. v5.0.188 (#3825)
 * v5.0, 2023-10-08, Merge [#3824](https://github.com/ossrs/srs/pull/3824): Solve the problem of inaccurate HLS TS duration. v5.0.187 (#3824)
 * v5.0, 2023-10-08, Merge [#3815](https://github.com/ossrs/srs/pull/3815): Use new cache image name. v5.0.186 (#3815)
 * v5.0, 2023-09-28, Merge [#3816](https://github.com/ossrs/srs/pull/3816): cherry-pick from develop, for srt utest. v5.0.185 (#3816)
