@@ -6973,7 +6973,7 @@ double SrsConfig::get_hls_td_ratio(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_FLOAT("srs.vhost.hls.hls_td_ratio"); // SRS_VHOST_HLS_HLS_TD_RATIO
 
-    static double DEFAULT = 1.5;
+    static double DEFAULT = 1.0;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6992,7 +6992,7 @@ double SrsConfig::get_hls_aof_ratio(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_FLOAT("srs.vhost.hls.hls_aof_ratio"); // SRS_VHOST_HLS_HLS_AOF_RATIO
 
-    static double DEFAULT = 2.0;
+    static double DEFAULT = 1.2;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -7183,7 +7183,7 @@ srs_utime_t SrsConfig::get_hls_dispose(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.hls.hls_dispose"); // SRS_VHOST_HLS_HLS_DISPOSE
 
-    static srs_utime_t DEFAULT = 0;
+    static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -7912,7 +7912,7 @@ int64_t SrsConfig::get_srto_maxbw()
 
 int SrsConfig::get_srto_mss()
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.mms"); // SRS_SRT_SERVER_MMS
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.mss"); // SRS_SRT_SERVER_MSS
 
     static int DEFAULT = 1500;
     SrsConfDirective* conf = root->get("srt_server");
@@ -7920,7 +7920,7 @@ int SrsConfig::get_srto_mss()
         return DEFAULT;
     }
     
-    conf = conf->get("mms");
+    conf = conf->get("mss");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
