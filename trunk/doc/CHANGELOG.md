@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-10-11, Merge [#3827](https://github.com/ossrs/srs/pull/3827): Fix bug for upgrading to OpenSSL 3.0. v5.0.189 (#3827)
 * v5.0, 2023-10-10, Merge [#3825](https://github.com/ossrs/srs/pull/3825): SRT: Fix the missing config mss. v5.0.188 (#3825)
 * v5.0, 2023-10-08, Merge [#3824](https://github.com/ossrs/srs/pull/3824): Solve the problem of inaccurate HLS TS duration. v5.0.187 (#3824)
 * v5.0, 2023-10-08, Merge [#3815](https://github.com/ossrs/srs/pull/3815): Use new cache image name. v5.0.186 (#3815)
