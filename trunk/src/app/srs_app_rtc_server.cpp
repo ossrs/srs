@@ -471,13 +471,18 @@ srs_error_t SrsRtcServer::listen_api()
     }
 
     // Generally, WHIP is a publishing protocol, but it can be also used as playing.
+    // See https://datatracker.ietf.org/doc/draft-ietf-wish-whep/
     if ((err = http_api_mux->handle("/rtc/v1/whip/", new SrsGoApiRtcWhip(this))) != srs_success) {
         return srs_error_wrap(err, "handle whip");
     }
 
     // We create another mount, to support play with the same query string as publish.
+    // See https://datatracker.ietf.org/doc/draft-murillo-whep/
     if ((err = http_api_mux->handle("/rtc/v1/whip-play/", new SrsGoApiRtcWhip(this))) != srs_success) {
-        return srs_error_wrap(err, "handle whip play");
+        return srs_error_wrap(err, "handle whep play");
+    }
+    if ((err = http_api_mux->handle("/rtc/v1/whep/", new SrsGoApiRtcWhip(this))) != srs_success) {
+        return srs_error_wrap(err, "handle whep play");
     }
 
 #ifdef SRS_SIMULATOR

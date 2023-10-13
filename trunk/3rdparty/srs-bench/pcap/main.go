@@ -108,12 +108,14 @@ func doMain(ctx context.Context) error {
 		}
 
 		if doRE {
-			if previousTime != nil {
-				if diff := ci.Timestamp.Sub(*previousTime); diff > 0 {
+			if previousTime == nil {
+				previousTime = &ci.Timestamp
+			} else {
+				if diff := ci.Timestamp.Sub(*previousTime); diff > 100*time.Millisecond {
 					time.Sleep(diff)
+					previousTime = &ci.Timestamp
 				}
 			}
-			previousTime = &ci.Timestamp
 		}
 
 		if doTrace {

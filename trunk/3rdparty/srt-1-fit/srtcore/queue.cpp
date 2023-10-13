@@ -125,7 +125,7 @@ srt::CUnitQueue::CQEntry* srt::CUnitQueue::allocateEntry(const int iNumUnits, co
 
     for (int i = 0; i < iNumUnits; ++i)
     {
-        tempu[i].m_iFlag = CUnit::FREE;
+        tempu[i].m_bTaken = false;
         tempu[i].m_Packet.m_pcData = tempb + i * mss;
     }
 
@@ -172,7 +172,7 @@ srt::CUnit* srt::CUnitQueue::getNextAvailUnit()
         const CUnit* end = m_pCurrQueue->m_pUnit + m_pCurrQueue->m_iSize;
         for (; m_pAvailUnit != end; ++m_pAvailUnit, ++units_checked)
         {
-            if (m_pAvailUnit->m_iFlag == CUnit::FREE)
+            if (!m_pAvailUnit->m_bTaken)
             {
                 return m_pAvailUnit;
             }
@@ -188,19 +188,19 @@ srt::CUnit* srt::CUnitQueue::getNextAvailUnit()
 void srt::CUnitQueue::makeUnitFree(CUnit* unit)
 {
     SRT_ASSERT(unit != NULL);
-    SRT_ASSERT(unit->m_iFlag != CUnit::FREE);
-    unit->m_iFlag.store(CUnit::FREE);
+    SRT_ASSERT(unit->m_bTaken);
+    unit->m_bTaken.store(false);
 
     --m_iNumTaken;
 }
 
-void srt::CUnitQueue::makeUnitGood(CUnit* unit)
+void srt::CUnitQueue::makeUnitTaken(CUnit* unit)
 {
     ++m_iNumTaken;
 
     SRT_ASSERT(unit != NULL);
-    SRT_ASSERT(unit->m_iFlag == CUnit::FREE);
-    unit->m_iFlag.store(CUnit::GOOD);
+    SRT_ASSERT(!unit->m_bTaken);
+    unit->m_bTaken.store(true);
 }
 
 srt::CSndUList::CSndUList(sync::CTimer* pTimer)
@@ -481,6 +481,25 @@ bool srt::CSndQueue::getBind(char* dst, size_t len) const
 }
 #endif
 
+#if defined(SRT_DEBUG_SNDQ_HIGHRATE)
+static void CSndQueueDebugHighratePrint(const srt::CSndQueue* self, const steady_clock::time_point currtime)
+{
+    if (self->m_DbgTime <= currtime)
+    {
+        fprintf(stdout,
+                "SndQueue %lu slt:%lu nrp:%lu snt:%lu nrt:%lu ctw:%lu\n",
+                self->m_WorkerStats.lIteration,
+                self->m_WorkerStats.lSleepTo,
+                self->m_WorkerStats.lNotReadyPop,
+                self->m_WorkerStats.lSendTo,
+                self->m_WorkerStats.lNotReadyTs,
+                self->m_WorkerStats.lCondWait);
+        memset(&self->m_WorkerStats, 0, sizeof(self->m_WorkerStats));
+        self->m_DbgTime = currtime + self->m_DbgPeriod;
+    }
+}
+#endif
+
 void* srt::CSndQueue::worker(void* param)
 {
     CSndQueue* self = (CSndQueue*)param;
@@ -492,34 +511,32 @@ void* srt::CSndQueue::worker(void* param)
 #endif
 
 #if defined(SRT_DEBUG_SNDQ_HIGHRATE)
-    CTimer::rdtsc(self->m_ullDbgTime);
-    self->m_ullDbgPeriod = uint64_t(5000000) * CTimer::getCPUFrequency();
-    self->m_ullDbgTime += self->m_ullDbgPeriod;
+#define IF_DEBUG_HIGHRATE(statement) statement
+    self->m_DbgTime = sync::steady_clock::now();
+    self->m_DbgPeriod = sync::microseconds_from(5000000);
+    self->m_DbgTime += self->m_DbgPeriod;
+#else
+#define IF_DEBUG_HIGHRATE(statement) (void)0
 #endif /* SRT_DEBUG_SNDQ_HIGHRATE */
 
     while (!self->m_bClosing)
     {
         const steady_clock::time_point next_time = self->m_pSndUList->getNextProcTime();
 
-#if defined(SRT_DEBUG_SNDQ_HIGHRATE)
-        self->m_WorkerStats.lIteration++;
-#endif /* SRT_DEBUG_SNDQ_HIGHRATE */
+        INCREMENT_THREAD_ITERATIONS();
+
+        IF_DEBUG_HIGHRATE(self->m_WorkerStats.lIteration++);
 
         if (is_zero(next_time))
         {
-#if defined(SRT_DEBUG_SNDQ_HIGHRATE)
-            self->m_WorkerStats.lNotReadyTs++;
-#endif /* SRT_DEBUG_SNDQ_HIGHRATE */
+            IF_DEBUG_HIGHRATE(self->m_WorkerStats.lNotReadyTs++);
 
             // wait here if there is no sockets with data to be sent
             THREAD_PAUSED();
             if (!self->m_bClosing)
             {
                 self->m_pSndUList->waitNonEmpty();
-
-#if defined(SRT_DEBUG_SNDQ_HIGHRATE)
-                self->m_WorkerStats.lCondWait++;
-#endif /* SRT_DEBUG_SNDQ_HIGHRATE */
+                IF_DEBUG_HIGHRATE(self->m_WorkerStats.lCondWait++);
             }
             THREAD_RESUMED();
 
@@ -529,43 +546,23 @@ void* srt::CSndQueue::worker(void* param)
         // wait until next processing time of the first socket on the list
         const steady_clock::time_point currtime = steady_clock::now();
 
-#if defined(SRT_DEBUG_SNDQ_HIGHRATE)
-        if (self->m_ullDbgTime <= currtime)
-        {
-            fprintf(stdout,
-                    "SndQueue %lu slt:%lu nrp:%lu snt:%lu nrt:%lu ctw:%lu\n",
-                    self->m_WorkerStats.lIteration,
-                    self->m_WorkerStats.lSleepTo,
-                    self->m_WorkerStats.lNotReadyPop,
-                    self->m_WorkerStats.lSendTo,
-                    self->m_WorkerStats.lNotReadyTs,
-                    self->m_WorkerStats.lCondWait);
-            memset(&self->m_WorkerStats, 0, sizeof(self->m_WorkerStats));
-            self->m_ullDbgTime = currtime + self->m_ullDbgPeriod;
-        }
-#endif /* SRT_DEBUG_SNDQ_HIGHRATE */
-
-        THREAD_PAUSED();
+        IF_DEBUG_HIGHRATE(CSndQueueDebugHighratePrint(self, currtime));
         if (currtime < next_time)
         {
+            THREAD_PAUSED();
             self->m_pTimer->sleep_until(next_time);
-
-#if defined(HAI_DEBUG_SNDQ_HIGHRATE)
-            self->m_WorkerStats.lSleepTo++;
-#endif /* SRT_DEBUG_SNDQ_HIGHRATE */
+            THREAD_RESUMED();
+            IF_DEBUG_HIGHRATE(self->m_WorkerStats.lSleepTo++);
         }
-        THREAD_RESUMED();
 
         // Get a socket with a send request if any.
         CUDT* u = self->m_pSndUList->pop();
         if (u == NULL)
         {
-#if defined(SRT_DEBUG_SNDQ_HIGHRATE)
-            self->m_WorkerStats.lNotReadyPop++;
-#endif /* SRT_DEBUG_SNDQ_HIGHRATE */
+            IF_DEBUG_HIGHRATE(self->m_WorkerStats.lNotReadyPop++);
             continue;
         }
-        
+
 #define UST(field) ((u->m_b##field) ? "+" : "-") << #field << " "
         HLOGC(qslog.Debug,
             log << "CSndQueue: requesting packet from @" << u->socketID() << " STATUS: " << UST(Listening)
@@ -575,46 +572,44 @@ void* srt::CSndQueue::worker(void* param)
 
         if (!u->m_bConnected || u->m_bBroken)
         {
-#if defined(SRT_DEBUG_SNDQ_HIGHRATE)
-            self->m_WorkerStats.lNotReadyPop++;
-#endif /* SRT_DEBUG_SNDQ_HIGHRATE */
+            IF_DEBUG_HIGHRATE(self->m_WorkerStats.lNotReadyPop++);
             continue;
         }
 
         // pack a packet from the socket
         CPacket pkt;
-        const std::pair<bool, steady_clock::time_point> res_time = u->packData((pkt));
+        steady_clock::time_point next_send_time;
+        sockaddr_any source_addr;
+        const bool res = u->packData((pkt), (next_send_time), (source_addr));
 
-        // Check if payload size is invalid.
-        if (res_time.first == false)
+        // Check if extracted anything to send
+        if (res == false)
         {
-#if defined(SRT_DEBUG_SNDQ_HIGHRATE)
-            self->m_WorkerStats.lNotReadyPop++;
-#endif /* SRT_DEBUG_SNDQ_HIGHRATE */
+            IF_DEBUG_HIGHRATE(self->m_WorkerStats.lNotReadyPop++);
             continue;
         }
 
         const sockaddr_any addr = u->m_PeerAddr;
-        const steady_clock::time_point next_send_time = res_time.second;
         if (!is_zero(next_send_time))
             self->m_pSndUList->update(u, CSndUList::DO_RESCHEDULE, next_send_time);
 
         HLOGC(qslog.Debug, log << self->CONID() << "chn:SENDING: " << pkt.Info());
-        self->m_pChannel->sendto(addr, pkt);
+        self->m_pChannel->sendto(addr, pkt, source_addr);
 
-#if defined(SRT_DEBUG_SNDQ_HIGHRATE)
-        self->m_WorkerStats.lSendTo++;
-#endif /* SRT_DEBUG_SNDQ_HIGHRATE */
+        IF_DEBUG_HIGHRATE(self->m_WorkerStats.lSendTo++);
     }
 
     THREAD_EXIT();
     return NULL;
 }
 
-int srt::CSndQueue::sendto(const sockaddr_any& w_addr, CPacket& w_packet)
+int srt::CSndQueue::sendto(const sockaddr_any& addr, CPacket& w_packet, const sockaddr_any& src)
 {
     // send out the packet immediately (high priority), this is a control packet
-    m_pChannel->sendto(w_addr, w_packet);
+    // NOTE: w_packet is passed by mutable reference because this function will do
+    // a modification in place and then it will revert it. After returning this object
+    // should look unmodified, hence it is here passed without a reference marker.
+    m_pChannel->sendto(addr, w_packet, src);
     return (int)w_packet.getLength();
 }
 
@@ -842,14 +837,42 @@ srt::CUDT* srt::CRendezvousQueue::retrieve(const sockaddr_any& addr, SRTSOCKET& 
 {
     ScopedLock vg(m_RIDListLock);
 
+    IF_HEAVY_LOGGING(const char* const id_type = w_id ? "THIS ID" : "A NEW CONNECTION");
+
     // TODO: optimize search
     for (list<CRL>::const_iterator i = m_lRendezvousID.begin(); i != m_lRendezvousID.end(); ++i)
     {
         if (i->m_PeerAddr == addr && ((w_id == 0) || (w_id == i->m_iID)))
         {
+            // This procedure doesn't exactly respond to the original UDT idea.
+            // As the "rendezvous queue" is used for both handling rendezvous and
+            // the caller sockets in the non-blocking mode (for blocking mode the
+            // entire handshake procedure is handled in a loop-style in CUDT::startConnect),
+            // the RID list should give up a socket entity in the following cases:
+            // 1. For THE SAME id as passed in w_id, respond always, as per a caller
+            //    socket that is currently trying to connect and is managed with
+            //    HS roundtrips in an event-style. Same for rendezvous.
+            // 2. For the "connection request" ID=0 the found socket should be given up
+            //    ONLY IF it is rendezvous. Normally ID=0 is only for listener as a
+            //    connection request. But if there was a listener, then this function
+            //    wouldn't even be called, as this case would be handled before trying
+            //    to call this function.
+            //
+            // This means: if an incoming ID is 0, then this search should succeed ONLY
+            // IF THE FOUND SOCKET WAS RENDEZVOUS.
+
+            if (!w_id && !i->m_pUDT->m_config.bRendezvous)
+            {
+                HLOGC(cnlog.Debug,
+                        log << "RID: found id @" << i->m_iID << " while looking for "
+                        << id_type << " FROM " << i->m_PeerAddr.str()
+                        << ", but it's NOT RENDEZVOUS, skipping");
+                continue;
+            }
+
             HLOGC(cnlog.Debug,
-                  log << "RID: found id @" << i->m_iID << " while looking for "
-                      << (w_id ? "THIS ID FROM " : "A NEW CONNECTION FROM ") << i->m_PeerAddr.str());
+                    log << "RID: found id @" << i->m_iID << " while looking for "
+                    << id_type << " FROM " << i->m_PeerAddr.str());
             w_id = i->m_iID;
             return i->m_pUDT;
         }
@@ -908,10 +931,26 @@ void srt::CRendezvousQueue::updateConnStatus(EReadStatus rst, EConnectStatus cst
         EReadStatus    read_st = rst;
         EConnectStatus conn_st = cst;
 
-        if (i->id != dest_id)
+        if (cst != CONN_RENDEZVOUS && dest_id != 0)
         {
-            read_st = RST_AGAIN;
-            conn_st = CONN_AGAIN;
+            if (i->id != dest_id)
+            {
+                HLOGC(cnlog.Debug, log << "updateConnStatus: cst=" << ConnectStatusStr(cst) << " but for RID @" << i->id
+                        << " dest_id=@" << dest_id << " - resetting to AGAIN");
+
+                read_st = RST_AGAIN;
+                conn_st = CONN_AGAIN;
+            }
+            else
+            {
+                HLOGC(cnlog.Debug, log << "updateConnStatus: cst=" << ConnectStatusStr(cst) << " for @"
+                        << i->id);
+            }
+        }
+        else
+        {
+            HLOGC(cnlog.Debug, log << "updateConnStatus: cst=" << ConnectStatusStr(cst) << " and dest_id=@" << dest_id
+                    << " - NOT checking against RID @" << i->id);
         }
 
         HLOGC(cnlog.Debug,
@@ -1123,7 +1162,6 @@ srt::CRcvQueue::~CRcvQueue()
         while (!i->second.empty())
         {
             CPacket* pkt = i->second.front();
-            delete[] pkt->m_pcData;
             delete pkt;
             i->second.pop();
         }
@@ -1182,6 +1220,8 @@ void* srt::CRcvQueue::worker(void* param)
     {
         bool        have_received = false;
         EReadStatus rst           = self->worker_RetrieveUnit((id), (unit), (sa));
+
+        INCREMENT_THREAD_ITERATIONS();
         if (rst == RST_OK)
         {
             if (id < 0)
@@ -1324,14 +1364,12 @@ srt::EReadStatus srt::CRcvQueue::worker_RetrieveUnit(int32_t& w_id, CUnit*& w_un
     {
         // no space, skip this packet
         CPacket temp;
-        temp.m_pcData = new char[m_szPayloadSize];
-        temp.setLength(m_szPayloadSize);
+        temp.allocate(m_szPayloadSize);
         THREAD_PAUSED();
         EReadStatus rst = m_pChannel->recvfrom((w_addr), (temp));
         THREAD_RESUMED();
         // Note: this will print nothing about the packet details unless heavy logging is on.
         LOGC(qrlog.Error, log << CONID() << "LOCAL STORAGE DEPLETED. Dropping 1 packet: " << temp.Info());
-        delete[] temp.m_pcData;
 
         // Be transparent for RST_ERROR, but ignore the correct
         // data read and fake that the packet was dropped.
@@ -1500,7 +1538,7 @@ srt::EConnectStatus srt::CRcvQueue::worker_TryAsyncRend_OrStore(int32_t id, CUni
         if (cst == CONN_CONFUSED)
         {
             LOGC(cnlog.Warn, log << "AsyncOrRND: PACKET NOT HANDSHAKE - re-requesting handshake from peer");
-            storePkt(id, unit->m_Packet.clone());
+            storePktClone(id, unit->m_Packet);
             if (!u->processAsyncConnectRequest(RST_AGAIN, CONN_CONTINUE, &unit->m_Packet, u->m_PeerAddr))
             {
                 // Reuse previous behavior to reject a packet
@@ -1575,7 +1613,7 @@ srt::EConnectStatus srt::CRcvQueue::worker_TryAsyncRend_OrStore(int32_t id, CUni
           log << "AsyncOrRND: packet RESOLVED TO ID=" << id << " -- continuing through CENTRAL PACKET QUEUE");
     // This is where also the packets for rendezvous connection will be landing,
     // in case of a synchronous connection.
-    storePkt(id, unit->m_Packet.clone());
+    storePktClone(id, unit->m_Packet);
 
     return CONN_CONTINUE;
 }
@@ -1637,8 +1675,8 @@ int srt::CRcvQueue::recvfrom(int32_t id, CPacket& w_packet)
     memcpy((w_packet.m_nHeader), newpkt->m_nHeader, CPacket::HDR_SIZE);
     memcpy((w_packet.m_pcData), newpkt->m_pcData, newpkt->getLength());
     w_packet.setLength(newpkt->getLength());
+    w_packet.m_DestAddr = newpkt->m_DestAddr;
 
-    delete[] newpkt->m_pcData;
     delete newpkt;
 
     // remove this message from queue,
@@ -1693,7 +1731,6 @@ void srt::CRcvQueue::removeConnector(const SRTSOCKET& id)
               log << "removeConnector: ... and its packet queue with " << i->second.size() << " packets collected");
         while (!i->second.empty())
         {
-            delete[] i->second.front()->m_pcData;
             delete i->second.front();
             i->second.pop();
         }
@@ -1726,7 +1763,7 @@ srt::CUDT* srt::CRcvQueue::getNewEntry()
     return u;
 }
 
-void srt::CRcvQueue::storePkt(int32_t id, CPacket* pkt)
+void srt::CRcvQueue::storePktClone(int32_t id, const CPacket& pkt)
 {
     CUniqueSync passcond(m_BufferLock, m_BufferCond);
 
@@ -1734,22 +1771,22 @@ void srt::CRcvQueue::storePkt(int32_t id, CPacket* pkt)
 
     if (i == m_mBuffer.end())
     {
-        m_mBuffer[id].push(pkt);
+        m_mBuffer[id].push(pkt.clone());
         passcond.notify_one();
     }
     else
     {
-        // avoid storing too many packets, in case of malfunction or attack
+        // Avoid storing too many packets, in case of malfunction or attack.
         if (i->second.size() > 16)
             return;
 
-        i->second.push(pkt);
+        i->second.push(pkt.clone());
     }
 }
 
 void srt::CMultiplexer::destroy()
 {
-    // Reverse order of the assigned
+    // Reverse order of the assigned.
     delete m_pRcvQueue;
     delete m_pSndQueue;
     delete m_pTimer;

@@ -33,7 +33,7 @@ SrsThreadContext::~SrsThreadContext()
 
 SrsContextId SrsThreadContext::generate_id()
 {
-    SrsContextId cid = SrsContextId();
+    SrsContextId cid;
     return cid.set_value(srs_random_str(8));
 }
 

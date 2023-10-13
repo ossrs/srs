@@ -62,7 +62,7 @@ srt::CInfoBlock& srt::CInfoBlock::copyFrom(const CInfoBlock& obj)
    return *this;
 }
 
-bool srt::CInfoBlock::operator==(const CInfoBlock& obj)
+bool srt::CInfoBlock::operator==(const CInfoBlock& obj) const
 {
    if (m_iIPversion != obj.m_iIPversion)
       return false;

@@ -542,9 +542,12 @@ bool SrsHlsMuxer::is_segment_overflow()
         return false;
     }
     
-    // use N% deviation, to smoother.
+    // Use N% deviation, to smoother.
     srs_utime_t deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0;
-    return current->duration() >= hls_fragment + deviation;
+
+    // Keep in mind that we use max_td for the base duration, not the hls_fragment. To calculate
+    // max_td, multiply hls_fragment by hls_td_ratio.
+    return current->duration() >= max_td + deviation;
 }
 
 bool SrsHlsMuxer::wait_keyframe()
@@ -554,7 +557,6 @@ bool SrsHlsMuxer::wait_keyframe()
 
 bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
-    // @see https://github.com/ossrs/srs/issues/151#issuecomment-83553950
     srs_assert(current);
     
     // to prevent very small segment.
@@ -587,8 +589,8 @@ srs_error_t SrsHlsMuxer::flush_audio(SrsTsMessageCache* cache)
     }
     
     // update the duration of segment.
-    current->append(cache->audio->pts / 90);
-    
+    update_duration(cache->audio->dts);
+
     if ((err = current->tscw->write_audio(cache->audio)) != srs_success) {
         return srs_error_wrap(err, "hls: write audio");
     }
@@ -616,7 +618,7 @@ srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
     srs_assert(current);
     
     // update the duration of segment.
-    current->append(cache->video->dts / 90);
+    update_duration(cache->video->dts);
 
     if ((err = current->tscw->write_video(cache->video)) != srs_success) {
         return srs_error_wrap(err, "hls: write video");
@@ -626,6 +628,11 @@ srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
     srs_freep(cache->video);
     
     return err;
+}
+
+void SrsHlsMuxer::update_duration(uint64_t dts)
+{
+    current->append(dts / 90);
 }
 
 srs_error_t SrsHlsMuxer::segment_close()
@@ -658,9 +665,9 @@ srs_error_t SrsHlsMuxer::do_segment_close()
     // valid, add to segments if segment duration is ok
     // when too small, it maybe not enough data to play.
     // when too large, it maybe timestamp corrupt.
-    // make the segment more acceptable, when in [min, max_td * 2], it's ok.
+    // make the segment more acceptable, when in [min, max_td * 3], it's ok.
     bool matchMinDuration = current->duration() >= SRS_HLS_SEGMENT_MIN_DURATION;
-    bool matchMaxDuration = current->duration() <= max_td * 2 * 1000;
+    bool matchMaxDuration = current->duration() <= max_td * 3 * 1000;
     if (matchMinDuration && matchMaxDuration) {
         // rename from tmp to real path
         if ((err = current->rename()) != srs_success) {
@@ -812,7 +819,6 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
      * rounded to the nearest integer. Its value MUST NOT change. A
      * typical target duration is 10 seconds.
      */
-    // @see https://github.com/ossrs/srs/issues/304#issuecomment-74000081
     srs_utime_t max_duration = segments->max_duration();
     int target_duration = (int)ceil(srsu2msi(srs_max(max_duration, max_td)) / 1000.0);
     
@@ -922,8 +928,9 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     std::string vhost = req->vhost;
     std::string stream = req->stream;
     std::string app = req->app;
-    
+
     srs_utime_t hls_fragment = _srs_config->get_hls_fragment(vhost);
+    double hls_td_ratio = _srs_config->get_hls_td_ratio(vhost);
     srs_utime_t hls_window = _srs_config->get_hls_window(vhost);
     
     // get the hls m3u8 ts list entry prefix config
@@ -967,9 +974,9 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     // This config item is used in SrsHls, we just log its value here.
     bool hls_dts_directly = _srs_config->get_vhost_hls_dts_directly(req->vhost);
 
-    srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms, dts_directly=%d",
+    srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, tdr=%.2f, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms, dts_directly=%d",
         srsu2msi(hls_window), srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(), ts_file.c_str(),
-        hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose), hls_dts_directly);
+        hls_td_ratio, hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose), hls_dts_directly);
     
     return err;
 }
@@ -1019,15 +1026,17 @@ srs_error_t SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
     if ((err = tsmc->cache_audio(frame, pts)) != srs_success) {
         return srs_error_wrap(err, "hls: cache audio");
     }
+
+    // First, update the duration of the segment, as we might reap the segment. The duration should
+    // cover from the first frame to the last frame.
+    muxer->update_duration(tsmc->audio->dts);
     
     // reap when current source is pure audio.
     // it maybe changed when stream info changed,
     // for example, pure audio when start, audio/video when publishing,
     // pure audio again for audio disabled.
     // so we reap event when the audio incoming when segment overflow.
-    // @see https://github.com/ossrs/srs/issues/151
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
-    // @see https://github.com/ossrs/srs/issues/151#issuecomment-71155184
     if (tsmc->audio && muxer->is_segment_absolutely_overflow()) {
         if ((err = reap_segment()) != srs_success) {
             return srs_error_wrap(err, "hls: reap segment");
@@ -1068,6 +1077,10 @@ srs_error_t SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
     if ((err = tsmc->cache_video(frame, dts)) != srs_success) {
         return srs_error_wrap(err, "hls: cache video");
     }
+
+    // First, update the duration of the segment, as we might reap the segment. The duration should
+    // cover from the first frame to the last frame.
+    muxer->update_duration(tsmc->video->dts);
     
     // when segment overflow, reap if possible.
     if (muxer->is_segment_overflow()) {
@@ -1136,6 +1149,8 @@ SrsHls::SrsHls()
     
     enabled = false;
     disposable = false;
+    unpublishing_ = false;
+    async_reload_ = reloading_ = false;
     last_update_time = 0;
     hls_dts_directly = false;
     
@@ -1153,6 +1168,53 @@ SrsHls::~SrsHls()
     srs_freep(jitter);
     srs_freep(controller);
     srs_freep(pprint);
+}
+
+void SrsHls::async_reload()
+{
+    async_reload_ = true;
+}
+
+srs_error_t SrsHls::reload()
+{
+    srs_error_t err = srs_success;
+
+    // Ignore if not active.
+    if (!enabled) return err;
+
+    int reloading = 0, reloaded = 0, refreshed = 0;
+    err = do_reload(&reloading, &reloaded, &refreshed);
+    srs_trace("async reload hls %s, reloading=%d, reloaded=%d, refreshed=%d",
+        req->get_stream_url().c_str(), reloading, reloaded, refreshed);
+
+    return err;
+}
+
+srs_error_t SrsHls::do_reload(int *reloading, int *reloaded, int *refreshed)
+{
+    srs_error_t err = srs_success;
+
+    if (!async_reload_ || reloading_) return err;
+    reloading_ = true;
+    *reloading = 1;
+
+    on_unpublish();
+    if ((err = on_publish()) != srs_success) {
+        return srs_error_wrap(err, "hls publish failed");
+    }
+    *reloaded = 1;
+
+    // Before feed the sequence header, must reset the reloading.
+    reloading_ = false;
+    async_reload_ = false;
+
+    // After reloading, we must request the sequence header again.
+    if ((err = hub->on_hls_request_sh()) != srs_success) {
+        return srs_error_wrap(err, "hls request sh");
+    }
+    *refreshed = 1;
+
+    return err;
 }
 
 void SrsHls::dispose()
@@ -1174,7 +1236,7 @@ void SrsHls::dispose()
 srs_error_t SrsHls::cycle()
 {
     srs_error_t err = srs_success;
-    
+
     if (last_update_time <= 0) {
         last_update_time = srs_get_system_time();
     }
@@ -1182,7 +1244,14 @@ srs_error_t SrsHls::cycle()
     if (!req) {
         return err;
     }
+
+    // When unpublishing, we must wait for it done.
+    if (unpublishing_) return err;
     
+    // When reloading, we must wait for it done.
+    if (async_reload_) return err;
+
+    // If not unpublishing and not reloading, try to dispose HLS stream.
     srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
     if (hls_dispose <= 0) {
         return err;
@@ -1191,12 +1260,12 @@ srs_error_t SrsHls::cycle()
         return err;
     }
     last_update_time = srs_get_system_time();
-    
+
     if (!disposable) {
         return err;
     }
     disposable = false;
-    
+
     srs_trace("hls cycle to dispose hls %s, timeout=%dms", req->get_stream_url().c_str(), hls_dispose);
     dispose();
     
@@ -1243,6 +1312,8 @@ srs_error_t SrsHls::on_publish()
     
     // if enabled, open the muxer.
     enabled = true;
+    // Reset the unpublishing state.
+    unpublishing_ = false;
     
     // ok, the hls can be dispose, or need to be dispose.
     disposable = true;
@@ -1258,6 +1329,10 @@ void SrsHls::on_unpublish()
     if (!enabled) {
         return;
     }
+
+    // During unpublishing, there maybe callback that switch to other coroutines.
+    if (unpublishing_) return;
+    unpublishing_ = true;
     
     if ((err = controller->on_unpublish()) != srs_success) {
         srs_warn("hls: ignore unpublish failed %s", srs_error_desc(err).c_str());
@@ -1265,15 +1340,16 @@ void SrsHls::on_unpublish()
     }
     
     enabled = false;
+    unpublishing_ = false;
 }
 
 srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     srs_error_t err = srs_success;
-    
-    if (!enabled) {
-        return err;
-    }
+
+    // If not able to transmux to HLS, ignore.
+    if (!enabled || unpublishing_) return err;
+    if (async_reload_) return reload();
 
     // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
@@ -1352,10 +1428,10 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
 srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     srs_error_t err = srs_success;
-    
-    if (!enabled) {
-        return err;
-    }
+
+    // If not able to transmux to HLS, ignore.
+    if (!enabled || unpublishing_) return err;
+    if (async_reload_) return reload();
 
     // Ignore if no format->vcodec, it means the codec is not parsed, or unknown codec.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
@@ -1413,7 +1489,7 @@ void SrsHls::hls_show_mux_log()
     // the run time is not equals to stream time,
     // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
     // it's ok.
-    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%dms, sno=%d, ts=%s, dur=%dms, dva=%dp",
+    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%" PRId64 "ms, sno=%d, ts=%s, dur=%dms, dva=%dp",
               pprint->age(), controller->sequence_no(), controller->ts_url().c_str(),
               srsu2msi(controller->duration()), controller->deviation());
 }

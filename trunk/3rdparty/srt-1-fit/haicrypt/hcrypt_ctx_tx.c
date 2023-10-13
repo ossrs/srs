@@ -14,18 +14,18 @@ written by
    Haivision Systems Inc.
 
    2011-06-23 (jdube)
-        HaiCrypt initial implementation.
+		HaiCrypt initial implementation.
    2014-03-11 (jdube)
-        Adaptation for SRT.
+		Adaptation for SRT.
 *****************************************************************************/
 
 #include <string.h>		/* memcpy */
 #ifdef _WIN32
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
-    #include <win/wintime.h>
+	#include <winsock2.h>
+	#include <ws2tcpip.h>
+	#include <win/wintime.h>
 #else
-    #include <sys/time.h>
+	#include <sys/time.h>
 #endif
 #include "hcrypt.h"
 
@@ -33,7 +33,7 @@ int hcryptCtx_Tx_Init(hcrypt_Session *crypto, hcrypt_Ctx *ctx, const HaiCrypt_Cf
 {
 	ctx->cfg.key_len = cfg->key_len;
 
-	ctx->mode = HCRYPT_CTX_MODE_AESCTR;
+	ctx->mode = (cfg->flags & HAICRYPT_CFG_F_GCM) ? HCRYPT_CTX_MODE_AESGCM : HCRYPT_CTX_MODE_AESCTR;
 	ctx->status = HCRYPT_CTX_S_INIT;
 
 	ctx->msg_info = crypto->msg_info;
@@ -52,14 +52,14 @@ int hcryptCtx_Tx_Rekey(hcrypt_Session *crypto, hcrypt_Ctx *ctx)
 
 	/* Generate Salt */
 	ctx->salt_len = HAICRYPT_SALT_SZ;
-	if (0 > (iret = crypto->cryspr->prng(ctx->salt, ctx->salt_len))) {
+	if (0 > (iret = crypto->cryspr->prng(ctx->salt, (int)ctx->salt_len))) {
 		HCRYPT_LOG(LOG_ERR, "PRNG(salt[%zd]) failed\n", ctx->salt_len);
 		return(iret);
 	}
 
 	/* Generate SEK */
 	ctx->sek_len = ctx->cfg.key_len;
-	if (0 > (iret = crypto->cryspr->prng(ctx->sek, ctx->sek_len))) {
+	if (0 > (iret = crypto->cryspr->prng(ctx->sek, (int)ctx->sek_len))) {
 		HCRYPT_LOG(LOG_ERR, "PRNG(sek[%zd] failed\n", ctx->sek_len);
 		return(iret);
 	}
@@ -195,7 +195,7 @@ int hcryptCtx_Tx_Refresh(hcrypt_Session *crypto)
 
 	HCRYPT_LOG(LOG_DEBUG, "refresh/generate SEK. salt_len=%d sek_len=%d\n", (int)new_ctx->salt_len, (int)new_ctx->sek_len);
 
-	if (0 > crypto->cryspr->prng(new_ctx->sek, new_ctx->sek_len)) {
+	if (0 > crypto->cryspr->prng(new_ctx->sek, (int)new_ctx->sek_len)) {
 		HCRYPT_LOG(LOG_ERR, "PRNG(sek[%zd] failed\n", new_ctx->sek_len);
 		return(-1);
 	}
@@ -299,9 +299,9 @@ int hcryptCtx_Tx_AsmKM(hcrypt_Session *crypto, hcrypt_Ctx *ctx, unsigned char *a
 		2 == sek_cnt ? HCRYPT_MSG_F_xSEK : (ctx->flags & HCRYPT_MSG_F_xSEK));
 
 	/* crypto->KMmsg_cache[4..7]: KEKI=0 */
-	km_msg[HCRYPT_MSG_KM_OFS_CIPHER] = HCRYPT_CIPHER_AES_CTR;
-	km_msg[HCRYPT_MSG_KM_OFS_AUTH] = HCRYPT_AUTH_NONE;
-	km_msg[HCRYPT_MSG_KM_OFS_SE] = crypto->se;
+	km_msg[HCRYPT_MSG_KM_OFS_CIPHER] = (ctx->mode == HCRYPT_CTX_MODE_AESGCM) ? HCRYPT_CIPHER_AES_GCM : HCRYPT_CIPHER_AES_CTR;
+	km_msg[HCRYPT_MSG_KM_OFS_AUTH] = (ctx->mode == HCRYPT_CTX_MODE_AESGCM) ? HCRYPT_AUTH_AES_GCM : HCRYPT_AUTH_NONE;
+	km_msg[HCRYPT_MSG_KM_OFS_SE] = (char) crypto->se;
 	hcryptMsg_KM_SetSaltLen(km_msg, ctx->salt_len);
 	hcryptMsg_KM_SetSekLen(km_msg, ctx->sek_len);
 
@@ -322,7 +322,7 @@ int hcryptCtx_Tx_AsmKM(hcrypt_Session *crypto, hcrypt_Ctx *ctx, unsigned char *a
 	}
 	if (0 > crypto->cryspr->km_wrap(crypto->cryspr_cb,
 		&km_msg[HCRYPT_MSG_KM_OFS_SALT + ctx->salt_len],
-		seks, sek_cnt * ctx->sek_len)) {
+		seks, (unsigned int)(sek_cnt * ctx->sek_len))) {
 
 		HCRYPT_LOG(LOG_ERR, "%s", "wrap key failed\n");
 		return(-1);
@@ -360,7 +360,7 @@ int hcryptCtx_Tx_ManageKM(hcrypt_Session *crypto)
 		 * prepare next SEK for announcement
 		 */
 		hcryptCtx_Tx_Refresh(crypto);
-
+		
 		HCRYPT_LOG(LOG_INFO, "KM[%d] Pre-announced\n",
 			(ctx->alt->flags & HCRYPT_CTX_F_xSEK)/2);
 

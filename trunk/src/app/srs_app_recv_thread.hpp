@@ -136,7 +136,6 @@ private:
     // The video frames we got.
     uint64_t video_frames;
     // For mr(merged read),
-    // @see https://github.com/ossrs/srs/issues/241
     bool mr;
     int mr_fd;
     srs_utime_t mr_sleep;
@@ -149,7 +148,6 @@ private:
     // The params for conn callback.
     SrsLiveSource* _source;
     // The error timeout cond
-    // @see https://github.com/ossrs/srs/issues/244
     srs_cond_t error;
     // The merged context id.
     SrsContextId cid;

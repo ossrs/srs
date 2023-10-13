@@ -155,6 +155,8 @@ namespace srs_internal
         
         // read all.
         int filesize = (int)reader.filesize();
+        // Ignore if empty file.
+        if (filesize <= 0) return err;
         
         // create buffer
         srs_freepa(start);
@@ -1100,6 +1102,9 @@ SrsJsonAny* SrsConfDirective::dumps_arg0_to_boolean()
 srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveContext ctx, SrsConfig* conf)
 {
     srs_error_t err = srs_success;
+
+    // Ignore empty config file.
+    if (ctx == SrsDirectiveContextFile && buffer->empty()) return err;
     
     while (true) {
         std::vector<string> args;
@@ -1159,7 +1164,7 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveCo
             }
 
             if ((err = parse_conf(include_file_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
-                return srs_error_wrap(err, "parse include buffer");
+                return srs_error_wrap(err, "parse include buffer %s", file.c_str());
             }
         }
     }
@@ -1360,18 +1365,22 @@ void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
 }
 
 // LCOV_EXCL_START
-srs_error_t SrsConfig::reload()
+srs_error_t SrsConfig::reload(SrsReloadState *pstate)
 {
+    *pstate = SrsReloadStateInit;
+
     srs_error_t err = srs_success;
-    
+
     SrsConfig conf;
-    
+
+    *pstate = SrsReloadStateParsing;
     if ((err = conf.parse_file(config_file.c_str())) != srs_success) {
         return srs_error_wrap(err, "parse file");
     }
     srs_info("config reloader parse file success.");
     
     // transform config to compatible with previous style of config.
+    *pstate = SrsReloadStateTransforming;
     if ((err = srs_config_transform_vhost(conf.root)) != srs_success) {
         return srs_error_wrap(err, "transform config");
     }
@@ -1379,11 +1388,13 @@ srs_error_t SrsConfig::reload()
     if ((err = conf.check_config()) != srs_success) {
         return srs_error_wrap(err, "check config");
     }
-    
+
+    *pstate = SrsReloadStateApplying;
     if ((err = reload_conf(&conf)) != srs_success) {
         return srs_error_wrap(err, "reload config");
     }
-    
+
+    *pstate = SrsReloadStateFinished;
     return err;
 }
 // LCOV_EXCL_STOP
@@ -2242,11 +2253,11 @@ srs_error_t SrsConfig::parse_file(const char* filename)
     SrsConfigBuffer* buffer = NULL;
     SrsAutoFree(SrsConfigBuffer, buffer);
     if ((err = build_buffer(config_file, &buffer)) != srs_success) {
-        return srs_error_wrap(err, "buffer fullfill %s", config_file.c_str());
+        return srs_error_wrap(err, "buffer fullfill %s", filename);
     }
     
     if ((err = parse_buffer(buffer)) != srs_success) {
-        return srs_error_wrap(err, "parse buffer");
+        return srs_error_wrap(err, "parse buffer %s", filename);
     }
     
     return err;
@@ -7005,7 +7016,7 @@ double SrsConfig::get_hls_td_ratio(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_FLOAT("srs.vhost.hls.hls_td_ratio"); // SRS_VHOST_HLS_HLS_TD_RATIO
 
-    static double DEFAULT = 1.5;
+    static double DEFAULT = 1.0;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -7024,7 +7035,7 @@ double SrsConfig::get_hls_aof_ratio(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_FLOAT("srs.vhost.hls.hls_aof_ratio"); // SRS_VHOST_HLS_HLS_AOF_RATIO
 
-    static double DEFAULT = 2.0;
+    static double DEFAULT = 1.2;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -7215,7 +7226,7 @@ srs_utime_t SrsConfig::get_hls_dispose(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.hls.hls_dispose"); // SRS_VHOST_HLS_HLS_DISPOSE
 
-    static srs_utime_t DEFAULT = 0;
+    static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
