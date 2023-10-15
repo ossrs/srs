@@ -689,6 +689,8 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     ruc->req_->vhost = ruc->req_->host;
     ruc->req_->app = app.empty() ? "live" : app;
     ruc->req_->stream = stream.empty() ? "livestream" : stream;
+    ruc->req_->ice_ufrag_ = r->query_get("ice-ufrag");
+    ruc->req_->ice_pwd_ = r->query_get("ice-pwd");
     ruc->req_->param = r->query();
 
     // discovery vhost, resolve the vhost from config
@@ -701,9 +703,10 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     string srtp = r->query_get("encrypt");
     string dtls = r->query_get("dtls");
 
-    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s, param=%s",
+    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s, ufrag=%s, pwd=%s, param=%s",
         action.c_str(), ruc->req_->get_stream_url().c_str(), clientip.c_str(), ruc->req_->app.c_str(), ruc->req_->stream.c_str(),
-        remote_sdp_str.length(), eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str(), ruc->req_->param.c_str()
+        remote_sdp_str.length(), eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str(), ruc->req_->ice_ufrag_.c_str(),
+        ruc->req_->ice_pwd_.c_str(), ruc->req_->param.c_str()
     );
 
     ruc->eip_ = eip;
