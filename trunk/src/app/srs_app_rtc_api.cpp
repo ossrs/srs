@@ -689,9 +689,16 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     ruc->req_->vhost = ruc->req_->host;
     ruc->req_->app = app.empty() ? "live" : app;
     ruc->req_->stream = stream.empty() ? "livestream" : stream;
+    ruc->req_->param = r->query();
+
     ruc->req_->ice_ufrag_ = r->query_get("ice-ufrag");
     ruc->req_->ice_pwd_ = r->query_get("ice-pwd");
-    ruc->req_->param = r->query();
+    if (!ruc->req_->ice_ufrag_.empty() && (ruc->req_->ice_ufrag_.length() < 4 || ruc->req_->ice_ufrag_.length() > 32)) {
+        return srs_error_new(ERROR_RTC_INVALID_ICE, "Invalid ice-ufrag %s", ruc->req_->ice_ufrag_.c_str());
+    }
+    if (!ruc->req_->ice_pwd_.empty() && (ruc->req_->ice_pwd_.length() < 22 || ruc->req_->ice_pwd_.length() > 32)) {
+        return srs_error_new(ERROR_RTC_INVALID_ICE, "Invalid ice-pwd %s", ruc->req_->ice_pwd_.c_str());
+    }
 
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc->req_->vhost);
