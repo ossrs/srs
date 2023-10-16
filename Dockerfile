@@ -29,7 +29,7 @@ WORKDIR /srs/trunk
 # Build and install SRS.
 # Note that SRT is enabled by default, so we configure without --srt=on.
 # Note that we have copied all files by make install.
-RUN ./configure --gb28181=on --h265=on ${CONFARGS} && make ${MAKEARGS} && make install
+RUN ./configure --sanitizer=off --gb28181=on --h265=on ${CONFARGS} && make ${MAKEARGS} && make install
 
 ############################################################
 # dist
