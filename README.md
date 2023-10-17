@@ -21,9 +21,10 @@ SRS/5.0([Bee](https://ossrs.net/lts/zh-cn/product#release50)) is a simple, high 
 
 > Note:  The single node architecture for SRS, for detail please see [here](https://www.figma.com/file/333POxVznQ8Wz1Rxlppn36/SRS-4.0-Server-Arch).
 
-SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/5.0release/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
-and note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
-but some third-party libraries are distributed using their [own licenses](https://ossrs.io/lts/en-us/license).
+SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) by default, and SRS is also licensed 
+under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html).
+Please note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
+and some third-party libraries are distributed under their [licenses](https://ossrs.io/lts/en-us/license).
 
 <a name="product"></a> <a name="usage-docker"></a>
 ## Usage
