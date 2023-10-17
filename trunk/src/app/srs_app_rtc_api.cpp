@@ -20,6 +20,14 @@
 #include <deque>
 using namespace std;
 
+// To limit the ICE ufrag/username to avoid unknown issue.
+#define SRS_ICE_UFRAG_MIN 4
+#define SRS_ICE_UFRAG_MAX 32
+// STUN/ICE pwd should not be too short, browser will fail with error.
+#define SRS_ICE_PWD_MIN 22
+// To limit user to use too long password, to cause unknown issue.
+#define SRS_ICE_PWD_MAX 32
+
 SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsRtcServer* server)
 {
     server_ = server;
@@ -693,10 +701,10 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     ruc->req_->ice_ufrag_ = r->query_get("ice-ufrag");
     ruc->req_->ice_pwd_ = r->query_get("ice-pwd");
-    if (!ruc->req_->ice_ufrag_.empty() && (ruc->req_->ice_ufrag_.length() < 4 || ruc->req_->ice_ufrag_.length() > 32)) {
+    if (!ruc->req_->ice_ufrag_.empty() && (ruc->req_->ice_ufrag_.length() < SRS_ICE_UFRAG_MIN || ruc->req_->ice_ufrag_.length() > SRS_ICE_UFRAG_MAX)) {
         return srs_error_new(ERROR_RTC_INVALID_ICE, "Invalid ice-ufrag %s", ruc->req_->ice_ufrag_.c_str());
     }
-    if (!ruc->req_->ice_pwd_.empty() && (ruc->req_->ice_pwd_.length() < 22 || ruc->req_->ice_pwd_.length() > 32)) {
+    if (!ruc->req_->ice_pwd_.empty() && (ruc->req_->ice_pwd_.length() < SRS_ICE_PWD_MIN || ruc->req_->ice_pwd_.length() > SRS_ICE_PWD_MAX)) {
         return srs_error_new(ERROR_RTC_INVALID_ICE, "Invalid ice-pwd %s", ruc->req_->ice_pwd_.c_str());
     }
 
