@@ -7955,7 +7955,7 @@ int64_t SrsConfig::get_srto_maxbw()
 
 int SrsConfig::get_srto_mss()
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.mms"); // SRS_SRT_SERVER_MMS
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.mss"); // SRS_SRT_SERVER_MSS
 
     static int DEFAULT = 1500;
     SrsConfDirective* conf = root->get("srt_server");
@@ -7963,7 +7963,7 @@ int SrsConfig::get_srto_mss()
         return DEFAULT;
     }
     
-    conf = conf->get("mms");
+    conf = conf->get("mss");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

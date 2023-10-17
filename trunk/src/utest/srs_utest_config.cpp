@@ -4225,7 +4225,7 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesSrtServer)
         SrsSetEnvConfig(srto_maxbw, "SRS_SRT_SERVER_MAXBW", "1000000000");
         EXPECT_EQ(1000000000, conf.get_srto_maxbw());
 
-        SrsSetEnvConfig(srto_mss, "SRS_SRT_SERVER_MMS", "1000");
+        SrsSetEnvConfig(srto_mss, "SRS_SRT_SERVER_MSS", "1000");
         EXPECT_EQ(1000, conf.get_srto_mss());
 
         SrsSetEnvConfig(srto_conntimeout, "SRS_SRT_SERVER_CONNECT_TIMEOUT", "2000");
