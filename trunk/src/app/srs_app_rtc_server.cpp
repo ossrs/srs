@@ -543,17 +543,18 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
     // All tracks default as inactive, so we must enable them.
     session->set_all_tracks_status(req->get_stream_url(), ruc->publish_, true);
 
-    std::string local_pwd = srs_random_str(32);
-    std::string local_ufrag = "";
+    std::string local_pwd = ruc->req_->ice_pwd_.empty() ? srs_random_str(32) : ruc->req_->ice_pwd_;
+    std::string local_ufrag = ruc->req_->ice_ufrag_.empty() ? srs_random_str(8) : ruc->req_->ice_ufrag_;
     // TODO: FIXME: Rename for a better name, it's not an username.
     std::string username = "";
     while (true) {
-        local_ufrag = srs_random_str(8);
-
         username = local_ufrag + ":" + ruc->remote_sdp_.get_ice_ufrag();
         if (!_srs_rtc_manager->find_by_name(username)) {
             break;
         }
+
+        // Username conflict, regenerate a new one.
+        local_ufrag = srs_random_str(8);
     }
 
     local_sdp.set_ice_ufrag(local_ufrag);

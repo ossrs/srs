@@ -20,6 +20,14 @@
 #include <deque>
 using namespace std;
 
+// To limit the ICE ufrag/username to avoid unknown issue.
+#define SRS_ICE_UFRAG_MIN 4
+#define SRS_ICE_UFRAG_MAX 32
+// STUN/ICE pwd should not be too short, browser will fail with error.
+#define SRS_ICE_PWD_MIN 22
+// To limit user to use too long password, to cause unknown issue.
+#define SRS_ICE_PWD_MAX 32
+
 SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsRtcServer* server)
 {
     server_ = server;
@@ -691,15 +699,29 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     ruc->req_->stream = stream.empty() ? "livestream" : stream;
     ruc->req_->param = r->query();
 
+    ruc->req_->ice_ufrag_ = r->query_get("ice-ufrag");
+    ruc->req_->ice_pwd_ = r->query_get("ice-pwd");
+    if (!ruc->req_->ice_ufrag_.empty() && (ruc->req_->ice_ufrag_.length() < SRS_ICE_UFRAG_MIN || ruc->req_->ice_ufrag_.length() > SRS_ICE_UFRAG_MAX)) {
+        return srs_error_new(ERROR_RTC_INVALID_ICE, "Invalid ice-ufrag %s", ruc->req_->ice_ufrag_.c_str());
+    }
+    if (!ruc->req_->ice_pwd_.empty() && (ruc->req_->ice_pwd_.length() < SRS_ICE_PWD_MIN || ruc->req_->ice_pwd_.length() > SRS_ICE_PWD_MAX)) {
+        return srs_error_new(ERROR_RTC_INVALID_ICE, "Invalid ice-pwd %s", ruc->req_->ice_pwd_.c_str());
+    }
+
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc->req_->vhost);
     if (parsed_vhost) {
         ruc->req_->vhost = parsed_vhost->arg0();
     }
 
-    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, param=%s",
+    // For client to specifies whether encrypt by SRTP.
+    string srtp = r->query_get("encrypt");
+    string dtls = r->query_get("dtls");
+
+    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s, ufrag=%s, pwd=%s, param=%s",
         action.c_str(), ruc->req_->get_stream_url().c_str(), clientip.c_str(), ruc->req_->app.c_str(), ruc->req_->stream.c_str(),
-        remote_sdp_str.length(), eip.c_str(), codec.c_str(), ruc->req_->param.c_str()
+        remote_sdp_str.length(), eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str(), ruc->req_->ice_ufrag_.c_str(),
+        ruc->req_->ice_pwd_.c_str(), ruc->req_->param.c_str()
     );
 
     ruc->eip_ = eip;
