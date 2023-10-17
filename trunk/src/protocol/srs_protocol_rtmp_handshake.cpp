@@ -327,10 +327,7 @@ namespace srs_internal
             return srs_error_new(ERROR_OpenSslSetG, "set word");
         }
         
-        // 4. Set the key length
-        DH_set_length(pdh, bits_count);
-        
-        // 5. Generate private and public key
+        // 4. Generate private and public key
         // @see ./test/dhtest.c:152
         if (!DH_generate_key(pdh)) {
             return srs_error_new(ERROR_OpenSslGenerateDHKeys, "dh generate key");

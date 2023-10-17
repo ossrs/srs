@@ -57,7 +57,6 @@ using namespace std;
 // pre-declare
 srs_error_t run_directly_or_daemon();
 srs_error_t run_in_thread_pool();
-srs_error_t srs_detect_docker();
 void show_macro_features();
 
 // @global log and context.
@@ -78,6 +77,9 @@ bool _srs_config_by_env = false;
 
 // The binary name of SRS.
 const char* _srs_binary = NULL;
+
+// @global Other variables.
+bool _srs_in_docker = false;
 
 // Free global data, for address sanitizer.
 extern void srs_free_global_system_ips();
@@ -131,11 +133,6 @@ srs_error_t do_main(int argc, char** argv, char** envp)
 #ifdef SRS_GPERF_MP
 #warning "gmp is not used for memory leak, please use gmc instead."
 #endif
-
-    // Ignore any error while detecting docker.
-    if ((err = srs_detect_docker()) != srs_success) {
-        srs_error_reset(err);
-    }
     
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
     // which will load the log config and apply it.
@@ -400,48 +397,9 @@ void show_macro_features()
 #endif
 }
 
-// Detect docker by https://stackoverflow.com/a/41559867
-bool _srs_in_docker = false;
-srs_error_t srs_detect_docker()
-{
-    srs_error_t err = srs_success;
-
-    _srs_in_docker = false;
-
-    SrsFileReader fr;
-    if ((err = fr.open("/proc/1/cgroup")) != srs_success) {
-        return err;
-    }
-
-    ssize_t nn;
-    char buf[1024];
-    if ((err = fr.read(buf, sizeof(buf), &nn)) != srs_success) {
-        return err;
-    }
-
-    if (nn <= 0) {
-        return err;
-    }
-
-    string s(buf, nn);
-    if (srs_string_contains(s, "/docker")) {
-        _srs_in_docker = true;
-    }
-
-    return err;
-}
-
 srs_error_t run_directly_or_daemon()
 {
     srs_error_t err = srs_success;
-
-    // Try to load the config if docker detect failed.
-    if (!_srs_in_docker) {
-        _srs_in_docker = _srs_config->get_in_docker();
-        if (_srs_in_docker) {
-            srs_trace("enable in_docker by config");
-        }
-    }
 
     // Load daemon from config, disable it for docker.
     // @see https://github.com/ossrs/srs/issues/1594
