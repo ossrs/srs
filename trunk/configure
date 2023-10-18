@@ -526,7 +526,7 @@ help:
 	@echo "     uninstall       Uninstall srs from prefix path"
 	@echo "To rebuild special module:"
 	@echo "     st              Rebuild st-srs in ${SRS_OBJS}/${SRS_PLATFORM}/st-srs"
-	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit"
+	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit"
 	@echo "To reconfigure special depends:"
 	@echo "     clean_openssl   Remove the openssl cache."
 	@echo "     clean_srtp2     Remove the libsrtp2 cache."
@@ -581,8 +581,8 @@ st:
 
 ffmpeg:
 	@rm -f ${SRS_OBJS}/srs srs_utest
-	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit
-	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit install-libs
+	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit
+	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit install-libs
 	@echo "Please rebuild srs by: make"
 
 END

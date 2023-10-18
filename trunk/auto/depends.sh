@@ -576,7 +576,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     fi
     # Disable features of ffmpeg.
     FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network"
-    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils"
+    FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-dwt --disable-error-resilience --disable-lsp --disable-faan --disable-pixelutils"
     FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-hwaccels --disable-devices --disable-audiotoolbox --disable-videotoolbox --disable-cuvid"
     FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-d3d11va --disable-dxva2 --disable-ffnvcodec --disable-nvdec --disable-nvenc --disable-v4l2-m2m --disable-vaapi"
     FFMPEG_OPTIONS="$FFMPEG_OPTIONS --disable-vdpau --disable-appkit --disable-coreimage --disable-avfoundation --disable-securetransport --disable-iconv"
@@ -586,51 +586,51 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     # Enable FFmpeg native MP3 decoder, which depends on dct.
     FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=mp3 --enable-dct"
 
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg/lib/libavcodec.a ]]; then
-        rm -rf ${SRS_OBJS}/ffmpeg && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg ${SRS_OBJS}/ &&
-        echo "The ffmpeg-4-fit is ok."
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg/lib/libavcodec.a ]]; then
+        rm -rf ${SRS_OBJS}/ffmpeg && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg ${SRS_OBJS}/ &&
+        echo "The ffmpeg-5-fit is ok."
     else
-        echo "Building ffmpeg-4-fit." &&
-        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg \
+        echo "Building ffmpeg-5-fit." &&
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg \
             ${SRS_OBJS}/ffmpeg &&
-        cp -rf ${SRS_WORKDIR}/3rdparty/ffmpeg-4-fit ${SRS_OBJS}/${SRS_PLATFORM}/ &&
+        cp -rf ${SRS_WORKDIR}/3rdparty/ffmpeg-5-fit ${SRS_OBJS}/${SRS_PLATFORM}/ &&
         (
-            cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit &&
-            $FFMPEG_CONFIGURE --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/ffmpeg \
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit &&
+            $FFMPEG_CONFIGURE --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/ffmpeg \
                 --pkg-config=pkg-config --pkg-config-flags='--static' --extra-libs='-lpthread' --extra-libs='-lm' \
                 ${FFMPEG_OPTIONS}
         ) &&
         # See https://www.laoyuyu.me/2019/05/23/android/clang_compile_ffmpeg/
         if [[ $SRS_CROSS_BUILD == YES ]]; then
-          sed -i -e 's/#define getenv(x) NULL/\/\*#define getenv(x) NULL\*\//g' ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-          sed -i -e 's/#define HAVE_GMTIME_R 0/#define HAVE_GMTIME_R 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-          sed -i -e 's/#define HAVE_LOCALTIME_R 0/#define HAVE_LOCALTIME_R 1/g' ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
+          sed -i -e 's/#define getenv(x) NULL/\/\*#define getenv(x) NULL\*\//g' ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+          sed -i -e 's/#define HAVE_GMTIME_R 0/#define HAVE_GMTIME_R 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+          sed -i -e 's/#define HAVE_LOCALTIME_R 0/#define HAVE_LOCALTIME_R 1/g' ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
           # For MIPS, which fail with:
           #     ./libavutil/libm.h:54:32: error: static declaration of 'cbrt' follows non-static declaration
           #     /root/openwrt/staging_dir/toolchain-mipsel_24kc_gcc-8.4.0_musl/include/math.h:163:13: note: previous declaration of 'cbrt' was here
-          if [[ $SRS_CROSS_BUILD_ARCH == "mipsel" || $SRS_CROSS_BUILD_ARCH == "arm" || $SRS_CROSS_BUILD_ARCH == "aarch64" ]]; then
-            sed -i -e 's/#define HAVE_CBRT 0/#define HAVE_CBRT 1/g'         ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_CBRTF 0/#define HAVE_CBRTF 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_COPYSIGN 0/#define HAVE_COPYSIGN 1/g' ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_ERF 0/#define HAVE_ERF 1/g'           ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_HYPOT 0/#define HAVE_HYPOT 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_RINT 0/#define HAVE_RINT 1/g'         ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_LRINT 0/#define HAVE_LRINT 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_LRINTF 0/#define HAVE_LRINTF 1/g'     ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_ROUND 0/#define HAVE_ROUND 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_ROUNDF 0/#define HAVE_ROUNDF 1/g'     ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_TRUNC 0/#define HAVE_TRUNC 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
-            sed -i -e 's/#define HAVE_TRUNCF 0/#define HAVE_TRUNCF 1/g'     ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
+          if [[ $SRS_CROSS_BUILD_ARCH == "mipsel" || $SRS_CROSS_BUILD_ARCH == "arm" ]]; then
+            sed -i -e 's/#define HAVE_CBRT 0/#define HAVE_CBRT 1/g'         ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_CBRTF 0/#define HAVE_CBRTF 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_COPYSIGN 0/#define HAVE_COPYSIGN 1/g' ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_ERF 0/#define HAVE_ERF 1/g'           ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_HYPOT 0/#define HAVE_HYPOT 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_RINT 0/#define HAVE_RINT 1/g'         ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_LRINT 0/#define HAVE_LRINT 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_LRINTF 0/#define HAVE_LRINTF 1/g'     ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_ROUND 0/#define HAVE_ROUND 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_ROUNDF 0/#define HAVE_ROUNDF 1/g'     ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_TRUNC 0/#define HAVE_TRUNC 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
+            sed -i -e 's/#define HAVE_TRUNCF 0/#define HAVE_TRUNCF 1/g'     ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit/config.h &&
             echo "FFmpeg sed ok"
           fi
         fi &&
-        make -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit ${SRS_JOBS} &&
-        make -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit install &&
-        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg ${SRS_OBJS}/ &&
-        echo "The ffmpeg-4-fit is ok."
+        make -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit ${SRS_JOBS} &&
+        make -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-5-fit install &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg ${SRS_OBJS}/ &&
+        echo "The ffmpeg-5-fit is ok."
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-4-fit failed, ret=$ret"; exit $ret; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-5-fit failed, ret=$ret"; exit $ret; fi
 fi
 
 #####################################################################################
