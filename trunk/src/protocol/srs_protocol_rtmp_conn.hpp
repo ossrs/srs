@@ -20,6 +20,8 @@ class SrsPacket;
 class SrsNetworkKbps;
 class SrsWallClock;
 class SrsAmf0Object;
+class SrsSslClient;
+class ISrsProtocolReadWriter;
 
 // The simple RTMP client, provides friendly APIs.
 // @remark Should never use client when closed.
@@ -38,6 +40,7 @@ protected:
     SrsRequest* req;
 private:
     SrsTcpClient* transport;
+    SrsSslClient* ssl_transport_;
     SrsRtmpClient* client;
     SrsNetworkKbps* kbps;
     int stream_id;
@@ -72,6 +75,8 @@ public:
     virtual srs_error_t send_and_free_message(SrsSharedPtrMessage* msg);
 public:
     virtual void set_recv_timeout(srs_utime_t timeout);
+private:
+    virtual ISrsProtocolReadWriter* get_transport();
 };
 
 #endif

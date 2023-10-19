@@ -180,6 +180,46 @@ srs_error_t SrsSslClient::handshake(const std::string& host)
 }
 #pragma GCC diagnostic pop
 
+void SrsSslClient::set_recv_timeout(srs_utime_t tm)
+{
+    transport->set_recv_timeout(tm);
+}
+
+srs_utime_t SrsSslClient::get_recv_timeout()
+{
+    return transport->get_recv_timeout();
+}
+
+srs_error_t SrsSslClient::read_fully(void* buf, size_t size, ssize_t* nread)
+{
+    srs_error_t err = srs_success;
+    ssize_t nb = 0;
+    void* p = buf;
+    while (nb < size) {
+        ssize_t once_nb = 0;
+        if ((err = read((char*)p + nb, size - nb, &once_nb)) != srs_success) {
+            return srs_error_wrap(err, "https: read");
+        }
+        nb += once_nb;
+    }
+
+    if (nread) {
+        *nread = nb;
+    }
+
+    return  err;
+}
+
+int64_t SrsSslClient::get_recv_bytes()
+{
+    return transport->get_recv_bytes();
+}
+
+int64_t SrsSslClient::get_send_bytes()
+{
+    return transport->get_send_bytes();
+}
+
 srs_error_t SrsSslClient::read(void* plaintext, size_t nn_plaintext, ssize_t* nread)
 {
     srs_error_t err = srs_success;
@@ -226,6 +266,16 @@ srs_error_t SrsSslClient::read(void* plaintext, size_t nn_plaintext, ssize_t* nr
     }
 }
 
+void SrsSslClient::set_send_timeout(srs_utime_t tm)
+{
+    transport->set_send_timeout(tm);
+}
+
+srs_utime_t SrsSslClient::get_send_timeout()
+{
+    return transport->get_send_timeout();
+}
+
 srs_error_t SrsSslClient::write(void* plaintext, size_t nn_plaintext, ssize_t* nwrite)
 {
     srs_error_t err = srs_success;
@@ -256,6 +306,21 @@ srs_error_t SrsSslClient::write(void* plaintext, size_t nn_plaintext, ssize_t* n
 
     return err;
 }
+
+srs_error_t SrsSslClient::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < iov_size; i++) {
+        const iovec* p = iov + i;
+        if ((err = write((void*)p->iov_base, (size_t)p->iov_len, nwrite)) != srs_success) {
+            return srs_error_wrap(err, "write iov #%d base=%p, size=%d", i, p->iov_base, p->iov_len);
+        }
+    }
+
+    return err;
+}
+
 
 SrsHttpClient::SrsHttpClient()
 {
