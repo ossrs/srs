@@ -38,7 +38,6 @@ private:
     AVPacket *dec_packet_;
 
     AVCodecContext *enc_;
-    AVFrame *enc_frame_;
     AVPacket *enc_packet_;
 
     SwrContext *swr_;
