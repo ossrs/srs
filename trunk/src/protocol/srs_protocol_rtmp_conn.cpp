@@ -15,6 +15,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_protocol_http_client.hpp>
 
 SrsBasicRtmpClient::SrsBasicRtmpClient(string r, srs_utime_t ctm, srs_utime_t stm)
 {
@@ -29,6 +30,7 @@ SrsBasicRtmpClient::SrsBasicRtmpClient(string r, srs_utime_t ctm, srs_utime_t st
     srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
     
     transport = NULL;
+    ssl_transport_ = NULL;
     client = NULL;
     
     stream_id = 0;
@@ -56,12 +58,21 @@ srs_error_t SrsBasicRtmpClient::connect()
     close();
     
     transport = new SrsTcpClient(req->host, req->port, srs_utime_t(connect_timeout));
-    client = new SrsRtmpClient(transport);
-    kbps->set_io(transport, transport);
+    // if (req->schema == "rtmps")
+        ssl_transport_ = new SrsSslClient(transport);
+
+    client = new SrsRtmpClient(get_transport());
+    kbps->set_io(get_transport(), get_transport());
 
     if ((err = transport->connect()) != srs_success) {
         close();
         return srs_error_wrap(err, "connect");
+    }
+
+    if (ssl_transport_) {
+        if ((err = ssl_transport_->handshake(req->host)) != srs_success) {
+            return srs_error_wrap(err, "rtmps handshake");
+        }
     }
     
     client->set_recv_timeout(stream_timeout);
@@ -86,6 +97,7 @@ void SrsBasicRtmpClient::close()
     kbps->set_io(NULL, NULL);
     srs_freep(client);
     srs_freep(transport);
+    srs_freep(ssl_transport_);
 }
 
 srs_error_t SrsBasicRtmpClient::connect_app()
@@ -224,6 +236,13 @@ srs_error_t SrsBasicRtmpClient::send_and_free_message(SrsSharedPtrMessage* msg)
 
 void SrsBasicRtmpClient::set_recv_timeout(srs_utime_t timeout)
 {
-    transport->set_recv_timeout(timeout);
+    get_transport()->set_recv_timeout(timeout);
 }
 
+ISrsProtocolReadWriter* SrsBasicRtmpClient::get_transport()
+{
+    if (ssl_transport_)
+        return ssl_transport_;
+
+    return transport;
+}

@@ -30,7 +30,7 @@ class SrsTcpClient;
 #define SRS_HTTP_CLIENT_TIMEOUT (30 * SRS_UTIME_SECONDS)
 
 // The SSL client over TCP transport.
-class SrsSslClient : public ISrsReader, public ISrsStreamWriter
+class SrsSslClient : public ISrsProtocolReadWriter
 {
 private:
     SrsTcpClient* transport;
@@ -44,9 +44,19 @@ public:
     virtual ~SrsSslClient();
 public:
     virtual srs_error_t handshake(const std::string& host);
+
+// Interface ISrsProtocolReadWriter
 public:
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
     virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };
 
 // The client to GET/POST/PUT/DELETE over HTTP.
