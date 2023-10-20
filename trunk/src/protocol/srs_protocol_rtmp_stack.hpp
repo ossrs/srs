@@ -424,6 +424,10 @@ public:
     std::string param;
     // The stream in play/publish
     std::string stream;
+    // User specify the ice-ufrag, the username of ice, for test only.
+    std::string ice_ufrag_;
+    // User specify the ice-pwd, the password of ice, for test only.
+    std::string ice_pwd_;
     // For play live stream,
     // used to specified the stop when exceed the duration.
     // in srs_utime_t.
