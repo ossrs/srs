@@ -90,6 +90,7 @@ SrsAudioTranscoder::SrsAudioTranscoder()
     dec_frame_ = NULL;
     dec_packet_ = NULL;
     enc_ = NULL;
+    enc_frame_ = NULL;
     enc_packet_ = NULL;
     swr_ = NULL;
     swr_data_ = NULL;
@@ -120,6 +121,10 @@ SrsAudioTranscoder::~SrsAudioTranscoder()
 
     if (enc_) {
         avcodec_free_context(&enc_);
+    }
+
+    if (enc_frame_) {
+        av_frame_free(&enc_frame_);
     }
 
     if (enc_packet_) {
@@ -251,6 +256,11 @@ srs_error_t SrsAudioTranscoder::init_enc(SrsAudioCodecId dst_codec, int dst_chan
         return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not open codec");
     }
 
+    enc_frame_ = av_frame_alloc();
+    if (!enc_frame_) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate audio encode in frame");
+    }
+
     enc_packet_ = av_packet_alloc();
     if (!enc_packet_) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate audio encode out packet");
@@ -371,31 +381,26 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame*> &pkts)
     }
 
     while (av_audio_fifo_size(fifo_) >= enc_->frame_size) {
-        AVFrame* enc_frame = av_frame_alloc();
-        if (!enc_frame) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate audio encode in frame");
-        }
+        enc_frame_->format = enc_->sample_fmt;
+        enc_frame_->nb_samples = enc_->frame_size;
+        enc_frame_->channel_layout = enc_->channel_layout;
 
-        enc_frame->format = enc_->sample_fmt;
-        enc_frame->nb_samples = enc_->frame_size;
-        enc_frame->channel_layout = enc_->channel_layout;
-
-        if (av_frame_get_buffer(enc_frame, 0) < 0) {
-            av_frame_free(&enc_frame);
+        if (av_frame_get_buffer(enc_frame_, 0) < 0) {
+            av_frame_free(&enc_frame_);
             return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not get audio frame buffer");
         }
 
         /* Read as many samples from the FIFO buffer as required to fill the frame.
         * The samples are stored in the frame temporarily. */
-        if (av_audio_fifo_read(fifo_, (void **)enc_frame->data, enc_->frame_size) < enc_->frame_size) {
-            av_frame_free(&enc_frame);
+        if (av_audio_fifo_read(fifo_, (void **)enc_frame_->data, enc_->frame_size) < enc_->frame_size) {
+            av_frame_free(&enc_frame_);
             return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not read data from FIFO");
         }
         /* send the frame for encoding */
-        enc_frame->pts = next_out_pts_;
+        enc_frame_->pts = next_out_pts_;
         next_out_pts_ += enc_->frame_size;
-        int error = avcodec_send_frame(enc_, enc_frame);
-        av_frame_free(&enc_frame);
+        int error = avcodec_send_frame(enc_, enc_frame_);
+        av_frame_unref(enc_frame_);
         if (error < 0) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "Error sending the frame to the encoder(%d,%s)", error,
                 av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
@@ -418,7 +423,7 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame*> &pkts)
 
             // rescale time base from sample_rate 1000.
             enc_packet_->dts = av_rescale(enc_packet_->dts, 1000, enc_->time_base.den); 
-            enc_packet_->pts = av_rescale(enc_packet_->pts, 1000, enc_->time_base.den); 
+            enc_packet_->pts = av_rescale(enc_packet_->pts, 1000, enc_->time_base.den);
 
             SrsAudioFrame *out_frame = new SrsAudioFrame;
             char *buf = new char[enc_packet_->size];
