@@ -298,8 +298,6 @@ namespace srs_internal
     {
         srs_error_t err = srs_success;
         
-        int32_t bits_count = 1024;
-        
         close();
         
         //1. Create the DH
