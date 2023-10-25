@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-10-25, Merge [#3845](https://github.com/ossrs/srs/pull/3845): RTC: Fix FFmpeg opus audio noisy issue. v6.0.95 (#3845)
 * v6.0, 2023-10-21, Merge [#3847](https://github.com/ossrs/srs/pull/3847): WebRTC: TCP transport should use read_fully instead of read. v6.0.94 (#3847)
 * v6.0, 2023-10-20, Merge [#3846](https://github.com/ossrs/srs/pull/3846): Added system library option for ffmpeg, srtp, srt libraries. v6.0.93 (#3846)
 * v6.0, 2023-10-17, Merge [#3840](https://github.com/ossrs/srs/pull/3840): Disable asan by default. v6.0.92 (#3840)
@@ -106,6 +107,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-10-25, Merge [#3845](https://github.com/ossrs/srs/pull/3845): RTC: Fix FFmpeg opus audio noisy issue. v5.0.195 (#3845)
 * v5.0, 2023-10-21, Merge [#3847](https://github.com/ossrs/srs/pull/3847): WebRTC: TCP transport should use read_fully instead of read. v5.0.194 (#3847)
 * v5.0, 2023-10-20, Merge [#3846](https://github.com/ossrs/srs/pull/3846): Added system library option for ffmpeg, srtp, srt libraries. v5.0.193 (#3846)
 * v5.0, 2023-10-17, Merge [#3840](https://github.com/ossrs/srs/pull/3840): Disable asan by default. v5.0.192 (#3840)
