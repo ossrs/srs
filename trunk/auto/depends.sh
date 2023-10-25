@@ -444,7 +444,10 @@ fi
 #####################################################################################
 # srtp
 #####################################################################################
-if [[ $SRS_RTC == YES ]]; then
+if [[ $SRS_RTC == YES && $SRS_USE_SYS_SRTP == YES ]]; then
+    echo "Warning: Use system libsrtp, without compiling srtp."
+fi
+if [[ $SRS_RTC == YES && $SRS_USE_SYS_SRTP == NO ]]; then
     SRTP_OPTIONS=""
     # To eliminate warnings, see https://stackoverflow.com/a/34208904/17679565
     #       was built for newer macOS version (11.6) than being linked (11.0)
@@ -513,7 +516,7 @@ fi
 # For cross build, we use opus of FFmpeg, so we don't build the libopus.
 if [[ $SRS_RTC == YES && $SRS_FFMPEG_OPUS != YES ]]; then
     # Only build static libraries if no shared FFmpeg.
-    if [[ $SRS_SHARED_FFMPEG == NO ]]; then
+    if [[ $SRS_SHARED_FFMPEG != YES ]]; then
         OPUS_OPTIONS="--disable-shared --disable-doc"
     fi
     if [[ $OS_IS_LOONGARCH64 == YES ]]; then
@@ -542,7 +545,10 @@ fi
 #####################################################################################
 # ffmpeg-fit, for WebRTC to transcode AAC with Opus.
 #####################################################################################
-if [[ $SRS_FFMPEG_FIT == YES ]]; then
+if [[ $SRS_FFMPEG_FIT == YES && $SRS_USE_SYS_FFMPEG == YES ]]; then
+    echo "Warning: Use system ffmpeg, without compiling ffmpeg."
+fi
+if [[ $SRS_FFMPEG_FIT == YES && $SRS_USE_SYS_FFMPEG == NO ]]; then
     FFMPEG_CONFIGURE="env SRS_FFMPEG_FIT=on"
     if [[ $SRS_FFMPEG_OPUS != YES ]]; then
         FFMPEG_CONFIGURE="$FFMPEG_CONFIGURE PKG_CONFIG_PATH=${SRS_DEPENDS_LIBS}/opus/lib/pkgconfig"
@@ -659,7 +665,10 @@ fi
 #####################################################################################
 # SRT module, https://github.com/ossrs/srs/issues/1147#issuecomment-577469119
 #####################################################################################
-if [[ $SRS_SRT == YES ]]; then
+if [[ $SRS_SRT == YES && $SRS_USE_SYS_SRT == YES ]]; then
+    echo "Warning: Use system libsrt, without compiling srt."
+fi
+if [[ $SRS_SRT == YES && $SRS_USE_SYS_SRT == NO ]]; then
     # Always disable c++11 for libsrt, because only the srt-app requres it.
     LIBSRT_OPTIONS="--enable-apps=0  --enable-static=1 --enable-c++11=0"
     if [[ $SRS_SHARED_SRT == YES ]]; then
