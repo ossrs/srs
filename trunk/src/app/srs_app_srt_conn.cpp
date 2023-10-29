@@ -260,7 +260,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     // If streamid empty, using default streamid instead.
     if (streamid.empty()) {
         streamid = "#!::r=live/livestream,m=publish";
-        srs_warn("srt get empty streamid, using default steramid %s instead", streamid.c_str());
+        srs_warn("srt get empty streamid, using default streamid %s instead", streamid.c_str());
     }
 
     // Detect streamid of srt to request.
