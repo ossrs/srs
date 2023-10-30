@@ -315,10 +315,10 @@
     XX(ERROR_BASE64_DECODE                 , 4039, "Base64Decode", "Failed to decode the BASE64 content") \
     XX(ERROR_HTTP_STREAM_EOF               , 4040, "HttpStreamEof", "HTTP stream is EOF") \
     XX(ERROR_HTTPS_NOT_SUPPORTED           , 4041, "HttpsNotSupported", "HTTPS is not supported") \
-    XX(ERROR_HTTPS_HANDSHAKE               , 4042, "HttpsHandshake", "Failed to do handshake for HTTPS") \
-    XX(ERROR_HTTPS_READ                    , 4043, "HttpsRead", "Failed to read data from HTTPS stream") \
-    XX(ERROR_HTTPS_WRITE                   , 4044, "HttpsWrite", "Failed to write data to HTTPS stream") \
-    XX(ERROR_HTTPS_KEY_CRT                 , 4045, "HttpsSslFile", "Failed to load SSL key or crt file for HTTPS") \
+    XX(ERROR_TLS_HANDSHAKE                 , 4042, "TlsHandshake", "Failed to do tls handshake") \
+    XX(ERROR_TLS_READ                      , 4043, "TlsRead", "TLS read data failed") \
+    XX(ERROR_TLS_WRITE                     , 4044, "TlsWrite", "TLS write data failed") \
+    XX(ERROR_TLS_KEY_CRT                   , 4045, "TlsSslFile", "Failed to load SSL key or crt file") \
     XX(ERROR_GB_SIP_HEADER                 , 4046, "GbHeaderCallId", "Missing field of SIP header for GB28181") \
     XX(ERROR_GB_SIP_MESSAGE                , 4047, "GbHeaderCallId", "Invalid SIP message for GB28181") \
     XX(ERROR_GB_PS_HEADER                  , 4048, "GbPsHeader", "Invalid PS header for GB28181") \
