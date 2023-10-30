@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2013-2023 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_protocol_rtmp_handshake.hpp>
@@ -297,8 +297,6 @@ namespace srs_internal
     srs_error_t SrsDH::do_initialize()
     {
         srs_error_t err = srs_success;
-        
-        int32_t bits_count = 1024;
         
         close();
         

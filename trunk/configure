@@ -152,6 +152,10 @@ if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-L${LibSTRoot} -lst"; fi
 # srtp
 if [[ $SRS_RTC == YES ]]; then
   LibSrtpRoot="${SRS_OBJS}/srtp2/include"; LibSrtpFile="${SRS_OBJS}/srtp2/lib/libsrtp2.a"
+  if [[ $SRS_USE_SYS_SRTP == YES ]]; then
+      LibSrtpRoot=""; LibSrtpFile="libsrtp2.a"
+      if [[ $SRS_SHARED_SRTP == YES ]]; then LibSrtpFile="-lsrtp2"; fi
+  fi
 fi
 
 # FFMPEG for WebRTC transcoding, such as aac to opus.
@@ -165,6 +169,13 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
         LibFfmpegFile="-L${SRS_OBJS}/ffmpeg/lib -lavcodec -lswresample -lavutil";
         if [[ $SRS_FFMPEG_OPUS != YES ]]; then
             LibFfmpegFile="$LibFfmpegFile -L${SRS_OBJS}/opus/lib -lopus"
+        fi
+    fi
+    if [[ $SRS_USE_SYS_FFMPEG == YES ]]; then
+        LibFfmpegRoot=""
+        LibFfmpegFile="libavcodec.a libswresample.a libavutil.a libopus.a";
+        if [[ $SRS_SHARED_FFMPEG == YES ]]; then
+            LibFfmpegFile="-lavcodec -lswresample -lavutil -lopus"
         fi
     fi
 fi
@@ -188,6 +199,10 @@ fi
 if [[ $SRS_SRT == YES ]]; then
     LibSRTRoot="${SRS_OBJS}/srt/include"; LibSRTfile="${SRS_OBJS}/srt/lib/libsrt.a"
     if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-L${SRS_OBJS}/srt/lib -lsrt"; fi
+    if [[ $SRS_USE_SYS_SRT == YES ]]; then
+        LibSRTRoot=""; LibSRTfile="libsrt.a"
+        if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-lsrt"; fi
+    fi
 fi
 
 # the link options, always use static link

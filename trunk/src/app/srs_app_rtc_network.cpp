@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2013-2023 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_rtc_network.hpp>
@@ -883,7 +883,7 @@ srs_error_t SrsRtcTcpConn::read_packet(char* pkt, int* nb_pkt)
 
     // Read length in 2 bytes @doc: https://www.rfc-editor.org/rfc/rfc4571#section-2
     ssize_t nread = 0; uint8_t b[2];
-    if((err = skt_->read((char*)b, sizeof(b), &nread)) != srs_success) {
+    if((err = skt_->read_fully((char*)b, sizeof(b), &nread)) != srs_success) {
         return srs_error_wrap(err, "rtc tcp conn read len");
     }
 

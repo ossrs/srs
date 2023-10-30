@@ -37,7 +37,7 @@ SRS_FFMPEG_TOOL=NO
 # FFmpeg fit is the source code for RTC, to transcode audio or video in SRS.
 SRS_FFMPEG_FIT=RESERVED
 # Whether use FFmpeg native opus codec for RTC. If not, use libopus instead.
-SRS_FFMPEG_OPUS=NO
+SRS_FFMPEG_OPUS=YES
 # arguments
 SRS_PREFIX=/usr/local/srs
 SRS_DEFAULT_CONFIG=conf/srs.conf
@@ -50,10 +50,13 @@ SRS_STATIC=NO
 SRS_SHARED_ST=NO
 # If enabled, link shared libraries for libsrt.so which uses MPL license.
 # See https://ossrs.net/lts/zh-cn/license#srt
-SRS_SHARED_SRT=NO
+SRS_SHARED_SRT=RESERVED
 # If enabled, link shared libraries for FFmpeg which is LGPL license.
 # See https://ossrs.net/lts/zh-cn/license#ffmpeg
-SRS_SHARED_FFMPEG=NO
+SRS_SHARED_FFMPEG=RESERVED
+# If enabled, link shared libraries for SRTP which is BSD license.
+# See https://ossrs.net/lts/zh-cn/license#srtp
+SRS_SHARED_SRTP=RESERVED
 # whether enable the gcov
 SRS_GCOV=NO
 # Whether enable cloud logging and APM(Application Performance Monitor).
@@ -69,6 +72,9 @@ SRS_LOG_LEVEL_V2=YES
 ################################################################
 # Experts options.
 SRS_USE_SYS_SSL=NO # Use system ssl(-lssl) if required.
+SRS_USE_SYS_FFMPEG=NO # Use system ffmpeg if required.
+SRS_USE_SYS_SRT=NO # Use system srt(-lsrt) if required.
+SRS_USE_SYS_SRTP=NO # Use system srtp(-lsrtp) if required.
 SRS_VALGRIND=NO
 SRS_SANITIZER=RESERVED
 SRS_SANITIZER_STATIC=NO
@@ -215,7 +221,11 @@ Experts:
   --ssl-local=on|off        Whether use local openssl, not system even exists. Default: $(value2switch $SRS_SSL_LOCAL)
   --shared-st=on|off        Use shared libraries for ST which is MPL license. Default: $(value2switch $SRS_SHARED_ST)
   --shared-srt=on|off       Use shared libraries for SRT which is MPL license. Default: $(value2switch $SRS_SHARED_SRT)
+  --sys-srt=on|off          Do not compile srt, use system srt(-lsrt) if required. Default: $(value2switch $SRS_USE_SYS_SRT)
   --shared-ffmpeg=on|off    Use shared libraries for FFmpeg which is LGPL license. Default: $(value2switch $SRS_SHARED_FFMPEG)
+  --sys-ffmpeg=on|off       Do not compile ffmpeg, use system ffmpeg if required. Default: $(value2switch $SRS_USE_SYS_FFMPEG)
+  --sys-srtp=on|off         Do not compile srtp, use system srtp(-lsrtp) if required. Default: $(value2switch $SRS_USE_SYS_SRTP)
+  --shared-srtp=on|off      Use shared libraries for SRTP which is BSD license. Default: $(value2switch $SRS_SHARED_SRTP)
   --clean=on|off            Whether do 'make clean' when configure. Default: $(value2switch $SRS_CLEAN)
   --simulator=on|off        RTC: Whether enable network simulator. Default: $(value2switch $SRS_SIMULATOR)
   --generate-objs=on|off    RTC: Whether generate objs and quit. Default: $(value2switch $SRS_GENERATE_OBJS)
@@ -398,7 +408,14 @@ function parse_user_option() {
         --use-shared-srt)               SRS_SHARED_SRT=YES          ;;
         --shared-st)                    SRS_SHARED_ST=$(switch2value $value) ;;
         --shared-srt)                   SRS_SHARED_SRT=$(switch2value $value) ;;
+        --use-sys-srt)                  SRS_USE_SYS_SRT=YES         ;;
+        --sys-srt)                      SRS_USE_SYS_SRT=$(switch2value $value) ;;
         --shared-ffmpeg)                SRS_SHARED_FFMPEG=$(switch2value $value) ;;
+        --use-sys-ffmpeg)               SRS_USE_SYS_FFMPEG=YES         ;;
+        --sys-ffmpeg)                   SRS_USE_SYS_FFMPEG=$(switch2value $value) ;;
+        --shared-srtp)                  SRS_SHARED_SRTP=$(switch2value $value) ;;
+        --use-sys-srtp)                 SRS_USE_SYS_SRTP=YES        ;;
+        --sys-srtp)                     SRS_USE_SYS_SRTP=$(switch2value $value) ;;
 
         --with-valgrind)                SRS_VALGRIND=YES            ;;
         --without-valgrind)             SRS_VALGRIND=NO             ;;
@@ -521,9 +538,18 @@ function apply_auto_options() {
     if [[ $SRS_RTC == YES && $SRS_FFMPEG_FIT == RESERVED ]]; then
         SRS_FFMPEG_FIT=YES
     fi
+    if [[ $SRS_USE_SYS_FFMPEG == YES && $SRS_SHARED_FFMPEG == RESERVED ]]; then
+        SRS_SHARED_FFMPEG=YES
+    fi
     if [[ $SRS_CROSS_BUILD == YES && $SRS_FFMPEG_OPUS != YES ]]; then
         echo "Enable FFmpeg native opus for cross building"
         SRS_FFMPEG_OPUS=YES
+    fi
+    if [[ $SRS_USE_SYS_SRT == YES && $SRS_SHARED_SRT == RESERVED ]]; then
+        SRS_SHARED_SRT=YES
+    fi
+    if [[ $SRS_USE_SYS_SRTP == YES && $SRS_SHARED_SRTP == RESERVED ]]; then
+        SRS_SHARED_SRTP=YES
     fi
 
     # Enable asan, but disable for Centos
@@ -628,6 +654,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=$(value2switch $SRS_HTTP_API)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=$(value2switch $SRS_UTEST)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-srt=$(value2switch $SRS_USE_SYS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=$(value2switch $SRS_H265)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=$(value2switch $SRS_GB28181)"
@@ -636,9 +663,11 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=$(value2switch $SRS_CXX14)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --backtrace=$(value2switch $SRS_BACKTRACE)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=$(value2switch $SRS_FFMPEG_FIT)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ffmpeg=$(value2switch $SRS_USE_SYS_FFMPEG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-opus=$(value2switch $SRS_FFMPEG_OPUS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=$(value2switch $SRS_NASM)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=$(value2switch $SRS_SRTP_ASM)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-srtp=$(value2switch $SRS_USE_SYS_SRTP)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --clean=$(value2switch $SRS_CLEAN)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gperf=$(value2switch $SRS_GPERF)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmc=$(value2switch $SRS_GPERF_MC)"
@@ -650,6 +679,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --shared-st=$(value2switch $SRS_SHARED_ST)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --shared-srt=$(value2switch $SRS_SHARED_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --shared-ffmpeg=$(value2switch $SRS_SHARED_FFMPEG)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --shared-srtp=$(value2switch $SRS_SHARED_SRTP)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-verbose=$(value2switch $SRS_LOG_VERBOSE)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info=$(value2switch $SRS_LOG_INFO)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace=$(value2switch $SRS_LOG_TRACE)"
