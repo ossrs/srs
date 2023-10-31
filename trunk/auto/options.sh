@@ -37,7 +37,7 @@ SRS_FFMPEG_TOOL=NO
 # FFmpeg fit is the source code for RTC, to transcode audio or video in SRS.
 SRS_FFMPEG_FIT=RESERVED
 # Whether use FFmpeg native opus codec for RTC. If not, use libopus instead.
-SRS_FFMPEG_OPUS=YES
+SRS_FFMPEG_OPUS=NO
 # arguments
 SRS_PREFIX=/usr/local/srs
 SRS_DEFAULT_CONFIG=conf/srs.conf
