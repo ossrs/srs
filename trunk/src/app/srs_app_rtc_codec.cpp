@@ -390,6 +390,8 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame*> &pkts)
 
     int frame_cnt = 0;
     while (av_audio_fifo_size(fifo_) >= enc_->frame_size) {
+        // here if error occurs.
+
         /* Read as many samples from the FIFO buffer as required to fill the frame.
         * The samples are stored in the frame temporarily. */
         if (av_audio_fifo_read(fifo_, (void **)enc_frame_->data, enc_->frame_size) < enc_->frame_size) {
