@@ -18,9 +18,9 @@
             <a id="srs_index" class="brand" href="#">SRS</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
-                    <li class="active"><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
-                    <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
-                    <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
+                    <li class="active"><a id="nav_srs_player" href="srs_player.html">LivePlayer</a></li>
+                    <!--<li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>-->
+                    <!--<li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>-->
                     <li><a id="nav_whip" href="whip.html">WHIP</a></li>
                     <li><a id="nav_whep" href="whip.html">WHEP</a></li>
                     <li><a  href="http://ossrs.net/srs.release/releases/app.html">iOS/Andriod</a></li>
@@ -44,13 +44,13 @@
     <div id="main_content">
         <div id="main_info" class="alert alert-info fade in">
             <button type="button" class="close" data-dismiss="alert">×</button>
-            <strong><span>Usage:</span></strong> <span>输入HTTP-FLV/HLS地址后点击“播放视频”即可播放视频</span>
+            <strong><span>Usage:</span></strong> <span>Enter the HTTP-FLV/HLS URL and click "Play" to start playing the video.</span>
         </div>
         <div class="form-inline">
             <div>
                 URL:
                 <input type="text" id="txt_url" class="input-xxlarge" value="">
-                <button class="btn btn-primary" id="btn_play">播放视频</button>
+                <button class="btn btn-primary" id="btn_play">Play</button>
             </div>
             <p></p>
             <div>
@@ -58,17 +58,17 @@
                 <audio id="audio_player" width="100%" autoplay controls></audio>
             </div>
             <p>
-                分享：<a href="#" id="link_url" target="_blank">请右键拷贝此链接</a>
+                Share: <a href="#" id="link_url" target="_blank">Please right-click and copy this link.</a>
             </p>
             <div id="main_tips">
                 <p></p>
                 <p>
-                    推荐的其他播放器：
+                    Recommended other players:
                     <ul>
-                        <li><a href="https://github.com/xqq/mpegts.js">flv.js</a>，H5/MSE播放HTTP-FLV</li>
-                        <li><a href="https://github.com/xqq/mpegts.js">mpegts.js</a>，H5/MSE播放HTTP-TS</li>
-                        <li><a href="https://github.com/video-dev/hls.js/">hls.js</a>，H5/MSE播放HLS</li>
-                        <li><a href="https://github.com/Dash-Industry-Forum/dash.js">dash.js</a>，H5/MSE播放MPEG-DASH</li>
+                        <li><a href="https://github.com/xqq/mpegts.js">flv.js</a>, HTML5/MSE for playing HTTP-FLV</li>
+                        <li><a href="https://github.com/xqq/mpegts.js">mpegts.js</a>, HTML5/MSE for playing HTTP-TS</li>
+                        <li><a href="https://github.com/video-dev/hls.js/">hls.js</a>, HTML5/MSE for playing HLS</li>
+                        <li><a href="https://github.com/Dash-Industry-Forum/dash.js">dash.js</a>, HTML5/MSE for playing MPEG-DASH</li>
                     </ul>
                 </p>
             </div>
@@ -79,14 +79,14 @@
         <div id="main_flash_alert" class="alert alert-danger fade in hide">
             <button type="button" class="close" data-dismiss="alert">×</button>
             <p>
-                <a href="https://www.adobe.com/products/flashplayer/end-of-life.html" target="_blank">Flash已死</a>，
-                无法播放RTMP流，可用ffplay或VLC播放器播放。
+                <a href="https://www.adobe.com/products/flashplayer/end-of-life.html" target="_blank">Flash is dead</a>，
+                Unable to play RTMP streams, you can use ffplay or VLC player to play.
             </p>
             <ul>
-                <li>若希望做低延迟直播（3-5秒），可用HTTP-FLV，播放器用<a href="https://github.com/xqq/mpegts.js">flv.js</a>，H5/MSE播放HTTP-FLV</li>
-                <li>若希望做低延迟直播（3-5秒），可用HTTP-TS，播放器用<a href="https://github.com/xqq/mpegts.js">mpegts.js</a>，H5/MSE播放HTTP-TS</li>
-                <li>若对延迟不敏感（5-10秒），跨平台比较好，可用HLS，播放器用<a href="https://github.com/video-dev/hls.js/">hls.js</a>，H5/MSE播放HLS</li>
-                <li>若希望超低延迟（1秒内），只需要支持主流的浏览器，可用WebRTC，播放器用<a href="rtc_player.html">RTC播放器</a></li>
+                <li>If you want low-latency live streaming (3-5 seconds), you can use HTTP-FLV with the <a href="https://github.com/xqq/mpegts.js">flv.js</a> player for H5/MSE playback of HTTP-FLV.</li>
+                <li>If you want low-latency live streaming (3-5 seconds), you can use HTTP-TS with the <a href="https://github.com/xqq/mpegts.js">mpegts.js</a> player for H5/MSE playback of HTTP-TS.</li>
+                <li>If you are not sensitive to latency (5-10 seconds) and want better cross-platform compatibility, you can use HLS with the <a href="https://github.com/video-dev/hls.js/">hls.js</a> player for H5/MSE playback of HLS.</li>
+                <li>If you want ultra-low latency (within 1 second) and only need to support mainstream browsers, you can use WebRTC with the <a href="rtc_player.html">RTC player</a>.</li>
             </ul>
             <p>
                 更多信息，参考<a href="https://mp.weixin.qq.com/s/oYn5q4fF9afaged23Ueudg" target="_blank">没有Flash如何做直播？</a>
