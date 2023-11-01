@@ -107,6 +107,8 @@ SRS_CROSS_BUILD_ARCH=
 SRS_CROSS_BUILD_HOST=
 # For cross build, the cross prefix, for example(FFmpeg), --cross-prefix=aarch64-linux-gnu-
 SRS_CROSS_BUILD_PREFIX=
+# For cache build
+SRS_BUILD_CACHE=YES
 #
 #####################################################################################
 # Toolchain for cross-build on Ubuntu for ARM or MIPS.
@@ -444,6 +446,10 @@ function parse_user_option() {
         --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
         --ffmpeg)                       SRS_FFMPEG_TOOL=$(switch2value $value) ;;
         --ffmpeg-tool)                  SRS_FFMPEG_TOOL=$(switch2value $value) ;;
+
+        # use cache for build.
+        --build-cache)                  SRS_BUILD_CACHE=YES         ;;
+        --without-build-cache)          SRS_BUILD_CACHE=NO          ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
