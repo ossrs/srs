@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-11-04, Merge [#3852](https://github.com/ossrs/srs/pull/3852): RTC: Refine FFmpeg opus audio noisy issue. v5.0.197 (#3852)
 * v5.0, 2023-11-01, Merge [#3858](https://github.com/ossrs/srs/pull/3858): Support build without cache to test if actions fail. v5.0.196 (#3858)
 * v5.0, 2023-10-25, Merge [#3845](https://github.com/ossrs/srs/pull/3845): RTC: Fix FFmpeg opus audio noisy issue. v5.0.195 (#3845)
 * v5.0, 2023-10-21, Merge [#3847](https://github.com/ossrs/srs/pull/3847): WebRTC: TCP transport should use read_fully instead of read. v5.0.194 (#3847)

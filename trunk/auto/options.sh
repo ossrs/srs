@@ -448,8 +448,7 @@ function parse_user_option() {
         --ffmpeg-tool)                  SRS_FFMPEG_TOOL=$(switch2value $value) ;;
 
         # use cache for build.
-        --build-cache)                  SRS_BUILD_CACHE=YES         ;;
-        --without-build-cache)          SRS_BUILD_CACHE=NO          ;;
+        --build-cache)                  SRS_BUILD_CACHE=$(switch2value $value) ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
