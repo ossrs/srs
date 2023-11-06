@@ -382,57 +382,54 @@ function parse_user_option() {
         --build-cache)                  SRS_BUILD_CACHE=$(switch2value $value) ;;
 
         ##########################################################################################
-        # Deprecated, might be removed in future.
-        --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
-        --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;;
-        --without-nasm)                 SRS_NASM=NO                 ;;
-        --with-nasm)                    SRS_NASM=YES                ;;
-        --with-ssl)                     SRS_SSL=YES                 ;;
-        --with-hds)                     SRS_HDS=YES                 ;;
-        --without-hds)                  SRS_HDS=NO                  ;;
-        --with-transcode)               SRS_TRANSCODE=YES           ;;
-        --with-ingest)                  SRS_INGEST=YES              ;;
-        --with-stat)                    SRS_STAT=YES                ;;
-        --with-stream-caster)           SRS_STREAM_CASTER=YES       ;;
-        --with-utest)                   SRS_UTEST=YES               ;;
-        --without-utest)                SRS_UTEST=NO                ;;
-        --with-srt)                     SRS_SRT=YES                 ;;
-        --without-srt)                  SRS_SRT=NO                  ;;
-        --with-rtc)                     SRS_RTC=YES                 ;;
-        --without-rtc)                  SRS_RTC=NO                  ;;
-        --with-clean)                   SRS_CLEAN=YES               ;;
-        --without-clean)                SRS_CLEAN=NO                ;;
-        --with-gperf)                   SRS_GPERF=YES               ;;
-        --without-gperf)                SRS_GPERF=NO                ;;
-        --with-gmc)                     SRS_GPERF_MC=YES            ;;
-        --without-gmc)                  SRS_GPERF_MC=NO             ;;
-        --with-gmd)                     SRS_GPERF_MD=YES            ;;
-        --without-gmd)                  SRS_GPERF_MD=NO             ;;
-        --with-gmp)                     SRS_GPERF_MP=YES            ;;
-        --without-gmp)                  SRS_GPERF_MP=NO             ;;
-        --with-gcp)                     SRS_GPERF_CP=YES            ;;
-        --without-gcp)                  SRS_GPERF_CP=NO             ;;
-        --with-gprof)                   SRS_GPROF=YES               ;;
-        --without-gprof)                SRS_GPROF=NO                ;;
-        --with-valgrind)                SRS_VALGRIND=YES            ;;
-        --without-valgrind)             SRS_VALGRIND=NO             ;;
-        # Alias for --cross-build
-        --cross)                        SRS_CROSS_BUILD=$(switch2value $value) ;;
-        --enable-cross-compile)         SRS_CROSS_BUILD=YES         ;;
+        --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;; # Deprecated, might be removed in future.
+        --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;; # Deprecated, might be removed in future.
+        --without-nasm)                 SRS_NASM=NO                 ;; # Deprecated, might be removed in future.
+        --with-nasm)                    SRS_NASM=YES                ;; # Deprecated, might be removed in future.
+        --with-ssl)                     SRS_SSL=YES                 ;; # Deprecated, might be removed in future.
+        --with-hds)                     SRS_HDS=YES                 ;; # Deprecated, might be removed in future.
+        --without-hds)                  SRS_HDS=NO                  ;; # Deprecated, might be removed in future.
+        --with-transcode)               SRS_TRANSCODE=YES           ;; # Deprecated, might be removed in future.
+        --with-ingest)                  SRS_INGEST=YES              ;; # Deprecated, might be removed in future.
+        --with-stat)                    SRS_STAT=YES                ;; # Deprecated, might be removed in future.
+        --with-stream-caster)           SRS_STREAM_CASTER=YES       ;; # Deprecated, might be removed in future.
+        --with-utest)                   SRS_UTEST=YES               ;; # Deprecated, might be removed in future.
+        --without-utest)                SRS_UTEST=NO                ;; # Deprecated, might be removed in future.
+        --with-srt)                     SRS_SRT=YES                 ;; # Deprecated, might be removed in future.
+        --without-srt)                  SRS_SRT=NO                  ;; # Deprecated, might be removed in future.
+        --with-rtc)                     SRS_RTC=YES                 ;; # Deprecated, might be removed in future.
+        --without-rtc)                  SRS_RTC=NO                  ;; # Deprecated, might be removed in future.
+        --with-clean)                   SRS_CLEAN=YES               ;; # Deprecated, might be removed in future.
+        --without-clean)                SRS_CLEAN=NO                ;; # Deprecated, might be removed in future.
+        --with-gperf)                   SRS_GPERF=YES               ;; # Deprecated, might be removed in future.
+        --without-gperf)                SRS_GPERF=NO                ;; # Deprecated, might be removed in future.
+        --with-gmc)                     SRS_GPERF_MC=YES            ;; # Deprecated, might be removed in future.
+        --without-gmc)                  SRS_GPERF_MC=NO             ;; # Deprecated, might be removed in future.
+        --with-gmd)                     SRS_GPERF_MD=YES            ;; # Deprecated, might be removed in future.
+        --without-gmd)                  SRS_GPERF_MD=NO             ;; # Deprecated, might be removed in future.
+        --with-gmp)                     SRS_GPERF_MP=YES            ;; # Deprecated, might be removed in future.
+        --without-gmp)                  SRS_GPERF_MP=NO             ;; # Deprecated, might be removed in future.
+        --with-gcp)                     SRS_GPERF_CP=YES            ;; # Deprecated, might be removed in future.
+        --without-gcp)                  SRS_GPERF_CP=NO             ;; # Deprecated, might be removed in future.
+        --with-gprof)                   SRS_GPROF=YES               ;; # Deprecated, might be removed in future.
+        --without-gprof)                SRS_GPROF=NO                ;; # Deprecated, might be removed in future.
+        --with-valgrind)                SRS_VALGRIND=YES            ;; # Deprecated, might be removed in future.
+        --without-valgrind)             SRS_VALGRIND=NO             ;; # Deprecated, might be removed in future.
+        --cross)                        SRS_CROSS_BUILD=$(switch2value $value) ;; # Deprecated, might be removed in future.
+        --enable-cross-compile)         SRS_CROSS_BUILD=YES         ;; # Deprecated, might be removed in future.
 
         ##########################################################################################
-        # Deprecated, might be removed in future.
-        --osx)                          SRS_OSX=YES                 ;;
-        --cygwin64)                     SRS_CYGWIN64=YES            ;;
-        --x86-x64)                      SRS_X86_X64=YES             ;;
-        --x86-64)                       SRS_X86_X64=YES             ;;
-        --with-nginx)                   SRS_NGINX=YES               ;;
-        --without-nginx)                SRS_NGINX=NO                ;;
-        --nginx)                        SRS_NGINX=$(switch2value $value) ;;
-        --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES         ;;
-        --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
-        --ffmpeg)                       SRS_FFMPEG_TOOL=$(switch2value $value) ;;
-        --ffmpeg-tool)                  SRS_FFMPEG_TOOL=$(switch2value $value) ;;
+        --osx)                          SRS_OSX=YES                 ;; # Deprecated, might be removed in future.
+        --cygwin64)                     SRS_CYGWIN64=YES            ;; # Deprecated, might be removed in future.
+        --x86-x64)                      SRS_X86_X64=YES             ;; # Deprecated, might be removed in future.
+        --x86-64)                       SRS_X86_X64=YES             ;; # Deprecated, might be removed in future.
+        --with-nginx)                   SRS_NGINX=YES               ;; # Deprecated, might be removed in future.
+        --without-nginx)                SRS_NGINX=NO                ;; # Deprecated, might be removed in future.
+        --nginx)                        SRS_NGINX=$(switch2value $value) ;; # Deprecated, might be removed in future.
+        --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES         ;; # Deprecated, might be removed in future.
+        --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;; # Deprecated, might be removed in future.
+        --ffmpeg)                       SRS_FFMPEG_TOOL=$(switch2value $value) ;; # Deprecated, might be removed in future.
+        --ffmpeg-tool)                  SRS_FFMPEG_TOOL=$(switch2value $value) ;; # Deprecated, might be removed in future.
 
         *)
             echo "$0: error: invalid option \"$option\""
