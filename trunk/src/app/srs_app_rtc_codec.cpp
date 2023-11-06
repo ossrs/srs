@@ -260,6 +260,13 @@ srs_error_t SrsAudioTranscoder::init_enc(SrsAudioCodecId dst_codec, int dst_chan
     if (!enc_frame_) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate audio encode in frame");
     }
+    enc_frame_->format = enc_->sample_fmt;
+    enc_frame_->nb_samples = enc_->frame_size;
+    enc_frame_->channel_layout = enc_->channel_layout;
+
+    if (av_frame_get_buffer(enc_frame_, 0) < 0) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not get audio frame buffer");
+    }
 
     enc_packet_ = av_packet_alloc();
     if (!enc_packet_) {
@@ -381,26 +388,21 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame*> &pkts)
     }
 
     while (av_audio_fifo_size(fifo_) >= enc_->frame_size) {
-        enc_frame_->format = enc_->sample_fmt;
-        enc_frame_->nb_samples = enc_->frame_size;
-        enc_frame_->channel_layout = enc_->channel_layout;
-
-        if (av_frame_get_buffer(enc_frame_, 0) < 0) {
-            av_frame_free(&enc_frame_);
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not get audio frame buffer");
+        // make sure the frame is writable
+        if (av_frame_make_writable(enc_frame_) < 0) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not make writable frame");
         }
 
         /* Read as many samples from the FIFO buffer as required to fill the frame.
         * The samples are stored in the frame temporarily. */
         if (av_audio_fifo_read(fifo_, (void **)enc_frame_->data, enc_->frame_size) < enc_->frame_size) {
-            av_frame_free(&enc_frame_);
             return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not read data from FIFO");
         }
+
         /* send the frame for encoding */
         enc_frame_->pts = next_out_pts_;
         next_out_pts_ += enc_->frame_size;
         int error = avcodec_send_frame(enc_, enc_frame_);
-        av_frame_unref(enc_frame_);
         if (error < 0) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "Error sending the frame to the encoder(%d,%s)", error,
                 av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
