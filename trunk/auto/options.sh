@@ -37,7 +37,7 @@ SRS_FFMPEG_TOOL=NO
 # FFmpeg fit is the source code for RTC, to transcode audio or video in SRS.
 SRS_FFMPEG_FIT=RESERVED
 # Whether use FFmpeg native opus codec for RTC. If not, use libopus instead.
-SRS_FFMPEG_OPUS=YES
+SRS_FFMPEG_OPUS=NO
 # arguments
 SRS_PREFIX=/usr/local/srs
 SRS_DEFAULT_CONFIG=conf/srs.conf
@@ -109,7 +109,7 @@ SRS_CROSS_BUILD_HOST=
 # For cross build, the cross prefix, for example(FFmpeg), --cross-prefix=aarch64-linux-gnu-
 SRS_CROSS_BUILD_PREFIX=
 # For cache build
-SRS_BUILD_CACHE=YES
+SRS_BUILD_CACHE=NO
 #
 #####################################################################################
 # Toolchain for cross-build on Ubuntu for ARM or MIPS.
