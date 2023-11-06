@@ -109,7 +109,7 @@ SRS_CROSS_BUILD_HOST=
 # For cross build, the cross prefix, for example(FFmpeg), --cross-prefix=aarch64-linux-gnu-
 SRS_CROSS_BUILD_PREFIX=
 # For cache build
-SRS_BUILD_CACHE=NO
+SRS_BUILD_CACHE=YES
 #
 #####################################################################################
 # Toolchain for cross-build on Ubuntu for ARM or MIPS.
@@ -315,49 +315,22 @@ function parse_user_option() {
         --extra-flags)                  SRS_EXTRA_FLAGS=${value}    ;;
         --build-tag)                    SRS_BUILD_TAG=${value}      ;;
 
-        --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
-        --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;;
         --srtp-nasm)                    SRS_SRTP_ASM=$(switch2value $value) ;;
-
-        --without-nasm)                 SRS_NASM=NO                 ;;
-        --with-nasm)                    SRS_NASM=YES                ;;
         --nasm)                         SRS_NASM=$(switch2value $value) ;;
-
-        --with-ssl)                     SRS_SSL=YES                 ;;
         --ssl)                          SRS_SSL=$(switch2value $value) ;;
         --https)                        SRS_HTTPS=$(switch2value $value) ;;
         --ssl-1-0)                      SRS_SSL_1_0=$(switch2value $value) ;;
         --ssl-local)                    SRS_SSL_LOCAL=$(switch2value $value) ;;
-
-        --with-hds)                     SRS_HDS=YES                 ;;
-        --without-hds)                  SRS_HDS=NO                  ;;
         --hds)                          SRS_HDS=$(switch2value $value) ;;
-
-        --with-transcode)               SRS_TRANSCODE=YES           ;;
         --transcode)                    SRS_TRANSCODE=$(switch2value $value) ;;
-
-        --with-ingest)                  SRS_INGEST=YES              ;;
         --ingest)                       SRS_INGEST=$(switch2value $value) ;;
-
-        --with-stat)                    SRS_STAT=YES                ;;
         --stat)                         SRS_STAT=$(switch2value $value) ;;
-
-        --with-stream-caster)           SRS_STREAM_CASTER=YES       ;;
         --stream-caster)                SRS_STREAM_CASTER=$(switch2value $value) ;;
         --stream-converter)             SRS_STREAM_CASTER=$(switch2value $value) ;;
-
-        --with-utest)                   SRS_UTEST=YES               ;;
-        --without-utest)                SRS_UTEST=NO                ;;
         --utest)                        SRS_UTEST=$(switch2value $value) ;;
         --gcov)                         SRS_GCOV=$(switch2value $value) ;;
         --apm)                          SRS_APM=$(switch2value $value) ;;
-
-        --with-srt)                     SRS_SRT=YES                 ;;
-        --without-srt)                  SRS_SRT=NO                  ;;
         --srt)                          SRS_SRT=$(switch2value $value) ;;
-
-        --with-rtc)                     SRS_RTC=YES                 ;;
-        --without-rtc)                  SRS_RTC=NO                  ;;
         --rtc)                          SRS_RTC=$(switch2value $value) ;;
         --simulator)                    SRS_SIMULATOR=$(switch2value $value) ;;
         --generate-objs)                SRS_GENERATE_OBJS=$(switch2value $value) ;;
@@ -366,39 +339,16 @@ function parse_user_option() {
         --ffmpeg-opus)                  SRS_FFMPEG_OPUS=$(switch2value $value) ;;
         --h265)                         SRS_H265=$(switch2value $value) ;;
         --gb28181)                      SRS_GB28181=$(switch2value $value) ;;
-
         --cxx11)                        SRS_CXX11=$(switch2value $value) ;;
         --cxx14)                        SRS_CXX14=$(switch2value $value) ;;
         --backtrace)                    SRS_BACKTRACE=$(switch2value $value) ;;
-
-        --with-clean)                   SRS_CLEAN=YES               ;;
-        --without-clean)                SRS_CLEAN=NO                ;;
         --clean)                        SRS_CLEAN=$(switch2value $value) ;;
-
-        --with-gperf)                   SRS_GPERF=YES               ;;
-        --without-gperf)                SRS_GPERF=NO                ;;
         --gperf)                        SRS_GPERF=$(switch2value $value) ;;
-
-        --with-gmc)                     SRS_GPERF_MC=YES            ;;
-        --without-gmc)                  SRS_GPERF_MC=NO             ;;
         --gmc)                          SRS_GPERF_MC=$(switch2value $value) ;;
-
-        --with-gmd)                     SRS_GPERF_MD=YES            ;;
-        --without-gmd)                  SRS_GPERF_MD=NO             ;;
         --gmd)                          SRS_GPERF_MD=$(switch2value $value) ;;
-
-        --with-gmp)                     SRS_GPERF_MP=YES            ;;
-        --without-gmp)                  SRS_GPERF_MP=NO             ;;
         --gmp)                          SRS_GPERF_MP=$(switch2value $value) ;;
-
-        --with-gcp)                     SRS_GPERF_CP=YES            ;;
-        --without-gcp)                  SRS_GPERF_CP=NO             ;;
         --gcp)                          SRS_GPERF_CP=$(switch2value $value) ;;
-
-        --with-gprof)                   SRS_GPROF=YES               ;;
-        --without-gprof)                SRS_GPROF=NO                ;;
         --gprof)                        SRS_GPROF=$(switch2value $value) ;;
-
         --sanitizer)                    SRS_SANITIZER=$(switch2value $value) ;;
         --sanitizer-static)             SRS_SANITIZER_STATIC=$(switch2value $value) ;;
         --sanitizer-log)                SRS_SANITIZER_LOG=$(switch2value $value) ;;
@@ -418,9 +368,6 @@ function parse_user_option() {
         --shared-srtp)                  SRS_SHARED_SRTP=$(switch2value $value) ;;
         --use-sys-srtp)                 SRS_USE_SYS_SRTP=YES        ;;
         --sys-srtp)                     SRS_USE_SYS_SRTP=$(switch2value $value) ;;
-
-        --with-valgrind)                SRS_VALGRIND=YES            ;;
-        --without-valgrind)             SRS_VALGRIND=NO             ;;
         --valgrind)                     SRS_VALGRIND=$(switch2value $value) ;;
 
         --log-verbose)                  SRS_LOG_VERBOSE=$(switch2value $value) ;;
@@ -430,13 +377,50 @@ function parse_user_option() {
         --debug)                        SRS_DEBUG=$(switch2value $value) ;;
         --debug-stats)                  SRS_DEBUG_STATS=$(switch2value $value) ;;
 
-        --generic-linux)                SRS_GENERIC_LINUX=$(switch2value $value) ;;
-
-        # Alias for --arm, cross build.
-        --cross)                        SRS_CROSS_BUILD=$(switch2value $value) ;;
         --cross-build)                  SRS_CROSS_BUILD=YES         ;;
+        --generic-linux)                SRS_GENERIC_LINUX=$(switch2value $value) ;;
+        --build-cache)                  SRS_BUILD_CACHE=$(switch2value $value) ;;
+
+        ##########################################################################################
+        # Deprecated, might be removed in future.
+        --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
+        --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;;
+        --without-nasm)                 SRS_NASM=NO                 ;;
+        --with-nasm)                    SRS_NASM=YES                ;;
+        --with-ssl)                     SRS_SSL=YES                 ;;
+        --with-hds)                     SRS_HDS=YES                 ;;
+        --without-hds)                  SRS_HDS=NO                  ;;
+        --with-transcode)               SRS_TRANSCODE=YES           ;;
+        --with-ingest)                  SRS_INGEST=YES              ;;
+        --with-stat)                    SRS_STAT=YES                ;;
+        --with-stream-caster)           SRS_STREAM_CASTER=YES       ;;
+        --with-utest)                   SRS_UTEST=YES               ;;
+        --without-utest)                SRS_UTEST=NO                ;;
+        --with-srt)                     SRS_SRT=YES                 ;;
+        --without-srt)                  SRS_SRT=NO                  ;;
+        --with-rtc)                     SRS_RTC=YES                 ;;
+        --without-rtc)                  SRS_RTC=NO                  ;;
+        --with-clean)                   SRS_CLEAN=YES               ;;
+        --without-clean)                SRS_CLEAN=NO                ;;
+        --with-gperf)                   SRS_GPERF=YES               ;;
+        --without-gperf)                SRS_GPERF=NO                ;;
+        --with-gmc)                     SRS_GPERF_MC=YES            ;;
+        --without-gmc)                  SRS_GPERF_MC=NO             ;;
+        --with-gmd)                     SRS_GPERF_MD=YES            ;;
+        --without-gmd)                  SRS_GPERF_MD=NO             ;;
+        --with-gmp)                     SRS_GPERF_MP=YES            ;;
+        --without-gmp)                  SRS_GPERF_MP=NO             ;;
+        --with-gcp)                     SRS_GPERF_CP=YES            ;;
+        --without-gcp)                  SRS_GPERF_CP=NO             ;;
+        --with-gprof)                   SRS_GPROF=YES               ;;
+        --without-gprof)                SRS_GPROF=NO                ;;
+        --with-valgrind)                SRS_VALGRIND=YES            ;;
+        --without-valgrind)             SRS_VALGRIND=NO             ;;
+        # Alias for --cross-build
+        --cross)                        SRS_CROSS_BUILD=$(switch2value $value) ;;
         --enable-cross-compile)         SRS_CROSS_BUILD=YES         ;;
 
+        ##########################################################################################
         # Deprecated, might be removed in future.
         --osx)                          SRS_OSX=YES                 ;;
         --cygwin64)                     SRS_CYGWIN64=YES            ;;
@@ -449,9 +433,6 @@ function parse_user_option() {
         --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
         --ffmpeg)                       SRS_FFMPEG_TOOL=$(switch2value $value) ;;
         --ffmpeg-tool)                  SRS_FFMPEG_TOOL=$(switch2value $value) ;;
-
-        # use cache for build.
-        --build-cache)                  SRS_BUILD_CACHE=$(switch2value $value) ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -700,6 +681,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cygwin64=$(value2switch $SRS_CYGWIN64)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --single-thread=$(value2switch $SRS_SINGLE_THREAD)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --generic-linux=$(value2switch $SRS_GENERIC_LINUX)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --build-cache=$(value2switch $SRS_BUILD_CACHE)"
     if [[ $SRS_CROSS_BUILD_ARCH != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --arch=$SRS_CROSS_BUILD_ARCH"; fi
     if [[ $SRS_CROSS_BUILD_CPU != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --cpu=$SRS_CROSS_BUILD_CPU"; fi
     if [[ $SRS_CROSS_BUILD_HOST != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --host=$SRS_CROSS_BUILD_HOST"; fi
