@@ -114,18 +114,6 @@ func (v *SRTConnection) Consume(b []byte) error {
 			v.handshake0 = pkt
 			fmt.Println(fmt.Sprintf("Handshake 0: %v", v.handshake0.String()))
 
-			// Ignore if already connected.
-			if v.backend == nil {
-				remoteAddress, err := net.ResolveUDPAddr("udp", backendAddress)
-				if err != nil {
-					return err
-				}
-
-				if v.backend, err = net.DialUDP("udp", nil, remoteAddress); err != nil {
-					return err
-				}
-			}
-
 			// Response handshake 1.
 			v.handshake1 = &SRTHandshakePacket{
 				ControlFlag:     pkt.ControlFlag,
@@ -158,6 +146,18 @@ func (v *SRTConnection) Consume(b []byte) error {
 			// Save handshake packet.
 			v.handshake2 = pkt
 			fmt.Println(fmt.Sprintf("Handshake 2: %v", v.handshake2.String()))
+
+			// Ignore if already connected.
+			if v.backend == nil {
+				remoteAddress, err := net.ResolveUDPAddr("udp", backendAddress)
+				if err != nil {
+					return err
+				}
+
+				if v.backend, err = net.DialUDP("udp", nil, remoteAddress); err != nil {
+					return err
+				}
+			}
 
 			// Proxy handshake 0 to backend server.
 			if b, err := v.handshake0.MarshalBinary(); err != nil {
