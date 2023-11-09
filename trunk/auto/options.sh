@@ -109,7 +109,7 @@ SRS_CROSS_BUILD_HOST=
 # For cross build, the cross prefix, for example(FFmpeg), --cross-prefix=aarch64-linux-gnu-
 SRS_CROSS_BUILD_PREFIX=
 # For cache build
-SRS_BUILD_CACHE=YES
+SRS_BUILD_CACHE=NO
 #
 #####################################################################################
 # Toolchain for cross-build on Ubuntu for ARM or MIPS.
