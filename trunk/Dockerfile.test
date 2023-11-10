@@ -1,4 +1,4 @@
-FROM ossrs/srs:ubuntu20
+FROM ossrs/srs:ubuntu20-cache
 
 ARG MAKEARGS
 RUN echo "MAKEARGS: ${MAKEARGS}"
