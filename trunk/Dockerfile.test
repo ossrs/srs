@@ -1,4 +1,4 @@
-FROM ossrs/srs:ubuntu18-23-11-09
+FROM ossrs/srs:ubuntu18
 
 ARG MAKEARGS
 RUN echo "MAKEARGS: ${MAKEARGS}"
