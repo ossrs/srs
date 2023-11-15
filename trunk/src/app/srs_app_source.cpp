@@ -2364,6 +2364,8 @@ srs_error_t SrsLiveSource::on_video(SrsCommonMessage* shared_video)
 {
     srs_error_t err = srs_success;
 
+    srs_trace("@trace # source %s recv video, timestamp=%ld", req->get_stream_url().c_str(), shared_video->header.timestamp);
+
     // Detect where stream is monotonically increasing.
     if (!mix_correct && is_monotonically_increase) {
         if (last_packet_time > 0 && shared_video->header.timestamp < last_packet_time) {
