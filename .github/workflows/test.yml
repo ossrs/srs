@@ -198,7 +198,7 @@ jobs:
       - name: Run SRS regression-test
         run: |
           docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && \
-              cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1)) && \
+              cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1)) && cat ../../objs/srs.log && \
               ./objs/srs_gb28181_test -test.v'
     runs-on: ubuntu-20.04
 
