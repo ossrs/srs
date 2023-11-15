@@ -455,11 +455,14 @@ srs_error_t SrsLiveConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, 
 
     if (!atc) {
         if ((err = jitter->correct(msg, ag)) != srs_success) {
+            srs_trace("@trace # source %s enque correct failed, timestamp=%ld", source->req->get_stream_url().c_str(), shared_msg->timestamp);
             return srs_error_wrap(err, "consume message");
         }
     }
 
+    srs_trace("@trace # source %s enque, timestamp=%ld", source->req->get_stream_url().c_str(), shared_msg->timestamp);
     if ((err = queue->enqueue(msg, NULL)) != srs_success) {
+        srs_trace("@trace # source %s enque failed, timestamp=%ld", source->req->get_stream_url().c_str(), shared_msg->timestamp);
         return srs_error_wrap(err, "enqueue message");
     }
     

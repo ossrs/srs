@@ -478,7 +478,7 @@ extern SrsLiveSourceManager* _srs_sources;
 class SrsLiveSource : public ISrsReloadHandler
 {
     friend class SrsOriginHub;
-private:
+public:
     // For publish, it's the publish client id.
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
