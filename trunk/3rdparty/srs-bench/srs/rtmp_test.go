@@ -24,12 +24,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"math/rand"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/ossrs/go-oryx-lib/avc"
 	"github.com/ossrs/go-oryx-lib/flv"
@@ -591,7 +592,7 @@ func TestRtmpPublish_HttpFlvPlayNoVideo(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			time.Sleep(30 * time.Millisecond) // Wait for publisher to push sequence header.
+			time.Sleep(500 * time.Millisecond) // Wait for publisher to push sequence header.
 			publisherReadyCancel()
 		}()
 
