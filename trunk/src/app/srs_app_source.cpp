@@ -2230,6 +2230,8 @@ srs_error_t SrsLiveSource::on_audio(SrsCommonMessage* shared_audio)
 {
     srs_error_t err = srs_success;
 
+    srs_trace("@trace # source %s recv audio, timestamp=%ld", req->get_stream_url().c_str(), shared_audio->header.timestamp);
+
     // Detect where stream is monotonically increasing.
     if (!mix_correct && is_monotonically_increase) {
         if (last_packet_time > 0 && shared_audio->header.timestamp < last_packet_time) {
