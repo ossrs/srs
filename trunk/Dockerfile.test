@@ -17,7 +17,7 @@ WORKDIR /srs/trunk
 
 # Note that we must enable the gcc7 or link failed.
 # Note that we must disable the build-cache, or it will failed, but donot know why.
-RUN ./configure --srt=on --gb28181=on --srt=on --apm=on --h265=on --utest=on --ffmpeg-opus=off --build-cache=off
+RUN ./configure --srt=on --gb28181=on --srt=on --apm=on --h265=on --utest=on --ffmpeg-opus=on --build-cache=off
 RUN make utest ${MAKEARGS}
 
 # Build benchmark tool.
