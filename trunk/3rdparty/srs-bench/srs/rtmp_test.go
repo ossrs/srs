@@ -592,7 +592,8 @@ func TestRtmpPublish_HttpFlvPlayNoVideo(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			time.Sleep(500 * time.Millisecond) // Wait for publisher to push sequence header.
+			logger.Tf(ctx, "wait for publisher to push sequence header 5s")
+			time.Sleep(5000 * time.Millisecond) // Wait for publisher to push sequence header.
 			publisherReadyCancel()
 		}()
 
