@@ -120,6 +120,7 @@ SRS_TOOL_AR=ar
 SRS_TOOL_LD=ld
 SRS_TOOL_RANDLIB=randlib
 SRS_EXTRA_FLAGS=
+SRS_EXTRA_LDFLAGS=
 #
 #####################################################################################
 # Performance optimize.
@@ -210,6 +211,7 @@ Toolchain options:
   --ld=<LD>                 Toolchain: Use linker tool LD. Default: $SRS_TOOL_CXX
   --randlib=<RANDLIB>       Toolchain: Use randlib tool RANDLIB. Default: $SRS_TOOL_CXX
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
+  --extra-ldflags=<ELDFLAGS> Set ELDFLAGS as LDFLAGS.
 
 Cross Build options:        @see https://ossrs.net/lts/zh-cn/docs/v4/doc/arm#ubuntu-cross-build-srs
   --cross=on|off            Enable cross-build, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
@@ -314,6 +316,7 @@ function parse_user_option() {
         --ld)                           SRS_TOOL_LD=${value}        ;;
         --randlib)                      SRS_TOOL_RANDLIB=${value}   ;;
         --extra-flags)                  SRS_EXTRA_FLAGS=${value}    ;;
+        --extra-ldflags)                SRS_EXTRA_LDFLAGS=${value}  ;;
         --build-tag)                    SRS_BUILD_TAG=${value}      ;;
 
         --srtp-nasm)                    SRS_SRTP_ASM=$(switch2value $value) ;;
@@ -443,7 +446,7 @@ function parse_user_option_to_value_and_option() {
     case "$option" in
         -*=*) 
             value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'`
-            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/. +]*||'`
+            option=`echo "$option" | sed -e 's|=[,-_a-zA-Z0-9/. +]*||'`
         ;;
            *) value="" ;;
     esac
@@ -685,6 +688,7 @@ function regenerate_options() {
     if [[ $SRS_CROSS_BUILD_HOST != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --host=$SRS_CROSS_BUILD_HOST"; fi
     if [[ $SRS_CROSS_BUILD_PREFIX != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --cross-prefix=$SRS_CROSS_BUILD_PREFIX"; fi
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_FLAGS\\\""; fi
+    if [[ $SRS_EXTRA_LDFLAGS != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-ldflags=\\\"$SRS_EXTRA_LDFLAGS\\\""; fi
     if [[ $SRS_BUILD_TAG != '' ]]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --build-tag=\\\"$SRS_BUILD_TAG\\\""; fi
     if [[ $SRS_TOOL_CC != '' ]]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cc=$SRS_TOOL_CC"; fi
     if [[ $SRS_TOOL_CXX != '' ]]; then      SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx=$SRS_TOOL_CXX"; fi
