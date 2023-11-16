@@ -455,14 +455,11 @@ srs_error_t SrsLiveConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, 
 
     if (!atc) {
         if ((err = jitter->correct(msg, ag)) != srs_success) {
-            srs_trace("@trace # source %s enque correct failed, timestamp=%ld", source->req->get_stream_url().c_str(), shared_msg->timestamp);
             return srs_error_wrap(err, "consume message");
         }
     }
 
-    srs_trace("@trace # source %s enque, timestamp=%ld", source->req->get_stream_url().c_str(), shared_msg->timestamp);
     if ((err = queue->enqueue(msg, NULL)) != srs_success) {
-        srs_trace("@trace # source %s enque failed, timestamp=%ld", source->req->get_stream_url().c_str(), shared_msg->timestamp);
         return srs_error_wrap(err, "enqueue message");
     }
     
@@ -2233,8 +2230,6 @@ srs_error_t SrsLiveSource::on_audio(SrsCommonMessage* shared_audio)
 {
     srs_error_t err = srs_success;
 
-    srs_trace("@trace # source %s recv audio, timestamp=%ld", req->get_stream_url().c_str(), shared_audio->header.timestamp);
-
     // Detect where stream is monotonically increasing.
     if (!mix_correct && is_monotonically_increase) {
         if (last_packet_time > 0 && shared_audio->header.timestamp < last_packet_time) {
@@ -2300,7 +2295,6 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
     // Ignore if no format->acodec, it means the codec is not parsed, or unsupport/unknown codec
     // such as G.711 codec
     if (!format_->acodec) {
-        srs_trace("@trace # %s:%d", __func__, __LINE__);
         return err;
     }
 
@@ -2318,13 +2312,11 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
     
     // Copy to hub to all utilities.
     if ((err = hub->on_audio(msg)) != srs_success) {
-        srs_trace("@trace # %s:%d", __func__, __LINE__);
         return srs_error_wrap(err, "consume audio");
     }
 
     // For bridge to consume the message.
     if (bridge_ && (err = bridge_->on_frame(msg)) != srs_success) {
-        srs_trace("@trace # %s:%d", __func__, __LINE__);
         return srs_error_wrap(err, "bridge consume audio");
     }
 
@@ -2332,7 +2324,6 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
             SrsLiveConsumer* consumer = consumers.at(i);
-            srs_trace("@trace # source %s recv audio, enque to consumer, timestamp=%ld", req->get_stream_url().c_str(), msg->timestamp);
             if ((err = consumer->enqueue(msg, atc, jitter_algorithm)) != srs_success) {
                 return srs_error_wrap(err, "consume message");
             }
@@ -2372,8 +2363,6 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
 srs_error_t SrsLiveSource::on_video(SrsCommonMessage* shared_video)
 {
     srs_error_t err = srs_success;
-
-    srs_trace("@trace # source %s recv video, timestamp=%ld", req->get_stream_url().c_str(), shared_video->header.timestamp);
 
     // Detect where stream is monotonically increasing.
     if (!mix_correct && is_monotonically_increase) {
