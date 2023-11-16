@@ -592,15 +592,14 @@ func TestRtmpPublish_HttpFlvPlayNoVideo(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			logger.Tf(ctx, "wait for publisher to push sequence header 5s")
-			time.Sleep(5000 * time.Millisecond) // Wait for publisher to push sequence header.
+			logger.Wf(ctx, "wait for publisher to push sequence header")
+			time.Sleep(30 * time.Millisecond) // Wait for publisher to push sequence header.
 			publisherReadyCancel()
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			<-publisherReady.Done()
 
 			var nnPackets int
 			player.onRecvHeader = func(hasAudio, hasVideo bool) error {
@@ -623,6 +622,7 @@ func TestRtmpPublish_HttpFlvPlayNoVideo(t *testing.T) {
 
 		wg.Add(1)
 		go func() {
+			<-publisherReady.Done()
 			defer wg.Done()
 			publisher.onSendPacket = func(m *rtmp.Message) error {
 				time.Sleep(1 * time.Millisecond)
