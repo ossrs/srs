@@ -145,6 +145,10 @@ END
 # header(.h): add to ModuleLibIncs if need the specified library. for example, LibSTRoot
 # library(.a): add to ModuleLibFiles if binary need the specifeid library. for example, LibSTfile
 #
+
+# the link options, always use static link
+SrsLinkOptions="-ldl -lpthread";
+
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS}/st"; LibSTfile="${LibSTRoot}/libst.a"
 if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-L${LibSTRoot} -lst"; fi
@@ -154,7 +158,10 @@ if [[ $SRS_RTC == YES ]]; then
   LibSrtpRoot="${SRS_OBJS}/srtp2/include"; LibSrtpFile="${SRS_OBJS}/srtp2/lib/libsrtp2.a"
   if [[ $SRS_USE_SYS_SRTP == YES ]]; then
       LibSrtpRoot=""; LibSrtpFile="libsrtp2.a"
-      if [[ $SRS_SHARED_SRTP == YES ]]; then LibSrtpFile="-lsrtp2"; fi
+      if [[ $SRS_SHARED_SRTP == YES ]]; then
+          LibSrtpFile=""; 
+          SrsLinkOptions="${SrsLinkOptions} -lsrtp2";
+      fi
   fi
 fi
 
@@ -175,7 +182,8 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
         LibFfmpegRoot=""
         LibFfmpegFile="libavcodec.a libswresample.a libavutil.a libopus.a";
         if [[ $SRS_SHARED_FFMPEG == YES ]]; then
-            LibFfmpegFile="-lavcodec -lswresample -lavutil -lopus"
+            LibFfmpegFile=""
+            SrsLinkOptions="${SrsLinkOptions} -lavcodec -lswresample -lavutil -lopus";
         fi
     fi
 fi
@@ -201,12 +209,13 @@ if [[ $SRS_SRT == YES ]]; then
     if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-L${SRS_OBJS}/srt/lib -lsrt"; fi
     if [[ $SRS_USE_SYS_SRT == YES ]]; then
         LibSRTRoot=""; LibSRTfile="libsrt.a"
-        if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-lsrt"; fi
+        if [[ $SRS_SHARED_SRT == YES ]]; then 
+            LibSRTfile=""; 
+            SrsLinkOptions="${SrsLinkOptions} -lsrt";
+        fi
     fi
 fi
 
-# the link options, always use static link
-SrsLinkOptions="-ldl -lpthread";
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
 fi
@@ -245,6 +254,11 @@ fi
 # For FFMPEG/RTC on windows.
 if [[ $SRS_CYGWIN64 == YES && $SRS_FFMPEG_FIT == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lbcrypt";
+fi
+
+# User configed options.
+if [[ $SRS_EXTRA_LDFLAGS != '' ]]; then
+    SrsLinkOptions="${SrsLinkOptions} $SRS_EXTRA_LDFLAGS";
 fi
 
 #####################################################################################
@@ -415,7 +429,7 @@ if [[ $SRS_SRT == YES ]]; then
     ModuleLibIncs+=(${LibSRTRoot})
     MODULE_OBJS="${MODULE_OBJS} ${SRT_OBJS[@]}"
 fi
-LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
+LINK_OPTIONS="${LDFLAGS} ${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
 #
 # srs: srs(simple rtmp server) over st(state-threads)
 BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . $SRS_WORKDIR/auto/apps.sh
@@ -479,7 +493,7 @@ if [[ $SRS_UTEST == YES ]]; then
     fi
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${SRT_OBJS[@]}"
-    LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . $SRS_WORKDIR/auto/utest.sh
+    LINK_OPTIONS="${LDFLAGS} -lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . $SRS_WORKDIR/auto/utest.sh
 fi
 
 #####################################################################################
@@ -506,6 +520,7 @@ AR = ${SRS_TOOL_AR}
 LINK = ${SRS_TOOL_LD}
 RANDLIB = ${SRS_TOOL_RANDLIB}
 CXXFLAGS = ${CXXFLAGS}
+LDFLAGS = ${LDFLAGS}
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}

@@ -514,7 +514,7 @@ fi
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 # For cross build, we use opus of FFmpeg, so we don't build the libopus.
-if [[ $SRS_RTC == YES && $SRS_FFMPEG_OPUS != YES ]]; then
+if [[ $SRS_RTC == YES && $SRS_USE_SYS_FFMPEG != YES && $SRS_FFMPEG_OPUS != YES ]]; then
     # Only build static libraries if no shared FFmpeg.
     if [[ $SRS_SHARED_FFMPEG != YES ]]; then
         OPUS_OPTIONS="--disable-shared --disable-doc"
