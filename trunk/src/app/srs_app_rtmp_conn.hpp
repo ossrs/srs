@@ -45,7 +45,7 @@ class SrsSslConnection;
 class SrsSimpleRtmpClient : public SrsBasicRtmpClient
 {
 public:
-    SrsSimpleRtmpClient(std::string u, srs_utime_t ctm, srs_utime_t stm);
+    SrsSimpleRtmpClient(std::string u, srs_utime_t ctm, srs_utime_t stm, bool rtmps = false);
     virtual ~SrsSimpleRtmpClient();
 protected:
     virtual srs_error_t connect_app();

@@ -32,6 +32,7 @@ private:
     // The ep to forward, server[:port].
     std::string ep_forward;
     SrsRequest* req;
+    bool rtmps_;
 private:
     // The source or stream context id to bind to.
     SrsContextId source_cid_;
@@ -49,7 +50,7 @@ public:
     SrsForwarder(SrsOriginHub* h);
     virtual ~SrsForwarder();
 public:
-    virtual srs_error_t initialize(SrsRequest* r, std::string ep);
+    virtual srs_error_t initialize(SrsRequest* r, std::string ep, bool rtmps);
     virtual void set_queue_size(srs_utime_t queue_size);
 public:
     virtual srs_error_t on_publish();

@@ -17,13 +17,14 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_http_client.hpp>
 
-SrsBasicRtmpClient::SrsBasicRtmpClient(string r, srs_utime_t ctm, srs_utime_t stm)
+SrsBasicRtmpClient::SrsBasicRtmpClient(string r, srs_utime_t ctm, srs_utime_t stm, bool rtmps)
 {
     kbps = new SrsNetworkKbps();
 
     url = r;
     connect_timeout = ctm;
     stream_timeout = stm;
+    rtmps_ = rtmps;
     
     req = new SrsRequest();
     srs_parse_rtmp_url(url, req->tcUrl, req->stream);
@@ -58,8 +59,9 @@ srs_error_t SrsBasicRtmpClient::connect()
     close();
     
     transport = new SrsTcpClient(req->host, req->port, srs_utime_t(connect_timeout));
-    // if (req->schema == "rtmps")
+    if (rtmps_) {
         ssl_transport_ = new SrsSslClient(transport);
+    }
 
     client = new SrsRtmpClient(get_transport());
     kbps->set_io(get_transport(), get_transport());

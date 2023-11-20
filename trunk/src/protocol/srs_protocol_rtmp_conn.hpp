@@ -36,6 +36,7 @@ private:
     std::string url;
     srs_utime_t connect_timeout;
     srs_utime_t stream_timeout;
+    bool rtmps_;
 protected:
     SrsRequest* req;
 private:
@@ -49,7 +50,7 @@ public:
     // @param r The RTMP url, for example, rtmp://ip:port/app/stream?domain=vhost
     // @param ctm The timeout in srs_utime_t to connect to server.
     // @param stm The timeout in srs_utime_t to delivery A/V stream.
-    SrsBasicRtmpClient(std::string r, srs_utime_t ctm, srs_utime_t stm);
+    SrsBasicRtmpClient(std::string r, srs_utime_t ctm, srs_utime_t stm, bool rtmps = false);
     virtual ~SrsBasicRtmpClient();
 public:
     // Get extra args to carry more information.

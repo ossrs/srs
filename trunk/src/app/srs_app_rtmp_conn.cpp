@@ -56,7 +56,8 @@ using namespace std;
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT (3 * SRS_UTIME_SECONDS)
 
-SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, srs_utime_t ctm, srs_utime_t stm) : SrsBasicRtmpClient(u, ctm, stm)
+SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, srs_utime_t ctm, srs_utime_t stm, bool rtmps) 
+    : SrsBasicRtmpClient(u, ctm, stm, rtmps)
 {
 }
 
@@ -195,11 +196,11 @@ srs_error_t SrsRtmpConn::do_cycle()
 #endif
 
 #ifdef SRS_APM
-    srs_trace("RTMP client ip=%s:%d, fd=%d, trace=%s, span=%s", ip.c_str(), port, srs_netfd_fileno(stfd),
+    srs_trace("%s client ip=%s:%d, fd=%d, trace=%s, span=%s", ip.c_str(), (rtmps_ ? "RTMPS" : "RTMP"), port, srs_netfd_fileno(stfd),
         span_main_->format_trace_id(), span_main_->format_span_id()
     );
 #else
-    srs_trace("RTMP client ip=%s:%d, fd=%d", ip.c_str(), port, srs_netfd_fileno(stfd));
+    srs_trace("%s client ip=%s:%d, fd=%d", (rtmps_ ? "RTMPS" : "RTMP"), ip.c_str(), port, srs_netfd_fileno(stfd));
 #endif
 
     if (rtmps_) {
