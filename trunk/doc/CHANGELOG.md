@@ -7,6 +7,12 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-11-19, Merge [#3886](https://github.com/ossrs/srs/pull/3886): Change the hls_aof_ratio to 2.1. v6.0.101 (#3886)
+* v6.0, 2023-11-16, Merge [#3868](https://github.com/ossrs/srs/pull/3868): Fix the test fail when enable ffmpeg-opus. v6.0.100 (#3868)
+* v6.0, 2023-11-15, Merge [#3879](https://github.com/ossrs/srs/pull/3879): Add --extra-ldflags. v6.0.99 (#3879)
+* v6.0, 2023-11-06, Merge [#3851](https://github.com/ossrs/srs/pull/3851): donot compile libopus when enable sys-ffmpeg. v6.0.98 (#3851)
+* v6.0, 2023-11-04, Merge [#3852](https://github.com/ossrs/srs/pull/3852): RTC: Refine FFmpeg opus audio noisy issue. v6.0.97 (#3852)
+* v6.0, 2023-11-01, Merge [#3858](https://github.com/ossrs/srs/pull/3858): Support build without cache to test if actions fail. v6.0.96 (#3858)
 * v6.0, 2023-10-25, Merge [#3845](https://github.com/ossrs/srs/pull/3845): RTC: Fix FFmpeg opus audio noisy issue. v6.0.95 (#3845)
 * v6.0, 2023-10-21, Merge [#3847](https://github.com/ossrs/srs/pull/3847): WebRTC: TCP transport should use read_fully instead of read. v6.0.94 (#3847)
 * v6.0, 2023-10-20, Merge [#3846](https://github.com/ossrs/srs/pull/3846): Added system library option for ffmpeg, srtp, srt libraries. v6.0.93 (#3846)
@@ -107,6 +113,11 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-11-19, Merge [#3886](https://github.com/ossrs/srs/pull/3886): Change the hls_aof_ratio to 2.1. v5.0.200 (#3886)
+* v5.0, 2023-11-15, Merge [#3879](https://github.com/ossrs/srs/pull/3879): Add --extra-ldflags. v5.0.199 (#3879)
+* v5.0, 2023-11-06, Merge [#3851](https://github.com/ossrs/srs/pull/3851): donot compile libopus when enable sys-ffmpeg. v5.0.198 (#3851)
+* v5.0, 2023-11-04, Merge [#3852](https://github.com/ossrs/srs/pull/3852): RTC: Refine FFmpeg opus audio noisy issue. v5.0.197 (#3852)
+* v5.0, 2023-11-01, Merge [#3858](https://github.com/ossrs/srs/pull/3858): Support build without cache to test if actions fail. v5.0.196 (#3858)
 * v5.0, 2023-10-25, Merge [#3845](https://github.com/ossrs/srs/pull/3845): RTC: Fix FFmpeg opus audio noisy issue. v5.0.195 (#3845)
 * v5.0, 2023-10-21, Merge [#3847](https://github.com/ossrs/srs/pull/3847): WebRTC: TCP transport should use read_fully instead of read. v5.0.194 (#3847)
 * v5.0, 2023-10-20, Merge [#3846](https://github.com/ossrs/srs/pull/3846): Added system library option for ffmpeg, srtp, srt libraries. v5.0.193 (#3846)

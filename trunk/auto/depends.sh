@@ -189,7 +189,7 @@ fi
 #####################################################################################
 # Use srs-cache from base image. See https://github.com/ossrs/dev-docker/blob/ubuntu20-cache/Dockerfile
 # Note that the cache for cygwin is not under /usr/local, but copy to objs instead.
-if [[ -d /usr/local/srs-cache/srs/trunk/objs && $(pwd) != "/usr/local/srs-cache/srs/trunk" ]]; then
+if [[ -d /usr/local/srs-cache/srs/trunk/objs && $(pwd) != "/usr/local/srs-cache/srs/trunk" && $SRS_BUILD_CACHE == YES ]]; then
     SOURCE_DIR=$(ls -d /usr/local/srs-cache/srs/trunk/objs/Platform-SRS${SRS_MAJOR}-* 2>/dev/null|head -n 1)
     if [[ -d $SOURCE_DIR ]]; then
         TARGET_DIR=${SRS_OBJS}/${SRS_PLATFORM} &&
@@ -514,7 +514,7 @@ fi
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 # For cross build, we use opus of FFmpeg, so we don't build the libopus.
-if [[ $SRS_RTC == YES && $SRS_FFMPEG_OPUS != YES ]]; then
+if [[ $SRS_RTC == YES && $SRS_USE_SYS_FFMPEG != YES && $SRS_FFMPEG_OPUS != YES ]]; then
     # Only build static libraries if no shared FFmpeg.
     if [[ $SRS_SHARED_FFMPEG != YES ]]; then
         OPUS_OPTIONS="--disable-shared --disable-doc"

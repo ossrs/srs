@@ -13,7 +13,6 @@ function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
 * update the navigator, add same query string.
 */
 function update_nav() {
-    $("#srs_index").attr("href", "index.html" + window.location.search);
     $("#nav_srs_player").attr("href", "srs_player.html" + window.location.search);
     $("#nav_rtc_player").attr("href", "rtc_player.html" + window.location.search);
     $("#nav_rtc_publisher").attr("href", "rtc_publisher.html" + window.location.search);
