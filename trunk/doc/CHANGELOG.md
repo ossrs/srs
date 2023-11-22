@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-11-22, Merge [#3883](https://github.com/ossrs/srs/pull/3883): Fix opus delay options, use ffmpeg-opus in docker test. v6.0.102 (#3883)
 * v6.0, 2023-11-19, Merge [#3886](https://github.com/ossrs/srs/pull/3886): Change the hls_aof_ratio to 2.1. v6.0.101 (#3886)
 * v6.0, 2023-11-16, Merge [#3868](https://github.com/ossrs/srs/pull/3868): Fix the test fail when enable ffmpeg-opus. v6.0.100 (#3868)
 * v6.0, 2023-11-15, Merge [#3879](https://github.com/ossrs/srs/pull/3879): Add --extra-ldflags. v6.0.99 (#3879)
