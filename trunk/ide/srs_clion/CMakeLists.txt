@@ -45,6 +45,7 @@ set(DEPS_LIBS ${SRS_DIR}/objs/st/libst.a
         ${SRS_DIR}/objs/ffmpeg/lib/libavcodec.a
         ${SRS_DIR}/objs/ffmpeg/lib/libavutil.a
         ${SRS_DIR}/objs/ffmpeg/lib/libswresample.a
+        ${SRS_DIR}/objs/opus/lib/libopus.a
         ${SRS_DIR}/objs/srt/lib/libsrt.a)
 foreach(DEPS_LIB ${DEPS_LIBS})
     IF (NOT EXISTS ${DEPS_LIB})
