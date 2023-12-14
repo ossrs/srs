@@ -383,11 +383,13 @@ class SrsAudioPayload : public SrsCodecPayload
     {
         int minptime;
         bool use_inband_fec;
+        bool stereo;
         bool usedtx;
 
         SrsOpusParameter() {
             minptime = 0;
             use_inband_fec = false;
+            stereo = false;
             usedtx = false;
         }
     };

@@ -1979,6 +1979,7 @@ SrsAudioPayload::SrsAudioPayload(uint8_t pt, std::string encode_name, int sample
     channel_ = channel;
     opus_param_.minptime = 0;
     opus_param_.use_inband_fec = false;
+    opus_param_.stereo = false;
     opus_param_.usedtx = false;
 }
 
@@ -2020,6 +2021,9 @@ SrsMediaPayloadType SrsAudioPayload::generate_media_payload_type()
     if (opus_param_.use_inband_fec) {
         format_specific_param << ";useinbandfec=1";
     }
+    if (opus_param_.stereo) {
+        format_specific_param << ";stereo=1";
+    }
     if (opus_param_.usedtx) {
         format_specific_param << ";usedtx=1";
     }
@@ -2039,6 +2043,8 @@ srs_error_t SrsAudioPayload::set_opus_param_desc(std::string fmtp)
                 opus_param_.minptime = (int)::atol(kv[1].c_str());
             } else if (kv[0] == "useinbandfec") {
                 opus_param_.use_inband_fec = (kv[1] == "1") ? true : false;
+            } else if (kv[0] == "stereo") {
+                opus_param_.stereo = (kv[1] == "1") ? true : false;
             } else if (kv[0] == "usedtx") {
                 opus_param_.usedtx = (kv[1] == "1") ? true : false;
             }
