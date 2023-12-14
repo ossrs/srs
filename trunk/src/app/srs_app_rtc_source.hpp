@@ -318,6 +318,8 @@ private:
     uint16_t header_sn_;
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
+    // The state for timestamp sync state. -1 for init. 0 not sync. 1 sync.
+    int sync_state_;
 public:
     SrsRtcFrameBuilder(ISrsStreamBridge* bridge);
     virtual ~SrsRtcFrameBuilder();
