@@ -1547,39 +1547,37 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
         SrsAutoFree(SrsRtpPacket, obs_whip_sps_);
         SrsAutoFree(SrsRtpPacket, obs_whip_pps_);
 
-        if (true) {
-            // h264 raw to h264 packet.
-            std::string sh;
-            SrsRawH264Stream* avc = new SrsRawH264Stream();
-            SrsAutoFree(SrsRawH264Stream, avc);
+        // h264 raw to h264 packet.
+        std::string sh;
+        SrsRawH264Stream* avc = new SrsRawH264Stream();
+        SrsAutoFree(SrsRawH264Stream, avc);
 
-            if ((err = avc->mux_sequence_header(string(sps->bytes, sps->size), string(pps->bytes, pps->size), sh)) != srs_success) {
-                return srs_error_wrap(err, "mux sequence header");
-            }
+        if ((err = avc->mux_sequence_header(string(sps->bytes, sps->size), string(pps->bytes, pps->size), sh)) != srs_success) {
+            return srs_error_wrap(err, "mux sequence header");
+        }
 
-            // h264 packet to flv packet.
-            char* flv = NULL;
-            int nb_flv = 0;
-            if ((err = avc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoAvcFrameTraitSequenceHeader, pkt->get_avsync_time(),
-                                        pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
-                return srs_error_wrap(err, "avc to flv");
-            }
+        // h264 packet to flv packet.
+        char* flv = NULL;
+        int nb_flv = 0;
+        if ((err = avc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoAvcFrameTraitSequenceHeader, pkt->get_avsync_time(),
+                                    pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
+            return srs_error_wrap(err, "avc to flv");
+        }
 
-            SrsMessageHeader header;
-            header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
-            SrsCommonMessage rtmp;
-            if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
-                return srs_error_wrap(err, "create rtmp");
-            }
+        SrsMessageHeader header;
+        header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
+        SrsCommonMessage rtmp;
+        if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
+            return srs_error_wrap(err, "create rtmp");
+        }
 
-            SrsSharedPtrMessage msg;
-            if ((err = msg.create(&rtmp)) != srs_success) {
-                return srs_error_wrap(err, "create message");
-            }
+        SrsSharedPtrMessage msg;
+        if ((err = msg.create(&rtmp)) != srs_success) {
+            return srs_error_wrap(err, "create message");
+        }
 
-            if ((err = bridge_->on_frame(&msg)) != srs_success) {
-                return err;
-            }
+        if ((err = bridge_->on_frame(&msg)) != srs_success) {
+            return err;
         }
     }
 
