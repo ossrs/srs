@@ -31,10 +31,12 @@ using namespace std;
 SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsRtcServer* server)
 {
     server_ = server;
+    security_ = new SrsSecurity();
 }
 
 SrsGoApiRtcPlay::~SrsGoApiRtcPlay()
 {
+    srs_freep(security_);
 }
 
 
@@ -228,6 +230,10 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         }
     }
 
+    if ((err = security_->check(SrsRtcConnPlay, ruc->req_->ip, ruc->req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: security check");
+    }
+
     if ((err = http_hooks_on_play(ruc->req_)) != srs_success) {
         return srs_error_wrap(err, "RTC: http_hooks_on_play");
     }
@@ -324,10 +330,12 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(SrsRequest* req)
 SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsRtcServer* server)
 {
     server_ = server;
+    security_ = new SrsSecurity();
 }
 
 SrsGoApiRtcPublish::~SrsGoApiRtcPublish()
 {
+    srs_freep(security_);
 }
 
 // Request:
@@ -501,6 +509,10 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     SrsRtcConnection* session = NULL;
     if ((err = server_->create_session(ruc, local_sdp, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
+    }
+
+    if ((err = security_->check(SrsRtcConnPublish, ruc->req_->ip, ruc->req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: security check");
     }
 
     // We must do hook after stat, because depends on it.

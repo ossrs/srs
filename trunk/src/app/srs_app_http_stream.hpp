@@ -8,7 +8,7 @@
 #define SRS_APP_HTTP_STREAM_HPP
 
 #include <srs_core.hpp>
-
+#include <srs_app_security.hpp>
 #include <srs_app_http_conn.hpp>
 
 class SrsAacTransmuxer;
@@ -177,6 +177,7 @@ private:
     SrsRequest* req;
     SrsLiveSource* source;
     SrsBufferCache* cache;
+    SrsSecurity* security_;
 public:
     SrsLiveStream(SrsLiveSource* s, SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
