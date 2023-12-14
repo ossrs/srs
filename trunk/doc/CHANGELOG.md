@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-12-14, Merge [#3910](https://github.com/ossrs/srs/pull/3910): RTC: Support OPUS stereo SDP option. v6.0.105 (#3910)
 * v6.0, 2023-12-14, Merge [#3902](https://github.com/ossrs/srs/pull/3902): Security: Support IP whitelist for HTTP-FLV, HLS, WebRTC, and SRT. v6.0.104 (#3902)
 * v6.0, 2023-11-22, Merge [#3891](https://github.com/ossrs/srs/pull/3891): fix 'sed' error in options.sh. v6.0.103 (#3891)
 * v6.0, 2023-11-22, Merge [#3883](https://github.com/ossrs/srs/pull/3883): Fix opus delay options, use ffmpeg-opus in docker test. v6.0.102 (#3883)
@@ -116,6 +117,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-12-14, Merge [#3910](https://github.com/ossrs/srs/pull/3910): RTC: Support OPUS stereo SDP option. v5.0.203 (#3910)
 * v5.0, 2023-12-14, Merge [#3902](https://github.com/ossrs/srs/pull/3902): Security: Support IP whitelist for HTTP-FLV, HLS, WebRTC, and SRT. v5.0.202 (#3902)
 * v5.0, 2023-11-22, Merge [#3891](https://github.com/ossrs/srs/pull/3891): fix 'sed' error in options.sh. v5.0.201 (#3891)
 * v5.0, 2023-11-19, Merge [#3886](https://github.com/ossrs/srs/pull/3886): Change the hls_aof_ratio to 2.1. v5.0.200 (#3886)
