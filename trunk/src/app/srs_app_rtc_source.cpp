@@ -1318,6 +1318,7 @@ SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
     header_sn_ = 0;
     memset(cache_video_pkts_, 0, sizeof(cache_video_pkts_));
     rtp_key_frame_ts_ = -1;
+    sync_state_ = -1;
 }
 
 SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
@@ -1366,8 +1367,18 @@ srs_error_t SrsRtcFrameBuilder::on_rtp(SrsRtpPacket *pkt)
 
     // Have no received any sender report, can't calculate avsync_time,
     // discard it to avoid timestamp problem in live source
+    const SrsRtpHeader& h = pkt->header;
     if (pkt->get_avsync_time() <= 0) {
+        if (sync_state_ < 0) {
+            srs_trace("RTC: Discard no-sync %s, ssrc=%u, seq=%u, ts=%u, state=%d", pkt->is_audio() ? "Audio" : "Video",
+                h.get_ssrc(), h.get_sequence(), h.get_timestamp(), sync_state_);
+            sync_state_ = 0;
+        }
         return err;
+    } else if (sync_state_ < 1) {
+        srs_trace("RTC: Accept sync %s, ssrc=%u, seq=%u, ts=%u, state=%d", pkt->is_audio() ? "Audio" : "Video",
+            h.get_ssrc(), h.get_sequence(), h.get_timestamp(), sync_state_);
+        sync_state_ = 2;
     }
 
     if (pkt->is_audio()) {
