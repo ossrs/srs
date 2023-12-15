@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2023-12-15, Merge [#3854](https://github.com/ossrs/srs/pull/3854): Typo: line 263 - srs_app_srt_conn.cpp. v6.0.108 (#3854)
 * v6.0, 2023-12-15, Merge [#3854](https://github.com/ossrs/srs/pull/3854): Typo: line 263 - srs_app_srt_conn.cpp. v6.0.107 (#3854)
 * v6.0, 2023-12-15, Merge [#3854](https://github.com/ossrs/srs/pull/3854): Typo: line 263 - srs_app_srt_conn.cpp. v6.0.106 (#3854)
 * v6.0, 2023-12-14, Merge [#3910](https://github.com/ossrs/srs/pull/3910): RTC: Support OPUS stereo SDP option. v6.0.105 (#3910)
