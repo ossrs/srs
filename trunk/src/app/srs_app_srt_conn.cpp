@@ -174,6 +174,8 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, s
     srt_source_ = NULL;
     req_ = new SrsRequest();
     req_->ip = ip;
+
+    security_ = new SrsSecurity();
 }
 
 SrsMpegtsSrtConn::~SrsMpegtsSrtConn()
@@ -184,6 +186,7 @@ SrsMpegtsSrtConn::~SrsMpegtsSrtConn()
     srs_freep(delta_);
     srs_freep(srt_conn_);
     srs_freep(req_);
+    srs_freep(security_);
 }
 
 std::string SrsMpegtsSrtConn::desc()
@@ -311,6 +314,10 @@ srs_error_t SrsMpegtsSrtConn::publishing()
         return srs_error_wrap(err, "srt: stat client");
     }
 
+    if ((err = security_->check(SrsSrtConnPublish, ip_, req_)) != srs_success) {
+        return srs_error_wrap(err, "srt: security check");
+    }
+
     // We must do hook after stat, because depends on it.
     if ((err = http_hooks_on_publish()) != srs_success) {
         return srs_error_wrap(err, "srt: callback on publish");
@@ -333,12 +340,16 @@ srs_error_t SrsMpegtsSrtConn::playing()
     // We must do stat the client before hooks, because hooks depends on it.
     SrsStatistic* stat = SrsStatistic::instance();
     if ((err = stat->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPlay)) != srs_success) {
-        return srs_error_wrap(err, "rtmp: stat client");
+        return srs_error_wrap(err, "srt: stat client");
+    }
+
+    if ((err = security_->check(SrsSrtConnPlay, ip_, req_)) != srs_success) {
+        return srs_error_wrap(err, "srt: security check");
     }
 
     // We must do hook after stat, because depends on it.
     if ((err = http_hooks_on_play()) != srs_success) {
-        return srs_error_wrap(err, "rtmp: callback on play");
+        return srs_error_wrap(err, "srt: callback on play");
     }
     
     err = do_playing();

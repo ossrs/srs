@@ -250,7 +250,7 @@ jobs:
           echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
           echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
           echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
-          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
+          echo "SRS_XYZ=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
@@ -304,7 +304,7 @@ jobs:
           echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
           echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
           echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
-          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
+          echo "SRS_XYZ=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 5.0 to 6.0
       - name: Login aliyun hub

@@ -16,6 +16,7 @@
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_srt_utility.hpp>
+#include <srs_app_security.hpp>
 
 class SrsBuffer;
 class SrsLiveSource;
@@ -123,6 +124,7 @@ private:
 
     SrsRequest* req_;
     SrsSrtSource* srt_source_;
+    SrsSecurity* security_;
 };
 
 #endif

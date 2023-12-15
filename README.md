@@ -126,9 +126,11 @@ distributed under their [licenses](https://ossrs.io/lts/en-us/license).
 
 ## Releases
 
+* 2023-11-19, [Release v6.0-d3](https://github.com/ossrs/srs/releases/tag/v6.0-d3), v6.0-d3, 6.0 dev3, v6.0.101, 167560 lines.
 * 2023-09-28, [Release v6.0-d2](https://github.com/ossrs/srs/releases/tag/v6.0-d2), v6.0-d2, 6.0 dev2, v6.0.85, 167509 lines.
 * 2023-08-31, [Release v6.0-d1](https://github.com/ossrs/srs/releases/tag/v6.0-d1), v6.0-d1, 6.0 dev1, v6.0.72, 167135 lines.
 * 2023-07-09, [Release v6.0-d0](https://github.com/ossrs/srs/releases/tag/v6.0-d0), v6.0-d0, 6.0 dev0, v6.0.59, 166739 lines.
+* 2023-11-19, [Release v5.0-b7](https://github.com/ossrs/srs/releases/tag/v5.0-b7), v5.0-b7, 5.0 beta7, v5.0.200, 163305 lines.
 * 2023-10-25, [Release v5.0-b6](https://github.com/ossrs/srs/releases/tag/v5.0-b6), v5.0-b6, 5.0 beta6, v5.0.195, 163303 lines.
 * 2023-09-28, [Release v5.0-b5](https://github.com/ossrs/srs/releases/tag/v5.0-b5), v5.0-b5, 5.0 beta5, v5.0.185, 163254 lines.
 * 2023-08-31, [Release v5.0-b4](https://github.com/ossrs/srs/releases/tag/v5.0-b4), v5.0-b4, 5.0 beta4, v5.0.176, 162919 lines.
