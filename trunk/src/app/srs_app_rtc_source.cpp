@@ -1524,7 +1524,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
             obs_whip_pps_ = pkt->copy();
         }
         // Ignore if one of OBS WHIP SPS/PPS is not ready.
-        if ((obs_whip_sps_ && !obs_whip_pps_) || (obs_whip_sps_ && !obs_whip_pps_)) {
+        if (!obs_whip_pps_ || !obs_whip_pps_) {
             return err;
         }
     }
@@ -1543,7 +1543,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
             return srs_error_new(ERROR_RTC_RTP_MUXER, "no sps or pps in stap-a rtp. sps: %p, pps:%p", sps, pps);
         }
 
-        // Reset SPS/PPS cache.
+        // Reset SPS/PPS cache, ensuring that the next SPS/PPS will be handled when both are received.
         SrsAutoFree(SrsRtpPacket, obs_whip_sps_);
         SrsAutoFree(SrsRtpPacket, obs_whip_pps_);
 
