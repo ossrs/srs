@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT */
-/* Copyright (c) 2013-2023 Winlin */
+/* Copyright (c) 2013-2024 The SRS Authors */
 
 #ifdef __linux__
 #define _GNU_SOURCE
