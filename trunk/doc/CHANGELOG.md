@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2023-12-30, Merge [#3916](https://github.com/ossrs/srs/pull/3916): Enhancing the compatibility of options.sh. v5.0.204 (#3916)
 * v5.0, 2023-12-14, Merge [#3910](https://github.com/ossrs/srs/pull/3910): RTC: Support OPUS stereo SDP option. v5.0.203 (#3910)
 * v5.0, 2023-12-14, Merge [#3902](https://github.com/ossrs/srs/pull/3902): Security: Support IP whitelist for HTTP-FLV, HLS, WebRTC, and SRT. v5.0.202 (#3902)
 * v5.0, 2023-11-22, Merge [#3891](https://github.com/ossrs/srs/pull/3891): fix 'sed' error in options.sh. v5.0.201 (#3891)
