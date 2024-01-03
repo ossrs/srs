@@ -846,6 +846,12 @@ if [[ $SRS_VALGRIND == YES ]]; then
 else
     echo -e "${GREEN}Note: The valgrind is disabled.${BLACK}"
 fi
+if [[ $SRS_SANITIZER == YES ]]; then
+    echo -e "${GREEN}The sanitizer is enabled.${BLACK}"
+else
+    echo -e "${GREEN}Note: The sanitizer is disabled.${BLACK}"
+fi
+
 # add each modules for application
 for SRS_MODULE in ${SRS_MODULES[*]}; do
     echo -e "${GREEN}Enable module: $SRS_MODULE${BLACK}"
