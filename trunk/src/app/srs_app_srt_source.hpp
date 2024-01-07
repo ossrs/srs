@@ -111,13 +111,13 @@ private:
     srs_error_t on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* avs);
     srs_error_t on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
     srs_error_t check_sps_pps_change(SrsTsMessage* msg);
-    srs_error_t on_h264_frame(SrsTsMessage* msg, std::vector<std::pair<char*, int> >& ipb_frames);
+    srs_error_t on_h264_frame(SrsTsMessage* msg, std::vector< std::pair<char*, int> >& ipb_frames);
     srs_error_t check_audio_sh_change(SrsTsMessage* msg, uint32_t pts);
     srs_error_t on_aac_frame(SrsTsMessage* msg, uint32_t pts, char* frame, int frame_size);
 #ifdef SRS_H265
     srs_error_t on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs);
     srs_error_t check_vps_sps_pps_change(SrsTsMessage *msg);
-    srs_error_t on_hevc_frame(SrsTsMessage *msg, std::vector<std::pair<char *, int>> &ipb_frames);
+    srs_error_t on_hevc_frame(SrsTsMessage *msg, std::vector< std::pair<char *, int> > &ipb_frames);
 #endif
 private:
     ISrsStreamBridge* bridge_;
