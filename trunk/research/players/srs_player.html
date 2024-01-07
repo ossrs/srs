@@ -196,6 +196,8 @@
         stopPlayers();
         if (!r) return;
 
+        const video = document.getElementById('video_player');
+
         // Use H5 native to play aac/mp3.
         if (r.stream.indexOf('.mp3') > 0 || r.stream.indexOf('.aac') > 0) {
             $('#audio_player').attr('src', r.url).show();
@@ -220,7 +222,7 @@
             show_for_video_ok();
 
             tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true, enableStashBuffer: false});
-            tsPlayer.attachMediaElement(document.getElementById('video_player'));
+            tsPlayer.attachMediaElement(video);
             tsPlayer.load();
             tsPlayer.play();
             return;
@@ -248,7 +250,8 @@
                 liveDurationInfinity: true // Override current Media Source duration to Infinity for a live broadcast.
             });
             hlsPlayer.loadSource(r.url);
-            hlsPlayer.attachMedia(document.getElementById('video_player'));
+            hlsPlayer.attachMedia(video);
+            video.play();
             return;
         }
 
@@ -281,7 +284,7 @@
                 type: 'flv', url: r.url,
                 isLive: true, enableStashBuffer: false, liveSync: true
             });
-            flvPlayer.attachMediaElement(document.getElementById('video_player'));
+            flvPlayer.attachMediaElement(video);
             flvPlayer.load();
             flvPlayer.play();
             return;

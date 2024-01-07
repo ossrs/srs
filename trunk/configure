@@ -648,9 +648,8 @@ install:
 	@mkdir -p \$(__REAL_INSTALL)
 	@echo "Now make the http root dir"
 	@mkdir -p \$(__REAL_INSTALL)/objs/nginx/html
-	@cp -f research/api-server/static-dir/index.html \$(__REAL_INSTALL)/objs/nginx/html
-	@cp -f research/players/crossdomain.xml \$(__REAL_INSTALL)/objs/nginx/html
-	@cp -f research/api-server/static-dir/favicon.ico \$(__REAL_INSTALL)/objs/nginx/html
+	@cp -f research/index.html \$(__REAL_INSTALL)/objs/nginx/html
+	@cp -f research/favicon.ico \$(__REAL_INSTALL)/objs/nginx/html
 	@cp -Rf research/players \$(__REAL_INSTALL)/objs/nginx/html/
 	@cp -Rf research/console \$(__REAL_INSTALL)/objs/nginx/html/
 	@cp -Rf 3rdparty/signaling/www/demos \$(__REAL_INSTALL)/objs/nginx/html/
