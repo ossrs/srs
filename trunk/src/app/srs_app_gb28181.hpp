@@ -86,6 +86,7 @@ enum SrsGbSipState
     SrsGbSipStateReinviting,
     SrsGbSipStateStable,
     SrsGbSipStateBye,
+    SrsGbSipStateDisconnect,
 };
 std::string srs_gb_sip_state(SrsGbSipState state);
 
@@ -206,6 +207,7 @@ private:
     SrsLazyGbSipTcpReceiver* receiver_;
     SrsLazyGbSipTcpSender* sender_;
     SrsCoroutine* trd_;
+    srs_cond_t cond_;
 private:
     friend class SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>;
     SrsLazyGbSipTcpConn(SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* wrapper_root);
@@ -224,6 +226,8 @@ private:
 public:
     // When got a SIP message.
     srs_error_t on_sip_message(SrsSipMessage* msg);
+    // When SIP connection lost.
+    void on_sip_disconnect();
     // Enqueue a SIP message to send, which might be a request or response.
     void enqueue_sip_message(SrsSipMessage* msg);
 private:
@@ -247,8 +251,10 @@ public:
     bool is_stable();
     // Whether SIP is bye bye.
     bool is_bye();
+    bool is_disconnect();
 private:
     SrsGbSipState set_state(SrsGbSipState v);
+    void wake_up();
 // Interface ISrsResource
 public:
     virtual const SrsContextId& get_id();
