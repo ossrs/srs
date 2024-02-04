@@ -86,7 +86,7 @@ enum SrsGbSipState
     SrsGbSipStateReinviting,
     SrsGbSipStateStable,
     SrsGbSipStateBye,
-    SrsGbSipStateDisconnect,
+    // SrsGbSipStateDisconnect,
 };
 std::string srs_gb_sip_state(SrsGbSipState state);
 
@@ -251,7 +251,7 @@ public:
     bool is_stable();
     // Whether SIP is bye bye.
     bool is_bye();
-    bool is_disconnect();
+    // bool is_disconnect();
 private:
     SrsGbSipState set_state(SrsGbSipState v);
     void wake_up();

@@ -613,7 +613,7 @@ void SrsLazyGbSipTcpConn::enqueue_sip_message(SrsSipMessage* msg)
 }
 
 void SrsLazyGbSipTcpConn::on_sip_disconnect() {
-    state_ = SrsGbSipStateDisconnect;
+    // state_ = SrsGbSipStateDisconnect;
     this->wake_up();
 }
 
@@ -627,9 +627,9 @@ void SrsLazyGbSipTcpConn::drive_state(SrsSipMessage* msg)
             srs_sip_state(ostate, state_).c_str()); \
     }
 
-    if (state_ == SrsGbSipStateDisconnect) {
-        return;
-    }
+    // if (state_ == SrsGbSipStateDisconnect) {
+    //     return;
+    // }
     
     //const char* mt = msg->type_ == HTTP_REQUEST ? "REQUEST" : "RESPONSE";
     //const char* mm = msg->type_ == HTTP_REQUEST ? http_method_str(msg->method_) : "Response";
@@ -875,10 +875,10 @@ bool SrsLazyGbSipTcpConn::is_bye()
     return state_ == SrsGbSipStateBye;
 }
 
-bool SrsLazyGbSipTcpConn::is_disconnect()
-{
-    return state_ == SrsGbSipStateDisconnect;
-}
+// bool SrsLazyGbSipTcpConn::is_disconnect()
+// {
+//     return state_ == SrsGbSipStateDisconnect;
+// }
 
 SrsGbSipState SrsLazyGbSipTcpConn::set_state(SrsGbSipState v)
 {
