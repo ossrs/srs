@@ -117,6 +117,8 @@ private:
     srs_utime_t reinvite_wait_;
     // The number of timeout, dispose session if exceed.
     uint32_t nn_timeout_;
+    // The flag to delete
+    bool to_delete_;
 private:
     SrsAlonePithyPrint* ppp_;
     srs_utime_t startime_;
@@ -165,6 +167,10 @@ private:
 public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
+    void set_to_delete();
+    bool get_to_delete();
+    // reset sip state, if device reconnected before insert zombies
+    void reset();
 };
 
 // The SIP and Media listener for GB.
