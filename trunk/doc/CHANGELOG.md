@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-02-05, Merge [#3923](https://github.com/ossrs/srs/pull/3923): Configure: print enabled/disable sanitizer. v6.0.110 (#3923)
 * v6.0, 2023-12-30, Merge [#3916](https://github.com/ossrs/srs/pull/3916): Enhancing the compatibility of options.sh. v6.0.108 (#3916)
 * v6.0, 2023-12-30, Merge [#3914](https://github.com/ossrs/srs/pull/3914): Forward: when unpublish crash caused by uninitialized forward connection. v6.0.107 (#3914)
 * v6.0, 2023-12-15, Merge [#3854](https://github.com/ossrs/srs/pull/3854): Typo: line 263 - srs_app_srt_conn.cpp. v6.0.106 (#3854)
@@ -120,6 +121,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2024-02-05, Merge [#3923](https://github.com/ossrs/srs/pull/3923): Configure: print enabled/disable sanitizer. v5.0.206 (#3923)
 * v5.0, 2023-12-30, Merge [#3916](https://github.com/ossrs/srs/pull/3916): Enhancing the compatibility of options.sh. v5.0.204 (#3916)
 * v5.0, 2023-12-14, Merge [#3910](https://github.com/ossrs/srs/pull/3910): RTC: Support OPUS stereo SDP option. v5.0.203 (#3910)
 * v5.0, 2023-12-14, Merge [#3902](https://github.com/ossrs/srs/pull/3902): Security: Support IP whitelist for HTTP-FLV, HLS, WebRTC, and SRT. v5.0.202 (#3902)
