@@ -778,7 +778,7 @@ struct SrsHevcRbspVps
     uint32_t vps_max_latency_increase_plus1[8];
     uint8_t vps_max_layer_id;
     uint32_t vps_num_layer_sets_minus1;
-    std::vector<std::vector<uint8_t>> layer_id_included_flag;
+    std::vector< std::vector<uint8_t> > layer_id_included_flag;
     uint8_t vps_timing_info_present_flag;
     uint32_t vps_num_units_in_tick;
     uint32_t vps_time_scale;

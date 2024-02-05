@@ -1,0 +1,103 @@
+
+<html>
+<head>
+    <title>SRS</title>
+    <meta charset="utf-8">
+    <style>
+        .code {
+            background-color: rgb(217, 222, 227);
+            padding: 2px;
+            overflow: auto;
+            font-size: 85%;
+            line-height: 1.45;
+            border-radius: 6px;
+            word-break: normal;
+            word-wrap: normal;
+            box-sizing: border-box;
+            white-space: pre;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <h2>Status</h2>
+        <p>Congratulations! <a href="https://github.com/ossrs/srs">SRS</a> works!</p>
+        <hr/>
+        <h2>English</h2>
+        <p>
+            1. Please publish stream by:
+            <ul>
+                <li>
+                    Recommend <a href="https://obsproject.com/download">OBS</a>, set Service to <span class="code">Custom</span>,
+                    set Server to <span id="url3" class="code"></span>
+                    and Stream Key to <span id="url4" class="code"></span>
+                </li>
+                <li>
+                    You can also use <a href="https://ffmpeg.org/download.html">FFmpeg</a>:
+                    <span id="url" class="code"></span>
+                </li>
+                <li>
+                    Or use WHIP to publish stream, please click <span class="code">SRS Player</span> link below.
+                </li>
+            </ul>
+        </p>
+        <p>2. Choose <a id="enPlayer" href="#">SRS player</a> to play the stream in different protocols.</p>
+        <p>3. (Optional) Click <a id="enConsole" href="#">here</a> to enter SRS console.</p>
+        <hr/>
+        <h2>简体中文</h2>
+        <p>
+            1. 请选择推流方式：
+            <ul>
+                <li>
+                    推荐<a href="https://obsproject.com/download">OBS</a>，设置服务为 <span class="code">自定义</span>，
+                    设置推流地址（服务器）为 <span id="url5" class="code"></span>，
+                    设置推流密钥（串流密钥）为 <span id="url6" class="code"></span>
+                </li>
+                <li>
+                    或者用<a href="https://ffmpeg.org/download.html">FFmpeg</a>推流到地址:
+                    <span id="url2" class="code"></span>
+                </li>
+                <li>
+                    或者使用WHIP推流，请点击下面的 <span class="code">SRS播放器</span> 链接。
+                </li>
+            </ul>
+        </p>
+        <p>2. 点击选择 <a id="cnPlayer" href="#">SRS播放器</a></p>
+        <p>3. 点击进入 <a id="cnConsole" href="#">SRS控制台</a> (可选) </p>
+        <hr/>
+        <p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2013~2024</a></p>
+    </div>
+    <script type="text/javascript">
+        // Build RTMP url.
+        if (true) {
+            const server = `rtmp://${window.location.hostname}/live`;
+            const key = `livestream`;
+            const rtmpUrl = `${server}/${key}`;
+            document.getElementById('url2').innerText = document.getElementById('url').innerText = `ffmpeg -re -i ./doc/source.200kbps.768x320.flv -c copy -f flv ${rtmpUrl}`;
+            document.getElementById('url5').innerText = document.getElementById('url3').innerText = server;
+            document.getElementById('url6').innerText = document.getElementById('url4').innerText = key;
+        }
+
+        // Build console url.
+        if (true) {
+            // The prefix for default website.
+            const prefix = `${window.location.protocol}//${window.location.host}`;
+            // If not 8080, user should proxy to the default port.
+            const query = parseInt(window.location.port) === 8080 ? `?port=1985` : '';
+            const enUrl = `${prefix}/console/en_index.html#/summaries${query}`;
+            const cnUrl = `${prefix}/console/ng_index.html#/summaries${query}`;
+            document.getElementById("enConsole").setAttribute('href', enUrl);
+            document.getElementById("cnConsole").setAttribute('href', cnUrl);
+        }
+
+        // The player url.
+        if (true) {
+            const prefix = `players/?schema=${window.location.protocol.replace(':', '')}`;
+            const httpPort = window.location.port || (window.location.protocol === 'http:' ? 80 : 443);
+            // If not 8080, user should proxy both stream and API to the default port.
+            const query = parseInt(window.location.port) === 8080 ? '' : `&port=${httpPort}&api=${httpPort}`;
+            document.getElementById("enPlayer").setAttribute('href', `${prefix}${query}`);
+            document.getElementById("cnPlayer").setAttribute('href', `${prefix}${query}`);
+        }
+    </script>
+</body>
