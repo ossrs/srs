@@ -348,6 +348,9 @@ public:
     char* payload;
     int nn_payload;
 public:
+    // Use the whole RAW RTP payload as a sample.
+    SrsSample* sample_;
+public:
     SrsRtpRawPayload();
     virtual ~SrsRtpRawPayload();
 // interface ISrsRtpPayloader
