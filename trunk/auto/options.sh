@@ -6,7 +6,7 @@ help=no
 SRS_HDS=NO
 SRS_SRT=YES
 SRS_RTC=YES
-SRS_H265=NO
+SRS_H265=YES
 SRS_GB28181=NO
 SRS_CXX11=YES
 SRS_CXX14=NO
@@ -446,7 +446,7 @@ function parse_user_option_to_value_and_option() {
     case "$option" in
         -*=*) 
             value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'`
-            option=`echo "$option" | sed -e 's|=[,-_a-zA-Z0-9/. +]*||'`
+            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/. +,=]*||'`
         ;;
            *) value="" ;;
     esac

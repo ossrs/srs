@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -9,6 +9,6 @@
 
 #define VERSION_MAJOR       6
 #define VERSION_MINOR       0
-#define VERSION_REVISION    101
+#define VERSION_REVISION    113
 
 #endif

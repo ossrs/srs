@@ -103,7 +103,7 @@
 <script type="text/javascript" src="js/jquery-1.12.2.min.js"></script>
 <script type="text/javascript" src="js/bootstrap.min.js"></script>
 <script type="text/javascript" src="js/mpegts-1.7.3.min.js"></script>
-<script type="text/javascript" src="js/hls-0.14.17.min.js"></script>
+<script type="text/javascript" src="js/hls-1.4.14.min.js"></script>
 <script type="text/javascript" src="js/dash-v4.5.1.all.min.js"></script>
 <script type="text/javascript" src="js/json2.js"></script>
 <script type="text/javascript" src="js/srs.page.js"></script>
@@ -196,6 +196,8 @@
         stopPlayers();
         if (!r) return;
 
+        const video = document.getElementById('video_player');
+
         // Use H5 native to play aac/mp3.
         if (r.stream.indexOf('.mp3') > 0 || r.stream.indexOf('.aac') > 0) {
             $('#audio_player').attr('src', r.url).show();
@@ -220,7 +222,7 @@
             show_for_video_ok();
 
             tsPlayer = mpegts.createPlayer({type: 'mpegts', url: r.url, isLive: true, enableStashBuffer: false});
-            tsPlayer.attachMediaElement(document.getElementById('video_player'));
+            tsPlayer.attachMediaElement(video);
             tsPlayer.load();
             tsPlayer.play();
             return;
@@ -235,9 +237,21 @@
 
             show_for_video_ok();
 
-            hlsPlayer = new Hls();
+            // See https://github.com/video-dev/hls.js/blob/master/docs/API.md#maxlivesyncplaybackrate
+            // See https://github.com/video-dev/hls.js/issues/3077#issuecomment-705152394
+            hlsPlayer = new Hls({
+                enableWorker: true, // Improve performance and avoid lag/frame drops.
+                lowLatencyMode: true, // Enable Low-Latency HLS part playlist and segment loading.
+                liveSyncDurationCount: 0, // Start from the last segment.
+                liveMaxLatencyDurationCount: 4, // Maximum delay allowed from edge of live.
+                maxBufferLength: 5, // Maximum buffer length in seconds.
+                maxMaxBufferLength: 8, // The max Maximum buffer length in seconds.
+                maxLiveSyncPlaybackRate: 2, // Catch up if the latency is large.
+                liveDurationInfinity: true // Override current Media Source duration to Infinity for a live broadcast.
+            });
             hlsPlayer.loadSource(r.url);
-            hlsPlayer.attachMedia(document.getElementById('video_player'));
+            hlsPlayer.attachMedia(video);
+            video.play();
             return;
         }
 
@@ -264,16 +278,23 @@
 
             show_for_video_ok();
 
-            flvPlayer = mpegts.createPlayer({type: 'flv', url: r.url, isLive: true, enableStashBuffer: false});
-            flvPlayer.attachMediaElement(document.getElementById('video_player'));
+            // See https://github.com/xqq/mpegts.js/blob/master/src/config.js#L32
+            // See https://github.com/xqq/mpegts.js/blob/master/docs/api.md
+            flvPlayer = mpegts.createPlayer({
+                type: 'flv', url: r.url,
+                isLive: true, enableStashBuffer: false, liveSync: true
+            });
+            flvPlayer.attachMediaElement(video);
             flvPlayer.load();
             flvPlayer.play();
             return;
         }
 
-        console.error('不支持的URL', r.url, r);
         $('#video_player').hide();
-        $('#audio_player').hide();
+
+        const msg = `Not supported URL ${r.url} ${JSON.stringify(r)}`;
+        console.error(msg);
+        alert(msg);
     };
 
     $("#txt_url").change(function(){

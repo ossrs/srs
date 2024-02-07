@@ -250,7 +250,7 @@ jobs:
           echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
           echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
           echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
-          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
+          echo "SRS_XYZ=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
@@ -276,7 +276,9 @@ jobs:
           echo "Release ossrs/srs:$SRS_TAG"
           docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
             --output "type=image,push=true" \
-            -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f Dockerfile .
+            -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER \
+            --build-arg CONFARGS='--sanitizer=off --gb28181=on' \
+            -f Dockerfile .
       # Docker alias images
       # TODO: FIXME: If stable, please set the latest from 5.0 to 6.0
       - name: Docker alias images for ossrs/srs
@@ -304,7 +306,7 @@ jobs:
           echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
           echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
           echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
-          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
+          echo "SRS_XYZ=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 5.0 to 6.0
       - name: Login aliyun hub

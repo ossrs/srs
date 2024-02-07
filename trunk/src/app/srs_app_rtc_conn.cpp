@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -534,6 +534,15 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription* desc)
             uint32_t ssrc = desc->audio_track_desc_->ssrc_;
             SrsRtcAudioSendTrack* track = audio_tracks_.begin()->second;
 
+            if (track->track_desc_->media_->pt_of_publisher_ != desc->audio_track_desc_->media_->pt_) {
+                track->track_desc_->media_->pt_of_publisher_ = desc->audio_track_desc_->media_->pt_;
+            }
+
+            if (desc->audio_track_desc_->red_ && track->track_desc_->red_ && 
+                    track->track_desc_->red_->pt_of_publisher_ != desc->audio_track_desc_->red_->pt_) {
+                track->track_desc_->red_->pt_of_publisher_ = desc->audio_track_desc_->red_->pt_;
+            }
+
             audio_tracks_.clear();
             audio_tracks_.insert(make_pair(ssrc, track));
         }
@@ -546,6 +555,15 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription* desc)
             SrsRtcTrackDescription* vdesc = desc->video_track_descs_.at(0);
             uint32_t ssrc = vdesc->ssrc_;
             SrsRtcVideoSendTrack* track = video_tracks_.begin()->second;
+
+            if (track->track_desc_->media_->pt_of_publisher_ != vdesc->media_->pt_) {
+                track->track_desc_->media_->pt_of_publisher_ = vdesc->media_->pt_;
+            }
+
+            if (vdesc->red_ && track->track_desc_->red_ && 
+                    track->track_desc_->red_->pt_of_publisher_ != vdesc->red_->pt_) {
+                track->track_desc_->red_->pt_of_publisher_ = vdesc->red_->pt_;
+            }
 
             video_tracks_.clear();
             video_tracks_.insert(make_pair(ssrc, track));

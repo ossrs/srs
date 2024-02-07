@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -1318,12 +1318,16 @@ SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
     header_sn_ = 0;
     memset(cache_video_pkts_, 0, sizeof(cache_video_pkts_));
     rtp_key_frame_ts_ = -1;
+    sync_state_ = -1;
+    obs_whip_sps_ = obs_whip_pps_ = NULL;
 }
 
 SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
 {
     srs_freep(codec_);
     clear_cached_video();
+    srs_freep(obs_whip_sps_);
+    srs_freep(obs_whip_pps_);
 }
 
 srs_error_t SrsRtcFrameBuilder::initialize(SrsRequest* r)
@@ -1366,8 +1370,18 @@ srs_error_t SrsRtcFrameBuilder::on_rtp(SrsRtpPacket *pkt)
 
     // Have no received any sender report, can't calculate avsync_time,
     // discard it to avoid timestamp problem in live source
+    const SrsRtpHeader& h = pkt->header;
     if (pkt->get_avsync_time() <= 0) {
+        if (sync_state_ < 0) {
+            srs_trace("RTC: Discard no-sync %s, ssrc=%u, seq=%u, ts=%u, state=%d", pkt->is_audio() ? "Audio" : "Video",
+                h.get_ssrc(), h.get_sequence(), h.get_timestamp(), sync_state_);
+            sync_state_ = 0;
+        }
         return err;
+    } else if (sync_state_ < 1) {
+        srs_trace("RTC: Accept sync %s, ssrc=%u, seq=%u, ts=%u, state=%d", pkt->is_audio() ? "Audio" : "Video",
+            h.get_ssrc(), h.get_sequence(), h.get_timestamp(), sync_state_);
+        sync_state_ = 2;
     }
 
     if (pkt->is_audio()) {
@@ -1499,46 +1513,75 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
-    // TODO: handle sps and pps in 2 rtp packets
+    // For OBS WHIP, it uses RTP Raw packet with SPS/PPS/IDR frame. Note that not all
+    // raw payload is SPS/PPS.
+    bool has_sps_pps_in_raw_payload = false;
+    SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
+    if (raw_payload) {
+        if (pkt->nalu_type == SrsAvcNaluTypeSPS) {
+            has_sps_pps_in_raw_payload = true;
+            srs_freep(obs_whip_sps_);
+            obs_whip_sps_ = pkt->copy();
+        } else if (pkt->nalu_type == SrsAvcNaluTypePPS) {
+            has_sps_pps_in_raw_payload = true;
+            srs_freep(obs_whip_pps_);
+            obs_whip_pps_ = pkt->copy();
+        }
+        // Ignore if one of OBS WHIP SPS/PPS is not ready.
+        if (has_sps_pps_in_raw_payload && (!obs_whip_sps_ || !obs_whip_pps_)) {
+            return err;
+        }
+    }
+
+    // Generally, there will be SPS+PPS+IDR in a STAP-A packet.
     SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
-    if (stap_payload) {
-        SrsSample* sps = stap_payload->get_sps();
-        SrsSample* pps = stap_payload->get_pps();
-        if (NULL == sps || NULL == pps) {
+
+    // Handle SPS/PPS in cache or STAP-A packet.
+    if (stap_payload || has_sps_pps_in_raw_payload) {
+        // Get the SPS/PPS from cache or STAP-A packet.
+        SrsSample* sps = stap_payload ? stap_payload->get_sps() : NULL;
+        if (!sps && obs_whip_sps_) sps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_sps_->payload())->sample_;
+        SrsSample* pps = stap_payload ? stap_payload->get_pps() : NULL;
+        if (!pps && obs_whip_pps_) pps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_pps_->payload())->sample_;
+        if (!sps || !pps) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "no sps or pps in stap-a rtp. sps: %p, pps:%p", sps, pps);
-        } else {
-            // h264 raw to h264 packet.
-            std::string sh;
-            SrsRawH264Stream* avc = new SrsRawH264Stream();
-            SrsAutoFree(SrsRawH264Stream, avc);
+        }
 
-            if ((err = avc->mux_sequence_header(string(sps->bytes, sps->size), string(pps->bytes, pps->size), sh)) != srs_success) {
-                return srs_error_wrap(err, "mux sequence header");
-            }
+        // Reset SPS/PPS cache, ensuring that the next SPS/PPS will be handled when both are received.
+        SrsAutoFree(SrsRtpPacket, obs_whip_sps_);
+        SrsAutoFree(SrsRtpPacket, obs_whip_pps_);
 
-            // h264 packet to flv packet.
-            char* flv = NULL;
-            int nb_flv = 0;
-            if ((err = avc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoAvcFrameTraitSequenceHeader, pkt->get_avsync_time(),
-                                        pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
-                return srs_error_wrap(err, "avc to flv");
-            }
+        // h264 raw to h264 packet.
+        std::string sh;
+        SrsRawH264Stream* avc = new SrsRawH264Stream();
+        SrsAutoFree(SrsRawH264Stream, avc);
 
-            SrsMessageHeader header;
-            header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
-            SrsCommonMessage rtmp;
-            if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
-                return srs_error_wrap(err, "create rtmp");
-            }
+        if ((err = avc->mux_sequence_header(string(sps->bytes, sps->size), string(pps->bytes, pps->size), sh)) != srs_success) {
+            return srs_error_wrap(err, "mux sequence header");
+        }
 
-            SrsSharedPtrMessage msg;
-            if ((err = msg.create(&rtmp)) != srs_success) {
-                return srs_error_wrap(err, "create message");
-            }
+        // h264 packet to flv packet.
+        char* flv = NULL;
+        int nb_flv = 0;
+        if ((err = avc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoAvcFrameTraitSequenceHeader, pkt->get_avsync_time(),
+                                    pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
+            return srs_error_wrap(err, "avc to flv");
+        }
 
-            if ((err = bridge_->on_frame(&msg)) != srs_success) {
-                return err;
-            }
+        SrsMessageHeader header;
+        header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
+        SrsCommonMessage rtmp;
+        if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
+            return srs_error_wrap(err, "create rtmp");
+        }
+
+        SrsSharedPtrMessage msg;
+        if ((err = msg.create(&rtmp)) != srs_success) {
+            return srs_error_wrap(err, "create message");
+        }
+
+        if ((err = bridge_->on_frame(&msg)) != srs_success) {
+            return err;
         }
     }
 
@@ -1583,7 +1626,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
     if (-1 == sn) {
         if (check_frame_complete(header_sn_, tail_sn)) {
             if ((err = packet_video_rtmp(header_sn_, tail_sn)) != srs_success) {
-                err = srs_error_wrap(err, "fail to packet key frame");
+                err = srs_error_wrap(err, "fail to packet frame");
             }
         }
     } else if (-2 == sn) {
@@ -1968,6 +2011,7 @@ SrsAudioPayload::SrsAudioPayload(uint8_t pt, std::string encode_name, int sample
     channel_ = channel;
     opus_param_.minptime = 0;
     opus_param_.use_inband_fec = false;
+    opus_param_.stereo = false;
     opus_param_.usedtx = false;
 }
 
@@ -2009,6 +2053,9 @@ SrsMediaPayloadType SrsAudioPayload::generate_media_payload_type()
     if (opus_param_.use_inband_fec) {
         format_specific_param << ";useinbandfec=1";
     }
+    if (opus_param_.stereo) {
+        format_specific_param << ";stereo=1";
+    }
     if (opus_param_.usedtx) {
         format_specific_param << ";usedtx=1";
     }
@@ -2028,6 +2075,8 @@ srs_error_t SrsAudioPayload::set_opus_param_desc(std::string fmtp)
                 opus_param_.minptime = (int)::atol(kv[1].c_str());
             } else if (kv[0] == "useinbandfec") {
                 opus_param_.use_inband_fec = (kv[1] == "1") ? true : false;
+            } else if (kv[0] == "stereo") {
+                opus_param_.stereo = (kv[1] == "1") ? true : false;
             } else if (kv[0] == "usedtx") {
                 opus_param_.usedtx = (kv[1] == "1") ? true : false;
             }

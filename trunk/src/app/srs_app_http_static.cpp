@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -64,6 +64,7 @@ void SrsHlsVirtualConn::expire()
 SrsHlsStream::SrsHlsStream()
 {
     _srs_hybrid->timer5s()->subscribe(this);
+    security_ = new SrsSecurity();
 }
 
 SrsHlsStream::~SrsHlsStream()
@@ -76,6 +77,7 @@ SrsHlsStream::~SrsHlsStream()
         srs_freep(info);
     }
     map_ctx_info_.clear();
+    srs_freep(security_);
 }
 
 srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, string fullpath, SrsRequest* req, bool* served)
@@ -165,6 +167,10 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
     SrsStatistic* stat = SrsStatistic::instance();
     if ((err = stat->on_client(ctx, req, NULL, SrsHlsPlay)) != srs_success) {
         return srs_error_wrap(err, "stat on client");
+    }
+
+    if ((err = security_->check(SrsHlsPlay, req->ip, req)) != srs_success) {
+        return srs_error_wrap(err, "HLS: security check");
     }
 
     // We must do hook after stat, because depends on it.

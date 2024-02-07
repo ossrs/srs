@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -604,7 +604,7 @@ srs_error_t SrsServer::listen()
     // Create HTTPS API listener.
     if (_srs_config->get_https_api_enabled()) {
         if (reuse_api_over_server_) {
-            srs_trace("HTTPS-API: Reuse listen to http server %s", _srs_config->get_http_stream_listen().c_str());
+            srs_trace("HTTPS-API: Reuse listen to http server %s", _srs_config->get_https_stream_listen().c_str());
         } else {
             apis_listener_->set_endpoint(_srs_config->get_https_api_listen())->set_label("HTTPS-API");
             if ((err = apis_listener_->listen()) != srs_success) {

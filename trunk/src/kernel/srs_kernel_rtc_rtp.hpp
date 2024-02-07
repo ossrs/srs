@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -348,6 +348,9 @@ public:
     // @remark We only refer to the memory, user must free its bytes.
     char* payload;
     int nn_payload;
+public:
+    // Use the whole RAW RTP payload as a sample.
+    SrsSample* sample_;
 public:
     SrsRtpRawPayload();
     virtual ~SrsRtpRawPayload();
