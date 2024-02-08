@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_tencentcloud.hpp>
@@ -42,7 +42,7 @@ namespace tencentcloud_api_sign {
         SHA1_Final(digest, &ctx);
         char c_sha1[SHA_DIGEST_LENGTH*2+1];
         for (unsigned i = 0; i < SHA_DIGEST_LENGTH; ++i) {
-            sprintf(&c_sha1[i*2], "%02x", (unsigned int)digest[i]);
+            snprintf(&c_sha1[i*2], 3, "%02x", (unsigned int)digest[i]);
         }
         return c_sha1;
     }
@@ -67,7 +67,7 @@ namespace tencentcloud_api_sign {
         HMAC_CTX_free(ctx);
 #endif
         for (unsigned i = 0; i != digest_len; ++i) {
-            sprintf(&c_hmacsha1[i*2], "%02x", (unsigned int)digest[i]);
+            snprintf(&c_hmacsha1[i*2], 3, "%02x", (unsigned int)digest[i]);
         }
         return c_hmacsha1;
     }

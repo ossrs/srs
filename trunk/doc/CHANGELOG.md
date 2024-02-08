@@ -7,7 +7,76 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
-
+* v6.0, 2024-02-06, Merge [#3920](https://github.com/ossrs/srs/pull/3920): WHIP: Fix bug for converting WHIP to RTMP/HLS. v6.0.113 (#3920)
+* v6.0, 2024-02-05, Merge [#3924](https://github.com/ossrs/srs/pull/3924): Upgrade hls.js and set in low latency mode. v6.0.112 (#3924)
+* v6.0, 2024-02-05, Merge [#3925](https://github.com/ossrs/srs/pull/3925): RTC: Fix video and audio track pt_ is not change in player before publisher. v6.0.111 (#3925)
+* v6.0, 2024-02-05, Merge [#3923](https://github.com/ossrs/srs/pull/3923): Configure: print enabled/disable sanitizer. v6.0.110 (#3923)
+* v6.0, 2023-12-30, Merge [#3916](https://github.com/ossrs/srs/pull/3916): Enhancing the compatibility of options.sh. v6.0.108 (#3916)
+* v6.0, 2023-12-30, Merge [#3914](https://github.com/ossrs/srs/pull/3914): Forward: when unpublish crash caused by uninitialized forward connection. v6.0.107 (#3914)
+* v6.0, 2023-12-15, Merge [#3854](https://github.com/ossrs/srs/pull/3854): Typo: line 263 - srs_app_srt_conn.cpp. v6.0.106 (#3854)
+* v6.0, 2023-12-14, Merge [#3910](https://github.com/ossrs/srs/pull/3910): RTC: Support OPUS stereo SDP option. v6.0.105 (#3910)
+* v6.0, 2023-12-14, Merge [#3902](https://github.com/ossrs/srs/pull/3902): Security: Support IP whitelist for HTTP-FLV, HLS, WebRTC, and SRT. v6.0.104 (#3902)
+* v6.0, 2023-11-22, Merge [#3891](https://github.com/ossrs/srs/pull/3891): fix 'sed' error in options.sh. v6.0.103 (#3891)
+* v6.0, 2023-11-22, Merge [#3883](https://github.com/ossrs/srs/pull/3883): Fix opus delay options, use ffmpeg-opus in docker test. v6.0.102 (#3883)
+* v6.0, 2023-11-19, Merge [#3886](https://github.com/ossrs/srs/pull/3886): Change the hls_aof_ratio to 2.1. v6.0.101 (#3886)
+* v6.0, 2023-11-16, Merge [#3868](https://github.com/ossrs/srs/pull/3868): Fix the test fail when enable ffmpeg-opus. v6.0.100 (#3868)
+* v6.0, 2023-11-15, Merge [#3879](https://github.com/ossrs/srs/pull/3879): Add --extra-ldflags. v6.0.99 (#3879)
+* v6.0, 2023-11-06, Merge [#3851](https://github.com/ossrs/srs/pull/3851): donot compile libopus when enable sys-ffmpeg. v6.0.98 (#3851)
+* v6.0, 2023-11-04, Merge [#3852](https://github.com/ossrs/srs/pull/3852): RTC: Refine FFmpeg opus audio noisy issue. v6.0.97 (#3852)
+* v6.0, 2023-11-01, Merge [#3858](https://github.com/ossrs/srs/pull/3858): Support build without cache to test if actions fail. v6.0.96 (#3858)
+* v6.0, 2023-10-25, Merge [#3845](https://github.com/ossrs/srs/pull/3845): RTC: Fix FFmpeg opus audio noisy issue. v6.0.95 (#3845)
+* v6.0, 2023-10-21, Merge [#3847](https://github.com/ossrs/srs/pull/3847): WebRTC: TCP transport should use read_fully instead of read. v6.0.94 (#3847)
+* v6.0, 2023-10-20, Merge [#3846](https://github.com/ossrs/srs/pull/3846): Added system library option for ffmpeg, srtp, srt libraries. v6.0.93 (#3846)
+* v6.0, 2023-10-17, Merge [#3840](https://github.com/ossrs/srs/pull/3840): Disable asan by default. v6.0.92 (#3840)
+* v6.0, 2023-10-17, Merge [#3837](https://github.com/ossrs/srs/pull/3837): Support set the ice-ufrag and ice-pwd for connectivity check. v6.0.91 (#3837)
+* v6.0, 2023-10-17, Merge [#3758](https://github.com/ossrs/srs/pull/3758): Refine docker detect mechenism. v6.0.90 (#3758)
+* v6.0, 2023-10-11, Merge [#3827](https://github.com/ossrs/srs/pull/3827): Fix bug for upgrading to OpenSSL 3.0. v6.0.89 (#3827)
+* v6.0, 2023-10-10, Merge [#3825](https://github.com/ossrs/srs/pull/3825): SRT: Fix the missing config mss. v6.0.88 (#3825)
+* v6.0, 2023-10-08, Merge [#3824](https://github.com/ossrs/srs/pull/3824): Solve the problem of inaccurate HLS TS duration. v6.0.87 (#3824)
+* v6.0, 2023-10-08, Merge [#3815](https://github.com/ossrs/srs/pull/3815): Use new cache image name. v6.0.86 (#3815)
+* v6.0, 2023-09-26, Merge [#3811](https://github.com/ossrs/srs/pull/3811): Turn off the related utests H265 option. v6.0.85 (#3811)
+* v6.0, 2023-09-25, Merge [#3810](https://github.com/ossrs/srs/pull/3810): Change dev code for John. v6.0.84 (#3810)
+* v6.0, 2023-09-22, Merge [#3777](https://github.com/ossrs/srs/pull/3777): Compile: Add a __GLIBC__ definition for the pthread_setname_np. v6.0.83 (#3777)
+* v6.0, 2023-09-21, Merge [#3806](https://github.com/ossrs/srs/pull/3806): Build: Support sys-ssl for srt. v6.0.82 (#3806)
+* v6.0, 2023-09-21, Merge [#3808](https://github.com/ossrs/srs/pull/3808): Upgrade libsrt to v1.5.3. v6.0.81 (#3808)
+* v6.0, 2023-09-21, Merge [#3404](https://github.com/ossrs/srs/pull/3404): WebRTC: Support WHEP for play. v6.0.80 (#3404)
+* v6.0, 2023-09-21, Merge [#3807](https://github.com/ossrs/srs/pull/3807): Prevent the output of srt logs in utest. v6.0.79 (#3807)
+* v6.0, 2023-09-21, Merge [#3696](https://github.com/ossrs/srs/pull/3696): SRT: modify log level from error to debug when no socket to accept. v6.0.78 (#3696)
+* v6.0, 2023-09-18, Merge [#3804](https://github.com/ossrs/srs/pull/3804): Support FFmpeg timecode, fix AMF0 parsing failed. v6.0.77 (#3804)
+* v6.0, 2023-09-18, Merge [#3722](https://github.com/ossrs/srs/pull/3722): Bugfix: HEVC SRT stream supports multiple PPS fields. v6.0.76 (#3722)
+* v6.0, 2023-09-08, Merge [#3597](https://github.com/ossrs/srs/pull/3597): Fix RBSP stream parsing bug, should drop 0x03. v6.0.75 (#3597)
+* v6.0, 2023-09-08, Merge [#3794](https://github.com/ossrs/srs/pull/3794): Support SRS Stack token for authentication. v6.0.74 (#3794)
+* v6.0, 2023-09-07, Merge [#3795](https://github.com/ossrs/srs/pull/3795): Fix dash crash if format not supported. v6.0.73 (#3795)
+* v6.0, 2023-08-30, Merge [#3776](https://github.com/ossrs/srs/pull/3776): Compile: Add aarch64 to the conditions of use of the cbrt function. v6.0.72 (#3776)
+* v6.0, 2023-08-30, Merge [#3779](https://github.com/ossrs/srs/pull/3779): Support HTTP-API for fetching reload result. v6.0.71 (#3779)
+* v6.0, 2023-08-28, Merge [#3503](https://github.com/ossrs/srs/pull/3503): SrsContextId assignment can be improved without create a duplicated one. v6.0.70 (#3503)
+* v6.0, 2023-08-28, Merge [#3781](https://github.com/ossrs/srs/pull/3781): HLS: Fix on_hls and hls_dispose critical zone issue. v6.0.69 (#3781)
+* v6.0, 2023-08-28, Merge [#3768](https://github.com/ossrs/srs/pull/3768): Support include empty config file. v6.0.68 (#3768)
+* v6.0, 2023-08-25, Merge [#3782](https://github.com/ossrs/srs/pull/3782): HLS: Support reload HLS asynchronously. v6.0.67 (#3782)
+* v6.0, 2023-08-22, Merge [#3775](https://github.com/ossrs/srs/pull/3775): Bugfix: Log format output type does not match. v6.0.66 (#3699)
+* v6.0, 2023-08-02, Merge [#3750](https://github.com/ossrs/srs/pull/3750): HLS: Ignore empty NALU to avoid error. v6.0.64 (#3750)
+* v6.0, 2023-07-27, Merge [#3611](https://github.com/ossrs/srs/pull/3611): Design and implement helm capabilities to streamline the deployment process of an SRS cluster.. v6.0.63 (#3611)
+* v6.0, 2023-07-27, Merge [#3703](https://github.com/ossrs/srs/pull/3703): The identifier "ShowCouroutines" needs to be modified to "ShowCoroutines" in order to rectify the typographical error.. v6.0.62 (#3703)
+* v6.0, 2023-07-26, Merge [#3699](https://github.com/ossrs/srs/pull/3699): Bugfix: Eliminate the redundant declaration of the _srs_rtc_manager variable.. v6.0.61 (#3699)
+* v6.0, 2023-07-21, Merge [#3695](https://github.com/ossrs/srs/pull/3695): API: Fix HTTPS callback issue using SNI in TLS client handshake. v6.0.61 (#3695)
+* v6.0, 2023-07-18, Merge [#3515](https://github.com/ossrs/srs/pull/3515): WebRTC: Support config the bitrate of transcoding AAC to Opus. v6.0.60 (#3515)
+* v6.0, 2023-07-09, Merge [#3615](https://github.com/ossrs/srs/pull/3615): Compile: Fix typo for 3rdparty. v6.0.59 (#3615)
+* v6.0, 2023-07-01, Merge [#3595](https://github.com/ossrs/srs/pull/3595): WHIP: Improve WHIP deletion by token verification. v6.0.58 (#3595)
+* v6.0, 2023-07-01, Merge [#3605](https://github.com/ossrs/srs/pull/3605): BugFix: Resolve the problem of srs_error_t memory leak. v6.0.57 (#3605)
+* v6.0, 2023-06-30, Merge [#3596](https://github.com/ossrs/srs/pull/3596): Improve the usage of "transcode" in the "full.conf" file. v6.0.56 (#3596)
+* v6.0, 2023-06-21, Merge [#3551](https://github.com/ossrs/srs/pull/3551): H264: Fix H.264 ISOM reserved bit value. v6.0.55 (#3551)
+* v6.0, 2023-06-20, Merge [#3594](https://github.com/ossrs/srs/pull/3594): Docker: Refine the main dockerfile. v6.0.54 (#3592)
+* v6.0, 2023-06-20, Merge [#3592](https://github.com/ossrs/srs/pull/3592): Fix Permission Issue in depend.sh for OpenSSL Compilation. v6.0.53 (#3592)
+* v6.0, 2023-06-20, Merge [#3591](https://github.com/ossrs/srs/pull/3591): Fix crash when process rtcp feedback message. v6.0.52 (#3591)
+* v6.0, 2023-06-15, Merge [#3581](https://github.com/ossrs/srs/pull/3581): WHIP: Add OBS support, ensuring compatibility with a unique SDP. v6.0.51 (#3581)
+* v6.0, 2023-06-13, Merge [#3579](https://github.com/ossrs/srs/pull/3579): TOC: Welcome to the new TOC member, ZhangJunqin. v6.0.50 (#3579)
+* v6.0, 2023-06-12, Merge [#3570](https://github.com/ossrs/srs/pull/3570): GB: Correct the range of keyframe error for compile warning. v6.0.49 (#3570)
+* v6.0, 2023-06-05, Fix command injection in demonstration api-server for HTTP callback. v6.0.48
+* v6.0, 2023-06-05, Merge [#3565](https://github.com/ossrs/srs/pull/3565): DTLS: Use bio callback to get fragment packet. v6.0.47 (#3565)
+* v6.0, 2023-05-29, Merge [#3513](https://github.com/ossrs/srs/pull/3513): SSL: Fix SSL_get_error get the error of other coroutine. v6.0.46 (#3513)
+* v6.0, 2023-05-14, Merge [#3534](https://github.com/ossrs/srs/pull/3534): Replace sprintf with snprintf to eliminate compile warnings. v6.0.45 (#3534)
+* v6.0, 2023-05-13, Merge [#3541](https://github.com/ossrs/srs/pull/3541): asan: Fix memory leak in asan by releasing global IPs when run_directly_or_daemon fails. v6.0.44 (#3541)
+* v6.0, 2023-05-12, Merge [#3539](https://github.com/ossrs/srs/pull/3539): WHIP: Improve HTTP DELETE for notifying server unpublish event. v6.0.43 (#3539)
 * v6.0, 2023-04-08, Merge [#3495](https://github.com/ossrs/srs/pull/3495): RTMP: Support enhanced RTMP specification for HEVC. v6.0.42 (#3495)
 * v6.0, 2023-04-01, Merge [#3392](https://github.com/ossrs/srs/pull/3392): Support composited bridges for 1:N protocols converting. v6.0.41 (#3392)
 * v6.0, 2023-04-01, Merge [#3458](https://github.com/ossrs/srs/pull/3450): API: Support HTTP basic authentication for API. v6.0.40 (#3458)
@@ -34,7 +103,7 @@ The changelog for SRS.
 * v6.0, 2023-01-19, Merge [#3318](https://github.com/ossrs/srs/pull/3318): RTC: fix rtc publisher pli cid. v6.0.19 (#3318)
 * v6.0, 2023-01-18, Merge [#3382](https://github.com/ossrs/srs/pull/3382): Rewrite research/api-server code by Go, remove Python. v6.0.18 (#3382)
 * v6.0, 2023-01-18, Merge [#3386](https://github.com/ossrs/srs/pull/3386): SRT: fix crash when srt_to_rtmp off. v6.0.17 (#3386)
-* v5.0, 2023-01-17, Merge [#3385](https://github.com/ossrs/srs/pull/3385): API: Support server/pid/service label for exporter and api. v6.0.16 (#3385)
+* v6.0, 2023-01-17, Merge [#3385](https://github.com/ossrs/srs/pull/3385): API: Support server/pid/service label for exporter and api. v6.0.16 (#3385)
 * v6.0, 2023-01-17, Merge [#3379](https://github.com/ossrs/srs/pull/3379): H265: Support demux vps/pps info. v6.0.15
 * v6.0, 2023-01-08, Merge [#3360](https://github.com/ossrs/srs/pull/3360): H265: Support DVR HEVC stream to MP4. v6.0.14
 * v6.0, 2023-01-06, Merge [#3363](https://github.com/ossrs/srs/issues/3363): HTTP: Add CORS Header for private network access. v6.0.13
@@ -55,8 +124,60 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
-
-* v5.0, 2023-04-01, Merge [#3458](https://github.com/ossrs/srs/pull/3450): API: Support HTTP basic authentication for API. v5.0.152 (#3458)
+* v5.0, 2024-02-06, Merge [#3920](https://github.com/ossrs/srs/pull/3920): WHIP: Fix bug for converting WHIP to RTMP/HLS. v5.0.208 (#3920)
+* v5.0, 2024-02-05, Merge [#3925](https://github.com/ossrs/srs/pull/3925): RTC: Fix video and audio track pt_ is not change in player before publisher. v5.0.207 (#3925)
+* v5.0, 2024-02-05, Merge [#3923](https://github.com/ossrs/srs/pull/3923): Configure: print enabled/disable sanitizer. v5.0.206 (#3923)
+* v5.0, 2023-12-30, Merge [#3916](https://github.com/ossrs/srs/pull/3916): Enhancing the compatibility of options.sh. v5.0.204 (#3916)
+* v5.0, 2023-12-14, Merge [#3910](https://github.com/ossrs/srs/pull/3910): RTC: Support OPUS stereo SDP option. v5.0.203 (#3910)
+* v5.0, 2023-12-14, Merge [#3902](https://github.com/ossrs/srs/pull/3902): Security: Support IP whitelist for HTTP-FLV, HLS, WebRTC, and SRT. v5.0.202 (#3902)
+* v5.0, 2023-11-22, Merge [#3891](https://github.com/ossrs/srs/pull/3891): fix 'sed' error in options.sh. v5.0.201 (#3891)
+* v5.0, 2023-11-19, Merge [#3886](https://github.com/ossrs/srs/pull/3886): Change the hls_aof_ratio to 2.1. v5.0.200 (#3886)
+* v5.0, 2023-11-15, Merge [#3879](https://github.com/ossrs/srs/pull/3879): Add --extra-ldflags. v5.0.199 (#3879)
+* v5.0, 2023-11-06, Merge [#3851](https://github.com/ossrs/srs/pull/3851): donot compile libopus when enable sys-ffmpeg. v5.0.198 (#3851)
+* v5.0, 2023-11-04, Merge [#3852](https://github.com/ossrs/srs/pull/3852): RTC: Refine FFmpeg opus audio noisy issue. v5.0.197 (#3852)
+* v5.0, 2023-11-01, Merge [#3858](https://github.com/ossrs/srs/pull/3858): Support build without cache to test if actions fail. v5.0.196 (#3858)
+* v5.0, 2023-10-25, Merge [#3845](https://github.com/ossrs/srs/pull/3845): RTC: Fix FFmpeg opus audio noisy issue. v5.0.195 (#3845)
+* v5.0, 2023-10-21, Merge [#3847](https://github.com/ossrs/srs/pull/3847): WebRTC: TCP transport should use read_fully instead of read. v5.0.194 (#3847)
+* v5.0, 2023-10-20, Merge [#3846](https://github.com/ossrs/srs/pull/3846): Added system library option for ffmpeg, srtp, srt libraries. v5.0.193 (#3846)
+* v5.0, 2023-10-17, Merge [#3840](https://github.com/ossrs/srs/pull/3840): Disable asan by default. v5.0.192 (#3840)
+* v5.0, 2023-10-17, Merge [#3837](https://github.com/ossrs/srs/pull/3837): Support set the ice-ufrag and ice-pwd for connectivity check. v5.0.191 (#3837)
+* v5.0, 2023-10-17, Merge [#3758](https://github.com/ossrs/srs/pull/3758): Refine docker detect mechenism. v5.0.190 (#3758)
+* v5.0, 2023-10-11, Merge [#3827](https://github.com/ossrs/srs/pull/3827): Fix bug for upgrading to OpenSSL 3.0. v5.0.189 (#3827)
+* v5.0, 2023-10-10, Merge [#3825](https://github.com/ossrs/srs/pull/3825): SRT: Fix the missing config mss. v5.0.188 (#3825)
+* v5.0, 2023-10-08, Merge [#3824](https://github.com/ossrs/srs/pull/3824): Solve the problem of inaccurate HLS TS duration. v5.0.187 (#3824)
+* v5.0, 2023-10-08, Merge [#3815](https://github.com/ossrs/srs/pull/3815): Use new cache image name. v5.0.186 (#3815)
+* v5.0, 2023-09-28, Merge [#3816](https://github.com/ossrs/srs/pull/3816): cherry-pick from develop, for srt utest. v5.0.185 (#3816)
+* v5.0, 2023-09-21, Merge [#3806](https://github.com/ossrs/srs/pull/3806): Build: Support sys-ssl for srt. v5.0.184 (#3806)
+* v5.0, 2023-09-21, Merge [#3808](https://github.com/ossrs/srs/pull/3808): Upgrade libsrt to v1.5.3. v5.0.183 (#3808)
+* v5.0, 2023-09-21, Merge [#3404](https://github.com/ossrs/srs/pull/3404): WebRTC: Support WHEP for play. v5.0.182 (#3404)
+* v5.0, 2023-09-21, Merge [#3807](https://github.com/ossrs/srs/pull/3807): Prevent the output of srt logs in utest. v5.0.181 (#3807)
+* v5.0, 2023-09-21, Merge [#3696](https://github.com/ossrs/srs/pull/3696): SRT: modify log level from error to debug when no socket to accept. v5.0.180 (#3696)
+* v5.0, 2023-09-18, Merge [#3804](https://github.com/ossrs/srs/pull/3804): Support FFmpeg timecode, fix AMF0 parsing failed. v5.0.179 (#3804)
+* v5.0, 2023-09-08, Merge [#3597](https://github.com/ossrs/srs/pull/3597): Fix RBSP stream parsing bug, should drop 0x03. v5.0.178 (#3597)
+* v5.0, 2023-09-07, Merge [#3795](https://github.com/ossrs/srs/pull/3795): Fix dash crash if format not supported. v5.0.177 (#3795)
+* v5.0, 2023-08-30, Merge [#3779](https://github.com/ossrs/srs/pull/3779): Support HTTP-API for fetching reload result. v5.0.176 (#3779)
+* v5.0, 2023-08-28, Merge [#3503](https://github.com/ossrs/srs/pull/3503): SrsContextId assignment can be improved without create a duplicated one. v5.0.175 (#3503)
+* v5.0, 2023-08-28, Merge [#3781](https://github.com/ossrs/srs/pull/3781): HLS: Fix on_hls and hls_dispose critical zone issue. v5.0.174 (#3781)
+* v5.0, 2023-08-28, Merge [#3768](https://github.com/ossrs/srs/pull/3768): Support include empty config file. v5.0.173 (#3768)
+* v5.0, 2023-08-25, Merge [#3782](https://github.com/ossrs/srs/pull/3782): HLS: Support reload HLS asynchronously. v5.0.172 (#3782)
+* v5.0, 2023-08-22, Merge [#3775](https://github.com/ossrs/srs/pull/3775): Bugfix: Log format output type does not match. v5.0.171 (#3699)
+* v5.0, 2023-08-02, HLS: Ignore empty NALU to avoid error. v5.0.170
+* v5.0, 2023-07-26, Merge [#3699](https://github.com/ossrs/srs/pull/3699): Bugfix: Eliminate the redundant declaration of the _srs_rtc_manager variable. v5.0.168 (#3699)
+* v5.0, 2023-07-21, Merge [#3695](https://github.com/ossrs/srs/pull/3695): API: Fix HTTPS callback issue using SNI in TLS client handshake. v5.0.168 (#3695)
+* v5.0, 2023-07-18, Merge [#3515](https://github.com/ossrs/srs/pull/3515): WebRTC: Support config the bitrate of transcoding AAC to Opus. v5.0.167 (#3515)
+* v5.0, 2023-07-09, Merge [#3615](https://github.com/ossrs/srs/pull/3615): Compile: Fix typo for 3rdparty. v5.0.166 (#3615)
+* v5.0, 2023-07-01, Merge [#3595](https://github.com/ossrs/srs/pull/3595): WHIP: Improve WHIP deletion by token verification. v5.0.164 (#3595)
+* v5.0, 2023-07-01, Merge [#3605](https://github.com/ossrs/srs/pull/3605): BugFix: Resolve the problem of srs_error_t memory leak. v5.0.163 (#3605)
+* v5.0, 2023-06-30, Merge [#3596](https://github.com/ossrs/srs/pull/3596): Improve the usage of "transcode" in the "full.conf" file. v5.0.162 (#3596)
+* v5.0, 2023-06-21, Merge [#3551](https://github.com/ossrs/srs/pull/3551): H264: Fix H.264 ISOM reserved bit value. v5.0.161 (#3551)
+* v5.0, 2023-06-20, Merge [#3592](https://github.com/ossrs/srs/pull/3592): Fix Permission Issue in depend.sh for OpenSSL Compilation. v5.0.159 (#3592)
+* v5.0, 2023-06-20, Merge [#3591](https://github.com/ossrs/srs/pull/3591): Fix crash when process rtcp feedback message. v5.0.159 (#3591)
+* v5.0, 2023-06-15, Merge [#3581](https://github.com/ossrs/srs/pull/3581): WHIP: Add OBS support, ensuring compatibility with a unique SDP. v5.0.158 (#3581)
+* v5.0, 2023-06-05, Fix command injection in demonstration api-server for HTTP callback. v5.0.157
+* v5.0, 2023-06-05, Merge [#3565](https://github.com/ossrs/srs/pull/3565): DTLS: Use bio callback to get fragment packet. v5.0.156 (#3565)
+* v5.0, 2023-05-29, Merge [#3513](https://github.com/ossrs/srs/pull/3513): SSL: Fix SSL_get_error get the error of other coroutine. v5.0.155 (#3513)
+* v5.0, 2023-05-13, Merge [#3541](https://github.com/ossrs/srs/pull/3541): asan: Fix memory leak in asan by releasing global IPs when run_directly_or_daemon fails. v5.0.154 (#3541)
+* v5.0, 2023-05-12, Merge [#3539](https://github.com/ossrs/srs/pull/3539): WHIP: Improve HTTP DELETE for notifying server unpublish event. v5.0.153 (#3539)
 * v5.0, 2023-03-27, Merge [#3450](https://github.com/ossrs/srs/pull/3450): WebRTC: Error message carries the SDP when failed. v5.0.151 (#3450)
 * v5.0, 2023-03-25, Merge [#3477](https://github.com/ossrs/srs/pull/3477): Remove unneccessary NULL check in srs_freep. v5.0.150 (#3477)
 * v5.0, 2023-03-25, Merge [#3455](https://github.com/ossrs/srs/pull/3455): RTC: Call on_play before create session, for it might be freed for timeout. v5.0.149 (#3455)
@@ -200,7 +321,7 @@ The changelog for SRS.
 <a name="v4-changes"></a>
 
 ## SRS 4.0 Changelog
-
+* v4.0, 2023-07-21, Merge [#3695](https://github.com/ossrs/srs/pull/3695): API: Fix HTTPS callback issue using SNI in TLS client handshake. v4.0.270 (#3695)
 * v4.0, 2022-12-24, For [#296](https://github.com/ossrs/srs/issues/296): MP3: Fix bug for TS or HLS with mp3 codec. v4.0.269
 * v4.0, 2022-11-22, Pick [#3079](https://github.com/ossrs/srs/issues/3079): WebRTC: Fix no audio and video issue for Firefox. v4.0.268
 * v4.0, 2022-10-10, For [#2901](https://github.com/ossrs/srs/issues/2901): Edge: Fast disconnect and reconnect. v4.0.267
@@ -442,7 +563,6 @@ The changelog for SRS.
 <a name="v3-changes"></a>
 
 ## SRS 3.0 Changelog
-
 * v3.0, 2021-05-12, Fix [#2311](https://github.com/ossrs/srs/issues/2311), Copy the request for stat client. 3.0.162
 * <strong>v3.0, 2021-04-28, [3.0 release5(3.0.161)](https://github.com/ossrs/srs/releases/tag/v3.0-r5) released. 122750 lines.</strong>
 * v3.0, 2021-04-28, Upgrade players. 3.0.161
@@ -647,7 +767,6 @@ The changelog for SRS.
 <a name="v2-changes"></a>
 
 ## SRS 2.0 Changelog
-
 * <strong>v2.0, 2020-01-25, [2.0 release8(2.0.272)](https://github.com/ossrs/srs/releases/tag/v2.0-r8) released. 87292 lines.</strong>
 * v2.0, 2020-01-08, Merge [#1554](https://github.com/ossrs/srs/issues/1554), support logrotate copytruncate. 2.0.272
 * v2.0, 2020-01-05, Merge [#1551](https://github.com/ossrs/srs/issues/1551), fix memory leak in RTSP stack. 2.0.270

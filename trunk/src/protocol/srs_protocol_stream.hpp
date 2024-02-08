@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_PROTOCOL_STREAM_HPP
@@ -56,7 +56,6 @@ private:
 #endif
     // the user-space buffer to fill by reader,
     // which use fast index and reset when chunk body read ok.
-    // @see https://github.com/ossrs/srs/issues/248
     // ptr to the current read position.
     char* p;
     // ptr to the content end.

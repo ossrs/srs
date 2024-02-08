@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_dash.hpp>
@@ -619,7 +619,7 @@ srs_error_t SrsDashController::refresh_mpd(SrsFormat* format)
     srs_error_t err = srs_success;
     
     // TODO: FIXME: Support pure audio streaming.
-    if (!format->acodec || !format->vcodec) {
+    if (!format || !format->acodec || !format->vcodec) {
         return err;
     }
     

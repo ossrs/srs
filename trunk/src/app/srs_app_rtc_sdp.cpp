@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_rtc_sdp.hpp>
@@ -940,7 +940,12 @@ void SrsSdp::add_candidate(const std::string& protocol, const std::string& ip, c
 
 std::string SrsSdp::get_ice_ufrag() const
 {
-    // Becaues we use BUNDLE, so we can choose the first element.
+    // For OBS WHIP, use the global ice-ufrag.
+    if (!session_info_.ice_ufrag_.empty()) {
+        return session_info_.ice_ufrag_;
+    }
+
+    // Because we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         const SrsMediaDesc* desc = &(*iter);
         return desc->session_info_.ice_ufrag_;
@@ -951,7 +956,12 @@ std::string SrsSdp::get_ice_ufrag() const
 
 std::string SrsSdp::get_ice_pwd() const
 {
-    // Becaues we use BUNDLE, so we can choose the first element.
+    // For OBS WHIP, use the global ice pwd.
+    if (!session_info_.ice_pwd_.empty()) {
+        return session_info_.ice_pwd_;
+    }
+
+    // Because we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         const SrsMediaDesc* desc = &(*iter);
         return desc->session_info_.ice_pwd_;
@@ -962,7 +972,7 @@ std::string SrsSdp::get_ice_pwd() const
 
 std::string SrsSdp::get_dtls_role() const
 {
-    // Becaues we use BUNDLE, so we can choose the first element.
+    // Because we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         const SrsMediaDesc* desc = &(*iter);
         return desc->session_info_.setup_;
@@ -1131,6 +1141,12 @@ srs_error_t SrsSdp::parse_attr_group(const std::string& value)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc5888#section-5
+
+    // Overlook the OBS WHIP group LS, as it is utilized for synchronizing the playback of
+    // the relevant media streams, see https://datatracker.ietf.org/doc/html/rfc5888#section-7
+    if (srs_string_starts_with(value, "LS")) {
+        return err;
+    }
 
     std::istringstream is(value);
 

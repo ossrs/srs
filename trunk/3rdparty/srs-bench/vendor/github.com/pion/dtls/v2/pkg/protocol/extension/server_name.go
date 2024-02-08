@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package extension
 
 import (
@@ -9,7 +12,7 @@ import (
 const serverNameTypeDNSHostName = 0
 
 // ServerName allows the client to inform the server the specific
-// name it wishs to contact. Useful if multiple DNS names resolve
+// name it wishes to contact. Useful if multiple DNS names resolve
 // to one IP
 //
 // https://tools.ietf.org/html/rfc6066#section-3

@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 Winlin
+// # Copyright (c) 2021 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -24,7 +24,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"math/rand"
 	"os"
 	"sync"
@@ -36,6 +35,7 @@ import (
 	"github.com/ossrs/go-oryx-lib/logger"
 	"github.com/ossrs/go-oryx-lib/rtmp"
 	"github.com/pion/interceptor"
+	"github.com/pkg/errors"
 )
 
 func TestRtmpPublishPlay(t *testing.T) {
@@ -623,7 +623,10 @@ func TestRtmpPublish_HttpFlvPlayNoVideo(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			publisher.onSendPacket = func(m *rtmp.Message) error {
-				time.Sleep(1 * time.Millisecond)
+				// Note that must greater than the cost of ffmpeg-opus, which is about 4ms, otherwise,
+				// the publisher will always get audio frames to transcode and won't accept new players
+				// connection and finally failed the case.
+				time.Sleep(5 * time.Millisecond)
 				return nil
 			}
 			if r0 = publisher.Ingest(ctx, *srsPublishAvatar); r0 != nil {

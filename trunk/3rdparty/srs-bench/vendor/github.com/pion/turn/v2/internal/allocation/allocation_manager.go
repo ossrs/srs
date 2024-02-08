@@ -14,6 +14,7 @@ type ManagerConfig struct {
 	LeveledLogger      logging.LeveledLogger
 	AllocatePacketConn func(network string, requestedPort int) (net.PacketConn, net.Addr, error)
 	AllocateConn       func(network string, requestedPort int) (net.Conn, net.Addr, error)
+	PermissionHandler  func(sourceAddr net.Addr, peerIP net.IP) bool
 }
 
 type reservation struct {
@@ -31,6 +32,7 @@ type Manager struct {
 
 	allocatePacketConn func(network string, requestedPort int) (net.PacketConn, net.Addr, error)
 	allocateConn       func(network string, requestedPort int) (net.Conn, net.Addr, error)
+	permissionHandler  func(sourceAddr net.Addr, peerIP net.IP) bool
 }
 
 // NewManager creates a new instance of Manager.
@@ -49,6 +51,7 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 		allocations:        make(map[string]*Allocation, 64),
 		allocatePacketConn: config.AllocatePacketConn,
 		allocateConn:       config.AllocateConn,
+		permissionHandler:  config.PermissionHandler,
 	}, nil
 }
 
@@ -57,6 +60,13 @@ func (m *Manager) GetAllocation(fiveTuple *FiveTuple) *Allocation {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	return m.allocations[fiveTuple.Fingerprint()]
+}
+
+// AllocationCount returns the number of existing allocations
+func (m *Manager) AllocationCount() int {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	return len(m.allocations)
 }
 
 // Close closes the manager and closes all allocations it manages
@@ -168,19 +178,38 @@ func (m *Manager) GetReservation(reservationToken string) (int, bool) {
 
 // GetRandomEvenPort returns a random un-allocated udp4 port
 func (m *Manager) GetRandomEvenPort() (int, error) {
-	conn, addr, err := m.allocatePacketConn("udp4", 0)
-	if err != nil {
-		return 0, err
+	for i := 0; i < 128; i++ {
+		conn, addr, err := m.allocatePacketConn("udp4", 0)
+		if err != nil {
+			return 0, err
+		}
+		udpAddr, ok := addr.(*net.UDPAddr)
+		err = conn.Close()
+		if err != nil {
+			return 0, err
+		}
+
+		if !ok {
+			return 0, errFailedToCastUDPAddr
+		}
+		if udpAddr.Port%2 == 0 {
+			return udpAddr.Port, nil
+		}
+	}
+	return 0, errFailedToAllocateEvenPort
+}
+
+// GrantPermission handles permission requests by calling the permission handler callback
+// associated with the TURN server listener socket
+func (m *Manager) GrantPermission(sourceAddr net.Addr, peerIP net.IP) error {
+	// no permission handler: open
+	if m.permissionHandler == nil {
+		return nil
 	}
 
-	udpAddr, ok := addr.(*net.UDPAddr)
-	if !ok {
-		return 0, errFailedToCastUDPAddr
-	} else if err := conn.Close(); err != nil {
-		return 0, err
-	} else if udpAddr.Port%2 == 1 {
-		return m.GetRandomEvenPort()
+	if m.permissionHandler(sourceAddr, peerIP) {
+		return nil
 	}
 
-	return udpAddr.Port, nil
+	return errAdminProhibited
 }

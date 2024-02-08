@@ -2,9 +2,8 @@ package sctp
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 /*
@@ -54,6 +53,13 @@ const (
 	initOptionalVarHeaderLength = 4
 )
 
+// Init chunk errors
+var (
+	ErrInitChunkParseParamTypeFailed = errors.New("failed to parse param type")
+	ErrInitChunkUnmarshalParam       = errors.New("failed unmarshalling param in Init Chunk")
+	ErrInitAckMarshalParam           = errors.New("unable to marshal parameter for INIT/INITACK")
+)
+
 func (i *chunkInitCommon) unmarshal(raw []byte) error {
 	i.initiateTag = binary.BigEndian.Uint32(raw[0:])
 	i.advertisedReceiverWindowCredit = binary.BigEndian.Uint32(raw[4:])
@@ -84,11 +90,11 @@ func (i *chunkInitCommon) unmarshal(raw []byte) error {
 		if remaining > initOptionalVarHeaderLength {
 			pType, err := parseParamType(raw[offset:])
 			if err != nil {
-				return errors.Wrap(err, "failed to parse param type")
+				return fmt.Errorf("%w: %v", ErrInitChunkParseParamTypeFailed, err) //nolint:errorlint
 			}
 			p, err := buildParam(pType, raw[offset:])
 			if err != nil {
-				return errors.Wrap(err, "Failed unmarshalling param in Init Chunk")
+				return fmt.Errorf("%w: %v", ErrInitChunkUnmarshalParam, err) //nolint:errorlint
 			}
 			i.params = append(i.params, p)
 			padding := getPadding(p.length())
@@ -112,7 +118,7 @@ func (i *chunkInitCommon) marshal() ([]byte, error) {
 	for idx, p := range i.params {
 		pp, err := p.marshal()
 		if err != nil {
-			return nil, errors.Wrap(err, "Unable to marshal parameter for INIT/INITACK")
+			return nil, fmt.Errorf("%w: %v", ErrInitAckMarshalParam, err) //nolint:errorlint
 		}
 
 		out = append(out, pp...)

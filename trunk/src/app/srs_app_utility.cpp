@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_utility.hpp>
@@ -1377,65 +1377,6 @@ void srs_api_dump_summaries(SrsJsonObject* obj)
     sys->set("conn_sys_tw", SrsJsonAny::integer(nrs->nb_conn_sys_tw));
     sys->set("conn_sys_udp", SrsJsonAny::integer(nrs->nb_conn_sys_udp));
     sys->set("conn_srs", SrsJsonAny::integer(nrs->nb_conn_srs));
-}
-
-string srs_string_dumps_hex(const std::string& str)
-{
-    return srs_string_dumps_hex(str.c_str(), str.size());
-}
-
-string srs_string_dumps_hex(const char* str, int length)
-{
-    return srs_string_dumps_hex(str, length, INT_MAX);
-}
-
-string srs_string_dumps_hex(const char* str, int length, int limit)
-{
-    return srs_string_dumps_hex(str, length, limit, ' ', 128, '\n');
-}
-
-string srs_string_dumps_hex(const char* str, int length, int limit, char seperator, int line_limit, char newline)
-{
-    // 1 byte trailing '\0'.
-    const int LIMIT = 1024*16 + 1;
-    static char buf[LIMIT];
-
-    int len = 0;
-    for (int i = 0; i < length && i < limit && len < LIMIT; ++i) {
-        int nb = snprintf(buf + len, LIMIT - len, "%02x", (uint8_t)str[i]);
-        if (nb <= 0 || nb >= LIMIT - len) {
-            break;
-        }
-        len += nb;
-
-        // Only append seperator and newline when not last byte.
-        if (i < length - 1 && i < limit - 1 && len < LIMIT) {
-            if (seperator) {
-                buf[len++] = seperator;
-            }
-
-            if (newline && line_limit && i > 0 && ((i + 1) % line_limit) == 0) {
-                buf[len++] = newline;
-            }
-        }
-    }
-
-    // Empty string.
-    if (len <= 0) {
-        return "";
-    }
-
-    // If overflow, cut the trailing newline.
-    if (newline && len >= LIMIT - 2 && buf[len - 1] == newline) {
-        len--;
-    }
-
-    // If overflow, cut the trailing seperator.
-    if (seperator && len >= LIMIT - 3 && buf[len - 1] == seperator) {
-        len--;
-    }
-
-    return string(buf, len);
 }
 
 string srs_getenv(const string& key)

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_KERNEL_TS_HPP
@@ -1258,7 +1258,6 @@ class SrsTsContextWriter
 {
 private:
     // User must config the codec in right way.
-    // @see https://github.com/ossrs/srs/issues/301
     SrsVideoCodecId vcodec_;
     SrsAudioCodecId acodec_;
 private:

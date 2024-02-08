@@ -1,93 +1,137 @@
+# SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+# SPDX-License-Identifier: MIT
+
 linters-settings:
   govet:
     check-shadowing: true
-  golint:
-    min-confidence: 0
-  gocyclo:
-    min-complexity: 15
-  maligned:
-    suggest-new: true
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
   misspell:
     locale: US
-  lll:
-    line-length: 140
-  goimports:
-    local-prefixes: github.com/pion
-  gocritic:
-    enabled-tags:
-      - performance
-      - style
-      - experimental
-    disabled-checks:
-      - commentedOutCode
-      - sloppyReassign
-
-issues:
-  exclude:
-    - "`assertHMACSize` - `blocksize` always receives `64`"
-  exclude-rules:
-    - text: "string `<nil>`"
-      linters:
-        - goconst
-
-    # Exclude some linters from running on tests files.
-    - path: _test\.go
-      linters:
-        - gocyclo
-        - errcheck
-        - dupl
-        - gosec
-        - goconst
-
-    # Ease some gocritic warnings on test files.
-    - path: _test\.go
-      text: "(unnamedResult|exitAfterDefer|unlambda)"
-      linters:
-        - gocritic
-
-    # Exclude known linters from partially hard-vendored code,
-    # which is impossible to exclude via "nolint" comments.
-    - path: internal/hmac/
-      text: "weak cryptographic primitive"
-      linters:
-        - gosec
-    - path: internal/hmac/
-      text: "Write\\` is not checked"
-      linters:
-        - errcheck
-
-    # Ease linting on benchmarking code.
-    - path: cmd/stun-bench/
-      linters:
-        - gosec
-        - errcheck
-        - unparam
-
-    - path: ^cmd/
-      linters:
-        - gocyclo
-    - path: ^cmd/
-      text: "(unnamedResult|exitAfterDefer)"
-      linters:
-        - gocritic
+  exhaustive:
+    default-signifies-exhaustive: true
+  gomodguard:
+    blocked:
+      modules:
+        - github.com/pkg/errors:
+            recommendations:
+              - errors
+  forbidigo:
+    forbid:
+      - ^fmt.Print(f|ln)?$
+      - ^log.(Panic|Fatal|Print)(f|ln)?$
+      - ^os.Exit$
+      - ^panic$
+      - ^print(ln)?$
 
 linters:
-  enable-all: true
+  enable:
+    - asciicheck       # Simple linter to check that your code does not contain non-ASCII identifiers
+    - bidichk          # Checks for dangerous unicode character sequences
+    - bodyclose        # checks whether HTTP response body is closed successfully
+    - contextcheck     # check the function whether use a non-inherited context
+    - decorder         # check declaration order and count of types, constants, variables and functions
+    - depguard         # Go linter that checks if package imports are in a list of acceptable packages
+    - dogsled          # Checks assignments with too many blank identifiers (e.g. x, _, _, _, := f())
+    - dupl             # Tool for code clone detection
+    - durationcheck    # check for two durations multiplied together
+    - errcheck         # Errcheck is a program for checking for unchecked errors in go programs. These unchecked errors can be critical bugs in some cases
+    - errchkjson       # Checks types passed to the json encoding functions. Reports unsupported types and optionally reports occations, where the check for the returned error can be omitted.
+    - errname          # Checks that sentinel errors are prefixed with the `Err` and error types are suffixed with the `Error`.
+    - errorlint        # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13.
+    - exhaustive       # check exhaustiveness of enum switch statements
+    - exportloopref    # checks for pointers to enclosing loop variables
+    - forbidigo        # Forbids identifiers
+    - forcetypeassert  # finds forced type assertions
+    - gci              # Gci control golang package import order and make it always deterministic.
+    - gochecknoglobals # Checks that no globals are present in Go code
+    - gochecknoinits   # Checks that no init functions are present in Go code
+    - gocognit         # Computes and checks the cognitive complexity of functions
+    - goconst          # Finds repeated strings that could be replaced by a constant
+    - gocritic         # The most opinionated Go source code linter
+    - godox            # Tool for detection of FIXME, TODO and other comment keywords
+    - goerr113         # Golang linter to check the errors handling expressions
+    - gofmt            # Gofmt checks whether code was gofmt-ed. By default this tool runs with -s option to check for code simplification
+    - gofumpt          # Gofumpt checks whether code was gofumpt-ed.
+    - goheader         # Checks is file header matches to pattern
+    - goimports        # Goimports does everything that gofmt does. Additionally it checks unused imports
+    - gomoddirectives  # Manage the use of 'replace', 'retract', and 'excludes' directives in go.mod.
+    - gomodguard       # Allow and block list linter for direct Go module dependencies. This is different from depguard where there are different block types for example version constraints and module recommendations.
+    - goprintffuncname # Checks that printf-like functions are named with `f` at the end
+    - gosec            # Inspects source code for security problems
+    - gosimple         # Linter for Go source code that specializes in simplifying a code
+    - govet            # Vet examines Go source code and reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
+    - grouper          # An analyzer to analyze expression groups.
+    - importas         # Enforces consistent import aliases
+    - ineffassign      # Detects when assignments to existing variables are not used
+    - misspell         # Finds commonly misspelled English words in comments
+    - nakedret         # Finds naked returns in functions greater than a specified function length
+    - nilerr           # Finds the code that returns nil even if it checks that the error is not nil.
+    - nilnil           # Checks that there is no simultaneous return of `nil` error and an invalid value.
+    - noctx            # noctx finds sending http request without context.Context
+    - predeclared      # find code that shadows one of Go's predeclared identifiers
+    - revive           # golint replacement, finds style mistakes
+    - staticcheck      # Staticcheck is a go vet on steroids, applying a ton of static analysis checks
+    - stylecheck       # Stylecheck is a replacement for golint
+    - tagliatelle      # Checks the struct tags.
+    - tenv             # tenv is analyzer that detects using os.Setenv instead of t.Setenv since Go1.17
+    - tparallel        # tparallel detects inappropriate usage of t.Parallel() method in your Go test codes
+    - typecheck        # Like the front-end of a Go compiler, parses and type-checks Go code
+    - unconvert        # Remove unnecessary type conversions
+    - unparam          # Reports unused function parameters
+    - unused           # Checks Go code for unused constants, variables, functions and types
+    - wastedassign     # wastedassign finds wasted assignment statements
+    - whitespace       # Tool for detection of leading and trailing whitespace
   disable:
-    - funlen
-    - gochecknoglobals
-    - godox
-    - prealloc
-    - scopelint
+    - containedctx     # containedctx is a linter that detects struct contained context.Context field
+    - cyclop           # checks function and package cyclomatic complexity
+    - exhaustivestruct # Checks if all struct's fields are initialized
+    - funlen           # Tool for detection of long functions
+    - gocyclo          # Computes and checks the cyclomatic complexity of functions
+    - godot            # Check if comments end in a period
+    - gomnd            # An analyzer to detect magic numbers.
+    - ifshort          # Checks that your code uses short syntax for if-statements whenever possible
+    - ireturn          # Accept Interfaces, Return Concrete Types
+    - lll              # Reports long lines
+    - maintidx         # maintidx measures the maintainability index of each function.
+    - makezero         # Finds slice declarations with non-zero initial length
+    - maligned         # Tool to detect Go structs that would take less memory if their fields were sorted
+    - nestif           # Reports deeply nested if statements
+    - nlreturn         # nlreturn checks for a new line before return and branch statements to increase code clarity
+    - nolintlint       # Reports ill-formed or insufficient nolint directives
+    - paralleltest     # paralleltest detects missing usage of t.Parallel() method in your Go test
+    - prealloc         # Finds slice declarations that could potentially be preallocated
+    - promlinter       # Check Prometheus metrics naming via promlint
+    - rowserrcheck     # checks whether Err of rows is checked successfully
+    - sqlclosecheck    # Checks that sql.Rows and sql.Stmt are closed.
+    - testpackage      # linter that makes you use a separate _test package
+    - thelper          # thelper detects golang test helpers without t.Helper() call and checks the consistency of test helpers
+    - varnamelen       # checks that the length of a variable's name matches its scope
+    - wrapcheck        # Checks that errors returned from external packages are wrapped
+    - wsl              # Whitespace Linter - Forces you to use empty lines!
+
+issues:
+  exclude-use-default: false
+  exclude-rules:
+    # Allow complex tests, better to be self contained
+    - path: _test\.go
+      linters:
+        - gocognit
+        - forbidigo
+
+    # Allow complex main function in examples
+    - path: examples
+      text: "of func `main` is high"
+      linters:
+        - gocognit
+    
+    # Allow forbidden identifiers in examples
+    - path: examples
+      linters:
+        - forbidigo
+
+    # Allow forbidden identifiers in CLI commands
+    - path: cmd
+      linters:
+        - forbidigo
 
 run:
-  skip-dirs:
-    - e2e
-    - fuzz
-    - testdata
-    - api
+  skip-dirs-use-default: false

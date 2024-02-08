@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_kernel_rtc_rtp.hpp>
@@ -970,12 +970,14 @@ SrsRtpRawPayload::SrsRtpRawPayload()
 {
     payload = NULL;
     nn_payload = 0;
+    sample_ = new SrsSample();
 
     ++_srs_pps_objs_rraw->sugar;
 }
 
 SrsRtpRawPayload::~SrsRtpRawPayload()
 {
+    srs_freep(sample_);
 }
 
 uint64_t SrsRtpRawPayload::nb_bytes()
@@ -1007,6 +1009,9 @@ srs_error_t SrsRtpRawPayload::decode(SrsBuffer* buf)
     payload = buf->head();
     nn_payload = buf->left();
 
+    sample_->bytes = payload;
+    sample_->size = nn_payload;
+
     return srs_success;
 }
 
@@ -1016,6 +1021,7 @@ ISrsRtpPayloader* SrsRtpRawPayload::copy()
 
     cp->payload = payload;
     cp->nn_payload = nn_payload;
+    cp->sample_ = sample_->copy();
 
     return cp;
 }

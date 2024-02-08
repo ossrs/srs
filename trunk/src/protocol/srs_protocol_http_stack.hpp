@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_PROTOCOL_HTTP_HPP
@@ -184,7 +184,6 @@ public:
     // @param data, the data to send. NULL to flush header only.
     virtual srs_error_t write(char* data, int size) = 0;
     // for the HTTP FLV, to writev to improve performance.
-    // @see https://github.com/ossrs/srs/issues/405
     virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
     
     // WriteHeader sends an HTTP response header with status code.
@@ -261,7 +260,6 @@ public:
     // @param data, the data to send. NULL to flush header only.
     virtual srs_error_t write(char* data, int size) = 0;
     // for the HTTP FLV, to writev to improve performance.
-    // @see https://github.com/ossrs/srs/issues/405
     virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
 
     // WriteHeader sends an HTTP request header with status code.

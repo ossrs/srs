@@ -2,6 +2,7 @@ package rtcp
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 // The Goodbye packet indicates that one or more sources are no longer active.
@@ -11,8 +12,6 @@ type Goodbye struct {
 	// Optional text indicating the reason for leaving, e.g., "camera malfunction" or "RTP loop detected"
 	Reason string
 }
-
-var _ Packet = (*Goodbye)(nil) // assert is a Packet
 
 // Marshal encodes the Goodbye packet in binary
 func (g Goodbye) Marshal() ([]byte, error) {
@@ -142,5 +141,15 @@ func (g *Goodbye) len() int {
 func (g *Goodbye) DestinationSSRC() []uint32 {
 	out := make([]uint32, len(g.Sources))
 	copy(out, g.Sources)
+	return out
+}
+
+func (g Goodbye) String() string {
+	out := "Goodbye\n"
+	for i, s := range g.Sources {
+		out += fmt.Sprintf("\tSource %d: %x\n", i, s)
+	}
+	out += fmt.Sprintf("\tReason: %s\n", g.Reason)
+
 	return out
 }

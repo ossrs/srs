@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_source.hpp>
@@ -967,7 +967,6 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     
     if ((err = hls->on_audio(msg, format)) != srs_success) {
         // apply the error strategy for hls.
-        // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req_->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls: ignore audio error %s", srs_error_desc(err).c_str());
@@ -1061,7 +1060,6 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
     if ((err = hls->on_video(msg, format)) != srs_success) {
         // TODO: We should support more strategies.
         // apply the error strategy for hls.
-        // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req_->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls: ignore video error %s", srs_error_desc(err).c_str());
@@ -1228,6 +1226,27 @@ srs_error_t SrsOriginHub::on_dvr_request_sh()
     return err;
 }
 
+srs_error_t SrsOriginHub::on_hls_request_sh()
+{
+    srs_error_t err = srs_success;
+
+    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    if (cache_sh_video) {
+        if ((err = hls->on_video(cache_sh_video, source->meta->vsh_format())) != srs_success) {
+            return srs_error_wrap(err, "hls video");
+        }
+    }
+
+    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    if (cache_sh_audio) {
+        if ((err = hls->on_audio(cache_sh_audio, source->meta->ash_format())) != srs_success) {
+            return srs_error_wrap(err, "hls audio");
+        }
+    }
+
+    return err;
+}
+
 srs_error_t SrsOriginHub::on_reload_vhost_forward(string vhost)
 {
     srs_error_t err = srs_success;
@@ -1236,7 +1255,7 @@ srs_error_t SrsOriginHub::on_reload_vhost_forward(string vhost)
         return err;
     }
     
-    // TODO: FIXME: maybe should ignore when publish already stopped?
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
     
     // forwarders
     destroy_forwarders();
@@ -1262,7 +1281,9 @@ srs_error_t SrsOriginHub::on_reload_vhost_dash(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
+
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
+
     dash->on_unpublish();
     
     // Don't start DASH when source is not active.
@@ -1306,47 +1327,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_hls(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
-    
-    hls->on_unpublish();
-    
-    // Don't start HLS when source is not active.
-    if (!is_active) {
-        return err;
-    }
-    
-    if ((err = hls->on_publish()) != srs_success) {
-        return srs_error_wrap(err, "hls publish failed");
-    }
-    srs_trace("vhost %s hls reload success", vhost.c_str());
 
-    SrsRtmpFormat* format = source->format_;
-    
-    // when publish, don't need to fetch sequence header, which is old and maybe corrupt.
-    // when reload, we must fetch the sequence header from source cache.
-    // notice the source to get the cached sequence header.
-    // when reload to start hls, hls will never get the sequence header in stream,
-    // use the SrsLiveSource.on_hls_start to push the sequence header to HLS.
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
-    if (cache_sh_video) {
-        if ((err = format->on_video(cache_sh_video)) != srs_success) {
-            return srs_error_wrap(err, "format on_video");
-        }
-        if ((err = hls->on_video(cache_sh_video, format)) != srs_success) {
-            return srs_error_wrap(err, "hls on_video");
-        }
-    }
-    
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
-    if (cache_sh_audio) {
-        if ((err = format->on_audio(cache_sh_audio)) != srs_success) {
-            return srs_error_wrap(err, "format on_audio");
-        }
-        if ((err = hls->on_audio(cache_sh_audio, format)) != srs_success) {
-            return srs_error_wrap(err, "hls on_audio");
-        }
-    }
+    hls->async_reload();
     
     return err;
 }
@@ -1358,8 +1340,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_hds(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
+
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
     
 #ifdef SRS_HDS
     hds->on_unpublish();
@@ -1385,8 +1367,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_dvr(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
+
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
     
     // cleanup dvr
     dvr->on_unpublish();
@@ -1422,8 +1404,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_transcode(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
+
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
     
     encoder->on_unpublish();
     
@@ -1447,8 +1429,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_exec(string vhost)
     if (req_->vhost != vhost) {
         return err;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
+
+    // TODO: FIXME: Must do async reload, see SrsHls::async_reload.
     
     ng_exec->on_unpublish();
     
@@ -1645,7 +1627,6 @@ srs_error_t SrsMetaCache::dumps(SrsLiveConsumer* consumer, bool atc, SrsRtmpJitt
     
     // copy sequence header
     // copy audio sequence first, for hls to fast parse the "right" audio codec.
-    // @see https://github.com/ossrs/srs/issues/301
     if (aformat && aformat->acodec && aformat->acodec->id != SrsAudioCodecIdMP3) {
         if (ds && audio && (err = consumer->enqueue(audio, atc, ag)) != srs_success) {
             return srs_error_wrap(err, "enqueue audio sh");
@@ -1874,7 +1855,6 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
 
         // TODO: FIXME: support source cleanup.
         // @see https://github.com/ossrs/srs/issues/713
-        // @see https://github.com/ossrs/srs/issues/714
 #if 0
         // When source expired, remove it.
         if (source->stream_is_dead()) {
@@ -2741,7 +2721,7 @@ srs_error_t SrsLiveSource::consumer_dumps(SrsLiveConsumer* consumer, bool ds, bo
 
     // print status.
     if (dg) {
-        srs_trace("create consumer, active=%d, queue_size=%.2f, jitter=%d", hub->active(), queue_size, jitter_algorithm);
+        srs_trace("create consumer, active=%d, queue_size=%dms, jitter=%d", hub->active(), srsu2msi(queue_size), jitter_algorithm);
     } else {
         srs_trace("create consumer, active=%d, ignore gop cache, jitter=%d", hub->active(), jitter_algorithm);
     }

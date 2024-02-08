@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_rtc_server.hpp>
@@ -471,13 +471,18 @@ srs_error_t SrsRtcServer::listen_api()
     }
 
     // Generally, WHIP is a publishing protocol, but it can be also used as playing.
+    // See https://datatracker.ietf.org/doc/draft-ietf-wish-whep/
     if ((err = http_api_mux->handle("/rtc/v1/whip/", new SrsGoApiRtcWhip(this))) != srs_success) {
         return srs_error_wrap(err, "handle whip");
     }
 
     // We create another mount, to support play with the same query string as publish.
+    // See https://datatracker.ietf.org/doc/draft-murillo-whep/
     if ((err = http_api_mux->handle("/rtc/v1/whip-play/", new SrsGoApiRtcWhip(this))) != srs_success) {
-        return srs_error_wrap(err, "handle whip play");
+        return srs_error_wrap(err, "handle whep play");
+    }
+    if ((err = http_api_mux->handle("/rtc/v1/whep/", new SrsGoApiRtcWhip(this))) != srs_success) {
+        return srs_error_wrap(err, "handle whep play");
     }
 
 #ifdef SRS_SIMULATOR
@@ -538,17 +543,18 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
     // All tracks default as inactive, so we must enable them.
     session->set_all_tracks_status(req->get_stream_url(), ruc->publish_, true);
 
-    std::string local_pwd = srs_random_str(32);
-    std::string local_ufrag = "";
+    std::string local_pwd = ruc->req_->ice_pwd_.empty() ? srs_random_str(32) : ruc->req_->ice_pwd_;
+    std::string local_ufrag = ruc->req_->ice_ufrag_.empty() ? srs_random_str(8) : ruc->req_->ice_ufrag_;
     // TODO: FIXME: Rename for a better name, it's not an username.
     std::string username = "";
     while (true) {
-        local_ufrag = srs_random_str(8);
-
         username = local_ufrag + ":" + ruc->remote_sdp_.get_ice_ufrag();
         if (!_srs_rtc_manager->find_by_name(username)) {
             break;
         }
+
+        // Username conflict, regenerate a new one.
+        local_ufrag = srs_random_str(8);
     }
 
     local_sdp.set_ice_ufrag(local_ufrag);

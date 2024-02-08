@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_core.hpp>
@@ -1118,7 +1118,6 @@ int SrsIngestHlsOutput::write_h264_ipb_frame(string ibps, SrsVideoAvcFrameType f
     srs_error_t err = srs_success;
     
     // when sps or pps not sent, ignore the packet.
-    // @see https://github.com/ossrs/srs/issues/203
     if (!h264_sps_pps_sent) {
         return ERROR_H264_DROP_BEFORE_SPS_PPS;
     }

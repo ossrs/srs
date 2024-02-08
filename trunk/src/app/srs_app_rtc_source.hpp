@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_APP_RTC_SOURCE_HPP
@@ -318,6 +318,13 @@ private:
     uint16_t header_sn_;
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
+private:
+    // The state for timestamp sync state. -1 for init. 0 not sync. 1 sync.
+    int sync_state_;
+private:
+    // For OBS WHIP, send SPS/PPS in dedicated RTP packet.
+    SrsRtpPacket* obs_whip_sps_;
+    SrsRtpPacket* obs_whip_pps_;
 public:
     SrsRtcFrameBuilder(ISrsStreamBridge* bridge);
     virtual ~SrsRtcFrameBuilder();
@@ -389,11 +396,13 @@ class SrsAudioPayload : public SrsCodecPayload
     {
         int minptime;
         bool use_inband_fec;
+        bool stereo;
         bool usedtx;
 
         SrsOpusParameter() {
             minptime = 0;
             use_inband_fec = false;
+            stereo = false;
             usedtx = false;
         }
     };

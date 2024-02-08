@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_PROTOCOL_RAW_AVC_HPP
@@ -82,7 +82,7 @@ public:
     // The hevc raw data to hevc packet, without flv payload header.
     // Mux the sps/pps/vps to flv sequence header packet.
     // @param sh output the sequence header.
-    virtual srs_error_t mux_sequence_header(std::string vps, std::string sps, std::string pps, std::string &sh);
+    virtual srs_error_t mux_sequence_header(std::string vps, std::string sps, std::vector<std::string>& pps, std::string& sh);
     // The hevc raw data to hevc packet, without flv payload header.
     // Mux the ibp to flv ibp packet.
     // @param ibp output the packet.

@@ -1,16 +1,24 @@
+## AUTHORS
+
+The authors and administrators of SRS, ordered by first contribution:
+
+- `Winlin<winlinvip@gmail.com>`
+- `XiaoZhihong<hondaxiao@tencent.com>`
+
 ## TOC
 
-The TOC(Technical Oversight Committee):
+The TOC(Technical Oversight Committee), ordered by first contribution:
 
-- `Winlin<winlin@vip.126.com>`
+- `Winlin<winlinvip@gmail.com>`
 - `ZhaoWenjie<zhaowenjie@tal.com>`
-- `ShiWei<shiwei05@kuaishou.com>`
+- `ShiWei<xiaoq_bj@126.com>`
 - `XiaoZhihong<hondaxiao@tencent.com>`
 - `WuPengqiang<pengqiang.wpq@alibaba-inc.com>`
 - `XiaLixin<xialixin@kanzhun.com>`
-- `LiPeng<mozhan.lp@alibaba-inc.com>`
+- `LiPeng<lipeng19811218@gmail.com>`
 - `ChenGuanghua<jinxue.cgh@alibaba-inc.com>`
 - `ChenHaibo<nmgchenhaibo@foxmail.com>`
+- `ZhangJunqin<chundonglinlin@126.com>`
 
 ## CONTRIBUTORS
 
@@ -80,6 +88,7 @@ CONTRIBUTORS ordered by first contribution.
 * `lam2003<linmin3@yy.com>`
 * `ShiWei<shiwei05@kuaishou.com>`
 * `ShiWei<shi.weibd@hotmail.com>`
+* `ShiWei<xiaoq_bj@126.com>`
 * `XiaofengWang<wasphin@gmail.com>`
 * `XiaoZhihong<hondaxiao@tencent.com>`
 * `XiaoZhihong<xiaozhihong8@gmail.com>`
@@ -145,4 +154,12 @@ CONTRIBUTORS ordered by first contribution.
 * `simon1tan1<107955289+simon1tan1@users.noreply.github.com>`
 * `feng<308276366@qq.com>`
 * `wangzhen<wrennywang@hotmail.com>`
+* `yashwardhan-jyani<100014271+yashwardhan-jyani@users.noreply.github.com>`
+* `qyt<486179@qq.com>`
+* `Kazuo<hagihara@miharu.co.jp>`
+* `MarkCao<industriousonesoft@gmail.com>`
+* `Mr.Li<iskyman@163.com>`
+* `Loken<lokenetwork@users.noreply.github.com>`
+* `JacobSu<suzp1984@gmail.com>`
+* `terrencetang2023<tangshaoteng@163.com>`
 

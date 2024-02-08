@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_CORE_HPP
@@ -20,7 +20,7 @@
 
 // The project informations, may sent to client in HTTP header or RTMP metadata.
 #define RTMP_SIG_SRS_KEY "SRS"
-#define RTMP_SIG_SRS_CODE "Bee"
+#define RTMP_SIG_SRS_CODE "Hang"
 #define RTMP_SIG_SRS_URL "https://github.com/ossrs/srs"
 #define RTMP_SIG_SRS_LICENSE "MIT"
 #define SRS_CONSTRIBUTORS "https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#contributors"
@@ -29,7 +29,7 @@
 #define RTMP_SIG_SRS_DOMAIN "ossrs.net"
 
 // The current stable release.
-#define VERSION_STABLE 4
+#define VERSION_STABLE 5
 #define VERSION_STABLE_BRANCH SRS_XSTR(VERSION_STABLE) ".0release"
 
 // For platform specified headers and defines.

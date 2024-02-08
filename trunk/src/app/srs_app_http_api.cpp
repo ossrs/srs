@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_http_api.hpp>
@@ -863,7 +863,7 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
             }
         } else {
             SrsJsonObject* data = SrsJsonAny::object();
-            obj->set("client", data);;
+            obj->set("client", data);
             
             if ((err = client->dumps(data)) != srs_success) {
                 int code = srs_error_code(err);
@@ -907,6 +907,10 @@ SrsGoApiRaw::~SrsGoApiRaw()
     _srs_config->unsubscribe(this);
 }
 
+extern srs_error_t _srs_reload_err;
+extern SrsReloadState _srs_reload_state;
+extern std::string _srs_reload_id;
+
 srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
@@ -937,8 +941,8 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     
     //////////////////////////////////////////////////////////////////////////
     // the rpc is required.
-    // the allowd rpc method check.
-    if (rpc.empty() || rpc != "reload") {
+    // the allowed rpc method check.
+    if (rpc.empty() || (rpc != "reload" && rpc != "reload-fetch")) {
         return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW);
     }
     
@@ -950,6 +954,16 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
         
         server->on_signal(SRS_SIGNAL_RELOAD);
         return srs_api_response_code(w, r, ERROR_SUCCESS);
+    } else if (rpc == "reload-fetch") {
+        SrsJsonObject* data = SrsJsonAny::object();
+        obj->set("data", data);
+
+        data->set("err", SrsJsonAny::integer(srs_error_code(_srs_reload_err)));
+        data->set("msg", SrsJsonAny::str(srs_error_summary(_srs_reload_err).c_str()));
+        data->set("state", SrsJsonAny::integer(_srs_reload_state));
+        data->set("rid", SrsJsonAny::str(_srs_reload_id.c_str()));
+
+        return srs_api_response(w, r, obj->dumps());
     }
     
     return err;

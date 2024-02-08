@@ -70,7 +70,7 @@ extern const char * SysStrError(int errnum, char * buf, size_t buflen)
     // your compilation fails when you use wide characters.
     // The problem is that when TCHAR != char, then the buffer written this way
     // would have to be converted to ASCII, not just copied by strncpy.
-    FormatMessage(0
+    FormatMessageA(0
             | FORMAT_MESSAGE_ALLOCATE_BUFFER
             | FORMAT_MESSAGE_FROM_SYSTEM
             | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -87,8 +87,12 @@ extern const char * SysStrError(int errnum, char * buf, size_t buflen)
 
     if (lpMsgBuf)
     {
+#ifdef _MSC_VER
+        strncpy_s(buf, buflen, lpMsgBuf, _TRUNCATE);
+#else
         strncpy(buf, lpMsgBuf, buflen-1);
         buf[buflen-1] = 0;
+#endif
         LocalFree((HLOCAL)lpMsgBuf);
     }
     else

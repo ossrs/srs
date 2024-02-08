@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_http_stream.hpp>
@@ -558,11 +558,13 @@ SrsLiveStream::SrsLiveStream(SrsLiveSource* s, SrsRequest* r, SrsBufferCache* c)
     source = s;
     cache = c;
     req = r->copy()->as_http();
+    security_ = new SrsSecurity();
 }
 
 SrsLiveStream::~SrsLiveStream()
 {
     srs_freep(req);
+    srs_freep(security_);
 }
 
 srs_error_t SrsLiveStream::update_auth(SrsLiveSource* s, SrsRequest* r)
@@ -598,6 +600,10 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     SrsStatistic* stat = SrsStatistic::instance();
     if ((err = stat->on_client(_srs_context->get_id().c_str(), req, hc, SrsFlvPlay)) != srs_success) {
         return srs_error_wrap(err, "stat on client");
+    }
+
+    if ((err = security_->check(SrsFlvPlay, req->ip, req)) != srs_success) {
+        return srs_error_wrap(err, "flv: security check");
     }
 
     // We must do hook after stat, because depends on it.

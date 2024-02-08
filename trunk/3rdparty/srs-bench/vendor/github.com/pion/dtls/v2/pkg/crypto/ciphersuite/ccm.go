@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package ciphersuite
 
 import (
@@ -98,7 +101,7 @@ func (c *CCM) Decrypt(in []byte) ([]byte, error) {
 	additionalData := generateAEADAdditionalData(&h, len(out)-int(c.tagLen))
 	out, err = c.remoteCCM.Open(out[:0], nonce, out, additionalData)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", errDecryptPacket, err)
+		return nil, fmt.Errorf("%w: %v", errDecryptPacket, err) //nolint:errorlint
 	}
 	return append(in[:recordlayer.HeaderSize], out...), nil
 }

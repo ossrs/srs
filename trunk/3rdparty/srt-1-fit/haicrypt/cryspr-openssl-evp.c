@@ -34,9 +34,11 @@ int crysprOpenSSL_EVP_Prng(unsigned char* rn, int len)
 const EVP_CIPHER* (*Xcipher_fnptr)(void) = EVP_aes_128_ecb;
 
 const EVP_CIPHER* (*_crysprOpenSSL_EVP_cipher_fnptr[][3])(void) = {
-    {NULL, NULL, NULL},
-    {EVP_aes_128_ecb, EVP_aes_192_ecb, EVP_aes_256_ecb},
-    {EVP_aes_128_ctr, EVP_aes_192_ctr, EVP_aes_256_ctr},
+    {NULL, NULL, NULL}, // HCRYPT_CTX_MODE_CLRTXT
+    {EVP_aes_128_ecb, EVP_aes_192_ecb, EVP_aes_256_ecb}, // HCRYPT_CTX_MODE_AESECB
+    {EVP_aes_128_ctr, EVP_aes_192_ctr, EVP_aes_256_ctr}, // HCRYPT_CTX_MODE_AESCTR
+    {NULL, NULL, NULL}, // HCRYPT_CTX_MODE_AESCBC
+    {EVP_aes_128_gcm, EVP_aes_192_gcm, EVP_aes_256_gcm}, // HCRYPT_CTX_MODE_AESGCM
 };
 
 int crysprOpenSSL_EVP_AES_SetKey(
@@ -47,7 +49,7 @@ int crysprOpenSSL_EVP_AES_SetKey(
     CRYSPR_AESCTX*       aes_key)           /* CRYpto Service PRovider AES Key context */
 {
     const EVP_CIPHER* cipher  = NULL;
-    int               idxKlen = (kstr_len / 8) - 2; /* key_len index in cipher_fnptr array in [0,1,2] range */
+    int               idxKlen = (int)((kstr_len / 8) - 2); /* key_len index in cipher_fnptr array in [0,1,2] range */
 
     switch (cipher_type)
     {
@@ -60,6 +62,8 @@ int crysprOpenSSL_EVP_AES_SetKey(
         /* internal implementation of AES-CTR using crypto lib's AES-ECB */
         cipher_type = HCRYPT_CTX_MODE_AESECB;
 #endif
+        break;
+    case HCRYPT_CTX_MODE_AESGCM:
         break;
     default:
         HCRYPT_LOG(LOG_ERR,
@@ -139,7 +143,7 @@ int crysprOpenSSL_EVP_AES_EcbCipher(bool                 bEncrypt, /* true:encry
                                     size_t*        outlen_p)       /* in/out dst len */
 {
     int    nmore  = inlen % CRYSPR_AESBLKSZ; /* bytes in last incomplete block */
-    int    nblk   = inlen / CRYSPR_AESBLKSZ + (nmore ? 1 : 0); /* blocks including incomplete */
+    int    nblk   = (int)(inlen / CRYSPR_AESBLKSZ + (nmore ? 1 : 0)); /* blocks including incomplete */
     size_t outsiz = (outlen_p ? *outlen_p : 0);
     int    c_len = 0, f_len = 0;
 
@@ -156,7 +160,7 @@ int crysprOpenSSL_EVP_AES_EcbCipher(bool                 bEncrypt, /* true:encry
         return (-1); /* output buf size must have room for PKCS7 padding */
     }
     /* allows reusing of 'e' for multiple encryption cycles */
-    if (!EVP_CipherInit_ex(aes_key, NULL, NULL, NULL, NULL, -1))
+    if (!EVP_CipherInit_ex(aes_key, NULL, NULL, NULL, NULL, bEncrypt))
     {
         HCRYPT_LOG(LOG_ERR, "EVP_CipherInit_ex(%p,NULL,...,-1) failed\n", aes_key);
         return -1;
@@ -170,7 +174,7 @@ int crysprOpenSSL_EVP_AES_EcbCipher(bool                 bEncrypt, /* true:encry
     /* update ciphertext, c_len is filled with the length of ciphertext generated,
      * cryptoPtr->cipher_in_len is the size of plain/cipher text in bytes
      */
-    if (!EVP_CipherUpdate(aes_key, out_txt, &c_len, indata, inlen))
+    if (!EVP_CipherUpdate(aes_key, out_txt, &c_len, indata, (int)inlen))
     {
         HCRYPT_LOG(LOG_ERR, "EVP_CipherUpdate(%p, out, %d, in, %d) failed\n", aes_key, c_len, inlen);
         return -1;
@@ -223,7 +227,7 @@ int crysprOpenSSL_EVP_AES_CtrCipher(bool                 bEncrypt, /* true:encry
     /* update ciphertext, c_len is filled with the length of ciphertext generated,
      * cryptoPtr->cipher_in_len is the size of plain/cipher text in bytes
      */
-    if (!EVP_CipherUpdate(aes_key, out_txt, &c_len, indata, inlen))
+    if (!EVP_CipherUpdate(aes_key, out_txt, &c_len, indata, (int)inlen))
     {
         HCRYPT_LOG(LOG_ERR, "%s\n", "EVP_CipherUpdate() failed");
         return -1;
@@ -247,6 +251,83 @@ int crysprOpenSSL_EVP_AES_CtrCipher(bool                 bEncrypt, /* true:encry
     return 0;
 }
 
+int crysprOpenSSL_EVP_AES_GCMCipher(bool                 bEncrypt, /* true:encrypt, false:decrypt */
+                                    CRYSPR_AESCTX*       aes_key,  /* CRYpto Service PRovider AES Key context */
+                                    unsigned char*       iv,       /* iv */
+                                    const unsigned char* aad,      /* associated data */
+                                    size_t               aadlen,
+                                    const unsigned char* indata,   /* src */
+                                    size_t               inlen,    /* length */
+                                    unsigned char*       out_txt,
+                                    unsigned char*       out_tag)  /* auth tag */
+{
+    int c_len, f_len;
+
+    /* allows reusing of 'e' for multiple encryption cycles */
+    if (!EVP_CipherInit_ex(aes_key, NULL, NULL, NULL, iv, -1))
+    {
+        HCRYPT_LOG(LOG_ERR, "%s\n", "EVP_CipherInit_ex() failed");
+        return -1;
+    }
+    if (!EVP_CIPHER_CTX_set_padding(aes_key, 0))
+    {
+        HCRYPT_LOG(LOG_ERR, "%s\n", "EVP_CIPHER_CTX_set_padding() failed");
+        return -1;
+    }
+
+    /*
+     * Provide any AAD data. This can be called zero or more times as
+     * required
+     */
+    if (1 != EVP_CipherUpdate(aes_key, NULL, &c_len, aad, (int) aadlen))
+    {
+        ERR_print_errors_fp(stderr);
+        HCRYPT_LOG(LOG_ERR, "%s\n", "EVP_EncryptUpdate failed");
+        return -1;
+    }
+
+    /* update ciphertext, c_len is filled with the length of ciphertext generated,
+     * cryptoPtr->cipher_in_len is the size of plain/cipher text in bytes
+     */
+    if (!EVP_CipherUpdate(aes_key, out_txt, &c_len, indata, (int) inlen))
+    {
+        HCRYPT_LOG(LOG_ERR, "%s\n", "EVP_CipherUpdate() failed");
+        return -1;
+    }
+
+    if (!bEncrypt && !EVP_CIPHER_CTX_ctrl(aes_key, EVP_CTRL_GCM_SET_TAG, HAICRYPT_AUTHTAG_MAX, out_tag)) {
+        ERR_print_errors_fp(stderr);
+        HCRYPT_LOG(LOG_ERR, "%s\n", "EVP_EncryptUpdate failed");
+        return -1;
+    }
+
+    /* update ciphertext with the final remaining bytes */
+    /* Useless with pre-padding */
+    f_len = 0;
+    if (0 == EVP_CipherFinal_ex(aes_key, &out_txt[c_len], &f_len))
+    {
+#if ENABLE_HAICRYPT_LOGGING
+        char szErrBuf[256];
+        HCRYPT_LOG(LOG_ERR,
+                   "EVP_CipherFinal_ex(ctx,&out[%d],%d)) failed: %s\n",
+                   c_len,
+                   f_len,
+                   ERR_error_string(ERR_get_error(), szErrBuf));
+#endif /*ENABLE_HAICRYPT_LOGGING*/
+        return -1;
+    }
+
+    /* Get the tag if we are encrypting */
+    if (bEncrypt && !EVP_CIPHER_CTX_ctrl(aes_key, EVP_CTRL_GCM_GET_TAG, HAICRYPT_AUTHTAG_MAX, out_tag))
+    {
+        ERR_print_errors_fp(stderr);
+        HCRYPT_LOG(LOG_ERR, "%s\n", "EVP_CIPHER_CTX_ctrl(EVP_CTRL_GCM_GET_TAG) failed");
+        return -1;
+    }
+
+    return 0;
+}
+
 /*
  * Password-based Key Derivation Function
  */
@@ -260,7 +341,7 @@ int crysprOpenSSL_EVP_KmPbkdf2(CRYSPR_cb*     cryspr_cb,
                                unsigned char* out)        /* derived key */
 {
     (void)cryspr_cb;
-    int rc = PKCS5_PBKDF2_HMAC_SHA1(passwd, passwd_len, salt, salt_len, itr, key_len, out);
+    int rc = PKCS5_PBKDF2_HMAC_SHA1(passwd, (int)passwd_len, salt, (int)salt_len, itr, (int)key_len, out);
     return (rc == 1 ? 0 : -1);
 }
 
@@ -300,6 +381,7 @@ CRYSPR_methods* crysprOpenSSL_EVP(void)
 #if CRYSPR_HAS_AESCTR
         crysprOpenSSL_EVP_methods.aes_ctr_cipher = crysprOpenSSL_EVP_AES_CtrCipher;
 #endif
+        crysprOpenSSL_EVP_methods.aes_gcm_cipher = crysprOpenSSL_EVP_AES_GCMCipher;
 #if !(CRYSPR_HAS_AESCTR && CRYSPR_HAS_AESKWRAP)
         /* AES-ECB only required if cryspr has no AES-CTR and no AES KeyWrap */
         /* OpenSSL has both AESCTR and AESKWRP and the AESECB wrapper is only used

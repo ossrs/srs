@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_security.hpp>
@@ -75,7 +75,10 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType ty
 
         switch (type) {
             case SrsRtmpConnPlay:
-            case SrsRtcConnPlay:
+            case SrsHlsPlay:
+            case SrsFlvPlay:
+            case SrsRtcConnPlay: 
+            case SrsSrtConnPlay:
                 if (rule->arg0() != "play") {
                     break;
                 }
@@ -90,6 +93,7 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType ty
             case SrsRtmpConnFlashPublish:
             case SrsRtmpConnHaivisionPublish:
             case SrsRtcConnPublish:
+            case SrsSrtConnPublish:
                 if (rule->arg0() != "publish") {
                     break;
                 }
@@ -126,7 +130,10 @@ srs_error_t SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType typ
         
         switch (type) {
             case SrsRtmpConnPlay:
-            case SrsRtcConnPlay:               
+            case SrsHlsPlay:
+            case SrsFlvPlay:
+            case SrsRtcConnPlay: 
+            case SrsSrtConnPlay:
                 if (rule->arg0() != "play") {
                     break;
                 }
@@ -141,6 +148,7 @@ srs_error_t SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType typ
             case SrsRtmpConnFlashPublish:
             case SrsRtmpConnHaivisionPublish:
             case SrsRtcConnPublish:
+            case SrsSrtConnPublish:
                 if (rule->arg0() != "publish") {
                     break;
                 }

@@ -1,0 +1,32 @@
+# Thank you to everyone that made Pion possible. If you are interested in contributing
+# we would love to have you https://github.com/pion/webrtc/wiki/Contributing
+#
+# This file is auto generated, using git to list all individuals contributors.
+# see `.github/generate-authors.sh` for the scripting
+adwpc <adwpc@hotmail.com>
+Atsushi Watanabe <atsushi.w@ieee.org>
+backkem <mail@backkem.me>
+Brendan Abolivier <babolivier@matrix.org>
+chenkaiC4 <chenkaic4@gmail.com>
+cnderrauber <zengjie9004@gmail.com>
+Daniele Sluijters <daenney@users.noreply.github.com>
+Graham King <graham@gkgk.org>
+Guilherme <gqgs@protonmail.com>
+Hugo Arregui <hugo.arregui@gmail.com>
+Jason <jabrady42@gmail.com>
+Jerko Steiner <jerko.steiner@gmail.com>
+John Bradley <jrb@turrettech.com>
+Konstantin Itskov <konstantin.itskov@kovits.com>
+korymiller1489 <kmiller@unwiredrevolution.com>
+Luke S <luke@street.dev>
+Max Hawkins <maxhawkins@gmail.com>
+Maxim Oransky <maxim.oransky@gmail.com>
+mchlrhw <4028654+mchlrhw@users.noreply.github.com>
+Michael MacDonald <mike.macdonald@savantsystems.com>
+Mustafa Navruz <mustafanavruz@gmail.com>
+Roman Romanenko <romandafe94@gmail.com>
+Sean DuBois <seaduboi@amazon.com>
+Sean DuBois <sean@siobud.com>
+tarrencev <tarrence13@gmail.com>
+Woodrow Douglass <wdouglass@carnegierobotics.com>
+ZHENK <chengzhenyang@gmail.com>

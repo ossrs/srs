@@ -95,8 +95,13 @@ func authenticateRequest(r Request, m *stun.Message, callingMethod stun.Method) 
 	}
 
 	// Assert Nonce exists and is not expired
-	nonceCreationTime, ok := r.Nonces.Load(string(*nonceAttr))
-	if !ok || time.Since(nonceCreationTime.(time.Time)) >= nonceLifetime {
+	nonceCreationTime, nonceFound := r.Nonces.Load(string(*nonceAttr))
+	if !nonceFound {
+		r.Nonces.Delete(nonceAttr)
+		return respondWithNonce(stun.CodeStaleNonce)
+	}
+
+	if timeValue, ok := nonceCreationTime.(time.Time); !ok || time.Since(timeValue) >= nonceLifetime {
 		r.Nonces.Delete(nonceAttr)
 		return respondWithNonce(stun.CodeStaleNonce)
 	}

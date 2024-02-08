@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_KERNEL_RTC_RTCP_HPP
@@ -206,6 +206,28 @@ public:
 
 };
 
+// @doc: https://tools.ietf.org/html/rfc4585#section-6.1
+// As RFC 4585 says, all FB messages MUST use a common packet format,
+// inlucde Transport layer FB message and Payload-specific FB message.
+class SrsRtcpFbCommon : public SrsRtcpCommon
+{
+protected:
+    uint32_t media_ssrc_;
+public:
+    SrsRtcpFbCommon();
+    virtual ~SrsRtcpFbCommon();
+
+    uint32_t get_media_ssrc() const;
+    void set_media_ssrc(uint32_t ssrc);
+
+// interface ISrsCodec
+public:
+    virtual srs_error_t decode(SrsBuffer *buffer);
+    virtual uint64_t nb_bytes();
+    virtual srs_error_t encode(SrsBuffer *buffer);   
+};
+
+
 // The Message format of TWCC, @see https://tools.ietf.org/html/draft-holmer-rmcat-transport-wide-cc-extensions-01#section-3.1
 //       0                   1                   2                   3
 //       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -247,10 +269,9 @@ public:
 #define kTwccFbLargeRecvDeltaBytes	2
 #define kTwccFbMaxBitElements 		kTwccFbOneBitElements
 
-class SrsRtcpTWCC : public SrsRtcpCommon
+class SrsRtcpTWCC : public SrsRtcpFbCommon
 {
 private:
-    uint32_t media_ssrc_;
     uint16_t base_sn_;
     int32_t reference_time_;
     uint8_t fb_pkt_count_;
@@ -286,14 +307,12 @@ public:
     SrsRtcpTWCC(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpTWCC();
 
-    uint32_t get_media_ssrc() const;
     uint16_t get_base_sn() const;
     uint32_t get_reference_time() const;
     uint8_t get_feedback_count() const;
     std::vector<uint16_t> get_packet_chucks() const;
     std::vector<uint16_t> get_recv_deltas() const;
 
-    void set_media_ssrc(uint32_t ssrc);
     void set_base_sn(uint16_t sn);
     void set_reference_time(uint32_t time);
     void set_feedback_count(uint8_t count);
@@ -312,7 +331,7 @@ private:
     srs_error_t do_encode(SrsBuffer *buffer);
 };
 
-class SrsRtcpNack : public SrsRtcpCommon
+class SrsRtcpNack : public SrsRtcpFbCommon
 {
 private:
     struct SrsPidBlp {
@@ -321,17 +340,14 @@ private:
         bool in_use;
     };
 
-    uint32_t media_ssrc_;
     std::set<uint16_t, SrsSeqCompareLess> lost_sns_;
 public:
     SrsRtcpNack(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpNack();
 
-    uint32_t get_media_ssrc() const;
     std::vector<uint16_t> get_lost_sns() const;
     bool empty();
 
-    void set_media_ssrc(uint32_t ssrc);
     void add_lost_sn(uint16_t sn);
 // interface ISrsCodec
 public:
@@ -340,25 +356,7 @@ public:
     virtual srs_error_t encode(SrsBuffer *buffer);      
 };
 
-class SrsRtcpPsfbCommon : public SrsRtcpCommon
-{
-protected:
-    uint32_t media_ssrc_;
-public:
-    SrsRtcpPsfbCommon();
-    virtual ~SrsRtcpPsfbCommon();
-
-    uint32_t get_media_ssrc() const;
-    void set_media_ssrc(uint32_t ssrc);
-
-// interface ISrsCodec
-public:
-    virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual uint64_t nb_bytes();
-    virtual srs_error_t encode(SrsBuffer *buffer);   
-};
-
-class SrsRtcpPli : public SrsRtcpPsfbCommon
+class SrsRtcpPli : public SrsRtcpFbCommon
 {
 public:
     SrsRtcpPli(uint32_t sender_ssrc = 0);
@@ -371,7 +369,7 @@ public:
     virtual srs_error_t encode(SrsBuffer *buffer);  
 };
 
-class SrsRtcpSli : public SrsRtcpPsfbCommon
+class SrsRtcpSli : public SrsRtcpFbCommon
 {
 private:
     uint16_t first_;
@@ -388,7 +386,7 @@ public:
     virtual srs_error_t encode(SrsBuffer *buffer);   
 }; 
 
-class SrsRtcpRpsi : public SrsRtcpPsfbCommon
+class SrsRtcpRpsi : public SrsRtcpFbCommon
 {
 private:
     uint8_t pb_;
@@ -407,7 +405,7 @@ public:
     virtual srs_error_t encode(SrsBuffer *buffer);   
 };
 
-class SrsRtcpXr : public SrsRtcpCommon
+class SrsRtcpXr : public SrsRtcpFbCommon
 {
 public:
     SrsRtcpXr (uint32_t ssrc = 0);

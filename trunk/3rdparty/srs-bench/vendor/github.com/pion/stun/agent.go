@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package stun
 
 import (
@@ -7,13 +10,15 @@ import (
 )
 
 // NoopHandler just discards any event.
-var NoopHandler Handler = func(e Event) {}
+func NoopHandler() Handler {
+	return func(e Event) {}
+}
 
 // NewAgent initializes and returns new Agent with provided handler.
 // If h is nil, the NoopHandler will be used.
 func NewAgent(h Handler) *Agent {
 	if h == nil {
-		h = NoopHandler
+		h = NoopHandler()
 	}
 	a := &Agent{
 		transactions: make(map[transactionID]agentTransaction),

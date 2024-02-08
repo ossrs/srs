@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package webrtc
 
 import (
@@ -82,7 +85,7 @@ var (
 
 	// ErrIncorrectSDPSemantics indicates that the PeerConnection was configured to
 	// generate SDP Answers with different SDP Semantics than the received Offer
-	ErrIncorrectSDPSemantics = errors.New("offer SDP semantics does not match configuration")
+	ErrIncorrectSDPSemantics = errors.New("remote SessionDescription semantics does not match configuration")
 
 	// ErrIncorrectSignalingState indicates that the signaling state of PeerConnection is not correct
 	ErrIncorrectSignalingState = errors.New("operation can not be run in current signaling state")
@@ -135,6 +138,16 @@ var (
 	// ErrUnsupportedCodec indicates the remote peer doesn't support the requested codec
 	ErrUnsupportedCodec = errors.New("unable to start track, codec is not supported by remote")
 
+	// ErrSenderWithNoCodecs indicates that a RTPSender was created without any codecs. To send media the MediaEngine needs at
+	// least one configured codec.
+	ErrSenderWithNoCodecs = errors.New("unable to populate media section, RTPSender created with no codecs")
+
+	// ErrRTPSenderNewTrackHasIncorrectKind indicates that the new track is of a different kind than the previous/original
+	ErrRTPSenderNewTrackHasIncorrectKind = errors.New("new track must be of the same kind as previous")
+
+	// ErrRTPSenderNewTrackHasIncorrectEnvelope indicates that the new track has a different envelope than the previous/original
+	ErrRTPSenderNewTrackHasIncorrectEnvelope = errors.New("new track must have the same envelope as previous")
+
 	// ErrUnbindFailed indicates that a TrackLocal was not able to be unbind
 	ErrUnbindFailed = errors.New("failed to unbind TrackLocal from PeerConnection")
 
@@ -182,8 +195,8 @@ var (
 	errPeerConnSimulcastMidRTPExtensionRequired       = errors.New("mid RTP Extensions required for Simulcast")
 	errPeerConnSimulcastStreamIDRTPExtensionRequired  = errors.New("stream id RTP Extensions required for Simulcast")
 	errPeerConnSimulcastIncomingSSRCFailed            = errors.New("incoming SSRC failed Simulcast probing")
-	errPeerConnAddTransceiverFromKindOnlyAcceptsOne   = errors.New("AddTransceiverFromKind only accepts one RtpTransceiverInit")
-	errPeerConnAddTransceiverFromTrackOnlyAcceptsOne  = errors.New("AddTransceiverFromTrack only accepts one RtpTransceiverInit")
+	errPeerConnAddTransceiverFromKindOnlyAcceptsOne   = errors.New("AddTransceiverFromKind only accepts one RTPTransceiverInit")
+	errPeerConnAddTransceiverFromTrackOnlyAcceptsOne  = errors.New("AddTransceiverFromTrack only accepts one RTPTransceiverInit")
 	errPeerConnAddTransceiverFromKindSupport          = errors.New("AddTransceiverFromKind currently only supports recvonly")
 	errPeerConnAddTransceiverFromTrackSupport         = errors.New("AddTransceiverFromTrack currently only supports sendonly and sendrecv")
 	errPeerConnSetIdentityProviderNotImplemented      = errors.New("TODO SetIdentityProvider")
@@ -193,15 +206,22 @@ var (
 	errRTPReceiverDTLSTransportNil            = errors.New("DTLSTransport must not be nil")
 	errRTPReceiverReceiveAlreadyCalled        = errors.New("Receive has already been called")
 	errRTPReceiverWithSSRCTrackStreamNotFound = errors.New("unable to find stream for Track with SSRC")
-	errRTPReceiverForSSRCTrackStreamNotFound  = errors.New("no trackStreams found for SSRC")
 	errRTPReceiverForRIDTrackStreamNotFound   = errors.New("no trackStreams found for RID")
 
-	errRTPSenderTrackNil          = errors.New("Track must not be nil")
-	errRTPSenderDTLSTransportNil  = errors.New("DTLSTransport must not be nil")
-	errRTPSenderSendAlreadyCalled = errors.New("Send has already been called")
+	errRTPSenderTrackNil             = errors.New("Track must not be nil")
+	errRTPSenderDTLSTransportNil     = errors.New("DTLSTransport must not be nil")
+	errRTPSenderSendAlreadyCalled    = errors.New("Send has already been called")
+	errRTPSenderStopped              = errors.New("Sender has already been stopped")
+	errRTPSenderTrackRemoved         = errors.New("Sender Track has been removed or replaced to nil")
+	errRTPSenderRidNil               = errors.New("Sender cannot add encoding as rid is empty")
+	errRTPSenderNoBaseEncoding       = errors.New("Sender cannot add encoding as there is no base track")
+	errRTPSenderBaseEncodingMismatch = errors.New("Sender cannot add encoding as provided track does not match base track")
+	errRTPSenderRIDCollision         = errors.New("Sender cannot encoding due to RID collision")
+	errRTPSenderNoTrackForRID        = errors.New("Sender does not have track for RID")
 
 	errRTPTransceiverCannotChangeMid        = errors.New("errRTPSenderTrackNil")
 	errRTPTransceiverSetSendingInvalidState = errors.New("invalid state change in RTPTransceiver.setSending")
+	errRTPTransceiverCodecUnsupported       = errors.New("unsupported codec type by this transceiver")
 
 	errSCTPTransportDTLS = errors.New("DTLS not established")
 
@@ -216,5 +236,14 @@ var (
 
 	errStatsICECandidateStateInvalid = errors.New("cannot convert to StatsICECandidatePairStateSucceeded invalid ice candidate state")
 
+	errInvalidICECredentialTypeString = errors.New("invalid ICECredentialType")
+	errInvalidICEServer               = errors.New("invalid ICEServer")
+
 	errICETransportNotInNew = errors.New("ICETransport can only be called in ICETransportStateNew")
+
+	errCertificatePEMFormatError = errors.New("bad Certificate PEM format")
+
+	errRTPTooShort = errors.New("not long enough to be a RTP Packet")
+
+	errExcessiveRetries = errors.New("excessive retries in CreateOffer")
 )

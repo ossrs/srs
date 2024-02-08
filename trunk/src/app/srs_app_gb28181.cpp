@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_gb28181.hpp>
@@ -1937,7 +1937,8 @@ srs_error_t SrsGbMuxer::write_h265_vps_sps_pps(uint32_t dts, uint32_t pts)
     }
 
     std::string sh;
-    if ((err = hevc_->mux_sequence_header(h265_vps_, h265_sps_, h265_pps_, sh)) != srs_success) {
+    std::vector<string> h265_pps = { h265_pps_ };
+    if ((err = hevc_->mux_sequence_header(h265_vps_, h265_sps_, h265_pps, sh)) != srs_success) {
         return srs_error_wrap(err, "hevc mux sequence header");
     }
 
@@ -1978,9 +1979,9 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(char* frame, int frame_size, uint32
     SrsHevcNaluType nt = SrsHevcNaluTypeParse(frame[0]);
 
     // F.3.29 intra random access point (IRAP) picture
-    // ITU-T-H.265-2021.pdf, page 28.
+    // ITU-T-H.265-2021.pdf, page 462.
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (nt >= SrsHevcNaluType_CODED_SLICE_BLA || nt <= SrsHevcNaluType_RESERVED_23) {
+    if (nt >= SrsHevcNaluType_CODED_SLICE_BLA && nt <= SrsHevcNaluType_RESERVED_23) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
 

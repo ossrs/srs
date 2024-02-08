@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package ice
 
 import "errors"
@@ -10,7 +13,7 @@ var (
 	ErrSchemeType = errors.New("unknown scheme type")
 
 	// ErrSTUNQuery indicates query arguments are provided in a STUN URL.
-	ErrSTUNQuery = errors.New("queries not supported in stun address")
+	ErrSTUNQuery = errors.New("queries not supported in STUN address")
 
 	// ErrInvalidQuery indicates an malformed query is provided.
 	ErrInvalidQuery = errors.New("invalid query")
@@ -25,7 +28,7 @@ var (
 	// Have to be at least 24 bits long
 	ErrLocalUfragInsufficientBits = errors.New("local username fragment is less than 24 bits long")
 
-	// ErrLocalPwdInsufficientBits indicates local passoword insufficient bits are provided.
+	// ErrLocalPwdInsufficientBits indicates local password insufficient bits are provided.
 	// Have to be at least 128 bits long
 	ErrLocalPwdInsufficientBits = errors.New("local password is less than 128 bits long")
 
@@ -97,17 +100,17 @@ var (
 	// ErrInvalidMulticastDNSHostName indicates an invalid MulticastDNSHostName
 	ErrInvalidMulticastDNSHostName = errors.New("invalid mDNS HostName, must end with .local and can only contain a single '.'")
 
-	// ErrRestartWhenGathering indicates Restart was called when Agent is in GatheringStateGathering
-	ErrRestartWhenGathering = errors.New("ICE Agent can not be restarted when gathering")
-
 	// ErrRunCanceled indicates a run operation was canceled by its individual done
 	ErrRunCanceled = errors.New("run was canceled by done")
 
-	// ErrTCPMuxNotInitialized indicates TCPMux is not initialized and that invalidTCPMux is used.
-	ErrTCPMuxNotInitialized = errors.New("TCPMux is not initialized")
-
 	// ErrTCPRemoteAddrAlreadyExists indicates we already have the connection with same remote addr.
 	ErrTCPRemoteAddrAlreadyExists = errors.New("conn with same remote addr already exists")
+
+	// ErrUnknownCandidateTyp indicates that a candidate had a unknown type value.
+	ErrUnknownCandidateTyp = errors.New("unknown candidate typ")
+
+	// ErrDetermineNetworkType indicates that the NetworkType was not able to be parsed
+	ErrDetermineNetworkType = errors.New("unable to determine networkType")
 
 	errSendPacket                    = errors.New("failed to send packet")
 	errAttributeTooShortICECandidate = errors.New("attribute not long enough to be ICE candidate")
@@ -115,18 +118,25 @@ var (
 	errParsePriority                 = errors.New("could not parse priority")
 	errParsePort                     = errors.New("could not parse port")
 	errParseRelatedAddr              = errors.New("could not parse related addresses")
-	errParseTypType                  = errors.New("could not parse typtype")
-	errUnknownCandidateTyp           = errors.New("unknown candidate typ")
+	errParseTCPType                  = errors.New("could not parse TCP type")
 	errGetXorMappedAddrResponse      = errors.New("failed to get XOR-MAPPED-ADDRESS response")
 	errConnectionAddrAlreadyExist    = errors.New("connection with same remote address already exists")
 	errReadingStreamingPacket        = errors.New("error reading streaming packet")
 	errWriting                       = errors.New("error writing to")
 	errClosingConnection             = errors.New("error closing connection")
-	errDetermineNetworkType          = errors.New("unable to determine networkType")
-	errMissingProtocolScheme         = errors.New("missing protocol scheme")
-	errTooManyColonsAddr             = errors.New("too many colons in address")
 	errRead                          = errors.New("unexpected error trying to read")
 	errUnknownRole                   = errors.New("unknown role")
-	errMismatchUsername              = errors.New("username mismatch")
 	errICEWriteSTUNMessage           = errors.New("the ICE conn can't write STUN messages")
+	errUDPMuxDisabled                = errors.New("UDPMux is not enabled")
+	errNoXorAddrMapping              = errors.New("no address mapping")
+	errSendSTUNPacket                = errors.New("failed to send STUN packet")
+	errXORMappedAddrTimeout          = errors.New("timeout while waiting for XORMappedAddr")
+	errNotImplemented                = errors.New("not implemented yet")
+	errNoUDPMuxAvailable             = errors.New("no UDP mux is available")
+	errNoTCPMuxAvailable             = errors.New("no TCP mux is available")
+	errInvalidAddress                = errors.New("invalid address")
+
+	// UDPMuxDefault should not listen on unspecified address, but to keep backward compatibility, don't return error now.
+	// will be used in the future.
+	// errListenUnspecified             = errors.New("can't listen on unspecified address")
 )

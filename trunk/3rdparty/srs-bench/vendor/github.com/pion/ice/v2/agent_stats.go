@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package ice
 
 import (
@@ -13,8 +16,8 @@ func (a *Agent) GetCandidatePairsStats() []CandidatePairStats {
 		for _, cp := range agent.checklist {
 			stat := CandidatePairStats{
 				Timestamp:         time.Now(),
-				LocalCandidateID:  cp.local.ID(),
-				RemoteCandidateID: cp.remote.ID(),
+				LocalCandidateID:  cp.Local.ID(),
+				RemoteCandidateID: cp.Remote.ID(),
 				State:             cp.state,
 				Nominated:         cp.nominated,
 				// PacketsSent uint32
@@ -45,7 +48,7 @@ func (a *Agent) GetCandidatePairsStats() []CandidatePairStats {
 		res = result
 	})
 	if err != nil {
-		a.log.Errorf("error getting candidate pairs stats %v", err)
+		a.log.Errorf("Failed to get candidate pairs stats: %v", err)
 		return []CandidatePairStats{}
 	}
 	return res
@@ -58,6 +61,12 @@ func (a *Agent) GetLocalCandidatesStats() []CandidateStats {
 		result := make([]CandidateStats, 0, len(agent.localCandidates))
 		for networkType, localCandidates := range agent.localCandidates {
 			for _, c := range localCandidates {
+				relayProtocol := ""
+				if c.Type() == CandidateTypeRelay {
+					if cRelay, ok := c.(*CandidateRelay); ok {
+						relayProtocol = cRelay.RelayProtocol()
+					}
+				}
 				stat := CandidateStats{
 					Timestamp:     time.Now(),
 					ID:            c.ID(),
@@ -67,7 +76,7 @@ func (a *Agent) GetLocalCandidatesStats() []CandidateStats {
 					CandidateType: c.Type(),
 					Priority:      c.Priority(),
 					// URL string
-					RelayProtocol: "udp",
+					RelayProtocol: relayProtocol,
 					// Deleted bool
 				}
 				result = append(result, stat)
@@ -76,7 +85,7 @@ func (a *Agent) GetLocalCandidatesStats() []CandidateStats {
 		res = result
 	})
 	if err != nil {
-		a.log.Errorf("error getting candidate pairs stats %v", err)
+		a.log.Errorf("Failed to get candidate pair stats: %v", err)
 		return []CandidateStats{}
 	}
 	return res
@@ -87,8 +96,8 @@ func (a *Agent) GetRemoteCandidatesStats() []CandidateStats {
 	var res []CandidateStats
 	err := a.run(a.context(), func(ctx context.Context, agent *Agent) {
 		result := make([]CandidateStats, 0, len(agent.remoteCandidates))
-		for networkType, localCandidates := range agent.remoteCandidates {
-			for _, c := range localCandidates {
+		for networkType, remoteCandidates := range agent.remoteCandidates {
+			for _, c := range remoteCandidates {
 				stat := CandidateStats{
 					Timestamp:     time.Now(),
 					ID:            c.ID(),
@@ -98,7 +107,7 @@ func (a *Agent) GetRemoteCandidatesStats() []CandidateStats {
 					CandidateType: c.Type(),
 					Priority:      c.Priority(),
 					// URL string
-					RelayProtocol: "udp",
+					RelayProtocol: "",
 				}
 				result = append(result, stat)
 			}
@@ -106,7 +115,7 @@ func (a *Agent) GetRemoteCandidatesStats() []CandidateStats {
 		res = result
 	})
 	if err != nil {
-		a.log.Errorf("error getting candidate pairs stats %v", err)
+		a.log.Errorf("Failed to get candidate pair stats: %v", err)
 		return []CandidateStats{}
 	}
 	return res

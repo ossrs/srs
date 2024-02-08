@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_threads.hpp>
@@ -49,7 +49,7 @@ using namespace std;
 
 // These functions first appeared in glibc in version 2.12.
 // See https://man7.org/linux/man-pages/man3/pthread_setname_np.3.html
-#if defined(SRS_CYGWIN64) || (defined(SRS_CROSSBUILD) && ((__GLIBC__ < 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 12)))
+#if defined(SRS_CYGWIN64) || (defined(SRS_CROSSBUILD) && defined(__GLIBC__) && ((__GLIBC__ < 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 12)))
     void pthread_setname_np(pthread_t trd, const char* name) {
     }
 #endif
@@ -64,15 +64,10 @@ extern SrsStageManager* _srs_stages;
 extern SrsRtcBlackhole* _srs_blackhole;
 extern SrsResourceManager* _srs_rtc_manager;
 
-extern SrsResourceManager* _srs_rtc_manager;
 extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 #endif
 
 #include <srs_protocol_kbps.hpp>
-
-extern SrsPps* _srs_pps_snack2;
-extern SrsPps* _srs_pps_snack3;
-extern SrsPps* _srs_pps_snack4;
 
 SrsPps* _srs_pps_aloss2 = NULL;
 
@@ -300,6 +295,10 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
 SrsCircuitBreaker* _srs_circuit_breaker = NULL;
 SrsAsyncCallWorker* _srs_dvr_async = NULL;
 
+extern srs_error_t _srs_reload_err;
+extern SrsReloadState _srs_reload_state;
+extern std::string _srs_reload_id;
+
 srs_error_t srs_global_initialize()
 {
     srs_error_t err = srs_success;
@@ -450,6 +449,10 @@ srs_error_t srs_global_initialize()
     _srs_cls = new SrsClsClient();
     _srs_apm = new SrsApmClient();
 #endif
+
+    _srs_reload_err = srs_success;
+    _srs_reload_state = SrsReloadStateInit;
+    _srs_reload_id = srs_random_str(7);
 
     return err;
 }
@@ -698,8 +701,8 @@ srs_error_t SrsThreadPool::run()
         // Check the threads status fastly.
         int loops = (int)(interval_ / SRS_UTIME_SECONDS);
         for (int i = 0; i < loops; i++) {
-            for (int i = 0; i < (int)threads.size(); i++) {
-                SrsThreadEntry* entry = threads.at(i);
+            for (int j = 0; j < (int)threads.size(); j++) {
+                SrsThreadEntry* entry = threads.at(j);
                 if (entry->err != srs_success) {
                     // Quit with success.
                     if (srs_error_code(entry->err) == ERROR_THREAD_FINISHED) {

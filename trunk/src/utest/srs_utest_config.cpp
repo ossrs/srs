@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 #include <srs_utest_config.hpp>
 
@@ -85,11 +85,14 @@ srs_error_t MockSrsConfig::build_buffer(std::string src, srs_internal::SrsConfig
 {
     srs_error_t err = srs_success;
 
-    string content = included_files[src];
-    if(content.empty()) {
+    // No file, error.
+    if(included_files.find(src) == included_files.end()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "file %s: no found", src.c_str());
     }
 
+    string content = included_files[src];
+
+    // Empty file, ok.
     *pbuffer = new MockSrsConfigBuffer(content);
 
     return err;
@@ -689,10 +692,30 @@ VOID TEST(ConfigDirectiveTest, ParseInvalidNoEndOfDirective)
 VOID TEST(ConfigDirectiveTest, ParseInvalidNoEndOfSubDirective)
 {
     srs_error_t err;
-    
-    MockSrsConfigBuffer buf("dir0 {");
-    SrsConfDirective conf;
-    HELPER_ASSERT_FAILED(conf.parse(&buf));
+
+    if (true) {
+        MockSrsConfigBuffer buf("");
+        SrsConfDirective conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("# OK");
+        SrsConfDirective conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 {");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 {} dir1 {");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+    }
 }
 
 VOID TEST(ConfigDirectiveTest, ParseInvalidNoStartOfSubDirective)
@@ -2062,7 +2085,7 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 
     if (true) {
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
-        EXPECT_EQ(0, (int)conf.get_hls_dispose(""));
+        EXPECT_EQ(120 * SRS_UTIME_SECONDS, (int)conf.get_hls_dispose(""));
         EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hls_fragment(""));
         EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hls_window(""));
 
@@ -4202,7 +4225,7 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesSrtServer)
         SrsSetEnvConfig(srto_maxbw, "SRS_SRT_SERVER_MAXBW", "1000000000");
         EXPECT_EQ(1000000000, conf.get_srto_maxbw());
 
-        SrsSetEnvConfig(srto_mss, "SRS_SRT_SERVER_MMS", "1000");
+        SrsSetEnvConfig(srto_mss, "SRS_SRT_SERVER_MSS", "1000");
         EXPECT_EQ(1000, conf.get_srto_mss());
 
         SrsSetEnvConfig(srto_conntimeout, "SRS_SRT_SERVER_CONNECT_TIMEOUT", "2000");

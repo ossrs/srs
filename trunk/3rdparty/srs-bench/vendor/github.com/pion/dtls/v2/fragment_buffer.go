@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package dtls
 
 import (
@@ -5,6 +8,9 @@ import (
 	"github.com/pion/dtls/v2/pkg/protocol/handshake"
 	"github.com/pion/dtls/v2/pkg/protocol/recordlayer"
 )
+
+// 2 megabytes
+const fragmentBufferMaxSize = 2000000
 
 type fragment struct {
 	recordLayerHeader recordlayer.Header
@@ -23,10 +29,25 @@ func newFragmentBuffer() *fragmentBuffer {
 	return &fragmentBuffer{cache: map[uint16][]*fragment{}}
 }
 
+// current total size of buffer
+func (f *fragmentBuffer) size() int {
+	size := 0
+	for i := range f.cache {
+		for j := range f.cache[i] {
+			size += len(f.cache[i][j].data)
+		}
+	}
+	return size
+}
+
 // Attempts to push a DTLS packet to the fragmentBuffer
 // when it returns true it means the fragmentBuffer has inserted and the buffer shouldn't be handled
 // when an error returns it is fatal, and the DTLS connection should be stopped
 func (f *fragmentBuffer) push(buf []byte) (bool, error) {
+	if f.size()+len(buf) >= fragmentBufferMaxSize {
+		return false, errFragmentBufferOverflow
+	}
+
 	frag := new(fragment)
 	if err := frag.recordLayerHeader.Unmarshal(buf); err != nil {
 		return false, err
@@ -76,7 +97,7 @@ func (f *fragmentBuffer) pop() (content []byte, epoch uint16) {
 		for _, f := range frags {
 			if f.handshakeHeader.FragmentOffset == targetOffset {
 				fragmentEnd := (f.handshakeHeader.FragmentOffset + f.handshakeHeader.FragmentLength)
-				if fragmentEnd != f.handshakeHeader.Length {
+				if fragmentEnd != f.handshakeHeader.Length && f.handshakeHeader.FragmentLength != 0 {
 					if !appendMessage(fragmentEnd) {
 						return false
 					}

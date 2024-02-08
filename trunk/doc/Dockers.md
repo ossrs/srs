@@ -3,10 +3,14 @@
 About SRS Dockerfile:
 
 * Dockerfile: For release and test.
-* Dockerfile.pkg: For package binary.
-* Dockerfile.builds: For test.
-* Dockerfile.test: For test.
-* Dockerfile.cov: For test and coverage.
+* trunk/Dockerfile.pkg: For package binary.
+* trunk/Dockerfile.builds: For test.
+* trunk/Dockerfile.test: For test.
+* trunk/Dockerfile.cov: For test and coverage.
+
+```bash
+docker build -t srs -f Dockerfile .
+```
 
 ## Dependency Tree
 
@@ -22,18 +26,18 @@ The dependency tree about Dockerfile:
     * [ossrs/srs:ubuntu20](https://github.com/ossrs/dev-docker/tree/ubuntu20)
       * ubuntu:focal
   * ubuntu:focal
-* Dockerfile.test
+* trunk/Dockerfile.test
   * [ossrs/srs:dev-gcc7-cache](https://github.com/ossrs/dev-docker/tree/ossrs/srs:dev-gcc7-cache)
     * [ossrs/srs:dev-gcc7](https://github.com/ossrs/dev-docker/tree/ossrs/srs:dev-gcc7)
       * centos:7
-* Dockerfile.cov
+* trunk/Dockerfile.cov
   * [ossrs/srs:dev-gcc7-cache](https://github.com/ossrs/dev-docker/tree/ossrs/srs:dev-gcc7-cache)
       * [ossrs/srs:dev-gcc7](https://github.com/ossrs/dev-docker/tree/ossrs/srs:dev-gcc7)
           * centos:7
-* Dockerfile.pkg
+* trunk/Dockerfile.pkg
   * [ossrs/srs:dev](https://github.com/ossrs/dev-docker/tree/ossrs/srs:dev)
     * centos:7
-* Dockerfile.builds
+* trunk/Dockerfile.builds
   * [ossrs/srs:dev-cache](https://github.com/ossrs/dev-docker/tree/ossrs/srs:dev-cache)
     * [ossrs/srs:dev](https://github.com/ossrs/dev-docker/tree/ossrs/srs:dev)
       * centos:7
@@ -49,16 +53,16 @@ The dependency tree about Dockerfile:
   * [ossrs/srs:ubuntu20-cache](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20-cache)
       * [ossrs/srs:ubuntu20](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20)
           * ubuntu:focal
-  * [ossrs/srs:ubuntu16-cross-arm](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16-cross-arm)
+  * [ossrs/srs:ubuntu16-cache-cross-arm](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16-cache-cross-arm)
       * [ossrs/srs:ubuntu16](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16)
           * ubuntu:xenial
-  * [ossrs/srs:ubuntu16-cross-aarch64](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16-cross-aarch64)
+  * [ossrs/srs:ubuntu16-cache-cross-aarch64](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16-cache-cross-aarch64)
       * [ossrs/srs:ubuntu16](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16)
           * ubuntu:xenial
-  * [ossrs/srs:ubuntu20-cross-arm](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20-cross-arm)
+  * [ossrs/srs:ubuntu20-cache-cross-arm](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20-cache-cross-arm)
       * [ossrs/srs:ubuntu20](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20)
           * ubuntu:focal
-  * [ossrs/srs:ubuntu20-cross-aarch64](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20-cross-aarch64)
+  * [ossrs/srs:ubuntu20-cache-cross-aarch64](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20-cache-cross-aarch64)
       * [ossrs/srs:ubuntu20](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20)
           * ubuntu:focal
 
@@ -73,10 +77,10 @@ If need to reconfigure SRS, please update SRS, then update the images:
 * [ossrs/srs:ubuntu16-cache](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16-cache)
 * [ossrs/srs:ubuntu18-cache](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu18-cache)
 * [ossrs/srs:ubuntu20-cache](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20-cache)
-* [ossrs/srs:ubuntu16-cross-arm](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16-cross-arm)
-* [ossrs/srs:ubuntu16-cross-aarch64](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16-cross-aarch64)
-* [ossrs/srs:ubuntu20-cross-arm](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20-cross-arm)
-* [ossrs/srs:ubuntu20-cross-aarch64](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20-cross-aarch64)
+* [ossrs/srs:ubuntu16-cache-cross-arm](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16-cache-cross-arm)
+* [ossrs/srs:ubuntu16-cache-cross-aarch64](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu16-cache-cross-aarch64)
+* [ossrs/srs:ubuntu20-cache-cross-arm](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20-cache-cross-arm)
+* [ossrs/srs:ubuntu20-cache-cross-aarch64](https://github.com/ossrs/dev-docker/tree/ossrs/srs:ubuntu20-cache-cross-aarch64)
 
 For example, update the [release.yml](https://github.com/ossrs/dev-docker/blob/ubuntu20-cache/.github/workflows/release.yml) for ubuntu20-cache:
 

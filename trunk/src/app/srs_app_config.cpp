@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_config.hpp>
@@ -94,6 +94,38 @@ bool is_common_space(char ch)
     return (ch == ' ' || ch == '\t' || ch == SRS_CR || ch == SRS_LF);
 }
 
+extern bool _srs_in_docker;
+
+// Detect docker by https://stackoverflow.com/a/41559867
+srs_error_t srs_detect_docker()
+{
+    srs_error_t err = srs_success;
+
+    _srs_in_docker = false;
+
+    SrsFileReader fr;
+    if ((err = fr.open("/proc/1/cgroup")) != srs_success) {
+        return err;
+    }
+
+    ssize_t nn;
+    char buf[1024];
+    if ((err = fr.read(buf, sizeof(buf), &nn)) != srs_success) {
+        return err;
+    }
+
+    if (nn <= 0) {
+        return err;
+    }
+
+    string s(buf, nn);
+    if (srs_string_contains(s, "/docker")) {
+        _srs_in_docker = true;
+    }
+
+    return err;
+}
+
 namespace srs_internal
 {
     SrsConfigBuffer::SrsConfigBuffer()
@@ -123,6 +155,8 @@ namespace srs_internal
         
         // read all.
         int filesize = (int)reader.filesize();
+        // Ignore if empty file.
+        if (filesize <= 0) return err;
         
         // create buffer
         srs_freepa(start);
@@ -1068,6 +1102,9 @@ SrsJsonAny* SrsConfDirective::dumps_arg0_to_boolean()
 srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveContext ctx, SrsConfig* conf)
 {
     srs_error_t err = srs_success;
+
+    // Ignore empty config file.
+    if (ctx == SrsDirectiveContextFile && buffer->empty()) return err;
     
     while (true) {
         std::vector<string> args;
@@ -1127,7 +1164,7 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveCo
             }
 
             if ((err = parse_conf(include_file_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
-                return srs_error_wrap(err, "parse include buffer");
+                return srs_error_wrap(err, "parse include buffer %s", file.c_str());
             }
         }
     }
@@ -1328,18 +1365,22 @@ void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
 }
 
 // LCOV_EXCL_START
-srs_error_t SrsConfig::reload()
+srs_error_t SrsConfig::reload(SrsReloadState *pstate)
 {
+    *pstate = SrsReloadStateInit;
+
     srs_error_t err = srs_success;
-    
+
     SrsConfig conf;
-    
+
+    *pstate = SrsReloadStateParsing;
     if ((err = conf.parse_file(config_file.c_str())) != srs_success) {
         return srs_error_wrap(err, "parse file");
     }
     srs_info("config reloader parse file success.");
     
     // transform config to compatible with previous style of config.
+    *pstate = SrsReloadStateTransforming;
     if ((err = srs_config_transform_vhost(conf.root)) != srs_success) {
         return srs_error_wrap(err, "transform config");
     }
@@ -1347,11 +1388,13 @@ srs_error_t SrsConfig::reload()
     if ((err = conf.check_config()) != srs_success) {
         return srs_error_wrap(err, "check config");
     }
-    
+
+    *pstate = SrsReloadStateApplying;
     if ((err = reload_conf(&conf)) != srs_success) {
         return srs_error_wrap(err, "reload config");
     }
-    
+
+    *pstate = SrsReloadStateFinished;
     return err;
 }
 // LCOV_EXCL_STOP
@@ -1923,6 +1966,19 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         if (root->directives.empty()) root->get_or_create("vhost", "__defaultVhost__");
     }
 
+    // Ignore any error while detecting docker.
+    if ((err = srs_detect_docker()) != srs_success) {
+        srs_error_reset(err);
+    }
+
+    // Try to load the config if docker detect failed.
+    if (!_srs_in_docker) {
+        _srs_in_docker = _srs_config->get_in_docker();
+        if (_srs_in_docker) {
+            srs_trace("enable in_docker by config");
+        }
+    }
+
     ////////////////////////////////////////////////////////////////////////
     // check log name and level
     ////////////////////////////////////////////////////////////////////////
@@ -2197,11 +2253,11 @@ srs_error_t SrsConfig::parse_file(const char* filename)
     SrsConfigBuffer* buffer = NULL;
     SrsAutoFree(SrsConfigBuffer, buffer);
     if ((err = build_buffer(config_file, &buffer)) != srs_success) {
-        return srs_error_wrap(err, "buffer fullfill %s", config_file.c_str());
+        return srs_error_wrap(err, "buffer fullfill %s", filename);
     }
     
     if ((err = parse_buffer(buffer)) != srs_success) {
-        return srs_error_wrap(err, "parse buffer");
+        return srs_error_wrap(err, "parse buffer %s", filename);
     }
     
     return err;
@@ -2669,7 +2725,8 @@ srs_error_t SrsConfig::check_normal_config()
                     if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy"
                         && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
                         && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp"
-                        && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe") {
+                        && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe" && m != "opus_bitrate"
+                        && m != "aac_bitrate") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -2844,7 +2901,7 @@ string SrsConfig::argv()
 
 bool SrsConfig::get_daemon()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL2("srs.daemon");
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.daemon"); // SRS_DAEMON
 
     SrsConfDirective* conf = root->get("daemon");
     if (!conf || conf->arg0().empty()) {
@@ -4639,6 +4696,74 @@ bool SrsConfig::get_rtc_twcc_enabled(string vhost)
     }
 
     return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+int SrsConfig::get_rtc_opus_bitrate(string vhost)
+{
+    static int DEFAULT = 48000;
+
+    string opus_bitrate = srs_getenv("srs.vhost.rtc.opus_bitrate"); // SRS_VHOST_RTC_OPUS_BITRATE
+    if (!opus_bitrate.empty()) {
+        int v = ::atoi(opus_bitrate.c_str());
+        if (v < 8000 || v > 320000) {
+            srs_warn("Reset opus btirate %d to %d", v, DEFAULT);
+            v = DEFAULT;
+        }
+
+        return v;
+    }
+
+    SrsConfDirective* conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("opus_bitrate");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    int v = ::atoi(conf->arg0().c_str());
+    if (v < 8000 || v > 320000) {
+        srs_warn("Reset opus btirate %d to %d", v, DEFAULT);
+        return DEFAULT;
+    }
+
+    return v;
+}
+
+int SrsConfig::get_rtc_aac_bitrate(string vhost)
+{
+    static int DEFAULT = 48000;
+
+    string aac_bitrate = srs_getenv("srs.vhost.rtc.aac_bitrate"); // SRS_VHOST_RTC_AAC_BITRATE
+    if (!aac_bitrate.empty()) {
+        int v = ::atoi(aac_bitrate.c_str());
+        if (v < 8000 || v > 320000) {
+            srs_warn("Reset aac btirate %d to %d", v, DEFAULT);
+            v = DEFAULT;
+        }
+
+        return v;
+    }
+
+    SrsConfDirective* conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("aac_bitrate");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    int v = ::atoi(conf->arg0().c_str());
+    if (v < 8000 || v > 320000) {
+        srs_warn("Reset aac btirate %d to %d", v, DEFAULT);
+        return DEFAULT;
+    }
+
+    return v;
 }
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
@@ -6440,8 +6565,6 @@ string SrsConfig::get_ingest_input_url(SrsConfDirective* conf)
     return conf->arg0();
 }
 
-extern bool _srs_in_docker;
-
 bool SrsConfig::get_log_tank_file()
 {
     if (!srs_getenv("srs.srs_log_tank").empty()) { // SRS_SRS_LOG_TANK
@@ -6893,7 +7016,7 @@ double SrsConfig::get_hls_td_ratio(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_FLOAT("srs.vhost.hls.hls_td_ratio"); // SRS_VHOST_HLS_HLS_TD_RATIO
 
-    static double DEFAULT = 1.5;
+    static double DEFAULT = 1.0;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6912,7 +7035,7 @@ double SrsConfig::get_hls_aof_ratio(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_FLOAT("srs.vhost.hls.hls_aof_ratio"); // SRS_VHOST_HLS_HLS_AOF_RATIO
 
-    static double DEFAULT = 2.0;
+    static double DEFAULT = 2.1;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -7103,7 +7226,7 @@ srs_utime_t SrsConfig::get_hls_dispose(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.hls.hls_dispose"); // SRS_VHOST_HLS_HLS_DISPOSE
 
-    static srs_utime_t DEFAULT = 0;
+    static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -7832,7 +7955,7 @@ int64_t SrsConfig::get_srto_maxbw()
 
 int SrsConfig::get_srto_mss()
 {
-    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.mms"); // SRS_SRT_SERVER_MMS
+    SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.mss"); // SRS_SRT_SERVER_MSS
 
     static int DEFAULT = 1500;
     SrsConfDirective* conf = root->get("srt_server");
@@ -7840,7 +7963,7 @@ int SrsConfig::get_srto_mss()
         return DEFAULT;
     }
     
-    conf = conf->get("mms");
+    conf = conf->get("mss");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

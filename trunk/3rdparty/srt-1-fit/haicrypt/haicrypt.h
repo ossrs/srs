@@ -36,7 +36,7 @@ HaiCrypt_Cryspr HaiCryptCryspr_Get_Instance (void);     /* Return a default crys
 #define HAICRYPT_PWD_MAX_SZ         80  /* MAX password (for Password-based Key Derivation) */
 #define HAICRYPT_KEY_MAX_SZ         32  /* MAX key */
 #define HAICRYPT_SECRET_MAX_SZ      (HAICRYPT_PWD_MAX_SZ > HAICRYPT_KEY_MAX_SZ ? HAICRYPT_PWD_MAX_SZ : HAICRYPT_KEY_MAX_SZ)
-
+#define	HAICRYPT_AUTHTAG_MAX        16  /* maximum length of the auth tag (e.g. GCM) */
 
 #define HAICRYPT_SALT_SZ            16
 
@@ -60,6 +60,7 @@ typedef struct {
 #define HAICRYPT_CFG_F_TX       0x01        /* !TX -> RX */
 #define HAICRYPT_CFG_F_CRYPTO   0x02        /* Perform crypto Tx:Encrypt Rx:Decrypt */
 #define HAICRYPT_CFG_F_FEC      0x04        /* Do Forward Error Correction */
+#define HAICRYPT_CFG_F_GCM      0x08        /* Use AES-GCM */
         unsigned        flags;
 
         HaiCrypt_Secret secret;             /* Security Association */
@@ -108,10 +109,15 @@ int  HaiCrypt_Tx_ManageKeys(HaiCrypt_Handle hhc, void *out_p[], size_t out_len_p
 int  HaiCrypt_Tx_Data(HaiCrypt_Handle hhc, unsigned char *pfx, unsigned char *data, size_t data_len);
 int  HaiCrypt_Rx_Data(HaiCrypt_Handle hhc, unsigned char *pfx, unsigned char *data, size_t data_len);
 
+/// @brief Check if the crypto service provider supports AES GCM.
+/// @return returns 1 if AES GCM is supported, 0 otherwise.
+int  HaiCrypt_IsAESGCM_Supported(void);
+
 /* Status values */
 
 #define HAICRYPT_ERROR -1
 #define HAICRYPT_ERROR_WRONG_SECRET -2
+#define HAICRYPT_ERROR_CIPHER -3
 #define HAICRYPT_OK 0
 
 

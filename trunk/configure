@@ -145,6 +145,10 @@ END
 # header(.h): add to ModuleLibIncs if need the specified library. for example, LibSTRoot
 # library(.a): add to ModuleLibFiles if binary need the specifeid library. for example, LibSTfile
 #
+
+# the link options, always use static link
+SrsLinkOptions="-ldl -lpthread";
+
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS}/st"; LibSTfile="${LibSTRoot}/libst.a"
 if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-L${LibSTRoot} -lst"; fi
@@ -152,6 +156,13 @@ if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-L${LibSTRoot} -lst"; fi
 # srtp
 if [[ $SRS_RTC == YES ]]; then
   LibSrtpRoot="${SRS_OBJS}/srtp2/include"; LibSrtpFile="${SRS_OBJS}/srtp2/lib/libsrtp2.a"
+  if [[ $SRS_USE_SYS_SRTP == YES ]]; then
+      LibSrtpRoot=""; LibSrtpFile="libsrtp2.a"
+      if [[ $SRS_SHARED_SRTP == YES ]]; then
+          LibSrtpFile=""; 
+          SrsLinkOptions="${SrsLinkOptions} -lsrtp2";
+      fi
+  fi
 fi
 
 # FFMPEG for WebRTC transcoding, such as aac to opus.
@@ -165,6 +176,14 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
         LibFfmpegFile="-L${SRS_OBJS}/ffmpeg/lib -lavcodec -lswresample -lavutil";
         if [[ $SRS_FFMPEG_OPUS != YES ]]; then
             LibFfmpegFile="$LibFfmpegFile -L${SRS_OBJS}/opus/lib -lopus"
+        fi
+    fi
+    if [[ $SRS_USE_SYS_FFMPEG == YES ]]; then
+        LibFfmpegRoot=""
+        LibFfmpegFile="libavcodec.a libswresample.a libavutil.a libopus.a";
+        if [[ $SRS_SHARED_FFMPEG == YES ]]; then
+            LibFfmpegFile=""
+            SrsLinkOptions="${SrsLinkOptions} -lavcodec -lswresample -lavutil -lopus";
         fi
     fi
 fi
@@ -188,10 +207,15 @@ fi
 if [[ $SRS_SRT == YES ]]; then
     LibSRTRoot="${SRS_OBJS}/srt/include"; LibSRTfile="${SRS_OBJS}/srt/lib/libsrt.a"
     if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-L${SRS_OBJS}/srt/lib -lsrt"; fi
+    if [[ $SRS_USE_SYS_SRT == YES ]]; then
+        LibSRTRoot=""; LibSRTfile="libsrt.a"
+        if [[ $SRS_SHARED_SRT == YES ]]; then 
+            LibSRTfile=""; 
+            SrsLinkOptions="${SrsLinkOptions} -lsrt";
+        fi
+    fi
 fi
 
-# the link options, always use static link
-SrsLinkOptions="-ldl -lpthread";
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
 fi
@@ -230,6 +254,11 @@ fi
 # For FFMPEG/RTC on windows.
 if [[ $SRS_CYGWIN64 == YES && $SRS_FFMPEG_FIT == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lbcrypt";
+fi
+
+# User configed options.
+if [[ $SRS_EXTRA_LDFLAGS != '' ]]; then
+    SrsLinkOptions="${SrsLinkOptions} $SRS_EXTRA_LDFLAGS";
 fi
 
 #####################################################################################
@@ -400,7 +429,7 @@ if [[ $SRS_SRT == YES ]]; then
     ModuleLibIncs+=(${LibSRTRoot})
     MODULE_OBJS="${MODULE_OBJS} ${SRT_OBJS[@]}"
 fi
-LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
+LINK_OPTIONS="${LDFLAGS} ${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
 #
 # srs: srs(simple rtmp server) over st(state-threads)
 BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . $SRS_WORKDIR/auto/apps.sh
@@ -434,8 +463,8 @@ fi
 if [[ $SRS_UTEST == YES ]]; then
     MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_kernel" "srs_utest_core"
         "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
-        "srs_utest_mp4" "srs_utest_service" "srs_utest_app" "srs_utest_rtc"
-        "srs_utest_protocol" "srs_utest_protocol2")
+        "srs_utest_mp4" "srs_utest_service" "srs_utest_app" "srs_utest_rtc" "srs_utest_config2"
+        "srs_utest_protocol" "srs_utest_protocol2" "srs_utest_kernel2")
     if [[ $SRS_SRT == YES ]]; then
         MODULE_FILES+=("srs_utest_srt")
     fi
@@ -464,7 +493,7 @@ if [[ $SRS_UTEST == YES ]]; then
     fi
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${SRT_OBJS[@]}"
-    LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . $SRS_WORKDIR/auto/utest.sh
+    LINK_OPTIONS="${LDFLAGS} -lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . $SRS_WORKDIR/auto/utest.sh
 fi
 
 #####################################################################################
@@ -491,6 +520,7 @@ AR = ${SRS_TOOL_AR}
 LINK = ${SRS_TOOL_LD}
 RANDLIB = ${SRS_TOOL_RANDLIB}
 CXXFLAGS = ${CXXFLAGS}
+LDFLAGS = ${LDFLAGS}
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -554,23 +584,23 @@ clean_modules:
 	@(cd ${SRS_OBJS} && rm -rf $__mdefaults)
 
 clean_openssl:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl
 	@echo "Please rebuild openssl by: ./configure"
 
 clean_srtp2:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srtp2
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2
 	@echo "Please rebuild libsrtp2 by: ./configure"
 
 clean_opus:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/opus
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/opus
 	@echo "Please rebuild opus by: ./configure"
 
 clean_ffmpeg:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg
 	@echo "Please rebuild FFmpeg by: ./configure"
 
 clean_st:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/st
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st
 	@echo "Please rebuild ST by: ./configure"
 
 st:
@@ -618,9 +648,8 @@ install:
 	@mkdir -p \$(__REAL_INSTALL)
 	@echo "Now make the http root dir"
 	@mkdir -p \$(__REAL_INSTALL)/objs/nginx/html
-	@cp -f research/api-server/static-dir/index.html \$(__REAL_INSTALL)/objs/nginx/html
-	@cp -f research/players/crossdomain.xml \$(__REAL_INSTALL)/objs/nginx/html
-	@cp -f research/api-server/static-dir/favicon.ico \$(__REAL_INSTALL)/objs/nginx/html
+	@cp -f research/index.html \$(__REAL_INSTALL)/objs/nginx/html
+	@cp -f research/favicon.ico \$(__REAL_INSTALL)/objs/nginx/html
 	@cp -Rf research/players \$(__REAL_INSTALL)/objs/nginx/html/
 	@cp -Rf research/console \$(__REAL_INSTALL)/objs/nginx/html/
 	@cp -Rf 3rdparty/signaling/www/demos \$(__REAL_INSTALL)/objs/nginx/html/
@@ -816,6 +845,12 @@ if [[ $SRS_VALGRIND == YES ]]; then
 else
     echo -e "${GREEN}Note: The valgrind is disabled.${BLACK}"
 fi
+if [[ $SRS_SANITIZER == YES ]]; then
+    echo -e "${GREEN}The sanitizer is enabled.${BLACK}"
+else
+    echo -e "${GREEN}Note: The sanitizer is disabled.${BLACK}"
+fi
+
 # add each modules for application
 for SRS_MODULE in ${SRS_MODULES[*]}; do
     echo -e "${GREEN}Enable module: $SRS_MODULE${BLACK}"
@@ -832,13 +867,6 @@ fi
 #####################################################################################
 # next step
 #####################################################################################
-if [[ $SRS_CHERRYPY == YES ]]; then
-  echo ""
-  echo "You can run 3rdparty applications:"
-  if [[ $SRS_HTTP_CALLBACK == YES ]]; then
-      echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
-  fi
-fi
 echo ""
 echo "You can build SRS:"
 echo "\" make \" to build the SRS server"

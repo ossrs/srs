@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_PROTOCOL_UTILITY_HPP
@@ -195,6 +195,13 @@ extern srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content);
 // Get system uname info.
 extern utsname* srs_get_system_uname_info();
 #endif
+
+// Dump string(str in length) to hex, it will process min(limit, length) chars.
+// Append seperator between each elem, and newline when exceed line_limit, '\0' to ignore.
+extern std::string srs_string_dumps_hex(const std::string& str);
+extern std::string srs_string_dumps_hex(const char* str, int length);
+extern std::string srs_string_dumps_hex(const char* str, int length, int limit);
+extern std::string srs_string_dumps_hex(const char* str, int length, int limit, char seperator, int line_limit, char newline);
 
 #endif
 

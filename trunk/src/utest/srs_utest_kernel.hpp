@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_UTEST_KERNEL_HPP
@@ -21,6 +21,7 @@
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_ps.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_kernel_utility.hpp>
 
 class MockSrsFile
 {
@@ -154,6 +155,8 @@ public:
     virtual void on_recover_done(srs_utime_t duration);
     MockPsHandler* clear();
 };
+
+extern int srs_rbsp_remove_emulation_bytes(SrsBuffer* stream, std::vector<uint8_t>& rbsp);
 
 #endif
 

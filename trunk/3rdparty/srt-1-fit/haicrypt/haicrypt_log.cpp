@@ -44,10 +44,10 @@ int HaiCrypt_SetLogLevel(int level, int logfa)
 #define HAICRYPT_DEFINE_LOG_DISPATCHER(LOGLEVEL, dispatcher) \
     int HaiCrypt_LogF_##LOGLEVEL ( const char* file, int line, const char* function, const char* format, ...) \
 { \
-    va_list ap; \
-    va_start(ap, format); \
     srt_logging::LogDispatcher& lg = hclog.dispatcher; \
     if (!lg.CheckEnabled()) return -1; \
+    va_list ap; \
+    va_start(ap, format); \
     lg().setloc(file, line, function).vform(format, ap); \
     va_end(ap); \
     return 0; \

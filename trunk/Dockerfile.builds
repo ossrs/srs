@@ -47,19 +47,19 @@ COPY . /srs
 RUN cd /srs/trunk && ./configure --srt=on --gb28181=on --apm=on --h265=on && make
 
 ########################################################
-FROM ossrs/srs:ubuntu16-cross-arm AS ubuntu16-cross-armv7
+FROM ossrs/srs:ubuntu16-cache-cross-arm AS ubuntu16-cache-cross-armv7
 COPY . /srs
 RUN cd /srs/trunk && ./configure --cross-build --cross-prefix=arm-linux-gnueabihf- && make
 
-FROM ossrs/srs:ubuntu16-cross-aarch64 AS ubuntu16-cross-aarch64
+FROM ossrs/srs:ubuntu16-cache-cross-aarch64 AS ubuntu16-cache-cross-aarch64
 COPY . /srs
 RUN cd /srs/trunk && ./configure --cross-build --cross-prefix=aarch64-linux-gnu- && make
 
 ########################################################
-FROM ossrs/srs:ubuntu20-cross-arm AS ubuntu20-cross-armv7
+FROM ossrs/srs:ubuntu20-cache-cross-arm AS ubuntu20-cache-cross-armv7
 COPY . /srs
 RUN cd /srs/trunk && ./configure --cross-build --cross-prefix=arm-linux-gnueabihf- && make
 
-FROM ossrs/srs:ubuntu20-cross-aarch64 AS ubuntu20-cross-aarch64
+FROM ossrs/srs:ubuntu20-cache-cross-aarch64 AS ubuntu20-cache-cross-aarch64
 COPY . /srs
 RUN cd /srs/trunk && ./configure --cross-build --cross-prefix=aarch64-linux-gnu- && make

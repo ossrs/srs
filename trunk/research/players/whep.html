@@ -9,7 +9,7 @@
         }
     </style>
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
-    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/jquery-1.12.2.min.js"></script>
     <script type="text/javascript" src="js/adapter-7.4.0.min.js"></script>
     <script type="text/javascript" src="js/srs.sdk.js"></script>
     <script type="text/javascript" src="js/winlin.utility.js"></script>
@@ -20,12 +20,12 @@
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
-            <a id="srs_index" class="brand" href="https://github.com/ossrs/srs">SRS</a>
+            <a class="brand" href="https://github.com/ossrs/srs" target="_blank">SRS</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
-                    <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
-                    <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
-                    <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
+                    <li><a id="nav_srs_player" href="srs_player.html">LivePlayer</a></li>
+                    <!--<li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>-->
+                    <!--<li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>-->
                     <li><a id="nav_whip" href="whip.html">WHIP</a></li>
                     <li class="active"><a id="nav_whep" href="whip.html">WHEP</a></li>
                     <li><a  href="http://ossrs.net/srs.release/releases/app.html">iOS/Andriod</a></li>
@@ -34,17 +34,21 @@
                     <!--<li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>-->
                     <!--<li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>-->
                     <!--<li><a id="nav_gb28181" href="srs_gb28181.html">GB28181</a></li>-->
-                    <li>
+                    <!--<li>
                         <a href="https://github.com/ossrs/srs">
                             <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/ossrs/srs?style=social">
                         </a>
-                    </li>
+                    </li>-->
                 </ul>
             </div>
         </div>
     </div>
 </div>
 <div class="container">
+    <div id="main_info" class="alert alert-info fade in">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <strong><span>Usage:</span></strong> <span>Enter the WebRTC WHEP URL and click "Play" to start playing.</span>
+    </div>
     <div class="form-inline">
         URL:
         <input type="text" id="txt_url" class="input-xxlarge" value="">

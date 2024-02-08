@@ -121,6 +121,18 @@ unzip -v >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
     fi
     exit $ret;
 fi
+automake --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+    if [[ $OS_IS_CENTOS == YES ]]; then
+        echo "Please install automake by:"
+        echo "  yum install -y automake"
+    elif [[ $OS_IS_UBUNTU == YES ]]; then
+        echo "Please install automake by:"
+        echo "  apt install -y automake"
+    else
+        echo "Please install automake"
+    fi
+    exit $ret;
+fi
 if [[ $SRS_VALGRIND == YES ]]; then
     valgrind --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "Please install valgrind"; exit $ret;
@@ -177,7 +189,7 @@ fi
 #####################################################################################
 # Use srs-cache from base image. See https://github.com/ossrs/dev-docker/blob/ubuntu20-cache/Dockerfile
 # Note that the cache for cygwin is not under /usr/local, but copy to objs instead.
-if [[ -d /usr/local/srs-cache/srs/trunk/objs && $(pwd) != "/usr/local/srs-cache/srs/trunk" ]]; then
+if [[ -d /usr/local/srs-cache/srs/trunk/objs && $(pwd) != "/usr/local/srs-cache/srs/trunk" && $SRS_BUILD_CACHE == YES ]]; then
     SOURCE_DIR=$(ls -d /usr/local/srs-cache/srs/trunk/objs/Platform-SRS${SRS_MAJOR}-* 2>/dev/null|head -n 1)
     if [[ -d $SOURCE_DIR ]]; then
         TARGET_DIR=${SRS_OBJS}/${SRS_PLATFORM} &&
@@ -269,18 +281,18 @@ fi
 _ST_MAKE_ARGS="${_ST_MAKE} STATIC_ONLY=${_ST_STATIC_ONLY}"
 _ST_MAKE_ARGS="${_ST_MAKE_ARGS} CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB}"
 # Patched ST from https://github.com/ossrs/state-threads/tree/srs
-if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/st/libst.a ]]; then
-    rm -rf ${SRS_OBJS}/st && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/st ${SRS_OBJS}/ &&
+if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st/libst.a ]]; then
+    rm -rf ${SRS_OBJS}/st && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st ${SRS_OBJS}/ &&
     echo "The state-threads is ok."
 else
     echo "Building state-threads." &&
-    rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/st ${SRS_OBJS}/st &&
+    rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st ${SRS_OBJS}/st &&
     cp -rf ${SRS_WORKDIR}/3rdparty/st-srs ${SRS_OBJS}/${SRS_PLATFORM}/ &&
     env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" make -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs ${_ST_MAKE_ARGS} &&
-    mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/st &&
-    cp -f ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/${_ST_OBJ}/st.h ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/st/ &&
-    cp -f ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/${_ST_OBJ}/libst.a ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/st/ &&
-    cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/st ${SRS_OBJS}/ &&
+    mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st &&
+    cp -f ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/${_ST_OBJ}/st.h ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st/ &&
+    cp -f ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/${_ST_OBJ}/libst.a ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st/ &&
+    cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st ${SRS_OBJS}/ &&
     echo "The state-threads is ok."
 fi
 # check status
@@ -342,41 +354,6 @@ if [[ ! -f $SRS_WORKDIR/conf/server.key || ! -f $SRS_WORKDIR/conf/server.crt ]];
 fi
 
 #####################################################################################
-# cherrypy for http hooks callback, CherryPy-3.2.4
-#####################################################################################
-# TODO: FIXME: Replace by Go.
-if [[ $SRS_CHERRYPY == YES ]]; then
-    # Detect python or python2
-    python --version >/dev/null 2>&1 && SYS_PYTHON=python;
-    python2 --version >/dev/null 2>&1 && SYS_PYTHON=python2;
-    # Install cherrypy for api server.
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]]; then
-        echo "CherryPy-3.2.4 is ok.";
-    else
-        echo "Installing CherryPy-3.2.4";
-        (
-            rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-            unzip -q ../../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 &&
-            $SYS_PYTHON setup.py install --user --prefix=''
-        )
-    fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
-
-    echo "Link players to cherrypy static-dir"
-    rm -rf research/api-server/static-dir/players &&
-    ln -sf $SRS_WORKDIR/research/players research/api-server/static-dir/players &&
-    rm -rf research/api-server/static-dir/live &&
-    mkdir -p $SRS_WORKDIR/${SRS_OBJS}/nginx/html/live &&
-    ln -sf $SRS_WORKDIR/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
-    rm -rf research/api-server/static-dir/forward &&
-    mkdir -p $SRS_WORKDIR/${SRS_OBJS}/nginx/html/forward &&
-    ln -sf $SRS_WORKDIR/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Warning: Ignore error to link players to cherrypy static-dir."; fi
-fi
-
-#####################################################################################
 # openssl, for rtmp complex handshake and HLS encryption.
 #####################################################################################
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
@@ -394,13 +371,13 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         if [[ $SRS_CROSS_BUILD_ARCH == "arm" ]]; then OPENSSL_CONFIG="./Configure linux-armv4"; fi
         if [[ $SRS_CROSS_BUILD_ARCH == "aarch64" ]]; then OPENSSL_CONFIG="./Configure linux-aarch64"; fi
         if [[ $SRS_CROSS_BUILD_ARCH == "mipsel" ]]; then OPENSSL_CONFIG="./Configure linux-mips32"; fi
-    elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl/lib/libssl.a ]]; then
+    elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/lib/libssl.a ]]; then
         # Try to use exists libraries.
         if [[ -f /usr/local/ssl/lib/libssl.a && $SRS_SSL_LOCAL == NO ]]; then
-            (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl/lib &&
+            (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/lib &&
                 cp /usr/local/ssl/lib/libssl.a . && cp /usr/local/ssl/lib/libcrypto.a . &&
                 mkdir -p /usr/local/ssl/lib/pkgconfig && cp -rf /usr/local/ssl/lib/pkgconfig .)
-            (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl/include &&
+            (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/include &&
                 cp -rf /usr/local/ssl/include/openssl .)
         fi
         # Warning if not use the system ssl.
@@ -441,22 +418,23 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     #OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-ssl2 -no-comp -no-idea -no-hw -no-engine -no-dso -no-err -no-nextprotoneg -no-psk -no-srp -no-ec2m -no-weak-ssl-ciphers"
     #
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl/lib/libssl.a ]]; then
-        rm -rf ${SRS_OBJS}/openssl && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl ${SRS_OBJS}/ &&
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/lib/libssl.a ]]; then
+        rm -rf ${SRS_OBJS}/openssl && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl ${SRS_OBJS}/ &&
         echo "The $OPENSSL_CANDIDATE is ok."
     else
         echo "Building $OPENSSL_CANDIDATE." &&
-        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl \
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl \
             ${SRS_OBJS}/openssl &&
         ${OPENSSL_UNZIP} &&
         (
             cd ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} &&
-            ${OPENSSL_CONFIG} --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/openssl $OPENSSL_OPTIONS
+            chmod +x ./config ./Configure &&
+            ${OPENSSL_CONFIG} --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/openssl $OPENSSL_OPTIONS
         ) &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} CC=${SRS_TOOL_CC} AR="${OPENSSL_AR}" \
             LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} install_sw &&
-        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/openssl ${SRS_OBJS}/ &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl ${SRS_OBJS}/ &&
         echo "The $OPENSSL_CANDIDATE is ok."
     fi
     # check status
@@ -466,7 +444,10 @@ fi
 #####################################################################################
 # srtp
 #####################################################################################
-if [[ $SRS_RTC == YES ]]; then
+if [[ $SRS_RTC == YES && $SRS_USE_SYS_SRTP == YES ]]; then
+    echo "Warning: Use system libsrtp, without compiling srtp."
+fi
+if [[ $SRS_RTC == YES && $SRS_USE_SYS_SRTP == NO ]]; then
     SRTP_OPTIONS=""
     # To eliminate warnings, see https://stackoverflow.com/a/34208904/17679565
     #       was built for newer macOS version (11.6) than being linked (11.0)
@@ -489,13 +470,13 @@ if [[ $SRS_RTC == YES ]]; then
         SRTP_OPTIONS="$SRTP_OPTIONS --build=loongarch64-unknown-linux-gnu"
     fi
     # Copy and patch source files, then build and install libsrtp.
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srtp2/lib/libsrtp2.a ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2/lib/libsrtp2.a ]]; then
         rm -rf ${SRS_OBJS}/srtp2 &&
-        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srtp2 ${SRS_OBJS} &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2 ${SRS_OBJS} &&
         echo "The libsrtp-2-fit is ok."
     else
         echo "Building libsrtp-2-fit."
-        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srtp2 \
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2 \
             ${SRS_OBJS}/srtp2 &&
         cp -rf ${SRS_WORKDIR}/3rdparty/libsrtp-2-fit ${SRS_OBJS}/${SRS_PLATFORM}/ &&
         # For cygwin64, the patch is not available, so use sed instead.
@@ -510,7 +491,7 @@ if [[ $SRS_RTC == YES ]]; then
         fi &&
         (
             cd ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit &&
-            $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/srtp2
+            $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/srtp2
         ) &&
         # Sometimes it might fail because autoconf failed to generate crypto/include.config.h
         if [[ $SRS_CYGWIN64 == YES ]]; then
@@ -523,7 +504,7 @@ if [[ $SRS_RTC == YES ]]; then
         fi &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit ${SRS_JOBS} &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit install &&
-        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srtp2 ${SRS_OBJS}/ &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2 ${SRS_OBJS}/ &&
         echo "The libsrtp-2-fit is ok."
     fi
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build libsrtp failed, ret=$ret"; exit $ret; fi
@@ -533,29 +514,29 @@ fi
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 # For cross build, we use opus of FFmpeg, so we don't build the libopus.
-if [[ $SRS_RTC == YES && $SRS_FFMPEG_OPUS != YES ]]; then
+if [[ $SRS_RTC == YES && $SRS_USE_SYS_FFMPEG != YES && $SRS_FFMPEG_OPUS != YES ]]; then
     # Only build static libraries if no shared FFmpeg.
-    if [[ $SRS_SHARED_FFMPEG == NO ]]; then
+    if [[ $SRS_SHARED_FFMPEG != YES ]]; then
         OPUS_OPTIONS="--disable-shared --disable-doc"
     fi
     if [[ $OS_IS_LOONGARCH64 == YES ]]; then
         OPUS_OPTIONS="$OPUS_OPTIONS --build=loongarch64-unknown-linux-gnu"
     fi
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/opus/lib/libopus.a ]]; then
-        rm -rf ${SRS_OBJS}/opus && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/opus ${SRS_OBJS}/ &&
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/opus/lib/libopus.a ]]; then
+        rm -rf ${SRS_OBJS}/opus && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/opus ${SRS_OBJS}/ &&
         echo "The opus-1.3.1 is ok."
     else
         echo "Building opus-1.3.1." &&
-        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/opus ${SRS_OBJS}/opus &&
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/opus ${SRS_OBJS}/opus &&
         tar xf ${SRS_WORKDIR}/3rdparty/opus-1.3.1.tar.gz -C ${SRS_OBJS}/${SRS_PLATFORM} &&
         (
             # Opus requires automake 1.15, and fails for automake 1.16+, so we run autoreconf to fix it.
             cd ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 && autoreconf &&
-            ./configure --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/opus --enable-static $OPUS_OPTIONS
+            ./configure --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/opus --enable-static $OPUS_OPTIONS
         ) &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 ${SRS_JOBS} &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 install &&
-        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/opus ${SRS_OBJS}/ &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/opus ${SRS_OBJS}/ &&
         echo "The opus-1.3.1 is ok."
     fi
     if [ ! -f ${SRS_OBJS}/opus/lib/libopus.a ]; then echo "Build opus-1.3.1 failed."; exit -1; fi
@@ -564,7 +545,10 @@ fi
 #####################################################################################
 # ffmpeg-fit, for WebRTC to transcode AAC with Opus.
 #####################################################################################
-if [[ $SRS_FFMPEG_FIT == YES ]]; then
+if [[ $SRS_FFMPEG_FIT == YES && $SRS_USE_SYS_FFMPEG == YES ]]; then
+    echo "Warning: Use system ffmpeg, without compiling ffmpeg."
+fi
+if [[ $SRS_FFMPEG_FIT == YES && $SRS_USE_SYS_FFMPEG == NO ]]; then
     FFMPEG_CONFIGURE="env SRS_FFMPEG_FIT=on"
     if [[ $SRS_FFMPEG_OPUS != YES ]]; then
         FFMPEG_CONFIGURE="$FFMPEG_CONFIGURE PKG_CONFIG_PATH=${SRS_DEPENDS_LIBS}/opus/lib/pkgconfig"
@@ -608,17 +592,17 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     # Enable FFmpeg native MP3 decoder, which depends on dct.
     FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=mp3 --enable-dct"
 
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg/lib/libavcodec.a ]]; then
-        rm -rf ${SRS_OBJS}/ffmpeg && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg ${SRS_OBJS}/ &&
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg/lib/libavcodec.a ]]; then
+        rm -rf ${SRS_OBJS}/ffmpeg && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg ${SRS_OBJS}/ &&
         echo "The ffmpeg-4-fit is ok."
     else
         echo "Building ffmpeg-4-fit." &&
-        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg \
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg \
             ${SRS_OBJS}/ffmpeg &&
         cp -rf ${SRS_WORKDIR}/3rdparty/ffmpeg-4-fit ${SRS_OBJS}/${SRS_PLATFORM}/ &&
         (
             cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit &&
-            $FFMPEG_CONFIGURE --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/ffmpeg \
+            $FFMPEG_CONFIGURE --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/ffmpeg \
                 --pkg-config=pkg-config --pkg-config-flags='--static' --extra-libs='-lpthread' --extra-libs='-lm' \
                 ${FFMPEG_OPTIONS}
         ) &&
@@ -630,7 +614,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
           # For MIPS, which fail with:
           #     ./libavutil/libm.h:54:32: error: static declaration of 'cbrt' follows non-static declaration
           #     /root/openwrt/staging_dir/toolchain-mipsel_24kc_gcc-8.4.0_musl/include/math.h:163:13: note: previous declaration of 'cbrt' was here
-          if [[ $SRS_CROSS_BUILD_ARCH == "mipsel" || $SRS_CROSS_BUILD_ARCH == "arm" ]]; then
+          if [[ $SRS_CROSS_BUILD_ARCH == "mipsel" || $SRS_CROSS_BUILD_ARCH == "arm" || $SRS_CROSS_BUILD_ARCH == "aarch64" ]]; then
             sed -i -e 's/#define HAVE_CBRT 0/#define HAVE_CBRT 1/g'         ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
             sed -i -e 's/#define HAVE_CBRTF 0/#define HAVE_CBRTF 1/g'       ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
             sed -i -e 's/#define HAVE_COPYSIGN 0/#define HAVE_COPYSIGN 1/g' ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/config.h &&
@@ -648,7 +632,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
         fi &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit ${SRS_JOBS} &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit install &&
-        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/ffmpeg ${SRS_OBJS}/ &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg ${SRS_OBJS}/ &&
         echo "The ffmpeg-4-fit is ok."
     fi
     # check status
@@ -681,7 +665,10 @@ fi
 #####################################################################################
 # SRT module, https://github.com/ossrs/srs/issues/1147#issuecomment-577469119
 #####################################################################################
-if [[ $SRS_SRT == YES ]]; then
+if [[ $SRS_SRT == YES && $SRS_USE_SYS_SRT == YES ]]; then
+    echo "Warning: Use system libsrt, without compiling srt."
+fi
+if [[ $SRS_SRT == YES && $SRS_USE_SYS_SRT == NO ]]; then
     # Always disable c++11 for libsrt, because only the srt-app requres it.
     LIBSRT_OPTIONS="--enable-apps=0  --enable-static=1 --enable-c++11=0"
     if [[ $SRS_SHARED_SRT == YES ]]; then
@@ -700,29 +687,30 @@ if [[ $SRS_SRT == YES ]]; then
         LIBSRT_OPTIONS="$LIBSRT_OPTIONS --with-compiler-prefix=$SRT_COMPILER_PREFIX"
     fi
 
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srt/lib/libsrt.a ]]; then
-        rm -rf ${SRS_OBJS}/srt && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srt ${SRS_OBJS}/ &&
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/lib/libsrt.a ]]; then
+        rm -rf ${SRS_OBJS}/srt && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt ${SRS_OBJS}/ &&
         echo "libsrt-1-fit is ok."
     else
-        if [[ ! -d ${SRS_OBJS}/openssl/lib/pkgconfig ]]; then
+        if [[ $SRS_USE_SYS_SSL != YES && ! -d ${SRS_OBJS}/openssl/lib/pkgconfig ]]; then
             echo "OpenSSL pkgconfig no found, build srt-1-fit failed."
             exit -1
         fi
         echo "Build srt-1-fit" &&
-        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srt ${SRS_OBJS}/srt &&
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt ${SRS_OBJS}/srt &&
         cp -rf ${SRS_WORKDIR}/3rdparty/srt-1-fit ${SRS_OBJS}/${SRS_PLATFORM}/ &&
+        patch -p0 -R ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit/srtcore/api.cpp ${SRS_WORKDIR}/3rdparty/patches/srt/api.cpp-01.patch &&
         (
             cd ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit &&
             env PKG_CONFIG_PATH=${SRS_DEPENDS_LIBS}/openssl/lib/pkgconfig \
-                ./configure --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/srt $LIBSRT_OPTIONS
+                ./configure --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/srt $LIBSRT_OPTIONS
         ) &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit ${SRS_JOBS} &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit install &&
         # If exists lib64 of libsrt, copy it to lib
-        if [[ -d ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srt/lib64 ]]; then
-            cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srt/lib64 ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srt/lib
+        if [[ -d ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/lib64 ]]; then
+            cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/lib64 ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/lib
         fi &&
-        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/srt ${SRS_OBJS}/ &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt ${SRS_OBJS}/ &&
         echo "libsrt-1-fit is ok."
     fi
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srt-1-fit failed, ret=$ret"; exit $ret; fi
@@ -732,14 +720,14 @@ fi
 # build utest code
 #####################################################################################
 if [[ $SRS_UTEST == YES ]]; then
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/gtest/googletest/include/gtest/gtest.h ]]; then
-        rm -rf ${SRS_OBJS}/gtest && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/gtest ${SRS_OBJS}/ &&
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/gtest/googletest/include/gtest/gtest.h ]]; then
+        rm -rf ${SRS_OBJS}/gtest && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/gtest ${SRS_OBJS}/ &&
         echo "The gtest-fit is ok."
     else
         echo "Build gtest-fit" &&
-        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}gtest-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/gtest ${SRS_OBJS}/gtest &&
-        cp -rf ${SRS_WORKDIR}/3rdparty/gtest-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/gtest &&
-        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/gtest ${SRS_OBJS}/ &&
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}gtest-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/gtest ${SRS_OBJS}/gtest &&
+        cp -rf ${SRS_WORKDIR}/3rdparty/gtest-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/gtest &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/gtest ${SRS_OBJS}/ &&
         echo "The gtest-fit is ok."
     fi
     # check status
@@ -750,22 +738,22 @@ fi
 # build gperf code
 #####################################################################################
 if [[ $SRS_GPERF == YES ]]; then
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/gperf/bin/pprof ]]; then
-        rm -rf ${SRS_OBJS}/gperf && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/gperf ${SRS_OBJS}/ &&
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/gperf/bin/pprof ]]; then
+        rm -rf ${SRS_OBJS}/gperf && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/gperf ${SRS_OBJS}/ &&
         cp -f ${SRS_OBJS}/gperf/bin/pprof ${SRS_OBJS}/ &&
         echo "The gperftools-2-fit is ok."
     else
         echo "Build gperftools-2-fit" &&
-        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gperftools-2-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/gperf \
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gperftools-2-fit ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/gperf \
             ${SRS_OBJS}/gperf ${SRS_OBJS}/pprof &&
         cp -rf ${SRS_WORKDIR}/3rdparty/gperftools-2-fit ${SRS_OBJS}/${SRS_PLATFORM}/ &&
         (
             cd ${SRS_OBJS}/${SRS_PLATFORM}/gperftools-2-fit &&
-            ./configure --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdpatry/gperf --enable-frame-pointers
+            ./configure --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/gperf --enable-frame-pointers
         ) &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/gperftools-2-fit ${SRS_JOBS} &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/gperftools-2-fit install &&
-        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdpatry/gperf ${SRS_OBJS}/ &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/gperf ${SRS_OBJS}/ &&
         cp -f ${SRS_OBJS}/gperf/bin/pprof ${SRS_OBJS}/ &&
         echo "The gperftools-2-fit is ok."
     fi

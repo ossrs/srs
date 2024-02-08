@@ -52,7 +52,7 @@ static void rdtsc(uint64_t& x)
     asm("mov %0=ar.itc" : "=r"(x)::"memory");
 #elif SRT_SYNC_CLOCK == SRT_SYNC_CLOCK_AMD64_RDTSC
     uint32_t lval, hval;
-    asm("rdtsc" : "=a"(lval), "=d"(hval));
+    asm volatile("rdtsc" : "=a"(lval), "=d"(hval));
     x = hval;
     x = (x << 32) | lval;
 #elif SRT_SYNC_CLOCK == SRT_SYNC_CLOCK_WINQPC

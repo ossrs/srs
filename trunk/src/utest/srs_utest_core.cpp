@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 #include <srs_utest_core.hpp>
 
@@ -54,7 +54,7 @@ VOID TEST(CoreLogger, CheckVsnprintf)
         HELPER_ARRAY_INIT(buf, sizeof(buf), 0xf);
 
         // Return the number of characters printed.
-        EXPECT_EQ(6, sprintf(buf, "%s", "Hello!"));
+        EXPECT_EQ(6, snprintf(buf, sizeof(buf), "%s", "Hello!"));
         EXPECT_EQ('H', buf[0]);
         EXPECT_EQ('!', buf[5]);
         EXPECT_EQ(0x0, buf[6]);

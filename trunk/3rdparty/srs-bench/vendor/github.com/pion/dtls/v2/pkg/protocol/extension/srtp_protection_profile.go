@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package extension
 
 // SRTPProtectionProfile defines the parameters and options that are in effect for the SRTP processing

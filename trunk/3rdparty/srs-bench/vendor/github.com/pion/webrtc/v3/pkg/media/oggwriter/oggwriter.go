@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 // Package oggwriter implements OGG media container writer
 package oggwriter
 
@@ -43,7 +46,7 @@ type OggWriter struct {
 
 // New builds a new OGG Opus writer
 func New(fileName string, sampleRate uint32, channelCount uint16) (*OggWriter, error) {
-	f, err := os.Create(fileName)
+	f, err := os.Create(fileName) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +174,9 @@ func (i *OggWriter) createPage(payload []uint8, headerType uint8, granulePos uin
 func (i *OggWriter) WriteRTP(packet *rtp.Packet) error {
 	if packet == nil {
 		return errInvalidNilPacket
+	}
+	if len(packet.Payload) == 0 {
+		return nil
 	}
 
 	opusPacket := codecs.OpusPacket{}

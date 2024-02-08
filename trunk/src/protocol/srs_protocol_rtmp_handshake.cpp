@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_protocol_rtmp_handshake.hpp>
@@ -298,8 +298,6 @@ namespace srs_internal
     {
         srs_error_t err = srs_success;
         
-        int32_t bits_count = 1024;
-        
         close();
         
         //1. Create the DH
@@ -327,10 +325,7 @@ namespace srs_internal
             return srs_error_new(ERROR_OpenSslSetG, "set word");
         }
         
-        // 4. Set the key length
-        DH_set_length(pdh, bits_count);
-        
-        // 5. Generate private and public key
+        // 4. Generate private and public key
         // @see ./test/dhtest.c:152
         if (!DH_generate_key(pdh)) {
             return srs_error_new(ERROR_OpenSslGenerateDHKeys, "dh generate key");

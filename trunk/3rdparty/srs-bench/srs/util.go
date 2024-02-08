@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 Winlin
+// # Copyright (c) 2021 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -23,15 +23,23 @@ package srs
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	crand "crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"flag"
 	"fmt"
 	"github.com/ossrs/go-oryx-lib/amf0"
 	"github.com/ossrs/go-oryx-lib/avc"
 	"github.com/ossrs/go-oryx-lib/flv"
 	"github.com/ossrs/go-oryx-lib/rtmp"
+	"github.com/pion/ice/v2"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
 	"io"
+	"math/big"
 	"math/rand"
 	"net"
 	"net/http"
@@ -49,7 +57,7 @@ import (
 	"github.com/pion/interceptor"
 	"github.com/pion/logging"
 	"github.com/pion/rtcp"
-	"github.com/pion/transport/vnet"
+	"github.com/pion/transport/v2/vnet"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media/h264reader"
 )
@@ -463,6 +471,13 @@ func (v dtlsHandshakeType) String() string {
 	}
 }
 
+func newChunkAll(c vnet.Chunk) ([]byte, *chunkMessageType, bool, *dtlsRecord, error) {
+	b := c.UserData()
+	chunk, parsed := newChunkMessageType(c)
+	record, err := newDTLSRecord(c.UserData())
+	return b, chunk, parsed, record, err
+}
+
 type chunkMessageType struct {
 	chunk     chunkType
 	content   dtlsContentType
@@ -583,8 +598,8 @@ type testWebRTCAPI struct {
 	options []testWebRTCAPIOptionFunc
 	// The api and settings.
 	api           *webrtc.API
-	mediaEngine   *webrtc.MediaEngine
 	registry      *interceptor.Registry
+	mediaEngine   *webrtc.MediaEngine
 	settingEngine *webrtc.SettingEngine
 	// The vnet router, can be shared by different apis, but we do not share it.
 	router *vnet.Router
@@ -661,11 +676,15 @@ func registerMiniCodecsWithoutNack(api *testWebRTCAPI) error {
 func newTestWebRTCAPI(inits ...testWebRTCAPIInitFunc) (*testWebRTCAPI, error) {
 	v := &testWebRTCAPI{}
 
-	v.mediaEngine = &webrtc.MediaEngine{}
 	v.registry = &interceptor.Registry{}
+	v.mediaEngine = &webrtc.MediaEngine{}
 	v.settingEngine = &webrtc.SettingEngine{}
 
-	// Apply initialize filter, for example, register default codecs when create publisher/player.
+	// Disable the mDNS to suppress the error:
+	//		Failed to enable mDNS, continuing in mDNS disabled mode
+	v.settingEngine.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
+
+	// Apply an initialize filter, such as registering default codecs when creating a publisher/player.
 	for _, setup := range inits {
 		if setup == nil {
 			continue
@@ -705,9 +724,12 @@ func (v *testWebRTCAPI) Setup(vnetClientIP string, options ...testWebRTCAPIOptio
 
 		// Each api should bind to a network, however, it's possible to share it
 		// for different apis.
-		v.network = vnet.NewNet(&vnet.NetConfig{
+		v.network, err = vnet.NewNet(&vnet.NetConfig{
 			StaticIP: vnetClientIP,
 		})
+		if err != nil {
+			return errors.Wrapf(err, "create network for api")
+		}
 
 		if err = v.router.AddNet(v.network); err != nil {
 			return errors.Wrapf(err, "create network for api")
@@ -938,9 +960,88 @@ func (v *testPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
 
 type testPublisherOptionFunc func(p *testPublisher) error
 
+func createLargeRsaCertificate(p *testPublisher) error {
+	privateKey, err := rsa.GenerateKey(crand.Reader, 4096)
+	if err != nil {
+		return errors.Wrapf(err, "Generate key")
+	}
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Country:    []string{"CN"},
+			CommonName: "Pion WebRTC",
+		},
+		NotBefore: time.Now().Add(-24 * time.Hour),
+		NotAfter:  time.Now().Add(24 * time.Hour),
+		KeyUsage:  x509.KeyUsageDigitalSignature,
+	}
+
+	certificate, err := webrtc.NewCertificate(privateKey, template)
+	if err != nil {
+		return errors.Wrapf(err, "New certificate")
+	}
+
+	p.pcc.Certificates = []webrtc.Certificate{*certificate}
+
+	return nil
+}
+
+func createLargeEcdsaCertificate(p *testPublisher) error {
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
+	if err != nil {
+		return errors.Wrapf(err, "Generate key")
+	}
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Country:            []string{"CN"},
+			Organization:       []string{"Example Majestic Mountain Meadows"},
+			OrganizationalUnit: []string{"Example Emerald Enchantment Forest"},
+			Locality:           []string{"Sunset Serenity Shores"},
+			Province:           []string{"Crystal Cove Lagoon"},
+			StreetAddress:      []string{"1234 Market St Whispering Willow Valley"},
+			PostalCode:         []string{"100010"},
+			CommonName:         "MediaSphere Solutions CreativeWave Media Pion WebRTC",
+		},
+		NotBefore:             time.Now().Add(-24 * time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		OCSPServer:            []string{"http://CreativeMediaPro.example.com"},
+		IssuingCertificateURL: []string{"http://DigitalVisionary.example.com/ca1.crt"},
+		DNSNames:              []string{"PixelStoryteller.example.com", "www.SkylineExplorer.example.com"},
+		EmailAddresses:        []string{"HarmonyVisuals@example.com"},
+		IPAddresses:           []net.IP{net.ParseIP("192.0.2.1"), net.ParseIP("2001:db8::1")},
+		URIs:                  []*url.URL{&url.URL{Scheme: "https", Host: "SunsetDreamer.example.com"}},
+		PermittedDNSDomains:   []string{".SerenityFilms.example.com", "EnchantedLens.example.net"},
+		CRLDistributionPoints: []string{"http://crl.example.com/ca1.crl"},
+	}
+
+	certificate, err := webrtc.NewCertificate(privateKey, template)
+	if err != nil {
+		return errors.Wrapf(err, "New certificate")
+	}
+
+	p.pcc.Certificates = []webrtc.Certificate{*certificate}
+
+	return nil
+}
+
 type testPublisher struct {
-	onOffer        func(s *webrtc.SessionDescription) error
-	onAnswer       func(s *webrtc.SessionDescription) error
+	// When got offer.
+	onOffer func(s *webrtc.SessionDescription) error
+	// When got answer.
+	onAnswer func(s *webrtc.SessionDescription) error
+	// Whether ignore any PC state error, for error scenario test.
+	ignorePCStateError bool
+	// When PC state change.
+	onPeerConnectionStateChange func(state webrtc.PeerConnectionState)
+	// Whether ignore any DTLS error, for error scenario test.
+	ignoreDTLSStateError bool
+	// When DTLS state change.
+	onDTLSStateChange func(state webrtc.DTLSTransportState)
+	// When ICE is ready.
 	iceReadyCancel context.CancelFunc
 	// internal objects
 	aIngester *audioIngester
@@ -952,6 +1053,8 @@ type testPublisher struct {
 	streamSuffix string
 	// To cancel the publisher, pass by Run.
 	cancel context.CancelFunc
+	// The config for peer connection.
+	pcc *webrtc.Configuration
 }
 
 // Create test publisher, the init is used to initialize api which maybe nil,
@@ -959,7 +1062,9 @@ type testPublisher struct {
 func newTestPublisher(init testWebRTCAPIInitFunc, options ...testPublisherOptionFunc) (*testPublisher, error) {
 	sourceVideo, sourceAudio := *srsPublishVideo, *srsPublishAudio
 
-	v := &testPublisher{}
+	v := &testPublisher{
+		pcc: &webrtc.Configuration{},
+	}
 
 	api, err := newTestWebRTCAPI(init)
 	if err != nil {
@@ -991,14 +1096,14 @@ func newTestPublisher(init testWebRTCAPIInitFunc, options ...testPublisherOption
 		rtcpInterceptor.rtcpWriter = func(pkts []rtcp.Packet, attributes interceptor.Attributes) (int, error) {
 			return rtcpInterceptor.nextRTCPWriter.Write(pkts, attributes)
 		}
-		api.registry.Add(rtcpInterceptor)
+		api.registry.Add(&rtcpInteceptorFactory{rtcpInterceptor})
 
 		// Filter for ingesters.
 		if sourceAudio != "" {
-			api.registry.Add(v.aIngester.audioLevelInterceptor)
+			api.registry.Add(&rtpInteceptorFactory{v.aIngester.audioLevelInterceptor})
 		}
 		if sourceVideo != "" {
-			api.registry.Add(v.vIngester.markerInterceptor)
+			api.registry.Add(&rtpInteceptorFactory{v.vIngester.markerInterceptor})
 		}
 	})
 
@@ -1047,7 +1152,7 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 	logger.Tf(ctx, "Run publish url=%v, audio=%v, video=%v, fps=%v",
 		r, sourceAudio, sourceVideo, fps)
 
-	pc, err := v.api.NewPeerConnection(webrtc.Configuration{})
+	pc, err := v.api.NewPeerConnection(*v.pcc)
 	if err != nil {
 		return errors.Wrapf(err, "Create PC")
 	}
@@ -1123,14 +1228,28 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 		logger.Tf(ctx, "Signaling state %v", state)
 	})
 
+	var finalErr error
 	if v.aIngester != nil {
 		v.aIngester.sAudioSender.Transport().OnStateChange(func(state webrtc.DTLSTransportState) {
+			if v.onDTLSStateChange != nil {
+				v.onDTLSStateChange(state)
+			}
 			logger.Tf(ctx, "DTLS state %v", state)
+
+			if state == webrtc.DTLSTransportStateFailed {
+				if !v.ignoreDTLSStateError {
+					finalErr = errors.Errorf("DTLS failed")
+				}
+				cancel()
+			}
 		})
 	}
 
 	pcDone, pcDoneCancel := context.WithCancel(context.Background())
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
+		if v.onPeerConnectionStateChange != nil {
+			v.onPeerConnectionStateChange(state)
+		}
 		logger.Tf(ctx, "PC state %v", state)
 
 		if state == webrtc.PeerConnectionStateConnected {
@@ -1141,14 +1260,15 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 		}
 
 		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
-			err = errors.Errorf("Close for PC state %v", state)
+			if finalErr == nil && !v.ignorePCStateError {
+				finalErr = errors.Errorf("Close for PC state %v", state)
+			}
 			cancel()
 		}
 	})
 
 	// Wait for event from context or tracks.
 	var wg sync.WaitGroup
-	var finalErr error
 
 	wg.Add(1)
 	go func() {

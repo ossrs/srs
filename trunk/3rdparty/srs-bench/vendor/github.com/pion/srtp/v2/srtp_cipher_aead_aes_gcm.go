@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package srtp
 
 import (
@@ -13,13 +16,15 @@ const (
 )
 
 type srtpCipherAeadAesGcm struct {
+	ProtectionProfile
+
 	srtpCipher, srtcpCipher cipher.AEAD
 
 	srtpSessionSalt, srtcpSessionSalt []byte
 }
 
-func newSrtpCipherAeadAesGcm(masterKey, masterSalt []byte) (*srtpCipherAeadAesGcm, error) {
-	s := &srtpCipherAeadAesGcm{}
+func newSrtpCipherAeadAesGcm(profile ProtectionProfile, masterKey, masterSalt []byte) (*srtpCipherAeadAesGcm, error) {
+	s := &srtpCipherAeadAesGcm{ProtectionProfile: profile}
 
 	srtpSessionKey, err := aesCmKeyDerivation(labelSRTPEncryption, masterKey, masterSalt, 0, len(masterKey))
 	if err != nil {
@@ -60,59 +65,91 @@ func newSrtpCipherAeadAesGcm(masterKey, masterSalt []byte) (*srtpCipherAeadAesGc
 	return s, nil
 }
 
-func (s *srtpCipherAeadAesGcm) authTagLen() int {
-	return 16
-}
-
 func (s *srtpCipherAeadAesGcm) encryptRTP(dst []byte, header *rtp.Header, payload []byte, roc uint32) (ciphertext []byte, err error) {
-	hdr, err := header.Marshal()
+	// Grow the given buffer to fit the output.
+	authTagLen, err := s.aeadAuthTagLen()
+	if err != nil {
+		return nil, err
+	}
+	dst = growBufferSize(dst, header.MarshalSize()+len(payload)+authTagLen)
+
+	n, err := header.MarshalTo(dst)
 	if err != nil {
 		return nil, err
 	}
 
 	iv := s.rtpInitializationVector(header, roc)
-	out := s.srtpCipher.Seal(nil, iv, payload, hdr)
-	return append(hdr, out...), nil
+	s.srtpCipher.Seal(dst[n:n], iv[:], payload, dst[:n])
+	return dst, nil
 }
 
-func (s *srtpCipherAeadAesGcm) decryptRTP(dst, ciphertext []byte, header *rtp.Header, roc uint32) ([]byte, error) {
-	iv := s.rtpInitializationVector(header, roc)
-
-	out, err := s.srtpCipher.Open(nil, iv, ciphertext[header.PayloadOffset:], ciphertext[:header.PayloadOffset])
+func (s *srtpCipherAeadAesGcm) decryptRTP(dst, ciphertext []byte, header *rtp.Header, headerLen int, roc uint32) ([]byte, error) {
+	// Grow the given buffer to fit the output.
+	authTagLen, err := s.aeadAuthTagLen()
 	if err != nil {
 		return nil, err
 	}
+	nDst := len(ciphertext) - authTagLen
+	if nDst < 0 {
+		// Size of ciphertext is shorter than AEAD auth tag len.
+		return nil, errFailedToVerifyAuthTag
+	}
+	dst = growBufferSize(dst, nDst)
 
-	out = append(make([]byte, header.PayloadOffset), out...)
-	copy(out, ciphertext[:header.PayloadOffset])
+	iv := s.rtpInitializationVector(header, roc)
 
-	return out, nil
+	if _, err := s.srtpCipher.Open(
+		dst[headerLen:headerLen], iv[:], ciphertext[headerLen:], ciphertext[:headerLen],
+	); err != nil {
+		return nil, err
+	}
+
+	copy(dst[:headerLen], ciphertext[:headerLen])
+	return dst, nil
 }
 
 func (s *srtpCipherAeadAesGcm) encryptRTCP(dst, decrypted []byte, srtcpIndex uint32, ssrc uint32) ([]byte, error) {
-	iv := s.rtcpInitializationVector(srtcpIndex, ssrc)
-	aad := s.rtcpAdditionalAuthenticatedData(decrypted, srtcpIndex)
-
-	out := s.srtcpCipher.Seal(nil, iv, decrypted[8:], aad)
-
-	out = append(make([]byte, 8), out...)
-	copy(out, decrypted[:8])
-	out = append(out, aad[8:]...)
-
-	return out, nil
-}
-
-func (s *srtpCipherAeadAesGcm) decryptRTCP(out, encrypted []byte, srtcpIndex, ssrc uint32) ([]byte, error) {
-	iv := s.rtcpInitializationVector(srtcpIndex, ssrc)
-	aad := s.rtcpAdditionalAuthenticatedData(encrypted, srtcpIndex)
-
-	decrypted, err := s.srtcpCipher.Open(nil, iv, encrypted[8:len(encrypted)-srtcpIndexSize], aad)
+	authTagLen, err := s.aeadAuthTagLen()
 	if err != nil {
 		return nil, err
 	}
+	aadPos := len(decrypted) + authTagLen
+	// Grow the given buffer to fit the output.
+	dst = growBufferSize(dst, aadPos+srtcpIndexSize)
 
-	decrypted = append(encrypted[:8], decrypted...)
-	return decrypted, nil
+	iv := s.rtcpInitializationVector(srtcpIndex, ssrc)
+	aad := s.rtcpAdditionalAuthenticatedData(decrypted, srtcpIndex)
+
+	s.srtcpCipher.Seal(dst[8:8], iv[:], decrypted[8:], aad[:])
+
+	copy(dst[:8], decrypted[:8])
+	copy(dst[aadPos:aadPos+4], aad[8:12])
+	return dst, nil
+}
+
+func (s *srtpCipherAeadAesGcm) decryptRTCP(dst, encrypted []byte, srtcpIndex, ssrc uint32) ([]byte, error) {
+	aadPos := len(encrypted) - srtcpIndexSize
+	// Grow the given buffer to fit the output.
+	authTagLen, err := s.aeadAuthTagLen()
+	if err != nil {
+		return nil, err
+	}
+	nDst := aadPos - authTagLen
+	if nDst < 0 {
+		// Size of ciphertext is shorter than AEAD auth tag len.
+		return nil, errFailedToVerifyAuthTag
+	}
+	dst = growBufferSize(dst, nDst)
+
+	iv := s.rtcpInitializationVector(srtcpIndex, ssrc)
+	aad := s.rtcpAdditionalAuthenticatedData(encrypted, srtcpIndex)
+
+	if _, err := s.srtcpCipher.Open(dst[8:8], iv[:], encrypted[8:aadPos], aad[:]); err != nil {
+		return nil, err
+	}
+
+	copy(dst[:8], encrypted[:8])
+	return dst, nil
 }
 
 // The 12-octet IV used by AES-GCM SRTP is formed by first concatenating
@@ -121,8 +158,8 @@ func (s *srtpCipherAeadAesGcm) decryptRTCP(out, encrypted []byte, srtcpIndex, ss
 // value is then XORed to the 12-octet salt to form the 12-octet IV.
 //
 // https://tools.ietf.org/html/rfc7714#section-8.1
-func (s *srtpCipherAeadAesGcm) rtpInitializationVector(header *rtp.Header, roc uint32) []byte {
-	iv := make([]byte, 12)
+func (s *srtpCipherAeadAesGcm) rtpInitializationVector(header *rtp.Header, roc uint32) [12]byte {
+	var iv [12]byte
 	binary.BigEndian.PutUint32(iv[2:], header.SSRC)
 	binary.BigEndian.PutUint32(iv[6:], roc)
 	binary.BigEndian.PutUint16(iv[10:], header.SequenceNumber)
@@ -140,8 +177,8 @@ func (s *srtpCipherAeadAesGcm) rtpInitializationVector(header *rtp.Header, roc u
 // form the 12-octet IV.
 //
 // https://tools.ietf.org/html/rfc7714#section-9.1
-func (s *srtpCipherAeadAesGcm) rtcpInitializationVector(srtcpIndex uint32, ssrc uint32) []byte {
-	iv := make([]byte, 12)
+func (s *srtpCipherAeadAesGcm) rtcpInitializationVector(srtcpIndex uint32, ssrc uint32) [12]byte {
+	var iv [12]byte
 
 	binary.BigEndian.PutUint32(iv[2:], ssrc)
 	binary.BigEndian.PutUint32(iv[8:], srtcpIndex)
@@ -157,10 +194,10 @@ func (s *srtpCipherAeadAesGcm) rtcpInitializationVector(srtcpIndex uint32, ssrc 
 // "ESRTCP word"
 //
 // https://tools.ietf.org/html/rfc7714#section-17
-func (s *srtpCipherAeadAesGcm) rtcpAdditionalAuthenticatedData(rtcpPacket []byte, srtcpIndex uint32) []byte {
-	aad := make([]byte, 12)
+func (s *srtpCipherAeadAesGcm) rtcpAdditionalAuthenticatedData(rtcpPacket []byte, srtcpIndex uint32) [12]byte {
+	var aad [12]byte
 
-	copy(aad, rtcpPacket[:8])
+	copy(aad[:], rtcpPacket[:8])
 	binary.BigEndian.PutUint32(aad[8:], srtcpIndex)
 	aad[8] |= rtcpEncryptionFlag
 

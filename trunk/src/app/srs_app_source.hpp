@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_APP_SOURCE_HPP
@@ -368,6 +368,8 @@ public:
     virtual srs_error_t on_forwarder_start(SrsForwarder* forwarder);
     // For the SrsDvr to callback to request the sequence headers.
     virtual srs_error_t on_dvr_request_sh();
+    // For the SrsHls to callback to request the sequence headers.
+    virtual srs_error_t on_hls_request_sh();
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_forward(std::string vhost);

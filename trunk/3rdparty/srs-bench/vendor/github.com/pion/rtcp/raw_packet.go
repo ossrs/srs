@@ -6,8 +6,6 @@ import "fmt"
 // a packet with an unknown type is encountered.
 type RawPacket []byte
 
-var _ Packet = (*RawPacket)(nil) // assert is a Packet
-
 // Marshal encodes the packet in binary.
 func (r RawPacket) Marshal() ([]byte, error) {
 	return r, nil

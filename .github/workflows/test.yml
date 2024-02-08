@@ -28,8 +28,16 @@ jobs:
     steps:
       - name: Download Cache for Cygwin
         run: |
+          echo "Generate convert.sh" &&
+          echo "for file in \$(find objs -type l); do" > convert.sh &&
+          echo "    REAL=\$(readlink -f \$file) &&" >> convert.sh &&
+          echo "    echo \"convert \$file to \$REAL\" &&" >> convert.sh &&
+          echo "    rm -rf \$file &&" >> convert.sh &&
+          echo "    cp -r \$REAL \$file" >> convert.sh &&
+          echo "done" >> convert.sh &&
+          cat convert.sh &&
           docker run --rm -v $(pwd):/srs -w /usr/local/srs-cache/srs/trunk ossrs/srs:cygwin64-cache \
-            tar jcf /srs/objs.tar.bz2 objs &&
+              bash -c "bash /srs/convert.sh && tar cf /srs/objs.tar.bz2 objs" &&
           pwd && du -sh *
       ##################################################################################################################
       - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
@@ -71,9 +79,9 @@ jobs:
         shell: C:\cygwin64\bin\bash.exe --login '{0}'
         run: |
           WORKDIR=$(cygpath -u $SRS_WORKSPACE) && export PATH=/usr/bin:/usr/local/bin && cd ${WORKDIR} &&
-          pwd && rm -rf /usr/local/srs-cache && mkdir -p /usr/local/srs-cache/srs/trunk && 
+          pwd && rm -rf /usr/local/srs-cache && mkdir -p /usr/local/srs-cache/srs/trunk && ls -lh &&
           tar xf objs.tar.bz2 -C /usr/local/srs-cache/srs/trunk/ && du -sh /usr/local/srs-cache/srs/trunk/* && 
-          cd ${WORKDIR}/trunk && ./configure --gb28181=on --utest=on && ls -lh && du -sh * && du -sh objs/* &&
+          cd ${WORKDIR}/trunk && ./configure --h265=on --gb28181=on --utest=on && ls -lh && du -sh * && du -sh objs/* &&
           cd ${WORKDIR}/trunk && make utest && ./objs/srs_utest
     runs-on: windows-latest
 
@@ -147,9 +155,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       - name: Cross Build for ARMv7 on Ubuntu16
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cache-cross-armv7 .
       - name: Cross Build for ARMv7 on Ubuntu20
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-armv7 .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cache-cross-armv7 .
     runs-on: ubuntu-20.04
 
   build-cross-aarch64:
@@ -160,9 +168,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       - name: Cross Build for AARCH64 on Ubuntu16
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-aarch64 .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cache-cross-aarch64 .
       - name: Cross Build for AARCH64 on Ubuntu20
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-aarch64 .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cache-cross-aarch64 .
     runs-on: ubuntu-20.04
 
   test:
@@ -190,7 +198,8 @@ jobs:
       - name: Run SRS regression-test
         run: |
           docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && \
-              cd 3rdparty/srs-bench && ./objs/srs_test -test.v && ./objs/srs_gb28181_test -test.v'
+              cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1)) && \
+              ./objs/srs_gb28181_test -test.v'
     runs-on: ubuntu-20.04
 
   coverage:
@@ -244,7 +253,7 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             --build-arg INSTALLDEPENDS="NO" \
-            -f trunk/Dockerfile .
+            -f Dockerfile .
     runs-on: ubuntu-20.04
 
   multiple-arch-aarch64:
@@ -265,7 +274,7 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             --build-arg INSTALLDEPENDS="NO" \
-            -f trunk/Dockerfile .
+            -f Dockerfile .
     runs-on: ubuntu-20.04
 
   multiple-arch-amd64:
@@ -287,7 +296,7 @@ jobs:
           docker buildx build --platform linux/amd64 \
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
-            -f trunk/Dockerfile .
+            -f Dockerfile .
     runs-on: ubuntu-20.04
 
   fast:

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
+//go:build js && wasm
 // +build js,wasm
 
 package webrtc
@@ -22,7 +26,6 @@ func awaitPromise(promise js.Value) (js.Value, error) {
 		return js.Undefined()
 	})
 	defer thenFunc.Release()
-	promise.Call("then", thenFunc)
 
 	catchFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		go func() {
@@ -31,7 +34,8 @@ func awaitPromise(promise js.Value) (js.Value, error) {
 		return js.Undefined()
 	})
 	defer catchFunc.Release()
-	promise.Call("catch", catchFunc)
+
+	promise.Call("then", thenFunc).Call("catch", catchFunc)
 
 	select {
 	case result := <-resultsChan:
@@ -42,7 +46,7 @@ func awaitPromise(promise js.Value) (js.Value, error) {
 }
 
 func valueToUint16Pointer(val js.Value) *uint16 {
-	if jsValueIsNull(val) || jsValueIsUndefined(val) {
+	if val.IsNull() || val.IsUndefined() {
 		return nil
 	}
 	convertedVal := uint16(val.Int())
@@ -50,7 +54,7 @@ func valueToUint16Pointer(val js.Value) *uint16 {
 }
 
 func valueToStringPointer(val js.Value) *string {
-	if jsValueIsNull(val) || jsValueIsUndefined(val) {
+	if val.IsNull() || val.IsUndefined() {
 		return nil
 	}
 	stringVal := val.String()
@@ -79,28 +83,28 @@ func interfaceToValueOrUndefined(val interface{}) js.Value {
 }
 
 func valueToStringOrZero(val js.Value) string {
-	if jsValueIsUndefined(val) || jsValueIsNull(val) {
+	if val.IsUndefined() || val.IsNull() {
 		return ""
 	}
 	return val.String()
 }
 
 func valueToUint8OrZero(val js.Value) uint8 {
-	if jsValueIsUndefined(val) || jsValueIsNull(val) {
+	if val.IsUndefined() || val.IsNull() {
 		return 0
 	}
 	return uint8(val.Int())
 }
 
 func valueToUint16OrZero(val js.Value) uint16 {
-	if jsValueIsNull(val) || jsValueIsUndefined(val) {
+	if val.IsNull() || val.IsUndefined() {
 		return 0
 	}
 	return uint16(val.Int())
 }
 
 func valueToUint32OrZero(val js.Value) uint32 {
-	if jsValueIsNull(val) || jsValueIsUndefined(val) {
+	if val.IsNull() || val.IsUndefined() {
 		return 0
 	}
 	return uint32(val.Int())

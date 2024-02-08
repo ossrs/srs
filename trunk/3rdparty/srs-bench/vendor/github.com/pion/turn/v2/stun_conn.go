@@ -42,16 +42,19 @@ func consumeSingleTURNFrame(p []byte) (int, error) {
 	}
 
 	var datagramSize uint16
-	if stun.IsMessage(p) {
+	switch {
+	case stun.IsMessage(p):
 		datagramSize = binary.BigEndian.Uint16(p[2:4]) + stunHeaderSize
-	} else if num := binary.BigEndian.Uint16(p[0:4]); proto.ChannelNumber(num).Valid() {
+	case proto.ChannelNumber(binary.BigEndian.Uint16(p[0:2])).Valid():
 		datagramSize = binary.BigEndian.Uint16(p[channelDataNumberSize:channelDataHeaderSize])
 		if paddingOverflow := (datagramSize + channelDataPadding) % channelDataPadding; paddingOverflow != 0 {
 			datagramSize = (datagramSize + channelDataPadding) - paddingOverflow
 		}
 
 		datagramSize += channelDataHeaderSize
-	} else {
+	case len(p) < stunHeaderSize:
+		return 0, errIncompleteTURNFrame
+	default:
 		return 0, errInvalidTURNFrame
 	}
 

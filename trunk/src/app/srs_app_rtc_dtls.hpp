@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_APP_RTC_DTLS_HPP
@@ -83,10 +83,6 @@ public:
 // The state for DTLS client.
 enum SrsDtlsState {
     SrsDtlsStateInit, // Start.
-    SrsDtlsStateClientHello, // Should start ARQ thread.
-    SrsDtlsStateServerHello, // We are in the first ARQ state.
-    SrsDtlsStateClientCertificate, // Should start ARQ thread again.
-    SrsDtlsStateServerDone, // We are in the second ARQ state.
     SrsDtlsStateClientDone, // Done.
 };
 
@@ -106,25 +102,28 @@ protected:
     bool handshake_done_for_us;
     // The stat for ARQ packets.
     int nn_arq_packets;
+    uint8_t last_handshake_type;
+    uint8_t last_content_type;
 public:
     SrsDtlsImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsImpl();
 public:
+    // Internal API for sending DTLS packets.
+    srs_error_t write_dtls_data(void* data, int size);
+public:
     virtual srs_error_t initialize(std::string version, std::string role);
-    virtual srs_error_t start_active_handshake() = 0;
-    virtual bool should_reset_timer() = 0;
+    virtual srs_error_t start_active_handshake();
     virtual srs_error_t on_dtls(char* data, int nb_data);
 protected:
     srs_error_t do_on_dtls(char* data, int nb_data);
-    srs_error_t do_handshake();
-    void state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool arq);
+    void state_trace(uint8_t* data, int length, bool incoming, int r0);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
     void callback_by_ssl(std::string type, std::string desc);
 protected:
-    virtual srs_error_t on_final_out_data(uint8_t* data, int size) = 0;
     virtual srs_error_t on_handshake_done() = 0;
     virtual bool is_dtls_client() = 0;
+    virtual srs_error_t start_arq() = 0;
 };
 
 class SrsDtlsClientImpl : public SrsDtlsImpl, public ISrsCoroutineHandler
@@ -137,21 +136,15 @@ private:
     SrsDtlsState state_;
     // The max ARQ retry.
     int arq_max_retry;
-    // Should we reset the timer?
-    // It's true when init, or in state ServerHello.
-    bool reset_timer_;
 public:
     SrsDtlsClientImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsClientImpl();
 public:
     virtual srs_error_t initialize(std::string version, std::string role);
-    virtual srs_error_t start_active_handshake();
-    virtual bool should_reset_timer();
 protected:
-    virtual srs_error_t on_final_out_data(uint8_t* data, int size);
     virtual srs_error_t on_handshake_done();
     virtual bool is_dtls_client();
-private:
+protected:
     srs_error_t start_arq();
     void stop_arq();
 public:
@@ -165,12 +158,10 @@ public:
     virtual ~SrsDtlsServerImpl();
 public:
     virtual srs_error_t initialize(std::string version, std::string role);
-    virtual srs_error_t start_active_handshake();
-    virtual bool should_reset_timer();
 protected:
-    virtual srs_error_t on_final_out_data(uint8_t* data, int size);
     virtual srs_error_t on_handshake_done();
     virtual bool is_dtls_client();
+    srs_error_t start_arq();
 };
 
 class SrsDtlsEmptyImpl : public SrsDtlsImpl
@@ -180,16 +171,14 @@ public:
     virtual ~SrsDtlsEmptyImpl();
 public:
     virtual srs_error_t initialize(std::string version, std::string role);
-    virtual srs_error_t start_active_handshake();
-    virtual bool should_reset_timer();
     virtual srs_error_t on_dtls(char* data, int nb_data);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
     void callback_by_ssl(std::string type, std::string desc);
 protected:
-    virtual srs_error_t on_final_out_data(uint8_t* data, int size);
     virtual srs_error_t on_handshake_done();
     virtual bool is_dtls_client();
+    virtual srs_error_t start_arq();
 };
 
 class SrsDtls
@@ -203,7 +192,7 @@ public:
 public:
     srs_error_t initialize(std::string role, std::string version);
 public:
-    // As DTLS client, start handshake actively, send the ClientHello packet.
+    // Start DTLS handshake mechanism.
     srs_error_t start_active_handshake();
     // When got DTLS packet, may handshake packets or application data.
     // @remark When we are passive(DTLS server), we start handshake when got DTLS packet.

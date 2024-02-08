@@ -1,14 +1,14 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2024 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_APP_HTTP_STATIC_HPP
 #define SRS_APP_HTTP_STATIC_HPP
 
 #include <srs_core.hpp>
-
+#include <srs_app_security.hpp>
 #include <srs_app_http_conn.hpp>
 
 class ISrsFileReaderFactory;
@@ -52,6 +52,8 @@ private:
 // interface ISrsFastTimer
 private:
     srs_error_t on_timer(srs_utime_t interval);
+private:
+    SrsSecurity* security_;
 };
 
 // The Vod streaming, like FLV, MP4 or HLS streaming.
