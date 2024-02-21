@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"net"
 	"sync"
 	"time"
@@ -59,20 +58,35 @@ func doServe(hashID string, client, backend net.Conn) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	if c, ok := client.(*net.TCPConn); ok {
+		c.SetNoDelay(true)
+	}
+	if c, ok := backend.(*net.TCPConn); ok {
+		c.SetNoDelay(true)
+	}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		defer cancel()
 
 		for {
-			nn, err := io.CopyN(backend, client, 128*1024)
+			buf := make([]byte, 128*1024)
+			nn, err := client.Read(buf)
 			if err != nil {
-				trace(hashID, "Copy from client error %v", err)
+				trace(hashID, "Read from client error %v", err)
 				r0 = err
 				return
 			}
 			if nn == 0 {
-				trace(hashID, "Copy from client EOF")
+				trace(hashID, "Read from client EOF")
+				return
+			}
+
+			_, err = backend.Write(buf[:nn])
+			if err != nil {
+				trace(hashID, "Write to RTMP backend error %v", err)
+				r0 = err
 				return
 			}
 
@@ -86,13 +100,22 @@ func doServe(hashID string, client, backend net.Conn) error {
 		defer cancel()
 
 		for {
-			nn, err := io.CopyN(client, backend, 128*1024)
+			buf := make([]byte, 128*1024)
+			nn, err := backend.Read(buf)
 			if err != nil {
+				trace(hashID, "Read from RTMP backend error %v", err)
 				r0 = err
 				return
 			}
 			if nn == 0 {
-				trace(hashID, "Copy from backend EOF")
+				trace(hashID, "Read from RTMP backend EOF")
+				return
+			}
+
+			_, err = client.Write(buf[:nn])
+			if err != nil {
+				trace(hashID, "Write to client error %v", err)
+				r0 = err
 				return
 			}
 

@@ -90,7 +90,7 @@ func doMain(ctx context.Context) error {
 		if len(payload) == 0 {
 			continue
 		}
-		if tcp.DstPort != 1935 {
+		if tcp.DstPort != 1935 && tcp.DstPort != 19350 {
 			continue
 		}
 
