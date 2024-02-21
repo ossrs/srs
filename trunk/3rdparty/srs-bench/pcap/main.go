@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/gopacket"
@@ -62,9 +63,19 @@ func doMain(ctx context.Context) error {
 	}
 	defer f.Close()
 
-	r, err := pcapgo.NewNgReader(f, pcapgo.DefaultNgReaderOptions)
-	if err != nil {
-		return errors.Wrapf(err, "new reader")
+	var source *gopacket.PacketSource
+	if strings.HasSuffix(filename, ".pcap") {
+		r, err := pcapgo.NewReader(f)
+		if err != nil {
+			return errors.Wrapf(err, "new reader")
+		}
+		source = gopacket.NewPacketSource(r, r.LinkType())
+	} else {
+		r, err := pcapgo.NewNgReader(f, pcapgo.DefaultNgReaderOptions)
+		if err != nil {
+			return errors.Wrapf(err, "new reader")
+		}
+		source = gopacket.NewPacketSource(r, r.LinkType())
 	}
 
 	// TODO: FIXME: Should start a goroutine to consume bytes from conn.
@@ -76,7 +87,6 @@ func doMain(ctx context.Context) error {
 
 	var packetNumber uint64
 	var previousTime *time.Time
-	source := gopacket.NewPacketSource(r, r.LinkType())
 	for packet := range source.Packets() {
 		packetNumber++
 
