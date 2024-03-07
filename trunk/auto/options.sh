@@ -111,6 +111,8 @@ SRS_CROSS_BUILD_HOST=
 SRS_CROSS_BUILD_PREFIX=
 # For cache build
 SRS_BUILD_CACHE=YES
+
+SRS_OSX_HAS_CLOCK_GETTIME=
 #
 #####################################################################################
 # Toolchain for cross-build on Ubuntu for ARM or MIPS.
@@ -149,7 +151,19 @@ function apply_system_options() {
     OS_IS_RISCV=$(gcc -dM -E - </dev/null |grep -q '#define __riscv 1' && echo YES)
 
     # Set the os option automatically.
-    if [[ $OS_IS_OSX == YES ]]; then SRS_OSX=YES; fi
+    if [[ $OS_IS_OSX == YES ]]; then
+        SRS_OSX=YES;
+        OSX_VERSION_ARR=($(sw_vers --productVersion | tr "." "\n"))
+        # OSX version >= 10.12 has api clock_gettime; check man clock_gettime
+        if [[ ${OSX_VERSION_ARR[0]} -gt 10 ]]; then
+            SRS_OSX_HAS_CLOCK_GETTIME=YES
+        elif [[ ${OSX_VERSION_ARR[0]} -eq 10 && ${OSX_VERSION_ARR[1]} -ge 12 ]]; then
+            SRS_OSX_HAS_CLOCK_GETTIME=YES
+        else
+            echo "Warning: your OSX $(sw_vers --productVersion) has no api clock_gettime"
+            SRS_OSX_HAS_CLOCK_GETTIME=NO
+        fi
+    fi
     if [[ $OS_IS_CYGWIN == YES ]]; then SRS_CYGWIN64=YES; fi
 
     if [[ $OS_IS_OSX == YES ]]; then SRS_JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1); fi

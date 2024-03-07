@@ -254,6 +254,9 @@ fi
 # for osx, use darwin for st, donot use epoll.
 if [[ $SRS_OSX == YES ]]; then
     _ST_MAKE=darwin-debug && _ST_OBJ="DARWIN_`uname -r`_DBG"
+    if [[ $SRS_OSX_HAS_CLOCK_GETTIME != YES ]]; then
+        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_OSX_HAS_NO_CLOCK_GETTIME"
+    fi
 fi
 # for windows/cygwin
 if [[ $SRS_CYGWIN64 = YES ]]; then

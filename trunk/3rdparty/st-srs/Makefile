@@ -107,6 +107,9 @@ LDFLAGS     += -arch $(CPU_ARCHS)
 LDFLAGS     += -dynamiclib -install_name /sw/lib/libst.$(MAJOR).$(DSO_SUFFIX) -compatibility_version $(MAJOR) -current_version $(VERSION)
 OTHER_FLAGS = -Wall
 DEFINES     += -DMD_HAVE_KQUEUE -DMD_HAVE_SELECT
+# https://github.com/ossrs/srs/issues/3978
+# if your mac os version is less than 10.12, then add
+# DEFINES += -DMD_OSX_HAS_NO_CLOCK_GETTIME
 endif
 
 ifeq ($(OS), LINUX)
