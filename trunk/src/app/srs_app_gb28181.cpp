@@ -2756,8 +2756,11 @@ srs_error_t SrsGoApiGbPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
     SrsAutoFree(SrsJsonObject, res);
 
     if ((err = do_serve_http(w, r, res)) != srs_success) {
-        srs_warn("GB error %s", srs_error_desc(err).c_str()); srs_freep(err);
-        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+        srs_warn("GB error %s", srs_error_desc(err).c_str());
+        res->set("code", SrsJsonAny::integer(srs_error_code(err)));
+        res->set("desc", SrsJsonAny::str(srs_error_code_str(err).c_str()));
+        srs_freep(err);
+        return srs_api_response(w, r, res->dumps());
     }
 
     return srs_api_response(w, r, res->dumps());
