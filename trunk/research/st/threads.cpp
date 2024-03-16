@@ -1,6 +1,6 @@
 /*
 Directly compile c++ source and execute:
-    g++ win-thread.cpp ../../objs/st/libst.a -g -O0 -o win-thread && ./win-thread
+    g++ threads.cpp ../../objs/st/libst.a -g -O0 -o threads && ./threads
 */
 #include <stdio.h>
 #include <pthread.h>
