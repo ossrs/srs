@@ -323,7 +323,7 @@ cp -rf $SRS_WORKDIR/research/players ${SRS_OBJS}/nginx/html/ &&
 
 # for favicon.ico
 rm -rf ${SRS_OBJS}/nginx/html/favicon.ico &&
-cp -f $SRS_WORKDIR/research/api-server/static-dir/favicon.ico ${SRS_OBJS}/nginx/html/favicon.ico &&
+cp -f $SRS_WORKDIR/research/favicon.ico ${SRS_OBJS}/nginx/html/favicon.ico &&
 
 # For srs-console.
 rm -rf ${SRS_OBJS}/nginx/html/console &&
@@ -335,7 +335,7 @@ cp -rf $SRS_WORKDIR/3rdparty/signaling/www/demos ${SRS_OBJS}/nginx/html/ &&
 
 # For home page index.html
 rm -rf ${SRS_OBJS}/nginx/html/index.html &&
-cp -f $SRS_WORKDIR/research/api-server/static-dir/index.html ${SRS_OBJS}/nginx/html/index.html &&
+cp -f $SRS_WORKDIR/research/index.html ${SRS_OBJS}/nginx/html/index.html &&
 
 # nginx.html to detect whether nginx is alive
 echo "Nginx is ok." > ${SRS_OBJS}/nginx/html/nginx.html
