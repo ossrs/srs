@@ -36,7 +36,12 @@ using namespace std;
 #include <unistd.h>
 #include <fcntl.h>
 
-#if defined(SRS_OSX) || defined(SRS_CYGWIN64)
+#if defined(SRS_OSX)
+    pid_t gettid() {
+        uint64_t tid;
+        return pthread_threadid_np(NULL, &tid) ? 0 : tid;
+    }
+#elif defined(SRS_CYGWIN64)
     pid_t gettid() {
         return 0;
     }
@@ -550,6 +555,12 @@ SrsThreadPool::~SrsThreadPool()
         ::close(pid_fd);
         pid_fd = -1;
     }
+
+    while(!threads_.empty()) {
+        SrsThreadEntry* entry = threads_.back();
+        srs_freep(entry);
+        threads_.pop_back();
+    }
 }
 
 // Setup the thread-local variables, MUST call when each thread starting.
@@ -799,6 +810,7 @@ void* SrsThreadPool::start(void* arg)
         entry->err = srs_error_new(ERROR_THREAD_FINISHED, "finished normally");
     }
 
+	srs_st_destroy();
     // We do not use the return value, the err has been set to entry->err.
     return NULL;
 }
