@@ -60,7 +60,6 @@ jobs:
           platform: x86_64
           packages: bash make gcc-g++ cmake automake patch pkg-config tcl unzip
           install-dir: C:\cygwin64
-          check-sig: false
       ##################################################################################################################
       - name: Checkout repository
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
