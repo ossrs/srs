@@ -3131,9 +3131,9 @@ bool SrsConfig::get_asprocess()
 
 bool SrsConfig::whether_query_latest_version()
 {
-    SRS_OVERWRITE_BY_ENV_BOOL2("srs.query_latest_version"); // SRS_QUERY_LATEST_VERSION
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.query_latest_version"); // SRS_QUERY_LATEST_VERSION
 
-    static bool DEFAULT = true;
+    static bool DEFAULT = false;
 
     SrsConfDirective* conf = root->get("query_latest_version");
     if (!conf) {
