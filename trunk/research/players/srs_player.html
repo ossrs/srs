@@ -242,11 +242,11 @@
             hlsPlayer = new Hls({
                 enableWorker: true, // Improve performance and avoid lag/frame drops.
                 lowLatencyMode: true, // Enable Low-Latency HLS part playlist and segment loading.
-                liveSyncDurationCount: 0, // Start from the last segment.
-                liveMaxLatencyDurationCount: 4, // Maximum delay allowed from edge of live.
-                maxBufferLength: 5, // Maximum buffer length in seconds.
-                maxMaxBufferLength: 8, // The max Maximum buffer length in seconds.
-                maxLiveSyncPlaybackRate: 2, // Catch up if the latency is large.
+                liveSyncDurationCount: 2, // Start from the last few segments.
+                liveMaxLatencyDurationCount: 10, // Maximum delay allowed from edge of live.
+                maxBufferLength: 8, // Maximum buffer length in seconds.
+                maxMaxBufferLength: 10, // The max Maximum buffer length in seconds.
+                maxLiveSyncPlaybackRate: 1.2, // Catch up if the latency is large.
                 liveDurationInfinity: true // Override current Media Source duration to Infinity for a live broadcast.
             });
             hlsPlayer.loadSource(r.url);

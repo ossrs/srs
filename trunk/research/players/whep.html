@@ -55,13 +55,23 @@
         <button class="btn btn-primary" id="btn_play">Play</button>
     </div>
 
-    <label></label>
+    <p></p>
     <video id="rtc_media_player" controls autoplay></video>
 
-    <label></label>
+    <p></p>
+    <div class="form-inline">
+        Controls:
+        <label>
+            <input type="checkbox" id="ch_videoonly" style="margin-bottom: 8px"> Video Only
+        </label>
+        <label>
+            <input type="checkbox" id="ch_audioonly" style="margin-bottom: 8px"> Audio Only
+        </label>
+    </div>
+
     SessionID: <span id='sessionid'></span>
 
-    <label></label>
+    <p></p>
     Simulator: <a href='#' id='simulator-drop'>Drop</a>
 
     <footer>
@@ -89,7 +99,10 @@ $(function(){
 
         // For example: webrtc://r.ossrs.net/live/livestream
         var url = $("#txt_url").val();
-        sdk.play(url).then(function(session){
+        sdk.play(url, {
+            videoOnly: $('#ch_videoonly').prop('checked'),
+            audioOnly: $('#ch_audioonly').prop('checked'),
+        }).then(function(session){
             $('#sessionid').html(session.sessionid);
             $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
         }).catch(function (reason) {

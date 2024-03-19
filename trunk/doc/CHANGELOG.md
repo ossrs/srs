@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-03-20, Merge [#3964](https://github.com/ossrs/srs/pull/3964): WebRTC: Add support for A/V only WHEP/WHEP player. v6.0.116 (#3964)
 * v6.0, 2024-03-19, Merge [#3990](https://github.com/ossrs/srs/pull/3990): System: Disable feature that obtains versions and check features status. v6.0.115 (#3990)
 * v6.0, 2024-03-18, Merge [#3973](https://github.com/ossrs/srs/pull/3973): Typo: Fix some typo for #3973 #3976 #3982. v6.0.114 (#3973)
 * v6.0, 2024-02-06, Merge [#3920](https://github.com/ossrs/srs/pull/3920): WHIP: Fix bug for converting WHIP to RTMP/HLS. v6.0.113 (#3920)
