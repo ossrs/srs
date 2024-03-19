@@ -25,12 +25,12 @@ typedef int64_t srs_utime_t;
 
 // Convert srs_utime_t as second.
 #define srsu2s(us) ((us) / SRS_UTIME_SECONDS)
-#define srsu2si(us) ((us) / SRS_UTIME_SECONDS)
+#define srsu2si(us) int((us) / SRS_UTIME_SECONDS)
 
 // Them time duration = end - start. return 0, if start or end is 0.
 srs_utime_t srs_duration(srs_utime_t start, srs_utime_t end);
 
-// The time unit in ms, for example 120 * SRS_UTIME_SECONDS means 120s.
+// The time unit in seconds, for example 120 * SRS_UTIME_SECONDS means 120s.
 #define SRS_UTIME_SECONDS 1000000LL
 
 // The time unit in minutes, for example 3 * SRS_UTIME_MINUTES means 3m.
