@@ -445,7 +445,10 @@ void SrsStatistic::on_disconnect(std::string id, srs_error_t err)
     stream->nb_clients--;
     vhost->nb_clients--;
 
-    if (srs_error_code(err) != ERROR_SUCCESS) {
+    // TODO: FIXME: Should filter the err.
+    int err_code = srs_error_code(err);
+    if (err_code != ERROR_SUCCESS && err_code != ERROR_SOCKET_READ && err_code != ERROR_SOCKET_WRITE
+        && err_code != ERROR_SRT_IO) {
         nb_errs_++;
     }
 
