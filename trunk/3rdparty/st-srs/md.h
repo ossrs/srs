@@ -181,15 +181,17 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
 
     #if defined(__amd64__) || defined(__x86_64__)
         #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[6]))
+        #define MD_GET_BP(_t) *((long *)&((_t)->context[0].__jmpbuf[1]))
     #else
         #error Unknown CPU architecture
     #endif
 
-    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
+    #define MD_INIT_CONTEXT(_thread, _sp, _bp, _main) \
         ST_BEGIN_MACRO                             \
         if (MD_SETJMP((_thread)->context))         \
             _main();                                 \
         MD_GET_SP(_thread) = (long) (_sp);         \
+        MD_GET_BP(_thread) = (long) (_bp);         \
         ST_END_MACRO
 
     #define MD_GET_UTIME()            \

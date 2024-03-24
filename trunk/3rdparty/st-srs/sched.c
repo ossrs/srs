@@ -633,7 +633,16 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     _st_stack_t *stack;
     void **ptds;
     char *sp;
-    
+
+    void *stack_bp;             /* Frame pointer for this function */
+    void *stack_pbp;            /* Frame pointer for parent function */
+    unsigned long crbp;         /* Current RBP register value */
+    unsigned long crsp;         /* Current RSP register value */
+    unsigned long prbp;         /* Parent RBP register value */
+    int home_space_size;
+    asm volatile("mov %%rbp, %0" : "=r"(crbp));
+    asm volatile("mov %%rsp, %0" : "=r"(crsp));
+
     /* Adjust stack size */
     if (stk_size == 0)
         stk_size = ST_DEFAULT_STACK_SIZE;
@@ -663,7 +672,30 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     thread->start = start;
     thread->arg = arg;
 
-    _ST_INIT_CONTEXT(thread, stack->sp, _st_thread_main);
+    /* Initialize RBP and return address for parent coroutine. */
+    prbp = *(unsigned long*)crbp;
+    stack->sp = (char*)stack->sp - 0x10; /* For ra and rbp. */
+    *(((unsigned long*)stack->sp) + 1) = *(((unsigned long*)prbp) + 1); /* Save parent RA(return address) */
+    *(unsigned long*)stack->sp = *(unsigned long*)prbp; /* Save parent RBP */
+
+    stack_pbp = stack->sp;
+    home_space_size = (int)(prbp - crbp - 0x10);
+    stack->sp = (char*)stack->sp - home_space_size; /* Save parent home space */
+    memcpy(stack_pbp - home_space_size, (void*)(prbp - home_space_size), home_space_size);
+
+    /* Initialize RBP and return address for new coroutine. */
+    stack->sp = (char*)stack->sp - 0x10; /* For ra and rbp. */
+    *(((unsigned long*)stack->sp) + 1) = *(((unsigned long*)crbp)+1); /* Simulate instruction call, store RA(return address) */
+    *(unsigned long*)stack->sp = *(unsigned long*)crbp; /* Save RBP: push rbp */
+    *(unsigned long*)stack->sp = (unsigned long)stack_pbp; /* Overwrite parent RBP */
+
+    stack_bp = stack->sp; /* Save RSP as RBP: mov rbp, rsp */
+    home_space_size = (int)(crbp - crsp);
+    stack->sp = (char*)stack->sp - home_space_size; /* For home space: sub rsp, 0x20 */
+    memcpy(stack_bp - home_space_size, (void*)(crbp - home_space_size), home_space_size);
+
+    /* Initialize thread context. */
+    _ST_INIT_CONTEXT(thread, stack->sp, stack_bp, _st_thread_main);
 
     /* If thread is joinable, allocate a termination condition variable */
     if (joinable) {
