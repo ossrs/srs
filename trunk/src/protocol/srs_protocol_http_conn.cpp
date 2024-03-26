@@ -332,6 +332,20 @@ void SrsHttpMessage::set_header(SrsHttpHeader* header, bool keep_alive)
     }
 }
 
+// For callback function name, only allow [a-zA-Z0-9_-.] characters.
+bool srs_is_valid_jsonp_callback(std::string callback)
+{
+    for (int i = 0; i < (int)callback.length(); i++) {
+        char ch = callback.at(i);
+        bool is_alpha_beta = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+        bool is_number = (ch >= '0' && ch <= '9');
+        if (!is_alpha_beta && !is_number && ch != '.' && ch != '_' && ch != '-') {
+            return false;
+        }
+    }
+    return true;
+}
+
 srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
 {
     srs_error_t err = srs_success;
@@ -373,11 +387,15 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
     
     // parse jsonp request message.
     if (allow_jsonp) {
-        if (!query_get("callback").empty()) {
-            jsonp = true;
-        }
+        string callback= query_get("callback");
+        jsonp = !callback.empty();
+
         if (jsonp) {
             jsonp_method = query_get("method");
+        }
+
+        if (!srs_is_valid_jsonp_callback(callback)) {
+            return srs_error_new(ERROR_HTTP_JSONP, "invalid callback=%s", callback.c_str());
         }
     }
     
