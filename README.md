@@ -10,13 +10,9 @@
 [![](https://img.shields.io/badge/SRS-YouTube-red)](https://www.youtube.com/@srs_server)
 [![](https://badgen.net/discord/members/yZ4BnPmHAd)](https://discord.gg/yZ4BnPmHAd)
 [![](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fossrs%2Fsrs.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2Fossrs%2Fsrs?ref=badge_small)
-[![](https://ossrs.net/wiki/images/srs-faq.svg)](https://ossrs.net/lts/zh-cn/faq)
 [![](https://badgen.net/badge/srs/stackoverflow/orange?icon=terminal)](https://stackoverflow.com/questions/tagged/simple-realtime-server)
 [![](https://opencollective.com/srs-server/tiers/badge.svg)](https://opencollective.com/srs-server)
 [![](https://img.shields.io/docker/pulls/ossrs/srs)](https://hub.docker.com/r/ossrs/srs/tags)
-[![](https://ossrs.net/wiki/images/do-btn-srs-125x20.svg)](https://marketplace.digitalocean.com/apps/srs)
-[![](https://api.securityscorecards.dev/projects/github.com/ossrs/srs/badge)](https://api.securityscorecards.dev/projects/github.com/ossrs/srs)
-[![](https://bestpractices.coreinfrastructure.org/projects/5619/badge)](https://bestpractices.coreinfrastructure.org/projects/5619)
 
 SRS/6.0 ([Hang](https://ossrs.io/lts/en-us/product#release-60)) is a simple, high-efficiency, and real-time video server, 
 supporting RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/Windows/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS, 
