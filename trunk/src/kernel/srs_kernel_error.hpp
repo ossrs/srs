@@ -323,6 +323,7 @@
     XX(ERROR_GB_SSRC_GENERATE              , 4051, "GbSsrcGenerate", "Failed to generate SSRC for GB28181") \
     XX(ERROR_GB_CONFIG                     , 4052, "GbConfig", "Invalid configuration for GB28181") \
     XX(ERROR_GB_TIMEOUT                    , 4053, "GbTimeout", "SIP or media connection timeout for GB28181") \
+    XX(ERROR_HTTP_JSONP                    , 4058, "HttpJsonp", "Invalid callback for JSONP")
 
 /**************************************************/
 /* RTC protocol error. */

@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2024-03-26, Filter JSONP callback function name. v5.0.210
 * v5.0, 2024-03-19, Merge [#3990](https://github.com/ossrs/srs/pull/3990): System: Disable feature that obtains versions and check features status. v5.0.209 (#3990)
 * v5.0, 2024-02-06, Merge [#3920](https://github.com/ossrs/srs/pull/3920): WHIP: Fix bug for converting WHIP to RTMP/HLS. v5.0.208 (#3920)
 * v5.0, 2024-02-05, Merge [#3925](https://github.com/ossrs/srs/pull/3925): RTC: Fix video and audio track pt_ is not change in player before publisher. v5.0.207 (#3925)
