@@ -7,6 +7,11 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-03-26, Merge [#4005](https://github.com/ossrs/srs/pull/4005): Build: Fix module failed for  main_ingest_hls and mp4_parser. v6.0.119 (#4005)
+* v6.0, 2024-03-24, Merge [#3989](https://github.com/ossrs/srs/pull/3989): ST: Research adds examples that demos pthread and helloworld. v6.0.118 (#3989)
+* v6.0, 2024-03-19, Merge [#3958](https://github.com/ossrs/srs/pull/3958): Add a TCP proxy for debugging. v6.0.117 (#3958)
+* v6.0, 2024-03-20, Merge [#3964](https://github.com/ossrs/srs/pull/3964): WebRTC: Add support for A/V only WHEP/WHEP player. v6.0.116 (#3964)
+* v6.0, 2024-03-19, Merge [#3990](https://github.com/ossrs/srs/pull/3990): System: Disable feature that obtains versions and check features status. v6.0.115 (#3990)
 * v6.0, 2024-03-18, Merge [#3973](https://github.com/ossrs/srs/pull/3973): Typo: Fix some typo for #3973 #3976 #3982. v6.0.114 (#3973)
 * v6.0, 2024-02-06, Merge [#3920](https://github.com/ossrs/srs/pull/3920): WHIP: Fix bug for converting WHIP to RTMP/HLS. v6.0.113 (#3920)
 * v6.0, 2024-02-05, Merge [#3924](https://github.com/ossrs/srs/pull/3924): Upgrade hls.js and set in low latency mode. v6.0.112 (#3924)
@@ -125,6 +130,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2024-03-19, Merge [#3990](https://github.com/ossrs/srs/pull/3990): System: Disable feature that obtains versions and check features status. v5.0.209 (#3990)
 * v5.0, 2024-02-06, Merge [#3920](https://github.com/ossrs/srs/pull/3920): WHIP: Fix bug for converting WHIP to RTMP/HLS. v5.0.208 (#3920)
 * v5.0, 2024-02-05, Merge [#3925](https://github.com/ossrs/srs/pull/3925): RTC: Fix video and audio track pt_ is not change in player before publisher. v5.0.207 (#3925)
 * v5.0, 2024-02-05, Merge [#3923](https://github.com/ossrs/srs/pull/3923): Configure: print enabled/disable sanitizer. v5.0.206 (#3923)

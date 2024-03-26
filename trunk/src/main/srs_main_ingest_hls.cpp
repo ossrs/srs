@@ -30,6 +30,7 @@ using namespace std;
 #include <srs_protocol_rtmp_conn.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_threads.hpp>
 
 // pre-declare
 srs_error_t proxy_hls2rtmp(std::string hls, std::string rtmp);
@@ -43,6 +44,9 @@ SrsConfig* _srs_config = new SrsConfig();
 
 // @global Other variables.
 bool _srs_in_docker = false;
+
+// Whether setup config by environment variables, see https://github.com/ossrs/srs/issues/2277
+bool _srs_config_by_env = false;
 
 // The binary name of SRS.
 const char* _srs_binary = NULL;
@@ -63,7 +67,14 @@ int main(int argc, char** argv)
     srs_error("donot support gmc/gmp/gcp/gprof");
     exit(-1);
 #endif
-    
+
+    srs_error_t err = srs_success;
+    if ((err = srs_global_initialize()) != srs_success) {
+        srs_freep(err);
+        srs_error("global init error");
+        return -1;
+    }
+
     srs_trace("srs_ingest_hls base on %s, to ingest hls live to srs", RTMP_SIG_SRS_SERVER);
     
     // parse user options.
@@ -105,7 +116,7 @@ int main(int argc, char** argv)
     srs_trace("input:  %s", in_hls_url.c_str());
     srs_trace("output: %s", out_rtmp_url.c_str());
     
-    srs_error_t err = proxy_hls2rtmp(in_hls_url, out_rtmp_url);
+    err = proxy_hls2rtmp(in_hls_url, out_rtmp_url);
     
     int ret = srs_error_code(err);
     srs_freep(err);
@@ -604,7 +615,7 @@ int SrsIngestHlsInput::SrsTsPiece::fetch(string m3u8)
     }
     
     // initialize the fresh http client.
-    if ((ret = client.initialize(uri.get_schema(), uri.get_host(), uri.get_port()) != ERROR_SUCCESS)) {
+    if ((ret = client.initialize(uri.get_schema(), uri.get_host(), uri.get_port()) != srs_success)) {
         return ret;
     }
     
