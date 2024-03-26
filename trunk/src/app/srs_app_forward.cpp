@@ -36,6 +36,7 @@ SrsForwarder::SrsForwarder(SrsOriginHub* h)
     
     req = NULL;
     sh_video = sh_audio = NULL;
+    rtmps_ = false;
     
     sdk = NULL;
     trd = new SrsDummyCoroutine();
@@ -56,7 +57,7 @@ SrsForwarder::~SrsForwarder()
     srs_freep(req);
 }
 
-srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
+srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep, bool rtmps)
 {
     srs_error_t err = srs_success;
     
@@ -66,6 +67,8 @@ srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
     
     // the ep(endpoint) to forward to
     ep_forward = ep;
+
+    rtmps_ = rtmps;
 
     // Remember the source context id.
     source_cid_ = _srs_context->get_id();
@@ -208,13 +211,13 @@ srs_error_t SrsForwarder::do_cycle()
         srs_parse_hostport(ep_forward, server, port);
         
         // generate url
-        url = srs_generate_rtmp_url(server, port, req->host, req->vhost, req->app, req->stream, req->param);
+        url = srs_generate_rtmp_url(server, port, req->host, req->vhost, req->app, req->stream, req->param, rtmps_);
     }
     
     srs_freep(sdk);
     srs_utime_t cto = SRS_FORWARDER_CIMS;
     srs_utime_t sto = SRS_CONSTS_RTMP_TIMEOUT;
-    sdk = new SrsSimpleRtmpClient(url, cto, sto);
+    sdk = new SrsSimpleRtmpClient(url, cto, sto, rtmps_);
     
     if ((err = sdk->connect()) != srs_success) {
         return srs_error_wrap(err, "sdk connect url=%s, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));

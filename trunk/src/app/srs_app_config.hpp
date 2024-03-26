@@ -666,6 +666,8 @@ public:
     virtual SrsConfDirective* get_forwards(std::string vhost);
     // Get the forward directive of backend.
     virtual SrsConfDirective* get_forward_backend(std::string vhost);
+    // Get forward rtmps enabled.
+    virtual bool get_forward_rtmps(std::string vhost);
 
 public:
     // Whether the srt sevice enabled
@@ -1136,6 +1138,14 @@ public:
     virtual std::string get_exporter_listen();
     virtual std::string get_exporter_label();
     virtual std::string get_exporter_tag();
+// rtmps section
+private:
+    SrsConfDirective* get_rtmps();
+public:
+    virtual bool get_rtmps_enabled();
+    virtual std::vector<std::string> get_rtmps_listen();
+    virtual std::string get_rtmps_ssl_key();
+    virtual std::string get_rtmps_ssl_cert();
 };
 
 #endif

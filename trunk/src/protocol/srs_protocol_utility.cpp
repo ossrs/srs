@@ -351,9 +351,10 @@ void srs_parse_rtmp_url(string url, string& tcUrl, string& stream)
     }
 }
 
-string srs_generate_rtmp_url(string server, int port, string host, string vhost, string app, string stream, string param)
+string srs_generate_rtmp_url(string server, int port, string host, string vhost, string app, string stream, string param, bool rtmps)
 {
-    string tcUrl = "rtmp://" + server + ":" + srs_int2str(port) + "/"  + app;
+    string schema = rtmps ? "rtmps" : "rtmp";
+    string tcUrl = schema + "://" + server + ":" + srs_int2str(port) + "/"  + app;
     string streamWithQuery = srs_generate_stream_with_query(host, vhost, stream, param);
     string url = tcUrl + "/" + streamWithQuery;
     return url;
