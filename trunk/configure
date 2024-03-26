@@ -510,7 +510,7 @@ mv ${SRS_MAKEFILE} ${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_MAKEFILE}
-.PHONY: default all _default install help clean destroy server srs_ingest_hls utest _prepare_dir $__mphonys
+.PHONY: default all _default install help clean destroy server utest _prepare_dir $__mphonys
 .PHONY: clean_srs clean_modules clean_openssl clean_srtp2 clean_opus clean_ffmpeg clean_st
 .PHONY: st ffmpeg
 
@@ -543,7 +543,7 @@ default: server
 
 all: _default
 
-_default: server srs_ingest_hls utest $__mdefaults
+_default: server utest $__mdefaults
 
 help:
 	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<utest>|<install>|<uninstall>"
