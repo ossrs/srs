@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-03-26, Merge [#4005](https://github.com/ossrs/srs/pull/4005): Build: Fix module failed for  main_ingest_hls and mp4_parser. v6.0.119 (#4005)
 * v6.0, 2024-03-24, Merge [#3989](https://github.com/ossrs/srs/pull/3989): ST: Research adds examples that demos pthread and helloworld. v6.0.118 (#3989)
 * v6.0, 2024-03-19, Merge [#3958](https://github.com/ossrs/srs/pull/3958): Add a TCP proxy for debugging. v6.0.117 (#3958)
 * v6.0, 2024-03-20, Merge [#3964](https://github.com/ossrs/srs/pull/3964): WebRTC: Add support for A/V only WHEP/WHEP player. v6.0.116 (#3964)
