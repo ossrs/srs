@@ -394,6 +394,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     source = NULL;
     edge = NULL;
     req = NULL;
+    video_frames = 0;
 #ifdef SRS_APM
     span_main_ = NULL;
 #endif
@@ -463,6 +464,11 @@ void SrsEdgeIngester::stop()
 string SrsEdgeIngester::get_curr_origin()
 {
     return lb->selected();
+}
+
+uint64_t SrsEdgeIngester::nb_video_frames()
+{
+    return video_frames;
 }
 
 #ifdef SRS_APM
@@ -642,6 +648,7 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg, stri
     
     // process video packet
     if (msg->header.is_video()) {
+        video_frames ++;
         if ((err = source->on_video(msg)) != srs_success) {
             return srs_error_wrap(err, "source consume video");
         }
@@ -1012,6 +1019,11 @@ void SrsPlayEdge::on_all_client_stop()
 string SrsPlayEdge::get_curr_origin()
 {
     return ingester->get_curr_origin();
+}
+
+uint64_t SrsPlayEdge::get_ingester_video_frames()
+{
+    return ingester->nb_video_frames();
 }
 
 srs_error_t SrsPlayEdge::on_ingest_play()
