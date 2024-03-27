@@ -23,13 +23,10 @@ package gb28181
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -39,7 +36,7 @@ import (
 	"github.com/ghettovoice/gosip/sip"
 	"github.com/ossrs/go-oryx-lib/aac"
 	"github.com/ossrs/go-oryx-lib/errors"
-	"github.com/ossrs/go-oryx-lib/logger"
+	"github.com/ossrs/srs-bench/srs"
 	"github.com/yapingcat/gomedia/mpeg2"
 )
 
@@ -365,52 +362,23 @@ func (v *AACReader) NextADTSFrame() ([]byte, error) {
 	return adts, nil
 }
 
-// Request SRS GB API, the apiPath like "/gb/v1/publish",
-//
-// Return the response of answer  in string.
-func apiGbRequest(ctx context.Context, apiPath, host, stream, ssrc string) (string, error) {
-	api := host
-	if !strings.HasPrefix(apiPath, "/") {
-		api += "/"
-	}
-	api += apiPath
-
-	if !strings.HasSuffix(apiPath, "/") {
-		api += "/"
-	}
-
-	// Build JSON body.
-	reqBody := struct {
+func apiGbPublishRequest(ctx context.Context, stream, ssrc string) (int, error) {
+	req := struct {
 		ClientIP string `json:"clientip"`
 		Stream   string `json:"stream"`
 		SSRC     string `json:"ssrc"`
 	}{
-		host, stream, ssrc,
+		"", stream, ssrc,
 	}
 
-	b, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", errors.Wrapf(err, "Marshal body %v", reqBody)
-	}
-	logger.If(ctx, "Request url api=%v with %v", api, string(b))
-	logger.Tf(ctx, "Request url api=%v with %v bytes", api, len(b))
+	res := struct {
+		Code int `json:"code"`
+		Port int `json:"port"`
+	}{}
 
-	req, err := http.NewRequest("POST", api, strings.NewReader(string(b)))
-	if err != nil {
-		return "", errors.Wrapf(err, "HTTP request %v", string(b))
+	if err := srs.ApiRequest(ctx, "http://localhost:1985/gb/v1/publish/", req, &res); err != nil {
+		return 0, errors.Wrapf(err, "gb/v1/publish")
 	}
 
-	res, err := http.DefaultClient.Do(req.WithContext(ctx))
-	if err != nil {
-		return "", errors.Wrapf(err, "Do HTTP request %v", string(b))
-	}
-
-	b2, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", errors.Wrapf(err, "Read response for %v", string(b))
-	}
-	logger.If(ctx, "Response from %v is %v", api, string(b2))
-	logger.Tf(ctx, "Response from %v is %v bytes", api, len(b2))
-
-	return string(b2), nil
+	return res.Port, nil
 }

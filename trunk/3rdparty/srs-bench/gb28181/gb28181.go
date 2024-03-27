@@ -88,11 +88,11 @@ func Parse(ctx context.Context) interface{} {
 		os.Exit(0)
 	}
 
-	// showHelp := c.sipConfig.String() == ""
-	// if showHelp {
-	// 	fl.Usage()
-	// 	os.Exit(-1)
-	// }
+	showHelp := c.sipConfig.String() == "" && c.psConfig.addr == ""
+	if showHelp {
+		fl.Usage()
+		os.Exit(-1)
+	}
 
 	summaryDesc := ""
 	if c.sipConfig.addr != "" {

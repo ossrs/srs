@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2022 Winlin
+// # Copyright (c) 2022 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -23,11 +23,18 @@ package gb28181
 import (
 	"context"
 	"fmt"
+	"io"
+	"math/rand"
+	"strconv"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/ossrs/srs-bench/srs"
+
 	"github.com/ghettovoice/gosip/sip"
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
-	"testing"
-	"time"
 )
 
 func TestGbPublishRegularly(t *testing.T) {
@@ -520,6 +527,75 @@ func TestGbPublishUnregister(t *testing.T) {
 		return err
 	}()
 	if err := filterTestError(ctx.Err(), err, r1); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+func TestGbPublishWithApi(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	psConfig := PSConfig{
+		video: *srsPublishVideo,
+		fps:   *srsPublishVideoFps,
+		audio: *srsPublishAudio,
+	}
+
+	var r0, r1, r2 error
+	r0 = func() error {
+		// generate a random ssrc, and use it as the stream name.
+		ssrc := rand.Intn(900000000) + 1000000000
+		stream := strconv.FormatUint(uint64(ssrc), 10)
+
+		port, err := apiGbPublishRequest(ctx, stream, strconv.Itoa(ssrc))
+		if err != nil {
+			return errors.Wrapf(err, "apiGbPublishRequest stream=%v", stream)
+		}
+
+		ingester := NewPSIngester(&IngesterConfig{
+			psConfig:    psConfig,
+			ssrc:        uint32(ssrc),
+			clockRate:   90000,
+			payloadType: 96,
+		})
+		defer ingester.Close()
+
+		var wg sync.WaitGroup
+		defer wg.Wait()
+
+		// Check the stream is publishing.
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for ctx.Err() == nil {
+				stat := srs.NewStatApi(ctx).Streams().FilterByStreamSuffix(stream)
+				logger.Tf(ctx, "Check publishing, stream=%v", stat.Stream())
+				if stat.Stream() != nil {
+					return
+				}
+				time.Sleep(1 * time.Second)
+			}
+			r1 = ctx.Err()
+		}()
+
+		// Ingest the stream.
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ingester.conf.serverAddr = "tcp://localhost:" + strconv.Itoa(port)
+			if err := ingester.Ingest(ctx); err != nil {
+				if errors.Cause(err) == io.EOF {
+					logger.Tf(ctx, "EOF, video=%v, audio=%v", psConfig.video, psConfig.audio)
+					return
+				}
+				r2 = err
+			}
+		}()
+		return err
+	}()
+
+	if err := filterTestError(ctx.Err(), r0, r1, r2); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
