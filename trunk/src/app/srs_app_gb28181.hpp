@@ -15,6 +15,8 @@
 #include <srs_protocol_http_conn.hpp>
 #include <srs_kernel_ps.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_app_hybrid.hpp>
+#include <srs_app_security.hpp>
 
 #include <sstream>
 
@@ -88,6 +90,23 @@ enum SrsGbSipState
     SrsGbSipStateBye,
 };
 std::string srs_gb_sip_state(SrsGbSipState state);
+
+class SrsGoApiGbPublish : public ISrsHttpHandler
+{
+private:
+    SrsConfDirective* conf_;
+    SrsSecurity* security_;
+public:
+    SrsGoApiGbPublish(SrsConfDirective* conf);
+    virtual ~SrsGoApiGbPublish();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
+    srs_error_t bind_session(std::string stream, uint64_t ssrc);
+private:
+    virtual srs_error_t http_hooks_on_publish(SrsRequest* req);
+};
 
 // The main logic object for GB, the session.
 class SrsLazyGbSession : public SrsLazyObject, public ISrsResource, public ISrsStartable, public ISrsCoroutineHandler
@@ -179,6 +198,7 @@ public:
 public:
     srs_error_t initialize(SrsConfDirective* conf);
     srs_error_t listen();
+    srs_error_t listen_api();
     void close();
 // Interface ISrsTcpHandler
 public:
@@ -216,6 +236,8 @@ public:
     void setup(SrsConfDirective* conf, SrsTcpListener* sip, SrsTcpListener* media, srs_netfd_t stfd);
     // Get the SIP device id.
     std::string device_id();
+    // Set the SIP device id.
+    void set_device_id(const std::string& id);
     // Set the cid of all coroutines.
     virtual void set_cid(const SrsContextId& cid);
 private:
@@ -337,6 +359,7 @@ class SrsLazyGbMediaTcpConn : public SrsLazyObject, public ISrsResource, public 
     , public ISrsPsPackHandler
 {
 private:
+    SrsConfDirective* conf_;
     bool connected_;
     SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* wrapper_root_;
     SrsLazyObjectWrapper<SrsLazyGbSession>* session_;

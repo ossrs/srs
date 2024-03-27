@@ -594,7 +594,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
         if ((err = SrsHttpHooks::on_publish(url, req)) != srs_success) {
-            return srs_error_wrap(err, "rtmp on_publish %s", url.c_str());
+            return srs_error_wrap(err, "on_publish %s", url.c_str());
         }
     }
 

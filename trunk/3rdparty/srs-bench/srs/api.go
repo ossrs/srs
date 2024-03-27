@@ -87,6 +87,10 @@ func apiRequest(ctx context.Context, r string, req interface{}, res interface{})
 	return nil
 }
 
+func ApiRequest(ctx context.Context, r string, req interface{}, res interface{}) error {
+	return apiRequest(ctx, r, req, res)
+}
+
 // The SRS HTTP statistic API.
 type statAPI struct {
 	ctx     context.Context
@@ -96,6 +100,10 @@ type statAPI struct {
 
 func newStatAPI(ctx context.Context) *statAPI {
 	return &statAPI{ctx: ctx}
+}
+
+func NewStatApi(ctx context.Context) *statAPI {
+	return newStatAPI(ctx)
 }
 
 type statGeneral struct {
@@ -151,4 +159,8 @@ func (v *statAPI) FilterByStreamSuffix(suffix string) *statAPI {
 		}
 	}
 	return v
+}
+
+func (v *statAPI) Stream() *statStream {
+	return v.stream
 }

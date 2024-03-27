@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2022 Winlin
+// # Copyright (c) 2022 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -25,10 +25,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ghettovoice/gosip/sip"
-	"github.com/ossrs/go-oryx-lib/aac"
-	"github.com/ossrs/go-oryx-lib/errors"
-	"github.com/yapingcat/gomedia/mpeg2"
 	"io"
 	"net"
 	"net/url"
@@ -36,6 +32,12 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/ghettovoice/gosip/sip"
+	"github.com/ossrs/go-oryx-lib/aac"
+	"github.com/ossrs/go-oryx-lib/errors"
+	"github.com/ossrs/srs-bench/srs"
+	"github.com/yapingcat/gomedia/mpeg2"
 )
 
 var srsLog *bool
@@ -358,4 +360,25 @@ func (v *AACReader) NextADTSFrame() ([]byte, error) {
 	}
 
 	return adts, nil
+}
+
+func apiGbPublishRequest(ctx context.Context, stream, ssrc string) (int, error) {
+	req := struct {
+		ClientIP string `json:"clientip"`
+		Stream   string `json:"stream"`
+		SSRC     string `json:"ssrc"`
+	}{
+		"", stream, ssrc,
+	}
+
+	res := struct {
+		Code int `json:"code"`
+		Port int `json:"port"`
+	}{}
+
+	if err := srs.ApiRequest(ctx, "http://localhost:1985/gb/v1/publish/", req, &res); err != nil {
+		return 0, errors.Wrapf(err, "gb/v1/publish")
+	}
+
+	return res.Port, nil
 }
