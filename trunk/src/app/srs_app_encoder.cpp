@@ -199,7 +199,23 @@ srs_error_t SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
         srs_trace("ignore the disabled transcode: %s", conf->arg0().c_str());
         return err;
     }
-    
+
+    //Avoid repeat transcoding when the transcode is the same and source ip is localhost.
+    if (req->ip == SRS_CONSTS_LOCALHOST) {
+        std::map<string, string> kv_param;
+        srs_parse_query_string(req->param, kv_param);
+        int transcode_line = -1;
+        std::map<string, string>::iterator iter = kv_param.find("transcode_line");
+        if (iter != kv_param.end()) {
+            transcode_line = ::atoi(iter->second.c_str());
+        }
+
+        if (transcode_line == conf->conf_line) {
+            srs_trace("ignore the transcode : %s to avoid repeat transcoding", conf->arg0().c_str());
+            return err;
+        }
+    }
+
     // ffmpeg
     std::string ffmpeg_bin = _srs_config->get_transcode_ffmpeg(conf);
     if (ffmpeg_bin.empty()) {
@@ -221,9 +237,9 @@ srs_error_t SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
             srs_trace("ignore the diabled transcode engine: %s %s", conf->arg0().c_str(), engine->arg0().c_str());
             continue;
         }
-        
+
         SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
-        if ((err = initialize_ffmpeg(ffmpeg, req, engine)) != srs_success) {
+        if ((err = initialize_ffmpeg(ffmpeg, req, conf, engine)) != srs_success) {
             srs_freep(ffmpeg);
             return srs_error_wrap(err, "init ffmpeg");
         }
@@ -234,7 +250,7 @@ srs_error_t SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
     return err;
 }
 
-srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* engine)
+srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* conf, SrsConfDirective* engine)
 {
     srs_error_t err = srs_success;
     
@@ -269,7 +285,11 @@ srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, Sr
     output = srs_string_replace(output, "[param]", req->param);
     output = srs_string_replace(output, "[engine]", engine->arg0());
     output = srs_path_build_timestamp(output);
-    
+
+    std::stringstream params;
+    params << "&transcode_line=" << conf->conf_line;
+    output.append(params.str());
+
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
     // write ffmpeg info to log file.
     if (_srs_config->get_ff_log_enabled()) {
