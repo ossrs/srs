@@ -86,6 +86,7 @@ enum SrsGbSipState
     SrsGbSipStateReinviting,
     SrsGbSipStateStable,
     SrsGbSipStateBye,
+    // SrsGbSipStateDisconnect,
 };
 std::string srs_gb_sip_state(SrsGbSipState state);
 
@@ -116,6 +117,8 @@ private:
     srs_utime_t reinvite_wait_;
     // The number of timeout, dispose session if exceed.
     uint32_t nn_timeout_;
+    // The flag to delete
+    bool to_delete_;
 private:
     SrsAlonePithyPrint* ppp_;
     srs_utime_t startime_;
@@ -164,6 +167,10 @@ private:
 public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
+    void set_to_delete();
+    bool get_to_delete();
+    // reset sip state, if device reconnected before insert zombies
+    void reset();
 };
 
 // The SIP and Media listener for GB.
@@ -206,6 +213,7 @@ private:
     SrsLazyGbSipTcpReceiver* receiver_;
     SrsLazyGbSipTcpSender* sender_;
     SrsCoroutine* trd_;
+    srs_cond_t cond_;
 private:
     friend class SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>;
     SrsLazyGbSipTcpConn(SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* wrapper_root);
@@ -224,6 +232,8 @@ private:
 public:
     // When got a SIP message.
     srs_error_t on_sip_message(SrsSipMessage* msg);
+    // When SIP connection lost.
+    void on_sip_disconnect();
     // Enqueue a SIP message to send, which might be a request or response.
     void enqueue_sip_message(SrsSipMessage* msg);
 private:
@@ -247,8 +257,10 @@ public:
     bool is_stable();
     // Whether SIP is bye bye.
     bool is_bye();
+    // bool is_disconnect();
 private:
     SrsGbSipState set_state(SrsGbSipState v);
+    void wake_up();
 // Interface ISrsResource
 public:
     virtual const SrsContextId& get_id();

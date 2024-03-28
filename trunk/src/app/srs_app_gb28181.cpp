@@ -76,7 +76,7 @@ SrsLazyGbSession::SrsLazyGbSession(SrsLazyObjectWrapper<SrsLazyGbSession>* wrapp
     sip_ = new SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>();
     media_ = new SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>();
     muxer_ = new SrsGbMuxer(this);
-    state_ = SrsGbSessionStateInit;
+    reset();
 
     connecting_starttime_ = 0;
     connecting_timeout_ = 0;
@@ -400,6 +400,23 @@ std::string SrsLazyGbSession::desc()
     return "GBS";
 }
 
+void SrsLazyGbSession::set_to_delete()
+{
+    to_delete_ = true;
+    return;
+}
+
+bool SrsLazyGbSession::get_to_delete()
+{
+    return to_delete_;
+}
+
+void SrsLazyGbSession::reset() 
+{
+    state_ = SrsGbSessionStateInit;
+    to_delete_ = false;
+}
+
 SrsGbListener::SrsGbListener()
 {
     conf_ = NULL;
@@ -507,7 +524,7 @@ SrsLazyGbSipTcpConn::SrsLazyGbSipTcpConn(SrsLazyObjectWrapper<SrsLazyGbSipTcpCon
     conn_ = NULL;
     receiver_ = NULL;
     sender_ = NULL;
-
+    cond_ = srs_cond_new();
     trd_ = new SrsSTCoroutine("sip", this);
 }
 
@@ -521,6 +538,7 @@ SrsLazyGbSipTcpConn::~SrsLazyGbSipTcpConn()
     srs_freep(register_);
     srs_freep(invite_ok_);
     srs_freep(conf_);
+    srs_cond_destroy(cond_);
 }
 
 void SrsLazyGbSipTcpConn::setup(SrsConfDirective* conf, SrsTcpListener* sip, SrsTcpListener* media, srs_netfd_t stfd)
@@ -612,6 +630,11 @@ void SrsLazyGbSipTcpConn::enqueue_sip_message(SrsSipMessage* msg)
     sender_->enqueue(msg);
 }
 
+void SrsLazyGbSipTcpConn::on_sip_disconnect() {
+    session_->resource()->set_to_delete();
+    this->wake_up();
+}
+
 void SrsLazyGbSipTcpConn::drive_state(SrsSipMessage* msg)
 {
     srs_error_t err = srs_success;
@@ -622,6 +645,10 @@ void SrsLazyGbSipTcpConn::drive_state(SrsSipMessage* msg)
             srs_sip_state(ostate, state_).c_str()); \
     }
 
+    // if (state_ == SrsGbSipStateDisconnect) {
+    //     return;
+    // }
+    
     //const char* mt = msg->type_ == HTTP_REQUEST ? "REQUEST" : "RESPONSE";
     //const char* mm = msg->type_ == HTTP_REQUEST ? http_method_str(msg->method_) : "Response";
     //int ms = msg->type_ == HTTP_REQUEST ? 200 : msg->status_;
@@ -866,11 +893,21 @@ bool SrsLazyGbSipTcpConn::is_bye()
     return state_ == SrsGbSipStateBye;
 }
 
+// bool SrsLazyGbSipTcpConn::is_disconnect()
+// {
+//     return state_ == SrsGbSipStateDisconnect;
+// }
+
 SrsGbSipState SrsLazyGbSipTcpConn::set_state(SrsGbSipState v)
 {
     SrsGbSipState state = state_;
     state_ = v;
     return state;
+}
+
+void SrsLazyGbSipTcpConn::wake_up() 
+{
+    srs_cond_signal(cond_);
 }
 
 const SrsContextId& SrsLazyGbSipTcpConn::get_id()
@@ -909,6 +946,8 @@ srs_error_t SrsLazyGbSipTcpConn::cycle()
     // Interrupt the receiver and sender coroutine.
     receiver_->interrupt();
     sender_->interrupt();
+    // avoid bind session before resource destruction.
+    _srs_gb_manager->erase(session_);
 
     // Note that we added wrapper to manager, so we must free the wrapper, not this connection.
     SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* wrapper = wrapper_root_;
@@ -952,7 +991,11 @@ srs_error_t SrsLazyGbSipTcpConn::do_cycle()
         }
 
         // TODO: Handle other messages.
-        srs_usleep(SRS_UTIME_NO_TIMEOUT);
+        int ret = srs_cond_timedwait(cond_, 10 * SRS_UTIME_SECONDS);
+        // waitup by signal and no new connection bind session.
+        if (ret == -1 && session_->resource()->get_to_delete()) {
+            return srs_error_new(ret, "errno:%d", errno);
+        }
     }
 
     return err;
@@ -974,6 +1017,10 @@ srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyObjectW
 
     // Find exists session for register, might be created by another object and still alive.
     SrsLazyObjectWrapper<SrsLazyGbSession>* session = dynamic_cast<SrsLazyObjectWrapper<SrsLazyGbSession>*>(_srs_gb_manager->find_by_id(device));
+    // if session ready to delete but not insert in zombies, reuse it.
+    if (session && session->resource()->get_to_delete()) {
+        session->resource()->reset();
+    }
     if (!session) {
         // Create new GB session.
         session = new SrsLazyObjectWrapper<SrsLazyGbSession>();
@@ -1048,6 +1095,9 @@ srs_error_t SrsLazyGbSipTcpReceiver::cycle()
     // TODO: FIXME: Notify SIP transport to cleanup.
     if (err != srs_success) {
         srs_error("SIP: Receive err %s", srs_error_desc(err).c_str());
+        if (sip_) {
+            sip_->on_sip_disconnect();
+        }
     }
 
     return err;
