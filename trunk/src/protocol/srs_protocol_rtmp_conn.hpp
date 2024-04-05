@@ -20,6 +20,8 @@ class SrsPacket;
 class SrsNetworkKbps;
 class SrsWallClock;
 class SrsAmf0Object;
+class SrsSslClient;
+class ISrsProtocolReadWriter;
 
 // The simple RTMP client, provides friendly APIs.
 // @remark Should never use client when closed.
@@ -34,10 +36,12 @@ private:
     std::string url;
     srs_utime_t connect_timeout;
     srs_utime_t stream_timeout;
+    bool rtmps_;
 protected:
     SrsRequest* req;
 private:
     SrsTcpClient* transport;
+    SrsSslClient* ssl_transport_;
     SrsRtmpClient* client;
     SrsNetworkKbps* kbps;
     int stream_id;
@@ -46,7 +50,7 @@ public:
     // @param r The RTMP url, for example, rtmp://ip:port/app/stream?domain=vhost
     // @param ctm The timeout in srs_utime_t to connect to server.
     // @param stm The timeout in srs_utime_t to delivery A/V stream.
-    SrsBasicRtmpClient(std::string r, srs_utime_t ctm, srs_utime_t stm);
+    SrsBasicRtmpClient(std::string r, srs_utime_t ctm, srs_utime_t stm, bool rtmps = false);
     virtual ~SrsBasicRtmpClient();
 public:
     // Get extra args to carry more information.
@@ -72,6 +76,8 @@ public:
     virtual srs_error_t send_and_free_message(SrsSharedPtrMessage* msg);
 public:
     virtual void set_recv_timeout(srs_utime_t timeout);
+private:
+    virtual ISrsProtocolReadWriter* get_transport();
 };
 
 #endif

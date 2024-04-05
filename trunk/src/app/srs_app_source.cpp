@@ -1467,6 +1467,8 @@ srs_error_t SrsOriginHub::create_forwarders()
         return err;
     }
 
+    bool rtmps = _srs_config->get_forward_rtmps(req_->vhost);
+
     // For destanition config
     SrsConfDirective* conf = _srs_config->get_forwards(req_->vhost);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {
@@ -1476,7 +1478,7 @@ srs_error_t SrsOriginHub::create_forwarders()
         forwarders.push_back(forwarder);
         
         // initialize the forwarder with request.
-        if ((err = forwarder->initialize(req_, forward_server)) != srs_success) {
+        if ((err = forwarder->initialize(req_, forward_server, rtmps)) != srs_success) {
             return srs_error_wrap(err, "init forwarder");
         }
 
@@ -1498,6 +1500,8 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool& applied)
 
     // default not configure backend service
     applied = false;
+
+    bool rtmps = _srs_config->get_forward_rtmps(req_->vhost);
 
     SrsConfDirective* conf = _srs_config->get_forward_backend(req_->vhost);
     if (!conf || conf->arg0().empty()) {
@@ -1535,7 +1539,7 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool& applied)
         forward_server << req->host << ":" << req->port;
 
         // initialize the forwarder with request.
-        if ((err = forwarder->initialize(req, forward_server.str())) != srs_success) {
+        if ((err = forwarder->initialize(req, forward_server.str(), rtmps)) != srs_success) {
             return srs_error_wrap(err, "init backend forwarder failed, forward-to=%s", forward_server.str().c_str());
         }
 

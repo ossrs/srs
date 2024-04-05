@@ -107,7 +107,7 @@ extern void srs_parse_rtmp_url(std::string url, std::string& tcUrl, std::string&
 
 // Genereate the rtmp url, for instance, rtmp://server:port/app/stream?param
 // @remark We always put vhost in param, in the query of url.
-extern std::string srs_generate_rtmp_url(std::string server, int port, std::string host, std::string vhost, std::string app, std::string stream, std::string param);
+extern std::string srs_generate_rtmp_url(std::string server, int port, std::string host, std::string vhost, std::string app, std::string stream, std::string param, bool rtmps = false);
 
 // write large numbers of iovs.
 extern srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int size, ssize_t* pnwrite = NULL);
