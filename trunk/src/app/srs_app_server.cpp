@@ -1196,7 +1196,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
             // TODO: FIXME: Should manage this connection by _srs_rtc_manager
             resource = new SrsRtcTcpConn(io, ip, port, this);
         } else {
-            resource = new SrsHttpxConn(listener == http_listener_, this, io, http_server, ip, port);
+            resource = new SrsHttpxConn(listener == https_listener_, this, io, http_server, ip, port);
         }
     }
 #endif
