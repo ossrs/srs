@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-04-22, Merge [#4033](https://github.com/ossrs/srs/pull/4033): issue #3967: support x509 certification chiain in single pem file. v6.0.122 (#4033)
 * v6.0, 2024-03-26, Filter JSONP callback function name. v6.0.121
 * v6.0, 2024-03-26, Merge [#3995](https://github.com/ossrs/srs/pull/3995): Build: Refine workflow for cygwin and remove scorecard. v6.0.120 (#3995)
 * v6.0, 2024-03-26, Merge [#4005](https://github.com/ossrs/srs/pull/4005): Build: Fix module failed for  main_ingest_hls and mp4_parser. v6.0.119 (#4005)
@@ -132,6 +133,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2024-04-22, Merge [#4033](https://github.com/ossrs/srs/pull/4033): issue #3967: support x509 certification chiain in single pem file. v5.0.211 (#4033)
 * v5.0, 2024-03-26, Filter JSONP callback function name. v5.0.210
 * v5.0, 2024-03-19, Merge [#3990](https://github.com/ossrs/srs/pull/3990): System: Disable feature that obtains versions and check features status. v5.0.209 (#3990)
 * v5.0, 2024-02-06, Merge [#3920](https://github.com/ossrs/srs/pull/3920): WHIP: Fix bug for converting WHIP to RTMP/HLS. v5.0.208 (#3920)
