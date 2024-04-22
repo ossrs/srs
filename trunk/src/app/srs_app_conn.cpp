@@ -772,7 +772,7 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
     int r0, r1, size;
 
     // Setup the key and cert file for server.
-    if ((r0 = SSL_use_certificate_file(ssl, crt_file.c_str(), SSL_FILETYPE_PEM)) != 1) {
+    if ((r0 = SSL_use_certificate_chain_file(ssl, crt_file.c_str())) != 1) {
         return srs_error_new(ERROR_HTTPS_KEY_CRT, "use cert %s", crt_file.c_str());
     }
 
