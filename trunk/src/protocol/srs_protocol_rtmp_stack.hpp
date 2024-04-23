@@ -747,6 +747,10 @@ public:
     // When client type is publish, response with packets:
     // onStatus(NetStream.Publish.Start)
     virtual srs_error_t start_flash_publish(int stream_id);
+    // Response the start publishing message after hooks verified. To stop reconnecting of
+    // OBS when publish failed, we should never send the onStatus(NetStream.Publish.Start)
+    // message before failure caused by hooks. See https://github.com/ossrs/srs/issues/4037
+    virtual srs_error_t start_publishing(int stream_id);
 public:
     // Expect a specified message, drop others util got specified one.
     // @pmsg, user must free it. NULL if not success.
