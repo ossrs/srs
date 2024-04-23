@@ -1895,8 +1895,16 @@ VOID TEST(ProtocolRTMPTest, ServerFMLEStart)
             HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
             srs_freep(msg);
             srs_freep(pkt);
+        }
+
+        HELPER_EXPECT_SUCCESS(r.start_publishing(1));
+
+        if (true) {
+            tio.in_buffer.append(&io.out_buffer);
 
             // publish response onStatus(NetStream.Publish.Start)
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
             HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
             srs_freep(msg);
             srs_freep(pkt);
@@ -1934,8 +1942,16 @@ VOID TEST(ProtocolRTMPTest, ServerHaivisionPublish)
             HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
             srs_freep(msg);
             srs_freep(pkt);
+        }
+
+        HELPER_EXPECT_SUCCESS(r.start_publishing(1));
+
+        if (true) {
+            tio.in_buffer.append(&io.out_buffer);
 
             // publish response onStatus(NetStream.Publish.Start)
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
             HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
             srs_freep(msg);
             srs_freep(pkt);
@@ -2005,6 +2021,7 @@ VOID TEST(ProtocolRTMPTest, ServerFlashPublish)
         SrsRtmpServer r(&io);
 
         HELPER_EXPECT_SUCCESS(r.start_flash_publish(1));
+        HELPER_EXPECT_SUCCESS(r.start_publishing(1));
 
         if (true) {
             MockBufferIO tio;
