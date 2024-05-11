@@ -1002,6 +1002,11 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
         ->attr("timeout", srs_fmt("%d", srsu2msi(publish_normal_timeout)))->end();
     SrsAutoFree(ISrsApmSpan, span);
 #endif
+
+    // Response the start publishing message, let client start to publish messages.
+    if ((err = rtmp->start_publishing(info->res->stream_id)) != srs_success) {
+        return srs_error_wrap(err, "start publishing");
+    }
     
     int64_t nb_msgs = 0;
     uint64_t nb_frames = 0;

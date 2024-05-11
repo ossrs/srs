@@ -13,6 +13,7 @@
 #include <srs_kernel_stream.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_config.hpp>
+#include <srs_protocol_kbps.hpp>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,8 +31,13 @@ SrsConfig* _srs_config = new SrsConfig();
 // @global Other variables.
 bool _srs_in_docker = false;
 
+// Whether setup config by environment variables, see https://github.com/ossrs/srs/issues/2277
+bool _srs_config_by_env = false;
+
 // The binary name of SRS.
 const char* _srs_binary = NULL;
+
+extern SrsPps* _srs_pps_cids_get;
 
 srs_error_t parse(std::string mp4_file, bool verbose)
 {
@@ -88,6 +94,8 @@ srs_error_t parse(std::string mp4_file, bool verbose)
 
 int main(int argc, char** argv)
 {
+    _srs_pps_cids_get = new SrsPps();
+
     printf("SRS MP4 parser/%d.%d.%d, parse and show the mp4 boxes structure.\n",
            VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION);
 

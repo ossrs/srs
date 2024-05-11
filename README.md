@@ -10,13 +10,9 @@
 [![](https://img.shields.io/badge/SRS-YouTube-red)](https://www.youtube.com/@srs_server)
 [![](https://badgen.net/discord/members/yZ4BnPmHAd)](https://discord.gg/yZ4BnPmHAd)
 [![](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fossrs%2Fsrs.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2Fossrs%2Fsrs?ref=badge_small)
-[![](https://ossrs.net/wiki/images/srs-faq.svg)](https://ossrs.net/lts/zh-cn/faq)
 [![](https://badgen.net/badge/srs/stackoverflow/orange?icon=terminal)](https://stackoverflow.com/questions/tagged/simple-realtime-server)
 [![](https://opencollective.com/srs-server/tiers/badge.svg)](https://opencollective.com/srs-server)
 [![](https://img.shields.io/docker/pulls/ossrs/srs)](https://hub.docker.com/r/ossrs/srs/tags)
-[![](https://ossrs.net/wiki/images/do-btn-srs-125x20.svg)](https://marketplace.digitalocean.com/apps/srs)
-[![](https://api.securityscorecards.dev/projects/github.com/ossrs/srs/badge)](https://api.securityscorecards.dev/projects/github.com/ossrs/srs)
-[![](https://bestpractices.coreinfrastructure.org/projects/5619/badge)](https://bestpractices.coreinfrastructure.org/projects/5619)
 
 SRS/6.0 ([Hang](https://ossrs.io/lts/en-us/product#release-60)) is a simple, high-efficiency, and real-time video server, 
 supporting RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/Windows/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS, 
@@ -126,10 +122,13 @@ distributed under their [licenses](https://ossrs.io/lts/en-us/license).
 
 ## Releases
 
+* 2024-02-15, [Release v6.0-d4](https://github.com/ossrs/srs/releases/tag/v6.0-d4), v6.0-d4, 6.0 dev4, v6.0.113, 167695 lines.
 * 2023-11-19, [Release v6.0-d3](https://github.com/ossrs/srs/releases/tag/v6.0-d3), v6.0-d3, 6.0 dev3, v6.0.101, 167560 lines.
 * 2023-09-28, [Release v6.0-d2](https://github.com/ossrs/srs/releases/tag/v6.0-d2), v6.0-d2, 6.0 dev2, v6.0.85, 167509 lines.
 * 2023-08-31, [Release v6.0-d1](https://github.com/ossrs/srs/releases/tag/v6.0-d1), v6.0-d1, 6.0 dev1, v6.0.72, 167135 lines.
 * 2023-07-09, [Release v6.0-d0](https://github.com/ossrs/srs/releases/tag/v6.0-d0), v6.0-d0, 6.0 dev0, v6.0.59, 166739 lines.
+* 2024-04-03, [Release v5.0-r2](https://github.com/ossrs/srs/releases/tag/v5.0-r2), v5.0-r2, 5.0 release2, v5.0.210, 163515 lines.
+* 2024-02-15, [Release v5.0-r1](https://github.com/ossrs/srs/releases/tag/v5.0-r1), v5.0-r1, 5.0 release1, v5.0.208, 163441 lines.
 * 2023-12-30, [Release v5.0-r0](https://github.com/ossrs/srs/releases/tag/v5.0-r0), v5.0-r0, 5.0 release0, v5.0.205, 163363 lines.
 * 2023-11-19, [Release v5.0-b7](https://github.com/ossrs/srs/releases/tag/v5.0-b7), v5.0-b7, 5.0 beta7, v5.0.200, 163305 lines.
 * 2023-10-25, [Release v5.0-b6](https://github.com/ossrs/srs/releases/tag/v5.0-b6), v5.0-b6, 5.0 beta6, v5.0.195, 163303 lines.
