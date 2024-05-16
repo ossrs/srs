@@ -1120,7 +1120,7 @@ std::string srs_hevc_level2str(SrsHevcLevel level);
 
 /**
  * A sample is the unit of frame.
- * It's a NALU for H.264.
+ * It's a NALU for H.264, H.265.
  * It's the whole AAC raw data for AAC.
  * @remark Neither SPS/PPS or ASC is sample unit, it's codec sequence header.
  */
@@ -1131,15 +1131,11 @@ public:
     int size;
     // The ptr of unit, user must free it.
     char* bytes;
-    // Whether is B frame.
-    bool bframe;
 public:
     SrsSample();
     SrsSample(char* b, int s);
     ~SrsSample();
 public:
-    // If we need to know whether sample is bframe, we have to parse the NALU payload.
-    srs_error_t parse_bframe();
     // Copy sample, share the bytes pointer.
     SrsSample* copy();
 };
@@ -1322,6 +1318,9 @@ public:
     virtual srs_error_t add_sample(char* bytes, int size);
 public:
     virtual SrsVideoCodecConfig* vcodec();
+public:
+    static srs_error_t parse_avc_nalu_type(const SrsSample* sample, SrsAvcNaluType& avc_nalu_type);
+    static srs_error_t parse_avc_b_frame(const SrsSample* sample, bool& is_b_frame);
 };
 
 /**
