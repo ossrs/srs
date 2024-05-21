@@ -19,6 +19,8 @@ using namespace std;
 
 #include <srs_protocol_stream.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_protocol_format.hpp>
+#include <srs_kernel_codec.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_st.hpp>
@@ -630,6 +632,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     bool has_audio = _srs_config->get_vhost_http_remux_has_audio(req->vhost);
     bool has_video = _srs_config->get_vhost_http_remux_has_video(req->vhost);
     bool guess_has_av = _srs_config->get_vhost_http_remux_guess_has_av(req->vhost);
+    bool keep_avc_nalu_sei = _srs_config->get_vhost_http_remux_keep_avc_nalu_sei(req->vhost);
 
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
@@ -719,6 +722,9 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         entry->pattern.c_str(), enc_desc.c_str(), srsu2msi(mw_sleep), enc->has_cache(), msgs.max, drop_if_not_match,
         has_audio, has_video, guess_has_av);
 
+    SrsRtmpFormat format;
+    format.initialize();
+    
     // TODO: free and erase the disabled entry after all related connections is closed.
     // TODO: FXIME: Support timeout for player, quit infinite-loop.
     while (entry->enabled) {
@@ -748,7 +754,15 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
             srs_trace("-> " SRS_CONSTS_LOG_HTTP_STREAM " http: got %d msgs, age=%d, min=%d, mw=%d",
                 count, pprint->age(), SRS_PERF_MW_MIN_MSGS, srsu2msi(mw_sleep));
         }
-        
+
+        // Drop h.264 flv video tags with NALU SEI here to fix http-flv play error in safari mac.
+        // @see https://github.com/ossrs/srs/issues/4052
+        if (!keep_avc_nalu_sei) {
+            if ((err = filter_avc_nalu_sei(format, msgs.msgs, count)) != srs_success) {
+                return srs_error_wrap(err, "filter avc/h264 nalu sei");
+            }
+        }
+
         // sendout all messages.
         if (ffe) {
             err = ffe->write_tags(msgs.msgs, count);
@@ -763,7 +777,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
             SrsSharedPtrMessage* msg = msgs.msgs[i];
             srs_freep(msg);
         }
-        
+
         // check send error code.
         if (err != srs_success) {
             return srs_error_wrap(err, "send messages");
@@ -869,6 +883,186 @@ srs_error_t SrsLiveStream::streaming_send_messages(ISrsBufferEncoder* enc, SrsSh
             return srs_error_wrap(err, "send messages");
         }
     }
+    
+    return err;
+}
+
+srs_error_t SrsLiveStream::filter_avc_nalu_sei(SrsRtmpFormat& format, SrsSharedPtrMessage** msgs, int& count) {
+    srs_error_t err = srs_success;
+    bool has_sei = false;
+    if ((err = has_avc_nalu_sei(format, msgs, count, has_sei)) != srs_success) {
+        return srs_error_wrap(err, "check avc nalu sei");
+    }
+
+    if (!has_sei) {
+        return err;
+    }
+
+    std::vector<SrsSharedPtrMessage*> remuxed_msgs;
+    for (size_t i = 0; i < count; i++) {
+        SrsSharedPtrMessage* msg = msgs[i];
+        if (msg->is_video()) {
+            if ((err = format.on_video(msg)) != srs_success) {
+                return srs_error_wrap(err, "format consume video");
+            }
+
+            if (format.vcodec->id == SrsVideoCodecIdAVC &&
+                format.video->avc_packet_type == SrsVideoAvcFrameTraitNALU) {
+                std::vector<int> sei_idxes;
+                // found which nalu is SEI, store its index inorder to sei_idxes;
+                for (size_t j = 0; j < format.video->nb_samples; ++j) {
+                    SrsSample* sample = &format.video->samples[j];
+
+                    SrsAvcNaluType avc_nalu_type = SrsAvcNaluTypeReserved;
+                    if ((err = SrsVideoFrame::parse_avc_nalu_type(sample, avc_nalu_type)) != srs_success) {
+                        return srs_error_wrap(err, "parse avc nalu_type");
+                    }
+                    if (avc_nalu_type == SrsAvcNaluTypeSEI) {
+                        sei_idxes.push_back(j);
+                    }
+                }
+                
+                if (sei_idxes.size() == 0) { // no sei nalu, keep this msg
+                    remuxed_msgs.push_back(msg->copy());
+                    continue;
+                } else if (sei_idxes.size() == format.video->nb_samples) {
+                    // all the nalu is SEI type, remove this msg
+                    continue;
+                } else {
+                    // part of nalu is SEI, do remux this msg.
+                    int nalus_count = format.video->nb_samples - sei_idxes.size();
+                    
+                    SrsSample nalus[nalus_count];
+                    size_t p = 0;
+                    size_t r = 0;
+                    for (size_t j = 0; j < format.video->nb_samples; j++) {
+                        if (sei_idxes[r] == j) {
+                            r++;
+                        } else {
+                            SrsSample* s = &format.video->samples[j];
+                            nalus[p].size = s->size;
+                            nalus[p].bytes = s->bytes;
+                            p++;
+                        }
+                    }
+
+                    SrsSharedPtrMessage* m = NULL;
+                    if ((err = remux_avc_nalus(format, msg, &m, nalus, nalus_count))
+                        != srs_success) {
+                        return srs_error_wrap(err, "remux avc nalus");
+                    }
+
+                    remuxed_msgs.push_back(m);
+                    continue;
+                }
+            }
+        }
+
+        remuxed_msgs.push_back(msg->copy());
+    }
+
+    // free the messages.
+    for (size_t i = 0; i < count; i++) {
+        SrsSharedPtrMessage* msg = msgs[i];
+        srs_freep(msg);
+    }
+
+    // copy remuxed_msgs -> msgs
+    count = remuxed_msgs.size();
+    SrsSharedPtrMessage** pmsgs = remuxed_msgs.data();
+    memcpy(msgs, pmsgs, count * sizeof(SrsSharedPtrMessage*));
+    return err;
+}
+
+srs_error_t SrsLiveStream::has_avc_nalu_sei(SrsRtmpFormat& format, SrsSharedPtrMessage** msgs, int& count,
+                                            bool& has_sei) {
+    srs_error_t err = srs_success;
+    has_sei = false;
+    
+    for (int i = 0; i < count; i++) {
+        SrsSharedPtrMessage* msg = msgs[i];
+        if (msg->is_video()) {
+            if ((err = format.on_video(msg)) != srs_success) {
+                srs_error("has_sei: format.on_video error");
+                return srs_error_wrap(err, "format consume video");
+            }
+
+            if (format.vcodec->id == SrsVideoCodecIdAVC &&
+                format.video->avc_packet_type == SrsVideoAvcFrameTraitNALU) {
+
+                for (size_t j = 0; j < format.video->nb_samples; j++) {
+                    SrsSample* sample = &format.video->samples[j];
+
+                    SrsAvcNaluType avc_nalu_type = SrsAvcNaluTypeReserved;
+                    if ((err = SrsVideoFrame::parse_avc_nalu_type(sample, avc_nalu_type)) != srs_success) {
+                        return srs_error_wrap(err, "parse avc nalu_type");
+                    }
+                    
+                    if (avc_nalu_type == SrsAvcNaluTypeSEI) {
+                        has_sei = true;
+                        return err;
+                    } 
+                }
+            }
+        }
+    }
+    
+    return err;
+}
+
+srs_error_t SrsLiveStream::remux_avc_nalus(const SrsRtmpFormat& format,
+                                           const SrsSharedPtrMessage* msg,
+                                           SrsSharedPtrMessage** output_msg,
+                                           SrsSample* nalus,
+                                           size_t nalu_count)
+{
+    srs_error_t err = srs_success;
+
+    if (!msg->is_video()) {
+        return srs_error_new(ERROR_RTMP_MESSAGE_CREATE, "msg is not video");
+    }
+    // normal flv video tag header 5 bytes; 
+    // extened(enhanced) flv video tag header 8 bytes;
+    // but h264 use normal flv video tag header format;
+    const int video_tag_header_size = 5;
+    size_t nalu_header_size = 3;
+    if (format.vcodec->payload_format == SrsAvcPayloadFormatIbmf) {
+        nalu_header_size = format.vcodec->NAL_unit_length + 1;
+    } else if (format.vcodec->payload_format == SrsAvcPayloadFormatAnnexb) {
+        nalu_header_size = 3; // 00 00 01
+    } else {
+        return srs_error_new(ERROR_RTMP_MESSAGE_CREATE,
+                             "unkown nalu format type %d",
+                             format.vcodec->payload_format);
+    }
+
+    // calculate new video tag size;
+    size_t payload_size = video_tag_header_size;
+
+    for (size_t i = 0; i < nalu_count; i++) {
+        payload_size += nalus[i].size + nalu_header_size;
+    }
+
+    srs_assert(payload_size <= msg->size);
+
+    SrsSharedPtrMessage* m = new SrsSharedPtrMessage();
+    char* payload = (char*)malloc(payload_size);
+    char* payload_p = payload;
+    // memcpy video tag header
+    memcpy(payload_p, msg->payload, video_tag_header_size);
+    payload_p += video_tag_header_size;
+    // memcpy nalu payloads
+    for (size_t i = 0; i < nalu_count; i++) {
+        int n = nalus[i].size + nalu_header_size;
+        memcpy(payload_p, nalus[i].bytes - nalu_header_size, n);
+        payload_p += n;
+    }
+                    
+    if ((err = m->create(msg, payload, payload_size)) != srs_success) {
+        return srs_error_wrap(err, "create SrsSharedPtrMessage error.");
+    }
+
+    *output_msg = m;
     
     return err;
 }

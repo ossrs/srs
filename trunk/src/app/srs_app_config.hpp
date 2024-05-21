@@ -1098,6 +1098,7 @@ public:
     bool get_vhost_http_remux_has_video(std::string vhost);
     // Whether guessing stream about audio or video track
     bool get_vhost_http_remux_guess_has_av(std::string vhost);
+    bool get_vhost_http_remux_keep_avc_nalu_sei(std::string vhost);
     // Get the http flv live stream mount point for vhost.
     // used to generate the flv stream mount path.
     virtual std::string get_vhost_http_remux_mount(std::string vhost);

@@ -2646,7 +2646,8 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "drop_if_not_match"
-                        && m != "has_audio" && m != "has_video" && m != "guess_has_av") {
+                        && m != "has_audio" && m != "has_video" && m != "guess_has_av"
+                        && m != "keep_avc_nalu_sei") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.http_remux.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -8659,6 +8660,30 @@ bool SrsConfig::get_vhost_http_remux_guess_has_av(string vhost)
     }
 
     conf = conf->get("guess_has_av");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_vhost_http_remux_keep_avc_nalu_sei(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.http_remux.keep_avc_nalu_sei"); // SRS_VHOST_HTTP_REMUX_KEEP_AVC_NALU_SEI
+
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("http_remux");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("keep_avc_nalu_sei");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

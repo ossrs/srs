@@ -304,6 +304,11 @@ public:
     // @remark user should never free the payload.
     // @param pheader, the header to copy to the message. NULL to ignore.
     virtual srs_error_t create(SrsMessageHeader* pheader, char* payload, int size);
+    // Create shared ptr message,
+    // from another SrsSharedPtrMessage and replace its payload.
+    // @remark user should never free the payload.
+    // @param msg, the SrsSharedPtrMessage to copy its ptr->header to the message. NULL to ignore.
+    virtual srs_error_t create(const SrsSharedPtrMessage* msg, char* payload, int size);
     // Create shared ptr message from RAW payload.
     // @remark Note that the header is set to zero.
     virtual void wrap(char* payload, int size);
@@ -317,9 +322,9 @@ public:
     // @return whether stream id already set.
     virtual bool check(int stream_id);
 public:
-    virtual bool is_av();
-    virtual bool is_audio();
-    virtual bool is_video();
+    virtual bool is_av() const;
+    virtual bool is_audio() const;
+    virtual bool is_video() const;
 public:
     // generate the chunk header to cache.
     // @return the size of header.

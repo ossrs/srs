@@ -190,6 +190,13 @@ private:
     virtual srs_error_t http_hooks_on_play(ISrsHttpMessage* r);
     virtual void http_hooks_on_stop(ISrsHttpMessage* r);
     virtual srs_error_t streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
+    virtual srs_error_t filter_avc_nalu_sei(SrsRtmpFormat& format, SrsSharedPtrMessage** msgs, int& count);
+    virtual srs_error_t has_avc_nalu_sei(SrsRtmpFormat& format, SrsSharedPtrMessage** msgs, int& count, bool& has_sei);
+    virtual srs_error_t remux_avc_nalus(const SrsRtmpFormat& format,
+                                        const SrsSharedPtrMessage* msg,
+                                        SrsSharedPtrMessage** output_msg,
+                                        SrsSample* nalus,
+                                        size_t nalu_cout);
 };
 
 // The Live Entry, to handle HTTP Live Streaming.

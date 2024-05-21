@@ -1363,10 +1363,11 @@ public:
     virtual bool is_mp3_sequence_header();
     virtual bool is_avc_sequence_header();
 private:
-    // Demux the video packet in H.264 codec.
+    // Demux the video packet in H.264|H.265 codec.
     // The packet is muxed in FLV format, defined in flv specification.
     //          Demux the sps/pps from sequence header.
     //          Demux the samples from NALUs.
+    // TODO: rename to video_tag_demux, because it can demux both h265 and h264.
     virtual srs_error_t video_avc_demux(SrsBuffer* stream, int64_t timestamp);
 #ifdef SRS_H265
 private:

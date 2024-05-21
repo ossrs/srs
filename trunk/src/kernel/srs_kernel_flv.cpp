@@ -258,6 +258,35 @@ srs_error_t SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload
     return err;
 }
 
+srs_error_t SrsSharedPtrMessage::create(const SrsSharedPtrMessage* msg, char* payload, int size)
+{
+        srs_error_t err = srs_success;
+
+    if (size < 0) {
+        return srs_error_new(ERROR_RTMP_MESSAGE_CREATE, "create message size=%d", size);
+    }
+
+    srs_assert(!ptr);
+    ptr = new SrsSharedPtrPayload();
+    
+    // direct attach the data.
+    if (msg) {
+        ptr->header.message_type = msg->ptr->header.message_type;
+        ptr->header.payload_length = size;
+        ptr->header.perfer_cid = msg->ptr->header.perfer_cid;
+        this->timestamp = msg->timestamp;
+        this->stream_id = msg->stream_id;
+    }
+    ptr->payload = payload;
+    ptr->size = size;
+    
+    // message can access it.
+    this->payload = ptr->payload;
+    this->size = ptr->size;
+    
+    return err;
+}
+
 void SrsSharedPtrMessage::wrap(char* payload, int size)
 {
     srs_assert(!ptr);
@@ -298,18 +327,18 @@ bool SrsSharedPtrMessage::check(int stream_id)
     return false;
 }
 
-bool SrsSharedPtrMessage::is_av()
+bool SrsSharedPtrMessage::is_av() const
 {
     return ptr->header.message_type == RTMP_MSG_AudioMessage
     || ptr->header.message_type == RTMP_MSG_VideoMessage;
 }
 
-bool SrsSharedPtrMessage::is_audio()
+bool SrsSharedPtrMessage::is_audio() const
 {
     return ptr->header.message_type == RTMP_MSG_AudioMessage;
 }
 
-bool SrsSharedPtrMessage::is_video()
+bool SrsSharedPtrMessage::is_video() const
 {
     return ptr->header.message_type == RTMP_MSG_VideoMessage;
 }

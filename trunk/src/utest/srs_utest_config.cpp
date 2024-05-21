@@ -4786,6 +4786,20 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHttpRemux)
         SrsSetEnvConfig(guess_has_av2, "SRS_VHOST_HTTP_REMUX_GUESS_HAS_AV", "on");
         EXPECT_TRUE(conf.get_vhost_http_remux_guess_has_av("__defaultVhost__"));
     }
+
+    if (true) {
+        EXPECT_TRUE(conf.get_vhost_http_remux_keep_avc_nalu_sei("__defaultVhost__"));
+
+        SrsSetEnvConfig(keep_avc_nalu_sei_false, "SRS_VHOST_HTTP_REMUX_KEEP_AVC_NALU_SEI", "off");
+        EXPECT_FALSE(conf.get_vhost_http_remux_keep_avc_nalu_sei("__defaultVhost__"));
+
+        SrsSetEnvConfig(keep_avc_nalu_sei_true, "SRS_VHOST_HTTP_REMUX_KEEP_AVC_NALU_SEI", "on");
+        EXPECT_TRUE(conf.get_vhost_http_remux_keep_avc_nalu_sei("__defaultVhost__"));
+
+        SrsSetEnvConfig(keep_avc_nalu_sei_default_true, "SRS_VHOST_HTTP_REMUX_KEEP_AVC_NALU_SEI", "offx");
+        EXPECT_TRUE(conf.get_vhost_http_remux_keep_avc_nalu_sei("__defaultVhost__"));
+
+    }
 }
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesDash)
