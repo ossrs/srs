@@ -238,9 +238,15 @@ void SrsTsStreamEncoder::set_has_audio(bool v)
 {
     enc->set_has_audio(v);
 }
+
 void SrsTsStreamEncoder::set_has_video(bool v)
 {
     enc->set_has_video(v);
+}
+
+void SrsTsStreamEncoder::set_guess_has_av(bool v)
+{
+    enc->set_guess_has_av(v);
 }
 
 SrsFlvStreamEncoder::SrsFlvStreamEncoder()
@@ -653,6 +659,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         enc = new SrsTsStreamEncoder();
         ((SrsTsStreamEncoder*)enc)->set_has_audio(has_audio);
         ((SrsTsStreamEncoder*)enc)->set_has_video(has_video);
+        ((SrsTsStreamEncoder*)enc)->set_guess_has_av(guess_has_av);
     } else {
         return srs_error_new(ERROR_HTTP_LIVE_STREAM_EXT, "invalid pattern=%s", entry->pattern.c_str());
     }
