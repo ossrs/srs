@@ -34,7 +34,7 @@ or [Chinese](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started). We highly
 
 ```bash
 docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 \
-    -p 8000:8000/udp -p 10080:10080/udp ossrs/srs:5
+    -p 8000:8000/udp -p 10080:10080/udp ossrs/srs:latest
 ```
 
 > Tips: If you're in China, use this image `registry.cn-hangzhou.aliyuncs.com/ossrs/srs:5` for faster speed.
