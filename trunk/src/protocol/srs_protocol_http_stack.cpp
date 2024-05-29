@@ -765,7 +765,9 @@ srs_error_t SrsHttpServeMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     
     srs_assert(h);
     if ((err = h->serve_http(w, r)) != srs_success) {
-        return srs_error_wrap(err, "serve http");
+        srs_error("serve_http %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_InternalServerError);
     }
     
     return err;
