@@ -251,7 +251,7 @@
             });
             hlsPlayer.loadSource(r.url);
             hlsPlayer.attachMedia(video);
-            hlsPlayer.on(Hls.Events.BUFFER_APPENDED, (data) => {
+            hlsPlayer.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (data) => {
                 if (video.textTracks.length > 0) {
                    hlsPlayer.subtitleTrack = 0;
                 }
