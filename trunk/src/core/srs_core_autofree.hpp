@@ -81,4 +81,76 @@ public:
     }
 };
 
+// Shared ptr smart pointer, see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
+// Usage:
+//      SrsSharedPtr<MyClass> ptr(new MyClass());
+//      ptr->do_something();
+//
+//      SrsSharedPtr<MyClass> cp = ptr;
+//      cp->do_something();
+template<class T>
+class SrsSharedPtr
+{
+private:
+    // The pointer to the object.
+    T* ptr_;
+    // The reference count of the object.
+    uint32_t* ref_count_;
+public:
+    // Create a shared ptr with the object.
+    SrsSharedPtr(T* ptr) {
+        ptr_ = ptr;
+        ref_count_ = new uint32_t(1);
+    }
+    // Copy the shared ptr.
+    SrsSharedPtr(const SrsSharedPtr<T>& cp) {
+        ptr_ = cp.ptr_;
+        ref_count_ = cp.ref_count_;
+        if (ref_count_) (*ref_count_)++;
+    }
+    // Dispose and delete the shared ptr.
+    ~SrsSharedPtr() {
+        reset();
+    }
+private:
+    // Reset the shared ptr.
+    void reset() {
+        if (!ref_count_) return;
+
+        (*ref_count_)--;
+        if (*ref_count_ == 0) {
+            delete ptr_;
+            delete ref_count_;
+        }
+
+        ptr_ = NULL;
+        ref_count_ = NULL;
+    }
+public:
+    // Get the object.
+    T* get() {
+        return ptr_;
+    }
+    // Overload the -> operator.
+    T* operator->() {
+        return ptr_;
+    }
+private:
+    // Overload the * operator.
+    T& operator*() {
+        return *ptr_;
+    }
+    // Overload the bool operator.
+    operator bool() const {
+        return ptr_ != NULL;
+    }
+private:
+    // Disable the assign operator.
+    SrsSharedPtr<T>& operator=(const SrsSharedPtr<T>&);
+    // Disable the move constructor.
+    SrsSharedPtr(SrsSharedPtr<T>&&);
+    // Disable the move assign operator.
+    SrsSharedPtr<T>& operator=(SrsSharedPtr<T>&&);
+};
+
 #endif

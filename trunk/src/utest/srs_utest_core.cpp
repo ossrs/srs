@@ -86,3 +86,73 @@ VOID TEST(CoreLogger, CheckVsnprintf)
     }
 }
 
+VOID TEST(CoreLogger, SharedPtrTypical)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, *p);
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p = SrsSharedPtr<int>(new int(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, *p);
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        EXPECT_TRUE(p);
+        EXPECT_TRUE(q);
+        EXPECT_EQ(100, *p);
+        EXPECT_EQ(100, *q);
+    }
+}
+
+VOID TEST(CoreLogger, SharedPtrReset)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        p.reset();
+        EXPECT_FALSE(p);
+        EXPECT_TRUE(q);
+        EXPECT_EQ(100, *q);
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        q.reset();
+        EXPECT_TRUE(p);
+        EXPECT_FALSE(q);
+        EXPECT_EQ(100, *p);
+    }
+}
+
+VOID TEST(CoreLogger, SharedPtrObject)
+{
+    SrsSharedPtr<MyNormalObject> p(new MyNormalObject(100));
+    EXPECT_TRUE(p);
+    EXPECT_EQ(100, p->id());
+}
+
+VOID TEST(CoreLogger, SharedPtrNullptr)
+{
+    SrsSharedPtr<int> p(NULL);
+    EXPECT_FALSE(p);
+
+    p.reset();
+    EXPECT_FALSE(p);
+
+    SrsSharedPtr<int> q = p;
+    EXPECT_FALSE(q);
+}
+
