@@ -2097,7 +2097,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid1BNormal)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 1B cid(6bits), cid in 2-63
-    EXPECT_EQ(0x09, msg->header.perfer_cid);
+    EXPECT_EQ(0x09, msg->header.prefer_cid);
 }
 
 /**
@@ -2150,7 +2150,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid1BMax)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 1B cid(6bits), max is 63
-    EXPECT_EQ(0x3F, msg->header.perfer_cid);
+    EXPECT_EQ(0x3F, msg->header.prefer_cid);
 }
 
 /**
@@ -2203,7 +2203,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid2BMin)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 2B cid(8bits), min is 64
-    EXPECT_EQ(64, msg->header.perfer_cid);
+    EXPECT_EQ(64, msg->header.prefer_cid);
 }
 
 /**
@@ -2256,7 +2256,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid2BNormal)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 2B cid(8bits), cid in 64-319
-    EXPECT_EQ(0x10+64, msg->header.perfer_cid);
+    EXPECT_EQ(0x10+64, msg->header.prefer_cid);
 }
 
 /**
@@ -2309,7 +2309,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid2BNormal2)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 2B cid(8bits), cid in 64-319
-    EXPECT_EQ(0x11+64, msg->header.perfer_cid);
+    EXPECT_EQ(0x11+64, msg->header.prefer_cid);
 }
 
 /**
@@ -2362,7 +2362,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid2BMax)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 2B cid(68bits), max is 319
-    EXPECT_EQ(319, msg->header.perfer_cid);
+    EXPECT_EQ(319, msg->header.prefer_cid);
 }
 
 /**
@@ -2415,7 +2415,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BMin)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 3B cid(16bits), min is 64
-    EXPECT_EQ(64, msg->header.perfer_cid);
+    EXPECT_EQ(64, msg->header.prefer_cid);
 }
 
 /**
@@ -2468,7 +2468,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BNormal)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 3B cid(16bits), cid in 64-65599
-    EXPECT_EQ(0x10*256+64, msg->header.perfer_cid);
+    EXPECT_EQ(0x10*256+64, msg->header.prefer_cid);
 }
 
 /**
@@ -2521,7 +2521,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BNormal2)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 3B cid(16bits), cid in 64-65599
-    EXPECT_EQ(0x01 + (0x10*256) + 64, msg->header.perfer_cid);
+    EXPECT_EQ(0x01 + (0x10*256) + 64, msg->header.prefer_cid);
 }
 
 /**
@@ -2574,7 +2574,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BNormal3)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 3B cid(16bits), cid in 64-65599
-    EXPECT_EQ(0xFF + (0x10*256) + 64, msg->header.perfer_cid);
+    EXPECT_EQ(0xFF + (0x10*256) + 64, msg->header.prefer_cid);
 }
 
 /**
@@ -2627,7 +2627,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BNormal4)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 3B cid(16bits), cid in 64-65599
-    EXPECT_EQ(0x02 + (0x10*256) + 64, msg->header.perfer_cid);
+    EXPECT_EQ(0x02 + (0x10*256) + 64, msg->header.prefer_cid);
 }
 
 /**
@@ -2680,7 +2680,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BMax)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 2B cid(16bits), max is 65599
-    EXPECT_EQ(65599, msg->header.perfer_cid);
+    EXPECT_EQ(65599, msg->header.prefer_cid);
 }
 
 /**

@@ -1228,7 +1228,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid1BMin)
     SrsAutoFree(SrsCommonMessage, msg);
     EXPECT_TRUE(msg->header.is_video());
     // 1B cid(6bits), min is 2
-    EXPECT_EQ(0x02, msg->header.perfer_cid);
+    EXPECT_EQ(0x02, msg->header.prefer_cid);
 }
 
 VOID TEST(ProtocolKbpsTest, Connections)
