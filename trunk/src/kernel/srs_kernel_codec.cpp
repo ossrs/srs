@@ -504,55 +504,16 @@ SrsSample::SrsSample()
 {
     size = 0;
     bytes = NULL;
-    bframe = false;
 }
 
 SrsSample::SrsSample(char* b, int s)
 {
     size = s;
     bytes = b;
-    bframe = false;
 }
 
 SrsSample::~SrsSample()
 {
-}
-
-srs_error_t SrsSample::parse_bframe()
-{
-    srs_error_t err = srs_success;
-
-    uint8_t header = bytes[0];
-    SrsAvcNaluType nal_type = (SrsAvcNaluType)(header & kNalTypeMask);
-
-    if (nal_type != SrsAvcNaluTypeNonIDR && nal_type != SrsAvcNaluTypeDataPartitionA && nal_type != SrsAvcNaluTypeIDR) {
-        return err;
-    }
-
-    SrsBuffer* stream = new SrsBuffer(bytes, size);
-    SrsAutoFree(SrsBuffer, stream);
-
-    // Skip nalu header.
-    stream->skip(1);
-
-    SrsBitBuffer bitstream(stream);
-    int32_t first_mb_in_slice = 0;
-    if ((err = srs_avc_nalu_read_uev(&bitstream, first_mb_in_slice)) != srs_success) {
-        return srs_error_wrap(err, "nalu read uev");
-    }
-
-    int32_t slice_type_v = 0;
-    if ((err = srs_avc_nalu_read_uev(&bitstream, slice_type_v)) != srs_success) {
-        return srs_error_wrap(err, "nalu read uev");
-    }
-    SrsAvcSliceType slice_type = (SrsAvcSliceType)slice_type_v;
-
-    if (slice_type == SrsAvcSliceTypeB || slice_type == SrsAvcSliceTypeB1) {
-        bframe = true;
-        srs_verbose("nal_type=%d, slice type=%d", nal_type, slice_type);
-    }
-
-    return err;
 }
 
 SrsSample* SrsSample::copy()
@@ -560,7 +521,6 @@ SrsSample* SrsSample::copy()
     SrsSample* p = new SrsSample();
     p->bytes = bytes;
     p->size = size;
-    p->bframe = bframe;
     return p;
 }
 
@@ -655,7 +615,6 @@ srs_error_t SrsFrame::add_sample(char* bytes, int size)
     SrsSample* sample = &samples[nb_samples++];
     sample->bytes = bytes;
     sample->size = size;
-    sample->bframe = false;
     
     return err;
 }
@@ -737,6 +696,64 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
 SrsVideoCodecConfig* SrsVideoFrame::vcodec()
 {
     return (SrsVideoCodecConfig*)codec;
+}
+
+srs_error_t SrsVideoFrame::parse_avc_nalu_type(const SrsSample* sample, SrsAvcNaluType& avc_nalu_type)
+{
+    srs_error_t err = srs_success;
+
+    if (sample == NULL || sample->size < 1) {
+        return srs_error_new(ERROR_AVC_NALU_EMPTY, "empty nalu");
+    }
+    
+    uint8_t header = sample->bytes[0];
+    avc_nalu_type = (SrsAvcNaluType)(header & kNalTypeMask);
+    
+    return err;
+}
+
+srs_error_t SrsVideoFrame::parse_avc_b_frame(const SrsSample* sample, bool& is_b_frame)
+{
+    srs_error_t err = srs_success;
+
+    if (sample == NULL || sample->size < 1) {
+        return srs_error_new(ERROR_AVC_NALU_EMPTY, "empty nalu");
+    }
+
+    SrsAvcNaluType nalu_type;
+    if ((err = parse_avc_nalu_type(sample, nalu_type)) != srs_success) {
+        return srs_error_wrap(err, "parse avc nalu type error");
+    }
+
+    if (nalu_type != SrsAvcNaluTypeNonIDR && nalu_type != SrsAvcNaluTypeDataPartitionA && nalu_type != SrsAvcNaluTypeIDR) {
+        is_b_frame = false;
+        return err;
+    }
+
+    SrsBuffer* stream = new SrsBuffer(sample->bytes, sample->size);
+    SrsAutoFree(SrsBuffer, stream);
+
+    // Skip nalu header.
+    stream->skip(1);
+
+    SrsBitBuffer bitstream(stream);
+    int32_t first_mb_in_slice = 0;
+    if ((err = srs_avc_nalu_read_uev(&bitstream, first_mb_in_slice)) != srs_success) {
+        return srs_error_wrap(err, "nalu read uev");
+    }
+
+    int32_t slice_type_v = 0;
+    if ((err = srs_avc_nalu_read_uev(&bitstream, slice_type_v)) != srs_success) {
+        return srs_error_wrap(err, "nalu read uev");
+    }
+    SrsAvcSliceType slice_type = (SrsAvcSliceType)slice_type_v;
+
+    is_b_frame = slice_type == SrsAvcSliceTypeB || slice_type == SrsAvcSliceTypeB1;
+    if (is_b_frame) {
+        srs_verbose("nalu_type=%d, slice type=%d", nalu_type, slice_type);
+    }
+
+    return err;
 }
 
 SrsFormat::SrsFormat()
