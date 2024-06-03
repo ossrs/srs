@@ -533,6 +533,7 @@ public:
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);
     bool get_rtc_keep_bframe(std::string vhost);
+    bool get_rtc_keep_avc_nalu_sei(std::string vhost);
     bool get_rtc_from_rtmp(std::string vhost);
     srs_utime_t get_rtc_stun_timeout(std::string vhost);
     bool get_rtc_stun_strict_check(std::string vhost);

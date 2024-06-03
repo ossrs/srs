@@ -2726,7 +2726,7 @@ srs_error_t SrsConfig::check_normal_config()
                         && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
                         && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp"
                         && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe" && m != "opus_bitrate"
-                        && m != "aac_bitrate") {
+                        && m != "aac_bitrate" && m != "keep_avc_nalu_sei") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4472,6 +4472,26 @@ bool SrsConfig::get_rtc_keep_bframe(string vhost)
     }
 
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_keep_avc_nalu_sei(std::string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.rtc.keep_avc_nalu_sei"); // SRS_VHOST_RTC_KEEP_AVC_NALU_SEI
+
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("keep_avc_nalu_sei");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 bool SrsConfig::get_rtc_from_rtmp(string vhost)

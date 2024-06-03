@@ -272,7 +272,8 @@
     XX(ERROR_INOTIFY_OPENFD                , 3094, "InotifyOpenFd", "Failed to open inotify fd for config listener") \
     XX(ERROR_INOTIFY_WATCH                 , 3095, "InotfyWatch", "Failed to watch inotify for config listener") \
     XX(ERROR_HTTP_URL_UNESCAPE             , 3096, "HttpUrlUnescape", "Failed to unescape URL for HTTP") \
-    XX(ERROR_HTTP_WITH_BODY                , 3097, "HttpWithBody", "Failed for HTTP body")
+    XX(ERROR_HTTP_WITH_BODY                , 3097, "HttpWithBody", "Failed for HTTP body") \
+    XX(ERROR_AVC_NALU_EMPTY                , 3102, "AvcNaluEmpty", "AVC NALU is empty")
 
 /**************************************************/
 /* HTTP/StreamConverter protocol error. */

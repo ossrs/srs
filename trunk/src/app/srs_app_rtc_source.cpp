@@ -724,6 +724,7 @@ SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source)
     latest_codec_ = SrsAudioCodecIdForbidden;
     rtmp_to_rtc = false;
     keep_bframe = false;
+    keep_avc_nalu_sei = true;
     merge_nalus = false;
     meta = new SrsMetaCache();
     audio_sequence = 0;
@@ -774,9 +775,10 @@ srs_error_t SrsRtcFromRtmpBridge::initialize(SrsRequest* r)
     }
 
     keep_bframe = _srs_config->get_rtc_keep_bframe(req->vhost);
+    keep_avc_nalu_sei = _srs_config->get_rtc_keep_avc_nalu_sei(req->vhost);
     merge_nalus = _srs_config->get_rtc_server_merge_nalus();
-    srs_trace("RTC bridge from RTMP, rtmp2rtc=%d, keep_bframe=%d, merge_nalus=%d",
-              rtmp_to_rtc, keep_bframe, merge_nalus);
+    srs_trace("RTC bridge from RTMP, rtmp2rtc=%d, keep_bframe=%d, keep_avc_nalu_sei=%d, merge_nalus=%d",
+        rtmp_to_rtc, keep_bframe, keep_avc_nalu_sei, merge_nalus);
 
     return err;
 }
@@ -1025,12 +1027,6 @@ srs_error_t SrsRtcFromRtmpBridge::on_video(SrsSharedPtrMessage* msg)
         for (int i = 0; i < nn_samples; i++) {
             SrsSample* sample = samples[i];
 
-            // We always ignore bframe here, if config to discard bframe,
-            // the bframe flag will not be set.
-            if (sample->bframe) {
-                continue;
-            }
-
             if (sample->size <= kRtpMaxPayloadSize) {
                 if ((err = package_single_nalu(msg, sample, pkts)) != srs_success) {
                     return srs_error_wrap(err, "package single nalu");
@@ -1062,14 +1058,27 @@ srs_error_t SrsRtcFromRtmpBridge::filter(SrsSharedPtrMessage* msg, SrsFormat* fo
     // Update samples to shared frame.
     for (int i = 0; i < format->video->nb_samples; ++i) {
         SrsSample* sample = &format->video->samples[i];
+        
+        if (!keep_avc_nalu_sei && format->vcodec->id == SrsVideoCodecIdAVC) {
+            SrsAvcNaluType avc_nalu_type;
+            // TODO: FIXME use static method to parse avc nalu type.
+            if ((err = SrsVideoFrame::parse_avc_nalu_type(sample, avc_nalu_type)) != srs_success) {
+                return srs_error_wrap(err, "parse avc nalu_type");
+            }
+            if (avc_nalu_type == SrsAvcNaluTypeSEI) {
+                // srs_warn("skip avc nalu type SEI, size=%d", sample->size);
+                continue;
+            }
+        }
 
         // Because RTC does not support B-frame, so we will drop them.
         // TODO: Drop B-frame in better way, which not cause picture corruption.
-        if (!keep_bframe) {
-            if ((err = sample->parse_bframe()) != srs_success) {
+        if (!keep_bframe && format->vcodec->id == SrsVideoCodecIdAVC) {
+            bool is_b_frame;
+            if ((err = SrsVideoFrame::parse_avc_b_frame(sample, is_b_frame)) != srs_success) {
                 return srs_error_wrap(err, "parse bframe");
             }
-            if (sample->bframe) {
+            if (is_b_frame) {
                 continue;
             }
         }
@@ -1148,12 +1157,6 @@ srs_error_t SrsRtcFromRtmpBridge::package_nalus(SrsSharedPtrMessage* msg, const 
 
     for (int i = 0; i < (int)samples.size(); i++) {
         SrsSample* sample = samples[i];
-
-        // We always ignore bframe here, if config to discard bframe,
-        // the bframe flag will not be set.
-        if (sample->bframe) {
-            continue;
-        }
 
         if (!sample->size) {
             continue;
