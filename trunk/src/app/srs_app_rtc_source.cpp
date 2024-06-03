@@ -1140,7 +1140,7 @@ srs_error_t SrsRtcRtpBuilder::filter(SrsSharedPtrMessage* msg, SrsFormat* format
         
         if (!keep_avc_nalu_sei && format->vcodec->id == SrsVideoCodecIdAVC) {
             SrsAvcNaluType avc_nalu_type;
-            // TODO: FIXME use static method to parse avc nalu type.
+
             if ((err = SrsVideoFrame::parse_avc_nalu_type(sample, avc_nalu_type)) != srs_success) {
                 return srs_error_wrap(err, "parse avc nalu_type");
             }
