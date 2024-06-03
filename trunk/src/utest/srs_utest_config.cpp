@@ -4412,9 +4412,16 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostRtc)
             EXPECT_FALSE(conf.get_rtc_keep_bframe("__defaultVhost__"));
 
         }
-        
-        SrsSetEnvConfig(rtc_keep_avc_nalu_sei, "SRS_VHOST_RTC_KEEP_AVC_NALU_SEI", "off");
-        EXPECT_FALSE(conf.get_rtc_keep_avc_nalu_sei("__defaultVhost__"));
+
+        {
+            SrsSetEnvConfig(rtc_keep_avc_nalu_sei, "SRS_VHOST_RTC_KEEP_AVC_NALU_SEI", "off");
+            EXPECT_FALSE(conf.get_rtc_keep_avc_nalu_sei("__defaultVhost__"));
+        }
+
+        {
+            SrsSetEnvConfig(rtc_keep_avc_nalu_sei, "SRS_VHOST_RTC_KEEP_AVC_NALU_SEI", "on");
+            EXPECT_TRUE(conf.get_rtc_keep_avc_nalu_sei("__defaultVhost__"));
+        }
 
         {
             // make sure the default value is true, if defined incorrect env value.

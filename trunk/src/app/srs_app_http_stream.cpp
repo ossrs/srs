@@ -744,8 +744,6 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
                 count, pprint->age(), SRS_PERF_MW_MIN_MSGS, srsu2msi(mw_sleep));
         }
         
-        // TODO: drop h.264 flv video tags with NALU SEI here to fix http-flv play error in safari mac.
-        // @see https://github.com/ossrs/srs/issues/4052
         // sendout all messages.
         if (ffe) {
             err = ffe->write_tags(msgs.msgs, count);

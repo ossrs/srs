@@ -774,7 +774,8 @@ srs_error_t SrsRtcRtpBuilder::initialize(SrsRequest* r)
     keep_bframe = _srs_config->get_rtc_keep_bframe(req->vhost);
     keep_avc_nalu_sei = _srs_config->get_rtc_keep_avc_nalu_sei(req->vhost);
     merge_nalus = _srs_config->get_rtc_server_merge_nalus();
-    srs_trace("RTC bridge from RTMP, keep_bframe=%d, keep_avc_nalu_sei=%d, merge_nalus=%d", keep_bframe, keep_avc_nalu_sei, merge_nalus);
+    srs_trace("RTC bridge from RTMP, keep_bframe=%d, keep_avc_nalu_sei=%d, merge_nalus=%d",
+        keep_bframe, keep_avc_nalu_sei, merge_nalus);
 
     return err;
 }

@@ -700,10 +700,11 @@ SrsVideoCodecConfig* SrsVideoFrame::vcodec()
 
 srs_error_t SrsVideoFrame::parse_avc_nalu_type(const SrsSample* sample, SrsAvcNaluType& avc_nalu_type)
 {
+    srs_error_t err = srs_success;
+
     if (sample == NULL || sample->size < 1) {
         return srs_error_new(ERROR_AVC_NALU_EMPTY, "empty nalu");
     }
-    srs_error_t err = srs_success;
     
     uint8_t header = sample->bytes[0];
     avc_nalu_type = (SrsAvcNaluType)(header & kNalTypeMask);
@@ -713,11 +714,12 @@ srs_error_t SrsVideoFrame::parse_avc_nalu_type(const SrsSample* sample, SrsAvcNa
 
 srs_error_t SrsVideoFrame::parse_avc_b_frame(const SrsSample* sample, bool& is_b_frame)
 {
+    srs_error_t err = srs_success;
+
     if (sample == NULL || sample->size < 1) {
         return srs_error_new(ERROR_AVC_NALU_EMPTY, "empty nalu");
     }
 
-    srs_error_t err = srs_success;
     SrsAvcNaluType nalu_type;
     if ((err = parse_avc_nalu_type(sample, nalu_type)) != srs_success) {
         return srs_error_wrap(err, "parse avc nalu type error");
