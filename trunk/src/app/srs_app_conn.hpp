@@ -223,6 +223,57 @@ public:
     }
 };
 
+// This class implements the ISrsResource interface using a smart pointer, allowing the Manager to delete this
+// smart pointer resource, such as by implementing delayed release.
+// It embeds an SrsSharedPtr to provide the same interface, but it is not an inheritance relationship. Its usage
+// is identical to SrsSharedPtr, but they cannot replace each other. They are not related and cannot be converted
+// to one another.
+// Usage:
+//      SrsSharedResource<MyClass>* ptr = new SrsSharedResource<MyClass>(new MyClass());
+//      (*ptr)->do_something();
+//
+//      ISrsResourceManager* manager = ...;
+//      manager->remove(ptr);
+template<typename T>
+class SrsSharedResource : virtual public ISrsResource
+{
+private:
+    SrsSharedPtr<T> ptr_;
+public:
+    SrsSharedResource(T* ptr) : ptr_(ptr) {
+    }
+    SrsSharedResource(const SrsSharedResource<T>& cp) : ptr_(cp.ptr_) {
+    }
+    virtual ~SrsSharedResource() {
+    }
+public:
+    // Get the object.
+    T* get() {
+        return ptr_.get();
+    }
+    // Overload the -> operator.
+    T* operator->() {
+        return ptr_.operator->();
+    }
+private:
+    // Overload the * operator.
+    T& operator*() {
+        return ptr_.operator*();
+    }
+    // Overload the bool operator.
+    operator bool() const {
+        return ptr_.operator bool();
+    }
+// Interface ISrsResource
+public:
+    virtual const SrsContextId& get_id() {
+        return ptr_->get_id();
+    }
+    virtual std::string desc() {
+        return ptr_->desc();
+    }
+};
+
 // If a connection is able be expired, user can use HTTP-API to kick-off it.
 class ISrsExpire
 {

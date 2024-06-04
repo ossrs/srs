@@ -211,3 +211,59 @@ VOID TEST(CoreLogger, SharedPtrWrapper)
     EXPECT_EQ(100, *ptr);
 }
 
+class MockResource : public ISrsResource
+{
+public:
+    SrsContextId id_;
+    int value_;
+public:
+    MockResource(int value) : value_(value) {
+    }
+    virtual ~MockResource() {
+    }
+public:
+    virtual const SrsContextId& get_id() {
+        return id_;
+    }
+    virtual std::string desc() {
+        return id_.c_str();
+    }
+};
+
+VOID TEST(CoreLogger, SharedResourceTypical)
+{
+    if (true) {
+        SrsSharedResource<MockResource>* p = new SrsSharedResource<MockResource>(new MockResource(100));
+        EXPECT_TRUE(*p);
+        EXPECT_EQ(100, (*p)->value_);
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsSharedResource<MockResource> p(new MockResource(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, p->value_);
+    }
+
+    if (true) {
+        SrsSharedResource<MockResource> p = SrsSharedResource<MockResource>(new MockResource(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, p->value_);
+    }
+
+    if (true) {
+        SrsSharedResource<MockResource> p(new MockResource(100));
+        SrsSharedResource<MockResource> q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockResource> p(new MockResource(100));
+        SrsSharedResource<MockResource> q = p;
+        EXPECT_TRUE(p);
+        EXPECT_TRUE(q);
+        EXPECT_EQ(100, p->value_);
+        EXPECT_EQ(100, q->value_);
+    }
+}
+
