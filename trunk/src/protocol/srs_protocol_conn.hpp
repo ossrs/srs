@@ -50,6 +50,7 @@ public:
 
 // Lazy-sweep resource, never sweep util all wrappers are freed.
 // See https://github.com/ossrs/srs/issues/3176#lazy-sweep
+// TODO: FIXME: Remove it.
 class SrsLazyObject
 {
 private:
@@ -69,6 +70,7 @@ public:
 
 // The lazy-sweep GC, wait for a long time to dispose resource even when resource is disposable.
 // See https://github.com/ossrs/srs/issues/3176#lazy-sweep
+// TODO: FIXME: Remove it.
 class ISrsLazyGc
 {
 public:

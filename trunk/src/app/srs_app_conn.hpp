@@ -20,6 +20,7 @@
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_protocol_conn.hpp>
+#include <srs_core_autofree.hpp>
 
 class SrsWallClock;
 class SrsBuffer;
@@ -126,6 +127,7 @@ private:
 };
 
 // A simple lazy-sweep GC, just wait for a long time to delete the disposable resources.
+// TODO: FIXME: Remove it.
 class SrsLazySweepGc : public ISrsLazyGc
 {
 public:
@@ -180,6 +182,7 @@ extern ISrsLazyGc* _srs_gc;
 // wrapper might be managed by other resource manager, such as _srs_gb_manager for SrsLazyGbSession. Furthermore, other
 // copied out wrappers might be freed by srs_freep. All are ok, because all wrapper and resources are simply normal
 // object, so if you added to manager then you should use manager to remove it, and you can also directly delete it.
+// TODO: FIXME: Remove it.
 template<typename T>
 class SrsLazyObjectWrapper : public ISrsResource
 {

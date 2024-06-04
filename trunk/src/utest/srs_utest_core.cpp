@@ -8,6 +8,8 @@
 using namespace std;
 
 #include <srs_core_autofree.hpp>
+#include <srs_protocol_conn.hpp>
+#include <srs_app_conn.hpp>
 
 VOID TEST(CoreAutoFreeTest, Free)
 {
@@ -154,5 +156,58 @@ VOID TEST(CoreLogger, SharedPtrNullptr)
 
     SrsSharedPtr<int> q = p;
     EXPECT_FALSE(q);
+}
+
+class MockWrapper
+{
+public:
+    int* ptr;
+public:
+    MockWrapper(int* p) {
+        ptr = p;
+        *ptr = *ptr + 1;
+    }
+    ~MockWrapper() {
+        *ptr = *ptr - 1;
+    }
+};
+
+VOID TEST(CoreLogger, SharedPtrWrapper)
+{
+    int* ptr = new int(100);
+    SrsAutoFree(int, ptr);
+    EXPECT_EQ(100, *ptr);
+
+    {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsSharedPtr<MockWrapper> q = p;
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+        EXPECT_EQ(101, *q->ptr);
+
+        SrsSharedPtr<MockWrapper> r(new MockWrapper(ptr));
+        EXPECT_EQ(102, *ptr);
+        EXPECT_EQ(102, *p->ptr);
+        EXPECT_EQ(102, *q->ptr);
+        EXPECT_EQ(102, *r->ptr);
+
+        SrsSharedPtr<MockWrapper> s(new MockWrapper(ptr));
+        EXPECT_EQ(103, *ptr);
+        EXPECT_EQ(103, *p->ptr);
+        EXPECT_EQ(103, *q->ptr);
+        EXPECT_EQ(103, *r->ptr);
+        EXPECT_EQ(103, *s->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+
+    {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
 }
 

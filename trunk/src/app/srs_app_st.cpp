@@ -342,3 +342,39 @@ void SrsWaitGroup::wait()
     }
 }
 
+SrsExecutorCoroutine::SrsExecutorCoroutine(ISrsResourceManager* m, ISrsResource* r, ISrsCoroutineHandler* h)
+{
+    resource_ = r;
+    handler_ = h;
+    manager_ = m;
+    trd_ = new SrsSTCoroutine("ar", this, resource_->get_id());
+}
+
+SrsExecutorCoroutine::~SrsExecutorCoroutine()
+{
+    manager_->remove(resource_);
+    srs_freep(trd_);
+}
+
+srs_error_t SrsExecutorCoroutine::start()
+{
+    return trd_->start();
+}
+
+srs_error_t SrsExecutorCoroutine::cycle()
+{
+    srs_error_t err = handler_->cycle();
+    manager_->remove(this);
+    return err;
+}
+
+const SrsContextId& SrsExecutorCoroutine::get_id()
+{
+    return resource_->get_id();
+}
+
+std::string SrsExecutorCoroutine::desc()
+{
+    return resource_->desc();
+}
+

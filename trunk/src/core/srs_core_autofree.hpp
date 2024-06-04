@@ -109,7 +109,7 @@ public:
         if (ref_count_) (*ref_count_)++;
     }
     // Dispose and delete the shared ptr.
-    ~SrsSharedPtr() {
+    virtual ~SrsSharedPtr() {
         reset();
     }
 private:

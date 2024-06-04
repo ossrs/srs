@@ -15,6 +15,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_io.hpp>
+#include <srs_protocol_conn.hpp>
 
 class SrsFastCoroutine;
 
@@ -64,7 +65,7 @@ public:
     virtual srs_error_t start() = 0;
 };
 
-// The corotine object.
+// The coroutine object.
 class SrsCoroutine : public ISrsStartable
 {
 public:
@@ -192,7 +193,7 @@ private:
     static void* pfn(void* arg);
 };
 
-// Like goroytine sync.WaitGroup.
+// Like goroutine sync.WaitGroup.
 class SrsWaitGroup
 {
 private:
@@ -206,8 +207,31 @@ public:
     void add(int n);
     // When coroutine is done.
     void done();
-    // Wait for all corotine to be done.
+    // Wait for all coroutine to be done.
     void wait();
+};
+
+// Start a coroutine for resource executor, to execute the handler and delete resource and itself when done.
+class SrsExecutorCoroutine : public ISrsResource, public ISrsStartable, public ISrsCoroutineHandler
+{
+private:
+    ISrsResourceManager* manager_;
+    ISrsResource* resource_;
+    ISrsCoroutineHandler* handler_;
+    SrsCoroutine* trd_;
+public:
+    SrsExecutorCoroutine(ISrsResourceManager* m, ISrsResource* r, ISrsCoroutineHandler* h);
+    virtual ~SrsExecutorCoroutine();
+// Interface ISrsStartable
+public:
+    virtual srs_error_t start();
+// Interface ISrsOneCycleThreadHandler
+public:
+    virtual srs_error_t cycle();
+// Interface ISrsResource
+public:
+    virtual const SrsContextId& get_id();
+    virtual std::string desc();
 };
 
 #endif
