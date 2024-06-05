@@ -239,6 +239,52 @@ void SrsResourceManager::remove(ISrsResource* c)
     removing_ = false;
 }
 
+void SrsResourceManager::erase(ISrsResource* c) 
+{
+    for (map<string, ISrsResource*>::iterator it = conns_name_.begin(); it != conns_name_.end();) {
+        if (c != it->second) {
+            ++it;
+        } else {
+            // Use C++98 style: https://stackoverflow.com/a/4636230
+            conns_name_.erase(it++);
+        }
+    }
+
+    for (map<string, ISrsResource*>::iterator it = conns_id_.begin(); it != conns_id_.end();) {
+        if (c != it->second) {
+            ++it;
+        } else {
+            // Use C++98 style: https://stackoverflow.com/a/4636230
+            conns_id_.erase(it++);
+        }
+    }
+
+    for (map<uint64_t, ISrsResource*>::iterator it = conns_fast_id_.begin(); it != conns_fast_id_.end();) {
+        if (c != it->second) {
+            ++it;
+        } else {
+            // Update the level-0 cache for fast-id.
+            uint64_t id = it->first;
+            SrsResourceFastIdItem* item = &conns_level0_cache_[(id | id>>32) % nn_level0_cache_];
+            item->nn_collisions--;
+            if (!item->nn_collisions) {
+                item->fast_id = 0;
+                item->available = false;
+            }
+
+            // Use C++98 style: https://stackoverflow.com/a/4636230
+            conns_fast_id_.erase(it++);
+        }
+    }
+
+    vector<ISrsResource*>::iterator it = std::find(conns_.begin(), conns_.end(), c);
+    if (it != conns_.end()) {
+        it = conns_.erase(it);
+    }
+    return;
+}
+
+
 void SrsResourceManager::do_remove(ISrsResource* c)
 {
     bool in_zombie = false;
@@ -354,46 +400,7 @@ void SrsResourceManager::do_clear()
 
 void SrsResourceManager::dispose(ISrsResource* c)
 {
-    for (map<string, ISrsResource*>::iterator it = conns_name_.begin(); it != conns_name_.end();) {
-        if (c != it->second) {
-            ++it;
-        } else {
-            // Use C++98 style: https://stackoverflow.com/a/4636230
-            conns_name_.erase(it++);
-        }
-    }
-
-    for (map<string, ISrsResource*>::iterator it = conns_id_.begin(); it != conns_id_.end();) {
-        if (c != it->second) {
-            ++it;
-        } else {
-            // Use C++98 style: https://stackoverflow.com/a/4636230
-            conns_id_.erase(it++);
-        }
-    }
-
-    for (map<uint64_t, ISrsResource*>::iterator it = conns_fast_id_.begin(); it != conns_fast_id_.end();) {
-        if (c != it->second) {
-            ++it;
-        } else {
-            // Update the level-0 cache for fast-id.
-            uint64_t id = it->first;
-            SrsResourceFastIdItem* item = &conns_level0_cache_[(id | id>>32) % nn_level0_cache_];
-            item->nn_collisions--;
-            if (!item->nn_collisions) {
-                item->fast_id = 0;
-                item->available = false;
-            }
-
-            // Use C++98 style: https://stackoverflow.com/a/4636230
-            conns_fast_id_.erase(it++);
-        }
-    }
-
-    vector<ISrsResource*>::iterator it = std::find(conns_.begin(), conns_.end(), c);
-    if (it != conns_.end()) {
-        it = conns_.erase(it);
-    }
+    erase(c);
 
     // We should copy all handlers, because it may change during callback.
     vector<ISrsDisposingHandler*> handlers = handlers_;
