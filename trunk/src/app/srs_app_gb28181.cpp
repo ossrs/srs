@@ -970,9 +970,6 @@ srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyGbSessi
         session = new SrsSharedResource<SrsLazyGbSession>(raw_session);
         _srs_gb_manager->add_with_id(device, session);
 
-        // Notice SIP session to use current SIP connection.
-        raw_session->on_sip_transport(*wrapper_);
-
         SrsExecutorCoroutine* executor = new SrsExecutorCoroutine(_srs_gb_manager, session, raw_session, raw_session);
         raw_session->setup_owner(session, executor, executor);
 
@@ -992,7 +989,8 @@ srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyGbSessi
         srs_freep(invite_ok_); invite_ok_ = pre->invite_ok_->copy();
     }
 
-    // Save session for SIP transport.
+    // Notice session to use current SIP connection.
+    raw_session->on_sip_transport(*wrapper_);
     *psession = raw_session;
 
     return err;
@@ -1452,6 +1450,7 @@ srs_error_t SrsLazyGbMediaTcpConn::bind_session(uint32_t ssrc, SrsLazyGbSession*
     SrsLazyGbSession* raw_session = (*session).get();
     srs_assert(raw_session);
 
+    // Notice session to use current media connection.
     raw_session->on_media_transport(*wrapper_);
     *psession = raw_session;
 
