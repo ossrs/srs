@@ -174,6 +174,13 @@ private:
     operator bool() const {
         return ptr_.operator bool();
     }
+#if __cplusplus >= 201103L
+private:
+    // Disable the move constructor.
+    SrsSharedResource(SrsSharedResource<T>&&);
+    // Disable the move assign operator.
+    SrsSharedResource<T>& operator=(SrsSharedResource<T>&&);
+#endif
 // Interface ISrsResource
 public:
     virtual const SrsContextId& get_id() {

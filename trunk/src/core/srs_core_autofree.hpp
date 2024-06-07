@@ -157,11 +157,13 @@ private:
     operator bool() const {
         return ptr_ != NULL;
     }
+#if __cplusplus >= 201103L
 private:
     // Disable the move constructor.
     SrsSharedPtr(SrsSharedPtr<T>&&);
     // Disable the move assign operator.
     SrsSharedPtr<T>& operator=(SrsSharedPtr<T>&&);
+#endif
 };
 
 #endif

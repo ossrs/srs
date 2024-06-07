@@ -264,15 +264,15 @@ VOID TEST(CoreLogger, SharedPtrAssign)
     EXPECT_EQ(200, *ptr1);
 }
 
-class MockResource : public ISrsResource
+class MockIntResource : public ISrsResource
 {
 public:
     SrsContextId id_;
     int value_;
 public:
-    MockResource(int value) : value_(value) {
+    MockIntResource(int value) : value_(value) {
     }
-    virtual ~MockResource() {
+    virtual ~MockIntResource() {
     }
 public:
     virtual const SrsContextId& get_id() {
@@ -286,47 +286,47 @@ public:
 VOID TEST(CoreLogger, SharedResourceTypical)
 {
     if (true) {
-        SrsSharedResource<MockResource>* p = new SrsSharedResource<MockResource>(new MockResource(100));
+        SrsSharedResource<MockIntResource>* p = new SrsSharedResource<MockIntResource>(new MockIntResource(100));
         EXPECT_TRUE(*p);
         EXPECT_EQ(100, (*p)->value_);
         srs_freep(p);
     }
 
     if (true) {
-        SrsSharedResource<MockResource> p(new MockResource(100));
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
         EXPECT_TRUE(p);
         EXPECT_EQ(100, p->value_);
     }
 
     if (true) {
-        SrsSharedResource<MockResource> p = SrsSharedResource<MockResource>(new MockResource(100));
+        SrsSharedResource<MockIntResource> p = SrsSharedResource<MockIntResource>(new MockIntResource(100));
         EXPECT_TRUE(p);
         EXPECT_EQ(100, p->value_);
     }
 
     if (true) {
-        SrsSharedResource<MockResource> p(new MockResource(100));
-        SrsSharedResource<MockResource> q = p;
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q = p;
         EXPECT_EQ(p.get(), q.get());
     }
 
     if (true) {
-        SrsSharedResource<MockResource> p(new MockResource(100));
-        SrsSharedResource<MockResource> q(NULL);
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q(NULL);
         q = p;
         EXPECT_EQ(p.get(), q.get());
     }
 
     if (true) {
-        SrsSharedResource<MockResource> p(new MockResource(100));
-        SrsSharedResource<MockResource> q(new MockResource(200));
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q(new MockIntResource(200));
         q = p;
         EXPECT_EQ(p.get(), q.get());
     }
 
     if (true) {
-        SrsSharedResource<MockResource> p(new MockResource(100));
-        SrsSharedResource<MockResource> q = p;
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q = p;
         EXPECT_TRUE(p);
         EXPECT_TRUE(q);
         EXPECT_EQ(100, p->value_);
