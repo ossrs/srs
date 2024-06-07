@@ -174,12 +174,18 @@ private:
     operator bool() const {
         return ptr_.operator bool();
     }
-#if __cplusplus >= 201103L
-private:
-    // Disable the move constructor.
-    SrsSharedResource(SrsSharedResource<T>&&);
-    // Disable the move assign operator.
-    SrsSharedResource<T>& operator=(SrsSharedResource<T>&&);
+#if __cplusplus >= 201103L // C++11
+public:
+    // The move constructor.
+    SrsSharedResource(SrsSharedResource<T>&& cp) : ptr_(cp.ptr_) {
+    };
+    // The move assign operator.
+    SrsSharedResource<T>& operator=(SrsSharedResource<T>&& cp) {
+        if (this != &cp) {
+            ptr_ = cp.ptr_;
+        }
+        return *this;
+    }
 #endif
 // Interface ISrsResource
 public:

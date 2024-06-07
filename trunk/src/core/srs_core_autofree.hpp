@@ -130,6 +130,13 @@ private:
         ref_count_ = cp.ref_count_;
         if (ref_count_) (*ref_count_)++;
     }
+    // Move from other shared ptr.
+    void move(SrsSharedPtr<T>& cp) {
+        ptr_ = cp.ptr_;
+        ref_count_ = cp.ref_count_;
+        cp.ptr_ = NULL;
+        cp.ref_count_ = NULL;
+    }
 public:
     // Get the object.
     T* get() {
@@ -145,7 +152,6 @@ public:
             reset();
             copy(cp);
         }
-
         return *this;
     }
 private:
@@ -157,12 +163,20 @@ private:
     operator bool() const {
         return ptr_ != NULL;
     }
-#if __cplusplus >= 201103L
-private:
-    // Disable the move constructor.
-    SrsSharedPtr(SrsSharedPtr<T>&&);
-    // Disable the move assign operator.
-    SrsSharedPtr<T>& operator=(SrsSharedPtr<T>&&);
+#if __cplusplus >= 201103L // C++11
+public:
+    // The move constructor.
+    SrsSharedPtr(SrsSharedPtr<T>&& cp) {
+        move(cp);
+    };
+    // The move assign operator.
+    SrsSharedPtr<T>& operator=(SrsSharedPtr<T>&& cp) {
+        if (this != &cp) {
+            reset();
+            move(cp);
+        }
+        return *this;
+    };
 #endif
 };
 
