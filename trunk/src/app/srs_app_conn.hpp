@@ -255,6 +255,13 @@ public:
     T* operator->() {
         return ptr_.operator->();
     }
+    // The assign operator.
+    SrsSharedResource<T>& operator=(const SrsSharedResource<T>& cp) {
+        if (this != &cp) {
+            ptr_ = cp.ptr_;
+        }
+        return *this;
+    }
 private:
     // Overload the * operator.
     T& operator*() {

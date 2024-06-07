@@ -104,9 +104,7 @@ public:
     }
     // Copy the shared ptr.
     SrsSharedPtr(const SrsSharedPtr<T>& cp) {
-        ptr_ = cp.ptr_;
-        ref_count_ = cp.ref_count_;
-        if (ref_count_) (*ref_count_)++;
+        copy(cp);
     }
     // Dispose and delete the shared ptr.
     virtual ~SrsSharedPtr() {
@@ -126,6 +124,12 @@ private:
         ptr_ = NULL;
         ref_count_ = NULL;
     }
+    // Copy from other shared ptr.
+    void copy(const SrsSharedPtr<T>& cp) {
+        ptr_ = cp.ptr_;
+        ref_count_ = cp.ref_count_;
+        if (ref_count_) (*ref_count_)++;
+    }
 public:
     // Get the object.
     T* get() {
@@ -134,6 +138,15 @@ public:
     // Overload the -> operator.
     T* operator->() {
         return ptr_;
+    }
+    // The assign operator.
+    SrsSharedPtr<T>& operator=(const SrsSharedPtr<T>& cp) {
+        if (this != &cp) {
+            reset();
+            copy(cp);
+        }
+
+        return *this;
     }
 private:
     // Overload the * operator.
@@ -145,8 +158,6 @@ private:
         return ptr_ != NULL;
     }
 private:
-    // Disable the assign operator.
-    SrsSharedPtr<T>& operator=(const SrsSharedPtr<T>&);
     // Disable the move constructor.
     SrsSharedPtr(SrsSharedPtr<T>&&);
     // Disable the move assign operator.

@@ -110,6 +110,12 @@ VOID TEST(CoreLogger, SharedPtrTypical)
 
     if (true) {
         SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(p);
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
         SrsSharedPtr<int> q = p;
         EXPECT_TRUE(p);
         EXPECT_TRUE(q);
@@ -211,6 +217,53 @@ VOID TEST(CoreLogger, SharedPtrWrapper)
     EXPECT_EQ(100, *ptr);
 }
 
+VOID TEST(CoreLogger, SharedPtrAssign)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(NULL);
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(new int(101));
+
+        int* q0 = q.get();
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+        EXPECT_NE(q0, q.get());
+    }
+
+    int* ptr0 = new int(100);
+    SrsAutoFree(int, ptr0);
+    EXPECT_EQ(100, *ptr0);
+
+    int* ptr1 = new int(200);
+    SrsAutoFree(int, ptr1);
+    EXPECT_EQ(200, *ptr1);
+
+    {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr0));
+        EXPECT_EQ(101, *ptr0);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsSharedPtr<MockWrapper> q(new MockWrapper(ptr1));
+        EXPECT_EQ(201, *ptr1);
+        EXPECT_EQ(201, *q->ptr);
+
+        q = p;
+        EXPECT_EQ(200, *ptr1);
+        EXPECT_EQ(101, *ptr0);
+        EXPECT_EQ(101, *p->ptr);
+        EXPECT_EQ(101, *q->ptr);
+    }
+
+    EXPECT_EQ(100, *ptr0);
+    EXPECT_EQ(200, *ptr1);
+}
+
 class MockResource : public ISrsResource
 {
 public:
@@ -254,6 +307,20 @@ VOID TEST(CoreLogger, SharedResourceTypical)
     if (true) {
         SrsSharedResource<MockResource> p(new MockResource(100));
         SrsSharedResource<MockResource> q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockResource> p(new MockResource(100));
+        SrsSharedResource<MockResource> q(NULL);
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockResource> p(new MockResource(100));
+        SrsSharedResource<MockResource> q(new MockResource(200));
+        q = p;
         EXPECT_EQ(p.get(), q.get());
     }
 
