@@ -1369,11 +1369,6 @@ srs_error_t SrsServerAdapter::run(SrsWaitGroup* wg)
     }
 #endif
 
-    SrsLazySweepGc* gc = dynamic_cast<SrsLazySweepGc*>(_srs_gc);
-    if ((err = gc->start()) != srs_success) {
-        return srs_error_wrap(err, "start gc");
-    }
-
     return err;
 }
 
