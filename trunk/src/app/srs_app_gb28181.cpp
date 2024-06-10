@@ -70,14 +70,14 @@ std::string srs_sip_state(SrsGbSipState ostate, SrsGbSipState state)
     return srs_fmt("%s->%s", srs_gb_sip_state(ostate).c_str(), srs_gb_sip_state(state).c_str());
 }
 
-SrsLazyGbSession::SrsLazyGbSession() : sip_(NULL), media_(NULL)
+SrsGbSession::SrsGbSession() : sip_(NULL), media_(NULL)
 {
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
     owner_cid_ = NULL;
 
-    sip_ = SrsSharedResource<SrsLazyGbSipTcpConn>(new SrsLazyGbSipTcpConn());
-    media_ = SrsSharedResource<SrsLazyGbMediaTcpConn>(new SrsLazyGbMediaTcpConn());
+    sip_ = SrsSharedResource<SrsGbSipTcpConn>(new SrsGbSipTcpConn());
+    media_ = SrsSharedResource<SrsGbMediaTcpConn>(new SrsGbMediaTcpConn());
 
     muxer_ = new SrsGbMuxer(this);
     state_ = SrsGbSessionStateInit;
@@ -108,13 +108,13 @@ SrsLazyGbSession::SrsLazyGbSession() : sip_(NULL), media_(NULL)
     _srs_context->set_id(cid_); // Also change current coroutine cid as session's.
 }
 
-SrsLazyGbSession::~SrsLazyGbSession()
+SrsGbSession::~SrsGbSession()
 {
     srs_freep(muxer_);
     srs_freep(ppp_);
 }
 
-void SrsLazyGbSession::setup(SrsConfDirective* conf)
+void SrsGbSession::setup(SrsConfDirective* conf)
 {
     pip_ = candidate_ = _srs_config->get_stream_caster_sip_candidate(conf);
     if (candidate_ == "*") {
@@ -130,19 +130,19 @@ void SrsLazyGbSession::setup(SrsConfDirective* conf)
         srsu2msi(reinvite_wait_), candidate_.c_str(), pip_.c_str(), output.c_str());
 }
 
-void SrsLazyGbSession::setup_owner(SrsSharedResource<SrsLazyGbSession>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid)
+void SrsGbSession::setup_owner(SrsSharedResource<SrsGbSession>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid)
 {
     wrapper_ = wrapper;
     owner_coroutine_ = owner_coroutine;
     owner_cid_ = owner_cid;
 }
 
-void SrsLazyGbSession::on_executor_done(ISrsInterruptable* executor)
+void SrsGbSession::on_executor_done(ISrsInterruptable* executor)
 {
     owner_coroutine_ = NULL;
 }
 
-void SrsLazyGbSession::on_ps_pack(SrsPackContext* ctx, SrsPsPacket* ps, const std::vector<SrsTsMessage*>& msgs)
+void SrsGbSession::on_ps_pack(SrsPackContext* ctx, SrsPsPacket* ps, const std::vector<SrsTsMessage*>& msgs)
 {
     // Got a new context, that is new media transport.
     if (media_id_ != ctx->media_id_) {
@@ -201,19 +201,19 @@ void SrsLazyGbSession::on_ps_pack(SrsPackContext* ctx, SrsPsPacket* ps, const st
     }
 }
 
-void SrsLazyGbSession::on_sip_transport(SrsSharedResource<SrsLazyGbSipTcpConn> sip)
+void SrsGbSession::on_sip_transport(SrsSharedResource<SrsGbSipTcpConn> sip)
 {
     sip_ = sip;
     // Change id of SIP and all its child coroutines.
     sip_->set_cid(cid_);
 }
 
-SrsSharedResource<SrsLazyGbSipTcpConn> SrsLazyGbSession::sip_transport()
+SrsSharedResource<SrsGbSipTcpConn> SrsGbSession::sip_transport()
 {
     return sip_;
 }
 
-void SrsLazyGbSession::on_media_transport(SrsSharedResource<SrsLazyGbMediaTcpConn> media)
+void SrsGbSession::on_media_transport(SrsSharedResource<SrsGbMediaTcpConn> media)
 {
     media_ = media;
 
@@ -221,12 +221,12 @@ void SrsLazyGbSession::on_media_transport(SrsSharedResource<SrsLazyGbMediaTcpCon
     media_->set_cid(cid_);
 }
 
-std::string SrsLazyGbSession::pip()
+std::string SrsGbSession::pip()
 {
     return pip_;
 }
 
-srs_error_t SrsLazyGbSession::cycle()
+srs_error_t SrsGbSession::cycle()
 {
     srs_error_t err = srs_success;
 
@@ -270,7 +270,7 @@ srs_error_t SrsLazyGbSession::cycle()
     return srs_success;
 }
 
-srs_error_t SrsLazyGbSession::do_cycle()
+srs_error_t SrsGbSession::do_cycle()
 {
     srs_error_t err = srs_success;
 
@@ -307,7 +307,7 @@ srs_error_t SrsLazyGbSession::do_cycle()
     return err;
 }
 
-srs_error_t SrsLazyGbSession::drive_state()
+srs_error_t SrsGbSession::drive_state()
 {
     srs_error_t err = srs_success;
 
@@ -378,19 +378,19 @@ srs_error_t SrsLazyGbSession::drive_state()
     return err;
 }
 
-SrsGbSessionState SrsLazyGbSession::set_state(SrsGbSessionState v)
+SrsGbSessionState SrsGbSession::set_state(SrsGbSessionState v)
 {
     SrsGbSessionState state = state_;
     state_ = v;
     return state;
 }
 
-const SrsContextId& SrsLazyGbSession::get_id()
+const SrsContextId& SrsGbSession::get_id()
 {
     return cid_;
 }
 
-std::string SrsLazyGbSession::desc()
+std::string SrsGbSession::desc()
 {
     return "GBS";
 }
@@ -458,10 +458,10 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener* listener, srs_netfd_t stf
 
     // Handle TCP connections.
     if (listener == sip_listener_) {
-        SrsLazyGbSipTcpConn* raw_conn = new SrsLazyGbSipTcpConn();
+        SrsGbSipTcpConn* raw_conn = new SrsGbSipTcpConn();
         raw_conn->setup(conf_, sip_listener_, media_listener_, stfd);
 
-        SrsSharedResource<SrsLazyGbSipTcpConn>* conn = new SrsSharedResource<SrsLazyGbSipTcpConn>(raw_conn);
+        SrsSharedResource<SrsGbSipTcpConn>* conn = new SrsSharedResource<SrsGbSipTcpConn>(raw_conn);
         _srs_gb_manager->add(conn, NULL);
 
         SrsExecutorCoroutine* executor = new SrsExecutorCoroutine(_srs_gb_manager, conn, raw_conn, raw_conn);
@@ -472,10 +472,10 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener* listener, srs_netfd_t stf
             return srs_error_wrap(err, "gb sip");
         }
     } else if (listener == media_listener_) {
-        SrsLazyGbMediaTcpConn* raw_conn = new SrsLazyGbMediaTcpConn();
+        SrsGbMediaTcpConn* raw_conn = new SrsGbMediaTcpConn();
         raw_conn->setup(stfd);
 
-        SrsSharedResource<SrsLazyGbMediaTcpConn>* conn = new SrsSharedResource<SrsLazyGbMediaTcpConn>(raw_conn);
+        SrsSharedResource<SrsGbMediaTcpConn>* conn = new SrsSharedResource<SrsGbMediaTcpConn>(raw_conn);
         _srs_gb_manager->add(conn, NULL);
 
         SrsExecutorCoroutine* executor = new SrsExecutorCoroutine(_srs_gb_manager, conn, raw_conn, raw_conn);
@@ -493,7 +493,7 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener* listener, srs_netfd_t stf
     return err;
 }
 
-SrsLazyGbSipTcpConn::SrsLazyGbSipTcpConn()
+SrsGbSipTcpConn::SrsGbSipTcpConn()
 {
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
@@ -514,7 +514,7 @@ SrsLazyGbSipTcpConn::SrsLazyGbSipTcpConn()
     sender_ = NULL;
 }
 
-SrsLazyGbSipTcpConn::~SrsLazyGbSipTcpConn()
+SrsGbSipTcpConn::~SrsGbSipTcpConn()
 {
     srs_freep(receiver_);
     srs_freep(sender_);
@@ -524,7 +524,7 @@ SrsLazyGbSipTcpConn::~SrsLazyGbSipTcpConn()
     srs_freep(conf_);
 }
 
-void SrsLazyGbSipTcpConn::setup(SrsConfDirective* conf, SrsTcpListener* sip, SrsTcpListener* media, srs_netfd_t stfd)
+void SrsGbSipTcpConn::setup(SrsConfDirective* conf, SrsTcpListener* sip, SrsTcpListener* media, srs_netfd_t stfd)
 {
     srs_freep(conf_);
     conf_ = conf->copy();
@@ -532,28 +532,28 @@ void SrsLazyGbSipTcpConn::setup(SrsConfDirective* conf, SrsTcpListener* sip, Srs
     sip_listener_ = sip;
     media_listener_ = media;
     conn_ = new SrsTcpConnection(stfd);
-    receiver_ = new SrsLazyGbSipTcpReceiver(this, conn_);
-    sender_ = new SrsLazyGbSipTcpSender(conn_);
+    receiver_ = new SrsGbSipTcpReceiver(this, conn_);
+    sender_ = new SrsGbSipTcpSender(conn_);
 }
 
-void SrsLazyGbSipTcpConn::setup_owner(SrsSharedResource<SrsLazyGbSipTcpConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid)
+void SrsGbSipTcpConn::setup_owner(SrsSharedResource<SrsGbSipTcpConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid)
 {
     wrapper_ = wrapper;
     owner_coroutine_ = owner_coroutine;
     owner_cid_ = owner_cid;
 }
 
-void SrsLazyGbSipTcpConn::on_executor_done(ISrsInterruptable* executor)
+void SrsGbSipTcpConn::on_executor_done(ISrsInterruptable* executor)
 {
     owner_coroutine_ = NULL;
 }
 
-std::string SrsLazyGbSipTcpConn::device_id()
+std::string SrsGbSipTcpConn::device_id()
 {
     return register_->device_id();
 }
 
-void SrsLazyGbSipTcpConn::set_cid(const SrsContextId& cid)
+void SrsGbSipTcpConn::set_cid(const SrsContextId& cid)
 {
     if (owner_cid_) owner_cid_->set_cid(cid);
     receiver_->set_cid(cid);
@@ -561,13 +561,13 @@ void SrsLazyGbSipTcpConn::set_cid(const SrsContextId& cid)
     cid_ = cid;
 }
 
-void SrsLazyGbSipTcpConn::query_ports(int* sip, int* media)
+void SrsGbSipTcpConn::query_ports(int* sip, int* media)
 {
     if (sip) *sip = sip_listener_->port();
     if (media) *media = media_listener_->port();
 }
 
-srs_error_t SrsLazyGbSipTcpConn::on_sip_message(SrsSipMessage* msg)
+srs_error_t SrsGbSipTcpConn::on_sip_message(SrsSipMessage* msg)
 {
     srs_error_t err = srs_success;
 
@@ -616,7 +616,7 @@ srs_error_t SrsLazyGbSipTcpConn::on_sip_message(SrsSipMessage* msg)
     return err;
 }
 
-void SrsLazyGbSipTcpConn::enqueue_sip_message(SrsSipMessage* msg)
+void SrsGbSipTcpConn::enqueue_sip_message(SrsSipMessage* msg)
 {
     // Drive state machine when enqueue message.
     drive_state(msg);
@@ -625,7 +625,7 @@ void SrsLazyGbSipTcpConn::enqueue_sip_message(SrsSipMessage* msg)
     sender_->enqueue(msg);
 }
 
-void SrsLazyGbSipTcpConn::drive_state(SrsSipMessage* msg)
+void SrsGbSipTcpConn::drive_state(SrsSipMessage* msg)
 {
     srs_error_t err = srs_success;
 
@@ -682,7 +682,7 @@ void SrsLazyGbSipTcpConn::drive_state(SrsSipMessage* msg)
     }
 }
 
-void SrsLazyGbSipTcpConn::register_response(SrsSipMessage* msg)
+void SrsGbSipTcpConn::register_response(SrsSipMessage* msg)
 {
     SrsSipMessage* res = new SrsSipMessage();
 
@@ -699,7 +699,7 @@ void SrsLazyGbSipTcpConn::register_response(SrsSipMessage* msg)
     enqueue_sip_message(res);
 }
 
-void SrsLazyGbSipTcpConn::message_response(SrsSipMessage* msg, http_status status)
+void SrsGbSipTcpConn::message_response(SrsSipMessage* msg, http_status status)
 {
     SrsSipMessage* res = new SrsSipMessage();
 
@@ -714,7 +714,7 @@ void SrsLazyGbSipTcpConn::message_response(SrsSipMessage* msg, http_status statu
     enqueue_sip_message(res);
 }
 
-void SrsLazyGbSipTcpConn::invite_ack(SrsSipMessage* msg)
+void SrsGbSipTcpConn::invite_ack(SrsSipMessage* msg)
 {
     string pip = session_->pip(); // Parse from CANDIDATE
     int sip_port; query_ports(&sip_port, NULL);
@@ -735,7 +735,7 @@ void SrsLazyGbSipTcpConn::invite_ack(SrsSipMessage* msg)
     enqueue_sip_message(req);
 }
 
-void SrsLazyGbSipTcpConn::bye_response(SrsSipMessage* msg)
+void SrsGbSipTcpConn::bye_response(SrsSipMessage* msg)
 {
     SrsSipMessage* res = new SrsSipMessage();
 
@@ -750,7 +750,7 @@ void SrsLazyGbSipTcpConn::bye_response(SrsSipMessage* msg)
     enqueue_sip_message(res);
 }
 
-srs_error_t SrsLazyGbSipTcpConn::invite_request(uint32_t* pssrc)
+srs_error_t SrsGbSipTcpConn::invite_request(uint32_t* pssrc)
 {
     srs_error_t err = srs_success;
 
@@ -847,56 +847,56 @@ srs_error_t SrsLazyGbSipTcpConn::invite_request(uint32_t* pssrc)
     return err;
 }
 
-void SrsLazyGbSipTcpConn::interrupt()
+void SrsGbSipTcpConn::interrupt()
 {
     receiver_->interrupt();
     sender_->interrupt();
     if (owner_coroutine_) owner_coroutine_->interrupt();
 }
 
-SrsGbSipState SrsLazyGbSipTcpConn::state()
+SrsGbSipState SrsGbSipTcpConn::state()
 {
     return state_;
 }
 
-void SrsLazyGbSipTcpConn::reset_to_register()
+void SrsGbSipTcpConn::reset_to_register()
 {
     state_ = SrsGbSipStateRegistered;
 }
 
-bool SrsLazyGbSipTcpConn::is_registered()
+bool SrsGbSipTcpConn::is_registered()
 {
     return state_ >= SrsGbSipStateRegistered && state_ <= SrsGbSipStateStable;
 }
 
-bool SrsLazyGbSipTcpConn::is_stable()
+bool SrsGbSipTcpConn::is_stable()
 {
     return state_ == SrsGbSipStateStable;
 }
 
-bool SrsLazyGbSipTcpConn::is_bye()
+bool SrsGbSipTcpConn::is_bye()
 {
     return state_ == SrsGbSipStateBye;
 }
 
-SrsGbSipState SrsLazyGbSipTcpConn::set_state(SrsGbSipState v)
+SrsGbSipState SrsGbSipTcpConn::set_state(SrsGbSipState v)
 {
     SrsGbSipState state = state_;
     state_ = v;
     return state;
 }
 
-const SrsContextId& SrsLazyGbSipTcpConn::get_id()
+const SrsContextId& SrsGbSipTcpConn::get_id()
 {
     return cid_;
 }
 
-std::string SrsLazyGbSipTcpConn::desc()
+std::string SrsGbSipTcpConn::desc()
 {
     return "GB-SIP-TCP";
 }
 
-srs_error_t SrsLazyGbSipTcpConn::cycle()
+srs_error_t SrsGbSipTcpConn::cycle()
 {
     srs_error_t err = srs_success;
 
@@ -949,7 +949,7 @@ srs_error_t SrsLazyGbSipTcpConn::cycle()
     return srs_success;
 }
 
-srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyGbSession** psession)
+srs_error_t SrsGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsGbSession** psession)
 {
     srs_error_t err = srs_success;
 
@@ -960,14 +960,14 @@ srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyGbSessi
     if (msg->type_ != HTTP_REQUEST || msg->method_ != HTTP_REGISTER) return err;
 
     // Find exists session for register, might be created by another object and still alive.
-    SrsSharedResource<SrsLazyGbSession>* session = dynamic_cast<SrsSharedResource<SrsLazyGbSession>*>(_srs_gb_manager->find_by_id(device));
-    SrsLazyGbSession* raw_session = session ? (*session).get() : NULL;
+    SrsSharedResource<SrsGbSession>* session = dynamic_cast<SrsSharedResource<SrsGbSession>*>(_srs_gb_manager->find_by_id(device));
+    SrsGbSession* raw_session = session ? (*session).get() : NULL;
     if (!session) {
         // Create new GB session.
-        raw_session = new SrsLazyGbSession();
+        raw_session = new SrsGbSession();
         raw_session->setup(conf_);
 
-        session = new SrsSharedResource<SrsLazyGbSession>(raw_session);
+        session = new SrsSharedResource<SrsGbSession>(raw_session);
         _srs_gb_manager->add_with_id(device, session);
 
         SrsExecutorCoroutine* executor = new SrsExecutorCoroutine(_srs_gb_manager, session, raw_session, raw_session);
@@ -980,7 +980,7 @@ srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyGbSessi
     }
 
     // Try to load state from previous SIP connection.
-    SrsSharedResource<SrsLazyGbSipTcpConn> pre = raw_session->sip_transport();
+    SrsSharedResource<SrsGbSipTcpConn> pre = raw_session->sip_transport();
     if (pre.get() && pre.get() != this) {
         state_ = pre->state_;
         ssrc_str_ = pre->ssrc_str_;
@@ -996,29 +996,29 @@ srs_error_t SrsLazyGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsLazyGbSessi
     return err;
 }
 
-SrsLazyGbSipTcpReceiver::SrsLazyGbSipTcpReceiver(SrsLazyGbSipTcpConn* sip, SrsTcpConnection* conn)
+SrsGbSipTcpReceiver::SrsGbSipTcpReceiver(SrsGbSipTcpConn* sip, SrsTcpConnection* conn)
 {
     sip_ = sip;
     conn_ = conn;
     trd_ = new SrsSTCoroutine("sip-receiver", this);
 }
 
-SrsLazyGbSipTcpReceiver::~SrsLazyGbSipTcpReceiver()
+SrsGbSipTcpReceiver::~SrsGbSipTcpReceiver()
 {
     srs_freep(trd_);
 }
 
-void SrsLazyGbSipTcpReceiver::interrupt()
+void SrsGbSipTcpReceiver::interrupt()
 {
     trd_->interrupt();
 }
 
-void SrsLazyGbSipTcpReceiver::set_cid(const SrsContextId& cid)
+void SrsGbSipTcpReceiver::set_cid(const SrsContextId& cid)
 {
     trd_->set_cid(cid);
 }
 
-srs_error_t SrsLazyGbSipTcpReceiver::start()
+srs_error_t SrsGbSipTcpReceiver::start()
 {
     srs_error_t err = srs_success;
 
@@ -1029,7 +1029,7 @@ srs_error_t SrsLazyGbSipTcpReceiver::start()
     return err;
 }
 
-srs_error_t SrsLazyGbSipTcpReceiver::cycle()
+srs_error_t SrsGbSipTcpReceiver::cycle()
 {
     srs_error_t err = do_cycle();
 
@@ -1041,7 +1041,7 @@ srs_error_t SrsLazyGbSipTcpReceiver::cycle()
     return err;
 }
 
-srs_error_t SrsLazyGbSipTcpReceiver::do_cycle()
+srs_error_t SrsGbSipTcpReceiver::do_cycle()
 {
     srs_error_t err = srs_success;
 
@@ -1080,14 +1080,14 @@ srs_error_t SrsLazyGbSipTcpReceiver::do_cycle()
     return err;
 }
 
-SrsLazyGbSipTcpSender::SrsLazyGbSipTcpSender(SrsTcpConnection* conn)
+SrsGbSipTcpSender::SrsGbSipTcpSender(SrsTcpConnection* conn)
 {
     conn_ = conn;
     wait_ = srs_cond_new();
     trd_ = new SrsSTCoroutine("sip-sender", this);
 }
 
-SrsLazyGbSipTcpSender::~SrsLazyGbSipTcpSender()
+SrsGbSipTcpSender::~SrsGbSipTcpSender()
 {
     srs_freep(trd_);
     srs_cond_destroy(wait_);
@@ -1098,23 +1098,23 @@ SrsLazyGbSipTcpSender::~SrsLazyGbSipTcpSender()
     }
 }
 
-void SrsLazyGbSipTcpSender::enqueue(SrsSipMessage* msg)
+void SrsGbSipTcpSender::enqueue(SrsSipMessage* msg)
 {
     msgs_.push_back(msg);
     srs_cond_signal(wait_);
 }
 
-void SrsLazyGbSipTcpSender::interrupt()
+void SrsGbSipTcpSender::interrupt()
 {
     trd_->interrupt();
 }
 
-void SrsLazyGbSipTcpSender::set_cid(const SrsContextId& cid)
+void SrsGbSipTcpSender::set_cid(const SrsContextId& cid)
 {
     trd_->set_cid(cid);
 }
 
-srs_error_t SrsLazyGbSipTcpSender::start()
+srs_error_t SrsGbSipTcpSender::start()
 {
     srs_error_t err = srs_success;
 
@@ -1125,7 +1125,7 @@ srs_error_t SrsLazyGbSipTcpSender::start()
     return err;
 }
 
-srs_error_t SrsLazyGbSipTcpSender::cycle()
+srs_error_t SrsGbSipTcpSender::cycle()
 {
     srs_error_t err = do_cycle();
 
@@ -1137,7 +1137,7 @@ srs_error_t SrsLazyGbSipTcpSender::cycle()
     return err;
 }
 
-srs_error_t SrsLazyGbSipTcpSender::do_cycle()
+srs_error_t SrsGbSipTcpSender::do_cycle()
 {
     srs_error_t err = srs_success;
 
@@ -1207,7 +1207,7 @@ ISrsPsPackHandler::~ISrsPsPackHandler()
 {
 }
 
-SrsLazyGbMediaTcpConn::SrsLazyGbMediaTcpConn()
+SrsGbMediaTcpConn::SrsGbMediaTcpConn()
 {
     pack_ = new SrsPackContext(this);
     buffer_ = new uint8_t[65535];
@@ -1223,58 +1223,58 @@ SrsLazyGbMediaTcpConn::SrsLazyGbMediaTcpConn()
     nn_rtcp_ = 0;
 }
 
-SrsLazyGbMediaTcpConn::~SrsLazyGbMediaTcpConn()
+SrsGbMediaTcpConn::~SrsGbMediaTcpConn()
 {
     srs_freep(conn_);
     srs_freepa(buffer_);
     srs_freep(pack_);
 }
 
-void SrsLazyGbMediaTcpConn::setup(srs_netfd_t stfd)
+void SrsGbMediaTcpConn::setup(srs_netfd_t stfd)
 {
     srs_freep(conn_);
     conn_ = new SrsTcpConnection(stfd);
 }
 
-void SrsLazyGbMediaTcpConn::setup_owner(SrsSharedResource<SrsLazyGbMediaTcpConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid)
+void SrsGbMediaTcpConn::setup_owner(SrsSharedResource<SrsGbMediaTcpConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid)
 {
     wrapper_ = wrapper;
     owner_coroutine_ = owner_coroutine;
     owner_cid_ = owner_cid;
 }
 
-void SrsLazyGbMediaTcpConn::on_executor_done(ISrsInterruptable* executor)
+void SrsGbMediaTcpConn::on_executor_done(ISrsInterruptable* executor)
 {
     owner_coroutine_ = NULL;
 }
 
-bool SrsLazyGbMediaTcpConn::is_connected()
+bool SrsGbMediaTcpConn::is_connected()
 {
     return connected_;
 }
 
-void SrsLazyGbMediaTcpConn::interrupt()
+void SrsGbMediaTcpConn::interrupt()
 {
     if (owner_coroutine_) owner_coroutine_->interrupt();
 }
 
-void SrsLazyGbMediaTcpConn::set_cid(const SrsContextId& cid)
+void SrsGbMediaTcpConn::set_cid(const SrsContextId& cid)
 {
     if (owner_cid_) owner_cid_->set_cid(cid);
     cid_ = cid;
 }
 
-const SrsContextId& SrsLazyGbMediaTcpConn::get_id()
+const SrsContextId& SrsGbMediaTcpConn::get_id()
 {
     return cid_;
 }
 
-std::string SrsLazyGbMediaTcpConn::desc()
+std::string SrsGbMediaTcpConn::desc()
 {
     return "GB-Media-TCP";
 }
 
-srs_error_t SrsLazyGbMediaTcpConn::cycle()
+srs_error_t SrsGbMediaTcpConn::cycle()
 {
     srs_error_t err = do_cycle();
 
@@ -1313,7 +1313,7 @@ srs_error_t SrsLazyGbMediaTcpConn::cycle()
     return srs_success;
 }
 
-srs_error_t SrsLazyGbMediaTcpConn::do_cycle()
+srs_error_t SrsGbMediaTcpConn::do_cycle()
 {
     srs_error_t err = srs_success;
 
@@ -1413,7 +1413,7 @@ srs_error_t SrsLazyGbMediaTcpConn::do_cycle()
     return err;
 }
 
-srs_error_t SrsLazyGbMediaTcpConn::on_ps_pack(SrsPsPacket* ps, const std::vector<SrsTsMessage*>& msgs)
+srs_error_t SrsGbMediaTcpConn::on_ps_pack(SrsPsPacket* ps, const std::vector<SrsTsMessage*>& msgs)
 {
     srs_error_t err = srs_success;
 
@@ -1437,17 +1437,17 @@ srs_error_t SrsLazyGbMediaTcpConn::on_ps_pack(SrsPsPacket* ps, const std::vector
     return err;
 }
 
-srs_error_t SrsLazyGbMediaTcpConn::bind_session(uint32_t ssrc, SrsLazyGbSession** psession)
+srs_error_t SrsGbMediaTcpConn::bind_session(uint32_t ssrc, SrsGbSession** psession)
 {
     srs_error_t err = srs_success;
 
     if (!ssrc) return err;
 
     // Find exists session for register, might be created by another object and still alive.
-    SrsSharedResource<SrsLazyGbSession>* session = dynamic_cast<SrsSharedResource<SrsLazyGbSession>*>(_srs_gb_manager->find_by_fast_id(ssrc));
+    SrsSharedResource<SrsGbSession>* session = dynamic_cast<SrsSharedResource<SrsGbSession>*>(_srs_gb_manager->find_by_fast_id(ssrc));
     if (!session) return err;
 
-    SrsLazyGbSession* raw_session = (*session).get();
+    SrsGbSession* raw_session = (*session).get();
     srs_assert(raw_session);
 
     // Notice session to use current media connection.
@@ -1531,7 +1531,7 @@ SrsSharedPtrMessage* SrsMpegpsQueue::dequeue()
     return NULL;
 }
 
-SrsGbMuxer::SrsGbMuxer(SrsLazyGbSession* session)
+SrsGbMuxer::SrsGbMuxer(SrsGbSession* session)
 {
     sdk_ = NULL;
     session_ = session;
