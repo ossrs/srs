@@ -909,14 +909,7 @@ srs_error_t SrsGbSipTcpConn::cycle()
     }
 
     // Wait for the SIP connection to be terminated.
-    while (true) {
-        if (!owner_coroutine_) return err;
-        if ((err = owner_coroutine_->pull()) != srs_success) {
-            return srs_error_wrap(err, "pull");
-        }
-
-        srs_usleep(SRS_UTIME_NO_TIMEOUT);
-    }
+    err = do_cycle();
 
     // Interrupt the receiver and sender coroutine.
     receiver_->interrupt();
@@ -947,6 +940,22 @@ srs_error_t SrsGbSipTcpConn::cycle()
 
     srs_freep(err);
     return srs_success;
+}
+
+srs_error_t SrsGbSipTcpConn::do_cycle()
+{
+    srs_error_t err = srs_success;
+
+    while (true) {
+        if (!owner_coroutine_) return err;
+        if ((err = owner_coroutine_->pull()) != srs_success) {
+            return srs_error_wrap(err, "pull");
+        }
+
+        srs_usleep(SRS_UTIME_NO_TIMEOUT);
+    }
+
+    return err;
 }
 
 srs_error_t SrsGbSipTcpConn::bind_session(SrsSipMessage* msg, SrsGbSession** psession)

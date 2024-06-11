@@ -275,6 +275,8 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
+    srs_error_t do_cycle();
+private:
     // Create session if no one, or bind to an existed session.
     srs_error_t bind_session(SrsSipMessage* msg, SrsGbSession** psession);
 };
