@@ -143,7 +143,7 @@ private:
 //      ISrsResourceManager* manager = ...;
 //      manager->remove(ptr);
 template<typename T>
-class SrsSharedResource : virtual public ISrsResource
+class SrsSharedResource : public ISrsResource
 {
 private:
     SrsSharedPtr<T> ptr_;
