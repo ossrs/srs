@@ -33,7 +33,9 @@ public:
     ISrsResourceManager();
     virtual ~ISrsResourceManager();
 public:
-    // Remove then free the specified connection.
+    // Remove then free the specified connection. Note that the manager always free c resource,
+    // in the same coroutine or another coroutine. Some manager may support add c to a map, it
+    // should always free it even if it's in the map.
     virtual void remove(ISrsResource* c) = 0;
 };
 
