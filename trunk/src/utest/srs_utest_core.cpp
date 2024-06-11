@@ -259,15 +259,13 @@ VOID TEST(CoreLogger, SharedPtrAssign)
 }
 
 template<typename T>
-SrsSharedPtr<T> mock_shared_ptr_move_assign(SrsSharedPtr<T> p)
-{
+SrsSharedPtr<T> mock_shared_ptr_move_assign(SrsSharedPtr<T> p) {
     SrsSharedPtr<T> q = p;
     return q;
 }
 
 template<typename T>
-SrsSharedPtr<T> mock_shared_ptr_move_ctr(SrsSharedPtr<T> p)
-{
+SrsSharedPtr<T> mock_shared_ptr_move_ctr(SrsSharedPtr<T> p) {
     return p;
 }
 
@@ -401,15 +399,13 @@ VOID TEST(CoreLogger, SharedResourceTypical)
 }
 
 template<typename T>
-SrsSharedResource<T> mock_shared_resource_move_assign(SrsSharedResource<T> p)
-{
+SrsSharedResource<T> mock_shared_resource_move_assign(SrsSharedResource<T> p) {
     SrsSharedResource<T> q = p;
     return q;
 }
 
 template<typename T>
-SrsSharedResource<T> mock_shared_resource_move_ctr(SrsSharedResource<T> p)
-{
+SrsSharedResource<T> mock_shared_resource_move_ctr(SrsSharedResource<T> p) {
     return p;
 }
 
@@ -419,6 +415,7 @@ VOID TEST(CoreLogger, SharedResourceMove)
         SrsSharedResource<MockIntResource> p(new MockIntResource(100));
         SrsSharedResource<MockIntResource> q(new MockIntResource(101));
         q = mock_shared_resource_move_ctr(p);
+        EXPECT_EQ(100, q->value_);
         EXPECT_EQ(q.get(), p.get());
     }
 
@@ -426,6 +423,7 @@ VOID TEST(CoreLogger, SharedResourceMove)
         SrsSharedResource<MockIntResource> p(new MockIntResource(100));
         SrsSharedResource<MockIntResource> q(new MockIntResource(101));
         q = mock_shared_resource_move_assign(p);
+        EXPECT_EQ(100, q->value_);
         EXPECT_EQ(q.get(), p.get());
     }
 }

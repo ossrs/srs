@@ -128,9 +128,14 @@ private:
 
 // This class implements the ISrsResource interface using a smart pointer, allowing the Manager to delete this
 // smart pointer resource, such as by implementing delayed release.
+//
 // It embeds an SrsSharedPtr to provide the same interface, but it is not an inheritance relationship. Its usage
 // is identical to SrsSharedPtr, but they cannot replace each other. They are not related and cannot be converted
 // to one another.
+//
+// Note that we don't need to implement the move constructor and move assignment operator, because we directly
+// use SrsSharedPtr as instance member, so we can only copy it.
+//
 // Usage:
 //      SrsSharedResource<MyClass>* ptr = new SrsSharedResource<MyClass>(new MyClass());
 //      (*ptr)->do_something();
@@ -174,19 +179,6 @@ private:
     operator bool() const {
         return ptr_.operator bool();
     }
-#if __cplusplus >= 201103L // C++11
-public:
-    // The move constructor.
-    SrsSharedResource(SrsSharedResource<T>&& cp) : ptr_(cp.ptr_) {
-    };
-    // The move assign operator.
-    SrsSharedResource<T>& operator=(SrsSharedResource<T>&& cp) {
-        if (this != &cp) {
-            ptr_ = cp.ptr_;
-        }
-        return *this;
-    }
-#endif
 // Interface ISrsResource
 public:
     virtual const SrsContextId& get_id() {
