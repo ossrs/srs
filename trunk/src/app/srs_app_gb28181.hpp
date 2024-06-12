@@ -26,11 +26,11 @@ class SrsCoroutine;
 class SrsPackContext;
 class SrsBuffer;
 class SrsSipMessage;
-class SrsLazyGbSession;
-class SrsLazyGbSipTcpConn;
-class SrsLazyGbMediaTcpConn;
-class SrsLazyGbSipTcpReceiver;
-class SrsLazyGbSipTcpSender;
+class SrsGbSession;
+class SrsGbSipTcpConn;
+class SrsGbMediaTcpConn;
+class SrsGbSipTcpReceiver;
+class SrsGbSipTcpSender;
 class SrsAlonePithyPrint;
 class SrsGbMuxer;
 class SrsSimpleRtmpClient;
@@ -51,7 +51,7 @@ class SrsRawAacStream;
 // established:
 //      init: media is not connected.
 //      dispose session: sip is bye.
-// Please see SrsLazyGbSession::drive_state for detail.
+// Please see SrsGbSession::drive_state for detail.
 enum SrsGbSessionState
 {
     SrsGbSessionStateInit = 0,
@@ -76,7 +76,7 @@ std::string srs_gb_session_state(SrsGbSessionState state);
 //      to bye: Got bye SIP message from device.
 // re-inviting:
 //      to inviting: Got bye OK response from deivce.
-// Please see SrsLazyGbSipTcpConn::drive_state for detail.
+// Please see SrsGbSipTcpConn::drive_state for detail.
 enum SrsGbSipState
 {
     SrsGbSipStateInit = 0,
@@ -90,16 +90,23 @@ enum SrsGbSipState
 std::string srs_gb_sip_state(SrsGbSipState state);
 
 // The main logic object for GB, the session.
-class SrsLazyGbSession : public SrsLazyObject, public ISrsResource, public ISrsStartable, public ISrsCoroutineHandler
+// Each session contains a SIP object and a media object, that are managed by session. This means session always
+// lives longer than SIP and media, and session will dispose SIP and media when session disposed. In another word,
+// SIP and media objects use directly pointer to session, while session use shared ptr.
+class SrsGbSession : public ISrsResource, public ISrsCoroutineHandler, public ISrsExecutorHandler
 {
 private:
-    SrsCoroutine* trd_;
     SrsContextId cid_;
 private:
+    // The shared resource which own this object, we should never free it because it's managed by shared ptr.
+    SrsSharedResource<SrsGbSession>* wrapper_;
+    // The owner coroutine, allow user to interrupt the loop.
+    ISrsInterruptable* owner_coroutine_;
+    ISrsContextIdSetter* owner_cid_;
+private:
     SrsGbSessionState state_;
-    SrsLazyObjectWrapper<SrsLazyGbSession>* wrapper_root_;
-    SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* sip_;
-    SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* media_;
+    SrsSharedResource<SrsGbSipTcpConn> sip_;
+    SrsSharedResource<SrsGbMediaTcpConn> media_;
     SrsGbMuxer* muxer_;
 private:
     // The candidate for SDP in configuration.
@@ -132,26 +139,27 @@ private:
     uint64_t media_recovered_;
     uint64_t media_msgs_dropped_;
     uint64_t media_reserved_;
-private:
-    friend class SrsLazyObjectWrapper<SrsLazyGbSession>;
-    SrsLazyGbSession(SrsLazyObjectWrapper<SrsLazyGbSession>* wrapper_root);
 public:
-    virtual ~SrsLazyGbSession();
+    SrsGbSession();
+    virtual ~SrsGbSession();
 public:
     // Initialize the GB session.
-    srs_error_t initialize(SrsConfDirective* conf);
+    void setup(SrsConfDirective* conf);
+    // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
+    void setup_owner(SrsSharedResource<SrsGbSession>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid);
+// Interface ISrsExecutorHandler
+public:
+    virtual void on_executor_done(ISrsInterruptable* executor);
+public:
     // When got a pack of messages.
     void on_ps_pack(SrsPackContext* ctx, SrsPsPacket* ps, const std::vector<SrsTsMessage*>& msgs);
     // When got available SIP transport.
-    void on_sip_transport(SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* sip);
-    SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* sip_transport();
+    void on_sip_transport(SrsSharedResource<SrsGbSipTcpConn> sip);
+    SrsSharedResource<SrsGbSipTcpConn> sip_transport();
     // When got available media transport.
-    void on_media_transport(SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* media);
+    void on_media_transport(SrsSharedResource<SrsGbMediaTcpConn> media);
     // Get the candidate for SDP generation, the public IP address for device to connect to.
     std::string pip();
-// Interface ISrsStartable
-public:
-    virtual srs_error_t start();
 // Interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();
@@ -186,12 +194,12 @@ public:
 };
 
 // A GB28181 TCP SIP connection.
-class SrsLazyGbSipTcpConn : public SrsLazyObject, public ISrsResource, public ISrsStartable, public ISrsCoroutineHandler
+class SrsGbSipTcpConn : public ISrsResource, public ISrsCoroutineHandler, public ISrsExecutorHandler
 {
 private:
     SrsGbSipState state_;
-    SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* wrapper_root_;
-    SrsLazyObjectWrapper<SrsLazyGbSession>* session_;
+    // The owner session object, note that we use the raw pointer and should never free it.
+    SrsGbSession* session_;
     SrsSipMessage* register_;
     SrsSipMessage* invite_ok_;
 private:
@@ -202,18 +210,28 @@ private:
     SrsTcpListener* sip_listener_;
     SrsTcpListener* media_listener_;
 private:
-    SrsTcpConnection* conn_;
-    SrsLazyGbSipTcpReceiver* receiver_;
-    SrsLazyGbSipTcpSender* sender_;
-    SrsCoroutine* trd_;
+    // The shared resource which own this object, we should never free it because it's managed by shared ptr.
+    SrsSharedResource<SrsGbSipTcpConn>* wrapper_;
+    // The owner coroutine, allow user to interrupt the loop.
+    ISrsInterruptable* owner_coroutine_;
+    ISrsContextIdSetter* owner_cid_;
+    SrsContextId cid_;
 private:
-    friend class SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>;
-    SrsLazyGbSipTcpConn(SrsLazyObjectWrapper<SrsLazyGbSipTcpConn>* wrapper_root);
+    SrsTcpConnection* conn_;
+    SrsGbSipTcpReceiver* receiver_;
+    SrsGbSipTcpSender* sender_;
 public:
-    virtual ~SrsLazyGbSipTcpConn();
+    SrsGbSipTcpConn();
+    virtual ~SrsGbSipTcpConn();
 public:
     // Setup object, to keep empty constructor.
     void setup(SrsConfDirective* conf, SrsTcpListener* sip, SrsTcpListener* media, srs_netfd_t stfd);
+    // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
+    void setup_owner(SrsSharedResource<SrsGbSipTcpConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid);
+// Interface ISrsExecutorHandler
+public:
+    virtual void on_executor_done(ISrsInterruptable* executor);
+public:
     // Get the SIP device id.
     std::string device_id();
     // Set the cid of all coroutines.
@@ -253,29 +271,26 @@ private:
 public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
-// Interface ISrsStartable
-public:
-    virtual srs_error_t start();
 // Interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();
 private:
-    virtual srs_error_t do_cycle();
+    srs_error_t do_cycle();
 private:
     // Create session if no one, or bind to an existed session.
-    srs_error_t bind_session(SrsSipMessage* msg, SrsLazyObjectWrapper<SrsLazyGbSession>** psession);
+    srs_error_t bind_session(SrsSipMessage* msg, SrsGbSession** psession);
 };
 
 // Start a coroutine to receive SIP messages.
-class SrsLazyGbSipTcpReceiver : public ISrsStartable, public ISrsCoroutineHandler
+class SrsGbSipTcpReceiver : public ISrsStartable, public ISrsCoroutineHandler
 {
 private:
     SrsCoroutine* trd_;
     SrsTcpConnection* conn_;
-    SrsLazyGbSipTcpConn* sip_;
+    SrsGbSipTcpConn* sip_;
 public:
-    SrsLazyGbSipTcpReceiver(SrsLazyGbSipTcpConn* sip, SrsTcpConnection* conn);
-    virtual ~SrsLazyGbSipTcpReceiver();
+    SrsGbSipTcpReceiver(SrsGbSipTcpConn* sip, SrsTcpConnection* conn);
+    virtual ~SrsGbSipTcpReceiver();
 public:
     // Interrupt the receiver coroutine.
     void interrupt();
@@ -292,7 +307,7 @@ private:
 };
 
 // Start a coroutine to send out SIP messages.
-class SrsLazyGbSipTcpSender : public ISrsStartable, public ISrsCoroutineHandler
+class SrsGbSipTcpSender : public ISrsStartable, public ISrsCoroutineHandler
 {
 private:
     SrsCoroutine* trd_;
@@ -301,8 +316,8 @@ private:
     std::vector<SrsSipMessage*> msgs_;
     srs_cond_t wait_;
 public:
-    SrsLazyGbSipTcpSender(SrsTcpConnection* conn);
-    virtual ~SrsLazyGbSipTcpSender();
+    SrsGbSipTcpSender(SrsTcpConnection* conn);
+    virtual ~SrsGbSipTcpSender();
 public:
     // Push message to queue, and sender will send out in dedicate coroutine.
     void enqueue(SrsSipMessage* msg);
@@ -333,27 +348,36 @@ public:
 };
 
 // A GB28181 TCP media connection, for PS stream.
-class SrsLazyGbMediaTcpConn : public SrsLazyObject, public ISrsResource, public ISrsStartable, public ISrsCoroutineHandler
-    , public ISrsPsPackHandler
+class SrsGbMediaTcpConn : public ISrsResource, public ISrsCoroutineHandler, public ISrsPsPackHandler, public ISrsExecutorHandler
 {
 private:
     bool connected_;
-    SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* wrapper_root_;
-    SrsLazyObjectWrapper<SrsLazyGbSession>* session_;
+    // The owner session object, note that we use the raw pointer and should never free it.
+    SrsGbSession* session_;
     uint32_t nn_rtcp_;
+private:
+    // The shared resource which own this object, we should never free it because it's managed by shared ptr.
+    SrsSharedResource<SrsGbMediaTcpConn>* wrapper_;
+    // The owner coroutine, allow user to interrupt the loop.
+    ISrsInterruptable* owner_coroutine_;
+    ISrsContextIdSetter* owner_cid_;
+    SrsContextId cid_;
 private:
     SrsPackContext* pack_;
     SrsTcpConnection* conn_;
-    SrsCoroutine* trd_;
     uint8_t* buffer_;
-private:
-    friend class SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>;
-    SrsLazyGbMediaTcpConn(SrsLazyObjectWrapper<SrsLazyGbMediaTcpConn>* wrapper_root);
 public:
-    virtual ~SrsLazyGbMediaTcpConn();
+    SrsGbMediaTcpConn();
+    virtual ~SrsGbMediaTcpConn();
 public:
     // Setup object, to keep empty constructor.
     void setup(srs_netfd_t stfd);
+    // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
+    void setup_owner(SrsSharedResource<SrsGbMediaTcpConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid);
+// Interface ISrsExecutorHandler
+public:
+    virtual void on_executor_done(ISrsInterruptable* executor);
+public:
     // Whether media is connected.
     bool is_connected();
     // Interrupt transport by session.
@@ -364,9 +388,6 @@ public:
 public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
-// Interface ISrsStartable
-public:
-    virtual srs_error_t start();
 // Interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();
@@ -377,7 +398,7 @@ public:
     virtual srs_error_t on_ps_pack(SrsPsPacket* ps, const std::vector<SrsTsMessage*>& msgs);
 private:
     // Create session if no one, or bind to an existed session.
-    srs_error_t bind_session(uint32_t ssrc, SrsLazyObjectWrapper<SrsLazyGbSession>** psession);
+    srs_error_t bind_session(uint32_t ssrc, SrsGbSession** psession);
 };
 
 // The queue for mpegts over udp to send packets.
@@ -402,7 +423,8 @@ public:
 class SrsGbMuxer
 {
 private:
-    SrsLazyGbSession* session_;
+    // The owner session object, note that we use the raw pointer and should never free it.
+    SrsGbSession* session_;
     std::string output_;
     SrsSimpleRtmpClient* sdk_;
 private:
@@ -428,10 +450,10 @@ private:
     SrsMpegpsQueue* queue_;
     SrsPithyPrint* pprint_;
 public:
-    SrsGbMuxer(SrsLazyGbSession* session);
+    SrsGbMuxer(SrsGbSession* session);
     virtual ~SrsGbMuxer();
 public:
-    srs_error_t initialize(std::string output);
+    void setup(std::string output);
     srs_error_t on_ts_message(SrsTsMessage* msg);
 private:
     virtual srs_error_t on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
