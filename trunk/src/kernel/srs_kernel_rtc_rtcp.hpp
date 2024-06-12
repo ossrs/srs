@@ -138,6 +138,38 @@ struct SrsRtcpRB
         lsr = 0;
         dlsr = 0;
     }
+    void set_rb_ssrc(uint32_t ssrc)
+    {
+        this->ssrc = ssrc;
+    }
+    void set_lost_rate(float rate)
+    {
+        this->fraction_lost = rate * 256;
+    }
+    void set_lost_packets(uint32_t count)
+    {
+        this->lost_packets = count;
+    }
+    void set_highest_sn(uint32_t sn)
+    {
+        this->highest_sn = sn;
+    }
+    void set_jitter(uint32_t jitter)
+    {
+        this->jitter = jitter;
+    }
+    void set_lsr(uint32_t lsr)
+    {
+        this->lsr = lsr;
+    }
+    void set_dlsr(uint32_t dlsr)
+    {
+        this->dlsr = dlsr;
+    }
+    void set_sender_ntp(uint64_t ntp)
+    {
+        this->lsr = (uint32_t)((ntp >> 16) & 0xFFFFFFFF);
+    }
 };
 
 class SrsRtcpSR : public SrsRtcpCommon
@@ -173,8 +205,8 @@ public:
 
 class SrsRtcpRR : public SrsRtcpCommon
 {
-private:
-    SrsRtcpRB rb_;
+public:
+    std::vector<SrsRtcpRB> rr_blocks_;
 public:
     SrsRtcpRR(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpRR();
@@ -182,22 +214,6 @@ public:
     // overload SrsRtcpCommon
     virtual uint8_t type() const;
 
-    uint32_t get_rb_ssrc() const;
-    float get_lost_rate() const;
-    uint32_t get_lost_packets() const;
-    uint32_t get_highest_sn() const;
-    uint32_t get_jitter() const;
-    uint32_t get_lsr() const;
-    uint32_t get_dlsr() const;
-
-    void set_rb_ssrc(uint32_t ssrc);
-    void set_lost_rate(float rate);
-    void set_lost_packets(uint32_t count);
-    void set_highest_sn(uint32_t sn);
-    void set_jitter(uint32_t jitter);
-    void set_lsr(uint32_t lsr);
-    void set_dlsr(uint32_t dlsr);
-    void set_sender_ntp(uint64_t ntp);
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);

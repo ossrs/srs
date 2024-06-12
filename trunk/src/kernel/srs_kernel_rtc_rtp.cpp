@@ -764,6 +764,9 @@ SrsRtpPacket::SrsRtpPacket()
     decode_handler = NULL;
     avsync_time_ = -1;
 
+    //rtp resend for nack
+    resend_count_ = 0;
+    resend_ms_ = -1;
     ++_srs_pps_objs_rtps->sugar;
 }
 
