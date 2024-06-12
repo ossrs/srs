@@ -253,6 +253,7 @@ private:
     ISrsContextIdSetter* owner_cid_;
     SrsContextId cid_;
 public:
+    SrsRtcTcpConn();
     SrsRtcTcpConn(ISrsProtocolReadWriter* skt, std::string cip, int port);
     virtual ~SrsRtcTcpConn();
 public:
@@ -260,6 +261,8 @@ public:
     void setup_owner(SrsSharedResource<SrsRtcTcpConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid);
 public:
     ISrsKbpsDelta* delta();
+    // Interrupt transport by session.
+    void interrupt();
 // Interface ISrsResource.
 public:
     virtual std::string desc();

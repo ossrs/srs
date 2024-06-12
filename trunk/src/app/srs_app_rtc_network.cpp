@@ -436,7 +436,7 @@ srs_error_t SrsRtcUdpNetwork::write(void* buf, size_t size, ssize_t* nwrite)
     return sendonly_skt_->sendto(buf, size, SRS_UTIME_NO_TIMEOUT);
 }
 
-SrsRtcTcpNetwork::SrsRtcTcpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* delta) : owner_(NULL)
+SrsRtcTcpNetwork::SrsRtcTcpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* delta) : owner_(new SrsRtcTcpConn())
 {
     conn_ = conn;
     delta_ = delta;
@@ -448,6 +448,7 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* de
 
 SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
 {
+    owner_->interrupt();
     srs_freep(transport_);
 }
 
@@ -693,13 +694,20 @@ void SrsRtcTcpNetwork::dispose()
 
 #define SRS_RTC_TCP_PACKET_MAX 1500
 
-SrsRtcTcpConn::SrsRtcTcpConn(ISrsProtocolReadWriter* skt, std::string cip, int port)
+SrsRtcTcpConn::SrsRtcTcpConn()
 {
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
     owner_cid_ = NULL;
     cid_ = _srs_context->get_id();
 
+    pkt_ = NULL;
+    delta_ = NULL;
+    skt_ = NULL;
+}
+
+SrsRtcTcpConn::SrsRtcTcpConn(ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcTcpConn()
+{
     ip_ = cip;
     port_ = port;
     skt_ = skt;
@@ -726,6 +734,12 @@ void SrsRtcTcpConn::setup_owner(SrsSharedResource<SrsRtcTcpConn>* wrapper, ISrsI
 ISrsKbpsDelta* SrsRtcTcpConn::delta()
 {
     return delta_;
+}
+
+void SrsRtcTcpConn::interrupt()
+{
+    session_ = NULL;
+    if (owner_coroutine_) owner_coroutine_->interrupt();
 }
 
 std::string SrsRtcTcpConn::desc()
@@ -863,7 +877,7 @@ srs_error_t SrsRtcTcpConn::handshake()
 
     // Should support only one TCP candidate.
     SrsRtcTcpNetwork* network = dynamic_cast<SrsRtcTcpNetwork*>(session->tcp());
-    if (!network->owner().get()) {
+    if (network->owner().get() != this) {
         network->set_owner(*wrapper_);
         session_ = session;
     }
