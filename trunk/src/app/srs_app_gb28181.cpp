@@ -70,14 +70,11 @@ std::string srs_sip_state(SrsGbSipState ostate, SrsGbSipState state)
     return srs_fmt("%s->%s", srs_gb_sip_state(ostate).c_str(), srs_gb_sip_state(state).c_str());
 }
 
-SrsGbSession::SrsGbSession() : sip_(NULL), media_(NULL)
+SrsGbSession::SrsGbSession() : sip_(new SrsGbSipTcpConn()), media_(new SrsGbMediaTcpConn())
 {
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
     owner_cid_ = NULL;
-
-    sip_ = SrsSharedResource<SrsGbSipTcpConn>(new SrsGbSipTcpConn());
-    media_ = SrsSharedResource<SrsGbMediaTcpConn>(new SrsGbMediaTcpConn());
 
     muxer_ = new SrsGbMuxer(this);
     state_ = SrsGbSessionStateInit;
