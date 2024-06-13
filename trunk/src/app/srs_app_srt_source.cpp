@@ -970,8 +970,8 @@ void SrsSrtSource::on_consumer_destroy(SrsSrtConsumer* consumer)
         it = consumers.erase(it);
     }
 
-    // Destroy and cleanup source when no consumers.
-    if (consumers.empty()) {
+    // Destroy and cleanup source when no publishers and consumers.
+    if (can_publish_ && consumers.empty()) {
         _srs_srt_sources->eliminate(req);
     }
 }
@@ -1026,6 +1026,11 @@ void SrsSrtSource::on_unpublish()
 
         bridge_->on_unpublish();
         srs_freep(bridge_);
+    }
+
+    // Destroy and cleanup source when no publishers and consumers.
+    if (can_publish_ && consumers.empty()) {
+        _srs_srt_sources->eliminate(req);
     }
 }
 
