@@ -262,7 +262,6 @@ private:
     SrsAudioCodecId latest_codec_;
     SrsAudioTranscoder* codec_;
     bool keep_bframe;
-    bool keep_avc_nalu_sei;
     bool merge_nalus;
     uint16_t audio_sequence;
     uint16_t video_sequence;
