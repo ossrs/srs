@@ -218,8 +218,8 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     // Whether RTC stream is active.
     bool is_rtc_stream_active = false;
     if (true) {
-        SrsRtcSource* source = _srs_rtc_sources->fetch(ruc->req_);
-        is_rtc_stream_active = (source && !source->can_publish());
+        SrsSharedPtr<SrsRtcSource> source = _srs_rtc_sources->fetch(ruc->req_);
+        is_rtc_stream_active = (source.get() && !source->can_publish());
     }
 
     // For RTMP to RTC, fail if disabled and RTMP is active, see https://github.com/ossrs/srs/issues/2728

@@ -10,6 +10,7 @@
 #include <srs_core.hpp>
 
 #include <srs_kernel_codec.hpp>
+#include <srs_core_autofree.hpp>
 
 #include <vector>
 
@@ -59,13 +60,13 @@ public:
 class SrsFrameToRtcBridge : public ISrsStreamBridge
 {
 private:
-    SrsRtcSource* source_;
+    SrsSharedPtr<SrsRtcSource> source_;
 private:
 #if defined(SRS_FFMPEG_FIT)
     SrsRtcRtpBuilder* rtp_builder_;
 #endif
 public:
-    SrsFrameToRtcBridge(SrsRtcSource* source);
+    SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsFrameToRtcBridge();
 public:
     virtual srs_error_t initialize(SrsRequest* r);

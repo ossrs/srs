@@ -1086,11 +1086,11 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 
     // Check whether RTC stream is busy.
 #ifdef SRS_RTC
-    SrsRtcSource* rtc = NULL;
+    SrsSharedPtr<SrsRtcSource> rtc;
     bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
     bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost);
     if (rtc_server_enabled && rtc_enabled && !info->edge) {
-        if ((err = _srs_rtc_sources->fetch_or_create(req, &rtc)) != srs_success) {
+        if ((err = _srs_rtc_sources->fetch_or_create(req, rtc)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
@@ -1118,7 +1118,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 
     // Bridge to RTC streaming.
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
-    if (rtc && _srs_config->get_rtc_from_rtmp(req->vhost)) {
+    if (rtc.get() && _srs_config->get_rtc_from_rtmp(req->vhost)) {
         SrsCompositeBridge* bridge = new SrsCompositeBridge();
         bridge->append(new SrsFrameToRtcBridge(rtc));
 
