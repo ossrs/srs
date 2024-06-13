@@ -1853,6 +1853,7 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
             return srs_error_wrap(err, "source=%s/%s cycle", source->source_id().c_str(), source->pre_source_id().c_str());
         }
 
+        // See SrsSrtSource::on_consumer_destroy
         // TODO: FIXME: support source cleanup.
         // @see https://github.com/ossrs/srs/issues/713
 #if 0

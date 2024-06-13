@@ -152,7 +152,7 @@ srs_error_t SrsSrtRecvThread::get_recv_err()
     return srs_error_copy(recv_err_);
 }
 
-SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port)
+SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port) : srt_source_(new SrsSrtSource())
 {
     // Create a identify for this client.
     _srs_context->set_id(_srs_context->generate_id());
@@ -171,7 +171,6 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, s
 
     trd_ = new SrsSTCoroutine("ts-srt", this, _srs_context->get_id());
 
-    srt_source_ = NULL;
     req_ = new SrsRequest();
     req_->ip = ip;
 
@@ -285,7 +284,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     srs_trace("@srt, streamid=%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
               streamid.c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
 
-    if ((err = _srs_srt_sources->fetch_or_create(req_, &srt_source_)) != srs_success) {
+    if ((err = _srs_srt_sources->fetch_or_create(req_, srt_source_)) != srs_success) {
         return srs_error_wrap(err, "fetch srt source");
     }
 
