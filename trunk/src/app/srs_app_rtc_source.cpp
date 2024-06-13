@@ -59,7 +59,6 @@ const int kVideoSamplerate  = 90000;
 
 using namespace std;
 
-#ifdef SRS_FFMPEG_FIT
 // The RTP payload max size, reserved some paddings for SRTP as such:
 //      kRtpPacketSize = kRtpMaxPayloadSize + paddings
 // For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
@@ -69,7 +68,6 @@ using namespace std;
 // so we set kRtpMaxPayloadSize = 1200.
 // see @doc https://groups.google.com/g/discuss-webrtc/c/gH5ysR3SoZI
 const int kRtpMaxPayloadSize = kRtpPacketSize - 300;
-#endif
 
 // TODO: Add this function into SrsRtpMux class.
 srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char** pbuf, int* pnn_buf)

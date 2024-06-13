@@ -1924,7 +1924,6 @@ std::string SrsRtcConnection::desc()
 
 void SrsRtcConnection::expire()
 {
-    // TODO: FIXME: Should set session to expired and remove it by heartbeat checking. Should not remove it directly.
     _srs_rtc_manager->remove(this);
 }
 
