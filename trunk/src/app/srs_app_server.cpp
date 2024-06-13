@@ -1226,6 +1226,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         }
     }
 
+#ifdef SRS_RTC
     // For RTC TCP connection, use resource executor to manage the resource.
     SrsRtcTcpConn* raw_conn = dynamic_cast<SrsRtcTcpConn*>(resource);
     if (raw_conn) {
@@ -1238,6 +1239,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         }
         return err;
     }
+#endif
 
     // Use connection manager to manage all the resources.
     srs_assert(resource);
