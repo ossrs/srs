@@ -15,7 +15,6 @@
 #include <srs_kernel_ts.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_app_stream_bridge.hpp>
-#include <srs_core_autofree.hpp>
 
 class SrsSharedPtrMessage;
 class SrsRequest;
@@ -51,7 +50,7 @@ class SrsSrtSourceManager
 {
 private:
     srs_mutex_t lock;
-    std::map< std::string, SrsSharedPtr<SrsSrtSource> > pool;
+    std::map<std::string, SrsSrtSource*> pool;
 public:
     SrsSrtSourceManager();
     virtual ~SrsSrtSourceManager();
@@ -59,9 +58,10 @@ public:
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsSrtSource>& pps);
-    // Dispose and destroy the source.
-    virtual void eliminate(SrsRequest* r);
+    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsSrtSource** pps);
+public:
+    // Get the exists source, NULL when not exists.
+    virtual SrsSrtSource* fetch(SrsRequest* r);
 };
 
 // Global singleton instance.

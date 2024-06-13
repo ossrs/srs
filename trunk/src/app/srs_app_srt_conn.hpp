@@ -123,7 +123,7 @@ private:
     SrsCoroutine* trd_;
 
     SrsRequest* req_;
-    SrsSharedPtr<SrsSrtSource> srt_source_;
+    SrsSrtSource* srt_source_;
     SrsSecurity* security_;
 };
 

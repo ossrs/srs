@@ -102,7 +102,7 @@ SrsSrtSourceManager::~SrsSrtSourceManager()
     srs_mutex_destroy(lock);
 }
 
-srs_error_t SrsSrtSourceManager::fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsSrtSource>& pps)
+srs_error_t SrsSrtSourceManager::fetch_or_create(SrsRequest* r, SrsSrtSource** pps)
 {
     srs_error_t err = srs_success;
 
@@ -110,44 +110,48 @@ srs_error_t SrsSrtSourceManager::fetch_or_create(SrsRequest* r, SrsSharedPtr<Srs
     // @bug https://github.com/ossrs/srs/issues/1230
     SrsLocker(lock);
 
-    string stream_url = r->get_stream_url();
-    std::map< std::string, SrsSharedPtr<SrsSrtSource> >::iterator it = pool.find(stream_url);
-    if (it != pool.end()) {
-        SrsSharedPtr<SrsSrtSource> source = it->second;
-
+    SrsSrtSource* source = NULL;
+    if ((source = fetch(r)) != NULL) {
         // we always update the request of resource,
         // for origin auth is on, the token in request maybe invalid,
         // and we only need to update the token of request, it's simple.
         source->update_auth(r);
-        pps = source;
-
+        *pps = source;
         return err;
     }
 
-    SrsSharedPtr<SrsSrtSource> source(new SrsSrtSource());
+    string stream_url = r->get_stream_url();
+    string vhost = r->vhost;
+
+    // should always not exists for create a source.
+    srs_assert (pool.find(stream_url) == pool.end());
+
     srs_trace("new srt source, stream_url=%s", stream_url.c_str());
 
+    source = new SrsSrtSource();
     if ((err = source->initialize(r)) != srs_success) {
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
 
     pool[stream_url] = source;
-    pps = source;
+
+    *pps = source;
 
     return err;
 }
 
-void SrsSrtSourceManager::eliminate(SrsRequest* r)
+SrsSrtSource* SrsSrtSourceManager::fetch(SrsRequest* r)
 {
-    // Use lock to protect coroutine switch.
-    // @bug https://github.com/ossrs/srs/issues/1230
-    SrsLocker(lock);
+    SrsSrtSource* source = NULL;
 
     string stream_url = r->get_stream_url();
-    std::map< std::string, SrsSharedPtr<SrsSrtSource> >::iterator it = pool.find(stream_url);
-    if (it != pool.end()) {
-        pool.erase(it);
+    if (pool.find(stream_url) == pool.end()) {
+        return NULL;
     }
+
+    source = pool[stream_url];
+
+    return source;
 }
 
 SrsSrtSourceManager* _srs_srt_sources = NULL;
@@ -969,11 +973,6 @@ void SrsSrtSource::on_consumer_destroy(SrsSrtConsumer* consumer)
     if (it != consumers.end()) {
         it = consumers.erase(it);
     }
-
-    // Destroy and cleanup source when no publishers and consumers.
-    if (can_publish_ && consumers.empty()) {
-        _srs_srt_sources->eliminate(req);
-    }
 }
 
 bool SrsSrtSource::can_publish()
@@ -1026,11 +1025,6 @@ void SrsSrtSource::on_unpublish()
 
         bridge_->on_unpublish();
         srs_freep(bridge_);
-    }
-
-    // Destroy and cleanup source when no publishers and consumers.
-    if (can_publish_ && consumers.empty()) {
-        _srs_srt_sources->eliminate(req);
     }
 }
 

@@ -1216,11 +1216,11 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
 
     // Check whether SRT stream is busy.
 #ifdef SRS_SRT
+    SrsSrtSource* srt = NULL;
     bool srt_server_enabled = _srs_config->get_srt_enabled();
     bool srt_enabled = _srs_config->get_srt_enabled(r->vhost);
     if (srt_server_enabled && srt_enabled) {
-        SrsSharedPtr<SrsSrtSource> srt;
-        if ((err = _srs_srt_sources->fetch_or_create(r, srt)) != srs_success) {
+        if ((err = _srs_srt_sources->fetch_or_create(r, &srt)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
