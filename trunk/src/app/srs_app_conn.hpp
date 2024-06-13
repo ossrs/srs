@@ -20,7 +20,6 @@
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_protocol_conn.hpp>
-#include <srs_core_autofree.hpp>
 
 class SrsWallClock;
 class SrsBuffer;
@@ -126,66 +125,98 @@ private:
     void dispose(ISrsResource* c);
 };
 
-// This class implements the ISrsResource interface using a smart pointer, allowing the Manager to delete this
-// smart pointer resource, such as by implementing delayed release.
+// A simple lazy-sweep GC, just wait for a long time to delete the disposable resources.
+class SrsLazySweepGc : public ISrsLazyGc
+{
+public:
+    SrsLazySweepGc();
+    virtual ~SrsLazySweepGc();
+public:
+    virtual srs_error_t start();
+    virtual void remove(SrsLazyObject* c);
+};
+
+extern ISrsLazyGc* _srs_gc;
+
+// A wrapper template for lazy-sweep resource.
+// See https://github.com/ossrs/srs/issues/3176#lazy-sweep
 //
-// It embeds an SrsSharedPtr to provide the same interface, but it is not an inheritance relationship. Its usage
-// is identical to SrsSharedPtr, but they cannot replace each other. They are not related and cannot be converted
-// to one another.
+// Usage for resource which manages itself in coroutine cycle, see SrsLazyGbSession:
+//      class Resource {
+//      private:
+//          SrsLazyObjectWrapper<Resource>* wrapper_;
+//      private:
+//          friend class SrsLazyObjectWrapper<Resource>;
+//          Resource(SrsLazyObjectWrapper<Resource>* wrapper) { wrapper_ = wrapper; }
+//      public:
+//          srs_error_t Resource::cycle() {
+//              srs_error_t err = do_cycle();
+//              _srs_gb_manager->remove(wrapper_);
+//              return err;
+//          }
+//      };
+//      SrsLazyObjectWrapper<Resource>* obj = new SrsLazyObjectWrapper<Resource>*();
+//      _srs_gb_manager->add(obj); // Add wrapper to resource manager.
+//      Start a coroutine to do obj->resource()->cycle().
 //
-// Note that we don't need to implement the move constructor and move assignment operator, because we directly
-// use SrsSharedPtr as instance member, so we can only copy it.
+// Usage for resource managed by other object:
+//      class Resource {
+//      private:
+//          friend class SrsLazyObjectWrapper<Resource>;
+//          Resource(SrsLazyObjectWrapper<Resource>* /*wrapper*/) {
+//          }
+//      };
+//      class Manager {
+//      private:
+//          SrsLazyObjectWrapper<Resource>* wrapper_;
+//      public:
+//          Manager() { wrapper_ = new SrsLazyObjectWrapper<Resource>(); }
+//          ~Manager() { srs_freep(wrapper_); }
+//      };
+//      Manager* manager = new Manager();
+//      srs_freep(manager);
 //
-// Usage:
-//      SrsSharedResource<MyClass>* ptr = new SrsSharedResource<MyClass>(new MyClass());
-//      (*ptr)->do_something();
-//
-//      ISrsResourceManager* manager = ...;
-//      manager->remove(ptr);
+// Note that under-layer resource are destroyed by _srs_gc, which is literally equal to srs_freep. However, the root
+// wrapper might be managed by other resource manager, such as _srs_gb_manager for SrsLazyGbSession. Furthermore, other
+// copied out wrappers might be freed by srs_freep. All are ok, because all wrapper and resources are simply normal
+// object, so if you added to manager then you should use manager to remove it, and you can also directly delete it.
 template<typename T>
-class SrsSharedResource : public ISrsResource
+class SrsLazyObjectWrapper : public ISrsResource
 {
 private:
-    SrsSharedPtr<T> ptr_;
+    T* resource_;
 public:
-    SrsSharedResource(T* ptr) : ptr_(ptr) {
+    SrsLazyObjectWrapper() {
+        init(new T(this));
     }
-    SrsSharedResource(const SrsSharedResource<T>& cp) : ptr_(cp.ptr_) {
-    }
-    virtual ~SrsSharedResource() {
-    }
-public:
-    // Get the object.
-    T* get() {
-        return ptr_.get();
-    }
-    // Overload the -> operator.
-    T* operator->() {
-        return ptr_.operator->();
-    }
-    // The assign operator.
-    SrsSharedResource<T>& operator=(const SrsSharedResource<T>& cp) {
-        if (this != &cp) {
-            ptr_ = cp.ptr_;
+    virtual ~SrsLazyObjectWrapper() {
+        resource_->gc_dispose();
+        if (resource_->gc_ref() == 0) {
+            _srs_gc->remove(resource_);
         }
-        return *this;
     }
 private:
-    // Overload the * operator.
-    T& operator*() {
-        return ptr_.operator*();
+    SrsLazyObjectWrapper(T* resource) {
+        init(resource);
     }
-    // Overload the bool operator.
-    operator bool() const {
-        return ptr_.operator bool();
+    void init(T* resource) {
+        resource_ = resource;
+        resource_->gc_use();
+    }
+public:
+    SrsLazyObjectWrapper<T>* copy() {
+        return new SrsLazyObjectWrapper<T>(resource_);
+    }
+    T* resource() {
+        return resource_;
     }
 // Interface ISrsResource
 public:
     virtual const SrsContextId& get_id() {
-        return ptr_->get_id();
+        return resource_->get_id();
     }
     virtual std::string desc() {
-        return ptr_->desc();
+        return resource_->desc();
     }
 };
 

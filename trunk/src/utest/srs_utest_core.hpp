@@ -14,18 +14,5 @@
 
 #include <string>
 
-class MyNormalObject
-{
-private:
-    int id_;
-public:
-    MyNormalObject(int id) {
-        id_ = id;
-    }
-    int id() {
-        return id_;
-    }
-};
-
 #endif
 
