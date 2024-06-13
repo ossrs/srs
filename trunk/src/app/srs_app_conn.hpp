@@ -148,7 +148,7 @@ class SrsSharedResource : public ISrsResource
 private:
     SrsSharedPtr<T> ptr_;
 public:
-    SrsSharedResource(T* ptr) : ptr_(ptr) {
+    SrsSharedResource(T* ptr = NULL) : ptr_(ptr) {
     }
     SrsSharedResource(const SrsSharedResource<T>& cp) : ptr_(cp.ptr_) {
     }

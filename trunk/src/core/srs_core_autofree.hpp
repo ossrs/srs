@@ -98,7 +98,7 @@ private:
     uint32_t* ref_count_;
 public:
     // Create a shared ptr with the object.
-    SrsSharedPtr(T* ptr) {
+    SrsSharedPtr(T* ptr = NULL) {
         ptr_ = ptr;
         ref_count_ = new uint32_t(1);
     }

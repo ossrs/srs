@@ -1102,11 +1102,11 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 
     // Check whether SRT stream is busy.
 #ifdef SRS_SRT
-    SrsSrtSource* srt = NULL;
     bool srt_server_enabled = _srs_config->get_srt_enabled();
     bool srt_enabled = _srs_config->get_srt_enabled(req->vhost);
     if (srt_server_enabled && srt_enabled && !info->edge) {
-        if ((err = _srs_srt_sources->fetch_or_create(req, &srt)) != srs_success) {
+        SrsSharedPtr<SrsSrtSource> srt;
+        if ((err = _srs_srt_sources->fetch_or_create(req, srt)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
