@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_app_conn.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_network.hpp>
+#include <srs_app_rtc_server.hpp>
 #endif
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
@@ -1193,8 +1194,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         if (nn == 10 && b[0] == 0 && b[2] == 0 && b[3] == 1 && b[1] - b[5] == 20
             && b[6] == 0x21 && b[7] == 0x12 && b[8] == 0xa4 && b[9] == 0x42
         ) {
-            // TODO: FIXME: Should manage this connection by _srs_rtc_manager
-            resource = new SrsRtcTcpConn(io, ip, port, this);
+            resource = new SrsRtcTcpConn(io, ip, port);
         } else {
             resource = new SrsHttpxConn(listener == http_listener_, this, io, http_server, ip, port);
         }
@@ -1213,8 +1213,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
             resource = new SrsHttpxConn(is_https, this, new SrsTcpConnection(stfd2), http_server, ip, port);
 #ifdef SRS_RTC
         } else if (listener == webrtc_listener_) {
-            // TODO: FIXME: Should manage this connection by _srs_rtc_manager
-            resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port, this);
+            resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
 #endif
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.
@@ -1227,11 +1226,28 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         }
     }
 
+#ifdef SRS_RTC
+    // For RTC TCP connection, use resource executor to manage the resource.
+    SrsRtcTcpConn* raw_conn = dynamic_cast<SrsRtcTcpConn*>(resource);
+    if (raw_conn) {
+        SrsSharedResource<SrsRtcTcpConn>* conn = new SrsSharedResource<SrsRtcTcpConn>(raw_conn);
+        SrsExecutorCoroutine* executor = new SrsExecutorCoroutine(_srs_rtc_manager, conn, raw_conn, raw_conn);
+        raw_conn->setup_owner(conn, executor, executor);
+        if ((err = executor->start()) != srs_success) {
+            srs_freep(executor);
+            return srs_error_wrap(err, "start executor");
+        }
+        return err;
+    }
+#endif
+
     // Use connection manager to manage all the resources.
+    srs_assert(resource);
     conn_manager->add(resource);
 
     // If connection is a resource to start, start a coroutine to handle it.
     ISrsStartable* conn = dynamic_cast<ISrsStartable*>(resource);
+    srs_assert(conn);
     if ((err = conn->start()) != srs_success) {
         return srs_error_wrap(err, "start conn coroutine");
     }
