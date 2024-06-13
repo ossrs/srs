@@ -35,6 +35,9 @@ import (
 )
 
 func TestSlow_RtmpPublish_RtmpPlay_HEVC_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
@@ -122,6 +125,9 @@ func TestSlow_RtmpPublish_RtmpPlay_HEVC_Basic(t *testing.T) {
 }
 
 func TestSlow_RtmpPublish_HttpFlvPlay_HEVC_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
@@ -216,6 +222,9 @@ func TestSlow_RtmpPublish_HttpFlvPlay_HEVC_Basic(t *testing.T) {
 }
 
 func TestSlow_RtmpPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
@@ -309,6 +318,9 @@ func TestSlow_RtmpPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
 }
 
 func TestSlow_RtmpPublish_HlsPlay_HEVC_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
@@ -402,6 +414,9 @@ func TestSlow_RtmpPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 }
 
 func TestSlow_RtmpPublish_DvrFlv_HEVC_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
@@ -515,6 +530,9 @@ func TestSlow_RtmpPublish_DvrFlv_HEVC_Basic(t *testing.T) {
 }
 
 func TestSlow_RtmpPublish_DvrMp4_HEVC_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
@@ -628,6 +646,9 @@ func TestSlow_RtmpPublish_DvrMp4_HEVC_Basic(t *testing.T) {
 }
 
 func TestSlow_SrtPublish_RtmpPlay_HEVC_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
@@ -721,6 +742,9 @@ func TestSlow_SrtPublish_RtmpPlay_HEVC_Basic(t *testing.T) {
 }
 
 func TestSlow_SrtPublish_HttpFlvPlay_HEVC_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
@@ -816,6 +840,9 @@ func TestSlow_SrtPublish_HttpFlvPlay_HEVC_Basic(t *testing.T) {
 }
 
 func TestSlow_SrtPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
@@ -916,6 +943,9 @@ func TestSlow_SrtPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
 }
 
 func TestSlow_SrtPublish_HlsPlay_HEVC_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
