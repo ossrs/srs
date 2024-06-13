@@ -39,11 +39,11 @@ using namespace std;
 #include <srs_app_conn.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_network.hpp>
+#include <srs_app_rtc_server.hpp>
 #endif
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
 #endif
-#include <srs_app_rtc_server.hpp>
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
 
