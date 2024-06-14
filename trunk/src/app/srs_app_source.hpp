@@ -599,6 +599,9 @@ public:
     virtual void on_edge_proxy_unpublish();
 public:
     virtual std::string get_curr_origin();
+public:
+    // For edge, get downstream video fps.
+    virtual uint64_t get_play_edge_video_frames();
 };
 
 #endif

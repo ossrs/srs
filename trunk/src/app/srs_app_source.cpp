@@ -2788,3 +2788,7 @@ string SrsLiveSource::get_curr_origin()
     return play_edge->get_curr_origin();
 }
 
+uint64_t SrsLiveSource::get_play_edge_video_frames() {
+    return play_edge->get_ingester_video_frames();
+}
+
