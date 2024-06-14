@@ -288,9 +288,9 @@ public:
     virtual ~ISrsLiveSourceHandler();
 public:
     // when stream start publish, mount stream.
-    virtual srs_error_t on_publish(SrsLiveSource* s, SrsRequest* r) = 0;
+    virtual srs_error_t on_publish(SrsRequest* r) = 0;
     // when stream stop publish, unmount stream.
-    virtual void on_unpublish(SrsLiveSource* s, SrsRequest* r) = 0;
+    virtual void on_unpublish(SrsRequest* r) = 0;
 };
 
 // The mix queue to correct the timestamp for mix_correct algorithm.

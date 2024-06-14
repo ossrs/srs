@@ -1765,11 +1765,15 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(SrsRequest* r, ISrsLiveSourceH
 
     // Use lock to protect coroutine switch.
     // @bug https://github.com/ossrs/srs/issues/1230
-    // TODO: FIXME: Use smaller lock.
+    // TODO: FIXME: Use smaller scope lock.
     SrsLocker(lock);
-    
-    SrsLiveSource* source = NULL;
-    if ((source = fetch(r)) != NULL) {
+
+    string stream_url = r->get_stream_url();
+    std::map<std::string, SrsLiveSource*>::iterator it = pool.find(stream_url);
+
+    if (it != pool.end()) {
+        SrsLiveSource* source = it->second;
+
         // we always update the request of resource,
         // for origin auth is on, the token in request maybe invalid,
         // and we only need to update the token of request, it's simple.
@@ -1778,40 +1782,34 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(SrsRequest* r, ISrsLiveSourceH
         return err;
     }
     
-    string stream_url = r->get_stream_url();
-    string vhost = r->vhost;
-    
-    // should always not exists for create a source.
-    srs_assert (pool.find(stream_url) == pool.end());
-
+    SrsLiveSource* source = new SrsLiveSource();
     srs_trace("new live source, stream_url=%s", stream_url.c_str());
 
-    source = new SrsLiveSource();
     if ((err = source->initialize(r, h)) != srs_success) {
-        err = srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
-        goto failed;
+        srs_freep(source);
+        return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
     
     pool[stream_url] = source;
     *pps = source;
     return err;
-
-failed:
-    srs_freep(source);
-    return err;
 }
 
 SrsLiveSource* SrsLiveSourceManager::fetch(SrsRequest* r)
 {
-    SrsLiveSource* source = NULL;
+    // Use lock to protect coroutine switch.
+    // @bug https://github.com/ossrs/srs/issues/1230
+    // TODO: FIXME: Use smaller scope lock.
+    SrsLocker(lock);
     
     string stream_url = r->get_stream_url();
-    if (pool.find(stream_url) == pool.end()) {
+    std::map<std::string, SrsLiveSource*>::iterator it = pool.find(stream_url);
+
+    if (it == pool.end()) {
         return NULL;
     }
-    
-    source = pool[stream_url];
-    
+
+    SrsLiveSource* source = it->second;
     return source;
 }
 
@@ -2600,7 +2598,7 @@ srs_error_t SrsLiveSource::on_publish()
     
     // notify the handler.
     srs_assert(handler);
-    if ((err = handler->on_publish(this, req)) != srs_success) {
+    if ((err = handler->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "handle publish");
     }
 
@@ -2652,7 +2650,7 @@ void SrsLiveSource::on_unpublish()
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_close(req);
 
-    handler->on_unpublish(this, req);
+    handler->on_unpublish(req);
 
     if (bridge_) {
         bridge_->on_unpublish();

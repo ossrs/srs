@@ -107,6 +107,7 @@
     XX(ERROR_BACKTRACE_ADDR2LINE           , 1094, "BacktraceAddr2Line", "Backtrace addr2line failed") \
     XX(ERROR_SYSTEM_FILE_NOT_OPEN          , 1095, "FileNotOpen", "File is not opened") \
     XX(ERROR_SYSTEM_FILE_SETVBUF           , 1096, "FileSetVBuf", "Failed to set file vbuf") \
+    XX(ERROR_NO_SOURCE                     , 1097, "NoSource", "No source found")
 
 /**************************************************/
 /* RTMP protocol error. */
@@ -334,7 +335,7 @@
     XX(ERROR_STREAM_CASTER_HEVC_FORMAT     , 4057, "CasterTsHevcFormat", "Invalid ts HEVC Format for stream caster") \
     XX(ERROR_HTTP_JSONP                    , 4058, "HttpJsonp", "Invalid callback for JSONP")   \
     XX(ERROR_HEVC_NALU_UEV                 , 4059, "HevcNaluUev", "Failed to read UEV for HEVC NALU") \
-    XX(ERROR_HEVC_NALU_SEV                 , 4060, "HevcNaluSev", "Failed to read SEV for HEVC NALU") \
+    XX(ERROR_HEVC_NALU_SEV                 , 4060, "HevcNaluSev", "Failed to read SEV for HEVC NALU")
 
 
 /**************************************************/

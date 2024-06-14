@@ -11,6 +11,9 @@
 
 #include <stdlib.h>
 
+// The auto free helper, which is actually the unique ptr, without the move feature,
+// see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
+//
 // To free the instance in the current scope, for instance, MyClass* ptr,
 // which is a ptr and this class will:
 //       1. free the ptr.
@@ -81,7 +84,9 @@ public:
     }
 };
 
-// Shared ptr smart pointer, see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
+// Shared ptr smart pointer, only support shared ptr, no weak ptr, no shared from this, no inheritance,
+// no comparing, see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
+//
 // Usage:
 //      SrsSharedPtr<MyClass> ptr(new MyClass());
 //      ptr->do_something();
