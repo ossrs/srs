@@ -571,11 +571,11 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     
     // find a source to serve.
-    SrsLiveSource* live_source = NULL;
-    if ((err = _srs_sources->fetch_or_create(req, server, &live_source)) != srs_success) {
+    SrsSharedPtr<SrsLiveSource> live_source;
+    if ((err = _srs_sources->fetch_or_create(req, server, live_source)) != srs_success) {
         return srs_error_wrap(err, "rtmp: fetch source");
     }
-    srs_assert(live_source != NULL);
+    srs_assert(live_source.get() != NULL);
 
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
     int gcmf = _srs_config->get_gop_cache_max_frames(req->vhost);
@@ -699,7 +699,7 @@ srs_error_t SrsRtmpConn::check_vhost(bool try_default_vhost)
     return err;
 }
 
-srs_error_t SrsRtmpConn::playing(SrsLiveSource* source)
+srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
 {
     srs_error_t err = srs_success;
     
@@ -786,7 +786,7 @@ srs_error_t SrsRtmpConn::playing(SrsLiveSource* source)
     return err;
 }
 
-srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* consumer, SrsQueueRecvThread* rtrd)
+srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer* consumer, SrsQueueRecvThread* rtrd)
 {
     srs_error_t err = srs_success;
     
@@ -923,7 +923,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
     return err;
 }
 
-srs_error_t SrsRtmpConn::publishing(SrsLiveSource* source)
+srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
 {
     srs_error_t err = srs_success;
     
@@ -969,7 +969,7 @@ srs_error_t SrsRtmpConn::publishing(SrsLiveSource* source)
     return err;
 }
 
-srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThread* rtrd)
+srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPublishRecvThread* rtrd)
 {
     srs_error_t err = srs_success;
     
@@ -1073,7 +1073,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     return err;
 }
 
-srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
+srs_error_t SrsRtmpConn::acquire_publish(SrsSharedPtr<SrsLiveSource> source)
 {
     srs_error_t err = srs_success;
     
@@ -1141,7 +1141,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     return err;
 }
 
-void SrsRtmpConn::release_publish(SrsLiveSource* source)
+void SrsRtmpConn::release_publish(SrsSharedPtr<SrsLiveSource> source)
 {
     // when edge, notice edge to change state.
     // when origin, notice all service to unpublish.
@@ -1152,7 +1152,7 @@ void SrsRtmpConn::release_publish(SrsLiveSource* source)
     }
 }
 
-srs_error_t SrsRtmpConn::handle_publish_message(SrsLiveSource* source, SrsCommonMessage* msg)
+srs_error_t SrsRtmpConn::handle_publish_message(SrsSharedPtr<SrsLiveSource>& source, SrsCommonMessage* msg)
 {
     srs_error_t err = srs_success;
     
@@ -1193,7 +1193,7 @@ srs_error_t SrsRtmpConn::handle_publish_message(SrsLiveSource* source, SrsCommon
     return err;
 }
 
-srs_error_t SrsRtmpConn::process_publish_message(SrsLiveSource* source, SrsCommonMessage* msg)
+srs_error_t SrsRtmpConn::process_publish_message(SrsSharedPtr<SrsLiveSource>& source, SrsCommonMessage* msg)
 {
     srs_error_t err = srs_success;
     

@@ -106,8 +106,8 @@ srs_error_t SrsBufferCache::cycle()
         return err;
     }
 
-    SrsLiveSource* live_source = _srs_sources->fetch(req);
-    if (!live_source) {
+    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req);
+    if (!live_source.get()) {
         return srs_error_new(ERROR_NO_SOURCE, "no source for %s", req->get_stream_url().c_str());
     }
     
@@ -661,8 +661,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // Enter chunked mode, because we didn't set the content-length.
     w->write_header(SRS_CONSTS_HTTP_OK);
 
-    SrsLiveSource* live_source = _srs_sources->fetch(req);
-    if (!live_source) {
+    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req);
+    if (!live_source.get()) {
         return srs_error_new(ERROR_NO_SOURCE, "no source for %s", req->get_stream_url().c_str());
     }
     
@@ -1136,11 +1136,11 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
         }
     }
 
-    SrsLiveSource* live_source = NULL;
-    if ((err = _srs_sources->fetch_or_create(r, server, &live_source)) != srs_success) {
+    SrsSharedPtr<SrsLiveSource> live_source;
+    if ((err = _srs_sources->fetch_or_create(r, server, live_source)) != srs_success) {
         return srs_error_wrap(err, "source create");
     }
-    srs_assert(live_source != NULL);
+    srs_assert(live_source.get() != NULL);
     
     bool enabled_cache = _srs_config->get_gop_cache(r->vhost);
     int gcmf = _srs_config->get_gop_cache_max_frames(r->vhost);

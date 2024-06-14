@@ -19,6 +19,7 @@
 #include <srs_protocol_st.hpp>
 #include <srs_app_hourglass.hpp>
 #include <srs_app_stream_bridge.hpp>
+#include <srs_core_autofree.hpp>
 
 class SrsFormat;
 class SrsRtmpFormat;
@@ -345,7 +346,7 @@ public:
 public:
     // Initialize the hub with source and request.
     // @param r The request object, managed by source.
-    virtual srs_error_t initialize(SrsLiveSource* s, SrsRequest* r);
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, SrsRequest* r);
     // Dispose the hub, release utilities resource,
     // For example, delete all HLS pieces.
     virtual void dispose();
@@ -447,7 +448,7 @@ class SrsLiveSourceManager : public ISrsHourGlass
 {
 private:
     srs_mutex_t lock;
-    std::map<std::string, SrsLiveSource*> pool;
+    std::map< std::string, SrsSharedPtr<SrsLiveSource> > pool;
     SrsHourGlass* timer_;
 public:
     SrsLiveSourceManager();
@@ -458,10 +459,10 @@ public:
     // @param r the client request.
     // @param h the event handler for source.
     // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsLiveSource** pps);
+    virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsSharedPtr<SrsLiveSource>& pps);
 public:
     // Get the exists source, NULL when not exists.
-    virtual SrsLiveSource* fetch(SrsRequest* r);
+    virtual SrsSharedPtr<SrsLiveSource> fetch(SrsRequest* r);
 public:
     // dispose and cycle all sources.
     virtual void dispose();
@@ -543,7 +544,7 @@ public:
     bool publisher_is_idle_for(srs_utime_t timeout);
 public:
     // Initialize the hls with handlers.
-    virtual srs_error_t initialize(SrsRequest* r, ISrsLiveSourceHandler* h);
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> wrapper, SrsRequest* r, ISrsLiveSourceHandler* h);
     // Bridge to other source, forward packets to it.
     void set_bridge(ISrsStreamBridge* v);
 // Interface ISrsReloadHandler

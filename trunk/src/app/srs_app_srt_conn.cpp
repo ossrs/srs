@@ -368,16 +368,16 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
     }
 
     // Check rtmp stream is busy.
-    SrsLiveSource* live_source = _srs_sources->fetch(req_);
-    if (live_source && !live_source->can_publish(false)) {
+    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req_);
+    if (live_source.get() && !live_source->can_publish(false)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "live_source stream %s busy", req_->get_stream_url().c_str());
     }
 
-    if ((err = _srs_sources->fetch_or_create(req_, _srs_hybrid->srs()->instance(), &live_source)) != srs_success) {
+    if ((err = _srs_sources->fetch_or_create(req_, _srs_hybrid->srs()->instance(), live_source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
-    srs_assert(live_source != NULL);
+    srs_assert(live_source.get() != NULL);
 
     bool enabled_cache = _srs_config->get_gop_cache(req_->vhost);
     int gcmf = _srs_config->get_gop_cache_max_frames(req_->vhost);

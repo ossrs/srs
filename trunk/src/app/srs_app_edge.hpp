@@ -10,6 +10,7 @@
 #include <srs_core.hpp>
 
 #include <srs_app_st.hpp>
+#include <srs_core_autofree.hpp>
 
 #include <string>
 
@@ -152,7 +153,7 @@ public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
 public:
-    virtual srs_error_t initialize(SrsLiveSource* s, SrsPlayEdge* e, SrsRequest* r);
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, SrsPlayEdge* e, SrsRequest* r);
     virtual srs_error_t start();
     virtual void stop();
     virtual std::string get_curr_origin();
@@ -195,7 +196,7 @@ public:
 public:
     virtual void set_queue_size(srs_utime_t queue_size);
 public:
-    virtual srs_error_t initialize(SrsLiveSource* s, SrsPublishEdge* e, SrsRequest* r);
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, SrsPublishEdge* e, SrsRequest* r);
     virtual srs_error_t start();
     virtual void stop();
 // Interface ISrsReusableThread2Handler
@@ -220,7 +221,7 @@ public:
     // Always use the req of source,
     // For we assume all client to edge is invalid,
     // if auth open, edge must valid it from origin, then service it.
-    virtual srs_error_t initialize(SrsLiveSource* source, SrsRequest* req);
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> source, SrsRequest* req);
     // When client play stream on edge.
     virtual srs_error_t on_client_play();
     // When all client stopped play, disconnect to origin.
@@ -243,7 +244,7 @@ public:
 public:
     virtual void set_queue_size(srs_utime_t queue_size);
 public:
-    virtual srs_error_t initialize(SrsLiveSource* source, SrsRequest* req);
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> source, SrsRequest* req);
     virtual bool can_publish();
     // When client publish stream on edge.
     virtual srs_error_t on_client_publish();

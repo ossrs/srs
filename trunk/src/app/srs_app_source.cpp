@@ -861,12 +861,13 @@ SrsOriginHub::~SrsOriginHub()
 #endif
 }
 
-srs_error_t SrsOriginHub::initialize(SrsLiveSource* s, SrsRequest* r)
+srs_error_t SrsOriginHub::initialize(SrsSharedPtr<SrsLiveSource> s, SrsRequest* r)
 {
     srs_error_t err = srs_success;
     
     req_ = r;
-    source_ = s;
+    // Because source references to this object, so we should directly use the source ptr.
+    source_ = s.get();
     
     if ((err = hls->initialize(this, req_)) != srs_success) {
         return srs_error_wrap(err, "hls initialize");
@@ -1759,7 +1760,7 @@ srs_error_t SrsLiveSourceManager::initialize()
     return setup_ticks();
 }
 
-srs_error_t SrsLiveSourceManager::fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsLiveSource** pps)
+srs_error_t SrsLiveSourceManager::fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsSharedPtr<SrsLiveSource>& pps)
 {
     srs_error_t err = srs_success;
 
@@ -1769,33 +1770,32 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(SrsRequest* r, ISrsLiveSourceH
     SrsLocker(lock);
 
     string stream_url = r->get_stream_url();
-    std::map<std::string, SrsLiveSource*>::iterator it = pool.find(stream_url);
+    std::map< std::string, SrsSharedPtr<SrsLiveSource> >::iterator it = pool.find(stream_url);
 
     if (it != pool.end()) {
-        SrsLiveSource* source = it->second;
+        SrsSharedPtr<SrsLiveSource>& source = it->second;
 
         // we always update the request of resource,
         // for origin auth is on, the token in request maybe invalid,
         // and we only need to update the token of request, it's simple.
         source->update_auth(r);
-        *pps = source;
+        pps = source;
         return err;
     }
-    
-    SrsLiveSource* source = new SrsLiveSource();
+
+    SrsSharedPtr<SrsLiveSource> source = new SrsLiveSource();
     srs_trace("new live source, stream_url=%s", stream_url.c_str());
 
-    if ((err = source->initialize(r, h)) != srs_success) {
-        srs_freep(source);
+    if ((err = source->initialize(source, r, h)) != srs_success) {
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
     
     pool[stream_url] = source;
-    *pps = source;
+    pps = source;
     return err;
 }
 
-SrsLiveSource* SrsLiveSourceManager::fetch(SrsRequest* r)
+SrsSharedPtr<SrsLiveSource> SrsLiveSourceManager::fetch(SrsRequest* r)
 {
     // Use lock to protect coroutine switch.
     // @bug https://github.com/ossrs/srs/issues/1230
@@ -1803,21 +1803,21 @@ SrsLiveSource* SrsLiveSourceManager::fetch(SrsRequest* r)
     SrsLocker(lock);
     
     string stream_url = r->get_stream_url();
-    std::map<std::string, SrsLiveSource*>::iterator it = pool.find(stream_url);
+    std::map< std::string, SrsSharedPtr<SrsLiveSource> >::iterator it = pool.find(stream_url);
 
     if (it == pool.end()) {
-        return NULL;
+        return SrsSharedPtr<SrsLiveSource>(NULL);
     }
 
-    SrsLiveSource* source = it->second;
+    SrsSharedPtr<SrsLiveSource>& source = it->second;
     return source;
 }
 
 void SrsLiveSourceManager::dispose()
 {
-    std::map<std::string, SrsLiveSource*>::iterator it;
+    std::map< std::string, SrsSharedPtr<SrsLiveSource> >::iterator it;
     for (it = pool.begin(); it != pool.end(); ++it) {
-        SrsLiveSource* source = it->second;
+        SrsSharedPtr<SrsLiveSource>& source = it->second;
         source->dispose();
     }
     return;
@@ -1842,9 +1842,9 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
 {
     srs_error_t err = srs_success;
 
-    std::map<std::string, SrsLiveSource*>::iterator it;
+    std::map< std::string, SrsSharedPtr<SrsLiveSource> >::iterator it;
     for (it = pool.begin(); it != pool.end();) {
-        SrsLiveSource* source = it->second;
+        SrsSharedPtr<SrsLiveSource>& source = it->second;
 
         // Do cycle source to cleanup components, such as hls dispose.
         if ((err = source->cycle()) != srs_success) {
@@ -1854,19 +1854,11 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
         // See SrsSrtSource::on_consumer_destroy
         // TODO: FIXME: support source cleanup.
         // @see https://github.com/ossrs/srs/issues/713
-#if 0
+#if 1
         // When source expired, remove it.
         if (source->stream_is_dead()) {
-            int cid = source->source_id();
-            if (cid == -1 && source->pre_source_id() > 0) {
-                cid = source->pre_source_id();
-            }
-            if (cid > 0) {
-                _srs_context->set_id(cid);
-            }
-            srs_trace("cleanup die source, total=%d", (int)pool.size());
-
-            srs_freep(source);
+            const SrsContextId& cid = source->source_id();
+            srs_trace("cleanup die source, id=[%s], total=%d", cid.c_str(), (int)pool.size());
             pool.erase(it++);
         } else {
             ++it;
@@ -1881,11 +1873,6 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
 
 void SrsLiveSourceManager::destroy()
 {
-    std::map<std::string, SrsLiveSource*>::iterator it;
-    for (it = pool.begin(); it != pool.end(); ++it) {
-        SrsLiveSource* source = it->second;
-        srs_freep(source);
-    }
     pool.clear();
 }
 
@@ -1993,7 +1980,7 @@ bool SrsLiveSource::publisher_is_idle_for(srs_utime_t timeout)
     return false;
 }
 
-srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
+srs_error_t SrsLiveSource::initialize(SrsSharedPtr<SrsLiveSource> wrapper, SrsRequest* r, ISrsLiveSourceHandler* h)
 {
     srs_error_t err = srs_success;
     
@@ -2011,14 +1998,14 @@ srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
     // Setup the SPS/PPS parsing strategy.
     format_->try_annexb_first = _srs_config->try_annexb_first(r->vhost);
     
-    if ((err = hub->initialize(this, req)) != srs_success) {
+    if ((err = hub->initialize(wrapper, req)) != srs_success) {
         return srs_error_wrap(err, "hub");
     }
     
-    if ((err = play_edge->initialize(this, req)) != srs_success) {
+    if ((err = play_edge->initialize(wrapper, req)) != srs_success) {
         return srs_error_wrap(err, "edge(play)");
     }
-    if ((err = publish_edge->initialize(this, req)) != srs_success) {
+    if ((err = publish_edge->initialize(wrapper, req)) != srs_success) {
         return srs_error_wrap(err, "edge(publish)");
     }
     

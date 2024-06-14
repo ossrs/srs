@@ -139,6 +139,17 @@ VOID TEST(CoreLogger, SharedPtrReset)
     }
 }
 
+SrsSharedPtr<int> mock_create_from_ptr(SrsSharedPtr<int> p) {
+    return p;
+}
+
+VOID TEST(CoreLogger, SharedPtrContructor)
+{
+    int* p = new int(100);
+    SrsSharedPtr<int> q = mock_create_from_ptr(p);
+    EXPECT_EQ(100, *q);
+}
+
 VOID TEST(CoreLogger, SharedPtrObject)
 {
     SrsSharedPtr<MyNormalObject> p(new MyNormalObject(100));

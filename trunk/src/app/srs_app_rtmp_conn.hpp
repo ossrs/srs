@@ -16,6 +16,7 @@
 #include <srs_app_reload.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_rtmp_conn.hpp>
+#include <srs_core_autofree.hpp>
 
 class SrsServer;
 class SrsRtmpServer;
@@ -145,14 +146,14 @@ private:
     // The stream(play/publish) service cycle, identify client first.
     virtual srs_error_t stream_service_cycle();
     virtual srs_error_t check_vhost(bool try_default_vhost);
-    virtual srs_error_t playing(SrsLiveSource* source);
-    virtual srs_error_t do_playing(SrsLiveSource* source, SrsLiveConsumer* consumer, SrsQueueRecvThread* trd);
-    virtual srs_error_t publishing(SrsLiveSource* source);
-    virtual srs_error_t do_publishing(SrsLiveSource* source, SrsPublishRecvThread* trd);
-    virtual srs_error_t acquire_publish(SrsLiveSource* source);
-    virtual void release_publish(SrsLiveSource* source);
-    virtual srs_error_t handle_publish_message(SrsLiveSource* source, SrsCommonMessage* msg);
-    virtual srs_error_t process_publish_message(SrsLiveSource* source, SrsCommonMessage* msg);
+    virtual srs_error_t playing(SrsSharedPtr<SrsLiveSource> source);
+    virtual srs_error_t do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer* consumer, SrsQueueRecvThread* trd);
+    virtual srs_error_t publishing(SrsSharedPtr<SrsLiveSource> source);
+    virtual srs_error_t do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPublishRecvThread* trd);
+    virtual srs_error_t acquire_publish(SrsSharedPtr<SrsLiveSource> source);
+    virtual void release_publish(SrsSharedPtr<SrsLiveSource> source);
+    virtual srs_error_t handle_publish_message(SrsSharedPtr<SrsLiveSource>& source, SrsCommonMessage* msg);
+    virtual srs_error_t process_publish_message(SrsSharedPtr<SrsLiveSource>& source, SrsCommonMessage* msg);
     virtual srs_error_t process_play_control_msg(SrsLiveConsumer* consumer, SrsCommonMessage* msg);
     virtual void set_sock_options();
 private:

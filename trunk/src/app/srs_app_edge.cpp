@@ -415,9 +415,11 @@ SrsEdgeIngester::~SrsEdgeIngester()
     srs_freep(trd);
 }
 
-srs_error_t SrsEdgeIngester::initialize(SrsLiveSource* s, SrsPlayEdge* e, SrsRequest* r)
+srs_error_t SrsEdgeIngester::initialize(SrsSharedPtr<SrsLiveSource> s, SrsPlayEdge* e, SrsRequest* r)
 {
-    source_ = s;
+    // Because source references to this object, so we should directly use the source ptr.
+    source_ = s.get();
+
     edge = e;
     req = r;
 
@@ -747,9 +749,11 @@ void SrsEdgeForwarder::set_queue_size(srs_utime_t queue_size)
     return queue->set_queue_size(queue_size);
 }
 
-srs_error_t SrsEdgeForwarder::initialize(SrsLiveSource* s, SrsPublishEdge* e, SrsRequest* r)
+srs_error_t SrsEdgeForwarder::initialize(SrsSharedPtr<SrsLiveSource> s, SrsPublishEdge* e, SrsRequest* r)
 {
-    source_ = s;
+    // Because source references to this object, so we should directly use the source ptr.
+    source_ = s.get();
+
     edge = e;
     req = r;
 
@@ -956,7 +960,7 @@ SrsPlayEdge::~SrsPlayEdge()
     srs_freep(ingester);
 }
 
-srs_error_t SrsPlayEdge::initialize(SrsLiveSource* source, SrsRequest* req)
+srs_error_t SrsPlayEdge::initialize(SrsSharedPtr<SrsLiveSource> source, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     
@@ -1048,7 +1052,7 @@ void SrsPublishEdge::set_queue_size(srs_utime_t queue_size)
     return forwarder->set_queue_size(queue_size);
 }
 
-srs_error_t SrsPublishEdge::initialize(SrsLiveSource* source, SrsRequest* req)
+srs_error_t SrsPublishEdge::initialize(SrsSharedPtr<SrsLiveSource> source, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     
