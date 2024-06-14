@@ -23,6 +23,8 @@ package blackbox
 import (
 	"context"
 	"fmt"
+	"github.com/ossrs/go-oryx-lib/errors"
+	"github.com/ossrs/go-oryx-lib/logger"
 	"math/rand"
 	"os"
 	"path"
@@ -30,9 +32,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/ossrs/go-oryx-lib/errors"
-	"github.com/ossrs/go-oryx-lib/logger"
 )
 
 func TestSlow_RtmpPublish_RtmpPlay_HEVC_Basic(t *testing.T) {
@@ -913,8 +912,8 @@ func TestSlow_SrtPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
 		defer wg.Done()
 		<-svr.ReadyCtx().Done()
 
-		// wait for ffmpeg
-		time.Sleep(4 * time.Second)
+		// wait for ffmpeg. Note that need to wait for a longer time.
+		time.Sleep(5 * time.Second)
 
 		r2 = ffprobe.Run(ctx, cancel)
 	}()
@@ -995,11 +994,14 @@ func TestSlow_SrtPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 		defer wg.Done()
 		<-svr.ReadyCtx().Done()
 
+		// wait for ffmpeg
+		time.Sleep(3 * time.Second)
+
 		r1 = ffmpeg.Run(ctx, cancel)
 	}()
 
-	// Start FFprobe to detect and verify stream.
-	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
+	// Start FFprobe to detect and verify stream. Note that it requires longer duration.
+	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond * 3
 	ffprobe := NewFFprobe(func(v *ffprobeClient) {
 		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.ts", streamID))
 		v.streamURL = fmt.Sprintf("http://localhost:%v/live/%v.m3u8", svr.HTTPPort(), streamID)
@@ -1009,8 +1011,6 @@ func TestSlow_SrtPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		<-svr.ReadyCtx().Done()
-		// wait for ffmpeg
-		time.Sleep(16 * time.Second)
 		r2 = ffprobe.Run(ctx, cancel)
 	}()
 
