@@ -1007,7 +1007,7 @@ func TestSlow_SrtPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 	case <-ctx.Done():
 		r2 = fmt.Errorf("timeout")
 		return
-	case <-time.After(15 * time.Second):
+	case <-time.After(20 * time.Second):
 	}
 
 	// Start FFprobe to detect and verify stream.
