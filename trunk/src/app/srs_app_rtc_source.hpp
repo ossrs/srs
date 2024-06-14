@@ -80,7 +80,9 @@ public:
 class SrsRtcConsumer
 {
 private:
-    SrsSharedPtr<SrsRtcSource> source_;
+    // Because source references to this object, so we should directly use the source ptr.
+    SrsRtcSource* source_;
+private:
     std::vector<SrsRtpPacket*> queue;
     // when source id changed, notice all consumers
     bool should_update_source_id;
@@ -92,7 +94,7 @@ private:
     // The callback for stream change event.
     ISrsRtcSourceChangeCallback* handler_;
 public:
-    SrsRtcConsumer(SrsSharedPtr<SrsRtcSource> s);
+    SrsRtcConsumer(SrsRtcSource* s);
     virtual ~SrsRtcConsumer();
 public:
     // When source id changed, notice client to print.
@@ -215,7 +217,7 @@ public:
 public:
     // Create consumer
     // @param consumer, output the create consumer.
-    virtual srs_error_t create_consumer(SrsSharedPtr<SrsRtcSource> source, SrsRtcConsumer*& consumer);
+    virtual srs_error_t create_consumer(SrsRtcConsumer*& consumer);
     // Dumps packets in cache to consumer.
     // @param ds, whether dumps the sequence header.
     // @param dm, whether dumps the metadata.

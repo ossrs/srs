@@ -42,9 +42,9 @@ public:
 class SrsFrameToRtmpBridge : public ISrsStreamBridge
 {
 private:
-    SrsLiveSource *source_;
+    SrsSharedPtr<SrsLiveSource> source_;
 public:
-    SrsFrameToRtmpBridge(SrsLiveSource *src);
+    SrsFrameToRtmpBridge(SrsSharedPtr<SrsLiveSource> source);
     virtual ~SrsFrameToRtmpBridge();
 public:
     srs_error_t initialize(SrsRequest* r);

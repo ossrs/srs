@@ -25,9 +25,9 @@ ISrsStreamBridge::~ISrsStreamBridge()
 {
 }
 
-SrsFrameToRtmpBridge::SrsFrameToRtmpBridge(SrsLiveSource *src)
+SrsFrameToRtmpBridge::SrsFrameToRtmpBridge(SrsSharedPtr<SrsLiveSource> source)
 {
-    source_ = src;
+    source_ = source;
 }
 
 SrsFrameToRtmpBridge::~SrsFrameToRtmpBridge()

@@ -154,7 +154,7 @@ ISrsRtcSourceChangeCallback::~ISrsRtcSourceChangeCallback()
 {
 }
 
-SrsRtcConsumer::SrsRtcConsumer(SrsSharedPtr<SrsRtcSource> s)
+SrsRtcConsumer::SrsRtcConsumer(SrsRtcSource* s)
 {
     source_ = s;
     should_update_source_id = false;
@@ -486,11 +486,11 @@ void SrsRtcSource::set_bridge(ISrsStreamBridge* bridge)
 #endif
 }
 
-srs_error_t SrsRtcSource::create_consumer(SrsSharedPtr<SrsRtcSource> source, SrsRtcConsumer*& consumer)
+srs_error_t SrsRtcSource::create_consumer(SrsRtcConsumer*& consumer)
 {
     srs_error_t err = srs_success;
 
-    consumer = new SrsRtcConsumer(source);
+    consumer = new SrsRtcConsumer(this);
     consumers.push_back(consumer);
 
     // TODO: FIXME: Implements edge cluster.

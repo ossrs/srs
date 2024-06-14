@@ -40,10 +40,9 @@ using namespace std;
 #include <srs_app_recv_thread.hpp>
 #include <srs_app_http_hooks.hpp>
 
-SrsBufferCache::SrsBufferCache(SrsLiveSource* s, SrsRequest* r)
+SrsBufferCache::SrsBufferCache(SrsRequest* r)
 {
     req = r->copy()->as_http();
-    source = s;
     queue = new SrsMessageQueue(true);
     trd = new SrsSTCoroutine("http-stream", this);
     
@@ -59,12 +58,11 @@ SrsBufferCache::~SrsBufferCache()
     srs_freep(req);
 }
 
-srs_error_t SrsBufferCache::update_auth(SrsLiveSource* s, SrsRequest* r)
+srs_error_t SrsBufferCache::update_auth(SrsRequest* r)
 {
     srs_freep(req);
     req = r->copy();
-    source = s;
-    
+
     return srs_success;
 }
 
@@ -107,15 +105,20 @@ srs_error_t SrsBufferCache::cycle()
         srs_usleep(SRS_STREAM_CACHE_CYCLE);
         return err;
     }
+
+    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req);
+    if (!live_source.get()) {
+        return srs_error_new(ERROR_NO_SOURCE, "no source for %s", req->get_stream_url().c_str());
+    }
     
     // the stream cache will create consumer to cache stream,
     // which will trigger to fetch stream from origin for edge.
     SrsLiveConsumer* consumer = NULL;
     SrsAutoFree(SrsLiveConsumer, consumer);
-    if ((err = source->create_consumer(consumer)) != srs_success) {
+    if ((err = live_source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
-    if ((err = source->consumer_dumps(consumer, false, false, true)) != srs_success) {
+    if ((err = live_source->consumer_dumps(consumer, false, false, true)) != srs_success) {
         return srs_error_wrap(err, "dumps consumer");
     }
     
@@ -553,9 +556,8 @@ srs_error_t SrsBufferWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwri
     return writer->writev(iov, iovcnt, pnwrite);
 }
 
-SrsLiveStream::SrsLiveStream(SrsLiveSource* s, SrsRequest* r, SrsBufferCache* c)
+SrsLiveStream::SrsLiveStream(SrsRequest* r, SrsBufferCache* c)
 {
-    source = s;
     cache = c;
     req = r->copy()->as_http();
     security_ = new SrsSecurity();
@@ -567,10 +569,8 @@ SrsLiveStream::~SrsLiveStream()
     srs_freep(security_);
 }
 
-srs_error_t SrsLiveStream::update_auth(SrsLiveSource* s, SrsRequest* r)
+srs_error_t SrsLiveStream::update_auth(SrsRequest* r)
 {
-    source = s;
-    
     srs_freep(req);
     req = r->copy()->as_http();
     
@@ -660,14 +660,19 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 
     // Enter chunked mode, because we didn't set the content-length.
     w->write_header(SRS_CONSTS_HTTP_OK);
+
+    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req);
+    if (!live_source.get()) {
+        return srs_error_new(ERROR_NO_SOURCE, "no source for %s", req->get_stream_url().c_str());
+    }
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsLiveConsumer* consumer = NULL;
     SrsAutoFree(SrsLiveConsumer, consumer);
-    if ((err = source->create_consumer(consumer)) != srs_success) {
+    if ((err = live_source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
-    if ((err = source->consumer_dumps(consumer, true, true, !enc->has_cache())) != srs_success) {
+    if ((err = live_source->consumer_dumps(consumer, true, true, !enc->has_cache())) != srs_success) {
         return srs_error_wrap(err, "dumps consumer");
     }
 
@@ -689,7 +694,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     // if gop cache enabled for encoder, dump to consumer.
     if (enc->has_cache()) {
-        if ((err = enc->dump_cache(consumer, source->jitter())) != srs_success) {
+        if ((err = enc->dump_cache(consumer, live_source->jitter())) != srs_success) {
             return srs_error_wrap(err, "encoder dump cache");
         }
     }
@@ -876,7 +881,6 @@ SrsLiveEntry::SrsLiveEntry(std::string m)
     cache = NULL;
     
     req = NULL;
-    source = NULL;
     
     std::string ext = srs_path_filext(m);
     _is_flv = (ext == ".flv");
@@ -954,7 +958,7 @@ srs_error_t SrsHttpStreamServer::initialize()
 }
 
 // TODO: FIXME: rename for HTTP FLV mount.
-srs_error_t SrsHttpStreamServer::http_mount(SrsLiveSource* s, SrsRequest* r)
+srs_error_t SrsHttpStreamServer::http_mount(SrsRequest* r)
 {
     srs_error_t err = srs_success;
     
@@ -982,10 +986,9 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsLiveSource* s, SrsRequest* r)
         
         entry = new SrsLiveEntry(mount);
 
-        entry->source = s;
         entry->req = r->copy()->as_http();
-        entry->cache = new SrsBufferCache(s, r);
-        entry->stream = new SrsLiveStream(s, r, entry->cache);
+        entry->cache = new SrsBufferCache(r);
+        entry->stream = new SrsLiveStream(r, entry->cache);
         
         // TODO: FIXME: maybe refine the logic of http remux service.
         // if user push streams followed:
@@ -994,8 +997,7 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsLiveSource* s, SrsRequest* r)
         // and they will using the same template, such as: [vhost]/[app]/[stream].flv
         // so, need to free last request object, otherwise, it will cause memory leak.
         srs_freep(tmpl->req);
-        
-        tmpl->source = s;
+
         tmpl->req = r->copy()->as_http();
         
         sflvs[sid] = entry;
@@ -1015,8 +1017,8 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsLiveSource* s, SrsRequest* r)
     } else {
         // The entry exists, we reuse it and update the request of stream and cache.
         entry = sflvs[sid];
-        entry->stream->update_auth(s, r);
-        entry->cache->update_auth(s, r);
+        entry->stream->update_auth(r);
+        entry->cache->update_auth(r);
     }
     
     if (entry->stream) {
@@ -1027,7 +1029,7 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsLiveSource* s, SrsRequest* r)
     return err;
 }
 
-void SrsHttpStreamServer::http_unmount(SrsLiveSource* s, SrsRequest* r)
+void SrsHttpStreamServer::http_unmount(SrsRequest* r)
 {
     std::string sid = r->get_stream_url();
     
@@ -1133,20 +1135,20 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
             }
         }
     }
-    
-    SrsLiveSource* s = NULL;
-    if ((err = _srs_sources->fetch_or_create(r, server, &s)) != srs_success) {
+
+    SrsSharedPtr<SrsLiveSource> live_source;
+    if ((err = _srs_sources->fetch_or_create(r, server, live_source)) != srs_success) {
         return srs_error_wrap(err, "source create");
     }
-    srs_assert(s != NULL);
+    srs_assert(live_source.get() != NULL);
     
     bool enabled_cache = _srs_config->get_gop_cache(r->vhost);
     int gcmf = _srs_config->get_gop_cache_max_frames(r->vhost);
-    s->set_cache(enabled_cache);
-    s->set_gop_cache_max_frames(gcmf);
+    live_source->set_cache(enabled_cache);
+    live_source->set_gop_cache_max_frames(gcmf);
 
     // create http streaming handler.
-    if ((err = http_mount(s, r)) != srs_success) {
+    if ((err = http_mount(r)) != srs_success) {
         return srs_error_wrap(err, "http mount");
     }
     
@@ -1161,7 +1163,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     // trigger edge to fetch from origin.
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
     srs_trace("flv: source url=%s, is_edge=%d, source_id=%s/%s",
-        r->get_stream_url().c_str(), vhost_is_edge, s->source_id().c_str(), s->pre_source_id().c_str());
+        r->get_stream_url().c_str(), vhost_is_edge, live_source->source_id().c_str(), live_source->pre_source_id().c_str());
 
     return err;
 }

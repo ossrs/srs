@@ -70,10 +70,12 @@ extern SrsSrtSourceManager* _srs_srt_sources;
 class SrsSrtConsumer
 {
 public:
-    SrsSrtConsumer(SrsSharedPtr<SrsSrtSource> source);
+    SrsSrtConsumer(SrsSrtSource* source);
     virtual ~SrsSrtConsumer();
 private:
-    SrsSharedPtr<SrsSrtSource> source_;
+    // Because source references to this object, so we should directly use the source ptr.
+    SrsSrtSource* source_;
+private:
     std::vector<SrsSrtPacket*> queue;
     // when source id changed, notice all consumers
     bool should_update_source_id;
@@ -167,7 +169,7 @@ public:
 public:
     // Create consumer
     // @param consumer, output the create consumer.
-    virtual srs_error_t create_consumer(SrsSharedPtr<SrsSrtSource> source, SrsSrtConsumer*& consumer);
+    virtual srs_error_t create_consumer(SrsSrtConsumer*& consumer);
     // Dumps packets in cache to consumer.
     virtual srs_error_t consumer_dumps(SrsSrtConsumer* consumer);
     virtual void on_consumer_destroy(SrsSrtConsumer* consumer);

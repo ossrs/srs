@@ -19,6 +19,7 @@
 #include <srs_protocol_st.hpp>
 #include <srs_app_hourglass.hpp>
 #include <srs_app_stream_bridge.hpp>
+#include <srs_core_autofree.hpp>
 
 class SrsFormat;
 class SrsRtmpFormat;
@@ -169,8 +170,10 @@ public:
 class SrsLiveConsumer : public ISrsWakable
 {
 private:
+    // Because source references to this object, so we should directly use the source ptr.
+    SrsLiveSource* source_;
+private:
     SrsRtmpJitter* jitter;
-    SrsLiveSource* source;
     SrsMessageQueue* queue;
     bool paused;
     // when source id changed, notice all consumers
@@ -288,9 +291,9 @@ public:
     virtual ~ISrsLiveSourceHandler();
 public:
     // when stream start publish, mount stream.
-    virtual srs_error_t on_publish(SrsLiveSource* s, SrsRequest* r) = 0;
+    virtual srs_error_t on_publish(SrsRequest* r) = 0;
     // when stream stop publish, unmount stream.
-    virtual void on_unpublish(SrsLiveSource* s, SrsRequest* r) = 0;
+    virtual void on_unpublish(SrsRequest* r) = 0;
 };
 
 // The mix queue to correct the timestamp for mix_correct algorithm.
@@ -315,7 +318,9 @@ public:
 class SrsOriginHub : public ISrsReloadHandler
 {
 private:
-    SrsLiveSource* source;
+    // Because source references to this object, so we should directly use the source ptr.
+    SrsLiveSource* source_;
+private:
     SrsRequest* req_;
     bool is_active;
 private:
@@ -341,7 +346,7 @@ public:
 public:
     // Initialize the hub with source and request.
     // @param r The request object, managed by source.
-    virtual srs_error_t initialize(SrsLiveSource* s, SrsRequest* r);
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, SrsRequest* r);
     // Dispose the hub, release utilities resource,
     // For example, delete all HLS pieces.
     virtual void dispose();
@@ -443,7 +448,7 @@ class SrsLiveSourceManager : public ISrsHourGlass
 {
 private:
     srs_mutex_t lock;
-    std::map<std::string, SrsLiveSource*> pool;
+    std::map< std::string, SrsSharedPtr<SrsLiveSource> > pool;
     SrsHourGlass* timer_;
 public:
     SrsLiveSourceManager();
@@ -454,10 +459,10 @@ public:
     // @param r the client request.
     // @param h the event handler for source.
     // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsLiveSource** pps);
+    virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsSharedPtr<SrsLiveSource>& pps);
 public:
     // Get the exists source, NULL when not exists.
-    virtual SrsLiveSource* fetch(SrsRequest* r);
+    virtual SrsSharedPtr<SrsLiveSource> fetch(SrsRequest* r);
 public:
     // dispose and cycle all sources.
     virtual void dispose();
@@ -539,7 +544,7 @@ public:
     bool publisher_is_idle_for(srs_utime_t timeout);
 public:
     // Initialize the hls with handlers.
-    virtual srs_error_t initialize(SrsRequest* r, ISrsLiveSourceHandler* h);
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> wrapper, SrsRequest* r, ISrsLiveSourceHandler* h);
     // Bridge to other source, forward packets to it.
     void set_bridge(ISrsStreamBridge* v);
 // Interface ISrsReloadHandler

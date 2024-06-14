@@ -1302,28 +1302,28 @@ srs_error_t SrsServer::on_reload_listen()
     return err;
 }
 
-srs_error_t SrsServer::on_publish(SrsLiveSource* s, SrsRequest* r)
+srs_error_t SrsServer::on_publish(SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
-    if ((err = http_server->http_mount(s, r)) != srs_success) {
+    if ((err = http_server->http_mount(r)) != srs_success) {
         return srs_error_wrap(err, "http mount");
     }
     
     SrsCoWorkers* coworkers = SrsCoWorkers::instance();
-    if ((err = coworkers->on_publish(s, r)) != srs_success) {
+    if ((err = coworkers->on_publish(r)) != srs_success) {
         return srs_error_wrap(err, "coworkers");
     }
     
     return err;
 }
 
-void SrsServer::on_unpublish(SrsLiveSource* s, SrsRequest* r)
+void SrsServer::on_unpublish(SrsRequest* r)
 {
-    http_server->http_unmount(s, r);
+    http_server->http_unmount(r);
     
     SrsCoWorkers* coworkers = SrsCoWorkers::instance();
-    coworkers->on_unpublish(s, r);
+    coworkers->on_unpublish(r);
 }
 
 SrsServerAdapter::SrsServerAdapter()
