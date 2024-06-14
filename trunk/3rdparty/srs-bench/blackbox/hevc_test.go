@@ -1000,8 +1000,16 @@ func TestSlow_SrtPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 		r1 = ffmpeg.Run(ctx, cancel)
 	}()
 
-	// Start FFprobe to detect and verify stream. Note that it requires longer duration.
-	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond * 3
+	// Should wait for HLS to generate the ts files.
+	select {
+	case <-ctx.Done():
+		r2 = fmt.Errorf("timeout")
+		return
+	case <-time.After(10 * time.Second):
+	}
+
+	// Start FFprobe to detect and verify stream.
+	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
 	ffprobe := NewFFprobe(func(v *ffprobeClient) {
 		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.ts", streamID))
 		v.streamURL = fmt.Sprintf("http://localhost:%v/live/%v.m3u8", svr.HTTPPort(), streamID)
