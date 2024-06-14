@@ -106,8 +106,8 @@ srs_error_t SrsBufferCache::cycle()
         return err;
     }
 
-    SrsLiveSource* source = _srs_sources->fetch(req);
-    if (!source) {
+    SrsLiveSource* live_source = _srs_sources->fetch(req);
+    if (!live_source) {
         return srs_error_new(ERROR_NO_SOURCE, "no source for %s", req->get_stream_url().c_str());
     }
     
@@ -115,10 +115,10 @@ srs_error_t SrsBufferCache::cycle()
     // which will trigger to fetch stream from origin for edge.
     SrsLiveConsumer* consumer = NULL;
     SrsAutoFree(SrsLiveConsumer, consumer);
-    if ((err = source->create_consumer(consumer)) != srs_success) {
+    if ((err = live_source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
-    if ((err = source->consumer_dumps(consumer, false, false, true)) != srs_success) {
+    if ((err = live_source->consumer_dumps(consumer, false, false, true)) != srs_success) {
         return srs_error_wrap(err, "dumps consumer");
     }
     
@@ -661,18 +661,18 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // Enter chunked mode, because we didn't set the content-length.
     w->write_header(SRS_CONSTS_HTTP_OK);
 
-    SrsLiveSource* source = _srs_sources->fetch(req);
-    if (!source) {
+    SrsLiveSource* live_source = _srs_sources->fetch(req);
+    if (!live_source) {
         return srs_error_new(ERROR_NO_SOURCE, "no source for %s", req->get_stream_url().c_str());
     }
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsLiveConsumer* consumer = NULL;
     SrsAutoFree(SrsLiveConsumer, consumer);
-    if ((err = source->create_consumer(consumer)) != srs_success) {
+    if ((err = live_source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
-    if ((err = source->consumer_dumps(consumer, true, true, !enc->has_cache())) != srs_success) {
+    if ((err = live_source->consumer_dumps(consumer, true, true, !enc->has_cache())) != srs_success) {
         return srs_error_wrap(err, "dumps consumer");
     }
 
@@ -694,7 +694,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     // if gop cache enabled for encoder, dump to consumer.
     if (enc->has_cache()) {
-        if ((err = enc->dump_cache(consumer, source->jitter())) != srs_success) {
+        if ((err = enc->dump_cache(consumer, live_source->jitter())) != srs_success) {
             return srs_error_wrap(err, "encoder dump cache");
         }
     }
@@ -1136,16 +1136,16 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
         }
     }
 
-    SrsLiveSource* s = NULL;
-    if ((err = _srs_sources->fetch_or_create(r, server, &s)) != srs_success) {
+    SrsLiveSource* live_source = NULL;
+    if ((err = _srs_sources->fetch_or_create(r, server, &live_source)) != srs_success) {
         return srs_error_wrap(err, "source create");
     }
-    srs_assert(s != NULL);
+    srs_assert(live_source != NULL);
     
     bool enabled_cache = _srs_config->get_gop_cache(r->vhost);
     int gcmf = _srs_config->get_gop_cache_max_frames(r->vhost);
-    s->set_cache(enabled_cache);
-    s->set_gop_cache_max_frames(gcmf);
+    live_source->set_cache(enabled_cache);
+    live_source->set_gop_cache_max_frames(gcmf);
 
     // create http streaming handler.
     if ((err = http_mount(r)) != srs_success) {
@@ -1163,7 +1163,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     // trigger edge to fetch from origin.
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
     srs_trace("flv: source url=%s, is_edge=%d, source_id=%s/%s",
-        r->get_stream_url().c_str(), vhost_is_edge, s->source_id().c_str(), s->pre_source_id().c_str());
+        r->get_stream_url().c_str(), vhost_is_edge, live_source->source_id().c_str(), live_source->pre_source_id().c_str());
 
     return err;
 }

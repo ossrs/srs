@@ -1202,8 +1202,8 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
     source_->set_publish_stream(this);
 
     // TODO: FIMXE: Check it in SrsRtcConnection::add_publisher?
-    SrsLiveSource *rtmp = _srs_sources->fetch(r);
-    if (rtmp && !rtmp->can_publish(false)) {
+    SrsLiveSource* live_source = _srs_sources->fetch(r);
+    if (live_source && !live_source->can_publish(false)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp stream %s busy", r->get_stream_url().c_str());
     }
 
@@ -1227,16 +1227,16 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
     bool rtc_to_rtmp = _srs_config->get_rtc_to_rtmp(req_->vhost);
     if (rtc_to_rtmp) {
-        if ((err = _srs_sources->fetch_or_create(r, _srs_hybrid->srs()->instance(), &rtmp)) != srs_success) {
+        if ((err = _srs_sources->fetch_or_create(r, _srs_hybrid->srs()->instance(), &live_source)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
         // Disable GOP cache for RTC2RTMP bridge, to keep the streams in sync,
         // especially for stream merging.
-        rtmp->set_cache(false);
+        live_source->set_cache(false);
 
         SrsCompositeBridge* bridge = new SrsCompositeBridge();
-        bridge->append(new SrsFrameToRtmpBridge(rtmp));
+        bridge->append(new SrsFrameToRtmpBridge(live_source));
 
         if ((err = bridge->initialize(r)) != srs_success) {
             srs_freep(bridge);

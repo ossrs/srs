@@ -170,7 +170,7 @@ class SrsLiveConsumer : public ISrsWakable
 {
 private:
     SrsRtmpJitter* jitter;
-    SrsLiveSource* source;
+    SrsLiveSource* source_;
     SrsMessageQueue* queue;
     bool paused;
     // when source id changed, notice all consumers
@@ -315,7 +315,7 @@ public:
 class SrsOriginHub : public ISrsReloadHandler
 {
 private:
-    SrsLiveSource* source;
+    SrsLiveSource* source_;
     SrsRequest* req_;
     bool is_active;
 private:

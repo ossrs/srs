@@ -571,19 +571,19 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     
     // find a source to serve.
-    SrsLiveSource* source = NULL;
-    if ((err = _srs_sources->fetch_or_create(req, server, &source)) != srs_success) {
+    SrsLiveSource* live_source = NULL;
+    if ((err = _srs_sources->fetch_or_create(req, server, &live_source)) != srs_success) {
         return srs_error_wrap(err, "rtmp: fetch source");
     }
-    srs_assert(source != NULL);
+    srs_assert(live_source != NULL);
 
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
     int gcmf = _srs_config->get_gop_cache_max_frames(req->vhost);
     srs_trace("source url=%s, ip=%s, cache=%d/%d, is_edge=%d, source_id=%s/%s",
-        req->get_stream_url().c_str(), ip.c_str(), enabled_cache, gcmf, info->edge, source->source_id().c_str(),
-        source->pre_source_id().c_str());
-    source->set_cache(enabled_cache);
-    source->set_gop_cache_max_frames(gcmf);
+        req->get_stream_url().c_str(), ip.c_str(), enabled_cache, gcmf, info->edge, live_source->source_id().c_str(),
+              live_source->pre_source_id().c_str());
+    live_source->set_cache(enabled_cache);
+    live_source->set_gop_cache_max_frames(gcmf);
     
     switch (info->type) {
         case SrsRtmpConnPlay: {
@@ -610,7 +610,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             span_main_->end();
 #endif
             
-            err = playing(source);
+            err = playing(live_source);
             http_hooks_on_stop();
             
             return err;
@@ -627,7 +627,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             span_main_->end();
 #endif
             
-            return publishing(source);
+            return publishing(live_source);
         }
         case SrsRtmpConnHaivisionPublish: {
             if ((err = rtmp->start_haivision_publish(info->res->stream_id)) != srs_success) {
@@ -641,7 +641,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             span_main_->end();
 #endif
             
-            return publishing(source);
+            return publishing(live_source);
         }
         case SrsRtmpConnFlashPublish: {
             if ((err = rtmp->start_flash_publish(info->res->stream_id)) != srs_success) {
@@ -655,7 +655,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             span_main_->end();
 #endif
             
-            return publishing(source);
+            return publishing(live_source);
         }
         default: {
             return srs_error_new(ERROR_SYSTEM_CLIENT_INVALID, "rtmp: unknown client type=%d", info->type);

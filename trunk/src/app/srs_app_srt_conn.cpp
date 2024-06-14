@@ -368,7 +368,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
     }
 
     // Check rtmp stream is busy.
-    SrsLiveSource *live_source = _srs_sources->fetch(req_);
+    SrsLiveSource* live_source = _srs_sources->fetch(req_);
     if (live_source && !live_source->can_publish(false)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "live_source stream %s busy", req_->get_stream_url().c_str());
     }

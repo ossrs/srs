@@ -407,7 +407,7 @@ ISrsWakable::~ISrsWakable()
 
 SrsLiveConsumer::SrsLiveConsumer(SrsLiveSource* s)
 {
-    source = s;
+    source_ = s;
     paused = false;
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
@@ -423,7 +423,7 @@ SrsLiveConsumer::SrsLiveConsumer(SrsLiveSource* s)
 
 SrsLiveConsumer::~SrsLiveConsumer()
 {
-    source->on_consumer_destroy(this);
+    source_->on_consumer_destroy(this);
     srs_freep(jitter);
     srs_freep(queue);
     
@@ -506,7 +506,7 @@ srs_error_t SrsLiveConsumer::dump_packets(SrsMessageArray* msgs, int& count)
     count = 0;
     
     if (should_update_source_id) {
-        srs_trace("update source_id=%s/%s", source->source_id().c_str(), source->pre_source_id().c_str());
+        srs_trace("update source_id=%s/%s", source_->source_id().c_str(), source_->pre_source_id().c_str());
         should_update_source_id = false;
     }
     
@@ -822,7 +822,7 @@ SrsSharedPtrMessage* SrsMixQueue::pop()
 
 SrsOriginHub::SrsOriginHub()
 {
-    source = NULL;
+    source_ = NULL;
     req_ = NULL;
     is_active = false;
     
@@ -866,7 +866,7 @@ srs_error_t SrsOriginHub::initialize(SrsLiveSource* s, SrsRequest* r)
     srs_error_t err = srs_success;
     
     req_ = r;
-    source = s;
+    source_ = s;
     
     if ((err = hls->initialize(this, req_)) != srs_success) {
         return srs_error_wrap(err, "hls initialize");
@@ -936,7 +936,7 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_audio;
-    SrsRtmpFormat* format = source->format_;
+    SrsRtmpFormat* format = source_->format_;
     
     // Handle the metadata when got sequence header.
     if (format->is_aac_sequence_header() || format->is_mp3_sequence_header()) {
@@ -973,7 +973,7 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
             hls->on_unpublish();
             srs_error_reset(err);
         } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
-            if (srs_hls_can_continue(srs_error_code(err), source->meta->ash(), msg)) {
+            if (srs_hls_can_continue(srs_error_code(err), source_->meta->ash(), msg)) {
                 srs_error_reset(err);
             } else {
                 return srs_error_wrap(err, "hls: audio");
@@ -1022,7 +1022,7 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_video;
-    SrsRtmpFormat* format = source->format_;
+    SrsRtmpFormat* format = source_->format_;
  
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
@@ -1066,7 +1066,7 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
             hls->on_unpublish();
             srs_error_reset(err);
         } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
-            if (srs_hls_can_continue(srs_error_code(err), source->meta->vsh(), msg)) {
+            if (srs_hls_can_continue(srs_error_code(err), source_->meta->vsh(), msg)) {
                 srs_error_reset(err);
             } else {
                 return srs_error_wrap(err, "hls: video");
@@ -1177,9 +1177,9 @@ srs_error_t SrsOriginHub::on_forwarder_start(SrsForwarder* forwarder)
 {
     srs_error_t err = srs_success;
     
-    SrsSharedPtrMessage* cache_metadata = source->meta->data();
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    SrsSharedPtrMessage* cache_metadata = source_->meta->data();
+    SrsSharedPtrMessage* cache_sh_video = source_->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_audio = source_->meta->ash();
     
     // feed the forwarder the metadata/sequence header,
     // when reload to enable the forwarder.
@@ -1200,9 +1200,9 @@ srs_error_t SrsOriginHub::on_dvr_request_sh()
 {
     srs_error_t err = srs_success;
     
-    SrsSharedPtrMessage* cache_metadata = source->meta->data();
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    SrsSharedPtrMessage* cache_metadata = source_->meta->data();
+    SrsSharedPtrMessage* cache_sh_video = source_->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_audio = source_->meta->ash();
     
     // feed the dvr the metadata/sequence header,
     // when reload to start dvr, dvr will never get the sequence header in stream,
@@ -1212,13 +1212,13 @@ srs_error_t SrsOriginHub::on_dvr_request_sh()
     }
     
     if (cache_sh_video) {
-        if ((err = dvr->on_video(cache_sh_video, source->meta->vsh_format())) != srs_success) {
+        if ((err = dvr->on_video(cache_sh_video, source_->meta->vsh_format())) != srs_success) {
             return srs_error_wrap(err, "dvr video");
         }
     }
     
     if (cache_sh_audio) {
-        if ((err = dvr->on_audio(cache_sh_audio, source->meta->ash_format())) != srs_success) {
+        if ((err = dvr->on_audio(cache_sh_audio, source_->meta->ash_format())) != srs_success) {
             return srs_error_wrap(err, "dvr audio");
         }
     }
@@ -1230,16 +1230,16 @@ srs_error_t SrsOriginHub::on_hls_request_sh()
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_video = source_->meta->vsh();
     if (cache_sh_video) {
-        if ((err = hls->on_video(cache_sh_video, source->meta->vsh_format())) != srs_success) {
+        if ((err = hls->on_video(cache_sh_video, source_->meta->vsh_format())) != srs_success) {
             return srs_error_wrap(err, "hls video");
         }
     }
 
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    SrsSharedPtrMessage* cache_sh_audio = source_->meta->ash();
     if (cache_sh_audio) {
-        if ((err = hls->on_audio(cache_sh_audio, source->meta->ash_format())) != srs_success) {
+        if ((err = hls->on_audio(cache_sh_audio, source_->meta->ash_format())) != srs_success) {
             return srs_error_wrap(err, "hls audio");
         }
     }
@@ -1295,9 +1295,9 @@ srs_error_t SrsOriginHub::on_reload_vhost_dash(string vhost)
         return srs_error_wrap(err, "dash start publish");
     }
 
-    SrsRtmpFormat* format = source->format_;
+    SrsRtmpFormat* format = source_->format_;
     
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_video = source_->meta->vsh();
     if (cache_sh_video) {
         if ((err = format->on_video(cache_sh_video)) != srs_success) {
             return srs_error_wrap(err, "format on_video");
@@ -1307,7 +1307,7 @@ srs_error_t SrsOriginHub::on_reload_vhost_dash(string vhost)
         }
     }
     
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    SrsSharedPtrMessage* cache_sh_audio = source_->meta->ash();
     if (cache_sh_audio) {
         if ((err = format->on_audio(cache_sh_audio)) != srs_success) {
             return srs_error_wrap(err, "format on_audio");

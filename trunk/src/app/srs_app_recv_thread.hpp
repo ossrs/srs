@@ -146,7 +146,7 @@ private:
     srs_error_t recv_error;
     SrsRtmpConn* _conn;
     // The params for conn callback.
-    SrsLiveSource* _source;
+    SrsLiveSource* source_;
     // The error timeout cond
     srs_cond_t error;
     // The merged context id.

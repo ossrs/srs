@@ -137,7 +137,7 @@ public:
 class SrsEdgeIngester : public ISrsCoroutineHandler
 {
 private:
-    SrsLiveSource* source;
+    SrsLiveSource* source_;
     SrsPlayEdge* edge;
     SrsRequest* req;
     SrsCoroutine* trd;
@@ -172,7 +172,7 @@ private:
 class SrsEdgeForwarder : public ISrsCoroutineHandler
 {
 private:
-    SrsLiveSource* source;
+    SrsLiveSource* source_;
     SrsPublishEdge* edge;
     SrsRequest* req;
     SrsCoroutine* trd;
