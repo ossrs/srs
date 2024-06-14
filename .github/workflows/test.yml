@@ -188,6 +188,14 @@ jobs:
           #  -test.run 'TestFast_RtmpPublish_DvrFlv_Basic' -srs-log -srs-stdout srs-ffmpeg-stderr -srs-dvr-stderr \
           #  -srs-ffprobe-stdout
           docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
+            cat /srs/trunk/src/core/srs_core_version6.hpp
+          docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
+            go version
+          docker run --rm -w /srs/trunk srs:test \
+            ./objs/srs --version
+          docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
+            cat ../../src/core/srs_core_version6.hpp
+          docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
             ./objs/srs_blackbox_test -test.v -test.run '^TestFast' -test.parallel 64
           docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
             ./objs/srs_blackbox_test -test.v -test.run '^TestSlow' -test.parallel 4
