@@ -152,7 +152,7 @@ void SrsSrtSourceManager::eliminate(SrsRequest* r)
 
 SrsSrtSourceManager* _srs_srt_sources = NULL;
 
-SrsSrtConsumer::SrsSrtConsumer(SrsSharedPtr<SrsSrtSource> s)
+SrsSrtConsumer::SrsSrtConsumer(SrsSrtSource* s)
 {
     source_ = s;
     should_update_source_id = false;
@@ -942,11 +942,11 @@ void SrsSrtSource::set_bridge(ISrsStreamBridge* bridge)
     frame_builder_ = new SrsSrtFrameBuilder(bridge);
 }
 
-srs_error_t SrsSrtSource::create_consumer(SrsSharedPtr<SrsSrtSource> source, SrsSrtConsumer*& consumer)
+srs_error_t SrsSrtSource::create_consumer(SrsSrtConsumer*& consumer)
 {
     srs_error_t err = srs_success;
 
-    consumer = new SrsSrtConsumer(source);
+    consumer = new SrsSrtConsumer(this);
     consumers.push_back(consumer);
 
     return err;

@@ -137,7 +137,9 @@ public:
 class SrsEdgeIngester : public ISrsCoroutineHandler
 {
 private:
+    // Because source references to this object, so we should directly use the source ptr.
     SrsLiveSource* source_;
+private:
     SrsPlayEdge* edge;
     SrsRequest* req;
     SrsCoroutine* trd;
@@ -172,7 +174,9 @@ private:
 class SrsEdgeForwarder : public ISrsCoroutineHandler
 {
 private:
+    // Because source references to this object, so we should directly use the source ptr.
     SrsLiveSource* source_;
+private:
     SrsPublishEdge* edge;
     SrsRequest* req;
     SrsCoroutine* trd;

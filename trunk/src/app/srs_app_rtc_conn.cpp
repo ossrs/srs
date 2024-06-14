@@ -646,7 +646,7 @@ srs_error_t SrsRtcPlayStream::cycle()
 
     SrsRtcConsumer* consumer = NULL;
     SrsAutoFree(SrsRtcConsumer, consumer);
-    if ((err = source->create_consumer(source_, consumer)) != srs_success) {
+    if ((err = source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer, source=%s", req_->get_stream_url().c_str());
     }
 

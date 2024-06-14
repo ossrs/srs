@@ -169,8 +169,10 @@ public:
 class SrsLiveConsumer : public ISrsWakable
 {
 private:
-    SrsRtmpJitter* jitter;
+    // Because source references to this object, so we should directly use the source ptr.
     SrsLiveSource* source_;
+private:
+    SrsRtmpJitter* jitter;
     SrsMessageQueue* queue;
     bool paused;
     // when source id changed, notice all consumers
@@ -315,7 +317,9 @@ public:
 class SrsOriginHub : public ISrsReloadHandler
 {
 private:
+    // Because source references to this object, so we should directly use the source ptr.
     SrsLiveSource* source_;
+private:
     SrsRequest* req_;
     bool is_active;
 private:

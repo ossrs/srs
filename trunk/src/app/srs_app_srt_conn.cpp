@@ -489,7 +489,7 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
 
     SrsSrtConsumer* consumer = NULL;
     SrsAutoFree(SrsSrtConsumer, consumer);
-    if ((err = srt_source_->create_consumer(srt_source_, consumer)) != srs_success) {
+    if ((err = srt_source_->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer, ts source=%s", req_->get_stream_url().c_str());
     }
     srs_assert(consumer);
