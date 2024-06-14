@@ -22,6 +22,7 @@
 #include <srs_app_hourglass.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_app_stream_bridge.hpp>
+#include <srs_core_autofree.hpp>
 
 class SrsRequest;
 class SrsMetaCache;
@@ -79,7 +80,7 @@ public:
 class SrsRtcConsumer
 {
 private:
-    SrsRtcSource* source;
+    SrsSharedPtr<SrsRtcSource> source_;
     std::vector<SrsRtpPacket*> queue;
     // when source id changed, notice all consumers
     bool should_update_source_id;
@@ -91,7 +92,7 @@ private:
     // The callback for stream change event.
     ISrsRtcSourceChangeCallback* handler_;
 public:
-    SrsRtcConsumer(SrsRtcSource* s);
+    SrsRtcConsumer(SrsSharedPtr<SrsRtcSource> s);
     virtual ~SrsRtcConsumer();
 public:
     // When source id changed, notice client to print.
@@ -112,7 +113,7 @@ class SrsRtcSourceManager
 {
 private:
     srs_mutex_t lock;
-    std::map<std::string, SrsRtcSource*> pool;
+    std::map< std::string, SrsSharedPtr<SrsRtcSource> > pool;
 public:
     SrsRtcSourceManager();
     virtual ~SrsRtcSourceManager();
@@ -120,10 +121,13 @@ public:
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcSource** pps);
+    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsRtcSource>& pps);
 public:
     // Get the exists source, NULL when not exists.
-    virtual SrsRtcSource* fetch(SrsRequest* r);
+    virtual SrsSharedPtr<SrsRtcSource> fetch(SrsRequest* r);
+public:
+    // Dispose and destroy the source.
+    virtual void eliminate(SrsRequest* r);
 };
 
 // Global singleton instance.
@@ -211,7 +215,7 @@ public:
 public:
     // Create consumer
     // @param consumer, output the create consumer.
-    virtual srs_error_t create_consumer(SrsRtcConsumer*& consumer);
+    virtual srs_error_t create_consumer(SrsSharedPtr<SrsRtcSource> source, SrsRtcConsumer*& consumer);
     // Dumps packets in cache to consumer.
     // @param ds, whether dumps the sequence header.
     // @param dm, whether dumps the metadata.
@@ -565,7 +569,7 @@ public:
     // set to NULL, nack nerver copy it but set the pkt to NULL.
     srs_error_t on_nack(SrsRtpPacket** ppkt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt) = 0;
+    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt) = 0;
     virtual srs_error_t check_send_nacks() = 0;
 protected:
     virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
@@ -579,7 +583,7 @@ public:
 public:
     virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt);
+    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt);
     virtual srs_error_t check_send_nacks();
 };
 
@@ -591,7 +595,7 @@ public:
 public:
     virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt);
+    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt);
     virtual srs_error_t check_send_nacks();
 };
 

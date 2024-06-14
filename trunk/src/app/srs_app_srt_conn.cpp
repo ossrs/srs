@@ -389,12 +389,12 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
 
     // Check whether RTC stream is busy.
 #ifdef SRS_RTC
-    SrsRtcSource* rtc = NULL;
+    SrsSharedPtr<SrsRtcSource> rtc;
     bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
     bool rtc_enabled = _srs_config->get_rtc_enabled(req_->vhost);
     bool edge = _srs_config->get_vhost_is_edge(req_->vhost);
     if (rtc_server_enabled && rtc_enabled && ! edge) {
-        if ((err = _srs_rtc_sources->fetch_or_create(req_, &rtc)) != srs_success) {
+        if ((err = _srs_rtc_sources->fetch_or_create(req_, rtc)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
@@ -410,7 +410,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
         bridge->append(new SrsFrameToRtmpBridge(live_source));
 
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
-        if (rtc && _srs_config->get_rtc_from_rtmp(req_->vhost)) {
+        if (rtc.get() && _srs_config->get_rtc_from_rtmp(req_->vhost)) {
             bridge->append(new SrsFrameToRtcBridge(rtc));
         }
 #endif
@@ -489,7 +489,7 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
 
     SrsSrtConsumer* consumer = NULL;
     SrsAutoFree(SrsSrtConsumer, consumer);
-    if ((err = srt_source_->create_consumer(consumer)) != srs_success) {
+    if ((err = srt_source_->create_consumer(srt_source_, consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer, ts source=%s", req_->get_stream_url().c_str());
     }
     srs_assert(consumer);

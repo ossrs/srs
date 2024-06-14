@@ -152,9 +152,9 @@ void SrsSrtSourceManager::eliminate(SrsRequest* r)
 
 SrsSrtSourceManager* _srs_srt_sources = NULL;
 
-SrsSrtConsumer::SrsSrtConsumer(SrsSrtSource* s)
+SrsSrtConsumer::SrsSrtConsumer(SrsSharedPtr<SrsSrtSource> s)
 {
-    source = s;
+    source_ = s;
     should_update_source_id = false;
 
     mw_wait = srs_cond_new();
@@ -164,7 +164,7 @@ SrsSrtConsumer::SrsSrtConsumer(SrsSrtSource* s)
 
 SrsSrtConsumer::~SrsSrtConsumer()
 {
-    source->on_consumer_destroy(this);
+    source_->on_consumer_destroy(this);
 
     vector<SrsSrtPacket*>::iterator it;
     for (it = queue.begin(); it != queue.end(); ++it) {
@@ -202,7 +202,7 @@ srs_error_t SrsSrtConsumer::dump_packet(SrsSrtPacket** ppkt)
     srs_error_t err = srs_success;
 
     if (should_update_source_id) {
-        srs_trace("update source_id=%s/%s", source->source_id().c_str(), source->pre_source_id().c_str());
+        srs_trace("update source_id=%s/%s", source_->source_id().c_str(), source_->pre_source_id().c_str());
         should_update_source_id = false;
     }
 
@@ -942,11 +942,11 @@ void SrsSrtSource::set_bridge(ISrsStreamBridge* bridge)
     frame_builder_ = new SrsSrtFrameBuilder(bridge);
 }
 
-srs_error_t SrsSrtSource::create_consumer(SrsSrtConsumer*& consumer)
+srs_error_t SrsSrtSource::create_consumer(SrsSharedPtr<SrsSrtSource> source, SrsSrtConsumer*& consumer)
 {
     srs_error_t err = srs_success;
 
-    consumer = new SrsSrtConsumer(this);
+    consumer = new SrsSrtConsumer(source);
     consumers.push_back(consumer);
 
     return err;

@@ -154,9 +154,9 @@ ISrsRtcSourceChangeCallback::~ISrsRtcSourceChangeCallback()
 {
 }
 
-SrsRtcConsumer::SrsRtcConsumer(SrsRtcSource* s)
+SrsRtcConsumer::SrsRtcConsumer(SrsSharedPtr<SrsRtcSource> s)
 {
-    source = s;
+    source_ = s;
     should_update_source_id = false;
     handler_ = NULL;
 
@@ -167,7 +167,7 @@ SrsRtcConsumer::SrsRtcConsumer(SrsRtcSource* s)
 
 SrsRtcConsumer::~SrsRtcConsumer()
 {
-    source->on_consumer_destroy(this);
+    source_->on_consumer_destroy(this);
 
     vector<SrsRtpPacket*>::iterator it;
     for (it = queue.begin(); it != queue.end(); ++it) {
@@ -205,7 +205,7 @@ srs_error_t SrsRtcConsumer::dump_packet(SrsRtpPacket** ppkt)
     srs_error_t err = srs_success;
 
     if (should_update_source_id) {
-        srs_trace("update source_id=%s/%s", source->source_id().c_str(), source->pre_source_id().c_str());
+        srs_trace("update source_id=%s/%s", source_->source_id().c_str(), source_->pre_source_id().c_str());
         should_update_source_id = false;
     }
 
@@ -251,7 +251,7 @@ SrsRtcSourceManager::~SrsRtcSourceManager()
     srs_mutex_destroy(lock);
 }
 
-srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsRtcSource** pps)
+srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsRtcSource>& pps)
 {
     srs_error_t err = srs_success;
 
@@ -259,48 +259,63 @@ srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsRtcSource** p
     // @bug https://github.com/ossrs/srs/issues/1230
     SrsLocker(lock);
 
-    SrsRtcSource* source = NULL;
-    if ((source = fetch(r)) != NULL) {
+    string stream_url = r->get_stream_url();
+    std::map< std::string, SrsSharedPtr<SrsRtcSource> >::iterator it = pool.find(stream_url);
+
+    if (it != pool.end()) {
+        SrsSharedPtr<SrsRtcSource> source = it->second;
+
         // we always update the request of resource,
         // for origin auth is on, the token in request maybe invalid,
         // and we only need to update the token of request, it's simple.
         source->update_auth(r);
-        *pps = source;
+        pps = source;
+
         return err;
     }
 
-    string stream_url = r->get_stream_url();
-    string vhost = r->vhost;
-
-    // should always not exists for create a source.
-    srs_assert (pool.find(stream_url) == pool.end());
-
+    SrsSharedPtr<SrsRtcSource> source = SrsSharedPtr<SrsRtcSource>(new SrsRtcSource());
     srs_trace("new rtc source, stream_url=%s", stream_url.c_str());
 
-    source = new SrsRtcSource();
     if ((err = source->initialize(r)) != srs_success) {
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
 
     pool[stream_url] = source;
-
-    *pps = source;
+    pps = source;
 
     return err;
 }
 
-SrsRtcSource* SrsRtcSourceManager::fetch(SrsRequest* r)
+SrsSharedPtr<SrsRtcSource> SrsRtcSourceManager::fetch(SrsRequest* r)
 {
-    SrsRtcSource* source = NULL;
+    // Use lock to protect coroutine switch.
+    // @bug https://github.com/ossrs/srs/issues/1230
+    SrsLocker(lock);
 
     string stream_url = r->get_stream_url();
-    if (pool.find(stream_url) == pool.end()) {
-        return NULL;
+    std::map< std::string, SrsSharedPtr<SrsRtcSource> >::iterator it = pool.find(stream_url);
+
+    SrsSharedPtr<SrsRtcSource> source;
+    if (it == pool.end()) {
+        return source;
     }
 
-    source = pool[stream_url];
-
+    source = it->second;
     return source;
+}
+
+void SrsRtcSourceManager::eliminate(SrsRequest* r)
+{
+    // Use lock to protect coroutine switch.
+    // @bug https://github.com/ossrs/srs/issues/1230
+    SrsLocker(lock);
+
+    string stream_url = r->get_stream_url();
+    std::map< std::string, SrsSharedPtr<SrsRtcSource> >::iterator it = pool.find(stream_url);
+    if (it != pool.end()) {
+        pool.erase(it);
+    }
 }
 
 SrsRtcSourceManager* _srs_rtc_sources = NULL;
@@ -471,11 +486,11 @@ void SrsRtcSource::set_bridge(ISrsStreamBridge* bridge)
 #endif
 }
 
-srs_error_t SrsRtcSource::create_consumer(SrsRtcConsumer*& consumer)
+srs_error_t SrsRtcSource::create_consumer(SrsSharedPtr<SrsRtcSource> source, SrsRtcConsumer*& consumer)
 {
     srs_error_t err = srs_success;
 
-    consumer = new SrsRtcConsumer(this);
+    consumer = new SrsRtcConsumer(source);
     consumers.push_back(consumer);
 
     // TODO: FIXME: Implements edge cluster.
@@ -507,6 +522,11 @@ void SrsRtcSource::on_consumer_destroy(SrsRtcConsumer* consumer)
             ISrsRtcSourceEventHandler* h = event_handlers_.at(i);
             h->on_consumers_finished();
         }
+    }
+
+    // Destroy and cleanup source when no publishers and consumers.
+    if (!is_created_ && consumers.empty()) {
+        _srs_rtc_sources->eliminate(req);
     }
 }
 
@@ -607,6 +627,11 @@ void SrsRtcSource::on_unpublish()
 
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_close(req);
+
+    // Destroy and cleanup source when no publishers and consumers.
+    if (!is_created_ && consumers.empty()) {
+        _srs_rtc_sources->eliminate(req);
+    }
 }
 
 void SrsRtcSource::subscribe(ISrsRtcSourceEventHandler* h)
@@ -2552,7 +2577,7 @@ void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
     *ppt = SrsRtspPacketPayloadTypeRaw;
 }
 
-srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt)
+srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -2611,7 +2636,7 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
     }
 }
 
-srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt)
+srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
