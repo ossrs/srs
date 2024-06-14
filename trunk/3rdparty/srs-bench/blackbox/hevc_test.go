@@ -900,6 +900,14 @@ func TestSlow_SrtPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
 		r1 = ffmpeg.Run(ctx, cancel)
 	}()
 
+	// Should wait for TS to generate the contents.
+	select {
+	case <-ctx.Done():
+		r2 = fmt.Errorf("timeout")
+		return
+	case <-time.After(5 * time.Second):
+	}
+
 	// Start FFprobe to detect and verify stream.
 	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
 	ffprobe := NewFFprobe(func(v *ffprobeClient) {
@@ -911,9 +919,6 @@ func TestSlow_SrtPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		<-svr.ReadyCtx().Done()
-
-		// wait for ffmpeg. Note that need to wait for a longer time.
-		time.Sleep(5 * time.Second)
 
 		r2 = ffprobe.Run(ctx, cancel)
 	}()
@@ -994,9 +999,6 @@ func TestSlow_SrtPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 		defer wg.Done()
 		<-svr.ReadyCtx().Done()
 
-		// wait for ffmpeg
-		time.Sleep(3 * time.Second)
-
 		r1 = ffmpeg.Run(ctx, cancel)
 	}()
 
@@ -1005,7 +1007,7 @@ func TestSlow_SrtPublish_HlsPlay_HEVC_Basic(t *testing.T) {
 	case <-ctx.Done():
 		r2 = fmt.Errorf("timeout")
 		return
-	case <-time.After(10 * time.Second):
+	case <-time.After(15 * time.Second):
 	}
 
 	// Start FFprobe to detect and verify stream.
