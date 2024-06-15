@@ -235,13 +235,14 @@ public:
 class SrsRtcTcpConn : public ISrsConnection, public ISrsCoroutineHandler, public ISrsExecutorHandler
 {
 private:
+    // Because session references to this object, so we should directly use the session ptr.
+    SrsRtcConnection* session_;
+private:
     // The ip and port of client.
     std::string ip_;
     int port_;
     // The delta for statistic.
     SrsNetworkDelta* delta_;
-    // WebRTC session object.
-    SrsRtcConnection* session_;
     ISrsProtocolReadWriter* skt_;
     // Packet cache.
     char* pkt_;
