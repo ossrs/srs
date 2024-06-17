@@ -74,7 +74,11 @@ func Parse(ctx context.Context) {
 	fl.Usage = func() {
 		fmt.Println(fmt.Sprintf("Usage: %v [Options]", os.Args[0]))
 		fmt.Println(fmt.Sprintf("Options:"))
-		fmt.Println(fmt.Sprintf("   -sfu    The target SFU, srs or gb28181 or janus. Default: srs"))
+		fmt.Println(fmt.Sprintf("   -sfu    The target server that can be rtc, live, janus, or gb28181. Default: rtc"))
+		fmt.Println(fmt.Sprintf("               rtc/srs: SRS WebRTC SFU server, for WebRTC/WHIP/WHEP."))
+		fmt.Println(fmt.Sprintf("               live: SRS live streaming server, for RTMP/HTTP-FLV/HLS."))
+		fmt.Println(fmt.Sprintf("               janus: Janus WebRTC SFU server, for janus private protocol."))
+		fmt.Println(fmt.Sprintf("               gb28181: GB media server, for GB protocol."))
 		fmt.Println(fmt.Sprintf("   -nn     The number of clients to simulate. Default: 1"))
 		fmt.Println(fmt.Sprintf("   -sn     The number of streams to simulate. Variable: %%d. Default: 1"))
 		fmt.Println(fmt.Sprintf("   -delay  The start delay in ms for each client or stream to simulate. Default: 50"))
@@ -161,6 +165,7 @@ func Run(ctx context.Context) error {
 
 	// Run tasks.
 	var wg sync.WaitGroup
+	defer wg.Wait()
 
 	// Run STAT API server.
 	wg.Add(1)
@@ -275,8 +280,6 @@ func Run(ctx context.Context) error {
 
 		time.Sleep(time.Duration(delay) * time.Millisecond)
 	}
-
-	wg.Wait()
 
 	return nil
 }

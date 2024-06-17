@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2022 Winlin
+// # Copyright (c) 2022-2024 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -57,7 +57,11 @@ func Parse(ctx context.Context) interface{} {
 	fl.Usage = func() {
 		fmt.Println(fmt.Sprintf("Usage: %v [Options]", os.Args[0]))
 		fmt.Println(fmt.Sprintf("Options:"))
-		fmt.Println(fmt.Sprintf("   -sfu    The target SFU, srs or gb28181 or janus. Default: srs"))
+		fmt.Println(fmt.Sprintf("   -sfu    The target server that can be rtc, live, janus, or gb28181. Default: rtc"))
+		fmt.Println(fmt.Sprintf("               rtc/srs: SRS WebRTC SFU server, for WebRTC/WHIP/WHEP."))
+		fmt.Println(fmt.Sprintf("               live: SRS live streaming server, for RTMP/HTTP-FLV/HLS."))
+		fmt.Println(fmt.Sprintf("               janus: Janus WebRTC SFU server, for janus private protocol."))
+		fmt.Println(fmt.Sprintf("               gb28181: GB media server, for GB protocol."))
 		fmt.Println(fmt.Sprintf("SIP:"))
 		fmt.Println(fmt.Sprintf("   -user   The SIP username, ID of device."))
 		fmt.Println(fmt.Sprintf("   -random Append N number to user as random device ID, like 1320000001."))

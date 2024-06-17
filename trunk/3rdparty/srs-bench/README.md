@@ -14,6 +14,8 @@ git clone -b feature/rtc https://github.com/ossrs/srs-bench.git &&
 cd srs-bench && make
 ```
 
+> Note: 依赖Go编译工具，建议使用 Go 1.17 及以上的版本。
+
 编译会生成下面的工具：
 
 * `./objs/srs_bench` 压测，模拟大量客户端的负载测试，支持SRS、GB28181和Janus三种场景。 
@@ -33,7 +35,7 @@ cd srs/trunk && ./configure --h265=on --gb28181=on && make &&
 
 具体场景，请按下面的操作启动测试。
 
-## Player for Live
+## Player for WHEP
 
 直播播放压测，一个流，很多个播放。
 
@@ -49,7 +51,7 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 ./objs/srs_bench -sr webrtc://localhost/live/livestream -nn 100
 ```
 
-## Publisher for Live or RTC
+## Publisher for WHIP
 
 直播或会议场景推流压测，一般会推多个流。
 
@@ -63,7 +65,7 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 
 > 注意：帧率是原始视频的帧率，由于264中没有这个信息所以需要传递。
 
-## Multipel Player or Publisher for RTC
+## Multiple WHIP or WHEP for RTC
 
 会议场景的播放压测，会多个客户端播放多个流，比如3人会议，那么就有3个推流，每个流有2个播放。
 
@@ -84,7 +86,7 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 > 备注：URL的变量格式参考Go的`fmt.Sprintf`，比如可以用`webrtc://localhost/live/livestream_%03d`。
 
 <a name="dvr"></a>
-## DVR for Benchmark
+## DVR for RTC Benchmark
 
 录制场景，主要是把内容录制下来后，可分析，也可以用于推流。
 

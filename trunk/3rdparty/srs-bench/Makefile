@@ -1,9 +1,11 @@
-.PHONY: help default clean bench test
+.PHONY: help default clean bench pcap test all
 
 default: bench test
 
 clean:
 	rm -rf ./objs
+
+all: bench test pcap test
 
 #########################################################################################################
 # SRS benchmark tool for SRS, janus, GB28181.
@@ -11,9 +13,9 @@ clean:
 	gofmt -w *.go janus
 	mkdir -p objs && echo "done" > ./objs/.format.bench.txt
 
-bench: ./objs/srs_bench ./objs/pcap_simulator
+bench: ./objs/srs_bench
 
-./objs/srs_bench: ./objs/.format.bench.txt *.go janus/*.go srs/*.go vnet/*.go gb28181/*.go Makefile
+./objs/srs_bench: ./objs/.format.bench.txt *.go janus/*.go srs/*.go vnet/*.go gb28181/*.go live/*.go Makefile
 	go build -mod=vendor -o objs/srs_bench .
 
 #########################################################################################################
@@ -34,6 +36,8 @@ test: ./objs/srs_test ./objs/srs_gb28181_test ./objs/srs_blackbox_test
 ./objs/.format.pcap.txt: pcap/*.go
 	gofmt -w pcap
 	mkdir -p objs && echo "done" > ./objs/.format.pcap.txt
+
+pcap: ./objs/pcap_simulator
 
 ./objs/pcap_simulator: ./objs/.format.pcap.txt pcap/*.go Makefile
 	go build -mod=vendor -o ./objs/pcap_simulator ./pcap
@@ -59,9 +63,10 @@ test: ./objs/srs_test ./objs/srs_gb28181_test ./objs/srs_blackbox_test
 #########################################################################################################
 # Help menu.
 help:
-	@echo "Usage: make [default|bench|test|clean]"
+	@echo "Usage: make [default|bench|pcap|test|clean]"
 	@echo "     default     The default entry for make is bench+test"
 	@echo "     bench       Make the bench to ./objs/srs_bench"
+	@echo "     pcap        Make the pcap simulator to ./objs/pcap_simulator"
 	@echo "     test        Make the test tool to ./objs/srs_test and ./objs/srs_gb28181_test ./objs/srs_blackbox_test"
 	@echo "     clean       Remove all tools at ./objs"
 

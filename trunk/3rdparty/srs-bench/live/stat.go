@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// # Copyright (c) 2022-2024 Winlin
+// # Copyright (c) 2021 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -18,28 +18,51 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-package gb28181
+package live
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"strings"
+
 	"github.com/ossrs/go-oryx-lib/logger"
-	"io/ioutil"
-	"os"
-	"testing"
 )
 
-func TestMain(m *testing.M) {
-	if err := prepareTest(); err != nil {
-		logger.Ef(nil, "Prepare test fail, err %+v", err)
-		os.Exit(-1)
+type statLive struct {
+	Publishers struct {
+		Expect int `json:"expect"`
+		Alive  int `json:"alive"`
+	} `json:"publishers"`
+	Subscribers struct {
+		Expect int `json:"expect"`
+		Alive  int `json:"alive"`
+	} `json:"subscribers"`
+	PeerConnection interface{} `json:"random-pc"`
+}
+
+var gStatLive statLive
+
+func handleStat(ctx context.Context, mux *http.ServeMux, l string) {
+	if strings.HasPrefix(l, ":") {
+		l = "127.0.0.1" + l
 	}
 
-	// Disable the logger during all tests.
-	if *srsLog == false {
-		olw := logger.Switch(ioutil.Discard)
-		defer func() {
-			logger.Switch(olw)
-		}()
-	}
+	logger.Tf(ctx, "Handle http://%v/api/v1/sb/live", l)
+	mux.HandleFunc("/api/v1/sb/live", func(w http.ResponseWriter, r *http.Request) {
+		res := &struct {
+			Code int         `json:"code"`
+			Data interface{} `json:"data"`
+		}{
+			0, &gStatLive,
+		}
 
-	os.Exit(m.Run())
+		b, err := json.Marshal(res)
+		if err != nil {
+			logger.Wf(ctx, "marshal %v err %+v", res, err)
+			return
+		}
+
+		w.Write(b)
+	})
 }
