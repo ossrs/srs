@@ -365,6 +365,10 @@ SrsRtcSource::~SrsRtcSource()
     srs_freep(bridge_);
     srs_freep(req);
     srs_freep(stream_desc_);
+
+    SrsContextId cid = _source_id;
+    if (cid.empty()) cid = _pre_source_id;
+    srs_trace("free rtc source id=[%s]", cid.c_str());
 }
 
 srs_error_t SrsRtcSource::initialize(SrsRequest* r)

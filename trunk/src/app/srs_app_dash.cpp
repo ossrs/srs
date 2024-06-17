@@ -705,6 +705,10 @@ void SrsDash::dispose()
 srs_error_t SrsDash::cycle()
 {
     srs_error_t err = srs_success;
+
+    if (!enabled) {
+        return err;
+    }
     
     if (last_update_time_ <= 0) {
         last_update_time_ = srs_get_system_time();
@@ -732,6 +736,14 @@ srs_error_t SrsDash::cycle()
     dispose();
     
     return err;
+}
+
+srs_utime_t SrsDash::cleanup_delay()
+{
+    if (!enabled) {
+        return 0;
+    }
+    return _srs_config->get_dash_dispose(req->vhost) * 1.1;
 }
 
 srs_error_t SrsDash::initialize(SrsOriginHub* h, SrsRequest* r)

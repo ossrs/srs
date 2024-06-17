@@ -884,6 +884,10 @@ SrsSrtSource::~SrsSrtSource()
     srs_freep(frame_builder_);
     srs_freep(bridge_);
     srs_freep(req);
+
+    SrsContextId cid = _source_id;
+    if (cid.empty()) cid = _pre_source_id;
+    srs_trace("free srt source id=[%s]", cid.c_str());
 }
 
 srs_error_t SrsSrtSource::initialize(SrsRequest* r)

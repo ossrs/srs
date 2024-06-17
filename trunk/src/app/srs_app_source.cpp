@@ -48,7 +48,7 @@ using namespace std;
 #define SRS_MIX_CORRECT_PURE_AV 10
 
 // the time to cleanup source.
-#define SRS_SOURCE_CLEANUP (30 * SRS_UTIME_SECONDS)
+#define SRS_SOURCE_CLEANUP (3 * SRS_UTIME_SECONDS)
 
 int srs_time_jitter_string2int(std::string time_jitter)
 {
@@ -908,6 +908,15 @@ srs_error_t SrsOriginHub::cycle()
 bool SrsOriginHub::active()
 {
     return is_active;
+}
+
+srs_utime_t SrsOriginHub::cleanup_delay()
+{
+    srs_utime_t delay = hls->cleanup_delay();
+    if (delay > 0) {
+        return delay;
+    }
+    return dash->cleanup_delay();
 }
 
 srs_error_t SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet)
@@ -1827,7 +1836,7 @@ srs_error_t SrsLiveSourceManager::setup_ticks()
 {
     srs_error_t err = srs_success;
 
-    if ((err = timer_->tick(1, 1 * SRS_UTIME_SECONDS)) != srs_success) {
+    if ((err = timer_->tick(1, 3 * SRS_UTIME_SECONDS)) != srs_success) {
         return srs_error_wrap(err, "tick");
     }
 
@@ -1857,7 +1866,8 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
 #if 1
         // When source expired, remove it.
         if (source->stream_is_dead()) {
-            const SrsContextId& cid = source->source_id();
+            SrsContextId cid = source->source_id();
+            if (cid.empty()) cid = source->pre_source_id();
             srs_trace("cleanup die source, id=[%s], total=%d", cid.c_str(), (int)pool.size());
             pool.erase(it++);
         } else {
@@ -1923,6 +1933,10 @@ SrsLiveSource::~SrsLiveSource()
     
     srs_freep(req);
     srs_freep(bridge_);
+
+    SrsContextId cid = _source_id;
+    if (cid.empty()) cid = _pre_source_id;
+    srs_trace("free live source id=[%s]", cid.c_str());
 }
 
 void SrsLiveSource::dispose()
@@ -1958,13 +1972,19 @@ bool SrsLiveSource::stream_is_dead()
     if (!consumers.empty()) {
         return false;
     }
-    
+
+    // Delay cleanup source.
     srs_utime_t now = srs_get_system_time();
-    if (now > stream_die_at_ + SRS_SOURCE_CLEANUP) {
-        return true;
+    if (now < stream_die_at_ + SRS_SOURCE_CLEANUP) {
+        return false;
+    }
+
+    // Origin hub delay cleanup.
+    if (now < stream_die_at_ + hub->cleanup_delay()) {
+        return false;
     }
     
-    return false;
+    return true;
 }
 
 bool SrsLiveSource::publisher_is_idle_for(srs_utime_t timeout)

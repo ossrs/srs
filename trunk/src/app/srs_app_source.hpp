@@ -355,6 +355,8 @@ public:
     virtual srs_error_t cycle();
     // Whether the stream hub is active, or stream is publishing.
     virtual bool active();
+    // The delay cleanup time.
+    srs_utime_t cleanup_delay();
 public:
     // When got a parsed metadata.
     virtual srs_error_t on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet);
