@@ -77,6 +77,22 @@ srs_error_t SrsBufferCache::start()
     return err;
 }
 
+void SrsBufferCache::stop()
+{
+    trd->stop();
+}
+
+bool SrsBufferCache::alive()
+{
+    srs_error_t err = trd->pull();
+    if (err == srs_success) {
+        return true;
+    }
+
+    srs_freep(err);
+    return false;
+}
+
 srs_error_t SrsBufferCache::dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     srs_error_t err = srs_success;
@@ -561,6 +577,7 @@ SrsLiveStream::SrsLiveStream(SrsRequest* r, SrsBufferCache* c)
     cache = c;
     req = r->copy()->as_http();
     security_ = new SrsSecurity();
+    alive_ = false;
 }
 
 SrsLiveStream::~SrsLiveStream()
@@ -610,12 +627,19 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     if ((err = http_hooks_on_play(r)) != srs_success) {
         return srs_error_wrap(err, "http hook");
     }
-    
+
+    alive_ = true;
     err = do_serve_http(w, r);
+    alive_ = false;
     
     http_hooks_on_stop(r);
     
     return err;
+}
+
+bool SrsLiveStream::alive()
+{
+    return alive_;
 }
 
 srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -1001,7 +1025,7 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsRequest* r)
         tmpl->req = r->copy()->as_http();
         
         sflvs[sid] = entry;
-        
+
         // mount the http flv stream.
         // we must register the handler, then start the thread,
         // for the thread will cause thread switch context.
@@ -1032,13 +1056,40 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsRequest* r)
 void SrsHttpStreamServer::http_unmount(SrsRequest* r)
 {
     std::string sid = r->get_stream_url();
-    
-    if (sflvs.find(sid) == sflvs.end()) {
+
+    std::map<std::string, SrsLiveEntry*>::iterator it = sflvs.find(sid);
+    if (it == sflvs.end()) {
         return;
     }
-    
-    SrsLiveEntry* entry = sflvs[sid];
-    entry->stream->entry->enabled = false;
+
+    // Free all HTTP resources.
+    SrsLiveEntry* entry = it->second;
+    SrsAutoFree(SrsLiveEntry, entry);
+    sflvs.erase(it);
+
+    SrsLiveStream* stream = entry->stream;
+    SrsAutoFree(SrsLiveStream, stream);
+
+    SrsBufferCache* cache = entry->cache;
+    SrsAutoFree(SrsBufferCache, cache);
+
+    // Unmount the HTTP handler.
+    mux.unhandle(entry->mount, stream);
+
+    // Notify cache and stream to stop.
+    if (stream->entry) stream->entry->enabled = false;
+    cache->stop();
+
+    // Wait for cache and stream to stop.
+    int i = 0;
+    for (; i < 1024; i++) {
+        if (!cache->alive() && !stream->alive()) {
+            break;
+        }
+        srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+    }
+
+    srs_trace("http: unmount flv stream for sid=%s, i=%d", sid.c_str(), i);
 }
 
 srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)

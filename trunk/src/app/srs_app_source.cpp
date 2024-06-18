@@ -1857,14 +1857,13 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
 
         // Do cycle source to cleanup components, such as hls dispose.
         if ((err = source->cycle()) != srs_success) {
-            return srs_error_wrap(err, "source=%s/%s cycle", source->source_id().c_str(), source->pre_source_id().c_str());
+            SrsContextId cid = source->source_id();
+            if (cid.empty()) cid = source->pre_source_id();
+            return srs_error_wrap(err, "source cycle, id=[%s]", cid.c_str());
         }
 
-        // See SrsSrtSource::on_consumer_destroy
-        // TODO: FIXME: support source cleanup.
-        // @see https://github.com/ossrs/srs/issues/713
-#if 1
         // When source expired, remove it.
+        // @see https://github.com/ossrs/srs/issues/713
         if (source->stream_is_dead()) {
             SrsContextId cid = source->source_id();
             if (cid.empty()) cid = source->pre_source_id();
@@ -1873,9 +1872,6 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
         } else {
             ++it;
         }
-#else
-        ++it;
-#endif
     }
 
     return err;
