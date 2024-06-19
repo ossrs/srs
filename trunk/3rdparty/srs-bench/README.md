@@ -144,6 +144,15 @@ for ((i=0;;i++)); do
 done
 ```
 
+WebRTC重连测试：
+
+```bash
+for ((i=0;;i++)); do
+  ./objs/srs_bench -sfu=rtc -pr=webrtc://localhost/live${i}/livestream -sn=1000 -cap=true;
+  sleep 10; 
+done
+```
+
 ## Regression Test
 
 回归测试需要先启动[SRS](https://github.com/ossrs/srs/issues/307)，支持WebRTC推拉流：

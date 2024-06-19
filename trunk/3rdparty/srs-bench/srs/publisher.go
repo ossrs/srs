@@ -34,7 +34,7 @@ import (
 )
 
 // @see https://github.com/pion/webrtc/blob/master/examples/play-from-disk/main.go
-func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps int, enableAudioLevel, enableTWCC bool) error {
+func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps int, enableAudioLevel, enableTWCC, closeAfterPublished bool) error {
 	ctx = logger.WithContext(ctx)
 
 	logger.Tf(ctx, "Run publish url=%v, audio=%v, video=%v, fps=%v, audio-level=%v, twcc=%v",
@@ -77,10 +77,13 @@ func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 			return nil, err
 		}
 
-		if sourceAudio != "" {
+		// For CAP, we always add audio track, because both audio and video are disabled for CAP, which will
+		// cause failed when exchange SDP.
+		if sourceAudio != "" || closeAfterPublished {
 			aIngester = newAudioIngester(sourceAudio)
 			registry.Add(&rtpInteceptorFactory{aIngester.audioLevelInterceptor})
 		}
+
 		if sourceVideo != "" {
 			vIngester = newVideoIngester(sourceVideo)
 			registry.Add(&rtpInteceptorFactory{vIngester.markerInterceptor})
@@ -178,6 +181,7 @@ func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 
 	// Wait for event from context or tracks.
 	var wg sync.WaitGroup
+	defer wg.Wait()
 
 	wg.Add(1)
 	go func() {
@@ -185,6 +189,18 @@ func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 		<-ctx.Done()
 		doClose() // Interrupt the RTCP read.
 	}()
+
+	// If CAP, directly close the connection after published.
+	if closeAfterPublished {
+		select {
+		case <-ctx.Done():
+		case <-pcDoneCtx.Done():
+		}
+
+		logger.Tf(ctx, "Close connection after published")
+		cancel()
+		return nil
+	}
 
 	wg.Add(1)
 	go func() {
@@ -295,6 +311,5 @@ func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 		}
 	}()
 
-	wg.Wait()
 	return nil
 }

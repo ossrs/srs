@@ -46,6 +46,8 @@ var clients, streams, delay int
 
 var statListen string
 
+var closeAfterPublished bool
+
 func Parse(ctx context.Context) {
 	fl := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
@@ -71,6 +73,8 @@ func Parse(ctx context.Context) {
 
 	fl.StringVar(&statListen, "stat", "", "")
 
+	fl.BoolVar(&closeAfterPublished, "cap", false, "")
+
 	fl.Usage = func() {
 		fmt.Println(fmt.Sprintf("Usage: %v [Options]", os.Args[0]))
 		fmt.Println(fmt.Sprintf("Options:"))
@@ -95,6 +99,7 @@ func Parse(ctx context.Context) {
 		fmt.Println(fmt.Sprintf("   -fps    [Optional] The fps of .h264 source file."))
 		fmt.Println(fmt.Sprintf("   -sa     [Optional] The file path to read audio, ignore if empty."))
 		fmt.Println(fmt.Sprintf("   -sv     [Optional] The file path to read video, ignore if empty."))
+		fmt.Println(fmt.Sprintf("   -cap    Whether to close connection after publish. Default: false"))
 		fmt.Println(fmt.Sprintf("\n例如，1个播放，1个推流:"))
 		fmt.Println(fmt.Sprintf("   %v -sr webrtc://localhost/live/livestream", os.Args[0]))
 		fmt.Println(fmt.Sprintf("   %v -pr webrtc://localhost/live/livestream -sa avatar.ogg -sv avatar.h264 -fps 25", os.Args[0]))
@@ -118,7 +123,7 @@ func Parse(ctx context.Context) {
 	if sr == "" && pr == "" {
 		showHelp = true
 	}
-	if pr != "" && (sourceAudio == "" && sourceVideo == "") {
+	if pr != "" && !closeAfterPublished && (sourceAudio == "" && sourceVideo == "") {
 		showHelp = true
 	}
 	if showHelp {
@@ -135,8 +140,8 @@ func Parse(ctx context.Context) {
 		summaryDesc = fmt.Sprintf("%v, play(url=%v, da=%v, dv=%v, pli=%v)", summaryDesc, sr, dumpAudio, dumpVideo, pli)
 	}
 	if pr != "" {
-		summaryDesc = fmt.Sprintf("%v, publish(url=%v, sa=%v, sv=%v, fps=%v)",
-			summaryDesc, pr, sourceAudio, sourceVideo, fps)
+		summaryDesc = fmt.Sprintf("%v, publish(url=%v, sa=%v, sv=%v, fps=%v, cap=%v)",
+			summaryDesc, pr, sourceAudio, sourceVideo, fps, closeAfterPublished)
 	}
 	logger.Tf(ctx, "Run benchmark with %v", summaryDesc)
 
@@ -271,7 +276,7 @@ func Run(ctx context.Context) error {
 				gStatRTC.Publishers.Alive--
 			}()
 
-			if err := startPublish(ctx, pr, sourceAudio, sourceVideo, fps, audioLevel, videoTWCC); err != nil {
+			if err := startPublish(ctx, pr, sourceAudio, sourceVideo, fps, audioLevel, videoTWCC, closeAfterPublished); err != nil {
 				if errors.Cause(err) != context.Canceled {
 					logger.Wf(ctx, "Run err %+v", err)
 				}

@@ -40,6 +40,7 @@ using namespace std;
 #ifdef SRS_RTC
 #include <srs_app_rtc_network.hpp>
 #include <srs_app_rtc_server.hpp>
+#include <srs_app_rtc_source.hpp>
 #endif
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
@@ -809,12 +810,18 @@ srs_error_t SrsServer::start(SrsWaitGroup* wg)
     srs_error_t err = srs_success;
 
     if ((err = _srs_sources->initialize()) != srs_success) {
-        return srs_error_wrap(err, "sources");
+        return srs_error_wrap(err, "live sources");
     }
 
 #ifdef SRS_SRT
     if ((err = _srs_srt_sources->initialize()) != srs_success) {
-        return srs_error_wrap(err, "sources");
+        return srs_error_wrap(err, "srt sources");
+    }
+#endif
+
+#ifdef SRS_RTC
+    if ((err = _srs_rtc_sources->initialize()) != srs_success) {
+        return srs_error_wrap(err, "rtc sources");
     }
 #endif
 
