@@ -912,11 +912,9 @@ bool SrsOriginHub::active()
 
 srs_utime_t SrsOriginHub::cleanup_delay()
 {
-    srs_utime_t delay = hls->cleanup_delay();
-    if (delay > 0) {
-        return delay;
-    }
-    return dash->cleanup_delay();
+    srs_utime_t hls_delay = hls->cleanup_delay();
+    srs_utime_t dash_delay = dash->cleanup_delay();
+    return srs_max(hls_delay, dash_delay);
 }
 
 srs_error_t SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet)
