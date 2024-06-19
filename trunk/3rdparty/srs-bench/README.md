@@ -122,6 +122,28 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 
 > Note: 可以传递更多参数，详细参考SRS支持的参数。
 
+## Reconnecting Load Test
+
+建立连接和断开重连的压测，可以测试SRS在多个Source时是否有内存泄露问题，参考 [#3667](https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107)
+
+RTMP重连测试：
+
+```bash
+for ((i=0;;i++)); do
+  ./objs/srs_bench -sfu=live -pr=rtmp://localhost/live${i}/stream -sn=1000 -cap=true; 
+  sleep 10; 
+done
+```
+
+SRT重连测试：
+
+```bash
+for ((i=0;;i++)); do
+  ./objs/srs_bench -sfu=live -pr='srt://127.0.0.1:10080?streamid=#!::'m=publish,r=live${i}/stream -sn=1000 -cap=true;
+  sleep 10; 
+done
+```
+
 ## Regression Test
 
 回归测试需要先启动[SRS](https://github.com/ossrs/srs/issues/307)，支持WebRTC推拉流：
@@ -330,5 +352,51 @@ make -j10 && ./objs/srs_bench -sfu janus \
   -sr webrtc://localhost:8080/2345/livestream \
   -nn 5
 ```
+
+## Install LIBSRT
+
+我们使用 [srtgo](https://github.com/Haivision/srtgo) 库测试SRT协议，需要安装libsrt库，
+参考[macOS](https://github.com/Haivision/srt/blob/master/docs/build/build-macOS.md)：
+
+```bash
+brew install srt
+```
+
+如果是Ubuntu，可以参考[Ubuntu](https://github.com/Haivision/srt/blob/master/docs/build/package-managers.md):
+
+```bash
+apt-get install -y libsrt
+```
+
+安装完libsrt后，直接编译srs-bench即可：
+
+```bash
+make
+```
+
+## Ubuntu Docker
+
+如果使用Ubuntu编译，推荐使用 `ossrs/srs:ubuntu20` 作为镜像编译，已经编译了openssl和libsrt，启动容器：
+
+```bash
+docker run --rm -it -v $(pwd):/g -w /g ossrs/srs:ubuntu20 make
+```
+
+## GoLand
+
+使用GoLand编译和调试时，需要设置libsrt的环境变量，首先可以使用brew获取路径：
+
+```bash
+brew --prefix srt
+#/opt/homebrew/opt/srt
+```
+
+然后在GoLand中，编辑配置 `Edit Configurations`，添加环境变量：
+
+```bash
+CGO_CFLAGS=-I/opt/homebrew/opt/srt/include;CGO_LDFLAGS=-L/opt/homebrew/opt/srt/lib -lsrt
+```
+
+> Note: 特别注意的是，CGO_LDFLAGS是可以有空格的，不能使用字符串，否则找不到库。
 
 2021.01, Winlin

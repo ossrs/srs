@@ -15,8 +15,18 @@ all: bench test pcap test
 
 bench: ./objs/srs_bench
 
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    SRT_PREFIX := $(shell brew --prefix srt)
+    CGO_CFLAGS := -I$(SRT_PREFIX)/include
+    CGO_LDFLAGS := -L$(SRT_PREFIX)/lib -lsrt
+else ifeq ($(UNAME_S),Linux)
+    CGO_CFLAGS := -I/usr/local/include
+    CGO_LDFLAGS := -L/usr/local/lib -lsrt -L/usr/local/ssl/lib -lcrypto -lstdc++ -lm -ldl
+endif
+
 ./objs/srs_bench: ./objs/.format.bench.txt *.go janus/*.go srs/*.go vnet/*.go gb28181/*.go live/*.go Makefile
-	go build -mod=vendor -o objs/srs_bench .
+	CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" go build -mod=vendor -o objs/srs_bench .
 
 #########################################################################################################
 # For all regression tests.

@@ -30,10 +30,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/haivision/srtgo"
+	"github.com/ossrs/go-oryx-lib/amf0"
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
 	"github.com/ossrs/go-oryx-lib/rtmp"
-	"github.com/ossrs/go-oryx-lib/amf0"
 )
 
 func startPublish(ctx context.Context, r string, closeAfterPublished bool) error {
@@ -45,6 +46,68 @@ func startPublish(ctx context.Context, r string, closeAfterPublished bool) error
 		return errors.Wrapf(err, "parse %v", r)
 	}
 
+	if u.Scheme == "rtmp" {
+		return startPublishRTMP(ctx, u, closeAfterPublished)
+	} else if u.Scheme == "srt" {
+		return startPublishSRT(ctx, u, closeAfterPublished)
+	}
+
+	return fmt.Errorf("invalid schema %v of %v", u.Scheme, r)
+}
+
+func startPublishSRT(ctx context.Context, u *url.URL, closeAfterPublished bool) (err error) {
+	// Parse host and port.
+	port := 1935
+	if u.Port() != "" {
+		if port, err = strconv.Atoi(u.Port()); err != nil {
+			return errors.Wrapf(err, "parse port %v", u.Port())
+		}
+	}
+
+	ips, err := net.LookupIP(u.Hostname())
+	if err != nil {
+		return errors.Wrapf(err, "lookup %v", u.Hostname())
+	}
+	if len(ips) == 0 {
+		return errors.Errorf("no ips for %v", u.Hostname())
+	}
+	logger.Tf(ctx, "Parse url %v to host=%v, ip=%v, port=%v",
+		u.String(), u.Hostname(), ips[0], port)
+
+	// Setup libsrt.
+	client := srtgo.NewSrtSocket(ips[0].To4().String(), uint16(port),
+		map[string]string{
+			"transtype": "live",
+			"tsbpdmode": "false",
+			"tlpktdrop": "false",
+			"latency":   "0",
+			"streamid":  fmt.Sprintf("#%v", u.Fragment),
+		},
+	)
+	defer client.Close()
+
+	if err := client.Connect(); err != nil {
+		return errors.Wrapf(err, "SRT connect to %v:%v", u.Hostname(), port)
+	}
+	logger.Tf(ctx, "Connect to SRT server %v:%v success", u.Hostname(), port)
+
+	// We should wait for a while after connected to SRT server before quit. Because SRT server use timeout
+	// to detect UDP connection status, so we should never reconnect very fast.
+	select {
+	case <-ctx.Done():
+	case <-time.After(3 * time.Second):
+		logger.Tf(ctx, "SRT publish stream success, stream=%v", u.Fragment)
+	}
+
+	if closeAfterPublished {
+		logger.Tf(ctx, "Close connection after published")
+		return nil
+	}
+
+	return nil
+}
+
+func startPublishRTMP(ctx context.Context, u *url.URL, closeAfterPublished bool) (err error) {
 	parts := strings.Split(u.Path, "/")
 	if len(parts) == 0 {
 		return errors.Errorf("invalid path %v", u.Path)
@@ -67,7 +130,7 @@ func startPublish(ctx context.Context, r string, closeAfterPublished bool) error
 		return errors.Errorf("no ips for %v", u.Hostname())
 	}
 	logger.Tf(ctx, "Parse url %v to host=%v, ip=%v, port=%v, app=%v, stream=%v",
-		r, u.Hostname(), ips[0], port, app, stream)
+		u.String(), u.Hostname(), ips[0], port, app, stream)
 
 	// Connect via TCP client.
 	c, err := net.DialTCP("tcp", nil, &net.TCPAddr{IP: ips[0], Port: port})
