@@ -20,6 +20,9 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_app_pithy_print.hpp>
 
+// the time to cleanup source.
+#define SRS_SRT_SOURCE_CLEANUP (3 * SRS_UTIME_SECONDS)
+
 SrsSrtPacket::SrsSrtPacket()
 {
     shared_buffer_ = NULL;
@@ -95,11 +98,56 @@ int SrsSrtPacket::size()
 SrsSrtSourceManager::SrsSrtSourceManager()
 {
     lock = srs_mutex_new();
+    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsSrtSourceManager::~SrsSrtSourceManager()
 {
     srs_mutex_destroy(lock);
+    srs_freep(timer_);
+}
+
+srs_error_t SrsSrtSourceManager::initialize()
+{
+    return setup_ticks();
+}
+
+srs_error_t SrsSrtSourceManager::setup_ticks()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = timer_->tick(1, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+
+    if ((err = timer_->start()) != srs_success) {
+        return srs_error_wrap(err, "timer");
+    }
+
+    return err;
+}
+
+srs_error_t SrsSrtSourceManager::notify(int event, srs_utime_t interval, srs_utime_t tick)
+{
+    srs_error_t err = srs_success;
+
+    std::map< std::string, SrsSharedPtr<SrsSrtSource> >::iterator it;
+    for (it = pool.begin(); it != pool.end();) {
+        SrsSharedPtr<SrsSrtSource>& source = it->second;
+
+        // When source expired, remove it.
+        // @see https://github.com/ossrs/srs/issues/713
+        if (source->stream_is_dead()) {
+            SrsContextId cid = source->source_id();
+            if (cid.empty()) cid = source->pre_source_id();
+            srs_trace("SRT: cleanup die source, id=[%s], total=%d", cid.c_str(), (int)pool.size());
+            pool.erase(it++);
+        } else {
+            ++it;
+        }
+    }
+
+    return err;
 }
 
 srs_error_t SrsSrtSourceManager::fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsSrtSource>& pps)
@@ -135,19 +183,6 @@ srs_error_t SrsSrtSourceManager::fetch_or_create(SrsRequest* r, SrsSharedPtr<Srs
     pps = source;
 
     return err;
-}
-
-void SrsSrtSourceManager::eliminate(SrsRequest* r)
-{
-    // Use lock to protect coroutine switch.
-    // @bug https://github.com/ossrs/srs/issues/1230
-    SrsLocker(lock);
-
-    string stream_url = r->get_stream_url();
-    std::map< std::string, SrsSharedPtr<SrsSrtSource> >::iterator it = pool.find(stream_url);
-    if (it != pool.end()) {
-        pool.erase(it);
-    }
 }
 
 SrsSrtSourceManager* _srs_srt_sources = NULL;
@@ -873,6 +908,7 @@ SrsSrtSource::SrsSrtSource()
     can_publish_ = true;
     frame_builder_ = NULL;
     bridge_ = NULL;
+    stream_die_at_ = 0;
 }
 
 SrsSrtSource::~SrsSrtSource()
@@ -897,6 +933,27 @@ srs_error_t SrsSrtSource::initialize(SrsRequest* r)
     req = r->copy();
 
 	return err;
+}
+
+bool SrsSrtSource::stream_is_dead()
+{
+    // still publishing?
+    if (!can_publish_) {
+        return false;
+    }
+
+    // has any consumers?
+    if (!consumers.empty()) {
+        return false;
+    }
+
+    // Delay cleanup source.
+    srs_utime_t now = srs_get_system_time();
+    if (now < stream_die_at_ + SRS_SRT_SOURCE_CLEANUP) {
+        return false;
+    }
+
+    return true;
 }
 
 srs_error_t SrsSrtSource::on_source_id_changed(SrsContextId id)
@@ -953,6 +1010,8 @@ srs_error_t SrsSrtSource::create_consumer(SrsSrtConsumer*& consumer)
     consumer = new SrsSrtConsumer(this);
     consumers.push_back(consumer);
 
+    stream_die_at_ = 0;
+
     return err;
 }
 
@@ -976,7 +1035,7 @@ void SrsSrtSource::on_consumer_destroy(SrsSrtConsumer* consumer)
 
     // Destroy and cleanup source when no publishers and consumers.
     if (can_publish_ && consumers.empty()) {
-        _srs_srt_sources->eliminate(req);
+        stream_die_at_ = srs_get_system_time();
     }
 }
 
@@ -1033,8 +1092,8 @@ void SrsSrtSource::on_unpublish()
     }
 
     // Destroy and cleanup source when no publishers and consumers.
-    if (can_publish_ && consumers.empty()) {
-        _srs_srt_sources->eliminate(req);
+    if (consumers.empty()) {
+        stream_die_at_ = srs_get_system_time();
     }
 }
 

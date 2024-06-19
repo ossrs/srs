@@ -16,6 +16,7 @@
 #include <srs_protocol_st.hpp>
 #include <srs_app_stream_bridge.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_hourglass.hpp>
 
 class SrsSharedPtrMessage;
 class SrsRequest;
@@ -47,21 +48,26 @@ private:
     int actual_buffer_size_;
 };
 
-class SrsSrtSourceManager
+class SrsSrtSourceManager : public ISrsHourGlass
 {
 private:
     srs_mutex_t lock;
     std::map< std::string, SrsSharedPtr<SrsSrtSource> > pool;
+    SrsHourGlass* timer_;
 public:
     SrsSrtSourceManager();
     virtual ~SrsSrtSourceManager();
+public:
+    virtual srs_error_t initialize();
+// interface ISrsHourGlass
+private:
+    virtual srs_error_t setup_ticks();
+    virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 public:
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
     virtual srs_error_t fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsSrtSource>& pps);
-    // Dispose and destroy the source.
-    virtual void eliminate(SrsRequest* r);
 };
 
 // Global singleton instance.
@@ -157,6 +163,9 @@ public:
 public:
     virtual srs_error_t initialize(SrsRequest* r);
 public:
+    // Whether stream is dead, which is no publisher or player.
+    virtual bool stream_is_dead();
+public:
     // The source id changed.
     virtual srs_error_t on_source_id_changed(SrsContextId id);
     // Get current source id.
@@ -190,6 +199,8 @@ private:
     // To delivery packets to clients.
     std::vector<SrsSrtConsumer*> consumers;
     bool can_publish_;
+    // The last die time, while die means neither publishers nor players.
+    srs_utime_t stream_die_at_;
 private:
     SrsSrtFrameBuilder* frame_builder_;
     ISrsStreamBridge* bridge_;

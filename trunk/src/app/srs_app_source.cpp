@@ -1867,7 +1867,7 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
         if (source->stream_is_dead()) {
             SrsContextId cid = source->source_id();
             if (cid.empty()) cid = source->pre_source_id();
-            srs_trace("cleanup die source, id=[%s], total=%d", cid.c_str(), (int)pool.size());
+            srs_trace("Live: cleanup die source, id=[%s], total=%d", cid.c_str(), (int)pool.size());
             pool.erase(it++);
         } else {
             ++it;
@@ -1954,11 +1954,6 @@ srs_error_t SrsLiveSource::cycle()
 
 bool SrsLiveSource::stream_is_dead()
 {
-    // unknown state?
-    if (stream_die_at_ == 0) {
-        return false;
-    }
-    
     // still publishing?
     if (!_can_publish || !publish_edge->can_publish()) {
         return false;
@@ -2741,6 +2736,11 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer* consumer)
 
     if (consumers.empty()) {
         play_edge->on_all_client_stop();
+
+        // If no publishers, the stream is die.
+        if (_can_publish) {
+            stream_die_at_ = srs_get_system_time();
+        }
 
         // For edge server, the stream die when the last player quit, because the edge stream is created by player
         // activities, so it should die when all players quit.

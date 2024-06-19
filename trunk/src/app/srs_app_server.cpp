@@ -44,6 +44,9 @@ using namespace std;
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
 #endif
+#ifdef SRS_SRT
+#include <srs_app_srt_source.hpp>
+#endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
 
@@ -808,6 +811,12 @@ srs_error_t SrsServer::start(SrsWaitGroup* wg)
     if ((err = _srs_sources->initialize()) != srs_success) {
         return srs_error_wrap(err, "sources");
     }
+
+#ifdef SRS_SRT
+    if ((err = _srs_srt_sources->initialize()) != srs_success) {
+        return srs_error_wrap(err, "sources");
+    }
+#endif
 
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start");
