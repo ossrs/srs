@@ -574,7 +574,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
             //  SRS3+:
             //      vhost { play { shadow; } }
             if (n == "time_jitter" || n == "mix_correct" || n == "atc" || n == "atc_auto"
-                || n == "mw_latency" || n == "gop_cache" || n == "gop_cache_max_frames" 
+                || n == "mw_latency" || n == "gop_cache" || n == "gop_cache_max_frames"
                 || n == "queue_length" || n == "send_min_interval"
                 || n == "reduce_sequence_header") {
                 it = dir->directives.erase(it);
@@ -1596,7 +1596,7 @@ srs_error_t SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload publish success.", vhost.c_str());
             }
-            
+
             // transcode, many per vhost.
             if ((err = reload_transcode(new_vhost, old_vhost)) != srs_success) {
                 return srs_error_wrap(err, "reload transcode");
@@ -1639,14 +1639,14 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
             return srs_error_wrap(err, "listen");
         }
     }
-    
+
     // merge config: max_connections
     if (!srs_directive_equals(root->get("max_connections"), old_root->get("max_connections"))) {
         if ((err = do_reload_max_connections()) != srs_success) {
             return srs_error_wrap(err, "max connections");;
         }
     }
-    
+
     // merge config: pithy_print_ms
     if (!srs_directive_equals(root->get("pithy_print_ms"), old_root->get("pithy_print_ms"))) {
         if ((err = do_reload_pithy_print_ms()) != srs_success) {
@@ -2665,7 +2665,7 @@ srs_error_t SrsConfig::check_normal_config()
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                         && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
                         && m != "hls_wait_keyframe" && m != "hls_dispose" && m != "hls_keys" && m != "hls_fragments_per_key" && m != "hls_key_file"
-                        && m != "hls_key_file_path" && m != "hls_key_url" && m != "hls_dts_directly" && m != "hls_ctx" && m != "hls_ts_ctx") {
+                        && m != "hls_key_file_path" && m != "hls_key_url" && m != "hls_dts_directly" && m != "hls_ctx" && m != "hls_ts_ctx" && m != "hls_continuous") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.hls.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                     
@@ -2885,7 +2885,7 @@ srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
     if ((err = root->parse(buffer, this)) != srs_success) {
         return srs_error_wrap(err, "root parse");
     }
-    
+
     return err;
 }
 
@@ -3045,7 +3045,7 @@ vector<string> SrsConfig::get_listens()
     if (!srs_getenv("srs.listen").empty()) { // SRS_LISTEN
         return srs_string_split(srs_getenv("srs.listen"), " ");
     }
-    
+
     SrsConfDirective* conf = root->get("listen");
     if (!conf) {
         return ports;
@@ -4892,7 +4892,7 @@ int SrsConfig::get_gop_cache_max_frames(string vhost)
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
     return ::atoi(conf->arg0().c_str());
 }
 
@@ -5517,12 +5517,12 @@ srs_utime_t SrsConfig::get_publish_kickoff_for_idle(SrsConfDirective* vhost)
     SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.publish.kickoff_for_idle"); // SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE
 
     static srs_utime_t DEFAULT = 0 * SRS_UTIME_SECONDS;
-    
+
     SrsConfDirective* conf = vhost;
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("publish");
     if (!conf) {
         return DEFAULT;
@@ -5532,7 +5532,7 @@ srs_utime_t SrsConfig::get_publish_kickoff_for_idle(SrsConfDirective* vhost)
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
     return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
@@ -6826,17 +6826,17 @@ int SrsConfig::get_dash_window_size(std::string vhost)
     SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_window_size"); // SRS_VHOST_DASH_DASH_WINDOW_SIZE
 
     static int DEFAULT = 5;
-    
+
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("dash_window_size");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
     return ::atoi(conf->arg0().c_str());
 }
 
@@ -6845,17 +6845,17 @@ bool SrsConfig::get_dash_cleanup(std::string vhost)
     SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.dash.dash_cleanup"); // SRS_VHOST_DASH_DASH_CLEANUP
 
     static bool DEFAULT = true;
-    
+
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("dash_cleanup");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
@@ -6864,17 +6864,17 @@ srs_utime_t SrsConfig::get_dash_dispose(std::string vhost)
     SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.dash.dash_dispose"); // SRS_VHOST_DASH_DASH_DISPOSE
 
     static srs_utime_t DEFAULT = 0;
-    
+
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("dash_dispose");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
@@ -7377,6 +7377,23 @@ string SrsConfig::get_hls_key_url(std::string vhost)
     return conf->arg0();
 }
 
+bool SrsConfig::get_hls_continuous(string vhost)
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("hls_continuous");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
 SrsConfDirective *SrsConfig::get_hds(const string &vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
@@ -7762,22 +7779,22 @@ bool SrsConfig::get_http_api_auth_enabled()
     SRS_OVERWRITE_BY_ENV_BOOL("srs.http_api.auth.enabled"); // SRS_HTTP_API_AUTH_ENABLED
 
     static bool DEFAULT = false;
-    
+
     SrsConfDirective* conf = root->get("http_api");
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("auth");
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("enabled");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
@@ -8186,7 +8203,7 @@ string SrsConfig::get_srto_passphrase()
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("passphrase");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
@@ -8203,7 +8220,7 @@ int SrsConfig::get_srto_pbkeylen()
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("pbkeylen");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
