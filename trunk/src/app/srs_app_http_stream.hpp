@@ -234,9 +234,9 @@ private:
 public:
     SrsHttpServeMux mux;
     // The http live streaming template, to create streams.
-    std::map<std::string, SrsLiveEntry*> tflvs;
-    // The http live streaming streams, crote by template.
-    std::map<std::string, SrsLiveEntry*> sflvs;
+    std::map<std::string, SrsLiveEntry*> templateHandlers;
+    // The http live streaming streams, created by template.
+    std::map<std::string, SrsLiveEntry*> streamHandlers;
 public:
     SrsHttpStreamServer(SrsServer* svr);
     virtual ~SrsHttpStreamServer();
