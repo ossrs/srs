@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-06-21, Merge [#4097](https://github.com/ossrs/srs/pull/4097): SmartPtr: Support load test for source by srs-bench. v6.0.130 (#4097)
 * v6.0, 2024-06-15, Merge [#4089](https://github.com/ossrs/srs/pull/4089): SmartPtr: Support shared ptr for live source. v6.0.129 (#4089)
 * v6.0, 2024-06-14, Merge [#4085](https://github.com/ossrs/srs/pull/4085): SmartPtr: Support shared ptr for RTC source. v6.0.128 (#4085)
 * v6.0, 2024-06-13, Merge [#4083](https://github.com/ossrs/srs/pull/4083): SmartPtr: Use shared ptr in RTC TCP connection. v6.0.127 (#4083)
