@@ -71,6 +71,9 @@ using namespace std;
 const int kRtpMaxPayloadSize = kRtpPacketSize - 300;
 #endif
 
+// the time to cleanup source.
+#define SRS_RTC_SOURCE_CLEANUP (3 * SRS_UTIME_SECONDS)
+
 // TODO: Add this function into SrsRtpMux class.
 srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char** pbuf, int* pnn_buf)
 {
@@ -244,11 +247,56 @@ void SrsRtcConsumer::on_stream_change(SrsRtcSourceDescription* desc)
 SrsRtcSourceManager::SrsRtcSourceManager()
 {
     lock = srs_mutex_new();
+    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsRtcSourceManager::~SrsRtcSourceManager()
 {
     srs_mutex_destroy(lock);
+    srs_freep(timer_);
+}
+
+srs_error_t SrsRtcSourceManager::initialize()
+{
+    return setup_ticks();
+}
+
+srs_error_t SrsRtcSourceManager::setup_ticks()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = timer_->tick(1, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+
+    if ((err = timer_->start()) != srs_success) {
+        return srs_error_wrap(err, "timer");
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcSourceManager::notify(int event, srs_utime_t interval, srs_utime_t tick)
+{
+    srs_error_t err = srs_success;
+
+    std::map< std::string, SrsSharedPtr<SrsRtcSource> >::iterator it;
+    for (it = pool.begin(); it != pool.end();) {
+        SrsSharedPtr<SrsRtcSource>& source = it->second;
+
+        // When source expired, remove it.
+        // @see https://github.com/ossrs/srs/issues/713
+        if (source->stream_is_dead()) {
+            SrsContextId cid = source->source_id();
+            if (cid.empty()) cid = source->pre_source_id();
+            srs_trace("RTC: cleanup die source, id=[%s], total=%d", cid.c_str(), (int)pool.size());
+            pool.erase(it++);
+        } else {
+            ++it;
+        }
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsRtcSource>& pps)
@@ -305,19 +353,6 @@ SrsSharedPtr<SrsRtcSource> SrsRtcSourceManager::fetch(SrsRequest* r)
     return source;
 }
 
-void SrsRtcSourceManager::eliminate(SrsRequest* r)
-{
-    // Use lock to protect coroutine switch.
-    // @bug https://github.com/ossrs/srs/issues/1230
-    SrsLocker(lock);
-
-    string stream_url = r->get_stream_url();
-    std::map< std::string, SrsSharedPtr<SrsRtcSource> >::iterator it = pool.find(stream_url);
-    if (it != pool.end()) {
-        pool.erase(it);
-    }
-}
-
 SrsRtcSourceManager* _srs_rtc_sources = NULL;
 
 ISrsRtcPublishStream::ISrsRtcPublishStream()
@@ -351,6 +386,7 @@ SrsRtcSource::SrsRtcSource()
 #endif
 
     pli_for_rtmp_ = pli_elapsed_ = 0;
+    stream_die_at_ = 0;
 }
 
 SrsRtcSource::~SrsRtcSource()
@@ -365,6 +401,10 @@ SrsRtcSource::~SrsRtcSource()
     srs_freep(bridge_);
     srs_freep(req);
     srs_freep(stream_desc_);
+
+    SrsContextId cid = _source_id;
+    if (cid.empty()) cid = _pre_source_id;
+    srs_trace("free rtc source id=[%s]", cid.c_str());
 }
 
 srs_error_t SrsRtcSource::initialize(SrsRequest* r)
@@ -378,6 +418,27 @@ srs_error_t SrsRtcSource::initialize(SrsRequest* r)
 	init_for_play_before_publishing();
 
 	return err;
+}
+
+bool SrsRtcSource::stream_is_dead()
+{
+    // still publishing?
+    if (is_created_) {
+        return false;
+    }
+
+    // has any consumers?
+    if (!consumers.empty()) {
+        return false;
+    }
+
+    // Delay cleanup source.
+    srs_utime_t now = srs_get_system_time();
+    if (now < stream_die_at_ + SRS_RTC_SOURCE_CLEANUP) {
+        return false;
+    }
+
+    return true;
 }
 
 void SrsRtcSource::init_for_play_before_publishing()
@@ -493,6 +554,8 @@ srs_error_t SrsRtcSource::create_consumer(SrsRtcConsumer*& consumer)
     consumer = new SrsRtcConsumer(this);
     consumers.push_back(consumer);
 
+    stream_die_at_ = 0;
+
     // TODO: FIXME: Implements edge cluster.
 
     return err;
@@ -526,7 +589,7 @@ void SrsRtcSource::on_consumer_destroy(SrsRtcConsumer* consumer)
 
     // Destroy and cleanup source when no publishers and consumers.
     if (!is_created_ && consumers.empty()) {
-        _srs_rtc_sources->eliminate(req);
+        stream_die_at_ = srs_get_system_time();
     }
 }
 
@@ -629,8 +692,8 @@ void SrsRtcSource::on_unpublish()
     stat->on_stream_close(req);
 
     // Destroy and cleanup source when no publishers and consumers.
-    if (!is_created_ && consumers.empty()) {
-        _srs_rtc_sources->eliminate(req);
+    if (consumers.empty()) {
+        stream_die_at_ = srs_get_system_time();
     }
 }
 

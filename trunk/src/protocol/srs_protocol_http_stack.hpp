@@ -470,6 +470,8 @@ public:
     // Handle registers the handler for the given pattern.
     // If a handler already exists for pattern, Handle panics.
     virtual srs_error_t handle(std::string pattern, ISrsHttpHandler* handler);
+    // Remove the handler for pattern. Note that this will not free the handler.
+    void unhandle(std::string pattern, ISrsHttpHandler* handler);
 // Interface ISrsHttpServeMux
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);

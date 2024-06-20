@@ -77,6 +77,22 @@ srs_error_t SrsBufferCache::start()
     return err;
 }
 
+void SrsBufferCache::stop()
+{
+    trd->stop();
+}
+
+bool SrsBufferCache::alive()
+{
+    srs_error_t err = trd->pull();
+    if (err == srs_success) {
+        return true;
+    }
+
+    srs_freep(err);
+    return false;
+}
+
 srs_error_t SrsBufferCache::dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     srs_error_t err = srs_success;
@@ -561,6 +577,7 @@ SrsLiveStream::SrsLiveStream(SrsRequest* r, SrsBufferCache* c)
     cache = c;
     req = r->copy()->as_http();
     security_ = new SrsSecurity();
+    alive_ = false;
 }
 
 SrsLiveStream::~SrsLiveStream()
@@ -610,12 +627,19 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     if ((err = http_hooks_on_play(r)) != srs_success) {
         return srs_error_wrap(err, "http hook");
     }
-    
+
+    alive_ = true;
     err = do_serve_http(w, r);
+    alive_ = false;
     
     http_hooks_on_stop(r);
     
     return err;
+}
+
+bool SrsLiveStream::alive()
+{
+    return alive_;
 }
 
 srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -929,19 +953,19 @@ SrsHttpStreamServer::~SrsHttpStreamServer()
     
     if (true) {
         std::map<std::string, SrsLiveEntry*>::iterator it;
-        for (it = tflvs.begin(); it != tflvs.end(); ++it) {
+        for (it = templateHandlers.begin(); it != templateHandlers.end(); ++it) {
             SrsLiveEntry* entry = it->second;
             srs_freep(entry);
         }
-        tflvs.clear();
+        templateHandlers.clear();
     }
     if (true) {
         std::map<std::string, SrsLiveEntry*>::iterator it;
-        for (it = sflvs.begin(); it != sflvs.end(); ++it) {
+        for (it = streamHandlers.begin(); it != streamHandlers.end(); ++it) {
             SrsLiveEntry* entry = it->second;
             srs_freep(entry);
         }
-        sflvs.clear();
+        streamHandlers.clear();
     }
 }
 
@@ -967,12 +991,12 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsRequest* r)
     SrsLiveEntry* entry = NULL;
     
     // create stream from template when not found.
-    if (sflvs.find(sid) == sflvs.end()) {
-        if (tflvs.find(r->vhost) == tflvs.end()) {
+    if (streamHandlers.find(sid) == streamHandlers.end()) {
+        if (templateHandlers.find(r->vhost) == templateHandlers.end()) {
             return err;
         }
         
-        SrsLiveEntry* tmpl = tflvs[r->vhost];
+        SrsLiveEntry* tmpl = templateHandlers[r->vhost];
         
         std::string mount = tmpl->mount;
         
@@ -999,16 +1023,16 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsRequest* r)
         srs_freep(tmpl->req);
 
         tmpl->req = r->copy()->as_http();
-        
-        sflvs[sid] = entry;
-        
+
+        streamHandlers[sid] = entry;
+
         // mount the http flv stream.
         // we must register the handler, then start the thread,
         // for the thread will cause thread switch context.
         if ((err = mux.handle(mount, entry->stream)) != srs_success) {
             return srs_error_wrap(err, "http: mount flv stream for vhost=%s failed", sid.c_str());
         }
-        
+
         // start http stream cache thread
         if ((err = entry->cache->start()) != srs_success) {
             return srs_error_wrap(err, "http: start stream cache failed");
@@ -1016,7 +1040,7 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsRequest* r)
         srs_trace("http: mount flv stream for sid=%s, mount=%s", sid.c_str(), mount.c_str());
     } else {
         // The entry exists, we reuse it and update the request of stream and cache.
-        entry = sflvs[sid];
+        entry = streamHandlers[sid];
         entry->stream->update_auth(r);
         entry->cache->update_auth(r);
     }
@@ -1032,13 +1056,40 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsRequest* r)
 void SrsHttpStreamServer::http_unmount(SrsRequest* r)
 {
     std::string sid = r->get_stream_url();
-    
-    if (sflvs.find(sid) == sflvs.end()) {
+
+    std::map<std::string, SrsLiveEntry*>::iterator it = streamHandlers.find(sid);
+    if (it == streamHandlers.end()) {
         return;
     }
-    
-    SrsLiveEntry* entry = sflvs[sid];
-    entry->stream->entry->enabled = false;
+
+    // Free all HTTP resources.
+    SrsLiveEntry* entry = it->second;
+    SrsAutoFree(SrsLiveEntry, entry);
+    streamHandlers.erase(it);
+
+    SrsLiveStream* stream = entry->stream;
+    SrsAutoFree(SrsLiveStream, stream);
+
+    SrsBufferCache* cache = entry->cache;
+    SrsAutoFree(SrsBufferCache, cache);
+
+    // Unmount the HTTP handler.
+    mux.unhandle(entry->mount, stream);
+
+    // Notify cache and stream to stop.
+    if (stream->entry) stream->entry->enabled = false;
+    cache->stop();
+
+    // Wait for cache and stream to stop.
+    int i = 0;
+    for (; i < 1024; i++) {
+        if (!cache->alive() && !stream->alive()) {
+            break;
+        }
+        srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+    }
+
+    srs_trace("http: unmount flv stream for sid=%s, i=%d", sid.c_str(), i);
 }
 
 srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
@@ -1067,8 +1118,8 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     SrsLiveEntry* entry = NULL;
     if (true) {
         // no http streaming on vhost, ignore.
-        std::map<std::string, SrsLiveEntry*>::iterator it = tflvs.find(vhost->arg0());
-        if (it == tflvs.end()) {
+        std::map<std::string, SrsLiveEntry*>::iterator it = templateHandlers.find(vhost->arg0());
+        if (it == templateHandlers.end()) {
             return err;
         }
 
@@ -1124,8 +1175,8 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     std::string sid = r->get_stream_url();
     // check whether the http remux is enabled,
     // for example, user disable the http flv then reload.
-    if (sflvs.find(sid) != sflvs.end()) {
-        SrsLiveEntry* s_entry = sflvs[sid];
+    if (streamHandlers.find(sid) != streamHandlers.end()) {
+        SrsLiveEntry* s_entry = streamHandlers[sid];
         if (!s_entry->stream->entry->enabled) {
             // only when the http entry is disabled, check the config whether http flv disable,
             // for the http flv edge use hijack to trigger the edge ingester, we always mount it
@@ -1154,8 +1205,8 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     
     // use the handler if exists.
     if (ph) {
-        if (sflvs.find(sid) != sflvs.end()) {
-            entry = sflvs[sid];
+        if (streamHandlers.find(sid) != streamHandlers.end()) {
+            entry = streamHandlers[sid];
             *ph = entry->stream;
         }
     }
@@ -1198,8 +1249,8 @@ srs_error_t SrsHttpStreamServer::initialize_flv_entry(std::string vhost)
     }
     
     SrsLiveEntry* entry = new SrsLiveEntry(_srs_config->get_vhost_http_remux_mount(vhost));
-    
-    tflvs[vhost] = entry;
+
+    templateHandlers[vhost] = entry;
     srs_trace("http flv live stream, vhost=%s, mount=%s", vhost.c_str(), entry->mount.c_str());
     
     return err;

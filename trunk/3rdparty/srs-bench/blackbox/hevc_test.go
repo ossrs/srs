@@ -935,8 +935,8 @@ func TestSlow_SrtPublish_HttpTsPlay_HEVC_Basic(t *testing.T) {
 		}
 
 		// Note that HLS score is low, so we only check duration.
-		if dv := m.Duration(); dv < duration / 2 {
-			r5 = errors.Errorf("short duration=%v < %v, %v, %v", dv, duration / 2, m.String(), str)
+		if dv := m.Duration(); dv < duration/2 {
+			r5 = errors.Errorf("short duration=%v < %v, %v, %v", dv, duration/2, m.String(), str)
 		}
 
 		if v := m.Video(); v == nil {

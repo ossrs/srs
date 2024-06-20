@@ -111,14 +111,21 @@ public:
     void on_stream_change(SrsRtcSourceDescription* desc);
 };
 
-class SrsRtcSourceManager
+class SrsRtcSourceManager : public ISrsHourGlass
 {
 private:
     srs_mutex_t lock;
     std::map< std::string, SrsSharedPtr<SrsRtcSource> > pool;
+    SrsHourGlass* timer_;
 public:
     SrsRtcSourceManager();
     virtual ~SrsRtcSourceManager();
+public:
+    virtual srs_error_t initialize();
+// interface ISrsHourGlass
+private:
+    virtual srs_error_t setup_ticks();
+    virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 public:
     //  create source when fetch from cache failed.
     // @param r the client request.
@@ -127,9 +134,6 @@ public:
 public:
     // Get the exists source, NULL when not exists.
     virtual SrsSharedPtr<SrsRtcSource> fetch(SrsRequest* r);
-public:
-    // Dispose and destroy the source.
-    virtual void eliminate(SrsRequest* r);
 };
 
 // Global singleton instance.
@@ -195,11 +199,17 @@ private:
     // The PLI for RTC2RTMP.
     srs_utime_t pli_for_rtmp_;
     srs_utime_t pli_elapsed_;
+private:
+    // The last die time, while die means neither publishers nor players.
+    srs_utime_t stream_die_at_;
 public:
     SrsRtcSource();
     virtual ~SrsRtcSource();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
+public:
+    // Whether stream is dead, which is no publisher or player.
+    virtual bool stream_is_dead();
 private:
     void init_for_play_before_publishing();
 public:
