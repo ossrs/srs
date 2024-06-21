@@ -135,19 +135,20 @@ SrsHybridServer::SrsHybridServer()
 
 SrsHybridServer::~SrsHybridServer()
 {
-    srs_freep(clock_monitor_);
-
-    srs_freep(timer20ms_);
-    srs_freep(timer100ms_);
-    srs_freep(timer1s_);
-    srs_freep(timer5s_);
-
+    // We must free servers first, because it may depend on the timers of hybrid server.
     vector<ISrsHybridServer*>::iterator it;
     for (it = servers.begin(); it != servers.end(); ++it) {
         ISrsHybridServer* server = *it;
         srs_freep(server);
     }
     servers.clear();
+
+    srs_freep(clock_monitor_);
+
+    srs_freep(timer20ms_);
+    srs_freep(timer100ms_);
+    srs_freep(timer1s_);
+    srs_freep(timer5s_);
 }
 
 void SrsHybridServer::register_server(ISrsHybridServer* svr)
@@ -237,8 +238,6 @@ void SrsHybridServer::stop()
         ISrsHybridServer* server = *it;
         server->stop();
     }
-
-    srs_st_destroy();
 }
 
 SrsServerAdapter* SrsHybridServer::srs()

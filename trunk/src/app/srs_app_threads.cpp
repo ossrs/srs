@@ -455,6 +455,154 @@ srs_error_t srs_global_initialize()
     return err;
 }
 
+void srs_global_dispose()
+{
+    // Note that hybrid depends on sources.
+    srs_freep(_srs_hybrid);
+    srs_freep(_srs_sources);
+
+    srs_freep(_srs_clock);
+
+    srs_freep(_srs_stages);
+    srs_freep(_srs_circuit_breaker);
+
+#ifdef SRS_SRT
+    srs_freep(_srs_srt_sources);
+#endif
+
+#ifdef SRS_RTC
+    srs_freep(_srs_rtc_sources);
+    srs_freep(_srs_blackhole);
+    srs_freep(_srs_rtc_manager);
+    srs_freep(_srs_rtc_dtls_certificate);
+#endif
+#ifdef SRS_GB28181
+    srs_freep(_srs_gb_manager);
+#endif
+
+    srs_freep(_srs_pps_ids);
+    srs_freep(_srs_pps_fids);
+    srs_freep(_srs_pps_fids_level0);
+    srs_freep(_srs_pps_dispose);
+
+    srs_freep(_srs_pps_timer);
+    srs_freep(_srs_pps_conn);
+    srs_freep(_srs_pps_pub);
+
+#ifdef SRS_RTC
+    srs_freep(_srs_pps_snack);
+    srs_freep(_srs_pps_snack2);
+    srs_freep(_srs_pps_snack3);
+    srs_freep(_srs_pps_snack4);
+    srs_freep(_srs_pps_sanack);
+    srs_freep(_srs_pps_svnack);
+
+    srs_freep(_srs_pps_rnack);
+    srs_freep(_srs_pps_rnack2);
+    srs_freep(_srs_pps_rhnack);
+    srs_freep(_srs_pps_rmnack);
+#endif
+
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+    srs_freep(_srs_pps_recvfrom);
+    srs_freep(_srs_pps_recvfrom_eagain);
+    srs_freep(_srs_pps_sendto);
+    srs_freep(_srs_pps_sendto_eagain);
+
+    srs_freep(_srs_pps_read);
+    srs_freep(_srs_pps_read_eagain);
+    srs_freep(_srs_pps_readv);
+    srs_freep(_srs_pps_readv_eagain);
+    srs_freep(_srs_pps_writev);
+    srs_freep(_srs_pps_writev_eagain);
+
+    srs_freep(_srs_pps_recvmsg);
+    srs_freep(_srs_pps_recvmsg_eagain);
+    srs_freep(_srs_pps_sendmsg);
+    srs_freep(_srs_pps_sendmsg_eagain);
+
+    srs_freep(_srs_pps_epoll);
+    srs_freep(_srs_pps_epoll_zero);
+    srs_freep(_srs_pps_epoll_shake);
+    srs_freep(_srs_pps_epoll_spin);
+
+    srs_freep(_srs_pps_sched_15ms);
+    srs_freep(_srs_pps_sched_20ms);
+    srs_freep(_srs_pps_sched_25ms);
+    srs_freep(_srs_pps_sched_30ms);
+    srs_freep(_srs_pps_sched_35ms);
+    srs_freep(_srs_pps_sched_40ms);
+    srs_freep(_srs_pps_sched_80ms);
+    srs_freep(_srs_pps_sched_160ms);
+    srs_freep(_srs_pps_sched_s);
+#endif
+
+    srs_freep(_srs_pps_clock_15ms);
+    srs_freep(_srs_pps_clock_20ms);
+    srs_freep(_srs_pps_clock_25ms);
+    srs_freep(_srs_pps_clock_30ms);
+    srs_freep(_srs_pps_clock_35ms);
+    srs_freep(_srs_pps_clock_40ms);
+    srs_freep(_srs_pps_clock_80ms);
+    srs_freep(_srs_pps_clock_160ms);
+    srs_freep(_srs_pps_timer_s);
+
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+    srs_freep(_srs_pps_thread_run);
+    srs_freep(_srs_pps_thread_idle);
+    srs_freep(_srs_pps_thread_yield);
+    srs_freep(_srs_pps_thread_yield2);
+#endif
+
+    srs_freep(_srs_pps_rpkts);
+    srs_freep(_srs_pps_addrs);
+    srs_freep(_srs_pps_fast_addrs);
+
+    srs_freep(_srs_pps_spkts);
+    srs_freep(_srs_pps_objs_msgs);
+
+#ifdef SRS_RTC
+    srs_freep(_srs_pps_sstuns);
+    srs_freep(_srs_pps_srtcps);
+    srs_freep(_srs_pps_srtps);
+
+    srs_freep(_srs_pps_rstuns);
+    srs_freep(_srs_pps_rrtps);
+    srs_freep(_srs_pps_rrtcps);
+
+    srs_freep(_srs_pps_aloss2);
+
+    srs_freep(_srs_pps_pli);
+    srs_freep(_srs_pps_twcc);
+    srs_freep(_srs_pps_rr);
+
+    srs_freep(_srs_pps_objs_rtps);
+    srs_freep(_srs_pps_objs_rraw);
+    srs_freep(_srs_pps_objs_rfua);
+    srs_freep(_srs_pps_objs_rbuf);
+    srs_freep(_srs_pps_objs_rothers);
+#endif
+
+    srs_freep(_srs_dvr_async);
+
+#ifdef SRS_APM
+    srs_freep(_srs_cls);
+    srs_freep(_srs_apm);
+#endif
+
+    srs_freep(_srs_reload_err);
+
+    // Note that we never free the logging, because it's used after thread terminated.
+    //srs_freep(_srs_log);
+    //srs_freep(_srs_config);
+    //srs_freep(_srs_context);
+    //srs_freep(_srs_pps_cids_get);
+    //srs_freep(_srs_pps_cids_set);
+
+    // Dispose ST finally, which may be used by other global objects.
+    srs_st_destroy();
+}
+
 SrsThreadMutex::SrsThreadMutex()
 {
     // https://man7.org/linux/man-pages/man3/pthread_mutexattr_init.3.html
