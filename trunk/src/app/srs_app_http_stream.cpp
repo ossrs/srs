@@ -1204,11 +1204,9 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     }
     
     // use the handler if exists.
-    if (ph) {
-        if (streamHandlers.find(sid) != streamHandlers.end()) {
-            entry = streamHandlers[sid];
-            *ph = entry->stream;
-        }
+    if (streamHandlers.find(sid) != streamHandlers.end()) {
+        entry = streamHandlers[sid];
+        *ph = entry->stream;
     }
     
     // trigger edge to fetch from origin.
