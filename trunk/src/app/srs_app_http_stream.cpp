@@ -1073,9 +1073,6 @@ void SrsHttpStreamServer::http_unmount(SrsRequest* r)
     SrsBufferCache* cache = entry->cache;
     SrsAutoFree(SrsBufferCache, cache);
 
-    // Unmount the HTTP handler.
-    mux.unhandle(entry->mount, stream);
-
     // Notify cache and stream to stop.
     if (stream->entry) stream->entry->enabled = false;
     cache->stop();
@@ -1088,6 +1085,9 @@ void SrsHttpStreamServer::http_unmount(SrsRequest* r)
         }
         srs_usleep(100 * SRS_UTIME_MILLISECONDS);
     }
+
+    // Unmount the HTTP handler.
+    mux.unhandle(entry->mount, stream);
 
     srs_trace("http: unmount flv stream for sid=%s, i=%d", sid.c_str(), i);
 }
