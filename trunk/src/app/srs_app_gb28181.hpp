@@ -215,11 +215,12 @@ public:
 public:
     srs_error_t initialize(SrsConfDirective* conf);
     srs_error_t listen();
-    srs_error_t listen_api();
     void close();
 // Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(ISrsListener* listener, srs_netfd_t stfd);
+private:
+    srs_error_t listen_api();
 };
 
 // A GB28181 TCP SIP connection.
@@ -266,7 +267,7 @@ public:
     // For use with external SIP signaling server ONLY
     // When using an external SIP signaling server, device id are not available, so manual configuration is required
     // This id will be used as the stream name in the RTMP protocol
-    void set_device_id(const std::string & id);
+    void set_device_id(const std::string& id);
     // Set the cid of all coroutines.
     virtual void set_cid(const SrsContextId& cid);
 private:

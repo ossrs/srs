@@ -2739,7 +2739,7 @@ srs_error_t SrsGoApiGbPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
     return srs_api_response(w, r, res->dumps());
 }
 
-srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *res)
+srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res)
 {
     srs_error_t err = srs_success;
 
@@ -2804,26 +2804,23 @@ srs_error_t SrsGoApiGbPublish::bind_session(std::string id, uint64_t ssrc)
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "ssrc already exists");
     }
 
-    SrsGbSession* raw_session = NULL;
-    if (!session) {
-        // Create new GB session.
-        raw_session = new SrsGbSession();
-        raw_session->setup(conf_);
+    // Create new GB session.
+    SrsGbSession* raw_session = new SrsGbSession();
+    raw_session->setup(conf_);
 
-        session = new SrsSharedResource<SrsGbSession>(raw_session);
-        _srs_gb_manager->add_with_id(id, session);
-        _srs_gb_manager->add_with_fast_id(ssrc, session);
+    session = new SrsSharedResource<SrsGbSession>(raw_session);
+    _srs_gb_manager->add_with_id(id, session);
+    _srs_gb_manager->add_with_fast_id(ssrc, session);
 
-        SrsExecutorCoroutine* executor = new SrsExecutorCoroutine(_srs_gb_manager, session, raw_session, raw_session);
-        raw_session->setup_owner(session, executor, executor);
-        raw_session->sip_transport()->set_device_id(id);
+    SrsExecutorCoroutine* executor = new SrsExecutorCoroutine(_srs_gb_manager, session, raw_session, raw_session);
+    raw_session->setup_owner(session, executor, executor);
+    raw_session->sip_transport()->set_device_id(id);
 
-        if ((err = executor->start()) != srs_success) {
-            srs_freep(executor);
-            return srs_error_wrap(err, "gb session");
-        }
+    if ((err = executor->start()) != srs_success) {
+        srs_freep(executor);
+        return srs_error_wrap(err, "gb session");
     }
-
+    
     return err;
 }
 
