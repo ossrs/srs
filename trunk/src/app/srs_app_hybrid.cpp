@@ -97,6 +97,7 @@ SrsPps* _srs_pps_timer_s = NULL;
 
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
 extern __thread int _st_active_count;
+extern __thread int _st_num_free_stacks;
 extern __thread unsigned long long _st_stat_thread_run;
 extern __thread unsigned long long _st_stat_thread_idle;
 extern __thread unsigned long long _st_stat_thread_yield;
@@ -371,8 +372,8 @@ srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
     _srs_pps_thread_run->update(_st_stat_thread_run); _srs_pps_thread_idle->update(_st_stat_thread_idle);
     _srs_pps_thread_yield->update(_st_stat_thread_yield); _srs_pps_thread_yield2->update(_st_stat_thread_yield2);
-    if (_st_active_count > 0 || _srs_pps_thread_run->r10s() || _srs_pps_thread_idle->r10s() || _srs_pps_thread_yield->r10s() || _srs_pps_thread_yield2->r10s()) {
-        snprintf(buf, sizeof(buf), ", co=%d,%d,%d, yield=%d,%d", _st_active_count, _srs_pps_thread_run->r10s(), _srs_pps_thread_idle->r10s(), _srs_pps_thread_yield->r10s(), _srs_pps_thread_yield2->r10s());
+    if (_st_active_count > 0 || _st_num_free_stacks > 0 || _srs_pps_thread_run->r10s() || _srs_pps_thread_idle->r10s() || _srs_pps_thread_yield->r10s() || _srs_pps_thread_yield2->r10s()) {
+        snprintf(buf, sizeof(buf), ", co=%d,%d,%d, stk=%d, yield=%d,%d", _st_active_count, _srs_pps_thread_run->r10s(), _srs_pps_thread_idle->r10s(), _st_num_free_stacks, _srs_pps_thread_yield->r10s(), _srs_pps_thread_yield2->r10s());
         thread_desc = buf;
     }
 #endif
