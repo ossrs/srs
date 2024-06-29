@@ -4867,7 +4867,7 @@ VOID TEST(KernelFLVTest, CoverSharedPtrMessage)
 
 	if (true) {
 		SrsMessageHeader h;
-		h.perfer_cid = 1;
+		h.prefer_cid = 1;
 
 		SrsSharedPtrMessage m;
 		HELPER_EXPECT_SUCCESS(m.create(&h, NULL, 0));

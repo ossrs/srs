@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-06-29, Merge [#4077](https://github.com/ossrs/srs/pull/4077): Fix misspelling error in app config. v6.0.133 (#4077)
 * v6.0, 2024-06-29, Merge [#4102](https://github.com/ossrs/srs/pull/4102): SmartPtr: Support detect memory leak by valgrind. v6.0.132 (#4102)
 * v6.0, 2024-06-21, Merge [#4100](https://github.com/ossrs/srs/pull/4100): Fix security scan problems. v6.0.131 (#4100)
 * v6.0, 2024-06-21, Merge [#4097](https://github.com/ossrs/srs/pull/4097): SmartPtr: Support load test for source by srs-bench. v6.0.130 (#4097)
