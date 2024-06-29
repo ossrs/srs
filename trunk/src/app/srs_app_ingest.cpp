@@ -94,7 +94,7 @@ SrsIngester::SrsIngester()
     disposed = false;
     
     trd = new SrsDummyCoroutine();
-    pprint = SrsPithyPrint::create_ingester();
+    pprint_ = SrsPithyPrint::create_ingester();
 }
 
 SrsIngester::~SrsIngester()
@@ -103,6 +103,7 @@ SrsIngester::~SrsIngester()
     
     srs_freep(trd);
     clear_engines();
+    srs_freep(pprint_);
 }
 
 void SrsIngester::dispose()
@@ -466,7 +467,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* 
 
 void SrsIngester::show_ingest_log_message()
 {
-    pprint->elapse();
+    pprint_->elapse();
     
     if ((int)ingesters.size() <= 0) {
         return;
@@ -477,9 +478,9 @@ void SrsIngester::show_ingest_log_message()
     SrsIngesterFFMPEG* ingester = ingesters.at(index);
     
     // reportable
-    if (pprint->can_print()) {
+    if (pprint_->can_print()) {
         srs_trace("-> " SRS_CONSTS_LOG_INGESTER " time=%dms, ingesters=%d, #%d(alive=%dms, %s)",
-                  srsu2msi(pprint->age()), (int)ingesters.size(), index, srsu2msi(ingester->alive()), ingester->uri().c_str());
+                  srsu2msi(pprint_->age()), (int)ingesters.size(), index, srsu2msi(ingester->alive()), ingester->uri().c_str());
     }
 }
 

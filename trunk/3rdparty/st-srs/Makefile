@@ -191,6 +191,9 @@ endif
 #
 # make EXTRA_CFLAGS=-DDEBUG_STATS
 #
+# or cache the stack and reuse it:
+# make EXTRA_CFLAGS=-DMD_CACHE_STACK
+#
 # or enable the coverage for utest:
 # make UTEST_FLAGS="-fprofile-arcs -ftest-coverage"
 #
