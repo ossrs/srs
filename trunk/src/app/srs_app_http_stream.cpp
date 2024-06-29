@@ -1086,7 +1086,8 @@ void SrsHttpStreamServer::http_unmount(SrsRequest* r)
         srs_usleep(100 * SRS_UTIME_MILLISECONDS);
     }
 
-    // Unmount the HTTP handler.
+    // Unmount the HTTP handler, which will free the entry. Note that we must free it after cache and
+    // stream stopped for it uses it.
     mux.unhandle(entry->mount, stream);
 
     srs_trace("http: unmount flv stream for sid=%s, i=%d", sid.c_str(), i);

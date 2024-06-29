@@ -74,7 +74,7 @@ _st_stack_t *_st_stack_new(int stack_size)
             _st_num_free_stacks--;
             ts->links.next = NULL;
             ts->links.prev = NULL;
-            returnt ts;
+            return ts;
         }
     }
 #endif
@@ -174,7 +174,6 @@ static char *_st_new_stk_segment(int size)
 }
 
 
-/* Not used */
 void _st_delete_stk_segment(char *vaddr, int size)
 {
 #ifdef MALLOC_STACK

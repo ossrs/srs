@@ -37,7 +37,6 @@ using namespace std;
 #include <srs_protocol_log.hpp>
 #include <srs_app_latest_version.hpp>
 #include <srs_app_conn.hpp>
-#include <srs_app_threads.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_network.hpp>
 #include <srs_app_rtc_server.hpp>
