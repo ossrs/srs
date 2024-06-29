@@ -54,8 +54,8 @@ SrsResourceManager::~SrsResourceManager()
         trd->stop();
 
         srs_freep(trd);
-        srs_cond_destroy(cond);
     }
+    srs_cond_destroy(cond);
 
     clear();
 

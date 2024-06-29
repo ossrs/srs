@@ -761,9 +761,12 @@ void SrsHttpServeMux::unhandle(std::string pattern, ISrsHttpHandler* handler)
             entries.erase(it);
 
             // We don't free the handler, because user should free it.
-            if (entry->handler != handler) {
-                srs_freep(entry);
+            if (entry->handler == handler) {
+                entry->handler = NULL;
             }
+
+            // Should always free the entry.
+            srs_freep(entry);
         }
     }
 

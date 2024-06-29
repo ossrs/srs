@@ -370,8 +370,6 @@ SrsServer::~SrsServer()
 
 void SrsServer::destroy()
 {
-    srs_warn("start destroy server");
-
     srs_freep(trd_);
     srs_freep(timer_);
 
@@ -869,11 +867,8 @@ void SrsServer::stop()
         srs_trace("srs gracefully quit");
     }
 
+    // This is the last line log of SRS.
     srs_trace("srs terminated");
-
-    // for valgrind to detect.
-    srs_freep(_srs_config);
-    srs_freep(_srs_log);
 }
 
 srs_error_t SrsServer::cycle()
@@ -1406,6 +1401,7 @@ srs_error_t SrsServerAdapter::run(SrsWaitGroup* wg)
 
 void SrsServerAdapter::stop()
 {
+    srs->stop();
 }
 
 SrsServer* SrsServerAdapter::instance()
