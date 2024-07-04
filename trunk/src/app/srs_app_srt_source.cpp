@@ -1083,6 +1083,9 @@ void SrsSrtSource::on_unpublish()
 
     can_publish_ = true;
 
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_stream_close(req);
+
     if (bridge_) {
         frame_builder_->on_unpublish();
         srs_freep(frame_builder_);
