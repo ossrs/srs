@@ -33,6 +33,8 @@ cd srs/trunk && ./configure --h265=on --gb28181=on && make &&
 ./objs/srs -c conf/console.conf
 ```
 
+> Note: Use valgrind to check memory leak, please use `valgrind --leak-check=full ./objs/srs -c conf/console.conf >/dev/null` to start SRS.
+
 具体场景，请按下面的操作启动测试。
 
 ## Player for WHEP

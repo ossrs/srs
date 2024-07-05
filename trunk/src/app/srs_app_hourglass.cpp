@@ -166,7 +166,7 @@ void SrsFastTimer::unsubscribe(ISrsFastTimer* timer)
 {
     vector<ISrsFastTimer*>::iterator it = std::find(handlers_.begin(), handlers_.end(), timer);
     if (it != handlers_.end()) {
-        it = handlers_.erase(it);
+        handlers_.erase(it);
     }
 }
 

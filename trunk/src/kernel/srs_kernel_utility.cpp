@@ -1180,7 +1180,7 @@ int srs_hex_to_data(uint8_t* data, const char* p, int size)
     return size / 2;
 }
 
-int srs_chunk_header_c0(int perfer_cid, uint32_t timestamp, int32_t payload_length, int8_t message_type, int32_t stream_id, char* cache, int nb_cache)
+int srs_chunk_header_c0(int prefer_cid, uint32_t timestamp, int32_t payload_length, int8_t message_type, int32_t stream_id, char* cache, int nb_cache)
 {
     // to directly set the field.
     char* pp = NULL;
@@ -1194,7 +1194,7 @@ int srs_chunk_header_c0(int perfer_cid, uint32_t timestamp, int32_t payload_leng
     }
     
     // write new chunk stream header, fmt is 0
-    *p++ = 0x00 | (perfer_cid & 0x3F);
+    *p++ = 0x00 | (prefer_cid & 0x3F);
     
     // chunk message header, 11 bytes
     // timestamp, 3bytes, big-endian
@@ -1255,7 +1255,7 @@ int srs_chunk_header_c0(int perfer_cid, uint32_t timestamp, int32_t payload_leng
     return (int)(p - cache);
 }
 
-int srs_chunk_header_c3(int perfer_cid, uint32_t timestamp, char* cache, int nb_cache)
+int srs_chunk_header_c3(int prefer_cid, uint32_t timestamp, char* cache, int nb_cache)
 {
     // to directly set the field.
     char* pp = NULL;
@@ -1269,9 +1269,9 @@ int srs_chunk_header_c3(int perfer_cid, uint32_t timestamp, char* cache, int nb_
     }
     
     // write no message header chunk stream, fmt is 3
-    // @remark, if perfer_cid > 0x3F, that is, use 2B/3B chunk header,
+    // @remark, if prefer_cid > 0x3F, that is, use 2B/3B chunk header,
     // SRS will rollback to 1B chunk header.
-    *p++ = 0xC0 | (perfer_cid & 0x3F);
+    *p++ = 0xC0 | (prefer_cid & 0x3F);
     
     // for c0
     // chunk extended timestamp header, 0 or 4 bytes, big-endian
