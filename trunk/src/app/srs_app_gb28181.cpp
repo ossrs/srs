@@ -2766,12 +2766,12 @@ srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttp
     // Fetch params from req object.
     SrsJsonAny* prop = NULL;
     if ((prop = req->ensure_property_string("id")) == NULL) {
-        return srs_error_wrap(err, "not id");
+        return srs_error_new(ERROR_HTTP_DATA_INVALID, "id required");
     }
     string id = prop->to_str();
 
     if ((prop = req->ensure_property_string("ssrc")) == NULL) {
-        return srs_error_wrap(err, "not ssrc");
+        return srs_error_new(ERROR_HTTP_DATA_INVALID, "ssrc required");
     }
     uint64_t ssrc = atoi(prop->to_str().c_str());
 
