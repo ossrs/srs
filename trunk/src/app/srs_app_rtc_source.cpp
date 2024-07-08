@@ -29,6 +29,7 @@
 #include <srs_app_log.hpp>
 #include <srs_app_threads.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_core_deprecated.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>

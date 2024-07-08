@@ -13,6 +13,7 @@
 #include <srs_kernel_io.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_core_deprecated.hpp>
 
 #include <string.h>
 #include <sstream>

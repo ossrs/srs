@@ -18,6 +18,7 @@
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_core_deprecated.hpp>
 
 #define SRS_DEFAULT_RECV_BUFFER_SIZE 131072
 

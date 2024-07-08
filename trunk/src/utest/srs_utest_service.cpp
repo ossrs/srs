@@ -11,6 +11,7 @@ using namespace std;
 #include <srs_app_listener.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_core_deprecated.hpp>
 
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_http_conn.hpp>

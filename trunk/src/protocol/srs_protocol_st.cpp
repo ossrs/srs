@@ -17,6 +17,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_core_deprecated.hpp>
 
 // nginx also set to 512
 #define SERVER_LISTEN_BACKLOG 512

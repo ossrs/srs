@@ -19,6 +19,7 @@ using namespace std;
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_protobuf.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_core_deprecated.hpp>
 
 MockEmptyIO::MockEmptyIO()
 {

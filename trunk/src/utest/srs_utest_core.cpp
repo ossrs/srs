@@ -10,6 +10,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_core_deprecated.hpp>
 
 VOID TEST(CoreAutoFreeTest, Free)
 {
