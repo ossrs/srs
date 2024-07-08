@@ -110,7 +110,7 @@ srs_error_t SrsPacket::to_msg(SrsCommonMessage* msg, int stream_id)
     header.payload_length = size;
     header.message_type = get_message_type();
     header.stream_id = stream_id;
-    header.perfer_cid = get_prefer_cid();
+    header.prefer_cid = get_prefer_cid();
 
     if ((err = msg->create(&header, payload, size)) != srs_success) {
         return srs_error_wrap(err, "create %dB message", size);
@@ -200,9 +200,9 @@ SrsProtocol::SrsProtocol(ISrsProtocolReadWriter* io)
     }
     for (int cid = 0; cid < SRS_PERF_CHUNK_STREAM_CACHE; cid++) {
         SrsChunkStream* cs = new SrsChunkStream(cid);
-        // set the perfer cid of chunk,
+        // set the prefer cid of chunk,
         // which will copy to the message received.
-        cs->header.perfer_cid = cid;
+        cs->header.prefer_cid = cid;
         
         cs_cache[cid] = cs;
     }
@@ -740,7 +740,7 @@ srs_error_t SrsProtocol::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
             continue;
         }
         
-        // check perfer cid and stream,
+        // check prefer cid and stream,
         // when one msg stream id is ok, ignore left.
         if (msg->check(stream_id)) {
             break;
@@ -812,9 +812,9 @@ srs_error_t SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
         // chunk stream cache miss, use map.
         if (chunk_streams.find(cid) == chunk_streams.end()) {
             chunk = chunk_streams[cid] = new SrsChunkStream(cid);
-            // set the perfer cid of chunk,
+            // set the prefer cid of chunk,
             // which will copy to the message received.
-            chunk->header.perfer_cid = cid;
+            chunk->header.prefer_cid = cid;
         } else {
             chunk = chunk_streams[cid];
         }
@@ -2705,20 +2705,7 @@ srs_error_t SrsRtmpServer::start_fmle_publish(int stream_id)
         pkt->command_name = RTMP_AMF0_COMMAND_ON_FC_PUBLISH;
         pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodePublishStart));
         pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
-        
-        if ((err = protocol->send_and_free_packet(pkt, stream_id)) != srs_success) {
-            return srs_error_wrap(err, "send NetStream.Publish.Start");
-        }
-    }
-    // publish response onStatus(NetStream.Publish.Start)
-    if (true) {
-        SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
-        
-        pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
-        pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodePublishStart));
-        pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
-        pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
-        
+
         if ((err = protocol->send_and_free_packet(pkt, stream_id)) != srs_success) {
             return srs_error_wrap(err, "send NetStream.Publish.Start");
         }
@@ -2750,20 +2737,6 @@ srs_error_t SrsRtmpServer::start_haivision_publish(int stream_id)
         pkt->command_name = RTMP_AMF0_COMMAND_ON_FC_PUBLISH;
         pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodePublishStart));
         pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
-        
-        if ((err = protocol->send_and_free_packet(pkt, stream_id)) != srs_success) {
-            return srs_error_wrap(err, "send NetStream.Publish.Start");
-        }
-    }
-    
-    // publish response onStatus(NetStream.Publish.Start)
-    if (true) {
-        SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
-        
-        pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
-        pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodePublishStart));
-        pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
-        pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
         
         if ((err = protocol->send_and_free_packet(pkt, stream_id)) != srs_success) {
             return srs_error_wrap(err, "send NetStream.Publish.Start");
@@ -2816,7 +2789,13 @@ srs_error_t SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
 srs_error_t SrsRtmpServer::start_flash_publish(int stream_id)
 {
     srs_error_t err = srs_success;
-    
+    return err;
+}
+
+srs_error_t SrsRtmpServer::start_publishing(int stream_id)
+{
+    srs_error_t err = srs_success;
+
     // publish response onStatus(NetStream.Publish.Start)
     if (true) {
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();

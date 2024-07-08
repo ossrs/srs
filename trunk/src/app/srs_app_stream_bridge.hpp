@@ -10,6 +10,7 @@
 #include <srs_core.hpp>
 
 #include <srs_kernel_codec.hpp>
+#include <srs_core_autofree.hpp>
 
 #include <vector>
 
@@ -19,7 +20,6 @@ class SrsLiveSource;
 class SrsRtcSource;
 class SrsRtmpFormat;
 class SrsMetaCache;
-class SrsAudioTranscoder;
 class SrsRtpPacket;
 class SrsRtcRtpBuilder;
 
@@ -42,9 +42,9 @@ public:
 class SrsFrameToRtmpBridge : public ISrsStreamBridge
 {
 private:
-    SrsLiveSource *source_;
+    SrsSharedPtr<SrsLiveSource> source_;
 public:
-    SrsFrameToRtmpBridge(SrsLiveSource *src);
+    SrsFrameToRtmpBridge(SrsSharedPtr<SrsLiveSource> source);
     virtual ~SrsFrameToRtmpBridge();
 public:
     srs_error_t initialize(SrsRequest* r);
@@ -55,14 +55,18 @@ public:
     virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
 };
 
+#ifdef SRS_RTC
 // A bridge to covert AV frame to WebRTC stream.
 class SrsFrameToRtcBridge : public ISrsStreamBridge
 {
 private:
-    SrsRtcSource* source_;
+    SrsSharedPtr<SrsRtcSource> source_;
+private:
+#if defined(SRS_FFMPEG_FIT)
     SrsRtcRtpBuilder* rtp_builder_;
+#endif
 public:
-    SrsFrameToRtcBridge(SrsRtcSource* source);
+    SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsFrameToRtcBridge();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
@@ -71,6 +75,7 @@ public:
     virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
     srs_error_t on_rtp(SrsRtpPacket* pkt);
 };
+#endif
 
 // A bridge chain, a set of bridges.
 class SrsCompositeBridge : public ISrsStreamBridge

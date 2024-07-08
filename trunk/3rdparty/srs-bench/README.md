@@ -14,6 +14,8 @@ git clone -b feature/rtc https://github.com/ossrs/srs-bench.git &&
 cd srs-bench && make
 ```
 
+> Note: 依赖Go编译工具，建议使用 Go 1.17 及以上的版本。
+
 编译会生成下面的工具：
 
 * `./objs/srs_bench` 压测，模拟大量客户端的负载测试，支持SRS、GB28181和Janus三种场景。 
@@ -31,9 +33,11 @@ cd srs/trunk && ./configure --h265=on --gb28181=on && make &&
 ./objs/srs -c conf/console.conf
 ```
 
+> Note: Use valgrind to check memory leak, please use `valgrind --leak-check=full ./objs/srs -c conf/console.conf >/dev/null` to start SRS.
+
 具体场景，请按下面的操作启动测试。
 
-## Player for Live
+## Player for WHEP
 
 直播播放压测，一个流，很多个播放。
 
@@ -49,7 +53,7 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 ./objs/srs_bench -sr webrtc://localhost/live/livestream -nn 100
 ```
 
-## Publisher for Live or RTC
+## Publisher for WHIP
 
 直播或会议场景推流压测，一般会推多个流。
 
@@ -63,7 +67,7 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 
 > 注意：帧率是原始视频的帧率，由于264中没有这个信息所以需要传递。
 
-## Multipel Player or Publisher for RTC
+## Multiple WHIP or WHEP for RTC
 
 会议场景的播放压测，会多个客户端播放多个流，比如3人会议，那么就有3个推流，每个流有2个播放。
 
@@ -84,7 +88,7 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 > 备注：URL的变量格式参考Go的`fmt.Sprintf`，比如可以用`webrtc://localhost/live/livestream_%03d`。
 
 <a name="dvr"></a>
-## DVR for Benchmark
+## DVR for RTC Benchmark
 
 录制场景，主要是把内容录制下来后，可分析，也可以用于推流。
 
@@ -119,6 +123,37 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 ```
 
 > Note: 可以传递更多参数，详细参考SRS支持的参数。
+
+## Reconnecting Load Test
+
+建立连接和断开重连的压测，可以测试SRS在多个Source时是否有内存泄露问题，参考 [#3667](https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107)
+
+RTMP重连测试：
+
+```bash
+for ((i=0;;i++)); do
+  ./objs/srs_bench -sfu=live -pr=rtmp://localhost/live${i}/stream -sn=1000 -cap=true; 
+  sleep 10; 
+done
+```
+
+SRT重连测试：
+
+```bash
+for ((i=0;;i++)); do
+  ./objs/srs_bench -sfu=live -pr='srt://127.0.0.1:10080?streamid=#!::'m=publish,r=live${i}/stream -sn=1000 -cap=true;
+  sleep 10; 
+done
+```
+
+WebRTC重连测试：
+
+```bash
+for ((i=0;;i++)); do
+  ./objs/srs_bench -sfu=rtc -pr=webrtc://localhost/live${i}/livestream -sn=1000 -cap=true;
+  sleep 10; 
+done
+```
 
 ## Regression Test
 
@@ -328,5 +363,51 @@ make -j10 && ./objs/srs_bench -sfu janus \
   -sr webrtc://localhost:8080/2345/livestream \
   -nn 5
 ```
+
+## Install LIBSRT
+
+我们使用 [srtgo](https://github.com/Haivision/srtgo) 库测试SRT协议，需要安装libsrt库，
+参考[macOS](https://github.com/Haivision/srt/blob/master/docs/build/build-macOS.md)：
+
+```bash
+brew install srt
+```
+
+如果是Ubuntu，可以参考[Ubuntu](https://github.com/Haivision/srt/blob/master/docs/build/package-managers.md):
+
+```bash
+apt-get install -y libsrt
+```
+
+安装完libsrt后，直接编译srs-bench即可：
+
+```bash
+make
+```
+
+## Ubuntu Docker
+
+如果使用Ubuntu编译，推荐使用 `ossrs/srs:ubuntu20` 作为镜像编译，已经编译了openssl和libsrt，启动容器：
+
+```bash
+docker run --rm -it -v $(pwd):/g -w /g ossrs/srs:ubuntu20 make
+```
+
+## GoLand
+
+使用GoLand编译和调试时，需要设置libsrt的环境变量，首先可以使用brew获取路径：
+
+```bash
+brew --prefix srt
+#/opt/homebrew/opt/srt
+```
+
+然后在GoLand中，编辑配置 `Edit Configurations`，添加环境变量：
+
+```bash
+CGO_CFLAGS=-I/opt/homebrew/opt/srt/include;CGO_LDFLAGS=-L/opt/homebrew/opt/srt/lib -lsrt
+```
+
+> Note: 特别注意的是，CGO_LDFLAGS是可以有空格的，不能使用字符串，否则找不到库。
 
 2021.01, Winlin

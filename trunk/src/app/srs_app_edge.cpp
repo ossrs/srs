@@ -391,7 +391,7 @@ void SrsEdgeFlvUpstream::kbps_sample(const char* label, srs_utime_t age)
 
 SrsEdgeIngester::SrsEdgeIngester()
 {
-    source = NULL;
+    source_ = NULL;
     edge = NULL;
     req = NULL;
 #ifdef SRS_APM
@@ -415,9 +415,11 @@ SrsEdgeIngester::~SrsEdgeIngester()
     srs_freep(trd);
 }
 
-srs_error_t SrsEdgeIngester::initialize(SrsLiveSource* s, SrsPlayEdge* e, SrsRequest* r)
+srs_error_t SrsEdgeIngester::initialize(SrsSharedPtr<SrsLiveSource> s, SrsPlayEdge* e, SrsRequest* r)
 {
-    source = s;
+    // Because source references to this object, so we should directly use the source ptr.
+    source_ = s.get();
+
     edge = e;
     req = r;
 
@@ -435,7 +437,7 @@ srs_error_t SrsEdgeIngester::start()
 {
     srs_error_t err = srs_success;
     
-    if ((err = source->on_publish()) != srs_success) {
+    if ((err = source_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "notify source");
     }
     
@@ -455,8 +457,8 @@ void SrsEdgeIngester::stop()
     upstream->close();
 
     // Notify source to un-publish if exists.
-    if (source) {
-        source->on_unpublish();
+    if (source_) {
+        source_->on_unpublish();
     }
 }
 
@@ -549,7 +551,7 @@ srs_error_t SrsEdgeIngester::do_cycle()
             upstream = new SrsEdgeRtmpUpstream(redirect);
         }
         
-        if ((err = source->on_source_id_changed(_srs_context->get_id())) != srs_success) {
+        if ((err = source_->on_source_id_changed(_srs_context->get_id())) != srs_success) {
             return srs_error_wrap(err, "on source id changed");
         }
         
@@ -635,21 +637,21 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg, stri
     
     // process audio packet
     if (msg->header.is_audio()) {
-        if ((err = source->on_audio(msg)) != srs_success) {
+        if ((err = source_->on_audio(msg)) != srs_success) {
             return srs_error_wrap(err, "source consume audio");
         }
     }
     
     // process video packet
     if (msg->header.is_video()) {
-        if ((err = source->on_video(msg)) != srs_success) {
+        if ((err = source_->on_video(msg)) != srs_success) {
             return srs_error_wrap(err, "source consume video");
         }
     }
     
     // process aggregate packet
     if (msg->header.is_aggregate()) {
-        if ((err = source->on_aggregate(msg)) != srs_success) {
+        if ((err = source_->on_aggregate(msg)) != srs_success) {
             return srs_error_wrap(err, "source consume aggregate");
         }
         return err;
@@ -665,7 +667,7 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg, stri
         
         if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
             SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
-            if ((err = source->on_meta_data(msg, metadata)) != srs_success) {
+            if ((err = source_->on_meta_data(msg, metadata)) != srs_success) {
                 return srs_error_wrap(err, "source consume metadata");
             }
             return err;
@@ -725,7 +727,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     edge = NULL;
     req = NULL;
     send_error_code = ERROR_SUCCESS;
-    source = NULL;
+    source_ = NULL;
     
     sdk = NULL;
     lb = new SrsLbRoundRobin();
@@ -747,9 +749,11 @@ void SrsEdgeForwarder::set_queue_size(srs_utime_t queue_size)
     return queue->set_queue_size(queue_size);
 }
 
-srs_error_t SrsEdgeForwarder::initialize(SrsLiveSource* s, SrsPublishEdge* e, SrsRequest* r)
+srs_error_t SrsEdgeForwarder::initialize(SrsSharedPtr<SrsLiveSource> s, SrsPublishEdge* e, SrsRequest* r)
 {
-    source = s;
+    // Because source references to this object, so we should directly use the source ptr.
+    source_ = s.get();
+
     edge = e;
     req = r;
 
@@ -956,7 +960,7 @@ SrsPlayEdge::~SrsPlayEdge()
     srs_freep(ingester);
 }
 
-srs_error_t SrsPlayEdge::initialize(SrsLiveSource* source, SrsRequest* req)
+srs_error_t SrsPlayEdge::initialize(SrsSharedPtr<SrsLiveSource> source, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     
@@ -1048,7 +1052,7 @@ void SrsPublishEdge::set_queue_size(srs_utime_t queue_size)
     return forwarder->set_queue_size(queue_size);
 }
 
-srs_error_t SrsPublishEdge::initialize(SrsLiveSource* source, SrsRequest* req)
+srs_error_t SrsPublishEdge::initialize(SrsSharedPtr<SrsLiveSource> source, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     

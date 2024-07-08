@@ -187,8 +187,8 @@ public:
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 public:
-    virtual srs_error_t http_mount(SrsLiveSource* s, SrsRequest* r);
-    virtual void http_unmount(SrsLiveSource* s, SrsRequest* r);
+    virtual srs_error_t http_mount(SrsRequest* r);
+    virtual void http_unmount(SrsRequest* r);
 };
 
 #endif

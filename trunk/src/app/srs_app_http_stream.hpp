@@ -23,15 +23,16 @@ private:
     srs_utime_t fast_cache;
 private:
     SrsMessageQueue* queue;
-    SrsLiveSource* source;
     SrsRequest* req;
     SrsCoroutine* trd;
 public:
-    SrsBufferCache(SrsLiveSource* s, SrsRequest* r);
+    SrsBufferCache(SrsRequest* r);
     virtual ~SrsBufferCache();
-    virtual srs_error_t update_auth(SrsLiveSource* s, SrsRequest* r);
+    virtual srs_error_t update_auth(SrsRequest* r);
 public:
     virtual srs_error_t start();
+    virtual void stop();
+    virtual bool alive();
     virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 // Interface ISrsEndlessThreadHandler.
 public:
@@ -178,15 +179,16 @@ class SrsLiveStream : public ISrsHttpHandler
 {
 private:
     SrsRequest* req;
-    SrsLiveSource* source;
     SrsBufferCache* cache;
     SrsSecurity* security_;
+    bool alive_;
 public:
-    SrsLiveStream(SrsLiveSource* s, SrsRequest* r, SrsBufferCache* c);
+    SrsLiveStream(SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
-    virtual srs_error_t update_auth(SrsLiveSource* s, SrsRequest* r);
+    virtual srs_error_t update_auth(SrsRequest* r);
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual bool alive();
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     virtual srs_error_t http_hooks_on_play(ISrsHttpMessage* r);
@@ -205,8 +207,6 @@ private:
 public:
     // We will free the request.
     SrsRequest* req;
-    // Shared source.
-    SrsLiveSource* source;
 public:
     // For template, the mount contains variables.
     // For concrete stream, the mount is url to access.
@@ -234,9 +234,9 @@ private:
 public:
     SrsHttpServeMux mux;
     // The http live streaming template, to create streams.
-    std::map<std::string, SrsLiveEntry*> tflvs;
-    // The http live streaming streams, crote by template.
-    std::map<std::string, SrsLiveEntry*> sflvs;
+    std::map<std::string, SrsLiveEntry*> templateHandlers;
+    // The http live streaming streams, created by template.
+    std::map<std::string, SrsLiveEntry*> streamHandlers;
 public:
     SrsHttpStreamServer(SrsServer* svr);
     virtual ~SrsHttpStreamServer();
@@ -244,8 +244,8 @@ public:
     virtual srs_error_t initialize();
 public:
     // HTTP flv/ts/mp3/aac stream
-    virtual srs_error_t http_mount(SrsLiveSource* s, SrsRequest* r);
-    virtual void http_unmount(SrsLiveSource* s, SrsRequest* r);
+    virtual srs_error_t http_mount(SrsRequest* r);
+    virtual void http_unmount(SrsRequest* r);
 // Interface ISrsHttpMatchHijacker
 public:
     virtual srs_error_t hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph);

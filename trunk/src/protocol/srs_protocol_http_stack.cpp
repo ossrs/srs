@@ -691,14 +691,12 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handle
     srs_assert(handler);
     
     if (pattern.empty()) {
-        srs_freep(handler);
         return srs_error_new(ERROR_HTTP_PATTERN_EMPTY, "empty pattern");
     }
     
     if (entries.find(pattern) != entries.end()) {
         SrsHttpMuxEntry* exists = entries[pattern];
         if (exists->explicit_match) {
-            srs_freep(handler);
             return srs_error_new(ERROR_HTTP_PATTERN_DUPLICATED, "pattern=%s exists", pattern.c_str());
         }
     }
@@ -752,6 +750,35 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handle
     }
     
     return srs_success;
+}
+
+void SrsHttpServeMux::unhandle(std::string pattern, ISrsHttpHandler* handler)
+{
+    if (true) {
+        std::map<std::string, SrsHttpMuxEntry*>::iterator it = entries.find(pattern);
+        if (it != entries.end()) {
+            SrsHttpMuxEntry* entry = it->second;
+            entries.erase(it);
+
+            // We don't free the handler, because user should free it.
+            if (entry->handler == handler) {
+                entry->handler = NULL;
+            }
+
+            // Should always free the entry.
+            srs_freep(entry);
+        }
+    }
+
+    std::string vhost = pattern;
+    if (pattern.at(0) != '/') {
+        if (pattern.find("/") != string::npos) {
+            vhost = pattern.substr(0, pattern.find("/"));
+        }
+
+        std::map<std::string, ISrsHttpHandler*>::iterator it = vhosts.find(vhost);
+        if (it != vhosts.end()) vhosts.erase(it);
+    }
 }
 
 srs_error_t SrsHttpServeMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)

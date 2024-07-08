@@ -22,6 +22,7 @@
 #include <srs_app_hourglass.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_app_stream_bridge.hpp>
+#include <srs_core_autofree.hpp>
 
 class SrsRequest;
 class SrsMetaCache;
@@ -79,7 +80,9 @@ public:
 class SrsRtcConsumer
 {
 private:
-    SrsRtcSource* source;
+    // Because source references to this object, so we should directly use the source ptr.
+    SrsRtcSource* source_;
+private:
     std::vector<SrsRtpPacket*> queue;
     // when source id changed, notice all consumers
     bool should_update_source_id;
@@ -108,22 +111,29 @@ public:
     void on_stream_change(SrsRtcSourceDescription* desc);
 };
 
-class SrsRtcSourceManager
+class SrsRtcSourceManager : public ISrsHourGlass
 {
 private:
     srs_mutex_t lock;
-    std::map<std::string, SrsRtcSource*> pool;
+    std::map< std::string, SrsSharedPtr<SrsRtcSource> > pool;
+    SrsHourGlass* timer_;
 public:
     SrsRtcSourceManager();
     virtual ~SrsRtcSourceManager();
 public:
+    virtual srs_error_t initialize();
+// interface ISrsHourGlass
+private:
+    virtual srs_error_t setup_ticks();
+    virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
+public:
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcSource** pps);
+    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsRtcSource>& pps);
 public:
     // Get the exists source, NULL when not exists.
-    virtual SrsRtcSource* fetch(SrsRequest* r);
+    virtual SrsSharedPtr<SrsRtcSource> fetch(SrsRequest* r);
 };
 
 // Global singleton instance.
@@ -189,11 +199,17 @@ private:
     // The PLI for RTC2RTMP.
     srs_utime_t pli_for_rtmp_;
     srs_utime_t pli_elapsed_;
+private:
+    // The last die time, while die means neither publishers nor players.
+    srs_utime_t stream_die_at_;
 public:
     SrsRtcSource();
     virtual ~SrsRtcSource();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
+public:
+    // Whether stream is dead, which is no publisher or player.
+    virtual bool stream_is_dead();
 private:
     void init_for_play_before_publishing();
 public:
@@ -262,6 +278,7 @@ private:
     SrsAudioCodecId latest_codec_;
     SrsAudioTranscoder* codec_;
     bool keep_bframe;
+    bool keep_avc_nalu_sei;
     bool merge_nalus;
     uint16_t audio_sequence;
     uint16_t video_sequence;
@@ -564,7 +581,7 @@ public:
     // set to NULL, nack nerver copy it but set the pkt to NULL.
     srs_error_t on_nack(SrsRtpPacket** ppkt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt) = 0;
+    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt) = 0;
     virtual srs_error_t check_send_nacks() = 0;
 protected:
     virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
@@ -578,7 +595,7 @@ public:
 public:
     virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt);
+    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt);
     virtual srs_error_t check_send_nacks();
 };
 
@@ -590,7 +607,7 @@ public:
 public:
     virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt);
+    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt);
     virtual srs_error_t check_send_nacks();
 };
 

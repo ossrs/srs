@@ -968,9 +968,8 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportNormal)
 
     publish.set_all_tracks_status(true);
 
-    SrsRtcSource* rtc_source = new SrsRtcSource();
-    SrsAutoFree(SrsRtcSource, rtc_source);
-    
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+
     srand(time(NULL));
 
     if (true)
@@ -1036,8 +1035,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportOutOfOrder)
 
     publish.set_all_tracks_status(true);
 
-    SrsRtcSource* rtc_source = new SrsRtcSource();
-    SrsAutoFree(SrsRtcSource, rtc_source);
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
     
     srand(time(NULL));
 
@@ -1109,8 +1107,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
 
     publish.set_all_tracks_status(true);
 
-    SrsRtcSource* rtc_source = new SrsRtcSource();
-    SrsAutoFree(SrsRtcSource, rtc_source);
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
     
     srand(time(NULL));
 
@@ -1215,8 +1212,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportDuplicated)
 
     publish.set_all_tracks_status(true);
 
-    SrsRtcSource* rtc_source = new SrsRtcSource();
-    SrsAutoFree(SrsRtcSource, rtc_source);
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
     
     srand(time(NULL));
 

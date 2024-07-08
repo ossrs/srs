@@ -748,6 +748,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerImplicitHandler)
         HELPER_ASSERT_SUCCESS(s.handle("/api/", h0));
 
         MockHttpHandler* h1 = new MockHttpHandler("Done");
+        SrsAutoFree(MockHttpHandler, h1);
         HELPER_EXPECT_FAILED(s.handle("/api/", h1));
     }
 
@@ -892,6 +893,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerBasic)
         HELPER_ASSERT_SUCCESS(s.initialize());
 
         MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        SrsAutoFree(MockHttpHandler, h0);
         HELPER_EXPECT_FAILED(s.handle("", h0));
     }
 

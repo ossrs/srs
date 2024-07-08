@@ -8,6 +8,8 @@
 using namespace std;
 
 #include <srs_core_autofree.hpp>
+#include <srs_protocol_conn.hpp>
+#include <srs_app_conn.hpp>
 
 VOID TEST(CoreAutoFreeTest, Free)
 {
@@ -83,6 +85,357 @@ VOID TEST(CoreLogger, CheckVsnprintf)
 
         EXPECT_EQ(10, snprintf(buf, sizeof(buf), "HelloWorld"));
         EXPECT_STREQ("Hell", buf);
+    }
+}
+
+VOID TEST(CoreLogger, SharedPtrTypical)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, *p);
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(p);
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        EXPECT_TRUE(p);
+        EXPECT_TRUE(q);
+        EXPECT_EQ(100, *p);
+        EXPECT_EQ(100, *q);
+    }
+}
+
+VOID TEST(CoreLogger, SharedPtrReset)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        p.reset();
+        EXPECT_FALSE(p);
+        EXPECT_TRUE(q);
+        EXPECT_EQ(100, *q);
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        q.reset();
+        EXPECT_TRUE(p);
+        EXPECT_FALSE(q);
+        EXPECT_EQ(100, *p);
+    }
+}
+
+SrsSharedPtr<int> mock_create_from_ptr(SrsSharedPtr<int> p) {
+    return p;
+}
+
+VOID TEST(CoreLogger, SharedPtrContructor)
+{
+    int* p = new int(100);
+    SrsSharedPtr<int> q = mock_create_from_ptr(p);
+    EXPECT_EQ(100, *q);
+}
+
+VOID TEST(CoreLogger, SharedPtrObject)
+{
+    SrsSharedPtr<MyNormalObject> p(new MyNormalObject(100));
+    EXPECT_TRUE(p);
+    EXPECT_EQ(100, p->id());
+}
+
+VOID TEST(CoreLogger, SharedPtrNullptr)
+{
+    SrsSharedPtr<int> p(NULL);
+    EXPECT_FALSE(p);
+
+    p.reset();
+    EXPECT_FALSE(p);
+
+    SrsSharedPtr<int> q = p;
+    EXPECT_FALSE(q);
+}
+
+class MockWrapper
+{
+public:
+    int* ptr;
+public:
+    MockWrapper(int* p) {
+        ptr = p;
+        *ptr = *ptr + 1;
+    }
+    ~MockWrapper() {
+        *ptr = *ptr - 1;
+    }
+};
+
+VOID TEST(CoreLogger, SharedPtrWrapper)
+{
+    int* ptr = new int(100);
+    SrsAutoFree(int, ptr);
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsSharedPtr<MockWrapper> q = p;
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+        EXPECT_EQ(101, *q->ptr);
+
+        SrsSharedPtr<MockWrapper> r(new MockWrapper(ptr));
+        EXPECT_EQ(102, *ptr);
+        EXPECT_EQ(102, *p->ptr);
+        EXPECT_EQ(102, *q->ptr);
+        EXPECT_EQ(102, *r->ptr);
+
+        SrsSharedPtr<MockWrapper> s(new MockWrapper(ptr));
+        EXPECT_EQ(103, *ptr);
+        EXPECT_EQ(103, *p->ptr);
+        EXPECT_EQ(103, *q->ptr);
+        EXPECT_EQ(103, *r->ptr);
+        EXPECT_EQ(103, *s->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+}
+
+VOID TEST(CoreLogger, SharedPtrAssign)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(NULL);
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(new int(101));
+
+        int* q0 = q.get();
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+        EXPECT_NE(q0, q.get());
+    }
+
+    int* ptr0 = new int(100);
+    SrsAutoFree(int, ptr0);
+    EXPECT_EQ(100, *ptr0);
+
+    int* ptr1 = new int(200);
+    SrsAutoFree(int, ptr1);
+    EXPECT_EQ(200, *ptr1);
+
+    if (true) {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr0));
+        EXPECT_EQ(101, *ptr0);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsSharedPtr<MockWrapper> q(new MockWrapper(ptr1));
+        EXPECT_EQ(201, *ptr1);
+        EXPECT_EQ(201, *q->ptr);
+
+        q = p;
+        EXPECT_EQ(200, *ptr1);
+        EXPECT_EQ(101, *ptr0);
+        EXPECT_EQ(101, *p->ptr);
+        EXPECT_EQ(101, *q->ptr);
+    }
+
+    EXPECT_EQ(100, *ptr0);
+    EXPECT_EQ(200, *ptr1);
+}
+
+template<typename T>
+SrsSharedPtr<T> mock_shared_ptr_move_assign(SrsSharedPtr<T> p) {
+    SrsSharedPtr<T> q = p;
+    return q;
+}
+
+template<typename T>
+SrsSharedPtr<T> mock_shared_ptr_move_ctr(SrsSharedPtr<T> p) {
+    return p;
+}
+
+VOID TEST(CoreLogger, SharedPtrMove)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(new int(101));
+        q = mock_shared_ptr_move_ctr(p);
+        EXPECT_EQ(q.get(), p.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(new int(101));
+        q = mock_shared_ptr_move_assign(p);
+        EXPECT_EQ(q.get(), p.get());
+    }
+
+    int* ptr = new int(100);
+    SrsAutoFree(int, ptr);
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsSharedPtr<MockWrapper> q(new MockWrapper(ptr));
+        q = mock_shared_ptr_move_ctr(p);
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *q->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsSharedPtr<MockWrapper> q(new MockWrapper(ptr));
+        q = mock_shared_ptr_move_assign(p);
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *q->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+
+    // Note that this will not trigger the move constructor or move assignment operator.
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = mock_shared_ptr_move_assign(p);
+        EXPECT_EQ(q.get(), p.get());
+    }
+
+    // Note that this will not trigger the move constructor or move assignment operator.
+    if (true) {
+        SrsSharedPtr<int> p = SrsSharedPtr<int>(new int(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, *p);
+    }
+}
+
+class MockIntResource : public ISrsResource
+{
+public:
+    SrsContextId id_;
+    int value_;
+public:
+    MockIntResource(int value) : value_(value) {
+    }
+    virtual ~MockIntResource() {
+    }
+public:
+    virtual const SrsContextId& get_id() {
+        return id_;
+    }
+    virtual std::string desc() {
+        return id_.c_str();
+    }
+};
+
+VOID TEST(CoreLogger, SharedResourceTypical)
+{
+    if (true) {
+        SrsSharedResource<MockIntResource>* p = new SrsSharedResource<MockIntResource>(new MockIntResource(100));
+        EXPECT_TRUE(*p);
+        EXPECT_EQ(100, (*p)->value_);
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, p->value_);
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p = SrsSharedResource<MockIntResource>(new MockIntResource(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, p->value_);
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q(NULL);
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q(new MockIntResource(200));
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q = p;
+        EXPECT_TRUE(p);
+        EXPECT_TRUE(q);
+        EXPECT_EQ(100, p->value_);
+        EXPECT_EQ(100, q->value_);
+    }
+}
+
+template<typename T>
+SrsSharedResource<T> mock_shared_resource_move_assign(SrsSharedResource<T> p) {
+    SrsSharedResource<T> q = p;
+    return q;
+}
+
+template<typename T>
+SrsSharedResource<T> mock_shared_resource_move_ctr(SrsSharedResource<T> p) {
+    return p;
+}
+
+VOID TEST(CoreLogger, SharedResourceMove)
+{
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q(new MockIntResource(101));
+        q = mock_shared_resource_move_ctr(p);
+        EXPECT_EQ(100, q->value_);
+        EXPECT_EQ(q.get(), p.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q(new MockIntResource(101));
+        q = mock_shared_resource_move_assign(p);
+        EXPECT_EQ(100, q->value_);
+        EXPECT_EQ(q.get(), p.get());
     }
 }
 

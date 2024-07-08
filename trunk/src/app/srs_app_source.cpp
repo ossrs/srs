@@ -48,7 +48,7 @@ using namespace std;
 #define SRS_MIX_CORRECT_PURE_AV 10
 
 // the time to cleanup source.
-#define SRS_SOURCE_CLEANUP (30 * SRS_UTIME_SECONDS)
+#define SRS_SOURCE_CLEANUP (3 * SRS_UTIME_SECONDS)
 
 int srs_time_jitter_string2int(std::string time_jitter)
 {
@@ -199,15 +199,15 @@ void SrsFastVector::push_back(SrsSharedPtrMessage* msg)
     // increase vector.
     if (count >= nb_msgs) {
         int size = srs_max(SRS_PERF_MW_MSGS * 8, nb_msgs * 2);
-        SrsSharedPtrMessage** buf = new SrsSharedPtrMessage*[size];
+        SrsSharedPtrMessage** buf = msgs;
+        msgs = new SrsSharedPtrMessage*[size];
         for (int i = 0; i < nb_msgs; i++) {
-            buf[i] = msgs[i];
+            msgs[i] = buf[i];
         }
         srs_info("fast vector incrase %d=>%d", nb_msgs, size);
         
         // use new array.
-        srs_freepa(msgs);
-        msgs = buf;
+        srs_freepa(buf);
         nb_msgs = size;
     }
     
@@ -407,7 +407,7 @@ ISrsWakable::~ISrsWakable()
 
 SrsLiveConsumer::SrsLiveConsumer(SrsLiveSource* s)
 {
-    source = s;
+    source_ = s;
     paused = false;
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
@@ -423,7 +423,7 @@ SrsLiveConsumer::SrsLiveConsumer(SrsLiveSource* s)
 
 SrsLiveConsumer::~SrsLiveConsumer()
 {
-    source->on_consumer_destroy(this);
+    source_->on_consumer_destroy(this);
     srs_freep(jitter);
     srs_freep(queue);
     
@@ -506,7 +506,7 @@ srs_error_t SrsLiveConsumer::dump_packets(SrsMessageArray* msgs, int& count)
     count = 0;
     
     if (should_update_source_id) {
-        srs_trace("update source_id=%s/%s", source->source_id().c_str(), source->pre_source_id().c_str());
+        srs_trace("update source_id=%s/%s", source_->source_id().c_str(), source_->pre_source_id().c_str());
         should_update_source_id = false;
     }
     
@@ -822,7 +822,7 @@ SrsSharedPtrMessage* SrsMixQueue::pop()
 
 SrsOriginHub::SrsOriginHub()
 {
-    source = NULL;
+    source_ = NULL;
     req_ = NULL;
     is_active = false;
     
@@ -861,12 +861,13 @@ SrsOriginHub::~SrsOriginHub()
 #endif
 }
 
-srs_error_t SrsOriginHub::initialize(SrsLiveSource* s, SrsRequest* r)
+srs_error_t SrsOriginHub::initialize(SrsSharedPtr<SrsLiveSource> s, SrsRequest* r)
 {
     srs_error_t err = srs_success;
     
     req_ = r;
-    source = s;
+    // Because source references to this object, so we should directly use the source ptr.
+    source_ = s.get();
     
     if ((err = hls->initialize(this, req_)) != srs_success) {
         return srs_error_wrap(err, "hls initialize");
@@ -909,6 +910,13 @@ bool SrsOriginHub::active()
     return is_active;
 }
 
+srs_utime_t SrsOriginHub::cleanup_delay()
+{
+    srs_utime_t hls_delay = hls->cleanup_delay();
+    srs_utime_t dash_delay = dash->cleanup_delay();
+    return srs_max(hls_delay, dash_delay);
+}
+
 srs_error_t SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet)
 {
     srs_error_t err = srs_success;
@@ -936,7 +944,7 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_audio;
-    SrsRtmpFormat* format = source->format_;
+    SrsRtmpFormat* format = source_->format_;
     
     // Handle the metadata when got sequence header.
     if (format->is_aac_sequence_header() || format->is_mp3_sequence_header()) {
@@ -973,7 +981,7 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
             hls->on_unpublish();
             srs_error_reset(err);
         } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
-            if (srs_hls_can_continue(srs_error_code(err), source->meta->ash(), msg)) {
+            if (srs_hls_can_continue(srs_error_code(err), source_->meta->ash(), msg)) {
                 srs_error_reset(err);
             } else {
                 return srs_error_wrap(err, "hls: audio");
@@ -1022,7 +1030,7 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_video;
-    SrsRtmpFormat* format = source->format_;
+    SrsRtmpFormat* format = source_->format_;
  
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
@@ -1066,7 +1074,7 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
             hls->on_unpublish();
             srs_error_reset(err);
         } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
-            if (srs_hls_can_continue(srs_error_code(err), source->meta->vsh(), msg)) {
+            if (srs_hls_can_continue(srs_error_code(err), source_->meta->vsh(), msg)) {
                 srs_error_reset(err);
             } else {
                 return srs_error_wrap(err, "hls: video");
@@ -1177,9 +1185,9 @@ srs_error_t SrsOriginHub::on_forwarder_start(SrsForwarder* forwarder)
 {
     srs_error_t err = srs_success;
     
-    SrsSharedPtrMessage* cache_metadata = source->meta->data();
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    SrsSharedPtrMessage* cache_metadata = source_->meta->data();
+    SrsSharedPtrMessage* cache_sh_video = source_->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_audio = source_->meta->ash();
     
     // feed the forwarder the metadata/sequence header,
     // when reload to enable the forwarder.
@@ -1200,9 +1208,9 @@ srs_error_t SrsOriginHub::on_dvr_request_sh()
 {
     srs_error_t err = srs_success;
     
-    SrsSharedPtrMessage* cache_metadata = source->meta->data();
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    SrsSharedPtrMessage* cache_metadata = source_->meta->data();
+    SrsSharedPtrMessage* cache_sh_video = source_->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_audio = source_->meta->ash();
     
     // feed the dvr the metadata/sequence header,
     // when reload to start dvr, dvr will never get the sequence header in stream,
@@ -1212,13 +1220,13 @@ srs_error_t SrsOriginHub::on_dvr_request_sh()
     }
     
     if (cache_sh_video) {
-        if ((err = dvr->on_video(cache_sh_video, source->meta->vsh_format())) != srs_success) {
+        if ((err = dvr->on_video(cache_sh_video, source_->meta->vsh_format())) != srs_success) {
             return srs_error_wrap(err, "dvr video");
         }
     }
     
     if (cache_sh_audio) {
-        if ((err = dvr->on_audio(cache_sh_audio, source->meta->ash_format())) != srs_success) {
+        if ((err = dvr->on_audio(cache_sh_audio, source_->meta->ash_format())) != srs_success) {
             return srs_error_wrap(err, "dvr audio");
         }
     }
@@ -1230,16 +1238,16 @@ srs_error_t SrsOriginHub::on_hls_request_sh()
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_video = source_->meta->vsh();
     if (cache_sh_video) {
-        if ((err = hls->on_video(cache_sh_video, source->meta->vsh_format())) != srs_success) {
+        if ((err = hls->on_video(cache_sh_video, source_->meta->vsh_format())) != srs_success) {
             return srs_error_wrap(err, "hls video");
         }
     }
 
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    SrsSharedPtrMessage* cache_sh_audio = source_->meta->ash();
     if (cache_sh_audio) {
-        if ((err = hls->on_audio(cache_sh_audio, source->meta->ash_format())) != srs_success) {
+        if ((err = hls->on_audio(cache_sh_audio, source_->meta->ash_format())) != srs_success) {
             return srs_error_wrap(err, "hls audio");
         }
     }
@@ -1295,9 +1303,9 @@ srs_error_t SrsOriginHub::on_reload_vhost_dash(string vhost)
         return srs_error_wrap(err, "dash start publish");
     }
 
-    SrsRtmpFormat* format = source->format_;
+    SrsRtmpFormat* format = source_->format_;
     
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_video = source_->meta->vsh();
     if (cache_sh_video) {
         if ((err = format->on_video(cache_sh_video)) != srs_success) {
             return srs_error_wrap(err, "format on_video");
@@ -1307,7 +1315,7 @@ srs_error_t SrsOriginHub::on_reload_vhost_dash(string vhost)
         }
     }
     
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    SrsSharedPtrMessage* cache_sh_audio = source_->meta->ash();
     if (cache_sh_audio) {
         if ((err = format->on_audio(cache_sh_audio)) != srs_success) {
             return srs_error_wrap(err, "format on_audio");
@@ -1759,67 +1767,64 @@ srs_error_t SrsLiveSourceManager::initialize()
     return setup_ticks();
 }
 
-srs_error_t SrsLiveSourceManager::fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsLiveSource** pps)
+srs_error_t SrsLiveSourceManager::fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsSharedPtr<SrsLiveSource>& pps)
 {
     srs_error_t err = srs_success;
 
     // Use lock to protect coroutine switch.
     // @bug https://github.com/ossrs/srs/issues/1230
-    // TODO: FIXME: Use smaller lock.
+    // TODO: FIXME: Use smaller scope lock.
     SrsLocker(lock);
-    
-    SrsLiveSource* source = NULL;
-    if ((source = fetch(r)) != NULL) {
+
+    string stream_url = r->get_stream_url();
+    std::map< std::string, SrsSharedPtr<SrsLiveSource> >::iterator it = pool.find(stream_url);
+
+    if (it != pool.end()) {
+        SrsSharedPtr<SrsLiveSource>& source = it->second;
+
         // we always update the request of resource,
         // for origin auth is on, the token in request maybe invalid,
         // and we only need to update the token of request, it's simple.
         source->update_auth(r);
-        *pps = source;
+        pps = source;
         return err;
     }
-    
-    string stream_url = r->get_stream_url();
-    string vhost = r->vhost;
-    
-    // should always not exists for create a source.
-    srs_assert (pool.find(stream_url) == pool.end());
 
+    SrsSharedPtr<SrsLiveSource> source = new SrsLiveSource();
     srs_trace("new live source, stream_url=%s", stream_url.c_str());
 
-    source = new SrsLiveSource();
-    if ((err = source->initialize(r, h)) != srs_success) {
-        err = srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
-        goto failed;
+    if ((err = source->initialize(source, r, h)) != srs_success) {
+        return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
     
     pool[stream_url] = source;
-    *pps = source;
-    return err;
-
-failed:
-    srs_freep(source);
+    pps = source;
     return err;
 }
 
-SrsLiveSource* SrsLiveSourceManager::fetch(SrsRequest* r)
+SrsSharedPtr<SrsLiveSource> SrsLiveSourceManager::fetch(SrsRequest* r)
 {
-    SrsLiveSource* source = NULL;
+    // Use lock to protect coroutine switch.
+    // @bug https://github.com/ossrs/srs/issues/1230
+    // TODO: FIXME: Use smaller scope lock.
+    SrsLocker(lock);
     
     string stream_url = r->get_stream_url();
-    if (pool.find(stream_url) == pool.end()) {
-        return NULL;
+    std::map< std::string, SrsSharedPtr<SrsLiveSource> >::iterator it = pool.find(stream_url);
+
+    if (it == pool.end()) {
+        return SrsSharedPtr<SrsLiveSource>(NULL);
     }
-    
-    source = pool[stream_url];
-    
+
+    SrsSharedPtr<SrsLiveSource>& source = it->second;
     return source;
 }
 
 void SrsLiveSourceManager::dispose()
 {
-    std::map<std::string, SrsLiveSource*>::iterator it;
+    std::map< std::string, SrsSharedPtr<SrsLiveSource> >::iterator it;
     for (it = pool.begin(); it != pool.end(); ++it) {
-        SrsLiveSource* source = it->second;
+        SrsSharedPtr<SrsLiveSource>& source = it->second;
         source->dispose();
     }
     return;
@@ -1829,7 +1834,7 @@ srs_error_t SrsLiveSourceManager::setup_ticks()
 {
     srs_error_t err = srs_success;
 
-    if ((err = timer_->tick(1, 1 * SRS_UTIME_SECONDS)) != srs_success) {
+    if ((err = timer_->tick(1, 3 * SRS_UTIME_SECONDS)) != srs_success) {
         return srs_error_wrap(err, "tick");
     }
 
@@ -1844,37 +1849,27 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
 {
     srs_error_t err = srs_success;
 
-    std::map<std::string, SrsLiveSource*>::iterator it;
+    std::map< std::string, SrsSharedPtr<SrsLiveSource> >::iterator it;
     for (it = pool.begin(); it != pool.end();) {
-        SrsLiveSource* source = it->second;
+        SrsSharedPtr<SrsLiveSource>& source = it->second;
 
         // Do cycle source to cleanup components, such as hls dispose.
         if ((err = source->cycle()) != srs_success) {
-            return srs_error_wrap(err, "source=%s/%s cycle", source->source_id().c_str(), source->pre_source_id().c_str());
+            SrsContextId cid = source->source_id();
+            if (cid.empty()) cid = source->pre_source_id();
+            return srs_error_wrap(err, "source cycle, id=[%s]", cid.c_str());
         }
 
-        // TODO: FIXME: support source cleanup.
-        // @see https://github.com/ossrs/srs/issues/713
-#if 0
         // When source expired, remove it.
+        // @see https://github.com/ossrs/srs/issues/713
         if (source->stream_is_dead()) {
-            int cid = source->source_id();
-            if (cid == -1 && source->pre_source_id() > 0) {
-                cid = source->pre_source_id();
-            }
-            if (cid > 0) {
-                _srs_context->set_id(cid);
-            }
-            srs_trace("cleanup die source, total=%d", (int)pool.size());
-
-            srs_freep(source);
+            SrsContextId cid = source->source_id();
+            if (cid.empty()) cid = source->pre_source_id();
+            srs_trace("Live: cleanup die source, id=[%s], total=%d", cid.c_str(), (int)pool.size());
             pool.erase(it++);
         } else {
             ++it;
         }
-#else
-        ++it;
-#endif
     }
 
     return err;
@@ -1882,11 +1877,6 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
 
 void SrsLiveSourceManager::destroy()
 {
-    std::map<std::string, SrsLiveSource*>::iterator it;
-    for (it = pool.begin(); it != pool.end(); ++it) {
-        SrsLiveSource* source = it->second;
-        srs_freep(source);
-    }
     pool.clear();
 }
 
@@ -1937,6 +1927,10 @@ SrsLiveSource::~SrsLiveSource()
     
     srs_freep(req);
     srs_freep(bridge_);
+
+    SrsContextId cid = _source_id;
+    if (cid.empty()) cid = _pre_source_id;
+    srs_trace("free live source id=[%s]", cid.c_str());
 }
 
 void SrsLiveSource::dispose()
@@ -1958,11 +1952,6 @@ srs_error_t SrsLiveSource::cycle()
 
 bool SrsLiveSource::stream_is_dead()
 {
-    // unknown state?
-    if (stream_die_at_ == 0) {
-        return false;
-    }
-    
     // still publishing?
     if (!_can_publish || !publish_edge->can_publish()) {
         return false;
@@ -1972,13 +1961,19 @@ bool SrsLiveSource::stream_is_dead()
     if (!consumers.empty()) {
         return false;
     }
-    
+
+    // Delay cleanup source.
     srs_utime_t now = srs_get_system_time();
-    if (now > stream_die_at_ + SRS_SOURCE_CLEANUP) {
-        return true;
+    if (now < stream_die_at_ + SRS_SOURCE_CLEANUP) {
+        return false;
+    }
+
+    // Origin hub delay cleanup.
+    if (now < stream_die_at_ + hub->cleanup_delay()) {
+        return false;
     }
     
-    return false;
+    return true;
 }
 
 bool SrsLiveSource::publisher_is_idle_for(srs_utime_t timeout)
@@ -1994,7 +1989,7 @@ bool SrsLiveSource::publisher_is_idle_for(srs_utime_t timeout)
     return false;
 }
 
-srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
+srs_error_t SrsLiveSource::initialize(SrsSharedPtr<SrsLiveSource> wrapper, SrsRequest* r, ISrsLiveSourceHandler* h)
 {
     srs_error_t err = srs_success;
     
@@ -2012,14 +2007,14 @@ srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
     // Setup the SPS/PPS parsing strategy.
     format_->try_annexb_first = _srs_config->try_annexb_first(r->vhost);
     
-    if ((err = hub->initialize(this, req)) != srs_success) {
+    if ((err = hub->initialize(wrapper, req)) != srs_success) {
         return srs_error_wrap(err, "hub");
     }
     
-    if ((err = play_edge->initialize(this, req)) != srs_success) {
+    if ((err = play_edge->initialize(wrapper, req)) != srs_success) {
         return srs_error_wrap(err, "edge(play)");
     }
-    if ((err = publish_edge->initialize(this, req)) != srs_success) {
+    if ((err = publish_edge->initialize(wrapper, req)) != srs_success) {
         return srs_error_wrap(err, "edge(publish)");
     }
     
@@ -2538,7 +2533,7 @@ srs_error_t SrsLiveSource::on_aggregate(SrsCommonMessage* msg)
         o.header.timestamp_delta = timestamp;
         o.header.timestamp = timestamp;
         o.header.stream_id = stream_id;
-        o.header.perfer_cid = msg->header.perfer_cid;
+        o.header.prefer_cid = msg->header.prefer_cid;
         
         if (data_size > 0) {
             o.size = data_size;
@@ -2599,7 +2594,7 @@ srs_error_t SrsLiveSource::on_publish()
     
     // notify the handler.
     srs_assert(handler);
-    if ((err = handler->on_publish(this, req)) != srs_success) {
+    if ((err = handler->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "handle publish");
     }
 
@@ -2651,7 +2646,7 @@ void SrsLiveSource::on_unpublish()
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_close(req);
 
-    handler->on_unpublish(this, req);
+    handler->on_unpublish(req);
 
     if (bridge_) {
         bridge_->on_unpublish();
@@ -2739,6 +2734,11 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer* consumer)
 
     if (consumers.empty()) {
         play_edge->on_all_client_stop();
+
+        // If no publishers, the stream is die.
+        if (_can_publish) {
+            stream_die_at_ = srs_get_system_time();
+        }
 
         // For edge server, the stream die when the last player quit, because the edge stream is created by player
         // activities, so it should die when all players quit.

@@ -571,19 +571,19 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     
     // find a source to serve.
-    SrsLiveSource* source = NULL;
-    if ((err = _srs_sources->fetch_or_create(req, server, &source)) != srs_success) {
+    SrsSharedPtr<SrsLiveSource> live_source;
+    if ((err = _srs_sources->fetch_or_create(req, server, live_source)) != srs_success) {
         return srs_error_wrap(err, "rtmp: fetch source");
     }
-    srs_assert(source != NULL);
+    srs_assert(live_source.get() != NULL);
 
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
     int gcmf = _srs_config->get_gop_cache_max_frames(req->vhost);
     srs_trace("source url=%s, ip=%s, cache=%d/%d, is_edge=%d, source_id=%s/%s",
-        req->get_stream_url().c_str(), ip.c_str(), enabled_cache, gcmf, info->edge, source->source_id().c_str(),
-        source->pre_source_id().c_str());
-    source->set_cache(enabled_cache);
-    source->set_gop_cache_max_frames(gcmf);
+        req->get_stream_url().c_str(), ip.c_str(), enabled_cache, gcmf, info->edge, live_source->source_id().c_str(),
+              live_source->pre_source_id().c_str());
+    live_source->set_cache(enabled_cache);
+    live_source->set_gop_cache_max_frames(gcmf);
     
     switch (info->type) {
         case SrsRtmpConnPlay: {
@@ -610,7 +610,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             span_main_->end();
 #endif
             
-            err = playing(source);
+            err = playing(live_source);
             http_hooks_on_stop();
             
             return err;
@@ -627,7 +627,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             span_main_->end();
 #endif
             
-            return publishing(source);
+            return publishing(live_source);
         }
         case SrsRtmpConnHaivisionPublish: {
             if ((err = rtmp->start_haivision_publish(info->res->stream_id)) != srs_success) {
@@ -641,7 +641,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             span_main_->end();
 #endif
             
-            return publishing(source);
+            return publishing(live_source);
         }
         case SrsRtmpConnFlashPublish: {
             if ((err = rtmp->start_flash_publish(info->res->stream_id)) != srs_success) {
@@ -655,7 +655,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             span_main_->end();
 #endif
             
-            return publishing(source);
+            return publishing(live_source);
         }
         default: {
             return srs_error_new(ERROR_SYSTEM_CLIENT_INVALID, "rtmp: unknown client type=%d", info->type);
@@ -699,7 +699,7 @@ srs_error_t SrsRtmpConn::check_vhost(bool try_default_vhost)
     return err;
 }
 
-srs_error_t SrsRtmpConn::playing(SrsLiveSource* source)
+srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
 {
     srs_error_t err = srs_success;
     
@@ -786,7 +786,7 @@ srs_error_t SrsRtmpConn::playing(SrsLiveSource* source)
     return err;
 }
 
-srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* consumer, SrsQueueRecvThread* rtrd)
+srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer* consumer, SrsQueueRecvThread* rtrd)
 {
     srs_error_t err = srs_success;
     
@@ -923,7 +923,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
     return err;
 }
 
-srs_error_t SrsRtmpConn::publishing(SrsLiveSource* source)
+srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
 {
     srs_error_t err = srs_success;
     
@@ -969,7 +969,7 @@ srs_error_t SrsRtmpConn::publishing(SrsLiveSource* source)
     return err;
 }
 
-srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThread* rtrd)
+srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPublishRecvThread* rtrd)
 {
     srs_error_t err = srs_success;
     
@@ -1002,6 +1002,11 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
         ->attr("timeout", srs_fmt("%d", srsu2msi(publish_normal_timeout)))->end();
     SrsAutoFree(ISrsApmSpan, span);
 #endif
+
+    // Response the start publishing message, let client start to publish messages.
+    if ((err = rtmp->start_publishing(info->res->stream_id)) != srs_success) {
+        return srs_error_wrap(err, "start publishing");
+    }
     
     int64_t nb_msgs = 0;
     uint64_t nb_frames = 0;
@@ -1068,7 +1073,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     return err;
 }
 
-srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
+srs_error_t SrsRtmpConn::acquire_publish(SrsSharedPtr<SrsLiveSource> source)
 {
     srs_error_t err = srs_success;
     
@@ -1081,11 +1086,11 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 
     // Check whether RTC stream is busy.
 #ifdef SRS_RTC
-    SrsRtcSource* rtc = NULL;
+    SrsSharedPtr<SrsRtcSource> rtc;
     bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
     bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost);
     if (rtc_server_enabled && rtc_enabled && !info->edge) {
-        if ((err = _srs_rtc_sources->fetch_or_create(req, &rtc)) != srs_success) {
+        if ((err = _srs_rtc_sources->fetch_or_create(req, rtc)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
@@ -1097,11 +1102,11 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 
     // Check whether SRT stream is busy.
 #ifdef SRS_SRT
-    SrsSrtSource* srt = NULL;
     bool srt_server_enabled = _srs_config->get_srt_enabled();
     bool srt_enabled = _srs_config->get_srt_enabled(req->vhost);
     if (srt_server_enabled && srt_enabled && !info->edge) {
-        if ((err = _srs_srt_sources->fetch_or_create(req, &srt)) != srs_success) {
+        SrsSharedPtr<SrsSrtSource> srt;
+        if ((err = _srs_srt_sources->fetch_or_create(req, srt)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
@@ -1113,7 +1118,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 
     // Bridge to RTC streaming.
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
-    if (rtc && _srs_config->get_rtc_from_rtmp(req->vhost)) {
+    if (rtc.get() && _srs_config->get_rtc_from_rtmp(req->vhost)) {
         SrsCompositeBridge* bridge = new SrsCompositeBridge();
         bridge->append(new SrsFrameToRtcBridge(rtc));
 
@@ -1136,7 +1141,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     return err;
 }
 
-void SrsRtmpConn::release_publish(SrsLiveSource* source)
+void SrsRtmpConn::release_publish(SrsSharedPtr<SrsLiveSource> source)
 {
     // when edge, notice edge to change state.
     // when origin, notice all service to unpublish.
@@ -1147,7 +1152,7 @@ void SrsRtmpConn::release_publish(SrsLiveSource* source)
     }
 }
 
-srs_error_t SrsRtmpConn::handle_publish_message(SrsLiveSource* source, SrsCommonMessage* msg)
+srs_error_t SrsRtmpConn::handle_publish_message(SrsSharedPtr<SrsLiveSource>& source, SrsCommonMessage* msg)
 {
     srs_error_t err = srs_success;
     
@@ -1188,7 +1193,7 @@ srs_error_t SrsRtmpConn::handle_publish_message(SrsLiveSource* source, SrsCommon
     return err;
 }
 
-srs_error_t SrsRtmpConn::process_publish_message(SrsLiveSource* source, SrsCommonMessage* msg)
+srs_error_t SrsRtmpConn::process_publish_message(SrsSharedPtr<SrsLiveSource>& source, SrsCommonMessage* msg)
 {
     srs_error_t err = srs_success;
     

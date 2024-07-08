@@ -15,8 +15,10 @@
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_io.hpp>
+#include <srs_protocol_conn.hpp>
 
 class SrsFastCoroutine;
+class SrsExecutorCoroutine;
 
 // Each ST-coroutine must implements this interface,
 // to do the cycle job and handle some events.
@@ -64,21 +66,46 @@ public:
     virtual srs_error_t start() = 0;
 };
 
-// The corotine object.
-class SrsCoroutine : public ISrsStartable
+// Allow user to interrupt the coroutine, for example, to stop it.
+class ISrsInterruptable
+{
+public:
+    ISrsInterruptable();
+    virtual ~ISrsInterruptable();
+public:
+    virtual void interrupt() = 0;
+    virtual srs_error_t pull() = 0;
+};
+
+// Get the context id.
+class ISrsContextIdSetter
+{
+public:
+    ISrsContextIdSetter();
+    virtual ~ISrsContextIdSetter();
+public:
+    virtual void set_cid(const SrsContextId& cid) = 0;
+};
+
+// Set the context id.
+class ISrsContextIdGetter
+{
+public:
+    ISrsContextIdGetter();
+    virtual ~ISrsContextIdGetter();
+public:
+    virtual const SrsContextId& cid() = 0;
+};
+
+// The coroutine object.
+class SrsCoroutine : public ISrsStartable, public ISrsInterruptable
+    , public ISrsContextIdSetter, public ISrsContextIdGetter
 {
 public:
     SrsCoroutine();
     virtual ~SrsCoroutine();
 public:
     virtual void stop() = 0;
-    virtual void interrupt() = 0;
-    // @return a copy of error, which should be freed by user.
-    //      NULL if not terminated and user should pull again.
-    virtual srs_error_t pull() = 0;
-    // Get and set the context id of coroutine.
-    virtual const SrsContextId& cid() = 0;
-    virtual void set_cid(const SrsContextId& cid) = 0;
 };
 
 // An empty coroutine, user can default to this object before create any real coroutine.
@@ -192,7 +219,7 @@ private:
     static void* pfn(void* arg);
 };
 
-// Like goroytine sync.WaitGroup.
+// Like goroutine sync.WaitGroup.
 class SrsWaitGroup
 {
 private:
@@ -206,8 +233,71 @@ public:
     void add(int n);
     // When coroutine is done.
     void done();
-    // Wait for all corotine to be done.
+    // Wait for all coroutine to be done.
     void wait();
+};
+
+// The callback when executor cycle done.
+class ISrsExecutorHandler
+{
+public:
+    ISrsExecutorHandler();
+    virtual ~ISrsExecutorHandler();
+public:
+    virtual void on_executor_done(ISrsInterruptable* executor) = 0;
+};
+
+// Start a coroutine for resource executor, to execute the handler and delete resource and itself when
+// handler cycle done.
+//
+// Note that the executor will free itself by manager, then free the resource by manager. This is a helper
+// that is used for a goroutine to execute a handler and free itself after the cycle is done.
+//
+// Generally, the handler, resource, and callback generally are the same object. But we do not define a single
+// interface, because shared resource is a special interface.
+//
+// Note that the resource may live longer than executor, because it is shared resource, so you should process
+// the callback. For example, you should never use the executor after it's stopped and deleted.
+//
+// Usage:
+//      ISrsResourceManager* manager = ...;
+//      ISrsResource* resource, ISrsCoroutineHandler* handler, ISrsExecutorHandler* callback = ...; // Resource, handler, and callback are the same object.
+//      SrsExecutorCoroutine* executor = new SrsExecutorCoroutine(manager, resource, handler);
+//      if ((err = executor->start()) != srs_success) {
+//          srs_freep(executor);
+//          return err;
+//      }
+class SrsExecutorCoroutine : public ISrsResource, public ISrsStartable, public ISrsInterruptable
+    , public ISrsContextIdSetter, public ISrsContextIdGetter, public ISrsCoroutineHandler
+{
+private:
+    ISrsResourceManager* manager_;
+    ISrsResource* resource_;
+    ISrsCoroutineHandler* handler_;
+    ISrsExecutorHandler* callback_;
+private:
+    SrsCoroutine* trd_;
+public:
+    SrsExecutorCoroutine(ISrsResourceManager* m, ISrsResource* r, ISrsCoroutineHandler* h, ISrsExecutorHandler* cb);
+    virtual ~SrsExecutorCoroutine();
+// Interface ISrsStartable
+public:
+    virtual srs_error_t start();
+// Interface ISrsInterruptable
+public:
+    virtual void interrupt();
+    virtual srs_error_t pull();
+// Interface ISrsContextId
+public:
+    virtual const SrsContextId& cid();
+    virtual void set_cid(const SrsContextId& cid);
+// Interface ISrsOneCycleThreadHandler
+public:
+    virtual srs_error_t cycle();
+// Interface ISrsResource
+public:
+    virtual const SrsContextId& get_id();
+    virtual std::string desc();
 };
 
 #endif

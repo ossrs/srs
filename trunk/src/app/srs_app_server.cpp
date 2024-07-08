@@ -39,9 +39,14 @@ using namespace std;
 #include <srs_app_conn.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_network.hpp>
+#include <srs_app_rtc_server.hpp>
+#include <srs_app_rtc_source.hpp>
 #endif
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
+#endif
+#ifdef SRS_SRT
+#include <srs_app_srt_source.hpp>
 #endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
@@ -365,8 +370,6 @@ SrsServer::~SrsServer()
 
 void SrsServer::destroy()
 {
-    srs_warn("start destroy server");
-
     srs_freep(trd_);
     srs_freep(timer_);
 
@@ -805,8 +808,20 @@ srs_error_t SrsServer::start(SrsWaitGroup* wg)
     srs_error_t err = srs_success;
 
     if ((err = _srs_sources->initialize()) != srs_success) {
-        return srs_error_wrap(err, "sources");
+        return srs_error_wrap(err, "live sources");
     }
+
+#ifdef SRS_SRT
+    if ((err = _srs_srt_sources->initialize()) != srs_success) {
+        return srs_error_wrap(err, "srt sources");
+    }
+#endif
+
+#ifdef SRS_RTC
+    if ((err = _srs_rtc_sources->initialize()) != srs_success) {
+        return srs_error_wrap(err, "rtc sources");
+    }
+#endif
 
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start");
@@ -852,11 +867,8 @@ void SrsServer::stop()
         srs_trace("srs gracefully quit");
     }
 
+    // This is the last line log of SRS.
     srs_trace("srs terminated");
-
-    // for valgrind to detect.
-    srs_freep(_srs_config);
-    srs_freep(_srs_log);
 }
 
 srs_error_t SrsServer::cycle()
@@ -1193,8 +1205,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         if (nn == 10 && b[0] == 0 && b[2] == 0 && b[3] == 1 && b[1] - b[5] == 20
             && b[6] == 0x21 && b[7] == 0x12 && b[8] == 0xa4 && b[9] == 0x42
         ) {
-            // TODO: FIXME: Should manage this connection by _srs_rtc_manager
-            resource = new SrsRtcTcpConn(io, ip, port, this);
+            resource = new SrsRtcTcpConn(io, ip, port);
         } else {
             resource = new SrsHttpxConn(listener == http_listener_, this, io, http_server, ip, port);
         }
@@ -1213,8 +1224,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
             resource = new SrsHttpxConn(is_https, this, new SrsTcpConnection(stfd2), http_server, ip, port);
 #ifdef SRS_RTC
         } else if (listener == webrtc_listener_) {
-            // TODO: FIXME: Should manage this connection by _srs_rtc_manager
-            resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port, this);
+            resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
 #endif
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.
@@ -1227,11 +1237,28 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         }
     }
 
+#ifdef SRS_RTC
+    // For RTC TCP connection, use resource executor to manage the resource.
+    SrsRtcTcpConn* raw_conn = dynamic_cast<SrsRtcTcpConn*>(resource);
+    if (raw_conn) {
+        SrsSharedResource<SrsRtcTcpConn>* conn = new SrsSharedResource<SrsRtcTcpConn>(raw_conn);
+        SrsExecutorCoroutine* executor = new SrsExecutorCoroutine(_srs_rtc_manager, conn, raw_conn, raw_conn);
+        raw_conn->setup_owner(conn, executor, executor);
+        if ((err = executor->start()) != srs_success) {
+            srs_freep(executor);
+            return srs_error_wrap(err, "start executor");
+        }
+        return err;
+    }
+#endif
+
     // Use connection manager to manage all the resources.
+    srs_assert(resource);
     conn_manager->add(resource);
 
     // If connection is a resource to start, start a coroutine to handle it.
     ISrsStartable* conn = dynamic_cast<ISrsStartable*>(resource);
+    srs_assert(conn);
     if ((err = conn->start()) != srs_success) {
         return srs_error_wrap(err, "start conn coroutine");
     }
@@ -1286,28 +1313,28 @@ srs_error_t SrsServer::on_reload_listen()
     return err;
 }
 
-srs_error_t SrsServer::on_publish(SrsLiveSource* s, SrsRequest* r)
+srs_error_t SrsServer::on_publish(SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
-    if ((err = http_server->http_mount(s, r)) != srs_success) {
+    if ((err = http_server->http_mount(r)) != srs_success) {
         return srs_error_wrap(err, "http mount");
     }
     
     SrsCoWorkers* coworkers = SrsCoWorkers::instance();
-    if ((err = coworkers->on_publish(s, r)) != srs_success) {
+    if ((err = coworkers->on_publish(r)) != srs_success) {
         return srs_error_wrap(err, "coworkers");
     }
     
     return err;
 }
 
-void SrsServer::on_unpublish(SrsLiveSource* s, SrsRequest* r)
+void SrsServer::on_unpublish(SrsRequest* r)
 {
-    http_server->http_unmount(s, r);
+    http_server->http_unmount(r);
     
     SrsCoWorkers* coworkers = SrsCoWorkers::instance();
-    coworkers->on_unpublish(s, r);
+    coworkers->on_unpublish(r);
 }
 
 SrsServerAdapter::SrsServerAdapter()
@@ -1369,16 +1396,12 @@ srs_error_t SrsServerAdapter::run(SrsWaitGroup* wg)
     }
 #endif
 
-    SrsLazySweepGc* gc = dynamic_cast<SrsLazySweepGc*>(_srs_gc);
-    if ((err = gc->start()) != srs_success) {
-        return srs_error_wrap(err, "start gc");
-    }
-
     return err;
 }
 
 void SrsServerAdapter::stop()
 {
+    srs->stop();
 }
 
 SrsServer* SrsServerAdapter::instance()

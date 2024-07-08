@@ -16,6 +16,7 @@
 #include <srs_protocol_stream.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_core_autofree.hpp>
 
 class SrsRtmpServer;
 class SrsCommonMessage;
@@ -146,7 +147,7 @@ private:
     srs_error_t recv_error;
     SrsRtmpConn* _conn;
     // The params for conn callback.
-    SrsLiveSource* _source;
+    SrsSharedPtr<SrsLiveSource> source_;
     // The error timeout cond
     srs_cond_t error;
     // The merged context id.
@@ -154,7 +155,7 @@ private:
     SrsContextId ncid;
 public:
     SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
-        int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsLiveSource* source, SrsContextId parent_cid);
+        int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSharedPtr<SrsLiveSource> source, SrsContextId parent_cid);
     virtual ~SrsPublishRecvThread();
 public:
     // Wait for error for some timeout.

@@ -107,6 +107,7 @@
     XX(ERROR_BACKTRACE_ADDR2LINE           , 1094, "BacktraceAddr2Line", "Backtrace addr2line failed") \
     XX(ERROR_SYSTEM_FILE_NOT_OPEN          , 1095, "FileNotOpen", "File is not opened") \
     XX(ERROR_SYSTEM_FILE_SETVBUF           , 1096, "FileSetVBuf", "Failed to set file vbuf") \
+    XX(ERROR_NO_SOURCE                     , 1097, "NoSource", "No source found")
 
 /**************************************************/
 /* RTMP protocol error. */
@@ -276,7 +277,8 @@
     XX(ERROR_HEVC_DISABLED                 , 3098, "HevcDisabled", "HEVC is disabled") \
     XX(ERROR_HEVC_DECODE_ERROR             , 3099, "HevcDecode", "HEVC decode av stream failed")  \
     XX(ERROR_MP4_HVCC_CHANGE               , 3100, "Mp4HvcCChange", "MP4 does not support video HvcC change") \
-    XX(ERROR_HEVC_API_NO_PREFIXED          , 3101, "HevcAnnexbPrefix", "No annexb prefix for HEVC decoder")
+    XX(ERROR_HEVC_API_NO_PREFIXED          , 3101, "HevcAnnexbPrefix", "No annexb prefix for HEVC decoder") \
+    XX(ERROR_AVC_NALU_EMPTY                , 3102, "AvcNaluEmpty", "AVC NALU is empty")
 
 /**************************************************/
 /* HTTP/StreamConverter protocol error. */
@@ -327,13 +329,13 @@
     XX(ERROR_GB_SSRC_GENERATE              , 4051, "GbSsrcGenerate", "Failed to generate SSRC for GB28181") \
     XX(ERROR_GB_CONFIG                     , 4052, "GbConfig", "Invalid configuration for GB28181") \
     XX(ERROR_GB_TIMEOUT                    , 4053, "GbTimeout", "SIP or media connection timeout for GB28181") \
-    XX(ERROR_HEVC_NALU_UEV                 , 4054, "HevcNaluUev", "Failed to read UEV for HEVC NALU") \
-    XX(ERROR_HEVC_NALU_SEV                 , 4055, "HevcNaluSev", "Failed to read SEV for HEVC NALU") \
     XX(ERROR_STREAM_CASTER_HEVC_VPS        , 4054, "CasterTsHevcVps", "Invalid ts HEVC VPS for stream caster") \
     XX(ERROR_STREAM_CASTER_HEVC_SPS        , 4055, "CasterTsHevcSps", "Invalid ts HEVC SPS for stream caster") \
     XX(ERROR_STREAM_CASTER_HEVC_PPS        , 4056, "CasterTsHevcPps", "Invalid ts HEVC PPS for stream caster") \
     XX(ERROR_STREAM_CASTER_HEVC_FORMAT     , 4057, "CasterTsHevcFormat", "Invalid ts HEVC Format for stream caster") \
-    XX(ERROR_HTTP_JSONP                    , 4058, "HttpJsonp", "Invalid callback for JSONP")
+    XX(ERROR_HTTP_JSONP                    , 4058, "HttpJsonp", "Invalid callback for JSONP")   \
+    XX(ERROR_HEVC_NALU_UEV                 , 4059, "HevcNaluUev", "Failed to read UEV for HEVC NALU") \
+    XX(ERROR_HEVC_NALU_SEV                 , 4060, "HevcNaluSev", "Failed to read SEV for HEVC NALU")
 
 
 /**************************************************/
@@ -466,7 +468,7 @@ public:
 };
 
 // Error helpers, should use these functions to new or wrap an error.
-#define srs_success 0 // SrsCplxError::success()
+#define srs_success NULL // SrsCplxError::success()
 #define srs_error_new(ret, fmt, ...) SrsCplxError::create(__FUNCTION__, __FILE__, __LINE__, ret, fmt, ##__VA_ARGS__)
 #define srs_error_wrap(err, fmt, ...) SrsCplxError::wrap(__FUNCTION__, __FILE__, __LINE__, err, fmt, ##__VA_ARGS__)
 #define srs_error_copy(err) SrsCplxError::copy(err)

@@ -415,13 +415,12 @@ std::string SrsRtcAsyncCallOnStop::to_string()
     return std::string("");
 }
 
-SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
+SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid) : source_(new SrsRtcSource())
 {
     cid_ = cid;
     trd_ = NULL;
 
     req_ = NULL;
-    source_ = NULL;
 
     is_started = false;
     session_ = s;
@@ -485,7 +484,7 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
         return srs_error_wrap(err, "rtc: stat client");
     }
 
-    if ((err = _srs_rtc_sources->fetch_or_create(req_, &source_)) != srs_success) {
+    if ((err = _srs_rtc_sources->fetch_or_create(req_, source_)) != srs_success) {
         return srs_error_wrap(err, "rtc fetch source failed");
     }
 
@@ -642,7 +641,8 @@ srs_error_t SrsRtcPlayStream::cycle()
 {
     srs_error_t err = srs_success;
 
-    SrsRtcSource* source = source_;
+    SrsSharedPtr<SrsRtcSource>& source = source_;
+    srs_assert(source.get());
 
     SrsRtcConsumer* consumer = NULL;
     SrsAutoFree(SrsRtcConsumer, consumer);
@@ -933,9 +933,6 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
 {
     srs_error_t err = srs_success;
 
-    // The source MUST exists, when PLI thread is running.
-    srs_assert(source_);
-
     ISrsRtcPublishStream* publisher = source_->publish_stream();
     if (!publisher) {
         return err;
@@ -1076,7 +1073,7 @@ std::string SrsRtcAsyncCallOnUnpublish::to_string()
     return std::string("");
 }
 
-SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid)
+SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid) : source_(new SrsRtcSource())
 {
     cid_ = cid;
     is_started = false;
@@ -1086,7 +1083,6 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
     twcc_epp_ = new SrsErrorPithyPrint(3.0);
 
     req_ = NULL;
-    source = NULL;
     nn_simulate_nack_drop = 0;
     nack_enabled_ = false;
     nack_no_copy_ = false;
@@ -1113,11 +1109,8 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     srs_freep(timer_rtcp_);
     srs_freep(timer_twcc_);
 
-    // TODO: FIXME: Should remove and delete source.
-    if (source) {
-        source->set_publish_stream(NULL);
-        source->on_unpublish();
-    }
+    source_->set_publish_stream(NULL);
+    source_->on_unpublish();
 
     for (int i = 0; i < (int)video_tracks_.size(); ++i) {
         SrsRtcVideoRecvTrack* track = video_tracks_.at(i);
@@ -1203,24 +1196,24 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
     }
 
     // Setup the publish stream in source to enable PLI as such.
-    if ((err = _srs_rtc_sources->fetch_or_create(req_, &source)) != srs_success) {
+    if ((err = _srs_rtc_sources->fetch_or_create(req_, source_)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
-    source->set_publish_stream(this);
+    source_->set_publish_stream(this);
 
     // TODO: FIMXE: Check it in SrsRtcConnection::add_publisher?
-    SrsLiveSource *rtmp = _srs_sources->fetch(r);
-    if (rtmp && !rtmp->can_publish(false)) {
+    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(r);
+    if (live_source.get() && !live_source->can_publish(false)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp stream %s busy", r->get_stream_url().c_str());
     }
 
     // Check whether SRT stream is busy.
 #ifdef SRS_SRT
-    SrsSrtSource* srt = NULL;
     bool srt_server_enabled = _srs_config->get_srt_enabled();
     bool srt_enabled = _srs_config->get_srt_enabled(r->vhost);
     if (srt_server_enabled && srt_enabled) {
-        if ((err = _srs_srt_sources->fetch_or_create(r, &srt)) != srs_success) {
+        SrsSharedPtr<SrsSrtSource> srt;
+        if ((err = _srs_srt_sources->fetch_or_create(r, srt)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
@@ -1234,23 +1227,23 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
     bool rtc_to_rtmp = _srs_config->get_rtc_to_rtmp(req_->vhost);
     if (rtc_to_rtmp) {
-        if ((err = _srs_sources->fetch_or_create(r, _srs_hybrid->srs()->instance(), &rtmp)) != srs_success) {
+        if ((err = _srs_sources->fetch_or_create(r, _srs_hybrid->srs()->instance(), live_source)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
         // Disable GOP cache for RTC2RTMP bridge, to keep the streams in sync,
         // especially for stream merging.
-        rtmp->set_cache(false);
+        live_source->set_cache(false);
 
         SrsCompositeBridge* bridge = new SrsCompositeBridge();
-        bridge->append(new SrsFrameToRtmpBridge(rtmp));
+        bridge->append(new SrsFrameToRtmpBridge(live_source));
 
         if ((err = bridge->initialize(r)) != srs_success) {
             srs_freep(bridge);
             return srs_error_wrap(err, "create bridge");
         }
 
-        source->set_bridge(bridge);
+        source_->set_bridge(bridge);
     }
 #endif
 
@@ -1265,7 +1258,7 @@ srs_error_t SrsRtcPublishStream::start()
         return err;
     }
 
-    if ((err = source->on_publish()) != srs_success) {
+    if ((err = source_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "on publish");
     }
 
@@ -1447,12 +1440,12 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket*& pkt, SrsBuff
     SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
     if (audio_track) {
         pkt->frame_type = SrsFrameTypeAudio;
-        if ((err = audio_track->on_rtp(source, pkt)) != srs_success) {
+        if ((err = audio_track->on_rtp(source_, pkt)) != srs_success) {
             return srs_error_wrap(err, "on audio");
         }
     } else if (video_track) {
         pkt->frame_type = SrsFrameTypeVideo;
-        if ((err = video_track->on_rtp(source, pkt)) != srs_success) {
+        if ((err = video_track->on_rtp(source_, pkt)) != srs_success) {
             return srs_error_wrap(err, "on video");
         }
     } else {
@@ -1924,6 +1917,7 @@ std::string SrsRtcConnection::desc()
 
 void SrsRtcConnection::expire()
 {
+    // TODO: FIXME: Should set session to expired and remove it by heartbeat checking. Should not remove it directly.
     _srs_rtc_manager->remove(this);
 }
 
@@ -1955,8 +1949,8 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRtcUserConfig* ruc, SrsSdp& local
         return srs_error_wrap(err, "generate local sdp");
     }
 
-    SrsRtcSource* source = NULL;
-    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
+    SrsSharedPtr<SrsRtcSource> source;
+    if ((err = _srs_rtc_sources->fetch_or_create(req, source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
@@ -3055,8 +3049,8 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
     // TODO: FIME: Should check packetization-mode=1 also.
     bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
-    SrsRtcSource* source = NULL;
-    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
+    SrsSharedPtr<SrsRtcSource> source;
+    if ((err = _srs_rtc_sources->fetch_or_create(req, source)) != srs_success) {
         return srs_error_wrap(err, "fetch rtc source");
     }
 
