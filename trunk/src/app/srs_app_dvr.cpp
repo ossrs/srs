@@ -119,19 +119,19 @@ srs_error_t SrsDvrSegmenter::write_metadata(SrsSharedPtrMessage* metadata)
 srs_error_t SrsDvrSegmenter::write_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     srs_error_t err = srs_success;
-    
-    SrsSharedPtrMessage* audio = shared_audio->copy();
-    SrsAutoFree(SrsSharedPtrMessage, audio);
-    
-    if ((err = jitter->correct(audio, jitter_algorithm)) != srs_success) {
+
+    // TODO: FIXME: Use SrsSharedPtr instead.
+    SrsUniquePtr<SrsSharedPtrMessage> audio(shared_audio->copy());
+
+    if ((err = jitter->correct(audio.get(), jitter_algorithm)) != srs_success) {
         return srs_error_wrap(err, "jitter");
     }
     
-    if ((err = on_update_duration(audio)) != srs_success) {
+    if ((err = on_update_duration(audio.get())) != srs_success) {
         return srs_error_wrap(err, "update duration");
     }
     
-    if ((err = encode_audio(audio, format)) != srs_success) {
+    if ((err = encode_audio(audio.get(), format)) != srs_success) {
         return srs_error_wrap(err, "encode audio");
     }
     
@@ -141,19 +141,19 @@ srs_error_t SrsDvrSegmenter::write_audio(SrsSharedPtrMessage* shared_audio, SrsF
 srs_error_t SrsDvrSegmenter::write_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     srs_error_t err = srs_success;
-    
-    SrsSharedPtrMessage* video = shared_video->copy();
-    SrsAutoFree(SrsSharedPtrMessage, video);
-    
-    if ((err = jitter->correct(video, jitter_algorithm)) != srs_success) {
+
+    // TODO: FIXME: Use SrsSharedPtr instead.
+    SrsUniquePtr<SrsSharedPtrMessage> video(shared_video->copy());
+
+    if ((err = jitter->correct(video.get(), jitter_algorithm)) != srs_success) {
         return srs_error_wrap(err, "jitter");
     }
     
-    if ((err = encode_video(video, format)) != srs_success) {
+    if ((err = encode_video(video.get(), format)) != srs_success) {
         return srs_error_wrap(err, "encode video");
     }
     
-    if ((err = on_update_duration(video)) != srs_success) {
+    if ((err = on_update_duration(video.get())) != srs_success) {
         return srs_error_wrap(err, "update duration");
     }
     
@@ -262,9 +262,8 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     SrsBuffer stream(buf, SrsAmf0Size::number());
     
     // filesize to buf.
-    SrsAmf0Any* size = SrsAmf0Any::number((double)cur);
-    SrsAutoFree(SrsAmf0Any, size);
-    
+    SrsUniquePtr<SrsAmf0Any> size(SrsAmf0Any::number((double)cur));
+
     stream.skip(-1 * stream.pos());
     if ((err = size->write(&stream)) != srs_success) {
         return srs_error_wrap(err, "write filesize");
@@ -277,9 +276,8 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     }
     
     // duration to buf
-    SrsAmf0Any* dur = SrsAmf0Any::number((double)srsu2ms(fragment->duration()) / 1000.0);
-    SrsAutoFree(SrsAmf0Any, dur);
-    
+    SrsUniquePtr<SrsAmf0Any> dur(SrsAmf0Any::number((double)srsu2ms(fragment->duration()) / 1000.0));
+
     stream.skip(-1 * stream.pos());
     if ((err = dur->write(&stream)) != srs_success) {
         return srs_error_wrap(err, "write duration");
@@ -332,15 +330,13 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsSharedPtrMessage* metadata)
     }
 
     SrsBuffer stream(metadata->payload, metadata->size);
-    
-    SrsAmf0Any* name = SrsAmf0Any::str();
-    SrsAutoFree(SrsAmf0Any, name);
+
+    SrsUniquePtr<SrsAmf0Any> name(SrsAmf0Any::str());
     if ((err = name->read(&stream)) != srs_success) {
         return srs_error_wrap(err, "read name");
     }
-    
-    SrsAmf0Object* obj = SrsAmf0Any::object();
-    SrsAutoFree(SrsAmf0Object, obj);
+
+    SrsUniquePtr<SrsAmf0Object> obj(SrsAmf0Any::object());
     if ((err = obj->read(&stream)) != srs_success) {
         return srs_error_wrap(err, "read object");
     }

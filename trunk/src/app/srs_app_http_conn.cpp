@@ -155,14 +155,13 @@ srs_error_t SrsHttpConn::do_cycle()
         return srs_error_wrap(err, "start");
     }
 
-    SrsRequest* last_req = NULL;
-    SrsAutoFree(SrsRequest, last_req);
-
     // process all http messages.
-    err = process_requests(&last_req);
+    SrsRequest* last_req_raw = NULL;
+    err = process_requests(&last_req_raw);
+    SrsUniquePtr<SrsRequest> last_req(last_req_raw);
     
     srs_error_t r0 = srs_success;
-    if ((r0 = on_disconnect(last_req)) != srs_success) {
+    if ((r0 = on_disconnect(last_req.get())) != srs_success) {
         err = srs_error_wrap(err, "on disconnect %s", srs_error_desc(r0).c_str());
         srs_freep(r0);
     }
@@ -180,18 +179,18 @@ srs_error_t SrsHttpConn::process_requests(SrsRequest** preq)
         }
 
         // get a http message
-        ISrsHttpMessage* req = NULL;
-        if ((err = parser->parse_message(skt, &req)) != srs_success) {
+        ISrsHttpMessage* req_raw = NULL;
+        if ((err = parser->parse_message(skt, &req_raw)) != srs_success) {
             return srs_error_wrap(err, "parse message");
         }
 
         // if SUCCESS, always NOT-NULL.
         // always free it in this scope.
-        srs_assert(req);
-        SrsAutoFree(ISrsHttpMessage, req);
+        srs_assert(req_raw);
+        SrsUniquePtr<ISrsHttpMessage> req(req_raw);
 
         // Attach owner connection to message.
-        SrsHttpMessage* hreq = (SrsHttpMessage*)req;
+        SrsHttpMessage* hreq = (SrsHttpMessage*)req.get();
         hreq->set_connection(this);
 
         // copy request to last request object.
@@ -200,17 +199,17 @@ srs_error_t SrsHttpConn::process_requests(SrsRequest** preq)
 
         // may should discard the body.
         SrsHttpResponseWriter writer(skt);
-        if ((err = handler_->on_http_message(req, &writer)) != srs_success) {
+        if ((err = handler_->on_http_message(req.get(), &writer)) != srs_success) {
             return srs_error_wrap(err, "on http message");
         }
 
         // ok, handle http request.
-        if ((err = process_request(&writer, req, req_id)) != srs_success) {
+        if ((err = process_request(&writer, req.get(), req_id)) != srs_success) {
             return srs_error_wrap(err, "process request=%d", req_id);
         }
 
         // After the request is processed.
-        if ((err = handler_->on_message_done(req, &writer)) != srs_success) {
+        if ((err = handler_->on_message_done(req.get(), &writer)) != srs_success) {
             return srs_error_wrap(err, "on message done");
         }
 

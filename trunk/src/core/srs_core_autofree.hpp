@@ -11,6 +11,12 @@
 
 #include <stdlib.h>
 
+// Note: Please use SrsUniquePtr if possible. Please aware that there is a slight difference between SrsAutoFree
+// and SrsUniquePtr. SrsAutoFree will track the address of pointer, while SrsUniquePtr will not.
+//      MyClass* p;
+//      SrsAutoFree(MyClass, p); // p will be freed even p is changed later.
+//      SrsUniquePtr ptr(p); // crash because p is an invalid pointer.
+//
 // The auto free helper, which is actually the unique ptr, without the move feature,
 // see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
 //
@@ -82,6 +88,59 @@ public:
         
         *ptr = NULL;
     }
+};
+
+// Unique ptr smart pointer, only support unique ptr, with limited APIs and features,
+// see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
+//
+// Usage:
+//      SrsUniquePtr<MyClass> ptr(new MyClass());
+//      ptr->do_something();
+//
+// Note that the ptr should be initialized before use it, or it will crash if not set, for example:
+//      Myclass* p;
+//      SrsUniquePtr<MyClass> ptr(p); // crash because p is an invalid pointer.
+//
+// Note that do not support array or object created by malloc, because we only use delete to dispose
+// the resource.
+template<class T>
+class SrsUniquePtr
+{
+private:
+    T* ptr_;
+public:
+    SrsUniquePtr(T* ptr = NULL) {
+        ptr_ = ptr;
+    }
+    virtual ~SrsUniquePtr() {
+        delete ptr_;
+    }
+public:
+    // Get the object.
+    T* get() {
+        return ptr_;
+    }
+    // Overload the -> operator.
+    T* operator->() {
+        return ptr_;
+    }
+private:
+    // Copy the unique ptr.
+    SrsUniquePtr(const SrsUniquePtr<T>&) = delete;
+    // The assign operator.
+    SrsUniquePtr<T>& operator=(const SrsUniquePtr<T>&) = delete;
+private:
+    // Overload the * operator.
+    T& operator*() = delete;
+    // Overload the bool operator.
+    operator bool() const = delete;
+#if __cplusplus >= 201103L // C++11
+private:
+    // The move constructor.
+    SrsUniquePtr(SrsUniquePtr<T>&&) = delete;
+    // The move assign operator.
+    SrsUniquePtr<T>& operator=(SrsUniquePtr<T>&&) = delete;
+#endif
 };
 
 // Shared ptr smart pointer, only support shared ptr, no weak ptr, no shared from this, no inheritance,

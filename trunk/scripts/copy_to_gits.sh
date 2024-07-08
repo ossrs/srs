@@ -14,6 +14,11 @@ if [[ ! -f ~/git/srs-bench/go.mod ]]; then
   exit -1
 fi
 
+if [[ ! -d ~/git/state-threads ]]; then
+  echo "no state-threads at ~/git"
+  exit -1
+fi
+
 echo "Copy signaling"
 cp -R 3rdparty/signaling/* ~/git/signaling/ &&
 cp -R 3rdparty/signaling/.gitignore ~/git/signaling/ &&
@@ -29,3 +34,6 @@ cp -R 3rdparty/srs-bench/* ~/git/srs-bench/ &&
 cp -R 3rdparty/srs-bench/.gitignore ~/git/srs-bench/ &&
 (cd ~/git/srs-bench && git st)
 
+echo "Copy state-threads"
+cp -R 3rdparty/st-srs/* ~/git/state-threads/ &&
+(cd ~/git/state-threads && git st)

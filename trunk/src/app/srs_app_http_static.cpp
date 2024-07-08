@@ -209,15 +209,14 @@ srs_error_t SrsHlsStream::serve_exists_session(ISrsHttpResponseWriter* w, ISrsHt
     srs_error_t err = srs_success;
 
     // Read m3u8 content.
-    SrsFileReader* fs = factory->create_file_reader();
-    SrsAutoFree(SrsFileReader, fs);
+    SrsUniquePtr<SrsFileReader> fs(factory->create_file_reader());
 
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open %s", fullpath.c_str());
     }
 
     string content;
-    if ((err = srs_ioutil_read_all(fs, content)) != srs_success) {
+    if ((err = srs_ioutil_read_all(fs.get(), content)) != srs_success) {
         return srs_error_wrap(err, "read %s", fullpath.c_str());
     }
 
@@ -399,10 +398,9 @@ SrsVodStream::~SrsVodStream()
 srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int64_t offset)
 {
     srs_error_t err = srs_success;
-    
-    SrsFileReader* fs = fs_factory->create_file_reader();
-    SrsAutoFree(SrsFileReader, fs);
-    
+
+    SrsUniquePtr<SrsFileReader> fs(fs_factory->create_file_reader());
+
     // open flv file
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open file");
@@ -416,7 +414,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     SrsFlvVodStreamDecoder ffd;
     
     // open fast decoder
-    if ((err = ffd.initialize(fs)) != srs_success) {
+    if ((err = ffd.initialize(fs.get())) != srs_success) {
         return srs_error_wrap(err, "init ffd");
     }
     
@@ -470,7 +468,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
     
     // send data
-    if ((err = copy(w, fs, r, left)) != srs_success) {
+    if ((err = copy(w, fs.get(), r, left)) != srs_success) {
         return srs_error_wrap(err, "read flv=%s size=%" PRId64, fullpath.c_str(), left);
     }
     
@@ -483,10 +481,9 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     
     srs_assert(start >= 0);
     srs_assert(end == -1 || end >= 0);
-    
-    SrsFileReader* fs = fs_factory->create_file_reader();
-    SrsAutoFree(SrsFileReader, fs);
-    
+
+    SrsUniquePtr<SrsFileReader> fs(fs_factory->create_file_reader());
+
     // open flv file
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "fs open");
@@ -520,7 +517,7 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     fs->seek2(start);
     
     // send data
-    if ((err = copy(w, fs, r, left)) != srs_success) {
+    if ((err = copy(w, fs.get(), r, left)) != srs_success) {
         return srs_error_wrap(err, "read mp4=%s size=%" PRId64, fullpath.c_str(), left);
     }
     
@@ -534,8 +531,7 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     srs_assert(hr);
 
-    SrsRequest* req = hr->to_request(hr->host())->as_http();
-    SrsAutoFree(SrsRequest, req);
+    SrsUniquePtr<SrsRequest> req(hr->to_request(hr->host())->as_http());
 
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
@@ -545,7 +541,7 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
 
     // Try to serve by HLS streaming.
     bool served = false;
-    if ((err = hls_.serve_m3u8_ctx(w, r, fs_factory, fullpath, req, &served)) != srs_success) {
+    if ((err = hls_.serve_m3u8_ctx(w, r, fs_factory, fullpath, req.get(), &served)) != srs_success) {
         return srs_error_wrap(err, "hls ctx");
     }
 

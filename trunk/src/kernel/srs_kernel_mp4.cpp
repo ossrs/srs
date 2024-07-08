@@ -36,10 +36,8 @@ srs_error_t srs_mp4_write_box(ISrsWriter* writer, ISrsCodec* box)
     int nb_data = box->nb_bytes();
     std::vector<char> data(nb_data);
 
-    SrsBuffer* buffer = new SrsBuffer(&data[0], nb_data);
-    SrsAutoFree(SrsBuffer, buffer);
-
-    if ((err = box->encode(buffer)) != srs_success) {
+    SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(&data[0], nb_data));
+    if ((err = box->encode(buffer.get())) != srs_success) {
         return srs_error_wrap(err, "encode box");
     }
 
@@ -5316,6 +5314,7 @@ srs_error_t SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
     srs_error_t err = srs_success;
     
     SrsMp4Box* box = NULL;
+    // Note that we should use SrsAutoFree to free the ptr which is set later.
     SrsAutoFree(SrsMp4Box, box);
 
     while (true) {
@@ -5338,12 +5337,11 @@ srs_error_t SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
             srs_assert(nread > 0);
             stream->append(buf, (int)nread);
         }
-        
-        SrsBuffer* buffer = new SrsBuffer(stream->bytes(), stream->length());
-        SrsAutoFree(SrsBuffer, buffer);
-        
+
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(stream->bytes(), stream->length()));
+
         // Discovery the box with basic header.
-        if (!box && (err = SrsMp4Box::discovery(buffer, &box)) != srs_success) {
+        if (!box && (err = SrsMp4Box::discovery(buffer.get(), &box)) != srs_success) {
             if (srs_error_code(err) == ERROR_MP4_BOX_REQUIRE_SPACE) {
                 srs_freep(err);
                 continue;
@@ -5431,15 +5429,14 @@ srs_error_t SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
     off_t offset = -1;
     
     while (true) {
-        SrsMp4Box* box = NULL;
-        SrsAutoFree(SrsMp4Box, box);
-        
-        if ((err = load_next_box(&box, 0)) != srs_success) {
+        SrsMp4Box* box_raw = NULL;
+        if ((err = load_next_box(&box_raw, 0)) != srs_success) {
             return srs_error_wrap(err, "load box");
         }
+        SrsUniquePtr<SrsMp4Box> box(box_raw);
         
         if (box->is_ftyp()) {
-            SrsMp4FileTypeBox* ftyp = dynamic_cast<SrsMp4FileTypeBox*>(box);
+            SrsMp4FileTypeBox* ftyp = dynamic_cast<SrsMp4FileTypeBox*>(box.get());
             if ((err = parse_ftyp(ftyp)) != srs_success) {
                 return srs_error_wrap(err, "parse ftyp");
             }
@@ -5450,7 +5447,7 @@ srs_error_t SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
             }
             offset = off_t(cur - box->sz());
         } else if (box->is_moov()) {
-            SrsMp4MovieBox* moov = dynamic_cast<SrsMp4MovieBox*>(box);
+            SrsMp4MovieBox* moov = dynamic_cast<SrsMp4MovieBox*>(box.get());
             if ((err = parse_moov(moov)) != srs_success) {
                 return srs_error_wrap(err, "parse moov");
             }
@@ -5653,6 +5650,7 @@ srs_error_t SrsMp4Decoder::load_next_box(SrsMp4Box** ppbox, uint32_t required_bo
     
     while (true) {
         SrsMp4Box* box = NULL;
+        // Note that we should use SrsAutoFree to free the ptr which is set later.
         SrsAutoFree(SrsMp4Box, box);
 
         if ((err = do_load_next_box(&box, required_box_type)) != srs_success) {
@@ -5679,16 +5677,15 @@ srs_error_t SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required
         if ((err = br->read(stream, &box)) != srs_success) {
             return srs_error_wrap(err, "read box");
         }
-        
-        SrsBuffer* buffer = new SrsBuffer(stream->bytes(), stream->length());
-        SrsAutoFree(SrsBuffer, buffer);
-        
+
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(stream->bytes(), stream->length()));
+
         // Decode the box:
         // 1. Any box, when no box type is required.
         // 2. Matched box, when box type match the required type.
         // 3. Mdat box, always decode the mdat because we only decode the header of it.
         if (!required_box_type || (uint32_t)box->type == required_box_type || box->is_mdat()) {
-            err = box->decode(buffer);
+            err = box->decode(buffer.get());
         }
         
         // Skip the box from stream, move stream to next box.
@@ -5741,20 +5738,17 @@ srs_error_t SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
     
     // Write ftyp box.
     if (true) {
-        SrsMp4FileTypeBox* ftyp = new SrsMp4FileTypeBox();
-        SrsAutoFree(SrsMp4FileTypeBox, ftyp);
-        
+        SrsUniquePtr<SrsMp4FileTypeBox> ftyp(new SrsMp4FileTypeBox());
+
         ftyp->major_brand = SrsMp4BoxBrandISOM;
         ftyp->minor_version = 512;
         ftyp->set_compatible_brands(SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandMP41);
         
         int nb_data = ftyp->nb_bytes();
         std::vector<char> data(nb_data);
-        
-        SrsBuffer* buffer = new SrsBuffer(&data[0], nb_data);
-        SrsAutoFree(SrsBuffer, buffer);
-        
-        if ((err = ftyp->encode(buffer)) != srs_success) {
+
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(&data[0], nb_data));
+        if ((err = ftyp->encode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "encode ftyp");
         }
         
@@ -5766,16 +5760,13 @@ srs_error_t SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
 
     // 8B reserved free box.
     if (true) {
-        SrsMp4FreeSpaceBox* freeb = new SrsMp4FreeSpaceBox(SrsMp4BoxTypeFREE);
-        SrsAutoFree(SrsMp4FreeSpaceBox, freeb);
+        SrsUniquePtr<SrsMp4FreeSpaceBox> freeb(new SrsMp4FreeSpaceBox(SrsMp4BoxTypeFREE));
 
         int nb_data = freeb->nb_bytes();
         std::vector<char> data(nb_data);
 
-        SrsBuffer* buffer = new SrsBuffer(&data[0], nb_data);
-        SrsAutoFree(SrsBuffer, buffer);
-
-        if ((err = freeb->encode(buffer)) != srs_success) {
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(&data[0], nb_data));
+        if ((err = freeb->encode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "encode free box");
         }
 
@@ -5789,9 +5780,8 @@ srs_error_t SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
         // Write empty mdat box,
         // its payload will be writen by samples,
         // and we will update its header(size) when flush.
-        SrsMp4MediaDataBox* mdat = new SrsMp4MediaDataBox();
-        SrsAutoFree(SrsMp4MediaDataBox, mdat);
-        
+        SrsUniquePtr<SrsMp4MediaDataBox> mdat(new SrsMp4MediaDataBox());
+
         // Update the mdat box from this offset.
         if ((err = wsio->lseek(0, SEEK_CUR, &mdat_offset)) != srs_success) {
             return srs_error_wrap(err, "seek to mdat");
@@ -5800,11 +5790,9 @@ srs_error_t SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
         int nb_data = mdat->sz_header();
         uint8_t* data = new uint8_t[nb_data];
         SrsAutoFreeA(uint8_t, data);
-        
-        SrsBuffer* buffer = new SrsBuffer((char*)data, nb_data);
-        SrsAutoFree(SrsBuffer, buffer);
-        
-        if ((err = mdat->encode(buffer)) != srs_success) {
+
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data, nb_data));
+        if ((err = mdat->encode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "encode mdat");
         }
         
@@ -5874,9 +5862,8 @@ srs_error_t SrsMp4Encoder::flush()
     
     // Write moov.
     if (true) {
-        SrsMp4MovieBox* moov = new SrsMp4MovieBox();
-        SrsAutoFree(SrsMp4MovieBox, moov);
-        
+        SrsUniquePtr<SrsMp4MovieBox> moov(new SrsMp4MovieBox());
+
         SrsMp4MovieHeaderBox* mvhd = new SrsMp4MovieHeaderBox();
         moov->set_mvhd(mvhd);
         
@@ -6057,18 +6044,16 @@ srs_error_t SrsMp4Encoder::flush()
             }
         }
         
-        if ((err = samples->write(moov)) != srs_success) {
+        if ((err = samples->write(moov.get())) != srs_success) {
             return srs_error_wrap(err, "write samples");
         }
         
         int nb_data = moov->nb_bytes();
         uint8_t* data = new uint8_t[nb_data];
         SrsAutoFreeA(uint8_t, data);
-        
-        SrsBuffer* buffer = new SrsBuffer((char*)data, nb_data);
-        SrsAutoFree(SrsBuffer, buffer);
-        
-        if ((err = moov->encode(buffer)) != srs_success) {
+
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data, nb_data));
+        if ((err = moov->encode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "encode moov");
         }
         
@@ -6083,8 +6068,7 @@ srs_error_t SrsMp4Encoder::flush()
         // Write mdat box with size of data,
         // its payload already writen by samples,
         // and we will update its header(size) when flush.
-        SrsMp4MediaDataBox* mdat = new SrsMp4MediaDataBox();
-        SrsAutoFree(SrsMp4MediaDataBox, mdat);
+        SrsUniquePtr<SrsMp4MediaDataBox> mdat(new SrsMp4MediaDataBox());
 
         // Update the size of mdat first, for over 2GB file.
         mdat->nb_data = mdat_bytes;
@@ -6093,11 +6077,9 @@ srs_error_t SrsMp4Encoder::flush()
         int nb_data = mdat->sz_header();
         uint8_t* data = new uint8_t[nb_data];
         SrsAutoFreeA(uint8_t, data);
-        
-        SrsBuffer* buffer = new SrsBuffer((char*)data, nb_data);
-        SrsAutoFree(SrsBuffer, buffer);
 
-        if ((err = mdat->encode(buffer)) != srs_success) {
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data, nb_data));
+        if ((err = mdat->encode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "encode mdat");
         }
 
@@ -6231,22 +6213,20 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
     
     // Write ftyp box.
     if (true) {
-        SrsMp4FileTypeBox* ftyp = new SrsMp4FileTypeBox();
-        SrsAutoFree(SrsMp4FileTypeBox, ftyp);
+        SrsUniquePtr<SrsMp4FileTypeBox> ftyp(new SrsMp4FileTypeBox());
 
         ftyp->major_brand = SrsMp4BoxBrandISO5;
         ftyp->minor_version = 512;
         ftyp->set_compatible_brands(SrsMp4BoxBrandISO6, SrsMp4BoxBrandMP41);
 
-        if ((err = srs_mp4_write_box(writer, ftyp)) != srs_success) {
+        if ((err = srs_mp4_write_box(writer, ftyp.get())) != srs_success) {
             return srs_error_wrap(err, "write ftyp");
         }
     }
     
     // Write moov.
     if (true) {
-        SrsMp4MovieBox* moov = new SrsMp4MovieBox();
-        SrsAutoFree(SrsMp4MovieBox, moov);
+        SrsUniquePtr<SrsMp4MovieBox> moov(new SrsMp4MovieBox());
 
         SrsMp4MovieHeaderBox* mvhd = new SrsMp4MovieHeaderBox();
         moov->set_mvhd(mvhd);
@@ -6456,7 +6436,7 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
             trex->default_sample_description_index = 1;
         }
 
-        if ((err = srs_mp4_write_box(writer, moov)) != srs_success) {
+        if ((err = srs_mp4_write_box(writer, moov.get())) != srs_success) {
             return srs_error_wrap(err, "write moov");
         }
     }
@@ -6492,9 +6472,8 @@ srs_error_t SrsMp4M2tsSegmentEncoder::initialize(ISrsWriter* w, uint32_t sequenc
     
     // Write styp box.
     if (true) {
-        SrsMp4SegmentTypeBox* styp = new SrsMp4SegmentTypeBox();
-        SrsAutoFree(SrsMp4SegmentTypeBox, styp);
-        
+        SrsUniquePtr<SrsMp4SegmentTypeBox> styp(new SrsMp4SegmentTypeBox());
+
         styp->major_brand = SrsMp4BoxBrandMSDH;
         styp->minor_version = 0;
         styp->set_compatible_brands(SrsMp4BoxBrandMSDH, SrsMp4BoxBrandMSIX);
@@ -6502,7 +6481,7 @@ srs_error_t SrsMp4M2tsSegmentEncoder::initialize(ISrsWriter* w, uint32_t sequenc
         // Used for sidx to calcalute the referenced size.
         styp_bytes = styp->nb_bytes();
 
-        if ((err = srs_mp4_write_box(writer, styp)) != srs_success) {
+        if ((err = srs_mp4_write_box(writer, styp.get())) != srs_success) {
             return srs_error_wrap(err, "write styp");
         }
     }
@@ -6556,8 +6535,7 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
     }
 
     // Although the sidx is not required to start play DASH, but it's required for AV sync.
-    SrsMp4SegmentIndexBox* sidx = new SrsMp4SegmentIndexBox();
-    SrsAutoFree(SrsMp4SegmentIndexBox, sidx);
+    SrsUniquePtr<SrsMp4SegmentIndexBox> sidx(new SrsMp4SegmentIndexBox());
     if (true) {
         sidx->version = 1;
         sidx->reference_id = 1;
@@ -6580,14 +6558,12 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
     // Create a mdat box.
     // its payload will be writen by samples,
     // and we will update its header(size) when flush.
-    SrsMp4MediaDataBox* mdat = new SrsMp4MediaDataBox();
-    SrsAutoFree(SrsMp4MediaDataBox, mdat);
+    SrsUniquePtr<SrsMp4MediaDataBox> mdat(new SrsMp4MediaDataBox());
 
     // Write moof.
     if (true) {
-        SrsMp4MovieFragmentBox* moof = new SrsMp4MovieFragmentBox();
-        SrsAutoFree(SrsMp4MovieFragmentBox, moof);
-        
+        SrsUniquePtr<SrsMp4MovieFragmentBox> moof(new SrsMp4MovieFragmentBox());
+
         SrsMp4MovieFragmentHeaderBox* mfhd = new SrsMp4MovieFragmentHeaderBox();
         moof->set_mfhd(mfhd);
         
@@ -6611,7 +6587,7 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
         SrsMp4TrackFragmentRunBox* trun = new SrsMp4TrackFragmentRunBox();
         traf->set_trun(trun);
         
-        if ((err = samples->write(moof, dts)) != srs_success) {
+        if ((err = samples->write(moof.get(), dts)) != srs_success) {
             return srs_error_wrap(err, "write samples");
         }
         
@@ -6623,11 +6599,11 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
         // Update the size of sidx.
         SrsMp4SegmentIndexEntry* entry = &sidx->entries[0];
         entry->referenced_size = moof_bytes + mdat->nb_bytes();
-        if ((err = srs_mp4_write_box(writer, sidx)) != srs_success) {
+        if ((err = srs_mp4_write_box(writer, sidx.get())) != srs_success) {
             return srs_error_wrap(err, "write sidx");
         }
 
-        if ((err = srs_mp4_write_box(writer, moof)) != srs_success) {
+        if ((err = srs_mp4_write_box(writer, moof.get())) != srs_success) {
             return srs_error_wrap(err, "write moof");
         }
     }
@@ -6637,11 +6613,9 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
         int nb_data = mdat->sz_header();
         uint8_t* data = new uint8_t[nb_data];
         SrsAutoFreeA(uint8_t, data);
-        
-        SrsBuffer* buffer = new SrsBuffer((char*)data, nb_data);
-        SrsAutoFree(SrsBuffer, buffer);
-        
-        if ((err = mdat->encode(buffer)) != srs_success) {
+
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data, nb_data));
+        if ((err = mdat->encode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "encode mdat");
         }
         

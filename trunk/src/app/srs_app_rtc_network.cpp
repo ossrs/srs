@@ -391,8 +391,7 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket* r, string ice_pw
 
     SrsStunPacket stun_binding_response;
     char buf[kRtpPacketSize];
-    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
-    SrsAutoFree(SrsBuffer, stream);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
 
     stun_binding_response.set_message_type(BindingResponse);
     stun_binding_response.set_local_ufrag(r->get_remote_ufrag());
@@ -402,7 +401,7 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket* r, string ice_pw
     stun_binding_response.set_mapped_address(be32toh(inet_addr(get_peer_ip().c_str())));
     stun_binding_response.set_mapped_port(get_peer_port());
 
-    if ((err = stun_binding_response.encode(ice_pwd, stream)) != srs_success) {
+    if ((err = stun_binding_response.encode(ice_pwd, stream.get())) != srs_success) {
         return srs_error_wrap(err, "stun binding response encode failed");
     }
 
@@ -520,8 +519,7 @@ srs_error_t SrsRtcTcpNetwork::on_binding_request(SrsStunPacket* r, std::string i
 
     SrsStunPacket stun_binding_response;
     char buf[kRtpPacketSize];
-    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
-    SrsAutoFree(SrsBuffer, stream);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
 
     stun_binding_response.set_message_type(BindingResponse);
     stun_binding_response.set_local_ufrag(r->get_remote_ufrag());
@@ -531,7 +529,7 @@ srs_error_t SrsRtcTcpNetwork::on_binding_request(SrsStunPacket* r, std::string i
     stun_binding_response.set_mapped_address(be32toh(inet_addr(get_peer_ip().c_str())));
     stun_binding_response.set_mapped_port(get_peer_port());
 
-    if ((err = stun_binding_response.encode(ice_pwd, stream)) != srs_success) {
+    if ((err = stun_binding_response.encode(ice_pwd, stream.get())) != srs_success) {
         return srs_error_wrap(err, "stun binding response encode failed");
     }
 

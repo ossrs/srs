@@ -43,10 +43,9 @@ string serialFlv(SrsSharedPtrMessage *msg)
 {
     int size = 15 + msg->size;
     char *byte = new char[size];
-    
-    SrsBuffer *stream = new SrsBuffer(byte, size);
-    SrsAutoFree(SrsBuffer, stream);
-    
+
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(byte, size));
+
     // tag header
     long long dts = msg->timestamp;
     char type = msg->is_video() ? 0x09 : 0x08;

@@ -449,8 +449,7 @@ void SrsRtcSource::init_for_play_before_publishing()
         return;
     }
 
-    SrsRtcSourceDescription* stream_desc = new SrsRtcSourceDescription();
-    SrsAutoFree(SrsRtcSourceDescription, stream_desc);
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
 
     // audio track description
     if (true) {
@@ -485,7 +484,7 @@ void SrsRtcSource::init_for_play_before_publishing()
         video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
     }
 
-    set_stream_desc(stream_desc);
+    set_stream_desc(stream_desc.get());
 }
 
 void SrsRtcSource::update_auth(SrsRequest* r)
@@ -1006,16 +1005,14 @@ srs_error_t SrsRtcRtpBuilder::transcode(SrsAudioFrame* audio)
 
     for (std::vector<SrsAudioFrame*>::iterator it = out_audios.begin(); it != out_audios.end(); ++it) {
         SrsAudioFrame* out_audio = *it;
+        SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
 
-        SrsRtpPacket* pkt = new SrsRtpPacket();
-        SrsAutoFree(SrsRtpPacket, pkt);
-
-        if ((err = package_opus(out_audio, pkt)) != srs_success) {
+        if ((err = package_opus(out_audio, pkt.get())) != srs_success) {
             err = srs_error_wrap(err, "package opus");
             break;
         }
 
-        if ((err = bridge_->on_rtp(pkt)) != srs_success) {
+        if ((err = bridge_->on_rtp(pkt.get())) != srs_success) {
             err = srs_error_wrap(err, "consume opus");
             break;
         }
@@ -1083,14 +1080,13 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
 
     // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
     if (has_idr) {
-        SrsRtpPacket* pkt = new SrsRtpPacket();
-        SrsAutoFree(SrsRtpPacket, pkt);
+        SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
 
-        if ((err = package_stap_a(msg, pkt)) != srs_success) {
+        if ((err = package_stap_a(msg, pkt.get())) != srs_success) {
             return srs_error_wrap(err, "package stap-a");
         }
 
-        if ((err = bridge_->on_rtp(pkt)) != srs_success) {
+        if ((err = bridge_->on_rtp(pkt.get())) != srs_success) {
             return srs_error_wrap(err, "consume sps/pps");
         }
     }
@@ -1231,7 +1227,7 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
 {
     srs_error_t err = srs_success;
 
-    SrsRtpRawNALUs* raw = new SrsRtpRawNALUs();
+    SrsRtpRawNALUs* raw_raw = new SrsRtpRawNALUs();
     SrsAvcNaluType first_nalu_type = SrsAvcNaluTypeReserved;
 
     for (int i = 0; i < (int)samples.size(); i++) {
@@ -1245,13 +1241,13 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
             first_nalu_type = SrsAvcNaluType((uint8_t)(sample->bytes[0] & kNalTypeMask));
         }
 
-        raw->push_back(sample->copy());
+        raw_raw->push_back(sample->copy());
     }
 
     // Ignore empty.
-    int nn_bytes = raw->nb_bytes();
+    int nn_bytes = raw_raw->nb_bytes();
     if (nn_bytes <= 0) {
-        srs_freep(raw);
+        srs_freep(raw_raw);
         return err;
     }
 
@@ -1266,12 +1262,12 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
         pkt->nalu_type = (SrsAvcNaluType)first_nalu_type;
         pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
-        pkt->set_payload(raw, SrsRtspPacketPayloadTypeNALU);
+        pkt->set_payload(raw_raw, SrsRtspPacketPayloadTypeNALU);
         pkt->wrap(msg);
     } else {
         // We must free it, should never use RTP packets to free it,
         // because more than one RTP packet will refer to it.
-        SrsAutoFree(SrsRtpRawNALUs, raw);
+        SrsUniquePtr<SrsRtpRawNALUs> raw(raw_raw);
 
         // Package NALUs in FU-A RTP packets.
         int fu_payload_size = kRtpMaxPayloadSize;
@@ -1642,13 +1638,13 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
         }
 
         // Reset SPS/PPS cache, ensuring that the next SPS/PPS will be handled when both are received.
+        // Note that we should use SrsAutoFree to set the ptr to NULL.
         SrsAutoFree(SrsRtpPacket, obs_whip_sps_);
         SrsAutoFree(SrsRtpPacket, obs_whip_pps_);
 
         // h264 raw to h264 packet.
         std::string sh;
-        SrsRawH264Stream* avc = new SrsRawH264Stream();
-        SrsAutoFree(SrsRawH264Stream, avc);
+        SrsUniquePtr<SrsRawH264Stream> avc(new SrsRawH264Stream());
 
         if ((err = avc->mux_sequence_header(string(sps->bytes, sps->size), string(pps->bytes, pps->size), sh)) != srs_success) {
             return srs_error_wrap(err, "mux sequence header");

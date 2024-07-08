@@ -164,8 +164,7 @@ void SrsGbSession::on_ps_pack(SrsPackContext* ctx, SrsPsPacket* ps, const std::v
     media_reserved_ = ctx->media_reserved_;
 
     // Group all video in pack to a video frame, because only allows one video for each PS pack.
-    SrsTsMessage* video = new SrsTsMessage();
-    SrsAutoFree(SrsTsMessage, video);
+    SrsUniquePtr<SrsTsMessage> video(new SrsTsMessage());
 
     for (vector<SrsTsMessage*>::const_iterator it = msgs.begin(); it != msgs.end(); ++it) {
         SrsTsMessage* msg = *it;
@@ -190,7 +189,7 @@ void SrsGbSession::on_ps_pack(SrsPackContext* ctx, SrsPsPacket* ps, const std::v
 
     // Send the generated video message.
     if (video->payload->length() > 0) {
-        srs_error_t err = muxer_->on_ts_message(video);
+        srs_error_t err = muxer_->on_ts_message(video.get());
         if (err != srs_success) {
             srs_warn("Muxer: Ignore video err %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -1051,8 +1050,7 @@ srs_error_t SrsGbSipTcpReceiver::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    SrsHttpParser* parser = new SrsHttpParser();
-    SrsAutoFree(SrsHttpParser, parser);
+    SrsUniquePtr<SrsHttpParser> parser(new SrsHttpParser());
 
     // We might get SIP request or response message.
     if ((err = parser->initialize(HTTP_BOTH)) != srs_success) {
@@ -1065,14 +1063,14 @@ srs_error_t SrsGbSipTcpReceiver::do_cycle()
         }
 
         // Use HTTP parser to parse SIP messages.
-        ISrsHttpMessage* hmsg = NULL;
-        SrsAutoFree(ISrsHttpMessage, hmsg);
-        if ((err = parser->parse_message(conn_, &hmsg)) != srs_success) {
+        ISrsHttpMessage* hmsg_raw = NULL;
+        if ((err = parser->parse_message(conn_, &hmsg_raw)) != srs_success) {
             return srs_error_wrap(err, "parse message");
         }
+        SrsUniquePtr<ISrsHttpMessage> hmsg(hmsg_raw);
 
         SrsSipMessage smsg;
-        if ((err = smsg.parse(hmsg)) != srs_success) {
+        if ((err = smsg.parse(hmsg.get())) != srs_success) {
             srs_warn("SIP: Drop msg type=%d, method=%d, err is %s", hmsg->message_type(), hmsg->method(), srs_error_summary(err).c_str());
             srs_freep(err); continue;
         }
@@ -1156,9 +1154,8 @@ srs_error_t SrsGbSipTcpSender::do_cycle()
             return srs_error_wrap(err, "pull");
         }
 
-        SrsSipMessage* msg = msgs_.front();
+        SrsUniquePtr<SrsSipMessage> msg(msgs_.front());
         msgs_.erase(msgs_.begin());
-        SrsAutoFree(SrsSipMessage, msg);
 
         if (msg->type_ == HTTP_RESPONSE) {
             SrsSipResponseWriter res(conn_);

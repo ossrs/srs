@@ -257,20 +257,20 @@ srs_error_t SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
     // parse util EOF of stream.
     // for example, parse multiple times for the PES_packet_length(0) packet.
     while (!stream->empty()) {
-        SrsTsPacket* packet = new SrsTsPacket(this);
-        SrsAutoFree(SrsTsPacket, packet);
-        
-        SrsTsMessage* msg = NULL;
-        if ((err = packet->decode(stream, &msg)) != srs_success) {
+        SrsUniquePtr<SrsTsPacket> packet(new SrsTsPacket(this));
+
+        SrsTsMessage* msg_raw = NULL;
+        if ((err = packet->decode(stream, &msg_raw)) != srs_success) {
             return srs_error_wrap(err, "ts: ts packet decode");
         }
         
-        if (!msg) {
+        if (!msg_raw) {
             continue;
         }
-        SrsAutoFree(SrsTsMessage, msg);
+
+        SrsUniquePtr<SrsTsMessage> msg(msg_raw);
         
-        if ((err = handler->on_ts_message(msg)) != srs_success) {
+        if ((err = handler->on_ts_message(msg.get())) != srs_success) {
             return srs_error_wrap(err, "ts: handle ts message");
         }
     }
@@ -381,9 +381,8 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid,
     int16_t pmt_number = TS_PMT_NUMBER;
     int16_t pmt_pid = TS_PMT_PID;
     if (true) {
-        SrsTsPacket* pkt = SrsTsPacket::create_pat(this, pmt_number, pmt_pid);
-        SrsAutoFree(SrsTsPacket, pkt);
-        
+        SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pat(this, pmt_number, pmt_pid));
+
         pkt->sync_byte = sync_byte;
         
         char* buf = new char[SRS_TS_PACKET_SIZE];
@@ -403,9 +402,8 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid,
         }
     }
     if (true) {
-        SrsTsPacket* pkt = SrsTsPacket::create_pmt(this, pmt_number, pmt_pid, vpid, vs, apid, as);
-        SrsAutoFree(SrsTsPacket, pkt);
-        
+        SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pmt(this, pmt_number, pmt_pid, vpid, vs, apid, as));
+
         pkt->sync_byte = sync_byte;
         
         char* buf = new char[SRS_TS_PACKET_SIZE];
@@ -461,7 +459,7 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
     char* p = start;
     
     while (p < end) {
-        SrsTsPacket* pkt = NULL;
+        SrsTsPacket* pkt_raw = NULL;
         if (p == start) {
             // write pcr according to message.
             bool write_pcr = msg->write_pcr;
@@ -485,15 +483,15 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
             int64_t pcr = write_pcr? msg->dts : -1;
             
             // TODO: FIXME: finger it why use discontinuity of msg.
-            pkt = SrsTsPacket::create_pes_first(this,
+            pkt_raw = SrsTsPacket::create_pes_first(this,
                 pid, msg->sid, channel->continuity_counter++, msg->is_discontinuity,
                 pcr, msg->dts, msg->pts, msg->payload->length()
             );
         } else {
-            pkt = SrsTsPacket::create_pes_continue(this, pid, msg->sid, channel->continuity_counter++);
+            pkt_raw = SrsTsPacket::create_pes_continue(this, pid, msg->sid, channel->continuity_counter++);
         }
-        SrsAutoFree(SrsTsPacket, pkt);
-        
+        SrsUniquePtr<SrsTsPacket> pkt(pkt_raw);
+
         pkt->sync_byte = sync_byte;
         
         char* buf = new char[SRS_TS_PACKET_SIZE];

@@ -635,8 +635,8 @@ VOID TEST(HTTPServerTest, ContentLength)
         io.append("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\n");
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
-        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
-        SrsAutoFree(ISrsHttpMessage, msg);
+        ISrsHttpMessage* msg_raw = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg_raw));
+        SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -664,8 +664,8 @@ VOID TEST(HTTPServerTest, HTTPChunked)
         io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
-        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
-        SrsAutoFree(ISrsHttpMessage, msg);
+        ISrsHttpMessage* msg_raw = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg_raw));
+        SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -694,8 +694,8 @@ VOID TEST(HTTPServerTest, InfiniteChunked)
         io.append("HTTP/1.1 200 OK\r\n\r\n");
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
-        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
-        SrsAutoFree(ISrsHttpMessage, msg);
+        ISrsHttpMessage* msg_raw = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg_raw));
+        SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -721,8 +721,8 @@ VOID TEST(HTTPServerTest, InfiniteChunked)
         io.append("HTTP/1.1 200 OK\r\n\r\n");
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
-        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
-        SrsAutoFree(ISrsHttpMessage, msg);
+        ISrsHttpMessage* msg_raw = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg_raw));
+        SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -750,8 +750,8 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
-        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
-        SrsAutoFree(ISrsHttpMessage, req);
+        ISrsHttpMessage* req_raw = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req_raw));
+        SrsUniquePtr<ISrsHttpMessage> req(req_raw);
 
         ISrsHttpResponseReader* br = req->body_reader();
         EXPECT_TRUE(br->eof());
@@ -763,8 +763,8 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         io.append("HTTP/1.1 200 OK\r\n\r\n");
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
-        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
-        SrsAutoFree(ISrsHttpMessage, req);
+        ISrsHttpMessage* req_raw = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req_raw));
+        SrsUniquePtr<ISrsHttpMessage> req(req_raw);
 
         ISrsHttpResponseReader* br = req->body_reader();
         EXPECT_FALSE(br->eof());
@@ -776,8 +776,8 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
-        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
-        SrsAutoFree(ISrsHttpMessage, req);
+        ISrsHttpMessage* req_raw = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req_raw));
+        SrsUniquePtr<ISrsHttpMessage> req(req_raw);
 
         ISrsHttpResponseReader* br = req->body_reader();
         EXPECT_FALSE(br->eof());
@@ -787,8 +787,8 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
 
         // The body will use as next HTTP request message.
         io.append("GET /rtc/v1/play HTTP/1.1\r\n\r\n");
-        ISrsHttpMessage* req2 = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req2));
-        SrsAutoFree(ISrsHttpMessage, req2);
+        ISrsHttpMessage* req2_raw = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req2_raw));
+        SrsUniquePtr<ISrsHttpMessage> req2(req2_raw);
     }
 
     // So if OPTIONS has body, but not specified the size, we think it has no body,
@@ -798,16 +798,16 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
-        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
-        SrsAutoFree(ISrsHttpMessage, req);
+        ISrsHttpMessage* req_raw = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req_raw));
+        SrsUniquePtr<ISrsHttpMessage> req(req_raw);
 
         ISrsHttpResponseReader* br = req->body_reader();
         EXPECT_TRUE(br->eof());
 
         // The body will use as next HTTP request message.
         io.append("Hello");
-        ISrsHttpMessage* req2 = NULL; HELPER_ASSERT_FAILED(hp.parse_message(&io, &req2));
-        SrsAutoFree(ISrsHttpMessage, req2);
+        ISrsHttpMessage* req2_raw = NULL; HELPER_ASSERT_FAILED(hp.parse_message(&io, &req2_raw));
+        SrsUniquePtr<ISrsHttpMessage> req2(req2_raw);
     }
 }
 
@@ -1320,8 +1320,8 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
 
         ISrsHttpMessage* res = NULL;
-        SrsAutoFree(ISrsHttpMessage, res);
         HELPER_ASSERT_SUCCESS(client.post("/api/v1", "", &res));
+        SrsUniquePtr<ISrsHttpMessage> res_uptr(res);
 
         ISrsHttpResponseReader* br = res->body_reader();
         ASSERT_FALSE(br->eof());
@@ -1342,8 +1342,8 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
 
         ISrsHttpMessage* res = NULL;
-        SrsAutoFree(ISrsHttpMessage, res);
         HELPER_ASSERT_SUCCESS(client.get("/api/v1", "", &res));
+        SrsUniquePtr<ISrsHttpMessage> res_uptr(res);
 
         ISrsHttpResponseReader* br = res->body_reader();
         ASSERT_FALSE(br->eof());
@@ -1366,8 +1366,8 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
         client.set_header("agent", "srs");
 
         ISrsHttpMessage* res = NULL;
-        SrsAutoFree(ISrsHttpMessage, res);
         HELPER_ASSERT_SUCCESS(client.get("/api/v1", "", &res));
+        SrsUniquePtr<ISrsHttpMessage> res_uptr(res);
 
         ISrsHttpResponseReader* br = res->body_reader();
         ASSERT_FALSE(br->eof());

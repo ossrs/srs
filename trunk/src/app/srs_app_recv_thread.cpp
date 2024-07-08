@@ -577,12 +577,12 @@ srs_error_t SrsHttpRecvThread::cycle()
     srs_error_t err = srs_success;
     
     while ((err = trd->pull()) == srs_success) {
-        ISrsHttpMessage* req = NULL;
-        SrsAutoFree(ISrsHttpMessage, req);
-        
-        if ((err = conn->pop_message(&req)) != srs_success) {
+        ISrsHttpMessage* req_raw = NULL;
+        if ((err = conn->pop_message(&req_raw)) != srs_success) {
             return srs_error_wrap(err, "pop message");
         }
+
+        SrsUniquePtr<ISrsHttpMessage> req(req_raw);
     }
     
     return err;

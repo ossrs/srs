@@ -439,8 +439,7 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
 {
     srs_error_t err = srs_success;
 
-    SrsPithyPrint* pprint = SrsPithyPrint::create_srt_publish();
-    SrsAutoFree(SrsPithyPrint, pprint);
+    SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_srt_publish());
 
     int nb_packets = 0;
 
@@ -487,20 +486,20 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
 {
     srs_error_t err = srs_success;
 
-    SrsSrtConsumer* consumer = NULL;
-    SrsAutoFree(SrsSrtConsumer, consumer);
-    if ((err = srt_source_->create_consumer(consumer)) != srs_success) {
+    SrsSrtConsumer* consumer_raw = NULL;
+    if ((err = srt_source_->create_consumer(consumer_raw)) != srs_success) {
         return srs_error_wrap(err, "create consumer, ts source=%s", req_->get_stream_url().c_str());
     }
-    srs_assert(consumer);
+
+    srs_assert(consumer_raw);
+    SrsUniquePtr<SrsSrtConsumer> consumer(consumer_raw);
 
     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
-    if ((err = srt_source_->consumer_dumps(consumer)) != srs_success) {
+    if ((err = srt_source_->consumer_dumps(consumer.get())) != srs_success) {
         return srs_error_wrap(err, "dumps consumer, url=%s", req_->get_stream_url().c_str());
     }
 
-    SrsPithyPrint* pprint = SrsPithyPrint::create_srt_play();
-    SrsAutoFree(SrsPithyPrint, pprint);
+    SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_srt_play());
 
     SrsSrtRecvThread srt_recv_trd(srt_conn_);
     if ((err = srt_recv_trd.start()) != srs_success) {
@@ -519,14 +518,15 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
         }
 
         // Wait for amount of packets.
-        SrsSrtPacket* pkt = NULL;
-        SrsAutoFree(SrsSrtPacket, pkt);
-        consumer->dump_packet(&pkt);
-        if (!pkt) {
+        SrsSrtPacket* pkt_raw = NULL;
+        consumer->dump_packet(&pkt_raw);
+        if (!pkt_raw) {
             // TODO: FIXME: We should check the quit event.
             consumer->wait(1, 1000 * SRS_UTIME_MILLISECONDS);
             continue;
         }
+
+        SrsUniquePtr<SrsSrtPacket> pkt(pkt_raw);
 
         ++nb_packets;
 
@@ -580,11 +580,10 @@ srs_error_t SrsMpegtsSrtConn::on_srt_packet(char* buf, int nb_buf)
         return srs_error_new(ERROR_SRT_CONN, "invalid ts packet first=%#x", (uint8_t)buf[0]);
     }
 
-    SrsSrtPacket* packet = new SrsSrtPacket();
-    SrsAutoFree(SrsSrtPacket, packet);
+    SrsUniquePtr<SrsSrtPacket> packet(new SrsSrtPacket());
     packet->wrap(buf, nb_buf);
 
-    if ((err = srt_source_->on_packet(packet)) != srs_success) {
+    if ((err = srt_source_->on_packet(packet.get())) != srs_success) {
         return srs_error_wrap(err, "on srt packet");
     }
     
