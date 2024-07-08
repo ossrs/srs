@@ -174,6 +174,11 @@ extern SrsPps* _srs_pps_objs_rfua;
 extern SrsPps* _srs_pps_objs_rbuf;
 extern SrsPps* _srs_pps_objs_rothers;
 
+extern SrsFastTimer* _timer20ms;
+extern SrsFastTimer* _timer100ms;
+extern SrsFastTimer* _timer1s;
+extern SrsFastTimer* _timer5s;
+
 SrsCircuitBreaker::SrsCircuitBreaker()
 {
     enabled_ = false;
@@ -191,6 +196,7 @@ SrsCircuitBreaker::SrsCircuitBreaker()
 
 SrsCircuitBreaker::~SrsCircuitBreaker()
 {
+    _timer1s->unsubscribe(this);
 }
 
 srs_error_t SrsCircuitBreaker::initialize()
@@ -207,7 +213,7 @@ srs_error_t SrsCircuitBreaker::initialize()
 
     // Update the water level for circuit breaker.
     // @see SrsCircuitBreaker::on_timer()
-    _srs_hybrid->timer1s()->subscribe(this);
+    _timer1s->subscribe(this);
 
     srs_trace("CircuitBreaker: enabled=%d, high=%dx%d, critical=%dx%d, dying=%dx%d", enabled_,
         high_pulse_, high_threshold_, critical_pulse_, critical_threshold_,
@@ -314,6 +320,12 @@ srs_error_t srs_global_initialize()
     _srs_pps_cids_get = new SrsPps();
     _srs_pps_cids_set = new SrsPps();
 
+    // Create global shared timer.
+    _timer20ms = new SrsFastTimer("hybrid", 20 * SRS_UTIME_MILLISECONDS);
+    _timer100ms = new SrsFastTimer("hybrid", 100 * SRS_UTIME_MILLISECONDS);
+    _timer1s = new SrsFastTimer("hybrid", 1 * SRS_UTIME_SECONDS);
+    _timer5s = new SrsFastTimer("hybrid", 5 * SRS_UTIME_SECONDS);
+    
     // The global objects which depends on ST.
     _srs_hybrid = new SrsHybridServer();
     _srs_sources = new SrsLiveSourceManager();
@@ -457,13 +469,17 @@ srs_error_t srs_global_initialize()
 
 void srs_global_dispose()
 {
+    _timer20ms->clear();
+    _timer100ms->clear();
+    _timer1s->clear();
+    _timer5s->clear();
+
+    // _timer20ms->stop();
+    // _timer100ms->stop();
+    // _timer1s->stop();
+    // _timer5s->stop();
+    
     // Note that hybrid depends on sources.
-    srs_freep(_srs_hybrid);
-    srs_freep(_srs_sources);
-
-    srs_freep(_srs_clock);
-
-    srs_freep(_srs_stages);
     srs_freep(_srs_circuit_breaker);
 
 #ifdef SRS_SRT
@@ -480,12 +496,24 @@ void srs_global_dispose()
     srs_freep(_srs_gb_manager);
 #endif
 
+    srs_freep(_srs_hybrid);
+    srs_freep(_srs_clock);
+    srs_freep(_srs_sources);
+    srs_freep(_srs_stages);
+
+    // TODO: need fix segment fault when free those timer.
+    // srs_freep(_timer20ms);
+    // srs_freep(_timer100ms);
+    // srs_freep(_timer1s);
+    // srs_freep(_timer5s);
+    
     srs_freep(_srs_pps_ids);
     srs_freep(_srs_pps_fids);
     srs_freep(_srs_pps_fids_level0);
     srs_freep(_srs_pps_dispose);
 
-    srs_freep(_srs_pps_timer);
+    // TODO: wait for resolve the segment fault mentioned above.
+    // srs_freep(_srs_pps_timer);
     srs_freep(_srs_pps_conn);
     srs_freep(_srs_pps_pub);
 
@@ -723,6 +751,23 @@ srs_error_t SrsThreadPool::initialize()
     SrsThreadEntry* entry = (SrsThreadEntry*)entry_;
 
     interval_ = _srs_config->get_threads_interval();
+
+    // Start the timer first.
+    if ((err = _timer20ms->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
+    }
+
+    if ((err = _timer100ms->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
+    }
+
+    if ((err = _timer1s->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
+    }
+
+    if ((err = _timer5s->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
+    }
 
     srs_trace("Thread #%d(%s): init name=%s, interval=%dms", entry->num, entry->label.c_str(), entry->name.c_str(), srsu2msi(interval_));
 

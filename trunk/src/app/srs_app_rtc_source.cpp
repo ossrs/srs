@@ -52,6 +52,7 @@ SrsPps* _srs_pps_rhnack = NULL;
 SrsPps* _srs_pps_rmnack = NULL;
 
 extern SrsPps* _srs_pps_aloss2;
+extern SrsFastTimer* _timer100ms;
 
 const int kAudioChannel         = 2;
 const int kAudioSamplerate      = 48000;
@@ -643,7 +644,7 @@ srs_error_t SrsRtcSource::on_publish()
         pli_for_rtmp_ = _srs_config->get_rtc_pli_for_rtmp(req->vhost);
 
         // @see SrsRtcSource::on_timer()
-        _srs_hybrid->timer100ms()->subscribe(this);
+        _timer100ms->subscribe(this);
     }
 
     SrsStatistic* stat = SrsStatistic::instance();
@@ -677,7 +678,7 @@ void SrsRtcSource::on_unpublish()
     //free bridge resource
     if (bridge_) {
         // For SrsRtcSource::on_timer()
-        _srs_hybrid->timer100ms()->unsubscribe(this);
+        _timer100ms->unsubscribe(this);
 
 #ifdef SRS_FFMPEG_FIT
         frame_builder_->on_unpublish();

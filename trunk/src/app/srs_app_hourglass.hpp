@@ -114,9 +114,12 @@ public:
     virtual ~SrsFastTimer();
 public:
     srs_error_t start();
+    void stop();
 public:
     void subscribe(ISrsFastTimer* timer);
     void unsubscribe(ISrsFastTimer* timer);
+    void clear();
+
 // Interface ISrsCoroutineHandler
 private:
     // Cycle the hourglass, which will sleep resolution every time.

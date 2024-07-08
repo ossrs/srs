@@ -115,6 +115,9 @@ extern SrsPps* _srs_pps_objs_rbuf;
 extern SrsPps* _srs_pps_objs_msgs;
 extern SrsPps* _srs_pps_objs_rothers;
 
+extern SrsFastTimer* _timer20ms;
+extern SrsFastTimer* _timer5s;
+
 ISrsHybridServer::ISrsHybridServer()
 {
 }
@@ -125,12 +128,6 @@ ISrsHybridServer::~ISrsHybridServer()
 
 SrsHybridServer::SrsHybridServer()
 {
-    // Create global shared timer.
-    timer20ms_ = new SrsFastTimer("hybrid", 20 * SRS_UTIME_MILLISECONDS);
-    timer100ms_ = new SrsFastTimer("hybrid", 100 * SRS_UTIME_MILLISECONDS);
-    timer1s_ = new SrsFastTimer("hybrid", 1 * SRS_UTIME_SECONDS);
-    timer5s_ = new SrsFastTimer("hybrid", 5 * SRS_UTIME_SECONDS);
-
     clock_monitor_ = new SrsClockWallMonitor();
 }
 
@@ -146,10 +143,9 @@ SrsHybridServer::~SrsHybridServer()
 
     srs_freep(clock_monitor_);
 
-    srs_freep(timer20ms_);
-    srs_freep(timer100ms_);
-    srs_freep(timer1s_);
-    srs_freep(timer5s_);
+    // unregister some timers.
+    _timer20ms->unsubscribe(clock_monitor_);
+    _timer5s->unsubscribe(this);
 }
 
 void SrsHybridServer::register_server(ISrsHybridServer* svr)
@@ -160,23 +156,6 @@ void SrsHybridServer::register_server(ISrsHybridServer* svr)
 srs_error_t SrsHybridServer::initialize()
 {
     srs_error_t err = srs_success;
-
-    // Start the timer first.
-    if ((err = timer20ms_->start()) != srs_success) {
-        return srs_error_wrap(err, "start timer");
-    }
-
-    if ((err = timer100ms_->start()) != srs_success) {
-        return srs_error_wrap(err, "start timer");
-    }
-
-    if ((err = timer1s_->start()) != srs_success) {
-        return srs_error_wrap(err, "start timer");
-    }
-
-    if ((err = timer5s_->start()) != srs_success) {
-        return srs_error_wrap(err, "start timer");
-    }
 
     // Start the DVR async call.
     if ((err = _srs_dvr_async->start()) != srs_success) {
@@ -194,8 +173,8 @@ srs_error_t SrsHybridServer::initialize()
 #endif
 
     // Register some timers.
-    timer20ms_->subscribe(clock_monitor_);
-    timer5s_->subscribe(this);
+    _timer20ms->subscribe(clock_monitor_);
+    _timer5s->subscribe(this);
 
     // Initialize all hybrid servers.
     vector<ISrsHybridServer*>::iterator it;
@@ -249,26 +228,6 @@ SrsServerAdapter* SrsHybridServer::srs()
         }
     }
     return NULL;
-}
-
-SrsFastTimer* SrsHybridServer::timer20ms()
-{
-    return timer20ms_;
-}
-
-SrsFastTimer* SrsHybridServer::timer100ms()
-{
-    return timer100ms_;
-}
-
-SrsFastTimer* SrsHybridServer::timer1s()
-{
-    return timer1s_;
-}
-
-SrsFastTimer* SrsHybridServer::timer5s()
-{
-    return timer5s_;
 }
 
 srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)

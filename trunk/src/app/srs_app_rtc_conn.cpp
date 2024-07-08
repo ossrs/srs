@@ -69,6 +69,10 @@ extern SrsPps* _srs_pps_rnack2;
 extern SrsPps* _srs_pps_pub;
 extern SrsPps* _srs_pps_conn;
 
+extern SrsFastTimer* _timer1s;
+extern SrsFastTimer* _timer100ms;
+extern SrsFastTimer* _timer20ms;
+
 ISrsRtcTransport::ISrsRtcTransport()
 {
 }
@@ -945,12 +949,12 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
 
 SrsRtcPublishRtcpTimer::SrsRtcPublishRtcpTimer(SrsRtcPublishStream* p) : p_(p)
 {
-    _srs_hybrid->timer1s()->subscribe(this);
+    _timer1s->subscribe(this);
 }
 
 SrsRtcPublishRtcpTimer::~SrsRtcPublishRtcpTimer()
 {
-    _srs_hybrid->timer1s()->unsubscribe(this);
+    _timer1s->unsubscribe(this);
 }
 
 srs_error_t SrsRtcPublishRtcpTimer::on_timer(srs_utime_t interval)
@@ -981,12 +985,12 @@ srs_error_t SrsRtcPublishRtcpTimer::on_timer(srs_utime_t interval)
 
 SrsRtcPublishTwccTimer::SrsRtcPublishTwccTimer(SrsRtcPublishStream* p) : p_(p)
 {
-    _srs_hybrid->timer100ms()->subscribe(this);
+    _timer100ms->subscribe(this);
 }
 
 SrsRtcPublishTwccTimer::~SrsRtcPublishTwccTimer()
 {
-    _srs_hybrid->timer100ms()->unsubscribe(this);
+    _timer100ms->unsubscribe(this);
 }
 
 srs_error_t SrsRtcPublishTwccTimer::on_timer(srs_utime_t interval)
@@ -1739,12 +1743,12 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
 
 SrsRtcConnectionNackTimer::SrsRtcConnectionNackTimer(SrsRtcConnection* p) : p_(p)
 {
-    _srs_hybrid->timer20ms()->subscribe(this);
+    _timer20ms->subscribe(this);
 }
 
 SrsRtcConnectionNackTimer::~SrsRtcConnectionNackTimer()
 {
-    _srs_hybrid->timer20ms()->unsubscribe(this);
+    _timer20ms->unsubscribe(this);
 }
 
 srs_error_t SrsRtcConnectionNackTimer::on_timer(srs_utime_t interval)

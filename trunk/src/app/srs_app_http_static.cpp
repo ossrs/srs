@@ -41,6 +41,8 @@ using namespace std;
 
 #define SRS_CONTEXT_IN_HLS "hls_ctx"
 
+extern SrsFastTimer* _timer5s;
+
 SrsHlsVirtualConn::SrsHlsVirtualConn()
 {
     req = NULL;
@@ -63,13 +65,13 @@ void SrsHlsVirtualConn::expire()
 
 SrsHlsStream::SrsHlsStream()
 {
-    _srs_hybrid->timer5s()->subscribe(this);
+    _timer5s->subscribe(this);
     security_ = new SrsSecurity();
 }
 
 SrsHlsStream::~SrsHlsStream()
 {
-    _srs_hybrid->timer5s()->unsubscribe(this);
+    _timer5s->unsubscribe(this);
 
     std::map<std::string, SrsHlsVirtualConn*>::iterator it;
     for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {

@@ -155,6 +155,11 @@ srs_error_t SrsFastTimer::start()
     return err;
 }
 
+void SrsFastTimer::stop()
+{
+    trd_->stop();
+}
+
 void SrsFastTimer::subscribe(ISrsFastTimer* timer)
 {
     if (std::find(handlers_.begin(), handlers_.end(), timer) == handlers_.end()) {
@@ -168,6 +173,11 @@ void SrsFastTimer::unsubscribe(ISrsFastTimer* timer)
     if (it != handlers_.end()) {
         handlers_.erase(it);
     }
+}
+
+void SrsFastTimer::clear()
+{
+    handlers_.clear();
 }
 
 srs_error_t SrsFastTimer::cycle()
@@ -241,3 +251,7 @@ srs_error_t SrsClockWallMonitor::on_timer(srs_utime_t interval)
     return err;
 }
 
+SrsFastTimer* _timer20ms = NULL;
+SrsFastTimer* _timer100ms = NULL;
+SrsFastTimer* _timer1s = NULL;
+SrsFastTimer* _timer5s = NULL;

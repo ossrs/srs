@@ -61,6 +61,8 @@ extern SrsPps* _srs_pps_rnack2;
 extern SrsPps* _srs_pps_rhnack;
 extern SrsPps* _srs_pps_rmnack;
 
+extern SrsFastTimer* _timer5s;
+
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
     blackhole = false;
@@ -292,6 +294,7 @@ SrsRtcServer::SrsRtcServer()
 
 SrsRtcServer::~SrsRtcServer()
 {
+    _timer5s->unsubscribe(this);
     _srs_config->unsubscribe(this);
 
     if (true) {
@@ -312,7 +315,7 @@ srs_error_t SrsRtcServer::initialize()
 
     // The RTC server start a timer, do routines of RTC server.
     // @see SrsRtcServer::on_timer()
-    _srs_hybrid->timer5s()->subscribe(this);
+    _timer5s->subscribe(this);
 
     // Initialize the black hole.
     if ((err = _srs_blackhole->initialize()) != srs_success) {
@@ -376,6 +379,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     bool is_rtcp = srs_is_rtcp((uint8_t*)data, size);
 
     uint64_t fast_id = skt->fast_id();
+    srs_warn("RTC: on_udp_packet: peer_ip=%s, peer_id=%s, size=%d, is_rtp_or_rtcp=%d, fast_id=%ld", skt->get_peer_ip().c_str(), skt->peer_id().c_str(), size, is_rtp_or_rtcp, fast_id);
     // Try fast id first, if not found, search by long peer id.
     if (fast_id) {
         session = (SrsRtcConnection*)_srs_rtc_manager->find_by_fast_id(fast_id);
@@ -407,7 +411,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
             session->switch_to_context();
         }
 
-        srs_info("recv stun packet from %s, fast=%" PRId64 ", use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
+        srs_warn("recv stun packet from %s, fast=%" PRId64 ", use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
             peer_id.c_str(), fast_id, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
         // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
