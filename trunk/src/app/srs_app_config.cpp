@@ -1202,9 +1202,15 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
         
         char ch = *buffer->pos++;
         
-        if (ch == SRS_LF) {
-            buffer->line++;
+        if (ch == SRS_LF || ch == SRS_CR) {
+            if (ch == SRS_LF) {
+                buffer->line++;
+            }
+
             sharp_comment = false;
+            if (args.size() > 0) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected end of line to parse token %s", buffer->line - 1, args[0].c_str());
+            }
         }
         
         if (sharp_comment) {
@@ -1305,7 +1311,7 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                     args.push_back(word_str);
                 }
                 srs_freepa(aword);
-                
+
                 if (ch == ';') {
                     state = SrsDirectiveStateEntire;
                     return err;
@@ -1313,6 +1319,10 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                 if (ch == '{') {
                     state = SrsDirectiveStateBlockStart;
                     return err;
+                }
+
+                if ((ch == SRS_LF || ch == SRS_CR) && args.size() > 0) {
+                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected end of line to parse token %s", buffer->line - 1, args[0].c_str());
                 }
             }
         }
@@ -2378,7 +2388,7 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "maxbw"
                 && n != "mss" && n != "latency" && n != "recvlatency"
-                && n != "peerlatency" && n != "connect_timeout"
+                && n != "peerlatency" && n != "connect_timeout" && n != "peer_idle_timeout"
                 && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
                 && n != "default_app" && n != "sei_filter" && n != "mix_correct"
                 && n != "tlpktdrop" && n != "tsbpdmode" && n != "passphrase" && n != "pbkeylen") {
