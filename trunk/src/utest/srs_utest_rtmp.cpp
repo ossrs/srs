@@ -2319,7 +2319,7 @@ VOID TEST(ProtocolRTMPTest, CoverAllUnmarshal)
 
         int nn = name->total_size() + arr->total_size();
         char* b = new char[nn];
-        SrsAutoFreeA(char, b);
+        SrsUniquePtr<char[]> cp_uptr(b);
 
         SrsBuffer buf(b, nn);
         HELPER_ASSERT_SUCCESS(name->write(&buf));
@@ -2396,7 +2396,7 @@ VOID TEST(ProtocolRTMPTest, CoverAllUnmarshal)
 
         int nn = name->total_size() + tid->total_size() + null->total_size() + is_pause->total_size() + ts->total_size();
         char* b = new char[nn];
-        SrsAutoFreeA(char, b);
+        SrsUniquePtr<char[]> cp_uptr(b);
 
         SrsBuffer buf(b, nn);
         HELPER_ASSERT_SUCCESS(name->write(&buf));
@@ -2426,7 +2426,7 @@ VOID TEST(ProtocolRTMPTest, CoverAllUnmarshal)
 
         int nn = name->total_size() + tid->total_size() + null->total_size() + stream_name->total_size() + start->total_size() + duration->total_size() + reset->total_size();
         char* b = new char[nn];
-        SrsAutoFreeA(char, b);
+        SrsUniquePtr<char[]> cp_uptr(b);
 
         SrsBuffer buf(b, nn);
         HELPER_ASSERT_SUCCESS(name->write(&buf));
@@ -2460,7 +2460,7 @@ VOID TEST(ProtocolRTMPTest, CoverAllUnmarshal)
 
         int nn = name->total_size() + tid->total_size() + null->total_size() + stream_name->total_size() + start->total_size() + duration->total_size() + reset->total_size();
         char* b = new char[nn];
-        SrsAutoFreeA(char, b);
+        SrsUniquePtr<char[]> cp_uptr(b);
 
         SrsBuffer buf(b, nn);
         HELPER_ASSERT_SUCCESS(name->write(&buf));
@@ -2494,7 +2494,7 @@ VOID TEST(ProtocolRTMPTest, CoverAllUnmarshal)
 
         int nn = name->total_size() + tid->total_size() + null->total_size() + stream_name->total_size() + start->total_size() + duration->total_size() + reset->total_size();
         char* b = new char[nn];
-        SrsAutoFreeA(char, b);
+        SrsUniquePtr<char[]> cp_uptr(b);
 
         SrsBuffer buf(b, nn);
         HELPER_ASSERT_SUCCESS(name->write(&buf));

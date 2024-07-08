@@ -434,14 +434,13 @@ srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, SrsRequ
     SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
 
     int nb_buf = srs_min(nb_notify, SRS_HTTP_READ_BUFFER);
-    char* buf = new char[nb_buf];
-    SrsAutoFreeA(char, buf);
-    
+    SrsUniquePtr<char[]> buf(new char[nb_buf]);
+
     int nb_read = 0;
     ISrsHttpResponseReader* br = msg->body_reader();
     while (nb_read < nb_notify && !br->eof()) {
         ssize_t nb_bytes = 0;
-        if ((err = br->read(buf, nb_buf, &nb_bytes)) != srs_success) {
+        if ((err = br->read(buf.get(), nb_buf, &nb_bytes)) != srs_success) {
             break;
         }
         nb_read += (int)nb_bytes;

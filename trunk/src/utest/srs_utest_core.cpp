@@ -176,10 +176,10 @@ public:
 public:
     MockWrapper(int* p) {
         ptr = p;
-        *ptr = *ptr + 1;
+        if (ptr) *ptr = *ptr + 1;
     }
     ~MockWrapper() {
-        *ptr = *ptr - 1;
+        if (ptr) *ptr = *ptr - 1;
     }
 };
 
@@ -458,6 +458,32 @@ VOID TEST(CoreSmartPtr, UniquePtrNormal)
         SrsUniquePtr<MockWrapper> p0(new MockWrapper(ptr));
         EXPECT_EQ(102, *ptr);
         EXPECT_EQ(102, *p0->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+}
+
+VOID TEST(CoreSmartPtr, UniquePtrArray)
+{
+    if (true) {
+        int* ptr = new int[100];
+        ptr[0] = 100;
+
+        SrsUniquePtr<int[]> p(ptr);
+        EXPECT_EQ(100, *p.get());
+    }
+
+    int* ptr = new int(100);
+    SrsUniquePtr<int> ptr_uptr(ptr);
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsUniquePtr<MockWrapper[]> p(new MockWrapper[1]{MockWrapper(ptr)});
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *(p[0].ptr));
+
+        SrsUniquePtr<MockWrapper[]> p0(new MockWrapper[1]{MockWrapper(ptr)});
+        EXPECT_EQ(102, *ptr);
+        EXPECT_EQ(102, *(p0[0].ptr));
     }
     EXPECT_EQ(100, *ptr);
 }

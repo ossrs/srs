@@ -399,7 +399,7 @@ VOID TEST(ProtocolHandshakeTest, VerifyFPC0C1)
     // manually validate the c1
     // @see: calc_c1_digest
     char* c1s1_joined_bytes = new char[1536 -32];
-    SrsAutoFreeA(char, c1s1_joined_bytes);
+    SrsUniquePtr<char[]> cp_uptr(c1s1_joined_bytes);
     HELPER_ASSERT_SUCCESS( c1.payload->copy_to(&c1, c1s1_joined_bytes, 1536 - 32, false));
     
     bool is_valid;
@@ -3355,14 +3355,16 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
     }
     // recv auto send acked size. #1
     if (true) {
-        SrsCommonMessage* msg = NULL; SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsCommonMessage* msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
+        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
         ASSERT_TRUE(msg->header.is_ackledgement());
     }
 
     // send again
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage(); SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsCommonMessage* msg = new SrsCommonMessage();
+        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
         msg->header.payload_length = msg->size = 4096;
         msg->payload = new char[msg->size];
 

@@ -5788,16 +5788,15 @@ srs_error_t SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
         }
         
         int nb_data = mdat->sz_header();
-        uint8_t* data = new uint8_t[nb_data];
-        SrsAutoFreeA(uint8_t, data);
+        SrsUniquePtr<uint8_t[]> data(new uint8_t[nb_data]);
 
-        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data, nb_data));
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data.get(), nb_data));
         if ((err = mdat->encode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "encode mdat");
         }
         
         // TODO: FIXME: Ensure all bytes are writen.
-        if ((err = wsio->write(data, nb_data, NULL)) != srs_success) {
+        if ((err = wsio->write(data.get(), nb_data, NULL)) != srs_success) {
             return srs_error_wrap(err, "write mdat");
         }
         
@@ -6049,16 +6048,15 @@ srs_error_t SrsMp4Encoder::flush()
         }
         
         int nb_data = moov->nb_bytes();
-        uint8_t* data = new uint8_t[nb_data];
-        SrsAutoFreeA(uint8_t, data);
+        SrsUniquePtr<uint8_t[]> data(new uint8_t[nb_data]);
 
-        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data, nb_data));
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data.get(), nb_data));
         if ((err = moov->encode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "encode moov");
         }
         
         // TODO: FIXME: Ensure all bytes are writen.
-        if ((err = wsio->write(data, nb_data, NULL)) != srs_success) {
+        if ((err = wsio->write(data.get(), nb_data, NULL)) != srs_success) {
             return srs_error_wrap(err, "write moov");
         }
     }
@@ -6075,10 +6073,9 @@ srs_error_t SrsMp4Encoder::flush()
         mdat->update_size();
         
         int nb_data = mdat->sz_header();
-        uint8_t* data = new uint8_t[nb_data];
-        SrsAutoFreeA(uint8_t, data);
+        SrsUniquePtr<uint8_t[]> data(new uint8_t[nb_data]);
 
-        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data, nb_data));
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data.get(), nb_data));
         if ((err = mdat->encode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "encode mdat");
         }
@@ -6099,7 +6096,7 @@ srs_error_t SrsMp4Encoder::flush()
         }
         
         // TODO: FIXME: Ensure all bytes are writen.
-        if ((err = wsio->write(data, nb_data, NULL)) != srs_success) {
+        if ((err = wsio->write(data.get(), nb_data, NULL)) != srs_success) {
             return srs_error_wrap(err, "write mdat");
         }
     }
@@ -6611,16 +6608,15 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
     // Write mdat.
     if (true) {
         int nb_data = mdat->sz_header();
-        uint8_t* data = new uint8_t[nb_data];
-        SrsAutoFreeA(uint8_t, data);
+        SrsUniquePtr<uint8_t[]> data(new uint8_t[nb_data]);
 
-        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data, nb_data));
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data.get(), nb_data));
         if ((err = mdat->encode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "encode mdat");
         }
         
         // TODO: FIXME: Ensure all bytes are writen.
-        if ((err = writer->write(data, nb_data, NULL)) != srs_success) {
+        if ((err = writer->write(data.get(), nb_data, NULL)) != srs_success) {
             return srs_error_wrap(err, "write mdat");
         }
         

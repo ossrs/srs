@@ -143,6 +143,55 @@ private:
 #endif
 };
 
+// The unique ptr for array objects, only support unique ptr, with limited APIs and features,
+// see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
+//
+// Usage:
+//      SrsUniquePtr<MyClass[]> ptr(new MyClass[10]);
+//      ptr[0]->do_something();
+template<class T>
+class SrsUniquePtr<T[]>
+{
+private:
+    T* ptr_;
+public:
+    SrsUniquePtr(T* ptr = NULL) {
+        ptr_ = ptr;
+    }
+    virtual ~SrsUniquePtr() {
+        delete[] ptr_;
+    }
+public:
+    // Get the object.
+    T* get() {
+        return ptr_;
+    }
+    // Overload the [] operator.
+    T& operator[](std::size_t index) {
+        return ptr_[index];
+    }
+    const T& operator[](std::size_t index) const {
+        return ptr_[index];
+    }
+private:
+    // Copy the unique ptr.
+    SrsUniquePtr(const SrsUniquePtr<T>&) = delete;
+    // The assign operator.
+    SrsUniquePtr<T>& operator=(const SrsUniquePtr<T>&) = delete;
+private:
+    // Overload the * operator.
+    T& operator*() = delete;
+    // Overload the bool operator.
+    operator bool() const = delete;
+#if __cplusplus >= 201103L // C++11
+private:
+    // The move constructor.
+    SrsUniquePtr(SrsUniquePtr<T>&&) = delete;
+    // The move assign operator.
+    SrsUniquePtr<T>& operator=(SrsUniquePtr<T>&&) = delete;
+#endif
+};
+
 // Shared ptr smart pointer, only support shared ptr, no weak ptr, no shared from this, no inheritance,
 // no comparing, see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
 //

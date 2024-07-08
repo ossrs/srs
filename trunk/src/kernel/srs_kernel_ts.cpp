@@ -384,20 +384,19 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid,
         SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pat(this, pmt_number, pmt_pid));
 
         pkt->sync_byte = sync_byte;
-        
-        char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFreeA(char, buf);
-        
+
+        SrsUniquePtr<char[]> buf(new char[SRS_TS_PACKET_SIZE]);
+
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
-        memset(buf + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
+        memset(buf.get() + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
         
-        SrsBuffer stream(buf, nb_buf);
+        SrsBuffer stream(buf.get(), nb_buf);
         if ((err = pkt->encode(&stream)) != srs_success) {
             return srs_error_wrap(err, "ts: encode packet");
         }
-        if ((err = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
+        if ((err = writer->write(buf.get(), SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
             return srs_error_wrap(err, "ts: write packet");
         }
     }
@@ -405,20 +404,19 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid,
         SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pmt(this, pmt_number, pmt_pid, vpid, vs, apid, as));
 
         pkt->sync_byte = sync_byte;
-        
-        char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFreeA(char, buf);
-        
+
+        SrsUniquePtr<char[]> buf(new char[SRS_TS_PACKET_SIZE]);
+
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
-        memset(buf + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
+        memset(buf.get() + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
         
-        SrsBuffer stream(buf, nb_buf);
+        SrsBuffer stream(buf.get(), nb_buf);
         if ((err = pkt->encode(&stream)) != srs_success) {
             return srs_error_wrap(err, "ts: encode packet");
         }
-        if ((err = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
+        if ((err = writer->write(buf.get(), SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
             return srs_error_wrap(err, "ts: write packet");
         }
     }
@@ -493,10 +491,9 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
         SrsUniquePtr<SrsTsPacket> pkt(pkt_raw);
 
         pkt->sync_byte = sync_byte;
-        
-        char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFreeA(char, buf);
-        
+
+        SrsUniquePtr<char[]> buf(new char[SRS_TS_PACKET_SIZE]);
+
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
@@ -505,7 +502,7 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
         int nb_stuffings = SRS_TS_PACKET_SIZE - nb_buf - left;
         if (nb_stuffings > 0) {
             // set all bytes to stuffings.
-            memset(buf, 0xFF, SRS_TS_PACKET_SIZE);
+            memset(buf.get(), 0xFF, SRS_TS_PACKET_SIZE);
             
             // padding with stuffings.
             pkt->padding(nb_stuffings);
@@ -518,14 +515,14 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
             nb_stuffings = SRS_TS_PACKET_SIZE - nb_buf - left;
             srs_assert(nb_stuffings == 0);
         }
-        memcpy(buf + nb_buf, p, left);
+        memcpy(buf.get() + nb_buf, p, left);
         p += left;
         
-        SrsBuffer stream(buf, nb_buf);
+        SrsBuffer stream(buf.get(), nb_buf);
         if ((err = pkt->encode(&stream)) != srs_success) {
             return srs_error_wrap(err, "ts: encode packet");
         }
-        if ((err = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
+        if ((err = writer->write(buf.get(), SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
             return srs_error_wrap(err, "ts: write packet");
         }
     }
@@ -2771,14 +2768,13 @@ srs_error_t SrsEncFileWriter::write(void* data, size_t count, ssize_t* pnwrite)
     
     if (nb_buf == HLS_AES_ENCRYPT_BLOCK_LENGTH) {
         nb_buf = 0;
-        
-        char* cipher = new char[HLS_AES_ENCRYPT_BLOCK_LENGTH];
-        SrsAutoFreeA(char, cipher);
-        
+
+        SrsUniquePtr<char[]> cipher(new char[HLS_AES_ENCRYPT_BLOCK_LENGTH]);
+
         AES_KEY* k = (AES_KEY*)key;
-        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher, HLS_AES_ENCRYPT_BLOCK_LENGTH, k, iv, AES_ENCRYPT);
+        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher.get(), HLS_AES_ENCRYPT_BLOCK_LENGTH, k, iv, AES_ENCRYPT);
         
-        if ((err = SrsFileWriter::write(cipher, HLS_AES_ENCRYPT_BLOCK_LENGTH, pnwrite)) != srs_success) {
+        if ((err = SrsFileWriter::write(cipher.get(), HLS_AES_ENCRYPT_BLOCK_LENGTH, pnwrite)) != srs_success) {
             return srs_error_wrap(err, "write cipher");
         }
     }
@@ -2807,15 +2803,14 @@ void SrsEncFileWriter::close()
         if (nb_padding > 0) {
             memset(buf + nb_buf, nb_padding, nb_padding);
         }
-        
-        char* cipher = new char[nb_buf + nb_padding];
-        SrsAutoFreeA(char, cipher);
-        
+
+        SrsUniquePtr<char[]> cipher(new char[nb_buf + nb_padding]);
+
         AES_KEY* k = (AES_KEY*)key;
-        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher, nb_buf + nb_padding, k, iv, AES_ENCRYPT);
+        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher.get(), nb_buf + nb_padding, k, iv, AES_ENCRYPT);
         
         srs_error_t err = srs_success;
-        if ((err = SrsFileWriter::write(cipher, nb_buf + nb_padding, NULL)) != srs_success) {
+        if ((err = SrsFileWriter::write(cipher.get(), nb_buf + nb_padding, NULL)) != srs_success) {
             srs_warn("ignore err %s", srs_error_desc(err).c_str());
             srs_error_reset(err);
         }

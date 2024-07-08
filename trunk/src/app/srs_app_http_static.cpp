@@ -427,9 +427,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
     
     // save sequence header, send later
-    char* sh_data = NULL;
     int sh_size = 0;
-    
     if (true) {
         // send sequence header
         int64_t start = 0;
@@ -440,9 +438,9 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
             return srs_error_new(ERROR_HTTP_REMUX_SEQUENCE_HEADER, "no sequence, size=%d", sh_size);
         }
     }
-    sh_data = new char[sh_size];
-    SrsAutoFreeA(char, sh_data);
-    if ((err = fs->read(sh_data, sh_size, NULL)) != srs_success) {
+
+    SrsUniquePtr<char[]> sh_data(new char[sh_size]);
+    if ((err = fs->read(sh_data.get(), sh_size, NULL)) != srs_success) {
         return srs_error_wrap(err, "fs read");
     }
     
@@ -458,7 +456,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     if ((err = w->write(flv_header, sizeof(flv_header))) != srs_success) {
         return srs_error_wrap(err, "write flv header");
     }
-    if (sh_size > 0 && (err = w->write(sh_data, sh_size)) != srs_success) {
+    if (sh_size > 0 && (err = w->write(sh_data.get(), sh_size)) != srs_success) {
         return srs_error_wrap(err, "write sequence");
     }
     

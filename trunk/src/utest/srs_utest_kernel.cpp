@@ -6293,7 +6293,7 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
         HELPER_EXPECT_SUCCESS(fmt.on_video(0, (char*)raw, sizeof(raw)));
 
         uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
-        SrsAutoFreeA(uint8_t, cp);
+        SrsUniquePtr<uint8_t[]> cp_uptr(cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
             SrsMp4HandlerTypeVIDE, fmt.video->frame_type, 0, 0, cp, fmt.nb_raw
         ));
@@ -6306,7 +6306,7 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
         HELPER_EXPECT_SUCCESS(fmt.on_audio(0, (char*)raw, sizeof(raw)));
 
         uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
-        SrsAutoFreeA(uint8_t, cp);
+        SrsUniquePtr<uint8_t[]> cp_uptr(cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
             SrsMp4HandlerTypeSOUN, 0x00, 0, 0, cp, fmt.nb_raw
         ));
@@ -6325,7 +6325,7 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
         HELPER_EXPECT_SUCCESS(fmt.on_audio(0, (char*)raw, sizeof(raw)));
 
         uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
-        SrsAutoFreeA(uint8_t, cp);
+        SrsUniquePtr<uint8_t[]> cp_uptr(cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
             SrsMp4HandlerTypeSOUN, 0x00, 34, 34, cp, fmt.nb_raw
         ));
@@ -6347,7 +6347,7 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
         HELPER_EXPECT_SUCCESS(fmt.on_video(0, (char*)raw, sizeof(raw)));
 
         uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
-        SrsAutoFreeA(uint8_t, cp);
+        SrsUniquePtr<uint8_t[]> cp_uptr(cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
             SrsMp4HandlerTypeVIDE, fmt.video->frame_type, 40, 40, cp, fmt.nb_raw
         ));

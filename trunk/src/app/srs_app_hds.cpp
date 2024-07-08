@@ -448,17 +448,16 @@ srs_error_t SrsHds::flush_bootstrap()
     srs_error_t err = srs_success;
     
     int size = 1024*100;
-    
-    char *start_abst = new char[1024*100];
-    SrsAutoFreeA(char, start_abst);
-    
+
+    SrsUniquePtr<char[]> start_abst(new char[1024*100]);
+
     int size_abst = 0;
     char *start_asrt = NULL;
     int size_asrt = 0;
     char *start_afrt = NULL;
     int size_afrt = 0;
     
-    SrsBuffer abst(start_abst, size);
+    SrsBuffer abst(start_abst.get(), size);
     
     // @see video_file_format_spec_v10_1
     // page: 46
@@ -553,7 +552,7 @@ srs_error_t SrsHds::flush_bootstrap()
     abst.write_1bytes(1);
     size_abst += 1;
     
-    start_asrt = start_abst + size_abst;
+    start_asrt = start_abst.get() + size_abst;
     
     // follows by asrt
     abst.write_4bytes(0);
@@ -621,7 +620,7 @@ srs_error_t SrsHds::flush_bootstrap()
     size_abst += 1;
     
     // follows by afrt
-    start_afrt = start_abst + size_abst;
+    start_afrt = start_abst.get() + size_abst;
     
     abst.write_4bytes(0);
     abst.write_string("afrt");
@@ -671,7 +670,7 @@ srs_error_t SrsHds::flush_bootstrap()
     
     update_box(start_afrt, size_afrt);
     size_abst += size_afrt;
-    update_box(start_abst, size_abst);
+    update_box(start_abst.get(), size_abst);
     
     string path = _srs_config->get_hds_path(hds_req->vhost) + "/" + hds_req->app + "/" + hds_req->stream +".abst";
     
@@ -680,7 +679,7 @@ srs_error_t SrsHds::flush_bootstrap()
         return srs_error_new(ERROR_HDS_OPEN_BOOTSTRAP_FAILED, "open bootstrap file failed, path=%s", path.c_str());
     }
     
-    if (write(fd, start_abst, size_abst) != size_abst) {
+    if (write(fd, start_abst.get(), size_abst) != size_abst) {
         close(fd);
         return srs_error_new(ERROR_HDS_WRITE_BOOTSTRAP_FAILED, "write bootstrap file failed, path=", path.c_str());
     }

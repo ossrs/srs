@@ -77,7 +77,7 @@ VOID TEST(ProtocolAMF0Test, ScenarioMain)
         EXPECT_EQ(0x03, bytes[0]);
         EXPECT_EQ(0x09, bytes[nb_bytes - 1]);
     }
-    SrsAutoFreeA(char, bytes);
+    SrsUniquePtr<char[]> bytes_uptr(bytes);
     
     // decoding amf0 object from bytes
     // when user know the schema
@@ -1289,7 +1289,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesString)
 
         // For marshal and unmarshal.
         char* bb = new char[p->total_size()];
-        SrsAutoFreeA(char, bb);
+        SrsUniquePtr<char[]> bb_uptr(bb);
         SrsBuffer b(bb, p->total_size());
         HELPER_EXPECT_SUCCESS(p->write(&b));
 
@@ -1419,7 +1419,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesBoolean)
 
         // For marshal and unmarshal.
         char* bb = new char[p->total_size()];
-        SrsAutoFreeA(char, bb);
+        SrsUniquePtr<char[]> bb_uptr(bb);
         SrsBuffer b(bb, p->total_size());
         HELPER_EXPECT_SUCCESS(p->write(&b));
 
@@ -1517,7 +1517,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesNumber)
 
         // For marshal and unmarshal.
         char* bb = new char[p->total_size()];
-        SrsAutoFreeA(char, bb);
+        SrsUniquePtr<char[]> bb_uptr(bb);
         SrsBuffer b(bb, p->total_size());
         HELPER_EXPECT_SUCCESS(p->write(&b));
 
@@ -1603,7 +1603,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesDate)
 
         // For marshal and unmarshal.
         char* bb = new char[p->total_size()];
-        SrsAutoFreeA(char, bb);
+        SrsUniquePtr<char[]> bb_uptr(bb);
         SrsBuffer b(bb, p->total_size());
         HELPER_EXPECT_SUCCESS(p->write(&b));
 
@@ -1647,7 +1647,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesNull)
 
         // For marshal and unmarshal.
         char* bb = new char[p->total_size()];
-        SrsAutoFreeA(char, bb);
+        SrsUniquePtr<char[]> bb_uptr(bb);
         SrsBuffer b(bb, p->total_size());
         HELPER_EXPECT_SUCCESS(p->write(&b));
 
@@ -1713,7 +1713,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesUndefined)
 
         // For marshal and unmarshal.
         char* bb = new char[p->total_size()];
-        SrsAutoFreeA(char, bb);
+        SrsUniquePtr<char[]> bb_uptr(bb);
         SrsBuffer b(bb, p->total_size());
         HELPER_EXPECT_SUCCESS(p->write(&b));
 
@@ -1780,7 +1780,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject)
 
         // For marshal and unmarshal.
         char* bb = new char[p->total_size()];
-        SrsAutoFreeA(char, bb);
+        SrsUniquePtr<char[]> bb_uptr(bb);
         SrsBuffer b(bb, p->total_size());
         HELPER_EXPECT_SUCCESS(p->write(&b));
 
@@ -1985,7 +1985,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesObjectEOF)
 
         // For marshal and unmarshal.
         char* bb = new char[p->total_size()];
-        SrsAutoFreeA(char, bb);
+        SrsUniquePtr<char[]> bb_uptr(bb);
         SrsBuffer b(bb, p->total_size());
         HELPER_EXPECT_SUCCESS(p->write(&b));
 
@@ -2077,7 +2077,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesEcmaArray)
 
         // For marshal and unmarshal.
         char* bb = new char[p->total_size()];
-        SrsAutoFreeA(char, bb);
+        SrsUniquePtr<char[]> bb_uptr(bb);
         SrsBuffer b(bb, p->total_size());
         HELPER_EXPECT_SUCCESS(p->write(&b));
 
@@ -2205,7 +2205,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesStrictArray)
 
         // For marshal and unmarshal.
         char* bb = new char[p->total_size()];
-        SrsAutoFreeA(char, bb);
+        SrsUniquePtr<char[]> bb_uptr(bb);
         SrsBuffer b(bb, p->total_size());
         HELPER_EXPECT_SUCCESS(p->write(&b));
 

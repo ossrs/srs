@@ -726,16 +726,15 @@ srs_error_t SrsClsClient::do_send_logs(ISrsEncoder* sugar, int count, int total)
         return srs_error_new(ERROR_CLS_EXCEED_SIZE, "exceed 5MB actual %d", size);
     }
 
-    char* buf = new char[size];
-    SrsAutoFreeA(char, buf);
+    SrsUniquePtr<char[]> buf(new char[size]);
 
-    memset(buf, 0, size);
-    SrsBuffer b(buf, size);
+    memset(buf.get(), 0, size);
+    SrsBuffer b(buf.get(), size);
     if ((err = sugar->encode(&b)) != srs_success) {
         return srs_error_wrap(err, "encode log");
     }
 
-    string body(buf, size);
+    string body(buf.get(), size);
 
     // Write a CLS log to service specified by url.
     string url = "http://" + endpoint_ + ":80/structuredlog?topic_id=" + topic_;
@@ -2166,16 +2165,15 @@ srs_error_t SrsApmClient::do_report()
         return srs_error_new(ERROR_APM_EXCEED_SIZE, "exceed 5MB actual %d", size);
     }
 
-    char* buf = new char[size];
-    SrsAutoFreeA(char, buf);
+    SrsUniquePtr<char[]> buf(new char[size]);
 
-    memset(buf, 0, size);
-    SrsBuffer b(buf, size);
+    memset(buf.get(), 0, size);
+    SrsBuffer b(buf.get(), size);
     if ((err = sugar->encode(&b)) != srs_success) {
         return srs_error_wrap(err, "encode log");
     }
 
-    string body(buf, size);
+    string body(buf.get(), size);
 
     // Write a CLS log to service specified by url.
     string url = "http://" + endpoint_ + "/v1/traces";

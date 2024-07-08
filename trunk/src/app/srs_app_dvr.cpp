@@ -256,10 +256,8 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     int64_t cur = fs->tellg();
     
     // buffer to write the size.
-    char* buf = new char[SrsAmf0Size::number()];
-    SrsAutoFreeA(char, buf);
-    
-    SrsBuffer stream(buf, SrsAmf0Size::number());
+    SrsUniquePtr<char[]> buf(new char[SrsAmf0Size::number()]);
+    SrsBuffer stream(buf.get(), SrsAmf0Size::number());
     
     // filesize to buf.
     SrsUniquePtr<SrsAmf0Any> size(SrsAmf0Any::number((double)cur));
@@ -271,7 +269,7 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     
     // update the flesize.
     fs->seek2(filesize_offset);
-    if ((err = fs->write(buf, SrsAmf0Size::number(), NULL)) != srs_success) {
+    if ((err = fs->write(buf.get(), SrsAmf0Size::number(), NULL)) != srs_success) {
         return srs_error_wrap(err, "update filesize");
     }
     
@@ -285,7 +283,7 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     
     // update the duration
     fs->seek2(duration_offset);
-    if ((err = fs->write(buf, SrsAmf0Size::number(), NULL)) != srs_success) {
+    if ((err = fs->write(buf.get(), SrsAmf0Size::number(), NULL)) != srs_success) {
         return srs_error_wrap(err, "update duration");
     }
     
@@ -351,16 +349,15 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsSharedPtrMessage* metadata)
     obj->set("duration", SrsAmf0Any::number(0));
     
     int size = name->total_size() + obj->total_size();
-    char* payload = new char[size];
-    SrsAutoFreeA(char, payload);
-    
+    SrsUniquePtr<char[]> payload(new char[size]);
+
     // 11B flv header, 3B object EOF, 8B number value, 1B number flag.
     duration_offset = fs->tellg() + size + 11 - SrsAmf0Size::object_eof() - SrsAmf0Size::number();
     // 2B string flag, 8B number value, 8B string 'duration', 1B number flag
     filesize_offset = duration_offset - SrsAmf0Size::utf8("duration") - SrsAmf0Size::number();
     
     // convert metadata to bytes.
-    SrsBuffer buf(payload, size);
+    SrsBuffer buf(payload.get(), size);
     
     if ((err = name->write(&buf)) != srs_success) {
         return srs_error_wrap(err, "write name");
@@ -370,7 +367,7 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsSharedPtrMessage* metadata)
     }
     
     // to flv file.
-    if ((err = enc->write_metadata(18, payload, size)) != srs_success) {
+    if ((err = enc->write_metadata(18, payload.get(), size)) != srs_success) {
         return srs_error_wrap(err, "write metadata");
     }
     
