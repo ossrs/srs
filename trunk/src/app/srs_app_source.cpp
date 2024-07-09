@@ -2660,13 +2660,6 @@ void SrsLiveSource::on_unpublish()
 srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)
 {
     srs_error_t err = srs_success;
-    
-    consumer = new SrsLiveConsumer(this);
-    consumers.push_back(consumer);
-
-    // There should be one consumer, so reset the timeout.
-    stream_die_at_ = 0;
-    publisher_idle_at_ = 0;
 
     // for edge, when play edge stream, check the state
     if (_srs_config->get_vhost_is_edge(req->vhost)) {
@@ -2675,6 +2668,13 @@ srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)
             return srs_error_wrap(err, "play edge");
         }
     }
+
+    consumer = new SrsLiveConsumer(this);
+    consumers.push_back(consumer);
+
+    // There are more than one consumer, so reset the timeout.
+    stream_die_at_ = 0;
+    publisher_idle_at_ = 0;
     
     return err;
 }
