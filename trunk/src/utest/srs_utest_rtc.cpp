@@ -711,7 +711,7 @@ VOID TEST(KernelRTCTest, NACKFetchRTPPacket)
 
     SrsRtcTrackDescription ds;
     SrsRtcVideoSendTrack* track = new SrsRtcVideoSendTrack(&s, &ds);
-    SrsAutoFree(SrsRtcVideoSendTrack, track);
+    SrsUniquePtr<SrsRtcVideoSendTrack> track_uptr(track);
 
     // The RTP queue will free the packet.
     if (true) {
@@ -975,7 +975,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportNormal)
     if (true)
     {
         SrsRtpPacket* video_rtp_pkt = new SrsRtpPacket();
-        SrsAutoFree(SrsRtpPacket, video_rtp_pkt);
+        SrsUniquePtr<SrsRtpPacket> video_rtp_pkt_uptr(video_rtp_pkt);
 
         uint32_t video_absolute_ts = srs_get_system_time();
         uint32_t video_rtp_ts = random();
@@ -988,7 +988,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportNormal)
         SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
 
         SrsRtcpSR* video_sr = new SrsRtcpSR();
-        SrsAutoFree(SrsRtcpSR, video_sr);
+        SrsUniquePtr<SrsRtcpSR> video_sr_uptr(video_sr);
         video_sr->set_ssrc(200);
 
         video_sr->set_ntp(ntp.ntp_);
@@ -1042,7 +1042,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportOutOfOrder)
     if (true)
     {
         SrsRtpPacket* video_rtp_pkt = new SrsRtpPacket();
-        SrsAutoFree(SrsRtpPacket, video_rtp_pkt);
+        SrsUniquePtr<SrsRtpPacket> video_rtp_pkt_uptr(video_rtp_pkt);
 
         uint32_t video_absolute_ts = srs_get_system_time();
         uint32_t video_rtp_ts = random();
@@ -1055,7 +1055,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportOutOfOrder)
         SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
 
         SrsRtcpSR* video_sr1 = new SrsRtcpSR();
-        SrsAutoFree(SrsRtcpSR, video_sr1);
+        SrsUniquePtr<SrsRtcpSR> video_sr1_uptr(video_sr1);
         video_sr1->set_ssrc(200);
 
         video_sr1->set_ntp(ntp.ntp_);
@@ -1072,7 +1072,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportOutOfOrder)
 
         ntp = SrsNtp::from_time_ms(video_absolute_ts);
         SrsRtcpSR* video_sr2 = new SrsRtcpSR();
-        SrsAutoFree(SrsRtcpSR, video_sr2);
+        SrsUniquePtr<SrsRtcpSR> video_sr2_uptr(video_sr2);
         video_sr2->set_ssrc(200);
         video_sr2->set_ntp(ntp.ntp_);
         video_sr2->set_rtp_ts(video_rtp_ts);
@@ -1114,7 +1114,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
     if (true)
     {
         SrsRtpPacket* video_rtp_pkt = new SrsRtpPacket();
-        SrsAutoFree(SrsRtpPacket, video_rtp_pkt);
+        SrsUniquePtr<SrsRtpPacket> video_rtp_pkt_uptr(video_rtp_pkt);
 
         uint32_t video_absolute_ts = srs_get_system_time();
         uint32_t video_rtp_ts = random();
@@ -1127,7 +1127,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
         SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
 
         SrsRtcpSR* video_sr = new SrsRtcpSR();
-        SrsAutoFree(SrsRtcpSR, video_sr);
+        SrsUniquePtr<SrsRtcpSR> video_sr_uptr(video_sr);
         video_sr->set_ssrc(200);
 
         video_sr->set_ntp(ntp.ntp_);
@@ -1219,7 +1219,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportDuplicated)
     if (true)
     {
         SrsRtpPacket* video_rtp_pkt = new SrsRtpPacket();
-        SrsAutoFree(SrsRtpPacket, video_rtp_pkt);
+        SrsUniquePtr<SrsRtpPacket> video_rtp_pkt_uptr(video_rtp_pkt);
 
         uint32_t video_absolute_ts = srs_get_system_time();
         uint32_t video_rtp_ts = random();
@@ -1232,7 +1232,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportDuplicated)
         SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
 
         SrsRtcpSR* video_sr = new SrsRtcpSR();
-        SrsAutoFree(SrsRtcpSR, video_sr);
+        SrsUniquePtr<SrsRtcpSR> video_sr_uptr(video_sr);
         video_sr->set_ssrc(200);
 
         video_sr->set_ntp(ntp.ntp_);

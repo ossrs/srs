@@ -307,13 +307,11 @@ srs_error_t SrsSrtFrameBuilder::on_packet(SrsSrtPacket *pkt)
     int nb_packet = nb_buf / SRS_TS_PACKET_SIZE;
     for (int i = 0; i < nb_packet; i++) {
         char* p = buf + (i * SRS_TS_PACKET_SIZE);
-
-        SrsBuffer* stream = new SrsBuffer(p, SRS_TS_PACKET_SIZE);
-        SrsAutoFree(SrsBuffer, stream);
+        SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(p, SRS_TS_PACKET_SIZE));
 
         // Process each ts packet. Note that the jitter of UDP may cause video glitch when packet loss or wrong seq. We
         // don't handle it because SRT will, see tlpktdrop at https://ossrs.net/lts/zh-cn/docs/v4/doc/srt-params
-        if ((err = ts_ctx_->decode(stream, this)) != srs_success) {
+        if ((err = ts_ctx_->decode(stream.get(), this)) != srs_success) {
             srs_warn("parse ts packet err=%s", srs_error_desc(err).c_str());
             srs_error_reset(err);
             continue;
@@ -391,9 +389,8 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* av
 
     vector<pair<char*, int> > ipb_frames;
 
-    SrsRawH264Stream* avc = new SrsRawH264Stream();
-    SrsAutoFree(SrsRawH264Stream, avc);
-    
+    SrsUniquePtr<SrsRawH264Stream> avc(new SrsRawH264Stream());
+
     // send each frame.
     while (!avs->empty()) {
         char* frame = NULL;
@@ -465,8 +462,7 @@ srs_error_t SrsSrtFrameBuilder::check_sps_pps_change(SrsTsMessage* msg)
     uint32_t dts = (uint32_t)(msg->dts / 90);
 
     std::string sh;
-    SrsRawH264Stream* avc = new SrsRawH264Stream();
-    SrsAutoFree(SrsRawH264Stream, avc);
+    SrsUniquePtr<SrsRawH264Stream> avc(new SrsRawH264Stream());
 
     if ((err = avc->mux_sequence_header(sps_, pps_, sh)) != srs_success) {
         return srs_error_wrap(err, "mux sequence header");
@@ -565,9 +561,7 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
     srs_error_t err = srs_success;
 
     vector<pair<char*, int> > ipb_frames;
-
-    SrsRawHEVCStream *hevc = new SrsRawHEVCStream();
-    SrsAutoFree(SrsRawHEVCStream, hevc);
+    SrsUniquePtr<SrsRawHEVCStream> hevc(new SrsRawHEVCStream());
 
     std::vector<std::string> hevc_pps;
     // send each frame.
@@ -660,8 +654,7 @@ srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage* msg)
     uint32_t dts = (uint32_t)(msg->dts / 90);
 
     std::string sh;
-    SrsRawHEVCStream* hevc = new SrsRawHEVCStream();
-    SrsAutoFree(SrsRawHEVCStream, hevc);
+    SrsUniquePtr<SrsRawHEVCStream> hevc(new SrsRawHEVCStream());
 
     if ((err = hevc->mux_sequence_header(hevc_vps_, hevc_sps_, hevc_pps_, sh)) != srs_success) {
         return srs_error_wrap(err, "mux sequence header");
@@ -765,9 +758,8 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
 srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
     srs_error_t err = srs_success;
-    
-    SrsRawAacStream* aac = new SrsRawAacStream();
-    SrsAutoFree(SrsRawAacStream, aac);
+
+    SrsUniquePtr<SrsRawAacStream> aac(new SrsRawAacStream());
 
     // ts tbn to flv tbn.
     uint32_t pts = (uint32_t)(msg->pts / 90);

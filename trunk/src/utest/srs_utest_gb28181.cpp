@@ -95,8 +95,8 @@ VOID TEST(ProtocolGbSipTest, SipViaBranchMagic)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_BOTH));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
     SrsSipMessage smsg;
     HELPER_ASSERT_FAILED(smsg.parse(msg));
@@ -127,8 +127,9 @@ VOID TEST(ProtocolGbSipTest, SipRegisterRequest)
         HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST));
 
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
         EXPECT_EQ(HTTP_REGISTER, msg->method());
         EXPECT_STREQ("/sip:registrar.biloxi.com", msg->path().c_str());
         EXPECT_STREQ("SIP/2.0/UDP bobspc.biloxi.com:5060;branch=z9hG4bKnashds7", msg->header()->get("Via").c_str());
@@ -178,8 +179,9 @@ VOID TEST(ProtocolGbSipTest, SipRegisterRequest)
         HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST));
 
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
         EXPECT_EQ(HTTP_REQUEST, (http_parser_type)msg->message_type());
         EXPECT_EQ(HTTP_REGISTER, msg->method());
         EXPECT_STREQ("/sip:registrar.biloxi.com", msg->path().c_str());
@@ -193,8 +195,9 @@ VOID TEST(ProtocolGbSipTest, SipRegisterRequest)
         HELPER_ASSERT_SUCCESS(p.initialize(HTTP_BOTH));
 
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
         EXPECT_EQ(HTTP_REQUEST, (http_parser_type)msg->message_type());
         EXPECT_EQ(HTTP_REGISTER, msg->method());
         EXPECT_STREQ("/sip:registrar.biloxi.com", msg->path().c_str());
@@ -225,8 +228,9 @@ VOID TEST(ProtocolGbSipTest, SipRegisterResponse)
         HELPER_ASSERT_SUCCESS(p.initialize(HTTP_RESPONSE));
 
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
         EXPECT_EQ(HTTP_RESPONSE, (http_parser_type) msg->message_type());
         EXPECT_EQ(200, msg->status_code());
         EXPECT_STREQ("SIP/2.0/UDP bobspc.biloxi.com:5060;branch=z9hG4bKnashds7;received=192.0.2.4",
@@ -273,8 +277,9 @@ VOID TEST(ProtocolGbSipTest, SipRegisterResponse)
         HELPER_ASSERT_SUCCESS(p.initialize(HTTP_RESPONSE));
 
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
         EXPECT_EQ(HTTP_RESPONSE, (http_parser_type)msg->message_type());
         EXPECT_EQ(200, msg->status_code());
     }
@@ -287,8 +292,9 @@ VOID TEST(ProtocolGbSipTest, SipRegisterResponse)
         HELPER_ASSERT_SUCCESS(p.initialize(HTTP_BOTH));
 
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
         EXPECT_EQ(HTTP_RESPONSE, (http_parser_type)msg->message_type());
         EXPECT_EQ(200, msg->status_code());
     }
@@ -317,8 +323,9 @@ VOID TEST(ProtocolGbSipTest, SipSessionUacInviteRequest)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_BOTH));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
     EXPECT_EQ(HTTP_INVITE, msg->method());
     EXPECT_STREQ("/sip:bob@biloxi.com", msg->path().c_str());
     EXPECT_STREQ("SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8", msg->header()->get("Via").c_str());
@@ -378,8 +385,9 @@ VOID TEST(ProtocolGbSipTest, SipSessionUasTryingResponse)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_RESPONSE));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
     EXPECT_EQ(HTTP_RESPONSE, (http_parser_type) msg->message_type());
     EXPECT_EQ(100, msg->status_code());
     EXPECT_STREQ("SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8;received=192.0.2.1", msg->header()->get("Via").c_str());
@@ -434,8 +442,9 @@ VOID TEST(ProtocolGbSipTest, SipSessionUas200OkResponse)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_RESPONSE));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
     EXPECT_EQ(HTTP_RESPONSE, (http_parser_type) msg->message_type());
     EXPECT_EQ(200, msg->status_code());
     EXPECT_STREQ("SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8;received=192.0.2.1", msg->header()->get("Via").c_str());
@@ -493,8 +502,9 @@ VOID TEST(ProtocolGbSipTest, SipSessionUacAckRequest)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_BOTH));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
     EXPECT_EQ(HTTP_ACK, msg->method());
     EXPECT_STREQ("/sip:bob@192.0.2.4", msg->path().c_str());
     EXPECT_STREQ("SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds9", msg->header()->get("Via").c_str());
@@ -548,8 +558,9 @@ VOID TEST(ProtocolGbSipTest, SipSessionUacByeRequest)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_BOTH));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
     EXPECT_EQ(HTTP_BYE, msg->method());
     EXPECT_STREQ("/sip:alice@pc33.atlanta.com", msg->path().c_str());
     EXPECT_STREQ("SIP/2.0/UDP 192.0.2.4;branch=z9hG4bKnashds10", msg->header()->get("Via").c_str());
@@ -603,8 +614,8 @@ VOID TEST(ProtocolGbSipTest, SipRegisterExpires)
         HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST));
 
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
         SrsSipMessage smsg;
         HELPER_ASSERT_SUCCESS(smsg.parse(msg));
@@ -629,8 +640,8 @@ VOID TEST(ProtocolGbSipTest, SipRegisterExpires)
         HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST));
 
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
         SrsSipMessage smsg;
         HELPER_ASSERT_SUCCESS(smsg.parse(msg));
@@ -670,8 +681,8 @@ VOID TEST(ProtocolGbSipTest, SipSmallMessagesInOneBuffer)
 
     if (true) {
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
         SrsSipMessage smsg;
         HELPER_ASSERT_SUCCESS(smsg.parse(msg));
@@ -681,8 +692,8 @@ VOID TEST(ProtocolGbSipTest, SipSmallMessagesInOneBuffer)
 
     if (true) {
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
         SrsSipMessage smsg;
         HELPER_ASSERT_SUCCESS(smsg.parse(msg));
@@ -723,8 +734,8 @@ VOID TEST(ProtocolGbSipTest, SipSmallMessagesWithBody)
 
     if (true) {
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
         SrsSipMessage smsg;
         HELPER_ASSERT_SUCCESS(smsg.parse(msg));
@@ -735,8 +746,8 @@ VOID TEST(ProtocolGbSipTest, SipSmallMessagesWithBody)
 
     if (true) {
         ISrsHttpMessage* msg = NULL;
-        SrsAutoFree(ISrsHttpMessage, msg);
         HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
         SrsSipMessage smsg;
         HELPER_ASSERT_SUCCESS(smsg.parse(msg));
@@ -999,8 +1010,9 @@ VOID TEST(ProtocolGbSipTest, GbRegisterRequest)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
     EXPECT_EQ(HTTP_REGISTER, msg->method());
     EXPECT_EQ(0, msg->content_length());
 
@@ -1061,8 +1073,9 @@ VOID TEST(ProtocolGbSipTest, GbRegisterResponse)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_RESPONSE));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
+
     EXPECT_EQ(HTTP_RESPONSE, (http_parser_type) msg->message_type());
     EXPECT_EQ(200, msg->status_code());
     EXPECT_EQ(0, msg->content_length());
@@ -1133,8 +1146,8 @@ VOID TEST(ProtocolGbSipTest, GbInviteRequest)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_BOTH));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
     SrsSipMessage smsg;
     HELPER_ASSERT_SUCCESS(smsg.parse(msg));
@@ -1190,8 +1203,8 @@ VOID TEST(ProtocolGbSipTest, GbTringResponse)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_RESPONSE));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
     SrsSipMessage smsg;
     HELPER_ASSERT_SUCCESS(smsg.parse(msg));
@@ -1255,8 +1268,8 @@ VOID TEST(ProtocolGbSipTest, Gb200OkResponse)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_RESPONSE));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
     SrsSipMessage smsg;
     HELPER_ASSERT_SUCCESS(smsg.parse(msg));
@@ -1309,8 +1322,8 @@ VOID TEST(ProtocolGbSipTest, GbAckRequest)
     HELPER_ASSERT_SUCCESS(p.initialize(HTTP_BOTH));
 
     ISrsHttpMessage* msg = NULL;
-    SrsAutoFree(ISrsHttpMessage, msg);
     HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+    SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
 
     SrsSipMessage smsg;
     HELPER_ASSERT_SUCCESS(smsg.parse(msg));

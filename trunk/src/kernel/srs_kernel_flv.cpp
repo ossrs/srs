@@ -584,10 +584,9 @@ void SrsFlvTransmuxer::cache_metadata(char type, char* data, int size, char* cac
      (char)0x00, // TimestampExtended UI8
      (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
      };*/
-    
-    SrsBuffer* tag_stream = new SrsBuffer(cache, 11);
-    SrsAutoFree(SrsBuffer, tag_stream);
-    
+
+    SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
+
     // write data size.
     tag_stream->write_1bytes(type);
     tag_stream->write_3bytes(size);
@@ -610,10 +609,9 @@ void SrsFlvTransmuxer::cache_audio(int64_t timestamp, char* data, int size, char
      (char)0x00, // TimestampExtended UI8
      (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
      };*/
-    
-    SrsBuffer* tag_stream = new SrsBuffer(cache, 11);
-    SrsAutoFree(SrsBuffer, tag_stream);
-    
+
+    SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
+
     // write data size.
     tag_stream->write_1bytes(SrsFrameTypeAudio);
     tag_stream->write_3bytes(size);
@@ -637,10 +635,9 @@ void SrsFlvTransmuxer::cache_video(int64_t timestamp, char* data, int size, char
      (char)0x00, // TimestampExtended UI8
      (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
      };*/
-    
-    SrsBuffer* tag_stream = new SrsBuffer(cache, 11);
-    SrsAutoFree(SrsBuffer, tag_stream);
-    
+
+    SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
+
     // write data size.
     tag_stream->write_1bytes(SrsFrameTypeVideo);
     tag_stream->write_3bytes(size);
@@ -652,8 +649,7 @@ void SrsFlvTransmuxer::cache_video(int64_t timestamp, char* data, int size, char
 
 void SrsFlvTransmuxer::cache_pts(int size, char* cache)
 {
-    SrsBuffer* tag_stream = new SrsBuffer(cache, 11);
-    SrsAutoFree(SrsBuffer, tag_stream);
+    SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
     tag_stream->write_4bytes(size);
 }
 
@@ -860,10 +856,9 @@ srs_error_t SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart
         if ((err = reader->read(tag_header, SRS_FLV_TAG_HEADER_SIZE, NULL)) != srs_success) {
             return srs_error_wrap(err, "read tag header");
         }
-        
-        SrsBuffer* tag_stream = new SrsBuffer(tag_header, SRS_FLV_TAG_HEADER_SIZE);
-        SrsAutoFree(SrsBuffer, tag_stream);
-        
+
+        SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(tag_header, SRS_FLV_TAG_HEADER_SIZE));
+
         int8_t tag_type = tag_stream->read_1bytes();
         int32_t data_size = tag_stream->read_3bytes();
         

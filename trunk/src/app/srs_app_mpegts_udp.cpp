@@ -236,13 +236,12 @@ srs_error_t SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int
     }
     buffer->erase(buffer->length());
     int nb_fbuf = fr.filesize();
-    char* fbuf = new char[nb_fbuf];
-    SrsAutoFreeA(char, fbuf);
-    if ((err = fr.read(fbuf, nb_fbuf, NULL)) != srs_success) {
+    SrsUniquePtr<char[]> fbuf(new char[nb_fbuf]);
+    if ((err = fr.read(fbuf.get(), nb_fbuf, NULL)) != srs_success) {
         return srs_error_wrap(err, "read data");
     }
     fr.close();
-    buffer->append(fbuf, nb_fbuf);
+    buffer->append(fbuf.get(), nb_fbuf);
 #endif
     
     // find the sync byte of mpegts.
@@ -268,12 +267,10 @@ srs_error_t SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int
     int nb_packet = buffer->length() / SRS_TS_PACKET_SIZE;
     for (int i = 0; i < nb_packet; i++) {
         char* p = buffer->bytes() + (i * SRS_TS_PACKET_SIZE);
-        
-        SrsBuffer* stream = new SrsBuffer(p, SRS_TS_PACKET_SIZE);
-        SrsAutoFree(SrsBuffer, stream);
-        
+        SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(p, SRS_TS_PACKET_SIZE));
+
         // process each ts packet
-        if ((err = context->decode(stream, this)) != srs_success) {
+        if ((err = context->decode(stream.get(), this)) != srs_success) {
             srs_info("parse ts packet err=%s", srs_error_desc(err).c_str());
             srs_error_reset(err);
             continue;

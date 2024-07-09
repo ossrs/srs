@@ -1157,13 +1157,13 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveCo
             srs_assert(!file.empty());
             srs_trace("config parse include %s", file.c_str());
 
-            SrsConfigBuffer* include_file_buffer = NULL;
-            SrsAutoFree(SrsConfigBuffer, include_file_buffer);
-            if ((err = conf->build_buffer(file, &include_file_buffer)) != srs_success) {
+            SrsConfigBuffer* include_file_buffer_raw = NULL;
+            if ((err = conf->build_buffer(file, &include_file_buffer_raw)) != srs_success) {
                 return srs_error_wrap(err, "buffer fullfill %s", file.c_str());
             }
+            SrsUniquePtr<SrsConfigBuffer> include_file_buffer(include_file_buffer_raw);
 
-            if ((err = parse_conf(include_file_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
+            if ((err = parse_conf(include_file_buffer.get(), SrsDirectiveContextFile, conf)) != srs_success) {
                 return srs_error_wrap(err, "parse include buffer %s", file.c_str());
             }
         }
@@ -1628,10 +1628,8 @@ srs_error_t SrsConfig::reload_vhost(SrsConfDirective* old_root)
 srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
 {
     srs_error_t err = srs_success;
-    
-    SrsConfDirective* old_root = root;
-    SrsAutoFree(SrsConfDirective, old_root);
-    
+
+    SrsUniquePtr<SrsConfDirective> old_root(root);
     root = conf->root;
     conf->root = NULL;
     
@@ -1665,14 +1663,14 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     }
 
     // Merge config: rtc_server
-    if ((err = reload_rtc_server(old_root)) != srs_success) {
+    if ((err = reload_rtc_server(old_root.get())) != srs_success) {
         return srs_error_wrap(err, "http steram");;
     }
     
     // TODO: FIXME: support reload stream_caster.
     
     // merge config: vhost
-    if ((err = reload_vhost(old_root)) != srs_success) {
+    if ((err = reload_vhost(old_root.get())) != srs_success) {
         return srs_error_wrap(err, "vhost");;
     }
     
@@ -2260,13 +2258,13 @@ srs_error_t SrsConfig::parse_file(const char* filename)
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty config");
     }
 
-    SrsConfigBuffer* buffer = NULL;
-    SrsAutoFree(SrsConfigBuffer, buffer);
-    if ((err = build_buffer(config_file, &buffer)) != srs_success) {
+    SrsConfigBuffer* buffer_raw = NULL;
+    if ((err = build_buffer(config_file, &buffer_raw)) != srs_success) {
         return srs_error_wrap(err, "buffer fullfill %s", filename);
     }
-    
-    if ((err = parse_buffer(buffer)) != srs_success) {
+
+    SrsUniquePtr<SrsConfigBuffer> buffer(buffer_raw);
+    if ((err = parse_buffer(buffer.get())) != srs_success) {
         return srs_error_wrap(err, "parse buffer %s", filename);
     }
     

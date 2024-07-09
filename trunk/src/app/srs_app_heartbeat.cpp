@@ -55,10 +55,9 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
     if (!ips.empty()) {
         ip = ips[_srs_config->get_stats_network() % (int)ips.size()];
     }
-    
-    SrsJsonObject* obj = SrsJsonAny::object();
-    SrsAutoFree(SrsJsonObject, obj);
-    
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+
     obj->set("device_id", SrsJsonAny::str(device_id.c_str()));
     obj->set("ip", SrsJsonAny::str(ip->ip.c_str()));
     
@@ -75,11 +74,12 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
     }
     
     std::string req = obj->dumps();
-    ISrsHttpMessage* msg = NULL;
-    if ((err = http.post(uri.get_path(), req, &msg)) != srs_success) {
+    ISrsHttpMessage* msg_raw = NULL;
+    if ((err = http.post(uri.get_path(), req, &msg_raw)) != srs_success) {
         return srs_error_wrap(err, "http post hartbeart uri failed. url=%s, request=%s", url.c_str(), req.c_str());
     }
-    SrsAutoFree(ISrsHttpMessage, msg);
+
+    SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
     
     std::string res;
     if ((err = msg->body_read_all(res)) != srs_success) {

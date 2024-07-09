@@ -1530,8 +1530,7 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool& applied)
         std::string url = *it;
 
         // create temp Request by url
-        SrsRequest* req = new SrsRequest();
-        SrsAutoFree(SrsRequest, req);
+        SrsUniquePtr<SrsRequest> req(new SrsRequest());
         srs_parse_rtmp_url(url, req->tcUrl, req->stream);
         srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
 
@@ -1543,7 +1542,7 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool& applied)
         forward_server << req->host << ":" << req->port;
 
         // initialize the forwarder with request.
-        if ((err = forwarder->initialize(req, forward_server.str())) != srs_success) {
+        if ((err = forwarder->initialize(req.get(), forward_server.str())) != srs_success) {
             return srs_error_wrap(err, "init backend forwarder failed, forward-to=%s", forward_server.str().c_str());
         }
 
@@ -2474,10 +2473,9 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
 srs_error_t SrsLiveSource::on_aggregate(SrsCommonMessage* msg)
 {
     srs_error_t err = srs_success;
-    
-    SrsBuffer* stream = new SrsBuffer(msg->payload, msg->size);
-    SrsAutoFree(SrsBuffer, stream);
-    
+
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(msg->payload, msg->size));
+
     // the aggregate message always use abs time.
     int delta = -1;
     
@@ -2662,13 +2660,6 @@ void SrsLiveSource::on_unpublish()
 srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)
 {
     srs_error_t err = srs_success;
-    
-    consumer = new SrsLiveConsumer(this);
-    consumers.push_back(consumer);
-
-    // There should be one consumer, so reset the timeout.
-    stream_die_at_ = 0;
-    publisher_idle_at_ = 0;
 
     // for edge, when play edge stream, check the state
     if (_srs_config->get_vhost_is_edge(req->vhost)) {
@@ -2677,6 +2668,13 @@ srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)
             return srs_error_wrap(err, "play edge");
         }
     }
+
+    consumer = new SrsLiveConsumer(this);
+    consumers.push_back(consumer);
+
+    // There are more than one consumer, so reset the timeout.
+    stream_die_at_ = 0;
+    publisher_idle_at_ = 0;
     
     return err;
 }

@@ -54,30 +54,28 @@ srs_error_t parse(std::string mp4_file, bool verbose)
         return srs_error_wrap(err, "open box reader");
     }
     srs_trace("MP4 box reader open success");
-    
-    SrsSimpleStream* stream = new SrsSimpleStream();
-    SrsAutoFree(SrsSimpleStream, stream);
-    
+
+    SrsUniquePtr<SrsSimpleStream> stream(new SrsSimpleStream());
+
     fprintf(stderr, "\n%s\n", mp4_file.c_str());
     while (true) {
         SrsMp4Box* box = NULL;
+        // Note that we should use SrsAutoFree to free the ptr which is set later.
         SrsAutoFree(SrsMp4Box, box);
         
-        if ((err = br.read(stream, &box)) != srs_success) {
+        if ((err = br.read(stream.get(), &box)) != srs_success) {
             if (srs_error_code(err) == ERROR_SYSTEM_FILE_EOF) {
                 fprintf(stderr, "\n");
             }
             return srs_error_wrap(err, "read box");
         }
-        
-        SrsBuffer* buffer = new SrsBuffer(stream->bytes(), stream->length());
-        SrsAutoFree(SrsBuffer, buffer);
-        
-        if ((err = box->decode(buffer)) != srs_success) {
+
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(stream->bytes(), stream->length()));
+        if ((err = box->decode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "decode box");
         }
         
-        if ((err = br.skip(box, stream)) != srs_success) {
+        if ((err = br.skip(box, stream.get())) != srs_success) {
             return srs_error_wrap(err, "skip box");
         }
         

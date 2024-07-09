@@ -28,6 +28,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_flv.hpp>
+#include <srs_core_deprecated.hpp>
 
 // this value must:
 // equals to (SRS_SYS_CYCLE_INTERVAL*SRS_SYS_TIME_RESOLUTION_MS_TIMES)*1000

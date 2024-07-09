@@ -293,10 +293,9 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format, SrsFragmentWindow* afragments
     }
     ss << "    </Period>" << endl;
     ss << "</MPD>" << endl;
-    
-    SrsFileWriter* fw = new SrsFileWriter();
-    SrsAutoFree(SrsFileWriter, fw);
-    
+
+    SrsUniquePtr<SrsFileWriter> fw(new SrsFileWriter());
+
     string full_path_tmp = full_path + ".tmp";
     if ((err = fw->open(full_path_tmp)) != srs_success) {
         return srs_error_wrap(err, "Open MPD file=%s failed", full_path_tmp.c_str());
@@ -651,10 +650,9 @@ srs_error_t SrsDashController::refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFor
     } else {
         path += "/audio-init.mp4";
     }
-    
-    SrsInitMp4* init_mp4 = new SrsInitMp4();
-    SrsAutoFree(SrsInitMp4, init_mp4);
-    
+
+    SrsUniquePtr<SrsInitMp4> init_mp4(new SrsInitMp4());
+
     init_mp4->set_path(path);
     
     int tid = msg->is_video()? video_track_id : audio_track_id;

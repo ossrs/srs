@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-07-09, Merge [#4109](https://github.com/ossrs/srs/pull/4109): UniquePtr: Support SrsUniquePtr to replace SrsAutoFree. v6.0.136 (#4109)
 * v6.0, 2024-07-08, Merge [#4042](https://github.com/ossrs/srs/pull/4042): Refine config directive token parsing. v6.0.135 (#4042)
 * v6.0, 2024-07-04, Merge [#4106](https://github.com/ossrs/srs/pull/4106): SmartPtr: Fix SRT source memory leaking. v6.0.134 (#4106)
 * v6.0, 2024-06-29, Merge [#4077](https://github.com/ossrs/srs/pull/4077): Fix misspelling error in app config. v6.0.133 (#4077)
