@@ -300,16 +300,13 @@ void SrsHttpConn::expire()
     trd->interrupt();
 }
 
-SrsHttpxConn::SrsHttpxConn(bool https, ISrsResourceManager* cm, ISrsProtocolReadWriter* io, ISrsHttpServeMux* m, string cip, int port)
+SrsHttpxConn::SrsHttpxConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* io, ISrsHttpServeMux* m, string cip, int port, string key, string cert) : manager(cm), io_(io), enable_stat_(false), ssl_key_file_(key), ssl_cert_file_(cert)
 {
     // Create a identify for this client.
     _srs_context->set_id(_srs_context->generate_id());
 
-    io_ = io;
-    manager = cm;
-    enable_stat_ = false;
-
-    if (https) {
+    if (!ssl_key_file_.empty() &&
+        !ssl_cert_file_.empty()) {
         ssl = new SrsSslConnection(io_);
         conn = new SrsHttpConn(this, ssl, m, cip, port);
     } else {
@@ -381,15 +378,13 @@ srs_error_t SrsHttpxConn::on_start()
     // Do SSL handshake if HTTPS.
     if (ssl)  {
         srs_utime_t starttime = srs_update_system_time();
-        string crt_file = _srs_config->get_https_stream_ssl_cert();
-        string key_file = _srs_config->get_https_stream_ssl_key();
-        if ((err = ssl->handshake(key_file, crt_file)) != srs_success) {
+        if ((err = ssl->handshake(ssl_key_file_, ssl_cert_file_)) != srs_success) {
             return srs_error_wrap(err, "handshake");
         }
 
         int cost = srsu2msi(srs_update_system_time() - starttime);
         srs_trace("https: stream server done, use key %s and cert %s, cost=%dms",
-            key_file.c_str(), crt_file.c_str(), cost);
+            ssl_key_file_.c_str(), ssl_cert_file_.c_str(), cost);
     }
 
     return err;

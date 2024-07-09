@@ -1207,7 +1207,9 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         ) {
             resource = new SrsRtcTcpConn(io, ip, port);
         } else {
-            resource = new SrsHttpxConn(listener == http_listener_, this, io, http_server, ip, port);
+            string key = listener == https_listener_ ? _srs_config->get_https_stream_ssl_key() : "";
+            string cert = listener == https_listener_ ? _srs_config->get_https_stream_ssl_cert() : "";
+            resource = new SrsHttpxConn(this, io, http_server, ip, port, key, cert);
         }
     }
 #endif
@@ -1217,19 +1219,20 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         if (listener == rtmp_listener_) {
             resource = new SrsRtmpConn(this, stfd2, ip, port);
         } else if (listener == api_listener_ || listener == apis_listener_) {
-            bool is_https = listener == apis_listener_;
-            resource = new SrsHttpxConn(is_https, this, new SrsTcpConnection(stfd2), http_api_mux, ip, port);
+            string key = listener == apis_listener_ ? _srs_config->get_https_api_ssl_key() : "";
+            string cert = listener == apis_listener_ ? _srs_config->get_https_api_ssl_cert() : "";
+            resource = new SrsHttpxConn(this, new SrsTcpConnection(stfd2), http_api_mux, ip, port, key, cert);
         } else if (listener == http_listener_ || listener == https_listener_) {
-            bool is_https = listener == https_listener_;
-            resource = new SrsHttpxConn(is_https, this, new SrsTcpConnection(stfd2), http_server, ip, port);
+            string key = listener == https_listener_ ? _srs_config->get_https_stream_ssl_key() : "";
+            string cert = listener == https_listener_ ? _srs_config->get_https_stream_ssl_cert() : "";
+            resource = new SrsHttpxConn(this, new SrsTcpConnection(stfd2), http_server, ip, port, key, cert);
 #ifdef SRS_RTC
         } else if (listener == webrtc_listener_) {
             resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
 #endif
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.
-            bool is_https = false;
-            resource = new SrsHttpxConn(is_https, this, new SrsTcpConnection(stfd2), http_api_mux, ip, port);
+            resource = new SrsHttpxConn(this, new SrsTcpConnection(stfd2), http_api_mux, ip, port, "", "");
         } else {
             srs_close_stfd(stfd2);
             srs_warn("Close for invalid fd=%d, ip=%s:%d", fd, ip.c_str(), port);
