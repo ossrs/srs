@@ -6871,7 +6871,7 @@ srs_utime_t SrsConfig::get_dash_dispose(std::string vhost)
 {
     SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.dash.dash_dispose"); // SRS_VHOST_DASH_DASH_DISPOSE
 
-    static srs_utime_t DEFAULT = 120;
+    static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
