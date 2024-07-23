@@ -959,7 +959,9 @@ srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
     // but failed, so we must cleanup it.
     // @see https://github.com/ossrs/srs/issues/474
     // @remark when stream is busy, should never release it.
-    if (srs_error_code(err) != ERROR_SYSTEM_STREAM_BUSY) {
+    // @remark If state is invalid, should not release it because it's not published by this session.
+    int code = srs_error_code(err);
+    if (code != ERROR_SYSTEM_STREAM_BUSY && code != ERROR_RTMP_EDGE_PUBLISH_STATE) {
         release_publish(source);
     }
     
