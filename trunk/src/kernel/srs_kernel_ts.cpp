@@ -3176,6 +3176,7 @@ SrsTsTransmuxer::SrsTsTransmuxer()
     context = new SrsTsContext();
     tscw = NULL;
     has_audio_ = has_video_ = true;
+    guess_has_av_ = true;
 }
 
 SrsTsTransmuxer::~SrsTsTransmuxer()
@@ -3189,11 +3190,28 @@ SrsTsTransmuxer::~SrsTsTransmuxer()
 void SrsTsTransmuxer::set_has_audio(bool v)
 {
     has_audio_ = v;
+
+    if (tscw != NULL && !v) {
+        tscw->set_acodec(SrsAudioCodecIdForbidden);
+    }
 }
 
 void SrsTsTransmuxer::set_has_video(bool v)
 {
     has_video_ = v;
+
+    if (tscw != NULL && !v) {
+        tscw->set_vcodec(SrsVideoCodecIdForbidden);
+    }
+}
+
+void SrsTsTransmuxer::set_guess_has_av(bool v)
+{
+    guess_has_av_ = v;
+    if (tscw != NULL && v) {
+        tscw->set_acodec(SrsAudioCodecIdForbidden);
+        tscw->set_vcodec(SrsVideoCodecIdForbidden);
+    }
 }
 
 srs_error_t SrsTsTransmuxer::initialize(ISrsStreamWriter* fw)
@@ -3210,6 +3228,11 @@ srs_error_t SrsTsTransmuxer::initialize(ISrsStreamWriter* fw)
 
     SrsAudioCodecId acodec = has_audio_ ? SrsAudioCodecIdAAC : SrsAudioCodecIdForbidden;
     SrsVideoCodecId vcodec = has_video_ ? SrsVideoCodecIdAVC : SrsVideoCodecIdForbidden;
+
+    if (guess_has_av_) {
+        acodec = SrsAudioCodecIdForbidden;
+        vcodec = SrsVideoCodecIdForbidden;
+    }
 
     srs_freep(tscw);
     tscw = new SrsTsContextWriter(fw, context, acodec, vcodec);
