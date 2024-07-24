@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-07-24, Merge [#4029](https://github.com/ossrs/srs/pull/4029): Player: Fix empty img tag occupy 20px size in safari. v6.0.142 (#4029)
 * v6.0, 2024-07-24, Merge [#4063](https://github.com/ossrs/srs/pull/4063): let http-remux ts stream support guess_has_av feature;. v6.0.141 (#4063)
 * v6.0, 2024-07-24, Merge [#4116](https://github.com/ossrs/srs/pull/4116): Dockerfile: Consistently use proper ENV syntax using "=". v6.0.140 (#4116)
 * v6.0, 2024-07-24, Merge [#4126](https://github.com/ossrs/srs/pull/4126): Edge: Improve stability for state and fd closing. v6.0.139 (#4126)
