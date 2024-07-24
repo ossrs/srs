@@ -946,7 +946,8 @@ srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
     }
     
     // TODO: FIXME: Should refine the state of publishing.
-    if ((err = acquire_publish(source)) == srs_success) {
+    srs_error_t acquire_err = acquire_publish(source);
+    if ((err = acquire_err) == srs_success) {
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237
         SrsPublishRecvThread rtrd(rtmp, req, srs_netfd_fileno(stfd), 0, this, source, _srs_context->get_id());
@@ -954,16 +955,12 @@ srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
         rtrd.stop();
     }
     
-    // whatever the acquire publish, always release publish.
-    // when the acquire error in the midlle-way, the publish state changed,
-    // but failed, so we must cleanup it.
-    // @see https://github.com/ossrs/srs/issues/474
-    // @remark when stream is busy, should never release it.
-    if (srs_error_code(err) != ERROR_SYSTEM_STREAM_BUSY) {
+    // Release and callback when acquire publishing success, if not, we should ignore, because the source
+    // is not published by this session.
+    if (acquire_err == srs_success) {
         release_publish(source);
+        http_hooks_on_unpublish();
     }
-    
-    http_hooks_on_unpublish();
     
     return err;
 }
