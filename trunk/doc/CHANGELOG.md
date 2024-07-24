@@ -7,6 +7,8 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-07-24, Merge [#4126](https://github.com/ossrs/srs/pull/4126): Edge: Improve stability for state and fd closing. v6.0.139 (#4126)
+* v6.0, 2024-07-13, Merge [#4111](https://github.com/ossrs/srs/pull/4111): DASH: Fix time unit error for disposing. v6.0.138 (#4111)
 * v6.0, 2024-07-09, Merge [#4028](https://github.com/ossrs/srs/pull/4028): HTTPS: Support config key/cert for HTTPS API. v6.0.137 (#4028)
 * v6.0, 2024-07-09, Merge [#4109](https://github.com/ossrs/srs/pull/4109): UniquePtr: Support SrsUniquePtr to replace SrsAutoFree. v6.0.136 (#4109)
 * v6.0, 2024-07-08, Merge [#4042](https://github.com/ossrs/srs/pull/4042): Refine config directive token parsing. v6.0.135 (#4042)
@@ -148,6 +150,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2024-07-24, Merge [#4126](https://github.com/ossrs/srs/pull/4126): Edge: Improve stability for state and fd closing. v5.0.214 (#4126)
 * v5.0, 2024-06-03, Merge [#4057](https://github.com/ossrs/srs/pull/4057): RTC: Support dropping h.264 SEI from NALUs. v5.0.213 (#4057)
 * v5.0, 2024-04-23, Merge [#4038](https://github.com/ossrs/srs/pull/4038): RTMP: Do not response publish start message if hooks fail. v5.0.212 (#4038)
 * v5.0, 2024-04-22, Merge [#4033](https://github.com/ossrs/srs/pull/4033): issue #3967: support x509 certification chiain in single pem file. v5.0.211 (#4033)
