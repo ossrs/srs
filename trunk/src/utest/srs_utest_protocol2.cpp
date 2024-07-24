@@ -209,33 +209,37 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt11)
     }
 
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x20, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x40, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -433,33 +437,37 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt11Length)
     }
 
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x20, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x40, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -653,33 +661,37 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt12)
     }
 
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x20, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x40, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -876,35 +888,39 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt12Length)
     }
 
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
         EXPECT_EQ(0x110, msg->header.payload_length);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x20, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
         EXPECT_EQ(0x120, msg->header.payload_length);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x40, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -949,9 +965,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvExtTimeMessage)
     };
     bio.in_buffer.append((char*)data, sizeof(data));
 
-    SrsCommonMessage* msg = NULL;
-    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsAutoFree(SrsCommonMessage, msg);
+    SrsCommonMessage* msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
     EXPECT_TRUE(msg->header.is_video());
     EXPECT_EQ(0x10, msg->header.timestamp);
 }
@@ -993,9 +1010,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvExtTimeMessage2)
     };
     bio.in_buffer.append((char*)data, sizeof(data));
 
-    SrsCommonMessage* msg = NULL;
-    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsAutoFree(SrsCommonMessage, msg);
+    SrsCommonMessage* msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
     EXPECT_TRUE(msg->header.is_video());
     EXPECT_EQ(0x7f010203, msg->header.timestamp);
 }
@@ -1038,9 +1056,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvExtTimeMessage3)
     };
     bio.in_buffer.append((char*)data, sizeof(data));
 
-    SrsCommonMessage* msg = NULL;
-    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsAutoFree(SrsCommonMessage, msg);
+    SrsCommonMessage* msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
     EXPECT_TRUE(msg->header.is_video());
     // always use 31bits timestamp
     EXPECT_EQ(0x7f010203, msg->header.timestamp);
@@ -1113,9 +1132,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVExtTime2Trunk)
     };
     bio.in_buffer.append((char*)data, sizeof(data));
 
-    SrsCommonMessage* msg = NULL;
-    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsAutoFree(SrsCommonMessage, msg);
+    SrsCommonMessage* msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
     EXPECT_TRUE(msg->header.is_video());
     // 0xCX with extended timestamp.
     EXPECT_EQ(0x00010203, msg->header.timestamp);
@@ -1170,9 +1190,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVExtTime2Trunk2)
     };
     bio.in_buffer.append((char*)data, sizeof(data));
 
-    SrsCommonMessage* msg = NULL;
-    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsAutoFree(SrsCommonMessage, msg);
+    SrsCommonMessage* msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
     EXPECT_TRUE(msg->header.is_video());
     // 0xCX without extended timestamp.
     EXPECT_EQ(0x00010203, msg->header.timestamp);
@@ -1223,27 +1244,28 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid1BMin)
     };
     bio.in_buffer.append((char*)data, sizeof(data));
 
-    SrsCommonMessage* msg = NULL;
-    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsAutoFree(SrsCommonMessage, msg);
+    SrsCommonMessage* msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
     EXPECT_TRUE(msg->header.is_video());
     // 1B cid(6bits), min is 2
-    EXPECT_EQ(0x02, msg->header.perfer_cid);
+    EXPECT_EQ(0x02, msg->header.prefer_cid);
 }
 
 VOID TEST(ProtocolKbpsTest, Connections)
 {
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsKbps* kbps = new SrsKbps(clock->set_clock(0));
-        SrsAutoFree(SrsKbps, kbps);
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
 
         SrsNetworkDelta* delta = new SrsNetworkDelta();
-        SrsAutoFree(SrsNetworkDelta, delta);
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
         delta->set_io(io, io);
 
         // No data, 0kbps.
@@ -1289,15 +1311,15 @@ VOID TEST(ProtocolKbpsTest, Connections)
 
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsKbps* kbps = new SrsKbps(clock->set_clock(0));
-        SrsAutoFree(SrsKbps, kbps);
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
 
         SrsNetworkDelta* delta = new SrsNetworkDelta();
-        SrsAutoFree(SrsNetworkDelta, delta);
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
         delta->set_io(io, io);
 
         // No data, 0kbps.
@@ -1343,15 +1365,15 @@ VOID TEST(ProtocolKbpsTest, Connections)
 
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsKbps* kbps = new SrsKbps(clock->set_clock(0));
-        SrsAutoFree(SrsKbps, kbps);
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
 
         SrsNetworkDelta* delta = new SrsNetworkDelta();
-        SrsAutoFree(SrsNetworkDelta, delta);
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
         delta->set_io(io, io);
 
         // No data, 0kbps.
@@ -1400,12 +1422,12 @@ VOID TEST(ProtocolKbpsTest, Delta)
 {
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsNetworkDelta* delta = new SrsNetworkDelta();
-        SrsAutoFree(SrsNetworkDelta, delta);
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
         delta->set_io(io, io);
 
         // No data.
@@ -1428,12 +1450,12 @@ VOID TEST(ProtocolKbpsTest, Delta)
 
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsNetworkDelta* delta = new SrsNetworkDelta();
-        SrsAutoFree(SrsNetworkDelta, delta);
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
         delta->set_io(io, io);
 
         // No data.
@@ -1450,7 +1472,7 @@ VOID TEST(ProtocolKbpsTest, Delta)
 
         // Kbps without io, gather delta.
         SrsKbps* kbps = new SrsKbps(clock->set_clock(0));
-        SrsAutoFree(SrsKbps, kbps);
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
 
         // No data, 0kbps.
         kbps->sample();
@@ -1482,16 +1504,16 @@ VOID TEST(ProtocolKbpsTest, RAWStatistic)
 {
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsNetworkDelta* delta = new SrsNetworkDelta();
-        SrsAutoFree(SrsNetworkDelta, delta);
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
         delta->set_io(io, io);
 
         SrsKbps* kbps = new SrsKbps(clock->set_clock(0));
-        SrsAutoFree(SrsKbps, kbps);
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
 
         // No data, 0kbps.
         kbps->add_delta(delta);
@@ -1522,10 +1544,10 @@ VOID TEST(ProtocolKbpsTest, RAWStatistic)
 
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
 
         SrsKbps* kbps = new SrsKbps(clock->set_clock(0));
-        SrsAutoFree(SrsKbps, kbps);
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
 
         // No io, no data.
         EXPECT_EQ(0, kbps->get_recv_bytes());
@@ -1533,10 +1555,10 @@ VOID TEST(ProtocolKbpsTest, RAWStatistic)
 
         // With io, zero data.
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsNetworkDelta* delta = new SrsNetworkDelta();
-        SrsAutoFree(SrsNetworkDelta, delta);
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
         delta->set_io(io, io);
 
         kbps->add_delta(delta);
@@ -1646,12 +1668,12 @@ VOID TEST(ProtocolKbpsTest, ConnectionsSugar)
 {
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsNetworkKbps* kbps = new SrsNetworkKbps(clock->set_clock(0));
-        SrsAutoFree(SrsNetworkKbps, kbps);
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
         kbps->set_io(io, io);
 
         // No data, 0kbps.
@@ -1694,12 +1716,12 @@ VOID TEST(ProtocolKbpsTest, ConnectionsSugar)
 
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsNetworkKbps* kbps = new SrsNetworkKbps(clock->set_clock(0));
-        SrsAutoFree(SrsNetworkKbps, kbps);
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
         kbps->set_io(io, io);
 
         // No data, 0kbps.
@@ -1742,12 +1764,12 @@ VOID TEST(ProtocolKbpsTest, ConnectionsSugar)
 
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsNetworkKbps* kbps = new SrsNetworkKbps(clock->set_clock(0));
-        SrsAutoFree(SrsNetworkKbps, kbps);
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
         kbps->set_io(io, io);
 
         // No data, 0kbps.
@@ -1793,13 +1815,13 @@ VOID TEST(ProtocolKbpsTest, DeltaSugar)
 {
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         // Kbps without io, gather delta.
         SrsNetworkKbps* kbps = new SrsNetworkKbps(clock->set_clock(0));
-        SrsAutoFree(SrsNetworkKbps, kbps);
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
         kbps->set_io(io, io);
 
         // No data, 0kbps.
@@ -1832,12 +1854,12 @@ VOID TEST(ProtocolKbpsTest, RAWStatisticSugar)
 {
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
 
         SrsNetworkKbps* kbps = new SrsNetworkKbps(clock->set_clock(0));
-        SrsAutoFree(SrsNetworkKbps, kbps);
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
         kbps->set_io(io, io);
 
         // No data, 0kbps.
@@ -1867,10 +1889,10 @@ VOID TEST(ProtocolKbpsTest, RAWStatisticSugar)
 
     if (true) {
         MockWallClock* clock = new MockWallClock();
-        SrsAutoFree(MockWallClock, clock);
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
 
         SrsNetworkKbps* kbps = new SrsNetworkKbps(clock->set_clock(0));
-        SrsAutoFree(SrsNetworkKbps, kbps);
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
 
         // No io, no data.
         EXPECT_EQ(0, kbps->get_recv_bytes());
@@ -1878,7 +1900,7 @@ VOID TEST(ProtocolKbpsTest, RAWStatisticSugar)
 
         // With io, zero data.
         MockStatistic* io = new MockStatistic();
-        SrsAutoFree(MockStatistic, io);
+        SrsUniquePtr<MockStatistic> io_uptr(io);
         kbps->set_io(io, io);
 
         kbps->sample();
@@ -1977,8 +1999,8 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
 
         ISrsHttpMessage* req = NULL;
-        SrsAutoFree(ISrsHttpMessage, req);
         HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
+        SrsUniquePtr<ISrsHttpMessage> req_uptr(req);
 
         char v[64] = {0};
         HELPER_ASSERT_SUCCESS(req->body_reader()->read(v, sizeof(v), NULL));
@@ -1995,8 +2017,8 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
 
         ISrsHttpMessage* req = NULL;
-        SrsAutoFree(ISrsHttpMessage, req);
         HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
+        SrsUniquePtr<ISrsHttpMessage> req_uptr(req);
     }
 
     if (true) {
@@ -2007,8 +2029,8 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
 
         ISrsHttpMessage* req = NULL;
-        SrsAutoFree(ISrsHttpMessage, req);
         HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
+        SrsUniquePtr<ISrsHttpMessage> req_uptr(req);
     }
 
     if (true) {
@@ -2019,8 +2041,8 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
 
         ISrsHttpMessage* req = NULL;
-        SrsAutoFree(ISrsHttpMessage, req);
         HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
+        SrsUniquePtr<ISrsHttpMessage> req_uptr(req);
     }
 }
 
@@ -2497,33 +2519,37 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVVMessage)
     }
 
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x20, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x30, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -2719,33 +2745,37 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt1)
     }
 
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x20, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x30, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -2937,33 +2967,37 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt2)
     }
 
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x20, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x30, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -3153,33 +3187,37 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt3)
     }
 
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x20, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage* msg = NULL;
-        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsAutoFree(SrsCommonMessage, msg);
+        SrsCommonMessage* msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsCommonMessage> msg(msg_raw);
+
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x30, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);

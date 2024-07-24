@@ -74,10 +74,9 @@ srs_error_t SrsMp3Transmuxer::write_audio(int64_t timestamp, char* data, int siz
     srs_assert(data);
     
     timestamp &= 0x7fffffff;
-    
-    SrsBuffer* stream = new SrsBuffer(data, size);
-    SrsAutoFree(SrsBuffer, stream);
-    
+
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(data, size));
+
     // audio decode
     if (!stream->require(1)) {
         return srs_error_new(ERROR_MP3_DECODE_ERROR, "decode sound_format");

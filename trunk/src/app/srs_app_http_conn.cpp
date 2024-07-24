@@ -155,14 +155,13 @@ srs_error_t SrsHttpConn::do_cycle()
         return srs_error_wrap(err, "start");
     }
 
-    SrsRequest* last_req = NULL;
-    SrsAutoFree(SrsRequest, last_req);
-
     // process all http messages.
-    err = process_requests(&last_req);
+    SrsRequest* last_req_raw = NULL;
+    err = process_requests(&last_req_raw);
+    SrsUniquePtr<SrsRequest> last_req(last_req_raw);
     
     srs_error_t r0 = srs_success;
-    if ((r0 = on_disconnect(last_req)) != srs_success) {
+    if ((r0 = on_disconnect(last_req.get())) != srs_success) {
         err = srs_error_wrap(err, "on disconnect %s", srs_error_desc(r0).c_str());
         srs_freep(r0);
     }
@@ -180,18 +179,18 @@ srs_error_t SrsHttpConn::process_requests(SrsRequest** preq)
         }
 
         // get a http message
-        ISrsHttpMessage* req = NULL;
-        if ((err = parser->parse_message(skt, &req)) != srs_success) {
+        ISrsHttpMessage* req_raw = NULL;
+        if ((err = parser->parse_message(skt, &req_raw)) != srs_success) {
             return srs_error_wrap(err, "parse message");
         }
 
         // if SUCCESS, always NOT-NULL.
         // always free it in this scope.
-        srs_assert(req);
-        SrsAutoFree(ISrsHttpMessage, req);
+        srs_assert(req_raw);
+        SrsUniquePtr<ISrsHttpMessage> req(req_raw);
 
         // Attach owner connection to message.
-        SrsHttpMessage* hreq = (SrsHttpMessage*)req;
+        SrsHttpMessage* hreq = (SrsHttpMessage*)req.get();
         hreq->set_connection(this);
 
         // copy request to last request object.
@@ -200,17 +199,17 @@ srs_error_t SrsHttpConn::process_requests(SrsRequest** preq)
 
         // may should discard the body.
         SrsHttpResponseWriter writer(skt);
-        if ((err = handler_->on_http_message(req, &writer)) != srs_success) {
+        if ((err = handler_->on_http_message(req.get(), &writer)) != srs_success) {
             return srs_error_wrap(err, "on http message");
         }
 
         // ok, handle http request.
-        if ((err = process_request(&writer, req, req_id)) != srs_success) {
+        if ((err = process_request(&writer, req.get(), req_id)) != srs_success) {
             return srs_error_wrap(err, "process request=%d", req_id);
         }
 
         // After the request is processed.
-        if ((err = handler_->on_message_done(req, &writer)) != srs_success) {
+        if ((err = handler_->on_message_done(req.get(), &writer)) != srs_success) {
             return srs_error_wrap(err, "on message done");
         }
 
@@ -301,16 +300,13 @@ void SrsHttpConn::expire()
     trd->interrupt();
 }
 
-SrsHttpxConn::SrsHttpxConn(bool https, ISrsResourceManager* cm, ISrsProtocolReadWriter* io, ISrsHttpServeMux* m, string cip, int port)
+SrsHttpxConn::SrsHttpxConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* io, ISrsHttpServeMux* m, string cip, int port, string key, string cert) : manager(cm), io_(io), enable_stat_(false), ssl_key_file_(key), ssl_cert_file_(cert)
 {
     // Create a identify for this client.
     _srs_context->set_id(_srs_context->generate_id());
 
-    io_ = io;
-    manager = cm;
-    enable_stat_ = false;
-
-    if (https) {
+    if (!ssl_key_file_.empty() &&
+        !ssl_cert_file_.empty()) {
         ssl = new SrsSslConnection(io_);
         conn = new SrsHttpConn(this, ssl, m, cip, port);
     } else {
@@ -382,15 +378,13 @@ srs_error_t SrsHttpxConn::on_start()
     // Do SSL handshake if HTTPS.
     if (ssl)  {
         srs_utime_t starttime = srs_update_system_time();
-        string crt_file = _srs_config->get_https_stream_ssl_cert();
-        string key_file = _srs_config->get_https_stream_ssl_key();
-        if ((err = ssl->handshake(key_file, crt_file)) != srs_success) {
+        if ((err = ssl->handshake(ssl_key_file_, ssl_cert_file_)) != srs_success) {
             return srs_error_wrap(err, "handshake");
         }
 
         int cost = srsu2msi(srs_update_system_time() - starttime);
         srs_trace("https: stream server done, use key %s and cert %s, cost=%dms",
-            key_file.c_str(), crt_file.c_str(), cost);
+            ssl_key_file_.c_str(), ssl_cert_file_.c_str(), cost);
     }
 
     return err;
@@ -547,13 +541,13 @@ srs_error_t SrsHttpServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     return http_static->mux.serve_http(w, r);
 }
 
-srs_error_t SrsHttpServer::http_mount(SrsLiveSource* s, SrsRequest* r)
+srs_error_t SrsHttpServer::http_mount(SrsRequest* r)
 {
-    return http_stream->http_mount(s, r);
+    return http_stream->http_mount(r);
 }
 
-void SrsHttpServer::http_unmount(SrsLiveSource* s, SrsRequest* r)
+void SrsHttpServer::http_unmount(SrsRequest* r)
 {
-    http_stream->http_unmount(s, r);
+    http_stream->http_unmount(r);
 }
 

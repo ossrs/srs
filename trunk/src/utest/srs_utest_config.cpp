@@ -400,6 +400,24 @@ VOID TEST(ConfigDirectiveTest, ParseArgsSpace)
             EXPECT_EQ(0, (int) conf.directives.size());
         }
     }
+    
+    if (true) {
+        vector <string> usecases;
+        usecases.push_back("include\rtest;");
+        usecases.push_back("include\ntest;");
+        usecases.push_back("include  \r \n \r\n \n\rtest;");
+
+        for (int i = 0; i < (int)usecases.size(); i++) {
+            string usecase = usecases.at(i);
+
+            MockSrsConfigBuffer buf(usecase);
+            SrsConfDirective conf;
+            HELPER_ASSERT_FAILED(conf.parse(&buf));
+            EXPECT_EQ(0, (int) conf.name.length());
+            EXPECT_EQ(0, (int) conf.args.size());
+            EXPECT_EQ(0, (int) conf.directives.size());
+        }
+    }
 
     if (true) {
         vector <string> usecases;
@@ -407,9 +425,6 @@ VOID TEST(ConfigDirectiveTest, ParseArgsSpace)
         usecases.push_back("include test;");
         usecases.push_back("include test;");
         usecases.push_back("include  test;");;
-        usecases.push_back("include\rtest;");
-        usecases.push_back("include\ntest;");
-        usecases.push_back("include  \r \n \r\n \n\rtest;");
 
         MockSrsConfig config;
         config.mock_include("test", "listen 1935;");
@@ -430,6 +445,102 @@ VOID TEST(ConfigDirectiveTest, ParseArgsSpace)
             EXPECT_STREQ("1935", dir.arg0().c_str());
             EXPECT_EQ(0, (int) dir.directives.size());
         }
+    }
+}
+
+VOID TEST(ConfigDirectiveTest, ParseInvalidEndOfLine)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 \narg0;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0\n arg0;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 arg0\n;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 \rarg0;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 arg0\r;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 \n { dir1 arg1; }");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 arg0;dir1\n arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(1, (int) conf.directives.size());
+
+        SrsConfDirective& dir0 = *conf.directives.at(0);
+        EXPECT_STREQ("dir0", dir0.name.c_str());
+        EXPECT_EQ(1, (int)dir0.args.size());
+        EXPECT_STREQ("arg0", dir0.arg0().c_str());
+        EXPECT_EQ(0, (int)dir0.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 arg0;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+        EXPECT_EQ(0, (int)conf.name.length());
+        EXPECT_EQ(0, (int)conf.args.size());
+        EXPECT_EQ(2, (int)conf.directives.size());
+
+        SrsConfDirective& dir0 = *conf.directives.at(0);
+        EXPECT_STREQ("dir0", dir0.name.c_str());
+        EXPECT_EQ(1, (int)dir0.args.size());
+        EXPECT_STREQ("arg0", dir0.arg0().c_str());
+        EXPECT_EQ(0, (int)dir0.directives.size());
+
+        SrsConfDirective& dir1 = *conf.directives.at(1);
+        EXPECT_STREQ("dir1", dir1.name.c_str());
+        EXPECT_EQ(1, (int)dir1.args.size());
+        EXPECT_STREQ("arg1", dir1.arg0().c_str());
+        EXPECT_EQ(0, (int)dir1.directives.size());
     }
 }
 
@@ -829,30 +940,7 @@ VOID TEST(ConfigDirectiveTest, ParseLine4)
     
     MockSrsConfigBuffer buf("dir0 {\n\ndir1 \n\narg0;dir2 arg1;}");
     SrsConfDirective conf;
-    HELPER_ASSERT_SUCCESS(conf.parse(&buf));
-    EXPECT_EQ(0, (int)conf.name.length());
-    EXPECT_EQ(0, (int)conf.args.size());
-    EXPECT_EQ(1, (int)conf.directives.size());
-
-    SrsConfDirective& dir0 = *conf.directives.at(0);
-    EXPECT_STREQ("dir0", dir0.name.c_str());
-    EXPECT_EQ(0, (int)dir0.args.size());
-    EXPECT_EQ(2, (int)dir0.directives.size());
-    EXPECT_EQ(1, (int)dir0.conf_line);
-
-    SrsConfDirective& dir1 = *dir0.directives.at(0);
-    EXPECT_STREQ("dir1", dir1.name.c_str());
-    EXPECT_EQ(1, (int)dir1.args.size());
-    EXPECT_STREQ("arg0", dir1.arg0().c_str());
-    EXPECT_EQ(0, (int)dir1.directives.size());
-    EXPECT_EQ(3, (int)dir1.conf_line);
-
-    SrsConfDirective& dir2 = *dir0.directives.at(1);
-    EXPECT_STREQ("dir2", dir2.name.c_str());
-    EXPECT_EQ(1, (int)dir2.args.size());
-    EXPECT_STREQ("arg1", dir2.arg0().c_str());
-    EXPECT_EQ(0, (int)dir2.directives.size());
-    EXPECT_EQ(5, (int)dir2.conf_line);
+    HELPER_ASSERT_FAILED(conf.parse(&buf));
 }
 
 VOID TEST(ConfigDirectiveTest, ParseLineNormal)
@@ -4405,6 +4493,29 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostRtc)
 
         SrsSetEnvConfig(rtc_keep_bframe, "SRS_VHOST_RTC_KEEP_BFRAME", "on");
         EXPECT_TRUE(conf.get_rtc_keep_bframe("__defaultVhost__"));
+
+        {
+            // make sure the default value is false, if defined incorrect env value.
+            SrsSetEnvConfig(rtc_keep_bframe, "SRS_VHOST_RTC_KEEP_BFRAME", "onn");
+            EXPECT_FALSE(conf.get_rtc_keep_bframe("__defaultVhost__"));
+
+        }
+
+        {
+            SrsSetEnvConfig(rtc_keep_avc_nalu_sei, "SRS_VHOST_RTC_KEEP_AVC_NALU_SEI", "off");
+            EXPECT_FALSE(conf.get_rtc_keep_avc_nalu_sei("__defaultVhost__"));
+        }
+
+        {
+            SrsSetEnvConfig(rtc_keep_avc_nalu_sei, "SRS_VHOST_RTC_KEEP_AVC_NALU_SEI", "on");
+            EXPECT_TRUE(conf.get_rtc_keep_avc_nalu_sei("__defaultVhost__"));
+        }
+
+        {
+            // make sure the default value is true, if defined incorrect env value.
+            SrsSetEnvConfig(rtc_keep_avc_nalu_sei, "SRS_VHOST_RTC_KEEP_AVC_NALU_SEI", "xx");
+            EXPECT_TRUE(conf.get_rtc_keep_avc_nalu_sei("__defaultVhost__"));
+        }
     }
 
     if (true) {

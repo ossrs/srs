@@ -33,8 +33,8 @@ public:
 private:
     virtual SrsRequest* find_stream_info(std::string vhost, std::string app, std::string stream);
 public:
-    virtual srs_error_t on_publish(SrsLiveSource* s, SrsRequest* r);
-    virtual void on_unpublish(SrsLiveSource* s, SrsRequest* r);
+    virtual srs_error_t on_publish(SrsRequest* r);
+    virtual void on_unpublish(SrsRequest* r);
 };
 
 #endif

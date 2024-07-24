@@ -57,13 +57,16 @@ __thread int _st_num_free_stacks = 0;
 __thread int _st_randomize_stacks = 0;
 
 static char *_st_new_stk_segment(int size);
+static void _st_delete_stk_segment(char *vaddr, int size);
 
 _st_stack_t *_st_stack_new(int stack_size)
 {
     _st_clist_t *qp;
     _st_stack_t *ts;
     int extra;
-    
+
+   /* If cache stack, we try to use stack from the cache list. */
+#ifdef MD_CACHE_STACK
     for (qp = _st_free_stacks.next; qp != &_st_free_stacks; qp = qp->next) {
         ts = _ST_THREAD_STACK_PTR(qp);
         if (ts->stk_size >= stack_size) {
@@ -75,11 +78,34 @@ _st_stack_t *_st_stack_new(int stack_size)
             return ts;
         }
     }
+#endif
+
+    extra = _st_randomize_stacks ? _ST_PAGE_SIZE : 0;
+    /* If not cache stack, we will free all stack in the list, which contains the stack to be freed.
+     * Note that we should never directly free it at _st_stack_free, because it is still be used,
+     * and will cause crash. */
+#ifndef MD_CACHE_STACK
+    for (qp = _st_free_stacks.next; qp != &_st_free_stacks;) {
+        ts = _ST_THREAD_STACK_PTR(qp);
+        /* Before qp is freed, move to next one, because the qp will be freed when free the ts. */
+        qp = qp->next;
+
+        ST_REMOVE_LINK(&ts->links);
+        _st_num_free_stacks--;
+
+#if defined(DEBUG) && !defined(MD_NO_PROTECT)
+        mprotect(ts->vaddr, REDZONE, PROT_READ | PROT_WRITE);
+        mprotect(ts->stk_top + extra, REDZONE, PROT_READ | PROT_WRITE);
+#endif
+
+        _st_delete_stk_segment(ts->vaddr, ts->vaddr_size);
+        free(ts);
+    }
+#endif
     
     /* Make a new thread stack object. */
     if ((ts = (_st_stack_t *)calloc(1, sizeof(_st_stack_t))) == NULL)
         return NULL;
-    extra = _st_randomize_stacks ? _ST_PAGE_SIZE : 0;
     ts->vaddr_size = stack_size + 2*REDZONE + extra;
     ts->vaddr = _st_new_stk_segment(ts->vaddr_size);
     if (!ts->vaddr) {
@@ -114,7 +140,7 @@ void _st_stack_free(_st_stack_t *ts)
 {
     if (!ts)
         return;
-    
+
     /* Put the stack on the free list */
     ST_APPEND_LINK(&ts->links, _st_free_stacks.prev);
     _st_num_free_stacks++;
@@ -152,8 +178,6 @@ static char *_st_new_stk_segment(int size)
 }
 
 
-/* Not used */
-#if 0
 void _st_delete_stk_segment(char *vaddr, int size)
 {
 #ifdef MALLOC_STACK
@@ -162,7 +186,6 @@ void _st_delete_stk_segment(char *vaddr, int size)
     (void) munmap(vaddr, size);
 #endif
 }
-#endif
 
 int st_randomize_stacks(int on)
 {

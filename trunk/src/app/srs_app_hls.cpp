@@ -1237,6 +1237,10 @@ srs_error_t SrsHls::cycle()
 {
     srs_error_t err = srs_success;
 
+    if (!enabled) {
+        return err;
+    }
+
     if (last_update_time <= 0) {
         last_update_time = srs_get_system_time();
     }
@@ -1270,6 +1274,16 @@ srs_error_t SrsHls::cycle()
     dispose();
     
     return err;
+}
+
+srs_utime_t SrsHls::cleanup_delay()
+{
+    if (!enabled) {
+        return 0;
+    }
+
+    // We use larger timeout to cleanup the HLS, after disposed it if required.
+    return _srs_config->get_hls_dispose(req->vhost) * 1.1;
 }
 
 srs_error_t SrsHls::initialize(SrsOriginHub* h, SrsRequest* r)
@@ -1359,10 +1373,9 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time();
-    
-    SrsSharedPtrMessage* audio = shared_audio->copy();
-    SrsAutoFree(SrsSharedPtrMessage, audio);
-    
+
+    SrsUniquePtr<SrsSharedPtrMessage> audio(shared_audio->copy());
+
     // ts support audio codec: aac/mp3
     SrsAudioCodecId acodec = format->acodec->id;
     if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
@@ -1376,7 +1389,7 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     }
     
     // TODO: FIXME: config the jitter of HLS.
-    if ((err = jitter->correct(audio, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
+    if ((err = jitter->correct(audio.get(), SrsRtmpJitterAlgorithmOFF)) != srs_success) {
         return srs_error_wrap(err, "hls: jitter");
     }
     
@@ -1441,10 +1454,9 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
 
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time();
-    
-    SrsSharedPtrMessage* video = shared_video->copy();
-    SrsAutoFree(SrsSharedPtrMessage, video);
-    
+
+    SrsUniquePtr<SrsSharedPtrMessage> video(shared_video->copy());
+
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     srs_assert(format->video);
@@ -1463,7 +1475,7 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     }
     
     // TODO: FIXME: config the jitter of HLS.
-    if ((err = jitter->correct(video, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
+    if ((err = jitter->correct(video.get(), SrsRtmpJitterAlgorithmOFF)) != srs_success) {
         return srs_error_wrap(err, "hls: jitter");
     }
     

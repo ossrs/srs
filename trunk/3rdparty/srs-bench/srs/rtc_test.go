@@ -2153,8 +2153,8 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_After_ClientHello(t *testing.T) {
 // case, we corrupt the ClientHello packet sent by srs-bench.
 // Note that the passive mode is not being tested as the focus is solely on testing srs-server.
 //
-//     [Corrupt] No.1  srs-bench: ClientHello(Epoch=0, Sequence=0), change length from 129 to 0xf.
-//     No.2 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
+//	[Corrupt] No.1  srs-bench: ClientHello(Epoch=0, Sequence=0), change length from 129 to 0xf.
+//	No.2 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
 func TestRtcDTLS_ClientActive_Corrupt_ClientHello(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
@@ -2209,10 +2209,11 @@ func TestRtcDTLS_ClientActive_Corrupt_ClientHello(t *testing.T) {
 // case, we corrupt the ClientHello packet sent by srs-bench.
 // Note that the passive mode is not being tested as the focus is solely on testing srs-server.
 //
-//     No.1  srs-bench: ClientHello
-//     No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
-//     [Corrupt] No.3  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
-//     No.4 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
+//	No.1  srs-bench: ClientHello
+//	No.2 srs-server: ServerHello, Certificate, ServerKeyExchange, CertificateRequest, ServerHelloDone
+//	[Corrupt] No.3  srs-bench: Certificate, ClientKeyExchange, CertificateVerify, ChangeCipherSpec, Finished
+//	No.4 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
+//
 // [Corrupt] No.1  srs-bench: ClientHello(Epoch=0, Sequence=0), change length from 129 to 0xf.
 // No.2 srs-server: Alert (Level: Fatal, Description: Illegal Parameter)
 func TestRtcDTLS_ClientActive_Corrupt_Certificate(t *testing.T) {

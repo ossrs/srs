@@ -223,7 +223,7 @@ VOID TEST(SampleTest, ContextTest)
     cache[0] = cid;
 }
 
-MockProtectedBuffer::MockProtectedBuffer() : size_(0), data_(NULL), raw_memory_(NULL)
+MockProtectedBuffer::MockProtectedBuffer() : raw_memory_(NULL), size_(0), data_(NULL)
 {
 }
 

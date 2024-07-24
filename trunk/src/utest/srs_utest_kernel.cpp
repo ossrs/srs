@@ -439,29 +439,27 @@ void mock_print_mp4(string data)
         return;
     }
 
-    SrsSimpleStream* stream = new SrsSimpleStream();
-    SrsAutoFree(SrsSimpleStream, stream);
+    SrsUniquePtr<SrsSimpleStream> stream(new SrsSimpleStream());
 
     while (true) {
         SrsMp4Box* box = NULL;
-        SrsAutoFree(SrsMp4Box, box);
-
-        if ((err = br.read(stream, &box)) != srs_success) {
+        if ((err = br.read(stream.get(), &box)) != srs_success) {
             if (srs_error_code(err) != ERROR_SYSTEM_FILE_EOF) {
                 mock_print_err(srs_error_wrap(err, "read"));
             }
             return;
         }
+        SrsUniquePtr<SrsMp4Box> box_uptr(box);
 
         SrsBuffer* buffer = new SrsBuffer(stream->bytes(), stream->length());
-        SrsAutoFree(SrsBuffer, buffer);
+        SrsUniquePtr<SrsBuffer> buffer_uptr(buffer);
 
         if ((err = box->decode(buffer)) != srs_success) {
             mock_print_err(srs_error_wrap(err, "decode"));
             return;
         }
 
-        if ((err = br.skip(box, stream)) != srs_success) {
+        if ((err = br.skip(box, stream.get())) != srs_success) {
             mock_print_err(srs_error_wrap(err, "skip"));
             return;
         }
@@ -3458,7 +3456,7 @@ VOID TEST(KernelCodecTest, AVFrame)
 	if (true) {
 		SrsAudioFrame f;
         SrsAudioCodecConfig* cc = new SrsAudioCodecConfig();
-        SrsAutoFree(SrsAudioCodecConfig, cc);
+        SrsUniquePtr<SrsAudioCodecConfig> cc_uptr(cc);
         HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.acodec() != NULL);
 
@@ -3497,7 +3495,7 @@ VOID TEST(KernelCodecTest, AVFrame)
     if (true) {
         SrsVideoFrame f;
         SrsVideoCodecConfig* cc = new SrsVideoCodecConfig();
-        SrsAutoFree(SrsVideoCodecConfig, cc);
+        SrsUniquePtr<SrsVideoCodecConfig> cc_uptr(cc);
         HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.vcodec() != NULL);
 
@@ -3509,7 +3507,7 @@ VOID TEST(KernelCodecTest, AVFrame)
     if (true) {
         SrsVideoFrame f;
         SrsVideoCodecConfig* cc = new SrsVideoCodecConfig();
-        SrsAutoFree(SrsVideoCodecConfig, cc);
+        SrsUniquePtr<SrsVideoCodecConfig> cc_uptr(cc);
         HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.vcodec() != NULL);
 
@@ -3520,7 +3518,7 @@ VOID TEST(KernelCodecTest, AVFrame)
     if (true) {
         SrsVideoFrame f;
         SrsVideoCodecConfig* cc = new SrsVideoCodecConfig();
-        SrsAutoFree(SrsVideoCodecConfig, cc);
+        SrsUniquePtr<SrsVideoCodecConfig> cc_uptr(cc);
         HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.vcodec() != NULL);
 
@@ -3531,7 +3529,7 @@ VOID TEST(KernelCodecTest, AVFrame)
     if (true) {
         SrsVideoFrame f;
         SrsVideoCodecConfig* cc = new SrsVideoCodecConfig();
-        SrsAutoFree(SrsVideoCodecConfig, cc);
+        SrsUniquePtr<SrsVideoCodecConfig> cc_uptr(cc);
         HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.vcodec() != NULL);
 
@@ -3542,7 +3540,7 @@ VOID TEST(KernelCodecTest, AVFrame)
     if (true) {
         SrsVideoFrame f;
         SrsVideoCodecConfig* cc = new SrsVideoCodecConfig();
-        SrsAutoFree(SrsVideoCodecConfig, cc);
+        SrsUniquePtr<SrsVideoCodecConfig> cc_uptr(cc);
         HELPER_EXPECT_SUCCESS(f.initialize(cc));
         EXPECT_TRUE(f.vcodec() != NULL);
 
@@ -4867,7 +4865,7 @@ VOID TEST(KernelFLVTest, CoverSharedPtrMessage)
 
 	if (true) {
 		SrsMessageHeader h;
-		h.perfer_cid = 1;
+		h.prefer_cid = 1;
 
 		SrsSharedPtrMessage m;
 		HELPER_EXPECT_SUCCESS(m.create(&h, NULL, 0));
@@ -6295,7 +6293,7 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
         HELPER_EXPECT_SUCCESS(fmt.on_video(0, (char*)raw, sizeof(raw)));
 
         uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
-        SrsAutoFreeA(uint8_t, cp);
+        SrsUniquePtr<uint8_t[]> cp_uptr(cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
             SrsMp4HandlerTypeVIDE, fmt.video->frame_type, 0, 0, cp, fmt.nb_raw
         ));
@@ -6308,7 +6306,7 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
         HELPER_EXPECT_SUCCESS(fmt.on_audio(0, (char*)raw, sizeof(raw)));
 
         uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
-        SrsAutoFreeA(uint8_t, cp);
+        SrsUniquePtr<uint8_t[]> cp_uptr(cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
             SrsMp4HandlerTypeSOUN, 0x00, 0, 0, cp, fmt.nb_raw
         ));
@@ -6327,7 +6325,7 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
         HELPER_EXPECT_SUCCESS(fmt.on_audio(0, (char*)raw, sizeof(raw)));
 
         uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
-        SrsAutoFreeA(uint8_t, cp);
+        SrsUniquePtr<uint8_t[]> cp_uptr(cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
             SrsMp4HandlerTypeSOUN, 0x00, 34, 34, cp, fmt.nb_raw
         ));
@@ -6349,7 +6347,7 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
         HELPER_EXPECT_SUCCESS(fmt.on_video(0, (char*)raw, sizeof(raw)));
 
         uint8_t* cp = mock_copy_bytes(fmt.raw, fmt.nb_raw);
-        SrsAutoFreeA(uint8_t, cp);
+        SrsUniquePtr<uint8_t[]> cp_uptr(cp);
         HELPER_EXPECT_SUCCESS(enc.write_sample(
             SrsMp4HandlerTypeVIDE, fmt.video->frame_type, 40, 40, cp, fmt.nb_raw
         ));

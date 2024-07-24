@@ -37,7 +37,7 @@ SrsMessageHeader::SrsMessageHeader()
     
     timestamp = 0;
     // we always use the connection chunk-id
-    perfer_cid = RTMP_CID_OverConnection;
+    prefer_cid = RTMP_CID_OverConnection;
 }
 
 SrsMessageHeader::~SrsMessageHeader()
@@ -113,7 +113,7 @@ void SrsMessageHeader::initialize_amf0_script(int size, int stream)
     stream_id = (int32_t)stream;
     
     // amf0 script use connection2 chunk-id
-    perfer_cid = RTMP_CID_OverConnection2;
+    prefer_cid = RTMP_CID_OverConnection2;
 }
 
 void SrsMessageHeader::initialize_audio(int size, uint32_t time, int stream)
@@ -125,7 +125,7 @@ void SrsMessageHeader::initialize_audio(int size, uint32_t time, int stream)
     stream_id = (int32_t)stream;
     
     // audio chunk-id
-    perfer_cid = RTMP_CID_Audio;
+    prefer_cid = RTMP_CID_Audio;
 }
 
 void SrsMessageHeader::initialize_video(int size, uint32_t time, int stream)
@@ -137,7 +137,7 @@ void SrsMessageHeader::initialize_video(int size, uint32_t time, int stream)
     stream_id = (int32_t)stream;
     
     // video chunk-id
-    perfer_cid = RTMP_CID_Video;
+    prefer_cid = RTMP_CID_Video;
 }
 
 SrsCommonMessage::SrsCommonMessage()
@@ -175,7 +175,7 @@ SrsSharedMessageHeader::SrsSharedMessageHeader()
 {
     payload_length = 0;
     message_type = 0;
-    perfer_cid = 0;
+    prefer_cid = 0;
 }
 
 SrsSharedMessageHeader::~SrsSharedMessageHeader()
@@ -244,7 +244,7 @@ srs_error_t SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload
     if (pheader) {
         ptr->header.message_type = pheader->message_type;
         ptr->header.payload_length = size;
-        ptr->header.perfer_cid = pheader->perfer_cid;
+        ptr->header.prefer_cid = pheader->prefer_cid;
         this->timestamp = pheader->timestamp;
         this->stream_id = pheader->stream_id;
     }
@@ -284,9 +284,9 @@ bool SrsSharedPtrMessage::check(int stream_id)
 
     // we donot use the complex basic header,
     // ensure the basic header is 1bytes.
-    if (ptr->header.perfer_cid < 2 || ptr->header.perfer_cid > 63) {
-        srs_info("change the chunk_id=%d to default=%d", ptr->header.perfer_cid, RTMP_CID_ProtocolControl);
-        ptr->header.perfer_cid = RTMP_CID_ProtocolControl;
+    if (ptr->header.prefer_cid < 2 || ptr->header.prefer_cid > 63) {
+        srs_info("change the chunk_id=%d to default=%d", ptr->header.prefer_cid, RTMP_CID_ProtocolControl);
+        ptr->header.prefer_cid = RTMP_CID_ProtocolControl;
     }
     
     // we assume that the stream_id in a group must be the same.
@@ -317,10 +317,10 @@ bool SrsSharedPtrMessage::is_video()
 int SrsSharedPtrMessage::chunk_header(char* cache, int nb_cache, bool c0)
 {
     if (c0) {
-        return srs_chunk_header_c0(ptr->header.perfer_cid, (uint32_t)timestamp,
+        return srs_chunk_header_c0(ptr->header.prefer_cid, (uint32_t)timestamp,
             ptr->header.payload_length, ptr->header.message_type, stream_id, cache, nb_cache);
     } else {
-        return srs_chunk_header_c3(ptr->header.perfer_cid, (uint32_t)timestamp,
+        return srs_chunk_header_c3(ptr->header.prefer_cid, (uint32_t)timestamp,
             cache, nb_cache);
     }
 }
@@ -584,10 +584,9 @@ void SrsFlvTransmuxer::cache_metadata(char type, char* data, int size, char* cac
      (char)0x00, // TimestampExtended UI8
      (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
      };*/
-    
-    SrsBuffer* tag_stream = new SrsBuffer(cache, 11);
-    SrsAutoFree(SrsBuffer, tag_stream);
-    
+
+    SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
+
     // write data size.
     tag_stream->write_1bytes(type);
     tag_stream->write_3bytes(size);
@@ -610,10 +609,9 @@ void SrsFlvTransmuxer::cache_audio(int64_t timestamp, char* data, int size, char
      (char)0x00, // TimestampExtended UI8
      (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
      };*/
-    
-    SrsBuffer* tag_stream = new SrsBuffer(cache, 11);
-    SrsAutoFree(SrsBuffer, tag_stream);
-    
+
+    SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
+
     // write data size.
     tag_stream->write_1bytes(SrsFrameTypeAudio);
     tag_stream->write_3bytes(size);
@@ -637,10 +635,9 @@ void SrsFlvTransmuxer::cache_video(int64_t timestamp, char* data, int size, char
      (char)0x00, // TimestampExtended UI8
      (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
      };*/
-    
-    SrsBuffer* tag_stream = new SrsBuffer(cache, 11);
-    SrsAutoFree(SrsBuffer, tag_stream);
-    
+
+    SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
+
     // write data size.
     tag_stream->write_1bytes(SrsFrameTypeVideo);
     tag_stream->write_3bytes(size);
@@ -652,8 +649,7 @@ void SrsFlvTransmuxer::cache_video(int64_t timestamp, char* data, int size, char
 
 void SrsFlvTransmuxer::cache_pts(int size, char* cache)
 {
-    SrsBuffer* tag_stream = new SrsBuffer(cache, 11);
-    SrsAutoFree(SrsBuffer, tag_stream);
+    SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
     tag_stream->write_4bytes(size);
 }
 
@@ -860,10 +856,9 @@ srs_error_t SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart
         if ((err = reader->read(tag_header, SRS_FLV_TAG_HEADER_SIZE, NULL)) != srs_success) {
             return srs_error_wrap(err, "read tag header");
         }
-        
-        SrsBuffer* tag_stream = new SrsBuffer(tag_header, SRS_FLV_TAG_HEADER_SIZE);
-        SrsAutoFree(SrsBuffer, tag_stream);
-        
+
+        SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(tag_header, SRS_FLV_TAG_HEADER_SIZE));
+
         int8_t tag_type = tag_stream->read_1bytes();
         int32_t data_size = tag_stream->read_3bytes();
         

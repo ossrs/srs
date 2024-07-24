@@ -201,19 +201,18 @@ srs_error_t SrsSslClient::read(void* plaintext, size_t nn_plaintext, ssize_t* nr
         if (r0 == -1 && r1 == SSL_ERROR_WANT_READ) {
             // TODO: Can we avoid copy?
             int nn_cipher = nn_plaintext;
-            char* cipher = new char[nn_cipher];
-            SrsAutoFreeA(char, cipher);
+            SrsUniquePtr<char[]> cipher(new char[nn_cipher]);
 
             // Read the cipher from SSL.
             ssize_t nn = 0;
-            if ((err = transport->read(cipher, nn_cipher, &nn)) != srs_success) {
+            if ((err = transport->read(cipher.get(), nn_cipher, &nn)) != srs_success) {
                 return srs_error_wrap(err, "https: read");
             }
 
-            int r0 = BIO_write(bio_in, cipher, nn);
+            int r0 = BIO_write(bio_in, cipher.get(), nn);
             if (r0 <= 0) {
                 // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
-                return srs_error_new(ERROR_HTTPS_READ, "BIO_write r0=%d, cipher=%p, size=%d", r0, cipher, nn);
+                return srs_error_new(ERROR_HTTPS_READ, "BIO_write r0=%d, cipher=%p, size=%d", r0, cipher.get(), nn);
             }
             continue;
         }

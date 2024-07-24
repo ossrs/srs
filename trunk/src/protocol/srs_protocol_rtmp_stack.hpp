@@ -114,8 +114,8 @@ public:
 // Encode functions for concrete packet to override.
 public:
     // The cid(chunk id) specifies the chunk to send data over.
-    // Generally, each message perfer some cid, for example,
-    // all protocol control messages perfer RTMP_CID_ProtocolControl,
+    // Generally, each message prefer some cid, for example,
+    // all protocol control messages prefer RTMP_CID_ProtocolControl,
     // SrsSetWindowAckSizePacket is protocol control message.
     virtual int get_prefer_cid();
     // The subpacket must override to provide the right message type.

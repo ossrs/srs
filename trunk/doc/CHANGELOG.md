@@ -7,6 +7,22 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-07-24, Merge [#4116](https://github.com/ossrs/srs/pull/4116): Dockerfile: Consistently use proper ENV syntax using "=". v6.0.140 (#4116)
+* v6.0, 2024-07-24, Merge [#4126](https://github.com/ossrs/srs/pull/4126): Edge: Improve stability for state and fd closing. v6.0.139 (#4126)
+* v6.0, 2024-07-13, Merge [#4111](https://github.com/ossrs/srs/pull/4111): DASH: Fix time unit error for disposing. v6.0.138 (#4111)
+* v6.0, 2024-07-09, Merge [#4028](https://github.com/ossrs/srs/pull/4028): HTTPS: Support config key/cert for HTTPS API. v6.0.137 (#4028)
+* v6.0, 2024-07-09, Merge [#4109](https://github.com/ossrs/srs/pull/4109): UniquePtr: Support SrsUniquePtr to replace SrsAutoFree. v6.0.136 (#4109)
+* v6.0, 2024-07-08, Merge [#4042](https://github.com/ossrs/srs/pull/4042): Refine config directive token parsing. v6.0.135 (#4042)
+* v6.0, 2024-07-04, Merge [#4106](https://github.com/ossrs/srs/pull/4106): SmartPtr: Fix SRT source memory leaking. v6.0.134 (#4106)
+* v6.0, 2024-06-29, Merge [#4077](https://github.com/ossrs/srs/pull/4077): Fix misspelling error in app config. v6.0.133 (#4077)
+* v6.0, 2024-06-29, Merge [#4102](https://github.com/ossrs/srs/pull/4102): SmartPtr: Support detect memory leak by valgrind. v6.0.132 (#4102)
+* v6.0, 2024-06-21, Merge [#4100](https://github.com/ossrs/srs/pull/4100): Fix security scan problems. v6.0.131 (#4100)
+* v6.0, 2024-06-21, Merge [#4097](https://github.com/ossrs/srs/pull/4097): SmartPtr: Support load test for source by srs-bench. v6.0.130 (#4097)
+* v6.0, 2024-06-15, Merge [#4089](https://github.com/ossrs/srs/pull/4089): SmartPtr: Support shared ptr for live source. v6.0.129 (#4089)
+* v6.0, 2024-06-14, Merge [#4085](https://github.com/ossrs/srs/pull/4085): SmartPtr: Support shared ptr for RTC source. v6.0.128 (#4085)
+* v6.0, 2024-06-13, Merge [#4083](https://github.com/ossrs/srs/pull/4083): SmartPtr: Use shared ptr in RTC TCP connection. v6.0.127 (#4083)
+* v6.0, 2024-06-12, Merge [#4080](https://github.com/ossrs/srs/pull/4080): SmartPtr: Use shared ptr to manage GB objects. v6.0.126 (#4080)
+* v6.0, 2024-06-03, Merge [#4057](https://github.com/ossrs/srs/pull/4057): RTC: Support dropping h.264 SEI from NALUs. v6.0.125 (#4057)
 * v6.0, 2024-04-26, Merge [#4044](https://github.com/ossrs/srs/pull/4044): fix: correct SRS_ERRNO_MAP_HTTP duplicate error code. v6.0.124 (#4044)
 * v6.0, 2024-04-23, Merge [#4038](https://github.com/ossrs/srs/pull/4038): RTMP: Do not response publish start message if hooks fail. v6.0.123 (#4038)
 * v6.0, 2024-04-22, Merge [#4033](https://github.com/ossrs/srs/pull/4033): issue #3967: support x509 certification chiain in single pem file. v6.0.122 (#4033)
@@ -135,6 +151,8 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2024-07-24, Merge [#4126](https://github.com/ossrs/srs/pull/4126): Edge: Improve stability for state and fd closing. v5.0.214 (#4126)
+* v5.0, 2024-06-03, Merge [#4057](https://github.com/ossrs/srs/pull/4057): RTC: Support dropping h.264 SEI from NALUs. v5.0.213 (#4057)
 * v5.0, 2024-04-23, Merge [#4038](https://github.com/ossrs/srs/pull/4038): RTMP: Do not response publish start message if hooks fail. v5.0.212 (#4038)
 * v5.0, 2024-04-22, Merge [#4033](https://github.com/ossrs/srs/pull/4033): issue #3967: support x509 certification chiain in single pem file. v5.0.211 (#4033)
 * v5.0, 2024-03-26, Filter JSONP callback function name. v5.0.210

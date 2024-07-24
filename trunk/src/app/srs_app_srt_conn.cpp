@@ -152,7 +152,7 @@ srs_error_t SrsSrtRecvThread::get_recv_err()
     return srs_error_copy(recv_err_);
 }
 
-SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port)
+SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port) : srt_source_(new SrsSrtSource())
 {
     // Create a identify for this client.
     _srs_context->set_id(_srs_context->generate_id());
@@ -171,7 +171,6 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, s
 
     trd_ = new SrsSTCoroutine("ts-srt", this, _srs_context->get_id());
 
-    srt_source_ = NULL;
     req_ = new SrsRequest();
     req_->ip = ip;
 
@@ -285,7 +284,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     srs_trace("@srt, streamid=%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
               streamid.c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
 
-    if ((err = _srs_srt_sources->fetch_or_create(req_, &srt_source_)) != srs_success) {
+    if ((err = _srs_srt_sources->fetch_or_create(req_, srt_source_)) != srs_success) {
         return srs_error_wrap(err, "fetch srt source");
     }
 
@@ -369,16 +368,16 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
     }
 
     // Check rtmp stream is busy.
-    SrsLiveSource *live_source = _srs_sources->fetch(req_);
-    if (live_source && !live_source->can_publish(false)) {
+    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req_);
+    if (live_source.get() && !live_source->can_publish(false)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "live_source stream %s busy", req_->get_stream_url().c_str());
     }
 
-    if ((err = _srs_sources->fetch_or_create(req_, _srs_hybrid->srs()->instance(), &live_source)) != srs_success) {
+    if ((err = _srs_sources->fetch_or_create(req_, _srs_hybrid->srs()->instance(), live_source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
-    srs_assert(live_source != NULL);
+    srs_assert(live_source.get() != NULL);
 
     bool enabled_cache = _srs_config->get_gop_cache(req_->vhost);
     int gcmf = _srs_config->get_gop_cache_max_frames(req_->vhost);
@@ -390,12 +389,12 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
 
     // Check whether RTC stream is busy.
 #ifdef SRS_RTC
-    SrsRtcSource* rtc = NULL;
+    SrsSharedPtr<SrsRtcSource> rtc;
     bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
     bool rtc_enabled = _srs_config->get_rtc_enabled(req_->vhost);
     bool edge = _srs_config->get_vhost_is_edge(req_->vhost);
     if (rtc_server_enabled && rtc_enabled && ! edge) {
-        if ((err = _srs_rtc_sources->fetch_or_create(req_, &rtc)) != srs_success) {
+        if ((err = _srs_rtc_sources->fetch_or_create(req_, rtc)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
@@ -411,7 +410,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
         bridge->append(new SrsFrameToRtmpBridge(live_source));
 
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
-        if (rtc && _srs_config->get_rtc_from_rtmp(req_->vhost)) {
+        if (rtc.get() && _srs_config->get_rtc_from_rtmp(req_->vhost)) {
             bridge->append(new SrsFrameToRtcBridge(rtc));
         }
 #endif
@@ -440,8 +439,7 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
 {
     srs_error_t err = srs_success;
 
-    SrsPithyPrint* pprint = SrsPithyPrint::create_srt_publish();
-    SrsAutoFree(SrsPithyPrint, pprint);
+    SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_srt_publish());
 
     int nb_packets = 0;
 
@@ -488,20 +486,20 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
 {
     srs_error_t err = srs_success;
 
-    SrsSrtConsumer* consumer = NULL;
-    SrsAutoFree(SrsSrtConsumer, consumer);
-    if ((err = srt_source_->create_consumer(consumer)) != srs_success) {
+    SrsSrtConsumer* consumer_raw = NULL;
+    if ((err = srt_source_->create_consumer(consumer_raw)) != srs_success) {
         return srs_error_wrap(err, "create consumer, ts source=%s", req_->get_stream_url().c_str());
     }
-    srs_assert(consumer);
+
+    srs_assert(consumer_raw);
+    SrsUniquePtr<SrsSrtConsumer> consumer(consumer_raw);
 
     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
-    if ((err = srt_source_->consumer_dumps(consumer)) != srs_success) {
+    if ((err = srt_source_->consumer_dumps(consumer.get())) != srs_success) {
         return srs_error_wrap(err, "dumps consumer, url=%s", req_->get_stream_url().c_str());
     }
 
-    SrsPithyPrint* pprint = SrsPithyPrint::create_srt_play();
-    SrsAutoFree(SrsPithyPrint, pprint);
+    SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_srt_play());
 
     SrsSrtRecvThread srt_recv_trd(srt_conn_);
     if ((err = srt_recv_trd.start()) != srs_success) {
@@ -520,14 +518,15 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
         }
 
         // Wait for amount of packets.
-        SrsSrtPacket* pkt = NULL;
-        SrsAutoFree(SrsSrtPacket, pkt);
-        consumer->dump_packet(&pkt);
-        if (!pkt) {
+        SrsSrtPacket* pkt_raw = NULL;
+        consumer->dump_packet(&pkt_raw);
+        if (!pkt_raw) {
             // TODO: FIXME: We should check the quit event.
             consumer->wait(1, 1000 * SRS_UTIME_MILLISECONDS);
             continue;
         }
+
+        SrsUniquePtr<SrsSrtPacket> pkt(pkt_raw);
 
         ++nb_packets;
 
@@ -581,11 +580,10 @@ srs_error_t SrsMpegtsSrtConn::on_srt_packet(char* buf, int nb_buf)
         return srs_error_new(ERROR_SRT_CONN, "invalid ts packet first=%#x", (uint8_t)buf[0]);
     }
 
-    SrsSrtPacket* packet = new SrsSrtPacket();
-    SrsAutoFree(SrsSrtPacket, packet);
+    SrsUniquePtr<SrsSrtPacket> packet(new SrsSrtPacket());
     packet->wrap(buf, nb_buf);
 
-    if ((err = srt_source_->on_packet(packet)) != srs_success) {
+    if ((err = srt_source_->on_packet(packet.get())) != srs_success) {
         return srs_error_wrap(err, "on srt packet");
     }
     
