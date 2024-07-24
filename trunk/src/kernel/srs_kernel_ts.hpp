@@ -1333,6 +1333,7 @@ private:
     ISrsStreamWriter* writer;
     bool has_audio_;
     bool has_video_;
+    bool guess_has_av_;
 private:
     SrsFormat* format;
     SrsTsMessageCache* tsmc;
@@ -1344,6 +1345,7 @@ public:
 public:
     void set_has_audio(bool v);
     void set_has_video(bool v);
+    void set_guess_has_av(bool v);
 public:
     // Initialize the underlayer file stream.
     // @param fw the writer to use for ts encoder, user must free it.
