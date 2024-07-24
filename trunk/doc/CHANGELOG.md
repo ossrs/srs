@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-07-24, Merge [#4116](https://github.com/ossrs/srs/pull/4116): Dockerfile: Consistently use proper ENV syntax using "=". v6.0.140 (#4116)
 * v6.0, 2024-07-24, Merge [#4126](https://github.com/ossrs/srs/pull/4126): Edge: Improve stability for state and fd closing. v6.0.139 (#4126)
 * v6.0, 2024-07-13, Merge [#4111](https://github.com/ossrs/srs/pull/4111): DASH: Fix time unit error for disposing. v6.0.138 (#4111)
 * v6.0, 2024-07-09, Merge [#4028](https://github.com/ossrs/srs/pull/4028): HTTPS: Support config key/cert for HTTPS API. v6.0.137 (#4028)
