@@ -780,6 +780,10 @@ srs_error_t SrsEdgeForwarder::start()
         
         url = srs_generate_rtmp_url(server, port, req->host, vhost, req->app, req->stream, req->param);
     }
+
+    // We must stop the coroutine before disposing the sdk.
+    srs_freep(trd);
+    trd = new SrsSTCoroutine("edge-fwr", this, _srs_context->get_id());
     
     // open socket.
     srs_freep(sdk);
@@ -804,10 +808,8 @@ srs_error_t SrsEdgeForwarder::start()
     if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost), false, &stream)) != srs_success) {
         return srs_error_wrap(err, "sdk publish");
     }
-    
-    srs_freep(trd);
-    trd = new SrsSTCoroutine("edge-fwr", this, _srs_context->get_id());
-    
+
+    // Start the forwarding coroutine.
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "coroutine");
     }
@@ -819,9 +821,12 @@ srs_error_t SrsEdgeForwarder::start()
 
 void SrsEdgeForwarder::stop()
 {
+    // Make sure the coroutine is stopped before disposing the sdk,
+    // for sdk is used by coroutine.
     trd->stop();
-    queue->clear();
     srs_freep(sdk);
+
+    queue->clear();
 }
 
 // when error, edge ingester sleep for a while and retry.
@@ -839,6 +844,11 @@ srs_error_t SrsEdgeForwarder::cycle()
         }
 
         if ((err = do_cycle()) != srs_success) {
+            // If cycle stopping, we should always set the quit error code.
+            if (send_error_code == 0) {
+                send_error_code = srs_error_code(err);
+            }
+
             return srs_error_wrap(err, "do cycle");
         }
 
