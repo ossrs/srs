@@ -185,6 +185,7 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
     if (!hr->query().empty() && hr->query_get(SRS_CONTEXT_IN_HLS).empty()) {
         ss << "&" << hr->query();
     }
+    ss << SRS_CONSTS_LF;
 
     std::string res = ss.str();
     int length = res.length();
