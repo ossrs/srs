@@ -845,13 +845,12 @@ srs_error_t SrsEdgeForwarder::cycle()
             return srs_error_wrap(err, "thread pull");
         }
 
-        // If coroutine stopping, we should always set the quit error code.
-        err = do_cycle();
-        if (send_error_code == 0) {
-            send_error_code = srs_error_code(err);
-        }
+        if ((err = do_cycle()) != srs_success) {
+            // If cycle stopping, we should always set the quit error code.
+            if (send_error_code == 0) {
+                send_error_code = srs_error_code(err);
+            }
 
-        if (err != srs_success) {
             return srs_error_wrap(err, "do cycle");
         }
 
