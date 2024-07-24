@@ -114,6 +114,7 @@ public:
 public:
     void set_has_audio(bool v);
     void set_has_video(bool v);
+    void set_guess_has_av(bool v);
 };
 
 // Transmux RTMP with AAC stream to HTTP AAC Streaming.

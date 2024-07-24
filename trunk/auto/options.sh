@@ -84,7 +84,7 @@ SRS_BUILD_TAG= # Set the object files tag name.
 SRS_CLEAN=YES # Whether do "make clean" when configure.
 SRS_SIMULATOR=NO # Whether enable RTC simulate API.
 SRS_GENERATE_OBJS=NO # Whether generate objs and quit.
-SRS_SINGLE_THREAD=NO # Whether force single thread mode.
+SRS_SINGLE_THREAD=YES # Whether force single thread mode.
 #
 ################################################################
 # Performance options.
