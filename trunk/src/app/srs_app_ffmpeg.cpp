@@ -33,8 +33,9 @@ using namespace std;
 #define SRS_RTMP_ENCODER_COPY "copy"
 #define SRS_RTMP_ENCODER_NO_VIDEO "vn"
 #define SRS_RTMP_ENCODER_NO_AUDIO "an"
-// only support libx264 encoder.
+// only support libx264 and h264_qsv encoder.
 #define SRS_RTMP_ENCODER_VCODEC_LIBX264 "libx264"
+#define SRS_RTMP_ENCODER_VCODEC_H264QSV "h264_qsv"
 #define SRS_RTMP_ENCODER_VCODEC_PNG "png"
 // any aac encoder is ok which contains the aac,
 // for example, libaacplus, aac, fdkaac
@@ -123,8 +124,8 @@ srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     }
     
     if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO && vcodec != SRS_RTMP_ENCODER_VCODEC_PNG) {
-        if (vcodec != SRS_RTMP_ENCODER_VCODEC_LIBX264) {
-            return srs_error_new(ERROR_ENCODER_VCODEC, "invalid vcodec, must be %s, actual %s", SRS_RTMP_ENCODER_VCODEC_LIBX264, vcodec.c_str());
+        if (vcodec != SRS_RTMP_ENCODER_VCODEC_LIBX264 && vcodec != SRS_RTMP_ENCODER_VCODEC_H264QSV) {
+            return srs_error_new(ERROR_ENCODER_VCODEC, "invalid vcodec, must be %s or %s, actual %s", SRS_RTMP_ENCODER_VCODEC_LIBX264, SRS_RTMP_ENCODER_VCODEC_H264QSV, vcodec.c_str());
         }
         if (vbitrate < 0) {
             return srs_error_new(ERROR_ENCODER_VBITRATE, "invalid vbitrate: %d", vbitrate);
