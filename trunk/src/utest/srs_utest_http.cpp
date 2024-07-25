@@ -1541,7 +1541,7 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456", w);
+        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456\n", w);
 
         MockResponseWriter w2;
         HELPER_ASSERT_SUCCESS(h.serve_http(&w2, &r));
@@ -1563,7 +1563,7 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456", w);
+        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456\n", w);
 
         MockResponseWriter w2;
         HELPER_ASSERT_SUCCESS(h.serve_http(&w2, &r));
