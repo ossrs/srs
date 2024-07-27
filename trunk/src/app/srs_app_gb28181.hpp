@@ -89,6 +89,34 @@ enum SrsGbSipState
 };
 std::string srs_gb_sip_state(SrsGbSipState state);
 
+// For external SIP server mode, where SRS acts only as a media relay server
+//     1. SIP server POST request via HTTP API with stream ID and SSRC
+//     2. SRS create session using ID and SSRC, return a port for receiving media streams (indicated in conf).
+//     3. External streaming service connect to the port, and send RTP stream (with the above SSRC)
+//     4. SRS forward the stream to RTMP stream, named after ID
+//
+// Request:
+//      POST /gb/v1/publish/
+//      {
+//              "id": "...",
+//              "ssrc": "..."
+//      }
+// Response:
+//      {"port":9000, "is_tcp": true}
+class SrsGoApiGbPublish : public ISrsHttpHandler
+{
+private:
+    SrsConfDirective* conf_;
+public:
+    SrsGoApiGbPublish(SrsConfDirective* conf);
+    virtual ~SrsGoApiGbPublish();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
+    srs_error_t bind_session(std::string stream, uint64_t ssrc);
+};
+
 // The main logic object for GB, the session.
 // Each session contains a SIP object and a media object, that are managed by session. This means session always
 // lives longer than SIP and media, and session will dispose SIP and media when session disposed. In another word,
@@ -191,6 +219,8 @@ public:
 // Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(ISrsListener* listener, srs_netfd_t stfd);
+private:
+    srs_error_t listen_api();
 };
 
 // A GB28181 TCP SIP connection.
@@ -234,6 +264,10 @@ public:
 public:
     // Get the SIP device id.
     std::string device_id();
+    // For use with external SIP signaling server ONLY
+    // When using an external SIP signaling server, device id are not available, so manual configuration is required
+    // This id will be used as the stream name in the RTMP protocol
+    void set_device_id(const std::string& id);
     // Set the cid of all coroutines.
     virtual void set_cid(const SrsContextId& cid);
 private:
