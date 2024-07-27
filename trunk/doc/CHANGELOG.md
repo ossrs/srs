@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-07-27, Merge [#4127](https://github.com/ossrs/srs/pull/4127): Transcode: Support video codec such as h264_qsv and libx265. v6.0.145 (#4127)
 * v6.0, 2024-07-27, Merge [#4101](https://github.com/ossrs/srs/pull/4101): GB28181: Support external SIP server. v6.0.144 (#4101)
 * v6.0, 2024-07-24, Merge [#4115](https://github.com/ossrs/srs/pull/4115): HLS: Add missing newline to end of session manifest. v6.0.143 (#4115)
 * v6.0, 2024-07-24, Merge [#4029](https://github.com/ossrs/srs/pull/4029): Player: Fix empty img tag occupy 20px size in safari. v6.0.142 (#4029)
