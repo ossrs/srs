@@ -107,8 +107,7 @@ srs_error_t SrsPsContext::decode(SrsBuffer* stream, ISrsPsMessageHandler* handle
         }
 
         // Reap the last completed PS message.
-        SrsTsMessage* msg = reap();
-        SrsAutoFree(SrsTsMessage, msg);
+        SrsUniquePtr<SrsTsMessage> msg(reap());
 
         if (msg->sid == SrsTsPESStreamIdProgramStreamMap) {
             if (!msg->payload || !msg->payload->length()) {
@@ -136,7 +135,7 @@ srs_error_t SrsPsContext::decode(SrsBuffer* stream, ISrsPsMessageHandler* handle
             helper_.pack_nn_msgs_++;
 
             //srs_error("PS: Got message %s, dts=%" PRId64 ", payload=%dB", msg->is_video() ? "Video" : "Audio", msg->dts/9000, msg->PES_packet_length);
-            if (handler && (err = handler->on_ts_message(msg)) != srs_success) {
+            if (handler && (err = handler->on_ts_message(msg.get())) != srs_success) {
                 return srs_error_wrap(err, "handle PS message");
             }
         } else {

@@ -1157,13 +1157,13 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveCo
             srs_assert(!file.empty());
             srs_trace("config parse include %s", file.c_str());
 
-            SrsConfigBuffer* include_file_buffer = NULL;
-            SrsAutoFree(SrsConfigBuffer, include_file_buffer);
-            if ((err = conf->build_buffer(file, &include_file_buffer)) != srs_success) {
+            SrsConfigBuffer* include_file_buffer_raw = NULL;
+            if ((err = conf->build_buffer(file, &include_file_buffer_raw)) != srs_success) {
                 return srs_error_wrap(err, "buffer fullfill %s", file.c_str());
             }
+            SrsUniquePtr<SrsConfigBuffer> include_file_buffer(include_file_buffer_raw);
 
-            if ((err = parse_conf(include_file_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
+            if ((err = parse_conf(include_file_buffer.get(), SrsDirectiveContextFile, conf)) != srs_success) {
                 return srs_error_wrap(err, "parse include buffer %s", file.c_str());
             }
         }
@@ -1202,9 +1202,15 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
         
         char ch = *buffer->pos++;
         
-        if (ch == SRS_LF) {
-            buffer->line++;
+        if (ch == SRS_LF || ch == SRS_CR) {
+            if (ch == SRS_LF) {
+                buffer->line++;
+            }
+
             sharp_comment = false;
+            if (args.size() > 0) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected end of line to parse token %s", buffer->line - 1, args[0].c_str());
+            }
         }
         
         if (sharp_comment) {
@@ -1305,7 +1311,7 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                     args.push_back(word_str);
                 }
                 srs_freepa(aword);
-                
+
                 if (ch == ';') {
                     state = SrsDirectiveStateEntire;
                     return err;
@@ -1313,6 +1319,10 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                 if (ch == '{') {
                     state = SrsDirectiveStateBlockStart;
                     return err;
+                }
+
+                if ((ch == SRS_LF || ch == SRS_CR) && args.size() > 0) {
+                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected end of line to parse token %s", buffer->line - 1, args[0].c_str());
                 }
             }
         }
@@ -1618,10 +1628,8 @@ srs_error_t SrsConfig::reload_vhost(SrsConfDirective* old_root)
 srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
 {
     srs_error_t err = srs_success;
-    
-    SrsConfDirective* old_root = root;
-    SrsAutoFree(SrsConfDirective, old_root);
-    
+
+    SrsUniquePtr<SrsConfDirective> old_root(root);
     root = conf->root;
     conf->root = NULL;
     
@@ -1655,14 +1663,14 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     }
 
     // Merge config: rtc_server
-    if ((err = reload_rtc_server(old_root)) != srs_success) {
+    if ((err = reload_rtc_server(old_root.get())) != srs_success) {
         return srs_error_wrap(err, "http steram");;
     }
     
     // TODO: FIXME: support reload stream_caster.
     
     // merge config: vhost
-    if ((err = reload_vhost(old_root)) != srs_success) {
+    if ((err = reload_vhost(old_root.get())) != srs_success) {
         return srs_error_wrap(err, "vhost");;
     }
     
@@ -2250,13 +2258,13 @@ srs_error_t SrsConfig::parse_file(const char* filename)
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty config");
     }
 
-    SrsConfigBuffer* buffer = NULL;
-    SrsAutoFree(SrsConfigBuffer, buffer);
-    if ((err = build_buffer(config_file, &buffer)) != srs_success) {
+    SrsConfigBuffer* buffer_raw = NULL;
+    if ((err = build_buffer(config_file, &buffer_raw)) != srs_success) {
         return srs_error_wrap(err, "buffer fullfill %s", filename);
     }
-    
-    if ((err = parse_buffer(buffer)) != srs_success) {
+
+    SrsUniquePtr<SrsConfigBuffer> buffer(buffer_raw);
+    if ((err = parse_buffer(buffer.get())) != srs_success) {
         return srs_error_wrap(err, "parse buffer %s", filename);
     }
     
@@ -2378,7 +2386,7 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "maxbw"
                 && n != "mss" && n != "latency" && n != "recvlatency"
-                && n != "peerlatency" && n != "connect_timeout"
+                && n != "peerlatency" && n != "connect_timeout" && n != "peer_idle_timeout"
                 && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
                 && n != "default_app" && n != "sei_filter" && n != "mix_correct"
                 && n != "tlpktdrop" && n != "tsbpdmode" && n != "passphrase" && n != "pbkeylen") {
@@ -6863,7 +6871,7 @@ srs_utime_t SrsConfig::get_dash_dispose(std::string vhost)
 {
     SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.dash.dash_dispose"); // SRS_VHOST_DASH_DASH_DISPOSE
 
-    static srs_utime_t DEFAULT = 120;
+    static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {

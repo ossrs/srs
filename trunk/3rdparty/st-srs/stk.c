@@ -65,6 +65,7 @@ _st_stack_t *_st_stack_new(int stack_size)
     _st_stack_t *ts;
     int extra;
 
+   /* If cache stack, we try to use stack from the cache list. */
 #ifdef MD_CACHE_STACK
     for (qp = _st_free_stacks.next; qp != &_st_free_stacks; qp = qp->next) {
         ts = _ST_THREAD_STACK_PTR(qp);
@@ -80,10 +81,13 @@ _st_stack_t *_st_stack_new(int stack_size)
 #endif
 
     extra = _st_randomize_stacks ? _ST_PAGE_SIZE : 0;
+    /* If not cache stack, we will free all stack in the list, which contains the stack to be freed.
+     * Note that we should never directly free it at _st_stack_free, because it is still be used,
+     * and will cause crash. */
 #ifndef MD_CACHE_STACK
     for (qp = _st_free_stacks.next; qp != &_st_free_stacks;) {
         ts = _ST_THREAD_STACK_PTR(qp);
-        // Before qp is freed, move to next one, because the qp will be freed when free the ts.
+        /* Before qp is freed, move to next one, because the qp will be freed when free the ts. */
         qp = qp->next;
 
         ST_REMOVE_LINK(&ts->links);

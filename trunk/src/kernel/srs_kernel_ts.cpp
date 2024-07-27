@@ -257,20 +257,20 @@ srs_error_t SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
     // parse util EOF of stream.
     // for example, parse multiple times for the PES_packet_length(0) packet.
     while (!stream->empty()) {
-        SrsTsPacket* packet = new SrsTsPacket(this);
-        SrsAutoFree(SrsTsPacket, packet);
-        
-        SrsTsMessage* msg = NULL;
-        if ((err = packet->decode(stream, &msg)) != srs_success) {
+        SrsUniquePtr<SrsTsPacket> packet(new SrsTsPacket(this));
+
+        SrsTsMessage* msg_raw = NULL;
+        if ((err = packet->decode(stream, &msg_raw)) != srs_success) {
             return srs_error_wrap(err, "ts: ts packet decode");
         }
         
-        if (!msg) {
+        if (!msg_raw) {
             continue;
         }
-        SrsAutoFree(SrsTsMessage, msg);
+
+        SrsUniquePtr<SrsTsMessage> msg(msg_raw);
         
-        if ((err = handler->on_ts_message(msg)) != srs_success) {
+        if ((err = handler->on_ts_message(msg.get())) != srs_success) {
             return srs_error_wrap(err, "ts: handle ts message");
         }
     }
@@ -381,46 +381,42 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid,
     int16_t pmt_number = TS_PMT_NUMBER;
     int16_t pmt_pid = TS_PMT_PID;
     if (true) {
-        SrsTsPacket* pkt = SrsTsPacket::create_pat(this, pmt_number, pmt_pid);
-        SrsAutoFree(SrsTsPacket, pkt);
-        
+        SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pat(this, pmt_number, pmt_pid));
+
         pkt->sync_byte = sync_byte;
-        
-        char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFreeA(char, buf);
-        
+
+        SrsUniquePtr<char[]> buf(new char[SRS_TS_PACKET_SIZE]);
+
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
-        memset(buf + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
+        memset(buf.get() + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
         
-        SrsBuffer stream(buf, nb_buf);
+        SrsBuffer stream(buf.get(), nb_buf);
         if ((err = pkt->encode(&stream)) != srs_success) {
             return srs_error_wrap(err, "ts: encode packet");
         }
-        if ((err = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
+        if ((err = writer->write(buf.get(), SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
             return srs_error_wrap(err, "ts: write packet");
         }
     }
     if (true) {
-        SrsTsPacket* pkt = SrsTsPacket::create_pmt(this, pmt_number, pmt_pid, vpid, vs, apid, as);
-        SrsAutoFree(SrsTsPacket, pkt);
-        
+        SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pmt(this, pmt_number, pmt_pid, vpid, vs, apid, as));
+
         pkt->sync_byte = sync_byte;
-        
-        char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFreeA(char, buf);
-        
+
+        SrsUniquePtr<char[]> buf(new char[SRS_TS_PACKET_SIZE]);
+
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
-        memset(buf + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
+        memset(buf.get() + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
         
-        SrsBuffer stream(buf, nb_buf);
+        SrsBuffer stream(buf.get(), nb_buf);
         if ((err = pkt->encode(&stream)) != srs_success) {
             return srs_error_wrap(err, "ts: encode packet");
         }
-        if ((err = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
+        if ((err = writer->write(buf.get(), SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
             return srs_error_wrap(err, "ts: write packet");
         }
     }
@@ -461,7 +457,7 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
     char* p = start;
     
     while (p < end) {
-        SrsTsPacket* pkt = NULL;
+        SrsTsPacket* pkt_raw = NULL;
         if (p == start) {
             // write pcr according to message.
             bool write_pcr = msg->write_pcr;
@@ -485,20 +481,19 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
             int64_t pcr = write_pcr? msg->dts : -1;
             
             // TODO: FIXME: finger it why use discontinuity of msg.
-            pkt = SrsTsPacket::create_pes_first(this,
+            pkt_raw = SrsTsPacket::create_pes_first(this,
                 pid, msg->sid, channel->continuity_counter++, msg->is_discontinuity,
                 pcr, msg->dts, msg->pts, msg->payload->length()
             );
         } else {
-            pkt = SrsTsPacket::create_pes_continue(this, pid, msg->sid, channel->continuity_counter++);
+            pkt_raw = SrsTsPacket::create_pes_continue(this, pid, msg->sid, channel->continuity_counter++);
         }
-        SrsAutoFree(SrsTsPacket, pkt);
-        
+        SrsUniquePtr<SrsTsPacket> pkt(pkt_raw);
+
         pkt->sync_byte = sync_byte;
-        
-        char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFreeA(char, buf);
-        
+
+        SrsUniquePtr<char[]> buf(new char[SRS_TS_PACKET_SIZE]);
+
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
@@ -507,7 +502,7 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
         int nb_stuffings = SRS_TS_PACKET_SIZE - nb_buf - left;
         if (nb_stuffings > 0) {
             // set all bytes to stuffings.
-            memset(buf, 0xFF, SRS_TS_PACKET_SIZE);
+            memset(buf.get(), 0xFF, SRS_TS_PACKET_SIZE);
             
             // padding with stuffings.
             pkt->padding(nb_stuffings);
@@ -520,14 +515,14 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
             nb_stuffings = SRS_TS_PACKET_SIZE - nb_buf - left;
             srs_assert(nb_stuffings == 0);
         }
-        memcpy(buf + nb_buf, p, left);
+        memcpy(buf.get() + nb_buf, p, left);
         p += left;
         
-        SrsBuffer stream(buf, nb_buf);
+        SrsBuffer stream(buf.get(), nb_buf);
         if ((err = pkt->encode(&stream)) != srs_success) {
             return srs_error_wrap(err, "ts: encode packet");
         }
-        if ((err = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
+        if ((err = writer->write(buf.get(), SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
             return srs_error_wrap(err, "ts: write packet");
         }
     }
@@ -2773,14 +2768,13 @@ srs_error_t SrsEncFileWriter::write(void* data, size_t count, ssize_t* pnwrite)
     
     if (nb_buf == HLS_AES_ENCRYPT_BLOCK_LENGTH) {
         nb_buf = 0;
-        
-        char* cipher = new char[HLS_AES_ENCRYPT_BLOCK_LENGTH];
-        SrsAutoFreeA(char, cipher);
-        
+
+        SrsUniquePtr<char[]> cipher(new char[HLS_AES_ENCRYPT_BLOCK_LENGTH]);
+
         AES_KEY* k = (AES_KEY*)key;
-        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher, HLS_AES_ENCRYPT_BLOCK_LENGTH, k, iv, AES_ENCRYPT);
+        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher.get(), HLS_AES_ENCRYPT_BLOCK_LENGTH, k, iv, AES_ENCRYPT);
         
-        if ((err = SrsFileWriter::write(cipher, HLS_AES_ENCRYPT_BLOCK_LENGTH, pnwrite)) != srs_success) {
+        if ((err = SrsFileWriter::write(cipher.get(), HLS_AES_ENCRYPT_BLOCK_LENGTH, pnwrite)) != srs_success) {
             return srs_error_wrap(err, "write cipher");
         }
     }
@@ -2809,15 +2803,14 @@ void SrsEncFileWriter::close()
         if (nb_padding > 0) {
             memset(buf + nb_buf, nb_padding, nb_padding);
         }
-        
-        char* cipher = new char[nb_buf + nb_padding];
-        SrsAutoFreeA(char, cipher);
-        
+
+        SrsUniquePtr<char[]> cipher(new char[nb_buf + nb_padding]);
+
         AES_KEY* k = (AES_KEY*)key;
-        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher, nb_buf + nb_padding, k, iv, AES_ENCRYPT);
+        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher.get(), nb_buf + nb_padding, k, iv, AES_ENCRYPT);
         
         srs_error_t err = srs_success;
-        if ((err = SrsFileWriter::write(cipher, nb_buf + nb_padding, NULL)) != srs_success) {
+        if ((err = SrsFileWriter::write(cipher.get(), nb_buf + nb_padding, NULL)) != srs_success) {
             srs_warn("ignore err %s", srs_error_desc(err).c_str());
             srs_error_reset(err);
         }
@@ -3183,6 +3176,7 @@ SrsTsTransmuxer::SrsTsTransmuxer()
     context = new SrsTsContext();
     tscw = NULL;
     has_audio_ = has_video_ = true;
+    guess_has_av_ = true;
 }
 
 SrsTsTransmuxer::~SrsTsTransmuxer()
@@ -3196,11 +3190,28 @@ SrsTsTransmuxer::~SrsTsTransmuxer()
 void SrsTsTransmuxer::set_has_audio(bool v)
 {
     has_audio_ = v;
+
+    if (tscw != NULL && !v) {
+        tscw->set_acodec(SrsAudioCodecIdForbidden);
+    }
 }
 
 void SrsTsTransmuxer::set_has_video(bool v)
 {
     has_video_ = v;
+
+    if (tscw != NULL && !v) {
+        tscw->set_vcodec(SrsVideoCodecIdForbidden);
+    }
+}
+
+void SrsTsTransmuxer::set_guess_has_av(bool v)
+{
+    guess_has_av_ = v;
+    if (tscw != NULL && v) {
+        tscw->set_acodec(SrsAudioCodecIdForbidden);
+        tscw->set_vcodec(SrsVideoCodecIdForbidden);
+    }
 }
 
 srs_error_t SrsTsTransmuxer::initialize(ISrsStreamWriter* fw)
@@ -3217,6 +3228,11 @@ srs_error_t SrsTsTransmuxer::initialize(ISrsStreamWriter* fw)
 
     SrsAudioCodecId acodec = has_audio_ ? SrsAudioCodecIdAAC : SrsAudioCodecIdForbidden;
     SrsVideoCodecId vcodec = has_video_ ? SrsVideoCodecIdAVC : SrsVideoCodecIdForbidden;
+
+    if (guess_has_av_) {
+        acodec = SrsAudioCodecIdForbidden;
+        vcodec = SrsVideoCodecIdForbidden;
+    }
 
     srs_freep(tscw);
     tscw = new SrsTsContextWriter(fw, context, acodec, vcodec);

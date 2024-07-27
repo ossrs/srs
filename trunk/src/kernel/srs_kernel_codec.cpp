@@ -730,13 +730,12 @@ srs_error_t SrsVideoFrame::parse_avc_b_frame(const SrsSample* sample, bool& is_b
         return err;
     }
 
-    SrsBuffer* stream = new SrsBuffer(sample->bytes, sample->size);
-    SrsAutoFree(SrsBuffer, stream);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(sample->bytes, sample->size));
 
     // Skip nalu header.
     stream->skip(1);
 
-    SrsBitBuffer bitstream(stream);
+    SrsBitBuffer bitstream(stream.get());
     int32_t first_mb_in_slice = 0;
     if ((err = srs_avc_nalu_read_uev(&bitstream, first_mb_in_slice)) != srs_success) {
         return srs_error_wrap(err, "nalu read uev");
@@ -793,10 +792,9 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
         srs_info("no audio present, ignore it.");
         return err;
     }
-    
-    SrsBuffer* buffer = new SrsBuffer(data, size);
-    SrsAutoFree(SrsBuffer, buffer);
-    
+
+    SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(data, size));
+
     // We already checked the size is positive and data is not NULL.
     srs_assert(buffer->require(1));
     
@@ -824,10 +822,10 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     buffer->skip(-1 * buffer->pos());
     
     if (codec == SrsAudioCodecIdMP3) {
-        return audio_mp3_demux(buffer, timestamp, fresh);
+        return audio_mp3_demux(buffer.get(), timestamp, fresh);
     }
     
-    return audio_aac_demux(buffer, timestamp);
+    return audio_aac_demux(buffer.get(), timestamp);
 }
 
 srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
@@ -838,11 +836,9 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
         srs_trace("no video present, ignore it.");
         return err;
     }
-    
-    SrsBuffer* buffer = new SrsBuffer(data, size);
-    SrsAutoFree(SrsBuffer, buffer);
 
-    return video_avc_demux(buffer, timestamp);
+    SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(data, size));
+    return video_avc_demux(buffer.get(), timestamp);
 }
 
 srs_error_t SrsFormat::on_aac_sequence_header(char* data, int size)
@@ -2807,10 +2803,9 @@ srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp, boo
 srs_error_t SrsFormat::audio_aac_sequence_header_demux(char* data, int size)
 {
     srs_error_t err = srs_success;
-    
-    SrsBuffer* buffer = new SrsBuffer(data, size);
-    SrsAutoFree(SrsBuffer, buffer);
-    
+
+    SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(data, size));
+
     // only need to decode the first 2bytes:
     //      audioObjectType, aac_profile, 5bits.
     //      samplingFrequencyIndex, aac_sample_rate, 4bits.

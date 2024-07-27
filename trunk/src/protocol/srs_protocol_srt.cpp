@@ -13,6 +13,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_core_deprecated.hpp>
 
 #include <srt/srt.h>
 

@@ -246,10 +246,9 @@ srs_error_t SrsForwarder::forward()
     srs_error_t err = srs_success;
     
     sdk->set_recv_timeout(SRS_CONSTS_RTMP_PULSE);
-    
-    SrsPithyPrint* pprint = SrsPithyPrint::create_forwarder();
-    SrsAutoFree(SrsPithyPrint, pprint);
-    
+
+    SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_forwarder());
+
     SrsMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
     
     // update sequence header

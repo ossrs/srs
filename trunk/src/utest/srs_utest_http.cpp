@@ -620,7 +620,7 @@ VOID TEST(ProtocolHTTPTest, HTTPHeaderOrder)
 
     if (true) {
         SrsJsonObject* o = SrsJsonObject::object();
-        SrsAutoFree(SrsJsonObject, o);
+        SrsUniquePtr<SrsJsonObject> o_uptr(o);
         h.dumps(o);
 
         ASSERT_EQ(3, o->count());
@@ -633,7 +633,7 @@ VOID TEST(ProtocolHTTPTest, HTTPHeaderOrder)
         h.del("User-Agent");
 
         SrsJsonObject* o = SrsJsonObject::object();
-        SrsAutoFree(SrsJsonObject, o);
+        SrsUniquePtr<SrsJsonObject> o_uptr(o);
         h.dumps(o);
 
         ASSERT_EQ(2, o->count());
@@ -645,7 +645,7 @@ VOID TEST(ProtocolHTTPTest, HTTPHeaderOrder)
         h.del("Server");
 
         SrsJsonObject* o = SrsJsonObject::object();
-        SrsAutoFree(SrsJsonObject, o);
+        SrsUniquePtr<SrsJsonObject> o_uptr(o);
         h.dumps(o);
 
         ASSERT_EQ(1, o->count());
@@ -656,7 +656,7 @@ VOID TEST(ProtocolHTTPTest, HTTPHeaderOrder)
         h.del("Connection");
 
         SrsJsonObject* o = SrsJsonObject::object();
-        SrsAutoFree(SrsJsonObject, o);
+        SrsUniquePtr<SrsJsonObject> o_uptr(o);
         h.dumps(o);
 
         ASSERT_EQ(0, o->count());
@@ -748,7 +748,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerImplicitHandler)
         HELPER_ASSERT_SUCCESS(s.handle("/api/", h0));
 
         MockHttpHandler* h1 = new MockHttpHandler("Done");
-        SrsAutoFree(MockHttpHandler, h1);
+        SrsUniquePtr<MockHttpHandler> o_uptr(h1);
         HELPER_EXPECT_FAILED(s.handle("/api/", h1));
     }
 
@@ -893,7 +893,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerBasic)
         HELPER_ASSERT_SUCCESS(s.initialize());
 
         MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
-        SrsAutoFree(MockHttpHandler, h0);
+        SrsUniquePtr<MockHttpHandler> o_uptr(h0);
         HELPER_EXPECT_FAILED(s.handle("", h0));
     }
 
@@ -1541,7 +1541,7 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456", w);
+        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456\n", w);
 
         MockResponseWriter w2;
         HELPER_ASSERT_SUCCESS(h.serve_http(&w2, &r));
@@ -1563,7 +1563,7 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456", w);
+        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456\n", w);
 
         MockResponseWriter w2;
         HELPER_ASSERT_SUCCESS(h.serve_http(&w2, &r));
@@ -2154,7 +2154,7 @@ VOID TEST(ProtocolHTTPTest, ParsingLargeMessages)
     if (true) {
         // First message, 144 header + 315 body.
         io.append(p, 144 + 315); p += 144 + 315;
-        ISrsHttpMessage* msg = NULL; SrsAutoFree(ISrsHttpMessage, msg); HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg)); SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
         EXPECT_EQ(315, msg->content_length());
 
         string body; HELPER_ASSERT_SUCCESS(msg->body_read_all(body));
@@ -2164,7 +2164,7 @@ VOID TEST(ProtocolHTTPTest, ParsingLargeMessages)
     if (true) {
         // Second message, 164 header + 683 body.
         io.append(p, 164 + 683); p += 164 + 683;
-        ISrsHttpMessage* msg = NULL; SrsAutoFree(ISrsHttpMessage, msg); HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg)); SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
         EXPECT_EQ(683, msg->content_length());
 
         string body; HELPER_ASSERT_SUCCESS(msg->body_read_all(body));
@@ -2174,7 +2174,7 @@ VOID TEST(ProtocolHTTPTest, ParsingLargeMessages)
     if (true) {
         // Thrid message, 144 header + 315 body.
         io.append(p, 144 + 315); p += 144 + 315;
-        ISrsHttpMessage* msg = NULL; SrsAutoFree(ISrsHttpMessage, msg); HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg)); SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
         EXPECT_EQ(315, msg->content_length());
 
         string body; HELPER_ASSERT_SUCCESS(msg->body_read_all(body));
@@ -2184,7 +2184,7 @@ VOID TEST(ProtocolHTTPTest, ParsingLargeMessages)
     if (true) {
         // Forth message, 164 header + 255 body.
         io.append(p, 164 + 255); p += 164 + 255;
-        ISrsHttpMessage* msg = NULL; SrsAutoFree(ISrsHttpMessage, msg); HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg)); SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
         EXPECT_EQ(255, msg->content_length());
 
         string body; HELPER_ASSERT_SUCCESS(msg->body_read_all(body));
@@ -2197,7 +2197,7 @@ VOID TEST(ProtocolHTTPTest, ParsingLargeMessages)
         // First, we got 4k bytes, then got the left bytes, to simulate the network read.
         r.in_bytes.push_back(string((char*)p, 4096)); p += 4096;
         r.in_bytes.push_back(string((char*)p, 165 + 6317 - 4096)); p += 165 + 6317 - 4096;
-        ISrsHttpMessage* msg = NULL; SrsAutoFree(ISrsHttpMessage, msg); HELPER_ASSERT_SUCCESS(hp.parse_message(&r, &msg));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&r, &msg)); SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
         EXPECT_EQ(6317, msg->content_length());
 
         string body; HELPER_ASSERT_SUCCESS(msg->body_read_all(body));
@@ -2209,7 +2209,7 @@ VOID TEST(ProtocolHTTPTest, ParsingLargeMessages)
         io.append(p, 164 + 354); p += 164 + 354;
         EXPECT_EQ((int)sizeof(data), p - data);
 
-        ISrsHttpMessage* msg = NULL; SrsAutoFree(ISrsHttpMessage, msg); HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg)); SrsUniquePtr<ISrsHttpMessage> msg_uptr(msg);
         EXPECT_EQ(354, msg->content_length());
 
         string body; HELPER_ASSERT_SUCCESS(msg->body_read_all(body));

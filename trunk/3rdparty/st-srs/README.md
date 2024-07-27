@@ -119,6 +119,7 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) was patched an
 - [x] Check capability for backtrack.
 - [x] Support set specifics for any thread.
 - [x] Support st_destroy to free resources for asan.
+- [x] Support free the stack, [#38](https://github.com/ossrs/state-threads/issues/38).
 - [ ] System: Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
 
 ## GDB Tools

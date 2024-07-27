@@ -10,6 +10,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_core_deprecated.hpp>
 
 VOID TEST(CoreAutoFreeTest, Free)
 {
@@ -88,7 +89,7 @@ VOID TEST(CoreLogger, CheckVsnprintf)
     }
 }
 
-VOID TEST(CoreLogger, SharedPtrTypical)
+VOID TEST(CoreSmartPtr, SharedPtrTypical)
 {
     if (true) {
         SrsSharedPtr<int> p(new int(100));
@@ -118,7 +119,7 @@ VOID TEST(CoreLogger, SharedPtrTypical)
     }
 }
 
-VOID TEST(CoreLogger, SharedPtrReset)
+VOID TEST(CoreSmartPtr, SharedPtrReset)
 {
     if (true) {
         SrsSharedPtr<int> p(new int(100));
@@ -143,21 +144,21 @@ SrsSharedPtr<int> mock_create_from_ptr(SrsSharedPtr<int> p) {
     return p;
 }
 
-VOID TEST(CoreLogger, SharedPtrContructor)
+VOID TEST(CoreSmartPtr, SharedPtrContructor)
 {
     int* p = new int(100);
     SrsSharedPtr<int> q = mock_create_from_ptr(p);
     EXPECT_EQ(100, *q);
 }
 
-VOID TEST(CoreLogger, SharedPtrObject)
+VOID TEST(CoreSmartPtr, SharedPtrObject)
 {
     SrsSharedPtr<MyNormalObject> p(new MyNormalObject(100));
     EXPECT_TRUE(p);
     EXPECT_EQ(100, p->id());
 }
 
-VOID TEST(CoreLogger, SharedPtrNullptr)
+VOID TEST(CoreSmartPtr, SharedPtrNullptr)
 {
     SrsSharedPtr<int> p(NULL);
     EXPECT_FALSE(p);
@@ -176,17 +177,17 @@ public:
 public:
     MockWrapper(int* p) {
         ptr = p;
-        *ptr = *ptr + 1;
+        if (ptr) *ptr = *ptr + 1;
     }
     ~MockWrapper() {
-        *ptr = *ptr - 1;
+        if (ptr) *ptr = *ptr - 1;
     }
 };
 
-VOID TEST(CoreLogger, SharedPtrWrapper)
+VOID TEST(CoreSmartPtr, SharedPtrWrapper)
 {
     int* ptr = new int(100);
-    SrsAutoFree(int, ptr);
+    SrsUniquePtr<int> ptr_uptr(ptr);
     EXPECT_EQ(100, *ptr);
 
     if (true) {
@@ -222,7 +223,7 @@ VOID TEST(CoreLogger, SharedPtrWrapper)
     EXPECT_EQ(100, *ptr);
 }
 
-VOID TEST(CoreLogger, SharedPtrAssign)
+VOID TEST(CoreSmartPtr, SharedPtrAssign)
 {
     if (true) {
         SrsSharedPtr<int> p(new int(100));
@@ -242,11 +243,11 @@ VOID TEST(CoreLogger, SharedPtrAssign)
     }
 
     int* ptr0 = new int(100);
-    SrsAutoFree(int, ptr0);
+    SrsUniquePtr<int> ptr0_uptr(ptr0);
     EXPECT_EQ(100, *ptr0);
 
     int* ptr1 = new int(200);
-    SrsAutoFree(int, ptr1);
+    SrsUniquePtr<int> ptr1_uptr(ptr1);
     EXPECT_EQ(200, *ptr1);
 
     if (true) {
@@ -280,7 +281,7 @@ SrsSharedPtr<T> mock_shared_ptr_move_ctr(SrsSharedPtr<T> p) {
     return p;
 }
 
-VOID TEST(CoreLogger, SharedPtrMove)
+VOID TEST(CoreSmartPtr, SharedPtrMove)
 {
     if (true) {
         SrsSharedPtr<int> p(new int(100));
@@ -297,7 +298,7 @@ VOID TEST(CoreLogger, SharedPtrMove)
     }
 
     int* ptr = new int(100);
-    SrsAutoFree(int, ptr);
+    SrsUniquePtr<int> ptr_uptr(ptr);
     EXPECT_EQ(100, *ptr);
 
     if (true) {
@@ -358,7 +359,7 @@ public:
     }
 };
 
-VOID TEST(CoreLogger, SharedResourceTypical)
+VOID TEST(CoreSmartPtr, SharedResourceTypical)
 {
     if (true) {
         SrsSharedResource<MockIntResource>* p = new SrsSharedResource<MockIntResource>(new MockIntResource(100));
@@ -420,7 +421,7 @@ SrsSharedResource<T> mock_shared_resource_move_ctr(SrsSharedResource<T> p) {
     return p;
 }
 
-VOID TEST(CoreLogger, SharedResourceMove)
+VOID TEST(CoreSmartPtr, SharedResourceMove)
 {
     if (true) {
         SrsSharedResource<MockIntResource> p(new MockIntResource(100));
@@ -437,5 +438,54 @@ VOID TEST(CoreLogger, SharedResourceMove)
         EXPECT_EQ(100, q->value_);
         EXPECT_EQ(q.get(), p.get());
     }
+}
+
+VOID TEST(CoreSmartPtr, UniquePtrNormal)
+{
+    if (true) {
+        SrsUniquePtr<int> p(new int(100));
+        EXPECT_EQ(100, *p.get());
+    }
+
+    int* ptr = new int(100);
+    SrsUniquePtr<int> ptr_uptr(ptr);
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsUniquePtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsUniquePtr<MockWrapper> p0(new MockWrapper(ptr));
+        EXPECT_EQ(102, *ptr);
+        EXPECT_EQ(102, *p0->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+}
+
+VOID TEST(CoreSmartPtr, UniquePtrArray)
+{
+    if (true) {
+        int* ptr = new int[100];
+        ptr[0] = 100;
+
+        SrsUniquePtr<int[]> p(ptr);
+        EXPECT_EQ(100, *p.get());
+    }
+
+    int* ptr = new int(100);
+    SrsUniquePtr<int> ptr_uptr(ptr);
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsUniquePtr<MockWrapper[]> p(new MockWrapper[1]{MockWrapper(ptr)});
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *(p[0].ptr));
+
+        SrsUniquePtr<MockWrapper[]> p0(new MockWrapper[1]{MockWrapper(ptr)});
+        EXPECT_EQ(102, *ptr);
+        EXPECT_EQ(102, *(p0[0].ptr));
+    }
+    EXPECT_EQ(100, *ptr);
 }
 

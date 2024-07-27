@@ -421,8 +421,7 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
 {
     srs_error_t err = srs_success;
 
-    SrsFileReader* fs = fs_factory->create_file_reader();
-    SrsAutoFree(SrsFileReader, fs);
+    SrsUniquePtr<SrsFileReader> fs(fs_factory->create_file_reader());
 
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open file %s", fullpath.c_str());
@@ -484,7 +483,7 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
     
     // write body.
     int64_t left = length;
-    if ((err = copy(w, fs, r, left)) != srs_success) {
+    if ((err = copy(w, fs.get(), r, left)) != srs_success) {
         return srs_error_wrap(err, "copy file=%s size=%" PRId64, fullpath.c_str(), left);
     }
     
@@ -595,18 +594,17 @@ srs_error_t SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs
     srs_error_t err = srs_success;
     
     int64_t left = size;
-    char* buf = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
-    SrsAutoFreeA(char, buf);
-    
+    SrsUniquePtr<char[]> buf(new char[SRS_HTTP_TS_SEND_BUFFER_SIZE]);
+
     while (left > 0) {
         ssize_t nread = -1;
         int max_read = srs_min(left, SRS_HTTP_TS_SEND_BUFFER_SIZE);
-        if ((err = fs->read(buf, max_read, &nread)) != srs_success) {
+        if ((err = fs->read(buf.get(), max_read, &nread)) != srs_success) {
             return srs_error_wrap(err, "read limit=%d, left=%" PRId64, max_read, left);
         }
         
         left -= nread;
-        if ((err = w->write(buf, (int)nread)) != srs_success) {
+        if ((err = w->write(buf.get(), (int)nread)) != srs_success) {
             return srs_error_wrap(err, "write limit=%d, bytes=%d, left=%" PRId64, max_read, (int)nread, left);
         }
     }
