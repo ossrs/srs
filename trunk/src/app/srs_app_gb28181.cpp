@@ -2722,10 +2722,9 @@ srs_error_t SrsGoApiGbPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
 {
     srs_error_t err = srs_success;
 
-    SrsJsonObject* res = SrsJsonAny::object();
-    SrsAutoFree(SrsJsonObject, res);
+    SrsUniquePtr<SrsJsonObject> res(SrsJsonAny::object());
 
-    if ((err = do_serve_http(w, r, res)) != srs_success) {
+    if ((err = do_serve_http(w, r, res.get())) != srs_success) {
         srs_warn("GB error %s", srs_error_desc(err).c_str());
         res->set("code", SrsJsonAny::integer(srs_error_code(err)));
         res->set("desc", SrsJsonAny::str(srs_error_code_str(err).c_str()));
@@ -2744,8 +2743,7 @@ srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttp
     w->header()->set("Connection", "Close");
 
     // Parse req, the request json object, from body.
-    SrsJsonObject* req = NULL;
-    SrsAutoFree(SrsJsonObject, req);
+    SrsSharedPtr<SrsJsonObject> req;
     if (true) {
         string req_json;
         if ((err = r->body_read_all(req_json)) != srs_success) {
@@ -2754,10 +2752,11 @@ srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttp
 
         SrsJsonAny* json = SrsJsonAny::loads(req_json);
         if (!json || !json->is_object()) {
+            srs_freep(json);
             return srs_error_new(ERROR_HTTP_DATA_INVALID, "invalid body %s", req_json.c_str());
         }
 
-        req = json->to_object();
+        req = SrsSharedPtr<SrsJsonObject>(json->to_object());
     }
 
     // Fetch params from req object.
