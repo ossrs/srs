@@ -714,7 +714,9 @@ srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
     // When origin cluster enabled, try to redirect to the origin which is active.
     // A active origin is a server which is delivering stream.
     if (!info->edge && _srs_config->get_vhost_origin_cluster(req->vhost) && source->inactive()) {
-        vector<string> coworkers = _srs_config->get_vhost_coworkers(req->vhost);
+        SrsConfDirective* conf = _srs_config->get_vhost_coworkers(req->vhost);
+        
+        vector<string> coworkers = conf ? conf->args : vector<string>();
         for (int i = 0; i < (int)coworkers.size(); i++) {
             // TODO: FIXME: User may config the server itself as coworker, we must identify and ignore it.
             string host; int port = 0; string coworker = coworkers.at(i);

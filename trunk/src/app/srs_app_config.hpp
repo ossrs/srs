@@ -778,7 +778,7 @@ public:
     virtual bool get_vhost_origin_cluster(SrsConfDirective* conf);
     // Get the co-workers of origin cluster.
     // @see https://ossrs.net/lts/zh-cn/docs/v4/doc/origin-cluster
-    virtual std::vector<std::string> get_vhost_coworkers(std::string vhost);
+    virtual SrsConfDirective* get_vhost_coworkers(std::string vhost);
 // vhost security section
 public:
     // Whether the secrity of vhost enabled.

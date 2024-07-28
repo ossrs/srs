@@ -79,6 +79,19 @@ const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
         if (dir) return dir;                      \
     }
 
+#define SRS_OVERWRITE_BY_ENV_DIRECTIVE_MULTI_VALUES(key) {                    \
+        static SrsConfDirective* dir = NULL;                                  \
+        if (!dir && !srs_getenv(key).empty()) {                               \
+            std::vector<string> vec = srs_string_split(srs_getenv(key), " "); \
+            dir = new SrsConfDirective();                                     \
+            dir->name = key;                                                  \
+            for (size_t i = 0; i < vec.size(); ++i) {                         \
+                dir->args.push_back(vec[i]);                                  \
+            }                                                                 \
+        }                                                                     \
+        if (dir) return dir;                                                  \
+}
+
 /**
  * dumps the ingest/transcode-engine in @param dir to amf0 object @param engine.
  * @param dir the transcode or ingest config directive.
@@ -4907,6 +4920,8 @@ int SrsConfig::get_gop_cache_max_frames(string vhost)
 
 bool SrsConfig::get_debug_srs_upnode(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL2("SRS_VHOST_CLUSTER_DEBUG_SRS_UPNODE"); // SRS_VHOST_CLUSTER_DEBUG_SRS_UPNODE
+    
     static bool DEFAULT = true;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -5773,6 +5788,11 @@ bool SrsConfig::get_vhost_is_edge(string vhost)
 
 bool SrsConfig::get_vhost_is_edge(SrsConfDirective* vhost)
 {
+    // override cluster mode by env for all vhost.
+    if (!srs_getenv("SRS_VHOST_CLUSTER_MODE").empty()) { // SRS_VHOST_CLUSTER_MODE
+        return "remote" == srs_getenv("SRS_VHOST_CLUSTER_MODE");
+    }
+                                      
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = vhost;
@@ -5795,6 +5815,8 @@ bool SrsConfig::get_vhost_is_edge(SrsConfDirective* vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_edge_origin(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE_MULTI_VALUES("SRS_VHOST_CLUSTER_ORIGIN"); // SRS_VHOST_CLUSTER_ORIGIN
+    
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
         return NULL;
@@ -5810,6 +5832,8 @@ SrsConfDirective* SrsConfig::get_vhost_edge_origin(string vhost)
 
 string SrsConfig::get_vhost_edge_protocol(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_VHOST_CLUSTER_PROTOCOL"); // SRS_VHOST_CLUSTER_PROTOCOL
+    
     static string DEFAULT = "rtmp";
 
     SrsConfDirective* conf = get_vhost(vhost);
@@ -5832,6 +5856,8 @@ string SrsConfig::get_vhost_edge_protocol(string vhost)
 
 bool SrsConfig::get_vhost_edge_follow_client(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_VHOST_CLUSTER_FOLLOW_CLIENT"); // SRS_VHOST_CLUSTER_FOLLOW_CLIENT
+    
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_vhost(vhost);
@@ -5854,6 +5880,8 @@ bool SrsConfig::get_vhost_edge_follow_client(string vhost)
 
 bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_VHOST_CLUSTER_TOKEN_TRAVERSE"); // SRS_VHOST_CLUSTER_TOKEN_TRAVERSE
+    
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -5876,6 +5904,8 @@ bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
 
 string SrsConfig::get_vhost_edge_transform_vhost(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("SRS_VHOST_CLUSTER_EDGE_TRANSFORM_VHOST"); // SRS_VHOST_CLUSTER_EDGE_TRANSFORM_VHOST
+    
     static string DEFAULT = "[vhost]";
     
     SrsConfDirective* conf = get_vhost(vhost);
@@ -5904,6 +5934,8 @@ bool SrsConfig::get_vhost_origin_cluster(string vhost)
 
 bool SrsConfig::get_vhost_origin_cluster(SrsConfDirective* vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("SRS_VHOST_CLUSTER_ORIGIN_CLUSTER"); // SRS_VHOST_CLUSTER_ORIGIN_CLUSTER
+    
     static bool DEFAULT = false;
     
     SrsConfDirective* conf = vhost;
@@ -5924,29 +5956,21 @@ bool SrsConfig::get_vhost_origin_cluster(SrsConfDirective* vhost)
     return SRS_CONF_PREFER_FALSE(conf->arg0());
 }
 
-vector<string> SrsConfig::get_vhost_coworkers(string vhost)
+SrsConfDirective* SrsConfig::get_vhost_coworkers(string vhost)
 {
-    vector<string> coworkers;
-
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE_MULTI_VALUES("SRS_VHOST_CLUSTER_COWORKERS"); // SRS_VHOST_CLUSTER_COWORKERS
+    
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
-        return coworkers;
+        return NULL;
     }
 
     conf = conf->get("cluster");
     if (!conf) {
-        return coworkers;
+        return NULL;
     }
 
-    conf = conf->get("coworkers");
-    if (!conf) {
-        return coworkers;
-    }
-    for (int i = 0; i < (int)conf->args.size(); i++) {
-        coworkers.push_back(conf->args.at(i));
-    }
-
-    return coworkers;
+    return conf->get("coworkers");
 }
 
 bool SrsConfig::get_security_enabled(string vhost)

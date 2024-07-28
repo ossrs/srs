@@ -3265,7 +3265,7 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
         EXPECT_FALSE(conf.get_vhost_edge_token_traverse("ossrs.net"));
         EXPECT_STREQ("[vhost]", conf.get_vhost_edge_transform_vhost("ossrs.net").c_str());
         EXPECT_FALSE(conf.get_vhost_origin_cluster("ossrs.net"));
-        EXPECT_EQ(0, (int)conf.get_vhost_coworkers("ossrs.net").size());
+        EXPECT_TRUE(conf.get_vhost_coworkers("ossrs.net") == NULL);
         EXPECT_FALSE(conf.get_security_enabled("ossrs.net"));
         EXPECT_TRUE(conf.get_security_rules("ossrs.net") == NULL);
     }
@@ -3285,7 +3285,7 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{cluster{coworkers xxx;}}"));
-        EXPECT_EQ(1, (int)conf.get_vhost_coworkers("ossrs.net").size());
+        EXPECT_EQ(1, (int)conf.get_vhost_coworkers("ossrs.net")->args.size());
     }
 
     if (true) {
@@ -5099,6 +5099,115 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHooks)
         ASSERT_TRUE(dir != NULL);
         ASSERT_TRUE((int)dir->args.size() == 1);
         ASSERT_STREQ("http://server/api/hls_notify", dir->arg0().c_str());
+    }
+}
+
+VOID TEST(ConfigEnvTest, CheckEnvValuesCluster)
+{
+    MockSrsConfig conf;
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_MODE", "remote");
+        EXPECT_TRUE(conf.get_vhost_is_edge("__defaultVhost__"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_MODE", "local");
+        EXPECT_FALSE(conf.get_vhost_is_edge("__defaultVhost__"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_MODE", "xxx");
+        EXPECT_FALSE(conf.get_vhost_is_edge("__defaultVhost__"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_ORIGIN", "127.0.0.1:1935 localhost:1935");
+        SrsConfDirective* origins = conf.get_vhost_edge_origin("__defaultVhost__");
+        EXPECT_TRUE(origins != NULL);
+        EXPECT_EQ(2, origins->args.size());
+        EXPECT_EQ("127.0.0.1:1935", origins->args[0]);
+        EXPECT_EQ("localhost:1935", origins->args[1]);
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", "on");
+        EXPECT_TRUE(conf.get_vhost_edge_token_traverse("__defaultVhost__"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", "off");
+        EXPECT_FALSE(conf.get_vhost_edge_token_traverse("__defaultVhost__"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", "xxx");
+        EXPECT_FALSE(conf.get_vhost_edge_token_traverse("__defaultVhost__"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_EDGE_TRANSFORM_VHOST", "xxx");
+        EXPECT_EQ("xxx", conf.get_vhost_edge_transform_vhost("__defaultVhost__"));
+        EXPECT_EQ("xxx", conf.get_vhost_edge_transform_vhost("anyHost"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_DEBUG_SRS_UPNODE", "off");
+        EXPECT_FALSE(conf.get_debug_srs_upnode("anyHost"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_DEBUG_SRS_UPNODE", "on");
+        EXPECT_TRUE(conf.get_debug_srs_upnode("anyHost"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_DEBUG_SRS_UPNODE", "xx");
+        EXPECT_TRUE(conf.get_debug_srs_upnode("anyHost"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_ORIGIN_CLUSTER", "on");
+        EXPECT_TRUE(conf.get_vhost_origin_cluster("anyHost"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_ORIGIN_CLUSTER", "off");
+        EXPECT_FALSE(conf.get_vhost_origin_cluster("anyHost"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_ORIGIN_CLUSTER", "xxx");
+        EXPECT_FALSE(conf.get_vhost_origin_cluster("anyHost"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_COWORKERS", "127.0.0.1:9091 127.0.0.1:9092");
+        SrsConfDirective* coworkers = conf.get_vhost_coworkers("anyHost");
+        EXPECT_TRUE(coworkers != NULL);
+        EXPECT_EQ(2, coworkers->args.size());
+        EXPECT_EQ("127.0.0.1:9091", coworkers->args[0]);
+        EXPECT_EQ("127.0.0.1:9092", coworkers->args[1]);
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_PROTOCOL", "srt");
+        EXPECT_EQ("srt", conf.get_vhost_edge_protocol("anyHost"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_FOLLOW_CLIENT", "on");
+        EXPECT_TRUE(conf.get_vhost_edge_follow_client("anyHost"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_FOLLOW_CLIENT", "off");
+        EXPECT_FALSE(conf.get_vhost_edge_follow_client("anyHost"));
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_CLUSTER_FOLLOW_CLIENT", "xxx");
+        EXPECT_FALSE(conf.get_vhost_edge_follow_client("anyHost"));
     }
 }
 
