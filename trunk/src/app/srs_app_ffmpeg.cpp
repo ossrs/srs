@@ -36,6 +36,7 @@ using namespace std;
 // only support encoder: h264, h265 and other variants like libx264 etc.
 #define SRS_RTMP_ENCODER_VCODEC_H264 "264"
 #define SRS_RTMP_ENCODER_VCODEC_H265 "265"
+#define SRS_RTMP_ENCODER_VCODEC_HEVC "hevc"
 #define SRS_RTMP_ENCODER_VCODEC_PNG "png"
 // any aac encoder is ok which contains the aac,
 // for example, libaacplus, aac, fdkaac
@@ -124,7 +125,7 @@ srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     }
 
     if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO && vcodec != SRS_RTMP_ENCODER_VCODEC_PNG) {
-        if (vcodec.find(SRS_RTMP_ENCODER_VCODEC_H264) != string::npos && vcodec.find(SRS_RTMP_ENCODER_VCODEC_H265) != string::npos) {
+        if (vcodec.find(SRS_RTMP_ENCODER_VCODEC_H264) != string::npos && vcodec.find(SRS_RTMP_ENCODER_VCODEC_H265) != string::npos && vcodec.find(SRS_RTMP_ENCODER_VCODEC_HEVC) != string::npos) {
             return srs_error_new(ERROR_ENCODER_VCODEC, "invalid vcodec, must be h264, h265 or one of their variants, actual %s", vcodec.c_str());
         }
         if (vbitrate < 0) {
