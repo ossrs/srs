@@ -317,9 +317,9 @@ public:
     // Get the header of moof.
     virtual SrsMp4MovieFragmentHeaderBox* mfhd();
     virtual void set_mfhd(SrsMp4MovieFragmentHeaderBox* v);
-    // Get the traf.
-    virtual SrsMp4TrackFragmentBox* traf();
-    virtual void set_traf(SrsMp4TrackFragmentBox* v);
+
+    // Let moof support more than one traf
+    virtual void add_traf(SrsMp4TrackFragmentBox* v);
 };
 
 // 8.8.5 Movie Fragment Header Box (mfhd)
@@ -499,7 +499,7 @@ class SrsMp4TrackFragmentRunBox : public SrsMp4FullBox
 public:
     // The number of samples being added in this run; also the number of rows in the following
     // table (the rows can be empty)
-    //uint32_t sample_count;
+    // uint32_t sample_count;
 // The following are optional fields
 public:
     // added to the implicit or explicit data_offset established in the track fragment header.
@@ -710,8 +710,7 @@ public:
     virtual ~SrsMp4MovieExtendsBox();
 public:
     // Get the track extends box.
-    virtual SrsMp4TrackExtendsBox* trex();
-    virtual void set_trex(SrsMp4TrackExtendsBox* v);
+    virtual void add_trex(SrsMp4TrackExtendsBox* v);
 };
 
 // 8.8.3 Track Extends Box(trex)
@@ -1931,7 +1930,7 @@ public:
     virtual srs_error_t write(SrsMp4MovieBox* moov);
     // Write the samples info to moof.
     // @param The dts is the dts of last segment.
-    virtual srs_error_t write(SrsMp4MovieFragmentBox* moof, uint64_t dts);
+    virtual srs_error_t write(SrsMp4TrackFragmentBox* traf, uint64_t dts);
 private:
     virtual srs_error_t write_track(SrsFrameType track,
         SrsMp4DecodingTime2SampleBox* stts, SrsMp4SyncSampleBox* stss, SrsMp4CompositionTime2SampleBox* ctts,
@@ -2111,6 +2110,7 @@ private:
 };
 
 // A fMP4 encoder, to write the init.mp4 with sequence header.
+// TODO: What the M2ts short for?
 class SrsMp4M2tsInitEncoder
 {
 private:
@@ -2122,11 +2122,31 @@ public:
     // Initialize the encoder with a writer w.
     virtual srs_error_t initialize(ISrsWriter* w);
     // Write the sequence header.
+    // TODO: merge this method to its sibling.
     virtual srs_error_t write(SrsFormat* format, bool video, int tid);
+
+    /**
+     *  The mp4 box format for init.mp4.
+     *
+     *  |ftyp|
+     *  |moov|
+     *  |    |mvhd|
+     *  |    |trak|
+     *  |    |trak|
+     *  |    |....|
+     *  |    |mvex|
+     *  |    |    |trex|
+     *  |    |    |trex|
+     *  |    |    |....|
+     *
+     *  Write the sequence header with both video and audio track.
+     */
+    virtual srs_error_t write(SrsFormat* format, int v_tid, int a_tid);
 };
 
 // A fMP4 encoder, to cache segments then flush to disk, because the fMP4 should write
 // trun box before mdat.
+// TODO: fmp4 support package more than one tracks.
 class SrsMp4M2tsSegmentEncoder
 {
 private:
@@ -2159,6 +2179,47 @@ public:
     // Flush the encoder, to write the moof and mdat.
     virtual srs_error_t flush(uint64_t& dts);
 };
+
+// A fMP4 encoder, to cache segments then flush to disk, because the fMP4 should write
+// trun box before mdat.
+// TODO: fmp4 support package more than one tracks.
+class SrsFmp4SegmentEncoder
+{
+private:
+    ISrsWriter* writer_;
+    uint32_t sequence_number_;
+    // TODO: audio, video may have different basetime.
+    srs_utime_t decode_basetime_;
+    uint32_t audio_track_id_;
+    uint32_t video_track_id_;
+private:
+    uint32_t nb_audios_;
+    uint32_t nb_videos_;
+    uint32_t styp_bytes_;
+    uint64_t mdat_audio_bytes_;
+    uint64_t mdat_video_bytes_;
+    SrsMp4SampleManager* audio_samples_;
+    SrsMp4SampleManager* video_samples_;
+public:
+    SrsFmp4SegmentEncoder();
+    virtual ~SrsFmp4SegmentEncoder();
+public:
+    // Initialize the encoder with a writer w.
+    virtual srs_error_t initialize(ISrsWriter* w, uint32_t sequence, srs_utime_t basetime, uint32_t v_tid, uint32_t a_tid);
+    // Cache a sample.
+    // @param ht, The sample handler type, audio/soun or video/vide.
+    // @param ft, The frame type. For video, it's SrsVideoAvcFrameType.
+    // @param dts The output dts in milliseconds.
+    // @param pts The output pts in milliseconds.
+    // @param sample The output payload, user must free it.
+    // @param nb_sample The output size of payload.
+    // @remark All samples are RAW AAC/AVC data, because sequence header is writen to init.mp4.
+    virtual srs_error_t write_sample(SrsMp4HandlerType ht, uint16_t ft,
+        uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample);
+    // Flush the encoder, to write the moof and mdat.
+    virtual srs_error_t flush(uint64_t& dts);
+};
+
 
 // LCOV_EXCL_START
 /////////////////////////////////////////////////////////////////////////////////

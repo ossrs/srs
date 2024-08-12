@@ -933,6 +933,8 @@ public:
     // Whether HLS is enabled.
     virtual bool get_hls_enabled(std::string vhost);
     virtual bool get_hls_enabled(SrsConfDirective* vhost);
+    // Whether HLS use fmp4 container format
+    virtual bool get_hls_use_fmp4(std::string vhost);
     // Get the HLS m3u8 list ts segment entry prefix info.
     virtual std::string get_hls_entry_prefix(std::string vhost);
     // Get the HLS ts/m3u8 file store path.
@@ -941,6 +943,8 @@ public:
     virtual std::string get_hls_m3u8_file(std::string vhost);
     // Get the HLS ts file path template.
     virtual std::string get_hls_ts_file(std::string vhost);
+    // Get the HLS fmp4 file path template.
+    virtual std::string get_hls_fmp4_file(std::string vhost);
     // Whether enable the floor(timestamp/hls_fragment) for variable timestamp.
     virtual bool get_hls_ts_floor(std::string vhost);
     // Get the hls fragment time, in srs_utime_t.

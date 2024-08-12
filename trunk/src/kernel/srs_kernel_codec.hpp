@@ -1361,6 +1361,7 @@ public:
 public:
     virtual bool is_aac_sequence_header();
     virtual bool is_mp3_sequence_header();
+    // TODO: is avc|hevc|av1 sequence header
     virtual bool is_avc_sequence_header();
 private:
     // Demux the video packet in H.264 codec.

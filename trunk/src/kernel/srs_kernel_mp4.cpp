@@ -759,15 +759,8 @@ void SrsMp4MovieFragmentBox::set_mfhd(SrsMp4MovieFragmentHeaderBox* v)
     boxes.push_back(v);
 }
 
-SrsMp4TrackFragmentBox* SrsMp4MovieFragmentBox::traf()
+void SrsMp4MovieFragmentBox::add_traf(SrsMp4TrackFragmentBox* v)
 {
-    SrsMp4Box* box = get(SrsMp4BoxTypeTRAF);
-    return dynamic_cast<SrsMp4TrackFragmentBox*>(box);
-}
-
-void SrsMp4MovieFragmentBox::set_traf(SrsMp4TrackFragmentBox* v)
-{
-    remove(SrsMp4BoxTypeTRAF);
     boxes.push_back(v);
 }
 
@@ -1647,15 +1640,8 @@ SrsMp4MovieExtendsBox::~SrsMp4MovieExtendsBox()
 {
 }
 
-SrsMp4TrackExtendsBox* SrsMp4MovieExtendsBox::trex()
+void SrsMp4MovieExtendsBox::add_trex(SrsMp4TrackExtendsBox* v)
 {
-    SrsMp4Box* box = get(SrsMp4BoxTypeTREX);
-    return dynamic_cast<SrsMp4TrackExtendsBox*>(box);
-}
-
-void SrsMp4MovieExtendsBox::set_trex(SrsMp4TrackExtendsBox* v)
-{
-    remove(SrsMp4BoxTypeTREX);
     boxes.push_back(v);
 }
 
@@ -4989,13 +4975,11 @@ srs_error_t SrsMp4SampleManager::write(SrsMp4MovieBox* moov)
     return err;
 }
 
-srs_error_t SrsMp4SampleManager::write(SrsMp4MovieFragmentBox* moof, uint64_t dts)
+srs_error_t SrsMp4SampleManager::write(SrsMp4TrackFragmentBox* traf, uint64_t dts)
 {
     srs_error_t err = srs_success;
     
-    SrsMp4TrackFragmentBox* traf = moof->traf();
     SrsMp4TrackFragmentRunBox* trun = traf->trun();
-    
     trun->flags = SrsMp4TrunFlagsDataOffset | SrsMp4TrunFlagsSampleDuration
         | SrsMp4TrunFlagsSampleSize | SrsMp4TrunFlagsSampleFlag | SrsMp4TrunFlagsSampleCtsOffset;
 
@@ -6327,7 +6311,7 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
             moov->set_mvex(mvex);
             
             SrsMp4TrackExtendsBox* trex = new SrsMp4TrackExtendsBox();
-            mvex->set_trex(trex);
+            mvex->add_trex(trex);
             
             trex->track_ID = tid;
             trex->default_sample_description_index = 1;
@@ -6428,12 +6412,254 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
             moov->set_mvex(mvex);
             
             SrsMp4TrackExtendsBox* trex = new SrsMp4TrackExtendsBox();
-            mvex->set_trex(trex);
+            mvex->add_trex(trex);
             
             trex->track_ID = tid;
             trex->default_sample_description_index = 1;
         }
 
+        if ((err = srs_mp4_write_box(writer, moov.get())) != srs_success) {
+            return srs_error_wrap(err, "write moov");
+        }
+    }
+    
+    return err;
+}
+
+srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, int v_tid, int a_tid)
+{
+    srs_error_t err = srs_success;
+    
+    // Write ftyp box.
+    if (true) {
+        SrsUniquePtr<SrsMp4FileTypeBox> ftyp(new SrsMp4FileTypeBox());
+
+        ftyp->major_brand = SrsMp4BoxBrandMP42; // SrsMp4BoxBrandISO5;
+        ftyp->minor_version = 512;
+        ftyp->set_compatible_brands(SrsMp4BoxBrandISO6, SrsMp4BoxBrandMP41);
+
+        if ((err = srs_mp4_write_box(writer, ftyp.get())) != srs_success) {
+            return srs_error_wrap(err, "write ftyp");
+        }
+    }
+    
+    // Write moov.
+    if (true) {
+        SrsUniquePtr<SrsMp4MovieBox> moov(new SrsMp4MovieBox());
+
+        SrsMp4MovieHeaderBox* mvhd = new SrsMp4MovieHeaderBox();
+        moov->set_mvhd(mvhd);
+        
+        mvhd->timescale = 1000; // Use tbn ms.
+        mvhd->duration_in_tbn = 0;
+        mvhd->next_track_ID = 4294967295; // 2^32 - 1
+
+        // write video track
+        if (format->vcodec) {
+            SrsMp4TrackBox* trak = new SrsMp4TrackBox();
+            moov->add_trak(trak);
+            
+            SrsMp4TrackHeaderBox* tkhd = new SrsMp4TrackHeaderBox();
+            trak->set_tkhd(tkhd);
+            
+            tkhd->track_ID = v_tid;
+            tkhd->duration = 0;
+            tkhd->width = (format->vcodec->width << 16);
+            tkhd->height = (format->vcodec->height << 16);
+            
+            SrsMp4MediaBox* mdia = new SrsMp4MediaBox();
+            trak->set_mdia(mdia);
+            
+            SrsMp4MediaHeaderBox* mdhd = new SrsMp4MediaHeaderBox();
+            mdia->set_mdhd(mdhd);
+            
+            mdhd->timescale = 1000;
+            mdhd->duration = 0;
+            mdhd->set_language0('u');
+            mdhd->set_language1('n');
+            mdhd->set_language2('d');
+            
+            SrsMp4HandlerReferenceBox* hdlr = new SrsMp4HandlerReferenceBox();
+            mdia->set_hdlr(hdlr);
+            
+            hdlr->handler_type = SrsMp4HandlerTypeVIDE;
+            hdlr->name = "VideoHandler";
+            
+            SrsMp4MediaInformationBox* minf = new SrsMp4MediaInformationBox();
+            mdia->set_minf(minf);
+            
+            SrsMp4VideoMeidaHeaderBox* vmhd = new SrsMp4VideoMeidaHeaderBox();
+            minf->set_vmhd(vmhd);
+            
+            SrsMp4DataInformationBox* dinf = new SrsMp4DataInformationBox();
+            minf->set_dinf(dinf);
+            
+            SrsMp4DataReferenceBox* dref = new SrsMp4DataReferenceBox();
+            dinf->set_dref(dref);
+            
+            SrsMp4DataEntryBox* url = new SrsMp4DataEntryUrlBox();
+            dref->append(url);
+            
+            SrsMp4SampleTableBox* stbl = new SrsMp4SampleTableBox();
+            minf->set_stbl(stbl);
+            
+            SrsMp4SampleDescriptionBox* stsd = new SrsMp4SampleDescriptionBox();
+            stbl->set_stsd(stsd);
+
+            if (format->vcodec->id == SrsVideoCodecIdAVC) {
+                SrsMp4VisualSampleEntry* avc1 = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeAVC1);
+                stsd->append(avc1);
+
+                avc1->width = format->vcodec->width;
+                avc1->height = format->vcodec->height;
+                avc1->data_reference_index = 1;
+
+                SrsMp4AvccBox* avcC = new SrsMp4AvccBox();
+                avc1->set_avcC(avcC);
+
+                avcC->avc_config = format->vcodec->avc_extra_data;
+            } else {
+                SrsMp4VisualSampleEntry* hev1 = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeHEV1);
+                stsd->append(hev1);
+
+                hev1->width = format->vcodec->width;
+                hev1->height = format->vcodec->height;
+                hev1->data_reference_index = 1;
+
+                SrsMp4HvcCBox* hvcC = new SrsMp4HvcCBox();
+                hev1->set_hvcC(hvcC);
+
+                hvcC->hevc_config = format->vcodec->avc_extra_data;
+            }
+            
+            SrsMp4DecodingTime2SampleBox* stts = new SrsMp4DecodingTime2SampleBox();
+            stbl->set_stts(stts);
+            
+            SrsMp4Sample2ChunkBox* stsc = new SrsMp4Sample2ChunkBox();
+            stbl->set_stsc(stsc);
+            
+            SrsMp4SampleSizeBox* stsz = new SrsMp4SampleSizeBox();
+            stbl->set_stsz(stsz);
+            
+            // TODO: FIXME: need to check using stco or co64?
+            SrsMp4ChunkOffsetBox* stco = new SrsMp4ChunkOffsetBox();
+            stbl->set_stco(stco);
+        }
+
+        // write audio track
+        if (format->acodec) {
+            SrsMp4TrackBox* trak = new SrsMp4TrackBox();
+            moov->add_trak(trak);
+            
+            SrsMp4TrackHeaderBox* tkhd = new SrsMp4TrackHeaderBox();
+            tkhd->volume = 0x0100;
+            trak->set_tkhd(tkhd);
+            
+            tkhd->track_ID = a_tid;
+            tkhd->duration = 0;
+            
+            SrsMp4MediaBox* mdia = new SrsMp4MediaBox();
+            trak->set_mdia(mdia);
+            
+            SrsMp4MediaHeaderBox* mdhd = new SrsMp4MediaHeaderBox();
+            mdia->set_mdhd(mdhd);
+            
+            mdhd->timescale = 1000;
+            mdhd->duration = 0;
+            mdhd->set_language0('u');
+            mdhd->set_language1('n');
+            mdhd->set_language2('d');
+            
+            SrsMp4HandlerReferenceBox* hdlr = new SrsMp4HandlerReferenceBox();
+            mdia->set_hdlr(hdlr);
+            
+            hdlr->handler_type = SrsMp4HandlerTypeSOUN;
+            hdlr->name = "SoundHandler";
+            
+            SrsMp4MediaInformationBox* minf = new SrsMp4MediaInformationBox();
+            mdia->set_minf(minf);
+            
+            SrsMp4SoundMeidaHeaderBox* smhd = new SrsMp4SoundMeidaHeaderBox();
+            minf->set_smhd(smhd);
+            
+            SrsMp4DataInformationBox* dinf = new SrsMp4DataInformationBox();
+            minf->set_dinf(dinf);
+            
+            SrsMp4DataReferenceBox* dref = new SrsMp4DataReferenceBox();
+            dinf->set_dref(dref);
+            
+            SrsMp4DataEntryBox* url = new SrsMp4DataEntryUrlBox();
+            dref->append(url);
+            
+            SrsMp4SampleTableBox* stbl = new SrsMp4SampleTableBox();
+            minf->set_stbl(stbl);
+            
+            SrsMp4SampleDescriptionBox* stsd = new SrsMp4SampleDescriptionBox();
+            stbl->set_stsd(stsd);
+            
+            SrsMp4AudioSampleEntry* mp4a = new SrsMp4AudioSampleEntry();
+            mp4a->data_reference_index = 1;
+            mp4a->samplerate = uint32_t(srs_flv_srates[format->acodec->sound_rate]) << 16;
+            if (format->acodec->sound_size == SrsAudioSampleBits16bit) {
+                mp4a->samplesize = 16;
+            } else {
+                mp4a->samplesize = 8;
+            }
+            if (format->acodec->sound_type == SrsAudioChannelsStereo) {
+                mp4a->channelcount = 2;
+            } else {
+                mp4a->channelcount = 1;
+            }
+            stsd->append(mp4a);
+            
+            SrsMp4EsdsBox* esds = new SrsMp4EsdsBox();
+            mp4a->set_esds(esds);
+            
+            SrsMp4ES_Descriptor* es = esds->es;
+            es->ES_ID = 0x02;
+            
+            SrsMp4DecoderConfigDescriptor& desc = es->decConfigDescr;
+            desc.objectTypeIndication = SrsMp4ObjectTypeAac;
+            desc.streamType = SrsMp4StreamTypeAudioStream;
+            srs_freep(desc.decSpecificInfo);
+            
+            SrsMp4DecoderSpecificInfo* asc = new SrsMp4DecoderSpecificInfo();
+            desc.decSpecificInfo = asc;
+            asc->asc = format->acodec->aac_extra_data;
+            
+            SrsMp4DecodingTime2SampleBox* stts = new SrsMp4DecodingTime2SampleBox();
+            stbl->set_stts(stts);
+            
+            SrsMp4Sample2ChunkBox* stsc = new SrsMp4Sample2ChunkBox();
+            stbl->set_stsc(stsc);
+            
+            SrsMp4SampleSizeBox* stsz = new SrsMp4SampleSizeBox();
+            stbl->set_stsz(stsz);
+            
+            // TODO: FIXME: need to check using stco or co64?
+            SrsMp4ChunkOffsetBox* stco = new SrsMp4ChunkOffsetBox();
+            stbl->set_stco(stco);
+        }
+
+        if (true) {
+            SrsMp4MovieExtendsBox* mvex = new SrsMp4MovieExtendsBox();
+            moov->set_mvex(mvex);
+
+            // video trex
+            SrsMp4TrackExtendsBox* v_trex = new SrsMp4TrackExtendsBox();
+            mvex->add_trex(v_trex);
+            
+            v_trex->track_ID = v_tid;
+            v_trex->default_sample_description_index = 1;
+
+            // audio trex
+            SrsMp4TrackExtendsBox* a_trex = new SrsMp4TrackExtendsBox();
+            mvex->add_trex(a_trex);
+            
+            a_trex->track_ID = a_tid;
+            a_trex->default_sample_description_index = 1;
+        }
+        
         if ((err = srs_mp4_write_box(writer, moov.get())) != srs_success) {
             return srs_error_wrap(err, "write moov");
         }
@@ -6568,7 +6794,7 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
         mfhd->sequence_number = sequence_number;
         
         SrsMp4TrackFragmentBox* traf = new SrsMp4TrackFragmentBox();
-        moof->set_traf(traf);
+        moof->add_traf(traf);
         
         SrsMp4TrackFragmentHeaderBox* tfhd = new SrsMp4TrackFragmentHeaderBox();
         traf->set_tfhd(tfhd);
@@ -6585,7 +6811,7 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
         SrsMp4TrackFragmentRunBox* trun = new SrsMp4TrackFragmentRunBox();
         traf->set_trun(trun);
         
-        if ((err = samples->write(moof.get(), dts)) != srs_success) {
+        if ((err = samples->write(traf, dts)) != srs_success) {
             return srs_error_wrap(err, "write samples");
         }
         
@@ -6635,3 +6861,207 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
     return err;
 }
 
+SrsFmp4SegmentEncoder::SrsFmp4SegmentEncoder()
+{
+    writer_ = NULL;
+    sequence_number_ = 0;
+    decode_basetime_ = 0;
+    audio_track_id_ = 0;
+    video_track_id_ = 0;
+    nb_audios_ = 0;
+    nb_videos_ = 0;
+    styp_bytes_ = 0;
+    mdat_audio_bytes_ = 0;
+    mdat_video_bytes_ = 0;
+    audio_samples_ = new SrsMp4SampleManager();
+    video_samples_ = new SrsMp4SampleManager();
+}
+
+SrsFmp4SegmentEncoder::~SrsFmp4SegmentEncoder()
+{
+    srs_freep(audio_samples_);
+    srs_freep(video_samples_);
+}
+
+
+srs_error_t SrsFmp4SegmentEncoder::initialize(ISrsWriter* w, uint32_t sequence, srs_utime_t basetime, uint32_t v_tid, uint32_t a_tid)
+{
+    srs_error_t err = srs_success;
+
+    writer_ = w;
+    sequence_number_ = sequence;
+    decode_basetime_ = basetime;
+    video_track_id_ = v_tid;
+    audio_track_id_ = a_tid;
+    
+    return err;
+}
+
+srs_error_t SrsFmp4SegmentEncoder::write_sample(SrsMp4HandlerType ht, uint16_t ft,
+        uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample)
+{
+    srs_error_t err = srs_success;
+
+    SrsMp4Sample* ps = new SrsMp4Sample();
+    
+    if (ht == SrsMp4HandlerTypeVIDE) {
+        ps->type = SrsFrameTypeVideo;
+        ps->frame_type = (SrsVideoAvcFrameType)ft;
+        ps->index = nb_videos_++;
+        video_samples_->append(ps);
+        mdat_video_bytes_ += nb_sample;
+    } else if (ht == SrsMp4HandlerTypeSOUN) {
+        ps->type = SrsFrameTypeAudio;
+        ps->index = nb_audios_++;
+        audio_samples_->append(ps);
+        mdat_audio_bytes_ += nb_sample;
+    } else {
+        srs_freep(ps);
+        return err;
+    }
+    
+    ps->tbn = 1000;
+    ps->dts = dts;
+    ps->pts = pts;
+
+    // We should copy the sample data, which is shared ptr from video/audio message.
+    // Furthermore, we do free the data when freeing the sample.
+    ps->data = new uint8_t[nb_sample];
+    memcpy(ps->data, sample, nb_sample);
+    ps->nb_data = nb_sample;
+    
+    return err;
+}
+
+srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t& dts)
+{
+    srs_error_t err = srs_success;
+    SrsMp4TrackFragmentRunBox* video_trun = NULL;
+    SrsMp4TrackFragmentRunBox* audio_trun = NULL;
+
+    if (nb_videos_ == 0 && nb_audios_ == 0) {
+        return srs_error_new(ERROR_MP4_ILLEGAL_MDAT, "empty samples");
+    }
+    // Create a mdat box.
+    // its payload will be writen by samples,
+    // and we will update its header(size) when flush.
+    SrsUniquePtr<SrsMp4MediaDataBox> mdat(new SrsMp4MediaDataBox());
+
+    SrsUniquePtr<SrsMp4MovieFragmentBox> moof(new SrsMp4MovieFragmentBox());
+
+    SrsMp4MovieFragmentHeaderBox* mfhd = new SrsMp4MovieFragmentHeaderBox();
+    moof->set_mfhd(mfhd);
+    mfhd->sequence_number = sequence_number_;
+
+    // write video traf
+    if (mdat_video_bytes_ > 0) {
+        // video traf
+        SrsMp4TrackFragmentBox* traf = new SrsMp4TrackFragmentBox();
+        moof->add_traf(traf);
+        
+        SrsMp4TrackFragmentHeaderBox* tfhd = new SrsMp4TrackFragmentHeaderBox();
+        traf->set_tfhd(tfhd);
+        
+        tfhd->track_id = video_track_id_;
+        tfhd->flags = SrsMp4TfhdFlagsDefaultBaseIsMoof;
+        
+        SrsMp4TrackFragmentDecodeTimeBox* tfdt = new SrsMp4TrackFragmentDecodeTimeBox();
+        traf->set_tfdt(tfdt);
+        
+        tfdt->version = 1;
+        tfdt->base_media_decode_time = srsu2ms(decode_basetime_);
+        
+        SrsMp4TrackFragmentRunBox* trun = new SrsMp4TrackFragmentRunBox();
+        traf->set_trun(trun);
+        video_trun = trun;
+        
+        if ((err = video_samples_->write(traf, dts)) != srs_success) {
+            return srs_error_wrap(err, "write samples");
+        }
+    }
+
+    // write audio traf
+    if (mdat_audio_bytes_ > 0) {
+        // audio traf
+        SrsMp4TrackFragmentBox* traf = new SrsMp4TrackFragmentBox();
+        moof->add_traf(traf);
+        
+        SrsMp4TrackFragmentHeaderBox* tfhd = new SrsMp4TrackFragmentHeaderBox();
+        traf->set_tfhd(tfhd);
+        
+        tfhd->track_id = audio_track_id_;
+        tfhd->flags = SrsMp4TfhdFlagsDefaultBaseIsMoof;
+        
+        SrsMp4TrackFragmentDecodeTimeBox* tfdt = new SrsMp4TrackFragmentDecodeTimeBox();
+        traf->set_tfdt(tfdt);
+        
+        tfdt->version = 1;
+        tfdt->base_media_decode_time = srsu2ms(decode_basetime_);
+        
+        SrsMp4TrackFragmentRunBox* trun = new SrsMp4TrackFragmentRunBox();
+        traf->set_trun(trun);
+        audio_trun = trun;
+        
+        if ((err = audio_samples_->write(traf, dts)) != srs_success) {
+            return srs_error_wrap(err, "write samples");
+        }
+    }
+
+    // @remark Remember the data_offset of turn is size(moof)+header(mdat)
+    int moof_bytes = moof->nb_bytes();
+    // rewrite video data_offset
+    if (video_trun != NULL) {
+        video_trun->data_offset = (int32_t)(moof_bytes + mdat->sz_header() + 0);
+    }
+
+    if (audio_trun != NULL) {
+        audio_trun->data_offset = (int32_t)(moof_bytes + mdat->sz_header() + mdat_video_bytes_);
+    }
+
+    // srs_trace("seq: %d, moof_bytes=%d, mdat->sz_header=%d", sequence_number_, moof->nb_bytes(), mdat->sz_header());
+    // srs_trace("mdat_video_bytes_ = %d, mdat_audio_bytes_ = %d", mdat_video_bytes_, mdat_audio_bytes_);
+    
+    if ((err = srs_mp4_write_box(writer_, moof.get())) != srs_success) {
+        return srs_error_wrap(err, "write moof");
+    }
+
+    mdat->nb_data = mdat_video_bytes_ + mdat_audio_bytes_;
+    // Write mdat.
+    if (true) {
+        int nb_data = mdat->sz_header();
+        SrsUniquePtr<uint8_t[]> data(new uint8_t[nb_data]);
+
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer((char*)data.get(), nb_data));
+        if ((err = mdat->encode(buffer.get())) != srs_success) {
+            return srs_error_wrap(err, "encode mdat");
+        }
+        
+        // TODO: FIXME: Ensure all bytes are writen.
+        if ((err = writer_->write(data.get(), nb_data, NULL)) != srs_success) {
+            return srs_error_wrap(err, "write mdat");
+        }
+        
+        vector<SrsMp4Sample*>::iterator it;
+        // write video sample data
+        for (it = video_samples_->samples.begin(); it != video_samples_->samples.end(); ++it) {
+            SrsMp4Sample* sample = *it;
+            
+            // TODO: FIXME: Ensure all bytes are writen.
+            if ((err = writer_->write(sample->data, sample->nb_data, NULL)) != srs_success) {
+                return srs_error_wrap(err, "write sample");
+            }
+        }
+
+        // write audio sample data
+        for (it = audio_samples_->samples.begin(); it != audio_samples_->samples.end(); ++it) {
+            SrsMp4Sample* sample = *it;
+            
+            // TODO: FIXME: Ensure all bytes are writen.
+            if ((err = writer_->write(sample->data, sample->nb_data, NULL)) != srs_success) {
+                return srs_error_wrap(err, "write sample");
+            }
+        }
+    }
+
+    return err;
+}
