@@ -4,6 +4,12 @@
 
 The changelog for SRS.
 
+<a name="v7-changes"></a>
+
+## SRS 7.0 Changelog
+* v7.0, 2024-08-12, Merge [#4131](https://github.com/ossrs/srs/pull/4131): Transcode: More generic h264/h265 codec support. v7.0.1 (#4131)
+* v7.0, 2024-08-12, Init SRS 7 branch. v7.0.0
+
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
