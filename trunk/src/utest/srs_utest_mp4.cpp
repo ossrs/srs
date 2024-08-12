@@ -898,11 +898,10 @@ VOID TEST(KernelMp4Test, TREXBox)
     }
 
     SrsMp4MovieExtendsBox box;
-    EXPECT_TRUE(NULL == box.trex());
 
     SrsMp4TrackExtendsBox* trex = new SrsMp4TrackExtendsBox();
-    box.set_trex(trex);
-    EXPECT_TRUE(trex == box.trex());
+    box.add_trex(trex);
+    EXPECT_TRUE(trex == box.get(SrsMp4BoxTypeTREX));
 }
 
 VOID TEST(KernelMp4Test, TKHDBox)

@@ -3732,12 +3732,14 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{hls{hls_keys on;hls_fragments_per_key 5;hls_key_file xxx;hls_key_file_path xxx2;hls_key_url xxx3;}}"));
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{hls{hls_keys on;hls_fragments_per_key 5;hls_key_file xxx;hls_key_file_path xxx2;hls_key_url xxx3;hls_use_fmp4 on;hls_fmp4_file xx.m4s;}}"));
         EXPECT_TRUE(conf.get_hls_keys("ossrs.net"));
         EXPECT_EQ(5, conf.get_hls_fragments_per_key("ossrs.net"));
         EXPECT_STREQ("xxx", conf.get_hls_key_file("ossrs.net").c_str());
         EXPECT_STREQ("xxx2", conf.get_hls_key_file_path("ossrs.net").c_str());
         EXPECT_STREQ("xxx3", conf.get_hls_key_url("ossrs.net").c_str());
+        EXPECT_TRUE(conf.get_hls_use_fmp4("ossrs.net"));
+        EXPECT_STREQ("xx.m4s", conf.get_hls_fmp4_file("ossrs.net").c_str());
     }
 
     if (true) {
@@ -5046,6 +5048,18 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHls)
 
         SrsSetEnvConfig(hls_dts_directly, "SRS_VHOST_HLS_HLS_DTS_DIRECTLY", "off");
         EXPECT_FALSE(conf.get_vhost_hls_dts_directly("__defaultVhost__"));
+
+        SrsSetEnvConfig(hls_use_fmp4_on, "SRS_VHOST_HLS_HLS_USE_FMP4", "on");
+        EXPECT_TRUE(conf.get_hls_use_fmp4("__defaultVhost__"));
+
+        SrsSetEnvConfig(hls_use_fmp4_off, "SRS_VHOST_HLS_HLS_USE_FMP4", "off");
+        EXPECT_FALSE(conf.get_hls_use_fmp4("__defaultVhost__"));
+
+        SrsSetEnvConfig(hls_use_fmp4_unexpected, "SRS_VHOST_HLS_HLS_USE_FMP4", "xx");
+        EXPECT_FALSE(conf.get_hls_use_fmp4("__defaultVhost__"));
+        
+        SrsSetEnvConfig(hls_fmp4_file, "SRS_VHOST_HLS_HLS_FMP4_FILE", "xxx.m4s");
+        EXPECT_STREQ("xxx.m4s", conf.get_hls_fmp4_file("__defaultVhost__").c_str());
     }
 }
 
