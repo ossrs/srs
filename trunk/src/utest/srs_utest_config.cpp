@@ -3369,7 +3369,20 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_connect xxx;}}"));
-        EXPECT_TRUE(conf.get_vhost_on_connect("ossrs.net") != NULL);
+        SrsConfDirective* dir = conf.get_vhost_on_connect("ossrs.net");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 1);
+        ASSERT_STREQ("xxx", dir->arg0().c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_connect xxx yyy;}}"));
+        SrsConfDirective* dir = conf.get_vhost_on_connect("ossrs.net");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_STREQ("xxx", dir->arg0().c_str());
+        ASSERT_STREQ("yyy", dir->arg1().c_str());
     }
 
     if (true) {
@@ -5046,11 +5059,29 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHooks)
     }
 
     if (true) {
-        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PUBLISH", "http://server/api/publish");
-        SrsConfDirective* dir = conf.get_vhost_on_publish("__defaultVhost__");
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_CONNECT", "http://server/api/connect https://server2/api/connect2");
+        SrsConfDirective* dir = conf.get_vhost_on_connect("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_STREQ("http://server/api/connect", dir->arg0().c_str());
+        ASSERT_STREQ("https://server2/api/connect2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_CLOSE", "http://server/api/close");
+        SrsConfDirective* dir = conf.get_vhost_on_close("__defaultVhost__");
         ASSERT_TRUE(dir != NULL);
         ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/close", dir->arg0().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PUBLISH", "http://server/api/publish http://server/api/publish2");
+        SrsConfDirective* dir = conf.get_vhost_on_publish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 2);
         ASSERT_STREQ("http://server/api/publish", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/publish2", dir->arg1().c_str());
     }
 
     if (true) {
@@ -5101,4 +5132,3 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHooks)
         ASSERT_STREQ("http://server/api/hls_notify", dir->arg0().c_str());
     }
 }
-
