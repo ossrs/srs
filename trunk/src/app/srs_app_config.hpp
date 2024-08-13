@@ -305,9 +305,9 @@ private:
 protected:
     // The directive root.
     SrsConfDirective* root;
-
-    // The Env directives.
-    SrsConfDirective* env_dirs;
+private:
+    // The cache for parsing the config from environment variables.
+    SrsConfDirective* env_cache_;
 // Reload  section
 private:
     // The reload subscribers, when reload, callback all handlers.
