@@ -69,14 +69,17 @@ const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 #define SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS(key) if (!srs_getenv(key).empty()) return srs_utime_t(::atof(srs_getenv(key).c_str()) * SRS_UTIME_SECONDS)
 #define SRS_OVERWRITE_BY_ENV_FLOAT_MILLISECONDS(key) if (!srs_getenv(key).empty()) return srs_utime_t(::atof(srs_getenv(key).c_str()) * SRS_UTIME_MILLISECONDS)
 #define SRS_OVERWRITE_BY_ENV_DIRECTIVE(key) {                                 \
-        static SrsConfDirective* dir = NULL;                                  \
+        SrsConfDirective* dir = env_dirs->get(key);                           \
         if (!dir && !srs_getenv(key).empty()) {                               \
             std::vector<string> vec = srs_string_split(srs_getenv(key), " "); \
             dir = new SrsConfDirective();                                     \
             dir->name = key;                                                  \
             for (size_t i = 0; i < vec.size(); ++i) {                         \
-                dir->args.push_back(vec[i]);                                  \
+                if (!vec[i].empty()) {                                        \
+                    dir->args.push_back(vec[i]);                              \
+                }                                                             \
             }                                                                 \
+            env_dirs->directives.push_back(dir);                              \
         }                                                                     \
         if (dir) return dir;                                                  \
     }
@@ -1345,11 +1348,15 @@ SrsConfig::SrsConfig()
     root = new SrsConfDirective();
     root->conf_line = 0;
     root->name = "root";
+
+    env_dirs = new SrsConfDirective();
+    env_dirs->name = "env";
 }
 
 SrsConfig::~SrsConfig()
 {
     srs_freep(root);
+    srs_freep(env_dirs);
 }
 
 void SrsConfig::subscribe(ISrsReloadHandler* handler)

@@ -305,6 +305,9 @@ private:
 protected:
     // The directive root.
     SrsConfDirective* root;
+
+    // The Env directives.
+    SrsConfDirective* env_dirs;
 // Reload  section
 private:
     // The reload subscribers, when reload, callback all handlers.
