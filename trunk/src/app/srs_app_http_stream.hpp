@@ -182,7 +182,7 @@ private:
     SrsRequest* req;
     SrsBufferCache* cache;
     SrsSecurity* security_;
-    bool alive_;
+    int alive_;
 public:
     SrsLiveStream(SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
