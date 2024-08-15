@@ -9,6 +9,6 @@
 
 #define VERSION_MAJOR       7
 #define VERSION_MINOR       0
-#define VERSION_REVISION    3
+#define VERSION_REVISION    4
 
 #endif
