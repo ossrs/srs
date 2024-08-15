@@ -185,7 +185,7 @@ private:
     // For multiple viewers, which means there will more than one alive viewers for a live stream, so we must
     // use an int value to represent if there is any viewer is alive. We should never do cleanup unless all
     // viewers closed the connection.
-    int alive_;
+    int alive_viewers_;
 public:
     SrsLiveStream(SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
