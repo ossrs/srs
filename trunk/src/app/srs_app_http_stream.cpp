@@ -583,7 +583,7 @@ SrsLiveStream::SrsLiveStream(SrsRequest* r, SrsBufferCache* c)
     cache = c;
     req = r->copy()->as_http();
     security_ = new SrsSecurity();
-    alive_ = false;
+    alive_viewers_ = 0;
 }
 
 SrsLiveStream::~SrsLiveStream()
@@ -634,9 +634,9 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
         return srs_error_wrap(err, "http hook");
     }
 
-    alive_ = true;
+    alive_viewers_++;
     err = do_serve_http(w, r);
-    alive_ = false;
+    alive_viewers_--;
     
     http_hooks_on_stop(r);
     
@@ -645,7 +645,7 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
 
 bool SrsLiveStream::alive()
 {
-    return alive_;
+    return alive_viewers_ > 0;
 }
 
 srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)

@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2024-08-15, Merge [#4144](https://github.com/ossrs/srs/pull/4144): HTTP-FLV: Crash when multiple viewers. v7.0.5 (#4144)
 * v7.0, 2024-08-15, Merge [#4142](https://github.com/ossrs/srs/pull/4142): Config: Add more utest for env config. v7.0.4 (#4142)
 * v7.0, 2024-08-14, Merge [#4141](https://github.com/ossrs/srs/pull/4141): Live: Crash for invalid live stream state when unmount HTTP. v7.0.3 (#4141)
 * v7.0, 2024-08-13, Merge [#4092](https://github.com/ossrs/srs/pull/4092): Config: Improve env config to support multi values. v7.0.2 (#4092)
@@ -16,6 +17,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-08-15, Merge [#4144](https://github.com/ossrs/srs/pull/4144): HTTP-FLV: Crash when multiple viewers. v6.0.148 (#4144)
 * v6.0, 2024-08-15, Merge [#4142](https://github.com/ossrs/srs/pull/4142): Config: Add more utest for env config. v6.0.147 (#4142)
 * v6.0, 2024-08-14, Merge [#4141](https://github.com/ossrs/srs/pull/4141): Live: Crash for invalid live stream state when unmount HTTP. v6.0.146 (#4141)
 * v6.0, 2024-07-27, Merge [#4127](https://github.com/ossrs/srs/pull/4127): Transcode: Support video codec such as h264_qsv and libx265. v6.0.145 (#4127)
