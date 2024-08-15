@@ -529,7 +529,7 @@ private:
     SrsRtmpFormat* format_;
 private:
     // Whether source is avaiable for publishing.
-    bool _can_publish;
+    bool can_publish_;
     // The last die time, while die means neither publishers nor players.
     srs_utime_t stream_die_at_;
     // The last idle time, while idle means no players.
