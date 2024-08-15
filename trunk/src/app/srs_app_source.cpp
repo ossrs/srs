@@ -2655,6 +2655,9 @@ void SrsLiveSource::on_unpublish()
         stream_die_at_ = srs_get_system_time();
     }
 
+    // Note that we should never set to unpublish before any other handler is done, especially the handler
+    // which is actually an http stream that unmounts the HTTP path for streaming, because there maybe some
+    // coroutine switch in these handlers.
     _can_publish = true;
 }
 
