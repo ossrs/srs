@@ -5059,12 +5059,11 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHooks)
     }
 
     if (true) {
-        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_CONNECT", "http://server/api/connect https://server2/api/connect2");
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_CONNECT", "http://server/api/connect");
         SrsConfDirective* dir = conf.get_vhost_on_connect("__defaultVhost__");
         ASSERT_TRUE(dir != NULL);
-        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_EQ((int)dir->args.size(), 1);
         ASSERT_STREQ("http://server/api/connect", dir->arg0().c_str());
-        ASSERT_STREQ("https://server2/api/connect2", dir->arg1().c_str());
     }
 
     if (true) {
@@ -5076,12 +5075,11 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHooks)
     }
 
     if (true) {
-        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PUBLISH", "http://server/api/publish http://server/api/publish2");
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PUBLISH", "http://server/api/publish");
         SrsConfDirective* dir = conf.get_vhost_on_publish("__defaultVhost__");
         ASSERT_TRUE(dir != NULL);
-        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_EQ((int)dir->args.size(), 1);
         ASSERT_STREQ("http://server/api/publish", dir->arg0().c_str());
-        ASSERT_STREQ("http://server/api/publish2", dir->arg1().c_str());
     }
 
     if (true) {
@@ -5131,4 +5129,133 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHooks)
         ASSERT_TRUE((int)dir->args.size() == 1);
         ASSERT_STREQ("http://server/api/hls_notify", dir->arg0().c_str());
     }
+}
+
+VOID TEST(ConfigEnvTest, CheckEnvValuesHooksMultiValues)
+{
+    MockSrsConfig conf;
+    
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_CONNECT", "http://server/api/connect https://server2/api/connect2");
+
+        SrsConfDirective* dir = conf.get_vhost_on_connect("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_STREQ("http://server/api/connect", dir->arg0().c_str());
+        ASSERT_STREQ("https://server2/api/connect2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_CLOSE", "http://server/api/close close2 close3");
+        SrsConfDirective* dir = conf.get_vhost_on_close("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 3);
+        ASSERT_STREQ("http://server/api/close", dir->arg0().c_str());
+        ASSERT_STREQ("close2", dir->arg1().c_str());
+        ASSERT_STREQ("close3", dir->arg2().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PUBLISH", "http://server/api/publish http://server/api/publish2");
+        SrsConfDirective* dir = conf.get_vhost_on_publish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_STREQ("http://server/api/publish", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/publish2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_UNPUBLISH", "http://server/api/unpublish 2");
+        SrsConfDirective* dir = conf.get_vhost_on_unpublish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/unpublish", dir->arg0().c_str());
+        ASSERT_STREQ("2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PLAY", "http://server/api/play http://server/api/play2");
+        SrsConfDirective* dir = conf.get_vhost_on_play("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/play", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/play2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_STOP", "http://server/api/stop http://server/api/stop2");
+        SrsConfDirective* dir = conf.get_vhost_on_stop("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/stop", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/stop2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_DVR", "http://server/api/dvr http://server/api/dvr2");
+        SrsConfDirective* dir = conf.get_vhost_on_dvr("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/dvr", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/dvr2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_HLS", "http://server/api/hls http://server/api/hls2");
+        SrsConfDirective* dir = conf.get_vhost_on_hls("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/hls", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/hls2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_HLS_NOTIFY", "http://server/api/hls_notify http://server/api/hls_notify2");
+        SrsConfDirective* dir = conf.get_vhost_on_hls_notify("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/hls_notify", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/hls_notify2", dir->arg1().c_str());
+    }
+}
+
+VOID TEST(ConfigEnvTest, CheckEnvValuesHooksWithWhitespaces)
+{
+    MockSrsConfig conf;
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PUBLISH", "http://server/api/publish         http://server/api/publish2");
+        SrsConfDirective* dir = conf.get_vhost_on_publish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_STREQ("http://server/api/publish", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/publish2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_UNPUBLISH", "http://server/api/unpublish        ");
+        SrsConfDirective* dir = conf.get_vhost_on_unpublish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/unpublish", dir->arg0().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PLAY", "       http://server/api/play play2     play3  ");
+        SrsConfDirective* dir = conf.get_vhost_on_play("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 3);
+        ASSERT_STREQ("http://server/api/play", dir->arg0().c_str());
+        ASSERT_STREQ("play2", dir->arg1().c_str());
+        ASSERT_STREQ("play3", dir->arg2().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_DVR", "       dvr");
+        SrsConfDirective* dir = conf.get_vhost_on_dvr("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("dvr", dir->arg0().c_str());
+    }
+
 }
