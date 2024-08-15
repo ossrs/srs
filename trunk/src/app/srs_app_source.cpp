@@ -2632,8 +2632,7 @@ void SrsLiveSource::on_unpublish()
     meta->update_previous_ash();
 
     srs_trace("cleanup when unpublish");
-    
-    _can_publish = true;
+
     if (!_source_id.empty()) {
         _pre_source_id = _source_id;
     }
@@ -2655,6 +2654,8 @@ void SrsLiveSource::on_unpublish()
     if (consumers.empty()) {
         stream_die_at_ = srs_get_system_time();
     }
+
+    _can_publish = true;
 }
 
 srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)

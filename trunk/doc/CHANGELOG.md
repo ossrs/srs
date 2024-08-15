@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-08-14, Merge [#4141](https://github.com/ossrs/srs/pull/4141): Live: Crash for invalid live stream state when unmount HTTP. v6.0.146 (#4141)
 * v6.0, 2024-08-13, Merge [#4092](https://github.com/ossrs/srs/pull/4092): Config: Improve env config to support multi values. v6.0.146 (#4092)
 * v6.0, 2024-07-27, Merge [#4127](https://github.com/ossrs/srs/pull/4127): Transcode: Support video codec such as h264_qsv and libx265. v6.0.145 (#4127)
 * v6.0, 2024-07-27, Merge [#4101](https://github.com/ossrs/srs/pull/4101): GB28181: Support external SIP server. v6.0.144 (#4101)
