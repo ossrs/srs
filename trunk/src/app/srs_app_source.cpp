@@ -1886,7 +1886,7 @@ SrsLiveSource::SrsLiveSource()
     mix_correct = false;
     mix_queue = new SrsMixQueue();
     
-    _can_publish = true;
+    can_publish_ = true;
     stream_die_at_ = 0;
     publisher_idle_at_ = 0;
 
@@ -1952,7 +1952,7 @@ srs_error_t SrsLiveSource::cycle()
 bool SrsLiveSource::stream_is_dead()
 {
     // still publishing?
-    if (!_can_publish || !publish_edge->can_publish()) {
+    if (!can_publish_ || !publish_edge->can_publish()) {
         return false;
     }
     
@@ -2151,7 +2151,7 @@ SrsContextId SrsLiveSource::pre_source_id()
 
 bool SrsLiveSource::inactive()
 {
-    return _can_publish;
+    return can_publish_;
 }
 
 void SrsLiveSource::update_auth(SrsRequest* r)
@@ -2167,7 +2167,7 @@ bool SrsLiveSource::can_publish(bool is_edge)
         return publish_edge->can_publish();
     }
     
-    return _can_publish;
+    return can_publish_;
 }
 
 srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
@@ -2566,7 +2566,7 @@ srs_error_t SrsLiveSource::on_publish()
     // update the request object.
     srs_assert(req);
     
-    _can_publish = false;
+    can_publish_ = false;
     
     // whatever, the publish thread is the source or edge source,
     // save its id to srouce id.
@@ -2614,7 +2614,7 @@ srs_error_t SrsLiveSource::on_publish()
 void SrsLiveSource::on_unpublish()
 {
     // ignore when already unpublished.
-    if (_can_publish) {
+    if (can_publish_) {
         return;
     }
     
@@ -2658,7 +2658,7 @@ void SrsLiveSource::on_unpublish()
     // Note that we should never set to unpublish before any other handler is done, especially the handler
     // which is actually an http stream that unmounts the HTTP path for streaming, because there maybe some
     // coroutine switch in these handlers.
-    _can_publish = true;
+    can_publish_ = true;
 }
 
 srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)
@@ -2738,7 +2738,7 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer* consumer)
         play_edge->on_all_client_stop();
 
         // If no publishers, the stream is die.
-        if (_can_publish) {
+        if (can_publish_) {
             stream_die_at_ = srs_get_system_time();
         }
 
