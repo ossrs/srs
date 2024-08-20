@@ -267,6 +267,7 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
     urls->set("perf", SrsJsonAny::str("System performance stat"));
     urls->set("tcmalloc", SrsJsonAny::str("tcmalloc api with params ?page=summary|api"));
+    urls->set("valgrind", SrsJsonAny::str("valgrind api to call VALGRIND_DO_LEAK_CHECK"));
 
     SrsJsonObject* tests = SrsJsonAny::object();
     obj->set("tests", tests);
@@ -1090,6 +1091,34 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 }
 #endif
 
+#ifdef SRS_VALGRIND
+#include <valgrind/valgrind.h>
+#include <valgrind/memcheck.h>
+
+SrsGoApiValgrind::SrsGoApiValgrind()
+{
+}
+
+SrsGoApiValgrind::~SrsGoApiValgrind()
+{
+}
+
+srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+
+    // By default, response the json style response.
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    obj->set("data", SrsJsonAny::null());
+
+    // Does a full memory check right now.
+    VALGRIND_DO_LEAK_CHECK;
+
+    return srs_api_response(w, r, obj->dumps());
+}
+#endif
 
 SrsGoApiMetrics::SrsGoApiMetrics()
 {
