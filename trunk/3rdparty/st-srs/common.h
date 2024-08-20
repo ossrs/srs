@@ -73,15 +73,6 @@
 extern "C" {
 #endif
 
-/* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */
-#ifndef MD_VALGRIND
-    #ifndef NVALGRIND
-        #define NVALGRIND
-    #endif
-#else
-    #undef NVALGRIND
-#endif
-
 
 /*****************************************
  * Circular linked list definitions
@@ -121,7 +112,7 @@ typedef struct _st_stack {
     char *stk_top;              /* Highest address of stack's usable portion */
     void *sp;                   /* Stack pointer from C's point of view */
     /* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */
-#ifndef NVALGRIND
+#ifdef MD_VALGRIND
     /* id returned by VALGRIND_STACK_REGISTER */
     /* http://valgrind.org/docs/manual/manual-core-adv.html */
     unsigned long valgrind_stack_id;

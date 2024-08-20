@@ -50,7 +50,7 @@
 #include "common.h"
 
 /* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */
-#ifndef NVALGRIND
+#ifdef MD_VALGRIND
 #include <valgrind/valgrind.h>
 #endif
 
@@ -310,7 +310,7 @@ void st_thread_exit(void *retval)
 #endif
     
     /* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */
-#ifndef NVALGRIND
+#ifdef MD_VALGRIND
     if (!(thread->flags & _ST_FL_PRIMORDIAL)) {
         VALGRIND_STACK_DEREGISTER(thread->stack->valgrind_stack_id);
     }
@@ -686,7 +686,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
 #endif
     
     /* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */
-#ifndef NVALGRIND
+#ifdef MD_VALGRIND
     if (!(thread->flags & _ST_FL_PRIMORDIAL)) {
         thread->stack->valgrind_stack_id = VALGRIND_STACK_REGISTER(thread->stack->stk_top, thread->stack->stk_bottom);
     }
