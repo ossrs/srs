@@ -235,29 +235,6 @@ extern __thread _st_eventsys_t *_st_eventsys;
 
 
 /*****************************************
- * vp queues operations
- */
-
-#define _ST_ADD_IOQ(_pq)    st_clist_insert_before(&_pq.links, &_st_this_vp.io_q)
-#define _ST_DEL_IOQ(_pq)    st_clist_remove(&_pq.links)
-
-#define _ST_ADD_RUNQ(_thr)  st_clist_insert_before(&(_thr)->links, &_st_this_vp.run_q)
-#define _ST_INSERT_RUNQ(_thr)  st_clist_insert_after(&(_thr)->links, &_st_this_vp.run_q)
-#define _ST_DEL_RUNQ(_thr)  st_clist_remove(&(_thr)->links)
-
-#define _ST_ADD_SLEEPQ(_thr, _timeout)  _st_add_sleep_q(_thr, _timeout)
-#define _ST_DEL_SLEEPQ(_thr)        _st_del_sleep_q(_thr)
-
-#define _ST_ADD_ZOMBIEQ(_thr)  st_clist_insert_before(&(_thr)->links, &_st_this_vp.zombie_q)
-#define _ST_DEL_ZOMBIEQ(_thr)  st_clist_remove(&(_thr)->links)
-
-#ifdef DEBUG
-    #define _ST_ADD_THREADQ(_thr)  st_clist_insert_before(&(_thr)->tlink, &_st_this_vp.thread_q)
-    #define _ST_DEL_THREADQ(_thr)  st_clist_remove(&(_thr)->tlink)
-#endif
-
-
-/*****************************************
  * Thread states and flags
  */
 

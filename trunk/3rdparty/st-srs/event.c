@@ -281,9 +281,9 @@ ST_HIDDEN void _st_select_find_bad_fd(void)
             }
 
             if (pq->thread->flags & _ST_FL_ON_SLEEPQ)
-                _ST_DEL_SLEEPQ(pq->thread);
+                _st_del_sleep_q(pq->thread);
             pq->thread->state = _ST_ST_RUNNABLE;
-            _ST_ADD_RUNQ(pq->thread);
+            st_clist_insert_before(&pq->thread->links, &_st_this_vp.run_q);
         } else {
             if (_ST_SELECT_MAX_OSFD < pq_max_osfd)
                 _ST_SELECT_MAX_OSFD = pq_max_osfd;
@@ -386,9 +386,9 @@ ST_HIDDEN void _st_select_dispatch(void)
                 }
 
                 if (pq->thread->flags & _ST_FL_ON_SLEEPQ)
-                    _ST_DEL_SLEEPQ(pq->thread);
+                    _st_del_sleep_q(pq->thread);
                 pq->thread->state = _ST_ST_RUNNABLE;
-                _ST_ADD_RUNQ(pq->thread);
+                st_clist_insert_before(&pq->thread->links, &_st_this_vp.run_q);
             } else {
                 if (_ST_SELECT_MAX_OSFD < pq_max_osfd)
                     _ST_SELECT_MAX_OSFD = pq_max_osfd;
@@ -782,9 +782,9 @@ ST_HIDDEN void _st_kq_dispatch(void)
                 }
 
                 if (pq->thread->flags & _ST_FL_ON_SLEEPQ)
-                    _ST_DEL_SLEEPQ(pq->thread);
+                    _st_del_sleep_q(pq->thread);
                 pq->thread->state = _ST_ST_RUNNABLE;
-                _ST_ADD_RUNQ(pq->thread);
+                st_clist_insert_before(&pq->thread->links, &_st_this_vp.run_q);
             }
         }
 
@@ -1144,9 +1144,9 @@ ST_HIDDEN void _st_epoll_dispatch(void)
                 _st_epoll_pollset_del(pq->pds, pq->npds);
 
                 if (pq->thread->flags & _ST_FL_ON_SLEEPQ)
-                    _ST_DEL_SLEEPQ(pq->thread);
+                    _st_del_sleep_q(pq->thread);
                 pq->thread->state = _ST_ST_RUNNABLE;
-                _ST_ADD_RUNQ(pq->thread);
+                st_clist_insert_before(&pq->thread->links, &_st_this_vp.run_q);
             }
         }
 

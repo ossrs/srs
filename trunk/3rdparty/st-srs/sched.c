@@ -105,9 +105,9 @@ int st_poll(struct pollfd *pds, int npds, st_utime_t timeout)
     pq.npds = npds;
     pq.thread = me;
     pq.on_ioq = 1;
-    _ST_ADD_IOQ(pq);
+    st_clist_insert_before(&pq.links, &_st_this_vp.io_q);
     if (timeout != ST_UTIME_NO_TIMEOUT)
-        _ST_ADD_SLEEPQ(me, timeout);
+        _st_add_sleep_q(me, timeout);
     me->state = _ST_ST_IO_WAIT;
     
     _ST_SWITCH_CONTEXT(me);
@@ -115,7 +115,7 @@ int st_poll(struct pollfd *pds, int npds, st_utime_t timeout)
     n = 0;
     if (pq.on_ioq) {
         /* If we timed out, the pollq might still be on the ioq. Remove it */
-        _ST_DEL_IOQ(pq);
+        st_clist_remove(&pq.links);
         (*_st_eventsys->pollset_del)(pds, npds);
     } else {
         /* Count the number of ready descriptors */
@@ -146,7 +146,7 @@ void _st_vp_schedule(void)
 
         /* Pull thread off of the run queue */
         thread = _ST_THREAD_PTR(_st_this_vp.run_q.next);
-        _ST_DEL_RUNQ(thread);
+        st_clist_remove(&thread->links);
     } else {
         #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_thread_idle;
@@ -208,7 +208,7 @@ int st_init(void)
         return -1;
     _st_this_vp.idle_thread->flags = _ST_FL_IDLE_THREAD;
     _st_active_count--;
-    _ST_DEL_RUNQ(_st_this_vp.idle_thread);
+    st_clist_remove(&_st_this_vp.idle_thread->links);
     
     /*
      * Initialize primordial thread
@@ -222,7 +222,7 @@ int st_init(void)
     _st_this_thread = thread;
     _st_active_count++;
 #ifdef DEBUG
-    _ST_ADD_THREADQ(thread);
+    st_clist_insert_before(&thread->tlink, &_st_this_vp.thread_q);
 #endif
     
     return 0;
@@ -292,7 +292,7 @@ void st_thread_exit(void *retval)
     if (thread->term) {
         /* Put thread on the zombie queue */
         thread->state = _ST_ST_ZOMBIE;
-        _ST_ADD_ZOMBIEQ(thread);
+        st_clist_insert_before(&thread->links, &_st_this_vp.zombie_q);
         
         /* Notify on our termination condition variable */
         st_cond_signal(thread->term);
@@ -306,7 +306,7 @@ void st_thread_exit(void *retval)
     }
     
 #ifdef DEBUG
-    _ST_DEL_THREADQ(thread);
+    st_clist_remove(&thread->tlink);
 #endif
     
     /* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */
@@ -358,8 +358,8 @@ int st_thread_join(_st_thread_t *thread, void **retvalp)
      * When it gets scheduled later, it will do the clean up.
      */
     thread->state = _ST_ST_RUNNABLE;
-    _ST_DEL_ZOMBIEQ(thread);
-    _ST_ADD_RUNQ(thread);
+    st_clist_remove(&thread->links);
+    st_clist_insert_before(&thread->links, &_st_this_vp.run_q);
     
     return 0;
 }
@@ -563,7 +563,7 @@ void _st_vp_check_clock(void)
         ST_ASSERT(thread->flags & _ST_FL_ON_SLEEPQ);
         if (thread->due > now)
             break;
-        _ST_DEL_SLEEPQ(thread);
+        _st_del_sleep_q(thread);
         
         /* If thread is waiting on condition variable, set the time out flag */
         if (thread->state == _ST_ST_COND_WAIT)
@@ -573,7 +573,7 @@ void _st_vp_check_clock(void)
         ST_ASSERT(!(thread->flags & _ST_FL_IDLE_THREAD));
         thread->state = _ST_ST_RUNNABLE;
         // Insert at the head of RunQ, to execute timer first.
-        _ST_INSERT_RUNQ(thread);
+        st_clist_insert_after(&thread->links, &_st_this_vp.run_q);
     }
 }
 
@@ -600,7 +600,7 @@ void st_thread_yield()
 
     // Append thread to the tail of RunQ, we will back after all threads executed.
     me->state = _ST_ST_RUNNABLE;
-    _ST_ADD_RUNQ(me);
+    st_clist_insert_before(&me->links, &_st_this_vp.run_q);
 
     // Yield to other threads in the RunQ.
     _ST_SWITCH_CONTEXT(me);
@@ -619,11 +619,11 @@ void st_thread_interrupt(_st_thread_t *thread)
         return;
     
     if (thread->flags & _ST_FL_ON_SLEEPQ)
-        _ST_DEL_SLEEPQ(thread);
+        _st_del_sleep_q(thread);
     
     /* Make thread runnable */
     thread->state = _ST_ST_RUNNABLE;
-    _ST_ADD_RUNQ(thread);
+    st_clist_insert_before(&thread->links, &_st_this_vp.run_q);
 }
 
 
@@ -677,9 +677,9 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     /* Make thread runnable */
     thread->state = _ST_ST_RUNNABLE;
     _st_active_count++;
-    _ST_ADD_RUNQ(thread);
+    st_clist_insert_before(&thread->links, &_st_this_vp.run_q);
 #ifdef DEBUG
-    _ST_ADD_THREADQ(thread);
+    st_clist_insert_before(&thread->tlink, &_st_this_vp.thread_q);
 #endif
     
     /* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */

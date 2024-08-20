@@ -126,7 +126,7 @@ int st_usleep(st_utime_t usecs)
     
     if (usecs != ST_UTIME_NO_TIMEOUT) {
         me->state = _ST_ST_SLEEPING;
-        _ST_ADD_SLEEPQ(me, usecs);
+        _st_add_sleep_q(me, usecs);
     } else
         me->state = _ST_ST_SUSPENDED;
     
@@ -194,7 +194,7 @@ int st_cond_timedwait(_st_cond_t *cvar, st_utime_t timeout)
     st_clist_insert_before(&me->wait_links, &cvar->wait_q);
     
     if (timeout != ST_UTIME_NO_TIMEOUT)
-        _ST_ADD_SLEEPQ(me, timeout);
+        _st_add_sleep_q(me, timeout);
     
     _ST_SWITCH_CONTEXT(me);
     
@@ -231,11 +231,11 @@ static int _st_cond_signal(_st_cond_t *cvar, int broadcast)
         thread = _ST_THREAD_WAITQ_PTR(q);
         if (thread->state == _ST_ST_COND_WAIT) {
             if (thread->flags & _ST_FL_ON_SLEEPQ)
-                _ST_DEL_SLEEPQ(thread);
+                _st_del_sleep_q(thread);
             
             /* Make thread runnable */
             thread->state = _ST_ST_RUNNABLE;
-            _ST_ADD_RUNQ(thread);
+            st_clist_insert_before(&thread->links, &_st_this_vp.run_q);
             if (!broadcast)
                 break;
         }
@@ -343,7 +343,7 @@ int st_mutex_unlock(_st_mutex_t *lock)
             lock->owner = thread;
             /* Make thread runnable */
             thread->state = _ST_ST_RUNNABLE;
-            _ST_ADD_RUNQ(thread);
+            st_clist_insert_before(&thread->links, &_st_this_vp.run_q);
             return 0;
         }
     }
