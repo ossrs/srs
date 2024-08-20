@@ -267,7 +267,7 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
     urls->set("perf", SrsJsonAny::str("System performance stat"));
     urls->set("tcmalloc", SrsJsonAny::str("tcmalloc api with params ?page=summary|api"));
-    urls->set("valgrind", SrsJsonAny::str("valgrind api to call VALGRIND_DO_LEAK_CHECK"));
+    urls->set("valgrind", SrsJsonAny::str("valgrind api with params ?check=full|added|changed|new|quick"));
 
     SrsJsonObject* tests = SrsJsonAny::object();
     obj->set("tests", tests);
@@ -1105,7 +1105,14 @@ SrsGoApiValgrind::~SrsGoApiValgrind()
 
 srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    srs_error_t err = srs_success;
+    string check = r->query_get("check");
+    srs_trace("query check=%s", check.c_str());
+
+    // Must be full|added|changed|new|quick, set to full for other values.
+    if (check != "full" && check != "added" && check != "changed" && check != "new" && check != "quick") {
+        srs_warn("force set check=%s to full", check.c_str());
+        check = "full";
+    }
 
     // By default, response the json style response.
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
@@ -1114,7 +1121,17 @@ srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     obj->set("data", SrsJsonAny::null());
 
     // Does a full memory check right now.
-    VALGRIND_DO_LEAK_CHECK;
+    if (check == "full") {
+        VALGRIND_DO_LEAK_CHECK;
+    } else if (check == "quick") {
+        VALGRIND_DO_QUICK_LEAK_CHECK;
+    } else if (check == "added") {
+        VALGRIND_DO_ADDED_LEAK_CHECK;
+    } else if (check == "changed") {
+        VALGRIND_DO_CHANGED_LEAK_CHECK;
+    } else if (check == "new") {
+        VALGRIND_DO_NEW_LEAK_CHECK;
+    }
 
     return srs_api_response(w, r, obj->dumps());
 }
