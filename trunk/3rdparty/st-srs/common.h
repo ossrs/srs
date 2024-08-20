@@ -69,6 +69,10 @@
 #include "public.h"
 #include "md.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */
 #ifndef MD_VALGRIND
     #ifndef NVALGRIND
@@ -88,58 +92,17 @@ typedef struct _st_clist {
     struct _st_clist *prev;
 } _st_clist_t;
 
-/* Insert element "_e" into the list, before "_l" */
-#define ST_INSERT_BEFORE(_e,_l)     \
-    ST_BEGIN_MACRO         \
-    (_e)->next = (_l);     \
-    (_e)->prev = (_l)->prev; \
-    (_l)->prev->next = (_e); \
-    (_l)->prev = (_e);     \
-    ST_END_MACRO
-
-/* Insert element "_e" into the list, after "_l" */
-#define ST_INSERT_AFTER(_e,_l)     \
-    ST_BEGIN_MACRO         \
-    (_e)->next = (_l)->next; \
-    (_e)->prev = (_l);     \
-    (_l)->next->prev = (_e); \
-    (_l)->next = (_e);     \
-    ST_END_MACRO
-
-/* Return the element following element "_e" */
-#define ST_NEXT_LINK(_e)  ((_e)->next)
-
-/* Append an element "_e" to the end of the list "_l" */
-#define ST_APPEND_LINK(_e,_l) ST_INSERT_BEFORE(_e,_l)
-
-/* Insert an element "_e" at the head of the list "_l" */
-#define ST_INSERT_LINK(_e,_l) ST_INSERT_AFTER(_e,_l)
-
-/* Return the head/tail of the list */
-#define ST_LIST_HEAD(_l) (_l)->next
-#define ST_LIST_TAIL(_l) (_l)->prev
+/* Initialize a circular list */
+void st_clist_init(_st_clist_t *l);
 
 /* Remove the element "_e" from it's circular list */
-#define ST_REMOVE_LINK(_e)           \
-    ST_BEGIN_MACRO               \
-    (_e)->prev->next = (_e)->next; \
-    (_e)->next->prev = (_e)->prev; \
-    ST_END_MACRO
+void st_clist_remove(_st_clist_t *e);
 
-/* Return non-zero if the given circular list "_l" is empty, */
-/* zero if the circular list is not empty */
-#define ST_CLIST_IS_EMPTY(_l) \
-    ((_l)->next == (_l))
+/* Insert element "_e" into the list, before "_l" */
+void st_clist_insert_before(_st_clist_t *e, _st_clist_t *l);
 
-/* Initialize a circular list */
-#define ST_INIT_CLIST(_l)  \
-    ST_BEGIN_MACRO       \
-    (_l)->next = (_l); \
-    (_l)->prev = (_l); \
-    ST_END_MACRO
-
-#define ST_INIT_STATIC_CLIST(_l) \
-    {(_l), (_l)}
+/* Insert element "_e" into the list, after "_l" */
+void st_clist_insert_after(_st_clist_t *e, _st_clist_t *l);
 
 
 /*****************************************
@@ -294,22 +257,22 @@ extern __thread _st_eventsys_t *_st_eventsys;
  * vp queues operations
  */
 
-#define _ST_ADD_IOQ(_pq)    ST_APPEND_LINK(&_pq.links, &_ST_IOQ)
-#define _ST_DEL_IOQ(_pq)    ST_REMOVE_LINK(&_pq.links)
+#define _ST_ADD_IOQ(_pq)    st_clist_insert_before(&_pq.links, &_ST_IOQ)
+#define _ST_DEL_IOQ(_pq)    st_clist_remove(&_pq.links)
 
-#define _ST_ADD_RUNQ(_thr)  ST_APPEND_LINK(&(_thr)->links, &_ST_RUNQ)
-#define _ST_INSERT_RUNQ(_thr)  ST_INSERT_LINK(&(_thr)->links, &_ST_RUNQ)
-#define _ST_DEL_RUNQ(_thr)  ST_REMOVE_LINK(&(_thr)->links)
+#define _ST_ADD_RUNQ(_thr)  st_clist_insert_before(&(_thr)->links, &_ST_RUNQ)
+#define _ST_INSERT_RUNQ(_thr)  st_clist_insert_after(&(_thr)->links, &_ST_RUNQ)
+#define _ST_DEL_RUNQ(_thr)  st_clist_remove(&(_thr)->links)
 
 #define _ST_ADD_SLEEPQ(_thr, _timeout)  _st_add_sleep_q(_thr, _timeout)
 #define _ST_DEL_SLEEPQ(_thr)        _st_del_sleep_q(_thr)
 
-#define _ST_ADD_ZOMBIEQ(_thr)  ST_APPEND_LINK(&(_thr)->links, &_ST_ZOMBIEQ)
-#define _ST_DEL_ZOMBIEQ(_thr)  ST_REMOVE_LINK(&(_thr)->links)
+#define _ST_ADD_ZOMBIEQ(_thr)  st_clist_insert_before(&(_thr)->links, &_ST_ZOMBIEQ)
+#define _ST_DEL_ZOMBIEQ(_thr)  st_clist_remove(&(_thr)->links)
 
 #ifdef DEBUG
-    #define _ST_ADD_THREADQ(_thr)  ST_APPEND_LINK(&(_thr)->tlink, &_ST_THREADQ)
-    #define _ST_DEL_THREADQ(_thr)  ST_REMOVE_LINK(&(_thr)->tlink)
+    #define _ST_ADD_THREADQ(_thr)  st_clist_insert_before(&(_thr)->tlink, &_ST_THREADQ)
+    #define _ST_DEL_THREADQ(_thr)  st_clist_remove(&(_thr)->tlink)
 #endif
 
 
@@ -470,6 +433,10 @@ ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout);
 ssize_t st_write(_st_netfd_t *fd, const void *buf, size_t nbyte, st_utime_t timeout);
 int st_poll(struct pollfd *pds, int npds, st_utime_t timeout);
 _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinable, int stk_size);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* !__ST_COMMON_H__ */
 

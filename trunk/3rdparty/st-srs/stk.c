@@ -71,7 +71,7 @@ _st_stack_t *_st_stack_new(int stack_size)
         ts = _ST_THREAD_STACK_PTR(qp);
         if (ts->stk_size >= stack_size) {
             /* Found a stack that is big enough */
-            ST_REMOVE_LINK(&ts->links);
+            st_clist_remove(&ts->links);
             _st_num_free_stacks--;
             ts->links.next = NULL;
             ts->links.prev = NULL;
@@ -90,7 +90,7 @@ _st_stack_t *_st_stack_new(int stack_size)
         /* Before qp is freed, move to next one, because the qp will be freed when free the ts. */
         qp = qp->next;
 
-        ST_REMOVE_LINK(&ts->links);
+        st_clist_remove(&ts->links);
         _st_num_free_stacks--;
 
 #if defined(DEBUG) && !defined(MD_NO_PROTECT)
@@ -142,7 +142,7 @@ void _st_stack_free(_st_stack_t *ts)
         return;
 
     /* Put the stack on the free list */
-    ST_APPEND_LINK(&ts->links, _st_free_stacks.prev);
+    st_clist_insert_before(&ts->links, _st_free_stacks.prev);
     _st_num_free_stacks++;
 }
 

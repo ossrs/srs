@@ -158,7 +158,7 @@ _st_cond_t *st_cond_new(void)
     
     cvar = (_st_cond_t *) calloc(1, sizeof(_st_cond_t));
     if (cvar) {
-        ST_INIT_CLIST(&cvar->wait_q);
+        st_clist_init(&cvar->wait_q);
     }
     
     return cvar;
@@ -191,14 +191,14 @@ int st_cond_timedwait(_st_cond_t *cvar, st_utime_t timeout)
     
     /* Put caller thread on the condition variable's wait queue */
     me->state = _ST_ST_COND_WAIT;
-    ST_APPEND_LINK(&me->wait_links, &cvar->wait_q);
+    st_clist_insert_before(&me->wait_links, &cvar->wait_q);
     
     if (timeout != ST_UTIME_NO_TIMEOUT)
         _ST_ADD_SLEEPQ(me, timeout);
     
     _ST_SWITCH_CONTEXT(me);
     
-    ST_REMOVE_LINK(&me->wait_links);
+    st_clist_remove(&me->wait_links);
     rv = 0;
     
     if (me->flags & _ST_FL_TIMEDOUT) {
@@ -267,7 +267,7 @@ _st_mutex_t *st_mutex_new(void)
     
     lock = (_st_mutex_t *) calloc(1, sizeof(_st_mutex_t));
     if (lock) {
-        ST_INIT_CLIST(&lock->wait_q);
+        st_clist_init(&lock->wait_q);
         lock->owner = NULL;
     }
     
@@ -311,11 +311,11 @@ int st_mutex_lock(_st_mutex_t *lock)
     
     /* Put caller thread on the mutex's wait queue */
     me->state = _ST_ST_LOCK_WAIT;
-    ST_APPEND_LINK(&me->wait_links, &lock->wait_q);
+    st_clist_insert_before(&me->wait_links, &lock->wait_q);
     
     _ST_SWITCH_CONTEXT(me);
     
-    ST_REMOVE_LINK(&me->wait_links);
+    st_clist_remove(&me->wait_links);
     
     if ((me->flags & _ST_FL_INTERRUPT) && lock->owner != me) {
         me->flags &= ~_ST_FL_INTERRUPT;

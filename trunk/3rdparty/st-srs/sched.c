@@ -182,16 +182,16 @@ int st_init(void)
         return -1;
 
     // Initialize the thread-local variables.
-    ST_INIT_CLIST(&_st_free_stacks);
+    st_clist_init(&_st_free_stacks);
 
     // Initialize ST.
     memset(&_st_this_vp, 0, sizeof(_st_vp_t));
     
-    ST_INIT_CLIST(&_ST_RUNQ);
-    ST_INIT_CLIST(&_ST_IOQ);
-    ST_INIT_CLIST(&_ST_ZOMBIEQ);
+    st_clist_init(&_ST_RUNQ);
+    st_clist_init(&_ST_IOQ);
+    st_clist_init(&_ST_ZOMBIEQ);
 #ifdef DEBUG
-    ST_INIT_CLIST(&_ST_THREADQ);
+    st_clist_init(&_ST_THREADQ);
 #endif
     
     if ((*_st_eventsys->init)() < 0)
