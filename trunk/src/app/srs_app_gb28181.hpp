@@ -188,7 +188,7 @@ public:
     void on_media_transport(SrsSharedResource<SrsGbMediaTcpConn> media);
     // Get the candidate for SDP generation, the public IP address for device to connect to.
     std::string pip();
-// Interface ISrsOneCycleThreadHandler
+// Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
 private:
@@ -305,7 +305,7 @@ private:
 public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
-// Interface ISrsOneCycleThreadHandler
+// Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
 private:
@@ -333,7 +333,7 @@ public:
 // Interface ISrsStartable
 public:
     virtual srs_error_t start();
-// Interface ISrsOneCycleThreadHandler
+// Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
 private:
@@ -362,7 +362,7 @@ public:
 // Interface ISrsStartable
 public:
     virtual srs_error_t start();
-// Interface ISrsOneCycleThreadHandler
+// Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
 private:
@@ -422,7 +422,7 @@ public:
 public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
-// Interface ISrsOneCycleThreadHandler
+// Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
 private:
