@@ -343,7 +343,7 @@ void _st_restore_context(_st_thread_t *thread);
 /*
  * Number of bytes reserved under the stack "bottom"
  */
-#define _ST_STACK_PAD_SIZE MD_STACK_PAD_SIZE
+#define _ST_STACK_PAD_SIZE 128
 
 
 /*****************************************

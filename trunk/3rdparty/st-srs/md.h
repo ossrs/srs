@@ -176,10 +176,6 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
     #error Unknown OS
 #endif /* OS */
 
-#ifndef MD_STACK_PAD_SIZE
-    #define MD_STACK_PAD_SIZE 128
-#endif
-
 #if !defined(MD_HAVE_SOCKLEN_T) && !defined(socklen_t)
     #define socklen_t int
 #endif
