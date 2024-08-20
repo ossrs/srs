@@ -664,7 +664,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     thread->arg = arg;
 
     /* Note that we must directly call rather than call any functions. */
-    if (MD_SETJMP(thread->context))
+    if (_st_md_cxt_save(thread->context))
         _st_thread_main();
     MD_GET_SP(thread) = (long)(stack->sp);
 
@@ -720,7 +720,7 @@ void _st_iterate_threads(void)
     if (!_st_iterate_threads_flag) {
         if (thread) {
             memcpy(thread->context, save_jb, sizeof(_st_jmp_buf_t));
-            MD_LONGJMP(orig_jb, 1);
+            _st_md_cxt_restore(orig_jb, 1);
         }
         return;
     }
@@ -729,7 +729,7 @@ void _st_iterate_threads(void)
         memcpy(thread->context, save_jb, sizeof(_st_jmp_buf_t));
         _st_show_thread_stack(thread, NULL);
     } else {
-        if (MD_SETJMP(orig_jb)) {
+        if (_st_md_cxt_save(orig_jb)) {
             _st_iterate_threads_flag = 0;
             thread = NULL;
             _st_show_thread_stack(thread, "Iteration completed");
@@ -745,9 +745,9 @@ void _st_iterate_threads(void)
     ST_ASSERT(q != &_st_this_vp.thread_q);
     thread = _ST_THREAD_THREADQ_PTR(q);
     if (thread == _st_this_thread)
-        MD_LONGJMP(orig_jb, 1);
+        _st_md_cxt_restore(orig_jb, 1);
     memcpy(save_jb, thread->context, sizeof(_st_jmp_buf_t));
-    MD_LONGJMP(thread->context, 1);
+    _st_md_cxt_restore(thread->context, 1);
 }
 #endif /* DEBUG */
 
