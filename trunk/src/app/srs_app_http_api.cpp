@@ -1118,18 +1118,28 @@ srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
-    obj->set("data", SrsJsonAny::null());
+
+    SrsJsonObject* res = SrsJsonAny::object();
+    res->set("check", SrsJsonAny::str(check.c_str()));
+    res->set("help", SrsJsonAny::str("?check=full|added|changed|new|quick"));
+    res->set("see", SrsJsonAny::str("https://valgrind.org/docs/manual/mc-manual.html"));
+    obj->set("data", res);
 
     // Does a full memory check right now.
     if (check == "full") {
+        res->set("call", SrsJsonAny::str("VALGRIND_DO_LEAK_CHECK"));
         VALGRIND_DO_LEAK_CHECK;
     } else if (check == "quick") {
+        res->set("call", SrsJsonAny::str("VALGRIND_DO_QUICK_LEAK_CHECK"));
         VALGRIND_DO_QUICK_LEAK_CHECK;
     } else if (check == "added") {
+        res->set("call", SrsJsonAny::str("VALGRIND_DO_ADDED_LEAK_CHECK"));
         VALGRIND_DO_ADDED_LEAK_CHECK;
     } else if (check == "changed") {
+        res->set("call", SrsJsonAny::str("VALGRIND_DO_CHANGED_LEAK_CHECK"));
         VALGRIND_DO_CHANGED_LEAK_CHECK;
     } else if (check == "new") {
+        res->set("call", SrsJsonAny::str("VALGRIND_DO_NEW_LEAK_CHECK"));
         VALGRIND_DO_NEW_LEAK_CHECK;
     }
 
