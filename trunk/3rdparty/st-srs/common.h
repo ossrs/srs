@@ -332,34 +332,13 @@ extern __thread _st_eventsys_t *_st_eventsys;
  * Switch away from the current thread context by saving its state and
  * calling the thread scheduler
  */
-#define _ST_SWITCH_CONTEXT(_thread)       \
-    ST_BEGIN_MACRO                        \
-    ST_SWITCH_OUT_CB(_thread);            \
-    if (!MD_SETJMP((_thread)->context)) { \
-        _st_vp_schedule();                  \
-    }                                     \
-    ST_DEBUG_ITERATE_THREADS();           \
-    ST_SWITCH_IN_CB(_thread);             \
-    ST_END_MACRO
+void _st_switch_context(_st_thread_t *thread);
 
 /*
- * Restore a thread context that was saved by _ST_SWITCH_CONTEXT or
+ * Restore a thread context that was saved by _st_switch_context or
  * initialized by _ST_INIT_CONTEXT
  */
-#define _ST_RESTORE_CONTEXT(_thread)   \
-    ST_BEGIN_MACRO                     \
-    _st_this_thread = _thread;   \
-    MD_LONGJMP((_thread)->context, 1); \
-    ST_END_MACRO
-
-/*
- * Initialize the thread context preparing it to execute _main
- */
-#ifdef MD_INIT_CONTEXT
-    #define _ST_INIT_CONTEXT MD_INIT_CONTEXT
-#else
-    #error Unknown OS
-#endif
+void _st_restore_context(_st_thread_t *thread);
 
 /*
  * Number of bytes reserved under the stack "bottom"

@@ -110,7 +110,7 @@ int st_poll(struct pollfd *pds, int npds, st_utime_t timeout)
         _st_add_sleep_q(me, timeout);
     me->state = _ST_ST_IO_WAIT;
     
-    _ST_SWITCH_CONTEXT(me);
+    _st_switch_context(me);
     
     n = 0;
     if (pq.on_ioq) {
@@ -159,7 +159,7 @@ void _st_vp_schedule(void)
     
     /* Resume the thread */
     thread->state = _ST_ST_RUNNING;
-    _ST_RESTORE_CONTEXT(thread);
+    _st_restore_context(thread);
 }
 
 
@@ -271,7 +271,7 @@ void *_st_idle_thread_start(void *arg)
         _st_vp_check_clock();
         
         me->state = _ST_ST_RUNNABLE;
-        _ST_SWITCH_CONTEXT(me);
+        _st_switch_context(me);
     }
     
     /* No more threads */
@@ -298,7 +298,7 @@ void st_thread_exit(void *retval)
         st_cond_signal(thread->term);
         
         /* Switch context and come back later */
-        _ST_SWITCH_CONTEXT(thread);
+        _st_switch_context(thread);
         
         /* Continue the cleanup */
         st_cond_destroy(thread->term);
@@ -320,7 +320,7 @@ void st_thread_exit(void *retval)
         _st_stack_free(thread->stack);
     
     /* Find another thread to run */
-    _ST_SWITCH_CONTEXT(thread);
+    _st_switch_context(thread);
     /* Not going to land here */
 }
 
@@ -603,7 +603,7 @@ void st_thread_yield()
     st_clist_insert_before(&me->links, &_st_this_vp.run_q);
 
     // Yield to other threads in the RunQ.
-    _ST_SWITCH_CONTEXT(me);
+    _st_switch_context(me);
 }
 
 
@@ -663,7 +663,10 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     thread->start = start;
     thread->arg = arg;
 
-    _ST_INIT_CONTEXT(thread, stack->sp, _st_thread_main);
+    /* Note that we must directly call rather than call any functions. */
+    if (MD_SETJMP(thread->context))
+        _st_thread_main();
+    MD_GET_SP(thread) = (long)(stack->sp);
 
     /* If thread is joinable, allocate a termination condition variable */
     if (joinable) {

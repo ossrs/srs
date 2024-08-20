@@ -102,13 +102,6 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
     #else
         #error Unknown CPU architecture
     #endif
-    
-    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
-        ST_BEGIN_MACRO                             \
-        if (MD_SETJMP((_thread)->context))         \
-            _main();                                 \
-        MD_GET_SP(_thread) = (long) (_sp);         \
-        ST_END_MACRO
 
     #define MD_GET_UTIME()            \
         struct timeval tv;              \
@@ -161,14 +154,7 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
         #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
     #else
         #error "Unknown CPU architecture"
-    #endif /* Cases with common MD_INIT_CONTEXT and different SP locations */
-
-    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
-        ST_BEGIN_MACRO                             \
-        if (MD_SETJMP((_thread)->context))         \
-            _main();                                 \
-        MD_GET_SP(_thread) = (long) (_sp);         \
-        ST_END_MACRO
+    #endif
 
 #elif defined (CYGWIN64)
 
@@ -184,13 +170,6 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
     #else
         #error Unknown CPU architecture
     #endif
-
-    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
-        ST_BEGIN_MACRO                             \
-        if (MD_SETJMP((_thread)->context))         \
-            _main();                                 \
-        MD_GET_SP(_thread) = (long) (_sp);         \
-        ST_END_MACRO
 
     #define MD_GET_UTIME()            \
         struct timeval tv;              \

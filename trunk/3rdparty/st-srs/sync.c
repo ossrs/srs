@@ -130,7 +130,7 @@ int st_usleep(st_utime_t usecs)
     } else
         me->state = _ST_ST_SUSPENDED;
     
-    _ST_SWITCH_CONTEXT(me);
+    _st_switch_context(me);
     
     if (me->flags & _ST_FL_INTERRUPT) {
         me->flags &= ~_ST_FL_INTERRUPT;
@@ -196,7 +196,7 @@ int st_cond_timedwait(_st_cond_t *cvar, st_utime_t timeout)
     if (timeout != ST_UTIME_NO_TIMEOUT)
         _st_add_sleep_q(me, timeout);
     
-    _ST_SWITCH_CONTEXT(me);
+    _st_switch_context(me);
     
     st_clist_remove(&me->wait_links);
     rv = 0;
@@ -313,7 +313,7 @@ int st_mutex_lock(_st_mutex_t *lock)
     me->state = _ST_ST_LOCK_WAIT;
     st_clist_insert_before(&me->wait_links, &lock->wait_q);
     
-    _ST_SWITCH_CONTEXT(me);
+    _st_switch_context(me);
     
     st_clist_remove(&me->wait_links);
     

@@ -31,3 +31,21 @@ void st_clist_insert_after(_st_clist_t *e, _st_clist_t *l)
     l->next = e;
 }
 
+void _st_switch_context(_st_thread_t *thread)
+{
+    ST_SWITCH_OUT_CB(thread);
+
+    if (!MD_SETJMP((thread)->context)) {
+        _st_vp_schedule();
+    }
+
+    ST_DEBUG_ITERATE_THREADS();
+    ST_SWITCH_IN_CB(thread);
+}
+
+void _st_restore_context(_st_thread_t *thread)
+{
+    _st_this_thread = thread;
+    MD_LONGJMP(thread->context, 1);
+}
+
