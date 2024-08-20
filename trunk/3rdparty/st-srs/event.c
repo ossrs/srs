@@ -233,7 +233,7 @@ ST_HIDDEN void _st_select_find_bad_fd(void)
 
     _ST_SELECT_MAX_OSFD = -1;
 
-    for (q = _ST_IOQ.next; q != &_ST_IOQ; q = q->next) {
+    for (q = _st_this_vp.io_q.next; q != &_st_this_vp.io_q; q = q->next) {
         pq = _ST_POLLQUEUE_PTR(q);
         notify = 0;
         epds = pq->pds + pq->npds;
@@ -315,11 +315,11 @@ ST_HIDDEN void _st_select_dispatch(void)
     wp = &w;
     ep = &e;
 
-    if (_ST_SLEEPQ == NULL) {
+    if (_st_this_vp.sleep_q == NULL) {
         tvp = NULL;
     } else {
-        min_timeout = (_ST_SLEEPQ->due <= _ST_LAST_CLOCK) ? 0 :
-                      (_ST_SLEEPQ->due - _ST_LAST_CLOCK);
+        min_timeout = (_st_this_vp.sleep_q->due <= _st_this_vp.last_clock) ? 0 :
+                      (_st_this_vp.sleep_q->due - _st_this_vp.last_clock);
         timeout.tv_sec  = (int) (min_timeout / 1000000);
         timeout.tv_usec = (int) (min_timeout % 1000000);
         tvp = &timeout;
@@ -331,7 +331,7 @@ ST_HIDDEN void _st_select_dispatch(void)
     /* Notify threads that are associated with the selected descriptors */
     if (nfd > 0) {
         _ST_SELECT_MAX_OSFD = -1;
-        for (q = _ST_IOQ.next; q != &_ST_IOQ; q = q->next) {
+        for (q = _st_this_vp.io_q.next; q != &_st_this_vp.io_q; q = q->next) {
             pq = _ST_POLLQUEUE_PTR(q);
             notify = 0;
             epds = pq->pds + pq->npds;
@@ -697,10 +697,10 @@ ST_HIDDEN void _st_kq_dispatch(void)
     int nfd, i, osfd, notify, filter;
     short events, revents;
 
-    if (_ST_SLEEPQ == NULL) {
+    if (_st_this_vp.sleep_q == NULL) {
         tsp = NULL;
     } else {
-        min_timeout = (_ST_SLEEPQ->due <= _ST_LAST_CLOCK) ? 0 : (_ST_SLEEPQ->due - _ST_LAST_CLOCK);
+        min_timeout = (_st_this_vp.sleep_q->due <= _st_this_vp.last_clock) ? 0 : (_st_this_vp.sleep_q->due - _st_this_vp.last_clock);
         timeout.tv_sec  = (time_t) (min_timeout / 1000000);
         timeout.tv_nsec = (long) ((min_timeout % 1000000) * 1000);
         tsp = &timeout;
@@ -735,7 +735,7 @@ ST_HIDDEN void _st_kq_dispatch(void)
 
         _st_kq_data->dellist_cnt = 0;
 
-        for (q = _ST_IOQ.next; q != &_ST_IOQ; q = q->next) {
+        for (q = _st_this_vp.io_q.next; q != &_st_this_vp.io_q; q = q->next) {
             pq = _ST_POLLQUEUE_PTR(q);
             notify = 0;
             epds = pq->pds + pq->npds;
@@ -811,7 +811,7 @@ ST_HIDDEN void _st_kq_dispatch(void)
             _st_kq_data->pid = getpid();
             /* Re-register all descriptors on ioq with new kqueue */
             memset(_st_kq_data->fd_data, 0, _st_kq_data->fd_data_size * sizeof(_kq_fd_data_t));
-            for (q = _ST_IOQ.next; q != &_ST_IOQ; q = q->next) {
+            for (q = _st_this_vp.io_q.next; q != &_st_this_vp.io_q; q = q->next) {
                 pq = _ST_POLLQUEUE_PTR(q);
                 _st_kq_pollset_add(pq->pds, pq->npds);
             }
@@ -1064,10 +1064,10 @@ ST_HIDDEN void _st_epoll_dispatch(void)
     ++_st_stat_epoll;
     #endif
 
-    if (_ST_SLEEPQ == NULL) {
+    if (_st_this_vp.sleep_q == NULL) {
         timeout = -1;
     } else {
-        min_timeout = (_ST_SLEEPQ->due <= _ST_LAST_CLOCK) ? 0 : (_ST_SLEEPQ->due - _ST_LAST_CLOCK);
+        min_timeout = (_st_this_vp.sleep_q->due <= _st_this_vp.last_clock) ? 0 : (_st_this_vp.sleep_q->due - _st_this_vp.last_clock);
         timeout = (int) (min_timeout / 1000);
 
         // At least wait 1ms when <1ms, to avoid epoll_wait spin loop.
@@ -1105,7 +1105,7 @@ ST_HIDDEN void _st_epoll_dispatch(void)
             }
         }
 
-        for (q = _ST_IOQ.next; q != &_ST_IOQ; q = q->next) {
+        for (q = _st_this_vp.io_q.next; q != &_st_this_vp.io_q; q = q->next) {
             pq = _ST_POLLQUEUE_PTR(q);
             notify = 0;
             epds = pq->pds + pq->npds;

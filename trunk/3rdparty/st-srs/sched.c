@@ -89,7 +89,7 @@ int st_poll(struct pollfd *pds, int npds, st_utime_t timeout)
     struct pollfd *pd;
     struct pollfd *epd = pds + npds;
     _st_pollq_t pq;
-    _st_thread_t *me = _ST_CURRENT_THREAD();
+    _st_thread_t *me = _st_this_thread;
     int n;
     
     if (me->flags & _ST_FL_INTERRUPT) {
@@ -139,13 +139,13 @@ void _st_vp_schedule(void)
 {
     _st_thread_t *thread;
     
-    if (_ST_RUNQ.next != &_ST_RUNQ) {
+    if (_st_this_vp.run_q.next != &_st_this_vp.run_q) {
         #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_thread_run;
         #endif
 
         /* Pull thread off of the run queue */
-        thread = _ST_THREAD_PTR(_ST_RUNQ.next);
+        thread = _ST_THREAD_PTR(_st_this_vp.run_q.next);
         _ST_DEL_RUNQ(thread);
     } else {
         #if defined(DEBUG) && defined(DEBUG_STATS)
@@ -187,11 +187,11 @@ int st_init(void)
     // Initialize ST.
     memset(&_st_this_vp, 0, sizeof(_st_vp_t));
     
-    st_clist_init(&_ST_RUNQ);
-    st_clist_init(&_ST_IOQ);
-    st_clist_init(&_ST_ZOMBIEQ);
+    st_clist_init(&_st_this_vp.run_q);
+    st_clist_init(&_st_this_vp.io_q);
+    st_clist_init(&_st_this_vp.zombie_q);
 #ifdef DEBUG
-    st_clist_init(&_ST_THREADQ);
+    st_clist_init(&_st_this_vp.thread_q);
 #endif
     
     if ((*_st_eventsys->init)() < 0)
@@ -219,7 +219,7 @@ int st_init(void)
     thread->private_data = (void **) (thread + 1);
     thread->state = _ST_ST_RUNNING;
     thread->flags = _ST_FL_PRIMORDIAL;
-    _ST_SET_CURRENT_THREAD(thread);
+    _st_this_thread = thread;
     _st_active_count++;
 #ifdef DEBUG
     _ST_ADD_THREADQ(thread);
@@ -261,11 +261,11 @@ st_switch_cb_t st_set_switch_out_cb(st_switch_cb_t cb)
 /* ARGSUSED */
 void *_st_idle_thread_start(void *arg)
 {
-    _st_thread_t *me = _ST_CURRENT_THREAD();
+    _st_thread_t *me = _st_this_thread;
     
     while (_st_active_count > 0) {
         /* Idle vp till I/O is ready or the smallest timeout expired */
-        _ST_VP_IDLE();
+        (*_st_eventsys->dispatch)();
         
         /* Check sleep queue for expired threads */
         _st_vp_check_clock();
@@ -284,7 +284,7 @@ void *_st_idle_thread_start(void *arg)
 
 void st_thread_exit(void *retval)
 {
-    _st_thread_t *thread = _ST_CURRENT_THREAD();
+    _st_thread_t *thread = _st_this_thread;
     
     thread->retval = retval;
     _st_thread_cleanup(thread);
@@ -334,7 +334,7 @@ int st_thread_join(_st_thread_t *thread, void **retvalp)
         errno = EINVAL;
         return -1;
     }
-    if (_ST_CURRENT_THREAD() == thread) {
+    if (_st_this_thread == thread) {
         errno = EDEADLK;
         return -1;
     }
@@ -367,7 +367,7 @@ int st_thread_join(_st_thread_t *thread, void **retvalp)
 
 void _st_thread_main(void)
 {
-    _st_thread_t *thread = _ST_CURRENT_THREAD();
+    _st_thread_t *thread = _st_this_thread;
     
     /*
      * Cap the stack by zeroing out the saved return address register
@@ -392,7 +392,7 @@ void _st_thread_main(void)
 static _st_thread_t **heap_insert(_st_thread_t *thread) {
     int target = thread->heap_index;
     int s = target;
-    _st_thread_t **p = &_ST_SLEEPQ;
+    _st_thread_t **p = &_st_this_vp.sleep_q;
     int bits = 0;
     int bit;
     int index = 1;
@@ -434,14 +434,14 @@ static void heap_delete(_st_thread_t *thread) {
     int s, bit;
     
     /* First find and unlink the last heap element */
-    p = &_ST_SLEEPQ;
-    s = _ST_SLEEPQ_SIZE;
+    p = &_st_this_vp.sleep_q;
+    s = _st_this_vp.sleepq_size;
     while (s) {
         s >>= 1;
         bits++;
     }
     for (bit = bits - 2; bit >= 0; bit--) {
-        if (_ST_SLEEPQ_SIZE & (1 << bit)) {
+        if (_st_this_vp.sleepq_size & (1 << bit)) {
             p = &((*p)->right);
         } else {
             p = &((*p)->left);
@@ -449,7 +449,7 @@ static void heap_delete(_st_thread_t *thread) {
     }
     t = *p;
     *p = NULL;
-    --_ST_SLEEPQ_SIZE;
+    --_st_this_vp.sleepq_size;
     if (t != thread) {
         /*
          * Insert the unlinked last element in place of the element we are deleting
@@ -503,9 +503,9 @@ static void heap_delete(_st_thread_t *thread) {
 
 void _st_add_sleep_q(_st_thread_t *thread, st_utime_t timeout)
 {
-    thread->due = _ST_LAST_CLOCK + timeout;
+    thread->due = _st_this_vp.last_clock + timeout;
     thread->flags |= _ST_FL_ON_SLEEPQ;
-    thread->heap_index = ++_ST_SLEEPQ_SIZE;
+    thread->heap_index = ++_st_this_vp.sleepq_size;
     heap_insert(thread);
 }
 
@@ -527,9 +527,9 @@ void _st_vp_check_clock(void)
 
     now = st_utime();
 #if defined(DEBUG) && defined(DEBUG_STATS)
-    elapsed = now < _ST_LAST_CLOCK? 0 : now - _ST_LAST_CLOCK; // Might step back.
+    elapsed = now < _st_this_vp.last_clock? 0 : now - _st_this_vp.last_clock; // Might step back.
 #endif
-    _ST_LAST_CLOCK = now;
+    _st_this_vp.last_clock = now;
 
     #if defined(DEBUG) && defined(DEBUG_STATS)
     if (elapsed <= 10000) {
@@ -558,8 +558,8 @@ void _st_vp_check_clock(void)
         _st_last_tset = now;
     }
     
-    while (_ST_SLEEPQ != NULL) {
-        thread = _ST_SLEEPQ;
+    while (_st_this_vp.sleep_q != NULL) {
+        thread = _st_this_vp.sleep_q;
         ST_ASSERT(thread->flags & _ST_FL_ON_SLEEPQ);
         if (thread->due > now)
             break;
@@ -580,7 +580,7 @@ void _st_vp_check_clock(void)
 
 void st_thread_yield()
 {
-    _st_thread_t *me = _ST_CURRENT_THREAD();
+    _st_thread_t *me = _st_this_thread;
 
     #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_thread_yield;
@@ -590,7 +590,7 @@ void st_thread_yield()
     _st_vp_check_clock();
 
     // If not thread in RunQ to yield to, ignore and continue to run.
-    if (_ST_RUNQ.next == &_ST_RUNQ) {
+    if (_st_this_vp.run_q.next == &_st_this_vp.run_q) {
         return;
     }
 
@@ -637,7 +637,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     /* Adjust stack size */
     if (stk_size == 0)
         stk_size = ST_DEFAULT_STACK_SIZE;
-    stk_size = ((stk_size + _ST_PAGE_SIZE - 1) / _ST_PAGE_SIZE) * _ST_PAGE_SIZE;
+    stk_size = ((stk_size + _st_this_vp.pagesize - 1) / _st_this_vp.pagesize) * _st_this_vp.pagesize;
     stack = _st_stack_new(stk_size);
     if (!stack)
         return NULL;
@@ -695,7 +695,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
 
 _st_thread_t *st_thread_self(void)
 {
-    return _ST_CURRENT_THREAD();
+    return _st_this_thread;
 }
 
 #ifdef DEBUG
@@ -732,16 +732,16 @@ void _st_iterate_threads(void)
             _st_show_thread_stack(thread, "Iteration completed");
             return;
         }
-        thread = _ST_CURRENT_THREAD();
+        thread = _st_this_thread;
         _st_show_thread_stack(thread, "Iteration started");
     }
     
     q = thread->tlink.next;
-    if (q == &_ST_THREADQ)
+    if (q == &_st_this_vp.thread_q)
         q = q->next;
-    ST_ASSERT(q != &_ST_THREADQ);
+    ST_ASSERT(q != &_st_this_vp.thread_q);
     thread = _ST_THREAD_THREADQ_PTR(q);
-    if (thread == _ST_CURRENT_THREAD())
+    if (thread == _st_this_thread)
         MD_LONGJMP(orig_jb, 1);
     memcpy(save_jb, thread->context, sizeof(_st_jmp_buf_t));
     MD_LONGJMP(thread->context, 1);

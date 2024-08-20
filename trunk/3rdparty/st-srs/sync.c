@@ -87,7 +87,7 @@ int st_set_utime_function(st_utime_t (*func)(void))
 
 st_utime_t st_utime_last_clock(void)
 {
-    return _ST_LAST_CLOCK;
+    return _st_this_vp.last_clock;
 }
 
 
@@ -116,7 +116,7 @@ time_t st_time(void)
 
 int st_usleep(st_utime_t usecs)
 {
-    _st_thread_t *me = _ST_CURRENT_THREAD();
+    _st_thread_t *me = _st_this_thread;
     
     if (me->flags & _ST_FL_INTERRUPT) {
         me->flags &= ~_ST_FL_INTERRUPT;
@@ -180,7 +180,7 @@ int st_cond_destroy(_st_cond_t *cvar)
 
 int st_cond_timedwait(_st_cond_t *cvar, st_utime_t timeout)
 {
-    _st_thread_t *me = _ST_CURRENT_THREAD();
+    _st_thread_t *me = _st_this_thread;
     int rv;
     
     if (me->flags & _ST_FL_INTERRUPT) {
@@ -290,7 +290,7 @@ int st_mutex_destroy(_st_mutex_t *lock)
 
 int st_mutex_lock(_st_mutex_t *lock)
 {
-    _st_thread_t *me = _ST_CURRENT_THREAD();
+    _st_thread_t *me = _st_this_thread;
     
     if (me->flags & _ST_FL_INTERRUPT) {
         me->flags &= ~_ST_FL_INTERRUPT;
@@ -332,7 +332,7 @@ int st_mutex_unlock(_st_mutex_t *lock)
     _st_thread_t *thread;
     _st_clist_t *q;
     
-    if (lock->owner != _ST_CURRENT_THREAD()) {
+    if (lock->owner != _st_this_thread) {
         errno = EPERM;
         return -1;
     }
@@ -363,7 +363,7 @@ int st_mutex_trylock(_st_mutex_t *lock)
     }
     
     /* Got the mutex */
-    lock->owner = _ST_CURRENT_THREAD();
+    lock->owner = _st_this_thread;
     
     return 0;
 }

@@ -233,45 +233,26 @@ extern __thread _st_vp_t        _st_this_vp;
 extern __thread _st_thread_t *_st_this_thread;
 extern __thread _st_eventsys_t *_st_eventsys;
 
-#define _ST_CURRENT_THREAD()            (_st_this_thread)
-#define _ST_SET_CURRENT_THREAD(_thread) (_st_this_thread = (_thread))
-
-#define _ST_LAST_CLOCK                  (_st_this_vp.last_clock)
-
-#define _ST_RUNQ                        (_st_this_vp.run_q)
-#define _ST_IOQ                         (_st_this_vp.io_q)
-#define _ST_ZOMBIEQ                     (_st_this_vp.zombie_q)
-#ifdef DEBUG
-    #define _ST_THREADQ                     (_st_this_vp.thread_q)
-#endif
-
-#define _ST_PAGE_SIZE                   (_st_this_vp.pagesize)
-
-#define _ST_SLEEPQ                      (_st_this_vp.sleep_q)
-#define _ST_SLEEPQ_SIZE                 (_st_this_vp.sleepq_size)
-
-#define _ST_VP_IDLE()                   (*_st_eventsys->dispatch)()
-
 
 /*****************************************
  * vp queues operations
  */
 
-#define _ST_ADD_IOQ(_pq)    st_clist_insert_before(&_pq.links, &_ST_IOQ)
+#define _ST_ADD_IOQ(_pq)    st_clist_insert_before(&_pq.links, &_st_this_vp.io_q)
 #define _ST_DEL_IOQ(_pq)    st_clist_remove(&_pq.links)
 
-#define _ST_ADD_RUNQ(_thr)  st_clist_insert_before(&(_thr)->links, &_ST_RUNQ)
-#define _ST_INSERT_RUNQ(_thr)  st_clist_insert_after(&(_thr)->links, &_ST_RUNQ)
+#define _ST_ADD_RUNQ(_thr)  st_clist_insert_before(&(_thr)->links, &_st_this_vp.run_q)
+#define _ST_INSERT_RUNQ(_thr)  st_clist_insert_after(&(_thr)->links, &_st_this_vp.run_q)
 #define _ST_DEL_RUNQ(_thr)  st_clist_remove(&(_thr)->links)
 
 #define _ST_ADD_SLEEPQ(_thr, _timeout)  _st_add_sleep_q(_thr, _timeout)
 #define _ST_DEL_SLEEPQ(_thr)        _st_del_sleep_q(_thr)
 
-#define _ST_ADD_ZOMBIEQ(_thr)  st_clist_insert_before(&(_thr)->links, &_ST_ZOMBIEQ)
+#define _ST_ADD_ZOMBIEQ(_thr)  st_clist_insert_before(&(_thr)->links, &_st_this_vp.zombie_q)
 #define _ST_DEL_ZOMBIEQ(_thr)  st_clist_remove(&(_thr)->links)
 
 #ifdef DEBUG
-    #define _ST_ADD_THREADQ(_thr)  st_clist_insert_before(&(_thr)->tlink, &_ST_THREADQ)
+    #define _ST_ADD_THREADQ(_thr)  st_clist_insert_before(&(_thr)->tlink, &_st_this_vp.thread_q)
     #define _ST_DEL_THREADQ(_thr)  st_clist_remove(&(_thr)->tlink)
 #endif
 
@@ -390,7 +371,7 @@ extern __thread _st_eventsys_t *_st_eventsys;
  */
 #define _ST_RESTORE_CONTEXT(_thread)   \
     ST_BEGIN_MACRO                     \
-    _ST_SET_CURRENT_THREAD(_thread);   \
+    _st_this_thread = _thread;   \
     MD_LONGJMP((_thread)->context, 1); \
     ST_END_MACRO
 
