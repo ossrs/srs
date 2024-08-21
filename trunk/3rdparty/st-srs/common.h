@@ -84,16 +84,36 @@ typedef struct _st_clist {
 } _st_clist_t;
 
 /* Initialize a circular list */
-void st_clist_init(_st_clist_t *l);
+inline void st_clist_init(_st_clist_t *l)
+{
+    l->next = l;
+    l->prev = l;
+}
 
 /* Remove the element "_e" from it's circular list */
-void st_clist_remove(_st_clist_t *e);
+inline void st_clist_remove(_st_clist_t *e)
+{
+    e->prev->next = e->next;
+    e->next->prev = e->prev;
+}
 
 /* Insert element "_e" into the list, before "_l" */
-void st_clist_insert_before(_st_clist_t *e, _st_clist_t *l);
+inline void st_clist_insert_before(_st_clist_t *e, _st_clist_t *l)
+{
+    e->next = l;
+    e->prev = l->prev;
+    l->prev->next = e;
+    l->prev = e;
+}
 
 /* Insert element "_e" into the list, after "_l" */
-void st_clist_insert_after(_st_clist_t *e, _st_clist_t *l);
+inline void st_clist_insert_after(_st_clist_t *e, _st_clist_t *l)
+{
+    e->next = l->next;
+    e->prev = l;
+    l->next->prev = e;
+    l->next = e;
+}
 
 
 /*****************************************
