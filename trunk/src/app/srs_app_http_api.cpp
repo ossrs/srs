@@ -31,6 +31,11 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
 
+#ifdef SRS_VALGRIND
+#include <valgrind/valgrind.h>
+#include <valgrind/memcheck.h>
+#endif
+
 #if defined(__linux__) || defined(SRS_OSX)
 #include <sys/utsname.h>
 #endif
@@ -267,6 +272,7 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
     urls->set("perf", SrsJsonAny::str("System performance stat"));
     urls->set("tcmalloc", SrsJsonAny::str("tcmalloc api with params ?page=summary|api"));
+    urls->set("valgrind", SrsJsonAny::str("valgrind api with params ?check=full|added|changed|new|quick"));
 
     SrsJsonObject* tests = SrsJsonAny::object();
     obj->set("tests", tests);
@@ -1090,6 +1096,100 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 }
 #endif
 
+#ifdef SRS_VALGRIND
+
+SrsGoApiValgrind::SrsGoApiValgrind()
+{
+    trd_ = NULL;
+}
+
+SrsGoApiValgrind::~SrsGoApiValgrind()
+{
+    srs_freep(trd_);
+}
+
+srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+
+    if (!trd_) {
+        trd_ = new SrsSTCoroutine("valgrind", this, _srs_context->get_id());
+        if ((err = trd_->start()) != srs_success) {
+            return srs_error_wrap(err, "start");
+        }
+    }
+
+    string check = r->query_get("check");
+    srs_trace("query check=%s", check.c_str());
+
+    // Must be full|added|changed|new|quick, set to full for other values.
+    if (check != "full" && check != "added" && check != "changed" && check != "new" && check != "quick") {
+        srs_warn("force set check=%s to full", check.c_str());
+        check = "full";
+    }
+
+    // By default, response the json style response.
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+
+    SrsJsonObject* res = SrsJsonAny::object();
+    res->set("check", SrsJsonAny::str(check.c_str()));
+    res->set("help", SrsJsonAny::str("?check=full|added|changed|new|quick"));
+    res->set("see", SrsJsonAny::str("https://valgrind.org/docs/manual/mc-manual.html"));
+    obj->set("data", res);
+
+    // Does a memory check later.
+    if (check == "full") {
+        res->set("call", SrsJsonAny::str("VALGRIND_DO_LEAK_CHECK"));
+    } else if (check == "quick") {
+        res->set("call", SrsJsonAny::str("VALGRIND_DO_QUICK_LEAK_CHECK"));
+    } else if (check == "added") {
+        res->set("call", SrsJsonAny::str("VALGRIND_DO_ADDED_LEAK_CHECK"));
+    } else if (check == "changed") {
+        res->set("call", SrsJsonAny::str("VALGRIND_DO_CHANGED_LEAK_CHECK"));
+    } else if (check == "new") {
+        res->set("call", SrsJsonAny::str("VALGRIND_DO_NEW_LEAK_CHECK"));
+    }
+    task_ = check;
+
+    return srs_api_response(w, r, obj->dumps());
+}
+
+srs_error_t SrsGoApiValgrind::cycle()
+{
+    srs_error_t err = srs_success;
+
+    while (true) {
+        if ((err = trd_->pull()) != srs_success) {
+            return srs_error_wrap(err, "pull");
+        }
+
+        std::string check = task_;
+        task_ = "";
+
+        if (!check.empty()) {
+            srs_trace("do memory check=%s", check.c_str());
+        }
+
+        if (check == "full") {
+            VALGRIND_DO_LEAK_CHECK;
+        } else if (check == "quick") {
+            VALGRIND_DO_QUICK_LEAK_CHECK;
+        } else if (check == "added") {
+            VALGRIND_DO_ADDED_LEAK_CHECK;
+        } else if (check == "changed") {
+            VALGRIND_DO_CHANGED_LEAK_CHECK;
+        } else if (check == "new") {
+            VALGRIND_DO_NEW_LEAK_CHECK;
+        }
+
+        srs_usleep(3 * SRS_UTIME_SECONDS);
+    }
+
+    return err;
+}
+#endif
 
 SrsGoApiMetrics::SrsGoApiMetrics()
 {

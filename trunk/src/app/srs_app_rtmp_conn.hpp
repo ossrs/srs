@@ -181,7 +181,7 @@ public:
     // when client cycle thread stop, invoke the on_thread_stop(), which will use server
     // To remove the client by server->remove(this).
     virtual srs_error_t start();
-// Interface ISrsOneCycleThreadHandler
+// Interface ISrsCoroutineHandler
 public:
     // The thread cycle function,
     // when serve connection completed, terminate the loop which will terminate the thread,
