@@ -31,6 +31,11 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
 
+#ifdef SRS_VALGRIND
+#include <valgrind/valgrind.h>
+#include <valgrind/memcheck.h>
+#endif
+
 #if defined(__linux__) || defined(SRS_OSX)
 #include <sys/utsname.h>
 #endif
@@ -1092,8 +1097,6 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 #endif
 
 #ifdef SRS_VALGRIND
-#include <valgrind/valgrind.h>
-#include <valgrind/memcheck.h>
 
 SrsGoApiValgrind::SrsGoApiValgrind()
 {
