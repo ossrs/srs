@@ -204,7 +204,7 @@ public:
     virtual srs_error_t start();
 public:
     virtual srs_error_t pull();
-// Interface ISrsOneCycleThreadHandler
+// Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
 };

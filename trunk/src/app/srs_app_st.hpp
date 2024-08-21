@@ -291,7 +291,7 @@ public:
 public:
     virtual const SrsContextId& cid();
     virtual void set_cid(const SrsContextId& cid);
-// Interface ISrsOneCycleThreadHandler
+// Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
 // Interface ISrsResource

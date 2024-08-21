@@ -216,6 +216,23 @@ public:
 };
 #endif
 
+#ifdef SRS_VALGRIND
+class SrsGoApiValgrind : public ISrsHttpHandler, public ISrsCoroutineHandler
+{
+private:
+    SrsCoroutine* trd_;
+    std::string task_;
+public:
+    SrsGoApiValgrind();
+    virtual ~SrsGoApiValgrind();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+// Interface ISrsCoroutineHandler
+public:
+    virtual srs_error_t cycle();
+};
+#endif
+
 class SrsGoApiMetrics : public ISrsHttpHandler
 {
 private:
