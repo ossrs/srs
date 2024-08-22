@@ -224,6 +224,10 @@ fi
 # so we need to link the c++ libraries staticly but not all.
 # @see https://stackoverflow.com/a/26107550
 if [[ $SRS_STATIC == YES ]]; then
+    SrsLinkOptions="${SrsLinkOptions} -static";
+fi
+
+if [[ $SRS_STATIC_STD_CPP == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -static-libstdc++";
 fi
 

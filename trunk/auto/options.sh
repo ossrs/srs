@@ -46,6 +46,7 @@ SRS_JOBS=1
 # If enabled, force to use SRS_JOBS for make on linux, however you're able to overwrite by -jN on macOS.
 SRS_FORCE_MAKE_JOBS=YES
 SRS_STATIC=NO
+SRS_STATIC_STD_CPP=NO
 # If enabled, link shared libraries for libst.so which uses MPL license.
 # See https://ossrs.net/lts/zh-cn/license#state-threads
 SRS_SHARED_ST=NO
@@ -205,6 +206,7 @@ Performance:                @see https://ossrs.net/lts/zh-cn/docs/v5/doc/perform
 
 Toolchain options:
   --static=on|off           Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
+  --static-stdcpp=on|off    Whether add '-static-libstdc++' to link options. Default: $(value2switch $SRS_STATIC_STD_CPP)
   --cc=<CC>                 Toolchain: Use c compiler CC. Default: $SRS_TOOL_CC
   --cxx=<CXX>               Toolchain: Use c++ compiler CXX. Default: $SRS_TOOL_CXX
   --ar=<AR>                 Toolchain: Use archive tool AR. Default: $SRS_TOOL_CXX
@@ -306,6 +308,7 @@ function parse_user_option() {
         --config)                       SRS_DEFAULT_CONFIG=${value} ;;
 
         --static)                       SRS_STATIC=$(switch2value $value) ;;
+        --static-stdcpp)                SRS_STATIC_STD_CPP=$(switch2value $value) ;;
         --cpu)                          SRS_CROSS_BUILD_CPU=${value} ;;
         --arch)                         SRS_CROSS_BUILD_ARCH=${value} ;;
         --host)                         SRS_CROSS_BUILD_HOST=${value} ;;
@@ -663,6 +666,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcp=$(value2switch $SRS_GPERF_CP)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gprof=$(value2switch $SRS_GPROF)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --static=$(value2switch $SRS_STATIC)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --static-stdcpp=$(value2switch $SRS_STATIC_STD_CPP)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --shared-st=$(value2switch $SRS_SHARED_ST)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --shared-srt=$(value2switch $SRS_SHARED_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --shared-ffmpeg=$(value2switch $SRS_SHARED_FFMPEG)"
@@ -755,6 +759,24 @@ function check_option_conflicts() {
     if [[ $SRS_GPERF_CP == RESERVED ]]; then echo "you must specifies the gperf-cp, see: ./configure --help"; __check_ok=NO; fi
     if [[ $SRS_GPROF == RESERVED ]]; then echo "you must specifies the gprof, see: ./configure --help"; __check_ok=NO; fi
     if [[ -z $SRS_PREFIX ]]; then echo "you must specifies the prefix, see: ./configure --prefix"; __check_ok=NO; fi
+    if [[ $SRS_STATIC == YES && $OS_IS_LINUX != YES ]]; then
+        echo ""
+        echo -e "${RED}Mac OS X does not support statically linked executable binaries.${BLACK}"
+        echo -e "@see: ${YELLOW}https://developer.apple.com/library/archive/qa/qa1118/_index.html${BLACK}"
+        echo -e "${YELLOW}CYGWIN platform not verified.${BLACK}"
+        echo ""
+        __check_ok=NO;
+    fi
+    if [[ $SRS_STATIC_STD_CPP == YES && $OS_IS_LINUX != YES ]]; then
+        echo ""
+        echo -e "${YELLOW}-static-libstd++ is unused in Mac OS X.${BLACK}"
+        echo -e "${YELLOW}CYGWIN platform not verified.${BLACK}"
+    fi
+    if [[ $SRS_STATIC == YES && $SRS_STATIC_STD_CPP == YES ]]; then
+        echo ""
+        echo -e "${YELLOW}--static and --static-stdcpp are both on, only keep --static=on${BLACK}"
+        SRS_STATIC_STD_CPP=NO
+    fi
     if [[ $__check_ok == NO ]]; then
         exit 1;
     fi
