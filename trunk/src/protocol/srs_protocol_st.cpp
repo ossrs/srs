@@ -9,6 +9,7 @@
 #include <st.h>
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <sys/resource.h>
 #include <netdb.h>
 using namespace std;
 
@@ -35,6 +36,23 @@ bool srs_st_epoll_is_supported(void)
     epoll_ctl(-1, EPOLL_CTL_ADD, -1, &ev);
     
     return (errno != ENOSYS);
+}
+#endif
+
+#ifdef SRS_SANITIZER
+void srs_set_primordial_stack(void* stack_top)
+{
+    if (!stack_top) {
+        return;
+    }
+
+    struct rlimit limit;
+    if (getrlimit (RLIMIT_STACK, &limit) != 0) {
+        return;
+    }
+
+    void* stack_bottom = (char*)stack_top - (uint64_t)limit.rlim_cur;
+    st_set_primordial_stack(stack_top, stack_bottom);
 }
 #endif
 

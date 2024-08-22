@@ -253,6 +253,13 @@ srs_error_t do_main(int argc, char** argv, char** envp)
 
 int main(int argc, char** argv, char** envp)
 {
+#ifdef SRS_SANITIZER
+    // Setup the primordial stack for st. Use the current variable address as the stack top.
+    // This is not very accurate but sufficient.
+    void* p = NULL;
+    srs_set_primordial_stack(&p);
+#endif
+
     srs_error_t err = do_main(argc, argv, envp);
 
     if (err != srs_success) {

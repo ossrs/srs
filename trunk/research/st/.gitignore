@@ -10,3 +10,5 @@ huge-threads
 exceptions
 hello
 pthreads
+asan-switch
+hello-thread

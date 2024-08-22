@@ -51,6 +51,12 @@ Linux with valgrind and epoll:
 make linux-debug EXTRA_CFLAGS="-DMD_HAVE_EPOLL -DMD_VALGRIND"
 ```
 
+Linux with ASAN(Google Address Sanitizer):
+
+```bash
+make linux-debug EXTRA_CFLAGS="-DMD_ASAN"
+```
+
 ## Mac: Usage
 
 Get code:
