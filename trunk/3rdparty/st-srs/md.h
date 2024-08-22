@@ -74,13 +74,11 @@ typedef struct _st_jmp_buf {
     long __jmpbuf[22];
 } _st_jmp_buf_t[1];
 
+/* Defined in *.S file and implemented by ASM. */
 extern int _st_md_cxt_save(_st_jmp_buf_t env);
 extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
 
 /* Always use builtin setjmp/longjmp, use asm code. */
-#define MD_USE_BUILTIN_SETJMP
-#define MD_SETJMP(env) _st_md_cxt_save(env)
-#define MD_LONGJMP(env, val) _st_md_cxt_restore(env, val)
 #if defined(USE_LIBC_SETJMP)
 #error The libc setjmp is not supported now
 #endif
@@ -102,13 +100,6 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
     #else
         #error Unknown CPU architecture
     #endif
-    
-    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
-        ST_BEGIN_MACRO                             \
-        if (MD_SETJMP((_thread)->context))         \
-            _main();                                 \
-        MD_GET_SP(_thread) = (long) (_sp);         \
-        ST_END_MACRO
 
     #define MD_GET_UTIME()            \
         struct timeval tv;              \
@@ -161,14 +152,7 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
         #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
     #else
         #error "Unknown CPU architecture"
-    #endif /* Cases with common MD_INIT_CONTEXT and different SP locations */
-
-    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
-        ST_BEGIN_MACRO                             \
-        if (MD_SETJMP((_thread)->context))         \
-            _main();                                 \
-        MD_GET_SP(_thread) = (long) (_sp);         \
-        ST_END_MACRO
+    #endif
 
 #elif defined (CYGWIN64)
 
@@ -177,20 +161,11 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
     #define MD_ACCEPT_NB_INHERITED
     #define MD_HAVE_SOCKLEN_T
 
-    #define MD_USE_BUILTIN_SETJMP
-
     #if defined(__amd64__) || defined(__x86_64__)
         #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[6]))
     #else
         #error Unknown CPU architecture
     #endif
-
-    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
-        ST_BEGIN_MACRO                             \
-        if (MD_SETJMP((_thread)->context))         \
-            _main();                                 \
-        MD_GET_SP(_thread) = (long) (_sp);         \
-        ST_END_MACRO
 
     #define MD_GET_UTIME()            \
         struct timeval tv;              \
@@ -200,10 +175,6 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
 #else
     #error Unknown OS
 #endif /* OS */
-
-#ifndef MD_STACK_PAD_SIZE
-    #define MD_STACK_PAD_SIZE 128
-#endif
 
 #if !defined(MD_HAVE_SOCKLEN_T) && !defined(socklen_t)
     #define socklen_t int

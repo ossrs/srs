@@ -50,7 +50,7 @@
 
 
 /* How much space to leave between the stacks, at each end */
-#define REDZONE	_ST_PAGE_SIZE
+#define REDZONE	_st_this_vp.pagesize
 
 __thread _st_clist_t _st_free_stacks;
 __thread int _st_num_free_stacks = 0;
@@ -71,7 +71,7 @@ _st_stack_t *_st_stack_new(int stack_size)
         ts = _ST_THREAD_STACK_PTR(qp);
         if (ts->stk_size >= stack_size) {
             /* Found a stack that is big enough */
-            ST_REMOVE_LINK(&ts->links);
+            st_clist_remove(&ts->links);
             _st_num_free_stacks--;
             ts->links.next = NULL;
             ts->links.prev = NULL;
@@ -80,7 +80,7 @@ _st_stack_t *_st_stack_new(int stack_size)
     }
 #endif
 
-    extra = _st_randomize_stacks ? _ST_PAGE_SIZE : 0;
+    extra = _st_randomize_stacks ? _st_this_vp.pagesize : 0;
     /* If not cache stack, we will free all stack in the list, which contains the stack to be freed.
      * Note that we should never directly free it at _st_stack_free, because it is still be used,
      * and will cause crash. */
@@ -90,7 +90,7 @@ _st_stack_t *_st_stack_new(int stack_size)
         /* Before qp is freed, move to next one, because the qp will be freed when free the ts. */
         qp = qp->next;
 
-        ST_REMOVE_LINK(&ts->links);
+        st_clist_remove(&ts->links);
         _st_num_free_stacks--;
 
 #if defined(DEBUG) && !defined(MD_NO_PROTECT)
@@ -142,7 +142,7 @@ void _st_stack_free(_st_stack_t *ts)
         return;
 
     /* Put the stack on the free list */
-    ST_APPEND_LINK(&ts->links, _st_free_stacks.prev);
+    st_clist_insert_before(&ts->links, _st_free_stacks.prev);
     _st_num_free_stacks++;
 }
 

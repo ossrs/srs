@@ -69,13 +69,8 @@
 #include "public.h"
 #include "md.h"
 
-/* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */
-#ifndef MD_VALGRIND
-    #ifndef NVALGRIND
-        #define NVALGRIND
-    #endif
-#else
-    #undef NVALGRIND
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 
@@ -88,58 +83,37 @@ typedef struct _st_clist {
     struct _st_clist *prev;
 } _st_clist_t;
 
-/* Insert element "_e" into the list, before "_l" */
-#define ST_INSERT_BEFORE(_e,_l)     \
-    ST_BEGIN_MACRO         \
-    (_e)->next = (_l);     \
-    (_e)->prev = (_l)->prev; \
-    (_l)->prev->next = (_e); \
-    (_l)->prev = (_e);     \
-    ST_END_MACRO
-
-/* Insert element "_e" into the list, after "_l" */
-#define ST_INSERT_AFTER(_e,_l)     \
-    ST_BEGIN_MACRO         \
-    (_e)->next = (_l)->next; \
-    (_e)->prev = (_l);     \
-    (_l)->next->prev = (_e); \
-    (_l)->next = (_e);     \
-    ST_END_MACRO
-
-/* Return the element following element "_e" */
-#define ST_NEXT_LINK(_e)  ((_e)->next)
-
-/* Append an element "_e" to the end of the list "_l" */
-#define ST_APPEND_LINK(_e,_l) ST_INSERT_BEFORE(_e,_l)
-
-/* Insert an element "_e" at the head of the list "_l" */
-#define ST_INSERT_LINK(_e,_l) ST_INSERT_AFTER(_e,_l)
-
-/* Return the head/tail of the list */
-#define ST_LIST_HEAD(_l) (_l)->next
-#define ST_LIST_TAIL(_l) (_l)->prev
+/* Initialize a circular list */
+static inline void st_clist_init(_st_clist_t *l)
+{
+    l->next = l;
+    l->prev = l;
+}
 
 /* Remove the element "_e" from it's circular list */
-#define ST_REMOVE_LINK(_e)           \
-    ST_BEGIN_MACRO               \
-    (_e)->prev->next = (_e)->next; \
-    (_e)->next->prev = (_e)->prev; \
-    ST_END_MACRO
+static inline void st_clist_remove(_st_clist_t *e)
+{
+    e->prev->next = e->next;
+    e->next->prev = e->prev;
+}
 
-/* Return non-zero if the given circular list "_l" is empty, */
-/* zero if the circular list is not empty */
-#define ST_CLIST_IS_EMPTY(_l) \
-    ((_l)->next == (_l))
+/* Insert element "_e" into the list, before "_l" */
+static inline void st_clist_insert_before(_st_clist_t *e, _st_clist_t *l)
+{
+    e->next = l;
+    e->prev = l->prev;
+    l->prev->next = e;
+    l->prev = e;
+}
 
-/* Initialize a circular list */
-#define ST_INIT_CLIST(_l)  \
-    ST_BEGIN_MACRO       \
-    (_l)->next = (_l); \
-    (_l)->prev = (_l); \
-    ST_END_MACRO
-
-#define ST_INIT_STATIC_CLIST(_l) \
-    {(_l), (_l)}
+/* Insert element "_e" into the list, after "_l" */
+static inline void st_clist_insert_after(_st_clist_t *e, _st_clist_t *l)
+{
+    e->next = l->next;
+    e->prev = l;
+    l->next->prev = e;
+    l->next = e;
+}
 
 
 /*****************************************
@@ -158,7 +132,7 @@ typedef struct _st_stack {
     char *stk_top;              /* Highest address of stack's usable portion */
     void *sp;                   /* Stack pointer from C's point of view */
     /* merge from https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b */
-#ifndef NVALGRIND
+#ifdef MD_VALGRIND
     /* id returned by VALGRIND_STACK_REGISTER */
     /* http://valgrind.org/docs/manual/manual-core-adv.html */
     unsigned long valgrind_stack_id;
@@ -270,48 +244,6 @@ extern __thread _st_vp_t        _st_this_vp;
 extern __thread _st_thread_t *_st_this_thread;
 extern __thread _st_eventsys_t *_st_eventsys;
 
-#define _ST_CURRENT_THREAD()            (_st_this_thread)
-#define _ST_SET_CURRENT_THREAD(_thread) (_st_this_thread = (_thread))
-
-#define _ST_LAST_CLOCK                  (_st_this_vp.last_clock)
-
-#define _ST_RUNQ                        (_st_this_vp.run_q)
-#define _ST_IOQ                         (_st_this_vp.io_q)
-#define _ST_ZOMBIEQ                     (_st_this_vp.zombie_q)
-#ifdef DEBUG
-    #define _ST_THREADQ                     (_st_this_vp.thread_q)
-#endif
-
-#define _ST_PAGE_SIZE                   (_st_this_vp.pagesize)
-
-#define _ST_SLEEPQ                      (_st_this_vp.sleep_q)
-#define _ST_SLEEPQ_SIZE                 (_st_this_vp.sleepq_size)
-
-#define _ST_VP_IDLE()                   (*_st_eventsys->dispatch)()
-
-
-/*****************************************
- * vp queues operations
- */
-
-#define _ST_ADD_IOQ(_pq)    ST_APPEND_LINK(&_pq.links, &_ST_IOQ)
-#define _ST_DEL_IOQ(_pq)    ST_REMOVE_LINK(&_pq.links)
-
-#define _ST_ADD_RUNQ(_thr)  ST_APPEND_LINK(&(_thr)->links, &_ST_RUNQ)
-#define _ST_INSERT_RUNQ(_thr)  ST_INSERT_LINK(&(_thr)->links, &_ST_RUNQ)
-#define _ST_DEL_RUNQ(_thr)  ST_REMOVE_LINK(&(_thr)->links)
-
-#define _ST_ADD_SLEEPQ(_thr, _timeout)  _st_add_sleep_q(_thr, _timeout)
-#define _ST_DEL_SLEEPQ(_thr)        _st_del_sleep_q(_thr)
-
-#define _ST_ADD_ZOMBIEQ(_thr)  ST_APPEND_LINK(&(_thr)->links, &_ST_ZOMBIEQ)
-#define _ST_DEL_ZOMBIEQ(_thr)  ST_REMOVE_LINK(&(_thr)->links)
-
-#ifdef DEBUG
-    #define _ST_ADD_THREADQ(_thr)  ST_APPEND_LINK(&(_thr)->tlink, &_ST_THREADQ)
-    #define _ST_DEL_THREADQ(_thr)  ST_REMOVE_LINK(&(_thr)->tlink)
-#endif
-
 
 /*****************************************
  * Thread states and flags
@@ -411,39 +343,18 @@ extern __thread _st_eventsys_t *_st_eventsys;
  * Switch away from the current thread context by saving its state and
  * calling the thread scheduler
  */
-#define _ST_SWITCH_CONTEXT(_thread)       \
-    ST_BEGIN_MACRO                        \
-    ST_SWITCH_OUT_CB(_thread);            \
-    if (!MD_SETJMP((_thread)->context)) { \
-        _st_vp_schedule();                  \
-    }                                     \
-    ST_DEBUG_ITERATE_THREADS();           \
-    ST_SWITCH_IN_CB(_thread);             \
-    ST_END_MACRO
+void _st_switch_context(_st_thread_t *thread);
 
 /*
- * Restore a thread context that was saved by _ST_SWITCH_CONTEXT or
+ * Restore a thread context that was saved by _st_switch_context or
  * initialized by _ST_INIT_CONTEXT
  */
-#define _ST_RESTORE_CONTEXT(_thread)   \
-    ST_BEGIN_MACRO                     \
-    _ST_SET_CURRENT_THREAD(_thread);   \
-    MD_LONGJMP((_thread)->context, 1); \
-    ST_END_MACRO
-
-/*
- * Initialize the thread context preparing it to execute _main
- */
-#ifdef MD_INIT_CONTEXT
-    #define _ST_INIT_CONTEXT MD_INIT_CONTEXT
-#else
-    #error Unknown OS
-#endif
+void _st_restore_context(_st_thread_t *thread);
 
 /*
  * Number of bytes reserved under the stack "bottom"
  */
-#define _ST_STACK_PAD_SIZE MD_STACK_PAD_SIZE
+#define _ST_STACK_PAD_SIZE 128
 
 
 /*****************************************
@@ -470,6 +381,10 @@ ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout);
 ssize_t st_write(_st_netfd_t *fd, const void *buf, size_t nbyte, st_utime_t timeout);
 int st_poll(struct pollfd *pds, int npds, st_utime_t timeout);
 _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinable, int stk_size);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* !__ST_COMMON_H__ */
 

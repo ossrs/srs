@@ -128,7 +128,7 @@ fi
 
 # Start to generate the Makefile.
 cat << END >> ${SRS_OBJS}/Makefile
-GCC = ${SRS_TOOL_CC}
+CC = ${SRS_TOOL_CC}
 CXX = ${SRS_TOOL_CXX}
 AR = ${SRS_TOOL_AR}
 LINK = ${SRS_TOOL_CXX}
@@ -514,7 +514,7 @@ cat << END > ${SRS_MAKEFILE}
 .PHONY: clean_srs clean_modules clean_openssl clean_srtp2 clean_opus clean_ffmpeg clean_st
 .PHONY: st ffmpeg
 
-GCC = ${SRS_TOOL_CC}
+CC = ${SRS_TOOL_CC}
 CXX = ${SRS_TOOL_CXX}
 AR = ${SRS_TOOL_AR}
 LINK = ${SRS_TOOL_LD}
@@ -606,7 +606,7 @@ clean_st:
 st:
 	@rm -f ${SRS_OBJS}/srs srs_utest
 	@\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs clean
-	@env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs ${_ST_MAKE_ARGS} CC=\$(GCC) AR=\$(AR) LD=\$(LINK) RANDLIB=\$(RANDLIB)
+	@env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs ${_ST_MAKE_ARGS} CC=\$(CC) CXX=\$(CXX) AR=\$(AR) LD=\$(LINK) RANDLIB=\$(RANDLIB)
 	@echo "Please rebuild srs by: make"
 
 ffmpeg:

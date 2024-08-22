@@ -46,6 +46,7 @@ VERSION     = 1.9
 ##########################
 
 CC          = cc
+CXX         = g++
 AR          = ar
 LD          = ld
 RANLIB      = ranlib
@@ -207,7 +208,8 @@ OBJS        = $(TARGETDIR)/sched.o \
               $(TARGETDIR)/sync.o  \
               $(TARGETDIR)/key.o   \
               $(TARGETDIR)/io.o    \
-              $(TARGETDIR)/event.o
+              $(TARGETDIR)/event.o \
+              $(TARGETDIR)/common.o
 OBJS        += $(EXTRA_OBJS)
 HEADER      = $(TARGETDIR)/st.h
 SLIBRARY    = $(TARGETDIR)/libst.a
@@ -270,20 +272,15 @@ $(HEADER): public.h
 	rm -f $@
 	cp public.h $@
 
-$(TARGETDIR)/md_linux.o: md_linux.S
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(TARGETDIR)/md_linux2.o: md_linux2.S
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(TARGETDIR)/md_darwin.o: md_darwin.S
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(TARGETDIR)/md_cygwin64.o: md_cygwin64.S
+$(TARGETDIR)/%.o: %.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGETDIR)/%.o: %.c common.h md.h
 	$(CC) $(CFLAGS) -c $< -o $@
+
+# Note that we use C++98 standard for the C++ files.
+$(TARGETDIR)/%.o: %.cc common.h md.h
+	$(CXX) $(CFLAGS) -c $< -o $@ -std=c++98
 
 clean:
 	rm -rf *_OPT *_DBG obj st.pc
