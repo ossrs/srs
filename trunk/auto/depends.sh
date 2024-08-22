@@ -267,6 +267,10 @@ fi
 if [[ $SRS_DEBUG_STATS == YES ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DDEBUG_STATS"
 fi
+# Whether to enable asan.
+if [[ $SRS_SANITIZER == YES ]]; then
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_ASAN -fsanitize=address -fno-omit-frame-pointer"
+fi
 # Pass the global extra flags.
 if [[ $SRS_EXTRA_FLAGS != '' ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"

@@ -6,10 +6,6 @@ g++ asan-switch.cpp ../../objs/st/libst.a -fsanitize=address -fno-omit-frame-poi
 #include <sys/resource.h>
 #include "../../objs/st/st.h"
 
-extern "C" {
-extern void st_set_primordial_stack(void* top, void* bottom);
-}
-
 void* foo(void *args) {
     for (int i = 0; ; i++) {
         st_sleep(1);
