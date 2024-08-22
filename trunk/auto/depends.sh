@@ -205,7 +205,7 @@ fi
 #####################################################################################
 # Check for address sanitizer, see https://github.com/google/sanitizers
 #####################################################################################
-if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
+if [[ $SRS_SANITIZER == YES ]]; then
     echo 'int main() { return 0; }' > ${SRS_OBJS}/test_sanitizer.c &&
     gcc -fsanitize=address -fno-omit-frame-pointer -g -O0 ${SRS_OBJS}/test_sanitizer.c \
         -o ${SRS_OBJS}/test_sanitizer 1>/dev/null 2>&1;
@@ -217,7 +217,7 @@ if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
     fi
 fi
 
-if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES && $SRS_SANITIZER_STATIC == NO ]]; then
+if [[ $SRS_SANITIZER == YES && $SRS_SANITIZER_STATIC == NO ]]; then
     echo 'int main() { return 0; }' > ${SRS_OBJS}/test_sanitizer.c &&
     gcc -fsanitize=address -fno-omit-frame-pointer -static-libasan -g -O0 ${SRS_OBJS}/test_sanitizer.c \
         -o ${SRS_OBJS}/test_sanitizer 1>/dev/null 2>&1;
@@ -228,7 +228,7 @@ if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES && $SRS_SANITIZER_STATIC == 
     fi
 fi
 
-if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES && $SRS_SANITIZER_LOG == NO ]]; then
+if [[ $SRS_SANITIZER == YES && $SRS_SANITIZER_LOG == NO ]]; then
     echo "#include <sanitizer/asan_interface.h>" > ${SRS_OBJS}/test_sanitizer.c &&
     echo "int main() { return 0; }" >> ${SRS_OBJS}/test_sanitizer.c &&
     gcc -fsanitize=address -fno-omit-frame-pointer -g -O0 ${SRS_OBJS}/test_sanitizer.c \
