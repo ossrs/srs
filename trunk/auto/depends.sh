@@ -240,6 +240,18 @@ if [[ $SRS_SANITIZER == YES && $SRS_SANITIZER_LOG == NO ]]; then
     fi
 fi
 
+if [[ $SRS_SANITIZER == YES ]]; then
+    echo "#include <sanitizer/asan_interface.h>" > ${SRS_OBJS}/test_sanitizer.c &&
+    echo "int main() { __sanitizer_start_switch_fiber(NULL, NULL, 0); }" >> ${SRS_OBJS}/test_sanitizer.c &&
+    gcc -fsanitize=address -fno-omit-frame-pointer -g -O0 ${SRS_OBJS}/test_sanitizer.c \
+        -o ${SRS_OBJS}/test_sanitizer 1>/dev/null 2>&1;
+    ret=$?; rm -rf ${SRS_OBJS}/test_sanitizer*
+    if [[ $ret -eq 0 ]]; then
+        echo "libasan fiber switch api found ok!";
+        SRS_SANITIZER_FIBER_SWITCH=YES
+    fi
+fi
+
 #####################################################################################
 # state-threads
 #####################################################################################
@@ -268,8 +280,11 @@ if [[ $SRS_DEBUG_STATS == YES ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DDEBUG_STATS"
 fi
 # Whether to enable asan.
+if [[ $SRS_SANITIZER_FIBER_SWITCH == YES ]]; then
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_ASAN"
+fi
 if [[ $SRS_SANITIZER == YES ]]; then
-    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_ASAN -fsanitize=address -fno-omit-frame-pointer"
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -fsanitize=address -fno-omit-frame-pointer"
 fi
 # Pass the global extra flags.
 if [[ $SRS_EXTRA_FLAGS != '' ]]; then
