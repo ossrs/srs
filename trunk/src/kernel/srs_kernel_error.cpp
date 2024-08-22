@@ -169,6 +169,22 @@ void asan_report_callback(const char* str)
 }
 #endif
 
+#ifdef SRS_SANITIZER
+// This function return the default options for asan, before main() is called,
+// see https://github.com/google/sanitizers/wiki/AddressSanitizerFlags#run-time-flags
+//
+// Disable halt on errors by halt_on_error, only print messages, note that it still quit for fatal errors,
+// see https://github.com/google/sanitizers/wiki/AddressSanitizerFlags
+//
+// Disable the memory leaking detect for daemon by detect_leaks,
+// see https://github.com/google/sanitizers/wiki/SanitizerCommonFlags
+//
+// Also disable alloc_dealloc_mismatch for gdb.
+extern "C" const char *__asan_default_options() {
+    return "halt_on_error=0:detect_leaks=0:alloc_dealloc_mismatch=0";
+}
+#endif
+
 bool srs_is_system_control_error(srs_error_t err)
 {
     int error_code = srs_error_code(err);
