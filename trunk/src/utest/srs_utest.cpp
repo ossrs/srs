@@ -96,9 +96,6 @@ srs_error_t prepare_main() {
     return err;
 }
 
-// Free global data, for address sanitizer.
-extern void srs_free_global_system_ips();
-
 // We could do something in the main of utest.
 // Copy from gtest-1.6.0/src/gtest_main.cc
 GTEST_API_ int main(int argc, char **argv) {
@@ -116,8 +113,6 @@ GTEST_API_ int main(int argc, char **argv) {
 
     testing::InitGoogleTest(&argc, argv);
     int r0 = RUN_ALL_TESTS();
-
-    srs_free_global_system_ips();
 
     return r0;
 }

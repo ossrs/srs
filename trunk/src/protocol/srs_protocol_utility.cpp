@@ -673,17 +673,6 @@ bool srs_net_device_is_internet(const sockaddr* addr)
 }
 
 vector<SrsIPAddress*> _srs_system_ips;
-void srs_free_global_system_ips()
-{
-    vector<SrsIPAddress*>& ips = _srs_system_ips;
-
-    // Release previous IPs.
-    for (int i = 0; i < (int)ips.size(); i++) {
-        SrsIPAddress* ip = ips[i];
-        srs_freep(ip);
-    }
-    ips.clear();
-}
 
 void discover_network_iface(ifaddrs* cur, vector<SrsIPAddress*>& ips, stringstream& ss0, stringstream& ss1, bool ipv6, bool loopback)
 {
@@ -721,9 +710,6 @@ void discover_network_iface(ifaddrs* cur, vector<SrsIPAddress*>& ips, stringstre
 
 void retrieve_local_ips()
 {
-    // Release previous IPs.
-    srs_free_global_system_ips();
-
     vector<SrsIPAddress*>& ips = _srs_system_ips;
 
     // Get the addresses.

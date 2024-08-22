@@ -81,9 +81,6 @@ const char* _srs_binary = NULL;
 // @global Other variables.
 bool _srs_in_docker = false;
 
-// Free global data, for address sanitizer.
-extern void srs_free_global_system_ips();
-
 #ifdef SRS_SANITIZER_LOG
 extern void asan_report_callback(const char* str);
 #endif
@@ -242,9 +239,7 @@ srs_error_t do_main(int argc, char** argv, char** envp)
     __asan_set_error_report_callback(asan_report_callback);
 #endif
 
-    err = run_directly_or_daemon();
-    srs_free_global_system_ips();
-    if (err != srs_success) {
+    if ((err = run_directly_or_daemon()) != srs_success) {
         return srs_error_wrap(err, "run");
     }
 
@@ -440,7 +435,6 @@ srs_error_t run_directly_or_daemon()
         int status = 0;
         waitpid(pid, &status, 0);
         srs_trace("grandpa process exit.");
-        srs_free_global_system_ips();
         exit(0);
     }
     
@@ -453,7 +447,6 @@ srs_error_t run_directly_or_daemon()
     
     if(pid > 0) {
         srs_trace("father process exit");
-        srs_free_global_system_ips();
         exit(0);
     }
     
