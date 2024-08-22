@@ -314,7 +314,7 @@ extern __thread _st_eventsys_t *_st_eventsys;
  * Forward declarations
  */
 
-void _st_vp_schedule(void);
+void _st_vp_schedule(_st_thread_t *from);
 void _st_vp_check_clock(void);
 void *_st_idle_thread_start(void *arg);
 void _st_thread_main(void);
@@ -374,7 +374,7 @@ static inline void _st_switch_context(_st_thread_t *thread)
     ST_SWITCH_OUT_CB(thread);
 
     if (!_st_md_cxt_save(thread->context)) {
-        _st_vp_schedule();
+        _st_vp_schedule(thread);
     }
 
     ST_DEBUG_ITERATE_THREADS();
@@ -385,7 +385,7 @@ static inline void _st_switch_context(_st_thread_t *thread)
  * Restore a thread context that was saved by _st_switch_context or
  * initialized by _ST_INIT_CONTEXT
  */
-static inline void _st_restore_context(_st_thread_t *thread)
+static inline void _st_restore_context(_st_thread_t *from, _st_thread_t *thread)
 {
     _st_this_thread = thread;
     _st_md_cxt_restore(thread->context, 1);

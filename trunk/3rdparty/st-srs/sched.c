@@ -135,7 +135,7 @@ int st_poll(struct pollfd *pds, int npds, st_utime_t timeout)
 }
 
 
-void _st_vp_schedule(void)
+void _st_vp_schedule(_st_thread_t *from)
 {
     _st_thread_t *thread;
     
@@ -159,7 +159,7 @@ void _st_vp_schedule(void)
     
     /* Resume the thread */
     thread->state = _ST_ST_RUNNING;
-    _st_restore_context(thread);
+    _st_restore_context(from, thread);
 }
 
 
