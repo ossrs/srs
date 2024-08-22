@@ -195,6 +195,12 @@ endif
 # or cache the stack and reuse it:
 # make EXTRA_CFLAGS=-DMD_CACHE_STACK
 #
+# or enable support for valgrind:
+# make EXTRA_CFLAGS="-DMD_VALGRIND"
+#
+# or enable support for asan:
+# make EXTRA_CFLAGS="-DMD_ASAN -fsanitize=address -fno-omit-frame-pointer"
+#
 # or enable the coverage for utest:
 # make UTEST_FLAGS="-fprofile-arcs -ftest-coverage"
 #

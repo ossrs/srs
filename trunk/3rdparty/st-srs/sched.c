@@ -368,6 +368,11 @@ int st_thread_join(_st_thread_t *thread, void **retvalp)
 void _st_thread_main(void)
 {
     _st_thread_t *thread = _st_this_thread;
+
+#ifdef MD_ASAN
+    /* Switch from other thread to this new created thread. */
+    _st_asan_finish_switch(thread);
+#endif
     
     /*
      * Cap the stack by zeroing out the saved return address register
@@ -572,7 +577,7 @@ void _st_vp_check_clock(void)
         /* Make thread runnable */
         ST_ASSERT(!(thread->flags & _ST_FL_IDLE_THREAD));
         thread->state = _ST_ST_RUNNABLE;
-        // Insert at the head of RunQ, to execute timer first.
+        /* Insert at the head of RunQ, to execute timer first. */
         st_clist_insert_after(&thread->links, &_st_this_vp.run_q);
     }
 }
@@ -589,7 +594,7 @@ void st_thread_yield()
     /* Check sleep queue for expired threads */
     _st_vp_check_clock();
 
-    // If not thread in RunQ to yield to, ignore and continue to run.
+    /* If not thread in RunQ to yield to, ignore and continue to run. */
     if (_st_this_vp.run_q.next == &_st_this_vp.run_q) {
         return;
     }
@@ -598,11 +603,11 @@ void st_thread_yield()
     ++_st_stat_thread_yield2;
     #endif
 
-    // Append thread to the tail of RunQ, we will back after all threads executed.
+    /* Append thread to the tail of RunQ, we will back after all threads executed. */
     me->state = _ST_ST_RUNNABLE;
     st_clist_insert_before(&me->links, &_st_this_vp.run_q);
 
-    // Yield to other threads in the RunQ.
+    /* Yield to other threads in the RunQ. */
     _st_switch_context(me);
 }
 
@@ -664,8 +669,9 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     thread->arg = arg;
 
     /* Note that we must directly call rather than call any functions. */
-    if (_st_md_cxt_save(thread->context))
+    if (_st_md_cxt_save(thread->context)) {
         _st_thread_main();
+    }
     MD_GET_SP(thread) = (long)(stack->sp);
 
     /* If thread is joinable, allocate a termination condition variable */

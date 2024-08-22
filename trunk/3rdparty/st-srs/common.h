@@ -162,6 +162,10 @@ struct _st_thread {
     _st_clist_t tlink;          /* For putting on thread queue */
 #endif
 
+#ifdef MD_ASAN
+    void *fake_stack;           /* Fake stack for ASAN */
+#endif
+
     st_utime_t due;             /* Wakeup time when thread is sleeping */
     _st_thread_t *left;         /* For putting in timeout heap */
     _st_thread_t *right;          /* -- see docs/timeout_heap.txt for details */
@@ -365,6 +369,64 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     #define ST_SWITCH_IN_CB(_thread)
 #endif
 
+#ifdef MD_ASAN
+/*
+ * Fiber annotation interface.
+ *
+ * Before switching to a different stack, one must call
+ * __sanitizer_start_switch_fiber with a pointer to the bottom of the
+ * destination stack and its size. When code starts running on the new stack,
+ * it must call __sanitizer_finish_switch_fiber to finalize the switch.
+ * The start_switch function takes a void** to store the current fake stack if
+ * there is one (it is needed when detect_stack_use_after_return is enabled).
+ * When restoring a stack, this pointer must be given to the finish_switch
+ * function. In most cases, this void* can be stored on the stack just before
+ * switching. When leaving a fiber definitely, null must be passed as first
+ * argument to the start_switch function so that the fake stack is destroyed.
+ * If you do not want support for stack use-after-return detection, you can
+ * always pass null to these two functions.
+ * Note that the fake stack mechanism is disabled during fiber switch, so if a
+ * signal callback runs during the switch, it will not benefit from the stack
+ * use-after-return detection.
+ *
+ * See https://github.com/google/sanitizers/issues/189#issuecomment-1346243598
+ */
+extern void __sanitizer_start_switch_fiber(void **fake_stack_save,
+                                    const void *bottom, size_t size);
+
+extern void __sanitizer_finish_switch_fiber(void *fake_stack_save,
+                                     const void **bottom_old,
+                                     size_t *size_old);
+
+/* The stack for primoridal thread. */
+extern void *_st_primordial_stack_bottom;
+extern size_t _st_primordial_stack_size;
+
+static inline void _st_asan_start_switch(_st_thread_t *from, _st_thread_t *thread)
+{
+    /* For primordial thread, the stack is NULL, so asan can not capture it. */
+    const void *stk_bottom = thread->stack ? thread->stack->stk_bottom : NULL;
+    size_t stk_size = thread->stack ? thread->stack->stk_size : 0;
+
+    /* For primordial thread, user should setup the stack information. */
+    if (!stk_bottom && (thread->flags & _ST_FL_PRIMORDIAL)) {
+        stk_bottom = _st_primordial_stack_bottom;
+        stk_size = _st_primordial_stack_size;
+    }
+
+    /*
+     * Save the current stack to fake_stack of from, tell asan the target stack
+     * we are targeting to switch to.
+     */
+    __sanitizer_start_switch_fiber(&from->fake_stack, stk_bottom, stk_size);
+}
+
+static inline void _st_asan_finish_switch(_st_thread_t *thread)
+{
+    __sanitizer_finish_switch_fiber(thread->fake_stack, NULL, NULL);
+}
+#endif
+
 /*
  * Switch away from the current thread context by saving its state and
  * calling the thread scheduler
@@ -377,6 +439,11 @@ static inline void _st_switch_context(_st_thread_t *thread)
         _st_vp_schedule(thread);
     }
 
+#ifdef MD_ASAN
+    /* Switch from other thread to this running thread. */
+    _st_asan_finish_switch(thread);
+#endif
+
     ST_DEBUG_ITERATE_THREADS();
     ST_SWITCH_IN_CB(thread);
 }
@@ -387,6 +454,9 @@ static inline void _st_switch_context(_st_thread_t *thread)
  */
 static inline void _st_restore_context(_st_thread_t *from, _st_thread_t *thread)
 {
+#ifdef MD_ASAN
+    _st_asan_start_switch(from, thread);
+#endif
     _st_this_thread = thread;
     _st_md_cxt_restore(thread->context, 1);
 }
