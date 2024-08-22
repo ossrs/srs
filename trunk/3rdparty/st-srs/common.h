@@ -311,6 +311,32 @@ extern __thread _st_eventsys_t *_st_eventsys;
 
 
 /*****************************************
+ * Forward declarations
+ */
+
+void _st_vp_schedule(void);
+void _st_vp_check_clock(void);
+void *_st_idle_thread_start(void *arg);
+void _st_thread_main(void);
+void _st_thread_cleanup(_st_thread_t *thread);
+void _st_add_sleep_q(_st_thread_t *thread, st_utime_t timeout);
+void _st_del_sleep_q(_st_thread_t *thread);
+_st_stack_t *_st_stack_new(int stack_size);
+void _st_stack_free(_st_stack_t *ts);
+int _st_io_init(void);
+
+st_utime_t st_utime(void);
+_st_cond_t *st_cond_new(void);
+int st_cond_destroy(_st_cond_t *cvar);
+int st_cond_timedwait(_st_cond_t *cvar, st_utime_t timeout);
+int st_cond_signal(_st_cond_t *cvar);
+ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout);
+ssize_t st_write(_st_netfd_t *fd, const void *buf, size_t nbyte, st_utime_t timeout);
+int st_poll(struct pollfd *pds, int npds, st_utime_t timeout);
+_st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinable, int stk_size);
+
+
+/*****************************************
  * Threads context switching
  */
 
@@ -343,44 +369,32 @@ extern __thread _st_eventsys_t *_st_eventsys;
  * Switch away from the current thread context by saving its state and
  * calling the thread scheduler
  */
-void _st_switch_context(_st_thread_t *thread);
+static inline void _st_switch_context(_st_thread_t *thread)
+{
+    ST_SWITCH_OUT_CB(thread);
+
+    if (!_st_md_cxt_save(thread->context)) {
+        _st_vp_schedule();
+    }
+
+    ST_DEBUG_ITERATE_THREADS();
+    ST_SWITCH_IN_CB(thread);
+}
 
 /*
  * Restore a thread context that was saved by _st_switch_context or
  * initialized by _ST_INIT_CONTEXT
  */
-void _st_restore_context(_st_thread_t *thread);
+static inline void _st_restore_context(_st_thread_t *thread)
+{
+    _st_this_thread = thread;
+    _st_md_cxt_restore(thread->context, 1);
+}
 
 /*
  * Number of bytes reserved under the stack "bottom"
  */
 #define _ST_STACK_PAD_SIZE 128
-
-
-/*****************************************
- * Forward declarations
- */
-
-void _st_vp_schedule(void);
-void _st_vp_check_clock(void);
-void *_st_idle_thread_start(void *arg);
-void _st_thread_main(void);
-void _st_thread_cleanup(_st_thread_t *thread);
-void _st_add_sleep_q(_st_thread_t *thread, st_utime_t timeout);
-void _st_del_sleep_q(_st_thread_t *thread);
-_st_stack_t *_st_stack_new(int stack_size);
-void _st_stack_free(_st_stack_t *ts);
-int _st_io_init(void);
-
-st_utime_t st_utime(void);
-_st_cond_t *st_cond_new(void);
-int st_cond_destroy(_st_cond_t *cvar);
-int st_cond_timedwait(_st_cond_t *cvar, st_utime_t timeout);
-int st_cond_signal(_st_cond_t *cvar);
-ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout);
-ssize_t st_write(_st_netfd_t *fd, const void *buf, size_t nbyte, st_utime_t timeout);
-int st_poll(struct pollfd *pds, int npds, st_utime_t timeout);
-_st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinable, int stk_size);
 
 #ifdef __cplusplus
 } /* extern "C" */
