@@ -527,36 +527,56 @@ function SrsRtcWhipWhepAsync() {
     // @url The WebRTC url to publish with, for example:
     //      http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream
     // @options The options to control playing, supports:
-    //      videoOnly: boolean, whether only play video, default to false.
-    //      audioOnly: boolean, whether only play audio, default to false.
+    //      camera: boolean, whether capture video from camera, default to true.
+    //      screen: boolean, whether capture video from screen, default to false.
+    //      audio: boolean, whether play audio, default to true.
     self.publish = async function (url, options) {
         if (url.indexOf('/whip/') === -1) throw new Error(`invalid WHIP url ${url}`);
-        if (options?.videoOnly && options?.audioOnly) throw new Error(`The videoOnly and audioOnly in options can't be true at the same time`);
+        const hasAudio = options?.audio ?? true;
+        const useCamera = options?.camera ?? true;
+        const useScreen = options?.screen ?? false;
 
-        if (!options?.videoOnly) {
+        if (!hasAudio && !useCamera && !useScreen) throw new Error(`The camera, screen and audio can't be false at the same time`);
+
+        if (hasAudio) {
             self.pc.addTransceiver("audio", {direction: "sendonly"});
         } else {
             self.constraints.audio = false;
         }
 
-        if (!options?.audioOnly) {
+        if (useCamera || useScreen) {
             self.pc.addTransceiver("video", {direction: "sendonly"});
-        } else {
+        }
+
+        if (!useCamera) {
             self.constraints.video = false;
         }
 
         if (!navigator.mediaDevices && window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
             throw new SrsError('HttpsRequiredError', `Please use HTTPS or localhost to publish, read https://github.com/ossrs/srs/issues/2762#issuecomment-983147576`);
         }
-        var stream = await navigator.mediaDevices.getUserMedia(self.constraints);
 
-        // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
-        stream.getTracks().forEach(function (track) {
-            self.pc.addTrack(track);
+        if (useScreen) {
+            const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true
+            });
+            // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
+            displayStream.getTracks().forEach(function (track) {
+                self.pc.addTrack(track);
+				// Notify about local track when stream is ok.
+                self.ontrack && self.ontrack({track: track});
+            });
+        }
 
-            // Notify about local track when stream is ok.
-            self.ontrack && self.ontrack({track: track});
-        });
+       if (useCamera || hasAudio) {
+            const userStream = await navigator.mediaDevices.getUserMedia(self.constraints);
+
+            userStream.getTracks().forEach(function (track) {
+                self.pc.addTrack(track);
+                // Notify about local track when stream is ok.
+                self.ontrack && self.ontrack({track: track});
+            });
+       }
 
         var offer = await self.pc.createOffer();
         await self.pc.setLocalDescription(offer);
