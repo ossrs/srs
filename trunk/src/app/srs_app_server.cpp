@@ -784,6 +784,13 @@ srs_error_t SrsServer::http_handle()
     }
 #endif
 
+#ifdef SRS_SIGNAL_API
+    // Simulate the signal by HTTP API, for debug signal issues in CLion.
+    if ((err = http_api_mux->handle("/api/v1/signal", new SrsGoApiSignal())) != srs_success) {
+        return srs_error_wrap(err, "handle signal errors");
+    }
+#endif
+
     // metrics by prometheus
     if ((err = http_api_mux->handle("/metrics", new SrsGoApiMetrics())) != srs_success) {
         return srs_error_wrap(err, "handle tests errors");

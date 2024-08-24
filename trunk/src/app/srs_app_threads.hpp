@@ -53,7 +53,6 @@ extern SrsCircuitBreaker* _srs_circuit_breaker;
 
 // Initialize global shared variables cross all threads.
 extern srs_error_t srs_global_initialize();
-extern void srs_global_dispose();
 
 // The thread mutex wrapper, without error.
 class SrsThreadMutex

@@ -201,6 +201,11 @@ if [[ $SRS_SINGLE_THREAD == YES ]]; then
 else
     srs_undefine_macro "SRS_SINGLE_THREAD" $SRS_AUTO_HEADERS_H
 fi
+if [[ $SRS_SIGNAL_API == YES ]]; then
+    srs_define_macro "SRS_SIGNAL_API" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_SIGNAL_API" $SRS_AUTO_HEADERS_H
+fi
 if [[ $SRS_LOG_LEVEL_V2 == YES ]]; then
     srs_define_macro "SRS_LOG_LEVEL_V2" $SRS_AUTO_HEADERS_H
 else
