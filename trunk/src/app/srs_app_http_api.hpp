@@ -233,6 +233,17 @@ public:
 };
 #endif
 
+#ifdef SRS_SIGNAL_API
+class SrsGoApiSignal : public ISrsHttpHandler
+{
+public:
+    SrsGoApiSignal();
+    virtual ~SrsGoApiSignal();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+#endif
+
 class SrsGoApiMetrics : public ISrsHttpHandler
 {
 private:

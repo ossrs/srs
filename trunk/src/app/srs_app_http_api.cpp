@@ -272,7 +272,12 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
     urls->set("perf", SrsJsonAny::str("System performance stat"));
     urls->set("tcmalloc", SrsJsonAny::str("tcmalloc api with params ?page=summary|api"));
+#ifdef SRS_VALGRIND
     urls->set("valgrind", SrsJsonAny::str("valgrind api with params ?check=full|added|changed|new|quick"));
+#endif
+#ifdef SRS_SIGNAL_API
+    urls->set("signal", SrsJsonAny::str("simulate signal api with params ?signo=SIGHUP|SIGUSR1|SIGUSR2|SIGTERM|SIGQUIT|SIGABRT|SIGINT"));
+#endif
 
     SrsJsonObject* tests = SrsJsonAny::object();
     obj->set("tests", tests);
@@ -1097,7 +1102,6 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 #endif
 
 #ifdef SRS_VALGRIND
-
 SrsGoApiValgrind::SrsGoApiValgrind()
 {
     trd_ = NULL;
@@ -1188,6 +1192,54 @@ srs_error_t SrsGoApiValgrind::cycle()
     }
 
     return err;
+}
+#endif
+
+#ifdef SRS_SIGNAL_API
+SrsGoApiSignal::SrsGoApiSignal()
+{
+}
+
+SrsGoApiSignal::~SrsGoApiSignal()
+{
+}
+
+srs_error_t SrsGoApiSignal::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+
+    std::string signal = r->query_get("signo");
+    srs_trace("query signo=%s", signal.c_str());
+
+    int signo = SIGINT;
+    if (signal == "SIGHUP") {
+        signo = SRS_SIGNAL_RELOAD;
+    } else if (signal == "SIGUSR1") {
+        signo = SRS_SIGNAL_REOPEN_LOG;
+    } else if (signal == "SIGUSR2") {
+        signo = SRS_SIGNAL_UPGRADE;
+    } else if (signal == "SIGTERM") {
+        signo = SRS_SIGNAL_FAST_QUIT;
+    } else if (signal == "SIGQUIT") {
+        signo = SRS_SIGNAL_GRACEFULLY_QUIT;
+    } else if (signal == "SIGABRT") {
+        signo = SRS_SIGNAL_ASSERT_ABORT;
+    }
+
+    _srs_hybrid->srs()->instance()->on_signal(signo);
+
+    // By default, response the json style response.
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+
+    SrsJsonObject* res = SrsJsonAny::object();
+    res->set("signal", SrsJsonAny::str(signal.c_str()));
+    res->set("help", SrsJsonAny::str("?signo=SIGHUP|SIGUSR1|SIGUSR2|SIGTERM|SIGQUIT|SIGABRT|SIGINT"));
+    res->set("signo", SrsJsonAny::integer(signo));
+    obj->set("data", res);
+
+    return srs_api_response(w, r, obj->dumps());
 }
 #endif
 

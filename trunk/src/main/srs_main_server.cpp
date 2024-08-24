@@ -463,17 +463,17 @@ srs_error_t run_directly_or_daemon()
 srs_error_t run_hybrid_server(void* arg);
 srs_error_t run_in_thread_pool()
 {
-#ifdef SRS_SINGLE_THREAD
-    srs_trace("Run in single thread mode");
-    return run_hybrid_server(NULL);
-#else
     srs_error_t err = srs_success;
 
-    // Initialize the thread pool.
+    // Initialize the thread pool, even if we run in single thread mode.
     if ((err = _srs_thread_pool->initialize()) != srs_success) {
         return srs_error_wrap(err, "init thread pool");
     }
 
+#ifdef SRS_SINGLE_THREAD
+    srs_trace("Run in single thread mode");
+    return run_hybrid_server(NULL);
+#else
     // Start the hybrid service worker thread, for RTMP and RTC server, etc.
     if ((err = _srs_thread_pool->execute("hybrid", run_hybrid_server, (void*)NULL)) != srs_success) {
         return srs_error_wrap(err, "start hybrid server thread");
@@ -524,10 +524,6 @@ srs_error_t run_hybrid_server(void* /*arg*/)
 
     // After all done, stop and cleanup.
     _srs_hybrid->stop();
-
-    // Dispose all global objects, note that we should do this in the hybrid thread, because it may
-    // depend on the ST when disposing.
-    srs_global_dispose();
 
     return err;
 }
