@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2024-08-24, Merge [#4156](https://github.com/ossrs/srs/pull/4156): Build: Fix srs_mp4_parser compiling error. v7.0.9 (#4156)
 * v7.0, 2024-08-22, Merge [#4154](https://github.com/ossrs/srs/pull/4154): ASAN: Disable memory leak detection by default. v7.0.8 (#4154)
 * v7.0, 2024-08-21, Merge [#4149](https://github.com/ossrs/srs/pull/4149): ST: Replace macros with explicit code for better understanding. v7.0.7 (#4149)
 * v7.0, 2024-08-21, Merge [#4150](https://github.com/ossrs/srs/pull/4150): API: Support new HTTP API for VALGRIND. v7.0.6 (#4150)
@@ -20,6 +21,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-08-24, Merge [#4156](https://github.com/ossrs/srs/pull/4156): Build: Fix srs_mp4_parser compiling error. v6.0.150 (#4156)
 * v6.0, 2024-08-21, Merge [#4150](https://github.com/ossrs/srs/pull/4150): API: Support new HTTP API for VALGRIND. v6.0.149 (#4150)
 * v6.0, 2024-08-15, Merge [#4144](https://github.com/ossrs/srs/pull/4144): HTTP-FLV: Crash when multiple viewers. v6.0.148 (#4144)
 * v6.0, 2024-08-15, Merge [#4142](https://github.com/ossrs/srs/pull/4142): Config: Add more utest for env config. v6.0.147 (#4142)

@@ -14,6 +14,7 @@
 #include <srs_core_autofree.hpp>
 #include <srs_app_config.hpp>
 #include <srs_protocol_kbps.hpp>
+#include <srs_core_deprecated.hpp>
 
 #include <stdio.h>
 #include <stdlib.h>
