@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-08-24, Merge [#4157](https://github.com/ossrs/srs/pull/4157): Fix crash when quiting. v6.0.151 (#4157)
 * v6.0, 2024-08-24, Merge [#4156](https://github.com/ossrs/srs/pull/4156): Build: Fix srs_mp4_parser compiling error. v6.0.150 (#4156)
 * v6.0, 2024-08-21, Merge [#4150](https://github.com/ossrs/srs/pull/4150): API: Support new HTTP API for VALGRIND. v6.0.149 (#4150)
 * v6.0, 2024-08-15, Merge [#4144](https://github.com/ossrs/srs/pull/4144): HTTP-FLV: Crash when multiple viewers. v6.0.148 (#4144)
