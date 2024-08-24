@@ -534,8 +534,6 @@ private:
     srs_utime_t stream_die_at_;
     // The last idle time, while idle means no players.
     srs_utime_t publisher_idle_at_;
-    // Whether source has been disposed.
-    bool disposed_;
 public:
     SrsLiveSource();
     virtual ~SrsLiveSource();

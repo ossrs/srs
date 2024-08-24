@@ -1889,7 +1889,6 @@ SrsLiveSource::SrsLiveSource()
     can_publish_ = true;
     stream_die_at_ = 0;
     publisher_idle_at_ = 0;
-    disposed_ = false;
 
     handler = NULL;
     bridge_ = NULL;
@@ -1911,9 +1910,6 @@ SrsLiveSource::SrsLiveSource()
 SrsLiveSource::~SrsLiveSource()
 {
     _srs_config->unsubscribe(this);
-
-    // Also disposed when free it.
-    disposed_ = true;
     
     // never free the consumers,
     // for all consumers are auto free.
@@ -1938,11 +1934,6 @@ SrsLiveSource::~SrsLiveSource()
 
 void SrsLiveSource::dispose()
 {
-    if (disposed_) {
-        return;
-    }
-    disposed_ = true;
-
     hub->dispose();
     meta->dispose();
     gop_cache->dispose();
@@ -2622,11 +2613,6 @@ srs_error_t SrsLiveSource::on_publish()
 
 void SrsLiveSource::on_unpublish()
 {
-    // If source is disposed, the system status is stopping, ignore the unpublish event.
-    if (disposed_) {
-        return;
-    }
-
     // ignore when already unpublished.
     if (can_publish_) {
         return;
