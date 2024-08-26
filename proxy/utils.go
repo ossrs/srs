@@ -6,9 +6,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
+	"reflect"
+	"srs-proxy/errors"
 	"srs-proxy/logger"
+	"time"
 )
 
 // setEnvDefault set env key=value if not set.
@@ -39,13 +43,28 @@ func envGraceQuitTimeout() string {
 }
 
 func apiResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, data any) {
+	w.Header().Set("Server", fmt.Sprintf("%v/%v", Signature(), Version()))
+
 	b, err := json.Marshal(data)
 	if err != nil {
-		logger.Wf(ctx, "marshal %v err %v", data, err)
+		msg := fmt.Sprintf("marshal %v %v err %v", reflect.TypeOf(data), data, err)
+		logger.Wf(ctx, msg)
+
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, msg)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
+}
+
+func parseGracefullyQuitTimeout() (time.Duration, error) {
+	if t, err := time.ParseDuration(envGraceQuitTimeout()); err != nil {
+		return 0, errors.Wrapf(err, "parse duration %v", envGraceQuitTimeout())
+	} else {
+		return t, nil
+	}
 }

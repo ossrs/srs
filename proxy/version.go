@@ -9,8 +9,9 @@ func VersionMajor() int {
 	return 1
 }
 
+// VersionMinor specifies the typical version of SRS we adapt to.
 func VersionMinor() int {
-	return 0
+	return 5
 }
 
 func VersionRevision() int {
@@ -22,5 +23,5 @@ func Version() string {
 }
 
 func Signature() string {
-	return "GoProxy"
+	return "SRSProxy"
 }

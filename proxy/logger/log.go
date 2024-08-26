@@ -19,8 +19,12 @@ type loggerPlus struct {
 	level  string
 }
 
-func newLoggerPlus(l *stdLog.Logger, level string) *loggerPlus {
-	return &loggerPlus{logger: l, level: level}
+func newLoggerPlus(opts ...func(*loggerPlus)) *loggerPlus {
+	v := &loggerPlus{}
+	for _, opt := range opts {
+		opt(v)
+	}
+	return v
 }
 
 func (v *loggerPlus) Printf(ctx context.Context, f string, a ...interface{}) {
@@ -64,8 +68,20 @@ const (
 )
 
 func init() {
-	verboseLogger = newLoggerPlus(stdLog.New(ioutil.Discard, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds), logVerboseLabel)
-	debugLogger = newLoggerPlus(stdLog.New(os.Stdout, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds), logDebugLabel)
-	warnLogger = newLoggerPlus(stdLog.New(os.Stderr, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds), logWarnLabel)
-	errorLogger = newLoggerPlus(stdLog.New(os.Stderr, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds), logErrorLabel)
+	verboseLogger = newLoggerPlus(func(logger *loggerPlus) {
+		logger.logger = stdLog.New(ioutil.Discard, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
+		logger.level = logVerboseLabel
+	})
+	debugLogger = newLoggerPlus(func(logger *loggerPlus) {
+		logger.logger = stdLog.New(os.Stdout, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
+		logger.level = logDebugLabel
+	})
+	warnLogger = newLoggerPlus(func(logger *loggerPlus) {
+		logger.logger = stdLog.New(os.Stderr, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
+		logger.level = logWarnLabel
+	})
+	errorLogger = newLoggerPlus(func(logger *loggerPlus) {
+		logger.logger = stdLog.New(os.Stderr, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
+		logger.level = logErrorLabel
+	})
 }

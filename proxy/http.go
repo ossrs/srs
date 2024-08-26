@@ -11,16 +11,21 @@ import (
 	"srs-proxy/logger"
 	"strings"
 	"time"
-
-	"srs-proxy/errors"
 )
 
 type httpServer struct {
+	// The underlayer HTTP server.
 	server *http.Server
+	// The gracefully quit timeout, wait server to quit.
+	gracefulQuitTimeout time.Duration
 }
 
-func NewHttpServer() *httpServer {
-	return &httpServer{}
+func NewHttpServer(opts ...func(*httpServer)) *httpServer {
+	v := &httpServer{}
+	for _, opt := range opts {
+		opt(v)
+	}
+	return v
 }
 
 func (v *httpServer) Close() error {
@@ -28,14 +33,6 @@ func (v *httpServer) Close() error {
 }
 
 func (v *httpServer) ListenAndServe(ctx context.Context) error {
-	// Parse the gracefully quit timeout.
-	var gracefulQuitTimeout time.Duration
-	if t, err := time.ParseDuration(envGraceQuitTimeout()); err != nil {
-		return errors.Wrapf(err, "parse duration %v", envGraceQuitTimeout())
-	} else {
-		gracefulQuitTimeout = t
-	}
-
 	// Parse address to listen.
 	addr := envHttpServer()
 	if !strings.Contains(addr, ":") {
@@ -51,7 +48,7 @@ func (v *httpServer) ListenAndServe(ctx context.Context) error {
 		ctxParent := ctx
 		<-ctxParent.Done()
 
-		ctx, cancel := context.WithTimeout(context.Background(), gracefulQuitTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 		defer cancel()
 
 		v.server.Shutdown(ctx)
@@ -60,7 +57,7 @@ func (v *httpServer) ListenAndServe(ctx context.Context) error {
 	// The basic version handler, also can be used as health check API.
 	logger.Df(ctx, "Handle /api/v1/versions by %v", addr)
 	mux.HandleFunc("/api/v1/versions", func(w http.ResponseWriter, r *http.Request) {
-		res := struct {
+		type Response struct {
 			Code int    `json:"code"`
 			PID  string `json:"pid"`
 			Data struct {
@@ -69,10 +66,9 @@ func (v *httpServer) ListenAndServe(ctx context.Context) error {
 				Revision int    `json:"revision"`
 				Version  string `json:"version"`
 			} `json:"data"`
-		}{}
+		}
 
-		res.Code = 0
-		res.PID = fmt.Sprintf("%v", os.Getpid())
+		res := Response{Code: 0, PID: fmt.Sprintf("%v", os.Getpid())}
 		res.Data.Major = VersionMajor()
 		res.Data.Minor = VersionMinor()
 		res.Data.Revision = VersionRevision()
