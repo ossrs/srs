@@ -15,4 +15,4 @@ clean:
 	rm -f srs-proxy
 
 run: fmt
-	go run main.go
+	go run .
