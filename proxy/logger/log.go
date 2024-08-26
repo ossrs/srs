@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Winlin
 //
 // SPDX-License-Identifier: MIT
-package log
+package logger
 
 import (
 	"context"
@@ -38,10 +38,10 @@ func Vf(ctx context.Context, format string, a ...interface{}) {
 	verboseLogger.Printf(ctx, format, a...)
 }
 
-var infoLogger logger
+var debugLogger logger
 
-func If(ctx context.Context, format string, a ...interface{}) {
-	infoLogger.Printf(ctx, format, a...)
+func Df(ctx context.Context, format string, a ...interface{}) {
+	debugLogger.Printf(ctx, format, a...)
 }
 
 var warnLogger logger
@@ -58,14 +58,14 @@ func Ef(ctx context.Context, format string, a ...interface{}) {
 
 const (
 	logVerboseLabel = "verb"
-	logInfoLabel    = "info"
+	logDebugLabel   = "debug"
 	logWarnLabel    = "warn"
 	logErrorLabel   = "error"
 )
 
 func init() {
 	verboseLogger = newLoggerPlus(stdLog.New(ioutil.Discard, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds), logVerboseLabel)
-	infoLogger = newLoggerPlus(stdLog.New(os.Stdout, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds), logInfoLabel)
+	debugLogger = newLoggerPlus(stdLog.New(os.Stdout, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds), logDebugLabel)
 	warnLogger = newLoggerPlus(stdLog.New(os.Stderr, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds), logWarnLabel)
 	errorLogger = newLoggerPlus(stdLog.New(os.Stderr, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds), logErrorLabel)
 }
