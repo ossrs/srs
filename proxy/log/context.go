@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Winlin
+//
+// SPDX-License-Identifier: MIT
 package log
 
 import (
@@ -11,8 +14,8 @@ type key string
 
 var cidKey key = "cid.proxy.ossrs.org"
 
+// generateContextID generates a random context id in string.
 func generateContextID() string {
-	// Generate a random context id in string.
 	randomBytes := make([]byte, 32)
 	_, _ = rand.Read(randomBytes)
 	hash := sha256.Sum256(randomBytes)

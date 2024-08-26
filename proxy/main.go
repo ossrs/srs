@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Winlin
+//
+// SPDX-License-Identifier: MIT
 package main
 
 import (
@@ -7,5 +10,5 @@ import (
 
 func main() {
 	ctx := log.WithContext(context.Background())
-	log.If(ctx, "SRS Proxy server started")
+	log.If(ctx, "SRS %v/%v started", Signature(), Version())
 }
