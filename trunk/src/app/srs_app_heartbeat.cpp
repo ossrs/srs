@@ -18,6 +18,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_kernel_utility.hpp>
 
 SrsHttpHeartbeat::SrsHttpHeartbeat()
 {
@@ -66,6 +67,55 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
         obj->set("summaries", summaries);
         
         srs_api_dump_summaries(summaries);
+    }
+
+    if (_srs_config->get_heartbeat_ports()) {
+        // For RTMP listen endpoints.
+        if (true) {
+            SrsJsonArray* o = SrsJsonAny::array();
+            obj->set("rtmp", o);
+
+            vector<string> endpoints = _srs_config->get_listens();
+            for (int i = 0; i < (int) endpoints.size(); i++) {
+                o->append(SrsJsonAny::str(endpoints.at(i).c_str()));
+            }
+        }
+
+        // For HTTP Stream listen endpoints.
+        if (_srs_config->get_http_stream_enabled()) {
+            SrsJsonArray* o = SrsJsonAny::array();
+            obj->set("http", o);
+
+            string endpoint = _srs_config->get_http_stream_listen();
+            o->append(SrsJsonAny::str(endpoint.c_str()));
+        }
+
+        // For HTTP API listen endpoints.
+        if (_srs_config->get_http_api_enabled()) {
+            SrsJsonArray* o = SrsJsonAny::array();
+            obj->set("api", o);
+
+            string endpoint = _srs_config->get_http_api_listen();
+            o->append(SrsJsonAny::str(endpoint.c_str()));
+        }
+
+        // For SRT listen endpoints.
+        if (_srs_config->get_srt_enabled()) {
+            SrsJsonArray* o = SrsJsonAny::array();
+            obj->set("srt", o);
+
+            uint16_t endpoint = _srs_config->get_srt_listen_port();
+            o->append(SrsJsonAny::str(srs_int2str(endpoint).c_str()));
+        }
+
+        // For WebRTC listen endpoints.
+        if (_srs_config->get_rtc_server_enabled()) {
+            SrsJsonArray* o = SrsJsonAny::array();
+            obj->set("rtc", o);
+
+            int endpoint = _srs_config->get_rtc_server_listen();
+            o->append(SrsJsonAny::str(srs_int2str(endpoint).c_str()));
+        }
     }
     
     SrsHttpClient http;
