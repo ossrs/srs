@@ -144,5 +144,94 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 	}
 	logger.Df(ctx, "RTMP connect app %v", connectReq.TcUrl())
 
+	// Expect RTMP command to identify the client, a publisher or viewer.
+	var currentStreamID int
+	var streamName string
+	var clientType RTMPClientType
+	for clientType == "" {
+		var identifyReq rtmp.Packet
+		if _, err := rtmp.ExpectPacket(ctx, client, &identifyReq); err != nil {
+			return errors.Wrapf(err, "expect identify req")
+		}
+
+		var response rtmp.Packet
+		switch pkt := identifyReq.(type) {
+		case *rtmp.CallPacket:
+			if pkt.CommandName == "createStream" {
+				identifyRes := rtmp.NewCreateStreamResPacket(pkt.TransactionID)
+				response = identifyRes
+
+				identifyRes.StreamID = 1
+				currentStreamID = int(identifyRes.StreamID)
+			} else {
+				// For releaseStream, FCPublish, etc.
+				identifyRes := rtmp.NewCallPacket()
+				response = identifyRes
+
+				identifyRes.TransactionID = pkt.TransactionID
+				identifyRes.CommandName = "_result"
+				identifyRes.CommandObject = rtmp.NewAmf0Null()
+				identifyRes.Args = rtmp.NewAmf0Null()
+			}
+		case *rtmp.PublishPacket:
+			identifyRes := rtmp.NewCallPacket()
+			response = identifyRes
+
+			streamName = string(pkt.StreamName)
+			clientType = RTMPClientTypePublisher
+
+			identifyRes.CommandName = "onFCPublish"
+			identifyRes.CommandObject = rtmp.NewAmf0Null()
+
+			data := rtmp.NewAmf0Object()
+			data.Set("code", rtmp.NewAmf0String("NetStream.Publish.Start"))
+			data.Set("description", rtmp.NewAmf0String("Started publishing stream."))
+			identifyRes.Args = data
+		}
+
+		if response != nil {
+			if err := client.WritePacket(ctx, response, currentStreamID); err != nil {
+				return errors.Wrapf(err, "write identify res for req=%v, stream=%v",
+					identifyReq, currentStreamID)
+			}
+		}
+	}
+
+	if clientType == RTMPClientTypePublisher {
+		identifyRes := rtmp.NewCallPacket()
+
+		identifyRes.CommandName = "onStatus"
+		identifyRes.CommandObject = rtmp.NewAmf0Null()
+
+		data := rtmp.NewAmf0Object()
+		data.Set("level", rtmp.NewAmf0String("status"))
+		data.Set("code", rtmp.NewAmf0String("NetStream.Publish.Start"))
+		data.Set("description", rtmp.NewAmf0String("Started publishing stream."))
+		data.Set("clientid", rtmp.NewAmf0String("ASAICiss"))
+		identifyRes.Args = data
+
+		if err := client.WritePacket(ctx, identifyRes, currentStreamID); err != nil {
+			return errors.Wrapf(err, "start publish")
+		}
+	}
+	logger.Df(ctx, "RTMP identify stream=%v, id=%v, type=%v",
+		streamName, currentStreamID, clientType)
+
+	for {
+		m, err := client.ReadMessage(ctx)
+		if err != nil {
+			return errors.Wrapf(err, "read message")
+		}
+
+		_ = m
+		logger.Df(ctx, "Got message %v, %v bytes", m.MessageType, len(m.Payload))
+	}
+
 	return nil
 }
+
+type RTMPClientType string
+
+const (
+	RTMPClientTypePublisher RTMPClientType = "publisher"
+)
