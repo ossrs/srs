@@ -14,7 +14,7 @@ import (
 	"math/rand"
 	"sync"
 
-	oe "srs-proxy/errors"
+	"srs-proxy/errors"
 )
 
 // The handshake implements the RTMP handshake protocol.
@@ -36,7 +36,7 @@ func (v *Handshake) C1S1() []byte {
 func (v *Handshake) WriteC0S0(w io.Writer) (err error) {
 	r := bytes.NewReader([]byte{0x03})
 	if _, err = io.Copy(w, r); err != nil {
-		return oe.Wrap(err, "write c0s0")
+		return errors.Wrap(err, "write c0s0")
 	}
 
 	return
@@ -45,7 +45,7 @@ func (v *Handshake) WriteC0S0(w io.Writer) (err error) {
 func (v *Handshake) ReadC0S0(r io.Reader) (c0 []byte, err error) {
 	b := &bytes.Buffer{}
 	if _, err = io.CopyN(b, r, 1); err != nil {
-		return nil, oe.Wrap(err, "read c0s0")
+		return nil, errors.Wrap(err, "read c0s0")
 	}
 
 	c0 = b.Bytes()
@@ -62,7 +62,7 @@ func (v *Handshake) WriteC1S1(w io.Writer) (err error) {
 
 	r := bytes.NewReader(p)
 	if _, err = io.Copy(w, r); err != nil {
-		return oe.Wrap(err, "write c0s1")
+		return errors.Wrap(err, "write c0s1")
 	}
 
 	return
@@ -71,7 +71,7 @@ func (v *Handshake) WriteC1S1(w io.Writer) (err error) {
 func (v *Handshake) ReadC1S1(r io.Reader) (c1s1 []byte, err error) {
 	b := &bytes.Buffer{}
 	if _, err = io.CopyN(b, r, 1536); err != nil {
-		return nil, oe.Wrap(err, "read c1s1")
+		return nil, errors.Wrap(err, "read c1s1")
 	}
 
 	c1s1 = b.Bytes()
@@ -83,7 +83,7 @@ func (v *Handshake) ReadC1S1(r io.Reader) (c1s1 []byte, err error) {
 func (v *Handshake) WriteC2S2(w io.Writer, s1c1 []byte) (err error) {
 	r := bytes.NewReader(s1c1[:])
 	if _, err = io.Copy(w, r); err != nil {
-		return oe.Wrap(err, "write c2s2")
+		return errors.Wrap(err, "write c2s2")
 	}
 
 	return
@@ -92,7 +92,7 @@ func (v *Handshake) WriteC2S2(w io.Writer, s1c1 []byte) (err error) {
 func (v *Handshake) ReadC2S2(r io.Reader) (c2 []byte, err error) {
 	b := &bytes.Buffer{}
 	if _, err = io.CopyN(b, r, 1536); err != nil {
-		return nil, oe.Wrap(err, "read c2s2")
+		return nil, errors.Wrap(err, "read c2s2")
 	}
 
 	c2 = b.Bytes()
@@ -173,12 +173,12 @@ func NewProtocol(rw io.ReadWriter) *Protocol {
 func ExpectPacket[T Packet](ctx context.Context, v *Protocol, ppkt *T) (m *Message, err error) {
 	for {
 		if m, err = v.ReadMessage(ctx); err != nil {
-			return nil, oe.WithMessage(err, "read message")
+			return nil, errors.WithMessage(err, "read message")
 		}
 
 		var pkt Packet
 		if pkt, err = v.DecodeMessage(m); err != nil {
-			return nil, oe.WithMessage(err, "decode message")
+			return nil, errors.WithMessage(err, "decode message")
 		}
 
 		if p, ok := pkt.(T); ok {
@@ -198,7 +198,7 @@ func (v *Protocol) ExpectPacket(ctx context.Context, ppkt any) (m *Message, err 
 func (v *Protocol) ExpectMessage(ctx context.Context, types ...MessageType) (m *Message, err error) {
 	for {
 		if m, err = v.ReadMessage(ctx); err != nil {
-			return nil, oe.WithMessage(err, "read message")
+			return nil, errors.WithMessage(err, "read message")
 		}
 
 		if len(types) == 0 {
@@ -218,14 +218,14 @@ func (v *Protocol) ExpectMessage(ctx context.Context, types ...MessageType) (m *
 func (v *Protocol) parseAMFObject(p []byte) (pkt Packet, err error) {
 	var commandName amf0String
 	if err = commandName.UnmarshalBinary(p); err != nil {
-		return nil, oe.WithMessage(err, "unmarshal command name")
+		return nil, errors.WithMessage(err, "unmarshal command name")
 	}
 
 	switch commandName {
 	case commandResult, commandError:
 		var transactionID amf0Number
 		if err = transactionID.UnmarshalBinary(p[commandName.Size():]); err != nil {
-			return nil, oe.WithMessage(err, "unmarshal tid")
+			return nil, errors.WithMessage(err, "unmarshal tid")
 		}
 
 		var requestName amf0String
@@ -235,13 +235,13 @@ func (v *Protocol) parseAMFObject(p []byte) (pkt Packet, err error) {
 
 			var ok bool
 			if requestName, ok = v.input.transactions[transactionID]; !ok {
-				return oe.Errorf("No matched request for tid=%v", transactionID)
+				return errors.Errorf("No matched request for tid=%v", transactionID)
 			}
 			delete(v.input.transactions, transactionID)
 
 			return nil
 		}(); err != nil {
-			return nil, oe.WithMessage(err, "discovery request name")
+			return nil, errors.WithMessage(err, "discovery request name")
 		}
 
 		switch requestName {
@@ -250,7 +250,7 @@ func (v *Protocol) parseAMFObject(p []byte) (pkt Packet, err error) {
 		case commandCreateStream:
 			return NewCreateStreamResPacket(transactionID), nil
 		default:
-			return nil, oe.Errorf("No request for %v", string(requestName))
+			return nil, errors.Errorf("No request for %v", string(requestName))
 		}
 	case commandConnect:
 		return NewConnectAppPacket(), nil
@@ -264,7 +264,7 @@ func (v *Protocol) parseAMFObject(p []byte) (pkt Packet, err error) {
 func (v *Protocol) DecodeMessage(m *Message) (pkt Packet, err error) {
 	p := m.Payload[:]
 	if len(p) == 0 {
-		return nil, oe.New("Empty packet")
+		return nil, errors.New("Empty packet")
 	}
 
 	switch m.MessageType {
@@ -281,16 +281,16 @@ func (v *Protocol) DecodeMessage(m *Message) (pkt Packet, err error) {
 		pkt = NewSetPeerBandwidth()
 	case MessageTypeAMF0Command, MessageTypeAMF3Command, MessageTypeAMF0Data, MessageTypeAMF3Data:
 		if pkt, err = v.parseAMFObject(p); err != nil {
-			return nil, oe.WithMessage(err, fmt.Sprintf("Parse AMF %v", m.MessageType))
+			return nil, errors.WithMessage(err, fmt.Sprintf("Parse AMF %v", m.MessageType))
 		}
 	case MessageTypeUserControl:
 		pkt = NewUserControl()
 	default:
-		return nil, oe.Errorf("Unknown message %v", m.MessageType)
+		return nil, errors.Errorf("Unknown message %v", m.MessageType)
 	}
 
 	if err = pkt.UnmarshalBinary(p); err != nil {
-		return nil, oe.WithMessage(err, fmt.Sprintf("Unmarshal %v", m.MessageType))
+		return nil, errors.WithMessage(err, fmt.Sprintf("Unmarshal %v", m.MessageType))
 	}
 
 	return
@@ -307,7 +307,7 @@ func (v *Protocol) ReadMessage(ctx context.Context) (m *Message, err error) {
 		var cid chunkID
 		var format formatType
 		if format, cid, err = v.readBasicHeader(ctx); err != nil {
-			return nil, oe.WithMessage(err, "read basic header")
+			return nil, errors.WithMessage(err, "read basic header")
 		}
 
 		var ok bool
@@ -319,15 +319,15 @@ func (v *Protocol) ReadMessage(ctx context.Context) (m *Message, err error) {
 		}
 
 		if err = v.readMessageHeader(ctx, chunk, format); err != nil {
-			return nil, oe.WithMessage(err, "read message header")
+			return nil, errors.WithMessage(err, "read message header")
 		}
 
 		if m, err = v.readMessagePayload(ctx, chunk); err != nil {
-			return nil, oe.WithMessage(err, "read message payload")
+			return nil, errors.WithMessage(err, "read message payload")
 		}
 
 		if err = v.onMessageArrivated(m); err != nil {
-			return nil, oe.WithMessage(err, "on message")
+			return nil, errors.WithMessage(err, "on message")
 		}
 	}
 
@@ -350,7 +350,7 @@ func (v *Protocol) readMessagePayload(ctx context.Context, chunk *chunkStream) (
 
 	b := make([]byte, chunkedPayloadSize)
 	if _, err = io.ReadFull(v.r, b); err != nil {
-		return nil, oe.Wrapf(err, "read chunk %vB", chunkedPayloadSize)
+		return nil, errors.Wrapf(err, "read chunk %vB", chunkedPayloadSize)
 	}
 	chunk.message.Payload = append(chunk.message.Payload, b...)
 
@@ -460,14 +460,14 @@ func (v *Protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 		if chunk.cid == chunkIDProtocolControl && format == formatType1 {
 			// We accept cid=2, fmt=1 to make librtmp happy.
 		} else {
-			return oe.Errorf("For fresh chunk, fmt %v != %v(required), cid is %v", format, formatType0, chunk.cid)
+			return errors.Errorf("For fresh chunk, fmt %v != %v(required), cid is %v", format, formatType0, chunk.cid)
 		}
 	}
 
 	// When exists cache msg, means got an partial message,
 	// the fmt must not be type0 which means new message.
 	if chunk.message != nil && format == formatType0 {
-		return oe.Errorf("For exists chunk, fmt is %v, cid is %v", format, chunk.cid)
+		return errors.Errorf("For exists chunk, fmt is %v, cid is %v", format, chunk.cid)
 	}
 
 	// Create msg when new chunk stream start
@@ -478,7 +478,7 @@ func (v *Protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 	// Read the message header.
 	p := make([]byte, messageHeaderSizes[format])
 	if _, err = io.ReadFull(v.r, p); err != nil {
-		return oe.Wrapf(err, "read %vB message header", len(p))
+		return errors.Wrapf(err, "read %vB message header", len(p))
 	}
 
 	// Prse the message header.
@@ -543,7 +543,7 @@ func (v *Protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 			// for the fmt type1(stream_id not changed), user can change the payload
 			// length(it's not allowed in the continue chunks).
 			if !isFirstChunkOfMsg && chunk.header.payloadLength != payloadLength {
-				return oe.Errorf("Chunk message size %v != %v(required)", payloadLength, chunk.header.payloadLength)
+				return errors.Errorf("Chunk message size %v != %v(required)", payloadLength, chunk.header.payloadLength)
 			}
 			chunk.header.payloadLength = payloadLength
 
@@ -566,7 +566,7 @@ func (v *Protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 	if chunk.extendedTimestamp {
 		var timestamp uint32
 		if err = binary.Read(v.r, binary.BigEndian, &timestamp); err != nil {
-			return oe.Wrapf(err, "read ext-ts, pkt-ts=%v", chunk.header.Timestamp)
+			return errors.Wrapf(err, "read ext-ts, pkt-ts=%v", chunk.header.Timestamp)
 		}
 
 		// We always use 31bits timestamp, for some server may use 32bits extended timestamp.
@@ -655,7 +655,7 @@ func (v *Protocol) readBasicHeader(ctx context.Context) (format formatType, cid 
 	// 2-63, 1B chunk header
 	var t uint8
 	if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
-		return format, cid, oe.Wrap(err, "read basic header")
+		return format, cid, errors.Wrap(err, "read basic header")
 	}
 	cid = chunkID(t & 0x3f)
 	format = formatType((t >> 6) & 0x03)
@@ -666,14 +666,14 @@ func (v *Protocol) readBasicHeader(ctx context.Context) (format formatType, cid 
 
 	// 64-319, 2B chunk header
 	if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
-		return format, cid, oe.Wrapf(err, "read basic header for cid=%v", cid)
+		return format, cid, errors.Wrapf(err, "read basic header for cid=%v", cid)
 	}
 	cid = chunkID(64 + uint32(t))
 
 	// 64-65599, 3B chunk header
 	if cid == 1 {
 		if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
-			return format, cid, oe.Wrapf(err, "read basic header for cid=%v", cid)
+			return format, cid, errors.Wrapf(err, "read basic header for cid=%v", cid)
 		}
 		cid += chunkID(uint32(t) * 256)
 	}
@@ -685,7 +685,7 @@ func (v *Protocol) WritePacket(ctx context.Context, pkt Packet, streamID int) (e
 	m := NewMessage()
 
 	if m.Payload, err = pkt.MarshalBinary(); err != nil {
-		return oe.WithMessage(err, "marshal payload")
+		return errors.WithMessage(err, "marshal payload")
 	}
 
 	m.MessageType = pkt.Type()
@@ -693,11 +693,11 @@ func (v *Protocol) WritePacket(ctx context.Context, pkt Packet, streamID int) (e
 	m.betterCid = pkt.BetterCid()
 
 	if err = v.WriteMessage(ctx, m); err != nil {
-		return oe.WithMessage(err, "write message")
+		return errors.WithMessage(err, "write message")
 	}
 
 	if err = v.onPacketWriten(m, pkt); err != nil {
-		return oe.WithMessage(err, "on write packet")
+		return errors.WithMessage(err, "on write packet")
 	}
 
 	return
@@ -733,7 +733,7 @@ func (v *Protocol) onMessageArrivated(m *Message) (err error) {
 	switch m.MessageType {
 	case MessageTypeSetChunkSize, MessageTypeUserControl, MessageTypeWindowAcknowledgementSize:
 		if pkt, err = v.DecodeMessage(m); err != nil {
-			return oe.Errorf("decode message %v", m.MessageType)
+			return errors.Errorf("decode message %v", m.MessageType)
 		}
 	}
 
@@ -750,10 +750,10 @@ func (v *Protocol) WriteMessage(ctx context.Context, m *Message) (err error) {
 
 	var c0h, c3h []byte
 	if c0h, err = m.generateC0Header(); err != nil {
-		return oe.WithMessage(err, "generate c0 header")
+		return errors.WithMessage(err, "generate c0 header")
 	}
 	if c3h, err = m.generateC3Header(); err != nil {
-		return oe.WithMessage(err, "generate c3 header")
+		return errors.WithMessage(err, "generate c3 header")
 	}
 
 	var h []byte
@@ -772,7 +772,7 @@ func (v *Protocol) WriteMessage(ctx context.Context, m *Message) (err error) {
 		}
 
 		if _, err = io.Copy(v.w, bytes.NewReader(h)); err != nil {
-			return oe.Wrapf(err, "write c0c3 header %x", h)
+			return errors.Wrapf(err, "write c0c3 header %x", h)
 		}
 
 		size := len(p)
@@ -781,7 +781,7 @@ func (v *Protocol) WriteMessage(ctx context.Context, m *Message) (err error) {
 		}
 
 		if _, err = io.Copy(v.w, bytes.NewReader(p[:size])); err != nil {
-			return oe.Wrapf(err, "write chunk payload %vB", size)
+			return errors.Wrapf(err, "write chunk payload %vB", size)
 		}
 		p = p[size:]
 	}
@@ -794,7 +794,7 @@ func (v *Protocol) WriteMessage(ctx context.Context, m *Message) (err error) {
 
 	// TODO: FIXME: Use writev to write for high performance.
 	if err = v.w.Flush(); err != nil {
-		return oe.Wrapf(err, "flush writer")
+		return errors.Wrapf(err, "flush writer")
 	}
 
 	return
@@ -1053,17 +1053,17 @@ func (v *objectCallPacket) UnmarshalBinary(data []byte) (err error) {
 	p := data
 
 	if err = v.CommandName.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal command name")
+		return errors.WithMessage(err, "unmarshal command name")
 	}
 	p = p[v.CommandName.Size():]
 
 	if err = v.TransactionID.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal tid")
+		return errors.WithMessage(err, "unmarshal tid")
 	}
 	p = p[v.TransactionID.Size():]
 
 	if err = v.CommandObject.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal command")
+		return errors.WithMessage(err, "unmarshal command")
 	}
 	p = p[v.CommandObject.Size():]
 
@@ -1073,7 +1073,7 @@ func (v *objectCallPacket) UnmarshalBinary(data []byte) (err error) {
 
 	v.Args = NewAmf0Object()
 	if err = v.Args.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal args")
+		return errors.WithMessage(err, "unmarshal args")
 	}
 
 	return
@@ -1082,23 +1082,23 @@ func (v *objectCallPacket) UnmarshalBinary(data []byte) (err error) {
 func (v *objectCallPacket) MarshalBinary() (data []byte, err error) {
 	var pb []byte
 	if pb, err = v.CommandName.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal command name")
+		return nil, errors.WithMessage(err, "marshal command name")
 	}
 	data = append(data, pb...)
 
 	if pb, err = v.TransactionID.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal tid")
+		return nil, errors.WithMessage(err, "marshal tid")
 	}
 	data = append(data, pb...)
 
 	if pb, err = v.CommandObject.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal command object")
+		return nil, errors.WithMessage(err, "marshal command object")
 	}
 	data = append(data, pb...)
 
 	if v.Args != nil {
 		if pb, err = v.Args.MarshalBinary(); err != nil {
-			return nil, oe.WithMessage(err, "marshal args")
+			return nil, errors.WithMessage(err, "marshal args")
 		}
 		data = append(data, pb...)
 	}
@@ -1123,15 +1123,15 @@ func NewConnectAppPacket() *ConnectAppPacket {
 
 func (v *ConnectAppPacket) UnmarshalBinary(data []byte) (err error) {
 	if err = v.objectCallPacket.UnmarshalBinary(data); err != nil {
-		return oe.WithMessage(err, "unmarshal call")
+		return errors.WithMessage(err, "unmarshal call")
 	}
 
 	if v.CommandName != commandConnect {
-		return oe.Errorf("Invalid command name %v", string(v.CommandName))
+		return errors.Errorf("Invalid command name %v", string(v.CommandName))
 	}
 
 	if v.TransactionID != 1.0 {
-		return oe.Errorf("Invalid transaction ID %v", float64(v.TransactionID))
+		return errors.Errorf("Invalid transaction ID %v", float64(v.TransactionID))
 	}
 
 	return
@@ -1165,11 +1165,11 @@ func NewConnectAppResPacket(tid amf0Number) *ConnectAppResPacket {
 
 func (v *ConnectAppResPacket) UnmarshalBinary(data []byte) (err error) {
 	if err = v.objectCallPacket.UnmarshalBinary(data); err != nil {
-		return oe.WithMessage(err, "unmarshal call")
+		return errors.WithMessage(err, "unmarshal call")
 	}
 
 	if v.CommandName != commandResult {
-		return oe.Errorf("Invalid command name %v", string(v.CommandName))
+		return errors.Errorf("Invalid command name %v", string(v.CommandName))
 	}
 
 	return
@@ -1204,21 +1204,21 @@ func (v *variantCallPacket) UnmarshalBinary(data []byte) (err error) {
 	p := data
 
 	if err = v.CommandName.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal command name")
+		return errors.WithMessage(err, "unmarshal command name")
 	}
 	p = p[v.CommandName.Size():]
 
 	if err = v.TransactionID.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal tid")
+		return errors.WithMessage(err, "unmarshal tid")
 	}
 	p = p[v.TransactionID.Size():]
 
 	if len(p) > 0 {
 		if v.CommandObject, err = Amf0Discovery(p); err != nil {
-			return oe.WithMessage(err, "discovery command object")
+			return errors.WithMessage(err, "discovery command object")
 		}
 		if err = v.CommandObject.UnmarshalBinary(p); err != nil {
-			return oe.WithMessage(err, "unmarshal command object")
+			return errors.WithMessage(err, "unmarshal command object")
 		}
 		p = p[v.CommandObject.Size():]
 	}
@@ -1229,18 +1229,18 @@ func (v *variantCallPacket) UnmarshalBinary(data []byte) (err error) {
 func (v *variantCallPacket) MarshalBinary() (data []byte, err error) {
 	var pb []byte
 	if pb, err = v.CommandName.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal command name")
+		return nil, errors.WithMessage(err, "marshal command name")
 	}
 	data = append(data, pb...)
 
 	if pb, err = v.TransactionID.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal tid")
+		return nil, errors.WithMessage(err, "marshal tid")
 	}
 	data = append(data, pb...)
 
 	if v.CommandObject != nil {
 		if pb, err = v.CommandObject.MarshalBinary(); err != nil {
-			return nil, oe.WithMessage(err, "marshal command object")
+			return nil, errors.WithMessage(err, "marshal command object")
 		}
 		data = append(data, pb...)
 	}
@@ -1283,16 +1283,16 @@ func (v *CallPacket) UnmarshalBinary(data []byte) (err error) {
 	p := data
 
 	if err = v.variantCallPacket.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal call")
+		return errors.WithMessage(err, "unmarshal call")
 	}
 	p = p[v.variantCallPacket.Size():]
 
 	if len(p) > 0 {
 		if v.Args, err = Amf0Discovery(p); err != nil {
-			return oe.WithMessage(err, "discovery args")
+			return errors.WithMessage(err, "discovery args")
 		}
 		if err = v.Args.UnmarshalBinary(p); err != nil {
-			return oe.WithMessage(err, "unmarshal args")
+			return errors.WithMessage(err, "unmarshal args")
 		}
 	}
 
@@ -1302,13 +1302,13 @@ func (v *CallPacket) UnmarshalBinary(data []byte) (err error) {
 func (v *CallPacket) MarshalBinary() (data []byte, err error) {
 	var pb []byte
 	if pb, err = v.variantCallPacket.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal call")
+		return nil, errors.WithMessage(err, "marshal call")
 	}
 	data = append(data, pb...)
 
 	if v.Args != nil {
 		if pb, err = v.Args.MarshalBinary(); err != nil {
-			return nil, oe.WithMessage(err, "marshal args")
+			return nil, errors.WithMessage(err, "marshal args")
 		}
 		data = append(data, pb...)
 	}
@@ -1355,12 +1355,12 @@ func (v *CreateStreamResPacket) UnmarshalBinary(data []byte) (err error) {
 	p := data
 
 	if err = v.variantCallPacket.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal call")
+		return errors.WithMessage(err, "unmarshal call")
 	}
 	p = p[v.variantCallPacket.Size():]
 
 	if err = v.StreamID.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal sid")
+		return errors.WithMessage(err, "unmarshal sid")
 	}
 
 	return
@@ -1369,12 +1369,12 @@ func (v *CreateStreamResPacket) UnmarshalBinary(data []byte) (err error) {
 func (v *CreateStreamResPacket) MarshalBinary() (data []byte, err error) {
 	var pb []byte
 	if pb, err = v.variantCallPacket.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal call")
+		return nil, errors.WithMessage(err, "marshal call")
 	}
 	data = append(data, pb...)
 
 	if pb, err = v.StreamID.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal sid")
+		return nil, errors.WithMessage(err, "marshal sid")
 	}
 	data = append(data, pb...)
 
@@ -1404,17 +1404,17 @@ func (v *PublishPacket) UnmarshalBinary(data []byte) (err error) {
 	p := data
 
 	if err = v.variantCallPacket.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal call")
+		return errors.WithMessage(err, "unmarshal call")
 	}
 	p = p[v.variantCallPacket.Size():]
 
 	if err = v.StreamName.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal stream name")
+		return errors.WithMessage(err, "unmarshal stream name")
 	}
 	p = p[v.StreamName.Size():]
 
 	if err = v.StreamType.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal stream type")
+		return errors.WithMessage(err, "unmarshal stream type")
 	}
 
 	return
@@ -1423,17 +1423,17 @@ func (v *PublishPacket) UnmarshalBinary(data []byte) (err error) {
 func (v *PublishPacket) MarshalBinary() (data []byte, err error) {
 	var pb []byte
 	if pb, err = v.variantCallPacket.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal call")
+		return nil, errors.WithMessage(err, "marshal call")
 	}
 	data = append(data, pb...)
 
 	if pb, err = v.StreamName.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal stream name")
+		return nil, errors.WithMessage(err, "marshal stream name")
 	}
 	data = append(data, pb...)
 
 	if pb, err = v.StreamType.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal stream type")
+		return nil, errors.WithMessage(err, "marshal stream type")
 	}
 	data = append(data, pb...)
 
@@ -1461,12 +1461,12 @@ func (v *PlayPacket) UnmarshalBinary(data []byte) (err error) {
 	p := data
 
 	if err = v.variantCallPacket.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal call")
+		return errors.WithMessage(err, "unmarshal call")
 	}
 	p = p[v.variantCallPacket.Size():]
 
 	if err = v.StreamName.UnmarshalBinary(p); err != nil {
-		return oe.WithMessage(err, "unmarshal stream name")
+		return errors.WithMessage(err, "unmarshal stream name")
 	}
 	p = p[v.StreamName.Size():]
 
@@ -1476,12 +1476,12 @@ func (v *PlayPacket) UnmarshalBinary(data []byte) (err error) {
 func (v *PlayPacket) MarshalBinary() (data []byte, err error) {
 	var pb []byte
 	if pb, err = v.variantCallPacket.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal call")
+		return nil, errors.WithMessage(err, "marshal call")
 	}
 	data = append(data, pb...)
 
 	if pb, err = v.StreamName.MarshalBinary(); err != nil {
-		return nil, oe.WithMessage(err, "marshal stream name")
+		return nil, errors.WithMessage(err, "marshal stream name")
 	}
 	data = append(data, pb...)
 
@@ -1515,7 +1515,7 @@ func (v *SetChunkSize) Size() int {
 
 func (v *SetChunkSize) UnmarshalBinary(data []byte) (err error) {
 	if len(data) < 4 {
-		return oe.Errorf("requires 4 only %v bytes, %x", len(data), data)
+		return errors.Errorf("requires 4 only %v bytes, %x", len(data), data)
 	}
 	v.ChunkSize = binary.BigEndian.Uint32(data)
 
@@ -1554,7 +1554,7 @@ func (v *WindowAcknowledgementSize) Size() int {
 
 func (v *WindowAcknowledgementSize) UnmarshalBinary(data []byte) (err error) {
 	if len(data) < 4 {
-		return oe.Errorf("requires 4 only %v bytes, %x", len(data), data)
+		return errors.Errorf("requires 4 only %v bytes, %x", len(data), data)
 	}
 	v.AckSize = binary.BigEndian.Uint32(data)
 
@@ -1605,7 +1605,7 @@ func (v *SetPeerBandwidth) Size() int {
 
 func (v *SetPeerBandwidth) UnmarshalBinary(data []byte) (err error) {
 	if len(data) < 5 {
-		return oe.Errorf("requires 5 only %v bytes, %x", len(data), data)
+		return errors.Errorf("requires 5 only %v bytes, %x", len(data), data)
 	}
 	v.Bandwidth = binary.BigEndian.Uint32(data)
 	v.LimitType = LimitType(data[4])
@@ -1734,12 +1734,12 @@ func (v *UserControl) Size() int {
 
 func (v *UserControl) UnmarshalBinary(data []byte) (err error) {
 	if len(data) < 3 {
-		return oe.Errorf("requires 5 only %v bytes, %x", len(data), data)
+		return errors.Errorf("requires 5 only %v bytes, %x", len(data), data)
 	}
 
 	v.EventType = EventType(binary.BigEndian.Uint16(data))
 	if len(data) < v.Size() {
-		return oe.Errorf("requires %v only %v bytes, %x", v.Size(), len(data), data)
+		return errors.Errorf("requires %v only %v bytes, %x", v.Size(), len(data), data)
 	}
 
 	if v.EventType == EventTypeFmsEvent0 {

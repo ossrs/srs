@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"math/rand"
 	"net"
 	"os"
@@ -72,7 +73,7 @@ func (v *rtmpServer) Run(ctx context.Context) error {
 			if err != nil {
 				if ctx.Err() != context.Canceled {
 					// TODO: If RTMP server closed unexpectedly, we should notice the main loop to quit.
-					logger.Wf(ctx, "accept rtmp err %+v", err)
+					logger.Wf(ctx, "RTMP server accept err %+v", err)
 				} else {
 					logger.Df(ctx, "RTMP server done")
 				}
@@ -82,7 +83,11 @@ func (v *rtmpServer) Run(ctx context.Context) error {
 			go func(ctx context.Context, conn *net.TCPConn) {
 				defer conn.Close()
 				if err := v.serve(ctx, conn); err != nil {
-					logger.Wf(ctx, "serve conn %v err %+v", conn.RemoteAddr(), err)
+					if errors.Cause(err) == io.EOF {
+						logger.Df(ctx, "RTMP client peer closed")
+					} else {
+						logger.Wf(ctx, "serve conn %v err %+v", conn.RemoteAddr(), err)
+					}
 				} else {
 					logger.Df(ctx, "RTMP client done")
 				}

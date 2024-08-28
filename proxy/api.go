@@ -5,16 +5,14 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"os"
 	"srs-proxy/logger"
 	"strings"
 	"sync"
 	"time"
 )
 
-type httpServer struct {
+type httpAPI struct {
 	// The underlayer HTTP server.
 	server *http.Server
 	// The gracefully quit timeout, wait server to quit.
@@ -23,15 +21,15 @@ type httpServer struct {
 	wg sync.WaitGroup
 }
 
-func NewHttpServer(opts ...func(*httpServer)) *httpServer {
-	v := &httpServer{}
+func NewHttpAPI(opts ...func(*httpAPI)) *httpAPI {
+	v := &httpAPI{}
 	for _, opt := range opts {
 		opt(v)
 	}
 	return v
 }
 
-func (v *httpServer) Close() error {
+func (v *httpAPI) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 	defer cancel()
 	v.server.Shutdown(ctx)
@@ -40,9 +38,9 @@ func (v *httpServer) Close() error {
 	return nil
 }
 
-func (v *httpServer) Run(ctx context.Context) error {
+func (v *httpAPI) Run(ctx context.Context) error {
 	// Parse address to listen.
-	addr := envHttpServer()
+	addr := envHttpAPI()
 	if !strings.Contains(addr, ":") {
 		addr = ":" + addr
 	}
@@ -50,7 +48,7 @@ func (v *httpServer) Run(ctx context.Context) error {
 	// Create server and handler.
 	mux := http.NewServeMux()
 	v.server = &http.Server{Addr: addr, Handler: mux}
-	logger.Df(ctx, "HTTP Stream server listen at %v", addr)
+	logger.Df(ctx, "HTTP API server listen at %v", addr)
 
 	// Shutdown the server gracefully when quiting.
 	go func() {
@@ -66,27 +64,13 @@ func (v *httpServer) Run(ctx context.Context) error {
 	// The basic version handler, also can be used as health check API.
 	logger.Df(ctx, "Handle /api/v1/versions by %v", addr)
 	mux.HandleFunc("/api/v1/versions", func(w http.ResponseWriter, r *http.Request) {
-		type Response struct {
-			Code int    `json:"code"`
-			PID  string `json:"pid"`
-			Data struct {
-				Major    int    `json:"major"`
-				Minor    int    `json:"minor"`
-				Revision int    `json:"revision"`
-				Version  string `json:"version"`
-			} `json:"data"`
-		}
-
-		res := Response{Code: 0, PID: fmt.Sprintf("%v", os.Getpid())}
-		res.Data.Major = VersionMajor()
-		res.Data.Minor = VersionMinor()
-		res.Data.Revision = VersionRevision()
-		res.Data.Version = Version()
-
-		apiResponse(ctx, w, r, &res)
+		apiResponse(ctx, w, r, map[string]string{
+			"signature": Signature(),
+			"version":   Version(),
+		})
 	})
 
-	// Run HTTP server.
+	// Run HTTP API server.
 	v.wg.Add(1)
 	go func() {
 		defer v.wg.Done()
@@ -94,10 +78,10 @@ func (v *httpServer) Run(ctx context.Context) error {
 		err := v.server.ListenAndServe()
 		if err != nil {
 			if ctx.Err() != context.Canceled {
-				// TODO: If HTTP Stream server closed unexpectedly, we should notice the main loop to quit.
-				logger.Wf(ctx, "HTTP Stream accept err %+v", err)
+				// TODO: If HTTP API server closed unexpectedly, we should notice the main loop to quit.
+				logger.Wf(ctx, "HTTP API accept err %+v", err)
 			} else {
-				logger.Df(ctx, "HTTP Stream server done")
+				logger.Df(ctx, "HTTP API server done")
 			}
 		}
 	}()

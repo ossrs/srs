@@ -59,14 +59,25 @@ func doMain(ctx context.Context) error {
 		return errors.Wrapf(err, "rtmp server")
 	}
 
+	// Start the HTTP API server.
+	httpAPI := NewHttpAPI(func(server *httpAPI) {
+		server.gracefulQuitTimeout = gracefulQuitTimeout
+	})
+	defer httpAPI.Close()
+	if err := httpAPI.Run(ctx); err != nil {
+		return errors.Wrapf(err, "http api server")
+	}
+
 	// Start the HTTP web server.
 	httpServer := NewHttpServer(func(server *httpServer) {
 		server.gracefulQuitTimeout = gracefulQuitTimeout
 	})
 	defer httpServer.Close()
-	if err := httpServer.ListenAndServe(ctx); err != nil {
+	if err := httpServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "http server")
 	}
 
+	// Wait for the main loop to quit.
+	<-ctx.Done()
 	return nil
 }
