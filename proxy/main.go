@@ -68,6 +68,15 @@ func doMain(ctx context.Context) error {
 		return errors.Wrapf(err, "http api server")
 	}
 
+	// Start the System API server.
+	systemAPI := NewSystemAPI(func(server *systemAPI) {
+		server.gracefulQuitTimeout = gracefulQuitTimeout
+	})
+	defer systemAPI.Close()
+	if err := systemAPI.Run(ctx); err != nil {
+		return errors.Wrapf(err, "system api server")
+	}
+
 	// Start the HTTP web server.
 	httpServer := NewHttpServer(func(server *httpServer) {
 		server.gracefulQuitTimeout = gracefulQuitTimeout

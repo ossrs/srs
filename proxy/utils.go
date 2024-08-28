@@ -7,12 +7,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"reflect"
+	"time"
+
 	"srs-proxy/errors"
 	"srs-proxy/logger"
-	"time"
 )
 
 // setEnvDefault set env key=value if not set.
@@ -34,6 +37,10 @@ func envRtmpServer() string {
 	return os.Getenv("PROXY_RTMP_SERVER")
 }
 
+func envSystemAPI() string {
+	return os.Getenv("PROXY_SYSTEM_API")
+}
+
 func envGoPprof() string {
 	return os.Getenv("GO_PPROF")
 }
@@ -51,12 +58,7 @@ func apiResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, da
 
 	b, err := json.Marshal(data)
 	if err != nil {
-		msg := fmt.Sprintf("marshal %v %v err %v", reflect.TypeOf(data), data, err)
-		logger.Wf(ctx, msg)
-
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintln(w, msg)
+		apiError(ctx, w, r, errors.Wrapf(err, "marshal %v %v", reflect.TypeOf(data), data))
 		return
 	}
 
@@ -65,10 +67,36 @@ func apiResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, da
 	w.Write(b)
 }
 
+func apiError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
+	logger.Wf(ctx, "HTTP API error %+v", err)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusInternalServerError)
+	fmt.Fprintln(w, fmt.Sprintf("%v", err))
+}
+
 func parseGracefullyQuitTimeout() (time.Duration, error) {
 	if t, err := time.ParseDuration(envGraceQuitTimeout()); err != nil {
 		return 0, errors.Wrapf(err, "parse duration %v", envGraceQuitTimeout())
 	} else {
 		return t, nil
 	}
+}
+
+// ParseBody read the body from r, and unmarshal JSON to v.
+func ParseBody(r io.ReadCloser, v interface{}) error {
+	b, err := ioutil.ReadAll(r)
+	if err != nil {
+		return errors.Wrapf(err, "read body")
+	}
+	defer r.Close()
+
+	if len(b) == 0 {
+		return nil
+	}
+
+	if err := json.Unmarshal(b, v); err != nil {
+		return errors.Wrapf(err, "json unmarshal %v", string(b))
+	}
+
+	return nil
 }
