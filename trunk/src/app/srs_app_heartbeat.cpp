@@ -19,6 +19,7 @@ using namespace std;
 #include <srs_app_http_conn.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_statistic.hpp>
 
 SrsHttpHeartbeat::SrsHttpHeartbeat()
 {
@@ -61,6 +62,11 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
 
     obj->set("device_id", SrsJsonAny::str(device_id.c_str()));
     obj->set("ip", SrsJsonAny::str(ip->ip.c_str()));
+
+    SrsStatistic* stat = SrsStatistic::instance();
+    obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
     
     if (_srs_config->get_heartbeat_summaries()) {
         SrsJsonObject* summaries = SrsJsonAny::object();
