@@ -47,13 +47,18 @@ func setupDefaultEnv(ctx context.Context) {
 	// The API server of proxy itself.
 	setEnvDefault("PROXY_SYSTEM_API", "2025")
 
+	// Default backend server IP.
+	//setEnvDefault("PROXY_DEFAULT_BACKEND_IP", "127.0.0.1")
+	// Default backend server port.
+	//setEnvDefault("PROXY_DEFAULT_BACKEND_PORT", "1935")
+
 	logger.Df(ctx, "load .env as GO_PPROF=%v, "+
 		"PROXY_FORCE_QUIT_TIMEOUT=%v, PROXY_GRACE_QUIT_TIMEOUT=%v, "+
 		"PROXY_HTTP_API=%v, PROXY_HTTP_SERVER=%v, PROXY_RTMP_SERVER=%v, "+
-		"PROXY_SYSTEM_API=%v",
+		"PROXY_SYSTEM_API=%v, PROXY_DEFAULT_BACKEND_IP=%v, PROXY_DEFAULT_BACKEND_PORT=%v",
 		envGoPprof(),
 		envForceQuitTimeout(), envGraceQuitTimeout(),
 		envHttpAPI(), envHttpServer(), envRtmpServer(),
-		envSystemAPI(),
+		envSystemAPI(), envDefaultBackendIP(), envDefaultBackendPort(),
 	)
 }

@@ -5,10 +5,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -147,7 +149,9 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 	if err := client.WritePacket(ctx, connectRes, 0); err != nil {
 		return errors.Wrapf(err, "write connect res")
 	}
-	logger.Df(ctx, "RTMP connect app %v", connectReq.TcUrl())
+
+	tcUrl := connectReq.TcUrl()
+	logger.Df(ctx, "RTMP connect app %v", tcUrl)
 
 	// Expect RTMP command to identify the client, a publisher or viewer.
 	var currentStreamID int
@@ -166,8 +170,8 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 				identifyRes := rtmp.NewCreateStreamResPacket(pkt.TransactionID)
 				response = identifyRes
 
-				identifyRes.StreamID = 1
-				currentStreamID = int(identifyRes.StreamID)
+				currentStreamID = 1
+				identifyRes.StreamID = *rtmp.NewAmf0Number(float64(currentStreamID))
 			} else {
 				// For releaseStream, FCPublish, etc.
 				identifyRes := rtmp.NewCallPacket()
@@ -201,7 +205,20 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 			}
 		}
 	}
+	logger.Df(ctx, "RTMP identify tcUrl=%v, stream=%v, id=%v, type=%v",
+		tcUrl, streamName, currentStreamID, clientType)
 
+	// Find a backend SRS server to proxy the RTMP stream.
+	backend := NewRTMPClient(func(client *RTMPClient) {
+		client.rd = v.rd
+	})
+	defer backend.Close()
+
+	if err := backend.Connect(ctx, tcUrl, streamName); err != nil {
+		return errors.Wrapf(err, "connect backend, tcUrl=%v, stream=%v", tcUrl, streamName)
+	}
+
+	// Start the streaming.
 	if clientType == RTMPClientTypePublisher {
 		identifyRes := rtmp.NewCallPacket()
 
@@ -219,17 +236,32 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 			return errors.Wrapf(err, "start publish")
 		}
 	}
-	logger.Df(ctx, "RTMP identify stream=%v, id=%v, type=%v",
-		streamName, currentStreamID, clientType)
+	logger.Df(ctx, "RTMP start streaming")
 
+	// Proxy all message from backend to client.
+	go func() {
+		for {
+			m, err := backend.client.ReadMessage(ctx)
+			if err != nil {
+				return
+			}
+
+			if err := client.WriteMessage(ctx, m); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Proxy all messages from client to backend.
 	for {
 		m, err := client.ReadMessage(ctx)
 		if err != nil {
 			return errors.Wrapf(err, "read message")
 		}
 
-		_ = m
-		logger.Df(ctx, "Got message %v, %v bytes", m.MessageType, len(m.Payload))
+		if err := backend.client.WriteMessage(ctx, m); err != nil {
+			return errors.Wrapf(err, "write message")
+		}
 	}
 
 	return nil
@@ -240,3 +272,190 @@ type RTMPClientType string
 const (
 	RTMPClientTypePublisher RTMPClientType = "publisher"
 )
+
+type RTMPClient struct {
+	// The random number generator.
+	rd *rand.Rand
+	// The underlayer tcp client.
+	tcpConn *net.TCPConn
+	// The RTMP protocol client.
+	client *rtmp.Protocol
+}
+
+func NewRTMPClient(opts ...func(*RTMPClient)) *RTMPClient {
+	v := &RTMPClient{}
+	for _, opt := range opts {
+		opt(v)
+	}
+	return v
+}
+
+func (v *RTMPClient) Close() error {
+	if v.tcpConn != nil {
+		v.tcpConn.Close()
+	}
+	return nil
+}
+
+func (v *RTMPClient) Connect(ctx context.Context, tcUrl, streamName string) error {
+	// Pick a backend SRS server to proxy the RTMP stream.
+	streamURL := fmt.Sprintf("%v/%v", tcUrl, streamName)
+	backend, err := srsLoadBalancer.Pick(streamURL)
+	if err != nil {
+		return errors.Wrapf(err, "pick backend for %v", streamURL)
+	}
+
+	// Parse RTMP port from backend.
+	if len(backend.RTMP) == 0 {
+		return errors.Errorf("no rtmp server for %v", streamURL)
+	}
+
+	var rtmpPort int
+	if iv, err := strconv.ParseInt(backend.RTMP[0], 10, 64); err != nil {
+		return errors.Wrapf(err, "parse backend %v rtmp port %v", backend, backend.RTMP[0])
+	} else {
+		rtmpPort = int(iv)
+	}
+
+	// Connect to backend SRS server via TCP client.
+	addr := &net.TCPAddr{IP: net.ParseIP(backend.IP), Port: rtmpPort}
+	c, err := net.DialTCP("tcp", nil, addr)
+	if err != nil {
+		return errors.Wrapf(err, "dial backend addr=%v, srs=%v", addr, backend)
+	}
+	v.tcpConn = c
+
+	hs := rtmp.NewHandshake(v.rd)
+	client := rtmp.NewProtocol(c)
+	v.client = client
+
+	// Simple RTMP handshake with server.
+	if err := hs.WriteC0S0(c); err != nil {
+		return errors.Wrapf(err, "write c0")
+	}
+	if err := hs.WriteC1S1(c); err != nil {
+		return errors.Wrapf(err, "write c1")
+	}
+
+	if _, err = hs.ReadC0S0(c); err != nil {
+		return errors.Wrapf(err, "read s0")
+	}
+	if _, err := hs.ReadC1S1(c); err != nil {
+		return errors.Wrapf(err, "read s1")
+	}
+	if _, err = hs.ReadC2S2(c); err != nil {
+		return errors.Wrapf(err, "read c2")
+	}
+	logger.Df(ctx, "backend simple handshake done, server=%v", addr)
+
+	if err := hs.WriteC2S2(c, hs.C1S1()); err != nil {
+		return errors.Wrapf(err, "write c2")
+	}
+
+	// Connect RTMP app on tcUrl with server.
+	if true {
+		connectApp := rtmp.NewConnectAppPacket()
+		connectApp.CommandObject.Set("tcUrl", rtmp.NewAmf0String(tcUrl))
+		if err := client.WritePacket(ctx, connectApp, 1); err != nil {
+			return errors.Wrapf(err, "write connect app")
+		}
+	}
+
+	if true {
+		var connectAppRes *rtmp.ConnectAppResPacket
+		if _, err := rtmp.ExpectPacket(ctx, client, &connectAppRes); err != nil {
+			return errors.Wrapf(err, "expect connect app res")
+		}
+		logger.Df(ctx, "backend connect RTMP app, id=%v", connectAppRes.SrsID())
+	}
+
+	// Publish RTMP stream with server.
+	if true {
+		identifyReq := rtmp.NewCallPacket()
+		identifyReq.CommandName = "releaseStream"
+		identifyReq.TransactionID = 2
+		identifyReq.CommandObject = rtmp.NewAmf0Null()
+		identifyReq.Args = rtmp.NewAmf0String(streamName)
+		if err := client.WritePacket(ctx, identifyReq, 0); err != nil {
+			return errors.Wrapf(err, "releaseStream")
+		}
+	}
+	for {
+		var identifyRes *rtmp.CallPacket
+		if _, err := rtmp.ExpectPacket(ctx, client, &identifyRes); err != nil {
+			return errors.Wrapf(err, "expect releaseStream res")
+		}
+		if identifyRes.CommandName == "_result" {
+			break
+		}
+	}
+
+	if true {
+		identifyReq := rtmp.NewCallPacket()
+		identifyReq.CommandName = "FCPublish"
+		identifyReq.TransactionID = 3
+		identifyReq.CommandObject = rtmp.NewAmf0Null()
+		identifyReq.Args = rtmp.NewAmf0String(streamName)
+		if err := client.WritePacket(ctx, identifyReq, 0); err != nil {
+			return errors.Wrapf(err, "FCPublish")
+		}
+	}
+	for {
+		var identifyRes *rtmp.CallPacket
+		if _, err := rtmp.ExpectPacket(ctx, client, &identifyRes); err != nil {
+			return errors.Wrapf(err, "expect FCPublish res")
+		}
+		if identifyRes.CommandName == "_result" {
+			break
+		}
+	}
+
+	if true {
+		createStream := rtmp.NewCreateStreamPacket()
+		createStream.TransactionID = 4
+		createStream.CommandObject = rtmp.NewAmf0Null()
+		if err := client.WritePacket(ctx, createStream, 0); err != nil {
+			return errors.Wrapf(err, "createStream")
+		}
+	}
+	var currentStreamID int
+	for {
+		var identifyRes *rtmp.CreateStreamResPacket
+		if _, err := rtmp.ExpectPacket(ctx, client, &identifyRes); err != nil {
+			return errors.Wrapf(err, "expect createStream res")
+		}
+		if sid := identifyRes.StreamID; sid != 0 {
+			currentStreamID = int(sid)
+			break
+		}
+	}
+
+	if true {
+		publishStream := rtmp.NewPublishPacket()
+		publishStream.TransactionID = 5
+		publishStream.CommandObject = rtmp.NewAmf0Null()
+		publishStream.StreamName = *rtmp.NewAmf0String(streamName)
+		publishStream.StreamType = *rtmp.NewAmf0String("live")
+		if err := client.WritePacket(ctx, publishStream, currentStreamID); err != nil {
+			return errors.Wrapf(err, "publish")
+		}
+	}
+	for {
+		var identifyRes *rtmp.CallPacket
+		if _, err := rtmp.ExpectPacket(ctx, client, &identifyRes); err != nil {
+			return errors.Wrapf(err, "expect publish res")
+		}
+		// Ignore onFCPublish, expect onStatus(NetStream.Publish.Start).
+		if identifyRes.CommandName == "onStatus" {
+			if data := rtmp.Amf0AnyToObject(identifyRes.Args); data == nil {
+				return errors.Errorf("onStatus args not object")
+			} else if code := rtmp.Amf0AnyToString(data.Get("code")); *code != "NetStream.Publish.Start" {
+				return errors.Errorf("onStatus code=%v not NetStream.Publish.Start", *code)
+			}
+			break
+		}
+	}
+	logger.Df(ctx, "backend publish stream=%v, sid=%v", streamName, currentStreamID)
+
+	return nil
+}

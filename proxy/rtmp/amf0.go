@@ -106,6 +106,25 @@ type amf0Any interface {
 	amf0Marker() amf0Marker
 }
 
+func Amf0AnyToObject(a amf0Any) *amf0Object {
+	return amf0AnyTo[*amf0Object](a)
+}
+
+func Amf0AnyToString(a amf0Any) *amf0String {
+	return amf0AnyTo[*amf0String](a)
+}
+
+// Convert any to specified object.
+func amf0AnyTo[T amf0Any](a amf0Any) T {
+	var to T
+	if a != nil {
+		if v, ok := a.(T); ok {
+			return v
+		}
+	}
+	return to
+}
+
 // Discovery the amf0 object from the bytes b.
 func Amf0Discovery(p []byte) (a amf0Any, err error) {
 	if len(p) < 1 {

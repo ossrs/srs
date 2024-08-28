@@ -53,6 +53,14 @@ func envGraceQuitTimeout() string {
 	return os.Getenv("PROXY_GRACE_QUIT_TIMEOUT")
 }
 
+func envDefaultBackendIP() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_IP")
+}
+
+func envDefaultBackendPort() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_PORT")
+}
+
 func apiResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, data any) {
 	w.Header().Set("Server", fmt.Sprintf("%v/%v", Signature(), Version()))
 

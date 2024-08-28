@@ -7,10 +7,10 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"srs-proxy/errors"
 	"syscall"
 	"time"
 
+	"srs-proxy/errors"
 	"srs-proxy/logger"
 )
 

@@ -8,10 +8,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"srs-proxy/logger"
 	"strings"
 	"sync"
 	"time"
+
+	"srs-proxy/logger"
 )
 
 type httpServer struct {

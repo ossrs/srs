@@ -205,10 +205,11 @@ func (v *systemAPI) Run(ctx context.Context) error {
 				srs.ServerID, srs.ServiceID, srs.PID = serverID, serviceID, pid
 				srs.RTMP, srs.HTTP, srs.API = rtmp, stream, api
 				srs.SRT, srs.RTC = srt, rtc
+				srs.UpdatedAt = time.Now()
 			})
 			srsLoadBalancer.Update(server)
 
-			logger.Df(ctx, "Register SRS media server, %v", server)
+			logger.Df(ctx, "Register SRS media server, %+v", server)
 			return nil
 		}(); err != nil {
 			apiError(ctx, w, r, err)

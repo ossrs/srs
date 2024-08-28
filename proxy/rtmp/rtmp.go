@@ -249,6 +249,10 @@ func (v *Protocol) parseAMFObject(p []byte) (pkt Packet, err error) {
 			return NewConnectAppResPacket(transactionID), nil
 		case commandCreateStream:
 			return NewCreateStreamResPacket(transactionID), nil
+		case commandReleaseStream, commandFCPublish, commandFCUnpublish:
+			call := NewCallPacket()
+			call.TransactionID = transactionID
+			return call, nil
 		default:
 			return nil, errors.Errorf("No request for %v", string(requestName))
 		}
@@ -712,6 +716,8 @@ func (v *Protocol) onPacketWriten(m *Message, pkt Packet) (err error) {
 		tid, name = pkt.TransactionID, pkt.CommandName
 	case *CreateStreamPacket:
 		tid, name = pkt.TransactionID, pkt.CommandName
+	case *CallPacket:
+		tid, name = pkt.TransactionID, pkt.CommandName
 	}
 
 	if tid > 0 && len(name) > 0 {
@@ -1138,14 +1144,11 @@ func (v *ConnectAppPacket) UnmarshalBinary(data []byte) (err error) {
 }
 
 func (v *ConnectAppPacket) TcUrl() string {
-	if v.CommandObject == nil {
-		return ""
+	if v.CommandObject != nil {
+		if v, ok := v.CommandObject.Get("tcUrl").(*amf0String); ok {
+			return string(*v)
+		}
 	}
-
-	if v, ok := v.CommandObject.Get("tcUrl").(*amf0String); ok {
-		return string(*v)
-	}
-
 	return ""
 }
 
@@ -1161,6 +1164,17 @@ func NewConnectAppResPacket(tid amf0Number) *ConnectAppResPacket {
 	v.Args = NewAmf0Object()
 	v.TransactionID = tid
 	return v
+}
+
+func (v *ConnectAppResPacket) SrsID() string {
+	if v.Args != nil {
+		if v, ok := v.Args.Get("data").(*amf0EcmaArray); ok {
+			if v, ok := v.Get("srs_id").(*amf0String); ok {
+				return string(*v)
+			}
+		}
+	}
+	return ""
 }
 
 func (v *ConnectAppResPacket) UnmarshalBinary(data []byte) (err error) {
@@ -1344,6 +1358,7 @@ func NewCreateStreamResPacket(tid amf0Number) *CreateStreamResPacket {
 	v.CommandName = commandResult
 	v.TransactionID = tid
 	v.CommandObject = NewAmf0Null()
+	v.StreamID = 0
 	return v
 }
 
@@ -1392,7 +1407,7 @@ func NewPublishPacket() *PublishPacket {
 	v := &PublishPacket{}
 	v.CommandName = commandPublish
 	v.CommandObject = NewAmf0Null()
-	v.StreamType = amf0String("live")
+	v.StreamType = "live"
 	return v
 }
 

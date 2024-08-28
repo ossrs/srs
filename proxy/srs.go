@@ -4,9 +4,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"srs-proxy/sync"
+	"math/rand"
+	"os"
+	"srs-proxy/logger"
 	"strings"
+	"time"
+
+	"srs-proxy/sync"
 )
 
 type SRSServer struct {
@@ -30,6 +36,8 @@ type SRSServer struct {
 	SRT []string
 	// The RTC server listen endpoints.
 	RTC []string
+	// Last update time.
+	UpdatedAt time.Time
 }
 
 func (v *SRSServer) ID() string {
@@ -64,6 +72,7 @@ func (v *SRSServer) Format(f fmt.State, c rune) {
 			if len(v.RTC) > 0 {
 				sb.WriteString(fmt.Sprintf(", rtc=[%v]", strings.Join(v.RTC, ",")))
 			}
+			sb.WriteString(fmt.Sprintf(", update=%v", v.UpdatedAt.Format("2006-01-02 15:04:05.999")))
 			fmt.Fprintf(f, "SRS ip=%v, id=%v, %v", v.IP, v.ID(), sb.String())
 		} else {
 			fmt.Fprintf(f, "SRS ip=%v, id=%v", v.IP, v.ID())
@@ -82,12 +91,63 @@ func NewSRSServer(opts ...func(*SRSServer)) *SRSServer {
 }
 
 type SRSLoadBalancer struct {
-	// All available SRS servers, key is IP address.
+	// All available SRS servers, key is server ID.
 	servers sync.Map[string, *SRSServer]
+	// The picked server to servce client by specified stream URL, key is stream url.
+	picked sync.Map[string, *SRSServer]
 }
 
 var srsLoadBalancer = &SRSLoadBalancer{}
 
+func (v *SRSLoadBalancer) Initialize(ctx context.Context) {
+	if envDefaultBackendIP() != "" && envDefaultBackendPort() != "" {
+		server := NewSRSServer(func(srs *SRSServer) {
+			srs.IP = envDefaultBackendIP()
+			srs.RTMP = []string{envDefaultBackendPort()}
+			srs.ServerID = fmt.Sprintf("default-%v", logger.GenerateContextID())
+			srs.ServiceID = logger.GenerateContextID()
+			srs.PID = fmt.Sprintf("%v", os.Getpid())
+			srs.UpdatedAt = time.Now()
+		})
+		v.Update(server)
+		logger.Df(ctx, "Initialize default SRS media server, %+v", server)
+	}
+}
+
 func (v *SRSLoadBalancer) Update(server *SRSServer) {
-	v.servers.Store(server.IP, server)
+	v.servers.Store(server.ID(), server)
+}
+
+func (v *SRSLoadBalancer) Pick(streamURL string) (*SRSServer, error) {
+	// Always proxy to the same server for the same stream URL.
+	if server, ok := v.picked.Load(streamURL); ok {
+		return server, nil
+	}
+
+	// Gather all servers, alive in 60s ago.
+	var servers []*SRSServer
+	v.servers.Range(func(key string, server *SRSServer) bool {
+		if time.Since(server.UpdatedAt) < 60*time.Second {
+			servers = append(servers, server)
+		}
+		return true
+	})
+
+	// If no servers available, use all possible servers.
+	if len(servers) == 0 {
+		v.servers.Range(func(key string, server *SRSServer) bool {
+			servers = append(servers, server)
+			return true
+		})
+	}
+
+	// No server found, failed.
+	if len(servers) == 0 {
+		return nil, fmt.Errorf("no server available for %v", streamURL)
+	}
+
+	// Pick a server randomly from servers.
+	server := servers[rand.Intn(len(servers))]
+	v.picked.Store(streamURL, server)
+	return server, nil
 }

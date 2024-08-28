@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"os"
+
 	"srs-proxy/errors"
 	"srs-proxy/logger"
 )
@@ -45,6 +46,9 @@ func doMain(ctx context.Context) error {
 
 	// Start the Go pprof if enabled.
 	handleGoPprof(ctx)
+
+	// Initialize SRS load balancers.
+	srsLoadBalancer.Initialize(ctx)
 
 	// Parse the gracefully quit timeout.
 	gracefulQuitTimeout, err := parseGracefullyQuitTimeout()
