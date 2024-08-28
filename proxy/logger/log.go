@@ -29,7 +29,7 @@ func newLoggerPlus(opts ...func(*loggerPlus)) *loggerPlus {
 
 func (v *loggerPlus) Printf(ctx context.Context, f string, a ...interface{}) {
 	format, args := f, a
-	if cid, ok := ctx.Value(cidKey).(string); ok {
+	if cid := ContextID(ctx); cid != "" {
 		format, args = "[%v][%v][%v] "+format, append([]interface{}{v.level, os.Getpid(), cid}, a...)
 	}
 

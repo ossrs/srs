@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"reflect"
 	"sync"
 
 	oe "srs-proxy/errors"
@@ -20,11 +19,18 @@ import (
 
 // The handshake implements the RTMP handshake protocol.
 type Handshake struct {
+	// The random number generator.
 	r *rand.Rand
+	// The c1s1 cache.
+	c1s1 []byte
 }
 
 func NewHandshake(r *rand.Rand) *Handshake {
 	return &Handshake{r: r}
+}
+
+func (v *Handshake) C1S1() []byte {
+	return v.c1s1
 }
 
 func (v *Handshake) WriteC0S0(w io.Writer) (err error) {
@@ -62,13 +68,14 @@ func (v *Handshake) WriteC1S1(w io.Writer) (err error) {
 	return
 }
 
-func (v *Handshake) ReadC1S1(r io.Reader) (c1 []byte, err error) {
+func (v *Handshake) ReadC1S1(r io.Reader) (c1s1 []byte, err error) {
 	b := &bytes.Buffer{}
 	if _, err = io.CopyN(b, r, 1536); err != nil {
 		return nil, oe.Wrap(err, "read c1s1")
 	}
 
-	c1 = b.Bytes()
+	c1s1 = b.Bytes()
+	v.c1s1 = c1s1
 
 	return
 }
@@ -163,15 +170,7 @@ func NewProtocol(rw io.ReadWriter) *Protocol {
 	return v
 }
 
-func (v *Protocol) ExpectPacket(ctx context.Context, ppkt interface{}) (m *Message, err error) {
-	// ppkt must be a **ptr, the elem is *ptr used to check the assignable.
-	ppktt := reflect.TypeOf(ppkt).Elem()
-	ppktv := reflect.ValueOf(ppkt)
-
-	if required := reflect.TypeOf((*Packet)(nil)).Elem(); !ppktt.Implements(required) {
-		return nil, oe.Errorf("%v not implements %v", ppktt, required)
-	}
-
+func ExpectPacket[T Packet](ctx context.Context, v *Protocol, ppkt *T) (m *Message, err error) {
 	for {
 		if m, err = v.ReadMessage(ctx); err != nil {
 			return nil, oe.WithMessage(err, "read message")
@@ -182,17 +181,18 @@ func (v *Protocol) ExpectPacket(ctx context.Context, ppkt interface{}) (m *Messa
 			return nil, oe.WithMessage(err, "decode message")
 		}
 
-		var pktt reflect.Type
-		if pktt = reflect.TypeOf(pkt); !pktt.AssignableTo(ppktt) {
-			continue
+		if p, ok := pkt.(T); ok {
+			*ppkt = p
+			break
 		}
-
-		// It's similar to *ppktv = pkt.
-		ppktv.Elem().Set(reflect.ValueOf(pkt))
-		break
 	}
 
 	return
+}
+
+// Deprecated: Please use rtmp.ExpectPacket instead.
+func (v *Protocol) ExpectPacket(ctx context.Context, ppkt any) (m *Message, err error) {
+	panic("Please use rtmp.ExpectPacket instead")
 }
 
 func (v *Protocol) ExpectMessage(ctx context.Context, types ...MessageType) (m *Message, err error) {
@@ -725,6 +725,10 @@ func (v *Protocol) onPacketWriten(m *Message, pkt Packet) (err error) {
 }
 
 func (v *Protocol) onMessageArrivated(m *Message) (err error) {
+	if m == nil {
+		return
+	}
+
 	var pkt Packet
 	switch m.MessageType {
 	case MessageTypeSetChunkSize, MessageTypeUserControl, MessageTypeWindowAcknowledgementSize:
@@ -1133,6 +1137,18 @@ func (v *ConnectAppPacket) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
+func (v *ConnectAppPacket) TcUrl() string {
+	if v.CommandObject == nil {
+		return ""
+	}
+
+	if v, ok := v.CommandObject.Get("tcUrl").(*amf0String); ok {
+		return string(*v)
+	}
+
+	return ""
+}
+
 // The response for ConnectAppPacket.
 type ConnectAppResPacket struct {
 	objectCallPacket
@@ -1142,6 +1158,7 @@ func NewConnectAppResPacket(tid amf0Number) *ConnectAppResPacket {
 	v := &ConnectAppResPacket{}
 	v.CommandName = commandResult
 	v.CommandObject = NewAmf0Object()
+	v.Args = NewAmf0Object()
 	v.TransactionID = tid
 	return v
 }

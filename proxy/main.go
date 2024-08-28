@@ -21,7 +21,7 @@ func main() {
 	// Start the main loop, ignore the user cancel error.
 	err := doMain(ctx)
 	if err != nil && ctx.Err() != context.Canceled {
-		logger.Ef(ctx, "main: %v", err)
+		logger.Ef(ctx, "main: %+v", err)
 		os.Exit(-1)
 	}
 
@@ -50,6 +50,13 @@ func doMain(ctx context.Context) error {
 	gracefulQuitTimeout, err := parseGracefullyQuitTimeout()
 	if err != nil {
 		return errors.Wrapf(err, "parse gracefully quit timeout")
+	}
+
+	// Start the RTMP server.
+	rtmpServer := NewRtmpServer()
+	defer rtmpServer.Close()
+	if err := rtmpServer.Run(ctx); err != nil {
+		return errors.Wrapf(err, "rtmp server")
 	}
 
 	// Start the HTTP web server.

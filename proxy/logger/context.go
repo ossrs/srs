@@ -28,3 +28,11 @@ func generateContextID() string {
 func WithContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, cidKey, generateContextID())
 }
+
+// ContextID returns the cid in context, or empty string if not set.
+func ContextID(ctx context.Context) string {
+	if cid, ok := ctx.Value(cidKey).(string); ok {
+		return cid
+	}
+	return ""
+}

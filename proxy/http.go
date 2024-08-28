@@ -42,6 +42,7 @@ func (v *httpServer) ListenAndServe(ctx context.Context) error {
 	// Create server and handler.
 	mux := http.NewServeMux()
 	v.server = &http.Server{Addr: addr, Handler: mux}
+	logger.Df(ctx, "HTTP stream server listen at %v", addr)
 
 	// Shutdown the server gracefully when quiting.
 	go func() {
