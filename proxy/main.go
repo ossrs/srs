@@ -48,7 +48,16 @@ func doMain(ctx context.Context) error {
 	handleGoPprof(ctx)
 
 	// Initialize SRS load balancers.
-	srsLoadBalancer.Initialize(ctx)
+	switch lbType := envLoadBalancerType(); lbType {
+	case "memory":
+		srsLoadBalancer = NewMemoryLoadBalancer()
+	default:
+		return errors.Errorf("invalid load balancer %v", lbType)
+	}
+
+	if err := srsLoadBalancer.Initialize(ctx); err != nil {
+		return errors.Wrapf(err, "initialize srs load balancer")
+	}
 
 	// Parse the gracefully quit timeout.
 	gracefulQuitTimeout, err := parseGracefullyQuitTimeout()

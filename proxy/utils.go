@@ -53,12 +53,20 @@ func envGraceQuitTimeout() string {
 	return os.Getenv("PROXY_GRACE_QUIT_TIMEOUT")
 }
 
+func envDefaultBackendEnabled() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_ENABLED")
+}
+
 func envDefaultBackendIP() string {
 	return os.Getenv("PROXY_DEFAULT_BACKEND_IP")
 }
 
-func envDefaultBackendPort() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_PORT")
+func envDefaultBackendRTMP() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_RTMP")
+}
+
+func envLoadBalancerType() string {
+	return os.Getenv("PROXY_LOAD_BALANCER_TYPE")
 }
 
 func apiResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, data any) {

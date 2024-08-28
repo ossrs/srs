@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"srs-proxy/errors"
 	"srs-proxy/logger"
 	"strings"
 	"time"
@@ -90,35 +91,70 @@ func NewSRSServer(opts ...func(*SRSServer)) *SRSServer {
 	return v
 }
 
-type SRSLoadBalancer struct {
+// NewDefaultSRSForDebugging initialize the default SRS media server, for debugging only.
+func NewDefaultSRSForDebugging() (*SRSServer, error) {
+	if envDefaultBackendEnabled() != "on" {
+		return nil, nil
+	}
+
+	if envDefaultBackendIP() == "" {
+		return nil, fmt.Errorf("empty default backend ip")
+	}
+	if envDefaultBackendRTMP() == "" {
+		return nil, fmt.Errorf("empty default backend rtmp")
+	}
+
+	server := NewSRSServer(func(srs *SRSServer) {
+		srs.IP = envDefaultBackendIP()
+		srs.RTMP = []string{envDefaultBackendRTMP()}
+		srs.ServerID = fmt.Sprintf("default-%v", logger.GenerateContextID())
+		srs.ServiceID = logger.GenerateContextID()
+		srs.PID = fmt.Sprintf("%v", os.Getpid())
+		srs.UpdatedAt = time.Now()
+	})
+	return server, nil
+}
+
+// SRSLoadBalancer is the interface to load balance the SRS servers.
+type SRSLoadBalancer interface {
+	// Initialize the load balancer.
+	Initialize(ctx context.Context) error
+	// Update the backer server.
+	Update(server *SRSServer)
+	// Pick a backend server for the specified stream URL.
+	Pick(streamURL string) (*SRSServer, error)
+}
+
+// srsLoadBalancer is the global SRS load balancer.
+var srsLoadBalancer SRSLoadBalancer
+
+// srsMemoryLoadBalancer stores state in memory.
+type srsMemoryLoadBalancer struct {
 	// All available SRS servers, key is server ID.
 	servers sync.Map[string, *SRSServer]
 	// The picked server to servce client by specified stream URL, key is stream url.
 	picked sync.Map[string, *SRSServer]
 }
 
-var srsLoadBalancer = &SRSLoadBalancer{}
+func NewMemoryLoadBalancer() SRSLoadBalancer {
+	return &srsMemoryLoadBalancer{}
+}
 
-func (v *SRSLoadBalancer) Initialize(ctx context.Context) {
-	if envDefaultBackendIP() != "" && envDefaultBackendPort() != "" {
-		server := NewSRSServer(func(srs *SRSServer) {
-			srs.IP = envDefaultBackendIP()
-			srs.RTMP = []string{envDefaultBackendPort()}
-			srs.ServerID = fmt.Sprintf("default-%v", logger.GenerateContextID())
-			srs.ServiceID = logger.GenerateContextID()
-			srs.PID = fmt.Sprintf("%v", os.Getpid())
-			srs.UpdatedAt = time.Now()
-		})
+func (v *srsMemoryLoadBalancer) Initialize(ctx context.Context) error {
+	if server, err := NewDefaultSRSForDebugging(); err != nil {
+		return errors.Wrapf(err, "initialize default SRS")
+	} else if server != nil {
 		v.Update(server)
 		logger.Df(ctx, "Initialize default SRS media server, %+v", server)
 	}
+	return nil
 }
 
-func (v *SRSLoadBalancer) Update(server *SRSServer) {
+func (v *srsMemoryLoadBalancer) Update(server *SRSServer) {
 	v.servers.Store(server.ID(), server)
 }
 
-func (v *SRSLoadBalancer) Pick(streamURL string) (*SRSServer, error) {
+func (v *srsMemoryLoadBalancer) Pick(streamURL string) (*SRSServer, error) {
 	// Always proxy to the same server for the same stream URL.
 	if server, ok := v.picked.Load(streamURL); ok {
 		return server, nil

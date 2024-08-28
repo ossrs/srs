@@ -47,18 +47,27 @@ func setupDefaultEnv(ctx context.Context) {
 	// The API server of proxy itself.
 	setEnvDefault("PROXY_SYSTEM_API", "12025")
 
+	// The load balancer, use redis or memory.
+	setEnvDefault("PROXY_LOAD_BALANCER_TYPE", "redis")
+
+	// Whether enable the default backend server, for debugging.
+	setEnvDefault("PROXY_DEFAULT_BACKEND_ENABLED", "off")
 	// Default backend server IP, for debugging.
-	//setEnvDefault("PROXY_DEFAULT_BACKEND_IP", "127.0.0.1")
+	setEnvDefault("PROXY_DEFAULT_BACKEND_IP", "127.0.0.1")
 	// Default backend server port, for debugging.
-	//setEnvDefault("PROXY_DEFAULT_BACKEND_PORT", "1935")
+	setEnvDefault("PROXY_DEFAULT_BACKEND_RTMP", "1935")
 
 	logger.Df(ctx, "load .env as GO_PPROF=%v, "+
 		"PROXY_FORCE_QUIT_TIMEOUT=%v, PROXY_GRACE_QUIT_TIMEOUT=%v, "+
 		"PROXY_HTTP_API=%v, PROXY_HTTP_SERVER=%v, PROXY_RTMP_SERVER=%v, "+
-		"PROXY_SYSTEM_API=%v, PROXY_DEFAULT_BACKEND_IP=%v, PROXY_DEFAULT_BACKEND_PORT=%v",
+		"PROXY_SYSTEM_API=%v, PROXY_DEFAULT_BACKEND_ENABLED=%v, "+
+		"PROXY_DEFAULT_BACKEND_IP=%v, PROXY_DEFAULT_BACKEND_RTMP=%v, "+
+		"PROXY_LOAD_BALANCER_TYPE=%v",
 		envGoPprof(),
 		envForceQuitTimeout(), envGraceQuitTimeout(),
 		envHttpAPI(), envHttpServer(), envRtmpServer(),
-		envSystemAPI(), envDefaultBackendIP(), envDefaultBackendPort(),
+		envSystemAPI(), envDefaultBackendEnabled(),
+		envDefaultBackendIP(), envDefaultBackendRTMP(),
+		envLoadBalancerType(),
 	)
 }

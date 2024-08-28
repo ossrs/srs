@@ -106,12 +106,44 @@ type amf0Any interface {
 	amf0Marker() amf0Marker
 }
 
-func Amf0AnyToObject(a amf0Any) *amf0Object {
-	return amf0AnyTo[*amf0Object](a)
+type amf0Converter struct {
+	from amf0Any
 }
 
-func Amf0AnyToString(a amf0Any) *amf0String {
-	return amf0AnyTo[*amf0String](a)
+func NewAmf0Converter(from amf0Any) *amf0Converter {
+	return &amf0Converter{from: from}
+}
+
+func (v *amf0Converter) ToNumber() *amf0Number {
+	return amf0AnyTo[*amf0Number](v.from)
+}
+
+func (v *amf0Converter) ToBoolean() *amf0Boolean {
+	return amf0AnyTo[*amf0Boolean](v.from)
+}
+
+func (v *amf0Converter) ToString() *amf0String {
+	return amf0AnyTo[*amf0String](v.from)
+}
+
+func (v *amf0Converter) ToObject() *amf0Object {
+	return amf0AnyTo[*amf0Object](v.from)
+}
+
+func (v *amf0Converter) ToNull() *amf0Null {
+	return amf0AnyTo[*amf0Null](v.from)
+}
+
+func (v *amf0Converter) ToUndefined() *amf0Undefined {
+	return amf0AnyTo[*amf0Undefined](v.from)
+}
+
+func (v *amf0Converter) ToEcmaArray() *amf0EcmaArray {
+	return amf0AnyTo[*amf0EcmaArray](v.from)
+}
+
+func (v *amf0Converter) ToStrictArray() *amf0StrictArray {
+	return amf0AnyTo[*amf0StrictArray](v.from)
 }
 
 // Convert any to specified object.

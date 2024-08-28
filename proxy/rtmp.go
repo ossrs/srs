@@ -366,7 +366,7 @@ func (v *RTMPClient) Connect(ctx context.Context, tcUrl, streamName string) erro
 		if _, err := rtmp.ExpectPacket(ctx, client, &connectAppRes); err != nil {
 			return errors.Wrapf(err, "expect connect app res")
 		}
-		logger.Df(ctx, "backend connect RTMP app, id=%v", connectAppRes.SrsID())
+		logger.Df(ctx, "backend connect RTMP app, tcUrl=%v, id=%v", tcUrl, connectAppRes.SrsID())
 	}
 
 	// Publish RTMP stream with server.
@@ -447,9 +447,11 @@ func (v *RTMPClient) Connect(ctx context.Context, tcUrl, streamName string) erro
 		}
 		// Ignore onFCPublish, expect onStatus(NetStream.Publish.Start).
 		if identifyRes.CommandName == "onStatus" {
-			if data := rtmp.Amf0AnyToObject(identifyRes.Args); data == nil {
+			if data := rtmp.NewAmf0Converter(identifyRes.Args).ToObject(); data == nil {
 				return errors.Errorf("onStatus args not object")
-			} else if code := rtmp.Amf0AnyToString(data.Get("code")); *code != "NetStream.Publish.Start" {
+			} else if code := rtmp.NewAmf0Converter(data.Get("code")).ToString(); code == nil {
+				return errors.Errorf("onStatus code not string")
+			} else if *code != "NetStream.Publish.Start" {
 				return errors.Errorf("onStatus code=%v not NetStream.Publish.Start", *code)
 			}
 			break
