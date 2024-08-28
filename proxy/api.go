@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -154,11 +153,17 @@ func (v *systemAPI) Run(ctx context.Context) error {
 	logger.Df(ctx, "Handle /api/v1/srs/register by %v", addr)
 	mux.HandleFunc("/api/v1/srs/register", func(w http.ResponseWriter, r *http.Request) {
 		if err := func() error {
-			var device, ip string
+			var deviceID, ip, serverID, serviceID, pid string
 			var rtmp, stream, api, srt, rtc []string
 			if err := ParseBody(r.Body, &struct {
 				// The IP of SRS, mandatory.
 				IP *string `json:"ip"`
+				// The server id of SRS, store in file, may not change, mandatory.
+				ServerID *string `json:"server"`
+				// The service id of SRS, always change when restarted, mandatory.
+				ServiceID *string `json:"service"`
+				// The process id of SRS, always change when restarted, mandatory.
+				PID *string `json:"pid"`
 				// The RTMP listen endpoints, mandatory.
 				RTMP *[]string `json:"rtmp"`
 				// The HTTP Stream listen endpoints, optional.
@@ -170,9 +175,10 @@ func (v *systemAPI) Run(ctx context.Context) error {
 				// The RTC listen endpoints, optional.
 				RTC *[]string `json:"rtc"`
 				// The device id of SRS, optional.
-				Device *string `json:"device_id"`
+				DeviceID *string `json:"device_id"`
 			}{
-				Device: &device, IP: &ip,
+				IP: &ip, DeviceID: &deviceID,
+				ServerID: &serverID, ServiceID: &serviceID, PID: &pid,
 				RTMP: &rtmp, HTTP: &stream, API: &api, SRT: &srt, RTC: &rtc,
 			}); err != nil {
 				return errors.Wrapf(err, "parse body")
@@ -181,23 +187,28 @@ func (v *systemAPI) Run(ctx context.Context) error {
 			if ip == "" {
 				return errors.Errorf("empty ip")
 			}
+			if serverID == "" {
+				return errors.Errorf("empty server")
+			}
+			if serviceID == "" {
+				return errors.Errorf("empty service")
+			}
+			if pid == "" {
+				return errors.Errorf("empty pid")
+			}
+			if len(rtmp) == 0 {
+				return errors.Errorf("empty rtmp")
+			}
 
-			var sb strings.Builder
-			sb.WriteString(fmt.Sprintf("rtmp=[%v]", strings.Join(rtmp, ",")))
-			if len(stream) > 0 {
-				sb.WriteString(fmt.Sprintf(", http=[%v]", strings.Join(stream, ",")))
-			}
-			if len(api) > 0 {
-				sb.WriteString(fmt.Sprintf(", api=[%v]", strings.Join(api, ",")))
-			}
-			if len(srt) > 0 {
-				sb.WriteString(fmt.Sprintf(", srt=[%v]", strings.Join(srt, ",")))
-			}
-			if len(rtc) > 0 {
-				sb.WriteString(fmt.Sprintf(", rtc=[%v]", strings.Join(rtc, ",")))
-			}
-			logger.Df(ctx, "Register SRS media server, device=%v, ip=%v, %v",
-				device, ip, sb.String())
+			server := NewSRSServer(func(srs *SRSServer) {
+				srs.IP, srs.DeviceID = ip, deviceID
+				srs.ServerID, srs.ServiceID, srs.PID = serverID, serviceID, pid
+				srs.RTMP, srs.HTTP, srs.API = rtmp, stream, api
+				srs.SRT, srs.RTC = srt, rtc
+			})
+			srsLoadBalancer.Update(server)
+
+			logger.Df(ctx, "Register SRS media server, %v", server)
 			return nil
 		}(); err != nil {
 			apiError(ctx, w, r, err)
