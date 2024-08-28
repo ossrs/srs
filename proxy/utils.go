@@ -30,6 +30,10 @@ func envHttpServer() string {
 	return os.Getenv("PROXY_HTTP_SERVER")
 }
 
+func envRtmpServer() string {
+	return os.Getenv("PROXY_RTMP_SERVER")
+}
+
 func envGoPprof() string {
 	return os.Getenv("GO_PPROF")
 }
