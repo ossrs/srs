@@ -39,17 +39,17 @@ func setupDefaultEnv(ctx context.Context) {
 	setEnvDefault("PROXY_GRACE_QUIT_TIMEOUT", "20s")
 
 	// The HTTP API server.
-	setEnvDefault("PROXY_HTTP_API", "1985")
+	setEnvDefault("PROXY_HTTP_API", "11985")
 	// The HTTP web server.
-	setEnvDefault("PROXY_HTTP_SERVER", "8080")
+	setEnvDefault("PROXY_HTTP_SERVER", "18080")
 	// The RTMP media server.
-	setEnvDefault("PROXY_RTMP_SERVER", "1935")
+	setEnvDefault("PROXY_RTMP_SERVER", "11935")
 	// The API server of proxy itself.
-	setEnvDefault("PROXY_SYSTEM_API", "2025")
+	setEnvDefault("PROXY_SYSTEM_API", "12025")
 
-	// Default backend server IP.
+	// Default backend server IP, for debugging.
 	//setEnvDefault("PROXY_DEFAULT_BACKEND_IP", "127.0.0.1")
-	// Default backend server port.
+	// Default backend server port, for debugging.
 	//setEnvDefault("PROXY_DEFAULT_BACKEND_PORT", "1935")
 
 	logger.Df(ctx, "load .env as GO_PPROF=%v, "+
