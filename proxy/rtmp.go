@@ -154,7 +154,7 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 	logger.Df(ctx, "RTMP connect app %v", tcUrl)
 
 	// Expect RTMP command to identify the client, a publisher or viewer.
-	var currentStreamID int
+	var currentStreamID, nextStreamID int
 	var streamName string
 	var clientType RTMPClientType
 	for clientType == "" {
@@ -170,8 +170,8 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 				identifyRes := rtmp.NewCreateStreamResPacket(pkt.TransactionID)
 				response = identifyRes
 
-				currentStreamID = 1
-				identifyRes.StreamID = *rtmp.NewAmf0Number(float64(currentStreamID))
+				nextStreamID = 1
+				identifyRes.StreamID = *rtmp.NewAmf0Number(float64(nextStreamID))
 			} else {
 				// For releaseStream, FCPublish, etc.
 				identifyRes := rtmp.NewCallPacket()
@@ -180,7 +180,7 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 				identifyRes.TransactionID = pkt.TransactionID
 				identifyRes.CommandName = "_result"
 				identifyRes.CommandObject = rtmp.NewAmf0Null()
-				identifyRes.Args = rtmp.NewAmf0Null()
+				identifyRes.Args = rtmp.NewAmf0Undefined()
 			}
 		case *rtmp.PublishPacket:
 			identifyRes := rtmp.NewCallPacket()
@@ -203,6 +203,9 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 				return errors.Wrapf(err, "write identify res for req=%v, stream=%v",
 					identifyReq, currentStreamID)
 			}
+
+			// Update the stream ID for next request.
+			currentStreamID = nextStreamID
 		}
 	}
 	logger.Df(ctx, "RTMP identify tcUrl=%v, stream=%v, id=%v, type=%v",

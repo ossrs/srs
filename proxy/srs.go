@@ -155,6 +155,20 @@ func (v *srsMemoryLoadBalancer) Initialize(ctx context.Context) error {
 		if err := v.Update(ctx, server); err != nil {
 			return errors.Wrapf(err, "update default SRS %+v", server)
 		}
+
+		// Keep alive.
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(30 * time.Second):
+					if err := v.Update(ctx, server); err != nil {
+						logger.Wf(ctx, "update default SRS %+v failed, %+v", server, err)
+					}
+				}
+			}
+		}()
 		logger.Df(ctx, "MemoryLB: Initialize default SRS media server, %+v", server)
 	}
 	return nil
