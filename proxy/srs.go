@@ -155,7 +155,7 @@ func (v *srsMemoryLoadBalancer) Initialize(ctx context.Context) error {
 		if err := v.Update(ctx, server); err != nil {
 			return errors.Wrapf(err, "update default SRS %+v", server)
 		}
-		logger.Df(ctx, "Initialize default SRS media server, %+v", server)
+		logger.Df(ctx, "MemoryLB: Initialize default SRS media server, %+v", server)
 	}
 	return nil
 }
@@ -224,7 +224,7 @@ func (v *srsRedisLoadBalancer) Initialize(ctx context.Context) error {
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		return errors.Wrapf(err, "unable to connect to redis %v", rdb.String())
 	}
-	logger.Df(ctx, "connected to redis %v ok", rdb.String())
+	logger.Df(ctx, "RedisLB: connected to redis %v ok", rdb.String())
 
 	if server, err := NewDefaultSRSForDebugging(); err != nil {
 		return errors.Wrapf(err, "initialize default SRS")
@@ -246,7 +246,7 @@ func (v *srsRedisLoadBalancer) Initialize(ctx context.Context) error {
 				}
 			}
 		}()
-		logger.Df(ctx, "Initialize default SRS media server, %+v", server)
+		logger.Df(ctx, "RedisLB: Initialize default SRS media server, %+v", server)
 	}
 	return nil
 }

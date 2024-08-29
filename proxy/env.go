@@ -8,10 +8,10 @@ import (
 	"os"
 	"path"
 
+	"github.com/joho/godotenv"
+
 	"srs-proxy/errors"
 	"srs-proxy/logger"
-
-	"github.com/joho/godotenv"
 )
 
 // loadEnvFile loads the environment variables from file. Note that we only use .env file.
@@ -48,7 +48,7 @@ func setupDefaultEnv(ctx context.Context) {
 	setEnvDefault("PROXY_SYSTEM_API", "12025")
 
 	// The load balancer, use redis or memory.
-	setEnvDefault("PROXY_LOAD_BALANCER_TYPE", "redis")
+	setEnvDefault("PROXY_LOAD_BALANCER_TYPE", "memory")
 	// The redis server host.
 	setEnvDefault("PROXY_REDIS_HOST", "127.0.0.1")
 	// The redis server port.
