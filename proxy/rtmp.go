@@ -298,9 +298,14 @@ func (v *RTMPClient) Close() error {
 }
 
 func (v *RTMPClient) Connect(ctx context.Context, tcUrl, streamName string) error {
+	// Build the stream URL in vhost/app/stream schema.
+	streamURL, err := buildStreamURL(fmt.Sprintf("%v/%v", tcUrl, streamName))
+	if err != nil {
+		return errors.Wrapf(err, "build stream url %v/%v", tcUrl, streamName)
+	}
+
 	// Pick a backend SRS server to proxy the RTMP stream.
-	streamURL := fmt.Sprintf("%v/%v", tcUrl, streamName)
-	backend, err := srsLoadBalancer.Pick(streamURL)
+	backend, err := srsLoadBalancer.Pick(ctx, streamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}

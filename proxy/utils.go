@@ -9,65 +9,16 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
-	"os"
+	"net/url"
 	"reflect"
+	"strings"
 	"time"
 
 	"srs-proxy/errors"
 	"srs-proxy/logger"
 )
-
-// setEnvDefault set env key=value if not set.
-func setEnvDefault(key, value string) {
-	if os.Getenv(key) == "" {
-		os.Setenv(key, value)
-	}
-}
-
-func envHttpAPI() string {
-	return os.Getenv("PROXY_HTTP_API")
-}
-
-func envHttpServer() string {
-	return os.Getenv("PROXY_HTTP_SERVER")
-}
-
-func envRtmpServer() string {
-	return os.Getenv("PROXY_RTMP_SERVER")
-}
-
-func envSystemAPI() string {
-	return os.Getenv("PROXY_SYSTEM_API")
-}
-
-func envGoPprof() string {
-	return os.Getenv("GO_PPROF")
-}
-
-func envForceQuitTimeout() string {
-	return os.Getenv("PROXY_FORCE_QUIT_TIMEOUT")
-}
-
-func envGraceQuitTimeout() string {
-	return os.Getenv("PROXY_GRACE_QUIT_TIMEOUT")
-}
-
-func envDefaultBackendEnabled() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_ENABLED")
-}
-
-func envDefaultBackendIP() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_IP")
-}
-
-func envDefaultBackendRTMP() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_RTMP")
-}
-
-func envLoadBalancerType() string {
-	return os.Getenv("PROXY_LOAD_BALANCER_TYPE")
-}
 
 func apiResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, data any) {
 	w.Header().Set("Server", fmt.Sprintf("%v/%v", Signature(), Version()))
@@ -115,4 +66,27 @@ func ParseBody(r io.ReadCloser, v interface{}) error {
 	}
 
 	return nil
+}
+
+// buildStreamURL build as vhost/app/stream for stream URL r.
+func buildStreamURL(r string) (string, error) {
+	u, err := url.Parse(r)
+	if err != nil {
+		return "", errors.Wrapf(err, "parse url %v", r)
+	}
+
+	// If not domain or ip in hostname, it's __defaultVhost__.
+	defaultVhost := !strings.Contains(u.Hostname(), ".")
+
+	// If hostname is actually an IP address, it's __defaultVhost__.
+	if ip := net.ParseIP(u.Hostname()); ip.To4() != nil {
+		defaultVhost = true
+	}
+
+	if defaultVhost {
+		return fmt.Sprintf("__defaultVhost__%v", u.Path), nil
+	}
+
+	// Ignore port, only use hostname as vhost.
+	return fmt.Sprintf("%v%v", u.Hostname(), u.Path), nil
 }

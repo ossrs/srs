@@ -51,6 +51,8 @@ func doMain(ctx context.Context) error {
 	switch lbType := envLoadBalancerType(); lbType {
 	case "memory":
 		srsLoadBalancer = NewMemoryLoadBalancer()
+	case "redis":
+		srsLoadBalancer = NewRedisLoadBalancer()
 	default:
 		return errors.Errorf("invalid load balancer %v", lbType)
 	}

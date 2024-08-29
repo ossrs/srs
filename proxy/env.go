@@ -49,6 +49,14 @@ func setupDefaultEnv(ctx context.Context) {
 
 	// The load balancer, use redis or memory.
 	setEnvDefault("PROXY_LOAD_BALANCER_TYPE", "redis")
+	// The redis server host.
+	setEnvDefault("PROXY_REDIS_HOST", "127.0.0.1")
+	// The redis server port.
+	setEnvDefault("PROXY_REDIS_PORT", "6379")
+	// The redis server password.
+	setEnvDefault("PROXY_REDIS_PASSWORD", "")
+	// The redis server db.
+	setEnvDefault("PROXY_REDIS_DB", "0")
 
 	// Whether enable the default backend server, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_ENABLED", "off")
@@ -62,12 +70,81 @@ func setupDefaultEnv(ctx context.Context) {
 		"PROXY_HTTP_API=%v, PROXY_HTTP_SERVER=%v, PROXY_RTMP_SERVER=%v, "+
 		"PROXY_SYSTEM_API=%v, PROXY_DEFAULT_BACKEND_ENABLED=%v, "+
 		"PROXY_DEFAULT_BACKEND_IP=%v, PROXY_DEFAULT_BACKEND_RTMP=%v, "+
-		"PROXY_LOAD_BALANCER_TYPE=%v",
+		"PROXY_LOAD_BALANCER_TYPE=%v, PROXY_REDIS_HOST=%v, PROXY_REDIS_PORT=%v, "+
+		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v",
 		envGoPprof(),
 		envForceQuitTimeout(), envGraceQuitTimeout(),
 		envHttpAPI(), envHttpServer(), envRtmpServer(),
 		envSystemAPI(), envDefaultBackendEnabled(),
 		envDefaultBackendIP(), envDefaultBackendRTMP(),
-		envLoadBalancerType(),
+		envLoadBalancerType(), envRedisHost(), envRedisPort(),
+		envRedisPassword(), envRedisDB(),
 	)
+}
+
+func envRedisDB() string {
+	return os.Getenv("PROXY_REDIS_DB")
+}
+
+func envRedisPassword() string {
+	return os.Getenv("PROXY_REDIS_PASSWORD")
+}
+
+func envRedisPort() string {
+	return os.Getenv("PROXY_REDIS_PORT")
+}
+
+func envRedisHost() string {
+	return os.Getenv("PROXY_REDIS_HOST")
+}
+
+func envLoadBalancerType() string {
+	return os.Getenv("PROXY_LOAD_BALANCER_TYPE")
+}
+
+func envDefaultBackendRTMP() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_RTMP")
+}
+
+func envDefaultBackendIP() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_IP")
+}
+
+func envDefaultBackendEnabled() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_ENABLED")
+}
+
+func envGraceQuitTimeout() string {
+	return os.Getenv("PROXY_GRACE_QUIT_TIMEOUT")
+}
+
+func envForceQuitTimeout() string {
+	return os.Getenv("PROXY_FORCE_QUIT_TIMEOUT")
+}
+
+func envGoPprof() string {
+	return os.Getenv("GO_PPROF")
+}
+
+func envSystemAPI() string {
+	return os.Getenv("PROXY_SYSTEM_API")
+}
+
+func envRtmpServer() string {
+	return os.Getenv("PROXY_RTMP_SERVER")
+}
+
+func envHttpServer() string {
+	return os.Getenv("PROXY_HTTP_SERVER")
+}
+
+func envHttpAPI() string {
+	return os.Getenv("PROXY_HTTP_API")
+}
+
+// setEnvDefault set env key=value if not set.
+func setEnvDefault(key, value string) {
+	if os.Getenv(key) == "" {
+		os.Setenv(key, value)
+	}
 }

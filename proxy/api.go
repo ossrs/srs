@@ -207,7 +207,9 @@ func (v *systemAPI) Run(ctx context.Context) error {
 				srs.SRT, srs.RTC = srt, rtc
 				srs.UpdatedAt = time.Now()
 			})
-			srsLoadBalancer.Update(server)
+			if err := srsLoadBalancer.Update(ctx, server); err != nil {
+				return errors.Wrapf(err, "update SRS server %+v", server)
+			}
 
 			logger.Df(ctx, "Register SRS media server, %+v", server)
 			return nil
