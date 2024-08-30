@@ -97,9 +97,12 @@ func buildStreamURL(r string) (string, error) {
 // isPeerClosedError indicates whether peer object closed the connection.
 func isPeerClosedError(err error) bool {
 	causeErr := errors.Cause(err)
-	if stdErr.Is(causeErr, io.EOF) ||
-		stdErr.Is(causeErr, net.ErrClosed) ||
-		stdErr.Is(causeErr, syscall.EPIPE) {
+
+	if stdErr.Is(causeErr, io.EOF) {
+		return true
+	}
+
+	if stdErr.Is(causeErr, syscall.EPIPE) {
 		return true
 	}
 
