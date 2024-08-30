@@ -6,14 +6,17 @@ package main
 import (
 	"context"
 	"encoding/json"
+	stdErr "errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"strings"
+	"syscall"
 	"time"
 
 	"srs-proxy/errors"
@@ -89,4 +92,24 @@ func buildStreamURL(r string) (string, error) {
 
 	// Ignore port, only use hostname as vhost.
 	return fmt.Sprintf("%v%v", u.Hostname(), u.Path), nil
+}
+
+// isPeerClosedError indicates whether peer object closed the connection.
+func isPeerClosedError(err error) bool {
+	causeErr := errors.Cause(err)
+	if stdErr.Is(causeErr, io.EOF) ||
+		stdErr.Is(causeErr, net.ErrClosed) ||
+		stdErr.Is(causeErr, syscall.EPIPE) {
+		return true
+	}
+
+	if netErr, ok := causeErr.(*net.OpError); ok {
+		if sysErr, ok := netErr.Err.(*os.SyscallError); ok {
+			if stdErr.Is(sysErr.Err, syscall.ECONNRESET) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
