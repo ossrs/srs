@@ -133,6 +133,21 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 		return errors.Wrapf(err, "expect connect req")
 	}
 
+	if true {
+		ack := rtmp.NewWindowAcknowledgementSize()
+		ack.AckSize = 2500000
+		if err := client.WritePacket(ctx, ack, 0); err != nil {
+			return errors.Wrapf(err, "write set ack size")
+		}
+	}
+	if true {
+		chunk := rtmp.NewSetChunkSize()
+		chunk.ChunkSize = 128
+		if err := client.WritePacket(ctx, chunk, 0); err != nil {
+			return errors.Wrapf(err, "write set chunk size")
+		}
+	}
+
 	connectRes := rtmp.NewConnectAppResPacket(connectReq.TransactionID)
 	connectRes.CommandObject.Set("fmsVer", rtmp.NewAmf0String("FMS/3,5,3,888"))
 	connectRes.CommandObject.Set("capabilities", rtmp.NewAmf0Number(127))
@@ -172,6 +187,8 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 
 				nextStreamID = 1
 				identifyRes.StreamID = *rtmp.NewAmf0Number(float64(nextStreamID))
+			} else if pkt.CommandName == "getStreamLength" {
+				// Ignore and do not reply these packets.
 			} else {
 				// For releaseStream, FCPublish, etc.
 				identifyRes := rtmp.NewCallPacket()
@@ -183,11 +200,11 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 				identifyRes.Args = rtmp.NewAmf0Undefined()
 			}
 		case *rtmp.PublishPacket:
-			identifyRes := rtmp.NewCallPacket()
-			response = identifyRes
-
 			streamName = string(pkt.StreamName)
 			clientType = RTMPClientTypePublisher
+
+			identifyRes := rtmp.NewCallPacket()
+			response = identifyRes
 
 			identifyRes.CommandName = "onFCPublish"
 			identifyRes.CommandObject = rtmp.NewAmf0Null()
@@ -195,6 +212,23 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 			data := rtmp.NewAmf0Object()
 			data.Set("code", rtmp.NewAmf0String("NetStream.Publish.Start"))
 			data.Set("description", rtmp.NewAmf0String("Started publishing stream."))
+			identifyRes.Args = data
+		case *rtmp.PlayPacket:
+			streamName = string(pkt.StreamName)
+			clientType = RTMPClientTypeViewer
+
+			identifyRes := rtmp.NewCallPacket()
+			response = identifyRes
+
+			identifyRes.CommandName = "onStatus"
+			identifyRes.CommandObject = rtmp.NewAmf0Null()
+
+			data := rtmp.NewAmf0Object()
+			data.Set("level", rtmp.NewAmf0String("status"))
+			data.Set("code", rtmp.NewAmf0String("NetStream.Play.Reset"))
+			data.Set("description", rtmp.NewAmf0String("Playing and resetting stream."))
+			data.Set("details", rtmp.NewAmf0String("stream"))
+			data.Set("clientid", rtmp.NewAmf0String("ASAICiss"))
 			identifyRes.Args = data
 		}
 
@@ -213,7 +247,7 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 
 	// Find a backend SRS server to proxy the RTMP stream.
 	backend := NewRTMPClient(func(client *RTMPClient) {
-		client.rd = v.rd
+		client.rd, client.typ = v.rd, clientType
 	})
 	defer backend.Close()
 
@@ -238,33 +272,82 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 		if err := client.WritePacket(ctx, identifyRes, currentStreamID); err != nil {
 			return errors.Wrapf(err, "start publish")
 		}
+	} else if clientType == RTMPClientTypeViewer {
+		identifyRes := rtmp.NewCallPacket()
+
+		identifyRes.CommandName = "onStatus"
+		identifyRes.CommandObject = rtmp.NewAmf0Null()
+
+		data := rtmp.NewAmf0Object()
+		data.Set("level", rtmp.NewAmf0String("status"))
+		data.Set("code", rtmp.NewAmf0String("NetStream.Play.Start"))
+		data.Set("description", rtmp.NewAmf0String("Started playing stream."))
+		data.Set("details", rtmp.NewAmf0String("stream"))
+		data.Set("clientid", rtmp.NewAmf0String("ASAICiss"))
+		identifyRes.Args = data
+
+		if err := client.WritePacket(ctx, identifyRes, currentStreamID); err != nil {
+			return errors.Wrapf(err, "start play")
+		}
 	}
 	logger.Df(ctx, "RTMP start streaming")
 
-	// Proxy all message from backend to client.
-	go func() {
-		for {
-			m, err := backend.client.ReadMessage(ctx)
-			if err != nil {
-				return
-			}
+	// For all proxy goroutines.
+	var wg sync.WaitGroup
+	defer wg.Wait()
 
-			if err := client.WriteMessage(ctx, m); err != nil {
-				return
+	// Proxy all message from backend to client.
+	wg.Add(1)
+	var r0 error
+	go func() {
+		defer wg.Done()
+
+		r0 = func() error {
+			for {
+				m, err := backend.client.ReadMessage(ctx)
+				if err != nil {
+					return err
+				}
+				//logger.Df(ctx, "client<- %v %v %vB", m.MessageType, m.Timestamp, len(m.Payload))
+
+				// TODO: Update the stream ID if not the same.
+				if err := client.WriteMessage(ctx, m); err != nil {
+					return err
+				}
 			}
-		}
+		}()
 	}()
 
 	// Proxy all messages from client to backend.
-	for {
-		m, err := client.ReadMessage(ctx)
-		if err != nil {
-			return errors.Wrapf(err, "read message")
-		}
+	wg.Add(1)
+	var r1 error
+	go func() {
+		defer wg.Done()
 
-		if err := backend.client.WriteMessage(ctx, m); err != nil {
-			return errors.Wrapf(err, "write message")
-		}
+		r1 = func() error {
+			for {
+				m, err := client.ReadMessage(ctx)
+				if err != nil {
+					return errors.Wrapf(err, "read message")
+				}
+				//logger.Df(ctx, "client-> %v %v %vB", m.MessageType, m.Timestamp, len(m.Payload))
+
+				// TODO: Update the stream ID if not the same.
+				if err := backend.client.WriteMessage(ctx, m); err != nil {
+					return errors.Wrapf(err, "write message")
+				}
+			}
+		}()
+	}()
+
+	wg.Wait()
+
+	// Generate the error for proxy.
+	if r0 != nil && errors.Cause(r0) != context.Canceled {
+		return errors.Wrapf(r0, "proxy backend to client")
+	}
+	if r1 != nil && errors.Cause(r1) != context.Canceled {
+		return errors.Wrapf(r1, "proxy client to backend")
 	}
 
 	return nil
@@ -274,6 +357,7 @@ type RTMPClientType string
 
 const (
 	RTMPClientTypePublisher RTMPClientType = "publisher"
+	RTMPClientTypeViewer    RTMPClientType = "viewer"
 )
 
 type RTMPClient struct {
@@ -283,6 +367,8 @@ type RTMPClient struct {
 	tcpConn *net.TCPConn
 	// The RTMP protocol client.
 	client *rtmp.Protocol
+	// The stream type.
+	typ RTMPClientType
 }
 
 func NewRTMPClient(opts ...func(*RTMPClient)) *RTMPClient {
@@ -377,7 +463,16 @@ func (v *RTMPClient) Connect(ctx context.Context, tcUrl, streamName string) erro
 		logger.Df(ctx, "backend connect RTMP app, tcUrl=%v, id=%v", tcUrl, connectAppRes.SrsID())
 	}
 
+	// Play or view RTMP stream with server.
+	if v.typ == RTMPClientTypeViewer {
+		return v.play(ctx, client, streamName)
+	}
+
 	// Publish RTMP stream with server.
+	return v.publish(ctx, client, streamName)
+}
+
+func (v *RTMPClient) publish(ctx context.Context, client *rtmp.Protocol, streamName string) error {
 	if true {
 		identifyReq := rtmp.NewCallPacket()
 		identifyReq.CommandName = "releaseStream"
@@ -418,6 +513,7 @@ func (v *RTMPClient) Connect(ctx context.Context, tcUrl, streamName string) erro
 		}
 	}
 
+	var currentStreamID int
 	if true {
 		createStream := rtmp.NewCreateStreamPacket()
 		createStream.TransactionID = 4
@@ -426,7 +522,6 @@ func (v *RTMPClient) Connect(ctx context.Context, tcUrl, streamName string) erro
 			return errors.Wrapf(err, "createStream")
 		}
 	}
-	var currentStreamID int
 	for {
 		var identifyRes *rtmp.CreateStreamResPacket
 		if _, err := rtmp.ExpectPacket(ctx, client, &identifyRes); err != nil {
@@ -467,5 +562,44 @@ func (v *RTMPClient) Connect(ctx context.Context, tcUrl, streamName string) erro
 	}
 	logger.Df(ctx, "backend publish stream=%v, sid=%v", streamName, currentStreamID)
 
+	return nil
+}
+
+func (v *RTMPClient) play(ctx context.Context, client *rtmp.Protocol, streamName string) error {
+	var currentStreamID int
+	if true {
+		createStream := rtmp.NewCreateStreamPacket()
+		createStream.TransactionID = 4
+		createStream.CommandObject = rtmp.NewAmf0Null()
+		if err := client.WritePacket(ctx, createStream, 0); err != nil {
+			return errors.Wrapf(err, "createStream")
+		}
+	}
+	for {
+		var identifyRes *rtmp.CreateStreamResPacket
+		if _, err := rtmp.ExpectPacket(ctx, client, &identifyRes); err != nil {
+			return errors.Wrapf(err, "expect createStream res")
+		}
+		if sid := identifyRes.StreamID; sid != 0 {
+			currentStreamID = int(sid)
+			break
+		}
+	}
+
+	playStream := rtmp.NewPlayPacket()
+	playStream.StreamName = *rtmp.NewAmf0String(streamName)
+	if err := client.WritePacket(ctx, playStream, currentStreamID); err != nil {
+		return errors.Wrapf(err, "play")
+	}
+
+	for {
+		var identifyRes *rtmp.CallPacket
+		if _, err := rtmp.ExpectPacket(ctx, client, &identifyRes); err != nil {
+			return errors.Wrapf(err, "expect releaseStream res")
+		}
+		if identifyRes.CommandName == "onStatus" && identifyRes.ArgsCode() == "NetStream.Play.Start" {
+			break
+		}
+	}
 	return nil
 }

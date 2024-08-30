@@ -260,6 +260,8 @@ func (v *Protocol) parseAMFObject(p []byte) (pkt Packet, err error) {
 		return NewConnectAppPacket(), nil
 	case commandPublish:
 		return NewPublishPacket(), nil
+	case commandPlay:
+		return NewPlayPacket(), nil
 	default:
 		return NewCallPacket(), nil
 	}
@@ -512,10 +514,8 @@ func (v *Protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 		// 0x00ffffff), this value MUST be 16777215, and the 'extended
 		// timestamp header' MUST be present. Otherwise, this value SHOULD be
 		// the entire delta.
-		chunk.extendedTimestamp = false
-		if uint64(chunk.header.timestampDelta) >= extendedTimestamp {
-			chunk.extendedTimestamp = true
-
+		chunk.extendedTimestamp = uint64(chunk.header.timestampDelta) >= extendedTimestamp
+		if !chunk.extendedTimestamp {
 			// Extended timestamp: 0 or 4 bytes
 			// This field MUST be sent when the normal timsestamp is set to
 			// 0xffffff, it MUST NOT be sent if the normal timestamp is set to
@@ -1276,11 +1276,15 @@ func NewCallPacket() *CallPacket {
 	return &CallPacket{}
 }
 
-func NewCloseStreamPacket() *CallPacket {
-	v := NewCallPacket()
-	v.CommandName = commandCloseStream
-	v.CommandObject = NewAmf0Null()
-	return v
+func (v *CallPacket) ArgsCode() string {
+	if v.Args != nil {
+		if v, ok := v.Args.(*amf0Object); ok {
+			if code, ok := v.Get("code").(*amf0String); ok {
+				return string(*code)
+			}
+		}
+	}
+	return ""
 }
 
 func (v *CallPacket) Size() int {
