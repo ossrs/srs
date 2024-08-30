@@ -237,10 +237,10 @@ func (v *rtmpServer) serve(ctx context.Context, conn *net.TCPConn) error {
 				return errors.Wrapf(err, "write identify res for req=%v, stream=%v",
 					identifyReq, currentStreamID)
 			}
-
-			// Update the stream ID for next request.
-			currentStreamID = nextStreamID
 		}
+
+		// Update the stream ID for next request.
+		currentStreamID = nextStreamID
 	}
 	logger.Df(ctx, "RTMP identify tcUrl=%v, stream=%v, id=%v, type=%v",
 		tcUrl, streamName, currentStreamID, clientType)
