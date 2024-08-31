@@ -70,6 +70,11 @@ srs_error_t SrsBufferCache::update_auth(SrsRequest* r)
 srs_error_t SrsBufferCache::start()
 {
     srs_error_t err = srs_success;
+
+    // Not enabled.
+    if (fast_cache <= 0) {
+        return err;
+    }
     
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "corotine");
@@ -80,11 +85,21 @@ srs_error_t SrsBufferCache::start()
 
 void SrsBufferCache::stop()
 {
+    // Not enabled.
+    if (fast_cache <= 0) {
+        return;
+    }
+
     trd->stop();
 }
 
 bool SrsBufferCache::alive()
 {
+    // Not enabled.
+    if (fast_cache <= 0) {
+        return false;
+    }
+
     srs_error_t err = trd->pull();
     if (err == srs_success) {
         return true;
@@ -116,12 +131,6 @@ srs_error_t SrsBufferCache::dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterA
 srs_error_t SrsBufferCache::cycle()
 {
     srs_error_t err = srs_success;
-    
-    // TODO: FIXME: support reload.
-    if (fast_cache <= 0) {
-        srs_usleep(SRS_STREAM_CACHE_CYCLE);
-        return err;
-    }
 
     SrsSharedPtr<SrsLiveSource> live_source;
     if ((err = _srs_sources->fetch_or_create(req, server_, live_source)) != srs_success) {
