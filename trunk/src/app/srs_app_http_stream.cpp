@@ -589,7 +589,9 @@ SrsLiveStream::~SrsLiveStream()
 {
     srs_freep(req);
     srs_freep(security_);
-    viewers_.clear();
+
+    // The live stream should never be destroyed when it's serving any viewers.
+    srs_assert(viewers_.empty());
 }
 
 srs_error_t SrsLiveStream::update_auth(SrsRequest* r)
