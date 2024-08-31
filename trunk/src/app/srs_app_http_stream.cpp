@@ -636,17 +636,32 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
         return srs_error_wrap(err, "http hook");
     }
 
+    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req);
+    if (!live_source.get()) {
+        return srs_error_new(ERROR_NO_SOURCE, "no source for %s", req->get_stream_url().c_str());
+    }
+
+    // Create consumer of source, ignore gop cache, use the audio gop cache.
+    SrsLiveConsumer* consumer_raw = NULL;
+    if ((err = live_source->create_consumer(consumer_raw)) != srs_success) {
+        return srs_error_wrap(err, "create consumer");
+    }
+    // When freeing the consumer, it may trigger the source unpublishing for edge. This will trigger the http
+    // unmount, which waiting for all http live stream to dispose, so we should free the consumer when this
+    // object is not alive.
+    SrsUniquePtr<SrsLiveConsumer> consumer(consumer_raw);
+
     // Add the viewer to the viewers list.
     viewers_.push_back(hc);
 
     // Serve the viewer connection.
-    err = do_serve_http(w, r);
+    err = do_serve_http(live_source.get(), consumer.get(), w, r);
 
     // Remove viewer from the viewers list.
     vector<ISrsExpire*>::iterator it = std::find(viewers_.begin(), viewers_.end(), hc);
     srs_assert (it != viewers_.end());
     viewers_.erase(it);
-
+    
     // Do hook after serving.
     http_hooks_on_stop(r);
     
@@ -667,7 +682,7 @@ void SrsLiveStream::expire()
     }
 }
 
-srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource* source, SrsLiveConsumer* consumer, ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
     
@@ -711,19 +726,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // Enter chunked mode, because we didn't set the content-length.
     w->write_header(SRS_CONSTS_HTTP_OK);
 
-    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req);
-    if (!live_source.get()) {
-        return srs_error_new(ERROR_NO_SOURCE, "no source for %s", req->get_stream_url().c_str());
-    }
-    
-    // create consumer of souce, ignore gop cache, use the audio gop cache.
-    SrsLiveConsumer* consumer_raw = NULL;
-    if ((err = live_source->create_consumer(consumer_raw)) != srs_success) {
-        return srs_error_wrap(err, "create consumer");
-    }
-    SrsUniquePtr<SrsLiveConsumer> consumer(consumer_raw);
-
-    if ((err = live_source->consumer_dumps(consumer.get(), true, true, !enc->has_cache())) != srs_success) {
+    if ((err = source->consumer_dumps(consumer, true, true, !enc->has_cache())) != srs_success) {
         return srs_error_wrap(err, "dumps consumer");
     }
 
@@ -744,7 +747,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     // if gop cache enabled for encoder, dump to consumer.
     if (enc->has_cache()) {
-        if ((err = enc->dump_cache(consumer.get(), live_source->jitter())) != srs_success) {
+        if ((err = enc->dump_cache(consumer, source->jitter())) != srs_success) {
             return srs_error_wrap(err, "encoder dump cache");
         }
     }
@@ -1104,6 +1107,10 @@ void SrsHttpStreamServer::http_unmount(SrsRequest* r)
             break;
         }
         srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+    }
+
+    if (cache->alive() || stream->alive()) {
+        srs_warn("http: try to free a alive stream, cache=%d, stream=%d", cache->alive(), stream->alive());
     }
 
     // Unmount the HTTP handler, which will free the entry. Note that we must free it after cache and

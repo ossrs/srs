@@ -199,7 +199,7 @@ public:
 public:
     virtual void expire();
 private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t do_serve_http(SrsLiveSource* source, SrsLiveConsumer* consumer, ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     virtual srs_error_t http_hooks_on_play(ISrsHttpMessage* r);
     virtual void http_hooks_on_stop(ISrsHttpMessage* r);
     virtual srs_error_t streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
