@@ -11,6 +11,8 @@
 #include <srs_app_security.hpp>
 #include <srs_app_http_conn.hpp>
 
+#include <vector>
+
 class SrsAacTransmuxer;
 class SrsMp3Transmuxer;
 class SrsFlvTransmuxer;
@@ -176,7 +178,7 @@ public:
 
 // HTTP Live Streaming, to transmux RTMP to HTTP FLV or other format.
 // TODO: FIXME: Rename to SrsHttpLive
-class SrsLiveStream : public ISrsHttpHandler
+class SrsLiveStream : public ISrsHttpHandler, public ISrsExpire
 {
 private:
     SrsRequest* req;
@@ -185,7 +187,7 @@ private:
     // For multiple viewers, which means there will more than one alive viewers for a live stream, so we must
     // use an int value to represent if there is any viewer is alive. We should never do cleanup unless all
     // viewers closed the connection.
-    int alive_viewers_;
+    std::vector<ISrsExpire*> viewers_;
 public:
     SrsLiveStream(SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
@@ -193,6 +195,9 @@ public:
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     virtual bool alive();
+// Interface ISrsExpire
+public:
+    virtual void expire();
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     virtual srs_error_t http_hooks_on_play(ISrsHttpMessage* r);
