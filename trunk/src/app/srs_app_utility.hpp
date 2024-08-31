@@ -55,7 +55,7 @@ extern std::string srs_path_build_timestamp(std::string template_path);
 // @return an int error code.
 extern srs_error_t srs_kill_forced(int& pid);
 
-// Current process resouce usage.
+// Current process resource usage.
 // @see: man getrusage
 class SrsRusage
 {
