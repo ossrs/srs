@@ -120,6 +120,10 @@ func NewDefaultSRSForDebugging() (*SRSServer, error) {
 		srs.PID = fmt.Sprintf("%v", os.Getpid())
 		srs.UpdatedAt = time.Now()
 	})
+
+	if envDefaultBackendHttp() != "" {
+		server.HTTP = []string{envDefaultBackendHttp()}
+	}
 	return server, nil
 }
 

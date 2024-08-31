@@ -537,12 +537,12 @@ func (v *RTMPClientToBackend) Connect(ctx context.Context, tcUrl, streamName str
 
 	// Parse RTMP port from backend.
 	if len(backend.RTMP) == 0 {
-		return errors.Errorf("no rtmp server for %v", streamURL)
+		return errors.Errorf("no rtmp server %+v for %v", backend, streamURL)
 	}
 
 	var rtmpPort int
 	if iv, err := strconv.ParseInt(backend.RTMP[0], 10, 64); err != nil {
-		return errors.Wrapf(err, "parse backend %v rtmp port %v", backend, backend.RTMP[0])
+		return errors.Wrapf(err, "parse backend %+v rtmp port %v", backend, backend.RTMP[0])
 	} else {
 		rtmpPort = int(iv)
 	}

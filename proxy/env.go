@@ -70,6 +70,7 @@ func setupDefaultEnv(ctx context.Context) {
 		"PROXY_HTTP_API=%v, PROXY_HTTP_SERVER=%v, PROXY_RTMP_SERVER=%v, "+
 		"PROXY_SYSTEM_API=%v, PROXY_DEFAULT_BACKEND_ENABLED=%v, "+
 		"PROXY_DEFAULT_BACKEND_IP=%v, PROXY_DEFAULT_BACKEND_RTMP=%v, "+
+		"PROXY_DEFAULT_BACKEND_HTTP=%v, "+
 		"PROXY_LOAD_BALANCER_TYPE=%v, PROXY_REDIS_HOST=%v, PROXY_REDIS_PORT=%v, "+
 		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v",
 		envGoPprof(),
@@ -77,9 +78,14 @@ func setupDefaultEnv(ctx context.Context) {
 		envHttpAPI(), envHttpServer(), envRtmpServer(),
 		envSystemAPI(), envDefaultBackendEnabled(),
 		envDefaultBackendIP(), envDefaultBackendRTMP(),
+		envDefaultBackendHttp(),
 		envLoadBalancerType(), envRedisHost(), envRedisPort(),
 		envRedisPassword(), envRedisDB(),
 	)
+}
+
+func envDefaultBackendHttp() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_HTTP")
 }
 
 func envRedisDB() string {

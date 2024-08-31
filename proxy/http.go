@@ -6,8 +6,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"path"
+	"srs-proxy/errors"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -87,6 +91,21 @@ func (v *httpServer) Run(ctx context.Context) error {
 		apiResponse(ctx, w, r, &res)
 	})
 
+	// The default handler, for both static web server and streaming server.
+	logger.Df(ctx, "Handle / by %v", addr)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// For HTTP streaming, we will proxy the request to the streaming server.
+		if strings.HasSuffix(r.URL.Path, ".flv") ||
+			strings.HasSuffix(r.URL.Path, ".ts") {
+			NewHTTPStreaming(func(streaming *HTTPStreaming) {
+				streaming.ctx = ctx
+			}).ServeHTTP(w, r)
+			return
+		}
+
+		http.NotFound(w, r)
+	})
+
 	// Run HTTP server.
 	v.wg.Add(1)
 	go func() {
@@ -102,6 +121,88 @@ func (v *httpServer) Run(ctx context.Context) error {
 			}
 		}
 	}()
+
+	return nil
+}
+
+type HTTPStreaming struct {
+	ctx context.Context
+}
+
+func NewHTTPStreaming(opts ...func(streaming *HTTPStreaming)) *HTTPStreaming {
+	v := &HTTPStreaming{}
+	for _, opt := range opts {
+		opt(v)
+	}
+	return v
+}
+
+func (v *HTTPStreaming) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if err := v.serve(v.ctx, w, r); err != nil {
+		apiError(v.ctx, w, r, err)
+	}
+}
+
+func (v *HTTPStreaming) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	// Build the stream URL in vhost/app/stream schema.
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	streamName := strings.TrimSuffix(r.URL.Path, path.Ext(r.URL.Path))
+	streamURL, err := buildStreamURL(fmt.Sprintf("%v://%v%v", scheme, r.URL.Hostname(), streamName))
+	if err != nil {
+		return errors.Wrapf(err, "build stream url scheme=%v, hostname=%v, stream=%v",
+			scheme, r.URL.Hostname(), streamName)
+	}
+
+	// Pick a backend SRS server to proxy the RTMP stream.
+	backend, err := srsLoadBalancer.Pick(ctx, streamURL)
+	if err != nil {
+		return errors.Wrapf(err, "pick backend for %v", streamURL)
+	}
+
+	if err = v.serveByBackend(ctx, w, r, backend, streamURL); err != nil {
+		return errors.Wrapf(err, "serve %v by backend %+v for stream %v",
+			r.URL.String(), backend, streamURL)
+	}
+
+	return nil
+}
+
+func (v *HTTPStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *SRSServer, streamURL string) error {
+	// Parse HTTP port from backend.
+	if len(backend.HTTP) == 0 {
+		return errors.Errorf("no http stream server")
+	}
+
+	var httpPort int
+	if iv, err := strconv.ParseInt(backend.HTTP[0], 10, 64); err != nil {
+		return errors.Wrapf(err, "parse http port %v", backend.HTTP[0])
+	} else {
+		httpPort = int(iv)
+	}
+
+	// Connect to backend SRS server via HTTP client.
+	backendURL := fmt.Sprintf("http://%v:%v%s", backend.IP, httpPort, r.URL.Path)
+	req, err := http.NewRequestWithContext(ctx, "GET", backendURL, nil)
+	if err != nil {
+		return errors.Wrapf(err, "create request to %v", backendURL)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return errors.Wrapf(err, "proxy stream to %v", backendURL)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("proxy stream to %v failed, status=%v", backendURL, resp.Status)
+	}
+
+	// Copy all data from backend to client.
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		return errors.Wrapf(err, "copy stream from %v", backendURL)
+	}
 
 	return nil
 }
