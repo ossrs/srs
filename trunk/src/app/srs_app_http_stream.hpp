@@ -278,7 +278,7 @@ private:
     std::map<std::string, SrsLiveEntry*>* streamHandlers_;
     SrsHttpServeMux* mux_;
 public:
-    SrsHttpStreamDestroy(SrsHttpServeMux* mux, map<std::string, SrsLiveEntry*>* handlers, string sid);
+    SrsHttpStreamDestroy(SrsHttpServeMux* mux, std::map<std::string, SrsLiveEntry*>* handlers, std::string sid);
     virtual ~SrsHttpStreamDestroy();
 public:
     virtual srs_error_t call();
