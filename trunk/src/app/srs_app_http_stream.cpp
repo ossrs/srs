@@ -583,13 +583,13 @@ SrsLiveStream::SrsLiveStream(SrsRequest* r, SrsBufferCache* c)
     cache = c;
     req = r->copy()->as_http();
     security_ = new SrsSecurity();
-    alive_viewers_ = 0;
 }
 
 SrsLiveStream::~SrsLiveStream()
 {
     srs_freep(req);
     srs_freep(security_);
+    viewers_.clear();
 }
 
 srs_error_t SrsLiveStream::update_auth(SrsRequest* r)
@@ -634,10 +634,18 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
         return srs_error_wrap(err, "http hook");
     }
 
-    alive_viewers_++;
+    // Add the viewer to the viewers list.
+    viewers_.push_back(hc);
+
+    // Serve the viewer connection.
     err = do_serve_http(w, r);
-    alive_viewers_--;
-    
+
+    // Remove viewer from the viewers list.
+    vector<ISrsExpire*>::iterator it = std::find(viewers_.begin(), viewers_.end(), hc);
+    srs_assert (it != viewers_.end());
+    viewers_.erase(it);
+
+    // Do hook after serving.
     http_hooks_on_stop(r);
     
     return err;
@@ -645,7 +653,16 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
 
 bool SrsLiveStream::alive()
 {
-    return alive_viewers_ > 0;
+    return !viewers_.empty();
+}
+
+void SrsLiveStream::expire()
+{
+    vector<ISrsExpire*>::iterator it;
+    for (it = viewers_.begin(); it != viewers_.end(); ++it) {
+        ISrsExpire* conn = *it;
+        conn->expire();
+    }
 }
 
 srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -1075,6 +1092,7 @@ void SrsHttpStreamServer::http_unmount(SrsRequest* r)
 
     // Notify cache and stream to stop.
     if (stream->entry) stream->entry->enabled = false;
+    stream->expire();
     cache->stop();
 
     // Wait for cache and stream to stop.
