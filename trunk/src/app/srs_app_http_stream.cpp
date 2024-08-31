@@ -40,7 +40,7 @@ using namespace std;
 #include <srs_app_recv_thread.hpp>
 #include <srs_app_http_hooks.hpp>
 
-SrsBufferCache::SrsBufferCache(SrsRequest* r)
+SrsBufferCache::SrsBufferCache(SrsServer* s, SrsRequest* r)
 {
     req = r->copy()->as_http();
     queue = new SrsMessageQueue(true);
@@ -48,6 +48,7 @@ SrsBufferCache::SrsBufferCache(SrsRequest* r)
     
     // TODO: FIXME: support reload.
     fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
+    server_ = s;
 }
 
 SrsBufferCache::~SrsBufferCache()
@@ -122,10 +123,11 @@ srs_error_t SrsBufferCache::cycle()
         return err;
     }
 
-    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req);
-    if (!live_source.get()) {
-        return srs_error_new(ERROR_NO_SOURCE, "no source for %s", req->get_stream_url().c_str());
+    SrsSharedPtr<SrsLiveSource> live_source;
+    if ((err = _srs_sources->fetch_or_create(req, server_, live_source)) != srs_success) {
+        return srs_error_wrap(err, "source create");
     }
+    srs_assert(live_source.get() != NULL);
     
     // the stream cache will create consumer to cache stream,
     // which will trigger to fetch stream from origin for edge.
@@ -578,11 +580,12 @@ srs_error_t SrsBufferWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwri
     return writer->writev(iov, iovcnt, pnwrite);
 }
 
-SrsLiveStream::SrsLiveStream(SrsRequest* r, SrsBufferCache* c)
+SrsLiveStream::SrsLiveStream(SrsServer* s, SrsRequest* r, SrsBufferCache* c)
 {
     cache = c;
     req = r->copy()->as_http();
     security_ = new SrsSecurity();
+    server_ = s;
 }
 
 SrsLiveStream::~SrsLiveStream()
@@ -636,10 +639,17 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
         return srs_error_wrap(err, "http hook");
     }
 
-    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req);
-    if (!live_source.get()) {
-        return srs_error_new(ERROR_NO_SOURCE, "no source for %s", req->get_stream_url().c_str());
+    // Always try to create the source, because http handler won't create it.
+    SrsSharedPtr<SrsLiveSource> live_source;
+    if ((err = _srs_sources->fetch_or_create(req, server_, live_source)) != srs_success) {
+        return srs_error_wrap(err, "source create");
     }
+    srs_assert(live_source.get() != NULL);
+
+    bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
+    int gcmf = _srs_config->get_gop_cache_max_frames(req->vhost);
+    live_source->set_cache(enabled_cache);
+    live_source->set_gop_cache_max_frames(gcmf);
 
     // Create consumer of source, ignore gop cache, use the audio gop cache.
     SrsLiveConsumer* consumer_raw = NULL;
@@ -926,6 +936,7 @@ srs_error_t SrsLiveStream::streaming_send_messages(ISrsBufferEncoder* enc, SrsSh
 SrsLiveEntry::SrsLiveEntry(std::string m)
 {
     mount = m;
+    disposing = false;
     
     stream = NULL;
     cache = NULL;
@@ -1037,8 +1048,8 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsRequest* r)
         entry = new SrsLiveEntry(mount);
 
         entry->req = r->copy()->as_http();
-        entry->cache = new SrsBufferCache(r);
-        entry->stream = new SrsLiveStream(r, entry->cache);
+        entry->cache = new SrsBufferCache(server, r);
+        entry->stream = new SrsLiveStream(server, r, entry->cache);
         
         // TODO: FIXME: maybe refine the logic of http remux service.
         // if user push streams followed:
@@ -1067,6 +1078,12 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsRequest* r)
     } else {
         // The entry exists, we reuse it and update the request of stream and cache.
         entry = streamHandlers[sid];
+
+        // Fail if system is disposing the entry.
+        if (entry->disposing) {
+            return srs_error_new(ERROR_NO_SOURCE, "stream is disposing");
+        }
+
         entry->stream->update_auth(r);
         entry->cache->update_auth(r);
     }
@@ -1090,7 +1107,7 @@ void SrsHttpStreamServer::http_unmount(SrsRequest* r)
 
     // Free all HTTP resources.
     SrsUniquePtr<SrsLiveEntry> entry(it->second);
-    streamHandlers.erase(it);
+    entry->disposing = true;
 
     SrsUniquePtr<SrsLiveStream> stream(entry->stream);
     SrsUniquePtr<SrsBufferCache> cache(entry->cache);
@@ -1112,6 +1129,9 @@ void SrsHttpStreamServer::http_unmount(SrsRequest* r)
     if (cache->alive() || stream->alive()) {
         srs_warn("http: try to free a alive stream, cache=%d, stream=%d", cache->alive(), stream->alive());
     }
+
+    // Remove the entry from handlers.
+    streamHandlers.erase(it);
 
     // Unmount the HTTP handler, which will free the entry. Note that we must free it after cache and
     // stream stopped for it uses it.
@@ -1214,17 +1234,6 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
         }
     }
 
-    SrsSharedPtr<SrsLiveSource> live_source;
-    if ((err = _srs_sources->fetch_or_create(r.get(), server, live_source)) != srs_success) {
-        return srs_error_wrap(err, "source create");
-    }
-    srs_assert(live_source.get() != NULL);
-    
-    bool enabled_cache = _srs_config->get_gop_cache(r->vhost);
-    int gcmf = _srs_config->get_gop_cache_max_frames(r->vhost);
-    live_source->set_cache(enabled_cache);
-    live_source->set_gop_cache_max_frames(gcmf);
-
     // create http streaming handler.
     if ((err = http_mount(r.get())) != srs_success) {
         return srs_error_wrap(err, "http mount");
@@ -1235,11 +1244,8 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
         entry = streamHandlers[sid];
         *ph = entry->stream;
     }
-    
-    // trigger edge to fetch from origin.
-    bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
-    srs_trace("flv: source url=%s, is_edge=%d, source_id=%s/%s",
-        r->get_stream_url().c_str(), vhost_is_edge, live_source->source_id().c_str(), live_source->pre_source_id().c_str());
+
+    srs_trace("flv: hijack %s ok", upath.c_str());
 
     return err;
 }

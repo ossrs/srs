@@ -1909,9 +1909,6 @@ SrsLiveSource::SrsLiveSource()
 
 SrsLiveSource::~SrsLiveSource()
 {
-    // Because source maybe created by http stream, so we must notify the handler to cleanup.
-    handler->on_unpublish(req);
-
     _srs_config->unsubscribe(this);
     
     // never free the consumers,

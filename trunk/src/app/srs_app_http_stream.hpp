@@ -23,12 +23,13 @@ class SrsBufferCache : public ISrsCoroutineHandler
 {
 private:
     srs_utime_t fast_cache;
+    SrsServer* server_;
 private:
     SrsMessageQueue* queue;
     SrsRequest* req;
     SrsCoroutine* trd;
 public:
-    SrsBufferCache(SrsRequest* r);
+    SrsBufferCache(SrsServer* s, SrsRequest* r);
     virtual ~SrsBufferCache();
     virtual srs_error_t update_auth(SrsRequest* r);
 public:
@@ -184,12 +185,13 @@ private:
     SrsRequest* req;
     SrsBufferCache* cache;
     SrsSecurity* security_;
+    SrsServer* server_;
     // For multiple viewers, which means there will more than one alive viewers for a live stream, so we must
     // use an int value to represent if there is any viewer is alive. We should never do cleanup unless all
     // viewers closed the connection.
     std::vector<ISrsExpire*> viewers_;
 public:
-    SrsLiveStream(SrsRequest* r, SrsBufferCache* c);
+    SrsLiveStream(SrsServer* s, SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
     virtual srs_error_t update_auth(SrsRequest* r);
 public:
@@ -223,6 +225,9 @@ public:
     
     SrsLiveStream* stream;
     SrsBufferCache* cache;
+
+    // Whether is disposing the entry.
+    bool disposing;
     
     SrsLiveEntry(std::string m);
     virtual ~SrsLiveEntry();
