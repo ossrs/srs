@@ -107,7 +107,8 @@
     XX(ERROR_BACKTRACE_ADDR2LINE           , 1094, "BacktraceAddr2Line", "Backtrace addr2line failed") \
     XX(ERROR_SYSTEM_FILE_NOT_OPEN          , 1095, "FileNotOpen", "File is not opened") \
     XX(ERROR_SYSTEM_FILE_SETVBUF           , 1096, "FileSetVBuf", "Failed to set file vbuf") \
-    XX(ERROR_NO_SOURCE                     , 1097, "NoSource", "No source found")
+    XX(ERROR_NO_SOURCE                     , 1097, "NoSource", "No source found") \
+    XX(ERROR_STREAM_DISPOSING              , 1098, "StreamDisposing", "Stream is disposing")
 
 /**************************************************/
 /* RTMP protocol error. */

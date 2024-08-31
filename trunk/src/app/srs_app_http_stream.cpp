@@ -1081,7 +1081,7 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsRequest* r)
 
         // Fail if system is disposing the entry.
         if (entry->disposing) {
-            return srs_error_new(ERROR_NO_SOURCE, "stream is disposing");
+            return srs_error_new(ERROR_STREAM_DISPOSING, "stream is disposing");
         }
 
         entry->stream->update_auth(r);
