@@ -1307,7 +1307,7 @@ srs_error_t SrsHttpStreamDestroy::call()
 
     // Free all HTTP resources.
     SrsUniquePtr<SrsLiveEntry> entry(it->second);
-    entry->disposing = true;
+    srs_assert(entry->disposing);
 
     SrsUniquePtr<SrsLiveStream> stream(entry->stream);
     SrsUniquePtr<SrsBufferCache> cache(entry->cache);
