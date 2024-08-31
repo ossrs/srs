@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_app_recv_thread.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_async_call.hpp>
 
 SrsBufferCache::SrsBufferCache(SrsServer* s, SrsRequest* r)
 {
@@ -987,6 +988,7 @@ bool SrsLiveEntry::is_mp3()
 SrsHttpStreamServer::SrsHttpStreamServer(SrsServer* svr)
 {
     server = svr;
+    async_ = new SrsAsyncCallWorker();
     
     mux.hijack(this);
     _srs_config->subscribe(this);
@@ -996,6 +998,9 @@ SrsHttpStreamServer::~SrsHttpStreamServer()
 {
     mux.unhijack(this);
     _srs_config->unsubscribe(this);
+
+    async_->stop();
+    srs_freep(async_);
     
     if (true) {
         std::map<std::string, SrsLiveEntry*>::iterator it;
@@ -1022,6 +1027,10 @@ srs_error_t SrsHttpStreamServer::initialize()
     // remux rtmp to flv live streaming
     if ((err = initialize_flv_streaming()) != srs_success) {
         return srs_error_wrap(err, "http flv stream");
+    }
+
+    if ((err = async_->start()) != srs_success) {
+        return srs_error_wrap(err, "async start");
     }
     
     return err;
@@ -1114,39 +1123,19 @@ void SrsHttpStreamServer::http_unmount(SrsRequest* r)
         return;
     }
 
-    // Free all HTTP resources.
-    SrsUniquePtr<SrsLiveEntry> entry(it->second);
+    // Set the entry to disposing, which will prevent the stream to be reused.
+    SrsLiveEntry* entry = it->second;
+    if (entry->disposing) {
+        return;
+    }
     entry->disposing = true;
 
-    SrsUniquePtr<SrsLiveStream> stream(entry->stream);
-    SrsUniquePtr<SrsBufferCache> cache(entry->cache);
-
-    // Notify cache and stream to stop.
-    if (stream->entry) stream->entry->enabled = false;
-    stream->expire();
-    cache->stop();
-
-    // Wait for cache and stream to stop.
-    int i = 0;
-    for (; i < 1024; i++) {
-        if (!cache->alive() && !stream->alive()) {
-            break;
-        }
-        srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+    // Use async worker to execute the task, which will destroy the stream.
+    srs_error_t err = srs_success;
+    if ((err = async_->execute(new SrsHttpStreamDestroy(&mux, &streamHandlers, sid))) != srs_success) {
+        srs_warn("http: ignore unmount stream failed, sid=%s, err=%s", sid.c_str(), srs_error_desc(err).c_str());
+        srs_freep(err);
     }
-
-    if (cache->alive() || stream->alive()) {
-        srs_warn("http: try to free a alive stream, cache=%d, stream=%d", cache->alive(), stream->alive());
-    }
-
-    // Remove the entry from handlers.
-    streamHandlers.erase(it);
-
-    // Unmount the HTTP handler, which will free the entry. Note that we must free it after cache and
-    // stream stopped for it uses it.
-    mux.unhandle(entry->mount, stream.get());
-
-    srs_trace("http: unmount flv stream for sid=%s, i=%d", sid.c_str(), i);
 }
 
 srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
@@ -1294,5 +1283,66 @@ srs_error_t SrsHttpStreamServer::initialize_flv_entry(std::string vhost)
     srs_trace("http flv live stream, vhost=%s, mount=%s", vhost.c_str(), entry->mount.c_str());
     
     return err;
+}
+
+SrsHttpStreamDestroy::SrsHttpStreamDestroy(SrsHttpServeMux* mux, map<std::string, SrsLiveEntry*>* handlers, string sid)
+{
+    mux_ = mux;
+    sid_ = sid;
+    streamHandlers_ = handlers;
+}
+
+SrsHttpStreamDestroy::~SrsHttpStreamDestroy()
+{
+}
+
+srs_error_t SrsHttpStreamDestroy::call()
+{
+    srs_error_t err = srs_success;
+
+    std::map<std::string, SrsLiveEntry*>::iterator it = streamHandlers_->find(sid_);
+    if (it == streamHandlers_->end()) {
+        return err;
+    }
+
+    // Free all HTTP resources.
+    SrsUniquePtr<SrsLiveEntry> entry(it->second);
+    entry->disposing = true;
+
+    SrsUniquePtr<SrsLiveStream> stream(entry->stream);
+    SrsUniquePtr<SrsBufferCache> cache(entry->cache);
+
+    // Notify cache and stream to stop.
+    if (stream->entry) stream->entry->enabled = false;
+    stream->expire();
+    cache->stop();
+
+    // Wait for cache and stream to stop.
+    int i = 0;
+    for (; i < 1024; i++) {
+        if (!cache->alive() && !stream->alive()) {
+            break;
+        }
+        srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+    }
+
+    if (cache->alive() || stream->alive()) {
+        srs_warn("http: try to free a alive stream, cache=%d, stream=%d", cache->alive(), stream->alive());
+    }
+
+    // Remove the entry from handlers.
+    streamHandlers_->erase(it);
+
+    // Unmount the HTTP handler, which will free the entry. Note that we must free it after cache and
+    // stream stopped for it uses it.
+    mux_->unhandle(entry->mount, stream.get());
+
+    srs_trace("http: unmount flv stream for sid=%s, i=%d", sid_.c_str(), i);
+    return err;
+}
+
+string SrsHttpStreamDestroy::to_string()
+{
+    return "destroy";
 }
 
