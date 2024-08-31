@@ -1109,6 +1109,10 @@ void SrsHttpStreamServer::http_unmount(SrsRequest* r)
         srs_usleep(100 * SRS_UTIME_MILLISECONDS);
     }
 
+    if (cache->alive() || stream->alive()) {
+        srs_warn("http: try to free a alive stream, cache=%d, stream=%d", cache->alive(), stream->alive());
+    }
+
     // Unmount the HTTP handler, which will free the entry. Note that we must free it after cache and
     // stream stopped for it uses it.
     mux.unhandle(entry->mount, stream.get());
