@@ -2569,7 +2569,8 @@ srs_error_t SrsRtmpServer::start_play(int stream_id)
     }
     
     // onStatus(NetStream.Data.Start)
-    if (true) {
+    // We should not response this packet, or there is an empty stream "Stream #0:0: Data: none" in FFmpeg.
+    if (false) {
         SrsOnStatusDataPacket* pkt = new SrsOnStatusDataPacket();
         pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeDataStart));
         if ((err = protocol->send_and_free_packet(pkt, stream_id)) != srs_success) {
