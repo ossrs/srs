@@ -1206,8 +1206,6 @@ SrsGoApiSignal::~SrsGoApiSignal()
 
 srs_error_t SrsGoApiSignal::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    srs_error_t err = srs_success;
-
     std::string signal = r->query_get("signo");
     srs_trace("query signo=%s", signal.c_str());
 
