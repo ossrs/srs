@@ -253,7 +253,7 @@ public:
     void set_publish_stream(ISrsRtcPublishStream* v);
     // Consume the shared RTP packet, user must free it.
     srs_error_t on_rtp(SrsRtpPacket* pkt);
-    // Set and get stream description for souce
+    // Set and get stream description for source
     bool has_stream_desc();
     void set_stream_desc(SrsRtcSourceDescription* stream_desc);
     std::vector<SrsRtcTrackDescription*> get_track_desc(std::string type, std::string media_type);
