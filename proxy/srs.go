@@ -289,10 +289,9 @@ func (v *srsRedisLoadBalancer) Update(ctx context.Context, server *SRSServer) er
 	}
 
 	// Check each server expiration, if not exists in redis, remove from servers.
-	for i, serverKey := range serverKeys {
-		if _, err := v.rdb.Get(ctx, serverKey).Bytes(); err != nil {
+	for i := len(serverKeys) - 1; i >= 0; i-- {
+		if _, err := v.rdb.Get(ctx, serverKeys[i]).Bytes(); err != nil {
 			serverKeys = append(serverKeys[:i], serverKeys[i+1:]...)
-			continue
 		}
 	}
 
