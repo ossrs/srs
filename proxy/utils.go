@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"reflect"
 	"strings"
 	"syscall"
@@ -115,4 +116,42 @@ func isPeerClosedError(err error) bool {
 	}
 
 	return false
+}
+
+// convertURLToStreamURL convert the URL in HTTP request to special URLs. The unifiedURL is the URL
+// in unified, foramt as scheme://vhost/app/stream without extensions. While the fullURL is the unifiedURL
+// with extension.
+func convertURLToStreamURL(r *http.Request) (unifiedURL, fullURL string) {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+
+	hostname := "__defaultVhost__"
+	if strings.Contains(r.Host, ":") {
+		if v, _, err := net.SplitHostPort(r.Host); err == nil {
+			hostname = v
+		}
+	}
+
+	streamExt := path.Ext(r.URL.Path)
+	streamName := strings.TrimSuffix(r.URL.Path, streamExt)
+	unifiedURL = fmt.Sprintf("%v://%v%v", scheme, hostname, streamName)
+	fullURL = fmt.Sprintf("%v%v", unifiedURL, streamExt)
+	return
+}
+
+// wrapProxyError extract and wrap the proxy and multiple errors with extraMsg.
+func wrapProxyError(err error, extraMsg string) error {
+	if perr, ok := err.(*RTMPProxyError); ok {
+		return &RTMPProxyError{perr.isBackend, errors.Wrapf(perr.err, extraMsg)}
+	} else if merr, ok := err.(*RTMPMultipleError); ok {
+		var errs []error
+		for _, e := range merr.errs {
+			errs = append(errs, errors.Wrapf(e, extraMsg))
+		}
+		return NewRTMPMultipleError(errs...)
+	} else {
+		return errors.Wrapf(err, extraMsg)
+	}
 }

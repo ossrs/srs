@@ -7,14 +7,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
-	"sync"
+	stdSync "sync"
 	"time"
 
 	"srs-proxy/errors"
@@ -27,7 +26,7 @@ type httpServer struct {
 	// The gracefully quit timeout, wait server to quit.
 	gracefulQuitTimeout time.Duration
 	// The wait group for all goroutines.
-	wg sync.WaitGroup
+	wg stdSync.WaitGroup
 }
 
 func NewHttpServer(opts ...func(*httpServer)) *httpServer {
@@ -96,9 +95,36 @@ func (v *httpServer) Run(ctx context.Context) error {
 	// The default handler, for both static web server and streaming server.
 	logger.Df(ctx, "Handle / by %v", addr)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// For HLS streaming, we will proxy the request to the streaming server.
+		if strings.HasSuffix(r.URL.Path, ".m3u8") {
+			unifiedURL, fullURL := convertURLToStreamURL(r)
+			streamURL, err := buildStreamURL(unifiedURL)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("build stream url by %v from %v", unifiedURL, fullURL), http.StatusBadRequest)
+				return
+			}
+
+			stream, _ := srsLoadBalancer.LoadOrStoreHLS(ctx, streamURL, NewHLSStreaming(func(v *HLSStreaming) {
+				v.proxyID = logger.GenerateContextID()
+				v.ctx, v.streamURL, v.fullURL = logger.WithContext(ctx), streamURL, fullURL
+			}))
+
+			stream.ServeHTTP(w, r)
+			return
+		}
+
 		// For HTTP streaming, we will proxy the request to the streaming server.
 		if strings.HasSuffix(r.URL.Path, ".flv") ||
 			strings.HasSuffix(r.URL.Path, ".ts") {
+			if srsProxyBackendID := r.URL.Query().Get("spbid"); srsProxyBackendID != "" {
+				if stream, err := srsLoadBalancer.LoadHLSBySPBID(ctx, srsProxyBackendID); err != nil {
+					http.Error(w, fmt.Sprintf("load stream by spbid %v", srsProxyBackendID), http.StatusBadRequest)
+				} else {
+					stream.ServeHTTP(w, r)
+				}
+				return
+			}
+
 			NewHTTPStreaming(func(streaming *HTTPStreaming) {
 				streaming.ctx = ctx
 			}).ServeHTTP(w, r)
@@ -203,28 +229,12 @@ func (v *HTTPStreaming) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (v *HTTPStreaming) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	// Build the stream URL in vhost/app/stream schema.
-	var requestURL, originalURL string
-	if true {
-		scheme := "http"
-		if r.TLS != nil {
-			scheme = "https"
-		}
+	unifiedURL, fullURL := convertURLToStreamURL(r)
+	logger.Df(ctx, "Got HTTP client from %v for %v", r.RemoteAddr, fullURL)
 
-		hostname, _, err := net.SplitHostPort(r.Host)
-		if err != nil {
-			return errors.Wrapf(err, "split host %v", r.Host)
-		}
-
-		streamExt := path.Ext(r.URL.Path)
-		streamName := strings.TrimSuffix(r.URL.Path, streamExt)
-		requestURL = fmt.Sprintf("%v://%v%v", scheme, hostname, streamName)
-		originalURL = fmt.Sprintf("%v%v", requestURL, streamExt)
-		logger.Df(ctx, "Got HTTP client from %v for %v", r.RemoteAddr, originalURL)
-	}
-
-	streamURL, err := buildStreamURL(requestURL)
+	streamURL, err := buildStreamURL(unifiedURL)
 	if err != nil {
-		return errors.Wrapf(err, "build stream url %v", requestURL)
+		return errors.Wrapf(err, "build stream url %v", unifiedURL)
 	}
 
 	// Pick a backend SRS server to proxy the RTMP stream.
@@ -234,18 +244,8 @@ func (v *HTTPStreaming) serve(ctx context.Context, w http.ResponseWriter, r *htt
 	}
 
 	if err = v.serveByBackend(ctx, w, r, backend, streamURL); err != nil {
-		extraMsg := fmt.Sprintf("serve %v by backend %+v", originalURL, backend)
-		if perr, ok := err.(*RTMPProxyError); ok {
-			return &RTMPProxyError{perr.isBackend, errors.Wrapf(perr.err, extraMsg)}
-		} else if merr, ok := err.(*RTMPMultipleError); ok {
-			var errs []error
-			for _, e := range merr.errs {
-				errs = append(errs, errors.Wrapf(e, extraMsg))
-			}
-			return NewRTMPMultipleError(errs...)
-		} else {
-			return errors.Wrapf(err, extraMsg)
-		}
+		extraMsg := fmt.Sprintf("serve %v by backend %+v", fullURL, backend)
+		return wrapProxyError(err, extraMsg)
 	}
 
 	return nil
@@ -314,7 +314,7 @@ func (v *HTTPStreaming) serveByBackend(ctx context.Context, w http.ResponseWrite
 	logger.Df(ctx, "HTTP start streaming")
 
 	// For all proxy goroutines.
-	var wg sync.WaitGroup
+	var wg stdSync.WaitGroup
 	defer wg.Wait()
 
 	// Detect the client closed.
@@ -368,4 +368,144 @@ func (v *HTTPStreaming) serveByBackend(ctx context.Context, w http.ResponseWrite
 	}
 
 	return NewRTMPMultipleError(r0, r1, parentCtx.Err())
+}
+
+type HLSStreaming struct {
+	// The proxy ID, used to identify the backend server.
+	proxyID string
+	// The context for HLS streaming.
+	ctx context.Context
+	// The stream URL in vhost/app/stream schema.
+	streamURL string
+	// The full request URL for HLS streaming
+	fullURL string
+}
+
+func NewHLSStreaming(opts ...func(streaming *HLSStreaming)) *HLSStreaming {
+	v := &HLSStreaming{}
+	for _, opt := range opts {
+		opt(v)
+	}
+	return v
+}
+
+func (v *HLSStreaming) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	if err := v.serve(v.ctx, w, r); err != nil {
+		apiError(v.ctx, w, r, err)
+	} else {
+		logger.Df(v.ctx, "HLS client %v done", v.streamURL)
+	}
+}
+
+func (v *HLSStreaming) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	ctx, streamURL, fullURL := v.ctx, v.streamURL, v.fullURL
+
+	// Always support CORS. Note that browser may send origin header for m3u8, but no origin header
+	// for ts. So we always response CORS header.
+	if true {
+		// SRS does not need cookie or credentials, so we disable CORS credentials, and use * for CORS origin,
+		// headers, expose headers and methods.
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+		// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods
+		w.Header().Set("Access-Control-Allow-Methods", "*")
+	}
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return nil
+	}
+
+	// Pick a backend SRS server to proxy the RTMP stream.
+	backend, err := srsLoadBalancer.Pick(ctx, streamURL)
+	if err != nil {
+		return errors.Wrapf(err, "pick backend for %v", streamURL)
+	}
+
+	if err = v.serveByBackend(ctx, w, r, backend, streamURL); err != nil {
+		extraMsg := fmt.Sprintf("serve %v by backend %+v", fullURL, backend)
+		return wrapProxyError(err, extraMsg)
+	}
+
+	return nil
+}
+
+func (v *HLSStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *SRSServer, streamURL string) error {
+	// Parse HTTP port from backend.
+	if len(backend.HTTP) == 0 {
+		return errors.Errorf("no rtmp server %+v for %v", backend, streamURL)
+	}
+
+	var httpPort int
+	if iv, err := strconv.ParseInt(backend.HTTP[0], 10, 64); err != nil {
+		return errors.Wrapf(err, "parse backend %+v rtmp port %v", backend, backend.HTTP[0])
+	} else {
+		httpPort = int(iv)
+	}
+
+	// Connect to backend SRS server via HTTP client.
+	backendURL := fmt.Sprintf("http://%v:%v%s", backend.IP, httpPort, r.URL.Path)
+	if r.URL.RawQuery != "" {
+		backendURL += "?" + r.URL.RawQuery
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", backendURL, nil)
+	if err != nil {
+		return &RTMPProxyError{true, errors.Wrapf(err, "create request to %v", backendURL)}
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		if urlErr, ok := err.(*url.Error); ok {
+			if urlErr.Err == io.EOF {
+				return &RTMPProxyError{true, errors.Errorf("do request to %v EOF", backendURL)}
+			}
+			if urlErr.Err == context.Canceled && r.Context().Err() != nil {
+				return &RTMPProxyError{false, errors.Wrapf(io.EOF, "client closed")}
+			}
+		}
+		return &RTMPProxyError{true, errors.Wrapf(err, "do request to %v", backendURL)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return &RTMPProxyError{true, errors.Errorf("proxy stream to %v failed, status=%v", backendURL, resp.Status)}
+	}
+
+	// Copy all headers from backend to client.
+	w.WriteHeader(resp.StatusCode)
+	for k, v := range resp.Header {
+		for _, vv := range v {
+			w.Header().Add(k, vv)
+		}
+	}
+
+	// Read all content of m3u8, append the stream ID to ts URL. Note that we only append stream ID to ts
+	// URL, to identify the stream to specified backend server. The spbid is the SRS Proxy Backend ID.
+	if strings.HasSuffix(r.URL.Path, ".m3u8") {
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return errors.Wrapf(err, "read stream from %v", backendURL)
+		}
+
+		m3u8 := string(b)
+		if strings.Contains(m3u8, ".ts?") {
+			m3u8 = strings.ReplaceAll(m3u8, ".ts?", fmt.Sprintf(".ts?spbid=%v&&", v.proxyID))
+		} else {
+			m3u8 = strings.ReplaceAll(m3u8, ".ts", fmt.Sprintf(".ts?spbid=%v", v.proxyID))
+		}
+
+		if _, err := io.Copy(w, strings.NewReader(m3u8)); err != nil {
+			return errors.Wrapf(err, "write stream client")
+		}
+	} else {
+		// For TS file, directly copy it.
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			return errors.Wrapf(err, "write stream client")
+		}
+	}
+
+	return nil
 }

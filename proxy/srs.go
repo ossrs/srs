@@ -135,6 +135,10 @@ type SRSLoadBalancer interface {
 	Update(ctx context.Context, server *SRSServer) error
 	// Pick a backend server for the specified stream URL.
 	Pick(ctx context.Context, streamURL string) (*SRSServer, error)
+	// Load or store the HLS streaming for the specified stream URL.
+	LoadOrStoreHLS(ctx context.Context, streamURL string, value *HLSStreaming) (*HLSStreaming, error)
+	// Load the HLS streaming by SPBID, the SRS Proxy Backend ID.
+	LoadHLSBySPBID(ctx context.Context, spbid string) (*HLSStreaming, error)
 }
 
 // srsLoadBalancer is the global SRS load balancer.
@@ -146,10 +150,28 @@ type srsMemoryLoadBalancer struct {
 	servers sync.Map[string, *SRSServer]
 	// The picked server to servce client by specified stream URL, key is stream url.
 	picked sync.Map[string, *SRSServer]
+	// The HLS streaming, key is stream URL.
+	hlsStreamURL sync.Map[string, *HLSStreaming]
+	// The HLS streaming, key is SPBID.
+	hlsSPBID sync.Map[string, *HLSStreaming]
 }
 
 func NewMemoryLoadBalancer() SRSLoadBalancer {
 	return &srsMemoryLoadBalancer{}
+}
+
+func (v *srsMemoryLoadBalancer) LoadHLSBySPBID(ctx context.Context, spbid string) (*HLSStreaming, error) {
+	if actual, ok := v.hlsSPBID.Load(spbid); !ok {
+		return nil, errors.Errorf("no HLS streaming for SPBID %v", spbid)
+	} else {
+		return actual, nil
+	}
+}
+
+func (v *srsMemoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value *HLSStreaming) (*HLSStreaming, error) {
+	actual, _ := v.hlsStreamURL.LoadOrStore(streamURL, value)
+	v.hlsSPBID.Store(value.proxyID, actual)
+	return actual, nil
 }
 
 func (v *srsMemoryLoadBalancer) Initialize(ctx context.Context) error {
@@ -224,6 +246,14 @@ type srsRedisLoadBalancer struct {
 
 func NewRedisLoadBalancer() SRSLoadBalancer {
 	return &srsRedisLoadBalancer{}
+}
+
+func (v *srsRedisLoadBalancer) LoadHLSBySPBID(ctx context.Context, spbid string) (*HLSStreaming, error) {
+	return nil, nil
+}
+
+func (v *srsRedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value *HLSStreaming) (*HLSStreaming, error) {
+	return nil, nil
 }
 
 func (v *srsRedisLoadBalancer) Initialize(ctx context.Context) error {
