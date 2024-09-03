@@ -439,8 +439,7 @@ func (v *HLSStreaming) serve(ctx context.Context, w http.ResponseWriter, r *http
 	}
 
 	if err = v.serveByBackend(ctx, w, r, backend, streamURL); err != nil {
-		extraMsg := fmt.Sprintf("serve %v by backend %+v", fullURL, backend)
-		return wrapProxyError(err, extraMsg)
+		return errors.Wrapf(err, "serve %v with %v by backend %+v", fullURL, streamURL, backend)
 	}
 
 	return nil
@@ -467,25 +466,17 @@ func (v *HLSStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter
 
 	req, err := http.NewRequestWithContext(ctx, "GET", backendURL, nil)
 	if err != nil {
-		return &RTMPProxyError{true, errors.Wrapf(err, "create request to %v", backendURL)}
+		return errors.Wrapf(err, "create request to %v", backendURL)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		if urlErr, ok := err.(*url.Error); ok {
-			if urlErr.Err == io.EOF {
-				return &RTMPProxyError{true, errors.Errorf("do request to %v EOF", backendURL)}
-			}
-			if urlErr.Err == context.Canceled && r.Context().Err() != nil {
-				return &RTMPProxyError{false, errors.Wrapf(io.EOF, "client closed")}
-			}
-		}
-		return &RTMPProxyError{true, errors.Wrapf(err, "do request to %v", backendURL)}
+		return errors.Errorf("do request to %v EOF", backendURL)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return &RTMPProxyError{true, errors.Errorf("proxy stream to %v failed, status=%v", backendURL, resp.Status)}
+		return errors.Errorf("proxy stream to %v failed, status=%v", backendURL, resp.Status)
 	}
 
 	// Copy all headers from backend to client.
@@ -496,29 +487,31 @@ func (v *HLSStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter
 		}
 	}
 
-	// Read all content of m3u8, append the stream ID to ts URL. Note that we only append stream ID to ts
-	// URL, to identify the stream to specified backend server. The spbhid is the SRS Proxy Backend HLS ID.
-	if strings.HasSuffix(r.URL.Path, ".m3u8") {
-		b, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return errors.Wrapf(err, "read stream from %v", backendURL)
-		}
-
-		m3u8 := string(b)
-		if strings.Contains(m3u8, ".ts?") {
-			m3u8 = strings.ReplaceAll(m3u8, ".ts?", fmt.Sprintf(".ts?spbhid=%v&&", v.SRSProxyBackendHLSID))
-		} else {
-			m3u8 = strings.ReplaceAll(m3u8, ".ts", fmt.Sprintf(".ts?spbhid=%v", v.SRSProxyBackendHLSID))
-		}
-
-		if _, err := io.Copy(w, strings.NewReader(m3u8)); err != nil {
-			return errors.Wrapf(err, "write stream client")
-		}
-	} else {
-		// For TS file, directly copy it.
+	// For TS file, directly copy it.
+	if !strings.HasSuffix(r.URL.Path, ".m3u8") {
 		if _, err := io.Copy(w, resp.Body); err != nil {
 			return errors.Wrapf(err, "write stream client")
 		}
+
+		return nil
+	}
+
+	// Read all content of m3u8, append the stream ID to ts URL. Note that we only append stream ID to ts
+	// URL, to identify the stream to specified backend server. The spbhid is the SRS Proxy Backend HLS ID.
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return errors.Wrapf(err, "read stream from %v", backendURL)
+	}
+
+	m3u8 := string(b)
+	if strings.Contains(m3u8, ".ts?") {
+		m3u8 = strings.ReplaceAll(m3u8, ".ts?", fmt.Sprintf(".ts?spbhid=%v&&", v.SRSProxyBackendHLSID))
+	} else {
+		m3u8 = strings.ReplaceAll(m3u8, ".ts", fmt.Sprintf(".ts?spbhid=%v", v.SRSProxyBackendHLSID))
+	}
+
+	if _, err := io.Copy(w, strings.NewReader(m3u8)); err != nil {
+		return errors.Wrapf(err, "write stream client")
 	}
 
 	return nil
