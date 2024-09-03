@@ -140,18 +140,3 @@ func convertURLToStreamURL(r *http.Request) (unifiedURL, fullURL string) {
 	fullURL = fmt.Sprintf("%v%v", unifiedURL, streamExt)
 	return
 }
-
-// wrapProxyError extract and wrap the proxy and multiple errors with extraMsg.
-func wrapProxyError(err error, extraMsg string) error {
-	if perr, ok := err.(*RTMPProxyError); ok {
-		return &RTMPProxyError{perr.isBackend, errors.Wrapf(perr.err, extraMsg)}
-	} else if merr, ok := err.(*RTMPMultipleError); ok {
-		var errs []error
-		for _, e := range merr.errs {
-			errs = append(errs, errors.Wrapf(e, extraMsg))
-		}
-		return NewRTMPMultipleError(errs...)
-	} else {
-		return errors.Wrapf(err, extraMsg)
-	}
-}
