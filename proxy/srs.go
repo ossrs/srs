@@ -127,6 +127,12 @@ func NewDefaultSRSForDebugging() (*SRSServer, error) {
 	if envDefaultBackendHttp() != "" {
 		server.HTTP = []string{envDefaultBackendHttp()}
 	}
+	if envDefaultBackendAPI() != "" {
+		server.API = []string{envDefaultBackendAPI()}
+	}
+	if envDefaultBackendRTC() != "" {
+		server.RTC = []string{envDefaultBackendRTC()}
+	}
 	return server, nil
 }
 

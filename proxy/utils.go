@@ -45,6 +45,27 @@ func apiError(ctx context.Context, w http.ResponseWriter, r *http.Request, err e
 	fmt.Fprintln(w, fmt.Sprintf("%v", err))
 }
 
+func apiCORS(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
+	// Always support CORS. Note that browser may send origin header for m3u8, but no origin header
+	// for ts. So we always response CORS header.
+	if true {
+		// SRS does not need cookie or credentials, so we disable CORS credentials, and use * for CORS origin,
+		// headers, expose headers and methods.
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+		// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods
+		w.Header().Set("Access-Control-Allow-Methods", "*")
+	}
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return true
+	}
+
+	return false
+}
+
 func parseGracefullyQuitTimeout() (time.Duration, error) {
 	if t, err := time.ParseDuration(envGraceQuitTimeout()); err != nil {
 		return 0, errors.Wrapf(err, "parse duration %v", envGraceQuitTimeout())
@@ -134,9 +155,24 @@ func convertURLToStreamURL(r *http.Request) (unifiedURL, fullURL string) {
 		}
 	}
 
-	streamExt := path.Ext(r.URL.Path)
-	streamName := strings.TrimSuffix(r.URL.Path, streamExt)
-	unifiedURL = fmt.Sprintf("%v://%v%v", scheme, hostname, streamName)
+	var appStream, streamExt string
+
+	// Parse app/stream from query string.
+	q := r.URL.Query()
+	if app := q.Get("app"); app != "" {
+		appStream = "/" + app
+	}
+	if stream := q.Get("stream"); stream != "" {
+		appStream = fmt.Sprintf("%v/%v", appStream, stream)
+	}
+
+	// Parse app/stream from path.
+	if appStream == "" {
+		streamExt = path.Ext(r.URL.Path)
+		appStream = strings.TrimSuffix(r.URL.Path, streamExt)
+	}
+
+	unifiedURL = fmt.Sprintf("%v://%v%v", scheme, hostname, appStream)
 	fullURL = fmt.Sprintf("%v%v", unifiedURL, streamExt)
 	return
 }

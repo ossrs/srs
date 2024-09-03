@@ -30,7 +30,7 @@ func loadEnvFile(ctx context.Context) error {
 	return nil
 }
 
-func setupDefaultEnv(ctx context.Context) {
+func buildDefaultEnvironmentVariables(ctx context.Context) {
 	// Whether enable the Go pprof.
 	setEnvDefault("GO_PPROF", "")
 	// Force shutdown timeout.
@@ -44,6 +44,8 @@ func setupDefaultEnv(ctx context.Context) {
 	setEnvDefault("PROXY_HTTP_SERVER", "18080")
 	// The RTMP media server.
 	setEnvDefault("PROXY_RTMP_SERVER", "11935")
+	// The WebRTC media server, via UDP protocol.
+	setEnvDefault("PROXY_WEBRTC_SERVER", "18000")
 	// The API server of proxy itself.
 	setEnvDefault("PROXY_SYSTEM_API", "12025")
 
@@ -64,24 +66,44 @@ func setupDefaultEnv(ctx context.Context) {
 	setEnvDefault("PROXY_DEFAULT_BACKEND_IP", "127.0.0.1")
 	// Default backend server port, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_RTMP", "1935")
+	// Default backend api port, for debugging.
+	setEnvDefault("PROXY_DEFAULT_BACKEND_API", "1985")
+	// Default backend udp rtc port, for debugging.
+	setEnvDefault("PROXY_DEFAULT_BACKEND_RTC", "8000")
 
 	logger.Df(ctx, "load .env as GO_PPROF=%v, "+
 		"PROXY_FORCE_QUIT_TIMEOUT=%v, PROXY_GRACE_QUIT_TIMEOUT=%v, "+
 		"PROXY_HTTP_API=%v, PROXY_HTTP_SERVER=%v, PROXY_RTMP_SERVER=%v, "+
+		"PROXY_WEBRTC_SERVER=%v, "+
 		"PROXY_SYSTEM_API=%v, PROXY_DEFAULT_BACKEND_ENABLED=%v, "+
 		"PROXY_DEFAULT_BACKEND_IP=%v, PROXY_DEFAULT_BACKEND_RTMP=%v, "+
-		"PROXY_DEFAULT_BACKEND_HTTP=%v, "+
+		"PROXY_DEFAULT_BACKEND_HTTP=%v, PROXY_DEFAULT_BACKEND_API=%v, "+
+		"PROXY_DEFAULT_BACKEND_RTC=%v, "+
 		"PROXY_LOAD_BALANCER_TYPE=%v, PROXY_REDIS_HOST=%v, PROXY_REDIS_PORT=%v, "+
 		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v",
 		envGoPprof(),
 		envForceQuitTimeout(), envGraceQuitTimeout(),
 		envHttpAPI(), envHttpServer(), envRtmpServer(),
+		envWebRTCServer(),
 		envSystemAPI(), envDefaultBackendEnabled(),
 		envDefaultBackendIP(), envDefaultBackendRTMP(),
-		envDefaultBackendHttp(),
+		envDefaultBackendHttp(), envDefaultBackendAPI(),
+		envDefaultBackendRTC(),
 		envLoadBalancerType(), envRedisHost(), envRedisPort(),
 		envRedisPassword(), envRedisDB(),
 	)
+}
+
+func envDefaultBackendRTC() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_RTC")
+}
+
+func envDefaultBackendAPI() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_API")
+}
+
+func envWebRTCServer() string {
+	return os.Getenv("PROXY_WEBRTC_SERVER")
 }
 
 func envDefaultBackendHttp() string {

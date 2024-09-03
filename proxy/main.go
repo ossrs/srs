@@ -35,7 +35,7 @@ func doMain(ctx context.Context) error {
 		return errors.Wrapf(err, "load env")
 	}
 
-	setupDefaultEnv(ctx)
+	buildDefaultEnvironmentVariables(ctx)
 
 	// When cancelled, the program is forced to exit due to a timeout. Normally, this doesn't occur
 	// because the main thread exits after the context is cancelled. However, sometimes the main thread
@@ -74,9 +74,16 @@ func doMain(ctx context.Context) error {
 		return errors.Wrapf(err, "rtmp server")
 	}
 
+	// Start the WebRTC server.
+	rtcServer := newRTCServer()
+	defer rtcServer.Close()
+	if err := rtcServer.Run(ctx); err != nil {
+		return errors.Wrapf(err, "rtc server")
+	}
+
 	// Start the HTTP API server.
 	httpAPI := NewHttpAPI(func(server *httpAPI) {
-		server.gracefulQuitTimeout = gracefulQuitTimeout
+		server.gracefulQuitTimeout, server.rtc = gracefulQuitTimeout, rtcServer
 	})
 	defer httpAPI.Close()
 	if err := httpAPI.Run(ctx); err != nil {

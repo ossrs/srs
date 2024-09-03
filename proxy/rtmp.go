@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,7 +47,7 @@ func (v *rtmpServer) Close() error {
 }
 
 func (v *rtmpServer) Run(ctx context.Context) error {
-	endpoint := os.Getenv("PROXY_RTMP_SERVER")
+	endpoint := envRtmpServer()
 	if !strings.Contains(endpoint, ":") {
 		endpoint = ":" + endpoint
 	}

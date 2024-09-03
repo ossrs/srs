@@ -17,6 +17,8 @@ import (
 type httpAPI struct {
 	// The underlayer HTTP server.
 	server *http.Server
+	// The WebRTC server.
+	rtc *rtcServer
 	// The gracefully quit timeout, wait server to quit.
 	gracefulQuitTimeout time.Duration
 	// The wait group for all goroutines.
@@ -70,6 +72,22 @@ func (v *httpAPI) Run(ctx context.Context) error {
 			"signature": Signature(),
 			"version":   Version(),
 		})
+	})
+
+	// The WebRTC WHIP API handler.
+	logger.Df(ctx, "Handle /rtc/v1/whip/ by %v", addr)
+	mux.HandleFunc("/rtc/v1/whip/", func(w http.ResponseWriter, r *http.Request) {
+		if err := v.rtc.HandleWHIP(ctx, w, r); err != nil {
+			apiError(ctx, w, r, err)
+		}
+	})
+
+	// The WebRTC WHEP API handler.
+	logger.Df(ctx, "Handle /rtc/v1/whep/ by %v", addr)
+	mux.HandleFunc("/rtc/v1/whep/", func(w http.ResponseWriter, r *http.Request) {
+		if err := v.rtc.HandleWHEP(ctx, w, r); err != nil {
+			apiError(ctx, w, r, err)
+		}
 	})
 
 	// Run HTTP API server.

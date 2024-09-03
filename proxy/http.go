@@ -180,19 +180,8 @@ func (v *HTTPStreaming) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (v *HTTPStreaming) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	// Always support CORS. Note that browser may send origin header for m3u8, but no origin header
-	// for ts. So we always response CORS header.
-	if true {
-		// SRS does not need cookie or credentials, so we disable CORS credentials, and use * for CORS origin,
-		// headers, expose headers and methods.
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods
-		w.Header().Set("Access-Control-Allow-Methods", "*")
-	}
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	// Always allow CORS for all requests.
+	if ok := apiCORS(ctx, w, r); ok {
 		return nil
 	}
 
@@ -211,14 +200,14 @@ func (v *HTTPStreaming) serve(ctx context.Context, w http.ResponseWriter, r *htt
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}
 
-	if err = v.serveByBackend(ctx, w, r, backend, streamURL); err != nil {
+	if err = v.serveByBackend(ctx, w, r, backend); err != nil {
 		return errors.Wrapf(err, "serve %v with %v by backend %+v", fullURL, streamURL, backend)
 	}
 
 	return nil
 }
 
-func (v *HTTPStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *SRSServer, streamURL string) error {
+func (v *HTTPStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *SRSServer) error {
 	// Parse HTTP port from backend.
 	if len(backend.HTTP) == 0 {
 		return errors.Errorf("no http stream server")
@@ -233,7 +222,7 @@ func (v *HTTPStreaming) serveByBackend(ctx context.Context, w http.ResponseWrite
 
 	// Connect to backend SRS server via HTTP client.
 	backendURL := fmt.Sprintf("http://%v:%v%s", backend.IP, httpPort, r.URL.Path)
-	req, err := http.NewRequestWithContext(ctx, "GET", backendURL, nil)
+	req, err := http.NewRequestWithContext(ctx, r.Method, backendURL, nil)
 	if err != nil {
 		return errors.Wrapf(err, "create request to %v", backendURL)
 	}
@@ -309,19 +298,8 @@ func (v *HLSStreaming) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (v *HLSStreaming) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	ctx, streamURL, fullURL := v.ctx, v.StreamURL, v.FullURL
 
-	// Always support CORS. Note that browser may send origin header for m3u8, but no origin header
-	// for ts. So we always response CORS header.
-	if true {
-		// SRS does not need cookie or credentials, so we disable CORS credentials, and use * for CORS origin,
-		// headers, expose headers and methods.
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods
-		w.Header().Set("Access-Control-Allow-Methods", "*")
-	}
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	// Always allow CORS for all requests.
+	if ok := apiCORS(ctx, w, r); ok {
 		return nil
 	}
 
@@ -331,22 +309,22 @@ func (v *HLSStreaming) serve(ctx context.Context, w http.ResponseWriter, r *http
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}
 
-	if err = v.serveByBackend(ctx, w, r, backend, streamURL); err != nil {
+	if err = v.serveByBackend(ctx, w, r, backend); err != nil {
 		return errors.Wrapf(err, "serve %v with %v by backend %+v", fullURL, streamURL, backend)
 	}
 
 	return nil
 }
 
-func (v *HLSStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *SRSServer, streamURL string) error {
+func (v *HLSStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *SRSServer) error {
 	// Parse HTTP port from backend.
 	if len(backend.HTTP) == 0 {
-		return errors.Errorf("no rtmp server %+v for %v", backend, streamURL)
+		return errors.Errorf("no rtmp server")
 	}
 
 	var httpPort int
 	if iv, err := strconv.ParseInt(backend.HTTP[0], 10, 64); err != nil {
-		return errors.Wrapf(err, "parse backend %+v rtmp port %v", backend, backend.HTTP[0])
+		return errors.Wrapf(err, "parse http port %v", backend.HTTP[0])
 	} else {
 		httpPort = int(iv)
 	}
@@ -357,7 +335,7 @@ func (v *HLSStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter
 		backendURL += "?" + r.URL.RawQuery
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", backendURL, nil)
+	req, err := http.NewRequestWithContext(ctx, r.Method, backendURL, nil)
 	if err != nil {
 		return errors.Wrapf(err, "create request to %v", backendURL)
 	}
@@ -404,7 +382,7 @@ func (v *HLSStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter
 	}
 
 	if _, err := io.Copy(w, strings.NewReader(m3u8)); err != nil {
-		return errors.Wrapf(err, "write stream client")
+		return errors.Wrapf(err, "proxy m3u8 client to %v", backendURL)
 	}
 
 	return nil
