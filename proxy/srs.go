@@ -24,6 +24,9 @@ import (
 // If server heartbeat in this duration, it's alive.
 const srsServerAliveDuration = 300 * time.Second
 
+// If HLS streaming update in this duration, it's alive.
+const srsHLSAliveDuration = 120 * time.Second
+
 type SRSServer struct {
 	// The server IP.
 	IP string `json:"ip,omitempty"`
@@ -304,7 +307,7 @@ func (v *srsRedisLoadBalancer) Update(ctx context.Context, server *SRSServer) er
 		return errors.Wrapf(err, "marshal server %+v", server)
 	}
 
-	key := fmt.Sprintf("srs-proxy-server:%v", server.ID())
+	key := v.redisKeyServer(server.ID())
 	if err = v.rdb.Set(ctx, key, b, srsServerAliveDuration).Err(); err != nil {
 		return errors.Wrapf(err, "set key=%v server %+v", key, server)
 	}
@@ -407,13 +410,64 @@ func (v *srsRedisLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRS
 }
 
 func (v *srsRedisLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (*HLSStreaming, error) {
-	return nil, nil
+	key := v.redisKeySPBHID(spbhid)
+
+	actual, err := v.rdb.Get(ctx, key).Bytes()
+	if err != nil {
+		return nil, errors.Wrapf(err, "get key=%v HLS", key)
+	}
+
+	var actualHLS HLSStreaming
+	if err := json.Unmarshal(actual, &actualHLS); err != nil {
+		return nil, errors.Wrapf(err, "unmarshal key=%v HLS %v", key, string(actual))
+	}
+
+	actualHLS.BuildContext(ctx)
+	return &actualHLS, nil
 }
 
 func (v *srsRedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value *HLSStreaming) (*HLSStreaming, error) {
-	return nil, nil
+	b, err := json.Marshal(value)
+	if err != nil {
+		return nil, errors.Wrapf(err, "marshal HLS %v", value)
+	}
+
+	key := v.redisKeyHLS(streamURL)
+	if err = v.rdb.Set(ctx, key, b, srsHLSAliveDuration).Err(); err != nil {
+		return nil, errors.Wrapf(err, "set key=%v HLS %v", key, value)
+	}
+
+	if err := v.rdb.Set(ctx, v.redisKeySPBHID(value.SRSProxyBackendHLSID), b, srsHLSAliveDuration).Err(); err != nil {
+		return nil, errors.Wrapf(err, "set key=%v HLS %v", v.redisKeySPBHID(value.SRSProxyBackendHLSID), value)
+	}
+
+	// Query the HLS streaming from redis.
+	actual, err := v.rdb.Get(ctx, key).Bytes()
+	if err != nil {
+		return nil, errors.Wrapf(err, "get key=%v HLS", key)
+	}
+
+	var actualHLS HLSStreaming
+	if err := json.Unmarshal(actual, &actualHLS); err != nil {
+		return nil, errors.Wrapf(err, "unmarshal key=%v HLS %v", key, string(actual))
+	}
+
+	actualHLS.BuildContext(ctx)
+	return &actualHLS, nil
+}
+
+func (v *srsRedisLoadBalancer) redisKeySPBHID(spbhid string) string {
+	return fmt.Sprintf("srs-proxy-spbhid:%v", spbhid)
+}
+
+func (v *srsRedisLoadBalancer) redisKeyHLS(streamURL string) string {
+	return fmt.Sprintf("srs-proxy-hls:%v", streamURL)
+}
+
+func (v *srsRedisLoadBalancer) redisKeyServer(serverID string) string {
+	return fmt.Sprintf("srs-proxy-server:%v", serverID)
 }
 
 func (v *srsRedisLoadBalancer) redisKeyServers() string {
-	return fmt.Sprintf("srs-proxy-servers-all")
+	return fmt.Sprintf("srs-proxy-all-servers")
 }

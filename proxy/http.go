@@ -106,7 +106,8 @@ func (v *httpServer) Run(ctx context.Context) error {
 
 			stream, _ := srsLoadBalancer.LoadOrStoreHLS(ctx, streamURL, NewHLSStreaming(func(v *HLSStreaming) {
 				v.SRSProxyBackendHLSID = logger.GenerateContextID()
-				v.ctx, v.StreamURL, v.FullURL = logger.WithContext(ctx), streamURL, fullURL
+				v.StreamURL, v.FullURL = streamURL, fullURL
+				v.BuildContext(ctx)
 			}))
 
 			stream.ServeHTTP(w, r)
@@ -382,6 +383,8 @@ type HLSStreaming struct {
 	StreamURL string `json:"stream_url"`
 	// The full request URL for HLS streaming
 	FullURL string `json:"full_url"`
+	// The context ID for recovering the context.
+	ContextID string `json:"cid"`
 }
 
 func NewHLSStreaming(opts ...func(streaming *HLSStreaming)) *HLSStreaming {
@@ -390,6 +393,13 @@ func NewHLSStreaming(opts ...func(streaming *HLSStreaming)) *HLSStreaming {
 		opt(v)
 	}
 	return v
+}
+
+func (v *HLSStreaming) BuildContext(ctx context.Context) {
+	if v.ContextID == "" {
+		v.ContextID = logger.GenerateContextID()
+	}
+	v.ctx = logger.WithContextID(ctx, v.ContextID)
 }
 
 func (v *HLSStreaming) ServeHTTP(w http.ResponseWriter, r *http.Request) {

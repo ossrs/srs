@@ -26,7 +26,12 @@ func GenerateContextID() string {
 
 // WithContext creates a new context with cid, which will be used for log.
 func WithContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, cidKey, GenerateContextID())
+	return WithContextID(ctx, GenerateContextID())
+}
+
+// WithContextID creates a new context with cid, which will be used for log.
+func WithContextID(ctx context.Context, cid string) context.Context {
+	return context.WithValue(ctx, cidKey, cid)
 }
 
 // ContextID returns the cid in context, or empty string if not set.
