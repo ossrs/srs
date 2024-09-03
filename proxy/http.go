@@ -105,8 +105,8 @@ func (v *httpServer) Run(ctx context.Context) error {
 			}
 
 			stream, _ := srsLoadBalancer.LoadOrStoreHLS(ctx, streamURL, NewHLSStreaming(func(v *HLSStreaming) {
-				v.proxyID = logger.GenerateContextID()
-				v.ctx, v.streamURL, v.fullURL = logger.WithContext(ctx), streamURL, fullURL
+				v.SRSProxyBackendHLSID = logger.GenerateContextID()
+				v.ctx, v.StreamURL, v.FullURL = logger.WithContext(ctx), streamURL, fullURL
 			}))
 
 			stream.ServeHTTP(w, r)
@@ -116,15 +116,17 @@ func (v *httpServer) Run(ctx context.Context) error {
 		// For HTTP streaming, we will proxy the request to the streaming server.
 		if strings.HasSuffix(r.URL.Path, ".flv") ||
 			strings.HasSuffix(r.URL.Path, ".ts") {
-			if srsProxyBackendID := r.URL.Query().Get("spbid"); srsProxyBackendID != "" {
-				if stream, err := srsLoadBalancer.LoadHLSBySPBID(ctx, srsProxyBackendID); err != nil {
-					http.Error(w, fmt.Sprintf("load stream by spbid %v", srsProxyBackendID), http.StatusBadRequest)
+			// If SPBHID is specified, it must be a HLS stream client.
+			if srsProxyBackendID := r.URL.Query().Get("spbhid"); srsProxyBackendID != "" {
+				if stream, err := srsLoadBalancer.LoadHLSBySPBHID(ctx, srsProxyBackendID); err != nil {
+					http.Error(w, fmt.Sprintf("load stream by spbhid %v", srsProxyBackendID), http.StatusBadRequest)
 				} else {
 					stream.ServeHTTP(w, r)
 				}
 				return
 			}
 
+			// Use HTTP pseudo streaming to proxy the request.
 			NewHTTPStreaming(func(streaming *HTTPStreaming) {
 				streaming.ctx = ctx
 			}).ServeHTTP(w, r)
@@ -371,14 +373,15 @@ func (v *HTTPStreaming) serveByBackend(ctx context.Context, w http.ResponseWrite
 }
 
 type HLSStreaming struct {
-	// The proxy ID, used to identify the backend server.
-	proxyID string
 	// The context for HLS streaming.
 	ctx context.Context
+
+	// The spbhid, used to identify the backend server.
+	SRSProxyBackendHLSID string `json:"spbhid"`
 	// The stream URL in vhost/app/stream schema.
-	streamURL string
+	StreamURL string `json:"stream_url"`
 	// The full request URL for HLS streaming
-	fullURL string
+	FullURL string `json:"full_url"`
 }
 
 func NewHLSStreaming(opts ...func(streaming *HLSStreaming)) *HLSStreaming {
@@ -395,12 +398,13 @@ func (v *HLSStreaming) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := v.serve(v.ctx, w, r); err != nil {
 		apiError(v.ctx, w, r, err)
 	} else {
-		logger.Df(v.ctx, "HLS client %v done", v.streamURL)
+		logger.Df(v.ctx, "HLS client %v for %v with %v done",
+			v.SRSProxyBackendHLSID, v.StreamURL, r.URL.Path)
 	}
 }
 
 func (v *HLSStreaming) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	ctx, streamURL, fullURL := v.ctx, v.streamURL, v.fullURL
+	ctx, streamURL, fullURL := v.ctx, v.StreamURL, v.FullURL
 
 	// Always support CORS. Note that browser may send origin header for m3u8, but no origin header
 	// for ts. So we always response CORS header.
@@ -483,7 +487,7 @@ func (v *HLSStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter
 	}
 
 	// Read all content of m3u8, append the stream ID to ts URL. Note that we only append stream ID to ts
-	// URL, to identify the stream to specified backend server. The spbid is the SRS Proxy Backend ID.
+	// URL, to identify the stream to specified backend server. The spbhid is the SRS Proxy Backend HLS ID.
 	if strings.HasSuffix(r.URL.Path, ".m3u8") {
 		b, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -492,9 +496,9 @@ func (v *HLSStreaming) serveByBackend(ctx context.Context, w http.ResponseWriter
 
 		m3u8 := string(b)
 		if strings.Contains(m3u8, ".ts?") {
-			m3u8 = strings.ReplaceAll(m3u8, ".ts?", fmt.Sprintf(".ts?spbid=%v&&", v.proxyID))
+			m3u8 = strings.ReplaceAll(m3u8, ".ts?", fmt.Sprintf(".ts?spbhid=%v&&", v.SRSProxyBackendHLSID))
 		} else {
-			m3u8 = strings.ReplaceAll(m3u8, ".ts", fmt.Sprintf(".ts?spbid=%v", v.proxyID))
+			m3u8 = strings.ReplaceAll(m3u8, ".ts", fmt.Sprintf(".ts?spbhid=%v", v.SRSProxyBackendHLSID))
 		}
 
 		if _, err := io.Copy(w, strings.NewReader(m3u8)); err != nil {
