@@ -405,13 +405,15 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
     // use vod stream for .flv/.fhv
     if (srs_string_ends_with(fullpath, ".flv") || srs_string_ends_with(fullpath, ".fhv")) {
         return serve_flv_file(w, r, fullpath);
-    } else if (srs_string_ends_with(fullpath, ".mp4")) {
-        return serve_mp4_file(w, r, fullpath);
     } else if (srs_string_ends_with(upath, ".m3u8")) {
         return serve_m3u8_file(w, r, fullpath);
-    } else if (srs_string_ends_with(upath, ".ts")) {
+    } else if (srs_string_ends_with(upath, ".ts") ||
+               srs_string_ends_with(upath, ".m4s") ||
+               srs_path_basename(upath) == "init.mp4") {
         return serve_ts_file(w, r, fullpath);
-    }
+    } else if (srs_string_ends_with(fullpath, ".mp4")) {
+        return serve_mp4_file(w, r, fullpath);
+    } 
     
     // serve common static file.
     return serve_file(w, r, fullpath);
