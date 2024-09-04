@@ -148,11 +148,11 @@ type SRSLoadBalancer interface {
 	// Pick a backend server for the specified stream URL.
 	Pick(ctx context.Context, streamURL string) (*SRSServer, error)
 	// Load or store the HLS streaming for the specified stream URL.
-	LoadOrStoreHLS(ctx context.Context, streamURL string, value *HLSStreaming) (*HLSStreaming, error)
+	LoadOrStoreHLS(ctx context.Context, streamURL string, value *HLSPlayStream) (*HLSPlayStream, error)
 	// Load the HLS streaming by SPBHID, the SRS Proxy Backend HLS ID.
-	LoadHLSBySPBHID(ctx context.Context, spbhid string) (*HLSStreaming, error)
-	// Load or store the WebRTC streaming for the specified stream URL.
-	LoadOrStoreWebRTC(ctx context.Context, streamURL, ufrag string, value *RTCConnection) (*RTCConnection, error)
+	LoadHLSBySPBHID(ctx context.Context, spbhid string) (*HLSPlayStream, error)
+	// Store the WebRTC streaming for the specified stream URL.
+	StoreWebRTC(ctx context.Context, streamURL string, value *RTCConnection) error
 	// Load the WebRTC streaming by ufrag, the ICE username.
 	LoadWebRTCByUfrag(ctx context.Context, ufrag string) (*RTCConnection, error)
 }
@@ -167,9 +167,9 @@ type srsMemoryLoadBalancer struct {
 	// The picked server to servce client by specified stream URL, key is stream url.
 	picked sync.Map[string, *SRSServer]
 	// The HLS streaming, key is stream URL.
-	hlsStreamURL sync.Map[string, *HLSStreaming]
+	hlsStreamURL sync.Map[string, *HLSPlayStream]
 	// The HLS streaming, key is SPBHID.
-	hlsSPBHID sync.Map[string, *HLSStreaming]
+	hlsSPBHID sync.Map[string, *HLSPlayStream]
 	// The WebRTC streaming, key is stream URL.
 	rtcStreamURL sync.Map[string, *RTCConnection]
 	// The WebRTC streaming, key is ufrag.
@@ -245,7 +245,7 @@ func (v *srsMemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*SR
 	return server, nil
 }
 
-func (v *srsMemoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (*HLSStreaming, error) {
+func (v *srsMemoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (*HLSPlayStream, error) {
 	// Load the HLS streaming for the SPBHID, for TS files.
 	if actual, ok := v.hlsSPBHID.Load(spbhid); !ok {
 		return nil, errors.Errorf("no HLS streaming for SPBHID %v", spbhid)
@@ -254,7 +254,7 @@ func (v *srsMemoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid stri
 	}
 }
 
-func (v *srsMemoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value *HLSStreaming) (*HLSStreaming, error) {
+func (v *srsMemoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value *HLSPlayStream) (*HLSPlayStream, error) {
 	// Update the HLS streaming for the stream URL, for M3u8.
 	actual, _ := v.hlsStreamURL.LoadOrStore(streamURL, value)
 	if actual == nil {
@@ -263,19 +263,17 @@ func (v *srsMemoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL st
 
 	// Update the HLS streaming for the SPBHID, for TS files.
 	v.hlsSPBHID.Store(value.SRSProxyBackendHLSID, actual)
+
 	return actual, nil
 }
 
-func (v *srsMemoryLoadBalancer) LoadOrStoreWebRTC(ctx context.Context, streamURL, ufrag string, value *RTCConnection) (*RTCConnection, error) {
+func (v *srsMemoryLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value *RTCConnection) error {
 	// Update the WebRTC streaming for the stream URL.
-	actual, _ := v.rtcStreamURL.LoadOrStore(streamURL, value)
-	if actual == nil {
-		return nil, errors.Errorf("load or store WebRTC streaming for %v failed", streamURL)
-	}
+	v.rtcStreamURL.Store(streamURL, value)
 
 	// Update the WebRTC streaming for the ufrag.
-	v.rtcUfrag.Store(ufrag, value)
-	return nil, nil
+	v.rtcUfrag.Store(value.Ufrag, value)
+	return nil
 }
 
 func (v *srsMemoryLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (*RTCConnection, error) {
@@ -446,24 +444,23 @@ func (v *srsRedisLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRS
 	return &server, nil
 }
 
-func (v *srsRedisLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (*HLSStreaming, error) {
+func (v *srsRedisLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (*HLSPlayStream, error) {
 	key := v.redisKeySPBHID(spbhid)
 
-	actual, err := v.rdb.Get(ctx, key).Bytes()
+	b, err := v.rdb.Get(ctx, key).Bytes()
 	if err != nil {
 		return nil, errors.Wrapf(err, "get key=%v HLS", key)
 	}
 
-	var actualHLS HLSStreaming
-	if err := json.Unmarshal(actual, &actualHLS); err != nil {
-		return nil, errors.Wrapf(err, "unmarshal key=%v HLS %v", key, string(actual))
+	var actual HLSPlayStream
+	if err := json.Unmarshal(b, &actual); err != nil {
+		return nil, errors.Wrapf(err, "unmarshal key=%v HLS %v", key, string(b))
 	}
 
-	actualHLS.BuildContext(ctx)
-	return &actualHLS, nil
+	return &actual, nil
 }
 
-func (v *srsRedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value *HLSStreaming) (*HLSStreaming, error) {
+func (v *srsRedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value *HLSPlayStream) (*HLSPlayStream, error) {
 	b, err := json.Marshal(value)
 	if err != nil {
 		return nil, errors.Wrapf(err, "marshal HLS %v", value)
@@ -479,22 +476,21 @@ func (v *srsRedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL str
 	}
 
 	// Query the HLS streaming from redis.
-	actual, err := v.rdb.Get(ctx, key).Bytes()
+	b2, err := v.rdb.Get(ctx, key).Bytes()
 	if err != nil {
 		return nil, errors.Wrapf(err, "get key=%v HLS", key)
 	}
 
-	var actualHLS HLSStreaming
-	if err := json.Unmarshal(actual, &actualHLS); err != nil {
-		return nil, errors.Wrapf(err, "unmarshal key=%v HLS %v", key, string(actual))
+	var actual HLSPlayStream
+	if err := json.Unmarshal(b2, &actual); err != nil {
+		return nil, errors.Wrapf(err, "unmarshal key=%v HLS %v", key, string(b2))
 	}
 
-	actualHLS.BuildContext(ctx)
-	return &actualHLS, nil
+	return &actual, nil
 }
 
-func (v *srsRedisLoadBalancer) LoadOrStoreWebRTC(ctx context.Context, streamURL, ufrag string, value *RTCConnection) (*RTCConnection, error) {
-	return nil, nil
+func (v *srsRedisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value *RTCConnection) error {
+	return nil
 }
 
 func (v *srsRedisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (*RTCConnection, error) {

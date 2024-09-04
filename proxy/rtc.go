@@ -52,7 +52,7 @@ func (v *rtcServer) Close() error {
 	return nil
 }
 
-func (v *rtcServer) HandleWHIP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (v *rtcServer) HandleApiForWHIP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	ctx = logger.WithContext(ctx)
 
@@ -82,14 +82,14 @@ func (v *rtcServer) HandleWHIP(ctx context.Context, w http.ResponseWriter, r *ht
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}
 
-	if err = v.serveByBackend(ctx, w, r, backend, string(remoteSDPOffer), streamURL); err != nil {
+	if err = v.proxyApiToBackend(ctx, w, r, backend, string(remoteSDPOffer), streamURL); err != nil {
 		return errors.Wrapf(err, "serve %v with %v by backend %+v", fullURL, streamURL, backend)
 	}
 
 	return nil
 }
 
-func (v *rtcServer) HandleWHEP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (v *rtcServer) HandleApiForWHEP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	ctx = logger.WithContext(ctx)
 
@@ -119,14 +119,17 @@ func (v *rtcServer) HandleWHEP(ctx context.Context, w http.ResponseWriter, r *ht
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}
 
-	if err = v.serveByBackend(ctx, w, r, backend, string(remoteSDPOffer), streamURL); err != nil {
+	if err = v.proxyApiToBackend(ctx, w, r, backend, string(remoteSDPOffer), streamURL); err != nil {
 		return errors.Wrapf(err, "serve %v with %v by backend %+v", fullURL, streamURL, backend)
 	}
 
 	return nil
 }
 
-func (v *rtcServer) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *SRSServer, remoteSDPOffer string, streamURL string) error {
+func (v *rtcServer) proxyApiToBackend(
+	ctx context.Context, w http.ResponseWriter, r *http.Request, backend *SRSServer,
+	remoteSDPOffer string, streamURL string,
+) error {
 	// Parse HTTP port from backend.
 	if len(backend.API) == 0 {
 		return errors.Errorf("no http api server")
@@ -198,9 +201,12 @@ func (v *rtcServer) serveByBackend(ctx context.Context, w http.ResponseWriter, r
 		RemoteICEUfrag: remoteICEUfrag, RemoteICEPwd: remoteICEPwd,
 		LocalICEUfrag: localICEUfrag, LocalICEPwd: localICEPwd,
 	}
-	if _, err := srsLoadBalancer.LoadOrStoreWebRTC(ctx, streamURL, icePair.Ufrag(), NewRTCStreaming(func(s *RTCConnection) {
-		s.StreamURL, s.listenerUDP = streamURL, v.listener
-		s.BuildContext(ctx)
+	if err := srsLoadBalancer.StoreWebRTC(ctx, streamURL, NewRTCConnection(func(c *RTCConnection) {
+		c.StreamURL, c.Ufrag = streamURL, icePair.Ufrag()
+		c.Initialize(ctx, v.listener)
+
+		// Cache the connection for fast search by username.
+		v.usernames.Store(c.Ufrag, c)
 	})); err != nil {
 		return errors.Wrapf(err, "load or store webrtc %v", streamURL)
 	}
@@ -210,7 +216,7 @@ func (v *rtcServer) serveByBackend(ctx context.Context, w http.ResponseWriter, r
 		return errors.Wrapf(err, "write local sdp answer %v", localSDPAnswer)
 	}
 
-	logger.Df(ctx, "Response local answer %vB with ice-ufrag=%v, ice-pwd=%vB",
+	logger.Df(ctx, "Create WebRTC connection with local answer %vB with ice-ufrag=%v, ice-pwd=%vB",
 		len(localSDPAnswer), localICEUfrag, len(localICEPwd))
 	return nil
 }
@@ -244,12 +250,12 @@ func (v *rtcServer) Run(ctx context.Context) error {
 			n, addr, err := listener.ReadFromUDP(buf)
 			if err != nil {
 				// TODO: If WebRTC server closed unexpectedly, we should notice the main loop to quit.
-				logger.Wf(ctx, "read from udp failed, err=%v", err)
+				logger.Wf(ctx, "read from udp failed, err=%+v", err)
 				continue
 			}
 
 			if err := v.handleClientUDP(ctx, addr, buf[:n]); err != nil {
-				logger.Wf(ctx, "handle udp %vB failed, addr=%v, err=%v", n, addr, err)
+				logger.Wf(ctx, "handle udp %vB failed, addr=%v, err=%+v", n, addr, err)
 			}
 		}
 	}()
@@ -258,7 +264,7 @@ func (v *rtcServer) Run(ctx context.Context) error {
 }
 
 func (v *rtcServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
-	var stream *RTCConnection
+	var connection *RTCConnection
 
 	// If STUN binding request, parse the ufrag and identify the connection.
 	if err := func() error {
@@ -271,58 +277,69 @@ func (v *rtcServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data
 			return errors.Wrapf(err, "unmarshal stun packet")
 		}
 
-		// Search the stream in fast cache.
+		// Search the connection in fast cache.
 		if s, ok := v.usernames.Load(pkt.Username); ok {
-			stream = s
+			connection = s
 			return nil
 		}
 
-		// Load stream by username.
+		// Load connection by username.
 		if s, err := srsLoadBalancer.LoadWebRTCByUfrag(ctx, pkt.Username); err != nil {
 			return errors.Wrapf(err, "load webrtc by ufrag %v", pkt.Username)
 		} else {
-			stream = s
+			connection = s.Initialize(ctx, v.listener)
+			logger.Df(ctx, "Create WebRTC connection by ufrag=%v, stream=%v", pkt.Username, connection.StreamURL)
 		}
 
-		// Cache stream for fast search.
-		if stream != nil {
-			v.usernames.Store(pkt.Username, stream)
+		// Cache connection for fast search.
+		if connection != nil {
+			v.usernames.Store(pkt.Username, connection)
 		}
 		return nil
 	}(); err != nil {
 		return err
 	}
 
-	// Search the stream by addr.
+	// Search the connection by addr.
 	if s, ok := v.addresses.Load(addr.String()); ok {
-		stream = s
-	} else if stream != nil {
+		connection = s
+	} else if connection != nil {
 		// Cache the address for fast search.
-		v.addresses.Store(addr.String(), stream)
+		v.addresses.Store(addr.String(), connection)
 	}
 
-	// If stream is not found, ignore the packet.
-	if stream == nil {
+	// If connection is not found, ignore the packet.
+	if connection == nil {
 		// TODO: Should logging the dropped packet, only logging the first one for each address.
 		return nil
 	}
 
 	// Proxy the packet to backend.
-	if err := stream.Proxy(addr, data); err != nil {
-		return errors.Wrapf(err, "proxy %vB for %v", len(data), stream.StreamURL)
+	if err := connection.HandlePacket(addr, data); err != nil {
+		return errors.Wrapf(err, "proxy %vB for %v", len(data), connection.StreamURL)
 	}
 
 	return nil
 }
 
+// RTCConnection is a WebRTC connection proxy, for both WHIP and WHEP. It represents a WebRTC
+// connection, identify by the ufrag in sdp offer/answer and ICE binding request.
+//
+// It's not like RTMP or HTTP FLV/TS proxy connection, which are stateless and all state is
+// in the client request. The RTCConnection is stateful, and need to sync the ufrag between
+// proxy servers.
+//
+// The media transport is UDP, which is also a special thing for WebRTC. So if the client switch
+// to another UDP address, it may connect to another WebRTC proxy, then we should discover the
+// RTCConnection by the ufrag from the ICE binding request.
 type RTCConnection struct {
 	// The stream context for WebRTC streaming.
 	ctx context.Context
-	// The context ID for recovering the context.
-	ContextID string `json:"cid"`
 
 	// The stream URL in vhost/app/stream schema.
 	StreamURL string `json:"stream_url"`
+	// The ufrag for this WebRTC connection.
+	Ufrag string `json:"ufrag"`
 
 	// The UDP connection proxy to backend.
 	backendUDP *net.UDPConn
@@ -332,7 +349,7 @@ type RTCConnection struct {
 	listenerUDP *net.UDPConn
 }
 
-func NewRTCStreaming(opts ...func(*RTCConnection)) *RTCConnection {
+func NewRTCConnection(opts ...func(*RTCConnection)) *RTCConnection {
 	v := &RTCConnection{}
 	for _, opt := range opts {
 		opt(v)
@@ -340,7 +357,15 @@ func NewRTCStreaming(opts ...func(*RTCConnection)) *RTCConnection {
 	return v
 }
 
-func (v *RTCConnection) Proxy(addr *net.UDPAddr, data []byte) error {
+func (v *RTCConnection) Initialize(ctx context.Context, listener *net.UDPConn) *RTCConnection {
+	v.ctx = logger.WithContext(ctx)
+	if listener != nil {
+		v.listenerUDP = listener
+	}
+	return v
+}
+
+func (v *RTCConnection) HandlePacket(addr *net.UDPAddr, data []byte) error {
 	ctx := v.ctx
 
 	// Update the current UDP address.
@@ -352,10 +377,31 @@ func (v *RTCConnection) Proxy(addr *net.UDPAddr, data []byte) error {
 	}
 
 	// Proxy client message to backend.
-	if v.backendUDP != nil {
-		if _, err := v.backendUDP.Write(data); err != nil {
-			return errors.Wrapf(err, "write to backend %v", v.StreamURL)
+	if v.backendUDP == nil {
+		return nil
+	}
+
+	// Proxy all messages from backend to client.
+	go func() {
+		for ctx.Err() == nil {
+			buf := make([]byte, 4096)
+			n, _, err := v.backendUDP.ReadFromUDP(buf)
+			if err != nil {
+				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
+				logger.Wf(ctx, "read from backend failed, err=%v", err)
+				break
+			}
+
+			if _, err = v.listenerUDP.WriteToUDP(buf[:n], v.clientUDP); err != nil {
+				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
+				logger.Wf(ctx, "write to client failed, err=%v", err)
+				break
+			}
 		}
+	}()
+
+	if _, err := v.backendUDP.Write(data); err != nil {
+		return errors.Wrapf(err, "write to backend %v", v.StreamURL)
 	}
 
 	return nil
@@ -385,6 +431,7 @@ func (v *RTCConnection) connectBackend(ctx context.Context) error {
 	}
 
 	// Connect to backend SRS server via UDP client.
+	// TODO: Support close the connection when timeout or DTLS alert.
 	backendAddr := net.UDPAddr{IP: net.ParseIP(backend.IP), Port: udpPort}
 	if backendUDP, err := net.DialUDP("udp", nil, &backendAddr); err != nil {
 		return errors.Wrapf(err, "dial udp to %v", backendAddr)
@@ -392,33 +439,7 @@ func (v *RTCConnection) connectBackend(ctx context.Context) error {
 		v.backendUDP = backendUDP
 	}
 
-	// Proxy all messages from backend to client.
-	go func() {
-		for ctx.Err() == nil {
-			buf := make([]byte, 4096)
-			n, _, err := v.backendUDP.ReadFromUDP(buf)
-			if err != nil {
-				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-				logger.Wf(ctx, "read from backend failed, err=%v", err)
-				break
-			}
-
-			if _, err = v.listenerUDP.WriteToUDP(buf[:n], v.clientUDP); err != nil {
-				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-				logger.Wf(ctx, "write to client failed, err=%v", err)
-				break
-			}
-		}
-	}()
-
 	return nil
-}
-
-func (v *RTCConnection) BuildContext(ctx context.Context) {
-	if v.ContextID == "" {
-		v.ContextID = logger.GenerateContextID()
-	}
-	v.ctx = logger.WithContextID(ctx, v.ContextID)
 }
 
 type RTCICEPair struct {

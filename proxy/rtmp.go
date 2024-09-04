@@ -108,6 +108,12 @@ func (v *rtmpServer) Run(ctx context.Context) error {
 	return nil
 }
 
+// RTMPConnection is an RTMP streaming connection. There is no state need to be sync between
+// proxy servers.
+//
+// When we got an RTMP request, we will parse the stream URL from the RTMP publish or play request,
+// then proxy to the corresponding backend server. All state is in the RTMP request, so this
+// connection is stateless.
 type RTMPConnection struct {
 	// The random number generator.
 	rd *rand.Rand
