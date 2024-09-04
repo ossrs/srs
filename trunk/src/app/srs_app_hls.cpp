@@ -93,13 +93,8 @@ srs_error_t SrsInitMp4Segment::write(SrsFormat* format, int v_tid, int a_tid)
 {
     srs_error_t err = srs_success;
     
-    string path_tmp = tmppath();
-    if ((err = fw_->open(path_tmp)) != srs_success) {
-        return srs_error_wrap(err, "Open init mp4 failed, path=%s", path_tmp.c_str());
-    }
-    
-    if ((err = init_->initialize(fw_)) != srs_success) {
-        return srs_error_wrap(err, "init");
+    if ((err = init_encoder()) != srs_success) {
+        return srs_error_wrap(err, "init encoder");
     }
     
     if ((err = init_->write(format, v_tid, a_tid)) != srs_success) {
@@ -108,6 +103,55 @@ srs_error_t SrsInitMp4Segment::write(SrsFormat* format, int v_tid, int a_tid)
     
     return err;
 }
+
+srs_error_t SrsInitMp4Segment::write_video_only(SrsFormat* format, int v_tid)
+{
+    srs_error_t err = srs_success;
+        
+    if ((err = init_encoder()) != srs_success) {
+        return srs_error_wrap(err, "init encoder");
+    }
+    
+    if ((err = init_->write(format, true, v_tid)) != srs_success) {
+        return srs_error_wrap(err, "write init");
+    }
+    
+    return err;
+}
+
+srs_error_t SrsInitMp4Segment::write_audio_only(SrsFormat* format, int a_tid)
+{
+    srs_error_t err = srs_success;
+        
+    if ((err = init_encoder()) != srs_success) {
+        return srs_error_wrap(err, "init encoder");
+    }
+    
+    if ((err = init_->write(format, false, a_tid)) != srs_success) {
+        return srs_error_wrap(err, "write init");
+    }
+    
+    return err;
+}
+
+srs_error_t SrsInitMp4Segment::init_encoder()
+{
+    srs_error_t err = srs_success;
+
+    srs_assert(!fullpath().empty());
+
+    string path_tmp = tmppath();
+    if ((err = fw_->open(path_tmp)) != srs_success) {
+        return srs_error_wrap(err, "Open init mp4 failed, path=%s", path_tmp.c_str());
+    }
+    
+    if ((err = init_->initialize(fw_)) != srs_success) {
+        return srs_error_wrap(err, "init");
+    }
+
+    return err;
+}
+
 
 SrsHlsM4sSegment::SrsHlsM4sSegment()
 {
@@ -428,7 +472,7 @@ srs_error_t SrsHlsFmp4Muxer::on_publish(SrsRequest* req)
     return err;
 }
 
-srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat* format)
+srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat* format, bool has_video, bool has_audio)
 {
     srs_error_t err = srs_success;
 
@@ -448,8 +492,20 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat* format)
     
     init_mp4->set_path(path);
 
-    if ((err = init_mp4->write(format, video_track_id_, audio_track_id_)) != srs_success) {
-        return srs_error_wrap(err, "write hls init.mp4 with audio and video");
+    if (has_video && has_audio) {
+        if ((err = init_mp4->write(format, video_track_id_, audio_track_id_)) != srs_success) {
+            return srs_error_wrap(err, "write hls init.mp4 with audio and video");
+        }
+    } else if (has_video) {
+        if ((err = init_mp4->write_video_only(format, video_track_id_)) != srs_success) {
+            return srs_error_wrap(err, "write hls init.mp4 with video only");
+        }
+    } else if (has_audio) {
+        if ((err = init_mp4->write_audio_only(format, audio_track_id_)) != srs_success) {
+            return srs_error_wrap(err, "write hls init.mp4 with audio only");
+        }
+    } else {
+        return srs_error_new(ERROR_HLS_WRITE_FAILED, "no video and no audio sequence header");
     }
 
     if ((err = init_mp4->rename()) != srs_success) {
@@ -471,6 +527,16 @@ srs_error_t SrsHlsFmp4Muxer::write_audio(SrsSharedPtrMessage* shared_audio, SrsF
             return srs_error_wrap(err, "open segment");
         }
     }
+
+    if (current_->duration() >= hls_fragment_) {
+        if ((err = segment_close()) != srs_success) {
+            return srs_error_wrap(err, "segment close");
+        }
+
+        if ((err = segment_open(shared_audio->timestamp * SRS_UTIME_MILLISECONDS)) != srs_success) {
+            return srs_error_wrap(err, "open segment");
+        }
+    }
     
     current_->write(shared_audio, format);
     return err;
@@ -488,7 +554,8 @@ srs_error_t SrsHlsFmp4Muxer::write_video(SrsSharedPtrMessage* shared_video, SrsF
         }
     }
 
-    bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && current_->duration() >= hls_fragment_;
+    // TODO: reap segment only when get key frame?
+    bool reopen = current_->duration() >= hls_fragment_;
     if (reopen) {
         if ((err = segment_close()) != srs_success) {
             return srs_error_wrap(err, "segment close");
@@ -499,7 +566,6 @@ srs_error_t SrsHlsFmp4Muxer::write_video(SrsSharedPtrMessage* shared_video, SrsF
         }
     }
     
-    // TODO: do reap segment here.
     current_->write(shared_video, format);
     
     return err;
@@ -2043,10 +2109,15 @@ srs_error_t SrsHlsMp4Controller::on_sequence_header(SrsSharedPtrMessage* msg, Sr
     }
 
     if (msg->is_audio()) {
+        if (format->acodec->aac_extra_data.size() == 0) {
+            srs_trace("the audio codec's aac extra data is empty");
+            return err;
+        }
+        
         has_audio_sh_ = true;
     }
 
-    muxer_->write_init_mp4(format);
+    muxer_->write_init_mp4(format, has_video_sh_, has_audio_sh_);
 
     return err;
 }
@@ -2317,7 +2388,8 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     
     // ignore sequence header
     srs_assert(format->audio);
-    if (acodec == SrsAudioCodecIdAAC && format->audio->aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
+    // TODO: verify mp3 play by HLS.
+    if (format->is_aac_sequence_header() || format->is_mp3_sequence_header()) {
         return controller->on_sequence_header(audio.get(), format);
     }
     
@@ -2364,8 +2436,10 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
         return err;
     }
     
-    // ignore sequence header
-    if (format->video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
+    // ignore sequence header avc and hevc
+    // is avc|hevc|av1 sequence header check, but av1 packet already ignored above. so it's ok to use
+    // below method.
+    if (format->is_avc_sequence_header()) {
         return controller->on_sequence_header(video.get(), format);
     }
     

@@ -6646,18 +6646,22 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, int v_tid, int a_tid
             moov->set_mvex(mvex);
 
             // video trex
-            SrsMp4TrackExtendsBox* v_trex = new SrsMp4TrackExtendsBox();
-            mvex->add_trex(v_trex);
+            if (format->vcodec) {
+                SrsMp4TrackExtendsBox* v_trex = new SrsMp4TrackExtendsBox();
+                mvex->add_trex(v_trex);
             
-            v_trex->track_ID = v_tid;
-            v_trex->default_sample_description_index = 1;
+                v_trex->track_ID = v_tid;
+                v_trex->default_sample_description_index = 1;
+            }
 
             // audio trex
-            SrsMp4TrackExtendsBox* a_trex = new SrsMp4TrackExtendsBox();
-            mvex->add_trex(a_trex);
+            if (format->acodec) {
+                SrsMp4TrackExtendsBox* a_trex = new SrsMp4TrackExtendsBox();
+                mvex->add_trex(a_trex);
             
-            a_trex->track_ID = a_tid;
-            a_trex->default_sample_description_index = 1;
+                a_trex->track_ID = a_tid;
+                a_trex->default_sample_description_index = 1;
+            }
         }
         
         if ((err = srs_mp4_write_box(writer, moov.get())) != srs_success) {

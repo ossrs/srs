@@ -78,6 +78,12 @@ public:
     
     // Write the init mp4 file, with the v_tid(video track id) and a_tid (audio track id).
     virtual srs_error_t write(SrsFormat* format, int v_tid, int a_tid);
+
+    virtual srs_error_t write_video_only(SrsFormat* format, int v_tid);
+    virtual srs_error_t write_audio_only(SrsFormat* format, int a_tid);
+private:
+    virtual srs_error_t init_encoder();
+
 };
 
 // TODO: merge this code with SrsFragmentedMp4 in dash
@@ -342,7 +348,7 @@ public:
     // When publish or unpublish stream.
     virtual srs_error_t on_publish(SrsRequest* req);
 
-    virtual srs_error_t write_init_mp4(SrsFormat* format);
+    virtual srs_error_t write_init_mp4(SrsFormat* format, bool has_video, bool has_audio);
     virtual srs_error_t write_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     virtual srs_error_t write_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 

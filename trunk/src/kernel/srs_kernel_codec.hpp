@@ -1298,6 +1298,7 @@ class SrsVideoFrame : public SrsFrame
 {
 public:
     // video specified
+    // TODO: H.264 and H.265 reused AvcFrameType and AvcFrameTrait?
     SrsVideoAvcFrameType frame_type;
     SrsVideoAvcFrameTrait avc_packet_type;
     // whether sample_units contains IDR frame.
