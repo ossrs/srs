@@ -258,6 +258,8 @@ func (v *HTTPStreaming) serveByBackend(ctx context.Context, w http.ResponseWrite
 type HLSStreaming struct {
 	// The context for HLS streaming.
 	ctx context.Context
+	// The context ID for recovering the context.
+	ContextID string `json:"cid"`
 
 	// The spbhid, used to identify the backend server.
 	SRSProxyBackendHLSID string `json:"spbhid"`
@@ -265,8 +267,6 @@ type HLSStreaming struct {
 	StreamURL string `json:"stream_url"`
 	// The full request URL for HLS streaming
 	FullURL string `json:"full_url"`
-	// The context ID for recovering the context.
-	ContextID string `json:"cid"`
 }
 
 func NewHLSStreaming(opts ...func(streaming *HLSStreaming)) *HLSStreaming {

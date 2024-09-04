@@ -16,6 +16,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -175,4 +176,37 @@ func convertURLToStreamURL(r *http.Request) (unifiedURL, fullURL string) {
 	unifiedURL = fmt.Sprintf("%v://%v%v", scheme, hostname, appStream)
 	fullURL = fmt.Sprintf("%v%v", unifiedURL, streamExt)
 	return
+}
+
+// rtc_is_stun returns true if data of UDP payload is a STUN packet.
+func rtc_is_stun(data []byte) bool {
+	return len(data) > 0 && (data[0] == 0 || data[0] == 1)
+}
+
+// rtc_is_rtp_or_rtcp returns true if data of UDP payload is a RTP or RTCP packet.
+func rtc_is_rtp_or_rtcp(data []byte) bool {
+	return len(data) >= 12 && (data[0]&0xC0) == 0x80
+}
+
+// parseIceUfragPwd parse the ice-ufrag and ice-pwd from the SDP.
+func parseIceUfragPwd(sdp string) (ufrag, pwd string, err error) {
+	var iceUfrag, icePwd string
+	if true {
+		ufragRe := regexp.MustCompile(`a=ice-ufrag:([^\s]+)`)
+		ufragMatch := ufragRe.FindStringSubmatch(sdp)
+		if len(ufragMatch) <= 1 {
+			return "", "", errors.Errorf("no ice-ufrag in sdp %v", sdp)
+		}
+		iceUfrag = ufragMatch[1]
+	}
+	if true {
+		pwdRe := regexp.MustCompile(`a=ice-pwd:([^\s]+)`)
+		pwdMatch := pwdRe.FindStringSubmatch(sdp)
+		if len(pwdMatch) <= 1 {
+			return "", "", errors.Errorf("no ice-pwd in sdp %v", sdp)
+		}
+		icePwd = pwdMatch[1]
+	}
+
+	return iceUfrag, icePwd, nil
 }
