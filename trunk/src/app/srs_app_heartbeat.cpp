@@ -125,7 +125,12 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
             obj->set("rtc", o);
 
             int endpoint = _srs_config->get_rtc_server_listen();
-            o->append(SrsJsonAny::str(srs_int2str(endpoint).c_str()));
+            o->append(SrsJsonAny::str(srs_fmt("udp://0.0.0.0:%d", endpoint).c_str()));
+
+            if (_srs_config->get_rtc_server_tcp_enabled()) {
+                endpoint = _srs_config->get_rtc_server_tcp_listen();
+                o->append(SrsJsonAny::str(srs_fmt("tcp://0.0.0.0:%d", endpoint).c_str()));
+            }
         }
     }
     
