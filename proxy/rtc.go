@@ -179,7 +179,12 @@ func (v *rtcServer) proxyApiToBackend(
 
 	// Replace the WebRTC UDP port in answer.
 	localSDPAnswer := string(b)
-	for _, port := range backend.RTC {
+	for _, endpoint := range backend.RTC {
+		_, _, port, err := parseListenEndpoint(endpoint)
+		if err != nil {
+			return errors.Wrapf(err, "parse endpoint %v", endpoint)
+		}
+
 		from := fmt.Sprintf(" %v typ host", port)
 		to := fmt.Sprintf(" %v typ host", envWebRTCServer())
 		localSDPAnswer = strings.Replace(localSDPAnswer, from, to, -1)
@@ -425,16 +430,14 @@ func (v *RTCConnection) connectBackend(ctx context.Context) error {
 		return errors.Errorf("no udp server")
 	}
 
-	var udpPort int
-	if iv, err := strconv.ParseInt(backend.RTC[0], 10, 64); err != nil {
-		return errors.Wrapf(err, "parse udp port %v", backend.RTC[0])
-	} else {
-		udpPort = int(iv)
+	_, _, udpPort, err := parseListenEndpoint(backend.RTC[0])
+	if err != nil {
+		return errors.Wrapf(err, "parse endpoint %v", backend.RTC[0])
 	}
 
 	// Connect to backend SRS server via UDP client.
 	// TODO: FIXME: Support close the connection when timeout or DTLS alert.
-	backendAddr := net.UDPAddr{IP: net.ParseIP(backend.IP), Port: udpPort}
+	backendAddr := net.UDPAddr{IP: net.ParseIP(backend.IP), Port: int(udpPort)}
 	if backendUDP, err := net.DialUDP("udp", nil, &backendAddr); err != nil {
 		return errors.Wrapf(err, "dial udp to %v", backendAddr)
 	} else {

@@ -18,6 +18,7 @@ import (
 	"path"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -246,4 +247,30 @@ func parseSRTStreamID(sid string) (host, resource string, err error) {
 	}
 
 	return host, resource, nil
+}
+
+// parseListenEndpoint parse the listen endpoint as:
+//		port The tcp listen port, like 1935.
+//		protocol://ip:port The listen endpoint, like tcp://:1935 or tcp://0.0.0.0:1935
+func parseListenEndpoint(ep string) (protocol string, ip net.IP, port uint16, err error) {
+	// If no colon in ep, it's port in string.
+	if !strings.Contains(ep, ":") {
+		if p, err := strconv.Atoi(ep); err != nil {
+			return "", nil, 0, errors.Wrapf(err, "parse port %v", ep)
+		} else {
+			return "tcp", nil, uint16(p), nil
+		}
+	}
+
+	// Must be protocol://ip:port schema.
+	parts := strings.Split(ep, ":")
+	if len(parts) != 3 {
+		return "", nil, 0, errors.Errorf("invalid endpoint %v", ep)
+	}
+
+	if p, err := strconv.Atoi(parts[2]); err != nil {
+		return "", nil, 0, errors.Wrapf(err, "parse port %v", parts[2])
+	} else {
+		return parts[0], net.ParseIP(parts[1]), uint16(p), nil
+	}
 }
