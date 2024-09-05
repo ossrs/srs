@@ -46,6 +46,8 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	setEnvDefault("PROXY_RTMP_SERVER", "11935")
 	// The WebRTC media server, via UDP protocol.
 	setEnvDefault("PROXY_WEBRTC_SERVER", "18000")
+	// The SRT media server, via UDP protocol.
+	setEnvDefault("PROXY_SRT_SERVER", "20080")
 	// The API server of proxy itself.
 	setEnvDefault("PROXY_SYSTEM_API", "12025")
 
@@ -70,28 +72,34 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	setEnvDefault("PROXY_DEFAULT_BACKEND_API", "1985")
 	// Default backend udp rtc port, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_RTC", "8000")
+	// Default backend udp srt port, for debugging.
+	setEnvDefault("PROXY_DEFAULT_BACKEND_SRT", "10080")
 
 	logger.Df(ctx, "load .env as GO_PPROF=%v, "+
 		"PROXY_FORCE_QUIT_TIMEOUT=%v, PROXY_GRACE_QUIT_TIMEOUT=%v, "+
 		"PROXY_HTTP_API=%v, PROXY_HTTP_SERVER=%v, PROXY_RTMP_SERVER=%v, "+
-		"PROXY_WEBRTC_SERVER=%v, "+
+		"PROXY_WEBRTC_SERVER=%v, PROXY_SRT_SERVER=%v, "+
 		"PROXY_SYSTEM_API=%v, PROXY_DEFAULT_BACKEND_ENABLED=%v, "+
 		"PROXY_DEFAULT_BACKEND_IP=%v, PROXY_DEFAULT_BACKEND_RTMP=%v, "+
 		"PROXY_DEFAULT_BACKEND_HTTP=%v, PROXY_DEFAULT_BACKEND_API=%v, "+
-		"PROXY_DEFAULT_BACKEND_RTC=%v, "+
+		"PROXY_DEFAULT_BACKEND_RTC=%v, PROXY_DEFAULT_BACKEND_SRT=%v, "+
 		"PROXY_LOAD_BALANCER_TYPE=%v, PROXY_REDIS_HOST=%v, PROXY_REDIS_PORT=%v, "+
 		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v",
 		envGoPprof(),
 		envForceQuitTimeout(), envGraceQuitTimeout(),
 		envHttpAPI(), envHttpServer(), envRtmpServer(),
-		envWebRTCServer(),
+		envWebRTCServer(), envSRTServer(),
 		envSystemAPI(), envDefaultBackendEnabled(),
 		envDefaultBackendIP(), envDefaultBackendRTMP(),
 		envDefaultBackendHttp(), envDefaultBackendAPI(),
-		envDefaultBackendRTC(),
+		envDefaultBackendRTC(), envDefaultBackendSRT(),
 		envLoadBalancerType(), envRedisHost(), envRedisPort(),
 		envRedisPassword(), envRedisDB(),
 	)
+}
+
+func envDefaultBackendSRT() string {
+	return os.Getenv("PROXY_DEFAULT_BACKEND_SRT")
 }
 
 func envDefaultBackendRTC() string {
@@ -100,6 +108,10 @@ func envDefaultBackendRTC() string {
 
 func envDefaultBackendAPI() string {
 	return os.Getenv("PROXY_DEFAULT_BACKEND_API")
+}
+
+func envSRTServer() string {
+	return os.Getenv("PROXY_SRT_SERVER")
 }
 
 func envWebRTCServer() string {

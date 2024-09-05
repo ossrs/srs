@@ -228,17 +228,17 @@ func (v *rtcServer) Run(ctx context.Context) error {
 		endpoint = fmt.Sprintf(":%v", endpoint)
 	}
 
-	addr, err := net.ResolveUDPAddr("udp", endpoint)
+	saddr, err := net.ResolveUDPAddr("udp", endpoint)
 	if err != nil {
 		return errors.Wrapf(err, "resolve udp addr %v", endpoint)
 	}
 
-	listener, err := net.ListenUDP("udp", addr)
+	listener, err := net.ListenUDP("udp", saddr)
 	if err != nil {
-		return errors.Wrapf(err, "listen udp %v", addr)
+		return errors.Wrapf(err, "listen udp %v", saddr)
 	}
 	v.listener = listener
-	logger.Df(ctx, "WebRTC server listen at %v", addr)
+	logger.Df(ctx, "WebRTC server listen at %v", saddr)
 
 	// Consume all messages from UDP media transport.
 	v.wg.Add(1)
@@ -247,15 +247,15 @@ func (v *rtcServer) Run(ctx context.Context) error {
 
 		for ctx.Err() == nil {
 			buf := make([]byte, 4096)
-			n, addr, err := listener.ReadFromUDP(buf)
+			n, caddr, err := listener.ReadFromUDP(buf)
 			if err != nil {
 				// TODO: If WebRTC server closed unexpectedly, we should notice the main loop to quit.
 				logger.Wf(ctx, "read from udp failed, err=%+v", err)
 				continue
 			}
 
-			if err := v.handleClientUDP(ctx, addr, buf[:n]); err != nil {
-				logger.Wf(ctx, "handle udp %vB failed, addr=%v, err=%+v", n, addr, err)
+			if err := v.handleClientUDP(ctx, caddr, buf[:n]); err != nil {
+				logger.Wf(ctx, "handle udp %vB failed, addr=%v, err=%+v", n, caddr, err)
 			}
 		}
 	}()
@@ -268,7 +268,7 @@ func (v *rtcServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data
 
 	// If STUN binding request, parse the ufrag and identify the connection.
 	if err := func() error {
-		if rtc_is_rtp_or_rtcp(data) || !rtc_is_stun(data) {
+		if rtcIsRTPOrRTCP(data) || !rtcIsSTUN(data) {
 			return nil
 		}
 
@@ -358,7 +358,9 @@ func NewRTCConnection(opts ...func(*RTCConnection)) *RTCConnection {
 }
 
 func (v *RTCConnection) Initialize(ctx context.Context, listener *net.UDPConn) *RTCConnection {
-	v.ctx = logger.WithContext(ctx)
+	if v.ctx == nil {
+		v.ctx = logger.WithContext(ctx)
+	}
 	if listener != nil {
 		v.listenerUDP = listener
 	}
@@ -431,7 +433,7 @@ func (v *RTCConnection) connectBackend(ctx context.Context) error {
 	}
 
 	// Connect to backend SRS server via UDP client.
-	// TODO: Support close the connection when timeout or DTLS alert.
+	// TODO: FIXME: Support close the connection when timeout or DTLS alert.
 	backendAddr := net.UDPAddr{IP: net.ParseIP(backend.IP), Port: udpPort}
 	if backendUDP, err := net.DialUDP("udp", nil, &backendAddr); err != nil {
 		return errors.Wrapf(err, "dial udp to %v", backendAddr)

@@ -106,10 +106,9 @@ func (v *httpServer) Run(ctx context.Context) error {
 			stream, _ := srsLoadBalancer.LoadOrStoreHLS(ctx, streamURL, NewHLSPlayStream(func(s *HLSPlayStream) {
 				s.SRSProxyBackendHLSID = logger.GenerateContextID()
 				s.StreamURL, s.FullURL = streamURL, fullURL
-				s.Initialize(ctx)
 			}))
 
-			stream.ServeHTTP(w, r)
+			stream.Initialize(ctx).ServeHTTP(w, r)
 			return
 		}
 
@@ -262,7 +261,7 @@ func (v *HTTPFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 }
 
 // HLSPlayStream is an HLS stream proxy, which represents the stream level object. This means multiple HLS
-// clients will share this object, and they use the same ctx among proxy servers.
+// clients will share this object, and they do not use the same ctx among proxy servers.
 //
 // Unlike the HTTP FLV or TS connection, HLS client may request the m3u8 or ts via different HTTP connections.
 // Especially for requesting ts, we need to identify the stream URl or backend server for it. So we create
@@ -289,7 +288,9 @@ func NewHLSPlayStream(opts ...func(*HLSPlayStream)) *HLSPlayStream {
 }
 
 func (v *HLSPlayStream) Initialize(ctx context.Context) *HLSPlayStream {
-	v.ctx = logger.WithContext(ctx)
+	if v.ctx == nil {
+		v.ctx = logger.WithContext(ctx)
+	}
 	return v
 }
 

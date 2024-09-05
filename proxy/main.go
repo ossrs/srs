@@ -90,6 +90,13 @@ func doMain(ctx context.Context) error {
 		return errors.Wrapf(err, "http api server")
 	}
 
+	// Start the SRT server.
+	srtServer := newSRTServer()
+	defer srtServer.Close()
+	if err := srtServer.Run(ctx); err != nil {
+		return errors.Wrapf(err, "srt server")
+	}
+
 	// Start the System API server.
 	systemAPI := NewSystemAPI(func(server *systemAPI) {
 		server.gracefulQuitTimeout = gracefulQuitTimeout

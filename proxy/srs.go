@@ -136,6 +136,9 @@ func NewDefaultSRSForDebugging() (*SRSServer, error) {
 	if envDefaultBackendRTC() != "" {
 		server.RTC = []string{envDefaultBackendRTC()}
 	}
+	if envDefaultBackendSRT() != "" {
+		server.SRT = []string{envDefaultBackendSRT()}
+	}
 	return server, nil
 }
 

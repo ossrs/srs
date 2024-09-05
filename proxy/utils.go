@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	stdErr "errors"
 	"fmt"
@@ -178,35 +179,71 @@ func convertURLToStreamURL(r *http.Request) (unifiedURL, fullURL string) {
 	return
 }
 
-// rtc_is_stun returns true if data of UDP payload is a STUN packet.
-func rtc_is_stun(data []byte) bool {
+// rtcIsSTUN returns true if data of UDP payload is a STUN packet.
+func rtcIsSTUN(data []byte) bool {
 	return len(data) > 0 && (data[0] == 0 || data[0] == 1)
 }
 
-// rtc_is_rtp_or_rtcp returns true if data of UDP payload is a RTP or RTCP packet.
-func rtc_is_rtp_or_rtcp(data []byte) bool {
+// rtcIsRTPOrRTCP returns true if data of UDP payload is a RTP or RTCP packet.
+func rtcIsRTPOrRTCP(data []byte) bool {
 	return len(data) >= 12 && (data[0]&0xC0) == 0x80
+}
+
+// srtIsHandshake returns true if data of UDP payload is a SRT handshake packet.
+func srtIsHandshake(data []byte) bool {
+	return len(data) >= 4 && binary.BigEndian.Uint32(data) == 0x80000000
+}
+
+// srtParseSocketID parse the socket id from the SRT packet.
+func srtParseSocketID(data []byte) uint32 {
+	if len(data) >= 16 {
+		return binary.BigEndian.Uint32(data[12:])
+	}
+	return 0
 }
 
 // parseIceUfragPwd parse the ice-ufrag and ice-pwd from the SDP.
 func parseIceUfragPwd(sdp string) (ufrag, pwd string, err error) {
-	var iceUfrag, icePwd string
 	if true {
 		ufragRe := regexp.MustCompile(`a=ice-ufrag:([^\s]+)`)
 		ufragMatch := ufragRe.FindStringSubmatch(sdp)
 		if len(ufragMatch) <= 1 {
 			return "", "", errors.Errorf("no ice-ufrag in sdp %v", sdp)
 		}
-		iceUfrag = ufragMatch[1]
+		ufrag = ufragMatch[1]
 	}
+
 	if true {
 		pwdRe := regexp.MustCompile(`a=ice-pwd:([^\s]+)`)
 		pwdMatch := pwdRe.FindStringSubmatch(sdp)
 		if len(pwdMatch) <= 1 {
 			return "", "", errors.Errorf("no ice-pwd in sdp %v", sdp)
 		}
-		icePwd = pwdMatch[1]
+		pwd = pwdMatch[1]
 	}
 
-	return iceUfrag, icePwd, nil
+	return ufrag, pwd, nil
+}
+
+// parseSRTStreamID parse the SRT stream id to host(optional) and resource(required).
+// See https://ossrs.io/lts/en-us/docs/v7/doc/srt#srt-url
+func parseSRTStreamID(sid string) (host, resource string, err error) {
+	if true {
+		hostRe := regexp.MustCompile(`h=([^,]+)`)
+		hostMatch := hostRe.FindStringSubmatch(sid)
+		if len(hostMatch) > 1 {
+			host = hostMatch[1]
+		}
+	}
+
+	if true {
+		resourceRe := regexp.MustCompile(`r=([^,]+)`)
+		resourceMatch := resourceRe.FindStringSubmatch(sid)
+		if len(resourceMatch) <= 1 {
+			return "", "", errors.Errorf("no resource in sid %v", sid)
+		}
+		resource = resourceMatch[1]
+	}
+
+	return host, resource, nil
 }
