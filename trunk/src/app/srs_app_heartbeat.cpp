@@ -116,7 +116,7 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
             obj->set("srt", o);
 
             uint16_t endpoint = _srs_config->get_srt_listen_port();
-            o->append(SrsJsonAny::str(srs_int2str(endpoint).c_str()));
+            o->append(SrsJsonAny::str(srs_fmt("udp://0.0.0.0:%d", endpoint).c_str()));
         }
 
         // For WebRTC listen endpoints.
