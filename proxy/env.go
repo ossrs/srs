@@ -21,7 +21,7 @@ func loadEnvFile(ctx context.Context) error {
 	} else {
 		envFile := path.Join(workDir, ".env")
 		if _, err := os.Stat(envFile); err == nil {
-			if err := godotenv.Overload(envFile); err != nil {
+			if err := godotenv.Load(envFile); err != nil {
 				return errors.Wrapf(err, "load %v", envFile)
 			}
 		}
@@ -50,6 +50,8 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	setEnvDefault("PROXY_SRT_SERVER", "20080")
 	// The API server of proxy itself.
 	setEnvDefault("PROXY_SYSTEM_API", "12025")
+	// The static directory for web server.
+	setEnvDefault("PROXY_STATIC_FILES", "../trunk/research")
 
 	// The load balancer, use redis or memory.
 	setEnvDefault("PROXY_LOAD_BALANCER_TYPE", "memory")
@@ -79,7 +81,7 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 		"PROXY_FORCE_QUIT_TIMEOUT=%v, PROXY_GRACE_QUIT_TIMEOUT=%v, "+
 		"PROXY_HTTP_API=%v, PROXY_HTTP_SERVER=%v, PROXY_RTMP_SERVER=%v, "+
 		"PROXY_WEBRTC_SERVER=%v, PROXY_SRT_SERVER=%v, "+
-		"PROXY_SYSTEM_API=%v, PROXY_DEFAULT_BACKEND_ENABLED=%v, "+
+		"PROXY_SYSTEM_API=%v, PROXY_STATIC_FILES=%v, PROXY_DEFAULT_BACKEND_ENABLED=%v, "+
 		"PROXY_DEFAULT_BACKEND_IP=%v, PROXY_DEFAULT_BACKEND_RTMP=%v, "+
 		"PROXY_DEFAULT_BACKEND_HTTP=%v, PROXY_DEFAULT_BACKEND_API=%v, "+
 		"PROXY_DEFAULT_BACKEND_RTC=%v, PROXY_DEFAULT_BACKEND_SRT=%v, "+
@@ -89,13 +91,17 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 		envForceQuitTimeout(), envGraceQuitTimeout(),
 		envHttpAPI(), envHttpServer(), envRtmpServer(),
 		envWebRTCServer(), envSRTServer(),
-		envSystemAPI(), envDefaultBackendEnabled(),
+		envSystemAPI(), envStaticFiles(), envDefaultBackendEnabled(),
 		envDefaultBackendIP(), envDefaultBackendRTMP(),
 		envDefaultBackendHttp(), envDefaultBackendAPI(),
 		envDefaultBackendRTC(), envDefaultBackendSRT(),
 		envLoadBalancerType(), envRedisHost(), envRedisPort(),
 		envRedisPassword(), envRedisDB(),
 	)
+}
+
+func envStaticFiles() string {
+	return os.Getenv("PROXY_STATIC_FILES")
 }
 
 func envDefaultBackendSRT() string {

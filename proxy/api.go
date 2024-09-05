@@ -5,7 +5,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -235,9 +237,13 @@ func (v *systemAPI) Run(ctx context.Context) error {
 			apiError(ctx, w, r, err)
 		}
 
-		apiResponse(ctx, w, r, map[string]string{
-			"signature": Signature(),
-			"version":   Version(),
+		type Response struct {
+			Code int    `json:"code"`
+			PID  string `json:"pid"`
+		}
+
+		apiResponse(ctx, w, r, &Response{
+			Code: 0, PID: fmt.Sprintf("%v", os.Getpid()),
 		})
 	})
 

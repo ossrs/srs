@@ -91,6 +91,17 @@ func (v *httpServer) Run(ctx context.Context) error {
 		apiResponse(ctx, w, r, &res)
 	})
 
+	// The static web server, for the web pages.
+	var staticServer http.Handler
+	if staticFiles := envStaticFiles(); staticFiles != "" {
+		if _, err := os.Stat(staticFiles); err != nil {
+			return errors.Wrapf(err, "invalid static files %v", staticFiles)
+		}
+
+		staticServer = http.FileServer(http.Dir(staticFiles))
+		logger.Df(ctx, "Handle static files at %v", staticFiles)
+	}
+
 	// The default handler, for both static web server and streaming server.
 	logger.Df(ctx, "Handle / by %v", addr)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -129,6 +140,12 @@ func (v *httpServer) Run(ctx context.Context) error {
 			NewHTTPFlvTsConnection(func(c *HTTPFlvTsConnection) {
 				c.ctx = ctx
 			}).ServeHTTP(w, r)
+			return
+		}
+
+		// Serve by static server.
+		if staticServer != nil {
+			staticServer.ServeHTTP(w, r)
 			return
 		}
 
