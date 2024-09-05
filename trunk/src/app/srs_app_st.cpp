@@ -342,7 +342,6 @@ SrsWaitGroup::SrsWaitGroup()
 
 SrsWaitGroup::~SrsWaitGroup()
 {
-    wait();
     srs_cond_destroy(done_);
 }
 
