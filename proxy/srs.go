@@ -220,7 +220,7 @@ func (v *srsMemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*SR
 		return server, nil
 	}
 
-	// Gather all servers, alive in 60s ago.
+	// Gather all servers that were alive within the last few seconds.
 	var servers []*SRSServer
 	v.servers.Range(func(key string, server *SRSServer) bool {
 		if time.Since(server.UpdatedAt) < srsServerAliveDuration {
