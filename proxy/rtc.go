@@ -432,7 +432,7 @@ func (v *RTCConnection) connectBackend(ctx context.Context) error {
 
 	_, _, udpPort, err := parseListenEndpoint(backend.RTC[0])
 	if err != nil {
-		return errors.Wrapf(err, "parse endpoint %v", backend.RTC[0])
+		return errors.Wrapf(err, "parse udp port %v of %v for %v", backend.RTC[0], backend, v.StreamURL)
 	}
 
 	// Connect to backend SRS server via UDP client.

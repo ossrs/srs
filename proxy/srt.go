@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 	stdSync "sync"
 	"time"
@@ -351,16 +350,14 @@ func (v *SRTConnection) connectBackend(ctx context.Context, streamID string) err
 		return errors.Errorf("no udp server %v for %v", backend, streamURL)
 	}
 
-	var udpPort int
-	if iv, err := strconv.ParseInt(backend.SRT[0], 10, 64); err != nil {
+	_, _, udpPort, err := parseListenEndpoint(backend.SRT[0])
+	if err != nil {
 		return errors.Wrapf(err, "parse udp port %v of %v for %v", backend.SRT[0], backend, streamURL)
-	} else {
-		udpPort = int(iv)
 	}
 
 	// Connect to backend SRS server via UDP client.
-	// TODO: FIXME: Support close the connection when timeout or DTLS alert.
-	backendAddr := net.UDPAddr{IP: net.ParseIP(backend.IP), Port: udpPort}
+	// TODO: FIXME: Support close the connection when timeout or client disconnected.
+	backendAddr := net.UDPAddr{IP: net.ParseIP(backend.IP), Port: int(udpPort)}
 	if backendUDP, err := net.DialUDP("udp", nil, &backendAddr); err != nil {
 		return errors.Wrapf(err, "dial udp to %v of %v for %v", backendAddr, backend, streamURL)
 	} else {
