@@ -471,8 +471,9 @@ func (v *srsRedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL str
 		return nil, errors.Wrapf(err, "set key=%v HLS %v", key, value)
 	}
 
-	if err := v.rdb.Set(ctx, v.redisKeySPBHID(value.SRSProxyBackendHLSID), b, srsHLSAliveDuration).Err(); err != nil {
-		return nil, errors.Wrapf(err, "set key=%v HLS %v", v.redisKeySPBHID(value.SRSProxyBackendHLSID), value)
+	key2 := v.redisKeySPBHID(value.SRSProxyBackendHLSID)
+	if err := v.rdb.Set(ctx, key2, b, srsHLSAliveDuration).Err(); err != nil {
+		return nil, errors.Wrapf(err, "set key=%v HLS %v", key2, value)
 	}
 
 	// Query the HLS streaming from redis.
@@ -490,11 +491,46 @@ func (v *srsRedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL str
 }
 
 func (v *srsRedisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value *RTCConnection) error {
+	b, err := json.Marshal(value)
+	if err != nil {
+		return errors.Wrapf(err, "marshal WebRTC %v", value)
+	}
+
+	key := v.redisKeyRTC(streamURL)
+	if err = v.rdb.Set(ctx, key, b, srsRTCAliveDuration).Err(); err != nil {
+		return errors.Wrapf(err, "set key=%v WebRTC %v", key, value)
+	}
+
+	key2 := v.redisKeyUfrag(value.Ufrag)
+	if err := v.rdb.Set(ctx, key2, b, srsRTCAliveDuration).Err(); err != nil {
+		return errors.Wrapf(err, "set key=%v WebRTC %v", key2, value)
+	}
+
 	return nil
 }
 
 func (v *srsRedisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (*RTCConnection, error) {
-	return nil, nil
+	key := v.redisKeyUfrag(ufrag)
+
+	b, err := v.rdb.Get(ctx, key).Bytes()
+	if err != nil {
+		return nil, errors.Wrapf(err, "get key=%v WebRTC", key)
+	}
+
+	var actual RTCConnection
+	if err := json.Unmarshal(b, &actual); err != nil {
+		return nil, errors.Wrapf(err, "unmarshal key=%v WebRTC %v", key, string(b))
+	}
+
+	return &actual, nil
+}
+
+func (v *srsRedisLoadBalancer) redisKeyUfrag(ufrag string) string {
+	return fmt.Sprintf("srs-proxy-ufrag:%v", ufrag)
+}
+
+func (v *srsRedisLoadBalancer) redisKeyRTC(streamURL string) string {
+	return fmt.Sprintf("srs-proxy-rtc:%v", streamURL)
 }
 
 func (v *srsRedisLoadBalancer) redisKeySPBHID(spbhid string) string {

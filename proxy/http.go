@@ -271,8 +271,6 @@ func (v *HTTPFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 type HLSPlayStream struct {
 	// The context for HLS streaming.
 	ctx context.Context
-	// The context ID for recovering the context.
-	ContextID string `json:"cid"`
 
 	// The spbhid, used to identify the backend server.
 	SRSProxyBackendHLSID string `json:"spbhid"`
@@ -291,15 +289,7 @@ func NewHLSPlayStream(opts ...func(*HLSPlayStream)) *HLSPlayStream {
 }
 
 func (v *HLSPlayStream) Initialize(ctx context.Context) *HLSPlayStream {
-	if v.ctx != nil && v.ContextID != "" {
-		return v
-	}
-
-	if v.ContextID == "" {
-		v.ContextID = logger.GenerateContextID()
-	}
-	v.ctx = logger.WithContextID(ctx, v.ContextID)
-
+	v.ctx = logger.WithContext(ctx)
 	return v
 }
 
