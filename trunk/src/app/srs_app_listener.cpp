@@ -455,9 +455,8 @@ srs_error_t SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
     if (nb_write <= 0) {
         if (nb_write < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "sendto timeout %d ms", srsu2msi(timeout));
-        }   
-    
-        return srs_error_new(ERROR_SOCKET_WRITE, "sendto");
+        }
+        return srs_error_new(ERROR_SOCKET_WRITE, strerror(errno));
     }
 
     // Yield to another coroutines.
