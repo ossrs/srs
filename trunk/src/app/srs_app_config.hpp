@@ -1119,6 +1119,7 @@ public:
     virtual std::string get_heartbeat_device_id();
     // Whether report with summaries of http api: /api/v1/summaries.
     virtual bool get_heartbeat_summaries();
+    bool get_heartbeat_ports();
 // stats section
 private:
     // Get the stats directive.
