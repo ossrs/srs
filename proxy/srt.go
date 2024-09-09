@@ -18,7 +18,10 @@ import (
 	"srs-proxy/sync"
 )
 
-type srtServer struct {
+// srsSRTServer is the proxy for SRS server via SRT. It will figure out which backend server to
+// proxy to. It only parses the SRT handshake messages, parses the stream id, and proxy to the
+// backend server.
+type srsSRTServer struct {
 	// The UDP listener for SRT server.
 	listener *net.UDPConn
 
@@ -31,8 +34,8 @@ type srtServer struct {
 	wg stdSync.WaitGroup
 }
 
-func newSRTServer(opts ...func(*srtServer)) *srtServer {
-	v := &srtServer{
+func NewSRSSRTServer(opts ...func(*srsSRTServer)) *srsSRTServer {
+	v := &srsSRTServer{
 		start: time.Now(),
 	}
 
@@ -42,7 +45,7 @@ func newSRTServer(opts ...func(*srtServer)) *srtServer {
 	return v
 }
 
-func (v *srtServer) Close() error {
+func (v *srsSRTServer) Close() error {
 	if v.listener != nil {
 		v.listener.Close()
 	}
@@ -51,7 +54,7 @@ func (v *srtServer) Close() error {
 	return nil
 }
 
-func (v *srtServer) Run(ctx context.Context) error {
+func (v *srsSRTServer) Run(ctx context.Context) error {
 	// Parse address to listen.
 	endpoint := envSRTServer()
 	if !strings.Contains(endpoint, ":") {
@@ -93,7 +96,7 @@ func (v *srtServer) Run(ctx context.Context) error {
 	return nil
 }
 
-func (v *srtServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
+func (v *srsSRTServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
 	socketID := srtParseSocketID(data)
 
 	var pkt *SRTHandshakePacket

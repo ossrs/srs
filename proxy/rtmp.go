@@ -18,7 +18,10 @@ import (
 	"srs-proxy/rtmp"
 )
 
-type rtmpServer struct {
+// srsRTMPServer is the proxy for SRS RTMP server, to proxy the RTMP stream to backend SRS
+// server. It will figure out the backend server to proxy to. Unlike the edge server, it will
+// not cache the stream, but just proxy the stream to backend.
+type srsRTMPServer struct {
 	// The TCP listener for RTMP server.
 	listener *net.TCPListener
 	// The random number generator.
@@ -27,8 +30,8 @@ type rtmpServer struct {
 	wg sync.WaitGroup
 }
 
-func NewRtmpServer(opts ...func(*rtmpServer)) *rtmpServer {
-	v := &rtmpServer{
+func NewSRSRTMPServer(opts ...func(*srsRTMPServer)) *srsRTMPServer {
+	v := &srsRTMPServer{
 		rd: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 	for _, opt := range opts {
@@ -37,7 +40,7 @@ func NewRtmpServer(opts ...func(*rtmpServer)) *rtmpServer {
 	return v
 }
 
-func (v *rtmpServer) Close() error {
+func (v *srsRTMPServer) Close() error {
 	if v.listener != nil {
 		v.listener.Close()
 	}
@@ -46,7 +49,7 @@ func (v *rtmpServer) Close() error {
 	return nil
 }
 
-func (v *rtmpServer) Run(ctx context.Context) error {
+func (v *srsRTMPServer) Run(ctx context.Context) error {
 	endpoint := envRtmpServer()
 	if !strings.Contains(endpoint, ":") {
 		endpoint = ":" + endpoint

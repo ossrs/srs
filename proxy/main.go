@@ -68,32 +68,32 @@ func doMain(ctx context.Context) error {
 	}
 
 	// Start the RTMP server.
-	rtmpServer := NewRtmpServer()
-	defer rtmpServer.Close()
-	if err := rtmpServer.Run(ctx); err != nil {
+	srsRTMPServer := NewSRSRTMPServer()
+	defer srsRTMPServer.Close()
+	if err := srsRTMPServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "rtmp server")
 	}
 
 	// Start the WebRTC server.
-	rtcServer := newRTCServer()
-	defer rtcServer.Close()
-	if err := rtcServer.Run(ctx); err != nil {
+	srsWebRTCServer := NewSRSWebRTCServer()
+	defer srsWebRTCServer.Close()
+	if err := srsWebRTCServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "rtc server")
 	}
 
 	// Start the HTTP API server.
-	httpAPI := NewHttpAPI(func(server *httpAPI) {
-		server.gracefulQuitTimeout, server.rtc = gracefulQuitTimeout, rtcServer
+	srsHTTPAPIServer := NewSRSHTTPAPIServer(func(server *srsHTTPAPIServer) {
+		server.gracefulQuitTimeout, server.rtc = gracefulQuitTimeout, srsWebRTCServer
 	})
-	defer httpAPI.Close()
-	if err := httpAPI.Run(ctx); err != nil {
+	defer srsHTTPAPIServer.Close()
+	if err := srsHTTPAPIServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "http api server")
 	}
 
 	// Start the SRT server.
-	srtServer := newSRTServer()
-	defer srtServer.Close()
-	if err := srtServer.Run(ctx); err != nil {
+	srsSRTServer := NewSRSSRTServer()
+	defer srsSRTServer.Close()
+	if err := srsSRTServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "srt server")
 	}
 
@@ -107,11 +107,11 @@ func doMain(ctx context.Context) error {
 	}
 
 	// Start the HTTP web server.
-	httpServer := NewHttpServer(func(server *httpServer) {
+	srsHTTPStreamServer := NewSRSHTTPStreamServer(func(server *srsHTTPStreamServer) {
 		server.gracefulQuitTimeout = gracefulQuitTimeout
 	})
-	defer httpServer.Close()
-	if err := httpServer.Run(ctx); err != nil {
+	defer srsHTTPStreamServer.Close()
+	if err := srsHTTPStreamServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "http server")
 	}
 

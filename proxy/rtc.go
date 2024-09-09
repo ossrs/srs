@@ -19,7 +19,10 @@ import (
 	"srs-proxy/sync"
 )
 
-type rtcServer struct {
+// srsWebRTCServer is the proxy for SRS WebRTC server via WHIP or WHEP protocol. It will figure out
+// which backend server to proxy to. It will also replace the UDP port to the proxy server's in the
+// SDP answer.
+type srsWebRTCServer struct {
 	// The UDP listener for WebRTC server.
 	listener *net.UDPConn
 
@@ -35,15 +38,15 @@ type rtcServer struct {
 	wg stdSync.WaitGroup
 }
 
-func newRTCServer(opts ...func(*rtcServer)) *rtcServer {
-	v := &rtcServer{}
+func NewSRSWebRTCServer(opts ...func(*srsWebRTCServer)) *srsWebRTCServer {
+	v := &srsWebRTCServer{}
 	for _, opt := range opts {
 		opt(v)
 	}
 	return v
 }
 
-func (v *rtcServer) Close() error {
+func (v *srsWebRTCServer) Close() error {
 	if v.listener != nil {
 		_ = v.listener.Close()
 	}
@@ -52,7 +55,7 @@ func (v *rtcServer) Close() error {
 	return nil
 }
 
-func (v *rtcServer) HandleApiForWHIP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (v *srsWebRTCServer) HandleApiForWHIP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	ctx = logger.WithContext(ctx)
 
@@ -89,7 +92,7 @@ func (v *rtcServer) HandleApiForWHIP(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
-func (v *rtcServer) HandleApiForWHEP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (v *srsWebRTCServer) HandleApiForWHEP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	ctx = logger.WithContext(ctx)
 
@@ -126,7 +129,7 @@ func (v *rtcServer) HandleApiForWHEP(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
-func (v *rtcServer) proxyApiToBackend(
+func (v *srsWebRTCServer) proxyApiToBackend(
 	ctx context.Context, w http.ResponseWriter, r *http.Request, backend *SRSServer,
 	remoteSDPOffer string, streamURL string,
 ) error {
@@ -226,7 +229,7 @@ func (v *rtcServer) proxyApiToBackend(
 	return nil
 }
 
-func (v *rtcServer) Run(ctx context.Context) error {
+func (v *srsWebRTCServer) Run(ctx context.Context) error {
 	// Parse address to listen.
 	endpoint := envWebRTCServer()
 	if !strings.Contains(endpoint, ":") {
@@ -268,7 +271,7 @@ func (v *rtcServer) Run(ctx context.Context) error {
 	return nil
 }
 
-func (v *rtcServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
+func (v *srsWebRTCServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
 	var connection *RTCConnection
 
 	// If STUN binding request, parse the ufrag and identify the connection.

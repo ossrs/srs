@@ -19,7 +19,10 @@ import (
 	"srs-proxy/logger"
 )
 
-type httpServer struct {
+// srsHTTPStreamServer is the proxy server for SRS HTTP stream server, for HTTP-FLV, HTTP-TS,
+// HLS, etc. The proxy server will figure out which SRS origin server to proxy to, then proxy
+// the request to the origin server.
+type srsHTTPStreamServer struct {
 	// The underlayer HTTP server.
 	server *http.Server
 	// The gracefully quit timeout, wait server to quit.
@@ -28,15 +31,15 @@ type httpServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewHttpServer(opts ...func(*httpServer)) *httpServer {
-	v := &httpServer{}
+func NewSRSHTTPStreamServer(opts ...func(*srsHTTPStreamServer)) *srsHTTPStreamServer {
+	v := &srsHTTPStreamServer{}
 	for _, opt := range opts {
 		opt(v)
 	}
 	return v
 }
 
-func (v *httpServer) Close() error {
+func (v *srsHTTPStreamServer) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 	defer cancel()
 	v.server.Shutdown(ctx)
@@ -45,7 +48,7 @@ func (v *httpServer) Close() error {
 	return nil
 }
 
-func (v *httpServer) Run(ctx context.Context) error {
+func (v *srsHTTPStreamServer) Run(ctx context.Context) error {
 	// Parse address to listen.
 	addr := envHttpServer()
 	if !strings.Contains(addr, ":") {

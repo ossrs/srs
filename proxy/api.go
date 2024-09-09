@@ -16,26 +16,28 @@ import (
 	"srs-proxy/logger"
 )
 
-type httpAPI struct {
+// srsHTTPAPIServer is the proxy for SRS HTTP API, to proxy the WebRTC HTTP API like WHIP and WHEP,
+// to proxy other HTTP API of SRS like the streams and clients, etc.
+type srsHTTPAPIServer struct {
 	// The underlayer HTTP server.
 	server *http.Server
 	// The WebRTC server.
-	rtc *rtcServer
+	rtc *srsWebRTCServer
 	// The gracefully quit timeout, wait server to quit.
 	gracefulQuitTimeout time.Duration
 	// The wait group for all goroutines.
 	wg sync.WaitGroup
 }
 
-func NewHttpAPI(opts ...func(*httpAPI)) *httpAPI {
-	v := &httpAPI{}
+func NewSRSHTTPAPIServer(opts ...func(*srsHTTPAPIServer)) *srsHTTPAPIServer {
+	v := &srsHTTPAPIServer{}
 	for _, opt := range opts {
 		opt(v)
 	}
 	return v
 }
 
-func (v *httpAPI) Close() error {
+func (v *srsHTTPAPIServer) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 	defer cancel()
 	v.server.Shutdown(ctx)
@@ -44,7 +46,7 @@ func (v *httpAPI) Close() error {
 	return nil
 }
 
-func (v *httpAPI) Run(ctx context.Context) error {
+func (v *srsHTTPAPIServer) Run(ctx context.Context) error {
 	// Parse address to listen.
 	addr := envHttpAPI()
 	if !strings.Contains(addr, ":") {
@@ -111,6 +113,9 @@ func (v *httpAPI) Run(ctx context.Context) error {
 	return nil
 }
 
+// systemAPI is the system HTTP API of the proxy server, for SRS media server to register the service
+// to proxy server. It also provides some other system APIs like the status of proxy server, like exporter
+// for Prometheus metrics.
 type systemAPI struct {
 	// The underlayer HTTP server.
 	server *http.Server
