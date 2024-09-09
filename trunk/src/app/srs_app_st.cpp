@@ -342,6 +342,12 @@ SrsWaitGroup::SrsWaitGroup()
 
 SrsWaitGroup::~SrsWaitGroup()
 {
+    // In the destructor, we should NOT wait for all coroutines to be done, because user should decide
+    // to wait or not. Similar to the Go's sync.WaitGroup, it also requires user to wait explicitly. For
+    // some special use scenarios, such as error handling, for example, if we started three servers with
+    // wait group, and one of them failed, user may want to return error and quit directly, without wait
+    // for other running servers to be done. If we wait in the destructor, it will continue to run without
+    // some servers, in unknown behaviors.
     srs_cond_destroy(done_);
 }
 
