@@ -1,3 +1,4 @@
 .idea
 srs-proxy
 .env
+.go-formarted

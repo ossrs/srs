@@ -30,6 +30,7 @@ func loadEnvFile(ctx context.Context) error {
 	return nil
 }
 
+// buildDefaultEnvironmentVariables setups the default environment variables.
 func buildDefaultEnvironmentVariables(ctx context.Context) {
 	// Whether enable the Go pprof.
 	setEnvDefault("GO_PPROF", "")

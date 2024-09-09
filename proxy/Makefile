@@ -2,17 +2,22 @@
 
 all: build
 
-build: fmt
+build: fmt ./srs-proxy
+
+./srs-proxy: *.go
 	go build -o srs-proxy .
 
 test:
 	go test ./...
 
-fmt:
+fmt: ./.go-formarted
+
+./.go-formarted: *.go
+	touch .go-formarted
 	go fmt ./...
 
 clean:
-	rm -f srs-proxy
+	rm -f srs-proxy .go-formarted
 
 run: fmt
 	go run .
