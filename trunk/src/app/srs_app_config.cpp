@@ -2391,7 +2391,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "interval" && n != "url"
-                && n != "device_id" && n != "summaries") {
+                && n != "device_id" && n != "summaries" && n != "ports") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal heartbeat.%s", n.c_str());
             }
         }
@@ -8775,17 +8775,36 @@ bool SrsConfig::get_heartbeat_summaries()
     SRS_OVERWRITE_BY_ENV_BOOL("srs.heartbeat.summaries"); // SRS_HEARTBEAT_SUMMARIES
 
     static bool DEFAULT = false;
-    
+
     SrsConfDirective* conf = get_heartbeart();
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("summaries");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_heartbeat_ports()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.heartbeat.ports"); // SRS_HEARTBEAT_PORTS
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_heartbeart();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("ports");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
