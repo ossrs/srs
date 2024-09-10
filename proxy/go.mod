@@ -2,10 +2,7 @@ module srs-proxy
 
 go 1.18
 
-require (
-	github.com/go-redis/redis/v8 v8.11.5
-	github.com/joho/godotenv v1.5.1
-)
+require github.com/go-redis/redis/v8 v8.11.5
 
 require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect

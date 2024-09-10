@@ -5,10 +5,10 @@ package main
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"path"
-
-	"github.com/joho/godotenv"
+	"strings"
 
 	"srs-proxy/errors"
 	"srs-proxy/logger"
@@ -16,14 +16,41 @@ import (
 
 // loadEnvFile loads the environment variables from file. Note that we only use .env file.
 func loadEnvFile(ctx context.Context) error {
-	if workDir, err := os.Getwd(); err != nil {
+	workDir, err := os.Getwd()
+	if err != nil {
 		return errors.Wrapf(err, "getpwd")
-	} else {
-		envFile := path.Join(workDir, ".env")
-		if _, err := os.Stat(envFile); err == nil {
-			if err := godotenv.Load(envFile); err != nil {
-				return errors.Wrapf(err, "load %v", envFile)
+	}
+
+	envFile := path.Join(workDir, ".env")
+	if _, err := os.Stat(envFile); err != nil {
+		return nil
+	}
+
+	file, err := os.Open(envFile)
+	if err != nil {
+		return errors.Wrapf(err, "open %v", envFile)
+	}
+	defer file.Close()
+
+	b, err := ioutil.ReadAll(file)
+	if err != nil {
+		return errors.Wrapf(err, "read %v", envFile)
+	}
+
+	lines := strings.Split(strings.Replace(string(b), "\r\n", "\n", -1), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+
+		if pos := strings.IndexByte(line, '='); pos > 0 {
+			key := strings.TrimSpace(line[:pos])
+			value := strings.TrimSpace(line[pos+1:])
+			if v := os.Getenv(key); v != "" {
+				continue
 			}
+
+			os.Setenv(key, value)
 		}
 	}
 
