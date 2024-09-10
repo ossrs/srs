@@ -5,7 +5,7 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -32,12 +32,14 @@ func loadEnvFile(ctx context.Context) error {
 	}
 	defer file.Close()
 
-	b, err := ioutil.ReadAll(file)
+	b, err := io.ReadAll(file)
 	if err != nil {
 		return errors.Wrapf(err, "read %v", envFile)
 	}
 
 	lines := strings.Split(strings.Replace(string(b), "\r\n", "\n", -1), "\n")
+	logger.Df(ctx, "load env file %v, lines=%v", envFile, len(lines))
+
 	for _, line := range lines {
 		if strings.HasPrefix(strings.TrimSpace(line), "#") {
 			continue

@@ -1,0 +1,5 @@
+{
+    "cmake.sourceDirectory": "${workspaceFolder}/trunk/ide/srs_clion",
+    "cmake.buildDirectory": "${workspaceFolder}/trunk/ide/vscode-build",
+    "cmake.configureOnOpen": false
+}
