@@ -59,7 +59,7 @@ public:
     SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc, SrsFileWriter* w);
     virtual ~SrsHlsSegment();
 public:
-    void config_cipher(unsigned char* key,unsigned char* iv);
+    void config_cipher(unsigned char* key, unsigned char* iv);
     // replace the placeholder
     virtual srs_error_t rename();
 };
@@ -69,13 +69,18 @@ class SrsInitMp4Segment : public SrsFragment
 private:
     SrsFileWriter* fw_;
     SrsMp4M2tsInitEncoder* init_;
+
+    unsigned char kid_[16];
+    unsigned char const_iv_[16];
+    uint8_t const_iv_size_;
     
 public:
     SrsInitMp4Segment();
     virtual ~SrsInitMp4Segment();
 
 public:
-    
+
+    virtual srs_error_t config_cipher(unsigned char* kid, unsigned char* const_iv, uint8_t const_iv_size);
     // Write the init mp4 file, with the v_tid(video track id) and a_tid (audio track id).
     virtual srs_error_t write(SrsFormat* format, int v_tid, int a_tid);
 
@@ -83,7 +88,6 @@ public:
     virtual srs_error_t write_audio_only(SrsFormat* format, int a_tid);
 private:
     virtual srs_error_t init_encoder();
-
 };
 
 // TODO: merge this code with SrsFragmentedMp4 in dash
@@ -95,11 +99,14 @@ private:
 public:
     // sequence number in m3u8.
     int sequence_no;
+    // Will be saved in m3u8 file.
+    unsigned char iv[16];
 public:
-    SrsHlsM4sSegment();
+    SrsHlsM4sSegment(SrsFileWriter* fw);
     virtual ~SrsHlsM4sSegment();
 
     virtual srs_error_t initialize(int64_t time, uint32_t v_tid, uint32_t a_tid, int sequence_number, std::string m4s_path);
+    virtual void config_cipher(unsigned char* key, unsigned char* iv);
     virtual srs_error_t write(SrsSharedPtrMessage* shared_msg, SrsFormat* format);
     virtual srs_error_t reap(uint64_t& dts);
 };
@@ -305,6 +312,7 @@ private:
     std::string hls_key_url_;
     // The key and iv.
     unsigned char key_[16];
+    unsigned char kid_[16];
     unsigned char iv_[16];
     // The underlayer file writer.
     SrsFileWriter* writer_;

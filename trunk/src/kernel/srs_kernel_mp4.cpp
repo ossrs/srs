@@ -15,6 +15,7 @@
 #include <srs_kernel_buffer.hpp>
 #include <srs_core_deprecated.hpp>
 
+#include <openssl/aes.h>
 #include <string.h>
 #include <sstream>
 #include <iomanip>
@@ -4776,6 +4777,664 @@ stringstream& SrsMp4SegmentIndexBox::dumps_detail(stringstream& ss, SrsMp4DumpCo
     return ss;
 }
 
+SrsMp4SampleAuxiliaryInfoSizeBox::SrsMp4SampleAuxiliaryInfoSizeBox()
+{
+    type = SrsMp4BoxTypeSAIZ;
+}
+
+SrsMp4SampleAuxiliaryInfoSizeBox::~SrsMp4SampleAuxiliaryInfoSizeBox()
+{
+}
+
+int SrsMp4SampleAuxiliaryInfoSizeBox::nb_header()
+{
+    int size = SrsMp4FullBox::nb_header();
+
+    if (flags & 0x01) {
+        size += 8; // add sizeof(aux_info_type) + sizeof(aux_info_type_parameter);
+    }
+
+    size += 1; // sizeof(default_sample_info_size);
+    size += 4; // sizeof(sample_count);
+
+    if (default_sample_info_size == 0) {
+        size += sample_info_sizes.size();
+    }
+
+    return size;
+}
+
+srs_error_t SrsMp4SampleAuxiliaryInfoSizeBox::encode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+        
+    if ((err = SrsMp4FullBox::encode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
+    }
+
+    if (flags & 0x01) {
+        buf->write_4bytes(aux_info_type);
+        buf->write_4bytes(aux_info_type_parameter);
+    }
+
+    buf->write_1bytes(default_sample_info_size);
+
+    if (default_sample_info_size == 0) {
+        buf->write_4bytes(sample_info_sizes.size());
+        vector<uint8_t>::iterator it;
+        for (it = sample_info_sizes.begin(); it != sample_info_sizes.end(); ++it)
+        {
+            buf->write_1bytes(*it);
+        }
+    } else {
+        buf->write_4bytes(sample_count);
+    }
+    
+    return err;
+}
+
+srs_error_t SrsMp4SampleAuxiliaryInfoSizeBox::decode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+    
+    if ((err = SrsMp4FullBox::decode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    if (flags & 0x01) {
+        aux_info_type = buf->read_4bytes();
+        aux_info_type_parameter = buf->read_4bytes();
+    }
+
+    default_sample_info_size = buf->read_1bytes();
+    sample_count = buf->read_4bytes();
+
+    if (default_sample_info_size == 0) {
+        for (int i = 0; i < sample_count; i++) {
+            sample_info_sizes.push_back(buf->read_1bytes());
+        }
+    }
+
+    return err;
+}
+
+std::stringstream& SrsMp4SampleAuxiliaryInfoSizeBox::dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    ss << "default_sample_info_size=" << default_sample_info_size << ", sample_count=" << sample_count;
+    return ss;
+}
+
+SrsMp4SampleAuxiliaryInfoOffsetBox::SrsMp4SampleAuxiliaryInfoOffsetBox()
+{
+    type = SrsMp4BoxTypeSAIO;
+}
+
+SrsMp4SampleAuxiliaryInfoOffsetBox::~SrsMp4SampleAuxiliaryInfoOffsetBox()
+{
+}
+
+int SrsMp4SampleAuxiliaryInfoOffsetBox::nb_header()
+{
+    int size = SrsMp4FullBox::nb_header();
+
+    if (flags & 0x01) {
+        size += 8; // sizeof(aux_info_type) + sizeof(aux_info_type_parameter);
+    }
+
+    size += 4; // sizeof(entry_count);
+    if (version == 0) {
+        size += offsets.size() * 4;
+    } else {
+        size += offsets.size() * 8;
+    }
+
+    return size;
+}
+
+srs_error_t SrsMp4SampleAuxiliaryInfoOffsetBox::encode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+        
+    if ((err = SrsMp4FullBox::encode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
+    }
+
+    if (flags & 0x01) {
+        buf->write_4bytes(aux_info_type);
+        buf->write_4bytes(aux_info_type_parameter);
+    }
+
+    buf->write_4bytes(offsets.size());
+    vector<uint64_t>::iterator it;
+    for (it = offsets.begin(); it != offsets.end(); ++it)
+    {
+        if (version == 0) {
+            buf->write_4bytes(*it);
+        } else {
+            buf->write_8bytes(*it);
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsMp4SampleAuxiliaryInfoOffsetBox::decode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+    
+    if ((err = SrsMp4FullBox::decode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    if (flags & 0x01) {
+        aux_info_type = buf->read_4bytes();
+        aux_info_type_parameter = buf->read_4bytes();
+    }
+
+    uint32_t entry_count = buf->read_4bytes();
+    for (int i = 0; i < entry_count; i++)
+    {
+        if (version == 0) {
+            offsets.push_back(buf->read_4bytes());
+        } else {
+            offsets.push_back(buf->read_8bytes());
+        }
+
+    }
+    
+    return err;
+}
+
+std::stringstream& SrsMp4SampleAuxiliaryInfoOffsetBox::dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    ss << "entry_count=" << offsets.size();
+    return ss;
+}
+
+SrsMp4SubSampleEncryptionInfo::SrsMp4SubSampleEncryptionInfo()
+{
+    bytes_of_clear_data = 0;
+    bytes_of_protected_data = 0;
+}
+
+SrsMp4SubSampleEncryptionInfo::~SrsMp4SubSampleEncryptionInfo()
+{
+}
+
+uint64_t SrsMp4SubSampleEncryptionInfo::nb_bytes()
+{
+    // sizeof(bytes_of_clear_data) + sizeof(bytes_of_protected_data);
+    return 6;
+}
+
+srs_error_t SrsMp4SubSampleEncryptionInfo::encode(SrsBuffer* buf)
+{
+    buf->write_2bytes(bytes_of_clear_data);
+    buf->write_4bytes(bytes_of_protected_data);
+
+    return srs_success;
+}
+
+srs_error_t SrsMp4SubSampleEncryptionInfo::decode(SrsBuffer* buf)
+{
+    bytes_of_clear_data = buf->read_2bytes();
+    bytes_of_protected_data = buf->read_4bytes();
+
+    return srs_success;
+}
+
+std::stringstream& SrsMp4SubSampleEncryptionInfo::dumps(std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    ss << "bytes_of_clear_data=" << bytes_of_clear_data << ", bytes_of_protected_data=" << bytes_of_protected_data;
+    return ss;
+}
+
+SrsMp4SampleEncryptionEntry::SrsMp4SampleEncryptionEntry(SrsMp4FullBox* senc, uint8_t per_sample_iv_size)
+{
+    senc_ = senc;
+    srs_assert(per_sample_iv_size == 0 || per_sample_iv_size == 8 || per_sample_iv_size == 16);
+    per_sample_iv_size_ = per_sample_iv_size;
+    iv_ = (uint8_t*) malloc(per_sample_iv_size);
+}
+
+SrsMp4SampleEncryptionEntry::~SrsMp4SampleEncryptionEntry()
+{
+    srs_freep(iv_);
+}
+
+srs_error_t SrsMp4SampleEncryptionEntry::set_iv(uint8_t* iv, uint8_t iv_size)
+{
+    srs_assert(iv_size == per_sample_iv_size_);
+    memcpy(iv_, iv, iv_size);
+    
+    return srs_success;
+}
+
+uint64_t SrsMp4SampleEncryptionEntry::nb_bytes()
+{
+    uint64_t size = per_sample_iv_size_;
+    if (senc_->flags & SrsMp4CencSampleEncryptionUseSubSample) {
+        size += 2; // size of subsample_count
+        size += subsample_infos.size() * 6;
+    }
+    
+    return size;
+}
+
+srs_error_t SrsMp4SampleEncryptionEntry::encode(SrsBuffer* buf)
+{
+    if (per_sample_iv_size_ != 0) {
+        buf->write_bytes((char*) iv_, per_sample_iv_size_);
+    }
+
+    if (senc_->flags & SrsMp4CencSampleEncryptionUseSubSample) {
+        buf->write_2bytes(subsample_infos.size());
+
+        vector<SrsMp4SubSampleEncryptionInfo>::iterator it;
+        for (it = subsample_infos.begin(); it != subsample_infos.end(); ++it) {
+            (*it).encode(buf);
+        }
+    }
+
+    return srs_success;
+}
+
+srs_error_t SrsMp4SampleEncryptionEntry::decode(SrsBuffer* buf)
+{
+    if (per_sample_iv_size_ > 0) {
+        buf->read_bytes((char*)iv_, per_sample_iv_size_);
+    }
+
+    if (senc_->flags & SrsMp4CencSampleEncryptionUseSubSample) {
+        uint16_t subsample_count = buf->read_2bytes();
+        for (uint16_t i = 0; i < subsample_count; i++) {
+            SrsMp4SubSampleEncryptionInfo info;
+            info.decode(buf);
+            subsample_infos.push_back(info);
+        }
+    }
+    return srs_success;
+}
+
+std::stringstream& SrsMp4SampleEncryptionEntry::dumps(std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    // TODO: dump what?
+    ss << "iv=" << iv_ << endl;
+    
+    vector<SrsMp4SubSampleEncryptionInfo>::iterator it;
+    for (it = subsample_infos.begin(); it != subsample_infos.end(); ++it) {
+        (*it).dumps(ss, dc);
+        ss << endl;
+    }
+    
+    return ss;
+}
+
+SrsMp4SampleEncryptionBox::SrsMp4SampleEncryptionBox(uint8_t per_sample_iv_size)
+{
+    version = 0;
+    flags = SrsMp4CencSampleEncryptionUseSubSample;
+    type = SrsMp4BoxTypeSENC;
+    srs_assert(per_sample_iv_size == 0 || per_sample_iv_size == 8 || per_sample_iv_size == 16);
+    per_sample_iv_size_ = per_sample_iv_size;
+}
+
+SrsMp4SampleEncryptionBox::~SrsMp4SampleEncryptionBox()
+{
+    vector<SrsMp4SampleEncryptionEntry*>::iterator it;
+    for (it = entries.begin(); it != entries.end(); it++)
+    {
+        SrsMp4SampleEncryptionEntry* entry = *it;
+        srs_freep(entry);
+    }
+    entries.clear();
+}
+
+int SrsMp4SampleEncryptionBox::nb_header()
+{
+    int size = SrsMp4FullBox::nb_header() + 4;
+
+    vector<SrsMp4SampleEncryptionEntry*>::iterator it;
+    for (it = entries.begin(); it < entries.end(); it++)
+    {
+        size += (*it)->nb_bytes();
+    }
+    
+    return size;
+}
+
+srs_error_t SrsMp4SampleEncryptionBox::encode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+        
+    if ((err = SrsMp4FullBox::encode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
+    }
+
+    buf->write_4bytes(entries.size());
+    vector<SrsMp4SampleEncryptionEntry*>::iterator it;
+    for (it = entries.begin(); it != entries.end(); it++)
+    {
+        (*it)->encode(buf);
+    }
+
+    return err;
+}
+
+srs_error_t SrsMp4SampleEncryptionBox::decode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+    
+    if ((err = SrsMp4FullBox::decode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    vector<SrsMp4SampleEncryptionEntry*>::iterator it;
+    for (it = entries.begin(); it != entries.end(); it++)
+    {
+        SrsMp4SampleEncryptionEntry* entry = *it;
+        srs_freep(entry);
+    }
+    entries.clear();
+    
+    int32_t size = buf->read_4bytes();
+    for (int i = 0; i < size; i++) {
+        SrsMp4SampleEncryptionEntry *entry = new SrsMp4SampleEncryptionEntry(this, per_sample_iv_size_);
+        entry->decode(buf);
+        entries.push_back(entry);
+    }
+
+    return err;
+}
+
+std::stringstream& SrsMp4SampleEncryptionBox::dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    ss << "sample_count=" << entries.size() << endl;
+    return ss;
+}
+
+SrsMp4ProtectionSchemeInfoBox::SrsMp4ProtectionSchemeInfoBox()
+{
+    type = SrsMp4BoxTypeSINF;
+}
+
+SrsMp4ProtectionSchemeInfoBox::~SrsMp4ProtectionSchemeInfoBox()
+{
+}
+
+SrsMp4OriginalFormatBox* SrsMp4ProtectionSchemeInfoBox::frma()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeFRMA);
+    return dynamic_cast<SrsMp4OriginalFormatBox*>(box);
+}
+
+void SrsMp4ProtectionSchemeInfoBox::set_frma(SrsMp4OriginalFormatBox* v)
+{
+    remove(SrsMp4BoxTypeFRMA);
+    boxes.push_back(v);
+}
+
+SrsMp4SchemeTypeBox* SrsMp4ProtectionSchemeInfoBox::schm()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeSCHM);
+    return dynamic_cast<SrsMp4SchemeTypeBox*>(box);
+}
+
+void SrsMp4ProtectionSchemeInfoBox::set_schm(SrsMp4SchemeTypeBox* v)
+{
+    remove(SrsMp4BoxTypeSCHM);
+    boxes.push_back(v);
+}
+
+SrsMp4SchemeInfoBox* SrsMp4ProtectionSchemeInfoBox::schi()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeSCHI);
+    return dynamic_cast<SrsMp4SchemeInfoBox*>(box);
+}
+
+void SrsMp4ProtectionSchemeInfoBox::set_schi(SrsMp4SchemeInfoBox* v)
+{
+    remove(SrsMp4BoxTypeSCHI);
+    boxes.push_back(v);
+}
+
+
+SrsMp4OriginalFormatBox::SrsMp4OriginalFormatBox(uint32_t original_format)
+{
+    type = SrsMp4BoxTypeFRMA;
+    data_format_ = original_format;
+}
+
+SrsMp4OriginalFormatBox::~SrsMp4OriginalFormatBox()
+{
+}
+
+int SrsMp4OriginalFormatBox::nb_header()
+{
+    return SrsMp4Box::nb_header() + 4;
+}
+
+srs_error_t SrsMp4OriginalFormatBox::encode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+    
+    if ((err = SrsMp4Box::encode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
+    }
+
+    buf->write_4bytes(data_format_);
+
+    return err;
+}
+
+srs_error_t SrsMp4OriginalFormatBox::decode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = SrsMp4Box::decode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    data_format_ = buf->read_4bytes();
+    
+    return err;
+}
+
+std::stringstream& SrsMp4OriginalFormatBox::dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    ss << "original format=" << data_format_ << endl;
+    return ss;
+}
+
+SrsMp4SchemeTypeBox::SrsMp4SchemeTypeBox()
+{
+    type = SrsMp4BoxTypeSCHM;
+}
+
+SrsMp4SchemeTypeBox::~SrsMp4SchemeTypeBox()
+{
+}
+
+void SrsMp4SchemeTypeBox::set_scheme_uri(char* uri, uint32_t uri_size)
+{
+    srs_assert(uri_size < SCHM_SCHEME_URI_MAX_SIZE);
+    memcpy(scheme_uri, uri, uri_size);
+    scheme_uri_size = uri_size;
+    scheme_uri[uri_size] = '\0';
+}
+
+int SrsMp4SchemeTypeBox::nb_header()
+{
+    int size = SrsMp4FullBox::nb_header() + 4 + 4; // sizeof(scheme_type) + sizeof(scheme_version)
+
+    if (flags & 0x01) {
+        size += scheme_uri_size;
+    }
+    
+    return size;
+}
+
+srs_error_t SrsMp4SchemeTypeBox::encode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+        
+    if ((err = SrsMp4FullBox::encode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
+    }
+
+    buf->write_4bytes(scheme_type);
+    buf->write_4bytes(scheme_version);
+
+    if (flags & 0x01) {
+        buf->write_bytes(scheme_uri, scheme_uri_size);
+        buf->write_1bytes(0);
+    }
+
+    return err;
+}
+
+srs_error_t SrsMp4SchemeTypeBox::decode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+        
+    if ((err = SrsMp4FullBox::decode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
+    }
+    scheme_type = buf->read_4bytes();
+    scheme_version = buf->read_4bytes();
+
+    if (flags & 0x01) {
+        memset(scheme_uri, 0, SCHM_SCHEME_URI_MAX_SIZE);
+        int s = 0;
+        while (s < SCHM_SCHEME_URI_MAX_SIZE-1) {
+            char c = buf->read_1bytes();
+            scheme_uri[s] = c;
+            s++;
+            if (c == '\0') {
+                break;
+            } 
+        }
+        scheme_uri_size = s;
+    }
+    
+    return err;
+}
+
+std::stringstream& SrsMp4SchemeTypeBox::dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    ss << "scheme_type=" << scheme_type << ", scheme_version=" << scheme_version << endl;
+    if (flags & 0x01) {
+        ss << "scheme_uri=" << scheme_uri << endl;
+    }
+
+    return ss;
+}
+
+SrsMp4SchemeInfoBox::SrsMp4SchemeInfoBox()
+{
+    type = SrsMp4BoxTypeSCHI;
+}
+
+SrsMp4SchemeInfoBox::~SrsMp4SchemeInfoBox()
+{
+}
+
+SrsMp4TrackEncryptionBox::SrsMp4TrackEncryptionBox()
+{
+    type = SrsMp4BoxTypeTENC;
+}
+
+SrsMp4TrackEncryptionBox::~SrsMp4TrackEncryptionBox()
+{
+}
+
+void SrsMp4TrackEncryptionBox::set_default_constant_IV(uint8_t* iv, uint8_t iv_size)
+{
+    srs_assert(iv_size == 8 || iv_size == 16);
+    memcpy(default_constant_IV, iv, iv_size);
+    default_constant_IV_size = iv_size;
+}
+
+int SrsMp4TrackEncryptionBox::nb_header()
+{
+    int size = SrsMp4FullBox::nb_header();
+    size += 1; // sizeof(reserved)
+    size += 1; // sizeof(reserved_2) or sizeof(default_crypt_byte_block) + sizeof(default_skip_byte_block);
+    size += 1; // sizeof(default_isProtected);
+    size += 1; // sizeof(default_Per_Sample_IV_Size;
+    size += 16; // sizeof(default_KID);
+    if (default_is_protected == 1 && default_per_sample_IV_size == 0) {
+        size += 1 + default_constant_IV_size; // sizeof(default_constant_IV_size) + sizeof(default_constant_IV);
+    }
+
+    return size;
+}
+
+srs_error_t SrsMp4TrackEncryptionBox::encode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+        
+    if ((err = SrsMp4FullBox::encode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
+    }
+
+    buf->write_1bytes(reserved);
+    if (version == 0) {
+        buf->write_1bytes(reserved_2);
+    } else {
+        buf->write_1bytes( (default_crypt_byte_block << 4) | (default_skip_byte_block & 0x0F));
+    }
+
+    buf->write_1bytes(default_is_protected);
+    buf->write_1bytes(default_per_sample_IV_size);
+    buf->write_bytes((char*)default_KID, 16);
+    if (default_is_protected == 1 && default_per_sample_IV_size == 0) {
+        buf->write_1bytes(default_constant_IV_size);
+        buf->write_bytes((char*)default_constant_IV, default_constant_IV_size);
+    }
+
+    return err;
+}
+
+srs_error_t SrsMp4TrackEncryptionBox::decode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+        
+    if ((err = SrsMp4FullBox::decode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
+    }
+    reserved = buf->read_1bytes();
+    if (version == 0) {
+        reserved_2 = buf->read_1bytes();
+    } else {
+        uint8_t v = buf->read_1bytes();
+        default_crypt_byte_block = v >> 4;
+        default_skip_byte_block  = v & 0x0f;
+    }
+
+    default_is_protected = buf->read_1bytes();
+    default_per_sample_IV_size = buf->read_1bytes();
+    buf->read_bytes((char*)default_KID, 16);
+
+    if (default_is_protected == 1 && default_per_sample_IV_size == 0) {
+        default_constant_IV_size = buf->read_1bytes();
+        srs_assert(default_constant_IV_size == 8 || default_constant_IV_size == 16);
+        buf->read_bytes((char*) default_constant_IV, default_constant_IV_size);
+    }
+
+    return err;
+}
+
+std::stringstream& SrsMp4TrackEncryptionBox::dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    if (version != 0) {
+        ss << "default_crypt_byte_block=" << default_crypt_byte_block << ", default_skip_byte_block=" << default_skip_byte_block << endl;
+    }
+    ss << "default_isProtected=" << default_is_protected << ", default_per_sample_IV_size=" << default_per_sample_IV_size << endl;
+    
+    return ss;
+}
+
 SrsMp4Sample::SrsMp4Sample()
 {
     type = SrsFrameTypeForbidden;
@@ -6177,6 +6836,10 @@ SrsMp4ObjectType SrsMp4Encoder::get_audio_object_type()
 SrsMp4M2tsInitEncoder::SrsMp4M2tsInitEncoder()
 {
     writer = NULL;
+    crypt_byte_block_ = 0;
+    skip_byte_block_ = 0;
+    iv_size_ = 0;
+    is_protected_ = false;
 }
 
 SrsMp4M2tsInitEncoder::~SrsMp4M2tsInitEncoder()
@@ -6187,6 +6850,18 @@ srs_error_t SrsMp4M2tsInitEncoder::initialize(ISrsWriter* w)
 {
     writer = w;
     return srs_success;
+}
+
+void SrsMp4M2tsInitEncoder::config_encryption(uint8_t crypt_byte_block, uint8_t skip_byte_block, unsigned char* kid, unsigned char* iv, uint8_t iv_size)
+{
+    srs_assert(crypt_byte_block + skip_byte_block == 10);
+    srs_assert(iv_size == 8 || iv_size == 16);
+    crypt_byte_block_ = crypt_byte_block;
+    skip_byte_block_ = skip_byte_block;
+    memcpy(kid_, kid, 16);
+    memcpy(iv_, iv, iv_size);
+    iv_size_ = iv_size;
+    is_protected_ = true;
 }
 
 srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
@@ -6280,6 +6955,10 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
                 avc1->set_avcC(avcC);
 
                 avcC->avc_config = format->vcodec->avc_extra_data;
+
+                if (is_protected_ && ((err = config_sample_description_encryption(avc1)) != srs_success)) {
+                    return srs_error_wrap(err, "encrypt avc1 box");
+                }
             } else {
                 SrsMp4VisualSampleEntry* hev1 = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeHEV1);
                 stsd->append(hev1);
@@ -6292,6 +6971,10 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
                 hev1->set_hvcC(hvcC);
 
                 hvcC->hevc_config = format->vcodec->avc_extra_data;
+
+                if (is_protected_ && ((err = config_sample_description_encryption(hev1)) != srs_success)) {
+                    return srs_error_wrap(err, "encrypt hev1 box");
+                }
             }
             
             SrsMp4DecodingTime2SampleBox* stts = new SrsMp4DecodingTime2SampleBox();
@@ -6382,6 +7065,10 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
             
             SrsMp4EsdsBox* esds = new SrsMp4EsdsBox();
             mp4a->set_esds(esds);
+
+            if (is_protected_ && ((err = config_sample_description_encryption(mp4a)) != srs_success)) {
+                return srs_error_wrap(err, "encrypt mp4a box");
+            }
             
             SrsMp4ES_Descriptor* es = esds->es;
             es->ES_ID = 0x02;
@@ -6518,6 +7205,10 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, int v_tid, int a_tid
                 avc1->set_avcC(avcC);
 
                 avcC->avc_config = format->vcodec->avc_extra_data;
+
+                if (is_protected_ && ((err = config_sample_description_encryption(avc1)) != srs_success)) {
+                    return srs_error_wrap(err, "encrypt avc1 box");
+                }
             } else {
                 SrsMp4VisualSampleEntry* hev1 = new SrsMp4VisualSampleEntry(SrsMp4BoxTypeHEV1);
                 stsd->append(hev1);
@@ -6530,6 +7221,10 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, int v_tid, int a_tid
                 hev1->set_hvcC(hvcC);
 
                 hvcC->hevc_config = format->vcodec->avc_extra_data;
+
+                if (is_protected_ && ((err = config_sample_description_encryption(hev1)) != srs_success)) {
+                    return srs_error_wrap(err, "encrypt hev1 box");
+                }
             }
             
             SrsMp4DecodingTime2SampleBox* stts = new SrsMp4DecodingTime2SampleBox();
@@ -6614,6 +7309,9 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, int v_tid, int a_tid
             
             SrsMp4EsdsBox* esds = new SrsMp4EsdsBox();
             mp4a->set_esds(esds);
+            if (is_protected_ && ((err = config_sample_description_encryption(mp4a)) != srs_success)) {
+                return srs_error_wrap(err, "encrypt mp4a box.");
+            }
             
             SrsMp4ES_Descriptor* es = esds->es;
             es->ES_ID = 0x02;
@@ -6669,6 +7367,60 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, int v_tid, int a_tid
         }
     }
     
+    return err;
+}
+
+/**
+ * box->type = 'encv' or 'enca'
+ * |encv|
+ * |    |sinf|
+ * |    |    |frma|
+ * |    |    |schm|
+ * |    |    |schi|
+ * |    |    |    |tenc|
+ */
+srs_error_t SrsMp4M2tsInitEncoder::config_sample_description_encryption(SrsMp4SampleEntry* box)
+{
+    srs_error_t err = srs_success;
+
+    bool is_video_sample = false;
+    SrsMp4BoxType original_type = box->type;
+
+    if (original_type == SrsMp4BoxTypeAVC1 || original_type == SrsMp4BoxTypeHEV1)
+    {
+        box->type = SrsMp4BoxTypeENCV;
+        is_video_sample = true;
+    } else if (original_type == SrsMp4BoxTypeMP4A) {
+        box->type = SrsMp4BoxTypeENCA;
+    } else {
+        return srs_error_new(ERROR_MP4_BOX_ILLEGAL_TYPE, "unknown sample type 0x%x to encrypt", original_type);
+    }
+
+    SrsMp4ProtectionSchemeInfoBox* sinf = new SrsMp4ProtectionSchemeInfoBox();
+    box->append(sinf);
+
+    SrsMp4OriginalFormatBox* frma = new SrsMp4OriginalFormatBox(original_type);
+    sinf->set_frma(frma);
+
+    SrsMp4SchemeTypeBox* schm = new SrsMp4SchemeTypeBox();
+    schm->scheme_type = SrsMp4CENSchemeCBCS;
+    schm->scheme_version = 0x00010000;
+    sinf->set_schm(schm);
+
+    SrsMp4SchemeInfoBox* schi = new SrsMp4SchemeInfoBox();
+    SrsMp4TrackEncryptionBox* tenc = new SrsMp4TrackEncryptionBox();
+    tenc->version = 1;
+    tenc->default_crypt_byte_block = is_video_sample ? crypt_byte_block_ : 0 ;
+    tenc->default_skip_byte_block = is_video_sample ? skip_byte_block_ : 0;
+    tenc->default_is_protected = 1;
+    tenc->default_per_sample_IV_size = 0;
+    tenc->default_constant_IV_size = iv_size_;
+    memcpy(tenc->default_constant_IV, iv_, iv_size_);
+    memcpy(tenc->default_KID, kid_, 16);
+    
+    schi->append(tenc);
+    sinf->set_schi(schi);
+
     return err;
 }
 
@@ -6879,12 +7631,19 @@ SrsFmp4SegmentEncoder::SrsFmp4SegmentEncoder()
     mdat_video_bytes_ = 0;
     audio_samples_ = new SrsMp4SampleManager();
     video_samples_ = new SrsMp4SampleManager();
+    
+    memset(iv_,0,16);
+    key_ = (unsigned char*)new AES_KEY();
+    do_sample_encryption_ = false;
 }
 
 SrsFmp4SegmentEncoder::~SrsFmp4SegmentEncoder()
 {
     srs_freep(audio_samples_);
     srs_freep(video_samples_);
+
+    AES_KEY* k = (AES_KEY*)key_;
+    srs_freep(k);
 }
 
 
@@ -6897,6 +7656,21 @@ srs_error_t SrsFmp4SegmentEncoder::initialize(ISrsWriter* w, uint32_t sequence, 
     decode_basetime_ = basetime;
     video_track_id_ = v_tid;
     audio_track_id_ = a_tid;
+    
+    return err;
+}
+
+srs_error_t SrsFmp4SegmentEncoder::config_cipher(unsigned char* key, unsigned char* iv)
+{
+    srs_error_t err = srs_success;
+    
+    memcpy(this->iv_, iv, 16);
+  
+    AES_KEY* k = (AES_KEY*)this->key_;
+    if (AES_set_encrypt_key(key, 16 * 8, k)) {
+        return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "set aes key failed");
+    }
+    do_sample_encryption_ = true;
     
     return err;
 }
@@ -6982,6 +7756,22 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t& dts)
         if ((err = video_samples_->write(traf, dts)) != srs_success) {
             return srs_error_wrap(err, "write samples");
         }
+
+        // TODO: write senc, and optional saiz & saio
+        if (do_sample_encryption_) {
+            SrsMp4SampleEncryptionBox* senc = new SrsMp4SampleEncryptionBox(0);
+            // video_samples_;
+            vector<SrsMp4Sample*>::iterator it;
+            // write video sample data
+            for (it = video_samples_->samples.begin(); it != video_samples_->samples.end(); ++it) {
+                SrsMp4Sample* sample = *it;
+                // TODO: parse hevc|avc, nalu slice header, and calculate 
+                // sample->data;
+                // sample->nb_data;
+            }
+
+            traf->append(senc);
+        }
     }
 
     // write audio traf
@@ -7008,6 +7798,13 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t& dts)
         
         if ((err = audio_samples_->write(traf, dts)) != srs_success) {
             return srs_error_wrap(err, "write samples");
+        }
+
+        // TODO: write senc, and optional saiz & saio
+        if (do_sample_encryption_) {
+            SrsMp4SampleEncryptionBox* senc = new SrsMp4SampleEncryptionBox(0);
+            // this->iv_;
+            traf->append(senc);
         }
     }
 
@@ -7051,6 +7848,7 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t& dts)
             SrsMp4Sample* sample = *it;
             
             // TODO: FIXME: Ensure all bytes are writen.
+            // TODO: do cbcs encryption here. sample are nalu_length + nalu data.
             if ((err = writer_->write(sample->data, sample->nb_data, NULL)) != srs_success) {
                 return srs_error_wrap(err, "write sample");
             }
@@ -7061,6 +7859,7 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t& dts)
             SrsMp4Sample* sample = *it;
             
             // TODO: FIXME: Ensure all bytes are writen.
+            // TODO: do cbcs encryption here
             if ((err = writer_->write(sample->data, sample->nb_data, NULL)) != srs_success) {
                 return srs_error_wrap(err, "write sample");
             }
