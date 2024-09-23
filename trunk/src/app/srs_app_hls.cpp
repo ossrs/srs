@@ -81,12 +81,27 @@ SrsInitMp4Segment::SrsInitMp4Segment()
 {
     fw_ = new SrsFileWriter();
     init_ = new SrsMp4M2tsInitEncoder();
+    const_iv_size_ = 0;
 }
 
 SrsInitMp4Segment::~SrsInitMp4Segment()
 {
     srs_freep(init_);
     srs_freep(fw_);
+}
+
+srs_error_t SrsInitMp4Segment::config_cipher(unsigned char* kid, unsigned char* const_iv, uint8_t const_iv_size)
+{
+    srs_error_t err = srs_success;
+    if (const_iv_size != 8 && const_iv_size != 16) {
+        return srs_error_new(ERROR_MP4_BOX_STRING, "invalidate const_iv_size");
+    }
+    memcpy(kid_, kid, 16);
+    memcpy(const_iv_, const_iv, const_iv_size);
+    const_iv_size_ = const_iv_size;
+    init_->config_encryption(1, 9, kid_, const_iv, const_iv_size);
+
+    return err;
 }
 
 srs_error_t SrsInitMp4Segment::write(SrsFormat* format, int v_tid, int a_tid)
@@ -153,16 +168,15 @@ srs_error_t SrsInitMp4Segment::init_encoder()
 }
 
 
-SrsHlsM4sSegment::SrsHlsM4sSegment()
+SrsHlsM4sSegment::SrsHlsM4sSegment(SrsFileWriter* fw)
 {
-    fw_ = new SrsFileWriter();
+    fw_ = fw;
     enc_ = new SrsFmp4SegmentEncoder();
 }
 
 SrsHlsM4sSegment::~SrsHlsM4sSegment()
 {
     srs_freep(enc_);
-    srs_freep(fw_);
 }
 
 srs_error_t SrsHlsM4sSegment::initialize(int64_t time, uint32_t v_tid, uint32_t a_tid, int sequence_number, std::string m4s_path)
@@ -186,6 +200,13 @@ srs_error_t SrsHlsM4sSegment::initialize(int64_t time, uint32_t v_tid, uint32_t 
     }
     
     return err;
+}
+
+void SrsHlsM4sSegment::config_cipher(unsigned char* key, unsigned char* iv)
+{
+    // TODO: set key and iv to mp4 box
+    enc_->config_cipher(key, iv);
+    memcpy(this->iv, iv,16);
 }
 
 srs_error_t SrsHlsM4sSegment::write(SrsSharedPtrMessage* shared_msg, SrsFormat* format)
@@ -229,8 +250,9 @@ srs_error_t SrsHlsM4sSegment::reap(uint64_t& dts)
         return srs_error_wrap(err, "Flush encoder failed");
     }
     
-    srs_freep(fw_);
-    
+    // srs_freep(fw_);
+    fw_->close();
+        
     if ((err = rename()) != srs_success) {
         return srs_error_wrap(err, "rename");
     }
@@ -492,6 +514,10 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat* format, bool has_video, b
     
     init_mp4->set_path(path);
 
+    if (hls_keys_) {
+        init_mp4->config_cipher(kid_, iv_, 16);
+    }
+
     if (has_video && has_audio) {
         if ((err = init_mp4->write(format, video_track_id_, audio_track_id_)) != srs_success) {
             return srs_error_wrap(err, "write hls init.mp4 with audio and video");
@@ -637,11 +663,7 @@ srs_error_t SrsHlsFmp4Muxer::update_config(SrsRequest* r)
         }
     }
 
-    if(hls_keys_) {
-        writer_ = new SrsEncFileWriter();
-    } else {
-        writer_ = new SrsFileWriter();
-    }
+    writer_ = new SrsFileWriter();
 
     return err;
 }
@@ -656,7 +678,7 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
     }
 
     // new segment.
-    current_ = new SrsHlsM4sSegment();
+    current_ = new SrsHlsM4sSegment(writer_);
     current_->sequence_no = sequence_no_++;
 
     if ((err = write_hls_key()) != srs_success) {
@@ -831,7 +853,41 @@ srs_error_t SrsHlsFmp4Muxer::do_segment_close()
 
 srs_error_t SrsHlsFmp4Muxer::write_hls_key()
 {
-    return srs_success;
+    srs_error_t err = srs_success;
+    
+    if (hls_keys_ && current_->sequence_no % hls_fragments_per_key_ == 0) {
+        if (RAND_bytes(key_, 16) < 0) {
+            return srs_error_wrap(err, "rand key failed.");
+        }
+        if (RAND_bytes(kid_, 16) < 0) {
+            return srs_error_wrap(err, "rand kid failed.");
+        }
+        if (RAND_bytes(iv_, 16) < 0) {
+            return srs_error_wrap(err, "rand iv failed.");
+        }
+        
+        string key_file = srs_path_build_stream(hls_key_file_, req_->vhost, req_->app, req_->stream);
+        key_file = srs_string_replace(key_file, "[seq]", srs_int2str(current_->sequence_no));
+        string key_url = hls_key_file_path_ + "/" + key_file;
+        
+        SrsFileWriter fw;
+        if ((err = fw.open(key_url)) != srs_success) {
+            return srs_error_wrap(err, "open file %s", key_url.c_str());
+        }
+        
+        err = fw.write(key_, 16, NULL);
+        fw.close();
+        
+        if (err != srs_success) {
+            return srs_error_wrap(err, "write key");
+        }
+    }
+    
+    if (hls_keys_) {
+        current_->config_cipher(key_, iv_);
+    }
+
+    return err;
 }
 
 srs_error_t SrsHlsFmp4Muxer::refresh_m3u8()
@@ -917,7 +973,7 @@ srs_error_t SrsHlsFmp4Muxer::_refresh_m3u8(std::string m3u8_file)
             ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
         }
 
-#if 0
+#if 1
         if(hls_keys_ && ((segment->sequence_no % hls_fragments_per_key_) == 0)) {
             char hexiv[33];
             srs_data_to_hex(hexiv, segment->iv, 16);
@@ -932,7 +988,7 @@ srs_error_t SrsHlsFmp4Muxer::_refresh_m3u8(std::string m3u8_file)
                 key_path = hls_key_url_ + key_file;
             }
             
-            ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
+            ss << "#EXT-X-KEY:METHOD=SAMPLE-AES,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
         }
 #endif
         
