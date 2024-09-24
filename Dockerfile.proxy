@@ -1,0 +1,31 @@
+ARG ARCH
+FROM ${ARCH}ossrs/srs:ubuntu20 AS build
+
+COPY ./proxy /proxy
+
+WORKDIR /proxy
+
+RUN make clean && make
+
+############################################################
+# dist
+############################################################
+FROM ${ARCH}ubuntu:focal AS dist
+
+WORKDIR /proxy
+
+COPY --from=build /proxy/srs-proxy /proxy/
+COPY ./trunk/research /proxy/static
+
+ENV PROXY_STATIC_FILES="/proxy/static"
+ENV PROXY_LOAD_BALANCER_TYPE="memory"
+ENV PROXY_RTMP_SERVER=1935
+ENV PROXY_HTTP_SERVER=8080
+ENV PROXY_HTTP_API=1985
+ENV PROXY_WEBRTC_SERVER=8000
+ENV PROXY_SRT_SERVER=10080
+ENV PROXY_SYSTEM_API=12025
+
+EXPOSE 1935 8080 1985 12025 8000/udp 10080/udp
+
+CMD ["./srs-proxy"]
