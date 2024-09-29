@@ -1581,18 +1581,10 @@ class SrsMp4DecodingTime2SampleBox : public SrsMp4FullBox
 public:
     // An integer that gives the number of entries in the following table.
     std::vector<SrsMp4SttsEntry> entries;
-private:
-    // The index for counter to calc the dts for samples.
-    uint32_t index;
-    uint32_t count;
+
 public:
     SrsMp4DecodingTime2SampleBox();
     virtual ~SrsMp4DecodingTime2SampleBox();
-public:
-    // Initialize the counter.
-    virtual srs_error_t initialize_counter();
-    // When got an sample, index starts from 0.
-    virtual srs_error_t on_sample(uint32_t sample_index, SrsMp4SttsEntry** ppentry);
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);

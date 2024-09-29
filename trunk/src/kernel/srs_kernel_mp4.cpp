@@ -3962,50 +3962,10 @@ stringstream& SrsMp4SttsEntry::dumps_detail(stringstream& ss, SrsMp4DumpContext 
 SrsMp4DecodingTime2SampleBox::SrsMp4DecodingTime2SampleBox()
 {
     type = SrsMp4BoxTypeSTTS;
-    
-    index = count = 0;
 }
 
 SrsMp4DecodingTime2SampleBox::~SrsMp4DecodingTime2SampleBox()
 {
-}
-
-srs_error_t SrsMp4DecodingTime2SampleBox::initialize_counter()
-{
-    srs_error_t err = srs_success;
-
-    // If only sps/pps and no frames, there is no stts entries.
-    if (entries.empty()) {
-        return err;
-    }
-    
-    index = 0;
-    if (index >= entries.size()) {
-        return srs_error_new(ERROR_MP4_ILLEGAL_TIMESTAMP, "illegal ts, empty stts");
-    }
-    
-    count = entries[0].sample_count;
-    
-    return err;
-}
-
-srs_error_t SrsMp4DecodingTime2SampleBox::on_sample(uint32_t sample_index, SrsMp4SttsEntry** ppentry)
-{
-    srs_error_t err = srs_success;
-    
-    if (sample_index + 1 > count) {
-        index++;
-        
-        if (index >= entries.size()) {
-            return srs_error_new(ERROR_MP4_ILLEGAL_TIMESTAMP, "illegal ts, stts overflow, count=%zd", entries.size());
-        }
-        
-        count += entries[index].sample_count;
-    }
-    
-    *ppentry = &entries[index];
-    
-    return err;
 }
 
 int SrsMp4DecodingTime2SampleBox::nb_header()
@@ -5213,11 +5173,6 @@ srs_error_t SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, S
     // Samples per chunk.
     stsc->initialize_counter();
     
-    // DTS box.
-    if ((err = stts->initialize_counter()) != srs_success) {
-        return srs_error_wrap(err, "stts init counter");
-    }
-    
     // CTS/PTS box.
     if (ctts && (err = ctts->initialize_counter()) != srs_success) {
         return srs_error_wrap(err, "ctts init counter");
@@ -5246,13 +5201,14 @@ srs_error_t SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, S
             }
             sample_relative_offset += sample_size;
             
-            SrsMp4SttsEntry* stts_entry = NULL;
-            if ((err = stts->on_sample(sample->index, &stts_entry)) != srs_success) {
-                srs_freep(sample);
-                return srs_error_wrap(err, "stts on sample");
-            }
             if (previous) {
-                sample->pts = sample->dts = previous->dts + stts_entry->sample_delta;
+                uint32_t stts_index = sample->index - 1;
+                if (stts_index >= 0 && stts_index < stts->entries.size()) {
+                    SrsMp4SttsEntry* stts_entry = &stts->entries[stts_index];
+                    sample->pts = sample->dts = previous->dts + stts_entry->sample_count * stts_entry->sample_delta;
+                } else {
+                    sample->pts = sample->dts = previous->dts;
+                }
             }
             
             SrsMp4CttsEntry* ctts_entry = NULL;
