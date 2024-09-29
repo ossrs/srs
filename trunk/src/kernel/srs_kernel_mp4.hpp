@@ -1554,7 +1554,7 @@ public:
 };
 
 // 8.6.1.2 Decoding Time to Sample Box (stts), for Audio/Video.
-// ISO_IEC_14496-12-base-format-2012.pdf, page 48
+// ISO_IEC_14496-12-base-format-2012.pdf, page 36
 class SrsMp4SttsEntry
 {
 public:
@@ -1893,6 +1893,9 @@ public:
     // The sample data.
     uint32_t nb_data;
     uint8_t* data;
+    // number of nalu|audio-frames in this sample.
+    uint32_t nb_samples;
+
 public:
     SrsMp4Sample();
     virtual ~SrsMp4Sample();
