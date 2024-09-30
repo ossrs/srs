@@ -5696,7 +5696,7 @@ srs_error_t SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
 
         ftyp->major_brand = SrsMp4BoxBrandISOM;
         ftyp->minor_version = 512;
-        ftyp->set_compatible_brands(SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandMP41);
+        ftyp->set_compatible_brands(SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandAVC1, SrsMp4BoxBrandMP41);
         
         int nb_data = ftyp->nb_bytes();
         std::vector<char> data(nb_data);

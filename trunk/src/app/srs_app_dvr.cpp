@@ -642,7 +642,29 @@ srs_error_t SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* f
     if (!dvr_enabled) {
         return err;
     }
-    
+
+    // skip any SEI type nalus
+    if (format->vcodec->id == SrsVideoCodecIdAVC) {
+        for (int i = 0; i < format->video->nb_samples; ++i) {
+            SrsSample* sample = &format->video->samples[i];
+            SrsAvcNaluType avc_nalu_type;
+
+            if ((err = SrsVideoFrame::parse_avc_nalu_type(sample, avc_nalu_type)) != srs_success) {
+                return srs_error_wrap(err, "parse avc nalu_type");
+            }
+
+            if (avc_nalu_type == SrsAvcNaluTypeSEI) {
+                return err;
+            }
+        }
+    }
+
+    // quicktime player compatible: skip the packet without any nalu.
+    if (!format->is_avc_sequence_header() && format->video->nb_samples == 0) {
+        srs_warn("skip video segment has empty samples and is not sequence header.");
+        return err;
+    }
+
     if ((err = segment->write_video(shared_video, format)) != srs_success) {
         return srs_error_wrap(err, "write video");
     }
