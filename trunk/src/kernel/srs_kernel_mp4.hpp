@@ -1886,7 +1886,7 @@ public:
     uint32_t nb_data;
     uint8_t* data;
     // number of nalu|audio-frames in this sample.
-    uint32_t nb_samples;
+    uint32_t nb_subsamples;
 
 public:
     SrsMp4Sample();

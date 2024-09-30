@@ -5024,9 +5024,9 @@ srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
         }
 
         if (stts && previous) {
-            if (sample->dts >= previous->dts && previous->nb_samples > 0) {
-                uint32_t delta = (uint32_t)(sample->dts - previous->dts) / previous->nb_samples;
-                stts_entry.sample_count = previous->nb_samples;
+            if (sample->dts >= previous->dts && previous->nb_subsamples > 0) {
+                uint32_t delta = (uint32_t)(sample->dts - previous->dts) / previous->nb_subsamples;
+                stts_entry.sample_count = previous->nb_subsamples;
                 // calcaulate delta in the time-scale of the media.
                 // moov->mvhd->timescale which is hardcoded to 1000, sample->tbn also being hardcoded to 1000.
                 stts_entry.sample_delta = delta * previous->tbn / 1000;
@@ -5051,8 +5051,8 @@ srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
         previous = sample;
     }
     
-    if (stts && previous && previous->nb_samples > 0) {
-        stts_entry.sample_count = previous->nb_samples;
+    if (stts && previous && previous->nb_subsamples > 0) {
+        stts_entry.sample_count = previous->nb_subsamples;
         // Can't calculate last sample duration, so set sample_delta to 1.
         stts_entry.sample_delta = 1;
         stts_entries.push_back(stts_entry);
@@ -5205,7 +5205,7 @@ srs_error_t SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, S
                 uint32_t stts_index = sample->index - 1;
                 if (stts_index >= 0 && stts_index < stts->entries.size()) {
                     SrsMp4SttsEntry* stts_entry = &stts->entries[stts_index];
-                    sample->pts = sample->dts = previous->dts + stts_entry->sample_count * stts_entry->sample_delta;
+                    sample->pts = sample->dts = previous->dts + (uint64_t) stts_entry->sample_count * (uint64_t) stts_entry->sample_delta;
                 } else {
                     sample->pts = sample->dts = previous->dts;
                 }
@@ -5781,12 +5781,12 @@ srs_error_t SrsMp4Encoder::write_sample(
         ps->type = SrsFrameTypeVideo;
         ps->frame_type = (SrsVideoAvcFrameType)ft;
         ps->index = nb_videos++;
-        ps->nb_samples = format->video->nb_samples;
+        ps->nb_subsamples = format->video->nb_samples;
         vduration = dts;
     } else if (ht == SrsMp4HandlerTypeSOUN) {
         ps->type = SrsFrameTypeAudio;
         ps->index = nb_audios++;
-        ps->nb_samples = format->audio->nb_samples;
+        ps->nb_subsamples = format->audio->nb_samples;
         aduration = dts;
     } else {
         srs_freep(ps);
