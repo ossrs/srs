@@ -55,11 +55,9 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     // Standard URL is:
     //     rtmp://ip/app/app2/stream?k=v
     // Where after last slash is stream.
+    fullUrl += stream.empty() ? "/" : (stream.at(0) == '/' ? stream : "/" + stream);
     if (fullUrl.find_first_of("?#") == string::npos)
-    {
         fullUrl += param.empty() ? "" : (param.at(0) == '?' ? param : "?" + param);
-        fullUrl += stream.empty() ? "/" : (stream.at(0) == '/' ? stream : "/" + stream);
-    }
 
     // First, we covert the FMLE URL to standard URL:
     //      rtmp://ip/app/app2?k=v/stream , or:
