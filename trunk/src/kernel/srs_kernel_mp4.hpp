@@ -1554,7 +1554,7 @@ public:
 };
 
 // 8.6.1.2 Decoding Time to Sample Box (stts), for Audio/Video.
-// ISO_IEC_14496-12-base-format-2012.pdf, page 36
+// ISO_IEC_14496-12-base-format-2012.pdf, page 48
 class SrsMp4SttsEntry
 {
 public:
@@ -1581,10 +1581,18 @@ class SrsMp4DecodingTime2SampleBox : public SrsMp4FullBox
 public:
     // An integer that gives the number of entries in the following table.
     std::vector<SrsMp4SttsEntry> entries;
-
+private:
+    // The index for counter to calc the dts for samples.
+    uint32_t index;
+    uint32_t count;
 public:
     SrsMp4DecodingTime2SampleBox();
     virtual ~SrsMp4DecodingTime2SampleBox();
+public:
+    // Initialize the counter.
+    virtual srs_error_t initialize_counter();
+    // When got an sample, index starts from 0.
+    virtual srs_error_t on_sample(uint32_t sample_index, SrsMp4SttsEntry** ppentry);
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
@@ -1885,9 +1893,6 @@ public:
     // The sample data.
     uint32_t nb_data;
     uint8_t* data;
-    // number of nalu|audio-frames in this sample.
-    uint32_t nb_subsamples;
-
 public:
     SrsMp4Sample();
     virtual ~SrsMp4Sample();

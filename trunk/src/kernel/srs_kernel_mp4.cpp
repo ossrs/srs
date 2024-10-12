@@ -3962,10 +3962,50 @@ stringstream& SrsMp4SttsEntry::dumps_detail(stringstream& ss, SrsMp4DumpContext 
 SrsMp4DecodingTime2SampleBox::SrsMp4DecodingTime2SampleBox()
 {
     type = SrsMp4BoxTypeSTTS;
+    
+    index = count = 0;
 }
 
 SrsMp4DecodingTime2SampleBox::~SrsMp4DecodingTime2SampleBox()
 {
+}
+
+srs_error_t SrsMp4DecodingTime2SampleBox::initialize_counter()
+{
+    srs_error_t err = srs_success;
+
+    // If only sps/pps and no frames, there is no stts entries.
+    if (entries.empty()) {
+        return err;
+    }
+    
+    index = 0;
+    if (index >= entries.size()) {
+        return srs_error_new(ERROR_MP4_ILLEGAL_TIMESTAMP, "illegal ts, empty stts");
+    }
+    
+    count = entries[0].sample_count;
+    
+    return err;
+}
+
+srs_error_t SrsMp4DecodingTime2SampleBox::on_sample(uint32_t sample_index, SrsMp4SttsEntry** ppentry)
+{
+    srs_error_t err = srs_success;
+    
+    if (sample_index + 1 > count) {
+        index++;
+        
+        if (index >= entries.size()) {
+            return srs_error_new(ERROR_MP4_ILLEGAL_TIMESTAMP, "illegal ts, stts overflow, count=%zd", entries.size());
+        }
+        
+        count += entries[index].sample_count;
+    }
+    
+    *ppentry = &entries[index];
+    
+    return err;
 }
 
 int SrsMp4DecodingTime2SampleBox::nb_header()
@@ -5022,15 +5062,21 @@ srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
         if (sample->frame_type == SrsVideoAvcFrameTypeKeyFrame) {
             stss_entries.push_back(sample->index + 1);
         }
-
-        if (stts && previous) {
-            if (sample->dts >= previous->dts && previous->nb_subsamples > 0) {
-                uint32_t delta = (uint32_t)(sample->dts - previous->dts) / previous->nb_subsamples;
-                stts_entry.sample_count = previous->nb_subsamples;
-                // calcaulate delta in the time-scale of the media.
-                // moov->mvhd->timescale which is hardcoded to 1000, sample->tbn also being hardcoded to 1000.
-                stts_entry.sample_delta = delta * previous->tbn / 1000;
-                stts_entries.push_back(stts_entry);
+        
+        if (stts) {
+            if (previous) {
+                uint32_t delta = (uint32_t)(sample->dts - previous->dts);
+                if (stts_entry.sample_delta == 0 || stts_entry.sample_delta == delta) {
+                    stts_entry.sample_delta = delta;
+                    stts_entry.sample_count++;
+                } else {
+                    stts_entries.push_back(stts_entry);
+                    stts_entry.sample_count = 1;
+                    stts_entry.sample_delta = delta;
+                }
+            } else {
+                // The first sample always in the STTS table.
+                stts_entry.sample_count++;
             }
         }
         
@@ -5051,10 +5097,7 @@ srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
         previous = sample;
     }
     
-    if (stts && previous && previous->nb_subsamples > 0) {
-        stts_entry.sample_count = previous->nb_subsamples;
-        // Can't calculate last sample duration, so set sample_delta to 1.
-        stts_entry.sample_delta = 1;
+    if (stts && stts_entry.sample_count) {
         stts_entries.push_back(stts_entry);
     }
     
@@ -5173,6 +5216,11 @@ srs_error_t SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, S
     // Samples per chunk.
     stsc->initialize_counter();
     
+    // DTS box.
+    if ((err = stts->initialize_counter()) != srs_success) {
+        return srs_error_wrap(err, "stts init counter");
+    }
+    
     // CTS/PTS box.
     if (ctts && (err = ctts->initialize_counter()) != srs_success) {
         return srs_error_wrap(err, "ctts init counter");
@@ -5201,14 +5249,13 @@ srs_error_t SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, S
             }
             sample_relative_offset += sample_size;
             
+            SrsMp4SttsEntry* stts_entry = NULL;
+            if ((err = stts->on_sample(sample->index, &stts_entry)) != srs_success) {
+                srs_freep(sample);
+                return srs_error_wrap(err, "stts on sample");
+            }
             if (previous) {
-                uint32_t stts_index = sample->index - 1;
-                if (stts_index >= 0 && stts_index < stts->entries.size()) {
-                    SrsMp4SttsEntry* stts_entry = &stts->entries[stts_index];
-                    sample->pts = sample->dts = previous->dts + (uint64_t) stts_entry->sample_count * (uint64_t) stts_entry->sample_delta;
-                } else {
-                    sample->pts = sample->dts = previous->dts;
-                }
+                sample->pts = sample->dts = previous->dts + stts_entry->sample_delta;
             }
             
             SrsMp4CttsEntry* ctts_entry = NULL;
@@ -5696,7 +5743,7 @@ srs_error_t SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
 
         ftyp->major_brand = SrsMp4BoxBrandISOM;
         ftyp->minor_version = 512;
-        ftyp->set_compatible_brands(SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandAVC1, SrsMp4BoxBrandMP41);
+        ftyp->set_compatible_brands(SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandMP41);
         
         int nb_data = ftyp->nb_bytes();
         std::vector<char> data(nb_data);
@@ -5781,12 +5828,10 @@ srs_error_t SrsMp4Encoder::write_sample(
         ps->type = SrsFrameTypeVideo;
         ps->frame_type = (SrsVideoAvcFrameType)ft;
         ps->index = nb_videos++;
-        ps->nb_subsamples = format->video->nb_samples;
         vduration = dts;
     } else if (ht == SrsMp4HandlerTypeSOUN) {
         ps->type = SrsFrameTypeAudio;
         ps->index = nb_audios++;
-        ps->nb_subsamples = format->audio->nb_samples;
         aduration = dts;
     } else {
         srs_freep(ps);
