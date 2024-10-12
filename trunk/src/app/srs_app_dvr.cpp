@@ -657,6 +657,16 @@ srs_error_t SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* f
                 return err;
             }
         }
+    } else if (format->vcodec->id == SrsVideoCodecIdHEVC) {
+#ifdef SRS_H265
+        for (int i = 0; i < format->video->nb_samples; ++i) {
+            SrsSample* sample = &format->video->samples[i];
+            SrsHevcNaluType hevc_nalu_type = SrsHevcNaluTypeParse(sample->bytes[0]);
+            if (hevc_nalu_type == SrsHevcNaluType_SEI || hevc_nalu_type == SrsHevcNaluType_SEI_SUFFIX) {
+                return err;
+            }
+        }
+#endif
     }
 
     // quicktime player compatible: skip the packet without any nalu.

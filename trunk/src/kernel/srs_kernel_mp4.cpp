@@ -5024,13 +5024,19 @@ srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
         }
 
         if (stts && previous) {
-            if (sample->dts >= previous->dts && previous->nb_subsamples > 0) {
-                uint32_t delta = (uint32_t)(sample->dts - previous->dts) / previous->nb_subsamples;
-                stts_entry.sample_count = previous->nb_subsamples;
+            uint32_t delta = (uint32_t)(sample->dts - previous->dts);
+
+            if (delta > 0 && stts_entry.sample_count == 0) {
+                stts_entry.sample_count = 1;
+                stts_entry.sample_delta = delta;
+            } else if (delta > 0 && stts_entry.sample_delta == delta) {
+                stts_entry.sample_count++;
+            } else if (stts_entry.sample_count > 0) {
+                stts_entries.push_back(stts_entry);
+                stts_entry.sample_count = delta > 0 ? 1 : 0;
                 // calcaulate delta in the time-scale of the media.
                 // moov->mvhd->timescale which is hardcoded to 1000, sample->tbn also being hardcoded to 1000.
-                stts_entry.sample_delta = delta * previous->tbn / 1000;
-                stts_entries.push_back(stts_entry);
+                stts_entry.sample_delta = delta;
             }
         }
         
@@ -5051,10 +5057,9 @@ srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
         previous = sample;
     }
     
-    if (stts && previous && previous->nb_subsamples > 0) {
-        stts_entry.sample_count = previous->nb_subsamples;
-        // Can't calculate last sample duration, so set sample_delta to 1.
-        stts_entry.sample_delta = 1;
+    if (stts && stts_entry.sample_count) {
+        // Can't calculate last sample duration, so set the sample_delta to previous entry.
+        stts_entry.sample_delta = stts_entries.size() > 0 ? stts_entries.back().sample_delta : 1;
         stts_entries.push_back(stts_entry);
     }
     
@@ -5781,12 +5786,10 @@ srs_error_t SrsMp4Encoder::write_sample(
         ps->type = SrsFrameTypeVideo;
         ps->frame_type = (SrsVideoAvcFrameType)ft;
         ps->index = nb_videos++;
-        ps->nb_subsamples = format->video->nb_samples;
         vduration = dts;
     } else if (ht == SrsMp4HandlerTypeSOUN) {
         ps->type = SrsFrameTypeAudio;
         ps->index = nb_audios++;
-        ps->nb_subsamples = format->audio->nb_samples;
         aduration = dts;
     } else {
         srs_freep(ps);
