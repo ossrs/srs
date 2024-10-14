@@ -638,12 +638,13 @@ srs_error_t SrsDvrPlan::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* f
 srs_error_t SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     srs_error_t err = srs_success;
+    uint32_t sei_count = 0;
     
     if (!dvr_enabled) {
         return err;
     }
 
-    // skip any SEI type nalus
+    // count SEI type nalu
     if (format->vcodec->id == SrsVideoCodecIdAVC) {
         for (int i = 0; i < format->video->nb_samples; ++i) {
             SrsSample* sample = &format->video->samples[i];
@@ -654,7 +655,7 @@ srs_error_t SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* f
             }
 
             if (avc_nalu_type == SrsAvcNaluTypeSEI) {
-                return err;
+                sei_count++;
             }
         }
     } else if (format->vcodec->id == SrsVideoCodecIdHEVC) {
@@ -663,10 +664,15 @@ srs_error_t SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* f
             SrsSample* sample = &format->video->samples[i];
             SrsHevcNaluType hevc_nalu_type = SrsHevcNaluTypeParse(sample->bytes[0]);
             if (hevc_nalu_type == SrsHevcNaluType_SEI || hevc_nalu_type == SrsHevcNaluType_SEI_SUFFIX) {
-                return err;
+                sei_count++;
             }
         }
 #endif
+    }
+
+    // If all the nalu are SEI type, then skip this frame.
+    if (sei_count > 0 && format->video->nb_samples == sei_count) {
+        return err;
     }
 
     // quicktime player compatible: skip the packet without any nalu.
