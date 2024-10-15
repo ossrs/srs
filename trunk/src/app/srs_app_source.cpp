@@ -1862,7 +1862,6 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
         // When source expired, remove it.
         // @see https://github.com/ossrs/srs/issues/713
         if (source->stream_is_dead()) {
-            source->dispose();
             SrsContextId cid = source->source_id();
             if (cid.empty()) cid = source->pre_source_id();
             srs_trace("Live: cleanup die source, id=[%s], total=%d", cid.c_str(), (int)pool.size());
@@ -1962,7 +1961,7 @@ bool SrsLiveSource::stream_is_dead()
         return false;
     }
 
-    // Delay cleanup source.
+    // Delay cleanup source for at least SRS_SOURCE_CLEANUP=3 seconds
     srs_utime_t now = srs_get_system_time();
     if (now < stream_die_at_ + SRS_SOURCE_CLEANUP) {
         return false;
