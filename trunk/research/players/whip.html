@@ -62,10 +62,16 @@
     <div class="form-inline">
         Controls:
         <label>
-            <input type="checkbox" id="ch_videoonly" style="margin-bottom: 8px"> Video Only
+            <input type="radio" id="ra_camera" name="video" value="Camera" checked style="margin-bottom: 8px"> Camera
         </label>
         <label>
-            <input type="checkbox" id="ch_audioonly" style="margin-bottom: 8px"> Audio Only
+            <input type="radio" id="ra_screen" name="video" value="Screen" style="margin-bottom: 8px"> Screen
+        </label>
+        <label>
+            <input type="radio" id="ra_none" name="video" value="None" style="margin-bottom: 8px"> No Video
+        </label>
+        <label>
+            <input type="checkbox" id="ch_audio" checked style="margin-bottom: 8px"> Audio
         </label>
     </div>
 
@@ -113,8 +119,9 @@ $(function(){
         // For example: webrtc://r.ossrs.net/live/livestream
         var url = $("#txt_url").val();
         sdk.publish(url, {
-            videoOnly: $('#ch_videoonly').prop('checked'),
-            audioOnly: $('#ch_audioonly').prop('checked'),
+            camera: $('#ra_camera').prop('checked'),
+            screen: $('#ra_screen').prop('checked'),
+            audio: $('#ch_audio').prop('checked')
         }).then(function(session){
             $('#sessionid').html(session.sessionid);
             $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
