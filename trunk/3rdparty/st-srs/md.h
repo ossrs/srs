@@ -110,7 +110,7 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
         MD_GET_SP(_thread) = (long) (_sp);         \
         ST_END_MACRO
 
-    #if defined (MD_OSX_HAS_NO_CLOCK_GETTIME)
+    #if defined (MD_OSX_NO_CLOCK_GETTIME)
         #define MD_GET_UTIME()                          \
             struct timeval tv;                          \
             (void) gettimeofday(&tv, NULL);             \

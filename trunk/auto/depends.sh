@@ -255,7 +255,7 @@ fi
 if [[ $SRS_OSX == YES ]]; then
     _ST_MAKE=darwin-debug && _ST_OBJ="DARWIN_`uname -r`_DBG"
     if [[ $SRS_OSX_HAS_CLOCK_GETTIME != YES ]]; then
-        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_OSX_HAS_NO_CLOCK_GETTIME"
+        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_OSX_NO_CLOCK_GETTIME"
     fi
 fi
 # for windows/cygwin
