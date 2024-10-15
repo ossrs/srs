@@ -1705,6 +1705,23 @@ srs_error_t SrsRtmpFromRtcBridge::packet_video_rtmp(const uint16_t start, const 
 
     if (0 == nb_payload) {
         srs_warn("empty nalu");
+
+        // The chrome web browser send RTP packet with empty payload frequently,
+        // reset header_sn_, lost_sn_ and continue to found next frame in this case,
+        // otherwise, all the cached RTP packets are dropped before next key frame arrive.
+        header_sn_ = end + 1;
+        uint16_t tail_sn = 0;
+        int sn = find_next_lost_sn(header_sn_, tail_sn);
+        if (-1 == sn) {
+            if (check_frame_complete(header_sn_, tail_sn)) {
+                err = packet_video_rtmp(header_sn_, tail_sn);
+            }
+        } else if (-2 == sn) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
+        } else {
+            lost_sn_ = sn;
+        }
+
         return err;
     }
 	
