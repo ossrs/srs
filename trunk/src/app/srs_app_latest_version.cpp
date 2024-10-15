@@ -266,11 +266,12 @@ srs_error_t SrsLatestVersion::query_latest_version(string& url)
     path += "?";
     path += uri.get_query();
 
-    ISrsHttpMessage* msg = NULL;
-    if ((err = http.get(path, "", &msg)) != srs_success) {
+    ISrsHttpMessage* msg_raw = NULL;
+    if ((err = http.get(path, "", &msg_raw)) != srs_success) {
         return err;
     }
-    SrsAutoFree(ISrsHttpMessage, msg);
+
+    SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
 
     string res;
     int code = msg->status_code();
@@ -288,11 +289,10 @@ srs_error_t SrsLatestVersion::query_latest_version(string& url)
     }
 
     // Response in json object.
-    SrsJsonAny* jres = SrsJsonAny::loads((char*)res.c_str());
-    if (!jres || !jres->is_object()) {
+    SrsUniquePtr<SrsJsonAny> jres(SrsJsonAny::loads((char*)res.c_str()));
+    if (!jres.get() || !jres->is_object()) {
         return srs_error_new(ERROR_HTTP_DATA_INVALID, "invalid response %s", res.c_str());
     }
-    SrsAutoFree(SrsJsonAny, jres);
 
     SrsJsonObject* obj = jres->to_object();
     SrsJsonAny* prop = NULL;

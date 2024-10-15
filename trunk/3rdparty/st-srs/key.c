@@ -78,7 +78,7 @@ int st_key_getlimit(void)
 
 int st_thread_setspecific(int key, void *value)
 {
-    _st_thread_t *me = _ST_CURRENT_THREAD();
+    _st_thread_t *me = _st_this_thread;
     return st_thread_setspecific2(me, key, value);
 }
 
@@ -107,7 +107,7 @@ void *st_thread_getspecific(int key)
     if (key < 0 || key >= key_max)
         return NULL;
     
-    return ((_ST_CURRENT_THREAD())->private_data[key]);
+    return _st_this_thread->private_data[key];
 }
 
 

@@ -14,18 +14,26 @@ if [[ ! -f ~/git/srs-bench/go.mod ]]; then
   exit -1
 fi
 
+if [[ ! -d ~/git/state-threads ]]; then
+  echo "no state-threads at ~/git"
+  exit -1
+fi
+
 echo "Copy signaling"
 cp -R 3rdparty/signaling/* ~/git/signaling/ &&
 cp -R 3rdparty/signaling/.gitignore ~/git/signaling/ &&
-(cd ~/git/signaling && git st)
+(cd ~/git/signaling && git status)
 
 echo "Copy httpx-static"
 cp -R 3rdparty/httpx-static/* ~/git/go-oryx/httpx-static/ &&
 cp -R 3rdparty/httpx-static/.gitignore ~/git/go-oryx/httpx-static/ &&
-(cd ~/git/go-oryx && git st)
+(cd ~/git/go-oryx && git status)
 
 echo "Copy srs-bench"
 cp -R 3rdparty/srs-bench/* ~/git/srs-bench/ &&
 cp -R 3rdparty/srs-bench/.gitignore ~/git/srs-bench/ &&
-(cd ~/git/srs-bench && git st)
+(cd ~/git/srs-bench && git status)
 
+echo "Copy state-threads"
+cp -R 3rdparty/st-srs/* ~/git/state-threads/ &&
+(cd ~/git/state-threads && git st)

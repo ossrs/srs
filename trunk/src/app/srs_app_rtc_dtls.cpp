@@ -329,13 +329,12 @@ srs_error_t SrsDtlsCertificate::initialize()
         // TODO: FIXME: Unused variable.
         /*int r = */X509_digest(dtls_cert, EVP_sha256(), md, &n);
 
-        char* fp = new char[3 * n];
-        SrsAutoFreeA(char, fp);
-        char *p = fp;
+        SrsUniquePtr<char[]> fp(new char[3 * n]);
+        char* p = fp.get();
 
         for (unsigned int i = 0; i < n; i++, ++p) {
             int nb = snprintf(p, 3, "%02X", md[i]);
-            srs_assert(nb > 0 && nb < (3 * n - (p - fp)));
+            srs_assert(nb > 0 && nb < (3 * n - (p - fp.get())));
             p += nb;
 
             if(i < (n-1)) {
@@ -345,7 +344,7 @@ srs_error_t SrsDtlsCertificate::initialize()
             }
         }
 
-        fingerprint.assign(fp, strlen(fp));
+        fingerprint.assign(fp.get(), strlen(fp.get()));
         srs_trace("fingerprint=%s", fingerprint.c_str());
     }
 
@@ -985,10 +984,9 @@ srs_error_t SrsSRTP::initialize(string recv_key, std::string send_key)
 
     // init recv context
     policy.ssrc.type = ssrc_any_inbound;
-    uint8_t *rkey = new uint8_t[recv_key.size()];
-    SrsAutoFreeA(uint8_t, rkey);
-    memcpy(rkey, recv_key.data(), recv_key.size());
-    policy.key = rkey;
+    SrsUniquePtr<uint8_t[]> rkey(new uint8_t[recv_key.size()]);
+    memcpy(rkey.get(), recv_key.data(), recv_key.size());
+    policy.key = rkey.get();
 
     srtp_err_status_t r0 = srtp_err_status_ok;
     if ((r0 = srtp_create(&recv_ctx_, &policy)) != srtp_err_status_ok) {
@@ -996,10 +994,9 @@ srs_error_t SrsSRTP::initialize(string recv_key, std::string send_key)
     }
 
     policy.ssrc.type = ssrc_any_outbound;
-    uint8_t *skey = new uint8_t[send_key.size()];
-    SrsAutoFreeA(uint8_t, skey);
-    memcpy(skey, send_key.data(), send_key.size());
-    policy.key = skey;
+    SrsUniquePtr<uint8_t[]> skey(new uint8_t[send_key.size()]);
+    memcpy(skey.get(), send_key.data(), send_key.size());
+    policy.key = skey.get();
 
     if ((r0 = srtp_create(&send_ctx_, &policy)) != srtp_err_status_ok) {
         return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp create r0=%u", r0);

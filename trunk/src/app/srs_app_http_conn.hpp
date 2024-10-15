@@ -94,7 +94,7 @@ public:
 // Interface ISrsStartable
 public:
     virtual srs_error_t start();
-// Interface ISrsOneCycleThreadHandler
+// Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
 private:
@@ -136,8 +136,12 @@ private:
     SrsHttpConn* conn;
     // We should never enable the stat, unless HTTP stream connection requires.
     bool enable_stat_;
+    // ssl key & cert file
+    const std::string ssl_key_file_;
+    const std::string ssl_cert_file_;
+    
 public:
-    SrsHttpxConn(bool https, ISrsResourceManager* cm, ISrsProtocolReadWriter* io, ISrsHttpServeMux* m, std::string cip, int port);
+    SrsHttpxConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* io, ISrsHttpServeMux* m, std::string cip, int port, std::string key, std::string cert);
     virtual ~SrsHttpxConn();
 public:
     // Require statistic about HTTP connection, for HTTP streaming clients only.
@@ -187,8 +191,8 @@ public:
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 public:
-    virtual srs_error_t http_mount(SrsLiveSource* s, SrsRequest* r);
-    virtual void http_unmount(SrsLiveSource* s, SrsRequest* r);
+    virtual srs_error_t http_mount(SrsRequest* r);
+    virtual void http_unmount(SrsRequest* r);
 };
 
 #endif

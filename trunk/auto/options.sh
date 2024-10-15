@@ -84,7 +84,8 @@ SRS_BUILD_TAG= # Set the object files tag name.
 SRS_CLEAN=YES # Whether do "make clean" when configure.
 SRS_SIMULATOR=NO # Whether enable RTC simulate API.
 SRS_GENERATE_OBJS=NO # Whether generate objs and quit.
-SRS_SINGLE_THREAD=NO # Whether force single thread mode.
+SRS_SINGLE_THREAD=YES # Whether force single thread mode.
+SRS_SIGNAL_API=NO # Use http API to simulate sending signal to SRS, for debugging.
 #
 ################################################################
 # Performance options.
@@ -239,6 +240,7 @@ Experts:
   --simulator=on|off        RTC: Whether enable network simulator. Default: $(value2switch $SRS_SIMULATOR)
   --generate-objs=on|off    RTC: Whether generate objs and quit. Default: $(value2switch $SRS_GENERATE_OBJS)
   --single-thread=on|off    Whether force single thread mode. Default: $(value2switch $SRS_SINGLE_THREAD)
+  --signal-api=on|off       Whether support sending signal by HTTP API. Default: $(value2switch $SRS_SIGNAL_API)
   --build-tag=<TAG>         Set the build object directory suffix.
   --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
   --debug-stats=on|off      Whether enable the debug stats, may hurt performance. Default: $(value2switch $SRS_DEBUG_STATS)
@@ -343,6 +345,7 @@ function parse_user_option() {
         --simulator)                    SRS_SIMULATOR=$(switch2value $value) ;;
         --generate-objs)                SRS_GENERATE_OBJS=$(switch2value $value) ;;
         --single-thread)                SRS_SINGLE_THREAD=$(switch2value $value) ;;
+        --signal-api)                   SRS_SIGNAL_API=$(switch2value $value) ;;
         --ffmpeg-fit)                   SRS_FFMPEG_FIT=$(switch2value $value) ;;
         --ffmpeg-opus)                  SRS_FFMPEG_OPUS=$(switch2value $value) ;;
         --h265)                         SRS_H265=$(switch2value $value) ;;
@@ -685,6 +688,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer-log=$(value2switch $SRS_SANITIZER_LOG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cygwin64=$(value2switch $SRS_CYGWIN64)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --single-thread=$(value2switch $SRS_SINGLE_THREAD)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --signal-api=$(value2switch $SRS_SIGNAL_API)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --generic-linux=$(value2switch $SRS_GENERIC_LINUX)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --build-cache=$(value2switch $SRS_BUILD_CACHE)"
     if [[ $SRS_CROSS_BUILD_ARCH != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --arch=$SRS_CROSS_BUILD_ARCH"; fi

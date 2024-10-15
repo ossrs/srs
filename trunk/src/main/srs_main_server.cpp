@@ -81,12 +81,12 @@ const char* _srs_binary = NULL;
 // @global Other variables.
 bool _srs_in_docker = false;
 
-// Free global data, for address sanitizer.
-extern void srs_free_global_system_ips();
-
 #ifdef SRS_SANITIZER_LOG
 extern void asan_report_callback(const char* str);
 #endif
+
+extern SrsPps* _srs_pps_cids_get;
+extern SrsPps* _srs_pps_cids_set;
 
 /**
  * main entrance.
@@ -239,9 +239,7 @@ srs_error_t do_main(int argc, char** argv, char** envp)
     __asan_set_error_report_callback(asan_report_callback);
 #endif
 
-    err = run_directly_or_daemon();
-    srs_free_global_system_ips();
-    if (err != srs_success) {
+    if ((err = run_directly_or_daemon()) != srs_success) {
         return srs_error_wrap(err, "run");
     }
 
@@ -250,6 +248,13 @@ srs_error_t do_main(int argc, char** argv, char** envp)
 
 int main(int argc, char** argv, char** envp)
 {
+#ifdef SRS_SANITIZER
+    // Setup the primordial stack for st. Use the current variable address as the stack top.
+    // This is not very accurate but sufficient.
+    void* p = NULL;
+    srs_set_primordial_stack(&p);
+#endif
+
     srs_error_t err = do_main(argc, argv, envp);
 
     if (err != srs_success) {
@@ -430,7 +435,6 @@ srs_error_t run_directly_or_daemon()
         int status = 0;
         waitpid(pid, &status, 0);
         srs_trace("grandpa process exit.");
-        srs_free_global_system_ips();
         exit(0);
     }
     
@@ -443,7 +447,6 @@ srs_error_t run_directly_or_daemon()
     
     if(pid > 0) {
         srs_trace("father process exit");
-        srs_free_global_system_ips();
         exit(0);
     }
     
@@ -460,17 +463,17 @@ srs_error_t run_directly_or_daemon()
 srs_error_t run_hybrid_server(void* arg);
 srs_error_t run_in_thread_pool()
 {
-#ifdef SRS_SINGLE_THREAD
-    srs_trace("Run in single thread mode");
-    return run_hybrid_server(NULL);
-#else
     srs_error_t err = srs_success;
 
-    // Initialize the thread pool.
+    // Initialize the thread pool, even if we run in single thread mode.
     if ((err = _srs_thread_pool->initialize()) != srs_success) {
         return srs_error_wrap(err, "init thread pool");
     }
 
+#ifdef SRS_SINGLE_THREAD
+    srs_trace("Run in single thread mode");
+    return run_hybrid_server(NULL);
+#else
     // Start the hybrid service worker thread, for RTMP and RTC server, etc.
     if ((err = _srs_thread_pool->execute("hybrid", run_hybrid_server, (void*)NULL)) != srs_success) {
         return srs_error_wrap(err, "start hybrid server thread");

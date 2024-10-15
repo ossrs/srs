@@ -400,6 +400,24 @@ VOID TEST(ConfigDirectiveTest, ParseArgsSpace)
             EXPECT_EQ(0, (int) conf.directives.size());
         }
     }
+    
+    if (true) {
+        vector <string> usecases;
+        usecases.push_back("include\rtest;");
+        usecases.push_back("include\ntest;");
+        usecases.push_back("include  \r \n \r\n \n\rtest;");
+
+        for (int i = 0; i < (int)usecases.size(); i++) {
+            string usecase = usecases.at(i);
+
+            MockSrsConfigBuffer buf(usecase);
+            SrsConfDirective conf;
+            HELPER_ASSERT_FAILED(conf.parse(&buf));
+            EXPECT_EQ(0, (int) conf.name.length());
+            EXPECT_EQ(0, (int) conf.args.size());
+            EXPECT_EQ(0, (int) conf.directives.size());
+        }
+    }
 
     if (true) {
         vector <string> usecases;
@@ -407,9 +425,6 @@ VOID TEST(ConfigDirectiveTest, ParseArgsSpace)
         usecases.push_back("include test;");
         usecases.push_back("include test;");
         usecases.push_back("include  test;");;
-        usecases.push_back("include\rtest;");
-        usecases.push_back("include\ntest;");
-        usecases.push_back("include  \r \n \r\n \n\rtest;");
 
         MockSrsConfig config;
         config.mock_include("test", "listen 1935;");
@@ -430,6 +445,102 @@ VOID TEST(ConfigDirectiveTest, ParseArgsSpace)
             EXPECT_STREQ("1935", dir.arg0().c_str());
             EXPECT_EQ(0, (int) dir.directives.size());
         }
+    }
+}
+
+VOID TEST(ConfigDirectiveTest, ParseInvalidEndOfLine)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 \narg0;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0\n arg0;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 arg0\n;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 \rarg0;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 arg0\r;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 \n { dir1 arg1; }");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(0, (int) conf.directives.size());
+    }
+
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 arg0;dir1\n arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_FAILED(conf.parse(&buf));
+        EXPECT_EQ(0, (int) conf.name.length());
+        EXPECT_EQ(0, (int) conf.args.size());
+        EXPECT_EQ(1, (int) conf.directives.size());
+
+        SrsConfDirective& dir0 = *conf.directives.at(0);
+        EXPECT_STREQ("dir0", dir0.name.c_str());
+        EXPECT_EQ(1, (int)dir0.args.size());
+        EXPECT_STREQ("arg0", dir0.arg0().c_str());
+        EXPECT_EQ(0, (int)dir0.directives.size());
+    }
+
+    if (true) {
+        MockSrsConfigBuffer buf("dir0 arg0;dir1 arg1;");
+        SrsConfDirective conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+        EXPECT_EQ(0, (int)conf.name.length());
+        EXPECT_EQ(0, (int)conf.args.size());
+        EXPECT_EQ(2, (int)conf.directives.size());
+
+        SrsConfDirective& dir0 = *conf.directives.at(0);
+        EXPECT_STREQ("dir0", dir0.name.c_str());
+        EXPECT_EQ(1, (int)dir0.args.size());
+        EXPECT_STREQ("arg0", dir0.arg0().c_str());
+        EXPECT_EQ(0, (int)dir0.directives.size());
+
+        SrsConfDirective& dir1 = *conf.directives.at(1);
+        EXPECT_STREQ("dir1", dir1.name.c_str());
+        EXPECT_EQ(1, (int)dir1.args.size());
+        EXPECT_STREQ("arg1", dir1.arg0().c_str());
+        EXPECT_EQ(0, (int)dir1.directives.size());
     }
 }
 
@@ -829,30 +940,7 @@ VOID TEST(ConfigDirectiveTest, ParseLine4)
     
     MockSrsConfigBuffer buf("dir0 {\n\ndir1 \n\narg0;dir2 arg1;}");
     SrsConfDirective conf;
-    HELPER_ASSERT_SUCCESS(conf.parse(&buf));
-    EXPECT_EQ(0, (int)conf.name.length());
-    EXPECT_EQ(0, (int)conf.args.size());
-    EXPECT_EQ(1, (int)conf.directives.size());
-
-    SrsConfDirective& dir0 = *conf.directives.at(0);
-    EXPECT_STREQ("dir0", dir0.name.c_str());
-    EXPECT_EQ(0, (int)dir0.args.size());
-    EXPECT_EQ(2, (int)dir0.directives.size());
-    EXPECT_EQ(1, (int)dir0.conf_line);
-
-    SrsConfDirective& dir1 = *dir0.directives.at(0);
-    EXPECT_STREQ("dir1", dir1.name.c_str());
-    EXPECT_EQ(1, (int)dir1.args.size());
-    EXPECT_STREQ("arg0", dir1.arg0().c_str());
-    EXPECT_EQ(0, (int)dir1.directives.size());
-    EXPECT_EQ(3, (int)dir1.conf_line);
-
-    SrsConfDirective& dir2 = *dir0.directives.at(1);
-    EXPECT_STREQ("dir2", dir2.name.c_str());
-    EXPECT_EQ(1, (int)dir2.args.size());
-    EXPECT_STREQ("arg1", dir2.arg0().c_str());
-    EXPECT_EQ(0, (int)dir2.directives.size());
-    EXPECT_EQ(5, (int)dir2.conf_line);
+    HELPER_ASSERT_FAILED(conf.parse(&buf));
 }
 
 VOID TEST(ConfigDirectiveTest, ParseLineNormal)
@@ -3281,7 +3369,20 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_connect xxx;}}"));
-        EXPECT_TRUE(conf.get_vhost_on_connect("ossrs.net") != NULL);
+        SrsConfDirective* dir = conf.get_vhost_on_connect("ossrs.net");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 1);
+        ASSERT_STREQ("xxx", dir->arg0().c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_connect xxx yyy;}}"));
+        SrsConfDirective* dir = conf.get_vhost_on_connect("ossrs.net");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_STREQ("xxx", dir->arg0().c_str());
+        ASSERT_STREQ("yyy", dir->arg1().c_str());
     }
 
     if (true) {
@@ -4405,6 +4506,29 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostRtc)
 
         SrsSetEnvConfig(rtc_keep_bframe, "SRS_VHOST_RTC_KEEP_BFRAME", "on");
         EXPECT_TRUE(conf.get_rtc_keep_bframe("__defaultVhost__"));
+
+        {
+            // make sure the default value is false, if defined incorrect env value.
+            SrsSetEnvConfig(rtc_keep_bframe, "SRS_VHOST_RTC_KEEP_BFRAME", "onn");
+            EXPECT_FALSE(conf.get_rtc_keep_bframe("__defaultVhost__"));
+
+        }
+
+        {
+            SrsSetEnvConfig(rtc_keep_avc_nalu_sei, "SRS_VHOST_RTC_KEEP_AVC_NALU_SEI", "off");
+            EXPECT_FALSE(conf.get_rtc_keep_avc_nalu_sei("__defaultVhost__"));
+        }
+
+        {
+            SrsSetEnvConfig(rtc_keep_avc_nalu_sei, "SRS_VHOST_RTC_KEEP_AVC_NALU_SEI", "on");
+            EXPECT_TRUE(conf.get_rtc_keep_avc_nalu_sei("__defaultVhost__"));
+        }
+
+        {
+            // make sure the default value is true, if defined incorrect env value.
+            SrsSetEnvConfig(rtc_keep_avc_nalu_sei, "SRS_VHOST_RTC_KEEP_AVC_NALU_SEI", "xx");
+            EXPECT_TRUE(conf.get_rtc_keep_avc_nalu_sei("__defaultVhost__"));
+        }
     }
 
     if (true) {
@@ -4935,10 +5059,26 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHooks)
     }
 
     if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_CONNECT", "http://server/api/connect");
+        SrsConfDirective* dir = conf.get_vhost_on_connect("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 1);
+        ASSERT_STREQ("http://server/api/connect", dir->arg0().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_CLOSE", "http://server/api/close");
+        SrsConfDirective* dir = conf.get_vhost_on_close("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/close", dir->arg0().c_str());
+    }
+
+    if (true) {
         SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PUBLISH", "http://server/api/publish");
         SrsConfDirective* dir = conf.get_vhost_on_publish("__defaultVhost__");
         ASSERT_TRUE(dir != NULL);
-        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_EQ((int)dir->args.size(), 1);
         ASSERT_STREQ("http://server/api/publish", dir->arg0().c_str());
     }
 
@@ -4991,3 +5131,131 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHooks)
     }
 }
 
+VOID TEST(ConfigEnvTest, CheckEnvValuesHooksMultiValues)
+{
+    MockSrsConfig conf;
+    
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_CONNECT", "http://server/api/connect https://server2/api/connect2");
+
+        SrsConfDirective* dir = conf.get_vhost_on_connect("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_STREQ("http://server/api/connect", dir->arg0().c_str());
+        ASSERT_STREQ("https://server2/api/connect2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_CLOSE", "http://server/api/close close2 close3");
+        SrsConfDirective* dir = conf.get_vhost_on_close("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 3);
+        ASSERT_STREQ("http://server/api/close", dir->arg0().c_str());
+        ASSERT_STREQ("close2", dir->arg1().c_str());
+        ASSERT_STREQ("close3", dir->arg2().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PUBLISH", "http://server/api/publish http://server/api/publish2");
+        SrsConfDirective* dir = conf.get_vhost_on_publish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_STREQ("http://server/api/publish", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/publish2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_UNPUBLISH", "http://server/api/unpublish 2");
+        SrsConfDirective* dir = conf.get_vhost_on_unpublish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/unpublish", dir->arg0().c_str());
+        ASSERT_STREQ("2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PLAY", "http://server/api/play http://server/api/play2");
+        SrsConfDirective* dir = conf.get_vhost_on_play("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/play", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/play2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_STOP", "http://server/api/stop http://server/api/stop2");
+        SrsConfDirective* dir = conf.get_vhost_on_stop("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/stop", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/stop2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_DVR", "http://server/api/dvr http://server/api/dvr2");
+        SrsConfDirective* dir = conf.get_vhost_on_dvr("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/dvr", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/dvr2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_HLS", "http://server/api/hls http://server/api/hls2");
+        SrsConfDirective* dir = conf.get_vhost_on_hls("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/hls", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/hls2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_HLS_NOTIFY", "http://server/api/hls_notify http://server/api/hls_notify2");
+        SrsConfDirective* dir = conf.get_vhost_on_hls_notify("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 2);
+        ASSERT_STREQ("http://server/api/hls_notify", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/hls_notify2", dir->arg1().c_str());
+    }
+}
+
+VOID TEST(ConfigEnvTest, CheckEnvValuesHooksWithWhitespaces)
+{
+    MockSrsConfig conf;
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PUBLISH", "http://server/api/publish         http://server/api/publish2");
+        SrsConfDirective* dir = conf.get_vhost_on_publish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_EQ((int)dir->args.size(), 2);
+        ASSERT_STREQ("http://server/api/publish", dir->arg0().c_str());
+        ASSERT_STREQ("http://server/api/publish2", dir->arg1().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_UNPUBLISH", "http://server/api/unpublish        ");
+        SrsConfDirective* dir = conf.get_vhost_on_unpublish("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("http://server/api/unpublish", dir->arg0().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_PLAY", "       http://server/api/play play2     play3  ");
+        SrsConfDirective* dir = conf.get_vhost_on_play("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 3);
+        ASSERT_STREQ("http://server/api/play", dir->arg0().c_str());
+        ASSERT_STREQ("play2", dir->arg1().c_str());
+        ASSERT_STREQ("play3", dir->arg2().c_str());
+    }
+
+    if (true) {
+        SrsSetEnvConfig(hooks, "SRS_VHOST_HTTP_HOOKS_ON_DVR", "       dvr");
+        SrsConfDirective* dir = conf.get_vhost_on_dvr("__defaultVhost__");
+        ASSERT_TRUE(dir != NULL);
+        ASSERT_TRUE((int)dir->args.size() == 1);
+        ASSERT_STREQ("dvr", dir->arg0().c_str());
+    }
+
+}

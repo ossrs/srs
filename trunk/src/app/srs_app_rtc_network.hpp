@@ -180,7 +180,7 @@ private:
 private:
      // The DTLS transport over this network.
     ISrsRtcTransport* transport_;
-    SrsRtcTcpConn* owner_;
+    SrsSharedResource<SrsRtcTcpConn> owner_;
 private:
     std::string peer_ip_;
     int peer_port_;
@@ -189,8 +189,8 @@ public:
     SrsRtcTcpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* delta);
     virtual ~SrsRtcTcpNetwork();
 public:
-    void set_owner(SrsRtcTcpConn* v) { owner_ = v; }
-    SrsRtcTcpConn* owner() { return owner_; }
+    void set_owner(SrsSharedResource<SrsRtcTcpConn> v) { owner_ = v; }
+    SrsSharedResource<SrsRtcTcpConn> owner() { return owner_; }
     void update_sendonly_socket(ISrsProtocolReadWriter* skt);
 //ISrsRtcNetwork 
 public:
@@ -232,28 +232,38 @@ public:
 };
 
 // For WebRTC over TCP.
-class SrsRtcTcpConn : public ISrsConnection, public ISrsStartable, public ISrsCoroutineHandler, public ISrsDisposingHandler
+class SrsRtcTcpConn : public ISrsConnection, public ISrsCoroutineHandler, public ISrsExecutorHandler
 {
 private:
-    // The manager object to manage the connection.
-    ISrsResourceManager* manager_;
-    // Use a coroutine to serve the TCP connection.
-    SrsCoroutine* trd_;
+    // Because session references to this object, so we should directly use the session ptr.
+    SrsRtcConnection* session_;
+private:
     // The ip and port of client.
     std::string ip_;
     int port_;
     // The delta for statistic.
     SrsNetworkDelta* delta_;
-    // WebRTC session object.
-    SrsRtcConnection* session_;
     ISrsProtocolReadWriter* skt_;
     // Packet cache.
     char* pkt_;
+private:
+    // The shared resource which own this object, we should never free it because it's managed by shared ptr.
+    SrsSharedResource<SrsRtcTcpConn>* wrapper_;
+    // The owner coroutine, allow user to interrupt the loop.
+    ISrsInterruptable* owner_coroutine_;
+    ISrsContextIdSetter* owner_cid_;
+    SrsContextId cid_;
 public:
-    SrsRtcTcpConn(ISrsProtocolReadWriter* skt, std::string cip, int port, ISrsResourceManager* cm);
+    SrsRtcTcpConn();
+    SrsRtcTcpConn(ISrsProtocolReadWriter* skt, std::string cip, int port);
     virtual ~SrsRtcTcpConn();
 public:
+    // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
+    void setup_owner(SrsSharedResource<SrsRtcTcpConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid);
+public:
     ISrsKbpsDelta* delta();
+    // Interrupt transport by session.
+    void interrupt();
 // Interface ISrsResource.
 public:
     virtual std::string desc();
@@ -261,9 +271,9 @@ public:
 // Interface ISrsConnection.
 public:
     virtual std::string remote_ip();
-// Interface ISrsStartable
+// Interface ISrsExecutorHandler
 public:
-    virtual srs_error_t start();
+    virtual void on_executor_done(ISrsInterruptable* executor);
 // Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
@@ -273,10 +283,6 @@ private:
     srs_error_t read_packet(char* pkt, int* nb_pkt);
     srs_error_t on_stun(char* pkt, int nb_pkt);
     srs_error_t on_tcp_pkt(char* pkt, int nb_pkt);
-// Interface of ISrsDisposingHandler
-public:
-    virtual void on_before_dispose(ISrsResource* c);
-    virtual void on_disposing(ISrsResource* c);
 };
 
 #endif

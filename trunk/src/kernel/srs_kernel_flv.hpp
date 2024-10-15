@@ -153,10 +153,10 @@ public:
     // @remark, we use 64bits for large time for jitter detect and hls.
     int64_t timestamp;
 public:
-    // Get the perfered cid(chunk stream id) which sendout over.
+    // Get the prefered cid(chunk stream id) which sendout over.
     // set at decoding, and canbe used for directly send message,
     // For example, dispatch to all connections.
-    int perfer_cid;
+    int prefer_cid;
 public:
     SrsMessageHeader();
     virtual ~SrsMessageHeader();
@@ -230,10 +230,10 @@ public:
     // (1-7) are reserved for protocol control messages.
     // For example, RTMP_MSG_AudioMessage or RTMP_MSG_VideoMessage.
     int8_t message_type;
-    // Get the perfered cid(chunk stream id) which sendout over.
+    // Get the prefered cid(chunk stream id) which sendout over.
     // set at decoding, and canbe used for directly send message,
     // For example, dispatch to all connections.
-    int perfer_cid;
+    int prefer_cid;
 public:
     SrsSharedMessageHeader();
     virtual ~SrsSharedMessageHeader();
@@ -313,7 +313,7 @@ public:
     // if this or copy deleted, free payload when count is 0, or count--.
     // @remark, assert object is created.
     virtual int count();
-    // check perfer cid and stream id.
+    // check prefer cid and stream id.
     // @return whether stream id already set.
     virtual bool check(int stream_id);
 public:

@@ -177,8 +177,7 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
 {
     srs_error_t err = srs_success;
 
-    SrsBuffer* stream = new SrsBuffer(const_cast<char*>(buf), nb_buf);
-    SrsAutoFree(SrsBuffer, stream);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(const_cast<char*>(buf), nb_buf));
 
     if (stream->left() < 20) {
         return srs_error_new(ERROR_RTC_STUN, "invalid stun packet, size=%d", stream->size());
@@ -306,8 +305,7 @@ srs_error_t SrsStunPacket::encode_binding_response(const string& pwd, SrsBuffer*
 string SrsStunPacket::encode_username()
 {
     char buf[1460];
-    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
-    SrsAutoFree(SrsBuffer, stream);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
 
     string username = remote_ufrag + ":" + local_ufrag;
 
@@ -326,8 +324,7 @@ string SrsStunPacket::encode_username()
 string SrsStunPacket::encode_mapped_address()
 {
     char buf[1460];
-    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
-    SrsAutoFree(SrsBuffer, stream);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
 
     stream->write_2bytes(XorMappedAddress);
     stream->write_2bytes(8);
@@ -342,8 +339,7 @@ string SrsStunPacket::encode_mapped_address()
 string SrsStunPacket::encode_hmac(char* hmac_buf, const int hmac_buf_len)
 {
     char buf[1460];
-    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
-    SrsAutoFree(SrsBuffer, stream);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
 
     stream->write_2bytes(MessageIntegrity);
     stream->write_2bytes(hmac_buf_len);
@@ -355,8 +351,7 @@ string SrsStunPacket::encode_hmac(char* hmac_buf, const int hmac_buf_len)
 string SrsStunPacket::encode_fingerprint(uint32_t crc32)
 {
     char buf[1460];
-    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
-    SrsAutoFree(SrsBuffer, stream);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
 
     stream->write_2bytes(Fingerprint);
     stream->write_2bytes(4);

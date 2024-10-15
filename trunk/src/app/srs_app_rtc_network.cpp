@@ -391,8 +391,7 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket* r, string ice_pw
 
     SrsStunPacket stun_binding_response;
     char buf[kRtpPacketSize];
-    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
-    SrsAutoFree(SrsBuffer, stream);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
 
     stun_binding_response.set_message_type(BindingResponse);
     stun_binding_response.set_local_ufrag(r->get_remote_ufrag());
@@ -402,7 +401,7 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket* r, string ice_pw
     stun_binding_response.set_mapped_address(be32toh(inet_addr(get_peer_ip().c_str())));
     stun_binding_response.set_mapped_port(get_peer_port());
 
-    if ((err = stun_binding_response.encode(ice_pwd, stream)) != srs_success) {
+    if ((err = stun_binding_response.encode(ice_pwd, stream.get())) != srs_success) {
         return srs_error_wrap(err, "stun binding response encode failed");
     }
 
@@ -436,7 +435,7 @@ srs_error_t SrsRtcUdpNetwork::write(void* buf, size_t size, ssize_t* nwrite)
     return sendonly_skt_->sendto(buf, size, SRS_UTIME_NO_TIMEOUT);
 }
 
-SrsRtcTcpNetwork::SrsRtcTcpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* delta)
+SrsRtcTcpNetwork::SrsRtcTcpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* delta) : owner_(new SrsRtcTcpConn())
 {
     conn_ = conn;
     delta_ = delta;
@@ -444,11 +443,11 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(SrsRtcConnection* conn, SrsEphemeralDelta* de
     transport_ = new SrsSecurityTransport(this);
     peer_port_ = 0;
     state_ = SrsRtcNetworkStateInit;
-    owner_ = NULL;
 }
 
 SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
 {
+    owner_->interrupt();
     srs_freep(transport_);
 }
 
@@ -520,8 +519,7 @@ srs_error_t SrsRtcTcpNetwork::on_binding_request(SrsStunPacket* r, std::string i
 
     SrsStunPacket stun_binding_response;
     char buf[kRtpPacketSize];
-    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
-    SrsAutoFree(SrsBuffer, stream);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
 
     stun_binding_response.set_message_type(BindingResponse);
     stun_binding_response.set_local_ufrag(r->get_remote_ufrag());
@@ -531,7 +529,7 @@ srs_error_t SrsRtcTcpNetwork::on_binding_request(SrsStunPacket* r, std::string i
     stun_binding_response.set_mapped_address(be32toh(inet_addr(get_peer_ip().c_str())));
     stun_binding_response.set_mapped_port(get_peer_port());
 
-    if ((err = stun_binding_response.encode(ice_pwd, stream)) != srs_success) {
+    if ((err = stun_binding_response.encode(ice_pwd, stream.get())) != srs_success) {
         return srs_error_wrap(err, "stun binding response encode failed");
     }
 
@@ -694,34 +692,52 @@ void SrsRtcTcpNetwork::dispose()
 
 #define SRS_RTC_TCP_PACKET_MAX 1500
 
-SrsRtcTcpConn::SrsRtcTcpConn(ISrsProtocolReadWriter* skt, std::string cip, int port, ISrsResourceManager* cm)
+SrsRtcTcpConn::SrsRtcTcpConn()
 {
-    manager_ = cm;
+    wrapper_ = NULL;
+    owner_coroutine_ = NULL;
+    owner_cid_ = NULL;
+    cid_ = _srs_context->get_id();
+
+    pkt_ = NULL;
+    delta_ = NULL;
+    skt_ = NULL;
+}
+
+SrsRtcTcpConn::SrsRtcTcpConn(ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcTcpConn()
+{
     ip_ = cip;
     port_ = port;
     skt_ = skt;
     delta_ = new SrsNetworkDelta();
     delta_->set_io(skt_, skt_);
-    trd_ = new SrsSTCoroutine("tcp", this, _srs_context->get_id());
     session_ = NULL;
     pkt_ = new char[SRS_RTC_TCP_PACKET_MAX];
-    _srs_rtc_manager->subscribe(this);
 }
 
 SrsRtcTcpConn::~SrsRtcTcpConn()
 {
-    _srs_rtc_manager->unsubscribe(this);
-    trd_->interrupt();
-    srs_freep(trd_);
-
     srs_freepa(pkt_);
     srs_freep(delta_);
     srs_freep(skt_);
 }
 
+void SrsRtcTcpConn::setup_owner(SrsSharedResource<SrsRtcTcpConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid)
+{
+    wrapper_ = wrapper;
+    owner_coroutine_ = owner_coroutine;
+    owner_cid_ = owner_cid;
+}
+
 ISrsKbpsDelta* SrsRtcTcpConn::delta()
 {
     return delta_;
+}
+
+void SrsRtcTcpConn::interrupt()
+{
+    session_ = NULL;
+    if (owner_coroutine_) owner_coroutine_->interrupt();
 }
 
 std::string SrsRtcTcpConn::desc()
@@ -731,7 +747,7 @@ std::string SrsRtcTcpConn::desc()
 
 const SrsContextId& SrsRtcTcpConn::get_id()
 {
-    return trd_->cid();
+    return cid_;
 }
 
 std::string SrsRtcTcpConn::remote_ip()
@@ -739,9 +755,9 @@ std::string SrsRtcTcpConn::remote_ip()
     return ip_;
 }
 
-srs_error_t SrsRtcTcpConn::start()
+void SrsRtcTcpConn::on_executor_done(ISrsInterruptable* executor)
 {
-    return trd_->start();
+    owner_coroutine_ = NULL;
 }
 
 srs_error_t SrsRtcTcpConn::cycle()
@@ -752,15 +768,10 @@ srs_error_t SrsRtcTcpConn::cycle()
     SrsStatistic::instance()->on_disconnect(get_id().c_str(), err);
     SrsStatistic::instance()->kbps_add_delta(get_id().c_str(), delta_);
 
-    // TODO: FIXME: Should manage RTC TCP connection by _srs_rtc_manager.
-    // Because we use manager to manage this object, not the http connection object, so we must remove it here.
-    manager_->remove(this);
-
-    // TODO: FIXME: When TCP connection(transport) closed, should notify session to dispose, should not free them simultaneously.
     // Only remove session when network is established, because client might use other UDP network.
     if(session_ && session_->tcp()->is_establelished()) {
         session_->tcp()->set_state(SrsRtcNetworkStateClosed);
-        _srs_rtc_manager->remove(session_);
+        session_->expire();
     }
 
     // For HTTP-API timeout, we think it's done successfully,
@@ -801,13 +812,18 @@ srs_error_t SrsRtcTcpConn::do_cycle()
 {
     srs_error_t err = srs_success;
 
+    // Update all context id to cid of session.
+    _srs_context->set_id(cid_);
+    owner_cid_->set_cid(cid_);
+
     if((err = handshake()) != srs_success) {
         return srs_error_wrap(err, "process rtc tcp pkt");
     }
 
     // TODO: FIXME: Handle all bytes of TCP Connection.
     while(true) {
-        if((err = trd_->pull()) != srs_success) {
+        if (!owner_coroutine_) return err;
+        if ((err = owner_coroutine_->pull()) != srs_success) {
             return srs_error_wrap(err, "rtc tcp conn");
         }
 
@@ -859,11 +875,11 @@ srs_error_t SrsRtcTcpConn::handshake()
 
     // Should support only one TCP candidate.
     SrsRtcTcpNetwork* network = dynamic_cast<SrsRtcTcpNetwork*>(session->tcp());
-    if (!network->owner()) {
-        network->set_owner(this);
+    if (network->owner().get() != this) {
+        network->set_owner(*wrapper_);
         session_ = session;
     }
-    if (network->owner() != this) {
+    if (network->owner().get() != this) {
         return srs_error_new(ERROR_RTC_TCP_UNIQUE, "only support one network");
     }
 
@@ -937,23 +953,5 @@ srs_error_t SrsRtcTcpConn::on_tcp_pkt(char* pkt, int nb_pkt)
     }
 
     return srs_error_new(ERROR_RTC_UDP, "unknown packet");
-}
-
-void SrsRtcTcpConn::on_before_dispose(ISrsResource* c)
-{
-    if (!session_) return;
-
-    SrsRtcConnection* conn = dynamic_cast<SrsRtcConnection*>(c);
-    if(conn == session_) {
-        session_ = NULL;
-        // the related rtc connection will be disposed
-        srs_trace("RTC: tcp conn diposing, because of rtc connection");
-        trd_->interrupt();
-    }
-}
-
-void SrsRtcTcpConn::on_disposing(ISrsResource* c)
-{
-    return;
 }
 

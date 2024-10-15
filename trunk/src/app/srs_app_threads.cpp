@@ -268,10 +268,9 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
     // The hybrid thread cpu and memory.
     float thread_percent = stat->percent * 100;
 
-    static char buf[128];
-
     string snk_desc;
 #ifdef SRS_RTC
+    static char buf[128];
     if (_srs_pps_snack2->r10s()) {
         snprintf(buf, sizeof(buf), ", snk=%d,%d,%d",
             _srs_pps_snack2->r10s(), _srs_pps_snack3->r10s(), _srs_pps_snack4->r10s() // NACK packet,seqs sent.
@@ -335,7 +334,6 @@ srs_error_t srs_global_initialize()
 #ifdef SRS_GB28181
     _srs_gb_manager = new SrsResourceManager("GB", true);
 #endif
-    _srs_gc = new SrsLazySweepGc();
 
     // Initialize global pps, which depends on _srs_clock
     _srs_pps_ids = new SrsPps();

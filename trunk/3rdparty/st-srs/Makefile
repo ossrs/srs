@@ -46,6 +46,7 @@ VERSION     = 1.9
 ##########################
 
 CC          = cc
+CXX         = g++
 AR          = ar
 LD          = ld
 RANLIB      = ranlib
@@ -184,15 +185,21 @@ endif
 # make EXTRA_CFLAGS=-UMD_HAVE_EPOLL <target>
 #
 # or to enable sendmmsg(2) support:
-#
 # make EXTRA_CFLAGS="-DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
 #
 # or to enable stats for ST:
-#
 # make EXTRA_CFLAGS=-DDEBUG_STATS
 #
-# or to disable the clock_gettime for MacOS before 10.12, see https://github.com/ossrs/srs/issues/3978
+# or cache the stack and reuse it:
+# make EXTRA_CFLAGS=-DMD_CACHE_STACK
 #
+# or enable support for valgrind:
+# make EXTRA_CFLAGS="-DMD_VALGRIND"
+#
+# or enable support for asan:
+# make EXTRA_CFLAGS="-DMD_ASAN -fsanitize=address -fno-omit-frame-pointer"
+#
+# or to disable the clock_gettime for MacOS before 10.12, see https://github.com/ossrs/srs/issues/3978
 # make EXTRA_CFLAGS=-DMD_OSX_NO_CLOCK_GETTIME
 #
 # or enable the coverage for utest:
@@ -208,7 +215,8 @@ OBJS        = $(TARGETDIR)/sched.o \
               $(TARGETDIR)/sync.o  \
               $(TARGETDIR)/key.o   \
               $(TARGETDIR)/io.o    \
-              $(TARGETDIR)/event.o
+              $(TARGETDIR)/event.o \
+              $(TARGETDIR)/common.o
 OBJS        += $(EXTRA_OBJS)
 HEADER      = $(TARGETDIR)/st.h
 SLIBRARY    = $(TARGETDIR)/libst.a
@@ -271,20 +279,15 @@ $(HEADER): public.h
 	rm -f $@
 	cp public.h $@
 
-$(TARGETDIR)/md_linux.o: md_linux.S
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(TARGETDIR)/md_linux2.o: md_linux2.S
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(TARGETDIR)/md_darwin.o: md_darwin.S
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(TARGETDIR)/md_cygwin64.o: md_cygwin64.S
+$(TARGETDIR)/%.o: %.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGETDIR)/%.o: %.c common.h md.h
 	$(CC) $(CFLAGS) -c $< -o $@
+
+# Note that we use C++98 standard for the C++ files.
+$(TARGETDIR)/%.o: %.cc common.h md.h
+	$(CXX) $(CFLAGS) -c $< -o $@ -std=c++98
 
 clean:
 	rm -rf *_OPT *_DBG obj st.pc

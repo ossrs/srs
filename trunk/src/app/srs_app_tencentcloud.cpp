@@ -706,11 +706,10 @@ srs_error_t SrsClsClient::report()
         return err;
     }
 
-    SrsClsSugars* sugars = sugars_;
-    SrsAutoFree(SrsClsSugars, sugars);
+    SrsUniquePtr<SrsClsSugars> sugars(sugars_);
     sugars_ = new SrsClsSugars();
 
-    if ((err = send_logs(sugars)) != srs_success) {
+    if ((err = send_logs(sugars.get())) != srs_success) {
         return srs_error_wrap(err, "cls");
     }
 
@@ -727,16 +726,15 @@ srs_error_t SrsClsClient::do_send_logs(ISrsEncoder* sugar, int count, int total)
         return srs_error_new(ERROR_CLS_EXCEED_SIZE, "exceed 5MB actual %d", size);
     }
 
-    char* buf = new char[size];
-    SrsAutoFreeA(char, buf);
+    SrsUniquePtr<char[]> buf(new char[size]);
 
-    memset(buf, 0, size);
-    SrsBuffer b(buf, size);
+    memset(buf.get(), 0, size);
+    SrsBuffer b(buf.get(), size);
     if ((err = sugar->encode(&b)) != srs_success) {
         return srs_error_wrap(err, "encode log");
     }
 
-    string body(buf, size);
+    string body(buf.get(), size);
 
     // Write a CLS log to service specified by url.
     string url = "http://" + endpoint_ + ":80/structuredlog?topic_id=" + topic_;
@@ -776,11 +774,11 @@ srs_error_t SrsClsClient::do_send_logs(ISrsEncoder* sugar, int count, int total)
     }
 
     // Start request and parse response.
-    ISrsHttpMessage* msg = NULL;
-    if ((err = http.post(path, body, &msg)) != srs_success) {
+    ISrsHttpMessage* msg_raw = NULL;
+    if ((err = http.post(path, body, &msg_raw)) != srs_success) {
         return srs_error_wrap(err, "http: client post");
     }
-    SrsAutoFree(ISrsHttpMessage, msg);
+    SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
 
     string res;
     uint16_t code = msg->status_code();
@@ -819,10 +817,9 @@ srs_error_t SrsClsClient::send_logs(SrsClsSugars* sugars)
 
     // Never do infinite loop, limit to a max loop and drop logs if exceed.
     for (int i = 0; i < 128 && !sugars->empty(); ++i) {
-        SrsClsSugars* v = sugars->slice(SRS_CLS_BATCH_MAX_LOG_SIZE);
-        SrsAutoFree(SrsClsSugars, v);
+        SrsUniquePtr<SrsClsSugars> v(sugars->slice(SRS_CLS_BATCH_MAX_LOG_SIZE));
 
-        if ((err = do_send_logs((ISrsEncoder*)v, v->size(), total)) != srs_success) {
+        if ((err = do_send_logs((ISrsEncoder*)v.get(), v->size(), total)) != srs_success) {
             return srs_error_wrap(err, "send %d/%d/%d logs", v->size(), i, total);
         }
     }
@@ -2148,8 +2145,7 @@ srs_error_t SrsApmClient::do_report()
     // Update statistaic for APM.
     nn_spans_ += spans_.size();
 
-    SrsOtelExportTraceServiceRequest* sugar = new SrsOtelExportTraceServiceRequest();
-    SrsAutoFree(SrsOtelExportTraceServiceRequest, sugar);
+    SrsUniquePtr<SrsOtelExportTraceServiceRequest> sugar(new SrsOtelExportTraceServiceRequest());
 
     SrsOtelResourceSpans* rs = sugar->append();
     // See https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/resource/semantic_conventions
@@ -2169,16 +2165,15 @@ srs_error_t SrsApmClient::do_report()
         return srs_error_new(ERROR_APM_EXCEED_SIZE, "exceed 5MB actual %d", size);
     }
 
-    char* buf = new char[size];
-    SrsAutoFreeA(char, buf);
+    SrsUniquePtr<char[]> buf(new char[size]);
 
-    memset(buf, 0, size);
-    SrsBuffer b(buf, size);
+    memset(buf.get(), 0, size);
+    SrsBuffer b(buf.get(), size);
     if ((err = sugar->encode(&b)) != srs_success) {
         return srs_error_wrap(err, "encode log");
     }
 
-    string body(buf, size);
+    string body(buf.get(), size);
 
     // Write a CLS log to service specified by url.
     string url = "http://" + endpoint_ + "/v1/traces";
@@ -2204,11 +2199,11 @@ srs_error_t SrsApmClient::do_report()
     }
 
     // Start request and parse response.
-    ISrsHttpMessage* msg = NULL;
-    if ((err = http.post(path, body, &msg)) != srs_success) {
+    ISrsHttpMessage* msg_raw = NULL;
+    if ((err = http.post(path, body, &msg_raw)) != srs_success) {
         return srs_error_wrap(err, "http: client post");
     }
-    SrsAutoFree(ISrsHttpMessage, msg);
+    SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
 
     string res;
     uint16_t code = msg->status_code();

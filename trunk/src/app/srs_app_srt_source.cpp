@@ -20,6 +20,9 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_app_pithy_print.hpp>
 
+// the time to cleanup source.
+#define SRS_SRT_SOURCE_CLEANUP (3 * SRS_UTIME_SECONDS)
+
 SrsSrtPacket::SrsSrtPacket()
 {
     shared_buffer_ = NULL;
@@ -95,14 +98,59 @@ int SrsSrtPacket::size()
 SrsSrtSourceManager::SrsSrtSourceManager()
 {
     lock = srs_mutex_new();
+    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsSrtSourceManager::~SrsSrtSourceManager()
 {
     srs_mutex_destroy(lock);
+    srs_freep(timer_);
 }
 
-srs_error_t SrsSrtSourceManager::fetch_or_create(SrsRequest* r, SrsSrtSource** pps)
+srs_error_t SrsSrtSourceManager::initialize()
+{
+    return setup_ticks();
+}
+
+srs_error_t SrsSrtSourceManager::setup_ticks()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = timer_->tick(1, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+
+    if ((err = timer_->start()) != srs_success) {
+        return srs_error_wrap(err, "timer");
+    }
+
+    return err;
+}
+
+srs_error_t SrsSrtSourceManager::notify(int event, srs_utime_t interval, srs_utime_t tick)
+{
+    srs_error_t err = srs_success;
+
+    std::map< std::string, SrsSharedPtr<SrsSrtSource> >::iterator it;
+    for (it = pool.begin(); it != pool.end();) {
+        SrsSharedPtr<SrsSrtSource>& source = it->second;
+
+        // When source expired, remove it.
+        // @see https://github.com/ossrs/srs/issues/713
+        if (source->stream_is_dead()) {
+            SrsContextId cid = source->source_id();
+            if (cid.empty()) cid = source->pre_source_id();
+            srs_trace("SRT: cleanup die source, id=[%s], total=%d", cid.c_str(), (int)pool.size());
+            pool.erase(it++);
+        } else {
+            ++it;
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsSrtSourceManager::fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsSrtSource>& pps)
 {
     srs_error_t err = srs_success;
 
@@ -110,55 +158,38 @@ srs_error_t SrsSrtSourceManager::fetch_or_create(SrsRequest* r, SrsSrtSource** p
     // @bug https://github.com/ossrs/srs/issues/1230
     SrsLocker(lock);
 
-    SrsSrtSource* source = NULL;
-    if ((source = fetch(r)) != NULL) {
+    string stream_url = r->get_stream_url();
+    std::map< std::string, SrsSharedPtr<SrsSrtSource> >::iterator it = pool.find(stream_url);
+    if (it != pool.end()) {
+        SrsSharedPtr<SrsSrtSource> source = it->second;
+
         // we always update the request of resource,
         // for origin auth is on, the token in request maybe invalid,
         // and we only need to update the token of request, it's simple.
         source->update_auth(r);
-        *pps = source;
+        pps = source;
+
         return err;
     }
 
-    string stream_url = r->get_stream_url();
-    string vhost = r->vhost;
-
-    // should always not exists for create a source.
-    srs_assert (pool.find(stream_url) == pool.end());
-
+    SrsSharedPtr<SrsSrtSource> source(new SrsSrtSource());
     srs_trace("new srt source, stream_url=%s", stream_url.c_str());
 
-    source = new SrsSrtSource();
     if ((err = source->initialize(r)) != srs_success) {
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
 
     pool[stream_url] = source;
-
-    *pps = source;
+    pps = source;
 
     return err;
-}
-
-SrsSrtSource* SrsSrtSourceManager::fetch(SrsRequest* r)
-{
-    SrsSrtSource* source = NULL;
-
-    string stream_url = r->get_stream_url();
-    if (pool.find(stream_url) == pool.end()) {
-        return NULL;
-    }
-
-    source = pool[stream_url];
-
-    return source;
 }
 
 SrsSrtSourceManager* _srs_srt_sources = NULL;
 
 SrsSrtConsumer::SrsSrtConsumer(SrsSrtSource* s)
 {
-    source = s;
+    source_ = s;
     should_update_source_id = false;
 
     mw_wait = srs_cond_new();
@@ -168,7 +199,7 @@ SrsSrtConsumer::SrsSrtConsumer(SrsSrtSource* s)
 
 SrsSrtConsumer::~SrsSrtConsumer()
 {
-    source->on_consumer_destroy(this);
+    source_->on_consumer_destroy(this);
 
     vector<SrsSrtPacket*>::iterator it;
     for (it = queue.begin(); it != queue.end(); ++it) {
@@ -206,7 +237,7 @@ srs_error_t SrsSrtConsumer::dump_packet(SrsSrtPacket** ppkt)
     srs_error_t err = srs_success;
 
     if (should_update_source_id) {
-        srs_trace("update source_id=%s/%s", source->source_id().c_str(), source->pre_source_id().c_str());
+        srs_trace("update source_id=%s/%s", source_->source_id().c_str(), source_->pre_source_id().c_str());
         should_update_source_id = false;
     }
 
@@ -276,13 +307,11 @@ srs_error_t SrsSrtFrameBuilder::on_packet(SrsSrtPacket *pkt)
     int nb_packet = nb_buf / SRS_TS_PACKET_SIZE;
     for (int i = 0; i < nb_packet; i++) {
         char* p = buf + (i * SRS_TS_PACKET_SIZE);
-
-        SrsBuffer* stream = new SrsBuffer(p, SRS_TS_PACKET_SIZE);
-        SrsAutoFree(SrsBuffer, stream);
+        SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(p, SRS_TS_PACKET_SIZE));
 
         // Process each ts packet. Note that the jitter of UDP may cause video glitch when packet loss or wrong seq. We
         // don't handle it because SRT will, see tlpktdrop at https://ossrs.net/lts/zh-cn/docs/v4/doc/srt-params
-        if ((err = ts_ctx_->decode(stream, this)) != srs_success) {
+        if ((err = ts_ctx_->decode(stream.get(), this)) != srs_success) {
             srs_warn("parse ts packet err=%s", srs_error_desc(err).c_str());
             srs_error_reset(err);
             continue;
@@ -360,9 +389,8 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* av
 
     vector<pair<char*, int> > ipb_frames;
 
-    SrsRawH264Stream* avc = new SrsRawH264Stream();
-    SrsAutoFree(SrsRawH264Stream, avc);
-    
+    SrsUniquePtr<SrsRawH264Stream> avc(new SrsRawH264Stream());
+
     // send each frame.
     while (!avs->empty()) {
         char* frame = NULL;
@@ -434,8 +462,7 @@ srs_error_t SrsSrtFrameBuilder::check_sps_pps_change(SrsTsMessage* msg)
     uint32_t dts = (uint32_t)(msg->dts / 90);
 
     std::string sh;
-    SrsRawH264Stream* avc = new SrsRawH264Stream();
-    SrsAutoFree(SrsRawH264Stream, avc);
+    SrsUniquePtr<SrsRawH264Stream> avc(new SrsRawH264Stream());
 
     if ((err = avc->mux_sequence_header(sps_, pps_, sh)) != srs_success) {
         return srs_error_wrap(err, "mux sequence header");
@@ -534,9 +561,7 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
     srs_error_t err = srs_success;
 
     vector<pair<char*, int> > ipb_frames;
-
-    SrsRawHEVCStream *hevc = new SrsRawHEVCStream();
-    SrsAutoFree(SrsRawHEVCStream, hevc);
+    SrsUniquePtr<SrsRawHEVCStream> hevc(new SrsRawHEVCStream());
 
     std::vector<std::string> hevc_pps;
     // send each frame.
@@ -629,8 +654,7 @@ srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage* msg)
     uint32_t dts = (uint32_t)(msg->dts / 90);
 
     std::string sh;
-    SrsRawHEVCStream* hevc = new SrsRawHEVCStream();
-    SrsAutoFree(SrsRawHEVCStream, hevc);
+    SrsUniquePtr<SrsRawHEVCStream> hevc(new SrsRawHEVCStream());
 
     if ((err = hevc->mux_sequence_header(hevc_vps_, hevc_sps_, hevc_pps_, sh)) != srs_success) {
         return srs_error_wrap(err, "mux sequence header");
@@ -734,9 +758,8 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
 srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
     srs_error_t err = srs_success;
-    
-    SrsRawAacStream* aac = new SrsRawAacStream();
-    SrsAutoFree(SrsRawAacStream, aac);
+
+    SrsUniquePtr<SrsRawAacStream> aac(new SrsRawAacStream());
 
     // ts tbn to flv tbn.
     uint32_t pts = (uint32_t)(msg->pts / 90);
@@ -877,6 +900,7 @@ SrsSrtSource::SrsSrtSource()
     can_publish_ = true;
     frame_builder_ = NULL;
     bridge_ = NULL;
+    stream_die_at_ = 0;
 }
 
 SrsSrtSource::~SrsSrtSource()
@@ -888,6 +912,10 @@ SrsSrtSource::~SrsSrtSource()
     srs_freep(frame_builder_);
     srs_freep(bridge_);
     srs_freep(req);
+
+    SrsContextId cid = _source_id;
+    if (cid.empty()) cid = _pre_source_id;
+    srs_trace("free srt source id=[%s]", cid.c_str());
 }
 
 srs_error_t SrsSrtSource::initialize(SrsRequest* r)
@@ -897,6 +925,27 @@ srs_error_t SrsSrtSource::initialize(SrsRequest* r)
     req = r->copy();
 
 	return err;
+}
+
+bool SrsSrtSource::stream_is_dead()
+{
+    // still publishing?
+    if (!can_publish_) {
+        return false;
+    }
+
+    // has any consumers?
+    if (!consumers.empty()) {
+        return false;
+    }
+
+    // Delay cleanup source.
+    srs_utime_t now = srs_get_system_time();
+    if (now < stream_die_at_ + SRS_SRT_SOURCE_CLEANUP) {
+        return false;
+    }
+
+    return true;
 }
 
 srs_error_t SrsSrtSource::on_source_id_changed(SrsContextId id)
@@ -953,6 +1002,8 @@ srs_error_t SrsSrtSource::create_consumer(SrsSrtConsumer*& consumer)
     consumer = new SrsSrtConsumer(this);
     consumers.push_back(consumer);
 
+    stream_die_at_ = 0;
+
     return err;
 }
 
@@ -972,6 +1023,11 @@ void SrsSrtSource::on_consumer_destroy(SrsSrtConsumer* consumer)
     it = std::find(consumers.begin(), consumers.end(), consumer);
     if (it != consumers.end()) {
         it = consumers.erase(it);
+    }
+
+    // Destroy and cleanup source when no publishers and consumers.
+    if (can_publish_ && consumers.empty()) {
+        stream_die_at_ = srs_get_system_time();
     }
 }
 
@@ -1019,12 +1075,20 @@ void SrsSrtSource::on_unpublish()
 
     can_publish_ = true;
 
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_stream_close(req);
+
     if (bridge_) {
         frame_builder_->on_unpublish();
         srs_freep(frame_builder_);
 
         bridge_->on_unpublish();
         srs_freep(bridge_);
+    }
+
+    // Destroy and cleanup source when no publishers and consumers.
+    if (consumers.empty()) {
+        stream_die_at_ = srs_get_system_time();
     }
 }
 

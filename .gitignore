@@ -16,8 +16,6 @@
 *.pyc
 *.swp
 .DS_Store
-.vscode
-.vscode/*
 /trunk/Makefile
 /trunk/objs
 /trunk/src/build-qt-Desktop-Debug
@@ -43,3 +41,5 @@ cmake-build-debug
 /trunk/ide/srs_clion/cmake_install.cmake
 /trunk/ide/srs_clion/srs
 /trunk/ide/srs_clion/Testing/
+/trunk/ide/vscode-build
+

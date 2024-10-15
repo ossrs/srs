@@ -20,6 +20,12 @@ typedef void* srs_thread_t;
 typedef void* srs_cond_t;
 typedef void* srs_mutex_t;
 
+
+#ifdef SRS_SANITIZER
+// Setup the primordial stack for asan detecting.
+void srs_set_primordial_stack(void* stack_top);
+#endif
+
 // Initialize ST, requires epoll for linux.
 extern srs_error_t srs_st_init();
 // Destroy ST, free resources for asan detecting.

@@ -305,6 +305,9 @@ private:
 protected:
     // The directive root.
     SrsConfDirective* root;
+private:
+    // The cache for parsing the config from environment variables.
+    SrsConfDirective* env_cache_;
 // Reload  section
 private:
     // The reload subscribers, when reload, callback all handlers.
@@ -533,6 +536,7 @@ public:
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);
     bool get_rtc_keep_bframe(std::string vhost);
+    bool get_rtc_keep_avc_nalu_sei(std::string vhost);
     bool get_rtc_from_rtmp(std::string vhost);
     srs_utime_t get_rtc_stun_timeout(std::string vhost);
     bool get_rtc_stun_strict_check(std::string vhost);
@@ -1115,6 +1119,7 @@ public:
     virtual std::string get_heartbeat_device_id();
     // Whether report with summaries of http api: /api/v1/summaries.
     virtual bool get_heartbeat_summaries();
+    bool get_heartbeat_ports();
 // stats section
 private:
     // Get the stats directive.

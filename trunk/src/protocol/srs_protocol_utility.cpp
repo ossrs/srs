@@ -673,17 +673,6 @@ bool srs_net_device_is_internet(const sockaddr* addr)
 }
 
 vector<SrsIPAddress*> _srs_system_ips;
-void srs_free_global_system_ips()
-{
-    vector<SrsIPAddress*>& ips = _srs_system_ips;
-
-    // Release previous IPs.
-    for (int i = 0; i < (int)ips.size(); i++) {
-        SrsIPAddress* ip = ips[i];
-        srs_freep(ip);
-    }
-    ips.clear();
-}
 
 void discover_network_iface(ifaddrs* cur, vector<SrsIPAddress*>& ips, stringstream& ss0, stringstream& ss1, bool ipv6, bool loopback)
 {
@@ -721,9 +710,6 @@ void discover_network_iface(ifaddrs* cur, vector<SrsIPAddress*>& ips, stringstre
 
 void retrieve_local_ips()
 {
-    // Release previous IPs.
-    srs_free_global_system_ips();
-
     vector<SrsIPAddress*>& ips = _srs_system_ips;
 
     // Get the addresses.
@@ -920,13 +906,12 @@ srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content)
     srs_error_t err = srs_success;
 
     // Cache to read, it might cause coroutine switch, so we use local cache here.
-    char* buf = new char[SRS_HTTP_READ_CACHE_BYTES];
-    SrsAutoFreeA(char, buf);
+    SrsUniquePtr<char[]> buf(new char[SRS_HTTP_READ_CACHE_BYTES]);
 
     // Whatever, read util EOF.
     while (true) {
         ssize_t nb_read = 0;
-        if ((err = in->read(buf, SRS_HTTP_READ_CACHE_BYTES, &nb_read)) != srs_success) {
+        if ((err = in->read(buf.get(), SRS_HTTP_READ_CACHE_BYTES, &nb_read)) != srs_success) {
             int code = srs_error_code(err);
             if (code == ERROR_SYSTEM_FILE_EOF || code == ERROR_HTTP_RESPONSE_EOF || code == ERROR_HTTP_REQUEST_EOF
                 || code == ERROR_HTTP_STREAM_EOF
@@ -938,7 +923,7 @@ srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content)
         }
 
         if (nb_read > 0) {
-            content.append(buf, nb_read);
+            content.append(buf.get(), nb_read);
         }
     }
 

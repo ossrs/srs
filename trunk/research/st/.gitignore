@@ -2,3 +2,13 @@ udp-server
 udp-client
 cost
 cost.log
+thread-join
+st-cond
+hello-st
+hello-world
+huge-threads
+exceptions
+hello
+pthreads
+asan-switch
+hello-thread

@@ -22,7 +22,7 @@ appropriate for ST than introducing a separate array.
 Thus, the new ST timeout heap works by organizing the existing
 _st_thread_t objects in a balanced binary tree, just as they were
 previously organized into a doubly-linked, sorted list.  The global
-_ST_SLEEPQ variable, formerly a linked list head, is now simply a
+_st_this_vp.sleep_q variable, formerly a linked list head, is now simply a
 pointer to the root of this tree, and the root node of the tree is the
 thread with the earliest timeout.  Each thread object has two child
 pointers, "left" and "right", pointing to threads with later timeouts.

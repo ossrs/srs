@@ -122,13 +122,13 @@ fi
 
 # For Sanitizer
 # @doc: https://github.com/google/sanitizers/wiki/AddressSanitizer
-if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
+if [[ $SRS_SANITIZER == YES ]]; then
     CXXFLAGS="${CXXFLAGS} -fsanitize=address -fno-omit-frame-pointer";
 fi
 
 # Start to generate the Makefile.
 cat << END >> ${SRS_OBJS}/Makefile
-GCC = ${SRS_TOOL_CC}
+CC = ${SRS_TOOL_CC}
 CXX = ${SRS_TOOL_CXX}
 AR = ${SRS_TOOL_AR}
 LINK = ${SRS_TOOL_CXX}
@@ -244,7 +244,7 @@ fi
 
 # For address sanitizer
 # @doc: https://github.com/google/sanitizers/wiki/AddressSanitizer
-if [[ $SRS_SANITIZER == YES && $OS_IS_X86_64 == YES ]]; then
+if [[ $SRS_SANITIZER == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -fsanitize=address -fno-omit-frame-pointer";
     if [[ $SRS_SANITIZER_STATIC == YES ]]; then
         SrsLinkOptions="${SrsLinkOptions} -static-libasan";
@@ -268,8 +268,8 @@ fi
 MODULE_ID="CORE"
 MODULE_DEPENDS=()
 ModuleLibIncs=(${SRS_OBJS})
-MODULE_FILES=("srs_core" "srs_core_version" "srs_core_version5" "srs_core_autofree" "srs_core_performance"
-		"srs_core_time" "srs_core_platform")
+MODULE_FILES=("srs_core" "srs_core_version" "srs_core_version7" "srs_core_autofree" "srs_core_performance"
+		"srs_core_time" "srs_core_platform" "srs_core_deprecated")
 CORE_INCS="src/core"; MODULE_DIR=${CORE_INCS} . $SRS_WORKDIR/auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 #
@@ -464,7 +464,8 @@ if [[ $SRS_UTEST == YES ]]; then
     MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_kernel" "srs_utest_core"
         "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
         "srs_utest_mp4" "srs_utest_service" "srs_utest_app" "srs_utest_rtc" "srs_utest_config2"
-        "srs_utest_protocol" "srs_utest_protocol2" "srs_utest_kernel2" "srs_utest_st")
+        "srs_utest_protocol" "srs_utest_protocol2" "srs_utest_kernel2" "srs_utest_protocol3" 
+        "srs_utest_st")
     if [[ $SRS_SRT == YES ]]; then
         MODULE_FILES+=("srs_utest_srt")
     fi
@@ -510,11 +511,11 @@ mv ${SRS_MAKEFILE} ${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_MAKEFILE}
-.PHONY: default all _default install help clean destroy server srs_ingest_hls utest _prepare_dir $__mphonys
+.PHONY: default all _default install help clean destroy server utest _prepare_dir $__mphonys
 .PHONY: clean_srs clean_modules clean_openssl clean_srtp2 clean_opus clean_ffmpeg clean_st
 .PHONY: st ffmpeg
 
-GCC = ${SRS_TOOL_CC}
+CC = ${SRS_TOOL_CC}
 CXX = ${SRS_TOOL_CXX}
 AR = ${SRS_TOOL_AR}
 LINK = ${SRS_TOOL_LD}
@@ -543,7 +544,7 @@ default: server
 
 all: _default
 
-_default: server srs_ingest_hls utest $__mdefaults
+_default: server utest $__mdefaults
 
 help:
 	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<utest>|<install>|<uninstall>"
@@ -606,7 +607,7 @@ clean_st:
 st:
 	@rm -f ${SRS_OBJS}/srs srs_utest
 	@\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs clean
-	@env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs ${_ST_MAKE_ARGS} CC=\$(GCC) AR=\$(AR) LD=\$(LINK) RANDLIB=\$(RANDLIB)
+	@env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs ${_ST_MAKE_ARGS} CC=\$(CC) CXX=\$(CXX) AR=\$(AR) LD=\$(LINK) RANDLIB=\$(RANDLIB)
 	@echo "Please rebuild srs by: make"
 
 ffmpeg:

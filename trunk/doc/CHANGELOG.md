@@ -4,9 +4,72 @@
 
 The changelog for SRS.
 
+<a name="v7-changes"></a>
+
+## SRS 7.0 Changelog
+* v7.0, 2024-09-09, Merge [#4158](https://github.com/ossrs/srs/pull/4158): Proxy: Support proxy server for SRS. v7.0.16 (#4158)
+* v7.0, 2024-09-09, Merge [#4171](https://github.com/ossrs/srs/pull/4171): Heartbeat: Report ports for proxy server. v7.0.15 (#4171)
+* v7.0, 2024-09-01, Merge [#4165](https://github.com/ossrs/srs/pull/4165): FLV: Refine source and http handler. v7.0.14 (#4165)
+* v7.0, 2024-09-01, Merge [#4166](https://github.com/ossrs/srs/pull/4166): Edge: Fix flv edge crash when http unmount. v7.0.13 (#4166)
+* v7.0, 2024-08-31, Merge [#4162](https://github.com/ossrs/srs/pull/4162): Fix #3767: RTMP: Do not response empty data packet. v7.0.12 (#4162)
+* v7.0, 2024-08-31, Merge [#4164](https://github.com/ossrs/srs/pull/4164): HTTP-FLV: Notify connection to expire when unpublishing. v7.0.11 (#4164)
+* v7.0, 2024-08-24, Merge [#4157](https://github.com/ossrs/srs/pull/4157): Fix crash when quiting. v7.0.10 (#4157)
+* v7.0, 2024-08-24, Merge [#4156](https://github.com/ossrs/srs/pull/4156): Build: Fix srs_mp4_parser compiling error. v7.0.9 (#4156)
+* v7.0, 2024-08-22, Merge [#4154](https://github.com/ossrs/srs/pull/4154): ASAN: Disable memory leak detection by default. v7.0.8 (#4154)
+* v7.0, 2024-08-21, Merge [#4149](https://github.com/ossrs/srs/pull/4149): ST: Replace macros with explicit code for better understanding. v7.0.7 (#4149)
+* v7.0, 2024-08-21, Merge [#4150](https://github.com/ossrs/srs/pull/4150): API: Support new HTTP API for VALGRIND. v7.0.6 (#4150)
+* v7.0, 2024-08-15, Merge [#4144](https://github.com/ossrs/srs/pull/4144): HTTP-FLV: Crash when multiple viewers. v7.0.5 (#4144)
+* v7.0, 2024-08-15, Merge [#4142](https://github.com/ossrs/srs/pull/4142): Config: Add more utest for env config. v7.0.4 (#4142)
+* v7.0, 2024-08-14, Merge [#4141](https://github.com/ossrs/srs/pull/4141): Live: Crash for invalid live stream state when unmount HTTP. v7.0.3 (#4141)
+* v7.0, 2024-08-13, Merge [#4092](https://github.com/ossrs/srs/pull/4092): Config: Improve env config to support multi values. v7.0.2 (#4092)
+* v7.0, 2024-08-12, Merge [#4131](https://github.com/ossrs/srs/pull/4131): Transcode: More generic h264/h265 codec support. v7.0.1 (#4131)
+* v7.0, 2024-08-12, Init SRS 7 branch. v7.0.0
+
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-09-09, Merge [#4171](https://github.com/ossrs/srs/pull/4171): Heartbeat: Report ports for proxy server. v6.0.156 (#4171)
+* v6.0, 2024-09-01, Merge [#4165](https://github.com/ossrs/srs/pull/4165): FLV: Refine source and http handler. v6.0.155 (#4165)
+* v6.0, 2024-09-01, Merge [#4166](https://github.com/ossrs/srs/pull/4166): Edge: Fix flv edge crash when http unmount. v6.0.154 (#4166)
+* v6.0, 2024-08-31, Merge [#4162](https://github.com/ossrs/srs/pull/4162): Fix #3767: RTMP: Do not response empty data packet. v6.0.153 (#4162)
+* v6.0, 2024-08-31, Merge [#4164](https://github.com/ossrs/srs/pull/4164): HTTP-FLV: Notify connection to expire when unpublishing. v6.0.152 (#4164)
+* v6.0, 2024-08-24, Merge [#4157](https://github.com/ossrs/srs/pull/4157): Fix crash when quiting. v6.0.151 (#4157)
+* v6.0, 2024-08-24, Merge [#4156](https://github.com/ossrs/srs/pull/4156): Build: Fix srs_mp4_parser compiling error. v6.0.150 (#4156)
+* v6.0, 2024-08-21, Merge [#4150](https://github.com/ossrs/srs/pull/4150): API: Support new HTTP API for VALGRIND. v6.0.149 (#4150)
+* v6.0, 2024-08-15, Merge [#4144](https://github.com/ossrs/srs/pull/4144): HTTP-FLV: Crash when multiple viewers. v6.0.148 (#4144)
+* v6.0, 2024-08-15, Merge [#4142](https://github.com/ossrs/srs/pull/4142): Config: Add more utest for env config. v6.0.147 (#4142)
+* v6.0, 2024-08-14, Merge [#4141](https://github.com/ossrs/srs/pull/4141): Live: Crash for invalid live stream state when unmount HTTP. v6.0.146 (#4141)
+* v6.0, 2024-07-27, Merge [#4127](https://github.com/ossrs/srs/pull/4127): Transcode: Support video codec such as h264_qsv and libx265. v6.0.145 (#4127)
+* v6.0, 2024-07-27, Merge [#4101](https://github.com/ossrs/srs/pull/4101): GB28181: Support external SIP server. v6.0.144 (#4101)
+* v6.0, 2024-07-24, Merge [#4115](https://github.com/ossrs/srs/pull/4115): HLS: Add missing newline to end of session manifest. v6.0.143 (#4115)
+* v6.0, 2024-07-24, Merge [#4029](https://github.com/ossrs/srs/pull/4029): Player: Fix empty img tag occupy 20px size in safari. v6.0.142 (#4029)
+* v6.0, 2024-07-24, Merge [#4063](https://github.com/ossrs/srs/pull/4063): let http-remux ts stream support guess_has_av feature;. v6.0.141 (#4063)
+* v6.0, 2024-07-24, Merge [#4116](https://github.com/ossrs/srs/pull/4116): Dockerfile: Consistently use proper ENV syntax using "=". v6.0.140 (#4116)
+* v6.0, 2024-07-24, Merge [#4126](https://github.com/ossrs/srs/pull/4126): Edge: Improve stability for state and fd closing. v6.0.139 (#4126)
+* v6.0, 2024-07-13, Merge [#4111](https://github.com/ossrs/srs/pull/4111): DASH: Fix time unit error for disposing. v6.0.138 (#4111)
+* v6.0, 2024-07-09, Merge [#4028](https://github.com/ossrs/srs/pull/4028): HTTPS: Support config key/cert for HTTPS API. v6.0.137 (#4028)
+* v6.0, 2024-07-09, Merge [#4109](https://github.com/ossrs/srs/pull/4109): UniquePtr: Support SrsUniquePtr to replace SrsAutoFree. v6.0.136 (#4109)
+* v6.0, 2024-07-08, Merge [#4042](https://github.com/ossrs/srs/pull/4042): Refine config directive token parsing. v6.0.135 (#4042)
+* v6.0, 2024-07-04, Merge [#4106](https://github.com/ossrs/srs/pull/4106): SmartPtr: Fix SRT source memory leaking. v6.0.134 (#4106)
+* v6.0, 2024-06-29, Merge [#4077](https://github.com/ossrs/srs/pull/4077): Fix misspelling error in app config. v6.0.133 (#4077)
+* v6.0, 2024-06-29, Merge [#4102](https://github.com/ossrs/srs/pull/4102): SmartPtr: Support detect memory leak by valgrind. v6.0.132 (#4102)
+* v6.0, 2024-06-21, Merge [#4100](https://github.com/ossrs/srs/pull/4100): Fix security scan problems. v6.0.131 (#4100)
+* v6.0, 2024-06-21, Merge [#4097](https://github.com/ossrs/srs/pull/4097): SmartPtr: Support load test for source by srs-bench. v6.0.130 (#4097)
+* v6.0, 2024-06-15, Merge [#4089](https://github.com/ossrs/srs/pull/4089): SmartPtr: Support shared ptr for live source. v6.0.129 (#4089)
+* v6.0, 2024-06-14, Merge [#4085](https://github.com/ossrs/srs/pull/4085): SmartPtr: Support shared ptr for RTC source. v6.0.128 (#4085)
+* v6.0, 2024-06-13, Merge [#4083](https://github.com/ossrs/srs/pull/4083): SmartPtr: Use shared ptr in RTC TCP connection. v6.0.127 (#4083)
+* v6.0, 2024-06-12, Merge [#4080](https://github.com/ossrs/srs/pull/4080): SmartPtr: Use shared ptr to manage GB objects. v6.0.126 (#4080)
+* v6.0, 2024-06-03, Merge [#4057](https://github.com/ossrs/srs/pull/4057): RTC: Support dropping h.264 SEI from NALUs. v6.0.125 (#4057)
+* v6.0, 2024-04-26, Merge [#4044](https://github.com/ossrs/srs/pull/4044): fix: correct SRS_ERRNO_MAP_HTTP duplicate error code. v6.0.124 (#4044)
+* v6.0, 2024-04-23, Merge [#4038](https://github.com/ossrs/srs/pull/4038): RTMP: Do not response publish start message if hooks fail. v6.0.123 (#4038)
+* v6.0, 2024-04-22, Merge [#4033](https://github.com/ossrs/srs/pull/4033): issue #3967: support x509 certification chiain in single pem file. v6.0.122 (#4033)
+* v6.0, 2024-03-26, Filter JSONP callback function name. v6.0.121
+* v6.0, 2024-03-26, Merge [#3995](https://github.com/ossrs/srs/pull/3995): Build: Refine workflow for cygwin and remove scorecard. v6.0.120 (#3995)
+* v6.0, 2024-03-26, Merge [#4005](https://github.com/ossrs/srs/pull/4005): Build: Fix module failed for  main_ingest_hls and mp4_parser. v6.0.119 (#4005)
+* v6.0, 2024-03-24, Merge [#3989](https://github.com/ossrs/srs/pull/3989): ST: Research adds examples that demos pthread and helloworld. v6.0.118 (#3989)
+* v6.0, 2024-03-19, Merge [#3958](https://github.com/ossrs/srs/pull/3958): Add a TCP proxy for debugging. v6.0.117 (#3958)
+* v6.0, 2024-03-20, Merge [#3964](https://github.com/ossrs/srs/pull/3964): WebRTC: Add support for A/V only WHEP/WHEP player. v6.0.116 (#3964)
+* v6.0, 2024-03-19, Merge [#3990](https://github.com/ossrs/srs/pull/3990): System: Disable feature that obtains versions and check features status. v6.0.115 (#3990)
 * v6.0, 2024-03-18, Merge [#3973](https://github.com/ossrs/srs/pull/3973): Typo: Fix some typo for #3973 #3976 #3982. v6.0.114 (#3973)
 * v6.0, 2024-02-06, Merge [#3920](https://github.com/ossrs/srs/pull/3920): WHIP: Fix bug for converting WHIP to RTMP/HLS. v6.0.113 (#3920)
 * v6.0, 2024-02-05, Merge [#3924](https://github.com/ossrs/srs/pull/3924): Upgrade hls.js and set in low latency mode. v6.0.112 (#3924)
@@ -125,6 +188,13 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2024-09-09, Merge [#4171](https://github.com/ossrs/srs/pull/4171): Heartbeat: Report ports for proxy server. v5.0.215 (#4171)
+* v5.0, 2024-07-24, Merge [#4126](https://github.com/ossrs/srs/pull/4126): Edge: Improve stability for state and fd closing. v5.0.214 (#4126)
+* v5.0, 2024-06-03, Merge [#4057](https://github.com/ossrs/srs/pull/4057): RTC: Support dropping h.264 SEI from NALUs. v5.0.213 (#4057)
+* v5.0, 2024-04-23, Merge [#4038](https://github.com/ossrs/srs/pull/4038): RTMP: Do not response publish start message if hooks fail. v5.0.212 (#4038)
+* v5.0, 2024-04-22, Merge [#4033](https://github.com/ossrs/srs/pull/4033): issue #3967: support x509 certification chiain in single pem file. v5.0.211 (#4033)
+* v5.0, 2024-03-26, Filter JSONP callback function name. v5.0.210
+* v5.0, 2024-03-19, Merge [#3990](https://github.com/ossrs/srs/pull/3990): System: Disable feature that obtains versions and check features status. v5.0.209 (#3990)
 * v5.0, 2024-02-06, Merge [#3920](https://github.com/ossrs/srs/pull/3920): WHIP: Fix bug for converting WHIP to RTMP/HLS. v5.0.208 (#3920)
 * v5.0, 2024-02-05, Merge [#3925](https://github.com/ossrs/srs/pull/3925): RTC: Fix video and audio track pt_ is not change in player before publisher. v5.0.207 (#3925)
 * v5.0, 2024-02-05, Merge [#3923](https://github.com/ossrs/srs/pull/3923): Configure: print enabled/disable sanitizer. v5.0.206 (#3923)

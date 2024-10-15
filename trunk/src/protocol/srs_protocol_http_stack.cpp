@@ -421,8 +421,7 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
 {
     srs_error_t err = srs_success;
 
-    SrsFileReader* fs = fs_factory->create_file_reader();
-    SrsAutoFree(SrsFileReader, fs);
+    SrsUniquePtr<SrsFileReader> fs(fs_factory->create_file_reader());
 
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open file %s", fullpath.c_str());
@@ -484,7 +483,7 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
     
     // write body.
     int64_t left = length;
-    if ((err = copy(w, fs, r, left)) != srs_success) {
+    if ((err = copy(w, fs.get(), r, left)) != srs_success) {
         return srs_error_wrap(err, "copy file=%s size=%" PRId64, fullpath.c_str(), left);
     }
     
@@ -595,18 +594,17 @@ srs_error_t SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs
     srs_error_t err = srs_success;
     
     int64_t left = size;
-    char* buf = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
-    SrsAutoFreeA(char, buf);
-    
+    SrsUniquePtr<char[]> buf(new char[SRS_HTTP_TS_SEND_BUFFER_SIZE]);
+
     while (left > 0) {
         ssize_t nread = -1;
         int max_read = srs_min(left, SRS_HTTP_TS_SEND_BUFFER_SIZE);
-        if ((err = fs->read(buf, max_read, &nread)) != srs_success) {
+        if ((err = fs->read(buf.get(), max_read, &nread)) != srs_success) {
             return srs_error_wrap(err, "read limit=%d, left=%" PRId64, max_read, left);
         }
         
         left -= nread;
-        if ((err = w->write(buf, (int)nread)) != srs_success) {
+        if ((err = w->write(buf.get(), (int)nread)) != srs_success) {
             return srs_error_wrap(err, "write limit=%d, bytes=%d, left=%" PRId64, max_read, (int)nread, left);
         }
     }
@@ -691,14 +689,12 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handle
     srs_assert(handler);
     
     if (pattern.empty()) {
-        srs_freep(handler);
         return srs_error_new(ERROR_HTTP_PATTERN_EMPTY, "empty pattern");
     }
     
     if (entries.find(pattern) != entries.end()) {
         SrsHttpMuxEntry* exists = entries[pattern];
         if (exists->explicit_match) {
-            srs_freep(handler);
             return srs_error_new(ERROR_HTTP_PATTERN_DUPLICATED, "pattern=%s exists", pattern.c_str());
         }
     }
@@ -752,6 +748,35 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handle
     }
     
     return srs_success;
+}
+
+void SrsHttpServeMux::unhandle(std::string pattern, ISrsHttpHandler* handler)
+{
+    if (true) {
+        std::map<std::string, SrsHttpMuxEntry*>::iterator it = entries.find(pattern);
+        if (it != entries.end()) {
+            SrsHttpMuxEntry* entry = it->second;
+            entries.erase(it);
+
+            // We don't free the handler, because user should free it.
+            if (entry->handler == handler) {
+                entry->handler = NULL;
+            }
+
+            // Should always free the entry.
+            srs_freep(entry);
+        }
+    }
+
+    std::string vhost = pattern;
+    if (pattern.at(0) != '/') {
+        if (pattern.find("/") != string::npos) {
+            vhost = pattern.substr(0, pattern.find("/"));
+        }
+
+        std::map<std::string, ISrsHttpHandler*>::iterator it = vhosts.find(vhost);
+        if (it != vhosts.end()) vhosts.erase(it);
+    }
 }
 
 srs_error_t SrsHttpServeMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)

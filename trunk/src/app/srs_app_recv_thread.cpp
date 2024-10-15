@@ -259,13 +259,13 @@ void SrsQueueRecvThread::on_stop()
 }
 
 SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
-	int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsLiveSource* source, SrsContextId parent_cid)
+	int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSharedPtr<SrsLiveSource> source, SrsContextId parent_cid)
     : trd(this, rtmp_sdk, tm, parent_cid)
 {
     rtmp = rtmp_sdk;
     
     _conn = conn;
-    _source = source;
+    source_ = source;
 
     nn_msgs_for_yield_ = 0;
     recv_error = srs_success;
@@ -370,7 +370,7 @@ srs_error_t SrsPublishRecvThread::consume(SrsCommonMessage* msg)
                 srs_update_system_time(), msg->header.timestamp, msg->size);
     
     // the rtmp connection will handle this message
-    err = _conn->handle_publish_message(_source, msg);
+    err = _conn->handle_publish_message(source_, msg);
     
     // must always free it,
     // the source will copy it if need to use.
@@ -577,10 +577,8 @@ srs_error_t SrsHttpRecvThread::cycle()
     srs_error_t err = srs_success;
     
     while ((err = trd->pull()) == srs_success) {
-        ISrsHttpMessage* req = NULL;
-        SrsAutoFree(ISrsHttpMessage, req);
-        
-        if ((err = conn->pop_message(&req)) != srs_success) {
+        // Ignore any received messages.
+        if ((err = conn->pop_message(NULL)) != srs_success) {
             return srs_error_wrap(err, "pop message");
         }
     }

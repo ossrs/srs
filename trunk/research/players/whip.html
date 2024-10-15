@@ -16,7 +16,7 @@
     <script type="text/javascript" src="js/srs.page.js"></script>
 </head>
 <body>
-<img src='//ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtcpublisher'/>
+<img style="width: 0px; height: 0px;" src='//ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtcpublisher'/>
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
@@ -55,17 +55,28 @@
         <button class="btn btn-primary" id="btn_publish">Publish</button>
     </div>
 
-    <label></label>
+    <p></p>
     <video id="rtc_media_player" width="320" autoplay muted></video>
 
-    <label></label>
+    <p></p>
+    <div class="form-inline">
+        Controls:
+        <label>
+            <input type="checkbox" id="ch_videoonly" style="margin-bottom: 8px"> Video Only
+        </label>
+        <label>
+            <input type="checkbox" id="ch_audioonly" style="margin-bottom: 8px"> Audio Only
+        </label>
+    </div>
+
+    <p></p>
     SessionID: <span id='sessionid'></span>
 
-    <label></label>
+    <p></p>
     Audio: <span id='acodecs'></span><br/>
     Video: <span id='vcodecs'></span>
 
-    <label></label>
+    <p></p>
     Simulator: <a href='#' id='simulator-drop'>Drop</a>
 
     <footer>
@@ -101,7 +112,10 @@ $(function(){
 
         // For example: webrtc://r.ossrs.net/live/livestream
         var url = $("#txt_url").val();
-        sdk.publish(url).then(function(session){
+        sdk.publish(url, {
+            videoOnly: $('#ch_videoonly').prop('checked'),
+            audioOnly: $('#ch_audioonly').prop('checked'),
+        }).then(function(session){
             $('#sessionid').html(session.sessionid);
             $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
         }).catch(function (reason) {
