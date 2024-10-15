@@ -101,10 +101,21 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
         #error Unknown CPU architecture
     #endif
 
-    #define MD_GET_UTIME()            \
-        struct timeval tv;              \
-        (void) gettimeofday(&tv, NULL); \
-        return (tv.tv_sec * 1000000LL + tv.tv_usec)
+    #if defined (MD_OSX_NO_CLOCK_GETTIME)
+        #define MD_GET_UTIME()                          \
+            struct timeval tv;                          \
+            (void) gettimeofday(&tv, NULL);             \
+            return (tv.tv_sec * 1000000LL + tv.tv_usec)
+    #else
+        /*
+         * https://github.com/ossrs/srs/issues/3978
+         * use clock_gettime to get the timestamp in microseconds.
+         */
+        #define MD_GET_UTIME()                                 \
+            struct timespec ts;                                \
+            clock_gettime(CLOCK_MONOTONIC, &ts);               \
+            return (ts.tv_sec * 1000000LL + ts.tv_nsec / 1000)
+    #endif
 
 #elif defined (LINUX)
 
@@ -120,13 +131,13 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
     #define MD_HAVE_SOCKLEN_T
 
     /*
-     * All architectures and flavors of linux have the gettimeofday
-     * function but if you know of a faster way, use it.
+     * https://github.com/ossrs/srs/issues/3978
+     * use clock_gettime to get the timestamp in microseconds.
      */
-    #define MD_GET_UTIME()            \
-        struct timeval tv;              \
-        (void) gettimeofday(&tv, NULL); \
-        return (tv.tv_sec * 1000000LL + tv.tv_usec)
+    #define MD_GET_UTIME()                                 \
+        struct timespec ts;                                \
+        clock_gettime(CLOCK_MONOTONIC, &ts);               \
+        return (ts.tv_sec * 1000000LL + ts.tv_nsec / 1000)
 
     #if defined(__i386__)
         #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[4]))

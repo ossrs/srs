@@ -10,23 +10,28 @@
 #include <srs_core.hpp>
 #include <srs_app_security.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_app_async_call.hpp>
+
+#include <vector>
 
 class SrsAacTransmuxer;
 class SrsMp3Transmuxer;
 class SrsFlvTransmuxer;
 class SrsTsTransmuxer;
+class SrsAsyncCallWorker;
 
 // A cache for HTTP Live Streaming encoder, to make android(weixin) happy.
 class SrsBufferCache : public ISrsCoroutineHandler
 {
 private:
     srs_utime_t fast_cache;
+    SrsServer* server_;
 private:
     SrsMessageQueue* queue;
     SrsRequest* req;
     SrsCoroutine* trd;
 public:
-    SrsBufferCache(SrsRequest* r);
+    SrsBufferCache(SrsServer* s, SrsRequest* r);
     virtual ~SrsBufferCache();
     virtual srs_error_t update_auth(SrsRequest* r);
 public:
@@ -176,25 +181,29 @@ public:
 
 // HTTP Live Streaming, to transmux RTMP to HTTP FLV or other format.
 // TODO: FIXME: Rename to SrsHttpLive
-class SrsLiveStream : public ISrsHttpHandler
+class SrsLiveStream : public ISrsHttpHandler, public ISrsExpire
 {
 private:
     SrsRequest* req;
     SrsBufferCache* cache;
     SrsSecurity* security_;
+    SrsServer* server_;
     // For multiple viewers, which means there will more than one alive viewers for a live stream, so we must
     // use an int value to represent if there is any viewer is alive. We should never do cleanup unless all
     // viewers closed the connection.
-    int alive_viewers_;
+    std::vector<ISrsExpire*> viewers_;
 public:
-    SrsLiveStream(SrsRequest* r, SrsBufferCache* c);
+    SrsLiveStream(SrsServer* s, SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
     virtual srs_error_t update_auth(SrsRequest* r);
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     virtual bool alive();
+// Interface ISrsExpire
+public:
+    virtual void expire();
 private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t do_serve_http(SrsLiveSource* source, SrsLiveConsumer* consumer, ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     virtual srs_error_t http_hooks_on_play(ISrsHttpMessage* r);
     virtual void http_hooks_on_stop(ISrsHttpMessage* r);
     virtual srs_error_t streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
@@ -218,6 +227,9 @@ public:
     
     SrsLiveStream* stream;
     SrsBufferCache* cache;
+
+    // Whether is disposing the entry.
+    bool disposing;
     
     SrsLiveEntry(std::string m);
     virtual ~SrsLiveEntry();
@@ -235,6 +247,7 @@ class SrsHttpStreamServer : public ISrsReloadHandler
 {
 private:
     SrsServer* server;
+    SrsAsyncCallWorker* async_;
 public:
     SrsHttpServeMux mux;
     // The http live streaming template, to create streams.
@@ -256,6 +269,20 @@ public:
 private:
     virtual srs_error_t initialize_flv_streaming();
     virtual srs_error_t initialize_flv_entry(std::string vhost);
+};
+
+class SrsHttpStreamDestroy : public ISrsAsyncCallTask
+{
+private:
+    std::string sid_;
+    std::map<std::string, SrsLiveEntry*>* streamHandlers_;
+    SrsHttpServeMux* mux_;
+public:
+    SrsHttpStreamDestroy(SrsHttpServeMux* mux, std::map<std::string, SrsLiveEntry*>* handlers, std::string sid);
+    virtual ~SrsHttpStreamDestroy();
+public:
+    virtual srs_error_t call();
+    virtual std::string to_string();
 };
 
 #endif

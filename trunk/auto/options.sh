@@ -112,6 +112,8 @@ SRS_CROSS_BUILD_HOST=
 SRS_CROSS_BUILD_PREFIX=
 # For cache build
 SRS_BUILD_CACHE=YES
+# Only support MacOS 10.12+ for clock_gettime, see https://github.com/ossrs/srs/issues/3978
+SRS_OSX_HAS_CLOCK_GETTIME=YES
 #
 #####################################################################################
 # Toolchain for cross-build on Ubuntu for ARM or MIPS.
@@ -150,7 +152,9 @@ function apply_system_options() {
     OS_IS_RISCV=$(gcc -dM -E - </dev/null |grep -q '#define __riscv 1' && echo YES)
 
     # Set the os option automatically.
-    if [[ $OS_IS_OSX == YES ]]; then SRS_OSX=YES; fi
+    if [[ $OS_IS_OSX == YES ]]; then
+        SRS_OSX=YES;
+    fi
     if [[ $OS_IS_CYGWIN == YES ]]; then SRS_CYGWIN64=YES; fi
 
     if [[ $OS_IS_OSX == YES ]]; then SRS_JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1); fi

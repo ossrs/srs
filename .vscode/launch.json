@@ -1,0 +1,36 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+          "name": "Launch SRS",
+          "type": "cppdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/trunk/ide/vscode-build/srs",
+          "args": ["-c", "conf/console.conf"],
+          "stopAtEntry": false,
+          "cwd": "${workspaceFolder}/trunk",
+          "environment": [],
+          "externalConsole": false,
+          "MIMode": "lldb",
+          "setupCommands": [
+            {
+              "description": "Enable pretty-printing for gdb",
+              "text": "-enable-pretty-printing",
+              "ignoreFailures": true
+            }
+          ],
+          "preLaunchTask": "build",
+          "logging": {
+            "engineLogging": true
+          }
+        },
+        {
+          "name": "Launch srs-proxy",
+          "type": "go",
+          "request": "launch",
+          "mode": "auto",
+          "cwd": "${workspaceFolder}/proxy",
+          "program": "${workspaceFolder}/proxy"        
+        }    
+    ]
+}

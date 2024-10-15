@@ -464,7 +464,8 @@ if [[ $SRS_UTEST == YES ]]; then
     MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_kernel" "srs_utest_core"
         "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
         "srs_utest_mp4" "srs_utest_service" "srs_utest_app" "srs_utest_rtc" "srs_utest_config2"
-        "srs_utest_protocol" "srs_utest_protocol2" "srs_utest_kernel2" "srs_utest_protocol3")
+        "srs_utest_protocol" "srs_utest_protocol2" "srs_utest_kernel2" "srs_utest_protocol3" 
+        "srs_utest_st")
     if [[ $SRS_SRT == YES ]]; then
         MODULE_FILES+=("srs_utest_srt")
     fi

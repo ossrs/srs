@@ -7,6 +7,13 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2024-10-15, Merge [#3979](https://github.com/ossrs/srs/pull/3979): ST: Use clock_gettime to prevent time jumping backwards. v7.0.17 (#3979)
+* v7.0, 2024-09-09, Merge [#4158](https://github.com/ossrs/srs/pull/4158): Proxy: Support proxy server for SRS. v7.0.16 (#4158)
+* v7.0, 2024-09-09, Merge [#4171](https://github.com/ossrs/srs/pull/4171): Heartbeat: Report ports for proxy server. v7.0.15 (#4171)
+* v7.0, 2024-09-01, Merge [#4165](https://github.com/ossrs/srs/pull/4165): FLV: Refine source and http handler. v7.0.14 (#4165)
+* v7.0, 2024-09-01, Merge [#4166](https://github.com/ossrs/srs/pull/4166): Edge: Fix flv edge crash when http unmount. v7.0.13 (#4166)
+* v7.0, 2024-08-31, Merge [#4162](https://github.com/ossrs/srs/pull/4162): Fix #3767: RTMP: Do not response empty data packet. v7.0.12 (#4162)
+* v7.0, 2024-08-31, Merge [#4164](https://github.com/ossrs/srs/pull/4164): HTTP-FLV: Notify connection to expire when unpublishing. v7.0.11 (#4164)
 * v7.0, 2024-08-24, Merge [#4157](https://github.com/ossrs/srs/pull/4157): Fix crash when quiting. v7.0.10 (#4157)
 * v7.0, 2024-08-24, Merge [#4156](https://github.com/ossrs/srs/pull/4156): Build: Fix srs_mp4_parser compiling error. v7.0.9 (#4156)
 * v7.0, 2024-08-22, Merge [#4154](https://github.com/ossrs/srs/pull/4154): ASAN: Disable memory leak detection by default. v7.0.8 (#4154)
@@ -22,6 +29,11 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2024-09-09, Merge [#4171](https://github.com/ossrs/srs/pull/4171): Heartbeat: Report ports for proxy server. v6.0.156 (#4171)
+* v6.0, 2024-09-01, Merge [#4165](https://github.com/ossrs/srs/pull/4165): FLV: Refine source and http handler. v6.0.155 (#4165)
+* v6.0, 2024-09-01, Merge [#4166](https://github.com/ossrs/srs/pull/4166): Edge: Fix flv edge crash when http unmount. v6.0.154 (#4166)
+* v6.0, 2024-08-31, Merge [#4162](https://github.com/ossrs/srs/pull/4162): Fix #3767: RTMP: Do not response empty data packet. v6.0.153 (#4162)
+* v6.0, 2024-08-31, Merge [#4164](https://github.com/ossrs/srs/pull/4164): HTTP-FLV: Notify connection to expire when unpublishing. v6.0.152 (#4164)
 * v6.0, 2024-08-24, Merge [#4157](https://github.com/ossrs/srs/pull/4157): Fix crash when quiting. v6.0.151 (#4157)
 * v6.0, 2024-08-24, Merge [#4156](https://github.com/ossrs/srs/pull/4156): Build: Fix srs_mp4_parser compiling error. v6.0.150 (#4156)
 * v6.0, 2024-08-21, Merge [#4150](https://github.com/ossrs/srs/pull/4150): API: Support new HTTP API for VALGRIND. v6.0.149 (#4150)
@@ -177,6 +189,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2024-09-09, Merge [#4171](https://github.com/ossrs/srs/pull/4171): Heartbeat: Report ports for proxy server. v5.0.215 (#4171)
 * v5.0, 2024-07-24, Merge [#4126](https://github.com/ossrs/srs/pull/4126): Edge: Improve stability for state and fd closing. v5.0.214 (#4126)
 * v5.0, 2024-06-03, Merge [#4057](https://github.com/ossrs/srs/pull/4057): RTC: Support dropping h.264 SEI from NALUs. v5.0.213 (#4057)
 * v5.0, 2024-04-23, Merge [#4038](https://github.com/ossrs/srs/pull/4038): RTMP: Do not response publish start message if hooks fail. v5.0.212 (#4038)
