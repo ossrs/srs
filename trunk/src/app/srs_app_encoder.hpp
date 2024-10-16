@@ -45,7 +45,7 @@ private:
     virtual SrsFFMPEG* at(int index);
     virtual srs_error_t parse_scope_engines(SrsRequest* req);
     virtual srs_error_t parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf);
-    virtual srs_error_t initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* engine);
+    virtual srs_error_t initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* conf, SrsConfDirective* engine);
     virtual void show_encode_log_message();
 };
 
