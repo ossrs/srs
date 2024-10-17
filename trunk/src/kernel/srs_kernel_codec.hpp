@@ -1298,6 +1298,7 @@ class SrsVideoFrame : public SrsFrame
 {
 public:
     // video specified
+    // TODO: H.264 and H.265 reused AvcFrameType and AvcFrameTrait?
     SrsVideoAvcFrameType frame_type;
     SrsVideoAvcFrameTrait avc_packet_type;
     // whether sample_units contains IDR frame.
@@ -1361,6 +1362,7 @@ public:
 public:
     virtual bool is_aac_sequence_header();
     virtual bool is_mp3_sequence_header();
+    // TODO: is avc|hevc|av1 sequence header
     virtual bool is_avc_sequence_header();
 private:
     // Demux the video packet in H.264 codec.

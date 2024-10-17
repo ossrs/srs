@@ -352,6 +352,7 @@ private:
     virtual srs_error_t serve_flv_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
     virtual srs_error_t serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
     virtual srs_error_t serve_m3u8_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    // the ts file including: .ts .m4s init.mp4
     virtual srs_error_t serve_ts_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 protected:
     // When access flv file with x.flv?start=xxx
@@ -371,6 +372,7 @@ protected:
     // Remark 2:
     //           If use two same "hls_ctx" in different requests, SRS cannot detect so that they will be treated as one.
     virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    // the ts file including: .ts .m4s init.mp4
     virtual srs_error_t serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 protected:
     // Copy the fs to response writer in size bytes.

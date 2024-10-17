@@ -113,6 +113,27 @@ enum SrsMp4BoxType
     SrsMp4BoxTypeSIDX = 0x73696478, // 'sidx'
     SrsMp4BoxTypeHEV1 = 0x68657631, // 'hev1'
     SrsMp4BoxTypeHVCC = 0x68766343, // 'hvcC'
+    SrsMp4BoxTypeSENC = 0x73656e63, // 'senc'
+    SrsMp4BoxTypeSAIZ = 0x7361697a, // 'saiz'
+    SrsMp4BoxTypeSAIO = 0x7361696f, // 'saio'
+    SrsMp4BoxTypeENCV = 0x656e6376, // 'encv'
+    SrsMp4BoxTypeENCA = 0x656e6361, // 'enca'
+    SrsMp4BoxTypeSINF = 0x73696e66, // 'sinf'
+    SrsMp4BoxTypeSCHI = 0x73636869, // 'schi'
+    SrsMp4BoxTypeTENC = 0x74656e63, // 'tenc'
+    SrsMp4BoxTypeFRMA = 0x66726d61, // 'frma'
+    SrsMp4BoxTypeSCHM = 0x7363686d, // 'schm'
+};
+
+// Common encryption scheme types
+// @see ISO-IEC-23001-7.pdf, 4.2
+enum SrsMp4CENSchemeType
+{
+    SrsMp4CENSchemeCENC = 0x63656e63, // 'cenc'
+    SrsMp4CENSchemeCBC1 = 0x63626331, // 'cbc1'
+    SrsMp4CENSchemeCENS = 0x63656e73, // 'cens'
+    SrsMp4CENSchemeCBCS = 0x63626373, // 'cbcs'
+    SrsMp4CENSchemeSVE1 = 0x73766531, // 'sve1'
 };
 
 // 8.4.3.3 Semantics
@@ -317,9 +338,9 @@ public:
     // Get the header of moof.
     virtual SrsMp4MovieFragmentHeaderBox* mfhd();
     virtual void set_mfhd(SrsMp4MovieFragmentHeaderBox* v);
-    // Get the traf.
-    virtual SrsMp4TrackFragmentBox* traf();
-    virtual void set_traf(SrsMp4TrackFragmentBox* v);
+
+    // Let moof support more than one traf
+    virtual void add_traf(SrsMp4TrackFragmentBox* v);
 };
 
 // 8.8.5 Movie Fragment Header Box (mfhd)
@@ -499,7 +520,7 @@ class SrsMp4TrackFragmentRunBox : public SrsMp4FullBox
 public:
     // The number of samples being added in this run; also the number of rows in the following
     // table (the rows can be empty)
-    //uint32_t sample_count;
+    // uint32_t sample_count;
 // The following are optional fields
 public:
     // added to the implicit or explicit data_offset established in the track fragment header.
@@ -710,8 +731,7 @@ public:
     virtual ~SrsMp4MovieExtendsBox();
 public:
     // Get the track extends box.
-    virtual SrsMp4TrackExtendsBox* trex();
-    virtual void set_trex(SrsMp4TrackExtendsBox* v);
+    virtual void add_trex(SrsMp4TrackExtendsBox* v);
 };
 
 // 8.8.3 Track Extends Box(trex)
@@ -1869,6 +1889,348 @@ public:
     virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
+// Sample auxiliary information sizes box (saiz)
+// @see ISO_IEC_14496-12-base-format-2012.pdf, 8.7.8, page 62
+// @see https://github.com/gpac/mp4box.js/blob/master/src/parsing/saiz.js
+// Syntax
+// aligned(8) class SampleAuxiliaryInformationSizesBox extends FullBox('saiz', version=0, flags)
+// {
+//   if (flags & 1) {
+//     unsigned int(32) aux_info_type;
+//     unsigned int(32) aux_info_type_parameter;
+//   }
+//   unsigned int(8) default_sample_info_size;
+//   unsigned int(32) sample_count;
+//   if (default_sample_info_size == 0) {
+//     unsigned int(8) sample_info_size[sample_count];
+//   }
+// }
+class SrsMp4SampleAuxiliaryInfoSizeBox: public SrsMp4FullBox
+{
+public:
+    uint32_t aux_info_type;
+    uint32_t aux_info_type_parameter;
+
+    uint8_t default_sample_info_size;
+    uint32_t sample_count;
+    std::vector<uint8_t> sample_info_sizes;
+    
+public:
+    SrsMp4SampleAuxiliaryInfoSizeBox();
+    virtual ~SrsMp4SampleAuxiliaryInfoSizeBox();
+
+protected:
+    virtual int nb_header();
+    virtual srs_error_t encode_header(SrsBuffer* buf);
+    virtual srs_error_t decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+// Sample auxiliary information offsets box (saio)
+// @see ISO_IEC_14496-12-base-format-2012.pdf, 8.7.9, page 63
+// @see https://github.com/gpac/mp4box.js/blob/master/src/parsing/saio.js
+// Syntax
+// aligned(8) class SampleAuxiliaryInformationOffsetsBox extends FullBox('saio', version, flags)
+// {
+//   if (flags & 1) {
+//     unsigned int(32) aux_info_type;
+//     unsigned int(32) aux_info_type_parameter;
+//   }
+//   unsigned int(32) entry_count;
+//   if (version == 0) {
+//     unsigned int(32) offset[entry_count];
+//   } else {
+//     unsigned int(64) offset[entry_count];
+//   }
+// }
+class SrsMp4SampleAuxiliaryInfoOffsetBox: public SrsMp4FullBox
+{
+public:
+    uint32_t aux_info_type;
+    uint32_t aux_info_type_parameter;
+    // uint32_t entry_count;
+    std::vector<uint64_t> offsets;
+    
+public:
+    SrsMp4SampleAuxiliaryInfoOffsetBox();
+    virtual ~SrsMp4SampleAuxiliaryInfoOffsetBox();
+
+protected:
+    virtual int nb_header();
+    virtual srs_error_t encode_header(SrsBuffer* buf);
+    virtual srs_error_t decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+enum SrsMp4CencSampleEncryptionFlags
+{
+    SrsMp4CencSampleEncryptionTrackDefault = 0x01,
+    SrsMp4CencSampleEncryptionUseSubSample = 0x02,
+};
+
+struct SrsMp4SubSampleEncryptionInfo : public ISrsCodec
+{
+    uint16_t bytes_of_clear_data;
+    uint32_t bytes_of_protected_data;
+
+    SrsMp4SubSampleEncryptionInfo();
+    virtual ~SrsMp4SubSampleEncryptionInfo();
+    
+    virtual uint64_t nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+
+    virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+class SrsMp4SampleEncryptionEntry : public ISrsCodec
+{
+public:
+    // if flags && 0x02
+    std::vector<SrsMp4SubSampleEncryptionInfo> subsample_infos;
+
+public:
+    SrsMp4SampleEncryptionEntry(SrsMp4FullBox* senc, uint8_t per_sample_iv_size);
+    virtual ~SrsMp4SampleEncryptionEntry();
+
+    virtual srs_error_t set_iv(uint8_t* iv, uint8_t iv_size);
+    virtual uint64_t nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+
+    virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
+
+private:
+    SrsMp4FullBox* senc_;
+    uint8_t per_sample_iv_size_;
+    uint8_t* iv_;
+};
+
+// Sample encryption box (senc)
+// @see ISO-IEC-23001-7.pdf 7.2.1 
+// @see https://cdn.standards.iteh.ai/samples/84637/c960c91d60ae4da7a2f9380bd7e08642/ISO-IEC-FDIS-23001-7.pdf
+// CENC SAI: sample auxiliary information associated with a sample and containing cryptographic information
+// such as initialization vector or subsample information
+// @see ISO-IEC-23001-7.pdf 7.2.2
+// Syntax
+// aligned(8) class SampleEncryptionBox extend FullBox(`senc`, version=0, flags)
+// { 
+//   unsigned int(32) sample_count;
+//   {
+//     unsigned int(Per_Sample_IV_Size*8) InitializationVector;
+//     if (flags & 0x000002)
+//     {
+//       unsigned int(16) subsample_count;
+//       {
+//         unsigned int(16) BytesOfClearData;
+//         unsigned int(32) BytesOfProtectedData;
+//       } [ subsample_count ]
+//     }
+//   } [ sample_count ]
+// }
+class SrsMp4SampleEncryptionBox: public SrsMp4FullBox
+{
+public:
+    std::vector<SrsMp4SampleEncryptionEntry*> entries;
+
+private:
+    uint8_t per_sample_iv_size_;
+    
+public:
+    // @see ISO-IEC-23001-7.pdf 9.1
+    // Per_Sample_IV_Size has supported values: 0, 8, 16.
+    SrsMp4SampleEncryptionBox(uint8_t per_sample_iv_size);
+    virtual ~SrsMp4SampleEncryptionBox();
+protected:
+    virtual int nb_header();
+    virtual srs_error_t encode_header(SrsBuffer* buf);
+    virtual srs_error_t decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+// Original Format Box (frma)
+// @see ISO_IEC_14496-12-base-format-2012.pdf, 8.12.2, page 81
+// aligned(8) class OriginalFormatBox(codingname) extends Box ('frma') {
+//   unsigned int(32) data_format = codingname;
+// }
+class SrsMp4OriginalFormatBox : public SrsMp4Box
+{
+private:
+    uint32_t data_format_;
+    
+public:
+    SrsMp4OriginalFormatBox(uint32_t original_format);
+    virtual ~SrsMp4OriginalFormatBox();
+
+protected:
+    virtual int nb_header();
+    virtual srs_error_t encode_header(SrsBuffer* buf);
+    virtual srs_error_t decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+// Scheme Type Box (schm)
+// @see ISO_IEC_14496-12-base-format-2012.pdf, 8.12.5, page 81
+// aligned(8) class SchemeTypeBox extends FullBox('schm', 0, flags) {
+//   unsigned int(32) scheme_type;    // 4CC identifying the scheme
+//   unsigned int(32) scheme_version; // scheme version
+//   if (flags & 0x000001) {
+//     unsigned int(8) scheme_uri[];  // browser uri
+//   }
+// }
+// @see @see ISO-IEC-23001-7.pdf 4.1
+// the scheme_version field SHALL be set to 0x00010000 (Major version 1, Minor version 0).
+#define SCHM_SCHEME_URI_MAX_SIZE 128
+class SrsMp4SchemeTypeBox : public SrsMp4FullBox
+{
+public:
+    uint32_t scheme_type;
+    uint32_t scheme_version;
+    char scheme_uri[SCHM_SCHEME_URI_MAX_SIZE];
+    uint32_t scheme_uri_size;
+    
+public:
+    SrsMp4SchemeTypeBox();
+    virtual ~SrsMp4SchemeTypeBox();
+
+public:
+    virtual void set_scheme_uri(char* uri, uint32_t uri_size);
+protected:
+    virtual int nb_header();
+    virtual srs_error_t encode_header(SrsBuffer* buf);
+    virtual srs_error_t decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+// Scheme Information Box (schi)
+// @see ISO_IEC_14496-12-base-format-2012.pdf, 8.12.6, page 82
+// aligned(8) class SchemeInformationBox extends Box('schi') {
+//   Box scheme_specific_data[];
+// }
+class SrsMp4SchemeInfoBox : public SrsMp4Box
+{
+public:
+    SrsMp4SchemeInfoBox();
+    virtual ~SrsMp4SchemeInfoBox();
+};
+
+// Protection Scheme Information Box (sinf)
+// @see ISO_IEC_14496-12-base-format-2012.pdf, 8.12.1, page 80
+// aligned(8) class ProtectionSchemeInfoBox(fmt) extends Box('sinf') {
+//   OriginalFormatBox(fmt) original_format; // frma
+//   SchemeTypeBox          scheme_type_box; // optional
+//   SchemeInformationBox   info;            // optional
+// }
+class SrsMp4ProtectionSchemeInfoBox : public SrsMp4Box
+{
+public:
+    SrsMp4ProtectionSchemeInfoBox();
+    virtual ~SrsMp4ProtectionSchemeInfoBox();
+
+public:
+    // Get the Original Format Box (frma)
+    virtual SrsMp4OriginalFormatBox* frma();
+    virtual void set_frma(SrsMp4OriginalFormatBox* v);
+    // Get the Scheme Type Box (schm)
+    virtual SrsMp4SchemeTypeBox* schm();
+    virtual void set_schm(SrsMp4SchemeTypeBox* v);
+    // Get the Scheme Information Box (schi)
+    virtual SrsMp4SchemeInfoBox* schi();
+    virtual void set_schi(SrsMp4SchemeInfoBox* v);
+};
+
+// Track Encryption box (tenc)
+// @see ISO-IEC-23001-7.pdf 8.2
+// aligned(8) class TrackEncryptionBox extends FullBox('tenc', version, flags=0) {
+//   unsigned int(8) reserved = 0;
+//   if (version == 0) {
+//     unsigned int(8) reserved = 0;
+//   } else { // version is 1 or greater
+//     unsigned int(4) default_crypt_byte_block;
+//     unsigned int(4) default_skip_byte_block;
+//   }
+//   unsigned int(8) default_isProtected;
+//   unsigned int(8) default_Per_Sample_IV_Size;
+//   unsigned int(8)[16] default_KID;
+//   if (default_isProtected == 1 && default_Per_Sample_IV_Size == 0) {
+//     unsigned int(8) default_constant_IV_size;
+//     unsigned int(8)[default_constant_IV_size] default_constant_IV;
+//   }
+// }
+// @see https://developer.apple.com/documentation/http-live-streaming/about-the-common-media-application-format-with-http-live-streaming-hls
+// For fragmented MPEG-4 Segments, an EXT-X-KEY tag with a METHOD=SAMPLE-AES attribute indicates that
+// the Segment is encrypted using the `cbcs` scheme in ISO/IEC 23001-7.
+// HLS supports unencrypted and encrypted with 'cbcs'.
+// @see ISO-IEC-23001-7.pdf 10.4.1 Definition
+// 'cbcs' AES-CBC subsample pattern encryption scheme.
+// The 'scheme_type' field of the scheme Type Box('schm') SHALL be set to 'cbcs'.
+// the version of the Track Encryption Box('tenc') SHALL be 1.
+// Encrypted video tracks using NAL Structured Video conforming to ISO/IEC 14496-15 SHALL be
+// protected using Subsample encryption specified in 9.5, and SHALL use pattern encryption as specified
+// in 9.6. As a result, the fields crypt_byte_block and skip_byte_block SHALL NOT be 0.
+// Constant IVs SHALL be used; 'default_Per_Sample_IV_Size' and 'Per_Sample_IV_Size', SHALL be 0.
+// Tracks other than video are protected using whole-block full-sample encryption as specified in 9.7 and
+// hence skip_byte_block SHALL be 0.
+// Pattern Block length, i.e. crypt_byte_block + skip_byte_block SHOULD equal 10.
+// For all video NAL units, including in 'avc1', the slice header SHALL be unencrypted.
+// The first complete byte of video slice data(following the video slice header) SHALL begin a single
+// Subsample protected byte range indicated by the start of BytesOfProtectedData, which extends to
+// the end of the video NAL.
+// NOTE 1 For AVC VCL NAL units, the encryption pattern starts at an offset rounded to the next byte after
+// the slice header, i.e. on the first full byte of slice data. For HEVC, the encryption pattern starts after
+// the byte_alignment() field that terminates the slice_segment_header(), i.e. on the first byte of slice data.
+//
+// @see ISO-IEC-23001-7.pdf 10.4.2 'cbcs' AES-CBC mode pattern encryption scheme application(informative)
+// An encrypt:skip pattern of 1:9(i.e. 10% partial encryption) is recommended. Even though the syntax
+// allows many different encryption patterns, a pattern of ten Blocks is recommended. This means that the
+// skipped Blocks will be (10-N). The number of encrypted cipher blocks N can span multiple contiguous
+// 16-byte Blocks(e.g. three encrypted Blocks followed by seven unencrypted Blocks would result in 30%
+// partial encryption of the video data).
+// For example, to achieve 10 % encryption, the first Block of the pattern is encrypted and the following
+// nine Blocks are left unencrypted. The pattern is repeated every 160 bytes of the protected range, until
+// the end of the range. If the protected range of the slice body is not a multiple of the pattern length
+// (e.g. 160 bytes), then the pattern sequence applies to the included whole 16-byte Blocks and a partial
+// 16-byte Block that may remain where the pattern is terminated by the byte length of the range
+// BytesOfProtectedData, is left unencrypted.
+//
+// @see ISO-IEC-23001-7.pdf 9.7 Whole-block full sample encryption
+// In whole-block full sample encryption, the entire sample is protected. Every sample is encrypted
+// starting at offset 0(there is no unprotected preamble) up to the last 16-byte boundary, leaving any
+// trailing 0-15 bytes in the clear. The IV is reset at every sample.
+class SrsMp4TrackEncryptionBox : public SrsMp4FullBox
+{
+public:
+    uint8_t reserved;
+    uint8_t reserved_2;
+    uint8_t default_crypt_byte_block;
+    uint8_t default_skip_byte_block;
+    uint8_t default_is_protected;
+    uint8_t default_per_sample_IV_size;
+    uint8_t default_KID[16];
+    uint8_t default_constant_IV_size;
+    uint8_t default_constant_IV[16];
+public:
+    SrsMp4TrackEncryptionBox();
+    virtual ~SrsMp4TrackEncryptionBox();
+
+public:
+    virtual void set_default_constant_IV(uint8_t* iv, uint8_t iv_size);
+
+protected:
+    virtual int nb_header();
+    virtual srs_error_t encode_header(SrsBuffer* buf);
+    virtual srs_error_t decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+// TODO: add SchemeTypeBox(schm), set scheme_type=cbcs
+
 // Generally, a MP4 sample contains a frame, for example, a video frame or audio frame.
 class SrsMp4Sample
 {
@@ -1931,7 +2293,7 @@ public:
     virtual srs_error_t write(SrsMp4MovieBox* moov);
     // Write the samples info to moof.
     // @param The dts is the dts of last segment.
-    virtual srs_error_t write(SrsMp4MovieFragmentBox* moof, uint64_t dts);
+    virtual srs_error_t write(SrsMp4TrackFragmentBox* traf, uint64_t dts);
 private:
     virtual srs_error_t write_track(SrsFrameType track,
         SrsMp4DecodingTime2SampleBox* stts, SrsMp4SyncSampleBox* stss, SrsMp4CompositionTime2SampleBox* ctts,
@@ -2111,22 +2473,67 @@ private:
 };
 
 // A fMP4 encoder, to write the init.mp4 with sequence header.
+// TODO: What the M2ts short for?
 class SrsMp4M2tsInitEncoder
 {
 private:
     ISrsWriter* writer;
+
+private:
+    uint8_t crypt_byte_block_;
+    uint8_t skip_byte_block_;
+    unsigned char kid_[16];
+    unsigned char iv_[16];
+    uint8_t iv_size_;
+    bool is_protected_;
+    
 public:
     SrsMp4M2tsInitEncoder();
     virtual ~SrsMp4M2tsInitEncoder();
 public:
     // Initialize the encoder with a writer w.
     virtual srs_error_t initialize(ISrsWriter* w);
+    // set encryption
+    // TODO: review kid(map to a key) and iv, which are shared between audio/video tracks.
+    virtual void config_encryption(uint8_t crypt_byte_block, uint8_t skip_byte_block, unsigned char* kid, unsigned char* iv, uint8_t iv_size);
     // Write the sequence header.
+    // TODO: merge this method to its sibling.
     virtual srs_error_t write(SrsFormat* format, bool video, int tid);
+
+    /**
+     *  The mp4 box format for init.mp4.
+     *
+     *  |ftyp|
+     *  |moov|
+     *  |    |mvhd|
+     *  |    |trak|
+     *  |    |trak|
+     *  |    |....|
+     *  |    |mvex|
+     *  |    |    |trex|
+     *  |    |    |trex|
+     *  |    |    |....|
+     *
+     *  Write the sequence header with both video and audio track.
+     */
+    virtual srs_error_t write(SrsFormat* format, int v_tid, int a_tid);
+
+private:
+    /**
+     * box->type = 'encv' or 'enca'
+     * |encv|
+     * |    |sinf|
+     * |    |    |frma|
+     * |    |    |schm|
+     * |    |    |schi|
+     * |    |    |    |tenc|
+     */
+    virtual srs_error_t config_sample_description_encryption(SrsMp4SampleEntry* box);
 };
 
 // A fMP4 encoder, to cache segments then flush to disk, because the fMP4 should write
 // trun box before mdat.
+// TODO: fmp4 support package more than one tracks.
 class SrsMp4M2tsSegmentEncoder
 {
 private:
@@ -2159,6 +2566,52 @@ public:
     // Flush the encoder, to write the moof and mdat.
     virtual srs_error_t flush(uint64_t& dts);
 };
+
+// A fMP4 encoder, to cache segments then flush to disk, because the fMP4 should write
+// trun box before mdat.
+// TODO: fmp4 support package more than one tracks.
+class SrsFmp4SegmentEncoder
+{
+private:
+    ISrsWriter* writer_;
+    uint32_t sequence_number_;
+    // TODO: audio, video may have different basetime.
+    srs_utime_t decode_basetime_;
+    uint32_t audio_track_id_;
+    uint32_t video_track_id_;
+private:
+    uint32_t nb_audios_;
+    uint32_t nb_videos_;
+    uint32_t styp_bytes_;
+    uint64_t mdat_audio_bytes_;
+    uint64_t mdat_video_bytes_;
+    SrsMp4SampleManager* audio_samples_;
+    SrsMp4SampleManager* video_samples_;
+    unsigned char* key_;
+    unsigned char iv_[16];
+    bool do_sample_encryption_;
+public:
+    SrsFmp4SegmentEncoder();
+    virtual ~SrsFmp4SegmentEncoder();
+public:
+    // Initialize the encoder with a writer w.
+    virtual srs_error_t initialize(ISrsWriter* w, uint32_t sequence, srs_utime_t basetime, uint32_t v_tid, uint32_t a_tid);
+    // config cipher
+    virtual srs_error_t config_cipher(unsigned char* key, unsigned char* iv);
+    // Cache a sample.
+    // @param ht, The sample handler type, audio/soun or video/vide.
+    // @param ft, The frame type. For video, it's SrsVideoAvcFrameType.
+    // @param dts The output dts in milliseconds.
+    // @param pts The output pts in milliseconds.
+    // @param sample The output payload, user must free it.
+    // @param nb_sample The output size of payload.
+    // @remark All samples are RAW AAC/AVC data, because sequence header is writen to init.mp4.
+    virtual srs_error_t write_sample(SrsMp4HandlerType ht, uint16_t ft,
+        uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample);
+    // Flush the encoder, to write the moof and mdat.
+    virtual srs_error_t flush(uint64_t& dts);
+};
+
 
 // LCOV_EXCL_START
 /////////////////////////////////////////////////////////////////////////////////
