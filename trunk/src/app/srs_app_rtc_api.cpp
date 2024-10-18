@@ -643,7 +643,13 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 
     SrsRtcUserConfig ruc;
     if ((err = do_serve_http(w, r, &ruc)) != srs_success) {
-        return srs_error_wrap(err, "serve");
+        if (srs_error_code(err) == ERROR_RTC_SDP_EXCHANGE) {
+            srs_warn("RTC error %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+            return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+        } else {
+            return srs_error_wrap(err, "serve");
+        }
     }
     if (ruc.local_sdp_str_.empty()) {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_InternalServerError);
