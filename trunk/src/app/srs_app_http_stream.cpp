@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -630,6 +630,8 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     // Correct the app and stream by path, which is created from template.
     // @remark Be careful that the stream has extension now, might cause identify fail.
     req->stream = srs_path_basename(r->path());
+    // remove the extension of stream if have. for instance, test.flv -> test
+    req->stream = srs_path_filename(req->stream);
 
     // update client ip
     req->ip = hc->remote_ip();

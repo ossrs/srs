@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT */
-/* Copyright (c) 2013-2024 The SRS Authors */
+/* Copyright (c) 2013-2025 The SRS Authors */
 
 #ifndef ST_UTEST_PUBLIC_HPP
 #define ST_UTEST_PUBLIC_HPP

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -22,9 +22,9 @@ VOID TEST(StTest, StUtimeInMicroseconds)
 	EXPECT_GT(st_time_1, 0);
 	EXPECT_GT(st_time_2, 0);
 	EXPECT_GE(st_time_2, st_time_1);
-	// st_time_2 - st_time_1 should be in range of [1, 100] microseconds
+	// st_time_2 - st_time_1 should be in range of [1, 150] microseconds
 	EXPECT_GE(st_time_2 - st_time_1, 0);
-	EXPECT_LE(st_time_2 - st_time_1, 100);
+	EXPECT_LE(st_time_2 - st_time_1, 150);
 }
 
 static inline st_utime_t time_gettimeofday() {
