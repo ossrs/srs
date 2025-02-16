@@ -14,6 +14,7 @@
 
 class SrsBuffer;
 class SrsBitBuffer;
+class SrsFormat;
 
 /**
  * The video codec id.
@@ -496,7 +497,14 @@ enum SrsHevcNaluType {
     SrsHevcNaluType_UNSPECIFIED_63,
     SrsHevcNaluType_INVALID,
 };
+// @see https://datatracker.ietf.org/doc/html/rfc7798#section-1.1.4
 #define SrsHevcNaluTypeParse(code) (SrsHevcNaluType)((code & 0x7E) >> 1)
+
+enum SrsHevcSliceType {
+    SrsHevcSliceTypeB = 0,
+    SrsHevcSliceTypeP = 1,
+    SrsHevcSliceTypeI = 2,
+};
 
 struct SrsHevcNalData {
     uint16_t nal_unit_length;
@@ -1321,6 +1329,9 @@ public:
 public:
     static srs_error_t parse_avc_nalu_type(const SrsSample* sample, SrsAvcNaluType& avc_nalu_type);
     static srs_error_t parse_avc_b_frame(const SrsSample* sample, bool& is_b_frame);
+
+    static srs_error_t parse_hevc_nalu_type(const SrsSample* sample, SrsHevcNaluType& hevc_nalu_type);
+    static srs_error_t parse_hevc_b_frame(const SrsSample* sample, SrsFormat* format, bool& is_b_frame);
 };
 
 /**

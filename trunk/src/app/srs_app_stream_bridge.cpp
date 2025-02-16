@@ -13,6 +13,7 @@
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_protocol_utility.hpp>
 
 #include <vector>
 using namespace std;
@@ -85,7 +86,7 @@ SrsFrameToRtcBridge::SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source)
 
     // video track ssrc
     if (true) {
-        std::vector<SrsRtcTrackDescription*> descs = source->get_track_desc("video", "H264");
+        std::vector<SrsRtcTrackDescription*> descs = source->get_track_desc("video", "");
         if (!descs.empty()) {
             video_ssrc = descs.at(0)->ssrc_;
         }
@@ -144,7 +145,7 @@ void SrsFrameToRtcBridge::on_unpublish()
 
 srs_error_t SrsFrameToRtcBridge::on_frame(SrsSharedPtrMessage* frame)
 {
-#ifdef SRS_FFMPEG_FIT
+#ifdef SRS_FFMPEG_FIT    
     return rtp_builder_->on_frame(frame);
 #else
     return srs_success;
@@ -155,6 +156,26 @@ srs_error_t SrsFrameToRtcBridge::on_rtp(SrsRtpPacket* pkt)
 {
     return source_->on_rtp(pkt);
 }
+
+srs_error_t SrsFrameToRtcBridge::update_codec(SrsVideoCodecId id)
+{
+    // init with H264 default, so we need check if it's H265 only.
+    if (id == SrsVideoCodecIdHEVC) {
+        if (source_->get_track_desc("video", "H265").empty()) {
+            std::vector<SrsRtcTrackDescription*> video_track_descs = source_->get_track_desc("video", "H264");
+            if (!video_track_descs.empty()) {
+                SrsRtcTrackDescription* video_track_desc = video_track_descs.at(0);
+                SrsVideoPayload* video_payload = (SrsVideoPayload*)video_track_desc->media_;
+                video_payload->name_ = "H265";
+                video_payload->set_h265_param_desc("level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST");
+                srs_trace("RTC: Switch video codec %d(%s) to %d(%s)", SrsVideoCodecIdAVC, srs_video_codec_id2str(SrsVideoCodecIdAVC).c_str(), 
+                    id, srs_video_codec_id2str(id).c_str());
+            }
+        }
+    }
+    return srs_success;
+}
+
 #endif
 
 SrsCompositeBridge::SrsCompositeBridge()
