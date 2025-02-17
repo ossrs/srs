@@ -40,7 +40,7 @@ jobs:
               bash -c "bash /srs/convert.sh && tar cf /srs/objs.tar.bz2 objs" &&
           pwd && du -sh *
       ##################################################################################################################
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: srs-cache
           path: objs.tar.bz2
