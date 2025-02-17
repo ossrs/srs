@@ -68,7 +68,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: srs-cache
-      - uses: geekyeggo/delete-artifact@v4
+      - uses: geekyeggo/delete-artifact@v3
         with:
           name: srs-cache
       ##################################################################################################################
