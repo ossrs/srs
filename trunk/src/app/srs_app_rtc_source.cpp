@@ -1256,7 +1256,7 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
         }
 
         if (first_nalu_type == SrsAvcNaluTypeReserved) {
-            first_nalu_type = SrsAvcNaluType((uint8_t)(sample->bytes[0] & kNalTypeMask));
+            first_nalu_type = SrsAvcNaluTypeParse(sample->bytes[0]);
         }
 
         raw_raw->push_back(sample->copy());
@@ -1336,7 +1336,7 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
                     srs_freep(fua);
                     return srs_error_wrap(err, "read samples %d bytes, left %d, total %d", packet_size, nb_left, nn_bytes);
                 }
-                fua->nalu_type = (SrsAvcNaluType)(header & kNalTypeMask);
+                fua->nalu_type = SrsAvcNaluTypeParse(header);
                 fua->start = bool(i == 0);
                 fua->end = bool(i == num_of_packet - 1);
 
@@ -1409,25 +1409,23 @@ srs_error_t SrsRtcRtpBuilder::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* 
         pkt->nalu_type = is_hevc ? kFuHevc : kFuA;
 
         if (is_hevc) {
-            uint8_t nal_type = SrsHevcNaluTypeParse(header);
             // H265 FU-A header
             SrsRtpFUAPayloadHevc2* fua = new SrsRtpFUAPayloadHevc2();
             pkt->set_payload(fua, SrsRtspPacketPayloadTypeFUAHevc);
 
-            fua->nalu_type = (SrsHevcNaluType)nal_type;
+            fua->nalu_type = SrsHevcNaluTypeParse(header);
             fua->start = bool(i == 0);
             fua->end = bool(i == num_of_packet - 1);
 
             fua->payload = p;
             fua->size = packet_size;
         } else {
-            uint8_t nal_type = header & kNalTypeMask;
             // H264 FU-A header
             SrsRtpFUAPayload2* fua = new SrsRtpFUAPayload2();
             pkt->set_payload(fua, SrsRtspPacketPayloadTypeFUA2);
 
             fua->nri = (SrsAvcNaluType)header;
-            fua->nalu_type = (SrsAvcNaluType)nal_type;
+            fua->nalu_type = SrsAvcNaluTypeParse(header);
             fua->start = bool(i == 0);
             fua->end = bool(i == num_of_packet - 1);
 

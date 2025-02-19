@@ -707,7 +707,7 @@ srs_error_t SrsVideoFrame::parse_avc_nalu_type(const SrsSample* sample, SrsAvcNa
     }
     
     uint8_t header = sample->bytes[0];
-    avc_nalu_type = (SrsAvcNaluType)(header & kNalTypeMask);
+    avc_nalu_type = SrsAvcNaluTypeParse(header);
     
     return err;
 }
@@ -760,7 +760,7 @@ srs_error_t SrsVideoFrame::parse_hevc_nalu_type(const SrsSample *sample, SrsHevc
     }
     
     uint8_t header = sample->bytes[0];
-    hevc_nalu_type = (SrsHevcNaluType)((header >> 1) & 0x3f);
+    hevc_nalu_type = SrsHevcNaluTypeParse(header);
     
     return err;
 }

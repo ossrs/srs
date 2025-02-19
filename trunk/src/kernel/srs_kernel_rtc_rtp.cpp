@@ -1208,7 +1208,7 @@ SrsSample* SrsRtpSTAPPayload::get_sps()
             continue;
         }
 
-        SrsAvcNaluType nalu_type = (SrsAvcNaluType)(p->bytes[0] & kNalTypeMask);
+        SrsAvcNaluType nalu_type = SrsAvcNaluTypeParse(p->bytes[0]);
         if (nalu_type == SrsAvcNaluTypeSPS) {
             return p;
         }
@@ -1226,7 +1226,7 @@ SrsSample* SrsRtpSTAPPayload::get_pps()
             continue;
         }
 
-        SrsAvcNaluType nalu_type = (SrsAvcNaluType)(p->bytes[0] & kNalTypeMask);
+        SrsAvcNaluType nalu_type = SrsAvcNaluTypeParse(p->bytes[0]);
         if (nalu_type == SrsAvcNaluTypePPS) {
             return p;
         }
@@ -1412,7 +1412,7 @@ srs_error_t SrsRtpFUAPayload::decode(SrsBuffer* buf)
     v = buf->read_1bytes();
     start = v & kStart;
     end = v & kEnd;
-    nalu_type = SrsAvcNaluType(v & kNalTypeMask);
+    nalu_type = SrsAvcNaluTypeParse(v);
 
     if (!buf->require(1)) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
@@ -1513,7 +1513,7 @@ srs_error_t SrsRtpFUAPayload2::decode(SrsBuffer* buf)
     v = buf->read_1bytes();
     start = v & kStart;
     end = v & kEnd;
-    nalu_type = SrsAvcNaluType(v & kNalTypeMask);
+    nalu_type = SrsAvcNaluTypeParse(v);
 
     if (!buf->require(1)) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);

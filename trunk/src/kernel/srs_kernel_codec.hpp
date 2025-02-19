@@ -422,6 +422,8 @@ enum SrsAvcNaluType
     // Coded slice extension slice_layer_extension_rbsp( )
     SrsAvcNaluTypeCodedSliceExt = 20,
 };
+// @see https://datatracker.ietf.org/doc/html/rfc6184#section-1.3
+#define SrsAvcNaluTypeParse(code) (SrsAvcNaluType)(code & 0x1F)
 std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
 
 #ifdef SRS_H265
