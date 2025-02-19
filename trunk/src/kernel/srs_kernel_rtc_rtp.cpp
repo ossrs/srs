@@ -1765,8 +1765,8 @@ srs_error_t SrsRtpFUAPayloadHevc::decode(SrsBuffer* buf)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 3);
     }
 
-    uint8_t payload_hdr1 = buf->read_1bytes();
-    uint8_t payload_hdr2 = buf->read_1bytes();
+    // skip PayloadHdr, 2 bytes
+    buf->skip(2);
 
     uint8_t fu_header = buf->read_1bytes();
     start = fu_header & kStart;
@@ -1870,8 +1870,8 @@ srs_error_t SrsRtpFUAPayloadHevc2::decode(SrsBuffer* buf)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires 3 bytes");
     }
 
-    uint8_t payload_hdr1 = buf->read_1bytes();
-    uint8_t payload_hdr2 = buf->read_1bytes();
+    // skip PayloadHdr, 2 bytes
+    buf->skip(2);
     
     uint8_t fu_header = buf->read_1bytes();
     start = fu_header & kStart;
