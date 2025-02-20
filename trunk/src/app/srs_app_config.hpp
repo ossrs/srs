@@ -1104,10 +1104,10 @@ public:
     // Get the http flv live stream mount point for vhost.
     // used to generate the flv stream mount path.
     virtual std::string get_vhost_http_remux_mount(std::string vhost);
-// http heartbeart section
+// http heartbeat section
 private:
     // Get the heartbeat directive.
-    virtual SrsConfDirective* get_heartbeart();
+    virtual SrsConfDirective* get_heartbeat();
 public:
     // Whether heartbeat enabled.
     virtual bool get_heartbeat_enabled();

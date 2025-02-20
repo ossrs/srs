@@ -2405,7 +2405,7 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
     if (true) {
-        SrsConfDirective* conf = get_heartbeart();
+        SrsConfDirective* conf = get_heartbeat();
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "interval" && n != "url"
@@ -8708,7 +8708,7 @@ string SrsConfig::get_vhost_http_remux_mount(string vhost)
     return conf->arg0();
 }
 
-SrsConfDirective* SrsConfig::get_heartbeart()
+SrsConfDirective* SrsConfig::get_heartbeat()
 {
     return root->get("heartbeat");
 }
@@ -8719,7 +8719,7 @@ bool SrsConfig::get_heartbeat_enabled()
 
     static bool DEFAULT = false;
     
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     if (!conf) {
         return DEFAULT;
     }
@@ -8738,7 +8738,7 @@ srs_utime_t SrsConfig::get_heartbeat_interval()
 
     static srs_utime_t DEFAULT = (srs_utime_t)(10 * SRS_UTIME_SECONDS);
     
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     if (!conf) {
         return DEFAULT;
     }
@@ -8757,7 +8757,7 @@ string SrsConfig::get_heartbeat_url()
 
     static string DEFAULT = "http://" SRS_CONSTS_LOCALHOST ":8085/api/v1/servers";
     
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     if (!conf) {
         return DEFAULT;
     }
@@ -8776,7 +8776,7 @@ string SrsConfig::get_heartbeat_device_id()
 
     static string DEFAULT = "";
     
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     if (!conf) {
         return DEFAULT;
     }
@@ -8795,7 +8795,7 @@ bool SrsConfig::get_heartbeat_summaries()
 
     static bool DEFAULT = false;
 
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     if (!conf) {
         return DEFAULT;
     }
@@ -8814,7 +8814,7 @@ bool SrsConfig::get_heartbeat_ports()
 
     static bool DEFAULT = false;
 
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     if (!conf) {
         return DEFAULT;
     }
