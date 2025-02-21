@@ -676,7 +676,7 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
 
     // By default, use AVC(H.264) to parse NALU.
     // For video, parse the nalu type, set the IDR flag.
-    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
+    SrsAvcNaluType nal_unit_type = SrsAvcNaluTypeParse(bytes[0]);
     
     if (nal_unit_type == SrsAvcNaluTypeIDR) {
         has_idr = true;
@@ -751,12 +751,12 @@ srs_error_t SrsVideoFrame::parse_avc_b_frame(const SrsSample* sample, bool& is_b
     return err;
 }
 
-srs_error_t SrsVideoFrame::parse_hevc_nalu_type(const SrsSample *sample, SrsHevcNaluType &hevc_nalu_type)
+srs_error_t SrsVideoFrame::parse_hevc_nalu_type(const SrsSample* sample, SrsHevcNaluType& hevc_nalu_type)
 {
     srs_error_t err = srs_success;
 
     if (sample == NULL || sample->size < 1) {
-        return srs_error_new(ERROR_NALU_EMPTY, "empty nalu");
+        return srs_error_new(ERROR_NALU_EMPTY, "empty hevc nalu");
     }
     
     uint8_t header = sample->bytes[0];
@@ -765,7 +765,7 @@ srs_error_t SrsVideoFrame::parse_hevc_nalu_type(const SrsSample *sample, SrsHevc
     return err;
 }
 
-srs_error_t SrsVideoFrame::parse_hevc_b_frame(const SrsSample *sample, SrsFormat *format, bool &is_b_frame)
+srs_error_t SrsVideoFrame::parse_hevc_b_frame(const SrsSample* sample, SrsFormat *format, bool& is_b_frame)
 {
     srs_error_t err = srs_success;
 
@@ -774,18 +774,19 @@ srs_error_t SrsVideoFrame::parse_hevc_b_frame(const SrsSample *sample, SrsFormat
         return srs_error_wrap(err, "parse hevc nalu type error");
     }
 
-    SrsBuffer stream(sample->bytes, sample->size);
-    stream.skip(2);
-
-    // @see 7.3.6.1 General slice segment header syntax
-    // @doc ITU-T-H.265-2021.pdf, page 66.
-    SrsBitBuffer bs(&stream);   
-    uint8_t first_slice_segment_in_pic_flag = bs.read_bit();
     if (nalu_type > SrsHevcNaluType_CODED_SLICE_BLA && nalu_type < SrsHevcNaluType_RESERVED_23) {
-        bs.skip_bits(1);
         is_b_frame = false;
         return err;
     }
+
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(sample->bytes, sample->size));
+    stream->skip(2);
+
+    // @see 7.3.6.1 General slice segment header syntax
+    // @doc ITU-T-H.265-2021.pdf, page 66.
+    SrsBitBuffer bs(stream.get());
+
+    uint8_t first_slice_segment_in_pic_flag = bs.read_bit();
 
     uint32_t slice_pic_parameter_set_id;
     if ((err = bs.read_bits_ue(slice_pic_parameter_set_id)) != srs_success) {
@@ -798,15 +799,11 @@ srs_error_t SrsVideoFrame::parse_hevc_b_frame(const SrsSample *sample, SrsFormat
 
     SrsHevcRbspPps *pps = &(format->vcodec->hevc_dec_conf_record_.pps_table[slice_pic_parameter_set_id]);
 
-    uint8_t dependent_slice_segment_flag;
+    uint8_t dependent_slice_segment_flag = 0;
     if (!first_slice_segment_in_pic_flag) {
         if (pps->dependent_slice_segments_enabled_flag) {
             dependent_slice_segment_flag = bs.read_bit();
-        } else {
-            dependent_slice_segment_flag = 0;
         }
-    } else {
-        dependent_slice_segment_flag = 0;
     }
 
     if (dependent_slice_segment_flag) {
@@ -822,7 +819,10 @@ srs_error_t SrsVideoFrame::parse_hevc_b_frame(const SrsSample *sample, SrsFormat
         return srs_error_wrap(err, "read slice type");
     }
 
-    is_b_frame = (slice_type == SrsHevcSliceTypeB) ? true : false;
+    is_b_frame = slice_type == SrsHevcSliceTypeB;
+    if (is_b_frame) {
+        srs_verbose("nalu_type=%d, slice type=%d", nalu_type, slice_type);
+    }
 
     // no need to evaluate the rest
 
@@ -2337,7 +2337,7 @@ srs_error_t SrsFormat::avc_demux_sps()
     // 7.4.1 NAL unit semantics
     // ISO_IEC_14496-10-AVC-2012.pdf, page 61.
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
-    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(nutv & 0x1f);
+    SrsAvcNaluType nal_unit_type = SrsAvcNaluTypeParse(nutv);
     if (nal_unit_type != 7) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "for sps, nal_unit_type shall be equal to 7");
     }

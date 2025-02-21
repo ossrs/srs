@@ -33,9 +33,9 @@ const uint8_t kStapA            = 24;
 const uint8_t kFuA              = 28;
 
 // @see: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
-const uint8_t kStapHevc        = 48;
+const uint8_t kStapHevc         = 48;
 // @see: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.3
-const uint8_t kFuHevc          = 49;
+const uint8_t kFuHevc           = 49;
 
 // @see: https://tools.ietf.org/html/rfc6184#section-5.8
 const uint8_t kStart            = 0x80; // Fu-header start bit
@@ -488,7 +488,7 @@ public:
 };
 
 // FU, for one NALU with multiple fragments.
-// With more than one payload. For HEVC.
+// With more than one payload for HEVC.
 class SrsRtpFUAPayloadHevc : public ISrsRtpPayloader
 {
 public:
@@ -511,7 +511,7 @@ public:
 };
 
 // FU, for one NALU with multiple fragments.
-// With only one payload. For HEVC.
+// With only one payload for HEVC.
 class SrsRtpFUAPayloadHevc2 : public ISrsRtpPayloader
 {
 public:
