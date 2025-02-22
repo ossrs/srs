@@ -49,6 +49,13 @@ const int kAudioPayloadType     = 111;
 // Firefox defaults as 126, Chrome is 102.
 const int kVideoPayloadType = 102;
 
+// Audio jitter buffer size (in packets)
+const int AUDIO_JITTER_BUFFER_SIZE = 100;
+// Sliding window size for continuous processing
+const int SLIDING_WINDOW_SIZE = 10;
+// Maximum waiting time for out-of-order packets (in ms)
+const int MAX_AUDIO_WAIT_MS = 100;
+
 class SrsNtp
 {
 public:
@@ -335,6 +342,13 @@ private:
     uint16_t header_sn_;
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
+
+    // Audio jitter buffer, map sequence number to packet
+    std::map<uint16_t, SrsRtpPacket*> audio_buffer_;
+    // Last processed sequence number
+    uint16_t last_audio_seq_num_;
+    // Last time we processed the jitter buffer
+    int64_t last_audio_process_time_ms_;
 private:
     // The state for timestamp sync state. -1 for init. 0 not sync. 1 sync.
     int sync_state_;
@@ -351,6 +365,7 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
 private:
+    srs_error_t packet_audio(SrsRtpPacket* pkt);
     srs_error_t transcode_audio(SrsRtpPacket *pkt);
     void packet_aac(SrsCommonMessage* audio, char* data, int len, uint32_t pts, bool is_header);
 private:
