@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT */
-/* Copyright (c) 2022 Winlin */
+/* Copyright (c) 2025 Winlin */
 
 long foo() {
     char c;
