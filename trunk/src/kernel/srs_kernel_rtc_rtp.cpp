@@ -1657,6 +1657,7 @@ srs_error_t SrsRtpSTAPPayloadHevc::decode(SrsBuffer* buf)
     // STAP header, RTP payload format for aggregation packets
     // @see https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
     uint8_t v = buf->read_1bytes();
+    buf->skip(1);
 
     // forbidden_zero_bit shoul be zero.
     // @see https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
