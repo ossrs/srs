@@ -2200,6 +2200,7 @@ size_t http_parser_execute (http_parser *parser,
   const char *status_mark = 0;
   enum state p_state = (enum state) parser->state;
   const unsigned int lenient = parser->lenient_http_headers;
+  const unsigned int allow_chunked_length = parser->allow_chunked_length;
   uint32_t nread = parser->nread;
 
   /* We're in an error state. Don't bother doing anything. */
@@ -2319,8 +2320,9 @@ reexecute:
       {
         if (ch == CR || ch == LF)
           break;
-        parser->flags = 0;
-        parser->content_length = ULLONG_MAX;
+          parser->flags = 0;
+          parser->uses_transfer_encoding = 0;
+          parser->content_length = ULLONG_MAX;
 
         if (ch == 'H') {
           UPDATE_STATE(s_res_H);
@@ -2496,8 +2498,9 @@ reexecute:
       {
         if (ch == CR || ch == LF)
           break;
-        parser->flags = 0;
-        parser->content_length = ULLONG_MAX;
+          parser->flags = 0;
+          parser->uses_transfer_encoding = 0;
+          parser->content_length = ULLONG_MAX;
 
         if (UNLIKELY(!IS_ALPHA(ch))) {
           SET_ERRNO(HPE_INVALID_METHOD);
@@ -2941,6 +2944,14 @@ reexecute:
                 parser->header_state = h_general;
               } else if (parser->index == sizeof(TRANSFER_ENCODING)-2) {
                 parser->header_state = h_transfer_encoding;
+                parser->uses_transfer_encoding = 1;
+
+                /* Multiple `Transfer-Encoding` headers should be treated as
+                * one, but with values separate by a comma.
+                *
+                * See: https://tools.ietf.org/html/rfc7230#section-3.2.2
+                */
+                parser->flags &= ~F_CHUNKED;
               }
               break;
 
@@ -3371,13 +3382,23 @@ reexecute:
           REEXECUTE();
         }
 
-        /* Cannot use chunked encoding and a content-length header together
-           per the HTTP specification. */
-        if ((parser->flags & F_CHUNKED) &&
-            (parser->flags & F_CONTENTLENGTH)) {
-          SET_ERRNO(HPE_UNEXPECTED_CONTENT_LENGTH);
-          goto error;
-        }
+        /* Cannot use transfer-encoding and a content-length header together
+          per the HTTP specification. (RFC 7230 Section 3.3.3) */
+        if ((parser->uses_transfer_encoding == 1) &&
+          (parser->flags & F_CONTENTLENGTH)) {
+          /* Allow it for lenient parsing as long as `Transfer-Encoding` is
+          * not `chunked` or allow_length_with_encoding is set
+          */
+          if (parser->flags & F_CHUNKED) {
+            if (!allow_chunked_length) {
+              SET_ERRNO(HPE_UNEXPECTED_CONTENT_LENGTH);
+              goto error;
+            }
+          } else if (!lenient) {
+            SET_ERRNO(HPE_UNEXPECTED_CONTENT_LENGTH);
+            goto error;
+            }
+            }
 
         UPDATE_STATE(s_headers_done);
 
@@ -3451,8 +3472,31 @@ reexecute:
           UPDATE_STATE(NEW_MESSAGE());
           CALLBACK_NOTIFY(message_complete);
         } else if (parser->flags & F_CHUNKED) {
-          /* chunked encoding - ignore Content-Length header */
+          /* chunked encoding - ignore Content-Length header,
+           * prepare for a chunk */
           UPDATE_STATE(s_chunk_size_start);
+        } else if (parser->uses_transfer_encoding == 1) {
+          if (parser->type == HTTP_REQUEST && !lenient) {
+            /* RFC 7230 3.3.3 */
+        
+            /* If a Transfer-Encoding header field
+             * is present in a request and the chunked transfer coding is not
+             * the final encoding, the message body length cannot be determined
+             * reliably; the server MUST respond with the 400 (Bad Request)
+             * status code and then close the connection.
+             */
+            SET_ERRNO(HPE_INVALID_TRANSFER_ENCODING);
+            RETURN(p - data); /* Error */
+          } else {
+            /* RFC 7230 3.3.3 */
+        
+            /* If a Transfer-Encoding header field is present in a response and
+             * the chunked transfer coding is not the final encoding, the
+             * message body length is determined by reading the connection until
+             * it is closed by the server.
+             */
+            UPDATE_STATE(s_body_identity_eof);
+          }
         } else {
           if (parser->content_length == 0) {
             /* Content-Length header given but zero: Content-Length: 0\r\n */
