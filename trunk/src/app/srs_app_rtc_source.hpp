@@ -342,6 +342,7 @@ private:
     // For OBS WHIP, send SPS/PPS in dedicated RTP packet.
     SrsRtpPacket* obs_whip_sps_;
     SrsRtpPacket* obs_whip_pps_;
+    SrsRtpPacket* obs_whip_vps_;
 public:
     SrsRtcFrameBuilder(ISrsStreamBridge* bridge);
     virtual ~SrsRtcFrameBuilder();

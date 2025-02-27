@@ -95,6 +95,13 @@ public:
     // @param flv output the muxed flv packet.
     // @param nb_flv output the muxed flv size.
     virtual srs_error_t mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv);
+    // Mux the hevc video packet to flv video packet, enhanced mode.
+    // @param packet_type, SrsVideoHEVCFrameTraitPacketTypeSequenceStart or SrsVideoHEVCFrameTraitPacketTypeCodedFrames.
+    // @param frame_type, SrsVideoAvcFrameTypeKeyFrame or SrsVideoAvcFrameTypeInterFrame.
+    // @param video the hevc raw data.
+    // @param flv output the muxed flv packet.
+    // @param nb_flv output the muxed flv size.
+    virtual srs_error_t mux_avc2flv_enhanced(std::string video, int8_t frame_type, int8_t packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv);
 };
 #endif
 

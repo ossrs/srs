@@ -53,6 +53,12 @@ enum SrsVideoCodecId
 };
 std::string srs_video_codec_id2str(SrsVideoCodecId codec);
 
+/* Extended VideoTagHeader
+ * defined in reference link:
+ * https://github.com/veovera/enhanced-rtmp/blob/main/enhanced-rtmp-v1.pdf
+ * */
+#define SRS_FLV_IS_EX_HEADER          0x80
+
 /**
  * The video AVC frame trait(characteristic).
  * @doc video_file_format_spec_v10_1.pdf, page79, E.4.3.2 AVCVIDEOPACKET

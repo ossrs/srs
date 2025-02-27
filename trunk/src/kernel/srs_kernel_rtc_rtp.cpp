@@ -983,6 +983,14 @@ bool SrsRtpPacket::is_keyframe()
     return false;
 }
 
+bool SrsRtpPacket::is_h265()
+{
+    return payload_type_ == SrsRtspPacketPayloadTypeSTAPHevc 
+    || payload_type_ == SrsRtspPacketPayloadTypeFUAHevc2 
+    || payload_type_ == SrsRtspPacketPayloadTypeFUAHevc
+    || payload_type_ == SrsRtspPacketPayloadTypeRaw;
+}
+
 SrsRtpRawPayload::SrsRtpRawPayload()
 {
     payload = NULL;
@@ -1879,6 +1887,10 @@ srs_error_t SrsRtpFUAPayloadHevc2::decode(SrsBuffer* buf)
     end = fu_header & kEnd;
     nalu_type = SrsHevcNaluType(fu_header & 0x3F);
 
+    if (!buf->require(1)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
+    }
+    
     payload = buf->head();
     size = buf->left();
     buf->skip(size);
