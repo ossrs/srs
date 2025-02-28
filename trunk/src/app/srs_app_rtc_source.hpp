@@ -319,7 +319,9 @@ private:
     ISrsStreamBridge* bridge_;
 private:
     bool is_first_audio_;
-    SrsAudioTranscoder *codec_;
+    SrsAudioTranscoder *audio_transcoder_;
+
+    SrsVideoCodecId video_codec_;
 private:
     const static uint16_t s_cache_size = 512;
     //TODO:use SrsRtpRingBuffer
@@ -347,7 +349,7 @@ public:
     SrsRtcFrameBuilder(ISrsStreamBridge* bridge);
     virtual ~SrsRtcFrameBuilder();
 public:
-    srs_error_t initialize(SrsRequest* r);
+    srs_error_t initialize(SrsRequest* r, SrsAudioCodecId audio_codec, SrsVideoCodecId video_codec);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
     virtual srs_error_t on_rtp(SrsRtpPacket *pkt);

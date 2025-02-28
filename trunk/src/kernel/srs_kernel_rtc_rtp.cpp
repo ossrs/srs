@@ -983,14 +983,6 @@ bool SrsRtpPacket::is_keyframe()
     return false;
 }
 
-bool SrsRtpPacket::is_h265()
-{
-    return payload_type_ == SrsRtspPacketPayloadTypeSTAPHevc 
-    || payload_type_ == SrsRtspPacketPayloadTypeFUAHevc2 
-    || payload_type_ == SrsRtspPacketPayloadTypeFUAHevc
-    || payload_type_ == SrsRtspPacketPayloadTypeRaw;
-}
-
 SrsRtpRawPayload::SrsRtpRawPayload()
 {
     payload = NULL;

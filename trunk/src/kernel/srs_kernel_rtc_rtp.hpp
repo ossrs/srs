@@ -342,7 +342,6 @@ public:
     virtual srs_error_t decode(SrsBuffer* buf);
 public:
     bool is_keyframe();
-    bool is_h265();
     // Get and set the packet sync time in milliseconds.
     void set_avsync_time(int64_t avsync_time) { avsync_time_ = avsync_time; }
     int64_t get_avsync_time() const { return avsync_time_; }

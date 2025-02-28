@@ -626,13 +626,20 @@ srs_error_t SrsRtcSource::on_publish()
     // If bridge to other source, handle event and start timer to request PLI.
     if (bridge_) {
 #ifdef SRS_FFMPEG_FIT
-        if ((err = frame_builder_->initialize(req)) != srs_success) {
+        SrsAudioCodecId audio_codec = srs_audio_codec_str2id(stream_desc_->audio_track_desc_->media_->name_);
+        SrsVideoCodecId video_codec = SrsVideoCodecIdAVC;
+        if (stream_desc_->video_track_descs_.size() > 0) {
+            SrsRtcTrackDescription* track_desc = stream_desc_->video_track_descs_.at(0);
+            video_codec = srs_video_codec_str2id(track_desc->media_->name_);
+        }
+
+        if ((err = frame_builder_->initialize(req, audio_codec, video_codec)) != srs_success) {
             return srs_error_wrap(err, "frame builder initialize");
         }
 
         if ((err = frame_builder_->on_publish()) != srs_success) {
             return srs_error_wrap(err, "frame builder on publish");
-        }
+        }     
 #endif
 
         if ((err = bridge_->on_publish()) != srs_success) {
@@ -775,9 +782,8 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
             return track_descs;
         }
 
-        string name = stream_desc_->audio_track_desc_->media_->name_;
-        std::transform(name.begin(), name.end(), name.begin(), static_cast<int(*)(int)>(std::tolower));
-        if (name == media_name) {
+        SrsAudioCodecId name = srs_audio_codec_str2id(stream_desc_->audio_track_desc_->media_->name_);
+        if (name == srs_audio_codec_str2id(media_name)) {
             track_descs.push_back(stream_desc_->audio_track_desc_);
         }
     }
@@ -788,9 +794,8 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
             if (media_name.empty()) {
                 track_descs.push_back(*it);
             } else {
-                string name = (*it)->media_->name_;
-                std::transform(name.begin(), name.end(), name.begin(), static_cast<int(*)(int)>(std::toupper));
-                if (name == media_name) {
+                SrsVideoCodecId name = srs_video_codec_str2id((*it)->media_->name_);
+                if (name == srs_video_codec_str2id(media_name)) {
                     track_descs.push_back(*it);
                 }
             }
@@ -1477,7 +1482,8 @@ SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
 {
     bridge_ = bridge;
     is_first_audio_ = true;
-    codec_ = NULL;
+    audio_transcoder_ = NULL;
+    video_codec_ = SrsVideoCodecIdAVC;
     header_sn_ = 0;
     memset(cache_video_pkts_, 0, sizeof(cache_video_pkts_));
     rtp_key_frame_ts_ = -1;
@@ -1487,28 +1493,29 @@ SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
 
 SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
 {
-    srs_freep(codec_);
+    srs_freep(audio_transcoder_);
     clear_cached_video();
     srs_freep(obs_whip_sps_);
     srs_freep(obs_whip_pps_);
     srs_freep(obs_whip_vps_);
 }
 
-srs_error_t SrsRtcFrameBuilder::initialize(SrsRequest* r)
+srs_error_t SrsRtcFrameBuilder::initialize(SrsRequest* r, SrsAudioCodecId audio_codec, SrsVideoCodecId video_codec)
 {
     srs_error_t err = srs_success;
 
-    srs_freep(codec_);
-    codec_ = new SrsAudioTranscoder();
+    srs_freep(audio_transcoder_);
+    audio_transcoder_ = new SrsAudioTranscoder();
 
-    SrsAudioCodecId from = SrsAudioCodecIdOpus; // TODO: From SDP?
     SrsAudioCodecId to = SrsAudioCodecIdAAC; // The output audio codec.
     int channels = 2; // The output audio channels.
     int sample_rate = 48000; // The output audio sample rate in HZ.
     int bitrate = _srs_config->get_rtc_aac_bitrate(r->vhost); // The output audio bitrate in bps.
-    if ((err = codec_->initialize(from, to, channels, sample_rate, bitrate)) != srs_success) {
+    if ((err = audio_transcoder_->initialize(audio_codec, to, channels, sample_rate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "bridge initialize");
     }
+
+    video_codec_ = video_codec;
 
     return err;
 }
@@ -1566,7 +1573,7 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
     if (is_first_audio_) {
         int header_len = 0;
         uint8_t* header = NULL;
-        codec_->aac_codec_header(&header, &header_len);
+        audio_transcoder_->aac_codec_header(&header, &header_len);
 
         SrsCommonMessage out_rtmp;
         packet_aac(&out_rtmp, (char *)header, header_len, ts, is_first_audio_);
@@ -1591,7 +1598,7 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
     frame.dts = ts;
     frame.cts = 0;
 
-    err = codec_->transcode(&frame, out_pkts);
+    err = audio_transcoder_->transcode(&frame, out_pkts);
     if (err != srs_success) {
         return err;
     }
@@ -1611,7 +1618,7 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
             break;
         }
     }
-    codec_->free_frames(out_pkts);
+    audio_transcoder_->free_frames(out_pkts);
 
     return err;
 }
@@ -1713,7 +1720,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
     SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
 
     // Handle SPS/PPS in cache or STAP-A packet.
-    if (stap_payload || has_sps_pps_in_raw_payload) {
+    if (video_codec_ == SrsVideoCodecIdAVC && (stap_payload || has_sps_pps_in_raw_payload)) {
         // Get the SPS/PPS from cache or STAP-A packet.
         SrsSample* sps = stap_payload ? stap_payload->get_sps() : NULL;
         if (!sps && obs_whip_sps_) sps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_sps_->payload())->sample_;
@@ -1762,7 +1769,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
     }
 
     SrsRtpSTAPPayloadHevc* payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(pkt->payload());
-    if (payload || has_sps_pps_in_raw_payload) {
+    if (video_codec_ == SrsVideoCodecIdHEVC && (payload || has_sps_pps_in_raw_payload)) {
         SrsSample* vps = payload ? payload->get_vps() : NULL;
         if (!vps && obs_whip_vps_) vps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_vps_->payload())->sample_;
         SrsSample* sps = payload ? payload->get_sps() : NULL;
@@ -1952,7 +1959,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     SrsCommonMessage rtmp;
     SrsRtpPacket* pkt = cache_video_pkts_[cache_index(start)].pkt;
 
-    if (pkt->is_h265()) {
+    if (video_codec_ == SrsVideoCodecIdHEVC) {
         nb_payload += 1 + 4;
     } else {
         //type_codec1 + avc_type + composition time + nalu size + nalu
@@ -1963,7 +1970,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     rtmp.create_payload(nb_payload);
     rtmp.size = nb_payload;
     SrsBuffer payload(rtmp.payload, rtmp.size);
-    if (pkt->is_h265()) {
+    if (video_codec_ == SrsVideoCodecIdHEVC) {
         // @see: https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf, page 8
         SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
         uint8_t packet_type = SrsVideoHEVCFrameTraitPacketTypeCodedFrames;
@@ -2962,8 +2969,8 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
         return;
     }
 
-    bool is_hevc = track_desc_->media_->name_ == "H265";
-    if (is_hevc) {
+    SrsVideoCodecId video_codec = srs_video_codec_str2id(track_desc_->media_->name_);
+    if (video_codec == SrsVideoCodecIdHEVC) {
         uint8_t v = SrsHevcNaluTypeParse(buf->head()[0]);
         pkt->nalu_type = v;
 
