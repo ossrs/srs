@@ -2819,7 +2819,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                 bool profile_matched = (!has_42e01f || h264_param.profile_level_id == "42e01f");
 
                 // Try to pick the "best match" H.264 payload type.
-                if (profile_matched && h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1") {
+                if (profile_matched && h264_param.packetization_mode == "1" && h264_param.level_asymmetry_allow == "1") {
                     // if the playload is opus, and the encoding_param_ is channel
                     SrsVideoPayload* video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
                     video_payload->set_h264_param_desc(payload.format_specific_param_);
