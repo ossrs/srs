@@ -1053,6 +1053,13 @@ srs_error_t SrsRtcRtpBuilder::package_opus(SrsAudioFrame* audio, SrsRtpPacket* p
     return err;
 }
 
+void cleanup_packets(vector<SrsRtpPacket*>& packets) {
+    for (size_t i = 0; i < packets.size(); i++) {
+        srs_freep(packets[i]);
+    }
+    packets.clear();
+}
+
 srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
@@ -1111,6 +1118,7 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
     vector<SrsRtpPacket*> pkts;
     if (merge_nalus && nn_samples > 1) {
         if ((err = package_nalus(msg, samples, pkts)) != srs_success) {
+            cleanup_packets(pkts);
             return srs_error_wrap(err, "package nalus as one");
         }
     } else {
@@ -1120,10 +1128,12 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
 
             if (sample->size <= kRtpMaxPayloadSize) {
                 if ((err = package_single_nalu(msg, sample, pkts)) != srs_success) {
+                    cleanup_packets(pkts);
                     return srs_error_wrap(err, "package single nalu");
                 }
             } else {
                 if ((err = package_fu_a(msg, sample, kRtpMaxPayloadSize, pkts)) != srs_success) {
+                    cleanup_packets(pkts);
                     return srs_error_wrap(err, "package fu-a");
                 }
             }
@@ -1255,8 +1265,14 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
 {
     srs_error_t err = srs_success;
 
+    SrsFormat* format = meta->vsh_format();
+    if (!format || !format->vcodec) {
+        return err;
+    }
+    bool is_hevc = format->vcodec->id == SrsVideoCodecIdHEVC;
+
     SrsRtpRawNALUs* raw_raw = new SrsRtpRawNALUs();
-    SrsAvcNaluType first_nalu_type = SrsAvcNaluTypeReserved;
+    uint8_t first_nalu_type = 0;
 
     for (int i = 0; i < (int)samples.size(); i++) {
         SrsSample* sample = samples[i];
@@ -1265,8 +1281,8 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
             continue;
         }
 
-        if (first_nalu_type == SrsAvcNaluTypeReserved) {
-            first_nalu_type = SrsAvcNaluTypeParse(sample->bytes[0]);
+        if (first_nalu_type == 0) {
+            first_nalu_type = is_hevc ? SrsHevcNaluTypeParse(sample->bytes[0]) : SrsAvcNaluTypeParse(sample->bytes[0]);
         }
 
         raw_raw->push_back(sample->copy());
@@ -1293,19 +1309,11 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
         pkt->set_payload(raw_raw, SrsRtspPacketPayloadTypeNALU);
         pkt->wrap(msg);
     } else {
-        SrsFormat* format = meta->vsh_format();
-        if (!format || !format->vcodec) {
-            return err;
-        }
-
-        bool is_hevc = format->vcodec->id == SrsVideoCodecIdHEVC;
-        // H264 FU-A header size is 1 @see: https://datatracker.ietf.org/doc/html/rfc6184#section-5.8
-        // H265 FU-A header size is 2 @see: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.3
-        int header_size = is_hevc ? 2 : 1;
-
         // We must free it, should never use RTP packets to free it,
         // because more than one RTP packet will refer to it.
         SrsUniquePtr<SrsRtpRawNALUs> raw(raw_raw);
+
+        int header_size = is_hevc ? SrsHevcNaluHeaderSize : SrsAvcNaluHeaderSize;
 
         // Package NALUs in FU-A RTP packets.
         int fu_payload_size = kRtpMaxPayloadSize;
@@ -1397,9 +1405,9 @@ srs_error_t SrsRtcRtpBuilder::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* 
     }
 
     bool is_hevc = format->vcodec->id == SrsVideoCodecIdHEVC;
-    // H264 FU-A header size is 1 @see: https://datatracker.ietf.org/doc/html/rfc6184#section-5.8
-    // H265 FU-A header size is 2 @see: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.3
-    int header_size = is_hevc ? 2 : 1;
+    int header_size = is_hevc ? SrsHevcNaluHeaderSize : SrsAvcNaluHeaderSize;
+    srs_assert(sample->size >= header_size);
+
     char* p = sample->bytes + header_size;
     int nb_left = sample->size - header_size;
     uint8_t header = sample->bytes[0];
@@ -2128,14 +2136,20 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type()
     media_payload_type.rtcp_fb_ = rtcp_fbs_;
 
     std::ostringstream format_specific_param;
+    bool has_param = false;
+    
     if (!h264_param_.level_asymmerty_allow.empty()) {
         format_specific_param << "level-asymmetry-allowed=" << h264_param_.level_asymmerty_allow;
+        has_param = true;
     }
     if (!h264_param_.packetization_mode.empty()) {
-        format_specific_param << ";packetization-mode=" << h264_param_.packetization_mode;
+        if (has_param) format_specific_param << ";";
+        format_specific_param << "packetization-mode=" << h264_param_.packetization_mode;
+        has_param = true;
     }
     if (!h264_param_.profile_level_id.empty()) {
-        format_specific_param << ";profile-level-id=" << h264_param_.profile_level_id;
+        if (has_param) format_specific_param << ";";
+        format_specific_param << "profile-level-id=" << h264_param_.profile_level_id;
     }
 
     media_payload_type.format_specific_param_ = format_specific_param.str();
@@ -2152,17 +2166,25 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type_h265()
     media_payload_type.rtcp_fb_ = rtcp_fbs_;
 
     std::ostringstream format_specific_param;
+    bool has_param = false;
+    
     if (!h265_param_.level_id.empty()) {
         format_specific_param << "level-id=" << h265_param_.level_id;
+        has_param = true;
     }
     if (!h265_param_.profile_id.empty()) {
-        format_specific_param << ";profile-id=" << h265_param_.profile_id;
+        if (has_param) format_specific_param << ";";
+        format_specific_param << "profile-id=" << h265_param_.profile_id;
+        has_param = true;
     }
     if (!h265_param_.tier_flag.empty()) {
-        format_specific_param << ";tier-flag=" << h265_param_.tier_flag;
+        if (has_param) format_specific_param << ";";
+        format_specific_param << "tier-flag=" << h265_param_.tier_flag;
+        has_param = true;
     }
     if (!h265_param_.tx_mode.empty()) {
-        format_specific_param << ";tx-mode=" << h265_param_.tx_mode;
+        if (has_param) format_specific_param << ";";
+        format_specific_param << "tx-mode=" << h265_param_.tx_mode;
     }
 
     media_payload_type.format_specific_param_ = format_specific_param.str();

@@ -16,6 +16,11 @@ class SrsBuffer;
 class SrsBitBuffer;
 class SrsFormat;
 
+// @see: https://datatracker.ietf.org/doc/html/rfc6184#section-1.3  
+const int SrsAvcNaluHeaderSize = 1;
+// @see: https://datatracker.ietf.org/doc/html/rfc7798#section-1.1.4
+const int SrsHevcNaluHeaderSize = 2;
+
 /**
  * The video codec id.
  * @doc video_file_format_spec_v10_1.pdf, page78, E.4.3.1 VIDEODATA
