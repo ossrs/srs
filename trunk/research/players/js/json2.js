@@ -206,6 +206,8 @@ if (typeof JSON !== 'object') {
             '\\': '\\\\'
         },
         rep;
+    // Locate the pattern definition for verbosity and update it
+    var verbosityPattern = "^(off|errors|warnings|(info|progress)|(debug|progress\\+)|(trace|progress\\+\\+)|progress\\+\\+\\+)$";
 
 
     function quote(string) {
