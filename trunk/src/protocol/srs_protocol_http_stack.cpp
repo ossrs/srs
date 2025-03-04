@@ -2861,8 +2861,14 @@ reexecute:
           ch = *p;
           c = TOKEN(ch);
 
-          if (!c)
-            break;
+        if (!c) {
+	     // Add this fix to explicitly reject space in header field names
+	     if (ch == ' ') {
+	        SET_ERRNO(HPE_INVALID_HEADER_TOKEN);
+	        goto error;
+	     }
+	     break;
+	}
 
           switch (parser->header_state) {
             case h_general: {
