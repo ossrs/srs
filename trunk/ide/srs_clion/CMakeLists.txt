@@ -90,6 +90,10 @@ TARGET_LINK_LIBRARIES(srs -ldl -pthread)
 TARGET_LINK_LIBRARIES(srs -rdynamic)
 TARGET_LINK_LIBRARIES(srs -fsanitize=address -fno-omit-frame-pointer)
 
+# Ensure pthread is correctly linked
+find_package(Threads REQUIRED)
+target_link_libraries(srs Threads::Threads)
+
 ###########################################################
 # For utest.
 # See https://google.github.io/googletest/quickstart-cmake.html
