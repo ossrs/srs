@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-03-06, Merge [#4296](https://github.com/ossrs/srs/pull/4296): Dvr: support h265 flv fragments. v7.0.24 (#4296)
 * v7.0, 2025-02-20, Merge [#4253](https://github.com/ossrs/srs/pull/4253): fix typo about heartbeat. v7.0.23 (#4253)
 * v7.0, 2025-02-19, Merge [#4291](https://github.com/ossrs/srs/pull/4291): fix ci error. v7.0.22 (#4291)
 * v7.0, 2025-01-14, Merge [#4271](https://github.com/ossrs/srs/pull/4271): update copyright to 2025. v7.0.21 (#4271)
@@ -35,6 +36,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2025-03-06, Merge [#4296](https://github.com/ossrs/srs/pull/4296): Dvr: support h265 flv fragments. v6.0.162 (#4296)
 * v6.0, 2025-02-20, Merge [#4253](https://github.com/ossrs/srs/pull/4253): fix typo about heartbeat. v6.0.161 (#4253)
 * v6.0, 2025-02-19, Merge [#4291](https://github.com/ossrs/srs/pull/4291): fix ci error. v6.0.160 (#4291)
 * v6.0, 2025-01-14, Merge [#4271](https://github.com/ossrs/srs/pull/4271): update copyright to 2025. v6.0.159 (#4271)
