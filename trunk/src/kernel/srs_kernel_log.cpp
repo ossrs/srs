@@ -14,7 +14,7 @@
 const char* srs_log_level_strings[] = {
 #ifdef SRS_LOG_LEVEL_V2
         // The v2 log level specs by log4j.
-        "FORB",     "TRACE",     "DEBUG",    NULL,   "INFO",    NULL, NULL, NULL,
+        "FORB",     "VERB",    "TRACE",     "DEBUG",   "INFO",    NULL, NULL, NULL,
         "WARN",     NULL,       NULL,       NULL,   NULL,       NULL, NULL, NULL,
         "ERROR",    NULL,       NULL,       NULL,   NULL,       NULL, NULL, NULL,
         NULL,       NULL,       NULL,       NULL,   NULL,       NULL, NULL, NULL,
