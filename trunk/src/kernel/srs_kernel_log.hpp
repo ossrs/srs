@@ -22,17 +22,17 @@
 // Please note that the enum name might not be the string, to keep compatible with previous definition.
 enum SrsLogLevel
 {
-	SrsLogLevelForbidden = 0x00,
+    SrsLogLevelForbidden = 0x00,
 
-	// Only used for very verbose debug, generally,
-	// we compile without this level for high performance.
-	SrsLogLevelVerbose = 0x01,
-	SrsLogLevelInfo = 0x02,
-	SrsLogLevelTrace = 0x04,
-	SrsLogLevelWarn = 0x08,
-	SrsLogLevelError = 0x10,
+    // Only used for very verbose debug, generally,
+    // we compile without this level for high performance.
+    SrsLogLevelVerbose = 0x01,
+    SrsLogLevelInfo = 0x02,
+    SrsLogLevelTrace = 0x04,
+    SrsLogLevelWarn = 0x08,
+    SrsLogLevelError = 0x10,
 
-	SrsLogLevelDisabled = 0x20,
+    SrsLogLevelDisabled = 0x20,
 };
 
 // Get the level in string.
