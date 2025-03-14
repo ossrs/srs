@@ -1185,7 +1185,15 @@ srs_error_t SrsGoApiValgrind::cycle()
         } else if (check == "changed") {
             VALGRIND_DO_CHANGED_LEAK_CHECK;
         } else if (check == "new") {
+#if defined(VALGRIND_DO_NEW_LEAK_CHECK)
             VALGRIND_DO_NEW_LEAK_CHECK;
+#else
+            srs_warn("valgrind?check=new is not supported in current Valgrind version(%d.%d),"
+                    "please upgrade to 3.22 or higher. "
+                    "Fallback to valgrind?check=full",
+                    __VALGRIND_MAJOR__, __VALGRIND_MINOR__);
+            VALGRIND_DO_LEAK_CHECK;
+#endif
         }
 
         srs_usleep(3 * SRS_UTIME_SECONDS);
