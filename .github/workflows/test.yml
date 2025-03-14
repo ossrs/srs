@@ -68,7 +68,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: srs-cache
-      - uses: geekyeggo/delete-artifact@54ab544f12cdb7b71613a16a2b5a37a9ade990af # v2.0.0
+      # https://github.com/marketplace/actions/delete-artifact?version=v5.0.0#-compatibility
+      - uses: geekyeggo/delete-artifact@v5.0.0
         with:
           name: srs-cache
       ##################################################################################################################
