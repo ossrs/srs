@@ -20,21 +20,6 @@
 
 // The log level, see https://github.com/apache/logging-log4j2/blob/release-2.x/log4j-api/src/main/java/org/apache/logging/log4j/Level.java
 // Please note that the enum name might not be the string, to keep compatible with previous definition.
-#ifdef SRS_LOG_LEVEL_V2
-enum SrsLogLevel
-{
-	SrsLogLevelForbidden = 0x00,
-    //v2 type
-    SrsLogLevelVerbose = 0x01,
-    SrsLogLevelTrace = 0x02,
-    SrsLogLevelDebug = 0x03,
-    SrsLogLevelInfo = 0x04,
-    SrsLogLevelWarn = 0x08,
-    SrsLogLevelError = 0x10,
-
-	SrsLogLevelDisabled = 0x20,
-};
-#else
 enum SrsLogLevel
 {
 	SrsLogLevelForbidden = 0x00,
@@ -49,7 +34,6 @@ enum SrsLogLevel
 
 	SrsLogLevelDisabled = 0x20,
 };
-#endif
 
 // Get the level in string.
 extern const char* srs_log_level_strings[];

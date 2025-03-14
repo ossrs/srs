@@ -55,21 +55,21 @@ SrsLogLevel srs_get_log_level(string level)
 
 SrsLogLevel srs_get_log_level_v2(string level)
 {
-    if ("VERB" == level) {
+    if ("verbose" == level) {
         return SrsLogLevelVerbose;
-    } else if ("TRACE" == level) {
-        return SrsLogLevelTrace;
-    } else if ("DEBUG" == level) {
-        return SrsLogLevelDebug;
-    } else if ("INFO" == level) {
-        return SrsLogLevelInfo;
-    } else if ("WARN" == level) {
-        return SrsLogLevelWarn;
-    } else if ("ERROR" == level) {
-        return SrsLogLevelError;
-    } else {
-        return SrsLogLevelDisabled;
-    }
+    } else if ("debug" == level) {
+		return SrsLogLevelInfo;
+	} else if ("info" == level) {
+		return SrsLogLevelInfo;
+	} else if ("trace" == level) {
+		return SrsLogLevelTrace;
+	} else if ("warn" == level) {
+		return SrsLogLevelWarn;
+	} else if ("error" == level) {
+		return SrsLogLevelError;
+	} else {
+		return SrsLogLevelDisabled;
+	}
 }
 
 string srs_path_build_stream(string template_path, string vhost, string app, string stream)
