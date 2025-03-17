@@ -509,7 +509,7 @@ enum SrsHevcNaluType {
 
 /**
  * @see Table 7-7 – Name association to slice_type
- * @doc ITU-T-H.265-2021.pdf, page 96.
+ * @doc ITU-T-H.265-2021.pdf, page 116.
  */
 enum SrsHevcSliceType {
     SrsHevcSliceTypeB = 0,
