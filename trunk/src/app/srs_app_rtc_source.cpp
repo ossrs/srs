@@ -1216,7 +1216,7 @@ srs_error_t SrsRtcRtpBuilder::package_stap_a(SrsSharedPtrMessage* msg, SrsRtpPac
     vector<vector<char>*> params;
     int size = 0;
     if (format->vcodec->id == SrsVideoCodecIdHEVC) {
-        for (int i = 0; i < format->vcodec->hevc_dec_conf_record_.nalu_vec.size(); i++) {
+        for (size_t i = 0; i < format->vcodec->hevc_dec_conf_record_.nalu_vec.size(); i++) {
             if (format->vcodec->hevc_dec_conf_record_.nalu_vec[i].nal_unit_type == SrsHevcNaluType_VPS
                 || format->vcodec->hevc_dec_conf_record_.nalu_vec[i].nal_unit_type == SrsHevcNaluType_SPS
                 || format->vcodec->hevc_dec_conf_record_.nalu_vec[i].nal_unit_type == SrsHevcNaluType_PPS) {
@@ -1282,7 +1282,7 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
         }
 
         if (first_nalu_type == 0) {
-            first_nalu_type = is_hevc ? SrsHevcNaluTypeParse(sample->bytes[0]) : SrsAvcNaluTypeParse(sample->bytes[0]);
+            first_nalu_type = is_hevc ? uint8_t(SrsHevcNaluTypeParse(sample->bytes[0])) : uint8_t(SrsAvcNaluTypeParse(sample->bytes[0]));
         }
 
         raw_raw->push_back(sample->copy());
