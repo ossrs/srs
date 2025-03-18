@@ -798,6 +798,9 @@ srs_error_t SrsVideoFrame::parse_hevc_b_frame(const SrsSample* sample, SrsFormat
     }
 
     SrsHevcRbspPps *pps = &(format->vcodec->hevc_dec_conf_record_.pps_table[slice_pic_parameter_set_id]);
+    if (!pps) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps not found");
+    }
 
     uint8_t dependent_slice_segment_flag = 0;
     if (!first_slice_segment_in_pic_flag) {
