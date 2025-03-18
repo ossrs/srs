@@ -56,7 +56,17 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     //      rtmp://ip/app/app2/stream?k=v
     // Where after last slash is stream.
     fullUrl += stream.empty() ? "/" : (stream.at(0) == '/' ? stream : "/" + stream);
-    fullUrl += param.empty() ? "" : (param.at(0) == '?' ? param : "?" + param);
+    if (!stream.empty() && stream.find("?") == string::npos) {
+        fullUrl += param.empty() ? "" : (param.at(0) == '?' ? param : "?" + param);
+    } else {
+        string newParam = param;
+        if (!param.empty()) {
+            // fullUrl may contain params.
+            newParam = (fullUrl.find(param) != string::npos) ? ""
+                        : "&" + (newParam.at(0) == '?' ? newParam.substr(1) : newParam);
+        }
+        fullUrl += newParam;
+    }
 
     // First, we covert the FMLE URL to standard URL:
     //      rtmp://ip/app/app2?k=v/stream , or:
@@ -64,9 +74,12 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     size_t pos_query = fullUrl.find_first_of("?#");
     size_t pos_rslash = fullUrl.rfind("/");
     if (pos_rslash != string::npos && pos_query != string::npos && pos_query < pos_rslash) {
-        fullUrl = fullUrl.substr(0, pos_query) // rtmp://ip/app/app2
-                  + fullUrl.substr(pos_rslash) // /stream
-                  + fullUrl.substr(pos_query, pos_rslash - pos_query); // ?k=v
+        string newUrl = fullUrl.substr(0, pos_query); // rtmp://ip/app/app2
+        string newStream = fullUrl.substr(pos_rslash); // /stream
+        string newParam = (newStream.find("?") == string::npos)
+                        ? fullUrl.substr(pos_query, pos_rslash - pos_query)
+                        : ("&" + fullUrl.substr(pos_query + 1, pos_rslash - pos_query - 1));// ?k=v or &k=v
+        fullUrl = newUrl + newStream + newParam;
     }
 
     // Remove the _definst_ of FMLE URL.
