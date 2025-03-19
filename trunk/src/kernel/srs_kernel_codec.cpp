@@ -721,7 +721,7 @@ srs_error_t SrsVideoFrame::parse_avc_b_frame(const SrsSample* sample, bool& is_b
         return srs_error_wrap(err, "parse avc nalu type error");
     }
 
-    if (nalu_type != SrsAvcNaluTypeNonIDR && nalu_type != SrsAvcNaluTypeDataPartitionA && nalu_type != SrsAvcNaluTypeIDR) {
+    if (nalu_type != SrsAvcNaluTypeNonIDR && nalu_type != SrsAvcNaluTypeDataPartitionA) {
         is_b_frame = false;
         return err;
     }
@@ -774,7 +774,7 @@ srs_error_t SrsVideoFrame::parse_hevc_b_frame(const SrsSample* sample, SrsFormat
         return srs_error_wrap(err, "parse hevc nalu type error");
     }
 
-    if (nalu_type > SrsHevcNaluType_CODED_SLICE_BLA && nalu_type < SrsHevcNaluType_RESERVED_23) {
+    if (nalu_type > SrsHevcNaluType_CODED_SLICE_TFD) {
         is_b_frame = false;
         return err;
     }
