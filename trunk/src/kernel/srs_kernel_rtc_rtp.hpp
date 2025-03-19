@@ -257,6 +257,7 @@ enum SrsRtspPacketPayloadType
 {
     SrsRtspPacketPayloadTypeRaw,
     SrsRtspPacketPayloadTypeFUA2,
+    SrsRtspPacketPayloadTypeFUAHevc2,
     SrsRtspPacketPayloadTypeFUA,
     SrsRtspPacketPayloadTypeFUAHevc,
     SrsRtspPacketPayloadTypeNALU,

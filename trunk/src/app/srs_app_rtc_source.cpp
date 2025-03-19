@@ -1429,7 +1429,7 @@ srs_error_t SrsRtcRtpBuilder::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* 
         if (is_hevc) {
             // H265 FU-A header
             SrsRtpFUAPayloadHevc2* fua = new SrsRtpFUAPayloadHevc2();
-            pkt->set_payload(fua, SrsRtspPacketPayloadTypeFUAHevc);
+            pkt->set_payload(fua, SrsRtspPacketPayloadTypeFUAHevc2);
 
             fua->nalu_type = SrsHevcNaluTypeParse(header);
             fua->start = bool(i == 0);
