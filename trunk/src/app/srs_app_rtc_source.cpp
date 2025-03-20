@@ -1053,13 +1053,6 @@ srs_error_t SrsRtcRtpBuilder::package_opus(SrsAudioFrame* audio, SrsRtpPacket* p
     return err;
 }
 
-void cleanup_packets(vector<SrsRtpPacket*>& packets) {
-    for (size_t i = 0; i < packets.size(); i++) {
-        srs_freep(packets[i]);
-    }
-    packets.clear();
-}
-
 srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
@@ -1118,7 +1111,6 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
     vector<SrsRtpPacket*> pkts;
     if (merge_nalus && nn_samples > 1) {
         if ((err = package_nalus(msg, samples, pkts)) != srs_success) {
-            cleanup_packets(pkts);
             return srs_error_wrap(err, "package nalus as one");
         }
     } else {
@@ -1128,12 +1120,10 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
 
             if (sample->size <= kRtpMaxPayloadSize) {
                 if ((err = package_single_nalu(msg, sample, pkts)) != srs_success) {
-                    cleanup_packets(pkts);
                     return srs_error_wrap(err, "package single nalu");
                 }
             } else {
                 if ((err = package_fu_a(msg, sample, kRtpMaxPayloadSize, pkts)) != srs_success) {
-                    cleanup_packets(pkts);
                     return srs_error_wrap(err, "package fu-a");
                 }
             }
