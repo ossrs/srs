@@ -1234,7 +1234,8 @@ srs_error_t SrsRtcRtpBuilder::package_stap_a(SrsSharedPtrMessage* msg, SrsRtpPac
     }
     char* payload = pkt->wrap(size);
 
-    for (vector<char>* param : params) {
+    for (vector<vector<char>*>::iterator it = params.begin(); it != params.end(); ++it) {
+        vector<char>* param = *it;
         SrsSample* sample = new SrsSample();
         sample->bytes = payload;
         sample->size = param->size();
