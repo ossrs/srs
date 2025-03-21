@@ -57,7 +57,9 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     // Where after last slash is stream.
     fullUrl += stream.empty() ? "/" : (stream.at(0) == '/' ? stream : "/" + stream);
     if (!stream.empty() && stream.find("?") == string::npos) {
-        fullUrl += param.empty() ? "" : (param.at(0) == '?' ? param : "?" + param);
+        if (param.empty() || fullUrl.find(param) == string::npos) {
+            fullUrl += param.empty() ? "" : (param.at(0) == '?' ? param : "?" + param);
+        }
     } else {
         string newParam = param;
         if (!param.empty()) {
