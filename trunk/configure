@@ -670,7 +670,7 @@ install:
 	@mkdir -p \$(__REAL_INSTALL)/usr/lib/systemd/system
 	@cp -f usr/lib/systemd/system/srs.service \$(__REAL_INSTALL)/usr/lib/systemd/system/srs.service
 	@echo ""
-	@echo "@see: https://ossrs.net/lts/zh-cn/docs/v4/doc/service"
+	@echo "@see: https://ossrs.net/lts/zh-cn/docs/v7/doc/service"
 
 END
 

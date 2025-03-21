@@ -7,6 +7,10 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-03-21, Merge [#4294](https://github.com/ossrs/srs/pull/4294): Build: update build version to v7. v7.0.29 (#4294)
+* v7.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v7.0.28 (#4303)
+* v7.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v7.0.27 (#4303)
+* v7.0, 2025-03-20, Merge [#4305](https://github.com/ossrs/srs/pull/4305): free sample to prevent memory leak. v7.0.26 (#4305)
 * v7.0, 2025-03-18, Merge [#4302](https://github.com/ossrs/srs/pull/4302): update geekyeggo/delete-artifact to 5.0.0. v7.0.25 (#4302)
 * v7.0, 2025-03-06, Merge [#4296](https://github.com/ossrs/srs/pull/4296): Dvr: support h265 flv fragments. v7.0.24 (#4296)
 * v7.0, 2025-02-20, Merge [#4253](https://github.com/ossrs/srs/pull/4253): fix typo about heartbeat. v7.0.23 (#4253)
@@ -37,6 +41,9 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v6.0.166 (#4303)
+* v6.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v6.0.165 (#4303)
+* v6.0, 2025-03-20, Merge [#4305](https://github.com/ossrs/srs/pull/4305): free sample to prevent memory leak. v6.0.164 (#4305)
 * v6.0, 2025-03-18, Merge [#4302](https://github.com/ossrs/srs/pull/4302): update geekyeggo/delete-artifact to 5.0.0. v6.0.163 (#4302)
 * v6.0, 2025-03-06, Merge [#4296](https://github.com/ossrs/srs/pull/4296): Dvr: support h265 flv fragments. v6.0.162 (#4296)
 * v6.0, 2025-02-20, Merge [#4253](https://github.com/ossrs/srs/pull/4253): fix typo about heartbeat. v6.0.161 (#4253)
@@ -204,6 +211,8 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v5.0.223 (#4303)
+* v5.0, 2025-03-20, Merge [#4305](https://github.com/ossrs/srs/pull/4305): free sample to prevent memory leak. v5.0.222 (#4305)
 * v5.0, 2025-03-18, Merge [#4302](https://github.com/ossrs/srs/pull/4302): update geekyeggo/delete-artifact to 5.0.0. v5.0.221 (#4302)
 * v5.0, 2025-02-20, Merge [#4253](https://github.com/ossrs/srs/pull/4253): fix typo about heartbeat. v5.0.220 (#4253)
 * v5.0, 2025-02-19, Merge [#4291](https://github.com/ossrs/srs/pull/4291): fix ci error. v5.0.219 (#4291)
