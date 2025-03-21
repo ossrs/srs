@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-03-21, Merge [#4294](https://github.com/ossrs/srs/pull/4294): Build: update build version to v7. v7.0.29 (#4294)
 * v7.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v7.0.28 (#4303)
 * v7.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v7.0.27 (#4303)
 * v7.0, 2025-03-20, Merge [#4305](https://github.com/ossrs/srs/pull/4305): free sample to prevent memory leak. v7.0.26 (#4305)
