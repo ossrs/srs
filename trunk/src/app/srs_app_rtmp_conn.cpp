@@ -409,7 +409,7 @@ srs_error_t SrsRtmpConn::service_cycle()
         return srs_error_wrap(err, "rtmp: set in window ack size");
     }
     
-    if ((err = rtmp->set_peer_bandwidth((int)(2.5 * 1000 * 1000), 2)) != srs_success) {
+    if ((err = rtmp->set_peer_bandwidth((int)(2.5 * 1000 * 1000), SrsPeerBandwidthDynamic)) != srs_success) {
         return srs_error_wrap(err, "rtmp: set peer bandwidth");
     }
     
