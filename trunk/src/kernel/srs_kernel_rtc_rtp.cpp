@@ -1021,6 +1021,9 @@ ISrsRtpPayloader* SrsRtpRawPayload::copy()
 
     cp->payload = payload;
     cp->nn_payload = nn_payload;
+
+    // free sample to prevent memory leak.
+    srs_freep(cp->sample_);
     cp->sample_ = sample_->copy();
 
     return cp;
