@@ -251,7 +251,7 @@ srs_error_t SrsProcess::start()
         srs_usleep(10 * SRS_UTIME_MILLISECONDS);
 
         is_started = true;
-        srs_trace("fored process, pid=%d, bin=%s, stdout=%s, stderr=%s, argv=%s",
+        srs_trace("forked process, pid=%d, bin=%s, stdout=%s, stderr=%s, argv=%s",
                   pid, bin.c_str(), stdout_file.c_str(), stderr_file.c_str(), actual_cli.c_str());
         return err;
     }
