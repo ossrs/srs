@@ -716,3 +716,28 @@ function SrsRtcFormatSenders(senders, kind) {
     return codecs.join(", ");
 }
 
+function SrsRtcFormatStats(stats, kind) {
+    var codecs = [];
+    stats.forEach((report) => {
+        if (report.type === 'codec' && report.mimeType && report.mimeType.toLowerCase().startsWith(kind)) {
+            var s = '';
+
+            s += report.mimeType.split('/')[1] || report.mimeType;
+            
+            if (report.clockRate) {
+                s += ', ' + report.clockRate + 'HZ';
+            }
+
+            if (kind === 'audio' && report.channels) {
+                s += ', channels: ' + report.channels;
+            }
+            
+            if (report.payloadType) {
+                s += ', pt: ' + report.payloadType;
+            }
+            
+            codecs.push(s);
+        }
+    });
+    return codecs.join(", ");
+}
