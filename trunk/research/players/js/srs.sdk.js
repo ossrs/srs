@@ -719,7 +719,7 @@ function SrsRtcFormatSenders(senders, kind) {
 function SrsRtcFormatStats(stats, kind) {
     var codecs = [];
     stats.forEach((report) => {
-        if (report.type === 'codec' && report.mimeType && report.mimeType.toLowerCase().startsWith(kind)) {
+        if (report.type === 'codec' && report.mimeType?.toLowerCase().startsWith(kind)) {
             var s = '';
 
             s += report.mimeType.split('/')[1] || report.mimeType;
