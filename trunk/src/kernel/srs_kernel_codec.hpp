@@ -1339,10 +1339,10 @@ public:
     virtual SrsVideoCodecConfig* vcodec();
 public:
     static srs_error_t parse_avc_nalu_type(const SrsSample* sample, SrsAvcNaluType& avc_nalu_type);
-    static srs_error_t parse_avc_b_frame(const SrsSample* sample, bool& is_b_frame);
+    static srs_error_t parse_avc_bframe(const SrsSample* sample, bool& is_b_frame);
 
     static srs_error_t parse_hevc_nalu_type(const SrsSample* sample, SrsHevcNaluType& hevc_nalu_type);
-    static srs_error_t parse_hevc_b_frame(const SrsSample* sample, SrsFormat* format, bool& is_b_frame);
+    static srs_error_t parse_hevc_bframe(const SrsSample* sample, SrsFormat* format, bool& is_b_frame);
 };
 
 /**

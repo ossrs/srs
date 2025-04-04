@@ -1167,11 +1167,11 @@ srs_error_t SrsRtcRtpBuilder::filter(SrsSharedPtrMessage* msg, SrsFormat* format
         if (!keep_bframe) {
             bool is_b_frame = false;
             if (format->vcodec->id == SrsVideoCodecIdAVC) {
-                if ((err = SrsVideoFrame::parse_avc_b_frame(sample, is_b_frame)) != srs_success) {
+                if ((err = SrsVideoFrame::parse_avc_bframe(sample, is_b_frame)) != srs_success) {
                     return srs_error_wrap(err, "parse bframe");
                 }
             } else if (format->vcodec->id == SrsVideoCodecIdHEVC) {
-                if ((err = SrsVideoFrame::parse_hevc_b_frame(sample, format, is_b_frame)) != srs_success) {
+                if ((err = SrsVideoFrame::parse_hevc_bframe(sample, format, is_b_frame)) != srs_success) {
                     return srs_error_wrap(err, "parse bframe");
                 }
             }

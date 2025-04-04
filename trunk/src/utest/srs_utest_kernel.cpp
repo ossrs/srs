@@ -3615,7 +3615,7 @@ VOID TEST(KernelCodecTest, VideoFrameH264)
         SrsSample sample((char*)data, sizeof(data));
         
         bool is_b_frame = false;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_b_frame(&sample, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample, is_b_frame));
         EXPECT_TRUE(is_b_frame);
         
         // Non-B Frame, slice_type=0(P Frame)
@@ -3623,7 +3623,7 @@ VOID TEST(KernelCodecTest, VideoFrameH264)
         SrsSample sample2((char*)data2, sizeof(data2));
         
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_b_frame(&sample2, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample2, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
         // SPS
@@ -3631,7 +3631,7 @@ VOID TEST(KernelCodecTest, VideoFrameH264)
         SrsSample sample3((char*)data3, sizeof(data3));
         
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_b_frame(&sample3, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample3, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
         // PPS
@@ -3639,7 +3639,7 @@ VOID TEST(KernelCodecTest, VideoFrameH264)
         SrsSample sample4((char*)data4, sizeof(data4));
         
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_b_frame(&sample4, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample4, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
         // IDR
@@ -3647,12 +3647,12 @@ VOID TEST(KernelCodecTest, VideoFrameH264)
         SrsSample sample5((char*)data5, sizeof(data5));
         
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_b_frame(&sample5, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample5, is_b_frame));
         EXPECT_FALSE(is_b_frame);
         
         // Empty Sample
         SrsSample empty_sample(NULL, 0);
-        HELPER_EXPECT_FAILED(SrsVideoFrame::parse_avc_b_frame(&empty_sample, is_b_frame));
+        HELPER_EXPECT_FAILED(SrsVideoFrame::parse_avc_bframe(&empty_sample, is_b_frame));
     }
 }
 
@@ -3716,7 +3716,7 @@ VOID TEST(KernelCodecTest, VideoFrameH265)
         SrsSample sample((char*)data, sizeof(data));
         
         bool is_b_frame = false;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_b_frame(&sample, &format, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample, &format, is_b_frame));
         EXPECT_TRUE(is_b_frame);
         
         // Non-B Frame, slice_type=1(P Frame)
@@ -3724,7 +3724,7 @@ VOID TEST(KernelCodecTest, VideoFrameH265)
         SrsSample sample2((char*)data2, sizeof(data2));
         
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_b_frame(&sample2, &format, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample2, &format, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
         // VPS
@@ -3732,7 +3732,7 @@ VOID TEST(KernelCodecTest, VideoFrameH265)
         SrsSample sample3((char*)data3, sizeof(data3));
         
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_b_frame(&sample3, &format, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample3, &format, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
         // SPS
@@ -3740,7 +3740,7 @@ VOID TEST(KernelCodecTest, VideoFrameH265)
         SrsSample sample4((char*)data4, sizeof(data4));
         
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_b_frame(&sample4, &format, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample4, &format, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
         // PPS
@@ -3748,7 +3748,7 @@ VOID TEST(KernelCodecTest, VideoFrameH265)
         SrsSample sample5((char*)data5, sizeof(data5));
         
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_b_frame(&sample5, &format, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample5, &format, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
         // IDR
@@ -3756,12 +3756,12 @@ VOID TEST(KernelCodecTest, VideoFrameH265)
         SrsSample sample6((char*)data6, sizeof(data6));
         
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_b_frame(&sample6, &format, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample6, &format, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
         // Empty Sample
         SrsSample empty_sample(NULL, 0);
-        HELPER_EXPECT_FAILED(SrsVideoFrame::parse_hevc_b_frame(&empty_sample, &format, is_b_frame));
+        HELPER_EXPECT_FAILED(SrsVideoFrame::parse_hevc_bframe(&empty_sample, &format, is_b_frame));
     }
 }
 #endif

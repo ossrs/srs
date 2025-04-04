@@ -712,7 +712,7 @@ srs_error_t SrsVideoFrame::parse_avc_nalu_type(const SrsSample* sample, SrsAvcNa
     return err;
 }
 
-srs_error_t SrsVideoFrame::parse_avc_b_frame(const SrsSample* sample, bool& is_b_frame)
+srs_error_t SrsVideoFrame::parse_avc_bframe(const SrsSample* sample, bool& is_b_frame)
 {
     srs_error_t err = srs_success;
 
@@ -765,7 +765,7 @@ srs_error_t SrsVideoFrame::parse_hevc_nalu_type(const SrsSample* sample, SrsHevc
     return err;
 }
 
-srs_error_t SrsVideoFrame::parse_hevc_b_frame(const SrsSample* sample, SrsFormat *format, bool& is_b_frame)
+srs_error_t SrsVideoFrame::parse_hevc_bframe(const SrsSample* sample, SrsFormat *format, bool& is_b_frame)
 {
     srs_error_t err = srs_success;
 
