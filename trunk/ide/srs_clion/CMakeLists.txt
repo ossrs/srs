@@ -110,5 +110,5 @@ TARGET_LINK_LIBRARIES(utest -fsanitize=address -fno-omit-frame-pointer)
 
 ###########################################################
 # Done
-MESSAGE(STATUS "@see https://ossrs.net/lts/zh-cn/docs/v5/doc/ide")
+MESSAGE(STATUS "@see https://ossrs.net/lts/zh-cn/docs/v7/doc/ide")
 

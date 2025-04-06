@@ -194,7 +194,7 @@ Features:
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
   --config=<path>           The default config file for SRS. Default: $SRS_DEFAULT_CONFIG
 
-Performance:                @see https://ossrs.net/lts/zh-cn/docs/v5/doc/performance
+Performance:                @see https://ossrs.net/lts/zh-cn/docs/v7/doc/performance
   --valgrind=on|off         Whether build valgrind for memory check. Default: $(value2switch $SRS_VALGRIND)
   --gperf=on|off            Whether build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only). Default: $(value2switch $SRS_GPERF)
   --gmc=on|off              Whether build memory check with gperf tools. Default: $(value2switch $SRS_GPERF_MC)
@@ -218,7 +218,7 @@ Toolchain options:
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
   --extra-ldflags=<ELDFLAGS> Set ELDFLAGS as LDFLAGS.
 
-Cross Build options:        @see https://ossrs.net/lts/zh-cn/docs/v4/doc/arm#ubuntu-cross-build-srs
+Cross Build options:        @see https://ossrs.net/lts/zh-cn/docs/v7/doc/arm#ubuntu-cross-build-srs
   --cross=on|off            Enable cross-build, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
   --cpu=<CPU>               Toolchain: Select the minimum required CPU for cross-build. For example: --cpu=24kc
   --arch=<ARCH>             Toolchain: Select architecture for cross-build. For example: --arch=aarch64
@@ -297,7 +297,7 @@ function parse_user_option() {
     fi
 
     if [[ $option == '--arm' || $option == '--mips' || $option == '--with-arm-ubuntu12' || $option == '--with-mips-ubuntu12' ]]; then
-        echo "Error: Removed misleading option $option, please read https://ossrs.net/lts/zh-cn/docs/v4/doc/arm#ubuntu-cross-build-srs"
+        echo "Error: Removed misleading option $option, please read https://ossrs.net/lts/zh-cn/docs/v7/doc/arm#ubuntu-cross-build-srs"
         exit -1
     fi
 
