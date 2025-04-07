@@ -86,8 +86,13 @@
 <script type="text/javascript">
 $(function(){
     var sdk = null; // Global handler to do cleanup when republishing.
+    var statsTimer = null;
     var startPlay = function() {
         $('#rtc_media_player').show();
+
+        if (statsTimer) {
+            clearInterval(statsTimer);
+        }
 
         // Close PC when user replay.
         if (sdk) {
@@ -102,7 +107,7 @@ $(function(){
         // sdk.ontrack = function (event) { console.log('Got track', event); sdk.stream.addTrack(event.track); };
 
         // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getStats
-        let statsTimer = setInterval(() => {
+        statsTimer = setInterval(() => {
             sdk.pc.getStats(null).then((stats) => {
                 let audioStatsOutput = SrsRtcFormatStats(stats, 'audio');
                 let videoStatsOutput = SrsRtcFormatStats(stats, 'video');
