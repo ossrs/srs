@@ -17,6 +17,7 @@
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 
+class SrsServer;
 class SrsTcpConnection;
 class SrsRtspConnection;
 class SrsNetworkDelta;
@@ -28,7 +29,7 @@ private:
     std::string session_;
 private:
     // The manager object to manage the connection.
-    ISrsResourceManager* manager;
+    ISrsResourceManager* manager_;
     // The ip and port of client.
     std::string ip_;
     int port_;
@@ -50,7 +51,7 @@ private:
     SrsContextId cid_;
 public:
     SrsRtspConn();
-    SrsRtspConn(ISrsProtocolReadWriter* skt, std::string cip, int port);
+    SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port);
     virtual ~SrsRtspConn();
 public:
     // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.

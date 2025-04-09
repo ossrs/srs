@@ -21,7 +21,7 @@ SrsRtspConn::SrsRtspConn()
     rtsp_ = NULL;
 }
 
-SrsRtspConn::SrsRtspConn(ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtspConn()
+SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm,  ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtspConn()
 {
     ip_ = cip;
     port_ = port;
@@ -29,6 +29,7 @@ SrsRtspConn::SrsRtspConn(ISrsProtocolReadWriter* skt, std::string cip, int port)
     rtsp_ = new SrsRtspStack(skt);
     trd_ = new SrsSTCoroutine("rtsp", this, _srs_context->get_id());
 
+    manager_ = cm;
     delta_ = new SrsNetworkDelta();
     delta_->set_io(skt_, skt_);
     pkt_ = new char[SRS_RTSP_PACKET_MAX];
@@ -103,7 +104,7 @@ srs_error_t SrsRtspConn::cycle()
 
     // Notify manager to remove it.
     // Note that we create this object, so we use manager to remove it.
-    manager->remove(this);
+    manager_->remove(this);
 
     // success.
     if (err == srs_success) {
