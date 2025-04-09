@@ -37,6 +37,7 @@ using namespace std;
 #include <srs_protocol_log.hpp>
 #include <srs_app_latest_version.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_app_rtsp.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_network.hpp>
 #include <srs_app_rtc_server.hpp>
@@ -341,6 +342,7 @@ SrsServer::SrsServer()
     http_listener_ = new SrsTcpListener(this);
     https_listener_ = new SrsTcpListener(this);
     webrtc_listener_ = new SrsTcpListener(this);
+    rtsp_listener_ = new SrsTcpListener(this);
     stream_caster_flv_listener_ = new SrsHttpFlvListener();
     stream_caster_mpegts_ = new SrsUdpCasterListener();
     exporter_listener_ = new SrsTcpListener(this);
@@ -398,6 +400,7 @@ void SrsServer::destroy()
     srs_freep(http_listener_);
     srs_freep(https_listener_);
     srs_freep(webrtc_listener_);
+    srs_freep(rtsp_listener_);
     srs_freep(stream_caster_flv_listener_);
     srs_freep(stream_caster_mpegts_);
     srs_freep(exporter_listener_);
@@ -417,6 +420,7 @@ void SrsServer::dispose()
     http_listener_->close();
     https_listener_->close();
     webrtc_listener_->close();
+    rtsp_listener_->close();
     stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
@@ -448,6 +452,7 @@ void SrsServer::gracefully_dispose()
     http_listener_->close();
     https_listener_->close();
     webrtc_listener_->close();
+    rtsp_listener_->close();
     stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
@@ -629,6 +634,11 @@ srs_error_t SrsServer::listen()
         }
     }
 #endif
+    // Start RTSP listener.
+    rtsp_listener_->set_endpoint(srs_int2str(8554))->set_label("RTSP");
+    if ((err = rtsp_listener_->listen()) != srs_success) {
+        return srs_error_wrap(err, "rtsp listen");
+    }
 
     // Start all listeners for stream caster.
     std::vector<SrsConfDirective*> confs = _srs_config->get_stream_casters();
@@ -1245,6 +1255,8 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         } else if (listener == webrtc_listener_) {
             resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
 #endif
+        } else if (listener == rtsp_listener_) {
+            resource = new SrsRtspConn(new SrsTcpConnection(stfd2), ip, port);
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.
             resource = new SrsHttpxConn(this, new SrsTcpConnection(stfd2), http_api_mux, ip, port, "", "");

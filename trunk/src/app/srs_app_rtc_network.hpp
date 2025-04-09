@@ -26,7 +26,6 @@ class SrsUdpMuxSocket;
 class SrsErrorPithyPrint;
 class ISrsRtcTransport;
 class SrsEphemeralDelta;
-class ISrsKbpsDelta;
 class SrsRtcUdpNetwork;
 class ISrsRtcNetwork;
 class SrsRtcTcpNetwork;
