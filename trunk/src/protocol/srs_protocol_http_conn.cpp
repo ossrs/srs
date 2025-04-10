@@ -1183,30 +1183,31 @@ srs_error_t SrsHttpResponseReader::read_chunked(void* data, size_t nb_data, ssiz
         if (nb_read) {
             *nb_read = 0;
         }
-    } else {
-        // for not the last chunk, there must always exists bytes.
-        // left bytes in chunk, read some.
-        srs_assert(nb_left_chunk);
-        
-        size_t nb_bytes = srs_min(nb_left_chunk, nb_data);
-        err = read_specified(data, nb_bytes, (ssize_t*)&nb_bytes);
-        
-        // the nb_bytes used for output already read size of bytes.
-        if (nb_read) {
-            *nb_read = nb_bytes;
-        }
-        nb_left_chunk -= nb_bytes;
-
-        if (err != srs_success) {
-            return srs_error_wrap(err, "read specified");
-        }
-
-        // If still left bytes in chunk, ignore and read in future.
-        if (nb_left_chunk > 0) {
-            return err;
-        }
+        return srs_error_new(ERROR_HTTP_RESPONSE_EOF, "EOF");
     }
-    
+
+    // for not the last chunk, there must always exists bytes.
+    // left bytes in chunk, read some.
+    srs_assert(nb_left_chunk);
+
+    size_t nb_bytes = srs_min(nb_left_chunk, nb_data);
+    err = read_specified(data, nb_bytes, (ssize_t*)&nb_bytes);
+
+    // the nb_bytes used for output already read size of bytes.
+    if (nb_read) {
+        *nb_read = nb_bytes;
+    }
+    nb_left_chunk -= nb_bytes;
+
+    if (err != srs_success) {
+        return srs_error_wrap(err, "read specified");
+    }
+
+    // If still left bytes in chunk, ignore and read in future.
+    if (nb_left_chunk > 0) {
+        return err;
+    }
+
     // for both the last or not, the CRLF of chunk payload end.
     if ((err = buffer->grow(skt, 2)) != srs_success) {
         return srs_error_wrap(err, "grow buffer");
