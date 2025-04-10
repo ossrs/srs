@@ -1147,6 +1147,12 @@ void SrsServer::resample_kbps()
             continue;
         }
 
+        SrsRtspConn* rtsp = dynamic_cast<SrsRtspConn*>(c);
+        if (rtsp) {
+            stat->kbps_add_delta(c->get_id().c_str(), rtsp->delta());
+            continue;
+        }
+
 #ifdef SRS_RTC
         SrsRtcTcpConn* tcp = dynamic_cast<SrsRtcTcpConn*>(c);
         if (tcp) {
