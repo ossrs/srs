@@ -41,6 +41,9 @@ class ISrsProtocolReadWriter;
 #define SRS_RTSP_TOKEN_CONTENT_LENGTH "Content-Length"
 #define SRS_RTSP_TOKEN_TRANSPORT "Transport"
 #define SRS_RTSP_TOKEN_SESSION "Session"
+#define SRS_RTSP_TOKEN_ACCEPT "Accept"
+#define SRS_RTSP_TOKEN_USER_AGENT "User-Agent"
+#define SRS_RTSP_TOKEN_RANGE "Range"
 
 // RTSP methods
 #define SRS_METHOD_OPTIONS            "OPTIONS"
@@ -250,75 +253,6 @@ private:
     virtual srs_error_t decode_96(SrsBuffer* stream);
 };
 
-// The sdp in announce, @see rfc2326-1998-rtsp.pdf, page 159
-// Appendix C: Use of SDP for RTSP Session Descriptions
-// The Session Description Protocol (SDP, RFC 2327 [6]) may be used to
-// describe streams or presentations in RTSP.
-class SrsRtspSdp
-{
-private:
-    SrsRtspSdpState state;
-public:
-    // The version of sdp.
-    std::string version;
-    // The owner/creator of sdp.
-    std::string owner_username;
-    std::string owner_session_id;
-    std::string owner_session_version;
-    std::string owner_network_type;
-    std::string owner_address_type;
-    std::string owner_address;
-    // The session name of sdp.
-    std::string session_name;
-    // The connection info of sdp.
-    std::string connection_network_type;
-    std::string connection_address_type;
-    std::string connection_address;
-    // The tool attribute of sdp.
-    std::string tool;
-    // The video attribute of sdp.
-    std::string video_port;
-    std::string video_protocol;
-    std::string video_transport_format;
-    std::string video_bandwidth_kbps;
-    std::string video_codec;
-    std::string video_sample_rate;
-    std::string video_stream_id;
-    // The fmtp
-    std::string video_packetization_mode;
-    std::string video_sps; // sequence header: sps.
-    std::string video_pps; // sequence header: pps.
-    // The audio attribute of sdp.
-    std::string audio_port;
-    std::string audio_protocol;
-    std::string audio_transport_format;
-    std::string audio_bandwidth_kbps;
-    std::string audio_codec;
-    std::string audio_sample_rate;
-    std::string audio_channel;
-    std::string audio_stream_id;
-    // The fmtp
-    std::string audio_profile_level_id;
-    std::string audio_mode;
-    std::string audio_size_length;
-    std::string audio_index_length;
-    std::string audio_index_delta_length;
-    std::string audio_sh; // sequence header.
-public:
-    SrsRtspSdp();
-    virtual ~SrsRtspSdp();
-public:
-    // Parse a line of token for sdp.
-    virtual srs_error_t parse(std::string token);
-private:
-    // generally, the fmtp is the sequence header for video or audio.
-    virtual srs_error_t parse_fmtp_attribute(std::string attr);
-    // generally, the control is the stream info for video or audio.
-    virtual srs_error_t parse_control_attribute(std::string attr);
-    // decode the string by base64.
-    virtual std::string base64_decode(std::string value);
-};
-
 // The rtsp transport.
 // 12.39 Transport, @see rfc2326-1998-rtsp.pdf, page 115
 // This request header indicates which transport protocol is to be used
@@ -342,6 +276,14 @@ public:
     // including two full transport-specs with separate parameters
     // For each.
     std::string cast_type;
+    // The interleaved parameter implies mixing the media stream with
+    // the control stream in whatever protocol is being used by the
+    // control stream, using the mechanism defined in Section 10.12.
+    // The argument provides the channel number to be used in the $
+    // statement. This parameter may be specified as a range, e.g.,
+    // interleaved=4-5 in cases where the transport choice for the
+    // media stream requires it.
+    std::string interleaved;
     // The mode parameter indicates the methods to be supported for
     // this session. Valid values are PLAY and RECORD. If not
     // provided, the default is PLAY.
@@ -360,6 +302,8 @@ public:
 public:
     // Parse a line of token for transport.
     virtual srs_error_t parse(std::string attr);
+    // Copy the transport from src.
+    virtual void copy(SrsRtspTransport* src);
 };
 
 // The rtsp request message.
@@ -406,12 +350,14 @@ public:
     // The session id.
     std::string session;
     
-    // The sdp in announce, NULL for no sdp.
-    SrsRtspSdp* sdp;
     // The transport in setup, NULL for no transport.
     SrsRtspTransport* transport;
     // For setup message, parse the stream id from uri.
     int stream_id;
+
+    std::string accept;
+    std::string user_agent;
+    std::string range;
 public:
     SrsRtspRequest();
     virtual ~SrsRtspRequest();
@@ -488,6 +434,18 @@ protected:
     virtual srs_error_t encode_header(std::stringstream& ss);
 };
 
+// 10.2 DESCRIBE, @see rfc2326-1998-rtsp.pdf, page 61
+class SrsRtspDescribeResponse : public SrsRtspResponse
+{
+public:
+    // The sdp in describe.
+    std::string sdp;
+public:
+    SrsRtspDescribeResponse(int cseq);
+    virtual ~SrsRtspDescribeResponse();
+protected:
+    virtual srs_error_t encode_header(std::stringstream& ss);
+};
 // 10.4 SETUP, @see rfc2326-1998-rtsp.pdf, page 65
 // The SETUP request for a URI specifies the transport mechanism to be
 // used for the streamed media. A client can issue a SETUP request for a
@@ -507,11 +465,23 @@ public:
     //      [local_port_min, local_port_max)
     int local_port_min;
     int local_port_max;
-    // The session.
-    std::string session;
+
+    SrsRtspTransport* transport;
+    // The ssrc of the stream.
+    std::string ssrc;
 public:
     SrsRtspSetupResponse(int cseq);
     virtual ~SrsRtspSetupResponse();
+protected:
+    virtual srs_error_t encode_header(std::stringstream& ss);
+};
+
+// 10.5 PLAY, @see rfc2326-1998-rtsp.pdf, page 67
+class SrsRtspPlayResponse : public SrsRtspResponse
+{
+public:
+    SrsRtspPlayResponse(int cseq);
+    virtual ~SrsRtspPlayResponse();
 protected:
     virtual srs_error_t encode_header(std::stringstream& ss);
 };

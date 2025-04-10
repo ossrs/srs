@@ -297,286 +297,6 @@ srs_error_t SrsRtspPacket::decode_96(SrsBuffer* stream)
     return err;
 }
 
-SrsRtspSdp::SrsRtspSdp()
-{
-    state = SrsRtspSdpStateOthers;
-}
-
-SrsRtspSdp::~SrsRtspSdp()
-{
-}
-
-srs_error_t SrsRtspSdp::parse(string token)
-{
-    srs_error_t err = srs_success;
-    
-    if (token.empty()) {
-        // ignore empty token
-        return err;
-    }
-    
-    size_t pos = string::npos;
-    
-    char* start = (char*)token.data();
-    char* end = start + (int)token.length();
-    char* p = start;
-    
-    // key, first 2bytes.
-    // v=0
-    // o=- 0 0 IN IP4 127.0.0.1
-    // s=No Name
-    // c=IN IP4 192.168.43.23
-    // t=0 0
-    // a=tool:libavformat 53.9.0
-    // m=video 0 RTP/AVP 96
-    // b=AS:850
-    // a=rtpmap:96 H264/90000
-    // a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAKKzRwFAFu/8ALQAiEAAAAwAQAAADAwjxgxHg,aOmrLIs=
-    // a=control:streamid=0
-    // m=audio 0 RTP/AVP 97
-    // b=AS:49
-    // a=rtpmap:97 MPEG4-GENERIC/44100/2
-    // a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=139056E5A0
-    // a=control:streamid=1
-    char key = p[0];
-    p += 2;
-    
-    // left bytes as attr string.
-    std::string attr_str;
-    if (end - p) {
-        attr_str.append(p, end - p);
-    }
-    
-    // parse the attributes from left bytes.
-    std::vector<std::string> attrs;
-    while (p < end) {
-        // parse an attribute, split by SP.
-        char* pa = p;
-        for (; p < end && p[0] != SRS_RTSP_SP; p++) {
-        }
-        std::string attr;
-        if (p > pa) {
-            attr.append(pa, p - pa);
-            attrs.push_back(attr);
-        }
-        p++;
-    }
-    
-    // parse the first attr as desc, update the first elem for desc.
-    // for example, the value can be "tool", "AS", "rtpmap", "fmtp", "control"
-    std::string desc_key;
-    if (attrs.size() > 0) {
-        std::string attr = attrs.at(0);
-        if ((pos = attr.find(":")) != string::npos) {
-            desc_key = attr.substr(0, pos);
-            attr = attr.substr(pos + 1);
-            attr_str = attr_str.substr(pos + 1);
-            attrs[0] = attr;
-        } else {
-            desc_key = attr;
-        }
-    }
-    
-    // interpret the attribute according by key.
-    switch (key) {
-        case 'v': version = attr_str; break;
-        case 'o':
-            owner_username = (attrs.size() > 0)? attrs[0]:"";
-            owner_session_id = (attrs.size() > 1)? attrs[1]:"";
-            owner_session_version = (attrs.size() > 2)? attrs[2]:"";
-            owner_network_type = (attrs.size() > 3)? attrs[3]:"";
-            owner_address_type = (attrs.size() > 4)? attrs[4]:"";
-            owner_address = (attrs.size() > 5)? attrs[5]:"";
-            break;
-        case 's': session_name = attr_str; break;
-        case 'c':
-            connection_network_type = (attrs.size() > 0)? attrs[0]:"";
-            connection_address_type = (attrs.size() > 0)? attrs[0]:"";
-            connection_address = (attrs.size() > 0)? attrs[0]:"";
-            break;
-        case 'a':
-            if (desc_key == "tool") {
-                tool = attr_str;
-            } else if (desc_key == "rtpmap") {
-                if (state == SrsRtspSdpStateVideo) {
-                    video_codec = (attrs.size() > 1)? attrs[1]:"";
-                    if ((pos = video_codec.find("/")) != string::npos) {
-                        video_sample_rate = video_codec.substr(pos + 1);
-                        video_codec = video_codec.substr(0, pos);
-                    }
-                } else if (state == SrsRtspSdpStateAudio) {
-                    audio_codec = (attrs.size() > 1)? attrs[1]:"";
-                    if ((pos = audio_codec.find("/")) != string::npos) {
-                        audio_sample_rate = audio_codec.substr(pos + 1);
-                        audio_codec = audio_codec.substr(0, pos);
-                    }
-                    if ((pos = audio_sample_rate.find("/")) != string::npos) {
-                        audio_channel = audio_sample_rate.substr(pos + 1);
-                        audio_sample_rate = audio_sample_rate.substr(0, pos);
-                    }
-                }
-            } else if (desc_key == "fmtp") {
-                for (int i = 1; i < (int)attrs.size(); i++) {
-                    std::string attr = attrs.at(i);
-                    if ((err = parse_fmtp_attribute(attr)) != srs_success) {
-                        return srs_error_wrap(err, "parse fmtp attr=%s", attr.c_str());
-                    }
-                }
-            } else if (desc_key == "control") {
-                for (int i = 0; i < (int)attrs.size(); i++) {
-                    std::string attr = attrs.at(i);
-                    if ((err = parse_control_attribute(attr)) != srs_success) {
-                        return srs_error_wrap(err, "parse control attr=%s", attr.c_str());
-                    }
-                }
-            }
-            break;
-        case 'm':
-            if (desc_key == "video") {
-                state = SrsRtspSdpStateVideo;
-                video_port = (attrs.size() > 1)? attrs[1]:"";
-                video_protocol = (attrs.size() > 2)? attrs[2]:"";
-                video_transport_format = (attrs.size() > 3)? attrs[3]:"";
-            } else if (desc_key == "audio") {
-                state = SrsRtspSdpStateAudio;
-                audio_port = (attrs.size() > 1)? attrs[1]:"";
-                audio_protocol = (attrs.size() > 2)? attrs[2]:"";
-                audio_transport_format = (attrs.size() > 3)? attrs[3]:"";
-            }
-            break;
-        case 'b':
-            if (desc_key == "AS") {
-                if (state == SrsRtspSdpStateVideo) {
-                    video_bandwidth_kbps = (attrs.size() > 0)? attrs[0]:"";
-                } else if (state == SrsRtspSdpStateAudio) {
-                    audio_bandwidth_kbps = (attrs.size() > 0)? attrs[0]:"";
-                }
-            }
-            break;
-        case 't':
-        default: break;
-    }
-    
-    return err;
-}
-
-srs_error_t SrsRtspSdp::parse_fmtp_attribute(string attr)
-{
-    srs_error_t err = srs_success;
-    
-    size_t pos = string::npos;
-    std::string token = attr;
-    
-    while (!token.empty()) {
-        std::string item = token;
-        if ((pos = item.find(";")) != string::npos) {
-            item = token.substr(0, pos);
-            token = token.substr(pos + 1);
-        } else {
-            token = "";
-        }
-        
-        std::string item_key = item, item_value;
-        if ((pos = item.find("=")) != string::npos) {
-            item_key = item.substr(0, pos);
-            item_value = item.substr(pos + 1);
-        }
-        
-        if (state == SrsRtspSdpStateVideo) {
-            if (item_key == "packetization-mode") {
-                video_packetization_mode = item_value;
-            } else if (item_key == "sprop-parameter-sets") {
-                video_sps = item_value;
-                if ((pos = video_sps.find(",")) != string::npos) {
-                    video_pps = video_sps.substr(pos + 1);
-                    video_sps = video_sps.substr(0, pos);
-                }
-                // decode the sps/pps by base64
-                video_sps = base64_decode(video_sps);
-                video_pps = base64_decode(video_pps);
-            }
-        } else if (state == SrsRtspSdpStateAudio) {
-            if (item_key == "profile-level-id") {
-                audio_profile_level_id = item_value;
-            } else if (item_key == "mode") {
-                audio_mode = item_value;
-            } else if (item_key == "sizelength") {
-                audio_size_length = item_value;
-            } else if (item_key == "indexlength") {
-                audio_index_length = item_value;
-            } else if (item_key == "indexdeltalength") {
-                audio_index_delta_length = item_value;
-            } else if (item_key == "config") {
-                if (item_value.length() <= 0) {
-                    return srs_error_new(ERROR_RTSP_AUDIO_CONFIG, "audio config");
-                }
-                
-                char* tmp_sh = new char[item_value.length()];
-                // SrsAutoFreeA(char, tmp_sh);
-                SrsUniquePtr<char> tmp_sh_ptr(tmp_sh);
-                
-                int nb_tmp_sh = srs_hex_to_data((uint8_t*)tmp_sh, item_value.c_str(), item_value.length());
-                if (nb_tmp_sh <= 0) {
-                    return srs_error_new(ERROR_RTSP_AUDIO_CONFIG, "audio config");
-                }
-                
-                audio_sh.append(tmp_sh, nb_tmp_sh);
-            }
-        }
-    }
-    
-    return err;
-}
-
-srs_error_t SrsRtspSdp::parse_control_attribute(string attr)
-{
-    srs_error_t err = srs_success;
-    
-    size_t pos = string::npos;
-    std::string token = attr;
-    
-    while (!token.empty()) {
-        std::string item = token;
-        if ((pos = item.find(";")) != string::npos) {
-            item = token.substr(0, pos);
-            token = token.substr(pos + 1);
-        } else {
-            token = "";
-        }
-        
-        std::string item_key = item, item_value;
-        if ((pos = item.find("=")) != string::npos) {
-            item_key = item.substr(0, pos);
-            item_value = item.substr(pos + 1);
-        }
-        
-        if (state == SrsRtspSdpStateVideo) {
-            if (item_key == "streamid") {
-                video_stream_id = item_value;
-            }
-        } else if (state == SrsRtspSdpStateAudio) {
-            if (item_key == "streamid") {
-                audio_stream_id = item_value;
-            }
-        }
-    }
-    
-    return err;
-}
-
-string SrsRtspSdp::base64_decode(string cipher)
-{
-    if (cipher.empty()) {
-        return "";
-    }
-    
-    string plaintext;
-    srs_error_t err = srs_av_base64_decode(cipher, plaintext);
-    srs_freep(err);
-    
-    return plaintext;
-}
-
 SrsRtspTransport::SrsRtspTransport()
 {
     client_port_min = 0;
@@ -623,6 +343,8 @@ srs_error_t SrsRtspTransport::parse(string attr)
         
         if (item_key == "unicast" || item_key == "multicast") {
             cast_type = item_key;
+        } else if (item_key == "interleaved") {
+            interleaved = item_value;
         } else if (item_key == "mode") {
             mode = item_value;
         } else if (item_key == "client_port") {
@@ -640,18 +362,26 @@ srs_error_t SrsRtspTransport::parse(string attr)
     return err;
 }
 
+void SrsRtspTransport::copy(SrsRtspTransport *src)
+{
+    transport = src->transport;
+    profile = src->profile;
+    lower_transport = src->lower_transport;
+    cast_type = src->cast_type;
+    interleaved = src->interleaved;
+    mode = src->mode;
+}
+
 SrsRtspRequest::SrsRtspRequest()
 {
     seq = 0;
     content_length = 0;
     stream_id = 0;
-    sdp = NULL;
     transport = NULL;
 }
 
 SrsRtspRequest::~SrsRtspRequest()
 {
-    srs_freep(sdp);
     srs_freep(transport);
 }
 
@@ -709,7 +439,7 @@ srs_error_t SrsRtspResponse::encode(stringstream& ss)
     
     // session if specified.
     if (!session.empty()) {
-        ss << SRS_RTSP_TOKEN_SESSION << ":" << session << SRS_RTSP_CRLF;
+        ss << SRS_RTSP_TOKEN_SESSION << ":" << SRS_RTSP_SP << session << SRS_RTSP_CRLF;
     }
     
     if ((err = encode_header(ss)) != srs_success) {
@@ -730,8 +460,7 @@ srs_error_t SrsRtspResponse::encode_header(std::stringstream& ss)
 SrsRtspOptionsResponse::SrsRtspOptionsResponse(int cseq) : SrsRtspResponse(cseq)
 {
     methods = (SrsRtspMethod)(SrsRtspMethodDescribe | SrsRtspMethodOptions
-        | SrsRtspMethodPause | SrsRtspMethodPlay | SrsRtspMethodSetup | SrsRtspMethodTeardown
-        | SrsRtspMethodAnnounce | SrsRtspMethodRecord);
+        | SrsRtspMethodPause | SrsRtspMethodPlay | SrsRtspMethodSetup | SrsRtspMethodTeardown);
 }
 
 SrsRtspOptionsResponse::~SrsRtspOptionsResponse()
@@ -742,12 +471,10 @@ srs_error_t SrsRtspOptionsResponse::encode_header(stringstream& ss)
 {
     SrsRtspMethod rtsp_methods[] = {
         SrsRtspMethodDescribe,
-        SrsRtspMethodAnnounce,
         SrsRtspMethodGetParameter,
         SrsRtspMethodOptions,
         SrsRtspMethodPause,
         SrsRtspMethodPlay,
-        SrsRtspMethodRecord,
         SrsRtspMethodRedirect,
         SrsRtspMethodSetup,
         SrsRtspMethodSetParameter,
@@ -775,8 +502,27 @@ srs_error_t SrsRtspOptionsResponse::encode_header(stringstream& ss)
     return srs_success;
 }
 
+SrsRtspDescribeResponse::SrsRtspDescribeResponse(int cseq) : SrsRtspResponse(cseq)
+{
+}
+
+SrsRtspDescribeResponse::~SrsRtspDescribeResponse()
+{
+}
+
+srs_error_t SrsRtspDescribeResponse::encode_header(stringstream& ss)
+{
+    ss << SRS_RTSP_TOKEN_CONTENT_TYPE << ":" << SRS_RTSP_SP << "application/sdp" << SRS_RTSP_CRLF;
+    // WILL add CRLF to the end of sdp in SrsRtspResponse::encode, so add 2.
+    ss << SRS_RTSP_TOKEN_CONTENT_LENGTH << ":" << SRS_RTSP_SP << sdp.length() + 2 << SRS_RTSP_CRLF;
+    ss << SRS_RTSP_CRLF;
+    ss << sdp;
+    return srs_success;
+}
+
 SrsRtspSetupResponse::SrsRtspSetupResponse(int seq) : SrsRtspResponse(seq)
 {
+    transport = new SrsRtspTransport();
     local_port_min = 0;
     local_port_max = 0;
 
@@ -786,15 +532,39 @@ SrsRtspSetupResponse::SrsRtspSetupResponse(int seq) : SrsRtspResponse(seq)
 
 SrsRtspSetupResponse::~SrsRtspSetupResponse()
 {
+    srs_freep(transport);
 }
 
 srs_error_t SrsRtspSetupResponse::encode_header(stringstream& ss)
 {
-    ss << SRS_RTSP_TOKEN_SESSION << ":" << SRS_RTSP_SP << session << SRS_RTSP_CRLF;
-    ss << SRS_RTSP_TOKEN_TRANSPORT << ":" << SRS_RTSP_SP
-    << "RTP/AVP;unicast;client_port=" << client_port_min << "-" << client_port_max << ";"
-    << "server_port=" << local_port_min << "-" << local_port_max
-    << SRS_RTSP_CRLF;
+    ss << SRS_RTSP_TOKEN_TRANSPORT << ":" << SRS_RTSP_SP;
+    ss << transport->transport << "/" << transport->profile;
+    if (!transport->lower_transport.empty()) {
+        ss << "/" << transport->lower_transport;
+    }
+    if (!transport->cast_type.empty()) {
+        ss << ";" << transport->cast_type;
+    }
+    if (!transport->interleaved.empty()) {
+        ss << ";interleaved=" << transport->interleaved;
+    }
+    ss << ";ssrc=" << ssrc << ";mode=\"play\"";
+
+    ss << SRS_RTSP_CRLF;
+
+    return srs_success;
+}
+
+SrsRtspPlayResponse::SrsRtspPlayResponse(int cseq) : SrsRtspResponse(cseq)
+{
+}
+
+SrsRtspPlayResponse::~SrsRtspPlayResponse()
+{
+}
+
+srs_error_t SrsRtspPlayResponse::encode_header(stringstream& ss)
+{
     return srs_success;
 }
 
@@ -830,7 +600,9 @@ srs_error_t SrsRtspStack::send_message(SrsRtspResponse* res)
     
     std::stringstream ss;
     // encode the message to string.
-    res->encode(ss);
+    if ((err = res->encode(ss)) != srs_success) {
+        return srs_error_wrap(err, "encode message");
+    }
     
     std::string str = ss.str();
     srs_assert(!str.empty());
@@ -905,6 +677,18 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
             if ((err = recv_token_eof(req->session)) != srs_success) {
                 return srs_error_wrap(err, "session");
             }
+        } else if (token == SRS_RTSP_TOKEN_ACCEPT) {
+            if ((err = recv_token_eof(req->accept)) != srs_success) {
+                return srs_error_wrap(err, "accept");
+            }
+        } else if (token == SRS_RTSP_TOKEN_USER_AGENT) {
+            if ((err = recv_token_eof(req->user_agent)) != srs_success) {
+                return srs_error_wrap(err, "user_agent");
+            }
+        } else if (token == SRS_RTSP_TOKEN_RANGE) {
+            if ((err = recv_token_eof(req->range)) != srs_success) {
+                return srs_error_wrap(err, "range");
+            }
         } else {
             // unknown header name, parse util EOF.
             SrsRtspTokenState state = SrsRtspTokenStateNormal;
@@ -927,25 +711,6 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
         }
         req->stream_id = ::atoi(stream_id.c_str());
         srs_info("rtsp: setup stream id=%d", req->stream_id);
-    }
-    
-    // parse rdp body.
-    long consumed = 0;
-    while (consumed < req->content_length) {
-        if (!req->sdp) {
-            req->sdp = new SrsRtspSdp();
-        }
-        
-        int nb_token = 0;
-        std::string token;
-        if ((err = recv_token_util_eof(token, &nb_token)) != srs_success) {
-            return srs_error_wrap(err, "recv token");
-        }
-        consumed += nb_token;
-        
-        if ((err = req->sdp->parse(token)) != srs_success) {
-            return srs_error_wrap(err, "parse token");
-        }
     }
     
     return err;

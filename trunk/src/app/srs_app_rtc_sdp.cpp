@@ -434,6 +434,10 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         os << "a=rtcp-rsize" << kCRLF;
     }
 
+    if (!control_.empty()) {
+        os << "a=control:" << control_ << kCRLF;
+    }
+
     for (std::vector<SrsMediaPayloadType>::iterator iter = payload_types_.begin(); iter != payload_types_.end(); ++iter) {
         if ((err = iter->encode(os)) != srs_success) {
             return srs_error_wrap(err, "encode media payload failed");
@@ -858,6 +862,10 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
 
     if ((err = session_info_.encode(os)) != srs_success) {
         return srs_error_wrap(err, "encode session info failed");
+    }
+
+    if (!control_.empty()) {
+        os << "a=control:" << control_ << kCRLF;
     }
 
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {

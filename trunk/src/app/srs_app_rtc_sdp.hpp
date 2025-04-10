@@ -167,6 +167,10 @@ public:
     bool sendrecv_;
     bool inactive_;
 
+    // Control URL, ONLY for RTSP.
+    // @see rfc2326-1998-rtsp.pdf, page 159
+    std::string control_;
+
     std::string mid_;
     std::string msid_;
     std::string msid_tracker_;
@@ -246,6 +250,10 @@ public:
     std::string ice_lite_;
     std::string msid_semantic_;
     std::vector<std::string> msids_;
+
+    // Control URL, ONLY for RTSP.
+    // @see rfc2326-1998-rtsp.pdf, page 159
+    std::string control_;
 
     // m-line, media sessions
     std::vector<SrsMediaDesc> media_descs_;

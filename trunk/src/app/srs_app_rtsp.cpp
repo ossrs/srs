@@ -1,6 +1,8 @@
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_rtc_sdp.hpp>
+#include <sstream>
 
 #define SRS_RTSP_PACKET_MAX 1500
 
@@ -166,38 +168,54 @@ srs_error_t SrsRtspConn::do_cycle()
                 return  srs_error_wrap(err, "response option");
             }
         } else if (req->is_describe()) {
-            // if (rtsp_tcUrl.empty()) {
-            //     rtsp_tcUrl = req->uri;
-            // }
-            // size_t pos = string::npos;
-            // if ((pos = rtsp_tcUrl.rfind(".sdp")) != string::npos) {
-            //     rtsp_tcUrl = rtsp_tcUrl.substr(0, pos);
-            // }
-            // srs_parse_rtmp_url(rtsp_tcUrl, rtsp_tcUrl, rtsp_stream);
+            SrsRtspDescribeResponse* res = new SrsRtspDescribeResponse((int)req->seq);
+            res->session = session_;
+            SrsSdp local_sdp;
+            local_sdp.version_ = "0";
+            local_sdp.username_ = "SRS RTSP Server";
+            local_sdp.session_id_ = "0";
+            local_sdp.session_version_ = "0";
+            local_sdp.nettype_ = "IN";
+            local_sdp.addrtype_ = "IP4";
+            local_sdp.unicast_address_ = "0.0.0.0"; // Parse from CANDIDATE
+            local_sdp.session_name_ = "Play";
+            local_sdp.control_ = req->uri;
+
+            local_sdp.media_descs_.push_back(SrsMediaDesc("audio"));
+            SrsMediaDesc& media_audio = local_sdp.media_descs_.at(0);
+            media_audio.port_ = 8554; // Read from config.
+            media_audio.protos_ = "RTP/AVP/TCP";
+            media_audio.control_ = req->uri + "/trackID=1";
+            media_audio.recvonly_ = true;
             
-            // srs_assert(req->sdp);
-            // video_id = ::atoi(req->sdp->video_stream_id.c_str());
-            // audio_id = ::atoi(req->sdp->audio_stream_id.c_str());
-            // video_codec = req->sdp->video_codec;
-            // audio_codec = req->sdp->audio_codec;
-            // audio_sample_rate = ::atoi(req->sdp->audio_sample_rate.c_str());
-            // audio_channel = ::atoi(req->sdp->audio_channel.c_str());
-            // h264_sps = req->sdp->video_sps;
-            // h264_pps = req->sdp->video_pps;
-            // aac_specific_config = req->sdp->audio_sh;
-            // srs_trace("rtsp: video(#%d, %s, %s/%s), audio(#%d, %s, %s/%s, %dHZ %dchannels), %s/%s",
-            //           video_id, video_codec.c_str(), req->sdp->video_protocol.c_str(), req->sdp->video_transport_format.c_str(),
-            //           audio_id, audio_codec.c_str(), req->sdp->audio_protocol.c_str(), req->sdp->audio_transport_format.c_str(),
-            //           audio_sample_rate, audio_channel, rtsp_tcUrl.c_str(), rtsp_stream.c_str()
-            //           );
-            
-            // SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
-            // res->session = session;
-            // if ((err = rtsp->send_message(res)) != srs_success) {
-            //     return srs_error_wrap(err, "response announce");
-            // }
+            media_audio.payload_types_.push_back(SrsMediaPayloadType(104));
+            SrsMediaPayloadType& ps_audio = media_audio.payload_types_.at(0);
+            ps_audio.encoding_name_ = "AAC";
+            ps_audio.clock_rate_ = 90000;
+
+            local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
+            SrsMediaDesc& media_video = local_sdp.media_descs_.at(1);
+            media_video.port_ = 8554; // Read from config.
+            media_video.protos_ = "RTP/AVP/TCP";
+            media_video.control_ = req->uri + "/trackID=2";
+            media_video.recvonly_ = true;
+
+            media_video.payload_types_.push_back(SrsMediaPayloadType(96));
+            SrsMediaPayloadType& ps_video = media_video.payload_types_.at(0);
+            ps_video.encoding_name_ = "H264";
+            ps_video.clock_rate_ = 90000;
+
+            std::ostringstream ss;
+            if ((err = local_sdp.encode(ss)) != srs_success) {
+                return srs_error_wrap(err, "encode sdp");
+            }
+
+            res->sdp = ss.str();
+            if ((err = rtsp_->send_message(res)) != srs_success) {
+                return  srs_error_wrap(err, "response describe");
+            }
         } else if (req->is_setup()) {
-            // srs_assert(req->transport);
+            srs_assert(req->transport);
             // int lpm = 0;
             // if ((err = caster->alloc_port(&lpm)) != srs_success) {
             //     return srs_error_wrap(err, "alloc port");
@@ -220,25 +238,32 @@ srs_error_t SrsRtspConn::do_cycle()
             //     req->transport->cast_type.c_str(), req->transport->client_port_min, req->transport->client_port_max,
             //     lpm, lpm + 1);
             
-            // // create session.
-            // if (session.empty()) {
-            //     session = "O9EaZ4bf"; // TODO: FIXME: generate session id.
-            // }
+            // create session.
+            if (session_.empty()) {
+                session_ = "O9EaZ4bf"; // TODO: FIXME: generate session id.
+            }
             
-            // SrsRtspSetupResponse* res = new SrsRtspSetupResponse((int)req->seq);
-            // res->client_port_min = req->transport->client_port_min;
-            // res->client_port_max = req->transport->client_port_max;
-            // res->local_port_min = lpm;
-            // res->local_port_max = lpm + 1;
-            // res->session = session;
-            // if ((err = rtsp->send_message(res)) != srs_success) {
-            //     return srs_error_wrap(err, "response setup");
-            // }
+            SrsRtspSetupResponse* res = new SrsRtspSetupResponse((int)req->seq);
+            res->transport->copy(req->transport);
+            res->session = session_;
+            res->ssrc = "1375e756";
+            if (res->transport->lower_transport != "TCP") {
+                res->status = SRS_CONSTS_RTSP_UnsupportedTransport;
+            }
+            if ((err = rtsp_->send_message(res)) != srs_success) {
+                return srs_error_wrap(err, "response setup");
+            }
         } else if (req->is_play()) {
             SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
             res->session = session_;
             if ((err = rtsp_->send_message(res)) != srs_success) {
                 return srs_error_wrap(err, "response record");
+            }
+        } else {
+            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
+            res->session = session_;
+            if ((err = rtsp_->send_message(res)) != srs_success) {
+                return srs_error_wrap(err, "response unsupported");
             }
         }
     }
