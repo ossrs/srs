@@ -394,11 +394,9 @@ VOID TEST(ProtocolHTTPTest, ChunkSmallBuffer)
         EXPECT_EQ(13, nread);
         EXPECT_STREQ("Hello, world!", buf);
 
-        HELPER_ASSERT_SUCCESS(r->read(buf, 32, &nread));
-        EXPECT_EQ(0, nread);
-
         err = r->read(buf, 32, &nread);
         EXPECT_EQ(ERROR_HTTP_RESPONSE_EOF, srs_error_code(err));
+        EXPECT_EQ(0, nread);
         srs_freep(err);
 
         srs_freep(msg);
@@ -500,8 +498,10 @@ VOID TEST(ProtocolHTTPTest, ClientSmallBuffer)
         EXPECT_EQ(1, nread);
         EXPECT_STREQ("!", buf);
 
-        HELPER_ASSERT_SUCCESS(r->read(buf, 7, &nread));
+        err = r->read(buf, 7, &nread);
+        EXPECT_EQ(ERROR_HTTP_RESPONSE_EOF, srs_error_code(err));
         EXPECT_EQ(0, nread);
+        srs_freep(err);
 
         srs_freep(msg);
     }
