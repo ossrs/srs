@@ -548,6 +548,8 @@ srs_error_t SrsRtspSetupResponse::encode_header(stringstream& ss)
     if (!transport->interleaved.empty()) {
         ss << ";interleaved=" << transport->interleaved;
     }
+    ss << ";client_port=" << client_port_min << "-" << client_port_max;
+    ss << ";server_port=" << local_port_min << "-" << local_port_max;
     ss << ";ssrc=" << ssrc << ";mode=\"play\"";
 
     ss << SRS_RTSP_CRLF;

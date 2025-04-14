@@ -6,14 +6,16 @@
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtc_network.hpp>
 #include <sstream>
 
 extern SrsResourceManager* _srs_rtc_manager;
 
 #define SRS_RTSP_PACKET_MAX 1500
 
-SrsRtspConn::SrsRtspConn(ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcConnection(NULL, _srs_context->get_id())
+SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcConnection(NULL, _srs_context->get_id())
 {
+    manager_ = cm;
     cid_ = _srs_context->get_id();
     request_ = new SrsRequest();
     request_->ip = cip;
@@ -182,6 +184,8 @@ srs_error_t SrsRtspConn::do_cycle()
                 return srs_error_wrap(err, "create source");
             }
 
+            int port = _srs_config->get_rtc_server_listen();
+
             SrsRtspDescribeResponse* res = new SrsRtspDescribeResponse((int)req->seq);
             res->session = session_;
             SrsSdp local_sdp;
@@ -197,8 +201,8 @@ srs_error_t SrsRtspConn::do_cycle()
 
             local_sdp.media_descs_.push_back(SrsMediaDesc("audio"));
             SrsMediaDesc& media_audio = local_sdp.media_descs_.at(0);
-            media_audio.port_ = 8554; // Read from config.
-            media_audio.protos_ = "RTP/AVP/TCP";
+            media_audio.port_ = port;
+            media_audio.protos_ = "RTP/AVP";
             media_audio.control_ = req->uri + "/trackID=1";
             media_audio.recvonly_ = true;
             
@@ -209,8 +213,8 @@ srs_error_t SrsRtspConn::do_cycle()
 
             local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
             SrsMediaDesc& media_video = local_sdp.media_descs_.at(1);
-            media_video.port_ = 8554; // Read from config.
-            media_video.protos_ = "RTP/AVP/TCP";
+            media_video.port_ = port;
+            media_video.protos_ = "RTP/AVP";
             media_video.control_ = req->uri + "/trackID=2";
             media_video.recvonly_ = true;
 
@@ -229,39 +233,23 @@ srs_error_t SrsRtspConn::do_cycle()
                 return  srs_error_wrap(err, "response describe");
             }
         } else if (req->is_setup()) {
-            srs_assert(req->transport);
-            // int lpm = 0;
-            // if ((err = caster->alloc_port(&lpm)) != srs_success) {
-            //     return srs_error_wrap(err, "alloc port");
-            // }
-            
-            // SrsRtpConn* rtp = NULL;
-            // if (req->stream_id == video_id) {
-            //     srs_freep(video_rtp);
-            //     rtp = video_rtp = new SrsRtpConn(this, lpm, video_id);
-            // } else {
-            //     srs_freep(audio_rtp);
-            //     rtp = audio_rtp = new SrsRtpConn(this, lpm, audio_id);
-            // }
-            // if ((err = rtp->listen()) != srs_success) {
-            //     return srs_error_wrap(err, "rtp listen");
-            // }
-            // srs_trace("rtsp: #%d %s over %s/%s/%s %s client-port=%d-%d, server-port=%d-%d",
-            //     req->stream_id, (req->stream_id == video_id)? "Video":"Audio",
-            //     req->transport->transport.c_str(), req->transport->profile.c_str(), req->transport->lower_transport.c_str(),
-            //     req->transport->cast_type.c_str(), req->transport->client_port_min, req->transport->client_port_max,
-            //     lpm, lpm + 1);
-            
+            srs_assert(req->transport);            
             // create session.
             if (session_.empty()) {
                 session_ = "O9EaZ4bf"; // TODO: FIXME: generate session id.
             }
+
+            int port = _srs_config->get_rtc_server_listen();
             
             SrsRtspSetupResponse* res = new SrsRtspSetupResponse((int)req->seq);
             res->transport->copy(req->transport);
             res->session = session_;
             res->ssrc = "1375e756";
-            if (res->transport->lower_transport != "TCP") {
+            res->client_port_min = req->transport->client_port_min;
+            res->client_port_max = req->transport->client_port_max;
+            res->local_port_min = port;
+            res->local_port_max = port;
+            if (res->transport->lower_transport == "TCP") {
                 res->status = SRS_CONSTS_RTSP_UnsupportedTransport;
             }
             if ((err = rtsp_->send_message(res)) != srs_success) {
@@ -287,8 +275,6 @@ srs_error_t SrsRtspConn::do_cycle()
                 return srs_error_wrap(err, "response record");
             }
 
-
-
             SrsRtcPlayStream* player = new SrsRtcPlayStream(this, _srs_context->get_id());
             if ((err = player->initialize(request_, sub_relations_)) != srs_success) {
                 srs_freep(player);
@@ -307,8 +293,6 @@ srs_error_t SrsRtspConn::do_cycle()
                     return srs_error_wrap(err, "start play");
                 }
             }
-
-
         } else if (req->is_teardown()) {
             SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
             res->session = session_;
@@ -449,40 +433,3 @@ srs_error_t SrsRtspConn::do_cycle()
 //     return srs_success;
 // }
 
-SrsRtspServer::SrsRtspServer()
-{
-}
-
-SrsRtspServer::~SrsRtspServer()
-{
-}
-
-srs_error_t SrsRtspServer::exec_async_work(ISrsAsyncCallTask* t)
-{
-    return srs_success;
-}
-
-srs_error_t SrsRtspServer::listen_udp()
-{
-    srs_error_t err = srs_success;
-
-    std::string ip = srs_any_address_for_listener();
-    int port = 8554;
-    srs_assert(listeners.empty());
-
-    SrsUdpMuxListener* listener = new SrsUdpMuxListener(this, ip, port);
-    if ((err = listener->listen()) != srs_success) {
-        srs_freep(listener);
-        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
-    }
-
-    srs_trace("rtsp listen at udp://%s:%d, fd=%d", ip.c_str(), port, listener->fd());
-    listeners.push_back(listener);
-
-    return err;
-}
-
-srs_error_t SrsRtspServer::on_udp_packet(SrsUdpMuxSocket* skt)
-{
-    return srs_success;
-}

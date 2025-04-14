@@ -19,7 +19,6 @@
 
 #include <string>
 
-class SrsRtspServer;
 class SrsRtcServer;
 class SrsHourGlass;
 class SrsRtcConnection;
@@ -118,7 +117,6 @@ class RtcServerAdapter : public ISrsHybridServer
 {
 private:
     SrsRtcServer* rtc;
-    SrsRtspServer* rtsp;
 public:
     RtcServerAdapter();
     virtual ~RtcServerAdapter();

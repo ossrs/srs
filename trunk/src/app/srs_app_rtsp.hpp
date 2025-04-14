@@ -30,24 +30,8 @@ class SrsRtcPlayStream;
 class SrsRtcServer;
 class SrsRtcSource;
 
-class SrsRtspServer : public ISrsUdpMuxHandler
-{
-private:
-    std::vector<SrsUdpMuxListener*> listeners;
-    SrsAsyncCallWorker* async;
-public:
-    SrsRtspServer();
-    virtual ~SrsRtspServer();
-public:
-    srs_error_t exec_async_work(ISrsAsyncCallTask* t);
-    srs_error_t listen_udp();
-    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt);
-};
-
 class SrsRtspConn : public SrsRtcConnection, public ISrsCoroutineHandler, public ISrsStartable
 {
-private:
-    SrsRtspServer* server_;
 private:
     SrsRequest* request_;
     SrsSharedPtr<SrsRtcSource> source_;
@@ -75,7 +59,7 @@ private:
 private:
     SrsContextId cid_;
 public:
-    SrsRtspConn(ISrsProtocolReadWriter* skt, std::string cip, int port);
+    SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port);
     virtual ~SrsRtspConn();
 // interface ISrsDisposingHandler
 public:
