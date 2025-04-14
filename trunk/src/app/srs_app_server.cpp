@@ -1262,7 +1262,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
             resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
 #endif
         } else if (listener == rtsp_listener_) {
-            resource = new SrsRtspConn(this, new SrsTcpConnection(stfd2), ip, port);
+            resource = new SrsRtspConn(new SrsTcpConnection(stfd2), ip, port);
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.
             resource = new SrsHttpxConn(this, new SrsTcpConnection(stfd2), http_api_mux, ip, port, "", "");

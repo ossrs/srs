@@ -16,16 +16,46 @@
 #include <srs_protocol_conn.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_app_rtc_source.hpp>
+#include <srs_app_listener.hpp>
+#include <srs_app_async_call.hpp>
+#include <srs_app_rtc_conn.hpp>
 
 class SrsServer;
 class SrsTcpConnection;
 class SrsRtspConnection;
 class SrsNetworkDelta;
 class ISrsKbpsDelta;
+class SrsRtcPlayStream;
+class SrsRtcServer;
+class SrsRtcSource;
 
-class SrsRtspConn : public ISrsConnection, public ISrsCoroutineHandler, public ISrsExecutorHandler, public ISrsStartable
+class SrsRtspServer : public ISrsUdpMuxHandler
 {
 private:
+    std::vector<SrsUdpMuxListener*> listeners;
+    SrsAsyncCallWorker* async;
+public:
+    SrsRtspServer();
+    virtual ~SrsRtspServer();
+public:
+    srs_error_t exec_async_work(ISrsAsyncCallTask* t);
+    srs_error_t listen_udp();
+    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt);
+};
+
+class SrsRtspConn : public SrsRtcConnection, public ISrsCoroutineHandler, public ISrsStartable
+{
+private:
+    SrsRtspServer* server_;
+private:
+    SrsRequest* request_;
+    SrsSharedPtr<SrsRtcSource> source_;
+    bool disposing_;
+private:
+    std::map<uint32_t, SrsRtcTrackDescription*> sub_relations_;
+    // key: stream id
+    std::map<std::string, SrsRtcPlayStream*> players_;
     std::string session_;
 private:
     // The manager object to manage the connection.
@@ -43,19 +73,14 @@ private:
     char* pkt_;
     SrsRtspStack* rtsp_;
 private:
-    // The shared resource which own this object, we should never free it because it's managed by shared ptr.
-    SrsSharedResource<SrsRtspConn>* wrapper_;
-    // The owner coroutine, allow user to interrupt the loop.
-    ISrsInterruptable* owner_coroutine_;
-    ISrsContextIdSetter* owner_cid_;
     SrsContextId cid_;
 public:
-    SrsRtspConn();
-    SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port);
+    SrsRtspConn(ISrsProtocolReadWriter* skt, std::string cip, int port);
     virtual ~SrsRtspConn();
+// interface ISrsDisposingHandler
 public:
-    // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
-    void setup_owner(SrsSharedResource<SrsRtspConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid);
+    virtual void on_before_dispose(ISrsResource* c);
+    virtual void on_disposing(ISrsResource* c);
 public:
     ISrsKbpsDelta* delta();
     // Interrupt transport by session.
@@ -67,9 +92,6 @@ public:
 // Interface ISrsConnection.
 public:
     virtual std::string remote_ip();
-// Interface ISrsExecutorHandler
-public:
-    virtual void on_executor_done(ISrsInterruptable* executor);
 // Interface ISrsStartable
 public:
     // Start the client green thread.
@@ -85,8 +107,24 @@ public:
     virtual srs_error_t cycle();
 private:
     virtual srs_error_t do_cycle();
-    srs_error_t read_packet(char* pkt, int* nb_pkt);
-    srs_error_t on_tcp_pkt(char* pkt, int nb_pkt);
 };
+
+
+// class SrsRtspPlayStream : public ISrsCoroutineHandler
+// {
+// private:
+//     SrsContextId cid_;
+//     SrsFastCoroutine* trd_;
+//     SrsRtspConn* conn_;
+//     bool is_started_;
+// public:
+//     SrsRtspPlayStream(SrsRtspConn* conn, const SrsContextId& cid);
+//     virtual ~SrsRtspPlayStream();
+// public:
+//     virtual srs_error_t start();
+//     virtual void stop();
+//     virtual srs_error_t cycle();
+//     virtual srs_error_t initialize(SrsRequest* request);
+// };
 
 #endif

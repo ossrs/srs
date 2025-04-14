@@ -1,37 +1,28 @@
+#include <srs_app_config.hpp>
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_rtc_sdp.hpp>
+#include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_server.hpp>
+#include <srs_app_rtc_source.hpp>
 #include <sstream>
+
+extern SrsResourceManager* _srs_rtc_manager;
 
 #define SRS_RTSP_PACKET_MAX 1500
 
-extern bool srs_is_rtp_or_rtcp(const uint8_t* data, size_t len);
-extern bool srs_is_rtcp(const uint8_t* data, size_t len);
-
-SrsRtspConn::SrsRtspConn()
+SrsRtspConn::SrsRtspConn(ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcConnection(NULL, _srs_context->get_id())
 {
-    wrapper_ = NULL;
-    owner_coroutine_ = NULL;
-    owner_cid_ = NULL;
     cid_ = _srs_context->get_id();
-
-    pkt_ = NULL;
-    delta_ = NULL;
-    skt_ = NULL;
-    trd_ = NULL;
-    rtsp_ = NULL;
-}
-
-SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm,  ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtspConn()
-{
+    request_ = new SrsRequest();
+    request_->ip = cip;
     ip_ = cip;
     port_ = port;
     skt_ = skt;
     rtsp_ = new SrsRtspStack(skt);
     trd_ = new SrsSTCoroutine("rtsp", this, _srs_context->get_id());
 
-    manager_ = cm;
     delta_ = new SrsNetworkDelta();
     delta_->set_io(skt_, skt_);
     pkt_ = new char[SRS_RTSP_PACKET_MAX];
@@ -44,21 +35,34 @@ SrsRtspConn::~SrsRtspConn()
     srs_freep(skt_);
 }
 
-void SrsRtspConn::setup_owner(SrsSharedResource<SrsRtspConn>* wrapper, ISrsInterruptable* owner_coroutine, ISrsContextIdSetter* owner_cid)
+void SrsRtspConn::on_before_dispose(ISrsResource *c)
 {
-    wrapper_ = wrapper;
-    owner_coroutine_ = owner_coroutine;
-    owner_cid_ = owner_cid;
+    if (disposing_) {
+        return;
+    }
+
+    SrsRtspConn* session = dynamic_cast<SrsRtspConn*>(c);
+    if (session == this) {
+        disposing_ = true;
+    }
+
+    if (session && session == this) {
+        _srs_context->set_id(cid_);
+        srs_trace("RTSP: session detach from [%s](%s), disposing=%d", c->get_id().c_str(),
+            c->desc().c_str(), disposing_);
+    }
+}
+
+void SrsRtspConn::on_disposing(ISrsResource *c)
+{
+    if (disposing_) {
+        return;
+    }
 }
 
 ISrsKbpsDelta* SrsRtspConn::delta()
 {
     return delta_;  
-}
-
-void SrsRtspConn::interrupt()
-{
-    if (owner_coroutine_) owner_coroutine_->interrupt();
 }
 
 std::string SrsRtspConn::desc()
@@ -74,11 +78,6 @@ const SrsContextId& SrsRtspConn::get_id()
 std::string SrsRtspConn::remote_ip()
 {
     return ip_;
-}
-
-void SrsRtspConn::on_executor_done(ISrsInterruptable* executor)
-{
-    owner_coroutine_ = NULL;
 }
 
 srs_error_t SrsRtspConn::start()
@@ -106,7 +105,7 @@ srs_error_t SrsRtspConn::cycle()
 
     // Notify manager to remove it.
     // Note that we create this object, so we use manager to remove it.
-    manager_->remove(this);
+    // manager_->remove(this);
 
     // success.
     if (err == srs_success) {
@@ -168,6 +167,21 @@ srs_error_t SrsRtspConn::do_cycle()
                 return  srs_error_wrap(err, "response option");
             }
         } else if (req->is_describe()) {
+            srs_parse_rtmp_url(req->uri, request_->tcUrl, request_->stream);
+
+            srs_discovery_tc_url(request_->tcUrl, request_->schema, request_->host, request_->vhost,
+                                request_->app, request_->stream, request_->port, request_->param);
+
+            // discovery vhost, resolve the vhost from config
+            SrsConfDirective* parsed_vhost = _srs_config->get_vhost(request_->vhost);
+            if (parsed_vhost) {
+                request_->vhost = parsed_vhost->arg0();
+            }
+
+            if ((err = _srs_rtc_sources->fetch_or_create(request_, source_)) != srs_success) {
+                return srs_error_wrap(err, "create source");
+            }
+
             SrsRtspDescribeResponse* res = new SrsRtspDescribeResponse((int)req->seq);
             res->session = session_;
             SrsSdp local_sdp;
@@ -253,11 +267,65 @@ srs_error_t SrsRtspConn::do_cycle()
             if ((err = rtsp_->send_message(res)) != srs_success) {
                 return srs_error_wrap(err, "response setup");
             }
+
+            SrsRtspConn* rtsp_conn = dynamic_cast<SrsRtspConn*>(_srs_rtc_manager->find_by_name(session_));
+            if (!rtsp_conn) {
+                _srs_rtc_manager->subscribe(this);
+            }
+
+            // Ignore if exists.
+            if(players_.end() != players_.find(request_->get_stream_url())) {
+                return err;
+            }
+
+            // sub_relations[1] = new SrsRtcTrackDescription("audio");
+
         } else if (req->is_play()) {
             SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
             res->session = session_;
             if ((err = rtsp_->send_message(res)) != srs_success) {
                 return srs_error_wrap(err, "response record");
+            }
+
+
+
+            SrsRtcPlayStream* player = new SrsRtcPlayStream(this, _srs_context->get_id());
+            if ((err = player->initialize(request_, sub_relations_)) != srs_success) {
+                srs_freep(player);
+                return srs_error_wrap(err, "SrsRtspPlayStream init");
+            }
+            players_.insert(make_pair(request_->get_stream_url(), player));
+
+            // start all player
+            for(std::map<std::string, SrsRtcPlayStream*>::iterator it = players_.begin(); it != players_.end(); ++it) {
+                std::string url = it->first;
+                SrsRtcPlayStream* player = it->second;
+
+                srs_trace("RTSP: Subscriber url=%s established", url.c_str());
+
+                if ((err = player->start()) != srs_success) {
+                    return srs_error_wrap(err, "start play");
+                }
+            }
+
+
+        } else if (req->is_teardown()) {
+            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
+            res->session = session_;
+            if ((err = rtsp_->send_message(res)) != srs_success) {
+                return srs_error_wrap(err, "response teardown");
+            }
+
+            SrsRtspConn* rtsp_conn = dynamic_cast<SrsRtspConn*>(_srs_rtc_manager->find_by_name(session_));
+            if (rtsp_conn) {
+                _srs_rtc_manager->remove(this);
+            }
+
+            // stop all player
+            for(std::map<std::string, SrsRtcPlayStream*>::iterator it = players_.begin(); it != players_.end(); ++it) {
+                std::string url = it->first;
+                SrsRtcPlayStream* player = it->second;
+                player->stop();
             }
         } else {
             SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
@@ -271,54 +339,150 @@ srs_error_t SrsRtspConn::do_cycle()
     return err;
 }
 
-srs_error_t SrsRtspConn::read_packet(char* pkt, int* nb_pkt)
+
+// SrsRtspPlayStream::SrsRtspPlayStream(SrsRtspConn * conn, const SrsContextId & cid)
+// {
+//     conn_ = conn;
+//     cid_ = cid;
+//     trd_ = NULL;
+//     is_started_ = false;
+// }
+
+// SrsRtspPlayStream::~SrsRtspPlayStream()
+// {
+// }
+
+// srs_error_t SrsRtspPlayStream::start()
+// {
+//     srs_error_t err = srs_success;
+
+//     // If player coroutine allocated, we think the player is started.
+//     // To prevent play multiple times for this play stream.
+//     // @remark Allow start multiple times, for DTLS may retransmit the final packet.
+//     if (is_started_) {
+//         return err;
+//     }
+
+//     srs_freep(trd_);
+//     trd_ = new SrsFastCoroutine("rtc_sender", this, cid_);
+
+//     if ((err = trd_->start()) != srs_success) {
+//         return srs_error_wrap(err, "rtc_sender");
+//     }
+
+//     is_started_ = true;
+
+//     return err;
+// }
+
+// void SrsRtspPlayStream::stop()
+// {
+//     if (trd_) {
+//         trd_->stop();
+//     }
+// }
+
+// srs_error_t SrsRtspPlayStream::cycle()
+// {
+//     srs_error_t err = srs_success;
+
+//     SrsSharedPtr<SrsRtcSource>& source = source_;
+//     srs_assert(source.get());
+
+//     SrsRtcConsumer* consumer_raw = NULL;
+//     if ((err = source->create_consumer(consumer_raw)) != srs_success) {
+//         return srs_error_wrap(err, "create consumer, source=%s", req_->get_stream_url().c_str());
+//     }
+
+//     srs_assert(consumer_raw);
+//     SrsUniquePtr<SrsRtcConsumer> consumer(consumer_raw);
+
+//     consumer->set_handler(this);
+
+//     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
+//     if ((err = source->consumer_dumps(consumer.get())) != srs_success) {
+//         return srs_error_wrap(err, "dumps consumer, url=%s", req_->get_stream_url().c_str());
+//     }
+
+//     realtime = _srs_config->get_realtime_enabled(req_->vhost, true);
+//     mw_msgs = _srs_config->get_mw_msgs(req_->vhost, realtime, true);
+
+//     // TODO: FIXME: Add cost in ms.
+//     SrsContextId cid = source->source_id();
+//     srs_trace("RTC: start play url=%s, source_id=%s/%s, realtime=%d, mw_msgs=%d", req_->get_stream_url().c_str(),
+//         cid.c_str(), source->pre_source_id().c_str(), realtime, mw_msgs);
+
+//     SrsUniquePtr<SrsErrorPithyPrint> epp(new SrsErrorPithyPrint());
+
+//     while (true) {
+//         if ((err = trd_->pull()) != srs_success) {
+//             return srs_error_wrap(err, "rtc sender thread");
+//         }
+
+//         // Wait for amount of packets.
+//         SrsRtpPacket* pkt = NULL;
+//         consumer->dump_packet(&pkt);
+//         if (!pkt) {
+//             // TODO: FIXME: We should check the quit event.
+//             consumer->wait(mw_msgs);
+//             continue;
+//         }
+
+//         // Send-out the RTP packet and do cleanup
+//         // @remark Note that the pkt might be set to NULL.
+//         if ((err = send_packet(pkt)) != srs_success) {
+//             uint32_t nn = 0;
+//             if (epp->can_print(err, &nn)) {
+//                 srs_warn("play send packets=%u, nn=%u/%u, err: %s", 1, epp->nn_count, nn, srs_error_desc(err).c_str());
+//             }
+//             srs_freep(err);
+//         }
+
+//         // Free the packet.
+//         // @remark Note that the pkt might be set to NULL.
+//         srs_freep(pkt);
+//     }
+// }
+
+// srs_error_t SrsRtspPlayStream::initialize(SrsRequest * request)
+// {
+//     return srs_success;
+// }
+
+SrsRtspServer::SrsRtspServer()
+{
+}
+
+SrsRtspServer::~SrsRtspServer()
+{
+}
+
+srs_error_t SrsRtspServer::exec_async_work(ISrsAsyncCallTask* t)
+{
+    return srs_success;
+}
+
+srs_error_t SrsRtspServer::listen_udp()
 {
     srs_error_t err = srs_success;
 
-    // Read length in 2 bytes @doc: https://www.rfc-editor.org/rfc/rfc4571#section-2
-    ssize_t nread = 0; uint8_t b[2];
-    if((err = skt_->read_fully((char*)b, sizeof(b), &nread)) != srs_success) {
-        return srs_error_wrap(err, "rtc tcp conn read len");
+    std::string ip = srs_any_address_for_listener();
+    int port = 8554;
+    srs_assert(listeners.empty());
+
+    SrsUdpMuxListener* listener = new SrsUdpMuxListener(this, ip, port);
+    if ((err = listener->listen()) != srs_success) {
+        srs_freep(listener);
+        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
     }
 
-    uint16_t npkt = uint16_t(b[0])<<8 | uint16_t(b[1]);
-    if (npkt > *nb_pkt) {
-        return srs_error_new(ERROR_RTC_TCP_SIZE, "invalid size=%u exceed %d", npkt, *nb_pkt);
-    }
-
-    // Read a RTC pkt such as STUN, DTLS or RTP/RTCP
-    if((err = skt_->read_fully(pkt, npkt, &nread)) != srs_success) {
-        return srs_error_wrap(err, "rtc tcp conn read body");
-    }
-
-    *nb_pkt = npkt;
+    srs_trace("rtsp listen at udp://%s:%d, fd=%d", ip.c_str(), port, listener->fd());
+    listeners.push_back(listener);
 
     return err;
 }
 
-srs_error_t SrsRtspConn::on_tcp_pkt(char* pkt, int nb_pkt)
+srs_error_t SrsRtspServer::on_udp_packet(SrsUdpMuxSocket* skt)
 {
-    srs_error_t err = srs_success;
-
-    bool is_rtp_or_rtcp = srs_is_rtp_or_rtcp((uint8_t*)pkt, nb_pkt);
-    bool is_rtcp = srs_is_rtcp((uint8_t*)pkt, nb_pkt);
-
-    // if (is_rtp_or_rtcp && !is_rtcp) {
-    //     return session_->tcp()->on_rtp(pkt, nb_pkt);
-    // }
-
-    // if (is_rtp_or_rtcp && is_rtcp) {
-    //     return session_->tcp()->on_rtcp(pkt, nb_pkt);
-    // }
-
-    return srs_error_new(ERROR_RTC_UDP, "unknown packet");
+    return srs_success;
 }
-
-
-
-
-
-
-
-
-

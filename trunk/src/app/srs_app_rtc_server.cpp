@@ -30,7 +30,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_log.hpp>
 #include <srs_app_rtc_network.hpp>
-
+#include <srs_app_rtsp.hpp>
 extern SrsPps* _srs_pps_rpkts;
 SrsPps* _srs_pps_rstuns = NULL;
 SrsPps* _srs_pps_rrtps = NULL;
@@ -726,11 +726,13 @@ srs_error_t SrsRtcServer::on_timer(srs_utime_t interval)
 RtcServerAdapter::RtcServerAdapter()
 {
     rtc = new SrsRtcServer();
+    rtsp = new SrsRtspServer();
 }
 
 RtcServerAdapter::~RtcServerAdapter()
 {
     srs_freep(rtc);
+    srs_freep(rtsp);
 }
 
 srs_error_t RtcServerAdapter::initialize()
@@ -758,6 +760,10 @@ srs_error_t RtcServerAdapter::run(SrsWaitGroup* wg)
 
     if ((err = rtc->listen_api()) != srs_success) {
         return srs_error_wrap(err, "listen api");
+    }
+
+    if ((err = rtsp->listen_udp()) != srs_success) {
+        return srs_error_wrap(err, "listen udp");
     }
 
     if ((err = _srs_rtc_manager->start()) != srs_success) {
