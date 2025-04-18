@@ -99,29 +99,15 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    virtual srs_error_t do_cycle();
-    virtual srs_error_t do_send_udp_packet(SrsRtpPacket* pkt);
-    virtual srs_error_t do_send_tcp_packet(SrsRtpPacket* pkt);
+    srs_error_t do_cycle();
+    srs_error_t do_send_udp_packet(SrsRtpPacket* pkt);
+    srs_error_t do_send_tcp_packet(SrsRtpPacket* pkt);
+
+    srs_error_t do_describe(SrsRtspRequest* req, std::string& sdp);
+    srs_error_t do_setup(SrsRtspRequest* req, uint32_t* ssrc);
+    srs_error_t do_play(SrsRtspRequest* req);
+    srs_error_t do_teardown();
 };
-
-
-// class SrsRtspPlayStream : public ISrsCoroutineHandler
-// {
-// private:
-//     SrsContextId cid_;
-//     SrsFastCoroutine* trd_;
-//     SrsRtspConn* conn_;
-//     bool is_started_;
-// public:
-//     SrsRtspPlayStream(SrsRtspConn* conn, const SrsContextId& cid);
-//     virtual ~SrsRtspPlayStream();
-// public:
-//     virtual srs_error_t start();
-//     virtual void stop();
-//     virtual srs_error_t cycle();
-//     virtual srs_error_t initialize(SrsRequest* request);
-// };
-
 class SrsUdpClient
 {
 private:
