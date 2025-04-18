@@ -542,14 +542,20 @@ srs_error_t SrsRtspSetupResponse::encode_header(stringstream& ss)
     if (!transport->lower_transport.empty()) {
         ss << "/" << transport->lower_transport;
     }
+    
     if (!transport->cast_type.empty()) {
         ss << ";" << transport->cast_type;
     }
+
     if (!transport->interleaved.empty()) {
         ss << ";interleaved=" << transport->interleaved;
     }
-    ss << ";client_port=" << client_port_min << "-" << client_port_max;
-    ss << ";server_port=" << local_port_min << "-" << local_port_max;
+
+    if (transport->lower_transport != "TCP") {
+        ss << ";client_port=" << client_port_min << "-" << client_port_max;
+        ss << ";server_port=" << local_port_min << "-" << local_port_max;
+    }
+
     ss << ";ssrc=" << ssrc << ";mode=\"play\"";
 
     ss << SRS_RTSP_CRLF;
@@ -683,10 +689,10 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
             if ((err = recv_token_eof(req->accept)) != srs_success) {
                 return srs_error_wrap(err, "accept");
             }
-        } else if (token == SRS_RTSP_TOKEN_USER_AGENT) {
-            if ((err = recv_token_eof(req->user_agent)) != srs_success) {
-                return srs_error_wrap(err, "user_agent");
-            }
+        // } else if (token == SRS_RTSP_TOKEN_USER_AGENT) {
+        //     if ((err = recv_token_eof(req->user_agent)) != srs_success) {
+        //         return srs_error_wrap(err, "user_agent");
+        //     }
         } else if (token == SRS_RTSP_TOKEN_RANGE) {
             if ((err = recv_token_eof(req->range)) != srs_success) {
                 return srs_error_wrap(err, "range");

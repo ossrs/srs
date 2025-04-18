@@ -538,7 +538,7 @@ public:
     // Simulate the NACK to drop nn packets.
     void simulate_nack_drop(int nn);
     void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
-    srs_error_t do_send_packet(SrsRtpPacket* pkt);
+    virtual srs_error_t do_send_packet(SrsRtpPacket* pkt);
     // Directly set the status of play track, generally for init to set the default value.
     void set_all_tracks_status(std::string stream_uri, bool is_publish, bool status);
 public:

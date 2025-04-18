@@ -21,6 +21,7 @@
 #include <srs_app_async_call.hpp>
 #include <srs_app_rtc_conn.hpp>
 
+class SrsUdpClient;
 class SrsServer;
 class SrsTcpConnection;
 class SrsRtspConnection;
@@ -36,7 +37,9 @@ private:
     SrsRequest* request_;
     SrsSharedPtr<SrsRtcSource> source_;
     bool disposing_;
+    bool is_udp_;
 private:
+    std::map<int, std::string> id_track_;
     std::map<uint32_t, SrsRtcTrackDescription*> sub_relations_;
     // key: stream id
     std::map<std::string, SrsRtcPlayStream*> players_;
@@ -50,17 +53,23 @@ private:
     // The delta for statistic.
     SrsNetworkDelta* delta_;
     ISrsProtocolReadWriter* skt_;
+
+    std::map<uint32_t, SrsUdpClient*> udp_clients_;
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
     SrsCoroutine* trd_;
     // Packet cache.
     char* pkt_;
     SrsRtspStack* rtsp_;
+    iovec* cache_iov_;
+    SrsBuffer* cache_buffer_;
 private:
     SrsContextId cid_;
 public:
     SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port);
     virtual ~SrsRtspConn();
+public:
+    virtual srs_error_t do_send_packet(SrsRtpPacket* pkt);
 // interface ISrsDisposingHandler
 public:
     virtual void on_before_dispose(ISrsResource* c);
@@ -91,6 +100,8 @@ public:
     virtual srs_error_t cycle();
 private:
     virtual srs_error_t do_cycle();
+    virtual srs_error_t do_send_udp_packet(SrsRtpPacket* pkt);
+    virtual srs_error_t do_send_tcp_packet(SrsRtpPacket* pkt);
 };
 
 
@@ -110,5 +121,18 @@ private:
 //     virtual srs_error_t cycle();
 //     virtual srs_error_t initialize(SrsRequest* request);
 // };
+
+class SrsUdpClient
+{
+private:
+    sockaddr_in* addr_;
+    srs_netfd_t stfd_;
+public:
+    SrsUdpClient();
+    virtual ~SrsUdpClient();
+public:
+    srs_error_t initialize(std::string ip, int port);
+    int sendto(void* data, int len);
+};
 
 #endif
