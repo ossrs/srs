@@ -7,8 +7,8 @@
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_network.hpp>
+#include <srs_protocol_st.hpp>
 #include <sstream>
-#include <sys/socket.h>
 
 extern SrsResourceManager* _srs_rtc_manager;
 
@@ -506,30 +506,11 @@ srs_error_t SrsUdpClient::initialize(std::string ip, int port)
         return srs_error_new(ERROR_SOCKET_CREATE, "create socket failed, ret=%d", fd);
     }
 
-    if ((err = srs_fd_reuseaddr(fd)) != srs_success) {
-        // ::close(fd);
-        return srs_error_wrap(err, "set reuseaddr");
-    }
-
-    int local_port = _srs_config->get_rtc_server_listen();
-
-    // Bind to rtc server listen port
-    struct sockaddr_in local_addr;
-    memset(&local_addr, 0, sizeof(local_addr));
-    local_addr.sin_family = AF_INET;
-    local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    local_addr.sin_port = htons(local_port);
-
-    if (::bind(fd, (struct sockaddr*)&local_addr, sizeof(local_addr)) < 0) {
-        int e = errno;
-        // ::close(fd);
-        return srs_error_new(ERROR_SOCKET_BIND, "bind local port %d failed, errno=%d", local_port, e);
-    }
-
     // Wrap the socket in stfd
     stfd_ = srs_netfd_open_socket(fd);
     srs_assert(stfd_);
 
+    int local_port = srs_get_local_port(fd);
     srs_trace("udp client %s:%d, fd=%d, local_port=%d", ip.c_str(), port, fd, local_port);
 
     return err;
