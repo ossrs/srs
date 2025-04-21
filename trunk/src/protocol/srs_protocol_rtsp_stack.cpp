@@ -699,26 +699,12 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
             }
         } else {
             // unknown header name, parse util EOF.
-            SrsRtspTokenState state = SrsRtspTokenStateNormal;
-            while (state == SrsRtspTokenStateNormal) {
-                std::string value;
-                if ((err = recv_token(value, state)) != srs_success) {
-                    return srs_error_wrap(err, "state");
-                }
-                srs_trace("rtsp: ignore header %s=%s", token.c_str(), value.c_str());
+            std::string value;
+            if ((err = recv_token_util_eof(value)) != srs_success) {
+                return srs_error_wrap(err, "state");
             }
+            srs_trace("rtsp: ignore header %s=%s", token.c_str(), value.c_str());
         }
-    }
-    
-    // for setup, parse the stream id from uri.
-    if (req->is_setup()) {
-        size_t pos = string::npos;
-        std::string stream_id = srs_path_basename(req->uri);
-        if ((pos = stream_id.find("=")) != string::npos) {
-            stream_id = stream_id.substr(pos + 1);
-        }
-        req->stream_id = ::atoi(stream_id.c_str());
-        srs_info("rtsp: setup stream id=%d", req->stream_id);
     }
     
     return err;

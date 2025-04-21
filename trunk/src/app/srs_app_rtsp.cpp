@@ -202,6 +202,14 @@ srs_error_t SrsRtspConn::do_setup(SrsRtspRequest* req, uint32_t* pssrc)
 {
     srs_error_t err = srs_success;
 
+    size_t pos = std::string::npos;
+    std::string stream_id = srs_path_basename(req->uri);
+    if ((pos = stream_id.find("=")) != std::string::npos) {
+        stream_id = stream_id.substr(pos + 1);
+    }
+    req->stream_id = ::atoi(stream_id.c_str());
+    srs_info("rtsp: setup stream id=%d", req->stream_id);
+
     std::string stream_name = id_track_[req->stream_id];
 
     if (!source_.get()) {
