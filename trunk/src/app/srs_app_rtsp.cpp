@@ -112,9 +112,8 @@ srs_error_t SrsRtspConn::do_send_tcp_packet(SrsRtpPacket *pkt)
     cache_buffer_->write_1bytes(0x00);
     cache_buffer_->write_2bytes(iov->iov_len);
 
-    ssize_t nwrite = 0;
-    if ((err = skt_->write(iov->iov_base, iov->iov_len + SRS_RTP_TCP_PACKET_HEADER_SIZE, &nwrite)) != srs_success) {
-        return srs_error_wrap(err, "send message");
+    if ((err = rtsp_->send_rtp_packet(iov->iov_base, iov->iov_len + SRS_RTP_TCP_PACKET_HEADER_SIZE)) != srs_success) {
+        return srs_error_wrap(err, "send rtp packet");
     }
 
     return err;

@@ -101,202 +101,6 @@ std::string srs_generate_rtsp_method_str(SrsRtspMethod method)
     }
 }
 
-SrsRtspPacket::SrsRtspPacket()
-{
-    version = 2;
-    padding = 0;
-    extension = 0;
-    csrc_count = 0;
-    marker = 1;
-    
-    payload_type = 0;
-    sequence_number = 0;
-    timestamp = 0;
-    ssrc = 0;
-    
-    payload = new SrsSimpleStream();
-    audio = new SrsAudioFrame();
-    chunked = false;
-    completed = false;
-}
-
-SrsRtspPacket::~SrsRtspPacket()
-{
-    srs_freep(payload);
-    srs_freep(audio);
-}
-
-void SrsRtspPacket::copy(SrsRtspPacket* src)
-{
-    version = src->version;
-    padding = src->padding;
-    extension = src->extension;
-    csrc_count = src->csrc_count;
-    marker = src->marker;
-    payload_type = src->payload_type;
-    sequence_number = src->sequence_number;
-    timestamp = src->timestamp;
-    ssrc = src->ssrc;
-    
-    chunked = src->chunked;
-    completed = src->completed;
-
-    srs_freep(audio);
-    audio = new SrsAudioFrame();
-}
-
-void SrsRtspPacket::reap(SrsRtspPacket* src)
-{
-    copy(src);
-    
-    srs_freep(payload);
-    payload = src->payload;
-    src->payload = NULL;
-    
-    srs_freep(audio);
-    audio = src->audio;
-    src->audio = NULL;
-}
-
-srs_error_t SrsRtspPacket::decode(SrsBuffer* stream)
-{
-    srs_error_t err = srs_success;
-    
-    // 12bytes header
-    if (!stream->require(12)) {
-        return srs_error_new(ERROR_RTP_HEADER_CORRUPT, "requires 12 only %d bytes", stream->left());
-    }
-    
-    int8_t vv = stream->read_1bytes();
-    version = (vv >> 6) & 0x03;
-    padding = (vv >> 5) & 0x01;
-    extension = (vv >> 4) & 0x01;
-    csrc_count = vv & 0x0f;
-    
-    int8_t mv = stream->read_1bytes();
-    marker = (mv >> 7) & 0x01;
-    payload_type = mv & 0x7f;
-    
-    sequence_number = stream->read_2bytes();
-    timestamp = stream->read_4bytes();
-    ssrc = stream->read_4bytes();
-    
-    // TODO: FIXME: check sequence number.
-    
-    // video codec.
-    if (payload_type == 96) {
-        return decode_96(stream);
-    } else if (payload_type == 97) {
-        return decode_97(stream);
-    }
-    
-    return err;
-}
-
-srs_error_t SrsRtspPacket::decode_97(SrsBuffer* stream)
-{
-    srs_error_t err = srs_success;
-    
-    // atleast 2bytes content.
-    if (!stream->require(2)) {
-        return srs_error_new(ERROR_RTP_TYPE97_CORRUPT, "requires 2 only %d bytes", stream->left());
-    }
-    
-    int8_t hasv = stream->read_1bytes();
-    int8_t lasv = stream->read_1bytes();
-    uint16_t au_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
-    
-    if (!stream->require(au_size)) {
-        return srs_error_new(ERROR_RTP_TYPE97_CORRUPT, "requires %d only %d bytes", au_size, stream->left());
-    }
-    
-    int required_size = 0;
-    
-    // append left bytes to payload.
-    payload->append(stream->data() + stream->pos() + au_size, stream->size() - stream->pos() - au_size);
-    char* p = payload->bytes();
-    
-    for (int i = 0; i < au_size; i += 2) {
-        hasv = stream->read_1bytes();
-        lasv = stream->read_1bytes();
-        
-        uint16_t sample_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
-        // TODO: FIXME: finger out how to parse the size of sample.
-        if (sample_size < 0x100 && stream->require(required_size + sample_size + 0x100)) {
-            sample_size = sample_size | 0x100;
-        }
-        
-        char* sample = p + required_size;
-        required_size += sample_size;
-        
-        if (!stream->require(required_size)) {
-            return srs_error_new(ERROR_RTP_TYPE97_CORRUPT, "requires %d only %d bytes", required_size, stream->left());
-        }
-        
-        if ((err = audio->add_sample(sample, sample_size)) != srs_success) {
-            srs_freep(err);
-            return srs_error_wrap(err, "add sample");
-        }
-    }
-    
-    // parsed ok.
-    completed = true;
-    
-    return err;
-}
-
-srs_error_t SrsRtspPacket::decode_96(SrsBuffer* stream)
-{
-    srs_error_t err = srs_success;
-    
-    // atleast 2bytes content.
-    if (!stream->require(2)) {
-        return srs_error_new(ERROR_RTP_TYPE96_CORRUPT, "requires 2 only %d bytes", stream->left());
-    }
-    
-    // frame type
-    // 0... .... reserverd
-    // .11. .... NALU[0]&0x60
-    // ...1 11.. FU indicator
-    // .... ..00 reserverd
-    int8_t ftv = stream->read_1bytes();
-    int8_t nalu_0x60 = ftv & 0x60;
-    int8_t fu_indicator = ftv & 0x1c;
-    
-    // nri, whatever
-    // 10.. .... first chunk.
-    // 00.. .... continous chunk.
-    // 01.. .... last chunk.
-    // ...1 1111 NALU[0]&0x1f
-    int8_t nriv = stream->read_1bytes();
-    bool first_chunk = (nriv & 0xC0) == 0x80;
-    bool last_chunk = (nriv & 0xC0) == 0x40;
-    bool contious_chunk = (nriv & 0xC0) == 0x00;
-    int8_t nalu_0x1f = nriv & 0x1f;
-    
-    // chunked, generate the first byte NALU.
-    if (fu_indicator == 0x1c && (first_chunk || last_chunk || contious_chunk)) {
-        chunked = true;
-        completed = last_chunk;
-        
-        // generate and append the first byte NALU.
-        if (first_chunk) {
-            int8_t nalu_byte0 = nalu_0x60 | nalu_0x1f;
-            payload->append((char*)&nalu_byte0, 1);
-        }
-        
-        payload->append(stream->data() + stream->pos(), stream->size() - stream->pos());
-        return err;
-    }
-    
-    // no chunked, append to payload.
-    stream->skip(-2);
-    payload->append(stream->data() + stream->pos(), stream->size() - stream->pos());
-    completed = true;
-    
-    return err;
-}
-
 SrsRtspTransport::SrsRtspTransport()
 {
     client_port_min = 0;
@@ -619,6 +423,17 @@ srs_error_t SrsRtspStack::send_message(SrsRtspResponse* res)
         return srs_error_wrap(err, "write message");
     }
     
+    return err;
+}
+
+srs_error_t SrsRtspStack::send_rtp_packet(void *data, int size)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = skt->write(data, size, NULL)) != srs_success) {
+        return srs_error_wrap(err, "send rtp packet");
+    }
+
     return err;
 }
 
