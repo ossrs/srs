@@ -508,6 +508,11 @@ public:
     virtual srs_utime_t get_stream_caster_sip_reinvite(SrsConfDirective* conf);
     // Get the candidate for SDP.
     virtual std::string get_stream_caster_sip_candidate(SrsConfDirective* conf);
+// rtsp section
+public:
+    virtual bool get_rtsp_server_enabled();
+    virtual bool get_rtsp_server_enabled(SrsConfDirective* conf);
+    virtual int get_rtsp_server_listen();
 // rtc section
 public:
     virtual bool get_rtc_server_enabled();

@@ -635,9 +635,11 @@ srs_error_t SrsServer::listen()
     }
 #endif
     // Start RTSP listener.
-    rtsp_listener_->set_endpoint(srs_int2str(8554))->set_label("RTSP");
-    if ((err = rtsp_listener_->listen()) != srs_success) {
-        return srs_error_wrap(err, "rtsp listen");
+    if (_srs_config->get_rtsp_server_enabled()) {
+        rtsp_listener_->set_endpoint(srs_int2str(_srs_config->get_rtsp_server_listen()))->set_label("RTSP");
+        if ((err = rtsp_listener_->listen()) != srs_success) {
+            return srs_error_wrap(err, "rtsp listen");
+        }
     }
 
     // Start all listeners for stream caster.

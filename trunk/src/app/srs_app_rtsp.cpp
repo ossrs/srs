@@ -385,6 +385,12 @@ srs_error_t SrsRtspConn::do_cycle()
 {
     srs_error_t err = srs_success;
     srs_trace("RTSP: client ip=%s, port=%d", ip_.c_str(), port_);
+
+    bool rtc_enabled = _srs_config->get_rtc_server_enabled();
+    if (!rtc_enabled) {
+        return srs_error_new(ERROR_RTC_DISABLED, "RTC is disabled, but it is a necessary dependency.");
+    } 
+
     // consume all rtsp messages.
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
