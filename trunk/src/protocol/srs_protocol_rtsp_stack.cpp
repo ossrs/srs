@@ -689,10 +689,10 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
             if ((err = recv_token_eof(req->accept)) != srs_success) {
                 return srs_error_wrap(err, "accept");
             }
-        // } else if (token == SRS_RTSP_TOKEN_USER_AGENT) {
-        //     if ((err = recv_token_eof(req->user_agent)) != srs_success) {
-        //         return srs_error_wrap(err, "user_agent");
-        //     }
+        } else if (token == SRS_RTSP_TOKEN_USER_AGENT) {
+            if ((err = recv_token_util_eof(req->user_agent)) != srs_success) {
+                return srs_error_wrap(err, "user_agent");
+            }
         } else if (token == SRS_RTSP_TOKEN_RANGE) {
             if ((err = recv_token_eof(req->range)) != srs_success) {
                 return srs_error_wrap(err, "range");
