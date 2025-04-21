@@ -450,15 +450,15 @@ srs_error_t SrsRtspConn::do_cycle()
                 srs_warn("setup failed: %s", srs_error_desc(err).c_str());
                 srs_error_reset(err);
             }
-            int port = _srs_config->get_rtc_server_listen();
     
             res->transport->copy(req->transport);
             res->session = session_;
             res->ssrc = srs_int2str(ssrc);
             res->client_port_min = req->transport->client_port_min;
             res->client_port_max = req->transport->client_port_max;
-            res->local_port_min = port;
-            res->local_port_max = port;
+            // TODO: FIXME: get local port from udp client.
+            res->local_port_min = 0;
+            res->local_port_max = 0;
             if ((err = rtsp_->send_message(res)) != srs_success) {
                 return srs_error_wrap(err, "response setup");
             }
