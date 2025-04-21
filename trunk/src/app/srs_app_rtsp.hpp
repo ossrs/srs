@@ -40,7 +40,10 @@ private:
     bool is_udp_;
 private:
     std::map<int, std::string> id_track_;
+    // key: ssrc
     std::map<uint32_t, SrsRtcTrackDescription*> sub_relations_;
+    // key: ssrc
+    std::map<uint32_t, SrsRtspTransport*> ssrc_transports_;
     // key: stream id
     std::map<std::string, SrsRtcPlayStream*> players_;
     std::string session_;
@@ -107,6 +110,9 @@ private:
     srs_error_t do_setup(SrsRtspRequest* req, uint32_t* ssrc);
     srs_error_t do_play(SrsRtspRequest* req);
     srs_error_t do_teardown();
+
+private:
+    int get_channel_by_ssrc(uint32_t ssrc);
 };
 class SrsUdpClient
 {

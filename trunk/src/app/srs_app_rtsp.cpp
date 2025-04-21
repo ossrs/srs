@@ -54,6 +54,11 @@ SrsRtspConn::~SrsRtspConn()
         srs_freep(it->second);
     }
     udp_clients_.clear();
+
+    for (std::map<uint32_t, SrsRtspTransport*>::iterator it = ssrc_transports_.begin(); it != ssrc_transports_.end(); ++it) {
+        srs_freep(it->second);
+    }
+    ssrc_transports_.clear();
 }
 
 srs_error_t SrsRtspConn::do_send_packet(SrsRtpPacket *pkt)
@@ -109,10 +114,10 @@ srs_error_t SrsRtspConn::do_send_tcp_packet(SrsRtpPacket *pkt)
 
     cache_buffer_->skip(-1 * cache_buffer_->pos());
     cache_buffer_->write_1bytes(0x24);
-    cache_buffer_->write_1bytes(0x00);
-    cache_buffer_->write_2bytes(iov->iov_len);
+    cache_buffer_->write_1bytes(get_channel_by_ssrc(pkt->header.get_ssrc()));
+    cache_buffer_->write_2bytes(iov->iov_len - SRS_RTP_TCP_PACKET_HEADER_SIZE);
 
-    if ((err = rtsp_->send_rtp_packet(iov->iov_base, iov->iov_len + SRS_RTP_TCP_PACKET_HEADER_SIZE)) != srs_success) {
+    if ((err = rtsp_->send_rtp_packet(iov->iov_base, iov->iov_len)) != srs_success) {
         return srs_error_wrap(err, "send rtp packet");
     }
 
@@ -238,6 +243,10 @@ srs_error_t SrsRtspConn::do_setup(SrsRtspRequest* req, uint32_t* pssrc)
         }
         udp_clients_[ssrc] = udp_client;
     }
+
+    SrsRtspTransport* transport = new SrsRtspTransport();
+    transport->copy(req->transport);
+    ssrc_transports_[ssrc] = transport;
 
     *pssrc = ssrc;
 
@@ -489,6 +498,27 @@ srs_error_t SrsRtspConn::do_cycle()
     }
     
     return err;
+}
+
+int SrsRtspConn::get_channel_by_ssrc(uint32_t ssrc)
+{
+    std::map<uint32_t, SrsRtspTransport*>::iterator it = ssrc_transports_.find(ssrc);
+    if (it == ssrc_transports_.end()) {
+        return -1;
+    }
+
+    std::string interleaved = it->second->interleaved;
+    if (interleaved.empty()) {
+        return -1;
+    }
+
+    std::string::size_type pos = interleaved.find("-");
+    if (pos == std::string::npos) {
+        return -1;
+    }
+
+    int channel = atoi(interleaved.substr(0, pos).c_str());
+    return channel;
 }
 
 SrsUdpClient::SrsUdpClient()

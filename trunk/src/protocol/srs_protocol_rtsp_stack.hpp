@@ -364,7 +364,7 @@ public:
     // @param res the rtsp response message, which user should never free it.
     // @return an int error code.
     virtual srs_error_t send_message(SrsRtspResponse* res);
-    // Send rtp packet over underlayer io.
+    // When transmitting RTP over TCP, it shares a single socket with RTSP.
     virtual srs_error_t send_rtp_packet(void* data, int size);
 private:
     // Recv the rtsp message.
