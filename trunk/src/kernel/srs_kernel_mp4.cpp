@@ -4860,7 +4860,7 @@ srs_error_t SrsMp4SampleAuxiliaryInfoSizeBox::decode_header(SrsBuffer* buf)
 
 std::stringstream& SrsMp4SampleAuxiliaryInfoSizeBox::dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc)
 {
-    ss << "default_sample_info_size=" << default_sample_info_size << ", sample_count=" << sample_count;
+    ss << "default_sample_info_size=" << (int)default_sample_info_size << ", sample_count=" << sample_count;
     return ss;
 }
 

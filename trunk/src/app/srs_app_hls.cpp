@@ -77,9 +77,9 @@ srs_error_t SrsHlsSegment::rename()
     return SrsFragment::rename();
 }
 
-SrsInitMp4Segment::SrsInitMp4Segment()
+SrsInitMp4Segment::SrsInitMp4Segment(SrsFileWriter* fw)
 {
-    fw_ = new SrsFileWriter();
+    fw_ = fw;
     init_ = new SrsMp4M2tsInitEncoder();
     const_iv_size_ = 0;
 }
@@ -87,7 +87,7 @@ SrsInitMp4Segment::SrsInitMp4Segment()
 SrsInitMp4Segment::~SrsInitMp4Segment()
 {
     srs_freep(init_);
-    srs_freep(fw_);
+    fw_->close();
 }
 
 srs_error_t SrsInitMp4Segment::config_cipher(unsigned char* kid, unsigned char* const_iv, uint8_t const_iv_size)
@@ -250,7 +250,6 @@ srs_error_t SrsHlsM4sSegment::reap(uint64_t& dts)
         return srs_error_wrap(err, "Flush encoder failed");
     }
     
-    // srs_freep(fw_);
     fw_->close();
         
     if ((err = rename()) != srs_success) {
@@ -510,7 +509,7 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat* format, bool has_video, b
     
     path += "/init.mp4";
 
-    SrsUniquePtr<SrsInitMp4Segment> init_mp4(new SrsInitMp4Segment());
+    SrsUniquePtr<SrsInitMp4Segment> init_mp4(new SrsInitMp4Segment(writer_));
     
     init_mp4->set_path(path);
 

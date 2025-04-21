@@ -75,7 +75,7 @@ private:
     uint8_t const_iv_size_;
     
 public:
-    SrsInitMp4Segment();
+    SrsInitMp4Segment(SrsFileWriter* fw);
     virtual ~SrsInitMp4Segment();
 
 public:
