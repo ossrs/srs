@@ -4104,6 +4104,8 @@ bool SrsConfig::get_rtsp_server_enabled(SrsConfDirective* conf)
 
 int SrsConfig::get_rtsp_server_listen()
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.rtsp_server.listen"); // SRS_RTSP_SERVER_LISTEN
+
     SrsConfDirective* conf = root->get("rtsp_server");
 
     static int DEFAULT = 554;
