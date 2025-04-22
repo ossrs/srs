@@ -170,6 +170,12 @@ srs_error_t SrsRtspConn::do_describe(SrsRtspRequest* req, std::string& sdp)
         ps_audio.encoding_name_ = audio_track_desc->media_->name_;
         ps_audio.clock_rate_ = audio_track_desc->media_->sample_;
 
+        // if the payload is opus, and the encoding_param_ is channel
+        SrsAudioPayload* ap = dynamic_cast<SrsAudioPayload*>(audio_track_desc->media_);
+        if (ap) {
+            ps_audio.encoding_param_ = srs_int2str(ap->channel_);
+        }
+
         local_sdp.media_descs_.push_back(media_audio);
     }
     
