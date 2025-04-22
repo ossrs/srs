@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -43,7 +46,6 @@ const omit = "omit"
 // PacketBuffer is initialized with. This function will
 // modify the PacketBuffer.bytes slice to exclude those
 // bytes that have been written into.
-//
 func (b *packetBuffer) write(v interface{}) error { //nolint:gocognit
 	value := reflect.ValueOf(v)
 

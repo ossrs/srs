@@ -31,13 +31,6 @@ import (
 	"crypto/x509/pkix"
 	"flag"
 	"fmt"
-	"github.com/ossrs/go-oryx-lib/amf0"
-	"github.com/ossrs/go-oryx-lib/avc"
-	"github.com/ossrs/go-oryx-lib/flv"
-	"github.com/ossrs/go-oryx-lib/rtmp"
-	"github.com/pion/ice/v2"
-	"github.com/pion/rtp"
-	"github.com/pion/rtp/codecs"
 	"io"
 	"math/big"
 	"math/rand"
@@ -50,6 +43,18 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/bluenviron/gortsplib/v4"
+	"github.com/bluenviron/gortsplib/v4/pkg/base"
+	"github.com/bluenviron/gortsplib/v4/pkg/description"
+	"github.com/bluenviron/gortsplib/v4/pkg/format"
+	"github.com/ossrs/go-oryx-lib/amf0"
+	"github.com/ossrs/go-oryx-lib/avc"
+	"github.com/ossrs/go-oryx-lib/flv"
+	"github.com/ossrs/go-oryx-lib/rtmp"
+	"github.com/pion/ice/v2"
+	"github.com/pion/rtp"
+	"github.com/pion/rtp/codecs"
 
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
@@ -1883,6 +1888,89 @@ func (v *FLVPlayer) consume(ctx context.Context) (err error) {
 			}
 		}
 	}
+}
+
+// RTSPPlayer
+type RTSPPlayer struct {
+	rtspUrl string
+
+	client *gortsplib.Client
+
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	onRTPPacket func(media *description.Media, format uint8, packet *rtp.Packet) error
+}
+
+func NewRTSPPlayer() *RTSPPlayer {
+	return &RTSPPlayer{}
+}
+
+func (v *RTSPPlayer) Close() error {
+	if v.cancel != nil {
+		v.cancel()
+	}
+	if v.client != nil {
+		v.client.Close()
+	}
+	return nil
+}
+
+func (v *RTSPPlayer) Play(ctx context.Context, rtspUrl string) error {
+	v.rtspUrl = rtspUrl
+	v.ctx, v.cancel = context.WithCancel(ctx)
+
+	transport := gortsplib.Transport(gortsplib.TransportTCP)
+	v.client = &gortsplib.Client{
+		Transport:    &transport,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+	}
+
+	u, err := base.ParseURL(rtspUrl)
+	if err != nil {
+		return errors.Wrapf(err, "parse url %v", rtspUrl)
+	}
+
+	err = v.client.Start(u.Scheme, u.Host)
+	if err != nil {
+		return errors.Wrapf(err, "connect rtsp %v", rtspUrl)
+	}
+
+	desc, _, err := v.client.Describe(u)
+	if err != nil {
+		return errors.Wrapf(err, "describe rtsp %v", rtspUrl)
+	}
+
+	err = v.client.SetupAll(desc.BaseURL, desc.Medias)
+	if err != nil {
+		return errors.Wrapf(err, "setup rtsp %v", rtspUrl)
+	}
+
+	v.client.OnPacketRTPAny(func(media *description.Media, forma format.Format, packet *rtp.Packet) {
+		if v.onRTPPacket != nil {
+			if err := v.onRTPPacket(media, uint8(forma.ClockRate()), packet); err != nil {
+				logger.Wf(ctx, "rtsp: on rtp error %+v", err)
+			}
+		}
+	})
+
+	_, err = v.client.Play(nil)
+	if err != nil {
+		return errors.Wrapf(err, "play rtsp %v", rtspUrl)
+	}
+
+	go func() {
+		err := v.client.Wait()
+		if err != nil {
+			logger.Wf(ctx, "rtsp: client error %+v", err)
+		}
+		if v.cancel != nil {
+			v.cancel()
+		}
+	}()
+
+	return nil
 }
 
 func IsAvccrEquals(a, b *avc.AVCDecoderConfigurationRecord) bool {

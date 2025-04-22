@@ -30,11 +30,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bluenviron/gortsplib/v4/pkg/description"
 	"github.com/ossrs/go-oryx-lib/avc"
 	"github.com/ossrs/go-oryx-lib/flv"
 	"github.com/ossrs/go-oryx-lib/logger"
 	"github.com/ossrs/go-oryx-lib/rtmp"
 	"github.com/pion/interceptor"
+	"github.com/pion/rtp"
 	"github.com/pkg/errors"
 )
 
@@ -180,6 +182,82 @@ func TestRtmpPublish_RtcPlay(t *testing.T) {
 				cancel()
 			}
 			logger.Tf(ctx, "publisher done")
+		}()
+
+		return nil
+	}()
+	if err := filterTestError(ctx.Err(), err, r0, r1); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+func TestRtmpPublish_RtspPlay(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	var r0, r1 error
+	err := func() (err error) {
+		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
+		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
+
+		// TODO: 8554
+		rtspUrl := fmt.Sprintf("rtsp://%v:8554/live/%v", *srsServer, streamSuffix)
+
+		// Publisher connect to a RTMP stream.
+		publisher := NewRTMPPublisher()
+		defer publisher.Close()
+
+		if err := publisher.Publish(ctx, rtmpUrl); err != nil {
+			return err
+		}
+		player := NewRTSPPlayer()
+		defer player.Close()
+
+		// Run publisher and player
+		var wg sync.WaitGroup
+		defer wg.Wait()
+
+		publisherReady, publisherReadyCancel := context.WithCancel(context.Background())
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			time.Sleep(30 * time.Millisecond)
+			publisherReadyCancel()
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-publisherReady.Done()
+
+			if err := player.Play(ctx, rtspUrl); err != nil {
+				r1 = err
+				cancel()
+				return
+			}
+
+			var nnPackets int
+			player.onRTPPacket = func(media *description.Media, format uint8, packet *rtp.Packet) error {
+				logger.Tf(ctx, "RTSP: recv rtp packet #%v, payload type=%v, size=%vB",
+					nnPackets, packet.PayloadType, len(packet.Payload))
+				if nnPackets += 1; nnPackets > 50 {
+					cancel()
+				}
+				// TODO: Further validate the RTP packets.
+				return nil
+			}
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			publisher.onSendPacket = func(m *rtmp.Message) error {
+				time.Sleep(1 * time.Millisecond)
+				return nil
+			}
+			if r0 = publisher.Ingest(ctx, *srsPublishAvatar); r0 != nil {
+				cancel()
+			}
 		}()
 
 		return nil

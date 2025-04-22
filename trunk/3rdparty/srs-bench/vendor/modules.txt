@@ -1,3 +1,48 @@
+# github.com/bluenviron/gortsplib/v4 v4.13.1
+## explicit; go 1.21.0
+github.com/bluenviron/gortsplib/v4
+github.com/bluenviron/gortsplib/v4/pkg/auth
+github.com/bluenviron/gortsplib/v4/pkg/base
+github.com/bluenviron/gortsplib/v4/pkg/bytecounter
+github.com/bluenviron/gortsplib/v4/pkg/conn
+github.com/bluenviron/gortsplib/v4/pkg/description
+github.com/bluenviron/gortsplib/v4/pkg/format
+github.com/bluenviron/gortsplib/v4/pkg/format/rtpac3
+github.com/bluenviron/gortsplib/v4/pkg/format/rtpav1
+github.com/bluenviron/gortsplib/v4/pkg/format/rtph264
+github.com/bluenviron/gortsplib/v4/pkg/format/rtph265
+github.com/bluenviron/gortsplib/v4/pkg/format/rtplpcm
+github.com/bluenviron/gortsplib/v4/pkg/format/rtpmjpeg
+github.com/bluenviron/gortsplib/v4/pkg/format/rtpmpeg1audio
+github.com/bluenviron/gortsplib/v4/pkg/format/rtpmpeg1video
+github.com/bluenviron/gortsplib/v4/pkg/format/rtpmpeg4audio
+github.com/bluenviron/gortsplib/v4/pkg/format/rtpmpeg4video
+github.com/bluenviron/gortsplib/v4/pkg/format/rtpsimpleaudio
+github.com/bluenviron/gortsplib/v4/pkg/format/rtpvp8
+github.com/bluenviron/gortsplib/v4/pkg/format/rtpvp9
+github.com/bluenviron/gortsplib/v4/pkg/headers
+github.com/bluenviron/gortsplib/v4/pkg/liberrors
+github.com/bluenviron/gortsplib/v4/pkg/multicast
+github.com/bluenviron/gortsplib/v4/pkg/ringbuffer
+github.com/bluenviron/gortsplib/v4/pkg/rtcpreceiver
+github.com/bluenviron/gortsplib/v4/pkg/rtcpsender
+github.com/bluenviron/gortsplib/v4/pkg/rtplossdetector
+github.com/bluenviron/gortsplib/v4/pkg/rtpreorderer
+github.com/bluenviron/gortsplib/v4/pkg/rtptime
+github.com/bluenviron/gortsplib/v4/pkg/sdp
+# github.com/bluenviron/mediacommon/v2 v2.1.0
+## explicit; go 1.21.0
+github.com/bluenviron/mediacommon/v2/pkg/bits
+github.com/bluenviron/mediacommon/v2/pkg/codecs/ac3
+github.com/bluenviron/mediacommon/v2/pkg/codecs/av1
+github.com/bluenviron/mediacommon/v2/pkg/codecs/h264
+github.com/bluenviron/mediacommon/v2/pkg/codecs/h265
+github.com/bluenviron/mediacommon/v2/pkg/codecs/jpeg
+github.com/bluenviron/mediacommon/v2/pkg/codecs/mpeg1audio
+github.com/bluenviron/mediacommon/v2/pkg/codecs/mpeg4audio
+github.com/bluenviron/mediacommon/v2/pkg/codecs/mpeg4video
+github.com/bluenviron/mediacommon/v2/pkg/codecs/vp8
+github.com/bluenviron/mediacommon/v2/pkg/codecs/vp9
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
@@ -27,7 +72,7 @@ github.com/gobwas/ws/wsutil
 github.com/google/gopacket
 github.com/google/gopacket/layers
 github.com/google/gopacket/pcapgo
-# github.com/google/uuid v1.3.0
+# github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
 # github.com/haivision/srtgo v0.0.0-20230627061225-a70d53fcd618
@@ -104,20 +149,22 @@ github.com/pion/mdns
 # github.com/pion/randutil v0.1.0
 ## explicit; go 1.14
 github.com/pion/randutil
-# github.com/pion/rtcp v1.2.10
-## explicit; go 1.13
+# github.com/pion/rtcp v1.2.15
+## explicit; go 1.20
 github.com/pion/rtcp
-# github.com/pion/rtp v1.7.13
-## explicit; go 1.13
+# github.com/pion/rtp v1.8.13
+## explicit; go 1.20
 github.com/pion/rtp
 github.com/pion/rtp/codecs
+github.com/pion/rtp/codecs/av1/frame
+github.com/pion/rtp/codecs/av1/obu
+github.com/pion/rtp/codecs/vp9
 github.com/pion/rtp/pkg/frame
-github.com/pion/rtp/pkg/obu
 # github.com/pion/sctp v1.8.7
 ## explicit; go 1.13
 github.com/pion/sctp
-# github.com/pion/sdp/v3 v3.0.6
-## explicit; go 1.13
+# github.com/pion/sdp/v3 v3.0.11
+## explicit; go 1.20
 github.com/pion/sdp/v3
 # github.com/pion/srtp/v2 v2.0.15
 ## explicit; go 1.14
@@ -170,9 +217,10 @@ github.com/satori/go.uuid
 # github.com/sirupsen/logrus v1.4.2
 ## explicit
 github.com/sirupsen/logrus
-# github.com/stretchr/testify v1.9.0
+# github.com/stretchr/testify v1.10.0
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
+github.com/stretchr/testify/assert/yaml
 github.com/stretchr/testify/require
 # github.com/tevino/abool v0.0.0-20170917061928-9b9efcf221b5
 ## explicit
@@ -186,14 +234,13 @@ github.com/yapingcat/gomedia/codec
 # github.com/yapingcat/gomedia/mpeg2 v0.0.0-20220617074658-94762898dc25
 ## explicit; go 1.16
 github.com/yapingcat/gomedia/mpeg2
-# golang.org/x/crypto v0.21.0
-## explicit; go 1.18
+# golang.org/x/crypto v0.33.0
+## explicit; go 1.20
 golang.org/x/crypto/cryptobyte
 golang.org/x/crypto/cryptobyte/asn1
 golang.org/x/crypto/curve25519
-golang.org/x/crypto/curve25519/internal/field
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.21.0
+# golang.org/x/net v0.35.0
 ## explicit; go 1.18
 golang.org/x/net/bpf
 golang.org/x/net/dns/dnsmessage
@@ -202,13 +249,13 @@ golang.org/x/net/internal/socket
 golang.org/x/net/internal/socks
 golang.org/x/net/ipv4
 golang.org/x/net/proxy
-# golang.org/x/sys v0.18.0
+# golang.org/x/sys v0.30.0
 ## explicit; go 1.18
 golang.org/x/sys/cpu
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.18.0
+# golang.org/x/term v0.29.0
 ## explicit; go 1.18
 golang.org/x/term
 # gopkg.in/yaml.v3 v3.0.1
