@@ -133,7 +133,7 @@ srs_error_t SrsRtspTransport::parse(string attr)
             item_value = item.substr(pos + 1);
         }
         
-        if (transport.empty()) {
+        if (transport.empty() && item.find("=") == string::npos && item_key != "unicast" && item_key != "multicast") {
             transport = item_key;
             if ((pos = transport.find("/")) != string::npos) {
                 profile = transport.substr(pos + 1);
