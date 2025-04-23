@@ -44,6 +44,8 @@ private:
     std::map<uint32_t, SrsRtcTrackDescription*> sub_relations_;
     // key: ssrc
     std::map<uint32_t, SrsRtspTransport*> ssrc_transports_;
+    // key: ssrc
+    std::map<uint32_t, SrsUdpClient*> udp_clients_;
     // key: stream id
     std::map<std::string, SrsRtcPlayStream*> players_;
     std::string session_;
@@ -56,13 +58,10 @@ private:
     // The delta for statistic.
     SrsNetworkDelta* delta_;
     ISrsProtocolReadWriter* skt_;
-
-    std::map<uint32_t, SrsUdpClient*> udp_clients_;
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
     SrsCoroutine* trd_;
-    // Packet cache.
-    char* pkt_;
+
     SrsRtspStack* rtsp_;
     iovec* cache_iov_;
     SrsBuffer* cache_buffer_;
@@ -79,8 +78,6 @@ public:
     virtual void on_disposing(ISrsResource* c);
 public:
     ISrsKbpsDelta* delta();
-    // Interrupt transport by session.
-    void interrupt();
 // Interface ISrsResource.
 public:
     virtual std::string desc();
@@ -101,6 +98,9 @@ public:
 // Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
+// Interface ISrsExpire.
+public:
+    virtual void expire();
 private:
     srs_error_t do_cycle();
     srs_error_t do_send_udp_packet(SrsRtpPacket* pkt);

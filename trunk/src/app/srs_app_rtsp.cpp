@@ -30,7 +30,6 @@ SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, s
 
     delta_ = new SrsNetworkDelta();
     delta_->set_io(skt_, skt_);
-    pkt_ = new char[SRS_RTSP_PACKET_MAX];
 
     cache_iov_ = new iovec();
     cache_iov_->iov_base = new char[kRtpPacketSize];
@@ -40,7 +39,6 @@ SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, s
 
 SrsRtspConn::~SrsRtspConn()
 {
-    srs_freepa(pkt_);
     srs_freep(delta_);
     srs_freep(skt_);
     if (true) {
@@ -342,6 +340,11 @@ const SrsContextId& SrsRtspConn::get_id()
 std::string SrsRtspConn::remote_ip()
 {
     return ip_;
+}
+
+void SrsRtspConn::expire()
+{
+    // manager_->remove(this);
 }
 
 srs_error_t SrsRtspConn::start()
