@@ -33,22 +33,17 @@ class SrsRtcPlayStream;
 class SrsRtcServer;
 class SrsRtcSource;
 
-class SrsRtspConn : public SrsRtcConnection, public ISrsCoroutineHandler, public ISrsStartable
+class SrsRtspSession
 {
 private:
     SrsContextId cid_;
     SrsRequest* request_;
-    // The manager object to manage the connection.
-    ISrsResourceManager* manager_;
     SrsSharedPtr<SrsRtcSource> source_;
-    bool disposing_;
-
-    // The delta for statistic.
     SrsEphemeralDelta* delta_;
     ISrsProtocolReadWriter* skt_;
-    // Each connection start a green thread,
-    // when thread stop, the connection will be delete by server.
-    SrsCoroutine* trd_;
+    // The ip of client.
+    std::string ip_;
+    int port_;
 
     SrsSecurity* security_; 
 private:
@@ -62,23 +57,52 @@ private:
     std::map<uint32_t, SrsUdpClient*> udp_clients_;
     // key: stream id
     std::map<std::string, SrsRtcPlayStream*> players_;
-    std::string session_;
+    
+    iovec* cache_iov_;
+    SrsBuffer* cache_buffer_;
+public:
+    SrsRtspSession(SrsContextId cid, SrsRequest* r, ISrsProtocolReadWriter* skt, std::string ip, int port);
+    virtual ~SrsRtspSession();   
+public:
+    ISrsKbpsDelta* delta();
+public:
+    virtual srs_error_t do_send_packet(SrsRtpPacket* pkt);
+    virtual srs_error_t do_send_udp_packet(SrsRtpPacket* pkt);
+    virtual srs_error_t do_send_tcp_packet(SrsRtpPacket* pkt); 
+
+    virtual srs_error_t do_describe(SrsRtspRequest* req, std::string& sdp);
+    virtual srs_error_t do_setup(SrsRtspRequest* req, uint32_t* ssrc);
+    virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtcPlayStream* player);
+    virtual srs_error_t do_teardown();
+
+private:
+    int get_channel_by_ssrc(uint32_t ssrc);
+    srs_error_t http_hooks_on_play(SrsRequest* req);
+};
+
+class SrsRtspConn : public SrsRtcConnection, public ISrsCoroutineHandler, public ISrsStartable
+{
+private:
+    SrsContextId cid_;
+    SrsRequest* request_;
+    // The manager object to manage the connection.
+    ISrsResourceManager* manager_;
+    // Each connection start a green thread,
+    // when thread stop, the connection will be delete by server.
+    SrsCoroutine* trd_;
+
 private:
     // The ip and port of client.
     std::string ip_;
     int port_;
     SrsRtspStack* rtsp_;
-    iovec* cache_iov_;
-    SrsBuffer* cache_buffer_;
+    SrsRtspSession* session_;
+    std::string session_id_;
 public:
     SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port);
     virtual ~SrsRtspConn();
 public:
     virtual srs_error_t do_send_packet(SrsRtpPacket* pkt);
-// interface ISrsDisposingHandler
-public:
-    virtual void on_before_dispose(ISrsResource* c);
-    virtual void on_disposing(ISrsResource* c);
 public:
     ISrsKbpsDelta* delta();
 // Interface ISrsResource.
@@ -106,17 +130,6 @@ public:
     virtual void expire();
 private:
     srs_error_t do_cycle();
-    srs_error_t do_send_udp_packet(SrsRtpPacket* pkt);
-    srs_error_t do_send_tcp_packet(SrsRtpPacket* pkt);
-
-    srs_error_t do_describe(SrsRtspRequest* req, std::string& sdp);
-    srs_error_t do_setup(SrsRtspRequest* req, uint32_t* ssrc);
-    srs_error_t do_play(SrsRtspRequest* req);
-    srs_error_t do_teardown();
-
-private:
-    int get_channel_by_ssrc(uint32_t ssrc);
-    srs_error_t http_hooks_on_play(SrsRequest* req);
 };
 class SrsUdpClient
 {

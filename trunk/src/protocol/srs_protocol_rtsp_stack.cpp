@@ -426,17 +426,6 @@ srs_error_t SrsRtspStack::send_message(SrsRtspResponse* res)
     return err;
 }
 
-srs_error_t SrsRtspStack::send_rtp_packet(void *data, int size)
-{
-    srs_error_t err = srs_success;
-
-    if ((err = skt->write(data, size, NULL)) != srs_success) {
-        return srs_error_wrap(err, "send rtp packet");
-    }
-
-    return err;
-}
-
 srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
 {
     srs_error_t err = srs_success;
