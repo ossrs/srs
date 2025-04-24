@@ -20,6 +20,8 @@
 #include <srs_app_listener.hpp>
 #include <srs_app_async_call.hpp>
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_security.hpp>
+#include <srs_app_http_hooks.hpp>
 
 class SrsUdpClient;
 class SrsServer;
@@ -34,11 +36,23 @@ class SrsRtcSource;
 class SrsRtspConn : public SrsRtcConnection, public ISrsCoroutineHandler, public ISrsStartable
 {
 private:
+    SrsContextId cid_;
     SrsRequest* request_;
+    // The manager object to manage the connection.
+    ISrsResourceManager* manager_;
     SrsSharedPtr<SrsRtcSource> source_;
     bool disposing_;
-    bool is_udp_;
+
+    // The delta for statistic.
+    SrsNetworkDelta* delta_;
+    ISrsProtocolReadWriter* skt_;
+    // Each connection start a green thread,
+    // when thread stop, the connection will be delete by server.
+    SrsCoroutine* trd_;
+
+    SrsSecurity* security_; 
 private:
+    bool is_udp_;
     std::map<int, std::string> id_track_;
     // key: ssrc
     std::map<uint32_t, SrsRtcTrackDescription*> sub_relations_;
@@ -50,23 +64,12 @@ private:
     std::map<std::string, SrsRtcPlayStream*> players_;
     std::string session_;
 private:
-    // The manager object to manage the connection.
-    ISrsResourceManager* manager_;
     // The ip and port of client.
     std::string ip_;
     int port_;
-    // The delta for statistic.
-    SrsNetworkDelta* delta_;
-    ISrsProtocolReadWriter* skt_;
-    // Each connection start a green thread,
-    // when thread stop, the connection will be delete by server.
-    SrsCoroutine* trd_;
-
     SrsRtspStack* rtsp_;
     iovec* cache_iov_;
     SrsBuffer* cache_buffer_;
-private:
-    SrsContextId cid_;
 public:
     SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port);
     virtual ~SrsRtspConn();
@@ -113,6 +116,7 @@ private:
 
 private:
     int get_channel_by_ssrc(uint32_t ssrc);
+    srs_error_t http_hooks_on_play(SrsRequest* req);
 };
 class SrsUdpClient
 {

@@ -35,10 +35,13 @@ SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, s
     cache_iov_->iov_base = new char[kRtpPacketSize];
     cache_iov_->iov_len = kRtpPacketSize;
     cache_buffer_ = new SrsBuffer((char*)cache_iov_->iov_base, kRtpPacketSize);
+
+    security_ = new SrsSecurity();
 }
 
 SrsRtspConn::~SrsRtspConn()
 {
+    srs_freep(security_);
     srs_freep(delta_);
     srs_freep(skt_);
     if (true) {
@@ -57,6 +60,218 @@ SrsRtspConn::~SrsRtspConn()
         srs_freep(it->second);
     }
     ssrc_transports_.clear();
+}
+
+void SrsRtspConn::on_before_dispose(ISrsResource *c)
+{
+    if (disposing_) {
+        return;
+    }
+
+    SrsRtspConn* session = dynamic_cast<SrsRtspConn*>(c);
+    if (session == this) {
+        disposing_ = true;
+    }
+
+    if (session && session == this) {
+        _srs_context->set_id(cid_);
+        srs_trace("RTSP: session detach from [%s](%s), disposing=%d", c->get_id().c_str(),
+            c->desc().c_str(), disposing_);
+    }
+}
+
+void SrsRtspConn::on_disposing(ISrsResource *c)
+{
+    if (disposing_) {
+        return;
+    }
+}
+
+ISrsKbpsDelta* SrsRtspConn::delta()
+{
+    return delta_;  
+}
+
+std::string SrsRtspConn::desc()
+{
+    return "Rtsp";
+}
+
+const SrsContextId& SrsRtspConn::get_id()
+{
+    return cid_;
+}
+
+std::string SrsRtspConn::remote_ip()
+{
+    return ip_;
+}
+
+void SrsRtspConn::expire()
+{
+    // manager_->remove(this);
+}
+
+srs_error_t SrsRtspConn::start()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = trd_->start()) != srs_success) {
+        return srs_error_wrap(err, "coroutine");
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtspConn::cycle()
+{
+    srs_error_t err = srs_success;
+
+    // Serve the client.
+    err = do_cycle();
+
+    // Update statistic when done.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->kbps_add_delta(get_id().c_str(), delta_);
+    stat->on_disconnect(get_id().c_str(), err);
+
+    do_teardown();
+
+    // Notify manager to remove it.
+    // Note that we create this object, so we use manager to remove it.
+    manager_->remove(this);
+
+    // success.
+    if (err == srs_success) {
+        srs_trace("client finished.");
+        return err;
+    }
+
+    // It maybe success with message.
+    if (srs_error_code(err) == ERROR_SUCCESS) {
+        srs_trace("client finished%s.", srs_error_summary(err).c_str());
+        srs_freep(err);
+        return err;
+    }
+
+    // client close peer.
+    // TODO: FIXME: Only reset the error when client closed it.
+    if (srs_is_client_gracefully_close(err)) {
+        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+    } else if (srs_is_server_gracefully_close(err)) {
+        srs_warn("server disconnect. ret=%d", srs_error_code(err));
+    } else {
+        srs_error("serve error %s", srs_error_desc(err).c_str());
+    }
+
+    srs_freep(err);
+    return srs_success;
+}
+
+srs_error_t SrsRtspConn::do_cycle()
+{
+    srs_error_t err = srs_success;
+    srs_trace("RTSP: client ip=%s, port=%d", ip_.c_str(), port_);
+
+    bool rtc_enabled = _srs_config->get_rtc_server_enabled();
+    if (!rtc_enabled) {
+        return srs_error_new(ERROR_RTC_DISABLED, "RTC is disabled, but it is a necessary dependency.");
+    } 
+
+    // consume all rtsp messages.
+    while (true) {
+        if ((err = trd_->pull()) != srs_success) {
+            return srs_error_wrap(err, "rtsp cycle");
+        }
+        
+        SrsRtspRequest* req = NULL;
+        if ((err = rtsp_->recv_message(&req)) != srs_success) {
+            return srs_error_wrap(err, "recv message");
+        }
+        SrsUniquePtr<SrsRtspRequest> req_ptr(req);
+        
+        if (req->is_options()) {
+            SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse((int)req->seq);
+            res->session = session_;
+            if ((err = rtsp_->send_message(res)) != srs_success) {
+                return  srs_error_wrap(err, "response option");
+            }
+        } else if (req->is_describe()) {
+            // create session.
+            if (session_.empty()) {
+                session_ = srs_random_str(8);
+            }
+
+            SrsRtspDescribeResponse* res = new SrsRtspDescribeResponse((int)req->seq);
+            res->session = session_;
+
+            std::string sdp;
+            err = do_describe(req, sdp);
+            if (err != srs_success) {
+                res->status = SRS_CONSTS_RTSP_InternalServerError;
+                if (srs_error_code(err) == ERROR_SYSTEM_SECURITY_DENY) {
+                    res->status = SRS_CONSTS_RTSP_Forbidden;
+                }
+                srs_warn("describe failed: %s", srs_error_desc(err).c_str());
+                srs_error_reset(err);
+            }
+
+            res->sdp = sdp;
+            if ((err = rtsp_->send_message(res)) != srs_success) {
+                return  srs_error_wrap(err, "response describe");
+            }
+        } else if (req->is_setup()) {
+            srs_assert(req->transport);            
+
+            SrsRtspSetupResponse* res = new SrsRtspSetupResponse((int)req->seq);
+            res->session = session_;
+
+            uint32_t ssrc = 0;
+            err = do_setup(req, &ssrc);
+            if (err != srs_success) {
+                res->status = SRS_CONSTS_RTSP_InternalServerError;
+                srs_warn("setup failed: %s", srs_error_desc(err).c_str());
+                srs_error_reset(err);
+            }
+    
+            res->transport->copy(req->transport);
+            res->session = session_;
+            res->ssrc = srs_int2str(ssrc);
+            res->client_port_min = req->transport->client_port_min;
+            res->client_port_max = req->transport->client_port_max;
+            // TODO: FIXME: get local port from udp client.
+            res->local_port_min = 0;
+            res->local_port_max = 0;
+            if ((err = rtsp_->send_message(res)) != srs_success) {
+                return srs_error_wrap(err, "response setup");
+            }
+        } else if (req->is_play()) {
+            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
+            res->session = session_;
+            if ((err = rtsp_->send_message(res)) != srs_success) {
+                return srs_error_wrap(err, "response record");
+            }
+
+            err = do_play(req);
+            if (err != srs_success) {
+                return srs_error_wrap(err, "prepare play");
+            }
+            
+        } else if (req->is_teardown()) {
+            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
+            res->session = session_;
+            if ((err = rtsp_->send_message(res)) != srs_success) {
+                return srs_error_wrap(err, "response teardown");
+            }
+
+            err = do_teardown();
+            if (err != srs_success) {
+                return srs_error_wrap(err, "teardown");
+            }
+        }
+    }
+    
+    return err;
 }
 
 srs_error_t SrsRtspConn::do_send_packet(SrsRtpPacket *pkt)
@@ -134,6 +349,14 @@ srs_error_t SrsRtspConn::do_describe(SrsRtspRequest* req, std::string& sdp)
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(request_->vhost);
     if (parsed_vhost) {
         request_->vhost = parsed_vhost->arg0();
+    }
+
+    if ((err = security_->check(SrsRtcConnPlay, ip_, request_)) != srs_success) {
+        return srs_error_wrap(err, "RTSP: security check");
+    }
+
+    if ((err = http_hooks_on_play(request_)) != srs_success) {
+        return srs_error_wrap(err, "RTSP: http_hooks_on_play");
     }
 
     if ((err = _srs_rtc_sources->fetch_or_create(request_, source_)) != srs_success) {
@@ -297,218 +520,6 @@ srs_error_t SrsRtspConn::do_teardown()
     return srs_success;
 }
 
-void SrsRtspConn::on_before_dispose(ISrsResource *c)
-{
-    if (disposing_) {
-        return;
-    }
-
-    SrsRtspConn* session = dynamic_cast<SrsRtspConn*>(c);
-    if (session == this) {
-        disposing_ = true;
-    }
-
-    if (session && session == this) {
-        _srs_context->set_id(cid_);
-        srs_trace("RTSP: session detach from [%s](%s), disposing=%d", c->get_id().c_str(),
-            c->desc().c_str(), disposing_);
-    }
-}
-
-void SrsRtspConn::on_disposing(ISrsResource *c)
-{
-    if (disposing_) {
-        return;
-    }
-}
-
-ISrsKbpsDelta* SrsRtspConn::delta()
-{
-    return delta_;  
-}
-
-std::string SrsRtspConn::desc()
-{
-    return "Rtsp";
-}
-
-const SrsContextId& SrsRtspConn::get_id()
-{
-    return cid_;
-}
-
-std::string SrsRtspConn::remote_ip()
-{
-    return ip_;
-}
-
-void SrsRtspConn::expire()
-{
-    // manager_->remove(this);
-}
-
-srs_error_t SrsRtspConn::start()
-{
-    srs_error_t err = srs_success;
-
-    if ((err = trd_->start()) != srs_success) {
-        return srs_error_wrap(err, "coroutine");
-    }
-
-    return err;
-}
-
-srs_error_t SrsRtspConn::cycle()
-{
-    srs_error_t err = srs_success;
-
-    // Serve the client.
-    err = do_cycle();
-
-    // Update statistic when done.
-    SrsStatistic* stat = SrsStatistic::instance();
-    stat->kbps_add_delta(get_id().c_str(), delta_);
-    stat->on_disconnect(get_id().c_str(), err);
-
-    err = do_teardown();
-    if (err != srs_success) {
-        return srs_error_wrap(err, "teardown");
-    }
-
-    // Notify manager to remove it.
-    // Note that we create this object, so we use manager to remove it.
-    manager_->remove(this);
-
-    // success.
-    if (err == srs_success) {
-        srs_trace("client finished.");
-        return err;
-    }
-
-    // It maybe success with message.
-    if (srs_error_code(err) == ERROR_SUCCESS) {
-        srs_trace("client finished%s.", srs_error_summary(err).c_str());
-        srs_freep(err);
-        return err;
-    }
-
-    // client close peer.
-    // TODO: FIXME: Only reset the error when client closed it.
-    if (srs_is_client_gracefully_close(err)) {
-        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
-    } else if (srs_is_server_gracefully_close(err)) {
-        srs_warn("server disconnect. ret=%d", srs_error_code(err));
-    } else {
-        srs_error("serve error %s", srs_error_desc(err).c_str());
-    }
-
-    srs_freep(err);
-    return srs_success;
-}
-
-srs_error_t SrsRtspConn::do_cycle()
-{
-    srs_error_t err = srs_success;
-    srs_trace("RTSP: client ip=%s, port=%d", ip_.c_str(), port_);
-
-    bool rtc_enabled = _srs_config->get_rtc_server_enabled();
-    if (!rtc_enabled) {
-        return srs_error_new(ERROR_RTC_DISABLED, "RTC is disabled, but it is a necessary dependency.");
-    } 
-
-    // consume all rtsp messages.
-    while (true) {
-        if ((err = trd_->pull()) != srs_success) {
-            return srs_error_wrap(err, "rtsp cycle");
-        }
-        
-        SrsRtspRequest* req = NULL;
-        if ((err = rtsp_->recv_message(&req)) != srs_success) {
-            return srs_error_wrap(err, "recv message");
-        }
-        SrsUniquePtr<SrsRtspRequest> req_ptr(req);
-        
-        if (req->is_options()) {
-            SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse((int)req->seq);
-            res->session = session_;
-            if ((err = rtsp_->send_message(res)) != srs_success) {
-                return  srs_error_wrap(err, "response option");
-            }
-        } else if (req->is_describe()) {
-            // create session.
-            if (session_.empty()) {
-                session_ = srs_random_str(8);
-            }
-
-            SrsRtspDescribeResponse* res = new SrsRtspDescribeResponse((int)req->seq);
-            res->session = session_;
-
-            std::string sdp;
-            err = do_describe(req, sdp);
-            if (err != srs_success) {
-                res->status = 500;
-                srs_warn("describe failed: %s", srs_error_desc(err).c_str());
-                srs_error_reset(err);
-            }
-
-            res->sdp = sdp;
-            if ((err = rtsp_->send_message(res)) != srs_success) {
-                return  srs_error_wrap(err, "response describe");
-            }
-        } else if (req->is_setup()) {
-            srs_assert(req->transport);            
-
-            SrsRtspSetupResponse* res = new SrsRtspSetupResponse((int)req->seq);
-            res->session = session_;
-
-            uint32_t ssrc = 0;
-            err = do_setup(req, &ssrc);
-            if (err != srs_success) {
-                res->status = 500;
-                srs_warn("setup failed: %s", srs_error_desc(err).c_str());
-                srs_error_reset(err);
-            }
-    
-            res->transport->copy(req->transport);
-            res->session = session_;
-            res->ssrc = srs_int2str(ssrc);
-            res->client_port_min = req->transport->client_port_min;
-            res->client_port_max = req->transport->client_port_max;
-            // TODO: FIXME: get local port from udp client.
-            res->local_port_min = 0;
-            res->local_port_max = 0;
-            if ((err = rtsp_->send_message(res)) != srs_success) {
-                return srs_error_wrap(err, "response setup");
-            }
-        } else if (req->is_play()) {
-            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
-            res->session = session_;
-            if ((err = rtsp_->send_message(res)) != srs_success) {
-                return srs_error_wrap(err, "response record");
-            }
-
-            err = do_play(req);
-            if (err != srs_success) {
-                return srs_error_wrap(err, "prepare play");
-            }
-            
-        } else if (req->is_teardown()) {
-            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
-            res->session = session_;
-            if ((err = rtsp_->send_message(res)) != srs_success) {
-                return srs_error_wrap(err, "response teardown");
-            }
-
-            err = do_teardown();
-            if (err != srs_success) {
-                return srs_error_wrap(err, "teardown");
-            }
-        }
-    }
-    
-    return err;
-}
-
 int SrsRtspConn::get_channel_by_ssrc(uint32_t ssrc)
 {
     std::map<uint32_t, SrsRtspTransport*>::iterator it = ssrc_transports_.find(ssrc);
@@ -528,6 +539,39 @@ int SrsRtspConn::get_channel_by_ssrc(uint32_t ssrc)
 
     int channel = atoi(interleaved.substr(0, pos).c_str());
     return channel;
+}
+
+srs_error_t SrsRtspConn::http_hooks_on_play(SrsRequest* req)
+{
+    srs_error_t err = srs_success;
+
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return err;
+    }
+
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    std::vector<std::string> hooks;
+
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_play(req->vhost);
+
+        if (!conf) {
+            return err;
+        }
+
+        hooks = conf->args;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        if ((err = SrsHttpHooks::on_play(url, req)) != srs_success) {
+            return srs_error_wrap(err, "on_play %s", url.c_str());
+        }
+    }
+
+    return err;
 }
 
 SrsUdpClient::SrsUdpClient()
