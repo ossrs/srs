@@ -15,11 +15,12 @@ extern SrsResourceManager* _srs_rtc_manager;
 #define SRS_RTSP_PACKET_MAX 1500
 #define SRS_RTP_TCP_PACKET_HEADER_SIZE 4
 
-SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcConnection(NULL, _srs_context->get_id())
+SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcConnection(NULL, _srs_context->generate_id())
 {
     source_ = NULL;
     manager_ = cm;
-    cid_ = _srs_context->get_id();
+    cid_ = SrsRtcConnection::get_id();
+    _srs_context->set_id(cid_);
     request_ = new SrsRequest();
     request_->ip = cip;
     ip_ = cip;
@@ -28,8 +29,7 @@ SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, s
     rtsp_ = new SrsRtspStack(skt);
     trd_ = new SrsSTCoroutine("rtsp", this, _srs_context->get_id());
 
-    delta_ = new SrsNetworkDelta();
-    delta_->set_io(skt_, skt_);
+    delta_ = new SrsEphemeralDelta();
 
     cache_iov_ = new iovec();
     cache_iov_->iov_base = new char[kRtpPacketSize];
@@ -133,7 +133,6 @@ srs_error_t SrsRtspConn::cycle()
     // Update statistic when done.
     SrsStatistic* stat = SrsStatistic::instance();
     stat->kbps_add_delta(get_id().c_str(), delta_);
-    stat->on_disconnect(get_id().c_str(), err);
 
     do_teardown();
 
@@ -305,6 +304,7 @@ srs_error_t SrsRtspConn::do_send_udp_packet(SrsRtpPacket *pkt)
         if (nwrite <= 0) {
             return srs_error_new(-1, "send udp packet");
         }
+        delta_->add_delta(0, nwrite);
     }
 
     return err;
@@ -333,6 +333,8 @@ srs_error_t SrsRtspConn::do_send_tcp_packet(SrsRtpPacket *pkt)
     if ((err = rtsp_->send_rtp_packet(iov->iov_base, iov->iov_len)) != srs_success) {
         return srs_error_wrap(err, "send rtp packet");
     }
+
+    delta_->add_delta(0, iov->iov_len);
 
     return err;
 }
@@ -484,7 +486,7 @@ srs_error_t SrsRtspConn::do_play(SrsRtspRequest* req)
 {
     srs_error_t err = srs_success;
 
-    SrsRtcPlayStream* player = new SrsRtcPlayStream(this, _srs_context->get_id());
+    SrsRtcPlayStream* player = new SrsRtcPlayStream(this, cid_);
     if ((err = player->initialize(request_, sub_relations_)) != srs_success) {
         srs_freep(player);
         return srs_error_wrap(err, "SrsRtspPlayStream init");
@@ -514,6 +516,7 @@ srs_error_t SrsRtspConn::do_teardown()
         std::string url = it->first;
         SrsRtcPlayStream* player = it->second;
         player->stop();
+        srs_freep(player);
     }
     players_.clear();
 

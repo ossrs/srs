@@ -28,7 +28,7 @@ class SrsServer;
 class SrsTcpConnection;
 class SrsRtspConnection;
 class SrsNetworkDelta;
-class ISrsKbpsDelta;
+class SrsEphemeralDelta;
 class SrsRtcPlayStream;
 class SrsRtcServer;
 class SrsRtcSource;
@@ -44,7 +44,7 @@ private:
     bool disposing_;
 
     // The delta for statistic.
-    SrsNetworkDelta* delta_;
+    SrsEphemeralDelta* delta_;
     ISrsProtocolReadWriter* skt_;
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
