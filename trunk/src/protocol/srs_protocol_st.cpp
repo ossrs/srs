@@ -213,11 +213,11 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     
-    addrinfo* r  = NULL;
-    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
-    if(getaddrinfo(server.c_str(), sport, (const addrinfo*)&hints, &r)) {
+    addrinfo* r_raw  = NULL;
+    if(getaddrinfo(server.c_str(), sport, (const addrinfo*)&hints, &r_raw)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "get address info");
     }
+    SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
     
     int sock = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
     if(sock == -1){
@@ -291,12 +291,12 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags    = AI_NUMERICHOST;
 
-    addrinfo* r = NULL;
-    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
-    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
+    addrinfo* r_raw = NULL;
+    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r_raw)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
             hints.ai_family, hints.ai_socktype, hints.ai_flags);
     }
+    SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
 
     int fd = 0;
     if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
@@ -304,7 +304,7 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
             r->ai_family, r->ai_socktype, r->ai_protocol);
     }
 
-    if ((err = do_srs_tcp_listen(fd, r, pfd)) != srs_success) {
+    if ((err = do_srs_tcp_listen(fd, r.get(), pfd)) != srs_success) {
         ::close(fd);
         return srs_error_wrap(err, "fd=%d", fd);
     }
@@ -353,12 +353,12 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags    = AI_NUMERICHOST;
 
-    addrinfo* r  = NULL;
-    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
-    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
+    addrinfo* r_raw  = NULL;
+    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r_raw)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
             hints.ai_family, hints.ai_socktype, hints.ai_flags);
     }
+    SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
 
     int fd = 0;
     if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
@@ -366,7 +366,7 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
             r->ai_family, r->ai_socktype, r->ai_protocol);
     }
 
-    if ((err = do_srs_udp_listen(fd, r, pfd)) != srs_success) {
+    if ((err = do_srs_udp_listen(fd, r.get(), pfd)) != srs_success) {
         ::close(fd);
         return srs_error_wrap(err, "fd=%d", fd);
     }

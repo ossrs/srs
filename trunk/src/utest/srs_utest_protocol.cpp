@@ -626,7 +626,7 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
         SrsMessageArray arr(3);
 
         SrsMessageArray* parr = &arr;
-        SrsAutoFreeH(SrsMessageArray, parr, srs_utest_free_message_array);
+        SrsUniquePtr<SrsMessageArray> parr2(parr, srs_utest_free_message_array);
         
         arr.msgs[0] = msg.copy();
         EXPECT_EQ(1, msg.count());
@@ -643,7 +643,7 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
         SrsMessageArray arr(3);
 
         SrsMessageArray* parr = &arr;
-        SrsAutoFreeH(SrsMessageArray, parr, srs_utest_free_message_array);
+        SrsUniquePtr<SrsMessageArray> parr2(parr, srs_utest_free_message_array);
         
         arr.msgs[0] = msg.copy();
         EXPECT_EQ(1, msg.count());
