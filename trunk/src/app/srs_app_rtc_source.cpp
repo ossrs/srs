@@ -1638,41 +1638,15 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
             return srs_error_new(ERROR_RTC_RTP_MUXER, "no sps or pps in stap-a rtp. sps: %p, pps:%p", sps, pps);
         }
 
-        // Reset SPS/PPS cache, ensuring that the next SPS/PPS will be handled when both are received.
-        // Note that we should use SrsAutoFree to set the ptr to NULL.
-        SrsAutoFree(SrsRtpPacket, obs_whip_sps_);
-        SrsAutoFree(SrsRtpPacket, obs_whip_pps_);
+        // Packet SPS/PPS to RTMP keyframe.
+        err = packet_sps_pps(pkt, sps, pps);
 
-        // h264 raw to h264 packet.
-        std::string sh;
-        SrsUniquePtr<SrsRawH264Stream> avc(new SrsRawH264Stream());
-
-        if ((err = avc->mux_sequence_header(string(sps->bytes, sps->size), string(pps->bytes, pps->size), sh)) != srs_success) {
-            return srs_error_wrap(err, "mux sequence header");
-        }
-
-        // h264 packet to flv packet.
-        char* flv = NULL;
-        int nb_flv = 0;
-        if ((err = avc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoAvcFrameTraitSequenceHeader, pkt->get_avsync_time(),
-                                    pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
-            return srs_error_wrap(err, "avc to flv");
-        }
-
-        SrsMessageHeader header;
-        header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
-        SrsCommonMessage rtmp;
-        if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
-            return srs_error_wrap(err, "create rtmp");
-        }
-
-        SrsSharedPtrMessage msg;
-        if ((err = msg.create(&rtmp)) != srs_success) {
-            return srs_error_wrap(err, "create message");
-        }
-
-        if ((err = bridge_->on_frame(&msg)) != srs_success) {
-            return err;
+        // Always reset the SPS/PPS cache after used it.
+        srs_freep(obs_whip_sps_);
+        srs_freep(obs_whip_pps_);
+        
+        if (err != srs_success) {
+            return srs_error_wrap(err, "packet sps/pps");
         }
     }
 
@@ -1724,6 +1698,48 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
     } else {
         lost_sn_ = (uint16_t)sn;
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcFrameBuilder::packet_sps_pps(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps)
+{
+    srs_error_t err = srs_success;
+
+    // h264 raw to h264 packet.
+    std::string sh;
+    SrsUniquePtr<SrsRawH264Stream> avc(new SrsRawH264Stream());
+
+    string sps2 = string(sps->bytes, sps->size);
+    string pps2 = string(pps->bytes, pps->size);
+    if ((err = avc->mux_sequence_header(sps2, pps2, sh)) != srs_success) {
+        return srs_error_wrap(err, "mux sequence header");
+    }
+
+    // h264 packet to flv packet.
+    char* flv = NULL;
+    int nb_flv = 0;
+    if ((err = avc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, 
+            SrsVideoAvcFrameTraitSequenceHeader, pkt->get_avsync_time(),
+            pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "avc to flv");
+    }
+
+    SrsMessageHeader header;
+    header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
+    SrsCommonMessage rtmp;
+    if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "create rtmp");
+    }
+
+    SrsSharedPtrMessage msg;
+    if ((err = msg.create(&rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create message");
+    }
+
+    if ((err = bridge_->on_frame(&msg)) != srs_success) {
+        return err;
     }
 
     return err;

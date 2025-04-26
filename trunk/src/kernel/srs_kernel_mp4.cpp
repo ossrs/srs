@@ -5315,9 +5315,21 @@ srs_error_t SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
     srs_error_t err = srs_success;
     
     SrsMp4Box* box = NULL;
-    // Note that we should use SrsAutoFree to free the ptr which is set later.
-    SrsAutoFree(SrsMp4Box, box);
+    if ((err = do_read(stream, box)) == srs_success) {
+        *ppbox = box;
+        return err;
+    }
 
+    // When error, free the created box.
+    srs_freep(box);
+    
+    return err;
+}
+
+srs_error_t SrsMp4BoxReader::do_read(SrsSimpleStream* stream, SrsMp4Box*& box)
+{
+    srs_error_t err = srs_success;
+    
     while (true) {
         // For the first time to read the box, maybe it's a basic box which is only 4bytes header.
         // When we disconvery the real box, we know the size of the whole box, then read again and decode it.
@@ -5355,11 +5367,6 @@ srs_error_t SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
         required = (box->is_mdat()? box->sz_header():box->sz());
         if (!buffer->require((int)required)) {
             continue;
-        }
-        
-        if (err == srs_success) {
-            *ppbox = box;
-            box = NULL;
         }
         
         break;
@@ -5651,18 +5658,17 @@ srs_error_t SrsMp4Decoder::load_next_box(SrsMp4Box** ppbox, uint32_t required_bo
     
     while (true) {
         SrsMp4Box* box = NULL;
-        // Note that we should use SrsAutoFree to free the ptr which is set later.
-        SrsAutoFree(SrsMp4Box, box);
-
         if ((err = do_load_next_box(&box, required_box_type)) != srs_success) {
             return srs_error_wrap(err, "load box");
         }
         
         if (!required_box_type || (uint32_t)box->type == required_box_type) {
             *ppbox = box;
-            box = NULL;
-            break;
+            return err;
         }
+
+        // Free the box is not matched the required type.
+        srs_freep(box);
     }
     
     return err;
