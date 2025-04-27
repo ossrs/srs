@@ -3,10 +3,7 @@
 #include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_rtc_sdp.hpp>
-#include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_server.hpp>
-#include <srs_app_rtc_source.hpp>
-#include <srs_app_rtc_network.hpp>
 #include <srs_protocol_st.hpp>
 #include <sstream>
 

@@ -26,7 +26,6 @@
 class SrsUdpClient;
 class SrsServer;
 class SrsTcpConnection;
-class SrsRtspConnection;
 class SrsNetworkDelta;
 class SrsEphemeralDelta;
 class SrsRtcPlayStream;

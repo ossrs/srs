@@ -37,8 +37,8 @@ using namespace std;
 #include <srs_protocol_log.hpp>
 #include <srs_app_latest_version.hpp>
 #include <srs_app_conn.hpp>
-#include <srs_app_rtsp.hpp>
 #ifdef SRS_RTC
+#include <srs_app_rtsp.hpp>
 #include <srs_app_rtc_network.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
@@ -633,14 +633,14 @@ srs_error_t SrsServer::listen()
             return srs_error_wrap(err, "webrtc tcp listen");
         }
     }
-#endif
-    // Start RTSP listener.
+    // Start RTSP listener. RTC is a critical dependency.
     if (_srs_config->get_rtsp_server_enabled()) {
         rtsp_listener_->set_endpoint(srs_int2str(_srs_config->get_rtsp_server_listen()))->set_label("RTSP");
         if ((err = rtsp_listener_->listen()) != srs_success) {
             return srs_error_wrap(err, "rtsp listen");
         }
     }
+#endif
 
     // Start all listeners for stream caster.
     std::vector<SrsConfDirective*> confs = _srs_config->get_stream_casters();
@@ -1149,13 +1149,13 @@ void SrsServer::resample_kbps()
             continue;
         }
 
+#ifdef SRS_RTC
         SrsRtspConn* rtsp = dynamic_cast<SrsRtspConn*>(c);
         if (rtsp) {
             stat->kbps_add_delta(c->get_id().c_str(), rtsp->delta());
             continue;
         }
 
-#ifdef SRS_RTC
         SrsRtcTcpConn* tcp = dynamic_cast<SrsRtcTcpConn*>(c);
         if (tcp) {
             stat->kbps_add_delta(c->get_id().c_str(), tcp->delta());
@@ -1262,9 +1262,9 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
 #ifdef SRS_RTC
         } else if (listener == webrtc_listener_) {
             resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
-#endif
         } else if (listener == rtsp_listener_) {
             resource = new SrsRtspConn(this, new SrsTcpConnection(stfd2), ip, port);
+#endif
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.
             resource = new SrsHttpxConn(this, new SrsTcpConnection(stfd2), http_api_mux, ip, port, "", "");
