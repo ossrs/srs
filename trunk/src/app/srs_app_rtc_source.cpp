@@ -1103,10 +1103,8 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
 
     // If merge Nalus, we pcakges all NALUs(samples) as one NALU, in a RTP or FUA packet.
     vector<SrsRtpPacket*> pkts;
-
-    // free pkts when exit
-    vector<SrsRtpPacket*>* pkts_ptr = &pkts;
-    SrsAutoFreeH(vector<SrsRtpPacket*>, pkts_ptr, free_packets);
+    // auto free when exit
+    SrsUniquePtr<vector<SrsRtpPacket*>> pkts_ptr(&pkts, free_packets);
 
     if (merge_nalus && nn_samples > 1) {
         if ((err = package_nalus(msg, samples, pkts)) != srs_success) {
