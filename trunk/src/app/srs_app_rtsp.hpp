@@ -32,6 +32,46 @@ class SrsRtcPlayStream;
 class SrsRtcServer;
 class SrsRtcSource;
 
+class SrsRtspNetwork
+{
+protected:
+    iovec* cache_iov_;
+    SrsBuffer* cache_buffer_;
+public:
+    SrsRtspNetwork();
+    virtual ~SrsRtspNetwork();
+public:
+    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write) = 0;
+};
+
+class SrsRtspUdpNetwork : public SrsRtspNetwork
+{
+private:
+    sockaddr_in* addr_;
+    srs_netfd_t stfd_;
+public:
+    SrsRtspUdpNetwork();
+    virtual ~SrsRtspUdpNetwork();
+public:
+    virtual srs_error_t initialize(std::string ip, int port);
+// Interface SrsRtspNetwork.
+public:
+    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write);
+};
+
+class SrsRtspTcpNetwork : public SrsRtspNetwork
+{
+private:
+    ISrsProtocolReadWriter* skt_;
+    int channel_;
+public:
+    SrsRtspTcpNetwork(ISrsProtocolReadWriter* skt, int ch);
+    virtual ~SrsRtspTcpNetwork();
+// Interface SrsRtspNetwork.
+public:
+    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write);
+};
+
 class SrsRtspSession
 {
 private:
@@ -46,19 +86,13 @@ private:
 
     SrsSecurity* security_; 
 private:
-    bool is_udp_;
     std::map<int, std::string> id_track_;
     // key: ssrc
     std::map<uint32_t, SrsRtcTrackDescription*> sub_relations_;
     // key: ssrc
-    std::map<uint32_t, SrsRtspTransport*> ssrc_transports_;
-    // key: ssrc
-    std::map<uint32_t, SrsUdpClient*> udp_clients_;
-    // key: stream id
-    std::map<std::string, SrsRtcPlayStream*> players_;
-    
-    iovec* cache_iov_;
-    SrsBuffer* cache_buffer_;
+    std::map<uint32_t, SrsRtspNetwork*> networks_;
+    SrsRtcPlayStream* player_;
+
 public:
     SrsRtspSession(SrsContextId cid, SrsRequest* r, ISrsProtocolReadWriter* skt, std::string ip, int port);
     virtual ~SrsRtspSession();   
@@ -66,16 +100,13 @@ public:
     ISrsKbpsDelta* delta();
 public:
     virtual srs_error_t do_send_packet(SrsRtpPacket* pkt);
-    virtual srs_error_t do_send_udp_packet(SrsRtpPacket* pkt);
-    virtual srs_error_t do_send_tcp_packet(SrsRtpPacket* pkt); 
 
     virtual srs_error_t do_describe(SrsRtspRequest* req, std::string& sdp);
     virtual srs_error_t do_setup(SrsRtspRequest* req, uint32_t* ssrc);
     virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtcPlayStream* player);
     virtual srs_error_t do_teardown();
-
 private:
-    int get_channel_by_ssrc(uint32_t ssrc);
+    srs_error_t parse_interleaved(std::string interleaved, uint32_t* min, uint32_t* max);
     srs_error_t http_hooks_on_play(SrsRequest* req);
 };
 
@@ -129,18 +160,6 @@ public:
     virtual void expire();
 private:
     srs_error_t do_cycle();
-};
-class SrsUdpClient
-{
-private:
-    sockaddr_in* addr_;
-    srs_netfd_t stfd_;
-public:
-    SrsUdpClient();
-    virtual ~SrsUdpClient();
-public:
-    srs_error_t initialize(std::string ip, int port);
-    int sendto(void* data, int len);
 };
 
 #endif
