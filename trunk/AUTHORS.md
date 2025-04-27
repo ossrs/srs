@@ -162,4 +162,12 @@ CONTRIBUTORS ordered by first contribution.
 * `Loken<lokenetwork@users.noreply.github.com>`
 * `JacobSu<suzp1984@gmail.com>`
 * `terrencetang2023<tangshaoteng@163.com>`
+* `jb-alvarado<2212056+jb-alvarado@users.noreply.github.com>`
+* `Jay<39650910+w41203208@users.noreply.github.com>`
+* `Arjen10<47875127+Arjen10@users.noreply.github.com>`
+* `Lukas<89481353+Lukas-Kaufmann@users.noreply.github.com>`
+* `VampireAchao<achao1441470436@gmail.com>`
+* `Laurentiu<laurfb@gmail.com>`
+* `Bahamut<retamia@gmail.com>`
+* `MarcOlzheim<zlo@zlo.nu>`
 

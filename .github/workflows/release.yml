@@ -47,7 +47,7 @@ jobs:
       SRS_VERSION: ${{ env.SRS_VERSION }}
       SRS_MAJOR: ${{ env.SRS_MAJOR }}
       SRS_XYZ: ${{ env.SRS_XYZ }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   test:
     name: test
@@ -77,7 +77,7 @@ jobs:
           docker run --rm srs:test bash -c 'make && \
             ./objs/srs -c conf/regression-test.conf && sleep 10 && \
             cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   draft:
     name: draft
@@ -97,7 +97,7 @@ jobs:
     # Map a step output to a job output, see https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
     outputs:
       SRS_RELEASE_ID: ${{ steps.create_draft.outputs.id }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   cygwin64:
     name: cygwin64
@@ -237,7 +237,7 @@ jobs:
       SRS_PACKAGE_MD5: ${{ env.SRS_PACKAGE_MD5 }}
       SRS_SOURCE_TAR: ${{ env.SRS_SOURCE_TAR }}
       SRS_SOURCE_MD5: ${{ env.SRS_SOURCE_MD5 }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   docker-srs:
     name: docker-srs
@@ -291,7 +291,7 @@ jobs:
             ossrs/srs:v${{ env.SRS_MAJOR }}
             ossrs/srs:${{ env.SRS_XYZ }}
             ossrs/srs:v${{ env.SRS_XYZ }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   aliyun-srs:
     name: aliyun-srs
@@ -326,7 +326,7 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_XYZ }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_XYZ }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   update:
     name: update
@@ -391,7 +391,7 @@ jobs:
               docker rmi -f $image
               echo "Remove image $image, r0=$?"
             done
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   release:
     name: release
@@ -470,10 +470,10 @@ jobs:
           draft: false
           prerelease: true
           makeLatest: false
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   release-done:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs:
       - update
       - release

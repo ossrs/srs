@@ -60,23 +60,23 @@ srs_error_t parse(std::string mp4_file, bool verbose)
 
     fprintf(stderr, "\n%s\n", mp4_file.c_str());
     while (true) {
-        SrsMp4Box* box = NULL;
-        // Note that we should use SrsAutoFree to free the ptr which is set later.
-        SrsAutoFree(SrsMp4Box, box);
-        
-        if ((err = br.read(stream.get(), &box)) != srs_success) {
+        SrsMp4Box* box_raw = NULL;
+        if ((err = br.read(stream.get(), &box_raw)) != srs_success) {
             if (srs_error_code(err) == ERROR_SYSTEM_FILE_EOF) {
                 fprintf(stderr, "\n");
             }
             return srs_error_wrap(err, "read box");
         }
 
+        // Should use unique pointer after box is created.
+        SrsUniquePtr box(box_raw);
+
         SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(stream->bytes(), stream->length()));
         if ((err = box->decode(buffer.get())) != srs_success) {
             return srs_error_wrap(err, "decode box");
         }
         
-        if ((err = br.skip(box, stream.get())) != srs_success) {
+        if ((err = br.skip(box.get(), stream.get())) != srs_success) {
             return srs_error_wrap(err, "skip box");
         }
         
