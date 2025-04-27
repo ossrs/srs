@@ -45,7 +45,7 @@ jobs:
           name: srs-cache
           path: objs.tar.bz2
           retention-days: 1
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   cygwin64:
     name: cygwin64
@@ -104,7 +104,7 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-asm .
       - name: Build on CentOS7, C++98, no FFmpeg
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   build-ubuntu16:
     name: build-ubuntu16
@@ -118,7 +118,7 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-baseline .
       - name: Build on Ubuntu16, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-all .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   build-ubuntu18:
     name: build-ubuntu18
@@ -132,7 +132,7 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-baseline .
       - name: Build on Ubuntu18, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-all .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   build-ubuntu20:
     name: build-ubuntu20
@@ -146,7 +146,7 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-baseline .
       - name: Build on Ubuntu20, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-all .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   build-cross-arm:
     name: build-cross-arm
@@ -159,7 +159,7 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cache-cross-armv7 .
       - name: Cross Build for ARMv7 on Ubuntu20
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cache-cross-armv7 .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   build-cross-aarch64:
     name: build-cross-aarch64
@@ -172,7 +172,7 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cache-cross-aarch64 .
       - name: Cross Build for AARCH64 on Ubuntu20
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cache-cross-aarch64 .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   test:
     name: utest-regression-blackbox-test
@@ -201,7 +201,7 @@ jobs:
           docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && sleep 10 && \
               cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1)) && \
               ./objs/srs_gb28181_test -test.v'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   coverage:
     name: coverage
@@ -234,7 +234,7 @@ jobs:
             --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
             srs:cov bash -c './objs/srs_utest && bash auto/codecov.sh'
           #
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   multiple-arch-armv7:
     name: multiple-arch-armv7
@@ -255,7 +255,7 @@ jobs:
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             --build-arg INSTALLDEPENDS="NO" \
             -f Dockerfile .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   multiple-arch-aarch64:
     name: multiple-arch-aarch64
@@ -276,7 +276,7 @@ jobs:
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             --build-arg INSTALLDEPENDS="NO" \
             -f Dockerfile .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   multiple-arch-amd64:
     name: multiple-arch-amd64
@@ -298,7 +298,7 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             -f Dockerfile .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   fast:
     name: fast
@@ -306,7 +306,7 @@ jobs:
       - cygwin64-cache
     steps:
       - run: echo 'Start fast jobs'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   test-done:
     needs:
@@ -322,7 +322,7 @@ jobs:
       - multiple-arch-armv7
       - multiple-arch-aarch64
       - multiple-arch-amd64
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - run: echo 'All done'
 

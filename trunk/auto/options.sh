@@ -360,6 +360,7 @@ function parse_user_option() {
         --gmp)                          SRS_GPERF_MP=$(switch2value $value) ;;
         --gcp)                          SRS_GPERF_CP=$(switch2value $value) ;;
         --gprof)                        SRS_GPROF=$(switch2value $value) ;;
+        --asan)                         SRS_SANITIZER=$(switch2value $value) ;;
         --sanitizer)                    SRS_SANITIZER=$(switch2value $value) ;;
         --sanitizer-static)             SRS_SANITIZER_STATIC=$(switch2value $value) ;;
         --sanitizer-log)                SRS_SANITIZER_LOG=$(switch2value $value) ;;
