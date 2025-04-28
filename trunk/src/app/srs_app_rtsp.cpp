@@ -310,6 +310,9 @@ SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, s
 SrsRtspConn::~SrsRtspConn()
 {
     srs_freep(request_);
+    srs_freep(session_);
+    srs_freep(rtsp_);
+    srs_freep(trd_);
 }
 
 srs_error_t SrsRtspConn::do_send_packet(SrsRtpPacket* pkt)
