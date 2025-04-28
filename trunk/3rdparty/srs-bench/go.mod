@@ -1,6 +1,6 @@
 module github.com/ossrs/srs-bench
 
-go 1.21
+go 1.21.0
 
 require (
 	github.com/bluenviron/gortsplib/v4 v4.13.1

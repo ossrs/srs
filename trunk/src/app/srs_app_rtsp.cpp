@@ -192,11 +192,7 @@ srs_error_t SrsRtspSession::do_setup(SrsRtspRequest* req, uint32_t* pssrc)
         }
         networks_[ssrc] = network;
     } else {
-        uint32_t rtp, rtcp;
-        if ((err = parse_interleaved(req->transport->interleaved, &rtp, &rtcp)) != srs_success) {
-            return srs_error_wrap(err, "parse_interleaved");
-        }
-        SrsRtspTcpNetwork* network = new SrsRtspTcpNetwork(skt_, rtp);
+        SrsRtspTcpNetwork* network = new SrsRtspTcpNetwork(skt_, req->transport->interleaved_min);
         networks_[ssrc] = network;
     }
 
@@ -231,20 +227,6 @@ srs_error_t SrsRtspSession::do_teardown()
     srs_freep(player_);
 
     return srs_success;
-}
-
-srs_error_t SrsRtspSession::parse_interleaved(std::string interleaved, uint32_t* min, uint32_t* max)
-{
-    srs_error_t err = srs_success;
-
-    std::string::size_type pos = interleaved.find("-");
-    if (pos == std::string::npos) {
-        return srs_error_new(-1, "123");
-    }
-
-    *min = atoi(interleaved.substr(0, pos).c_str());
-
-    return err;
 }
 
 srs_error_t SrsRtspSession::http_hooks_on_play(SrsRequest* req)
@@ -580,6 +562,8 @@ srs_error_t SrsRtspTcpNetwork::write(SrsRtpPacket* pkt, int64_t * write)
     srs_error_t err = srs_success;
 
     iovec* iov = cache_iov_;
+    // For the TCP transmission method, there are four bytes preceding the RTP header, 
+    // so it is necessary to reserve space here.
     cache_buffer_->skip(-1 * cache_buffer_->pos() + SRS_RTP_TCP_PACKET_HEADER_SIZE);
 
     // Marshal packet to bytes in iovec.

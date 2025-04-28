@@ -105,6 +105,8 @@ SrsRtspTransport::SrsRtspTransport()
 {
     client_port_min = 0;
     client_port_max = 0;
+    interleaved_min = 0;
+    interleaved_max = 0;
 }
 
 SrsRtspTransport::~SrsRtspTransport()
@@ -149,6 +151,10 @@ srs_error_t SrsRtspTransport::parse(string attr)
             cast_type = item_key;
         } else if (item_key == "interleaved") {
             interleaved = item_value;
+            if ((pos = interleaved.find("-")) != string::npos) {
+                interleaved_min = ::atoi(interleaved.substr(0, pos).c_str());
+                interleaved_max = ::atoi(interleaved.substr(pos + 1).c_str());
+            }
         } else if (item_key == "mode") {
             mode = item_value;
         } else if (item_key == "client_port") {

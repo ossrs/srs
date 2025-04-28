@@ -141,6 +141,8 @@ public:
     // interleaved=4-5 in cases where the transport choice for the
     // media stream requires it.
     std::string interleaved;
+    int interleaved_min;
+    int interleaved_max;
     // The mode parameter indicates the methods to be supported for
     // this session. Valid values are PLAY and RECORD. If not
     // provided, the default is PLAY.

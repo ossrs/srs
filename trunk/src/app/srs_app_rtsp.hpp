@@ -106,7 +106,6 @@ public:
     virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtcPlayStream* player);
     virtual srs_error_t do_teardown();
 private:
-    srs_error_t parse_interleaved(std::string interleaved, uint32_t* min, uint32_t* max);
     srs_error_t http_hooks_on_play(SrsRequest* req);
 };
 
