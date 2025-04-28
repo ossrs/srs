@@ -2272,7 +2272,7 @@ VOID TEST(KernelMp4Test, SrsFmp4SegmentEncoder)
         uint64_t output_dts;
         encoder.flush(output_dts);
         EXPECT_TRUE(fw.filesize() > 0);
-        EXPECT_EQ(0, output_dts);
+        EXPECT_EQ(0, (int)output_dts);
     }
 }
 
