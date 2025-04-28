@@ -38,9 +38,10 @@ private:
 
     SrsSecurity* security_; 
 private:
-    std::map<int, std::string> id_track_;
+    // key: track id
+    std::map<int, SrsRtcTrackDescription*> id_track_;
     // key: ssrc
-    std::map<uint32_t, SrsRtcTrackDescription*> sub_relations_;
+    std::map<uint32_t, SrsRtcTrackDescription*> ssrc_track_;
     // key: ssrc
     std::map<uint32_t, SrsRtspNetwork*> networks_;
     SrsRtcPlayStream* player_;
