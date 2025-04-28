@@ -16,7 +16,6 @@
 
 extern SrsResourceManager* _srs_rtc_manager;
 
-#define SRS_RTSP_PACKET_MAX 1500
 #define SRS_RTP_TCP_PACKET_HEADER_SIZE 4
 
 SrsRtspSession::SrsRtspSession(SrsContextId cid, SrsRequest* r, ISrsProtocolReadWriter* skt, std::string ip, int port)
@@ -29,12 +28,22 @@ SrsRtspSession::SrsRtspSession(SrsContextId cid, SrsRequest* r, ISrsProtocolRead
     source_ = NULL;
     player_ = NULL;
 
+    cache_iov_ = new iovec();
+    cache_iov_->iov_base = new char[kRtpPacketSize];
+    cache_iov_->iov_len = kRtpPacketSize;
+    cache_buffer_ = new SrsBuffer((char*)cache_iov_->iov_base, kRtpPacketSize);
+
     delta_ = new SrsEphemeralDelta();
     security_ = new SrsSecurity();
 }
 
 SrsRtspSession::~SrsRtspSession()
 {
+    for (std::map<uint32_t, SrsRtcTrackDescription*>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
+        srs_freep(it->second);
+    }
+    tracks_.clear();
+
     for (std::map<uint32_t, SrsRtspNetwork*>::iterator it = networks_.begin(); it != networks_.end(); ++it) {
         srs_freep(it->second);
     }
@@ -43,6 +52,13 @@ SrsRtspSession::~SrsRtspSession()
     srs_freep(delta_);
     srs_freep(security_);
     srs_freep(skt_);
+
+    if (true) {
+        char* iov_base = (char*)cache_iov_->iov_base;
+        srs_freepa(iov_base);
+        srs_freep(cache_iov_);
+    }
+    srs_freep(cache_buffer_);
 }
 
 ISrsKbpsDelta* SrsRtspSession::delta()
@@ -57,13 +73,27 @@ srs_error_t SrsRtspSession::do_send_packet(SrsRtpPacket* pkt)
     uint32_t ssrc = pkt->header.get_ssrc();
     SrsRtspNetwork* network = networks_[ssrc];
     if (!network) {
-        return srs_error_new(-1, "network not found for ssrc: %u", ssrc);
+        return srs_error_new(ERROR_RTC_NO_TRACK, "network not found for ssrc: %u", ssrc);
     }
-    int64_t write = 0;
-    if ((err = network->write(pkt, &write)) != srs_success) {
+    
+    iovec* iov = cache_iov_;
+    cache_buffer_->skip(-1 * cache_buffer_->pos());
+
+    // Marshal packet to bytes in iovec.
+    if (true) {
+        if ((err = pkt->encode(cache_buffer_)) != srs_success) {
+            return srs_error_wrap(err, "encode packet");
+        }
+        iov->iov_len = cache_buffer_->pos();
+    }
+
+    ssize_t write = 0;
+    if ((err = network->write(iov->iov_base, iov->iov_len, &write)) != srs_success) {
         return srs_error_wrap(err, "send rtp packet");
     }
+
     delta_->add_delta(0, write);
+
     return err;
 }
 
@@ -104,11 +134,12 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
     local_sdp.session_name_ = "Play";
     local_sdp.control_ = req->uri;
 
-    int track_id = 0;
+    uint32_t track_id = 0;
     std::vector<SrsRtcTrackDescription*> audio_track_descs = source_->get_track_desc("audio", "opus");
     if (!audio_track_descs.empty()) {
-        SrsRtcTrackDescription* audio_track_desc = audio_track_descs.at(0);
-        id_track_[track_id] = audio_track_desc;
+        SrsRtcTrackDescription* audio_track_desc = audio_track_descs.at(0)->copy();
+        audio_track_desc->id_ = srs_int2str(track_id);
+        tracks_.insert(std::make_pair(audio_track_desc->ssrc_, audio_track_desc));
 
         SrsMediaDesc media_audio("audio");
         media_audio.port_ = 0;
@@ -134,8 +165,9 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
     
     std::vector<SrsRtcTrackDescription*> video_track_descs = source_->get_track_desc("video", "");
     if (!video_track_descs.empty()) {
-        SrsRtcTrackDescription* video_track_desc = video_track_descs.at(0);
-        id_track_[track_id] = video_track_desc;
+        SrsRtcTrackDescription* video_track_desc = video_track_descs.at(0)->copy();
+        video_track_desc->id_ = srs_int2str(track_id);
+        tracks_.insert(std::make_pair(video_track_desc->ssrc_, video_track_desc));
 
         SrsMediaDesc media_video("video");
         media_video.port_ = 0;
@@ -166,12 +198,10 @@ srs_error_t SrsRtspSession::do_setup(SrsRtspRequest* req, uint32_t* pssrc)
 {
     srs_error_t err = srs_success;
 
-    if (id_track_.find(req->stream_id) == id_track_.end()) {
-        return srs_error_new(-1, "track not found");
+    uint32_t ssrc = 0;
+    if ((err = get_ssrc_by_stream_id(req->stream_id, &ssrc)) != srs_success) {
+        return srs_error_wrap(err, "get ssrc by stream_id");
     }
-
-    uint32_t ssrc = id_track_[req->stream_id]->ssrc_;
-    ssrc_track_.insert(std::make_pair(ssrc, id_track_[req->stream_id]));
 
     if (req->transport->lower_transport != "TCP") {
         SrsRtspUdpNetwork* network = new SrsRtspUdpNetwork();
@@ -193,7 +223,7 @@ srs_error_t SrsRtspSession::do_play(SrsRtspRequest* req, SrsRtcPlayStream* playe
 {
     srs_error_t err = srs_success;
 
-    if ((err = player->initialize(request_, ssrc_track_)) != srs_success) {
+    if ((err = player->initialize(request_, tracks_)) != srs_success) {
         srs_freep(player);
         return srs_error_wrap(err, "SrsRtspPlayStream init");
     }
@@ -211,9 +241,11 @@ srs_error_t SrsRtspSession::do_play(SrsRtspRequest* req, SrsRtcPlayStream* playe
 
 srs_error_t SrsRtspSession::do_teardown()
 {
-    player_->stop();
-    srs_freep(player_);
-
+    if (player_) {
+        player_->stop();
+        srs_freep(player_);
+    }
+    
     return srs_success;
 }
 
@@ -250,6 +282,16 @@ srs_error_t SrsRtspSession::http_hooks_on_play(SrsRequest* req)
     return err;
 }
 
+srs_error_t SrsRtspSession::get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* ssrc)
+{
+    for (std::map<uint32_t, SrsRtcTrackDescription*>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
+        if (it->second->id_ == srs_int2str(stream_id)) {
+            *ssrc = it->second->ssrc_;
+            return srs_success;
+        }
+    }
+    return srs_error_new(ERROR_RTC_NO_TRACK, "track not found for stream_id: %u", stream_id);
+}
 
 SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcConnection(NULL, _srs_context->generate_id())
 {
@@ -426,10 +468,10 @@ srs_error_t SrsRtspConn::do_cycle()
             res->ssrc = srs_int2str(ssrc);
             res->client_port_min = req->transport->client_port_min;
             res->client_port_max = req->transport->client_port_max;
-            // TODO: FIXME: get local port from udp client.
+            // TODO: FIXME: listen local port
             res->local_port_min = 0;
             res->local_port_max = 0;
-            if ((err = rtsp_->send_message(res)) != srs_success) {
+            if ((err = rtsp_->send_message(res)) != srs_success) {  
                 return srs_error_wrap(err, "response setup");
             }
         } else if (req->is_play()) {
@@ -461,20 +503,10 @@ srs_error_t SrsRtspConn::do_cycle()
 
 SrsRtspNetwork::SrsRtspNetwork()
 {
-    cache_iov_ = new iovec();
-    cache_iov_->iov_base = new char[kRtpPacketSize];
-    cache_iov_->iov_len = kRtpPacketSize;
-    cache_buffer_ = new SrsBuffer((char*)cache_iov_->iov_base, kRtpPacketSize);
 }
 
 SrsRtspNetwork::~SrsRtspNetwork()
 {
-    if (true) {
-        char* iov_base = (char*)cache_iov_->iov_base;
-        srs_freepa(iov_base);
-        srs_freep(cache_iov_);
-    }
-    srs_freep(cache_buffer_);
 }
 
 SrsRtspUdpNetwork::SrsRtspUdpNetwork()
@@ -515,29 +547,15 @@ srs_error_t SrsRtspUdpNetwork::initialize(std::string ip, int port)
     return err;
 }
 
-srs_error_t SrsRtspUdpNetwork::write(SrsRtpPacket* pkt, int64_t* write)
+srs_error_t SrsRtspUdpNetwork::write(void* buf, size_t size, ssize_t* write)
 {
     srs_error_t err = srs_success;
 
-    iovec* iov = cache_iov_;
-    cache_buffer_->skip(-1 * cache_buffer_->pos());
-
-    // Marshal packet to bytes in iovec.
-    if (true) {
-        if ((err = pkt->encode(cache_buffer_)) != srs_success) {
-            return srs_error_wrap(err, "encode packet");
-        }
-        iov->iov_len = cache_buffer_->pos();
+    int nwrite = srs_sendto(stfd_, buf, size, (sockaddr*)addr_, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
+    if (nwrite <= 0) {
+        return srs_error_new(ERROR_SOCKET_WRITE, "send udp packet");
     }
-
-    if (true) {
-        // int nwrite = udp_client->sendto(iov->iov_base, iov->iov_len);
-        int nwrite = srs_sendto(stfd_, iov->iov_base, iov->iov_len, (sockaddr*)addr_, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
-        if (nwrite <= 0) {
-            return srs_error_new(-1, "send udp packet");
-        }
-        *write = nwrite;
-    }
+    *write = nwrite;
 
     return err;
 }
@@ -550,33 +568,24 @@ SrsRtspTcpNetwork::~SrsRtspTcpNetwork()
 {
 }
 
-srs_error_t SrsRtspTcpNetwork::write(SrsRtpPacket* pkt, int64_t* write)
+srs_error_t SrsRtspTcpNetwork::write(void* buf, size_t size, ssize_t* write)
 {
     srs_error_t err = srs_success;
 
-    iovec* iov = cache_iov_;
-    // For the TCP transmission method, there are four bytes preceding the RTP header, 
-    // so it is necessary to reserve space here.
-    cache_buffer_->skip(-1 * cache_buffer_->pos() + SRS_RTP_TCP_PACKET_HEADER_SIZE);
+    // Encode and send 4 bytes size, in network order.
+    srs_assert(size <= 65535);
+    uint8_t b[SRS_RTP_TCP_PACKET_HEADER_SIZE] = {0x24, channel_, uint8_t(size>>8), uint8_t(size)};
 
-    // Marshal packet to bytes in iovec.
-    if (true) {
-        if ((err = pkt->encode(cache_buffer_)) != srs_success) {
-            return srs_error_wrap(err, "encode packet");
-        }
-        iov->iov_len = cache_buffer_->pos();
+    if((err = skt_->write((char*)b, sizeof(b), NULL)) != srs_success) {
+        return srs_error_wrap(err, "rtc tcp write len(%d)", size);
     }
 
-    cache_buffer_->skip(-1 * cache_buffer_->pos());
-    cache_buffer_->write_1bytes(0x24);
-    cache_buffer_->write_1bytes(channel_);
-    cache_buffer_->write_2bytes(iov->iov_len - SRS_RTP_TCP_PACKET_HEADER_SIZE);
-
-    ssize_t nwrite = 0;
-    if ((err = skt_->write(iov->iov_base, iov->iov_len, &nwrite)) != srs_success) {
+    if ((err = skt_->write(buf, size, write)) != srs_success) {
         return srs_error_wrap(err, "send rtp packet");
     }
-    *write = nwrite;
+
+    // Add the size of the header to the write count.
+    *write += SRS_RTP_TCP_PACKET_HEADER_SIZE;
 
     return err;
 }

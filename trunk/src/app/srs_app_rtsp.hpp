@@ -37,11 +37,12 @@ private:
     int port_;
 
     SrsSecurity* security_; 
+
+    iovec* cache_iov_;
+    SrsBuffer* cache_buffer_;
 private:
-    // key: track id
-    std::map<int, SrsRtcTrackDescription*> id_track_;
     // key: ssrc
-    std::map<uint32_t, SrsRtcTrackDescription*> ssrc_track_;
+    std::map<uint32_t, SrsRtcTrackDescription*> tracks_;
     // key: ssrc
     std::map<uint32_t, SrsRtspNetwork*> networks_;
     SrsRtcPlayStream* player_;
@@ -60,6 +61,7 @@ public:
     virtual srs_error_t do_teardown();
 private:
     srs_error_t http_hooks_on_play(SrsRequest* req);
+    srs_error_t get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* ssrc);
 };
 
 class SrsRtspConn : public SrsRtcConnection, public ISrsCoroutineHandler, public ISrsStartable
@@ -116,14 +118,11 @@ private:
 
 class SrsRtspNetwork
 {
-protected:
-    iovec* cache_iov_;
-    SrsBuffer* cache_buffer_;
 public:
     SrsRtspNetwork();
     virtual ~SrsRtspNetwork();
 public:
-    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write) = 0;
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* write) = 0;
 };
 
 class SrsRtspUdpNetwork : public SrsRtspNetwork
@@ -138,7 +137,7 @@ public:
     virtual srs_error_t initialize(std::string ip, int port);
 // Interface SrsRtspNetwork.
 public:
-    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write);
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* write);
 };
 
 class SrsRtspTcpNetwork : public SrsRtspNetwork
@@ -151,7 +150,7 @@ public:
     virtual ~SrsRtspTcpNetwork();
 // Interface SrsRtspNetwork.
 public:
-    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write);
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* write);
 };
 
 #endif
