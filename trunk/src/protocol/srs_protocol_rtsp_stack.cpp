@@ -1,15 +1,10 @@
 //
-// Copyright (c) 2013-2022 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_protocol_rtsp_stack.hpp>
-
-#include <stdlib.h>
-#include <map>
-using namespace std;
-
 #include <srs_protocol_io.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_error.hpp>
@@ -19,6 +14,10 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
+
+#include <stdlib.h>
+#include <map>
+using namespace std;
 
 #define SRS_RTSP_BUFFER 4096
 
@@ -515,6 +514,17 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
             }
             srs_trace("rtsp: ignore header %s=%s", token.c_str(), value.c_str());
         }
+    }
+
+    // for setup, parse the stream id from uri.
+    if (req->is_setup()) {
+        size_t pos = string::npos;
+        std::string stream_id = srs_path_basename(req->uri);
+        if ((pos = stream_id.find("=")) != string::npos) {
+            stream_id = stream_id.substr(pos + 1);
+        }
+        req->stream_id = ::atoi(stream_id.c_str());
+        srs_info("rtsp: setup stream id=%d", req->stream_id);
     }
     
     return err;

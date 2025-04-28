@@ -8,10 +8,6 @@
 #define SRS_APP_RTSP_HPP
 
 #include <srs_core.hpp>
-
-#include <string>
-#include <vector>
-
 #include <srs_protocol_rtsp_stack.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_app_st.hpp>
@@ -23,54 +19,10 @@
 #include <srs_app_security.hpp>
 #include <srs_app_http_hooks.hpp>
 
-class SrsUdpClient;
-class SrsServer;
-class SrsTcpConnection;
-class SrsNetworkDelta;
 class SrsEphemeralDelta;
 class SrsRtcPlayStream;
-class SrsRtcServer;
 class SrsRtcSource;
-
-class SrsRtspNetwork
-{
-protected:
-    iovec* cache_iov_;
-    SrsBuffer* cache_buffer_;
-public:
-    SrsRtspNetwork();
-    virtual ~SrsRtspNetwork();
-public:
-    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write) = 0;
-};
-
-class SrsRtspUdpNetwork : public SrsRtspNetwork
-{
-private:
-    sockaddr_in* addr_;
-    srs_netfd_t stfd_;
-public:
-    SrsRtspUdpNetwork();
-    virtual ~SrsRtspUdpNetwork();
-public:
-    virtual srs_error_t initialize(std::string ip, int port);
-// Interface SrsRtspNetwork.
-public:
-    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write);
-};
-
-class SrsRtspTcpNetwork : public SrsRtspNetwork
-{
-private:
-    ISrsProtocolReadWriter* skt_;
-    int channel_;
-public:
-    SrsRtspTcpNetwork(ISrsProtocolReadWriter* skt, int ch);
-    virtual ~SrsRtspTcpNetwork();
-// Interface SrsRtspNetwork.
-public:
-    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write);
-};
+class SrsRtspNetwork;
 
 class SrsRtspSession
 {
@@ -159,6 +111,46 @@ public:
     virtual void expire();
 private:
     srs_error_t do_cycle();
+};
+
+class SrsRtspNetwork
+{
+protected:
+    iovec* cache_iov_;
+    SrsBuffer* cache_buffer_;
+public:
+    SrsRtspNetwork();
+    virtual ~SrsRtspNetwork();
+public:
+    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write) = 0;
+};
+
+class SrsRtspUdpNetwork : public SrsRtspNetwork
+{
+private:
+    sockaddr_in* addr_;
+    srs_netfd_t stfd_;
+public:
+    SrsRtspUdpNetwork();
+    virtual ~SrsRtspUdpNetwork();
+public:
+    virtual srs_error_t initialize(std::string ip, int port);
+// Interface SrsRtspNetwork.
+public:
+    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write);
+};
+
+class SrsRtspTcpNetwork : public SrsRtspNetwork
+{
+private:
+    ISrsProtocolReadWriter* skt_;
+    int channel_;
+public:
+    SrsRtspTcpNetwork(ISrsProtocolReadWriter* skt, int ch);
+    virtual ~SrsRtspTcpNetwork();
+// Interface SrsRtspNetwork.
+public:
+    virtual srs_error_t write(SrsRtpPacket* pkt, int64_t* write);
 };
 
 #endif

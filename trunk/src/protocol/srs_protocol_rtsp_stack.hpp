@@ -1,18 +1,17 @@
 //
-// Copyright (c) 2013-2022 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_PROTOCOL_RTSP_HPP
 #define SRS_PROTOCOL_RTSP_HPP
 
 #include <srs_core.hpp>
+#include <srs_kernel_consts.hpp>
 
 #include <string>
 #include <sstream>
-
-#include <srs_kernel_consts.hpp>
 
 class SrsBuffer;
 class SrsSimpleStream;

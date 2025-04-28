@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2013-2025 The SRS Authors
+//
+// SPDX-License-Identifier: MIT
+//
+
 #include <srs_app_config.hpp>
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
@@ -5,6 +11,7 @@
 #include <srs_app_rtc_sdp.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_protocol_st.hpp>
+
 #include <sstream>
 
 extern SrsResourceManager* _srs_rtc_manager;
@@ -156,19 +163,11 @@ srs_error_t SrsRtspSession::do_setup(SrsRtspRequest* req, uint32_t* pssrc)
 {
     srs_error_t err = srs_success;
 
-    size_t pos = std::string::npos;
-    std::string stream_id = srs_path_basename(req->uri);
-    if ((pos = stream_id.find("=")) != std::string::npos) {
-        stream_id = stream_id.substr(pos + 1);
-    }
-    req->stream_id = ::atoi(stream_id.c_str());
-    srs_info("rtsp: setup stream id=%d", req->stream_id);
-
-    std::string stream_name = id_track_[req->stream_id];
-
     if (!source_.get()) {
         return srs_error_new(-1, "source not found");
     }
+
+    std::string stream_name = id_track_[req->stream_id];
 
     uint32_t ssrc = 0;
     std::vector<SrsRtcTrackDescription*> track_descs;
@@ -280,6 +279,11 @@ SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, s
 SrsRtspConn::~SrsRtspConn()
 {
     srs_freep(request_);
+}
+
+srs_error_t SrsRtspConn::do_send_packet(SrsRtpPacket* pkt)
+{
+    return session_->do_send_packet(pkt);
 }
 
 ISrsKbpsDelta* SrsRtspConn::delta()
@@ -522,7 +526,7 @@ srs_error_t SrsRtspUdpNetwork::initialize(std::string ip, int port)
     return err;
 }
 
-srs_error_t SrsRtspUdpNetwork::write(SrsRtpPacket* pkt, int64_t * write)
+srs_error_t SrsRtspUdpNetwork::write(SrsRtpPacket* pkt, int64_t* write)
 {
     srs_error_t err = srs_success;
 
@@ -557,7 +561,7 @@ SrsRtspTcpNetwork::~SrsRtspTcpNetwork()
 {
 }
 
-srs_error_t SrsRtspTcpNetwork::write(SrsRtpPacket* pkt, int64_t * write)
+srs_error_t SrsRtspTcpNetwork::write(SrsRtpPacket* pkt, int64_t* write)
 {
     srs_error_t err = srs_success;
 
@@ -579,14 +583,11 @@ srs_error_t SrsRtspTcpNetwork::write(SrsRtpPacket* pkt, int64_t * write)
     cache_buffer_->write_1bytes(channel_);
     cache_buffer_->write_2bytes(iov->iov_len - SRS_RTP_TCP_PACKET_HEADER_SIZE);
 
-    if ((err = skt_->write(iov->iov_base, iov->iov_len, write)) != srs_success) {
+    ssize_t nwrite = 0;
+    if ((err = skt_->write(iov->iov_base, iov->iov_len, &nwrite)) != srs_success) {
         return srs_error_wrap(err, "send rtp packet");
     }
+    *write = nwrite;
 
     return err;
-}
-
-srs_error_t SrsRtspConn::do_send_packet(SrsRtpPacket *pkt)
-{
-    return session_->do_send_packet(pkt);
 }
