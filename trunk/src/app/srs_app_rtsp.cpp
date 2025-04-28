@@ -423,9 +423,8 @@ srs_error_t SrsRtspConn::do_cycle()
         SrsUniquePtr<SrsRtspRequest> req_ptr(req);
         
         if (req->is_options()) {
-            SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse((int)req->seq);
-            res->session = session_id_;
-            if ((err = rtsp_->send_message(res)) != srs_success) {
+            SrsUniquePtr<SrsRtspOptionsResponse> res(new SrsRtspOptionsResponse((int)req->seq));
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return  srs_error_wrap(err, "response option");
             }
         } else if (req->is_describe()) {
@@ -434,7 +433,7 @@ srs_error_t SrsRtspConn::do_cycle()
                 session_id_ = srs_random_str(8);
             }
 
-            SrsRtspDescribeResponse* res = new SrsRtspDescribeResponse((int)req->seq);
+            SrsUniquePtr<SrsRtspDescribeResponse> res(new SrsRtspDescribeResponse((int)req->seq));
             res->session = session_id_;
 
             std::string sdp;
@@ -449,13 +448,13 @@ srs_error_t SrsRtspConn::do_cycle()
             }
 
             res->sdp = sdp;
-            if ((err = rtsp_->send_message(res)) != srs_success) {
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return  srs_error_wrap(err, "response describe");
             }
         } else if (req->is_setup()) {
             srs_assert(req->transport);            
 
-            SrsRtspSetupResponse* res = new SrsRtspSetupResponse((int)req->seq);
+            SrsUniquePtr<SrsRtspSetupResponse> res(new SrsRtspSetupResponse((int)req->seq));
             res->session = session_id_;
 
             uint32_t ssrc = 0;
@@ -474,13 +473,13 @@ srs_error_t SrsRtspConn::do_cycle()
             // TODO: FIXME: listen local port
             res->local_port_min = 0;
             res->local_port_max = 0;
-            if ((err = rtsp_->send_message(res)) != srs_success) {  
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {  
                 return srs_error_wrap(err, "response setup");
             }
         } else if (req->is_play()) {
-            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
+            SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq));
             res->session = session_id_;
-            if ((err = rtsp_->send_message(res)) != srs_success) {
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return srs_error_wrap(err, "response record");
             }
             err = session_->do_play(req, new SrsRtcPlayStream(this, cid_));
@@ -488,9 +487,9 @@ srs_error_t SrsRtspConn::do_cycle()
                 return srs_error_wrap(err, "prepare play");
             }
         } else if (req->is_teardown()) {
-            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
+            SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq));
             res->session = session_id_;
-            if ((err = rtsp_->send_message(res)) != srs_success) {
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return srs_error_wrap(err, "response teardown");
             }
 
