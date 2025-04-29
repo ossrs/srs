@@ -2612,7 +2612,7 @@ public:
     virtual srs_error_t write_sample(SrsMp4HandlerType ht, uint16_t ft,
         uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample);
     // Flush the encoder, to write the moof and mdat.
-    virtual srs_error_t flush(uint64_t& dts);
+    virtual srs_error_t flush(uint64_t dts);
 };
 
 

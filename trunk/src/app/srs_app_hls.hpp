@@ -16,6 +16,7 @@
 #include <srs_kernel_file.hpp>
 #include <srs_app_async_call.hpp>
 #include <srs_app_fragment.hpp>
+#include <srs_kernel_mp4.hpp>
 
 class SrsFormat;
 class SrsSharedPtrMessage;
@@ -32,7 +33,6 @@ class SrsTsAacJitter;
 class SrsTsMessageCache;
 class SrsHlsSegment;
 class SrsTsContext;
-class SrsMp4M2tsInitEncoder;
 class SrsFmp4SegmentEncoder;
 
 // The wrapper of m3u8 segment from specification:
@@ -68,7 +68,7 @@ class SrsInitMp4Segment : public SrsFragment
 {
 private:
     SrsFileWriter* fw_;
-    SrsMp4M2tsInitEncoder* init_;
+    SrsMp4M2tsInitEncoder init_;
 
     unsigned char kid_[16];
     unsigned char const_iv_[16];
@@ -108,7 +108,7 @@ public:
     virtual srs_error_t initialize(int64_t time, uint32_t v_tid, uint32_t a_tid, int sequence_number, std::string m4s_path);
     virtual void config_cipher(unsigned char* key, unsigned char* iv);
     virtual srs_error_t write(SrsSharedPtrMessage* shared_msg, SrsFormat* format);
-    virtual srs_error_t reap(uint64_t& dts);
+    virtual srs_error_t reap(uint64_t dts);
 };
 
 // The hls async call: on_hls

@@ -168,7 +168,7 @@ func TestFast_RtmpPublish_HlsPlay_Fmp4(t *testing.T) {
 	// Start FFprobe to detect and verify stream.
 	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
 	ffprobe := NewFFprobe(func(v *ffprobeClient) {
-		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.m4s", streamID))
+		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.mp4", streamID))
 		v.streamURL = fmt.Sprintf("http://localhost:%v/live/%v.m3u8", svr.HTTPPort(), streamID)
 		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
 	})

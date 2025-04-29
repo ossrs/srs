@@ -80,13 +80,11 @@ srs_error_t SrsHlsSegment::rename()
 SrsInitMp4Segment::SrsInitMp4Segment(SrsFileWriter* fw)
 {
     fw_ = fw;
-    init_ = new SrsMp4M2tsInitEncoder();
     const_iv_size_ = 0;
 }
 
 SrsInitMp4Segment::~SrsInitMp4Segment()
 {
-    srs_freep(init_);
     fw_->close();
 }
 
@@ -99,7 +97,7 @@ srs_error_t SrsInitMp4Segment::config_cipher(unsigned char* kid, unsigned char* 
     memcpy(kid_, kid, 16);
     memcpy(const_iv_, const_iv, const_iv_size);
     const_iv_size_ = const_iv_size;
-    init_->config_encryption(1, 9, kid_, const_iv, const_iv_size);
+    init_.config_encryption(1, 9, kid_, const_iv, const_iv_size);
 
     return err;
 }
@@ -112,7 +110,7 @@ srs_error_t SrsInitMp4Segment::write(SrsFormat* format, int v_tid, int a_tid)
         return srs_error_wrap(err, "init encoder");
     }
     
-    if ((err = init_->write(format, v_tid, a_tid)) != srs_success) {
+    if ((err = init_.write(format, v_tid, a_tid)) != srs_success) {
         return srs_error_wrap(err, "write init");
     }
     
@@ -127,7 +125,7 @@ srs_error_t SrsInitMp4Segment::write_video_only(SrsFormat* format, int v_tid)
         return srs_error_wrap(err, "init encoder");
     }
     
-    if ((err = init_->write(format, true, v_tid)) != srs_success) {
+    if ((err = init_.write(format, true, v_tid)) != srs_success) {
         return srs_error_wrap(err, "write init");
     }
     
@@ -142,7 +140,7 @@ srs_error_t SrsInitMp4Segment::write_audio_only(SrsFormat* format, int a_tid)
         return srs_error_wrap(err, "init encoder");
     }
     
-    if ((err = init_->write(format, false, a_tid)) != srs_success) {
+    if ((err = init_.write(format, false, a_tid)) != srs_success) {
         return srs_error_wrap(err, "write init");
     }
     
@@ -160,7 +158,7 @@ srs_error_t SrsInitMp4Segment::init_encoder()
         return srs_error_wrap(err, "Open init mp4 failed, path=%s", path_tmp.c_str());
     }
     
-    if ((err = init_->initialize(fw_)) != srs_success) {
+    if ((err = init_.initialize(fw_)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
@@ -242,7 +240,7 @@ srs_error_t SrsHlsM4sSegment::write(SrsSharedPtrMessage* shared_msg, SrsFormat* 
     return err;
 }
 
-srs_error_t SrsHlsM4sSegment::reap(uint64_t& dts)
+srs_error_t SrsHlsM4sSegment::reap(uint64_t dts)
 {
     srs_error_t err = srs_success;
     

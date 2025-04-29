@@ -2269,10 +2269,8 @@ VOID TEST(KernelMp4Test, SrsFmp4SegmentEncoder)
         uint8_t* audio_sample = (uint8_t*)audio_fmt.raw;
         uint32_t nb_audio_sample = (uint32_t)audio_fmt.nb_raw;
         encoder.write_sample(SrsMp4HandlerTypeSOUN, 0, 0, 0, audio_sample, nb_audio_sample);
-        uint64_t output_dts;
-        encoder.flush(output_dts);
+        encoder.flush(dts);
         EXPECT_TRUE(fw.filesize() > 0);
-        EXPECT_EQ(0, (int)output_dts);
     }
 }
 

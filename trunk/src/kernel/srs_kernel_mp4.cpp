@@ -4999,7 +4999,8 @@ SrsMp4SampleEncryptionEntry::SrsMp4SampleEncryptionEntry(SrsMp4FullBox* senc, ui
 
 SrsMp4SampleEncryptionEntry::~SrsMp4SampleEncryptionEntry()
 {
-    srs_freep(iv_);
+    free(iv_);
+    iv_ = NULL;
 }
 
 srs_error_t SrsMp4SampleEncryptionEntry::set_iv(uint8_t* iv, uint8_t iv_size)
@@ -5249,6 +5250,7 @@ std::stringstream& SrsMp4OriginalFormatBox::dumps_detail(std::stringstream& ss, 
 SrsMp4SchemeTypeBox::SrsMp4SchemeTypeBox()
 {
     type = SrsMp4BoxTypeSCHM;
+    scheme_uri_size = 0;
 }
 
 SrsMp4SchemeTypeBox::~SrsMp4SchemeTypeBox()
@@ -5298,7 +5300,7 @@ srs_error_t SrsMp4SchemeTypeBox::decode_header(SrsBuffer* buf)
     srs_error_t err = srs_success;
         
     if ((err = SrsMp4FullBox::decode_header(buf)) != srs_success) {
-        return srs_error_wrap(err, "encode header");
+        return srs_error_wrap(err, "decode header");
     }
     scheme_type = buf->read_4bytes();
     scheme_version = buf->read_4bytes();
@@ -7717,7 +7719,7 @@ srs_error_t SrsFmp4SegmentEncoder::write_sample(SrsMp4HandlerType ht, uint16_t f
     return err;
 }
 
-srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t& dts)
+srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t dts)
 {
     srs_error_t err = srs_success;
     SrsMp4TrackFragmentRunBox* video_trun = NULL;
@@ -7770,7 +7772,7 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t& dts)
             vector<SrsMp4Sample*>::iterator it;
             // write video sample data
             for (it = video_samples_->samples.begin(); it != video_samples_->samples.end(); ++it) {
-                SrsMp4Sample* sample = *it;
+                // SrsMp4Sample* sample = *it;
                 // TODO: parse hevc|avc, nalu slice header, and calculate 
                 // sample->data;
                 // sample->nb_data;
