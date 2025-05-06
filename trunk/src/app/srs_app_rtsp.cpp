@@ -219,20 +219,21 @@ srs_error_t SrsRtspSession::do_setup(SrsRtspRequest* req, uint32_t* pssrc)
     return srs_success;
 }
 
-srs_error_t SrsRtspSession::do_play(SrsRtspRequest* req, SrsRtcPlayStream* player)
+srs_error_t SrsRtspSession::do_play(SrsRtspRequest* req, SrsRtspConn* conn)
 {
     srs_error_t err = srs_success;
 
-    if ((err = player->initialize(request_, tracks_)) != srs_success) {
-        srs_freep(player);
+    srs_freep(player_);
+    player_ = new SrsRtcPlayStream(conn, cid_);
+
+    if ((err = player_->initialize(request_, tracks_)) != srs_success) {
+        srs_freep(player_);
         return srs_error_wrap(err, "SrsRtspPlayStream init");
     }
-    player->set_all_tracks_status(true);
-    if ((err = player->start()) != srs_success) {
+    player_->set_all_tracks_status(true);
+    if ((err = player_->start()) != srs_success) {
         return srs_error_wrap(err, "start play");
     }
-
-    player_ = player;
 
     srs_trace("RTSP: Subscriber url=%s established", req->uri.c_str());
 
@@ -482,9 +483,8 @@ srs_error_t SrsRtspConn::do_cycle()
             if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return srs_error_wrap(err, "response record");
             }
-            err = session_->do_play(req, this, cid_);
+            err = session_->do_play(req, this);
             
-           virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtcConnction* conn, const SrsContextId& cid);
             if (err != srs_success) {
                 return srs_error_wrap(err, "prepare play");
             }

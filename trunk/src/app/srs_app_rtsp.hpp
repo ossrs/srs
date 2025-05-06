@@ -23,6 +23,7 @@ class SrsEphemeralDelta;
 class SrsRtcPlayStream;
 class SrsRtcSource;
 class SrsRtspNetwork;
+class SrsRtspConn;
 
 class SrsRtspSession
 {
@@ -57,7 +58,7 @@ public:
 
     virtual srs_error_t do_describe(SrsRtspRequest* req, std::string& sdp);
     virtual srs_error_t do_setup(SrsRtspRequest* req, uint32_t* ssrc);
-    virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtcPlayStream* player);
+    virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtspConn* conn);
     virtual srs_error_t do_teardown();
 private:
     srs_error_t http_hooks_on_play(SrsRequest* req);
