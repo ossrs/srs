@@ -85,17 +85,17 @@ string srs_generate_rtsp_status_text(int status)
 std::string srs_generate_rtsp_method_str(SrsRtspMethod method)
 {
     switch (method) {
-        case SrsRtspMethodDescribe: return SRS_METHOD_DESCRIBE;
-        case SrsRtspMethodAnnounce: return SRS_METHOD_ANNOUNCE;
-        case SrsRtspMethodGetParameter: return SRS_METHOD_GET_PARAMETER;
-        case SrsRtspMethodOptions: return SRS_METHOD_OPTIONS;
-        case SrsRtspMethodPause: return SRS_METHOD_PAUSE;
-        case SrsRtspMethodPlay: return SRS_METHOD_PLAY;
-        case SrsRtspMethodRecord: return SRS_METHOD_RECORD;
-        case SrsRtspMethodRedirect: return SRS_METHOD_REDIRECT;
-        case SrsRtspMethodSetup: return SRS_METHOD_SETUP;
-        case SrsRtspMethodSetParameter: return SRS_METHOD_SET_PARAMETER;
-        case SrsRtspMethodTeardown: return SRS_METHOD_TEARDOWN;
+        case SrsRtspMethodDescribe: return SRS_RTSP_METHOD_DESCRIBE;
+        case SrsRtspMethodAnnounce: return SRS_RTSP_METHOD_ANNOUNCE;
+        case SrsRtspMethodGetParameter: return SRS_RTSP_METHOD_GET_PARAMETER;
+        case SrsRtspMethodOptions: return SRS_RTSP_METHOD_OPTIONS;
+        case SrsRtspMethodPause: return SRS_RTSP_METHOD_PAUSE;
+        case SrsRtspMethodPlay: return SRS_RTSP_METHOD_PLAY;
+        case SrsRtspMethodRecord: return SRS_RTSP_METHOD_RECORD;
+        case SrsRtspMethodRedirect: return SRS_RTSP_METHOD_REDIRECT;
+        case SrsRtspMethodSetup: return SRS_RTSP_METHOD_SETUP;
+        case SrsRtspMethodSetParameter: return SRS_RTSP_METHOD_SET_PARAMETER;
+        case SrsRtspMethodTeardown: return SRS_RTSP_METHOD_TEARDOWN;
         default: return "Unknown";
     }
 }
@@ -196,27 +196,27 @@ SrsRtspRequest::~SrsRtspRequest()
 
 bool SrsRtspRequest::is_options()
 {
-    return method == SRS_METHOD_OPTIONS;
+    return method == SRS_RTSP_METHOD_OPTIONS;
 }
 
 bool SrsRtspRequest::is_describe()
 {
-    return method == SRS_METHOD_DESCRIBE;
+    return method == SRS_RTSP_METHOD_DESCRIBE;
 }
 
 bool SrsRtspRequest::is_setup()
 {
-    return method == SRS_METHOD_SETUP;
+    return method == SRS_RTSP_METHOD_SETUP;
 }
 
 bool SrsRtspRequest::is_play()
 {
-    return method == SRS_METHOD_PLAY;
+    return method == SRS_RTSP_METHOD_PLAY;
 }
 
 bool SrsRtspRequest::is_teardown()
 {
-    return method == SRS_METHOD_TEARDOWN;
+    return method == SRS_RTSP_METHOD_TEARDOWN;
 }
 
 SrsRtspResponse::SrsRtspResponse(int cseq)
@@ -269,7 +269,7 @@ srs_error_t SrsRtspResponse::encode_header(std::stringstream& ss)
 SrsRtspOptionsResponse::SrsRtspOptionsResponse(int cseq) : SrsRtspResponse(cseq)
 {
     methods = (SrsRtspMethod)(SrsRtspMethodDescribe | SrsRtspMethodOptions
-        | SrsRtspMethodPause | SrsRtspMethodPlay | SrsRtspMethodSetup | SrsRtspMethodTeardown);
+        | SrsRtspMethodPlay | SrsRtspMethodSetup | SrsRtspMethodTeardown);
 }
 
 SrsRtspOptionsResponse::~SrsRtspOptionsResponse()
@@ -278,7 +278,7 @@ SrsRtspOptionsResponse::~SrsRtspOptionsResponse()
 
 srs_error_t SrsRtspOptionsResponse::encode_header(stringstream& ss)
 {
-    SrsRtspMethod rtsp_methods[] = {
+    static const SrsRtspMethod rtsp_methods[] = {
         SrsRtspMethodDescribe,
         SrsRtspMethodGetParameter,
         SrsRtspMethodOptions,
@@ -296,7 +296,7 @@ srs_error_t SrsRtspOptionsResponse::encode_header(stringstream& ss)
     int nb_methods = (int)(sizeof(rtsp_methods) / sizeof(SrsRtspMethod));
     for (int i = 0; i < nb_methods; i++) {
         SrsRtspMethod method = rtsp_methods[i];
-        if (((int)methods & (int)method) != (int)method) {
+        if (((int)methods & (int)method) == 0) {
             continue;
         }
         

@@ -45,32 +45,20 @@ class ISrsProtocolReadWriter;
 #define SRS_RTSP_TOKEN_RANGE "Range"
 
 // RTSP methods
-#define SRS_METHOD_OPTIONS            "OPTIONS"
-#define SRS_METHOD_DESCRIBE           "DESCRIBE"
-#define SRS_METHOD_ANNOUNCE           "ANNOUNCE"
-#define SRS_METHOD_SETUP              "SETUP"
-#define SRS_METHOD_PLAY               "PLAY"
-#define SRS_METHOD_PAUSE              "PAUSE"
-#define SRS_METHOD_TEARDOWN           "TEARDOWN"
-#define SRS_METHOD_GET_PARAMETER      "GET_PARAMETER"
-#define SRS_METHOD_SET_PARAMETER      "SET_PARAMETER"
-#define SRS_METHOD_REDIRECT           "REDIRECT"
-#define SRS_METHOD_RECORD             "RECORD"
-// Embedded (Interleaved) Binary Data
+#define SRS_RTSP_METHOD_OPTIONS            "OPTIONS"
+#define SRS_RTSP_METHOD_DESCRIBE           "DESCRIBE"
+#define SRS_RTSP_METHOD_ANNOUNCE           "ANNOUNCE"
+#define SRS_RTSP_METHOD_SETUP              "SETUP"
+#define SRS_RTSP_METHOD_PLAY               "PLAY"
+#define SRS_RTSP_METHOD_PAUSE              "PAUSE"
+#define SRS_RTSP_METHOD_TEARDOWN           "TEARDOWN"
+#define SRS_RTSP_METHOD_GET_PARAMETER      "GET_PARAMETER"
+#define SRS_RTSP_METHOD_SET_PARAMETER      "SET_PARAMETER"
+#define SRS_RTSP_METHOD_REDIRECT           "REDIRECT"
+#define SRS_RTSP_METHOD_RECORD             "RECORD"
 
 // RTSP-Version
 #define SRS_RTSP_VERSION "RTSP/1.0"
-
-// The rtsp sdp parse state.
-enum SrsRtspSdpState
-{
-    // Other sdp properties.
-    SrsRtspSdpStateOthers,
-    // Parse sdp audio state.
-    SrsRtspSdpStateAudio,
-    // Parse sdp video state.
-    SrsRtspSdpStateVideo,
-};
 
 // 10 Method Definitions, @see rfc2326-1998-rtsp.pdf, page 57
 // The method token indicates the method to be performed on the resource
