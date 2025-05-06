@@ -123,7 +123,7 @@ public:
     SrsRtspNetwork();
     virtual ~SrsRtspNetwork();
 public:
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* write) = 0;
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite) = 0;
 };
 
 class SrsRtspUdpNetwork : public SrsRtspNetwork
