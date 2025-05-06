@@ -138,7 +138,7 @@ public:
     virtual srs_error_t initialize(std::string ip, int port);
 // Interface SrsRtspNetwork.
 public:
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* write);
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 };
 
 class SrsRtspTcpNetwork : public SrsRtspNetwork
@@ -151,7 +151,7 @@ public:
     virtual ~SrsRtspTcpNetwork();
 // Interface SrsRtspNetwork.
 public:
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* write);
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 };
 
 #endif

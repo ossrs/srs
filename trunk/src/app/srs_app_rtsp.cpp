@@ -551,15 +551,14 @@ srs_error_t SrsRtspUdpNetwork::initialize(std::string ip, int port)
     return err;
 }
 
-srs_error_t SrsRtspUdpNetwork::write(void* buf, size_t size, ssize_t* write)
+srs_error_t SrsRtspUdpNetwork::write(void* buf, size_t size, ssize_t* nwrite)
 {
     srs_error_t err = srs_success;
 
-    int nwrite = srs_sendto(stfd_, buf, size, (sockaddr*)addr_, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
-    if (nwrite <= 0) {
+    *nwrite = srs_sendto(stfd_, buf, size, (sockaddr*)addr_, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
+    if (*nwrite <= 0) {
         return srs_error_new(ERROR_SOCKET_WRITE, "send udp packet");
     }
-    *write = nwrite;
 
     return err;
 }
@@ -572,24 +571,24 @@ SrsRtspTcpNetwork::~SrsRtspTcpNetwork()
 {
 }
 
-srs_error_t SrsRtspTcpNetwork::write(void* buf, size_t size, ssize_t* write)
+srs_error_t SrsRtspTcpNetwork::write(void* buf, size_t size, ssize_t* nwrite)
 {
     srs_error_t err = srs_success;
 
     // Encode and send 4 bytes size, in network order.
     srs_assert(size <= 65535);
-    uint8_t b[SRS_RTP_TCP_PACKET_HEADER_SIZE] = {0x24, channel_, uint8_t(size>>8), uint8_t(size)};
+    uint8_t b[SRS_RTP_TCP_PACKET_HEADER_SIZE] = {0x24, uint8_t(channel_), uint8_t(size>>8), uint8_t(size)};
 
     if((err = skt_->write((char*)b, sizeof(b), NULL)) != srs_success) {
         return srs_error_wrap(err, "rtc tcp write len(%d)", size);
     }
 
-    if ((err = skt_->write(buf, size, write)) != srs_success) {
+    if ((err = skt_->write(buf, size, nwrite)) != srs_success) {
         return srs_error_wrap(err, "send rtp packet");
     }
 
     // Add the size of the header to the write count.
-    *write += SRS_RTP_TCP_PACKET_HEADER_SIZE;
+    *nwrite += SRS_RTP_TCP_PACKET_HEADER_SIZE;
 
     return err;
 }
