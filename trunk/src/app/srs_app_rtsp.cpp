@@ -482,7 +482,9 @@ srs_error_t SrsRtspConn::do_cycle()
             if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return srs_error_wrap(err, "response record");
             }
-            err = session_->do_play(req, new SrsRtcPlayStream(this, cid_));
+            err = session_->do_play(req, this, cid_);
+            
+           virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtcConnction* conn, const SrsContextId& cid);
             if (err != srs_success) {
                 return srs_error_wrap(err, "prepare play");
             }
