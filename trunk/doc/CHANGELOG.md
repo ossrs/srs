@@ -7,10 +7,10 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-04-30, Merge [#4308](https://github.com/ossrs/srs/pull/4308): Fix memory leaks from errors skipping resource release. v7.0.32 (#4308)
 * v7.0, 2025-04-26, Merge [#4292](https://github.com/ossrs/srs/pull/4309): Support custom deleter for SrsUniquePtr. v7.0.31 (#4309)
 * v7.0, 2025-03-21, Merge [#4292](https://github.com/ossrs/srs/pull/4292): Typo: "forked" process in log output. v7.0.30 (#4292)
 * v7.0, 2025-03-21, Merge [#4294](https://github.com/ossrs/srs/pull/4294): Build: update build version to v7. v7.0.29 (#4294)
-* v7.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v7.0.28 (#4303)
 * v7.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v7.0.27 (#4303)
 * v7.0, 2025-03-20, Merge [#4305](https://github.com/ossrs/srs/pull/4305): free sample to prevent memory leak. v7.0.26 (#4305)
 * v7.0, 2025-03-18, Merge [#4302](https://github.com/ossrs/srs/pull/4302): update geekyeggo/delete-artifact to 5.0.0. v7.0.25 (#4302)
@@ -43,7 +43,6 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
-* v6.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v6.0.166 (#4303)
 * v6.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v6.0.165 (#4303)
 * v6.0, 2025-03-20, Merge [#4305](https://github.com/ossrs/srs/pull/4305): free sample to prevent memory leak. v6.0.164 (#4305)
 * v6.0, 2025-03-18, Merge [#4302](https://github.com/ossrs/srs/pull/4302): update geekyeggo/delete-artifact to 5.0.0. v6.0.163 (#4302)
