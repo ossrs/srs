@@ -1045,6 +1045,15 @@ srs_error_t SrsRtcRtpBuilder::package_opus(SrsAudioFrame* audio, SrsRtpPacket* p
     return err;
 }
 
+static void free_packets(vector<SrsRtpPacket*>* pkts) {
+    if (!pkts) return;
+
+    for (size_t i = 0; i < pkts->size(); i++) {
+        srs_freep((*pkts)[i]);
+    }
+    pkts->clear();
+}
+
 srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
@@ -1094,6 +1103,9 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
 
     // If merge Nalus, we pcakges all NALUs(samples) as one NALU, in a RTP or FUA packet.
     vector<SrsRtpPacket*> pkts;
+    // auto free when exit
+    SrsUniquePtr<vector<SrsRtpPacket*>> pkts_ptr(&pkts, free_packets);
+
     if (merge_nalus && nn_samples > 1) {
         if ((err = package_nalus(msg, samples, pkts)) != srs_success) {
             return srs_error_wrap(err, "package nalus as one");
@@ -1391,11 +1403,6 @@ srs_error_t SrsRtcRtpBuilder::consume_packets(vector<SrsRtpPacket*>& pkts)
             err = srs_error_wrap(err, "consume sps/pps");
             break;
         }
-    }
-
-    for (int i = 0; i < (int)pkts.size(); i++) {
-        SrsRtpPacket* pkt = pkts[i];
-        srs_freep(pkt);
     }
 
     return err;
