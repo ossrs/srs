@@ -182,11 +182,10 @@ srs_error_t SrsFrameToRtcBridge::update_codec(SrsVideoCodecId id)
         video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
     }
 
-    video_codec_id_ = id;
-
-    srs_trace("RTC: Switch video codec %d(%s) to %d(%s)",
-            SrsVideoCodecIdAVC, srs_video_codec_id2str(SrsVideoCodecIdAVC).c_str(),
+    srs_trace("RTC: Switch video codec %d(%s) to %d(%s)", video_codec_id_, srs_video_codec_id2str(video_codec_id_).c_str(),
             id, srs_video_codec_id2str(id).c_str());
+
+    video_codec_id_ = id;
 
     return err;
 }
