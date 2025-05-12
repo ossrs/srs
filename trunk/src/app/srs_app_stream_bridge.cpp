@@ -96,7 +96,7 @@ SrsFrameToRtcBridge::SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source)
     rtp_builder_ = new SrsRtcRtpBuilder(this, audio_ssrc, audio_payload_type, video_ssrc, video_payload_type);
 #endif
 
-    video_codec_id_ = SrsVideoCodecIdAVC;
+    video_codec_id_ = SrsVideoCodecIdReserved;
 }
 
 SrsFrameToRtcBridge::~SrsFrameToRtcBridge()
