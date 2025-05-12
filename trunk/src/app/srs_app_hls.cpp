@@ -90,7 +90,6 @@ SrsInitMp4Segment::~SrsInitMp4Segment()
 
 srs_error_t SrsInitMp4Segment::config_cipher(unsigned char* kid, unsigned char* const_iv, uint8_t const_iv_size)
 {
-    srs_error_t err = srs_success;
     if (const_iv_size != 8 && const_iv_size != 16) {
         return srs_error_new(ERROR_MP4_BOX_STRING, "invalidate const_iv_size");
     }
@@ -99,7 +98,7 @@ srs_error_t SrsInitMp4Segment::config_cipher(unsigned char* kid, unsigned char* 
     const_iv_size_ = const_iv_size;
     init_.config_encryption(1, 9, kid_, const_iv, const_iv_size);
 
-    return err;
+    return srs_success;
 }
 
 srs_error_t SrsInitMp4Segment::write(SrsFormat* format, int v_tid, int a_tid)
@@ -169,12 +168,10 @@ srs_error_t SrsInitMp4Segment::init_encoder()
 SrsHlsM4sSegment::SrsHlsM4sSegment(SrsFileWriter* fw)
 {
     fw_ = fw;
-    enc_ = new SrsFmp4SegmentEncoder();
 }
 
 SrsHlsM4sSegment::~SrsHlsM4sSegment()
 {
-    srs_freep(enc_);
 }
 
 srs_error_t SrsHlsM4sSegment::initialize(int64_t time, uint32_t v_tid, uint32_t a_tid, int sequence_number, std::string m4s_path)
@@ -185,14 +182,14 @@ srs_error_t SrsHlsM4sSegment::initialize(int64_t time, uint32_t v_tid, uint32_t 
     
     set_number(sequence_number);
     if ((err = create_dir()) != srs_success) {
-        return srs_error_wrap(err, "create dir");
+        return srs_error_wrap(err, "create hls m4s segment dir.");
     }
     
     if ((err = fw_->open(tmppath())) != srs_success) {
-        return srs_error_wrap(err, "fw open");
+        return srs_error_wrap(err, "open hls m4s segment tmp file.");
     }
     
-    if ((err = enc_->initialize(fw_, sequence_number, time, v_tid, a_tid)) != srs_success)
+    if ((err = enc_.initialize(fw_, sequence_number, time, v_tid, a_tid)) != srs_success)
     {
         return srs_error_wrap(err, "initialize SrsFmp4SegmentEncoder");
     }
@@ -203,8 +200,8 @@ srs_error_t SrsHlsM4sSegment::initialize(int64_t time, uint32_t v_tid, uint32_t 
 void SrsHlsM4sSegment::config_cipher(unsigned char* key, unsigned char* iv)
 {
     // TODO: set key and iv to mp4 box
-    enc_->config_cipher(key, iv);
-    memcpy(this->iv, iv,16);
+    enc_.config_cipher(key, iv);
+    memcpy(this->iv, iv, 16);
 }
 
 srs_error_t SrsHlsM4sSegment::write(SrsSharedPtrMessage* shared_msg, SrsFormat* format)
@@ -216,7 +213,7 @@ srs_error_t SrsHlsM4sSegment::write(SrsSharedPtrMessage* shared_msg, SrsFormat* 
         uint32_t nb_sample = (uint32_t)format->nb_raw;
         
         uint32_t dts = (uint32_t)shared_msg->timestamp;
-        if ((err = enc_->write_sample(SrsMp4HandlerTypeSOUN, 0x00, dts, dts, sample, nb_sample)) != srs_success) {
+        if ((err = enc_.write_sample(SrsMp4HandlerTypeSOUN, 0x00, dts, dts, sample, nb_sample)) != srs_success) {
             return srs_error_wrap(err, "m4s segment write audio sample");
         }
     } else if (shared_msg->is_video()) {
@@ -228,10 +225,11 @@ srs_error_t SrsHlsM4sSegment::write(SrsSharedPtrMessage* shared_msg, SrsFormat* 
         
         uint8_t* sample = (uint8_t*)format->raw;
         uint32_t nb_sample = (uint32_t)format->nb_raw;
-        if ((err = enc_->write_sample(SrsMp4HandlerTypeVIDE, frame_type, dts, pts, sample, nb_sample)) != srs_success) {
+        if ((err = enc_.write_sample(SrsMp4HandlerTypeVIDE, frame_type, dts, pts, sample, nb_sample)) != srs_success) {
             return srs_error_wrap(err, "m4s segment write video sample");
         }
     } else {
+        srs_trace("the sample m4s segment write is neither video nor audio sample.");
         return err;
     }
     
@@ -244,14 +242,14 @@ srs_error_t SrsHlsM4sSegment::reap(uint64_t dts)
 {
     srs_error_t err = srs_success;
     
-    if ((err = enc_->flush(dts)) != srs_success) {
-        return srs_error_wrap(err, "Flush encoder failed");
+    if ((err = enc_.flush(dts)) != srs_success) {
+        return srs_error_wrap(err, "m4s flush encoder.");
     }
     
     fw_->close();
         
     if ((err = rename()) != srs_success) {
-        return srs_error_wrap(err, "rename");
+        return srs_error_wrap(err, "m4s segment rename.");
     }
     
     return err;
@@ -428,11 +426,9 @@ int SrsHlsFmp4Muxer::sequence_no()
     return sequence_no_;
 }
 
-std::string SrsHlsFmp4Muxer::ts_url()
+std::string SrsHlsFmp4Muxer::m4s_url()
 {
-    // return current_ ? current_->uri : "";
-    // TODO: impl segment url for fmp4 segment.
-    return "";
+    return current_ ? current_->uri : "";
 }
 
 srs_utime_t SrsHlsFmp4Muxer::duration()
@@ -472,12 +468,10 @@ void SrsHlsFmp4Muxer::set_latest_vcodec(SrsVideoCodecId v)
 
 srs_error_t SrsHlsFmp4Muxer::initialize(int v_tid, int a_tid)
 {
-    srs_error_t err = srs_success;
-
     video_track_id_ = v_tid;
     audio_track_id_ = a_tid;
 
-    return err;
+    return srs_success;
 }
 
 srs_error_t SrsHlsFmp4Muxer::on_publish(SrsRequest* req)
@@ -535,6 +529,40 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat* format, bool has_video, b
         return srs_error_wrap(err, "rename hls init.mp4");
     }
 
+    // the ts url, relative or absolute url.
+    // TODO: FIXME: Use url and path manager.
+    std::string mp4_path = init_mp4->fullpath();
+    if (srs_string_starts_with(mp4_path, m3u8_dir_)) {
+        mp4_path = mp4_path.substr(m3u8_dir_.length());
+    }
+    while (srs_string_starts_with(mp4_path, "/")) {
+        mp4_path = mp4_path.substr(1);
+    }
+
+    string init_mp4_uri = hls_entry_prefix_;
+    if (!hls_entry_prefix_.empty() && !srs_string_ends_with(hls_entry_prefix_, "/")) {
+        init_mp4_uri += "/";
+        
+        // add the http dir to uri.
+        string http_dir = srs_path_dirname(m3u8_url_);
+        if (!http_dir.empty()) {
+            init_mp4_uri += http_dir + "/";
+        }
+    }
+    init_mp4_uri += mp4_path;
+
+    // use async to call the http hooks, for it will cause thread switch.
+    if ((err = async_->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req_, init_mp4->fullpath(),
+                                                        init_mp4_uri, m3u8_, m3u8_url_, 0, 0))) != srs_success) {
+        return srs_error_wrap(err, "segment close");
+    }
+        
+    // use async to call the http hooks, for it will cause thread switch.
+    if ((err = async_->execute(new SrsDvrAsyncCallOnHlsNotify(_srs_context->get_id(), req_, init_mp4_uri))) != srs_success) {
+        return srs_error_wrap(err, "segment close");
+    }
+
+    
     init_mp4_ready_ = true;
     return err;
 }
@@ -543,8 +571,6 @@ srs_error_t SrsHlsFmp4Muxer::write_audio(SrsSharedPtrMessage* shared_audio, SrsF
 {
     srs_error_t err = srs_success;
 
-    // audio_dts_ = shared_audio->timestamp;
-    
     if (!current_) {
         if ((err = segment_open(shared_audio->timestamp * SRS_UTIME_MILLISECONDS)) != srs_success) {
             return srs_error_wrap(err, "open segment");
@@ -577,7 +603,6 @@ srs_error_t SrsHlsFmp4Muxer::write_video(SrsSharedPtrMessage* shared_video, SrsF
         }
     }
 
-    // TODO: reap segment only when get key frame?
     bool reopen = current_->duration() >= hls_fragment_;
     if (reopen) {
         if ((err = segment_close()) != srs_success) {
@@ -725,29 +750,31 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
         ss << current_->sequence_no;
         m4s_file = srs_string_replace(m4s_file, "[seq]", ss.str());
     }
-    current_->set_path(hls_path_ + "/" + m4s_file);
-    
+        
     std::string m4s_path = hls_path_ + "/" + m4s_file;
+    current_->set_path(m4s_path);
     
     // the ts url, relative or absolute url.
     // TODO: FIXME: Use url and path manager.
-    std::string ts_url = current_->fullpath();
-    if (srs_string_starts_with(ts_url, m3u8_dir_)) {
-        ts_url = ts_url.substr(m3u8_dir_.length());
+    std::string m4s_url = current_->fullpath();
+    if (srs_string_starts_with(m4s_url, m3u8_dir_)) {
+        m4s_url = m4s_url.substr(m3u8_dir_.length());
     }
-    while (srs_string_starts_with(ts_url, "/")) {
-        ts_url = ts_url.substr(1);
+    while (srs_string_starts_with(m4s_url, "/")) {
+        m4s_url = m4s_url.substr(1);
     }
-    // current->uri += hls_entry_prefix;
+
+    current_->uri += hls_entry_prefix_;
     if (!hls_entry_prefix_.empty() && !srs_string_ends_with(hls_entry_prefix_, "/")) {
-        // current_->uri += "/";
+        current_->uri += "/";
         
         // add the http dir to uri.
         string http_dir = srs_path_dirname(m3u8_url_);
         if (!http_dir.empty()) {
-            // current->uri += http_dir + "/";
+            current_->uri += http_dir + "/";
         }
     }
+    current_->uri += m4s_url;
     
     current_->initialize(basetime, video_track_id_, audio_track_id_, sequence_no_, m4s_path);
 
@@ -820,16 +847,16 @@ srs_error_t SrsHlsFmp4Muxer::do_segment_close()
         return srs_error_wrap(err, "reap segment");
     }
     
-    // // use async to call the http hooks, for it will cause thread switch.
-    // if ((err = async_->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req_, current_->fullpath(),
-    //                                                     current_->uri, m3u8_, m3u8_url_, current_->sequence_no, current_->duration()))) != srs_success) {
-    //     return srs_error_wrap(err, "segment close");
-    // }
+    // use async to call the http hooks, for it will cause thread switch.
+    if ((err = async_->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req_, current_->fullpath(),
+                                                        current_->uri, m3u8_, m3u8_url_, current_->sequence_no, current_->duration()))) != srs_success) {
+        return srs_error_wrap(err, "segment close");
+    }
         
-    // // use async to call the http hooks, for it will cause thread switch.
-    // if ((err = async_->execute(new SrsDvrAsyncCallOnHlsNotify(_srs_context->get_id(), req_, current_->uri))) != srs_success) {
-    //     return srs_error_wrap(err, "segment close");
-    // }
+    // use async to call the http hooks, for it will cause thread switch.
+    if ((err = async_->execute(new SrsDvrAsyncCallOnHlsNotify(_srs_context->get_id(), req_, current_->uri))) != srs_success) {
+        return srs_error_wrap(err, "segment close");
+    }
         
     segments_->append(current_);
     current_ = NULL;
@@ -2156,7 +2183,6 @@ srs_error_t SrsHlsMp4Controller::on_sequence_header(SrsSharedPtrMessage* msg, Sr
         return srs_error_new(ERROR_HLS_NO_STREAM, "no req yet");
     }
     
-    // TODO: on av sequence header, doing generate the init.mp4?
     if (msg->is_video()) {
         has_video_sh_ = true;
     }
@@ -2177,22 +2203,22 @@ srs_error_t SrsHlsMp4Controller::on_sequence_header(SrsSharedPtrMessage* msg, Sr
 
 int SrsHlsMp4Controller::sequence_no()
 {
-    return 0;
+    return muxer_->sequence_no();
 }
 
 std::string SrsHlsMp4Controller::ts_url()
 {
-    return "";
+    return muxer_->m4s_url();
 }
 
 srs_utime_t SrsHlsMp4Controller::duration()
 {
-    return 0;
+    return muxer_->duration();
 }
 
 int SrsHlsMp4Controller::deviation()
 {
-    return 0;
+    return muxer_->deviation();
 }
 
 SrsHls::SrsHls()

@@ -95,8 +95,10 @@ class SrsHlsM4sSegment : public SrsFragment
 {
 private:
     SrsFileWriter* fw_;
-    SrsFmp4SegmentEncoder* enc_;
+    SrsFmp4SegmentEncoder enc_;
 public:
+    // m4s uri in m3u8.
+    std::string uri;
     // sequence number in m3u8.
     int sequence_no;
     // Will be saved in m3u8 file.
@@ -270,9 +272,6 @@ private:
 // Mux the HLS stream(m3u8 and m4s files).
 // Generally, the m3u8 muxer only provides methods to open/close segments,
 // to flush video/audio, without any mechenisms.
-//
-// That is, user must use HlsCache, which will control the methods of muxer,
-// and provides HLS mechenisms.
 class SrsHlsFmp4Muxer
 {
 private:
@@ -302,6 +301,15 @@ private:
     bool init_mp4_ready_;
 private:
     // Whether encrypted or not
+    // TODO: fmp4 encryption is not yet implemented.
+    // fmp4 support four kinds of protection scheme: 'cenc', 'cbc1', 'cens', 'cbcs'.
+    // @see: https://cdn.standards.iteh.ai/samples/84637/04ebded1a92a4c8ab9be6f419a3252ed/ISO-IEC-23001-7-2023.pdf
+    // But unfortunately the above link is just part of the spec, the full doc is not free.
+    // And Apple's doc said HLS support unencrypted and encrypted with 'cbcs'.
+    // @see: https://developer.apple.com/documentation/http-live-streaming/about-the-common-media-application-format-with-http-live-streaming-hls
+    // Another Apple doc said Encrypted fmp4 content MUST contain either a Sample Encryption Box('senc'), or both a Sample Auxiliary Information
+    // Sizes Box('saiz') and a Sample Auxiliary Information Offsets Box('saio').
+    // @see: https://developer.apple.com/documentation/http-live-streaming/hls-authoring-specification-for-apple-devices
     bool hls_keys_;
     int  hls_fragments_per_key_;
     // The key file name
@@ -342,7 +350,7 @@ public:
     virtual void dispose();
 public:
     virtual int sequence_no();
-    virtual std::string ts_url();
+    virtual std::string m4s_url();
     virtual srs_utime_t duration();
     virtual int deviation();
 public:
@@ -411,6 +419,7 @@ public:
 
     virtual srs_error_t on_sequence_header(SrsSharedPtrMessage* msg, SrsFormat* format) = 0;
     virtual int sequence_no() = 0;
+    // TODO: maybe rename to segment_url?
     virtual std::string ts_url() = 0;
     virtual srs_utime_t duration() = 0;
     virtual int deviation() = 0;
@@ -438,7 +447,6 @@ private:
     // The TS is cached to SrsTsMessageCache then flush to ts segment.
     SrsHlsMuxer* muxer;
     // The TS cache
-    // TODO: support both fmp4 and ts format
     SrsTsMessageCache* tsmc;
 
     // If the diff=dts-previous_audio_dts is about 23,
