@@ -1089,10 +1089,8 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
     }
 
 #ifdef SRS_H265
-    if (vcodec == SrsVideoCodecIdHEVC) {
-        if ((err = bridge_->update_codec(vcodec)) != srs_success) {
-            return srs_error_wrap(err, "update codec");
-        }
+    if ((err = bridge_->update_codec(vcodec)) != srs_success) {
+        return srs_error_wrap(err, "update codec");
     }
 #endif
 

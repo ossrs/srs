@@ -66,7 +66,7 @@ private:
     SrsRtcRtpBuilder* rtp_builder_;
 #endif
 private:
-    bool codec_switched_;
+    SrsVideoCodecId video_codec_id_;
 public:
     SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsFrameToRtcBridge();

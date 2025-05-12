@@ -96,7 +96,7 @@ SrsFrameToRtcBridge::SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source)
     rtp_builder_ = new SrsRtcRtpBuilder(this, audio_ssrc, audio_payload_type, video_ssrc, video_payload_type);
 #endif
 
-    codec_switched_ = false;
+    video_codec_id_ = SrsVideoCodecIdAVC;
 }
 
 SrsFrameToRtcBridge::~SrsFrameToRtcBridge()
@@ -162,32 +162,27 @@ srs_error_t SrsFrameToRtcBridge::update_codec(SrsVideoCodecId id)
 {
     srs_error_t err = srs_success;
 
-    // Only handle H.265/HEVC codec switch.
-    if (id != SrsVideoCodecIdHEVC) {
+    if (video_codec_id_ == id) {
         return err;
     }
 
-    if (codec_switched_) {
-        return err;
-    }
-
-    // Check if H.265 track description exists
-    if (!source_->get_track_desc("video", "H265").empty()) {
-        return err;
-    }
-
-    // Try to convert H.264 track to H.265
-    std::vector<SrsRtcTrackDescription*> video_track_descs = source_->get_track_desc("video", "H264");
+    std::vector<SrsRtcTrackDescription*> video_track_descs = source_->get_track_desc("video", "");
     if (video_track_descs.empty()) {
-        return srs_error_new(ERROR_RTC_NO_TRACK, "no H264 track found for conversion");
+        return srs_error_new(ERROR_RTC_NO_TRACK, "no track found for conversion");
     }
 
     SrsRtcTrackDescription* video_track_desc = video_track_descs.at(0);
     SrsVideoPayload* video_payload = (SrsVideoPayload*)video_track_desc->media_;
-    video_payload->name_ = "H265";
-    video_payload->set_h265_param_desc("level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST");
+    
+    if (id == SrsVideoCodecIdHEVC) {
+        video_payload->name_ = "H265";
+        video_payload->set_h265_param_desc("level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST");
+    } else {
+        video_payload->name_ = "H264";
+        video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
+    }
 
-    codec_switched_ = true;
+    video_codec_id_ = id;
 
     srs_trace("RTC: Switch video codec %d(%s) to %d(%s)",
             SrsVideoCodecIdAVC, srs_video_codec_id2str(SrsVideoCodecIdAVC).c_str(),
