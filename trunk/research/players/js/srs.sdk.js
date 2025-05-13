@@ -574,7 +574,7 @@ function SrsRtcWhipWhepAsync() {
             userStream.getTracks().forEach(function (track) {
                 self.pc.addTrack(track);
                 // Notify about local track when stream is ok.
-                self.ontrack && self.ontrack({track: track});
+                // self.ontrack && self.ontrack({track: track});
             });
        }
 
@@ -602,6 +602,13 @@ function SrsRtcWhipWhepAsync() {
         return self.__internal.parseId(url, offer.sdp, answer);
     };
 
+    // 新增回调函数
+    self.onconnected = null;       // 连接成功回调
+    self.onfirstvideo = null;      // 收到第一个视频包回调
+    self.oninactivevideo = null;   // 视频流中断回调
+    self.onvideoresume = null;    // 视频流恢复回调
+    self.onconnectionlost = null; // 连接永久丢失回调
+
     // See https://datatracker.ietf.org/doc/draft-ietf-wish-whip/
     // @url The WebRTC url to play with, for example:
     //      http://localhost:1985/rtc/v1/whep/?app=live&stream=livestream
@@ -614,6 +621,19 @@ function SrsRtcWhipWhepAsync() {
 
         if (!options?.videoOnly) self.pc.addTransceiver("audio", {direction: "recvonly"});
         if (!options?.audioOnly) self.pc.addTransceiver("video", {direction: "recvonly"});
+        
+        if (options.onconnected) self.onconnected = options.onconnected;
+        if (options.onfirstvideo) self.onfirstvideo = options.onfirstvideo;
+        if (options.oninactivevideo) self.oninactivevideo = options.oninactivevideo;
+        if (options.onvideoresume) self.onvideoresume = options.onvideoresume;
+        if (options.onconnectionlost) self.onconnectionlost = options.onconnectionlost;
+
+        // 监听ICE连接状态
+        self.pc.oniceconnectionstatechange = function () {
+            if (self.pc.iceConnectionState === 'connected') {
+                self.onconnected && self.onconnected();
+            }
+        };
 
         var offer = await self.pc.createOffer();
         await self.pc.setLocalDescription(offer);
@@ -641,15 +661,114 @@ function SrsRtcWhipWhepAsync() {
 
     // Close the publisher.
     self.close = function () {
-        self.pc && self.pc.close();
-        self.pc = null;
+        // 清理所有计时器
+        clearInterval(self.__internal.checkInterval);
+        clearTimeout(self.__internal.inactiveTimer);
+
+        // 重置状态
+        self.__internal.checkInterval = null;
+        self.__internal.inactiveTimer = null;
+        self.__internal.videoState = 'closed';
+
+        // 关闭PeerConnection
+        if (self.pc) {
+            self.pc.close();
+            self.pc = null;
+        }
+    };
+
+    const handleVideoState = {
+        init: async () => {
+            const stats = await self.pc.getStats(self.__internal.currentTrack);
+            stats.forEach(report => {
+                if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                    if (report.bytesReceived > 0) {
+                        self.__internal.videoState = 'active';
+                        self.onfirstvideo && self.onfirstvideo();
+                    }
+                }
+            });
+        },
+
+        // 检测中状态
+        checking: async () => {
+            const stats = await self.pc.getStats(self.__internal.currentTrack);
+            stats.forEach(report => {
+                if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                    if (report.bytesReceived > self.__internal.lastBytes) {
+                        self.__internal.videoState = 'active';
+                        self.__internal.lastBytes = report.bytesReceived;
+                        self.__internal.lastActiveTime = Date.now();
+                        // self.onfirstvideo && self.onfirstvideo();
+                        self.onvideoresume && self.onvideoresume();
+                        console.log('🎬 视频流恢复');
+                    }
+                }
+            });
+        },
+
+        active: async () => {
+            const stats = await self.pc.getStats(self.__internal.currentTrack);
+            let bytesUpdated = false;
+
+            stats.forEach(report => {
+                if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                    const currentBytes = report.bytesReceived;
+                    if (currentBytes > self.__internal.lastBytes) {
+                        self.__internal.lastBytes = currentBytes;
+                        self.__internal.lastActiveTime = Date.now();
+                        bytesUpdated = true;
+                    }
+                }
+            });
+
+            if (!bytesUpdated && Date.now() - self.__internal.lastActiveTime > 3000) {
+                self.__internal.videoState = 'inactive';
+                self.oninactivevideo && self.oninactivevideo();
+
+                // 启动15秒断开倒计时
+                self.__internal.inactiveTimer = setTimeout(()   => {
+                    self.onconnectionlost && self.onconnectionlost();
+                    self.close();
+                }, 10000);
+            }
+        },
+
+        inactive: async () => {
+            const stats = await self.pc.getStats(self.__internal.currentTrack);
+            stats.forEach(report => {
+                if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                    if (report.bytesReceived > self.__internal.lastBytes) {
+                        // 清除断开计时器
+                        clearTimeout(self.__internal.inactiveTimer);
+                        self.__internal.inactiveTimer = null;
+
+                        self.__internal.videoState = 'checking';
+                    }
+                }
+            });
+        }
     };
 
     // The callback when got local stream.
     // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
     self.ontrack = function (event) {
-        // Add track to stream of SDK.
         self.stream.addTrack(event.track);
+
+        if (event.track.kind === 'video') {
+            self.__internal.currentTrack = event.track;
+
+            // 启动状态检测引擎
+            self.__internal.checkInterval = setInterval(() => {
+                if (!self.__internal.currentTrack) return;
+
+                // 执行状态机转换
+                handleVideoState[self.__internal.videoState]?.();
+            }, 1000); // 每秒检测一次
+
+            // 初始状态转换
+            self.__internal.videoState = 'init';
+        }
     };
 
     self.pc = new RTCPeerConnection(null);
@@ -661,6 +780,13 @@ function SrsRtcWhipWhepAsync() {
 
     // Internal APIs.
     self.__internal = {
+        videoState: 'init',
+        checkInterval: null,
+        inactiveTimer: null,      // 新增断开计时器
+        lastBytes: 0,
+        lastActiveTime: 0,
+        currentTrack: null,
+        
         parseId: (url, offer, answer) => {
             let sessionid = offer.substr(offer.indexOf('a=ice-ufrag:') + 'a=ice-ufrag:'.length);
             sessionid = sessionid.substr(0, sessionid.indexOf('\n') - 1) + ':';

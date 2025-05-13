@@ -1,10 +1,9 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: ''
+title: ""
 labels: feature
-assignees: ''
-
+assignees: ""
 ---
 
 !!! Before submitting a new feature request, please ensure you have searched for any existing features. Duplicate issues or questions that are overly simple or already addressed in the documentation will be removed without any response.

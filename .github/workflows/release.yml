@@ -434,35 +434,35 @@ jobs:
           name: Release ${{ env.SRS_TAG }}
           body: |
             If you would like to support SRS, please consider contributing to our [OpenCollective](https://opencollective.com/srs-server).
-            
+
             [${{ github.sha }}](https://github.com/ossrs/srs/commit/${{ github.sha }})
             ${{ github.event.head_commit.message }}
-            
+
             ## Resource
             * Source: ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
             * Binary: ${{ env.SRS_PACKAGE_MD5 }} [${{ env.SRS_PACKAGE_ZIP }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_PACKAGE_ZIP }})
             * Binary: ${{ env.SRS_CYGWIN_MD5 }} [${{ env.SRS_CYGWIN_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_CYGWIN_TAR }})
-            
+
             ## Resource Mirror: gitee.com
             * Source: ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://gitee.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
             * Binary: ${{ env.SRS_PACKAGE_MD5 }} [${{ env.SRS_PACKAGE_ZIP }}](https://gitee.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_PACKAGE_ZIP }})
             * Binary: ${{ env.SRS_CYGWIN_MD5 }} [${{ env.SRS_CYGWIN_TAR }}](https://gitee.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_CYGWIN_TAR }})
-            
+
             ## Docker
             * [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.io/lts/en-us/docs/v7/doc/getting-started)
             * [docker pull ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.io/lts/en-us/docs/v7/doc/getting-started)
             * [docker pull ossrs/srs:${{ env.SRS_XYZ }}](https://ossrs.io/lts/en-us/docs/v7/doc/getting-started)
-            
+
             ## Docker Mirror: aliyun.com
             * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.net/lts/zh-cn/docs/v7/doc/getting-started)
             * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.net/lts/zh-cn/docs/v7/doc/getting-started)
             * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_XYZ }}](https://ossrs.net/lts/zh-cn/docs/v7/doc/getting-started)
-            
+
             ## Doc: ossrs.io
             * [Getting Started](https://ossrs.io/lts/en-us/docs/v7/doc/getting-started)
             * [Wiki home](https://ossrs.io/lts/en-us/docs/v7/doc/introduction)
             * [FAQ](https://ossrs.io/lts/en-us/faq), [Features](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) or [ChangeLogs](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
-            
+
             ## Doc: ossrs.net
             * [快速入门](https://ossrs.net/lts/zh-cn/docs/v7/doc/getting-started)
             * [中文Wiki首页](https://ossrs.net/lts/zh-cn/docs/v7/doc/introduction)

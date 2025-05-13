@@ -14,6 +14,7 @@
 #include <map>
 #include <sstream>
 #include <algorithm>
+#include <regex>
 
 #include <srs_app_reload.hpp>
 #include <srs_app_async_call.hpp>

@@ -15,7 +15,7 @@ Run commmand `> CMake: Configure` to configure the project.
 
 > Note: You can press `Ctrl+R`, then type `CMake: Configure` then select `Clang` as the toolchain.
 
-> Note: The `settings.json` is used to configure the cmake. It will use `${workspaceFolder}/trunk/ide/srs_clion/CMakeLists.txt` 
+> Note: The `settings.json` is used to configure the cmake. It will use `${workspaceFolder}/trunk/ide/srs_clion/CMakeLists.txt`
 > and `${workspaceFolder}/trunk/ide/vscode-build` as the source file and build directory.
 
 Click the `Run > Run Without Debugging` button to start the server.

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPL ITP Intranet Livestream Channel</title>
+
+    
+    <link rel="stylesheet" type="text/css" href="css/homepage_main.css" />
+
+    <script type="text/javascript" src="js/anime.js"></script>
+    <script type="text/javascript" src="js/jquery-1.12.2.min.js"></script>
+    <script type="text/javascript" src="js/adapter-7.4.0.min.js"></script>
+    <script type="text/javascript" src="js/srs.sdk.js"></script>
+    <script type="text/javascript" src="js/winlin.utility.js"></script>
+    <script type="text/javascript" src="js/srs.page.js"></script>
+</head>
+
+<body>
+    <div class="preloader">
+        <h2 class="ml13 ml13-1">NPL ITP</h2>
+        <h2 class="ml13 ml13-2">Intranet Livestream Channel</h2>
+        <h3 id="status">Connecting to the SRS Server ...</h3>
+        <div id="loader">Loading...</div>
+    </div>
+    <style>
+        /*=============== PRELOADER STYLE ===============*/
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap');
+
+        :root {
+            /*========== Colors ==========*/
+            /*Color mode HSL(hue, saturation, lightness)*/
+            --background-color: rgb(255, 255, 255);
+            --preloader-background-color: rgb(255, 255, 255);
+            --preloader-text-color: hsl(210, 30%, 10%);
+            --secondary-color: hsl(0, 0%, 65%);
+
+            /*========== Font and typography ==========*/
+            /*.5rem = 8px | 1rem = 16px ...*/
+            --body-font: "Quicksand", sans-serif;
+            --second-font: Serif;
+            --h3-font-size: 1rem;
+
+            /*========== z index ==========*/
+            --z-tooltip: 10;
+            --z-fixed: 100;
+        }
+
+        @media (max-width: 650px) {
+            .ml13 {
+                font-size: 3.3rem !important;
+                /* Adjust this value as needed */
+            }
+
+        }
+
+        @media (max-width: 410px) {
+            .ml13 {
+                font-size: 2.2rem !important;
+                /* Adjust this value as needed */
+            }
+
+        }
+
+        @media (max-width: 310px) {
+            .ml13 {
+                font-size: 1.5rem !important;
+                /* Adjust this value as needed */
+            }
+
+        }
+
+        .preloader {
+            display: flex;
+            flex-direction: column;
+            /* Tailwind 'gap-4' is 1rem */
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            /* 'h-screen' is 100% of the viewport height */
+            background-color: var(--preloader-background-color);
+            z-index: 1100;
+            /* 'z-[1100]' sets the z-index */
+            transform: translateY(0);
+            margin: 0;
+            padding: 0;
+        }
+
+        #preload_logo {
+            width: 90%;
+            margin-bottom: -2rem;
+            /* Tailwind 'mb-4' is 1rem */
+        }
+
+        .ml13 {
+            font-size: 5rem;
+            /* text-transform: uppercase; */
+            color: var(--preloader-text-color);
+            letter-spacing: -1px;
+            font-weight: 1000;
+            font-family: var(--second-font);
+            text-align: center;
+            margin: 0;
+        }
+
+        .ml13 .word {
+            display: inline-flex;
+            flex-wrap: wrap;
+            white-space: nowrap;
+        }
+
+        .ml13 .letter {
+            display: inline-block;
+            line-height: 1em;
+        }
+
+        .preloader #status {
+            font-size: 2.2rem;
+            color: var(--secondary-color);
+            font-family: var(--body-font);
+            font-weight: 400;
+            text-align: center;
+            margin-top: 3rem;
+            /* Tailwind 'mt-8' is 2rem */
+        }
+
+        #loader {
+            width: 250px;
+            height: 50px;
+            line-height: 50px;
+            text-align: center;
+            position: absolute;
+            bottom: 5%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: helvetica, arial, sans-serif;
+            font-size: 1rem;
+            text-transform: uppercase;
+            font-weight: 900;
+            color: var(--preloader-text-color);
+            letter-spacing: 0.2em;
+
+            &::before,
+            &::after {
+                content: "";
+                display: block;
+                width: 15px;
+                height: 15px;
+                background: var(--preloader-text-color);
+                position: absolute;
+                animation: load 0.7s infinite alternate ease-in-out;
+            }
+
+            &::before {
+                top: 0;
+            }
+
+            &::after {
+                bottom: 0;
+            }
+        }
+
+        @keyframes load {
+            0% {
+                left: 0;
+                height: 30px;
+                width: 15px;
+            }
+
+            50% {
+                height: 8px;
+                width: 40px;
+            }
+
+            100% {
+                left: 235px;
+                height: 30px;
+                width: 15px;
+            }
+        }
+    </style>
+    <script>
+        /*=============== PRELOADER ANIMATION ===============*/
+        for (i = 1; i <= 2; i++) {
+            var textWrapper = document.querySelector('.ml13.ml13-' + i);
+            console.log(textWrapper);
+            // Split text into words
+            var words = textWrapper.textContent.trim().split(' ');
+
+            // Clear the existing content
+            textWrapper.innerHTML = '';
+
+            // Wrap each word and its letters in spans
+            words.forEach(function (word) {
+                var wordSpan = document.createElement('span');
+                wordSpan.classList.add('word');
+                wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+                textWrapper.appendChild(wordSpan);
+                textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+            });
+        }
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [40, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'], // Starting from blurred to unblurred
+                easing: "easeOutExpo",
+                duration: 1400,
+                delay: (el, i) => 300 + 30 * i,
+            }).add({
+                targets: '.ml13 .letter',
+                translateY: [0, -40],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'], // Ending from unblurred to blurred
+                easing: "easeInExpo",
+                duration: 1200,
+                delay: (el, i) => 100 + 30 * i,
+                changeComplete: onLoopComplete
+            });
+
+        countdownEnd = false;
+        refeshHtml = false;
+        function onLoopComplete() {
+            if (countdownEnd) {
+                if (refeshHtml) {
+                    // Emit an event to notify that the preloader is hidden
+                    const event = new Event('preloaderHidden');
+                    document.dispatchEvent(event);
+                } else {
+                    hidePreloader(); // Call hidePreloader after the animation completes
+                    animation.pause();
+                }
+            }
+        }
+
+        function showPreloader() {
+            countdownEnd = false;
+            var preloader = document.querySelector('.preloader');
+            // 重置preloader位置和透明度
+            preloader.style.transform = 'translateY(100%)';
+            preloader.style.opacity = '1';
+            preloader.style.display = 'flex';
+
+            // 从下至上动画
+            anime({
+                targets: preloader,
+                translateY: ['100%', '0%'],
+                duration: 2000,
+                easing: 'easeOutExpo',
+                complete: function () {
+                    // 动画完成后开始循环动画
+                    animation.play();
+                }
+            });
+
+            document.body.style.overflowY = 'hidden';
+        }
+
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            anime({
+                targets: preloader,
+                translateY: ['0%', '100%'],
+                duration: 2000,
+                easing: 'easeOutExpo',
+                complete: function () {
+                    preloader.style.display = 'none'; // Hide the preloader after animation
+                }
+            });
+        }
+    </script>
+    <nav>
+        <div class="logo">
+            <div class="logo-box">
+                <img src="./img/school_logo.png" alt="Logo">
+            </div>
+            <span>NPL ITP Intranet Channel</span>
+        </div>
+        <button class="nav-button">首页</button>
+    </nav>
+
+    <main>
+        <div class="hero-section">
+            <h1>内联网人人都可以用的超低延迟直播服务</h1>
+            <p class="subtitle">借助SRS服务和WebRTC连接协议，随时观看直播</p>
+
+            <div class="join-container">
+                <div class="code-box">
+                <input type="text" id="code-input" required="required">
+                <span id="code-span">Enter the Stream Code</span>
+                </div>
+                <button class="join-button">Enter</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.querySelector('.join-button').addEventListener('click', function () {
+            var url = "whep_itp.html?vhost=__defaultVhost__&app=live&server=localhost&port=8080&autostart=true&schema=http&stream=" + document.querySelector('#code-input').value;
+            console.log(url)
+            showPreloader();
+            history.pushState({}, '', url);
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    // 添加离开动画
+                    countdownEnd = true;
+                    refeshHtml = true;
+                    document.addEventListener('preloaderHidden', function () {
+                        window.location.href = url;
+                    });
+                });
+        });
+        window.addEventListener('load', function () {
+            countdownEnd = true;
+        });
+    </script>
+</body>
+
+</html>

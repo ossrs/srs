@@ -23,6 +23,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <regex>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -333,12 +334,30 @@ bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req)
     if (args.size() == 1 && dvr_apply->arg0() == "all") {
         return true;
     }
-    
+
     string id = req->app + "/" + req->stream;
     if (std::find(args.begin(), args.end(), id) != args.end()) {
         return true;
     }
-    
+
+    for (const string& pattern : args) {
+        // 如果模式以/开始和结束，则视为正则表达式
+        if (pattern.size() >= 2 && pattern.front() == '/' && pattern.back() == '/') {
+            try {
+                std::regex re(pattern.substr(1, pattern.size() - 2));
+                if (std::regex_match(id, re)) {
+                    return true;
+                }
+            } catch (const std::regex_error&) {
+                // 正则表达式无效，跳过这条规则
+                continue;
+            }
+        } else if (pattern == id) {
+            // 普通字符串匹配
+            return true;
+        }
+    }
+
     return false;
 }
 

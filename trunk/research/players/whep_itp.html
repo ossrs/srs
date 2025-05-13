@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>NPL ITP Intranet Livestream Channel</title>
+
+        <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+        <link rel="stylesheet" type="text/css" href="css/whep_main.css"/>
+        
+        <script type="text/javascript" src="js/anime.js"></script>
+        <script type="text/javascript" src="js/jquery-1.12.2.min.js"></script>
+        <script type="text/javascript" src="js/adapter-7.4.0.min.js"></script>
+        <script type="text/javascript" src="js/srs.sdk.js"></script>
+        <script type="text/javascript" src="js/winlin.utility.js"></script>
+        <script type="text/javascript" src="js/srs.page.js"></script>
+    </head>
+    <body>
+        <div class="preloader">
+            <h2 class="ml13 ml13-1">NPL ITP</h2>
+            <h2 class="ml13 ml13-2">Intranet Livestream Channel</h2>
+            <h3 id="status">Connecting to the SRS Server ...</h3>
+            <div id="loader">Loading...</div>
+        </div>
+        <style>
+            /*=============== PRELOADER STYLE ===============*/
+            @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap');
+            :root {
+                /*========== Colors ==========*/
+                /*Color mode HSL(hue, saturation, lightness)*/
+                --background-color: rgb(255, 255, 255);
+                --preloader-background-color: rgb(255, 255, 255);
+                --preloader-text-color: hsl(210, 30%, 10%);
+                --secondary-color: hsl(0, 0%, 65%);
+
+                /*========== Font and typography ==========*/
+                /*.5rem = 8px | 1rem = 16px ...*/
+                --body-font: "Quicksand",  sans-serif;
+                --second-font: Serif;
+                --h3-font-size: 1rem;
+
+                /*========== z index ==========*/
+                --z-tooltip: 10;
+                --z-fixed: 100; 
+            }
+            
+            @media (max-width: 650px) {
+                .ml13 {
+                    font-size: 3.3rem !important;
+                    /* Adjust this value as needed */
+                }
+            
+            }
+
+            @media (max-width: 410px) {
+                .ml13 {
+                    font-size: 2.2rem !important;
+                    /* Adjust this value as needed */
+                }
+            
+            }
+
+            @media (max-width: 310px) {
+                .ml13 {
+                    font-size: 1.5rem !important;
+                    /* Adjust this value as needed */
+                }
+            
+            }
+
+            .preloader {
+                display: flex;
+                flex-direction: column;
+                /* Tailwind 'gap-4' is 1rem */
+                align-items: center;
+                justify-content: center;
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                /* 'h-screen' is 100% of the viewport height */
+                background-color: var(--preloader-background-color);
+                z-index: 1100;
+                /* 'z-[1100]' sets the z-index */
+                transform: translateY(0);
+            }
+
+            #preload_logo {
+                width: 90%;
+                margin-bottom: -2rem;
+                /* Tailwind 'mb-4' is 1rem */
+            }
+
+            .ml13 {
+                font-size: 5rem;
+                /* text-transform: uppercase; */
+                color: var(--preloader-text-color);
+                letter-spacing: -1px;
+                font-weight: 1000;
+                font-family: var(--second-font);
+                text-align: center;
+            }
+
+            .ml13 .word {
+                display: inline-flex;
+                flex-wrap: wrap;
+                white-space: nowrap;
+            }
+
+            .ml13 .letter {
+                display: inline-block;
+                line-height: 1em;
+            }
+
+            .preloader #status {
+                font-size: 2.2rem;
+                color: var(--secondary-color);
+                font-family: var(--body-font);
+                font-weight: 400;
+                text-align: center;
+                margin-top: 3rem;
+                /* Tailwind 'mt-8' is 2rem */
+            }
+
+            #loader {
+                width: 250px;
+                height: 50px;
+                line-height: 50px;
+                text-align: center;
+                position: absolute;
+                bottom: 5%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-family: helvetica, arial, sans-serif;
+                font-size: 1rem;
+                text-transform: uppercase;
+                font-weight: 900;
+                color: var(--preloader-text-color);
+                letter-spacing: 0.2em;
+            
+                &::before,
+                &::after {
+                    content: "";
+                    display: block;
+                    width: 15px;
+                    height: 15px;
+                    background: var(--preloader-text-color);
+                    position: absolute;
+                    animation: load 0.7s infinite alternate ease-in-out;
+                }
+            
+                &::before {
+                    top: 0;
+                }
+            
+                &::after {
+                    bottom: 0;
+                }
+            }
+
+            @keyframes load {
+                0% {
+                    left: 0;
+                    height: 30px;
+                    width: 15px;
+                }
+            
+                50% {
+                    height: 8px;
+                    width: 40px;
+                }
+            
+                100% {
+                    left: 235px;
+                    height: 30px;
+                    width: 15px;
+                }
+            }
+        </style>
+        <script>
+            /*=============== PRELOADER ANIMATION ===============*/
+            for (i = 1; i <= 2; i++) {
+                var textWrapper = document.querySelector('.ml13.ml13-' + i);
+                console.log(textWrapper);
+                // Split text into words
+                var words = textWrapper.textContent.trim().split(' ');
+
+                // Clear the existing content
+                textWrapper.innerHTML = '';
+
+                // Wrap each word and its letters in spans
+                words.forEach(function (word) {
+                    var wordSpan = document.createElement('span');
+                    wordSpan.classList.add('word');
+                    wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+                    textWrapper.appendChild(wordSpan);
+                    textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+                });
+            }
+            var animation = anime.timeline({ loop: true })
+                .add({
+                    targets: '.ml13 .letter',
+                    translateY: [40, 0],
+                    translateZ: 0,
+                    opacity: [0, 1],
+                    filter: ['blur(5px)', 'blur(0px)'], // Starting from blurred to unblurred
+                    easing: "easeOutExpo",
+                    duration: 1400,
+                    delay: (el, i) => 300 + 30 * i,
+                }).add({
+                    targets: '.ml13 .letter',
+                    translateY: [0, -40],
+                    opacity: [1, 0],
+                    filter: ['blur(0px)', 'blur(5px)'], // Ending from unblurred to blurred
+                    easing: "easeInExpo",
+                    duration: 1200,
+                    delay: (el, i) => 100 + 30 * i,
+                    changeComplete: onLoopComplete
+                });
+
+            countdownEnd = false;
+            refeshHtml = false;
+            function onLoopComplete() {
+                if (countdownEnd) {
+                    if (refeshHtml) {
+                        // Emit an event to notify that the preloader is hidden
+                        const event = new Event('preloaderHidden');
+                        document.dispatchEvent(event);
+                    } else {
+                        hidePreloader(); // Call hidePreloader after the animation completes
+                        animation.pause();
+                    }
+                }
+            }
+
+            function showPreloader() {
+                countdownEnd = false;
+                var preloader = document.querySelector('.preloader');
+                // 重置preloader位置和透明度
+                preloader.style.transform = 'translateY(100%)';
+                preloader.style.opacity = '1';
+                preloader.style.display = 'flex';
+
+                // 从下至上动画
+                anime({
+                    targets: preloader,
+                    translateY: ['100%', '0%'],
+                    duration: 2000,
+                    easing: 'easeOutExpo',
+                    complete: function () {
+                        // 动画完成后开始循环动画
+                        animation.play();
+                    }
+                });
+
+                document.body.style.overflowY = 'hidden';
+            }
+
+
+            function hidePreloader() {
+                var preloader = document.querySelector('.preloader');
+                anime({
+                    targets: preloader,
+                    translateY: ['0%', '100%'],
+                    duration: 2000,
+                    easing: 'easeOutExpo',
+                    complete: function () {
+                        preloader.style.display = 'none'; // Hide the preloader after animation
+
+                        var mediaPlayer = document.querySelector('#rtc_media_player');
+                        if (mediaPlayer && mediaPlayer.muted) {
+                            console.log('#rtc_media_player is muted');
+                            createToast({
+                                type: 'warning',
+                                heading: 'Livestream is Muted',
+                                paragraph: 'Due to the browser policy, the livestream is muted by default. Please unmute it to hear the sound.',
+                                close: 'true'
+                            });
+                        }
+                    }
+                });
+            }
+        </script>
+
+        <div class="toast"></div>
+        <video id="rtc_media_player" controls autoplay></video>
+        
+        <script type="text/javascript" src="js/whep_main.js"></script>
+        <script type="text/javascript">
+        $(function(){
+            var sdk = null; // Global handler to do cleanup when republishing.
+            var startPlay = function() {
+                $('#rtc_media_player').show();
+
+                // Close PC when user replay.
+                if (sdk) {
+                    sdk.close();
+                }
+                sdk = new SrsRtcWhipWhepAsync();
+
+                // User should set the stream when publish is done, @see https://webrtc.org/getting-started/media-devices
+                // However SRS SDK provides a consist API like https://webrtc.org/getting-started/remote-streams
+                $('#rtc_media_player').prop('srcObject', sdk.stream);
+                // Optional callback, SDK will add track to stream.
+                // sdk.ontrack = function (event) { console.log('Got track', event); sdk.stream.addTrack(event.track); };
+
+                // For example: webrtc://r.ossrs.net/live/livestream
+                var query = parse_query_string();
+
+                sdk.play(srs_get_whep(query), {
+                    videoOnly: $('#ch_videoonly').prop('checked'),
+                    audioOnly: $('#ch_audioonly').prop('checked'),
+                    onconnected: function () {
+                        console.log('🚀 WebRTC连接成功');
+                        document.getElementById('status').innerHTML = 'Waiting for stream package ...';
+                    },
+                    onfirstvideo: function () {
+                        console.log('🎬 收到第一个视频数据包');
+                        document.getElementById('status').innerHTML = 'Prepared to stream now!';
+                        countdownEnd = true;
+                    },
+                    oninactivevideo: function () {
+                        console.log('⚠️ 视频流中断超过3秒');
+                        showPreloader();
+                        document.getElementById('status').innerHTML = 'Lost Connection or End of stream. Waiting for resume ...';
+                    },
+                    onconnectionlost: function () {
+                        console.log('⛔ 连接永久丢失')
+                        document.getElementById('status').innerHTML = 'End of stream. Redirect to Home Page ...';
+                        directHomepage();
+                    },
+                    onvideoresume: function () {
+                        console.log('🎥 视频流恢复');
+                        document.getElementById('status').innerHTML = 'Reconnected to stream now!';
+                        countdownEnd = true;
+                    },
+                }).catch(function (reason) {
+                    sdk.close();
+                    console.error(reason);
+                    document.getElementById('status').innerHTML = 'Error in WebRTC Connection. Redirect to Home Page ...';
+                    directHomepage();
+                });
+            };
+
+            function directHomepage() {
+                url = "./homepage.html"
+                fetch(url)
+                    .then(response => response.text())
+                    .then(html => {
+                        // 添加离开动画
+                        countdownEnd = true;
+                        refeshHtml = true;
+                        document.addEventListener('preloaderHidden', function () {
+                            window.location.href = url;
+                        });
+                    });
+            }
+
+            // Never play util windows loaded @see https://github.com/ossrs/srs/issues/2732
+            $('#rtc_media_player').prop('muted', true);
+            console.warn('For autostart, we should mute it, see https://www.jianshu.com/p/c3c6944eed5a ' +
+                'or https://developers.google.com/web/updates/2017/09/autoplay-policy-changes#audiovideo_elements');
+            window.addEventListener("load", function(){ startPlay(); });
+        });
+        </script>
+    </body>
+</html>
+

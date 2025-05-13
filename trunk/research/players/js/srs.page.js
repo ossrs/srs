@@ -129,7 +129,7 @@ function build_default_whip_whep_url(query, apiPath) {
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;
     var app = (!query.app)? "live":query.app;
     var stream = (!query.stream)? "livestream":query.stream;
-    var api = ':' + (query.api || (window.location.protocol === 'http:' ? '1985' : '1990'));
+    var api = ':' + (query.api || (query.schema === 'http' ? '1985' : '1990'));
     const realApiPath = query.path || apiPath;
 
     var queries = [];
@@ -141,7 +141,9 @@ function build_default_whip_whep_url(query, apiPath) {
     }
     queries = user_extra_params(query, queries, true);
 
-    var uri = window.location.protocol + "//" + server + api + realApiPath + "?app=" + app + "&stream=" + stream + "&" + queries.join('&');
+    schema = query.schema || window.location.protocol.slice(0, -1);
+
+    var uri = schema + "://" + server + api + realApiPath + "?app=" + app + "&stream=" + stream + "&" + queries.join('&');
     while (uri.lastIndexOf("?") === uri.length - 1) {
         uri = uri.slice(0, uri.length - 1);
     }
@@ -179,4 +181,8 @@ function srs_init_whip(id, query) {
 function srs_init_whep(id, query) {
     update_nav();
     $(id).val(build_default_whip_whep_url(query, '/rtc/v1/whep/'));
+}
+
+function srs_get_whep(query) {
+    return build_default_whip_whep_url(query, '/rtc/v1/whep/');
 }

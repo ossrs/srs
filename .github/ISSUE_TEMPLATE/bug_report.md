@@ -1,14 +1,13 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: ''
+title: ""
 labels: bug
-assignees: ''
-
+assignees: ""
 ---
 
-!!! Before submitting a new bug report, please ensure you have searched for any existing bugs. Duplicate issues or 
-questions that are overly simple or already addressed in the documentation will be removed without any 
+!!! Before submitting a new bug report, please ensure you have searched for any existing bugs. Duplicate issues or
+questions that are overly simple or already addressed in the documentation will be removed without any
 response.
 
 **Describe the bug**
@@ -19,6 +18,7 @@ Desribe your SRS Server version here.
 
 **To Reproduce**
 Steps to reproduce the behavior:
+
 1. Go to '...'
 2. Click on '....'
 3. Scroll down to '....'

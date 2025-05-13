@@ -1,0 +1,28 @@
+name: OSSR-SRS
+
+services:
+  srs:
+    container_name: SRS-Streaming-Server
+    # image: ossrs/srs:v6.0.166
+    # image: itprefects/srs:v6.0.166.1h
+    image: itprefects/srs:v6.0.166.2b
+    restart: unless-stopped
+    environment:
+      - SRS_DAEMON=off
+      - SRS_IN_DOCKER=on
+      - CANDIDATE=127.0.0.1
+    working_dir: /usr/local/srs
+    ports:
+      - "10080:10080/udp"
+      - "1935:1935"
+      - "1985:1985"
+      - "1990:1990"
+      - "5060:5060"
+      - "8000:8000/udp"
+      - "8080:8080"
+      - "8088:8088"
+      - "9000:9000"
+    volumes:
+      - ./docker_data/config:/usr/local/srs/conf
+      - ./docker_data/DVR_Record:/usr/local/srs/DVR_Record
+      - ./docker_data/objects:/usr/local/srs/objs
