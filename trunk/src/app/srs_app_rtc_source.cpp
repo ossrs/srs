@@ -1758,39 +1758,15 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
             return srs_error_new(ERROR_RTC_RTP_MUXER, "no vps or sps or pps in stap-a hevc rtp. vps: %p, sps:%p, pps:%p", vps, sps, pps);
         }
 
+        err = packet_vps_sps_pps(pkt, vps, sps, pps);
+
         // Always reset the VPS/SPS/PPS cache after used it.
         srs_freep(obs_whip_vps_);
         srs_freep(obs_whip_sps_);
         srs_freep(obs_whip_pps_);
 
-        std::string sh;
-        SrsUniquePtr<SrsRawHEVCStream> hevc(new SrsRawHEVCStream());
-        std::vector<string> h265_pps = { string(pps->bytes, pps->size) };
-        if ((err = hevc->mux_sequence_header(string(vps->bytes, vps->size), string(sps->bytes, sps->size), h265_pps, sh)) != srs_success) {
-            return srs_error_wrap(err, "mux sequence header");
-        }
-
-        char* flv = NULL;
-        int nb_flv = 0;
-        if ((err = hevc->mux_avc2flv_enhanced(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoHEVCFrameTraitPacketTypeSequenceStart, pkt->get_avsync_time(),
-                                    pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
-            return srs_error_wrap(err, "mux sequence header");
-        }
-
-        SrsMessageHeader header;
-        header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
-        SrsCommonMessage rtmp;
-        if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
-            return srs_error_wrap(err, "create rtmp");
-        }
-
-        SrsSharedPtrMessage msg;
-        if ((err = msg.create(&rtmp)) != srs_success) {
-            return srs_error_wrap(err, "create message");
-        }
-
-        if ((err = bridge_->on_frame(&msg)) != srs_success) {
-            return err;
+        if (err != srs_success) {
+            return srs_error_wrap(err, "packet vps/sps/pps");
         }
     }
 
@@ -1868,6 +1844,43 @@ srs_error_t SrsRtcFrameBuilder::packet_sps_pps(SrsRtpPacket* pkt, SrsSample* sps
             SrsVideoAvcFrameTraitSequenceHeader, pkt->get_avsync_time(),
             pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "avc to flv");
+    }
+
+    SrsMessageHeader header;
+    header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
+    SrsCommonMessage rtmp;
+    if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "create rtmp");
+    }
+
+    SrsSharedPtrMessage msg;
+    if ((err = msg.create(&rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create message");
+    }
+
+    if ((err = bridge_->on_frame(&msg)) != srs_success) {
+        return err;
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcFrameBuilder::packet_vps_sps_pps(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps)
+{
+    srs_error_t err = srs_success;
+
+    std::string sh;
+    SrsUniquePtr<SrsRawHEVCStream> hevc(new SrsRawHEVCStream());
+    std::vector<string> h265_pps = { string(pps->bytes, pps->size) };
+    if ((err = hevc->mux_sequence_header(string(vps->bytes, vps->size), string(sps->bytes, sps->size), h265_pps, sh)) != srs_success) {
+        return srs_error_wrap(err, "mux sequence header");
+    }
+
+    char* flv = NULL;
+    int nb_flv = 0;
+    if ((err = hevc->mux_avc2flv_enhanced(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoHEVCFrameTraitPacketTypeSequenceStart, pkt->get_avsync_time(),
+                                pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "mux sequence header");
     }
 
     SrsMessageHeader header;
