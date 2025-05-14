@@ -14,6 +14,12 @@
 
 class SrsBuffer;
 class SrsBitBuffer;
+class SrsFormat;
+
+// @see: https://datatracker.ietf.org/doc/html/rfc6184#section-1.3  
+const int SrsAvcNaluHeaderSize = 1;
+// @see: https://datatracker.ietf.org/doc/html/rfc7798#section-1.1.4
+const int SrsHevcNaluHeaderSize = 2;
 
 /**
  * The video codec id.
@@ -421,6 +427,8 @@ enum SrsAvcNaluType
     // Coded slice extension slice_layer_extension_rbsp( )
     SrsAvcNaluTypeCodedSliceExt = 20,
 };
+// @see https://datatracker.ietf.org/doc/html/rfc6184#section-1.3
+#define SrsAvcNaluTypeParse(code) (SrsAvcNaluType)(code & 0x1F)
 std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
 
 #ifdef SRS_H265
@@ -496,7 +504,18 @@ enum SrsHevcNaluType {
     SrsHevcNaluType_UNSPECIFIED_63,
     SrsHevcNaluType_INVALID,
 };
+// @see https://datatracker.ietf.org/doc/html/rfc7798#section-1.1.4
 #define SrsHevcNaluTypeParse(code) (SrsHevcNaluType)((code & 0x7E) >> 1)
+
+/**
+ * @see Table 7-7 – Name association to slice_type
+ * @doc ITU-T-H.265-2021.pdf, page 116.
+ */
+enum SrsHevcSliceType {
+    SrsHevcSliceTypeB = 0,
+    SrsHevcSliceTypeP = 1,
+    SrsHevcSliceTypeI = 2,
+};
 
 struct SrsHevcNalData {
     uint16_t nal_unit_length;
@@ -1320,7 +1339,10 @@ public:
     virtual SrsVideoCodecConfig* vcodec();
 public:
     static srs_error_t parse_avc_nalu_type(const SrsSample* sample, SrsAvcNaluType& avc_nalu_type);
-    static srs_error_t parse_avc_b_frame(const SrsSample* sample, bool& is_b_frame);
+    static srs_error_t parse_avc_bframe(const SrsSample* sample, bool& is_b_frame);
+
+    static srs_error_t parse_hevc_nalu_type(const SrsSample* sample, SrsHevcNaluType& hevc_nalu_type);
+    static srs_error_t parse_hevc_bframe(const SrsSample* sample, SrsFormat* format, bool& is_b_frame);
 };
 
 /**
