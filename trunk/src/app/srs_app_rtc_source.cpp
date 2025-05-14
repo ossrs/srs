@@ -639,7 +639,7 @@ srs_error_t SrsRtcSource::on_publish()
 
         if ((err = frame_builder_->on_publish()) != srs_success) {
             return srs_error_wrap(err, "frame builder on publish");
-        }     
+        }
 #endif
 
         if ((err = bridge_->on_publish()) != srs_success) {
@@ -1979,6 +1979,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     SrsRtpPacket* pkt = cache_video_pkts_[cache_index(start)].pkt;
 
     if (video_codec_ == SrsVideoCodecIdHEVC) {
+        // IsExHeader | FrameType | PacketType + Video FourCC
         nb_payload += 1 + 4;
     } else {
         //type_codec1 + avc_type + composition time + nalu size + nalu

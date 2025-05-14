@@ -61,7 +61,7 @@ SrsVideoCodecId srs_video_codec_str2id(const std::string& codec);
 
 /* Extended VideoTagHeader
  * defined in reference link:
- * https://github.com/veovera/enhanced-rtmp/blob/main/enhanced-rtmp-v1.pdf
+ * https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf
  * */
 #define SRS_FLV_IS_EX_HEADER          0x80
 
