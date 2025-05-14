@@ -1978,13 +1978,15 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     SrsCommonMessage rtmp;
     SrsRtpPacket* pkt = cache_video_pkts_[cache_index(start)].pkt;
 
-    if (video_codec_ == SrsVideoCodecIdHEVC) {
-        // IsExHeader | FrameType | PacketType + Video FourCC
-        nb_payload += 1 + 4;
-    } else {
-        //type_codec1 + avc_type + composition time + nalu size + nalu
-        nb_payload += 1 + 1 + 3;
+    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
+    if (pkt->is_keyframe()) {
+        frame_type = SrsVideoAvcFrameTypeKeyFrame;
+        rtp_key_frame_ts_ = -1;
     }
+
+    // h265: IsExHeader | FrameType | PacketType + Video FourCC
+    // h264: FrameType | CodecID + avc_type + composition time + nalu size + nalu
+    nb_payload += 5;
 
     rtmp.header.initialize_video(nb_payload, pkt->get_avsync_time(), 1);
     rtmp.create_payload(nb_payload);
@@ -1992,12 +1994,6 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     SrsBuffer payload(rtmp.payload, rtmp.size);
     if (video_codec_ == SrsVideoCodecIdHEVC) {
         // @see: https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf, page 8
-        SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-        uint8_t packet_type = SrsVideoHEVCFrameTraitPacketTypeCodedFrames;
-        if (pkt->is_keyframe()) {
-            frame_type = SrsVideoAvcFrameTypeKeyFrame;
-            rtp_key_frame_ts_ = -1;
-        }
         payload.write_1bytes(SRS_FLV_IS_EX_HEADER | (frame_type << 4) | SrsVideoHEVCFrameTraitPacketTypeCodedFramesX);
         payload.write_4bytes(0x68766331); // 'h' 'v' 'c' '1'
     } else {
@@ -2005,12 +2001,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
         // Frame Type, Type of video frame.
         // CodecID, Codec Identifier.
         // set the rtmp header
-        if (pkt->is_keyframe()) {
-            payload.write_1bytes(0x17); // type(4 bits): key frame; code(4bits): avc
-            rtp_key_frame_ts_ = -1;
-        } else {
-            payload.write_1bytes(0x27); // type(4 bits): inter frame; code(4bits): avc
-        }
+        payload.write_1bytes((frame_type << 4) | video_codec_);
         payload.write_1bytes(0x01); // avc_type: nalu
         payload.write_1bytes(0x0);  // composition time
         payload.write_1bytes(0x0);

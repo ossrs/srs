@@ -3159,7 +3159,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             } else if (prefer_codec == SrsVideoCodecIdHEVC) {
                 std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
                 if (payloads.empty()) {
-                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h265 payload type");
+                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid h265 payload type found");
                 }
                 
                 // @see https://www.rfc-editor.org/rfc/rfc7798#section-7.2.1
@@ -3181,7 +3181,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             } else {
                 vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
                 if (payloads.empty()) {
-                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h264 payload type");
+                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid h264 payload type found");
                 }
 
                 // TODO: FIME: Should check packetization-mode=1 also.
