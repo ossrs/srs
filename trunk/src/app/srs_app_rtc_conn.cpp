@@ -2598,6 +2598,51 @@ bool srs_sdp_has_h264_profile(const SrsSdp& sdp, const string& profile)
     return false;
 }
 
+bool srs_sdp_has_h265_profile(const SrsMediaPayloadType& payload_type, const string& profile) 
+{
+    srs_error_t err = srs_success;
+
+    if (payload_type.format_specific_param_.empty()) {
+        return false;
+    }
+
+    H265SpecificParam h265_param;
+    if ((err = srs_parse_h265_fmtp(payload_type.format_specific_param_, h265_param)) != srs_success) {
+        srs_error_reset(err);
+        return false;
+    }
+
+    if (h265_param.profile_id == profile) {
+        return true;
+    }
+
+    return false;
+}
+
+bool srs_sdp_has_h265_profile(const SrsSdp& sdp, const string& profile)
+{
+    for (size_t i = 0; i < sdp.media_descs_.size(); ++i) {
+        const SrsMediaDesc& desc = sdp.media_descs_[i];
+        if (!desc.is_video()) {
+            continue;
+        }
+
+        std::vector<SrsMediaPayloadType> payloads = desc.find_media_with_encoding_name("H265");
+        if (payloads.empty()) {
+            continue;
+        }
+
+        for (std::vector<SrsMediaPayloadType>::iterator it = payloads.begin(); it != payloads.end(); ++it) {
+            const SrsMediaPayloadType& payload_type = *it;
+            if (srs_sdp_has_h265_profile(payload_type, profile)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc, SrsRtcSourceDescription* stream_desc)
 {
     srs_error_t err = srs_success;
@@ -3041,8 +3086,6 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
 
     bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
     bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
-    // TODO: FIME: Should check packetization-mode=1 also.
-    bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
     SrsSharedPtr<SrsRtcSource> source;
     if ((err = _srs_rtc_sources->fetch_or_create(req, source)) != srs_success) {
@@ -3083,56 +3126,87 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
 
             remote_payload = payloads.at(0);
             track_descs = source->get_track_desc("audio", "opus");
-        } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
-            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1");
-            if (payloads.empty()) {
-                // Be compatible with the Chrome M96, still check the AV1X encoding name
-                // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
-                payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
-            }
-            if (payloads.empty()) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid AV1 payload type");
-            }
-
-            remote_payload = payloads.at(0);
-            track_descs = source->get_track_desc("video", "AV1");
-            if (track_descs.empty()) {
-                // Be compatible with the Chrome M96, still check the AV1X encoding name
-                // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
-                track_descs = source->get_track_desc("video", "AV1X");
-            }
-        } else if (remote_media_desc.is_video() && ruc->codec_ == "hevc") {
-            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
-            if (payloads.empty()) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h265 payload type");
-            }
-
-            remote_payload = payloads.at(0);
-
-            // TODO: FIXME: pick up a profile for HEVC.
-            // @see https://www.rfc-editor.org/rfc/rfc7798#section-7.2.1
-
-            track_descs = source->get_track_desc("video", "H265");
         } else if (remote_media_desc.is_video()) {
-            // TODO: check opus format specific param
-            vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
-            if (payloads.empty()) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h264 payload type");
-            }
-
-            remote_payload = payloads.at(0);
-            for (int j = 0; j < (int)payloads.size(); j++) {
-                const SrsMediaPayloadType& payload = payloads.at(j);
-
-                // If exists 42e01f profile, choose it; otherwise, use the first payload.
-                // TODO: FIME: Should check packetization-mode=1 also.
-                if (!has_42e01f || srs_sdp_has_h264_profile(payload, "42e01f")) {
-                    remote_payload = payload;
-                    break;
+            std::string prefer_codec = ruc->codec_; 
+            if (prefer_codec.empty()) {
+                // Get the source codec if not specified.
+                std::vector<SrsRtcTrackDescription*> track_descs = source->get_track_desc("video", "");
+                if (!track_descs.empty()) {
+                    std::string codec_name = track_descs.at(0)->media_->name_;
+                    std::transform(codec_name.begin(), codec_name.end(), codec_name.begin(), ::tolower);
+                    if (codec_name == "h265") {
+                        prefer_codec = "hevc";
+                    } else {
+                        prefer_codec = codec_name;
+                    }
+                } else {
+                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no video track in source");
                 }
             }
 
-            track_descs = source->get_track_desc("video", "H264");
+            if (prefer_codec == "av1") {
+                std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1");
+                if (payloads.empty()) {
+                    // Be compatible with the Chrome M96, still check the AV1X encoding name
+                    // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
+                    payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+                }
+                if (payloads.empty()) {
+                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid AV1 payload type");
+                }
+
+                remote_payload = payloads.at(0);
+                track_descs = source->get_track_desc("video", "AV1");
+                if (track_descs.empty()) {
+                    // Be compatible with the Chrome M96, still check the AV1X encoding name
+                    // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
+                    track_descs = source->get_track_desc("video", "AV1X");
+                }
+            } else if (prefer_codec == "hevc") {
+                std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
+                if (payloads.empty()) {
+                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h265 payload type");
+                }
+                
+                // @see https://www.rfc-editor.org/rfc/rfc7798#section-7.2.1
+                bool has_main_profile = srs_sdp_has_h265_profile(remote_sdp, "1");
+                remote_payload = payloads.at(0);
+
+                for (int j = 0; j < (int)payloads.size(); j++) {
+                    const SrsMediaPayloadType& payload = payloads.at(j);
+
+                    // For H.265, we only check if profile-id=1 (Main Profile)
+                    // Format example: level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST
+                    if (!has_main_profile || srs_sdp_has_h265_profile(payload, "1")) {
+                        remote_payload = payload;
+                        break;
+                    }
+                }
+
+                track_descs = source->get_track_desc("video", "H265");
+            } else {
+                vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
+                if (payloads.empty()) {
+                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h264 payload type");
+                }
+
+                // TODO: FIME: Should check packetization-mode=1 also.
+                bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
+
+                remote_payload = payloads.at(0);
+                for (int j = 0; j < (int)payloads.size(); j++) {
+                    const SrsMediaPayloadType& payload = payloads.at(j);
+
+                    // If exists 42e01f profile, choose it; otherwise, use the first payload.
+                    // TODO: FIME: Should check packetization-mode=1 also.
+                    if (!has_42e01f || srs_sdp_has_h264_profile(payload, "42e01f")) {
+                        remote_payload = payload;
+                        break;
+                    }
+                }
+
+                track_descs = source->get_track_desc("video", "H264");
+            }
         }
 
         for (int j = 0; j < (int)track_descs.size(); ++j) {
@@ -3238,7 +3312,11 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, 
 
     SrsVideoPayload* payload = (SrsVideoPayload*)track->media_;
 
-    local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
+    if (payload->name_ == "H265") {
+        local_media_desc.payload_types_.push_back(payload->generate_media_payload_type_h265());
+    } else {
+        local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
+    }
 
     if (track->red_) {
         SrsRedPayload* red_payload = (SrsRedPayload*)track->red_;

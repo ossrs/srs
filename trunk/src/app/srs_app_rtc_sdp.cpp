@@ -92,6 +92,42 @@ srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264
     return err;
 }
 
+srs_error_t srs_parse_h265_fmtp(const std::string& fmtp, H265SpecificParam& h265_param)
+{
+    srs_error_t err = srs_success;
+
+    std::vector<std::string> vec = srs_string_split(fmtp, ";");
+    for (size_t i = 0; i < vec.size(); ++i) {
+        std::vector<std::string> kv = srs_string_split(vec[i], "=");
+        if (kv.size() != 2) continue;
+
+        if (kv[0] == "level-id") {
+            h265_param.level_id = kv[1];
+        } else if (kv[0] == "profile-id") {
+            h265_param.profile_id = kv[1];
+        } else if (kv[0] == "tier-flag") {
+            h265_param.tier_flag = kv[1];
+        } else if (kv[0] == "tx-mode") {
+            h265_param.tx_mode = kv[1];
+        }
+    }
+
+    if (h265_param.level_id.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: level-id");
+    }
+    if (h265_param.profile_id.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: profile-id");
+    }
+    if (h265_param.tier_flag.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: tier-flag");
+    }
+    if (h265_param.tx_mode.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: tx-mode");
+    }
+
+    return err; 
+}
+
 SrsSessionInfo::SrsSessionInfo()
 {
 }
