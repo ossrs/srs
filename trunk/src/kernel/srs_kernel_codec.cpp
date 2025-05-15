@@ -707,7 +707,7 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     if (c && c->id == SrsVideoCodecIdHEVC) {
 #ifdef SRS_H265
         SrsHevcNaluType nalu_type = SrsHevcNaluTypeParse(bytes[0]);
-        has_idr = (SrsHevcNaluType_CODED_SLICE_BLA <= nalu_type) && (nalu_type <= SrsHevcNaluType_RESERVED_23);
+        has_idr = SrsIsIRAP(nalu_type);
         return err;
 #else
         return srs_error_new(ERROR_HEVC_DISABLED, "H.265 is disabled");

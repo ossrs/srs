@@ -969,7 +969,7 @@ bool SrsRtpPacket::is_keyframe()
             }
         } else if(nalu_type == kFuHevc) {
             SrsRtpFUAPayloadHevc2* fua_payload = dynamic_cast<SrsRtpFUAPayloadHevc2*>(payload_);
-            if(fua_payload->nalu_type >= SrsHevcNaluType_CODED_SLICE_BLA && fua_payload->nalu_type <= SrsHevcNaluType_RESERVED_23) {
+            if(SrsIsIRAP(fua_payload->nalu_type)) {
                 return true;
             }
         } else {

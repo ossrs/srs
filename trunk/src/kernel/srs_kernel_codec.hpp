@@ -514,6 +514,7 @@ enum SrsHevcNaluType {
 };
 // @see https://datatracker.ietf.org/doc/html/rfc7798#section-1.1.4
 #define SrsHevcNaluTypeParse(code) (SrsHevcNaluType)((code & 0x7E) >> 1)
+#define SrsIsIRAP(type) ((type >= SrsHevcNaluType_CODED_SLICE_BLA) && (type <= SrsHevcNaluType_RESERVED_23))
 
 /**
  * @see Table 7-7 – Name association to slice_type

@@ -708,7 +708,7 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
         // 4 bytes for nalu length.
         frame_size += 4 + ipb_frames[i].second;
         SrsHevcNaluType nalu_type = SrsHevcNaluTypeParse(ipb_frames[i].first[0]);
-        if ((nalu_type >= SrsHevcNaluType_CODED_SLICE_BLA) && (nalu_type <= SrsHevcNaluType_RESERVED_23)) {
+        if (SrsIsIRAP(nalu_type)) {
             frame_type = SrsVideoAvcFrameTypeKeyFrame;
         }
     }
