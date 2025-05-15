@@ -663,7 +663,7 @@ srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage* msg)
     // h265 packet to flv packet.
     char* flv = NULL;
     int nb_flv = 0;
-    if ((err = hevc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoAvcFrameTraitSequenceHeader, dts, dts, &flv, &nb_flv)) != srs_success) {
+    if ((err = hevc->mux_avc2flv_enhanced(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoHEVCFrameTraitPacketTypeSequenceStart, dts, dts, &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "avc to flv");
     }
 
@@ -720,16 +720,9 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
     SrsBuffer payload(rtmp.payload, rtmp.size);
 
     // Write 5bytes video tag header.
-
-    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
-    // Frame Type, Type of video frame.
-    // CodecID, Codec Identifier.
-    // set the rtmp header
-    payload.write_1bytes((frame_type << 4) | SrsVideoCodecIdHEVC);
-    // hevc_type: nalu
-    payload.write_1bytes(0x01);
-    // composition time
-    payload.write_3bytes(cts);
+    // @see: https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf, page 8
+    payload.write_1bytes(SRS_FLV_IS_EX_HEADER | (frame_type << 4) | SrsVideoHEVCFrameTraitPacketTypeCodedFramesX);
+    payload.write_4bytes(0x68766331); // 'h' 'v' 'c' '1'
 
     // Write video nalus.
     for (size_t i = 0; i != ipb_frames.size(); ++i) {
