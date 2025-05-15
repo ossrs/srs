@@ -94,7 +94,7 @@ struct H264SpecificParam
 {
     std::string profile_level_id;
     std::string packetization_mode;
-    std::string level_asymmerty_allow;
+    std::string level_asymmetry_allow;
 };
 
 struct H265SpecificParam

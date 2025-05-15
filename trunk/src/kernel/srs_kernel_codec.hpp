@@ -16,6 +16,12 @@ class SrsBuffer;
 class SrsBitBuffer;
 class SrsFormat;
 
+/* Extended VideoTagHeader
+ * defined in reference link:
+ * https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf
+ * */
+#define SRS_FLV_IS_EX_HEADER          0x80
+
 // @see: https://datatracker.ietf.org/doc/html/rfc6184#section-1.3  
 const int SrsAvcNaluHeaderSize = 1;
 // @see: https://datatracker.ietf.org/doc/html/rfc7798#section-1.1.4
@@ -57,6 +63,7 @@ enum SrsVideoCodecId
     SrsVideoCodecIdAV1 = 13,
 };
 std::string srs_video_codec_id2str(SrsVideoCodecId codec);
+SrsVideoCodecId srs_video_codec_str2id(const std::string& codec);
 
 /**
  * The video AVC frame trait(characteristic).
@@ -173,6 +180,7 @@ enum SrsAudioCodecId
     SrsAudioCodecIdReservedDeviceSpecificSound = 15,
 };
 std::string srs_audio_codec_id2str(SrsAudioCodecId codec);
+SrsAudioCodecId srs_audio_codec_str2id(const std::string& codec);
 
 /**
  * The audio AAC frame trait(characteristic).

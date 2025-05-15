@@ -583,6 +583,39 @@ srs_error_t SrsRawHEVCStream::mux_avc2flv(std::string video, int8_t frame_type, 
 
     return err;
 }
+
+srs_error_t SrsRawHEVCStream::mux_avc2flv_enhanced(std::string video, int8_t frame_type, int8_t packet_type, uint32_t dts, uint32_t pts, char ** flv, int * nb_flv)
+{
+    srs_error_t err = srs_success;
+
+    // for h265 in RTMP video payload, there is 5bytes header:
+    //      1bytes, IsExHeader | FrameType | PacketType
+    //      4bytes, Video FourCC. AV1 = { 'a', 'v', '0', '1' }
+    //                            VP9 = { 'v', 'p', '0', '9' }
+    //                            HEVC = { 'h', 'v', 'c', '1' }
+    // @see: enhanced-rtmp-v1.pdf, page 9
+    int size = (int)video.length() + 5;
+    char *data = new char[size];
+    char *p = data;
+
+    // IsExHeader | FrameType | PacketType
+    *p++ = SRS_FLV_IS_EX_HEADER | (frame_type << 4) | packet_type;
+
+    // Video FourCC.
+    *p++ = 'h';
+    *p++ = 'v';
+    *p++ = 'c';
+    *p++ = '1';
+
+    // hevc raw data.
+    memcpy(p, video.data(), video.length());
+
+    *flv = data;
+    *nb_flv = size;
+
+    return err;
+}
+
 #endif
 
 SrsRawAacStream::SrsRawAacStream()

@@ -319,7 +319,9 @@ private:
     ISrsStreamBridge* bridge_;
 private:
     bool is_first_audio_;
-    SrsAudioTranscoder *codec_;
+    SrsAudioTranscoder *audio_transcoder_;
+
+    SrsVideoCodecId video_codec_;
 private:
     const static uint16_t s_cache_size = 512;
     //TODO:use SrsRtpRingBuffer
@@ -339,14 +341,15 @@ private:
     // The state for timestamp sync state. -1 for init. 0 not sync. 1 sync.
     int sync_state_;
 private:
-    // For OBS WHIP, send SPS/PPS in dedicated RTP packet.
+    // For OBS WHIP, send (VPS/)SPS/PPS in dedicated RTP packet.
+    SrsRtpPacket* obs_whip_vps_;
     SrsRtpPacket* obs_whip_sps_;
     SrsRtpPacket* obs_whip_pps_;
 public:
     SrsRtcFrameBuilder(ISrsStreamBridge* bridge);
     virtual ~SrsRtcFrameBuilder();
 public:
-    srs_error_t initialize(SrsRequest* r);
+    srs_error_t initialize(SrsRequest* r, SrsAudioCodecId audio_codec, SrsVideoCodecId video_codec);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
     virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
@@ -357,6 +360,8 @@ private:
     srs_error_t packet_video(SrsRtpPacket* pkt);
     srs_error_t packet_video_key_frame(SrsRtpPacket* pkt);
     srs_error_t packet_sps_pps(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps);
+
+    srs_error_t packet_vps_sps_pps(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps);
 private:
     inline uint16_t cache_index(uint16_t current_sn) {
         return current_sn % s_cache_size;
