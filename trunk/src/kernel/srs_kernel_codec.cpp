@@ -791,6 +791,7 @@ srs_error_t SrsVideoFrame::parse_avc_bframe(const SrsSample* sample, bool& is_b_
     return err;
 }
 
+#ifdef SRS_H265
 srs_error_t SrsVideoFrame::parse_hevc_nalu_type(const SrsSample* sample, SrsHevcNaluType& hevc_nalu_type)
 {
     srs_error_t err = srs_success;
@@ -871,6 +872,7 @@ srs_error_t SrsVideoFrame::parse_hevc_bframe(const SrsSample* sample, SrsFormat 
 
     return err;
 }
+#endif
 
 SrsFormat::SrsFormat()
 {

@@ -360,8 +360,9 @@ private:
     srs_error_t packet_video(SrsRtpPacket* pkt);
     srs_error_t packet_video_key_frame(SrsRtpPacket* pkt);
     srs_error_t packet_sps_pps(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps);
-
+#ifdef SRS_H265
     srs_error_t packet_vps_sps_pps(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps);
+#endif
 private:
     inline uint16_t cache_index(uint16_t current_sn) {
         return current_sn % s_cache_size;
