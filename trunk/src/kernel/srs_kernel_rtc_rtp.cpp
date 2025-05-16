@@ -754,7 +754,7 @@ ISrsRtspPacketDecodeHandler::~ISrsRtspPacketDecodeHandler()
 SrsRtpPacket::SrsRtpPacket()
 {
     payload_ = NULL;
-    payload_type_ = SrsRtspPacketPayloadTypeUnknown;
+    payload_type_ = SrsRtpPacketPayloadTypeUnknown;
     shared_buffer_ = NULL;
     actual_buffer_size_ = 0;
 
@@ -929,7 +929,7 @@ srs_error_t SrsRtpPacket::decode(SrsBuffer* buf)
     // By default, we always use the RAW payload.
     if (!payload_) {
         payload_ = new SrsRtpRawPayload();
-        payload_type_ = SrsRtspPacketPayloadTypeRaw;
+        payload_type_ = SrsRtpPacketPayloadTypeRaw;
     }
 
     if ((err = payload_->decode(buf)) != srs_success) {

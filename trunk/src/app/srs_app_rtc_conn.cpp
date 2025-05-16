@@ -1500,7 +1500,7 @@ srs_error_t SrsRtcPublishStream::check_send_nacks()
     return err;
 }
 
-void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt)
+void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt)
 {
     // No payload, ignore.
     if (buf->empty()) {

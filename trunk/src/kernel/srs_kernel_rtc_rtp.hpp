@@ -253,17 +253,17 @@ public:
 };
 
 // The payload type, for performance to avoid dynamic cast.
-enum SrsRtspPacketPayloadType
+enum SrsRtpPacketPayloadType
 {
-    SrsRtspPacketPayloadTypeRaw,
-    SrsRtspPacketPayloadTypeFUA2,
-    SrsRtspPacketPayloadTypeFUAHevc2,
-    SrsRtspPacketPayloadTypeFUA,
-    SrsRtspPacketPayloadTypeFUAHevc,
-    SrsRtspPacketPayloadTypeNALU,
-    SrsRtspPacketPayloadTypeSTAP,
-    SrsRtspPacketPayloadTypeSTAPHevc,
-    SrsRtspPacketPayloadTypeUnknown,
+    SrsRtpPacketPayloadTypeRaw,
+    SrsRtpPacketPayloadTypeFUA2,
+    SrsRtpPacketPayloadTypeFUAHevc2,
+    SrsRtpPacketPayloadTypeFUA,
+    SrsRtpPacketPayloadTypeFUAHevc,
+    SrsRtpPacketPayloadTypeNALU,
+    SrsRtpPacketPayloadTypeSTAP,
+    SrsRtpPacketPayloadTypeSTAPHevc,
+    SrsRtpPacketPayloadTypeUnknown,
 };
 
 class ISrsRtspPacketDecodeHandler
@@ -273,7 +273,7 @@ public:
     virtual ~ISrsRtspPacketDecodeHandler();
 public:
     // We don't know the actual payload, so we depends on external handler.
-    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt) = 0;
+    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt) = 0;
 };
 
 // The RTP packet with cached shared message.
@@ -284,7 +284,7 @@ public:
     SrsRtpHeader header;
 private:
     ISrsRtpPayloader* payload_;
-    SrsRtspPacketPayloadType payload_type_;
+    SrsRtpPacketPayloadType payload_type_;
 private:
     // The original shared message, all RTP packets can refer to its data.
     // Note that the size of shared msg, is not the packet size, it's a larger aligned buffer.
@@ -323,7 +323,7 @@ public:
     void enable_twcc_decode() { header.enable_twcc_decode(); } // SrsRtpPacket::enable_twcc_decode
     // Get and set the payload of packet.
     // @remark Note that return NULL if no payload.
-    void set_payload(ISrsRtpPayloader* p, SrsRtspPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
+    void set_payload(ISrsRtpPayloader* p, SrsRtpPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
     ISrsRtpPayloader* payload() { return payload_; }
     // Set the padding of RTP packet.
     void set_padding(int size);
