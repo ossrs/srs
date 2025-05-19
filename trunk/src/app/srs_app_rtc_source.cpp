@@ -1671,7 +1671,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video(SrsRtpPacket* src)
     // TODO: Only copy when need
     SrsRtpPacket* pkt = src->copy();
 
-    if (pkt->is_keyframe()) {
+    if (pkt->is_keyframe(video_codec_)) {
         return packet_video_key_frame(pkt);
     }
 
@@ -1708,91 +1708,17 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
-    // For OBS WHIP, it uses RTP Raw packet with SPS/PPS/IDR frame. Note that not all
-    // raw payload is SPS/PPS.
-    bool has_sps_pps_in_raw_payload = false;
-    SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
-    if (raw_payload) {
-        if (pkt->nalu_type == SrsAvcNaluTypeSPS) {
-            has_sps_pps_in_raw_payload = true;
-            srs_freep(obs_whip_sps_);
-            obs_whip_sps_ = pkt->copy();
-        } else if (pkt->nalu_type == SrsAvcNaluTypePPS) {
-            has_sps_pps_in_raw_payload = true;
-            srs_freep(obs_whip_pps_);
-            obs_whip_pps_ = pkt->copy();
+    if (video_codec_ == SrsVideoCodecIdAVC) {
+        err = packet_sps_pps(pkt);
 #ifdef SRS_H265
-        } else if (pkt->nalu_type == SrsHevcNaluType_VPS) {
-            has_sps_pps_in_raw_payload = true;
-            srs_freep(obs_whip_vps_);
-            obs_whip_vps_ = pkt->copy();
-        } else if (pkt->nalu_type == SrsHevcNaluType_SPS) {
-            has_sps_pps_in_raw_payload = true;
-            srs_freep(obs_whip_sps_);
-            obs_whip_sps_ = pkt->copy();
-        } else if (pkt->nalu_type == SrsHevcNaluType_PPS) {
-            has_sps_pps_in_raw_payload = true;
-            srs_freep(obs_whip_pps_);
-            obs_whip_pps_ = pkt->copy();
+    } else if (video_codec_ == SrsVideoCodecIdHEVC) {
+        err = packet_vps_sps_pps(pkt);
 #endif
-        }
-        // Ignore if one of OBS WHIP SPS/PPS is not ready.
-        if (has_sps_pps_in_raw_payload && (!obs_whip_sps_ || !obs_whip_pps_)) {
-            return err;
-        }
     }
 
-    // Generally, there will be SPS+PPS+IDR in a STAP-A packet.
-    SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
-
-    // Handle SPS/PPS in cache or STAP-A packet.
-    if (video_codec_ == SrsVideoCodecIdAVC && (stap_payload || has_sps_pps_in_raw_payload)) {
-        // Get the SPS/PPS from cache or STAP-A packet.
-        SrsSample* sps = stap_payload ? stap_payload->get_sps() : NULL;
-        if (!sps && obs_whip_sps_) sps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_sps_->payload())->sample_;
-        SrsSample* pps = stap_payload ? stap_payload->get_pps() : NULL;
-        if (!pps && obs_whip_pps_) pps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_pps_->payload())->sample_;
-        if (!sps || !pps) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "no sps/pps in stap-a rtp. sps: %p, pps:%p", sps, pps);
-        }
-
-        // Packet SPS/PPS to RTMP keyframe.
-        err = packet_sps_pps(pkt, sps, pps);
-
-        // Always reset the SPS/PPS cache after used it.
-        srs_freep(obs_whip_sps_);
-        srs_freep(obs_whip_pps_);
-        
-        if (err != srs_success) {
-            return srs_error_wrap(err, "packet sps/pps");
-        }
+    if (err != srs_success) {
+        return srs_error_wrap(err, "packet video key frame");
     }
-
-#ifdef SRS_H265
-    SrsRtpSTAPPayloadHevc* stap_payload_hevc = dynamic_cast<SrsRtpSTAPPayloadHevc*>(pkt->payload());
-    if (video_codec_ == SrsVideoCodecIdHEVC && (stap_payload_hevc || has_sps_pps_in_raw_payload)) {
-        SrsSample* vps = stap_payload_hevc ? stap_payload_hevc->get_vps() : NULL;
-        if (!vps && obs_whip_vps_) vps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_vps_->payload())->sample_;
-        SrsSample* sps = stap_payload_hevc ? stap_payload_hevc->get_sps() : NULL;
-        if (!sps && obs_whip_sps_) sps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_sps_->payload())->sample_;
-        SrsSample* pps = stap_payload_hevc ? stap_payload_hevc->get_pps() : NULL;
-        if (!pps && obs_whip_pps_) pps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_pps_->payload())->sample_;
-        if (!vps || !sps || !pps) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "no vps/sps/pps in stap-a hevc rtp. vps: %p, sps:%p, pps:%p", vps, sps, pps);
-        }
-
-        err = packet_vps_sps_pps(pkt, vps, sps, pps);
-
-        // Always reset the VPS/SPS/PPS cache after used it.
-        srs_freep(obs_whip_vps_);
-        srs_freep(obs_whip_sps_);
-        srs_freep(obs_whip_pps_);
-
-        if (err != srs_success) {
-            return srs_error_wrap(err, "packet vps/sps/pps");
-        }
-    }
-#endif
 
     if (-1 == rtp_key_frame_ts_) {
         rtp_key_frame_ts_ = pkt->header.get_timestamp();
@@ -1847,6 +1773,57 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
     return err;
 }
 
+srs_error_t SrsRtcFrameBuilder::packet_sps_pps(SrsRtpPacket* pkt)
+{
+    srs_error_t err = srs_success;
+
+    // For OBS WHIP, it uses RTP Raw packet with SPS/PPS/IDR frame. Note that not all
+    // raw payload is SPS/PPS.
+    bool has_sps_pps_in_raw_payload = false;
+    SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
+    if (raw_payload) {
+        if (pkt->nalu_type == SrsAvcNaluTypeSPS) {
+            has_sps_pps_in_raw_payload = true;
+            srs_freep(obs_whip_sps_);
+            obs_whip_sps_ = pkt->copy();
+        } else if (pkt->nalu_type == SrsAvcNaluTypePPS) {
+            has_sps_pps_in_raw_payload = true;
+            srs_freep(obs_whip_pps_);
+            obs_whip_pps_ = pkt->copy();
+        }
+        // Ignore if one of OBS WHIP SPS/PPS is not ready.
+        if (has_sps_pps_in_raw_payload && (!obs_whip_sps_ || !obs_whip_pps_)) {
+            return err;
+        }
+    }
+    // Generally, there will be SPS+PPS+IDR in a STAP-A packet.
+    SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
+
+    // Handle SPS/PPS in cache or STAP-A packet.
+    if (stap_payload || has_sps_pps_in_raw_payload) {
+        // Get the SPS/PPS from cache or STAP-A packet.
+        SrsSample* sps = stap_payload ? stap_payload->get_sps() : NULL;
+        if (!sps && obs_whip_sps_) sps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_sps_->payload())->sample_;
+        SrsSample* pps = stap_payload ? stap_payload->get_pps() : NULL;
+        if (!pps && obs_whip_pps_) pps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_pps_->payload())->sample_;
+        if (!sps || !pps) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "no sps or pps in stap-a rtp. sps: %p, pps:%p", sps, pps);
+        }
+
+        // Packet SPS/PPS to RTMP keyframe.
+        err = packet_sps_pps(pkt, sps, pps);
+        // Always reset the SPS/PPS cache after used it.
+        srs_freep(obs_whip_sps_);
+        srs_freep(obs_whip_pps_);
+        
+        if (err != srs_success) {
+            return srs_error_wrap(err, "packet sps/pps");
+        }
+    }
+
+    return err;
+}
+
 srs_error_t SrsRtcFrameBuilder::packet_sps_pps(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps)
 {
     srs_error_t err = srs_success;
@@ -1890,6 +1867,62 @@ srs_error_t SrsRtcFrameBuilder::packet_sps_pps(SrsRtpPacket* pkt, SrsSample* sps
 }
 
 #ifdef SRS_H265
+srs_error_t SrsRtcFrameBuilder::packet_vps_sps_pps(SrsRtpPacket* pkt)
+{
+    srs_error_t err = srs_success;
+
+    // For OBS WHIP, it uses RTP Raw packet with VPS/SPS/PPS/IDR frame. Note that not all
+    // raw payload is VPS/SPS/PPS.
+    bool has_vps_sps_pps_in_raw_payload = false;
+    SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
+    if (raw_payload) {
+        if (pkt->nalu_type == SrsHevcNaluType_VPS) {
+            has_vps_sps_pps_in_raw_payload = true;
+            srs_freep(obs_whip_vps_);
+            obs_whip_vps_ = pkt->copy();
+        } else if (pkt->nalu_type == SrsHevcNaluType_SPS) {
+            has_vps_sps_pps_in_raw_payload = true;
+            srs_freep(obs_whip_sps_);
+            obs_whip_sps_ = pkt->copy();
+        } else if (pkt->nalu_type == SrsHevcNaluType_PPS) {
+            has_vps_sps_pps_in_raw_payload = true;
+            srs_freep(obs_whip_pps_);
+            obs_whip_pps_ = pkt->copy();
+        }
+        // Ignore if one of OBS WHIP VPS/SPS/PPS is not ready.
+        if (has_vps_sps_pps_in_raw_payload && (!obs_whip_vps_ || !obs_whip_sps_ || !obs_whip_pps_)) {
+            return err;
+        }
+    }
+
+    // Generally, there will be SPS+PPS+IDR in a STAP-A packet.
+    SrsRtpSTAPPayloadHevc* stap_payload_hevc = dynamic_cast<SrsRtpSTAPPayloadHevc*>(pkt->payload());
+    if (video_codec_ == SrsVideoCodecIdHEVC && (stap_payload_hevc || has_vps_sps_pps_in_raw_payload)) {
+        SrsSample* vps = stap_payload_hevc ? stap_payload_hevc->get_vps() : NULL;
+        if (!vps && obs_whip_vps_) vps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_vps_->payload())->sample_;
+        SrsSample* sps = stap_payload_hevc ? stap_payload_hevc->get_sps() : NULL;
+        if (!sps && obs_whip_sps_) sps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_sps_->payload())->sample_;
+        SrsSample* pps = stap_payload_hevc ? stap_payload_hevc->get_pps() : NULL;
+        if (!pps && obs_whip_pps_) pps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_pps_->payload())->sample_;
+        if (!vps || !sps || !pps) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "no vps/sps/pps in stap-a hevc rtp. vps: %p, sps:%p, pps:%p", vps, sps, pps);
+        }
+
+        err = packet_vps_sps_pps(pkt, vps, sps, pps);
+
+        // Always reset the VPS/SPS/PPS cache after used it.
+        srs_freep(obs_whip_vps_);
+        srs_freep(obs_whip_sps_);
+        srs_freep(obs_whip_pps_);
+
+        if (err != srs_success) {
+            return srs_error_wrap(err, "packet vps/sps/pps");
+        }
+    }
+
+    return err;
+}
+
 srs_error_t SrsRtcFrameBuilder::packet_vps_sps_pps(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps)
 {
     srs_error_t err = srs_success;
@@ -2024,7 +2057,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     SrsRtpPacket* pkt = cache_video_pkts_[cache_index(start)].pkt;
 
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (pkt->is_keyframe()) {
+    if (pkt->is_keyframe(video_codec_)) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
         rtp_key_frame_ts_ = -1;
     }

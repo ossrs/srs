@@ -939,72 +939,49 @@ srs_error_t SrsRtpPacket::decode(SrsBuffer* buf)
     return err;
 }
 
-bool SrsRtpPacket::is_keyframe()
+bool SrsRtpPacket::is_keyframe(SrsVideoCodecId codec_id)
 {
     // False if audio packet
     if (SrsFrameTypeAudio == frame_type) {
         return false;
     }
 
-    // Case 1: H.264 STAP-A packet (NALU type 24)
-    // Aggregation packet containing multiple NALUs. Keyframe if SPS or PPS is present.
-    if (nalu_type == kStapA) {
-        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload_);
-        if (stap_payload && (stap_payload->get_sps() != NULL || stap_payload->get_pps() != NULL)) {
-            return true;
+    if (codec_id == SrsVideoCodecIdAVC) {
+        // It's normal H264 video rtp packet
+        if (nalu_type == kStapA) {
+            SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload_);
+            if(NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
+                return true;
+            }
+        } else if (nalu_type == kFuA) {
+            SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload_);
+            if(SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
+                return true;
+            }
+        } else {
+            if((SrsAvcNaluTypeIDR == nalu_type) || (SrsAvcNaluTypeSPS == nalu_type) || (SrsAvcNaluTypePPS == nalu_type)) {
+                return true;
+            }
         }
-    }
-
-    // Case 2: H.264 FU-A packet (NALU type 28)
-    // Fragmentation unit for a single NALU. Keyframe if the fragmented NALU is an IDR.
-    if (nalu_type == kFuA) {
-        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload_);
-        if (fua_payload && SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
-            return true;
-        }
-    }
-
 #ifdef SRS_H265
-    // Case 3: H.265 STAP-HEVC packet (NALU type 48)
-    // Aggregation packet for HEVC. Keyframe if VPS, SPS, or PPS is present.
-    if (nalu_type == kStapHevc) {
-        SrsRtpSTAPPayloadHevc* stap_payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(payload_);
-        if (stap_payload && (stap_payload->get_vps() != NULL || stap_payload->get_sps() != NULL || stap_payload->get_pps() != NULL)) {
-            return true;
+    } else if (codec_id == SrsVideoCodecIdHEVC) {
+        if(nalu_type == kStapHevc) {
+            SrsRtpSTAPPayloadHevc* stap_payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(payload_);
+            if(NULL != stap_payload->get_vps() || NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
+                return true;
+            }
+        } else if(nalu_type == kFuHevc) {
+            SrsRtpFUAPayloadHevc2* fua_payload = dynamic_cast<SrsRtpFUAPayloadHevc2*>(payload_);
+            if(SrsIsIRAP(fua_payload->nalu_type)) {
+                return true;
+            }
+        } else {
+            if(SrsIsIRAP(nalu_type) || (SrsHevcNaluType_VPS == nalu_type) || (SrsHevcNaluType_SPS == nalu_type) || (SrsHevcNaluType_PPS == nalu_type)) {
+                return true;
+            }
         }
-    }
-
-    // Case 4: H.265 FU-HEVC packet (NALU type 49)
-    // Fragmentation unit for HEVC. Keyframe if the fragmented NALU is an IRAP picture.
-    // IRAP NALU types for H.265 are typically in the range 16-23.
-    if (nalu_type == kFuHevc) {
-        SrsRtpFUAPayloadHevc2* fua_payload = dynamic_cast<SrsRtpFUAPayloadHevc2*>(payload_);
-        if (fua_payload && SrsIsIRAP(fua_payload->nalu_type)) {
-            return true;
-        }
-    }
 #endif
-
-    // Case 5: Single NALU packet
-    // If nalu_type is not an aggregation type (kStapA, kFuA, kStapHevc, kFuHevc),
-    // then SrsRtpPacket::nalu_type holds the actual NALU type of the single NALU.
-    // We check this after aggregation types because their values (24, 28, 48, 49)
-    // could potentially overlap with actual NALU type values if not handled first.
-
-    // Check for H.264 single NALU keyframe types.
-    // IDR (5), SPS (7), PPS (8).
-    if ((SrsAvcNaluTypeIDR == nalu_type) || (SrsAvcNaluTypeSPS == nalu_type) || (SrsAvcNaluTypePPS == nalu_type)) {
-        return true;
     }
-
-#ifdef SRS_H265
-    // Check for H.265 single NALU keyframe types.
-    // IRAP (16-23), VPS (32), SPS (33), PPS (34).
-    // These values are distinct from the H.264 types checked above.
-    if (SrsIsIRAP(nalu_type) ||(SrsHevcNaluType_VPS == nalu_type) || (SrsHevcNaluType_SPS == nalu_type) || (SrsHevcNaluType_PPS == nalu_type)) {
-        return true;
-    }
-#endif
 
     return false;
 }
