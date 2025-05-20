@@ -1032,8 +1032,8 @@ srs_error_t SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         // 0x00ffffff), this value MUST be 16777215, and the 'extended
         // timestamp header' MUST be present. Otherwise, this value SHOULD be
         // the entire delta.
-        chunk->extended_timestamp = (chunk->header.timestamp_delta >= RTMP_EXTENDED_TIMESTAMP);
-        if (!chunk->extended_timestamp) {
+        chunk->has_extended_timestamp = (chunk->header.timestamp_delta >= RTMP_EXTENDED_TIMESTAMP);
+        if (!chunk->has_extended_timestamp) {
             // Extended timestamp: 0 or 4 bytes
             // This field MUST be sent when the normal timsestamp is set to
             // 0xffffff, it MUST NOT be sent if the normal timestamp is set to
@@ -1085,13 +1085,13 @@ srs_error_t SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         }
     } else {
         // update the timestamp even fmt=3 for first chunk packet
-        if (is_first_chunk_of_msg && !chunk->extended_timestamp) {
+        if (is_first_chunk_of_msg && !chunk->has_extended_timestamp) {
             chunk->header.timestamp += chunk->header.timestamp_delta;
         }
     }
     
     // read extended-timestamp
-    if (chunk->extended_timestamp) {
+    if (chunk->has_extended_timestamp) {
         mh_size += 4;
         if ((err = in_buffer->grow(skt, 4)) != srs_success) {
             return srs_error_wrap(err, "read 4 bytes ext timestamp");
@@ -1127,7 +1127,7 @@ srs_error_t SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
          * @remark, srs always send the extended-timestamp, to keep simple,
          * and compatible with adobe products.
          */
-        uint32_t chunk_timestamp = (uint32_t)chunk->header.timestamp;
+        uint32_t chunk_extended_timestamp = (uint32_t)chunk->extended_timestamp;
         
         /**
          * if chunk_timestamp<=0, the chunk previous packet has no extended-timestamp,
@@ -1137,11 +1137,16 @@ srs_error_t SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
          * about the is_first_chunk_of_msg.
          * @remark, for the first chunk of message, always use the extended timestamp.
          */
-        if (!is_first_chunk_of_msg && chunk_timestamp > 0 && chunk_timestamp != timestamp) {
+        if (!is_first_chunk_of_msg && chunk_extended_timestamp > 0 && chunk_extended_timestamp != timestamp) {
             mh_size -= 4;
             in_buffer->skip(-4);
         } else {
-            chunk->header.timestamp = timestamp;
+            chunk->extended_timestamp = timestamp;
+            if (fmt == RTMP_FMT_TYPE0) {
+                chunk->header.timestamp = timestamp;
+            } else if (is_first_chunk_of_msg) {
+                chunk->header.timestamp += timestamp;
+            }
         }
     }
     
@@ -1439,9 +1444,10 @@ SrsChunkStream::SrsChunkStream(int _cid)
 {
     fmt = 0;
     cid = _cid;
-    extended_timestamp = false;
+    has_extended_timestamp = false;
     msg = NULL;
     msg_count = 0;
+    extended_timestamp = 0;
 }
 
 SrsChunkStream::~SrsChunkStream()
