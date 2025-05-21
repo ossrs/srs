@@ -1709,10 +1709,10 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
     srs_error_t err = srs_success;
 
     if (video_codec_ == SrsVideoCodecIdAVC) {
-        err = packet_sps_pps(pkt);
+        err = packet_sequence_header_avc(pkt);
 #ifdef SRS_H265
     } else if (video_codec_ == SrsVideoCodecIdHEVC) {
-        err = packet_vps_sps_pps(pkt);
+        err = packet_sequence_header_hevc(pkt);
 #endif
     }
 
@@ -1773,7 +1773,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
     return err;
 }
 
-srs_error_t SrsRtcFrameBuilder::packet_sps_pps(SrsRtpPacket* pkt)
+srs_error_t SrsRtcFrameBuilder::packet_sequence_header_avc(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -1811,7 +1811,7 @@ srs_error_t SrsRtcFrameBuilder::packet_sps_pps(SrsRtpPacket* pkt)
         }
 
         // Packet SPS/PPS to RTMP keyframe.
-        err = packet_sps_pps(pkt, sps, pps);
+        err = packet_sequence_header_avc(pkt, sps, pps);
         // Always reset the SPS/PPS cache after used it.
         srs_freep(obs_whip_sps_);
         srs_freep(obs_whip_pps_);
@@ -1824,7 +1824,7 @@ srs_error_t SrsRtcFrameBuilder::packet_sps_pps(SrsRtpPacket* pkt)
     return err;
 }
 
-srs_error_t SrsRtcFrameBuilder::packet_sps_pps(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps)
+srs_error_t SrsRtcFrameBuilder::packet_sequence_header_avc(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps)
 {
     srs_error_t err = srs_success;
 
@@ -1867,7 +1867,7 @@ srs_error_t SrsRtcFrameBuilder::packet_sps_pps(SrsRtpPacket* pkt, SrsSample* sps
 }
 
 #ifdef SRS_H265
-srs_error_t SrsRtcFrameBuilder::packet_vps_sps_pps(SrsRtpPacket* pkt)
+srs_error_t SrsRtcFrameBuilder::packet_sequence_header_hevc(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -1908,7 +1908,7 @@ srs_error_t SrsRtcFrameBuilder::packet_vps_sps_pps(SrsRtpPacket* pkt)
             return srs_error_new(ERROR_RTC_RTP_MUXER, "no vps/sps/pps in stap-a hevc rtp. vps: %p, sps:%p, pps:%p", vps, sps, pps);
         }
 
-        err = packet_vps_sps_pps(pkt, vps, sps, pps);
+        err = packet_sequence_header_hevc(pkt, vps, sps, pps);
 
         // Always reset the VPS/SPS/PPS cache after used it.
         srs_freep(obs_whip_vps_);
@@ -1923,7 +1923,7 @@ srs_error_t SrsRtcFrameBuilder::packet_vps_sps_pps(SrsRtpPacket* pkt)
     return err;
 }
 
-srs_error_t SrsRtcFrameBuilder::packet_vps_sps_pps(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps)
+srs_error_t SrsRtcFrameBuilder::packet_sequence_header_hevc(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps)
 {
     srs_error_t err = srs_success;
 
