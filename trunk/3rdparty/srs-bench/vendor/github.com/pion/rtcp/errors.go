@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import "errors"
@@ -19,6 +22,7 @@ var (
 	errSDESMissingType          = errors.New("rtcp: sdes item missing type")
 	errReasonTooLong            = errors.New("rtcp: reason must be < 255 octets long")
 	errBadVersion               = errors.New("rtcp: invalid packet version")
+	errBadLength                = errors.New("rtcp: invalid packet length")
 	errWrongPadding             = errors.New("rtcp: invalid padding value")
 	errWrongFeedbackType        = errors.New("rtcp: wrong feedback message type")
 	errWrongPayloadType         = errors.New("rtcp: wrong payload type")
@@ -31,4 +35,7 @@ var (
 	errWrongChunkType           = errors.New("rtcp: wrong chunk type")
 	errBadStructMemberType      = errors.New("rtcp: struct contains unexpected member type")
 	errBadReadParameter         = errors.New("rtcp: cannot read into non-pointer")
+	errAppDefinedInvalidLength  = errors.New("rtcp: application defined type invalid length")
+	errAppDefinedDataTooLarge   = errors.New("rtcp: application defined data is too large")
+	errAppDefinedInvalidName    = errors.New("rtcp: application defined name must be 4 ASCII chars")
 )

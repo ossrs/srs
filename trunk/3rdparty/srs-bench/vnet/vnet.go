@@ -21,7 +21,7 @@
 package vnet
 
 import (
-	"github.com/pion/transport/v2/vnet"
+	"github.com/pion/transport/v3/vnet"
 )
 
 type Router = vnet.Router

@@ -46,7 +46,7 @@ func (s *sendBuffer) add(packet *retainablePacket) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	seq := packet.Header().SequenceNumber
+	seq := packet.sequenceNumber
 	if !s.started {
 		s.packets[seq%s.size] = packet
 		s.lastAdded = seq
@@ -92,7 +92,7 @@ func (s *sendBuffer) get(seq uint16) *retainablePacket {
 
 	pkt := s.packets[seq%s.size]
 	if pkt != nil {
-		if pkt.Header().SequenceNumber != seq {
+		if pkt.sequenceNumber != seq {
 			return nil
 		}
 		// already released

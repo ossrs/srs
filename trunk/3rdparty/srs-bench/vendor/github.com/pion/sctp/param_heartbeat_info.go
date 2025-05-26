@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 type paramHeartbeatInfo struct {
@@ -8,6 +11,7 @@ type paramHeartbeatInfo struct {
 func (h *paramHeartbeatInfo) marshal() ([]byte, error) {
 	h.typ = heartbeatInfo
 	h.raw = h.heartbeatInformation
+
 	return h.paramHeader.marshal()
 }
 
@@ -17,5 +21,6 @@ func (h *paramHeartbeatInfo) unmarshal(raw []byte) (param, error) {
 		return nil, err
 	}
 	h.heartbeatInformation = h.raw
+
 	return h, nil
 }
