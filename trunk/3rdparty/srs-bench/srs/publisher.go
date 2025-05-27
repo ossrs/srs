@@ -30,7 +30,7 @@ import (
 	"github.com/ossrs/go-oryx-lib/logger"
 	"github.com/pion/interceptor"
 	"github.com/pion/sdp/v3"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 // @see https://github.com/pion/webrtc/blob/master/examples/play-from-disk/main.go

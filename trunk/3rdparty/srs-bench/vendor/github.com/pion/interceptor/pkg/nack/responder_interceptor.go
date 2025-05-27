@@ -18,15 +18,16 @@ type ResponderInterceptorFactory struct {
 }
 
 type packetFactory interface {
-	NewPacket(header *rtp.Header, payload []byte) (*retainablePacket, error)
+	NewPacket(header *rtp.Header, payload []byte, rtxSsrc uint32, rtxPayloadType uint8) (*retainablePacket, error)
 }
 
 // NewInterceptor constructs a new ResponderInterceptor
 func (r *ResponderInterceptorFactory) NewInterceptor(_ string) (interceptor.Interceptor, error) {
 	i := &ResponderInterceptor{
-		size:    1024,
-		log:     logging.NewDefaultLoggerFactory().NewLogger("nack_responder"),
-		streams: map[uint32]*localStream{},
+		streamsFilter: streamSupportNack,
+		size:          1024,
+		log:           logging.NewDefaultLoggerFactory().NewLogger("nack_responder"),
+		streams:       map[uint32]*localStream{},
 	}
 
 	for _, opt := range r.opts {
@@ -49,6 +50,7 @@ func (r *ResponderInterceptorFactory) NewInterceptor(_ string) (interceptor.Inte
 // ResponderInterceptor responds to nack feedback messages
 type ResponderInterceptor struct {
 	interceptor.NoOp
+	streamsFilter func(info *interceptor.StreamInfo) bool
 	size          uint16
 	log           logging.LeveledLogger
 	packetFactory packetFactory
@@ -99,18 +101,21 @@ func (n *ResponderInterceptor) BindRTCPReader(reader interceptor.RTCPReader) int
 // BindLocalStream lets you modify any outgoing RTP packets. It is called once for per LocalStream. The returned method
 // will be called once per rtp packet.
 func (n *ResponderInterceptor) BindLocalStream(info *interceptor.StreamInfo, writer interceptor.RTPWriter) interceptor.RTPWriter {
-	if !streamSupportNack(info) {
+	if !n.streamsFilter(info) {
 		return writer
 	}
 
 	// error is already checked in NewGeneratorInterceptor
 	sendBuffer, _ := newSendBuffer(n.size)
 	n.streamsMu.Lock()
-	n.streams[info.SSRC] = &localStream{sendBuffer: sendBuffer, rtpWriter: writer}
+	n.streams[info.SSRC] = &localStream{
+		sendBuffer: sendBuffer,
+		rtpWriter:  writer,
+	}
 	n.streamsMu.Unlock()
 
 	return interceptor.RTPWriterFunc(func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-		pkt, err := n.packetFactory.NewPacket(header, payload)
+		pkt, err := n.packetFactory.NewPacket(header, payload, info.SSRCRetransmission, info.PayloadTypeRetransmission)
 		if err != nil {
 			return 0, err
 		}

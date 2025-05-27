@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp // nolint:dupl
 
 import (
@@ -24,7 +27,7 @@ type chunkInit struct {
 	chunkInitCommon
 }
 
-// Init chunk errors
+// Init chunk errors.
 var (
 	ErrChunkTypeNotTypeInit          = errors.New("ChunkType is not of type INIT")
 	ErrChunkValueNotLongEnough       = errors.New("chunk Value isn't long enough for mandatory parameters exp")
@@ -35,6 +38,7 @@ var (
 	ErrInitInboundStreamRequestZero  = errors.New("INIT ACK inbound stream request must be > 0")
 	ErrInitOutboundStreamRequestZero = errors.New("INIT ACK outbound stream request must be > 0")
 	ErrInitAdvertisedReceiver1500    = errors.New("INIT ACK Advertised Receiver Window Credit (a_rwnd) must be >= 1500")
+	ErrInitUnknownParam              = errors.New("INIT with unknown param")
 )
 
 func (i *chunkInit) unmarshal(raw []byte) error {
@@ -70,6 +74,7 @@ func (i *chunkInit) marshal() ([]byte, error) {
 
 	i.chunkHeader.typ = ctInit
 	i.chunkHeader.raw = initShared
+
 	return i.chunkHeader.marshal()
 }
 
@@ -86,8 +91,7 @@ func (i *chunkInit) check() (abort bool, err error) {
 	// to be 0, the receiver MUST treat it as an error and close the
 	// association by transmitting an ABORT.
 	if i.initiateTag == 0 {
-		abort = true
-		return abort, ErrChunkTypeInitInitateTagZero
+		return true, ErrChunkTypeInitInitateTagZero
 	}
 
 	// Defines the maximum number of streams the sender of this INIT
@@ -101,8 +105,7 @@ func (i *chunkInit) check() (abort bool, err error) {
 	// Note: A receiver of an INIT with the MIS value of 0 SHOULD abort
 	// the association.
 	if i.numInboundStreams == 0 {
-		abort = true
-		return abort, ErrInitInboundStreamRequestZero
+		return true, ErrInitInboundStreamRequestZero
 	}
 
 	// Defines the number of outbound streams the sender of this INIT
@@ -113,8 +116,7 @@ func (i *chunkInit) check() (abort bool, err error) {
 	// abort the association.
 
 	if i.numOutboundStreams == 0 {
-		abort = true
-		return abort, ErrInitOutboundStreamRequestZero
+		return true, ErrInitOutboundStreamRequestZero
 	}
 
 	// An SCTP receiver MUST be able to receive a minimum of 1500 bytes in
@@ -122,14 +124,20 @@ func (i *chunkInit) check() (abort bool, err error) {
 	// less than 1500 bytes in its initial a_rwnd sent in the INIT or INIT
 	// ACK.
 	if i.advertisedReceiverWindowCredit < 1500 {
-		abort = true
-		return abort, ErrInitAdvertisedReceiver1500
+		return true, ErrInitAdvertisedReceiver1500
+	}
+
+	for _, p := range i.unrecognizedParams {
+		if p.unrecognizedAction == paramHeaderUnrecognizedActionStop ||
+			p.unrecognizedAction == paramHeaderUnrecognizedActionStopAndReport {
+			return true, ErrInitUnknownParam
+		}
 	}
 
 	return false, nil
 }
 
-// String makes chunkInit printable
+// String makes chunkInit printable.
 func (i *chunkInit) String() string {
 	return fmt.Sprintf("%s\n%s", i.chunkHeader, i.chunkInitCommon)
 }

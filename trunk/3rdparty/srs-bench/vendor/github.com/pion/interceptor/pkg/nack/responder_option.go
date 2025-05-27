@@ -3,7 +3,10 @@
 
 package nack
 
-import "github.com/pion/logging"
+import (
+	"github.com/pion/interceptor"
+	"github.com/pion/logging"
+)
 
 // ResponderOption can be used to configure ResponderInterceptor
 type ResponderOption func(s *ResponderInterceptor) error
@@ -30,6 +33,14 @@ func ResponderLog(log logging.LeveledLogger) ResponderOption {
 func DisableCopy() ResponderOption {
 	return func(s *ResponderInterceptor) error {
 		s.packetFactory = &noOpPacketFactory{}
+		return nil
+	}
+}
+
+// ResponderStreamsFilter sets filter for local streams
+func ResponderStreamsFilter(filter func(info *interceptor.StreamInfo) bool) ResponderOption {
+	return func(r *ResponderInterceptor) error {
+		r.streamsFilter = filter
 		return nil
 	}
 }

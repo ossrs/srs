@@ -59,6 +59,54 @@ func NewPacketizer(
 	}
 }
 
+// WithSSRC sets the SSRC for the Packetizer.
+func WithSSRC(ssrc uint32) func(*packetizer) {
+	return func(p *packetizer) {
+		p.SSRC = ssrc
+	}
+}
+
+// WithPayloadType sets the PayloadType for the Packetizer.
+func WithPayloadType(pt uint8) func(*packetizer) {
+	return func(p *packetizer) {
+		p.PayloadType = pt
+	}
+}
+
+// WithTimestamp sets the initial Timestamp for the Packetizer.
+func WithTimestamp(timestamp uint32) func(*packetizer) {
+	return func(p *packetizer) {
+		p.Timestamp = timestamp
+	}
+}
+
+// PacketizerOption is a function that configures a RTP Packetizer.
+type PacketizerOption func(*packetizer)
+
+// NewPacketizerWithOptions returns a new instance of a Packetizer with the given options.
+func NewPacketizerWithOptions(
+	mtu uint16,
+	payloader Payloader,
+	sequencer Sequencer,
+	clockRate uint32,
+	options ...PacketizerOption,
+) Packetizer {
+	packetizerInstance := &packetizer{
+		MTU:       mtu,
+		Payloader: payloader,
+		Sequencer: sequencer,
+		Timestamp: globalMathRandomGenerator.Uint32(),
+		ClockRate: clockRate,
+		timegen:   time.Now,
+	}
+
+	for _, option := range options {
+		option(packetizerInstance)
+	}
+
+	return packetizerInstance
+}
+
 func (p *packetizer) EnableAbsSendTime(value int) {
 	p.extensionNumbers.AbsSendTime = value
 }

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp // nolint:dupl
 
 import (
@@ -24,7 +27,7 @@ type chunkInitAck struct {
 	chunkInitCommon
 }
 
-// Init ack chunk errors
+// Init ack chunk errors.
 var (
 	ErrChunkTypeNotInitAck              = errors.New("ChunkType is not of type INIT ACK")
 	ErrChunkNotLongEnoughForParams      = errors.New("chunk Value isn't long enough for mandatory parameters exp")
@@ -70,6 +73,7 @@ func (i *chunkInitAck) marshal() ([]byte, error) {
 
 	i.chunkHeader.typ = ctInitAck
 	i.chunkHeader.raw = initShared
+
 	return i.chunkHeader.marshal()
 }
 
@@ -88,6 +92,7 @@ func (i *chunkInitAck) check() (abort bool, err error) {
 	// purpose.
 	if i.initiateTag == 0 {
 		abort = true
+
 		return abort, ErrChunkTypeInitAckInitateTagZero
 	}
 
@@ -103,6 +108,7 @@ func (i *chunkInitAck) check() (abort bool, err error) {
 	// destroy the association discarding its TCB.
 	if i.numInboundStreams == 0 {
 		abort = true
+
 		return abort, ErrInitAckInboundStreamRequestZero
 	}
 
@@ -116,6 +122,7 @@ func (i *chunkInitAck) check() (abort bool, err error) {
 
 	if i.numOutboundStreams == 0 {
 		abort = true
+
 		return abort, ErrInitAckOutboundStreamRequestZero
 	}
 
@@ -125,13 +132,14 @@ func (i *chunkInitAck) check() (abort bool, err error) {
 	// ACK.
 	if i.advertisedReceiverWindowCredit < 1500 {
 		abort = true
+
 		return abort, ErrInitAckAdvertisedReceiver1500
 	}
 
 	return false, nil
 }
 
-// String makes chunkInitAck printable
+// String makes chunkInitAck printable.
 func (i *chunkInitAck) String() string {
 	return fmt.Sprintf("%s\n%s", i.chunkHeader, i.chunkInitCommon)
 }
