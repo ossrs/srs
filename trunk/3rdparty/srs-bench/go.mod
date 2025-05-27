@@ -23,7 +23,6 @@ require (
 
 require (
 	github.com/bluenviron/mediacommon/v2 v2.1.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.1.0-rc.1 // indirect
@@ -43,7 +42,6 @@ require (
 	github.com/pion/turn/v4 v4.0.0 // indirect
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tevino/abool v0.0.0-20170917061928-9b9efcf221b5 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
@@ -51,5 +49,4 @@ require (
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/term v0.29.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -43,9 +43,6 @@ github.com/bluenviron/mediacommon/v2/pkg/codecs/mpeg4audio
 github.com/bluenviron/mediacommon/v2/pkg/codecs/mpeg4video
 github.com/bluenviron/mediacommon/v2/pkg/codecs/vp8
 github.com/bluenviron/mediacommon/v2/pkg/codecs/vp9
-# github.com/davecgh/go-spew v1.1.1
-## explicit
-github.com/davecgh/go-spew/spew
 # github.com/ghettovoice/gosip v0.0.0-20220929080231-de8ba881be83
 ## explicit; go 1.13
 github.com/ghettovoice/gosip/log

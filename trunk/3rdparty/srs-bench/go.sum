@@ -1,3 +1,7 @@
+github.com/bluenviron/gortsplib/v4 v4.13.1 h1:FpkfzLTWgeC4C3ytfNZ9ezes+MA4ZSp8rAvxJP5RnLY=
+github.com/bluenviron/gortsplib/v4 v4.13.1/go.mod h1:nJVGKKG8KEkt7KKuckZIXQ1FHevSbvdV7y5UcpLmORw=
+github.com/bluenviron/mediacommon/v2 v2.1.0 h1:NtlRCaAo7gnCcO+EHHeFJxSIt+v8uNbvJqlH1Gk2PZM=
+github.com/bluenviron/mediacommon/v2 v2.1.0/go.mod h1:iHEz1SFIet6zBwAQoh1a92vTQ3dV3LpVFbom6/SLz3k=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/discoviking/fsm v0.0.0-20150126104936-f4a273feecca/go.mod h1:W+3LQaEkN8qAwwcw0KC546sUEnX86GIT8CcMLZC4mG0=
