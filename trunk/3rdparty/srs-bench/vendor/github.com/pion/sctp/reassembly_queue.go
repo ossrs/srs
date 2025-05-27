@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -19,7 +22,7 @@ func sortChunksBySSN(a []*chunkSet) {
 	})
 }
 
-// chunkSet is a set of chunks that share the same SSN
+// chunkSet is a set of chunks that share the same SSN.
 type chunkSet struct {
 	ssn    uint16 // used only with the ordered chunks
 	ppi    PayloadProtocolIdentifier
@@ -48,6 +51,7 @@ func (set *chunkSet) push(chunk *chunkPayloadData) bool {
 
 	// Check if we now have a complete set
 	complete := set.isComplete()
+
 	return complete
 }
 
@@ -76,7 +80,7 @@ func (set *chunkSet) isComplete() bool {
 
 	// 3.
 	var lastTSN uint32
-	for i, c := range set.chunks {
+	for i, chunk := range set.chunks {
 		if i > 0 {
 			// Fragments must have contiguous TSN
 			// From RFC 4960 Section 3.3.1:
@@ -84,13 +88,13 @@ func (set *chunkSet) isComplete() bool {
 			//   used by the receiver to reassemble the message.  This means that the
 			//   TSNs for each fragment of a fragmented user message MUST be strictly
 			//   sequential.
-			if c.tsn != lastTSN+1 {
+			if chunk.tsn != lastTSN+1 {
 				// mid or end fragment is missing
 				return false
 			}
 		}
 
-		lastTSN = c.tsn
+		lastTSN = chunk.tsn
 	}
 
 	return true
@@ -121,7 +125,7 @@ func newReassemblyQueue(si uint16) *reassemblyQueue {
 	}
 }
 
-func (r *reassemblyQueue) push(chunk *chunkPayloadData) bool {
+func (r *reassemblyQueue) push(chunk *chunkPayloadData) bool { //nolint:cyclop
 	var cset *chunkSet
 
 	if chunk.streamIdentifier != r.si {
@@ -140,6 +144,7 @@ func (r *reassemblyQueue) push(chunk *chunkPayloadData) bool {
 		// If found, append the complete set to the unordered array
 		if cset != nil {
 			r.unordered = append(r.unordered, cset)
+
 			return true
 		}
 
@@ -152,11 +157,23 @@ func (r *reassemblyQueue) push(chunk *chunkPayloadData) bool {
 		return false
 	}
 
-	// Check if a chunkSet with the SSN already exists
-	for _, set := range r.ordered {
-		if set.ssn == chunk.streamSequenceNumber {
-			cset = set
-			break
+	// Check if a fragmented chunkSet with the fragmented SSN already exists
+	if chunk.isFragmented() {
+		for _, set := range r.ordered {
+			// nolint:godox
+			// TODO: add caution around SSN wrapping here... this helps only a little bit
+			// by ensuring we don't add to an unfragmented cset (1 chunk). There's
+			// a case where if the SSN does wrap around, we may see the same SSN
+			// for a different chunk.
+
+			// nolint:godox
+			// TODO: this slice can get pretty big; it may be worth maintaining a map
+			// for O(1) lookups at the cost of 2x memory.
+			if set.ssn == chunk.streamSequenceNumber && set.chunks[0].isFragmented() {
+				cset = set
+
+				break
+			}
 		}
 	}
 
@@ -180,17 +197,19 @@ func (r *reassemblyQueue) findCompleteUnorderedChunkSet() *chunkSet {
 	var lastTSN uint32
 	var found bool
 
-	for i, c := range r.unorderedChunks {
+	for i, chunk := range r.unorderedChunks {
 		// seek beigining
-		if c.beginningFragment {
+		if chunk.beginningFragment {
 			startIdx = i
 			nChunks = 1
-			lastTSN = c.tsn
+			lastTSN = chunk.tsn
 
-			if c.endingFragment {
+			if chunk.endingFragment {
 				found = true
+
 				break
 			}
+
 			continue
 		}
 
@@ -199,16 +218,18 @@ func (r *reassemblyQueue) findCompleteUnorderedChunkSet() *chunkSet {
 		}
 
 		// Check if contiguous in TSN
-		if c.tsn != lastTSN+1 {
+		if chunk.tsn != lastTSN+1 {
 			startIdx = -1
+
 			continue
 		}
 
-		lastTSN = c.tsn
+		lastTSN = chunk.tsn
 		nChunks++
 
-		if c.endingFragment {
+		if chunk.endingFragment {
 			found = true
+
 			break
 		}
 	}
@@ -247,18 +268,23 @@ func (r *reassemblyQueue) isReadable() bool {
 			}
 		}
 	}
+
 	return false
 }
 
-func (r *reassemblyQueue) read(buf []byte) (int, PayloadProtocolIdentifier, error) {
-	var cset *chunkSet
-	// Check unordered first
+func (r *reassemblyQueue) read(buf []byte) (int, PayloadProtocolIdentifier, error) { // nolint: cyclop
+	var (
+		cset        *chunkSet
+		isUnordered bool
+		nTotal      int
+		err         error
+	)
+
 	switch {
 	case len(r.unordered) > 0:
 		cset = r.unordered[0]
-		r.unordered = r.unordered[1:]
+		isUnordered = true
 	case len(r.ordered) > 0:
-		// Now, check ordered
 		cset = r.ordered[0]
 		if !cset.isComplete() {
 			return 0, 0, errTryAgain
@@ -266,31 +292,35 @@ func (r *reassemblyQueue) read(buf []byte) (int, PayloadProtocolIdentifier, erro
 		if sna16GT(cset.ssn, r.nextSSN) {
 			return 0, 0, errTryAgain
 		}
-		r.ordered = r.ordered[1:]
-		if cset.ssn == r.nextSSN {
-			r.nextSSN++
-		}
 	default:
 		return 0, 0, errTryAgain
 	}
 
-	// Concat all fragments into the buffer
-	nWritten := 0
-	ppi := cset.ppi
-	var err error
 	for _, c := range cset.chunks {
-		toCopy := len(c.userData)
-		r.subtractNumBytes(toCopy)
-		if err == nil {
-			n := copy(buf[nWritten:], c.userData)
-			nWritten += n
-			if n < toCopy {
-				err = io.ErrShortBuffer
-			}
+		if len(buf)-nTotal < len(c.userData) {
+			err = io.ErrShortBuffer
+		} else {
+			copy(buf[nTotal:], c.userData)
+		}
+
+		nTotal += len(c.userData)
+	}
+
+	switch {
+	case err != nil:
+		return nTotal, 0, err
+	case isUnordered:
+		r.unordered = r.unordered[1:]
+	default:
+		r.ordered = r.ordered[1:]
+		if cset.ssn == r.nextSSN {
+			r.nextSSN++
 		}
 	}
 
-	return nWritten, ppi, err
+	r.subtractNumBytes(nTotal)
+
+	return nTotal, cset.ppi, err
 }
 
 func (r *reassemblyQueue) forwardTSNForOrdered(lastSSN uint16) {
@@ -304,6 +334,7 @@ func (r *reassemblyQueue) forwardTSNForOrdered(lastSSN uint16) {
 				for _, c := range set.chunks {
 					r.subtractNumBytes(len(c.userData))
 				}
+
 				continue
 			}
 		}
@@ -340,13 +371,13 @@ func (r *reassemblyQueue) forwardTSNForUnordered(newCumulativeTSN uint32) {
 
 func (r *reassemblyQueue) subtractNumBytes(nBytes int) {
 	cur := atomic.LoadUint64(&r.nBytes)
-	if int(cur) >= nBytes {
-		atomic.AddUint64(&r.nBytes, -uint64(nBytes))
+	if int(cur) >= nBytes { //nolint:gosec // G115
+		atomic.AddUint64(&r.nBytes, -uint64(nBytes)) //nolint:gosec // G115
 	} else {
 		atomic.StoreUint64(&r.nBytes, 0)
 	}
 }
 
 func (r *reassemblyQueue) getNumBytes() int {
-	return int(atomic.LoadUint64(&r.nBytes))
+	return int(atomic.LoadUint64(&r.nBytes)) //nolint:gosec // G115
 }

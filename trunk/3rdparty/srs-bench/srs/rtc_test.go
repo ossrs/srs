@@ -34,8 +34,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pion/transport/v2/vnet"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/transport/v3/vnet"
+	"github.com/pion/webrtc/v4"
 
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/flv"
