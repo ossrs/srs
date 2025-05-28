@@ -126,7 +126,35 @@ srs_error_t SrsHttpConn::cycle()
     // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(err)) {
-        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+        // Check if we should suppress the warning for API or file requests
+        bool suppress_warning = false;
+        if (last_req_path_.length() > 0) {
+            // Suppress warning for API requests (starting with /api/)
+            if (srs_string_starts_with(last_req_path_, "/api/")) {
+                suppress_warning = true;
+            }
+            // Suppress warning for common static files
+            else if (srs_string_ends_with(last_req_path_, ".ico") ||
+                     srs_string_ends_with(last_req_path_, ".css") ||
+                     srs_string_ends_with(last_req_path_, ".js") ||
+                     srs_string_ends_with(last_req_path_, ".png") ||
+                     srs_string_ends_with(last_req_path_, ".jpg") ||
+                     srs_string_ends_with(last_req_path_, ".gif") ||
+                     srs_string_ends_with(last_req_path_, ".svg") ||
+                     srs_string_ends_with(last_req_path_, ".woff") ||
+                     srs_string_ends_with(last_req_path_, ".woff2") ||
+                     srs_string_ends_with(last_req_path_, ".ttf")) {
+                suppress_warning = true;
+            }
+            // Suppress warning for console requests
+            else if (srs_string_starts_with(last_req_path_, "/console/")) {
+                suppress_warning = true;
+            }
+        }
+        
+        if (!suppress_warning) {
+            srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+        }
     } else if (srs_is_server_gracefully_close(err)) {
         srs_warn("server disconnect. ret=%d", srs_error_code(err));
     } else {
@@ -226,6 +254,9 @@ srs_error_t SrsHttpConn::process_requests(SrsRequest** preq)
 srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, int rid)
 {
     srs_error_t err = srs_success;
+    
+    // Store the request path for warning suppression
+    last_req_path_ = r->url();
     
     srs_trace("HTTP #%d %s:%d %s %s, content-length=%" PRId64 "", rid, ip.c_str(), port,
         r->method_str().c_str(), r->url().c_str(), r->content_length());

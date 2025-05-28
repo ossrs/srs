@@ -83,6 +83,8 @@ private:
     // The create time in milliseconds.
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
+    // The last request path for warning suppression.
+    std::string last_req_path_;
 public:
     SrsHttpConn(ISrsHttpConnOwner* handler, ISrsProtocolReadWriter* fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpConn();
