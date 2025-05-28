@@ -21,6 +21,7 @@
 #include <srs_protocol_st.hpp>
 #include <srs_app_hourglass.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_app_python_manager.hpp>
 
 class SrsServer;
 class ISrsHttpServeMux;
@@ -41,6 +42,7 @@ class SrsMultipleTcpListeners;
 class SrsHttpFlvListener;
 class SrsUdpCasterListener;
 class SrsGbListener;
+class SrsPythonManager;
 
 // Convert signal to io,
 // @see: st-1.9/docs/notes.html
@@ -146,6 +148,8 @@ private:
     SrsSignalManager* signal_manager;
     // To query the latest available version of SRS.
     SrsLatestVersion* latest_version_;
+    // Python process manager for handling external Python processes.
+    SrsPythonManager* python_manager_;
     // User send the signal, convert to variable.
     bool signal_reload;
     bool signal_persistence_config;

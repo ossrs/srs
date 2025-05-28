@@ -333,6 +333,7 @@ SrsServer::SrsServer()
     signal_manager = new SrsSignalManager(this);
     conn_manager = new SrsResourceManager("TCP", true);
     latest_version_ = new SrsLatestVersion();
+    python_manager_ = new SrsPythonManager();
     ppid = ::getppid();
 
     rtmp_listener_ = new SrsMultipleTcpListeners(this);
@@ -391,6 +392,7 @@ void SrsServer::destroy()
     
     srs_freep(signal_manager);
     srs_freep(latest_version_);
+    srs_freep(python_manager_);
     srs_freep(conn_manager);
     srs_freep(rtmp_listener_);
     srs_freep(api_listener_);
@@ -427,6 +429,9 @@ void SrsServer::dispose()
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
     ingester->dispose();
     
+    // Stop Python processes.
+    python_manager_->stop();
+    
     // dispose the source for hls and dvr.
     _srs_sources->dispose();
     
@@ -459,6 +464,10 @@ void SrsServer::gracefully_dispose()
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
     ingester->stop();
     srs_trace("ingesters stopped");
+
+    // Stop Python processes gracefully.
+    python_manager_->stop();
+    srs_trace("python processes stopped");
 
     // Wait for connections to quit.
     // While gracefully quiting, user can requires SRS to fast quit.
@@ -533,6 +542,11 @@ srs_error_t SrsServer::initialize()
 
     if ((err = http_server->initialize()) != srs_success) {
         return srs_error_wrap(err, "http server initialize");
+    }
+
+    // Initialize Python process manager.
+    if ((err = python_manager_->initialize()) != srs_success) {
+        return srs_error_wrap(err, "python manager initialize");
     }
     
     return err;
@@ -844,6 +858,11 @@ srs_error_t SrsServer::start(SrsWaitGroup* wg)
 
     if ((err = setup_ticks()) != srs_success) {
         return srs_error_wrap(err, "tick");
+    }
+
+    // Start Python process manager.
+    if ((err = python_manager_->start()) != srs_success) {
+        return srs_error_wrap(err, "python manager start");
     }
 
     // OK, we start SRS server.

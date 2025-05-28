@@ -36,5 +36,5 @@ This is the guide for the OpenAI Codex agent.
   - `trunk/Dockerfile.builds` is used to verify builds on different target platforms.
 
 ## Testing Instructions
-- Run CI tests defined in `.github/workflows/test.yml` file.
-- Add or update tests for the code you change, even if nobody asked.
+- Run CI tests by WSL Bash `cd trunk && bash -c "./configure && make"`
+- Run the SRS Service by WSL Bash `bash -c "./objs/srs -c ./conf/console.conf"`

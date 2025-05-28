@@ -932,6 +932,50 @@ SrsConfDirective* SrsConfDirective::get_or_create(string n)
     return conf;
 }
 
+// python_addons section
+bool SrsConfig::get_python_addons_enabled()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.python_addons.enabled"); // SRS_PYTHON_ADDONS_ENABLED
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("python_addons");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
+vector<SrsConfDirective*> SrsConfig::get_python_addons_processes()
+{
+    vector<SrsConfDirective*> processes;
+
+    SrsConfDirective* conf = root->get("python_addons");
+    if (!conf) {
+        return processes;
+    }
+
+    for (int i = 0; i < (int)conf->directives.size(); i++) {
+        SrsConfDirective* directive = conf->directives[i];
+        if (directive->name == "addon") {
+            processes.push_back(directive);
+        }
+    }
+
+    return processes;
+}
+
+SrsConfDirective* SrsConfig::get_python_addons_on()
+{
+    return root->get("python_addons");
+}
+
 SrsConfDirective* SrsConfDirective::get_or_create(string n, string a0)
 {
     SrsConfDirective* conf = get(n, a0);
@@ -2367,7 +2411,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate"
             && n != "query_latest_version" && n != "first_wait_for_qlv" && n != "threads"
             && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "tencentcloud_cls"
-            && n != "exporter"
+            && n != "exporter" && n != "python_addons"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -2460,6 +2504,15 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "label" && n != "tag") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal exporter.%s", n.c_str());
+            }
+        }
+    }
+    if (true) {
+        SrsConfDirective* conf = root->get("python_addons");
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "enabled" && n != "addon") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal python_addons.%s", n.c_str());
             }
         }
     }

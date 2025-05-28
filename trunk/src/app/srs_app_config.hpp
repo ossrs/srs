@@ -1142,6 +1142,14 @@ public:
     virtual std::string get_exporter_listen();
     virtual std::string get_exporter_label();
     virtual std::string get_exporter_tag();
+// python_addons section
+public:
+    // Whether python_addons processes are enabled.
+    virtual bool get_python_addons_enabled();
+    // Get the python_addons processes configuration.
+    virtual std::vector<SrsConfDirective*> get_python_addons_processes();
+    // Get the python_addons directive.
+    virtual SrsConfDirective* get_python_addons_on();
 };
 
 #endif
