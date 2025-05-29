@@ -85,6 +85,10 @@ private:
     int64_t create_time;
     // The last request path for warning suppression.
     std::string last_req_path_;
+    // Whether the request was successfully completed
+    bool request_completed_;
+    // Number of requests processed in this connection
+    int requests_processed_;
 public:
     SrsHttpConn(ISrsHttpConnOwner* handler, ISrsProtocolReadWriter* fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpConn();
@@ -107,6 +111,11 @@ private:
     // e.g. log msg of connection and report to other system.
     // @param request: request which is converted by the last http message.
     virtual srs_error_t on_disconnect(SrsRequest* req);
+private:
+    // Check if we should suppress the warning for this connection
+    bool should_suppress_close_warning();
+    // Check if the given IP address is a local address (localhost, 127.x.x.x, or local network interface)
+    bool is_local_address(const std::string& ip_addr);
 public:
     // Get the HTTP message handler.
     virtual ISrsHttpConnOwner* handler();

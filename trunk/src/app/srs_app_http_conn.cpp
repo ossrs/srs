@@ -12,6 +12,7 @@
 #include <stdlib.h>
 
 #include <sstream>
+#include <set>
 using namespace std;
 
 #include <srs_protocol_stream.hpp>
@@ -67,6 +68,10 @@ SrsHttpConn::SrsHttpConn(ISrsHttpConnOwner* handler, ISrsProtocolReadWriter* fd,
     delta_ = new SrsNetworkDelta();
     delta_->set_io(skt, skt);
     trd = new SrsSTCoroutine("http", this, _srs_context->get_id());
+    
+    // Initialize connection state
+    request_completed_ = false;
+    requests_processed_ = 0;
 }
 
 SrsHttpConn::~SrsHttpConn()
@@ -126,31 +131,8 @@ srs_error_t SrsHttpConn::cycle()
     // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(err)) {
-        // Check if we should suppress the warning for API or file requests
-        bool suppress_warning = false;
-        if (last_req_path_.length() > 0) {
-            // Suppress warning for API requests (starting with /api/)
-            if (srs_string_starts_with(last_req_path_, "/api/")) {
-                suppress_warning = true;
-            }
-            // Suppress warning for common static files
-            else if (srs_string_ends_with(last_req_path_, ".ico") ||
-                     srs_string_ends_with(last_req_path_, ".css") ||
-                     srs_string_ends_with(last_req_path_, ".js") ||
-                     srs_string_ends_with(last_req_path_, ".png") ||
-                     srs_string_ends_with(last_req_path_, ".jpg") ||
-                     srs_string_ends_with(last_req_path_, ".gif") ||
-                     srs_string_ends_with(last_req_path_, ".svg") ||
-                     srs_string_ends_with(last_req_path_, ".woff") ||
-                     srs_string_ends_with(last_req_path_, ".woff2") ||
-                     srs_string_ends_with(last_req_path_, ".ttf")) {
-                suppress_warning = true;
-            }
-            // Suppress warning for console requests
-            else if (srs_string_starts_with(last_req_path_, "/console/")) {
-                suppress_warning = true;
-            }
-        }
+        // Check if we should suppress the warning for this connection
+        bool suppress_warning = should_suppress_close_warning();
         
         if (!suppress_warning) {
             srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
@@ -257,14 +239,21 @@ srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     // Store the request path for warning suppression
     last_req_path_ = r->url();
+    requests_processed_++;
     
-    srs_trace("HTTP #%d %s:%d %s %s, content-length=%" PRId64 "", rid, ip.c_str(), port,
-        r->method_str().c_str(), r->url().c_str(), r->content_length());
+    // Only log HTTP requests if they are not from local addresses
+    if (!is_local_address(ip)) {
+        srs_trace("HTTP #%d %s:%d %s %s, content-length=%" PRId64 "", rid, ip.c_str(), port,
+                      r->method_str().c_str(), r->url().c_str(), r->content_length());
+    }
 
     // proxy to cors-->auth-->http_remux.
     if ((err = cors->serve_http(w, r)) != srs_success) {
         return srs_error_wrap(err, "cors serve");
     }
+    
+    // Mark request as successfully completed
+    request_completed_ = true;
     
     return err;
 }
@@ -329,6 +318,48 @@ const SrsContextId& SrsHttpConn::get_id()
 void SrsHttpConn::expire()
 {
     trd->interrupt();
+}
+
+bool SrsHttpConn::should_suppress_close_warning()
+{
+    // If we have successfully processed at least one request, consider this a normal close
+    if (request_completed_ && requests_processed_ > 0) {
+        return true;
+    }
+}
+
+bool SrsHttpConn::is_local_address(const std::string& ip_addr)
+{
+    // Check for localhost
+    if (ip_addr == "localhost") {
+        return true;
+    }
+    
+    // Check for IPv4 loopback addresses (127.x.x.x)
+    if (ip_addr.find("127.") == 0) {
+        return true;
+    }
+    
+    // Check for IPv6 loopback (::1)
+    if (ip_addr == "::1") {
+        return true;
+    }
+    
+    // Get all local network interface addresses
+    static bool local_ips_cached = false;
+    static std::set<std::string> local_ips_cache;
+    
+    if (!local_ips_cached) {
+        // Cache local IPs for performance
+        std::vector<SrsIPAddress*>& ips = srs_get_local_ips();
+        for (size_t i = 0; i < ips.size(); i++) {
+            local_ips_cache.insert(ips[i]->ip);
+        }
+        local_ips_cached = true;
+    }
+    
+    // Check if the IP is one of our local interface addresses
+    return local_ips_cache.find(ip_addr) != local_ips_cache.end();
 }
 
 SrsHttpxConn::SrsHttpxConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* io, ISrsHttpServeMux* m, string cip, int port, string key, string cert) : manager(cm), io_(io), enable_stat_(false), ssl_key_file_(key), ssl_cert_file_(cert)

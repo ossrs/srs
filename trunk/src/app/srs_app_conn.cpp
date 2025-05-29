@@ -20,11 +20,71 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_protocol_kbps.hpp>
+#include <set>
+#include <srs_protocol_utility.hpp>
 
 SrsPps* _srs_pps_ids = NULL;
 SrsPps* _srs_pps_fids = NULL;
 SrsPps* _srs_pps_fids_level0 = NULL;
 SrsPps* _srs_pps_dispose = NULL;
+
+// Add method to check if IP is local address 
+bool is_local_address_for_logging(const std::string& ip_addr)
+{
+    // Check for localhost
+    if (ip_addr == "localhost") {
+        return true;
+    }
+    
+    // Check for IPv4 loopback addresses (127.x.x.x)
+    if (ip_addr.find("127.") == 0) {
+        return true;
+    }
+    
+    // Check for IPv6 loopback (::1)
+    if (ip_addr == "::1") {
+        return true;
+    }
+    
+    // Get all local network interface addresses
+    static bool local_ips_cached = false;
+    static std::set<std::string> local_ips_cache;
+    
+    if (!local_ips_cached) {
+        // Cache local IPs for performance
+        std::vector<SrsIPAddress*>& ips = srs_get_local_ips();
+        for (size_t i = 0; i < ips.size(); i++) {
+            local_ips_cache.insert(ips[i]->ip);
+        }
+        local_ips_cached = true;
+    }
+    
+    // Check if the IP is one of our local interface addresses
+    return local_ips_cache.find(ip_addr) != local_ips_cache.end();
+}
+
+// Check if resource is HTTP connection from local address
+bool should_suppress_resource_log(ISrsResource* c)
+{
+    if (!c) return false;
+    
+    // Check if it's an HTTP connection based on description
+    std::string desc = c->desc();
+    bool is_http_conn = (desc == "HttpConn" || desc == "HttpsConn");
+    
+    if (!is_http_conn) {
+        return false; // Not HTTP connection, don't suppress
+    }
+    
+    // Try to get remote IP from connection
+    ISrsConnection* conn = dynamic_cast<ISrsConnection*>(c);
+    if (conn) {
+        std::string remote_ip = conn->remote_ip();
+        return is_local_address_for_logging(remote_ip);
+    }
+    
+    return false;
+}
 
 ISrsDisposingHandler::ISrsDisposingHandler()
 {
@@ -246,7 +306,7 @@ void SrsResourceManager::do_remove(ISrsResource* c)
     check_remove(c, in_zombie, in_disposing);
     bool ignored = in_zombie || in_disposing;
 
-    if (verbose_) {
+    if (verbose_ && !should_suppress_resource_log(c)) {
         _srs_context->set_id(c->get_id());
         srs_trace("%s: before dispose resource(%s)(%p), conns=%d, zombies=%d, ign=%d, inz=%d, ind=%d",
             label_.c_str(), c->desc().c_str(), c, (int)conns_.size(), (int)zombies_.size(), ignored,
@@ -304,9 +364,20 @@ void SrsResourceManager::clear()
     }
 
     SrsContextRestore(cid_);
-    if (verbose_) {
-        srs_trace("%s: clear zombies=%d resources, conns=%d, removing=%d, unsubs=%d",
-            label_.c_str(), (int)zombies_.size(), (int)conns_.size(), removing_, (int)unsubs_.size());
+    if (verbose_ && !zombies_.empty()) {
+        // Check if we should suppress log for all zombies
+        bool suppress_log = true;
+        for (size_t i = 0; i < zombies_.size(); i++) {
+            if (!should_suppress_resource_log(zombies_[i])) {
+                suppress_log = false;
+                break;
+            }
+        }
+        
+        if (!suppress_log) {
+            srs_trace("%s: clear zombies=%d resources, conns=%d, removing=%d, unsubs=%d",
+                label_.c_str(), (int)zombies_.size(), (int)conns_.size(), removing_, (int)unsubs_.size());
+        }
     }
 
     // Clear all unsubscribing handlers, if not removing any resource.
@@ -328,7 +399,7 @@ void SrsResourceManager::do_clear()
     for (int i = 0; i < (int)copy.size(); i++) {
         ISrsResource* conn = copy.at(i);
 
-        if (verbose_) {
+        if (verbose_ && !should_suppress_resource_log(conn)) {
             _srs_context->set_id(conn->get_id());
             srs_trace("%s: disposing #%d resource(%s)(%p), conns=%d, disposing=%d, zombies=%d", label_.c_str(),
                 i, conn->desc().c_str(), conn, (int)conns_.size(), (int)copy.size(), (int)zombies_.size());
