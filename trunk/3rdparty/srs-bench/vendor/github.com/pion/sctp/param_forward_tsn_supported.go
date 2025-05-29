@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 // At the initialization of the association, the sender of the INIT or
@@ -16,6 +19,7 @@ type paramForwardTSNSupported struct {
 func (f *paramForwardTSNSupported) marshal() ([]byte, error) {
 	f.typ = forwardTSNSupp
 	f.raw = []byte{}
+
 	return f.paramHeader.marshal()
 }
 
@@ -24,5 +28,6 @@ func (f *paramForwardTSNSupported) unmarshal(raw []byte) (param, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return f, nil
 }

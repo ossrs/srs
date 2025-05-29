@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -33,7 +36,7 @@ const (
 	chunkHeaderSize = 4
 )
 
-// SCTP chunk header errors
+// SCTP chunk header errors.
 var (
 	ErrChunkHeaderTooSmall       = errors.New("raw is too small for a SCTP chunk")
 	ErrChunkHeaderNotEnoughSpace = errors.New("not enough data left in SCTP packet to satisfy requested length")
@@ -42,7 +45,10 @@ var (
 
 func (c *chunkHeader) unmarshal(raw []byte) error {
 	if len(raw) < chunkHeaderSize {
-		return fmt.Errorf("%w: raw only %d bytes, %d is the minimum length", ErrChunkHeaderTooSmall, len(raw), chunkHeaderSize)
+		return fmt.Errorf(
+			"%w: raw only %d bytes, %d is the minimum length",
+			ErrChunkHeaderTooSmall, len(raw), chunkHeaderSize,
+		)
 	}
 
 	c.typ = chunkType(raw[0])
@@ -74,6 +80,7 @@ func (c *chunkHeader) unmarshal(raw []byte) error {
 	}
 
 	c.raw = raw[chunkHeaderSize : chunkHeaderSize+valueLength]
+
 	return nil
 }
 
@@ -82,8 +89,9 @@ func (c *chunkHeader) marshal() ([]byte, error) {
 
 	raw[0] = uint8(c.typ)
 	raw[1] = c.flags
-	binary.BigEndian.PutUint16(raw[2:], uint16(len(c.raw)+chunkHeaderSize))
+	binary.BigEndian.PutUint16(raw[2:], uint16(len(c.raw)+chunkHeaderSize)) //nolint:gosec // G115
 	copy(raw[4:], c.raw)
+
 	return raw, nil
 }
 
@@ -91,7 +99,7 @@ func (c *chunkHeader) valueLength() int {
 	return len(c.raw)
 }
 
-// String makes chunkHeader printable
+// String makes chunkHeader printable.
 func (c chunkHeader) String() string {
 	return c.typ.String()
 }

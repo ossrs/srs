@@ -1,9 +1,13 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 )
 
 // https://www.rfc-editor.org/rfc/rfc8888.html#name-rtcp-congestion-control-fee
@@ -89,8 +93,13 @@ func (b CCFeedbackReport) DestinationSSRC() []uint32 {
 }
 
 // Len returns the length of the report in bytes
-func (b *CCFeedbackReport) Len() uint16 {
-	n := uint16(0)
+func (b *CCFeedbackReport) Len() int {
+	return b.MarshalSize()
+}
+
+// MarshalSize returns the size of the packet once marshaled
+func (b *CCFeedbackReport) MarshalSize() int {
+	n := 0
 	for _, block := range b.ReportBlocks {
 		n += block.len()
 	}
@@ -103,7 +112,7 @@ func (b *CCFeedbackReport) Header() Header {
 		Padding: false,
 		Count:   FormatCCFB,
 		Type:    TypeTransportSpecificFeedback,
-		Length:  b.Len()/4 - 1,
+		Length:  uint16(b.MarshalSize()/4 - 1),
 	}
 }
 
@@ -118,7 +127,7 @@ func (b CCFeedbackReport) Marshal() ([]byte, error) {
 	buf := make([]byte, length)
 	copy(buf[:headerLength], headerBuf)
 	binary.BigEndian.PutUint32(buf[headerLength:], b.SenderSSRC)
-	offset := uint16(reportBlockOffset)
+	offset := reportBlockOffset
 	for _, block := range b.ReportBlocks {
 		b, err := block.marshal()
 		if err != nil {
@@ -160,10 +169,10 @@ func (b *CCFeedbackReport) Unmarshal(rawPacket []byte) error {
 
 	b.SenderSSRC = binary.BigEndian.Uint32(rawPacket[headerLength:])
 
-	reportTimestampOffset := uint16(len(rawPacket) - reportTimestampLength)
+	reportTimestampOffset := len(rawPacket) - reportTimestampLength
 	b.ReportTimestamp = binary.BigEndian.Uint32(rawPacket[reportTimestampOffset:])
 
-	offset := uint16(reportBlockOffset)
+	offset := reportBlockOffset
 	b.ReportBlocks = []CCFeedbackReportBlock{}
 	for offset < reportTimestampOffset {
 		var block CCFeedbackReportBlock
@@ -195,12 +204,12 @@ type CCFeedbackReportBlock struct {
 }
 
 // len returns the length of the report block in bytes
-func (b *CCFeedbackReportBlock) len() uint16 {
+func (b *CCFeedbackReportBlock) len() int {
 	n := len(b.MetricBlocks)
 	if n%2 != 0 {
 		n++
 	}
-	return reportsOffset + 2*uint16(n)
+	return reportsOffset + 2*n
 }
 
 func (b CCFeedbackReportBlock) String() string {
@@ -253,14 +262,20 @@ func (b *CCFeedbackReportBlock) unmarshal(rawPacket []byte) error {
 	if numReportsField == 0 {
 		return nil
 	}
-	endSequence := b.BeginSequence + numReportsField
-	numReports := endSequence - b.BeginSequence + 1
 
-	if len(rawPacket) < int(reportsOffset+numReports*2) {
+	if int(b.BeginSequence)+int(numReportsField) > math.MaxUint16 {
 		return errIncorrectNumReports
 	}
+
+	endSequence := b.BeginSequence + numReportsField
+	numReports := int(endSequence - b.BeginSequence + 1)
+
+	if len(rawPacket) < reportsOffset+numReports*2 {
+		return errIncorrectNumReports
+	}
+
 	b.MetricBlocks = make([]CCFeedbackMetricBlock, numReports)
-	for i := uint16(0); i < numReports; i++ {
+	for i := int(0); i < numReports; i++ {
 		var mb CCFeedbackMetricBlock
 		offset := reportsOffset + 2*i
 		if err := mb.unmarshal(rawPacket[offset : offset+2]); err != nil {

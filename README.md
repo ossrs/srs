@@ -66,6 +66,10 @@ To learn more about RTMP, HLS, HTTP-FLV, SRT, MPEG-DASH, WebRTC protocols, clust
 HTTP API, DVR, and transcoding, please check the documents in [English](https://ossrs.io) 
 or [Chinese](https://ossrs.net).
 
+If you want to use an IDE, VSCode is recommanded. VSCode supports macOS, Linux, and Windows 
+platforms. The settings are ready. All you need to do is open the folder with VSCode and 
+enjoy the efficiency brought by the IDE. See [VSCode README](.vscode/README.md) for details.
+
 ## Sponsor
 
 Would you like additional assistance from us? By becoming a sponsor or backer of SRS, we can provide you 

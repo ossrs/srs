@@ -4,6 +4,7 @@
 package nack
 
 import (
+	"encoding/binary"
 	"io"
 	"sync"
 
@@ -13,8 +14,9 @@ import (
 const maxPayloadLen = 1460
 
 type packetManager struct {
-	headerPool  *sync.Pool
-	payloadPool *sync.Pool
+	headerPool   *sync.Pool
+	payloadPool  *sync.Pool
+	rtxSequencer rtp.Sequencer
 }
 
 func newPacketManager() *packetManager {
@@ -30,16 +32,18 @@ func newPacketManager() *packetManager {
 				return &buf
 			},
 		},
+		rtxSequencer: rtp.NewRandomSequencer(),
 	}
 }
 
-func (m *packetManager) NewPacket(header *rtp.Header, payload []byte) (*retainablePacket, error) {
+func (m *packetManager) NewPacket(header *rtp.Header, payload []byte, rtxSsrc uint32, rtxPayloadType uint8) (*retainablePacket, error) {
 	if len(payload) > maxPayloadLen {
 		return nil, io.ErrShortBuffer
 	}
 
 	p := &retainablePacket{
-		onRelease: m.releasePacket,
+		onRelease:      m.releasePacket,
+		sequenceNumber: header.SequenceNumber,
 		// new packets have retain count of 1
 		count: 1,
 	}
@@ -62,6 +66,29 @@ func (m *packetManager) NewPacket(header *rtp.Header, payload []byte) (*retainab
 		p.payload = (*p.buffer)[:size]
 	}
 
+	if rtxSsrc != 0 && rtxPayloadType != 0 {
+		// Store the original sequence number and rewrite the sequence number.
+		originalSequenceNumber := p.header.SequenceNumber
+		p.header.SequenceNumber = m.rtxSequencer.NextSequenceNumber()
+
+		// Rewrite the SSRC.
+		p.header.SSRC = rtxSsrc
+		// Rewrite the payload type.
+		p.header.PayloadType = rtxPayloadType
+
+		// Remove padding if present.
+		paddingLength := 0
+		if p.header.Padding && p.payload != nil && len(p.payload) > 0 {
+			paddingLength = int(p.payload[len(p.payload)-1])
+			p.header.Padding = false
+		}
+
+		// Write the original sequence number at the beginning of the payload.
+		payload := make([]byte, 2)
+		binary.BigEndian.PutUint16(payload, originalSequenceNumber)
+		p.payload = append(payload, p.payload[:len(p.payload)-paddingLength]...)
+	}
+
 	return p, nil
 }
 
@@ -74,12 +101,13 @@ func (m *packetManager) releasePacket(header *rtp.Header, payload *[]byte) {
 
 type noOpPacketFactory struct{}
 
-func (f *noOpPacketFactory) NewPacket(header *rtp.Header, payload []byte) (*retainablePacket, error) {
+func (f *noOpPacketFactory) NewPacket(header *rtp.Header, payload []byte, _ uint32, _ uint8) (*retainablePacket, error) {
 	return &retainablePacket{
-		onRelease: f.releasePacket,
-		count:     1,
-		header:    header,
-		payload:   payload,
+		onRelease:      f.releasePacket,
+		count:          1,
+		header:         header,
+		payload:        payload,
+		sequenceNumber: header.SequenceNumber,
 	}, nil
 }
 
@@ -96,6 +124,8 @@ type retainablePacket struct {
 	header  *rtp.Header
 	buffer  *[]byte
 	payload []byte
+
+	sequenceNumber uint16
 }
 
 func (p *retainablePacket) Header() *rtp.Header {

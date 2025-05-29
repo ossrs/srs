@@ -236,6 +236,7 @@ srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd)
     // directly enqueue, the cycle thread will remove the client.
     conn_manager_->add(resource);
 
+    // Note that conn is managed by conn_manager, so we don't need to free it.
     ISrsStartable* conn = dynamic_cast<ISrsStartable*>(resource);
     if ((err = conn->start()) != srs_success) {
         return srs_error_wrap(err, "start srt conn coroutine");

@@ -2,7 +2,7 @@
 
 Support run and debug with VSCode.
 
-## SRS
+## macOS: SRS Server
 
 Install the following extensions:
 
@@ -10,20 +10,64 @@ Install the following extensions:
 - CodeLLDB
 - C/C++ Extension Pack
 
-Open the folder like `~/git/srs` in VSCode.
-Run commmand `> CMake: Configure` to configure the project.
+Open the folder like `$HOME/git/srs` in VSCode, after you clone srs to
+`$HOME/git/srs` directory.
 
-> Note: You can press `Ctrl+R`, then type `CMake: Configure` then select `Clang` as the toolchain.
+Run commmand to configure the project by pressing `Command+Shift+P`, then type `CMake: Configure` 
+then select `Clang` as the toolchain. Or run the command manually in terminal:
 
-> Note: The `settings.json` is used to configure the cmake. It will use `${workspaceFolder}/trunk/ide/srs_clion/CMakeLists.txt` 
-> and `${workspaceFolder}/trunk/ide/vscode-build` as the source file and build directory.
+```bash
+cmake -S $HOME/git/srs/trunk/ide/srs_clion -B $HOME/git/srs/trunk/ide/vscode-build
+```
 
-Click the `Run > Run Without Debugging` button to start the server.
+> Note: Sometimes it may fail to configure when building libsrtp. Just retry, and it will succeed.
+
+> Note: Make sure you have `xcode` installed, and run `xcode-select --install` to setup the toolchains.
+
+> Note: The `settings.json` is used to configure the cmake. It will use `$HOME/git/srs/trunk/ide/srs_clion/CMakeLists.txt` 
+> and `$HOME/git/srs/trunk/ide/vscode-build` as the source file and build directory.
+
+Click the `Run > Run Without Debugging` or `Run > Start Debugging` from menu to start or 
+debug the server. It will invoke the `build` task defined in `tasks.json`, or you can run 
+it manually:
+
+```bash
+cmake --build $HOME/git/srs/trunk/ide/vscode-build
+```
 
 > Note: The `launch.json` is used for running and debugging. The build will output the binary to
-> `${workspaceFolder}/trunk/ide/vscode-build/srs`.
+> `$HOME/git/srs/trunk/ide/vscode-build/srs`.
 
-## Proxy
+## macOS: SRS UTest
+
+Install the following extensions:
+
+- C++ TestMate
+
+Open the folder like `$HOME/git/srs` in VSCode, after you clone srs to
+`$HOME/git/srs` directory.
+
+Run commmand to configure the project by pressing `Command+Shift+P`, then type `CMake: Configure` 
+then select `Clang` as the toolchain. Or run the command manually in terminal:
+
+```bash
+cmake -S $HOME/git/srs/trunk/ide/srs_clion -B $HOME/git/srs/trunk/ide/vscode-build
+```
+
+> Note: Sometimes it may fail to configure when building libsrtp. Just retry, and it will succeed.
+
+Afterwards, build the utest by pressing `Command+Shift+P`, then type `CMake: Build` to run the 
+build command. It will invoke the `build` task defined in `tasks.json`, or you can run it manually:
+
+```bash
+cmake --build $HOME/git/srs/trunk/ide/vscode-build
+```
+
+Then you will discover all the unit testcases from the `View > Testing` panel. You can 
+open utest source file like `trunk/src/utest/srs_utest.cpp`, then click the `Run Test` or `Debug Test`
+on each testcase such as `FastSampleInt64Test`.
+
+## macOS: Proxy
 
 Install the following extensions:
 
@@ -31,7 +75,7 @@ Install the following extensions:
 
 Open the folder like `~/git/srs` in VSCode.
 
-Select the `View > Run` and select `Launch srs-proxy` to start the proxy server.
+Click the `View > Run` and select `Launch srs-proxy` to start the proxy server.
 
 Click the `Run > Run Without Debugging` button to start the server.
 
