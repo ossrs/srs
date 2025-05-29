@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-05-29, Merge [#4362](https://github.com/ossrs/srs/pull/4362): Update VSCode launch configuration to support GDB on Linux and LLDB on macOS. v7.0.35 (#4362)
 * v7.0, 2025-05-26, Merge [#4359](https://github.com/ossrs/srs/pull/4359): update pion/webrtc to v4. v7.0.34 (#4359)
 * v7.0, 2025-05-13, Merge [#4289](https://github.com/ossrs/srs/pull/4289): rtmp2rtc: Support RTMP-to-WebRTC conversion with HEVC. v7.0.33 (#4289)
 * v7.0, 2025-04-30, Merge [#4308](https://github.com/ossrs/srs/pull/4308): Fix memory leaks from errors skipping resource release. v7.0.32 (#4308)
