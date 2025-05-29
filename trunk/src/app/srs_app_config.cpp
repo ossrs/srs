@@ -6678,10 +6678,12 @@ string SrsConfig::get_ingest_input_url(SrsConfDirective* conf)
 bool SrsConfig::get_log_tank_file()
 {
     if (!srs_getenv("srs.srs_log_tank").empty()) { // SRS_SRS_LOG_TANK
-        return srs_getenv("srs.srs_log_tank") != "console";
+        string tank = srs_getenv("srs.srs_log_tank");
+        return tank != "console" && tank != "";
     }
     if (!srs_getenv("srs.log_tank").empty()) { // SRS_LOG_TANK
-        return srs_getenv("srs.log_tank") != "console";
+        string tank = srs_getenv("srs.log_tank");
+        return tank != "console" && tank != "";
     }
 
     static bool DEFAULT = true;
@@ -6695,7 +6697,28 @@ bool SrsConfig::get_log_tank_file()
         return DEFAULT;
     }
     
-    return conf->arg0() != "console";
+    string tank = conf->arg0();
+    return tank != "console" && tank != "";
+}
+
+bool SrsConfig::get_log_tank_all()
+{
+    if (!srs_getenv("srs.srs_log_tank").empty()) { // SRS_SRS_LOG_TANK
+        string tank = srs_getenv("srs.srs_log_tank");
+        return tank == "all";
+    }
+    if (!srs_getenv("srs.log_tank").empty()) { // SRS_LOG_TANK
+        string tank = srs_getenv("srs.log_tank");
+        return tank == "all";
+    }
+    
+    SrsConfDirective* conf = root->get("srs_log_tank");
+    if (!conf || conf->arg0().empty()) {
+        return false;
+    }
+    
+    string tank = conf->arg0();
+    return tank == "all";
 }
 
 string SrsConfig::get_log_level()

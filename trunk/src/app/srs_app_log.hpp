@@ -39,6 +39,8 @@ private:
     int fd;
     // Whether log to file tank
     bool log_to_file_tank;
+    // Whether log to all (both console and file)
+    bool log_to_all_tank;
     // Whether use utc time.
     bool utc;
     // TODO: FIXME: use macro define like SRS_MULTI_THREAD_LOG to switch enable log mutex or not.

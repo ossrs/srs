@@ -891,6 +891,8 @@ public:
 public:
     // Whether log to file.
     virtual bool get_log_tank_file();
+    // Whether log to all (both console and file).
+    virtual bool get_log_tank_all();
     // Get the log level.
     virtual std::string get_log_level();
     virtual std::string get_log_level_v2();

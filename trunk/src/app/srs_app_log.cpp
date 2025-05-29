@@ -35,6 +35,7 @@ SrsFileLog::SrsFileLog()
     
     fd = -1;
     log_to_file_tank = false;
+    log_to_all_tank = false;
     utc = false;
 
     mutex_ = new SrsThreadMutex();
@@ -62,6 +63,7 @@ srs_error_t SrsFileLog::initialize()
         _srs_config->subscribe(this);
         
         log_to_file_tank = _srs_config->get_log_tank_file();
+        log_to_all_tank = _srs_config->get_log_tank_all();
         utc = _srs_config->get_utc_time();
 
         std::string level = _srs_config->get_log_level();
@@ -78,7 +80,7 @@ void SrsFileLog::reopen()
         ::close(fd);
     }
     
-    if (!log_to_file_tank) {
+    if (!log_to_file_tank && !log_to_all_tank) {
         return;
     }
     
@@ -131,6 +133,28 @@ void SrsFileLog::write_log(int& fd, char *str_log, int size, int level)
     
     // add some to the end of char.
     str_log[size++] = LOG_TAIL;
+    
+    // if log_to_all_tank is true, output to both console and file
+    if (log_to_all_tank) {
+        // Output to console first
+        if (level <= SrsLogLevelTrace) {
+            printf("%.*s", size, str_log);
+        } else if (level == SrsLogLevelWarn) {
+            printf("\033[33m%.*s\033[0m", size, str_log);
+        } else{
+            printf("\033[31m%.*s\033[0m", size, str_log);
+        }
+        fflush(stdout);
+        
+        // Then write to file
+        if (fd < 0) {
+            open_log_file();
+        }
+        if (fd > 0) {
+            ::write(fd, str_log, size);
+        }
+        return;
+    }
     
     // if not to file, to console and return.
     if (!log_to_file_tank) {
