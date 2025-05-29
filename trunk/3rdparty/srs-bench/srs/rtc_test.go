@@ -2418,7 +2418,7 @@ func TestRtcPublish_HttpFlvPlay(t *testing.T) {
 				}
 				logger.Tf(ctx, "got %v tag, %v %vms %vB", nnVideo+nnAudio, tagType, timestamp, len(tag))
 
-				if audioPacketsOK, videoPacketsOK := !hasAudio || nnAudio >= 10, !hasVideo || nnVideo >= 10; audioPacketsOK && videoPacketsOK {
+				if audioPacketsOK, videoPacketsOK := hasAudio && nnAudio >= 10, hasVideo && nnVideo >= 10; audioPacketsOK && videoPacketsOK {
 					logger.Tf(ctx, "Flv recv %v/%v audio, %v/%v video", hasAudio, nnAudio, hasVideo, nnVideo)
 					cancel()
 				}
