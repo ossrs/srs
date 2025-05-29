@@ -67,6 +67,20 @@ Then you will discover all the unit testcases from the `View > Testing` panel. Y
 open utest source file like `trunk/src/utest/srs_utest.cpp`, then click the `Run Test` or `Debug Test`
 on each testcase such as `FastSampleInt64Test`.
 
+## macOS: SRS Regression Test
+
+Follow the [srs-bench](../trunk/3rdparty/srs-bench/README.md) to setup the environment.
+
+Open the test panel by clicking `View > Testing`, run the regression tests under:
+
+```
++ Go
+  + github.com/ossrs/srs-bench
+    + blackbox
+    + gb28181
+    + srs
+```
+
 ## macOS: Proxy
 
 Install the following extensions:

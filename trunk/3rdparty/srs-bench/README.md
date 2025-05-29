@@ -14,7 +14,7 @@ git clone -b feature/rtc https://github.com/ossrs/srs-bench.git &&
 cd srs-bench && make
 ```
 
-> Note: 依赖Go编译工具，建议使用 Go 1.17 及以上的版本。
+> Note: 依赖Go编译工具，建议使用 Go 1.21 及以上的版本。
 
 编译会生成下面的工具：
 
