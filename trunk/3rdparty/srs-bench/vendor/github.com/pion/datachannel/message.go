@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package datachannel
 
 import (
@@ -8,6 +11,7 @@ import (
 type message interface {
 	Marshal() ([]byte, error)
 	Unmarshal([]byte) error
+	String() string
 }
 
 // messageType is the first byte in a DataChannel message that specifies type
@@ -70,4 +74,19 @@ func parseExpectDataChannelOpen(raw []byte) (*channelOpen, error) {
 	}
 
 	return msg, nil
+}
+
+// TryMarshalUnmarshal attempts to marshal and unmarshal a message. Added for fuzzing.
+func TryMarshalUnmarshal(msg []byte) int {
+	message, err := parse(msg)
+	if err != nil {
+		return 0
+	}
+
+	_, err = message.Marshal()
+	if err != nil {
+		return 0
+	}
+
+	return 1
 }

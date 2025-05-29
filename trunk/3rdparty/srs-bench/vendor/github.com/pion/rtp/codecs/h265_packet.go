@@ -1,9 +1,13 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package codecs
 
 import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 )
 
 //
@@ -20,7 +24,7 @@ var (
 //
 
 const (
-	// sizeof(uint16)
+	// sizeof(uint16).
 	h265NaluHeaderSize = 2
 	// https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
 	h265NaluAggregationPacketType = 48
@@ -30,13 +34,16 @@ const (
 	h265NaluPACIPacketType = 50
 )
 
-// H265NALUHeader is a H265 NAL Unit Header
+// H265NALUHeader is a H265 NAL Unit Header.
 // https://datatracker.ietf.org/doc/html/rfc7798#section-1.1.4
-// +---------------+---------------+
-//  |0|1|2|3|4|5|6|7|0|1|2|3|4|5|6|7|
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//  |F|   Type    |  LayerID  | TID |
-//  +-------------+-----------------+
+/*
+* +---------------+---------------+
+* |0|1|2|3|4|5|6|7|0|1|2|3|4|5|6|7|
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |F|   Type    |  LayerID  | TID |
+* +-------------+-----------------+
+**/
+// .
 type H265NALUHeader uint16
 
 func newH265NALUHeader(highByte, lowByte uint8) H265NALUHeader {
@@ -52,13 +59,15 @@ func (h H265NALUHeader) F() bool {
 func (h H265NALUHeader) Type() uint8 {
 	// 01111110 00000000
 	const mask = 0b01111110 << 8
-	return uint8((uint16(h) & mask) >> (8 + 1))
+
+	return uint8((uint16(h) & mask) >> (8 + 1)) // nolint: gosec // G115 false positive
 }
 
 // IsTypeVCLUnit returns whether or not the NAL Unit type is a VCL NAL unit.
 func (h H265NALUHeader) IsTypeVCLUnit() bool {
 	// Type is coded on 6 bits
 	const msbMask = 0b00100000
+
 	return (h.Type() & msbMask) == 0
 }
 
@@ -66,13 +75,15 @@ func (h H265NALUHeader) IsTypeVCLUnit() bool {
 func (h H265NALUHeader) LayerID() uint8 {
 	// 00000001 11111000
 	const mask = (0b00000001 << 8) | 0b11111000
-	return uint8((uint16(h) & mask) >> 3)
+
+	return uint8((uint16(h) & mask) >> 3) // nolint: gosec // G115 false positive
 }
 
 // TID is the temporal identifier of the NAL unit +1.
 func (h H265NALUHeader) TID() uint8 {
 	const mask = 0b00000111
-	return uint8(uint16(h) & mask)
+
+	return uint8(uint16(h) & mask) // nolint: gosec // G115 false positive
 }
 
 // IsAggregationPacket returns whether or not the packet is an Aggregation packet.
@@ -95,18 +106,19 @@ func (h H265NALUHeader) IsPACIPacket() bool {
 //
 
 // H265SingleNALUnitPacket represents a NALU packet, containing exactly one NAL unit.
-//     0                   1                   2                   3
-//    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |           PayloadHdr          |      DONL (conditional)       |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                                                               |
-//   |                  NAL unit payload data                        |
-//   |                                                               |
-//   |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                               :...OPTIONAL RTP padding        |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//
+/*
+*  0                   1                   2                   3
+*  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |           PayloadHdr          |      DONL (conditional)       |
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |                                                               |
+* |                  NAL unit payload data                        |
+* |                                                               |
+* |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |                               :...OPTIONAL RTP padding        |
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+**/
 // Reference: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.1
 type H265SingleNALUnitPacket struct {
 	// payloadHeader is the header of the H265 packet.
@@ -125,7 +137,8 @@ func (p *H265SingleNALUnitPacket) WithDONL(value bool) {
 	p.mightNeedDONL = value
 }
 
-// Unmarshal parses the passed byte slice and stores the result in the H265SingleNALUnitPacket this method is called upon.
+// Unmarshal parses the passed byte slice and stores the result in the H265SingleNALUnitPacket
+// this method is called upon.
 func (p *H265SingleNALUnitPacket) Unmarshal(payload []byte) ([]byte, error) {
 	// sizeof(headers)
 	const totalHeaderSize = h265NaluHeaderSize
@@ -184,19 +197,19 @@ func (p *H265SingleNALUnitPacket) isH265Packet() {}
 //
 
 // H265AggregationUnitFirst represent the First Aggregation Unit in an AP.
-//
-//    0                   1                   2                   3
-//    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//                   :       DONL (conditional)      |   NALU size   |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |   NALU size   |                                               |
-//   +-+-+-+-+-+-+-+-+         NAL unit                              |
-//   |                                                               |
-//   |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                               :
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//
+/*
+*  0                   1                   2                   3
+*  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* :       DONL (conditional)      |   NALU size   |
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |   NALU size   |                                               |
+* +-+-+-+-+-+-+-+-+         NAL unit                              |
+* |                                                               |
+* |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |                               :
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+**/
 // Reference: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
 type H265AggregationUnitFirst struct {
 	donl        *uint16
@@ -222,18 +235,18 @@ func (u H265AggregationUnitFirst) NalUnit() []byte {
 }
 
 // H265AggregationUnit represent the an Aggregation Unit in an AP, which is not the first one.
-//
-//    0                   1                   2                   3
-//    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//                   : DOND (cond)   |          NALU size            |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                                                               |
-//   |                       NAL unit                                |
-//   |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                               :
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//
+/*
+*  0                   1                   2                   3
+*  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* : DOND (cond)   |          NALU size            |
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |                                                               |
+* |                       NAL unit                                |
+* |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |                               :
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+**/
 // Reference: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
 type H265AggregationUnit struct {
 	dond        *uint8
@@ -259,18 +272,19 @@ func (u H265AggregationUnit) NalUnit() []byte {
 }
 
 // H265AggregationPacket represents an Aggregation packet.
-//   0                   1                   2                   3
-//    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |    PayloadHdr (Type=48)       |                               |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
-//   |                                                               |
-//   |             two or more aggregation units                     |
-//   |                                                               |
-//   |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                               :...OPTIONAL RTP padding        |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//
+/*
+*  0                   1                   2                   3
+*  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |    PayloadHdr (Type=48)       |                               |
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
+* |                                                               |
+* |             two or more aggregation units                     |
+* |                                                               |
+* |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |                               :...OPTIONAL RTP padding        |
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+**/
 // Reference: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
 type H265AggregationPacket struct {
 	firstUnit  *H265AggregationUnitFirst
@@ -286,7 +300,7 @@ func (p *H265AggregationPacket) WithDONL(value bool) {
 }
 
 // Unmarshal parses the passed byte slice and stores the result in the H265AggregationPacket this method is called upon.
-func (p *H265AggregationPacket) Unmarshal(payload []byte) ([]byte, error) {
+func (p *H265AggregationPacket) Unmarshal(payload []byte) ([]byte, error) { //nolint:cyclop
 	// sizeof(headers)
 	const totalHeaderSize = h265NaluHeaderSize
 	if payload == nil {
@@ -390,51 +404,56 @@ func (p *H265AggregationPacket) isH265Packet() {}
 //
 
 const (
-	// sizeof(uint8)
+	// sizeof(uint8).
 	h265FragmentationUnitHeaderSize = 1
 )
 
-// H265FragmentationUnitHeader is a H265 FU Header
+// H265FragmentationUnitHeader is a H265 FU Header.
+//
 // +---------------+
 // |0|1|2|3|4|5|6|7|
 // +-+-+-+-+-+-+-+-+
 // |S|E|  FuType   |
 // +---------------+
+// .
 type H265FragmentationUnitHeader uint8
 
 // S represents the start of a fragmented NAL unit.
 func (h H265FragmentationUnitHeader) S() bool {
 	const mask = 0b10000000
+
 	return ((h & mask) >> 7) != 0
 }
 
 // E represents the end of a fragmented NAL unit.
 func (h H265FragmentationUnitHeader) E() bool {
 	const mask = 0b01000000
+
 	return ((h & mask) >> 6) != 0
 }
 
 // FuType MUST be equal to the field Type of the fragmented NAL unit.
 func (h H265FragmentationUnitHeader) FuType() uint8 {
 	const mask = 0b00111111
+
 	return uint8(h) & mask
 }
 
 // H265FragmentationUnitPacket represents a single Fragmentation Unit packet.
-//
-//  0                   1                   2                   3
-// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |    PayloadHdr (Type=49)       |   FU header   | DONL (cond)   |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
-// | DONL (cond)   |                                               |
-// |-+-+-+-+-+-+-+-+                                               |
-// |                         FU payload                            |
-// |                                                               |
-// |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |                               :...OPTIONAL RTP padding        |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//
+/*
+*  0                   1                   2                   3
+*  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |    PayloadHdr (Type=49)       |   FU header   | DONL (cond)   |
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+* | DONL (cond)   |                                               |
+* |-+-+-+-+-+-+-+-+                                               |
+* |                         FU payload                            |
+* |                                                               |
+* |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |                               :...OPTIONAL RTP padding        |
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+**/
 // Reference: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.3
 type H265FragmentationUnitPacket struct {
 	// payloadHeader is the header of the H265 packet.
@@ -455,7 +474,8 @@ func (p *H265FragmentationUnitPacket) WithDONL(value bool) {
 	p.mightNeedDONL = value
 }
 
-// Unmarshal parses the passed byte slice and stores the result in the H265FragmentationUnitPacket this method is called upon.
+// Unmarshal parses the passed byte slice and stores the result in the H265FragmentationUnitPacket
+// this method is called upon.
 func (p *H265FragmentationUnitPacket) Unmarshal(payload []byte) ([]byte, error) {
 	// sizeof(headers)
 	const totalHeaderSize = h265NaluHeaderSize + h265FragmentationUnitHeaderSize
@@ -521,22 +541,22 @@ func (p *H265FragmentationUnitPacket) isH265Packet() {}
 //
 
 // H265PACIPacket represents a single H265 PACI packet.
-//
-//  0                   1                   2                   3
-// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |    PayloadHdr (Type=50)       |A|   cType   | PHSsize |F0..2|Y|
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |        Payload Header Extension Structure (PHES)              |
-// |=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=|
-// |                                                               |
-// |                  PACI payload: NAL unit                       |
-// |                   . . .                                       |
-// |                                                               |
-// |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |                               :...OPTIONAL RTP padding        |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//
+/*
+*  0                   1                   2                   3
+*  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |    PayloadHdr (Type=50)       |A|   cType   | PHSsize |F0..2|Y|
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |        Payload Header Extension Structure (PHES)              |
+* |=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=|
+* |                                                               |
+* |                  PACI payload: NAL unit                       |
+* |                   . . .                                       |
+* |                                                               |
+* |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* |                               :...OPTIONAL RTP padding        |
+* +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+**/
 // Reference: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.4
 type H265PACIPacket struct {
 	// payloadHeader is the header of the H265 packet.
@@ -560,42 +580,49 @@ func (p *H265PACIPacket) PayloadHeader() H265NALUHeader {
 // A copies the F bit of the PACI payload NALU.
 func (p *H265PACIPacket) A() bool {
 	const mask = 0b10000000 << 8
+
 	return (p.paciHeaderFields & mask) != 0
 }
 
 // CType copies the Type field of the PACI payload NALU.
 func (p *H265PACIPacket) CType() uint8 {
 	const mask = 0b01111110 << 8
-	return uint8((p.paciHeaderFields & mask) >> (8 + 1))
+
+	return uint8((p.paciHeaderFields & mask) >> (8 + 1)) // nolint: gosec // G115 false positive
 }
 
 // PHSsize indicates the size of the PHES field.
 func (p *H265PACIPacket) PHSsize() uint8 {
 	const mask = (0b00000001 << 8) | 0b11110000
-	return uint8((p.paciHeaderFields & mask) >> 4)
+
+	return uint8((p.paciHeaderFields & mask) >> 4) // nolint: gosec // G115 false positive
 }
 
 // F0 indicates the presence of a Temporal Scalability support extension in the PHES.
 func (p *H265PACIPacket) F0() bool {
 	const mask = 0b00001000
+
 	return (p.paciHeaderFields & mask) != 0
 }
 
 // F1 must be zero, reserved for future extensions.
 func (p *H265PACIPacket) F1() bool {
 	const mask = 0b00000100
+
 	return (p.paciHeaderFields & mask) != 0
 }
 
 // F2 must be zero, reserved for future extensions.
 func (p *H265PACIPacket) F2() bool {
 	const mask = 0b00000010
+
 	return (p.paciHeaderFields & mask) != 0
 }
 
 // Y must be zero, reserved for future extensions.
 func (p *H265PACIPacket) Y() bool {
 	const mask = 0b00000001
+
 	return (p.paciHeaderFields & mask) != 0
 }
 
@@ -616,6 +643,7 @@ func (p *H265PACIPacket) TSCI() *H265TSCI {
 	}
 
 	tsci := H265TSCI((uint32(p.phes[0]) << 16) | (uint32(p.phes[1]) << 8) | uint32(p.phes[0]))
+
 	return &tsci
 }
 
@@ -645,6 +673,7 @@ func (p *H265PACIPacket) Unmarshal(payload []byte) ([]byte, error) {
 
 	if len(payload) < int(headerExtensionSize)+1 {
 		p.paciHeaderFields = 0
+
 		return nil, errShortPacket
 	}
 
@@ -674,35 +703,40 @@ type H265TSCI uint32
 func (h H265TSCI) TL0PICIDX() uint8 {
 	const m1 = 0xFFFF0000
 	const m2 = 0xFF00
-	return uint8((((h & m1) >> 16) & m2) >> 8)
+
+	return uint8((((h & m1) >> 16) & m2) >> 8) // nolint: gosec // G115 false positive
 }
 
 // IrapPicID see RFC7798 for more details.
 func (h H265TSCI) IrapPicID() uint8 {
 	const m1 = 0xFFFF0000
 	const m2 = 0x00FF
-	return uint8(((h & m1) >> 16) & m2)
+
+	return uint8(((h & m1) >> 16) & m2) // nolint: gosec // G115 false positive
 }
 
 // S see RFC7798 for more details.
 func (h H265TSCI) S() bool {
 	const m1 = 0xFF00
 	const m2 = 0b10000000
-	return (uint8((h&m1)>>8) & m2) != 0
+
+	return (uint8((h&m1)>>8) & m2) != 0 // nolint: gosec // G115 false positive
 }
 
 // E see RFC7798 for more details.
 func (h H265TSCI) E() bool {
 	const m1 = 0xFF00
 	const m2 = 0b01000000
-	return (uint8((h&m1)>>8) & m2) != 0
+
+	return (uint8((h&m1)>>8) & m2) != 0 // nolint: gosec // G115 false positive
 }
 
 // RES see RFC7798 for more details.
 func (h H265TSCI) RES() uint8 {
 	const m1 = 0xFF00
 	const m2 = 0b00111111
-	return uint8((h&m1)>>8) & m2
+
+	return uint8((h&m1)>>8) & m2 // nolint: gosec // G115 false positive
 }
 
 //
@@ -738,8 +772,8 @@ func (p *H265Packet) WithDONL(value bool) {
 	p.mightNeedDONL = value
 }
 
-// Unmarshal parses the passed byte slice and stores the result in the H265Packet this method is called upon
-func (p *H265Packet) Unmarshal(payload []byte) ([]byte, error) {
+// Unmarshal parses the passed byte slice and stores the result in the H265Packet this method is called upon.
+func (p *H265Packet) Unmarshal(payload []byte) ([]byte, error) { // nolint:cyclop
 	if payload == nil {
 		return nil, errNilPacket
 	} else if len(payload) <= h265NaluHeaderSize {
@@ -816,4 +850,207 @@ func (*H265Packet) IsPartitionHead(payload []byte) bool {
 	}
 
 	return true
+}
+
+// H265Payloader payloads H265 packets.
+type H265Payloader struct {
+	AddDONL         bool
+	SkipAggregation bool
+	donl            uint16
+}
+
+// Payload fragments a H265 packet across one or more byte arrays.
+func (p *H265Payloader) Payload(mtu uint16, payload []byte) [][]byte { //nolint:gocognit,cyclop
+	var payloads [][]byte
+	if len(payload) == 0 || mtu == 0 {
+		return payloads
+	}
+
+	bufferedNALUs := make([][]byte, 0)
+	aggregationBufferSize := 0
+
+	flushBufferedNals := func() {
+		if len(bufferedNALUs) == 0 {
+			return
+		}
+		if len(bufferedNALUs) == 1 { //nolint:nestif
+			// emit this as a single NALU packet
+			nalu := bufferedNALUs[0]
+
+			if p.AddDONL {
+				buf := make([]byte, len(nalu)+2)
+
+				// copy the NALU header to the payload header
+				copy(buf[0:h265NaluHeaderSize], nalu[0:h265NaluHeaderSize])
+
+				// copy the DONL into the header
+				binary.BigEndian.PutUint16(buf[h265NaluHeaderSize:h265NaluHeaderSize+2], p.donl)
+
+				// write the payload
+				copy(buf[h265NaluHeaderSize+2:], nalu[h265NaluHeaderSize:])
+
+				p.donl++
+
+				payloads = append(payloads, buf)
+			} else {
+				// write the nalu directly to the payload
+				payloads = append(payloads, nalu)
+			}
+		} else {
+			// construct an aggregation packet
+			aggregationPacketSize := aggregationBufferSize
+			buf := make([]byte, aggregationPacketSize)
+
+			layerID := uint8(math.MaxUint8)
+			tid := uint8(math.MaxUint8)
+			for _, nalu := range bufferedNALUs {
+				header := newH265NALUHeader(nalu[0], nalu[1])
+				headerLayerID := header.LayerID()
+				headerTID := header.TID()
+				if headerLayerID < layerID {
+					layerID = headerLayerID
+				}
+				if headerTID < tid {
+					tid = headerTID
+				}
+			}
+
+			binary.BigEndian.PutUint16(buf[0:2], (uint16(h265NaluAggregationPacketType)<<9)|(uint16(layerID)<<3)|uint16(tid))
+
+			index := 2
+			for i, nalu := range bufferedNALUs {
+				if p.AddDONL {
+					if i == 0 {
+						binary.BigEndian.PutUint16(buf[index:index+2], p.donl)
+						index += 2
+					} else {
+						buf[index] = byte(i - 1)
+						index++
+					}
+				}
+
+				// Since the type of mtu is uint16, len(nalu) fits in as well, so it is safe.
+				// #nosec
+				binary.BigEndian.PutUint16(buf[index:index+2], uint16(len(nalu)))
+				index += 2
+				index += copy(buf[index:], nalu)
+			}
+			payloads = append(payloads, buf)
+		}
+		// clear the buffered NALUs
+		bufferedNALUs = make([][]byte, 0)
+		aggregationBufferSize = 0
+	}
+
+	calcMarginalAggregationSize := func(nalu []byte) int {
+		marginalAggregationSize := len(nalu) + 2 // +2 is NALU size Field size
+		if len(bufferedNALUs) == 1 {
+			marginalAggregationSize = len(nalu) + 4 // +4 are Aggregation header + NALU size Field size
+		}
+		if p.AddDONL {
+			if len(bufferedNALUs) == 0 {
+				marginalAggregationSize += 2
+			} else {
+				marginalAggregationSize++
+			}
+		}
+
+		return marginalAggregationSize
+	}
+
+	emitNalus(payload, func(nalu []byte) {
+		if len(nalu) < 2 {
+			// NALU header is 2 bytes
+			return
+		}
+
+		naluLen := len(nalu) + 2
+		if p.AddDONL {
+			naluLen += 2
+		}
+		if naluLen <= int(mtu) { //nolint:nestif
+			// this nalu fits into a single packet, either it can be emitted as
+			// a single nalu or appended to the previous aggregation packet
+			marginalAggregationSize := calcMarginalAggregationSize(nalu)
+
+			if aggregationBufferSize+marginalAggregationSize > int(mtu) {
+				flushBufferedNals()
+				marginalAggregationSize = calcMarginalAggregationSize(nalu)
+			}
+			bufferedNALUs = append(bufferedNALUs, nalu)
+			aggregationBufferSize += marginalAggregationSize
+			if p.SkipAggregation {
+				// emit this immediately.
+				flushBufferedNals()
+			}
+		} else {
+			// if this nalu doesn't fit in the current mtu, it needs to be fragmented
+			fuPacketHeaderSize := h265FragmentationUnitHeaderSize + 2 /* payload header size */
+			if p.AddDONL {
+				fuPacketHeaderSize += 2
+			}
+
+			// then, fragment the nalu
+			maxFUPayloadSize := int(mtu) - fuPacketHeaderSize
+
+			naluHeader := newH265NALUHeader(nalu[0], nalu[1])
+
+			// the nalu header is omitted from the fragmentation packet payload
+			nalu = nalu[h265NaluHeaderSize:]
+
+			if maxFUPayloadSize <= 0 || len(nalu) == 0 {
+				return
+			}
+
+			// flush any buffered aggregation packets.
+			flushBufferedNals()
+
+			fullNALUSize := len(nalu)
+			for len(nalu) > 0 {
+				curentFUPayloadSize := len(nalu)
+				if curentFUPayloadSize > maxFUPayloadSize {
+					curentFUPayloadSize = maxFUPayloadSize
+				}
+
+				out := make([]byte, fuPacketHeaderSize+curentFUPayloadSize)
+
+				// write the payload header
+				binary.BigEndian.PutUint16(out[0:2], uint16(naluHeader))
+				out[0] = (out[0] & 0b10000001) | h265NaluFragmentationUnitType<<1
+
+				// write the fragment header
+				out[2] = byte(H265FragmentationUnitHeader(naluHeader.Type()))
+				if len(nalu) == fullNALUSize {
+					// Set start bit
+					out[2] |= 1 << 7
+				} else if len(nalu)-curentFUPayloadSize == 0 {
+					// Set end bit
+					out[2] |= 1 << 6
+				}
+
+				if p.AddDONL {
+					// write the DONL header
+					binary.BigEndian.PutUint16(out[3:5], p.donl)
+
+					p.donl++
+
+					// copy the fragment payload
+					copy(out[5:], nalu[0:curentFUPayloadSize])
+				} else {
+					// copy the fragment payload
+					copy(out[3:], nalu[0:curentFUPayloadSize])
+				}
+
+				// append the fragment to the payload
+				payloads = append(payloads, out)
+
+				// advance the nalu data pointer
+				nalu = nalu[curentFUPayloadSize:]
+			}
+		}
+	})
+
+	flushBufferedNals()
+
+	return payloads
 }

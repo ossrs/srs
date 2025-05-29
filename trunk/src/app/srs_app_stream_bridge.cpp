@@ -85,7 +85,7 @@ SrsFrameToRtcBridge::SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source)
 
     // video track ssrc
     if (true) {
-        std::vector<SrsRtcTrackDescription*> descs = source->get_track_desc("video", "H264");
+        std::vector<SrsRtcTrackDescription*> descs = source->get_track_desc("video", "");
         if (!descs.empty()) {
             video_ssrc = descs.at(0)->ssrc_;
         }
@@ -95,6 +95,8 @@ SrsFrameToRtcBridge::SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source)
 
     rtp_builder_ = new SrsRtcRtpBuilder(this, audio_ssrc, audio_payload_type, video_ssrc, video_payload_type);
 #endif
+
+    video_codec_id_ = SrsVideoCodecIdReserved;
 }
 
 SrsFrameToRtcBridge::~SrsFrameToRtcBridge()
@@ -155,6 +157,39 @@ srs_error_t SrsFrameToRtcBridge::on_rtp(SrsRtpPacket* pkt)
 {
     return source_->on_rtp(pkt);
 }
+
+srs_error_t SrsFrameToRtcBridge::update_codec(SrsVideoCodecId id)
+{
+    srs_error_t err = srs_success;
+
+    if (video_codec_id_ == id) {
+        return err;
+    }
+
+    std::vector<SrsRtcTrackDescription*> video_track_descs = source_->get_track_desc("video", "");
+    if (video_track_descs.empty()) {
+        return srs_error_new(ERROR_RTC_NO_TRACK, "no track found for conversion");
+    }
+
+    SrsRtcTrackDescription* video_track_desc = video_track_descs.at(0);
+    SrsVideoPayload* video_payload = (SrsVideoPayload*)video_track_desc->media_;
+    
+    if (id == SrsVideoCodecIdHEVC) {
+        video_payload->name_ = "H265";
+        video_payload->set_h265_param_desc("level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST");
+    } else {
+        video_payload->name_ = "H264";
+        video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
+    }
+
+    srs_trace("RTC: Switch video codec %d(%s) to %d(%s)", video_codec_id_, srs_video_codec_id2str(video_codec_id_).c_str(),
+            id, srs_video_codec_id2str(id).c_str());
+
+    video_codec_id_ = id;
+
+    return err;
+}
+
 #endif
 
 SrsCompositeBridge::SrsCompositeBridge()

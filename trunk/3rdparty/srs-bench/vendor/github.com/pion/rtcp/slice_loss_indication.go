@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -90,7 +93,8 @@ func (p *SliceLossIndication) Unmarshal(rawPacket []byte) error {
 	return nil
 }
 
-func (p *SliceLossIndication) len() int {
+// MarshalSize returns the size of the packet once marshaled
+func (p *SliceLossIndication) MarshalSize() int {
 	return headerLength + sliOffset + (len(p.SLI) * 4)
 }
 
@@ -99,7 +103,7 @@ func (p *SliceLossIndication) Header() Header {
 	return Header{
 		Count:  FormatSLI,
 		Type:   TypeTransportSpecificFeedback,
-		Length: uint16((p.len() / 4) - 1),
+		Length: uint16((p.MarshalSize() / 4) - 1),
 	}
 }
 

@@ -97,8 +97,16 @@ struct H264SpecificParam
     std::string level_asymmerty_allow;
 };
 
-extern srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264_param);
+struct H265SpecificParam
+{
+    std::string level_id;
+    std::string profile_id;
+    std::string tier_flag;
+    std::string tx_mode;
+};
 
+extern srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264_param);
+extern srs_error_t srs_parse_h265_fmtp(const std::string& fmtp, H265SpecificParam& h265_param);
 class SrsMediaPayloadType
 {
 public:

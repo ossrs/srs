@@ -12,6 +12,13 @@ import (
 	"github.com/pion/rtp"
 )
 
+const (
+	// packetsPerHistoryEntry represents how many packets are in the bitmask for
+	// each entry in the `packets` slice in the receiver stream. Because we use
+	// a uint64, we can keep track of 64 packets per entry.
+	packetsPerHistoryEntry = 64
+)
+
 type receiverStream struct {
 	ssrc         uint32
 	receiverSSRC uint32
@@ -57,10 +64,10 @@ func (stream *receiverStream) processRTP(now time.Time, pktHeader *rtp.Header) {
 	} else { // following frames
 		stream.setReceived(pktHeader.SequenceNumber)
 
-		diff := int32(pktHeader.SequenceNumber) - int32(stream.lastSeqnum)
-		if diff > 0 || diff < -0x0FFF {
-			// overflow
-			if diff < -0x0FFF {
+		diff := pktHeader.SequenceNumber - stream.lastSeqnum
+		if diff > 0 && diff < (1<<15) {
+			// wrap around
+			if pktHeader.SequenceNumber < stream.lastSeqnum {
 				stream.seqnumCycles++
 			}
 
@@ -86,18 +93,18 @@ func (stream *receiverStream) processRTP(now time.Time, pktHeader *rtp.Header) {
 }
 
 func (stream *receiverStream) setReceived(seq uint16) {
-	pos := seq % stream.size
-	stream.packets[pos/64] |= 1 << (pos % 64)
+	pos := seq % (stream.size * packetsPerHistoryEntry)
+	stream.packets[pos/packetsPerHistoryEntry] |= 1 << (pos % packetsPerHistoryEntry)
 }
 
 func (stream *receiverStream) delReceived(seq uint16) {
-	pos := seq % stream.size
-	stream.packets[pos/64] &^= 1 << (pos % 64)
+	pos := seq % (stream.size * packetsPerHistoryEntry)
+	stream.packets[pos/packetsPerHistoryEntry] &^= 1 << (pos % packetsPerHistoryEntry)
 }
 
 func (stream *receiverStream) getReceived(seq uint16) bool {
-	pos := seq % stream.size
-	return (stream.packets[pos/64] & (1 << (pos % 64))) != 0
+	pos := seq % (stream.size * packetsPerHistoryEntry)
+	return (stream.packets[pos/packetsPerHistoryEntry] & (1 << (pos % packetsPerHistoryEntry))) != 0
 }
 
 func (stream *receiverStream) processSenderReport(now time.Time, sr *rtcp.SenderReport) {

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
+// Package logging provides the logging library used by Pion
 package logging
 
 import (
@@ -9,8 +13,8 @@ import (
 	"sync"
 )
 
-// Use this abstraction to ensure thread-safe access to the logger's io.Writer
-// (which could change at runtime)
+// Use this abstraction to ensure thread-safe access to the logger's io.Writer.
+// (which could change at runtime).
 type loggerWriter struct {
 	sync.RWMutex
 	output io.Writer
@@ -25,11 +29,12 @@ func (lw *loggerWriter) SetOutput(output io.Writer) {
 func (lw *loggerWriter) Write(data []byte) (int, error) {
 	lw.RLock()
 	defer lw.RUnlock()
+
 	return lw.output.Write(data)
 }
 
-// DefaultLeveledLogger encapsulates functionality for providing logging at
-// user-defined levels
+// DefaultLeveledLogger encapsulates functionality for providing logging at.
+// user-defined levels.
 type DefaultLeveledLogger struct {
 	level  LogLevel
 	writer *loggerWriter
@@ -41,44 +46,50 @@ type DefaultLeveledLogger struct {
 }
 
 // WithTraceLogger is a chainable configuration function which sets the
-// Trace-level logger
+// Trace-level logger.
 func (ll *DefaultLeveledLogger) WithTraceLogger(log *log.Logger) *DefaultLeveledLogger {
 	ll.trace = log
+
 	return ll
 }
 
 // WithDebugLogger is a chainable configuration function which sets the
-// Debug-level logger
+// Debug-level logger.
 func (ll *DefaultLeveledLogger) WithDebugLogger(log *log.Logger) *DefaultLeveledLogger {
 	ll.debug = log
+
 	return ll
 }
 
 // WithInfoLogger is a chainable configuration function which sets the
-// Info-level logger
+// Info-level logger.
 func (ll *DefaultLeveledLogger) WithInfoLogger(log *log.Logger) *DefaultLeveledLogger {
 	ll.info = log
+
 	return ll
 }
 
 // WithWarnLogger is a chainable configuration function which sets the
-// Warn-level logger
+// Warn-level logger.
 func (ll *DefaultLeveledLogger) WithWarnLogger(log *log.Logger) *DefaultLeveledLogger {
 	ll.warn = log
+
 	return ll
 }
 
 // WithErrorLogger is a chainable configuration function which sets the
-// Error-level logger
+// Error-level logger.
 func (ll *DefaultLeveledLogger) WithErrorLogger(log *log.Logger) *DefaultLeveledLogger {
 	ll.err = log
+
 	return ll
 }
 
 // WithOutput is a chainable configuration function which sets the logger's
-// logging output to the supplied io.Writer
+// logging output to the supplied io.Writer.
 func (ll *DefaultLeveledLogger) WithOutput(output io.Writer) *DefaultLeveledLogger {
 	ll.writer.SetOutput(output)
+
 	return ll
 }
 
@@ -94,70 +105,71 @@ func (ll *DefaultLeveledLogger) logf(logger *log.Logger, level LogLevel, format 
 	}
 }
 
-// SetLevel sets the logger's logging level
+// SetLevel sets the logger's logging level.
 func (ll *DefaultLeveledLogger) SetLevel(newLevel LogLevel) {
 	ll.level.Set(newLevel)
 }
 
-// Trace emits the preformatted message if the logger is at or below LogLevelTrace
+// Trace emits the preformatted message if the logger is at or below LogLevelTrace.
 func (ll *DefaultLeveledLogger) Trace(msg string) {
-	ll.logf(ll.trace, LogLevelTrace, msg)
+	ll.logf(ll.trace, LogLevelTrace, msg) // nolint: govet
 }
 
-// Tracef formats and emits a message if the logger is at or below LogLevelTrace
+// Tracef formats and emits a message if the logger is at or below LogLevelTrace.
 func (ll *DefaultLeveledLogger) Tracef(format string, args ...interface{}) {
 	ll.logf(ll.trace, LogLevelTrace, format, args...)
 }
 
-// Debug emits the preformatted message if the logger is at or below LogLevelDebug
+// Debug emits the preformatted message if the logger is at or below LogLevelDebug.
 func (ll *DefaultLeveledLogger) Debug(msg string) {
-	ll.logf(ll.debug, LogLevelDebug, msg)
+	ll.logf(ll.debug, LogLevelDebug, msg) // nolint: govet
 }
 
-// Debugf formats and emits a message if the logger is at or below LogLevelDebug
+// Debugf formats and emits a message if the logger is at or below LogLevelDebug.
 func (ll *DefaultLeveledLogger) Debugf(format string, args ...interface{}) {
 	ll.logf(ll.debug, LogLevelDebug, format, args...)
 }
 
-// Info emits the preformatted message if the logger is at or below LogLevelInfo
+// Info emits the preformatted message if the logger is at or below LogLevelInfo.
 func (ll *DefaultLeveledLogger) Info(msg string) {
-	ll.logf(ll.info, LogLevelInfo, msg)
+	ll.logf(ll.info, LogLevelInfo, msg) // nolint: govet
 }
 
-// Infof formats and emits a message if the logger is at or below LogLevelInfo
+// Infof formats and emits a message if the logger is at or below LogLevelInfo.
 func (ll *DefaultLeveledLogger) Infof(format string, args ...interface{}) {
 	ll.logf(ll.info, LogLevelInfo, format, args...)
 }
 
-// Warn emits the preformatted message if the logger is at or below LogLevelWarn
+// Warn emits the preformatted message if the logger is at or below LogLevelWarn.
 func (ll *DefaultLeveledLogger) Warn(msg string) {
-	ll.logf(ll.warn, LogLevelWarn, msg)
+	ll.logf(ll.warn, LogLevelWarn, msg) // nolint: govet
 }
 
-// Warnf formats and emits a message if the logger is at or below LogLevelWarn
+// Warnf formats and emits a message if the logger is at or below LogLevelWarn.
 func (ll *DefaultLeveledLogger) Warnf(format string, args ...interface{}) {
 	ll.logf(ll.warn, LogLevelWarn, format, args...)
 }
 
-// Error emits the preformatted message if the logger is at or below LogLevelError
+// Error emits the preformatted message if the logger is at or below LogLevelError.
 func (ll *DefaultLeveledLogger) Error(msg string) {
-	ll.logf(ll.err, LogLevelError, msg)
+	ll.logf(ll.err, LogLevelError, msg) // nolint: govet
 }
 
-// Errorf formats and emits a message if the logger is at or below LogLevelError
+// Errorf formats and emits a message if the logger is at or below LogLevelError.
 func (ll *DefaultLeveledLogger) Errorf(format string, args ...interface{}) {
 	ll.logf(ll.err, LogLevelError, format, args...)
 }
 
-// NewDefaultLeveledLoggerForScope returns a configured LeveledLogger
+// NewDefaultLeveledLoggerForScope returns a configured LeveledLogger.
 func NewDefaultLeveledLoggerForScope(scope string, level LogLevel, writer io.Writer) *DefaultLeveledLogger {
 	if writer == nil {
-		writer = os.Stdout
+		writer = os.Stderr
 	}
 	logger := &DefaultLeveledLogger{
 		writer: &loggerWriter{output: writer},
 		level:  level,
 	}
+
 	return logger.
 		WithTraceLogger(log.New(logger.writer, fmt.Sprintf("%s TRACE: ", scope), log.Lmicroseconds|log.Lshortfile)).
 		WithDebugLogger(log.New(logger.writer, fmt.Sprintf("%s DEBUG: ", scope), log.Lmicroseconds|log.Lshortfile)).
@@ -166,19 +178,19 @@ func NewDefaultLeveledLoggerForScope(scope string, level LogLevel, writer io.Wri
 		WithErrorLogger(log.New(logger.writer, fmt.Sprintf("%s ERROR: ", scope), log.LstdFlags))
 }
 
-// DefaultLoggerFactory define levels by scopes and creates new DefaultLeveledLogger
+// DefaultLoggerFactory define levels by scopes and creates new DefaultLeveledLogger.
 type DefaultLoggerFactory struct {
 	Writer          io.Writer
 	DefaultLogLevel LogLevel
 	ScopeLevels     map[string]LogLevel
 }
 
-// NewDefaultLoggerFactory creates a new DefaultLoggerFactory
+// NewDefaultLoggerFactory creates a new DefaultLoggerFactory.
 func NewDefaultLoggerFactory() *DefaultLoggerFactory {
 	factory := DefaultLoggerFactory{}
 	factory.DefaultLogLevel = LogLevelError
 	factory.ScopeLevels = make(map[string]LogLevel)
-	factory.Writer = os.Stdout
+	factory.Writer = os.Stderr
 
 	logLevels := map[string]LogLevel{
 		"DISABLE": LogLevelDisabled,
@@ -201,7 +213,10 @@ func NewDefaultLoggerFactory() *DefaultLoggerFactory {
 		}
 
 		if strings.ToLower(env) == "all" {
-			factory.DefaultLogLevel = level
+			if factory.DefaultLogLevel < level {
+				factory.DefaultLogLevel = level
+			}
+
 			continue
 		}
 
@@ -214,7 +229,7 @@ func NewDefaultLoggerFactory() *DefaultLoggerFactory {
 	return &factory
 }
 
-// NewLogger returns a configured LeveledLogger for the given , argsscope
+// NewLogger returns a configured LeveledLogger for the given, argsscope.
 func (f *DefaultLoggerFactory) NewLogger(scope string) LeveledLogger {
 	logLevel := f.DefaultLogLevel
 	if f.ScopeLevels != nil {
@@ -224,5 +239,6 @@ func (f *DefaultLoggerFactory) NewLogger(scope string) LeveledLogger {
 			logLevel = scopeLevel
 		}
 	}
+
 	return NewDefaultLeveledLoggerForScope(scope, logLevel, f.Writer)
 }

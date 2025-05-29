@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 // Author: adwpc
@@ -360,13 +363,18 @@ func (t *TransportLayerCC) packetLen() uint16 {
 
 // Len return total bytes with padding
 func (t *TransportLayerCC) Len() uint16 {
+	return uint16(t.MarshalSize())
+}
+
+// MarshalSize returns the size of the packet once marshaled
+func (t *TransportLayerCC) MarshalSize() int {
 	n := t.packetLen()
 	// has padding
 	if n%4 != 0 {
 		n = (n/4 + 1) * 4
 	}
 
-	return n
+	return int(n)
 }
 
 func (t TransportLayerCC) String() string {
@@ -396,7 +404,7 @@ func (t TransportLayerCC) Marshal() ([]byte, error) {
 		return nil, err
 	}
 
-	payload := make([]byte, t.Len()-headerLength)
+	payload := make([]byte, t.MarshalSize()-headerLength)
 	binary.BigEndian.PutUint32(payload, t.SenderSSRC)
 	binary.BigEndian.PutUint32(payload[4:], t.MediaSSRC)
 	binary.BigEndian.PutUint16(payload[baseSequenceNumberOffset:], t.BaseSequenceNumber)
@@ -427,7 +435,7 @@ func (t TransportLayerCC) Marshal() ([]byte, error) {
 	}
 
 	if t.Header.Padding {
-		payload[len(payload)-1] = uint8(t.Len() - t.packetLen())
+		payload[len(payload)-1] = uint8(t.MarshalSize() - int(t.packetLen()))
 	}
 
 	return append(header, payload...), nil
@@ -483,7 +491,7 @@ func (t *TransportLayerCC) Unmarshal(rawPacket []byte) error { //nolint:gocognit
 				return err
 			}
 
-			packetNumberToProcess := min(t.PacketStatusCount-processedPacketNum, packetStatus.RunLength)
+			packetNumberToProcess := localMin(t.PacketStatusCount-processedPacketNum, packetStatus.RunLength)
 			if packetStatus.PacketStatusSymbol == TypeTCCPacketReceivedSmallDelta ||
 				packetStatus.PacketStatusSymbol == TypeTCCPacketReceivedLargeDelta {
 				for j := uint16(0); j < packetNumberToProcess; j++ {
@@ -520,10 +528,10 @@ func (t *TransportLayerCC) Unmarshal(rawPacket []byte) error { //nolint:gocognit
 
 	recvDeltasPos := packetStatusPos
 	for _, delta := range t.RecvDeltas {
-		if recvDeltasPos >= totalLength {
-			return errPacketTooShort
-		}
 		if delta.Type == TypeTCCPacketReceivedSmallDelta {
+			if recvDeltasPos+1 > totalLength {
+				return errPacketTooShort
+			}
 			err := delta.Unmarshal(rawPacket[recvDeltasPos : recvDeltasPos+1])
 			if err != nil {
 				return err
@@ -531,6 +539,9 @@ func (t *TransportLayerCC) Unmarshal(rawPacket []byte) error { //nolint:gocognit
 			recvDeltasPos++
 		}
 		if delta.Type == TypeTCCPacketReceivedLargeDelta {
+			if recvDeltasPos+2 > totalLength {
+				return errPacketTooShort
+			}
 			err := delta.Unmarshal(rawPacket[recvDeltasPos : recvDeltasPos+2])
 			if err != nil {
 				return err
@@ -547,7 +558,7 @@ func (t TransportLayerCC) DestinationSSRC() []uint32 {
 	return []uint32{t.MediaSSRC}
 }
 
-func min(x, y uint16) uint16 {
+func localMin(x, y uint16) uint16 {
 	if x < y {
 		return x
 	}

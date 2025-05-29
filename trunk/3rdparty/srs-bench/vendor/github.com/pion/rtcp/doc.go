@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 /*
 Package rtcp implements encoding and decoding of RTCP packets according to RFCs 3550 and 5506.
 
@@ -35,6 +38,5 @@ Encoding RTCP packets:
 	}
 	pliData, err := pkt.Marshal()
 	// ...
-
 */
 package rtcp

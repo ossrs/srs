@@ -3567,6 +3567,204 @@ VOID TEST(KernelCodecTest, AVFrameNoConfig)
         HELPER_EXPECT_SUCCESS(f.add_sample((char*)"\x05", 1));
     }
 }
+VOID TEST(KernelCodecTest, VideoFrameH264)
+{
+    srs_error_t err;
+    
+    if (true) {
+        // I Frame
+        uint8_t data[] = {0x05, 0x00, 0x00, 0x00};
+        SrsSample sample((char*)data, sizeof(data));
+        
+        SrsAvcNaluType nalu_type = SrsAvcNaluTypeForbidden;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_nalu_type(&sample, nalu_type));
+        EXPECT_EQ(nalu_type, SrsAvcNaluTypeIDR);
+        
+        // P Frame
+        uint8_t data2[] = {0x01, 0x00, 0x00, 0x00};
+        SrsSample sample2((char*)data2, sizeof(data2));
+        
+        nalu_type = SrsAvcNaluTypeForbidden;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_nalu_type(&sample2, nalu_type));
+        EXPECT_EQ(nalu_type, SrsAvcNaluTypeNonIDR);
+        
+        // SPS
+        uint8_t data3[] = {0x07, 0x00, 0x00, 0x00};
+        SrsSample sample3((char*)data3, sizeof(data3));
+        
+        nalu_type = SrsAvcNaluTypeForbidden;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_nalu_type(&sample3, nalu_type));
+        EXPECT_EQ(nalu_type, SrsAvcNaluTypeSPS);
+        
+        // PPS
+        uint8_t data4[] = {0x08, 0x00, 0x00, 0x00};
+        SrsSample sample4((char*)data4, sizeof(data4));
+        
+        nalu_type = SrsAvcNaluTypeForbidden;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_nalu_type(&sample4, nalu_type));
+        EXPECT_EQ(nalu_type, SrsAvcNaluTypePPS);
+        
+        // Empty Sample
+        SrsSample empty_sample(NULL, 0);
+        HELPER_EXPECT_FAILED(SrsVideoFrame::parse_avc_nalu_type(&empty_sample, nalu_type));
+    }
+    
+    if (true) {
+        // B Frame, slice_type=1(B Frame)
+        uint8_t data[] = {0x01, 0xA8, 0x00, 0x00};
+        SrsSample sample((char*)data, sizeof(data));
+        
+        bool is_b_frame = false;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample, is_b_frame));
+        EXPECT_TRUE(is_b_frame);
+        
+        // Non-B Frame, slice_type=0(P Frame)
+        uint8_t data2[] = {0x01, 0x88, 0x00, 0x00};
+        SrsSample sample2((char*)data2, sizeof(data2));
+        
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample2, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // SPS
+        uint8_t data3[] = {0x07, 0xA8, 0x00, 0x00};
+        SrsSample sample3((char*)data3, sizeof(data3));
+        
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample3, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // PPS
+        uint8_t data4[] = {0x08, 0xA8, 0x00, 0x00};
+        SrsSample sample4((char*)data4, sizeof(data4));
+        
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample4, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // IDR
+        uint8_t data5[] = {0x05, 0xA8, 0x00, 0x00};
+        SrsSample sample5((char*)data5, sizeof(data5));
+        
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample5, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+        
+        // Empty Sample
+        SrsSample empty_sample(NULL, 0);
+        HELPER_EXPECT_FAILED(SrsVideoFrame::parse_avc_bframe(&empty_sample, is_b_frame));
+    }
+}
+
+#ifdef SRS_H265
+VOID TEST(KernelCodecTest, VideoFrameH265)
+{
+    srs_error_t err;
+
+    if (true) {
+        // I Frame
+        uint8_t data[] = {0x26, 0x01, 0x00, 0x00};
+        SrsSample sample((char*)data, sizeof(data));
+        
+        SrsHevcNaluType nalu_type = SrsHevcNaluType_INVALID;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_nalu_type(&sample, nalu_type));
+        EXPECT_EQ(nalu_type, SrsHevcNaluType_CODED_SLICE_IDR);
+        
+        // P Frame
+        uint8_t data2[] = {0x02, 0x01, 0x00, 0x00};
+        SrsSample sample2((char*)data2, sizeof(data2));
+        
+        nalu_type = SrsHevcNaluType_INVALID;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_nalu_type(&sample2, nalu_type));
+        EXPECT_EQ(nalu_type, SrsHevcNaluType_CODED_SLICE_TRAIL_R);
+        
+        // VPS
+        uint8_t data3[] = {0x40, 0x01, 0x00, 0x00};
+        SrsSample sample3((char*)data3, sizeof(data3));
+        
+        nalu_type = SrsHevcNaluType_INVALID;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_nalu_type(&sample3, nalu_type));
+        EXPECT_EQ(nalu_type, SrsHevcNaluType_VPS);
+        
+        // SPS
+        uint8_t data4[] = {0x42, 0x01, 0x00, 0x00};
+        SrsSample sample4((char*)data4, sizeof(data4));
+        
+        nalu_type = SrsHevcNaluType_INVALID;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_nalu_type(&sample4, nalu_type));
+        EXPECT_EQ(nalu_type, SrsHevcNaluType_SPS);
+        
+        // PPS
+        uint8_t data5[] = {0x44, 0x01, 0x00, 0x00};
+        SrsSample sample5((char*)data5, sizeof(data5));
+        
+        nalu_type = SrsHevcNaluType_INVALID;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_nalu_type(&sample5, nalu_type));
+        EXPECT_EQ(nalu_type, SrsHevcNaluType_PPS);
+        
+        // Empty Sample
+        SrsSample empty_sample(NULL, 0);
+        HELPER_EXPECT_FAILED(SrsVideoFrame::parse_hevc_nalu_type(&empty_sample, nalu_type));
+    }
+    
+    if (true) {
+        SrsFormat format;
+        HELPER_EXPECT_SUCCESS(format.initialize());
+        
+        // B Frame, slice_type=0(B Frame)
+        uint8_t data[] = {0x02, 0x01, 0xE0, 0x44};
+        SrsSample sample((char*)data, sizeof(data));
+        
+        bool is_b_frame = false;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample, &format, is_b_frame));
+        EXPECT_TRUE(is_b_frame);
+        
+        // Non-B Frame, slice_type=1(P Frame)
+        uint8_t data2[] = {0x02, 0x01, 0xD0, 0x30};
+        SrsSample sample2((char*)data2, sizeof(data2));
+        
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample2, &format, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // VPS
+        uint8_t data3[] = {0x40, 0x01, 0xE0, 0x44};
+        SrsSample sample3((char*)data3, sizeof(data3));
+        
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample3, &format, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // SPS
+        uint8_t data4[] = {0x42, 0x01, 0xE0, 0x44};
+        SrsSample sample4((char*)data4, sizeof(data4));
+        
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample4, &format, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // PPS
+        uint8_t data5[] = {0x44, 0x01, 0xE0, 0x44};
+        SrsSample sample5((char*)data5, sizeof(data5));
+        
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample5, &format, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // IDR
+        uint8_t data6[] = {0x26, 0x01, 0xE0, 0x44};
+        SrsSample sample6((char*)data6, sizeof(data6));
+        
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_hevc_bframe(&sample6, &format, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Empty Sample
+        SrsSample empty_sample(NULL, 0);
+        HELPER_EXPECT_FAILED(SrsVideoFrame::parse_hevc_bframe(&empty_sample, &format, is_b_frame));
+    }
+}
+#endif
 
 VOID TEST(KernelCodecTest, IsSequenceHeaderSpecial)
 {
@@ -4221,7 +4419,7 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
     if (true) {
         SrsFormat f;
         HELPER_EXPECT_SUCCESS(f.initialize());
-
+        
         // firstly demux sequence header
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)ext_vps_sps_pps, sizeof(ext_vps_sps_pps)));
         EXPECT_EQ(1, f.video->frame_type);

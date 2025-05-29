@@ -396,6 +396,7 @@ class SrsVideoPayload : public SrsCodecPayload
 {
 public:
     H264SpecificParam h264_param_;
+    H265SpecificParam h265_param_;
 
 public:
     SrsVideoPayload();
@@ -404,8 +405,10 @@ public:
 public:
     virtual SrsVideoPayload* copy();
     virtual SrsMediaPayloadType generate_media_payload_type();
+    virtual SrsMediaPayloadType generate_media_payload_type_h265();
 public:
     srs_error_t set_h264_param_desc(std::string fmtp);
+    srs_error_t set_h265_param_desc(std::string fmtp);
 };
 
 // TODO: FIXME: Rename it.

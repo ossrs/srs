@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -31,13 +34,14 @@ in Section 3.2.1, i.e.:
 Variable Parameters                  Status     Type Value
 -------------------------------------------------------------
 heartbeat Info                       Mandatory   1
+.
 */
 type chunkHeartbeat struct {
 	chunkHeader
 	params []param
 }
 
-// Heartbeat chunk errors
+// Heartbeat chunk errors.
 var (
 	ErrChunkTypeNotHeartbeat      = errors.New("ChunkType is not of type HEARTBEAT")
 	ErrHeartbeatNotLongEnoughInfo = errors.New("heartbeat is not long enough to contain Heartbeat Info")
