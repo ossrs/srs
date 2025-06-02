@@ -1033,28 +1033,6 @@ srs_error_t SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         // timestamp header' MUST be present. Otherwise, this value SHOULD be
         // the entire delta.
         chunk->has_extended_timestamp = (chunk->header.timestamp_delta >= RTMP_EXTENDED_TIMESTAMP);
-        if (!chunk->has_extended_timestamp) {
-            // Extended timestamp: 0 or 4 bytes
-            // This field MUST be sent when the normal timsestamp is set to
-            // 0xffffff, it MUST NOT be sent if the normal timestamp is set to
-            // anything else. So for values less than 0xffffff the normal
-            // timestamp field SHOULD be used in which case the extended timestamp
-            // MUST NOT be present. For values greater than or equal to 0xffffff
-            // the normal timestamp field MUST NOT be used and MUST be set to
-            // 0xffffff and the extended timestamp MUST be sent.
-            if (fmt == RTMP_FMT_TYPE0) {
-                // 6.1.2.1. Type 0
-                // For a type-0 chunk, the absolute timestamp of the message is sent
-                // here.
-                chunk->header.timestamp = chunk->header.timestamp_delta;
-            } else {
-                // 6.1.2.2. Type 1
-                // 6.1.2.3. Type 2
-                // For a type-1 or type-2 chunk, the difference between the previous
-                // chunk's timestamp and the current chunk's timestamp is sent here.
-                chunk->header.timestamp += chunk->header.timestamp_delta;
-            }
-        }
         
         if (fmt <= RTMP_FMT_TYPE1) {
             int32_t payload_length = 0;
@@ -1083,16 +1061,10 @@ srs_error_t SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
                 pp[3] = *p++;
             }
         }
-    } else {
-        // update the timestamp even fmt=3 for first chunk packet
-        if (is_first_chunk_of_msg && !chunk->has_extended_timestamp) {
-            chunk->header.timestamp += chunk->header.timestamp_delta;
-        }
     }
     
     // read extended-timestamp
     if (chunk->has_extended_timestamp) {
-        mh_size += 4;
         if ((err = in_buffer->grow(skt, 4)) != srs_success) {
             return srs_error_wrap(err, "read 4 bytes ext timestamp");
         }
@@ -1111,43 +1083,77 @@ srs_error_t SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         timestamp &= 0x7fffffff;
         
         /**
-         * RTMP specification and ffmpeg/librtmp is false,
-         * but, adobe changed the specification, so flash/FMLE/FMS always true.
-         * default to true to support flash/FMLE/FMS.
+         * For the RTMP v1 2009 version 
+         *      6.1.3. Extended Timestamp, This field is transmitted only when the normal time 
+         *      stamp in the chunk message header is set to 0x00ffffff. If normal time stamp is 
+         *      set to any value less than 0x00ffffff, this field MUST NOT be present. This field 
+         *      MUST NOT be present if the timestamp field is not present. Type 3 chunks MUST 
+         *      NOT have this field.
          *
-         * ffmpeg/librtmp may donot send this filed, need to detect the value.
+         * For the RTMP v1 2012 version
+         *      5.3.1.3. Extended Timestamp, The Extended Timestamp field is used to encode 
+         *      timestamps or timestamp deltas that are greater than 16777215 (0xFFFFFF); that 
+         *      is, for timestamps or timestamp deltas that don’t fit in the 24 bit fields of 
+         *      Type 0, 1, or 2 chunks. This field encodes the complete 32-bit timestamp or 
+         *      timestamp delta. The presence of this field is indicated by setting the timestamp 
+         *      field of a Type 0 chunk, or the timestamp delta field of a Type 1 or 2 chunk, to 
+         *      16777215 (0xFFFFFF). This field is present in Type 3 chunks when the most recent 
+         *      Type 0, 1, or 2 chunk for the same chunk stream ID indicated the presence of an 
+         *      extended timestamp field.
+         * 
+         * FMLE/FMS/Flash Player always send the extended-timestamp, followed the 2012 version, 
+         * which means always send the extended timestamp in Type 3 chunks.
+         * 
+         * librtmp may donot send this filed, need to detect the value.
          * @see also: http://blog.csdn.net/win_lin/article/details/13363699
          * compare to the chunk timestamp, which is set by chunk message header
          * type 0,1 or 2.
          *
-         * @remark, nginx send the extended-timestamp in sequence-header,
+         * @remark, ffmpeg/nginx send the extended-timestamp in sequence-header,
          * and timestamp delta in continue C1 chunks, and so compatible with ffmpeg,
          * that is, there is no continue chunks and extended-timestamp in nginx-rtmp.
          *
          * @remark, srs always send the extended-timestamp, to keep simple,
          * and compatible with adobe products.
+         * 
+         * If the extended timestamp is present (RTMP v1 2012 version), it MUST be equal to the 
+         * previous one in the same chunk. Should skip back 4 bytes if the extended timestamp 
+         * is not present (RTMP v1 2009 version). See https://github.com/veovera/enhanced-rtmp/issues/42
+         * for details.
          */
         uint32_t chunk_extended_timestamp = (uint32_t)chunk->extended_timestamp;
-        
-        /**
-         * if chunk_timestamp<=0, the chunk previous packet has no extended-timestamp,
-         * always use the extended timestamp.
-         */
-        /**
-         * about the is_first_chunk_of_msg.
-         * @remark, for the first chunk of message, always use the extended timestamp.
-         */
         if (!is_first_chunk_of_msg && chunk_extended_timestamp > 0 && chunk_extended_timestamp != timestamp) {
-            mh_size -= 4;
             in_buffer->skip(-4);
         } else {
             chunk->extended_timestamp = timestamp;
-            if (fmt == RTMP_FMT_TYPE0) {
-                chunk->header.timestamp = timestamp;
-            } else if (is_first_chunk_of_msg) {
-                chunk->header.timestamp += timestamp;
-            }
         }
+    }
+        
+    // fmt: 0
+    // timestamp: 3 bytes
+    // If the timestamp is greater than or equal to 16777215
+    // (hexadecimal 0x00ffffff), this value MUST be 16777215, and the
+    // 'extended timestamp header' MUST be present. Otherwise, this value
+    // SHOULD be the entire timestamp.
+    //
+    // fmt: 1 or 2
+    // timestamp delta: 3 bytes
+    // If the delta is greater than or equal to 16777215 (hexadecimal
+    // 0x00ffffff), this value MUST be 16777215, and the 'extended
+    // timestamp header' MUST be present. Otherwise, this value SHOULD be
+    // the entire delta.
+    uint32_t timestamp = chunk->has_extended_timestamp ? chunk->extended_timestamp : chunk->header.timestamp_delta;
+    if (fmt == RTMP_FMT_TYPE0) {
+        // 6.1.2.1. Type 0
+        // For a type-0 chunk, the absolute timestamp of the message is sent
+        // here.
+        chunk->header.timestamp = timestamp;
+    } else if (is_first_chunk_of_msg) {
+        // 6.1.2.2. Type 1
+        // 6.1.2.3. Type 2
+        // For a type-1 or type-2 chunk, the difference between the previous
+        // chunk's timestamp and the current chunk's timestamp is sent here.
+        chunk->header.timestamp += timestamp;
     }
     
     // the extended-timestamp must be unsigned-int,
