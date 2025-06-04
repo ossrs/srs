@@ -11,7 +11,12 @@
           "cwd": "${workspaceFolder}/trunk",
           "environment": [],
           "externalConsole": false,
-          "MIMode": "lldb",
+          "linux": {
+            "MIMode": "gdb"
+          },
+          "osx": {
+            "MIMode": "lldb"
+          },
           "setupCommands": [
             {
               "description": "Enable pretty-printing for gdb",

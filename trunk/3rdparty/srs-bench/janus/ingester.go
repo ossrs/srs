@@ -32,10 +32,10 @@ import (
 	"github.com/pion/interceptor"
 	"github.com/pion/rtp"
 	"github.com/pion/sdp/v3"
-	"github.com/pion/webrtc/v3"
-	"github.com/pion/webrtc/v3/pkg/media"
-	"github.com/pion/webrtc/v3/pkg/media/h264reader"
-	"github.com/pion/webrtc/v3/pkg/media/oggreader"
+	"github.com/pion/webrtc/v4"
+	"github.com/pion/webrtc/v4/pkg/media"
+	"github.com/pion/webrtc/v4/pkg/media/h264reader"
+	"github.com/pion/webrtc/v4/pkg/media/oggreader"
 )
 
 type videoIngester struct {

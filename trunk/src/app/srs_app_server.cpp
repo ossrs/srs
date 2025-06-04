@@ -1275,6 +1275,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
     conn_manager->add(resource);
 
     // If connection is a resource to start, start a coroutine to handle it.
+    // Note that conn is managed by conn_manager, so we don't need to free it.
     ISrsStartable* conn = dynamic_cast<ISrsStartable*>(resource);
     srs_assert(conn);
     if ((err = conn->start()) != srs_success) {

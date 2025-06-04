@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -6,40 +9,41 @@ import (
 	"fmt"
 )
 
-// paramType represents a SCTP INIT/INITACK parameter
+// paramType represents a SCTP INIT/INITACK parameter.
 type paramType uint16
 
 const (
-	heartbeatInfo      paramType = 1     // Heartbeat Info	[RFC4960]
-	ipV4Addr           paramType = 5     // IPv4 IP	[RFC4960]
-	ipV6Addr           paramType = 6     // IPv6 IP	[RFC4960]
-	stateCookie        paramType = 7     // State Cookie	[RFC4960]
-	unrecognizedParam  paramType = 8     // Unrecognized Parameters	[RFC4960]
-	cookiePreservative paramType = 9     // Cookie Preservative	[RFC4960]
-	hostNameAddr       paramType = 11    // Host Name IP	[RFC4960]
-	supportedAddrTypes paramType = 12    // Supported IP Types	[RFC4960]
-	outSSNResetReq     paramType = 13    // Outgoing SSN Reset Request Parameter	[RFC6525]
-	incSSNResetReq     paramType = 14    // Incoming SSN Reset Request Parameter	[RFC6525]
-	ssnTSNResetReq     paramType = 15    // SSN/TSN Reset Request Parameter	[RFC6525]
-	reconfigResp       paramType = 16    // Re-configuration Response Parameter	[RFC6525]
-	addOutStreamsReq   paramType = 17    // Add Outgoing Streams Request Parameter	[RFC6525]
-	addIncStreamsReq   paramType = 18    // Add Incoming Streams Request Parameter	[RFC6525]
-	ecnCapable         paramType = 32768 // ECN Capable (0x8000)	[RFC2960]
-	random             paramType = 32770 // Random (0x8002)	[RFC4805]
-	chunkList          paramType = 32771 // Chunk List (0x8003)	[RFC4895]
-	reqHMACAlgo        paramType = 32772 // Requested HMAC Algorithm Parameter (0x8004)	[RFC4895]
-	padding            paramType = 32773 // Padding (0x8005)
-	supportedExt       paramType = 32776 // Supported Extensions (0x8008)	[RFC5061]
-	forwardTSNSupp     paramType = 49152 // Forward TSN supported (0xC000)	[RFC3758]
-	addIPAddr          paramType = 49153 // Add IP IP (0xC001)	[RFC5061]
-	delIPAddr          paramType = 49154 // Delete IP IP (0xC002)	[RFC5061]
-	errClauseInd       paramType = 49155 // Error Cause Indication (0xC003)	[RFC5061]
-	setPriAddr         paramType = 49156 // Set Primary IP (0xC004)	[RFC5061]
-	successInd         paramType = 49157 // Success Indication (0xC005)	[RFC5061]
-	adaptLayerInd      paramType = 49158 // Adaptation Layer Indication (0xC006)	[RFC5061]
+	heartbeatInfo          paramType = 1     // Heartbeat Info	[RFC4960]
+	ipV4Addr               paramType = 5     // IPv4 IP	[RFC4960]
+	ipV6Addr               paramType = 6     // IPv6 IP	[RFC4960]
+	stateCookie            paramType = 7     // State Cookie	[RFC4960]
+	unrecognizedParam      paramType = 8     // Unrecognized Parameters	[RFC4960]
+	cookiePreservative     paramType = 9     // Cookie Preservative	[RFC4960]
+	hostNameAddr           paramType = 11    // Host Name IP	[RFC4960]
+	supportedAddrTypes     paramType = 12    // Supported IP Types	[RFC4960]
+	outSSNResetReq         paramType = 13    // Outgoing SSN Reset Request Parameter	[RFC6525]
+	incSSNResetReq         paramType = 14    // Incoming SSN Reset Request Parameter	[RFC6525]
+	ssnTSNResetReq         paramType = 15    // SSN/TSN Reset Request Parameter	[RFC6525]
+	reconfigResp           paramType = 16    // Re-configuration Response Parameter	[RFC6525]
+	addOutStreamsReq       paramType = 17    // Add Outgoing Streams Request Parameter	[RFC6525]
+	addIncStreamsReq       paramType = 18    // Add Incoming Streams Request Parameter	[RFC6525]
+	ecnCapable             paramType = 32768 // ECN Capable (0x8000)	[RFC2960]
+	zeroChecksumAcceptable paramType = 32769 // Zero Checksum Acceptable [draft-ietf-tsvwg-sctp-zero-checksum-00]
+	random                 paramType = 32770 // Random (0x8002)	[RFC4805]
+	chunkList              paramType = 32771 // Chunk List (0x8003)	[RFC4895]
+	reqHMACAlgo            paramType = 32772 // Requested HMAC Algorithm Parameter (0x8004)	[RFC4895]
+	padding                paramType = 32773 // Padding (0x8005)
+	supportedExt           paramType = 32776 // Supported Extensions (0x8008)	[RFC5061]
+	forwardTSNSupp         paramType = 49152 // Forward TSN supported (0xC000)	[RFC3758]
+	addIPAddr              paramType = 49153 // Add IP IP (0xC001)	[RFC5061]
+	delIPAddr              paramType = 49154 // Delete IP IP (0xC002)	[RFC5061]
+	errClauseInd           paramType = 49155 // Error Cause Indication (0xC003)	[RFC5061]
+	setPriAddr             paramType = 49156 // Set Primary IP (0xC004)	[RFC5061]
+	successInd             paramType = 49157 // Success Indication (0xC005)	[RFC5061]
+	adaptLayerInd          paramType = 49158 // Adaptation Layer Indication (0xC006)	[RFC5061]
 )
 
-// Parameter packet errors
+// Parameter packet errors.
 var (
 	ErrParamPacketTooShort = errors.New("packet to short")
 )
@@ -48,10 +52,11 @@ func parseParamType(raw []byte) (paramType, error) {
 	if len(raw) < 2 {
 		return paramType(0), ErrParamPacketTooShort
 	}
+
 	return paramType(binary.BigEndian.Uint16(raw)), nil
 }
 
-func (p paramType) String() string {
+func (p paramType) String() string { //nolint:cyclop
 	switch p {
 	case heartbeatInfo:
 		return "Heartbeat Info"
@@ -83,6 +88,8 @@ func (p paramType) String() string {
 		return "Add Incoming Streams Request Parameter"
 	case ecnCapable:
 		return "ECN Capable"
+	case zeroChecksumAcceptable:
+		return "Zero Checksum Acceptable"
 	case random:
 		return "Random"
 	case chunkList:

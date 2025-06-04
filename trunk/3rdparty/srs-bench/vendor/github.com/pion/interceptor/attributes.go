@@ -33,7 +33,7 @@ func (a Attributes) Set(key interface{}, val interface{}) {
 }
 
 // GetRTPHeader gets the RTP header if present. If it is not present, it will be
-// unmarshalled from the raw byte slice and stored in the attribtues.
+// unmarshalled from the raw byte slice and stored in the attributes.
 func (a Attributes) GetRTPHeader(raw []byte) (*rtp.Header, error) {
 	if val, ok := a[rtpHeaderKey]; ok {
 		if header, ok := val.(*rtp.Header); ok {
@@ -50,7 +50,7 @@ func (a Attributes) GetRTPHeader(raw []byte) (*rtp.Header, error) {
 }
 
 // GetRTCPPackets gets the RTCP packets if present. If the packet slice is not
-// present, it will be unmarshaled from the raw byte slice and stored in the
+// present, it will be unmarshalled from the raw byte slice and stored in the
 // attributes.
 func (a Attributes) GetRTCPPackets(raw []byte) ([]rtcp.Packet, error) {
 	if val, ok := a[rtcpPacketsKey]; ok {

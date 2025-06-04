@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -28,6 +31,7 @@ func newRandomStateCookie() (*paramStateCookie, error) {
 func (s *paramStateCookie) marshal() ([]byte, error) {
 	s.typ = stateCookie
 	s.raw = s.cookie
+
 	return s.paramHeader.marshal()
 }
 
@@ -37,10 +41,11 @@ func (s *paramStateCookie) unmarshal(raw []byte) (param, error) {
 		return nil, err
 	}
 	s.cookie = s.raw
+
 	return s, nil
 }
 
-// String makes paramStateCookie printable
+// String makes paramStateCookie printable.
 func (s *paramStateCookie) String() string {
 	return fmt.Sprintf("%s: %s", s.paramHeader, s.cookie)
 }

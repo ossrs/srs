@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtp
 
 import (
@@ -5,7 +8,7 @@ import (
 )
 
 const (
-	// audioLevelExtensionSize One byte header size
+	// audioLevelExtensionSize One byte header size.
 	audioLevelExtensionSize = 1
 )
 
@@ -30,12 +33,14 @@ var errAudioLevelOverflow = errors.New("audio level overflow")
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |      ID       |     len=1     |V|    level    |    0 (pad)    |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+//nolint:lll
 type AudioLevelExtension struct {
 	Level uint8
 	Voice bool
 }
 
-// Marshal serializes the members to buffer
+// Marshal serializes the members to buffer.
 func (a AudioLevelExtension) Marshal() ([]byte, error) {
 	if a.Level > 127 {
 		return nil, errAudioLevelOverflow
@@ -46,15 +51,17 @@ func (a AudioLevelExtension) Marshal() ([]byte, error) {
 	}
 	buf := make([]byte, audioLevelExtensionSize)
 	buf[0] = voice | a.Level
+
 	return buf, nil
 }
 
-// Unmarshal parses the passed byte slice and stores the result in the members
+// Unmarshal parses the passed byte slice and stores the result in the members.
 func (a *AudioLevelExtension) Unmarshal(rawData []byte) error {
 	if len(rawData) < audioLevelExtensionSize {
 		return errTooSmall
 	}
 	a.Level = rawData[0] & 0x7F
 	a.Voice = rawData[0]&0x80 != 0
+
 	return nil
 }

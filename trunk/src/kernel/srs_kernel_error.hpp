@@ -279,7 +279,7 @@
     XX(ERROR_HEVC_DECODE_ERROR             , 3099, "HevcDecode", "HEVC decode av stream failed")  \
     XX(ERROR_MP4_HVCC_CHANGE               , 3100, "Mp4HvcCChange", "MP4 does not support video HvcC change") \
     XX(ERROR_HEVC_API_NO_PREFIXED          , 3101, "HevcAnnexbPrefix", "No annexb prefix for HEVC decoder") \
-    XX(ERROR_AVC_NALU_EMPTY                , 3102, "AvcNaluEmpty", "AVC NALU is empty")
+    XX(ERROR_NALU_EMPTY                    , 3102, "NaluEmpty", "NALU is empty")
 
 /**************************************************/
 /* HTTP/StreamConverter protocol error. */

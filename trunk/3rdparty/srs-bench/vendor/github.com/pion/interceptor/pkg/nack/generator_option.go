@@ -6,6 +6,7 @@ package nack
 import (
 	"time"
 
+	"github.com/pion/interceptor"
 	"github.com/pion/logging"
 )
 
@@ -30,6 +31,15 @@ func GeneratorSkipLastN(skipLastN uint16) GeneratorOption {
 	}
 }
 
+// GeneratorMaxNacksPerPacket sets the maximum number of NACKs sent per missing packet, e.g. if set to 2, a missing
+// packet will only be NACKed at most twice. If set to 0 (default), max number of NACKs is unlimited
+func GeneratorMaxNacksPerPacket(maxNacks uint16) GeneratorOption {
+	return func(r *GeneratorInterceptor) error {
+		r.maxNacksPerPacket = maxNacks
+		return nil
+	}
+}
+
 // GeneratorLog sets a logger for the interceptor
 func GeneratorLog(log logging.LeveledLogger) GeneratorOption {
 	return func(r *GeneratorInterceptor) error {
@@ -42,6 +52,14 @@ func GeneratorLog(log logging.LeveledLogger) GeneratorOption {
 func GeneratorInterval(interval time.Duration) GeneratorOption {
 	return func(r *GeneratorInterceptor) error {
 		r.interval = interval
+		return nil
+	}
+}
+
+// GeneratorStreamsFilter sets filter for generator streams
+func GeneratorStreamsFilter(filter func(info *interceptor.StreamInfo) bool) GeneratorOption {
+	return func(r *GeneratorInterceptor) error {
+		r.streamsFilter = filter
 		return nil
 	}
 }

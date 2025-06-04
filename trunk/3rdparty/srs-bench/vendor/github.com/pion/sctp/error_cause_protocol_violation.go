@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -27,13 +30,14 @@ type errorCauseProtocolViolation struct {
 	additionalInformation []byte
 }
 
-// Abort chunk errors
+// Abort chunk errors.
 var (
 	ErrProtocolViolationUnmarshal = errors.New("unable to unmarshal Protocol Violation error")
 )
 
 func (e *errorCauseProtocolViolation) marshal() ([]byte, error) {
 	e.raw = e.additionalInformation
+
 	return e.errorCauseHeader.marshal()
 }
 
@@ -48,7 +52,7 @@ func (e *errorCauseProtocolViolation) unmarshal(raw []byte) error {
 	return nil
 }
 
-// String makes errorCauseProtocolViolation printable
+// String makes errorCauseProtocolViolation printable.
 func (e *errorCauseProtocolViolation) String() string {
 	return fmt.Sprintf("%s: %s", e.errorCauseHeader, e.additionalInformation)
 }

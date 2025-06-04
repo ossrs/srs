@@ -62,7 +62,7 @@ VOID TEST(KernelRTCTest, RtpSTAPPayloadException)
     SrsAvcNaluType nalu_type = SrsAvcNaluTypeReserved;
     // Try to parse the NALU type for video decoder.
     if (!buf.empty()) {
-        nalu_type = SrsAvcNaluType((uint8_t)(buf.head()[0] & kNalTypeMask));
+        nalu_type = SrsAvcNaluTypeParse(buf.head()[0]);
     }
 
     EXPECT_TRUE(nalu_type == kStapA);
