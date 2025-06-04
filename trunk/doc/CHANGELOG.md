@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-06-04, Merge [#4368](https://github.com/ossrs/srs/pull/4368): Update the codename for version 7.0 to "Kai". v7.0.39 (#4368)
 * v7.0, 2025-06-01, Merge [#4366](https://github.com/ossrs/srs/pull/4366): Script: Use clang-format to unify the coding style. v7.0.38 (#4366)
 * v7.0, 2025-05-29, Merge [#4356](https://github.com/ossrs/srs/pull/4356): RTMP: Use extended timestamp as delta when chunk fmt=1/2. v7.0.37 (#4356)
 * v7.0, 2025-05-29, Merge [#4363](https://github.com/ossrs/srs/pull/4363): Fix error about TestRtcPublish_HttpFlvPlay. v7.0.36 (#4363)
