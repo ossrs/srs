@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-06-04, Merge [#4325](https://github.com/ossrs/srs/pull/4325): fix bug: loop transcoding #3516. v7.0.41 (#4325)
 * v7.0, 2025-06-04, Merge [#4341](https://github.com/ossrs/srs/pull/4341): Update the release in the README for consistent. v7.0.40 (#4341)
 * v7.0, 2025-06-04, Merge [#4368](https://github.com/ossrs/srs/pull/4368): Update the codename for version 7.0 to "Kai". v7.0.39 (#4368)
 * v7.0, 2025-06-01, Merge [#4366](https://github.com/ossrs/srs/pull/4366): Script: Use clang-format to unify the coding style. v7.0.38 (#4366)
@@ -51,6 +52,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2025-06-04, Merge [#4325](https://github.com/ossrs/srs/pull/4325): fix bug: loop transcoding #3516. v6.0.168 (#4325)
 * v6.0, 2025-05-29, Merge [#4356](https://github.com/ossrs/srs/pull/4356): RTMP: Use extended timestamp as delta when chunk fmt=1/2. v6.0.167 (#4356)
 * v6.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v6.0.165 (#4303)
 * v6.0, 2025-03-20, Merge [#4305](https://github.com/ossrs/srs/pull/4305): free sample to prevent memory leak. v6.0.164 (#4305)
