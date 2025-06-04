@@ -51,6 +51,7 @@ private:
 
 extern SrsCircuitBreaker* _srs_circuit_breaker;
 
+extern void srs_pre_global_initialize();
 // Initialize global shared variables cross all threads.
 extern srs_error_t srs_global_initialize();
 

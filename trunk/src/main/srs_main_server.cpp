@@ -55,7 +55,6 @@ using namespace std;
 #endif
 
 // pre-declare
-srs_error_t run_directly_or_daemon();
 srs_error_t run_in_thread_pool();
 void show_macro_features();
 
@@ -239,10 +238,71 @@ srs_error_t do_main(int argc, char** argv, char** envp)
     __asan_set_error_report_callback(asan_report_callback);
 #endif
 
-    if ((err = run_directly_or_daemon()) != srs_success) {
+    if ((err = run_in_thread_pool()) != srs_success) {
         return srs_error_wrap(err, "run");
     }
+    
+    return err;
+}
 
+srs_error_t run_daemon(int argc, char** argv, char** envp)
+{
+    srs_error_t err = srs_success;
+
+    srs_pre_global_initialize();
+    _srs_in_docker = _srs_config->detect_in_docker();
+    
+    // Load daemon from config, disable it for docker.
+    // @see https://github.com/ossrs/srs/issues/1594
+    bool run_as_daemon = _srs_config->get_daemon();
+    if (run_as_daemon && _srs_in_docker && _srs_config->disable_daemon_for_docker()) {
+        fprintf(stdout, "disable daemon for docker");
+        run_as_daemon = false;
+    }
+
+    // If not daemon, directly run hybrid server.
+    if (!run_as_daemon) {
+        if ((err = do_main(argc, argv, envp)) != srs_success) {
+            return srs_error_wrap(err, "run thread pool");
+        }
+        return srs_success;
+    }
+    
+    fprintf(stdout, "start daemon mode...");
+    
+    int pid = fork();
+    
+    if(pid < 0) {
+        return srs_error_new(-1, "fork father process");
+    }
+    
+    // grandpa
+    if(pid > 0) {
+        int status = 0;
+        waitpid(pid, &status, 0);
+        fprintf(stderr, "grandpa process exit.");
+        exit(0);
+    }
+    
+    // father
+    pid = fork();
+    
+    if(pid < 0) {
+        return srs_error_new(-1, "fork child process");
+    }
+    
+    if(pid > 0) {
+        fprintf(stdout, "father process exit");
+        exit(0);
+    }
+    
+    // son
+    fprintf(stdout, "son(daemon) process running.");
+    
+    if ((err = do_main(argc, argv, envp)) != srs_success) {
+        return srs_error_wrap(err, "daemon run thread pool");
+    }
+    
     return err;
 }
 
@@ -255,7 +315,7 @@ int main(int argc, char** argv, char** envp)
     srs_set_primordial_stack(&p);
 #endif
 
-    srs_error_t err = do_main(argc, argv, envp);
+    srs_error_t err = run_daemon(argc, argv, envp);
 
     if (err != srs_success) {
         srs_error("Failed, %s", srs_error_desc(err).c_str());
@@ -400,64 +460,6 @@ void show_macro_features()
 #if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
 #error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
 #endif
-}
-
-srs_error_t run_directly_or_daemon()
-{
-    srs_error_t err = srs_success;
-
-    // Load daemon from config, disable it for docker.
-    // @see https://github.com/ossrs/srs/issues/1594
-    bool run_as_daemon = _srs_config->get_daemon();
-    if (run_as_daemon && _srs_in_docker && _srs_config->disable_daemon_for_docker()) {
-        srs_warn("disable daemon for docker");
-        run_as_daemon = false;
-    }
-    
-    // If not daemon, directly run hybrid server.
-    if (!run_as_daemon) {
-        if ((err = run_in_thread_pool()) != srs_success) {
-            return srs_error_wrap(err, "run thread pool");
-        }
-        return srs_success;
-    }
-    
-    srs_trace("start daemon mode...");
-    
-    int pid = fork();
-    
-    if(pid < 0) {
-        return srs_error_new(-1, "fork father process");
-    }
-    
-    // grandpa
-    if(pid > 0) {
-        int status = 0;
-        waitpid(pid, &status, 0);
-        srs_trace("grandpa process exit.");
-        exit(0);
-    }
-    
-    // father
-    pid = fork();
-    
-    if(pid < 0) {
-        return srs_error_new(-1, "fork child process");
-    }
-    
-    if(pid > 0) {
-        srs_trace("father process exit");
-        exit(0);
-    }
-    
-    // son
-    srs_trace("son(daemon) process running.");
-    
-    if ((err = run_in_thread_pool()) != srs_success) {
-        return srs_error_wrap(err, "daemon run thread pool");
-    }
-    
-    return err;
 }
 
 srs_error_t run_hybrid_server(void* arg);

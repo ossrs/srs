@@ -58,6 +58,8 @@ static void srs_srt_utest_null_log_handler(void* opaque, int level, const char* 
 srs_error_t prepare_main() {
     srs_error_t err = srs_success;
 
+    srs_pre_global_initialize();
+    
     if ((err = srs_global_initialize()) != srs_success) {
         return srs_error_wrap(err, "init global");
     }

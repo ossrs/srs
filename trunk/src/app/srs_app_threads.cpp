@@ -298,6 +298,13 @@ extern srs_error_t _srs_reload_err;
 extern SrsReloadState _srs_reload_state;
 extern std::string _srs_reload_id;
 
+extern void srs_pre_global_initialize()
+{
+    _srs_config = new SrsConfig();
+    
+    return;
+}
+
 srs_error_t srs_global_initialize()
 {
     srs_error_t err = srs_success;
@@ -305,8 +312,7 @@ srs_error_t srs_global_initialize()
     // Root global objects.
     _srs_log = new SrsFileLog();
     _srs_context = new SrsThreadContext();
-    _srs_config = new SrsConfig();
-
+    
     // The clock wall object.
     _srs_clock = new SrsWallClock();
 

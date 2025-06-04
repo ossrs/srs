@@ -1984,19 +1984,6 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         if (root->directives.empty()) root->get_or_create("vhost", "__defaultVhost__");
     }
 
-    // Ignore any error while detecting docker.
-    if ((err = srs_detect_docker()) != srs_success) {
-        srs_error_reset(err);
-    }
-
-    // Try to load the config if docker detect failed.
-    if (!_srs_in_docker) {
-        _srs_in_docker = _srs_config->get_in_docker();
-        if (_srs_in_docker) {
-            srs_trace("enable in_docker by config");
-        }
-    }
-
     ////////////////////////////////////////////////////////////////////////
     // check log name and level
     ////////////////////////////////////////////////////////////////////////
@@ -2941,6 +2928,22 @@ bool SrsConfig::get_in_docker()
     }
 
     return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::detect_in_docker()
+{
+    srs_error_t err;
+    
+    // Ignore any error while detecting docker.
+    if ((err = srs_detect_docker()) != srs_success) {
+        srs_error_reset(err);
+    }
+
+    if (!_srs_in_docker) {
+        _srs_in_docker = get_in_docker();
+    }
+
+    return _srs_in_docker;
 }
 
 bool SrsConfig::is_full_config()
