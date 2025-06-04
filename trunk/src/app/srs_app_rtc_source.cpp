@@ -1535,6 +1535,10 @@ srs_error_t SrsRtcFrameBuilder::initialize(SrsRequest* r, SrsAudioCodecId audio_
     int channels = 2; // The output audio channels.
     int sample_rate = 48000; // The output audio sample rate in HZ.
     int bitrate = _srs_config->get_rtc_aac_bitrate(r->vhost); // The output audio bitrate in bps.
+
+    // TODO: FIXME: 
+    // In the future, when we support enhanced-RTMP with Opus format, 
+    // this transcoding will no longer be necessary.
     if ((err = audio_transcoder_->initialize(audio_codec, to, channels, sample_rate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "bridge initialize");
     }
