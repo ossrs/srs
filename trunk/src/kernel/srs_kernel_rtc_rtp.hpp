@@ -29,9 +29,13 @@ const uint8_t kNalTypeMask      = 0x1F;
 
 // @see: https://tools.ietf.org/html/rfc6184#section-5.2
 const uint8_t kStapA            = 24;
-
 // @see: https://tools.ietf.org/html/rfc6184#section-5.2
 const uint8_t kFuA              = 28;
+
+// @see: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
+const uint8_t kStapHevc         = 48;
+// @see: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.3
+const uint8_t kFuHevc           = 49;
 
 // @see: https://tools.ietf.org/html/rfc6184#section-5.8
 const uint8_t kStart            = 0x80; // Fu-header start bit
@@ -253,9 +257,12 @@ enum SrsRtspPacketPayloadType
 {
     SrsRtspPacketPayloadTypeRaw,
     SrsRtspPacketPayloadTypeFUA2,
+    SrsRtspPacketPayloadTypeFUAHevc2,
     SrsRtspPacketPayloadTypeFUA,
+    SrsRtspPacketPayloadTypeFUAHevc,
     SrsRtspPacketPayloadTypeNALU,
     SrsRtspPacketPayloadTypeSTAP,
+    SrsRtspPacketPayloadTypeSTAPHevc,
     SrsRtspPacketPayloadTypeUnknown,
 };
 
@@ -289,7 +296,7 @@ private:
 // Helper fields.
 public:
     // The first byte as nalu type, for video decoder only.
-    SrsAvcNaluType nalu_type;
+    uint8_t nalu_type;
     // The frame type, for RTMP bridge or SFU source.
     SrsFrameType frame_type;
 // Fast cache for performance.
@@ -376,7 +383,7 @@ public:
 public:
     void push_back(SrsSample* sample);
 public:
-    uint8_t skip_first_byte();
+    uint8_t skip_bytes(int count);
     // We will manage the returned samples, if user want to manage it, please copy it.
     srs_error_t read_samples(std::vector<SrsSample*>& samples, int packet_size);
 // interface ISrsRtpPayloader
@@ -453,6 +460,70 @@ public:
     SrsRtpFUAPayload2();
     virtual ~SrsRtpFUAPayload2();
 // interface ISrsRtpPayloader
+public:
+    virtual uint64_t nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual ISrsRtpPayloader* copy();
+};
+
+class SrsRtpSTAPPayloadHevc : public ISrsRtpPayloader
+{
+public:
+    // The NALU samples, we will manage the samples.
+    // @remark We only refer to the memory, user must free its bytes.
+    std::vector<SrsSample*> nalus;
+public:
+    SrsRtpSTAPPayloadHevc();
+    virtual ~SrsRtpSTAPPayloadHevc();
+public:
+    SrsSample* get_vps();
+    SrsSample* get_sps();
+    SrsSample* get_pps();
+// interface ISrsRtpPayloader
+public:
+    virtual uint64_t nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual ISrsRtpPayloader* copy();
+};
+
+// FU, for one NALU with multiple fragments.
+// With more than one payload for HEVC.
+class SrsRtpFUAPayloadHevc : public ISrsRtpPayloader
+{
+public:
+    // The FUA header.
+    bool start;
+    bool end;
+    SrsHevcNaluType nalu_type;
+    // The NALU samples, we manage the samples.
+    // @remark We only refer to the memory, user must free its bytes.
+    std::vector<SrsSample*> nalus;
+public:
+    SrsRtpFUAPayloadHevc();
+    virtual ~SrsRtpFUAPayloadHevc();
+// interface ISrsRtpPayloader
+public:
+    virtual uint64_t nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual ISrsRtpPayloader* copy();
+};
+
+// FU, for one NALU with multiple fragments.
+// With only one payload for HEVC.
+class SrsRtpFUAPayloadHevc2 : public ISrsRtpPayloader
+{
+public:
+    bool start;
+    bool end;
+    SrsHevcNaluType nalu_type;
+    char* payload;
+    int size;
+public:
+    SrsRtpFUAPayloadHevc2();
+    virtual ~SrsRtpFUAPayloadHevc2();
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);

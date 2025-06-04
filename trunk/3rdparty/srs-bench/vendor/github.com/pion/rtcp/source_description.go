@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -94,7 +97,7 @@ func (s SourceDescription) Marshal() ([]byte, error) {
 	 *        +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 	 */
 
-	rawPacket := make([]byte, s.len())
+	rawPacket := make([]byte, s.MarshalSize())
 	packetBody := rawPacket[headerLength:]
 
 	chunkOffset := 0
@@ -166,7 +169,8 @@ func (s *SourceDescription) Unmarshal(rawPacket []byte) error {
 	return nil
 }
 
-func (s *SourceDescription) len() int {
+// MarshalSize returns the size of the packet once marshaled
+func (s *SourceDescription) MarshalSize() int {
 	chunksLength := 0
 	for _, c := range s.Chunks {
 		chunksLength += c.len()
@@ -179,7 +183,7 @@ func (s *SourceDescription) Header() Header {
 	return Header{
 		Count:  uint8(len(s.Chunks)),
 		Type:   TypeSourceDescription,
-		Length: uint16((s.len() / 4) - 1),
+		Length: uint16((s.MarshalSize() / 4) - 1),
 	}
 }
 
@@ -248,7 +252,7 @@ func (s *SourceDescriptionChunk) Unmarshal(rawPacket []byte) error {
 			return err
 		}
 		s.Items = append(s.Items, it)
-		i += it.len()
+		i += it.Len()
 	}
 
 	return errPacketTooShort
@@ -257,7 +261,7 @@ func (s *SourceDescriptionChunk) Unmarshal(rawPacket []byte) error {
 func (s SourceDescriptionChunk) len() int {
 	chunkLen := sdesSourceLen
 	for _, it := range s.Items {
-		chunkLen += it.len()
+		chunkLen += it.Len()
 	}
 	chunkLen += sdesTypeLen // for terminating null octet
 
@@ -277,7 +281,8 @@ type SourceDescriptionItem struct {
 	Text string
 }
 
-func (s SourceDescriptionItem) len() int {
+// Len returns the length of the SourceDescriptionItem when encoded as binary.
+func (s SourceDescriptionItem) Len() int {
 	/*
 	 *   0                   1                   2                   3
 	 *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1

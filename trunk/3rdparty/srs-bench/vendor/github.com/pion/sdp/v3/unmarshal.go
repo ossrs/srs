@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sdp
 
 import (
@@ -6,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 var (
@@ -13,57 +17,72 @@ var (
 	errSDPInvalidNumericValue = errors.New("sdp: invalid numeric value")
 	errSDPInvalidValue        = errors.New("sdp: invalid value")
 	errSDPInvalidPortValue    = errors.New("sdp: invalid port value")
+	errSDPCacheInvalid        = errors.New("sdp: invalid cache")
+
+	//nolint: gochecknoglobals
+	unmarshalCachePool = sync.Pool{
+		New: func() interface{} {
+			return &unmarshalCache{}
+		},
+	}
 )
 
-// Unmarshal is the primary function that deserializes the session description
+// UnmarshalString is the primary function that deserializes the session description
 // message and stores it inside of a structured SessionDescription object.
 //
 // The States Transition Table describes the computation flow between functions
 // (namely s1, s2, s3, ...) for a parsing procedure that complies with the
 // specifications laid out by the rfc4566#section-5 as well as by JavaScript
 // Session Establishment Protocol draft. Links:
-// 		https://tools.ietf.org/html/rfc4566#section-5
-// 		https://tools.ietf.org/html/draft-ietf-rtcweb-jsep-24
+//
+//	https://tools.ietf.org/html/rfc4566#section-5
+//	https://tools.ietf.org/html/draft-ietf-rtcweb-jsep-24
 //
 // https://tools.ietf.org/html/rfc4566#section-5
 // Session description
-//    v=  (protocol version)
-//    o=  (originator and session identifier)
-//    s=  (session name)
-//    i=* (session information)
-//    u=* (URI of description)
-//    e=* (email address)
-//    p=* (phone number)
-//    c=* (connection information -- not required if included in
-//         all media)
-//    b=* (zero or more bandwidth information lines)
-//    One or more time descriptions ("t=" and "r=" lines; see below)
-//    z=* (time zone adjustments)
-//    k=* (encryption key)
-//    a=* (zero or more session attribute lines)
-//    Zero or more media descriptions
+//
+//	v=  (protocol version)
+//	o=  (originator and session identifier)
+//	s=  (session name)
+//	i=* (session information)
+//	u=* (URI of description)
+//	e=* (email address)
+//	p=* (phone number)
+//	c=* (connection information -- not required if included in
+//	     all media)
+//	b=* (zero or more bandwidth information lines)
+//	One or more time descriptions ("t=" and "r=" lines; see below)
+//	z=* (time zone adjustments)
+//	k=* (encryption key)
+//	a=* (zero or more session attribute lines)
+//	Zero or more media descriptions
 //
 // Time description
-//    t=  (time the session is active)
-//    r=* (zero or more repeat times)
+//
+//	t=  (time the session is active)
+//	r=* (zero or more repeat times)
 //
 // Media description, if present
-//    m=  (media name and transport address)
-//    i=* (media title)
-//    c=* (connection information -- optional if included at
-//         session level)
-//    b=* (zero or more bandwidth information lines)
-//    k=* (encryption key)
-//    a=* (zero or more media attribute lines)
+//
+//	m=  (media name and transport address)
+//	i=* (media title)
+//	c=* (connection information -- optional if included at
+//	     session level)
+//	b=* (zero or more bandwidth information lines)
+//	k=* (encryption key)
+//	a=* (zero or more media attribute lines)
 //
 // In order to generate the following state table and draw subsequent
 // deterministic finite-state automota ("DFA") the following regex was used to
 // derive the DFA:
-//    vosi?u?e?p?c?b*(tr*)+z?k?a*(mi?c?b*k?a*)*
+//
+//	vosi?u?e?p?c?b*(tr*)+z?k?a*(mi?c?b*k?a*)*
+//
 // possible place and state to exit:
-//                    **   * * *  ** * * * *
-//                    99   1 1 1  11 1 1 1 1
-//                         3 1 1  26 5 5 4 4
+//
+//	**   * * *  ** * * * *
+//	99   1 1 1  11 1 1 1 1
+//	     3 1 1  26 5 5 4 4
 //
 // Please pay close attention to the `k`, and `a` parsing states. In the table
 // below in order to distinguish between the states belonging to the media
@@ -88,278 +107,312 @@ var (
 // |   s14  | 14 |       |    |     |    |     |   |    | 12 |   |   |     |   |   |    |   |    |
 // |   s15  |    |    14 |    |     | 15 |     |   |    | 12 |   |   |     |   |   |    |   |    |
 // |   s16  |    |    14 |    |     |    |  15 |   |    | 12 |   |   |     |   |   |    |   |    |
-// +--------+----+-------+----+-----+----+-----+---+----+----+---+---+-----+---+---+----+---+----+
-func (s *SessionDescription) Unmarshal(value []byte) error {
-	l := new(lexer)
-	l.desc = s
-	l.value = value
+// +--------+----+-------+----+-----+----+-----+---+----+----+---+---+-----+---+---+----+---+----+ .
+func (s *SessionDescription) UnmarshalString(value string) error {
+	var ok bool
+	lex := new(lexer)
+	if lex.cache, ok = unmarshalCachePool.Get().(*unmarshalCache); !ok {
+		return errSDPCacheInvalid
+	}
+	defer unmarshalCachePool.Put(lex.cache)
+
+	lex.cache.reset()
+	lex.desc = s
+	lex.value = value
+
 	for state := s1; state != nil; {
 		var err error
-		state, err = state(l)
+		state, err = state(lex)
 		if err != nil {
 			return err
 		}
 	}
+
+	s.Attributes = lex.cache.cloneSessionAttributes()
+	populateMediaAttributes(lex.cache, lex.desc)
+
 	return nil
 }
 
+// Unmarshal converts the value into a []byte and then calls UnmarshalString.
+// Callers should use the more performant UnmarshalString.
+func (s *SessionDescription) Unmarshal(value []byte) error {
+	return s.UnmarshalString(string(value))
+}
+
 func s1(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
-		if key == "v=" {
+	return l.handleType(func(key byte) stateFn {
+		if key == 'v' {
 			return unmarshalProtocolVersion
 		}
+
 		return nil
 	})
 }
 
 func s2(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
-		if key == "o=" {
+	return l.handleType(func(key byte) stateFn {
+		if key == 'o' {
 			return unmarshalOrigin
 		}
+
 		return nil
 	})
 }
 
 func s3(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
-		if key == "s=" {
+	return l.handleType(func(key byte) stateFn {
+		if key == 's' {
 			return unmarshalSessionName
 		}
+
 		return nil
 	})
 }
 
 func s4(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "i=":
+		case 'i':
 			return unmarshalSessionInformation
-		case "u=":
+		case 'u':
 			return unmarshalURI
-		case "e=":
+		case 'e':
 			return unmarshalEmail
-		case "p=":
+		case 'p':
 			return unmarshalPhone
-		case "c=":
+		case 'c':
 			return unmarshalSessionConnectionInformation
-		case "b=":
+		case 'b':
 			return unmarshalSessionBandwidth
-		case "t=":
+		case 't':
 			return unmarshalTiming
 		}
+
 		return nil
 	})
 }
 
 func s5(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "b=":
+		case 'b':
 			return unmarshalSessionBandwidth
-		case "t=":
+		case 't':
 			return unmarshalTiming
 		}
+
 		return nil
 	})
 }
 
 func s6(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "p=":
+		case 'p':
 			return unmarshalPhone
-		case "c=":
+		case 'c':
 			return unmarshalSessionConnectionInformation
-		case "b=":
+		case 'b':
 			return unmarshalSessionBandwidth
-		case "t=":
+		case 't':
 			return unmarshalTiming
 		}
+
 		return nil
 	})
 }
 
 func s7(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "u=":
+		case 'u':
 			return unmarshalURI
-		case "e=":
+		case 'e':
 			return unmarshalEmail
-		case "p=":
+		case 'p':
 			return unmarshalPhone
-		case "c=":
+		case 'c':
 			return unmarshalSessionConnectionInformation
-		case "b=":
+		case 'b':
 			return unmarshalSessionBandwidth
-		case "t=":
+		case 't':
 			return unmarshalTiming
 		}
+
 		return nil
 	})
 }
 
 func s8(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "c=":
+		case 'c':
 			return unmarshalSessionConnectionInformation
-		case "b=":
+		case 'b':
 			return unmarshalSessionBandwidth
-		case "t=":
+		case 't':
 			return unmarshalTiming
 		}
+
 		return nil
 	})
 }
 
 func s9(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "z=":
+		case 'z':
 			return unmarshalTimeZones
-		case "k=":
+		case 'k':
 			return unmarshalSessionEncryptionKey
-		case "a=":
+		case 'a':
 			return unmarshalSessionAttribute
-		case "r=":
+		case 'r':
 			return unmarshalRepeatTimes
-		case "t=":
+		case 't':
 			return unmarshalTiming
-		case "m=":
+		case 'm':
 			return unmarshalMediaDescription
 		}
+
 		return nil
 	})
 }
 
 func s10(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "e=":
+		case 'e':
 			return unmarshalEmail
-		case "p=":
+		case 'p':
 			return unmarshalPhone
-		case "c=":
+		case 'c':
 			return unmarshalSessionConnectionInformation
-		case "b=":
+		case 'b':
 			return unmarshalSessionBandwidth
-		case "t=":
+		case 't':
 			return unmarshalTiming
 		}
+
 		return nil
 	})
 }
 
 func s11(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "a=":
+		case 'a':
 			return unmarshalSessionAttribute
-		case "m=":
+		case 'm':
 			return unmarshalMediaDescription
 		}
+
 		return nil
 	})
 }
 
 func s12(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "a=":
+		case 'a':
 			return unmarshalMediaAttribute
-		case "k=":
+		case 'k':
 			return unmarshalMediaEncryptionKey
-		case "b=":
+		case 'b':
 			return unmarshalMediaBandwidth
-		case "c=":
+		case 'c':
 			return unmarshalMediaConnectionInformation
-		case "i=":
+		case 'i':
 			return unmarshalMediaTitle
-		case "m=":
+		case 'm':
 			return unmarshalMediaDescription
 		}
+
 		return nil
 	})
 }
 
 func s13(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "a=":
+		case 'a':
 			return unmarshalSessionAttribute
-		case "k=":
+		case 'k':
 			return unmarshalSessionEncryptionKey
-		case "m=":
+		case 'm':
 			return unmarshalMediaDescription
 		}
+
 		return nil
 	})
 }
 
 func s14(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "a=":
+		case 'a':
 			return unmarshalMediaAttribute
-		case "k=":
+		case 'k':
 			// Non-spec ordering
 			return unmarshalMediaEncryptionKey
-		case "b=":
+		case 'b':
 			// Non-spec ordering
 			return unmarshalMediaBandwidth
-		case "c=":
+		case 'c':
 			// Non-spec ordering
 			return unmarshalMediaConnectionInformation
-		case "i=":
+		case 'i':
 			// Non-spec ordering
 			return unmarshalMediaTitle
-		case "m=":
+		case 'm':
 			return unmarshalMediaDescription
 		}
+
 		return nil
 	})
 }
 
 func s15(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "a=":
+		case 'a':
 			return unmarshalMediaAttribute
-		case "k=":
+		case 'k':
 			return unmarshalMediaEncryptionKey
-		case "b=":
+		case 'b':
 			return unmarshalMediaBandwidth
-		case "c=":
+		case 'c':
 			return unmarshalMediaConnectionInformation
-		case "i=":
+		case 'i':
 			// Non-spec ordering
 			return unmarshalMediaTitle
-		case "m=":
+		case 'm':
 			return unmarshalMediaDescription
 		}
+
 		return nil
 	})
 }
 
 func s16(l *lexer) (stateFn, error) {
-	return l.handleType(func(key string) stateFn {
+	return l.handleType(func(key byte) stateFn {
 		switch key {
-		case "a=":
+		case 'a':
 			return unmarshalMediaAttribute
-		case "k=":
+		case 'k':
 			return unmarshalMediaEncryptionKey
-		case "c=":
+		case 'c':
 			return unmarshalMediaConnectionInformation
-		case "b=":
+		case 'b':
 			return unmarshalMediaBandwidth
-		case "i=":
+		case 'i':
 			// Non-spec ordering
 			return unmarshalMediaTitle
-		case "m=":
+		case 'm':
 			return unmarshalMediaDescription
 		}
+
 		return nil
 	})
 }
@@ -383,52 +436,52 @@ func unmarshalProtocolVersion(l *lexer) (stateFn, error) {
 	return s2, nil
 }
 
-func unmarshalOrigin(l *lexer) (stateFn, error) {
+func unmarshalOrigin(lex *lexer) (stateFn, error) {
 	var err error
 
-	l.desc.Origin.Username, err = l.readField()
+	lex.desc.Origin.Username, err = lex.readField()
 	if err != nil {
 		return nil, err
 	}
 
-	l.desc.Origin.SessionID, err = l.readUint64Field()
+	lex.desc.Origin.SessionID, err = lex.readUint64Field()
 	if err != nil {
 		return nil, err
 	}
 
-	l.desc.Origin.SessionVersion, err = l.readUint64Field()
+	lex.desc.Origin.SessionVersion, err = lex.readUint64Field()
 	if err != nil {
 		return nil, err
 	}
 
-	l.desc.Origin.NetworkType, err = l.readField()
+	lex.desc.Origin.NetworkType, err = lex.readField()
 	if err != nil {
 		return nil, err
 	}
 
 	// Set according to currently registered with IANA
 	// https://tools.ietf.org/html/rfc4566#section-8.2.6
-	if !anyOf(l.desc.Origin.NetworkType, "IN") {
-		return nil, fmt.Errorf("%w `%v`", errSDPInvalidValue, l.desc.Origin.NetworkType)
+	if !anyOf(lex.desc.Origin.NetworkType, "IN") {
+		return nil, fmt.Errorf("%w `%v`", errSDPInvalidValue, lex.desc.Origin.NetworkType)
 	}
 
-	l.desc.Origin.AddressType, err = l.readField()
+	lex.desc.Origin.AddressType, err = lex.readField()
 	if err != nil {
 		return nil, err
 	}
 
 	// Set according to currently registered with IANA
 	// https://tools.ietf.org/html/rfc4566#section-8.2.7
-	if !anyOf(l.desc.Origin.AddressType, "IP4", "IP6") {
-		return nil, fmt.Errorf("%w `%v`", errSDPInvalidValue, l.desc.Origin.AddressType)
+	if !anyOf(lex.desc.Origin.AddressType, "IP4", "IP6") {
+		return nil, fmt.Errorf("%w `%v`", errSDPInvalidValue, lex.desc.Origin.AddressType)
 	}
 
-	l.desc.Origin.UnicastAddress, err = l.readField()
+	lex.desc.Origin.UnicastAddress, err = lex.readField()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := l.nextLine(); err != nil {
+	if err := lex.nextLine(); err != nil {
 		return nil, err
 	}
 
@@ -442,6 +495,7 @@ func unmarshalSessionName(l *lexer) (stateFn, error) {
 	}
 
 	l.desc.SessionName = SessionName(value)
+
 	return s4, nil
 }
 
@@ -453,6 +507,7 @@ func unmarshalSessionInformation(l *lexer) (stateFn, error) {
 
 	sessionInformation := Information(value)
 	l.desc.SessionInformation = &sessionInformation
+
 	return s7, nil
 }
 
@@ -478,6 +533,7 @@ func unmarshalEmail(l *lexer) (stateFn, error) {
 
 	emailAddress := EmailAddress(value)
 	l.desc.EmailAddress = &emailAddress
+
 	return s6, nil
 }
 
@@ -489,6 +545,7 @@ func unmarshalPhone(l *lexer) (stateFn, error) {
 
 	phoneNumber := PhoneNumber(value)
 	l.desc.PhoneNumber = &phoneNumber
+
 	return s8, nil
 }
 
@@ -498,33 +555,34 @@ func unmarshalSessionConnectionInformation(l *lexer) (stateFn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return s5, nil
 }
 
 func (l *lexer) unmarshalConnectionInformation() (*ConnectionInformation, error) {
 	var err error
-	var c ConnectionInformation
+	var connInfo ConnectionInformation
 
-	c.NetworkType, err = l.readField()
+	connInfo.NetworkType, err = l.readField()
 	if err != nil {
 		return nil, err
 	}
 
 	// Set according to currently registered with IANA
 	// https://tools.ietf.org/html/rfc4566#section-8.2.6
-	if !anyOf(c.NetworkType, "IN") {
-		return nil, fmt.Errorf("%w `%v`", errSDPInvalidValue, c.NetworkType)
+	if !anyOf(connInfo.NetworkType, "IN") {
+		return nil, fmt.Errorf("%w `%v`", errSDPInvalidValue, connInfo.NetworkType)
 	}
 
-	c.AddressType, err = l.readField()
+	connInfo.AddressType, err = l.readField()
 	if err != nil {
 		return nil, err
 	}
 
 	// Set according to currently registered with IANA
 	// https://tools.ietf.org/html/rfc4566#section-8.2.7
-	if !anyOf(c.AddressType, "IP4", "IP6") {
-		return nil, fmt.Errorf("%w `%v`", errSDPInvalidValue, c.AddressType)
+	if !anyOf(connInfo.AddressType, "IP4", "IP6") {
+		return nil, fmt.Errorf("%w `%v`", errSDPInvalidValue, connInfo.AddressType)
 	}
 
 	address, err := l.readField()
@@ -533,15 +591,15 @@ func (l *lexer) unmarshalConnectionInformation() (*ConnectionInformation, error)
 	}
 
 	if address != "" {
-		c.Address = new(Address)
-		c.Address.Address = address
+		connInfo.Address = new(Address)
+		connInfo.Address.Address = address
 	}
 
 	if err := l.nextLine(); err != nil {
 		return nil, err
 	}
 
-	return &c, nil
+	return &connInfo, nil
 }
 
 func unmarshalSessionBandwidth(l *lexer) (stateFn, error) {
@@ -588,35 +646,36 @@ func unmarshalBandwidth(value string) (*Bandwidth, error) {
 	}, nil
 }
 
-func unmarshalTiming(l *lexer) (stateFn, error) {
+func unmarshalTiming(lex *lexer) (stateFn, error) {
 	var err error
 	var td TimeDescription
 
-	td.Timing.StartTime, err = l.readUint64Field()
+	td.Timing.StartTime, err = lex.readUint64Field()
 	if err != nil {
 		return nil, err
 	}
 
-	td.Timing.StopTime, err = l.readUint64Field()
+	td.Timing.StopTime, err = lex.readUint64Field()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := l.nextLine(); err != nil {
+	if err := lex.nextLine(); err != nil {
 		return nil, err
 	}
 
-	l.desc.TimeDescriptions = append(l.desc.TimeDescriptions, td)
+	lex.desc.TimeDescriptions = append(lex.desc.TimeDescriptions, td)
+
 	return s9, nil
 }
 
-func unmarshalRepeatTimes(l *lexer) (stateFn, error) {
+func unmarshalRepeatTimes(lex *lexer) (stateFn, error) {
 	var err error
 	var newRepeatTime RepeatTime
 
-	latestTimeDesc := &l.desc.TimeDescriptions[len(l.desc.TimeDescriptions)-1]
+	latestTimeDesc := &lex.desc.TimeDescriptions[len(lex.desc.TimeDescriptions)-1]
 
-	field, err := l.readField()
+	field, err := lex.readField()
 	if err != nil {
 		return nil, err
 	}
@@ -626,7 +685,7 @@ func unmarshalRepeatTimes(l *lexer) (stateFn, error) {
 		return nil, fmt.Errorf("%w `%v`", errSDPInvalidValue, field)
 	}
 
-	field, err = l.readField()
+	field, err = lex.readField()
 	if err != nil {
 		return nil, err
 	}
@@ -637,7 +696,7 @@ func unmarshalRepeatTimes(l *lexer) (stateFn, error) {
 	}
 
 	for {
-		field, err := l.readField()
+		field, err := lex.readField()
 		if err != nil {
 			return nil, err
 		}
@@ -651,15 +710,16 @@ func unmarshalRepeatTimes(l *lexer) (stateFn, error) {
 		newRepeatTime.Offsets = append(newRepeatTime.Offsets, offset)
 	}
 
-	if err := l.nextLine(); err != nil {
+	if err := lex.nextLine(); err != nil {
 		return nil, err
 	}
 
 	latestTimeDesc.RepeatTimes = append(latestTimeDesc.RepeatTimes, newRepeatTime)
+
 	return s9, nil
 }
 
-func unmarshalTimeZones(l *lexer) (stateFn, error) {
+func unmarshalTimeZones(lex *lexer) (stateFn, error) {
 	// These fields are transimitted in pairs
 	// z=<adjustment time> <offset> <adjustment time> <offset> ....
 	// so we are making sure that there are actually multiple of 2 total.
@@ -667,12 +727,12 @@ func unmarshalTimeZones(l *lexer) (stateFn, error) {
 		var err error
 		var timeZone TimeZone
 
-		timeZone.AdjustmentTime, err = l.readUint64Field()
+		timeZone.AdjustmentTime, err = lex.readUint64Field()
 		if err != nil {
 			return nil, err
 		}
 
-		offset, err := l.readField()
+		offset, err := lex.readField()
 		if err != nil {
 			return nil, err
 		}
@@ -686,10 +746,10 @@ func unmarshalTimeZones(l *lexer) (stateFn, error) {
 			return nil, err
 		}
 
-		l.desc.TimeZones = append(l.desc.TimeZones, timeZone)
+		lex.desc.TimeZones = append(lex.desc.TimeZones, timeZone)
 	}
 
-	if err := l.nextLine(); err != nil {
+	if err := lex.nextLine(); err != nil {
 		return nil, err
 	}
 
@@ -704,6 +764,7 @@ func unmarshalSessionEncryptionKey(l *lexer) (stateFn, error) {
 
 	encryptionKey := EncryptionKey(value)
 	l.desc.EncryptionKey = &encryptionKey
+
 	return s11, nil
 }
 
@@ -714,22 +775,23 @@ func unmarshalSessionAttribute(l *lexer) (stateFn, error) {
 	}
 
 	i := strings.IndexRune(value, ':')
-	var a Attribute
+	a := l.cache.getSessionAttribute()
 	if i > 0 {
-		a = NewAttribute(value[:i], value[i+1:])
+		a.Key = value[:i]
+		a.Value = value[i+1:]
 	} else {
-		a = NewPropertyAttribute(value)
+		a.Key = value
 	}
 
-	l.desc.Attributes = append(l.desc.Attributes, a)
 	return s11, nil
 }
 
-func unmarshalMediaDescription(l *lexer) (stateFn, error) {
+func unmarshalMediaDescription(lex *lexer) (stateFn, error) { //nolint:cyclop
+	populateMediaAttributes(lex.cache, lex.desc)
 	var newMediaDesc MediaDescription
 
 	// <media>
-	field, err := l.readField()
+	field, err := lex.readField()
 	if err != nil {
 		return nil, err
 	}
@@ -742,7 +804,7 @@ func unmarshalMediaDescription(l *lexer) (stateFn, error) {
 	newMediaDesc.MediaName.Media = field
 
 	// <port>
-	field, err = l.readField()
+	field, err = lex.readField()
 	if err != nil {
 		return nil, err
 	}
@@ -762,7 +824,7 @@ func unmarshalMediaDescription(l *lexer) (stateFn, error) {
 	}
 
 	// <proto>
-	field, err = l.readField()
+	field, err = lex.readField()
 	if err != nil {
 		return nil, err
 	}
@@ -771,7 +833,24 @@ func unmarshalMediaDescription(l *lexer) (stateFn, error) {
 	// https://tools.ietf.org/html/rfc4566#section-5.14
 	// https://tools.ietf.org/html/rfc4975#section-8.1
 	for _, proto := range strings.Split(field, "/") {
-		if !anyOf(proto, "UDP", "RTP", "AVP", "SAVP", "SAVPF", "TLS", "DTLS", "SCTP", "AVPF", "TCP", "MSRP") {
+		if !anyOf(
+			proto,
+			"UDP",
+			"RTP",
+			"AVP",
+			"SAVP",
+			"SAVPF",
+			"TLS",
+			"DTLS",
+			"SCTP",
+			"AVPF",
+			"TCP",
+			"MSRP",
+			"BFCP",
+			"UDT",
+			"IX",
+			"MRCPv2",
+		) {
 			return nil, fmt.Errorf("%w `%v`", errSDPInvalidNumericValue, field)
 		}
 		newMediaDesc.MediaName.Protos = append(newMediaDesc.MediaName.Protos, proto)
@@ -779,7 +858,7 @@ func unmarshalMediaDescription(l *lexer) (stateFn, error) {
 
 	// <fmt>...
 	for {
-		field, err = l.readField()
+		field, err = lex.readField()
 		if err != nil {
 			return nil, err
 		}
@@ -789,11 +868,12 @@ func unmarshalMediaDescription(l *lexer) (stateFn, error) {
 		newMediaDesc.MediaName.Formats = append(newMediaDesc.MediaName.Formats, field)
 	}
 
-	if err := l.nextLine(); err != nil {
+	if err := lex.nextLine(); err != nil {
 		return nil, err
 	}
 
-	l.desc.MediaDescriptions = append(l.desc.MediaDescriptions, &newMediaDesc)
+	lex.desc.MediaDescriptions = append(lex.desc.MediaDescriptions, &newMediaDesc)
+
 	return s12, nil
 }
 
@@ -806,6 +886,7 @@ func unmarshalMediaTitle(l *lexer) (stateFn, error) {
 	latestMediaDesc := l.desc.MediaDescriptions[len(l.desc.MediaDescriptions)-1]
 	mediaTitle := Information(value)
 	latestMediaDesc.MediaTitle = &mediaTitle
+
 	return s16, nil
 }
 
@@ -816,6 +897,7 @@ func unmarshalMediaConnectionInformation(l *lexer) (stateFn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return s15, nil
 }
 
@@ -831,6 +913,7 @@ func unmarshalMediaBandwidth(l *lexer) (stateFn, error) {
 		return nil, fmt.Errorf("%w `b=%v`", errSDPInvalidSyntax, value)
 	}
 	latestMediaDesc.Bandwidth = append(latestMediaDesc.Bandwidth, *bandwidth)
+
 	return s15, nil
 }
 
@@ -843,6 +926,7 @@ func unmarshalMediaEncryptionKey(l *lexer) (stateFn, error) {
 	latestMediaDesc := l.desc.MediaDescriptions[len(l.desc.MediaDescriptions)-1]
 	encryptionKey := EncryptionKey(value)
 	latestMediaDesc.EncryptionKey = &encryptionKey
+
 	return s14, nil
 }
 
@@ -853,19 +937,21 @@ func unmarshalMediaAttribute(l *lexer) (stateFn, error) {
 	}
 
 	i := strings.IndexRune(value, ':')
-	var a Attribute
+	a := l.cache.getMediaAttribute()
 	if i > 0 {
-		a = NewAttribute(value[:i], value[i+1:])
+		a.Key = value[:i]
+		a.Value = value[i+1:]
 	} else {
-		a = NewPropertyAttribute(value)
+		a.Key = value
 	}
 
-	latestMediaDesc := l.desc.MediaDescriptions[len(l.desc.MediaDescriptions)-1]
-	latestMediaDesc.Attributes = append(latestMediaDesc.Attributes, a)
 	return s14, nil
 }
 
 func parseTimeUnits(value string) (num int64, err error) {
+	if len(value) == 0 {
+		return 0, fmt.Errorf("%w `%v`", errSDPInvalidValue, value)
+	}
 	k := timeShorthand(value[len(value)-1])
 	if k > 0 {
 		num, err = strconv.ParseInt(value[:len(value)-1], 10, 64)
@@ -876,6 +962,7 @@ func parseTimeUnits(value string) (num int64, err error) {
 	if err != nil {
 		return 0, fmt.Errorf("%w `%v`", errSDPInvalidValue, value)
 	}
+
 	return num * k, nil
 }
 
@@ -907,4 +994,11 @@ func parsePort(value string) (int, error) {
 	}
 
 	return port, nil
+}
+
+func populateMediaAttributes(c *unmarshalCache, s *SessionDescription) {
+	if len(s.MediaDescriptions) != 0 {
+		lastMediaDesc := s.MediaDescriptions[len(s.MediaDescriptions)-1]
+		lastMediaDesc.Attributes = c.cloneMediaAttributes()
+	}
 }

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import "fmt"
@@ -7,7 +10,7 @@ import "fmt"
 // Chunk Value field.
 type chunkType uint8
 
-// List of known chunkType enums
+// List of known chunkType enums.
 const (
 	ctPayloadData      chunkType = 0
 	ctInit             chunkType = 1
@@ -27,7 +30,7 @@ const (
 	ctForwardTSN       chunkType = 192
 )
 
-func (c chunkType) String() string {
+func (c chunkType) String() string { //nolint:cyclop
 	switch c {
 	case ctPayloadData:
 		return "DATA"

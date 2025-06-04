@@ -1,9 +1,13 @@
 # SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
 # SPDX-License-Identifier: MIT
 
+run:
+  timeout: 5m
+
 linters-settings:
   govet:
-    check-shadowing: true
+    enable:
+      - shadow
   misspell:
     locale: US
   exhaustive:
@@ -29,7 +33,6 @@ linters:
     - bodyclose        # checks whether HTTP response body is closed successfully
     - contextcheck     # check the function whether use a non-inherited context
     - decorder         # check declaration order and count of types, constants, variables and functions
-    - depguard         # Go linter that checks if package imports are in a list of acceptable packages
     - dogsled          # Checks assignments with too many blank identifiers (e.g. x, _, _, _, := f())
     - dupl             # Tool for code clone detection
     - durationcheck    # check for two durations multiplied together
@@ -48,7 +51,7 @@ linters:
     - goconst          # Finds repeated strings that could be replaced by a constant
     - gocritic         # The most opinionated Go source code linter
     - godox            # Tool for detection of FIXME, TODO and other comment keywords
-    - goerr113         # Golang linter to check the errors handling expressions
+    - err113           # Golang linter to check the errors handling expressions
     - gofmt            # Gofmt checks whether code was gofmt-ed. By default this tool runs with -s option to check for code simplification
     - gofumpt          # Gofumpt checks whether code was gofumpt-ed.
     - goheader         # Checks is file header matches to pattern
@@ -63,7 +66,6 @@ linters:
     - importas         # Enforces consistent import aliases
     - ineffassign      # Detects when assignments to existing variables are not used
     - misspell         # Finds commonly misspelled English words in comments
-    - nakedret         # Finds naked returns in functions greater than a specified function length
     - nilerr           # Finds the code that returns nil even if it checks that the error is not nil.
     - nilnil           # Checks that there is no simultaneous return of `nil` error and an invalid value.
     - noctx            # noctx finds sending http request without context.Context
@@ -81,19 +83,18 @@ linters:
     - wastedassign     # wastedassign finds wasted assignment statements
     - whitespace       # Tool for detection of leading and trailing whitespace
   disable:
+    - depguard         # Go linter that checks if package imports are in a list of acceptable packages
     - containedctx     # containedctx is a linter that detects struct contained context.Context field
     - cyclop           # checks function and package cyclomatic complexity
-    - exhaustivestruct # Checks if all struct's fields are initialized
     - funlen           # Tool for detection of long functions
     - gocyclo          # Computes and checks the cyclomatic complexity of functions
     - godot            # Check if comments end in a period
     - gomnd            # An analyzer to detect magic numbers.
-    - ifshort          # Checks that your code uses short syntax for if-statements whenever possible
     - ireturn          # Accept Interfaces, Return Concrete Types
     - lll              # Reports long lines
     - maintidx         # maintidx measures the maintainability index of each function.
     - makezero         # Finds slice declarations with non-zero initial length
-    - maligned         # Tool to detect Go structs that would take less memory if their fields were sorted
+    - nakedret         # Finds naked returns in functions greater than a specified function length
     - nestif           # Reports deeply nested if statements
     - nlreturn         # nlreturn checks for a new line before return and branch statements to increase code clarity
     - nolintlint       # Reports ill-formed or insufficient nolint directives
@@ -110,28 +111,15 @@ linters:
 
 issues:
   exclude-use-default: false
+  exclude-dirs-use-default: false
   exclude-rules:
-    # Allow complex tests, better to be self contained
-    - path: _test\.go
-      linters:
-        - gocognit
-        - forbidigo
-
-    # Allow complex main function in examples
-    - path: examples
-      text: "of func `main` is high"
-      linters:
-        - gocognit
-    
-    # Allow forbidden identifiers in examples
-    - path: examples
+    # Allow complex tests and examples, better to be self contained
+    - path: (examples|main\.go|_test\.go)
       linters:
         - forbidigo
+        - gocognit
 
     # Allow forbidden identifiers in CLI commands
     - path: cmd
       linters:
         - forbidigo
-
-run:
-  skip-dirs-use-default: false

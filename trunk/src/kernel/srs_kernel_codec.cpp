@@ -676,7 +676,7 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
 
     // By default, use AVC(H.264) to parse NALU.
     // For video, parse the nalu type, set the IDR flag.
-    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
+    SrsAvcNaluType nal_unit_type = SrsAvcNaluTypeParse(bytes[0]);
     
     if (nal_unit_type == SrsAvcNaluTypeIDR) {
         has_idr = true;
@@ -703,29 +703,25 @@ srs_error_t SrsVideoFrame::parse_avc_nalu_type(const SrsSample* sample, SrsAvcNa
     srs_error_t err = srs_success;
 
     if (sample == NULL || sample->size < 1) {
-        return srs_error_new(ERROR_AVC_NALU_EMPTY, "empty nalu");
+        return srs_error_new(ERROR_NALU_EMPTY, "empty nalu");
     }
     
     uint8_t header = sample->bytes[0];
-    avc_nalu_type = (SrsAvcNaluType)(header & kNalTypeMask);
+    avc_nalu_type = SrsAvcNaluTypeParse(header);
     
     return err;
 }
 
-srs_error_t SrsVideoFrame::parse_avc_b_frame(const SrsSample* sample, bool& is_b_frame)
+srs_error_t SrsVideoFrame::parse_avc_bframe(const SrsSample* sample, bool& is_b_frame)
 {
     srs_error_t err = srs_success;
-
-    if (sample == NULL || sample->size < 1) {
-        return srs_error_new(ERROR_AVC_NALU_EMPTY, "empty nalu");
-    }
 
     SrsAvcNaluType nalu_type;
     if ((err = parse_avc_nalu_type(sample, nalu_type)) != srs_success) {
         return srs_error_wrap(err, "parse avc nalu type error");
     }
 
-    if (nalu_type != SrsAvcNaluTypeNonIDR && nalu_type != SrsAvcNaluTypeDataPartitionA && nalu_type != SrsAvcNaluTypeIDR) {
+    if (nalu_type == SrsAvcNaluTypeIDR || nalu_type == SrsAvcNaluTypeSPS || nalu_type == SrsAvcNaluTypePPS) {
         is_b_frame = false;
         return err;
     }
@@ -751,6 +747,87 @@ srs_error_t SrsVideoFrame::parse_avc_b_frame(const SrsSample* sample, bool& is_b
     if (is_b_frame) {
         srs_verbose("nalu_type=%d, slice type=%d", nalu_type, slice_type);
     }
+
+    return err;
+}
+
+srs_error_t SrsVideoFrame::parse_hevc_nalu_type(const SrsSample* sample, SrsHevcNaluType& hevc_nalu_type)
+{
+    srs_error_t err = srs_success;
+
+    if (sample == NULL || sample->size < 1) {
+        return srs_error_new(ERROR_NALU_EMPTY, "empty hevc nalu");
+    }
+    
+    uint8_t header = sample->bytes[0];
+    hevc_nalu_type = SrsHevcNaluTypeParse(header);
+    
+    return err;
+}
+
+srs_error_t SrsVideoFrame::parse_hevc_bframe(const SrsSample* sample, SrsFormat *format, bool& is_b_frame)
+{
+    srs_error_t err = srs_success;
+
+    SrsHevcNaluType nalu_type;
+    if ((err = parse_hevc_nalu_type(sample, nalu_type)) != srs_success) {
+        return srs_error_wrap(err, "parse hevc nalu type error");
+    }
+
+    if (nalu_type > SrsHevcNaluType_CODED_SLICE_TFD) {
+        is_b_frame = false;
+        return err;
+    }
+
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(sample->bytes, sample->size));
+    stream->skip(2);
+
+    // @see 7.3.6.1 General slice segment header syntax
+    // @doc ITU-T-H.265-2021.pdf, page 66.
+    SrsBitBuffer bs(stream.get());
+
+    uint8_t first_slice_segment_in_pic_flag = bs.read_bit();
+
+    uint32_t slice_pic_parameter_set_id;
+    if ((err = bs.read_bits_ue(slice_pic_parameter_set_id)) != srs_success) {
+        return srs_error_wrap(err, "read slice pic parameter set id");
+    }
+
+    if (slice_pic_parameter_set_id >= SrsHevcMax_PPS_COUNT) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "slice pic parameter set id out of range: %d", slice_pic_parameter_set_id);
+    }
+
+    SrsHevcRbspPps *pps = &(format->vcodec->hevc_dec_conf_record_.pps_table[slice_pic_parameter_set_id]);
+    if (!pps) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps not found");
+    }
+
+    uint8_t dependent_slice_segment_flag = 0;
+    if (!first_slice_segment_in_pic_flag) {
+        if (pps->dependent_slice_segments_enabled_flag) {
+            dependent_slice_segment_flag = bs.read_bit();
+        }
+    }
+
+    if (dependent_slice_segment_flag) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "dependent slice segment flag is not supported");
+    }
+
+    for (int i = 0; i < pps->num_extra_slice_header_bits; i++) {
+        bs.skip_bits(1);
+    }
+
+    uint32_t slice_type;
+    if ((err = bs.read_bits_ue(slice_type)) != srs_success) {
+        return srs_error_wrap(err, "read slice type");
+    }
+
+    is_b_frame = slice_type == SrsHevcSliceTypeB;
+    if (is_b_frame) {
+        srs_verbose("nalu_type=%d, slice type=%d", nalu_type, slice_type);
+    }
+
+    // no need to evaluate the rest
 
     return err;
 }
@@ -2263,7 +2340,7 @@ srs_error_t SrsFormat::avc_demux_sps()
     // 7.4.1 NAL unit semantics
     // ISO_IEC_14496-10-AVC-2012.pdf, page 61.
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
-    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(nutv & 0x1f);
+    SrsAvcNaluType nal_unit_type = SrsAvcNaluTypeParse(nutv);
     if (nal_unit_type != 7) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "for sps, nal_unit_type shall be equal to 7");
     }

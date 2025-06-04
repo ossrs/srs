@@ -14,7 +14,7 @@
 [![](https://opencollective.com/srs-server/tiers/badge.svg)](https://opencollective.com/srs-server)
 [![](https://img.shields.io/docker/pulls/ossrs/srs)](https://hub.docker.com/r/ossrs/srs/tags)
 
-SRS/6.0 ([Hang](https://ossrs.io/lts/en-us/product#release-60)) is a simple, high-efficiency, and real-time video server, 
+SRS/7.0 ([Kai](https://ossrs.io/lts/en-us/product#release-70)) is a simple, high-efficiency, and real-time video server, 
 supporting RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/Windows/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS, 
 and essential [features](trunk/doc/Features.md#features).
 
@@ -65,6 +65,10 @@ the wiki documentation in either [English](https://ossrs.io/lts/en-us/docs/v5/do
 To learn more about RTMP, HLS, HTTP-FLV, SRT, MPEG-DASH, WebRTC protocols, clustering, 
 HTTP API, DVR, and transcoding, please check the documents in [English](https://ossrs.io) 
 or [Chinese](https://ossrs.net).
+
+If you want to use an IDE, VSCode is recommanded. VSCode supports macOS, Linux, and Windows 
+platforms. The settings are ready. All you need to do is open the folder with VSCode and 
+enjoy the efficiency brought by the IDE. See [VSCode README](.vscode/README.md) for details.
 
 ## Sponsor
 

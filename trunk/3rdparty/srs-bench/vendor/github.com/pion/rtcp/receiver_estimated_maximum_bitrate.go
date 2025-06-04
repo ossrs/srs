@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -39,9 +42,8 @@ func (p ReceiverEstimatedMaximumBitrate) Marshal() (buf []byte, err error) {
 	return buf, nil
 }
 
-// MarshalSize returns the size of the packet when marshaled.
-// This can be used in conjunction with `MarshalTo` to avoid allocations.
-func (p ReceiverEstimatedMaximumBitrate) MarshalSize() (n int) {
+// MarshalSize returns the size of the packet once marshaled
+func (p ReceiverEstimatedMaximumBitrate) MarshalSize() int {
 	return 20 + 4*len(p.SSRCs)
 }
 
