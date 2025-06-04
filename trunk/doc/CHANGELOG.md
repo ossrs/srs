@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-06-04, Merge [#4310](https://github.com/ossrs/srs/pull/4310): Player: Get codec by webrtc api: pc.getStats. v7.0.42 (#4310)
 * v7.0, 2025-06-04, Merge [#4325](https://github.com/ossrs/srs/pull/4325): fix bug: loop transcoding #3516. v7.0.41 (#4325)
 * v7.0, 2025-06-04, Merge [#4341](https://github.com/ossrs/srs/pull/4341): Update the release in the README for consistent. v7.0.40 (#4341)
 * v7.0, 2025-06-04, Merge [#4368](https://github.com/ossrs/srs/pull/4368): Update the codename for version 7.0 to "Kai". v7.0.39 (#4368)
