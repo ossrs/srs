@@ -7,6 +7,12 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-06-04, Merge [#4341](https://github.com/ossrs/srs/pull/4341): Update the release in the README for consistent. v7.0.40 (#4341)
+* v7.0, 2025-06-04, Merge [#4368](https://github.com/ossrs/srs/pull/4368): Update the codename for version 7.0 to "Kai". v7.0.39 (#4368)
+* v7.0, 2025-06-01, Merge [#4366](https://github.com/ossrs/srs/pull/4366): Script: Use clang-format to unify the coding style. v7.0.38 (#4366)
+* v7.0, 2025-05-29, Merge [#4356](https://github.com/ossrs/srs/pull/4356): RTMP: Use extended timestamp as delta when chunk fmt=1/2. v7.0.37 (#4356)
+* v7.0, 2025-05-29, Merge [#4363](https://github.com/ossrs/srs/pull/4363): Fix error about TestRtcPublish_HttpFlvPlay. v7.0.36 (#4363)
+* v7.0, 2025-05-29, Merge [#4362](https://github.com/ossrs/srs/pull/4362): Update VSCode launch configuration to support GDB on Linux and LLDB on macOS. v7.0.35 (#4362)
 * v7.0, 2025-05-26, Merge [#4359](https://github.com/ossrs/srs/pull/4359): update pion/webrtc to v4. v7.0.34 (#4359)
 * v7.0, 2025-05-13, Merge [#4289](https://github.com/ossrs/srs/pull/4289): rtmp2rtc: Support RTMP-to-WebRTC conversion with HEVC. v7.0.33 (#4289)
 * v7.0, 2025-04-30, Merge [#4308](https://github.com/ossrs/srs/pull/4308): Fix memory leaks from errors skipping resource release. v7.0.32 (#4308)
@@ -45,6 +51,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2025-05-29, Merge [#4356](https://github.com/ossrs/srs/pull/4356): RTMP: Use extended timestamp as delta when chunk fmt=1/2. v6.0.167 (#4356)
 * v6.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v6.0.165 (#4303)
 * v6.0, 2025-03-20, Merge [#4305](https://github.com/ossrs/srs/pull/4305): free sample to prevent memory leak. v6.0.164 (#4305)
 * v6.0, 2025-03-18, Merge [#4302](https://github.com/ossrs/srs/pull/4302): update geekyeggo/delete-artifact to 5.0.0. v6.0.163 (#4302)
