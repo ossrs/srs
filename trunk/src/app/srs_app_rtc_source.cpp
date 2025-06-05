@@ -2089,10 +2089,12 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     int nalu_len = 0;
     for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         uint16_t index = cache_index((start + i));
-        SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
+        SrsRtpPacket* pkt_raw = cache_video_pkts_[index].pkt;
 
         // fix crash when pkt->payload() if pkt is nullptr;
-        if (!pkt) continue;
+        if (!pkt_raw) continue;
+
+        SrsUniquePtr<SrsRtpPacket> pkt(pkt_raw);
 
         cache_video_pkts_[index].in_use = false;
         cache_video_pkts_[index].pkt = NULL;
@@ -2118,7 +2120,6 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
                     payload.skip(nalu_len);
                 }
             }
-            srs_freep(pkt);
             continue;
         }
 
@@ -2131,7 +2132,6 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
                     payload.write_bytes(sample->bytes, sample->size);
                 }
             }
-            srs_freep(pkt);
             continue;
         }
 
@@ -2155,7 +2155,6 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
                     payload.skip(nalu_len);
                 }
             }
-            srs_freep(pkt);
             continue;
         }
 
@@ -2168,7 +2167,6 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
                     payload.write_bytes(sample->bytes, sample->size);
                 }
             }
-            srs_freep(pkt);
             continue;
         }
 #endif
@@ -2177,11 +2175,8 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
         if (raw_payload && raw_payload->nn_payload > 0) {
             payload.write_4bytes(raw_payload->nn_payload);
             payload.write_bytes(raw_payload->payload, raw_payload->nn_payload);
-            srs_freep(pkt);
             continue;
         }
-
-        srs_freep(pkt);
     }
 
     SrsSharedPtrMessage msg;
