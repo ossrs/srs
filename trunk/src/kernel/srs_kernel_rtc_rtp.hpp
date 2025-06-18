@@ -16,6 +16,16 @@
 #include <list>
 #include <vector>
 
+// Indicates whether to enable debugging for NACK. If enabled, the specified PT(109) 
+// video packet will always be dropped. You can use this option to verify the NACK 
+// logic. Note that you should restart SRS after each test, as a global variable 
+// controls the debugging.
+#ifdef SRS_DEBUG_NACK_DROP
+#define SRS_NACK_DEBUG_DROP_ENABLED
+#endif
+#define SRS_NACK_DEBUG_DROP_PACKET_PT 109
+#define SRS_NACK_DEBUG_DROP_PACKET_N 3
+
 class SrsRtpPacket;
 
 // The RTP packet max size, should never exceed this size.
@@ -50,6 +60,7 @@ class SrsRtpExtensionTypes;
 
 // Fast parse the SSRC from RTP packet. Return 0 if invalid.
 uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size);
+uint16_t srs_rtp_fast_parse_seq(char* buf, int size);
 uint8_t srs_rtp_fast_parse_pt(char* buf, int size);
 srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, uint8_t twcc_id, uint16_t& twcc_sn);
 

@@ -261,6 +261,21 @@ srs_error_t SrsRtcUdpNetwork::on_rtp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
+#ifdef SRS_NACK_DEBUG_DROP_ENABLED
+    static int nn_pkts = 0;
+    bool drop = false;
+    uint32_t ssrc = srs_rtp_fast_parse_ssrc(data, nb_data);
+    uint16_t seq = srs_rtp_fast_parse_seq(data, nb_data);
+    uint8_t pt = srs_rtp_fast_parse_pt(data, nb_data);
+    if (pt && ssrc && pt == SRS_NACK_DEBUG_DROP_PACKET_PT && (nn_pkts++) < 100) {
+        drop = (nn_pkts == SRS_NACK_DEBUG_DROP_PACKET_N);
+        srs_trace(">>> #%d%s rtp seq=%u, pt=%u, ssrc=%u", nn_pkts, drop ? " (dropped)" : "", seq, pt, ssrc);
+    }
+    if (drop) {
+        return err;
+    }
+#endif
+
     // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 

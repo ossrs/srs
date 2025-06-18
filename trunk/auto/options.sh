@@ -131,6 +131,7 @@ SRS_NASM=YES
 SRS_SRTP_ASM=YES
 SRS_DEBUG=NO
 SRS_DEBUG_STATS=NO
+SRS_DEBUG_NACK_DROP=NO
 
 #####################################################################################
 function apply_system_options() {
@@ -244,6 +245,7 @@ Experts:
   --build-tag=<TAG>         Set the build object directory suffix.
   --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
   --debug-stats=on|off      Whether enable the debug stats, may hurt performance. Default: $(value2switch $SRS_DEBUG_STATS)
+  --debug-nack-drop=on|off  Whether enable the debug nack drop, always drop the first number N packet. Default: $(value2switch $SRS_DEBUG_NACK_DROP)
   --gcov=on|off             Whether enable the GCOV for coverage. Default: $(value2switch $SRS_GCOV)
   --log-verbose=on|off      Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
   --log-info=on|off         Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
@@ -388,6 +390,7 @@ function parse_user_option() {
         --log-level_v2)                 SRS_LOG_LEVEL_V2=$(switch2value $value) ;;
         --debug)                        SRS_DEBUG=$(switch2value $value) ;;
         --debug-stats)                  SRS_DEBUG_STATS=$(switch2value $value) ;;
+        --debug-nack-drop)              SRS_DEBUG_NACK_DROP=$(switch2value $value) ;;
 
         --cross-build)                  SRS_CROSS_BUILD=YES         ;;
         --generic-linux)                SRS_GENERIC_LINUX=$(switch2value $value) ;;
@@ -683,6 +686,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --apm=$(value2switch $SRS_APM)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=$(value2switch $SRS_DEBUG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=$(value2switch $SRS_DEBUG_STATS)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-nack-drop=$(value2switch $SRS_DEBUG_NACK_DROP)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cross-build=$(value2switch $SRS_CROSS_BUILD)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer=$(value2switch $SRS_SANITIZER)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer-static=$(value2switch $SRS_SANITIZER_STATIC)"
