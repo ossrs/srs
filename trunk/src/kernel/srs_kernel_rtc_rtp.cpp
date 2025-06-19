@@ -55,6 +55,13 @@ uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size)
     pp[0] = *p++;
     return value;
 }
+uint16_t srs_rtp_fast_parse_seq(char* buf, int size)
+{
+    if (size < 4) {
+        return 0;
+    }
+    return ((uint8_t)buf[2] << 8) | (uint8_t)buf[3];
+}
 uint8_t srs_rtp_fast_parse_pt(char* buf, int size)
 {
     if (size < 12) {

@@ -2757,6 +2757,9 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket** ppkt)
     if (nack_info) {
         // seq had been received.
         nack_receiver_->remove(seq);
+#ifdef SRS_NACK_DEBUG_DROP_ENABLED
+        srs_trace("NACK: recovered seq=%u", seq);
+#endif
         return err;
     }
 
