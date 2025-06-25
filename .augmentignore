@@ -1,0 +1,43 @@
+
+# Build artifacts
+**/objs/**
+**/build/**
+**/*.o
+**/*.a
+**/*.so
+**/*.dylib
+
+# IDE files
+**/.idea/**
+**/.vscode/**
+**/.run/**
+
+# Generated files
+**/*.exe
+**/*.flv
+**/*.mp4
+**/*.ts
+
+# 3rd party libraries
+**/vendor/**
+**/3rdparty/ffmpeg-4-fit/**
+**/3rdparty/gperftools-2-fit/**
+**/3rdparty/gprof/**
+**/3rdparty/gtest-fit/**
+**/3rdparty/httpx-static/**
+**/3rdparty/libsrtp-2-fit/**
+**/3rdparty/openssl-1.1-fit/**
+**/3rdparty/patches/**
+**/3rdparty/signaling/**
+**/3rdparty/srt-1-fit/**
+
+# Research files.
+**/research/**
+
+# Other files.
+**/packaging/**
+**/scripts/**
+**/usr/**
+**/.github/**
+**/gdb/**
+**/ide/**
