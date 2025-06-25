@@ -388,18 +388,24 @@ public:
     // for subscribe, is the PT of publisher;
     uint8_t pt_of_publisher_;
     std::string name_;
-    // The codec ID, corresponding to name_.
-    // For video, the type is SrsVideoCodecId
-    // For audio, the type is SrsAudioCodecId
-    uint8_t codec_;
     int sample_;
 
     std::vector<std::string> rtcp_fbs_;
+private:
+    // The cached codec ID, corresponding to name_.
+    // For video, you can convert it to type SrsVideoCodecId
+    // For audio, you can convert it to type SrsAudioCodecId
+    // Note: Set up to -1, which means not initialized/cached yet
+    // Note: Won't copy codec_, it will be recalculated when codec(bool) is called
+    int8_t codec_;
 public:
     SrsCodecPayload();
     SrsCodecPayload(uint8_t pt, std::string encode_name, int sample);
     virtual ~SrsCodecPayload();
 public:
+    // Get codec ID with context information about whether it's video or audio
+    // Returns the numeric codec ID, with caching for performance
+    int8_t codec(bool video);
     virtual SrsCodecPayload* copy();
     virtual SrsMediaPayloadType generate_media_payload_type();
 };

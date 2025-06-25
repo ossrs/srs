@@ -628,13 +628,13 @@ srs_error_t SrsRtcSource::on_publish()
 #ifdef SRS_FFMPEG_FIT
         SrsAudioCodecId audio_codec = SrsAudioCodecIdOpus;
         if (stream_desc_->audio_track_desc_ && stream_desc_->audio_track_desc_->media_) {
-            audio_codec = SrsAudioCodecId(stream_desc_->audio_track_desc_->media_->codec_);
+            audio_codec = SrsAudioCodecId(stream_desc_->audio_track_desc_->media_->codec(false));
         }
-        
+
         SrsVideoCodecId video_codec = SrsVideoCodecIdAVC;
         if (stream_desc_->video_track_descs_.size() > 0) {
             SrsRtcTrackDescription* track_desc = stream_desc_->video_track_descs_.at(0);
-            video_codec = SrsVideoCodecId(track_desc->media_->codec_);
+            video_codec = SrsVideoCodecId(track_desc->media_->codec(true));
         }
 
         if ((err = frame_builder_->initialize(req, audio_codec, video_codec)) != srs_success) {
@@ -786,7 +786,7 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
             return track_descs;
         }
 
-        SrsAudioCodecId codec = SrsAudioCodecId(stream_desc_->audio_track_desc_->media_->codec_);
+        SrsAudioCodecId codec = SrsAudioCodecId(stream_desc_->audio_track_desc_->media_->codec(false));
         if (codec == srs_audio_codec_str2id(media_name)) {
             track_descs.push_back(stream_desc_->audio_track_desc_);
         }
@@ -798,7 +798,7 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
             if (media_name.empty()) {
                 track_descs.push_back(*it);
             } else {
-                SrsVideoCodecId codec = SrsVideoCodecId((*it)->media_->codec_);
+                SrsVideoCodecId codec = SrsVideoCodecId((*it)->media_->codec(true));
                 if (codec == srs_video_codec_str2id(media_name)) {
                     track_descs.push_back(*it);
                 }
@@ -1616,6 +1616,7 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
 
     for (std::vector<SrsAudioFrame*>::iterator it = out_pkts.begin(); it != out_pkts.end(); ++it) {
         SrsCommonMessage out_rtmp;
+        // TODO: FIXME: Should never directly use it, please define a variable with class name.
         out_rtmp.header.timestamp = (*it)->dts;
         packet_aac(&out_rtmp, (*it)->samples[0].bytes, (*it)->samples[0].size, ts, is_first_audio_);
 
@@ -2254,6 +2255,7 @@ SrsCodecPayload::SrsCodecPayload()
 {
     pt_of_publisher_ = pt_ = 0;
     sample_ = 0;
+    codec_ = -1;
 }
 
 SrsCodecPayload::SrsCodecPayload(uint8_t pt, std::string encode_name, int sample)
@@ -2261,13 +2263,30 @@ SrsCodecPayload::SrsCodecPayload(uint8_t pt, std::string encode_name, int sample
     pt_of_publisher_ = pt_ = pt;
     name_ = encode_name;
     sample_ = sample;
-    if ((codec_ = srs_video_codec_str2id(name_)) == SrsVideoCodecIdReserved) {
-        codec_ = srs_audio_codec_str2id(name_);
-    }
+    codec_ = -1;
 }
 
 SrsCodecPayload::~SrsCodecPayload()
 {
+}
+
+int8_t SrsCodecPayload::codec(bool video)
+{
+    // Return cached value if already initialized
+    if (codec_ != -1) {
+        return codec_;
+    }
+
+    // Parse codec based on context (video or audio)
+    if (video) {
+        codec_ = srs_video_codec_str2id(name_);
+        // For unknown video codecs like H.266, still return SrsVideoCodecIdReserved
+        // but it's correctly identified as a video codec due to the context
+    } else {
+        codec_ = srs_audio_codec_str2id(name_);
+    }
+
+    return codec_;
 }
 
 SrsCodecPayload* SrsCodecPayload::copy()
@@ -2278,7 +2297,6 @@ SrsCodecPayload* SrsCodecPayload::copy()
     cp->pt_ = pt_;
     cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
-    cp->codec_ = codec_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
 
@@ -2322,7 +2340,6 @@ SrsVideoPayload* SrsVideoPayload::copy()
     cp->pt_ = pt_;
     cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
-    cp->codec_ = codec_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
     cp->h264_param_ = h264_param_;
@@ -2486,7 +2503,6 @@ SrsAudioPayload* SrsAudioPayload::copy()
     cp->pt_ = pt_;
     cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
-    cp->codec_ = codec_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
     cp->channel_ = channel_;
@@ -3053,7 +3069,7 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
         return;
     }
 
-    if (track_desc_->media_->codec_ == SrsVideoCodecIdAVC) {
+    if (track_desc_->media_->codec(true) == SrsVideoCodecIdAVC) {
         uint8_t v = SrsAvcNaluTypeParse(buf->head()[0]);
         pkt->nalu_type = v;
 
@@ -3067,7 +3083,7 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
             *ppayload = new SrsRtpRawPayload();
             *ppt = SrsRtspPacketPayloadTypeRaw;
         }
-    } else if (track_desc_->media_->codec_ == SrsVideoCodecIdHEVC) {
+    } else if (track_desc_->media_->codec(true) == SrsVideoCodecIdHEVC) {
         uint8_t v = SrsHevcNaluTypeParse(buf->head()[0]);
         pkt->nalu_type = v;
 
