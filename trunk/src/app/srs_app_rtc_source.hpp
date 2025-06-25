@@ -361,11 +361,11 @@ private:
     srs_error_t packet_video_key_frame(SrsRtpPacket* pkt);
 
     srs_error_t packet_sequence_header_avc(SrsRtpPacket* pkt);
-    srs_error_t packet_sequence_header_avc(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps);
-#ifdef SRS_H265
+    srs_error_t do_packet_sequence_header_avc(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps);
+
     srs_error_t packet_sequence_header_hevc(SrsRtpPacket* pkt);
-    srs_error_t packet_sequence_header_hevc(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps);
-#endif
+    srs_error_t do_packet_sequence_header_hevc(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps);
+
 private:
     inline uint16_t cache_index(uint16_t current_sn) {
         return current_sn % s_cache_size;
@@ -388,6 +388,10 @@ public:
     // for subscribe, is the PT of publisher;
     uint8_t pt_of_publisher_;
     std::string name_;
+    // The codec ID, corresponding to name_.
+    // For video, the type is SrsVideoCodecId
+    // For audio, the type is SrsAudioCodecId
+    uint8_t codec_;
     int sample_;
 
     std::vector<std::string> rtcp_fbs_;
@@ -601,7 +605,7 @@ protected:
     virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
 };
 
-class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack, public ISrsRtspPacketDecodeHandler
+class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
     SrsRtcAudioRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
@@ -613,7 +617,7 @@ public:
     virtual srs_error_t check_send_nacks();
 };
 
-class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack, public ISrsRtspPacketDecodeHandler
+class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
     SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs);

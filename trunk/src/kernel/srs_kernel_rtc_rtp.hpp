@@ -277,11 +277,11 @@ enum SrsRtpPacketPayloadType
     SrsRtpPacketPayloadTypeUnknown,
 };
 
-class ISrsRtspPacketDecodeHandler
+class ISrsRtpPacketDecodeHandler
 {
 public:
-    ISrsRtspPacketDecodeHandler();
-    virtual ~ISrsRtspPacketDecodeHandler();
+    ISrsRtpPacketDecodeHandler();
+    virtual ~ISrsRtpPacketDecodeHandler();
 public:
     // We don't know the actual payload, so we depends on external handler.
     virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt) = 0;
@@ -315,7 +315,7 @@ private:
     // The cached payload size for packet.
     int cached_payload_size;
     // The helper handler for decoder, use RAW payload if NULL.
-    ISrsRtspPacketDecodeHandler* decode_handler;
+    ISrsRtpPacketDecodeHandler* decode_handler;
 private:
     int64_t avsync_time_;
 public:
@@ -341,7 +341,7 @@ public:
     // Increase the padding of RTP packet.
     void add_padding(int size);
     // Set the decode handler.
-    void set_decode_handler(ISrsRtspPacketDecodeHandler* h);
+    void set_decode_handler(ISrsRtpPacketDecodeHandler* h);
     // Whether the packet is Audio packet.
     bool is_audio();
     // Set RTP header extensions for encoding or decoding header extension

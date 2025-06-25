@@ -319,7 +319,7 @@ public:
 };
 
 // A RTC publish stream, client push and publish stream to SRS.
-class SrsRtcPublishStream : public ISrsRtspPacketDecodeHandler
+class SrsRtcPublishStream : public ISrsRtpPacketDecodeHandler
     , public ISrsRtcPublishStream, public ISrsRtcPLIWorkerHandler
 {
 private:

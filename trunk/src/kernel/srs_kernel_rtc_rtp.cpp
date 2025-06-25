@@ -750,11 +750,11 @@ ISrsRtpPayloader::~ISrsRtpPayloader()
 {
 }
 
-ISrsRtspPacketDecodeHandler::ISrsRtspPacketDecodeHandler()
+ISrsRtpPacketDecodeHandler::ISrsRtpPacketDecodeHandler()
 {
 }
 
-ISrsRtspPacketDecodeHandler::~ISrsRtspPacketDecodeHandler()
+ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
 {
 }
 
@@ -864,7 +864,7 @@ void SrsRtpPacket::add_padding(int size)
     }
 }
 
-void SrsRtpPacket::set_decode_handler(ISrsRtspPacketDecodeHandler* h)
+void SrsRtpPacket::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
 {
     decode_handler = h;
 }
