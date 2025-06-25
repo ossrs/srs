@@ -2279,9 +2279,9 @@ int8_t SrsCodecPayload::codec(bool video)
 
     // Parse codec based on context (video or audio)
     if (video) {
-        codec_ = srs_video_codec_str2id(name_);
         // For unknown video codecs like H.266, still return SrsVideoCodecIdReserved
         // but it's correctly identified as a video codec due to the context
+        codec_ = srs_video_codec_str2id(name_);
     } else {
         codec_ = srs_audio_codec_str2id(name_);
     }
