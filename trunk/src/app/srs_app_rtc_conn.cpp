@@ -3132,7 +3132,8 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
                 // Get the source codec if not specified.
                 std::vector<SrsRtcTrackDescription*> track_descs = source->get_track_desc("video", "");
                 if (!track_descs.empty()) {
-                    prefer_codec = srs_video_codec_str2id(track_descs.at(0)->media_->name_);
+                    SrsRtcTrackDescription* first_track = track_descs.at(0);
+                    prefer_codec = srs_video_codec_str2id(first_track->media_->name_);
                 } else {
                     return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no video track in source");
                 }
