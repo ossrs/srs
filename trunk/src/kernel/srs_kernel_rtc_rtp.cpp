@@ -750,18 +750,18 @@ ISrsRtpPayloader::~ISrsRtpPayloader()
 {
 }
 
-ISrsRtpPacketDecodeHandler::ISrsRtpPacketDecodeHandler()
+ISrsRtspPacketDecodeHandler::ISrsRtspPacketDecodeHandler()
 {
 }
 
-ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
+ISrsRtspPacketDecodeHandler::~ISrsRtspPacketDecodeHandler()
 {
 }
 
 SrsRtpPacket::SrsRtpPacket()
 {
     payload_ = NULL;
-    payload_type_ = SrsRtpPacketPayloadTypeUnknown;
+    payload_type_ = SrsRtspPacketPayloadTypeUnknown;
     shared_buffer_ = NULL;
     actual_buffer_size_ = 0;
 
@@ -864,7 +864,7 @@ void SrsRtpPacket::add_padding(int size)
     }
 }
 
-void SrsRtpPacket::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
+void SrsRtpPacket::set_decode_handler(ISrsRtspPacketDecodeHandler* h)
 {
     decode_handler = h;
 }
@@ -936,7 +936,7 @@ srs_error_t SrsRtpPacket::decode(SrsBuffer* buf)
     // By default, we always use the RAW payload.
     if (!payload_) {
         payload_ = new SrsRtpRawPayload();
-        payload_type_ = SrsRtpPacketPayloadTypeRaw;
+        payload_type_ = SrsRtspPacketPayloadTypeRaw;
     }
 
     if ((err = payload_->decode(buf)) != srs_success) {

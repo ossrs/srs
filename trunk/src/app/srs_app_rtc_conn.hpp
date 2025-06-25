@@ -319,7 +319,7 @@ public:
 };
 
 // A RTC publish stream, client push and publish stream to SRS.
-class SrsRtcPublishStream : public ISrsRtpPacketDecodeHandler
+class SrsRtcPublishStream : public ISrsRtspPacketDecodeHandler
     , public ISrsRtcPublishStream, public ISrsRtcPLIWorkerHandler
 {
 private:
@@ -378,7 +378,7 @@ private:
 public:
     srs_error_t check_send_nacks();
 public:
-    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt);
+    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt);
 private:
     srs_error_t send_periodic_twcc();
 public:
