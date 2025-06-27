@@ -946,15 +946,15 @@ srs_error_t SrsRtpPacket::decode(SrsBuffer* buf)
     return err;
 }
 
-bool srs_rtp_packet_h264_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader* payload_)
+bool srs_rtp_packet_h264_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader* payload)
 {
     if (nalu_type == kStapA) {
-        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload_);
+        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload);
         if(NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
             return true;
         }
     } else if (nalu_type == kFuA) {
-        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload_);
+        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload);
         if(SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
             return true;
         }
@@ -967,15 +967,15 @@ bool srs_rtp_packet_h264_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader* payloa
     return false;
 }
 
-bool srs_rtp_packet_h265_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader* payload_)
+bool srs_rtp_packet_h265_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader* payload)
 {
     if(nalu_type == kStapHevc) {
-        SrsRtpSTAPPayloadHevc* stap_payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(payload_);
+        SrsRtpSTAPPayloadHevc* stap_payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(payload);
         if (stap_payload->get_vps() || stap_payload->get_sps() || stap_payload->get_pps()) {
             return true;
         }
     } else if (nalu_type == kFuHevc) {
-        SrsRtpFUAPayloadHevc2* fua_payload = dynamic_cast<SrsRtpFUAPayloadHevc2*>(payload_);
+        SrsRtpFUAPayloadHevc2* fua_payload = dynamic_cast<SrsRtpFUAPayloadHevc2*>(payload);
         if(SrsIsIRAP(fua_payload->nalu_type)) {
             return true;
         }

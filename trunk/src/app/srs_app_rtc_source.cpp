@@ -1782,6 +1782,7 @@ srs_error_t SrsRtcFrameBuilder::packet_sequence_header_avc(SrsRtpPacket* pkt)
             return err;
         }
     }
+
     // Generally, there will be SPS+PPS+IDR in a STAP-A packet.
     SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
 
