@@ -953,8 +953,8 @@ bool SrsRtpPacket::is_keyframe(SrsVideoCodecId codec_id)
         return false;
     }
 
+    // It's normal H264 video rtp packet
     if (codec_id == SrsVideoCodecIdAVC) {
-        // It's normal H264 video rtp packet
         if (nalu_type == kStapA) {
             SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload_);
             if(NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
@@ -970,8 +970,13 @@ bool SrsRtpPacket::is_keyframe(SrsVideoCodecId codec_id)
                 return true;
             }
         }
+        
+        return false;
+    } 
+    
+    // For H265 video rtp packet
 #ifdef SRS_H265
-    } else if (codec_id == SrsVideoCodecIdHEVC) {
+    if (codec_id == SrsVideoCodecIdHEVC) {
         if(nalu_type == kStapHevc) {
             SrsRtpSTAPPayloadHevc* stap_payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(payload_);
             if(NULL != stap_payload->get_vps() || NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
@@ -987,8 +992,8 @@ bool SrsRtpPacket::is_keyframe(SrsVideoCodecId codec_id)
                 return true;
             }
         }
-#endif
     }
+#endif
 
     return false;
 }
