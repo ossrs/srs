@@ -952,30 +952,8 @@ bool SrsRtpPacket::is_keyframe(SrsVideoCodecId codec_id)
     if (SrsFrameTypeAudio == frame_type) {
         return false;
     }
-
-    // It's normal H264 video rtp packet
-    if (codec_id == SrsVideoCodecIdAVC) {
-        if (nalu_type == kStapA) {
-            SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload_);
-            if(NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
-                return true;
-            }
-        } else if (nalu_type == kFuA) {
-            SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload_);
-            if(SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
-                return true;
-            }
-        } else {
-            if((SrsAvcNaluTypeIDR == nalu_type) || (SrsAvcNaluTypeSPS == nalu_type) || (SrsAvcNaluTypePPS == nalu_type)) {
-                return true;
-            }
-        }
-        
-        return false;
-    } 
     
     // For H265 video rtp packet
-#ifdef SRS_H265
     if (codec_id == SrsVideoCodecIdHEVC) {
         if(nalu_type == kStapHevc) {
             SrsRtpSTAPPayloadHevc* stap_payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(payload_);
@@ -992,8 +970,30 @@ bool SrsRtpPacket::is_keyframe(SrsVideoCodecId codec_id)
                 return true;
             }
         }
+        
+        return false;
     }
-#endif
+
+    // It must be normal H264 video rtp packet
+    if (codec_id != SrsVideoCodecIdAVC) {
+        return false;
+    }
+
+    if (nalu_type == kStapA) {
+        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload_);
+        if(NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
+            return true;
+        }
+    } else if (nalu_type == kFuA) {
+        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload_);
+        if(SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
+            return true;
+        }
+    } else {
+        if((SrsAvcNaluTypeIDR == nalu_type) || (SrsAvcNaluTypeSPS == nalu_type) || (SrsAvcNaluTypePPS == nalu_type)) {
+            return true;
+        }
+    }
 
     return false;
 }
