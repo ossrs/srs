@@ -950,20 +950,41 @@ bool srs_rtp_packet_h264_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader* payloa
 {
     if (nalu_type == kStapA) {
         SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload_);
-        if(NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
+        if (stap_payload->get_sps() || stap_payload->get_pps()) {
             return true;
         }
     } else if (nalu_type == kFuA) {
         SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload_);
-        if(SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
+        if (SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
             return true;
         }
     } else {
-        if((SrsAvcNaluTypeIDR == nalu_type) || (SrsAvcNaluTypeSPS == nalu_type) || (SrsAvcNaluTypePPS == nalu_type)) {
+        if ((SrsAvcNaluTypeIDR == nalu_type) || (SrsAvcNaluTypeSPS == nalu_type) || (SrsAvcNaluTypePPS == nalu_type)) {
             return true;
         }
     }
 
+    return false;
+}
+
+bool srs_rtp_packet_h265_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader* payload_)
+{
+    if(nalu_type == kStapHevc) {
+        SrsRtpSTAPPayloadHevc* stap_payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(payload_);
+        if (stap_payload->get_vps() || stap_payload->get_sps() || stap_payload->get_pps()) {
+            return true;
+        }
+    } else if (nalu_type == kFuHevc) {
+        SrsRtpFUAPayloadHevc2* fua_payload = dynamic_cast<SrsRtpFUAPayloadHevc2*>(payload_);
+        if(SrsIsIRAP(fua_payload->nalu_type)) {
+            return true;
+        }
+    } else {
+        if (SrsIsIRAP(nalu_type) || (SrsHevcNaluType_VPS == nalu_type) || (SrsHevcNaluType_SPS == nalu_type) || (SrsHevcNaluType_PPS == nalu_type)) {
+            return true;
+        }
+    }
+    
     return false;
 }
 
@@ -981,23 +1002,7 @@ bool SrsRtpPacket::is_keyframe(SrsVideoCodecId codec_id)
     
     // For H265 video rtp packet
     if (codec_id == SrsVideoCodecIdHEVC) {
-        if(nalu_type == kStapHevc) {
-            SrsRtpSTAPPayloadHevc* stap_payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(payload_);
-            if(NULL != stap_payload->get_vps() || NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
-                return true;
-            }
-        } else if(nalu_type == kFuHevc) {
-            SrsRtpFUAPayloadHevc2* fua_payload = dynamic_cast<SrsRtpFUAPayloadHevc2*>(payload_);
-            if(SrsIsIRAP(fua_payload->nalu_type)) {
-                return true;
-            }
-        } else {
-            if(SrsIsIRAP(nalu_type) || (SrsHevcNaluType_VPS == nalu_type) || (SrsHevcNaluType_SPS == nalu_type) || (SrsHevcNaluType_PPS == nalu_type)) {
-                return true;
-            }
-        }
-        
-        return false;
+        return srs_rtp_packet_h265_is_keyframe(nalu_type, payload_);
     }
 
     return false;
