@@ -1799,10 +1799,11 @@ srs_error_t SrsRtcFrameBuilder::packet_sequence_header_avc(SrsRtpPacket* pkt)
 
         // Packet SPS/PPS to RTMP keyframe.
         err = do_packet_sequence_header_avc(pkt, sps, pps);
+
         // Always reset the SPS/PPS cache after used it.
         srs_freep(obs_whip_sps_);
         srs_freep(obs_whip_pps_);
-        
+
         if (err != srs_success) {
             return srs_error_wrap(err, "packet sps/pps");
         }
