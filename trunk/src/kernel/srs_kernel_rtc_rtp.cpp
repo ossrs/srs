@@ -950,16 +950,16 @@ bool srs_rtp_packet_h264_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader* payloa
 {
     if (nalu_type == kStapA) {
         SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload_);
-        if (stap_payload->get_sps() || stap_payload->get_pps()) {
+        if(NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
             return true;
         }
     } else if (nalu_type == kFuA) {
         SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload_);
-        if (SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
+        if(SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
             return true;
         }
     } else {
-        if ((SrsAvcNaluTypeIDR == nalu_type) || (SrsAvcNaluTypeSPS == nalu_type) || (SrsAvcNaluTypePPS == nalu_type)) {
+        if((SrsAvcNaluTypeIDR == nalu_type) || (SrsAvcNaluTypeSPS == nalu_type) || (SrsAvcNaluTypePPS == nalu_type)) {
             return true;
         }
     }
