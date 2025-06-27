@@ -3071,7 +3071,8 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
         return;
     }
 
-    if (track_desc_->media_->codec(true) == SrsVideoCodecIdAVC) {
+    SrsVideoCodecId codec = (SrsVideoCodecId)track_desc_->media_->codec(true);
+    if (codec == SrsVideoCodecIdAVC) {
         uint8_t v = SrsAvcNaluTypeParse(buf->head()[0]);
         pkt->nalu_type = v;
 
@@ -3085,7 +3086,7 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
             *ppayload = new SrsRtpRawPayload();
             *ppt = SrsRtspPacketPayloadTypeRaw;
         }
-    } else if (track_desc_->media_->codec(true) == SrsVideoCodecIdHEVC) {
+    } else if (codec == SrsVideoCodecIdHEVC) {
         uint8_t v = SrsHevcNaluTypeParse(buf->head()[0]);
         pkt->nalu_type = v;
 
@@ -3099,6 +3100,9 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
             *ppayload = new SrsRtpRawPayload();
             *ppt = SrsRtspPacketPayloadTypeRaw;
         }
+    } else {
+        *ppayload = NULL;
+        *ppt = SrsRtspPacketPayloadTypeUnknown;
     }
 }
 
