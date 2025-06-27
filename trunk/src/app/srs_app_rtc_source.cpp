@@ -1489,7 +1489,7 @@ SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
 {
     bridge_ = bridge;
     is_first_audio_ = true;
-    audio_transcoder_ = NULL;
+    codec_ = NULL;
     video_codec_ = SrsVideoCodecIdAVC;
     header_sn_ = 0;
     memset(cache_video_pkts_, 0, sizeof(cache_video_pkts_));
@@ -1500,7 +1500,7 @@ SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
 
 SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
 {
-    srs_freep(audio_transcoder_);
+    srs_freep(codec_);
     clear_cached_video();
     srs_freep(obs_whip_vps_);
     srs_freep(obs_whip_sps_);
@@ -1511,8 +1511,8 @@ srs_error_t SrsRtcFrameBuilder::initialize(SrsRequest* r, SrsAudioCodecId audio_
 {
     srs_error_t err = srs_success;
 
-    srs_freep(audio_transcoder_);
-    audio_transcoder_ = new SrsAudioTranscoder();
+    srs_freep(codec_);
+    codec_ = new SrsAudioTranscoder();
 
     SrsAudioCodecId to = SrsAudioCodecIdAAC; // The output audio codec.
     int channels = 2; // The output audio channels.
@@ -1522,7 +1522,7 @@ srs_error_t SrsRtcFrameBuilder::initialize(SrsRequest* r, SrsAudioCodecId audio_
     // TODO: FIXME: 
     // In the future, when we support enhanced-RTMP with Opus format, 
     // this transcoding will no longer be necessary.
-    if ((err = audio_transcoder_->initialize(audio_codec, to, channels, sample_rate, bitrate)) != srs_success) {
+    if ((err = codec_->initialize(audio_codec, to, channels, sample_rate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "bridge initialize");
     }
 
@@ -1584,7 +1584,7 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
     if (is_first_audio_) {
         int header_len = 0;
         uint8_t* header = NULL;
-        audio_transcoder_->aac_codec_header(&header, &header_len);
+        codec_->aac_codec_header(&header, &header_len);
 
         SrsCommonMessage out_rtmp;
         packet_aac(&out_rtmp, (char *)header, header_len, ts, is_first_audio_);
@@ -1609,7 +1609,7 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
     frame.dts = ts;
     frame.cts = 0;
 
-    err = audio_transcoder_->transcode(&frame, out_pkts);
+    err = codec_->transcode(&frame, out_pkts);
     if (err != srs_success) {
         return err;
     }
@@ -1630,7 +1630,7 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
             break;
         }
     }
-    audio_transcoder_->free_frames(out_pkts);
+    codec_->free_frames(out_pkts);
 
     return err;
 }

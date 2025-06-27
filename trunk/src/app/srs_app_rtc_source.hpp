@@ -319,8 +319,7 @@ private:
     ISrsStreamBridge* bridge_;
 private:
     bool is_first_audio_;
-    SrsAudioTranscoder *audio_transcoder_;
-
+    SrsAudioTranscoder *codec_;
     SrsVideoCodecId video_codec_;
 private:
     const static uint16_t s_cache_size = 512;
