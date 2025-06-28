@@ -9,6 +9,16 @@ architecture:
   overview: |
     Core C++ streaming server with protocol implementations and media processing capabilities.
     Uses State Threads (ST) for high-performance coroutine-based networking.
+
+  threading_model: |
+    Single-threaded, coroutine/goroutine-based application architecture:
+    - No traditional multi-threading issues (no thread switching, async race conditions)
+    - Uses coroutines/goroutines that cooperatively yield control
+    - Context switching occurs during async I/O operations
+    - Different context switch problems compared to multi-threaded applications:
+      * Coroutine state must be preserved across yields by async I/O operations
+      * Shared state can be modified between context switches
+      * Timing-dependent bugs related to when coroutines yield
   
   key_directories:
     - path: "trunk/src/"
