@@ -1053,7 +1053,7 @@ srs_error_t SrsRtcRtpBuilder::package_opus(SrsAudioFrame* audio, SrsRtpPacket* p
     pkt->header.set_timestamp(audio->dts * 48);
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
-    pkt->set_payload(raw, SrsRtspPacketPayloadTypeRaw);
+    pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
 
     srs_assert(audio->nb_samples == 1);
     raw->payload = pkt->wrap(audio->samples[0].bytes, audio->samples[0].size);
@@ -1235,7 +1235,7 @@ srs_error_t SrsRtcRtpBuilder::package_stap_a(SrsSharedPtrMessage* msg, SrsRtpPac
         }
 
         stap = new SrsRtpSTAPPayloadHevc();
-        pkt->set_payload(stap, SrsRtspPacketPayloadTypeSTAPHevc);
+        pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAPHevc);
         pkt->nalu_type = kStapHevc;
     } else if (format->vcodec->id == SrsVideoCodecIdAVC) {
         params.push_back(&format->vcodec->sequenceParameterSetNALUnit);
@@ -1243,7 +1243,7 @@ srs_error_t SrsRtcRtpBuilder::package_stap_a(SrsSharedPtrMessage* msg, SrsRtpPac
         size = format->vcodec->sequenceParameterSetNALUnit.size() + format->vcodec->pictureParameterSetNALUnit.size();
 
         stap = new SrsRtpSTAPPayload();
-        pkt->set_payload(stap, SrsRtspPacketPayloadTypeSTAP);
+        pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAP);
         pkt->nalu_type = kStapA;
     }
 
@@ -1315,7 +1315,7 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
         pkt->nalu_type = first_nalu_type;
         pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
-        pkt->set_payload(raw_raw, SrsRtspPacketPayloadTypeNALU);
+        pkt->set_payload(raw_raw, SrsRtpPacketPayloadTypeNALU);
         pkt->wrap(msg);
     } else {
         // We must free it, should never use RTP packets to free it,
@@ -1356,7 +1356,7 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
                 fua->start = bool(i == 0);
                 fua->end = bool(i == num_of_packet - 1);
 
-                pkt->set_payload(fua, SrsRtspPacketPayloadTypeFUAHevc);
+                pkt->set_payload(fua, SrsRtpPacketPayloadTypeFUAHevc);
             } else {
                 SrsRtpFUAPayload* fua = new SrsRtpFUAPayload();
                 if ((err = raw->read_samples(fua->nalus, packet_size)) != srs_success) {
@@ -1367,7 +1367,7 @@ srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vect
                 fua->start = bool(i == 0);
                 fua->end = bool(i == num_of_packet - 1);
 
-                pkt->set_payload(fua, SrsRtspPacketPayloadTypeFUA);
+                pkt->set_payload(fua, SrsRtpPacketPayloadTypeFUA);
             }
 
             pkt->wrap(msg);
@@ -1394,7 +1394,7 @@ srs_error_t SrsRtcRtpBuilder::package_single_nalu(SrsSharedPtrMessage* msg, SrsS
     pkt->header.set_timestamp(msg->timestamp * 90);
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
-    pkt->set_payload(raw, SrsRtspPacketPayloadTypeRaw);
+    pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
 
     raw->payload = sample->bytes;
     raw->nn_payload = sample->size;
@@ -1438,7 +1438,7 @@ srs_error_t SrsRtcRtpBuilder::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* 
         if (is_hevc) {
             // H265 FU-A header
             SrsRtpFUAPayloadHevc2* fua = new SrsRtpFUAPayloadHevc2();
-            pkt->set_payload(fua, SrsRtspPacketPayloadTypeFUAHevc2);
+            pkt->set_payload(fua, SrsRtpPacketPayloadTypeFUAHevc2);
 
             fua->nalu_type = SrsHevcNaluTypeParse(header);
             fua->start = bool(i == 0);
@@ -1449,7 +1449,7 @@ srs_error_t SrsRtcRtpBuilder::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* 
         } else {
             // H264 FU-A header
             SrsRtpFUAPayload2* fua = new SrsRtpFUAPayload2();
-            pkt->set_payload(fua, SrsRtspPacketPayloadTypeFUA2);
+            pkt->set_payload(fua, SrsRtpPacketPayloadTypeFUA2);
 
             fua->nri = (SrsAvcNaluType)header;
             fua->nalu_type = SrsAvcNaluTypeParse(header);
@@ -2403,7 +2403,7 @@ SrsVideoPayload::SrsVideoPayload(uint8_t pt, std::string encode_name, int sample
     type_ = "video";
     h264_param_.profile_level_id = "";
     h264_param_.packetization_mode = "";
-    h264_param_.level_asymmerty_allow = "";
+    h264_param_.level_asymmetry_allow = "";
 }
 
 SrsVideoPayload::~SrsVideoPayload()
@@ -2437,8 +2437,8 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type()
     std::ostringstream format_specific_param;
     bool has_param = false;
     
-    if (!h264_param_.level_asymmerty_allow.empty()) {
-        format_specific_param << "level-asymmetry-allowed=" << h264_param_.level_asymmerty_allow;
+    if (!h264_param_.level_asymmetry_allow.empty()) {
+        format_specific_param << "level-asymmetry-allowed=" << h264_param_.level_asymmetry_allow;
         has_param = true;
     }
     if (!h264_param_.packetization_mode.empty()) {
@@ -2519,7 +2519,7 @@ srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
             // @see https://tools.ietf.org/html/rfc6184#section-6.3
             h264_param_.packetization_mode = kv[1];
         } else if (kv[0] == "level-asymmetry-allowed") {
-            h264_param_.level_asymmerty_allow = kv[1];
+            h264_param_.level_asymmetry_allow = kv[1];
         } else {
             return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h264 param=%s", kv[0].c_str());
         }
@@ -3092,7 +3092,7 @@ SrsRtcAudioRecvTrack::~SrsRtcAudioRecvTrack()
 {
 }
 
-void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt)
+void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt)
 {
     // No payload, ignore.
     if (buf->empty()) {
@@ -3100,7 +3100,7 @@ void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
     }
 
     *ppayload = new SrsRtpRawPayload();
-    *ppt = SrsRtspPacketPayloadTypeRaw;
+    *ppt = SrsRtpPacketPayloadTypeRaw;
 }
 
 srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt)
@@ -3140,7 +3140,7 @@ SrsRtcVideoRecvTrack::~SrsRtcVideoRecvTrack()
 {
 }
 
-void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt)
+void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt)
 {
     // No payload, ignore.
     if (buf->empty()) {
@@ -3154,13 +3154,13 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
 
         if (v == kStapA) {
             *ppayload = new SrsRtpSTAPPayload();
-            *ppt = SrsRtspPacketPayloadTypeSTAP;
+            *ppt = SrsRtpPacketPayloadTypeSTAP;
         } else if (v == kFuA) {
             *ppayload = new SrsRtpFUAPayload2();
-            *ppt = SrsRtspPacketPayloadTypeFUA2;
+            *ppt = SrsRtpPacketPayloadTypeFUA2;
         } else {
             *ppayload = new SrsRtpRawPayload();
-            *ppt = SrsRtspPacketPayloadTypeRaw;
+            *ppt = SrsRtpPacketPayloadTypeRaw;
         }
     } else if (codec == SrsVideoCodecIdHEVC) {
         uint8_t v = SrsHevcNaluTypeParse(buf->head()[0]);
@@ -3168,13 +3168,13 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
 
         if (v == kStapHevc) {
             *ppayload = new SrsRtpSTAPPayloadHevc();
-            *ppt = SrsRtspPacketPayloadTypeSTAPHevc;
+            *ppt = SrsRtpPacketPayloadTypeSTAPHevc;
         } else if (v == kFuHevc) {
             *ppayload = new SrsRtpFUAPayloadHevc2();
-            *ppt = SrsRtspPacketPayloadTypeFUAHevc2;
+            *ppt = SrsRtpPacketPayloadTypeFUAHevc2;
         } else {
             *ppayload = new SrsRtpRawPayload();
-            *ppt = SrsRtspPacketPayloadTypeRaw;
+            *ppt = SrsRtpPacketPayloadTypeRaw;
         }
     } else {
         *ppayload = NULL;
