@@ -1485,6 +1485,155 @@ srs_error_t SrsRtcRtpBuilder::consume_packets(vector<SrsRtpPacket*>& pkts)
     return err;
 }
 
+SrsRtcFrameBuilderVideoPacketCache::SrsRtcFrameBuilderVideoPacketCache()
+{
+    memset(cache_pkts_, 0, sizeof(cache_pkts_));
+}
+
+SrsRtcFrameBuilderVideoPacketCache::~SrsRtcFrameBuilderVideoPacketCache()
+{
+    clear_all();
+}
+
+SrsRtpPacket* SrsRtcFrameBuilderVideoPacketCache::get_packet(uint16_t sequence_number)
+{
+    uint16_t index = cache_index(sequence_number);
+    const RtcPacketCache& cache = cache_pkts_[index];
+
+    // Since cache uses modulo indexing, different sequence numbers can map to the 
+    // same cache slot, so we must verify the stored sn matches the requested one.
+    if (!cache.in_use || cache.sn != sequence_number) {
+        return NULL;
+    }
+
+    return cache.pkt;
+}
+
+void SrsRtcFrameBuilderVideoPacketCache::store_packet(SrsRtpPacket* pkt)
+{
+    if (!pkt) {
+        return; // Ignore null packets
+    }
+
+    uint16_t index = cache_index(pkt->header.get_sequence());
+    RtcPacketCache& cache = cache_pkts_[index];
+
+    cache.in_use = true;
+    srs_freep(cache.pkt);
+    cache.pkt = pkt;
+    cache.sn = pkt->header.get_sequence();
+    cache.ts = pkt->get_avsync_time();
+    cache.rtp_ts = pkt->header.get_timestamp();
+}
+
+bool SrsRtcFrameBuilderVideoPacketCache::is_slot_in_use(uint16_t sequence_number)
+{
+    uint16_t index = cache_index(sequence_number);
+    const RtcPacketCache& cache = cache_pkts_[index];
+    return cache.in_use;
+}
+
+uint32_t SrsRtcFrameBuilderVideoPacketCache::get_rtp_timestamp(uint16_t sequence_number)
+{
+    uint16_t index = cache_index(sequence_number);
+    const RtcPacketCache& cache = cache_pkts_[index];
+    return cache.rtp_ts;
+}
+
+void SrsRtcFrameBuilderVideoPacketCache::clear_all()
+{
+    for (size_t i = 0; i < cache_size_; i++) {
+        RtcPacketCache& cache = cache_pkts_[i];
+        if (cache.in_use) {
+            srs_freep(cache.pkt);
+            cache.sn = 0;
+            cache.ts = 0;
+            cache.rtp_ts = 0;
+            cache.in_use = false;
+        }
+    }
+}
+
+SrsRtpPacket* SrsRtcFrameBuilderVideoPacketCache::take_packet(uint16_t sequence_number)
+{
+    uint16_t index = cache_index(sequence_number);
+    RtcPacketCache& cache = cache_pkts_[index];
+
+    // Since cache uses modulo indexing, different sequence numbers can map to the 
+    // same cache slot, so we must verify the stored sn matches the requested one.
+    if (!cache.in_use || cache.sn != sequence_number) {
+        return NULL;
+    }
+
+    SrsRtpPacket* pkt = cache.pkt;
+
+    // Clear the slot after taking the packet
+    cache.in_use = false;
+    // Note: No memory leak here - the packet ownership is transferred to caller
+    cache.pkt = NULL;
+    cache.ts = 0;
+    cache.rtp_ts = 0;
+    cache.sn = 0;
+
+    return pkt;
+}
+
+int32_t SrsRtcFrameBuilderVideoPacketCache::find_next_lost_sn(uint16_t current_sn, uint16_t header_sn, uint16_t& end_sn)
+{
+    uint32_t last_rtp_ts = get_rtp_timestamp(header_sn);
+    for (int i = 0; i < cache_size_; ++i) {
+        uint16_t lost_sn = current_sn + i;
+
+        if (!is_slot_in_use(lost_sn)) {
+            return lost_sn;
+        }
+
+        //check time first, avoid two small frame mixed case decode fail
+        if (last_rtp_ts != get_rtp_timestamp(lost_sn)) {
+            end_sn = lost_sn - 1;
+            return -1;
+        }
+
+        SrsRtpPacket* pkt = get_packet(lost_sn);
+        if (pkt && pkt->header.get_marker()) {
+            end_sn = lost_sn;
+            return -1;
+        }
+    }
+
+    srs_error("cache overflow. the packet count of video frame is more than %u", cache_size_);
+    return -2;
+}
+
+bool SrsRtcFrameBuilderVideoPacketCache::check_frame_complete(const uint16_t start, const uint16_t end)
+{
+    int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
+    srs_assert(cnt >= 1);
+
+    uint16_t fu_s_c = 0;
+    uint16_t fu_e_c = 0;
+    for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
+        uint16_t sequence_number = start + i;
+        SrsRtpPacket* pkt = get_packet(sequence_number);
+
+        // fix crash when pkt->payload() if pkt is nullptr;
+        if (!pkt) continue;
+
+        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
+        if (!fua_payload) continue;
+
+        if (fua_payload->start) {
+            ++fu_s_c;
+        }
+
+        if (fua_payload->end) {
+            ++fu_e_c;
+        }
+    }
+
+    return fu_s_c == fu_e_c;
+}
+
 SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
 {
     bridge_ = bridge;
@@ -1492,7 +1641,7 @@ SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
     codec_ = NULL;
     video_codec_ = SrsVideoCodecIdAVC;
     header_sn_ = 0;
-    memset(cache_video_pkts_, 0, sizeof(cache_video_pkts_));
+    video_cache_ = new SrsRtcFrameBuilderVideoPacketCache();
     rtp_key_frame_ts_ = -1;
     sync_state_ = -1;
     obs_whip_vps_ = obs_whip_sps_ = obs_whip_pps_ = NULL;
@@ -1501,7 +1650,7 @@ SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
 SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
 {
     srs_freep(codec_);
-    clear_cached_video();
+    srs_freep(video_cache_);
     srs_freep(obs_whip_vps_);
     srs_freep(obs_whip_sps_);
     srs_freep(obs_whip_pps_);
@@ -1664,20 +1813,14 @@ srs_error_t SrsRtcFrameBuilder::packet_video(SrsRtpPacket* src)
     }
 
     // store in cache
-    int index = cache_index(pkt->header.get_sequence());
-    cache_video_pkts_[index].in_use = true;
-    srs_freep(cache_video_pkts_[index].pkt);
-    cache_video_pkts_[index].pkt = pkt;
-    cache_video_pkts_[index].sn = pkt->header.get_sequence();
-    cache_video_pkts_[index].ts = pkt->get_avsync_time();
-    cache_video_pkts_[index].rtp_ts = pkt->header.get_timestamp();
+    video_cache_->store_packet(pkt);
 
     // check whether to recovery lost packet and can construct a video frame
     if (lost_sn_ == pkt->header.get_sequence()) {
         uint16_t tail_sn = 0;
-        int sn = find_next_lost_sn(lost_sn_, tail_sn);
+        int sn = video_cache_->find_next_lost_sn(lost_sn_, header_sn_, tail_sn);
         if (-1 == sn ) {
-            if (check_frame_complete(header_sn_, tail_sn)) {
+            if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
                 if ((err = packet_video_rtmp(header_sn_, tail_sn)) != srs_success) {
                     err = srs_error_wrap(err, "fail to pack video frame");
                 }
@@ -1711,7 +1854,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
         header_sn_ = pkt->header.get_sequence();
         lost_sn_ = header_sn_ + 1;
         // Received key frame and clean cache of old p frame pkts
-        clear_cached_video();
+        video_cache_->clear_all();
         srs_trace("set ts=%u, header=%hu, lost=%hu", (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
     } else if (rtp_key_frame_ts_ != pkt->header.get_timestamp()) {
         //new key frame, clean cache
@@ -1721,31 +1864,25 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
         rtp_key_frame_ts_ = pkt->header.get_timestamp();
         header_sn_ = pkt->header.get_sequence();
         lost_sn_ = header_sn_ + 1;
-        clear_cached_video();
+        video_cache_->clear_all();
         srs_warn("drop old ts=%u, header=%hu, lost=%hu, set new ts=%u, header=%hu, lost=%hu",
                  (uint32_t)old_ts, old_header_sn, old_lost_sn, (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
     }
 
-    uint16_t index = cache_index(pkt->header.get_sequence());
-    cache_video_pkts_[index].in_use = true;
-    srs_freep(cache_video_pkts_[index].pkt);
-    cache_video_pkts_[index].pkt = pkt;
-    cache_video_pkts_[index].sn = pkt->header.get_sequence();
-    cache_video_pkts_[index].ts = pkt->get_avsync_time();
-    cache_video_pkts_[index].rtp_ts = pkt->header.get_timestamp();
+    video_cache_->store_packet(pkt);
 
     int32_t sn = lost_sn_;
     uint16_t tail_sn = 0;
     if (srs_rtp_seq_distance(header_sn_, pkt->header.get_sequence()) < 0){
         // When receive previous pkt in the same frame, update header sn;
         header_sn_ = pkt->header.get_sequence();
-        sn = find_next_lost_sn(header_sn_, tail_sn);
+        sn = video_cache_->find_next_lost_sn(header_sn_, header_sn_, tail_sn);
     } else if (lost_sn_ == pkt->header.get_sequence()) {
-        sn = find_next_lost_sn(lost_sn_, tail_sn);
+        sn = video_cache_->find_next_lost_sn(lost_sn_, header_sn_, tail_sn);
     }
 
     if (-1 == sn) {
-        if (check_frame_complete(header_sn_, tail_sn)) {
+        if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
             if ((err = packet_video_rtmp(header_sn_, tail_sn)) != srs_success) {
                 err = srs_error_wrap(err, "fail to packet frame");
             }
@@ -1955,13 +2092,20 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
     srs_assert(cnt >= 1);
 
+    // The start position packet may be null, so we need to find the actual first packet.
+    SrsRtpPacket* first_frame_pkt = NULL;
+
     for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         uint16_t sn = start + i;
-        uint16_t index = cache_index(sn);
-        SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
+        SrsRtpPacket* pkt = video_cache_->get_packet(sn);
 
         // fix crash when pkt->payload() if pkt is nullptr;
         if (!pkt) continue;
+
+        // Set the first available packet of the frame
+        if (!first_frame_pkt) {
+            first_frame_pkt = pkt;
+        }
 
         // calculate nalu len
         SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
@@ -2019,9 +2163,9 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
         // otherwise, all the cached RTP packets are dropped before next key frame arrive.
         header_sn_ = end + 1;
         uint16_t tail_sn = 0;
-        int sn = find_next_lost_sn(header_sn_, tail_sn);
+        int sn = video_cache_->find_next_lost_sn(header_sn_, header_sn_, tail_sn);
         if (-1 == sn) {
-            if (check_frame_complete(header_sn_, tail_sn)) {
+            if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
                 err = packet_video_rtmp(header_sn_, tail_sn);
             }
         } else if (-2 == sn) {
@@ -2033,13 +2177,20 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
         return err;
     }
 
+    // If no first frame packet, it make no sense to continue.
+    if (!first_frame_pkt) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "no available packets in frame range, start=%u, end=%u", start, end);
+    }
+
     // h265: IsExHeader | FrameType | PacketType + Video FourCC
     // h264: FrameType | CodecID + avc_type + composition time + nalu size + nalu
     nb_payload += 5;
 
     SrsCommonMessage rtmp;
-    SrsRtpPacket* pkt = cache_video_pkts_[cache_index(start)].pkt;
-
+    // Note that the start position may be null, so it's not the real correct start 
+    // packet of a video frame, therefore we use the first available packet instead.
+    SrsRtpPacket* pkt = first_frame_pkt;
+    
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
     if (pkt->is_keyframe(video_codec_)) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
@@ -2068,19 +2219,13 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
 
     int nalu_len = 0;
     for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
-        uint16_t index = cache_index((start + i));
-        SrsRtpPacket* pkt_raw = cache_video_pkts_[index].pkt;
+        uint16_t sequence_number = start + i;
+        SrsRtpPacket* pkt_raw = video_cache_->take_packet(sequence_number);
 
         // fix crash when pkt->payload() if pkt is nullptr;
         if (!pkt_raw) continue;
 
         SrsUniquePtr<SrsRtpPacket> pkt(pkt_raw);
-
-        cache_video_pkts_[index].in_use = false;
-        cache_video_pkts_[index].pkt = NULL;
-        cache_video_pkts_[index].ts = 0;
-        cache_video_pkts_[index].rtp_ts = 0;
-        cache_video_pkts_[index].sn = 0;
 
         SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
         if (fua_payload && fua_payload->size > 0) {
@@ -2168,9 +2313,9 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
 
     header_sn_ = end + 1;
     uint16_t tail_sn = 0;
-    int sn = find_next_lost_sn(header_sn_, tail_sn);
+    int sn = video_cache_->find_next_lost_sn(header_sn_, header_sn_, tail_sn);
     if (-1 == sn) {
-        if (check_frame_complete(header_sn_, tail_sn)) {
+        if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
             err = packet_video_rtmp(header_sn_, tail_sn);
         }
     } else if (-2 == sn) {
@@ -2180,75 +2325,6 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     }
 
     return err;
-}
-
-int32_t SrsRtcFrameBuilder::find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn)
-{
-    uint32_t last_rtp_ts = cache_video_pkts_[cache_index(header_sn_)].rtp_ts;
-    for (int i = 0; i < s_cache_size; ++i) {
-        uint16_t lost_sn = current_sn + i;
-        int index = cache_index(lost_sn);
-
-        if (!cache_video_pkts_[index].in_use) {
-            return lost_sn;
-        }
-        //check time first, avoid two small frame mixed case decode fail
-        if (last_rtp_ts != cache_video_pkts_[index].rtp_ts) {
-            end_sn = lost_sn - 1;
-            return -1;
-        }
-
-        if (cache_video_pkts_[index].pkt->header.get_marker()) {
-            end_sn = lost_sn;
-            return -1;
-        }
-    }
-
-    srs_error("cache overflow. the packet count of video frame is more than %u", s_cache_size);
-    return -2;
-}
-
-void SrsRtcFrameBuilder::clear_cached_video()
-{
-    for (size_t i = 0; i < s_cache_size; i++)
-    {
-        if (cache_video_pkts_[i].in_use) {
-            srs_freep(cache_video_pkts_[i].pkt);
-            cache_video_pkts_[i].sn = 0;
-            cache_video_pkts_[i].ts = 0;
-            cache_video_pkts_[i].rtp_ts = 0;
-            cache_video_pkts_[i].in_use = false;
-        }
-    }
-}
-
-bool SrsRtcFrameBuilder::check_frame_complete(const uint16_t start, const uint16_t end)
-{
-    int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
-    srs_assert(cnt >= 1);
-
-    uint16_t fu_s_c = 0;
-    uint16_t fu_e_c = 0;
-    for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
-        int index = cache_index((start + i));
-        SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
-
-        // fix crash when pkt->payload() if pkt is nullptr;
-        if (!pkt) continue;
-
-        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
-        if (!fua_payload) continue;
-
-        if (fua_payload->start) {
-            ++fu_s_c;
-        }
-
-        if (fua_payload->end) {
-            ++fu_e_c;
-        }
-    }
-
-    return fu_s_c == fu_e_c;
 }
 
 #endif

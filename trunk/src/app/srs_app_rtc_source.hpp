@@ -312,6 +312,42 @@ private:
     srs_error_t consume_packets(std::vector<SrsRtpPacket*>& pkts);
 };
 
+// Video packet cache for RTP packet management
+// TODO: Maybe should use SrsRtpRingBuffer?
+class SrsRtcFrameBuilderVideoPacketCache
+{
+private:
+    const static uint16_t cache_size_ = 512;
+    struct RtcPacketCache {
+        bool in_use;
+        uint16_t sn;
+        uint32_t ts;
+        uint32_t rtp_ts;
+        SrsRtpPacket* pkt;
+    };
+    RtcPacketCache cache_pkts_[cache_size_];
+public:
+    SrsRtcFrameBuilderVideoPacketCache();
+    virtual ~SrsRtcFrameBuilderVideoPacketCache();
+public:
+    SrsRtpPacket* get_packet(uint16_t sequence_number);
+    void store_packet(SrsRtpPacket* pkt);
+    void clear_all();
+    SrsRtpPacket* take_packet(uint16_t sequence_number);
+public:
+    // Find next lost sequence number starting from current_sn
+    // Returns: lost_sn if found, -1 if complete frame found (sets end_sn), -2 if cache overflow
+    int32_t find_next_lost_sn(uint16_t current_sn, uint16_t header_sn, uint16_t& end_sn);
+    // Check if frame is complete by verifying FU-A start/end fragment counts match
+    bool check_frame_complete(const uint16_t start, const uint16_t end);
+private:
+    bool is_slot_in_use(uint16_t sequence_number);
+    uint32_t get_rtp_timestamp(uint16_t sequence_number);
+    inline uint16_t cache_index(uint16_t sequence_number) {
+        return sequence_number % cache_size_;
+    }
+};
+
 // Collect and build WebRTC RTP packets to AV frames.
 class SrsRtcFrameBuilder
 {
@@ -322,17 +358,7 @@ private:
     SrsAudioTranscoder *codec_;
     SrsVideoCodecId video_codec_;
 private:
-    const static uint16_t s_cache_size = 512;
-    //TODO:use SrsRtpRingBuffer
-    //TODO:jitter buffer class
-    struct RtcPacketCache {
-        bool in_use;
-        uint16_t sn;
-        uint32_t ts;
-        uint32_t rtp_ts;
-        SrsRtpPacket* pkt;
-    };
-    RtcPacketCache cache_video_pkts_[s_cache_size];
+    SrsRtcFrameBuilderVideoPacketCache* video_cache_;
     uint16_t header_sn_;
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
@@ -358,21 +384,12 @@ private:
 private:
     srs_error_t packet_video(SrsRtpPacket* pkt);
     srs_error_t packet_video_key_frame(SrsRtpPacket* pkt);
-
     srs_error_t packet_sequence_header_avc(SrsRtpPacket* pkt);
     srs_error_t do_packet_sequence_header_avc(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps);
-
     srs_error_t packet_sequence_header_hevc(SrsRtpPacket* pkt);
     srs_error_t do_packet_sequence_header_hevc(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps);
-
 private:
-    inline uint16_t cache_index(uint16_t current_sn) {
-        return current_sn % s_cache_size;
-    }
-    int32_t find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn);
-    bool check_frame_complete(const uint16_t start, const uint16_t end);
     srs_error_t packet_video_rtmp(const uint16_t start, const uint16_t end);
-    void clear_cached_video();
 };
 
 #endif
