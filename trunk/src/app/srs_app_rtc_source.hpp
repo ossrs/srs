@@ -355,7 +355,8 @@ private:
     ISrsStreamBridge* bridge_;
 private:
     bool is_first_audio_;
-    SrsAudioTranscoder *codec_;
+    SrsAudioTranscoder *audio_transcoder_;
+
     SrsVideoCodecId video_codec_;
 private:
     SrsRtcFrameBuilderVideoPacketCache* video_cache_;
