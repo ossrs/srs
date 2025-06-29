@@ -1801,19 +1801,17 @@ void SrsRtcFrameBuilder::packet_aac(SrsCommonMessage* audio, char* data, int len
     audio->size = rtmp_len;
 }
 
-srs_error_t SrsRtcFrameBuilder::packet_video(SrsRtpPacket* src)
+srs_error_t SrsRtcFrameBuilder::packet_video(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
-    // TODO: Only copy when need
-    SrsRtpPacket* pkt = src->copy();
-
+    // For keyframe.
     if (pkt->is_keyframe(video_codec_)) {
         return packet_video_key_frame(pkt);
     }
 
-    // store in cache
-    video_cache_->store_packet(pkt);
+    // For non-keyframe.
+    video_cache_->store_packet(pkt->copy());
 
     // check whether to recovery lost packet and can construct a video frame
     if (lost_sn_ == pkt->header.get_sequence()) {
@@ -1843,6 +1841,8 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
         err = packet_sequence_header_avc(pkt);
     } else if (video_codec_ == SrsVideoCodecIdHEVC) {
         err = packet_sequence_header_hevc(pkt);
+    } else {
+        err = srs_error_new(ERROR_RTC_RTP_MUXER, "unsupported video codec %d", video_codec_);
     }
 
     if (err != srs_success) {
@@ -1869,7 +1869,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
                  (uint32_t)old_ts, old_header_sn, old_lost_sn, (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
     }
 
-    video_cache_->store_packet(pkt);
+    video_cache_->store_packet(pkt->copy());
 
     int32_t sn = lost_sn_;
     uint16_t tail_sn = 0;
