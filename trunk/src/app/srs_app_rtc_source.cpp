@@ -1634,15 +1634,115 @@ bool SrsRtcFrameBuilderVideoPacketCache::check_frame_complete(const uint16_t sta
     return fu_s_c == fu_e_c;
 }
 
+SrsRtcFrameBuilderVideoFrameDetector::SrsRtcFrameBuilderVideoFrameDetector(SrsRtcFrameBuilderVideoPacketCache* cache)
+{
+    video_cache_ = cache;
+    header_sn_ = 0;
+    lost_sn_ = 0;
+    rtp_key_frame_ts_ = -1;
+}
+
+SrsRtcFrameBuilderVideoFrameDetector::~SrsRtcFrameBuilderVideoFrameDetector()
+{
+}
+
+void SrsRtcFrameBuilderVideoFrameDetector::on_keyframe_start(SrsRtpPacket* pkt)
+{
+    if (-1 == rtp_key_frame_ts_) {
+        rtp_key_frame_ts_ = pkt->header.get_timestamp();
+        header_sn_ = pkt->header.get_sequence();
+        lost_sn_ = header_sn_ + 1;
+        // Received key frame and clean cache of old p frame pkts
+        video_cache_->clear_all();
+        srs_trace("RTC2RTMP: keyframe set ts=%u, header=%hu, lost=%hu", (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
+    } else if (rtp_key_frame_ts_ != pkt->header.get_timestamp()) {
+        //new key frame, clean cache
+        int64_t old_ts = rtp_key_frame_ts_;
+        uint16_t old_header_sn = header_sn_;
+        uint16_t old_lost_sn = lost_sn_;
+        rtp_key_frame_ts_ = pkt->header.get_timestamp();
+        header_sn_ = pkt->header.get_sequence();
+        lost_sn_ = header_sn_ + 1;
+        video_cache_->clear_all();
+        srs_warn("RTC2RTMP: keyframe drop old ts=%u, header=%hu, lost=%hu, set new ts=%u, header=%hu, lost=%hu",
+            (uint32_t)old_ts, old_header_sn, old_lost_sn, (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
+    }
+}
+
+srs_error_t SrsRtcFrameBuilderVideoFrameDetector::detect_frame(uint16_t received, uint16_t& frame_start, uint16_t& frame_end, bool& frame_ready)
+{
+    srs_error_t err = srs_success;
+    frame_ready = false;
+
+    int32_t sn;
+    uint16_t tail_sn = 0;
+    if (srs_rtp_seq_distance(header_sn_, received) < 0){
+        // When receive previous pkt in the same frame, update header sn;
+        header_sn_ = received;
+        sn = video_cache_->find_next_lost_sn(received, header_sn_, tail_sn);
+    } else if (lost_sn_ == received) {
+        sn = video_cache_->find_next_lost_sn(received, header_sn_, tail_sn);
+    } else {
+        sn = lost_sn_;
+    }
+    
+    if (-1 == sn) {
+        if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
+            frame_start = header_sn_;
+            frame_end = tail_sn;
+            frame_ready = true;
+        }
+    } else if (-2 == sn) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
+    } else {
+        lost_sn_ = (uint16_t)sn;
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcFrameBuilderVideoFrameDetector::detect_next_frame(uint16_t next_head, uint16_t& frame_start, uint16_t& frame_end, bool& frame_ready)
+{
+    srs_error_t err = srs_success;
+    frame_ready = false;
+
+    header_sn_ = next_head;
+    uint16_t tail_sn = 0;
+    int32_t sn = video_cache_->find_next_lost_sn(header_sn_, header_sn_, tail_sn);
+
+    if (-1 == sn) {
+        if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
+            frame_start = header_sn_;
+            frame_end = tail_sn;
+            frame_ready = true;
+        }
+    } else if (-2 == sn) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
+    } else {
+        lost_sn_ = (uint16_t)sn;
+    }
+
+    return err;
+}
+
+void SrsRtcFrameBuilderVideoFrameDetector::on_keyframe_detached() 
+{
+    rtp_key_frame_ts_ = -1; 
+}
+
+bool SrsRtcFrameBuilderVideoFrameDetector::is_lost_sn(uint16_t received) 
+{
+    return lost_sn_ == received;
+}
+
 SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
 {
     bridge_ = bridge;
     is_first_audio_ = true;
     audio_transcoder_ = NULL;
     video_codec_ = SrsVideoCodecIdAVC;
-    header_sn_ = 0;
     video_cache_ = new SrsRtcFrameBuilderVideoPacketCache();
-    rtp_key_frame_ts_ = -1;
+    frame_detector_ = new SrsRtcFrameBuilderVideoFrameDetector(video_cache_);
     sync_state_ = -1;
     obs_whip_vps_ = obs_whip_sps_ = obs_whip_pps_ = NULL;
 }
@@ -1651,6 +1751,7 @@ SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
 {
     srs_freep(audio_transcoder_);
     srs_freep(video_cache_);
+    srs_freep(frame_detector_);
     srs_freep(obs_whip_vps_);
     srs_freep(obs_whip_sps_);
     srs_freep(obs_whip_pps_);
@@ -1814,19 +1915,14 @@ srs_error_t SrsRtcFrameBuilder::packet_video(SrsRtpPacket* pkt)
     video_cache_->store_packet(pkt->copy());
 
     // check whether to recovery lost packet and can construct a video frame
-    if (lost_sn_ == pkt->header.get_sequence()) {
-        uint16_t tail_sn = 0;
-        int sn = video_cache_->find_next_lost_sn(lost_sn_, header_sn_, tail_sn);
-        if (-1 == sn ) {
-            if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
-                if ((err = packet_video_rtmp(header_sn_, tail_sn)) != srs_success) {
-                    err = srs_error_wrap(err, "fail to pack video frame");
-                }
-            }
-        } else if (-2 == sn) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
-        } else {
-            lost_sn_ = (uint16_t)sn;
+    uint16_t current_sn = pkt->header.get_sequence();
+    if (frame_detector_->is_lost_sn(current_sn)) {
+        uint16_t start, end; bool got_frame;
+        if ((err = frame_detector_->detect_frame(current_sn, start, end, got_frame)) != srs_success) {
+            return srs_error_wrap(err, "detect frame failed");
+        }
+        if (got_frame && (err = packet_video_rtmp(start, end)) != srs_success) {
+            err = srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", start, end);
         }
     }
 
@@ -1849,48 +1945,19 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
         return srs_error_wrap(err, "packet video key frame");
     }
 
-    if (-1 == rtp_key_frame_ts_) {
-        rtp_key_frame_ts_ = pkt->header.get_timestamp();
-        header_sn_ = pkt->header.get_sequence();
-        lost_sn_ = header_sn_ + 1;
-        // Received key frame and clean cache of old p frame pkts
-        video_cache_->clear_all();
-        srs_trace("set ts=%u, header=%hu, lost=%hu", (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
-    } else if (rtp_key_frame_ts_ != pkt->header.get_timestamp()) {
-        //new key frame, clean cache
-        int64_t old_ts = rtp_key_frame_ts_;
-        uint16_t old_header_sn = header_sn_;
-        uint16_t old_lost_sn = lost_sn_;
-        rtp_key_frame_ts_ = pkt->header.get_timestamp();
-        header_sn_ = pkt->header.get_sequence();
-        lost_sn_ = header_sn_ + 1;
-        video_cache_->clear_all();
-        srs_warn("drop old ts=%u, header=%hu, lost=%hu, set new ts=%u, header=%hu, lost=%hu",
-                 (uint32_t)old_ts, old_header_sn, old_lost_sn, (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
-    }
+    frame_detector_->on_keyframe_start(pkt);
 
     video_cache_->store_packet(pkt->copy());
 
-    int32_t sn = lost_sn_;
-    uint16_t tail_sn = 0;
-    if (srs_rtp_seq_distance(header_sn_, pkt->header.get_sequence()) < 0){
-        // When receive previous pkt in the same frame, update header sn;
-        header_sn_ = pkt->header.get_sequence();
-        sn = video_cache_->find_next_lost_sn(header_sn_, header_sn_, tail_sn);
-    } else if (lost_sn_ == pkt->header.get_sequence()) {
-        sn = video_cache_->find_next_lost_sn(lost_sn_, header_sn_, tail_sn);
-    }
-
-    if (-1 == sn) {
-        if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
-            if ((err = packet_video_rtmp(header_sn_, tail_sn)) != srs_success) {
-                err = srs_error_wrap(err, "fail to packet frame");
-            }
+    uint16_t current_sn = pkt->header.get_sequence();
+    if (frame_detector_->is_lost_sn(current_sn)) {
+        uint16_t start, end; bool got_frame;
+        if ((err = frame_detector_->detect_frame(current_sn, start, end, got_frame)) != srs_success) {
+            return srs_error_wrap(err, "detect frame failed");
         }
-    } else if (-2 == sn) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
-    } else {
-        lost_sn_ = (uint16_t)sn;
+        if (got_frame && (err = packet_video_rtmp(start, end)) != srs_success) {
+            err = srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", start, end);
+        }
     }
 
     return err;
@@ -2161,17 +2228,12 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
         // The chrome web browser send RTP packet with empty payload frequently,
         // reset header_sn_, lost_sn_ and continue to found next frame in this case,
         // otherwise, all the cached RTP packets are dropped before next key frame arrive.
-        header_sn_ = end + 1;
-        uint16_t tail_sn = 0;
-        int sn = video_cache_->find_next_lost_sn(header_sn_, header_sn_, tail_sn);
-        if (-1 == sn) {
-            if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
-                err = packet_video_rtmp(header_sn_, tail_sn);
-            }
-        } else if (-2 == sn) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
-        } else {
-            lost_sn_ = sn;
+        uint16_t next_start, next_end; bool got_frame;
+        if ((err = frame_detector_->detect_next_frame(end + 1, next_start, next_end, got_frame)) != srs_success) {
+            return srs_error_wrap(err, "update frame detector failed");
+        }
+        if (got_frame && (err = packet_video_rtmp(next_start, next_end)) != srs_success) {
+            err = srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", next_start, next_end);
         }
 
         return err;
@@ -2194,7 +2256,7 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
     if (pkt->is_keyframe(video_codec_)) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
-        rtp_key_frame_ts_ = -1;
+        frame_detector_->on_keyframe_detached();
     }
 
     rtmp.header.initialize_video(nb_payload, pkt->get_avsync_time(), 1);
@@ -2311,17 +2373,13 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
         srs_warn("fail to pack video frame");
     }
 
-    header_sn_ = end + 1;
-    uint16_t tail_sn = 0;
-    int sn = video_cache_->find_next_lost_sn(header_sn_, header_sn_, tail_sn);
-    if (-1 == sn) {
-        if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
-            err = packet_video_rtmp(header_sn_, tail_sn);
-        }
-    } else if (-2 == sn) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
-    } else {
-        lost_sn_ = sn;
+    // Try to detect and detach next RTMP packet.
+    uint16_t next_start, next_end; bool got_frame;
+    if ((err = frame_detector_->detect_next_frame(end + 1, next_start, next_end, got_frame)) != srs_success) {
+        return srs_error_wrap(err, "update frame detector failed");
+    }
+    if (got_frame && (err = packet_video_rtmp(next_start, next_end)) != srs_success) {
+        err = srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", next_start, next_end);
     }
 
     return err;

@@ -348,6 +348,25 @@ private:
     }
 };
 
+// Video frame detector for managing frame boundaries and packet loss detection
+class SrsRtcFrameBuilderVideoFrameDetector
+{
+private:
+    SrsRtcFrameBuilderVideoPacketCache* video_cache_;
+    uint16_t header_sn_;
+    uint16_t lost_sn_;
+    int64_t rtp_key_frame_ts_;
+public:
+    SrsRtcFrameBuilderVideoFrameDetector(SrsRtcFrameBuilderVideoPacketCache* cache);
+    virtual ~SrsRtcFrameBuilderVideoFrameDetector();
+public:
+    void on_keyframe_start(SrsRtpPacket* pkt);
+    srs_error_t detect_frame(uint16_t received, uint16_t& frame_start, uint16_t& frame_end, bool& frame_ready);
+    srs_error_t detect_next_frame(uint16_t next_head, uint16_t& next_start, uint16_t& next_end, bool& next_ready);
+    void on_keyframe_detached();
+    bool is_lost_sn(uint16_t received);
+};
+
 // Collect and build WebRTC RTP packets to AV frames.
 class SrsRtcFrameBuilder
 {
@@ -360,9 +379,7 @@ private:
     SrsVideoCodecId video_codec_;
 private:
     SrsRtcFrameBuilderVideoPacketCache* video_cache_;
-    uint16_t header_sn_;
-    uint16_t lost_sn_;
-    int64_t rtp_key_frame_ts_;
+    SrsRtcFrameBuilderVideoFrameDetector* frame_detector_;
 private:
     // The state for timestamp sync state. -1 for init. 0 not sync. 1 sync.
     int sync_state_;
