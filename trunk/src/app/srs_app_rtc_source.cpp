@@ -1610,8 +1610,8 @@ bool SrsRtcFrameBuilderVideoPacketCache::check_frame_complete(const uint16_t sta
     int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
     srs_assert(cnt >= 1);
 
-    uint16_t fu_s_c = 0;
-    uint16_t fu_e_c = 0;
+    uint16_t nn_fu_start = 0;
+    uint16_t nn_fu_end = 0;
     for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         uint16_t sequence_number = start + i;
         SrsRtpPacket* pkt = get_packet(sequence_number);
@@ -1623,15 +1623,15 @@ bool SrsRtcFrameBuilderVideoPacketCache::check_frame_complete(const uint16_t sta
         if (!fua_payload) continue;
 
         if (fua_payload->start) {
-            ++fu_s_c;
+            ++nn_fu_start;
         }
 
         if (fua_payload->end) {
-            ++fu_e_c;
+            ++nn_fu_end;
         }
     }
 
-    return fu_s_c == fu_e_c;
+    return nn_fu_start == 1 && nn_fu_end == 1;
 }
 
 SrsRtcFrameBuilderVideoFrameDetector::SrsRtcFrameBuilderVideoFrameDetector(SrsRtcFrameBuilderVideoPacketCache* cache)
