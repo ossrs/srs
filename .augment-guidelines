@@ -69,3 +69,9 @@ build:
   command: "cd trunk && make -j"
   description: "Build the SRS server using parallel make in the trunk directory"
   working_directory: "trunk"
+
+run-utests:
+  command: "cd trunk && make utest -j && ./objs/srs_utest"
+  description: "Run the unit tests for SRS"
+  working_directory: "trunk"
+
