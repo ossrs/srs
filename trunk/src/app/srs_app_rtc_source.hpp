@@ -408,6 +408,8 @@ private:
     srs_error_t do_packet_sequence_header_hevc(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps);
 private:
     srs_error_t packet_video_rtmp(const uint16_t start, const uint16_t end);
+    int calculate_packet_payload_size(SrsRtpPacket* pkt);
+    void write_packet_payload_to_buffer(SrsRtpPacket* pkt, SrsBuffer& payload, int& nalu_len);
 };
 
 #endif

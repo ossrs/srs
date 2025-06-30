@@ -2151,6 +2151,151 @@ srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_hevc(SrsRtpPacket* pkt
     return err;
 }
 
+int SrsRtcFrameBuilder::calculate_packet_payload_size(SrsRtpPacket* pkt)
+{
+    if (!pkt || !pkt->payload()) {
+        return 0;
+    }
+
+    // H.264 FU-A payload
+    SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
+    if (fua_payload && fua_payload->size > 0) {
+        int size = fua_payload->size;
+        if (fua_payload->start) {
+            size += 1 + 4; // NALU header + length prefix
+        }
+        return size;
+    }
+
+    // H.264 STAP-A payload
+    SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
+    if (stap_payload) {
+        int size = 0;
+        for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
+            SrsSample* sample = stap_payload->nalus.at(j);
+            if (sample->size > 0) {
+                size += 4 + sample->size; // length prefix + NALU
+            }
+        }
+        return size;
+    }
+
+    // H.265 FU-A payload
+    SrsRtpFUAPayloadHevc2* fua_payload_hevc = dynamic_cast<SrsRtpFUAPayloadHevc2*>(pkt->payload());
+    if (fua_payload_hevc && fua_payload_hevc->size > 0) {
+        int size = fua_payload_hevc->size;
+        if (fua_payload_hevc->start) {
+            size += 2 + 4; // HEVC NALU header + length prefix
+        }
+        return size;
+    }
+
+    // H.265 STAP payload
+    SrsRtpSTAPPayloadHevc* stap_payload_hevc = dynamic_cast<SrsRtpSTAPPayloadHevc*>(pkt->payload());
+    if (stap_payload_hevc) {
+        int size = 0;
+        for (int j = 0; j < (int)stap_payload_hevc->nalus.size(); ++j) {
+            SrsSample* sample = stap_payload_hevc->nalus.at(j);
+            if (sample->size > 0) {
+                size += 4 + sample->size; // length prefix + NALU
+            }
+        }
+        return size;
+    }
+
+    // Raw payload
+    SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
+    if (raw_payload && raw_payload->nn_payload > 0) {
+        return 4 + raw_payload->nn_payload; // length prefix + payload
+    }
+
+    return 0;
+}
+
+void SrsRtcFrameBuilder::write_packet_payload_to_buffer(SrsRtpPacket* pkt, SrsBuffer& payload, int& nalu_len)
+{
+    if (!pkt || !pkt->payload()) {
+        return;
+    }
+
+    // H.264 FU-A payload
+    SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
+    if (fua_payload && fua_payload->size > 0) {
+        if (fua_payload->start) {
+            nalu_len = fua_payload->size + 1;
+            payload.skip(4); // Skip 4 bytes to write nalu_len later
+            payload.write_1bytes(fua_payload->nri | fua_payload->nalu_type);
+            payload.write_bytes(fua_payload->payload, fua_payload->size);
+        } else {
+            nalu_len += fua_payload->size;
+            payload.write_bytes(fua_payload->payload, fua_payload->size);
+            if (fua_payload->end) {
+                // Write nalu_len back
+                payload.skip(-(4 + nalu_len));
+                payload.write_4bytes(nalu_len);
+                payload.skip(nalu_len);
+            }
+        }
+        return;
+    }
+
+    // H.264 STAP-A payload
+    SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
+    if (stap_payload) {
+        for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
+            SrsSample* sample = stap_payload->nalus.at(j);
+            if (sample->size > 0) {
+                payload.write_4bytes(sample->size);
+                payload.write_bytes(sample->bytes, sample->size);
+            }
+        }
+        return;
+    }
+
+    // H.265 FU-A payload
+    SrsRtpFUAPayloadHevc2* fua_payload_hevc = dynamic_cast<SrsRtpFUAPayloadHevc2*>(pkt->payload());
+    if (fua_payload_hevc && fua_payload_hevc->size > 0) {
+        if (fua_payload_hevc->start) {
+            nalu_len = fua_payload_hevc->size + 2;
+            payload.skip(4); // Skip 4 bytes to write nalu_len later
+            payload.write_1bytes(fua_payload_hevc->nalu_type << 1);
+            payload.write_1bytes(0x01);
+            payload.write_bytes(fua_payload_hevc->payload, fua_payload_hevc->size);
+        } else {
+            nalu_len += fua_payload_hevc->size;
+            payload.write_bytes(fua_payload_hevc->payload, fua_payload_hevc->size);
+            if (fua_payload_hevc->end) {
+                // Write nalu_len back
+                payload.skip(-(4 + nalu_len));
+                payload.write_4bytes(nalu_len);
+                payload.skip(nalu_len);
+            }
+        }
+        return;
+    }
+
+    // H.265 STAP payload
+    SrsRtpSTAPPayloadHevc* stap_payload_hevc = dynamic_cast<SrsRtpSTAPPayloadHevc*>(pkt->payload());
+    if (stap_payload_hevc) {
+        for (int j = 0; j < (int)stap_payload_hevc->nalus.size(); ++j) {
+            SrsSample* sample = stap_payload_hevc->nalus.at(j);
+            if (sample->size > 0) {
+                payload.write_4bytes(sample->size);
+                payload.write_bytes(sample->bytes, sample->size);
+            }
+        }
+        return;
+    }
+
+    // Raw payload
+    SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
+    if (raw_payload && raw_payload->nn_payload > 0) {
+        payload.write_4bytes(raw_payload->nn_payload);
+        payload.write_bytes(raw_payload->payload, raw_payload->nn_payload);
+        return;
+    }
+}
+
 srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const uint16_t end)
 {
     srs_error_t err = srs_success;
@@ -2162,11 +2307,11 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     // The start position packet may be null, so we need to find the actual first packet.
     SrsRtpPacket* first_frame_pkt = NULL;
 
+    // First loop: Calculate total payload size and find first packet
     for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         uint16_t sn = start + i;
         SrsRtpPacket* pkt = video_cache_->get_packet(sn);
 
-        // fix crash when pkt->payload() if pkt is nullptr;
         if (!pkt) continue;
 
         // Set the first available packet of the frame
@@ -2174,52 +2319,8 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
             first_frame_pkt = pkt;
         }
 
-        // calculate nalu len
-        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
-        if (fua_payload && fua_payload->size > 0) {
-            if (fua_payload->start) {
-                nb_payload += 1 + 4;
-            }
-            nb_payload += fua_payload->size;
-            continue;
-        }
-
-        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
-        if (stap_payload) {
-            for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
-                SrsSample* sample = stap_payload->nalus.at(j);
-                if (sample->size > 0) {
-                    nb_payload += 4 + sample->size;
-                }
-            }
-            continue;
-        }
-
-        SrsRtpFUAPayloadHevc2* fua_payload_hevc = dynamic_cast<SrsRtpFUAPayloadHevc2*>(pkt->payload());
-        if (fua_payload_hevc && fua_payload_hevc->size > 0) {
-            if (fua_payload_hevc->start) {
-                nb_payload += 2 + 4;
-            }
-            nb_payload += fua_payload_hevc->size;
-            continue;
-        }
-
-        SrsRtpSTAPPayloadHevc* stap_payload_hevc = dynamic_cast<SrsRtpSTAPPayloadHevc*>(pkt->payload());
-        if (stap_payload_hevc) {
-            for (int j = 0; j < (int)stap_payload_hevc->nalus.size(); ++j) {
-                SrsSample* sample = stap_payload_hevc->nalus.at(j);
-                if (sample->size > 0) {
-                    nb_payload += 4 + sample->size;
-                }
-            }
-            continue;
-        }
-
-        SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
-        if (raw_payload && raw_payload->nn_payload > 0) {
-            nb_payload += 4 + raw_payload->nn_payload;
-            continue;
-        }
+        // Calculate payload size using helper function
+        nb_payload += calculate_packet_payload_size(pkt);
     }
 
     if (0 == nb_payload) {
@@ -2248,17 +2349,20 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     // h264: FrameType | CodecID + avc_type + composition time + nalu size + nalu
     nb_payload += 5;
 
-    SrsCommonMessage rtmp;
     // Note that the start position may be null, so it's not the real correct start 
     // packet of a video frame, therefore we use the first available packet instead.
     SrsRtpPacket* pkt = first_frame_pkt;
+
+    if (pkt->is_keyframe(video_codec_)) {
+        frame_detector_->on_keyframe_detached();
+    }
     
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
     if (pkt->is_keyframe(video_codec_)) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
-        frame_detector_->on_keyframe_detached();
     }
 
+    SrsCommonMessage rtmp;
     rtmp.header.initialize_video(nb_payload, pkt->get_avsync_time(), 1);
     rtmp.create_payload(nb_payload);
     rtmp.size = nb_payload;
@@ -2279,89 +2383,16 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
         payload.write_1bytes(0x0);
     }
 
+    // Second loop: Write payload data using helper function
     int nalu_len = 0;
     for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         uint16_t sequence_number = start + i;
         SrsRtpPacket* pkt_raw = video_cache_->take_packet(sequence_number);
 
-        // fix crash when pkt->payload() if pkt is nullptr;
         if (!pkt_raw) continue;
 
         SrsUniquePtr<SrsRtpPacket> pkt(pkt_raw);
-
-        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
-        if (fua_payload && fua_payload->size > 0) {
-            if (fua_payload->start) {
-                nalu_len = fua_payload->size + 1;
-                //skip 4 bytes to write nalu_len future
-                payload.skip(4);
-                payload.write_1bytes(fua_payload->nri | fua_payload->nalu_type);
-                payload.write_bytes(fua_payload->payload, fua_payload->size);
-            } else {
-                nalu_len += fua_payload->size;
-                payload.write_bytes(fua_payload->payload, fua_payload->size);
-                if (fua_payload->end) {
-                    //write nalu_len back
-                    payload.skip(-(4 + nalu_len));
-                    payload.write_4bytes(nalu_len);
-                    payload.skip(nalu_len);
-                }
-            }
-            continue;
-        }
-
-        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
-        if (stap_payload) {
-            for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
-                SrsSample* sample = stap_payload->nalus.at(j);
-                if (sample->size > 0) {
-                    payload.write_4bytes(sample->size);
-                    payload.write_bytes(sample->bytes, sample->size);
-                }
-            }
-            continue;
-        }
-
-        SrsRtpFUAPayloadHevc2* fua_payload_hevc = dynamic_cast<SrsRtpFUAPayloadHevc2*>(pkt->payload());
-        if (fua_payload_hevc && fua_payload_hevc->size > 0) {
-            if (fua_payload_hevc->start) {
-                nalu_len = fua_payload_hevc->size + 2;
-                //skip 4 bytes to write nalu_len future
-                payload.skip(4);
-                payload.write_1bytes(fua_payload_hevc->nalu_type << 1);
-                payload.write_1bytes(0x01);
-                payload.write_bytes(fua_payload_hevc->payload, fua_payload_hevc->size);
-            } else {
-                nalu_len += fua_payload_hevc->size;
-                payload.write_bytes(fua_payload_hevc->payload, fua_payload_hevc->size);
-                if (fua_payload_hevc->end) {
-                    //write nalu_len back
-                    payload.skip(-(4 + nalu_len));
-                    payload.write_4bytes(nalu_len);
-                    payload.skip(nalu_len);
-                }
-            }
-            continue;
-        }
-
-        SrsRtpSTAPPayloadHevc* stap_payload_hevc = dynamic_cast<SrsRtpSTAPPayloadHevc*>(pkt->payload());
-        if (stap_payload_hevc) {
-            for (int j = 0; j < (int)stap_payload_hevc->nalus.size(); ++j) {
-                SrsSample* sample = stap_payload_hevc->nalus.at(j);
-                if (sample->size > 0) {
-                    payload.write_4bytes(sample->size);
-                    payload.write_bytes(sample->bytes, sample->size);
-                }
-            }
-            continue;
-        }
-
-        SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
-        if (raw_payload && raw_payload->nn_payload > 0) {
-            payload.write_4bytes(raw_payload->nn_payload);
-            payload.write_bytes(raw_payload->payload, raw_payload->nn_payload);
-            continue;
-        }
+        write_packet_payload_to_buffer(pkt.get(), payload, nalu_len);
     }
 
     SrsSharedPtrMessage msg;
