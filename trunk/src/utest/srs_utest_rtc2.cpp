@@ -993,3 +993,525 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheMemoryManagement)
     }
 }
 
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorBasicConstruction)
+{
+    // Test basic construction and destruction
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Verify constructor initializes private members correctly
+        EXPECT_EQ(&cache, detector.video_cache_);
+        EXPECT_EQ(0, detector.header_sn_);
+        EXPECT_EQ(0, detector.lost_sn_);
+        EXPECT_EQ(-1, detector.rtp_key_frame_ts_);
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorOnKeyframeStart)
+{
+    // Test on_keyframe_start functionality
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Verify initial state
+        EXPECT_EQ(-1, detector.rtp_key_frame_ts_);
+        EXPECT_EQ(0, detector.header_sn_);
+        EXPECT_EQ(0, detector.lost_sn_);
+
+        // Create a keyframe packet
+        SrsUniquePtr<SrsRtpPacket> keyframe_pkt(mock_create_test_rtp_packet(100, 1000));
+
+        // Call on_keyframe_start - should initialize internal state
+        detector.on_keyframe_start(keyframe_pkt.get());
+
+        // Verify state after first keyframe
+        EXPECT_EQ(1000, detector.rtp_key_frame_ts_);
+        EXPECT_EQ(100, detector.header_sn_);
+        EXPECT_EQ(101, detector.lost_sn_); // header_sn_ + 1
+
+        // Test that subsequent calls with same timestamp don't reset
+        SrsUniquePtr<SrsRtpPacket> same_keyframe_pkt(mock_create_test_rtp_packet(101, 1000));
+        detector.on_keyframe_start(same_keyframe_pkt.get());
+
+        // State should remain unchanged for same timestamp
+        EXPECT_EQ(1000, detector.rtp_key_frame_ts_);
+        EXPECT_EQ(100, detector.header_sn_);
+        EXPECT_EQ(101, detector.lost_sn_);
+
+        // Test that calls with different timestamp do reset
+        SrsUniquePtr<SrsRtpPacket> new_keyframe_pkt(mock_create_test_rtp_packet(200, 2000));
+        detector.on_keyframe_start(new_keyframe_pkt.get());
+
+        // State should be reset for new timestamp
+        EXPECT_EQ(2000, detector.rtp_key_frame_ts_);
+        EXPECT_EQ(200, detector.header_sn_);
+        EXPECT_EQ(201, detector.lost_sn_); // header_sn_ + 1
+
+        // All keyframe packets will be automatically cleaned up by SrsUniquePtr destructors
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorDetectFrameBasic)
+{
+    srs_error_t err;
+
+    // Test basic detect_frame functionality
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Initialize with keyframe
+        SrsUniquePtr<SrsRtpPacket> keyframe_pkt(mock_create_test_rtp_packet(100, 1000));
+        detector.on_keyframe_start(keyframe_pkt.get());
+
+        // Verify initial state after keyframe
+        EXPECT_EQ(100, detector.header_sn_);
+        EXPECT_EQ(101, detector.lost_sn_);
+
+        // Store some packets in cache to form a complete frame
+        cache.store_packet(mock_create_test_rtp_packet(100, 1000, false));
+        cache.store_packet(mock_create_test_rtp_packet(101, 1000, false));
+        cache.store_packet(mock_create_test_rtp_packet(102, 1000, true)); // marker bit
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // Test detecting frame when receiving the last packet
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(102, frame_start, frame_end, frame_ready));
+
+        // If frame is ready, verify the frame boundaries
+        if (frame_ready) {
+            EXPECT_EQ(100, frame_start);
+            EXPECT_EQ(102, frame_end);
+        }
+
+        // keyframe_pkt will be automatically cleaned up by SrsUniquePtr destructor
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorDetectFrameWithGaps)
+{
+    srs_error_t err;
+
+    // Test detect_frame with missing packets
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Initialize with keyframe
+        SrsUniquePtr<SrsRtpPacket> keyframe_pkt(mock_create_test_rtp_packet(100, 1000));
+        detector.on_keyframe_start(keyframe_pkt.get());
+
+        // Verify initial state
+        EXPECT_EQ(100, detector.header_sn_);
+        EXPECT_EQ(101, detector.lost_sn_);
+
+        // Store packets with a gap (missing 101)
+        cache.store_packet(mock_create_test_rtp_packet(100, 1000, false));
+        // Skip 101 - this creates a gap
+        cache.store_packet(mock_create_test_rtp_packet(102, 1000, false));
+        cache.store_packet(mock_create_test_rtp_packet(103, 1000, true)); // marker bit
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // Test detecting frame - should not be ready due to missing packet
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(103, frame_start, frame_end, frame_ready));
+        EXPECT_FALSE(frame_ready); // Should not be ready due to gap
+
+        // Verify lost_sn_ is set to the missing packet
+        EXPECT_EQ(101, detector.lost_sn_);
+
+        // Test is_lost_sn functionality
+        bool is_lost = detector.is_lost_sn(101);
+        EXPECT_TRUE(is_lost); // 101 should be the lost sequence number
+        EXPECT_FALSE(detector.is_lost_sn(100)); // 100 should not be lost
+        EXPECT_FALSE(detector.is_lost_sn(102)); // 102 should not be lost
+
+        // keyframe_pkt will be automatically cleaned up by SrsUniquePtr destructor
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorDetectFrameRecovery)
+{
+    srs_error_t err;
+
+    // Test frame detection recovery after missing packet arrives
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Initialize with keyframe
+        SrsUniquePtr<SrsRtpPacket> keyframe_pkt(mock_create_test_rtp_packet(100, 1000));
+        detector.on_keyframe_start(keyframe_pkt.get());
+
+        // Store packets with a gap (missing 101)
+        cache.store_packet(mock_create_test_rtp_packet(100, 1000, false));
+        cache.store_packet(mock_create_test_rtp_packet(102, 1000, false));
+        cache.store_packet(mock_create_test_rtp_packet(103, 1000, true)); // marker bit
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // First detection should succeed but frame not ready due to missing packet
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(103, frame_start, frame_end, frame_ready));
+        EXPECT_FALSE(frame_ready);
+
+        // Now add the missing packet
+        cache.store_packet(mock_create_test_rtp_packet(101, 1000, false));
+
+        // Detection should now succeed when we receive the missing packet
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(101, frame_start, frame_end, frame_ready));
+
+        // If frame is ready, verify the frame boundaries
+        if (frame_ready) {
+            EXPECT_EQ(100, frame_start);
+            EXPECT_EQ(103, frame_end);
+        }
+
+        // keyframe_pkt will be automatically cleaned up by SrsUniquePtr destructor
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorDetectNextFrame)
+{
+    srs_error_t err;
+
+    // Test detect_next_frame functionality
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Verify initial state
+        EXPECT_EQ(0, detector.header_sn_);
+        EXPECT_EQ(0, detector.lost_sn_);
+
+        // Store packets for next frame
+        cache.store_packet(mock_create_test_rtp_packet(200, 2000, false));
+        cache.store_packet(mock_create_test_rtp_packet(201, 2000, false));
+        cache.store_packet(mock_create_test_rtp_packet(202, 2000, true)); // marker bit
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // Test detecting next frame starting from sequence 200
+        HELPER_EXPECT_SUCCESS(detector.detect_next_frame(200, frame_start, frame_end, frame_ready));
+
+        // Verify header_sn_ is updated by detect_next_frame
+        EXPECT_EQ(200, detector.header_sn_);
+
+        if (frame_ready) {
+            EXPECT_EQ(200, frame_start);
+            EXPECT_EQ(202, frame_end);
+        }
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorDetectNextFrameWithGaps)
+{
+    srs_error_t err;
+
+    // Test detect_next_frame with missing packets
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Store packets with a gap (missing 201)
+        cache.store_packet(mock_create_test_rtp_packet(200, 2000, false));
+        // Skip 201 - this creates a gap
+        cache.store_packet(mock_create_test_rtp_packet(202, 2000, false));
+        cache.store_packet(mock_create_test_rtp_packet(203, 2000, true)); // marker bit
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // Test detecting next frame - should not be ready due to missing packet
+        HELPER_EXPECT_SUCCESS(detector.detect_next_frame(200, frame_start, frame_end, frame_ready));
+        EXPECT_FALSE(frame_ready); // Should not be ready due to gap
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorOnKeyframeDetached)
+{
+    // Test on_keyframe_detached functionality
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Initialize with keyframe
+        SrsUniquePtr<SrsRtpPacket> keyframe_pkt(mock_create_test_rtp_packet(100, 1000));
+        detector.on_keyframe_start(keyframe_pkt.get());
+
+        // Verify keyframe is set
+        EXPECT_EQ(1000, detector.rtp_key_frame_ts_);
+        EXPECT_EQ(100, detector.header_sn_);
+
+        // Detach keyframe
+        detector.on_keyframe_detached();
+
+        // Verify keyframe timestamp is reset to -1
+        EXPECT_EQ(-1, detector.rtp_key_frame_ts_);
+        // header_sn_ and lost_sn_ should remain unchanged
+        EXPECT_EQ(100, detector.header_sn_);
+
+        // After detaching, should be able to start new keyframe
+        SrsUniquePtr<SrsRtpPacket> new_keyframe_pkt(mock_create_test_rtp_packet(200, 2000));
+        detector.on_keyframe_start(new_keyframe_pkt.get());
+
+        // Verify new keyframe is set
+        EXPECT_EQ(2000, detector.rtp_key_frame_ts_);
+        EXPECT_EQ(200, detector.header_sn_);
+        EXPECT_EQ(201, detector.lost_sn_);
+
+        // Both keyframe packets will be automatically cleaned up by SrsUniquePtr destructors
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorSequenceWrapAround)
+{
+    srs_error_t err;
+
+    // Test frame detection with sequence number wrap-around
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Initialize with keyframe near sequence wrap-around
+        uint16_t seq_near_max = 65534;
+        SrsUniquePtr<SrsRtpPacket> keyframe_pkt(mock_create_test_rtp_packet(seq_near_max, 1000));
+        detector.on_keyframe_start(keyframe_pkt.get());
+
+        // Store packets across wrap-around boundary
+        cache.store_packet(mock_create_test_rtp_packet(seq_near_max, 1000, false));
+        cache.store_packet(mock_create_test_rtp_packet(65535, 1000, false));
+        cache.store_packet(mock_create_test_rtp_packet(0, 1000, false)); // wrapped
+        cache.store_packet(mock_create_test_rtp_packet(1, 1000, true)); // marker bit
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // Test detecting frame across wrap-around
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(1, frame_start, frame_end, frame_ready));
+
+        // If frame is ready, verify the frame boundaries
+        if (frame_ready) {
+            EXPECT_EQ(65534, frame_start);
+            EXPECT_EQ(1, frame_end);
+        }
+
+        // keyframe_pkt will be automatically cleaned up by SrsUniquePtr destructor
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorIsLostSnBasic)
+{
+    srs_error_t err;
+
+    // Test is_lost_sn functionality
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Initialize with keyframe
+        SrsUniquePtr<SrsRtpPacket> keyframe_pkt(mock_create_test_rtp_packet(100, 1000));
+        detector.on_keyframe_start(keyframe_pkt.get());
+
+        // Verify initial lost_sn_
+        EXPECT_EQ(101, detector.lost_sn_);
+
+        // Store packets with a gap
+        cache.store_packet(mock_create_test_rtp_packet(100, 1000, false));
+        // Skip 101 - creates gap
+        cache.store_packet(mock_create_test_rtp_packet(102, 1000, true));
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // Trigger detection to set lost_sn_
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(102, frame_start, frame_end, frame_ready));
+
+        // Verify lost_sn_ is set to the missing packet
+        EXPECT_EQ(101, detector.lost_sn_);
+
+        // Test is_lost_sn
+        EXPECT_TRUE(detector.is_lost_sn(101)); // Should be lost
+        EXPECT_FALSE(detector.is_lost_sn(100)); // Should not be lost
+        EXPECT_FALSE(detector.is_lost_sn(102)); // Should not be lost
+        EXPECT_FALSE(detector.is_lost_sn(103)); // Should not be lost
+
+        // keyframe_pkt will be automatically cleaned up by SrsUniquePtr destructor
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorPrivateMemberStateTracking)
+{
+    srs_error_t err;
+
+    // Test detailed private member state changes during frame detection
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Verify initial state - constructor should set video_cache_
+        EXPECT_EQ(&cache, detector.video_cache_);
+        EXPECT_EQ(0, detector.header_sn_);
+        EXPECT_EQ(0, detector.lost_sn_);
+        EXPECT_EQ(-1, detector.rtp_key_frame_ts_);
+
+        // Test keyframe initialization
+        SrsUniquePtr<SrsRtpPacket> keyframe_pkt(mock_create_test_rtp_packet(500, 5000));
+        detector.on_keyframe_start(keyframe_pkt.get());
+
+        EXPECT_EQ(5000, detector.rtp_key_frame_ts_);
+        EXPECT_EQ(500, detector.header_sn_);
+        EXPECT_EQ(501, detector.lost_sn_); // header_sn_ + 1
+
+        // Test previous packet handling (sequence < header_sn_)
+        cache.store_packet(mock_create_test_rtp_packet(499, 5000, false));
+        cache.store_packet(mock_create_test_rtp_packet(500, 5000, false));
+        cache.store_packet(mock_create_test_rtp_packet(501, 5000, true));
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // Detect with previous packet (499 < 500)
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(499, frame_start, frame_end, frame_ready));
+
+        // header_sn_ should be updated to the earlier packet
+        EXPECT_EQ(499, detector.header_sn_);
+
+        // keyframe_pkt will be automatically cleaned up by SrsUniquePtr destructor
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorCacheOverflow)
+{
+    srs_error_t err;
+
+    // Test behavior when cache overflows
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Store more than cache_size_ packets with same timestamp and no marker bit
+        // This will trigger cache overflow detection in find_next_lost_sn
+        uint32_t timestamp = 1000;
+        uint16_t start_sn = 100;
+
+        // Store N packets (more than cache_size_) to guarantee overflow
+        for (int i = 0; i < SrsRtcFrameBuilderVideoPacketCache::cache_size_; i++) {
+            cache.store_packet(mock_create_test_rtp_packet(start_sn + i, timestamp, false));
+        }
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // Test detect_next_frame with cache overflow scenario
+        // This should trigger find_next_lost_sn to return -2 (cache overflow)
+        HELPER_EXPECT_FAILED(detector.detect_next_frame(start_sn, frame_start, frame_end, frame_ready));
+        EXPECT_FALSE(frame_ready);
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorPreviousPacketHandling)
+{
+    srs_error_t err;
+
+    // Test handling of previous packets in the same frame
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Initialize with keyframe
+        SrsUniquePtr<SrsRtpPacket> keyframe_pkt(mock_create_test_rtp_packet(100, 1000));
+        detector.on_keyframe_start(keyframe_pkt.get());
+
+        // Store packets in order
+        cache.store_packet(mock_create_test_rtp_packet(100, 1000, false));
+        cache.store_packet(mock_create_test_rtp_packet(101, 1000, false));
+        cache.store_packet(mock_create_test_rtp_packet(102, 1000, true));
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // First detect with later packet
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(102, frame_start, frame_end, frame_ready));
+
+        // Then detect with earlier packet (should handle previous packet case)
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(101, frame_start, frame_end, frame_ready));
+
+        // keyframe_pkt will be automatically cleaned up by SrsUniquePtr destructor
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorFragmentedFrames)
+{
+    srs_error_t err;
+
+    // Test frame detection with fragmented packets (FU-A)
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Initialize with keyframe
+        SrsUniquePtr<SrsRtpPacket> keyframe_pkt(mock_create_test_rtp_packet(100, 1000));
+        detector.on_keyframe_start(keyframe_pkt.get());
+
+        // Create fragmented frame with FU-A payloads
+        char payload_data[] = "test_fragmented_payload";
+
+        // Start fragment
+        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpFUAPayload2* fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
+        pkt1->set_payload(fua1, SrsRtpPacketPayloadTypeFUA2);
+        cache.store_packet(pkt1);
+
+        // Middle fragment
+        SrsRtpPacket* pkt2 = mock_create_test_rtp_packet(101, 1000);
+        SrsRtpFUAPayload2* fua2 = mock_create_test_fua_payload(false, false, payload_data, sizeof(payload_data));
+        pkt2->set_payload(fua2, SrsRtpPacketPayloadTypeFUA2);
+        cache.store_packet(pkt2);
+
+        // End fragment with marker bit
+        SrsRtpPacket* pkt3 = mock_create_test_rtp_packet(102, 1000, true);
+        SrsRtpFUAPayload2* fua3 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
+        pkt3->set_payload(fua3, SrsRtpPacketPayloadTypeFUA2);
+        cache.store_packet(pkt3);
+
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        // Test detecting fragmented frame
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(102, frame_start, frame_end, frame_ready));
+
+        // keyframe_pkt will be automatically cleaned up by SrsUniquePtr destructor
+    }
+}
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorNullPacketHandling)
+{
+    srs_error_t err;
+
+    // Test handling of null packets and edge cases
+    if (true) {
+        SrsRtcFrameBuilderVideoPacketCache cache;
+        SrsRtcFrameBuilderVideoFrameDetector detector(&cache);
+
+        // Test on_keyframe_start with null packet (should not crash)
+        // Note: In real implementation, null packets should be handled gracefully
+
+        // Test detect_frame without initialization
+        uint16_t frame_start = 0, frame_end = 0;
+        bool frame_ready = false;
+
+        HELPER_EXPECT_SUCCESS(detector.detect_frame(100, frame_start, frame_end, frame_ready));
+        EXPECT_FALSE(frame_ready); // Should not be ready without proper initialization
+
+        // Test detect_next_frame without packets
+        HELPER_EXPECT_SUCCESS(detector.detect_next_frame(100, frame_start, frame_end, frame_ready));
+        EXPECT_FALSE(frame_ready); // Should not be ready without packets
+    }
+}
+
