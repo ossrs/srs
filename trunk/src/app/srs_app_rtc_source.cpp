@@ -1631,7 +1631,7 @@ bool SrsRtcFrameBuilderVideoPacketCache::check_frame_complete(const uint16_t sta
         }
     }
 
-    return nn_fu_start == 1 && nn_fu_end == 1;
+    return nn_fu_start == nn_fu_end;
 }
 
 SrsRtcFrameBuilderVideoFrameDetector::SrsRtcFrameBuilderVideoFrameDetector(SrsRtcFrameBuilderVideoPacketCache* cache)

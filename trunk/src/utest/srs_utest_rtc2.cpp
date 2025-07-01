@@ -778,7 +778,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameCompleteSi
 
         // When there are no FU-A payloads, fu_s_c == fu_e_c (both are 0)
         bool complete = cache.check_frame_complete(100, 103);
-        EXPECT_FALSE(complete); // Expected: no FU-A fragments means complete (0 == 0)
+        EXPECT_TRUE(complete); // Expected: no FU-A fragments means complete (0 == 0)
     }
 }
 
@@ -884,7 +884,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameCompleteOn
 
 VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameCompleteMultipleNalus)
 {
-    // Test check_frame_complete with multiple complete fragmented NALUs (2 start == 2 end)
+    // Test check_frame_complete with multiple complete fragmented NALUs (2 start == 2 end = complete)
     if (true) {
         SrsRtcFrameBuilderVideoPacketCache cache;
 
@@ -914,9 +914,9 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameCompleteMu
         pkt4->set_payload(fua4, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt4);
 
-        // Should return true (2 starts == 2 ends = not a normal complete fragmented frame)
+        // Should return true (2 starts == 2 ends = complete fragmented frame)
         bool complete = cache.check_frame_complete(100, 103);
-        EXPECT_FALSE(complete);
+        EXPECT_TRUE(complete);
     }
 }
 
@@ -933,9 +933,9 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameCompleteNu
         SrsRtpPacket* pkt3 = mock_create_test_rtp_packet(102, 1000);
         cache.store_packet(pkt3);
 
-        // Should handle null packets gracefully and return false (no fragmentation)
+        // Should handle null packets gracefully and return true (no fragmentation, 0 == 0)
         bool complete = cache.check_frame_complete(100, 102);
-        EXPECT_FALSE(complete);
+        EXPECT_TRUE(complete);
     }
 }
 
