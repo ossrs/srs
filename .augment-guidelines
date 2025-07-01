@@ -19,7 +19,14 @@ architecture:
       * Coroutine state must be preserved across yields by async I/O operations
       * Shared state can be modified between context switches
       * Timing-dependent bugs related to when coroutines yield
-  
+
+  key_components:
+    - name: "SrsServer"
+      description: "Main server class of live stream for RTMP/HTTP-FLV/HLS/DASH and HTTP-API"
+    - name: "SrsLiveSource"
+      description: "Central management of live stream sources for RTMP/HTTP-FLV/HLS/DASH"
+
+codebase_structure:
   key_directories:
     - path: "trunk/src/"
       description: "Main source code directory"
@@ -46,11 +53,17 @@ architecture:
 
 code_patterns:
   memory_management:
+    - pattern: "SrsUniquePtr<T>"
+      description: "Smart pointer for unique ownership - preferred for single ownership scenarios"
+      usage: "SrsUniquePtr<MyClass> ptr(new MyClass()); ptr->method(); // automatic cleanup"
+    - pattern: "SrsSharedPtr<T>"
+      description: "Smart pointer for shared ownership - preferred for reference counting scenarios"
+      usage: "SrsSharedPtr<MyClass> ptr(new MyClass()); SrsSharedPtr<MyClass> copy = ptr; // reference counted"
     - pattern: "srs_freep"
-      description: "Custom macro for freeing pointers"
+      description: "Custom macro for freeing pointers - use only when smart pointers are not suitable"
     - pattern: "srs_freepa"
-      description: "Custom macro for freeing arrays"
-  
+      description: "Custom macro for freeing arrays - use only when smart pointers are not suitable"
+
   error_handling:
     - pattern: "srs_error_t"
       description: "Custom error handling system"
@@ -59,19 +72,35 @@ code_patterns:
     - pattern: "#ifdef SRS_VALGRIND"
       description: "Valgrind support"
 
-key_components:
-  - name: "SrsServer"
-    description: "Main server class of live stream for RTMP/HTTP-FLV/HLS/DASH and HTTP-API"
-  - name: "SrsLiveSource"
-    description: "Central management of live stream sources for RTMP/HTTP-FLV/HLS/DASH"
+build_and_development:
+  build:
+    command: "make -j"
+    description: "Build the SRS server using parallel make in the trunk directory"
+    working_directory: "trunk"
 
-build:
-  command: "cd trunk && make -j"
-  description: "Build the SRS server using parallel make in the trunk directory"
-  working_directory: "trunk"
+  run_utests:
+    command: "make utest -j && ./objs/srs_utest"
+    description: "Run the unit tests for SRS"
+    working_directory: "trunk"
 
-run-utests:
-  command: "cd trunk && make utest -j && ./objs/srs_utest"
-  description: "Run the unit tests for SRS"
-  working_directory: "trunk"
+testing:
+  test_patterns:
+    - Note that private and protected members are accessible in utests, as there is a macro to convert them to public
+    - Use descriptive test names that clearly indicate what functionality is being tested
+    - Group related tests together (e.g., all tests for one class should be consecutive)
+    - Test both success and failure paths, especially for error handling scenarios
+    - Verify edge cases like sequence number wrap-around, cache overflow, and null inputs
+    - Use existing mock helper functions for consistency and maintainability
 
+  error_handling_macros:
+    - Use HELPER_EXPECT_SUCCESS(x) when expecting a function to succeed (returns srs_success)
+    - Use HELPER_EXPECT_FAILED(x) when expecting a function to fail (returns non-srs_success error)
+    - These macros automatically handle error cleanup and provide better error messages
+    - Always declare "srs_error_t err;" at the beginning of test functions that use these macros
+    - |
+      Example:
+      VOID TEST(MyTest, TestFunction) {
+          srs_error_t err;
+          HELPER_EXPECT_SUCCESS(some_function_that_should_succeed());
+          HELPER_EXPECT_FAILED(some_function_that_should_fail());
+      }
