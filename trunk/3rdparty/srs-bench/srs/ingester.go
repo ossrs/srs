@@ -40,6 +40,7 @@ import (
 
 type videoIngester struct {
 	sourceVideo       string
+	codecType         string // "h264", "hevc", or "vp8"
 	fps               int
 	markerInterceptor *rtpInterceptor
 	sVideoTrack       *webrtc.TrackLocalStaticSample
@@ -48,9 +49,26 @@ type videoIngester struct {
 	readyCancel       context.CancelFunc
 }
 
-func newVideoIngester(sourceVideo string) *videoIngester {
-	v := &videoIngester{markerInterceptor: &rtpInterceptor{}, sourceVideo: sourceVideo}
+// WithCodec sets the codec type for the video ingester
+func WithCodec(codecType string) func(*videoIngester) {
+	return func(v *videoIngester) {
+		v.codecType = codecType
+	}
+}
+
+func newVideoIngester(sourceVideo string, opts ...func(*videoIngester)) *videoIngester {
+	v := &videoIngester{
+		markerInterceptor: &rtpInterceptor{},
+		sourceVideo:       sourceVideo,
+		codecType:         "h264", // default codec
+	}
 	v.ready, v.readyCancel = context.WithCancel(context.Background())
+
+	// Apply options
+	for _, opt := range opts {
+		opt(v)
+	}
+
 	return v
 }
 
@@ -66,8 +84,20 @@ func (v *videoIngester) AddTrack(pc *webrtc.PeerConnection, fps int) error {
 	v.fps = fps
 
 	mimeType, trackID := "video/H264", "video"
-	if strings.HasSuffix(v.sourceVideo, ".ivf") {
+
+	// Determine MIME type based on codec type or file extension
+	switch v.codecType {
+	case "hevc", "h265":
+		mimeType = "video/H265"
+	case "vp8":
 		mimeType = "video/VP8"
+	case "h264":
+		mimeType = "video/H264"
+	default:
+		// Fallback to file extension detection
+		if strings.HasSuffix(v.sourceVideo, ".ivf") {
+			mimeType = "video/VP8"
+		}
 	}
 
 	var err error

@@ -30,10 +30,10 @@ cd srs-bench && make
 ```bash
 git clone https://github.com/ossrs/srs.git &&
 cd srs/trunk && ./configure --h265=on --gb28181=on && make &&
-./objs/srs -c conf/console.conf
+./objs/srs -c conf/regression-test-for-clion.conf
 ```
 
-> Note: Use valgrind to check memory leak, please use `valgrind --leak-check=full ./objs/srs -c conf/console.conf >/dev/null` to start SRS.
+> Note: Use valgrind to check memory leak, please use `valgrind --leak-check=full ./objs/srs -c conf/regression-test-for-clion.conf >/dev/null` to start SRS.
 
 具体场景，请按下面的操作启动测试。
 
@@ -160,7 +160,7 @@ done
 回归测试需要先启动[SRS](https://github.com/ossrs/srs/issues/307)，支持WebRTC推拉流：
 
 ```bash
-./objs/srs -c conf/rtc.conf
+./objs/srs -c conf/regression-test-for-clion.conf
 ```
 
 然后运行回归测试用例，如果只跑一次，可以直接运行：

@@ -674,6 +674,34 @@ func registerMiniCodecsWithoutNack(api *testWebRTCAPI) error {
 	return nil
 }
 
+// Implements interface testWebRTCAPIInitFunc to init testWebRTCAPI with HEVC support
+func registerHEVCCodecs(api *testWebRTCAPI) error {
+	v := api
+
+	// Register Opus audio codec
+	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{webrtc.MimeTypeOpus, 48000, 2, "minptime=10;useinbandfec=1", nil},
+		PayloadType:        111,
+	}, webrtc.RTPCodecTypeAudio); err != nil {
+		return err
+	}
+
+	// Register HEVC/H.265 video codec
+	videoRTCPFeedback := []webrtc.RTCPFeedback{{"goog-remb", ""}, {"ccm", "fir"}, {"nack", ""}, {"nack", "pli"}}
+	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{webrtc.MimeTypeH265, 90000, 0, "profile-id=1", videoRTCPFeedback},
+		PayloadType:        49, // Use payload type 49 for HEVC as mentioned in PR description
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		return err
+	}
+
+	if err := webrtc.RegisterDefaultInterceptors(v.mediaEngine, v.registry); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func newTestWebRTCAPI(inits ...testWebRTCAPIInitFunc) (*testWebRTCAPI, error) {
 	v := &testWebRTCAPI{}
 
@@ -1052,6 +1080,10 @@ type testPublisher struct {
 	api *testWebRTCAPI
 	// Optional suffix for stream url.
 	streamSuffix string
+	// Optional query parameters for stream url.
+	streamQuery string
+	// Video codec type: "h264", "hevc", "vp8"
+	videoCodec string
 	// To cancel the publisher, pass by Run.
 	cancel context.CancelFunc
 	// The config for peer connection.
@@ -1064,7 +1096,8 @@ func newTestPublisher(init testWebRTCAPIInitFunc, options ...testPublisherOption
 	sourceVideo, sourceAudio := *srsPublishVideo, *srsPublishAudio
 
 	v := &testPublisher{
-		pcc: &webrtc.Configuration{},
+		pcc:        &webrtc.Configuration{},
+		videoCodec: "h264", // Default to H.264
 	}
 
 	api, err := newTestWebRTCAPI(init)
@@ -1084,7 +1117,7 @@ func newTestPublisher(init testWebRTCAPIInitFunc, options ...testPublisherOption
 		v.aIngester = newAudioIngester(sourceAudio)
 	}
 	if sourceVideo != "" {
-		v.vIngester = newVideoIngester(sourceVideo)
+		v.vIngester = newVideoIngester(sourceVideo, WithCodec(v.videoCodec))
 	}
 
 	// Setup the interceptors for packets.
@@ -1147,6 +1180,9 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 	r := fmt.Sprintf("%v://%v%v", srsSchema, *srsServer, *srsStream)
 	if v.streamSuffix != "" {
 		r = fmt.Sprintf("%v-%v", r, v.streamSuffix)
+	}
+	if v.streamQuery != "" {
+		r = fmt.Sprintf("%v?%v", r, v.streamQuery)
 	}
 	sourceVideo, sourceAudio, fps := *srsPublishVideo, *srsPublishAudio, *srsPublishVideoFps
 
