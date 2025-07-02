@@ -101,6 +101,8 @@ public:
     // @param video the hevc raw data.
     // @param flv output the muxed flv packet.
     // @param nb_flv output the muxed flv size.
+    // TODO: Rename method to mux_hevc2flv_enhanced since AVC is an alias for H.264, not H.265/HEVC.
+    //       This affects other modules like SRT and GB28181, so should be done in a separate refactoring.
     virtual srs_error_t mux_avc2flv_enhanced(std::string video, int8_t frame_type, int8_t packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv);
 };
 #endif
