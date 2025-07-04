@@ -1,0 +1,123 @@
+# Augment Guidelines for SRS Repository
+
+project:
+  name: "SRS (Simple Realtime Server)"
+  description: "A C++ streaming media server supporting RTMP, WebRTC, WHIP, WHEP, SRT, HLS, and HTTP-FLV"
+  type: "media-server"
+
+architecture:
+  overview: |
+    Core C++ streaming server with protocol implementations and media processing capabilities.
+    Uses State Threads (ST) for high-performance coroutine-based networking.
+
+  threading_model: |
+    Single-threaded, coroutine/goroutine-based application architecture:
+    - No traditional multi-threading issues (no thread switching, async race conditions)
+    - Uses coroutines/goroutines that cooperatively yield control
+    - Context switching occurs during async I/O operations
+    - Different context switch problems compared to multi-threaded applications:
+      * Coroutine state must be preserved across yields by async I/O operations
+      * Shared state can be modified between context switches
+      * Timing-dependent bugs related to when coroutines yield
+
+  key_components:
+    - name: "SrsServer"
+      description: "Main server class of live stream for RTMP/HTTP-FLV/HLS/DASH and HTTP-API"
+    - name: "SrsLiveSource"
+      description: "Central management of live stream sources for RTMP/HTTP-FLV/HLS/DASH"
+
+codebase_structure:
+  key_directories:
+    - path: "trunk/src/"
+      description: "Main source code directory"
+    - path: "trunk/src/main/"
+      description: "Entry points including srs_main_server.cpp"
+    - path: "trunk/src/core/"
+      description: "Core platform abstractions and common definitions"
+    - path: "trunk/src/kernel/"
+      description: "Low-level codec implementations (AAC, H.264, FLV, MP4, RTC, etc.)"
+    - path: "trunk/src/protocol/"
+      description: "Protocol implementations (RTMP, HTTP, RTC, SRT, etc.)"
+    - path: "trunk/src/app/"
+      description: "High-level application logic and server components"
+
+  key_files:
+    - path: "trunk/src/main/srs_main_server.cpp"
+      description: "Main entry point and server initialization"
+    - path: "trunk/src/app/srs_app_server.hpp"
+      description: "Core server class definition"
+    - path: "trunk/src/core/srs_core.hpp"
+      description: "Core definitions and project metadata"
+    - path: "trunk/src/core/srs_core_autofree.hpp"
+      description: "Smart pointer definitions for memory management"
+
+code_patterns:
+  memory_management:
+    - pattern: "SrsUniquePtr<T>"
+      description: "Smart pointer for unique ownership - preferred for single ownership scenarios"
+      usage: "SrsUniquePtr<MyClass> ptr(new MyClass()); ptr->method(); // automatic cleanup"
+    - pattern: "SrsSharedPtr<T>"
+      description: "Smart pointer for shared ownership - preferred for reference counting scenarios"
+      usage: "SrsSharedPtr<MyClass> ptr(new MyClass()); SrsSharedPtr<MyClass> copy = ptr; // reference counted"
+    - pattern: "srs_freep"
+      description: "Custom macro for freeing pointers - use only when smart pointers are not suitable"
+    - pattern: "srs_freepa"
+      description: "Custom macro for freeing arrays - use only when smart pointers are not suitable"
+
+  error_handling:
+    - pattern: "srs_error_t"
+      description: "Custom error handling system"
+
+  conditional_compilation:
+    - pattern: "#ifdef SRS_VALGRIND"
+      description: "Valgrind support"
+
+build_and_development:
+  build:
+    command: "make -j"
+    description: "Build the SRS server using parallel make in the trunk directory"
+    working_directory: "trunk"
+
+  run_utests:
+    command: "make utest -j && ./objs/srs_utest"
+    description: "Run the unit tests for SRS"
+    working_directory: "trunk"
+
+testing:
+  test_patterns:
+    - Note that private and protected members are accessible in utests, as there is a macro to convert them to public
+    - Use descriptive test names that clearly indicate what functionality is being tested
+    - Group related tests together (e.g., all tests for one class should be consecutive)
+    - Test both success and failure paths, especially for error handling scenarios
+    - Verify edge cases like sequence number wrap-around, cache overflow, and null inputs
+    - Use existing mock helper functions for consistency and maintainability
+
+  error_handling_macros:
+    - Use HELPER_EXPECT_SUCCESS(x) when expecting a function to succeed (returns srs_success)
+    - Use HELPER_EXPECT_FAILED(x) when expecting a function to fail (returns non-srs_success error)
+    - These macros automatically handle error cleanup and provide better error messages
+    - Always declare "srs_error_t err;" at the beginning of test functions that use these macros
+    - |
+      Example:
+      VOID TEST(MyTest, TestFunction) {
+          srs_error_t err;
+          HELPER_EXPECT_SUCCESS(some_function_that_should_succeed());
+          HELPER_EXPECT_FAILED(some_function_that_should_fail());
+      }
+
+code_review:
+  github_pull_requests:
+    - When reviewing or understanding GitHub pull requests, use the diff URL to get the code changes
+    - Format: https://patch-diff.githubusercontent.com/raw/ossrs/srs/pull/{PR_NUMBER}.diff
+    - Example: For PR #4289, access https://patch-diff.githubusercontent.com/raw/ossrs/srs/pull/4289.diff
+    - This provides the raw diff showing all changes made in the pull request
+    - Use web-fetch tool to retrieve and analyze the diff content
+
+documentation:
+  location: "3rdparty/srs-docs"
+  description: |
+    SRS documentation source files are located in the 3rdparty/srs-docs directory
+  usage: |
+    When looking for documentation or need to update docs, check this directory for markdown 
+    files and documentation structure. Do not search ossrs.io or ossrs.net for documentation,
+    use the local files instead.

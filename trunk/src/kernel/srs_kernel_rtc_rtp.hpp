@@ -264,27 +264,27 @@ public:
 };
 
 // The payload type, for performance to avoid dynamic cast.
-enum SrsRtspPacketPayloadType
+enum SrsRtpPacketPayloadType
 {
-    SrsRtspPacketPayloadTypeRaw,
-    SrsRtspPacketPayloadTypeFUA2,
-    SrsRtspPacketPayloadTypeFUAHevc2,
-    SrsRtspPacketPayloadTypeFUA,
-    SrsRtspPacketPayloadTypeFUAHevc,
-    SrsRtspPacketPayloadTypeNALU,
-    SrsRtspPacketPayloadTypeSTAP,
-    SrsRtspPacketPayloadTypeSTAPHevc,
-    SrsRtspPacketPayloadTypeUnknown,
+    SrsRtpPacketPayloadTypeRaw,
+    SrsRtpPacketPayloadTypeFUA2,
+    SrsRtpPacketPayloadTypeFUAHevc2,
+    SrsRtpPacketPayloadTypeFUA,
+    SrsRtpPacketPayloadTypeFUAHevc,
+    SrsRtpPacketPayloadTypeNALU,
+    SrsRtpPacketPayloadTypeSTAP,
+    SrsRtpPacketPayloadTypeSTAPHevc,
+    SrsRtpPacketPayloadTypeUnknown,
 };
 
-class ISrsRtspPacketDecodeHandler
+class ISrsRtpPacketDecodeHandler
 {
 public:
-    ISrsRtspPacketDecodeHandler();
-    virtual ~ISrsRtspPacketDecodeHandler();
+    ISrsRtpPacketDecodeHandler();
+    virtual ~ISrsRtpPacketDecodeHandler();
 public:
     // We don't know the actual payload, so we depends on external handler.
-    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt) = 0;
+    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt) = 0;
 };
 
 // The RTP packet with cached shared message.
@@ -295,7 +295,7 @@ public:
     SrsRtpHeader header;
 private:
     ISrsRtpPayloader* payload_;
-    SrsRtspPacketPayloadType payload_type_;
+    SrsRtpPacketPayloadType payload_type_;
 private:
     // The original shared message, all RTP packets can refer to its data.
     // Note that the size of shared msg, is not the packet size, it's a larger aligned buffer.
@@ -315,7 +315,7 @@ private:
     // The cached payload size for packet.
     int cached_payload_size;
     // The helper handler for decoder, use RAW payload if NULL.
-    ISrsRtspPacketDecodeHandler* decode_handler;
+    ISrsRtpPacketDecodeHandler* decode_handler;
 private:
     int64_t avsync_time_;
 public:
@@ -334,14 +334,14 @@ public:
     void enable_twcc_decode() { header.enable_twcc_decode(); } // SrsRtpPacket::enable_twcc_decode
     // Get and set the payload of packet.
     // @remark Note that return NULL if no payload.
-    void set_payload(ISrsRtpPayloader* p, SrsRtspPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
+    void set_payload(ISrsRtpPayloader* p, SrsRtpPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
     ISrsRtpPayloader* payload() { return payload_; }
     // Set the padding of RTP packet.
     void set_padding(int size);
     // Increase the padding of RTP packet.
     void add_padding(int size);
     // Set the decode handler.
-    void set_decode_handler(ISrsRtspPacketDecodeHandler* h);
+    void set_decode_handler(ISrsRtpPacketDecodeHandler* h);
     // Whether the packet is Audio packet.
     bool is_audio();
     // Set RTP header extensions for encoding or decoding header extension
@@ -352,7 +352,7 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 public:
-    bool is_keyframe();
+    bool is_keyframe(SrsVideoCodecId codec_id);
     // Get and set the packet sync time in milliseconds.
     void set_avsync_time(int64_t avsync_time) { avsync_time_ = avsync_time; }
     int64_t get_avsync_time() const { return avsync_time_; }
@@ -478,6 +478,7 @@ public:
     virtual ISrsRtpPayloader* copy();
 };
 
+#ifdef SRS_H265
 class SrsRtpSTAPPayloadHevc : public ISrsRtpPayloader
 {
 public:
@@ -541,5 +542,6 @@ public:
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
 };
+#endif
 
 #endif

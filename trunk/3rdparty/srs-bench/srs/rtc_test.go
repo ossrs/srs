@@ -2432,3 +2432,142 @@ func TestRtcPublish_HttpFlvPlay(t *testing.T) {
 		}()
 	}()
 }
+
+// Test WebRTC-to-RTMP conversion with HEVC codec (PR #4349)
+func TestRtcPublish_HttpFlvPlay_HEVC(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	var r0, r1, r2, r3 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	var resources []io.Closer
+	defer func() {
+		for _, resource := range resources {
+			_ = resource.Close()
+		}
+	}()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// The event notify.
+	var thePublisher *testPublisher
+
+	mainReady, mainReadyCancel := context.WithCancel(context.Background())
+	publishReady, publishReadyCancel := context.WithCancel(context.Background())
+
+	streamSuffix := fmt.Sprintf("hevc-publish-flvplay-%v-%v", os.Getpid(), rand.Int())
+	// Objects init.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		doInit := func() (err error) {
+			// Initialize publisher with HEVC codec support.
+			if thePublisher, err = newTestPublisher(registerHEVCCodecs, func(pub *testPublisher) error {
+				pub.streamSuffix = streamSuffix
+				pub.streamQuery = "codec=hevc" // Add codec=hevc parameter for HEVC support
+				pub.videoCodec = "hevc"        // Set video codec to HEVC
+				pub.iceReadyCancel = publishReadyCancel
+				resources = append(resources, pub)
+
+				return pub.Setup(*srsVnetClientIP)
+			}); err != nil {
+				return err
+			}
+
+			// Init done.
+			mainReadyCancel()
+
+			<-ctx.Done()
+			return nil
+		}
+
+		if err := doInit(); err != nil {
+			r1 = err
+		}
+	}()
+
+	// Run publisher.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-mainReady.Done():
+			r2 = thePublisher.Run(logger.WithContext(ctx), cancel)
+			logger.Tf(ctx, "pub done")
+		}
+	}()
+
+	// Run player.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-publishReady.Done():
+		}
+
+		player := NewFLVPlayer()
+		defer player.Close()
+
+		r3 = func() error {
+			flvUrl := fmt.Sprintf("http://%v%v-%v.flv", *srsHttpServer, *srsStream, streamSuffix)
+			if err := player.Play(ctx, flvUrl); err != nil {
+				return err
+			}
+
+			var nnVideo, nnAudio int
+			var hasVideo, hasAudio bool
+			var hevcDetected bool
+			player.onRecvHeader = func(ha, hv bool) error {
+				hasAudio, hasVideo = ha, hv
+				return nil
+			}
+			player.onRecvTag = func(tagType flv.TagType, size, timestamp uint32, tag []byte) error {
+				if tagType == flv.TagTypeAudio {
+					nnAudio++
+				} else if tagType == flv.TagTypeVideo {
+					nnVideo++
+					// Check for HEVC Enhanced RTMP format
+					if len(tag) >= 5 {
+						// Check for Enhanced RTMP header (0x80 | frame_type << 4 | packet_type)
+						// and HEVC fourCC 'hvc1'
+						if (tag[0]&0x80) != 0 && len(tag) >= 5 {
+							if tag[1] == 'h' && tag[2] == 'v' && tag[3] == 'c' && tag[4] == '1' {
+								hevcDetected = true
+								logger.Tf(ctx, "HEVC Enhanced RTMP format detected in video tag")
+							}
+						}
+					}
+				}
+				logger.Tf(ctx, "got %v tag, %v %vms %vB, hevc=%v", nnVideo+nnAudio, tagType, timestamp, len(tag), hevcDetected)
+
+				if audioPacketsOK, videoPacketsOK := hasAudio && nnAudio >= 10, hasVideo && nnVideo >= 10; audioPacketsOK && videoPacketsOK && hevcDetected {
+					logger.Tf(ctx, "HEVC Flv recv %v/%v audio, %v/%v video, hevc detected=%v", hasAudio, nnAudio, hasVideo, nnVideo, hevcDetected)
+					cancel()
+				}
+				return nil
+			}
+			if err := player.Consume(ctx); err != nil {
+				return err
+			}
+
+			return nil
+		}()
+	}()
+}

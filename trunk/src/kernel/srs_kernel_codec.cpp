@@ -8,6 +8,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <algorithm>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -41,6 +42,26 @@ string srs_video_codec_id2str(SrsVideoCodecId codec)
     }
 }
 
+SrsVideoCodecId srs_video_codec_str2id(const std::string &codec)
+{
+    std::string upper_codec = codec;
+    std::transform(upper_codec.begin(), upper_codec.end(), upper_codec.begin(), ::toupper);
+
+    if (upper_codec == "H264" || upper_codec == "AVC") {
+        return SrsVideoCodecIdAVC;
+    } else if (upper_codec == "H265" || upper_codec == "HEVC") {
+        return SrsVideoCodecIdHEVC;
+    } else if (upper_codec == "AV1") {
+        return SrsVideoCodecIdAV1;
+    } else if (upper_codec == "VP6") {
+        return SrsVideoCodecIdOn2VP6;
+    } else if (upper_codec == "VP6A") {
+        return SrsVideoCodecIdOn2VP6WithAlphaChannel;
+    }
+
+    return SrsVideoCodecIdReserved;
+}
+
 string srs_audio_codec_id2str(SrsAudioCodecId codec)
 {
     switch (codec) {
@@ -66,6 +87,25 @@ string srs_audio_codec_id2str(SrsAudioCodecId codec)
         default:
             return "Other";
     }
+}
+
+SrsAudioCodecId srs_audio_codec_str2id(const std::string &codec)
+{
+    // to uppercase
+    std::string upper_codec = codec;
+    std::transform(upper_codec.begin(), upper_codec.end(), upper_codec.begin(), ::toupper);
+
+    if (upper_codec == "AAC") {
+        return SrsAudioCodecIdAAC;
+    } else if (upper_codec == "MP3") {
+        return SrsAudioCodecIdMP3;
+    } else if (upper_codec == "OPUS") {
+        return SrsAudioCodecIdOpus;
+    } else if (upper_codec == "SPEEX") {
+        return SrsAudioCodecIdSpeex;
+    } 
+
+    return SrsAudioCodecIdReserved1;
 }
 
 SrsAudioSampleRate srs_audio_sample_rate_from_number(uint32_t v)
@@ -667,7 +707,7 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     if (c && c->id == SrsVideoCodecIdHEVC) {
 #ifdef SRS_H265
         SrsHevcNaluType nalu_type = SrsHevcNaluTypeParse(bytes[0]);
-        has_idr = (SrsHevcNaluType_CODED_SLICE_BLA <= nalu_type) && (nalu_type <= SrsHevcNaluType_RESERVED_23);
+        has_idr = SrsIsIRAP(nalu_type);
         return err;
 #else
         return srs_error_new(ERROR_HEVC_DISABLED, "H.265 is disabled");
@@ -751,6 +791,7 @@ srs_error_t SrsVideoFrame::parse_avc_bframe(const SrsSample* sample, bool& is_b_
     return err;
 }
 
+#ifdef SRS_H265
 srs_error_t SrsVideoFrame::parse_hevc_nalu_type(const SrsSample* sample, SrsHevcNaluType& hevc_nalu_type)
 {
     srs_error_t err = srs_success;
@@ -831,6 +872,7 @@ srs_error_t SrsVideoFrame::parse_hevc_bframe(const SrsSample* sample, SrsFormat 
 
     return err;
 }
+#endif
 
 SrsFormat::SrsFormat()
 {

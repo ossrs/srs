@@ -3146,8 +3146,7 @@ srs_error_t SrsTsMessageCache::do_cache_hevc(SrsVideoFrame* frame)
 
         // Insert aud before NALU for HEVC.
         SrsHevcNaluType nalu_type = (SrsHevcNaluType)SrsHevcNaluTypeParse(sample->bytes[0]);
-        bool is_idr = (SrsHevcNaluType_CODED_SLICE_BLA <= nalu_type) && (nalu_type <= SrsHevcNaluType_RESERVED_23);
-        if (is_idr && !frame->has_sps_pps && !is_sps_pps_appended) {
+        if (SrsIsIRAP(nalu_type) && !frame->has_sps_pps && !is_sps_pps_appended) {
             for (size_t i = 0; i < codec->hevc_dec_conf_record_.nalu_vec.size(); i++) {
                 const SrsHevcHvccNalu& nalu = codec->hevc_dec_conf_record_.nalu_vec[i];
                 if (nalu.num_nalus <= 0 || nalu.nal_data_vec.empty()) continue;

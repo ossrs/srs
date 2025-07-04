@@ -75,7 +75,7 @@ srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264
             // @see https://tools.ietf.org/html/rfc6184#section-6.3
             h264_param.packetization_mode = kv[1];
         } else if (kv[0] == "level-asymmetry-allowed") {
-            h264_param.level_asymmerty_allow = kv[1];
+            h264_param.level_asymmetry_allow = kv[1];
         }
     }
 
@@ -85,7 +85,7 @@ srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264
     if (h264_param.packetization_mode.empty()) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "no h264 param: packetization-mode");
     }
-    if (h264_param.level_asymmerty_allow.empty()) {
+    if (h264_param.level_asymmetry_allow.empty()) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "no h264 param: level-asymmetry-allowed");
     }
 

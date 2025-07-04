@@ -16,6 +16,12 @@ class SrsBuffer;
 class SrsBitBuffer;
 class SrsFormat;
 
+/* Extended VideoTagHeader
+ * defined in reference link:
+ * https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf
+ * */
+#define SRS_FLV_IS_EX_HEADER          0x80
+
 // @see: https://datatracker.ietf.org/doc/html/rfc6184#section-1.3  
 const int SrsAvcNaluHeaderSize = 1;
 // @see: https://datatracker.ietf.org/doc/html/rfc7798#section-1.1.4
@@ -57,6 +63,7 @@ enum SrsVideoCodecId
     SrsVideoCodecIdAV1 = 13,
 };
 std::string srs_video_codec_id2str(SrsVideoCodecId codec);
+SrsVideoCodecId srs_video_codec_str2id(const std::string& codec);
 
 /**
  * The video AVC frame trait(characteristic).
@@ -173,6 +180,7 @@ enum SrsAudioCodecId
     SrsAudioCodecIdReservedDeviceSpecificSound = 15,
 };
 std::string srs_audio_codec_id2str(SrsAudioCodecId codec);
+SrsAudioCodecId srs_audio_codec_str2id(const std::string& codec);
 
 /**
  * The audio AAC frame trait(characteristic).
@@ -506,6 +514,7 @@ enum SrsHevcNaluType {
 };
 // @see https://datatracker.ietf.org/doc/html/rfc7798#section-1.1.4
 #define SrsHevcNaluTypeParse(code) (SrsHevcNaluType)((code & 0x7E) >> 1)
+#define SrsIsIRAP(type) ((type >= SrsHevcNaluType_CODED_SLICE_BLA) && (type <= SrsHevcNaluType_RESERVED_23))
 
 /**
  * @see Table 7-7 – Name association to slice_type
@@ -1340,9 +1349,10 @@ public:
 public:
     static srs_error_t parse_avc_nalu_type(const SrsSample* sample, SrsAvcNaluType& avc_nalu_type);
     static srs_error_t parse_avc_bframe(const SrsSample* sample, bool& is_b_frame);
-
+#ifdef SRS_H265
     static srs_error_t parse_hevc_nalu_type(const SrsSample* sample, SrsHevcNaluType& hevc_nalu_type);
     static srs_error_t parse_hevc_bframe(const SrsSample* sample, SrsFormat* format, bool& is_b_frame);
+#endif
 };
 
 /**
