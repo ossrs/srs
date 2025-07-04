@@ -33,7 +33,7 @@ type inboundData struct {
 }
 
 // UDPConn is the implementation of the Conn and PacketConn interfaces for UDP network connections.
-// compatible with net.PacketConn and net.Conn
+// compatible with net.PacketConn and net.Conn.
 type UDPConn struct {
 	bindingMgr *bindingManager   // Thread-safe
 	readCh     chan *inboundData // Thread-safe
@@ -41,9 +41,9 @@ type UDPConn struct {
 	allocation
 }
 
-// NewUDPConn creates a new instance of UDPConn
+// NewUDPConn creates a new instance of UDPConn.
 func NewUDPConn(config *AllocationConfig) *UDPConn {
-	c := &UDPConn{
+	conn := &UDPConn{
 		bindingMgr: newBindingManager(),
 		readCh:     make(chan *inboundData, maxReadQueueSize),
 		closeCh:    make(chan struct{}),
@@ -63,28 +63,28 @@ func NewUDPConn(config *AllocationConfig) *UDPConn {
 		},
 	}
 
-	c.log.Debugf("Initial lifetime: %d seconds", int(c.lifetime().Seconds()))
+	conn.log.Debugf("Initial lifetime: %d seconds", int(conn.lifetime().Seconds()))
 
-	c.refreshAllocTimer = NewPeriodicTimer(
+	conn.refreshAllocTimer = NewPeriodicTimer(
 		timerIDRefreshAlloc,
-		c.onRefreshTimers,
-		c.lifetime()/2,
+		conn.onRefreshTimers,
+		conn.lifetime()/2,
 	)
 
-	c.refreshPermsTimer = NewPeriodicTimer(
+	conn.refreshPermsTimer = NewPeriodicTimer(
 		timerIDRefreshPerms,
-		c.onRefreshTimers,
+		conn.onRefreshTimers,
 		permRefreshInterval,
 	)
 
-	if c.refreshAllocTimer.Start() {
-		c.log.Debugf("Started refresh allocation timer")
+	if conn.refreshAllocTimer.Start() {
+		conn.log.Debugf("Started refresh allocation timer")
 	}
-	if c.refreshPermsTimer.Start() {
-		c.log.Debugf("Started refresh permission timer")
+	if conn.refreshPermsTimer.Start() {
+		conn.log.Debugf("Started refresh permission timer")
 	}
 
-	return c
+	return conn
 }
 
 // ReadFrom reads a packet from the connection,
@@ -105,6 +105,7 @@ func (c *UDPConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 			if n < len(ibData.data) {
 				return 0, nil, io.ErrShortBuffer
 			}
+
 			return n, ibData.from, nil
 
 		case <-c.readTimer.C:
@@ -134,19 +135,21 @@ func (a *allocation) createPermission(perm *permission, addr net.Addr) error {
 		// Punch a hole! (this would block a bit..)
 		if err := a.CreatePermissions(addr); err != nil {
 			a.permMap.delete(addr)
+
 			return err
 		}
 		perm.setState(permStatePermitted)
 	}
+
 	return nil
 }
 
-// WriteTo writes a packet with payload p to addr.
+// WriteTo writes a packet with payload to addr.
 // WriteTo can be made to time out and return
 // an Error with Timeout() == true after a fixed time limit;
 // see SetDeadline and SetWriteDeadline.
 // On packet-oriented connections, write timeouts are rare.
-func (c *UDPConn) WriteTo(p []byte, addr net.Addr) (int, error) { //nolint: gocognit
+func (c *UDPConn) WriteTo(payload []byte, addr net.Addr) (int, error) { //nolint:gocognit,cyclop
 	var err error
 	_, ok := addr.(*net.UDPAddr)
 	if !ok {
@@ -177,31 +180,32 @@ func (c *UDPConn) WriteTo(p []byte, addr net.Addr) (int, error) { //nolint: goco
 	}
 
 	// Bind channel
-	b, ok := c.bindingMgr.findByAddr(addr)
+	bound, ok := c.bindingMgr.findByAddr(addr)
 	if !ok {
-		b = c.bindingMgr.create(addr)
+		bound = c.bindingMgr.create(addr)
 	}
 
-	bindSt := b.state()
+	bindSt := bound.state()
 
+	//nolint:nestif
 	if bindSt == bindingStateIdle || bindSt == bindingStateRequest || bindSt == bindingStateFailed {
 		func() {
 			// Block only callers with the same binding until
 			// the binding transaction has been complete
-			b.muBind.Lock()
-			defer b.muBind.Unlock()
+			bound.muBind.Lock()
+			defer bound.muBind.Unlock()
 
 			// Binding state may have been changed while waiting. check again.
-			if b.state() == bindingStateIdle {
-				b.setState(bindingStateRequest)
+			if bound.state() == bindingStateIdle {
+				bound.setState(bindingStateRequest)
 				go func() {
-					err2 := c.bind(b)
+					err2 := c.bind(bound)
 					if err2 != nil {
 						c.log.Warnf("Failed to bind bind(): %s", err2)
-						b.setState(bindingStateFailed)
+						bound.setState(bindingStateFailed)
 						// Keep going...
 					} else {
-						b.setState(bindingStateReady)
+						bound.setState(bindingStateReady)
 					}
 				}()
 			}
@@ -213,7 +217,7 @@ func (c *UDPConn) WriteTo(p []byte, addr net.Addr) (int, error) { //nolint: goco
 		msg, err = stun.Build(
 			stun.TransactionID,
 			stun.NewType(stun.MethodSend, stun.ClassIndication),
-			proto.Data(p),
+			proto.Data(payload),
 			peerAddr,
 			stun.Fingerprint,
 		)
@@ -230,31 +234,31 @@ func (c *UDPConn) WriteTo(p []byte, addr net.Addr) (int, error) { //nolint: goco
 
 	// Check if the binding needs a refresh
 	func() {
-		b.muBind.Lock()
-		defer b.muBind.Unlock()
+		bound.muBind.Lock()
+		defer bound.muBind.Unlock()
 
-		if b.state() == bindingStateReady && time.Since(b.refreshedAt()) > 5*time.Minute {
-			b.setState(bindingStateRefresh)
+		if bound.state() == bindingStateReady && time.Since(bound.refreshedAt()) > 5*time.Minute {
+			bound.setState(bindingStateRefresh)
 			go func() {
-				err = c.bind(b)
-				if err != nil {
-					c.log.Warnf("Failed to bind() for refresh: %s", err)
-					b.setState(bindingStateFailed)
+				if bindErr := c.bind(bound); bindErr != nil {
+					c.log.Warnf("Failed to bind() for refresh: %s", bindErr)
+					bound.setState(bindingStateFailed)
 					// Keep going...
 				} else {
-					b.setRefreshedAt(time.Now())
-					b.setState(bindingStateReady)
+					bound.setRefreshedAt(time.Now())
+					bound.setState(bindingStateReady)
 				}
 			}()
 		}
 	}()
 
 	// Send via ChannelData
-	_, err = c.sendChannelData(p, b.number)
+	_, err = c.sendChannelData(payload, bound.number)
 	if err != nil {
 		return 0, err
 	}
-	return len(p), nil
+
+	return len(payload), nil
 }
 
 // Close closes the connection.
@@ -271,6 +275,7 @@ func (c *UDPConn) Close() error {
 	}
 
 	c.client.OnDeallocated(c.relayedAddr)
+
 	return c.refreshAllocation(0, true /* dontWait=true */)
 }
 
@@ -309,6 +314,7 @@ func (c *UDPConn) SetReadDeadline(t time.Time) error {
 		d = time.Until(t)
 	}
 	c.readTimer.Reset(d)
+
 	return nil
 }
 
@@ -372,17 +378,20 @@ func (a *allocation) CreatePermissions(addrs ...net.Addr) error {
 		if err = code.GetFrom(res); err == nil {
 			if code.Code == stun.CodeStaleNonce {
 				a.setNonceFromMsg(res)
+
 				return errTryAgain
 			}
+
 			return fmt.Errorf("%s (error %s)", res.Type, code) //nolint:goerr113
 		}
+
 		return fmt.Errorf("%s", res.Type) //nolint:goerr113
 	}
 
 	return nil
 }
 
-// HandleInbound passes inbound data in UDPConn
+// HandleInbound passes inbound data in UDPConn.
 func (c *UDPConn) HandleInbound(data []byte, from net.Addr) {
 	// Copy data
 	copied := make([]byte, len(data))
@@ -396,21 +405,22 @@ func (c *UDPConn) HandleInbound(data []byte, from net.Addr) {
 }
 
 // FindAddrByChannelNumber returns a peer address associated with the
-// channel number on this UDPConn
+// channel number on this UDPConn.
 func (c *UDPConn) FindAddrByChannelNumber(chNum uint16) (net.Addr, bool) {
 	b, ok := c.bindingMgr.findByNumber(chNum)
 	if !ok {
 		return nil, false
 	}
+
 	return b.addr, true
 }
 
-func (c *UDPConn) bind(b *binding) error {
+func (c *UDPConn) bind(bound *binding) error {
 	setters := []stun.Setter{
 		stun.TransactionID,
 		stun.NewType(stun.MethodChannelBind, stun.ClassRequest),
-		addr2PeerAddress(b.addr),
-		proto.ChannelNumber(b.number),
+		addr2PeerAddress(bound.addr),
+		proto.ChannelNumber(bound.number),
 		c.username,
 		c.realm,
 		c.nonce(),
@@ -425,7 +435,8 @@ func (c *UDPConn) bind(b *binding) error {
 
 	trRes, err := c.client.PerformTransaction(msg, c.serverAddr, false)
 	if err != nil {
-		c.bindingMgr.deleteByAddr(b.addr)
+		c.bindingMgr.deleteByAddr(bound.addr)
+
 		return err
 	}
 
@@ -435,7 +446,7 @@ func (c *UDPConn) bind(b *binding) error {
 		return fmt.Errorf("unexpected response type %s", res.Type) //nolint:goerr113
 	}
 
-	c.log.Debugf("Channel binding successful: %s %d", b.addr, b.number)
+	c.log.Debugf("Channel binding successful: %s %d", bound.addr, bound.number)
 
 	// Success.
 	return nil
@@ -451,5 +462,6 @@ func (c *UDPConn) sendChannelData(data []byte, chNum uint16) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	return len(data), nil
 }

@@ -13,7 +13,7 @@ import (
 )
 
 // RelayAddressGeneratorStatic can be used to return static IP address each time a relay is created.
-// This can be used when you have a single static IP address that you want to use
+// This can be used when you have a single static IP address that you want to use.
 type RelayAddressGeneratorStatic struct {
 	// RelayAddress is the IP returned to the user when the relay is created
 	RelayAddress net.IP
@@ -24,7 +24,7 @@ type RelayAddressGeneratorStatic struct {
 	Net transport.Net
 }
 
-// Validate is called on server startup and confirms the RelayAddressGenerator is properly configured
+// Validate is called on server startup and confirms the RelayAddressGenerator is properly configured.
 func (r *RelayAddressGeneratorStatic) Validate() error {
 	if r.Net == nil {
 		var err error
@@ -44,8 +44,12 @@ func (r *RelayAddressGeneratorStatic) Validate() error {
 	}
 }
 
-// AllocatePacketConn generates a new PacketConn to receive traffic on and the IP/Port to populate the allocation response with
-func (r *RelayAddressGeneratorStatic) AllocatePacketConn(network string, requestedPort int) (net.PacketConn, net.Addr, error) {
+// AllocatePacketConn generates a new PacketConn to receive traffic on and the IP/Port
+// to populate the allocation response with.
+func (r *RelayAddressGeneratorStatic) AllocatePacketConn(
+	network string,
+	requestedPort int,
+) (net.PacketConn, net.Addr, error) {
 	conn, err := r.Net.ListenPacket(network, r.Address+":"+strconv.Itoa(requestedPort))
 	if err != nil {
 		return nil, nil, err
@@ -62,7 +66,8 @@ func (r *RelayAddressGeneratorStatic) AllocatePacketConn(network string, request
 	return conn, relayAddr, nil
 }
 
-// AllocateConn generates a new Conn to receive traffic on and the IP/Port to populate the allocation response with
+// AllocateConn generates a new Conn to receive traffic on and the IP/Port
+// to populate the allocation response with.
 func (r *RelayAddressGeneratorStatic) AllocateConn(string, int) (net.Conn, net.Addr, error) {
 	return nil, nil, errTODO
 }

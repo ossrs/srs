@@ -58,7 +58,7 @@ type Config struct {
 	LocalOptions, RemoteOptions []ContextOption
 }
 
-// SessionKeys bundles the keys required to setup an SRTP session
+// SessionKeys bundles the keys required to setup an SRTP session.
 type SessionKeys struct {
 	LocalMasterKey   []byte
 	LocalMasterSalt  []byte
@@ -74,20 +74,21 @@ func (s *session) getOrCreateReadStream(ssrc uint32, child streamSession, proto 
 		return nil, false
 	}
 
-	r, ok := s.readStreams[ssrc]
+	rStream, ok := s.readStreams[ssrc]
 	if ok {
-		return r, false
+		return rStream, false
 	}
 
 	// Create the readStream.
-	r = proto()
+	rStream = proto()
 
-	if err := r.init(child, ssrc); err != nil {
+	if err := rStream.init(child, ssrc); err != nil {
 		return nil, false
 	}
 
-	s.readStreams[ssrc] = r
-	return r, true
+	s.readStreams[ssrc] = rStream
+
+	return rStream, true
 }
 
 func (s *session) removeReadStream(ssrc uint32) {
@@ -109,10 +110,15 @@ func (s *session) close() error {
 	}
 
 	<-s.closed
+
 	return nil
 }
 
-func (s *session) start(localMasterKey, localMasterSalt, remoteMasterKey, remoteMasterSalt []byte, profile ProtectionProfile, child streamSession) error {
+func (s *session) start(
+	localMasterKey, localMasterSalt, remoteMasterKey, remoteMasterSalt []byte,
+	profile ProtectionProfile,
+	child streamSession,
+) error {
 	var err error
 	s.localContext, err = CreateContext(localMasterKey, localMasterSalt, profile, s.localOptions...)
 	if err != nil {
@@ -146,6 +152,7 @@ func (s *session) start(localMasterKey, localMasterSalt, remoteMasterKey, remote
 				if !errors.Is(err, io.EOF) {
 					s.log.Error(err.Error())
 				}
+
 				return
 			}
 

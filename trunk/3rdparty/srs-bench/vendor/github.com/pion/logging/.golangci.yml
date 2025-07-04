@@ -19,12 +19,16 @@ linters-settings:
             recommendations:
               - errors
   forbidigo:
+    analyze-types: true
     forbid:
       - ^fmt.Print(f|ln)?$
       - ^log.(Panic|Fatal|Print)(f|ln)?$
       - ^os.Exit$
       - ^panic$
       - ^print(ln)?$
+      - p: ^testing.T.(Error|Errorf|Fatal|Fatalf|Fail|FailNow)$
+        pkg: ^testing$
+        msg: "use testify/assert instead"
   varnamelen:
     max-distance: 12
     min-name-length: 2
@@ -37,6 +41,12 @@ linters-settings:
       - w io.Writer
       - r io.Reader
       - b []byte
+  revive:
+    rules:
+      # Prefer 'any' type alias over 'interface{}' for Go 1.18+ compatibility
+      - name: use-any
+        severity: warning
+        disabled: false
 
 linters:
   enable:
@@ -59,7 +69,6 @@ linters:
     - exportloopref    # checks for pointers to enclosing loop variables
     - forbidigo        # Forbids identifiers
     - forcetypeassert  # finds forced type assertions
-    - funlen           # Tool for detection of long functions
     - gci              # Gci control golang package import order and make it always deterministic.
     - gochecknoglobals # Checks that no globals are present in Go code
     - gocognit         # Computes and checks the cognitive complexity of functions
@@ -106,6 +115,7 @@ linters:
     - whitespace       # Tool for detection of leading and trailing whitespace
   disable:
     - depguard         # Go linter that checks if package imports are in a list of acceptable packages
+    - funlen           # Tool for detection of long functions
     - gochecknoinits   # Checks that no init functions are present in Go code
     - gomodguard       # Allow and block list linter for direct Go module dependencies. This is different from depguard where there are different block types for example version constraints and module recommendations.
     - interfacebloat   # A linter that checks length of interface.
@@ -127,9 +137,12 @@ issues:
   exclude-dirs-use-default: false
   exclude-rules:
     # Allow complex tests and examples, better to be self contained
-    - path: (examples|main\.go|_test\.go)
+    - path: (examples|main\.go)
       linters:
+        - gocognit
         - forbidigo
+    - path: _test\.go
+      linters:
         - gocognit
 
     # Allow forbidden identifiers in CLI commands

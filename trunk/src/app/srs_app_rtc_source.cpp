@@ -467,22 +467,42 @@ void SrsRtcSource::init_for_play_before_publishing()
         audio_track_desc->media_ = new SrsAudioPayload(kAudioPayloadType, "opus", kAudioSamplerate, kAudioChannel);
     }
 
-    // video track description
+    // video track descriptions - support both H.264 and H.265 for play before publishing
+    // This allows clients to choose their preferred codec during SDP negotiation
     if (true) {
-        SrsRtcTrackDescription* video_track_desc = new SrsRtcTrackDescription();
-        stream_desc->video_track_descs_.push_back(video_track_desc);
+        // H.264 track description
+        SrsRtcTrackDescription* h264_track_desc = new SrsRtcTrackDescription();
+        stream_desc->video_track_descs_.push_back(h264_track_desc);
 
-        video_track_desc->type_ = "video";
-        video_track_desc->id_ = "video-" + srs_random_str(8);
+        h264_track_desc->type_ = "video";
+        h264_track_desc->id_ = "video-h264-" + srs_random_str(8);
 
-        uint32_t video_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
-        video_track_desc->ssrc_ = video_ssrc;
-        video_track_desc->direction_ = "recvonly";
+        uint32_t h264_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        h264_track_desc->ssrc_ = h264_ssrc;
+        h264_track_desc->direction_ = "recvonly";
 
-        SrsVideoPayload* video_payload = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
-        video_track_desc->media_ = video_payload;
+        SrsVideoPayload* h264_payload = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
+        h264_track_desc->media_ = h264_payload;
 
-        video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
+        h264_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
+    }
+
+    if (true) {
+        // H.265 track description
+        SrsRtcTrackDescription* h265_track_desc = new SrsRtcTrackDescription();
+        stream_desc->video_track_descs_.push_back(h265_track_desc);
+
+        h265_track_desc->type_ = "video";
+        h265_track_desc->id_ = "video-h265-" + srs_random_str(8);
+
+        uint32_t h265_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        h265_track_desc->ssrc_ = h265_ssrc;
+        h265_track_desc->direction_ = "recvonly";
+
+        SrsVideoPayload* h265_payload = new SrsVideoPayload(KVideoPayloadTypeHevc, "H265", kVideoSamplerate);
+        h265_track_desc->media_ = h265_payload;
+
+        h265_payload->set_h265_param_desc("level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST");
     }
 
     set_stream_desc(stream_desc.get());
@@ -794,16 +814,17 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
 
     if (type == "video") {
         std::vector<SrsRtcTrackDescription*>::iterator it = stream_desc_->video_track_descs_.begin();
-        while (it != stream_desc_->video_track_descs_.end() ){
+        for (; it != stream_desc_->video_track_descs_.end(); ++it){
+            SrsRtcTrackDescription* track_desc = *it;
+            
             if (media_name.empty()) {
-                track_descs.push_back(*it);
+                track_descs.push_back(track_desc);
             } else {
-                SrsVideoCodecId codec = SrsVideoCodecId((*it)->media_->codec(true));
+                SrsVideoCodecId codec = SrsVideoCodecId(track_desc->media_->codec(true));
                 if (codec == srs_video_codec_str2id(media_name)) {
-                    track_descs.push_back(*it);
+                    track_descs.push_back(track_desc);
                 }
             }
-            ++it;
         }
     }
 
@@ -838,10 +859,12 @@ srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 
 #ifdef SRS_FFMPEG_FIT
 
-SrsRtcRtpBuilder::SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, uint32_t assrc, uint8_t apt, uint32_t vssrc, uint8_t vpt)
+SrsRtcRtpBuilder::SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, SrsSharedPtr<SrsRtcSource> source)
 {
-    req = NULL;
     bridge_ = bridge;
+    source_ = source;
+
+    req = NULL;
     format = new SrsRtmpFormat();
     codec_ = new SrsAudioTranscoder();
     latest_codec_ = SrsAudioCodecIdForbidden;
@@ -852,10 +875,15 @@ SrsRtcRtpBuilder::SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, uint32_t assrc, 
     audio_sequence = 0;
     video_sequence = 0;
 
-    audio_ssrc_ = assrc;
-    audio_payload_type_ = apt;
-    video_ssrc_ = vssrc;
-    video_payload_type_ = vpt;
+    // Initialize with default values - will be set during lazy initialization
+    audio_ssrc_ = 0;
+    audio_payload_type_ = 0;
+    video_ssrc_ = 0;
+    video_payload_type_ = 0;
+
+    // Lazy initialization flags
+    audio_initialized_ = false;
+    video_initialized_ = false;
 }
 
 SrsRtcRtpBuilder::~SrsRtcRtpBuilder()
@@ -863,6 +891,53 @@ SrsRtcRtpBuilder::~SrsRtcRtpBuilder()
     srs_freep(format);
     srs_freep(codec_);
     srs_freep(meta);
+}
+
+srs_error_t SrsRtcRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
+{
+    srs_error_t err = srs_success;
+
+    // Get the audio track description for the specified codec, as we will always 
+    // transcode to opus for WebRTC.
+    std::string codec_name = "opus";
+    std::vector<SrsRtcTrackDescription*> descs = source_->get_track_desc("audio", "opus");
+
+    if (!descs.empty()) {
+        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
+        SrsRtcTrackDescription* track = descs.at(0);
+        audio_ssrc_ = track->ssrc_;
+        audio_payload_type_ = track->media_->pt_;
+    } else {
+        audio_payload_type_ = kAudioPayloadType;
+    }
+
+    srs_trace("RTMP2RTC: Initialize audio track for %s with codec=%s, ssrc=%u, pt=%d",
+        srs_audio_codec_id2str(codec).c_str(), codec_name.c_str(), audio_ssrc_, audio_payload_type_);
+
+    return err;
+}
+
+srs_error_t SrsRtcRtpBuilder::initialize_video_track(SrsVideoCodecId codec)
+{
+    srs_error_t err = srs_success;
+
+    // Get the video track description for the detected codec
+    std::string codec_name = srs_video_codec_id2str(codec);
+    std::vector<SrsRtcTrackDescription*> descs = source_->get_track_desc("video", codec_name);
+
+    if (!descs.empty()) {
+        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
+        SrsRtcTrackDescription* track = descs.at(0);
+        video_ssrc_ = track->ssrc_;
+        video_payload_type_ = track->media_->pt_;
+    } else {
+        video_payload_type_ = kVideoPayloadType;
+    }
+
+    srs_trace("RTMP2RTC: Initialize video track with codec=%s, ssrc=%u, pt=%d",
+              codec_name.c_str(), video_ssrc_, video_payload_type_);
+
+    return err;
 }
 
 srs_error_t SrsRtcRtpBuilder::initialize(SrsRequest* r)
@@ -942,6 +1017,14 @@ srs_error_t SrsRtcRtpBuilder::on_audio(SrsSharedPtrMessage* msg)
         return err;
     }
 
+    // Initialize audio track on first packet with actual codec
+    if (!audio_initialized_) {
+        if ((err = initialize_audio_track(acodec)) != srs_success) {
+            return srs_error_wrap(err, "init audio track");
+        }
+        audio_initialized_ = true;
+    }
+
     // ignore sequence header
     srs_assert(format->audio);
 
@@ -997,9 +1080,9 @@ srs_error_t SrsRtcRtpBuilder::init_codec(SrsAudioCodecId codec)
 
     // Update the latest codec in stream.
     if (latest_codec_ == SrsAudioCodecIdForbidden) {
-        srs_trace("RTMP2RTC: Init audio codec to %d(%s)", codec, srs_audio_codec_id2str(codec).c_str());
+        srs_trace("RTMP2RTC: Init audio transcoder codec to %d(%s)", codec, srs_audio_codec_id2str(codec).c_str());
     } else {
-        srs_trace("RTMP2RTC: Switch audio codec %d(%s) to %d(%s)", latest_codec_, srs_audio_codec_id2str(latest_codec_).c_str(),
+        srs_trace("RTMP2RTC: Switch audio transcoder codec %d(%s) to %d(%s)", latest_codec_, srs_audio_codec_id2str(latest_codec_).c_str(),
                   codec, srs_audio_codec_id2str(codec).c_str());
     }
     latest_codec_ = codec;
@@ -1097,8 +1180,12 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
         return err;
     }
 
-    if ((err = bridge_->update_codec(vcodec)) != srs_success) {
-        return srs_error_wrap(err, "update codec");
+    // Initialize video track on first packet with actual codec
+    if (!video_initialized_) {
+        if ((err = initialize_video_track(vcodec)) != srs_success) {
+            return srs_error_wrap(err, "init video track");
+        }
+        video_initialized_ = true;
     }
 
     bool has_idr = false;
@@ -1225,12 +1312,13 @@ srs_error_t SrsRtcRtpBuilder::package_stap_a(SrsSharedPtrMessage* msg, SrsRtpPac
 
     if (format->vcodec->id == SrsVideoCodecIdHEVC) {
         for (size_t i = 0; i < format->vcodec->hevc_dec_conf_record_.nalu_vec.size(); i++) {
-            if (format->vcodec->hevc_dec_conf_record_.nalu_vec[i].nal_unit_type == SrsHevcNaluType_VPS
-                || format->vcodec->hevc_dec_conf_record_.nalu_vec[i].nal_unit_type == SrsHevcNaluType_SPS
-                || format->vcodec->hevc_dec_conf_record_.nalu_vec[i].nal_unit_type == SrsHevcNaluType_PPS) {
-                vector<char>& nalu = (vector<char>&)format->vcodec->hevc_dec_conf_record_.nalu_vec[i].nal_data_vec[0].nal_unit_data;
-                params.push_back(&nalu);
-                size += format->vcodec->hevc_dec_conf_record_.nalu_vec[i].nal_data_vec[0].nal_unit_length;
+            const SrsHevcHvccNalu& nalu = format->vcodec->hevc_dec_conf_record_.nalu_vec[i];
+            if (nalu.nal_unit_type == SrsHevcNaluType_VPS
+                || nalu.nal_unit_type == SrsHevcNaluType_SPS
+                || nalu.nal_unit_type == SrsHevcNaluType_PPS) {
+                const SrsHevcNalData& nal_data = nalu.nal_data_vec[0];
+                params.push_back(&(vector<char>&)nal_data.nal_unit_data);
+                size += nal_data.nal_unit_length;
             }
         }
 
@@ -2617,7 +2705,7 @@ srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
     return err;
 }
 
-// level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST
+// level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST
 srs_error_t SrsVideoPayload::set_h265_param_desc(std::string fmtp)
 {
     std::vector<std::string> attributes = split_str(fmtp, ";");

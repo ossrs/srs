@@ -55,5 +55,6 @@ func xorBytesCTR(block cipher.Block, iv []byte, dst, src []byte) error {
 		}
 		i += n
 	}
+
 	return nil
 }

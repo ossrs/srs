@@ -15,7 +15,7 @@ const (
 	maxRtxInterval time.Duration = 1600 * time.Millisecond
 )
 
-// TransactionResult is a bag of result values of a transaction
+// TransactionResult is a bag of result values of a transaction.
 type TransactionResult struct {
 	Msg     *stun.Message
 	From    net.Addr
@@ -23,7 +23,7 @@ type TransactionResult struct {
 	Err     error
 }
 
-// TransactionConfig is a set of config params used by NewTransaction
+// TransactionConfig is a set of config params used by NewTransaction.
 type TransactionConfig struct {
 	Key          string
 	Raw          []byte
@@ -32,7 +32,7 @@ type TransactionConfig struct {
 	IgnoreResult bool // True to throw away the result of this transaction (it will not be readable using WaitForResult)
 }
 
-// Transaction represents a transaction
+// Transaction represents a transaction.
 type Transaction struct {
 	Key      string                 // Read-only
 	Raw      []byte                 // Read-only
@@ -44,7 +44,7 @@ type Transaction struct {
 	mutex    sync.RWMutex
 }
 
-// NewTransaction creates a new instance of Transaction
+// NewTransaction creates a new instance of Transaction.
 func NewTransaction(config *TransactionConfig) *Transaction {
 	var resultCh chan TransactionResult
 	if !config.IgnoreResult {
@@ -60,7 +60,7 @@ func NewTransaction(config *TransactionConfig) *Transaction {
 	}
 }
 
-// StartRtxTimer starts the transaction timer
+// StartRtxTimer starts the transaction timer.
 func (t *Transaction) StartRtxTimer(onTimeout func(trKey string, nRtx int)) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -78,7 +78,7 @@ func (t *Transaction) StartRtxTimer(onTimeout func(trKey string, nRtx int)) {
 	})
 }
 
-// StopRtxTimer stop the transaction timer
+// StopRtxTimer stop the transaction timer.
 func (t *Transaction) StopRtxTimer() {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -88,7 +88,7 @@ func (t *Transaction) StopRtxTimer() {
 	}
 }
 
-// WriteResult writes the result to the result channel
+// WriteResult writes the result to the result channel.
 func (t *Transaction) WriteResult(res TransactionResult) bool {
 	if t.resultCh == nil {
 		return false
@@ -99,7 +99,7 @@ func (t *Transaction) WriteResult(res TransactionResult) bool {
 	return true
 }
 
-// WaitForResult waits for the transaction result
+// WaitForResult waits for the transaction result.
 func (t *Transaction) WaitForResult() TransactionResult {
 	if t.resultCh == nil {
 		return TransactionResult{
@@ -111,17 +111,18 @@ func (t *Transaction) WaitForResult() TransactionResult {
 	if !ok {
 		result.Err = errTransactionClosed
 	}
+
 	return result
 }
 
-// Close closes the transaction
+// Close closes the transaction.
 func (t *Transaction) Close() {
 	if t.resultCh != nil {
 		close(t.resultCh)
 	}
 }
 
-// Retries returns the number of retransmission it has made
+// Retries returns the number of retransmission it has made.
 func (t *Transaction) Retries() int {
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
@@ -129,38 +130,40 @@ func (t *Transaction) Retries() int {
 	return t.nRtx
 }
 
-// TransactionMap is a thread-safe transaction map
+// TransactionMap is a thread-safe transaction map.
 type TransactionMap struct {
 	trMap map[string]*Transaction
 	mutex sync.RWMutex
 }
 
-// NewTransactionMap create a new instance of the transaction map
+// NewTransactionMap create a new instance of the transaction map.
 func NewTransactionMap() *TransactionMap {
 	return &TransactionMap{
 		trMap: map[string]*Transaction{},
 	}
 }
 
-// Insert inserts a transaction to the map
+// Insert inserts a transaction to the map.
 func (m *TransactionMap) Insert(key string, tr *Transaction) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	m.trMap[key] = tr
+
 	return true
 }
 
-// Find looks up a transaction by its key
+// Find looks up a transaction by its key.
 func (m *TransactionMap) Find(key string) (*Transaction, bool) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
 	tr, ok := m.trMap[key]
+
 	return tr, ok
 }
 
-// Delete deletes a transaction by its key
+// Delete deletes a transaction by its key.
 func (m *TransactionMap) Delete(key string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -168,7 +171,7 @@ func (m *TransactionMap) Delete(key string) {
 	delete(m.trMap, key)
 }
 
-// CloseAndDeleteAll closes and deletes all transactions
+// CloseAndDeleteAll closes and deletes all transactions.
 func (m *TransactionMap) CloseAndDeleteAll() {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -179,7 +182,7 @@ func (m *TransactionMap) CloseAndDeleteAll() {
 	}
 }
 
-// Size returns the length of the transaction map
+// Size returns the length of the transaction map.
 func (m *TransactionMap) Size() int {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()

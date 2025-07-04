@@ -456,13 +456,13 @@ func (v *PSIngester) writeH265(ctx context.Context, pack *PSPackStream, h265 *H2
 
 		videoFrames = append(videoFrames, frame)
 		logger.If(ctx, "NALU %v PictureOrderCount=%v, ForbiddenZeroBit=%v, %v bytes",
-			frame.UnitType, frame.PictureOrderCount, frame.ForbiddenZeroBit, len(frame.Data))
+			frame.NalUnitType, frame.PictureOrderCount, frame.ForbiddenZeroBit, len(frame.Data))
 
-		if frame.UnitType == NaluTypeVps {
+		if frame.NalUnitType == NaluTypeVps {
 			vps = frame
-		} else if frame.UnitType == NaluTypeSps {
+		} else if frame.NalUnitType == NaluTypeSps {
 			sps = frame
-		} else if frame.UnitType == NaluTypePps {
+		} else if frame.NalUnitType == NaluTypePps {
 			pps = frame
 		} else {
 			break

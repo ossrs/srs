@@ -43,9 +43,7 @@ string srs_ts_stream2string(SrsTsStream stream)
         case SrsTsStreamAudioAC3: return "AC3";
         case SrsTsStreamAudioDTS: return "AudioDTS";
         case SrsTsStreamVideoH264: return "H.264";
-#ifdef SRS_H265
         case SrsTsStreamVideoHEVC: return "H.265";
-#endif
         case SrsTsStreamVideoMpeg4: return "MP4";
         case SrsTsStreamAudioMpeg4: return "MP4A";
         default: return "Other";
@@ -290,13 +288,9 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter* writer, SrsTsMessage* msg, Sr
             video_pid = TS_VIDEO_AVC_PID;
             break;
         case SrsVideoCodecIdHEVC:
-#ifdef SRS_H265
             vs = SrsTsStreamVideoHEVC;
             video_pid = TS_VIDEO_AVC_PID;
             break;
-#else
-            return srs_error_new(ERROR_HEVC_DISABLED, "H.265 is disabled");
-#endif
         case SrsVideoCodecIdDisabled:
             vs = SrsTsStreamReserved;
             break;
@@ -371,9 +365,7 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid,
     srs_error_t err = srs_success;
 
     bool codec_ok = (vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
-#ifdef SRS_H265
     codec_ok = codec_ok ? true : (vs == SrsTsStreamVideoHEVC);
-#endif
     if (!codec_ok) {
         return srs_error_new(ERROR_HLS_NO_STREAM, "ts: no PID, vs=%d, as=%d", vs, as);
     }
@@ -441,9 +433,7 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
     }
 
     bool codec_ok = (sid == SrsTsStreamVideoH264 || sid == SrsTsStreamAudioAAC || sid == SrsTsStreamAudioMp3);
-#ifdef SRS_H265
     codec_ok = codec_ok ? true : (sid == SrsTsStreamVideoHEVC);
-#endif
     if (!codec_ok) {
         srs_info("ts: ignore the unknown stream, sid=%d", sid);
         return err;
@@ -770,9 +760,7 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
 
     // Here we must get the correct codec.
     bool codec_ok = (vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
-#ifdef SRS_H265
     codec_ok = codec_ok ? true : (vs == SrsTsStreamVideoHEVC);
-#endif
     srs_assert(codec_ok);
 
     // if mp3 or aac specified, use audio to carry pcr.
@@ -785,9 +773,7 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
     
     // If h.264/h.265 specified, use video to carry pcr.
     codec_ok = (vs == SrsTsStreamVideoH264);
-#ifdef SRS_H265
     codec_ok = codec_ok ? true : (vs == SrsTsStreamVideoHEVC);
-#endif
     if (codec_ok) {
         pmt->PCR_PID = vpid;
         pmt->infos.push_back(new SrsTsPayloadPMTESInfo(vs, vpid));
@@ -2563,9 +2549,7 @@ srs_error_t SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
         // update the apply pid table
         switch (info->stream_type) {
             case SrsTsStreamVideoH264:
-#ifdef SRS_H265
             case SrsTsStreamVideoHEVC:
-#endif
             case SrsTsStreamVideoMpeg4:
                 packet->context->set(info->elementary_PID, SrsTsPidApplyVideo, info->stream_type);
                 break;
@@ -2649,9 +2633,7 @@ srs_error_t SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
         // update the apply pid table
         switch (info->stream_type) {
             case SrsTsStreamVideoH264:
-#ifdef SRS_H265
             case SrsTsStreamVideoHEVC:
-#endif
             case SrsTsStreamVideoMpeg4:
                 packet->context->set(info->elementary_PID, SrsTsPidApplyVideo, info->stream_type);
                 break;
@@ -2884,11 +2866,7 @@ srs_error_t SrsTsMessageCache::cache_video(SrsVideoFrame* frame, int64_t dts)
 
     // Write H.265 video frame to cache.
     if (frame && frame->vcodec()->id == SrsVideoCodecIdHEVC) {
-#ifdef SRS_H265
         return do_cache_hevc(frame);
-#else
-        return srs_error_new(ERROR_HEVC_DISABLED, "H.265 is disabled");
-#endif
     }
 
     // Write H.264 video frame to cache.
@@ -3122,7 +3100,6 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
     return err;
 }
 
-#ifdef SRS_H265
 srs_error_t SrsTsMessageCache::do_cache_hevc(SrsVideoFrame* frame)
 {
     srs_error_t err = srs_success;
@@ -3165,7 +3142,6 @@ srs_error_t SrsTsMessageCache::do_cache_hevc(SrsVideoFrame* frame)
 
     return err;
 }
-#endif
 
 SrsTsTransmuxer::SrsTsTransmuxer()
 {
@@ -3306,9 +3282,7 @@ srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size
     }
 
     bool codec_ok = (format->vcodec->id == SrsVideoCodecIdAVC);
-#ifdef SRS_H265
     codec_ok = codec_ok ? true : (format->vcodec->id == SrsVideoCodecIdHEVC);
-#endif
     if (!codec_ok) {
         return err;
     }

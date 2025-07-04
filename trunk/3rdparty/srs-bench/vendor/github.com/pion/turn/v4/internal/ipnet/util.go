@@ -11,7 +11,7 @@ import (
 
 var errFailedToCastAddr = errors.New("failed to cast net.Addr to *net.UDPAddr or *net.TCPAddr")
 
-// AddrIPPort extracts the IP and Port from a net.Addr
+// AddrIPPort extracts the IP and Port from a net.Addr.
 func AddrIPPort(a net.Addr) (net.IP, int, error) {
 	aUDP, ok := a.(*net.UDPAddr)
 	if ok {
@@ -27,7 +27,7 @@ func AddrIPPort(a net.Addr) (net.IP, int, error) {
 }
 
 // AddrEqual asserts that two net.Addrs are equal
-// Currently only supports UDP but will be extended in the future to support others
+// Currently only supports UDP but will be extended in the future to support others.
 func AddrEqual(a, b net.Addr) bool {
 	aUDP, ok := a.(*net.UDPAddr)
 	if !ok {
@@ -51,5 +51,6 @@ func FingerprintAddr(addr net.Addr) string {
 	case *net.TCPAddr: // Do we really need this case?
 		return a.IP.String()
 	}
+
 	return "" // Should never happen
 }

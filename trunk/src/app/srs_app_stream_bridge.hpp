@@ -65,8 +65,6 @@ private:
 #if defined(SRS_FFMPEG_FIT)
     SrsRtcRtpBuilder* rtp_builder_;
 #endif
-private:
-    SrsVideoCodecId video_codec_id_;
 public:
     SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsFrameToRtcBridge();
@@ -76,7 +74,6 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
     srs_error_t on_rtp(SrsRtpPacket* pkt);
-    srs_error_t update_codec(SrsVideoCodecId id);
 };
 #endif
 

@@ -20,7 +20,7 @@ var (
 
 // STUNConn wraps a net.Conn and implements
 // net.PacketConn by being STUN aware and
-// packetizing the stream
+// packetizing the stream.
 type STUNConn struct {
 	nextConn net.Conn
 	buff     []byte
@@ -36,92 +36,93 @@ const (
 )
 
 // Given a buffer give the last offset of the TURN frame
-// If the buffer isn't a valid STUN or ChannelData packet
-// or the length doesn't match return false
-func consumeSingleTURNFrame(p []byte) (int, error) {
+// If the buffer isn't a valid STUN or ChannelData packet,
+// or the length doesn't match return false.
+func consumeSingleTURNFrame(b []byte) (int, error) {
 	// Too short to determine if ChannelData or STUN
-	if len(p) < 9 {
+	if len(b) < 9 {
 		return 0, errIncompleteTURNFrame
 	}
 
 	var datagramSize uint16
 	switch {
-	case stun.IsMessage(p):
-		datagramSize = binary.BigEndian.Uint16(p[2:4]) + stunHeaderSize
-	case proto.ChannelNumber(binary.BigEndian.Uint16(p[0:2])).Valid():
-		datagramSize = binary.BigEndian.Uint16(p[channelDataNumberSize:channelDataHeaderSize])
+	case stun.IsMessage(b):
+		datagramSize = binary.BigEndian.Uint16(b[2:4]) + stunHeaderSize
+	case proto.ChannelNumber(binary.BigEndian.Uint16(b[0:2])).Valid():
+		datagramSize = binary.BigEndian.Uint16(b[channelDataNumberSize:channelDataHeaderSize])
 		if paddingOverflow := (datagramSize + channelDataPadding) % channelDataPadding; paddingOverflow != 0 {
 			datagramSize = (datagramSize + channelDataPadding) - paddingOverflow
 		}
 
 		datagramSize += channelDataHeaderSize
-	case len(p) < stunHeaderSize:
+	case len(b) < stunHeaderSize:
 		return 0, errIncompleteTURNFrame
 	default:
 		return 0, errInvalidTURNFrame
 	}
 
-	if len(p) < int(datagramSize) {
+	if len(b) < int(datagramSize) {
 		return 0, errIncompleteTURNFrame
 	}
 
 	return int(datagramSize), nil
 }
 
-// ReadFrom implements ReadFrom from net.PacketConn
-func (s *STUNConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
+// ReadFrom implements ReadFrom from net.PacketConn.
+func (s *STUNConn) ReadFrom(payload []byte) (n int, addr net.Addr, err error) {
 	// First pass any buffered data from previous reads
 	n, err = consumeSingleTURNFrame(s.buff)
 	if errors.Is(err, errInvalidTURNFrame) {
 		return 0, nil, err
 	} else if err == nil {
-		copy(p, s.buff[:n])
+		copy(payload, s.buff[:n])
 		s.buff = s.buff[n:]
 
 		return n, s.nextConn.RemoteAddr(), nil
 	}
 
 	// Then read from the nextConn, appending to our buff
-	n, err = s.nextConn.Read(p)
+	n, err = s.nextConn.Read(payload)
 	if err != nil {
 		return 0, nil, err
 	}
 
-	s.buff = append(s.buff, append([]byte{}, p[:n]...)...)
-	return s.ReadFrom(p)
+	s.buff = append(s.buff, append([]byte{}, payload[:n]...)...)
+
+	return s.ReadFrom(payload)
 }
 
-// WriteTo implements WriteTo from net.PacketConn
-func (s *STUNConn) WriteTo(p []byte, _ net.Addr) (n int, err error) {
-	return s.nextConn.Write(p)
+// WriteTo implements WriteTo from net.PacketConn.
+func (s *STUNConn) WriteTo(payload []byte, _ net.Addr) (n int, err error) {
+	return s.nextConn.Write(payload)
 }
 
-// Close implements Close from net.PacketConn
+// Close implements Close from net.PacketConn.
 func (s *STUNConn) Close() error {
 	return s.nextConn.Close()
 }
 
-// LocalAddr implements LocalAddr from net.PacketConn
+// LocalAddr implements LocalAddr from net.PacketConn.
 func (s *STUNConn) LocalAddr() net.Addr {
 	return s.nextConn.LocalAddr()
 }
 
-// SetDeadline implements SetDeadline from net.PacketConn
+// SetDeadline implements SetDeadline from net.PacketConn.
 func (s *STUNConn) SetDeadline(t time.Time) error {
 	return s.nextConn.SetDeadline(t)
 }
 
-// SetReadDeadline implements SetReadDeadline from net.PacketConn
+// SetReadDeadline implements SetReadDeadline from net.PacketConn.
 func (s *STUNConn) SetReadDeadline(t time.Time) error {
 	return s.nextConn.SetReadDeadline(t)
 }
 
-// SetWriteDeadline implements SetWriteDeadline from net.PacketConn
+// SetWriteDeadline implements SetWriteDeadline from net.PacketConn.
 func (s *STUNConn) SetWriteDeadline(t time.Time) error {
 	return s.nextConn.SetWriteDeadline(t)
 }
 
-// NewSTUNConn creates a STUNConn
+// NewSTUNConn creates a STUNConn.
 func NewSTUNConn(nextConn net.Conn) *STUNConn {
 	return &STUNConn{nextConn: nextConn}
 }

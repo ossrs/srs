@@ -32,6 +32,7 @@ func (f *RequestedAddressFamily) GetFrom(m *stun.Message) error {
 	default:
 		return errInvalidRequestedFamilyValue
 	}
+
 	return nil
 }
 
@@ -54,6 +55,7 @@ func (f RequestedAddressFamily) AddTo(m *stun.Message) error {
 	// The RFFU field MUST be set to zero on transmission and MUST be
 	// ignored on reception. It is reserved for future uses.
 	m.Add(stun.AttrRequestedAddressFamily, v)
+
 	return nil
 }
 

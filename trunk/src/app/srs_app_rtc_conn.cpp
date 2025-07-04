@@ -3171,7 +3171,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
                     const SrsMediaPayloadType& payload = payloads.at(j);
 
                     // For H.265, we only check if profile-id=1 (Main Profile)
-                    // Format example: level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST
+                    // Format example: level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST
                     if (!has_main_profile || srs_sdp_has_h265_profile(payload, "1")) {
                         remote_payload = payload;
                         break;

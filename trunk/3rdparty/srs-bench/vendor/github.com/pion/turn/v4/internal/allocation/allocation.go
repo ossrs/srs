@@ -22,7 +22,7 @@ type allocationResponse struct {
 }
 
 // Allocation is tied to a FiveTuple and relays traffic
-// use CreateAllocation and GetAllocation to operate
+// use CreateAllocation and GetAllocation to operate.
 type Allocation struct {
 	RelayAddr           net.Addr
 	Protocol            Protocol
@@ -55,7 +55,7 @@ func NewAllocation(turnSocket net.PacketConn, fiveTuple *FiveTuple, log logging.
 	}
 }
 
-// GetPermission gets the Permission from the allocation
+// GetPermission gets the Permission from the allocation.
 func (a *Allocation) GetPermission(addr net.Addr) *Permission {
 	a.permissionsLock.RLock()
 	defer a.permissionsLock.RUnlock()
@@ -63,9 +63,9 @@ func (a *Allocation) GetPermission(addr net.Addr) *Permission {
 	return a.permissions[ipnet.FingerprintAddr(addr)]
 }
 
-// AddPermission adds a new permission to the allocation
-func (a *Allocation) AddPermission(p *Permission) {
-	fingerprint := ipnet.FingerprintAddr(p.Addr)
+// AddPermission adds a new permission to the allocation.
+func (a *Allocation) AddPermission(perms *Permission) {
+	fingerprint := ipnet.FingerprintAddr(perms.Addr)
 
 	a.permissionsLock.RLock()
 	existedPermission, ok := a.permissions[fingerprint]
@@ -73,18 +73,19 @@ func (a *Allocation) AddPermission(p *Permission) {
 
 	if ok {
 		existedPermission.refresh(permissionTimeout)
+
 		return
 	}
 
-	p.allocation = a
+	perms.allocation = a
 	a.permissionsLock.Lock()
-	a.permissions[fingerprint] = p
+	a.permissions[fingerprint] = perms
 	a.permissionsLock.Unlock()
 
-	p.start(permissionTimeout)
+	perms.start(permissionTimeout)
 }
 
-// RemovePermission removes the net.Addr's fingerprint from the allocation's permissions
+// RemovePermission removes the net.Addr's fingerprint from the allocation's permissions.
 func (a *Allocation) RemovePermission(addr net.Addr) {
 	a.permissionsLock.Lock()
 	defer a.permissionsLock.Unlock()
@@ -92,13 +93,13 @@ func (a *Allocation) RemovePermission(addr net.Addr) {
 }
 
 // AddChannelBind adds a new ChannelBind to the allocation, it also updates the
-// permissions needed for this ChannelBind
-func (a *Allocation) AddChannelBind(c *ChannelBind, lifetime time.Duration) error {
+// permissions needed for this ChannelBind.
+func (a *Allocation) AddChannelBind(chanBind *ChannelBind, lifetime time.Duration) error {
 	// Check that this channel id isn't bound to another transport address, and
 	// that this transport address isn't bound to another channel number.
-	channelByNumber := a.GetChannelByNumber(c.Number)
+	channelByNumber := a.GetChannelByNumber(chanBind.Number)
 
-	if channelByNumber != a.GetChannelByAddr(c.Peer) {
+	if channelByNumber != a.GetChannelByAddr(chanBind.Peer) {
 		return errSameChannelDifferentPeer
 	}
 
@@ -107,12 +108,12 @@ func (a *Allocation) AddChannelBind(c *ChannelBind, lifetime time.Duration) erro
 		a.channelBindingsLock.Lock()
 		defer a.channelBindingsLock.Unlock()
 
-		c.allocation = a
-		a.channelBindings = append(a.channelBindings, c)
-		c.start(lifetime)
+		chanBind.allocation = a
+		a.channelBindings = append(a.channelBindings, chanBind)
+		chanBind.start(lifetime)
 
 		// Channel binds also refresh permissions.
-		a.AddPermission(NewPermission(c.Peer, a.log))
+		a.AddPermission(NewPermission(chanBind.Peer, a.log))
 	} else {
 		channelByNumber.refresh(lifetime)
 
@@ -123,7 +124,7 @@ func (a *Allocation) AddChannelBind(c *ChannelBind, lifetime time.Duration) erro
 	return nil
 }
 
-// RemoveChannelBind removes the ChannelBind from this allocation by id
+// RemoveChannelBind removes the ChannelBind from this allocation by id.
 func (a *Allocation) RemoveChannelBind(number proto.ChannelNumber) bool {
 	a.channelBindingsLock.Lock()
 	defer a.channelBindingsLock.Unlock()
@@ -131,6 +132,7 @@ func (a *Allocation) RemoveChannelBind(number proto.ChannelNumber) bool {
 	for i := len(a.channelBindings) - 1; i >= 0; i-- {
 		if a.channelBindings[i].Number == number {
 			a.channelBindings = append(a.channelBindings[:i], a.channelBindings[i+1:]...)
+
 			return true
 		}
 	}
@@ -138,7 +140,7 @@ func (a *Allocation) RemoveChannelBind(number proto.ChannelNumber) bool {
 	return false
 }
 
-// GetChannelByNumber gets the ChannelBind from this allocation by id
+// GetChannelByNumber gets the ChannelBind from this allocation by id.
 func (a *Allocation) GetChannelByNumber(number proto.ChannelNumber) *ChannelBind {
 	a.channelBindingsLock.RLock()
 	defer a.channelBindingsLock.RUnlock()
@@ -147,10 +149,11 @@ func (a *Allocation) GetChannelByNumber(number proto.ChannelNumber) *ChannelBind
 			return cb
 		}
 	}
+
 	return nil
 }
 
-// GetChannelByAddr gets the ChannelBind from this allocation by net.Addr
+// GetChannelByAddr gets the ChannelBind from this allocation by net.Addr.
 func (a *Allocation) GetChannelByAddr(addr net.Addr) *ChannelBind {
 	a.channelBindingsLock.RLock()
 	defer a.channelBindingsLock.RUnlock()
@@ -159,17 +162,18 @@ func (a *Allocation) GetChannelByAddr(addr net.Addr) *ChannelBind {
 			return cb
 		}
 	}
+
 	return nil
 }
 
-// Refresh updates the allocations lifetime
+// Refresh updates the allocations lifetime.
 func (a *Allocation) Refresh(lifetime time.Duration) {
 	if !a.lifetimeTimer.Reset(lifetime) {
 		a.log.Errorf("Failed to reset allocation timer for %v", a.fiveTuple)
 	}
 }
 
-// SetResponseCache cache allocation response for retransmit allocation request
+// SetResponseCache cache allocation response for retransmit allocation request.
 func (a *Allocation) SetResponseCache(transactionID [stun.TransactionIDSize]byte, attrs []stun.Setter) {
 	a.responseCache.Store(&allocationResponse{
 		transactionID: transactionID,
@@ -177,15 +181,16 @@ func (a *Allocation) SetResponseCache(transactionID [stun.TransactionIDSize]byte
 	})
 }
 
-// GetResponseCache return response cache for retransmit allocation request
+// GetResponseCache return response cache for retransmit allocation request.
 func (a *Allocation) GetResponseCache() (id [stun.TransactionIDSize]byte, attrs []stun.Setter) {
 	if res, ok := a.responseCache.Load().(*allocationResponse); ok && res != nil {
 		id, attrs = res.transactionID, res.responseAttrs
 	}
+
 	return
 }
 
-// Close closes the allocation
+// Close closes the allocation.
 func (a *Allocation) Close() error {
 	select {
 	case <-a.closed:
@@ -233,13 +238,14 @@ func (a *Allocation) Close() error {
 
 const rtpMTU = 1600
 
-func (a *Allocation) packetHandler(m *Manager) {
+func (a *Allocation) packetHandler(manager *Manager) {
 	buffer := make([]byte, rtpMTU)
 
 	for {
 		n, srcAddr, err := a.RelaySocket.ReadFrom(buffer)
 		if err != nil {
-			m.DeleteAllocation(a.fiveTuple)
+			manager.DeleteAllocation(a.fiveTuple)
+
 			return
 		}
 
@@ -248,7 +254,7 @@ func (a *Allocation) packetHandler(m *Manager) {
 			n,
 			srcAddr)
 
-		if channel := a.GetChannelByAddr(srcAddr); channel != nil {
+		if channel := a.GetChannelByAddr(srcAddr); channel != nil { // nolint:nestif
 			channelData := &proto.ChannelData{
 				Data:   buffer[:n],
 				Number: channel.Number,
@@ -262,15 +268,22 @@ func (a *Allocation) packetHandler(m *Manager) {
 			udpAddr, ok := srcAddr.(*net.UDPAddr)
 			if !ok {
 				a.log.Errorf("Failed to send DataIndication from allocation %v %v", srcAddr, err)
+
 				return
 			}
 
 			peerAddressAttr := proto.PeerAddress{IP: udpAddr.IP, Port: udpAddr.Port}
 			dataAttr := proto.Data(buffer[:n])
 
-			msg, err := stun.Build(stun.TransactionID, stun.NewType(stun.MethodData, stun.ClassIndication), peerAddressAttr, dataAttr)
+			msg, err := stun.Build(
+				stun.TransactionID,
+				stun.NewType(stun.MethodData, stun.ClassIndication),
+				peerAddressAttr,
+				dataAttr,
+			)
 			if err != nil {
 				a.log.Errorf("Failed to send DataIndication from allocation %v %v", srcAddr, err)
+
 				return
 			}
 			a.log.Debugf("Relaying message from %s to client at %s",

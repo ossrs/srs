@@ -19,12 +19,16 @@ linters-settings:
             recommendations:
               - errors
   forbidigo:
+    analyze-types: true
     forbid:
       - ^fmt.Print(f|ln)?$
       - ^log.(Panic|Fatal|Print)(f|ln)?$
       - ^os.Exit$
       - ^panic$
       - ^print(ln)?$
+      - p: ^testing.T.(Error|Errorf|Fatal|Fatalf|Fail|FailNow)$
+        pkg: ^testing$
+        msg: "use testify/assert instead"
   varnamelen:
     max-distance: 12
     min-name-length: 2
@@ -127,9 +131,12 @@ issues:
   exclude-dirs-use-default: false
   exclude-rules:
     # Allow complex tests and examples, better to be self contained
-    - path: (examples|main\.go|_test\.go)
+    - path: (examples|main\.go)
       linters:
+        - gocognit
         - forbidigo
+    - path: _test\.go
+      linters:
         - gocognit
 
     # Allow forbidden identifiers in CLI commands

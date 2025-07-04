@@ -8,7 +8,7 @@ import (
 )
 
 // DontFragmentAttr is a deprecated alias for DontFragment
-// Deprecated: Please use DontFragment
+// Deprecated: Please use DontFragment.
 type DontFragmentAttr = DontFragment
 
 // DontFragment represents DONT-FRAGMENT attribute.
@@ -18,7 +18,7 @@ type DontFragmentAttr = DontFragment
 // application data onward to the peer.  This attribute has no value
 // part and thus the attribute length field is 0.
 //
-// RFC 5766 Section 14.8
+// RFC 5766 Section 14.8.
 type DontFragment struct{}
 
 const dontFragmentSize = 0
@@ -26,6 +26,7 @@ const dontFragmentSize = 0
 // AddTo adds DONT-FRAGMENT attribute to message.
 func (DontFragment) AddTo(m *stun.Message) error {
 	m.Add(stun.AttrDontFragment, nil)
+
 	return nil
 }
 
@@ -35,11 +36,13 @@ func (d *DontFragment) GetFrom(m *stun.Message) error {
 	if err != nil {
 		return err
 	}
+
 	return stun.CheckSize(stun.AttrDontFragment, len(v), dontFragmentSize)
 }
 
 // IsSet returns true if DONT-FRAGMENT attribute is set.
 func (DontFragment) IsSet(m *stun.Message) bool {
 	_, err := m.Get(stun.AttrDontFragment)
+
 	return err == nil
 }

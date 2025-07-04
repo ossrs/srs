@@ -18,7 +18,7 @@ type ICEServer struct {
 	URLs     []string
 	Username string
 	// Note: TURN is not supported in the WASM bindings yet
-	Credential     interface{}
+	Credential     any
 	CredentialType ICECredentialType
 }
 

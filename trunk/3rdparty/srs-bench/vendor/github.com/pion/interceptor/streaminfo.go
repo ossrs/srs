@@ -9,7 +9,7 @@ type RTPHeaderExtension struct {
 	ID  int
 }
 
-// StreamInfo is the Context passed when a StreamLocal or StreamRemote has been Binded or Unbinded
+// StreamInfo is the Context passed when a StreamLocal or StreamRemote has been Binded or Unbinded.
 type StreamInfo struct {
 	ID                                string
 	Attributes                        Attributes

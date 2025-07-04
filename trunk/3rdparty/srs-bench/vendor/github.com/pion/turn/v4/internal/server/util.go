@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	maximumAllocationLifetime = time.Hour // See: https://tools.ietf.org/html/rfc5766#section-6.2 defines 3600 seconds recommendation
+	// See: https://tools.ietf.org/html/rfc5766#section-6.2 defines 3600 seconds recommendation.
+	maximumAllocationLifetime = time.Hour
 )
 
 func buildAndSend(conn net.PacketConn, dst net.Addr, attrs ...stun.Setter) error {
@@ -30,71 +31,90 @@ func buildAndSend(conn net.PacketConn, dst net.Addr, attrs ...stun.Setter) error
 	return err
 }
 
-// Send a STUN packet and return the original error to the caller
+// Send a STUN packet and return the original error to the caller.
 func buildAndSendErr(conn net.PacketConn, dst net.Addr, err error, attrs ...stun.Setter) error {
 	if sendErr := buildAndSend(conn, dst, attrs...); sendErr != nil {
 		err = fmt.Errorf("%w %v %v", errFailedToSendError, sendErr, err) //nolint:errorlint
 	}
+
 	return err
 }
 
-func buildMsg(transactionID [stun.TransactionIDSize]byte, msgType stun.MessageType, additional ...stun.Setter) []stun.Setter {
+func buildMsg(
+	transactionID [stun.TransactionIDSize]byte,
+	msgType stun.MessageType,
+	additional ...stun.Setter,
+) []stun.Setter {
 	return append([]stun.Setter{&stun.Message{TransactionID: transactionID}, msgType}, additional...)
 }
 
-func authenticateRequest(r Request, m *stun.Message, callingMethod stun.Method) (stun.MessageIntegrity, bool, error) {
+func authenticateRequest(req Request, stunMsg *stun.Message, callingMethod stun.Method) (
+	stun.MessageIntegrity,
+	bool,
+	error,
+) {
 	respondWithNonce := func(responseCode stun.ErrorCode) (stun.MessageIntegrity, bool, error) {
-		nonce, err := r.NonceHash.Generate()
+		nonce, err := req.NonceHash.Generate()
 		if err != nil {
 			return nil, false, err
 		}
 
-		return nil, false, buildAndSend(r.Conn, r.SrcAddr, buildMsg(m.TransactionID,
+		return nil, false, buildAndSend(req.Conn, req.SrcAddr, buildMsg(stunMsg.TransactionID,
 			stun.NewType(callingMethod, stun.ClassErrorResponse),
 			&stun.ErrorCodeAttribute{Code: responseCode},
 			stun.NewNonce(nonce),
-			stun.NewRealm(r.Realm),
+			stun.NewRealm(req.Realm),
 		)...)
 	}
 
-	if !m.Contains(stun.AttrMessageIntegrity) {
+	if !stunMsg.Contains(stun.AttrMessageIntegrity) {
 		return respondWithNonce(stun.CodeUnauthorized)
 	}
 
 	nonceAttr := &stun.Nonce{}
 	usernameAttr := &stun.Username{}
 	realmAttr := &stun.Realm{}
-	badRequestMsg := buildMsg(m.TransactionID, stun.NewType(callingMethod, stun.ClassErrorResponse), &stun.ErrorCodeAttribute{Code: stun.CodeBadRequest})
+	badRequestMsg := buildMsg(
+		stunMsg.TransactionID,
+		stun.NewType(callingMethod, stun.ClassErrorResponse),
+		&stun.ErrorCodeAttribute{Code: stun.CodeBadRequest},
+	)
 
 	// No Auth handler is set, server is running in STUN only mode
-	// Respond with 400 so clients don't retry
-	if r.AuthHandler == nil {
-		sendErr := buildAndSend(r.Conn, r.SrcAddr, badRequestMsg...)
+	// Respond with 400 so clients don't retry.
+	if req.AuthHandler == nil {
+		sendErr := buildAndSend(req.Conn, req.SrcAddr, badRequestMsg...)
+
 		return nil, false, sendErr
 	}
 
-	if err := nonceAttr.GetFrom(m); err != nil {
-		return nil, false, buildAndSendErr(r.Conn, r.SrcAddr, err, badRequestMsg...)
+	if err := nonceAttr.GetFrom(stunMsg); err != nil {
+		return nil, false, buildAndSendErr(req.Conn, req.SrcAddr, err, badRequestMsg...)
 	}
 
-	// Assert Nonce is signed and is not expired
-	if err := r.NonceHash.Validate(nonceAttr.String()); err != nil {
+	// Assert Nonce is signed and is not expired.
+	if err := req.NonceHash.Validate(nonceAttr.String()); err != nil {
 		return respondWithNonce(stun.CodeStaleNonce)
 	}
 
-	if err := realmAttr.GetFrom(m); err != nil {
-		return nil, false, buildAndSendErr(r.Conn, r.SrcAddr, err, badRequestMsg...)
-	} else if err := usernameAttr.GetFrom(m); err != nil {
-		return nil, false, buildAndSendErr(r.Conn, r.SrcAddr, err, badRequestMsg...)
+	if err := realmAttr.GetFrom(stunMsg); err != nil {
+		return nil, false, buildAndSendErr(req.Conn, req.SrcAddr, err, badRequestMsg...)
+	} else if err := usernameAttr.GetFrom(stunMsg); err != nil {
+		return nil, false, buildAndSendErr(req.Conn, req.SrcAddr, err, badRequestMsg...)
 	}
 
-	ourKey, ok := r.AuthHandler(usernameAttr.String(), realmAttr.String(), r.SrcAddr)
+	ourKey, ok := req.AuthHandler(usernameAttr.String(), realmAttr.String(), req.SrcAddr)
 	if !ok {
-		return nil, false, buildAndSendErr(r.Conn, r.SrcAddr, fmt.Errorf("%w %s", errNoSuchUser, usernameAttr.String()), badRequestMsg...)
+		return nil, false, buildAndSendErr(
+			req.Conn,
+			req.SrcAddr,
+			fmt.Errorf("%w %s", errNoSuchUser, usernameAttr.String()),
+			badRequestMsg...,
+		)
 	}
 
-	if err := stun.MessageIntegrity(ourKey).Check(m); err != nil {
-		return nil, false, buildAndSendErr(r.Conn, r.SrcAddr, err, badRequestMsg...)
+	if err := stun.MessageIntegrity(ourKey).Check(stunMsg); err != nil {
+		return nil, false, buildAndSendErr(req.Conn, req.SrcAddr, err, badRequestMsg...)
 	}
 
 	return stun.MessageIntegrity(ourKey), true, nil

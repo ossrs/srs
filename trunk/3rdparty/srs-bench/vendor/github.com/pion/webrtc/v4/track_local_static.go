@@ -154,7 +154,7 @@ func (s *TrackLocalStaticRTP) Codec() RTPCodecCapability {
 // packetPool is a pool of packets used by WriteRTP and Write below
 // nolint:gochecknoglobals
 var rtpPacketPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &rtp.Packet{}
 	},
 }
@@ -194,6 +194,11 @@ func (s *TrackLocalStaticRTP) writeRTP(packet *rtp.Packet) error {
 	for _, b := range s.bindings {
 		packet.Header.SSRC = uint32(b.ssrc)
 		packet.Header.PayloadType = uint8(b.payloadType)
+		// b.writeStream.WriteRTP below expects header and payload separately, so value of Packet.PaddingSize
+		// would be lost. Copy it to Packet.Header.PaddingSize to avoid that problem.
+		if packet.PaddingSize != 0 && packet.Header.PaddingSize == 0 {
+			packet.Header.PaddingSize = packet.PaddingSize
+		}
 		if _, err := b.writeStream.WriteRTP(&packet.Header, packet.Payload); err != nil {
 			writeErrs = append(writeErrs, err)
 		}

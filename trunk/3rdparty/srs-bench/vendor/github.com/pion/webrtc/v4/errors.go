@@ -248,7 +248,7 @@ var (
 	errRTPSenderRIDCollision         = errors.New("Sender cannot encoding due to RID collision")
 	errRTPSenderNoTrackForRID        = errors.New("Sender does not have track for RID")
 
-	errRTPTransceiverCannotChangeMid        = errors.New("errRTPSenderTrackNil")
+	errRTPTransceiverCannotChangeMid        = errors.New("cannot change transceiver mid")
 	errRTPTransceiverSetSendingInvalidState = errors.New("invalid state change in RTPTransceiver.setSending")
 	errRTPTransceiverCodecUnsupported       = errors.New("unsupported codec type by this transceiver")
 

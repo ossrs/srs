@@ -34,12 +34,13 @@ type RelayAddressGenerator interface {
 // of NATs that comply with [RFC4787], see https://tools.ietf.org/html/rfc5766#section-2.3.
 type PermissionHandler func(clientAddr net.Addr, peerIP net.IP) (ok bool)
 
-// DefaultPermissionHandler is convince function that grants permission to all peers
+// DefaultPermissionHandler is convince function that grants permission to all peers.
 func DefaultPermissionHandler(net.Addr, net.IP) (ok bool) {
 	return true
 }
 
-// PacketConnConfig is a single net.PacketConn to listen/write on. This will be used for UDP listeners
+// PacketConnConfig is a single net.PacketConn to listen/write on.
+// This will be used for UDP listeners.
 type PacketConnConfig struct {
 	PacketConn net.PacketConn
 
@@ -67,7 +68,8 @@ func (c *PacketConnConfig) validate() error {
 	return nil
 }
 
-// ListenerConfig is a single net.Listener to accept connections on. This will be used for TCP, TLS and DTLS listeners
+// ListenerConfig is a single net.Listener to accept connections on.
+// This will be used for TCP, TLS and DTLS listeners.
 type ListenerConfig struct {
 	Listener net.Listener
 
@@ -93,18 +95,20 @@ func (c *ListenerConfig) validate() error {
 	return c.RelayAddressGenerator.Validate()
 }
 
-// AuthHandler is a callback used to handle incoming auth requests, allowing users to customize Pion TURN with custom behavior
+// AuthHandler is a callback used to handle incoming auth requests,
+// allowing users to customize Pion TURN with custom behavior.
 type AuthHandler func(username, realm string, srcAddr net.Addr) (key []byte, ok bool)
 
-// GenerateAuthKey is a convenience function to easily generate keys in the format used by AuthHandler
+// GenerateAuthKey is a convenience function to easily generate keys in the format used by AuthHandler.
 func GenerateAuthKey(username, realm, password string) []byte {
 	// #nosec
 	h := md5.New()
-	fmt.Fprint(h, strings.Join([]string{username, realm, password}, ":"))
+	fmt.Fprint(h, strings.Join([]string{username, realm, password}, ":")) // nolint: errcheck
+
 	return h.Sum(nil)
 }
 
-// ServerConfig configures the Pion TURN Server
+// ServerConfig configures the Pion TURN Server.
 type ServerConfig struct {
 	// PacketConnConfigs and ListenerConfigs are a list of all the turn listeners
 	// Each listener can have custom behavior around the creation of Relays
@@ -117,7 +121,8 @@ type ServerConfig struct {
 	// Realm sets the realm for this server
 	Realm string
 
-	// AuthHandler is a callback used to handle incoming auth requests, allowing users to customize Pion TURN with custom behavior
+	// AuthHandler is a callback used to handle incoming auth requests,
+	// allowing users to customize Pion TURN with custom behavior
 	AuthHandler AuthHandler
 
 	// ChannelBindTimeout sets the lifetime of channel binding. Defaults to 10 minutes.

@@ -41,6 +41,12 @@ linters-settings:
       - w io.Writer
       - r io.Reader
       - b []byte
+  revive:
+    rules:
+      # Prefer 'any' type alias over 'interface{}' for Go 1.18+ compatibility
+      - name: use-any
+        severity: warning
+        disabled: false
 
 linters:
   enable:

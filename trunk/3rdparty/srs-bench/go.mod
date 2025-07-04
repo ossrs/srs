@@ -1,6 +1,6 @@
 module github.com/ossrs/srs-bench
 
-go 1.21
+go 1.23.0
 
 require (
 	github.com/bluenviron/gortsplib/v4 v4.13.1
@@ -9,13 +9,13 @@ require (
 	github.com/haivision/srtgo v0.0.0-20230627061225-a70d53fcd618
 	github.com/ossrs/go-oryx-lib v0.0.9
 	github.com/pion/ice/v4 v4.0.10
-	github.com/pion/interceptor v0.1.37
-	github.com/pion/logging v0.2.3
+	github.com/pion/interceptor v0.1.40
+	github.com/pion/logging v0.2.4
 	github.com/pion/rtcp v1.2.15
-	github.com/pion/rtp v1.8.15
-	github.com/pion/sdp/v3 v3.0.11
+	github.com/pion/rtp v1.8.20
+	github.com/pion/sdp/v3 v3.0.14
 	github.com/pion/transport/v3 v3.0.7
-	github.com/pion/webrtc/v4 v4.1.1
+	github.com/pion/webrtc/v4 v4.1.3
 	github.com/pkg/errors v0.9.1
 	github.com/yapingcat/gomedia/codec v0.0.0-20220617074658-94762898dc25
 	github.com/yapingcat/gomedia/mpeg2 v0.0.0-20220617074658-94762898dc25
@@ -37,16 +37,16 @@ require (
 	github.com/pion/mdns/v2 v2.0.7 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
 	github.com/pion/sctp v1.8.39 // indirect
-	github.com/pion/srtp/v3 v3.0.4 // indirect
+	github.com/pion/srtp/v3 v3.0.6 // indirect
 	github.com/pion/stun/v3 v3.0.0 // indirect
-	github.com/pion/turn/v4 v4.0.0 // indirect
+	github.com/pion/turn/v4 v4.0.2 // indirect
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/tevino/abool v0.0.0-20170917061928-9b9efcf221b5 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
+	golang.org/x/crypto v0.39.0 // indirect
+	golang.org/x/net v0.41.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/term v0.32.0 // indirect
 )

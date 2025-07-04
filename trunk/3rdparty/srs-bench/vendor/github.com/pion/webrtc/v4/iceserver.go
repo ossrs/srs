@@ -18,7 +18,7 @@ import (
 type ICEServer struct {
 	URLs           []string          `json:"urls"`
 	Username       string            `json:"username,omitempty"`
-	Credential     interface{}       `json:"credential,omitempty"`
+	Credential     any               `json:"credential,omitempty"`
 	CredentialType ICECredentialType `json:"credentialType,omitempty"`
 }
 
@@ -74,8 +74,8 @@ func (s ICEServer) urls() ([]*stun.URI, error) { //nolint:cyclop
 	return urls, nil
 }
 
-func iceserverUnmarshalUrls(val interface{}) (*[]string, error) {
-	s, ok := val.([]interface{})
+func iceserverUnmarshalUrls(val any) (*[]string, error) {
+	s, ok := val.([]any)
 	if !ok {
 		return nil, errInvalidICEServer
 	}
@@ -90,8 +90,8 @@ func iceserverUnmarshalUrls(val interface{}) (*[]string, error) {
 	return &out, nil
 }
 
-func iceserverUnmarshalOauth(val interface{}) (*OAuthCredential, error) {
-	c, ok := val.(map[string]interface{})
+func iceserverUnmarshalOauth(val any) (*OAuthCredential, error) {
+	c, ok := val.(map[string]any)
 	if !ok {
 		return nil, errInvalidICEServer
 	}
@@ -110,7 +110,7 @@ func iceserverUnmarshalOauth(val interface{}) (*OAuthCredential, error) {
 	}, nil
 }
 
-func (s *ICEServer) iceserverUnmarshalFields(fields map[string]interface{}) error { //nolint:cyclop
+func (s *ICEServer) iceserverUnmarshalFields(fields map[string]any) error { //nolint:cyclop
 	if val, ok := fields["urls"]; ok {
 		u, err := iceserverUnmarshalUrls(val)
 		if err != nil {
@@ -160,12 +160,12 @@ func (s *ICEServer) iceserverUnmarshalFields(fields map[string]interface{}) erro
 
 // UnmarshalJSON parses the JSON-encoded data and stores the result.
 func (s *ICEServer) UnmarshalJSON(b []byte) error {
-	var tmp interface{}
+	var tmp any
 	err := json.Unmarshal(b, &tmp)
 	if err != nil {
 		return err
 	}
-	if m, ok := tmp.(map[string]interface{}); ok {
+	if m, ok := tmp.(map[string]any); ok {
 		return s.iceserverUnmarshalFields(m)
 	}
 
@@ -174,7 +174,7 @@ func (s *ICEServer) UnmarshalJSON(b []byte) error {
 
 // MarshalJSON returns the JSON encoding.
 func (s ICEServer) MarshalJSON() ([]byte, error) {
-	m := make(map[string]interface{})
+	m := make(map[string]any)
 	m["urls"] = s.URLs
 	if s.Username != "" {
 		m["username"] = s.Username

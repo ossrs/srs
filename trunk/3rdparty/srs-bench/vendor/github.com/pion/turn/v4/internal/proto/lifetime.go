@@ -12,7 +12,7 @@ import (
 
 // DefaultLifetime in RFC 5766 is 10 minutes.
 //
-// RFC 5766 Section 2.2
+// RFC 5766 Section 2.2.
 const DefaultLifetime = time.Minute * 10
 
 // Lifetime represents LIFETIME attribute.
@@ -23,12 +23,12 @@ const DefaultLifetime = time.Minute * 10
 // unsigned integral value representing the number of seconds remaining
 // until expiration.
 //
-// RFC 5766 Section 14.2
+// RFC 5766 Section 14.2.
 type Lifetime struct {
 	time.Duration
 }
 
-// Seconds in uint32
+// Seconds in uint32.
 const lifetimeSize = 4 // 4 bytes, 32 bits
 
 // AddTo adds LIFETIME to message.
@@ -36,6 +36,7 @@ func (l Lifetime) AddTo(m *stun.Message) error {
 	v := make([]byte, lifetimeSize)
 	binary.BigEndian.PutUint32(v, uint32(l.Seconds()))
 	m.Add(stun.AttrLifetime, v)
+
 	return nil
 }
 
@@ -51,5 +52,6 @@ func (l *Lifetime) GetFrom(m *stun.Message) error {
 	_ = v[lifetimeSize-1] // Asserting length
 	seconds := binary.BigEndian.Uint32(v)
 	l.Duration = time.Second * time.Duration(seconds)
+
 	return nil
 }

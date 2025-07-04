@@ -6,7 +6,7 @@ package srtp
 import "github.com/pion/rtp"
 
 // cipher represents a implementation of one
-// of the SRTP Specific ciphers
+// of the SRTP Specific ciphers.
 type srtpCipher interface {
 	// AuthTagRTPLen/AuthTagRTCPLen return auth key length of the cipher.
 	// See the note below.
@@ -16,12 +16,11 @@ type srtpCipher interface {
 	// See the note below.
 	AEADAuthTagLen() (int, error)
 	getRTCPIndex([]byte) uint32
-	getMKI([]byte, bool) []byte
 
-	encryptRTP([]byte, *rtp.Header, []byte, uint32) ([]byte, error)
+	encryptRTP([]byte, *rtp.Header, int, []byte, uint32, bool) ([]byte, error)
 	encryptRTCP([]byte, []byte, uint32, uint32) ([]byte, error)
 
-	decryptRTP([]byte, []byte, *rtp.Header, int, uint32) ([]byte, error)
+	decryptRTP([]byte, []byte, *rtp.Header, int, uint32, bool) ([]byte, error)
 	decryptRTCP([]byte, []byte, uint32, uint32) ([]byte, error)
 }
 

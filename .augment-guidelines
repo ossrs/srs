@@ -72,6 +72,25 @@ code_patterns:
     - pattern: "#ifdef SRS_VALGRIND"
       description: "Valgrind support"
 
+  codec_handling:
+    enhanced_rtmp:
+      description: |
+        For HEVC and other new codecs in RTMP/FLV protocols, always use enhanced-RTMP codec fourcc instead of legacy RTMP codec IDs.
+        Enhanced-RTMP provides better support for modern codecs and is the preferred approach.
+        NOTE: This guidance applies ONLY to RTMP/FLV protocols, not to other protocols like SRT/WebRTC/WHIP/WHEP/HLS/DASH/GB28181.
+
+      hevc_codec:
+        - pattern: "fourcc: hvc1"
+          description: "Use enhanced-RTMP fourcc 'hvc1' for HEVC codec identification in RTMP/FLV"
+          usage: "Always use fourcc 'hvc1' for HEVC instead of legacy RTMP codecid(12)"
+          rationale: "Enhanced-RTMP fourcc provides better codec identification and compatibility"
+
+      general_rule:
+        - "Do NOT use legacy RTMP codecid(12) for HEVC"
+        - "Always prefer enhanced-RTMP codec fourcc for new codecs"
+        - "Use fourcc format for codec identification in enhanced-RTMP contexts"
+        - "This applies ONLY to RTMP/FLV protocols - other protocols use their own codec identification methods"
+
 build_and_development:
   build:
     command: "make -j"

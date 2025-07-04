@@ -40,6 +40,7 @@ func aesCmKeyDerivation(label byte, masterKey, masterSalt []byte, indexOverKdr i
 		block.Encrypt(out[n:n+nBlockSize], prfIn)
 		i++
 	}
+
 	return out[:outLen], nil
 }
 
@@ -50,8 +51,12 @@ func aesCmKeyDerivation(label byte, masterKey, masterSalt []byte, indexOverKdr i
 // -       times the 16-bit RTP sequence number has been reset to zero after
 // -       passing through 65,535
 // i = 2^16 * ROC + SEQ
-// IV = (salt*2 ^ 16) | (ssrc*2 ^ 64) | (i*2 ^ 16)
-func generateCounter(sequenceNumber uint16, rolloverCounter uint32, ssrc uint32, sessionSalt []byte) (counter [16]byte) {
+// IV = (salt*2 ^ 16) | (ssrc*2 ^ 64) | (i*2 ^ 16).
+func generateCounter(
+	sequenceNumber uint16,
+	rolloverCounter uint32,
+	ssrc uint32, sessionSalt []byte,
+) (counter [16]byte) {
 	copy(counter[:], sessionSalt)
 
 	counter[4] ^= byte(ssrc >> 24)

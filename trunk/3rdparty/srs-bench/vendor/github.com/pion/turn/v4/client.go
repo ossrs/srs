@@ -49,7 +49,7 @@ type ClientConfig struct {
 	LoggerFactory  logging.LoggerFactory
 }
 
-// Client is a STUN server client
+// Client is a STUN server client.
 type Client struct {
 	conn           net.PacketConn // Read-only
 	net            transport.Net  // Read-only
@@ -72,7 +72,8 @@ type Client struct {
 	log           logging.LeveledLogger  // Read-only
 }
 
-// NewClient returns a new Client instance. listeningAddress is the address and port to listen on, default "0.0.0.0:0"
+// NewClient returns a new Client instance. listeningAddress is the address and port to listen on,
+// default "0.0.0.0:0".
 func NewClient(config *ClientConfig) (*Client, error) {
 	loggerFactory := config.LoggerFactory
 	if loggerFactory == nil {
@@ -119,7 +120,7 @@ func NewClient(config *ClientConfig) (*Client, error) {
 		log.Debugf("Resolved TURN server %s to %s", config.TURNServerAddr, turnServ)
 	}
 
-	c := &Client{
+	client := &Client{
 		conn:           config.Conn,
 		stunServerAddr: stunServ,
 		turnServerAddr: turnServ,
@@ -133,25 +134,25 @@ func NewClient(config *ClientConfig) (*Client, error) {
 		log:            log,
 	}
 
-	return c, nil
+	return client, nil
 }
 
-// TURNServerAddr return the TURN server address
+// TURNServerAddr return the TURN server address.
 func (c *Client) TURNServerAddr() net.Addr {
 	return c.turnServerAddr
 }
 
-// STUNServerAddr return the STUN server address
+// STUNServerAddr return the STUN server address.
 func (c *Client) STUNServerAddr() net.Addr {
 	return c.stunServerAddr
 }
 
-// Username returns username
+// Username returns username.
 func (c *Client) Username() stun.Username {
 	return c.username
 }
 
-// Realm return realm
+// Realm return realm.
 func (c *Client) Realm() stun.Realm {
 	return c.realm
 }
@@ -175,12 +176,14 @@ func (c *Client) Listen() error {
 			n, from, err := c.conn.ReadFrom(buf)
 			if err != nil {
 				c.log.Debugf("Failed to read: %s. Exiting loop", err)
+
 				break
 			}
 
 			_, err = c.HandleInbound(buf[:n], from)
 			if err != nil {
 				c.log.Debugf("Failed to handle inbound message: %s. Exiting loop", err)
+
 				break
 			}
 		}
@@ -191,7 +194,7 @@ func (c *Client) Listen() error {
 	return nil
 }
 
-// Close closes this client
+// Close closes this client.
 func (c *Client) Close() {
 	c.mutexTrMap.Lock()
 	defer c.mutexTrMap.Unlock()
@@ -201,7 +204,7 @@ func (c *Client) Close() {
 
 // TransactionID & Base64: https://play.golang.org/p/EEgmJDI971P
 
-// SendBindingRequestTo sends a new STUN request to the given transport address
+// SendBindingRequestTo sends a new STUN request to the given transport address.
 func (c *Client) SendBindingRequestTo(to net.Addr) (net.Addr, error) {
 	attrs := []stun.Setter{stun.TransactionID, stun.BindingRequest}
 	if len(c.software) > 0 {
@@ -228,15 +231,21 @@ func (c *Client) SendBindingRequestTo(to net.Addr) (net.Addr, error) {
 	}, nil
 }
 
-// SendBindingRequest sends a new STUN request to the STUN server
+// SendBindingRequest sends a new STUN request to the STUN server.
 func (c *Client) SendBindingRequest() (net.Addr, error) {
 	if c.stunServerAddr == nil {
 		return nil, errSTUNServerAddressNotSet
 	}
+
 	return c.SendBindingRequestTo(c.stunServerAddr)
 }
 
-func (c *Client) sendAllocateRequest(protocol proto.Protocol) (proto.RelayedAddress, proto.Lifetime, stun.Nonce, error) {
+func (c *Client) sendAllocateRequest(protocol proto.Protocol) ( //nolint:cyclop
+	proto.RelayedAddress,
+	proto.Lifetime,
+	stun.Nonce,
+	error,
+) {
 	var relayed proto.RelayedAddress
 	var lifetime proto.Lifetime
 	var nonce stun.Nonce
@@ -295,6 +304,7 @@ func (c *Client) sendAllocateRequest(protocol proto.Protocol) (proto.RelayedAddr
 		if err = code.GetFrom(res); err == nil {
 			return relayed, lifetime, nonce, fmt.Errorf("%s (error %s)", res.Type, code) //nolint:goerr113
 		}
+
 		return relayed, lifetime, nonce, fmt.Errorf("%s", res.Type) //nolint:goerr113
 	}
 
@@ -307,10 +317,11 @@ func (c *Client) sendAllocateRequest(protocol proto.Protocol) (proto.RelayedAddr
 	if err := lifetime.GetFrom(res); err != nil {
 		return relayed, lifetime, nonce, err
 	}
+
 	return relayed, lifetime, nonce, nil
 }
 
-// Allocate sends a TURN allocation request to the given transport address
+// Allocate sends a TURN allocation request to the given transport address.
 func (c *Client) Allocate() (net.PacketConn, error) {
 	if err := c.allocTryLock.Lock(); err != nil {
 		return nil, fmt.Errorf("%w: %s", errOneAllocateOnly, err.Error())
@@ -403,10 +414,11 @@ func (c *Client) CreatePermission(addrs ...net.Addr) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
-// PerformTransaction performs STUN transaction
+// PerformTransaction performs STUN transaction.
 func (c *Client) PerformTransaction(msg *stun.Message, to net.Addr, ignoreResult bool) (client.TransactionResult,
 	error,
 ) {
@@ -442,11 +454,12 @@ func (c *Client) PerformTransaction(msg *stun.Message, to net.Addr, ignoreResult
 	if res.Err != nil {
 		return res, res.Err
 	}
+
 	return res, nil
 }
 
 // OnDeallocated is called when de-allocation of relay address has been complete.
-// (Called by UDPConn)
+// (Called by UDPConn).
 func (c *Client) OnDeallocated(net.Addr) {
 	c.setRelayedUDPConn(nil)
 	c.setTCPAllocation(nil)
@@ -494,7 +507,7 @@ func (c *Client) HandleInbound(data []byte, from net.Addr) (bool, error) {
 	return false, nil
 }
 
-func (c *Client) handleSTUNMessage(data []byte, from net.Addr) error {
+func (c *Client) handleSTUNMessage(data []byte, from net.Addr) error { //nolint:cyclop
 	raw := make([]byte, len(data))
 	copy(raw, data)
 
@@ -507,7 +520,7 @@ func (c *Client) handleSTUNMessage(data []byte, from net.Addr) error {
 		return fmt.Errorf("%w : %s", errUnexpectedSTUNRequestMessage, msg.String())
 	}
 
-	if msg.Type.Class == stun.ClassIndication {
+	if msg.Type.Class == stun.ClassIndication { // nolint:nestif
 		switch msg.Type.Method {
 		case stun.MethodData:
 			var peerAddr proto.PeerAddress
@@ -529,6 +542,7 @@ func (c *Client) handleSTUNMessage(data []byte, from net.Addr) error {
 			relayedConn := c.relayedUDPConn()
 			if relayedConn == nil {
 				c.log.Debug("No relayed conn allocated")
+
 				return nil // Silently discard
 			}
 			relayedConn.HandleInbound(data, from)
@@ -553,6 +567,7 @@ func (c *Client) handleSTUNMessage(data []byte, from net.Addr) error {
 			allocation := c.getTCPAllocation()
 			if allocation == nil {
 				c.log.Debug("No TCP allocation exists")
+
 				return nil // Silently discard
 			}
 
@@ -560,6 +575,7 @@ func (c *Client) handleSTUNMessage(data []byte, from net.Addr) error {
 		default:
 			c.log.Debug("Received unsupported STUN method")
 		}
+
 		return nil
 	}
 
@@ -576,6 +592,7 @@ func (c *Client) handleSTUNMessage(data []byte, from net.Addr) error {
 		c.mutexTrMap.Unlock()
 		// Silently discard
 		c.log.Debugf("No transaction for %s", msg)
+
 		return nil
 	}
 
@@ -607,6 +624,7 @@ func (c *Client) handleChannelData(data []byte) error {
 	relayedConn := c.relayedUDPConn()
 	if relayedConn == nil {
 		c.log.Debug("No relayed conn allocated")
+
 		return nil // Silently discard
 	}
 
@@ -618,6 +636,7 @@ func (c *Client) handleChannelData(data []byte) error {
 	c.log.Tracef("Channel data received from %s (ch=%d)", addr.String(), int(chData.Number))
 
 	relayedConn.HandleInbound(chData.Data, addr)
+
 	return nil
 }
 
@@ -638,11 +657,12 @@ func (c *Client) onRtxTimeout(trKey string, nRtx int) {
 		}) {
 			c.log.Debug("No listener for transaction")
 		}
+
 		return
 	}
 
 	c.log.Tracef("Retransmitting transaction %s to %s (nRtx=%d)",
-		trKey, tr.To.String(), nRtx)
+		trKey, tr.To, nRtx)
 	_, err := c.conn.WriteTo(tr.Raw, tr.To)
 	if err != nil {
 		c.trMap.Delete(trKey)
@@ -651,6 +671,7 @@ func (c *Client) onRtxTimeout(trKey string, nRtx int) {
 		}) {
 			c.log.Debug("No listener for transaction")
 		}
+
 		return
 	}
 	tr.StartRtxTimer(c.onRtxTimeout)

@@ -19,7 +19,7 @@ const (
 
 var errInvalidType = errors.New("found value of invalid type in attributes map")
 
-// Attributes are a generic key/value store used by interceptors
+// Attributes are a generic key/value store used by interceptors.
 type Attributes map[interface{}]interface{}
 
 // Get returns the attribute associated with key.
@@ -39,6 +39,7 @@ func (a Attributes) GetRTPHeader(raw []byte) (*rtp.Header, error) {
 		if header, ok := val.(*rtp.Header); ok {
 			return header, nil
 		}
+
 		return nil, errInvalidType
 	}
 	header := &rtp.Header{}
@@ -46,6 +47,7 @@ func (a Attributes) GetRTPHeader(raw []byte) (*rtp.Header, error) {
 		return nil, err
 	}
 	a[rtpHeaderKey] = header
+
 	return header, nil
 }
 
@@ -57,6 +59,7 @@ func (a Attributes) GetRTCPPackets(raw []byte) ([]rtcp.Packet, error) {
 		if packets, ok := val.([]rtcp.Packet); ok {
 			return packets, nil
 		}
+
 		return nil, errInvalidType
 	}
 	pkts, err := rtcp.Unmarshal(raw)
@@ -64,5 +67,6 @@ func (a Attributes) GetRTCPPackets(raw []byte) ([]rtcp.Packet, error) {
 		return nil, err
 	}
 	a[rtcpPacketsKey] = pkts
+
 	return pkts, nil
 }

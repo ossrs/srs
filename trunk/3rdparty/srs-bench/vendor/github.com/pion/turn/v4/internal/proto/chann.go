@@ -15,7 +15,7 @@ import (
 //
 // The CHANNEL-NUMBER attribute contains the number of the channel.
 //
-// RFC 5766 Section 14.1
+// RFC 5766 Section 14.1.
 type ChannelNumber uint16 // Encoded as uint16
 
 func (n ChannelNumber) String() string { return strconv.Itoa(int(n)) }
@@ -29,6 +29,7 @@ func (n ChannelNumber) AddTo(m *stun.Message) error {
 	binary.BigEndian.PutUint16(v[:2], uint16(n))
 	// v[2:4] are zeroes (RFFU = 0)
 	m.Add(stun.AttrChannelNumber, v)
+
 	return nil
 }
 

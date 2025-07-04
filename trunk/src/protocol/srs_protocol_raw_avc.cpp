@@ -261,8 +261,6 @@ srs_error_t SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_
     return err;
 }
 
-#ifdef SRS_H265
-
 SrsRawHEVCStream::SrsRawHEVCStream()
 {
 }
@@ -615,8 +613,6 @@ srs_error_t SrsRawHEVCStream::mux_avc2flv_enhanced(std::string video, int8_t fra
 
     return err;
 }
-
-#endif
 
 SrsRawAacStream::SrsRawAacStream()
 {

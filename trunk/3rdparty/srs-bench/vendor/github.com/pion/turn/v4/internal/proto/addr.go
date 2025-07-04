@@ -28,6 +28,7 @@ func (a Addr) Equal(b Addr) bool {
 	if a.Port != b.Port {
 		return false
 	}
+
 	return a.IP.Equal(b.IP)
 }
 
@@ -64,5 +65,6 @@ func (t FiveTuple) Equal(b FiveTuple) bool {
 	if !t.Server.Equal(b.Server) {
 		return false
 	}
+
 	return true
 }

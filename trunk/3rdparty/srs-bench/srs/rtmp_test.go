@@ -104,7 +104,7 @@ func TestRtmpPublishPlay(t *testing.T) {
 	}
 }
 
-func TestRtmpPublish_RtcPlay(t *testing.T) {
+func TestRtmpPublish_RtcPlay_AVC(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
 
@@ -121,10 +121,11 @@ func TestRtmpPublish_RtcPlay(t *testing.T) {
 			return err
 		}
 
-		// Setup the RTC player.
+		// Setup the RTC player with AVC codec support.
 		var thePlayer *testPlayer
 		if thePlayer, err = newTestPlayer(registerMiniCodecs, func(play *testPlayer) error {
 			play.streamSuffix = streamSuffix
+			play.streamCodec = "h264"
 			var nnPlayReadRTP uint64
 			return play.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
 				api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
@@ -312,7 +313,7 @@ func TestRtmpPublish_MultipleSequences(t *testing.T) {
 				}
 
 				// Ingore the duplicated sps/pps.
-				if IsAvccrEquals(previousAvccr, avccr) {
+				if isAvccrEquals(previousAvccr, avccr) {
 					return nil
 				}
 				previousAvccr = avccr
@@ -394,7 +395,7 @@ func TestRtmpPublish_MultipleSequences_RtcPlay(t *testing.T) {
 							return nn, attr, err
 						}
 
-						annexb, nalus, err := DemuxRtpSpsPps(payload[:nn])
+						annexb, nalus, err := demuxRtpSpsPps(payload[:nn])
 						if err != nil || len(nalus) == 0 ||
 							(nalus[0].NALUType != avc.NALUTypeSPS && nalus[0].NALUType != avc.NALUTypePPS) ||
 							bytes.Equal(annexb, previousSpsPps) {
@@ -710,6 +711,98 @@ func TestRtmpPublish_HttpFlvPlayNoVideo(t *testing.T) {
 			if r0 = publisher.Ingest(ctx, *srsPublishAvatar); r0 != nil {
 				cancel()
 			}
+		}()
+
+		return nil
+	}()
+	if err := filterTestError(ctx.Err(), err, r0, r1); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+// TestRtmpPublish_RtcPlay_HEVC tests HEVC support in RTMP to RTC pipeline (PR 4289)
+// This test publishes H.265 video via RTMP and plays it back via WebRTC with codec=hevc
+func TestRtmpPublish_RtcPlay_HEVC(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	var r0, r1 error
+	err := func() (err error) {
+		streamSuffix := fmt.Sprintf("rtmp-hevc-regression-%v-%v", os.Getpid(), rand.Int())
+		rtmpUrl := fmt.Sprintf("%v://%v%v-%v", srsSchema, *srsServer, *srsStream, streamSuffix)
+
+		// Publisher connect to a RTMP stream.
+		publisher := NewRTMPPublisher()
+		defer publisher.Close()
+
+		if err := publisher.Publish(ctx, rtmpUrl); err != nil {
+			return err
+		}
+
+		// Setup the RTC player with HEVC codec support.
+		var thePlayer *testPlayer
+		if thePlayer, err = newTestPlayer(registerHEVCCodecs, func(play *testPlayer) error {
+			play.streamSuffix = streamSuffix
+			play.streamCodec = "hevc"
+			var nnPlayReadRTP uint64
+			return play.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+				api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
+					i.rtpReader = func(payload []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+						nn, attr, err := i.nextRTPReader.Read(payload, attributes)
+						if err != nil {
+							return nn, attr, err
+						}
+
+						if nnPlayReadRTP++; nnPlayReadRTP >= uint64(*srsPlayOKPackets) {
+							cancel() // Completed.
+						}
+						logger.Tf(ctx, "Play RECV RTP #%v %vB", nnPlayReadRTP, nn)
+						return nn, attr, err
+					}
+				}))
+			})
+		}); err != nil {
+			return err
+		}
+		defer thePlayer.Close()
+
+		// Run publisher and players.
+		var wg sync.WaitGroup
+		defer wg.Wait()
+
+		var playerIceReady context.Context
+		playerIceReady, thePlayer.iceReadyCancel = context.WithCancel(ctx)
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if r1 = thePlayer.Run(logger.WithContext(ctx), cancel); r1 != nil {
+				cancel()
+			}
+			logger.Tf(ctx, "player done")
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Wait for player ready.
+			select {
+			case <-ctx.Done():
+				return
+			case <-playerIceReady.Done():
+			}
+
+			publisher.onSendPacket = func(m *rtmp.Message) error {
+				time.Sleep(100 * time.Microsecond)
+				return nil
+			}
+			// Use H.265 file directly without ffmpeg transcoding, implementing new h265 demuxer
+			// in RTMPPublisher using pion pkg/media/h265reader with enhanced-RTMP fourcc 'hvc1'
+			if r0 = publisher.Ingest(ctx, *srsPublishVideoH265); r0 != nil {
+				cancel()
+			}
+			logger.Tf(ctx, "publisher done")
 		}()
 
 		return nil

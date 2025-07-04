@@ -1571,11 +1571,9 @@ SrsGbMuxer::SrsGbMuxer(SrsGbSession* session)
     h264_pps_changed_ = false;
     h264_sps_pps_sent_ = false;
 
-#ifdef SRS_H265
     hevc_ = new SrsRawHEVCStream();
     vps_sps_pps_sent_ = false;
     vps_sps_pps_change_ = false;
-#endif
 
     aac_ = new SrsRawAacStream();
 
@@ -1588,9 +1586,7 @@ SrsGbMuxer::~SrsGbMuxer()
     close();
 
     srs_freep(avc_);
-#ifdef SRS_H265
     srs_freep(hevc_);
-#endif
     srs_freep(aac_);
     srs_freep(queue_);
     srs_freep(pprint_);
@@ -1635,12 +1631,10 @@ srs_error_t SrsGbMuxer::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
         if ((err = mux_h264(msg, avs)) != srs_success){
             return srs_error_wrap(err, "mux h264");
         }
-#ifdef SRS_H265
     } else if (h->ctx_->video_stream_type_ == SrsTsStreamVideoHEVC) {
         if ((err = mux_h265(msg, avs)) != srs_success){
             return srs_error_wrap(err, "mux hevc");
         }
-#endif
     } else {
         return srs_error_new(ERROR_STREAM_CASTER_TS_CODEC, "ts: unsupported stream codec=%d", h->ctx_->video_stream_type_);
     }
@@ -1810,7 +1804,6 @@ srs_error_t SrsGbMuxer::write_h264_ipb_frame(char* frame, int frame_size, uint32
     return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
 
-#ifdef SRS_H265
 srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
@@ -1986,7 +1979,6 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(char* frame, int frame_size, uint32
 
     return err;
 }
-#endif
 
 srs_error_t SrsGbMuxer::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
@@ -2603,12 +2595,6 @@ srs_error_t SrsRecoverablePsContext::decode(SrsBuffer* stream, ISrsPsMessageHand
     if ((err = ctx_.decode(stream, handler)) != srs_success) {
         return enter_recover_mode(stream, handler, stream->pos(), srs_error_wrap(err, "decode pack"));
     }
-#ifndef SRS_H265
-    // Check stream type, error if HEVC, because not supported yet.
-    if (ctx_.video_stream_type_ == SrsTsStreamVideoHEVC) {
-        return srs_error_new(ERROR_GB_PS_HEADER, "HEVC is not supported");
-    }
-#endif
     return err;
 }
 

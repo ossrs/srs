@@ -22,7 +22,7 @@ type Permission struct {
 	log           logging.LeveledLogger
 }
 
-// NewPermission create a new Permission
+// NewPermission create a new Permission.
 func NewPermission(addr net.Addr, log logging.LeveledLogger) *Permission {
 	return &Permission{
 		Addr: addr,

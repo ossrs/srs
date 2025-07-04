@@ -6,6 +6,7 @@ package rfc8888
 import (
 	"time"
 
+	"github.com/pion/interceptor/internal/sequencenumber"
 	"github.com/pion/rtcp"
 )
 
@@ -13,7 +14,7 @@ const maxReportsPerReportBlock = 16384
 
 type streamLog struct {
 	ssrc                       uint32
-	sequence                   unwrapper
+	sequence                   sequencenumber.Unwrapper
 	init                       bool
 	nextSequenceNumberToReport int64 // next to report
 	lastSequenceNumberReceived int64 // highest received
@@ -23,7 +24,7 @@ type streamLog struct {
 func newStreamLog(ssrc uint32) *streamLog {
 	return &streamLog{
 		ssrc:                       ssrc,
-		sequence:                   unwrapper{},
+		sequence:                   sequencenumber.Unwrapper{},
 		init:                       false,
 		nextSequenceNumberToReport: 0,
 		lastSequenceNumberReceived: 0,
@@ -32,7 +33,7 @@ func newStreamLog(ssrc uint32) *streamLog {
 }
 
 func (l *streamLog) add(ts time.Time, sequenceNumber uint16, ecn uint8) {
-	unwrappedSequenceNumber := l.sequence.unwrap(sequenceNumber)
+	unwrappedSequenceNumber := l.sequence.Unwrap(sequenceNumber)
 	if !l.init {
 		l.init = true
 		l.nextSequenceNumberToReport = unwrappedSequenceNumber
@@ -52,7 +53,7 @@ func (l *streamLog) metricsAfter(reference time.Time, maxReportBlocks int64) rtc
 	if len(l.log) == 0 {
 		return rtcp.CCFeedbackReportBlock{
 			MediaSSRC:     l.ssrc,
-			BeginSequence: uint16(l.nextSequenceNumberToReport),
+			BeginSequence: uint16(l.nextSequenceNumberToReport), //nolint:gosec // G115
 			MetricBlocks:  []rtcp.CCFeedbackMetricBlock{},
 		}
 	}
@@ -65,7 +66,7 @@ func (l *streamLog) metricsAfter(reference time.Time, maxReportBlocks int64) rtc
 	offset := l.nextSequenceNumberToReport
 	lastReceived := l.nextSequenceNumberToReport
 	gapDetected := false
-	for i := offset; i <= l.lastSequenceNumberReceived; i++ {
+	for i := offset; i <= l.lastSequenceNumberReceived; i++ { //nolint:varnamelen // i int64
 		received := false
 		ecn := uint8(0)
 		ato := uint16(0)
@@ -91,9 +92,10 @@ func (l *streamLog) metricsAfter(reference time.Time, maxReportBlocks int64) rtc
 			}
 		}
 	}
+
 	return rtcp.CCFeedbackReportBlock{
 		MediaSSRC:     l.ssrc,
-		BeginSequence: uint16(offset),
+		BeginSequence: uint16(offset), //nolint:gosec // G115
 		MetricBlocks:  metricBlocks,
 	}
 }
@@ -106,5 +108,6 @@ func getArrivalTimeOffset(base time.Time, arrival time.Time) uint16 {
 	if ato > 0x1FFD {
 		return 0x1FFE
 	}
+
 	return ato
 }

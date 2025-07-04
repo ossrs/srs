@@ -165,9 +165,6 @@ func (p *packetizer) GeneratePadding(samples uint32) []*Packet {
 	packets := make([]*Packet, samples)
 
 	for i := 0; i < int(samples); i++ {
-		pp := make([]byte, 255)
-		pp[254] = 255
-
 		packets[i] = &Packet{
 			Header: Header{
 				Version:        2,
@@ -179,8 +176,8 @@ func (p *packetizer) GeneratePadding(samples uint32) []*Packet {
 				Timestamp:      p.Timestamp, // Use latest timestamp
 				SSRC:           p.SSRC,
 				CSRC:           []uint32{},
+				PaddingSize:    255,
 			},
-			Payload: pp,
 		}
 	}
 

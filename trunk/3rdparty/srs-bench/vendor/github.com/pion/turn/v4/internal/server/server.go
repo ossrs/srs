@@ -15,7 +15,7 @@ import (
 	"github.com/pion/turn/v4/internal/proto"
 )
 
-// Request contains all the state needed to process a single incoming datagram
+// Request contains all the state needed to process a single incoming datagram.
 type Request struct {
 	// Current Request State
 	Conn    net.PacketConn
@@ -33,7 +33,7 @@ type Request struct {
 	ChannelBindTimeout time.Duration
 }
 
-// HandleRequest processes the give Request
+// HandleRequest processes the give Request.
 func HandleRequest(r Request) error {
 	r.Log.Debugf("Received %d bytes of udp from %s on %s", len(r.Buff), r.SrcAddr, r.Conn.LocalAddr())
 
@@ -44,42 +44,62 @@ func HandleRequest(r Request) error {
 	return handleTURNPacket(r)
 }
 
-func handleDataPacket(r Request) error {
-	r.Log.Debugf("Received DataPacket from %s", r.SrcAddr.String())
-	c := proto.ChannelData{Raw: r.Buff}
+func handleDataPacket(req Request) error {
+	req.Log.Debugf("Received DataPacket from %s", req.SrcAddr.String())
+	c := proto.ChannelData{Raw: req.Buff}
 	if err := c.Decode(); err != nil {
 		return fmt.Errorf("%w: %v", errFailedToCreateChannelData, err) //nolint:errorlint
 	}
 
-	err := handleChannelData(r, &c)
+	err := handleChannelData(req, &c)
 	if err != nil {
-		err = fmt.Errorf("%w from %v: %v", errUnableToHandleChannelData, r.SrcAddr, err) //nolint:errorlint
+		err = fmt.Errorf("%w from %v: %v", errUnableToHandleChannelData, req.SrcAddr, err) //nolint:errorlint
 	}
 
 	return err
 }
 
-func handleTURNPacket(r Request) error {
-	r.Log.Debug("Handling TURN packet")
-	m := &stun.Message{Raw: append([]byte{}, r.Buff...)}
-	if err := m.Decode(); err != nil {
-		return fmt.Errorf("%w: %v", errFailedToCreateSTUNPacket, err) //nolint:errorlint
+func handleTURNPacket(req Request) error {
+	req.Log.Debug("Handling TURN packet")
+	stunMsg := &stun.Message{Raw: append([]byte{}, req.Buff...)}
+	if err := stunMsg.Decode(); err != nil {
+		// nolint:errorlint
+		return fmt.Errorf("%w: %v", errFailedToCreateSTUNPacket, err)
 	}
 
-	h, err := getMessageHandler(m.Type.Class, m.Type.Method)
+	handler, err := getMessageHandler(stunMsg.Type.Class, stunMsg.Type.Method)
 	if err != nil {
-		return fmt.Errorf("%w %v-%v from %v: %v", errUnhandledSTUNPacket, m.Type.Method, m.Type.Class, r.SrcAddr, err) //nolint:errorlint
+		// nolint:errorlint
+		return fmt.Errorf(
+			"%w %v-%v from %v: %v",
+			errUnhandledSTUNPacket,
+			stunMsg.Type.Method,
+			stunMsg.Type.Class,
+			req.SrcAddr,
+			err,
+		)
 	}
 
-	err = h(r, m)
+	err = handler(req, stunMsg)
 	if err != nil {
-		return fmt.Errorf("%w %v-%v from %v: %v", errFailedToHandle, m.Type.Method, m.Type.Class, r.SrcAddr, err) //nolint:errorlint
+		// nolint:errorlint
+		return fmt.Errorf(
+			"%w %v-%v from %v: %v",
+			errFailedToHandle,
+			stunMsg.Type.Method,
+			stunMsg.Type.Class,
+			req.SrcAddr,
+			err,
+		)
 	}
 
 	return nil
 }
 
-func getMessageHandler(class stun.MessageClass, method stun.Method) (func(r Request, m *stun.Message) error, error) {
+func getMessageHandler(class stun.MessageClass, method stun.Method) ( // nolint:cyclop
+	func(req Request, stunMsg *stun.Message) error,
+	error,
+) {
 	switch class {
 	case stun.ClassIndication:
 		switch method {

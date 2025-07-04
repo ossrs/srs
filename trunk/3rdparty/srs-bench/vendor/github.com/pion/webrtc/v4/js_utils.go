@@ -19,7 +19,7 @@ func awaitPromise(promise js.Value) (js.Value, error) {
 	resultsChan := make(chan js.Value)
 	errChan := make(chan js.Error)
 
-	thenFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	thenFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		go func() {
 			resultsChan <- args[0]
 		}()
@@ -27,7 +27,7 @@ func awaitPromise(promise js.Value) (js.Value, error) {
 	})
 	defer thenFunc.Release()
 
-	catchFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	catchFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		go func() {
 			errChan <- js.Error{args[0]}
 		}()
@@ -75,7 +75,7 @@ func uint8ToValueOrUndefined(val uint8) js.Value {
 	return js.ValueOf(val)
 }
 
-func interfaceToValueOrUndefined(val interface{}) js.Value {
+func interfaceToValueOrUndefined(val any) js.Value {
 	if val == nil {
 		return js.Undefined()
 	}
@@ -140,7 +140,7 @@ func boolPointerToValue(val *bool) js.Value {
 }
 
 func stringsToValue(strings []string) js.Value {
-	val := make([]interface{}, len(strings))
+	val := make([]any, len(strings))
 	for i, s := range strings {
 		val[i] = s
 	}
@@ -155,7 +155,7 @@ func stringEnumToValueOrUndefined(s string) js.Value {
 }
 
 // Converts the return value of recover() to an error.
-func recoveryToError(e interface{}) error {
+func recoveryToError(e any) error {
 	switch e := e.(type) {
 	case error:
 		return e

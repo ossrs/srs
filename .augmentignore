@@ -19,7 +19,6 @@
 **/*.ts
 
 # 3rd party libraries
-**/vendor/**
 **/3rdparty/ffmpeg-4-fit/**
 **/3rdparty/gperftools-2-fit/**
 **/3rdparty/gprof/**
@@ -32,6 +31,7 @@
 **/3rdparty/srt-1-fit/**
 
 # Research files.
+**/tools/**
 **/research/**
 
 # Other files.

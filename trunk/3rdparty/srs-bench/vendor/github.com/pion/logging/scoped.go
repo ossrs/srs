@@ -58,15 +58,15 @@ const (
 // LeveledLogger is the basic pion Logger interface.
 type LeveledLogger interface {
 	Trace(msg string)
-	Tracef(format string, args ...interface{})
+	Tracef(format string, args ...any)
 	Debug(msg string)
-	Debugf(format string, args ...interface{})
+	Debugf(format string, args ...any)
 	Info(msg string)
-	Infof(format string, args ...interface{})
+	Infof(format string, args ...any)
 	Warn(msg string)
-	Warnf(format string, args ...interface{})
+	Warnf(format string, args ...any)
 	Error(msg string)
-	Errorf(format string, args ...interface{})
+	Errorf(format string, args ...any)
 }
 
 // LoggerFactory is the basic pion LoggerFactory interface.

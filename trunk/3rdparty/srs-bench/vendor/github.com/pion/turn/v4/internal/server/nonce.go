@@ -19,7 +19,7 @@ const (
 	nonceKeyLength = 64
 )
 
-// NewNonceHash creates a NonceHash
+// NewNonceHash creates a NonceHash.
 func NewNonceHash() (*NonceHash, error) {
 	key := make([]byte, nonceKeyLength)
 	if _, err := rand.Read(key); err != nil {
@@ -29,15 +29,15 @@ func NewNonceHash() (*NonceHash, error) {
 	return &NonceHash{key}, nil
 }
 
-// NonceHash is used to create and verify nonces
+// NonceHash is used to create and verify nonces.
 type NonceHash struct {
 	key []byte
 }
 
-// Generate a nonce
+// Generate a nonce.
 func (n *NonceHash) Generate() (string, error) {
 	nonce := make([]byte, 8, nonceLength)
-	binary.BigEndian.PutUint64(nonce, uint64(time.Now().UnixMilli()))
+	binary.BigEndian.PutUint64(nonce, uint64(time.Now().UnixMilli())) // nolint:gosec // G115
 
 	hash := hmac.New(sha256.New, n.key)
 	if _, err := hash.Write(nonce[:8]); err != nil {
@@ -48,14 +48,14 @@ func (n *NonceHash) Generate() (string, error) {
 	return hex.EncodeToString(nonce), nil
 }
 
-// Validate checks that nonce is signed and is not expired
+// Validate checks that nonce is signed and is not expired.
 func (n *NonceHash) Validate(nonce string) error {
 	b, err := hex.DecodeString(nonce)
 	if err != nil || len(b) != nonceLength {
 		return fmt.Errorf("%w: %v", errInvalidNonce, err) //nolint:errorlint
 	}
 
-	if ts := time.UnixMilli(int64(binary.BigEndian.Uint64(b))); time.Since(ts) > nonceLifetime {
+	if ts := time.UnixMilli(int64(binary.BigEndian.Uint64(b))); time.Since(ts) > nonceLifetime { // nolint:gosec // G115
 		return errInvalidNonce
 	}
 

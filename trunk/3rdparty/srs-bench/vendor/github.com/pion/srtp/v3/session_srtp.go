@@ -17,7 +17,7 @@ const defaultSessionSRTPReplayProtectionWindow = 64
 // SessionSRTP implements io.ReadWriteCloser and provides a bi-directional SRTP session
 // SRTP itself does not have a design like this, but it is common in most applications
 // for local/remote to each have their own keying material. This provides those patterns
-// instead of making everyone re-implement
+// instead of making everyone re-implement.
 type SessionSRTP struct {
 	session
 	writeStream *WriteStreamSRTP
@@ -48,7 +48,7 @@ func NewSessionSRTP(conn net.Conn, config *Config) (*SessionSRTP, error) { //nol
 		config.RemoteOptions...,
 	)
 
-	s := &SessionSRTP{
+	srtpSession := &SessionSRTP{
 		session: session{
 			nextConn:            conn,
 			localOptions:        localOpts,
@@ -62,27 +62,28 @@ func NewSessionSRTP(conn net.Conn, config *Config) (*SessionSRTP, error) { //nol
 			log:                 loggerFactory.NewLogger("srtp"),
 		},
 	}
-	s.writeStream = &WriteStreamSRTP{s}
+	srtpSession.writeStream = &WriteStreamSRTP{srtpSession}
 
-	err := s.session.start(
+	err := srtpSession.session.start(
 		config.Keys.LocalMasterKey, config.Keys.LocalMasterSalt,
 		config.Keys.RemoteMasterKey, config.Keys.RemoteMasterSalt,
 		config.Profile,
-		s,
+		srtpSession,
 	)
 	if err != nil {
 		return nil, err
 	}
-	return s, nil
+
+	return srtpSession, nil
 }
 
-// OpenWriteStream returns the global write stream for the Session
+// OpenWriteStream returns the global write stream for the Session.
 func (s *SessionSRTP) OpenWriteStream() (*WriteStreamSRTP, error) {
 	return s.writeStream, nil
 }
 
 // OpenReadStream opens a read stream for the given SSRC, it can be used
-// if you want a certain SSRC, but don't want to wait for AcceptStream
+// if you want a certain SSRC, but don't want to wait for AcceptStream.
 func (s *SessionSRTP) OpenReadStream(ssrc uint32) (*ReadStreamSRTP, error) {
 	r, _ := s.session.getOrCreateReadStream(ssrc, s, newReadStreamSRTP)
 
@@ -93,7 +94,7 @@ func (s *SessionSRTP) OpenReadStream(ssrc uint32) (*ReadStreamSRTP, error) {
 	return nil, errFailedTypeAssertion
 }
 
-// AcceptStream returns a stream to handle RTCP for a single SSRC
+// AcceptStream returns a stream to handle RTCP for a single SSRC.
 func (s *SessionSRTP) AcceptStream() (*ReadStreamSRTP, uint32, error) {
 	stream, ok := <-s.newStream
 	if !ok {
@@ -108,7 +109,7 @@ func (s *SessionSRTP) AcceptStream() (*ReadStreamSRTP, uint32, error) {
 	return readStream, stream.GetSSRC(), nil
 }
 
-// Close ends the session
+// Close ends the session.
 func (s *SessionSRTP) Close() error {
 	return s.session.close()
 }
@@ -149,8 +150,20 @@ func (s *SessionSRTP) writeRTP(header *rtp.Header, payload []byte) (int, error) 
 	ibuf := bufferpool.Get()
 	defer bufferpool.Put(ibuf)
 
+	buf := ibuf.([]byte)                                                      // nolint:forcetypeassert
+	headerLen, marshalSize := rtp.HeaderAndPacketMarshalSize(header, payload) // nolint:staticcheck
+	if len(buf) < marshalSize+20 {
+		// The buffer is too small, so we need to allocate a new one. Add 20 bytes for auth tag like
+		// for bufferpool above.
+		buf = make([]byte, marshalSize+20)
+	}
+	_, err := rtp.MarshalPacketTo(buf, header, payload) // nolint:staticcheck
+	if err != nil {
+		return 0, err
+	}
+
 	s.session.localContextMutex.Lock()
-	encrypted, err := s.localContext.encryptRTP(ibuf.([]byte), header, payload)
+	encrypted, err := s.localContext.encryptRTP(buf, header, headerLen, buf[:marshalSize])
 	s.session.localContextMutex.Unlock()
 
 	if err != nil {
@@ -165,13 +178,13 @@ func (s *SessionSRTP) setWriteDeadline(t time.Time) error {
 }
 
 func (s *SessionSRTP) decrypt(buf []byte) error {
-	h := &rtp.Header{}
-	headerLen, err := h.Unmarshal(buf)
+	header := &rtp.Header{}
+	headerLen, err := header.Unmarshal(buf)
 	if err != nil {
 		return err
 	}
 
-	r, isNew := s.session.getOrCreateReadStream(h.SSRC, s, newReadStreamSRTP)
+	r, isNew := s.session.getOrCreateReadStream(header.SSRC, s, newReadStreamSRTP)
 	if r == nil {
 		return nil // Session has been closed
 	} else if isNew {
@@ -186,7 +199,7 @@ func (s *SessionSRTP) decrypt(buf []byte) error {
 		return errFailedTypeAssertion
 	}
 
-	decrypted, err := s.remoteContext.decryptRTP(buf, buf, h, headerLen)
+	decrypted, err := s.remoteContext.decryptRTP(buf, buf, header, headerLen)
 	if err != nil {
 		return err
 	}

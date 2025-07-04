@@ -23,13 +23,14 @@ import (
 // trackDetails represents any media source that can be represented in a SDP
 // This isn't keyed by SSRC because it also needs to support rid based sources.
 type trackDetails struct {
-	mid        string
-	kind       RTPCodecType
-	streamID   string
-	id         string
-	ssrcs      []SSRC
-	repairSsrc *SSRC
-	rids       []string
+	mid      string
+	kind     RTPCodecType
+	streamID string
+	id       string
+	ssrcs    []SSRC
+	rtxSsrc  *SSRC
+	fecSsrc  *SSRC
+	rids     []string
 }
 
 func trackDetailsForSSRC(trackDetails []trackDetails, ssrc SSRC) *trackDetails {
@@ -91,6 +92,7 @@ func trackDetailsFromSDP(
 	for _, media := range s.MediaDescriptions {
 		tracksInMediaSection := []trackDetails{}
 		rtxRepairFlows := map[uint64]uint64{}
+		fecRepairFlows := map[uint64]uint64{}
 
 		// Plan B can have multiple tracks in a single media section
 		streamID := ""
@@ -143,7 +145,35 @@ func trackDetailsFromSDP(
 						for i := range tracksInMediaSection {
 							if tracksInMediaSection[i].ssrcs[0] == SSRC(baseSsrc) {
 								repairSsrc := SSRC(rtxRepairFlow)
-								tracksInMediaSection[i].repairSsrc = &repairSsrc
+								tracksInMediaSection[i].rtxSsrc = &repairSsrc
+							}
+						}
+					}
+				} else if split[0] == sdp.SemanticTokenForwardErrorCorrectionFramework {
+					// Similar to above, lines like `a=ssrc-group:FEC-FR aaaaa bbbbb`
+					// means for video ssrc aaaaa, there's a FEC track bbbbb
+					if len(split) == 3 {
+						baseSsrc, err := strconv.ParseUint(split[1], 10, 32)
+						if err != nil {
+							log.Warnf("Failed to parse SSRC: %v", err)
+
+							continue
+						}
+						fecRepairFlow, err := strconv.ParseUint(split[2], 10, 32)
+						if err != nil {
+							log.Warnf("Failed to parse SSRC: %v", err)
+
+							continue
+						}
+						fecRepairFlows[fecRepairFlow] = baseSsrc
+						tracksInMediaSection = filterTrackWithSSRC(
+							tracksInMediaSection,
+							SSRC(fecRepairFlow),
+						) // Remove if fec was added as track before
+						for i := range tracksInMediaSection {
+							if tracksInMediaSection[i].ssrcs[0] == SSRC(baseSsrc) {
+								repairSsrc := SSRC(fecRepairFlow)
+								tracksInMediaSection[i].fecSsrc = &repairSsrc
 							}
 						}
 					}
@@ -171,6 +201,9 @@ func trackDetailsFromSDP(
 				if _, ok := rtxRepairFlows[ssrc]; ok {
 					continue // This ssrc is a RTX repair flow, ignore
 				}
+				if _, ok := fecRepairFlows[ssrc]; ok {
+					continue // This ssrc is a FEC repair flow, ignore
+				}
 
 				if len(split) == 3 && strings.HasPrefix(split[1], "msid:") {
 					streamID = split[1][len("msid:"):]
@@ -197,7 +230,13 @@ func trackDetailsFromSDP(
 				for r, baseSsrc := range rtxRepairFlows {
 					if baseSsrc == ssrc {
 						repairSsrc := SSRC(r) //nolint:gosec // G115
-						trackDetails.repairSsrc = &repairSsrc
+						trackDetails.rtxSsrc = &repairSsrc
+					}
+				}
+				for r, baseSsrc := range fecRepairFlows {
+					if baseSsrc == ssrc {
+						fecSsrc := SSRC(r) //nolint:gosec // G115
+						trackDetails.fecSsrc = &fecSsrc
 					}
 				}
 
@@ -243,8 +282,12 @@ func trackDetailsToRTPReceiveParameters(trackDetails *trackDetails) RTPReceivePa
 			encodings[i].SSRC = trackDetails.ssrcs[i]
 		}
 
-		if trackDetails.repairSsrc != nil {
-			encodings[i].RTX.SSRC = *trackDetails.repairSsrc
+		if trackDetails.rtxSsrc != nil {
+			encodings[i].RTX.SSRC = *trackDetails.rtxSsrc
+		}
+
+		if trackDetails.fecSsrc != nil {
+			encodings[i].FEC.SSRC = *trackDetails.fecSsrc
 		}
 	}
 
@@ -430,10 +473,26 @@ func addSenderSDP(
 		sendParameters := sender.GetParameters()
 		for _, encoding := range sendParameters.Encodings {
 			if encoding.RTX.SSRC != 0 {
-				media = media.WithValueAttribute("ssrc-group", fmt.Sprintf("FID %d %d", encoding.SSRC, encoding.RTX.SSRC))
+				media = media.WithValueAttribute(
+					"ssrc-group",
+					fmt.Sprintf(
+						"%s %d %d",
+						sdp.SemanticTokenFlowIdentification,
+						encoding.SSRC,
+						encoding.RTX.SSRC,
+					),
+				)
 			}
 			if encoding.FEC.SSRC != 0 {
-				media = media.WithValueAttribute("ssrc-group", fmt.Sprintf("FEC-FR %d %d", encoding.SSRC, encoding.FEC.SSRC))
+				media = media.WithValueAttribute(
+					"ssrc-group",
+					fmt.Sprintf(
+						"%s %d %d",
+						sdp.SemanticTokenForwardErrorCorrectionFramework,
+						encoding.SSRC,
+						encoding.FEC.SSRC,
+					),
+				)
 			}
 
 			media = media.WithMediaSource(

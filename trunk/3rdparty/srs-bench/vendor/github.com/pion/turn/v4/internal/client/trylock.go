@@ -18,6 +18,7 @@ func (c *TryLock) Lock() error {
 	if !atomic.CompareAndSwapInt32(&c.n, 0, 1) {
 		return errDoubleLock
 	}
+
 	return nil
 }
 

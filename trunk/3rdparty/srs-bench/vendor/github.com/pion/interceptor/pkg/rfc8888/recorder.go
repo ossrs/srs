@@ -6,6 +6,7 @@ package rfc8888
 import (
 	"time"
 
+	"github.com/pion/interceptor/internal/ntp"
 	"github.com/pion/rtcp"
 )
 
@@ -21,7 +22,7 @@ type Recorder struct {
 	streams map[uint32]*streamLog
 }
 
-// NewRecorder creates a new Recorder
+// NewRecorder creates a new Recorder.
 func NewRecorder() *Recorder {
 	return &Recorder{
 		streams: map[uint32]*streamLog{},
@@ -44,7 +45,7 @@ func (r *Recorder) BuildReport(now time.Time, maxSize int) *rtcp.CCFeedbackRepor
 	report := &rtcp.CCFeedbackReport{
 		SenderSSRC:      r.ssrc,
 		ReportBlocks:    []rtcp.CCFeedbackReportBlock{},
-		ReportTimestamp: ntpTime32(now),
+		ReportTimestamp: ntp.ToNTP32(now),
 	}
 
 	maxReportBlocks := (maxSize - 12 - (8 * len(r.streams))) / 2
@@ -64,15 +65,4 @@ func (r *Recorder) BuildReport(now time.Time, maxSize int) *rtcp.CCFeedbackRepor
 	}
 
 	return report
-}
-
-func ntpTime32(t time.Time) uint32 {
-	// seconds since 1st January 1900
-	s := (float64(t.UnixNano()) / 1000000000.0) + 2208988800
-
-	integerPart := uint32(s)
-	fractionalPart := uint32((s - float64(integerPart)) * 0xFFFFFFFF)
-
-	// higher 32 bits are the integer part, lower 32 bits are the fractional part
-	return uint32(((uint64(integerPart)<<32 | uint64(fractionalPart)) >> 16) & 0xFFFFFFFF)
 }

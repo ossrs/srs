@@ -736,11 +736,7 @@ if [[ $SRS_GB28181 == YES ]]; then
 else
     echo -e "${GREEN}Warning: GB28181 is disabled.${BLACK}"
 fi
-if [[ $SRS_H265 == YES ]]; then
-    echo -e "${YELLOW}Experiment: HEVC/H.265 is enabled. https://github.com/ossrs/srs/issues/465${BLACK}"
-else
-    echo -e "${GREEN}Warning: HEVC/H.265 is disabled.${BLACK}"
-fi
+echo -e "${GREEN}Experiment: HEVC/H.265 is enabled. https://github.com/ossrs/srs/issues/465${BLACK}"
 if [[ $SRS_SRT == YES ]]; then
     echo -e "${YELLOW}Experiment: SRT is enabled. https://github.com/ossrs/srs/issues/1147${BLACK}"
 else

@@ -48,7 +48,7 @@ func (d *DataChannel) OnOpen(f func()) {
 		oldHandler := d.onOpenHandler
 		defer oldHandler.Release()
 	}
-	onOpenHandler := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	onOpenHandler := js.FuncOf(func(this js.Value, args []js.Value) any {
 		go f()
 		return js.Undefined()
 	})
@@ -63,7 +63,7 @@ func (d *DataChannel) OnClose(f func()) {
 		oldHandler := d.onCloseHandler
 		defer oldHandler.Release()
 	}
-	onCloseHandler := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	onCloseHandler := js.FuncOf(func(this js.Value, args []js.Value) any {
 		go f()
 		return js.Undefined()
 	})
@@ -78,7 +78,7 @@ func (d *DataChannel) OnClosing(f func()) {
 		oldHandler := d.onClosingHandler
 		defer oldHandler.Release()
 	}
-	onClosingHandler := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	onClosingHandler := js.FuncOf(func(this js.Value, args []js.Value) any {
 		go f()
 		return js.Undefined()
 	})
@@ -91,7 +91,7 @@ func (d *DataChannel) OnError(f func(err error)) {
 		oldHandler := d.onErrorHandler
 		defer oldHandler.Release()
 	}
-	onErrorHandler := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	onErrorHandler := js.FuncOf(func(this js.Value, args []js.Value) any {
 		event := args[0]
 		errorObj := event.Get("error")
 		// FYI RTCError has some extra properties, e.g. `errorDetail`:
@@ -111,7 +111,7 @@ func (d *DataChannel) OnMessage(f func(msg DataChannelMessage)) {
 		oldHandler := d.onMessageHandler
 		defer oldHandler.Release()
 	}
-	onMessageHandler := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	onMessageHandler := js.FuncOf(func(this js.Value, args []js.Value) any {
 		// pion/webrtc/projects/15
 		data := args[0].Get("data")
 		go func() {
@@ -300,7 +300,7 @@ func (d *DataChannel) OnBufferedAmountLow(f func()) {
 		oldHandler := d.onBufferedAmountLow
 		defer oldHandler.Release()
 	}
-	onBufferedAmountLow := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	onBufferedAmountLow := js.FuncOf(func(this js.Value, args []js.Value) any {
 		go f()
 		return js.Undefined()
 	})
@@ -336,7 +336,7 @@ func valueToDataChannelMessage(val js.Value) DataChannelMessage {
 		// channel to signal when reading is done.
 		reader := js.Global().Get("FileReader").New()
 		doneChan := make(chan struct{})
-		reader.Call("addEventListener", "loadend", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		reader.Call("addEventListener", "loadend", js.FuncOf(func(this js.Value, args []js.Value) any {
 			go func() {
 				// Signal that the FileReader is done reading/loading by sending through
 				// the doneChan.

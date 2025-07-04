@@ -29,6 +29,10 @@ type Header struct {
 	ExtensionProfile uint16
 	Extensions       []Extension
 
+	// PaddingLength is the length of the padding in bytes. It is not part of the RTP header
+	// (it is sent in the last byte of RTP packet padding), but logically it belongs here.
+	PaddingSize byte
+
 	// Deprecated: will be removed in a future version.
 	PayloadOffset int
 }
@@ -36,36 +40,50 @@ type Header struct {
 // Packet represents an RTP Packet.
 type Packet struct {
 	Header
-	Payload     []byte
-	PaddingSize byte
+	Payload []byte
+
+	PaddingSize byte // Deprecated: will be removed in a future version. Use Header.PaddingSize instead.
 
 	// Deprecated: will be removed in a future version.
 	Raw []byte
+
+	// Please do not add any new field directly to Packet struct unless you know that it is safe.
+	// pion internally passes Header and Payload separately, what causes bugs like
+	// https://github.com/pion/webrtc/issues/2403 .
 }
 
 const (
-	headerLength            = 4
-	versionShift            = 6
-	versionMask             = 0x3
-	paddingShift            = 5
-	paddingMask             = 0x1
-	extensionShift          = 4
-	extensionMask           = 0x1
-	extensionProfileOneByte = 0xBEDE
-	extensionProfileTwoByte = 0x1000
-	extensionIDReserved     = 0xF
-	ccMask                  = 0xF
-	markerShift             = 7
-	markerMask              = 0x1
-	ptMask                  = 0x7F
-	seqNumOffset            = 2
-	seqNumLength            = 2
-	timestampOffset         = 4
-	timestampLength         = 4
-	ssrcOffset              = 8
-	ssrcLength              = 4
-	csrcOffset              = 12
-	csrcLength              = 4
+	// ExtensionProfileOneByte is the RTP One Byte Header Extension Profile, defined in RFC 8285.
+	ExtensionProfileOneByte = 0xBEDE
+	// ExtensionProfileTwoByte is the RTP Two Byte Header Extension Profile, defined in RFC 8285.
+	ExtensionProfileTwoByte = 0x1000
+	// CryptexProfileOneByte is the Cryptex One Byte Header Extension Profile, defined in RFC 9335.
+	CryptexProfileOneByte = 0xC0DE
+	// CryptexProfileTwoByte is the Cryptex Two Byte Header Extension Profile, defined in RFC 9335.
+	CryptexProfileTwoByte = 0xC2DE
+)
+
+const (
+	headerLength        = 4
+	versionShift        = 6
+	versionMask         = 0x3
+	paddingShift        = 5
+	paddingMask         = 0x1
+	extensionShift      = 4
+	extensionMask       = 0x1
+	extensionIDReserved = 0xF
+	ccMask              = 0xF
+	markerShift         = 7
+	markerMask          = 0x1
+	ptMask              = 0x7F
+	seqNumOffset        = 2
+	seqNumLength        = 2
+	timestampOffset     = 4
+	timestampLength     = 4
+	ssrcOffset          = 8
+	ssrcLength          = 4
+	csrcOffset          = 12
+	csrcLength          = 4
 )
 
 // String helps with debugging by printing packet information in a readable way.
@@ -155,7 +173,7 @@ func (h *Header) Unmarshal(buf []byte) (n int, err error) { //nolint:gocognit,cy
 			return n, fmt.Errorf("size %d < %d: %w", len(buf), extensionEnd, errHeaderSizeInsufficientForExtension)
 		}
 
-		if h.ExtensionProfile == extensionProfileOneByte || h.ExtensionProfile == extensionProfileTwoByte {
+		if h.ExtensionProfile == ExtensionProfileOneByte || h.ExtensionProfile == ExtensionProfileTwoByte {
 			var (
 				extid      uint8
 				payloadLen int
@@ -168,7 +186,7 @@ func (h *Header) Unmarshal(buf []byte) (n int, err error) { //nolint:gocognit,cy
 					continue
 				}
 
-				if h.ExtensionProfile == extensionProfileOneByte {
+				if h.ExtensionProfile == ExtensionProfileOneByte {
 					extid = buf[n] >> 4
 					payloadLen = int(buf[n]&^0xF0 + 1)
 					n++
@@ -219,11 +237,12 @@ func (p *Packet) Unmarshal(buf []byte) error {
 		if end <= n {
 			return errTooSmall
 		}
-		p.PaddingSize = buf[end-1]
-		end -= int(p.PaddingSize)
+		p.Header.PaddingSize = buf[end-1]
+		end -= int(p.Header.PaddingSize)
 	} else {
-		p.PaddingSize = 0
+		p.Header.PaddingSize = 0
 	}
+	p.PaddingSize = p.Header.PaddingSize
 	if end < n {
 		return errTooSmall
 	}
@@ -302,14 +321,14 @@ func (h Header) MarshalTo(buf []byte) (n int, err error) { //nolint:cyclop
 
 		switch h.ExtensionProfile {
 		// RFC 8285 RTP One Byte Header Extension
-		case extensionProfileOneByte:
+		case ExtensionProfileOneByte:
 			for _, extension := range h.Extensions {
 				buf[n] = extension.id<<4 | (uint8(len(extension.payload)) - 1) // nolint: gosec // G115
 				n++
 				n += copy(buf[n:], extension.payload)
 			}
 		// RFC 8285 RTP Two Byte Header Extension
-		case extensionProfileTwoByte:
+		case ExtensionProfileTwoByte:
 			for _, extension := range h.Extensions {
 				buf[n] = extension.id
 				n++
@@ -353,12 +372,12 @@ func (h Header) MarshalSize() int {
 
 		switch h.ExtensionProfile {
 		// RFC 8285 RTP One Byte Header Extension
-		case extensionProfileOneByte:
+		case ExtensionProfileOneByte:
 			for _, extension := range h.Extensions {
 				extSize += 1 + len(extension.payload)
 			}
 		// RFC 8285 RTP Two Byte Header Extension
-		case extensionProfileTwoByte:
+		case ExtensionProfileTwoByte:
 			for _, extension := range h.Extensions {
 				extSize += 2 + len(extension.payload)
 			}
@@ -378,7 +397,7 @@ func (h *Header) SetExtension(id uint8, payload []byte) error { //nolint:gocogni
 	if h.Extension { // nolint: nestif
 		switch h.ExtensionProfile {
 		// RFC 8285 RTP One Byte Header Extension
-		case extensionProfileOneByte:
+		case ExtensionProfileOneByte:
 			if id < 1 || id > 14 {
 				return fmt.Errorf("%w actual(%d)", errRFC8285OneByteHeaderIDRange, id)
 			}
@@ -386,7 +405,7 @@ func (h *Header) SetExtension(id uint8, payload []byte) error { //nolint:gocogni
 				return fmt.Errorf("%w actual(%d)", errRFC8285OneByteHeaderSize, len(payload))
 			}
 		// RFC 8285 RTP Two Byte Header Extension
-		case extensionProfileTwoByte:
+		case ExtensionProfileTwoByte:
 			if id < 1 {
 				return fmt.Errorf("%w actual(%d)", errRFC8285TwoByteHeaderIDRange, id)
 			}
@@ -418,9 +437,9 @@ func (h *Header) SetExtension(id uint8, payload []byte) error { //nolint:gocogni
 
 	switch payloadLen := len(payload); {
 	case payloadLen <= 16:
-		h.ExtensionProfile = extensionProfileOneByte
+		h.ExtensionProfile = ExtensionProfileOneByte
 	case payloadLen > 16 && payloadLen < 256:
-		h.ExtensionProfile = extensionProfileTwoByte
+		h.ExtensionProfile = ExtensionProfileTwoByte
 	}
 
 	h.Extensions = append(h.Extensions, Extension{id: id, payload: payload})
@@ -490,7 +509,7 @@ func (p Packet) Marshal() (buf []byte, err error) {
 
 // MarshalTo serializes the packet and writes to the buffer.
 func (p *Packet) MarshalTo(buf []byte) (n int, err error) {
-	if p.Header.Padding && p.PaddingSize == 0 {
+	if p.Header.Padding && p.paddingSize() == 0 {
 		return 0, errInvalidRTPPadding
 	}
 
@@ -499,23 +518,28 @@ func (p *Packet) MarshalTo(buf []byte) (n int, err error) {
 		return 0, err
 	}
 
+	return marshalPayloadAndPaddingTo(buf, n, &p.Header, p.Payload, p.paddingSize())
+}
+
+func marshalPayloadAndPaddingTo(buf []byte, offset int, header *Header, payload []byte, paddingSize byte,
+) (n int, err error) {
 	// Make sure the buffer is large enough to hold the packet.
-	if n+len(p.Payload)+int(p.PaddingSize) > len(buf) {
+	if offset+len(payload)+int(paddingSize) > len(buf) {
 		return 0, io.ErrShortBuffer
 	}
 
-	m := copy(buf[n:], p.Payload)
+	m := copy(buf[offset:], payload)
 
-	if p.Header.Padding {
-		buf[n+m+int(p.PaddingSize-1)] = p.PaddingSize
+	if header.Padding {
+		buf[offset+m+int(paddingSize-1)] = paddingSize
 	}
 
-	return n + m + int(p.PaddingSize), nil
+	return offset + m + int(paddingSize), nil
 }
 
 // MarshalSize returns the size of the packet once marshaled.
 func (p Packet) MarshalSize() int {
-	return p.Header.MarshalSize() + len(p.Payload) + int(p.PaddingSize)
+	return p.Header.MarshalSize() + len(p.Payload) + int(p.paddingSize())
 }
 
 // Clone returns a deep copy of p.
@@ -551,4 +575,46 @@ func (h Header) Clone() Header {
 	}
 
 	return clone
+}
+
+func (p *Packet) paddingSize() byte {
+	if p.Header.PaddingSize > 0 {
+		return p.Header.PaddingSize
+	}
+
+	return p.PaddingSize
+}
+
+// MarshalPacketTo serializes the header and payload into bytes.
+// Parts of pion code passes RTP header and payload separately, so this function
+// is provided to help with that.
+//
+// Deprecated: this function is a temporary workaround and will be removed in pion/webrtc v5.
+func MarshalPacketTo(buf []byte, header *Header, payload []byte) (int, error) {
+	n, err := header.MarshalTo(buf)
+	if err != nil {
+		return 0, err
+	}
+
+	return marshalPayloadAndPaddingTo(buf, n, header, payload, header.PaddingSize)
+}
+
+// PacketMarshalSize returns the size of the header and payload once marshaled.
+// Parts of pion code passes RTP header and payload separately, so this function
+// is provided to help with that.
+//
+// Deprecated: this function is a temporary workaround and will be removed in pion/webrtc v5.
+func PacketMarshalSize(header *Header, payload []byte) int {
+	return header.MarshalSize() + len(payload) + int(header.PaddingSize)
+}
+
+// HeaderAndPacketMarshalSize returns the size of the header and full packet once marshaled.
+// Parts of pion code passes RTP header and payload separately, so this function
+// is provided to help with that.
+//
+// Deprecated: this function is a temporary workaround and will be removed in pion/webrtc v5.
+func HeaderAndPacketMarshalSize(header *Header, payload []byte) (headerSize int, packetSize int) {
+	headerSize = header.MarshalSize()
+
+	return headerSize, headerSize + len(payload) + int(header.PaddingSize)
 }

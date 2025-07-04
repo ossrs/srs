@@ -61,7 +61,7 @@ func (b *binding) refreshedAt() time.Time {
 	return b._refreshedAt
 }
 
-// Thread-safe binding map
+// Thread-safe binding map.
 type bindingManager struct {
 	chanMap map[uint16]*binding
 	addrMap map[string]*binding
@@ -84,6 +84,7 @@ func (mgr *bindingManager) assignChannelNumber() uint16 {
 	} else {
 		mgr.next++
 	}
+
 	return n
 }
 
@@ -100,6 +101,7 @@ func (mgr *bindingManager) create(addr net.Addr) *binding {
 
 	mgr.chanMap[b.number] = b
 	mgr.addrMap[b.addr.String()] = b
+
 	return b
 }
 
@@ -108,6 +110,7 @@ func (mgr *bindingManager) findByAddr(addr net.Addr) (*binding, bool) {
 	defer mgr.mutex.RUnlock()
 
 	b, ok := mgr.addrMap[addr.String()]
+
 	return b, ok
 }
 
@@ -116,6 +119,7 @@ func (mgr *bindingManager) findByNumber(number uint16) (*binding, bool) {
 	defer mgr.mutex.RUnlock()
 
 	b, ok := mgr.chanMap[number]
+
 	return b, ok
 }
 
@@ -130,6 +134,7 @@ func (mgr *bindingManager) deleteByAddr(addr net.Addr) bool {
 
 	delete(mgr.addrMap, addr.String())
 	delete(mgr.chanMap, b.number)
+
 	return true
 }
 
@@ -144,6 +149,7 @@ func (mgr *bindingManager) deleteByNumber(number uint16) bool {
 
 	delete(mgr.addrMap, b.addr.String())
 	delete(mgr.chanMap, number)
+
 	return true
 }
 

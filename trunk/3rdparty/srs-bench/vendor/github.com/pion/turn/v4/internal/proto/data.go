@@ -13,12 +13,13 @@ import "github.com/pion/stun/v3"
 // the UDP header if the data was been sent directly between the client
 // and the peer).
 //
-// RFC 5766 Section 14.4
+// RFC 5766 Section 14.4.
 type Data []byte
 
 // AddTo adds DATA to message.
 func (d Data) AddTo(m *stun.Message) error {
 	m.Add(stun.AttrData, d)
+
 	return nil
 }
 
@@ -29,5 +30,6 @@ func (d *Data) GetFrom(m *stun.Message) error {
 		return err
 	}
 	*d = v
+
 	return nil
 }

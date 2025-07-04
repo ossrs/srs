@@ -48,7 +48,7 @@ func (stream *senderStream) processRTP(now time.Time, header *rtp.Header, payloa
 	}
 
 	stream.packetCount++
-	stream.octetCount += uint32(len(payload))
+	stream.octetCount += uint32(len(payload)) //nolint:gosec // G115
 }
 
 func (stream *senderStream) generateReport(now time.Time) *rtcp.SenderReport {

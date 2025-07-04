@@ -93,7 +93,7 @@ func (ll *DefaultLeveledLogger) WithOutput(output io.Writer) *DefaultLeveledLogg
 	return ll
 }
 
-func (ll *DefaultLeveledLogger) logf(logger *log.Logger, level LogLevel, format string, args ...interface{}) {
+func (ll *DefaultLeveledLogger) logf(logger *log.Logger, level LogLevel, format string, args ...any) {
 	if ll.level.Get() < level {
 		return
 	}
@@ -116,7 +116,7 @@ func (ll *DefaultLeveledLogger) Trace(msg string) {
 }
 
 // Tracef formats and emits a message if the logger is at or below LogLevelTrace.
-func (ll *DefaultLeveledLogger) Tracef(format string, args ...interface{}) {
+func (ll *DefaultLeveledLogger) Tracef(format string, args ...any) {
 	ll.logf(ll.trace, LogLevelTrace, format, args...)
 }
 
@@ -126,7 +126,7 @@ func (ll *DefaultLeveledLogger) Debug(msg string) {
 }
 
 // Debugf formats and emits a message if the logger is at or below LogLevelDebug.
-func (ll *DefaultLeveledLogger) Debugf(format string, args ...interface{}) {
+func (ll *DefaultLeveledLogger) Debugf(format string, args ...any) {
 	ll.logf(ll.debug, LogLevelDebug, format, args...)
 }
 
@@ -136,7 +136,7 @@ func (ll *DefaultLeveledLogger) Info(msg string) {
 }
 
 // Infof formats and emits a message if the logger is at or below LogLevelInfo.
-func (ll *DefaultLeveledLogger) Infof(format string, args ...interface{}) {
+func (ll *DefaultLeveledLogger) Infof(format string, args ...any) {
 	ll.logf(ll.info, LogLevelInfo, format, args...)
 }
 
@@ -146,7 +146,7 @@ func (ll *DefaultLeveledLogger) Warn(msg string) {
 }
 
 // Warnf formats and emits a message if the logger is at or below LogLevelWarn.
-func (ll *DefaultLeveledLogger) Warnf(format string, args ...interface{}) {
+func (ll *DefaultLeveledLogger) Warnf(format string, args ...any) {
 	ll.logf(ll.warn, LogLevelWarn, format, args...)
 }
 
@@ -156,7 +156,7 @@ func (ll *DefaultLeveledLogger) Error(msg string) {
 }
 
 // Errorf formats and emits a message if the logger is at or below LogLevelError.
-func (ll *DefaultLeveledLogger) Errorf(format string, args ...interface{}) {
+func (ll *DefaultLeveledLogger) Errorf(format string, args ...any) {
 	ll.logf(ll.err, LogLevelError, format, args...)
 }
 

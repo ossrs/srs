@@ -11,7 +11,7 @@ import "github.com/pion/stun/v3"
 // relayed transport address be even, and (optionally) that the server
 // reserve the next-higher port number.
 //
-// RFC 5766 Section 14.6
+// RFC 5766 Section 14.6.
 type EvenPort struct {
 	// ReservePort means that the server is requested to reserve
 	// the next-higher port number (on the same IP address)
@@ -23,6 +23,7 @@ func (p EvenPort) String() string {
 	if p.ReservePort {
 		return "reserve: true"
 	}
+
 	return "reserve: false"
 }
 
@@ -39,6 +40,7 @@ func (p EvenPort) AddTo(m *stun.Message) error {
 		v[0] = firstBitSet
 	}
 	m.Add(stun.AttrEvenPort, v)
+
 	return nil
 }
 
@@ -54,5 +56,6 @@ func (p *EvenPort) GetFrom(m *stun.Message) error {
 	if v[0]&firstBitSet > 0 {
 		p.ReservePort = true
 	}
+
 	return nil
 }

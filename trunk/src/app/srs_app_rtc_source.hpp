@@ -48,6 +48,8 @@ class SrsLiveSource;
 const int kAudioPayloadType     = 111;
 // Firefox defaults as 126, Chrome is 102.
 const int kVideoPayloadType = 102;
+// Chrome HEVC defaults as 49.
+const int KVideoPayloadTypeHevc = 49;
 
 class SrsNtp
 {
@@ -287,9 +289,18 @@ private:
     uint32_t video_ssrc_;
     uint8_t audio_payload_type_;
     uint8_t video_payload_type_;
+private:
+    SrsSharedPtr<SrsRtcSource> source_;
+    // Lazy initialization flags
+    bool audio_initialized_;
+    bool video_initialized_;
 public:
-    SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, uint32_t assrc, uint8_t apt, uint32_t vssrc, uint8_t vpt);
+    SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsRtcRtpBuilder();
+private:
+    // Lazy initialization methods
+    srs_error_t initialize_audio_track(SrsAudioCodecId codec);
+    srs_error_t initialize_video_track(SrsVideoCodecId codec);
 public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();

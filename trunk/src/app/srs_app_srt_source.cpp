@@ -372,13 +372,11 @@ srs_error_t SrsSrtFrameBuilder::on_ts_message(SrsTsMessage* msg)
     }
     
     // TODO: FIXME: implements other codec?
-#ifdef SRS_H265
     if (msg->channel->stream == SrsTsStreamVideoHEVC) {
         if ((err = on_ts_video_hevc(msg, &avs)) != srs_success) {
             return srs_error_wrap(err, "ts: consume hevc video");
         }
     }
-#endif
 
     return err;
 }
@@ -555,7 +553,6 @@ srs_error_t SrsSrtFrameBuilder::on_h264_frame(SrsTsMessage* msg, vector<pair<cha
     return err;
 }
 
-#ifdef SRS_H265
 srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
@@ -753,7 +750,6 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
 
     return err;
 }
-#endif
 
 srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {

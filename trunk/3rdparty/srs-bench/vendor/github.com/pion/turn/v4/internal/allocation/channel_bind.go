@@ -22,7 +22,7 @@ type ChannelBind struct {
 	log           logging.LeveledLogger
 }
 
-// NewChannelBind creates a new ChannelBind
+// NewChannelBind creates a new ChannelBind.
 func NewChannelBind(number proto.ChannelNumber, peer net.Addr, log logging.LeveledLogger) *ChannelBind {
 	return &ChannelBind{
 		Number: number,

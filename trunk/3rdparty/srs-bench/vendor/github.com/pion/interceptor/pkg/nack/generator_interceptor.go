@@ -13,14 +13,14 @@ import (
 	"github.com/pion/rtcp"
 )
 
-// GeneratorInterceptorFactory is a interceptor.Factory for a GeneratorInterceptor
+// GeneratorInterceptorFactory is a interceptor.Factory for a GeneratorInterceptor.
 type GeneratorInterceptorFactory struct {
 	opts []GeneratorOption
 }
 
-// NewInterceptor constructs a new ReceiverInterceptor
+// NewInterceptor constructs a new ReceiverInterceptor.
 func (g *GeneratorInterceptorFactory) NewInterceptor(_ string) (interceptor.Interceptor, error) {
-	i := &GeneratorInterceptor{
+	generatorInterceptor := &GeneratorInterceptor{
 		streamsFilter:     streamSupportNack,
 		size:              512,
 		skipLastN:         0,
@@ -33,16 +33,16 @@ func (g *GeneratorInterceptorFactory) NewInterceptor(_ string) (interceptor.Inte
 	}
 
 	for _, opt := range g.opts {
-		if err := opt(i); err != nil {
+		if err := opt(generatorInterceptor); err != nil {
 			return nil, err
 		}
 	}
 
-	if _, err := newReceiveLog(i.size); err != nil {
+	if _, err := newReceiveLog(generatorInterceptor.size); err != nil {
 		return nil, err
 	}
 
-	return i, nil
+	return generatorInterceptor, nil
 }
 
 // GeneratorInterceptor interceptor generates nack feedback messages.
@@ -63,13 +63,13 @@ type GeneratorInterceptor struct {
 	receiveLogsMu sync.Mutex
 }
 
-// NewGeneratorInterceptor returns a new GeneratorInterceptorFactory
+// NewGeneratorInterceptor returns a new GeneratorInterceptorFactory.
 func NewGeneratorInterceptor(opts ...GeneratorOption) (*GeneratorInterceptorFactory, error) {
 	return &GeneratorInterceptorFactory{opts}, nil
 }
 
-// BindRTCPWriter lets you modify any outgoing RTCP packets. It is called once per PeerConnection. The returned method
-// will be called once per packet batch.
+// BindRTCPWriter lets you modify any outgoing RTCP packets. It is called once per PeerConnection.
+// The returned method will be called once per packet batch.
 func (n *GeneratorInterceptor) BindRTCPWriter(writer interceptor.RTCPWriter) interceptor.RTCPWriter {
 	n.m.Lock()
 	defer n.m.Unlock()
@@ -85,9 +85,11 @@ func (n *GeneratorInterceptor) BindRTCPWriter(writer interceptor.RTCPWriter) int
 	return writer
 }
 
-// BindRemoteStream lets you modify any incoming RTP packets. It is called once for per RemoteStream. The returned method
-// will be called once per rtp packet.
-func (n *GeneratorInterceptor) BindRemoteStream(info *interceptor.StreamInfo, reader interceptor.RTPReader) interceptor.RTPReader {
+// BindRemoteStream lets you modify any incoming RTP packets. It is called once for per RemoteStream.
+// The returned method will be called once per rtp packet.
+func (n *GeneratorInterceptor) BindRemoteStream(
+	info *interceptor.StreamInfo, reader interceptor.RTPReader,
+) interceptor.RTPReader {
 	if !n.streamsFilter(info) {
 		return reader
 	}
@@ -124,7 +126,7 @@ func (n *GeneratorInterceptor) UnbindRemoteStream(info *interceptor.StreamInfo) 
 	n.receiveLogsMu.Unlock()
 }
 
-// Close closes the interceptor
+// Close closes the interceptor.
 func (n *GeneratorInterceptor) Close() error {
 	defer n.wg.Wait()
 	n.m.Lock()
@@ -137,11 +139,14 @@ func (n *GeneratorInterceptor) Close() error {
 	return nil
 }
 
-// nolint:gocognit
+// nolint:gocognit,cyclop
 func (n *GeneratorInterceptor) loop(rtcpWriter interceptor.RTCPWriter) {
 	defer n.wg.Done()
 
 	senderSSRC := rand.Uint32() // #nosec
+
+	missingPacketSeqNums := make([]uint16, n.size)
+	filteredMissingPacket := make([]uint16, n.size)
 
 	ticker := time.NewTicker(n.interval)
 	defer ticker.Stop()
@@ -153,7 +158,7 @@ func (n *GeneratorInterceptor) loop(rtcpWriter interceptor.RTCPWriter) {
 				defer n.receiveLogsMu.Unlock()
 
 				for ssrc, receiveLog := range n.receiveLogs {
-					missing := receiveLog.missingSeqNumbers(n.skipLastN)
+					missing := receiveLog.missingSeqNumbers(n.skipLastN, missingPacketSeqNums)
 
 					if len(missing) == 0 || n.nackCountLogs[ssrc] == nil {
 						n.nackCountLogs[ssrc] = map[uint16]uint16{}
@@ -162,22 +167,33 @@ func (n *GeneratorInterceptor) loop(rtcpWriter interceptor.RTCPWriter) {
 						continue
 					}
 
-					filteredMissing := []uint16{}
+					nack := &rtcp.TransportLayerNack{} // nolint:ineffassign,wastedassign
+
+					c := 0 // nolint:varnamelen,
 					if n.maxNacksPerPacket > 0 {
 						for _, missingSeq := range missing {
 							if n.nackCountLogs[ssrc][missingSeq] < n.maxNacksPerPacket {
-								filteredMissing = append(filteredMissing, missingSeq)
+								filteredMissingPacket[c] = missingSeq
+								c++
 							}
 							n.nackCountLogs[ssrc][missingSeq]++
 						}
-					} else {
-						filteredMissing = missing
-					}
 
-					nack := &rtcp.TransportLayerNack{
-						SenderSSRC: senderSSRC,
-						MediaSSRC:  ssrc,
-						Nacks:      rtcp.NackPairsFromSequenceNumbers(filteredMissing),
+						if c == 0 {
+							continue
+						}
+
+						nack = &rtcp.TransportLayerNack{
+							SenderSSRC: senderSSRC,
+							MediaSSRC:  ssrc,
+							Nacks:      rtcp.NackPairsFromSequenceNumbers(filteredMissingPacket[:c]),
+						}
+					} else {
+						nack = &rtcp.TransportLayerNack{
+							SenderSSRC: senderSSRC,
+							MediaSSRC:  ssrc,
+							Nacks:      rtcp.NackPairsFromSequenceNumbers(missing),
+						}
 					}
 
 					for nackSeq := range n.nackCountLogs[ssrc] {
@@ -185,16 +201,13 @@ func (n *GeneratorInterceptor) loop(rtcpWriter interceptor.RTCPWriter) {
 						for _, missingSeq := range missing {
 							if missingSeq == nackSeq {
 								isMissing = true
+
 								break
 							}
 						}
 						if !isMissing {
 							delete(n.nackCountLogs[ssrc], nackSeq)
 						}
-					}
-
-					if len(filteredMissing) == 0 {
-						continue
 					}
 
 					if _, err := rtcpWriter.Write([]rtcp.Packet{nack}, interceptor.Attributes{}); err != nil {

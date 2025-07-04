@@ -16,7 +16,7 @@ import (
 	"github.com/pion/turn/v4/internal/proto"
 )
 
-// AllocationConfig is a set of configuration params use by NewUDPConn and NewTCPAllocation
+// AllocationConfig is a set of configuration params use by NewUDPConn and NewTCPAllocation.
 type AllocationConfig struct {
 	Client      Client
 	RelayedAddr net.Addr
@@ -82,6 +82,7 @@ func (a *allocation) refreshAllocation(lifetime time.Duration, dontWait bool) er
 
 	if dontWait {
 		a.log.Debug("Refresh request sent")
+
 		return nil
 	}
 
@@ -93,10 +94,13 @@ func (a *allocation) refreshAllocation(lifetime time.Duration, dontWait bool) er
 		if err = code.GetFrom(res); err == nil {
 			if code.Code == stun.CodeStaleNonce {
 				a.setNonceFromMsg(res)
+
 				return errTryAgain
 			}
+
 			return err
 		}
+
 		return fmt.Errorf("%s", res.Type) //nolint:goerr113
 	}
 
@@ -108,6 +112,7 @@ func (a *allocation) refreshAllocation(lifetime time.Duration, dontWait bool) er
 
 	a.setLifetime(updatedLifetime.Duration)
 	a.log.Debugf("Updated lifetime: %d seconds", int(a.lifetime().Seconds()))
+
 	return nil
 }
 
@@ -115,6 +120,7 @@ func (a *allocation) refreshPermissions() error {
 	addrs := a.permMap.addrs()
 	if len(addrs) == 0 {
 		a.log.Debug("No permission to refresh")
+
 		return nil
 	}
 	if err := a.CreatePermissions(addrs...); err != nil {
@@ -122,9 +128,11 @@ func (a *allocation) refreshPermissions() error {
 			return errTryAgain
 		}
 		a.log.Errorf("Fail to refresh permissions: %s", err)
+
 		return err
 	}
 	a.log.Debug("Refresh permissions successful")
+
 	return nil
 }
 

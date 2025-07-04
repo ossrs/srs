@@ -15,8 +15,9 @@ import (
 //
 
 var (
-	errH265CorruptedPacket   = errors.New("corrupted h265 packet")
-	errInvalidH265PacketType = errors.New("invalid h265 packet type")
+	errH265CorruptedPacket          = errors.New("corrupted h265 packet")
+	errInvalidH265PacketType        = errors.New("invalid h265 packet type")
+	errExpectFragmentationStartUnit = errors.New("expecting a fragmentation start unit")
 )
 
 //
@@ -191,6 +192,15 @@ func (p *H265SingleNALUnitPacket) Payload() []byte {
 }
 
 func (p *H265SingleNALUnitPacket) isH265Packet() {}
+
+func (p *H265SingleNALUnitPacket) doPackaging(buf []byte) []byte {
+	buf = append(buf, annexbNALUStartCode...)
+	buf = append(buf, byte(p.payloadHeader>>8), byte(p.payloadHeader&0xFF))
+
+	buf = append(buf, p.payload...)
+
+	return buf
+}
 
 //
 // Aggregation Packets implementation
@@ -399,6 +409,21 @@ func (p *H265AggregationPacket) OtherUnits() []H265AggregationUnit {
 
 func (p *H265AggregationPacket) isH265Packet() {}
 
+func (p *H265AggregationPacket) doPackaging(buf []byte) []byte {
+	if p.firstUnit == nil {
+		return buf
+	}
+	buf = append(buf, annexbNALUStartCode...)
+	buf = append(buf, p.firstUnit.nalUnit...)
+
+	for _, unit := range p.otherUnits {
+		buf = append(buf, annexbNALUStartCode...)
+		buf = append(buf, unit.nalUnit...)
+	}
+
+	return buf
+}
+
 //
 // Fragmentation Unit implementation
 //
@@ -535,6 +560,64 @@ func (p *H265FragmentationUnitPacket) Payload() []byte {
 }
 
 func (p *H265FragmentationUnitPacket) isH265Packet() {}
+
+// H265FragmentationPacket represents a Fragmentation packet, which contains one or more Fragmentation Units.
+type H265FragmentationPacket struct {
+	payloadHeader H265NALUHeader
+	donl          *uint16
+	units         []*H265FragmentationUnitPacket
+	payload       []byte
+}
+
+func NewH265FragmentationPacket(startUnit *H265FragmentationUnitPacket) *H265FragmentationPacket {
+	return &H265FragmentationPacket{
+		payloadHeader: (startUnit.payloadHeader & 0x81FF) | (H265NALUHeader(startUnit.FuHeader().FuType()) << 9),
+		donl:          startUnit.donl,
+		units:         []*H265FragmentationUnitPacket{startUnit},
+	}
+}
+
+// PayloadHeader returns the NALU header of the packet.
+func (p *H265FragmentationPacket) PayloadHeader() H265NALUHeader {
+	return p.payloadHeader
+}
+
+// DONL returns the DONL of the packet.
+func (p *H265FragmentationPacket) DONL() *uint16 {
+	return p.donl
+}
+
+// Payload returns the Fragmentation packet payload.
+func (p *H265FragmentationPacket) Payload() []byte {
+	return p.payload
+}
+
+func (p *H265FragmentationPacket) isH265Packet() {}
+
+func (p *H265FragmentationPacket) doPackaging(buf []byte) []byte {
+	if len(p.payload) == 0 {
+		return buf
+	}
+
+	buf = append(buf, annexbNALUStartCode...)
+	buf = append(buf, byte(p.payloadHeader>>8), byte(p.payloadHeader&0xFF))
+	buf = append(buf, p.payload...)
+
+	return buf
+}
+
+func (p *H265FragmentationPacket) appendUnit(unit *H265FragmentationUnitPacket) {
+	if len(p.payload) > 0 {
+		// already have end unit
+		return
+	}
+	p.units = append(p.units, unit)
+	if unit.FuHeader().E() {
+		for _, u := range p.units {
+			p.payload = append(p.payload, u.payload...)
+		}
+	}
+}
 
 //
 // PACI implementation
@@ -691,6 +774,21 @@ func (p *H265PACIPacket) Unmarshal(payload []byte) ([]byte, error) {
 
 func (p *H265PACIPacket) isH265Packet() {}
 
+func (p *H265PACIPacket) doPackaging(buf []byte) []byte {
+	buf = append(buf, annexbNALUStartCode...)
+	buf = append(buf, byte(p.payloadHeader>>8), byte(p.payloadHeader&0xFF))
+
+	buf = binary.BigEndian.AppendUint16(buf, p.paciHeaderFields)
+
+	if len(p.phes) > 0 {
+		buf = append(buf, p.phes...)
+	}
+
+	buf = append(buf, p.payload...)
+
+	return buf
+}
+
 //
 // Temporal Scalability Control Information
 //
@@ -745,10 +843,11 @@ func (h H265TSCI) RES() uint8 {
 
 type isH265Packet interface {
 	isH265Packet()
+	doPackaging([]byte) []byte
 }
 
 var (
-	_ isH265Packet = (*H265FragmentationUnitPacket)(nil)
+	_ isH265Packet = (*H265FragmentationPacket)(nil)
 	_ isH265Packet = (*H265PACIPacket)(nil)
 	_ isH265Packet = (*H265SingleNALUnitPacket)(nil)
 	_ isH265Packet = (*H265AggregationPacket)(nil)
@@ -802,7 +901,15 @@ func (p *H265Packet) Unmarshal(payload []byte) ([]byte, error) { // nolint:cyclo
 			return nil, err
 		}
 
-		p.packet = decoded
+		if decoded.FuHeader().S() {
+			p.packet = NewH265FragmentationPacket(decoded)
+		} else {
+			if fu, ok := p.packet.(*H265FragmentationPacket); !ok {
+				return nil, errExpectFragmentationStartUnit
+			} else {
+				fu.appendUnit(decoded)
+			}
+		}
 
 	case payloadHeader.IsAggregationPacket():
 		decoded := &H265AggregationPacket{}
@@ -825,7 +932,7 @@ func (p *H265Packet) Unmarshal(payload []byte) ([]byte, error) { // nolint:cyclo
 		p.packet = decoded
 	}
 
-	return nil, nil
+	return p.packet.doPackaging(nil), nil
 }
 
 // Packet returns the populated packet.

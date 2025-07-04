@@ -6,7 +6,8 @@ help=no
 SRS_HDS=NO
 SRS_SRT=YES
 SRS_RTC=YES
-SRS_H265=YES
+# SRS_H265 is always enabled, no longer configurable
+SRS_H265=RESERVED
 SRS_GB28181=NO
 SRS_CXX11=YES
 SRS_CXX14=NO
@@ -189,7 +190,7 @@ Features:
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
   --ffmpeg-opus=on|off      Whether enable the FFmpeg native opus codec. Default: $(value2switch $SRS_FFMPEG_OPUS)
   --apm=on|off              Whether enable cloud logging and APM(Application Performance Monitor). Default: $(value2switch $SRS_APM)
-  --h265=on|off             Whether build the HEVC(H.265) support. Default: $(value2switch $SRS_H265)
+  --h265=on                 Whether build the HEVC(H.265) support. Always enabled.
 
   --prefix=<path>           The absolute installation path. Default: $SRS_PREFIX
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
@@ -601,6 +602,12 @@ function apply_auto_options() {
     if [[ ! -z SRS_JOBS ]]; then
         export SRS_JOBS="--jobs=${SRS_JOBS}"
     fi
+
+    # H.265/HEVC is always enabled, see https://github.com/ossrs/srs/issues/4349
+    if [[ $SRS_H265 != RESERVED ]]; then
+        echo "Warning: --h265 option is deprecated. H.265/HEVC support is always enabled."
+        SRS_H265=ON
+    fi
 }
 apply_auto_options
 
@@ -654,7 +661,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-srt=$(value2switch $SRS_USE_SYS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
-    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=$(value2switch $SRS_H265)"
+
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=$(value2switch $SRS_GB28181)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=$(value2switch $SRS_CXX11)"

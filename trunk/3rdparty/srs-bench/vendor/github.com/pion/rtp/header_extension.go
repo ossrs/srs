@@ -10,9 +10,7 @@ import (
 )
 
 const (
-	headerExtensionProfileOneByte = 0xBEDE
-	headerExtensionProfileTwoByte = 0x1000
-	headerExtensionIDReserved     = 0xF
+	headerExtensionIDReserved = 0xF
 )
 
 // HeaderExtension represents an RTP extension header.
@@ -140,7 +138,7 @@ func (e *OneByteHeaderExtension) Del(id uint8) error {
 // Unmarshal parses the extension payload.
 func (e *OneByteHeaderExtension) Unmarshal(buf []byte) (int, error) {
 	profile := binary.BigEndian.Uint16(buf[0:2])
-	if profile != headerExtensionProfileOneByte {
+	if profile != ExtensionProfileOneByte {
 		return 0, fmt.Errorf("%w actual(%x)", errHeaderExtensionNotFound, buf[0:2])
 	}
 	e.payload = buf
@@ -283,7 +281,7 @@ func (e *TwoByteHeaderExtension) Del(id uint8) error {
 // Unmarshal parses the extension payload.
 func (e *TwoByteHeaderExtension) Unmarshal(buf []byte) (int, error) {
 	profile := binary.BigEndian.Uint16(buf[0:2])
-	if profile != headerExtensionProfileTwoByte {
+	if profile != ExtensionProfileTwoByte {
 		return 0, fmt.Errorf("%w actual(%x)", errHeaderExtensionNotFound, buf[0:2])
 	}
 	e.payload = buf
@@ -354,7 +352,7 @@ func (e *RawExtension) Del(id uint8) error {
 // Unmarshal parses the extension from the given buffer.
 func (e *RawExtension) Unmarshal(buf []byte) (int, error) {
 	profile := binary.BigEndian.Uint16(buf[0:2])
-	if profile == headerExtensionProfileOneByte || profile == headerExtensionProfileTwoByte {
+	if profile == ExtensionProfileOneByte || profile == ExtensionProfileTwoByte {
 		return 0, fmt.Errorf("%w actual(%x)", errHeaderExtensionNotFound, buf[0:2])
 	}
 	e.payload = buf

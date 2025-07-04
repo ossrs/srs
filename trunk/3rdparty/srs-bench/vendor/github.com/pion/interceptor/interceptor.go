@@ -12,7 +12,7 @@ import (
 	"github.com/pion/rtp"
 )
 
-// Factory provides an interface for constructing interceptors
+// Factory provides an interface for constructing interceptors.
 type Factory interface {
 	NewInterceptor(id string) (Interceptor, error)
 }
@@ -35,7 +35,8 @@ type Interceptor interface {
 	// UnbindLocalStream is called when the Stream is removed. It can be used to clean up any data related to that track.
 	UnbindLocalStream(info *StreamInfo)
 
-	// BindRemoteStream lets you modify any incoming RTP packets. It is called once for per RemoteStream. The returned method
+	// BindRemoteStream lets you modify any incoming RTP packets.
+	// It is called once for per RemoteStream. The returned method
 	// will be called once per rtp packet.
 	BindRemoteStream(info *StreamInfo, reader RTPReader) RTPReader
 
@@ -69,34 +70,34 @@ type RTCPReader interface {
 	Read([]byte, Attributes) (int, Attributes, error)
 }
 
-// RTPWriterFunc is an adapter for RTPWrite interface
+// RTPWriterFunc is an adapter for RTPWrite interface.
 type RTPWriterFunc func(header *rtp.Header, payload []byte, attributes Attributes) (int, error)
 
-// RTPReaderFunc is an adapter for RTPReader interface
+// RTPReaderFunc is an adapter for RTPReader interface.
 type RTPReaderFunc func([]byte, Attributes) (int, Attributes, error)
 
-// RTCPWriterFunc is an adapter for RTCPWriter interface
+// RTCPWriterFunc is an adapter for RTCPWriter interface.
 type RTCPWriterFunc func(pkts []rtcp.Packet, attributes Attributes) (int, error)
 
-// RTCPReaderFunc is an adapter for RTCPReader interface
+// RTCPReaderFunc is an adapter for RTCPReader interface.
 type RTCPReaderFunc func([]byte, Attributes) (int, Attributes, error)
 
-// Write a rtp packet
+// Write a rtp packet.
 func (f RTPWriterFunc) Write(header *rtp.Header, payload []byte, attributes Attributes) (int, error) {
 	return f(header, payload, attributes)
 }
 
-// Read a rtp packet
+// Read a rtp packet.
 func (f RTPReaderFunc) Read(b []byte, a Attributes) (int, Attributes, error) {
 	return f(b, a)
 }
 
-// Write a batch of rtcp packets
+// Write a batch of rtcp packets.
 func (f RTCPWriterFunc) Write(pkts []rtcp.Packet, attributes Attributes) (int, error) {
 	return f(pkts, attributes)
 }
 
-// Read a batch of rtcp packets
+// Read a batch of rtcp packets.
 func (f RTCPReaderFunc) Read(b []byte, a Attributes) (int, Attributes, error) {
 	return f(b, a)
 }

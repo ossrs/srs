@@ -25,7 +25,7 @@ type reservation struct {
 	port  int
 }
 
-// Manager is used to hold active allocations
+// Manager is used to hold active allocations.
 type Manager struct {
 	lock sync.RWMutex
 	log  logging.LeveledLogger
@@ -58,21 +58,23 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 	}, nil
 }
 
-// GetAllocation fetches the allocation matching the passed FiveTuple
+// GetAllocation fetches the allocation matching the passed FiveTuple.
 func (m *Manager) GetAllocation(fiveTuple *FiveTuple) *Allocation {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
+
 	return m.allocations[fiveTuple.Fingerprint()]
 }
 
-// AllocationCount returns the number of existing allocations
+// AllocationCount returns the number of existing allocations.
 func (m *Manager) AllocationCount() int {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
+
 	return len(m.allocations)
 }
 
-// Close closes the manager and closes all allocations it manages
+// Close closes the manager and closes all allocations it manages.
 func (m *Manager) Close() error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -82,11 +84,17 @@ func (m *Manager) Close() error {
 			return err
 		}
 	}
+
 	return nil
 }
 
-// CreateAllocation creates a new allocation and starts relaying
-func (m *Manager) CreateAllocation(fiveTuple *FiveTuple, turnSocket net.PacketConn, requestedPort int, lifetime time.Duration) (*Allocation, error) {
+// CreateAllocation creates a new allocation and starts relaying.
+func (m *Manager) CreateAllocation(
+	fiveTuple *FiveTuple,
+	turnSocket net.PacketConn,
+	requestedPort int,
+	lifetime time.Duration,
+) (*Allocation, error) {
 	switch {
 	case fiveTuple == nil:
 		return nil, errNilFiveTuple
@@ -100,34 +108,35 @@ func (m *Manager) CreateAllocation(fiveTuple *FiveTuple, turnSocket net.PacketCo
 		return nil, errLifetimeZero
 	}
 
-	if a := m.GetAllocation(fiveTuple); a != nil {
+	if alloc := m.GetAllocation(fiveTuple); alloc != nil {
 		return nil, fmt.Errorf("%w: %v", errDupeFiveTuple, fiveTuple)
 	}
-	a := NewAllocation(turnSocket, fiveTuple, m.log)
+	alloc := NewAllocation(turnSocket, fiveTuple, m.log)
 
 	conn, relayAddr, err := m.allocatePacketConn("udp4", requestedPort)
 	if err != nil {
 		return nil, err
 	}
 
-	a.RelaySocket = conn
-	a.RelayAddr = relayAddr
+	alloc.RelaySocket = conn
+	alloc.RelayAddr = relayAddr
 
-	m.log.Debugf("Listening on relay address: %s", a.RelayAddr)
+	m.log.Debugf("Listening on relay address: %s", alloc.RelayAddr)
 
-	a.lifetimeTimer = time.AfterFunc(lifetime, func() {
-		m.DeleteAllocation(a.fiveTuple)
+	alloc.lifetimeTimer = time.AfterFunc(lifetime, func() {
+		m.DeleteAllocation(alloc.fiveTuple)
 	})
 
 	m.lock.Lock()
-	m.allocations[fiveTuple.Fingerprint()] = a
+	m.allocations[fiveTuple.Fingerprint()] = alloc
 	m.lock.Unlock()
 
-	go a.packetHandler(m)
-	return a, nil
+	go alloc.packetHandler(m)
+
+	return alloc, nil
 }
 
-// DeleteAllocation removes an allocation
+// DeleteAllocation removes an allocation.
 func (m *Manager) DeleteAllocation(fiveTuple *FiveTuple) {
 	fingerprint := fiveTuple.Fingerprint()
 
@@ -145,7 +154,7 @@ func (m *Manager) DeleteAllocation(fiveTuple *FiveTuple) {
 	}
 }
 
-// CreateReservation stores the reservation for the token+port
+// CreateReservation stores the reservation for the token+port.
 func (m *Manager) CreateReservation(reservationToken string, port int) {
 	time.AfterFunc(30*time.Second, func() {
 		m.lock.Lock()
@@ -153,6 +162,7 @@ func (m *Manager) CreateReservation(reservationToken string, port int) {
 		for i := len(m.reservations) - 1; i >= 0; i-- {
 			if m.reservations[i].token == reservationToken {
 				m.reservations = append(m.reservations[:i], m.reservations[i+1:]...)
+
 				return
 			}
 		}
@@ -166,7 +176,7 @@ func (m *Manager) CreateReservation(reservationToken string, port int) {
 	m.lock.Unlock()
 }
 
-// GetReservation returns the port for a given reservation if it exists
+// GetReservation returns the port for a given reservation if it exists.
 func (m *Manager) GetReservation(reservationToken string) (int, bool) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
@@ -176,10 +186,11 @@ func (m *Manager) GetReservation(reservationToken string) (int, bool) {
 			return r.port, true
 		}
 	}
+
 	return 0, false
 }
 
-// GetRandomEvenPort returns a random un-allocated udp4 port
+// GetRandomEvenPort returns a random un-allocated udp4 port.
 func (m *Manager) GetRandomEvenPort() (int, error) {
 	for i := 0; i < 128; i++ {
 		conn, addr, err := m.allocatePacketConn("udp4", 0)
@@ -199,11 +210,12 @@ func (m *Manager) GetRandomEvenPort() (int, error) {
 			return udpAddr.Port, nil
 		}
 	}
+
 	return 0, errFailedToAllocateEvenPort
 }
 
 // GrantPermission handles permission requests by calling the permission handler callback
-// associated with the TURN server listener socket
+// associated with the TURN server listener socket.
 func (m *Manager) GrantPermission(sourceAddr net.Addr, peerIP net.IP) error {
 	// No permission handler: open
 	if m.permissionHandler == nil {

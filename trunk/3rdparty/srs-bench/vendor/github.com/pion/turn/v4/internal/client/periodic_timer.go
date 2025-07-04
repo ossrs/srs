@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-// PeriodicTimerTimeoutHandler is a handler called on timeout
+// PeriodicTimerTimeoutHandler is a handler called on timeout.
 type PeriodicTimerTimeoutHandler func(timerID int)
 
-// PeriodicTimer is a periodic timer
+// PeriodicTimer is a periodic timer.
 type PeriodicTimer struct {
 	id             int
 	interval       time.Duration
@@ -20,7 +20,7 @@ type PeriodicTimer struct {
 	mutex          sync.RWMutex
 }
 
-// NewPeriodicTimer create a new timer
+// NewPeriodicTimer create a new timer.
 func NewPeriodicTimer(id int, timeoutHandler PeriodicTimerTimeoutHandler, interval time.Duration) *PeriodicTimer {
 	return &PeriodicTimer{
 		id:             id,
@@ -76,7 +76,7 @@ func (t *PeriodicTimer) Stop() {
 }
 
 // IsRunning tests if the timer is running.
-// Debug purpose only
+// Debug purpose only.
 func (t *PeriodicTimer) IsRunning() bool {
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()

@@ -1365,3 +1365,632 @@ VOID TEST(KernelRTCTest, JitterSequence)
     EXPECT_EQ((uint32_t)11, jitter.correct(11));
 }
 
+VOID TEST(KernelRTCTest, H265SDPParsing)
+{
+    srs_error_t err;
+
+    // Test srs_parse_h265_fmtp with valid parameters
+    if (true) {
+        H265SpecificParam h265_param;
+        string fmtp = "level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST";
+
+        HELPER_EXPECT_SUCCESS(srs_parse_h265_fmtp(fmtp, h265_param));
+        EXPECT_STREQ("180", h265_param.level_id.c_str());
+        EXPECT_STREQ("1", h265_param.profile_id.c_str());
+        EXPECT_STREQ("0", h265_param.tier_flag.c_str());
+        EXPECT_STREQ("SRST", h265_param.tx_mode.c_str());
+    }
+
+    // Test srs_parse_h265_fmtp with different parameter order
+    if (true) {
+        H265SpecificParam h265_param;
+        string fmtp = "profile-id=2;tier-flag=1;level-id=93;tx-mode=MCTS";
+
+        HELPER_EXPECT_SUCCESS(srs_parse_h265_fmtp(fmtp, h265_param));
+        EXPECT_STREQ("93", h265_param.level_id.c_str());
+        EXPECT_STREQ("2", h265_param.profile_id.c_str());
+        EXPECT_STREQ("1", h265_param.tier_flag.c_str());
+        EXPECT_STREQ("MCTS", h265_param.tx_mode.c_str());
+    }
+
+    // Test srs_parse_h265_fmtp with missing level-id (should fail)
+    if (true) {
+        H265SpecificParam h265_param;
+        string fmtp = "profile-id=1;tier-flag=0;tx-mode=SRST";
+
+        HELPER_EXPECT_FAILED(srs_parse_h265_fmtp(fmtp, h265_param));
+    }
+
+    // Test srs_parse_h265_fmtp with missing profile-id (should fail)
+    if (true) {
+        H265SpecificParam h265_param;
+        string fmtp = "level-id=180;tier-flag=0;tx-mode=SRST";
+
+        HELPER_EXPECT_FAILED(srs_parse_h265_fmtp(fmtp, h265_param));
+    }
+
+    // Test srs_parse_h265_fmtp with missing tier-flag (should fail)
+    if (true) {
+        H265SpecificParam h265_param;
+        string fmtp = "level-id=180;profile-id=1;tx-mode=SRST";
+
+        HELPER_EXPECT_FAILED(srs_parse_h265_fmtp(fmtp, h265_param));
+    }
+
+    // Test srs_parse_h265_fmtp with missing tx-mode (should fail)
+    if (true) {
+        H265SpecificParam h265_param;
+        string fmtp = "level-id=180;profile-id=1;tier-flag=0";
+
+        HELPER_EXPECT_FAILED(srs_parse_h265_fmtp(fmtp, h265_param));
+    }
+
+    // Test srs_parse_h265_fmtp with empty string (should fail)
+    if (true) {
+        H265SpecificParam h265_param;
+        string fmtp = "";
+
+        HELPER_EXPECT_FAILED(srs_parse_h265_fmtp(fmtp, h265_param));
+    }
+
+    // Test srs_parse_h265_fmtp with extra unknown parameters (should succeed)
+    if (true) {
+        H265SpecificParam h265_param;
+        string fmtp = "level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST;unknown-param=value";
+
+        HELPER_EXPECT_SUCCESS(srs_parse_h265_fmtp(fmtp, h265_param));
+        EXPECT_STREQ("180", h265_param.level_id.c_str());
+        EXPECT_STREQ("1", h265_param.profile_id.c_str());
+        EXPECT_STREQ("0", h265_param.tier_flag.c_str());
+        EXPECT_STREQ("SRST", h265_param.tx_mode.c_str());
+    }
+}
+
+// Forward declarations for H.265 SDP functions (defined in srs_app_rtc_conn.cpp)
+extern bool srs_sdp_has_h265_profile(const SrsMediaPayloadType& payload_type, const string& profile);
+extern bool srs_sdp_has_h265_profile(const SrsSdp& sdp, const string& profile);
+
+VOID TEST(KernelRTCTest, H265SDPProfileChecking)
+{
+    // Test srs_sdp_has_h265_profile with payload type
+    if (true) {
+        SrsMediaPayloadType payload_type(96);
+        payload_type.format_specific_param_ = "level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST";
+
+        // Should find Main Profile (profile-id=1)
+        EXPECT_TRUE(srs_sdp_has_h265_profile(payload_type, "1"));
+
+        // Should not find other profiles
+        EXPECT_FALSE(srs_sdp_has_h265_profile(payload_type, "2"));
+        EXPECT_FALSE(srs_sdp_has_h265_profile(payload_type, "3"));
+    }
+
+    // Test srs_sdp_has_h265_profile with different profile
+    if (true) {
+        SrsMediaPayloadType payload_type(97);
+        payload_type.format_specific_param_ = "level-id=93;profile-id=2;tier-flag=1;tx-mode=MCTS";
+
+        // Should find Main 10 Profile (profile-id=2)
+        EXPECT_TRUE(srs_sdp_has_h265_profile(payload_type, "2"));
+
+        // Should not find Main Profile
+        EXPECT_FALSE(srs_sdp_has_h265_profile(payload_type, "1"));
+    }
+
+    // Test srs_sdp_has_h265_profile with empty format_specific_param_
+    if (true) {
+        SrsMediaPayloadType payload_type(98);
+        payload_type.format_specific_param_ = "";
+
+        // Should not find any profile
+        EXPECT_FALSE(srs_sdp_has_h265_profile(payload_type, "1"));
+        EXPECT_FALSE(srs_sdp_has_h265_profile(payload_type, "2"));
+    }
+
+    // Test srs_sdp_has_h265_profile with invalid format_specific_param_
+    if (true) {
+        SrsMediaPayloadType payload_type(99);
+        payload_type.format_specific_param_ = "invalid-format";
+
+        // Should not find any profile (parsing should fail gracefully)
+        EXPECT_FALSE(srs_sdp_has_h265_profile(payload_type, "1"));
+    }
+
+    // Test srs_sdp_has_h265_profile with SDP containing H.265
+    if (true) {
+        SrsSdp sdp;
+        SrsMediaDesc video_desc("video");
+
+        SrsMediaPayloadType h265_payload(96);
+        h265_payload.encoding_name_ = "H265";
+        h265_payload.format_specific_param_ = "level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST";
+        video_desc.payload_types_.push_back(h265_payload);
+
+        sdp.media_descs_.push_back(video_desc);
+
+        // Should find Main Profile in SDP
+        EXPECT_TRUE(srs_sdp_has_h265_profile(sdp, "1"));
+        EXPECT_FALSE(srs_sdp_has_h265_profile(sdp, "2"));
+    }
+
+    // Test srs_sdp_has_h265_profile with SDP containing no H.265
+    if (true) {
+        SrsSdp sdp;
+        SrsMediaDesc video_desc("video");
+
+        SrsMediaPayloadType h264_payload(96);
+        h264_payload.encoding_name_ = "H264";
+        h264_payload.format_specific_param_ = "profile-level-id=42e01f";
+        video_desc.payload_types_.push_back(h264_payload);
+
+        sdp.media_descs_.push_back(video_desc);
+
+        // Should not find any H.265 profile
+        EXPECT_FALSE(srs_sdp_has_h265_profile(sdp, "1"));
+    }
+
+    // Test srs_sdp_has_h265_profile with SDP containing audio only
+    if (true) {
+        SrsSdp sdp;
+        SrsMediaDesc audio_desc("audio");
+
+        SrsMediaPayloadType opus_payload(111);
+        opus_payload.encoding_name_ = "opus";
+        audio_desc.payload_types_.push_back(opus_payload);
+
+        sdp.media_descs_.push_back(audio_desc);
+
+        // Should not find any H.265 profile in audio-only SDP
+        EXPECT_FALSE(srs_sdp_has_h265_profile(sdp, "1"));
+    }
+}
+
+VOID TEST(KernelRTCTest, H265VideoPayload)
+{
+    srs_error_t err;
+
+    // Test SrsVideoPayload::set_h265_param_desc with valid parameters
+    if (true) {
+        SrsVideoPayload payload;
+        string fmtp = "level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST";
+
+        HELPER_EXPECT_SUCCESS(payload.set_h265_param_desc(fmtp));
+        EXPECT_STREQ("180", payload.h265_param_.level_id.c_str());
+        EXPECT_STREQ("1", payload.h265_param_.profile_id.c_str());
+        EXPECT_STREQ("0", payload.h265_param_.tier_flag.c_str());
+        EXPECT_STREQ("SRST", payload.h265_param_.tx_mode.c_str());
+    }
+
+    // Test SrsVideoPayload::set_h265_param_desc with different order
+    if (true) {
+        SrsVideoPayload payload;
+        string fmtp = "tx-mode=MCTS;tier-flag=1;profile-id=2;level-id=93";
+
+        HELPER_EXPECT_SUCCESS(payload.set_h265_param_desc(fmtp));
+        EXPECT_STREQ("93", payload.h265_param_.level_id.c_str());
+        EXPECT_STREQ("2", payload.h265_param_.profile_id.c_str());
+        EXPECT_STREQ("1", payload.h265_param_.tier_flag.c_str());
+        EXPECT_STREQ("MCTS", payload.h265_param_.tx_mode.c_str());
+    }
+
+    // Test SrsVideoPayload::set_h265_param_desc with invalid parameter format
+    if (true) {
+        SrsVideoPayload payload;
+        string fmtp = "level-id=180;invalid-format;profile-id=1";
+
+        HELPER_EXPECT_FAILED(payload.set_h265_param_desc(fmtp));
+    }
+
+    // Test SrsVideoPayload::set_h265_param_desc with unknown parameter
+    if (true) {
+        SrsVideoPayload payload;
+        string fmtp = "level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST;unknown-param=value";
+
+        HELPER_EXPECT_FAILED(payload.set_h265_param_desc(fmtp));
+    }
+
+    // Test SrsVideoPayload::generate_media_payload_type_h265
+    if (true) {
+        SrsVideoPayload payload;
+        payload.pt_ = 96;
+        payload.name_ = "H265";
+        payload.sample_ = 90000;
+        payload.h265_param_.level_id = "180";
+        payload.h265_param_.profile_id = "1";
+        payload.h265_param_.tier_flag = "0";
+        payload.h265_param_.tx_mode = "SRST";
+
+        SrsMediaPayloadType media_type = payload.generate_media_payload_type_h265();
+        EXPECT_EQ(96, media_type.payload_type_);
+        EXPECT_STREQ("H265", media_type.encoding_name_.c_str());
+        EXPECT_EQ(90000, media_type.clock_rate_);
+        EXPECT_STREQ("level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST", media_type.format_specific_param_.c_str());
+    }
+
+    // Test SrsVideoPayload::generate_media_payload_type_h265 with partial parameters
+    if (true) {
+        SrsVideoPayload payload;
+        payload.pt_ = 97;
+        payload.name_ = "H265";
+        payload.sample_ = 90000;
+        payload.h265_param_.level_id = "93";
+        payload.h265_param_.profile_id = "2";
+        // tier_flag and tx_mode are empty
+
+        SrsMediaPayloadType media_type = payload.generate_media_payload_type_h265();
+        EXPECT_EQ(97, media_type.payload_type_);
+        EXPECT_STREQ("H265", media_type.encoding_name_.c_str());
+        EXPECT_EQ(90000, media_type.clock_rate_);
+        EXPECT_STREQ("level-id=93;profile-id=2", media_type.format_specific_param_.c_str());
+    }
+
+    // Test SrsVideoPayload::copy includes H.265 parameters
+    if (true) {
+        SrsVideoPayload original;
+        original.pt_ = 96;
+        original.name_ = "H265";
+        original.sample_ = 90000;
+        original.h265_param_.level_id = "180";
+        original.h265_param_.profile_id = "1";
+        original.h265_param_.tier_flag = "0";
+        original.h265_param_.tx_mode = "SRST";
+
+        SrsVideoPayload* copied = original.copy();
+        SrsUniquePtr<SrsVideoPayload> copied_uptr(copied);
+
+        EXPECT_EQ(original.pt_, copied->pt_);
+        EXPECT_STREQ(original.name_.c_str(), copied->name_.c_str());
+        EXPECT_EQ(original.sample_, copied->sample_);
+        EXPECT_STREQ(original.h265_param_.level_id.c_str(), copied->h265_param_.level_id.c_str());
+        EXPECT_STREQ(original.h265_param_.profile_id.c_str(), copied->h265_param_.profile_id.c_str());
+        EXPECT_STREQ(original.h265_param_.tier_flag.c_str(), copied->h265_param_.tier_flag.c_str());
+        EXPECT_STREQ(original.h265_param_.tx_mode.c_str(), copied->h265_param_.tx_mode.c_str());
+    }
+}
+
+VOID TEST(KernelRTCTest, H265RtpSTAPPayload)
+{
+    srs_error_t err;
+
+    // Test SrsRtpSTAPPayloadHevc encoding and decoding
+    if (true) {
+        SrsRtpSTAPPayloadHevc stap;
+
+        // Create sample VPS NALU
+        SrsSample* vps = new SrsSample();
+        uint8_t vps_data[] = {0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3d, 0x95, 0x98, 0x09};
+        vps->bytes = (char*)vps_data;
+        vps->size = sizeof(vps_data);
+        stap.nalus.push_back(vps);
+
+        // Create sample SPS NALU
+        SrsSample* sps = new SrsSample();
+        uint8_t sps_data[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3d, 0xa0, 0x02, 0x80, 0x80, 0x2d, 0x16, 0x59, 0x59, 0xa4, 0x93, 0x2b, 0xc0, 0x5a, 0x70, 0x80, 0x80, 0x80, 0x82};
+        sps->bytes = (char*)sps_data;
+        sps->size = sizeof(sps_data);
+        stap.nalus.push_back(sps);
+
+        // Create sample PPS NALU
+        SrsSample* pps = new SrsSample();
+        uint8_t pps_data[] = {0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40};
+        pps->bytes = (char*)pps_data;
+        pps->size = sizeof(pps_data);
+        stap.nalus.push_back(pps);
+
+        // Test encoding
+        char buf[1500];
+        SrsBuffer encode_buf(buf, sizeof(buf));
+        HELPER_EXPECT_SUCCESS(stap.encode(&encode_buf));
+
+        // Verify encoded size
+        uint64_t expected_size = 2 + 2 + sizeof(vps_data) + 2 + sizeof(sps_data) + 2 + sizeof(pps_data);
+        EXPECT_EQ(expected_size, stap.nb_bytes());
+        EXPECT_EQ((int)expected_size, encode_buf.pos());
+
+        // Test decoding
+        SrsRtpSTAPPayloadHevc decode_stap;
+        SrsBuffer decode_buf(buf, encode_buf.pos()); // Create new buffer with encoded data
+        HELPER_EXPECT_SUCCESS(decode_stap.decode(&decode_buf));
+
+        // Verify decoded NALUs
+        EXPECT_EQ(3, (int)decode_stap.nalus.size());
+
+        // Check VPS
+        SrsSample* decoded_vps = decode_stap.get_vps();
+        EXPECT_TRUE(decoded_vps != NULL);
+        EXPECT_EQ(sizeof(vps_data), (size_t)decoded_vps->size);
+
+        // Check SPS
+        SrsSample* decoded_sps = decode_stap.get_sps();
+        EXPECT_TRUE(decoded_sps != NULL);
+        EXPECT_EQ(sizeof(sps_data), (size_t)decoded_sps->size);
+
+        // Check PPS
+        SrsSample* decoded_pps = decode_stap.get_pps();
+        EXPECT_TRUE(decoded_pps != NULL);
+        EXPECT_EQ(sizeof(pps_data), (size_t)decoded_pps->size);
+
+        // Test copy functionality
+        ISrsRtpPayloader* copied = stap.copy();
+        SrsUniquePtr<ISrsRtpPayloader> copied_uptr(copied);
+        SrsRtpSTAPPayloadHevc* copied_stap = dynamic_cast<SrsRtpSTAPPayloadHevc*>(copied);
+        EXPECT_TRUE(copied_stap != NULL);
+        EXPECT_EQ(3, (int)copied_stap->nalus.size());
+    }
+
+    // Test SrsRtpSTAPPayloadHevc with empty NALUs
+    if (true) {
+        SrsRtpSTAPPayloadHevc stap;
+
+        // Test encoding with no NALUs
+        char buf[100];
+        SrsBuffer encode_buf(buf, sizeof(buf));
+        HELPER_EXPECT_SUCCESS(stap.encode(&encode_buf));
+        EXPECT_EQ(2, encode_buf.pos()); // Only STAP header
+
+        // Test get functions with no NALUs
+        EXPECT_TRUE(stap.get_vps() == NULL);
+        EXPECT_TRUE(stap.get_sps() == NULL);
+        EXPECT_TRUE(stap.get_pps() == NULL);
+    }
+
+    // Test SrsRtpSTAPPayloadHevc decoding with forbidden_zero_bit set (should fail)
+    if (true) {
+        SrsRtpSTAPPayloadHevc stap;
+
+        char buf[] = {static_cast<char>(0x80), 0x01}; // forbidden_zero_bit = 1
+        SrsBuffer decode_buf(buf, sizeof(buf));
+        HELPER_EXPECT_FAILED(stap.decode(&decode_buf));
+    }
+}
+
+VOID TEST(KernelRTCTest, H265RtpFUAPayload)
+{
+    srs_error_t err;
+
+    // Test SrsRtpFUAPayloadHevc encoding and decoding
+    if (true) {
+        SrsRtpFUAPayloadHevc fua;
+        fua.start = true;
+        fua.end = false;
+        fua.nalu_type = SrsHevcNaluType_CODED_SLICE_IDR;
+
+        // Create sample payload data
+        SrsSample* sample = new SrsSample();
+        uint8_t payload_data[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+        sample->bytes = (char*)payload_data;
+        sample->size = sizeof(payload_data);
+        fua.nalus.push_back(sample);
+
+        // Test encoding
+        char buf[100];
+        SrsBuffer encode_buf(buf, sizeof(buf));
+        HELPER_EXPECT_SUCCESS(fua.encode(&encode_buf));
+
+        // Verify encoded size (PayloadHdr(2) + FU header(1) + payload)
+        uint64_t expected_size = 3 + sizeof(payload_data);
+        EXPECT_EQ(expected_size, fua.nb_bytes());
+        EXPECT_EQ((int)expected_size, encode_buf.pos());
+
+        // Test decoding
+        SrsRtpFUAPayloadHevc decode_fua;
+        SrsBuffer decode_buf(buf, encode_buf.pos()); // Create new buffer with encoded data
+        HELPER_EXPECT_SUCCESS(decode_fua.decode(&decode_buf));
+
+        // Verify decoded values
+        EXPECT_TRUE(decode_fua.start);
+        EXPECT_FALSE(decode_fua.end);
+        EXPECT_EQ(SrsHevcNaluType_CODED_SLICE_IDR, decode_fua.nalu_type);
+        EXPECT_EQ(1, (int)decode_fua.nalus.size());
+        EXPECT_EQ(sizeof(payload_data), (size_t)decode_fua.nalus[0]->size);
+
+        // Test copy functionality
+        ISrsRtpPayloader* copied = fua.copy();
+        SrsUniquePtr<ISrsRtpPayloader> copied_uptr(copied);
+        SrsRtpFUAPayloadHevc* copied_fua = dynamic_cast<SrsRtpFUAPayloadHevc*>(copied);
+        EXPECT_TRUE(copied_fua != NULL);
+        EXPECT_TRUE(copied_fua->start);
+        EXPECT_FALSE(copied_fua->end);
+        EXPECT_EQ(SrsHevcNaluType_CODED_SLICE_IDR, copied_fua->nalu_type);
+        EXPECT_EQ(1, (int)copied_fua->nalus.size());
+    }
+
+    // Test SrsRtpFUAPayloadHevc2 encoding and decoding
+    if (true) {
+        SrsRtpFUAPayloadHevc2 fua2;
+        fua2.start = false;
+        fua2.end = true;
+        fua2.nalu_type = SrsHevcNaluType_CODED_SLICE_TRAIL_R;
+
+        uint8_t payload_data[] = {0xAA, 0xBB, 0xCC, 0xDD};
+        fua2.payload = (char*)payload_data;
+        fua2.size = sizeof(payload_data);
+
+        // Test encoding
+        char buf[100];
+        SrsBuffer encode_buf(buf, sizeof(buf));
+        HELPER_EXPECT_SUCCESS(fua2.encode(&encode_buf));
+
+        // Verify encoded size (PayloadHdr(2) + FU header(1) + payload)
+        uint64_t expected_size = 3 + sizeof(payload_data);
+        EXPECT_EQ(expected_size, fua2.nb_bytes());
+        EXPECT_EQ((int)expected_size, encode_buf.pos());
+
+        // Test decoding
+        SrsRtpFUAPayloadHevc2 decode_fua2;
+        SrsBuffer decode_buf2(buf, encode_buf.pos()); // Create new buffer with encoded data
+        HELPER_EXPECT_SUCCESS(decode_fua2.decode(&decode_buf2));
+
+        // Verify decoded values
+        EXPECT_FALSE(decode_fua2.start);
+        EXPECT_TRUE(decode_fua2.end);
+        EXPECT_EQ(SrsHevcNaluType_CODED_SLICE_TRAIL_R, decode_fua2.nalu_type);
+        EXPECT_EQ(sizeof(payload_data), (size_t)decode_fua2.size);
+
+        // Test copy functionality
+        ISrsRtpPayloader* copied = fua2.copy();
+        SrsUniquePtr<ISrsRtpPayloader> copied_uptr(copied);
+        SrsRtpFUAPayloadHevc2* copied_fua2 = dynamic_cast<SrsRtpFUAPayloadHevc2*>(copied);
+        EXPECT_TRUE(copied_fua2 != NULL);
+        EXPECT_FALSE(copied_fua2->start);
+        EXPECT_TRUE(copied_fua2->end);
+        EXPECT_EQ(SrsHevcNaluType_CODED_SLICE_TRAIL_R, copied_fua2->nalu_type);
+        EXPECT_EQ(sizeof(payload_data), (size_t)copied_fua2->size);
+    }
+}
+
+VOID TEST(KernelRTCTest, H265RtpPacketKeyframe)
+{
+    // Test RTP packet keyframe detection for HEVC
+    if (true) {
+        SrsRtpPacket pkt;
+        pkt.frame_type = SrsFrameTypeVideo;
+
+        // Test VPS NALU (should be keyframe)
+        pkt.nalu_type = SrsHevcNaluType_VPS;
+        EXPECT_TRUE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+
+        // Test SPS NALU (should be keyframe)
+        pkt.nalu_type = SrsHevcNaluType_SPS;
+        EXPECT_TRUE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+
+        // Test PPS NALU (should be keyframe)
+        pkt.nalu_type = SrsHevcNaluType_PPS;
+        EXPECT_TRUE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+
+        // Test IDR NALU (should be keyframe)
+        pkt.nalu_type = SrsHevcNaluType_CODED_SLICE_IDR;
+        EXPECT_TRUE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+
+        // Test CRA NALU (should be keyframe)
+        pkt.nalu_type = SrsHevcNaluType_CODED_SLICE_CRA;
+        EXPECT_TRUE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+
+        // Test BLA NALU (should be keyframe)
+        pkt.nalu_type = SrsHevcNaluType_CODED_SLICE_BLA;
+        EXPECT_TRUE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+
+        // Test regular P-frame NALU (should not be keyframe)
+        pkt.nalu_type = SrsHevcNaluType_CODED_SLICE_TRAIL_R;
+        EXPECT_FALSE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+
+        // Test regular B-frame NALU (should not be keyframe)
+        pkt.nalu_type = SrsHevcNaluType_CODED_SLICE_TSA_N;
+        EXPECT_FALSE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+    }
+
+    // Test HEVC STAP payload keyframe detection
+    if (true) {
+        SrsRtpPacket pkt;
+        pkt.frame_type = SrsFrameTypeVideo;
+        pkt.nalu_type = kStapHevc;
+
+        SrsRtpSTAPPayloadHevc* stap_payload = new SrsRtpSTAPPayloadHevc();
+        pkt.set_payload(stap_payload, SrsRtpPacketPayloadTypeSTAPHevc);
+
+        // Create VPS NALU
+        SrsSample* vps = new SrsSample();
+        uint8_t vps_data[] = {0x40, 0x01}; // VPS NALU header
+        vps->bytes = (char*)vps_data;
+        vps->size = sizeof(vps_data);
+        stap_payload->nalus.push_back(vps);
+
+        // Should be keyframe because it contains VPS
+        EXPECT_TRUE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+    }
+
+    // Test HEVC FU-A payload keyframe detection
+    if (true) {
+        SrsRtpPacket pkt;
+        pkt.frame_type = SrsFrameTypeVideo;
+        pkt.nalu_type = kFuHevc;
+
+        SrsRtpFUAPayloadHevc2* fua_payload = new SrsRtpFUAPayloadHevc2();
+        pkt.set_payload(fua_payload, SrsRtpPacketPayloadTypeFUAHevc2);
+
+        // Test IDR slice in FU-A (should be keyframe)
+        fua_payload->nalu_type = SrsHevcNaluType_CODED_SLICE_IDR;
+        EXPECT_TRUE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+
+        // Test regular slice in FU-A (should not be keyframe)
+        fua_payload->nalu_type = SrsHevcNaluType_CODED_SLICE_TRAIL_R;
+        EXPECT_FALSE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+    }
+
+    // Test audio packet (should not be keyframe regardless of NALU type)
+    if (true) {
+        SrsRtpPacket pkt;
+        pkt.frame_type = SrsFrameTypeAudio;
+        pkt.nalu_type = SrsHevcNaluType_VPS;
+        EXPECT_FALSE(pkt.is_keyframe(SrsVideoCodecIdHEVC));
+    }
+}
+
+// Note: Stream bridge codec switching tests are complex and require full RTC infrastructure
+// These would be better tested in integration tests rather than unit tests
+VOID TEST(KernelRTCTest, H265RtpRawNALUsSkipBytes)
+{
+    srs_error_t err;
+
+    // Test SrsRtpRawNALUs::skip_bytes for HEVC (2 bytes header)
+    if (true) {
+        SrsRtpRawNALUs raw_nalus;
+
+        // Create sample HEVC NALU
+        SrsSample* sample = new SrsSample();
+        uint8_t nalu_data[] = {0x26, 0x01, 0x12, 0x34, 0x56, 0x78}; // IDR slice
+        sample->bytes = (char*)nalu_data;
+        sample->size = sizeof(nalu_data);
+        raw_nalus.push_back(sample);
+
+        // Skip HEVC header (2 bytes)
+        uint8_t header = raw_nalus.skip_bytes(SrsHevcNaluHeaderSize);
+        EXPECT_EQ(0x26, header); // Should return first byte
+
+        // Verify remaining data
+        std::vector<SrsSample*> samples;
+        HELPER_EXPECT_SUCCESS(raw_nalus.read_samples(samples, 4));
+        EXPECT_EQ(1, (int)samples.size());
+        EXPECT_EQ(4, samples[0]->size);
+        EXPECT_EQ(0x12, (uint8_t)samples[0]->bytes[0]);
+        EXPECT_EQ(0x34, (uint8_t)samples[0]->bytes[1]);
+        EXPECT_EQ(0x56, (uint8_t)samples[0]->bytes[2]);
+        EXPECT_EQ(0x78, (uint8_t)samples[0]->bytes[3]);
+
+        // Clean up
+        for (size_t i = 0; i < samples.size(); i++) {
+            srs_freep(samples[i]);
+        }
+    }
+
+    // Test SrsRtpRawNALUs::skip_bytes for H.264 (1 byte header)
+    if (true) {
+        SrsRtpRawNALUs raw_nalus;
+
+        // Create sample H.264 NALU
+        SrsSample* sample = new SrsSample();
+        uint8_t nalu_data[] = {0x65, 0x12, 0x34, 0x56}; // IDR slice
+        sample->bytes = (char*)nalu_data;
+        sample->size = sizeof(nalu_data);
+        raw_nalus.push_back(sample);
+
+        // Skip H.264 header (1 byte)
+        uint8_t header = raw_nalus.skip_bytes(SrsAvcNaluHeaderSize);
+        EXPECT_EQ(0x65, header); // Should return first byte
+
+        // Verify remaining data
+        std::vector<SrsSample*> samples;
+        HELPER_EXPECT_SUCCESS(raw_nalus.read_samples(samples, 3));
+        EXPECT_EQ(1, (int)samples.size());
+        EXPECT_EQ(3, samples[0]->size);
+        EXPECT_EQ(0x12, (uint8_t)samples[0]->bytes[0]);
+        EXPECT_EQ(0x34, (uint8_t)samples[0]->bytes[1]);
+        EXPECT_EQ(0x56, (uint8_t)samples[0]->bytes[2]);
+
+        // Clean up
+        for (size_t i = 0; i < samples.size(); i++) {
+            srs_freep(samples[i]);
+        }
+    }
+}
+

@@ -14,7 +14,7 @@ import (
 // The CONNECTION-ID attribute uniquely identifies a peer data
 // connection.  It is a 32-bit unsigned integral value.
 //
-// RFC 6062 Section 6.2.1
+// RFC 6062 Section 6.2.1.
 type ConnectionID uint32
 
 const connectionIDSize = 4 // uint32: 4 bytes, 32 bits
@@ -24,6 +24,7 @@ func (c ConnectionID) AddTo(m *stun.Message) error {
 	v := make([]byte, lifetimeSize)
 	binary.BigEndian.PutUint32(v, uint32(c))
 	m.Add(stun.AttrConnectionID, v)
+
 	return nil
 }
 
@@ -38,5 +39,6 @@ func (c *ConnectionID) GetFrom(m *stun.Message) error {
 	}
 	_ = v[connectionIDSize-1] // Asserting length
 	*(*uint32)(c) = binary.BigEndian.Uint32(v)
+
 	return nil
 }

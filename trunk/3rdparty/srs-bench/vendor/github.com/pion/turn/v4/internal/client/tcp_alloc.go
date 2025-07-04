@@ -34,9 +34,9 @@ type TCPAllocation struct {
 	allocation
 }
 
-// NewTCPAllocation creates a new instance of TCPConn
+// NewTCPAllocation creates a new instance of TCPConn.
 func NewTCPAllocation(config *AllocationConfig) *TCPAllocation {
-	a := &TCPAllocation{
+	alloc := &TCPAllocation{
 		connAttemptCh: make(chan *connectionAttempt, 10),
 		acceptTimer:   time.NewTimer(time.Duration(math.MaxInt64)),
 		allocation: allocation{
@@ -54,31 +54,31 @@ func NewTCPAllocation(config *AllocationConfig) *TCPAllocation {
 		},
 	}
 
-	a.log.Debugf("Initial lifetime: %d seconds", int(a.lifetime().Seconds()))
+	alloc.log.Debugf("Initial lifetime: %d seconds", int(alloc.lifetime().Seconds()))
 
-	a.refreshAllocTimer = NewPeriodicTimer(
+	alloc.refreshAllocTimer = NewPeriodicTimer(
 		timerIDRefreshAlloc,
-		a.onRefreshTimers,
-		a.lifetime()/2,
+		alloc.onRefreshTimers,
+		alloc.lifetime()/2,
 	)
 
-	a.refreshPermsTimer = NewPeriodicTimer(
+	alloc.refreshPermsTimer = NewPeriodicTimer(
 		timerIDRefreshPerms,
-		a.onRefreshTimers,
+		alloc.onRefreshTimers,
 		permRefreshInterval,
 	)
 
-	if a.refreshAllocTimer.Start() {
-		a.log.Debug("Started refreshAllocTimer")
+	if alloc.refreshAllocTimer.Start() {
+		alloc.log.Debug("Started refreshAllocTimer")
 	}
-	if a.refreshPermsTimer.Start() {
-		a.log.Debug("Started refreshPermsTimer")
+	if alloc.refreshPermsTimer.Start() {
+		alloc.log.Debug("Started refreshPermsTimer")
 	}
 
-	return a
+	return alloc
 }
 
-// Connect sends a Connect request to the turn server and returns a chosen connection ID
+// Connect sends a Connect request to the turn server and returns a chosen connection ID.
 func (a *TCPAllocation) Connect(peer net.Addr) (proto.ConnectionID, error) {
 	setters := []stun.Setter{
 		stun.TransactionID,
@@ -119,6 +119,7 @@ func (a *TCPAllocation) Connect(peer net.Addr) (proto.ConnectionID, error) {
 	}
 
 	a.log.Debugf("Connect request successful (cid=%v)", cid)
+
 	return cid, nil
 }
 
@@ -218,8 +219,8 @@ func (a *TCPAllocation) DialTCPWithConn(conn net.Conn, _ string, rAddr *net.TCPA
 	return dataConn, nil
 }
 
-// BindConnection associates the provided connection
-func (a *TCPAllocation) BindConnection(dataConn *TCPConn, cid proto.ConnectionID) error {
+// BindConnection associates the provided connection.
+func (a *TCPAllocation) BindConnection(dataConn *TCPConn, cid proto.ConnectionID) error { //nolint:cyclop
 	msg, err := stun.Build(
 		stun.TransactionID,
 		stun.NewType(stun.MethodConnectionBind, stun.ClassRequest),
@@ -272,9 +273,11 @@ func (a *TCPAllocation) BindConnection(dataConn *TCPConn, cid proto.ConnectionID
 		if err = code.GetFrom(res); err == nil {
 			return fmt.Errorf("%s (error %s)", res.Type, code) //nolint:goerr113
 		}
+
 		return fmt.Errorf("%s", res.Type) //nolint:goerr113
 	case stun.ClassSuccessResponse:
 		a.log.Debug("Successful connectionBind request")
+
 		return nil
 	default:
 		return fmt.Errorf("%w: %s", errUnexpectedSTUNRequestMessage, res.String())
@@ -347,6 +350,7 @@ func (a *TCPAllocation) SetDeadline(t time.Time) error {
 		d = time.Until(t)
 	}
 	a.acceptTimer.Reset(d)
+
 	return nil
 }
 
@@ -358,10 +362,11 @@ func (a *TCPAllocation) Close() error {
 	a.refreshPermsTimer.Stop()
 
 	a.client.OnDeallocated(a.relayedAddr)
+
 	return a.refreshAllocation(0, true /* dontWait=true */)
 }
 
-// Addr returns the relayed address of the allocation
+// Addr returns the relayed address of the allocation.
 func (a *TCPAllocation) Addr() net.Addr {
 	return a.relayedAddr
 }

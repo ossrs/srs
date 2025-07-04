@@ -14,16 +14,16 @@ import (
 	"github.com/pion/rtp"
 )
 
-// SenderInterceptorFactory is a interceptor.Factory for a SenderInterceptor
+// SenderInterceptorFactory is a interceptor.Factory for a SenderInterceptor.
 type SenderInterceptorFactory struct {
 	opts []Option
 }
 
 var errClosed = errors.New("interceptor is closed")
 
-// NewInterceptor constructs a new SenderInterceptor
+// NewInterceptor constructs a new SenderInterceptor.
 func (s *SenderInterceptorFactory) NewInterceptor(_ string) (interceptor.Interceptor, error) {
-	i := &SenderInterceptor{
+	senderInterceptor := &SenderInterceptor{
 		log:        logging.NewDefaultLoggerFactory().NewLogger("twcc_sender_interceptor"),
 		packetChan: make(chan packet),
 		close:      make(chan struct{}),
@@ -32,13 +32,13 @@ func (s *SenderInterceptorFactory) NewInterceptor(_ string) (interceptor.Interce
 	}
 
 	for _, opt := range s.opts {
-		err := opt(i)
+		err := opt(senderInterceptor)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return i, nil
+	return senderInterceptor, nil
 }
 
 // NewSenderInterceptor returns a new SenderInterceptorFactory configured with the given options.
@@ -64,7 +64,7 @@ type SenderInterceptor struct {
 	packetChan chan packet
 }
 
-// An Option is a function that can be used to configure a SenderInterceptor
+// An Option is a function that can be used to configure a SenderInterceptor.
 type Option func(*SenderInterceptor) error
 
 // SendInterval sets the interval at which the interceptor
@@ -72,6 +72,7 @@ type Option func(*SenderInterceptor) error
 func SendInterval(interval time.Duration) Option {
 	return func(s *SenderInterceptor) error {
 		s.interval = interval
+
 		return nil
 	}
 }
@@ -102,54 +103,63 @@ type packet struct {
 	ssrc           uint32
 }
 
-// BindRemoteStream lets you modify any incoming RTP packets. It is called once for per RemoteStream. The returned method
+// BindRemoteStream lets you modify any incoming RTP packets.
+// It is called once for per RemoteStream. The returned method
 // will be called once per rtp packet.
-func (s *SenderInterceptor) BindRemoteStream(info *interceptor.StreamInfo, reader interceptor.RTPReader) interceptor.RTPReader {
+//
+//nolint:cyclop
+func (s *SenderInterceptor) BindRemoteStream(
+	info *interceptor.StreamInfo, reader interceptor.RTPReader,
+) interceptor.RTPReader {
 	var hdrExtID uint8
 	for _, e := range info.RTPHeaderExtensions {
 		if e.URI == transportCCURI {
-			hdrExtID = uint8(e.ID)
+			hdrExtID = uint8(e.ID) //nolint:gosec // G115
+
 			break
 		}
 	}
 	if hdrExtID == 0 { // Don't try to read header extension if ID is 0, because 0 is an invalid extension ID
 		return reader
 	}
-	return interceptor.RTPReaderFunc(func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
-		i, attr, err := reader.Read(buf, attributes)
-		if err != nil {
-			return 0, nil, err
-		}
 
-		if attr == nil {
-			attr = make(interceptor.Attributes)
-		}
-		header, err := attr.GetRTPHeader(buf[:i])
-		if err != nil {
-			return 0, nil, err
-		}
-		var tccExt rtp.TransportCCExtension
-		if ext := header.GetExtension(hdrExtID); ext != nil {
-			err = tccExt.Unmarshal(ext)
+	return interceptor.RTPReaderFunc(
+		func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+			i, attr, err := reader.Read(buf, attributes)
 			if err != nil {
 				return 0, nil, err
 			}
 
-			p := packet{
-				hdr:            header,
-				sequenceNumber: tccExt.TransportSequence,
-				arrivalTime:    time.Since(s.startTime).Microseconds(),
-				ssrc:           info.SSRC,
+			if attr == nil {
+				attr = make(interceptor.Attributes)
 			}
-			select {
-			case <-s.close:
-				return 0, nil, errClosed
-			case s.packetChan <- p:
+			header, err := attr.GetRTPHeader(buf[:i])
+			if err != nil {
+				return 0, nil, err
 			}
-		}
+			var tccExt rtp.TransportCCExtension
+			if ext := header.GetExtension(hdrExtID); ext != nil {
+				err = tccExt.Unmarshal(ext)
+				if err != nil {
+					return 0, nil, err
+				}
 
-		return i, attr, nil
-	})
+				p := packet{
+					hdr:            header,
+					sequenceNumber: tccExt.TransportSequence,
+					arrivalTime:    time.Since(s.startTime).Microseconds(),
+					ssrc:           info.SSRC,
+				}
+				select {
+				case <-s.close:
+					return 0, nil, errClosed
+				case s.packetChan <- p:
+				}
+			}
+
+			return i, attr, nil
+		},
+	)
 }
 
 // Close closes the interceptor.
@@ -174,7 +184,7 @@ func (s *SenderInterceptor) isClosed() bool {
 	}
 }
 
-func (s *SenderInterceptor) loop(w interceptor.RTCPWriter) {
+func (s *SenderInterceptor) loop(writer interceptor.RTCPWriter) {
 	defer s.wg.Done()
 
 	select {
@@ -189,6 +199,7 @@ func (s *SenderInterceptor) loop(w interceptor.RTCPWriter) {
 		select {
 		case <-s.close:
 			ticker.Stop()
+
 			return
 		case p := <-s.packetChan:
 			s.recorder.Record(p.ssrc, p.sequenceNumber, p.arrivalTime)
@@ -199,7 +210,7 @@ func (s *SenderInterceptor) loop(w interceptor.RTCPWriter) {
 			if len(pkts) == 0 {
 				continue
 			}
-			if _, err := w.Write(pkts, nil); err != nil {
+			if _, err := writer.Write(pkts, nil); err != nil {
 				s.log.Error(err.Error())
 			}
 		}

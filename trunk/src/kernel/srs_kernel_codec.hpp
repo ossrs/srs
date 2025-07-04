@@ -297,10 +297,8 @@ public:
      * check codec h264.
      */
     static bool h264(char* data, int size);
-#ifdef SRS_H265
     // Check whether codec is HEVC(H.265).
     static bool hevc(char* data, int size);
-#endif
     /**
      * check the video RTMP/flv header info,
      * @return true if video RTMP/flv header is ok.
@@ -439,7 +437,6 @@ enum SrsAvcNaluType
 #define SrsAvcNaluTypeParse(code) (SrsAvcNaluType)(code & 0x1F)
 std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
 
-#ifdef SRS_H265
 /**
  * The enum NALU type for HEVC
  * @see Table 7-1 – NAL unit type codes and NAL unit type classes
@@ -975,8 +972,6 @@ struct SrsHevcDecoderConfigurationRecord
     SrsHevcRbspPps pps_table[SrsHevcMax_PPS_COUNT];
 };
 
-#endif
-
 /**
  * Table 7-6 – Name association to slice_type
  * ISO_IEC_14496-10-AVC-2012.pdf, page 105.
@@ -1100,8 +1095,6 @@ enum SrsAvcLevel
 };
 std::string srs_avc_level2str(SrsAvcLevel level);
 
-#ifdef SRS_H265
-
 /**
  * the profile for hevc/h.265, Annex A Profiles, tiers and levels
  * @see A.3 Profiles
@@ -1143,8 +1136,6 @@ enum SrsHevcLevel
     SrsHevcLevel_62 = 186,
 };
 std::string srs_hevc_level2str(SrsHevcLevel level);
-
-#endif
 
 /**
  * A sample is the unit of frame.
@@ -1256,12 +1247,10 @@ public:
     SrsAvcProfile avc_profile;
     // level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel avc_level;
-#ifdef SRS_H265
     // The profile_idc, ITU-T-H.265-2021.pdf, page 62.
     SrsHevcProfile hevc_profile;
     // The level_idc, ITU-T-H.265-2021.pdf, page 63.
     SrsHevcLevel hevc_level;
-#endif
     // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     int8_t NAL_unit_length;
     // Note that we may resize the vector, so the under-layer bytes may change.
@@ -1270,10 +1259,8 @@ public:
 public:
     // the avc payload format.
     SrsAvcPayloadFormat payload_format;
-#ifdef SRS_H265
 public:
     SrsHevcDecoderConfigurationRecord hevc_dec_conf_record_;
-#endif
 public:
     SrsVideoCodecConfig();
     virtual ~SrsVideoCodecConfig();
@@ -1349,10 +1336,8 @@ public:
 public:
     static srs_error_t parse_avc_nalu_type(const SrsSample* sample, SrsAvcNaluType& avc_nalu_type);
     static srs_error_t parse_avc_bframe(const SrsSample* sample, bool& is_b_frame);
-#ifdef SRS_H265
     static srs_error_t parse_hevc_nalu_type(const SrsSample* sample, SrsHevcNaluType& hevc_nalu_type);
     static srs_error_t parse_hevc_bframe(const SrsSample* sample, SrsFormat* format, bool& is_b_frame);
-#endif
 };
 
 /**
@@ -1400,7 +1385,6 @@ private:
     //          Demux the sps/pps from sequence header.
     //          Demux the samples from NALUs.
     virtual srs_error_t video_avc_demux(SrsBuffer* stream, int64_t timestamp);
-#ifdef SRS_H265
 private:
     virtual srs_error_t hevc_demux_hvcc(SrsBuffer* stream);
 private:
@@ -1413,7 +1397,6 @@ public:
     virtual srs_error_t hevc_demux_vps(SrsBuffer *stream);
     virtual srs_error_t hevc_demux_sps(SrsBuffer *stream);
     virtual srs_error_t hevc_demux_pps(SrsBuffer *stream);
-#endif
 private:
     // Parse the H.264 SPS/PPS.
     virtual srs_error_t avc_demux_sps_pps(SrsBuffer* stream);

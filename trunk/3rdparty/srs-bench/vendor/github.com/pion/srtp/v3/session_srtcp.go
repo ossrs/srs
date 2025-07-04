@@ -16,7 +16,7 @@ const defaultSessionSRTCPReplayProtectionWindow = 64
 // SessionSRTCP implements io.ReadWriteCloser and provides a bi-directional SRTCP session
 // SRTCP itself does not have a design like this, but it is common in most applications
 // for local/remote to each have their own keying material. This provides those patterns
-// instead of making everyone re-implement
+// instead of making everyone re-implement.
 type SessionSRTCP struct {
 	session
 	writeStream *WriteStreamSRTCP
@@ -47,7 +47,7 @@ func NewSessionSRTCP(conn net.Conn, config *Config) (*SessionSRTCP, error) { //n
 		config.RemoteOptions...,
 	)
 
-	s := &SessionSRTCP{
+	srtcpSession := &SessionSRTCP{
 		session: session{
 			nextConn:            conn,
 			localOptions:        localOpts,
@@ -61,37 +61,39 @@ func NewSessionSRTCP(conn net.Conn, config *Config) (*SessionSRTCP, error) { //n
 			log:                 loggerFactory.NewLogger("srtp"),
 		},
 	}
-	s.writeStream = &WriteStreamSRTCP{s}
+	srtcpSession.writeStream = &WriteStreamSRTCP{srtcpSession}
 
-	err := s.session.start(
+	err := srtcpSession.session.start(
 		config.Keys.LocalMasterKey, config.Keys.LocalMasterSalt,
 		config.Keys.RemoteMasterKey, config.Keys.RemoteMasterSalt,
 		config.Profile,
-		s,
+		srtcpSession,
 	)
 	if err != nil {
 		return nil, err
 	}
-	return s, nil
+
+	return srtcpSession, nil
 }
 
-// OpenWriteStream returns the global write stream for the Session
+// OpenWriteStream returns the global write stream for the Session.
 func (s *SessionSRTCP) OpenWriteStream() (*WriteStreamSRTCP, error) {
 	return s.writeStream, nil
 }
 
 // OpenReadStream opens a read stream for the given SSRC, it can be used
-// if you want a certain SSRC, but don't want to wait for AcceptStream
+// if you want a certain SSRC, but don't want to wait for AcceptStream.
 func (s *SessionSRTCP) OpenReadStream(ssrc uint32) (*ReadStreamSRTCP, error) {
 	r, _ := s.session.getOrCreateReadStream(ssrc, s, newReadStreamSRTCP)
 
 	if readStream, ok := r.(*ReadStreamSRTCP); ok {
 		return readStream, nil
 	}
+
 	return nil, errFailedTypeAssertion
 }
 
-// AcceptStream returns a stream to handle RTCP for a single SSRC
+// AcceptStream returns a stream to handle RTCP for a single SSRC.
 func (s *SessionSRTCP) AcceptStream() (*ReadStreamSRTCP, uint32, error) {
 	stream, ok := <-s.newStream
 	if !ok {
@@ -106,7 +108,7 @@ func (s *SessionSRTCP) AcceptStream() (*ReadStreamSRTCP, uint32, error) {
 	return readStream, stream.GetSSRC(), nil
 }
 
-// Close ends the session
+// Close ends the session.
 func (s *SessionSRTCP) Close() error {
 	return s.session.close()
 }
@@ -122,12 +124,13 @@ func (s *SessionSRTCP) write(buf []byte) (int, error) {
 	defer bufferpool.Put(ibuf)
 
 	s.session.localContextMutex.Lock()
-	encrypted, err := s.localContext.EncryptRTCP(ibuf.([]byte), buf, nil)
+	encrypted, err := s.localContext.EncryptRTCP(ibuf.([]byte), buf, nil) //nolint:forcetypeassert
 	s.session.localContextMutex.Unlock()
 
 	if err != nil {
 		return 0, err
 	}
+
 	return s.session.nextConn.Write(encrypted)
 }
 

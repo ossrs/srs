@@ -1568,7 +1568,6 @@ ISrsRtpPayloader* SrsRtpFUAPayload2::copy()
     return cp;
 }
 
-#ifdef SRS_H265
 SrsRtpSTAPPayloadHevc::SrsRtpSTAPPayloadHevc()
 {
     ++_srs_pps_objs_rothers->sugar;
@@ -1927,4 +1926,4 @@ ISrsRtpPayloader* SrsRtpFUAPayloadHevc2::copy()
 
     return cp;
 }
-#endif
+

@@ -12,7 +12,7 @@ import (
 
 // ChannelData represents The ChannelData Message.
 //
-// See RFC 5766 Section 11.4
+// See RFC 5766 Section 11.4.
 type ChannelData struct {
 	Data   []byte // Can be sub slice of Raw
 	Length int    // Ignored while encoding, len(Data) is used
@@ -20,21 +20,22 @@ type ChannelData struct {
 	Raw    []byte
 }
 
-// Equal returns true if b == c.
-func (c *ChannelData) Equal(b *ChannelData) bool {
-	if c == nil && b == nil {
+// Equal returns true if compareTo == c.
+func (c *ChannelData) Equal(compareTo *ChannelData) bool {
+	if c == nil && compareTo == nil {
 		return true
 	}
-	if c == nil || b == nil {
+	if c == nil || compareTo == nil {
 		return false
 	}
-	if c.Number != b.Number {
+	if c.Number != compareTo.Number {
 		return false
 	}
-	if len(c.Data) != len(b.Data) {
+	if len(c.Data) != len(compareTo.Data) {
 		return false
 	}
-	return bytes.Equal(c.Data, b.Data)
+
+	return bytes.Equal(c.Data, compareTo.Data)
 }
 
 // Grow ensures that internal buffer will fit v more bytes and
@@ -76,6 +77,7 @@ func nearestPaddedValueLength(l int) int {
 	if n < l {
 		n += padding
 	}
+
 	return n
 }
 
@@ -90,7 +92,7 @@ func (c *ChannelData) WriteHeader() {
 	_ = c.Raw[:channelDataHeaderSize]
 	binary.BigEndian.PutUint16(c.Raw[:channelDataNumberSize], uint16(c.Number))
 	binary.BigEndian.PutUint16(c.Raw[channelDataNumberSize:channelDataHeaderSize],
-		uint16(len(c.Data)),
+		uint16(len(c.Data)), // nolint:gosec // G115
 	)
 }
 
@@ -118,6 +120,7 @@ func (c *ChannelData) Decode() error {
 	if int(l) > len(buf[channelDataHeaderSize:]) {
 		return ErrBadChannelDataLength
 	}
+
 	return nil
 }
 
@@ -139,5 +142,6 @@ func IsChannelData(buf []byte) bool {
 
 	// Quick check for channel number.
 	num := binary.BigEndian.Uint16(buf[0:channelNumberSize])
+
 	return isChannelNumberValid(num)
 }

@@ -55,12 +55,12 @@ type PeerConnection struct {
 
 	idpLoginURL *string
 
-	isClosed                                *atomicBool
+	isClosed                                *atomic.Bool
 	isGracefullyClosingOrClosed             bool
 	isCloseDone                             chan struct{}
 	isGracefulCloseDone                     chan struct{}
-	isNegotiationNeeded                     *atomicBool
-	updateNegotiationNeededFlagOnEmptyChain *atomicBool
+	isNegotiationNeeded                     *atomic.Bool
+	updateNegotiationNeededFlagOnEmptyChain *atomic.Bool
 
 	lastOffer  string
 	lastAnswer string
@@ -124,11 +124,11 @@ func (api *API) NewPeerConnection(configuration Configuration) (*PeerConnection,
 			Certificates:         []Certificate{},
 			ICECandidatePoolSize: 0,
 		},
-		isClosed:                                &atomicBool{},
+		isClosed:                                &atomic.Bool{},
 		isCloseDone:                             make(chan struct{}),
 		isGracefulCloseDone:                     make(chan struct{}),
-		isNegotiationNeeded:                     &atomicBool{},
-		updateNegotiationNeededFlagOnEmptyChain: &atomicBool{},
+		isNegotiationNeeded:                     &atomic.Bool{},
+		updateNegotiationNeededFlagOnEmptyChain: &atomic.Bool{},
 		lastOffer:                               "",
 		lastAnswer:                              "",
 		greaterMid:                              -1,
@@ -296,7 +296,7 @@ func (pc *PeerConnection) onNegotiationNeeded() {
 	// 4.7.3.1 If the length of connection.[[Operations]] is not 0, then set
 	// connection.[[UpdateNegotiationNeededFlagOnEmptyChain]] to true, and abort these steps.
 	if !pc.ops.IsEmpty() {
-		pc.updateNegotiationNeededFlagOnEmptyChain.set(true)
+		pc.updateNegotiationNeededFlagOnEmptyChain.Store(true)
 
 		return
 	}
@@ -306,7 +306,7 @@ func (pc *PeerConnection) onNegotiationNeeded() {
 // https://www.w3.org/TR/webrtc/#dfn-update-the-negotiation-needed-flag
 func (pc *PeerConnection) negotiationNeededOp() {
 	// 4.7.3.2.1 If connection.[[IsClosed]] is true, abort these steps.
-	if pc.isClosed.get() {
+	if pc.isClosed.Load() {
 		return
 	}
 
@@ -314,7 +314,7 @@ func (pc *PeerConnection) negotiationNeededOp() {
 	// then set connection.[[UpdateNegotiationNeededFlagOnEmptyChain]] to
 	// true, and abort these steps.
 	if !pc.ops.IsEmpty() {
-		pc.updateNegotiationNeededFlagOnEmptyChain.set(true)
+		pc.updateNegotiationNeededFlagOnEmptyChain.Store(true)
 
 		return
 	}
@@ -328,18 +328,18 @@ func (pc *PeerConnection) negotiationNeededOp() {
 	// clear the negotiation-needed flag by setting connection.[[NegotiationNeeded]]
 	// to false, and abort these steps.
 	if !pc.checkNegotiationNeeded() {
-		pc.isNegotiationNeeded.set(false)
+		pc.isNegotiationNeeded.Store(false)
 
 		return
 	}
 
 	// 4.7.3.2.5 If connection.[[NegotiationNeeded]] is already true, abort these steps.
-	if pc.isNegotiationNeeded.get() {
+	if pc.isNegotiationNeeded.Load() {
 		return
 	}
 
 	// 4.7.3.2.6 Set connection.[[NegotiationNeeded]] to true.
-	pc.isNegotiationNeeded.set(true)
+	pc.isNegotiationNeeded.Store(true)
 
 	// 4.7.3.2.7 Fire an event named negotiationneeded at connection.
 	if handler, ok := pc.onNegotiationNeededHandler.Load().(func()); ok && handler != nil {
@@ -513,7 +513,7 @@ func (pc *PeerConnection) onConnectionStateChange(cs PeerConnectionState) {
 // SetConfiguration updates the configuration of this PeerConnection object.
 func (pc *PeerConnection) SetConfiguration(configuration Configuration) error { //nolint:gocognit,cyclop
 	// https://www.w3.org/TR/webrtc/#dom-rtcpeerconnection-setconfiguration (step #2)
-	if pc.isClosed.get() {
+	if pc.isClosed.Load() {
 		return &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
 
@@ -623,7 +623,7 @@ func (pc *PeerConnection) CreateOffer(options *OfferOptions) (SessionDescription
 	switch {
 	case useIdentity:
 		return SessionDescription{}, errIdentityProviderNotImplemented
-	case pc.isClosed.get():
+	case pc.isClosed.Load():
 		return SessionDescription{}, &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
 
@@ -763,7 +763,7 @@ func (pc *PeerConnection) updateConnectionState(
 	connectionState := PeerConnectionStateNew
 	switch {
 	// The RTCPeerConnection object's [[IsClosed]] slot is true.
-	case pc.isClosed.get():
+	case pc.isClosed.Load():
 		connectionState = PeerConnectionStateClosed
 
 	// Any of the RTCIceTransports or RTCDtlsTransports are in a "failed" state.
@@ -844,7 +844,7 @@ func (pc *PeerConnection) CreateAnswer(*AnswerOptions) (SessionDescription, erro
 		return SessionDescription{}, &rtcerr.InvalidStateError{Err: ErrNoRemoteDescription}
 	case useIdentity:
 		return SessionDescription{}, errIdentityProviderNotImplemented
-	case pc.isClosed.get():
+	case pc.isClosed.Load():
 		return SessionDescription{}, &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	case pc.signalingState.Get() != SignalingStateHaveRemoteOffer &&
 		pc.signalingState.Get() != SignalingStateHaveLocalPranswer:
@@ -891,7 +891,7 @@ func (pc *PeerConnection) CreateAnswer(*AnswerOptions) (SessionDescription, erro
 //nolint:gocognit,cyclop
 func (pc *PeerConnection) setDescription(sd *SessionDescription, op stateChangeOp) error {
 	switch {
-	case pc.isClosed.get():
+	case pc.isClosed.Load():
 		return &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	case NewSDPType(sd.Type.String()) == SDPTypeUnknown:
 		return &rtcerr.TypeError{
@@ -995,7 +995,7 @@ func (pc *PeerConnection) setDescription(sd *SessionDescription, op stateChangeO
 	if err == nil {
 		pc.signalingState.Set(nextState)
 		if pc.signalingState.Get() == SignalingStateStable {
-			pc.isNegotiationNeeded.set(false)
+			pc.isNegotiationNeeded.Store(false)
 			pc.mu.Lock()
 			pc.onNegotiationNeeded()
 			pc.mu.Unlock()
@@ -1010,7 +1010,7 @@ func (pc *PeerConnection) setDescription(sd *SessionDescription, op stateChangeO
 //
 //nolint:cyclop
 func (pc *PeerConnection) SetLocalDescription(desc SessionDescription) error {
-	if pc.isClosed.get() {
+	if pc.isClosed.Load() {
 		return &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
 
@@ -1081,7 +1081,7 @@ func (pc *PeerConnection) LocalDescription() *SessionDescription {
 //
 //nolint:gocognit,gocyclo,cyclop,maintidx
 func (pc *PeerConnection) SetRemoteDescription(desc SessionDescription) error {
-	if pc.isClosed.get() {
+	if pc.isClosed.Load() {
 		return &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
 
@@ -1700,7 +1700,10 @@ func (pc *PeerConnection) handleIncomingSSRC(rtpStream io.Reader, ssrc SSRC) err
 
 	// If a SSRC already exists in the RemoteDescription don't perform heuristics upon it
 	for _, track := range trackDetailsFromSDP(pc.log, remoteDescription.parsed) {
-		if track.repairSsrc != nil && ssrc == *track.repairSsrc {
+		if track.rtxSsrc != nil && ssrc == *track.rtxSsrc {
+			return nil
+		}
+		if track.fecSsrc != nil && ssrc == *track.fecSsrc {
 			return nil
 		}
 		for _, trackSsrc := range track.ssrcs {
@@ -1883,7 +1886,7 @@ func (pc *PeerConnection) undeclaredRTPMediaProcessor() { //nolint:cyclop
 			return
 		}
 
-		if pc.isClosed.get() {
+		if pc.isClosed.Load() {
 			if err = srtpReadStream.Close(); err != nil {
 				pc.log.Warnf("Failed to close RTP stream %v", err)
 			}
@@ -2073,7 +2076,7 @@ func (pc *PeerConnection) GetTransceivers() []*RTPTransceiver {
 //
 //nolint:cyclop
 func (pc *PeerConnection) AddTrack(track TrackLocal) (*RTPSender, error) {
-	if pc.isClosed.get() {
+	if pc.isClosed.Load() {
 		return nil, &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
 
@@ -2115,7 +2118,7 @@ func (pc *PeerConnection) AddTrack(track TrackLocal) (*RTPSender, error) {
 
 // RemoveTrack removes a Track from the PeerConnection.
 func (pc *PeerConnection) RemoveTrack(sender *RTPSender) (err error) {
-	if pc.isClosed.get() {
+	if pc.isClosed.Load() {
 		return &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
 
@@ -2183,7 +2186,7 @@ func (pc *PeerConnection) AddTransceiverFromKind(
 	kind RTPCodecType,
 	init ...RTPTransceiverInit,
 ) (t *RTPTransceiver, err error) {
-	if pc.isClosed.get() {
+	if pc.isClosed.Load() {
 		return nil, &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
 
@@ -2228,7 +2231,7 @@ func (pc *PeerConnection) AddTransceiverFromTrack(
 	track TrackLocal,
 	init ...RTPTransceiverInit,
 ) (t *RTPTransceiver, err error) {
-	if pc.isClosed.get() {
+	if pc.isClosed.Load() {
 		return nil, &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
 
@@ -2256,7 +2259,7 @@ func (pc *PeerConnection) AddTransceiverFromTrack(
 //nolint:cyclop
 func (pc *PeerConnection) CreateDataChannel(label string, options *DataChannelInit) (*DataChannel, error) {
 	// https://w3c.github.io/webrtc-pc/#peer-to-peer-data-api (Step #2)
-	if pc.isClosed.get() {
+	if pc.isClosed.Load() {
 		return nil, &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
 
@@ -2377,7 +2380,7 @@ func (pc *PeerConnection) close(shouldGracefullyClose bool) error { //nolint:cyc
 	// some overlapping close cases when both normal and graceful close are used
 	// that should be idempotent, but be cautioned when writing new close behavior
 	// to preserve this property.
-	isAlreadyClosingOrClosed := pc.isClosed.swap(true)
+	isAlreadyClosingOrClosed := pc.isClosed.Swap(true)
 	isAlreadyGracefullyClosingOrClosed := pc.isGracefullyClosingOrClosed
 	if shouldGracefullyClose && !isAlreadyGracefullyClosingOrClosed {
 		pc.isGracefullyClosingOrClosed = true
@@ -2665,7 +2668,7 @@ func (pc *PeerConnection) startTransports(
 	}
 
 	pc.dtlsTransport.internalOnCloseHandler = func() {
-		if pc.isClosed.get() || pc.api.settingEngine.disableCloseByDTLS {
+		if pc.isClosed.Load() || pc.api.settingEngine.disableCloseByDTLS {
 			return
 		}
 
@@ -2718,7 +2721,7 @@ func (pc *PeerConnection) generateUnmatchedSDP(
 	if err != nil {
 		return nil, err
 	}
-	desc.Attributes = append(desc.Attributes, sdp.Attribute{Key: sdp.AttrKeyMsidSemantic, Value: "WMS*"})
+	desc.Attributes = append(desc.Attributes, sdp.Attribute{Key: sdp.AttrKeyMsidSemantic, Value: "WMS *"})
 
 	iceParams, err := pc.iceGatherer.GetLocalParameters()
 	if err != nil {
@@ -2811,7 +2814,7 @@ func (pc *PeerConnection) generateMatchedSDP(
 	if err != nil {
 		return nil, err
 	}
-	desc.Attributes = append(desc.Attributes, sdp.Attribute{Key: sdp.AttrKeyMsidSemantic, Value: "WMS*"})
+	desc.Attributes = append(desc.Attributes, sdp.Attribute{Key: sdp.AttrKeyMsidSemantic, Value: "WMS *"})
 
 	iceParams, err := pc.iceGatherer.GetLocalParameters()
 	if err != nil {

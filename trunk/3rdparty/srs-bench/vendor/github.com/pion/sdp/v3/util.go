@@ -19,16 +19,12 @@ const (
 )
 
 var (
-	errExtractCodecRtpmap         = errors.New("could not extract codec from rtpmap")
-	errExtractCodecFmtp           = errors.New("could not extract codec from fmtp")
-	errExtractCodecRtcpFb         = errors.New("could not extract codec from rtcp-fb")
-	errMultipleName               = errors.New("codec has multiple names defined")
-	errMultipleClockRate          = errors.New("codec has multiple clock rates")
-	errMultipleEncodingParameters = errors.New("codec has multiple encoding parameters")
-	errMultipleFmtp               = errors.New("codec has multiple fmtp values")
-	errPayloadTypeNotFound        = errors.New("payload type not found")
-	errCodecNotFound              = errors.New("codec not found")
-	errSyntaxError                = errors.New("SyntaxError")
+	errExtractCodecRtpmap  = errors.New("could not extract codec from rtpmap")
+	errExtractCodecFmtp    = errors.New("could not extract codec from fmtp")
+	errExtractCodecRtcpFb  = errors.New("could not extract codec from rtcp-fb")
+	errPayloadTypeNotFound = errors.New("payload type not found")
+	errCodecNotFound       = errors.New("codec not found")
+	errSyntaxError         = errors.New("SyntaxError")
 )
 
 // ConnectionRole indicates which of the end points should initiate the connection establishment.
@@ -207,49 +203,30 @@ func parseRtcpFb(rtcpFb string) (codec Codec, isWildcard bool, err error) {
 	return codec, isWildcard, nil
 }
 
-func mergeCodecs(codec Codec, codecs map[uint8]Codec) error { // nolint: cyclop
+func mergeCodecs(codec Codec, codecs map[uint8]Codec) {
 	savedCodec := codecs[codec.PayloadType]
-	savedCodec.PayloadType = codec.PayloadType
 
-	if codec.Name != "" {
-		if savedCodec.Name != "" && savedCodec.Name != codec.Name {
-			return errMultipleName
-		}
-
+	if savedCodec.PayloadType == 0 {
+		savedCodec.PayloadType = codec.PayloadType
+	}
+	if savedCodec.Name == "" {
 		savedCodec.Name = codec.Name
 	}
-
-	if codec.ClockRate != 0 {
-		if savedCodec.ClockRate != 0 && savedCodec.ClockRate != codec.ClockRate {
-			return errMultipleClockRate
-		}
-
+	if savedCodec.ClockRate == 0 {
 		savedCodec.ClockRate = codec.ClockRate
 	}
-
-	if codec.EncodingParameters != "" {
-		if savedCodec.EncodingParameters != "" && savedCodec.EncodingParameters != codec.EncodingParameters {
-			return errMultipleEncodingParameters
-		}
-
+	if savedCodec.EncodingParameters == "" {
 		savedCodec.EncodingParameters = codec.EncodingParameters
 	}
-
-	if codec.Fmtp != "" {
-		if savedCodec.Fmtp != "" && savedCodec.Fmtp != codec.Fmtp {
-			return errMultipleFmtp
-		}
-
+	if savedCodec.Fmtp == "" {
 		savedCodec.Fmtp = codec.Fmtp
 	}
-
 	savedCodec.RTCPFeedback = append(savedCodec.RTCPFeedback, codec.RTCPFeedback...)
-	codecs[savedCodec.PayloadType] = savedCodec
 
-	return nil
+	codecs[savedCodec.PayloadType] = savedCodec
 }
 
-func (s *SessionDescription) buildCodecMap() (map[uint8]Codec, error) { //nolint:cyclop, gocognit
+func (s *SessionDescription) buildCodecMap() map[uint8]Codec { //nolint:cyclop
 	codecs := map[uint8]Codec{
 		// static codecs that do not require a rtpmap
 		0: {
@@ -272,16 +249,12 @@ func (s *SessionDescription) buildCodecMap() (map[uint8]Codec, error) { //nolint
 			case strings.HasPrefix(attr, "rtpmap:"):
 				codec, err := parseRtpmap(attr)
 				if err == nil {
-					if err = mergeCodecs(codec, codecs); err != nil {
-						return nil, err
-					}
+					mergeCodecs(codec, codecs)
 				}
 			case strings.HasPrefix(attr, "fmtp:"):
 				codec, err := parseFmtp(attr)
 				if err == nil {
-					if err = mergeCodecs(codec, codecs); err != nil {
-						return nil, err
-					}
+					mergeCodecs(codec, codecs)
 				}
 			case strings.HasPrefix(attr, "rtcp-fb:"):
 				codec, isWildcard, err := parseRtcpFb(attr)
@@ -290,9 +263,7 @@ func (s *SessionDescription) buildCodecMap() (map[uint8]Codec, error) { //nolint
 				case isWildcard:
 					wildcardRTCPFeedback = append(wildcardRTCPFeedback, codec.RTCPFeedback...)
 				default:
-					if err = mergeCodecs(codec, codecs); err != nil {
-						return nil, err
-					}
+					mergeCodecs(codec, codecs)
 				}
 			}
 		}
@@ -306,7 +277,7 @@ func (s *SessionDescription) buildCodecMap() (map[uint8]Codec, error) { //nolint
 		codecs[i] = codec
 	}
 
-	return codecs, nil
+	return codecs
 }
 
 func equivalentFmtp(want, got string) bool {
@@ -350,10 +321,7 @@ func codecsMatch(wanted, got Codec) bool {
 
 // GetCodecForPayloadType scans the SessionDescription for the given payload type and returns the codec.
 func (s *SessionDescription) GetCodecForPayloadType(payloadType uint8) (Codec, error) {
-	codecs, err := s.buildCodecMap()
-	if err != nil {
-		return Codec{}, err
-	}
+	codecs := s.buildCodecMap()
 
 	codec, ok := codecs[payloadType]
 	if ok {
@@ -366,10 +334,7 @@ func (s *SessionDescription) GetCodecForPayloadType(payloadType uint8) (Codec, e
 // GetPayloadTypeForCodec scans the SessionDescription for a codec that matches the provided codec
 // as closely as possible and returns its payload type.
 func (s *SessionDescription) GetPayloadTypeForCodec(wanted Codec) (uint8, error) {
-	codecs, err := s.buildCodecMap()
-	if err != nil {
-		return 0, err
-	}
+	codecs := s.buildCodecMap()
 
 	for payloadType, codec := range codecs {
 		if codecsMatch(wanted, codec) {

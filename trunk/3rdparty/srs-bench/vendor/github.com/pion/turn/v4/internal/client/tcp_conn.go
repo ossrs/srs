@@ -23,7 +23,7 @@ const (
 var _ transport.TCPConn = (*TCPConn)(nil) // Includes type check for net.Conn
 
 // TCPConn wraps a transport.TCPConn and returns the allocations relayed
-// transport address in response to TCPConn.LocalAddress()
+// transport address in response to TCPConn.LocalAddress().
 type TCPConn struct {
 	transport.TCPConn
 	remoteAddress *net.TCPAddr

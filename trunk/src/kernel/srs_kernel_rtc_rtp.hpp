@@ -478,7 +478,6 @@ public:
     virtual ISrsRtpPayloader* copy();
 };
 
-#ifdef SRS_H265
 class SrsRtpSTAPPayloadHevc : public ISrsRtpPayloader
 {
 public:
@@ -542,6 +541,5 @@ public:
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
 };
-#endif
 
 #endif

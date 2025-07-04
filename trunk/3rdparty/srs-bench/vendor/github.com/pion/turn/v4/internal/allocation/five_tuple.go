@@ -7,10 +7,10 @@ import (
 	"net"
 )
 
-// Protocol is an enum for relay protocol
+// Protocol is an enum for relay protocol.
 type Protocol uint8
 
-// Network protocols for relay
+// Network protocols for relay.
 const (
 	UDP Protocol = iota
 	TCP
@@ -27,19 +27,19 @@ type FiveTuple struct {
 	SrcAddr, DstAddr net.Addr
 }
 
-// Equal asserts if two FiveTuples are equal
+// Equal asserts if two FiveTuples are equal.
 func (f *FiveTuple) Equal(b *FiveTuple) bool {
 	return f.Fingerprint() == b.Fingerprint()
 }
 
-// FiveTupleFingerprint is a comparable representation of a FiveTuple
+// FiveTupleFingerprint is a comparable representation of a FiveTuple.
 type FiveTupleFingerprint struct {
 	srcIP, dstIP     [16]byte
 	srcPort, dstPort uint16
 	protocol         Protocol
 }
 
-// Fingerprint is the identity of a FiveTuple
+// Fingerprint is the identity of a FiveTuple.
 func (f *FiveTuple) Fingerprint() (fp FiveTupleFingerprint) {
 	srcIP, srcPort := netAddrIPAndPort(f.SrcAddr)
 	copy(fp.srcIP[:], srcIP)
@@ -48,15 +48,16 @@ func (f *FiveTuple) Fingerprint() (fp FiveTupleFingerprint) {
 	copy(fp.dstIP[:], dstIP)
 	fp.dstPort = dstPort
 	fp.protocol = f.Protocol
+
 	return
 }
 
 func netAddrIPAndPort(addr net.Addr) (net.IP, uint16) {
 	switch a := addr.(type) {
 	case *net.UDPAddr:
-		return a.IP.To16(), uint16(a.Port)
+		return a.IP.To16(), uint16(a.Port) // nolint:gosec // G115
 	case *net.TCPAddr:
-		return a.IP.To16(), uint16(a.Port)
+		return a.IP.To16(), uint16(a.Port) // nolint:gosec // G115
 	default:
 		return nil, 0
 	}

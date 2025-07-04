@@ -36,7 +36,7 @@ func (p Protocol) String() string {
 // protocol for the allocated transport address. RFC 5766 only allows the use of
 // code point 17 (User Datagram Protocol).
 //
-// RFC 5766 Section 14.7
+// RFC 5766 Section 14.7.
 type RequestedTransport struct {
 	Protocol Protocol
 }
@@ -55,6 +55,7 @@ func (t RequestedTransport) AddTo(m *stun.Message) error {
 	// The RFFU field MUST be set to zero on transmission and MUST be
 	// ignored on reception. It is reserved for future uses.
 	m.Add(stun.AttrRequestedTransport, v)
+
 	return nil
 }
 
@@ -68,5 +69,6 @@ func (t *RequestedTransport) GetFrom(m *stun.Message) error {
 		return err
 	}
 	t.Protocol = Protocol(v[0])
+
 	return nil
 }

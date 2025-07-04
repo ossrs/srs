@@ -14,7 +14,7 @@ import "github.com/pion/stun/v3"
 // attribute in a subsequent Allocate request to request the server use
 // that relayed transport address for the allocation.
 //
-// RFC 5766 Section 14.9
+// RFC 5766 Section 14.9.
 type ReservationToken []byte
 
 const reservationTokenSize = 8 // 8 bytes
@@ -25,6 +25,7 @@ func (t ReservationToken) AddTo(m *stun.Message) error {
 		return err
 	}
 	m.Add(stun.AttrReservationToken, t)
+
 	return nil
 }
 
@@ -38,5 +39,6 @@ func (t *ReservationToken) GetFrom(m *stun.Message) error {
 		return err
 	}
 	*t = v
+
 	return nil
 }

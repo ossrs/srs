@@ -23,6 +23,7 @@ const (
 	AttrKeyConnectionSetup  = "setup"
 	AttrKeyMID              = "mid"
 	AttrKeyICELite          = "ice-lite"
+	AttrKeyICEOptions       = "ice-options"
 	AttrKeyRTCPMux          = "rtcp-mux"
 	AttrKeyRTCPRsize        = "rtcp-rsize"
 	AttrKeyInactive         = "inactive"
@@ -31,6 +32,7 @@ const (
 	AttrKeySendRecv         = "sendrecv"
 	AttrKeyExtMap           = "extmap"
 	AttrKeyExtMapAllowMixed = "extmap-allow-mixed"
+	AttrKeyCryptex          = "cryptex"
 )
 
 // Constants for semantic tokens used in JSEP.
@@ -38,7 +40,9 @@ const (
 	SemanticTokenLipSynchronization     = "LS"
 	SemanticTokenFlowIdentification     = "FID"
 	SemanticTokenForwardErrorCorrection = "FEC"
-	SemanticTokenWebRTCMediaStreams     = "WMS"
+	// https://datatracker.ietf.org/doc/html/rfc5956#section-4.1
+	SemanticTokenForwardErrorCorrectionFramework = "FEC-FR"
+	SemanticTokenWebRTCMediaStreams              = "WMS"
 )
 
 // Constants for extmap key.
@@ -111,6 +115,12 @@ func (s *SessionDescription) WithValueAttribute(key, value string) *SessionDescr
 	s.Attributes = append(s.Attributes, NewAttribute(key, value))
 
 	return s
+}
+
+// WithICETrickleAdvertised advertises ICE trickle support in the session description.
+// See https://datatracker.ietf.org/doc/html/rfc9429#section-5.2.1
+func (s *SessionDescription) WithICETrickleAdvertised() *SessionDescription {
+	return s.WithValueAttribute(AttrKeyICEOptions, "trickle")
 }
 
 // WithFingerprint adds a fingerprint to the session description.

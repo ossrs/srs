@@ -3656,7 +3656,6 @@ VOID TEST(KernelCodecTest, VideoFrameH264)
     }
 }
 
-#ifdef SRS_H265
 VOID TEST(KernelCodecTest, VideoFrameH265)
 {
     srs_error_t err;
@@ -3764,7 +3763,6 @@ VOID TEST(KernelCodecTest, VideoFrameH265)
         HELPER_EXPECT_FAILED(SrsVideoFrame::parse_hevc_bframe(&empty_sample, &format, is_b_frame));
     }
 }
-#endif
 
 VOID TEST(KernelCodecTest, IsSequenceHeaderSpecial)
 {
@@ -4261,7 +4259,6 @@ VOID TEST(KernelCodecTest, VideoFormat)
     }
 }
 
-#ifdef SRS_H265
 VOID TEST(KernelCodecTest, HevcVideoFormat)
 {
     srs_error_t err;
@@ -4454,7 +4451,6 @@ VOID TEST(KernelCodecTest, HevcVideoFormat)
         EXPECT_EQ(1, f.video->nb_samples);
     }
 }
-#endif
 
 VOID TEST(KernelFileTest, FileWriteReader)
 {
@@ -5735,17 +5731,6 @@ VOID TEST(KernelTSTest, CoverContextEncodeHEVC)
     SrsTsContext ctx;
     MockTsHandler h;
 
-#ifndef SRS_H265
-    if (true) {
-        MockSrsFileWriter f;
-        SrsTsMessage m;
-
-        err = ctx.encode(&f, &m, SrsVideoCodecIdHEVC, SrsAudioCodecIdOpus);
-        HELPER_EXPECT_FAILED(err);
-    }
-#endif
-
-#ifdef SRS_H265
     if (true) {
         MockSrsFileWriter f;
         SrsTsMessage m;
@@ -5753,7 +5738,6 @@ VOID TEST(KernelTSTest, CoverContextEncodeHEVC)
         err = ctx.encode(&f, &m, SrsVideoCodecIdHEVC, SrsAudioCodecIdOpus);
         HELPER_EXPECT_SUCCESS(err);
     }
-#endif
 }
 
 VOID TEST(KernelTSTest, CoverContextDecode)
