@@ -310,7 +310,7 @@ srs_error_t SrsSrtFrameBuilder::on_packet(SrsSrtPacket *pkt)
         SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(p, SRS_TS_PACKET_SIZE));
 
         // Process each ts packet. Note that the jitter of UDP may cause video glitch when packet loss or wrong seq. We
-        // don't handle it because SRT will, see tlpktdrop at https://ossrs.net/lts/zh-cn/docs/v4/doc/srt-params
+        // don't handle it because SRT will, see tlpktdrop at https://ossrs.io/lts/en-us/docs/v7/doc/srt
         if ((err = ts_ctx_->decode(stream.get(), this)) != srs_success) {
             srs_warn("parse ts packet err=%s", srs_error_desc(err).c_str());
             srs_error_reset(err);
@@ -817,7 +817,7 @@ srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
         // MPEG-TS always merge multi audio frame into one pes packet, may cause high latency and AV synchronization errors
         // @see https://github.com/ossrs/srs/issues/3164
         srs_warn("srt to rtmp, audio duration=%dms too large, audio frames=%d, may cause high latency and AV synchronization errors, "
-            "read https://ossrs.io/lts/en-us/docs/v5/doc/srt-codec#ffmpeg-push-srt-stream", duration_ms, frame_idx);
+            "read https://ossrs.io/lts/en-us/docs/v7/doc/srt#ffmpeg-push-srt-stream", duration_ms, frame_idx);
     }
     
     return err;

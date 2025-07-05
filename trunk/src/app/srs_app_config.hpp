@@ -781,11 +781,11 @@ public:
     // Get the transformed vhost for edge,
     virtual std::string get_vhost_edge_transform_vhost(std::string vhost);
     // Whether enable the origin cluster.
-    // @see https://ossrs.net/lts/zh-cn/docs/v4/doc/origin-cluster
+    // @see https://ossrs.io/lts/en-us/docs/v7/doc/origin-cluster#legacy
     virtual bool get_vhost_origin_cluster(std::string vhost);
     virtual bool get_vhost_origin_cluster(SrsConfDirective* conf);
     // Get the co-workers of origin cluster.
-    // @see https://ossrs.net/lts/zh-cn/docs/v4/doc/origin-cluster
+    // @see https://ossrs.io/lts/en-us/docs/v7/doc/origin-cluster#legacy
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost);
 // vhost security section
 public:
