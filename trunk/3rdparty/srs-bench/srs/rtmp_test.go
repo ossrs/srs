@@ -313,7 +313,7 @@ func TestRtmpPublish_MultipleSequences(t *testing.T) {
 				}
 
 				// Ingore the duplicated sps/pps.
-				if isAvccrEquals(previousAvccr, avccr) {
+				if IsAvccrEquals(previousAvccr, avccr) {
 					return nil
 				}
 				previousAvccr = avccr
