@@ -11,12 +11,11 @@
 #include <srs_app_rtc_sdp.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_protocol_st.hpp>
+#include <srs_kernel_buffer.hpp>
 
 #include <sstream>
 
 extern SrsResourceManager* _srs_rtc_manager;
-
-#define SRS_RTP_TCP_PACKET_HEADER_SIZE 4
 
 SrsRtspSession::SrsRtspSession(SrsContextId cid, SrsRequest* r, ISrsProtocolReadWriter* skt, std::string ip, int port)
 {
@@ -563,11 +562,19 @@ srs_error_t SrsRtspTcpNetwork::write(void* buf, size_t size, ssize_t* nwrite)
 {
     srs_error_t err = srs_success;
 
-    // Encode and send 4 bytes size, in network order.
     srs_assert(size <= 65535);
-    uint8_t b[SRS_RTP_TCP_PACKET_HEADER_SIZE] = {0x24, uint8_t(channel_), uint8_t(size>>8), uint8_t(size)};
 
-    if((err = skt_->write((char*)b, sizeof(b), NULL)) != srs_success) {
+    // Encode and send 4 bytes size, in network order.
+    const int kRtpTcpPacketHeaderSize = 4;
+    char header[kRtpTcpPacketHeaderSize];
+
+    // Use SrsBuffer to handle endianness properly
+    SrsBuffer hb(header, kRtpTcpPacketHeaderSize);
+    hb.write_1bytes(0x24);                    // Magic byte '$'
+    hb.write_1bytes(uint8_t(channel_));       // Channel number
+    hb.write_2bytes(uint16_t(size));          // Packet size in network order
+
+    if((err = skt_->write(header, kRtpTcpPacketHeaderSize, NULL)) != srs_success) {
         return srs_error_wrap(err, "rtc tcp write len(%d)", size);
     }
 
@@ -576,7 +583,7 @@ srs_error_t SrsRtspTcpNetwork::write(void* buf, size_t size, ssize_t* nwrite)
     }
 
     // Add the size of the header to the write count.
-    *nwrite += SRS_RTP_TCP_PACKET_HEADER_SIZE;
+    *nwrite += kRtpTcpPacketHeaderSize;
 
     return err;
 }
