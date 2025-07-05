@@ -44,7 +44,7 @@ SrsRtspSession::~SrsRtspSession()
     }
     tracks_.clear();
 
-    for (std::map<uint32_t, SrsRtspNetwork*>::iterator it = networks_.begin(); it != networks_.end(); ++it) {
+    for (std::map<uint32_t, ISrsStreamWriter*>::iterator it = networks_.begin(); it != networks_.end(); ++it) {
         srs_freep(it->second);
     }
     networks_.clear();
@@ -71,7 +71,7 @@ srs_error_t SrsRtspSession::do_send_packet(SrsRtpPacket* pkt)
     srs_error_t err = srs_success;
 
     uint32_t ssrc = pkt->header.get_ssrc();
-    SrsRtspNetwork* network = networks_[ssrc];
+    ISrsStreamWriter* network = networks_[ssrc];
     if (!network) {
         return srs_error_new(ERROR_RTC_NO_TRACK, "network not found for ssrc: %u", ssrc);
     }
@@ -417,11 +417,11 @@ srs_error_t SrsRtspConn::do_cycle()
             return srs_error_wrap(err, "rtsp cycle");
         }
         
-        SrsRtspRequest* req = NULL;
-        if ((err = rtsp_->recv_message(&req)) != srs_success) {
+        SrsRtspRequest* req_raw = NULL;
+        if ((err = rtsp_->recv_message(&req_raw)) != srs_success) {
             return srs_error_wrap(err, "recv message");
         }
-        SrsUniquePtr<SrsRtspRequest> req_ptr(req);
+        SrsUniquePtr<SrsRtspRequest> req(req_raw);
         
         if (req->is_options()) {
             SrsUniquePtr<SrsRtspOptionsResponse> res(new SrsRtspOptionsResponse((int)req->seq));
@@ -438,7 +438,7 @@ srs_error_t SrsRtspConn::do_cycle()
             res->session = session_id_;
 
             std::string sdp;
-            err = session_->do_describe(req, sdp);
+            err = session_->do_describe(req.get(), sdp);
             if (err != srs_success) {
                 res->status = SRS_CONSTS_RTSP_InternalServerError;
                 if (srs_error_code(err) == ERROR_SYSTEM_SECURITY_DENY) {
@@ -459,7 +459,7 @@ srs_error_t SrsRtspConn::do_cycle()
             res->session = session_id_;
 
             uint32_t ssrc = 0;
-            err = session_->do_setup(req, &ssrc);
+            err = session_->do_setup(req.get(), &ssrc);
             if (err != srs_success) {
                 res->status = SRS_CONSTS_RTSP_InternalServerError;
                 srs_warn("setup failed: %s", srs_error_desc(err).c_str());
@@ -483,7 +483,7 @@ srs_error_t SrsRtspConn::do_cycle()
             if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return srs_error_wrap(err, "response record");
             }
-            err = session_->do_play(req, this);
+            err = session_->do_play(req.get(), this);
             
             if (err != srs_success) {
                 return srs_error_wrap(err, "prepare play");
@@ -503,14 +503,6 @@ srs_error_t SrsRtspConn::do_cycle()
     }
     
     return err;
-}
-
-SrsRtspNetwork::SrsRtspNetwork()
-{
-}
-
-SrsRtspNetwork::~SrsRtspNetwork()
-{
 }
 
 SrsRtspUdpNetwork::SrsRtspUdpNetwork()

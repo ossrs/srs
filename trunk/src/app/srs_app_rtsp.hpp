@@ -18,11 +18,11 @@
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_security.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_kernel_io.hpp>
 
 class SrsEphemeralDelta;
 class SrsRtcPlayStream;
 class SrsRtcSource;
-class SrsRtspNetwork;
 class SrsRtspConn;
 
 class SrsRtspSession
@@ -45,7 +45,7 @@ private:
     // key: ssrc
     std::map<uint32_t, SrsRtcTrackDescription*> tracks_;
     // key: ssrc
-    std::map<uint32_t, SrsRtspNetwork*> networks_;
+    std::map<uint32_t, ISrsStreamWriter*> networks_;
     SrsRtcPlayStream* player_;
 
 public:
@@ -117,16 +117,7 @@ private:
     srs_error_t do_cycle();
 };
 
-class SrsRtspNetwork
-{
-public:
-    SrsRtspNetwork();
-    virtual ~SrsRtspNetwork();
-public:
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite) = 0;
-};
-
-class SrsRtspUdpNetwork : public SrsRtspNetwork
+class SrsRtspUdpNetwork : public ISrsStreamWriter
 {
 private:
     sockaddr_in* addr_;
@@ -136,12 +127,12 @@ public:
     virtual ~SrsRtspUdpNetwork();
 public:
     virtual srs_error_t initialize(std::string ip, int port);
-// Interface SrsRtspNetwork.
+// Interface ISrsStreamWriter.
 public:
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 };
 
-class SrsRtspTcpNetwork : public SrsRtspNetwork
+class SrsRtspTcpNetwork : public ISrsStreamWriter
 {
 private:
     ISrsProtocolReadWriter* skt_;
@@ -149,7 +140,7 @@ private:
 public:
     SrsRtspTcpNetwork(ISrsProtocolReadWriter* skt, int ch);
     virtual ~SrsRtspTcpNetwork();
-// Interface SrsRtspNetwork.
+// Interface ISrsStreamWriter.
 public:
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 };
