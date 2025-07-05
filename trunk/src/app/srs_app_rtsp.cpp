@@ -133,6 +133,9 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
     local_sdp.session_name_ = "Play";
     local_sdp.control_ = req->uri;
 
+    // Add session-level attributes to indicate TCP-only support
+    local_sdp.session_info_.setup_ = "passive";  // Server is passive for TCP connections
+
     uint32_t track_id = 0;
     std::vector<SrsRtcTrackDescription*> audio_track_descs = source_->get_track_desc("audio", "opus");
     if (!audio_track_descs.empty()) {
@@ -141,11 +144,14 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
         tracks_.insert(std::make_pair(audio_track_desc->ssrc_, audio_track_desc));
 
         SrsMediaDesc media_audio("audio");
-        media_audio.port_ = 0;
-        media_audio.protos_ = "RTP/AVP";
+        media_audio.port_ = 0;  // Port 0 indicates no UDP transport available
+        media_audio.protos_ = "RTP/AVP/TCP";  // Explicitly advertise TCP transport
         media_audio.control_ = req->uri + "/trackID=" + srs_int2str(track_id);
         media_audio.recvonly_ = true;
         media_audio.rtcp_mux_ = true;
+
+        // Add SDP attributes to indicate TCP-only support
+        media_audio.session_info_.setup_ = "passive";  // Server is passive for TCP connections
 
         media_audio.payload_types_.push_back(SrsMediaPayloadType(audio_track_desc->media_->pt_));
         SrsMediaPayloadType& ps_audio = media_audio.payload_types_.at(0);
@@ -169,11 +175,14 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
         tracks_.insert(std::make_pair(video_track_desc->ssrc_, video_track_desc));
 
         SrsMediaDesc media_video("video");
-        media_video.port_ = 0;
-        media_video.protos_ = "RTP/AVP";
+        media_video.port_ = 0;  // Port 0 indicates no UDP transport available
+        media_video.protos_ = "RTP/AVP/TCP";  // Explicitly advertise TCP transport
         media_video.control_ = req->uri + "/trackID=" + srs_int2str(track_id);
         media_video.recvonly_ = true;
         media_video.rtcp_mux_ = true;
+
+        // Add SDP attributes to indicate TCP-only support
+        media_video.session_info_.setup_ = "passive";  // Server is passive for TCP connections
 
         media_video.payload_types_.push_back(SrsMediaPayloadType(video_track_desc->media_->pt_));
         SrsMediaPayloadType& ps_video = media_video.payload_types_.at(0);
@@ -202,16 +211,15 @@ srs_error_t SrsRtspSession::do_setup(SrsRtspRequest* req, uint32_t* pssrc)
         return srs_error_wrap(err, "get ssrc by stream_id");
     }
 
+    // Only support TCP transport, reject UDP
+    // This ensures better firewall/NAT compatibility and eliminates port allocation complexity
     if (req->transport->lower_transport != "TCP") {
-        SrsRtspUdpNetwork* network = new SrsRtspUdpNetwork();
-        if ((err = network->initialize(ip_, req->transport->client_port_min)) != srs_success) {
-            return srs_error_wrap(err, "initialize udp client");
-        }
-        networks_[ssrc] = network;
-    } else {
-        SrsRtspTcpNetwork* network = new SrsRtspTcpNetwork(skt_, req->transport->interleaved_min);
-        networks_[ssrc] = network;
+        return srs_error_new(ERROR_RTSP_TRANSPORT_NOT_SUPPORTED,
+            "UDP transport not supported, only TCP/interleaved mode is supported");
     }
+
+    SrsRtspTcpNetwork* network = new SrsRtspTcpNetwork(skt_, req->transport->interleaved_min);
+    networks_[ssrc] = network;
 
     *pssrc = ssrc;
 
@@ -375,13 +383,13 @@ srs_error_t SrsRtspConn::cycle()
 
     // success.
     if (err == srs_success) {
-        srs_trace("client finished.");
+        srs_trace("RTSP: client finished.");
         return err;
     }
 
     // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
-        srs_trace("client finished%s.", srs_error_summary(err).c_str());
+        srs_trace("RTSP: client finished%s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
@@ -389,11 +397,11 @@ srs_error_t SrsRtspConn::cycle()
     // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(err)) {
-        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+        srs_warn("RTSP: client disconnect peer. ret=%d", srs_error_code(err));
     } else if (srs_is_server_gracefully_close(err)) {
-        srs_warn("server disconnect. ret=%d", srs_error_code(err));
+        srs_warn("RTSP: server disconnect. ret=%d", srs_error_code(err));
     } else {
-        srs_error("serve error %s", srs_error_desc(err).c_str());
+        srs_error("RTSP: serve error %s", srs_error_desc(err).c_str());
     }
 
     srs_freep(err);
@@ -442,7 +450,7 @@ srs_error_t SrsRtspConn::do_cycle()
                 if (srs_error_code(err) == ERROR_SYSTEM_SECURITY_DENY) {
                     res->status = SRS_CONSTS_RTSP_Forbidden;
                 }
-                srs_warn("describe failed: %s", srs_error_desc(err).c_str());
+                srs_warn("RTSP: describe failed: %s", srs_error_desc(err).c_str());
                 srs_error_reset(err);
             }
 
@@ -458,8 +466,13 @@ srs_error_t SrsRtspConn::do_cycle()
 
             uint32_t ssrc = 0;
             if ((err = session_->do_setup(req.get(), &ssrc)) != srs_success) {
-                res->status = SRS_CONSTS_RTSP_InternalServerError;
-                srs_warn("setup failed: %s", srs_error_desc(err).c_str());
+                if (srs_error_code(err) == ERROR_RTSP_TRANSPORT_NOT_SUPPORTED) {
+                    res->status = SRS_CONSTS_RTSP_UnsupportedTransport;
+                    srs_warn("RTSP: setup failed: %s", srs_error_summary(err).c_str());
+                } else {
+                    res->status = SRS_CONSTS_RTSP_InternalServerError;
+                    srs_warn("RTSP: setup failed: %s", srs_error_desc(err).c_str());
+                }
                 srs_error_reset(err);
             }
     
@@ -497,56 +510,6 @@ srs_error_t SrsRtspConn::do_cycle()
         }
     }
     
-    return err;
-}
-
-SrsRtspUdpNetwork::SrsRtspUdpNetwork()
-{
-    addr_ = NULL;
-    stfd_ = NULL;
-}
-
-SrsRtspUdpNetwork::~SrsRtspUdpNetwork()
-{
-    srs_close_stfd(stfd_);
-    srs_freep(addr_);
-}
-
-srs_error_t SrsRtspUdpNetwork::initialize(std::string ip, int port)
-{
-    srs_error_t err = srs_success;
-
-    // Allocate and set remote address
-    addr_ = new sockaddr_in();
-    addr_->sin_family = AF_INET;
-    addr_->sin_addr.s_addr = inet_addr(ip.c_str());
-    addr_->sin_port = htons(port);
-
-    // Create UDP socket
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd < 0) {
-        return srs_error_new(ERROR_SOCKET_CREATE, "create socket failed, ret=%d", fd);
-    }
-
-    // Wrap the socket in stfd
-    stfd_ = srs_netfd_open_socket(fd);
-    srs_assert(stfd_);
-
-    int local_port = srs_get_local_port(fd);
-    srs_trace("udp client %s:%d, fd=%d, local_port=%d", ip.c_str(), port, fd, local_port);
-
-    return err;
-}
-
-srs_error_t SrsRtspUdpNetwork::write(void* buf, size_t size, ssize_t* nwrite)
-{
-    srs_error_t err = srs_success;
-
-    *nwrite = srs_sendto(stfd_, buf, size, (sockaddr*)addr_, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
-    if (*nwrite <= 0) {
-        return srs_error_new(ERROR_SOCKET_WRITE, "send udp packet");
-    }
-
     return err;
 }
 

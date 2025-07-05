@@ -117,20 +117,7 @@ private:
     srs_error_t do_cycle();
 };
 
-class SrsRtspUdpNetwork : public ISrsStreamWriter
-{
-private:
-    sockaddr_in* addr_;
-    srs_netfd_t stfd_;
-public:
-    SrsRtspUdpNetwork();
-    virtual ~SrsRtspUdpNetwork();
-public:
-    virtual srs_error_t initialize(std::string ip, int port);
-// Interface ISrsStreamWriter.
-public:
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
-};
+
 
 class SrsRtspTcpNetwork : public ISrsStreamWriter
 {

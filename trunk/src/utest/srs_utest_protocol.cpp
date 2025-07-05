@@ -3789,6 +3789,133 @@ VOID TEST(ProtocolRTSPTest, RTSPRequest)
     }
 }
 
+// Test TCP-only transport support
+VOID TEST(ProtocolRTSPTest, RTSPTcpOnlyTransport)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsRtspStack stack(&bio);
+
+    // Test TCP transport (should succeed)
+    if (true) {
+        const char* tcp_setup_req =
+            "SETUP rtsp://server.example.com/stream/trackID=0 RTSP/1.0\r\n"
+            "CSeq: 3\r\n"
+            "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n\r\n";
+        bio.in_buffer.append(tcp_setup_req, strlen(tcp_setup_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+
+        EXPECT_TRUE(req->is_setup());
+        EXPECT_STREQ("SETUP", req->method.c_str());
+        EXPECT_EQ(3, req->seq);
+        EXPECT_TRUE(req->transport != NULL);
+        EXPECT_STREQ("RTP", req->transport->transport.c_str());
+        EXPECT_STREQ("AVP", req->transport->profile.c_str());
+        EXPECT_STREQ("TCP", req->transport->lower_transport.c_str());
+        EXPECT_STREQ("unicast", req->transport->cast_type.c_str());
+        EXPECT_EQ(0, req->transport->interleaved_min);
+        EXPECT_EQ(1, req->transport->interleaved_max);
+
+        SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
+        res->session = "12345678";
+        res->transport->copy(req->transport);
+        res->ssrc = "1234ABCD";
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 200 OK") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 3") != string::npos);
+        EXPECT_TRUE(response.find("Transport: RTP/AVP/TCP;unicast;interleaved=0-1;ssrc=1234ABCD;mode=\"play\"") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+
+    // Test UDP transport (should be rejected with 461 Unsupported Transport)
+    if (true) {
+        const char* udp_setup_req =
+            "SETUP rtsp://server.example.com/stream/trackID=0 RTSP/1.0\r\n"
+            "CSeq: 4\r\n"
+            "Transport: RTP/AVP;unicast;client_port=9000-9001\r\n\r\n";
+        bio.in_buffer.append(udp_setup_req, strlen(udp_setup_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+
+        EXPECT_TRUE(req->is_setup());
+        EXPECT_STREQ("SETUP", req->method.c_str());
+        EXPECT_EQ(4, req->seq);
+        EXPECT_TRUE(req->transport != NULL);
+        EXPECT_STREQ("RTP", req->transport->transport.c_str());
+        EXPECT_STREQ("AVP", req->transport->profile.c_str());
+        EXPECT_STREQ("", req->transport->lower_transport.c_str()); // UDP has empty lower_transport
+        EXPECT_STREQ("unicast", req->transport->cast_type.c_str());
+        EXPECT_EQ(9000, req->transport->client_port_min);
+        EXPECT_EQ(9001, req->transport->client_port_max);
+
+        // Simulate server rejecting UDP transport
+        SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
+        res->status = SRS_CONSTS_RTSP_UnsupportedTransport;
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 461 Unsupported Transport") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 4") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+}
+
+// Test SDP advertisement of TCP-only transport
+VOID TEST(ProtocolRTSPTest, RTSPSdpTcpOnlyAdvertisement)
+{
+    // Test that SDP properly advertises TCP-only transport
+    if (true) {
+        // Simulate SDP generation for TCP-only RTSP
+        SrsSdp sdp;
+        sdp.version_ = "0";
+        sdp.username_ = "SRS RTSP Server";
+        sdp.session_name_ = "Play";
+        sdp.session_info_.setup_ = "passive";  // TCP-only indication
+
+        // Add audio media with TCP transport
+        SrsMediaDesc media_audio("audio");
+        media_audio.port_ = 0;  // Port 0 = no UDP
+        media_audio.protos_ = "RTP/AVP/TCP";  // TCP transport
+        media_audio.session_info_.setup_ = "passive";
+        media_audio.payload_types_.push_back(SrsMediaPayloadType(111));
+        sdp.media_descs_.push_back(media_audio);
+
+        // Add video media with TCP transport
+        SrsMediaDesc media_video("video");
+        media_video.port_ = 0;  // Port 0 = no UDP
+        media_video.protos_ = "RTP/AVP/TCP";  // TCP transport
+        media_video.session_info_.setup_ = "passive";
+        media_video.payload_types_.push_back(SrsMediaPayloadType(96));
+        sdp.media_descs_.push_back(media_video);
+
+        // Encode SDP
+        std::ostringstream ss;
+        srs_error_t err = sdp.encode(ss);
+        HELPER_EXPECT_SUCCESS(err);
+
+        string sdp_content = ss.str();
+
+        // Verify TCP-only indicators in SDP
+        EXPECT_TRUE(sdp_content.find("a=setup:passive") != string::npos);  // Session-level TCP setup
+        EXPECT_TRUE(sdp_content.find("m=audio 0 RTP/AVP/TCP") != string::npos);  // Audio TCP transport
+        EXPECT_TRUE(sdp_content.find("m=video 0 RTP/AVP/TCP") != string::npos);  // Video TCP transport
+
+        // Verify no UDP port allocation
+        EXPECT_FALSE(sdp_content.find("m=audio 9") != string::npos);  // No UDP audio ports
+        EXPECT_FALSE(sdp_content.find("m=video 9") != string::npos);  // No UDP video ports
+
+        srs_trace("Generated TCP-only SDP:\n%s", sdp_content.c_str());
+    }
+}
+
 // Invalid RTSP Request
 VOID TEST(ProtocolRTSPTest, RTSPInvalidRequest)
 {
