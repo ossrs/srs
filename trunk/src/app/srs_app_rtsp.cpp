@@ -438,8 +438,7 @@ srs_error_t SrsRtspConn::do_cycle()
             res->session = session_id_;
 
             std::string sdp;
-            err = session_->do_describe(req.get(), sdp);
-            if (err != srs_success) {
+            if ((err = session_->do_describe(req.get(), sdp)) != srs_success) {
                 res->status = SRS_CONSTS_RTSP_InternalServerError;
                 if (srs_error_code(err) == ERROR_SYSTEM_SECURITY_DENY) {
                     res->status = SRS_CONSTS_RTSP_Forbidden;
@@ -459,8 +458,7 @@ srs_error_t SrsRtspConn::do_cycle()
             res->session = session_id_;
 
             uint32_t ssrc = 0;
-            err = session_->do_setup(req.get(), &ssrc);
-            if (err != srs_success) {
+            if ((err = session_->do_setup(req.get(), &ssrc)) != srs_success) {
                 res->status = SRS_CONSTS_RTSP_InternalServerError;
                 srs_warn("setup failed: %s", srs_error_desc(err).c_str());
                 srs_error_reset(err);
@@ -483,9 +481,8 @@ srs_error_t SrsRtspConn::do_cycle()
             if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return srs_error_wrap(err, "response record");
             }
-            err = session_->do_play(req.get(), this);
             
-            if (err != srs_success) {
+            if ((err = session_->do_play(req.get(), this)) != srs_success) {
                 return srs_error_wrap(err, "prepare play");
             }
         } else if (req->is_teardown()) {
@@ -495,8 +492,7 @@ srs_error_t SrsRtspConn::do_cycle()
                 return srs_error_wrap(err, "response teardown");
             }
 
-            err = session_->do_teardown();
-            if (err != srs_success) {
+            if ((err = session_->do_teardown()) != srs_success) {
                 return srs_error_wrap(err, "teardown");
             }
         }
