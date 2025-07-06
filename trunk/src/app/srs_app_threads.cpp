@@ -21,6 +21,7 @@
 #ifdef SRS_RTC
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtsp_source.hpp>
 #endif
 #ifdef SRS_SRT
 #include <srs_app_srt_source.hpp>
@@ -331,6 +332,7 @@ srs_error_t srs_global_initialize()
     _srs_rtc_manager = new SrsResourceManager("RTC", true);
     _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
 #endif
+    _srs_rtsp_sources = new SrsRtspSourceManager();
 #ifdef SRS_GB28181
     _srs_gb_manager = new SrsResourceManager("GB", true);
 #endif

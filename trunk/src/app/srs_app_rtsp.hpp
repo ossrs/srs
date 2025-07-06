@@ -13,6 +13,7 @@
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtsp_source.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_async_call.hpp>
 #include <srs_app_rtc_conn.hpp>
@@ -23,6 +24,7 @@
 class SrsEphemeralDelta;
 class SrsRtcPlayStream;
 class SrsRtcSource;
+class SrsRtspSource;
 class SrsRtspConn;
 
 class SrsRtspSession
@@ -30,7 +32,7 @@ class SrsRtspSession
 private:
     SrsContextId cid_;
     SrsRequest* request_;
-    SrsSharedPtr<SrsRtcSource> source_;
+    SrsSharedPtr<SrsRtspSource> source_;
     SrsEphemeralDelta* delta_;
     ISrsProtocolReadWriter* skt_;
     // The ip of client.

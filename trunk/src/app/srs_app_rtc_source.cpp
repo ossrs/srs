@@ -53,11 +53,6 @@ SrsPps* _srs_pps_rmnack = NULL;
 
 extern SrsPps* _srs_pps_aloss2;
 
-const int kAudioChannel         = 2;
-const int kAudioSamplerate      = 48000;
-
-const int kVideoSamplerate  = 90000;
-
 using namespace std;
 
 #ifdef SRS_FFMPEG_FIT

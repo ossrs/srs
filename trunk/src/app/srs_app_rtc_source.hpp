@@ -51,6 +51,11 @@ const int kVideoPayloadType = 102;
 // Chrome HEVC defaults as 49.
 const int KVideoPayloadTypeHevc = 49;
 
+const int kAudioChannel         = 2;
+const int kAudioSamplerate      = 48000;
+
+const int kVideoSamplerate  = 90000;
+
 class SrsNtp
 {
 public:

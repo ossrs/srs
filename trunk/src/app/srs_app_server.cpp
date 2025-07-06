@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_app_conn.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtsp.hpp>
+#include <srs_app_rtsp_source.hpp>
 #include <srs_app_rtc_network.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
@@ -850,6 +851,10 @@ srs_error_t SrsServer::start(SrsWaitGroup* wg)
         return srs_error_wrap(err, "rtc sources");
     }
 #endif
+
+    if ((err = _srs_rtsp_sources->initialize()) != srs_success) {
+        return srs_error_wrap(err, "rtsp sources");
+    }
 
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start");

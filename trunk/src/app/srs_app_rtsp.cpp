@@ -6,6 +6,7 @@
 
 #include <srs_app_config.hpp>
 #include <srs_app_rtsp.hpp>
+#include <srs_app_rtsp_source.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_rtc_sdp.hpp>
@@ -116,7 +117,7 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
         return srs_error_wrap(err, "RTSP: http_hooks_on_play");
     }
 
-    if ((err = _srs_rtc_sources->fetch_or_create(request_, source_)) != srs_success) {
+    if ((err = _srs_rtsp_sources->fetch_or_create(request_, source_)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
