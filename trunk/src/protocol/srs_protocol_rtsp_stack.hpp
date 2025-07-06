@@ -292,6 +292,7 @@ public:
 protected:
     virtual srs_error_t encode_header(std::stringstream& ss);
 };
+
 // 10.4 SETUP, @see rfc2326-1998-rtsp.pdf, page 65
 // The SETUP request for a URI specifies the transport mechanism to be
 // used for the streamed media. A client can issue a SETUP request for a

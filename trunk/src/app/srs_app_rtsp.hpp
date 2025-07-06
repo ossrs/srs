@@ -75,7 +75,6 @@ private:
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
     SrsCoroutine* trd_;
-
 private:
     // The ip and port of client.
     std::string ip_;
@@ -116,8 +115,6 @@ public:
 private:
     srs_error_t do_cycle();
 };
-
-
 
 class SrsRtspTcpNetwork : public ISrsStreamWriter
 {
