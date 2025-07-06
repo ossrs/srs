@@ -431,6 +431,7 @@ srs_error_t SrsRtspConn::do_cycle()
         SrsUniquePtr<SrsRtspRequest> req(req_raw);
         
         if (req->is_options()) {
+            srs_trace("RTSP: OPTIONS cseq=%ld, url=%s, client=%s:%d", req->seq, req->uri.c_str(), ip_.c_str(), port_);
             SrsUniquePtr<SrsRtspOptionsResponse> res(new SrsRtspOptionsResponse((int)req->seq));
             if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return  srs_error_wrap(err, "response option");
@@ -450,7 +451,7 @@ srs_error_t SrsRtspConn::do_cycle()
                 if (srs_error_code(err) == ERROR_SYSTEM_SECURITY_DENY) {
                     res->status = SRS_CONSTS_RTSP_Forbidden;
                 }
-                srs_warn("RTSP: describe failed: %s", srs_error_desc(err).c_str());
+                srs_warn("RTSP: DESCRIBE failed: %s", srs_error_desc(err).c_str());
                 srs_error_reset(err);
             }
 
@@ -458,6 +459,7 @@ srs_error_t SrsRtspConn::do_cycle()
             if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return  srs_error_wrap(err, "response describe");
             }
+            srs_trace("RTSP: DESCRIBE cseq=%ld, session=%s, sdp=%dB", req->seq, session_id_.c_str(), (int)sdp.length());
         } else if (req->is_setup()) {
             srs_assert(req->transport);            
 
@@ -468,10 +470,10 @@ srs_error_t SrsRtspConn::do_cycle()
             if ((err = session_->do_setup(req.get(), &ssrc)) != srs_success) {
                 if (srs_error_code(err) == ERROR_RTSP_TRANSPORT_NOT_SUPPORTED) {
                     res->status = SRS_CONSTS_RTSP_UnsupportedTransport;
-                    srs_warn("RTSP: setup failed: %s", srs_error_summary(err).c_str());
+                    srs_warn("RTSP: SETUP failed: %s", srs_error_summary(err).c_str());
                 } else {
                     res->status = SRS_CONSTS_RTSP_InternalServerError;
-                    srs_warn("RTSP: setup failed: %s", srs_error_desc(err).c_str());
+                    srs_warn("RTSP: SETUP failed: %s", srs_error_desc(err).c_str());
                 }
                 srs_error_reset(err);
             }
@@ -484,9 +486,12 @@ srs_error_t SrsRtspConn::do_cycle()
             // TODO: FIXME: listen local port
             res->local_port_min = 0;
             res->local_port_max = 0;
-            if ((err = rtsp_->send_message(res.get())) != srs_success) {  
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return srs_error_wrap(err, "response setup");
             }
+            srs_trace("RTSP: SETUP cseq=%ld, session=%s, transport=%s/%s/%s, ssrc=%u, client_port=%d-%d",
+                req->seq, session_id_.c_str(), req->transport->transport.c_str(), req->transport->profile.c_str(), 
+                req->transport->lower_transport.c_str(), ssrc, req->transport->client_port_min, req->transport->client_port_max);
         } else if (req->is_play()) {
             SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq));
             res->session = session_id_;
@@ -497,6 +502,7 @@ srs_error_t SrsRtspConn::do_cycle()
             if ((err = session_->do_play(req.get(), this)) != srs_success) {
                 return srs_error_wrap(err, "prepare play");
             }
+            srs_trace("RTSP: PLAY cseq=%ld, session=%s, streaming started", req->seq, session_id_.c_str());
         } else if (req->is_teardown()) {
             SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq));
             res->session = session_id_;
@@ -507,6 +513,7 @@ srs_error_t SrsRtspConn::do_cycle()
             if ((err = session_->do_teardown()) != srs_success) {
                 return srs_error_wrap(err, "teardown");
             }
+            srs_trace("RTSP: TEARDOWN cseq=%ld, session=%s, streaming stopped", req->seq, session_id_.c_str());
         }
     }
     
