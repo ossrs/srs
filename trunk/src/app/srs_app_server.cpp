@@ -633,6 +633,8 @@ srs_error_t SrsServer::listen()
             return srs_error_wrap(err, "webrtc tcp listen");
         }
     }
+#endif
+
     // Start RTSP listener. RTC is a critical dependency.
     if (_srs_config->get_rtsp_server_enabled()) {
         rtsp_listener_->set_endpoint(srs_int2str(_srs_config->get_rtsp_server_listen()))->set_label("RTSP");
@@ -640,7 +642,6 @@ srs_error_t SrsServer::listen()
             return srs_error_wrap(err, "rtsp listen");
         }
     }
-#endif
 
     // Start all listeners for stream caster.
     std::vector<SrsConfDirective*> confs = _srs_config->get_stream_casters();

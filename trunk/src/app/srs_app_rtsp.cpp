@@ -15,8 +15,6 @@
 
 #include <sstream>
 
-extern SrsResourceManager* _srs_rtc_manager;
-
 SrsRtspSession::SrsRtspSession(SrsContextId cid, SrsRequest* r, ISrsProtocolReadWriter* skt, std::string ip, int port)
 {
     cid_ = cid;
@@ -72,7 +70,7 @@ srs_error_t SrsRtspSession::do_send_packet(SrsRtpPacket* pkt)
     uint32_t ssrc = pkt->header.get_ssrc();
     ISrsStreamWriter* network = networks_[ssrc];
     if (!network) {
-        return srs_error_new(ERROR_RTC_NO_TRACK, "network not found for ssrc: %u", ssrc);
+        return srs_error_new(ERROR_RTSP_NO_TRACK, "network not found for ssrc: %u", ssrc);
     }
     
     iovec* iov = cache_iov_;
@@ -298,7 +296,7 @@ srs_error_t SrsRtspSession::get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* 
             return srs_success;
         }
     }
-    return srs_error_new(ERROR_RTC_NO_TRACK, "track not found for stream_id: %u", stream_id);
+    return srs_error_new(ERROR_RTSP_NO_TRACK, "track not found for stream_id: %u", stream_id);
 }
 
 SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcConnection(NULL, _srs_context->generate_id())
@@ -412,11 +410,6 @@ srs_error_t SrsRtspConn::do_cycle()
 {
     srs_error_t err = srs_success;
     srs_trace("RTSP: client ip=%s, port=%d", ip_.c_str(), port_);
-
-    bool rtc_enabled = _srs_config->get_rtc_server_enabled();
-    if (!rtc_enabled) {
-        return srs_error_new(ERROR_RTC_DISABLED, "RTC is disabled, but it is a necessary dependency.");
-    } 
 
     // consume all rtsp messages.
     while (true) {

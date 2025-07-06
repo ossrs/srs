@@ -342,14 +342,14 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadPerformanceCache)
         payload.name_ = "H264";
 
         // First call does parsing and caching
-        auto start = std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::now();
         int8_t codec1 = payload.codec(true);
-        auto end1 = std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::now();
 
         // Subsequent calls should be faster (cached)
-        auto start2 = std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::now();
         int8_t codec2 = payload.codec(true);
-        auto end2 = std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::now();
 
         // Both should return the same result
         EXPECT_EQ(codec1, codec2);
