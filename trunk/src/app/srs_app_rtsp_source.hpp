@@ -169,5 +169,55 @@ public:
     std::vector<SrsRtcTrackDescription*> get_track_desc(std::string type, std::string media_name);
 };
 
+// Convert AV frame to RTSP RTP packets.
+class SrsRtspRtpBuilder
+{
+private:
+    SrsRequest* req;
+    SrsFrameToRtspBridge* bridge_;
+    // The format, codec information.
+    SrsRtmpFormat* format;
+    // The metadata cache.
+    SrsMetaCache* meta;
+private:
+    uint16_t audio_sequence;
+    uint16_t video_sequence;
+private:
+    uint32_t audio_ssrc_;
+    uint32_t video_ssrc_;
+    uint8_t audio_payload_type_;
+    uint8_t video_payload_type_;
+private:
+    SrsSharedPtr<SrsRtspSource> source_;
+    // Lazy initialization flags
+    bool audio_initialized_;
+    bool video_initialized_;
+public:
+    SrsRtspRtpBuilder(SrsFrameToRtspBridge* bridge, SrsSharedPtr<SrsRtspSource> source);
+    virtual ~SrsRtspRtpBuilder();
+private:
+    // Lazy initialization methods
+    srs_error_t initialize_audio_track(SrsAudioCodecId codec);
+    srs_error_t initialize_video_track(SrsVideoCodecId codec);
+public:
+    virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
+private:
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
+private:
+    srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt);
+private:
+    virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
+private:
+    srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, std::vector<SrsSample*>& samples);
+    srs_error_t package_stap_a(SrsSharedPtrMessage* msg, SrsRtpPacket* pkt);
+    srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacket*>& pkts);
+    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket*>& pkts);
+    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket*>& pkts);
+    srs_error_t consume_packets(std::vector<SrsRtpPacket*>& pkts);
+};
+
 #endif
 

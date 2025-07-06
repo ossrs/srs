@@ -513,6 +513,11 @@ public:
     virtual bool get_rtsp_server_enabled();
     virtual bool get_rtsp_server_enabled(SrsConfDirective* conf);
     virtual int get_rtsp_server_listen();
+public:
+    SrsConfDirective* get_rtsp(std::string vhost);
+    bool get_rtsp_enabled(std::string vhost);
+    bool get_rtsp_from_rtmp(std::string vhost);
+
 // rtc section
 public:
     virtual bool get_rtc_server_enabled();

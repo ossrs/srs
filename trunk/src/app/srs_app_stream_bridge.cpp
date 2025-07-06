@@ -13,6 +13,7 @@
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_rtsp_source.hpp>
 
 #include <vector>
 using namespace std;
@@ -133,6 +134,59 @@ srs_error_t SrsFrameToRtcBridge::on_rtp(SrsRtpPacket* pkt)
 }
 
 #endif
+
+SrsFrameToRtspBridge::SrsFrameToRtspBridge(SrsSharedPtr<SrsRtspSource> source)
+{
+    source_ = source;
+
+    // Use lazy initialization - no need to determine codec/track parameters here
+    rtp_builder_ = new SrsRtspRtpBuilder(this, source);
+}
+
+SrsFrameToRtspBridge::~SrsFrameToRtspBridge()
+{
+    srs_freep(rtp_builder_);
+}
+
+srs_error_t SrsFrameToRtspBridge::initialize(SrsRequest* r)
+{
+    return rtp_builder_->initialize(r);
+}
+
+srs_error_t SrsFrameToRtspBridge::on_publish()
+{
+    srs_error_t err = srs_success;
+
+    // TODO: FIXME: Should sync with bridge?
+    if ((err = source_->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "source publish");
+    }
+
+    if ((err = rtp_builder_->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "rtp builder publish");
+    }
+
+    return err;
+}
+
+void SrsFrameToRtspBridge::on_unpublish()
+{
+    rtp_builder_->on_unpublish();
+
+    // @remark This bridge might be disposed here, so never use it.
+    // TODO: FIXME: Should sync with bridge?
+    source_->on_unpublish();
+}
+
+srs_error_t SrsFrameToRtspBridge::on_frame(SrsSharedPtrMessage* frame)
+{
+    return rtp_builder_->on_frame(frame);
+}
+
+srs_error_t SrsFrameToRtspBridge::on_rtp(SrsRtpPacket* pkt)
+{
+    return source_->on_rtp(pkt);
+}
 
 SrsCompositeBridge::SrsCompositeBridge()
 {

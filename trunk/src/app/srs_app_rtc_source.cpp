@@ -55,18 +55,6 @@ extern SrsPps* _srs_pps_aloss2;
 
 using namespace std;
 
-#ifdef SRS_FFMPEG_FIT
-// The RTP payload max size, reserved some paddings for SRTP as such:
-//      kRtpPacketSize = kRtpMaxPayloadSize + paddings
-// For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
-// which reserves 100 bytes for SRTP or paddings.
-// otherwise, the kRtpPacketSize must less than MTU, in webrtc source code,
-// the rtp max size is assigned by kVideoMtu = 1200.
-// so we set kRtpMaxPayloadSize = 1200.
-// see @doc https://groups.google.com/g/discuss-webrtc/c/gH5ysR3SoZI
-const int kRtpMaxPayloadSize = kRtpPacketSize - 300;
-#endif
-
 // the time to cleanup source.
 #define SRS_RTC_SOURCE_CLEANUP (3 * SRS_UTIME_SECONDS)
 
