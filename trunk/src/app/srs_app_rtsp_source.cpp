@@ -6,8 +6,6 @@
 
 #include <srs_app_rtsp_source.hpp>
 
-#ifdef SRS_RTC
-
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
@@ -21,6 +19,9 @@
 #include <srs_app_hybrid.hpp>
 #include <srs_app_threads.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_app_conn.hpp>
+#include <srs_app_rtc_queue.hpp>
+#include <srs_app_rtsp.hpp>
 
 #include <cstdio>
 
@@ -225,6 +226,8 @@ SrsSharedPtr<SrsRtspSource> SrsRtspSourceManager::fetch(SrsRequest* r)
 }
 
 SrsRtspSourceManager* _srs_rtsp_sources = NULL;
+
+SrsResourceManager* _srs_rtsp_manager = NULL;
 
 SrsRtspSource::SrsRtspSource()
 {
@@ -1122,4 +1125,117 @@ srs_error_t SrsRtspRtpBuilder::consume_packets(vector<SrsRtpPacket*>& pkts)
     return err;
 }
 
-#endif
+SrsRtspSendTrack::SrsRtspSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc, bool is_audio)
+{
+    session_ = session;
+    track_desc_ = track_desc->copy();
+}
+
+SrsRtspSendTrack::~SrsRtspSendTrack()
+{
+    srs_freep(track_desc_);
+}
+
+bool SrsRtspSendTrack::has_ssrc(uint32_t ssrc)
+{
+    return track_desc_->has_ssrc(ssrc);
+}
+
+// TODO: FIXME: Should refine logs, set tracks in a time.
+bool SrsRtspSendTrack::set_track_status(bool active)
+{
+    bool previous_status = track_desc_->is_active_;
+    track_desc_->is_active_ = active;
+    return previous_status;
+}
+
+bool SrsRtspSendTrack::get_track_status()
+{
+    return track_desc_->is_active_;
+}
+
+std::string SrsRtspSendTrack::get_track_id()
+{
+    return track_desc_->id_;
+}
+
+SrsRtspAudioSendTrack::SrsRtspAudioSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc)
+    : SrsRtspSendTrack(session, track_desc, true)
+{
+}
+
+SrsRtspAudioSendTrack::~SrsRtspAudioSendTrack()
+{
+}
+
+srs_error_t SrsRtspAudioSendTrack::on_rtp(SrsRtpPacket* pkt)
+{
+    srs_error_t err = srs_success;
+
+    if (!track_desc_->is_active_) {
+        return err;
+    }
+
+    pkt->header.set_ssrc(track_desc_->ssrc_);
+
+    // Should update PT, because subscriber may use different PT to publisher.
+    if (track_desc_->media_ && pkt->header.get_payload_type() == track_desc_->media_->pt_of_publisher_) {
+        // If PT is media from publisher, change to PT of media for subscriber.
+        pkt->header.set_payload_type(track_desc_->media_->pt_);
+    } else if (track_desc_->red_ && pkt->header.get_payload_type() == track_desc_->red_->pt_of_publisher_) {
+        // If PT is RED from publisher, change to PT of RED for subscriber.
+        pkt->header.set_payload_type(track_desc_->red_->pt_);
+    } else {
+        // TODO: FIXME: Should update PT for RTX.
+    }
+
+    if ((err = session_->do_send_packet(pkt)) != srs_success) {
+        return srs_error_wrap(err, "raw send");
+    }
+
+    srs_info("RTC: Send audio ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header.get_ssrc(),
+        pkt->header.get_sequence(), pkt->is_keyframe(), pkt->header.get_timestamp());
+
+    return err;
+}
+
+SrsRtspVideoSendTrack::SrsRtspVideoSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc)
+    : SrsRtspSendTrack(session, track_desc, false)
+{
+}
+
+SrsRtspVideoSendTrack::~SrsRtspVideoSendTrack()
+{
+}
+
+srs_error_t SrsRtspVideoSendTrack::on_rtp(SrsRtpPacket* pkt)
+{
+    srs_error_t err = srs_success;
+
+    if (!track_desc_->is_active_) {
+        return err;
+    }
+    
+    pkt->header.set_ssrc(track_desc_->ssrc_);
+
+    // Should update PT, because subscriber may use different PT to publisher.
+    if (track_desc_->media_ && pkt->header.get_payload_type() == track_desc_->media_->pt_of_publisher_) {
+        // If PT is media from publisher, change to PT of media for subscriber.
+        pkt->header.set_payload_type(track_desc_->media_->pt_);
+    } else if (track_desc_->red_ && pkt->header.get_payload_type() == track_desc_->red_->pt_of_publisher_) {
+        // If PT is RED from publisher, change to PT of RED for subscriber.
+        pkt->header.set_payload_type(track_desc_->red_->pt_);
+    } else {
+        // TODO: FIXME: Should update PT for RTX.
+    }
+
+    if ((err = session_->do_send_packet(pkt)) != srs_success) {
+        return srs_error_wrap(err, "raw send");
+    }
+
+    srs_info("RTC: Send video ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header.get_ssrc(),
+        pkt->header.get_sequence(), pkt->is_keyframe(), pkt->header.get_timestamp());
+
+    return err;
+}
+

@@ -28,6 +28,9 @@ class SrsRtcTrackDescription;
 class SrsRtcSourceDescription;
 class ISrsStreamBridge;
 class SrsFrameToRtcBridge;
+class SrsResourceManager;
+class SrsRtspConnection;
+class SrsRtcConnection2;
 
 // The RTSP stream consumer, consume packets from RTSP stream source.
 class SrsRtspConsumer
@@ -91,6 +94,8 @@ public:
 
 // The global RTSP source manager.
 extern SrsRtspSourceManager* _srs_rtsp_sources;
+
+extern SrsResourceManager* _srs_rtsp_manager;
 
 // A Source is a stream, to publish and to play with, binding to SrsRtspPlayStream.
 class SrsRtspSource
@@ -213,6 +218,45 @@ private:
     srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket*>& pkts);
     srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket*>& pkts);
     srs_error_t consume_packets(std::vector<SrsRtpPacket*>& pkts);
+};
+
+class SrsRtspSendTrack
+{
+public:
+    // send track description
+    SrsRtcTrackDescription* track_desc_;
+protected:
+    // The owner connection for this track.
+    SrsRtcConnection2* session_;
+public:
+    SrsRtspSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc, bool is_audio);
+    virtual ~SrsRtspSendTrack();
+public:
+    // SrsRtspSendTrack::set_nack_no_copy
+    bool has_ssrc(uint32_t ssrc);
+    bool set_track_status(bool active);
+    bool get_track_status();
+    std::string get_track_id();
+public:
+    virtual srs_error_t on_rtp(SrsRtpPacket* pkt) = 0;
+};
+
+class SrsRtspAudioSendTrack : public SrsRtspSendTrack
+{
+public:
+    SrsRtspAudioSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc);
+    virtual ~SrsRtspAudioSendTrack();
+public:
+    virtual srs_error_t on_rtp(SrsRtpPacket* pkt);
+};
+
+class SrsRtspVideoSendTrack : public SrsRtspSendTrack
+{
+public:
+    SrsRtspVideoSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc);
+    virtual ~SrsRtspVideoSendTrack();
+public:
+    virtual srs_error_t on_rtp(SrsRtpPacket* pkt);
 };
 
 #endif

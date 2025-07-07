@@ -16,16 +16,16 @@
 #include <srs_app_rtsp_source.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_async_call.hpp>
-#include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtsp_conn.hpp>
 #include <srs_app_security.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_kernel_io.hpp>
 
 class SrsEphemeralDelta;
-class SrsRtcPlayStream;
+class SrsRtspPlayStream;
 class SrsRtcSource;
 class SrsRtspSource;
-class SrsRtspConn;
+class SrsRtspConnection;
 
 class SrsRtspSession
 {
@@ -48,7 +48,7 @@ private:
     std::map<uint32_t, SrsRtcTrackDescription*> tracks_;
     // key: ssrc
     std::map<uint32_t, ISrsStreamWriter*> networks_;
-    SrsRtcPlayStream* player_;
+    SrsRtspPlayStream* player_;
 
 public:
     SrsRtspSession(SrsContextId cid, SrsRequest* r, ISrsProtocolReadWriter* skt, std::string ip, int port);
@@ -60,14 +60,14 @@ public:
 
     virtual srs_error_t do_describe(SrsRtspRequest* req, std::string& sdp);
     virtual srs_error_t do_setup(SrsRtspRequest* req, uint32_t* ssrc);
-    virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtspConn* conn);
+    virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtspConnection* conn);
     virtual srs_error_t do_teardown();
 private:
     srs_error_t http_hooks_on_play(SrsRequest* req);
     srs_error_t get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* ssrc);
 };
 
-class SrsRtspConn : public SrsRtcConnection, public ISrsCoroutineHandler, public ISrsStartable
+class SrsRtspConnection : public SrsRtcConnection2, public ISrsCoroutineHandler, public ISrsStartable
 {
 private:
     SrsContextId cid_;
@@ -85,8 +85,8 @@ private:
     SrsRtspSession* session_;
     std::string session_id_;
 public:
-    SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port);
-    virtual ~SrsRtspConn();
+    SrsRtspConnection(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port);
+    virtual ~SrsRtspConnection();
 public:
     virtual srs_error_t do_send_packet(SrsRtpPacket* pkt);
 public:

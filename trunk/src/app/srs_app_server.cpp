@@ -1156,7 +1156,7 @@ void SrsServer::resample_kbps()
         }
 
 #ifdef SRS_RTC
-        SrsRtspConn* rtsp = dynamic_cast<SrsRtspConn*>(c);
+        SrsRtspConnection* rtsp = dynamic_cast<SrsRtspConnection*>(c);
         if (rtsp) {
             stat->kbps_add_delta(c->get_id().c_str(), rtsp->delta());
             continue;
@@ -1269,7 +1269,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         } else if (listener == webrtc_listener_) {
             resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
         } else if (listener == rtsp_listener_) {
-            resource = new SrsRtspConn(this, new SrsTcpConnection(stfd2), ip, port);
+            resource = new SrsRtspConnection(this, new SrsTcpConnection(stfd2), ip, port);
 #endif
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.

@@ -13,6 +13,7 @@
 #include <srs_app_rtc_server.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_app_rtsp_conn.hpp>
 
 #include <sstream>
 
@@ -229,12 +230,12 @@ srs_error_t SrsRtspSession::do_setup(SrsRtspRequest* req, uint32_t* pssrc)
     return srs_success;
 }
 
-srs_error_t SrsRtspSession::do_play(SrsRtspRequest* req, SrsRtspConn* conn)
+srs_error_t SrsRtspSession::do_play(SrsRtspRequest* req, SrsRtspConnection* conn)
 {
     srs_error_t err = srs_success;
 
     srs_freep(player_);
-    player_ = new SrsRtcPlayStream(conn, cid_);
+    player_ = new SrsRtspPlayStream(conn, cid_);
 
     if ((err = player_->initialize(request_, tracks_)) != srs_success) {
         srs_freep(player_);
@@ -304,10 +305,10 @@ srs_error_t SrsRtspSession::get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* 
     return srs_error_new(ERROR_RTSP_NO_TRACK, "track not found for stream_id: %u", stream_id);
 }
 
-SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcConnection(NULL, _srs_context->generate_id())
+SrsRtspConnection::SrsRtspConnection(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcConnection2(_srs_context->generate_id())
 {
     manager_ = cm;
-    cid_ = SrsRtcConnection::get_id();
+    cid_ = SrsRtcConnection2::get_id();
     _srs_context->set_id(cid_);
     request_ = new SrsRequest();
     request_->ip = cip;
@@ -318,7 +319,7 @@ SrsRtspConn::SrsRtspConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, s
     trd_ = new SrsSTCoroutine("rtsp", this, _srs_context->get_id());
 }
 
-SrsRtspConn::~SrsRtspConn()
+SrsRtspConnection::~SrsRtspConnection()
 {
     srs_freep(request_);
     srs_freep(session_);
@@ -326,37 +327,37 @@ SrsRtspConn::~SrsRtspConn()
     srs_freep(trd_);
 }
 
-srs_error_t SrsRtspConn::do_send_packet(SrsRtpPacket* pkt)
+srs_error_t SrsRtspConnection::do_send_packet(SrsRtpPacket* pkt)
 {
     return session_->do_send_packet(pkt);
 }
 
-ISrsKbpsDelta* SrsRtspConn::delta()
+ISrsKbpsDelta* SrsRtspConnection::delta()
 {
     return session_->delta();  
 }
 
-std::string SrsRtspConn::desc()
+std::string SrsRtspConnection::desc()
 {
     return "Rtsp";
 }
 
-const SrsContextId& SrsRtspConn::get_id()
+const SrsContextId& SrsRtspConnection::get_id()
 {
     return cid_;
 }
 
-std::string SrsRtspConn::remote_ip()
+std::string SrsRtspConnection::remote_ip()
 {
     return ip_;
 }
 
-void SrsRtspConn::expire()
+void SrsRtspConnection::expire()
 {
     trd_->interrupt();
 }
 
-srs_error_t SrsRtspConn::start()
+srs_error_t SrsRtspConnection::start()
 {
     srs_error_t err = srs_success;
 
@@ -367,7 +368,7 @@ srs_error_t SrsRtspConn::start()
     return err;
 }
 
-srs_error_t SrsRtspConn::cycle()
+srs_error_t SrsRtspConnection::cycle()
 {
     srs_error_t err = srs_success;
 
@@ -411,7 +412,7 @@ srs_error_t SrsRtspConn::cycle()
     return srs_success;
 }
 
-srs_error_t SrsRtspConn::do_cycle()
+srs_error_t SrsRtspConnection::do_cycle()
 {
     srs_error_t err = srs_success;
     srs_trace("RTSP: client ip=%s, port=%d", ip_.c_str(), port_);
