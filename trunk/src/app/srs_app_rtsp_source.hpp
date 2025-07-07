@@ -105,10 +105,8 @@ private:
     SrsContextId _pre_source_id;
     SrsRequest* req;
     // Steam description for this steam.
-    SrsRtcSourceDescription* stream_desc_;
-private:
-    // The Source bridge, bridge stream to other source.
-    ISrsStreamBridge* bridge_;
+    SrsRtcTrackDescription* audio_desc_;
+    SrsRtcTrackDescription* video_desc_;
 private:
     // To delivery stream to clients.
     std::vector<SrsRtspConsumer*> consumers;
@@ -127,8 +125,6 @@ public:
 public:
     // Whether stream is dead, which is no publisher or player.
     virtual bool stream_is_dead();
-private:
-    void init_for_play_before_publishing();
 public:
     // Update the authentication information in request.
     virtual void update_auth(SrsRequest* r);
@@ -139,8 +135,6 @@ public:
     // Get current source id.
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
-public:
-    void set_bridge(ISrsStreamBridge* bridge);
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -163,10 +157,11 @@ public:
 public:
     // Consume the shared RTP packet, user must free it.
     srs_error_t on_rtp(SrsRtpPacket* pkt);
-    // Set and get stream description for source
-    bool has_stream_desc();
-    void set_stream_desc(SrsRtcSourceDescription* stream_desc);
-    std::vector<SrsRtcTrackDescription*> get_track_desc(std::string type, std::string media_name);
+public:
+    SrsRtcTrackDescription* audio_desc();
+    void set_audio_desc(SrsRtcTrackDescription* audio_desc);
+    SrsRtcTrackDescription* video_desc();
+    void set_video_desc(SrsRtcTrackDescription* video_desc);
 };
 
 // Convert AV frame to RTSP RTP packets.
@@ -187,6 +182,7 @@ private:
     uint32_t video_ssrc_;
     uint8_t audio_payload_type_;
     uint8_t video_payload_type_;
+    int audio_sample_rate_;
 private:
     SrsSharedPtr<SrsRtspSource> source_;
     // Lazy initialization flags

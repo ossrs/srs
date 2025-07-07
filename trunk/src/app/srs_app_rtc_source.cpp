@@ -53,6 +53,11 @@ SrsPps* _srs_pps_rmnack = NULL;
 
 extern SrsPps* _srs_pps_aloss2;
 
+static const int kAudioChannel         = 2;
+static const int kAudioSamplerate      = 48000;
+
+static const int kVideoSamplerate  = 90000;
+
 using namespace std;
 
 // the time to cleanup source.
@@ -2651,11 +2656,11 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type_h265()
     return media_payload_type;
 }
 
+// level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
 srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 {
     srs_error_t err = srs_success;
 
-    // For example: level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
     std::vector<std::string> attributes = split_str(fmtp, ";");
 
     for (size_t i = 0; i < attributes.size(); ++i) {

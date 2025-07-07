@@ -20,10 +20,15 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_app_hybrid.hpp>
 #include <srs_app_threads.hpp>
+#include <srs_kernel_codec.hpp>
+
+#include <cstdio>
 
 using namespace std;
 
 extern SrsPps* _srs_pps_aloss2;
+
+static const int kVideoSamplerate  = 90000;
 
 // the time to cleanup source.
 #define SRS_RTSP_SOURCE_CLEANUP (3 * SRS_UTIME_SECONDS)
@@ -189,7 +194,7 @@ srs_error_t SrsRtspSourceManager::fetch_or_create(SrsRequest* r, SrsSharedPtr<Sr
     }
 
     SrsSharedPtr<SrsRtspSource> source = SrsSharedPtr<SrsRtspSource>(new SrsRtspSource());
-    srs_trace("new rtc source, stream_url=%s", stream_url.c_str());
+    srs_trace("new rtsp source, stream_url=%s", stream_url.c_str());
 
     if ((err = source->initialize(r)) != srs_success) {
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
@@ -226,10 +231,10 @@ SrsRtspSource::SrsRtspSource()
     is_created_ = false;
     is_delivering_packets_ = false;
 
-    stream_desc_ = NULL;
+    audio_desc_ = NULL;
+    video_desc_ = NULL;
 
     req = NULL;
-    bridge_ = NULL;
 
     stream_die_at_ = 0;
 }
@@ -240,9 +245,9 @@ SrsRtspSource::~SrsRtspSource()
     // for all consumers are auto free.
     consumers.clear();
 
-    srs_freep(bridge_);
     srs_freep(req);
-    srs_freep(stream_desc_);
+    srs_freep(audio_desc_);
+    srs_freep(video_desc_);
 
     SrsContextId cid = _source_id;
     if (cid.empty()) cid = _pre_source_id;
@@ -254,10 +259,6 @@ srs_error_t SrsRtspSource::initialize(SrsRequest* r)
     srs_error_t err = srs_success;
 
     req = r->copy();
-
-	// Create default relations to allow play before publishing.
-	// @see https://github.com/ossrs/srs/issues/2362
-	init_for_play_before_publishing();
 
 	return err;
 }
@@ -283,72 +284,6 @@ bool SrsRtspSource::stream_is_dead()
     return true;
 }
 
-void SrsRtspSource::init_for_play_before_publishing()
-{
-    // If the stream description has already been setup by RTC publisher,
-    // we should ignore and it's ok, because we only need to setup it for bridge.
-    if (stream_desc_) {
-        return;
-    }
-
-    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
-
-    // audio track description
-    if (true) {
-        SrsRtcTrackDescription* audio_track_desc = new SrsRtcTrackDescription();
-        stream_desc->audio_track_desc_ = audio_track_desc;
-
-        audio_track_desc->type_ = "audio";
-        audio_track_desc->id_ = "audio-" + srs_random_str(8);
-
-        uint32_t audio_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
-        audio_track_desc->ssrc_ = audio_ssrc;
-        audio_track_desc->direction_ = "sendonly";
-
-        audio_track_desc->media_ = new SrsAudioPayload(kAudioPayloadType, "opus", kAudioSamplerate, kAudioChannel);
-    }
-
-    // video track descriptions - support both H.264 and H.265 for play before publishing
-    // This allows clients to choose their preferred codec during SDP negotiation
-    if (true) {
-        // H.264 track description
-        SrsRtcTrackDescription* h264_track_desc = new SrsRtcTrackDescription();
-        stream_desc->video_track_descs_.push_back(h264_track_desc);
-
-        h264_track_desc->type_ = "video";
-        h264_track_desc->id_ = "video-h264-" + srs_random_str(8);
-
-        uint32_t h264_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
-        h264_track_desc->ssrc_ = h264_ssrc;
-        h264_track_desc->direction_ = "sendonly";
-
-        SrsVideoPayload* h264_payload = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
-        h264_track_desc->media_ = h264_payload;
-
-        h264_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
-    }
-
-    if (true) {
-        // H.265 track description
-        SrsRtcTrackDescription* h265_track_desc = new SrsRtcTrackDescription();
-        stream_desc->video_track_descs_.push_back(h265_track_desc);
-
-        h265_track_desc->type_ = "video";
-        h265_track_desc->id_ = "video-h265-" + srs_random_str(8);
-
-        uint32_t h265_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
-        h265_track_desc->ssrc_ = h265_ssrc;
-        h265_track_desc->direction_ = "sendonly";
-
-        SrsVideoPayload* h265_payload = new SrsVideoPayload(KVideoPayloadTypeHevc, "H265", kVideoSamplerate);
-        h265_track_desc->media_ = h265_payload;
-
-        h265_payload->set_h265_param_desc("level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST");
-    }
-
-    set_stream_desc(stream_desc.get());
-}
-
 void SrsRtspSource::update_auth(SrsRequest* r)
 {
     req->update_auth(r);
@@ -370,6 +305,15 @@ srs_error_t SrsRtspSource::on_source_changed()
         _source_id = id;
     }
 
+    // Build stream description.
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+    if (audio_desc_) {
+        stream_desc->audio_track_desc_ = audio_desc_->copy();
+    }
+    if (video_desc_) {
+        stream_desc->video_track_descs_.push_back(video_desc_->copy());
+    }
+
     // Notify all consumers.
     std::vector<SrsRtspConsumer*>::iterator it;
     for (it = consumers.begin(); it != consumers.end(); ++it) {
@@ -381,7 +325,7 @@ srs_error_t SrsRtspSource::on_source_changed()
         }
 
         // Notify about stream description.
-        consumer->on_stream_change(stream_desc_);
+        consumer->on_stream_change(stream_desc.get());
     }
 
     return err;
@@ -395,12 +339,6 @@ SrsContextId SrsRtspSource::source_id()
 SrsContextId SrsRtspSource::pre_source_id()
 {
     return _pre_source_id;
-}
-
-void SrsRtspSource::set_bridge(ISrsStreamBridge* bridge)
-{
-    srs_freep(bridge_);
-    bridge_ = bridge;
 }
 
 srs_error_t SrsRtspSource::create_consumer(SrsRtspConsumer*& consumer)
@@ -473,13 +411,6 @@ srs_error_t SrsRtspSource::on_publish()
         return srs_error_wrap(err, "source id change");
     }
 
-    // If bridge to other source, handle event and start timer to request PLI.
-    if (bridge_) {
-        if ((err = bridge_->on_publish()) != srs_success) {
-            return srs_error_wrap(err, "bridge on publish");
-        }
-    }
-
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_publish(req, _source_id.c_str());
 
@@ -502,12 +433,6 @@ void SrsRtspSource::on_unpublish()
         _pre_source_id = _source_id;
     }
     _source_id = SrsContextId();
-
-    //free bridge resource
-    if (bridge_) {
-        bridge_->on_unpublish();
-        srs_freep(bridge_);
-    }
 
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_close(req);
@@ -538,55 +463,26 @@ srs_error_t SrsRtspSource::on_rtp(SrsRtpPacket* pkt)
     return err;
 }
 
-bool SrsRtspSource::has_stream_desc()
+SrsRtcTrackDescription* SrsRtspSource::audio_desc()
 {
-    return stream_desc_;
+    return audio_desc_;
 }
 
-void SrsRtspSource::set_stream_desc(SrsRtcSourceDescription* stream_desc)
+void SrsRtspSource::set_audio_desc(SrsRtcTrackDescription* audio_desc)
 {
-    srs_freep(stream_desc_);
-
-    if (stream_desc) {
-        stream_desc_ = stream_desc->copy();
-    }
+    srs_freep(audio_desc_);
+    audio_desc_ = audio_desc->copy();
 }
 
-std::vector<SrsRtcTrackDescription*> SrsRtspSource::get_track_desc(std::string type, std::string media_name)
+SrsRtcTrackDescription* SrsRtspSource::video_desc()
 {
-    std::vector<SrsRtcTrackDescription*> track_descs;
-    if (!stream_desc_) {
-        return track_descs;
-    }
+    return video_desc_;
+}
 
-    if (type == "audio") {
-        if (! stream_desc_->audio_track_desc_) {
-            return track_descs;
-        }
-
-        SrsAudioCodecId codec = SrsAudioCodecId(stream_desc_->audio_track_desc_->media_->codec(false));
-        if (codec == srs_audio_codec_str2id(media_name)) {
-            track_descs.push_back(stream_desc_->audio_track_desc_);
-        }
-    }
-
-    if (type == "video") {
-        std::vector<SrsRtcTrackDescription*>::iterator it = stream_desc_->video_track_descs_.begin();
-        for (; it != stream_desc_->video_track_descs_.end(); ++it){
-            SrsRtcTrackDescription* track_desc = *it;
-            
-            if (media_name.empty()) {
-                track_descs.push_back(track_desc);
-            } else {
-                SrsVideoCodecId codec = SrsVideoCodecId(track_desc->media_->codec(true));
-                if (codec == srs_video_codec_str2id(media_name)) {
-                    track_descs.push_back(track_desc);
-                }
-            }
-        }
-    }
-
-    return track_descs;
+void SrsRtspSource::set_video_desc(SrsRtcTrackDescription* video_desc)
+{
+    srs_freep(video_desc_);
+    video_desc_ = video_desc->copy();
 }
 
 SrsRtspRtpBuilder::SrsRtspRtpBuilder(SrsFrameToRtspBridge* bridge, SrsSharedPtr<SrsRtspSource> source)
@@ -605,6 +501,7 @@ SrsRtspRtpBuilder::SrsRtspRtpBuilder(SrsFrameToRtspBridge* bridge, SrsSharedPtr<
     audio_payload_type_ = 0;
     video_ssrc_ = 0;
     video_payload_type_ = 0;
+    audio_sample_rate_ = 0;
 
     // Lazy initialization flags
     audio_initialized_ = false;
@@ -621,22 +518,47 @@ srs_error_t SrsRtspRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
 {
     srs_error_t err = srs_success;
 
-    // Get the audio track description for the specified codec, as we will always 
-    // transcode to opus for WebRTC.
-    std::string codec_name = "opus";
-    std::vector<SrsRtcTrackDescription*> descs = source_->get_track_desc("audio", "opus");
+    // RTSP behavior: Build track description from real audio format, not default values
+    // This is different from RTC which uses default track descriptions
 
-    if (!descs.empty()) {
-        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
-        SrsRtcTrackDescription* track = descs.at(0);
-        audio_ssrc_ = track->ssrc_;
-        audio_payload_type_ = track->media_->pt_;
-    } else {
+    // Create audio track description from actual format data
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
+    audio_desc->type_ = "audio";
+    audio_desc->id_ = "audio-" + srs_random_str(8);
+    audio_desc->direction_ = "recvonly";
+
+    // Generate SSRC for this track
+    audio_ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+    audio_desc->ssrc_ = audio_ssrc_;
+
+    int sample_rate = srs_flv_srates[format->acodec->sound_rate];
+    audio_sample_rate_ = sample_rate;
+    
+    // Build payload from actual audio format
+    if (codec == SrsAudioCodecIdOpus) {
+        // For Opus, use actual format parameters if available
+        int channels = (format->acodec->sound_type == SrsAudioChannelsStereo) ? 2 : 1;
         audio_payload_type_ = kAudioPayloadType;
+        audio_desc->media_ = new SrsAudioPayload(audio_payload_type_, "opus", sample_rate, channels);
+    } else if (codec == SrsAudioCodecIdAAC) {
+        // For AAC, extract parameters from format
+        int channels = format->acodec->aac_channels;
+        audio_payload_type_ = kAudioPayloadType;
+        audio_desc->media_ = new SrsAudioPayload(audio_payload_type_, "AAC", sample_rate, channels);
+    } else {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "unsupported audio codec %d", codec);
     }
 
-    srs_trace("RTMP2RTSP: Initialize audio track for %s with codec=%s, ssrc=%u, pt=%d",
-        srs_audio_codec_id2str(codec).c_str(), codec_name.c_str(), audio_ssrc_, audio_payload_type_);
+    // Extract info for logging before setting to source
+    int sample_rate_for_log = audio_desc->media_->sample_;
+    int channels_for_log = (audio_desc->media_->type_ == "audio") ? ((SrsAudioPayload*)audio_desc->media_)->channel_ : 0;
+
+    // Set the audio description to source
+    source_->set_audio_desc(audio_desc.get());
+
+    srs_trace("RTSP: Initialize audio track from format - codec=%s, ssrc=%u, pt=%d, sample_rate=%d, channels=%d",
+        srs_audio_codec_id2str(codec).c_str(), audio_ssrc_, audio_payload_type_,
+        sample_rate_for_log, channels_for_log);
 
     return err;
 }
@@ -645,21 +567,45 @@ srs_error_t SrsRtspRtpBuilder::initialize_video_track(SrsVideoCodecId codec)
 {
     srs_error_t err = srs_success;
 
-    // Get the video track description for the detected codec
-    std::string codec_name = srs_video_codec_id2str(codec);
-    std::vector<SrsRtcTrackDescription*> descs = source_->get_track_desc("video", codec_name);
+    // RTSP behavior: Build track description from real video format, not default values
+    // This is different from RTC which uses default track descriptions
 
-    if (!descs.empty()) {
-        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
-        SrsRtcTrackDescription* track = descs.at(0);
-        video_ssrc_ = track->ssrc_;
-        video_payload_type_ = track->media_->pt_;
-    } else {
+    std::string codec_name = srs_video_codec_id2str(codec);
+
+    // Create video track description from actual format data
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
+    video_desc->type_ = "video";
+    video_desc->id_ = "video-" + codec_name + "-" + srs_random_str(8);
+    video_desc->direction_ = "recvonly";
+
+    // Generate SSRC for this track
+    video_ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+    video_desc->ssrc_ = video_ssrc_;
+
+    // Build payload from actual video format
+    if (codec == SrsVideoCodecIdAVC) {
+        // H.264 track with actual format parameters
         video_payload_type_ = kVideoPayloadType;
+        SrsVideoPayload* h264_payload = new SrsVideoPayload(video_payload_type_, "H264", kVideoSamplerate);
+        h264_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
+        video_desc->media_ = h264_payload;
+
+    } else if (codec == SrsVideoCodecIdHEVC) {
+        // H.265 track with actual format parameters
+        video_payload_type_ = KVideoPayloadTypeHevc;
+        SrsVideoPayload* h265_payload = new SrsVideoPayload(video_payload_type_, "H265", kVideoSamplerate);
+        h265_payload->set_h265_param_desc("level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST");
+        video_desc->media_ = h265_payload;
+
+    } else {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "unsupported video codec %d", codec);
     }
 
-    srs_trace("RTMP2RTSP: Initialize video track with codec=%s, ssrc=%u, pt=%d",
-              codec_name.c_str(), video_ssrc_, video_payload_type_);
+    // Set the video description to source
+    source_->set_video_desc(video_desc.get());
+
+    srs_trace("RTSP: Initialize video track from format - codec=%s, ssrc=%u, pt=%d, sample_rate=%d",
+              codec_name.c_str(), video_ssrc_, video_payload_type_, kVideoSamplerate);
 
     return err;
 }
@@ -725,10 +671,23 @@ srs_error_t SrsRtspRtpBuilder::on_audio(SrsSharedPtrMessage* msg)
         return err;
     }
 
+    // support audio codec: aac/opus
+    SrsAudioCodecId acodec = format->acodec->id;
+    if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdOpus) {
+        return err;
+    }
+
+    // Initialize audio track on first packet with actual codec
+    if (!audio_initialized_) {
+        if ((err = initialize_audio_track(acodec)) != srs_success) {
+            return srs_error_wrap(err, "init audio track");
+        }
+        audio_initialized_ = true;
+    }
+
     // Convert to RTP packet.
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
 
-    SrsAudioCodecId acodec = format->acodec->id;
     if (acodec == SrsAudioCodecIdOpus) {
         if ((err = package_opus(format->audio, pkt.get())) != srs_success) {
             return srs_error_wrap(err, "package opus");
@@ -749,12 +708,18 @@ srs_error_t SrsRtspRtpBuilder::package_opus(SrsAudioFrame* audio, SrsRtpPacket* 
 {
     srs_error_t err = srs_success;
 
+    // For RTSP, audio TBN is not fixed, but use the sample rate, so we 
+    // need to convert FLV TBN(1000) to the sample rate TBN.
+    int64_t dts = (int64_t)audio->dts;
+    dts *= (int64_t)audio_sample_rate_;
+    dts /= 1000;
+
     pkt->header.set_payload_type(audio_payload_type_);
     pkt->header.set_ssrc(audio_ssrc_);
     pkt->frame_type = SrsFrameTypeAudio;
     pkt->header.set_marker(true);
     pkt->header.set_sequence(audio_sequence++);
-    pkt->header.set_timestamp(audio->dts * 48);
+    pkt->header.set_timestamp(dts);
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
     pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);

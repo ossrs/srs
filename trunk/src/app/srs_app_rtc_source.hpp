@@ -44,27 +44,12 @@ class SrsErrorPithyPrint;
 class SrsRtcFrameBuilder;
 class SrsLiveSource;
 
-// The RTP payload max size, reserved some paddings for SRTP as such:
-//      kRtpPacketSize = kRtpMaxPayloadSize + paddings
-// For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
-// which reserves 100 bytes for SRTP or paddings.
-// otherwise, the kRtpPacketSize must less than MTU, in webrtc source code,
-// the rtp max size is assigned by kVideoMtu = 1200.
-// so we set kRtpMaxPayloadSize = 1200.
-// see @doc https://groups.google.com/g/discuss-webrtc/c/gH5ysR3SoZI
-const int kRtpMaxPayloadSize = kRtpPacketSize - 300;
-
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
 // Firefox defaults as 126, Chrome is 102.
 const int kVideoPayloadType = 102;
 // Chrome HEVC defaults as 49.
 const int KVideoPayloadTypeHevc = 49;
-
-const int kAudioChannel         = 2;
-const int kAudioSamplerate      = 48000;
-
-const int kVideoSamplerate  = 90000;
 
 class SrsNtp
 {

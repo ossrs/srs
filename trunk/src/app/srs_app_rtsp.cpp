@@ -136,9 +136,9 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
     local_sdp.session_info_.setup_ = "passive";  // Server is passive for TCP connections
 
     uint32_t track_id = 0;
-    std::vector<SrsRtcTrackDescription*> audio_track_descs = source_->get_track_desc("audio", "opus");
-    if (!audio_track_descs.empty()) {
-        SrsRtcTrackDescription* audio_track_desc = audio_track_descs.at(0)->copy();
+    SrsRtcTrackDescription* audio_desc = source_->audio_desc();
+    if (!audio_desc) {
+        SrsRtcTrackDescription* audio_track_desc = audio_desc->copy();
         audio_track_desc->id_ = srs_int2str(track_id);
         tracks_.insert(std::make_pair(audio_track_desc->ssrc_, audio_track_desc));
 
@@ -167,9 +167,9 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
         track_id++;
     }
     
-    std::vector<SrsRtcTrackDescription*> video_track_descs = source_->get_track_desc("video", "");
-    if (!video_track_descs.empty()) {
-        SrsRtcTrackDescription* video_track_desc = video_track_descs.at(0)->copy();
+    SrsRtcTrackDescription* video_desc = source_->video_desc();
+    if (!video_desc) {
+        SrsRtcTrackDescription* video_track_desc = video_desc->copy();
         video_track_desc->id_ = srs_int2str(track_id);
         tracks_.insert(std::make_pair(video_track_desc->ssrc_, video_track_desc));
 
@@ -190,6 +190,10 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
 
         local_sdp.media_descs_.push_back(media_video);
         track_id++;
+    }
+
+    if (track_id == 0) {
+        return srs_error_new(ERROR_RTSP_NO_TRACK, "no track found");
     }
 
     std::ostringstream ss;
@@ -442,7 +446,9 @@ srs_error_t SrsRtspConn::do_cycle()
             std::string sdp;
             if ((err = session_->do_describe(req.get(), sdp)) != srs_success) {
                 res->status = SRS_CONSTS_RTSP_InternalServerError;
-                if (srs_error_code(err) == ERROR_SYSTEM_SECURITY_DENY) {
+                if (srs_error_code(err) == ERROR_RTSP_NO_TRACK) {
+                    res->status = SRS_CONSTS_RTSP_NotFound;
+                } else if (srs_error_code(err) == ERROR_SYSTEM_SECURITY_DENY) {
                     res->status = SRS_CONSTS_RTSP_Forbidden;
                 }
                 srs_warn("RTSP: DESCRIBE failed: %s", srs_error_desc(err).c_str());
@@ -453,7 +459,10 @@ srs_error_t SrsRtspConn::do_cycle()
             if ((err = rtsp_->send_message(res.get())) != srs_success) {
                 return  srs_error_wrap(err, "response describe");
             }
-            srs_trace("RTSP: DESCRIBE cseq=%ld, session=%s, sdp=%dB", req->seq, session_id_.c_str(), (int)sdp.length());
+                    
+            // Filter the \r\n to \\r\\n for JSON.
+            std::string local_sdp_escaped = srs_string_replace(sdp.c_str(), "\r\n", "\\r\\n");
+            srs_trace("RTSP: DESCRIBE cseq=%ld, session=%s, sdp: %s", req->seq, session_id_.c_str(), local_sdp_escaped.c_str());
         } else if (req->is_setup()) {
             srs_assert(req->transport);            
 
