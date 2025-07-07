@@ -67,7 +67,7 @@ private:
     srs_error_t get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* ssrc);
 };
 
-class SrsRtspConnection : public SrsRtcConnection2, public ISrsCoroutineHandler, public ISrsStartable
+class SrsRtspConnection : public SrsRtspConnection2, public ISrsCoroutineHandler, public ISrsStartable
 {
 private:
     SrsContextId cid_;

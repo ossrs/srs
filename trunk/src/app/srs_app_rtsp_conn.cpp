@@ -64,7 +64,7 @@ extern SrsPps* _srs_pps_rnack2;
 extern SrsPps* _srs_pps_pub;
 extern SrsPps* _srs_pps_conn;
 
-SrsRtspPlayStream::SrsRtspPlayStream(SrsRtcConnection2* s, const SrsContextId& cid) : source_(new SrsRtspSource())
+SrsRtspPlayStream::SrsRtspPlayStream(SrsRtspConnection2* s, const SrsContextId& cid) : source_(new SrsRtspSource())
 {
     cid_ = cid;
     trd_ = NULL;
@@ -369,7 +369,7 @@ void SrsRtspPlayStream::set_all_tracks_status(bool status)
     srs_trace("RTSP: Init tracks %s ok", merged_log.str().c_str());
 }
 
-SrsRtcConnection2::SrsRtcConnection2(const SrsContextId& cid)
+SrsRtspConnection2::SrsRtspConnection2(const SrsContextId& cid)
 {
     cid_ = cid;
 
@@ -380,18 +380,18 @@ SrsRtcConnection2::SrsRtcConnection2(const SrsContextId& cid)
     _srs_rtsp_manager->subscribe(this);
 }
 
-SrsRtcConnection2::~SrsRtcConnection2()
+SrsRtspConnection2::~SrsRtspConnection2()
 {
     _srs_rtsp_manager->unsubscribe(this);
 }
 
-void SrsRtcConnection2::on_before_dispose(ISrsResource* c)
+void SrsRtspConnection2::on_before_dispose(ISrsResource* c)
 {
     if (disposing_) {
         return;
     }
 
-    SrsRtcConnection2* session = dynamic_cast<SrsRtcConnection2*>(c);
+    SrsRtspConnection2* session = dynamic_cast<SrsRtspConnection2*>(c);
     if (session == this) {
         disposing_ = true;
     }
@@ -403,45 +403,45 @@ void SrsRtcConnection2::on_before_dispose(ISrsResource* c)
     }
 }
 
-void SrsRtcConnection2::on_disposing(ISrsResource* c)
+void SrsRtspConnection2::on_disposing(ISrsResource* c)
 {
     if (disposing_) {
         return;
     }
 }
 
-const SrsContextId& SrsRtcConnection2::get_id()
+const SrsContextId& SrsRtspConnection2::get_id()
 {
     return cid_;
 }
 
-std::string SrsRtcConnection2::desc()
+std::string SrsRtspConnection2::desc()
 {
     return "RtspConn";
 }
 
-void SrsRtcConnection2::expire()
+void SrsRtspConnection2::expire()
 {
     // TODO: FIXME: Should set session to expired and remove it by heartbeat checking. Should not remove it directly.
     _srs_rtsp_manager->remove(this);
 }
 
-void SrsRtcConnection2::switch_to_context()
+void SrsRtspConnection2::switch_to_context()
 {
     _srs_context->set_id(cid_);
 }
 
-const SrsContextId& SrsRtcConnection2::context_id()
+const SrsContextId& SrsRtspConnection2::context_id()
 {
     return cid_;
 }
 
-bool SrsRtcConnection2::is_alive()
+bool SrsRtspConnection2::is_alive()
 {
     return last_stun_time + session_timeout > srs_get_system_time();
 }
 
-void SrsRtcConnection2::alive()
+void SrsRtspConnection2::alive()
 {
     last_stun_time = srs_get_system_time();
 }

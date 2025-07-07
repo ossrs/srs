@@ -305,10 +305,10 @@ srs_error_t SrsRtspSession::get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* 
     return srs_error_new(ERROR_RTSP_NO_TRACK, "track not found for stream_id: %u", stream_id);
 }
 
-SrsRtspConnection::SrsRtspConnection(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtcConnection2(_srs_context->generate_id())
+SrsRtspConnection::SrsRtspConnection(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtspConnection2(_srs_context->generate_id())
 {
     manager_ = cm;
-    cid_ = SrsRtcConnection2::get_id();
+    cid_ = SrsRtspConnection2::get_id();
     _srs_context->set_id(cid_);
     request_ = new SrsRequest();
     request_->ip = cip;
@@ -549,11 +549,11 @@ srs_error_t SrsRtspTcpNetwork::write(void* buf, size_t size, ssize_t* nwrite)
     hb.write_2bytes(uint16_t(size));          // Packet size in network order
 
     if((err = skt_->write(header, kRtpTcpPacketHeaderSize, NULL)) != srs_success) {
-        return srs_error_wrap(err, "rtc tcp write len(%d)", size);
+        return srs_error_wrap(err, "RTSP tcp write len(%d)", size);
     }
 
     if ((err = skt_->write(buf, size, nwrite)) != srs_success) {
-        return srs_error_wrap(err, "send rtp packet");
+        return srs_error_wrap(err, "RTSP send rtp packet");
     }
 
     // Add the size of the header to the write count.

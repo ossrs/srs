@@ -58,7 +58,7 @@ class SrsRtcUdpNetwork;
 class ISrsRtcNetwork;
 class SrsRtcTcpNetwork;
 class SrsRtspConnection;
-class SrsRtcConnection2;
+class SrsRtspConnection2;
 
 // A RTSP play stream, client pull and play stream from SRS.
 class SrsRtspPlayStream : public ISrsCoroutineHandler, public ISrsRtcSourceChangeCallback
@@ -66,7 +66,7 @@ class SrsRtspPlayStream : public ISrsCoroutineHandler, public ISrsRtcSourceChang
 private:
     SrsContextId cid_;
     SrsFastCoroutine* trd_;
-    SrsRtcConnection2* session_;
+    SrsRtspConnection2* session_;
 private:
     SrsRequest* req_;
     SrsSharedPtr<SrsRtspSource> source_;
@@ -85,7 +85,7 @@ private:
     // Whether player started.
     bool is_started;
 public:
-    SrsRtspPlayStream(SrsRtcConnection2* s, const SrsContextId& cid);
+    SrsRtspPlayStream(SrsRtspConnection2* s, const SrsContextId& cid);
     virtual ~SrsRtspPlayStream();
 public:
     srs_error_t initialize(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
@@ -106,13 +106,12 @@ public:
     void set_all_tracks_status(bool status);
 };
 
-// A RTC Peer Connection, SDP level object.
+// A RTSP Peer Connection, SDP level object.
 //
 // For performance, we use non-public from resource,
 // see https://stackoverflow.com/questions/3747066/c-cannot-convert-from-base-a-to-derived-type-b-via-virtual-base-a
-class SrsRtcConnection2 : public ISrsResource, public ISrsDisposingHandler, public ISrsExpire
+class SrsRtspConnection2 : public ISrsResource, public ISrsDisposingHandler, public ISrsExpire
 {
-    friend class SrsRtcPlayStream;
 public:
     bool disposing_;
 private:
@@ -122,11 +121,11 @@ private:
     // TODO: FIXME: Rename it.
     srs_utime_t last_stun_time;
 private:
-    // For each RTC session, we use a specified cid for debugging logs.
+    // For each RTSP session, we use a specified cid for debugging logs.
     SrsContextId cid_;
 public:
-    SrsRtcConnection2(const SrsContextId& cid);
-    virtual ~SrsRtcConnection2();
+    SrsRtspConnection2(const SrsContextId& cid);
+    virtual ~SrsRtspConnection2();
 // interface ISrsDisposingHandler
 public:
     virtual void on_before_dispose(ISrsResource* c);

@@ -1125,7 +1125,7 @@ srs_error_t SrsRtspRtpBuilder::consume_packets(vector<SrsRtpPacket*>& pkts)
     return err;
 }
 
-SrsRtspSendTrack::SrsRtspSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc, bool is_audio)
+SrsRtspSendTrack::SrsRtspSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc, bool is_audio)
 {
     session_ = session;
     track_desc_ = track_desc->copy();
@@ -1159,7 +1159,7 @@ std::string SrsRtspSendTrack::get_track_id()
     return track_desc_->id_;
 }
 
-SrsRtspAudioSendTrack::SrsRtspAudioSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc)
+SrsRtspAudioSendTrack::SrsRtspAudioSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc)
     : SrsRtspSendTrack(session, track_desc, true)
 {
 }
@@ -1193,13 +1193,13 @@ srs_error_t SrsRtspAudioSendTrack::on_rtp(SrsRtpPacket* pkt)
         return srs_error_wrap(err, "raw send");
     }
 
-    srs_info("RTC: Send audio ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header.get_ssrc(),
+    srs_info("RTSP: Send audio ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header.get_ssrc(),
         pkt->header.get_sequence(), pkt->is_keyframe(), pkt->header.get_timestamp());
 
     return err;
 }
 
-SrsRtspVideoSendTrack::SrsRtspVideoSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc)
+SrsRtspVideoSendTrack::SrsRtspVideoSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc)
     : SrsRtspSendTrack(session, track_desc, false)
 {
 }
@@ -1233,7 +1233,7 @@ srs_error_t SrsRtspVideoSendTrack::on_rtp(SrsRtpPacket* pkt)
         return srs_error_wrap(err, "raw send");
     }
 
-    srs_info("RTC: Send video ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header.get_ssrc(),
+    srs_info("RTSP: Send video ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header.get_ssrc(),
         pkt->header.get_sequence(), pkt->is_keyframe(), pkt->header.get_timestamp());
 
     return err;

@@ -30,7 +30,7 @@ class ISrsStreamBridge;
 class SrsFrameToRtcBridge;
 class SrsResourceManager;
 class SrsRtspConnection;
-class SrsRtcConnection2;
+class SrsRtspConnection2;
 
 // The RTSP stream consumer, consume packets from RTSP stream source.
 class SrsRtspConsumer
@@ -58,7 +58,7 @@ public:
     // Put RTP packet into queue.
     // @note We do not drop packet here, but drop it in sender.
     srs_error_t enqueue(SrsRtpPacket* pkt);
-    // For RTC, we only got one packet, because there is not many packets in queue.
+    // For RTSP, we only got one packet, because there is not many packets in queue.
     virtual srs_error_t dump_packet(SrsRtpPacket** ppkt);
     // Wait for at-least some messages incoming in queue.
     virtual void wait(int nb_msgs);
@@ -153,7 +153,7 @@ public:
     // Whether we can publish stream to the source, return false if it exists.
     // @remark Note that when SDP is done, we set the stream is not able to publish.
     virtual bool can_publish();
-    // For RTC, the stream is created when SDP is done, and then do DTLS
+    // For RTSP, the stream is created when SDP is done, and then do DTLS
     virtual void set_stream_created();
     // When start publish stream.
     virtual srs_error_t on_publish();
@@ -227,9 +227,9 @@ public:
     SrsRtcTrackDescription* track_desc_;
 protected:
     // The owner connection for this track.
-    SrsRtcConnection2* session_;
+    SrsRtspConnection2* session_;
 public:
-    SrsRtspSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc, bool is_audio);
+    SrsRtspSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc, bool is_audio);
     virtual ~SrsRtspSendTrack();
 public:
     // SrsRtspSendTrack::set_nack_no_copy
@@ -244,7 +244,7 @@ public:
 class SrsRtspAudioSendTrack : public SrsRtspSendTrack
 {
 public:
-    SrsRtspAudioSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc);
+    SrsRtspAudioSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtspAudioSendTrack();
 public:
     virtual srs_error_t on_rtp(SrsRtpPacket* pkt);
@@ -253,7 +253,7 @@ public:
 class SrsRtspVideoSendTrack : public SrsRtspSendTrack
 {
 public:
-    SrsRtspVideoSendTrack(SrsRtcConnection2* session, SrsRtcTrackDescription* track_desc);
+    SrsRtspVideoSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtspVideoSendTrack();
 public:
     virtual srs_error_t on_rtp(SrsRtpPacket* pkt);
