@@ -720,65 +720,17 @@ srs_error_t SrsRtspRtpBuilder::on_audio(SrsSharedPtrMessage* msg)
     // Convert to RTP packet.
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
 
-    if (acodec == SrsAudioCodecIdOpus) {
-        if ((err = package_opus(format->audio, pkt.get())) != srs_success) {
-            return srs_error_wrap(err, "package opus");
-        }
-    } else if (acodec == SrsAudioCodecIdAAC) {
+    if (acodec == SrsAudioCodecIdAAC) {
         if ((err = package_aac(format->audio, pkt.get())) != srs_success) {
             return srs_error_wrap(err, "package aac");
         }
     } else {
-        // Unsupported audio codec
-        return err;
+        return srs_error_new(ERROR_NOT_IMPLEMENTED, "codec %d not implemented", acodec);
     }
 
     if ((err = bridge_->on_rtp(pkt.get())) != srs_success) {
         return srs_error_wrap(err, "consume audio packet");
     }
-
-    return err;
-}
-
-srs_error_t SrsRtspRtpBuilder::package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt)
-{
-    srs_error_t err = srs_success;
-
-    srs_assert(audio->nb_samples);
-
-    // For RTSP, audio TBN is not fixed, but use the sample rate, so we 
-    // need to convert FLV TBN(1000) to the sample rate TBN.
-    int64_t dts = (int64_t)audio->dts;
-    dts *= (int64_t)audio_sample_rate_;
-    dts /= 1000;
-
-    pkt->header.set_payload_type(audio_payload_type_);
-    pkt->header.set_ssrc(audio_ssrc_);
-    pkt->frame_type = SrsFrameTypeAudio;
-    pkt->header.set_marker(true);
-    pkt->header.set_sequence(audio_sequence++);
-    pkt->header.set_timestamp(dts);
-
-    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
-    pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
-
-    // Calculate total size for all Opus samples
-    int total_size = 0;
-    for (int i = 0; i < audio->nb_samples; i++) {
-        total_size += audio->samples[i].size;
-    }
-
-    // For Opus, we can concatenate multiple frames directly (RFC 7587)
-    // Use SrsBuffer for proper byte marshaling
-    SrsUniquePtr<char[]> payload(new char[total_size]);
-    SrsBuffer buffer(payload.get(), total_size);
-
-    for (int i = 0; i < audio->nb_samples; i++) {
-        buffer.write_bytes(audio->samples[i].bytes, audio->samples[i].size);
-    }
-
-    raw->payload = pkt->wrap(payload.get(), total_size);
-    raw->nn_payload = total_size;
 
     return err;
 }

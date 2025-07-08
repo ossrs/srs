@@ -931,8 +931,7 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     } else if (codec == SrsAudioCodecIdAAC) {
         return audio_aac_demux(buffer.get(), timestamp);
     } else {
-        // TODO: Use opus demuxer.
-        return audio_mp3_demux(buffer.get(), timestamp, fresh);
+        return srs_error_new(ERROR_NOT_IMPLEMENTED, "opus demuxer not implemented");
     }
 }
 
