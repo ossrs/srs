@@ -38,8 +38,6 @@ using namespace std;
 #include <srs_app_latest_version.hpp>
 #include <srs_app_conn.hpp>
 #ifdef SRS_RTC
-#include <srs_app_rtsp.hpp>
-#include <srs_app_rtsp_source.hpp>
 #include <srs_app_rtc_network.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
@@ -50,6 +48,8 @@ using namespace std;
 #ifdef SRS_SRT
 #include <srs_app_srt_source.hpp>
 #endif
+#include <srs_app_rtsp_conn.hpp>
+#include <srs_app_rtsp_source.hpp>
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
 

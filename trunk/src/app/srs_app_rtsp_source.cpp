@@ -21,7 +21,7 @@
 #include <srs_kernel_codec.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_rtc_queue.hpp>
-#include <srs_app_rtsp.hpp>
+#include <srs_app_rtsp_conn.hpp>
 
 #include <cstdio>
 
