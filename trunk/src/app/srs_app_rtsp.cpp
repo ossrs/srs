@@ -138,7 +138,7 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
 
     uint32_t track_id = 0;
     SrsRtcTrackDescription* audio_desc = source_->audio_desc();
-    if (!audio_desc) {
+    if (audio_desc) {
         SrsRtcTrackDescription* audio_track_desc = audio_desc->copy();
         audio_track_desc->id_ = srs_int2str(track_id);
         tracks_.insert(std::make_pair(audio_track_desc->ssrc_, audio_track_desc));
@@ -167,9 +167,9 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
         local_sdp.media_descs_.push_back(media_audio);
         track_id++;
     }
-    
+
     SrsRtcTrackDescription* video_desc = source_->video_desc();
-    if (!video_desc) {
+    if (video_desc) {
         SrsRtcTrackDescription* video_track_desc = video_desc->copy();
         video_track_desc->id_ = srs_int2str(track_id);
         tracks_.insert(std::make_pair(video_track_desc->ssrc_, video_track_desc));
