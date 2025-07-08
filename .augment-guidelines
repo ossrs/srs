@@ -68,6 +68,27 @@ code_patterns:
     - pattern: "srs_error_t"
       description: "Custom error handling system"
 
+  binary_data_handling:
+    - pattern: "SrsBuffer"
+      description: "MANDATORY utility for marshaling and unmarshaling structs with bytes - ALWAYS use this instead of manual byte manipulation"
+      usage: |
+        WRONG: Manual byte manipulation
+        char* buf = new char[4];
+        buf[0] = 0xff;
+        buf[1] = (value >> 8) & 0xFF;
+        buf[2] = value & 0xFF;
+
+        CORRECT: Use SrsBuffer
+        char* buf = new char[4];
+        SrsBuffer buffer(buf, 4);
+        buffer.write_1bytes(0xff);
+        buffer.write_2bytes(value);
+      key_methods:
+        read: "read_1bytes(), read_2bytes(), read_4bytes(), read_8bytes(), read_string(len), read_bytes(data, size)"
+        write: "write_1bytes(), write_2bytes(), write_4bytes(), write_8bytes(), write_string(), write_bytes()"
+        utility: "pos(), left(), empty(), require(size), skip(size)"
+      rationale: "Provides consistent byte-order handling, bounds checking, and position tracking for binary data operations"
+
   conditional_compilation:
     - pattern: "#ifdef SRS_VALGRIND"
       description: "Valgrind support"
