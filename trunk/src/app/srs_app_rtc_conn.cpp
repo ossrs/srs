@@ -441,7 +441,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
 {
-    if (req_ && session_->server_) {
+    if (req_) {
         session_->server_->exec_async_work(new SrsRtcAsyncCallOnStop(cid_, req_));
     }
 

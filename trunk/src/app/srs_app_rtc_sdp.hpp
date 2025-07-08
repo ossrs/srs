@@ -175,7 +175,7 @@ public:
     bool sendrecv_;
     bool inactive_;
 
-    // Control URL, ONLY for RTSP.
+    // Control URL, ONLY for RTSP, media control.
     // @see rfc2326-1998-rtsp.pdf, page 159
     std::string control_;
 
