@@ -1187,7 +1187,7 @@ srs_error_t SrsRtspRtpBuilder::consume_packets(vector<SrsRtpPacket*>& pkts)
     return err;
 }
 
-SrsRtspSendTrack::SrsRtspSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc, bool is_audio)
+SrsRtspSendTrack::SrsRtspSendTrack(SrsRtspConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio)
 {
     session_ = session;
     track_desc_ = track_desc->copy();
@@ -1221,7 +1221,7 @@ std::string SrsRtspSendTrack::get_track_id()
     return track_desc_->id_;
 }
 
-SrsRtspAudioSendTrack::SrsRtspAudioSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc)
+SrsRtspAudioSendTrack::SrsRtspAudioSendTrack(SrsRtspConnection* session, SrsRtcTrackDescription* track_desc)
     : SrsRtspSendTrack(session, track_desc, true)
 {
 }
@@ -1261,7 +1261,7 @@ srs_error_t SrsRtspAudioSendTrack::on_rtp(SrsRtpPacket* pkt)
     return err;
 }
 
-SrsRtspVideoSendTrack::SrsRtspVideoSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc)
+SrsRtspVideoSendTrack::SrsRtspVideoSendTrack(SrsRtspConnection* session, SrsRtcTrackDescription* track_desc)
     : SrsRtspSendTrack(session, track_desc, false)
 {
 }

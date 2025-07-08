@@ -65,7 +65,7 @@ extern SrsPps* _srs_pps_rnack2;
 extern SrsPps* _srs_pps_pub;
 extern SrsPps* _srs_pps_conn;
 
-SrsRtspPlayStream::SrsRtspPlayStream(SrsRtspConnection2* s, const SrsContextId& cid) : source_(new SrsRtspSource())
+SrsRtspPlayStream::SrsRtspPlayStream(SrsRtspConnection* s, const SrsContextId& cid) : source_(new SrsRtspSource())
 {
     cid_ = cid;
     trd_ = NULL;
@@ -370,83 +370,6 @@ void SrsRtspPlayStream::set_all_tracks_status(bool status)
     srs_trace("RTSP: Init tracks %s ok", merged_log.str().c_str());
 }
 
-SrsRtspConnection2::SrsRtspConnection2(const SrsContextId& cid)
-{
-    cid_ = cid;
-
-    last_stun_time = 0;
-    session_timeout = 0;
-    disposing_ = false;
-
-    _srs_rtsp_manager->subscribe(this);
-}
-
-SrsRtspConnection2::~SrsRtspConnection2()
-{
-    _srs_rtsp_manager->unsubscribe(this);
-}
-
-void SrsRtspConnection2::on_before_dispose(ISrsResource* c)
-{
-    if (disposing_) {
-        return;
-    }
-
-    SrsRtspConnection2* session = dynamic_cast<SrsRtspConnection2*>(c);
-    if (session == this) {
-        disposing_ = true;
-    }
-
-    if (session && session == this) {
-        _srs_context->set_id(cid_);
-        srs_trace("RTSP: session detach from [%s](%s), disposing=%d", c->get_id().c_str(),
-            c->desc().c_str(), disposing_);
-    }
-}
-
-void SrsRtspConnection2::on_disposing(ISrsResource* c)
-{
-    if (disposing_) {
-        return;
-    }
-}
-
-const SrsContextId& SrsRtspConnection2::get_id()
-{
-    return cid_;
-}
-
-std::string SrsRtspConnection2::desc()
-{
-    return "RtspConn";
-}
-
-void SrsRtspConnection2::expire()
-{
-    // TODO: FIXME: Should set session to expired and remove it by heartbeat checking. Should not remove it directly.
-    _srs_rtsp_manager->remove(this);
-}
-
-void SrsRtspConnection2::switch_to_context()
-{
-    _srs_context->set_id(cid_);
-}
-
-const SrsContextId& SrsRtspConnection2::context_id()
-{
-    return cid_;
-}
-
-bool SrsRtspConnection2::is_alive()
-{
-    return last_stun_time + session_timeout > srs_get_system_time();
-}
-
-void SrsRtspConnection2::alive()
-{
-    last_stun_time = srs_get_system_time();
-}
-
 SrsRtspSession::SrsRtspSession(SrsContextId cid, SrsRequest* r, ISrsProtocolReadWriter* skt, std::string ip, int port)
 {
     cid_ = cid;
@@ -748,11 +671,17 @@ srs_error_t SrsRtspSession::get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* 
     return srs_error_new(ERROR_RTSP_NO_TRACK, "track not found for stream_id: %u", stream_id);
 }
 
-SrsRtspConnection::SrsRtspConnection(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port) : SrsRtspConnection2(_srs_context->generate_id())
+SrsRtspConnection::SrsRtspConnection(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port)
 {
     manager_ = cm;
-    cid_ = SrsRtspConnection2::get_id();
+    cid_ = _srs_context->generate_id();
     _srs_context->set_id(cid_);
+
+    // Initialize timeout management fields from SrsRtspConnection2
+    last_stun_time = 0;
+    session_timeout = 0;
+    disposing_ = false;
+
     request_ = new SrsRequest();
     request_->ip = cip;
     ip_ = cip;
@@ -760,10 +689,14 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager* cm, ISrsProtocolReadWr
     session_ = new SrsRtspSession(cid_, request_, skt, cip, port);
     rtsp_ = new SrsRtspStack(skt);
     trd_ = new SrsSTCoroutine("rtsp", this, _srs_context->get_id());
+
+    _srs_rtsp_manager->subscribe(this);
 }
 
 SrsRtspConnection::~SrsRtspConnection()
 {
+    _srs_rtsp_manager->unsubscribe(this);
+
     srs_freep(request_);
     srs_freep(session_);
     srs_freep(rtsp_);
@@ -965,6 +898,51 @@ srs_error_t SrsRtspConnection::do_cycle()
     }
     
     return err;
+}
+
+void SrsRtspConnection::on_before_dispose(ISrsResource* c)
+{
+    if (disposing_) {
+        return;
+    }
+
+    SrsRtspConnection* session = dynamic_cast<SrsRtspConnection*>(c);
+    if (session == this) {
+        disposing_ = true;
+    }
+
+    if (session && session == this) {
+        _srs_context->set_id(cid_);
+        srs_trace("RTSP: session detach from [%s](%s), disposing=%d", c->get_id().c_str(),
+            c->desc().c_str(), disposing_);
+    }
+}
+
+void SrsRtspConnection::on_disposing(ISrsResource* c)
+{
+    if (disposing_) {
+        return;
+    }
+}
+
+void SrsRtspConnection::switch_to_context()
+{
+    _srs_context->set_id(cid_);
+}
+
+const SrsContextId& SrsRtspConnection::context_id()
+{
+    return cid_;
+}
+
+bool SrsRtspConnection::is_alive()
+{
+    return last_stun_time + session_timeout > srs_get_system_time();
+}
+
+void SrsRtspConnection::alive()
+{
+    last_stun_time = srs_get_system_time();
 }
 
 SrsRtspTcpNetwork::SrsRtspTcpNetwork(ISrsProtocolReadWriter* skt, int ch) : skt_(skt), channel_(ch)

@@ -25,7 +25,6 @@ class SrsRtcTrackDescription;
 class SrsRtcSourceDescription;
 class SrsResourceManager;
 class SrsRtspConnection;
-class SrsRtspConnection2;
 
 // The RTSP stream consumer, consume packets from RTSP stream source.
 class SrsRtspConsumer
@@ -222,9 +221,9 @@ public:
     SrsRtcTrackDescription* track_desc_;
 protected:
     // The owner connection for this track.
-    SrsRtspConnection2* session_;
+    SrsRtspConnection* session_;
 public:
-    SrsRtspSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc, bool is_audio);
+    SrsRtspSendTrack(SrsRtspConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio);
     virtual ~SrsRtspSendTrack();
 public:
     // SrsRtspSendTrack::set_nack_no_copy
@@ -239,7 +238,7 @@ public:
 class SrsRtspAudioSendTrack : public SrsRtspSendTrack
 {
 public:
-    SrsRtspAudioSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc);
+    SrsRtspAudioSendTrack(SrsRtspConnection* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtspAudioSendTrack();
 public:
     virtual srs_error_t on_rtp(SrsRtpPacket* pkt);
@@ -248,7 +247,7 @@ public:
 class SrsRtspVideoSendTrack : public SrsRtspSendTrack
 {
 public:
-    SrsRtspVideoSendTrack(SrsRtspConnection2* session, SrsRtcTrackDescription* track_desc);
+    SrsRtspVideoSendTrack(SrsRtspConnection* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtspVideoSendTrack();
 public:
     virtual srs_error_t on_rtp(SrsRtpPacket* pkt);

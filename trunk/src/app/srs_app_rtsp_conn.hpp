@@ -29,7 +29,6 @@ class SrsRtspVideoSendTrack;
 class SrsRtspSendTrack;
 class SrsEphemeralDelta;
 class SrsRtspConnection;
-class SrsRtspConnection2;
 class SrsSecurity;
 class SrsRtspRequest;
 class SrsRtspStack;
@@ -40,7 +39,7 @@ class SrsRtspPlayStream : public ISrsCoroutineHandler, public ISrsRtcSourceChang
 private:
     SrsContextId cid_;
     SrsFastCoroutine* trd_;
-    SrsRtspConnection2* session_;
+    SrsRtspConnection* session_;
 private:
     SrsRequest* req_;
     SrsSharedPtr<SrsRtspSource> source_;
@@ -59,7 +58,7 @@ private:
     // Whether player started.
     bool is_started;
 public:
-    SrsRtspPlayStream(SrsRtspConnection2* s, const SrsContextId& cid);
+    SrsRtspPlayStream(SrsRtspConnection* s, const SrsContextId& cid);
     virtual ~SrsRtspPlayStream();
 public:
     srs_error_t initialize(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
@@ -78,47 +77,6 @@ private:
 public:
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
-};
-
-// A RTSP Peer Connection, SDP level object.
-//
-// For performance, we use non-public from resource,
-// see https://stackoverflow.com/questions/3747066/c-cannot-convert-from-base-a-to-derived-type-b-via-virtual-base-a
-class SrsRtspConnection2 : public ISrsResource, public ISrsDisposingHandler, public ISrsExpire
-{
-public:
-    bool disposing_;
-private:
-    // TODO: FIXME: Rename it.
-    // The timeout of session, keep alive by STUN ping pong.
-    srs_utime_t session_timeout;
-    // TODO: FIXME: Rename it.
-    srs_utime_t last_stun_time;
-private:
-    // For each RTSP session, we use a specified cid for debugging logs.
-    SrsContextId cid_;
-public:
-    SrsRtspConnection2(const SrsContextId& cid);
-    virtual ~SrsRtspConnection2();
-// interface ISrsDisposingHandler
-public:
-    virtual void on_before_dispose(ISrsResource* c);
-    virtual void on_disposing(ISrsResource* c);
-// Interface ISrsResource.
-public:
-    virtual const SrsContextId& get_id();
-    virtual std::string desc();
-// Interface ISrsExpire.
-public:
-    virtual void expire();
-public:
-    void switch_to_context();
-    const SrsContextId& context_id();
-public:
-    bool is_alive();
-    void alive();
-public:
-    virtual srs_error_t do_send_packet(SrsRtpPacket* pkt) = 0;
 };
 
 class SrsRtspSession
@@ -161,8 +119,16 @@ private:
     srs_error_t get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* ssrc);
 };
 
-class SrsRtspConnection : public SrsRtspConnection2, public ISrsCoroutineHandler, public ISrsStartable
+class SrsRtspConnection : public ISrsResource, public ISrsDisposingHandler, public ISrsExpire, public ISrsCoroutineHandler, public ISrsStartable
 {
+public:
+    bool disposing_;
+private:
+    // TODO: FIXME: Rename it.
+    // The timeout of session, keep alive by STUN ping pong.
+    srs_utime_t session_timeout;
+    // TODO: FIXME: Rename it.
+    srs_utime_t last_stun_time;
 private:
     SrsContextId cid_;
     SrsRequest* request_;
@@ -181,6 +147,10 @@ private:
 public:
     SrsRtspConnection(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port);
     virtual ~SrsRtspConnection();
+// interface ISrsDisposingHandler
+public:
+    virtual void on_before_dispose(ISrsResource* c);
+    virtual void on_disposing(ISrsResource* c);
 public:
     virtual srs_error_t do_send_packet(SrsRtpPacket* pkt);
 public:
@@ -208,6 +178,12 @@ public:
 // Interface ISrsExpire.
 public:
     virtual void expire();
+public:
+    void switch_to_context();
+    const SrsContextId& context_id();
+public:
+    bool is_alive();
+    void alive();
 private:
     srs_error_t do_cycle();
 };
