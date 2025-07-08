@@ -9,12 +9,9 @@
 
 #include <srs_core.hpp>
 
-#include <srs_app_st.hpp>
-#include <srs_app_reload.hpp>
-#include <srs_app_source.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
-#include <srs_protocol_kbps.hpp>
+#include <srs_app_source.hpp>
 
 #include <map>
 #include <vector>
@@ -26,8 +23,6 @@ class SrsRtspSource;
 class SrsRtspConsumer;
 class SrsRtcTrackDescription;
 class SrsRtcSourceDescription;
-class ISrsStreamBridge;
-class SrsFrameToRtcBridge;
 class SrsResourceManager;
 class SrsRtspConnection;
 class SrsRtspConnection2;

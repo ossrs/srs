@@ -8,22 +8,12 @@
 #define SRS_APP_RTSP_CONN_HPP
 
 #include <srs_core.hpp>
-#include <srs_app_listener.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
-#include <srs_app_hybrid.hpp>
-#include <srs_app_hourglass.hpp>
-#include <srs_app_rtc_sdp.hpp>
-#include <srs_app_reload.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
-#include <srs_kernel_rtc_rtcp.hpp>
-#include <srs_app_rtc_queue.hpp>
 #include <srs_app_rtc_source.hpp>
-#include <srs_app_rtc_dtls.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_app_conn.hpp>
-#include <srs_app_async_call.hpp>
 #include <srs_core_autofree.hpp>
 
 #include <string>
@@ -31,32 +21,13 @@
 #include <vector>
 #include <sys/socket.h>
 
-class SrsUdpMuxSocket;
-class SrsLiveConsumer;
-class SrsStunPacket;
-class SrsRtcServer;
-class SrsRtcConnection;
-class SrsSharedPtrMessage;
-class SrsRtcSource;
+class SrsRequest;
 class SrsRtpPacket;
-class ISrsCodec;
-class SrsRtpNackForReceiver;
-class SrsRtpIncommingVideoFrame;
-class SrsRtpRingBuffer;
-class SrsRtcConsumer;
+class SrsRtspSource;
 class SrsRtspAudioSendTrack;
 class SrsRtspVideoSendTrack;
-class SrsErrorPithyPrint;
-class SrsPithyPrint;
-class SrsStatistic;
-class SrsRtcUserConfig;
 class SrsRtspSendTrack;
-class SrsRtcPublishStream;
 class SrsEphemeralDelta;
-class SrsRtcNetworks;
-class SrsRtcUdpNetwork;
-class ISrsRtcNetwork;
-class SrsRtcTcpNetwork;
 class SrsRtspConnection;
 class SrsRtspConnection2;
 class SrsSecurity;
