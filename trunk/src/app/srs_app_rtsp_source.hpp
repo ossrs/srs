@@ -209,6 +209,7 @@ private:
     virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
 private:
     srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt);
+    srs_error_t package_aac(SrsAudioFrame* audio, SrsRtpPacket* pkt);
 private:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:

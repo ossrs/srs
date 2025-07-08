@@ -2750,6 +2750,7 @@ SrsAudioPayload* SrsAudioPayload::copy()
     cp->rtcp_fbs_ = rtcp_fbs_;
     cp->channel_ = channel_;
     cp->opus_param_ = opus_param_;
+    cp->aac_config_hex_ = aac_config_hex_;
 
     return cp;
 }

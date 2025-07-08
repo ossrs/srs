@@ -592,6 +592,19 @@ srs_error_t SrsRtspSession::do_describe(SrsRtspRequest* req, std::string& sdp)
         SrsAudioPayload* ap = dynamic_cast<SrsAudioPayload*>(audio_track_desc->media_);
         if (ap) {
             ps_audio.encoding_param_ = srs_int2str(ap->channel_);
+
+            // Append the AAC config hex to the fmtp line.
+            if (ap->name_ == "MPEG4-GENERIC" && !ap->aac_config_hex_.empty()) {
+                // streamtype=5 - Mandatory (indicates audio stream)
+                // mode=AAC-hbr - Mandatory (AAC High Bit Rate mode)
+                // sizelength=13 - Mandatory, defaults to 13 bits for AAC
+                // indexlength=3 - Mandatory, defaults to 3 bits
+                // profile-level-id=1 - Optional, defaults to 1 (AAC Main Profile)
+                // indexdeltalength=3 - Optional, defaults to 3 bits
+                ps_audio.format_specific_param_ = "streamtype=5;mode=AAC-hbr;sizelength=13;indexlength=3";
+                ps_audio.format_specific_param_ += ";config=" + ap->aac_config_hex_;
+                srs_trace("RTSP: Added AAC fmtp: %s", ps_audio.format_specific_param_.c_str());
+            }
         }
 
         local_sdp.media_descs_.push_back(media_audio);

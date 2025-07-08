@@ -498,6 +498,8 @@ class SrsAudioPayload : public SrsCodecPayload
 public:
     int channel_;
     SrsOpusParameter opus_param_;
+    // AAC configuration hex string for SDP fmtp line
+    std::string aac_config_hex_;
 public:
     SrsAudioPayload();
     SrsAudioPayload(uint8_t pt, std::string encode_name, int sample, int channel);

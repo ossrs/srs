@@ -488,6 +488,8 @@ void SrsRtspSource::set_video_desc(SrsRtcTrackDescription* video_desc)
     video_desc_ = video_desc->copy();
 }
 
+
+
 SrsRtspRtpBuilder::SrsRtspRtpBuilder(SrsFrameToRtspBridge* bridge, SrsSharedPtr<SrsRtspSource> source)
 {
     bridge_ = bridge;
@@ -547,7 +549,29 @@ srs_error_t SrsRtspRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
         // For AAC, extract parameters from format
         int channels = format->acodec->aac_channels;
         audio_payload_type_ = kAudioPayloadType;
-        audio_desc->media_ = new SrsAudioPayload(audio_payload_type_, "AAC", sample_rate, channels);
+
+        // Note: Use "MPEG4-GENERIC" instead of "AAC" for RTSP/SDP compliance
+        // RFC 3640 specifies that AAC should be advertised as "MPEG4-GENERIC" in SDP rtpmap
+        // "AAC" is non-standard and not widely supported by RTSP clients
+        SrsAudioPayload* aac_payload = new SrsAudioPayload(audio_payload_type_, "MPEG4-GENERIC", sample_rate, channels);
+
+        // AAC requires AudioSpecificConfig in SDP fmtp line
+        // Build the config string from AAC sequence header
+        const std::vector<char>& asc = format->acodec->aac_extra_data;
+        if (!asc.empty()) {
+            int hex_len = asc.size() * 2;
+            SrsUniquePtr<char> hex_buf(new char[hex_len + 1]);
+            srs_data_to_hex(hex_buf.get(), (const uint8_t*)asc.data(), asc.size());
+
+            hex_buf.get()[hex_len] = '\0';  // Null terminate
+            std::string config_hex = std::string(hex_buf.get());
+
+            // Set the AAC configuration directly in the audio payload
+            aac_payload->aac_config_hex_ = config_hex;
+            srs_trace("RTSP: AAC config hex: %s", config_hex.c_str());
+        }
+
+        audio_desc->media_ = aac_payload;
     } else {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "unsupported audio codec %d", codec);
     }
@@ -688,6 +712,11 @@ srs_error_t SrsRtspRtpBuilder::on_audio(SrsSharedPtrMessage* msg)
         audio_initialized_ = true;
     }
 
+    // Skip empty audio frames
+    if (format->audio->nb_samples == 0) {
+        return err;
+    }
+
     // Convert to RTP packet.
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
 
@@ -695,8 +724,12 @@ srs_error_t SrsRtspRtpBuilder::on_audio(SrsSharedPtrMessage* msg)
         if ((err = package_opus(format->audio, pkt.get())) != srs_success) {
             return srs_error_wrap(err, "package opus");
         }
+    } else if (acodec == SrsAudioCodecIdAAC) {
+        if ((err = package_aac(format->audio, pkt.get())) != srs_success) {
+            return srs_error_wrap(err, "package aac");
+        }
     } else {
-        // TODO: Support audio with AAC codec.
+        // Unsupported audio codec
         return err;
     }
 
@@ -710,6 +743,8 @@ srs_error_t SrsRtspRtpBuilder::on_audio(SrsSharedPtrMessage* msg)
 srs_error_t SrsRtspRtpBuilder::package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
+
+    srs_assert(audio->nb_samples);
 
     // For RTSP, audio TBN is not fixed, but use the sample rate, so we 
     // need to convert FLV TBN(1000) to the sample rate TBN.
@@ -727,9 +762,86 @@ srs_error_t SrsRtspRtpBuilder::package_opus(SrsAudioFrame* audio, SrsRtpPacket* 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
     pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
 
-    srs_assert(audio->nb_samples == 1);
-    raw->payload = pkt->wrap(audio->samples[0].bytes, audio->samples[0].size);
-    raw->nn_payload = audio->samples[0].size;
+    // Calculate total size for all Opus samples
+    int total_size = 0;
+    for (int i = 0; i < audio->nb_samples; i++) {
+        total_size += audio->samples[i].size;
+    }
+
+    // For Opus, we can concatenate multiple frames directly (RFC 7587)
+    // Use SrsBuffer for proper byte marshaling
+    SrsUniquePtr<char[]> payload(new char[total_size]);
+    SrsBuffer buffer(payload.get(), total_size);
+
+    for (int i = 0; i < audio->nb_samples; i++) {
+        buffer.write_bytes(audio->samples[i].bytes, audio->samples[i].size);
+    }
+
+    raw->payload = pkt->wrap(payload.get(), total_size);
+    raw->nn_payload = total_size;
+
+    return err;
+}
+
+srs_error_t SrsRtspRtpBuilder::package_aac(SrsAudioFrame* audio, SrsRtpPacket* pkt)
+{
+    srs_error_t err = srs_success;
+
+    srs_assert(audio->nb_samples);
+
+    // For RTSP, audio TBN is not fixed, but use the sample rate, so we
+    // need to convert FLV TBN(1000) to the sample rate TBN.
+    int64_t dts = (int64_t)audio->dts;
+    dts *= (int64_t)audio_sample_rate_;
+    dts /= 1000;
+
+    pkt->header.set_payload_type(audio_payload_type_);
+    pkt->header.set_ssrc(audio_ssrc_);
+    pkt->frame_type = SrsFrameTypeAudio;
+    pkt->header.set_marker(true);
+    pkt->header.set_sequence(audio_sequence++);
+    pkt->header.set_timestamp(dts);
+
+    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+    pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+
+    // For AAC, we need to package according to RFC 3640 (MPEG-4 Audio)
+    // Use AAC-hbr mode with AU-headers
+    // Calculate total size for all AU samples
+    int total_au_size = 0;
+    for (int i = 0; i < audio->nb_samples; i++) {
+        total_au_size += audio->samples[i].size;
+    }
+
+    // AU-headers: 16 bits per AU (13 bits for size + 3 bits for index)
+    int au_headers_length = audio->nb_samples * 16; // bits
+    int au_headers_bytes = (au_headers_length + 7) / 8; // convert to bytes
+    int payload_size = 2 + au_headers_bytes + total_au_size; // AU-headers-length(2) + AU-headers + AU data
+
+    // Use SrsBuffer for proper byte marshaling
+    SrsUniquePtr<char[]> payload(new char[payload_size]);
+    SrsBuffer buffer(payload.get(), payload_size);
+
+    // AU-headers-length (16 bits) - this is the length in BITS, not bytes
+    buffer.write_2bytes(au_headers_length);
+
+    // Write AU-headers for each sample
+    for (int i = 0; i < audio->nb_samples; i++) {
+        // AU-header: AU-size(13 bits) + AU-index(3 bits) = 16 bits
+        // According to RFC 3640, AU-size comes first (MSB), then AU-index (LSB)
+        uint16_t au_size = audio->samples[i].size & 0x1FFF; // 13 bits mask
+        uint16_t au_index = i & 0x07; // 3 bits mask
+        buffer.write_2bytes((au_size << 3) | au_index);
+    }
+
+    // Copy all AAC AU data
+    for (int i = 0; i < audio->nb_samples; i++) {
+        buffer.write_bytes(audio->samples[i].bytes, audio->samples[i].size);
+    }
+
+    // Wrap the payload in the RTP packet
+    raw->payload = pkt->wrap(payload.get(), payload_size);
+    raw->nn_payload = payload_size;
 
     return err;
 }
