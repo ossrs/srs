@@ -59,9 +59,8 @@ func TestFast_RtmpPublish_RtspPlay_Basic(t *testing.T) {
 	svr := NewSRSServer(func(v *srsServer) {
 		v.envs = []string{
 			"SRS_RTSP_SERVER_ENABLED=on",
-			"SRS_RTC_SERVER_ENABLED=on",
-			"SRS_VHOST_RTC_ENABLED=on",
-			"SRS_VHOST_RTC_RTMP_TO_RTC=on",
+			"SRS_VHOST_RTSP_ENABLED=on",
+			"SRS_VHOST_RTSP_RTMP_TO_RTSP=on",
 		}
 	})
 	wg.Add(1)
