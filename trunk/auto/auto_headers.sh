@@ -80,6 +80,12 @@ else
     srs_undefine_macro "SRS_RTC" $SRS_AUTO_HEADERS_H
 fi
 
+if [[ $SRS_RTSP == YES ]]; then
+    srs_define_macro "SRS_RTSP" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_RTSP" $SRS_AUTO_HEADERS_H
+fi
+
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     srs_define_macro "SRS_FFMPEG_FIT" $SRS_AUTO_HEADERS_H
 else

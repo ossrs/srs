@@ -6,6 +6,7 @@ help=no
 SRS_HDS=NO
 SRS_SRT=YES
 SRS_RTC=YES
+SRS_RTSP=NO
 # SRS_H265 is always enabled, no longer configurable
 SRS_H265=RESERVED
 SRS_GB28181=NO
@@ -184,6 +185,7 @@ Features:
   --utest=on|off            Whether build the utest. Default: $(value2switch $SRS_UTEST)
   --srt=on|off              Whether build the SRT. Default: $(value2switch $SRS_SRT)
   --rtc=on|off              Whether build the WebRTC. Default: $(value2switch $SRS_RTC)
+  --rtsp=on|off             Whether build the RTSP (requires RTC). Default: $(value2switch $SRS_RTSP)
   --gb28181=on|off          Whether build the GB28181. Default: $(value2switch $SRS_GB28181)
   --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
   --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
@@ -345,6 +347,7 @@ function parse_user_option() {
         --apm)                          SRS_APM=$(switch2value $value) ;;
         --srt)                          SRS_SRT=$(switch2value $value) ;;
         --rtc)                          SRS_RTC=$(switch2value $value) ;;
+        --rtsp)                         SRS_RTSP=$(switch2value $value) ;;
         --simulator)                    SRS_SIMULATOR=$(switch2value $value) ;;
         --generate-objs)                SRS_GENERATE_OBJS=$(switch2value $value) ;;
         --single-thread)                SRS_SINGLE_THREAD=$(switch2value $value) ;;
@@ -537,6 +540,7 @@ function apply_auto_options() {
     if [[ $SRS_RTC == YES && $SRS_FFMPEG_FIT == RESERVED ]]; then
         SRS_FFMPEG_FIT=YES
     fi
+
     if [[ $SRS_USE_SYS_FFMPEG == YES && $SRS_SHARED_FFMPEG == RESERVED ]]; then
         SRS_SHARED_FFMPEG=YES
     fi
@@ -661,6 +665,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-srt=$(value2switch $SRS_USE_SYS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtsp=$(value2switch $SRS_RTSP)"
 
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=$(value2switch $SRS_GB28181)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"

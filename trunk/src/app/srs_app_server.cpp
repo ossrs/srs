@@ -48,8 +48,10 @@ using namespace std;
 #ifdef SRS_SRT
 #include <srs_app_srt_source.hpp>
 #endif
+#ifdef SRS_RTSP
 #include <srs_app_rtsp_conn.hpp>
 #include <srs_app_rtsp_source.hpp>
+#endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
 
@@ -343,7 +345,9 @@ SrsServer::SrsServer()
     http_listener_ = new SrsTcpListener(this);
     https_listener_ = new SrsTcpListener(this);
     webrtc_listener_ = new SrsTcpListener(this);
+#ifdef SRS_RTSP
     rtsp_listener_ = new SrsTcpListener(this);
+#endif
     stream_caster_flv_listener_ = new SrsHttpFlvListener();
     stream_caster_mpegts_ = new SrsUdpCasterListener();
     exporter_listener_ = new SrsTcpListener(this);
@@ -401,7 +405,9 @@ void SrsServer::destroy()
     srs_freep(http_listener_);
     srs_freep(https_listener_);
     srs_freep(webrtc_listener_);
+#ifdef SRS_RTSP
     srs_freep(rtsp_listener_);
+#endif
     srs_freep(stream_caster_flv_listener_);
     srs_freep(stream_caster_mpegts_);
     srs_freep(exporter_listener_);
@@ -421,7 +427,9 @@ void SrsServer::dispose()
     http_listener_->close();
     https_listener_->close();
     webrtc_listener_->close();
+#ifdef SRS_RTSP
     rtsp_listener_->close();
+#endif
     stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
@@ -453,7 +461,9 @@ void SrsServer::gracefully_dispose()
     http_listener_->close();
     https_listener_->close();
     webrtc_listener_->close();
+#ifdef SRS_RTSP
     rtsp_listener_->close();
+#endif
     stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
@@ -636,6 +646,7 @@ srs_error_t SrsServer::listen()
     }
 #endif
 
+#ifdef SRS_RTSP
     // Start RTSP listener. RTC is a critical dependency.
     if (_srs_config->get_rtsp_server_enabled()) {
         rtsp_listener_->set_endpoint(srs_int2str(_srs_config->get_rtsp_server_listen()))->set_label("RTSP");
@@ -643,6 +654,7 @@ srs_error_t SrsServer::listen()
             return srs_error_wrap(err, "rtsp listen");
         }
     }
+#endif
 
     // Start all listeners for stream caster.
     std::vector<SrsConfDirective*> confs = _srs_config->get_stream_casters();
@@ -852,9 +864,11 @@ srs_error_t SrsServer::start(SrsWaitGroup* wg)
     }
 #endif
 
+#ifdef SRS_RTSP
     if ((err = _srs_rtsp_sources->initialize()) != srs_success) {
         return srs_error_wrap(err, "rtsp sources");
     }
+#endif
 
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start");
