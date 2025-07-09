@@ -79,49 +79,9 @@ public:
     void set_all_tracks_status(bool status);
 };
 
-class SrsRtspSession
-{
-private:
-    SrsContextId cid_;
-    SrsRequest* request_;
-    SrsSharedPtr<SrsRtspSource> source_;
-    SrsEphemeralDelta* delta_;
-    ISrsProtocolReadWriter* skt_;
-    // The ip of client.
-    std::string ip_;
-    int port_;
-
-    SrsSecurity* security_; 
-
-    iovec* cache_iov_;
-    SrsBuffer* cache_buffer_;
-private:
-    // key: ssrc
-    std::map<uint32_t, SrsRtcTrackDescription*> tracks_;
-    // key: ssrc
-    std::map<uint32_t, ISrsStreamWriter*> networks_;
-    SrsRtspPlayStream* player_;
-
-public:
-    SrsRtspSession(SrsContextId cid, SrsRequest* r, ISrsProtocolReadWriter* skt, std::string ip, int port);
-    virtual ~SrsRtspSession();   
-public:
-    ISrsKbpsDelta* delta();
-public:
-    virtual srs_error_t do_send_packet(SrsRtpPacket* pkt);
-
-    virtual srs_error_t do_describe(SrsRtspRequest* req, std::string& sdp);
-    virtual srs_error_t do_setup(SrsRtspRequest* req, uint32_t* ssrc);
-    virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtspConnection* conn);
-    virtual srs_error_t do_teardown();
-private:
-    srs_error_t http_hooks_on_play(SrsRequest* req);
-    srs_error_t get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* ssrc);
-};
-
 class SrsRtspConnection : public ISrsResource, public ISrsDisposingHandler, public ISrsExpire, public ISrsCoroutineHandler, public ISrsStartable
 {
-public:
+private:
     bool disposing_;
 private:
     // TODO: FIXME: Rename it.
@@ -129,7 +89,6 @@ private:
     srs_utime_t session_timeout;
     // TODO: FIXME: Rename it.
     srs_utime_t last_stun_time;
-private:
     SrsContextId cid_;
     SrsRequest* request_;
     // The manager object to manage the connection.
@@ -137,13 +96,22 @@ private:
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
     SrsCoroutine* trd_;
-private:
     // The ip and port of client.
     std::string ip_;
     int port_;
     SrsRtspStack* rtsp_;
-    SrsRtspSession* session_;
     std::string session_id_;
+    SrsSharedPtr<SrsRtspSource> source_;
+    SrsEphemeralDelta* delta_;
+    ISrsProtocolReadWriter* skt_;
+    SrsSecurity* security_;
+    iovec* cache_iov_;
+    SrsBuffer* cache_buffer_;
+    // key: ssrc
+    std::map<uint32_t, SrsRtcTrackDescription*> tracks_;
+    // key: ssrc
+    std::map<uint32_t, ISrsStreamWriter*> networks_;
+    SrsRtspPlayStream* player_;
 public:
     SrsRtspConnection(ISrsResourceManager* cm, ISrsProtocolReadWriter* skt, std::string cip, int port);
     virtual ~SrsRtspConnection();
@@ -155,6 +123,11 @@ public:
     virtual srs_error_t do_send_packet(SrsRtpPacket* pkt);
 public:
     ISrsKbpsDelta* delta();
+private:
+    virtual srs_error_t do_describe(SrsRtspRequest* req, std::string& sdp);
+    virtual srs_error_t do_setup(SrsRtspRequest* req, uint32_t* ssrc);
+    virtual srs_error_t do_play(SrsRtspRequest* req, SrsRtspConnection* conn);
+    virtual srs_error_t do_teardown();
 // Interface ISrsResource.
 public:
     virtual std::string desc();
@@ -186,6 +159,9 @@ public:
     void alive();
 private:
     srs_error_t do_cycle();
+private:
+    srs_error_t http_hooks_on_play(SrsRequest* req);
+    srs_error_t get_ssrc_by_stream_id(uint32_t stream_id, uint32_t* ssrc);
 };
 
 class SrsRtspTcpNetwork : public ISrsStreamWriter
