@@ -40,7 +40,9 @@ using namespace std;
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_tencentcloud.hpp>
 #include <srs_app_srt_source.hpp>
+#ifdef SRS_RTSP
 #include <srs_app_rtsp_source.hpp>
+#endif
 
 // the timeout in srs_utime_t to wait encoder to republish
 // if timeout, close the connection.
@@ -1111,6 +1113,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsSharedPtr<SrsLiveSource> source)
     }
 #endif
 
+#ifdef SRS_RTSP
     // RTSP only support viewer, so we don't need to check it.
     SrsSharedPtr<SrsRtspSource> rtsp;
     bool rtsp_server_enabled = _srs_config->get_rtsp_server_enabled();
@@ -1120,6 +1123,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsSharedPtr<SrsLiveSource> source)
             return srs_error_wrap(err, "create source");
         }
     }
+#endif
 
     // Bridge to RTC streaming.
     // TODO: FIXME: Need to convert RTMP to SRT.
@@ -1131,9 +1135,11 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsSharedPtr<SrsLiveSource> source)
     }
 #endif
 
+#ifdef SRS_RTSP
     if (rtsp.get() && _srs_config->get_rtsp_from_rtmp(req->vhost)) {
         bridge->append(new SrsFrameToRtspBridge(rtsp));
     }
+#endif
 
     if (bridge->empty()) {
         srs_freep(bridge);

@@ -79,6 +79,7 @@ public:
 };
 #endif
 
+#ifdef SRS_RTSP
 // A bridge to covert AV frame to RTSP stream.
 class SrsFrameToRtspBridge : public ISrsStreamBridge
 {
@@ -96,6 +97,7 @@ public:
     virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
     srs_error_t on_rtp(SrsRtpPacket* pkt);
 };
+#endif
 
 // A bridge chain, a set of bridges.
 class SrsCompositeBridge : public ISrsStreamBridge

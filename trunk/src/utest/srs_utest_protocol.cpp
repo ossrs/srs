@@ -3621,6 +3621,7 @@ VOID TEST(ProtocolRTMPTest, RTMPHandshakeBytes)
     EXPECT_TRUE(bytes.s0s1s2 != NULL);
 }
 
+#ifdef SRS_RTSP
 VOID TEST(ProtocolRTSPTest, RTSPRequest)
 {
     srs_error_t err = srs_success;
@@ -4143,3 +4144,5 @@ VOID TEST(ProtocolRTSPTest, RTSPInvalidRequest)
         bio.out_buffer.erase(bio.out_buffer.length());
     }
 }
+#endif
+

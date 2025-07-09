@@ -1169,13 +1169,15 @@ void SrsServer::resample_kbps()
             continue;
         }
 
-#ifdef SRS_RTC
+#ifdef SRS_RTSP
         SrsRtspConnection* rtsp = dynamic_cast<SrsRtspConnection*>(c);
         if (rtsp) {
             stat->kbps_add_delta(c->get_id().c_str(), rtsp->delta());
             continue;
         }
+#endif
 
+#ifdef SRS_RTC
         SrsRtcTcpConn* tcp = dynamic_cast<SrsRtcTcpConn*>(c);
         if (tcp) {
             stat->kbps_add_delta(c->get_id().c_str(), tcp->delta());
@@ -1282,6 +1284,8 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
 #ifdef SRS_RTC
         } else if (listener == webrtc_listener_) {
             resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
+#endif
+#ifdef SRS_RTSP
         } else if (listener == rtsp_listener_) {
             resource = new SrsRtspConnection(this, new SrsTcpConnection(stfd2), ip, port);
 #endif

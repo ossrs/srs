@@ -13,7 +13,9 @@
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_core_autofree.hpp>
+#ifdef SRS_RTSP
 #include <srs_app_rtsp_source.hpp>
+#endif
 
 #include <vector>
 using namespace std;
@@ -135,6 +137,7 @@ srs_error_t SrsFrameToRtcBridge::on_rtp(SrsRtpPacket* pkt)
 
 #endif
 
+#ifdef SRS_RTSP
 SrsFrameToRtspBridge::SrsFrameToRtspBridge(SrsSharedPtr<SrsRtspSource> source)
 {
     source_ = source;
@@ -187,6 +190,7 @@ srs_error_t SrsFrameToRtspBridge::on_rtp(SrsRtpPacket* pkt)
 {
     return source_->on_rtp(pkt);
 }
+#endif
 
 SrsCompositeBridge::SrsCompositeBridge()
 {
