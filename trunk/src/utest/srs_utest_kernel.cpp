@@ -3567,92 +3567,342 @@ VOID TEST(KernelCodecTest, AVFrameNoConfig)
         HELPER_EXPECT_SUCCESS(f.add_sample((char*)"\x05", 1));
     }
 }
-VOID TEST(KernelCodecTest, VideoFrameH264)
+
+VOID TEST(KernelCodecTest, VideoFrameH264_ParseNaluType)
 {
     srs_error_t err;
-    
+
     if (true) {
         // I Frame
         uint8_t data[] = {0x05, 0x00, 0x00, 0x00};
         SrsSample sample((char*)data, sizeof(data));
-        
+
         SrsAvcNaluType nalu_type = SrsAvcNaluTypeForbidden;
         HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_nalu_type(&sample, nalu_type));
         EXPECT_EQ(nalu_type, SrsAvcNaluTypeIDR);
-        
+
         // P Frame
         uint8_t data2[] = {0x01, 0x00, 0x00, 0x00};
         SrsSample sample2((char*)data2, sizeof(data2));
-        
+
         nalu_type = SrsAvcNaluTypeForbidden;
         HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_nalu_type(&sample2, nalu_type));
         EXPECT_EQ(nalu_type, SrsAvcNaluTypeNonIDR);
-        
+
         // SPS
         uint8_t data3[] = {0x07, 0x00, 0x00, 0x00};
         SrsSample sample3((char*)data3, sizeof(data3));
-        
+
         nalu_type = SrsAvcNaluTypeForbidden;
         HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_nalu_type(&sample3, nalu_type));
         EXPECT_EQ(nalu_type, SrsAvcNaluTypeSPS);
-        
+
         // PPS
         uint8_t data4[] = {0x08, 0x00, 0x00, 0x00};
         SrsSample sample4((char*)data4, sizeof(data4));
-        
+
         nalu_type = SrsAvcNaluTypeForbidden;
         HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_nalu_type(&sample4, nalu_type));
         EXPECT_EQ(nalu_type, SrsAvcNaluTypePPS);
-        
+
         // Empty Sample
         SrsSample empty_sample(NULL, 0);
         HELPER_EXPECT_FAILED(SrsVideoFrame::parse_avc_nalu_type(&empty_sample, nalu_type));
     }
-    
+}
+
+VOID TEST(KernelCodecTest, VideoFrameH264_BFrameDetection_AllowedNaluTypes)
+{
+    srs_error_t err;
+
     if (true) {
-        // B Frame, slice_type=1(B Frame)
-        uint8_t data[] = {0x01, 0xA8, 0x00, 0x00};
-        SrsSample sample((char*)data, sizeof(data));
-        
+        // Test NALU types that CAN contain B-frames (1, 2, 3, 4)
+
+        // NonIDR NALU (type 1) with B-frame slice_type=1
+        uint8_t data_b1[] = {0x01, 0xA8, 0x00, 0x00}; // NALU type 1, slice_type=1 (B)
+        SrsSample sample_b1((char*)data_b1, sizeof(data_b1));
         bool is_b_frame = false;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_b1, is_b_frame));
         EXPECT_TRUE(is_b_frame);
-        
-        // Non-B Frame, slice_type=0(P Frame)
-        uint8_t data2[] = {0x01, 0x88, 0x00, 0x00};
-        SrsSample sample2((char*)data2, sizeof(data2));
-        
+
+        // Test that the function correctly processes NALU type 1 (the main case)
+
+        // NonIDR NALU (type 1) with P-frame slice_type=0
+        uint8_t data_p1[] = {0x01, 0x88, 0x00, 0x00}; // NALU type 1, slice_type=0 (P)
+        SrsSample sample_p1((char*)data_p1, sizeof(data_p1));
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample2, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_p1, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
-        // SPS
-        uint8_t data3[] = {0x07, 0xA8, 0x00, 0x00};
-        SrsSample sample3((char*)data3, sizeof(data3));
-        
+        // NonIDR NALU (type 1) with I-frame slice_type=2
+        uint8_t data_i1[] = {0x01, 0x98, 0x00, 0x00}; // NALU type 1, slice_type=2 (I)
+        SrsSample sample_i1((char*)data_i1, sizeof(data_i1));
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample3, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_i1, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
-        // PPS
-        uint8_t data4[] = {0x08, 0xA8, 0x00, 0x00};
-        SrsSample sample4((char*)data4, sizeof(data4));
-        
+        // DataPartitionA NALU (type 2) with B-frame slice_type=1
+        uint8_t data_dpa_b[] = {0x02, 0xA8, 0x00, 0x00}; // NALU type 2, slice_type=1 (B)
+        SrsSample sample_dpa_b((char*)data_dpa_b, sizeof(data_dpa_b));
+        is_b_frame = false;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_dpa_b, is_b_frame));
+        EXPECT_TRUE(is_b_frame);
+
+        // DataPartitionA NALU (type 2) with P-frame slice_type=0
+        uint8_t data_dpa_p[] = {0x02, 0x88, 0x00, 0x00}; // NALU type 2, slice_type=0 (P)
+        SrsSample sample_dpa_p((char*)data_dpa_p, sizeof(data_dpa_p));
         is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample4, is_b_frame));
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_dpa_p, is_b_frame));
         EXPECT_FALSE(is_b_frame);
 
-        // IDR
-        uint8_t data5[] = {0x05, 0xA8, 0x00, 0x00};
-        SrsSample sample5((char*)data5, sizeof(data5));
-        
-        is_b_frame = true;
-        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample5, is_b_frame));
+        // DataPartitionB NALU (type 3) with B-frame slice_type=1
+        uint8_t data_dpb_b[] = {0x03, 0xA8, 0x00, 0x00}; // NALU type 3, slice_type=1 (B)
+        SrsSample sample_dpb_b((char*)data_dpb_b, sizeof(data_dpb_b));
+        is_b_frame = false;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_dpb_b, is_b_frame));
+        EXPECT_TRUE(is_b_frame);
+
+        // DataPartitionC NALU (type 4) with B-frame slice_type=1
+        uint8_t data_dpc_b[] = {0x04, 0xA8, 0x00, 0x00}; // NALU type 4, slice_type=1 (B)
+        SrsSample sample_dpc_b((char*)data_dpc_b, sizeof(data_dpc_b));
+        is_b_frame = false;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_dpc_b, is_b_frame));
+        EXPECT_TRUE(is_b_frame);
+    }
+}
+
+VOID TEST(KernelCodecTest, VideoFrameH264_BFrameDetection_ForbiddenNaluTypes)
+{
+    srs_error_t err;
+
+    if (true) {
+        // Test NALU types that CANNOT contain B-frames (should return false immediately)
+
+        // IDR NALU (type 5) - cannot contain B-frames by definition
+        uint8_t data_idr[] = {0x05, 0xA8, 0x00, 0x00}; // NALU type 5, any slice data
+        SrsSample sample_idr((char*)data_idr, sizeof(data_idr));
+        bool is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_idr, is_b_frame));
         EXPECT_FALSE(is_b_frame);
-        
-        // Empty Sample
+
+        // SEI NALU (type 6) - cannot contain B-frames
+        uint8_t data_sei[] = {0x06, 0xA8, 0x00, 0x00}; // NALU type 6
+        SrsSample sample_sei((char*)data_sei, sizeof(data_sei));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_sei, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // SPS NALU (type 7) - cannot contain B-frames
+        uint8_t data_sps[] = {0x07, 0xA8, 0x00, 0x00}; // NALU type 7
+        SrsSample sample_sps((char*)data_sps, sizeof(data_sps));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_sps, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // PPS NALU (type 8) - cannot contain B-frames
+        uint8_t data_pps[] = {0x08, 0xA8, 0x00, 0x00}; // NALU type 8
+        SrsSample sample_pps((char*)data_pps, sizeof(data_pps));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_pps, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // AUD NALU (type 9) - cannot contain B-frames
+        uint8_t data_aud[] = {0x09, 0xA8, 0x00, 0x00}; // NALU type 9
+        SrsSample sample_aud((char*)data_aud, sizeof(data_aud));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_aud, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // End of Sequence NALU (type 10) - cannot contain B-frames
+        uint8_t data_eos[] = {0x0A, 0xA8, 0x00, 0x00}; // NALU type 10
+        SrsSample sample_eos((char*)data_eos, sizeof(data_eos));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_eos, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // End of Stream NALU (type 11) - cannot contain B-frames
+        uint8_t data_eost[] = {0x0B, 0xA8, 0x00, 0x00}; // NALU type 11
+        SrsSample sample_eost((char*)data_eost, sizeof(data_eost));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_eost, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Filler Data NALU (type 12) - cannot contain B-frames
+        uint8_t data_filler[] = {0x0C, 0xA8, 0x00, 0x00}; // NALU type 12
+        SrsSample sample_filler((char*)data_filler, sizeof(data_filler));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_filler, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // SPS Extension NALU (type 13) - cannot contain B-frames
+        uint8_t data_sps_ext[] = {0x0D, 0xA8, 0x00, 0x00}; // NALU type 13
+        SrsSample sample_sps_ext((char*)data_sps_ext, sizeof(data_sps_ext));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_sps_ext, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Prefix NALU (type 14) - cannot contain B-frames
+        uint8_t data_prefix[] = {0x0E, 0xA8, 0x00, 0x00}; // NALU type 14
+        SrsSample sample_prefix((char*)data_prefix, sizeof(data_prefix));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_prefix, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Subset SPS NALU (type 15) - cannot contain B-frames
+        uint8_t data_subset_sps[] = {0x0F, 0xA8, 0x00, 0x00}; // NALU type 15
+        SrsSample sample_subset_sps((char*)data_subset_sps, sizeof(data_subset_sps));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_subset_sps, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Layer Without Partition NALU (type 19) - cannot contain B-frames
+        uint8_t data_layer[] = {0x13, 0xA8, 0x00, 0x00}; // NALU type 19
+        SrsSample sample_layer((char*)data_layer, sizeof(data_layer));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_layer, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Coded Slice Extension NALU (type 20) - cannot contain B-frames
+        uint8_t data_slice_ext[] = {0x14, 0xA8, 0x00, 0x00}; // NALU type 20
+        SrsSample sample_slice_ext((char*)data_slice_ext, sizeof(data_slice_ext));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_slice_ext, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+    }
+}
+
+VOID TEST(KernelCodecTest, VideoFrameH264_BFrameDetection_EdgeCases)
+{
+    srs_error_t err;
+
+    // Test NALU types that CANNOT contain B-frames (should return false immediately)
+    if (true) {
+        // IDR NALU (type 5) - cannot contain B-frames by definition
+        uint8_t data_idr[] = {0x05, 0xA8, 0x00, 0x00}; // NALU type 5, any slice data
+        SrsSample sample_idr((char*)data_idr, sizeof(data_idr));
+        bool is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_idr, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // SEI NALU (type 6) - cannot contain B-frames
+        uint8_t data_sei[] = {0x06, 0xA8, 0x00, 0x00}; // NALU type 6
+        SrsSample sample_sei((char*)data_sei, sizeof(data_sei));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_sei, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // SPS NALU (type 7) - cannot contain B-frames
+        uint8_t data_sps[] = {0x07, 0xA8, 0x00, 0x00}; // NALU type 7
+        SrsSample sample_sps((char*)data_sps, sizeof(data_sps));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_sps, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // PPS NALU (type 8) - cannot contain B-frames
+        uint8_t data_pps[] = {0x08, 0xA8, 0x00, 0x00}; // NALU type 8
+        SrsSample sample_pps((char*)data_pps, sizeof(data_pps));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_pps, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // AUD NALU (type 9) - cannot contain B-frames
+        uint8_t data_aud[] = {0x09, 0xA8, 0x00, 0x00}; // NALU type 9
+        SrsSample sample_aud((char*)data_aud, sizeof(data_aud));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_aud, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // End of Sequence NALU (type 10) - cannot contain B-frames
+        uint8_t data_eos[] = {0x0A, 0xA8, 0x00, 0x00}; // NALU type 10
+        SrsSample sample_eos((char*)data_eos, sizeof(data_eos));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_eos, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // End of Stream NALU (type 11) - cannot contain B-frames
+        uint8_t data_eost[] = {0x0B, 0xA8, 0x00, 0x00}; // NALU type 11
+        SrsSample sample_eost((char*)data_eost, sizeof(data_eost));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_eost, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Filler Data NALU (type 12) - cannot contain B-frames
+        uint8_t data_filler[] = {0x0C, 0xA8, 0x00, 0x00}; // NALU type 12
+        SrsSample sample_filler((char*)data_filler, sizeof(data_filler));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_filler, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // SPS Extension NALU (type 13) - cannot contain B-frames
+        uint8_t data_sps_ext[] = {0x0D, 0xA8, 0x00, 0x00}; // NALU type 13
+        SrsSample sample_sps_ext((char*)data_sps_ext, sizeof(data_sps_ext));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_sps_ext, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Prefix NALU (type 14) - cannot contain B-frames
+        uint8_t data_prefix[] = {0x0E, 0xA8, 0x00, 0x00}; // NALU type 14
+        SrsSample sample_prefix((char*)data_prefix, sizeof(data_prefix));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_prefix, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Subset SPS NALU (type 15) - cannot contain B-frames
+        uint8_t data_subset_sps[] = {0x0F, 0xA8, 0x00, 0x00}; // NALU type 15
+        SrsSample sample_subset_sps((char*)data_subset_sps, sizeof(data_subset_sps));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_subset_sps, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Layer Without Partition NALU (type 19) - cannot contain B-frames
+        uint8_t data_layer[] = {0x13, 0xA8, 0x00, 0x00}; // NALU type 19
+        SrsSample sample_layer((char*)data_layer, sizeof(data_layer));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_layer, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // Coded Slice Extension NALU (type 20) - cannot contain B-frames
+        uint8_t data_slice_ext[] = {0x14, 0xA8, 0x00, 0x00}; // NALU type 20
+        SrsSample sample_slice_ext((char*)data_slice_ext, sizeof(data_slice_ext));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_slice_ext, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+    }
+
+    // Test edge cases and error conditions
+    if (true) {
+        // Empty Sample - should fail
         SrsSample empty_sample(NULL, 0);
+        bool is_b_frame = false;
         HELPER_EXPECT_FAILED(SrsVideoFrame::parse_avc_bframe(&empty_sample, is_b_frame));
+
+        // Sample too small for slice parsing (only NALU header) - should fail for slice types
+        uint8_t data_small[] = {0x01}; // NALU type 1, but no slice data
+        SrsSample sample_small((char*)data_small, sizeof(data_small));
+        is_b_frame = false;
+        HELPER_EXPECT_FAILED(SrsVideoFrame::parse_avc_bframe(&sample_small, is_b_frame));
+
+        // Test basic slice types for NonIDR NALU using known working patterns
+        // P frame (slice_type=0)
+        uint8_t data_p[] = {0x01, 0x88, 0x00, 0x00}; // slice_type=0
+        SrsSample sample_p((char*)data_p, sizeof(data_p));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_p, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
+
+        // B frame (slice_type=1)
+        uint8_t data_b[] = {0x01, 0xA8, 0x00, 0x00}; // slice_type=1
+        SrsSample sample_b((char*)data_b, sizeof(data_b));
+        is_b_frame = false;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_b, is_b_frame));
+        EXPECT_TRUE(is_b_frame);
+
+        // I frame (slice_type=2)
+        uint8_t data_i[] = {0x01, 0x98, 0x00, 0x00}; // slice_type=2
+        SrsSample sample_i((char*)data_i, sizeof(data_i));
+        is_b_frame = true;
+        HELPER_EXPECT_SUCCESS(SrsVideoFrame::parse_avc_bframe(&sample_i, is_b_frame));
+        EXPECT_FALSE(is_b_frame);
     }
 }
 
