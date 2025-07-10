@@ -43,6 +43,7 @@ class SrsJsonObject;
 class SrsErrorPithyPrint;
 class SrsRtcFrameBuilder;
 class SrsLiveSource;
+class SrsRtpVideoBuilder;
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
@@ -276,6 +277,8 @@ private:
     SrsRtmpFormat* format;
     // The metadata cache.
     SrsMetaCache* meta;
+    // The video builder, convert frame to RTP packets.
+    SrsRtpVideoBuilder* video_builder_;
 private:
     SrsAudioCodecId latest_codec_;
     SrsAudioTranscoder* codec_;
@@ -283,12 +286,9 @@ private:
     bool keep_avc_nalu_sei;
     bool merge_nalus;
     uint16_t audio_sequence;
-    uint16_t video_sequence;
 private:
     uint32_t audio_ssrc_;
-    uint32_t video_ssrc_;
     uint8_t audio_payload_type_;
-    uint8_t video_payload_type_;
 private:
     SrsSharedPtr<SrsRtcSource> source_;
     // Lazy initialization flags

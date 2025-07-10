@@ -25,6 +25,7 @@ class SrsRtcTrackDescription;
 class SrsRtcSourceDescription;
 class SrsResourceManager;
 class SrsRtspConnection;
+class SrsRtpVideoBuilder;
 
 // The RTSP stream consumer, consume packets from RTSP stream source.
 class SrsRtspConsumer
@@ -173,14 +174,12 @@ private:
     SrsRtmpFormat* format;
     // The metadata cache.
     SrsMetaCache* meta;
+    // The video builder, convert frame to RTP packets.
+    SrsRtpVideoBuilder* video_builder_;
 private:
     uint16_t audio_sequence;
-    uint16_t video_sequence;
-private:
     uint32_t audio_ssrc_;
-    uint32_t video_ssrc_;
     uint8_t audio_payload_type_;
-    uint8_t video_payload_type_;
     int audio_sample_rate_;
 private:
     SrsSharedPtr<SrsRtspSource> source_;
