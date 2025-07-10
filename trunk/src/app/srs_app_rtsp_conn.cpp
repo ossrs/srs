@@ -9,14 +9,7 @@
 using namespace std;
 
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
-#include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-#include <queue>
 #include <sstream>
 
 #include <srs_core_autofree.hpp>
@@ -24,33 +17,17 @@ using namespace std;
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_protocol_rtc_stun.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
-#include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_config.hpp>
-#include <srs_app_rtc_queue.hpp>
-#include <srs_app_source.hpp>
-#include <srs_app_server.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_protocol_http_stack.hpp>
-#include <srs_app_http_api.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_protocol_st.hpp>
-#include <srs_app_rtc_server.hpp>
-#include <srs_app_rtc_source.hpp>
-#include <srs_protocol_utility.hpp>
 #include <srs_app_threads.hpp>
-#include <srs_protocol_log.hpp>
-#include <srs_app_log.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_protocol_kbps.hpp>
 #include <srs_kernel_kbps.hpp>
-#include <srs_app_rtc_network.hpp>
-#include <srs_app_srt_source.hpp>
 #include <srs_app_rtsp_source.hpp>
-#include <srs_app_rtsp_conn.hpp>
 #include <srs_protocol_rtsp_stack.hpp>
 #include <srs_app_security.hpp>
 

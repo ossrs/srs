@@ -18,10 +18,7 @@
 #include <srs_app_hybrid.hpp>
 #include <srs_app_threads.hpp>
 #include <srs_kernel_codec.hpp>
-#include <srs_app_conn.hpp>
 #include <srs_app_rtsp_conn.hpp>
-
-#include <cstdio>
 
 using namespace std;
 
