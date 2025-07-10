@@ -716,9 +716,7 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest* req, std::string& sdp
     local_sdp.unicast_address_ = "0.0.0.0";
     local_sdp.session_name_ = "Play";
     local_sdp.control_ = req->uri;
-
-    // Add session-level attributes to indicate TCP-only support
-    local_sdp.session_info_.setup_ = "passive";  // Server is passive for TCP connections
+    local_sdp.ice_lite_ = ""; // Disable this line.
 
     uint32_t track_id = 0;
     SrsRtcTrackDescription* audio_desc = source_->audio_desc();
@@ -729,13 +727,10 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest* req, std::string& sdp
 
         SrsMediaDesc media_audio("audio");
         media_audio.port_ = 0;  // Port 0 indicates no UDP transport available
-        media_audio.protos_ = "RTP/AVP/TCP";  // Explicitly advertise TCP transport
+        media_audio.protos_ = "RTP/AVP"; // MUST be RTP/AVP
         media_audio.control_ = req->uri + "/trackID=" + srs_int2str(track_id);
         media_audio.recvonly_ = true;
         media_audio.rtcp_mux_ = true;
-
-        // Add SDP attributes to indicate TCP-only support
-        media_audio.session_info_.setup_ = "passive";  // Server is passive for TCP connections
 
         media_audio.payload_types_.push_back(SrsMediaPayloadType(audio_track_desc->media_->pt_));
         SrsMediaPayloadType& ps_audio = media_audio.payload_types_.at(0);
@@ -773,13 +768,10 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest* req, std::string& sdp
 
         SrsMediaDesc media_video("video");
         media_video.port_ = 0;  // Port 0 indicates no UDP transport available
-        media_video.protos_ = "RTP/AVP/TCP";  // Explicitly advertise TCP transport
+        media_video.protos_ = "RTP/AVP"; // MUST be RTP/AVP
         media_video.control_ = req->uri + "/trackID=" + srs_int2str(track_id);
         media_video.recvonly_ = true;
         media_video.rtcp_mux_ = true;
-
-        // Add SDP attributes to indicate TCP-only support
-        media_video.session_info_.setup_ = "passive";  // Server is passive for TCP connections
 
         media_video.payload_types_.push_back(SrsMediaPayloadType(video_track_desc->media_->pt_));
         SrsMediaPayloadType& ps_video = media_video.payload_types_.at(0);
