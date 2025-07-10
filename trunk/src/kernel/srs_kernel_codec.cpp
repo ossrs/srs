@@ -749,7 +749,8 @@ srs_error_t SrsVideoFrame::parse_avc_bframe(const SrsSample* sample, bool& is_b_
         return srs_error_wrap(err, "parse avc nalu type error");
     }
 
-    if (nalu_type == SrsAvcNaluTypeIDR || nalu_type == SrsAvcNaluTypeSPS || nalu_type == SrsAvcNaluTypePPS) {
+    if (nalu_type != SrsAvcNaluTypeNonIDR && nalu_type != SrsAvcNaluTypeDataPartitionA 
+        && nalu_type != SrsAvcNaluTypeDataPartitionB && nalu_type != SrsAvcNaluTypeDataPartitionC) {
         is_b_frame = false;
         return err;
     }
