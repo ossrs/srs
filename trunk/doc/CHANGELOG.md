@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-07-10, Merge [#4414](https://github.com/ossrs/srs/pull/4414): Fix H.264 B-frame detection logic to comply with specification. v7.0.46 (#4414)
 * v7.0, 2025-07-04, Merge [#4412](https://github.com/ossrs/srs/pull/4412): Refine code and add tests for #4289. v7.0.45 (#4412)
 * v7.0, 2025-07-04, Merge [#4413](https://github.com/ossrs/srs/pull/4413): RTMP2RTC: Support dual video track for bridge. v7.0.44 (#4413)
 * v7.0, 2025-07-03, Merge [#4349](https://github.com/ossrs/srs/pull/4349): rtc2rtmp: Support WebRTC-to-RTMP conversion with HEVC. v7.0.43 (#4349)
@@ -56,6 +57,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2025-07-10, Merge [#4414](https://github.com/ossrs/srs/pull/4414): Fix H.264 B-frame detection logic to comply with specification. v6.0.169 (#4414)
 * v6.0, 2025-06-04, Merge [#4325](https://github.com/ossrs/srs/pull/4325): fix bug: loop transcoding #3516. v6.0.168 (#4325)
 * v6.0, 2025-05-29, Merge [#4356](https://github.com/ossrs/srs/pull/4356): RTMP: Use extended timestamp as delta when chunk fmt=1/2. v6.0.167 (#4356)
 * v6.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v6.0.165 (#4303)
@@ -227,6 +229,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* v5.0, 2025-07-10, Merge [#4414](https://github.com/ossrs/srs/pull/4414): Fix H.264 B-frame detection logic to comply with specification. v5.0.224 (#4414)
 * v5.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v5.0.223 (#4303)
 * v5.0, 2025-03-20, Merge [#4305](https://github.com/ossrs/srs/pull/4305): free sample to prevent memory leak. v5.0.222 (#4305)
 * v5.0, 2025-03-18, Merge [#4302](https://github.com/ossrs/srs/pull/4302): update geekyeggo/delete-artifact to 5.0.0. v5.0.221 (#4302)
