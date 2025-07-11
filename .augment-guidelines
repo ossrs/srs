@@ -52,6 +52,31 @@ codebase_structure:
       description: "Smart pointer definitions for memory management"
 
 code_patterns:
+  cpp_compatibility:
+    standard: "C++98"
+    description: |
+      SRS codebase must be compatible with C++98 standard. Do NOT use C++11 or later features.
+    forbidden_features:
+      - "auto keyword for type deduction"
+      - "nullptr (use NULL instead)"
+      - "Range-based for loops (use traditional for loops)"
+      - "Lambda expressions"
+      - "std::unique_ptr, std::shared_ptr (use SRS custom smart pointers instead)"
+      - "Initializer lists"
+      - "decltype"
+      - "constexpr"
+      - "override and final keywords"
+      - "Strongly typed enums (enum class)"
+      - "Static assertions (static_assert)"
+      - "Variadic templates"
+      - "Rvalue references and move semantics"
+    allowed_patterns:
+      - "Traditional for loops: for (int i = 0; i < size; ++i)"
+      - "NULL instead of nullptr"
+      - "typedef instead of using for type aliases"
+      - "SRS custom smart pointers (SrsUniquePtr, SrsSharedPtr)"
+      - "Traditional function pointers instead of std::function"
+
   memory_management:
     - pattern: "SrsUniquePtr<T>"
       description: "Smart pointer for unique ownership - preferred for single ownership scenarios"
