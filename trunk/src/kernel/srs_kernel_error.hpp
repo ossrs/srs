@@ -378,7 +378,8 @@
     XX(ERROR_RTSP_TRANSPORT_NOT_SUPPORTED  , 5038, "RtspTransportNotSupported", "RTSP transport not supported, only TCP/interleaved mode is supported") \
     XX(ERROR_RTSP_NO_TRACK                 , 5039, "RtspNoTrack", "Drop RTSP packet for track not found") \
     XX(ERROR_RTSP_TOKEN_NOT_NORMAL         , 5040, "RtspToken", "Invalid RTSP token state not normal") \
-    XX(ERROR_RTSP_REQUEST_HEADER_EOF       , 5041, "RtspHeaderEof", "Invalid RTSP request for header EOF")
+    XX(ERROR_RTSP_REQUEST_HEADER_EOF       , 5041, "RtspHeaderEof", "Invalid RTSP request for header EOF") \
+    XX(ERROR_RTSP_NEED_MORE_DATA           , 5042, "RtspNeedMoreData", "Need more data to complete RTCP frame parsing")
 
 /**************************************************/
 /* SRT protocol error. */

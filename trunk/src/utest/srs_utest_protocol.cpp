@@ -4144,5 +4144,110 @@ VOID TEST(ProtocolRTSPTest, RTSPInvalidRequest)
         bio.out_buffer.erase(bio.out_buffer.length());
     }
 }
+
+VOID TEST(ProtocolRTSPTest, RTSPConsumeRTCPThenRTSP)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsRtspStack stack(&bio);
+
+    if (true) {
+        // Create data with RTCP packet followed by RTSP message
+        string combined_data;
+
+        // RTCP RR payload
+        unsigned char rtcp_payload[] = {
+            0x81,       // V=2, P=0, RC=1
+            0xC9,       // PT=201 (RR)
+            0x00, 0x07, // Length=7 (32-bit words)
+            0x12, 0x34, 0x56, 0x78, // SSRC of packet sender
+            0x87, 0x65, 0x43, 0x21, // SSRC_1 (source being reported on)
+            0x00,       // fraction lost
+            0x00, 0x00, 0x00, // cumulative number of packets lost
+            0x00, 0x00, 0x12, 0x34, // extended highest sequence number
+            0x00, 0x00, 0x00, 0x10, // interarrival jitter
+            0x00, 0x00, 0x00, 0x20, // last SR timestamp (LSR)
+            0x00, 0x00, 0x00, 0x30  // delay since last SR (DLSR)
+        };
+
+        // Create RTSP over TCP frame: $ + channel + length + payload
+        unsigned char tcp_frame[4 + sizeof(rtcp_payload)];
+        tcp_frame[0] = '$';                                    // Magic byte
+        tcp_frame[1] = 1;                                      // Channel 1 (RTCP)
+        tcp_frame[2] = (sizeof(rtcp_payload) >> 8) & 0xFF;    // Length high byte
+        tcp_frame[3] = sizeof(rtcp_payload) & 0xFF;            // Length low byte
+        memcpy(tcp_frame + 4, rtcp_payload, sizeof(rtcp_payload));
+
+        // RTSP OPTIONS message
+        string rtsp_msg = "OPTIONS rtsp://example.com/stream RTSP/1.0\r\n"
+                          "CSeq: 1\r\n"
+                          "\r\n";
+
+        // Combine RTCP frame and RTSP data
+        combined_data.append((char*)tcp_frame, sizeof(tcp_frame));
+        combined_data.append(rtsp_msg);
+
+        bio.in_buffer.append(combined_data.c_str(), combined_data.length());
+
+        // Should successfully receive RTSP message after consuming RTCP
+        SrsRtspRequest* req = NULL;
+        HELPER_EXPECT_SUCCESS(stack.recv_message(&req));
+        EXPECT_TRUE(req != NULL);
+        if (req != NULL) {
+            EXPECT_TRUE(req->is_options());
+            EXPECT_EQ(1, req->seq);
+        }
+
+        srs_freep(req);
+        bio.in_buffer.erase(bio.in_buffer.length());
+    }
+}
+
+VOID TEST(ProtocolRTSPTest, RTSPNotRTCPPacket)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsRtspStack stack(&bio);
+
+    if (true) {
+        // Regular RTSP message (not RTCP)
+        const char* rtsp_msg = "OPTIONS rtsp://example.com/stream RTSP/1.0\r\n"
+                               "CSeq: 1\r\n"
+                               "\r\n";
+        bio.in_buffer.append(rtsp_msg, strlen(rtsp_msg));
+
+        // Should fail to consume as RTCP
+        HELPER_EXPECT_FAILED(stack.try_consume_rtcp_frame());
+
+        bio.in_buffer.erase(bio.in_buffer.length());
+    }
+}
+
+VOID TEST(ProtocolRTSPTest, RTSPIncompleteRTCPPacket)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsRtspStack stack(&bio);
+
+    if (true) {
+        // Create incomplete RTSP over TCP frame (only partial header)
+        unsigned char incomplete_frame[] = {
+            '$',        // Magic byte
+            1,          // Channel
+            0x00,       // Length high byte
+            // Missing length low byte and payload
+        };
+
+        bio.in_buffer.append((char*)incomplete_frame, sizeof(incomplete_frame));
+
+        // Should fail due to incomplete frame
+        HELPER_EXPECT_FAILED(stack.try_consume_rtcp_frame());
+
+        bio.in_buffer.erase(bio.in_buffer.length());
+    }
+}
 #endif
 

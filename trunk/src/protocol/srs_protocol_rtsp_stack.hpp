@@ -350,6 +350,11 @@ public:
     // @return an int error code.
     //       ERROR_RTSP_REQUEST_HEADER_EOF indicates request header EOF.
     virtual srs_error_t recv_message(SrsRtspRequest** preq);
+    // Try to detect and consume RTCP frame from buffered data.
+    // @return srs_success if RTCP frame is consumed successfully.
+    //         ERROR_RTSP_NEED_MORE_DATA if more data is needed to complete the frame.
+    //         ERROR_RTSP_TOKEN_NOT_NORMAL if the data is not an RTCP interleaved frame.
+    virtual srs_error_t try_consume_rtcp_frame();
     // Send rtsp message over underlayer io.
     // @param res the rtsp response message, which user should never free it.
     // @return an int error code.
