@@ -995,15 +995,15 @@ srs_error_t SrsRtcRtpBuilder::on_audio(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "format consume audio");
     }
 
+    // Try to init codec when startup or codec changed.
+    if (format->acodec && (err = init_codec(format->acodec->id)) != srs_success) {
+        return srs_error_wrap(err, "init codec");
+    }
+
     // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
     if (!format->acodec) {
         return err;
-    }
-
-    // Try to init codec when startup or codec changed.
-    if ((err = init_codec(format->acodec->id)) != srs_success) {
-        return srs_error_wrap(err, "init codec");
     }
 
     // support audio codec: aac/mp3
