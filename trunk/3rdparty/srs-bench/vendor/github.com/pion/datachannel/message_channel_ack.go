@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package datachannel
 
 // channelAck is used to ACK a DataChannel open
@@ -16,7 +19,11 @@ func (c *channelAck) Marshal() ([]byte, error) {
 }
 
 // Unmarshal populates the struct with the given raw data
-func (c *channelAck) Unmarshal(raw []byte) error {
+func (c *channelAck) Unmarshal(_ []byte) error {
 	// Message type already checked in Parse and there is no further data
 	return nil
+}
+
+func (c channelAck) String() string {
+	return "ACK"
 }

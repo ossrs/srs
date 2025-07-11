@@ -1068,7 +1068,7 @@ srs_error_t SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
 
     // Refresh the codec ASAP.
     if (muxer->latest_vcodec() != frame->vcodec()->id) {
-        srs_trace("HLS: Switch video codec %d(%s) to %d(%s)", muxer->latest_acodec(), srs_video_codec_id2str(muxer->latest_vcodec()).c_str(),
+        srs_trace("HLS: Switch video codec %d(%s) to %d(%s)", muxer->latest_vcodec(), srs_video_codec_id2str(muxer->latest_vcodec()).c_str(),
                   frame->vcodec()->id, srs_video_codec_id2str(frame->vcodec()->id).c_str());
         muxer->set_latest_vcodec(frame->vcodec()->id);
     }

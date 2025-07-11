@@ -198,14 +198,14 @@ srs_error_t srs_srt_listen(srs_srt_t srt_fd, std::string ip, int port)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags    = AI_NUMERICHOST;
 
-    addrinfo* r = NULL;
-    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
-    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
+    addrinfo* r_raw = NULL;
+    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r_raw)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
             hints.ai_family, hints.ai_socktype, hints.ai_flags);
     }
+    SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
 
-    if ((err = do_srs_srt_listen(srt_fd, r)) != srs_success) {
+    if ((err = do_srs_srt_listen(srt_fd, r.get())) != srs_success) {
         srt_close(srt_fd);
         return srs_error_wrap(err, "srt_fd=%d", srt_fd);
     }

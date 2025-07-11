@@ -4383,6 +4383,19 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostSrt)
     }
 }
 
+VOID TEST(ConfigEnvTest, CheckEnvValuesRtspServer)
+{
+    if (true) {
+        MockSrsConfig conf;
+
+        SrsSetEnvConfig(rtsp_server_enabled, "SRS_RTSP_SERVER_ENABLED", "on");
+        EXPECT_TRUE(conf.get_rtsp_server_enabled());
+
+        SrsSetEnvConfig(rtsp_server_listen, "SRS_RTSP_SERVER_LISTEN", "554");
+        EXPECT_EQ(554, conf.get_rtsp_server_listen());
+    }
+}
+
 VOID TEST(ConfigEnvTest, CheckEnvValuesRtcServer)
 {
     if (true) {

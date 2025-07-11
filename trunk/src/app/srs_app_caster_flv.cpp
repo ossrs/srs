@@ -95,6 +95,12 @@ SrsAppCasterFlv::~SrsAppCasterFlv()
 {
     srs_freep(http_mux);
     srs_freep(manager);
+
+    std::vector<ISrsConnection*>::iterator it;
+    for (it = conns.begin(); it != conns.end(); ++it) {
+        ISrsConnection* conn = *it;
+        srs_freep(conn);
+    }
 }
 
 srs_error_t SrsAppCasterFlv::initialize(SrsConfDirective* c)

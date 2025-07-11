@@ -156,11 +156,11 @@ string srs_dns_resolve(string host, int& family)
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = family;
     
-    addrinfo* r = NULL;
-    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
-    if(getaddrinfo(host.c_str(), NULL, &hints, &r)) {
+    addrinfo* r_raw = NULL;
+    if(getaddrinfo(host.c_str(), NULL, &hints, &r_raw)) {
         return "";
     }
+    SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
     
     char shost[64];
     memset(shost, 0, sizeof(shost));

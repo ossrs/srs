@@ -43,11 +43,14 @@ class SrsJsonObject;
 class SrsErrorPithyPrint;
 class SrsRtcFrameBuilder;
 class SrsLiveSource;
+class SrsRtpVideoBuilder;
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
 // Firefox defaults as 126, Chrome is 102.
 const int kVideoPayloadType = 102;
+// Chrome HEVC defaults as 49.
+const int KVideoPayloadTypeHevc = 49;
 
 // Audio jitter buffer size (in packets)
 const int AUDIO_JITTER_BUFFER_SIZE = 100;
@@ -281,6 +284,8 @@ private:
     SrsRtmpFormat* format;
     // The metadata cache.
     SrsMetaCache* meta;
+    // The video builder, convert frame to RTP packets.
+    SrsRtpVideoBuilder* video_builder_;
 private:
     SrsAudioCodecId latest_codec_;
     SrsAudioTranscoder* codec_;
@@ -288,15 +293,21 @@ private:
     bool keep_avc_nalu_sei;
     bool merge_nalus;
     uint16_t audio_sequence;
-    uint16_t video_sequence;
 private:
     uint32_t audio_ssrc_;
-    uint32_t video_ssrc_;
     uint8_t audio_payload_type_;
-    uint8_t video_payload_type_;
+private:
+    SrsSharedPtr<SrsRtcSource> source_;
+    // Lazy initialization flags
+    bool audio_initialized_;
+    bool video_initialized_;
 public:
-    SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, uint32_t assrc, uint8_t apt, uint32_t vssrc, uint8_t vpt);
+    SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsRtcRtpBuilder();
+private:
+    // Lazy initialization methods
+    srs_error_t initialize_audio_track(SrsAudioCodecId codec);
+    srs_error_t initialize_video_track(SrsVideoCodecId codec);
 public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();
@@ -319,18 +330,12 @@ private:
     srs_error_t consume_packets(std::vector<SrsRtpPacket*>& pkts);
 };
 
-// Collect and build WebRTC RTP packets to AV frames.
-class SrsRtcFrameBuilder
+// Video packet cache for RTP packet management
+// TODO: Maybe should use SrsRtpRingBuffer?
+class SrsRtcFrameBuilderVideoPacketCache
 {
 private:
-    ISrsStreamBridge* bridge_;
-private:
-    bool is_first_audio_;
-    SrsAudioTranscoder *codec_;
-private:
-    const static uint16_t s_cache_size = 512;
-    //TODO:use SrsRtpRingBuffer
-    //TODO:jitter buffer class
+    const static uint16_t cache_size_ = 512;
     struct RtcPacketCache {
         bool in_use;
         uint16_t sn;
@@ -338,11 +343,62 @@ private:
         uint32_t rtp_ts;
         SrsRtpPacket* pkt;
     };
-    RtcPacketCache cache_video_pkts_[s_cache_size];
+    RtcPacketCache cache_pkts_[cache_size_];
+public:
+    SrsRtcFrameBuilderVideoPacketCache();
+    virtual ~SrsRtcFrameBuilderVideoPacketCache();
+public:
+    SrsRtpPacket* get_packet(uint16_t sequence_number);
+    void store_packet(SrsRtpPacket* pkt);
+    void clear_all();
+    SrsRtpPacket* take_packet(uint16_t sequence_number);
+public:
+    // Find next lost sequence number starting from current_sn
+    // Returns: lost_sn if found, -1 if complete frame found (sets end_sn), -2 if cache overflow
+    int32_t find_next_lost_sn(uint16_t current_sn, uint16_t header_sn, uint16_t& end_sn);
+    // Check if frame is complete by verifying FU-A start/end fragment counts match
+    bool check_frame_complete(const uint16_t start, const uint16_t end);
+private:
+    bool is_slot_in_use(uint16_t sequence_number);
+    uint32_t get_rtp_timestamp(uint16_t sequence_number);
+    inline uint16_t cache_index(uint16_t sequence_number) {
+        return sequence_number % cache_size_;
+    }
+};
+
+// Video frame detector for managing frame boundaries and packet loss detection
+class SrsRtcFrameBuilderVideoFrameDetector
+{
+private:
+    SrsRtcFrameBuilderVideoPacketCache* video_cache_;
     uint16_t header_sn_;
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
+public:
+    SrsRtcFrameBuilderVideoFrameDetector(SrsRtcFrameBuilderVideoPacketCache* cache);
+    virtual ~SrsRtcFrameBuilderVideoFrameDetector();
+public:
+    void on_keyframe_start(SrsRtpPacket* pkt);
+    srs_error_t detect_frame(uint16_t received, uint16_t& frame_start, uint16_t& frame_end, bool& frame_ready);
+    srs_error_t detect_next_frame(uint16_t next_head, uint16_t& next_start, uint16_t& next_end, bool& next_ready);
+    void on_keyframe_detached();
+    bool is_lost_sn(uint16_t received);
+};
 
+// Collect and build WebRTC RTP packets to AV frames.
+class SrsRtcFrameBuilder
+{
+private:
+    ISrsStreamBridge* bridge_;
+private:
+    bool is_first_audio_;
+    SrsAudioTranscoder *audio_transcoder_;
+
+    SrsVideoCodecId video_codec_;
+private:
+    SrsRtcFrameBuilderVideoPacketCache* video_cache_;
+    SrsRtcFrameBuilderVideoFrameDetector* frame_detector_;
+private:
     // Audio jitter buffer, map sequence number to packet
     std::map<uint16_t, SrsRtpPacket*> audio_buffer_;
     // Last processed sequence number
@@ -353,14 +409,15 @@ private:
     // The state for timestamp sync state. -1 for init. 0 not sync. 1 sync.
     int sync_state_;
 private:
-    // For OBS WHIP, send SPS/PPS in dedicated RTP packet.
+    // For OBS WHIP, send (VPS/)SPS/PPS in dedicated RTP packet.
+    SrsRtpPacket* obs_whip_vps_;
     SrsRtpPacket* obs_whip_sps_;
     SrsRtpPacket* obs_whip_pps_;
 public:
     SrsRtcFrameBuilder(ISrsStreamBridge* bridge);
     virtual ~SrsRtcFrameBuilder();
 public:
-    srs_error_t initialize(SrsRequest* r);
+    srs_error_t initialize(SrsRequest* r, SrsAudioCodecId audio_codec, SrsVideoCodecId video_codec);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
     virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
@@ -371,13 +428,14 @@ private:
 private:
     srs_error_t packet_video(SrsRtpPacket* pkt);
     srs_error_t packet_video_key_frame(SrsRtpPacket* pkt);
-    inline uint16_t cache_index(uint16_t current_sn) {
-        return current_sn % s_cache_size;
-    }
-    int32_t find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn);
-    bool check_frame_complete(const uint16_t start, const uint16_t end);
+    srs_error_t packet_sequence_header_avc(SrsRtpPacket* pkt);
+    srs_error_t do_packet_sequence_header_avc(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps);
+    srs_error_t packet_sequence_header_hevc(SrsRtpPacket* pkt);
+    srs_error_t do_packet_sequence_header_hevc(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps);
+private:
     srs_error_t packet_video_rtmp(const uint16_t start, const uint16_t end);
-    void clear_cached_video();
+    int calculate_packet_payload_size(SrsRtpPacket* pkt);
+    void write_packet_payload_to_buffer(SrsRtpPacket* pkt, SrsBuffer& payload, int& nalu_len);
 };
 
 #endif
@@ -395,11 +453,21 @@ public:
     int sample_;
 
     std::vector<std::string> rtcp_fbs_;
+private:
+    // The cached codec ID, corresponding to name_.
+    // For video, you can convert it to type SrsVideoCodecId
+    // For audio, you can convert it to type SrsAudioCodecId
+    // Note: Set up to -1, which means not initialized/cached yet
+    // Note: Won't copy codec_, it will be recalculated when codec(bool) is called
+    int8_t codec_;
 public:
     SrsCodecPayload();
     SrsCodecPayload(uint8_t pt, std::string encode_name, int sample);
     virtual ~SrsCodecPayload();
 public:
+    // Get codec ID with context information about whether it's video or audio
+    // Returns the numeric codec ID, with caching for performance
+    int8_t codec(bool video);
     virtual SrsCodecPayload* copy();
     virtual SrsMediaPayloadType generate_media_payload_type();
 };
@@ -409,6 +477,7 @@ class SrsVideoPayload : public SrsCodecPayload
 {
 public:
     H264SpecificParam h264_param_;
+    H265SpecificParam h265_param_;
 
 public:
     SrsVideoPayload();
@@ -417,8 +486,10 @@ public:
 public:
     virtual SrsVideoPayload* copy();
     virtual SrsMediaPayloadType generate_media_payload_type();
+    virtual SrsMediaPayloadType generate_media_payload_type_h265();
 public:
     srs_error_t set_h264_param_desc(std::string fmtp);
+    srs_error_t set_h265_param_desc(std::string fmtp);
 };
 
 // TODO: FIXME: Rename it.
@@ -442,6 +513,8 @@ class SrsAudioPayload : public SrsCodecPayload
 public:
     int channel_;
     SrsOpusParameter opus_param_;
+    // AAC configuration hex string for SDP fmtp line
+    std::string aac_config_hex_;
 public:
     SrsAudioPayload();
     SrsAudioPayload(uint8_t pt, std::string encode_name, int sample, int channel);
@@ -602,25 +675,25 @@ protected:
     virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
 };
 
-class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack, public ISrsRtspPacketDecodeHandler
+class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
     SrsRtcAudioRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtcAudioRecvTrack();
 public:
-    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt);
+    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt);
 public:
     virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt);
     virtual srs_error_t check_send_nacks();
 };
 
-class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack, public ISrsRtspPacketDecodeHandler
+class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
     SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs);
     virtual ~SrsRtcVideoRecvTrack();
 public:
-    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt);
+    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt);
 public:
     virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt);
     virtual srs_error_t check_send_nacks();

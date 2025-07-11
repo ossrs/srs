@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 // Packet represents an RTCP packet, a protocol used for out-of-band statistics and control information for an RTP session
@@ -7,6 +10,7 @@ type Packet interface {
 
 	Marshal() ([]byte, error)
 	Unmarshal(rawPacket []byte) error
+	MarshalSize() int
 }
 
 // Unmarshal takes an entire udp datagram (which may consist of multiple RTCP packets) and
@@ -109,6 +113,9 @@ func unmarshal(rawData []byte) (packet Packet, bytesprocessed int, err error) {
 
 	case TypeExtendedReport:
 		packet = new(ExtendedReport)
+
+	case TypeApplicationDefined:
+		packet = new(ApplicationDefined)
 
 	default:
 		packet = new(RawPacket)

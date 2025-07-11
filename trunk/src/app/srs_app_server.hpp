@@ -130,6 +130,8 @@ private:
     SrsTcpListener* https_listener_;
     // WebRTC over TCP listener. Please note that there is always a UDP listener by RTC server.
     SrsTcpListener* webrtc_listener_;
+    // RTSP listener, over TCP.
+    SrsTcpListener* rtsp_listener_;
     // Stream Caster for push over HTTP-FLV.
     SrsHttpFlvListener* stream_caster_flv_listener_;
     // Stream Caster for push over MPEGTS-UDP
