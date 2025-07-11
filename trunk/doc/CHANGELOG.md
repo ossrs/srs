@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-07-11, Merge [#4333](https://github.com/ossrs/srs/pull/4333): NEW PROTOCOL: Support viewing stream over RTSP. v7.0.47 (#4333)
 * v7.0, 2025-07-10, Merge [#4414](https://github.com/ossrs/srs/pull/4414): Fix H.264 B-frame detection logic to comply with specification. v7.0.46 (#4414)
 * v7.0, 2025-07-04, Merge [#4412](https://github.com/ossrs/srs/pull/4412): Refine code and add tests for #4289. v7.0.45 (#4412)
 * v7.0, 2025-07-04, Merge [#4413](https://github.com/ossrs/srs/pull/4413): RTMP2RTC: Support dual video track for bridge. v7.0.44 (#4413)
