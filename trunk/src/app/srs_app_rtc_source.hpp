@@ -385,6 +385,27 @@ public:
     bool is_lost_sn(uint16_t received);
 };
 
+// Audio packet cache for RTP packet jitter buffer management
+class SrsRtcFrameBuilderAudioPacketCache
+{
+private:
+    // Audio jitter buffer, map sequence number to packet
+    std::map<uint16_t, SrsRtpPacket*> audio_buffer_;
+    // Last processed sequence number
+    uint16_t last_audio_seq_num_;
+    // Last time we processed the jitter buffer
+    int64_t last_audio_process_time_ms_;
+public:
+    SrsRtcFrameBuilderAudioPacketCache();
+    virtual ~SrsRtcFrameBuilderAudioPacketCache();
+public:
+    // Process audio packet through jitter buffer
+    // Returns packets ready for transcoding in order
+    srs_error_t process_packet(SrsRtpPacket* src, std::vector<SrsRtpPacket*>& ready_packets);
+    // Clear all cached packets
+    void clear_all();
+};
+
 // Collect and build WebRTC RTP packets to AV frames.
 class SrsRtcFrameBuilder
 {
@@ -395,15 +416,9 @@ private:
     SrsAudioTranscoder *audio_transcoder_;
     SrsVideoCodecId video_codec_;
 private:
+    SrsRtcFrameBuilderAudioPacketCache* audio_cache_;
     SrsRtcFrameBuilderVideoPacketCache* video_cache_;
     SrsRtcFrameBuilderVideoFrameDetector* frame_detector_;
-private:
-    // Audio jitter buffer, map sequence number to packet
-    std::map<uint16_t, SrsRtpPacket*> audio_buffer_;
-    // Last processed sequence number
-    uint16_t last_audio_seq_num_;
-    // Last time we processed the jitter buffer
-    int64_t last_audio_process_time_ms_;
 private:
     // The state for timestamp sync state. -1 for init. 0 not sync. 1 sync.
     int sync_state_;
