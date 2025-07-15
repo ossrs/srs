@@ -114,6 +114,73 @@ code_patterns:
         utility: "pos(), left(), empty(), require(size), skip(size)"
       rationale: "Provides consistent byte-order handling, bounds checking, and position tracking for binary data operations"
 
+  time_handling:
+    - pattern: "srs_utime_t"
+      description: "MANDATORY type for all time variables - ALWAYS use srs_utime_t instead of int64_t for time values"
+      usage: |
+        WRONG: Using int64_t for time
+        int64_t now = srs_get_system_time();
+        int64_t duration = end_time - start_time;
+        int64_t timeout_ms = timeout / 1000;
+
+        CORRECT: Use srs_utime_t for time
+        srs_utime_t now = srs_get_system_time();
+        srs_utime_t duration = now - start_time;
+        int timeout_ms = srsu2msi(timeout);
+      rationale: "srs_utime_t provides consistent time handling across platforms and ensures proper microsecond precision"
+
+    - pattern: "srs_get_system_time()"
+      description: "Standard function to get current system time in microseconds"
+      usage: "srs_utime_t now = srs_get_system_time();"
+
+    - pattern: "duration calculation"
+      description: "Calculate time duration using simple subtraction"
+      usage: |
+        srs_utime_t starttime = srs_get_system_time();
+        // ... some operations ...
+        srs_utime_t duration = srs_get_system_time() - starttime;
+        int duration_ms = srsu2ms(duration);
+      note: "For simple cases, use direct subtraction. srs_duration() function is available for special cases with zero checks."
+
+    - pattern: "srsu2ms(us)"
+      description: "MANDATORY macro to convert microseconds to milliseconds - ALWAYS use instead of division by 1000"
+      usage: |
+        WRONG: Manual division
+        int ms = now / 1000;
+        int timeout_ms = timeout / 1000;
+
+        CORRECT: Use srsu2ms macro
+        int ms = srsu2ms(now);
+        int timeout_ms = srsu2ms(timeout);
+      rationale: "Provides consistent conversion and avoids magic numbers"
+
+    - pattern: "srsu2msi(us)"
+      description: "Convert microseconds to milliseconds as integer"
+      usage: "int ms = srsu2msi(timeout);"
+
+    - pattern: "srsu2s(us) / srsu2si(us)"
+      description: "Convert microseconds to seconds"
+      usage: "int seconds = srsu2si(duration);"
+
+    - pattern: "time_constants"
+      description: "Standard time constants for SRS"
+      constants:
+        - "SRS_UTIME_MILLISECONDS (1000) - microseconds in one millisecond"
+        - "SRS_UTIME_SECONDS (1000000LL) - microseconds in one second"
+        - "SRS_UTIME_MINUTES (60000000LL) - microseconds in one minute"
+        - "SRS_UTIME_HOURS (3600000000LL) - microseconds in one hour"
+        - "SRS_UTIME_NO_TIMEOUT - special value for no timeout"
+
+    - pattern: "best_practices"
+      description: "Time handling best practices"
+      practices:
+        - "Always declare time variables as srs_utime_t, never int64_t"
+        - "Use srs_get_system_time() to get current time"
+        - "Use simple subtraction (end - start) for calculating time differences"
+        - "Use srsu2ms() family macros for time unit conversions"
+        - "Use time constants (SRS_UTIME_SECONDS, etc.) for time arithmetic"
+        - "Check for SRS_UTIME_NO_TIMEOUT when handling timeout values"
+
   conditional_compilation:
     - pattern: "#ifdef SRS_VALGRIND"
       description: "Valgrind support"
