@@ -394,11 +394,17 @@ private:
     // Last processed sequence number
     uint16_t last_audio_seq_num_;
     // Last time we processed the jitter buffer
-    int64_t last_audio_process_time_ms_;
+    srs_utime_t last_audio_process_time_;
+    // Whether the cache has been initialized
+    bool initialized_;
+    // Timeout for waiting out-of-order packets (in microseconds)
+    srs_utime_t timeout_;
 public:
     SrsRtcFrameBuilderAudioPacketCache();
     virtual ~SrsRtcFrameBuilderAudioPacketCache();
 public:
+    // Set timeout for waiting out-of-order packets (in microseconds)
+    void set_timeout(srs_utime_t timeout);
     // Process audio packet through jitter buffer
     // Returns packets ready for transcoding in order
     srs_error_t process_packet(SrsRtpPacket* src, std::vector<SrsRtpPacket*>& ready_packets);

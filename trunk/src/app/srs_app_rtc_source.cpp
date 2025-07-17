@@ -1596,7 +1596,9 @@ bool SrsRtcFrameBuilderVideoFrameDetector::is_lost_sn(uint16_t received)
 SrsRtcFrameBuilderAudioPacketCache::SrsRtcFrameBuilderAudioPacketCache()
 {
     last_audio_seq_num_ = 0;
-    last_audio_process_time_ms_ = 0;
+    last_audio_process_time_ = 0;
+    initialized_ = false;
+    timeout_ = MAX_AUDIO_WAIT_MS * SRS_UTIME_MILLISECONDS; // Default timeout in microseconds
 }
 
 SrsRtcFrameBuilderAudioPacketCache::~SrsRtcFrameBuilderAudioPacketCache()
@@ -1604,17 +1606,22 @@ SrsRtcFrameBuilderAudioPacketCache::~SrsRtcFrameBuilderAudioPacketCache()
     clear_all();
 }
 
+void SrsRtcFrameBuilderAudioPacketCache::set_timeout(srs_utime_t timeout)
+{
+    timeout_ = timeout;
+}
+
 srs_error_t SrsRtcFrameBuilderAudioPacketCache::process_packet(SrsRtpPacket* src, std::vector<SrsRtpPacket*>& ready_packets)
 {
     srs_error_t err = srs_success;
 
     uint16_t seq = src->header.get_sequence();
-    int64_t now = srs_get_system_time() / 1000;
+    srs_utime_t now = srs_update_system_time();
 
-    // Initialize if this is the first packet
-    if (audio_buffer_.empty()) {
+    if (!initialized_) {
         last_audio_seq_num_ = seq - 1;
-        last_audio_process_time_ms_ = now;
+        last_audio_process_time_ = now;
+        initialized_ = true;
     }
 
     // Check if packet is too old (already processed)
@@ -1624,11 +1631,18 @@ srs_error_t SrsRtcFrameBuilderAudioPacketCache::process_packet(SrsRtpPacket* src
     }
 
     // Store packet in jitter buffer
-    audio_buffer_[seq] = src->copy();
+    if (true) {
+        std::map<uint16_t, SrsRtpPacket*>::iterator it = audio_buffer_.find(seq);
+        if (it != audio_buffer_.end()) {
+            SrsRtpPacket* pkt = it->second;
+            srs_freep(pkt);
+        }
+        audio_buffer_[seq] = src->copy();
+    }
 
     // Try to process packets in the sliding window
     bool force_process = audio_buffer_.size() >= AUDIO_JITTER_BUFFER_SIZE ||
-        (now - last_audio_process_time_ms_) > MAX_AUDIO_WAIT_MS;
+        (now - last_audio_process_time_) > timeout_;
     uint16_t window_end = last_audio_seq_num_ + SLIDING_WINDOW_SIZE;
 
     while (!audio_buffer_.empty()) {
@@ -1647,7 +1661,7 @@ srs_error_t SrsRtcFrameBuilderAudioPacketCache::process_packet(SrsRtpPacket* src
                 break;
             } else if (srs_rtp_seq_distance(last_audio_seq_num_, next_seq) > 1) {
                 // If there's a gap and we haven't exceeded wait time, wait for missing packets
-                if ((now - last_audio_process_time_ms_) <= MAX_AUDIO_WAIT_MS) {
+                if ((now - last_audio_process_time_) <= timeout_) {
                     break;
                 }
                 srs_warn("Audio packet loss, expected=%u, got=%u", last_audio_seq_num_ + 1, next_seq);
@@ -1660,7 +1674,7 @@ srs_error_t SrsRtcFrameBuilderAudioPacketCache::process_packet(SrsRtpPacket* src
 
         // Update last sequence number
         last_audio_seq_num_ = next_seq;
-        last_audio_process_time_ms_ = now;
+        last_audio_process_time_ = now;
 
         // Add to ready packets for processing
         ready_packets.push_back(pkt);
@@ -1684,6 +1698,7 @@ void SrsRtcFrameBuilderAudioPacketCache::clear_all()
         SrsRtpPacket* pkt = it->second;
         srs_freep(pkt);
     }
+    
     audio_buffer_.clear();
 }
 
