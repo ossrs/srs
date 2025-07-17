@@ -391,6 +391,7 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
 
     string upath = r->path();
     string fullpath = srs_http_fs_fullpath(dir, entry->pattern, upath);
+    string basename = srs_path_basename(upath);
 
     // stat current dir, if exists, return error.
     if (!_srs_path_exists(fullpath)) {
@@ -400,18 +401,16 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
     }
     srs_trace("http match file=%s, pattern=%s, upath=%s",
               fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
-    
+
     // handle file according to its extension.
     // use vod stream for .flv/.fhv
-    if (srs_string_ends_with(fullpath, ".flv") || srs_string_ends_with(fullpath, ".fhv")) {
+    if (srs_string_ends_with(upath, ".flv", ".fhv")) {
         return serve_flv_file(w, r, fullpath);
     } else if (srs_string_ends_with(upath, ".m3u8")) {
         return serve_m3u8_file(w, r, fullpath);
-    } else if (srs_string_ends_with(upath, ".ts") ||
-               srs_string_ends_with(upath, ".m4s") ||
-               srs_path_basename(upath) == "init.mp4") {
+    } else if (srs_string_ends_with(upath, ".ts", ".m4s") || basename == "init.mp4") {
         return serve_ts_file(w, r, fullpath);
-    } else if (srs_string_ends_with(fullpath, ".mp4")) {
+    } else if (srs_string_ends_with(upath, ".mp4")) {
         return serve_mp4_file(w, r, fullpath);
     } 
     

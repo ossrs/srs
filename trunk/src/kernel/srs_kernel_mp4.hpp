@@ -2590,6 +2590,8 @@ private:
     uint64_t mdat_video_bytes_;
     SrsMp4SampleManager* audio_samples_;
     SrsMp4SampleManager* video_samples_;
+private:
+    // Encryption
     unsigned char* key_;
     unsigned char iv_[16];
     bool do_sample_encryption_;

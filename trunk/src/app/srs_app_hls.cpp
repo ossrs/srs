@@ -91,11 +91,14 @@ SrsInitMp4Segment::~SrsInitMp4Segment()
 srs_error_t SrsInitMp4Segment::config_cipher(unsigned char* kid, unsigned char* const_iv, uint8_t const_iv_size)
 {
     if (const_iv_size != 8 && const_iv_size != 16) {
-        return srs_error_new(ERROR_MP4_BOX_STRING, "invalidate const_iv_size");
+        return srs_error_new(ERROR_MP4_BOX_STRING, "invalidate const_iv_size=%d", const_iv_size);
     }
+
     memcpy(kid_, kid, 16);
     memcpy(const_iv_, const_iv, const_iv_size);
     const_iv_size_ = const_iv_size;
+
+    // CBCS encryption: For example, 1 encrypt block, 9 skip blocks (10% encryption)
     init_.config_encryption(1, 9, kid_, const_iv, const_iv_size);
 
     return srs_success;

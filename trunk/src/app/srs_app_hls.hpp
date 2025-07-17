@@ -69,21 +69,20 @@ class SrsInitMp4Segment : public SrsFragment
 private:
     SrsFileWriter* fw_;
     SrsMp4M2tsInitEncoder init_;
-
+private:
+    // Key ID for encryption
     unsigned char kid_[16];
+    // Constant IV for encryption
     unsigned char const_iv_[16];
+    // IV size (8 or 16 bytes)
     uint8_t const_iv_size_;
-    
 public:
     SrsInitMp4Segment(SrsFileWriter* fw);
     virtual ~SrsInitMp4Segment();
-
 public:
-
     virtual srs_error_t config_cipher(unsigned char* kid, unsigned char* const_iv, uint8_t const_iv_size);
     // Write the init mp4 file, with the v_tid(video track id) and a_tid (audio track id).
     virtual srs_error_t write(SrsFormat* format, int v_tid, int a_tid);
-
     virtual srs_error_t write_video_only(SrsFormat* format, int v_tid);
     virtual srs_error_t write_audio_only(SrsFormat* format, int a_tid);
 private:
@@ -101,15 +100,16 @@ public:
     std::string uri;
     // sequence number in m3u8.
     int sequence_no;
-    // Will be saved in m3u8 file.
+    // IV for encryption, saved in m3u8 file.
     unsigned char iv[16];
 public:
     SrsHlsM4sSegment(SrsFileWriter* fw);
     virtual ~SrsHlsM4sSegment();
-
+public:
     virtual srs_error_t initialize(int64_t time, uint32_t v_tid, uint32_t a_tid, int sequence_number, std::string m4s_path);
     virtual void config_cipher(unsigned char* key, unsigned char* iv);
     virtual srs_error_t write(SrsSharedPtrMessage* shared_msg, SrsFormat* format);
+    // Finalizes segment
     virtual srs_error_t reap(uint64_t dts);
 };
 
@@ -337,7 +337,6 @@ private:
     SrsFragmentWindow* segments_;
     // The current writing segment.
     SrsHlsM4sSegment* current_;
-
 private:
     // Latest audio codec, parsed from stream.
     SrsAudioCodecId latest_acodec_;
@@ -363,11 +362,11 @@ public:
     virtual srs_error_t initialize(int v_tid, int a_tid);
     // When publish or unpublish stream.
     virtual srs_error_t on_publish(SrsRequest* req);
-
+public:
     virtual srs_error_t write_init_mp4(SrsFormat* format, bool has_video, bool has_audio);
     virtual srs_error_t write_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     virtual srs_error_t write_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
-
+public:
     virtual srs_error_t on_unpublish();
     // When publish, update the config for muxer.
     virtual srs_error_t update_config(SrsRequest* r);
@@ -383,10 +382,6 @@ public:
     // that is whether the current segment duration>=2*(the segment in config)
     virtual bool is_segment_absolutely_overflow();
 public:
-    // Whether current hls muxer is pure audio mode.
-//    virtual bool pure_audio();
-//    virtual srs_error_t flush_audio(SrsTsMessageCache* cache);
-//    virtual srs_error_t flush_video(SrsTsMessageCache* cache);
     // When flushing video or audio, we update the duration. But, we should also update the
     // duration before closing the segment. Keep in mind that it's fine to update the duration
     // several times using the same dts timestamp.
@@ -406,17 +401,16 @@ class ISrsHlsController
 public:
     ISrsHlsController();
     virtual ~ISrsHlsController();
-
 public:
     virtual srs_error_t initialize() = 0;
     virtual void dispose() = 0;
     // When publish or unpublish stream.
     virtual srs_error_t on_publish(SrsRequest* req) = 0;
     virtual srs_error_t on_unpublish() = 0;
-
+public:
     virtual srs_error_t write_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format) = 0;
     virtual srs_error_t write_video(SrsSharedPtrMessage* shared_video, SrsFormat* format) = 0;
-
+public:
     virtual srs_error_t on_sequence_header(SrsSharedPtrMessage* msg, SrsFormat* format) = 0;
     virtual int sequence_no() = 0;
     // TODO: maybe rename to segment_url?
@@ -492,23 +486,21 @@ class SrsHlsMp4Controller : public ISrsHlsController
 private:
     bool has_video_sh_;
     bool has_audio_sh_;
-
+private:
     int video_track_id_;
     int audio_track_id_;
-
+private:
     // Current audio dts.
     uint64_t audio_dts_;
     // Current video dts.
     uint64_t video_dts_;
-
+private:
     SrsRequest* req_;
-
+private:
     SrsHlsFmp4Muxer* muxer_;
-    
 public:
     SrsHlsMp4Controller();
     virtual ~SrsHlsMp4Controller();
-
 public:
     virtual srs_error_t initialize();
     virtual void dispose();
@@ -517,7 +509,7 @@ public:
     virtual srs_error_t on_unpublish();
     virtual srs_error_t write_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     virtual srs_error_t write_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
-
+public:
     virtual srs_error_t on_sequence_header(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     virtual int sequence_no();
     virtual std::string ts_url();
@@ -545,7 +537,6 @@ private:
     bool reloading_;
     // To detect heartbeat and dispose it if configured.
     srs_utime_t last_update_time;
-
 private:
     SrsOriginHub* hub;
     SrsRtmpJitter* jitter;
