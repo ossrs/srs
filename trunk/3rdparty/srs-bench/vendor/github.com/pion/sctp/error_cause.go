@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -6,7 +9,7 @@ import (
 	"fmt"
 )
 
-// errorCauseCode is a cause code that appears in either a ERROR or ABORT chunk
+// errorCauseCode is a cause code that appears in either a ERROR or ABORT chunk.
 type errorCauseCode uint16
 
 type errorCause interface {
@@ -18,34 +21,34 @@ type errorCause interface {
 	errorCauseCode() errorCauseCode
 }
 
-// Error and abort chunk errors
+// Error and abort chunk errors.
 var (
 	ErrBuildErrorCaseHandle = errors.New("BuildErrorCause does not handle")
 )
 
-// buildErrorCause delegates the building of a error cause from raw bytes to the correct structure
+// buildErrorCause delegates the building of a error cause from raw bytes to the correct structure.
 func buildErrorCause(raw []byte) (errorCause, error) {
-	var e errorCause
+	var errCause errorCause
 
 	c := errorCauseCode(binary.BigEndian.Uint16(raw[0:]))
 	switch c {
 	case invalidMandatoryParameter:
-		e = &errorCauseInvalidMandatoryParameter{}
+		errCause = &errorCauseInvalidMandatoryParameter{}
 	case unrecognizedChunkType:
-		e = &errorCauseUnrecognizedChunkType{}
+		errCause = &errorCauseUnrecognizedChunkType{}
 	case protocolViolation:
-		e = &errorCauseProtocolViolation{}
+		errCause = &errorCauseProtocolViolation{}
 	case userInitiatedAbort:
-		e = &errorCauseUserInitiatedAbort{}
+		errCause = &errorCauseUserInitiatedAbort{}
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrBuildErrorCaseHandle, c.String())
 	}
 
-	if err := e.unmarshal(raw); err != nil {
+	if err := errCause.unmarshal(raw); err != nil {
 		return nil, err
 	}
 
-	return e, nil
+	return errCause, nil
 }
 
 const (
@@ -64,7 +67,7 @@ const (
 	protocolViolation                      errorCauseCode = 13
 )
 
-func (e errorCauseCode) String() string {
+func (e errorCauseCode) String() string { //nolint:cyclop
 	switch e {
 	case invalidStreamIdentifier:
 		return "Invalid Stream Identifier"

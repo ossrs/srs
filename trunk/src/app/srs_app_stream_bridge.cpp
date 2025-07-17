@@ -13,6 +13,9 @@
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_core_autofree.hpp>
+#ifdef SRS_RTSP
+#include <srs_app_rtsp_source.hpp>
+#endif
 
 #include <vector>
 using namespace std;
@@ -68,35 +71,9 @@ SrsFrameToRtcBridge::SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source)
     source_ = source;
 
 #if defined(SRS_FFMPEG_FIT)
-    uint32_t audio_ssrc = 0;
-    uint8_t audio_payload_type = 0;
-    uint32_t video_ssrc = 0;
-    uint8_t video_payload_type = 0;
-
-    // audio track ssrc
-    if (true) {
-        std::vector<SrsRtcTrackDescription*> descs = source->get_track_desc("audio", "opus");
-        if (!descs.empty()) {
-            audio_ssrc = descs.at(0)->ssrc_;
-        }
-        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
-        audio_payload_type = descs.empty() ? kAudioPayloadType : descs.front()->media_->pt_;
-    }
-
-    // video track ssrc
-    if (true) {
-        std::vector<SrsRtcTrackDescription*> descs = source->get_track_desc("video", "");
-        if (!descs.empty()) {
-            video_ssrc = descs.at(0)->ssrc_;
-        }
-        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
-        video_payload_type = descs.empty() ? kVideoPayloadType : descs.front()->media_->pt_;
-    }
-
-    rtp_builder_ = new SrsRtcRtpBuilder(this, audio_ssrc, audio_payload_type, video_ssrc, video_payload_type);
+    // Use lazy initialization - no need to determine codec/track parameters here
+    rtp_builder_ = new SrsRtcRtpBuilder(this, source);
 #endif
-
-    video_codec_id_ = SrsVideoCodecIdReserved;
 }
 
 SrsFrameToRtcBridge::~SrsFrameToRtcBridge()
@@ -158,38 +135,61 @@ srs_error_t SrsFrameToRtcBridge::on_rtp(SrsRtpPacket* pkt)
     return source_->on_rtp(pkt);
 }
 
-srs_error_t SrsFrameToRtcBridge::update_codec(SrsVideoCodecId id)
+#endif
+
+#ifdef SRS_RTSP
+SrsFrameToRtspBridge::SrsFrameToRtspBridge(SrsSharedPtr<SrsRtspSource> source)
+{
+    source_ = source;
+
+    // Use lazy initialization - no need to determine codec/track parameters here
+    rtp_builder_ = new SrsRtspRtpBuilder(this, source);
+}
+
+SrsFrameToRtspBridge::~SrsFrameToRtspBridge()
+{
+    srs_freep(rtp_builder_);
+}
+
+srs_error_t SrsFrameToRtspBridge::initialize(SrsRequest* r)
+{
+    return rtp_builder_->initialize(r);
+}
+
+srs_error_t SrsFrameToRtspBridge::on_publish()
 {
     srs_error_t err = srs_success;
 
-    if (video_codec_id_ == id) {
-        return err;
+    // TODO: FIXME: Should sync with bridge?
+    if ((err = source_->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "source publish");
     }
 
-    std::vector<SrsRtcTrackDescription*> video_track_descs = source_->get_track_desc("video", "");
-    if (video_track_descs.empty()) {
-        return srs_error_new(ERROR_RTC_NO_TRACK, "no track found for conversion");
+    if ((err = rtp_builder_->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "rtp builder publish");
     }
-
-    SrsRtcTrackDescription* video_track_desc = video_track_descs.at(0);
-    SrsVideoPayload* video_payload = (SrsVideoPayload*)video_track_desc->media_;
-    
-    if (id == SrsVideoCodecIdHEVC) {
-        video_payload->name_ = "H265";
-        video_payload->set_h265_param_desc("level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST");
-    } else {
-        video_payload->name_ = "H264";
-        video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
-    }
-
-    srs_trace("RTC: Switch video codec %d(%s) to %d(%s)", video_codec_id_, srs_video_codec_id2str(video_codec_id_).c_str(),
-            id, srs_video_codec_id2str(id).c_str());
-
-    video_codec_id_ = id;
 
     return err;
 }
 
+void SrsFrameToRtspBridge::on_unpublish()
+{
+    rtp_builder_->on_unpublish();
+
+    // @remark This bridge might be disposed here, so never use it.
+    // TODO: FIXME: Should sync with bridge?
+    source_->on_unpublish();
+}
+
+srs_error_t SrsFrameToRtspBridge::on_frame(SrsSharedPtrMessage* frame)
+{
+    return rtp_builder_->on_frame(frame);
+}
+
+srs_error_t SrsFrameToRtspBridge::on_rtp(SrsRtpPacket* pkt)
+{
+    return source_->on_rtp(pkt);
+}
 #endif
 
 SrsCompositeBridge::SrsCompositeBridge()

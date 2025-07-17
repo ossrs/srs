@@ -12,6 +12,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_rtsp_stack.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_st.hpp>
 #include <srs_protocol_amf0.hpp>
@@ -20,6 +21,10 @@ using namespace std;
 #include <srs_protocol_protobuf.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_core_deprecated.hpp>
+
+#ifdef SRS_RTC
+#include <srs_app_rtc_sdp.hpp>
+#endif
 
 MockEmptyIO::MockEmptyIO()
 {
@@ -3615,4 +3620,634 @@ VOID TEST(ProtocolRTMPTest, RTMPHandshakeBytes)
     HELPER_EXPECT_SUCCESS(bytes.read_s0s1s2(&bio));
     EXPECT_TRUE(bytes.s0s1s2 != NULL);
 }
+
+#ifdef SRS_RTSP
+VOID TEST(ProtocolRTSPTest, RTSPRequest)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsRtspStack stack(&bio);
+
+    // OPTIONS
+    if (true) {
+        const char* options_req = 
+            "OPTIONS rtsp://server.example.com/stream RTSP/1.0\r\n"
+            "CSeq: 1\r\n"
+            "User-Agent: SRS RTSP Client\r\n\r\n";
+        bio.in_buffer.append(options_req, strlen(options_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        
+        EXPECT_TRUE(req->is_options());
+        EXPECT_STREQ("OPTIONS", req->method.c_str());
+        EXPECT_STREQ("rtsp://server.example.com/stream", req->uri.c_str());
+        EXPECT_STREQ("RTSP/1.0", req->version.c_str());
+        EXPECT_EQ(1, req->seq);
+        EXPECT_STREQ("SRS RTSP Client", req->user_agent.c_str());
+
+        SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse(req->seq);
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 200 OK") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 1") != string::npos);
+        EXPECT_TRUE(response.find("Public:") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+
+    // DESCRIBE
+    if (true) {
+        const char* describe_req = 
+            "DESCRIBE rtsp://server.example.com/stream RTSP/1.0\r\n"
+            "CSeq: 2\r\n"
+            "Accept: application/sdp\r\n\r\n";
+        bio.in_buffer.append(describe_req, strlen(describe_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+
+        EXPECT_TRUE(req->is_describe());
+        EXPECT_STREQ("DESCRIBE", req->method.c_str());
+        EXPECT_EQ(2, req->seq);
+        EXPECT_STREQ("application/sdp", req->accept.c_str());
+        
+        SrsRtspDescribeResponse* res = new SrsRtspDescribeResponse(req->seq);
+        res->sdp = "v=0\r\n"
+                   "o=- 123456 0 IN IP4 127.0.0.1\r\n"
+                   "s=SRS RTSP Server\r\n"
+                   "c=IN IP4 127.0.0.1\r\n"
+                   "t=0 0\r\n"
+                   "m=video 0 RTP/AVP 96\r\n"
+                   "a=rtpmap:96 H264/90000\r\n";
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 200 OK") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 2") != string::npos);
+        EXPECT_TRUE(response.find("Content-Type: application/sdp") != string::npos);
+        EXPECT_TRUE(response.find("m=video 0 RTP/AVP 96") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+
+    // SETUP
+    if (true) {
+        const char* setup_req = 
+            "SETUP rtsp://server.example.com/stream/trackID=0 RTSP/1.0\r\n"
+            "CSeq: 3\r\n"
+            "Transport: RTP/AVP;unicast;client_port=9000-9001\r\n\r\n";
+        bio.in_buffer.append(setup_req, strlen(setup_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        
+        EXPECT_TRUE(req->is_setup());
+        EXPECT_STREQ("SETUP", req->method.c_str());
+        EXPECT_EQ(3, req->seq);
+        EXPECT_TRUE(req->transport != NULL);
+        EXPECT_STREQ("RTP", req->transport->transport.c_str());
+        EXPECT_STREQ("AVP", req->transport->profile.c_str());
+        EXPECT_STREQ("unicast", req->transport->cast_type.c_str());
+        EXPECT_EQ(9000, req->transport->client_port_min);
+        EXPECT_EQ(9001, req->transport->client_port_max);
+        EXPECT_EQ(0, req->stream_id);
+
+        SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
+        res->session = "12345678";
+        res->client_port_min = 9000;
+        res->client_port_max = 9001;
+        res->local_port_min = 5000;
+        res->local_port_max = 5001;
+        res->transport->transport = "RTP";
+        res->transport->profile = "AVP";
+        res->transport->cast_type = "unicast";
+        res->ssrc = "1234ABCD";
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 200 OK") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 3") != string::npos);
+        EXPECT_TRUE(response.find("Transport: RTP/AVP;unicast;client_port=9000-9001;server_port=5000-5001;ssrc=1234ABCD;mode=\"play\"") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+
+    // PLAY
+    if (true) {
+        const char* play_req = 
+            "PLAY rtsp://server.example.com/stream RTSP/1.0\r\n"
+            "CSeq: 4\r\n"
+            "Session: 12345678\r\n"
+            "Range: npt=0.000-\r\n\r\n";
+        bio.in_buffer.append(play_req, strlen(play_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+
+        EXPECT_TRUE(req->is_play());
+        EXPECT_STREQ("PLAY", req->method.c_str());
+        EXPECT_EQ(4, req->seq);
+        EXPECT_STREQ("12345678", req->session.c_str());
+        EXPECT_STREQ("npt=0.000-", req->range.c_str());
+
+        SrsRtspPlayResponse* res = new SrsRtspPlayResponse(req->seq);
+        res->session = req->session;
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 200 OK") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 4") != string::npos);
+        EXPECT_TRUE(response.find("Session: 12345678") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+
+    // TEARDOWN
+    if (true) {
+        const char* teardown_req = 
+            "TEARDOWN rtsp://server.example.com/stream RTSP/1.0\r\n"
+            "CSeq: 5\r\n"
+            "Session: 12345678\r\n\r\n";
+        bio.in_buffer.append(teardown_req, strlen(teardown_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+
+        EXPECT_TRUE(req->is_teardown());
+        EXPECT_STREQ("TEARDOWN", req->method.c_str());
+        EXPECT_EQ(5, req->seq);
+        EXPECT_STREQ("12345678", req->session.c_str());
+
+        SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+        res->session = req->session;
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 200 OK") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 5") != string::npos);
+        EXPECT_TRUE(response.find("Session: 12345678") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+}
+
+// Test TCP-only transport support
+VOID TEST(ProtocolRTSPTest, RTSPTcpOnlyTransport)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsRtspStack stack(&bio);
+
+    // Test TCP transport (should succeed)
+    if (true) {
+        const char* tcp_setup_req =
+            "SETUP rtsp://server.example.com/stream/trackID=0 RTSP/1.0\r\n"
+            "CSeq: 3\r\n"
+            "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n\r\n";
+        bio.in_buffer.append(tcp_setup_req, strlen(tcp_setup_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+
+        EXPECT_TRUE(req->is_setup());
+        EXPECT_STREQ("SETUP", req->method.c_str());
+        EXPECT_EQ(3, req->seq);
+        EXPECT_TRUE(req->transport != NULL);
+        EXPECT_STREQ("RTP", req->transport->transport.c_str());
+        EXPECT_STREQ("AVP", req->transport->profile.c_str());
+        EXPECT_STREQ("TCP", req->transport->lower_transport.c_str());
+        EXPECT_STREQ("unicast", req->transport->cast_type.c_str());
+        EXPECT_EQ(0, req->transport->interleaved_min);
+        EXPECT_EQ(1, req->transport->interleaved_max);
+
+        SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
+        res->session = "12345678";
+        res->transport->copy(req->transport);
+        res->ssrc = "1234ABCD";
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 200 OK") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 3") != string::npos);
+        EXPECT_TRUE(response.find("Transport: RTP/AVP/TCP;unicast;interleaved=0-1;ssrc=1234ABCD;mode=\"play\"") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+
+    // Test UDP transport (should be rejected with 461 Unsupported Transport)
+    if (true) {
+        const char* udp_setup_req =
+            "SETUP rtsp://server.example.com/stream/trackID=0 RTSP/1.0\r\n"
+            "CSeq: 4\r\n"
+            "Transport: RTP/AVP;unicast;client_port=9000-9001\r\n\r\n";
+        bio.in_buffer.append(udp_setup_req, strlen(udp_setup_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+
+        EXPECT_TRUE(req->is_setup());
+        EXPECT_STREQ("SETUP", req->method.c_str());
+        EXPECT_EQ(4, req->seq);
+        EXPECT_TRUE(req->transport != NULL);
+        EXPECT_STREQ("RTP", req->transport->transport.c_str());
+        EXPECT_STREQ("AVP", req->transport->profile.c_str());
+        EXPECT_STREQ("", req->transport->lower_transport.c_str()); // UDP has empty lower_transport
+        EXPECT_STREQ("unicast", req->transport->cast_type.c_str());
+        EXPECT_EQ(9000, req->transport->client_port_min);
+        EXPECT_EQ(9001, req->transport->client_port_max);
+
+        // Simulate server rejecting UDP transport
+        SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
+        res->status = SRS_CONSTS_RTSP_UnsupportedTransport;
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 461 Unsupported Transport") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 4") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+}
+
+#ifdef SRS_RTC
+// Test SDP advertisement of TCP-only transport
+VOID TEST(ProtocolRTSPTest, RTSPSdpTcpOnlyAdvertisement)
+{
+    srs_error_t err;
+
+    // Test that SDP properly advertises TCP-only transport
+    if (true) {
+        // Simulate SDP generation for TCP-only RTSP
+        SrsSdp sdp;
+        sdp.version_ = "0";
+        sdp.username_ = "SRS RTSP Server";
+        sdp.session_name_ = "Play";
+        sdp.session_info_.setup_ = "passive";  // TCP-only indication
+
+        // Add audio media with TCP transport
+        SrsMediaDesc media_audio("audio");
+        media_audio.port_ = 0;  // Port 0 = no UDP
+        media_audio.protos_ = "RTP/AVP/TCP";  // TCP transport
+        media_audio.session_info_.setup_ = "passive";
+        media_audio.payload_types_.push_back(SrsMediaPayloadType(111));
+        sdp.media_descs_.push_back(media_audio);
+
+        // Add video media with TCP transport
+        SrsMediaDesc media_video("video");
+        media_video.port_ = 0;  // Port 0 = no UDP
+        media_video.protos_ = "RTP/AVP/TCP";  // TCP transport
+        media_video.session_info_.setup_ = "passive";
+        media_video.payload_types_.push_back(SrsMediaPayloadType(96));
+        sdp.media_descs_.push_back(media_video);
+
+        // Encode SDP
+        std::ostringstream ss;
+        err = sdp.encode(ss);
+        HELPER_EXPECT_SUCCESS(err);
+
+        string sdp_content = ss.str();
+
+        // Verify TCP-only indicators in SDP
+        EXPECT_TRUE(sdp_content.find("a=setup:passive") != string::npos);  // Session-level TCP setup
+        EXPECT_TRUE(sdp_content.find("m=audio 0 RTP/AVP/TCP") != string::npos);  // Audio TCP transport
+        EXPECT_TRUE(sdp_content.find("m=video 0 RTP/AVP/TCP") != string::npos);  // Video TCP transport
+
+        // Verify no UDP port allocation
+        EXPECT_FALSE(sdp_content.find("m=audio 9") != string::npos);  // No UDP audio ports
+        EXPECT_FALSE(sdp_content.find("m=video 9") != string::npos);  // No UDP video ports
+
+        srs_trace("Generated TCP-only SDP:\n%s", sdp_content.c_str());
+    }
+}
+#endif
+
+// Invalid RTSP Request
+VOID TEST(ProtocolRTSPTest, RTSPInvalidRequest)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsRtspStack stack(&bio);
+
+    if (true) {
+        // Invalid request missing RTSP version
+        const char* invalid_req = 
+            "OPTIONS rtsp://server.example.com/stream\r\n"
+            "CSeq: 1\r\n\r\n";
+        bio.in_buffer.append(invalid_req, strlen(invalid_req));
+
+        SrsRtspRequest* req = NULL;
+        err = stack.recv_message(&req);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(req);
+        srs_error_reset(err);
+
+        bio.in_buffer.erase(bio.in_buffer.length());
+    }
+
+    if (true) {
+        // Invalid method name
+        const char* invalid_method_req = 
+            "INVALID_METHOD rtsp://server.example.com/stream RTSP/1.0\r\n"
+            "CSeq: 1\r\n\r\n";
+        bio.in_buffer.append(invalid_method_req, strlen(invalid_method_req));
+
+        SrsRtspRequest* req = NULL;
+        err = stack.recv_message(&req);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(req);
+        srs_error_reset(err);
+
+        bio.in_buffer.erase(bio.in_buffer.length());
+    }
+
+    if (true) {
+        // Missing CSeq header
+        const char* missing_cseq_req = 
+            "DESCRIBE rtsp://server.example.com/stream RTSP/1.0\r\n"
+            "Accept: application/sdp\r\n\r\n";
+        bio.in_buffer.append(missing_cseq_req, strlen(missing_cseq_req));
+
+        SrsRtspRequest* req = NULL;
+        err = stack.recv_message(&req);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(req);
+        srs_error_reset(err);
+
+        bio.in_buffer.erase(bio.in_buffer.length());
+    }
+
+    if (true) {
+        // SETUP request missing Transport header
+        const char* missing_transport_req = 
+            "SETUP rtsp://server.example.com/stream/trackID=0 RTSP/1.0\r\n"
+            "CSeq: 3\r\n\r\n";
+        bio.in_buffer.append(missing_transport_req, strlen(missing_transport_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        
+        EXPECT_TRUE(req->is_setup());
+        EXPECT_TRUE(req->transport == NULL);
+    }
+
+    if (true) {
+        // Invalid client port format
+        const char* invalid_port_req = 
+            "SETUP rtsp://server.example.com/stream/trackID=0 RTSP/1.0\r\n"
+            "CSeq: 3\r\n"
+            "Transport: RTP/AVP;unicast;client_port=invalid\r\n\r\n";
+        bio.in_buffer.append(invalid_port_req, strlen(invalid_port_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        
+        EXPECT_TRUE(req->is_setup());
+        EXPECT_TRUE(req->transport != NULL);
+        // Invalid port will be parsed as 0
+        EXPECT_EQ(0, req->transport->client_port_min);
+        EXPECT_EQ(0, req->transport->client_port_max);
+    }
+
+    if (true) {
+        // Missing transport protocol
+        const char* missing_proto_req = 
+            "SETUP rtsp://server.example.com/stream/trackID=0 RTSP/1.0\r\n"
+            "CSeq: 4\r\n"
+            "Transport: ;unicast;client_port=9000-9001\r\n\r\n";
+        bio.in_buffer.append(missing_proto_req, strlen(missing_proto_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        
+        EXPECT_TRUE(req->is_setup());
+        EXPECT_TRUE(req->transport != NULL);
+        // Transport field is empty
+        EXPECT_STREQ("", req->transport->transport.c_str());
+        EXPECT_STREQ("", req->transport->profile.c_str());
+        EXPECT_STREQ("", req->transport->lower_transport.c_str());
+        EXPECT_STREQ("unicast", req->transport->cast_type.c_str());
+        EXPECT_EQ(9000, req->transport->client_port_min);
+        EXPECT_EQ(9001, req->transport->client_port_max);
+    }
+
+    if (true) {
+        // Try PLAY without session ID
+        const char* no_session_play_req = 
+            "PLAY rtsp://server.example.com/stream RTSP/1.0\r\n"
+            "CSeq: 4\r\n"
+            "Range: npt=0.000-\r\n\r\n";
+        bio.in_buffer.append(no_session_play_req, strlen(no_session_play_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        
+        EXPECT_TRUE(req->is_play());
+        EXPECT_STREQ("", req->session.c_str()); // 会话ID为空
+
+        // Should return 454 Session Not Found error
+        SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+        res->status = SRS_CONSTS_RTSP_SessionNotFound;
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 454 Session Not Found") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 4") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+
+    if (true) {
+        // Use invalid session ID
+        const char* invalid_session_req = 
+            "PLAY rtsp://server.example.com/stream RTSP/1.0\r\n"
+            "CSeq: 5\r\n"
+            "Session: invalid_session_id\r\n\r\n";
+        bio.in_buffer.append(invalid_session_req, strlen(invalid_session_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        
+        EXPECT_TRUE(req->is_play());
+        EXPECT_STREQ("invalid_session_id", req->session.c_str());
+
+        // Should return 454 Session Not Found error
+        SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+        res->status = SRS_CONSTS_RTSP_SessionNotFound;
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 454 Session Not Found") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 5") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+
+    if (true) {
+        // Request with custom headers
+        const char* custom_headers_req = 
+            "OPTIONS rtsp://server.example.com/stream RTSP/1.0\r\n"
+            "CSeq: 7\r\n"
+            "X-Custom-Header1: CustomValue1\r\n"
+            "X-Custom-Header2: CustomValue2\r\n"
+            "X-Custom-Header3: CustomValue3\r\n"
+            "User-Agent: CustomUserAgent\r\n\r\n";
+        bio.in_buffer.append(custom_headers_req, strlen(custom_headers_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        
+        EXPECT_TRUE(req->is_options());
+        EXPECT_EQ(7, req->seq);
+        // Custom headers will be ignored
+        EXPECT_STREQ("CustomUserAgent", req->user_agent.c_str());
+
+        SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse(req->seq);
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 200 OK") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 7") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+
+    if (true) {
+        // Use invalid RTSP version
+        const char* invalid_version_req = 
+            "OPTIONS rtsp://server.example.com/stream RTSP/2.0\r\n"
+            "CSeq: 1\r\n\r\n";
+        bio.in_buffer.append(invalid_version_req, strlen(invalid_version_req));
+
+        SrsRtspRequest* req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        
+        EXPECT_TRUE(req->is_options());
+        EXPECT_STREQ("RTSP/2.0", req->version.c_str()); // Different version but still parsed
+
+        // Should return RTSP version not supported error
+        SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+        res->status = SRS_CONSTS_RTSP_RTSPVersionNotSupported;
+        HELPER_ASSERT_SUCCESS(stack.send_message(res));
+
+        string response = std::string(bio.out_buffer.bytes(), bio.out_buffer.length());
+        EXPECT_TRUE(response.find("RTSP/1.0 505 RTSP Version Not Supported") != string::npos);
+        EXPECT_TRUE(response.find("CSeq: 1") != string::npos);
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+}
+
+VOID TEST(ProtocolRTSPTest, RTSPConsumeRTCPThenRTSP)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsRtspStack stack(&bio);
+
+    if (true) {
+        // Create data with RTCP packet followed by RTSP message
+        string combined_data;
+
+        // RTCP RR payload
+        unsigned char rtcp_payload[] = {
+            0x81,       // V=2, P=0, RC=1
+            0xC9,       // PT=201 (RR)
+            0x00, 0x07, // Length=7 (32-bit words)
+            0x12, 0x34, 0x56, 0x78, // SSRC of packet sender
+            0x87, 0x65, 0x43, 0x21, // SSRC_1 (source being reported on)
+            0x00,       // fraction lost
+            0x00, 0x00, 0x00, // cumulative number of packets lost
+            0x00, 0x00, 0x12, 0x34, // extended highest sequence number
+            0x00, 0x00, 0x00, 0x10, // interarrival jitter
+            0x00, 0x00, 0x00, 0x20, // last SR timestamp (LSR)
+            0x00, 0x00, 0x00, 0x30  // delay since last SR (DLSR)
+        };
+
+        // Create RTSP over TCP frame: $ + channel + length + payload
+        unsigned char tcp_frame[4 + sizeof(rtcp_payload)];
+        tcp_frame[0] = '$';                                    // Magic byte
+        tcp_frame[1] = 1;                                      // Channel 1 (RTCP)
+        tcp_frame[2] = (sizeof(rtcp_payload) >> 8) & 0xFF;    // Length high byte
+        tcp_frame[3] = sizeof(rtcp_payload) & 0xFF;            // Length low byte
+        memcpy(tcp_frame + 4, rtcp_payload, sizeof(rtcp_payload));
+
+        // RTSP OPTIONS message
+        string rtsp_msg = "OPTIONS rtsp://example.com/stream RTSP/1.0\r\n"
+                          "CSeq: 1\r\n"
+                          "\r\n";
+
+        // Combine RTCP frame and RTSP data
+        combined_data.append((char*)tcp_frame, sizeof(tcp_frame));
+        combined_data.append(rtsp_msg);
+
+        bio.in_buffer.append(combined_data.c_str(), combined_data.length());
+
+        // Should successfully receive RTSP message after consuming RTCP
+        SrsRtspRequest* req = NULL;
+        HELPER_EXPECT_SUCCESS(stack.recv_message(&req));
+        EXPECT_TRUE(req != NULL);
+        if (req != NULL) {
+            EXPECT_TRUE(req->is_options());
+            EXPECT_EQ(1, req->seq);
+        }
+
+        srs_freep(req);
+        bio.in_buffer.erase(bio.in_buffer.length());
+    }
+}
+
+VOID TEST(ProtocolRTSPTest, RTSPNotRTCPPacket)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsRtspStack stack(&bio);
+
+    if (true) {
+        // Regular RTSP message (not RTCP)
+        const char* rtsp_msg = "OPTIONS rtsp://example.com/stream RTSP/1.0\r\n"
+                               "CSeq: 1\r\n"
+                               "\r\n";
+        bio.in_buffer.append(rtsp_msg, strlen(rtsp_msg));
+
+        // Should fail to consume as RTCP
+        HELPER_EXPECT_FAILED(stack.try_consume_rtcp_frame());
+
+        bio.in_buffer.erase(bio.in_buffer.length());
+    }
+}
+
+VOID TEST(ProtocolRTSPTest, RTSPIncompleteRTCPPacket)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsRtspStack stack(&bio);
+
+    if (true) {
+        // Create incomplete RTSP over TCP frame (only partial header)
+        unsigned char incomplete_frame[] = {
+            '$',        // Magic byte
+            1,          // Channel
+            0x00,       // Length high byte
+            // Missing length low byte and payload
+        };
+
+        bio.in_buffer.append((char*)incomplete_frame, sizeof(incomplete_frame));
+
+        // Should fail due to incomplete frame
+        HELPER_EXPECT_FAILED(stack.try_consume_rtcp_frame());
+
+        bio.in_buffer.erase(bio.in_buffer.length());
+    }
+}
+#endif
 

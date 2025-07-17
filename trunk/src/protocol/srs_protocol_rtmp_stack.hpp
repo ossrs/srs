@@ -380,11 +380,16 @@ public:
     // Cached message header
     SrsMessageHeader header;
     // Whether the chunk message header has extended timestamp.
-    bool extended_timestamp;
+    bool has_extended_timestamp;
     // The partially read message.
     SrsCommonMessage* msg;
     // Decoded msg count, to identify whether the chunk stream is fresh.
     int64_t msg_count;
+    // Because the extended timestamp may be a delta timestamp, it can differ
+    // from the timestamp in the header, so it should be stored as a distinct field
+    // for comparison with the extended timestamp of subsequent chunks.
+    // See https://github.com/ossrs/srs/pull/4356 for details.
+    int32_t extended_timestamp;
 public:
     SrsChunkStream(int _cid);
     virtual ~SrsChunkStream();

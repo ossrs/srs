@@ -55,6 +55,13 @@ uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size)
     pp[0] = *p++;
     return value;
 }
+uint16_t srs_rtp_fast_parse_seq(char* buf, int size)
+{
+    if (size < 4) {
+        return 0;
+    }
+    return ((uint8_t)buf[2] << 8) | (uint8_t)buf[3];
+}
 uint8_t srs_rtp_fast_parse_pt(char* buf, int size)
 {
     if (size < 12) {
@@ -743,18 +750,18 @@ ISrsRtpPayloader::~ISrsRtpPayloader()
 {
 }
 
-ISrsRtspPacketDecodeHandler::ISrsRtspPacketDecodeHandler()
+ISrsRtpPacketDecodeHandler::ISrsRtpPacketDecodeHandler()
 {
 }
 
-ISrsRtspPacketDecodeHandler::~ISrsRtspPacketDecodeHandler()
+ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
 {
 }
 
 SrsRtpPacket::SrsRtpPacket()
 {
     payload_ = NULL;
-    payload_type_ = SrsRtspPacketPayloadTypeUnknown;
+    payload_type_ = SrsRtpPacketPayloadTypeUnknown;
     shared_buffer_ = NULL;
     actual_buffer_size_ = 0;
 
@@ -857,7 +864,7 @@ void SrsRtpPacket::add_padding(int size)
     }
 }
 
-void SrsRtpPacket::set_decode_handler(ISrsRtspPacketDecodeHandler* h)
+void SrsRtpPacket::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
 {
     decode_handler = h;
 }
@@ -929,7 +936,7 @@ srs_error_t SrsRtpPacket::decode(SrsBuffer* buf)
     // By default, we always use the RAW payload.
     if (!payload_) {
         payload_ = new SrsRtpRawPayload();
-        payload_type_ = SrsRtspPacketPayloadTypeRaw;
+        payload_type_ = SrsRtpPacketPayloadTypeRaw;
     }
 
     if ((err = payload_->decode(buf)) != srs_success) {
@@ -939,21 +946,15 @@ srs_error_t SrsRtpPacket::decode(SrsBuffer* buf)
     return err;
 }
 
-bool SrsRtpPacket::is_keyframe()
+bool srs_rtp_packet_h264_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader* payload)
 {
-    // False if audio packet
-    if(SrsFrameTypeAudio == frame_type) {
-        return false;
-    }
-
-    // It's normal H264 video rtp packet
     if (nalu_type == kStapA) {
-        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload_);
+        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload);
         if(NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
             return true;
         }
     } else if (nalu_type == kFuA) {
-        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload_);
+        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload);
         if(SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
             return true;
         }
@@ -961,23 +962,47 @@ bool SrsRtpPacket::is_keyframe()
         if((SrsAvcNaluTypeIDR == nalu_type) || (SrsAvcNaluTypeSPS == nalu_type) || (SrsAvcNaluTypePPS == nalu_type)) {
             return true;
         }
-#ifdef SRS_H265
-        if(nalu_type == kStapHevc) {
-            SrsRtpSTAPPayloadHevc* stap_payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(payload_);
-            if(NULL != stap_payload->get_vps() || NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
-                return true;
-            }
-        } else if(nalu_type == kFuHevc) {
-            SrsRtpFUAPayloadHevc2* fua_payload = dynamic_cast<SrsRtpFUAPayloadHevc2*>(payload_);
-            if(fua_payload->nalu_type >= SrsHevcNaluType_CODED_SLICE_BLA && fua_payload->nalu_type <= SrsHevcNaluType_RESERVED_23) {
-                return true;
-            }
-        } else {
-            if((SrsHevcNaluType_VPS == nalu_type) || (SrsHevcNaluType_SPS == nalu_type) || (SrsHevcNaluType_PPS == nalu_type)) {
-                return true;
-            }
+    }
+
+    return false;
+}
+
+bool srs_rtp_packet_h265_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader* payload)
+{
+    if(nalu_type == kStapHevc) {
+        SrsRtpSTAPPayloadHevc* stap_payload = dynamic_cast<SrsRtpSTAPPayloadHevc*>(payload);
+        if (stap_payload->get_vps() || stap_payload->get_sps() || stap_payload->get_pps()) {
+            return true;
         }
-#endif
+    } else if (nalu_type == kFuHevc) {
+        SrsRtpFUAPayloadHevc2* fua_payload = dynamic_cast<SrsRtpFUAPayloadHevc2*>(payload);
+        if(SrsIsIRAP(fua_payload->nalu_type)) {
+            return true;
+        }
+    } else {
+        if (SrsIsIRAP(nalu_type) || (SrsHevcNaluType_VPS == nalu_type) || (SrsHevcNaluType_SPS == nalu_type) || (SrsHevcNaluType_PPS == nalu_type)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+bool SrsRtpPacket::is_keyframe(SrsVideoCodecId codec_id)
+{
+    // False if audio packet
+    if (SrsFrameTypeAudio == frame_type) {
+        return false;
+    }
+
+    // For H264 video rtp packet
+    if (codec_id == SrsVideoCodecIdAVC) {
+        return srs_rtp_packet_h264_is_keyframe(nalu_type, payload_);
+    }
+    
+    // For H265 video rtp packet
+    if (codec_id == SrsVideoCodecIdHEVC) {
+        return srs_rtp_packet_h265_is_keyframe(nalu_type, payload_);
     }
 
     return false;
@@ -1901,3 +1926,4 @@ ISrsRtpPayloader* SrsRtpFUAPayloadHevc2::copy()
 
     return cp;
 }
+

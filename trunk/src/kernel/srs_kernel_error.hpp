@@ -108,7 +108,8 @@
     XX(ERROR_SYSTEM_FILE_NOT_OPEN          , 1095, "FileNotOpen", "File is not opened") \
     XX(ERROR_SYSTEM_FILE_SETVBUF           , 1096, "FileSetVBuf", "Failed to set file vbuf") \
     XX(ERROR_NO_SOURCE                     , 1097, "NoSource", "No source found") \
-    XX(ERROR_STREAM_DISPOSING              , 1098, "StreamDisposing", "Stream is disposing")
+    XX(ERROR_STREAM_DISPOSING              , 1098, "StreamDisposing", "Stream is disposing") \
+    XX(ERROR_NOT_IMPLEMENTED               , 1099, "NotImplemented", "Feature is not implemented")
 
 /**************************************************/
 /* RTMP protocol error. */
@@ -155,12 +156,6 @@
     XX(ERROR_OpenSslComputeSharedKey       , 2039, "SslShareKey", "Failed to get shared key of SSL") \
     XX(ERROR_RTMP_MIC_CHUNKSIZE_CHANGED    , 2040, "RtmpMicChunk", "Invalid RTMP mic for chunk size changed") \
     XX(ERROR_RTMP_MIC_CACHE_OVERFLOW       , 2041, "RtmpMicCache", "Invalid RTMP mic for cache overflow") \
-    XX(ERROR_RTSP_TOKEN_NOT_NORMAL         , 2042, "RtspToken", "Invalid RTSP token state not normal") \
-    XX(ERROR_RTSP_REQUEST_HEADER_EOF       , 2043, "RtspHeaderEof", "Invalid RTSP request for header EOF") \
-    XX(ERROR_RTP_HEADER_CORRUPT            , 2044, "RtspHeaderCorrupt", "Invalid RTSP RTP packet for header corrupt") \
-    XX(ERROR_RTP_TYPE96_CORRUPT            , 2045, "RtspP96Corrupt", "Invalid RTSP RTP packet for P96 corrupt") \
-    XX(ERROR_RTP_TYPE97_CORRUPT            , 2046, "RtspP97Corrupt", "Invalid RTSP RTP packet for P97 corrupt") \
-    XX(ERROR_RTSP_AUDIO_CONFIG             , 2047, "RtspAudioConfig", "RTSP no audio sequence header config") \
     XX(ERROR_RTMP_STREAM_NOT_FOUND         , 2048, "StreamNotFound", "Request stream is not found") \
     XX(ERROR_RTMP_CLIENT_NOT_FOUND         , 2049, "ClientNotFound", "Request client is not found") \
     XX(ERROR_OpenSslCreateHMAC             , 2050, "SslCreateHmac", "Failed to create HMAC for SSL") \
@@ -340,7 +335,7 @@
 
 
 /**************************************************/
-/* RTC protocol error. */
+/* RTC/RTSP protocol error. */
 #define SRS_ERRNO_MAP_RTC(XX) \
     XX(ERROR_RTC_PORT                      , 5000, "RtcPort", "Invalid RTC config for listen port") \
     XX(ERROR_RTP_PACKET_CREATE             , 5001, "RtcPacketCreate", "Failed to create RTP packet for RTC") \
@@ -379,7 +374,12 @@
     XX(ERROR_RTC_TCP_STUN                  , 5034, "RtcTcpSession", "RTC TCP packet is invalid for session not found") \
     XX(ERROR_RTC_TCP_UNIQUE                , 5035, "RtcUnique", "RTC only support one UDP or TCP network") \
     XX(ERROR_RTC_INVALID_SESSION           , 5036, "RtcInvalidSession", "Invalid request for no RTC session matched") \
-    XX(ERROR_RTC_INVALID_ICE               , 5037, "RtcInvalidIce", "Invalid ICE ufrag or pwd")
+    XX(ERROR_RTC_INVALID_ICE               , 5037, "RtcInvalidIce", "Invalid ICE ufrag or pwd") \
+    XX(ERROR_RTSP_TRANSPORT_NOT_SUPPORTED  , 5038, "RtspTransportNotSupported", "RTSP transport not supported, only TCP/interleaved mode is supported") \
+    XX(ERROR_RTSP_NO_TRACK                 , 5039, "RtspNoTrack", "Drop RTSP packet for track not found") \
+    XX(ERROR_RTSP_TOKEN_NOT_NORMAL         , 5040, "RtspToken", "Invalid RTSP token state not normal") \
+    XX(ERROR_RTSP_REQUEST_HEADER_EOF       , 5041, "RtspHeaderEof", "Invalid RTSP request for header EOF") \
+    XX(ERROR_RTSP_NEED_MORE_DATA           , 5042, "RtspNeedMoreData", "Need more data to complete RTCP frame parsing")
 
 /**************************************************/
 /* SRT protocol error. */

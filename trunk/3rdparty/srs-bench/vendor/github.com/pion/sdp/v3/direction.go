@@ -1,18 +1,21 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sdp
 
 import "errors"
 
-// Direction is a marker for transmission directon of an endpoint
+// Direction is a marker for transmission directon of an endpoint.
 type Direction int
 
 const (
-	// DirectionSendRecv is for bidirectional communication
+	// DirectionSendRecv is for bidirectional communication.
 	DirectionSendRecv Direction = iota + 1
-	// DirectionSendOnly is for outgoing communication
+	// DirectionSendOnly is for outgoing communication.
 	DirectionSendOnly
-	// DirectionRecvOnly is for incoming communication
+	// DirectionRecvOnly is for incoming communication.
 	DirectionRecvOnly
-	// DirectionInactive is for no communication
+	// DirectionInactive is for no communication.
 	DirectionInactive
 )
 

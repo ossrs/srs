@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -15,7 +18,7 @@ chunkShutdown represents an SCTP Chunk of type chunkShutdown
 |   Type = 7    | Chunk  Flags  |      Length = 8               |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                      Cumulative TSN Ack                       |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+.
 */
 type chunkShutdown struct {
 	chunkHeader
@@ -26,7 +29,7 @@ const (
 	cumulativeTSNAckLength = 4
 )
 
-// Shutdown chunk errors
+// Shutdown chunk errors.
 var (
 	ErrInvalidChunkSize     = errors.New("invalid chunk size")
 	ErrChunkTypeNotShutdown = errors.New("ChunkType is not of type SHUTDOWN")
@@ -56,6 +59,7 @@ func (c *chunkShutdown) marshal() ([]byte, error) {
 
 	c.typ = ctShutdown
 	c.raw = out
+
 	return c.chunkHeader.marshal()
 }
 
@@ -63,7 +67,7 @@ func (c *chunkShutdown) check() (abort bool, err error) {
 	return false, nil
 }
 
-// String makes chunkShutdown printable
+// String makes chunkShutdown printable.
 func (c *chunkShutdown) String() string {
 	return c.chunkHeader.String()
 }

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp // nolint:dupl
 
 import (
@@ -38,7 +41,7 @@ type chunkError struct {
 	errorCauses []errorCause
 }
 
-// Error chunk errors
+// Error chunk errors.
 var (
 	ErrChunkTypeNotCtError   = errors.New("ChunkType is not of type ctError")
 	ErrBuildErrorChunkFailed = errors.New("failed build Error Chunk")
@@ -67,6 +70,7 @@ func (a *chunkError) unmarshal(raw []byte) error {
 		offset += int(e.length())
 		a.errorCauses = append(a.errorCauses, e)
 	}
+
 	return nil
 }
 
@@ -81,6 +85,7 @@ func (a *chunkError) marshal() ([]byte, error) {
 		}
 		a.raw = append(a.raw, raw...)
 	}
+
 	return a.chunkHeader.marshal()
 }
 
@@ -88,7 +93,7 @@ func (a *chunkError) check() (abort bool, err error) {
 	return false, nil
 }
 
-// String makes chunkError printable
+// String makes chunkError printable.
 func (a *chunkError) String() string {
 	res := a.chunkHeader.String()
 

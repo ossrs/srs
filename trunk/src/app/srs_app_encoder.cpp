@@ -247,11 +247,11 @@ srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, Sr
     input += srs_int2str(req->port);
     input += "/";
     input += req->app;
-    input += "?vhost=";
-    input += req->vhost;
     input += "/";
     input += req->stream;
-    
+    input += "?vhost=";
+    input += req->vhost;
+
     // stream name: vhost/app/stream for print
     input_stream_name = req->vhost;
     input_stream_name += "/";
@@ -288,7 +288,7 @@ srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, Sr
         }
         log_file += ".log";
     }
-    
+
     // important: loop check, donot transcode again.
     std::vector<std::string>::iterator it;
     it = std::find(_transcoded_url.begin(), _transcoded_url.end(), input);

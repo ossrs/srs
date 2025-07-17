@@ -1,7 +1,9 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sdp
 
 import (
-	"fmt"
 	"net/url"
 	"strconv"
 )
@@ -67,13 +69,14 @@ type SessionDescription struct {
 	MediaDescriptions []*MediaDescription
 }
 
-// Attribute returns the value of an attribute and if it exists
+// Attribute returns the value of an attribute and if it exists.
 func (s *SessionDescription) Attribute(key string) (string, bool) {
 	for _, a := range s.Attributes {
 		if a.Key == key {
 			return a.Value, true
 		}
 	}
+
 	return "", false
 }
 
@@ -82,7 +85,15 @@ func (s *SessionDescription) Attribute(key string) (string, bool) {
 type Version int
 
 func (v Version) String() string {
-	return strconv.Itoa(int(v))
+	return stringFromMarshal(v.marshalInto, v.marshalSize)
+}
+
+func (v Version) marshalInto(b []byte) []byte {
+	return strconv.AppendInt(b, int64(v), 10)
+}
+
+func (v Version) marshalSize() (size int) {
+	return lenInt(int64(v))
 }
 
 // Origin defines the structure for the "o=" field which provides the
@@ -97,15 +108,27 @@ type Origin struct {
 }
 
 func (o Origin) String() string {
-	return fmt.Sprintf(
-		"%v %d %d %v %v %v",
-		o.Username,
-		o.SessionID,
-		o.SessionVersion,
-		o.NetworkType,
-		o.AddressType,
-		o.UnicastAddress,
-	)
+	return stringFromMarshal(o.marshalInto, o.marshalSize)
+}
+
+func (o Origin) marshalInto(b []byte) []byte {
+	b = append(append(b, o.Username...), ' ')
+	b = append(strconv.AppendUint(b, o.SessionID, 10), ' ')
+	b = append(strconv.AppendUint(b, o.SessionVersion, 10), ' ')
+	b = append(append(b, o.NetworkType...), ' ')
+	b = append(append(b, o.AddressType...), ' ')
+
+	return append(b, o.UnicastAddress...)
+}
+
+func (o Origin) marshalSize() (size int) {
+	return len(o.Username) +
+		lenUint(o.SessionID) +
+		lenUint(o.SessionVersion) +
+		len(o.NetworkType) +
+		len(o.AddressType) +
+		len(o.UnicastAddress) +
+		5
 }
 
 // SessionName describes a structured representations for the "s=" field
@@ -113,7 +136,15 @@ func (o Origin) String() string {
 type SessionName string
 
 func (s SessionName) String() string {
-	return string(s)
+	return stringFromMarshal(s.marshalInto, s.marshalSize)
+}
+
+func (s SessionName) marshalInto(b []byte) []byte {
+	return append(b, s...)
+}
+
+func (s SessionName) marshalSize() (size int) {
+	return len(s)
 }
 
 // EmailAddress describes a structured representations for the "e=" line
@@ -122,7 +153,15 @@ func (s SessionName) String() string {
 type EmailAddress string
 
 func (e EmailAddress) String() string {
-	return string(e)
+	return stringFromMarshal(e.marshalInto, e.marshalSize)
+}
+
+func (e EmailAddress) marshalInto(b []byte) []byte {
+	return append(b, e...)
+}
+
+func (e EmailAddress) marshalSize() (size int) {
+	return len(e)
 }
 
 // PhoneNumber describes a structured representations for the "p=" line
@@ -131,7 +170,15 @@ func (e EmailAddress) String() string {
 type PhoneNumber string
 
 func (p PhoneNumber) String() string {
-	return string(p)
+	return stringFromMarshal(p.marshalInto, p.marshalSize)
+}
+
+func (p PhoneNumber) marshalInto(b []byte) []byte {
+	return append(b, p...)
+}
+
+func (p PhoneNumber) marshalSize() (size int) {
+	return len(p)
 }
 
 // TimeZone defines the structured object for "z=" line which describes
@@ -142,5 +189,16 @@ type TimeZone struct {
 }
 
 func (z TimeZone) String() string {
-	return strconv.FormatUint(z.AdjustmentTime, 10) + " " + strconv.FormatInt(z.Offset, 10)
+	return stringFromMarshal(z.marshalInto, z.marshalSize)
+}
+
+func (z TimeZone) marshalInto(b []byte) []byte {
+	b = strconv.AppendUint(b, z.AdjustmentTime, 10)
+	b = append(b, ' ')
+
+	return strconv.AppendInt(b, z.Offset, 10)
+}
+
+func (z TimeZone) marshalSize() (size int) {
+	return lenUint(z.AdjustmentTime) + 1 + lenInt(z.Offset)
 }

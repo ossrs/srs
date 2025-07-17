@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -107,6 +110,15 @@ func (c CompoundPacket) Marshal() ([]byte, error) {
 	return Marshal(p)
 }
 
+// MarshalSize returns the size of the packet once marshaled
+func (c CompoundPacket) MarshalSize() int {
+	l := 0
+	for _, p := range c {
+		l += p.MarshalSize()
+	}
+	return l
+}
+
 // Unmarshal decodes a CompoundPacket from binary.
 func (c *CompoundPacket) Unmarshal(rawData []byte) error {
 	out := make(CompoundPacket, 0)
@@ -121,11 +133,7 @@ func (c *CompoundPacket) Unmarshal(rawData []byte) error {
 	}
 	*c = out
 
-	if err := c.Validate(); err != nil {
-		return err
-	}
-
-	return nil
+	return c.Validate()
 }
 
 // DestinationSSRC returns the synchronization sources associated with this

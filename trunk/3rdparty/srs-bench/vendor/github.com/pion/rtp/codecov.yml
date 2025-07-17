@@ -3,6 +3,8 @@
 #
 # It is automatically copied from https://github.com/pion/.goassets repository.
 #
+# SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+# SPDX-License-Identifier: MIT
 
 coverage:
   status:
