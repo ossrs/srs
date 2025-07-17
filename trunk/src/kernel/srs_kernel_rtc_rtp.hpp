@@ -16,10 +16,30 @@
 #include <list>
 #include <vector>
 
+// Indicates whether to enable debugging for NACK. If enabled, the specified PT(109) 
+// video packet will always be dropped. You can use this option to verify the NACK 
+// logic. Note that you should restart SRS after each test, as a global variable 
+// controls the debugging.
+#ifdef SRS_DEBUG_NACK_DROP
+#define SRS_NACK_DEBUG_DROP_ENABLED
+#endif
+#define SRS_NACK_DEBUG_DROP_PACKET_PT 109
+#define SRS_NACK_DEBUG_DROP_PACKET_N 3
+
 class SrsRtpPacket;
 
 // The RTP packet max size, should never exceed this size.
 const int kRtpPacketSize        = 1500;
+
+// The RTP payload max size, reserved some paddings for SRTP as such:
+//      kRtpPacketSize = kRtpMaxPayloadSize + paddings
+// For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
+// which reserves 100 bytes for SRTP or paddings.
+// otherwise, the kRtpPacketSize must less than MTU, in webrtc source code,
+// the rtp max size is assigned by kVideoMtu = 1200.
+// so we set kRtpMaxPayloadSize = 1200.
+// see @doc https://groups.google.com/g/discuss-webrtc/c/gH5ysR3SoZI
+const int kRtpMaxPayloadSize = kRtpPacketSize - 300;
 
 const int kRtpHeaderFixedSize   = 12;
 const uint8_t kRtpMarker        = 0x80;
@@ -29,9 +49,13 @@ const uint8_t kNalTypeMask      = 0x1F;
 
 // @see: https://tools.ietf.org/html/rfc6184#section-5.2
 const uint8_t kStapA            = 24;
-
 // @see: https://tools.ietf.org/html/rfc6184#section-5.2
 const uint8_t kFuA              = 28;
+
+// @see: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
+const uint8_t kStapHevc         = 48;
+// @see: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.3
+const uint8_t kFuHevc           = 49;
 
 // @see: https://tools.ietf.org/html/rfc6184#section-5.8
 const uint8_t kStart            = 0x80; // Fu-header start bit
@@ -46,6 +70,7 @@ class SrsRtpExtensionTypes;
 
 // Fast parse the SSRC from RTP packet. Return 0 if invalid.
 uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size);
+uint16_t srs_rtp_fast_parse_seq(char* buf, int size);
 uint8_t srs_rtp_fast_parse_pt(char* buf, int size);
 srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, uint8_t twcc_id, uint16_t& twcc_sn);
 
@@ -249,24 +274,27 @@ public:
 };
 
 // The payload type, for performance to avoid dynamic cast.
-enum SrsRtspPacketPayloadType
+enum SrsRtpPacketPayloadType
 {
-    SrsRtspPacketPayloadTypeRaw,
-    SrsRtspPacketPayloadTypeFUA2,
-    SrsRtspPacketPayloadTypeFUA,
-    SrsRtspPacketPayloadTypeNALU,
-    SrsRtspPacketPayloadTypeSTAP,
-    SrsRtspPacketPayloadTypeUnknown,
+    SrsRtpPacketPayloadTypeRaw,
+    SrsRtpPacketPayloadTypeFUA2,
+    SrsRtpPacketPayloadTypeFUAHevc2,
+    SrsRtpPacketPayloadTypeFUA,
+    SrsRtpPacketPayloadTypeFUAHevc,
+    SrsRtpPacketPayloadTypeNALU,
+    SrsRtpPacketPayloadTypeSTAP,
+    SrsRtpPacketPayloadTypeSTAPHevc,
+    SrsRtpPacketPayloadTypeUnknown,
 };
 
-class ISrsRtspPacketDecodeHandler
+class ISrsRtpPacketDecodeHandler
 {
 public:
-    ISrsRtspPacketDecodeHandler();
-    virtual ~ISrsRtspPacketDecodeHandler();
+    ISrsRtpPacketDecodeHandler();
+    virtual ~ISrsRtpPacketDecodeHandler();
 public:
     // We don't know the actual payload, so we depends on external handler.
-    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt) = 0;
+    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt) = 0;
 };
 
 // The RTP packet with cached shared message.
@@ -277,7 +305,7 @@ public:
     SrsRtpHeader header;
 private:
     ISrsRtpPayloader* payload_;
-    SrsRtspPacketPayloadType payload_type_;
+    SrsRtpPacketPayloadType payload_type_;
 private:
     // The original shared message, all RTP packets can refer to its data.
     // Note that the size of shared msg, is not the packet size, it's a larger aligned buffer.
@@ -289,7 +317,7 @@ private:
 // Helper fields.
 public:
     // The first byte as nalu type, for video decoder only.
-    SrsAvcNaluType nalu_type;
+    uint8_t nalu_type;
     // The frame type, for RTMP bridge or SFU source.
     SrsFrameType frame_type;
 // Fast cache for performance.
@@ -297,7 +325,7 @@ private:
     // The cached payload size for packet.
     int cached_payload_size;
     // The helper handler for decoder, use RAW payload if NULL.
-    ISrsRtspPacketDecodeHandler* decode_handler;
+    ISrsRtpPacketDecodeHandler* decode_handler;
 private:
     int64_t avsync_time_;
 public:
@@ -316,14 +344,14 @@ public:
     void enable_twcc_decode() { header.enable_twcc_decode(); } // SrsRtpPacket::enable_twcc_decode
     // Get and set the payload of packet.
     // @remark Note that return NULL if no payload.
-    void set_payload(ISrsRtpPayloader* p, SrsRtspPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
+    void set_payload(ISrsRtpPayloader* p, SrsRtpPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
     ISrsRtpPayloader* payload() { return payload_; }
     // Set the padding of RTP packet.
     void set_padding(int size);
     // Increase the padding of RTP packet.
     void add_padding(int size);
     // Set the decode handler.
-    void set_decode_handler(ISrsRtspPacketDecodeHandler* h);
+    void set_decode_handler(ISrsRtpPacketDecodeHandler* h);
     // Whether the packet is Audio packet.
     bool is_audio();
     // Set RTP header extensions for encoding or decoding header extension
@@ -334,7 +362,7 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 public:
-    bool is_keyframe();
+    bool is_keyframe(SrsVideoCodecId codec_id);
     // Get and set the packet sync time in milliseconds.
     void set_avsync_time(int64_t avsync_time) { avsync_time_ = avsync_time; }
     int64_t get_avsync_time() const { return avsync_time_; }
@@ -376,7 +404,7 @@ public:
 public:
     void push_back(SrsSample* sample);
 public:
-    uint8_t skip_first_byte();
+    uint8_t skip_bytes(int count);
     // We will manage the returned samples, if user want to manage it, please copy it.
     srs_error_t read_samples(std::vector<SrsSample*>& samples, int packet_size);
 // interface ISrsRtpPayloader
@@ -453,6 +481,70 @@ public:
     SrsRtpFUAPayload2();
     virtual ~SrsRtpFUAPayload2();
 // interface ISrsRtpPayloader
+public:
+    virtual uint64_t nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual ISrsRtpPayloader* copy();
+};
+
+class SrsRtpSTAPPayloadHevc : public ISrsRtpPayloader
+{
+public:
+    // The NALU samples, we will manage the samples.
+    // @remark We only refer to the memory, user must free its bytes.
+    std::vector<SrsSample*> nalus;
+public:
+    SrsRtpSTAPPayloadHevc();
+    virtual ~SrsRtpSTAPPayloadHevc();
+public:
+    SrsSample* get_vps();
+    SrsSample* get_sps();
+    SrsSample* get_pps();
+// interface ISrsRtpPayloader
+public:
+    virtual uint64_t nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual ISrsRtpPayloader* copy();
+};
+
+// FU, for one NALU with multiple fragments.
+// With more than one payload for HEVC.
+class SrsRtpFUAPayloadHevc : public ISrsRtpPayloader
+{
+public:
+    // The FUA header.
+    bool start;
+    bool end;
+    SrsHevcNaluType nalu_type;
+    // The NALU samples, we manage the samples.
+    // @remark We only refer to the memory, user must free its bytes.
+    std::vector<SrsSample*> nalus;
+public:
+    SrsRtpFUAPayloadHevc();
+    virtual ~SrsRtpFUAPayloadHevc();
+// interface ISrsRtpPayloader
+public:
+    virtual uint64_t nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual ISrsRtpPayloader* copy();
+};
+
+// FU, for one NALU with multiple fragments.
+// With only one payload for HEVC.
+class SrsRtpFUAPayloadHevc2 : public ISrsRtpPayloader
+{
+public:
+    bool start;
+    bool end;
+    SrsHevcNaluType nalu_type;
+    char* payload;
+    int size;
+public:
+    SrsRtpFUAPayloadHevc2();
+    virtual ~SrsRtpFUAPayloadHevc2();
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -7,7 +10,7 @@ import (
 	"hash/crc32"
 )
 
-// Create the crc32 table we'll use for the checksum
+// Create the crc32 table we'll use for the checksum.
 var castagnoliTable = crc32.MakeTable(crc32.Castagnoli) // nolint:gochecknoglobals
 
 // Allocate and zero this data once.
@@ -54,7 +57,7 @@ const (
 	packetHeaderSize = 12
 )
 
-// SCTP packet errors
+// SCTP packet errors.
 var (
 	ErrPacketRawTooSmall           = errors.New("raw is smaller than the minimum length for a SCTP packet")
 	ErrParseSCTPChunkNotEnoughData = errors.New("unable to parse SCTP chunk, not enough data for complete header")
@@ -62,16 +65,35 @@ var (
 	ErrChecksumMismatch            = errors.New("checksum mismatch theirs")
 )
 
-func (p *packet) unmarshal(raw []byte) error {
+func (p *packet) unmarshal(doChecksum bool, raw []byte) error { //nolint:cyclop
 	if len(raw) < packetHeaderSize {
 		return fmt.Errorf("%w: raw only %d bytes, %d is the minimum length", ErrPacketRawTooSmall, len(raw), packetHeaderSize)
+	}
+
+	offset := packetHeaderSize
+
+	// Check if doing CRC32c is required.
+	// Without having SCTP AUTH implemented, this depends only on the type
+	// og the first chunk.
+	if offset+chunkHeaderSize <= len(raw) {
+		switch chunkType(raw[offset]) {
+		case ctInit, ctCookieEcho:
+			doChecksum = true
+		default:
+		}
+	}
+	theirChecksum := binary.LittleEndian.Uint32(raw[8:])
+	if theirChecksum != 0 || doChecksum {
+		ourChecksum := generatePacketChecksum(raw)
+		if theirChecksum != ourChecksum {
+			return fmt.Errorf("%w: %d ours: %d", ErrChecksumMismatch, theirChecksum, ourChecksum)
+		}
 	}
 
 	p.sourcePort = binary.BigEndian.Uint16(raw[0:])
 	p.destinationPort = binary.BigEndian.Uint16(raw[2:])
 	p.verificationTag = binary.BigEndian.Uint32(raw[4:])
 
-	offset := packetHeaderSize
 	for {
 		// Exact match, no more chunks
 		if offset == len(raw) {
@@ -80,57 +102,53 @@ func (p *packet) unmarshal(raw []byte) error {
 			return fmt.Errorf("%w: offset %d remaining %d", ErrParseSCTPChunkNotEnoughData, offset, len(raw))
 		}
 
-		var c chunk
+		var dataChunk chunk
 		switch chunkType(raw[offset]) {
 		case ctInit:
-			c = &chunkInit{}
+			dataChunk = &chunkInit{}
 		case ctInitAck:
-			c = &chunkInitAck{}
+			dataChunk = &chunkInitAck{}
 		case ctAbort:
-			c = &chunkAbort{}
+			dataChunk = &chunkAbort{}
 		case ctCookieEcho:
-			c = &chunkCookieEcho{}
+			dataChunk = &chunkCookieEcho{}
 		case ctCookieAck:
-			c = &chunkCookieAck{}
+			dataChunk = &chunkCookieAck{}
 		case ctHeartbeat:
-			c = &chunkHeartbeat{}
+			dataChunk = &chunkHeartbeat{}
 		case ctPayloadData:
-			c = &chunkPayloadData{}
+			dataChunk = &chunkPayloadData{}
 		case ctSack:
-			c = &chunkSelectiveAck{}
+			dataChunk = &chunkSelectiveAck{}
 		case ctReconfig:
-			c = &chunkReconfig{}
+			dataChunk = &chunkReconfig{}
 		case ctForwardTSN:
-			c = &chunkForwardTSN{}
+			dataChunk = &chunkForwardTSN{}
 		case ctError:
-			c = &chunkError{}
+			dataChunk = &chunkError{}
 		case ctShutdown:
-			c = &chunkShutdown{}
+			dataChunk = &chunkShutdown{}
 		case ctShutdownAck:
-			c = &chunkShutdownAck{}
+			dataChunk = &chunkShutdownAck{}
 		case ctShutdownComplete:
-			c = &chunkShutdownComplete{}
+			dataChunk = &chunkShutdownComplete{}
 		default:
 			return fmt.Errorf("%w: %s", ErrUnmarshalUnknownChunkType, chunkType(raw[offset]).String())
 		}
 
-		if err := c.unmarshal(raw[offset:]); err != nil {
+		if err := dataChunk.unmarshal(raw[offset:]); err != nil {
 			return err
 		}
 
-		p.chunks = append(p.chunks, c)
-		chunkValuePadding := getPadding(c.valueLength())
-		offset += chunkHeaderSize + c.valueLength() + chunkValuePadding
+		p.chunks = append(p.chunks, dataChunk)
+		chunkValuePadding := getPadding(dataChunk.valueLength())
+		offset += chunkHeaderSize + dataChunk.valueLength() + chunkValuePadding
 	}
-	theirChecksum := binary.LittleEndian.Uint32(raw[8:])
-	ourChecksum := generatePacketChecksum(raw)
-	if theirChecksum != ourChecksum {
-		return fmt.Errorf("%w: %d ours: %d", ErrChecksumMismatch, theirChecksum, ourChecksum)
-	}
+
 	return nil
 }
 
-func (p *packet) marshal() ([]byte, error) {
+func (p *packet) marshal(doChecksum bool) ([]byte, error) {
 	raw := make([]byte, packetHeaderSize)
 
 	// Populate static headers
@@ -145,17 +163,24 @@ func (p *packet) marshal() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		raw = append(raw, chunkRaw...)
+		raw = append(raw, chunkRaw...) //nolint:makezero // todo:fix
 
 		paddingNeeded := getPadding(len(raw))
 		if paddingNeeded != 0 {
-			raw = append(raw, make([]byte, paddingNeeded)...)
+			raw = append(raw, make([]byte, paddingNeeded)...) //nolint:makezero // todo:fix
 		}
 	}
 
-	// Checksum is already in BigEndian
-	// Using LittleEndian.PutUint32 stops it from being flipped
-	binary.LittleEndian.PutUint32(raw[8:], generatePacketChecksum(raw))
+	if doChecksum {
+		// golang CRC32C uses reflected input and reflected output, the
+		// net result of this is to have the bytes flipped compared to
+		// the non reflected variant that the spec expects.
+		//
+		// Use LittleEndian.PutUint32 to avoid flipping the bytes in to
+		// the spec compliant checksum order
+		binary.LittleEndian.PutUint32(raw[8:], generatePacketChecksum(raw))
+	}
+
 	return raw, nil
 }
 
@@ -164,10 +189,11 @@ func generatePacketChecksum(raw []byte) (sum uint32) {
 	sum = crc32.Update(sum, castagnoliTable, raw[0:8])
 	sum = crc32.Update(sum, castagnoliTable, fourZeroes[:])
 	sum = crc32.Update(sum, castagnoliTable, raw[12:])
+
 	return sum
 }
 
-// String makes packet printable
+// String makes packet printable.
 func (p *packet) String() string {
 	format := `Packet:
 	sourcePort: %d
@@ -182,5 +208,22 @@ func (p *packet) String() string {
 	for i, chunk := range p.chunks {
 		res += fmt.Sprintf("Chunk %d:\n %s", i, chunk)
 	}
+
 	return res
+}
+
+// TryMarshalUnmarshal attempts to marshal and unmarshal a message. Added for fuzzing.
+func TryMarshalUnmarshal(msg []byte) int {
+	p := &packet{}
+	err := p.unmarshal(false, msg)
+	if err != nil {
+		return 0
+	}
+
+	_, err = p.marshal(false)
+	if err != nil {
+		return 0
+	}
+
+	return 1
 }

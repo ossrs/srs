@@ -40,6 +40,9 @@ using namespace std;
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_tencentcloud.hpp>
 #include <srs_app_srt_source.hpp>
+#ifdef SRS_RTSP
+#include <srs_app_rtsp_source.hpp>
+#endif
 
 // the timeout in srs_utime_t to wait encoder to republish
 // if timeout, close the connection.
@@ -1110,20 +1113,42 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsSharedPtr<SrsLiveSource> source)
     }
 #endif
 
-    // Bridge to RTC streaming.
-#if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
-    if (rtc.get() && _srs_config->get_rtc_from_rtmp(req->vhost)) {
-        SrsCompositeBridge* bridge = new SrsCompositeBridge();
-        bridge->append(new SrsFrameToRtcBridge(rtc));
-
-        if ((err = bridge->initialize(req)) != srs_success) {
-            srs_freep(bridge);
-            return srs_error_wrap(err, "bridge init");
+#ifdef SRS_RTSP
+    // RTSP only support viewer, so we don't need to check it.
+    SrsSharedPtr<SrsRtspSource> rtsp;
+    bool rtsp_server_enabled = _srs_config->get_rtsp_server_enabled();
+    bool rtsp_enabled = _srs_config->get_rtsp_enabled(req->vhost);
+    if (rtsp_server_enabled && rtsp_enabled && !info->edge) {
+        if ((err = _srs_rtsp_sources->fetch_or_create(req, rtsp)) != srs_success) {
+            return srs_error_wrap(err, "create source");
         }
-
-        source->set_bridge(bridge);
     }
 #endif
+
+    // Bridge to RTC streaming.
+    // TODO: FIXME: Need to convert RTMP to SRT.
+    SrsCompositeBridge* bridge = new SrsCompositeBridge();
+
+#if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
+    if (rtc.get() && _srs_config->get_rtc_from_rtmp(req->vhost)) {
+        bridge->append(new SrsFrameToRtcBridge(rtc));
+    }
+#endif
+
+#ifdef SRS_RTSP
+    if (rtsp.get() && _srs_config->get_rtsp_from_rtmp(req->vhost)) {
+        bridge->append(new SrsFrameToRtspBridge(rtsp));
+    }
+#endif
+
+    if (bridge->empty()) {
+        srs_freep(bridge);
+    } else if ((err = bridge->initialize(req)) != srs_success) {
+        srs_freep(bridge);
+        return srs_error_wrap(err, "bridge init");
+    }
+
+    source->set_bridge(bridge);
 
     // Start publisher now.
     if (info->edge) {

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -31,13 +34,14 @@ in Section 3.2.1, i.e.:
 Variable Parameters                  Status     Type Value
 -------------------------------------------------------------
 Heartbeat Info                       Mandatory   1
+.
 */
 type chunkHeartbeatAck struct {
 	chunkHeader
 	params []param
 }
 
-// Heartbeat ack chunk errors
+// Heartbeat ack chunk errors.
 var (
 	ErrUnimplemented                = errors.New("unimplemented")
 	ErrHeartbeatAckParams           = errors.New("heartbeat Ack must have one param")

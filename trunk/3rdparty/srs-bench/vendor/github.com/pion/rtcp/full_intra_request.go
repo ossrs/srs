@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -64,6 +67,11 @@ func (p *FullIntraRequest) Unmarshal(rawPacket []byte) error {
 		return errWrongType
 	}
 
+	// The FCI field MUST contain one or more FIR entries
+	if 4*h.Length-firOffset <= 0 || (4*h.Length)%8 != 0 {
+		return errBadLength
+	}
+
 	p.SenderSSRC = binary.BigEndian.Uint32(rawPacket[headerLength:])
 	p.MediaSSRC = binary.BigEndian.Uint32(rawPacket[headerLength+ssrcLength:])
 	for i := headerLength + firOffset; i < (headerLength + int(h.Length*4)); i += 8 {
@@ -80,11 +88,12 @@ func (p *FullIntraRequest) Header() Header {
 	return Header{
 		Count:  FormatFIR,
 		Type:   TypePayloadSpecificFeedback,
-		Length: uint16((p.len() / 4) - 1),
+		Length: uint16((p.MarshalSize() / 4) - 1),
 	}
 }
 
-func (p *FullIntraRequest) len() int {
+// MarshalSize returns the size of the packet once marshaled
+func (p *FullIntraRequest) MarshalSize() int {
 	return headerLength + firOffset + len(p.FIR)*8
 }
 

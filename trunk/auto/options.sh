@@ -6,7 +6,9 @@ help=no
 SRS_HDS=NO
 SRS_SRT=YES
 SRS_RTC=YES
-SRS_H265=YES
+SRS_RTSP=NO
+# SRS_H265 is always enabled, no longer configurable
+SRS_H265=RESERVED
 SRS_GB28181=NO
 SRS_CXX11=YES
 SRS_CXX14=NO
@@ -131,6 +133,7 @@ SRS_NASM=YES
 SRS_SRTP_ASM=YES
 SRS_DEBUG=NO
 SRS_DEBUG_STATS=NO
+SRS_DEBUG_NACK_DROP=NO
 
 #####################################################################################
 function apply_system_options() {
@@ -182,13 +185,14 @@ Features:
   --utest=on|off            Whether build the utest. Default: $(value2switch $SRS_UTEST)
   --srt=on|off              Whether build the SRT. Default: $(value2switch $SRS_SRT)
   --rtc=on|off              Whether build the WebRTC. Default: $(value2switch $SRS_RTC)
+  --rtsp=on|off             Whether build the RTSP (requires RTC). Default: $(value2switch $SRS_RTSP)
   --gb28181=on|off          Whether build the GB28181. Default: $(value2switch $SRS_GB28181)
   --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
   --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
   --ffmpeg-opus=on|off      Whether enable the FFmpeg native opus codec. Default: $(value2switch $SRS_FFMPEG_OPUS)
   --apm=on|off              Whether enable cloud logging and APM(Application Performance Monitor). Default: $(value2switch $SRS_APM)
-  --h265=on|off             Whether build the HEVC(H.265) support. Default: $(value2switch $SRS_H265)
+  --h265=on                 Whether build the HEVC(H.265) support. Always enabled.
 
   --prefix=<path>           The absolute installation path. Default: $SRS_PREFIX
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
@@ -244,6 +248,7 @@ Experts:
   --build-tag=<TAG>         Set the build object directory suffix.
   --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
   --debug-stats=on|off      Whether enable the debug stats, may hurt performance. Default: $(value2switch $SRS_DEBUG_STATS)
+  --debug-nack-drop=on|off  Whether enable the debug nack drop, always drop the first number N packet. Default: $(value2switch $SRS_DEBUG_NACK_DROP)
   --gcov=on|off             Whether enable the GCOV for coverage. Default: $(value2switch $SRS_GCOV)
   --log-verbose=on|off      Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
   --log-info=on|off         Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
@@ -342,6 +347,7 @@ function parse_user_option() {
         --apm)                          SRS_APM=$(switch2value $value) ;;
         --srt)                          SRS_SRT=$(switch2value $value) ;;
         --rtc)                          SRS_RTC=$(switch2value $value) ;;
+        --rtsp)                         SRS_RTSP=$(switch2value $value) ;;
         --simulator)                    SRS_SIMULATOR=$(switch2value $value) ;;
         --generate-objs)                SRS_GENERATE_OBJS=$(switch2value $value) ;;
         --single-thread)                SRS_SINGLE_THREAD=$(switch2value $value) ;;
@@ -360,6 +366,7 @@ function parse_user_option() {
         --gmp)                          SRS_GPERF_MP=$(switch2value $value) ;;
         --gcp)                          SRS_GPERF_CP=$(switch2value $value) ;;
         --gprof)                        SRS_GPROF=$(switch2value $value) ;;
+        --asan)                         SRS_SANITIZER=$(switch2value $value) ;;
         --sanitizer)                    SRS_SANITIZER=$(switch2value $value) ;;
         --sanitizer-static)             SRS_SANITIZER_STATIC=$(switch2value $value) ;;
         --sanitizer-log)                SRS_SANITIZER_LOG=$(switch2value $value) ;;
@@ -387,6 +394,7 @@ function parse_user_option() {
         --log-level_v2)                 SRS_LOG_LEVEL_V2=$(switch2value $value) ;;
         --debug)                        SRS_DEBUG=$(switch2value $value) ;;
         --debug-stats)                  SRS_DEBUG_STATS=$(switch2value $value) ;;
+        --debug-nack-drop)              SRS_DEBUG_NACK_DROP=$(switch2value $value) ;;
 
         --cross-build)                  SRS_CROSS_BUILD=YES         ;;
         --generic-linux)                SRS_GENERIC_LINUX=$(switch2value $value) ;;
@@ -532,6 +540,7 @@ function apply_auto_options() {
     if [[ $SRS_RTC == YES && $SRS_FFMPEG_FIT == RESERVED ]]; then
         SRS_FFMPEG_FIT=YES
     fi
+
     if [[ $SRS_USE_SYS_FFMPEG == YES && $SRS_SHARED_FFMPEG == RESERVED ]]; then
         SRS_SHARED_FFMPEG=YES
     fi
@@ -597,6 +606,12 @@ function apply_auto_options() {
     if [[ ! -z SRS_JOBS ]]; then
         export SRS_JOBS="--jobs=${SRS_JOBS}"
     fi
+
+    # H.265/HEVC is always enabled, see https://github.com/ossrs/srs/issues/4349
+    if [[ $SRS_H265 != RESERVED ]]; then
+        echo "Warning: --h265 option is deprecated. H.265/HEVC support is always enabled."
+        SRS_H265=ON
+    fi
 }
 apply_auto_options
 
@@ -650,7 +665,8 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-srt=$(value2switch $SRS_USE_SYS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
-    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=$(value2switch $SRS_H265)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtsp=$(value2switch $SRS_RTSP)"
+
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=$(value2switch $SRS_GB28181)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=$(value2switch $SRS_CXX11)"
@@ -682,6 +698,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --apm=$(value2switch $SRS_APM)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=$(value2switch $SRS_DEBUG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=$(value2switch $SRS_DEBUG_STATS)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-nack-drop=$(value2switch $SRS_DEBUG_NACK_DROP)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cross-build=$(value2switch $SRS_CROSS_BUILD)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer=$(value2switch $SRS_SANITIZER)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sanitizer-static=$(value2switch $SRS_SANITIZER_STATIC)"

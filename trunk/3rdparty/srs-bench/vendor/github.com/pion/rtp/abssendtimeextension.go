@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtp
 
 import (
@@ -29,6 +32,7 @@ func (t *AbsSendTimeExtension) Unmarshal(rawData []byte) error {
 		return errTooSmall
 	}
 	t.Timestamp = uint64(rawData[0])<<16 | uint64(rawData[1])<<8 | uint64(rawData[2])
+
 	return nil
 }
 
@@ -55,7 +59,7 @@ func NewAbsSendTimeExtension(sendTime time.Time) *AbsSendTimeExtension {
 func toNtpTime(t time.Time) uint64 {
 	var s uint64
 	var f uint64
-	u := uint64(t.UnixNano())
+	u := uint64(t.UnixNano()) // nolint: gosec // G115 false positive
 	s = u / 1e9
 	s += 0x83AA7E80 // offset in seconds between unix epoch and ntp epoch
 	f = u % 1e9
@@ -74,5 +78,5 @@ func toTime(t uint64) time.Time {
 	s -= 0x83AA7E80
 	u := s*1e9 + f
 
-	return time.Unix(0, int64(u))
+	return time.Unix(0, int64(u)) // nolint: gosec // G115 false positive
 }

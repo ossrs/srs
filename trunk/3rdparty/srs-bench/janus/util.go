@@ -44,9 +44,9 @@ import (
 	"github.com/pion/interceptor"
 	"github.com/pion/logging"
 	"github.com/pion/rtcp"
-	"github.com/pion/transport/v2/vnet"
-	"github.com/pion/webrtc/v3"
-	"github.com/pion/webrtc/v3/pkg/media/h264reader"
+	"github.com/pion/transport/v3/vnet"
+	"github.com/pion/webrtc/v4"
+	"github.com/pion/webrtc/v4/pkg/media/h264reader"
 )
 
 var srsHttps *bool
@@ -647,7 +647,7 @@ func (v *testWebRTCAPI) Setup(vnetClientIP string, options ...testWebRTCAPIOptio
 			return errors.Wrapf(err, "create network for api")
 		}
 
-		v.settingEngine.SetVNet(v.network)
+		v.settingEngine.SetNet(v.network)
 
 		// Create a proxy bind to the router.
 		if v.proxy, err = vnet_proxy.NewProxy(v.router); err != nil {
@@ -1012,7 +1012,7 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 	logger.Tf(ctx, "State signaling=%v, ice=%v, conn=%v", pc.SignalingState(), pc.ICEConnectionState(), pc.ConnectionState())
 
 	// ICE state management.
-	pc.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
+	pc.OnICEGatheringStateChange(func(state webrtc.ICEGatheringState) {
 		logger.Tf(ctx, "ICE gather state %v", state)
 	})
 	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {

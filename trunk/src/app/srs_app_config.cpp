@@ -2348,7 +2348,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate"
             && n != "query_latest_version" && n != "first_wait_for_qlv" && n != "threads"
             && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "tencentcloud_cls"
-            && n != "exporter"
+            && n != "exporter" && n != "rtsp_server"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -2432,6 +2432,15 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "ip_family" && n != "api_as_candidates" && n != "resolve_api_domain"
                 && n != "keep_api_domain" && n != "use_auto_detect_network_ip") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
+            }
+        }
+    }
+    if (true) {
+        SrsConfDirective* conf = root->get("rtsp_server");
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "enabled" && n != "listen") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtsp_server.%s", n.c_str());
             }
         }
     }
@@ -2595,7 +2604,8 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "play" && n != "publish" && n != "cluster"
                 && n != "security" && n != "http_remux" && n != "dash"
                 && n != "http_static" && n != "hds" && n != "exec"
-                && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt") {
+                && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt"
+                && n != "rtsp") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.%s", n.c_str());
             }
             // for each sub directives of vhost.
@@ -2752,6 +2762,13 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "srt_to_rtmp") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.srt.%s of %s", m.c_str(), vhost->arg0().c_str());
+                    }
+                }
+            } else if (n == "rtsp") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name;
+                    if (m != "enabled" && m != "rtmp_to_rtsp") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.srt.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4067,6 +4084,96 @@ std::string SrsConfig::get_stream_caster_sip_candidate(SrsConfDirective* conf)
     }
 
     return conf->arg0();
+}
+
+bool SrsConfig::get_rtsp_server_enabled()
+{
+    SrsConfDirective* conf = root->get("rtsp_server");
+    return get_rtsp_server_enabled(conf);
+}
+
+bool SrsConfig::get_rtsp_server_enabled(SrsConfDirective* conf)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.rtsp_server.enabled"); // SRS_RTSP_SERVER_ENABLED
+
+    static bool DEFAULT = false;
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
+int SrsConfig::get_rtsp_server_listen()
+{
+    SRS_OVERWRITE_BY_ENV_INT("srs.rtsp_server.listen"); // SRS_RTSP_SERVER_LISTEN
+
+    SrsConfDirective* conf = root->get("rtsp_server");
+
+    static int DEFAULT = 554;
+    
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("listen");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+SrsConfDirective* SrsConfig::get_rtsp(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    return conf? conf->get("rtsp") : NULL;
+}
+
+bool SrsConfig::get_rtsp_enabled(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.rtsp.enabled"); // SRS_VHOST_RTSP_ENABLED
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_rtsp(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_rtsp_from_rtmp(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.rtsp.rtmp_to_rtsp"); // SRS_VHOST_RTSP_RTMP_TO_RTSP
+
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_rtsp(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("rtmp_to_rtsp");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_TRUE(conf->arg0());
 }
 
 bool SrsConfig::get_rtc_server_enabled()

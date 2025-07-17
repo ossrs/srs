@@ -50,7 +50,8 @@ func (i *Chain) UnbindLocalStream(ctx *StreamInfo) {
 	}
 }
 
-// BindRemoteStream lets you modify any incoming RTP packets. It is called once for per RemoteStream. The returned method
+// BindRemoteStream lets you modify any incoming RTP packets.
+// It is called once for per RemoteStream. The returned method
 // will be called once per rtp packet.
 func (i *Chain) BindRemoteStream(ctx *StreamInfo, reader RTPReader) RTPReader {
 	for _, interceptor := range i.interceptors {

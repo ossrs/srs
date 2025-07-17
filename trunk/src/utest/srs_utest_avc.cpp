@@ -600,8 +600,6 @@ VOID TEST(SrsAVCTest, AACMuxToFLV)
     }
 }
 
-#ifdef SRS_H265
-
 VOID TEST(SrsAVCTest, HevcMultiPPS)
 {
     srs_error_t err;
@@ -685,6 +683,4 @@ VOID TEST(SrsAVCTest, HevcMultiPPS)
 
     EXPECT_TRUE(stream.empty());
 }
-
-#endif
 

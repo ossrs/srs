@@ -75,7 +75,7 @@ srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264
             // @see https://tools.ietf.org/html/rfc6184#section-6.3
             h264_param.packetization_mode = kv[1];
         } else if (kv[0] == "level-asymmetry-allowed") {
-            h264_param.level_asymmerty_allow = kv[1];
+            h264_param.level_asymmetry_allow = kv[1];
         }
     }
 
@@ -85,11 +85,47 @@ srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264
     if (h264_param.packetization_mode.empty()) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "no h264 param: packetization-mode");
     }
-    if (h264_param.level_asymmerty_allow.empty()) {
+    if (h264_param.level_asymmetry_allow.empty()) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "no h264 param: level-asymmetry-allowed");
     }
 
     return err;
+}
+
+srs_error_t srs_parse_h265_fmtp(const std::string& fmtp, H265SpecificParam& h265_param)
+{
+    srs_error_t err = srs_success;
+
+    std::vector<std::string> vec = srs_string_split(fmtp, ";");
+    for (size_t i = 0; i < vec.size(); ++i) {
+        std::vector<std::string> kv = srs_string_split(vec[i], "=");
+        if (kv.size() != 2) continue;
+
+        if (kv[0] == "level-id") {
+            h265_param.level_id = kv[1];
+        } else if (kv[0] == "profile-id") {
+            h265_param.profile_id = kv[1];
+        } else if (kv[0] == "tier-flag") {
+            h265_param.tier_flag = kv[1];
+        } else if (kv[0] == "tx-mode") {
+            h265_param.tx_mode = kv[1];
+        }
+    }
+
+    if (h265_param.level_id.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: level-id");
+    }
+    if (h265_param.profile_id.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: profile-id");
+    }
+    if (h265_param.tier_flag.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: tier-flag");
+    }
+    if (h265_param.tx_mode.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: tx-mode");
+    }
+
+    return err; 
 }
 
 SrsSessionInfo::SrsSessionInfo()
@@ -432,6 +468,10 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
 
     if (rtcp_rsize_) {
         os << "a=rtcp-rsize" << kCRLF;
+    }
+
+    if (!control_.empty()) {
+        os << "a=control:" << control_ << kCRLF;
     }
 
     for (std::vector<SrsMediaPayloadType>::iterator iter = payload_types_.begin(); iter != payload_types_.end(); ++iter) {
@@ -858,6 +898,10 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
 
     if ((err = session_info_.encode(os)) != srs_success) {
         return srs_error_wrap(err, "encode session info failed");
+    }
+
+    if (!control_.empty()) {
+        os << "a=control:" << control_ << kCRLF;
     }
 
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {

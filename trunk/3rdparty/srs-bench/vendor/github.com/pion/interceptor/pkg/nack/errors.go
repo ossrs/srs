@@ -3,13 +3,7 @@
 
 package nack
 
-import "errors"
+import "github.com/pion/interceptor/internal/rtpbuffer"
 
-// ErrInvalidSize is returned by newReceiveLog/newSendBuffer, when an incorrect buffer size is supplied.
-var ErrInvalidSize = errors.New("invalid buffer size")
-
-var (
-	errPacketReleased          = errors.New("could not retain packet, already released")
-	errFailedToCastHeaderPool  = errors.New("could not access header pool, failed cast")
-	errFailedToCastPayloadPool = errors.New("could not access payload pool, failed cast")
-)
+// ErrInvalidSize is returned by newReceiveLog/newRTPBuffer, when an incorrect buffer size is supplied.
+var ErrInvalidSize = rtpbuffer.ErrInvalidSize

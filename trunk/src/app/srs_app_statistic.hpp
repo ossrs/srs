@@ -70,12 +70,10 @@ public:
     SrsAvcProfile avc_profile;
     // The level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel avc_level;
-#ifdef SRS_H265
     // The profile_idc, ITU-T-H.265-2021.pdf, page 62.
     SrsHevcProfile hevc_profile;
     // The level_idc, ITU-T-H.265-2021.pdf, page 63.
     SrsHevcLevel hevc_level;
-#endif
     // The width and height in codec info.
     int width;
     int height;
