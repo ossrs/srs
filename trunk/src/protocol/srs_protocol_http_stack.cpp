@@ -407,9 +407,9 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
     if (srs_string_ends_with(upath, ".flv", ".fhv")) {
         return serve_flv_file(w, r, fullpath);
     } else if (srs_string_ends_with(upath, ".m3u8")) {
-        return serve_m3u8_file(w, r, fullpath);
+        return serve_m3u8_ctx(w, r, fullpath);
     } else if (srs_string_ends_with(upath, ".ts", ".m4s") || basename == "init.mp4") {
-        return serve_ts_file(w, r, fullpath);
+        return serve_ts_ctx(w, r, fullpath);
     } else if (srs_string_ends_with(upath, ".mp4")) {
         return serve_mp4_file(w, r, fullpath);
     } 
@@ -552,16 +552,6 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHtt
     }
     
     return serve_mp4_stream(w, r, fullpath, start, end);
-}
-
-srs_error_t SrsHttpFileServer::serve_m3u8_file(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
-{
-    return serve_m3u8_ctx(w, r, fullpath);
-}
-
-srs_error_t SrsHttpFileServer::serve_ts_file(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
-{
-    return serve_ts_ctx(w, r, fullpath);
 }
 
 srs_error_t SrsHttpFileServer::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int64_t offset)
