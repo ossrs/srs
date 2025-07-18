@@ -155,6 +155,7 @@ public:
 //
 // That is, user must use HlsCache, which will control the methods of muxer,
 // and provides HLS mechenisms.
+// TODO: Rename to SrsHlsTsMuxer, for TS file only.
 class SrsHlsMuxer
 {
 private:
@@ -435,6 +436,7 @@ public:
 //   when timestamp convert to flv tbn, it will loose precise,
 //   so we must gather audio frame together, and recalc the timestamp @see SrsTsAacJitter,
 //   we use a aac jitter to correct the audio pts.
+// TODO: Rename to SrsHlsTsController, for TS file only.
 class SrsHlsController : public ISrsHlsController
 {
 private:
@@ -482,6 +484,8 @@ private:
     virtual srs_error_t reap_segment();
 };
 
+// HLS controller for fMP4 (.m4s) segments with init.mp4.
+// Direct sample processing without caching, simpler than TS controller.
 class SrsHlsMp4Controller : public ISrsHlsController
 {
 private:
@@ -517,7 +521,6 @@ public:
     virtual srs_utime_t duration();
     virtual int deviation();
 };
-
 
 // Transmux RTMP stream to HLS(m3u8 and ts,fmp4).
 // TODO: FIXME: add utest for hls.
