@@ -91,7 +91,56 @@ code_patterns:
 
   error_handling:
     - pattern: "srs_error_t"
-      description: "Custom error handling system"
+      description: "Custom error handling system - MANDATORY for all functions that return srs_error_t"
+
+    - pattern: "error_checking_and_wrapping"
+      description: "MANDATORY pattern for calling functions that return srs_error_t - ALWAYS check and wrap errors"
+      usage: |
+        WRONG: Not checking error return value (causes error object leak)
+        muxer_->write_audio(shared_audio, format);
+        reader.read(start, filesize, &nread);
+
+        CORRECT: Always check error and wrap with context
+        if ((err = muxer_->write_audio(shared_audio, format)) != srs_success) {
+            return srs_error_wrap(err, "write audio");
+        }
+
+        ssize_t nread = 0;
+        if ((err = reader.read(start, filesize, &nread)) != srs_success) {
+            return srs_error_wrap(err, "read %d only %d bytes", filesize, (int)nread);
+        }
+      rationale: |
+        - Prevents error object memory leaks
+        - Provides proper error context propagation
+        - Includes relevant local variables in error messages for debugging
+        - Maintains error chain for better troubleshooting
+
+    - pattern: "error_wrapping_with_context"
+      description: "When wrapping errors, include relevant local variables and context information"
+      rules:
+        - "Always include newly created local variables in error messages"
+        - "Include function parameters that provide context"
+        - "Use descriptive error messages that explain what operation failed"
+        - "Format numeric values appropriately (cast to int for display if needed)"
+      examples:
+        - "return srs_error_wrap(err, \"read %d only %d bytes\", filesize, (int)nread);"
+        - "return srs_error_wrap(err, \"write audio format=%d\", format->codec);"
+        - "return srs_error_wrap(err, \"connect to %s:%d\", host.c_str(), port);"
+
+    - pattern: "error_variable_declaration"
+      description: "Always declare srs_error_t err variable at function scope for error handling"
+      usage: |
+        CORRECT: Declare err variable at function start
+        srs_error_t MyClass::my_function() {
+            srs_error_t err = srs_success;
+
+            // ... function implementation with error checking
+            if ((err = some_function()) != srs_success) {
+                return srs_error_wrap(err, "context");
+            }
+
+            return err;
+        }
 
   binary_data_handling:
     - pattern: "SrsBuffer"
