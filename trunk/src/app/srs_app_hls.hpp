@@ -329,6 +329,7 @@ private:
     srs_utime_t max_td_;
     std::string m3u8_;
     std::string m3u8_url_;
+    std::string init_mp4_uri_;  // URI for init.mp4 in m3u8 playlist
     int video_track_id_;
     int audio_track_id_;
     uint64_t video_dts_;

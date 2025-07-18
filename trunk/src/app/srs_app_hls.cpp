@@ -495,14 +495,19 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat* format, bool has_video, b
     std::string vhost = req_->vhost;
     std::string stream = req_->stream;
     std::string app = req_->app;
-    std::string path = _srs_config->get_hls_path(vhost);
-    
-    path = path + "/" + app + "/" + stream;
-    if ((err = srs_create_dir_recursively(path)) != srs_success) {
-        return srs_error_wrap(err, "Create media home failed, home=%s", path.c_str());
+
+    // Get init.mp4 file template from configuration
+    std::string init_file = _srs_config->get_hls_init_file(vhost);
+    init_file = srs_path_build_stream(init_file, vhost, app, stream);
+
+    std::string hls_path = _srs_config->get_hls_path(vhost);
+    std::string path = hls_path + "/" + init_file;
+
+    // Create directory for the init file
+    std::string init_dir = srs_path_dirname(path);
+    if ((err = srs_create_dir_recursively(init_dir)) != srs_success) {
+        return srs_error_wrap(err, "Create init mp4 dir failed, dir=%s", init_dir.c_str());
     }
-    
-    path += "/init.mp4";
 
     SrsUniquePtr<SrsInitMp4Segment> init_mp4(new SrsInitMp4Segment(writer_));
     
@@ -554,6 +559,10 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat* format, bool has_video, b
     }
     init_mp4_uri += mp4_path;
 
+    // Convert to relative URI for m3u8 playlist.
+    // TODO: Need to resolve the relative URI from m3u8 and init file.
+    init_mp4_uri_ = srs_path_basename(init_file);
+
     // use async to call the http hooks, for it will cause thread switch.
     if ((err = async_->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req_, init_mp4->fullpath(),
                                                         init_mp4_uri, m3u8_, m3u8_url_, 0, 0))) != srs_success) {
@@ -564,7 +573,6 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat* format, bool has_video, b
     if ((err = async_->execute(new SrsDvrAsyncCallOnHlsNotify(_srs_context->get_id(), req_, init_mp4_uri))) != srs_success) {
         return srs_error_wrap(err, "segment close");
     }
-
     
     init_mp4_ready_ = true;
     return err;
@@ -989,7 +997,7 @@ srs_error_t SrsHlsFmp4Muxer::_refresh_m3u8(std::string m3u8_file)
     ss << "#EXT-X-TARGETDURATION:" << target_duration << SRS_CONSTS_LF;
 
     // TODO: add #EXT-X-MAP:URI="init.mp4" for fmp4
-    ss << "#EXT-X-MAP:URI=\""<< req_->stream << "/init.mp4\"" << SRS_CONSTS_LF;
+    ss << "#EXT-X-MAP:URI=\"" << init_mp4_uri_ << "\"" << SRS_CONSTS_LF;
     
     // write all segments
     for (int i = 0; i < segments_->size(); i++) {

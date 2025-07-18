@@ -3732,7 +3732,7 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{hls{hls_keys on;hls_fragments_per_key 5;hls_key_file xxx;hls_key_file_path xxx2;hls_key_url xxx3;hls_use_fmp4 on;hls_fmp4_file xx.m4s;}}"));
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{hls{hls_keys on;hls_fragments_per_key 5;hls_key_file xxx;hls_key_file_path xxx2;hls_key_url xxx3;hls_use_fmp4 on;hls_fmp4_file xx.m4s;hls_init_file yy-init.mp4;}}"));
         EXPECT_TRUE(conf.get_hls_keys("ossrs.net"));
         EXPECT_EQ(5, conf.get_hls_fragments_per_key("ossrs.net"));
         EXPECT_STREQ("xxx", conf.get_hls_key_file("ossrs.net").c_str());
@@ -3740,6 +3740,7 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
         EXPECT_STREQ("xxx3", conf.get_hls_key_url("ossrs.net").c_str());
         EXPECT_TRUE(conf.get_hls_use_fmp4("ossrs.net"));
         EXPECT_STREQ("xx.m4s", conf.get_hls_fmp4_file("ossrs.net").c_str());
+        EXPECT_STREQ("yy-init.mp4", conf.get_hls_init_file("ossrs.net").c_str());
     }
 
     if (true) {
@@ -4984,6 +4985,8 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesDvr)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesHls)
 {
+    srs_error_t err;
+    
     if (true) {
         MockSrsConfig conf;
 
@@ -5073,6 +5076,15 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHls)
         
         SrsSetEnvConfig(hls_fmp4_file, "SRS_VHOST_HLS_HLS_FMP4_FILE", "xxx.m4s");
         EXPECT_STREQ("xxx.m4s", conf.get_hls_fmp4_file("__defaultVhost__").c_str());
+
+        SrsSetEnvConfig(hls_init_file, "SRS_VHOST_HLS_HLS_INIT_FILE", "yyy-init.mp4");
+        EXPECT_STREQ("yyy-init.mp4", conf.get_hls_init_file("__defaultVhost__").c_str());
+    }
+
+    // Test default value for hls_init_file with a fresh config
+    {
+        MockSrsConfig conf;
+        EXPECT_STREQ("[app]/[stream]/init.mp4", conf.get_hls_init_file("__defaultVhost__").c_str());
     }
 }
 

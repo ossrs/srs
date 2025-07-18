@@ -569,6 +569,7 @@ func (v *srsServer) Run(ctx context.Context, cancel context.CancelFunc) error {
 		"SRS_VHOST_HLS_HLS_M3U8_FILE=[app]/[stream].m3u8",
 		"SRS_VHOST_HLS_HLS_TS_FILE=[app]/[stream]-[seq].ts",
 		"SRS_VHOST_HLS_HLS_FMP4_FILE=[app]/[stream]-[seq].m4s",
+		"SRS_VHOST_HLS_HLS_INIT_FILE=[app]/[stream]-init.mp4",
 	}...)
 	// For variables.
 	v.process.env = append(v.process.env, []string{

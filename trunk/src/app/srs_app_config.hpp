@@ -955,6 +955,8 @@ public:
     virtual std::string get_hls_ts_file(std::string vhost);
     // Get the HLS fmp4 file path template.
     virtual std::string get_hls_fmp4_file(std::string vhost);
+    // Get the HLS init mp4 file path template.
+    virtual std::string get_hls_init_file(std::string vhost);
     // Whether enable the floor(timestamp/hls_fragment) for variable timestamp.
     virtual bool get_hls_ts_floor(std::string vhost);
     // Get the hls fragment time, in srs_utime_t.

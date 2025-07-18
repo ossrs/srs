@@ -2693,7 +2693,7 @@ srs_error_t SrsConfig::check_normal_config()
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                         && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
                         && m != "hls_wait_keyframe" && m != "hls_dispose" && m != "hls_keys" && m != "hls_fragments_per_key" && m != "hls_key_file"
-                        && m != "hls_key_file_path" && m != "hls_key_url" && m != "hls_dts_directly" && m != "hls_ctx" && m != "hls_ts_ctx" && m != "hls_use_fmp4" && m != "hls_fmp4_file") {
+                        && m != "hls_key_file_path" && m != "hls_key_url" && m != "hls_dts_directly" && m != "hls_ctx" && m != "hls_ts_ctx" && m != "hls_use_fmp4" && m != "hls_fmp4_file" && m != "hls_init_file") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.hls.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                     
@@ -7160,6 +7160,25 @@ string SrsConfig::get_hls_fmp4_file(std::string vhost)
         return DEFAULT;
     }
     
+    return conf->arg0();
+}
+
+string SrsConfig::get_hls_init_file(std::string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_init_file"); // SRS_VHOST_HLS_HLS_INIT_FILE
+
+    static string DEFAULT = "[app]/[stream]/init.mp4";
+
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("hls_init_file");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
     return conf->arg0();
 }
 
