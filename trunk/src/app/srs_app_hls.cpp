@@ -2162,7 +2162,10 @@ srs_error_t SrsHlsMp4Controller::write_audio(SrsSharedPtrMessage* shared_audio, 
     }
 
     audio_dts_ = shared_audio->timestamp;
-    muxer_->write_audio(shared_audio, format);
+
+    if ((err = muxer_->write_audio(shared_audio, format)) != srs_success) {
+        return srs_error_wrap(err, "write audio");
+    }
 
     return err;
 }
@@ -2180,9 +2183,11 @@ srs_error_t SrsHlsMp4Controller::write_video(SrsSharedPtrMessage* shared_video, 
     }
     
     video_dts_ = shared_video->timestamp;
-    
-    muxer_->write_video(shared_video, format);
-    
+
+    if ((err = muxer_->write_video(shared_video, format)) != srs_success) {
+        return srs_error_wrap(err, "write video");
+    }
+
     return err;
 }
 
@@ -2207,7 +2212,9 @@ srs_error_t SrsHlsMp4Controller::on_sequence_header(SrsSharedPtrMessage* msg, Sr
         has_audio_sh_ = true;
     }
 
-    muxer_->write_init_mp4(format, has_video_sh_, has_audio_sh_);
+    if ((err = muxer_->write_init_mp4(format, has_video_sh_, has_audio_sh_)) != srs_success) {
+        return srs_error_wrap(err, "write init mp4");
+    }
 
     return err;
 }
