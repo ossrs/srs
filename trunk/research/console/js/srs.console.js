@@ -204,7 +204,7 @@ scApp.controller("CSCStreams", ["$scope", "$location", "MSCApi", "$sc_nav", "$sc
                     stream.owner = system_array_get(vhosts, function(vhost) {return vhost.id === stream.vhost; });
                 }
 
-                $scope.streams = data.streams;
+				$scope.streams = normalizeStreams(data);
 
                 $sc_utility.refresh.request();
             });
@@ -266,6 +266,32 @@ scApp.controller("CSCClients", ["$scope", "MSCApi", "$sc_nav", "$sc_utility", fu
         });
     };
 
+//******** Adaugat
+    MSCApi.configs_raw(function(data) {
+        $scope.support_raw_api = $sc_utility.raw_api_enabled(data);
+    });
+
+    MSCApi.vhosts_get(function(data){
+        var vhosts = data.vhosts;
+
+        $sc_utility.refresh.refresh_change(function(){
+            MSCApi.streams_get(function(data){
+                for (var k in data.streams) {
+                    var stream = data.streams[k];
+                    stream.owner = system_array_get(vhosts, function(vhost) {return vhost.id === stream.vhost; });
+                }
+
+                $scope.streams = data.streams;
+
+                $sc_utility.refresh.request();
+            });
+        }, 3000);
+
+        $sc_utility.log("trace", "Retrieve streams from SRS");
+        $sc_utility.refresh.request(0);
+    });
+//********
+
     $sc_utility.refresh.refresh_change(function(){
         MSCApi.clients_get(function(data){
             $scope.clients = data.clients;
@@ -278,23 +304,48 @@ scApp.controller("CSCClients", ["$scope", "MSCApi", "$sc_nav", "$sc_utility", fu
     $sc_utility.refresh.request(0);
 }]);
 
-scApp.controller("CSCClient", ["$scope", "$routeParams", "MSCApi", "$sc_nav", "$sc_utility", function($scope, $routeParams, MSCApi, $sc_nav, $sc_utility){
+
+scApp.controller("CSCClients", [
+  "$scope",
+  "MSCApi",
+  "$sc_nav",
+  "$sc_utility",
+  function ($scope, MSCApi, $sc_nav, $sc_utility) {
     $sc_nav.in_clients();
 
-    $scope.kickoff = function(client) {
-        MSCApi.clients_delete(client.id, function(){
-            $sc_utility.log("warn", "Kickoff client ok.");
-        });
+    $scope.kickoff = function (client) {
+      MSCApi.clients_delete(client.id, function () {
+        $sc_utility.log("warn", "Kickoff client ok.");
+      });
     };
 
-    $sc_utility.refresh.stop();
+    // Încarcă lista de vhost-uri la inițializare
+    MSCApi.vhosts_get(function (vdata) {
+      var vhosts = vdata.vhosts || [];
 
-    MSCApi.clients_get2($routeParams.id, function(data){
-        $scope.client = data.client;
+      // Refresh periodic pentru lista de clienți
+      $sc_utility.refresh.refresh_change(function () {
+        MSCApi.clients_get(function (data) {
+          $scope.clients = data.clients;
+
+          // Pentru fiecare client, asociază numele vhostului
+          $scope.clients.forEach(function (client) {
+            var vhost = vhosts.find(function (v) {
+              return v.id === client.vhost;
+            });
+            client.vhost_name = vhost ? vhost.name : client.vhost;
+          });
+
+          $sc_utility.refresh.request();
+        });
+      }, 3000);
+
+      $sc_utility.log("trace", "Retrieve clients from SRS.");
+      $sc_utility.refresh.request(0);
     });
+  }
+]);
 
-    $sc_utility.log("trace", "Retrieve client info from SRS");
-}]);
 
 scApp.controller("CSCConfigs", ["$scope", "$location", "MSCApi", "$sc_nav", "$sc_utility", "$sc_server", function($scope, $location, MSCApi, $sc_nav, $sc_utility, $sc_server){
     $sc_nav.in_configs();
@@ -536,17 +587,43 @@ scApp.filter("sc_filter_percentf2", function(){
 
 scApp.filter("sc_filter_video", function(){
     return function(v){
+        if (!v) return "No video";
         // set default value for SRS2.
-        v.width = v.width? v.width : 0;
-        v.height = v.height? v.height : 0;
+        v.width = v.width ? v.width : 0;
+        v.height = v.height ? v.height : 0;
 
-        return v? v.codec + "/" + v.profile + "/" + v.level + "/" + v.width + "x" + v.height : "无视频";
+        // New: frame rate and bitrate
+        var fr = v.framerate || v.fps ? ((v.framerate || v.fps) + "fps") : "";
+        var bitrate = v.bitrate ? (v.bitrate + "kbps") : "";
+        var parts = [
+            v.codec,
+            v.profile,
+			v.type,
+            v.level,
+            v.width + "x" + v.height,
+			v.bitrate,
+			v.timebase,
+			v.pixfmt,
+			v.timebase,
+            fr,
+            bitrate
+        ].filter(Boolean); // remove empty vals
+        return parts.join("/");
     };
 });
 
 scApp.filter("sc_filter_audio", function(){
     return function(v){
-        return v? v.codec + "/" + v.sample_rate + "/" + (v.channel === 2? "Stereo":"Mono") + "/" + v.profile : "无音频";
+        if (!v) return "No audio";
+        var channel = v.channel === 2 ? "Stereo" : "Mono";
+        var bitrate = v.bitrate ? (v.bitrate + "kbps") : "";
+        var parts = [
+            v.codec,
+            v.sample_rate,
+            channel,
+            v.profile
+        ].filter(Boolean);
+        return parts.join("/");
     };
 });
 
@@ -568,76 +645,146 @@ scApp.filter('sc_filter_style_error', function(){
     };
 });
 
+
 scApp.filter('sc_filter_preview_url', ['$sc_server', function($sc_server){
     return function(v){
-        var page = $sc_server.schema + `://${$sc_server.host}:${$sc_server.http}/players/srs_player.html`;
+		$sc_server.http_port = 9998;
+//      var page = $sc_server.schema + `://${$sc_server.host}:${$sc_server.http}/players/srs_player.html`;
+        var page = $sc_server.schema + `://${$sc_server.host}:${$sc_server.http_port}/players/srs_player.html`;
         var http = $sc_server.http[$sc_server.http.length - 1];
         var query = "vhost=" + v.owner.name + "&app=" + v.app + "&stream=" + v.name + ".flv";
-        query += "&server=" + $sc_server.host +"&port=" + http + "&autostart=true&schema=" + $sc_server.schema;
+//        query += "&server=" + $sc_server.host +"&port=" + http + "&autostart=true&schema=" + $sc_server.schema;
+        query += "&server=" + $sc_server.host +"&port=" + $sc_server.http_port + "&autostart=true&schema=" + $sc_server.schema;		
         return v? page+"?" + query:"javascript:void(0)";
     };
 }]);
 
+// Filtru pentru afișarea corectă a URL-ului de stream (RTMP/SRT) cu vhost
 scApp.filter('sc_filter_streamURL', ['$sc_server', function($sc_server) {
     function extractPort(tcUrl, schema) {
-        // Exemplu tcUrl: 'srt://vhost.example.com:10080'
-        var m = (tcUrl || '').match(/^(\w+):\/\/[^:/\?]+(?::(\d+))?/);
-        return m && m[2] ? m[2] :
-            (schema === 'http' ? 80 :
-             schema === 'https' ? 443 :
-             schema === 'rtmp' ? 1935 :
-             schema === 'srt' ? 10080 :
-             schema === 'webrtc' ? 1985 : '');
+        if (!tcUrl) return (
+            schema === 'http' ? '80' :
+            schema === 'https' ? '443' :
+            schema === 'rtmp' ? '1935' :
+            schema === 'srt' ? '10080' :
+            schema === 'webrtc' ? '1985' : ''
+        );
+        var m = tcUrl.match(/^[\w]+:\/\/[^:\/\?]+(?::(\d+))?/);
+        if (m && m[1]) return m[1];
+        return (
+            schema === 'http' ? '80' :
+            schema === 'https' ? '443' :
+            schema === 'rtmp' ? '1935' :
+            schema === 'srt' ? '10080' :
+            schema === 'webrtc' ? '1985' : ''
+        );
+    }
+
+    // Helper universal pt vhost name
+    function getVhostName(v) {
+        // Caută numele vhostului (nu id!)
+        if (v.owner && typeof v.owner === 'object') {
+            if (v.owner.name && v.owner.name !== '__defaultVhost__') return v.owner.name;
+            if (v.owner.vhost && v.owner.vhost !== '__defaultVhost__') return v.owner.vhost;
+        }
+        if (v.vhost && v.vhost !== '__defaultVhost__') return v.vhost;
+        return '';
     }
 
     return function(v) {
         if (!v) return '';
 
-        // Schema
+        // Schema (protocol)
         var schema = 'rtmp';
         if (v.tcUrl && v.tcUrl.indexOf('://') > 0) {
             schema = v.tcUrl.split('://')[0];
         }
 
-        // IP-ul serverului, nu vhostul!
-        var ip = $sc_server.host || location.hostname;
-
-        // Portul corect
+        var ip = ($sc_server && $sc_server.host) ? $sc_server.host : (window.location.hostname || '127.0.0.1');
         var port = extractPort(v.tcUrl, schema);
 
-        // App și stream
-        var app = v.app || '';
-        var stream = v.name || '';
+        // App și stream - fallback pe mai multe chei posibile pentru compatibilitate!
+        var app = v.app || (v.stream && v.stream.app) || '';
+        var stream = v.name || v.streamName || v.stream || (v.stream && v.stream.name) || '';
 
-        // Numele vhostului
-        var vhost = (v.owner && v.owner.name) ? v.owner.name : '';
+        // Vhost (corect, nu id!)
+        var vhost = getVhostName(v);
 
         // Construiește URL-ul
         var url = schema + '://' + ip;
         if (port) url += ':' + port;
 
         if (schema === 'srt') {
-            url += '?streamid=';
-            var streamid = '';
-            if (app && stream) {
-                streamid = '#!::r=' + app + '/' + stream;
-            } else if (stream) {
-                streamid = '#!::r=' + stream;
+            var streamid = '#!::r=' + app + '/' + stream;
+            if (vhost) {
+                streamid = '#!::h=' + vhost + ',r=' + app + '/' + stream;
             }
-            if (vhost && vhost !== '__defaultVhost__') {
-                streamid += ',vhost=' + encodeURIComponent(vhost);
-            }
-            url += streamid;
+            url += '?streamid=' + streamid;
         } else {
             url += '/' + app + '/' + stream;
-            if (vhost && vhost !== '__defaultVhost__') {
+            if (vhost) {
                 url += '?vhost=' + encodeURIComponent(vhost);
             }
         }
-
         return url;
     };
 }]);
+
+/**
+ * Exemplu de normalizare a datelor în controller.
+ * 
+ * În funcția unde primești lista de streamuri sau clienți,
+ * folosește următorul pattern pentru a normaliza datele:
+ */
+
+// Exemplu pentru $scope.streams:
+function normalizeStreams(data) {
+    return data.streams.map(function(s) {
+        // Normalizează vhostul (numele, nu id-ul!)
+        var vhostName = '';
+        if (s.owner && typeof s.owner === 'object') {
+            vhostName = s.owner.name || s.owner.vhost || '';
+        } else if (s.vhost) {
+            vhostName = s.vhost;
+        }
+        if (vhostName === '__defaultVhost__') vhostName = '';
+
+        return {
+            app: s.app || '',
+            name: s.name || '',
+            tcUrl: s.tcUrl || '',
+            owner: { name: vhostName },
+            // Păstrează restul proprietăților existente
+            ...s
+        };
+    });
+}
+
+// Exemplu pentru $scope.clients:
+function normalizeClients(data) {
+    return data.clients.map(function(c) {
+        var vhostName = '';
+        if (c.owner && typeof c.owner === 'object') {
+            vhostName = c.owner.name || c.owner.vhost || '';
+        } else if (c.vhost) {
+            vhostName = c.vhost;
+        }
+        if (vhostName === '__defaultVhost__') vhostName = '';
+
+        return {
+            app: c.app || (c.stream && c.stream.app) || '',
+            name: c.name || (c.stream && c.stream.name) || '',
+            tcUrl: c.tcUrl || (c.stream && c.stream.tcUrl) || '',
+            owner: { name: vhostName },
+            ...c
+        };
+    });
+}
+
+// În controller, după ce primești datele, folosește:
+// $scope.streams = normalizeStreams(data);
+// $scope.clients = normalizeClients(data);
+
 
 // the sc nav is the nevigator
 scApp.provider("$sc_nav", function(){
