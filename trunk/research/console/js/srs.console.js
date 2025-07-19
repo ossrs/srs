@@ -144,7 +144,7 @@ scApp.controller("CSCSummary", ["$scope", "MSCApi", "$sc_utility", "$sc_nav", fu
         });
     }, 3000);
 
-    $sc_utility.log("trace", "Retrieve summary from sPlus++.");
+    $sc_utility.log("trace", "Retrieve summary from SRS.");
     $sc_utility.refresh.request(0);
 }]);
 
@@ -159,7 +159,7 @@ scApp.controller("CSCVhosts", ["$scope", "MSCApi", "$sc_nav", "$sc_utility", fun
         });
     }, 3000);
 
-    $sc_utility.log("trace", "Retrieve vhosts from sPlus++");
+    $sc_utility.log("trace", "Retrieve vhosts from SRS");
     $sc_utility.refresh.request(0);
 }]);
 
@@ -172,7 +172,7 @@ scApp.controller("CSCVhost", ["$scope", "$routeParams", "MSCApi", "$sc_nav", "$s
         $scope.vhost = data.vhost;
     });
 
-    $sc_utility.log("trace", "Retrieve vhost info from sPlus++");
+    $sc_utility.log("trace", "Retrieve vhost info from SRS");
 }]);
 
 scApp.controller("CSCStreams", ["$scope", "$location", "MSCApi", "$sc_nav", "$sc_utility", function($scope, $location, MSCApi, $sc_nav, $sc_utility){
@@ -210,13 +210,12 @@ scApp.controller("CSCStreams", ["$scope", "$location", "MSCApi", "$sc_nav", "$sc
             });
         }, 3000);
 
-        $sc_utility.log("trace", "Retrieve streams from sPlus++");
+        $sc_utility.log("trace", "Retrieve streams from SRS");
         $sc_utility.refresh.request(0);
     });
 
-    $sc_utility.log("trace", "Retrieve vhost info from sPlus++");
+    $sc_utility.log("trace", "Retrieve vhost info from SRS");
 }]);
-
 
 scApp.controller("CSCStream", ["$scope", '$location', "$routeParams", "MSCApi", "$sc_nav", "$sc_utility", function($scope, $location, $routeParams, MSCApi, $sc_nav, $sc_utility){
     $sc_nav.in_streams();
@@ -248,14 +247,14 @@ scApp.controller("CSCStream", ["$scope", '$location', "$routeParams", "MSCApi", 
                 stream.owner = $scope.owner = vhost;
                 $scope.stream = stream;
             });
-            $sc_utility.log("trace", "Retrieve vhost info from sPlus++");
+            $sc_utility.log("trace", "Retrieve vhost info from SRS");
         } else {
             stream.owner = $scope.owner;
             $scope.stream = stream;
         }
     });
 
-    $sc_utility.log("trace", "Retrieve stream info from sPlus++");
+    $sc_utility.log("trace", "Retrieve stream info from SRS");
 }]);
 
 scApp.controller("CSCClients", ["$scope", "MSCApi", "$sc_nav", "$sc_utility", function($scope, MSCApi, $sc_nav, $sc_utility){
@@ -275,11 +274,9 @@ scApp.controller("CSCClients", ["$scope", "MSCApi", "$sc_nav", "$sc_utility", fu
         });
     }, 3000);
 
-    $sc_utility.log("trace", "Retrieve clients from sPlus++");
+    $sc_utility.log("trace", "Retrieve clients from SRS");
     $sc_utility.refresh.request(0);
 }]);
-
-
 
 scApp.controller("CSCClient", ["$scope", "$routeParams", "MSCApi", "$sc_nav", "$sc_utility", function($scope, $routeParams, MSCApi, $sc_nav, $sc_utility){
     $sc_nav.in_clients();
@@ -296,7 +293,7 @@ scApp.controller("CSCClient", ["$scope", "$routeParams", "MSCApi", "$sc_nav", "$
         $scope.client = data.client;
     });
 
-    $sc_utility.log("trace", "Retrieve client info from sPlus++");
+    $sc_utility.log("trace", "Retrieve client info from SRS");
 }]);
 
 scApp.controller("CSCConfigs", ["$scope", "$location", "MSCApi", "$sc_nav", "$sc_utility", "$sc_server", function($scope, $location, MSCApi, $sc_nav, $sc_utility, $sc_server){
@@ -308,7 +305,7 @@ scApp.controller("CSCConfigs", ["$scope", "$location", "MSCApi", "$sc_nav", "$sc
         $scope.http_api = data.http_api;
     });
 
-    $sc_utility.log("trace", "Retrieve config info from sPlus++");
+    $sc_utility.log("trace", "Retrieve config info from SRS");
 }]);
 
 scApp.factory("MSCApi", ["$http", "$sc_server", function($http, $sc_server){
@@ -581,100 +578,26 @@ scApp.filter('sc_filter_preview_url', ['$sc_server', function($sc_server){
     };
 }]);
 
-//scApp.filter('sc_filter_streamURL', function(){
-//    return function(v){
-//        if (!v || !v.url) return '';
-//
-//        const pos = v.url.lastIndexOf('/');
-//        const stream = pos < 0 ? '' : v.url.substr(pos);
-//
-//        // Use name or extract from url.
-//        let streamName = v.name ? v.name : stream;
-//        if (streamName && streamName.indexOf('/') !== 0) streamName = `/${streamName}`;
-//
-//        const pos2 = v.tcUrl.indexOf('?');
-//        const tcUrl = pos2 < 0 ? v.tcUrl : v.tcUrl.substr(0, pos2);
-//
- //       let params = pos2 < 0 ? '' : v.tcUrl.substr(pos2);
-//        if (params === '?vhost=__defaultVhost__' || params === '?domain=__defaultVhost__') params = '';
-//
-//        return `${tcUrl}${streamName}${params}`;
-//    };
-//});
+scApp.filter('sc_filter_streamURL', function(){
+    return function(v){
+        if (!v || !v.url) return '';
 
-										   
-														
+        const pos = v.url.lastIndexOf('/');
+        const stream = pos < 0 ? '' : v.url.substr(pos);
 
-scApp.filter('sc_filter_streamURL', ['$sc_server', function($sc_server) {
-    function extractPort(tcUrl, schema) {
-        if (!tcUrl) return (
-            schema === 'http' ? '80' :
-            schema === 'https' ? '443' :
-            schema === 'rtmp' ? '1935' :
-            schema === 'srt' ? '10080' :
-            schema === 'webrtc' ? '1985' : ''
-        );
-        var m = tcUrl.match(/^[\w]+:\/\/[^:\/\?]+(?::(\d+))?/);
-        if (m && m[1]) return m[1];
-        return (
-            schema === 'http' ? '80' :
-            schema === 'https' ? '443' :
-            schema === 'rtmp' ? '1935' :
-            schema === 'srt' ? '10080' :
-            schema === 'webrtc' ? '1985' : ''
-        );
-    }
+        // Use name or extract from url.
+        let streamName = v.name ? v.name : stream;
+        if (streamName && streamName.indexOf('/') !== 0) streamName = `/${streamName}`;
 
-    // Helper universal pt vhost name
-    function getVhostName(v) {
-        // Caută numele vhostului (nu id!)
-        if (v.owner && typeof v.owner === 'object') {
-            if (v.owner.name && v.owner.name !== '__defaultVhost__') return v.owner.name;
-            if (v.owner.vhost && v.owner.vhost !== '__defaultVhost__') return v.owner.vhost;
-        }
-        if (v.vhost && v.vhost !== '__defaultVhost__') return v.vhost;
-        return '';
-    }
+        const pos2 = v.tcUrl.indexOf('?');
+        const tcUrl = pos2 < 0 ? v.tcUrl : v.tcUrl.substr(0, pos2);
 
-    return function(v) {
-        if (!v) return '';
+        let params = pos2 < 0 ? '' : v.tcUrl.substr(pos2);
+        if (params === '?vhost=__defaultVhost__' || params === '?domain=__defaultVhost__') params = '';
 
-        // Schema (protocol)
-        var schema = 'rtmp';
-        if (v.tcUrl && v.tcUrl.indexOf('://') > 0) {
-            schema = v.tcUrl.split('://')[0];
-        }
-
-        var ip = ($sc_server && $sc_server.host) ? $sc_server.host : (window.location.hostname || '127.0.0.1');
-        var port = extractPort(v.tcUrl, schema);
-
-        // App și stream - fallback pe mai multe chei posibile pentru compatibilitate!
-        var app = v.app || (v.stream && v.stream.app) || '';
-        var stream = v.name || v.streamName || v.stream || (v.stream && v.stream.name) || '';
-
-        // Vhost (corect, nu id!)
-        var vhost = getVhostName(v);
-
-        // Construiește URL-ul
-        var url = schema + '://' + ip;
-        if (port) url += ':' + port;
-
-        if (schema === 'srt') {
-            var streamid = '#!::r=' + app + '/' + stream;
-            if (vhost) {
-                streamid = '#!::h=' + vhost + ',r=' + app + '/' + stream;
-            }
-            url += '?streamid=' + streamid;
-        } else {
-            url += '/' + app + '/' + stream;
-            if (vhost) {
-                url += '?vhost=' + encodeURIComponent(vhost);
-            }
-        }
-        return url;
+        return `${tcUrl}${streamName}${params}`;
     };
-}]);
-
+});
 
 // the sc nav is the nevigator
 scApp.provider("$sc_nav", function(){
@@ -717,10 +640,7 @@ scApp.provider("$sc_server", [function(){
             host: null,
             port: 1985,
             rtmp: [1935],
-			srt: [10080],
-            //http: [8080],
-			//pentru telefon
-			http: [9998], 
+            http: [8080],
             baseurl: function(){
                 return self.schema + "://" + self.host + (self.port === 80? "": ":" + self.port);
             },
