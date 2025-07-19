@@ -578,26 +578,66 @@ scApp.filter('sc_filter_preview_url', ['$sc_server', function($sc_server){
     };
 }]);
 
-scApp.filter('sc_filter_streamURL', function(){
-    return function(v){
-        if (!v || !v.url) return '';
+scApp.filter('sc_filter_streamURL', ['$sc_server', function($sc_server) {
+    function extractPort(tcUrl, schema) {
+        // Exemplu tcUrl: 'srt://vhost.example.com:10080'
+        var m = (tcUrl || '').match(/^(\w+):\/\/[^:/\?]+(?::(\d+))?/);
+        return m && m[2] ? m[2] :
+            (schema === 'http' ? 80 :
+             schema === 'https' ? 443 :
+             schema === 'rtmp' ? 1935 :
+             schema === 'srt' ? 10080 :
+             schema === 'webrtc' ? 1985 : '');
+    }
 
-        const pos = v.url.lastIndexOf('/');
-        const stream = pos < 0 ? '' : v.url.substr(pos);
+    return function(v) {
+        if (!v) return '';
 
-        // Use name or extract from url.
-        let streamName = v.name ? v.name : stream;
-        if (streamName && streamName.indexOf('/') !== 0) streamName = `/${streamName}`;
+        // Schema
+        var schema = 'rtmp';
+        if (v.tcUrl && v.tcUrl.indexOf('://') > 0) {
+            schema = v.tcUrl.split('://')[0];
+        }
 
-        const pos2 = v.tcUrl.indexOf('?');
-        const tcUrl = pos2 < 0 ? v.tcUrl : v.tcUrl.substr(0, pos2);
+        // IP-ul serverului, nu vhostul!
+        var ip = $sc_server.host || location.hostname;
 
-        let params = pos2 < 0 ? '' : v.tcUrl.substr(pos2);
-        if (params === '?vhost=__defaultVhost__' || params === '?domain=__defaultVhost__') params = '';
+        // Portul corect
+        var port = extractPort(v.tcUrl, schema);
 
-        return `${tcUrl}${streamName}${params}`;
+        // App și stream
+        var app = v.app || '';
+        var stream = v.name || '';
+
+        // Numele vhostului
+        var vhost = (v.owner && v.owner.name) ? v.owner.name : '';
+
+        // Construiește URL-ul
+        var url = schema + '://' + ip;
+        if (port) url += ':' + port;
+
+        if (schema === 'srt') {
+            url += '?streamid=';
+            var streamid = '';
+            if (app && stream) {
+                streamid = '#!::r=' + app + '/' + stream;
+            } else if (stream) {
+                streamid = '#!::r=' + stream;
+            }
+            if (vhost && vhost !== '__defaultVhost__') {
+                streamid += ',vhost=' + encodeURIComponent(vhost);
+            }
+            url += streamid;
+        } else {
+            url += '/' + app + '/' + stream;
+            if (vhost && vhost !== '__defaultVhost__') {
+                url += '?vhost=' + encodeURIComponent(vhost);
+            }
+        }
+
+        return url;
     };
-});
+}]);
 
 // the sc nav is the nevigator
 scApp.provider("$sc_nav", function(){
