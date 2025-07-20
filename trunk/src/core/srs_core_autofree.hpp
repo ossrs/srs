@@ -16,23 +16,36 @@
 //      SrsUniquePtr<MyClass> ptr(new MyClass());
 //      ptr->do_something();
 //
-// Note that the ptr should be initialized before use it, or it will crash if not set, for example:
+// Note that the p should be initialized before use it, or it will crash if not set, for example:
 //      Myclass* p;
 //      SrsUniquePtr<MyClass> ptr(p); // crash because p is an invalid pointer.
 //
 // Note that do not support array or object created by malloc, because we only use delete to dispose
-// the resource.
+// the resource. You can use a custom function to free the memory allocated by malloc or other 
+// allocators.
+//      char* p = (char*)malloc(1024);
+//      SrsUniquePtr<char> ptr(p, your_free_chars);
+// Or to free a specific object:
+//      addrinfo* r = NULL;
+//      getaddrinfo("127.0.0.1", NULL, &hints, &r);
+//      SrsUniquePtr<addrinfo> ptr(r, freeaddrinfo);
 template<class T>
 class SrsUniquePtr
 {
 private:
     T* ptr_;
+    void (*deleter_)(T*);
 public:
-    SrsUniquePtr(T* ptr = NULL) {
+    SrsUniquePtr(T* ptr = NULL, void (*deleter)(T*) = NULL) {
         ptr_ = ptr;
+        deleter_ = deleter;
     }
     virtual ~SrsUniquePtr() {
-        delete ptr_;
+        if (!deleter_) {
+            delete ptr_;
+        } else {
+            deleter_(ptr_);
+        }
     }
 public:
     // Get the object.
@@ -68,6 +81,10 @@ private:
 // Usage:
 //      SrsUniquePtr<MyClass[]> ptr(new MyClass[10]);
 //      ptr[0]->do_something();
+//
+// Note that the p should be initialized before use it, or it will crash if not set, for example:
+//      Myclass* p;
+//      SrsUniquePtr<MyClass[]> ptr(p); // crash because p is an invalid pointer.
 template<class T>
 class SrsUniquePtr<T[]>
 {

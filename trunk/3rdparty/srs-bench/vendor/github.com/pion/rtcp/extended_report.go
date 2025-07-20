@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -10,8 +13,9 @@ import (
 // more report blocks, each of which conveys a different kind of
 // information.
 //
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	0                   1                   2                   3
+//	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |V=2|P|reserved |   PT=XR=207   |             length            |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -88,8 +92,9 @@ func (t BlockTypeType) String() string {
 // Loss RLE report blocks (RFC 3611 §4.1) and Duplicate RLE
 // report blocks (RFC 3611 §4.2).
 //
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	0                   1                   2                   3
+//	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |  BT = 1 or 2  | rsvd. |   T   |         block length          |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -117,27 +122,27 @@ type rleReportBlock struct {
 //
 // Run Length Chunk:
 //
-//   0                   1
-//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//  |C|R|        run length         |
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	 0                   1
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|C|R|        run length         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 // Bit Vector Chunk:
 //
-//   0                   1
-//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//  |C|        bit vector           |
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	 0                   1
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|C|        bit vector           |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 // Terminating Null Chunk:
 //
-//   0                   1
-//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//  |0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0|
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	 0                   1
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0|
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 type Chunk uint16
 
 // LossRLEReportBlock is used to report information about packet
@@ -234,8 +239,9 @@ func (c Chunk) Value() uint {
 // PacketReceiptTimesReportBlock represents a Packet Receipt Times
 // report block, as described in RFC 3611 section 4.3.
 //
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	0                   1                   2                   3
+//	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |     BT=3      | rsvd. |   T   |         block length          |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -278,8 +284,9 @@ func (b *PacketReceiptTimesReportBlock) unpackBlockHeader() {
 // ReceiverReferenceTimeReportBlock encodes a Receiver Reference Time
 // report block as described in RFC 3611 section 4.4.
 //
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	0                   1                   2                   3
+//	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |     BT=4      |   reserved    |       block length = 2        |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -309,8 +316,9 @@ func (b *ReceiverReferenceTimeReportBlock) unpackBlockHeader() {
 // DLRRReportBlock encodes a DLRR Report Block as described in
 // RFC 3611 section 4.5.
 //
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	0                   1                   2                   3
+//	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |     BT=5      |   reserved    |         block length          |
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -357,8 +365,9 @@ func (b *DLRRReportBlock) unpackBlockHeader() {
 // StatisticsSummaryReportBlock encodes a Statistics Summary Report
 // Block as described in RFC 3611, section 4.6.
 //
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	0                   1                   2                   3
+//	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |     BT=6      |L|D|J|ToH|rsvd.|       block length = 9        |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -455,8 +464,9 @@ func (b *StatisticsSummaryReportBlock) unpackBlockHeader() {
 // VoIPMetricsReportBlock encodes a VoIP Metrics Report Block as described
 // in RFC 3611, section 4.7.
 //
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	0                   1                   2                   3
+//	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |     BT=7      |   reserved    |       block length = 8        |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -533,6 +543,11 @@ func (b *UnknownReportBlock) setupBlockHeader() {
 }
 
 func (b *UnknownReportBlock) unpackBlockHeader() {
+}
+
+// MarshalSize returns the size of the packet once marshaled
+func (x ExtendedReport) MarshalSize() int {
+	return wireSize(x)
 }
 
 // Marshal encodes the ExtendedReport in binary
@@ -631,7 +646,8 @@ func (x *ExtendedReport) Unmarshal(b []byte) error {
 
 // DestinationSSRC returns an array of SSRC values that this packet refers to.
 func (x *ExtendedReport) DestinationSSRC() []uint32 {
-	ssrc := make([]uint32, 0)
+	ssrc := make([]uint32, 0, len(x.Reports)+1)
+	ssrc = append(ssrc, x.SenderSSRC)
 	for _, p := range x.Reports {
 		ssrc = append(ssrc, p.DestinationSSRC()...)
 	}

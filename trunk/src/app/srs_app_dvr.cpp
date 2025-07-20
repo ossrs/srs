@@ -870,9 +870,7 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
         int size = msg->size;
 
         bool codec_ok = SrsFlvVideo::h264(payload, size);
-#ifdef SRS_H265
         codec_ok = codec_ok? true : SrsFlvVideo::hevc(payload, size);
-#endif
 
         bool is_key_frame = codec_ok && SrsFlvVideo::keyframe(payload, size) && !SrsFlvVideo::sh(payload, size);
         if (!is_key_frame) {

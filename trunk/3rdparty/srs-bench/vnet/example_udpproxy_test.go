@@ -25,7 +25,7 @@ import (
 
 	vnet_proxy "github.com/ossrs/srs-bench/vnet"
 	"github.com/pion/logging"
-	"github.com/pion/transport/v2/vnet"
+	"github.com/pion/transport/v3/vnet"
 )
 
 // Proxy many vnet endpoint to one real server endpoint.

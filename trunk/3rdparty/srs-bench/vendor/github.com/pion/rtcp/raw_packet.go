@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import "fmt"
@@ -39,4 +42,9 @@ func (r *RawPacket) DestinationSSRC() []uint32 {
 func (r RawPacket) String() string {
 	out := fmt.Sprintf("RawPacket: %v", ([]byte)(r))
 	return out
+}
+
+// MarshalSize returns the size of the packet once marshaled
+func (r RawPacket) MarshalSize() int {
+	return len(r)
 }

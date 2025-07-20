@@ -17,12 +17,6 @@ VOID TEST(CoreAutoFreeTest, Free)
     char* data = new char[32];
     srs_freepa(data);
     EXPECT_TRUE(data == NULL);
-
-    if (true) {
-        data = new char[32];
-        SrsAutoFreeA(char, data);
-    }
-    EXPECT_TRUE(data == NULL);
 }
 
 VOID TEST(CoreMacroseTest, Check)
@@ -487,5 +481,122 @@ VOID TEST(CoreSmartPtr, UniquePtrArray)
         EXPECT_EQ(102, *(p0[0].ptr));
     }
     EXPECT_EQ(100, *ptr);
+}
+
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+
+void mock_free_chars(char* p) {
+    free(p);
+}
+
+VOID TEST(CoreSmartPtr, UniquePtrDeleterExample)
+{
+    if (true) {
+        char* p = (char*)malloc(1024);
+        SrsUniquePtr<char> ptr(p, mock_free_chars);
+    }
+
+    if (true) {
+        addrinfo* r = NULL;
+        getaddrinfo("127.0.0.1", NULL, NULL, &r);
+        SrsUniquePtr<addrinfo> ptr(r, freeaddrinfo);
+    }
+}
+
+class MockSlice
+{
+public:
+    const char* bytes_;
+public:
+    MockSlice(const char* bytes) {
+        bytes_ = bytes;
+    }
+    virtual ~MockSlice() {
+    }
+public:
+    static void deleter(MockSlice* p) {
+        p->bytes_ = NULL;
+    }
+};
+
+VOID TEST(CoreSmartPtr, UniquePtrDeleterSlice)
+{
+    MockSlice p("Hello");
+    EXPECT_TRUE(p.bytes_ != NULL);
+
+    if (true) {
+        SrsUniquePtr<MockSlice> ptr(&p, MockSlice::deleter);
+    }
+    EXPECT_TRUE(p.bytes_ == NULL);
+}
+
+class MockSpecialPacket
+{
+public:
+    char* bytes_;
+    int size_;
+public:
+    MockSpecialPacket(char* bytes, int size) {
+        bytes_ = bytes;
+        size_ = size;
+    }
+    virtual ~MockSpecialPacket() {
+        srs_freep(bytes_);
+    }
+public:
+    static void deleter(vector<MockSpecialPacket*>* pkts) {
+        vector<MockSpecialPacket*>::iterator it;
+        for (it = pkts->begin(); it != pkts->end(); ++it) {
+            MockSpecialPacket* pkt = *it;
+            srs_freep(pkt);
+        }
+        pkts->clear();
+    }
+};
+
+VOID TEST(CoreSmartPtr, UniquePtrDeleterVector)
+{
+    vector<MockSpecialPacket*> pkts;
+    for (int i = 0; i < 10; i++) {
+        char* bytes = new char[1024];
+        MockSpecialPacket* pkt = new MockSpecialPacket(bytes, 1024);
+        pkts.push_back(pkt);
+    }
+    EXPECT_EQ(10, (int)pkts.size());
+
+    if (true) {
+        SrsUniquePtr<vector<MockSpecialPacket*>> ptr(&pkts, MockSpecialPacket::deleter);
+    }
+    EXPECT_EQ(0, (int)pkts.size());
+}
+
+class MockMalloc
+{
+public:
+    const char* bytes_;
+public:
+    MockMalloc(int size) {
+        bytes_ = (char*)malloc(size);
+    }
+    virtual ~MockMalloc() {
+    }
+public:
+    static void deleter(MockMalloc* p) {
+        free((void*)p->bytes_);
+        p->bytes_ = NULL;
+    }
+};
+
+VOID TEST(CoreSmartPtr, UniquePtrDeleterMalloc)
+{
+    MockMalloc p(1024);
+    EXPECT_TRUE(p.bytes_ != NULL);
+
+    if (true) {
+        SrsUniquePtr<MockMalloc> ptr(&p, MockMalloc::deleter);
+    }
+    EXPECT_TRUE(p.bytes_ == NULL);
 }
 

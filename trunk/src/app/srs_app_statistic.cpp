@@ -147,11 +147,9 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
         if (vcodec == SrsVideoCodecIdAVC) {
             video->set("profile", SrsJsonAny::str(srs_avc_profile2str(avc_profile).c_str()));
             video->set("level", SrsJsonAny::str(srs_avc_level2str(avc_level).c_str()));
-#ifdef SRS_H265
         } else if (vcodec == SrsVideoCodecIdHEVC) {
             video->set("profile", SrsJsonAny::str(srs_hevc_profile2str(hevc_profile).c_str()));
             video->set("level", SrsJsonAny::str(srs_hevc_level2str(hevc_level).c_str()));
-#endif
         } else {
             video->set("profile", SrsJsonAny::str("Other"));
             video->set("level", SrsJsonAny::str("Other"));
@@ -360,11 +358,9 @@ srs_error_t SrsStatistic::on_video_info(SrsRequest* req, SrsVideoCodecId vcodec,
     if (vcodec == SrsVideoCodecIdAVC) {
         stream->avc_profile = (SrsAvcProfile)profile;
         stream->avc_level = (SrsAvcLevel)level;
-#ifdef SRS_H265
     } else if (vcodec == SrsVideoCodecIdHEVC) {
         stream->hevc_profile = (SrsHevcProfile)profile;
         stream->hevc_level = (SrsHevcLevel)level;
-#endif
     } else {
         stream->avc_profile = (SrsAvcProfile)profile;
         stream->avc_level = (SrsAvcLevel)level;
@@ -664,7 +660,6 @@ void SrsStatistic::dumps_hints_kv(std::stringstream & ss)
         ss << "&send=" << kbps->get_send_kbps_30s();
     }
 
-#ifdef SRS_H265
     // For HEVC, we should check active stream which is HEVC codec.
     for (std::map<std::string, SrsStatisticStream*>::iterator it = streams.begin(); it != streams.end(); it++) {
         SrsStatisticStream* stream = it->second;
@@ -673,7 +668,6 @@ void SrsStatistic::dumps_hints_kv(std::stringstream & ss)
             break;
         }
     }
-#endif
 }
 
 #ifdef SRS_APM

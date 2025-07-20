@@ -37,6 +37,7 @@
 
 #include <srs_protocol_kbps.hpp>
 #include <srs_protocol_raw_avc.hpp>
+#include <srs_protocol_rtp.hpp>
 
 // The NACK sent by us(SFU).
 SrsPps* _srs_pps_snack = NULL;
@@ -53,24 +54,12 @@ SrsPps* _srs_pps_rmnack = NULL;
 
 extern SrsPps* _srs_pps_aloss2;
 
-const int kAudioChannel         = 2;
-const int kAudioSamplerate      = 48000;
+static const int kAudioChannel         = 2;
+static const int kAudioSamplerate      = 48000;
 
-const int kVideoSamplerate  = 90000;
+static const int kVideoSamplerate  = 90000;
 
 using namespace std;
-
-#ifdef SRS_FFMPEG_FIT
-// The RTP payload max size, reserved some paddings for SRTP as such:
-//      kRtpPacketSize = kRtpMaxPayloadSize + paddings
-// For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
-// which reserves 100 bytes for SRTP or paddings.
-// otherwise, the kRtpPacketSize must less than MTU, in webrtc source code,
-// the rtp max size is assigned by kVideoMtu = 1200.
-// so we set kRtpMaxPayloadSize = 1200.
-// see @doc https://groups.google.com/g/discuss-webrtc/c/gH5ysR3SoZI
-const int kRtpMaxPayloadSize = kRtpPacketSize - 300;
-#endif
 
 // the time to cleanup source.
 #define SRS_RTC_SOURCE_CLEANUP (3 * SRS_UTIME_SECONDS)
@@ -467,22 +456,42 @@ void SrsRtcSource::init_for_play_before_publishing()
         audio_track_desc->media_ = new SrsAudioPayload(kAudioPayloadType, "opus", kAudioSamplerate, kAudioChannel);
     }
 
-    // video track description
+    // video track descriptions - support both H.264 and H.265 for play before publishing
+    // This allows clients to choose their preferred codec during SDP negotiation
     if (true) {
-        SrsRtcTrackDescription* video_track_desc = new SrsRtcTrackDescription();
-        stream_desc->video_track_descs_.push_back(video_track_desc);
+        // H.264 track description
+        SrsRtcTrackDescription* h264_track_desc = new SrsRtcTrackDescription();
+        stream_desc->video_track_descs_.push_back(h264_track_desc);
 
-        video_track_desc->type_ = "video";
-        video_track_desc->id_ = "video-" + srs_random_str(8);
+        h264_track_desc->type_ = "video";
+        h264_track_desc->id_ = "video-h264-" + srs_random_str(8);
 
-        uint32_t video_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
-        video_track_desc->ssrc_ = video_ssrc;
-        video_track_desc->direction_ = "recvonly";
+        uint32_t h264_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        h264_track_desc->ssrc_ = h264_ssrc;
+        h264_track_desc->direction_ = "recvonly";
 
-        SrsVideoPayload* video_payload = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
-        video_track_desc->media_ = video_payload;
+        SrsVideoPayload* h264_payload = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
+        h264_track_desc->media_ = h264_payload;
 
-        video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
+        h264_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
+    }
+
+    if (true) {
+        // H.265 track description
+        SrsRtcTrackDescription* h265_track_desc = new SrsRtcTrackDescription();
+        stream_desc->video_track_descs_.push_back(h265_track_desc);
+
+        h265_track_desc->type_ = "video";
+        h265_track_desc->id_ = "video-h265-" + srs_random_str(8);
+
+        uint32_t h265_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        h265_track_desc->ssrc_ = h265_ssrc;
+        h265_track_desc->direction_ = "recvonly";
+
+        SrsVideoPayload* h265_payload = new SrsVideoPayload(KVideoPayloadTypeHevc, "H265", kVideoSamplerate);
+        h265_track_desc->media_ = h265_payload;
+
+        h265_payload->set_h265_param_desc("level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST");
     }
 
     set_stream_desc(stream_desc.get());
@@ -626,7 +635,18 @@ srs_error_t SrsRtcSource::on_publish()
     // If bridge to other source, handle event and start timer to request PLI.
     if (bridge_) {
 #ifdef SRS_FFMPEG_FIT
-        if ((err = frame_builder_->initialize(req)) != srs_success) {
+        SrsAudioCodecId audio_codec = SrsAudioCodecIdOpus;
+        if (stream_desc_->audio_track_desc_ && stream_desc_->audio_track_desc_->media_) {
+            audio_codec = SrsAudioCodecId(stream_desc_->audio_track_desc_->media_->codec(false));
+        }
+
+        SrsVideoCodecId video_codec = SrsVideoCodecIdAVC;
+        if (stream_desc_->video_track_descs_.size() > 0) {
+            SrsRtcTrackDescription* track_desc = stream_desc_->video_track_descs_.at(0);
+            video_codec = SrsVideoCodecId(track_desc->media_->codec(true));
+        }
+
+        if ((err = frame_builder_->initialize(req, audio_codec, video_codec)) != srs_success) {
             return srs_error_wrap(err, "frame builder initialize");
         }
 
@@ -775,18 +795,25 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
             return track_descs;
         }
 
-        string name = stream_desc_->audio_track_desc_->media_->name_;
-        std::transform(name.begin(), name.end(), name.begin(), static_cast<int(*)(int)>(std::tolower));
-        if (name == media_name) {
+        SrsAudioCodecId codec = SrsAudioCodecId(stream_desc_->audio_track_desc_->media_->codec(false));
+        if (codec == srs_audio_codec_str2id(media_name)) {
             track_descs.push_back(stream_desc_->audio_track_desc_);
         }
     }
 
     if (type == "video") {
         std::vector<SrsRtcTrackDescription*>::iterator it = stream_desc_->video_track_descs_.begin();
-        while (it != stream_desc_->video_track_descs_.end() ){
-            track_descs.push_back(*it);
-            ++it;
+        for (; it != stream_desc_->video_track_descs_.end(); ++it){
+            SrsRtcTrackDescription* track_desc = *it;
+            
+            if (media_name.empty()) {
+                track_descs.push_back(track_desc);
+            } else {
+                SrsVideoCodecId codec = SrsVideoCodecId(track_desc->media_->codec(true));
+                if (codec == srs_video_codec_str2id(media_name)) {
+                    track_descs.push_back(track_desc);
+                }
+            }
         }
     }
 
@@ -821,10 +848,12 @@ srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 
 #ifdef SRS_FFMPEG_FIT
 
-SrsRtcRtpBuilder::SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, uint32_t assrc, uint8_t apt, uint32_t vssrc, uint8_t vpt)
+SrsRtcRtpBuilder::SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, SrsSharedPtr<SrsRtcSource> source)
 {
-    req = NULL;
     bridge_ = bridge;
+    source_ = source;
+
+    req = NULL;
     format = new SrsRtmpFormat();
     codec_ = new SrsAudioTranscoder();
     latest_codec_ = SrsAudioCodecIdForbidden;
@@ -833,12 +862,15 @@ SrsRtcRtpBuilder::SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, uint32_t assrc, 
     merge_nalus = false;
     meta = new SrsMetaCache();
     audio_sequence = 0;
-    video_sequence = 0;
+    video_builder_ = new SrsRtpVideoBuilder();
 
-    audio_ssrc_ = assrc;
-    audio_payload_type_ = apt;
-    video_ssrc_ = vssrc;
-    video_payload_type_ = vpt;
+    // Initialize with default values - will be set during lazy initialization
+    audio_ssrc_ = 0;
+    audio_payload_type_ = 0;
+
+    // Lazy initialization flags
+    audio_initialized_ = false;
+    video_initialized_ = false;
 }
 
 SrsRtcRtpBuilder::~SrsRtcRtpBuilder()
@@ -846,6 +878,61 @@ SrsRtcRtpBuilder::~SrsRtcRtpBuilder()
     srs_freep(format);
     srs_freep(codec_);
     srs_freep(meta);
+    srs_freep(video_builder_);
+}
+
+srs_error_t SrsRtcRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
+{
+    srs_error_t err = srs_success;
+
+    // Get the audio track description for the specified codec, as we will always 
+    // transcode to opus for WebRTC.
+    std::string codec_name = "opus";
+    std::vector<SrsRtcTrackDescription*> descs = source_->get_track_desc("audio", "opus");
+
+    if (!descs.empty()) {
+        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
+        SrsRtcTrackDescription* track = descs.at(0);
+        audio_ssrc_ = track->ssrc_;
+        audio_payload_type_ = track->media_->pt_;
+    } else {
+        audio_payload_type_ = kAudioPayloadType;
+    }
+
+    srs_trace("RTMP2RTC: Initialize audio track for %s with codec=%s, ssrc=%u, pt=%d",
+        srs_audio_codec_id2str(codec).c_str(), codec_name.c_str(), audio_ssrc_, audio_payload_type_);
+
+    return err;
+}
+
+srs_error_t SrsRtcRtpBuilder::initialize_video_track(SrsVideoCodecId codec)
+{
+    srs_error_t err = srs_success;
+
+    // Get the video track description for the detected codec
+    std::string codec_name = srs_video_codec_id2str(codec);
+    std::vector<SrsRtcTrackDescription*> descs = source_->get_track_desc("video", codec_name);
+
+    uint32_t video_ssrc = 0;
+    uint8_t video_payload_type = 0;
+    if (!descs.empty()) {
+        // Note we must use the PT of source, see https://github.com/ossrs/srs/pull/3079
+        SrsRtcTrackDescription* track = descs.at(0);
+        video_ssrc = track->ssrc_;
+        video_payload_type = track->media_->pt_;
+    } else {
+        video_payload_type = kVideoPayloadType;
+    }
+
+    SrsFormat* format = meta->vsh_format();
+    if ((err = video_builder_->initialize(format, video_ssrc, video_payload_type)) != srs_success) {
+        return srs_error_wrap(err, "initialize video builder");
+    }
+
+    srs_trace("RTMP2RTC: Initialize video track with codec=%s, ssrc=%u, pt=%d",
+              codec_name.c_str(), video_ssrc, video_payload_type);
+
+    return err;
 }
 
 srs_error_t SrsRtcRtpBuilder::initialize(SrsRequest* r)
@@ -919,10 +1006,18 @@ srs_error_t SrsRtcRtpBuilder::on_audio(SrsSharedPtrMessage* msg)
         return err;
     }
 
-    // ts support audio codec: aac/mp3
+    // support audio codec: aac/mp3
     SrsAudioCodecId acodec = format->acodec->id;
     if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
         return err;
+    }
+
+    // Initialize audio track on first packet with actual codec
+    if (!audio_initialized_) {
+        if ((err = initialize_audio_track(acodec)) != srs_success) {
+            return srs_error_wrap(err, "init audio track");
+        }
+        audio_initialized_ = true;
     }
 
     // ignore sequence header
@@ -980,9 +1075,9 @@ srs_error_t SrsRtcRtpBuilder::init_codec(SrsAudioCodecId codec)
 
     // Update the latest codec in stream.
     if (latest_codec_ == SrsAudioCodecIdForbidden) {
-        srs_trace("RTMP2RTC: Init audio codec to %d(%s)", codec, srs_audio_codec_id2str(codec).c_str());
+        srs_trace("RTMP2RTC: Init audio transcoder codec to %d(%s)", codec, srs_audio_codec_id2str(codec).c_str());
     } else {
-        srs_trace("RTMP2RTC: Switch audio codec %d(%s) to %d(%s)", latest_codec_, srs_audio_codec_id2str(latest_codec_).c_str(),
+        srs_trace("RTMP2RTC: Switch audio transcoder codec %d(%s) to %d(%s)", latest_codec_, srs_audio_codec_id2str(latest_codec_).c_str(),
                   codec, srs_audio_codec_id2str(codec).c_str());
     }
     latest_codec_ = codec;
@@ -1036,13 +1131,22 @@ srs_error_t SrsRtcRtpBuilder::package_opus(SrsAudioFrame* audio, SrsRtpPacket* p
     pkt->header.set_timestamp(audio->dts * 48);
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
-    pkt->set_payload(raw, SrsRtspPacketPayloadTypeRaw);
+    pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
 
     srs_assert(audio->nb_samples == 1);
     raw->payload = pkt->wrap(audio->samples[0].bytes, audio->samples[0].size);
     raw->nn_payload = audio->samples[0].size;
 
     return err;
+}
+
+static void free_packets(vector<SrsRtpPacket*>* pkts) {
+    if (!pkts) return;
+
+    for (size_t i = 0; i < pkts->size(); i++) {
+        srs_freep((*pkts)[i]);
+    }
+    pkts->clear();
 }
 
 srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
@@ -1065,12 +1169,19 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
         return err;
     }
 
-    // WebRTC does NOT support HEVC.
-#ifdef SRS_H265
-    if (format->vcodec->id == SrsVideoCodecIdHEVC) {
+    // support video codec: h264/h265
+    SrsVideoCodecId vcodec = format->vcodec->id;
+    if (vcodec != SrsVideoCodecIdAVC && vcodec != SrsVideoCodecIdHEVC) {
         return err;
     }
-#endif
+
+    // Initialize video track on first packet with actual codec
+    if (!video_initialized_) {
+        if ((err = initialize_video_track(vcodec)) != srs_success) {
+            return srs_error_wrap(err, "init video track");
+        }
+        video_initialized_ = true;
+    }
 
     bool has_idr = false;
     vector<SrsSample*> samples;
@@ -1094,6 +1205,9 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsSharedPtrMessage* msg)
 
     // If merge Nalus, we pcakges all NALUs(samples) as one NALU, in a RTP or FUA packet.
     vector<SrsRtpPacket*> pkts;
+    // TODO: FIXME: Should rename to pkts_disposer.
+    SrsUniquePtr<vector<SrsRtpPacket*>> pkts_ptr(&pkts, free_packets);
+
     if (merge_nalus && nn_samples > 1) {
         if ((err = package_nalus(msg, samples, pkts)) != srs_success) {
             return srs_error_wrap(err, "package nalus as one");
@@ -1149,10 +1263,16 @@ srs_error_t SrsRtcRtpBuilder::filter(SrsSharedPtrMessage* msg, SrsFormat* format
 
         // Because RTC does not support B-frame, so we will drop them.
         // TODO: Drop B-frame in better way, which not cause picture corruption.
-        if (!keep_bframe && format->vcodec->id == SrsVideoCodecIdAVC) {
-            bool is_b_frame;
-            if ((err = SrsVideoFrame::parse_avc_b_frame(sample, is_b_frame)) != srs_success) {
-                return srs_error_wrap(err, "parse bframe");
+        if (!keep_bframe) {
+            bool is_b_frame = false;
+            if (format->vcodec->id == SrsVideoCodecIdAVC) {
+                if ((err = SrsVideoFrame::parse_avc_bframe(sample, is_b_frame)) != srs_success) {
+                    return srs_error_wrap(err, "parse bframe");
+                }
+            } else if (format->vcodec->id == SrsVideoCodecIdHEVC) {
+                if ((err = SrsVideoFrame::parse_hevc_bframe(sample, format, is_b_frame)) != srs_success) {
+                    return srs_error_wrap(err, "parse bframe");
+                }
             }
             if (is_b_frame) {
                 continue;
@@ -1174,210 +1294,37 @@ srs_error_t SrsRtcRtpBuilder::package_stap_a(SrsSharedPtrMessage* msg, SrsRtpPac
         return err;
     }
 
-    // Note that the sps/pps may change, so we should copy it.
-    const vector<char>& sps = format->vcodec->sequenceParameterSetNALUnit;
-    const vector<char>& pps = format->vcodec->pictureParameterSetNALUnit;
-    if (sps.empty() || pps.empty()) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "sps/pps empty");
-    }
-
-    pkt->header.set_payload_type(video_payload_type_);
-    pkt->header.set_ssrc(video_ssrc_);
-    pkt->frame_type = SrsFrameTypeVideo;
-    pkt->nalu_type = (SrsAvcNaluType)kStapA;
-    pkt->header.set_marker(false);
-    pkt->header.set_sequence(video_sequence++);
-    pkt->header.set_timestamp(msg->timestamp * 90);
-
-    SrsRtpSTAPPayload* stap = new SrsRtpSTAPPayload();
-    pkt->set_payload(stap, SrsRtspPacketPayloadTypeSTAP);
-
-    uint8_t header = sps[0];
-    stap->nri = (SrsAvcNaluType)header;
-
-    // Copy the SPS/PPS bytes, because it may change.
-    int size = (int)(sps.size() + pps.size());
-    char* payload = pkt->wrap(size);
-
-    if (true) {
-        SrsSample* sample = new SrsSample();
-        sample->bytes = payload;
-        sample->size = (int)sps.size();
-        stap->nalus.push_back(sample);
-
-        memcpy(payload, (char*)&sps[0], sps.size());
-        payload += (int)sps.size();
-    }
-
-    if (true) {
-        SrsSample* sample = new SrsSample();
-        sample->bytes = payload;
-        sample->size = (int)pps.size();
-        stap->nalus.push_back(sample);
-
-        memcpy(payload, (char*)&pps[0], pps.size());
-        payload += (int)pps.size();
-    }
-
-    srs_info("RTC STAP-A seq=%u, sps %d, pps %d bytes", pkt->header.get_sequence(), sps.size(), pps.size());
-
-    return err;
+    return video_builder_->package_stap_a(msg, pkt);
 }
 
 srs_error_t SrsRtcRtpBuilder::package_nalus(SrsSharedPtrMessage* msg, const vector<SrsSample*>& samples, vector<SrsRtpPacket*>& pkts)
 {
     srs_error_t err = srs_success;
 
-    SrsRtpRawNALUs* raw_raw = new SrsRtpRawNALUs();
-    SrsAvcNaluType first_nalu_type = SrsAvcNaluTypeReserved;
-
-    for (int i = 0; i < (int)samples.size(); i++) {
-        SrsSample* sample = samples[i];
-
-        if (!sample->size) {
-            continue;
-        }
-
-        if (first_nalu_type == SrsAvcNaluTypeReserved) {
-            first_nalu_type = SrsAvcNaluType((uint8_t)(sample->bytes[0] & kNalTypeMask));
-        }
-
-        raw_raw->push_back(sample->copy());
-    }
-
-    // Ignore empty.
-    int nn_bytes = raw_raw->nb_bytes();
-    if (nn_bytes <= 0) {
-        srs_freep(raw_raw);
+    SrsFormat* format = meta->vsh_format();
+    if (!format || !format->vcodec) {
         return err;
     }
-
-    if (nn_bytes < kRtpMaxPayloadSize) {
-        // Package NALUs in a single RTP packet.
-        SrsRtpPacket* pkt = new SrsRtpPacket();
-        pkts.push_back(pkt);
-
-        pkt->header.set_payload_type(video_payload_type_);
-        pkt->header.set_ssrc(video_ssrc_);
-        pkt->frame_type = SrsFrameTypeVideo;
-        pkt->nalu_type = (SrsAvcNaluType)first_nalu_type;
-        pkt->header.set_sequence(video_sequence++);
-        pkt->header.set_timestamp(msg->timestamp * 90);
-        pkt->set_payload(raw_raw, SrsRtspPacketPayloadTypeNALU);
-        pkt->wrap(msg);
-    } else {
-        // We must free it, should never use RTP packets to free it,
-        // because more than one RTP packet will refer to it.
-        SrsUniquePtr<SrsRtpRawNALUs> raw(raw_raw);
-
-        // Package NALUs in FU-A RTP packets.
-        int fu_payload_size = kRtpMaxPayloadSize;
-
-        // The first byte is store in FU-A header.
-        uint8_t header = raw->skip_first_byte();
-        uint8_t nal_type = header & kNalTypeMask;
-        int nb_left = nn_bytes - 1;
-
-        int num_of_packet = 1 + (nn_bytes - 1) / fu_payload_size;
-        for (int i = 0; i < num_of_packet; ++i) {
-            int packet_size = srs_min(nb_left, fu_payload_size);
-
-            SrsRtpFUAPayload* fua = new SrsRtpFUAPayload();
-            if ((err = raw->read_samples(fua->nalus, packet_size)) != srs_success) {
-                srs_freep(fua);
-                return srs_error_wrap(err, "read samples %d bytes, left %d, total %d", packet_size, nb_left, nn_bytes);
-            }
-
-            SrsRtpPacket* pkt = new SrsRtpPacket();
-            pkts.push_back(pkt);
-
-            pkt->header.set_payload_type(video_payload_type_);
-            pkt->header.set_ssrc(video_ssrc_);
-            pkt->frame_type = SrsFrameTypeVideo;
-            pkt->nalu_type = (SrsAvcNaluType)kFuA;
-            pkt->header.set_sequence(video_sequence++);
-            pkt->header.set_timestamp(msg->timestamp * 90);
-
-            fua->nri = (SrsAvcNaluType)header;
-            fua->nalu_type = (SrsAvcNaluType)nal_type;
-            fua->start = bool(i == 0);
-            fua->end = bool(i == num_of_packet - 1);
-
-            pkt->set_payload(fua, SrsRtspPacketPayloadTypeFUA);
-            pkt->wrap(msg);
-
-            nb_left -= packet_size;
-        }
-    }
-
-    return err;
+    
+    return video_builder_->package_nalus(msg, samples, pkts);
 }
 
 // Single NAL Unit Packet @see https://tools.ietf.org/html/rfc6184#section-5.6
 srs_error_t SrsRtcRtpBuilder::package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, vector<SrsRtpPacket*>& pkts)
 {
-    srs_error_t err = srs_success;
-
-    SrsRtpPacket* pkt = new SrsRtpPacket();
-    pkts.push_back(pkt);
-
-    pkt->header.set_payload_type(video_payload_type_);
-    pkt->header.set_ssrc(video_ssrc_);
-    pkt->frame_type = SrsFrameTypeVideo;
-    pkt->header.set_sequence(video_sequence++);
-    pkt->header.set_timestamp(msg->timestamp * 90);
-
-    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
-    pkt->set_payload(raw, SrsRtspPacketPayloadTypeRaw);
-
-    raw->payload = sample->bytes;
-    raw->nn_payload = sample->size;
-
-    pkt->wrap(msg);
-
-    return err;
+    return video_builder_->package_single_nalu(msg, sample, pkts);
 }
 
 srs_error_t SrsRtcRtpBuilder::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, vector<SrsRtpPacket*>& pkts)
 {
     srs_error_t err = srs_success;
 
-    char* p = sample->bytes + 1;
-    int nb_left = sample->size - 1;
-    uint8_t header = sample->bytes[0];
-    uint8_t nal_type = header & kNalTypeMask;
-
-    int num_of_packet = 1 + (nb_left - 1) / fu_payload_size;
-    for (int i = 0; i < num_of_packet; ++i) {
-        int packet_size = srs_min(nb_left, fu_payload_size);
-
-        SrsRtpPacket* pkt = new SrsRtpPacket();
-        pkts.push_back(pkt);
-
-        pkt->header.set_payload_type(video_payload_type_);
-        pkt->header.set_ssrc(video_ssrc_);
-        pkt->frame_type = SrsFrameTypeVideo;
-        pkt->header.set_sequence(video_sequence++);
-        pkt->header.set_timestamp(msg->timestamp * 90);
-
-        SrsRtpFUAPayload2* fua = new SrsRtpFUAPayload2();
-        pkt->set_payload(fua, SrsRtspPacketPayloadTypeFUA2);
-
-        fua->nri = (SrsAvcNaluType)header;
-        fua->nalu_type = (SrsAvcNaluType)nal_type;
-        fua->start = bool(i == 0);
-        fua->end = bool(i == num_of_packet - 1);
-
-        fua->payload = p;
-        fua->size = packet_size;
-
-        pkt->wrap(msg);
-
-        p += packet_size;
-        nb_left -= packet_size;
+    SrsFormat* format = meta->vsh_format();
+    if (!format || !format->vcodec) {
+        return err;
     }
 
-    return err;
+    return video_builder_->package_fu_a(msg, sample, fu_payload_size, pkts);
 }
 
 srs_error_t SrsRtcRtpBuilder::consume_packets(vector<SrsRtpPacket*>& pkts)
@@ -1393,49 +1340,412 @@ srs_error_t SrsRtcRtpBuilder::consume_packets(vector<SrsRtpPacket*>& pkts)
         }
     }
 
-    for (int i = 0; i < (int)pkts.size(); i++) {
-        SrsRtpPacket* pkt = pkts[i];
-        srs_freep(pkt);
+    return err;
+}
+
+SrsRtcFrameBuilderVideoPacketCache::SrsRtcFrameBuilderVideoPacketCache()
+{
+    memset(cache_pkts_, 0, sizeof(cache_pkts_));
+}
+
+SrsRtcFrameBuilderVideoPacketCache::~SrsRtcFrameBuilderVideoPacketCache()
+{
+    clear_all();
+}
+
+SrsRtpPacket* SrsRtcFrameBuilderVideoPacketCache::get_packet(uint16_t sequence_number)
+{
+    uint16_t index = cache_index(sequence_number);
+    const RtcPacketCache& cache = cache_pkts_[index];
+
+    // Since cache uses modulo indexing, different sequence numbers can map to the 
+    // same cache slot, so we must verify the stored sn matches the requested one.
+    if (!cache.in_use || cache.sn != sequence_number) {
+        return NULL;
+    }
+
+    return cache.pkt;
+}
+
+void SrsRtcFrameBuilderVideoPacketCache::store_packet(SrsRtpPacket* pkt)
+{
+    if (!pkt) {
+        return; // Ignore null packets
+    }
+
+    uint16_t index = cache_index(pkt->header.get_sequence());
+    RtcPacketCache& cache = cache_pkts_[index];
+
+    cache.in_use = true;
+    srs_freep(cache.pkt);
+    cache.pkt = pkt;
+    cache.sn = pkt->header.get_sequence();
+    cache.ts = pkt->get_avsync_time();
+    cache.rtp_ts = pkt->header.get_timestamp();
+}
+
+bool SrsRtcFrameBuilderVideoPacketCache::is_slot_in_use(uint16_t sequence_number)
+{
+    uint16_t index = cache_index(sequence_number);
+    const RtcPacketCache& cache = cache_pkts_[index];
+    return cache.in_use;
+}
+
+uint32_t SrsRtcFrameBuilderVideoPacketCache::get_rtp_timestamp(uint16_t sequence_number)
+{
+    uint16_t index = cache_index(sequence_number);
+    const RtcPacketCache& cache = cache_pkts_[index];
+    return cache.rtp_ts;
+}
+
+void SrsRtcFrameBuilderVideoPacketCache::clear_all()
+{
+    for (size_t i = 0; i < cache_size_; i++) {
+        RtcPacketCache& cache = cache_pkts_[i];
+        if (cache.in_use) {
+            srs_freep(cache.pkt);
+            cache.sn = 0;
+            cache.ts = 0;
+            cache.rtp_ts = 0;
+            cache.in_use = false;
+        }
+    }
+}
+
+SrsRtpPacket* SrsRtcFrameBuilderVideoPacketCache::take_packet(uint16_t sequence_number)
+{
+    uint16_t index = cache_index(sequence_number);
+    RtcPacketCache& cache = cache_pkts_[index];
+
+    // Since cache uses modulo indexing, different sequence numbers can map to the 
+    // same cache slot, so we must verify the stored sn matches the requested one.
+    if (!cache.in_use || cache.sn != sequence_number) {
+        return NULL;
+    }
+
+    SrsRtpPacket* pkt = cache.pkt;
+
+    // Clear the slot after taking the packet
+    cache.in_use = false;
+    // Note: No memory leak here - the packet ownership is transferred to caller
+    cache.pkt = NULL;
+    cache.ts = 0;
+    cache.rtp_ts = 0;
+    cache.sn = 0;
+
+    return pkt;
+}
+
+int32_t SrsRtcFrameBuilderVideoPacketCache::find_next_lost_sn(uint16_t current_sn, uint16_t header_sn, uint16_t& end_sn)
+{
+    uint32_t last_rtp_ts = get_rtp_timestamp(header_sn);
+    for (int i = 0; i < cache_size_; ++i) {
+        uint16_t lost_sn = current_sn + i;
+
+        if (!is_slot_in_use(lost_sn)) {
+            return lost_sn;
+        }
+
+        //check time first, avoid two small frame mixed case decode fail
+        if (last_rtp_ts != get_rtp_timestamp(lost_sn)) {
+            end_sn = lost_sn - 1;
+            return -1;
+        }
+
+        SrsRtpPacket* pkt = get_packet(lost_sn);
+        if (pkt && pkt->header.get_marker()) {
+            end_sn = lost_sn;
+            return -1;
+        }
+    }
+
+    srs_error("cache overflow. the packet count of video frame is more than %u", cache_size_);
+    return -2;
+}
+
+bool SrsRtcFrameBuilderVideoPacketCache::check_frame_complete(const uint16_t start, const uint16_t end)
+{
+    int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
+    srs_assert(cnt >= 1);
+
+    uint16_t nn_fu_start = 0;
+    uint16_t nn_fu_end = 0;
+    for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
+        uint16_t sequence_number = start + i;
+        SrsRtpPacket* pkt = get_packet(sequence_number);
+
+        // fix crash when pkt->payload() if pkt is nullptr;
+        if (!pkt) continue;
+
+        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
+        if (!fua_payload) continue;
+
+        if (fua_payload->start) {
+            ++nn_fu_start;
+        }
+
+        if (fua_payload->end) {
+            ++nn_fu_end;
+        }
+    }
+
+    return nn_fu_start == nn_fu_end;
+}
+
+SrsRtcFrameBuilderVideoFrameDetector::SrsRtcFrameBuilderVideoFrameDetector(SrsRtcFrameBuilderVideoPacketCache* cache)
+{
+    video_cache_ = cache;
+    header_sn_ = 0;
+    lost_sn_ = 0;
+    rtp_key_frame_ts_ = -1;
+}
+
+SrsRtcFrameBuilderVideoFrameDetector::~SrsRtcFrameBuilderVideoFrameDetector()
+{
+}
+
+void SrsRtcFrameBuilderVideoFrameDetector::on_keyframe_start(SrsRtpPacket* pkt)
+{
+    if (-1 == rtp_key_frame_ts_) {
+        rtp_key_frame_ts_ = pkt->header.get_timestamp();
+        header_sn_ = pkt->header.get_sequence();
+        lost_sn_ = header_sn_ + 1;
+        // Received key frame and clean cache of old p frame pkts
+        video_cache_->clear_all();
+        srs_trace("RTC2RTMP: keyframe set ts=%u, header=%hu, lost=%hu", (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
+    } else if (rtp_key_frame_ts_ != pkt->header.get_timestamp()) {
+        //new key frame, clean cache
+        int64_t old_ts = rtp_key_frame_ts_;
+        uint16_t old_header_sn = header_sn_;
+        uint16_t old_lost_sn = lost_sn_;
+        rtp_key_frame_ts_ = pkt->header.get_timestamp();
+        header_sn_ = pkt->header.get_sequence();
+        lost_sn_ = header_sn_ + 1;
+        video_cache_->clear_all();
+        srs_warn("RTC2RTMP: keyframe drop old ts=%u, header=%hu, lost=%hu, set new ts=%u, header=%hu, lost=%hu",
+            (uint32_t)old_ts, old_header_sn, old_lost_sn, (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
+    }
+}
+
+srs_error_t SrsRtcFrameBuilderVideoFrameDetector::detect_frame(uint16_t received, uint16_t& frame_start, uint16_t& frame_end, bool& frame_ready)
+{
+    srs_error_t err = srs_success;
+    frame_ready = false;
+
+    int32_t sn;
+    uint16_t tail_sn = 0;
+    if (srs_rtp_seq_distance(header_sn_, received) < 0){
+        // When receive previous pkt in the same frame, update header sn;
+        header_sn_ = received;
+        sn = video_cache_->find_next_lost_sn(received, header_sn_, tail_sn);
+    } else if (lost_sn_ == received) {
+        sn = video_cache_->find_next_lost_sn(received, header_sn_, tail_sn);
+    } else {
+        sn = lost_sn_;
+    }
+    
+    if (-1 == sn) {
+        if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
+            frame_start = header_sn_;
+            frame_end = tail_sn;
+            frame_ready = true;
+        }
+    } else if (-2 == sn) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
+    } else {
+        lost_sn_ = (uint16_t)sn;
     }
 
     return err;
+}
+
+srs_error_t SrsRtcFrameBuilderVideoFrameDetector::detect_next_frame(uint16_t next_head, uint16_t& frame_start, uint16_t& frame_end, bool& frame_ready)
+{
+    srs_error_t err = srs_success;
+    frame_ready = false;
+
+    header_sn_ = next_head;
+    uint16_t tail_sn = 0;
+    int32_t sn = video_cache_->find_next_lost_sn(header_sn_, header_sn_, tail_sn);
+
+    if (-1 == sn) {
+        if (video_cache_->check_frame_complete(header_sn_, tail_sn)) {
+            frame_start = header_sn_;
+            frame_end = tail_sn;
+            frame_ready = true;
+        }
+    } else if (-2 == sn) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
+    } else {
+        lost_sn_ = (uint16_t)sn;
+    }
+
+    return err;
+}
+
+void SrsRtcFrameBuilderVideoFrameDetector::on_keyframe_detached() 
+{
+    rtp_key_frame_ts_ = -1; 
+}
+
+bool SrsRtcFrameBuilderVideoFrameDetector::is_lost_sn(uint16_t received) 
+{
+    return lost_sn_ == received;
+}
+
+SrsRtcFrameBuilderAudioPacketCache::SrsRtcFrameBuilderAudioPacketCache()
+{
+    last_audio_seq_num_ = 0;
+    last_audio_process_time_ = 0;
+    initialized_ = false;
+    timeout_ = MAX_AUDIO_WAIT_MS * SRS_UTIME_MILLISECONDS; // Default timeout in microseconds
+}
+
+SrsRtcFrameBuilderAudioPacketCache::~SrsRtcFrameBuilderAudioPacketCache()
+{
+    clear_all();
+}
+
+void SrsRtcFrameBuilderAudioPacketCache::set_timeout(srs_utime_t timeout)
+{
+    timeout_ = timeout;
+}
+
+srs_error_t SrsRtcFrameBuilderAudioPacketCache::process_packet(SrsRtpPacket* src, std::vector<SrsRtpPacket*>& ready_packets)
+{
+    srs_error_t err = srs_success;
+
+    uint16_t seq = src->header.get_sequence();
+    srs_utime_t now = srs_update_system_time();
+
+    if (!initialized_) {
+        last_audio_seq_num_ = seq - 1;
+        last_audio_process_time_ = now;
+        initialized_ = true;
+    }
+
+    // Check if packet is too old (already processed)
+    if (srs_rtp_seq_distance(last_audio_seq_num_, seq) < 0) {
+        srs_warn("Discard late audio packet, seq=%u, last_seq=%u", seq, last_audio_seq_num_);
+        return err;
+    }
+
+    // Store packet in jitter buffer
+    if (true) {
+        std::map<uint16_t, SrsRtpPacket*>::iterator it = audio_buffer_.find(seq);
+        if (it != audio_buffer_.end()) {
+            SrsRtpPacket* pkt = it->second;
+            srs_freep(pkt);
+        }
+        audio_buffer_[seq] = src->copy();
+    }
+
+    // Try to process packets in the sliding window
+    bool force_process = audio_buffer_.size() >= AUDIO_JITTER_BUFFER_SIZE ||
+        (now - last_audio_process_time_) > timeout_;
+    uint16_t window_end = last_audio_seq_num_ + SLIDING_WINDOW_SIZE;
+
+    while (!audio_buffer_.empty()) {
+        std::map<uint16_t, SrsRtpPacket*>::iterator it = audio_buffer_.begin();
+        uint16_t next_seq = it->first;
+
+        // Check if the packet is within our sliding window
+        if (!force_process) {
+            // If packet is before window start (shouldn't happen normally)
+            if (srs_rtp_seq_distance(last_audio_seq_num_, next_seq) < 0) {
+                // Process it anyway as it's already late
+                srs_warn("Late audio packet, seq=%u, expected>=%u", next_seq, last_audio_seq_num_);
+            } else if (srs_rtp_seq_distance(next_seq, window_end) < 0) {
+                // If packet is beyond window end, stop processing
+                srs_warn("Audio packet beyond window end, seq=%u, window_end=%u", next_seq, window_end);
+                break;
+            } else if (srs_rtp_seq_distance(last_audio_seq_num_, next_seq) > 1) {
+                // If there's a gap and we haven't exceeded wait time, wait for missing packets
+                if ((now - last_audio_process_time_) <= timeout_) {
+                    break;
+                }
+                srs_warn("Audio packet loss, expected=%u, got=%u", last_audio_seq_num_ + 1, next_seq);
+            }
+        }
+
+        // Take the packet from buffer
+        SrsRtpPacket* pkt = it->second;
+        audio_buffer_.erase(it);
+
+        // Update last sequence number
+        last_audio_seq_num_ = next_seq;
+        last_audio_process_time_ = now;
+
+        // Add to ready packets for processing
+        ready_packets.push_back(pkt);
+
+        // Update window end for next iteration
+        window_end = last_audio_seq_num_ + SLIDING_WINDOW_SIZE;
+    }
+
+    // If buffer is getting too full, force process oldest packets
+    if (audio_buffer_.size() >= AUDIO_JITTER_BUFFER_SIZE * 0.8) {
+        srs_warn("Audio jitter buffer nearly full, size=%zu", audio_buffer_.size());
+    }
+
+    return err;
+}
+
+void SrsRtcFrameBuilderAudioPacketCache::clear_all()
+{
+    std::map<uint16_t, SrsRtpPacket*>::iterator it;
+    for (it = audio_buffer_.begin(); it != audio_buffer_.end(); ++it) {
+        SrsRtpPacket* pkt = it->second;
+        srs_freep(pkt);
+    }
+    
+    audio_buffer_.clear();
 }
 
 SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsStreamBridge* bridge)
 {
     bridge_ = bridge;
     is_first_audio_ = true;
-    codec_ = NULL;
-    header_sn_ = 0;
-    memset(cache_video_pkts_, 0, sizeof(cache_video_pkts_));
-    rtp_key_frame_ts_ = -1;
+    audio_transcoder_ = NULL;
+    video_codec_ = SrsVideoCodecIdAVC;
+    audio_cache_ = new SrsRtcFrameBuilderAudioPacketCache();
+    video_cache_ = new SrsRtcFrameBuilderVideoPacketCache();
+    frame_detector_ = new SrsRtcFrameBuilderVideoFrameDetector(video_cache_);
     sync_state_ = -1;
-    obs_whip_sps_ = obs_whip_pps_ = NULL;
+    obs_whip_vps_ = obs_whip_sps_ = obs_whip_pps_ = NULL;
 }
 
 SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
 {
-    srs_freep(codec_);
-    clear_cached_video();
+    srs_freep(audio_transcoder_);
+    srs_freep(audio_cache_);
+    srs_freep(video_cache_);
+    srs_freep(frame_detector_);
+    srs_freep(obs_whip_vps_);
     srs_freep(obs_whip_sps_);
     srs_freep(obs_whip_pps_);
 }
 
-srs_error_t SrsRtcFrameBuilder::initialize(SrsRequest* r)
+srs_error_t SrsRtcFrameBuilder::initialize(SrsRequest* r, SrsAudioCodecId audio_codec, SrsVideoCodecId video_codec)
 {
     srs_error_t err = srs_success;
 
-    srs_freep(codec_);
-    codec_ = new SrsAudioTranscoder();
+    srs_freep(audio_transcoder_);
+    audio_transcoder_ = new SrsAudioTranscoder();
 
-    SrsAudioCodecId from = SrsAudioCodecIdOpus; // TODO: From SDP?
     SrsAudioCodecId to = SrsAudioCodecIdAAC; // The output audio codec.
     int channels = 2; // The output audio channels.
     int sample_rate = 48000; // The output audio sample rate in HZ.
     int bitrate = _srs_config->get_rtc_aac_bitrate(r->vhost); // The output audio bitrate in bps.
-    if ((err = codec_->initialize(from, to, channels, sample_rate, bitrate)) != srs_success) {
+
+    // TODO: FIXME: 
+    // In the future, when we support enhanced-RTMP with Opus format, 
+    // this transcoding will no longer be necessary.
+    if ((err = audio_transcoder_->initialize(audio_codec, to, channels, sample_rate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "bridge initialize");
     }
+
+    video_codec_ = video_codec;
 
     return err;
 }
@@ -1449,6 +1759,7 @@ srs_error_t SrsRtcFrameBuilder::on_publish()
 
 void SrsRtcFrameBuilder::on_unpublish()
 {
+    audio_cache_->clear_all();
 }
 
 srs_error_t SrsRtcFrameBuilder::on_rtp(SrsRtpPacket *pkt)
@@ -1476,9 +1787,33 @@ srs_error_t SrsRtcFrameBuilder::on_rtp(SrsRtpPacket *pkt)
     }
 
     if (pkt->is_audio()) {
-        err = transcode_audio(pkt);
+        err = packet_audio(pkt);
     } else {
         err = packet_video(pkt);
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcFrameBuilder::packet_audio(SrsRtpPacket* src)
+{
+    srs_error_t err = srs_success;
+
+    std::vector<SrsRtpPacket*> ready_packets;
+    SrsUniquePtr<vector<SrsRtpPacket*>> pkts_disposer(&ready_packets, free_packets);
+
+    // Use audio cache to process packet through jitter buffer
+    if ((err = audio_cache_->process_packet(src, ready_packets)) != srs_success) {
+        return srs_error_wrap(err, "audio cache process");
+    }
+
+    // Process all ready packets in order
+    for (size_t i = 0; i < ready_packets.size(); ++i) {
+        SrsRtpPacket* pkt = ready_packets[i];
+
+        if ((err = transcode_audio(pkt)) != srs_success) {
+            return srs_error_wrap(err, "transcode audio");
+        }
     }
 
     return err;
@@ -1493,7 +1828,7 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
     if (is_first_audio_) {
         int header_len = 0;
         uint8_t* header = NULL;
-        codec_->aac_codec_header(&header, &header_len);
+        audio_transcoder_->aac_codec_header(&header, &header_len);
 
         SrsCommonMessage out_rtmp;
         packet_aac(&out_rtmp, (char *)header, header_len, ts, is_first_audio_);
@@ -1510,6 +1845,7 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
         is_first_audio_ = false;
     }
 
+    // TODO: FIXME: Should use SrsUniquePtr to dispose it automatically.
     std::vector<SrsAudioFrame*> out_pkts;
     SrsRtpRawPayload *payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
 
@@ -1518,13 +1854,14 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
     frame.dts = ts;
     frame.cts = 0;
 
-    err = codec_->transcode(&frame, out_pkts);
+    err = audio_transcoder_->transcode(&frame, out_pkts);
     if (err != srs_success) {
         return err;
     }
 
     for (std::vector<SrsAudioFrame*>::iterator it = out_pkts.begin(); it != out_pkts.end(); ++it) {
         SrsCommonMessage out_rtmp;
+        // TODO: FIXME: Should never directly use it, please define a variable with class name.
         out_rtmp.header.timestamp = (*it)->dts;
         packet_aac(&out_rtmp, (*it)->samples[0].bytes, (*it)->samples[0].size, ts, is_first_audio_);
 
@@ -1538,7 +1875,7 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
             break;
         }
     }
-    codec_->free_frames(out_pkts);
+    audio_transcoder_->free_frames(out_pkts);
 
     return err;
 }
@@ -1560,40 +1897,27 @@ void SrsRtcFrameBuilder::packet_aac(SrsCommonMessage* audio, char* data, int len
     audio->size = rtmp_len;
 }
 
-srs_error_t SrsRtcFrameBuilder::packet_video(SrsRtpPacket* src)
+srs_error_t SrsRtcFrameBuilder::packet_video(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
-    // TODO: Only copy when need
-    SrsRtpPacket* pkt = src->copy();
-
-    if (pkt->is_keyframe()) {
+    // For keyframe.
+    if (pkt->is_keyframe(video_codec_)) {
         return packet_video_key_frame(pkt);
     }
 
-    // store in cache
-    int index = cache_index(pkt->header.get_sequence());
-    cache_video_pkts_[index].in_use = true;
-    srs_freep(cache_video_pkts_[index].pkt);
-    cache_video_pkts_[index].pkt = pkt;
-    cache_video_pkts_[index].sn = pkt->header.get_sequence();
-    cache_video_pkts_[index].ts = pkt->get_avsync_time();
-    cache_video_pkts_[index].rtp_ts = pkt->header.get_timestamp();
+    // For non-keyframe.
+    video_cache_->store_packet(pkt->copy());
 
     // check whether to recovery lost packet and can construct a video frame
-    if (lost_sn_ == pkt->header.get_sequence()) {
-        uint16_t tail_sn = 0;
-        int sn = find_next_lost_sn(lost_sn_, tail_sn);
-        if (-1 == sn ) {
-            if (check_frame_complete(header_sn_, tail_sn)) {
-                if ((err = packet_video_rtmp(header_sn_, tail_sn)) != srs_success) {
-                    err = srs_error_wrap(err, "fail to pack video frame");
-                }
-            }
-        } else if (-2 == sn) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
-        } else {
-            lost_sn_ = (uint16_t)sn;
+    uint16_t current_sn = pkt->header.get_sequence();
+    if (frame_detector_->is_lost_sn(current_sn)) {
+        uint16_t start, end; bool got_frame;
+        if ((err = frame_detector_->detect_frame(current_sn, start, end, got_frame)) != srs_success) {
+            return srs_error_wrap(err, "detect frame failed");
+        }
+        if (got_frame && (err = packet_video_rtmp(start, end)) != srs_success) {
+            err = srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", start, end);
         }
     }
 
@@ -1601,6 +1925,40 @@ srs_error_t SrsRtcFrameBuilder::packet_video(SrsRtpPacket* src)
 }
 
 srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
+{
+    srs_error_t err = srs_success;
+
+    if (video_codec_ == SrsVideoCodecIdAVC) {
+        err = packet_sequence_header_avc(pkt);
+    } else if (video_codec_ == SrsVideoCodecIdHEVC) {
+        err = packet_sequence_header_hevc(pkt);
+    } else {
+        err = srs_error_new(ERROR_RTC_RTP_MUXER, "unsupported video codec %d", video_codec_);
+    }
+
+    if (err != srs_success) {
+        return srs_error_wrap(err, "packet video key frame");
+    }
+
+    frame_detector_->on_keyframe_start(pkt);
+
+    video_cache_->store_packet(pkt->copy());
+
+    uint16_t current_sn = pkt->header.get_sequence();
+    if (frame_detector_->is_lost_sn(current_sn)) {
+        uint16_t start, end; bool got_frame;
+        if ((err = frame_detector_->detect_frame(current_sn, start, end, got_frame)) != srs_success) {
+            return srs_error_wrap(err, "detect frame failed");
+        }
+        if (got_frame && (err = packet_video_rtmp(start, end)) != srs_success) {
+            err = srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", start, end);
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcFrameBuilder::packet_sequence_header_avc(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -1638,95 +1996,299 @@ srs_error_t SrsRtcFrameBuilder::packet_video_key_frame(SrsRtpPacket* pkt)
             return srs_error_new(ERROR_RTC_RTP_MUXER, "no sps or pps in stap-a rtp. sps: %p, pps:%p", sps, pps);
         }
 
-        // Reset SPS/PPS cache, ensuring that the next SPS/PPS will be handled when both are received.
-        // Note that we should use SrsAutoFree to set the ptr to NULL.
-        SrsAutoFree(SrsRtpPacket, obs_whip_sps_);
-        SrsAutoFree(SrsRtpPacket, obs_whip_pps_);
+        // Packet SPS/PPS to RTMP keyframe.
+        err = do_packet_sequence_header_avc(pkt, sps, pps);
 
-        // h264 raw to h264 packet.
-        std::string sh;
-        SrsUniquePtr<SrsRawH264Stream> avc(new SrsRawH264Stream());
+        // Always reset the SPS/PPS cache after used it.
+        srs_freep(obs_whip_sps_);
+        srs_freep(obs_whip_pps_);
 
-        if ((err = avc->mux_sequence_header(string(sps->bytes, sps->size), string(pps->bytes, pps->size), sh)) != srs_success) {
-            return srs_error_wrap(err, "mux sequence header");
+        if (err != srs_success) {
+            return srs_error_wrap(err, "packet sps/pps");
         }
+    }
 
-        // h264 packet to flv packet.
-        char* flv = NULL;
-        int nb_flv = 0;
-        if ((err = avc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoAvcFrameTraitSequenceHeader, pkt->get_avsync_time(),
-                                    pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
-            return srs_error_wrap(err, "avc to flv");
+    return err;
+}
+
+srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_avc(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps)
+{
+    srs_error_t err = srs_success;
+
+    // h264 raw to h264 packet.
+    std::string sh;
+    SrsUniquePtr<SrsRawH264Stream> avc(new SrsRawH264Stream());
+
+    string sps2 = string(sps->bytes, sps->size);
+    string pps2 = string(pps->bytes, pps->size);
+    if ((err = avc->mux_sequence_header(sps2, pps2, sh)) != srs_success) {
+        return srs_error_wrap(err, "mux sequence header");
+    }
+
+    // h264 packet to flv packet.
+    char* flv = NULL;
+    int nb_flv = 0;
+    if ((err = avc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, 
+            SrsVideoAvcFrameTraitSequenceHeader, pkt->get_avsync_time(),
+            pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "avc to flv");
+    }
+
+    SrsMessageHeader header;
+    header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
+    SrsCommonMessage rtmp;
+    if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "create rtmp");
+    }
+
+    SrsSharedPtrMessage msg;
+    if ((err = msg.create(&rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create message");
+    }
+
+    if ((err = bridge_->on_frame(&msg)) != srs_success) {
+        return err;
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcFrameBuilder::packet_sequence_header_hevc(SrsRtpPacket* pkt)
+{
+    srs_error_t err = srs_success;
+
+    // For OBS WHIP, it uses RTP Raw packet with VPS/SPS/PPS/IDR frame. Note that not all
+    // raw payload is VPS/SPS/PPS.
+    bool has_vps_sps_pps_in_raw_payload = false;
+    SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
+    if (raw_payload) {
+        if (pkt->nalu_type == SrsHevcNaluType_VPS) {
+            has_vps_sps_pps_in_raw_payload = true;
+            srs_freep(obs_whip_vps_);
+            obs_whip_vps_ = pkt->copy();
+        } else if (pkt->nalu_type == SrsHevcNaluType_SPS) {
+            has_vps_sps_pps_in_raw_payload = true;
+            srs_freep(obs_whip_sps_);
+            obs_whip_sps_ = pkt->copy();
+        } else if (pkt->nalu_type == SrsHevcNaluType_PPS) {
+            has_vps_sps_pps_in_raw_payload = true;
+            srs_freep(obs_whip_pps_);
+            obs_whip_pps_ = pkt->copy();
         }
-
-        SrsMessageHeader header;
-        header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
-        SrsCommonMessage rtmp;
-        if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
-            return srs_error_wrap(err, "create rtmp");
-        }
-
-        SrsSharedPtrMessage msg;
-        if ((err = msg.create(&rtmp)) != srs_success) {
-            return srs_error_wrap(err, "create message");
-        }
-
-        if ((err = bridge_->on_frame(&msg)) != srs_success) {
+        // Ignore if one of OBS WHIP VPS/SPS/PPS is not ready.
+        if (has_vps_sps_pps_in_raw_payload && (!obs_whip_vps_ || !obs_whip_sps_ || !obs_whip_pps_)) {
             return err;
         }
     }
 
-    if (-1 == rtp_key_frame_ts_) {
-        rtp_key_frame_ts_ = pkt->header.get_timestamp();
-        header_sn_ = pkt->header.get_sequence();
-        lost_sn_ = header_sn_ + 1;
-        // Received key frame and clean cache of old p frame pkts
-        clear_cached_video();
-        srs_trace("set ts=%u, header=%hu, lost=%hu", (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
-    } else if (rtp_key_frame_ts_ != pkt->header.get_timestamp()) {
-        //new key frame, clean cache
-        int64_t old_ts = rtp_key_frame_ts_;
-        uint16_t old_header_sn = header_sn_;
-        uint16_t old_lost_sn = lost_sn_;
-        rtp_key_frame_ts_ = pkt->header.get_timestamp();
-        header_sn_ = pkt->header.get_sequence();
-        lost_sn_ = header_sn_ + 1;
-        clear_cached_video();
-        srs_warn("drop old ts=%u, header=%hu, lost=%hu, set new ts=%u, header=%hu, lost=%hu",
-                 (uint32_t)old_ts, old_header_sn, old_lost_sn, (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
-    }
-
-    uint16_t index = cache_index(pkt->header.get_sequence());
-    cache_video_pkts_[index].in_use = true;
-    srs_freep(cache_video_pkts_[index].pkt);
-    cache_video_pkts_[index].pkt = pkt;
-    cache_video_pkts_[index].sn = pkt->header.get_sequence();
-    cache_video_pkts_[index].ts = pkt->get_avsync_time();
-    cache_video_pkts_[index].rtp_ts = pkt->header.get_timestamp();
-
-    int32_t sn = lost_sn_;
-    uint16_t tail_sn = 0;
-    if (srs_rtp_seq_distance(header_sn_, pkt->header.get_sequence()) < 0){
-        // When receive previous pkt in the same frame, update header sn;
-        header_sn_ = pkt->header.get_sequence();
-        sn = find_next_lost_sn(header_sn_, tail_sn);
-    } else if (lost_sn_ == pkt->header.get_sequence()) {
-        sn = find_next_lost_sn(lost_sn_, tail_sn);
-    }
-
-    if (-1 == sn) {
-        if (check_frame_complete(header_sn_, tail_sn)) {
-            if ((err = packet_video_rtmp(header_sn_, tail_sn)) != srs_success) {
-                err = srs_error_wrap(err, "fail to packet frame");
-            }
+    // Generally, there will be SPS+PPS+IDR in a STAP-A packet.
+    SrsRtpSTAPPayloadHevc* stap_payload_hevc = dynamic_cast<SrsRtpSTAPPayloadHevc*>(pkt->payload());
+    if (video_codec_ == SrsVideoCodecIdHEVC && (stap_payload_hevc || has_vps_sps_pps_in_raw_payload)) {
+        SrsSample* vps = stap_payload_hevc ? stap_payload_hevc->get_vps() : NULL;
+        if (!vps && obs_whip_vps_) vps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_vps_->payload())->sample_;
+        SrsSample* sps = stap_payload_hevc ? stap_payload_hevc->get_sps() : NULL;
+        if (!sps && obs_whip_sps_) sps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_sps_->payload())->sample_;
+        SrsSample* pps = stap_payload_hevc ? stap_payload_hevc->get_pps() : NULL;
+        if (!pps && obs_whip_pps_) pps = dynamic_cast<SrsRtpRawPayload*>(obs_whip_pps_->payload())->sample_;
+        if (!vps || !sps || !pps) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "no vps/sps/pps in stap-a hevc rtp. vps: %p, sps:%p, pps:%p", vps, sps, pps);
         }
-    } else if (-2 == sn) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
-    } else {
-        lost_sn_ = (uint16_t)sn;
+
+        err = do_packet_sequence_header_hevc(pkt, vps, sps, pps);
+
+        // Always reset the VPS/SPS/PPS cache after used it.
+        srs_freep(obs_whip_vps_);
+        srs_freep(obs_whip_sps_);
+        srs_freep(obs_whip_pps_);
+
+        if (err != srs_success) {
+            return srs_error_wrap(err, "packet vps/sps/pps");
+        }
     }
 
     return err;
+}
+
+srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_hevc(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps)
+{
+    srs_error_t err = srs_success;
+
+    std::string sh;
+    SrsUniquePtr<SrsRawHEVCStream> hevc(new SrsRawHEVCStream());
+    std::vector<string> h265_pps = { string(pps->bytes, pps->size) };
+    if ((err = hevc->mux_sequence_header(string(vps->bytes, vps->size), string(sps->bytes, sps->size), h265_pps, sh)) != srs_success) {
+        return srs_error_wrap(err, "mux sequence header");
+    }
+
+    char* flv = NULL;
+    int nb_flv = 0;
+    if ((err = hevc->mux_avc2flv_enhanced(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoHEVCFrameTraitPacketTypeSequenceStart, pkt->get_avsync_time(),
+                                pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "mux sequence header");
+    }
+
+    SrsMessageHeader header;
+    header.initialize_video(nb_flv, pkt->get_avsync_time(), 1);
+    SrsCommonMessage rtmp;
+    if ((err = rtmp.create(&header, flv, nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "create rtmp");
+    }
+
+    SrsSharedPtrMessage msg;
+    if ((err = msg.create(&rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create message");
+    }
+
+    if ((err = bridge_->on_frame(&msg)) != srs_success) {
+        return err;
+    }
+
+    return err;
+}
+
+int SrsRtcFrameBuilder::calculate_packet_payload_size(SrsRtpPacket* pkt)
+{
+    if (!pkt || !pkt->payload()) {
+        return 0;
+    }
+
+    // H.264 FU-A payload
+    SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
+    if (fua_payload && fua_payload->size > 0) {
+        int size = fua_payload->size;
+        if (fua_payload->start) {
+            size += 1 + 4; // NALU header + length prefix
+        }
+        return size;
+    }
+
+    // H.264 STAP-A payload
+    SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
+    if (stap_payload) {
+        int size = 0;
+        for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
+            SrsSample* sample = stap_payload->nalus.at(j);
+            if (sample->size > 0) {
+                size += 4 + sample->size; // length prefix + NALU
+            }
+        }
+        return size;
+    }
+
+    // H.265 FU-A payload
+    SrsRtpFUAPayloadHevc2* fua_payload_hevc = dynamic_cast<SrsRtpFUAPayloadHevc2*>(pkt->payload());
+    if (fua_payload_hevc && fua_payload_hevc->size > 0) {
+        int size = fua_payload_hevc->size;
+        if (fua_payload_hevc->start) {
+            size += 2 + 4; // HEVC NALU header + length prefix
+        }
+        return size;
+    }
+
+    // H.265 STAP payload
+    SrsRtpSTAPPayloadHevc* stap_payload_hevc = dynamic_cast<SrsRtpSTAPPayloadHevc*>(pkt->payload());
+    if (stap_payload_hevc) {
+        int size = 0;
+        for (int j = 0; j < (int)stap_payload_hevc->nalus.size(); ++j) {
+            SrsSample* sample = stap_payload_hevc->nalus.at(j);
+            if (sample->size > 0) {
+                size += 4 + sample->size; // length prefix + NALU
+            }
+        }
+        return size;
+    }
+
+    // Raw payload
+    SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
+    if (raw_payload && raw_payload->nn_payload > 0) {
+        return 4 + raw_payload->nn_payload; // length prefix + payload
+    }
+
+    return 0;
+}
+
+void SrsRtcFrameBuilder::write_packet_payload_to_buffer(SrsRtpPacket* pkt, SrsBuffer& payload, int& nalu_len)
+{
+    if (!pkt || !pkt->payload()) {
+        return;
+    }
+
+    // H.264 FU-A payload
+    SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
+    if (fua_payload && fua_payload->size > 0) {
+        if (fua_payload->start) {
+            nalu_len = fua_payload->size + 1;
+            payload.skip(4); // Skip 4 bytes to write nalu_len later
+            payload.write_1bytes(fua_payload->nri | fua_payload->nalu_type);
+            payload.write_bytes(fua_payload->payload, fua_payload->size);
+        } else {
+            nalu_len += fua_payload->size;
+            payload.write_bytes(fua_payload->payload, fua_payload->size);
+            if (fua_payload->end) {
+                // Write nalu_len back
+                payload.skip(-(4 + nalu_len));
+                payload.write_4bytes(nalu_len);
+                payload.skip(nalu_len);
+            }
+        }
+        return;
+    }
+
+    // H.264 STAP-A payload
+    SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
+    if (stap_payload) {
+        for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
+            SrsSample* sample = stap_payload->nalus.at(j);
+            if (sample->size > 0) {
+                payload.write_4bytes(sample->size);
+                payload.write_bytes(sample->bytes, sample->size);
+            }
+        }
+        return;
+    }
+
+    // H.265 FU-A payload
+    SrsRtpFUAPayloadHevc2* fua_payload_hevc = dynamic_cast<SrsRtpFUAPayloadHevc2*>(pkt->payload());
+    if (fua_payload_hevc && fua_payload_hevc->size > 0) {
+        if (fua_payload_hevc->start) {
+            nalu_len = fua_payload_hevc->size + 2;
+            payload.skip(4); // Skip 4 bytes to write nalu_len later
+            payload.write_1bytes(fua_payload_hevc->nalu_type << 1);
+            payload.write_1bytes(0x01);
+            payload.write_bytes(fua_payload_hevc->payload, fua_payload_hevc->size);
+        } else {
+            nalu_len += fua_payload_hevc->size;
+            payload.write_bytes(fua_payload_hevc->payload, fua_payload_hevc->size);
+            if (fua_payload_hevc->end) {
+                // Write nalu_len back
+                payload.skip(-(4 + nalu_len));
+                payload.write_4bytes(nalu_len);
+                payload.skip(nalu_len);
+            }
+        }
+        return;
+    }
+
+    // H.265 STAP payload
+    SrsRtpSTAPPayloadHevc* stap_payload_hevc = dynamic_cast<SrsRtpSTAPPayloadHevc*>(pkt->payload());
+    if (stap_payload_hevc) {
+        for (int j = 0; j < (int)stap_payload_hevc->nalus.size(); ++j) {
+            SrsSample* sample = stap_payload_hevc->nalus.at(j);
+            if (sample->size > 0) {
+                payload.write_4bytes(sample->size);
+                payload.write_bytes(sample->bytes, sample->size);
+            }
+        }
+        return;
+    }
+
+    // Raw payload
+    SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
+    if (raw_payload && raw_payload->nn_payload > 0) {
+        payload.write_4bytes(raw_payload->nn_payload);
+        payload.write_bytes(raw_payload->payload, raw_payload->nn_payload);
+        return;
+    }
 }
 
 srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const uint16_t end)
@@ -1737,40 +2299,23 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
     srs_assert(cnt >= 1);
 
+    // The start position packet may be null, so we need to find the actual first packet.
+    SrsRtpPacket* first_frame_pkt = NULL;
+
+    // First loop: Calculate total payload size and find first packet
     for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         uint16_t sn = start + i;
-        uint16_t index = cache_index(sn);
-        SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
+        SrsRtpPacket* pkt = video_cache_->get_packet(sn);
 
-        // fix crash when pkt->payload() if pkt is nullptr;
         if (!pkt) continue;
 
-        // calculate nalu len
-        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
-        if (fua_payload && fua_payload->size > 0) {
-            if (fua_payload->start) {
-                nb_payload += 1 + 4;
-            }
-            nb_payload += fua_payload->size;
-            continue;
+        // Set the first available packet of the frame
+        if (!first_frame_pkt) {
+            first_frame_pkt = pkt;
         }
 
-        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
-        if (stap_payload) {
-            for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
-                SrsSample* sample = stap_payload->nalus.at(j);
-                if (sample->size > 0) {
-                    nb_payload += 4 + sample->size;
-                }
-            }
-            continue;
-        }
-
-        SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
-        if (raw_payload && raw_payload->nn_payload > 0) {
-            nb_payload += 4 + raw_payload->nn_payload;
-            continue;
-        }
+        // Calculate payload size using helper function
+        nb_payload += calculate_packet_payload_size(pkt);
     }
 
     if (0 == nb_payload) {
@@ -1779,100 +2324,70 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
         // The chrome web browser send RTP packet with empty payload frequently,
         // reset header_sn_, lost_sn_ and continue to found next frame in this case,
         // otherwise, all the cached RTP packets are dropped before next key frame arrive.
-        header_sn_ = end + 1;
-        uint16_t tail_sn = 0;
-        int sn = find_next_lost_sn(header_sn_, tail_sn);
-        if (-1 == sn) {
-            if (check_frame_complete(header_sn_, tail_sn)) {
-                err = packet_video_rtmp(header_sn_, tail_sn);
-            }
-        } else if (-2 == sn) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
-        } else {
-            lost_sn_ = sn;
+        uint16_t next_start, next_end; bool got_frame;
+        if ((err = frame_detector_->detect_next_frame(end + 1, next_start, next_end, got_frame)) != srs_success) {
+            return srs_error_wrap(err, "update frame detector failed");
+        }
+        if (got_frame && (err = packet_video_rtmp(next_start, next_end)) != srs_success) {
+            err = srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", next_start, next_end);
         }
 
         return err;
     }
 
-    //type_codec1 + avc_type + composition time + nalu size + nalu
-    nb_payload += 1 + 1 + 3;
+    // If no first frame packet, it make no sense to continue.
+    if (!first_frame_pkt) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "no available packets in frame range, start=%u, end=%u", start, end);
+    }
+
+    // h265: IsExHeader | FrameType | PacketType + Video FourCC
+    // h264: FrameType | CodecID + avc_type + composition time + nalu size + nalu
+    nb_payload += 5;
+
+    // Note that the start position may be null, so it's not the real correct start 
+    // packet of a video frame, therefore we use the first available packet instead.
+    SrsRtpPacket* pkt = first_frame_pkt;
+
+    if (pkt->is_keyframe(video_codec_)) {
+        frame_detector_->on_keyframe_detached();
+    }
+    
+    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
+    if (pkt->is_keyframe(video_codec_)) {
+        frame_type = SrsVideoAvcFrameTypeKeyFrame;
+    }
 
     SrsCommonMessage rtmp;
-    SrsRtpPacket* pkt = cache_video_pkts_[cache_index(start)].pkt;
     rtmp.header.initialize_video(nb_payload, pkt->get_avsync_time(), 1);
     rtmp.create_payload(nb_payload);
     rtmp.size = nb_payload;
     SrsBuffer payload(rtmp.payload, rtmp.size);
-    if (pkt->is_keyframe()) {
-        payload.write_1bytes(0x17); // type(4 bits): key frame; code(4bits): avc
-        rtp_key_frame_ts_ = -1;
+    if (video_codec_ == SrsVideoCodecIdHEVC) {
+        // @see: https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf, page 8
+        payload.write_1bytes(SRS_FLV_IS_EX_HEADER | (frame_type << 4) | SrsVideoHEVCFrameTraitPacketTypeCodedFramesX);
+        payload.write_4bytes(0x68766331); // 'h' 'v' 'c' '1'
     } else {
-        payload.write_1bytes(0x27); // type(4 bits): inter frame; code(4bits): avc
+        // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
+        // Frame Type, Type of video frame.
+        // CodecID, Codec Identifier.
+        // set the rtmp header
+        payload.write_1bytes((frame_type << 4) | video_codec_);
+        payload.write_1bytes(0x01); // avc_type: nalu
+        payload.write_1bytes(0x0);  // composition time
+        payload.write_1bytes(0x0);
+        payload.write_1bytes(0x0);
     }
-    payload.write_1bytes(0x01); // avc_type: nalu
-    payload.write_1bytes(0x0);  // composition time
-    payload.write_1bytes(0x0);
-    payload.write_1bytes(0x0);
 
+    // Second loop: Write payload data using helper function
     int nalu_len = 0;
     for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
-        uint16_t index = cache_index((start + i));
-        SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
+        uint16_t sequence_number = start + i;
+        SrsRtpPacket* pkt_raw = video_cache_->take_packet(sequence_number);
 
-        // fix crash when pkt->payload() if pkt is nullptr;
-        if (!pkt) continue;
+        if (!pkt_raw) continue;
 
-        cache_video_pkts_[index].in_use = false;
-        cache_video_pkts_[index].pkt = NULL;
-        cache_video_pkts_[index].ts = 0;
-        cache_video_pkts_[index].rtp_ts = 0;
-        cache_video_pkts_[index].sn = 0;
-
-        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
-        if (fua_payload && fua_payload->size > 0) {
-            if (fua_payload->start) {
-                nalu_len = fua_payload->size + 1;
-                //skip 4 bytes to write nalu_len future
-                payload.skip(4);
-                payload.write_1bytes(fua_payload->nri | fua_payload->nalu_type);
-                payload.write_bytes(fua_payload->payload, fua_payload->size);
-            } else {
-                nalu_len += fua_payload->size;
-                payload.write_bytes(fua_payload->payload, fua_payload->size);
-                if (fua_payload->end) {
-                    //write nalu_len back
-                    payload.skip(-(4 + nalu_len));
-                    payload.write_4bytes(nalu_len);
-                    payload.skip(nalu_len);
-                }
-            }
-            srs_freep(pkt);
-            continue;
-        }
-
-        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
-        if (stap_payload) {
-            for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
-                SrsSample* sample = stap_payload->nalus.at(j);
-                if (sample->size > 0) {
-                    payload.write_4bytes(sample->size);
-                    payload.write_bytes(sample->bytes, sample->size);
-                }
-            }
-            srs_freep(pkt);
-            continue;
-        }
-
-        SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
-        if (raw_payload && raw_payload->nn_payload > 0) {
-            payload.write_4bytes(raw_payload->nn_payload);
-            payload.write_bytes(raw_payload->payload, raw_payload->nn_payload);
-            srs_freep(pkt);
-            continue;
-        }
-
-        srs_freep(pkt);
+        SrsUniquePtr<SrsRtpPacket> pkt(pkt_raw);
+        write_packet_payload_to_buffer(pkt.get(), payload, nalu_len);
     }
 
     SrsSharedPtrMessage msg;
@@ -1884,89 +2399,16 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
         srs_warn("fail to pack video frame");
     }
 
-    header_sn_ = end + 1;
-    uint16_t tail_sn = 0;
-    int sn = find_next_lost_sn(header_sn_, tail_sn);
-    if (-1 == sn) {
-        if (check_frame_complete(header_sn_, tail_sn)) {
-            err = packet_video_rtmp(header_sn_, tail_sn);
-        }
-    } else if (-2 == sn) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "video cache is overflow");
-    } else {
-        lost_sn_ = sn;
+    // Try to detect and detach next RTMP packet.
+    uint16_t next_start, next_end; bool got_frame;
+    if ((err = frame_detector_->detect_next_frame(end + 1, next_start, next_end, got_frame)) != srs_success) {
+        return srs_error_wrap(err, "update frame detector failed");
+    }
+    if (got_frame && (err = packet_video_rtmp(next_start, next_end)) != srs_success) {
+        err = srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", next_start, next_end);
     }
 
     return err;
-}
-
-int32_t SrsRtcFrameBuilder::find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn)
-{
-    uint32_t last_rtp_ts = cache_video_pkts_[cache_index(header_sn_)].rtp_ts;
-    for (int i = 0; i < s_cache_size; ++i) {
-        uint16_t lost_sn = current_sn + i;
-        int index = cache_index(lost_sn);
-
-        if (!cache_video_pkts_[index].in_use) {
-            return lost_sn;
-        }
-        //check time first, avoid two small frame mixed case decode fail
-        if (last_rtp_ts != cache_video_pkts_[index].rtp_ts) {
-            end_sn = lost_sn - 1;
-            return -1;
-        }
-
-        if (cache_video_pkts_[index].pkt->header.get_marker()) {
-            end_sn = lost_sn;
-            return -1;
-        }
-    }
-
-    srs_error("cache overflow. the packet count of video frame is more than %u", s_cache_size);
-    return -2;
-}
-
-void SrsRtcFrameBuilder::clear_cached_video()
-{
-    for (size_t i = 0; i < s_cache_size; i++)
-    {
-        if (cache_video_pkts_[i].in_use) {
-            srs_freep(cache_video_pkts_[i].pkt);
-            cache_video_pkts_[i].sn = 0;
-            cache_video_pkts_[i].ts = 0;
-            cache_video_pkts_[i].rtp_ts = 0;
-            cache_video_pkts_[i].in_use = false;
-        }
-    }
-}
-
-bool SrsRtcFrameBuilder::check_frame_complete(const uint16_t start, const uint16_t end)
-{
-    int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
-    srs_assert(cnt >= 1);
-
-    uint16_t fu_s_c = 0;
-    uint16_t fu_e_c = 0;
-    for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
-        int index = cache_index((start + i));
-        SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
-
-        // fix crash when pkt->payload() if pkt is nullptr;
-        if (!pkt) continue;
-
-        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
-        if (!fua_payload) continue;
-
-        if (fua_payload->start) {
-            ++fu_s_c;
-        }
-
-        if (fua_payload->end) {
-            ++fu_e_c;
-        }
-    }
-
-    return fu_s_c == fu_e_c;
 }
 
 #endif
@@ -1975,6 +2417,7 @@ SrsCodecPayload::SrsCodecPayload()
 {
     pt_of_publisher_ = pt_ = 0;
     sample_ = 0;
+    codec_ = -1;
 }
 
 SrsCodecPayload::SrsCodecPayload(uint8_t pt, std::string encode_name, int sample)
@@ -1982,10 +2425,30 @@ SrsCodecPayload::SrsCodecPayload(uint8_t pt, std::string encode_name, int sample
     pt_of_publisher_ = pt_ = pt;
     name_ = encode_name;
     sample_ = sample;
+    codec_ = -1;
 }
 
 SrsCodecPayload::~SrsCodecPayload()
 {
+}
+
+int8_t SrsCodecPayload::codec(bool video)
+{
+    // Return cached value if already initialized
+    if (codec_ != -1) {
+        return codec_;
+    }
+
+    // Parse codec based on context (video or audio)
+    if (video) {
+        // For unknown video codecs like H.266, still return SrsVideoCodecIdReserved
+        // but it's correctly identified as a video codec due to the context
+        codec_ = srs_video_codec_str2id(name_);
+    } else {
+        codec_ = srs_audio_codec_str2id(name_);
+    }
+
+    return codec_;
 }
 
 SrsCodecPayload* SrsCodecPayload::copy()
@@ -2024,7 +2487,7 @@ SrsVideoPayload::SrsVideoPayload(uint8_t pt, std::string encode_name, int sample
     type_ = "video";
     h264_param_.profile_level_id = "";
     h264_param_.packetization_mode = "";
-    h264_param_.level_asymmerty_allow = "";
+    h264_param_.level_asymmetry_allow = "";
 }
 
 SrsVideoPayload::~SrsVideoPayload()
@@ -2042,6 +2505,7 @@ SrsVideoPayload* SrsVideoPayload::copy()
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
     cp->h264_param_ = h264_param_;
+    cp->h265_param_ = h265_param_;
 
     return cp;
 }
@@ -2055,14 +2519,20 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type()
     media_payload_type.rtcp_fb_ = rtcp_fbs_;
 
     std::ostringstream format_specific_param;
-    if (!h264_param_.level_asymmerty_allow.empty()) {
-        format_specific_param << "level-asymmetry-allowed=" << h264_param_.level_asymmerty_allow;
+    bool has_param = false;
+    
+    if (!h264_param_.level_asymmetry_allow.empty()) {
+        format_specific_param << "level-asymmetry-allowed=" << h264_param_.level_asymmetry_allow;
+        has_param = true;
     }
     if (!h264_param_.packetization_mode.empty()) {
-        format_specific_param << ";packetization-mode=" << h264_param_.packetization_mode;
+        if (has_param) format_specific_param << ";";
+        format_specific_param << "packetization-mode=" << h264_param_.packetization_mode;
+        has_param = true;
     }
     if (!h264_param_.profile_level_id.empty()) {
-        format_specific_param << ";profile-level-id=" << h264_param_.profile_level_id;
+        if (has_param) format_specific_param << ";";
+        format_specific_param << "profile-level-id=" << h264_param_.profile_level_id;
     }
 
     media_payload_type.format_specific_param_ = format_specific_param.str();
@@ -2070,11 +2540,46 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type()
     return media_payload_type;
 }
 
+SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type_h265()
+{
+    SrsMediaPayloadType media_payload_type(pt_);
+
+    media_payload_type.encoding_name_ = name_;
+    media_payload_type.clock_rate_ = sample_;
+    media_payload_type.rtcp_fb_ = rtcp_fbs_;
+
+    std::ostringstream format_specific_param;
+    bool has_param = false;
+    
+    if (!h265_param_.level_id.empty()) {
+        format_specific_param << "level-id=" << h265_param_.level_id;
+        has_param = true;
+    }
+    if (!h265_param_.profile_id.empty()) {
+        if (has_param) format_specific_param << ";";
+        format_specific_param << "profile-id=" << h265_param_.profile_id;
+        has_param = true;
+    }
+    if (!h265_param_.tier_flag.empty()) {
+        if (has_param) format_specific_param << ";";
+        format_specific_param << "tier-flag=" << h265_param_.tier_flag;
+        has_param = true;
+    }
+    if (!h265_param_.tx_mode.empty()) {
+        if (has_param) format_specific_param << ";";
+        format_specific_param << "tx-mode=" << h265_param_.tx_mode;
+    }
+
+    media_payload_type.format_specific_param_ = format_specific_param.str();
+
+    return media_payload_type;
+}
+
+// level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
 srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 {
     srs_error_t err = srs_success;
 
-    // For example: level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
     std::vector<std::string> attributes = split_str(fmtp, ";");
 
     for (size_t i = 0; i < attributes.size(); ++i) {
@@ -2098,13 +2603,38 @@ srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
             // @see https://tools.ietf.org/html/rfc6184#section-6.3
             h264_param_.packetization_mode = kv[1];
         } else if (kv[0] == "level-asymmetry-allowed") {
-            h264_param_.level_asymmerty_allow = kv[1];
+            h264_param_.level_asymmetry_allow = kv[1];
         } else {
             return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h264 param=%s", kv[0].c_str());
         }
     }
 
     return err;
+}
+
+// level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST
+srs_error_t SrsVideoPayload::set_h265_param_desc(std::string fmtp)
+{
+    std::vector<std::string> attributes = split_str(fmtp, ";");
+    for (size_t i = 0; i < attributes.size(); ++i) {
+        std::string attribute = attributes.at(i);
+        std::vector<std::string> kv = split_str(attribute, "=");
+        if (kv.size() != 2) {
+            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h265 param=%s", attribute.c_str());
+        }
+        if (kv[0] == "level-id") {
+            h265_param_.level_id = kv[1];
+        } else if (kv[0] == "profile-id") {
+            h265_param_.profile_id = kv[1];
+        } else if (kv[0] == "tier-flag") {
+            h265_param_.tier_flag = kv[1];
+        } else if (kv[0] == "tx-mode") {
+            h265_param_.tx_mode = kv[1];
+        } else {
+            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h265 param=%s", kv[0].c_str());
+        }
+    }
+    return srs_success;
 }
 
 SrsAudioPayload::SrsAudioPayload()
@@ -2139,6 +2669,7 @@ SrsAudioPayload* SrsAudioPayload::copy()
     cp->rtcp_fbs_ = rtcp_fbs_;
     cp->channel_ = channel_;
     cp->opus_param_ = opus_param_;
+    cp->aac_config_hex_ = aac_config_hex_;
 
     return cp;
 }
@@ -2598,6 +3129,9 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket** ppkt)
     if (nack_info) {
         // seq had been received.
         nack_receiver_->remove(seq);
+#ifdef SRS_NACK_DEBUG_DROP_ENABLED
+        srs_trace("NACK: recovered seq=%u", seq);
+#endif
         return err;
     }
 
@@ -2643,7 +3177,7 @@ SrsRtcAudioRecvTrack::~SrsRtcAudioRecvTrack()
 {
 }
 
-void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt)
+void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt)
 {
     // No payload, ignore.
     if (buf->empty()) {
@@ -2651,7 +3185,7 @@ void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer
     }
 
     *ppayload = new SrsRtpRawPayload();
-    *ppt = SrsRtspPacketPayloadTypeRaw;
+    *ppt = SrsRtpPacketPayloadTypeRaw;
 }
 
 srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt)
@@ -2691,25 +3225,45 @@ SrsRtcVideoRecvTrack::~SrsRtcVideoRecvTrack()
 {
 }
 
-void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt)
+void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt)
 {
     // No payload, ignore.
     if (buf->empty()) {
         return;
     }
 
-    uint8_t v = (uint8_t)(buf->head()[0] & kNalTypeMask);
-    pkt->nalu_type = SrsAvcNaluType(v);
+    SrsVideoCodecId codec = (SrsVideoCodecId)track_desc_->media_->codec(true);
+    if (codec == SrsVideoCodecIdAVC) {
+        uint8_t v = SrsAvcNaluTypeParse(buf->head()[0]);
+        pkt->nalu_type = v;
 
-    if (v == kStapA) {
-        *ppayload = new SrsRtpSTAPPayload();
-        *ppt = SrsRtspPacketPayloadTypeSTAP;
-    } else if (v == kFuA) {
-        *ppayload = new SrsRtpFUAPayload2();
-        *ppt = SrsRtspPacketPayloadTypeFUA2;
+        if (v == kStapA) {
+            *ppayload = new SrsRtpSTAPPayload();
+            *ppt = SrsRtpPacketPayloadTypeSTAP;
+        } else if (v == kFuA) {
+            *ppayload = new SrsRtpFUAPayload2();
+            *ppt = SrsRtpPacketPayloadTypeFUA2;
+        } else {
+            *ppayload = new SrsRtpRawPayload();
+            *ppt = SrsRtpPacketPayloadTypeRaw;
+        }
+    } else if (codec == SrsVideoCodecIdHEVC) {
+        uint8_t v = SrsHevcNaluTypeParse(buf->head()[0]);
+        pkt->nalu_type = v;
+
+        if (v == kStapHevc) {
+            *ppayload = new SrsRtpSTAPPayloadHevc();
+            *ppt = SrsRtpPacketPayloadTypeSTAPHevc;
+        } else if (v == kFuHevc) {
+            *ppayload = new SrsRtpFUAPayloadHevc2();
+            *ppt = SrsRtpPacketPayloadTypeFUAHevc2;
+        } else {
+            *ppayload = new SrsRtpRawPayload();
+            *ppt = SrsRtpPacketPayloadTypeRaw;
+        }
     } else {
-        *ppayload = new SrsRtpRawPayload();
-        *ppt = SrsRtspPacketPayloadTypeRaw;
+        *ppayload = NULL;
+        *ppt = SrsRtpPacketPayloadTypeUnknown;
     }
 }
 

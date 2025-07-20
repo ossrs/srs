@@ -22,6 +22,8 @@ class SrsRtmpFormat;
 class SrsMetaCache;
 class SrsRtpPacket;
 class SrsRtcRtpBuilder;
+class SrsRtspSource;
+class SrsRtspRtpBuilder;
 
 // A stream bridge is used to convert stream via different protocols, such as bridge for RTMP and RTC. Generally, we use
 // frame as message for bridge. A frame is a audio or video frame, such as an I/B/P frame, a general frame for decoder.
@@ -77,12 +79,34 @@ public:
 };
 #endif
 
+#ifdef SRS_RTSP
+// A bridge to covert AV frame to RTSP stream.
+class SrsFrameToRtspBridge : public ISrsStreamBridge
+{
+private:
+    SrsSharedPtr<SrsRtspSource> source_;
+private:
+    SrsRtspRtpBuilder* rtp_builder_;
+public:
+    SrsFrameToRtspBridge(SrsSharedPtr<SrsRtspSource> source);
+    virtual ~SrsFrameToRtspBridge();
+public:
+    virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
+    srs_error_t on_rtp(SrsRtpPacket* pkt);
+};
+#endif
+
 // A bridge chain, a set of bridges.
 class SrsCompositeBridge : public ISrsStreamBridge
 {
 public:
     SrsCompositeBridge();
     virtual ~SrsCompositeBridge();
+public:
+    bool empty() { return bridges_.empty(); } // SrsCompositeBridge::empty()
 public:
     srs_error_t initialize(SrsRequest* r);
 public:

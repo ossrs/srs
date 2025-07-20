@@ -93,8 +93,13 @@
 <script type="text/javascript">
 $(function(){
     var sdk = null; // Global handler to do cleanup when republishing.
+    var statsTimer = null;
     var startPublish = function() {
         $('#rtc_media_player').show();
+
+        if (statsTimer) {
+            clearInterval(statsTimer);
+        }
 
         // Close PC when user replay.
         if (sdk) {
@@ -108,13 +113,21 @@ $(function(){
         // Optional callback, SDK will add track to stream.
         // sdk.ontrack = function (event) { console.log('Got track', event); sdk.stream.addTrack(event.track); };
 
-        // https://developer.mozilla.org/en-US/docs/Web/Media/Formats/WebRTC_codecs#getting_the_supported_codecs
-        sdk.pc.onicegatheringstatechange = function (event) {
-            if (sdk.pc.iceGatheringState === "complete") {
-                $('#acodecs').html(SrsRtcFormatSenders(sdk.pc.getSenders(), "audio"));
-                $('#vcodecs').html(SrsRtcFormatSenders(sdk.pc.getSenders(), "video"));
-            }
-        };
+        // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getStats
+        statsTimer = setInterval(() => {
+            sdk.pc.getStats(null).then((stats) => {
+                let audioStatsOutput = SrsRtcFormatStats(stats, 'audio');
+                let videoStatsOutput = SrsRtcFormatStats(stats, 'video');
+                
+                document.querySelector("#acodecs").innerHTML = audioStatsOutput;
+                document.querySelector("#vcodecs").innerHTML = videoStatsOutput;
+
+                if (audioStatsOutput && videoStatsOutput) {
+                    clearInterval(statsTimer);
+                    console.log('Stats detected, stopping stats timer');
+                }
+            });
+        }, 1000);
 
         // For example: webrtc://r.ossrs.net/live/livestream
         var url = $("#txt_url").val();

@@ -1321,9 +1321,7 @@ private:
     virtual srs_error_t do_cache_mp3(SrsAudioFrame* frame);
     virtual srs_error_t do_cache_aac(SrsAudioFrame* frame);
     virtual srs_error_t do_cache_avc(SrsVideoFrame* frame);
-#ifdef SRS_H265
     virtual srs_error_t do_cache_hevc(SrsVideoFrame* frame);
-#endif
 };
 
 // Transmux the RTMP stream to HTTP-TS stream.

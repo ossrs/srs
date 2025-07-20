@@ -119,6 +119,15 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
             o->append(SrsJsonAny::str(srs_fmt("udp://0.0.0.0:%d", endpoint).c_str()));
         }
 
+        // For RTSP listen endpoints.
+        if (_srs_config->get_rtsp_server_enabled()) {
+            SrsJsonArray* o = SrsJsonAny::array();
+            obj->set("rtsp", o);
+
+            int endpoint = _srs_config->get_rtsp_server_listen();
+            o->append(SrsJsonAny::str(srs_fmt("rtsp://0.0.0.0:%d", endpoint).c_str()));
+        }
+
         // For WebRTC listen endpoints.
         if (_srs_config->get_rtc_server_enabled()) {
             SrsJsonArray* o = SrsJsonAny::array();

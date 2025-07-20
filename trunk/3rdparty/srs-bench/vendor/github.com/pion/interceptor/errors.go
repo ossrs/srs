@@ -18,6 +18,7 @@ func flattenErrs(errs []error) error {
 	if len(errs2) == 0 {
 		return nil
 	}
+
 	return multiError(errs2)
 }
 
@@ -50,5 +51,6 @@ func (me multiError) Is(err error) bool {
 			}
 		}
 	}
+
 	return false
 }

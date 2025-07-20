@@ -28,6 +28,9 @@
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
 #endif
+#ifdef SRS_RTSP
+#include <srs_app_rtsp_source.hpp>
+#endif
 
 #include <stdlib.h>
 #include <string>
@@ -330,6 +333,10 @@ srs_error_t srs_global_initialize()
 
     _srs_rtc_manager = new SrsResourceManager("RTC", true);
     _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
+#endif
+#ifdef SRS_RTSP
+    _srs_rtsp_sources = new SrsRtspSourceManager();
+    _srs_rtsp_manager = new SrsResourceManager("RTSP", true);
 #endif
 #ifdef SRS_GB28181
     _srs_gb_manager = new SrsResourceManager("GB", true);

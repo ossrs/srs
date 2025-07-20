@@ -508,6 +508,16 @@ public:
     virtual srs_utime_t get_stream_caster_sip_reinvite(SrsConfDirective* conf);
     // Get the candidate for SDP.
     virtual std::string get_stream_caster_sip_candidate(SrsConfDirective* conf);
+// rtsp section
+public:
+    virtual bool get_rtsp_server_enabled();
+    virtual bool get_rtsp_server_enabled(SrsConfDirective* conf);
+    virtual int get_rtsp_server_listen();
+public:
+    SrsConfDirective* get_rtsp(std::string vhost);
+    bool get_rtsp_enabled(std::string vhost);
+    bool get_rtsp_from_rtmp(std::string vhost);
+
 // rtc section
 public:
     virtual bool get_rtc_server_enabled();
@@ -776,11 +786,11 @@ public:
     // Get the transformed vhost for edge,
     virtual std::string get_vhost_edge_transform_vhost(std::string vhost);
     // Whether enable the origin cluster.
-    // @see https://ossrs.net/lts/zh-cn/docs/v4/doc/origin-cluster
+    // @see https://ossrs.io/lts/en-us/docs/v7/doc/origin-cluster#legacy
     virtual bool get_vhost_origin_cluster(std::string vhost);
     virtual bool get_vhost_origin_cluster(SrsConfDirective* conf);
     // Get the co-workers of origin cluster.
-    // @see https://ossrs.net/lts/zh-cn/docs/v4/doc/origin-cluster
+    // @see https://ossrs.io/lts/en-us/docs/v7/doc/origin-cluster#legacy
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost);
 // vhost security section
 public:

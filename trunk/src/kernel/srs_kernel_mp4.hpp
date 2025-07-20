@@ -1963,6 +1963,9 @@ public:
 public:
     // Read a MP4 box to pbox, the stream is fill with the bytes of box to decode.
     virtual srs_error_t read(SrsSimpleStream* stream, SrsMp4Box** ppbox);
+private:
+    srs_error_t do_read(SrsSimpleStream* stream, SrsMp4Box*& box);
+public:
     // Skip the box from stream, and skip in file if need.
     virtual srs_error_t skip(SrsMp4Box* box, SrsSimpleStream* stream);
 };

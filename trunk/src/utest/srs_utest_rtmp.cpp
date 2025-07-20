@@ -2999,7 +2999,7 @@ VOID TEST(ProtocolRTMPTest, OthersAll)
         SrsMessageArray h(10);
 
         SrsMessageArray* parr = &h;
-        SrsAutoFreeH(SrsMessageArray, parr, srs_utest_free_message_array);
+        SrsUniquePtr<SrsMessageArray> parr2(parr, srs_utest_free_message_array);
 
         h.msgs[0] = new SrsSharedPtrMessage();
         h.msgs[1] = new SrsSharedPtrMessage();
