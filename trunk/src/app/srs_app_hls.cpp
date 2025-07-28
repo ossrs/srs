@@ -167,7 +167,6 @@ srs_error_t SrsInitMp4Segment::init_encoder()
     return err;
 }
 
-
 SrsHlsM4sSegment::SrsHlsM4sSegment(SrsFileWriter* fw)
 {
     fw_ = fw;
