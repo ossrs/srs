@@ -26,6 +26,31 @@ architecture:
     - name: "SrsLiveSource"
       description: "Central management of live stream sources for RTMP/HTTP-FLV/HLS/DASH"
 
+  webrtc_architecture:
+    sfu_model: |
+      SRS is a WebRTC SFU (Selective Forwarding Unit) server, not a TURN server.
+      Key characteristics:
+      - Acts as a media relay/forwarding server between WebRTC clients
+      - Handles media routing and distribution without media processing/transcoding
+      - Supports WHIP (WebRTC-HTTP Ingestion Protocol) for publishing
+      - Supports WHEP (WebRTC-HTTP Egress Protocol) for playing/subscribing
+      - Does NOT require external TURN servers for most use cases
+      - Clients connect directly to SRS for media exchange
+
+    no_turn_needed: |
+      SRS does NOT need a separate TURN server because:
+      - SRS itself acts as the media relay point for WebRTC sessions
+      - Clients establish WebRTC connections directly with SRS
+      - SRS handles the media forwarding between publishers and subscribers
+      - The SFU architecture eliminates the need for peer-to-peer TURN relay
+      - SRS provides the necessary ICE candidates and media routing functionality
+
+    deployment_notes:
+      - "SRS can be deployed as a standalone WebRTC SFU without additional TURN infrastructure"
+      - "For NAT traversal, SRS provides its own ICE candidate generation"
+      - "External TURN servers are only needed in very specific network scenarios, not for normal SFU operation"
+      - "WHIP/WHEP protocols handle WebRTC signaling through HTTP, simplifying client integration"
+
 codebase_structure:
   key_directories:
     - path: "trunk/src/"
