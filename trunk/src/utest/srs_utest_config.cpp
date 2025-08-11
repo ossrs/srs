@@ -5051,8 +5051,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesDvr)
 
 VOID TEST(ConfigEnvTest, CheckEnvValuesHls)
 {
-    srs_error_t err;
-    
     if (true) {
         MockSrsConfig conf;
 
@@ -5131,19 +5129,19 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHls)
         SrsSetEnvConfig(conf, hls_dts_directly, "SRS_VHOST_HLS_HLS_DTS_DIRECTLY", "off");
         EXPECT_FALSE(conf.get_vhost_hls_dts_directly("__defaultVhost__"));
 
-        SrsSetEnvConfig(hls_use_fmp4_on, "SRS_VHOST_HLS_HLS_USE_FMP4", "on");
+        SrsSetEnvConfig(conf, hls_use_fmp4_on, "SRS_VHOST_HLS_HLS_USE_FMP4", "on");
         EXPECT_TRUE(conf.get_hls_use_fmp4("__defaultVhost__"));
 
-        SrsSetEnvConfig(hls_use_fmp4_off, "SRS_VHOST_HLS_HLS_USE_FMP4", "off");
+        SrsSetEnvConfig(conf, hls_use_fmp4_off, "SRS_VHOST_HLS_HLS_USE_FMP4", "off");
         EXPECT_FALSE(conf.get_hls_use_fmp4("__defaultVhost__"));
 
-        SrsSetEnvConfig(hls_use_fmp4_unexpected, "SRS_VHOST_HLS_HLS_USE_FMP4", "xx");
+        SrsSetEnvConfig(conf, hls_use_fmp4_unexpected, "SRS_VHOST_HLS_HLS_USE_FMP4", "xx");
         EXPECT_FALSE(conf.get_hls_use_fmp4("__defaultVhost__"));
         
-        SrsSetEnvConfig(hls_fmp4_file, "SRS_VHOST_HLS_HLS_FMP4_FILE", "xxx.m4s");
+        SrsSetEnvConfig(conf, hls_fmp4_file, "SRS_VHOST_HLS_HLS_FMP4_FILE", "xxx.m4s");
         EXPECT_STREQ("xxx.m4s", conf.get_hls_fmp4_file("__defaultVhost__").c_str());
 
-        SrsSetEnvConfig(hls_init_file, "SRS_VHOST_HLS_HLS_INIT_FILE", "yyy-init.mp4");
+        SrsSetEnvConfig(conf, hls_init_file, "SRS_VHOST_HLS_HLS_INIT_FILE", "yyy-init.mp4");
         EXPECT_STREQ("yyy-init.mp4", conf.get_hls_init_file("__defaultVhost__").c_str());
     }
 
