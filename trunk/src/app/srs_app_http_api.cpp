@@ -1131,8 +1131,8 @@ srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
     if (check == "new") {
 #if !defined(VALGRIND_DO_NEW_LEAK_CHECK)
         return srs_error_new(ERROR_NOT_SUPPORTED,
-            "valgrind?check=new requires Valgrind 3.21+, current version is %d.%d",
-            __VALGRIND_MAJOR__, __VALGRIND_MINOR__);
+                             "valgrind?check=new requires Valgrind 3.21+, current version is %d.%d",
+                             __VALGRIND_MAJOR__, __VALGRIND_MINOR__);
 #endif
     }
 
