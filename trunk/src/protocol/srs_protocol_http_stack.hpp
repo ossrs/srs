@@ -41,7 +41,7 @@ class ISrsFileReaderFactory;
 // HTTP/1.1 defines the sequence CR LF as the end-of-line marker for all
 // protocol elements except the entity-body (see appendix 19.3 for
 // tolerant applications).
-#define SRS_HTTP_CRLF "\r\n" // 0x0D0A
+#define SRS_HTTP_CRLF "\r\n"         // 0x0D0A
 #define SRS_HTTP_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
 
 // For ead all of http body, read each time.
@@ -56,8 +56,8 @@ class ISrsFileReaderFactory;
 
 // Error replies to the request with the specified error message and HTTP code.
 // The error message should be plain text.
-extern srs_error_t srs_go_http_error(ISrsHttpResponseWriter* w, int code);
-extern srs_error_t srs_go_http_error(ISrsHttpResponseWriter* w, int code, std::string error);
+extern srs_error_t srs_go_http_error(ISrsHttpResponseWriter *w, int code);
+extern srs_error_t srs_go_http_error(ISrsHttpResponseWriter *w, int code, std::string error);
 
 // Get the status text of code.
 extern std::string srs_generate_http_status_text(int status);
@@ -72,7 +72,7 @@ extern bool srs_go_http_body_allowd(int status);
 // first 512 bytes of data.  DetectContentType always returns
 // a valid MIME type: if it cannot determine a more specific one, it
 // returns "application/octet-stream".
-extern std::string srs_go_http_detect(char* data, int size);
+extern std::string srs_go_http_detect(char *data, int size);
 
 // The state of HTTP message
 enum SrsHttpParseState {
@@ -95,9 +95,11 @@ private:
     std::map<std::string, std::string> headers;
     // Store keys to keep fields in order.
     std::vector<std::string> keys_;
+
 public:
     SrsHttpHeader();
     virtual ~SrsHttpHeader();
+
 public:
     // Add adds the key, value pair to the header.
     // It appends to any existing values associated with key.
@@ -112,22 +114,26 @@ public:
     virtual void del(std::string);
     // Get the count of headers.
     virtual int count();
+
 public:
     // Dumps to a JSON object.
-    virtual void dumps(SrsJsonObject* o);
+    virtual void dumps(SrsJsonObject *o);
+
 public:
     // Get the content length. -1 if not set.
     virtual int64_t content_length();
     // set the content length by header "Content-Length"
     virtual void set_content_length(int64_t size);
+
 public:
     // Get the content type. empty string if not set.
     virtual std::string content_type();
     // set the content type by header "Content-Type"
     virtual void set_content_type(std::string ct);
+
 public:
     // write all headers to string stream.
-    virtual void write(std::stringstream& ss);
+    virtual void write(std::stringstream &ss);
 };
 
 // A ResponseWriter interface is used by an HTTP handler to
@@ -164,28 +170,29 @@ class ISrsHttpResponseWriter
 public:
     ISrsHttpResponseWriter();
     virtual ~ISrsHttpResponseWriter();
+
 public:
     // When chunked mode,
     // final the request to complete the chunked encoding.
     // For no-chunked mode,
     // final to send request, for example, content-length is 0.
     virtual srs_error_t final_request() = 0;
-    
+
     // Header returns the header map that will be sent by WriteHeader.
     // Changing the header after a call to WriteHeader (or Write) has
     // no effect.
-    virtual SrsHttpHeader* header() = 0;
-    
+    virtual SrsHttpHeader *header() = 0;
+
     // Write writes the data to the connection as part of an HTTP reply.
     // If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
     // before writing the data.  If the Header does not contain a
     // Content-Type line, Write adds a Content-Type set to the result of passing
     // The initial 512 bytes of written data to DetectContentType.
     // @param data, the data to send. NULL to flush header only.
-    virtual srs_error_t write(char* data, int size) = 0;
+    virtual srs_error_t write(char *data, int size) = 0;
     // for the HTTP FLV, to writev to improve performance.
-    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
-    
+    virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite) = 0;
+
     // WriteHeader sends an HTTP response header with status code.
     // If WriteHeader is not called explicitly, the first call to Write
     // will trigger an implicit WriteHeader(http.StatusOK).
@@ -201,6 +208,7 @@ class ISrsHttpResponseReader : public ISrsReader
 public:
     ISrsHttpResponseReader();
     virtual ~ISrsHttpResponseReader();
+
 public:
     // Whether response read EOF.
     virtual bool eof() = 0;
@@ -240,6 +248,7 @@ class ISrsHttpRequestWriter
 public:
     ISrsHttpRequestWriter();
     virtual ~ISrsHttpRequestWriter();
+
 public:
     // When chunked mode,
     // final the request to complete the chunked encoding.
@@ -250,7 +259,7 @@ public:
     // Header returns the header map that will be sent by WriteHeader.
     // Changing the header after a call to WriteHeader (or Write) has
     // no effect.
-    virtual SrsHttpHeader* header() = 0;
+    virtual SrsHttpHeader *header() = 0;
 
     // Write writes the data to the connection as part of an HTTP reply.
     // If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
@@ -258,9 +267,9 @@ public:
     // Content-Type line, Write adds a Content-Type set to the result of passing
     // The initial 512 bytes of written data to DetectContentType.
     // @param data, the data to send. NULL to flush header only.
-    virtual srs_error_t write(char* data, int size) = 0;
+    virtual srs_error_t write(char *data, int size) = 0;
     // for the HTTP FLV, to writev to improve performance.
-    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
+    virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite) = 0;
 
     // WriteHeader sends an HTTP request header with status code.
     // If WriteHeader is not called explicitly, the first call to Write
@@ -268,7 +277,7 @@ public:
     // Thus explicit calls to WriteHeader are mainly used to
     // send error codes.
     // @remark, user must set header then write or write_header.
-    virtual void write_header(const std::string& method, const std::string& path) = 0;
+    virtual void write_header(const std::string &method, const std::string &path) = 0;
 };
 
 // Objects implementing the Handler interface can be
@@ -282,13 +291,15 @@ public:
 class ISrsHttpHandler
 {
 public:
-    SrsHttpMuxEntry* entry;
+    SrsHttpMuxEntry *entry;
+
 public:
     ISrsHttpHandler();
     virtual ~ISrsHttpHandler();
+
 public:
     virtual bool is_not_found();
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) = 0;
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r) = 0;
 };
 
 // Redirect to a fixed URL
@@ -297,11 +308,13 @@ class SrsHttpRedirectHandler : public ISrsHttpHandler
 private:
     std::string url;
     int code;
+
 public:
     SrsHttpRedirectHandler(std::string u, int c);
     virtual ~SrsHttpRedirectHandler();
+
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 };
 
 // NotFound replies to the request with an HTTP 404 not found error.
@@ -310,9 +323,10 @@ class SrsHttpNotFoundHandler : public ISrsHttpHandler
 public:
     SrsHttpNotFoundHandler();
     virtual ~SrsHttpNotFoundHandler();
+
 public:
     virtual bool is_not_found();
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 };
 
 // For utest to mock it.
@@ -333,47 +347,54 @@ class SrsHttpFileServer : public ISrsHttpHandler
 {
 protected:
     std::string dir;
+
 protected:
-    ISrsFileReaderFactory* fs_factory;
+    ISrsFileReaderFactory *fs_factory;
     _pfn_srs_path_exists _srs_path_exists;
+
 public:
     SrsHttpFileServer(std::string root_dir);
     virtual ~SrsHttpFileServer();
+
 private:
     // For utest to mock the fs.
-    virtual void set_fs_factory(ISrsFileReaderFactory* v);
+    virtual void set_fs_factory(ISrsFileReaderFactory *v);
     // For utest to mock the path check function.
     virtual void set_path_check(_pfn_srs_path_exists pfn);
+
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
 private:
     // Serve the file by specified path
-    virtual srs_error_t serve_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
-    virtual srs_error_t serve_flv_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
-    virtual srs_error_t serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    virtual srs_error_t serve_file(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath);
+    virtual srs_error_t serve_flv_file(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath);
+    virtual srs_error_t serve_mp4_file(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath);
+
 protected:
     // When access flv file with x.flv?start=xxx
-    virtual srs_error_t serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int64_t offset);
+    virtual srs_error_t serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath, int64_t offset);
     // When access mp4 file with x.mp4?range=start-end
     // @param start the start offset in bytes.
     // @param end the end offset in bytes. -1 to end of file.
     // @remark response data in [start, end].
-    virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int64_t start, int64_t end);
+    virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath, int64_t start, int64_t end);
     // For HLS protocol.
-    // When the request url, like as "http://127.0.0.1:8080/live/livestream.m3u8", 
+    // When the request url, like as "http://127.0.0.1:8080/live/livestream.m3u8",
     // returns the response like as "http://127.0.0.1:8080/live/livestream.m3u8?hls_ctx=12345678" .
     // SRS use "hls_ctx" to keep track of subsequent requests that is short-connection.
-    // Remark 1: 
+    // Remark 1:
     //           Fill the parameter "hls_ctx" by yourself in the first request is allowed, SRS will use it.
     //           And MUST make sure it is unique.
     // Remark 2:
     //           If use two same "hls_ctx" in different requests, SRS cannot detect so that they will be treated as one.
-    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath);
     // the ts file including: .ts .m4s init.mp4
-    virtual srs_error_t serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    virtual srs_error_t serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath);
+
 protected:
     // Copy the fs to response writer in size bytes.
-    virtual srs_error_t copy(ISrsHttpResponseWriter* w, SrsFileReader* fs, ISrsHttpMessage* r, int64_t size);
+    virtual srs_error_t copy(ISrsHttpResponseWriter *w, SrsFileReader *fs, ISrsHttpMessage *r, int64_t size);
 };
 
 // The mux entry for server mux.
@@ -382,9 +403,10 @@ class SrsHttpMuxEntry
 {
 public:
     bool explicit_match;
-    ISrsHttpHandler* handler;
+    ISrsHttpHandler *handler;
     std::string pattern;
     bool enabled;
+
 public:
     SrsHttpMuxEntry();
     virtual ~SrsHttpMuxEntry();
@@ -396,11 +418,12 @@ class ISrsHttpMatchHijacker
 public:
     ISrsHttpMatchHijacker();
     virtual ~ISrsHttpMatchHijacker();
+
 public:
     // When match the request failed, no handler to process request.
     // @param request the http request message to match the handler.
     // @param ph the already matched handler, hijack can rewrite it.
-    virtual srs_error_t hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph) = 0;
+    virtual srs_error_t hijack(ISrsHttpMessage *request, ISrsHttpHandler **ph) = 0;
 };
 
 // The server mux, all http server should implements it.
@@ -409,9 +432,10 @@ class ISrsHttpServeMux : public ISrsHttpHandler
 public:
     ISrsHttpServeMux();
     virtual ~ISrsHttpServeMux();
+
 public:
     // Register HTTP handler to mux.
-    virtual srs_error_t handle(std::string pattern, ISrsHttpHandler* handler) = 0;
+    virtual srs_error_t handle(std::string pattern, ISrsHttpHandler *handler) = 0;
 };
 
 // ServeMux is an HTTP request multiplexer.
@@ -445,39 +469,44 @@ class SrsHttpServeMux : public ISrsHttpServeMux
 {
 private:
     // The pattern handler, to handle the http request.
-    std::map<std::string, SrsHttpMuxEntry*> entries;
+    std::map<std::string, SrsHttpMuxEntry *> entries;
     // The vhost handler.
     // When find the handler to process the request,
     // append the matched vhost when pattern not starts with /,
     // For example, for pattern /live/livestream.flv of vhost ossrs.net,
     // The path will rewrite to ossrs.net/live/livestream.flv
-    std::map<std::string, ISrsHttpHandler*> vhosts;
+    std::map<std::string, ISrsHttpHandler *> vhosts;
     // all hijackers for http match.
     // For example, the hstrs(http stream trigger rtmp source)
     // can hijack and install handler when request incoming and no handler.
-    std::vector<ISrsHttpMatchHijacker*> hijackers;
+    std::vector<ISrsHttpMatchHijacker *> hijackers;
+
 public:
     SrsHttpServeMux();
     virtual ~SrsHttpServeMux();
+
 public:
     // Initialize the http serve mux.
     virtual srs_error_t initialize();
     // hijack the http match.
-    virtual void hijack(ISrsHttpMatchHijacker* h);
-    virtual void unhijack(ISrsHttpMatchHijacker* h);
+    virtual void hijack(ISrsHttpMatchHijacker *h);
+    virtual void unhijack(ISrsHttpMatchHijacker *h);
+
 public:
     // Handle registers the handler for the given pattern.
     // If a handler already exists for pattern, Handle panics.
-    virtual srs_error_t handle(std::string pattern, ISrsHttpHandler* handler);
+    virtual srs_error_t handle(std::string pattern, ISrsHttpHandler *handler);
     // Remove the handler for pattern. Note that this will not free the handler.
-    void unhandle(std::string pattern, ISrsHttpHandler* handler);
-// Interface ISrsHttpServeMux
+    void unhandle(std::string pattern, ISrsHttpHandler *handler);
+    // Interface ISrsHttpServeMux
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
 public:
-    virtual srs_error_t find_handler(ISrsHttpMessage* r, ISrsHttpHandler** ph);
+    virtual srs_error_t find_handler(ISrsHttpMessage *r, ISrsHttpHandler **ph);
+
 private:
-    virtual srs_error_t match(ISrsHttpMessage* r, ISrsHttpHandler** ph);
+    virtual srs_error_t match(ISrsHttpMessage *r, ISrsHttpHandler **ph);
     virtual bool path_match(std::string pattern, std::string path);
 };
 
@@ -487,15 +516,17 @@ class SrsHttpCorsMux : public ISrsHttpHandler
 private:
     bool required;
     bool enabled;
-    ISrsHttpHandler* next_;
+    ISrsHttpHandler *next_;
+
 public:
-    SrsHttpCorsMux(ISrsHttpHandler* h);
+    SrsHttpCorsMux(ISrsHttpHandler *h);
     virtual ~SrsHttpCorsMux();
+
 public:
     virtual srs_error_t initialize(bool cros_enabled);
-// Interface ISrsHttpServeMux
+    // Interface ISrsHttpServeMux
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 };
 
 // The filter http mux, directly serve the http AUTH requests,
@@ -508,17 +539,20 @@ private:
     bool enabled_;
     std::string username_;
     std::string password_;
-    ISrsHttpHandler* next_;
+    ISrsHttpHandler *next_;
+
 public:
-    SrsHttpAuthMux(ISrsHttpHandler* h);
+    SrsHttpAuthMux(ISrsHttpHandler *h);
     virtual ~SrsHttpAuthMux();
+
 public:
     virtual srs_error_t initialize(bool enabled, std::string username, std::string password);
-// Interface ISrsHttpServeMux
+    // Interface ISrsHttpServeMux
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
 private:
-    virtual srs_error_t do_auth(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t do_auth(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 };
 
 // A Request represents an HTTP request received by a server
@@ -541,6 +575,7 @@ class ISrsHttpMessage
 public:
     ISrsHttpMessage();
     virtual ~ISrsHttpMessage();
+
 public:
     virtual uint8_t message_type() = 0;
     virtual uint8_t method() = 0;
@@ -552,6 +587,7 @@ public:
     virtual bool is_http_post() = 0;
     virtual bool is_http_delete() = 0;
     virtual bool is_http_options() = 0;
+
 public:
     // Whether should keep the connection alive.
     virtual bool is_keep_alive() = 0;
@@ -569,22 +605,25 @@ public:
     // @param pattern the handler pattern which will serve the request.
     // @return the REST id; "" if not matched.
     virtual std::string parse_rest_id(std::string pattern) = 0;
+
 public:
     // Read body to string.
     // @remark for small http body.
-    virtual srs_error_t body_read_all(std::string& body) = 0;
+    virtual srs_error_t body_read_all(std::string &body) = 0;
     // Get the body reader, to read one by one.
     // @remark when body is very large, or chunked, use this.
-    virtual ISrsHttpResponseReader* body_reader() = 0;
+    virtual ISrsHttpResponseReader *body_reader() = 0;
     // The content length, -1 for chunked or not set.
     virtual int64_t content_length() = 0;
+
 public:
     // Get the param in query string,
     // for instance, query is "start=100&end=200",
     // then query_get("start") is "100", and query_get("end") is "200"
     virtual std::string query_get(std::string key) = 0;
     // Get the headers.
-    virtual SrsHttpHeader* header() = 0;
+    virtual SrsHttpHeader *header() = 0;
+
 public:
     // Whether the current request is JSONP,
     // which has a "callback=xxx" in QueryString.
@@ -605,14 +644,17 @@ private:
     std::string username_;
     std::string password_;
     std::map<std::string, std::string> query_values_;
+
 public:
     SrsHttpUri();
     virtual ~SrsHttpUri();
+
 public:
     // Initialize the http uri.
     virtual srs_error_t initialize(std::string _url);
     // After parsed the message, set the schema to https.
     virtual void set_schema(std::string v);
+
 public:
     virtual std::string get_url();
     virtual std::string get_schema();
@@ -624,16 +666,18 @@ public:
     virtual std::string get_fragment();
     virtual std::string username();
     virtual std::string password();
+
 private:
     // Get the parsed url field.
     // @return return empty string if not set.
-    virtual std::string get_uri_field(const std::string& uri, void* hp_u, int field);
+    virtual std::string get_uri_field(const std::string &uri, void *hp_u, int field);
     srs_error_t parse_query();
+
 public:
     static std::string query_escape(std::string s);
     static std::string path_escape(std::string s);
-    static srs_error_t query_unescape(std::string s, std::string& value);
-    static srs_error_t path_unescape(std::string s, std::string& value);
+    static srs_error_t query_unescape(std::string s, std::string &value);
+    static srs_error_t path_unescape(std::string s, std::string &value);
 };
 
 // For #ifndef SRS_PROTOCOL_HTTP_HPP
@@ -701,7 +745,7 @@ extern "C" {
 
 #include <stddef.h>
 #if defined(_WIN32) && !defined(__MINGW32__) && \
-  (!defined(_MSC_VER) || _MSC_VER<1600) && !defined(__WINE__)
+    (!defined(_MSC_VER) || _MSC_VER < 1600) && !defined(__WINE__)
 #include <BaseTsd.h>
 typedef __int8 int8_t;
 typedef unsigned __int8 uint8_t;
@@ -719,7 +763,7 @@ typedef unsigned __int64 uint64_t;
  * faster
  */
 #ifndef HTTP_PARSER_STRICT
-# define HTTP_PARSER_STRICT 1
+#define HTTP_PARSER_STRICT 1
 #endif
 
 /* Maximium header size allowed. If the macro is not defined
@@ -730,12 +774,11 @@ typedef unsigned __int64 uint64_t;
  * to a very large number (e.g. -DHTTP_MAX_HEADER_SIZE=0x7fffffff)
  */
 #ifndef HTTP_MAX_HEADER_SIZE
-# define HTTP_MAX_HEADER_SIZE (80*1024)
+#define HTTP_MAX_HEADER_SIZE (80 * 1024)
 #endif
 
 typedef struct http_parser http_parser;
 typedef struct http_parser_settings http_parser_settings;
-
 
 /* Callbacks should return non-zero to indicate an error. The parser will
  * then halt execution.
@@ -755,276 +798,263 @@ typedef struct http_parser_settings http_parser_settings;
  * many times for each string. E.G. you might get 10 callbacks for "on_url"
  * each providing just a few characters more data.
  */
-typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);
-typedef int (*http_cb) (http_parser*);
-
+typedef int (*http_data_cb)(http_parser *, const char *at, size_t length);
+typedef int (*http_cb)(http_parser *);
 
 /* Status Codes */
-#define HTTP_STATUS_MAP(XX)                                                 \
-  XX(100, CONTINUE,                        Continue)                        \
-  XX(101, SWITCHING_PROTOCOLS,             Switching Protocols)             \
-  XX(102, PROCESSING,                      Processing)                      \
-  XX(200, OK,                              OK)                              \
-  XX(201, CREATED,                         Created)                         \
-  XX(202, ACCEPTED,                        Accepted)                        \
-  XX(203, NON_AUTHORITATIVE_INFORMATION,   Non-Authoritative Information)   \
-  XX(204, NO_CONTENT,                      No Content)                      \
-  XX(205, RESET_CONTENT,                   Reset Content)                   \
-  XX(206, PARTIAL_CONTENT,                 Partial Content)                 \
-  XX(207, MULTI_STATUS,                    Multi-Status)                    \
-  XX(208, ALREADY_REPORTED,                Already Reported)                \
-  XX(226, IM_USED,                         IM Used)                         \
-  XX(300, MULTIPLE_CHOICES,                Multiple Choices)                \
-  XX(301, MOVED_PERMANENTLY,               Moved Permanently)               \
-  XX(302, FOUND,                           Found)                           \
-  XX(303, SEE_OTHER,                       See Other)                       \
-  XX(304, NOT_MODIFIED,                    Not Modified)                    \
-  XX(305, USE_PROXY,                       Use Proxy)                       \
-  XX(307, TEMPORARY_REDIRECT,              Temporary Redirect)              \
-  XX(308, PERMANENT_REDIRECT,              Permanent Redirect)              \
-  XX(400, BAD_REQUEST,                     Bad Request)                     \
-  XX(401, UNAUTHORIZED,                    Unauthorized)                    \
-  XX(402, PAYMENT_REQUIRED,                Payment Required)                \
-  XX(403, FORBIDDEN,                       Forbidden)                       \
-  XX(404, NOT_FOUND,                       Not Found)                       \
-  XX(405, METHOD_NOT_ALLOWED,              Method Not Allowed)              \
-  XX(406, NOT_ACCEPTABLE,                  Not Acceptable)                  \
-  XX(407, PROXY_AUTHENTICATION_REQUIRED,   Proxy Authentication Required)   \
-  XX(408, REQUEST_TIMEOUT,                 Request Timeout)                 \
-  XX(409, CONFLICT,                        Conflict)                        \
-  XX(410, GONE,                            Gone)                            \
-  XX(411, LENGTH_REQUIRED,                 Length Required)                 \
-  XX(412, PRECONDITION_FAILED,             Precondition Failed)             \
-  XX(413, PAYLOAD_TOO_LARGE,               Payload Too Large)               \
-  XX(414, URI_TOO_LONG,                    URI Too Long)                    \
-  XX(415, UNSUPPORTED_MEDIA_TYPE,          Unsupported Media Type)          \
-  XX(416, RANGE_NOT_SATISFIABLE,           Range Not Satisfiable)           \
-  XX(417, EXPECTATION_FAILED,              Expectation Failed)              \
-  XX(421, MISDIRECTED_REQUEST,             Misdirected Request)             \
-  XX(422, UNPROCESSABLE_ENTITY,            Unprocessable Entity)            \
-  XX(423, LOCKED,                          Locked)                          \
-  XX(424, FAILED_DEPENDENCY,               Failed Dependency)               \
-  XX(426, UPGRADE_REQUIRED,                Upgrade Required)                \
-  XX(428, PRECONDITION_REQUIRED,           Precondition Required)           \
-  XX(429, TOO_MANY_REQUESTS,               Too Many Requests)               \
-  XX(431, REQUEST_HEADER_FIELDS_TOO_LARGE, Request Header Fields Too Large) \
-  XX(451, UNAVAILABLE_FOR_LEGAL_REASONS,   Unavailable For Legal Reasons)   \
-  XX(500, INTERNAL_SERVER_ERROR,           Internal Server Error)           \
-  XX(501, NOT_IMPLEMENTED,                 Not Implemented)                 \
-  XX(502, BAD_GATEWAY,                     Bad Gateway)                     \
-  XX(503, SERVICE_UNAVAILABLE,             Service Unavailable)             \
-  XX(504, GATEWAY_TIMEOUT,                 Gateway Timeout)                 \
-  XX(505, HTTP_VERSION_NOT_SUPPORTED,      HTTP Version Not Supported)      \
-  XX(506, VARIANT_ALSO_NEGOTIATES,         Variant Also Negotiates)         \
-  XX(507, INSUFFICIENT_STORAGE,            Insufficient Storage)            \
-  XX(508, LOOP_DETECTED,                   Loop Detected)                   \
-  XX(510, NOT_EXTENDED,                    Not Extended)                    \
-  XX(511, NETWORK_AUTHENTICATION_REQUIRED, Network Authentication Required) \
+#define HTTP_STATUS_MAP(XX)                                                   \
+    XX(100, CONTINUE, Continue)                                               \
+    XX(101, SWITCHING_PROTOCOLS, Switching Protocols)                         \
+    XX(102, PROCESSING, Processing)                                           \
+    XX(200, OK, OK)                                                           \
+    XX(201, CREATED, Created)                                                 \
+    XX(202, ACCEPTED, Accepted)                                               \
+    XX(203, NON_AUTHORITATIVE_INFORMATION, Non - Authoritative Information)   \
+    XX(204, NO_CONTENT, No Content)                                           \
+    XX(205, RESET_CONTENT, Reset Content)                                     \
+    XX(206, PARTIAL_CONTENT, Partial Content)                                 \
+    XX(207, MULTI_STATUS, Multi - Status)                                     \
+    XX(208, ALREADY_REPORTED, Already Reported)                               \
+    XX(226, IM_USED, IM Used)                                                 \
+    XX(300, MULTIPLE_CHOICES, Multiple Choices)                               \
+    XX(301, MOVED_PERMANENTLY, Moved Permanently)                             \
+    XX(302, FOUND, Found)                                                     \
+    XX(303, SEE_OTHER, See Other)                                             \
+    XX(304, NOT_MODIFIED, Not Modified)                                       \
+    XX(305, USE_PROXY, Use Proxy)                                             \
+    XX(307, TEMPORARY_REDIRECT, Temporary Redirect)                           \
+    XX(308, PERMANENT_REDIRECT, Permanent Redirect)                           \
+    XX(400, BAD_REQUEST, Bad Request)                                         \
+    XX(401, UNAUTHORIZED, Unauthorized)                                       \
+    XX(402, PAYMENT_REQUIRED, Payment Required)                               \
+    XX(403, FORBIDDEN, Forbidden)                                             \
+    XX(404, NOT_FOUND, Not Found)                                             \
+    XX(405, METHOD_NOT_ALLOWED, Method Not Allowed)                           \
+    XX(406, NOT_ACCEPTABLE, Not Acceptable)                                   \
+    XX(407, PROXY_AUTHENTICATION_REQUIRED, Proxy Authentication Required)     \
+    XX(408, REQUEST_TIMEOUT, Request Timeout)                                 \
+    XX(409, CONFLICT, Conflict)                                               \
+    XX(410, GONE, Gone)                                                       \
+    XX(411, LENGTH_REQUIRED, Length Required)                                 \
+    XX(412, PRECONDITION_FAILED, Precondition Failed)                         \
+    XX(413, PAYLOAD_TOO_LARGE, Payload Too Large)                             \
+    XX(414, URI_TOO_LONG, URI Too Long)                                       \
+    XX(415, UNSUPPORTED_MEDIA_TYPE, Unsupported Media Type)                   \
+    XX(416, RANGE_NOT_SATISFIABLE, Range Not Satisfiable)                     \
+    XX(417, EXPECTATION_FAILED, Expectation Failed)                           \
+    XX(421, MISDIRECTED_REQUEST, Misdirected Request)                         \
+    XX(422, UNPROCESSABLE_ENTITY, Unprocessable Entity)                       \
+    XX(423, LOCKED, Locked)                                                   \
+    XX(424, FAILED_DEPENDENCY, Failed Dependency)                             \
+    XX(426, UPGRADE_REQUIRED, Upgrade Required)                               \
+    XX(428, PRECONDITION_REQUIRED, Precondition Required)                     \
+    XX(429, TOO_MANY_REQUESTS, Too Many Requests)                             \
+    XX(431, REQUEST_HEADER_FIELDS_TOO_LARGE, Request Header Fields Too Large) \
+    XX(451, UNAVAILABLE_FOR_LEGAL_REASONS, Unavailable For Legal Reasons)     \
+    XX(500, INTERNAL_SERVER_ERROR, Internal Server Error)                     \
+    XX(501, NOT_IMPLEMENTED, Not Implemented)                                 \
+    XX(502, BAD_GATEWAY, Bad Gateway)                                         \
+    XX(503, SERVICE_UNAVAILABLE, Service Unavailable)                         \
+    XX(504, GATEWAY_TIMEOUT, Gateway Timeout)                                 \
+    XX(505, HTTP_VERSION_NOT_SUPPORTED, HTTP Version Not Supported)           \
+    XX(506, VARIANT_ALSO_NEGOTIATES, Variant Also Negotiates)                 \
+    XX(507, INSUFFICIENT_STORAGE, Insufficient Storage)                       \
+    XX(508, LOOP_DETECTED, Loop Detected)                                     \
+    XX(510, NOT_EXTENDED, Not Extended)                                       \
+    XX(511, NETWORK_AUTHENTICATION_REQUIRED, Network Authentication Required)
 
-enum http_status
-  {
+enum http_status {
 #define XX(num, name, string) HTTP_STATUS_##name = num,
-  HTTP_STATUS_MAP(XX)
+    HTTP_STATUS_MAP(XX)
 #undef XX
-  };
-
+};
 
 /* Request Methods */
-#define HTTP_METHOD_MAP(XX)         \
-  XX(0,  DELETE,      DELETE)       \
-  XX(1,  GET,         GET)          \
-  XX(2,  HEAD,        HEAD)         \
-  XX(3,  POST,        POST)         \
-  XX(4,  PUT,         PUT)          \
-  /* pathological */                \
-  XX(5,  CONNECT,     CONNECT)      \
-  XX(6,  OPTIONS,     OPTIONS)      \
-  XX(7,  TRACE,       TRACE)        \
-  /* WebDAV */                      \
-  XX(8,  COPY,        COPY)         \
-  XX(9,  LOCK,        LOCK)         \
-  XX(10, MKCOL,       MKCOL)        \
-  XX(11, MOVE,        MOVE)         \
-  XX(12, PROPFIND,    PROPFIND)     \
-  XX(13, PROPPATCH,   PROPPATCH)    \
-  XX(14, SEARCH,      SEARCH)       \
-  XX(15, UNLOCK,      UNLOCK)       \
-  XX(16, BIND,        BIND)         \
-  XX(17, REBIND,      REBIND)       \
-  XX(18, UNBIND,      UNBIND)       \
-  XX(19, ACL,         ACL)          \
-  /* subversion */                  \
-  XX(20, REPORT,      REPORT)       \
-  XX(21, MKACTIVITY,  MKACTIVITY)   \
-  XX(22, CHECKOUT,    CHECKOUT)     \
-  XX(23, MERGE,       MERGE)        \
-  /* upnp */                        \
-  XX(24, MSEARCH,     M-SEARCH)     \
-  XX(25, NOTIFY,      NOTIFY)       \
-  XX(26, SUBSCRIBE,   SUBSCRIBE)    \
-  XX(27, UNSUBSCRIBE, UNSUBSCRIBE)  \
-  /* RFC-5789 */                    \
-  XX(28, PATCH,       PATCH)        \
-  XX(29, PURGE,       PURGE)        \
-  /* CalDAV */                      \
-  XX(30, MKCALENDAR,  MKCALENDAR)   \
-  /* RFC-2068, section 19.6.1.2 */  \
-  XX(31, LINK,        LINK)         \
-  XX(32, UNLINK,      UNLINK)       \
-  /* icecast */                     \
-  XX(33, SOURCE,      SOURCE)       \
-  /* SIP https://www.ietf.org/rfc/rfc3261.html */ \
-  XX(34, REGISTER,    REGISTER)     \
-  XX(35, INVITE,      INVITE)       \
-  XX(36, ACK,         ACK)          \
-  XX(37, MESSAGE,     MESSAGE)      \
-  XX(38, BYE,         BYE)          \
+#define HTTP_METHOD_MAP(XX)                         \
+    XX(0, DELETE, DELETE)                           \
+    XX(1, GET, GET)                                 \
+    XX(2, HEAD, HEAD)                               \
+    XX(3, POST, POST)                               \
+    XX(4, PUT, PUT)                                 \
+    /* pathological */                              \
+    XX(5, CONNECT, CONNECT)                         \
+    XX(6, OPTIONS, OPTIONS)                         \
+    XX(7, TRACE, TRACE)                             \
+    /* WebDAV */                                    \
+    XX(8, COPY, COPY)                               \
+    XX(9, LOCK, LOCK)                               \
+    XX(10, MKCOL, MKCOL)                            \
+    XX(11, MOVE, MOVE)                              \
+    XX(12, PROPFIND, PROPFIND)                      \
+    XX(13, PROPPATCH, PROPPATCH)                    \
+    XX(14, SEARCH, SEARCH)                          \
+    XX(15, UNLOCK, UNLOCK)                          \
+    XX(16, BIND, BIND)                              \
+    XX(17, REBIND, REBIND)                          \
+    XX(18, UNBIND, UNBIND)                          \
+    XX(19, ACL, ACL)                                \
+    /* subversion */                                \
+    XX(20, REPORT, REPORT)                          \
+    XX(21, MKACTIVITY, MKACTIVITY)                  \
+    XX(22, CHECKOUT, CHECKOUT)                      \
+    XX(23, MERGE, MERGE)                            \
+    /* upnp */                                      \
+    XX(24, MSEARCH, M - SEARCH)                     \
+    XX(25, NOTIFY, NOTIFY)                          \
+    XX(26, SUBSCRIBE, SUBSCRIBE)                    \
+    XX(27, UNSUBSCRIBE, UNSUBSCRIBE)                \
+    /* RFC-5789 */                                  \
+    XX(28, PATCH, PATCH)                            \
+    XX(29, PURGE, PURGE)                            \
+    /* CalDAV */                                    \
+    XX(30, MKCALENDAR, MKCALENDAR)                  \
+    /* RFC-2068, section 19.6.1.2 */                \
+    XX(31, LINK, LINK)                              \
+    XX(32, UNLINK, UNLINK)                          \
+    /* icecast */                                   \
+    XX(33, SOURCE, SOURCE)                          \
+    /* SIP https://www.ietf.org/rfc/rfc3261.html */ \
+    XX(34, REGISTER, REGISTER)                      \
+    XX(35, INVITE, INVITE)                          \
+    XX(36, ACK, ACK)                                \
+    XX(37, MESSAGE, MESSAGE)                        \
+    XX(38, BYE, BYE)
 
-enum http_method
-  {
+enum http_method {
 #define XX(num, name, string) HTTP_##name = num,
-  HTTP_METHOD_MAP(XX)
+    HTTP_METHOD_MAP(XX)
 #undef XX
-  };
+};
 
-
-enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
-
+enum http_parser_type { HTTP_REQUEST,
+                        HTTP_RESPONSE,
+                        HTTP_BOTH };
 
 /* Flag values for http_parser.flags field */
-enum flags
-  { F_CHUNKED               = 1 << 0
-  , F_CONNECTION_KEEP_ALIVE = 1 << 1
-  , F_CONNECTION_CLOSE      = 1 << 2
-  , F_CONNECTION_UPGRADE    = 1 << 3
-  , F_TRAILING              = 1 << 4
-  , F_UPGRADE               = 1 << 5
-  , F_SKIPBODY              = 1 << 6
-  , F_CONTENTLENGTH         = 1 << 7
-  };
-
+enum flags { F_CHUNKED = 1 << 0,
+             F_CONNECTION_KEEP_ALIVE = 1 << 1,
+             F_CONNECTION_CLOSE = 1 << 2,
+             F_CONNECTION_UPGRADE = 1 << 3,
+             F_TRAILING = 1 << 4,
+             F_UPGRADE = 1 << 5,
+             F_SKIPBODY = 1 << 6,
+             F_CONTENTLENGTH = 1 << 7
+};
 
 /* Map for errno-related constants
  *
  * The provided argument should be a macro that takes 2 arguments.
  */
-#define HTTP_ERRNO_MAP(XX)                                           \
-  /* No error */                                                     \
-  XX(OK, "success")                                                  \
-                                                                     \
-  /* Callback-related errors */                                      \
-  XX(CB_message_begin, "the on_message_begin callback failed")       \
-  XX(CB_url, "the on_url callback failed")                           \
-  XX(CB_header_field, "the on_header_field callback failed")         \
-  XX(CB_header_value, "the on_header_value callback failed")         \
-  XX(CB_headers_complete, "the on_headers_complete callback failed") \
-  XX(CB_body, "the on_body callback failed")                         \
-  XX(CB_message_complete, "the on_message_complete callback failed") \
-  XX(CB_status, "the on_status callback failed")                     \
-  XX(CB_chunk_header, "the on_chunk_header callback failed")         \
-  XX(CB_chunk_complete, "the on_chunk_complete callback failed")     \
-                                                                     \
-  /* Parsing-related errors */                                       \
-  XX(INVALID_EOF_STATE, "stream ended at an unexpected time")        \
-  XX(HEADER_OVERFLOW,                                                \
-     "too many header bytes seen; overflow detected")                \
-  XX(CLOSED_CONNECTION,                                              \
-     "data received after completed connection: close message")      \
-  XX(INVALID_VERSION, "invalid HTTP version")                        \
-  XX(INVALID_STATUS, "invalid HTTP status code")                     \
-  XX(INVALID_METHOD, "invalid HTTP method")                          \
-  XX(INVALID_URL, "invalid URL")                                     \
-  XX(INVALID_HOST, "invalid host")                                   \
-  XX(INVALID_PORT, "invalid port")                                   \
-  XX(INVALID_PATH, "invalid path")                                   \
-  XX(INVALID_QUERY_STRING, "invalid query string")                   \
-  XX(INVALID_FRAGMENT, "invalid fragment")                           \
-  XX(LF_EXPECTED, "LF character expected")                           \
-  XX(INVALID_HEADER_TOKEN, "invalid character in header")            \
-  XX(INVALID_CONTENT_LENGTH,                                         \
-     "invalid character in content-length header")                   \
-  XX(UNEXPECTED_CONTENT_LENGTH,                                      \
-     "unexpected content-length header")                             \
-  XX(INVALID_CHUNK_SIZE,                                             \
-     "invalid character in chunk size header")                       \
-  XX(INVALID_CONSTANT, "invalid constant string")                    \
-  XX(INVALID_INTERNAL_STATE, "encountered unexpected internal state")\
-  XX(STRICT, "strict mode assertion failed")                         \
-  XX(PAUSED, "parser is paused")                                     \
-  XX(UNKNOWN, "an unknown error occurred")
-
+#define HTTP_ERRNO_MAP(XX)                                              \
+    /* No error */                                                      \
+    XX(OK, "success")                                                   \
+                                                                        \
+    /* Callback-related errors */                                       \
+    XX(CB_message_begin, "the on_message_begin callback failed")        \
+    XX(CB_url, "the on_url callback failed")                            \
+    XX(CB_header_field, "the on_header_field callback failed")          \
+    XX(CB_header_value, "the on_header_value callback failed")          \
+    XX(CB_headers_complete, "the on_headers_complete callback failed")  \
+    XX(CB_body, "the on_body callback failed")                          \
+    XX(CB_message_complete, "the on_message_complete callback failed")  \
+    XX(CB_status, "the on_status callback failed")                      \
+    XX(CB_chunk_header, "the on_chunk_header callback failed")          \
+    XX(CB_chunk_complete, "the on_chunk_complete callback failed")      \
+                                                                        \
+    /* Parsing-related errors */                                        \
+    XX(INVALID_EOF_STATE, "stream ended at an unexpected time")         \
+    XX(HEADER_OVERFLOW,                                                 \
+       "too many header bytes seen; overflow detected")                 \
+    XX(CLOSED_CONNECTION,                                               \
+       "data received after completed connection: close message")       \
+    XX(INVALID_VERSION, "invalid HTTP version")                         \
+    XX(INVALID_STATUS, "invalid HTTP status code")                      \
+    XX(INVALID_METHOD, "invalid HTTP method")                           \
+    XX(INVALID_URL, "invalid URL")                                      \
+    XX(INVALID_HOST, "invalid host")                                    \
+    XX(INVALID_PORT, "invalid port")                                    \
+    XX(INVALID_PATH, "invalid path")                                    \
+    XX(INVALID_QUERY_STRING, "invalid query string")                    \
+    XX(INVALID_FRAGMENT, "invalid fragment")                            \
+    XX(LF_EXPECTED, "LF character expected")                            \
+    XX(INVALID_HEADER_TOKEN, "invalid character in header")             \
+    XX(INVALID_CONTENT_LENGTH,                                          \
+       "invalid character in content-length header")                    \
+    XX(UNEXPECTED_CONTENT_LENGTH,                                       \
+       "unexpected content-length header")                              \
+    XX(INVALID_CHUNK_SIZE,                                              \
+       "invalid character in chunk size header")                        \
+    XX(INVALID_CONSTANT, "invalid constant string")                     \
+    XX(INVALID_INTERNAL_STATE, "encountered unexpected internal state") \
+    XX(STRICT, "strict mode assertion failed")                          \
+    XX(PAUSED, "parser is paused")                                      \
+    XX(UNKNOWN, "an unknown error occurred")
 
 /* Define HPE_* values for each errno value above */
 #define HTTP_ERRNO_GEN(n, s) HPE_##n,
 enum http_errno {
-  HTTP_ERRNO_MAP(HTTP_ERRNO_GEN)
+    HTTP_ERRNO_MAP(HTTP_ERRNO_GEN)
 };
 #undef HTTP_ERRNO_GEN
 
-
 /* Get an http_errno value from an http_parser */
-#define HTTP_PARSER_ERRNO(p)            ((enum http_errno) (p)->http_errno)
-
+#define HTTP_PARSER_ERRNO(p) ((enum http_errno)(p)->http_errno)
 
 struct http_parser {
-  /** PRIVATE **/
-  unsigned int type : 2;         /* enum http_parser_type */
-  unsigned int flags : 8;        /* F_* values from 'flags' enum; semi-public */
-  unsigned int state : 7;        /* enum state from http_parser.c */
-  unsigned int header_state : 7; /* enum header_state from http_parser.c */
-  unsigned int index : 7;        /* index into current matcher */
-  unsigned int lenient_http_headers : 1;
+    /** PRIVATE **/
+    unsigned int type : 2;         /* enum http_parser_type */
+    unsigned int flags : 8;        /* F_* values from 'flags' enum; semi-public */
+    unsigned int state : 7;        /* enum state from http_parser.c */
+    unsigned int header_state : 7; /* enum header_state from http_parser.c */
+    unsigned int index : 7;        /* index into current matcher */
+    unsigned int lenient_http_headers : 1;
 
-  uint32_t nread;          /* # bytes read in various scenarios */
-  uint64_t content_length; /* # bytes in body (0 if no Content-Length header) */
+    uint32_t nread;          /* # bytes read in various scenarios */
+    uint64_t content_length; /* # bytes in body (0 if no Content-Length header) */
 
-  /** READ-ONLY **/
-  unsigned short http_major;
-  unsigned short http_minor;
-  unsigned int status_code : 16; /* responses only */
-  unsigned int method : 8;       /* requests only */
-  unsigned int http_errno : 7;
+    /** READ-ONLY **/
+    unsigned short http_major;
+    unsigned short http_minor;
+    unsigned int status_code : 16; /* responses only */
+    unsigned int method : 8;       /* requests only */
+    unsigned int http_errno : 7;
 
-  /* 1 = Upgrade header was present and the parser has exited because of that.
-   * 0 = No upgrade header present.
-   * Should be checked when http_parser_execute() returns in addition to
-   * error checking.
-   */
-  unsigned int upgrade : 1;
+    /* 1 = Upgrade header was present and the parser has exited because of that.
+     * 0 = No upgrade header present.
+     * Should be checked when http_parser_execute() returns in addition to
+     * error checking.
+     */
+    unsigned int upgrade : 1;
 
-  /** PUBLIC **/
-  void *data; /* A pointer to get hook to the "connection" or "socket" object */
+    /** PUBLIC **/
+    void *data; /* A pointer to get hook to the "connection" or "socket" object */
 };
-
 
 struct http_parser_settings {
-  http_cb      on_message_begin;
-  http_data_cb on_url;
-  http_data_cb on_status;
-  http_data_cb on_header_field;
-  http_data_cb on_header_value;
-  http_cb      on_headers_complete;
-  http_data_cb on_body;
-  http_cb      on_message_complete;
-  /* When on_chunk_header is called, the current chunk length is stored
-   * in parser->content_length.
-   */
-  http_cb      on_chunk_header;
-  http_cb      on_chunk_complete;
+    http_cb on_message_begin;
+    http_data_cb on_url;
+    http_data_cb on_status;
+    http_data_cb on_header_field;
+    http_data_cb on_header_value;
+    http_cb on_headers_complete;
+    http_data_cb on_body;
+    http_cb on_message_complete;
+    /* When on_chunk_header is called, the current chunk length is stored
+     * in parser->content_length.
+     */
+    http_cb on_chunk_header;
+    http_cb on_chunk_complete;
 };
 
-
-enum http_parser_url_fields
-  { UF_SCHEMA           = 0
-  , UF_HOST             = 1
-  , UF_PORT             = 2
-  , UF_PATH             = 3
-  , UF_QUERY            = 4
-  , UF_FRAGMENT         = 5
-  , UF_USERINFO         = 6
-  , UF_MAX              = 7
-  };
-
+enum http_parser_url_fields { UF_SCHEMA = 0,
+                              UF_HOST = 1,
+                              UF_PORT = 2,
+                              UF_PATH = 3,
+                              UF_QUERY = 4,
+                              UF_FRAGMENT = 5,
+                              UF_USERINFO = 6,
+                              UF_MAX = 7
+};
 
 /* Result structure for http_parser_parse_url().
  *
@@ -1034,15 +1064,14 @@ enum http_parser_url_fields
  * a uint16_t.
  */
 struct http_parser_url {
-  uint16_t field_set;           /* Bitmask of (1 << UF_*) values */
-  uint16_t port;                /* Converted UF_PORT string */
+    uint16_t field_set; /* Bitmask of (1 << UF_*) values */
+    uint16_t port;      /* Converted UF_PORT string */
 
-  struct {
-    uint16_t off;               /* Offset into buffer in which field starts */
-    uint16_t len;               /* Length of run in buffer */
-  } field_data[UF_MAX];
+    struct {
+        uint16_t off; /* Offset into buffer in which field starts */
+        uint16_t len; /* Length of run in buffer */
+    } field_data[UF_MAX];
 };
-
 
 /* Returns the library version. Bits 16-23 contain the major version number,
  * bits 8-15 the minor version number and bits 0-7 the patch level.
@@ -1058,11 +1087,9 @@ unsigned long http_parser_version(void);
 
 void http_parser_init(http_parser *parser, enum http_parser_type type);
 
-
 /* Initialize http_parser_settings members to 0
  */
 void http_parser_settings_init(http_parser_settings *settings);
-
 
 /* Executes the parser. Returns number of parsed bytes. Sets
  * `parser->http_errno` on error. */
@@ -1070,7 +1097,6 @@ size_t http_parser_execute(http_parser *parser,
                            const http_parser_settings *settings,
                            const char *data,
                            size_t len);
-
 
 /* If http_should_keep_alive() in the on_headers_complete or
  * on_message_complete callback returns 0, then this should be
@@ -1113,4 +1139,3 @@ void http_parser_set_max_header_size(uint32_t size);
 }
 #endif
 #endif
-

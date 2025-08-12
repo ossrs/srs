@@ -23,8 +23,9 @@ class MockSrsConfigBuffer : public srs_internal::SrsConfigBuffer
 public:
     MockSrsConfigBuffer(std::string buf);
     virtual ~MockSrsConfigBuffer();
+
 public:
-    virtual srs_error_t fullfill(const char* filename);
+    virtual srs_error_t fullfill(const char *filename);
 };
 
 class MockSrsConfig : public SrsConfig
@@ -32,40 +33,46 @@ class MockSrsConfig : public SrsConfig
 public:
     MockSrsConfig();
     virtual ~MockSrsConfig();
+
 private:
     std::map<std::string, std::string> included_files;
+
 public:
     virtual srs_error_t parse(std::string buf);
     virtual srs_error_t mock_include(const std::string file_name, const std::string content);
+
 protected:
-    virtual srs_error_t build_buffer(std::string src, srs_internal::SrsConfigBuffer** pbuffer);
+    virtual srs_error_t build_buffer(std::string src, srs_internal::SrsConfigBuffer **pbuffer);
 };
 
 class ISrsSetEnvConfig
 {
 private:
     std::string key;
-    SrsConfig* conf;
+    SrsConfig *conf;
+
 public:
-    ISrsSetEnvConfig(SrsConfig* c, const std::string& k, const std::string& v, bool overwrite) {
+    ISrsSetEnvConfig(SrsConfig *c, const std::string &k, const std::string &v, bool overwrite)
+    {
         conf = c;
         key = k;
         srs_setenv(k, v, overwrite);
     }
-    virtual ~ISrsSetEnvConfig() {
+    virtual ~ISrsSetEnvConfig()
+    {
         srs_unsetenv(key);
         srs_freep(conf->env_cache_);
         conf->env_cache_ = new SrsConfDirective();
     }
+
 private:
     // Adds, changes environment variables, which may starts with $.
-    int srs_setenv(const std::string& key, const std::string& value, bool overwrite);
+    int srs_setenv(const std::string &key, const std::string &value, bool overwrite);
     // Deletes environment variables, which may starts with $.
-    int srs_unsetenv(const std::string& key);
+    int srs_unsetenv(const std::string &key);
 };
 
 #define SrsSetEnvConfig(conf, instance, key, value) \
     ISrsSetEnvConfig _SRS_free_##instance(&conf, key, value, true)
 
 #endif
-

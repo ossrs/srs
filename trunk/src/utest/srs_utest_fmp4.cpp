@@ -9,20 +9,21 @@
 #include <sstream>
 using namespace std;
 
-#include <srs_utest_kernel.hpp>
+#include <srs_app_hls.hpp>
+#include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_mp4.hpp>
-#include <srs_core_autofree.hpp>
-#include <srs_app_hls.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_utest_kernel.hpp>
 
 // Mock classes for testing
 class MockSrsRequest : public SrsRequest
 {
 public:
-    MockSrsRequest() {
+    MockSrsRequest()
+    {
         vhost = "__defaultVhost__";
         app = "live";
         stream = "livestream";
@@ -33,23 +34,22 @@ public:
 class MockSrsFormat : public SrsFormat
 {
 public:
-    MockSrsFormat() {
+    MockSrsFormat()
+    {
         initialize();
-        
+
         // Setup video sequence header (H.264 AVC)
         uint8_t video_raw[] = {
             0x17,
             0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
             0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-        };
-        on_video(0, (char*)video_raw, sizeof(video_raw));
-        
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+        on_video(0, (char *)video_raw, sizeof(video_raw));
+
         // Setup audio sequence header (AAC)
         uint8_t audio_raw[] = {
-            0xaf, 0x00, 0x12, 0x10
-        };
-        on_audio(0, (char*)audio_raw, sizeof(audio_raw));
+            0xaf, 0x00, 0x12, 0x10};
+        on_audio(0, (char *)audio_raw, sizeof(audio_raw));
     }
     virtual ~MockSrsFormat() {}
 };
@@ -57,11 +57,12 @@ public:
 class MockSrsSharedPtrMessage : public SrsSharedPtrMessage
 {
 public:
-    MockSrsSharedPtrMessage(bool is_video_msg, uint32_t ts) {
+    MockSrsSharedPtrMessage(bool is_video_msg, uint32_t ts)
+    {
         timestamp = ts;
-        
+
         // Create sample payload
-        char* payload = new char[1024];
+        char *payload = new char[1024];
         memset(payload, 0x00, 1024);
         SrsSharedPtrMessage::wrap(payload, 1024);
 
@@ -77,16 +78,16 @@ public:
 VOID TEST(Fmp4Test, SrsInitMp4Segment_VideoOnly)
 {
     srs_error_t err;
-    
+
     MockSrsFileWriter fw;
     SrsInitMp4Segment segment(&fw);
-    
+
     segment.set_path("/tmp/init_video.mp4");
     MockSrsFormat fmt;
-    
+
     HELPER_ASSERT_SUCCESS(segment.write_video_only(&fmt, 1));
     EXPECT_TRUE(fw.filesize() > 0);
-    
+
     // Verify the file contains expected MP4 boxes
     string content = fw.str();
     EXPECT_TRUE(content.find("ftyp") != string::npos);
@@ -96,16 +97,16 @@ VOID TEST(Fmp4Test, SrsInitMp4Segment_VideoOnly)
 VOID TEST(Fmp4Test, SrsInitMp4Segment_AudioOnly)
 {
     srs_error_t err;
-    
+
     MockSrsFileWriter fw;
     SrsInitMp4Segment segment(&fw);
-    
+
     segment.set_path("/tmp/init_audio.mp4");
     MockSrsFormat fmt;
-    
+
     HELPER_ASSERT_SUCCESS(segment.write_audio_only(&fmt, 2));
     EXPECT_TRUE(fw.filesize() > 0);
-    
+
     // Verify the file contains expected MP4 boxes
     string content = fw.str();
     EXPECT_TRUE(content.find("ftyp") != string::npos);
@@ -115,16 +116,16 @@ VOID TEST(Fmp4Test, SrsInitMp4Segment_AudioOnly)
 VOID TEST(Fmp4Test, SrsInitMp4Segment_AudioVideo)
 {
     srs_error_t err;
-    
+
     MockSrsFileWriter fw;
     SrsInitMp4Segment segment(&fw);
-    
+
     segment.set_path("/tmp/init_av.mp4");
     MockSrsFormat fmt;
-    
+
     HELPER_ASSERT_SUCCESS(segment.write(&fmt, 1, 2));
     EXPECT_TRUE(fw.filesize() > 0);
-    
+
     // Verify the file contains expected MP4 boxes
     string content = fw.str();
     EXPECT_TRUE(content.find("ftyp") != string::npos);
@@ -134,19 +135,19 @@ VOID TEST(Fmp4Test, SrsInitMp4Segment_AudioVideo)
 VOID TEST(Fmp4Test, SrsInitMp4Segment_WithEncryption)
 {
     srs_error_t err;
-    
+
     MockSrsFileWriter fw;
     SrsInitMp4Segment segment(&fw);
-    
+
     segment.set_path("/tmp/init_encrypted.mp4");
     MockSrsFormat fmt;
-    
+
     // Configure encryption
     unsigned char kid[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-                            0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+                             0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
     unsigned char iv[16] = {0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
-                           0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20};
-    
+                            0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20};
+
     HELPER_ASSERT_SUCCESS(segment.config_cipher(kid, iv, 16));
     HELPER_ASSERT_SUCCESS(segment.write(&fmt, 1, 2));
     EXPECT_TRUE(fw.filesize() > 0);
@@ -168,7 +169,7 @@ VOID TEST(Fmp4Test, SrsHlsM4sSegment_Basic)
     HELPER_ASSERT_SUCCESS(segment.write(&video_msg, &fmt));
 
     // Write audio sample
-    MockSrsSharedPtrMessage audio_msg(false, 2000);  // Different timestamp
+    MockSrsSharedPtrMessage audio_msg(false, 2000); // Different timestamp
     HELPER_ASSERT_SUCCESS(segment.write(&audio_msg, &fmt));
 
     // Test duration - should be > 0 after writing samples with different timestamps
@@ -187,9 +188,9 @@ VOID TEST(Fmp4Test, SrsHlsM4sSegment_WithEncryption)
 
     // Configure encryption
     unsigned char key[16] = {0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
-                            0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30};
+                             0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30};
     unsigned char iv[16] = {0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
-                           0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40};
+                            0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40};
     segment.config_cipher(key, iv);
 
     // Verify IV is stored
@@ -221,19 +222,19 @@ VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_Basic)
     // Write video sample
     uint8_t video_sample[] = {0x00, 0x00, 0x00, 0x01, 0x67, 0x64, 0x00, 0x20};
     HELPER_ASSERT_SUCCESS(encoder.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame,
-                                              1000, 1000, video_sample, sizeof(video_sample)));
+                                               1000, 1000, video_sample, sizeof(video_sample)));
 
     // Write audio sample
     uint8_t audio_sample[] = {0xff, 0xf1, 0x50, 0x80, 0x01, 0x3f, 0xfc};
     HELPER_ASSERT_SUCCESS(encoder.write_sample(SrsMp4HandlerTypeSOUN, 0x00,
-                                              1000, 1000, audio_sample, sizeof(audio_sample)));
+                                               1000, 1000, audio_sample, sizeof(audio_sample)));
 
     // Flush to file
     HELPER_ASSERT_SUCCESS(encoder.flush(2000));
     EXPECT_TRUE(fw.filesize() > 0);
 
     // Verify basic structure (content may be binary, so just check size)
-    EXPECT_GT(fw.filesize(), 100);  // Should have reasonable size for fMP4 structure
+    EXPECT_GT(fw.filesize(), 100); // Should have reasonable size for fMP4 structure
 }
 
 VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_WithEncryption)
@@ -248,22 +249,22 @@ VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_WithEncryption)
 
     // Configure encryption
     unsigned char key[16] = {0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48,
-                            0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50};
+                             0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50};
     unsigned char iv[16] = {0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58,
-                           0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, 0x60};
+                            0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, 0x60};
     encoder.config_cipher(key, iv);
 
     // Write encrypted samples
     uint8_t video_sample[] = {0x00, 0x00, 0x00, 0x01, 0x67, 0x64, 0x00, 0x20};
     HELPER_ASSERT_SUCCESS(encoder.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame,
-                                              1000, 1000, video_sample, sizeof(video_sample)));
+                                               1000, 1000, video_sample, sizeof(video_sample)));
 
     HELPER_ASSERT_SUCCESS(encoder.flush(2000));
     EXPECT_TRUE(fw.filesize() > 0);
 
     // Verify encryption boxes are present
     string content = fw.str();
-    EXPECT_TRUE(content.find("senc") != string::npos);  // Sample Encryption Box
+    EXPECT_TRUE(content.find("senc") != string::npos); // Sample Encryption Box
 }
 
 VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_Basic)
@@ -338,7 +339,7 @@ VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_WriteMedia)
 
     // Write more samples with time progression to accumulate duration
     for (int i = 1; i <= 5; i++) {
-        MockSrsSharedPtrMessage video_msg2(true, 1000 + i * 1000);  // 1 second increments
+        MockSrsSharedPtrMessage video_msg2(true, 1000 + i * 1000); // 1 second increments
         HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg2, &fmt));
 
         MockSrsSharedPtrMessage audio_msg2(false, 1000 + i * 1000);
@@ -411,20 +412,20 @@ VOID TEST(Fmp4Test, SrsMp4TrackEncryptionBox_CBCS)
 
     // Configure for CBCS video encryption (1:9 pattern)
     tenc.version = 1;
-    tenc.default_crypt_byte_block = 1;  // Encrypt 1 block
-    tenc.default_skip_byte_block = 9;   // Skip 9 blocks
+    tenc.default_crypt_byte_block = 1; // Encrypt 1 block
+    tenc.default_skip_byte_block = 9;  // Skip 9 blocks
     tenc.default_is_protected = 1;
-    tenc.default_per_sample_IV_size = 0;  // Use constant IV
+    tenc.default_per_sample_IV_size = 0; // Use constant IV
     tenc.default_constant_IV_size = 16;
 
     // Set Key ID
     unsigned char kid[16] = {0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68,
-                            0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70};
+                             0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70};
     memcpy(tenc.default_KID, kid, 16);
 
     // Set constant IV
     unsigned char iv[16] = {0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,
-                           0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, 0x80};
+                            0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, 0x80};
     tenc.set_default_constant_IV(iv, 16);
 
     // Verify configuration
@@ -450,7 +451,7 @@ VOID TEST(Fmp4Test, SrsMp4TrackEncryptionBox_CBCS)
     SrsMp4DumpContext dc;
     tenc.dumps_detail(ss, dc);
     string detail = ss.str();
-    EXPECT_FALSE(detail.empty());  // Should produce some output
+    EXPECT_FALSE(detail.empty()); // Should produce some output
 }
 
 VOID TEST(Fmp4Test, SrsMp4TrackEncryptionBox_AudioFullSample)
@@ -459,10 +460,10 @@ VOID TEST(Fmp4Test, SrsMp4TrackEncryptionBox_AudioFullSample)
 
     // Configure for audio full-sample encryption
     tenc.version = 1;
-    tenc.default_crypt_byte_block = 0;  // No pattern (full encryption)
-    tenc.default_skip_byte_block = 0;   // No skip
+    tenc.default_crypt_byte_block = 0; // No pattern (full encryption)
+    tenc.default_skip_byte_block = 0;  // No skip
     tenc.default_is_protected = 1;
-    tenc.default_per_sample_IV_size = 0;  // Use constant IV
+    tenc.default_per_sample_IV_size = 0; // Use constant IV
     tenc.default_constant_IV_size = 16;
 
     // Verify audio encryption configuration
@@ -475,7 +476,7 @@ VOID TEST(Fmp4Test, SrsMp4SampleEncryptionBox_Basic)
 {
     srs_error_t err;
 
-    SrsMp4SampleEncryptionBox senc(16);  // 16-byte IV size
+    SrsMp4SampleEncryptionBox senc(16); // 16-byte IV size
 
     // Test basic properties - flags may be set by constructor
     EXPECT_EQ(0, senc.version);
@@ -504,7 +505,7 @@ VOID TEST(Fmp4Test, SrsMp4SampleAuxiliaryInfoSizeBox_Basic)
     // Configure SAIZ box
     saiz.version = 0;
     saiz.flags = 0;
-    saiz.default_sample_info_size = 16;  // 16-byte IV
+    saiz.default_sample_info_size = 16; // 16-byte IV
     saiz.sample_count = 0;
 
     // Test encoding
@@ -530,7 +531,7 @@ VOID TEST(Fmp4Test, SrsMp4SampleAuxiliaryInfoOffsetBox_Basic)
     // Configure SAIO box
     saio.version = 0;
     saio.flags = 0;
-    saio.offsets.push_back(100);  // Offset to SENC box
+    saio.offsets.push_back(100); // Offset to SENC box
 
     // Test encoding
     char buffer_data[1024];
@@ -578,9 +579,9 @@ VOID TEST(Fmp4Test, Integration_FullEncryptionWorkflow)
     init_segment.set_path("encrypted_init.mp4");
 
     unsigned char kid[16] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88,
-                            0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f, 0x90};
+                             0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f, 0x90};
     unsigned char iv[16] = {0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98,
-                           0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f, 0xa0};
+                            0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f, 0xa0};
 
     HELPER_ASSERT_SUCCESS(init_segment.config_cipher(kid, iv, 16));
 
@@ -594,9 +595,9 @@ VOID TEST(Fmp4Test, Integration_FullEncryptionWorkflow)
     HELPER_ASSERT_SUCCESS(m4s_segment.initialize(0, 1, 2, 200, "encrypted-200.m4s"));
 
     unsigned char seg_key[16] = {0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8,
-                                0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0};
+                                 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0};
     unsigned char seg_iv[16] = {0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8,
-                               0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf, 0xc0};
+                                0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf, 0xc0};
     m4s_segment.config_cipher(seg_key, seg_iv);
 
     // Write samples to encrypted segment with time progression
@@ -627,11 +628,11 @@ VOID TEST(Fmp4Test, EdgeCase_LargeTimestamp)
     // Test with large timestamp values
     HELPER_ASSERT_SUCCESS(encoder.initialize(&fw, 0, 0, 1, 2));
 
-    uint64_t large_timestamp = 0xFFFFFFFF;  // Max 32-bit value
+    uint64_t large_timestamp = 0xFFFFFFFF; // Max 32-bit value
     uint8_t sample[] = {0x00, 0x01, 0x02, 0x03};
 
     HELPER_ASSERT_SUCCESS(encoder.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame,
-                                              large_timestamp, large_timestamp, sample, sizeof(sample)));
+                                               large_timestamp, large_timestamp, sample, sizeof(sample)));
 
     HELPER_ASSERT_SUCCESS(encoder.flush(large_timestamp + 1000));
     EXPECT_TRUE(fw.filesize() > 0);
@@ -675,7 +676,7 @@ VOID TEST(Fmp4Test, ErrorHandling_WriteBeforeInitialize)
 
     // Try to write sample before initialization - may or may not fail
     err = encoder.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame,
-                              1000, 1000, sample, sizeof(sample));
+                               1000, 1000, sample, sizeof(sample));
     if (err != srs_success) {
         srs_freep(err);
     }
@@ -771,7 +772,7 @@ VOID TEST(Fmp4Test, Performance_MultipleSegments)
         MockSrsSharedPtrMessage video_msg(true, i * 40);
         HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
 
-        if (i % 2 == 0) {  // Write audio less frequently
+        if (i % 2 == 0) { // Write audio less frequently
             MockSrsSharedPtrMessage audio_msg(false, i * 40);
             HELPER_ASSERT_SUCCESS(muxer.write_audio(&audio_msg, &fmt));
         }

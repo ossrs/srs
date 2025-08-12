@@ -22,12 +22,13 @@ class ISrsReader
 public:
     ISrsReader();
     virtual ~ISrsReader();
+
 public:
     /**
      * Read bytes from reader.
      * @param nread How many bytes read from channel. NULL to ignore.
      */
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread) = 0;
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread) = 0;
 };
 
 /**
@@ -38,6 +39,7 @@ class ISrsSeeker
 public:
     ISrsSeeker();
     virtual ~ISrsSeeker();
+
 public:
     /**
      * The lseek() function repositions the offset of the file descriptor fildes to the argument offset, according to the
@@ -48,7 +50,7 @@ public:
      * @param seeked Upon successful completion, lseek() returns the resulting offset location as measured in bytes from
      *      the beginning of the file. NULL to ignore.
      */
-    virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked) = 0;
+    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked) = 0;
 };
 
 /**
@@ -69,12 +71,13 @@ class ISrsStreamWriter
 public:
     ISrsStreamWriter();
     virtual ~ISrsStreamWriter();
+
 public:
     /**
      * write bytes over writer.
      * @nwrite the actual written bytes. NULL to ignore.
      */
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite) = 0;
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite) = 0;
 };
 
 /**
@@ -85,6 +88,7 @@ class ISrsVectorWriter
 public:
     ISrsVectorWriter();
     virtual ~ISrsVectorWriter();
+
 public:
     /**
      * write iov over writer.
@@ -92,7 +96,7 @@ public:
      * @remark for the HTTP FLV, to writev to improve performance.
      *      @see https://github.com/ossrs/srs/issues/405
      */
-    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite) = 0;
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite) = 0;
 };
 
 /**
@@ -116,4 +120,3 @@ public:
 };
 
 #endif
-

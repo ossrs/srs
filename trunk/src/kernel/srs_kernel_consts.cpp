@@ -5,5 +5,3 @@
 //
 
 #include <srs_kernel_consts.hpp>
-
-

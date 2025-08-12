@@ -12,17 +12,16 @@
 #include <string>
 #include <vector>
 
-
 class SrsBuffer;
 class SrsBitBuffer;
 
 // Basic compare function.
-#define srs_min(a, b) (((a) < (b))? (a) : (b))
-#define srs_max(a, b) (((a) < (b))? (b) : (a))
+#define srs_min(a, b) (((a) < (b)) ? (a) : (b))
+#define srs_max(a, b) (((a) < (b)) ? (b) : (a))
 
 // To read H.264 NALU uev.
-extern srs_error_t srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v);
-extern srs_error_t srs_avc_nalu_read_bit(SrsBitBuffer* stream, int8_t& v);
+extern srs_error_t srs_avc_nalu_read_uev(SrsBitBuffer *stream, int32_t &v);
+extern srs_error_t srs_avc_nalu_read_bit(SrsBitBuffer *stream, int8_t &v);
 
 // Get current system time in srs_utime_t, use cache to avoid performance problem
 extern srs_utime_t srs_get_system_time();
@@ -35,15 +34,15 @@ extern srs_utime_t srs_update_system_time();
 extern std::string srs_any_address_for_listener();
 
 // The dns resolve utility, return the resolved ip address.
-extern std::string srs_dns_resolve(std::string host, int& family);
+extern std::string srs_dns_resolve(std::string host, int &family);
 
 // Split the host:port to host and port.
 // @remark the hostport format in <host[:port]>, where port is optional.
-extern void srs_parse_hostport(std::string hostport, std::string& host, int& port);
+extern void srs_parse_hostport(std::string hostport, std::string &host, int &port);
 
 // Parse the endpoint to ip and port.
 // @remark The hostport format in <[ip:]port>, where ip is default to "0.0.0.0".
-extern void srs_parse_endpoint(std::string hostport, std::string& ip, int& port);
+extern void srs_parse_endpoint(std::string hostport, std::string &ip, int &port);
 
 // Check whether the ip is valid.
 extern bool srs_check_ip_addr_valid(std::string ip);
@@ -92,11 +91,11 @@ extern std::string srs_string_min_match(std::string str, std::vector<std::string
 extern std::vector<std::string> srs_string_split(std::string s, std::string seperator);
 extern std::vector<std::string> srs_string_split(std::string s, std::vector<std::string> seperators);
 // Format to a string.
-extern std::string srs_fmt(const char* fmt, ...);
+extern std::string srs_fmt(const char *fmt, ...);
 
 // Compare the memory in bytes.
 // @return true if completely equal; otherwise, false.
-extern bool srs_bytes_equals(void* pa, void* pb, int size);
+extern bool srs_bytes_equals(void *pa, void *pb, int size);
 
 // Create dir recursively
 extern srs_error_t srs_create_dir_recursively(std::string dir);
@@ -115,57 +114,56 @@ extern std::string srs_path_filext(std::string path);
 // Whether stream starts with the avc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
 // The start code must be "N[00] 00 00 01" where N>=0
 // @param pnb_start_code output the size of start code, must >=3. NULL to ignore.
-extern bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code = NULL);
+extern bool srs_avc_startswith_annexb(SrsBuffer *stream, int *pnb_start_code = NULL);
 
 // Whether stream starts with the aac ADTS from ISO_IEC_14496-3-AAC-2001.pdf, page 75, 1.A.2.2 ADTS.
 // The start code must be '1111 1111 1111'B, that is 0xFFF
-extern bool srs_aac_startswith_adts(SrsBuffer* stream);
+extern bool srs_aac_startswith_adts(SrsBuffer *stream);
 
 // Cacl the crc32 of bytes in buf, for ffmpeg.
-extern uint32_t srs_crc32_mpegts(const void* buf, int size);
+extern uint32_t srs_crc32_mpegts(const void *buf, int size);
 
 // Calc the crc32 of bytes in buf by IEEE, for zip.
-extern uint32_t srs_crc32_ieee(const void* buf, int size, uint32_t previous = 0);
+extern uint32_t srs_crc32_ieee(const void *buf, int size, uint32_t previous = 0);
 
 // Decode a base64-encoded string.
-extern srs_error_t srs_av_base64_decode(std::string cipher, std::string& plaintext);
+extern srs_error_t srs_av_base64_decode(std::string cipher, std::string &plaintext);
 // Encode a plaintext to  base64-encoded string.
-extern srs_error_t srs_av_base64_encode(std::string plaintext, std::string& cipher);
+extern srs_error_t srs_av_base64_encode(std::string plaintext, std::string &cipher);
 
 // Calculate the output size needed to base64-encode x bytes to a null-terminated string.
-#define SRS_AV_BASE64_SIZE(x) (((x)+2) / 3 * 4 + 1)
+#define SRS_AV_BASE64_SIZE(x) (((x) + 2) / 3 * 4 + 1)
 
 // Covert hex string to uint8 data, for example:
 //      srs_hex_to_data(data, string("139056E5A0"))
 //      which outputs the data in hex {0x13, 0x90, 0x56, 0xe5, 0xa0}.
-extern int srs_hex_to_data(uint8_t* data, const char* p, int size);
+extern int srs_hex_to_data(uint8_t *data, const char *p, int size);
 
 // Convert data string to hex, for example:
 //      srs_data_to_hex(des, {0xf3, 0x3f}, 2)
 //      which outputs the des is string("F33F").
-extern char* srs_data_to_hex(char* des, const uint8_t* src, int len);
+extern char *srs_data_to_hex(char *des, const uint8_t *src, int len);
 // Output in lowercase, such as string("f33f").
-extern char* srs_data_to_hex_lowercase(char* des, const uint8_t* src, int len);
+extern char *srs_data_to_hex_lowercase(char *des, const uint8_t *src, int len);
 
 // Generate the c0 chunk header for msg.
 // @param cache, the cache to write header.
 // @param nb_cache, the size of cache.
 // @return The size of header. 0 if cache not enough.
-extern int srs_chunk_header_c0(int prefer_cid, uint32_t timestamp, int32_t payload_length, int8_t message_type, int32_t stream_id, char* cache, int nb_cache);
+extern int srs_chunk_header_c0(int prefer_cid, uint32_t timestamp, int32_t payload_length, int8_t message_type, int32_t stream_id, char *cache, int nb_cache);
 
 // Generate the c3 chunk header for msg.
 // @param cache, the cache to write header.
 // @param nb_cache, the size of cache.
 // @return the size of header. 0 if cache not enough.
-extern int srs_chunk_header_c3(int prefer_cid, uint32_t timestamp, char* cache, int nb_cache);
+extern int srs_chunk_header_c3(int prefer_cid, uint32_t timestamp, char *cache, int nb_cache);
 
 // For utest to mock it.
 #include <sys/time.h>
 #ifdef SRS_OSX
-    #define _srs_gettimeofday gettimeofday
+#define _srs_gettimeofday gettimeofday
 #else
-    typedef int (*srs_gettimeofday_t) (struct timeval* tv, struct timezone* tz);
+typedef int (*srs_gettimeofday_t)(struct timeval *tv, struct timezone *tz);
 #endif
 
 #endif
-

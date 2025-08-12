@@ -37,4 +37,3 @@ ISrsProtocolReadWriter::ISrsProtocolReadWriter()
 ISrsProtocolReadWriter::~ISrsProtocolReadWriter()
 {
 }
-

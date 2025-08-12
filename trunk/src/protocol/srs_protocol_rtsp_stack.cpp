@@ -4,25 +4,25 @@
 // SPDX-License-Identifier: MIT
 //
 
-#include <srs_protocol_rtsp_stack.hpp>
-#include <srs_protocol_io.hpp>
-#include <srs_kernel_stream.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_consts.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_kernel_utility.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_consts.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
+#include <srs_kernel_stream.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_protocol_io.hpp>
+#include <srs_protocol_rtsp_stack.hpp>
 
-#include <stdlib.h>
 #include <map>
+#include <stdlib.h>
 using namespace std;
 
 #define SRS_RTSP_BUFFER 4096
 
 // Forward declaration of RTCP detection function
-extern bool srs_is_rtcp(const uint8_t* data, size_t len);
+extern bool srs_is_rtcp(const uint8_t *data, size_t len);
 
 // get the status text of code.
 string srs_generate_rtsp_status_text(int status)
@@ -74,32 +74,44 @@ string srs_generate_rtsp_status_text(int status)
         _status_map[SRS_CONSTS_RTSP_RTSPVersionNotSupported] = SRS_CONSTS_RTSP_RTSPVersionNotSupported_str;
         _status_map[SRS_CONSTS_RTSP_OptionNotSupported] = SRS_CONSTS_RTSP_OptionNotSupported_str;
     }
-    
+
     std::string status_text;
     if (_status_map.find(status) == _status_map.end()) {
         status_text = "Status Unknown";
     } else {
         status_text = _status_map[status];
     }
-    
+
     return status_text;
 }
 
 std::string srs_generate_rtsp_method_str(SrsRtspMethod method)
 {
     switch (method) {
-        case SrsRtspMethodDescribe: return SRS_RTSP_METHOD_DESCRIBE;
-        case SrsRtspMethodAnnounce: return SRS_RTSP_METHOD_ANNOUNCE;
-        case SrsRtspMethodGetParameter: return SRS_RTSP_METHOD_GET_PARAMETER;
-        case SrsRtspMethodOptions: return SRS_RTSP_METHOD_OPTIONS;
-        case SrsRtspMethodPause: return SRS_RTSP_METHOD_PAUSE;
-        case SrsRtspMethodPlay: return SRS_RTSP_METHOD_PLAY;
-        case SrsRtspMethodRecord: return SRS_RTSP_METHOD_RECORD;
-        case SrsRtspMethodRedirect: return SRS_RTSP_METHOD_REDIRECT;
-        case SrsRtspMethodSetup: return SRS_RTSP_METHOD_SETUP;
-        case SrsRtspMethodSetParameter: return SRS_RTSP_METHOD_SET_PARAMETER;
-        case SrsRtspMethodTeardown: return SRS_RTSP_METHOD_TEARDOWN;
-        default: return "Unknown";
+    case SrsRtspMethodDescribe:
+        return SRS_RTSP_METHOD_DESCRIBE;
+    case SrsRtspMethodAnnounce:
+        return SRS_RTSP_METHOD_ANNOUNCE;
+    case SrsRtspMethodGetParameter:
+        return SRS_RTSP_METHOD_GET_PARAMETER;
+    case SrsRtspMethodOptions:
+        return SRS_RTSP_METHOD_OPTIONS;
+    case SrsRtspMethodPause:
+        return SRS_RTSP_METHOD_PAUSE;
+    case SrsRtspMethodPlay:
+        return SRS_RTSP_METHOD_PLAY;
+    case SrsRtspMethodRecord:
+        return SRS_RTSP_METHOD_RECORD;
+    case SrsRtspMethodRedirect:
+        return SRS_RTSP_METHOD_REDIRECT;
+    case SrsRtspMethodSetup:
+        return SRS_RTSP_METHOD_SETUP;
+    case SrsRtspMethodSetParameter:
+        return SRS_RTSP_METHOD_SET_PARAMETER;
+    case SrsRtspMethodTeardown:
+        return SRS_RTSP_METHOD_TEARDOWN;
+    default:
+        return "Unknown";
     }
 }
 
@@ -118,10 +130,10 @@ SrsRtspTransport::~SrsRtspTransport()
 srs_error_t SrsRtspTransport::parse(string attr)
 {
     srs_error_t err = srs_success;
-    
+
     size_t pos = string::npos;
     std::string token = attr;
-    
+
     while (!token.empty()) {
         std::string item = token;
         if ((pos = item.find(";")) != string::npos) {
@@ -130,13 +142,13 @@ srs_error_t SrsRtspTransport::parse(string attr)
         } else {
             token = "";
         }
-        
+
         std::string item_key = item, item_value;
         if ((pos = item.find("=")) != string::npos) {
             item_key = item.substr(0, pos);
             item_value = item.substr(pos + 1);
         }
-        
+
         if (transport.empty() && item.find("=") == string::npos && item_key != "unicast" && item_key != "multicast") {
             transport = item_key;
             if ((pos = transport.find("/")) != string::npos) {
@@ -148,7 +160,7 @@ srs_error_t SrsRtspTransport::parse(string attr)
                 profile = profile.substr(0, pos);
             }
         }
-        
+
         if (item_key == "unicast" || item_key == "multicast") {
             cast_type = item_key;
         } else if (item_key == "interleaved") {
@@ -170,7 +182,7 @@ srs_error_t SrsRtspTransport::parse(string attr)
             client_port_max = ::atoi(eport.c_str());
         }
     }
-    
+
     return err;
 }
 
@@ -232,54 +244,53 @@ SrsRtspResponse::~SrsRtspResponse()
 {
 }
 
-srs_error_t SrsRtspResponse::encode(stringstream& ss)
+srs_error_t SrsRtspResponse::encode(stringstream &ss)
 {
     srs_error_t err = srs_success;
-    
+
     // status line
     ss << SRS_RTSP_VERSION << SRS_RTSP_SP
-    << status << SRS_RTSP_SP
-    << srs_generate_rtsp_status_text(status) << SRS_RTSP_CRLF;
-    
+       << status << SRS_RTSP_SP
+       << srs_generate_rtsp_status_text(status) << SRS_RTSP_CRLF;
+
     // cseq
     ss << SRS_RTSP_TOKEN_CSEQ << ":" << SRS_RTSP_SP << seq << SRS_RTSP_CRLF;
-    
+
     // others.
     ss << "Cache-Control: no-store" << SRS_RTSP_CRLF
-    << "Pragma: no-cache" << SRS_RTSP_CRLF
-    << "Server: " << RTMP_SIG_SRS_SERVER << SRS_RTSP_CRLF;
-    
+       << "Pragma: no-cache" << SRS_RTSP_CRLF
+       << "Server: " << RTMP_SIG_SRS_SERVER << SRS_RTSP_CRLF;
+
     // session if specified.
     if (!session.empty()) {
         ss << SRS_RTSP_TOKEN_SESSION << ":" << SRS_RTSP_SP << session << SRS_RTSP_CRLF;
     }
-    
+
     if ((err = encode_header(ss)) != srs_success) {
         return srs_error_wrap(err, "encode header");
     };
-    
+
     // header EOF.
     ss << SRS_RTSP_CRLF;
-    
+
     return err;
 }
 
-srs_error_t SrsRtspResponse::encode_header(std::stringstream& ss)
+srs_error_t SrsRtspResponse::encode_header(std::stringstream &ss)
 {
     return srs_success;
 }
 
 SrsRtspOptionsResponse::SrsRtspOptionsResponse(int cseq) : SrsRtspResponse(cseq)
 {
-    methods = (SrsRtspMethod)(SrsRtspMethodDescribe | SrsRtspMethodOptions
-        | SrsRtspMethodPlay | SrsRtspMethodSetup | SrsRtspMethodTeardown);
+    methods = (SrsRtspMethod)(SrsRtspMethodDescribe | SrsRtspMethodOptions | SrsRtspMethodPlay | SrsRtspMethodSetup | SrsRtspMethodTeardown);
 }
 
 SrsRtspOptionsResponse::~SrsRtspOptionsResponse()
 {
 }
 
-srs_error_t SrsRtspOptionsResponse::encode_header(stringstream& ss)
+srs_error_t SrsRtspOptionsResponse::encode_header(stringstream &ss)
 {
     static const SrsRtspMethod rtsp_methods[] = {
         SrsRtspMethodDescribe,
@@ -292,9 +303,9 @@ srs_error_t SrsRtspOptionsResponse::encode_header(stringstream& ss)
         SrsRtspMethodSetParameter,
         SrsRtspMethodTeardown,
     };
-    
+
     ss << SRS_RTSP_TOKEN_PUBLIC << ":" << SRS_RTSP_SP;
-    
+
     bool appended = false;
     int nb_methods = (int)(sizeof(rtsp_methods) / sizeof(SrsRtspMethod));
     for (int i = 0; i < nb_methods; i++) {
@@ -302,7 +313,7 @@ srs_error_t SrsRtspOptionsResponse::encode_header(stringstream& ss)
         if (((int)methods & (int)method) == 0) {
             continue;
         }
-        
+
         if (appended) {
             ss << ", ";
         }
@@ -310,7 +321,7 @@ srs_error_t SrsRtspOptionsResponse::encode_header(stringstream& ss)
         appended = true;
     }
     ss << SRS_RTSP_CRLF;
-    
+
     return srs_success;
 }
 
@@ -322,7 +333,7 @@ SrsRtspDescribeResponse::~SrsRtspDescribeResponse()
 {
 }
 
-srs_error_t SrsRtspDescribeResponse::encode_header(stringstream& ss)
+srs_error_t SrsRtspDescribeResponse::encode_header(stringstream &ss)
 {
     ss << SRS_RTSP_TOKEN_CONTENT_TYPE << ":" << SRS_RTSP_SP << "application/sdp" << SRS_RTSP_CRLF;
     // WILL add CRLF to the end of sdp in SrsRtspResponse::encode, so add 2.
@@ -347,14 +358,14 @@ SrsRtspSetupResponse::~SrsRtspSetupResponse()
     srs_freep(transport);
 }
 
-srs_error_t SrsRtspSetupResponse::encode_header(stringstream& ss)
+srs_error_t SrsRtspSetupResponse::encode_header(stringstream &ss)
 {
     ss << SRS_RTSP_TOKEN_TRANSPORT << ":" << SRS_RTSP_SP;
     ss << transport->transport << "/" << transport->profile;
     if (!transport->lower_transport.empty()) {
         ss << "/" << transport->lower_transport;
     }
-    
+
     if (!transport->cast_type.empty()) {
         ss << ";" << transport->cast_type;
     }
@@ -383,12 +394,12 @@ SrsRtspPlayResponse::~SrsRtspPlayResponse()
 {
 }
 
-srs_error_t SrsRtspPlayResponse::encode_header(stringstream& ss)
+srs_error_t SrsRtspPlayResponse::encode_header(stringstream &ss)
 {
     return srs_success;
 }
 
-SrsRtspStack::SrsRtspStack(ISrsProtocolReadWriter* s)
+SrsRtspStack::SrsRtspStack(ISrsProtocolReadWriter *s)
 {
     buf = new SrsSimpleStream();
     skt = s;
@@ -399,42 +410,42 @@ SrsRtspStack::~SrsRtspStack()
     srs_freep(buf);
 }
 
-srs_error_t SrsRtspStack::recv_message(SrsRtspRequest** preq)
+srs_error_t SrsRtspStack::recv_message(SrsRtspRequest **preq)
 {
     srs_error_t err = srs_success;
-    
-    SrsRtspRequest* req = new SrsRtspRequest();
+
+    SrsRtspRequest *req = new SrsRtspRequest();
     if ((err = do_recv_message(req)) != srs_success) {
         srs_freep(req);
         return srs_error_wrap(err, "recv message");
     }
-    
+
     *preq = req;
-    
+
     return err;
 }
 
-srs_error_t SrsRtspStack::send_message(SrsRtspResponse* res)
+srs_error_t SrsRtspStack::send_message(SrsRtspResponse *res)
 {
     srs_error_t err = srs_success;
-    
+
     std::stringstream ss;
     // encode the message to string.
     if ((err = res->encode(ss)) != srs_success) {
         return srs_error_wrap(err, "encode message");
     }
-    
+
     std::string str = ss.str();
     srs_assert(!str.empty());
-    
-    if ((err = skt->write((char*)str.c_str(), (int)str.length(), NULL)) != srs_success) {
+
+    if ((err = skt->write((char *)str.c_str(), (int)str.length(), NULL)) != srs_success) {
         return srs_error_wrap(err, "write message");
     }
-    
+
     return err;
 }
 
-srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
+srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest *req)
 {
     srs_error_t err = srs_success;
 
@@ -455,7 +466,7 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
     if ((err = recv_token_eof(req->version)) != srs_success) {
         return srs_error_wrap(err, "version");
     }
-    
+
     // Parse RTSP headers in "Name: Value" format
     // Example headers:
     //   CSeq: 1
@@ -548,56 +559,56 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
         req->stream_id = ::atoi(stream_id.c_str());
         srs_info("rtsp: setup stream id=%d", req->stream_id);
     }
-    
+
     return err;
 }
 
-srs_error_t SrsRtspStack::recv_token_normal(std::string& token)
+srs_error_t SrsRtspStack::recv_token_normal(std::string &token)
 {
     srs_error_t err = srs_success;
-    
+
     SrsRtspTokenState state;
-    
+
     if ((err = recv_token(token, state)) != srs_success) {
         if (srs_error_code(err) == ERROR_RTSP_REQUEST_HEADER_EOF) {
             return srs_error_wrap(err, "EOF");
         }
         return srs_error_wrap(err, "recv token");
     }
-    
+
     if (state != SrsRtspTokenStateNormal) {
         return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid state=%d", state);
     }
-    
+
     return err;
 }
 
-srs_error_t SrsRtspStack::recv_token_eof(std::string& token)
+srs_error_t SrsRtspStack::recv_token_eof(std::string &token)
 {
     srs_error_t err = srs_success;
-    
+
     SrsRtspTokenState state;
-    
+
     if ((err = recv_token(token, state)) != srs_success) {
         if (srs_error_code(err) == ERROR_RTSP_REQUEST_HEADER_EOF) {
             return srs_error_wrap(err, "EOF");
         }
         return srs_error_wrap(err, "recv token");
     }
-    
+
     if (state != SrsRtspTokenStateEOF) {
         return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid state=%d", state);
     }
-    
+
     return err;
 }
 
-srs_error_t SrsRtspStack::recv_token_util_eof(std::string& token, int* pconsumed)
+srs_error_t SrsRtspStack::recv_token_util_eof(std::string &token, int *pconsumed)
 {
     srs_error_t err = srs_success;
-    
+
     SrsRtspTokenState state;
-    
+
     // use 0x00 as ignore the normal token flag.
     if ((err = recv_token(token, state, 0x00, pconsumed)) != srs_success) {
         if (srs_error_code(err) == ERROR_RTSP_REQUEST_HEADER_EOF) {
@@ -605,24 +616,24 @@ srs_error_t SrsRtspStack::recv_token_util_eof(std::string& token, int* pconsumed
         }
         return srs_error_wrap(err, "recv token");
     }
-    
+
     if (state != SrsRtspTokenStateEOF) {
         return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid state=%d", state);
     }
-    
+
     return err;
 }
 
-srs_error_t SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch, int* pconsumed)
+srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &state, char normal_ch, int *pconsumed)
 {
     srs_error_t err = srs_success;
-    
+
     // whatever, default to error state.
     state = SrsRtspTokenStateError;
-    
+
     // when buffer is empty, append bytes first.
     bool append_bytes = buf->length() == 0;
-    
+
     // parse util token.
     for (;;) {
         // append bytes if required.
@@ -656,16 +667,16 @@ srs_error_t SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& stat
                 break;
             }
         }
-        
+
         // parse one by one.
-        char* start = buf->bytes();
-        char* end = start + buf->length();
-        char* p = start;
-        
+        char *start = buf->bytes();
+        char *end = start + buf->length();
+        char *p = start;
+
         // find util SP/CR/LF, max 2 EOF, to finger out the EOF of message.
         for (; p < end && p[0] != normal_ch && p[0] != SRS_RTSP_CR && p[0] != SRS_RTSP_LF; p++) {
         }
-        
+
         // matched.
         if (p < end) {
             // finger out the state.
@@ -674,7 +685,7 @@ srs_error_t SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& stat
             } else {
                 state = SrsRtspTokenStateEOF;
             }
-            
+
             // got the token.
             int nb_token = (int)(p - start);
             // trim last ':' character.
@@ -686,11 +697,11 @@ srs_error_t SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& stat
             } else {
                 err = srs_error_new(ERROR_RTSP_REQUEST_HEADER_EOF, "EOF");
             }
-            
+
             // ignore SP/CR/LF
             for (int i = 0; i < 2 && p < end && (p[0] == normal_ch || p[0] == SRS_RTSP_CR || p[0] == SRS_RTSP_LF); p++, i++) {
             }
-            
+
             // consume the token bytes.
             srs_assert(p - start);
             buf->erase((int)(p - start));
@@ -699,11 +710,11 @@ srs_error_t SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& stat
             }
             break;
         }
-        
+
         // append more and parse again.
         append_bytes = true;
     }
-    
+
     return err;
 }
 
@@ -715,7 +726,7 @@ srs_error_t SrsRtspStack::try_consume_rtcp_frame()
         return srs_error_new(ERROR_RTSP_NEED_MORE_DATA, "need more data for rtcp header");
     }
 
-    char* data = buf->bytes();
+    char *data = buf->bytes();
 
     // Check for RTCP over TCP format: $ + channel + length(2 bytes)
     if (data[0] == '$') {
@@ -730,16 +741,16 @@ srs_error_t SrsRtspStack::try_consume_rtcp_frame()
         }
 
         // Check if the payload is RTCP (starts at offset 4)
-        if (payload_length >= 8 && srs_is_rtcp((const uint8_t*)(data + 4), payload_length)) {
+        if (payload_length >= 8 && srs_is_rtcp((const uint8_t *)(data + 4), payload_length)) {
             // This is an RTCP packet in RTSP over TCP format
             srs_trace("RTSP: Consuming RTCP packet(%d), channel=%d, size=%d bytes",
-                     (uint8_t)data[5], channel, payload_length);
+                      (uint8_t)data[5], channel, payload_length);
             buf->erase(total_frame_size);
             return srs_success;
         } else {
             // Unknown interleaved frame, consume it anyway to avoid blocking RTSP parsing
             srs_trace("RTSP: Consuming unknown interleaved frame, channel=%d, size=%d bytes",
-                     channel, payload_length);
+                      channel, payload_length);
             buf->erase(total_frame_size);
             return srs_success;
         }

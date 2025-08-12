@@ -6,25 +6,25 @@
 
 #include <srs_app_conn.hpp>
 
-#include <netinet/tcp.h>
 #include <algorithm>
+#include <netinet/tcp.h>
 using namespace std;
 
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_app_utility.hpp>
-#include <srs_kernel_utility.hpp>
-#include <srs_protocol_log.hpp>
-#include <srs_app_log.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_log.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
+#include <srs_kernel_utility.hpp>
 #include <srs_protocol_kbps.hpp>
+#include <srs_protocol_log.hpp>
 
-SrsPps* _srs_pps_ids = NULL;
-SrsPps* _srs_pps_fids = NULL;
-SrsPps* _srs_pps_fids_level0 = NULL;
-SrsPps* _srs_pps_dispose = NULL;
+SrsPps *_srs_pps_ids = NULL;
+SrsPps *_srs_pps_fids = NULL;
+SrsPps *_srs_pps_fids_level0 = NULL;
+SrsPps *_srs_pps_dispose = NULL;
 
 ISrsDisposingHandler::ISrsDisposingHandler()
 {
@@ -34,7 +34,7 @@ ISrsDisposingHandler::~ISrsDisposingHandler()
 {
 }
 
-SrsResourceManager::SrsResourceManager(const std::string& label, bool verbose)
+SrsResourceManager::SrsResourceManager(const std::string &label, bool verbose)
 {
     verbose_ = verbose;
     label_ = label;
@@ -60,9 +60,9 @@ SrsResourceManager::~SrsResourceManager()
     clear();
 
     // Free all objects not in zombies.
-    std::vector<ISrsResource*>::iterator it;
+    std::vector<ISrsResource *>::iterator it;
     for (it = conns_.begin(); it != conns_.end(); ++it) {
-        ISrsResource* resource = *it;
+        ISrsResource *resource = *it;
         srs_freep(resource);
     }
 
@@ -116,7 +116,7 @@ srs_error_t SrsResourceManager::cycle()
     return err;
 }
 
-void SrsResourceManager::add(ISrsResource* conn, bool* exists)
+void SrsResourceManager::add(ISrsResource *conn, bool *exists)
 {
     if (std::find(conns_.begin(), conns_.end(), conn) == conns_.end()) {
         conns_.push_back(conn);
@@ -127,13 +127,13 @@ void SrsResourceManager::add(ISrsResource* conn, bool* exists)
     }
 }
 
-void SrsResourceManager::add_with_id(const std::string& id, ISrsResource* conn)
+void SrsResourceManager::add_with_id(const std::string &id, ISrsResource *conn)
 {
     add(conn);
     conns_id_[id] = conn;
 }
 
-void SrsResourceManager::add_with_fast_id(uint64_t id, ISrsResource* conn)
+void SrsResourceManager::add_with_fast_id(uint64_t id, ISrsResource *conn)
 {
     bool exists = false;
     add(conn, &exists);
@@ -144,7 +144,7 @@ void SrsResourceManager::add_with_fast_id(uint64_t id, ISrsResource* conn)
     }
 
     // For new resource, build the level-0 cache for fast-id.
-    SrsResourceFastIdItem* item = &conns_level0_cache_[(id | id>>32) % nn_level0_cache_];
+    SrsResourceFastIdItem *item = &conns_level0_cache_[(id | id >> 32) % nn_level0_cache_];
 
     // Ignore if exits item.
     if (item->fast_id && item->fast_id == id) {
@@ -166,60 +166,60 @@ void SrsResourceManager::add_with_fast_id(uint64_t id, ISrsResource* conn)
     }
 }
 
-void SrsResourceManager::add_with_name(const std::string& name, ISrsResource* conn)
+void SrsResourceManager::add_with_name(const std::string &name, ISrsResource *conn)
 {
     add(conn);
     conns_name_[name] = conn;
 }
 
-ISrsResource* SrsResourceManager::at(int index)
+ISrsResource *SrsResourceManager::at(int index)
 {
-    return (index < (int)conns_.size())? conns_.at(index) : NULL;
+    return (index < (int)conns_.size()) ? conns_.at(index) : NULL;
 }
 
-ISrsResource* SrsResourceManager::find_by_id(std::string id)
+ISrsResource *SrsResourceManager::find_by_id(std::string id)
 {
     ++_srs_pps_ids->sugar;
-    map<string, ISrsResource*>::iterator it = conns_id_.find(id);
-    return (it != conns_id_.end())? it->second : NULL;
+    map<string, ISrsResource *>::iterator it = conns_id_.find(id);
+    return (it != conns_id_.end()) ? it->second : NULL;
 }
 
-ISrsResource* SrsResourceManager::find_by_fast_id(uint64_t id)
+ISrsResource *SrsResourceManager::find_by_fast_id(uint64_t id)
 {
-    SrsResourceFastIdItem* item = &conns_level0_cache_[(id | id>>32) % nn_level0_cache_];
+    SrsResourceFastIdItem *item = &conns_level0_cache_[(id | id >> 32) % nn_level0_cache_];
     if (item->available && item->fast_id == id) {
         ++_srs_pps_fids_level0->sugar;
         return item->impl;
     }
 
     ++_srs_pps_fids->sugar;
-    map<uint64_t, ISrsResource*>::iterator it = conns_fast_id_.find(id);
-    return (it != conns_fast_id_.end())? it->second : NULL;
+    map<uint64_t, ISrsResource *>::iterator it = conns_fast_id_.find(id);
+    return (it != conns_fast_id_.end()) ? it->second : NULL;
 }
 
-ISrsResource* SrsResourceManager::find_by_name(std::string name)
+ISrsResource *SrsResourceManager::find_by_name(std::string name)
 {
     ++_srs_pps_ids->sugar;
-    map<string, ISrsResource*>::iterator it = conns_name_.find(name);
-    return (it != conns_name_.end())? it->second : NULL;
+    map<string, ISrsResource *>::iterator it = conns_name_.find(name);
+    return (it != conns_name_.end()) ? it->second : NULL;
 }
 
-void SrsResourceManager::subscribe(ISrsDisposingHandler* h)
+void SrsResourceManager::subscribe(ISrsDisposingHandler *h)
 {
     if (std::find(handlers_.begin(), handlers_.end(), h) == handlers_.end()) {
         handlers_.push_back(h);
     }
 
     // Restore the handler from unsubscribing handlers.
-    vector<ISrsDisposingHandler*>::iterator it;
+    vector<ISrsDisposingHandler *>::iterator it;
     if ((it = std::find(unsubs_.begin(), unsubs_.end(), h)) != unsubs_.end()) {
         it = unsubs_.erase(it);
     }
 }
 
-void SrsResourceManager::unsubscribe(ISrsDisposingHandler* h)
+void SrsResourceManager::unsubscribe(ISrsDisposingHandler *h)
 {
-    vector<ISrsDisposingHandler*>::iterator it = find(handlers_.begin(), handlers_.end(), h);
+    vector<ISrsDisposingHandler *>::iterator it = find(handlers_.begin(), handlers_.end(), h);
     if (it != handlers_.end()) {
         it = handlers_.erase(it);
     }
@@ -230,7 +230,7 @@ void SrsResourceManager::unsubscribe(ISrsDisposingHandler* h)
     }
 }
 
-void SrsResourceManager::remove(ISrsResource* c)
+void SrsResourceManager::remove(ISrsResource *c)
 {
     SrsContextRestore(_srs_context->get_id());
 
@@ -239,7 +239,7 @@ void SrsResourceManager::remove(ISrsResource* c)
     removing_ = false;
 }
 
-void SrsResourceManager::do_remove(ISrsResource* c)
+void SrsResourceManager::do_remove(ISrsResource *c)
 {
     bool in_zombie = false;
     bool in_disposing = false;
@@ -249,8 +249,8 @@ void SrsResourceManager::do_remove(ISrsResource* c)
     if (verbose_) {
         _srs_context->set_id(c->get_id());
         srs_trace("%s: before dispose resource(%s)(%p), conns=%d, zombies=%d, ign=%d, inz=%d, ind=%d",
-            label_.c_str(), c->desc().c_str(), c, (int)conns_.size(), (int)zombies_.size(), ignored,
-            in_zombie, in_disposing);
+                  label_.c_str(), c->desc().c_str(), c, (int)conns_.size(), (int)zombies_.size(), ignored,
+                  in_zombie, in_disposing);
     }
     if (ignored) {
         return;
@@ -260,16 +260,16 @@ void SrsResourceManager::do_remove(ISrsResource* c)
     zombies_.push_back(c);
 
     // We should copy all handlers, because it may change during callback.
-    vector<ISrsDisposingHandler*> handlers = handlers_;
+    vector<ISrsDisposingHandler *> handlers = handlers_;
 
     // Notify other handlers to handle the before-dispose event.
     for (int i = 0; i < (int)handlers.size(); i++) {
-        ISrsDisposingHandler* h = handlers.at(i);
+        ISrsDisposingHandler *h = handlers.at(i);
 
         // Ignore if handler is unsubscribing.
         if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
             srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore before-dispose resource(%s)(%p) for %p, conns=%d",
-                label_.c_str(), c->desc().c_str(), c, h, (int)conns_.size());
+                      label_.c_str(), c->desc().c_str(), c, h, (int)conns_.size());
             continue;
         }
 
@@ -280,10 +280,10 @@ void SrsResourceManager::do_remove(ISrsResource* c)
     srs_cond_signal(cond);
 }
 
-void SrsResourceManager::check_remove(ISrsResource* c, bool& in_zombie, bool& in_disposing)
+void SrsResourceManager::check_remove(ISrsResource *c, bool &in_zombie, bool &in_disposing)
 {
     // Only notify when not removed(in zombies_).
-    vector<ISrsResource*>::iterator it = std::find(zombies_.begin(), zombies_.end(), c);
+    vector<ISrsResource *>::iterator it = std::find(zombies_.begin(), zombies_.end(), c);
     if (it != zombies_.end()) {
         in_zombie = true;
     }
@@ -306,12 +306,12 @@ void SrsResourceManager::clear()
     SrsContextRestore(cid_);
     if (verbose_) {
         srs_trace("%s: clear zombies=%d resources, conns=%d, removing=%d, unsubs=%d",
-            label_.c_str(), (int)zombies_.size(), (int)conns_.size(), removing_, (int)unsubs_.size());
+                  label_.c_str(), (int)zombies_.size(), (int)conns_.size(), removing_, (int)unsubs_.size());
     }
 
     // Clear all unsubscribing handlers, if not removing any resource.
     if (!removing_ && !unsubs_.empty()) {
-        vector<ISrsDisposingHandler*>().swap(unsubs_);
+        vector<ISrsDisposingHandler *>().swap(unsubs_);
     }
 
     do_clear();
@@ -321,17 +321,17 @@ void SrsResourceManager::do_clear()
 {
     // To prevent thread switch when delete connection,
     // we copy all connections then free one by one.
-    vector<ISrsResource*> copy;
+    vector<ISrsResource *> copy;
     copy.swap(zombies_);
     p_disposing_ = &copy;
 
     for (int i = 0; i < (int)copy.size(); i++) {
-        ISrsResource* conn = copy.at(i);
+        ISrsResource *conn = copy.at(i);
 
         if (verbose_) {
             _srs_context->set_id(conn->get_id());
             srs_trace("%s: disposing #%d resource(%s)(%p), conns=%d, disposing=%d, zombies=%d", label_.c_str(),
-                i, conn->desc().c_str(), conn, (int)conns_.size(), (int)copy.size(), (int)zombies_.size());
+                      i, conn->desc().c_str(), conn, (int)conns_.size(), (int)copy.size(), (int)zombies_.size());
         }
 
         ++_srs_pps_dispose->sugar;
@@ -347,14 +347,14 @@ void SrsResourceManager::do_clear()
     // We should free the resources when finished all disposing callbacks,
     // which might cause context switch and reuse the freed addresses.
     for (int i = 0; i < (int)copy.size(); i++) {
-        ISrsResource* conn = copy.at(i);
+        ISrsResource *conn = copy.at(i);
         srs_freep(conn);
     }
 }
 
-void SrsResourceManager::dispose(ISrsResource* c)
+void SrsResourceManager::dispose(ISrsResource *c)
 {
-    for (map<string, ISrsResource*>::iterator it = conns_name_.begin(); it != conns_name_.end();) {
+    for (map<string, ISrsResource *>::iterator it = conns_name_.begin(); it != conns_name_.end();) {
         if (c != it->second) {
             ++it;
         } else {
@@ -363,7 +363,7 @@ void SrsResourceManager::dispose(ISrsResource* c)
         }
     }
 
-    for (map<string, ISrsResource*>::iterator it = conns_id_.begin(); it != conns_id_.end();) {
+    for (map<string, ISrsResource *>::iterator it = conns_id_.begin(); it != conns_id_.end();) {
         if (c != it->second) {
             ++it;
         } else {
@@ -372,13 +372,13 @@ void SrsResourceManager::dispose(ISrsResource* c)
         }
     }
 
-    for (map<uint64_t, ISrsResource*>::iterator it = conns_fast_id_.begin(); it != conns_fast_id_.end();) {
+    for (map<uint64_t, ISrsResource *>::iterator it = conns_fast_id_.begin(); it != conns_fast_id_.end();) {
         if (c != it->second) {
             ++it;
         } else {
             // Update the level-0 cache for fast-id.
             uint64_t id = it->first;
-            SrsResourceFastIdItem* item = &conns_level0_cache_[(id | id>>32) % nn_level0_cache_];
+            SrsResourceFastIdItem *item = &conns_level0_cache_[(id | id >> 32) % nn_level0_cache_];
             item->nn_collisions--;
             if (!item->nn_collisions) {
                 item->fast_id = 0;
@@ -390,22 +390,22 @@ void SrsResourceManager::dispose(ISrsResource* c)
         }
     }
 
-    vector<ISrsResource*>::iterator it = std::find(conns_.begin(), conns_.end(), c);
+    vector<ISrsResource *>::iterator it = std::find(conns_.begin(), conns_.end(), c);
     if (it != conns_.end()) {
         it = conns_.erase(it);
     }
 
     // We should copy all handlers, because it may change during callback.
-    vector<ISrsDisposingHandler*> handlers = handlers_;
+    vector<ISrsDisposingHandler *> handlers = handlers_;
 
     // Notify other handlers to handle the disposing event.
     for (int i = 0; i < (int)handlers.size(); i++) {
-        ISrsDisposingHandler* h = handlers.at(i);
+        ISrsDisposingHandler *h = handlers.at(i);
 
         // Ignore if handler is unsubscribing.
         if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
             srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore disposing resource(%s)(%p) for %p, conns=%d",
-                label_.c_str(), c->desc().c_str(), c, h, (int)conns_.size());
+                      label_.c_str(), c->desc().c_str(), c, h, (int)conns_.size());
             continue;
         }
 
@@ -451,7 +451,7 @@ srs_error_t SrsTcpConnection::set_tcp_nodelay(bool v)
     return err;
 #endif
 
-    int iv = (v? 1:0);
+    int iv = (v ? 1 : 0);
     if ((r0 = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &iv, nb_v)) != 0) {
         return srs_error_new(ERROR_SOCKET_NO_NODELAY, "setsockopt fd=%d, r0=%d", fd, r0);
     }
@@ -526,7 +526,7 @@ srs_utime_t SrsTcpConnection::get_recv_timeout()
     return skt->get_recv_timeout();
 }
 
-srs_error_t SrsTcpConnection::read_fully(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsTcpConnection::read_fully(void *buf, size_t size, ssize_t *nread)
 {
     return skt->read_fully(buf, size, nread);
 }
@@ -541,7 +541,7 @@ int64_t SrsTcpConnection::get_send_bytes()
     return skt->get_send_bytes();
 }
 
-srs_error_t SrsTcpConnection::read(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsTcpConnection::read(void *buf, size_t size, ssize_t *nread)
 {
     return skt->read(buf, size, nread);
 }
@@ -556,17 +556,17 @@ srs_utime_t SrsTcpConnection::get_send_timeout()
     return skt->get_send_timeout();
 }
 
-srs_error_t SrsTcpConnection::write(void* buf, size_t size, ssize_t* nwrite)
+srs_error_t SrsTcpConnection::write(void *buf, size_t size, ssize_t *nwrite)
 {
     return skt->write(buf, size, nwrite);
 }
 
-srs_error_t SrsTcpConnection::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+srs_error_t SrsTcpConnection::writev(const iovec *iov, int iov_size, ssize_t *nwrite)
 {
     return skt->writev(iov, iov_size, nwrite);
 }
 
-SrsBufferedReadWriter::SrsBufferedReadWriter(ISrsProtocolReadWriter* io)
+SrsBufferedReadWriter::SrsBufferedReadWriter(ISrsProtocolReadWriter *io)
 {
     io_ = io;
     buf_ = NULL;
@@ -577,7 +577,7 @@ SrsBufferedReadWriter::~SrsBufferedReadWriter()
     srs_freep(buf_);
 }
 
-srs_error_t SrsBufferedReadWriter::peek(char* buf, int* size)
+srs_error_t SrsBufferedReadWriter::peek(char *buf, int *size)
 {
     srs_error_t err = srs_success;
 
@@ -615,7 +615,7 @@ srs_error_t SrsBufferedReadWriter::reload_buffer()
     return err;
 }
 
-srs_error_t SrsBufferedReadWriter::read(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsBufferedReadWriter::read(void *buf, size_t size, ssize_t *nread)
 {
     if (!buf_ || buf_->empty()) {
         return io_->read(buf, size, nread);
@@ -625,12 +625,12 @@ srs_error_t SrsBufferedReadWriter::read(void* buf, size_t size, ssize_t* nread)
     *nread = nn;
 
     if (nn) {
-        buf_->read_bytes((char*)buf, nn);
+        buf_->read_bytes((char *)buf, nn);
     }
     return srs_success;
 }
 
-srs_error_t SrsBufferedReadWriter::read_fully(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsBufferedReadWriter::read_fully(void *buf, size_t size, ssize_t *nread)
 {
     if (!buf_ || buf_->empty()) {
         return io_->read_fully(buf, size, nread);
@@ -638,14 +638,14 @@ srs_error_t SrsBufferedReadWriter::read_fully(void* buf, size_t size, ssize_t* n
 
     int nn = srs_min(buf_->left(), (int)size);
     if (nn) {
-        buf_->read_bytes((char*)buf, nn);
+        buf_->read_bytes((char *)buf, nn);
     }
 
     int left = size - nn;
     *nread = size;
 
     if (left) {
-        return io_->read_fully((char*)buf + nn, left, NULL);
+        return io_->read_fully((char *)buf + nn, left, NULL);
     }
     return srs_success;
 }
@@ -680,17 +680,17 @@ srs_utime_t SrsBufferedReadWriter::get_send_timeout()
     return io_->get_send_timeout();
 }
 
-srs_error_t SrsBufferedReadWriter::write(void* buf, size_t size, ssize_t* nwrite)
+srs_error_t SrsBufferedReadWriter::write(void *buf, size_t size, ssize_t *nwrite)
 {
     return io_->write(buf, size, nwrite);
 }
 
-srs_error_t SrsBufferedReadWriter::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+srs_error_t SrsBufferedReadWriter::writev(const iovec *iov, int iov_size, ssize_t *nwrite)
 {
     return io_->writev(iov, iov_size, nwrite);
 }
 
-SrsSslConnection::SrsSslConnection(ISrsProtocolReadWriter* c)
+SrsSslConnection::SrsSslConnection(ISrsProtocolReadWriter *c)
 {
     transport = c;
     ssl_ctx = NULL;
@@ -746,7 +746,7 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
     SSL_set_accept_state(ssl);
     SSL_set_mode(ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
 
-    uint8_t* data = NULL;
+    uint8_t *data = NULL;
     int r0, r1, size;
 
     // Setup the key and cert file for server.
@@ -760,13 +760,14 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 
     if ((r0 = SSL_check_private_key(ssl)) != 1) {
         return srs_error_new(ERROR_HTTPS_KEY_CRT, "check key %s with cert %s",
-            key_file.c_str(), crt_file.c_str());
+                             key_file.c_str(), crt_file.c_str());
     }
     srs_info("ssl: use key %s and cert %s", key_file.c_str(), crt_file.c_str());
 
     // Receive ClientHello
     while (true) {
-        char buf[1024]; ssize_t nn = 0;
+        char buf[1024];
+        ssize_t nn = 0;
         if ((err = transport->read(buf, sizeof(buf), &nn)) != srs_success) {
             return srs_error_wrap(err, "handshake: read");
         }
@@ -776,7 +777,9 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
             return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_write r0=%d, data=%p, size=%d", r0, buf, nn);
         }
 
-        r0 = SSL_do_handshake(ssl); r1 = SSL_get_error(ssl, r0); ERR_clear_error();
+        r0 = SSL_do_handshake(ssl);
+        r1 = SSL_get_error(ssl, r0);
+        ERR_clear_error();
         if (r0 != -1 || r1 != SSL_ERROR_WANT_READ) {
             return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake r0=%d, r1=%d", r0, r1);
         }
@@ -808,7 +811,8 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 
     // Receive Client Key Exchange, Change Cipher Spec, Encrypted Handshake Message
     while (true) {
-        char buf[1024]; ssize_t nn = 0;
+        char buf[1024];
+        ssize_t nn = 0;
         if ((err = transport->read(buf, sizeof(buf), &nn)) != srs_success) {
             return srs_error_wrap(err, "handshake: read");
         }
@@ -818,7 +822,9 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
             return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_write r0=%d, data=%p, size=%d", r0, buf, nn);
         }
 
-        r0 = SSL_do_handshake(ssl); r1 = SSL_get_error(ssl, r0); ERR_clear_error();
+        r0 = SSL_do_handshake(ssl);
+        r1 = SSL_get_error(ssl, r0);
+        ERR_clear_error();
         if (r0 == 1 && r1 == SSL_ERROR_NONE) {
             break;
         }
@@ -866,7 +872,7 @@ srs_utime_t SrsSslConnection::get_recv_timeout()
     return transport->get_recv_timeout();
 }
 
-srs_error_t SrsSslConnection::read_fully(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsSslConnection::read_fully(void *buf, size_t size, ssize_t *nread)
 {
     return transport->read_fully(buf, size, nread);
 }
@@ -881,13 +887,16 @@ int64_t SrsSslConnection::get_send_bytes()
     return transport->get_send_bytes();
 }
 
-srs_error_t SrsSslConnection::read(void* plaintext, size_t nn_plaintext, ssize_t* nread)
+srs_error_t SrsSslConnection::read(void *plaintext, size_t nn_plaintext, ssize_t *nread)
 {
     srs_error_t err = srs_success;
 
     while (true) {
-        int r0 = SSL_read(ssl, plaintext, nn_plaintext); int r1 = SSL_get_error(ssl, r0); ERR_clear_error();
-        int r2 = BIO_ctrl_pending(bio_in); int r3 = SSL_is_init_finished(ssl);
+        int r0 = SSL_read(ssl, plaintext, nn_plaintext);
+        int r1 = SSL_get_error(ssl, r0);
+        ERR_clear_error();
+        int r2 = BIO_ctrl_pending(bio_in);
+        int r3 = SSL_is_init_finished(ssl);
 
         // OK, got data.
         if (r0 > 0) {
@@ -921,7 +930,7 @@ srs_error_t SrsSslConnection::read(void* plaintext, size_t nn_plaintext, ssize_t
         // Fail for error.
         if (r0 <= 0) {
             return srs_error_new(ERROR_HTTPS_READ, "SSL_read r0=%d, r1=%d, r2=%d, r3=%d",
-                r0, r1, r2, r3);
+                                 r0, r1, r2, r3);
         }
     }
 }
@@ -936,14 +945,15 @@ srs_utime_t SrsSslConnection::get_send_timeout()
     return transport->get_send_timeout();
 }
 
-srs_error_t SrsSslConnection::write(void* plaintext, size_t nn_plaintext, ssize_t* nwrite)
+srs_error_t SrsSslConnection::write(void *plaintext, size_t nn_plaintext, ssize_t *nwrite)
 {
     srs_error_t err = srs_success;
 
-    for (char* p = (char*)plaintext; p < (char*)plaintext + nn_plaintext;) {
-        int left = (int)nn_plaintext - (p - (char*)plaintext);
-        int r0 = SSL_write(ssl, (const void*)p, left);
-        int r1 = SSL_get_error(ssl, r0); ERR_clear_error();
+    for (char *p = (char *)plaintext; p < (char *)plaintext + nn_plaintext;) {
+        int left = (int)nn_plaintext - (p - (char *)plaintext);
+        int r0 = SSL_write(ssl, (const void *)p, left);
+        int r1 = SSL_get_error(ssl, r0);
+        ERR_clear_error();
         if (r0 <= 0) {
             return srs_error_new(ERROR_HTTPS_WRITE, "https: write data=%p, size=%d, r0=%d, r1=%d", p, left, r0, r1);
         }
@@ -954,7 +964,7 @@ srs_error_t SrsSslConnection::write(void* plaintext, size_t nn_plaintext, ssize_
             *nwrite += (ssize_t)r0;
         }
 
-        uint8_t* data = NULL;
+        uint8_t *data = NULL;
         int size = BIO_get_mem_data(bio_out, &data);
         if ((err = transport->write(data, size, NULL)) != srs_success) {
             return srs_error_wrap(err, "https: write data=%p, size=%d", data, size);
@@ -967,17 +977,16 @@ srs_error_t SrsSslConnection::write(void* plaintext, size_t nn_plaintext, ssize_
     return err;
 }
 
-srs_error_t SrsSslConnection::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+srs_error_t SrsSslConnection::writev(const iovec *iov, int iov_size, ssize_t *nwrite)
 {
     srs_error_t err = srs_success;
 
     for (int i = 0; i < iov_size; i++) {
-        const iovec* p = iov + i;
-        if ((err = write((void*)p->iov_base, (size_t)p->iov_len, nwrite)) != srs_success) {
+        const iovec *p = iov + i;
+        if ((err = write((void *)p->iov_base, (size_t)p->iov_len, nwrite)) != srs_success) {
             return srs_error_wrap(err, "write iov #%d base=%p, size=%d", i, p->iov_base, p->iov_len);
         }
     }
 
     return err;
 }
-

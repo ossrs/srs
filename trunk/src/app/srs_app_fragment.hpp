@@ -27,9 +27,11 @@ private:
     bool sequence_header;
     // The number of this segment, use in dash mpd.
     uint64_t number_;
+
 public:
     SrsFragment();
     virtual ~SrsFragment();
+
 public:
     // Append a frame with dts into fragment.
     // @dts The dts of frame in ms.
@@ -51,6 +53,7 @@ public:
     virtual srs_error_t unlink_file();
     // Create the dir for file recursively.
     virtual srs_error_t create_dir();
+
 public:
     // Get the temporary path for file.
     virtual std::string tmppath();
@@ -58,6 +61,7 @@ public:
     virtual srs_error_t unlink_tmpfile();
     // Rename the temp file to final file.
     virtual srs_error_t rename();
+
 public:
     // Get or set the number of this fragment.
     virtual void set_number(uint64_t n);
@@ -68,29 +72,31 @@ public:
 class SrsFragmentWindow
 {
 private:
-    std::vector<SrsFragment*> fragments;
+    std::vector<SrsFragment *> fragments;
     // The expired fragments, need to be free in future.
-    std::vector<SrsFragment*> expired_fragments;
+    std::vector<SrsFragment *> expired_fragments;
+
 public:
     SrsFragmentWindow();
     virtual ~SrsFragmentWindow();
+
 public:
     // Dispose all fragments, delete the files.
     virtual void dispose();
     // Append a new fragment, which is ready to delivery to client.
-    virtual void append(SrsFragment* fragment);
+    virtual void append(SrsFragment *fragment);
     // Shrink the window, push the expired fragment to a queue.
     virtual void shrink(srs_utime_t window);
     // Clear the expired fragments.
     virtual void clear_expired(bool delete_files);
     // Get the max duration in srs_utime_t of all fragments.
     virtual srs_utime_t max_duration();
+
 public:
     virtual bool empty();
-    virtual SrsFragment* first();
+    virtual SrsFragment *first();
     virtual int size();
-    virtual SrsFragment* at(int index);
+    virtual SrsFragment *at(int index);
 };
 
 #endif
-

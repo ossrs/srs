@@ -9,8 +9,8 @@
 
 #include <srs_core.hpp>
 
-#include <srs_protocol_io.hpp>
 #include <srs_kernel_kbps.hpp>
+#include <srs_protocol_io.hpp>
 
 /**
  * The slice of kbps statistic, for input or output.
@@ -18,7 +18,8 @@
 class SrsKbpsSlice
 {
 private:
-    SrsWallClock* clk;
+    SrsWallClock *clk;
+
 public:
     // session startup bytes
     // @remark, use total_bytes() to get the total bytes of slice.
@@ -30,9 +31,11 @@ public:
     SrsRateSample sample_1m;
     SrsRateSample sample_5m;
     SrsRateSample sample_60m;
+
 public:
-    SrsKbpsSlice(SrsWallClock* clk);
+    SrsKbpsSlice(SrsWallClock *clk);
     virtual ~SrsKbpsSlice();
+
 public:
     // Resample the slice to calculate the kbps.
     virtual void sample();
@@ -55,10 +58,11 @@ class ISrsKbpsDelta
 public:
     ISrsKbpsDelta();
     virtual ~ISrsKbpsDelta();
+
 public:
     // Resample to get the value of delta bytes.
     // @remark If no delta bytes, both in and out will be set to 0.
-    virtual void remark(int64_t* in, int64_t* out) = 0;
+    virtual void remark(int64_t *in, int64_t *out) = 0;
 };
 
 // A delta data source for SrsKbps, used in ephemeral case, for example, UDP server to increase stat when received or
@@ -68,35 +72,39 @@ class SrsEphemeralDelta : public ISrsKbpsDelta
 private:
     uint64_t in_;
     uint64_t out_;
+
 public:
     SrsEphemeralDelta();
     virtual ~SrsEphemeralDelta();
+
 public:
     virtual void add_delta(int64_t in, int64_t out);
-// Interface ISrsKbpsDelta.
+    // Interface ISrsKbpsDelta.
 public:
-    virtual void remark(int64_t* in, int64_t* out);
+    virtual void remark(int64_t *in, int64_t *out);
 };
 
 // A network delta data source for SrsKbps.
 class SrsNetworkDelta : public ISrsKbpsDelta
 {
 private:
-    ISrsProtocolStatistic* in_;
-    ISrsProtocolStatistic* out_;
+    ISrsProtocolStatistic *in_;
+    ISrsProtocolStatistic *out_;
     uint64_t in_base_;
     uint64_t in_delta_;
     uint64_t out_base_;
     uint64_t out_delta_;
+
 public:
     SrsNetworkDelta();
     virtual ~SrsNetworkDelta();
+
 public:
     // Switch the under-layer network io, we use the bytes as a fresh delta.
-    virtual void set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out);
-// Interface ISrsKbpsDelta.
+    virtual void set_io(ISrsProtocolStatistic *in, ISrsProtocolStatistic *out);
+    // Interface ISrsKbpsDelta.
 public:
-    virtual void remark(int64_t* in, int64_t* out);
+    virtual void remark(int64_t *in, int64_t *out);
 };
 
 /**
@@ -111,13 +119,15 @@ public:
 class SrsKbps
 {
 private:
-    SrsKbpsSlice* is;
-    SrsKbpsSlice* os;
-    SrsWallClock* clk;
+    SrsKbpsSlice *is;
+    SrsKbpsSlice *os;
+    SrsWallClock *clk;
+
 public:
     // Note that we won't free the clock c.
-    SrsKbps(SrsWallClock* c = NULL);
+    SrsKbps(SrsWallClock *c = NULL);
     virtual ~SrsKbps();
+
 public:
     // Get total average kbps.
     virtual int get_send_kbps();
@@ -128,12 +138,14 @@ public:
     // Get the average kbps in 5m or 300s.
     virtual int get_send_kbps_5m();
     virtual int get_recv_kbps_5m();
+
 public:
     // Add delta to kbps. Please call sample() after all deltas are added to kbps.
     virtual void add_delta(int64_t in, int64_t out);
-    virtual void add_delta(ISrsKbpsDelta* delta);
+    virtual void add_delta(ISrsKbpsDelta *delta);
     // Sample the kbps to get the kbps in N seconds.
     virtual void sample();
+
 public:
     virtual int64_t get_send_bytes();
     virtual int64_t get_recv_bytes();
@@ -143,14 +155,17 @@ public:
 class SrsNetworkKbps
 {
 private:
-    SrsNetworkDelta* delta_;
-    SrsKbps* kbps_;
+    SrsNetworkDelta *delta_;
+    SrsKbps *kbps_;
+
 public:
-    SrsNetworkKbps(SrsWallClock* c = NULL);
+    SrsNetworkKbps(SrsWallClock *c = NULL);
     virtual ~SrsNetworkKbps();
+
 public:
-    virtual void set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out);
+    virtual void set_io(ISrsProtocolStatistic *in, ISrsProtocolStatistic *out);
     virtual void sample();
+
 public:
     virtual int get_send_kbps();
     virtual int get_recv_kbps();
@@ -158,6 +173,7 @@ public:
     virtual int get_recv_kbps_30s();
     virtual int get_send_kbps_5m();
     virtual int get_recv_kbps_5m();
+
 public:
     virtual int64_t get_send_bytes();
     virtual int64_t get_recv_bytes();

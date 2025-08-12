@@ -9,8 +9,8 @@
 
 #include <srs_core.hpp>
 
-#include <srs_kernel_codec.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_codec.hpp>
 
 #include <vector>
 
@@ -33,10 +33,11 @@ class ISrsStreamBridge
 public:
     ISrsStreamBridge();
     virtual ~ISrsStreamBridge();
+
 public:
-    virtual srs_error_t initialize(SrsRequest* r) = 0;
+    virtual srs_error_t initialize(SrsRequest *r) = 0;
     virtual srs_error_t on_publish() = 0;
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame) = 0;
+    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame) = 0;
     virtual void on_unpublish() = 0;
 };
 
@@ -45,16 +46,20 @@ class SrsFrameToRtmpBridge : public ISrsStreamBridge
 {
 private:
     SrsSharedPtr<SrsLiveSource> source_;
+
 public:
     SrsFrameToRtmpBridge(SrsSharedPtr<SrsLiveSource> source);
     virtual ~SrsFrameToRtmpBridge();
+
 public:
-    srs_error_t initialize(SrsRequest* r);
+    srs_error_t initialize(SrsRequest *r);
+
 public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
+
 public:
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
+    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
 };
 
 #ifdef SRS_RTC
@@ -63,19 +68,21 @@ class SrsFrameToRtcBridge : public ISrsStreamBridge
 {
 private:
     SrsSharedPtr<SrsRtcSource> source_;
+
 private:
 #if defined(SRS_FFMPEG_FIT)
-    SrsRtcRtpBuilder* rtp_builder_;
+    SrsRtcRtpBuilder *rtp_builder_;
 #endif
 public:
     SrsFrameToRtcBridge(SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsFrameToRtcBridge();
+
 public:
-    virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t initialize(SrsRequest *r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
-    srs_error_t on_rtp(SrsRtpPacket* pkt);
+    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
+    srs_error_t on_rtp(SrsRtpPacket *pkt);
 };
 #endif
 
@@ -85,17 +92,20 @@ class SrsFrameToRtspBridge : public ISrsStreamBridge
 {
 private:
     SrsSharedPtr<SrsRtspSource> source_;
+
 private:
-    SrsRtspRtpBuilder* rtp_builder_;
+    SrsRtspRtpBuilder *rtp_builder_;
+
 public:
     SrsFrameToRtspBridge(SrsSharedPtr<SrsRtspSource> source);
     virtual ~SrsFrameToRtspBridge();
+
 public:
-    virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t initialize(SrsRequest *r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
-    srs_error_t on_rtp(SrsRtpPacket* pkt);
+    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
+    srs_error_t on_rtp(SrsRtpPacket *pkt);
 };
 #endif
 
@@ -105,20 +115,24 @@ class SrsCompositeBridge : public ISrsStreamBridge
 public:
     SrsCompositeBridge();
     virtual ~SrsCompositeBridge();
+
 public:
     bool empty() { return bridges_.empty(); } // SrsCompositeBridge::empty()
 public:
-    srs_error_t initialize(SrsRequest* r);
+    srs_error_t initialize(SrsRequest *r);
+
 public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
+
 public:
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
+    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
+
 public:
-    SrsCompositeBridge* append(ISrsStreamBridge* bridge);
+    SrsCompositeBridge *append(ISrsStreamBridge *bridge);
+
 private:
-    std::vector<ISrsStreamBridge*> bridges_;
+    std::vector<ISrsStreamBridge *> bridges_;
 };
 
 #endif
-

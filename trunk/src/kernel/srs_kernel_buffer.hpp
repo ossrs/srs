@@ -9,8 +9,8 @@
 
 #include <srs_core.hpp>
 
-#include <sys/types.h>
 #include <string>
+#include <sys/types.h>
 
 class SrsBuffer;
 
@@ -20,6 +20,7 @@ class ISrsEncoder
 public:
     ISrsEncoder();
     virtual ~ISrsEncoder();
+
 public:
     /**
      * get the number of bytes to code to.
@@ -28,7 +29,7 @@ public:
     /**
      * encode object to bytes in SrsBuffer.
      */
-    virtual srs_error_t encode(SrsBuffer* buf) = 0;
+    virtual srs_error_t encode(SrsBuffer *buf) = 0;
 };
 
 /**
@@ -61,14 +62,16 @@ class ISrsCodec : public ISrsEncoder
 public:
     ISrsCodec();
     virtual ~ISrsCodec();
+
 public:
     // Get the number of bytes to code to.
     virtual uint64_t nb_bytes() = 0;
     // Encode object to bytes in SrsBuffer.
-    virtual srs_error_t encode(SrsBuffer* buf) = 0;
+    virtual srs_error_t encode(SrsBuffer *buf) = 0;
+
 public:
     // Decode object from bytes in SrsBuffer.
-    virtual srs_error_t decode(SrsBuffer* buf) = 0;
+    virtual srs_error_t decode(SrsBuffer *buf) = 0;
 };
 
 /**
@@ -81,23 +84,25 @@ class SrsBuffer
 {
 private:
     // current position at bytes.
-    char* p;
+    char *p;
     // the bytes data for buffer to read or write.
-    char* bytes;
+    char *bytes;
     // the total number of bytes.
     int nb_bytes;
+
 public:
     // Create buffer with data b and size nn.
     // @remark User must free the data b.
-    SrsBuffer(char* b, int nn);
+    SrsBuffer(char *b, int nn);
     ~SrsBuffer();
+
 public:
     // Copy the object, keep position of buffer.
-    SrsBuffer* copy();
+    SrsBuffer *copy();
     // Get the data and head of buffer.
     //      current-bytes = head() = data() + pos()
-    char* data();
-    char* head();
+    char *data();
+    char *head();
     // Get the total size of buffer.
     //      left-bytes = size() - pos()
     int size();
@@ -112,12 +117,14 @@ public:
     // @remark User should check buffer by require then do read/write.
     // @remark Assert the required_size is not negative.
     bool require(int required_size);
+
 public:
     // Skip some size.
     // @param size can be any value. positive to forward; negative to backward.
     // @remark to skip(pos()) to reset buffer.
     // @remark assert initialized, the data() not NULL.
     void skip(int size);
+
 public:
     // Read 1bytes char from buffer.
     int8_t read_1bytes();
@@ -136,7 +143,8 @@ public:
     // Read string from buffer, length specifies by param len.
     std::string read_string(int len);
     // Read bytes from buffer, length specifies by param len.
-    void read_bytes(char* data, int size);
+    void read_bytes(char *data, int size);
+
 public:
     // Write 1bytes char to buffer.
     void write_1bytes(int8_t value);
@@ -155,7 +163,7 @@ public:
     // Write string to buffer
     void write_string(std::string value);
     // Write bytes to buffer
-    void write_bytes(char* data, int size);
+    void write_bytes(char *data, int size);
 };
 
 /**
@@ -167,10 +175,12 @@ class SrsBitBuffer
 private:
     int8_t cb;
     uint8_t cb_left;
-    SrsBuffer* stream;
+    SrsBuffer *stream;
+
 public:
-    SrsBitBuffer(SrsBuffer* b);
+    SrsBitBuffer(SrsBuffer *b);
     ~SrsBitBuffer();
+
 public:
     bool empty();
     int8_t read_bit();
@@ -181,8 +191,8 @@ public:
     int8_t read_8bits();
     int16_t read_16bits();
     int32_t read_32bits();
-    srs_error_t read_bits_ue(uint32_t& v);
-    srs_error_t read_bits_se(int32_t& v);
+    srs_error_t read_bits_ue(uint32_t &v);
+    srs_error_t read_bits_se(int32_t &v);
 };
 
 #endif

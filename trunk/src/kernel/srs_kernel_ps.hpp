@@ -15,8 +15,7 @@ class SrsPsPacket;
 class SrsPsContext;
 
 // The helper for PS decoding.
-struct SrsPsDecodeHelper
-{
+struct SrsPsDecodeHelper {
 public:
     // For debugging to get the RTP packet source. Not used in context.
     uint16_t rtp_seq_;
@@ -24,6 +23,7 @@ public:
     uint32_t rtp_ts_;
     // For debugging to get the RTP packet payload type. Not used in context.
     uint8_t rtp_pt_;
+
 public:
     // For debugging, current pack id. Not used in context.
     uint32_t pack_id_;
@@ -33,11 +33,13 @@ public:
     uint16_t pack_pre_msg_last_seq_;
     // For debugging, the number of messages in pack. Not used in context.
     uint16_t pack_nn_msgs_;
+
 public:
     // The PS context for decoding.
-    SrsPsContext* ctx_;
+    SrsPsContext *ctx_;
     // The PS packet for decoding.
-    SrsPsPacket* ps_;
+    SrsPsPacket *ps_;
+
 public:
     SrsPsDecodeHelper();
 };
@@ -48,6 +50,7 @@ class ISrsPsMessageHandler : public ISrsTsHandler
 public:
     ISrsPsMessageHandler();
     virtual ~ISrsPsMessageHandler();
+
 public:
     // When enter recover mode, user should drop all messages in pack. The nn_recover indicates the number of retry
     // during recovery, that is 0 for the first time, and 1 for the second time.
@@ -59,36 +62,42 @@ class SrsPsContext
 {
 public:
     SrsPsDecodeHelper helper_;
+
 private:
     // The last decoding PS(TS) message.
-    SrsTsMessage* last_;
+    SrsTsMessage *last_;
     // The current parsing PS packet context.
-    SrsPsPacket* current_;
+    SrsPsPacket *current_;
     // Whether detect PS packet header integrity.
     bool detect_ps_integrity_;
+
 public:
     // The stream type parsed from latest PSM packet.
     SrsTsStream video_stream_type_;
     SrsTsStream audio_stream_type_;
+
 public:
     SrsPsContext();
     virtual ~SrsPsContext();
+
 public:
     // Set whether detecting PS header integrity.
     void set_detect_ps_integrity(bool v);
     // Get the last PS(TS) message. Create one if not exists.
-    SrsTsMessage* last();
+    SrsTsMessage *last();
     // Reap the last message and create a fresh one.
-    SrsTsMessage* reap();
+    SrsTsMessage *reap();
+
 public:
     // Feed with ts packets, decode as ts message, callback handler if got one ts message.
     //      A ts video message can be decoded to NALUs by SrsRawH264Stream::annexb_demux.
     //      A ts audio message can be decoded to RAW frame by SrsRawAacStream::adts_demux.
     // @param handler The ts message handler to process the msg.
     // @remark We will consume all bytes in stream.
-    virtual srs_error_t decode(SrsBuffer* stream, ISrsPsMessageHandler* handler);
+    virtual srs_error_t decode(SrsBuffer *stream, ISrsPsMessageHandler *handler);
+
 private:
-    srs_error_t do_decode(SrsBuffer* stream, ISrsPsMessageHandler* handler);
+    srs_error_t do_decode(SrsBuffer *stream, ISrsPsMessageHandler *handler);
 };
 
 // The packet in ps stream.
@@ -96,7 +105,8 @@ private:
 class SrsPsPacket
 {
 public:
-    SrsPsContext* context_;
+    SrsPsContext *context_;
+
 public:
     // The global ID of pack header. The low 16 bits is reserved for seq. Automatically generate the high bits in
     // constructor.
@@ -104,7 +114,7 @@ public:
     // Whether the PS pack stream has pack and system header.
     bool has_pack_header_;
     bool has_system_header_;
-// Table 2-33 – Program Stream pack header, hls-mpeg-ts-iso13818-1.pdf, page 73
+    // Table 2-33 – Program Stream pack header, hls-mpeg-ts-iso13818-1.pdf, page 73
 public:
     // 4B
     // The pack_start_code is the bit string '0000 0000 0000 0000 0000 0001 1011 1010' (0x000001BA). It identifies the
@@ -126,7 +136,7 @@ public:
     // The second part, system_clock_reference_extension, is a 9-bit field whose value is given by SCR_ext(i), as given
     // in equation 2-20. The SCR indicates the intended time of arrival of the byte containing the last bit of the
     // system_clock_reference_base at the input of the program target decoder.
-    uint64_t system_clock_reference_base_; // 32bits
+    uint64_t system_clock_reference_base_;      // 32bits
     uint16_t system_clock_reference_extension_; // 9bits
 
     // 3B
@@ -145,7 +155,7 @@ public:
     //      3bits pack_stuffing_length
     // A 3-bit integer specifying the number of stuffing bytes which follow this field.
     uint8_t pack_stuffing_length_; // 3bits
-// Table 2-34 – Program Stream system header, hls-mpeg-ts-iso13818-1.pdf, page 74
+    // Table 2-34 – Program Stream system header, hls-mpeg-ts-iso13818-1.pdf, page 74
 public:
     // 4B
     // The system_header_start_code is the bit string '0000 0000 0000 0000 0000 0001 1011 1011' (0x000001BB). It
@@ -240,14 +250,17 @@ public:
     uint8_t video_stream_id_;
     uint8_t video_buffer_bound_scale_;
     uint16_t video_buffer_size_bound_;
+
 public:
-    SrsPsPacket(SrsPsContext* context);
+    SrsPsPacket(SrsPsContext *context);
     virtual ~SrsPsPacket();
+
 public:
-    virtual srs_error_t decode(SrsBuffer* stream);
+    virtual srs_error_t decode(SrsBuffer *stream);
+
 private:
-    virtual srs_error_t decode_pack(SrsBuffer* stream);
-    virtual srs_error_t decode_system(SrsBuffer* stream);
+    virtual srs_error_t decode_pack(SrsBuffer *stream);
+    virtual srs_error_t decode_system(SrsBuffer *stream);
 };
 
 // The Program Stream Map (PSM) provides a description of the elementary streams in the Program Stream and their
@@ -307,12 +320,13 @@ public:
     // This is a 32-bit field that contains the CRC value that gives a zero output of the registers in the decoder
     // defined in Annex A after processing the entire program stream map.
     uint32_t CRC_32_;
+
 public:
     SrsPsPsmPacket();
     virtual ~SrsPsPsmPacket();
+
 public:
-    virtual srs_error_t decode(SrsBuffer* stream);
+    virtual srs_error_t decode(SrsBuffer *stream);
 };
 
 #endif
-

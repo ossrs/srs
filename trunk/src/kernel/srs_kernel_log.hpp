@@ -12,16 +12,15 @@
 #include <stdio.h>
 
 #include <errno.h>
+#include <stdarg.h>
 #include <string.h>
 #include <string>
-#include <stdarg.h>
 
 #include <srs_kernel_consts.hpp>
 
 // The log level, see https://github.com/apache/logging-log4j2/blob/release-2.x/log4j-api/src/main/java/org/apache/logging/log4j/Level.java
 // Please note that the enum name might not be the string, to keep compatible with previous definition.
-enum SrsLogLevel
-{
+enum SrsLogLevel {
     SrsLogLevelForbidden = 0x00,
 
     // Only used for very verbose debug, generally,
@@ -36,7 +35,7 @@ enum SrsLogLevel
 };
 
 // Get the level in string.
-extern const char* srs_log_level_strings[];
+extern const char *srs_log_level_strings[];
 
 // The log interface provides method to write log.
 // but we provides some macro, which enable us to disable the log when compile.
@@ -46,14 +45,16 @@ class ISrsLog
 public:
     ISrsLog();
     virtual ~ISrsLog();
+
 public:
     // Initialize log utilities.
     virtual srs_error_t initialize() = 0;
     // Reopen the log file for log rotate.
     virtual void reopen() = 0;
+
 public:
     // Write a application level log. All parameters are required except the tag.
-    virtual void log(SrsLogLevel level, const char* tag, const SrsContextId& context_id, const char* fmt, va_list args) = 0;
+    virtual void log(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, va_list args) = 0;
 };
 
 // The logic context, for example, a RTMP connection, or RTC Session, etc.
@@ -67,25 +68,26 @@ class ISrsContext
 public:
     ISrsContext();
     virtual ~ISrsContext();
+
 public:
     // Generate a new context id.
     // @remark We do not set to current thread, user should do this.
     virtual SrsContextId generate_id() = 0;
     // Get the context id of current thread.
-    virtual const SrsContextId& get_id() = 0;
+    virtual const SrsContextId &get_id() = 0;
     // Set the context id of current thread.
     // @return the current context id.
-    virtual const SrsContextId& set_id(const SrsContextId& v) = 0;
+    virtual const SrsContextId &set_id(const SrsContextId &v) = 0;
 };
 
 // @global User must implements the LogContext and define a global instance.
-extern ISrsContext* _srs_context;
+extern ISrsContext *_srs_context;
 
 // @global User must provides a log object
-extern ISrsLog* _srs_log;
+extern ISrsLog *_srs_log;
 
 // Global log function implementation. Please use helper macros, for example, srs_trace or srs_error.
-extern void srs_logger_impl(SrsLogLevel level, const char* tag, const SrsContextId& context_id, const char* fmt, ...);
+extern void srs_logger_impl(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, ...);
 
 // Log style.
 // Use __FUNCTION__ to print c method
@@ -104,17 +106,16 @@ extern void srs_logger_impl(SrsLogLevel level, const char* tag, const SrsContext
 
 // TODO: FIXME: Add more verbose and info logs.
 #ifndef SRS_VERBOSE
-    #undef srs_verbose
-    #define srs_verbose(msg, ...) (void)0
+#undef srs_verbose
+#define srs_verbose(msg, ...) (void)0
 #endif
 #ifndef SRS_INFO
-    #undef srs_info
-    #define srs_info(msg, ...) (void)0
+#undef srs_info
+#define srs_info(msg, ...) (void)0
 #endif
 #ifndef SRS_TRACE
-    #undef srs_trace
-    #define srs_trace(msg, ...) (void)0
+#undef srs_trace
+#define srs_trace(msg, ...) (void)0
 #endif
 
 #endif
-

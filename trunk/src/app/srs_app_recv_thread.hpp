@@ -9,14 +9,14 @@
 
 #include <srs_core.hpp>
 
-#include <vector>
 #include <string>
+#include <vector>
 
-#include <srs_app_st.hpp>
-#include <srs_protocol_stream.hpp>
-#include <srs_core_performance.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_app_st.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_core_performance.hpp>
+#include <srs_protocol_stream.hpp>
 
 class SrsRtmpServer;
 class SrsCommonMessage;
@@ -33,10 +33,11 @@ class ISrsMessageConsumer
 public:
     ISrsMessageConsumer();
     virtual ~ISrsMessageConsumer();
+
 public:
     // Consume the received message.
     // @remark user must free this message.
-    virtual srs_error_t consume(SrsCommonMessage* msg) = 0;
+    virtual srs_error_t consume(SrsCommonMessage *msg) = 0;
 };
 
 // The message pumper to pump messages to processer.
@@ -45,6 +46,7 @@ class ISrsMessagePumper : public ISrsMessageConsumer
 public:
     ISrsMessagePumper();
     virtual ~ISrsMessagePumper();
+
 public:
     // Whether the pumper is interrupted.
     // For example, when pumpter is busy, it's interrupted,
@@ -62,26 +64,30 @@ public:
 class SrsRecvThread : public ISrsCoroutineHandler
 {
 protected:
-    SrsCoroutine* trd;
-    ISrsMessagePumper* pumper;
-    SrsRtmpServer* rtmp;
+    SrsCoroutine *trd;
+    ISrsMessagePumper *pumper;
+    SrsRtmpServer *rtmp;
     SrsContextId _parent_cid;
     // The recv timeout in srs_utime_t.
     srs_utime_t timeout;
+
 public:
     // Constructor.
     // @param tm The receive timeout in srs_utime_t.
-    SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, SrsContextId parent_cid);
+    SrsRecvThread(ISrsMessagePumper *p, SrsRtmpServer *r, srs_utime_t tm, SrsContextId parent_cid);
     virtual ~SrsRecvThread();
+
 public:
     virtual SrsContextId cid();
+
 public:
     virtual srs_error_t start();
     virtual void stop();
     virtual void stop_loop();
-// Interface ISrsReusableThread2Handler
+    // Interface ISrsReusableThread2Handler
 public:
     virtual srs_error_t cycle();
+
 private:
     virtual srs_error_t do_cycle();
 };
@@ -93,27 +99,30 @@ private:
 class SrsQueueRecvThread : public ISrsMessagePumper
 {
 private:
-    std::vector<SrsCommonMessage*> queue;
+    std::vector<SrsCommonMessage *> queue;
     SrsRecvThread trd;
-    SrsRtmpServer* rtmp;
+    SrsRtmpServer *rtmp;
     // The recv thread error code.
     srs_error_t recv_error;
-    SrsLiveConsumer* _consumer;
+    SrsLiveConsumer *_consumer;
+
 public:
-	// TODO: FIXME: Refine timeout in time unit.
-    SrsQueueRecvThread(SrsLiveConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid);
+    // TODO: FIXME: Refine timeout in time unit.
+    SrsQueueRecvThread(SrsLiveConsumer *consumer, SrsRtmpServer *rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid);
     virtual ~SrsQueueRecvThread();
+
 public:
     virtual srs_error_t start();
     virtual void stop();
+
 public:
     virtual bool empty();
     virtual int size();
-    virtual SrsCommonMessage* pump();
+    virtual SrsCommonMessage *pump();
     virtual srs_error_t error_code();
-// Interface ISrsMessagePumper
+    // Interface ISrsMessagePumper
 public:
-    virtual srs_error_t consume(SrsCommonMessage* msg);
+    virtual srs_error_t consume(SrsCommonMessage *msg);
     virtual bool interrupted();
     virtual void interrupt(srs_error_t err);
     virtual void on_start();
@@ -124,14 +133,15 @@ public:
 // @see: https://github.com/ossrs/srs/issues/237
 class SrsPublishRecvThread : public ISrsMessagePumper, public ISrsReloadHandler
 #ifdef SRS_PERF_MERGED_READ
-    , public IMergeReadHandler
+    ,
+                             public IMergeReadHandler
 #endif
 {
 private:
     uint32_t nn_msgs_for_yield_;
     SrsRecvThread trd;
-    SrsRtmpServer* rtmp;
-    SrsRequest* req;
+    SrsRtmpServer *rtmp;
+    SrsRequest *req;
     // The msgs already got.
     int64_t _nb_msgs;
     // The video frames we got.
@@ -145,7 +155,7 @@ private:
     bool realtime;
     // The recv thread error code.
     srs_error_t recv_error;
-    SrsRtmpConn* _conn;
+    SrsRtmpConn *_conn;
     // The params for conn callback.
     SrsSharedPtr<SrsLiveSource> source_;
     // The error timeout cond
@@ -153,10 +163,12 @@ private:
     // The merged context id.
     SrsContextId cid;
     SrsContextId ncid;
+
 public:
-    SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
-        int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSharedPtr<SrsLiveSource> source, SrsContextId parent_cid);
+    SrsPublishRecvThread(SrsRtmpServer *rtmp_sdk, SrsRequest *_req,
+                         int mr_sock_fd, srs_utime_t tm, SrsRtmpConn *conn, SrsSharedPtr<SrsLiveSource> source, SrsContextId parent_cid);
     virtual ~SrsPublishRecvThread();
+
 public:
     // Wait for error for some timeout.
     virtual srs_error_t wait(srs_utime_t tm);
@@ -165,25 +177,27 @@ public:
     virtual srs_error_t error_code();
     virtual void set_cid(SrsContextId v);
     virtual SrsContextId get_cid();
+
 public:
     virtual srs_error_t start();
     virtual void stop();
-// Interface ISrsMessagePumper
+    // Interface ISrsMessagePumper
 public:
-    virtual srs_error_t consume(SrsCommonMessage* msg);
+    virtual srs_error_t consume(SrsCommonMessage *msg);
     virtual bool interrupted();
     virtual void interrupt(srs_error_t err);
     virtual void on_start();
     virtual void on_stop();
-// Interface IMergeReadHandler
+    // Interface IMergeReadHandler
 public:
 #ifdef SRS_PERF_MERGED_READ
     virtual void on_read(ssize_t nread);
 #endif
-// Interface ISrsReloadHandler
+    // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_publish(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
+
 private:
     virtual void set_socket_buffer(srs_utime_t sleep_v);
 };
@@ -195,19 +209,21 @@ private:
 class SrsHttpRecvThread : public ISrsCoroutineHandler
 {
 private:
-    SrsHttpxConn* conn;
-    SrsCoroutine* trd;
+    SrsHttpxConn *conn;
+    SrsCoroutine *trd;
+
 public:
-    SrsHttpRecvThread(SrsHttpxConn* c);
+    SrsHttpRecvThread(SrsHttpxConn *c);
     virtual ~SrsHttpRecvThread();
+
 public:
     virtual srs_error_t start();
+
 public:
     virtual srs_error_t pull();
-// Interface ISrsCoroutineHandler
+    // Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
 };
 
 #endif
-

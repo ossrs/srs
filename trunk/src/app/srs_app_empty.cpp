@@ -5,5 +5,3 @@
 //
 
 #include <srs_app_empty.hpp>
-
-

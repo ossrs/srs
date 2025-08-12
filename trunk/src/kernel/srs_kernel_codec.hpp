@@ -20,9 +20,9 @@ class SrsFormat;
  * defined in reference link:
  * https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf
  * */
-#define SRS_FLV_IS_EX_HEADER          0x80
+#define SRS_FLV_IS_EX_HEADER 0x80
 
-// @see: https://datatracker.ietf.org/doc/html/rfc6184#section-1.3  
+// @see: https://datatracker.ietf.org/doc/html/rfc6184#section-1.3
 const int SrsAvcNaluHeaderSize = 1;
 // @see: https://datatracker.ietf.org/doc/html/rfc7798#section-1.1.4
 const int SrsHevcNaluHeaderSize = 2;
@@ -40,17 +40,16 @@ const int SrsHevcNaluHeaderSize = 2;
  *      7 = AVC
  *     12 = HEVC
  */
-enum SrsVideoCodecId
-{
+enum SrsVideoCodecId {
     // set to the zero to reserved, for array map.
     SrsVideoCodecIdReserved = 0,
     SrsVideoCodecIdForbidden = 0,
     SrsVideoCodecIdReserved1 = 1,
     SrsVideoCodecIdReserved2 = 9,
-    
+
     // for user to disable video, for example, use pure audio hls.
     SrsVideoCodecIdDisabled = 8,
-    
+
     SrsVideoCodecIdSorensonH263 = 2,
     SrsVideoCodecIdScreenVideo = 3,
     SrsVideoCodecIdOn2VP6 = 4,
@@ -63,7 +62,7 @@ enum SrsVideoCodecId
     SrsVideoCodecIdAV1 = 13,
 };
 std::string srs_video_codec_id2str(SrsVideoCodecId codec);
-SrsVideoCodecId srs_video_codec_str2id(const std::string& codec);
+SrsVideoCodecId srs_video_codec_str2id(const std::string &codec);
 
 /**
  * The video AVC frame trait(characteristic).
@@ -74,12 +73,11 @@ SrsVideoCodecId srs_video_codec_str2id(const std::string& codec);
  *      1 = AVC NALU
  *      2 = AVC end of sequence (lower level NALU sequence ender is not required or supported)
  */
-enum SrsVideoAvcFrameTrait
-{
+enum SrsVideoAvcFrameTrait {
     // set to the max value to reserved, for array map.
     SrsVideoAvcFrameTraitReserved = 6,
     SrsVideoAvcFrameTraitForbidden = 6,
-    
+
     SrsVideoAvcFrameTraitSequenceHeader = 0,
     SrsVideoAvcFrameTraitNALU = 1,
     SrsVideoAvcFrameTraitSequenceHeaderEOF = 2,
@@ -116,13 +114,12 @@ enum SrsVideoAvcFrameTrait
  *      4 = generated key frame (reserved for server use only)
  *      5 = video info/command frame
  */
-enum SrsVideoAvcFrameType
-{
+enum SrsVideoAvcFrameType {
     // set to the zero to reserved, for array map.
     SrsVideoAvcFrameTypeReserved = 0,
     SrsVideoAvcFrameTypeForbidden = 0,
     SrsVideoAvcFrameTypeReserved1 = 6,
-    
+
     SrsVideoAvcFrameTypeKeyFrame = 1,
     SrsVideoAvcFrameTypeInterFrame = 2,
     SrsVideoAvcFrameTypeDisposableInterFrame = 3,
@@ -153,15 +150,14 @@ enum SrsVideoAvcFrameType
  * AAC is supported in Flash Player 9,0,115,0 and higher.
  * Speex is supported in Flash Player 10 and higher.
  */
-enum SrsAudioCodecId
-{
+enum SrsAudioCodecId {
     // set to the max value to reserved, for array map.
     SrsAudioCodecIdReserved1 = 16,
     SrsAudioCodecIdForbidden = 16,
-    
+
     // for user to disable audio, for example, use pure video hls.
     SrsAudioCodecIdDisabled = 17,
-    
+
     SrsAudioCodecIdLinearPCMPlatformEndian = 0,
     SrsAudioCodecIdADPCM = 1,
     SrsAudioCodecIdMP3 = 2,
@@ -180,7 +176,7 @@ enum SrsAudioCodecId
     SrsAudioCodecIdReservedDeviceSpecificSound = 15,
 };
 std::string srs_audio_codec_id2str(SrsAudioCodecId codec);
-SrsAudioCodecId srs_audio_codec_str2id(const std::string& codec);
+SrsAudioCodecId srs_audio_codec_str2id(const std::string &codec);
 
 /**
  * The audio AAC frame trait(characteristic).
@@ -190,8 +186,7 @@ SrsAudioCodecId srs_audio_codec_str2id(const std::string& codec);
  *      0 = AAC sequence header
  *      1 = AAC raw
  */
-enum SrsAudioAacFrameTrait
-{
+enum SrsAudioAacFrameTrait {
     // set to the max value to reserved, for array map.
     SrsAudioAacFrameTraitReserved = 0xff,
     SrsAudioAacFrameTraitForbidden = 0xff,
@@ -199,13 +194,13 @@ enum SrsAudioAacFrameTrait
     // For AAC, we detect the sequence header by content.
     SrsAudioAacFrameTraitSequenceHeader = 0,
     SrsAudioAacFrameTraitRawData = 1,
-    
+
     // For Opus, the frame trait, may has more than one traits.
     SrsAudioOpusFrameTraitRaw = 2,
     SrsAudioOpusFrameTraitSamplingRate = 4,
     SrsAudioOpusFrameTraitAudioLevel = 8,
 
-    // 16/32 reserved for g711a/g711u 
+    // 16/32 reserved for g711a/g711u
 
     // For MP3 we assume the first packet is sequence header, while it actually is not the same thing, because we do
     // this to simplify the workflow, to make sure we can detect the audio codec from the sequence headers.
@@ -224,12 +219,11 @@ enum SrsAudioAacFrameTrait
  * However, we can extends this table.
  * @remark Use srs_flv_srates to convert it.
  */
-enum SrsAudioSampleRate
-{
+enum SrsAudioSampleRate {
     // set to the max value to reserved, for array map.
     SrsAudioSampleRateReserved = 0xff,
     SrsAudioSampleRateForbidden = 0xff,
-    
+
     // For FLV, only support 5, 11, 22, 44KHz sampling rate.
     SrsAudioSampleRate5512 = 0,
     SrsAudioSampleRate11025 = 1,
@@ -240,15 +234,15 @@ enum SrsAudioSampleRate
     SrsAudioSampleRate12000 = 12,
     SrsAudioSampleRate24000 = 24,
     SrsAudioSampleRate48000 = 48,
-    
+
     // For Opus, support 8, 12, 16, 24, 48KHz
     // We will write a UINT8 sampling rate after FLV audio tag header.
     // @doc https://tools.ietf.org/html/rfc6716#section-2
-    SrsAudioSampleRateNB8kHz   = 8,  // NB (narrowband)
-    SrsAudioSampleRateMB12kHz  = 12, // MB (medium-band)
-    SrsAudioSampleRateWB16kHz  = 16, // WB (wideband)
+    SrsAudioSampleRateNB8kHz = 8,    // NB (narrowband)
+    SrsAudioSampleRateMB12kHz = 12,  // MB (medium-band)
+    SrsAudioSampleRateWB16kHz = 16,  // WB (wideband)
     SrsAudioSampleRateSWB24kHz = 24, // SWB (super-wideband)
-    SrsAudioSampleRateFB48kHz  = 48, // FB (fullband)
+    SrsAudioSampleRateFB48kHz = 48,  // FB (fullband)
 };
 SrsAudioSampleRate srs_audio_sample_rate_from_number(uint32_t v);
 SrsAudioSampleRate srs_audio_sample_rate_guess_number(uint32_t v);
@@ -259,12 +253,11 @@ std::string srs_audio_sample_rate2str(SrsAudioSampleRate v);
  * The frame type, for example, audio, video or data.
  * @doc video_file_format_spec_v10_1.pdf, page 75, E.4.1 FLV Tag
  */
-enum SrsFrameType
-{
+enum SrsFrameType {
     // set to the zero to reserved, for array map.
     SrsFrameTypeReserved = 0,
     SrsFrameTypeForbidden = 0,
-    
+
     // 8 = audio
     SrsFrameTypeAudio = 8,
     // 9 = video
@@ -287,24 +280,24 @@ public:
     /**
      * only check the frame_type, not check the codec type.
      */
-    static bool keyframe(char* data, int size);
+    static bool keyframe(char *data, int size);
     /**
      * check codec h264, keyframe, sequence header
      */
     // TODO: FIXME: Remove it, use SrsFormat instead.
-    static bool sh(char* data, int size);
+    static bool sh(char *data, int size);
     /**
      * check codec h264.
      */
-    static bool h264(char* data, int size);
+    static bool h264(char *data, int size);
     // Check whether codec is HEVC(H.265).
-    static bool hevc(char* data, int size);
+    static bool hevc(char *data, int size);
     /**
      * check the video RTMP/flv header info,
      * @return true if video RTMP/flv header is ok.
      * @remark all type of audio is possible, no need to check audio.
      */
-    static bool acceptable(char* data, int size);
+    static bool acceptable(char *data, int size);
 };
 
 /**
@@ -321,11 +314,11 @@ public:
     /**
      * check codec aac, sequence header
      */
-    static bool sh(char* data, int size);
+    static bool sh(char *data, int size);
     /**
      * check codec aac.
      */
-    static bool aac(char* data, int size);
+    static bool aac(char *data, int size);
 };
 
 /**
@@ -359,12 +352,11 @@ extern int srs_aac_srates[];
  *      0 = 8-bit samples
  *      1 = 16-bit samples
  */
-enum SrsAudioSampleBits
-{
+enum SrsAudioSampleBits {
     // set to the max value to reserved, for array map.
     SrsAudioSampleBitsReserved = 2,
     SrsAudioSampleBitsForbidden = 2,
-    
+
     SrsAudioSampleBits8bit = 0,
     SrsAudioSampleBits16bit = 1,
 };
@@ -377,12 +369,11 @@ std::string srs_audio_sample_bits2str(SrsAudioSampleBits v);
  *      0 = Mono sound
  *      1 = Stereo sound
  */
-enum SrsAudioChannels
-{
+enum SrsAudioChannels {
     // set to the max value to reserved, for array map.
     SrsAudioChannelsReserved = 2,
     SrsAudioChannelsForbidden = 2,
-    
+
     SrsAudioChannelsMono = 0,
     SrsAudioChannelsStereo = 1,
 };
@@ -392,12 +383,11 @@ std::string srs_audio_channels2str(SrsAudioChannels v);
  * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes
  * ISO_IEC_14496-10-AVC-2012.pdf, page 83.
  */
-enum SrsAvcNaluType
-{
+enum SrsAvcNaluType {
     // Unspecified
     SrsAvcNaluTypeReserved = 0,
     SrsAvcNaluTypeForbidden = 0,
-    
+
     // Coded slice of a non-IDR picture slice_layer_without_partitioning_rbsp( )
     SrsAvcNaluTypeNonIDR = 1,
     // Coded slice data partition A slice_data_partition_a_layer_rbsp( )
@@ -443,28 +433,28 @@ std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
  * @doc ITU-T-H.265-2021.pdf, page 86.
  */
 enum SrsHevcNaluType {
-    SrsHevcNaluType_CODED_SLICE_TRAIL_N =       0,
-    SrsHevcNaluType_CODED_SLICE_TRAIL_R, //1
-    SrsHevcNaluType_CODED_SLICE_TSA_N,   //2
-    SrsHevcNaluType_CODED_SLICE_TLA,     //3
-    SrsHevcNaluType_CODED_SLICE_STSA_N,  //4
-    SrsHevcNaluType_CODED_SLICE_STSA_R,  //5
-    SrsHevcNaluType_CODED_SLICE_RADL_N,  //6
-    SrsHevcNaluType_CODED_SLICE_DLP,     //7
-    SrsHevcNaluType_CODED_SLICE_RASL_N,  //8
-    SrsHevcNaluType_CODED_SLICE_TFD,     //9
+    SrsHevcNaluType_CODED_SLICE_TRAIL_N = 0,
+    SrsHevcNaluType_CODED_SLICE_TRAIL_R, // 1
+    SrsHevcNaluType_CODED_SLICE_TSA_N,   // 2
+    SrsHevcNaluType_CODED_SLICE_TLA,     // 3
+    SrsHevcNaluType_CODED_SLICE_STSA_N,  // 4
+    SrsHevcNaluType_CODED_SLICE_STSA_R,  // 5
+    SrsHevcNaluType_CODED_SLICE_RADL_N,  // 6
+    SrsHevcNaluType_CODED_SLICE_DLP,     // 7
+    SrsHevcNaluType_CODED_SLICE_RASL_N,  // 8
+    SrsHevcNaluType_CODED_SLICE_TFD,     // 9
     SrsHevcNaluType_RESERVED_10,
     SrsHevcNaluType_RESERVED_11,
     SrsHevcNaluType_RESERVED_12,
     SrsHevcNaluType_RESERVED_13,
     SrsHevcNaluType_RESERVED_14,
     SrsHevcNaluType_RESERVED_15,
-    SrsHevcNaluType_CODED_SLICE_BLA,      //16
-    SrsHevcNaluType_CODED_SLICE_BLANT,    //17
-    SrsHevcNaluType_CODED_SLICE_BLA_N_LP, //18
-    SrsHevcNaluType_CODED_SLICE_IDR,      //19
-    SrsHevcNaluType_CODED_SLICE_IDR_N_LP, //20
-    SrsHevcNaluType_CODED_SLICE_CRA,      //21
+    SrsHevcNaluType_CODED_SLICE_BLA,      // 16
+    SrsHevcNaluType_CODED_SLICE_BLANT,    // 17
+    SrsHevcNaluType_CODED_SLICE_BLA_N_LP, // 18
+    SrsHevcNaluType_CODED_SLICE_IDR,      // 19
+    SrsHevcNaluType_CODED_SLICE_IDR_N_LP, // 20
+    SrsHevcNaluType_CODED_SLICE_CRA,      // 21
     SrsHevcNaluType_RESERVED_22,
     SrsHevcNaluType_RESERVED_23,
     SrsHevcNaluType_RESERVED_24,
@@ -482,7 +472,7 @@ enum SrsHevcNaluType {
     SrsHevcNaluType_EOS,                   // 36
     SrsHevcNaluType_EOB,                   // 37
     SrsHevcNaluType_FILLER_DATA,           // 38
-    SrsHevcNaluType_SEI ,                  // 39 Prefix SEI
+    SrsHevcNaluType_SEI,                   // 39 Prefix SEI
     SrsHevcNaluType_SEI_SUFFIX,            // 40 Suffix SEI
     SrsHevcNaluType_RESERVED_41,
     SrsHevcNaluType_RESERVED_42,
@@ -554,8 +544,7 @@ const int SrsHevcMax_PPS_COUNT = 64;
  * @see 7.3.3 Profile, tier and level syntax
  * @doc ITU-T-H.265-2021.pdf, page 62.
  */
-struct SrsHevcProfileTierLevel
-{
+struct SrsHevcProfileTierLevel {
 public:
     uint8_t general_profile_space;
     uint8_t general_tier_flag;
@@ -622,8 +611,7 @@ public:
  * @see E.2.3 Sub-layer HRD parameters syntax
  * @doc ITU-T-H.265-2021.pdf, page 440.
  */
-struct SrsHevcSubLayerHrdParameters
-{
+struct SrsHevcSubLayerHrdParameters {
     std::vector<int> bit_rate_value_minus1;
     std::vector<int> cpb_size_value_minus1;
     std::vector<int> cpb_size_du_value_minus1;
@@ -636,8 +624,7 @@ struct SrsHevcSubLayerHrdParameters
  * @see E.2.2 HRD parameters syntax
  * @doc ITU-T-H.265-2021.pdf, page 439.
  */
-struct SrsHevcHrdParameters
-{
+struct SrsHevcHrdParameters {
     uint8_t nal_hrd_parameters_present_flag;
     uint8_t vcl_hrd_parameters_present_flag;
     uint8_t sub_pic_hrd_params_present_flag;
@@ -656,7 +643,7 @@ struct SrsHevcHrdParameters
     std::vector<int> elemental_duration_in_tc_minus1;
     std::vector<uint8_t> low_delay_hrd_flag;
     std::vector<int> cpb_cnt_minus1;
-    SrsHevcSubLayerHrdParameters sub_layer_hrd_parameters; // nal
+    SrsHevcSubLayerHrdParameters sub_layer_hrd_parameters;   // nal
     SrsHevcSubLayerHrdParameters sub_layer_hrd_parameters_v; // vlc
 };
 
@@ -665,8 +652,7 @@ struct SrsHevcHrdParameters
  * @see 7.3.4 Scaling list data syntax
  * @doc ITU-T-H.265-2021.pdf, page 65.
  */
-struct SrsHevcScalingListData
-{
+struct SrsHevcScalingListData {
     uint32_t scaling_list_pred_mode_flag[4][6];
     uint32_t scaling_list_pred_matrix_id_delta[4][6];
     int32_t scaling_list_dc_coef_minus8[4][6];
@@ -679,8 +665,7 @@ struct SrsHevcScalingListData
  * @see 7.3.2.2.2 Sequence parameter set range extension syntax
  * @doc ITU-T-H.265-2021.pdf, page 57.
  */
-struct SrsHevcSpsRangeExtension
-{
+struct SrsHevcSpsRangeExtension {
     uint8_t transform_skip_rotation_enabled_flag;
     uint8_t transform_skip_context_enabled_flag;
     uint8_t implicit_rdpcm_enabled_flag;
@@ -697,8 +682,7 @@ struct SrsHevcSpsRangeExtension
  * @see 7.3.2.3.1 General picture parameter set RBSP syntax
  * @doc ITU-T-H.265-2021.pdf, page 57.
  */
-struct SrsHevcPpsRangeExtension
-{
+struct SrsHevcPpsRangeExtension {
     uint32_t log2_max_transform_skip_block_size_minus2;
     uint8_t cross_component_prediction_enabled_flag;
     uint8_t chroma_qp_offset_list_enabled_flag;
@@ -715,8 +699,7 @@ struct SrsHevcPpsRangeExtension
  * @see 7.3.7 Short-term reference picture set syntax
  * @doc ITU-T-H.265-2021.pdf, page 70.
  */
-struct SrsHevcStRefPicSet
-{
+struct SrsHevcStRefPicSet {
     uint8_t inter_ref_pic_set_prediction_flag;
     int delta_idx_minus1;
     uint8_t delta_rps_sign;
@@ -737,8 +720,7 @@ struct SrsHevcStRefPicSet
  * @see E.2.1 VUI parameters syntax
  * @doc ITU-T-H.265-2021.pdf, page 437.
  */
-struct SrsHevcVuiParameters
-{
+struct SrsHevcVuiParameters {
     uint8_t aspect_ratio_info_present_flag;
     uint8_t aspect_ratio_idc;
     int sar_width;
@@ -786,8 +768,7 @@ struct SrsHevcVuiParameters
  * @see 7.3.2.1 Video parameter set RBSP syntax
  * @doc ITU-T-H.265-2021.pdf, page 54.
  */
-struct SrsHevcRbspVps
-{
+struct SrsHevcRbspVps {
     uint8_t vps_video_parameter_set_id;    // u(4)
     uint8_t vps_base_layer_internal_flag;  // u(1)
     uint8_t vps_base_layer_available_flag; // u(1)
@@ -803,7 +784,7 @@ struct SrsHevcRbspVps
     uint32_t vps_max_latency_increase_plus1[8];
     uint8_t vps_max_layer_id;
     uint32_t vps_num_layer_sets_minus1;
-    std::vector< std::vector<uint8_t> > layer_id_included_flag;
+    std::vector<std::vector<uint8_t> > layer_id_included_flag;
     uint8_t vps_timing_info_present_flag;
     uint32_t vps_num_units_in_tick;
     uint32_t vps_time_scale;
@@ -822,8 +803,7 @@ struct SrsHevcRbspVps
  * @see 7.3.2.2 Sequence parameter set RBSP syntax
  * @doc ITU-T-H.265-2021.pdf, page 55.
  */
-struct SrsHevcRbspSps
-{
+struct SrsHevcRbspSps {
     uint8_t sps_video_parameter_set_id;
     uint8_t sps_max_sub_layers_minus1;
     uint8_t sps_temporal_id_nesting_flag;
@@ -892,8 +872,7 @@ struct SrsHevcRbspSps
  * @see 7.3.2.3 Picture parameter set RBSP syntax
  * @doc ITU-T-H.265-2021.pdf, page 57.
  */
-struct SrsHevcRbspPps
-{
+struct SrsHevcRbspPps {
     uint8_t pps_pic_parameter_set_id;
     uint8_t pps_seq_parameter_set_id;
     uint8_t dependent_slice_segments_enabled_flag;
@@ -946,8 +925,7 @@ struct SrsHevcRbspPps
     // rbsp_trailing_bits( ) ...
 };
 
-struct SrsHevcDecoderConfigurationRecord
-{
+struct SrsHevcDecoderConfigurationRecord {
     uint8_t configuration_version;
     uint8_t general_profile_space;
     uint8_t general_tier_flag;
@@ -976,16 +954,15 @@ struct SrsHevcDecoderConfigurationRecord
  * Table 7-6 – Name association to slice_type
  * ISO_IEC_14496-10-AVC-2012.pdf, page 105.
  */
-enum SrsAvcSliceType
-{
-    SrsAvcSliceTypeP   = 0,
-    SrsAvcSliceTypeB   = 1,
-    SrsAvcSliceTypeI   = 2,
-    SrsAvcSliceTypeSP  = 3,
-    SrsAvcSliceTypeSI  = 4,
-    SrsAvcSliceTypeP1  = 5,
-    SrsAvcSliceTypeB1  = 6,
-    SrsAvcSliceTypeI1  = 7,
+enum SrsAvcSliceType {
+    SrsAvcSliceTypeP = 0,
+    SrsAvcSliceTypeB = 1,
+    SrsAvcSliceTypeI = 2,
+    SrsAvcSliceTypeSP = 3,
+    SrsAvcSliceTypeSI = 4,
+    SrsAvcSliceTypeP1 = 5,
+    SrsAvcSliceTypeB1 = 6,
+    SrsAvcSliceTypeI1 = 7,
     SrsAvcSliceTypeSP1 = 8,
     SrsAvcSliceTypeSI1 = 9,
 };
@@ -995,8 +972,7 @@ enum SrsAvcSliceType
  * we guess by annexb first, then ibmf for the first time,
  * and we always use the guessed format for the next time.
  */
-enum SrsAvcPayloadFormat
-{
+enum SrsAvcPayloadFormat {
     SrsAvcPayloadFormatGuess = 0,
     SrsAvcPayloadFormatAnnexb,
     SrsAvcPayloadFormatIbmf,
@@ -1006,10 +982,9 @@ enum SrsAvcPayloadFormat
  * the aac profile, for ADTS(HLS/TS)
  * @see https://github.com/ossrs/srs/issues/310
  */
-enum SrsAacProfile
-{
+enum SrsAacProfile {
     SrsAacProfileReserved = 3,
-    
+
     // @see 7.1 Profiles, ISO_IEC_13818-7-AAC-2004.pdf, page 40
     SrsAacProfileMain = 0,
     SrsAacProfileLC = 1,
@@ -1022,17 +997,16 @@ std::string srs_aac_profile2str(SrsAacProfile aac_profile);
  * for AudioSpecificConfig, @see ISO_IEC_14496-3-AAC-2001.pdf, page 33
  * for audioObjectType, @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
  */
-enum SrsAacObjectType
-{
+enum SrsAacObjectType {
     SrsAacObjectTypeReserved = 0,
     SrsAacObjectTypeForbidden = 0,
-    
+
     // Table 1.1 - Audio Object Type definition
     // @see @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
     SrsAacObjectTypeAacMain = 1,
     SrsAacObjectTypeAacLC = 2,
     SrsAacObjectTypeAacSSR = 3,
-    
+
     // AAC HE = LC+SBR
     SrsAacObjectTypeAacHE = 5,
     // AAC HEv2 = LC+SBR+PS
@@ -1048,10 +1022,9 @@ SrsAacProfile srs_aac_rtmp2ts(SrsAacObjectType object_type);
  * the profile for avc/h.264.
  * @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 205.
  */
-enum SrsAvcProfile
-{
+enum SrsAvcProfile {
     SrsAvcProfileReserved = 0,
-    
+
     // @see ffmpeg, libavcodec/avcodec.h:2713
     SrsAvcProfileBaseline = 66,
     // FF_PROFILE_H264_CONSTRAINED  (1<<9)  // 8+1; constraint_set1_flag
@@ -1074,10 +1047,9 @@ std::string srs_avc_profile2str(SrsAvcProfile profile);
  * the level for avc/h.264.
  * @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 207.
  */
-enum SrsAvcLevel
-{
+enum SrsAvcLevel {
     SrsAvcLevelReserved = 0,
-    
+
     SrsAvcLevel_1 = 10,
     SrsAvcLevel_11 = 11,
     SrsAvcLevel_12 = 12,
@@ -1100,8 +1072,7 @@ std::string srs_avc_level2str(SrsAvcLevel level);
  * @see A.3 Profiles
  * @doc ITU-T-H.265-2021.pdf, page 268.
  */
-enum SrsHevcProfile
-{
+enum SrsHevcProfile {
     SrsHevcProfileReserved = 0,
 
     // @see ffmpeg, libavcodec/avcodec.h:2986
@@ -1117,21 +1088,20 @@ std::string srs_hevc_profile2str(SrsHevcProfile profile);
  * @see A.4 Tiers and levels
  * @doc ITU-T-H.265-2021.pdf, page 283.
  */
-enum SrsHevcLevel
-{
+enum SrsHevcLevel {
     SrsHevcLevelReserved = 0,
 
-    SrsHevcLevel_1  = 30,
-    SrsHevcLevel_2  = 60,
+    SrsHevcLevel_1 = 30,
+    SrsHevcLevel_2 = 60,
     SrsHevcLevel_21 = 63,
-    SrsHevcLevel_3  = 90,
+    SrsHevcLevel_3 = 90,
     SrsHevcLevel_31 = 93,
-    SrsHevcLevel_4  = 120,
+    SrsHevcLevel_4 = 120,
     SrsHevcLevel_41 = 123,
-    SrsHevcLevel_5  = 150,
+    SrsHevcLevel_5 = 150,
     SrsHevcLevel_51 = 153,
     SrsHevcLevel_52 = 156,
-    SrsHevcLevel_6  = 180,
+    SrsHevcLevel_6 = 180,
     SrsHevcLevel_61 = 183,
     SrsHevcLevel_62 = 186,
 };
@@ -1149,14 +1119,16 @@ public:
     // The size of unit.
     int size;
     // The ptr of unit, user must free it.
-    char* bytes;
+    char *bytes;
+
 public:
     SrsSample();
-    SrsSample(char* b, int s);
+    SrsSample(char *b, int s);
     ~SrsSample();
+
 public:
     // Copy sample, share the bytes pointer.
-    SrsSample* copy();
+    SrsSample *copy();
 };
 
 /**
@@ -1213,9 +1185,11 @@ public:
      * @see: ffmpeg, AVCodecContext::extradata
      */
     std::vector<char> aac_extra_data;
+
 public:
     SrsAudioCodecConfig();
     virtual ~SrsAudioCodecConfig();
+
 public:
     virtual bool is_aac_codec_ok();
 };
@@ -1232,6 +1206,7 @@ public:
     double duration;
     int width;
     int height;
+
 public:
     /**
      * the avc extra data, the AVC sequence header,
@@ -1239,6 +1214,7 @@ public:
      * @see: ffmpeg, AVCodecContext::extradata
      */
     std::vector<char> avc_extra_data;
+
 public:
     /**
      * video specified
@@ -1256,14 +1232,18 @@ public:
     // Note that we may resize the vector, so the under-layer bytes may change.
     std::vector<char> sequenceParameterSetNALUnit;
     std::vector<char> pictureParameterSetNALUnit;
+
 public:
     // the avc payload format.
     SrsAvcPayloadFormat payload_format;
+
 public:
     SrsHevcDecoderConfigurationRecord hevc_dec_conf_record_;
+
 public:
     SrsVideoCodecConfig();
     virtual ~SrsVideoCodecConfig();
+
 public:
     virtual bool is_avc_codec_ok();
 };
@@ -1277,21 +1257,24 @@ public:
     int64_t dts;
     // PTS = DTS + CTS.
     int32_t cts;
+
 public:
     // The codec info of frame.
-    SrsCodecConfig* codec;
+    SrsCodecConfig *codec;
     // The actual parsed number of samples.
     int nb_samples;
     // The sampels cache.
     SrsSample samples[SrsMaxNbSamples];
+
 public:
     SrsFrame();
     virtual ~SrsFrame();
+
 public:
     // Initialize the frame, to parse sampels.
-    virtual srs_error_t initialize(SrsCodecConfig* c);
+    virtual srs_error_t initialize(SrsCodecConfig *c);
     // Add a sample to frame.
-    virtual srs_error_t add_sample(char* bytes, int size);
+    virtual srs_error_t add_sample(char *bytes, int size);
 };
 
 // A audio frame, besides a frame, contains the audio frame info, such as frame type.
@@ -1300,11 +1283,13 @@ class SrsAudioFrame : public SrsFrame
 {
 public:
     SrsAudioAacFrameTrait aac_packet_type;
+
 public:
     SrsAudioFrame();
     virtual ~SrsAudioFrame();
+
 public:
-    virtual SrsAudioCodecConfig* acodec();
+    virtual SrsAudioCodecConfig *acodec();
 };
 
 // A video frame, besides a frame, contains the video frame info, such as frame type.
@@ -1323,21 +1308,25 @@ public:
     bool has_sps_pps;
     // The first nalu type.
     SrsAvcNaluType first_nalu_type;
+
 public:
     SrsVideoFrame();
     virtual ~SrsVideoFrame();
+
 public:
     // Initialize the frame, to parse sampels.
-    virtual srs_error_t initialize(SrsCodecConfig* c);
+    virtual srs_error_t initialize(SrsCodecConfig *c);
     // Add the sample without ANNEXB or IBMF header, or RAW AAC or MP3 data.
-    virtual srs_error_t add_sample(char* bytes, int size);
+    virtual srs_error_t add_sample(char *bytes, int size);
+
 public:
-    virtual SrsVideoCodecConfig* vcodec();
+    virtual SrsVideoCodecConfig *vcodec();
+
 public:
-    static srs_error_t parse_avc_nalu_type(const SrsSample* sample, SrsAvcNaluType& avc_nalu_type);
-    static srs_error_t parse_avc_bframe(const SrsSample* sample, bool& is_b_frame);
-    static srs_error_t parse_hevc_nalu_type(const SrsSample* sample, SrsHevcNaluType& hevc_nalu_type);
-    static srs_error_t parse_hevc_bframe(const SrsSample* sample, SrsFormat* format, bool& is_b_frame);
+    static srs_error_t parse_avc_nalu_type(const SrsSample *sample, SrsAvcNaluType &avc_nalu_type);
+    static srs_error_t parse_avc_bframe(const SrsSample *sample, bool &is_b_frame);
+    static srs_error_t parse_hevc_nalu_type(const SrsSample *sample, SrsHevcNaluType &hevc_nalu_type);
+    static srs_error_t parse_hevc_bframe(const SrsSample *sample, SrsFormat *format, bool &is_b_frame);
 };
 
 /**
@@ -1348,80 +1337,92 @@ public:
 class SrsFormat
 {
 public:
-    SrsAudioFrame* audio;
-    SrsAudioCodecConfig* acodec;
-    SrsVideoFrame* video;
-    SrsVideoCodecConfig* vcodec;
+    SrsAudioFrame *audio;
+    SrsAudioCodecConfig *acodec;
+    SrsVideoFrame *video;
+    SrsVideoCodecConfig *vcodec;
+
 public:
-    char* raw;
+    char *raw;
     int nb_raw;
+
 public:
     // for sequence header, whether parse the h.264 sps.
     // TODO: FIXME: Refine it.
     bool avc_parse_sps;
     // Whether try to parse in ANNEXB, then by IBMF.
     bool try_annexb_first;
+
 public:
     SrsFormat();
     virtual ~SrsFormat();
+
 public:
     // Initialize the format.
     virtual srs_error_t initialize();
     // When got a parsed audio packet.
     // @param data The data in FLV format.
-    virtual srs_error_t on_audio(int64_t timestamp, char* data, int size);
+    virtual srs_error_t on_audio(int64_t timestamp, char *data, int size);
     // When got a parsed video packet.
     // @param data The data in FLV format.
-    virtual srs_error_t on_video(int64_t timestamp, char* data, int size);
+    virtual srs_error_t on_video(int64_t timestamp, char *data, int size);
     // When got a audio aac sequence header.
-    virtual srs_error_t on_aac_sequence_header(char* data, int size);
+    virtual srs_error_t on_aac_sequence_header(char *data, int size);
+
 public:
     virtual bool is_aac_sequence_header();
     virtual bool is_mp3_sequence_header();
     // TODO: is avc|hevc|av1 sequence header
     virtual bool is_avc_sequence_header();
+
 private:
     // Demux the video packet in H.264 codec.
     // The packet is muxed in FLV format, defined in flv specification.
     //          Demux the sps/pps from sequence header.
     //          Demux the samples from NALUs.
-    virtual srs_error_t video_avc_demux(SrsBuffer* stream, int64_t timestamp);
+    virtual srs_error_t video_avc_demux(SrsBuffer *stream, int64_t timestamp);
+
 private:
-    virtual srs_error_t hevc_demux_hvcc(SrsBuffer* stream);
+    virtual srs_error_t hevc_demux_hvcc(SrsBuffer *stream);
+
 private:
     virtual srs_error_t hevc_demux_vps_sps_pps(SrsHevcHvccNalu *nal);
     virtual srs_error_t hevc_demux_vps_rbsp(char *rbsp, int nb_rbsp);
     virtual srs_error_t hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp);
     virtual srs_error_t hevc_demux_pps_rbsp(char *rbsp, int nb_rbsp);
-    virtual srs_error_t hevc_demux_rbsp_ptl(SrsBitBuffer* bs, SrsHevcProfileTierLevel* ptl, int profile_present_flag, int max_sub_layers_minus1);
+    virtual srs_error_t hevc_demux_rbsp_ptl(SrsBitBuffer *bs, SrsHevcProfileTierLevel *ptl, int profile_present_flag, int max_sub_layers_minus1);
+
 public:
     virtual srs_error_t hevc_demux_vps(SrsBuffer *stream);
     virtual srs_error_t hevc_demux_sps(SrsBuffer *stream);
     virtual srs_error_t hevc_demux_pps(SrsBuffer *stream);
+
 private:
     // Parse the H.264 SPS/PPS.
-    virtual srs_error_t avc_demux_sps_pps(SrsBuffer* stream);
+    virtual srs_error_t avc_demux_sps_pps(SrsBuffer *stream);
     virtual srs_error_t avc_demux_sps();
-    virtual srs_error_t avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
+    virtual srs_error_t avc_demux_sps_rbsp(char *rbsp, int nb_rbsp);
+
 private:
     // Parse the H.264 or H.265 NALUs.
-    virtual srs_error_t video_nalu_demux(SrsBuffer* stream);
+    virtual srs_error_t video_nalu_demux(SrsBuffer *stream);
     // Demux the avc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
-    virtual srs_error_t avc_demux_annexb_format(SrsBuffer* stream);
-    virtual srs_error_t do_avc_demux_annexb_format(SrsBuffer* stream);
+    virtual srs_error_t avc_demux_annexb_format(SrsBuffer *stream);
+    virtual srs_error_t do_avc_demux_annexb_format(SrsBuffer *stream);
     // Demux the avc NALU in "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
-    virtual srs_error_t avc_demux_ibmf_format(SrsBuffer* stream);
-    virtual srs_error_t do_avc_demux_ibmf_format(SrsBuffer* stream);
+    virtual srs_error_t avc_demux_ibmf_format(SrsBuffer *stream);
+    virtual srs_error_t do_avc_demux_ibmf_format(SrsBuffer *stream);
+
 private:
     // Demux the audio packet in AAC codec.
     //          Demux the asc from sequence header.
     //          Demux the sampels from RAW data.
-    virtual srs_error_t audio_aac_demux(SrsBuffer* stream, int64_t timestamp);
-    virtual srs_error_t audio_mp3_demux(SrsBuffer* stream, int64_t timestamp, bool fresh);
+    virtual srs_error_t audio_aac_demux(SrsBuffer *stream, int64_t timestamp);
+    virtual srs_error_t audio_mp3_demux(SrsBuffer *stream, int64_t timestamp, bool fresh);
+
 public:
     // Directly demux the sequence header, without RTMP packet header.
-    virtual srs_error_t audio_aac_sequence_header_demux(char* data, int size);
+    virtual srs_error_t audio_aac_sequence_header_demux(char *data, int size);
 };
 
 #endif
-

@@ -25,29 +25,33 @@ class SrsEncoder : public ISrsCoroutineHandler
 {
 private:
     std::string input_stream_name;
-    std::vector<SrsFFMPEG*> ffmpegs;
+    std::vector<SrsFFMPEG *> ffmpegs;
+
 private:
-    SrsCoroutine* trd;
-    SrsPithyPrint* pprint;
+    SrsCoroutine *trd;
+    SrsPithyPrint *pprint;
+
 public:
     SrsEncoder();
     virtual ~SrsEncoder();
+
 public:
-    virtual srs_error_t on_publish(SrsRequest* req);
+    virtual srs_error_t on_publish(SrsRequest *req);
     virtual void on_unpublish();
-// Interface ISrsReusableThreadHandler.
+    // Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
+
 private:
     virtual srs_error_t do_cycle();
+
 private:
     virtual void clear_engines();
-    virtual SrsFFMPEG* at(int index);
-    virtual srs_error_t parse_scope_engines(SrsRequest* req);
-    virtual srs_error_t parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf);
-    virtual srs_error_t initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* engine);
+    virtual SrsFFMPEG *at(int index);
+    virtual srs_error_t parse_scope_engines(SrsRequest *req);
+    virtual srs_error_t parse_ffmpeg(SrsRequest *req, SrsConfDirective *conf);
+    virtual srs_error_t initialize_ffmpeg(SrsFFMPEG *ffmpeg, SrsRequest *req, SrsConfDirective *engine);
     virtual void show_encode_log_message();
 };
 
 #endif
-

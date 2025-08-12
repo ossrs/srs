@@ -8,7 +8,7 @@
 #define SRS_CORE_TIME_HPP
 
 // Time and duration unit, in us.
-#if defined(_WIN32) && !defined(__MINGW32__) && (!defined(_MSC_VER) || _MSC_VER<1600) && !defined(__WINE__)
+#if defined(_WIN32) && !defined(__MINGW32__) && (!defined(_MSC_VER) || _MSC_VER < 1600) && !defined(__WINE__)
 #include <BaseTsd.h>
 typedef __int64 srs_utime_t;
 #else
@@ -40,7 +40,7 @@ srs_utime_t srs_duration(srs_utime_t start, srs_utime_t end);
 #define SRS_UTIME_HOURS 3600000000LL
 
 // Never timeout.
-#define SRS_UTIME_NO_TIMEOUT ((srs_utime_t) -1LL)
+#define SRS_UTIME_NO_TIMEOUT ((srs_utime_t) - 1LL)
 
 // Get current system time in srs_utime_t, use cache to avoid performance problem
 extern srs_utime_t srs_get_system_time();
@@ -49,4 +49,3 @@ extern srs_utime_t srs_get_system_startup_time();
 extern srs_utime_t srs_update_system_time();
 
 #endif
-

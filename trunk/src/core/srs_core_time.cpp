@@ -14,4 +14,3 @@ srs_utime_t srs_duration(srs_utime_t start, srs_utime_t end)
 
     return end - start;
 }
-

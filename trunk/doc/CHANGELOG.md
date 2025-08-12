@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-08-11, Merge [#4433](https://github.com/ossrs/srs/pull/4433): Use clang format. v7.0.52 (#4433)
 * v7.0, 2025-08-11, Merge [#4159](https://github.com/ossrs/srs/pull/4159): Feature: Support HLS with fmp4 segment for HEVC/LLHLS. v7.0.51 (#4159)
 * v7.0, 2025-08-11, Merge [#4432](https://github.com/ossrs/srs/pull/4432): AI: HTTP-FLV: Fix heap-use-after-free crash during stream unmount. v7.0.50 (#4432)
 * v7.0, 2025-07-28, Merge [#4245](https://github.com/ossrs/srs/pull/4245): Allow Forward to be configured with Env Var. v7.0.49 (#4245)

@@ -104,12 +104,12 @@
 // TODO: FIXME: Should always enable it.
 #define SRS_PERF_QUEUE_COND_WAIT
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-    // For RTMP, use larger wait queue.
-    #define SRS_PERF_MW_MIN_MSGS 8
-    // For RTC, use smaller wait queue.
-    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC 1
-    // For Real-Time, never wait messages.
-    #define SRS_PERF_MW_MIN_MSGS_REALTIME 0
+// For RTMP, use larger wait queue.
+#define SRS_PERF_MW_MIN_MSGS 8
+// For RTC, use smaller wait queue.
+#define SRS_PERF_MW_MIN_MSGS_FOR_RTC 1
+// For Real-Time, never wait messages.
+#define SRS_PERF_MW_MIN_MSGS_REALTIME 0
 #endif
 /**
  * the default value of vhost for
@@ -142,7 +142,7 @@
  * for some network does not support the complex send,
  * @see https://github.com/ossrs/srs/issues/320
  */
-//#undef SRS_PERF_COMPLEX_SEND
+// #undef SRS_PERF_COMPLEX_SEND
 #define SRS_PERF_COMPLEX_SEND
 /**
  * whether enable the TCP_NODELAY
@@ -159,8 +159,8 @@
  * @remark only apply it when SRS_PERF_MW_SO_SNDBUF is defined.
  */
 #ifdef SRS_PERF_MW_SO_SNDBUF
-    //#define SRS_PERF_SO_SNDBUF_SIZE 1024
-    #undef SRS_PERF_SO_SNDBUF_SIZE
+// #define SRS_PERF_SO_SNDBUF_SIZE 1024
+#undef SRS_PERF_SO_SNDBUF_SIZE
 #endif
 
 /**
@@ -170,4 +170,3 @@
 #undef SRS_PERF_GLIBC_MEMORY_CHECK
 
 #endif
-

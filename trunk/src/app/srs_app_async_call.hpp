@@ -24,6 +24,7 @@ class ISrsAsyncCallTask
 public:
     ISrsAsyncCallTask();
     virtual ~ISrsAsyncCallTask();
+
 public:
     // Execute the task async.
     // This method is the actual execute method of task,
@@ -40,26 +41,30 @@ public:
 class SrsAsyncCallWorker : public ISrsCoroutineHandler
 {
 private:
-    SrsCoroutine* trd;
+    SrsCoroutine *trd;
+
 protected:
-    std::vector<ISrsAsyncCallTask*> tasks;
+    std::vector<ISrsAsyncCallTask *> tasks;
     srs_cond_t wait;
     srs_mutex_t lock;
+
 public:
     SrsAsyncCallWorker();
     virtual ~SrsAsyncCallWorker();
+
 public:
-    virtual srs_error_t execute(ISrsAsyncCallTask* t);
+    virtual srs_error_t execute(ISrsAsyncCallTask *t);
     virtual int count();
+
 public:
     virtual srs_error_t start();
     virtual void stop();
-// Interface ISrsReusableThreadHandler
+    // Interface ISrsReusableThreadHandler
 public:
     virtual srs_error_t cycle();
+
 private:
     virtual void flush_tasks();
 };
 
 #endif
-

@@ -9,9 +9,9 @@
 
 #include <srs_core.hpp>
 
-#include <srs_protocol_io.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_protocol_io.hpp>
 
 #ifdef SRS_PERF_MERGED_READ
 /**
@@ -25,6 +25,7 @@ class IMergeReadHandler
 public:
     IMergeReadHandler();
     virtual ~IMergeReadHandler();
+
 public:
     /**
      * when read from channel, notice the merge handler to sleep for
@@ -52,23 +53,25 @@ private:
 #ifdef SRS_PERF_MERGED_READ
     // the merged handler
     bool merged_read;
-    IMergeReadHandler* _handler;
+    IMergeReadHandler *_handler;
 #endif
     // the user-space buffer to fill by reader,
     // which use fast index and reset when chunk body read ok.
     // ptr to the current read position.
-    char* p;
+    char *p;
     // ptr to the content end.
-    char* end;
+    char *end;
     // ptr to the buffer.
     //      buffer <= p <= end <= buffer+nb_buffer
-    char* buffer;
+    char *buffer;
     // the size of buffer.
     int nb_buffer;
+
 public:
     // If buffer is 0, use default size.
-    SrsFastStream(int size=0);
+    SrsFastStream(int size = 0);
     virtual ~SrsFastStream();
+
 public:
     /**
      * get the size of current bytes in buffer.
@@ -79,7 +82,7 @@ public:
      * @remark user should use read_slice() if possible,
      *       the bytes() is used to test bytes, for example, to detect the bytes schema.
      */
-    virtual char* bytes();
+    virtual char *bytes();
     /**
      * create buffer with specifeid size.
      * @param buffer the size of buffer. ignore when smaller than SRS_MAX_SOCKET_BUFFER.
@@ -88,6 +91,7 @@ public:
      * @see https://github.com/ossrs/srs/issues/241
      */
     virtual void set_buffer(int buffer_size);
+
 public:
     /**
      * read 1byte from buffer, move to next bytes.
@@ -100,7 +104,7 @@ public:
      * @remark user can use the returned ptr util grow(size),
      *       for the ptr returned maybe invalid after grow(x).
      */
-    virtual char* read_slice(int size);
+    virtual char *read_slice(int size);
     /**
      * skip some bytes in buffer.
      * @param size the bytes to skip. positive to next; negative to previous.
@@ -109,6 +113,7 @@ public:
      *       while skip never consume bytes.
      */
     virtual void skip(int size);
+
 public:
     /**
      * grow buffer to atleast required size, loop to read from skt to fill.
@@ -117,7 +122,8 @@ public:
      * @return an int error code, error if required_size negative.
      * @remark, we actually maybe read more than required_size, maybe 4k for example.
      */
-    virtual srs_error_t grow(ISrsReader* reader, int required_size);
+    virtual srs_error_t grow(ISrsReader *reader, int required_size);
+
 public:
 #ifdef SRS_PERF_MERGED_READ
     /**
@@ -129,7 +135,7 @@ public:
      * @see https://github.com/ossrs/srs/issues/241
      * @remark the merged read is optional, ignore if not specifies.
      */
-    virtual void set_merge_read(bool v, IMergeReadHandler* handler);
+    virtual void set_merge_read(bool v, IMergeReadHandler *handler);
 #endif
 };
 

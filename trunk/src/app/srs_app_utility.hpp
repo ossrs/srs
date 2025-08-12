@@ -9,12 +9,12 @@
 
 #include <srs_core.hpp>
 
-#include <vector>
-#include <string>
 #include <sstream>
+#include <string>
+#include <vector>
 
-#include <limits.h>
 #include <arpa/inet.h>
+#include <limits.h>
 #include <sys/resource.h>
 
 #include <srs_app_st.hpp>
@@ -53,7 +53,7 @@ extern std::string srs_path_build_timestamp(std::string template_path);
 // Kill the pid by SIGKILL again when exceed the timeout.
 // @param pid the pid to kill. ignore for -1. set to -1 when killed.
 // @return an int error code.
-extern srs_error_t srs_kill_forced(int& pid);
+extern srs_error_t srs_kill_forced(int &pid);
 
 // Current process resource usage.
 // @see: man getrusage
@@ -64,16 +64,16 @@ public:
     bool ok;
     // The time in ms when sample.
     int64_t sample_time;
-    
+
 public:
     rusage r;
-    
+
 public:
     SrsRusage();
 };
 
 // Get system rusage, use cache to avoid performance problem.
-extern SrsRusage* srs_get_system_rusage();
+extern SrsRusage *srs_get_system_rusage();
 // The daemon st-thread will update it.
 extern void srs_update_system_rusage();
 
@@ -88,7 +88,7 @@ public:
     int64_t sample_time;
     // The percent of usage. 0.153 is 15.3%.
     float percent;
-    
+
     // data of /proc/[pid]/stat
 public:
     // pid %d      The process ID.
@@ -228,7 +228,7 @@ public:
     // cguest_time %ld (since Linux 2.6.24)
     //             Guest time of the process's children, measured in clock ticks (divide by sysconf(_SC_CLK_TCK).
     long cguest_time;
-    
+
 public:
     SrsProcSelfStat();
 };
@@ -278,7 +278,7 @@ public:
     //          the usaged_cpu_delta = total_delta * percent
     //          previous cpu total = this->total() - total_delta
     int64_t total_delta;
-    
+
     // data of /proc/stat
 public:
     // The amount of time, measured in units  of  USER_HZ
@@ -293,7 +293,7 @@ public:
     unsigned long long sys;
     // and the idle task, respectively.
     unsigned long long idle;
-    
+
     // In  Linux 2.6 this line includes three additional columns:
     //
     // iowait - time waiting for I/O to complete (since 2.5.41);
@@ -302,28 +302,28 @@ public:
     unsigned long long irq;
     // softirq  -  time  servicing  softirqs  (since 2.6.0-test4).
     unsigned long long softirq;
-    
+
     // Since  Linux 2.6.11, there is an eighth column,
     // steal - stolen time, which is the time spent in other oper-
     // ating systems when running in a virtualized environment
     unsigned long long steal;
-    
+
     // Since Linux 2.6.24, there is a ninth column,
     // guest, which is the time spent running a virtual CPU for guest
     // operating systems under the control of the Linux kernel.
     unsigned long long guest;
-    
+
 public:
     SrsProcSystemStat();
-    
+
     // Get total cpu units.
     int64_t total();
 };
 
 // Get system cpu stat, use cache to avoid performance problem.
-extern SrsProcSelfStat* srs_get_self_proc_stat();
+extern SrsProcSelfStat *srs_get_self_proc_stat();
 // Get system cpu stat, use cache to avoid performance problem.
-extern SrsProcSystemStat* srs_get_system_proc_stat();
+extern SrsProcSystemStat *srs_get_system_proc_stat();
 // The daemon st-thread will update it.
 extern void srs_update_proc_stat();
 
@@ -343,18 +343,18 @@ public:
     bool ok;
     // The time in ms when sample.
     int64_t sample_time;
-    
+
     // input(read) KBytes per seconds
     int in_KBps;
     // output(write) KBytes per seconds
     int out_KBps;
-    
+
     // @see: print_partition_stats() of iostat.c
     // but its value is [0, +], for instance, 0.1532 means 15.32%.
     float busy;
     // for stat the busy%
     SrsProcSystemStat cpu;
-    
+
 public:
     // @see: cat /proc/vmstat
     // The in(read) page count, pgpgin*1024 is the read bytes.
@@ -363,7 +363,7 @@ public:
     // The out(write) page count, pgpgout*1024 is the write bytes.
     // Total number of kilobytes the system paged out to disk per second.
     unsigned long pgpgout;
-    
+
     // @see: https://www.kernel.org/doc/Documentation/iostats.txt
     // @see: http://tester-higkoo.googlecode.com/svn-history/r14/trunk/Tools/iostat/iostat.c
     // @see: cat /proc/diskstats
@@ -424,13 +424,13 @@ public:
     // The backlog that may be accumulating.
     // Average queue length
     unsigned int aveq;
-    
+
 public:
     SrsDiskStat();
 };
 
 // Get disk stat, use cache to avoid performance problem.
-extern SrsDiskStat* srs_get_disk_stat();
+extern SrsDiskStat *srs_get_disk_stat();
 // The daemon st-thread will update it.
 extern void srs_update_disk_stat();
 
@@ -446,7 +446,7 @@ public:
     // The percent of usage. 0.153 is 15.3%.
     float percent_ram;
     float percent_swap;
-    
+
     // data of /proc/meminfo
 public:
     // MemActive = MemTotal - MemFree
@@ -458,20 +458,20 @@ public:
     //          = MemTotal - MemTotal + MemFree + Buffers + Cached
     //          = MemFree + Buffers + Cached
     uint64_t NotInUse;
-    
+
     unsigned long MemTotal;
     unsigned long MemFree;
     unsigned long Buffers;
     unsigned long Cached;
     unsigned long SwapTotal;
     unsigned long SwapFree;
-    
+
 public:
     SrsMemInfo();
 };
 
 // Get system meminfo, use cache to avoid performance problem.
-extern SrsMemInfo* srs_get_meminfo();
+extern SrsMemInfo *srs_get_meminfo();
 // The daemon st-thread will update it.
 extern void srs_update_meminfo();
 
@@ -483,20 +483,20 @@ class SrsCpuInfo
 public:
     // Whether the data is ok.
     bool ok;
-    
+
     // data of /proc/cpuinfo
 public:
     // The number of processors configured.
     int nb_processors;
     // The number of processors currently online (available).
     int nb_processors_online;
-    
+
 public:
     SrsCpuInfo();
 };
 
 // Get system cpu info, use cache to avoid performance problem.
-extern SrsCpuInfo* srs_get_cpuinfo();
+extern SrsCpuInfo *srs_get_cpuinfo();
 
 // The platform(os, srs) uptime/load summary
 class SrsPlatformInfo
@@ -504,10 +504,10 @@ class SrsPlatformInfo
 public:
     // Whether the data is ok.
     bool ok;
-    
+
     // srs startup time, in ms.
     int64_t srs_startup_time;
-    
+
 public:
     // @see: cat /proc/uptime
     // system startup time in seconds.
@@ -516,18 +516,18 @@ public:
     // @remark to cal the cpu ustime percent:
     //      os_ilde_time % (os_uptime * SrsCpuInfo.nb_processors_online)
     double os_ilde_time;
-    
+
     // @see: cat /proc/loadavg
     double load_one_minutes;
     double load_five_minutes;
     double load_fifteen_minutes;
-    
+
 public:
     SrsPlatformInfo();
 };
 
 // Get platform info, use cache to avoid performance problem.
-extern SrsPlatformInfo* srs_get_platform_info();
+extern SrsPlatformInfo *srs_get_platform_info();
 // The daemon st-thread will update it.
 extern void srs_update_platform_info();
 
@@ -563,13 +563,14 @@ public:
     // Note that in all cases I could find, InCsumErrors is incremented at the same time as InErrors.
     // Thus, InErrors - InCsumErros should yield the count of memory related errors on the receive side.
     unsigned long long in_csum_errors;
+
 public:
     SrsSnmpUdpStat();
     ~SrsSnmpUdpStat();
 };
 
 // Get SNMP udp statistic, use cache to avoid performance problem.
-extern SrsSnmpUdpStat* srs_get_udp_snmp_stat();
+extern SrsSnmpUdpStat *srs_get_udp_snmp_stat();
 // The daemon st-thread will update it.
 void srs_update_udp_snmp_statistic();
 
@@ -579,12 +580,12 @@ class SrsNetworkDevices
 public:
     // Whether the network device is ok.
     bool ok;
-    
+
     // 6-chars interfaces name
     char name[7];
     // The sample time in ms.
     int64_t sample_time;
-    
+
 public:
     // data for receive.
     unsigned long long rbytes;
@@ -595,7 +596,7 @@ public:
     unsigned long rframe;
     unsigned long rcompressed;
     unsigned long rmulticast;
-    
+
     // data for transmit
     unsigned long long sbytes;
     unsigned long spackets;
@@ -605,13 +606,13 @@ public:
     unsigned long scolls;
     unsigned long scarrier;
     unsigned long scompressed;
-    
+
 public:
     SrsNetworkDevices();
 };
 
 // Get network devices info, use cache to avoid performance problem.
-extern SrsNetworkDevices* srs_get_network_devices();
+extern SrsNetworkDevices *srs_get_network_devices();
 extern int srs_get_network_devices_count();
 // The daemon st-thread will update it.
 extern void srs_update_network_devices();
@@ -622,42 +623,42 @@ class SrsNetworkRtmpServer
 public:
     // Whether the network device is ok.
     bool ok;
-    
+
     // The sample time in ms.
     int64_t sample_time;
-    
+
 public:
     // data for receive.
     int64_t rbytes;
     int rkbps;
     int rkbps_30s;
     int rkbps_5m;
-    
+
     // data for transmit
     int64_t sbytes;
     int skbps;
     int skbps_30s;
     int skbps_5m;
-    
+
     // connections
     // @see: /proc/net/snmp
     // @see: /proc/net/sockstat
     int nb_conn_sys;
-    int nb_conn_sys_et; // established
-    int nb_conn_sys_tw; // time wait
+    int nb_conn_sys_et;  // established
+    int nb_conn_sys_tw;  // time wait
     int nb_conn_sys_udp; // udp
-    
+
     // retrieve from srs interface
     int nb_conn_srs;
-    
+
 public:
     SrsNetworkRtmpServer();
 };
 
 // Get network devices info, use cache to avoid performance problem.
-extern SrsNetworkRtmpServer* srs_get_network_rtmp_server();
+extern SrsNetworkRtmpServer *srs_get_network_rtmp_server();
 // The daemon st-thread will update it.
-extern void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps);
+extern void srs_update_rtmp_server(int nb_conn, SrsKbps *kbps);
 
 // Get local or peer ip.
 // Where local ip is the server ip which client connected.
@@ -675,11 +676,10 @@ extern int srs_get_peer_port(int fd);
 extern bool srs_is_boolean(std::string str);
 
 // Dump summaries for /api/v1/summaries.
-extern void srs_api_dump_summaries(SrsJsonObject* obj);
+extern void srs_api_dump_summaries(SrsJsonObject *obj);
 
 // Get ENV variable, which may starts with $.
 //      srs_getenv("EIP") is srs_getenv("$EIP")
-extern std::string srs_getenv(const std::string& key);
+extern std::string srs_getenv(const std::string &key);
 
 #endif
-

@@ -10,8 +10,8 @@
 #include <srs_core.hpp>
 
 struct sockaddr;
-#include <string>
 #include <map>
+#include <string>
 
 class SrsBuffer;
 class SrsTsContext;
@@ -28,21 +28,23 @@ class SrsPithyPrint;
 class SrsSimpleRtmpClient;
 class SrsMpegtsOverUdp;
 
+#include <srs_app_listener.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
-#include <srs_app_listener.hpp>
 
 // A UDP listener, for udp stream caster server.
 class SrsUdpCasterListener : public ISrsListener
 {
 private:
-    SrsUdpListener* listener_;
-    SrsMpegtsOverUdp* caster_;
+    SrsUdpListener *listener_;
+    SrsMpegtsOverUdp *caster_;
+
 public:
     SrsUdpCasterListener();
     virtual ~SrsUdpCasterListener();
+
 public:
-    srs_error_t initialize(SrsConfDirective* conf);
+    srs_error_t initialize(SrsConfDirective *conf);
     srs_error_t listen();
     void close();
 };
@@ -54,60 +56,72 @@ class SrsMpegtsQueue
 {
 private:
     // The key: dts, value: msg.
-    std::map<int64_t, SrsSharedPtrMessage*> msgs;
+    std::map<int64_t, SrsSharedPtrMessage *> msgs;
     int nb_audios;
     int nb_videos;
+
 public:
     SrsMpegtsQueue();
     virtual ~SrsMpegtsQueue();
+
 public:
-    virtual srs_error_t push(SrsSharedPtrMessage* msg);
-    virtual SrsSharedPtrMessage* dequeue();
+    virtual srs_error_t push(SrsSharedPtrMessage *msg);
+    virtual SrsSharedPtrMessage *dequeue();
 };
 
 // The mpegts over udp stream caster.
 class SrsMpegtsOverUdp : public ISrsTsHandler, public ISrsUdpHandler
 {
 private:
-    SrsTsContext* context;
-    SrsSimpleStream* buffer;
+    SrsTsContext *context;
+    SrsSimpleStream *buffer;
     std::string output;
+
 private:
-    SrsSimpleRtmpClient* sdk;
+    SrsSimpleRtmpClient *sdk;
+
 private:
-    SrsRawH264Stream* avc;
+    SrsRawH264Stream *avc;
     std::string h264_sps;
     bool h264_sps_changed;
     std::string h264_pps;
     bool h264_pps_changed;
     bool h264_sps_pps_sent;
+
 private:
-    SrsRawAacStream* aac;
+    SrsRawAacStream *aac;
     std::string aac_specific_config;
+
 private:
-    SrsMpegtsQueue* queue;
-    SrsPithyPrint* pprint;
+    SrsMpegtsQueue *queue;
+    SrsPithyPrint *pprint;
+
 public:
     SrsMpegtsOverUdp();
     virtual ~SrsMpegtsOverUdp();
+
 public:
-    srs_error_t initialize(SrsConfDirective* c);
-// Interface ISrsUdpHandler
+    srs_error_t initialize(SrsConfDirective *c);
+    // Interface ISrsUdpHandler
 public:
-    virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
+    virtual srs_error_t on_udp_packet(const sockaddr *from, const int fromlen, char *buf, int nb_buf);
+
 private:
-    virtual srs_error_t on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
-// Interface ISrsTsHandler
+    virtual srs_error_t on_udp_bytes(std::string host, int port, char *buf, int nb_buf);
+    // Interface ISrsTsHandler
 public:
-    virtual srs_error_t on_ts_message(SrsTsMessage* msg);
+    virtual srs_error_t on_ts_message(SrsTsMessage *msg);
+
 private:
-    virtual srs_error_t on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
+    virtual srs_error_t on_ts_video(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
-    virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
-    virtual srs_error_t on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
-    virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
+    virtual srs_error_t write_h264_ipb_frame(char *frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs);
+    virtual srs_error_t write_audio_raw_frame(char *frame, int frame_size, SrsRawAacStreamCodec *codec, uint32_t dts);
+
 private:
-    virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
+    virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char *data, int size);
+
 private:
     // Connect to RTMP server.
     virtual srs_error_t connect();
@@ -116,4 +130,3 @@ private:
 };
 
 #endif
-

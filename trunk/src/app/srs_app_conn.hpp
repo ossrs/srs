@@ -9,18 +9,18 @@
 
 #include <srs_core.hpp>
 
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
-#include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 
-#include <srs_app_st.hpp>
-#include <srs_protocol_kbps.hpp>
 #include <srs_app_reload.hpp>
-#include <srs_protocol_conn.hpp>
+#include <srs_app_st.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_protocol_conn.hpp>
+#include <srs_protocol_kbps.hpp>
 
 class SrsWallClock;
 class SrsBuffer;
@@ -31,14 +31,15 @@ class ISrsDisposingHandler
 public:
     ISrsDisposingHandler();
     virtual ~ISrsDisposingHandler();
+
 public:
     // When before disposing resource, trigger when manager.remove(c), sync API.
     // @remark Recommend to unref c, after this, no other objects refs to c.
-    virtual void on_before_dispose(ISrsResource* c) = 0;
+    virtual void on_before_dispose(ISrsResource *c) = 0;
     // When disposing resource, async API, c is freed after it.
     // @remark Recommend to stop any thread/timer of c, after this, fields of c is able
     // to be deleted in any order.
-    virtual void on_disposing(ISrsResource* c) = 0;
+    virtual void on_disposing(ISrsResource *c) = 0;
 };
 
 // The item to identify the fast id object.
@@ -52,9 +53,11 @@ public:
     // The first fast-id of resources.
     uint64_t fast_id;
     // The first resource object.
-    ISrsResource* impl;
+    ISrsResource *impl;
+
 public:
-    SrsResourceFastIdItem() {
+    SrsResourceFastIdItem()
+    {
         available = false;
         nn_collisions = 0;
         fast_id = 0;
@@ -69,61 +72,68 @@ private:
     std::string label_;
     SrsContextId cid_;
     bool verbose_;
+
 private:
-    SrsCoroutine* trd;
+    SrsCoroutine *trd;
     srs_cond_t cond;
     // Callback handlers.
-    std::vector<ISrsDisposingHandler*> handlers_;
+    std::vector<ISrsDisposingHandler *> handlers_;
     // Unsubscribing handlers, skip it for notifying.
-    std::vector<ISrsDisposingHandler*> unsubs_;
+    std::vector<ISrsDisposingHandler *> unsubs_;
     // Whether we are removing resources.
     bool removing_;
     // The zombie connections, we will delete it asynchronously.
-    std::vector<ISrsResource*> zombies_;
-    std::vector<ISrsResource*>* p_disposing_;
+    std::vector<ISrsResource *> zombies_;
+    std::vector<ISrsResource *> *p_disposing_;
+
 private:
     // The connections without any id.
-    std::vector<ISrsResource*> conns_;
+    std::vector<ISrsResource *> conns_;
     // The connections with resource id.
-    std::map<std::string, ISrsResource*> conns_id_;
+    std::map<std::string, ISrsResource *> conns_id_;
     // The connections with resource fast(int) id.
-    std::map<uint64_t, ISrsResource*> conns_fast_id_;
+    std::map<uint64_t, ISrsResource *> conns_fast_id_;
     // The level-0 fast cache for fast id.
     int nn_level0_cache_;
-    SrsResourceFastIdItem* conns_level0_cache_;
+    SrsResourceFastIdItem *conns_level0_cache_;
     // The connections with resource name.
-    std::map<std::string, ISrsResource*> conns_name_;
+    std::map<std::string, ISrsResource *> conns_name_;
+
 public:
-    SrsResourceManager(const std::string& label, bool verbose = false);
+    SrsResourceManager(const std::string &label, bool verbose = false);
     virtual ~SrsResourceManager();
+
 public:
     srs_error_t start();
     bool empty();
     size_t size();
-// Interface ISrsCoroutineHandler
+    // Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
+
 public:
-    void add(ISrsResource* conn, bool* exists = NULL);
-    void add_with_id(const std::string& id, ISrsResource* conn);
-    void add_with_fast_id(uint64_t id, ISrsResource* conn);
-    void add_with_name(const std::string& name, ISrsResource* conn);
-    ISrsResource* at(int index);
-    ISrsResource* find_by_id(std::string id);
-    ISrsResource* find_by_fast_id(uint64_t id);
-    ISrsResource* find_by_name(std::string name);
+    void add(ISrsResource *conn, bool *exists = NULL);
+    void add_with_id(const std::string &id, ISrsResource *conn);
+    void add_with_fast_id(uint64_t id, ISrsResource *conn);
+    void add_with_name(const std::string &name, ISrsResource *conn);
+    ISrsResource *at(int index);
+    ISrsResource *find_by_id(std::string id);
+    ISrsResource *find_by_fast_id(uint64_t id);
+    ISrsResource *find_by_name(std::string name);
+
 public:
-    void subscribe(ISrsDisposingHandler* h);
-    void unsubscribe(ISrsDisposingHandler* h);
-// Interface ISrsResourceManager
+    void subscribe(ISrsDisposingHandler *h);
+    void unsubscribe(ISrsDisposingHandler *h);
+    // Interface ISrsResourceManager
 public:
-    virtual void remove(ISrsResource* c);
+    virtual void remove(ISrsResource *c);
+
 private:
-    void do_remove(ISrsResource* c);
-    void check_remove(ISrsResource* c, bool& in_zombie, bool& in_disposing);
+    void do_remove(ISrsResource *c);
+    void check_remove(ISrsResource *c, bool &in_zombie, bool &in_disposing);
     void clear();
     void do_clear();
-    void dispose(ISrsResource* c);
+    void dispose(ISrsResource *c);
 };
 
 // This class implements the ISrsResource interface using a smart pointer, allowing the Manager to delete this
@@ -142,49 +152,62 @@ private:
 //
 //      ISrsResourceManager* manager = ...;
 //      manager->remove(ptr);
-template<typename T>
+template <typename T>
 class SrsSharedResource : public ISrsResource
 {
 private:
     SrsSharedPtr<T> ptr_;
+
 public:
-    SrsSharedResource(T* ptr = NULL) : ptr_(ptr) {
+    SrsSharedResource(T *ptr = NULL) : ptr_(ptr)
+    {
     }
-    SrsSharedResource(const SrsSharedResource<T>& cp) : ptr_(cp.ptr_) {
+    SrsSharedResource(const SrsSharedResource<T> &cp) : ptr_(cp.ptr_)
+    {
     }
-    virtual ~SrsSharedResource() {
+    virtual ~SrsSharedResource()
+    {
     }
+
 public:
     // Get the object.
-    T* get() {
+    T *get()
+    {
         return ptr_.get();
     }
     // Overload the -> operator.
-    T* operator->() {
+    T *operator->()
+    {
         return ptr_.operator->();
     }
     // The assign operator.
-    SrsSharedResource<T>& operator=(const SrsSharedResource<T>& cp) {
+    SrsSharedResource<T> &operator=(const SrsSharedResource<T> &cp)
+    {
         if (this != &cp) {
             ptr_ = cp.ptr_;
         }
         return *this;
     }
+
 private:
     // Overload the * operator.
-    T& operator*() {
+    T &operator*()
+    {
         return ptr_.operator*();
     }
     // Overload the bool operator.
-    operator bool() const {
+    operator bool() const
+    {
         return ptr_.operator bool();
     }
-// Interface ISrsResource
+    // Interface ISrsResource
 public:
-    virtual const SrsContextId& get_id() {
+    virtual const SrsContextId &get_id()
+    {
         return ptr_->get_id();
     }
-    virtual std::string desc() {
+    virtual std::string desc()
+    {
         return ptr_->desc();
     }
 };
@@ -195,6 +218,7 @@ class ISrsExpire
 public:
     ISrsExpire();
     virtual ~ISrsExpire();
+
 public:
     // Set connection to expired to kick-off it.
     virtual void expire() = 0;
@@ -209,27 +233,29 @@ private:
     // The underlayer st fd handler.
     srs_netfd_t stfd;
     // The underlayer socket.
-    SrsStSocket* skt;
+    SrsStSocket *skt;
+
 public:
     SrsTcpConnection(srs_netfd_t c);
     virtual ~SrsTcpConnection();
+
 public:
     // Set socket option TCP_NODELAY.
     virtual srs_error_t set_tcp_nodelay(bool v);
     // Set socket option SO_SNDBUF in srs_utime_t.
     virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
-// Interface ISrsProtocolReadWriter
+    // Interface ISrsProtocolReadWriter
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
-    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread);
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
-    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
 };
 
 // With a small fast read buffer, to support peek for protocol detecting. Note that directly write to io without any
@@ -238,32 +264,35 @@ class SrsBufferedReadWriter : public ISrsProtocolReadWriter
 {
 private:
     // The under-layer transport.
-    ISrsProtocolReadWriter* io_;
+    ISrsProtocolReadWriter *io_;
     // Fixed, small and fast buffer. Note that it must be very small piece of cache, make sure matches all protocols,
     // because we will full fill it when peeking.
     char cache_[16];
     // Current reading position.
-    SrsBuffer* buf_;
+    SrsBuffer *buf_;
+
 public:
-    SrsBufferedReadWriter(ISrsProtocolReadWriter* io);
+    SrsBufferedReadWriter(ISrsProtocolReadWriter *io);
     virtual ~SrsBufferedReadWriter();
+
 public:
     // Peek the head of cache to buf in size of bytes.
-    srs_error_t peek(char* buf, int* size);
+    srs_error_t peek(char *buf, int *size);
+
 private:
     srs_error_t reload_buffer();
-// Interface ISrsProtocolReadWriter
+    // Interface ISrsProtocolReadWriter
 public:
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
-    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread);
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
-    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
 };
 
 // The SSL connection over TCP transport, in server mode.
@@ -271,29 +300,32 @@ class SrsSslConnection : public ISrsProtocolReadWriter
 {
 private:
     // The under-layer plaintext transport.
-    ISrsProtocolReadWriter* transport;
+    ISrsProtocolReadWriter *transport;
+
 private:
-    SSL_CTX* ssl_ctx;
-    SSL* ssl;
-    BIO* bio_in;
-    BIO* bio_out;
+    SSL_CTX *ssl_ctx;
+    SSL *ssl;
+    BIO *bio_in;
+    BIO *bio_out;
+
 public:
-    SrsSslConnection(ISrsProtocolReadWriter* c);
+    SrsSslConnection(ISrsProtocolReadWriter *c);
     virtual ~SrsSslConnection();
+
 public:
     virtual srs_error_t handshake(std::string key_file, std::string crt_file);
-// Interface ISrsProtocolReadWriter
+    // Interface ISrsProtocolReadWriter
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
-    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread);
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
-    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
 };
 
 #endif

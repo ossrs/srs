@@ -7,158 +7,156 @@
 #include <srs_app_tencentcloud.hpp>
 #ifdef SRS_APM
 
-#include <srs_kernel_error.hpp>
-#include <srs_kernel_buffer.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_statistic.hpp>
+#include <srs_app_utility.hpp>
+#include <srs_core_autofree.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_protocol_http_client.hpp>
 #include <srs_protocol_http_stack.hpp>
-#include <srs_kernel_utility.hpp>
-#include <srs_protocol_utility.hpp>
-#include <srs_core_autofree.hpp>
 #include <srs_protocol_json.hpp>
-#include <srs_app_statistic.hpp>
-#include <srs_kernel_utility.hpp>
-#include <srs_app_utility.hpp>
 #include <srs_protocol_protobuf.hpp>
-#include <srs_protocol_amf0.hpp>
+#include <srs_protocol_utility.hpp>
 
-#include <string>
-#include <map>
 #include <algorithm>
+#include <map>
+#include <openssl/hmac.h>
+#include <openssl/sha.h>
 #include <stdio.h>
 #include <string.h>
-#include <openssl/sha.h>
-#include <openssl/hmac.h>
+#include <string>
 #include <unistd.h>
 using namespace std;
 
 // See https://cloud.tencent.com/document/product/614/12445
-namespace tencentcloud_api_sign {
-    std::string sha1(const void *data, size_t len) {
-        unsigned char digest[SHA_DIGEST_LENGTH];
-        SHA_CTX ctx;
-        SHA1_Init(&ctx);
-        SHA1_Update(&ctx, data, len);
-        SHA1_Final(digest, &ctx);
-        char c_sha1[SHA_DIGEST_LENGTH*2+1];
-        for (unsigned i = 0; i < SHA_DIGEST_LENGTH; ++i) {
-            snprintf(&c_sha1[i*2], 3, "%02x", (unsigned int)digest[i]);
-        }
-        return c_sha1;
+namespace tencentcloud_api_sign
+{
+std::string sha1(const void *data, size_t len)
+{
+    unsigned char digest[SHA_DIGEST_LENGTH];
+    SHA_CTX ctx;
+    SHA1_Init(&ctx);
+    SHA1_Update(&ctx, data, len);
+    SHA1_Final(digest, &ctx);
+    char c_sha1[SHA_DIGEST_LENGTH * 2 + 1];
+    for (unsigned i = 0; i < SHA_DIGEST_LENGTH; ++i) {
+        snprintf(&c_sha1[i * 2], 3, "%02x", (unsigned int)digest[i]);
     }
-
-    std::string hmac_sha1(const char *key, const void *data, size_t len) {
-        unsigned char digest[EVP_MAX_MD_SIZE];
-        unsigned digest_len;
-        char c_hmacsha1[EVP_MAX_MD_SIZE*2+1];
-#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L
-        HMAC_CTX ctx;
-        HMAC_CTX_init(&ctx);
-        HMAC_Init_ex(&ctx, key, strlen(key), EVP_sha1(), NULL);
-        HMAC_Update(&ctx, (unsigned char*)data, len);
-        HMAC_Final(&ctx, digest, &digest_len);
-        HMAC_CTX_cleanup(&ctx);
-#else
-        HMAC_CTX *ctx = HMAC_CTX_new();
-        HMAC_CTX_reset(ctx);
-        HMAC_Init_ex(ctx, key, strlen(key), EVP_sha1(), NULL);
-        HMAC_Update(ctx, (unsigned char *)data, len);
-        HMAC_Final(ctx, digest, &digest_len);
-        HMAC_CTX_free(ctx);
-#endif
-        for (unsigned i = 0; i != digest_len; ++i) {
-            snprintf(&c_hmacsha1[i*2], 3, "%02x", (unsigned int)digest[i]);
-        }
-        return c_hmacsha1;
-    }
-
-    std::string urlencode(const char *s) {
-        static unsigned char hexchars[] = "0123456789ABCDEF";
-        size_t length = strlen(s), pos = 0;
-        unsigned char c_url[length*3+1];
-        const unsigned char *p = (const unsigned char *)s;
-        for (; *p; ++p) {
-            if (isalnum((unsigned char)*p) || (*p == '-') ||
-                (*p == '_') || (*p == '.') || (*p == '~')) {
-                c_url[pos++] = *p;
-            } else {
-                c_url[pos++] = '%';
-                c_url[pos++] = hexchars[(*p)>>4];
-                c_url[pos++] = hexchars[(*p)&15U];
-            }
-        }
-        c_url[pos] = 0;
-        return (char*)c_url;
-    }
-
-    std::string signature(const std::string &secret_id,
-                          const std::string &secret_key,
-                          std::string method,
-                          const std::string &path,
-                          const std::map<std::string, std::string> &params,
-                          const std::map<std::string, std::string> &headers,
-                          long expire) {
-
-        const size_t SIGNLEN = 1024;
-        std::string http_request_info, uri_parm_list,
-                header_list, str_to_sign, sign_key;
-        transform(method.begin(), method.end(), method.begin(), ::tolower);
-        http_request_info.reserve(SIGNLEN);
-        http_request_info.append(method).append("\n").append(path).append("\n");
-        uri_parm_list.reserve(SIGNLEN);
-        std::map<std::string, std::string>::const_iterator iter;
-        for (iter = params.begin();
-             iter != params.end(); ) {
-            uri_parm_list.append(iter->first);
-            http_request_info.append(iter->first).append("=")
-                    .append(urlencode(iter->second.c_str()));
-            if (++iter != params.end()) {
-                uri_parm_list.append(";");
-                http_request_info.append("&");
-            }
-        }
-        http_request_info.append("\n");
-        header_list.reserve(SIGNLEN);
-        for (iter = headers.begin();
-             iter != headers.end(); ++iter) {
-            sign_key = iter->first;
-            transform(sign_key.begin(), sign_key.end(), sign_key.begin(), ::tolower);
-            if (sign_key == "content-type" || sign_key == "content-md5"
-                || sign_key == "host" || sign_key[0] == 'x') {
-                header_list.append(sign_key);
-                http_request_info.append(sign_key).append("=")
-                        .append(urlencode(iter->second.c_str()));
-                header_list.append(";");
-                http_request_info.append("&");
-            }
-        }
-        if (!header_list.empty()) {
-            header_list[header_list.size() - 1] = 0;
-            http_request_info[http_request_info.size() - 1] = '\n';
-        }
-        //printf("%s\nEOF\n", http_request_info.c_str());
-        char signed_time[SIGNLEN] = {0};
-        int signed_time_len = snprintf(signed_time, SIGNLEN,
-                                       "%lu;%lu", time(0) - 60, time(0) + expire);
-        //snprintf(signed_time, SIGNLEN, "1510109254;1510109314");
-        std::string signkey = hmac_sha1(secret_key.c_str(),
-                                        signed_time, signed_time_len);
-        str_to_sign.reserve(SIGNLEN);
-        str_to_sign.append("sha1").append("\n")
-                .append(signed_time).append("\n")
-                .append(sha1(http_request_info.c_str(), http_request_info.size()))
-                .append("\n");
-        //printf("%s\nEOF\n", str_to_sign.c_str());
-        std::stringstream c_signature;
-        c_signature << "q-sign-algorithm=sha1&q-ak=" << secret_id.c_str()
-                    << "&q-sign-time=" << signed_time
-                    << "&q-key-time=" << signed_time
-                    << "&q-header-list=" << header_list.c_str()
-                    << "&q-url-param-list=" << uri_parm_list.c_str()
-                    << "&q-signature=" << hmac_sha1(signkey.c_str(), str_to_sign.c_str(), str_to_sign.size()).c_str();
-        return c_signature.str();
-    }
+    return c_sha1;
 }
+
+std::string hmac_sha1(const char *key, const void *data, size_t len)
+{
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned digest_len;
+    char c_hmacsha1[EVP_MAX_MD_SIZE * 2 + 1];
+#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L
+    HMAC_CTX ctx;
+    HMAC_CTX_init(&ctx);
+    HMAC_Init_ex(&ctx, key, strlen(key), EVP_sha1(), NULL);
+    HMAC_Update(&ctx, (unsigned char *)data, len);
+    HMAC_Final(&ctx, digest, &digest_len);
+    HMAC_CTX_cleanup(&ctx);
+#else
+    HMAC_CTX *ctx = HMAC_CTX_new();
+    HMAC_CTX_reset(ctx);
+    HMAC_Init_ex(ctx, key, strlen(key), EVP_sha1(), NULL);
+    HMAC_Update(ctx, (unsigned char *)data, len);
+    HMAC_Final(ctx, digest, &digest_len);
+    HMAC_CTX_free(ctx);
+#endif
+    for (unsigned i = 0; i != digest_len; ++i) {
+        snprintf(&c_hmacsha1[i * 2], 3, "%02x", (unsigned int)digest[i]);
+    }
+    return c_hmacsha1;
+}
+
+std::string urlencode(const char *s)
+{
+    static unsigned char hexchars[] = "0123456789ABCDEF";
+    size_t length = strlen(s), pos = 0;
+    unsigned char c_url[length * 3 + 1];
+    const unsigned char *p = (const unsigned char *)s;
+    for (; *p; ++p) {
+        if (isalnum((unsigned char)*p) || (*p == '-') ||
+            (*p == '_') || (*p == '.') || (*p == '~')) {
+            c_url[pos++] = *p;
+        } else {
+            c_url[pos++] = '%';
+            c_url[pos++] = hexchars[(*p) >> 4];
+            c_url[pos++] = hexchars[(*p) & 15U];
+        }
+    }
+    c_url[pos] = 0;
+    return (char *)c_url;
+}
+
+std::string signature(const std::string &secret_id,
+                      const std::string &secret_key,
+                      std::string method,
+                      const std::string &path,
+                      const std::map<std::string, std::string> &params,
+                      const std::map<std::string, std::string> &headers,
+                      long expire)
+{
+
+    const size_t SIGNLEN = 1024;
+    std::string http_request_info, uri_parm_list,
+        header_list, str_to_sign, sign_key;
+    transform(method.begin(), method.end(), method.begin(), ::tolower);
+    http_request_info.reserve(SIGNLEN);
+    http_request_info.append(method).append("\n").append(path).append("\n");
+    uri_parm_list.reserve(SIGNLEN);
+    std::map<std::string, std::string>::const_iterator iter;
+    for (iter = params.begin();
+         iter != params.end();) {
+        uri_parm_list.append(iter->first);
+        http_request_info.append(iter->first).append("=").append(urlencode(iter->second.c_str()));
+        if (++iter != params.end()) {
+            uri_parm_list.append(";");
+            http_request_info.append("&");
+        }
+    }
+    http_request_info.append("\n");
+    header_list.reserve(SIGNLEN);
+    for (iter = headers.begin();
+         iter != headers.end(); ++iter) {
+        sign_key = iter->first;
+        transform(sign_key.begin(), sign_key.end(), sign_key.begin(), ::tolower);
+        if (sign_key == "content-type" || sign_key == "content-md5" || sign_key == "host" || sign_key[0] == 'x') {
+            header_list.append(sign_key);
+            http_request_info.append(sign_key).append("=").append(urlencode(iter->second.c_str()));
+            header_list.append(";");
+            http_request_info.append("&");
+        }
+    }
+    if (!header_list.empty()) {
+        header_list[header_list.size() - 1] = 0;
+        http_request_info[http_request_info.size() - 1] = '\n';
+    }
+    // printf("%s\nEOF\n", http_request_info.c_str());
+    char signed_time[SIGNLEN] = {0};
+    int signed_time_len = snprintf(signed_time, SIGNLEN,
+                                   "%lu;%lu", time(0) - 60, time(0) + expire);
+    // snprintf(signed_time, SIGNLEN, "1510109254;1510109314");
+    std::string signkey = hmac_sha1(secret_key.c_str(),
+                                    signed_time, signed_time_len);
+    str_to_sign.reserve(SIGNLEN);
+    str_to_sign.append("sha1").append("\n").append(signed_time).append("\n").append(sha1(http_request_info.c_str(), http_request_info.size())).append("\n");
+    // printf("%s\nEOF\n", str_to_sign.c_str());
+    std::stringstream c_signature;
+    c_signature << "q-sign-algorithm=sha1&q-ak=" << secret_id.c_str()
+                << "&q-sign-time=" << signed_time
+                << "&q-key-time=" << signed_time
+                << "&q-header-list=" << header_list.c_str()
+                << "&q-url-param-list=" << uri_parm_list.c_str()
+                << "&q-signature=" << hmac_sha1(signkey.c_str(), str_to_sign.c_str(), str_to_sign.size()).c_str();
+    return c_signature.str();
+}
+} // namespace tencentcloud_api_sign
 
 // See https://cloud.tencent.com/document/api/614/16873
 class SrsClsLogContent : public ISrsEncoder
@@ -168,15 +166,18 @@ private:
     std::string key_;
     // required string value = 2;
     std::string value_;
+
 public:
     SrsClsLogContent();
     virtual ~SrsClsLogContent();
+
 public:
-    SrsClsLogContent* set_key(std::string v);
-    SrsClsLogContent* set_value(std::string v);
+    SrsClsLogContent *set_key(std::string v);
+    SrsClsLogContent *set_value(std::string v);
+
 public:
     virtual uint64_t nb_bytes();
-    srs_error_t encode(SrsBuffer* b);
+    srs_error_t encode(SrsBuffer *b);
 };
 
 // See https://cloud.tencent.com/document/api/614/16873
@@ -186,16 +187,19 @@ private:
     // required int64 time = 1;
     int64_t time_;
     // repeated Content contents= 2;
-    std::vector<SrsClsLogContent*> contents_;
+    std::vector<SrsClsLogContent *> contents_;
+
 public:
     SrsClsLog();
     virtual ~SrsClsLog();
+
 public:
-    SrsClsLogContent* add_content();
-    SrsClsLog* set_time(int64_t v);
+    SrsClsLogContent *add_content();
+    SrsClsLog *set_time(int64_t v);
+
 public:
     virtual uint64_t nb_bytes();
-    srs_error_t encode(SrsBuffer* b);
+    srs_error_t encode(SrsBuffer *b);
 };
 
 // See https://cloud.tencent.com/document/api/614/16873
@@ -203,18 +207,21 @@ class SrsClsLogGroup : public ISrsEncoder
 {
 private:
     // repeated Log logs= 1;
-    std::vector<SrsClsLog*> logs_;
+    std::vector<SrsClsLog *> logs_;
     // optional string source = 4;
     std::string source_;
+
 public:
     SrsClsLogGroup();
     virtual ~SrsClsLogGroup();
+
 public:
-    SrsClsLogGroup* set_source(std::string v);
-    SrsClsLog* add_log();
+    SrsClsLogGroup *set_source(std::string v);
+    SrsClsLog *add_log();
+
 public:
     virtual uint64_t nb_bytes();
-    srs_error_t encode(SrsBuffer* b);
+    srs_error_t encode(SrsBuffer *b);
 };
 
 // See https://cloud.tencent.com/document/api/614/16873
@@ -222,16 +229,19 @@ class SrsClsLogGroupList
 {
 private:
     // repeated LogGroup logGroupList = 1;
-    std::vector<SrsClsLogGroup*> groups_;
+    std::vector<SrsClsLogGroup *> groups_;
+
 public:
     SrsClsLogGroupList();
     virtual ~SrsClsLogGroupList();
+
 public:
     bool empty();
-    SrsClsLogGroup* add_log_group();
+    SrsClsLogGroup *add_log_group();
+
 public:
     virtual uint64_t nb_bytes();
-    srs_error_t encode(SrsBuffer* b);
+    srs_error_t encode(SrsBuffer *b);
 };
 
 SrsClsLogContent::SrsClsLogContent()
@@ -242,13 +252,13 @@ SrsClsLogContent::~SrsClsLogContent()
 {
 }
 
-SrsClsLogContent* SrsClsLogContent::set_key(std::string v)
+SrsClsLogContent *SrsClsLogContent::set_key(std::string v)
 {
     key_ = v;
     return this;
 }
 
-SrsClsLogContent* SrsClsLogContent::set_value(std::string v)
+SrsClsLogContent *SrsClsLogContent::set_value(std::string v)
 {
     value_ = v;
     return this;
@@ -256,12 +266,12 @@ SrsClsLogContent* SrsClsLogContent::set_value(std::string v)
 
 uint64_t SrsClsLogContent::nb_bytes()
 {
-    uint64_t  nn = SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(key_);
+    uint64_t nn = SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(key_);
     nn += SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(value_);
     return nn;
 }
 
-srs_error_t SrsClsLogContent::encode(SrsBuffer* b)
+srs_error_t SrsClsLogContent::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
@@ -292,20 +302,20 @@ SrsClsLog::SrsClsLog()
 
 SrsClsLog::~SrsClsLog()
 {
-    for (std::vector<SrsClsLogContent*>::iterator it = contents_.begin(); it != contents_.end(); ++it) {
-        SrsClsLogContent* content = *it;
+    for (std::vector<SrsClsLogContent *>::iterator it = contents_.begin(); it != contents_.end(); ++it) {
+        SrsClsLogContent *content = *it;
         srs_freep(content);
     }
 }
 
-SrsClsLogContent* SrsClsLog::add_content()
+SrsClsLogContent *SrsClsLog::add_content()
 {
-    SrsClsLogContent* content = new SrsClsLogContent();
+    SrsClsLogContent *content = new SrsClsLogContent();
     contents_.push_back(content);
     return content;
 }
 
-SrsClsLog* SrsClsLog::set_time(int64_t v)
+SrsClsLog *SrsClsLog::set_time(int64_t v)
 {
     time_ = v;
     return this;
@@ -315,17 +325,17 @@ uint64_t SrsClsLog::nb_bytes()
 {
     uint64_t nn = SrsProtobufKey::sizeof_key() + SrsProtobufVarints::sizeof_varint(time_);
 
-    for (std::vector<SrsClsLogContent*>::iterator it = contents_.begin(); it != contents_.end(); ++it) {
-        SrsClsLogContent* content = *it;
+    for (std::vector<SrsClsLogContent *>::iterator it = contents_.begin(); it != contents_.end(); ++it) {
+        SrsClsLogContent *content = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(content);
     }
 
     return nn;
 }
 
-srs_error_t SrsClsLog::encode(SrsBuffer* b)
+srs_error_t SrsClsLog::encode(SrsBuffer *b)
 {
-    srs_error_t  err = srs_success;
+    srs_error_t err = srs_success;
 
     // Encode the time.
     if ((err = SrsProtobufKey::encode(b, 1, SrsProtobufFieldVarint)) != srs_success) {
@@ -337,8 +347,8 @@ srs_error_t SrsClsLog::encode(SrsBuffer* b)
     }
 
     // Encode each content.
-    for (std::vector<SrsClsLogContent*>::iterator it = contents_.begin(); it != contents_.end(); ++it) {
-        SrsClsLogContent* content = *it;
+    for (std::vector<SrsClsLogContent *>::iterator it = contents_.begin(); it != contents_.end(); ++it) {
+        SrsClsLogContent *content = *it;
 
         if ((err = SrsProtobufKey::encode(b, 2, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -358,21 +368,21 @@ SrsClsLogGroup::SrsClsLogGroup()
 
 SrsClsLogGroup::~SrsClsLogGroup()
 {
-    for (std::vector<SrsClsLog*>::iterator it = logs_.begin(); it != logs_.end(); ++it) {
-        SrsClsLog* log = *it;
+    for (std::vector<SrsClsLog *>::iterator it = logs_.begin(); it != logs_.end(); ++it) {
+        SrsClsLog *log = *it;
         srs_freep(log);
     }
 }
 
-SrsClsLogGroup* SrsClsLogGroup::set_source(std::string v)
+SrsClsLogGroup *SrsClsLogGroup::set_source(std::string v)
 {
     source_ = v;
     return this;
 }
 
-SrsClsLog* SrsClsLogGroup::add_log()
+SrsClsLog *SrsClsLogGroup::add_log()
 {
-    SrsClsLog* log = new SrsClsLog();
+    SrsClsLog *log = new SrsClsLog();
     logs_.push_back(log);
     return log;
 }
@@ -380,8 +390,8 @@ SrsClsLog* SrsClsLogGroup::add_log()
 uint64_t SrsClsLogGroup::nb_bytes()
 {
     uint64_t nn = 0;
-    for (std::vector<SrsClsLog*>::iterator it = logs_.begin(); it != logs_.end(); ++it) {
-        SrsClsLog* log = *it;
+    for (std::vector<SrsClsLog *>::iterator it = logs_.begin(); it != logs_.end(); ++it) {
+        SrsClsLog *log = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(log);
     }
 
@@ -389,13 +399,13 @@ uint64_t SrsClsLogGroup::nb_bytes()
     return nn;
 }
 
-srs_error_t SrsClsLogGroup::encode(SrsBuffer* b)
+srs_error_t SrsClsLogGroup::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
     // Encode each log.
-    for (std::vector<SrsClsLog*>::iterator it = logs_.begin(); it != logs_.end(); ++it) {
-        SrsClsLog* log = *it;
+    for (std::vector<SrsClsLog *>::iterator it = logs_.begin(); it != logs_.end(); ++it) {
+        SrsClsLog *log = *it;
 
         if ((err = SrsProtobufKey::encode(b, 1, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -424,8 +434,8 @@ SrsClsLogGroupList::SrsClsLogGroupList()
 
 SrsClsLogGroupList::~SrsClsLogGroupList()
 {
-    for (std::vector<SrsClsLogGroup*>::iterator it = groups_.begin(); it != groups_.end(); ++it) {
-        SrsClsLogGroup* group = *it;
+    for (std::vector<SrsClsLogGroup *>::iterator it = groups_.begin(); it != groups_.end(); ++it) {
+        SrsClsLogGroup *group = *it;
         srs_freep(group);
     }
 }
@@ -435,9 +445,9 @@ bool SrsClsLogGroupList::empty()
     return groups_.empty();
 }
 
-SrsClsLogGroup* SrsClsLogGroupList::add_log_group()
+SrsClsLogGroup *SrsClsLogGroupList::add_log_group()
 {
-    SrsClsLogGroup* group = new SrsClsLogGroup();
+    SrsClsLogGroup *group = new SrsClsLogGroup();
     groups_.push_back(group);
     return group;
 }
@@ -445,20 +455,20 @@ SrsClsLogGroup* SrsClsLogGroupList::add_log_group()
 uint64_t SrsClsLogGroupList::nb_bytes()
 {
     uint64_t nn = 0;
-    for (std::vector<SrsClsLogGroup*>::iterator it = groups_.begin(); it != groups_.end(); ++it) {
-        SrsClsLogGroup* group = *it;
+    for (std::vector<SrsClsLogGroup *>::iterator it = groups_.begin(); it != groups_.end(); ++it) {
+        SrsClsLogGroup *group = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(group);
     }
     return nn;
 }
 
-srs_error_t SrsClsLogGroupList::encode(SrsBuffer* b)
+srs_error_t SrsClsLogGroupList::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
     // Encode each group.
-    for (std::vector<SrsClsLogGroup*>::iterator it = groups_.begin(); it != groups_.end(); ++it) {
-        SrsClsLogGroup* group = *it;
+    for (std::vector<SrsClsLogGroup *>::iterator it = groups_.begin(); it != groups_.end(); ++it) {
+        SrsClsLogGroup *group = *it;
 
         if ((err = SrsProtobufKey::encode(b, 1, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -508,7 +518,7 @@ uint64_t SrsClsSugar::nb_bytes()
     return log_groups_->nb_bytes();
 }
 
-srs_error_t SrsClsSugar::encode(SrsBuffer* b)
+srs_error_t SrsClsSugar::encode(SrsBuffer *b)
 {
     return log_groups_->encode(b);
 }
@@ -518,7 +528,7 @@ bool SrsClsSugar::empty()
     return log_groups_->empty();
 }
 
-SrsClsSugar* SrsClsSugar::kv(std::string k, std::string v)
+SrsClsSugar *SrsClsSugar::kv(std::string k, std::string v)
 {
     log_->add_content()->set_key(k)->set_value(v);
     return this;
@@ -530,8 +540,8 @@ SrsClsSugars::SrsClsSugars()
 
 SrsClsSugars::~SrsClsSugars()
 {
-    for (vector<SrsClsSugar*>::iterator it = sugars.begin(); it != sugars.end(); ++it) {
-        SrsClsSugar* sugar = *it;
+    for (vector<SrsClsSugar *>::iterator it = sugars.begin(); it != sugars.end(); ++it) {
+        SrsClsSugar *sugar = *it;
         srs_freep(sugar);
     }
 }
@@ -539,19 +549,19 @@ SrsClsSugars::~SrsClsSugars()
 uint64_t SrsClsSugars::nb_bytes()
 {
     uint64_t size = 0;
-    for (vector<SrsClsSugar*>::iterator it = sugars.begin(); it != sugars.end(); ++it) {
-        SrsClsSugar* sugar = *it;
+    for (vector<SrsClsSugar *>::iterator it = sugars.begin(); it != sugars.end(); ++it) {
+        SrsClsSugar *sugar = *it;
         size += sugar->nb_bytes();
     }
     return size;
 }
 
-srs_error_t SrsClsSugars::encode(SrsBuffer* b)
+srs_error_t SrsClsSugars::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
-    for (vector<SrsClsSugar*>::iterator it = sugars.begin(); it != sugars.end(); ++it) {
-        SrsClsSugar* sugar = *it;
+    for (vector<SrsClsSugar *>::iterator it = sugars.begin(); it != sugars.end(); ++it) {
+        SrsClsSugar *sugar = *it;
         if ((err = sugar->encode(b)) != srs_success) {
             return srs_error_wrap(err, "encode %d sugars", (int)sugars.size());
         }
@@ -560,20 +570,20 @@ srs_error_t SrsClsSugars::encode(SrsBuffer* b)
     return err;
 }
 
-SrsClsSugar* SrsClsSugars::create()
+SrsClsSugar *SrsClsSugars::create()
 {
-    SrsClsSugar* sugar = new SrsClsSugar();
+    SrsClsSugar *sugar = new SrsClsSugar();
     sugars.push_back(sugar);
     return sugar;
 }
 
-SrsClsSugars* SrsClsSugars::slice(int max_size)
+SrsClsSugars *SrsClsSugars::slice(int max_size)
 {
-    SrsClsSugars* v = new SrsClsSugars();
+    SrsClsSugars *v = new SrsClsSugars();
 
     uint64_t v_size = 0;
-    for (vector<SrsClsSugar*>::iterator it = sugars.begin(); it != sugars.end();) {
-        SrsClsSugar* sugar = *it;
+    for (vector<SrsClsSugar *>::iterator it = sugars.begin(); it != sugars.end();) {
+        SrsClsSugar *sugar = *it;
 
         // Always consume it.
         it = sugars.erase(it);
@@ -607,7 +617,7 @@ int SrsClsSugars::size()
     return (int)sugars.size();
 }
 
-SrsClsClient* _srs_cls = NULL;
+SrsClsClient *_srs_cls = NULL;
 
 SrsClsClient::SrsClsClient()
 {
@@ -685,7 +695,7 @@ srs_error_t SrsClsClient::initialize()
     }
 
     srs_trace("Initialize TencentCloud CLS label=%s, tag=%s, secret_id=%dB, secret_key=%dB, endpoint=%s, topic=%s, heartbeat=%d/%d, streams=%d/%d debug_logging=%d",
-        label_.c_str(), tag_.c_str(), secret_id_.length(), secret_key.length(), endpoint_.c_str(), topic_.c_str(), stat_heartbeat_, heartbeat_ratio_, stat_streams_, streams_ratio_, debug_logging_);
+              label_.c_str(), tag_.c_str(), secret_id_.length(), secret_key.length(), endpoint_.c_str(), topic_.c_str(), stat_heartbeat_, heartbeat_ratio_, stat_streams_, streams_ratio_, debug_logging_);
 
     return err;
 }
@@ -716,7 +726,7 @@ srs_error_t SrsClsClient::report()
     return err;
 }
 
-srs_error_t SrsClsClient::do_send_logs(ISrsEncoder* sugar, int count, int total)
+srs_error_t SrsClsClient::do_send_logs(ISrsEncoder *sugar, int count, int total)
 {
     srs_error_t err = srs_success;
 
@@ -774,7 +784,7 @@ srs_error_t SrsClsClient::do_send_logs(ISrsEncoder* sugar, int count, int total)
     }
 
     // Start request and parse response.
-    ISrsHttpMessage* msg_raw = NULL;
+    ISrsHttpMessage *msg_raw = NULL;
     if ((err = http.post(path, body, &msg_raw)) != srs_success) {
         return srs_error_wrap(err, "http: client post");
     }
@@ -807,7 +817,7 @@ srs_error_t SrsClsClient::do_send_logs(ISrsEncoder* sugar, int count, int total)
 // For each upload, never exceed 2MB, to avoid burst of CPU or network usage.
 #define SRS_CLS_BATCH_MAX_LOG_SIZE 2 * 1024 * 1024
 
-srs_error_t SrsClsClient::send_logs(SrsClsSugars* sugars)
+srs_error_t SrsClsClient::send_logs(SrsClsSugars *sugars)
 {
     srs_error_t err = srs_success;
 
@@ -819,7 +829,7 @@ srs_error_t SrsClsClient::send_logs(SrsClsSugars* sugars)
     for (int i = 0; i < 128 && !sugars->empty(); ++i) {
         SrsUniquePtr<SrsClsSugars> v(sugars->slice(SRS_CLS_BATCH_MAX_LOG_SIZE));
 
-        if ((err = do_send_logs((ISrsEncoder*)v.get(), v->size(), total)) != srs_success) {
+        if ((err = do_send_logs((ISrsEncoder *)v.get(), v->size(), total)) != srs_success) {
             return srs_error_wrap(err, "send %d/%d/%d logs", v->size(), i, total);
         }
     }
@@ -827,7 +837,7 @@ srs_error_t SrsClsClient::send_logs(SrsClsSugars* sugars)
     return err;
 }
 
-srs_error_t SrsClsClient::dump_summaries(SrsClsSugars* sugars)
+srs_error_t SrsClsClient::dump_summaries(SrsClsSugars *sugars)
 {
     srs_error_t err = srs_success;
 
@@ -846,7 +856,7 @@ srs_error_t SrsClsClient::dump_summaries(SrsClsSugars* sugars)
         return err;
     }
 
-    SrsClsSugar* sugar = sugars->create();
+    SrsClsSugar *sugar = sugars->create();
     sugar->kv("hint", "summary");
     sugar->kv("version", RTMP_SIG_SRS_VERSION);
     sugar->kv("pid", srs_fmt("%d", getpid()));
@@ -854,7 +864,7 @@ srs_error_t SrsClsClient::dump_summaries(SrsClsSugars* sugars)
     // Server ID to identify logs from a set of servers' logs.
     SrsStatistic::instance()->dumps_cls_summaries(sugar);
 
-    SrsProcSelfStat* u = srs_get_self_proc_stat();
+    SrsProcSelfStat *u = srs_get_self_proc_stat();
     if (u->ok) {
         // The cpu usage of SRS, 1 means 1/1000
         if (u->percent > 0) {
@@ -862,7 +872,7 @@ srs_error_t SrsClsClient::dump_summaries(SrsClsSugars* sugars)
         }
     }
 
-    SrsPlatformInfo* p = srs_get_platform_info();
+    SrsPlatformInfo *p = srs_get_platform_info();
     if (p->ok) {
         // The uptime of SRS, in seconds.
         if (p->srs_startup_time > 0) {
@@ -874,8 +884,8 @@ srs_error_t SrsClsClient::dump_summaries(SrsClsSugars* sugars)
         }
     }
 
-    SrsRusage* r = srs_get_system_rusage();
-    SrsMemInfo* m = srs_get_meminfo();
+    SrsRusage *r = srs_get_system_rusage();
+    SrsMemInfo *m = srs_get_meminfo();
     if (r->ok && m->ok) {
         float self_mem_percent = 0;
         if (m->MemTotal > 0) {
@@ -888,7 +898,7 @@ srs_error_t SrsClsClient::dump_summaries(SrsClsSugars* sugars)
         }
     }
 
-    SrsProcSystemStat* s = srs_get_system_proc_stat();
+    SrsProcSystemStat *s = srs_get_system_proc_stat();
     if (s->ok) {
         // The cpu usage of system, 1 means 1/1000
         if (s->percent > 0) {
@@ -896,7 +906,7 @@ srs_error_t SrsClsClient::dump_summaries(SrsClsSugars* sugars)
         }
     }
 
-    SrsNetworkRtmpServer* nrs = srs_get_network_rtmp_server();
+    SrsNetworkRtmpServer *nrs = srs_get_network_rtmp_server();
     if (nrs->ok) {
         // The number of connections of SRS.
         if (nrs->nb_conn_srs > 0) {
@@ -919,7 +929,7 @@ srs_error_t SrsClsClient::dump_summaries(SrsClsSugars* sugars)
     return err;
 }
 
-srs_error_t SrsClsClient::dump_streams(SrsClsSugars* sugars)
+srs_error_t SrsClsClient::dump_streams(SrsClsSugars *sugars)
 {
     srs_error_t err = srs_success;
 
@@ -950,15 +960,15 @@ SrsOtelExportTraceServiceRequest::SrsOtelExportTraceServiceRequest()
 
 SrsOtelExportTraceServiceRequest::~SrsOtelExportTraceServiceRequest()
 {
-    for (vector<SrsOtelResourceSpans*>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
-        SrsOtelResourceSpans* span = *it;
+    for (vector<SrsOtelResourceSpans *>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
+        SrsOtelResourceSpans *span = *it;
         srs_freep(span);
     }
 }
 
-SrsOtelResourceSpans* SrsOtelExportTraceServiceRequest::append()
+SrsOtelResourceSpans *SrsOtelExportTraceServiceRequest::append()
 {
-    SrsOtelResourceSpans* v = new SrsOtelResourceSpans();
+    SrsOtelResourceSpans *v = new SrsOtelResourceSpans();
     spans_.push_back(v);
     return v;
 }
@@ -966,20 +976,20 @@ SrsOtelResourceSpans* SrsOtelExportTraceServiceRequest::append()
 uint64_t SrsOtelExportTraceServiceRequest::nb_bytes()
 {
     uint64_t nn = 0;
-    for (vector<SrsOtelResourceSpans*>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
-        SrsOtelResourceSpans* span = *it;
+    for (vector<SrsOtelResourceSpans *>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
+        SrsOtelResourceSpans *span = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(span);
     }
     return nn;
 }
 
-srs_error_t SrsOtelExportTraceServiceRequest::encode(SrsBuffer* b)
+srs_error_t SrsOtelExportTraceServiceRequest::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
     // Encode each span.
-    for (vector<SrsOtelResourceSpans*>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
-        SrsOtelResourceSpans* span = *it;
+    for (vector<SrsOtelResourceSpans *>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
+        SrsOtelResourceSpans *span = *it;
 
         if ((err = SrsProtobufKey::encode(b, 1, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -1001,21 +1011,21 @@ SrsOtelResourceSpans::SrsOtelResourceSpans()
 SrsOtelResourceSpans::~SrsOtelResourceSpans()
 {
     srs_freep(resource_);
-    
-    for (std::vector<SrsOtelScopeSpans*>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
-        SrsOtelScopeSpans* span = *it;
+
+    for (std::vector<SrsOtelScopeSpans *>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
+        SrsOtelScopeSpans *span = *it;
         srs_freep(span);
     }
 }
 
-SrsOtelResource* SrsOtelResourceSpans::resource()
+SrsOtelResource *SrsOtelResourceSpans::resource()
 {
     return resource_;
 }
 
-SrsOtelScopeSpans* SrsOtelResourceSpans::append()
+SrsOtelScopeSpans *SrsOtelResourceSpans::append()
 {
-    SrsOtelScopeSpans* v = new SrsOtelScopeSpans();
+    SrsOtelScopeSpans *v = new SrsOtelScopeSpans();
     spans_.push_back(v);
     return v;
 }
@@ -1023,14 +1033,14 @@ SrsOtelScopeSpans* SrsOtelResourceSpans::append()
 uint64_t SrsOtelResourceSpans::nb_bytes()
 {
     uint64_t nn = SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(resource_);
-    for (std::vector<SrsOtelScopeSpans*>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
-        SrsOtelScopeSpans* span = *it;
+    for (std::vector<SrsOtelScopeSpans *>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
+        SrsOtelScopeSpans *span = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(span);
     }
     return nn;
 }
 
-srs_error_t SrsOtelResourceSpans::encode(SrsBuffer* b)
+srs_error_t SrsOtelResourceSpans::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
@@ -1046,8 +1056,8 @@ srs_error_t SrsOtelResourceSpans::encode(SrsBuffer* b)
     // Encode scope spans.
 
     // Encode each group.
-    for (std::vector<SrsOtelScopeSpans*>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
-        SrsOtelScopeSpans* span = *it;
+    for (std::vector<SrsOtelScopeSpans *>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
+        SrsOtelScopeSpans *span = *it;
 
         if ((err = SrsProtobufKey::encode(b, 2, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -1067,13 +1077,13 @@ SrsOtelResource::SrsOtelResource()
 
 SrsOtelResource::~SrsOtelResource()
 {
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
         srs_freep(attribute);
     }
 }
 
-SrsOtelResource* SrsOtelResource::add_addr(SrsOtelAttribute* v)
+SrsOtelResource *SrsOtelResource::add_addr(SrsOtelAttribute *v)
 {
     attributes_.push_back(v);
     return this;
@@ -1082,20 +1092,20 @@ SrsOtelResource* SrsOtelResource::add_addr(SrsOtelAttribute* v)
 uint64_t SrsOtelResource::nb_bytes()
 {
     uint64_t nn = 0;
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(attribute);
     }
     return nn;
 }
 
-srs_error_t SrsOtelResource::encode(SrsBuffer* b)
+srs_error_t SrsOtelResource::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
     // Encode attributes.
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
 
         if ((err = SrsProtobufKey::encode(b, 1, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -1119,22 +1129,22 @@ SrsOtelAttribute::~SrsOtelAttribute()
     srs_freep(value_);
 }
 
-const std::string& SrsOtelAttribute::key()
+const std::string &SrsOtelAttribute::key()
 {
     return key_;
 }
 
-SrsOtelAttribute* SrsOtelAttribute::kv(std::string k, std::string v)
+SrsOtelAttribute *SrsOtelAttribute::kv(std::string k, std::string v)
 {
-    SrsOtelAttribute* attr = new SrsOtelAttribute();
+    SrsOtelAttribute *attr = new SrsOtelAttribute();
     attr->key_ = k;
     attr->value_->set_string(v);
     return attr;
 }
 
-SrsOtelAttribute* SrsOtelAttribute::kvi(std::string k, int64_t v)
+SrsOtelAttribute *SrsOtelAttribute::kvi(std::string k, int64_t v)
 {
-    SrsOtelAttribute* attr = new SrsOtelAttribute();
+    SrsOtelAttribute *attr = new SrsOtelAttribute();
     attr->key_ = k;
     attr->value_->set_int(v);
     return attr;
@@ -1142,12 +1152,12 @@ SrsOtelAttribute* SrsOtelAttribute::kvi(std::string k, int64_t v)
 
 uint64_t SrsOtelAttribute::nb_bytes()
 {
-    uint64_t  nn = SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(key_);
+    uint64_t nn = SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(key_);
     nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(value_);
     return nn;
 }
 
-srs_error_t SrsOtelAttribute::encode(SrsBuffer* b)
+srs_error_t SrsOtelAttribute::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
@@ -1182,14 +1192,14 @@ SrsOtelAnyValue::~SrsOtelAnyValue()
 {
 }
 
-SrsOtelAnyValue* SrsOtelAnyValue::set_string(const std::string& v)
+SrsOtelAnyValue *SrsOtelAnyValue::set_string(const std::string &v)
 {
     string_value_ = v;
     used_field_id_ = 1;
     return this;
 }
 
-SrsOtelAnyValue* SrsOtelAnyValue::set_int(int64_t v)
+SrsOtelAnyValue *SrsOtelAnyValue::set_int(int64_t v)
 {
     int_value_ = v;
     used_field_id_ = 3;
@@ -1198,13 +1208,15 @@ SrsOtelAnyValue* SrsOtelAnyValue::set_int(int64_t v)
 
 uint64_t SrsOtelAnyValue::nb_bytes()
 {
-    uint64_t  nn = 0;
-    if (used_field_id_ == 1) nn = SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(string_value_);
-    if (used_field_id_ == 3) nn = SrsProtobufKey::sizeof_key() + SrsProtobufVarints::sizeof_varint(int_value_);
+    uint64_t nn = 0;
+    if (used_field_id_ == 1)
+        nn = SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(string_value_);
+    if (used_field_id_ == 3)
+        nn = SrsProtobufKey::sizeof_key() + SrsProtobufVarints::sizeof_varint(int_value_);
     return nn;
 }
 
-srs_error_t SrsOtelAnyValue::encode(SrsBuffer* b)
+srs_error_t SrsOtelAnyValue::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
@@ -1239,18 +1251,18 @@ SrsOtelScopeSpans::SrsOtelScopeSpans()
 SrsOtelScopeSpans::~SrsOtelScopeSpans()
 {
     srs_freep(scope_);
-    for (std::vector<SrsOtelSpan*>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
-        SrsOtelSpan* span = *it;
+    for (std::vector<SrsOtelSpan *>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
+        SrsOtelSpan *span = *it;
         srs_freep(span);
     }
 }
 
-SrsOtelScope* SrsOtelScopeSpans::scope()
+SrsOtelScope *SrsOtelScopeSpans::scope()
 {
     return scope_;
 }
 
-SrsOtelScopeSpans* SrsOtelScopeSpans::swap(std::vector<SrsOtelSpan*>& spans)
+SrsOtelScopeSpans *SrsOtelScopeSpans::swap(std::vector<SrsOtelSpan *> &spans)
 {
     spans_.swap(spans);
     return this;
@@ -1264,14 +1276,14 @@ int SrsOtelScopeSpans::size()
 uint64_t SrsOtelScopeSpans::nb_bytes()
 {
     uint64_t nn = SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(scope_);
-    for (std::vector<SrsOtelSpan*>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
-        SrsOtelSpan* span = *it;
+    for (std::vector<SrsOtelSpan *>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
+        SrsOtelSpan *span = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(span);
     }
     return nn;
 }
 
-srs_error_t SrsOtelScopeSpans::encode(SrsBuffer* b)
+srs_error_t SrsOtelScopeSpans::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
@@ -1285,8 +1297,8 @@ srs_error_t SrsOtelScopeSpans::encode(SrsBuffer* b)
     }
 
     // Encode each span.
-    for (std::vector<SrsOtelSpan*>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
-        SrsOtelSpan* span = *it;
+    for (std::vector<SrsOtelSpan *>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
+        SrsOtelSpan *span = *it;
 
         if ((err = SrsProtobufKey::encode(b, 2, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -1314,7 +1326,7 @@ uint64_t SrsOtelScope::nb_bytes()
     return nn;
 }
 
-srs_error_t SrsOtelScope::encode(SrsBuffer* b)
+srs_error_t SrsOtelScope::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
@@ -1339,28 +1351,28 @@ SrsOtelSpan::SrsOtelSpan()
 
 SrsOtelSpan::~SrsOtelSpan()
 {
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
         srs_freep(attribute);
     }
 
-    for (vector<SrsOtelEvent*>::iterator it = events_.begin(); it != events_.end(); ++it) {
-        SrsOtelEvent* event = *it;
+    for (vector<SrsOtelEvent *>::iterator it = events_.begin(); it != events_.end(); ++it) {
+        SrsOtelEvent *event = *it;
         srs_freep(event);
     }
 
-    for (vector<SrsOtelLink*>::iterator it = links_.begin(); it != links_.end(); ++it) {
-        SrsOtelLink* link = *it;
+    for (vector<SrsOtelLink *>::iterator it = links_.begin(); it != links_.end(); ++it) {
+        SrsOtelLink *link = *it;
         srs_freep(link);
     }
 
     srs_freep(status_);
 }
 
-SrsOtelAttribute* SrsOtelSpan::attr(const std::string k)
+SrsOtelAttribute *SrsOtelSpan::attr(const std::string k)
 {
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
         if (attribute->key() == k) {
             return attribute;
         }
@@ -1382,18 +1394,18 @@ uint64_t SrsOtelSpan::nb_bytes()
     nn += SrsProtobufKey::sizeof_key() + SrsProtobufFixed64::sizeof_int(start_time_unix_nano_);
     nn += SrsProtobufKey::sizeof_key() + SrsProtobufFixed64::sizeof_int(end_time_unix_nano_);
 
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(attribute);
     }
 
-    for (vector<SrsOtelEvent*>::iterator it = events_.begin(); it != events_.end(); ++it) {
-        SrsOtelEvent* event = *it;
+    for (vector<SrsOtelEvent *>::iterator it = events_.begin(); it != events_.end(); ++it) {
+        SrsOtelEvent *event = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(event);
     }
 
-    for (vector<SrsOtelLink*>::iterator it = links_.begin(); it != links_.end(); ++it) {
-        SrsOtelLink* link = *it;
+    for (vector<SrsOtelLink *>::iterator it = links_.begin(); it != links_.end(); ++it) {
+        SrsOtelLink *link = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(link);
     }
 
@@ -1402,7 +1414,7 @@ uint64_t SrsOtelSpan::nb_bytes()
     return nn;
 }
 
-srs_error_t SrsOtelSpan::encode(SrsBuffer* b)
+srs_error_t SrsOtelSpan::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
@@ -1472,8 +1484,8 @@ srs_error_t SrsOtelSpan::encode(SrsBuffer* b)
     }
 
     // Encode attribute if not empty.
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
 
         if ((err = SrsProtobufKey::encode(b, 9, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -1485,8 +1497,8 @@ srs_error_t SrsOtelSpan::encode(SrsBuffer* b)
     }
 
     // Encode the events if not empty.
-    for (vector<SrsOtelEvent*>::iterator it = events_.begin(); it != events_.end(); ++it) {
-        SrsOtelEvent* event = *it;
+    for (vector<SrsOtelEvent *>::iterator it = events_.begin(); it != events_.end(); ++it) {
+        SrsOtelEvent *event = *it;
 
         if ((err = SrsProtobufKey::encode(b, 11, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -1498,8 +1510,8 @@ srs_error_t SrsOtelSpan::encode(SrsBuffer* b)
     }
 
     // Encode the links if not empty.
-    for (vector<SrsOtelLink*>::iterator it = links_.begin(); it != links_.end(); ++it) {
-        SrsOtelLink* link = *it;
+    for (vector<SrsOtelLink *>::iterator it = links_.begin(); it != links_.end(); ++it) {
+        SrsOtelLink *link = *it;
 
         if ((err = SrsProtobufKey::encode(b, 13, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -1529,20 +1541,20 @@ SrsOtelEvent::SrsOtelEvent()
 
 SrsOtelEvent::~SrsOtelEvent()
 {
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
         srs_freep(attribute);
     }
 }
 
-SrsOtelEvent* SrsOtelEvent::create(std::string v)
+SrsOtelEvent *SrsOtelEvent::create(std::string v)
 {
-    SrsOtelEvent* e = new SrsOtelEvent();
+    SrsOtelEvent *e = new SrsOtelEvent();
     e->name_ = v;
     return e;
 }
 
-SrsOtelEvent* SrsOtelEvent::add_attr(SrsOtelAttribute* v)
+SrsOtelEvent *SrsOtelEvent::add_attr(SrsOtelAttribute *v)
 {
     attributes_.push_back(v);
     return this;
@@ -1553,14 +1565,14 @@ uint64_t SrsOtelEvent::nb_bytes()
     uint64_t nn = 0;
     nn += SrsProtobufKey::sizeof_key() + SrsProtobufFixed64::sizeof_int(time_);
     nn += SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(name_);
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
         nn += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(attribute);
     }
     return nn;
 }
 
-srs_error_t SrsOtelEvent::encode(SrsBuffer* b)
+srs_error_t SrsOtelEvent::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
@@ -1583,8 +1595,8 @@ srs_error_t SrsOtelEvent::encode(SrsBuffer* b)
     }
 
     // Encode attributes.
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
 
         if ((err = SrsProtobufKey::encode(b, 3, SrsProtobufFieldObject)) != srs_success) {
             return srs_error_wrap(err, "key");
@@ -1606,12 +1618,12 @@ SrsOtelLink::~SrsOtelLink()
 {
 }
 
-SrsOtelLink* SrsOtelLink::create()
+SrsOtelLink *SrsOtelLink::create()
 {
     return new SrsOtelLink();
 }
 
-SrsOtelLink* SrsOtelLink::set_id(const std::string& trace_id, const std::string& span_id)
+SrsOtelLink *SrsOtelLink::set_id(const std::string &trace_id, const std::string &span_id)
 {
     trace_id_ = trace_id;
     span_id_ = span_id;
@@ -1626,7 +1638,7 @@ uint64_t SrsOtelLink::nb_bytes()
     return nn;
 }
 
-srs_error_t SrsOtelLink::encode(SrsBuffer* b)
+srs_error_t SrsOtelLink::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
@@ -1672,7 +1684,7 @@ uint64_t SrsOtelStatus::nb_bytes()
     return nn;
 }
 
-srs_error_t SrsOtelStatus::encode(SrsBuffer* b)
+srs_error_t SrsOtelStatus::encode(SrsBuffer *b)
 {
     srs_error_t err = srs_success;
 
@@ -1694,16 +1706,16 @@ srs_error_t SrsOtelStatus::encode(SrsBuffer* b)
         }
 
         if ((err = SrsProtobufVarints::encode(b, code_)) != srs_success) {
-            return srs_error_wrap(err, "encode kind=%d", (int) code_);
+            return srs_error_wrap(err, "encode kind=%d", (int)code_);
         }
     }
 
     return err;
 }
 
-SrsApmClient* _srs_apm = NULL;
+SrsApmClient *_srs_apm = NULL;
 
-SrsApmContext::SrsApmContext(const std::string& name)
+SrsApmContext::SrsApmContext(const std::string &name)
 {
     name_ = name;
     kind_ = SrsApmKindUnspecified;
@@ -1731,18 +1743,18 @@ SrsApmContext::~SrsApmContext()
     }
 
     // Free all child context.
-    for (vector<SrsApmContext*>::iterator it = childs_.begin(); it != childs_.end(); ++it) {
-        SrsApmContext* ctx = *it;
+    for (vector<SrsApmContext *>::iterator it = childs_.begin(); it != childs_.end(); ++it) {
+        SrsApmContext *ctx = *it;
         srs_freep(ctx);
     }
 
-    for (vector<SrsOtelAttribute*>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
-        SrsOtelAttribute* attribute = *it;
+    for (vector<SrsOtelAttribute *>::iterator it = attributes_.begin(); it != attributes_.end(); ++it) {
+        SrsOtelAttribute *attribute = *it;
         srs_freep(attribute);
     }
 
-    for (vector<SrsOtelLink*>::iterator it = links_.begin(); it != links_.end(); ++it) {
-        SrsOtelLink* link = *it;
+    for (vector<SrsOtelLink *>::iterator it = links_.begin(); it != links_.end(); ++it) {
+        SrsOtelLink *link = *it;
         srs_freep(link);
     }
 }
@@ -1759,28 +1771,30 @@ void SrsApmContext::set_span_id(std::string v)
     str_span_id_ = srs_string_dumps_hex(span_id_.data(), span_id_.length(), INT_MAX, 0, INT_MAX, 0);
 }
 
-const char* SrsApmContext::format_trace_id()
+const char *SrsApmContext::format_trace_id()
 {
     return str_trace_id_.c_str();
 }
 
-const char* SrsApmContext::format_span_id()
+const char *SrsApmContext::format_span_id()
 {
     return str_span_id_.c_str();
 }
 
-SrsApmContext* SrsApmContext::root()
+SrsApmContext *SrsApmContext::root()
 {
     // Root is node that has no parent.
-    if (!parent_) return this;
+    if (!parent_)
+        return this;
 
     // Use cached root or parent root, literally they should be the same.
     return parent_->root();
 }
 
-void SrsApmContext::set_parent(SrsApmContext* parent)
+void SrsApmContext::set_parent(SrsApmContext *parent)
 {
-    if (ended_) return;
+    if (ended_)
+        return;
 
     parent_ = parent;
     if (parent) {
@@ -1790,9 +1804,10 @@ void SrsApmContext::set_parent(SrsApmContext* parent)
     }
 }
 
-void SrsApmContext::set_status(SrsApmStatus status, const std::string& description)
+void SrsApmContext::set_status(SrsApmStatus status, const std::string &description)
 {
-    if (ended_) return;
+    if (ended_)
+        return;
 
     status_ = status;
     if (status == SrsApmStatusError) {
@@ -1802,11 +1817,13 @@ void SrsApmContext::set_status(SrsApmStatus status, const std::string& descripti
 
 bool SrsApmContext::all_ended()
 {
-    if (!ended_) return false;
+    if (!ended_)
+        return false;
 
-    for (vector<SrsApmContext*>::iterator it = childs_.begin(); it != childs_.end(); ++it) {
-        SrsApmContext* ctx = *it;
-        if (!ctx->all_ended()) return false;
+    for (vector<SrsApmContext *>::iterator it = childs_.begin(); it != childs_.end(); ++it) {
+        SrsApmContext *ctx = *it;
+        if (!ctx->all_ended())
+            return false;
     }
 
     return true;
@@ -1816,8 +1833,8 @@ int SrsApmContext::count_spans()
 {
     int nn = span_ ? 1 : 0;
 
-    for (vector<SrsApmContext*>::iterator it = childs_.begin(); it != childs_.end(); ++it) {
-        SrsApmContext* ctx = *it;
+    for (vector<SrsApmContext *>::iterator it = childs_.begin(); it != childs_.end(); ++it) {
+        SrsApmContext *ctx = *it;
         nn += ctx->count_spans();
     }
 
@@ -1826,19 +1843,21 @@ int SrsApmContext::count_spans()
 
 void SrsApmContext::update_trace_id(std::string v)
 {
-    if (ended_) return;
+    if (ended_)
+        return;
 
     set_trace_id(v);
 
-    for (vector<SrsApmContext*>::iterator it = childs_.begin(); it != childs_.end(); ++it) {
-        SrsApmContext* ctx = *it;
+    for (vector<SrsApmContext *>::iterator it = childs_.begin(); it != childs_.end(); ++it) {
+        SrsApmContext *ctx = *it;
         ctx->set_trace_id(v);
     }
 }
 
-void SrsApmContext::link(SrsApmContext* to)
+void SrsApmContext::link(SrsApmContext *to)
 {
-    if (ended_) return;
+    if (ended_)
+        return;
 
     links_.push_back(SrsOtelLink::create()->set_id(to->trace_id_, to->span_id_));
     attributes_.push_back(SrsOtelAttribute::kv("link_trace", to->str_trace_id_));
@@ -1849,17 +1868,17 @@ void SrsApmContext::link(SrsApmContext* to)
     to->attributes_.push_back(SrsOtelAttribute::kv("link_span", str_span_id_));
 
     srs_trace("APM: Link span %s(trace=%s, span=%s) with %s(trace=%s, span=%s)",
-        name_.c_str(), str_trace_id_.c_str(), str_span_id_.c_str(), to->name_.c_str(),
-        to->str_trace_id_.c_str(), to->str_span_id_.c_str()
-    );
+              name_.c_str(), str_trace_id_.c_str(), str_span_id_.c_str(), to->name_.c_str(),
+              to->str_trace_id_.c_str(), to->str_span_id_.c_str());
 }
 
 void SrsApmContext::end()
 {
-    if (ended_) return;
+    if (ended_)
+        return;
     ended_ = true;
 
-    SrsOtelSpan* otel = new SrsOtelSpan();
+    SrsOtelSpan *otel = new SrsOtelSpan();
 
     otel->name_ = name_;
     otel->trace_id_ = trace_id_;
@@ -1888,10 +1907,9 @@ void SrsApmContext::end()
     if (err_ != srs_success) {
         // Set the events for detail about the error.
         otel->events_.push_back(SrsOtelEvent::create("exception")
-            ->add_attr(SrsOtelAttribute::kv("exception.type", srs_fmt("code_%d_%s", srs_error_code(err_), srs_error_code_str(err_).c_str())))
-            ->add_attr(SrsOtelAttribute::kv("exception.message", srs_error_summary(err_)))
-            ->add_attr(SrsOtelAttribute::kv("exception.stacktrace", srs_error_desc(err_)))
-        );
+                                    ->add_attr(SrsOtelAttribute::kv("exception.type", srs_fmt("code_%d_%s", srs_error_code(err_), srs_error_code_str(err_).c_str())))
+                                    ->add_attr(SrsOtelAttribute::kv("exception.message", srs_error_summary(err_)))
+                                    ->add_attr(SrsOtelAttribute::kv("exception.stacktrace", srs_error_desc(err_))));
 
         // We also use HTTP status code for APM to class the error. Note that it also works for non standard HTTP status
         // code, for example, SRS error codes.
@@ -1902,7 +1920,7 @@ void SrsApmContext::end()
     srs_info("APM: Snapshot name=%s, trace=%s, span=%s", name_.c_str(), trace_id_.c_str(), span_id_.c_str());
 }
 
-SrsApmSpan::SrsApmSpan(const std::string& name)
+SrsApmSpan::SrsApmSpan(const std::string &name)
 {
     child_ = false;
 
@@ -1919,13 +1937,14 @@ SrsApmSpan::~SrsApmSpan()
     end();
 
     // Context might be freed by other span.
-    if (!ctx_) return;
+    if (!ctx_)
+        return;
 
     // Span is not available.
     ctx_->span_ = NULL;
 
     // Dispose the context tree when all spans are ended.
-    SrsApmContext* root = ctx_->root();
+    SrsApmContext *root = ctx_->root();
 
     // Only free the tree when free the last span, because we might create new span even all spans are ended only if the
     // root span has not been freed, for example, when RTMP client cycle done, we create a final span.
@@ -1934,35 +1953,38 @@ SrsApmSpan::~SrsApmSpan()
     }
 }
 
-const char* SrsApmSpan::format_trace_id()
+const char *SrsApmSpan::format_trace_id()
 {
     return ctx_ ? ctx_->format_trace_id() : "";
 }
 
-const char* SrsApmSpan::format_span_id()
+const char *SrsApmSpan::format_span_id()
 {
     return ctx_ ? ctx_->format_span_id() : "";
 }
 
-ISrsApmSpan* SrsApmSpan::set_name(const std::string& name)
+ISrsApmSpan *SrsApmSpan::set_name(const std::string &name)
 {
-    if (ctx_) ctx_->name_ = name;
+    if (ctx_)
+        ctx_->name_ = name;
     return this;
 }
 
-ISrsApmSpan* SrsApmSpan::set_kind(SrsApmKind kind)
+ISrsApmSpan *SrsApmSpan::set_kind(SrsApmKind kind)
 {
-    if (ctx_) ctx_->kind_ = kind;
+    if (ctx_)
+        ctx_->kind_ = kind;
     return this;
 }
 
-ISrsApmSpan* SrsApmSpan::as_child(ISrsApmSpan* parent)
+ISrsApmSpan *SrsApmSpan::as_child(ISrsApmSpan *parent)
 {
     // Should not be child of multiple parent spans.
-    if (child_) return this;
+    if (child_)
+        return this;
 
     // For child, always load parent from context.
-    SrsApmSpan* span = dynamic_cast<SrsApmSpan*>(parent);
+    SrsApmSpan *span = dynamic_cast<SrsApmSpan *>(parent);
     if (span) {
         ctx_->set_parent(span->ctx_);
         child_ = true;
@@ -1971,47 +1993,55 @@ ISrsApmSpan* SrsApmSpan::as_child(ISrsApmSpan* parent)
     return this;
 }
 
-ISrsApmSpan* SrsApmSpan::set_status(SrsApmStatus status, const std::string& description)
+ISrsApmSpan *SrsApmSpan::set_status(SrsApmStatus status, const std::string &description)
 {
-    if (ctx_) ctx_->set_status(status, description);
+    if (ctx_)
+        ctx_->set_status(status, description);
     return this;
 }
 
-ISrsApmSpan* SrsApmSpan::record_error(srs_error_t err)
+ISrsApmSpan *SrsApmSpan::record_error(srs_error_t err)
 {
-    if (ctx_) ctx_->err_ = srs_error_copy(err);
+    if (ctx_)
+        ctx_->err_ = srs_error_copy(err);
     return this;
 }
 
-ISrsApmSpan* SrsApmSpan::attr(const std::string& k, const std::string& v)
+ISrsApmSpan *SrsApmSpan::attr(const std::string &k, const std::string &v)
 {
-    if (ctx_) ctx_->attributes_.push_back(SrsOtelAttribute::kv(k, v));
+    if (ctx_)
+        ctx_->attributes_.push_back(SrsOtelAttribute::kv(k, v));
     return this;
 }
 
-ISrsApmSpan* SrsApmSpan::link(ISrsApmSpan* span)
+ISrsApmSpan *SrsApmSpan::link(ISrsApmSpan *span)
 {
-    SrsApmSpan* to = dynamic_cast<SrsApmSpan*>(span);
-    if (ctx_ && span) ctx_->link(to->ctx_);
+    SrsApmSpan *to = dynamic_cast<SrsApmSpan *>(span);
+    if (ctx_ && span)
+        ctx_->link(to->ctx_);
     return this;
 }
 
-ISrsApmSpan* SrsApmSpan::end()
+ISrsApmSpan *SrsApmSpan::end()
 {
-    if (ctx_) ctx_->end();
+    if (ctx_)
+        ctx_->end();
     return this;
 }
 
-ISrsApmSpan* SrsApmSpan::extract(SrsAmf0Object* h)
+ISrsApmSpan *SrsApmSpan::extract(SrsAmf0Object *h)
 {
-    if (!ctx_) return this;
+    if (!ctx_)
+        return this;
 
-    SrsAmf0Any* prop = h->ensure_property_string("Traceparent");
-    if (!prop) return this;
+    SrsAmf0Any *prop = h->ensure_property_string("Traceparent");
+    if (!prop)
+        return this;
 
     std::string trace_parent = prop->to_str();
     vector<string> vs = srs_string_split(trace_parent, "-");
-    if (vs.size() != 4) return this;
+    if (vs.size() != 4)
+        return this;
 
     // Update trace id for span and all its child spans.
     ctx_->update_trace_id(vs[1]);
@@ -2022,12 +2052,14 @@ ISrsApmSpan* SrsApmSpan::extract(SrsAmf0Object* h)
     return this;
 }
 
-ISrsApmSpan* SrsApmSpan::inject(SrsAmf0Object* h)
+ISrsApmSpan *SrsApmSpan::inject(SrsAmf0Object *h)
 {
-    if (!ctx_) return this;
+    if (!ctx_)
+        return this;
 
     string v = text_propagator();
-    if (!v.empty()) h->set("Traceparent", SrsAmf0Any::str(v.c_str()));
+    if (!v.empty())
+        h->set("Traceparent", SrsAmf0Any::str(v.c_str()));
 
     return this;
 }
@@ -2051,32 +2083,33 @@ std::string SrsApmSpan::text_propagator()
 }
 
 static int _srs_apm_key = -1;
-void _srs_apm_destructor(void* arg)
+void _srs_apm_destructor(void *arg)
 {
     // We don't free the span, because it's not created by us.
     // Note that it's safe because keys will be reset when coroutine is terminated.
-    //SrsApmSpan* span = (SrsApmSpan*)arg;
+    // SrsApmSpan* span = (SrsApmSpan*)arg;
 }
 
-ISrsApmSpan* SrsApmSpan::store()
+ISrsApmSpan *SrsApmSpan::store()
 {
-    ISrsApmSpan* span = _srs_apm->load();
-    if (span == this) return this;
+    ISrsApmSpan *span = _srs_apm->load();
+    if (span == this)
+        return this;
 
     int r0 = srs_thread_setspecific(_srs_apm_key, this);
     srs_assert(r0 == 0);
     return this;
 }
 
-ISrsApmSpan* SrsApmSpan::load()
+ISrsApmSpan *SrsApmSpan::load()
 {
     if (_srs_apm_key < 0) {
         int r0 = srs_key_create(&_srs_apm_key, _srs_apm_destructor);
         srs_assert(r0 == 0);
     }
 
-    void* span = srs_thread_getspecific(_srs_apm_key);
-    return (ISrsApmSpan*)span;
+    void *span = srs_thread_getspecific(_srs_apm_key);
+    return (ISrsApmSpan *)span;
 }
 
 SrsApmClient::SrsApmClient()
@@ -2087,8 +2120,8 @@ SrsApmClient::SrsApmClient()
 
 SrsApmClient::~SrsApmClient()
 {
-    for (vector<SrsOtelSpan*>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
-        SrsOtelSpan* span = *it;
+    for (vector<SrsOtelSpan *>::iterator it = spans_.begin(); it != spans_.end(); ++it) {
+        SrsOtelSpan *span = *it;
         srs_freep(span);
     }
 }
@@ -2140,14 +2173,15 @@ srs_error_t SrsApmClient::do_report()
 {
     srs_error_t err = srs_success;
 
-    if (spans_.empty()) return err;
+    if (spans_.empty())
+        return err;
 
     // Update statistaic for APM.
     nn_spans_ += spans_.size();
 
     SrsUniquePtr<SrsOtelExportTraceServiceRequest> sugar(new SrsOtelExportTraceServiceRequest());
 
-    SrsOtelResourceSpans* rs = sugar->append();
+    SrsOtelResourceSpans *rs = sugar->append();
     // See https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/resource/semantic_conventions
     rs->resource()->add_addr(SrsOtelAttribute::kv("service.name", service_name_));
     // For Tencent Cloud APM authentication, see https://console.cloud.tencent.com/apm/monitor/access
@@ -2155,7 +2189,7 @@ srs_error_t SrsApmClient::do_report()
     // For Tencent Cloud APM debugging, see https://console.cloud.tencent.com/apm/monitor/team
     rs->resource()->add_addr(SrsOtelAttribute::kv("tapm.team", team_));
 
-    SrsOtelScopeSpans* spans = rs->append();
+    SrsOtelScopeSpans *spans = rs->append();
     spans->scope()->name_ = "srs";
     spans->swap(spans_);
 
@@ -2199,7 +2233,7 @@ srs_error_t SrsApmClient::do_report()
     }
 
     // Start request and parse response.
-    ISrsHttpMessage* msg_raw = NULL;
+    ISrsHttpMessage *msg_raw = NULL;
     if ((err = http.post(path, body, &msg_raw)) != srs_success) {
         return srs_error_wrap(err, "http: client post");
     }
@@ -2234,47 +2268,50 @@ uint64_t SrsApmClient::nn_spans()
     return nn_spans_;
 }
 
-ISrsApmSpan* SrsApmClient::span(const std::string& name)
+ISrsApmSpan *SrsApmClient::span(const std::string &name)
 {
-    if (!enabled_) return new ISrsApmSpan();
+    if (!enabled_)
+        return new ISrsApmSpan();
     return new SrsApmSpan(name);
 }
 
-ISrsApmSpan* SrsApmClient::dummy()
+ISrsApmSpan *SrsApmClient::dummy()
 {
     return new ISrsApmSpan();
 }
 
-ISrsApmSpan* SrsApmClient::extract(ISrsApmSpan* v, SrsAmf0Object* h)
+ISrsApmSpan *SrsApmClient::extract(ISrsApmSpan *v, SrsAmf0Object *h)
 {
-    SrsApmSpan* span = dynamic_cast<SrsApmSpan*>(v);
-    if (span) span->extract(h);
+    SrsApmSpan *span = dynamic_cast<SrsApmSpan *>(v);
+    if (span)
+        span->extract(h);
     return v;
 }
 
-ISrsApmSpan* SrsApmClient::inject(ISrsApmSpan* v, SrsAmf0Object* h)
+ISrsApmSpan *SrsApmClient::inject(ISrsApmSpan *v, SrsAmf0Object *h)
 {
-    SrsApmSpan* span = dynamic_cast<SrsApmSpan*>(v);
-    if (span) span->inject(h);
+    SrsApmSpan *span = dynamic_cast<SrsApmSpan *>(v);
+    if (span)
+        span->inject(h);
     return v;
 }
 
-void SrsApmClient::store(ISrsApmSpan* v)
+void SrsApmClient::store(ISrsApmSpan *v)
 {
-    SrsApmSpan* span = dynamic_cast<SrsApmSpan*>(v);
-    if (span) span->store();
+    SrsApmSpan *span = dynamic_cast<SrsApmSpan *>(v);
+    if (span)
+        span->store();
 }
 
-ISrsApmSpan* SrsApmClient::load()
+ISrsApmSpan *SrsApmClient::load()
 {
-    static ISrsApmSpan* dummy = new ISrsApmSpan();
-    ISrsApmSpan* span = SrsApmSpan::load();
+    static ISrsApmSpan *dummy = new ISrsApmSpan();
+    ISrsApmSpan *span = SrsApmSpan::load();
     return span ? span : dummy;
 }
 
-void SrsApmClient::snapshot(SrsOtelSpan* span)
+void SrsApmClient::snapshot(SrsOtelSpan *span)
 {
     spans_.push_back(span);
 }
 #endif
-

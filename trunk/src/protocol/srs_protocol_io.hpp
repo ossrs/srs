@@ -47,7 +47,7 @@ class ISrsProtocolStatistic
 public:
     ISrsProtocolStatistic();
     virtual ~ISrsProtocolStatistic();
-// For protocol
+    // For protocol
 public:
     // Get the total recv bytes over underlay fd.
     virtual int64_t get_recv_bytes() = 0;
@@ -63,18 +63,18 @@ class ISrsProtocolReader : public ISrsReader, virtual public ISrsProtocolStatist
 public:
     ISrsProtocolReader();
     virtual ~ISrsProtocolReader();
-// for protocol
+    // for protocol
 public:
     // Set the timeout tm in srs_utime_t for recv bytes from peer.
     // @remark Use SRS_UTIME_NO_TIMEOUT to never timeout.
     virtual void set_recv_timeout(srs_utime_t tm) = 0;
     // Get the timeout in srs_utime_t for recv bytes from peer.
     virtual srs_utime_t get_recv_timeout() = 0;
-// For handshake.
+    // For handshake.
 public:
     // Read specified size bytes of data
     // @param nread, the actually read size, NULL to ignore.
-    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread) = 0;
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread) = 0;
 };
 
 /**
@@ -85,7 +85,7 @@ class ISrsProtocolWriter : public ISrsWriter, virtual public ISrsProtocolStatist
 public:
     ISrsProtocolWriter();
     virtual ~ISrsProtocolWriter();
-// For protocol
+    // For protocol
 public:
     // Set the timeout tm in srs_utime_t for send bytes to peer.
     // @remark Use SRS_UTIME_NO_TIMEOUT to never timeout.
@@ -105,4 +105,3 @@ public:
 };
 
 #endif
-

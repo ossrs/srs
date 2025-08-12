@@ -9,14 +9,14 @@
 
 #include <srs_core.hpp>
 
-#include <string>
 #include <map>
+#include <string>
 
-#include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 
-#include <srs_protocol_st.hpp>
 #include <srs_protocol_http_stack.hpp>
+#include <srs_protocol_st.hpp>
 
 class SrsHttpUri;
 class SrsHttpParser;
@@ -33,20 +33,24 @@ class SrsTcpClient;
 class SrsSslClient : public ISrsReader, public ISrsStreamWriter
 {
 private:
-    SrsTcpClient* transport;
+    SrsTcpClient *transport;
+
 private:
-    SSL_CTX* ssl_ctx;
-    SSL* ssl;
-    BIO* bio_in;
-    BIO* bio_out;
+    SSL_CTX *ssl_ctx;
+    SSL *ssl;
+    BIO *bio_in;
+    BIO *bio_out;
+
 public:
-    SrsSslClient(SrsTcpClient* tcp);
+    SrsSslClient(SrsTcpClient *tcp);
     virtual ~SrsSslClient();
+
 public:
-    virtual srs_error_t handshake(const std::string& host);
+    virtual srs_error_t handshake(const std::string &host);
+
 public:
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 };
 
 // The client to GET/POST/PUT/DELETE over HTTP.
@@ -61,10 +65,11 @@ class SrsHttpClient
 private:
     // The underlayer TCP transport, set to NULL when disconnect, or never not NULL when connected.
     // We will disconnect transport when initialize or channel error, such as send/recv error.
-    SrsTcpClient* transport;
-    SrsHttpParser* parser;
+    SrsTcpClient *transport;
+    SrsHttpParser *parser;
     std::map<std::string, std::string> headers;
-    SrsNetworkKbps* kbps;
+    SrsNetworkKbps *kbps;
+
 private:
     // The timeout in srs_utime_t.
     srs_utime_t timeout;
@@ -73,11 +78,14 @@ private:
     std::string schema_;
     std::string host;
     int port;
+
 private:
-    SrsSslClient* ssl_transport;
+    SrsSslClient *ssl_transport;
+
 public:
     SrsHttpClient();
     virtual ~SrsHttpClient();
+
 public:
     // Initliaze the client, disconnect the transport, renew the HTTP parser.
     // @param schema Should be http or https.
@@ -86,30 +94,33 @@ public:
     virtual srs_error_t initialize(std::string schema, std::string h, int p, srs_utime_t tm = SRS_HTTP_CLIENT_TIMEOUT);
     // Set HTTP request header in header[k]=v.
     // @return the HTTP client itself.
-    virtual SrsHttpClient* set_header(std::string k, std::string v);
+    virtual SrsHttpClient *set_header(std::string k, std::string v);
+
 public:
     // Post data to the uri.
     // @param the path to request on.
     // @param req the data post to uri. empty string to ignore.
     // @param ppmsg output the http message to read the response.
     // @remark user must free the ppmsg if not NULL.
-    virtual srs_error_t post(std::string path, std::string req, ISrsHttpMessage** ppmsg);
+    virtual srs_error_t post(std::string path, std::string req, ISrsHttpMessage **ppmsg);
     // Get data from the uri.
     // @param the path to request on.
     // @param req the data post to uri. empty string to ignore.
     // @param ppmsg output the http message to read the response.
     // @remark user must free the ppmsg if not NULL.
-    virtual srs_error_t get(std::string path, std::string req, ISrsHttpMessage** ppmsg);
+    virtual srs_error_t get(std::string path, std::string req, ISrsHttpMessage **ppmsg);
+
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
+
 public:
-    virtual void kbps_sample(const char* label, srs_utime_t age);
+    virtual void kbps_sample(const char *label, srs_utime_t age);
+
 private:
     virtual void disconnect();
     virtual srs_error_t connect();
-    ISrsStreamWriter* writer();
-    ISrsReader* reader();
+    ISrsStreamWriter *writer();
+    ISrsReader *reader();
 };
 
 #endif
-

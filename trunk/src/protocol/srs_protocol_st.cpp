@@ -6,19 +6,19 @@
 
 #include <srs_protocol_st.hpp>
 
-#include <st.h>
 #include <fcntl.h>
-#include <sys/socket.h>
-#include <sys/resource.h>
 #include <netdb.h>
+#include <st.h>
+#include <sys/resource.h>
+#include <sys/socket.h>
 using namespace std;
 
 #include <srs_core_autofree.hpp>
+#include <srs_core_deprecated.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_protocol_utility.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_core_deprecated.hpp>
+#include <srs_protocol_utility.hpp>
 
 // nginx also set to 512
 #define SERVER_LISTEN_BACKLOG 512
@@ -29,29 +29,29 @@ using namespace std;
 bool srs_st_epoll_is_supported(void)
 {
     struct epoll_event ev;
-    
+
     ev.events = EPOLLIN;
     ev.data.ptr = NULL;
     /* Guaranteed to fail */
     epoll_ctl(-1, EPOLL_CTL_ADD, -1, &ev);
-    
+
     return (errno != ENOSYS);
 }
 #endif
 
 #ifdef SRS_SANITIZER
-void srs_set_primordial_stack(void* stack_top)
+void srs_set_primordial_stack(void *stack_top)
 {
     if (!stack_top) {
         return;
     }
 
     struct rlimit limit;
-    if (getrlimit (RLIMIT_STACK, &limit) != 0) {
+    if (getrlimit(RLIMIT_STACK, &limit) != 0) {
         return;
     }
 
-    void* stack_bottom = (char*)stack_top - (uint64_t)limit.rlim_cur;
+    void *stack_bottom = (char *)stack_top - (uint64_t)limit.rlim_cur;
     st_set_primordial_stack(stack_top, stack_bottom);
 }
 #endif
@@ -64,7 +64,7 @@ srs_error_t srs_st_init()
         return srs_error_new(ERROR_ST_SET_EPOLL, "linux epoll disabled");
     }
 #endif
-    
+
     // Select the best event system available on the OS. In Linux this is
     // epoll(). On BSD it will be kqueue.
 #if defined(SRS_CYGWIN64)
@@ -82,16 +82,16 @@ srs_error_t srs_st_init()
     if (cid.empty()) {
         cid = _srs_context->generate_id();
     }
-    
+
     int r0 = 0;
-    if((r0 = st_init()) != 0){
+    if ((r0 = st_init()) != 0) {
         return srs_error_new(ERROR_ST_INITIALIZE, "st initialize failed, r0=%d", r0);
     }
 
     // Switch to the background cid.
     _srs_context->set_id(cid);
     srs_info("st_init success, use %s", st_get_eventsys_name());
-    
+
     return srs_success;
 }
 
@@ -100,18 +100,22 @@ void srs_st_destroy(void)
     st_destroy();
 }
 
-void srs_close_stfd(srs_netfd_t& stfd)
+void srs_close_stfd(srs_netfd_t &stfd)
 {
     if (stfd) {
         // we must ensure the close is ok.
         int r0 = st_netfd_close((st_netfd_t)stfd);
         if (r0) {
             // By _st_epoll_fd_close or _st_kq_fd_close
-            if (errno == EBUSY) srs_assert(!r0);
+            if (errno == EBUSY)
+                srs_assert(!r0);
             // By close
-            if (errno == EBADF) srs_assert(!r0);
-            if (errno == EINTR) srs_assert(!r0);
-            if (errno == EIO) srs_assert(!r0);
+            if (errno == EBADF)
+                srs_assert(!r0);
+            if (errno == EINTR)
+                srs_assert(!r0);
+            if (errno == EIO)
+                srs_assert(!r0);
             // Others
             srs_assert(!r0);
         }
@@ -148,7 +152,7 @@ srs_error_t srs_fd_reuseport(int fd)
         srs_warn("SO_REUSEPORT failed for fd=%d", fd);
     }
 #else
-    #warning "SO_REUSEPORT is not supported by your OS"
+#warning "SO_REUSEPORT is not supported by your OS"
     srs_warn("SO_REUSEPORT is not supported util Linux kernel 3.9");
 #endif
 
@@ -172,7 +176,7 @@ srs_thread_t srs_thread_self()
     return (srs_thread_t)st_thread_self();
 }
 
-void srs_thread_exit(void* retval)
+void srs_thread_exit(void *retval)
 {
     st_thread_exit(retval);
 }
@@ -194,53 +198,53 @@ void srs_thread_yield()
 
 _ST_THREAD_CREATE_PFN _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)st_thread_create;
 
-srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
+srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t *pstfd)
 {
     st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
     if (tm != SRS_UTIME_NO_TIMEOUT) {
         timeout = tm;
     }
-    
+
     *pstfd = NULL;
     srs_netfd_t stfd = NULL;
 
     char sport[8];
     int r0 = snprintf(sport, sizeof(sport), "%d", port);
     srs_assert(r0 > 0 && r0 < (int)sizeof(sport));
-    
+
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    
-    addrinfo* r_raw  = NULL;
-    if(getaddrinfo(server.c_str(), sport, (const addrinfo*)&hints, &r_raw)) {
+
+    addrinfo *r_raw = NULL;
+    if (getaddrinfo(server.c_str(), sport, (const addrinfo *)&hints, &r_raw)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "get address info");
     }
     SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
-    
+
     int sock = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
-    if(sock == -1){
+    if (sock == -1) {
         return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
     }
-    
+
     srs_assert(!stfd);
     stfd = st_netfd_open_socket(sock);
-    if(stfd == NULL){
+    if (stfd == NULL) {
         ::close(sock);
         return srs_error_new(ERROR_ST_OPEN_SOCKET, "open socket");
     }
-    
-    if (st_connect((st_netfd_t)stfd, r->ai_addr, r->ai_addrlen, timeout) == -1){
+
+    if (st_connect((st_netfd_t)stfd, r->ai_addr, r->ai_addrlen, timeout) == -1) {
         srs_close_stfd(stfd);
         return srs_error_new(ERROR_ST_CONNECT, "connect to %s:%d", server.c_str(), port);
     }
-    
+
     *pstfd = stfd;
     return srs_success;
 }
 
-srs_error_t do_srs_tcp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
+srs_error_t do_srs_tcp_listen(int fd, addrinfo *r, srs_netfd_t *pfd)
 {
     srs_error_t err = srs_success;
 
@@ -270,14 +274,14 @@ srs_error_t do_srs_tcp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
         return srs_error_new(ERROR_SOCKET_LISTEN, "listen");
     }
 
-    if ((*pfd = srs_netfd_open_socket(fd)) == NULL){
+    if ((*pfd = srs_netfd_open_socket(fd)) == NULL) {
         return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open");
     }
 
     return err;
 }
 
-srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
+srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t *pfd)
 {
     srs_error_t err = srs_success;
 
@@ -287,21 +291,21 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
 
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_UNSPEC;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags    = AI_NUMERICHOST;
+    hints.ai_flags = AI_NUMERICHOST;
 
-    addrinfo* r_raw = NULL;
-    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r_raw)) {
+    addrinfo *r_raw = NULL;
+    if (getaddrinfo(ip.c_str(), sport, (const addrinfo *)&hints, &r_raw)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
-            hints.ai_family, hints.ai_socktype, hints.ai_flags);
+                             hints.ai_family, hints.ai_socktype, hints.ai_flags);
     }
     SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
 
     int fd = 0;
     if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
         return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
-            r->ai_family, r->ai_socktype, r->ai_protocol);
+                             r->ai_family, r->ai_socktype, r->ai_protocol);
     }
 
     if ((err = do_srs_tcp_listen(fd, r.get(), pfd)) != srs_success) {
@@ -312,7 +316,7 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
     return err;
 }
 
-srs_error_t do_srs_udp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
+srs_error_t do_srs_udp_listen(int fd, addrinfo *r, srs_netfd_t *pfd)
 {
     srs_error_t err = srs_success;
 
@@ -332,14 +336,14 @@ srs_error_t do_srs_udp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
         return srs_error_new(ERROR_SOCKET_BIND, "bind");
     }
 
-    if ((*pfd = srs_netfd_open_socket(fd)) == NULL){
+    if ((*pfd = srs_netfd_open_socket(fd)) == NULL) {
         return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open");
     }
 
     return err;
 }
 
-srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
+srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t *pfd)
 {
     srs_error_t err = srs_success;
 
@@ -349,21 +353,21 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
 
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_UNSPEC;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags    = AI_NUMERICHOST;
+    hints.ai_flags = AI_NUMERICHOST;
 
-    addrinfo* r_raw  = NULL;
-    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r_raw)) {
+    addrinfo *r_raw = NULL;
+    if (getaddrinfo(ip.c_str(), sport, (const addrinfo *)&hints, &r_raw)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
-            hints.ai_family, hints.ai_socktype, hints.ai_flags);
+                             hints.ai_family, hints.ai_socktype, hints.ai_flags);
     }
     SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
 
     int fd = 0;
     if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
         return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
-            r->ai_family, r->ai_socktype, r->ai_protocol);
+                             r->ai_family, r->ai_socktype, r->ai_protocol);
     }
 
     if ((err = do_srs_udp_listen(fd, r.get(), pfd)) != srs_success) {
@@ -442,7 +446,7 @@ void *srs_thread_getspecific(int key)
     return st_thread_getspecific(key);
 }
 
-int srs_thread_setspecific2(srs_thread_t thread, int key, void* value)
+int srs_thread_setspecific2(srs_thread_t thread, int key, void *value)
 {
     return st_thread_setspecific2((st_thread_t)thread, key, value);
 }
@@ -472,7 +476,7 @@ int srs_recvfrom(srs_netfd_t stfd, void *buf, int len, struct sockaddr *from, in
     return st_recvfrom((st_netfd_t)stfd, buf, len, from, fromlen, (st_utime_t)timeout);
 }
 
-int srs_sendto(srs_netfd_t stfd, void *buf, int len, const struct sockaddr * to, int tolen, srs_utime_t timeout)
+int srs_sendto(srs_netfd_t stfd, void *buf, int len, const struct sockaddr *to, int tolen, srs_utime_t timeout)
 {
     return st_sendto((st_netfd_t)stfd, buf, len, to, tolen, (st_utime_t)timeout);
 }
@@ -553,7 +557,7 @@ int64_t SrsStSocket::get_send_bytes()
     return sbytes;
 }
 
-srs_error_t SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsStSocket::read(void *buf, size_t size, ssize_t *nread)
 {
     srs_error_t err = srs_success;
 
@@ -565,11 +569,11 @@ srs_error_t SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     } else {
         nb_read = st_read((st_netfd_t)stfd_, buf, size, rtm);
     }
-    
+
     if (nread) {
         *nread = nb_read;
     }
-    
+
     // On success a non-negative integer indicating the number of bytes actually read is returned
     // (a value of 0 means the network connection is closed or end of file is reached).
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
@@ -577,36 +581,36 @@ srs_error_t SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
         if (nb_read < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", srsu2msi(rtm));
         }
-        
+
         if (nb_read == 0) {
             errno = ECONNRESET;
         }
-        
+
         return srs_error_new(ERROR_SOCKET_READ, "read");
     }
-    
+
     rbytes += nb_read;
-    
+
     return err;
 }
 
-srs_error_t SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsStSocket::read_fully(void *buf, size_t size, ssize_t *nread)
 {
     srs_error_t err = srs_success;
 
     srs_assert(stfd_);
-    
+
     ssize_t nb_read;
     if (rtm == SRS_UTIME_NO_TIMEOUT) {
         nb_read = st_read_fully((st_netfd_t)stfd_, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
         nb_read = st_read_fully((st_netfd_t)stfd_, buf, size, rtm);
     }
-    
+
     if (nread) {
         *nread = nb_read;
     }
-    
+
     // On success a non-negative integer indicating the number of bytes actually read is returned
     // (a value less than nbyte means the network connection is closed or end of file is reached)
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
@@ -614,80 +618,80 @@ srs_error_t SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
         if (nb_read < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", srsu2msi(rtm));
         }
-        
+
         if (nb_read >= 0) {
             errno = ECONNRESET;
         }
-        
+
         return srs_error_new(ERROR_SOCKET_READ_FULLY, "read fully, size=%d, nn=%d", size, nb_read);
     }
-    
+
     rbytes += nb_read;
-    
+
     return err;
 }
 
-srs_error_t SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
+srs_error_t SrsStSocket::write(void *buf, size_t size, ssize_t *nwrite)
 {
     srs_error_t err = srs_success;
 
     srs_assert(stfd_);
-    
+
     ssize_t nb_write;
     if (stm == SRS_UTIME_NO_TIMEOUT) {
         nb_write = st_write((st_netfd_t)stfd_, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
         nb_write = st_write((st_netfd_t)stfd_, buf, size, stm);
     }
-    
+
     if (nwrite) {
         *nwrite = nb_write;
     }
-    
+
     // On success a non-negative integer equal to nbyte is returned.
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_write <= 0) {
         if (nb_write < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "write timeout %d ms", srsu2msi(stm));
         }
-        
+
         return srs_error_new(ERROR_SOCKET_WRITE, "write");
     }
-    
+
     sbytes += nb_write;
-    
+
     return err;
 }
 
-srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t *nwrite)
 {
     srs_error_t err = srs_success;
 
     srs_assert(stfd_);
-    
+
     ssize_t nb_write;
     if (stm == SRS_UTIME_NO_TIMEOUT) {
         nb_write = st_writev((st_netfd_t)stfd_, iov, iov_size, ST_UTIME_NO_TIMEOUT);
     } else {
         nb_write = st_writev((st_netfd_t)stfd_, iov, iov_size, stm);
     }
-    
+
     if (nwrite) {
         *nwrite = nb_write;
     }
-    
+
     // On success a non-negative integer equal to nbyte is returned.
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_write <= 0) {
         if (nb_write < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "writev timeout %d ms", srsu2msi(stm));
         }
-        
+
         return srs_error_new(ERROR_SOCKET_WRITE, "writev");
     }
-    
+
     sbytes += nb_write;
-    
+
     return err;
 }
 
@@ -695,7 +699,7 @@ SrsTcpClient::SrsTcpClient(string h, int p, srs_utime_t tm)
 {
     stfd_ = NULL;
     io = new SrsStSocket();
-    
+
     host = h;
     port = p;
     timeout = tm;
@@ -710,7 +714,7 @@ SrsTcpClient::~SrsTcpClient()
 srs_error_t SrsTcpClient::connect()
 {
     srs_error_t err = srs_success;
-    
+
     srs_netfd_t stfd = NULL;
     if ((err = srs_tcp_connect(host, port, timeout, &stfd)) != srs_success) {
         return srs_error_wrap(err, "tcp: connect %s:%d to=%dms", host.c_str(), port, srsu2msi(timeout));
@@ -722,7 +726,7 @@ srs_error_t SrsTcpClient::connect()
 
     srs_close_stfd(stfd_);
     stfd_ = stfd;
-    
+
     return err;
 }
 
@@ -756,23 +760,22 @@ int64_t SrsTcpClient::get_send_bytes()
     return io->get_send_bytes();
 }
 
-srs_error_t SrsTcpClient::read(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsTcpClient::read(void *buf, size_t size, ssize_t *nread)
 {
     return io->read(buf, size, nread);
 }
 
-srs_error_t SrsTcpClient::read_fully(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsTcpClient::read_fully(void *buf, size_t size, ssize_t *nread)
 {
     return io->read_fully(buf, size, nread);
 }
 
-srs_error_t SrsTcpClient::write(void* buf, size_t size, ssize_t* nwrite)
+srs_error_t SrsTcpClient::write(void *buf, size_t size, ssize_t *nwrite)
 {
     return io->write(buf, size, nwrite);
 }
 
-srs_error_t SrsTcpClient::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+srs_error_t SrsTcpClient::writev(const iovec *iov, int iov_size, ssize_t *nwrite)
 {
     return io->writev(iov, iov_size, nwrite);
 }
-

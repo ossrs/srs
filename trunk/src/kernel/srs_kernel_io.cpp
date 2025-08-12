@@ -61,4 +61,3 @@ ISrsWriteSeeker::ISrsWriteSeeker()
 ISrsWriteSeeker::~ISrsWriteSeeker()
 {
 }
-

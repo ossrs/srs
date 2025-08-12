@@ -10,7 +10,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
-static const AVCodec* srs_find_decoder_by_id(SrsAudioCodecId id)
+static const AVCodec *srs_find_decoder_by_id(SrsAudioCodecId id)
 {
     if (id == SrsAudioCodecIdAAC) {
         return avcodec_find_decoder_by_name("aac");
@@ -27,7 +27,7 @@ static const AVCodec* srs_find_decoder_by_id(SrsAudioCodecId id)
     return NULL;
 }
 
-static const AVCodec* srs_find_encoder_by_id(SrsAudioCodecId id)
+static const AVCodec *srs_find_encoder_by_id(SrsAudioCodecId id)
 {
     if (id == SrsAudioCodecIdAAC) {
         return avcodec_find_encoder_by_name("aac");
@@ -42,14 +42,16 @@ static const AVCodec* srs_find_encoder_by_id(SrsAudioCodecId id)
     return NULL;
 }
 
-class SrsFFmpegLogHelper {
+class SrsFFmpegLogHelper
+{
 public:
-    SrsFFmpegLogHelper() {
+    SrsFFmpegLogHelper()
+    {
         av_log_set_callback(ffmpeg_log_callback);
         av_log_set_level(AV_LOG_TRACE);
     }
 
-    static void ffmpeg_log_callback(void*, int level, const char* fmt, va_list vl) 
+    static void ffmpeg_log_callback(void *, int level, const char *fmt, va_list vl)
     {
         static char buf[4096] = {0};
         int nbytes = vsnprintf(buf, sizeof(buf), fmt, vl);
@@ -59,23 +61,23 @@ public:
                 buf[nbytes - 1] = '\0';
             }
             switch (level) {
-                case AV_LOG_PANIC:
-                case AV_LOG_FATAL:
-                case AV_LOG_ERROR:
-                    srs_error("%s", buf);
-                    break;
-                case AV_LOG_WARNING:
-                    srs_warn("%s", buf);
-                    break;
-                case AV_LOG_INFO:
-                    srs_trace("%s", buf);
-                    break;
-                case AV_LOG_VERBOSE:
-                case AV_LOG_DEBUG:
-                case AV_LOG_TRACE:
-                default:
-                    srs_verbose("%s", buf);
-                    break;
+            case AV_LOG_PANIC:
+            case AV_LOG_FATAL:
+            case AV_LOG_ERROR:
+                srs_error("%s", buf);
+                break;
+            case AV_LOG_WARNING:
+                srs_warn("%s", buf);
+                break;
+            case AV_LOG_INFO:
+                srs_trace("%s", buf);
+                break;
+            case AV_LOG_VERBOSE:
+            case AV_LOG_DEBUG:
+            case AV_LOG_TRACE:
+            default:
+                srs_verbose("%s", buf);
+                break;
             }
         }
     }
@@ -147,7 +149,7 @@ srs_error_t SrsAudioTranscoder::initialize(SrsAudioCodecId src_codec, SrsAudioCo
 
     if ((err = init_enc(dst_codec, dst_channels, dst_samplerate, dst_bit_rate)) != srs_success) {
         return srs_error_wrap(err, "enc init codec:%d, channels:%d, samplerate:%d, bitrate:%d",
-            dst_codec, dst_channels, dst_samplerate, dst_bit_rate);
+                              dst_codec, dst_channels, dst_samplerate, dst_bit_rate);
     }
 
     if ((err = init_fifo()) != srs_success) {
@@ -157,7 +159,7 @@ srs_error_t SrsAudioTranscoder::initialize(SrsAudioCodecId src_codec, SrsAudioCo
     return err;
 }
 
-srs_error_t SrsAudioTranscoder::transcode(SrsAudioFrame *in_pkt, std::vector<SrsAudioFrame*>& out_pkts)
+srs_error_t SrsAudioTranscoder::transcode(SrsAudioFrame *in_pkt, std::vector<SrsAudioFrame *> &out_pkts)
 {
     srs_error_t err = srs_success;
 
@@ -172,13 +174,13 @@ srs_error_t SrsAudioTranscoder::transcode(SrsAudioFrame *in_pkt, std::vector<Srs
     return err;
 }
 
-void SrsAudioTranscoder::free_frames(std::vector<SrsAudioFrame*>& frames)
+void SrsAudioTranscoder::free_frames(std::vector<SrsAudioFrame *> &frames)
 {
-    for (std::vector<SrsAudioFrame*>::iterator it = frames.begin(); it != frames.end(); ++it) {
-        SrsAudioFrame* p = *it;
+    for (std::vector<SrsAudioFrame *>::iterator it = frames.begin(); it != frames.end(); ++it) {
+        SrsAudioFrame *p = *it;
 
         for (int i = 0; i < p->nb_samples; i++) {
-            char* pa = p->samples[i].bytes;
+            char *pa = p->samples[i].bytes;
             srs_freepa(pa);
         }
 
@@ -188,7 +190,7 @@ void SrsAudioTranscoder::free_frames(std::vector<SrsAudioFrame*>& frames)
 
 void SrsAudioTranscoder::aac_codec_header(uint8_t **data, int *len)
 {
-    //srs_assert(dst_codec == SrsAudioCodecIdAAC);
+    // srs_assert(dst_codec == SrsAudioCodecIdAAC);
     *len = enc_->extradata_size;
     *data = enc_->extradata;
 }
@@ -208,7 +210,7 @@ srs_error_t SrsAudioTranscoder::init_dec(SrsAudioCodecId src_codec)
     if (avcodec_open2(dec_, codec, NULL) < 0) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not open codec");
     }
-    
+
     dec_->channel_layout = av_get_default_channel_layout(dec_->channels);
 
     dec_frame_ = av_frame_alloc();
@@ -242,9 +244,10 @@ srs_error_t SrsAudioTranscoder::init_enc(SrsAudioCodecId dst_codec, int dst_chan
     enc_->channel_layout = av_get_default_channel_layout(dst_channels);
     enc_->bit_rate = dst_bit_rate;
     enc_->sample_fmt = codec->sample_fmts[0];
-    enc_->time_base.num = 1; enc_->time_base.den = dst_samplerate; // {1, dst_samplerate}
+    enc_->time_base.num = 1;
+    enc_->time_base.den = dst_samplerate; // {1, dst_samplerate}
     if (dst_codec == SrsAudioCodecIdOpus) {
-        //TODO: for more level setting
+        // TODO: for more level setting
         enc_->compression_level = 1;
         enc_->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
 
@@ -281,10 +284,10 @@ srs_error_t SrsAudioTranscoder::init_enc(SrsAudioCodecId dst_codec, int dst_chan
     return srs_success;
 }
 
-srs_error_t SrsAudioTranscoder::init_swr(AVCodecContext* decoder)
+srs_error_t SrsAudioTranscoder::init_swr(AVCodecContext *decoder)
 {
     swr_ = swr_alloc_set_opts(NULL, enc_->channel_layout, enc_->sample_fmt, enc_->sample_rate,
-        decoder->channel_layout, decoder->sample_fmt, decoder->sample_rate, 0, NULL);
+                              decoder->channel_layout, decoder->sample_fmt, decoder->sample_rate, 0, NULL);
     if (!swr_) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "alloc swr");
     }
@@ -293,22 +296,22 @@ srs_error_t SrsAudioTranscoder::init_swr(AVCodecContext* decoder)
     char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
     if ((error = swr_init(swr_)) < 0) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "open swr(%d:%s)", error,
-            av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
+                             av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
     }
 
     /* Allocate as many pointers as there are audio channels.
-    * Each pointer will later point to the audio samples of the corresponding
-    * channels (although it may be NULL for interleaved formats).
-    */
+     * Each pointer will later point to the audio samples of the corresponding
+     * channels (although it may be NULL for interleaved formats).
+     */
     if (!(swr_data_ = (uint8_t **)calloc(enc_->channels, sizeof(*swr_data_)))) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "alloc swr buffer");
     }
 
     /* Allocate memory for the samples of all channels in one consecutive
-    * block for convenience. */
+     * block for convenience. */
     if ((error = av_samples_alloc(swr_data_, NULL, enc_->channels, enc_->frame_size, enc_->sample_fmt, 0)) < 0) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "alloc swr buffer(%d:%s)", error,
-            av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
+                             av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
     }
 
     return srs_success;
@@ -330,7 +333,7 @@ srs_error_t SrsAudioTranscoder::decode_and_resample(SrsAudioFrame *pkt)
     dec_packet_->size = pkt->samples[0].size;
 
     // Ignore empty packet, see https://github.com/ossrs/srs/pull/2757#discussion_r759797651
-    if (!dec_packet_->data || !dec_packet_->size){
+    if (!dec_packet_->data || !dec_packet_->size) {
         return err;
     }
 
@@ -338,7 +341,7 @@ srs_error_t SrsAudioTranscoder::decode_and_resample(SrsAudioFrame *pkt)
     int error = avcodec_send_packet(dec_, dec_packet_);
     if (error < 0) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "submit to dec(%d,%s)", error,
-            av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
+                             av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
     }
 
     new_pkt_pts_ = pkt->dts + pkt->cts;
@@ -348,7 +351,7 @@ srs_error_t SrsAudioTranscoder::decode_and_resample(SrsAudioFrame *pkt)
             return err;
         } else if (error < 0) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "Error during decoding(%d,%s)", error,
-                av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
+                                 av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
         }
 
         // Decoder is OK now, try to init swr if not initialized.
@@ -357,16 +360,17 @@ srs_error_t SrsAudioTranscoder::decode_and_resample(SrsAudioFrame *pkt)
         }
 
         int in_samples = dec_frame_->nb_samples;
-        const uint8_t **in_data = (const uint8_t**)dec_frame_->extended_data;
+        const uint8_t **in_data = (const uint8_t **)dec_frame_->extended_data;
         do {
             /* Convert the samples using the resampler. */
             int frame_size = swr_convert(swr_, swr_data_, enc_->frame_size, in_data, in_samples);
             if ((error = frame_size) < 0) {
                 return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not convert input samples(%d,%s)", error,
-                    av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
+                                     av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
             }
 
-            in_data = NULL; in_samples = 0;
+            in_data = NULL;
+            in_samples = 0;
             if ((err = add_samples_to_fifo(swr_data_, frame_size)) != srs_success) {
                 return srs_error_wrap(err, "write samples");
             }
@@ -376,7 +380,7 @@ srs_error_t SrsAudioTranscoder::decode_and_resample(SrsAudioFrame *pkt)
     return err;
 }
 
-srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame*> &pkts)
+srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame *> &pkts)
 {
     char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
 
@@ -386,7 +390,7 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame*> &pkts)
         int64_t diff = llabs(new_pkt_pts_ - av_rescale(next_out_pts_, 1000, enc_->time_base.den));
         if (diff > 1000) {
             srs_trace("time diff to large=%lld, next out=%lld, new pkt=%lld, set to new pkt",
-                diff, next_out_pts_, new_pkt_pts_);
+                      diff, next_out_pts_, new_pkt_pts_);
             next_out_pts_ = av_rescale(new_pkt_pts_, enc_->time_base.den, 1000);
         }
     }
@@ -398,7 +402,7 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame*> &pkts)
         }
 
         /* Read as many samples from the FIFO buffer as required to fill the frame.
-        * The samples are stored in the frame temporarily. */
+         * The samples are stored in the frame temporarily. */
         if (av_audio_fifo_read(fifo_, (void **)enc_frame_->data, enc_->frame_size) < enc_->frame_size) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not read data from FIFO");
         }
@@ -409,14 +413,14 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame*> &pkts)
         int error = avcodec_send_frame(enc_, enc_frame_);
         if (error < 0) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "Error sending the frame to the encoder(%d,%s)", error,
-                av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
+                                 av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
         }
 
         av_init_packet(enc_packet_);
         enc_packet_->data = NULL;
         enc_packet_->size = 0;
         /* read all the available output packets (in general there may be any
-        * number of them */
+         * number of them */
         while (error >= 0) {
             error = avcodec_receive_packet(enc_, enc_packet_);
             if (error == AVERROR(EAGAIN) || error == AVERROR_EOF) {
@@ -424,11 +428,11 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame*> &pkts)
             } else if (error < 0) {
                 free_frames(pkts);
                 return srs_error_new(ERROR_RTC_RTP_MUXER, "Error during decoding(%d,%s)", error,
-                    av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
+                                     av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
             }
 
             // rescale time base from sample_rate 1000.
-            enc_packet_->dts = av_rescale(enc_packet_->dts, 1000, enc_->time_base.den); 
+            enc_packet_->dts = av_rescale(enc_packet_->dts, 1000, enc_->time_base.den);
             enc_packet_->pts = av_rescale(enc_packet_->pts, 1000, enc_->time_base.den);
 
             SrsAudioFrame *out_frame = new SrsAudioFrame;
@@ -444,7 +448,7 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame*> &pkts)
     return srs_success;
 }
 
-srs_error_t  SrsAudioTranscoder::add_samples_to_fifo(uint8_t **samples, int frame_size)
+srs_error_t SrsAudioTranscoder::add_samples_to_fifo(uint8_t **samples, int frame_size)
 {
     char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
 
@@ -454,13 +458,13 @@ srs_error_t  SrsAudioTranscoder::add_samples_to_fifo(uint8_t **samples, int fram
      * the old and the new samples. */
     if ((error = av_audio_fifo_realloc(fifo_, av_audio_fifo_size(fifo_) + frame_size)) < 0) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not reallocate FIFO(%d,%s)", error,
-            av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
+                             av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
     }
 
     /* Store the new samples in the FIFO buffer. */
     if ((error = av_audio_fifo_write(fifo_, (void **)samples, frame_size)) < frame_size) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not write data to FIFO(%d,%s)", error,
-            av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
+                             av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
     }
 
     return srs_success;
@@ -474,4 +478,3 @@ void SrsAudioTranscoder::free_swr_samples()
         swr_data_ = NULL;
     }
 }
-

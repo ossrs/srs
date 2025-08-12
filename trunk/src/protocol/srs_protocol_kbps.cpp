@@ -8,7 +8,7 @@
 
 #include <srs_kernel_utility.hpp>
 
-SrsKbpsSlice::SrsKbpsSlice(SrsWallClock* c)
+SrsKbpsSlice::SrsKbpsSlice(SrsWallClock *c)
 {
     clk = c;
     starttime = 0;
@@ -35,7 +35,7 @@ void SrsKbpsSlice::sample()
     if (sample_60m.time < 0) {
         sample_60m.update(bytes, now, 0);
     }
-    
+
     if (now - sample_30s.time >= 30 * SRS_UTIME_SECONDS) {
         int kbps = (int)((bytes - sample_30s.total) * 8 / srsu2ms(now - sample_30s.time));
         sample_30s.update(bytes, now, kbps);
@@ -77,10 +77,12 @@ void SrsEphemeralDelta::add_delta(int64_t in, int64_t out)
     out_ += out;
 }
 
-void SrsEphemeralDelta::remark(int64_t* in, int64_t* out)
+void SrsEphemeralDelta::remark(int64_t *in, int64_t *out)
 {
-    if (in) *in = in_;
-    if (out) *out = out_;
+    if (in)
+        *in = in_;
+    if (out)
+        *out = out_;
     in_ = out_ = 0;
 }
 
@@ -95,7 +97,7 @@ SrsNetworkDelta::~SrsNetworkDelta()
 {
 }
 
-void SrsNetworkDelta::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
+void SrsNetworkDelta::set_io(ISrsProtocolStatistic *in, ISrsProtocolStatistic *out)
 {
     if (in_) {
         in_delta_ += in_->get_recv_bytes() - in_base_;
@@ -116,7 +118,7 @@ void SrsNetworkDelta::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* o
     out_ = out;
 }
 
-void SrsNetworkDelta::remark(int64_t* in, int64_t* out)
+void SrsNetworkDelta::remark(int64_t *in, int64_t *out)
 {
     if (in_) {
         in_delta_ += in_->get_recv_bytes() - in_base_;
@@ -132,7 +134,7 @@ void SrsNetworkDelta::remark(int64_t* in, int64_t* out)
     in_delta_ = out_delta_ = 0;
 }
 
-SrsKbps::SrsKbps(SrsWallClock* c)
+SrsKbps::SrsKbps(SrsWallClock *c)
 {
     clk = c ? c : _srs_clock;
     is = new SrsKbpsSlice(clk);
@@ -187,9 +189,10 @@ int SrsKbps::get_recv_kbps_5m()
     return is->sample_5m.rate;
 }
 
-void SrsKbps::add_delta(ISrsKbpsDelta* delta)
+void SrsKbps::add_delta(ISrsKbpsDelta *delta)
 {
-    if (!delta) return;
+    if (!delta)
+        return;
 
     int64_t in, out;
     delta->remark(&in, &out);
@@ -201,7 +204,7 @@ void SrsKbps::add_delta(int64_t in, int64_t out)
     // update the total bytes
     is->bytes += in;
     os->bytes += out;
-    
+
     // we donot sample, please use sample() to do resample.
 }
 
@@ -221,7 +224,7 @@ int64_t SrsKbps::get_recv_bytes()
     return is->bytes;
 }
 
-SrsNetworkKbps::SrsNetworkKbps(SrsWallClock* clock)
+SrsNetworkKbps::SrsNetworkKbps(SrsWallClock *clock)
 {
     delta_ = new SrsNetworkDelta();
     kbps_ = new SrsKbps(clock);
@@ -233,7 +236,7 @@ SrsNetworkKbps::~SrsNetworkKbps()
     srs_freep(delta_);
 }
 
-void SrsNetworkKbps::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
+void SrsNetworkKbps::set_io(ISrsProtocolStatistic *in, ISrsProtocolStatistic *out)
 {
     delta_->set_io(in, out);
 }
@@ -283,4 +286,3 @@ int64_t SrsNetworkKbps::get_recv_bytes()
 {
     return kbps_->get_recv_bytes();
 }
-

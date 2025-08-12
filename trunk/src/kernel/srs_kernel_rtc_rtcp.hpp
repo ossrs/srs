@@ -9,9 +9,9 @@
 
 #include <srs_core.hpp>
 
-#include <vector>
-#include <set>
 #include <map>
+#include <set>
+#include <vector>
 
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
@@ -23,8 +23,7 @@ const uint8_t kRtcpVersion = 0x2;
 const int kMaxUDPDataSize = 1472;
 
 // RTCP Packet Types, @see http://www.networksorcery.com/enp/protocol/rtcp.htm
-enum SrsRtcpType
-{
+enum SrsRtcpType {
     SrsRtcpType_fir = 192,
     SrsRtcpType_sr = 200,
     SrsRtcpType_rr = 201,
@@ -37,23 +36,23 @@ enum SrsRtcpType
 };
 
 // @see: https://tools.ietf.org/html/rfc4585#section-6.3
-const uint8_t kPLI  = 1;
-const uint8_t kSLI  = 2;
+const uint8_t kPLI = 1;
+const uint8_t kSLI = 2;
 const uint8_t kRPSI = 3;
-const uint8_t kAFB  = 15;
+const uint8_t kAFB = 15;
 
 // RTCP Header, @see http://tools.ietf.org/html/rfc3550#section-6.1
 // @remark The header must be 4 bytes, which align with the max field size 2B.
-struct SrsRtcpHeader
-{
-	uint16_t rc:5;
-	uint16_t padding:1;
-	uint16_t version:2;
-	uint16_t type:8;
+struct SrsRtcpHeader {
+    uint16_t rc : 5;
+    uint16_t padding : 1;
+    uint16_t version : 2;
+    uint16_t type : 8;
 
-	uint16_t length:16;
+    uint16_t length : 16;
 
-    SrsRtcpHeader() {
+    SrsRtcpHeader()
+    {
         rc = 0;
         padding = 0;
         version = 0;
@@ -62,7 +61,7 @@ struct SrsRtcpHeader
     }
 };
 
-class SrsRtcpCommon: public ISrsCodec
+class SrsRtcpCommon : public ISrsCodec
 {
 protected:
     SrsRtcpHeader header_;
@@ -70,11 +69,13 @@ protected:
     uint8_t payload_[kRtcpPacketSize];
     int payload_len_;
 
-    char* data_;
+    char *data_;
     int nb_data_;
+
 protected:
     srs_error_t decode_header(SrsBuffer *buffer);
     srs_error_t encode_header(SrsBuffer *buffer);
+
 public:
     SrsRtcpCommon();
     virtual ~SrsRtcpCommon();
@@ -84,19 +85,20 @@ public:
     uint32_t get_ssrc();
     void set_ssrc(uint32_t ssrc);
 
-    char* data();
+    char *data();
     int size();
-// interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
-class SrsRtcpApp : public SrsRtcpCommon 
+class SrsRtcpApp : public SrsRtcpCommon
 {
 private:
     uint8_t name_[4];
+
 public:
     SrsRtcpApp();
     virtual ~SrsRtcpApp();
@@ -104,23 +106,22 @@ public:
     static bool is_rtcp_app(uint8_t *data, int nb_data);
 
     virtual uint8_t type() const;
-    
+
     uint8_t get_subtype() const;
     std::string get_name() const;
-    srs_error_t get_payload(uint8_t*& payload, int& len);
+    srs_error_t get_payload(uint8_t *&payload, int &len);
 
     srs_error_t set_subtype(uint8_t type);
     srs_error_t set_name(std::string name);
-    srs_error_t set_payload(uint8_t* payload, int len);
-// interface ISrsCodec
+    srs_error_t set_payload(uint8_t *payload, int len);
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
-struct SrsRtcpRB
-{
+struct SrsRtcpRB {
     uint32_t ssrc;
     uint8_t fraction_lost;
     uint32_t lost_packets;
@@ -129,7 +130,8 @@ struct SrsRtcpRB
     uint32_t lsr;
     uint32_t dlsr;
 
-    SrsRtcpRB() {
+    SrsRtcpRB()
+    {
         ssrc = 0;
         fraction_lost = 0;
         lost_packets = 0;
@@ -164,7 +166,7 @@ public:
     void set_rtp_ts(uint32_t ts);
     void set_rtp_send_packets(uint32_t packets);
     void set_rtp_send_bytes(uint32_t bytes);
-// interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
@@ -175,6 +177,7 @@ class SrsRtcpRR : public SrsRtcpCommon
 {
 private:
     SrsRtcpRB rb_;
+
 public:
     SrsRtcpRR(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpRR();
@@ -198,12 +201,11 @@ public:
     void set_lsr(uint32_t lsr);
     void set_dlsr(uint32_t dlsr);
     void set_sender_ntp(uint64_t ntp);
-// interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);
-
 };
 
 // @doc: https://tools.ietf.org/html/rfc4585#section-6.1
@@ -213,6 +215,7 @@ class SrsRtcpFbCommon : public SrsRtcpCommon
 {
 protected:
     uint32_t media_ssrc_;
+
 public:
     SrsRtcpFbCommon();
     virtual ~SrsRtcpFbCommon();
@@ -220,13 +223,12 @@ public:
     uint32_t get_media_ssrc() const;
     void set_media_ssrc(uint32_t ssrc);
 
-// interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
-    virtual srs_error_t encode(SrsBuffer *buffer);   
+    virtual srs_error_t encode(SrsBuffer *buffer);
 };
-
 
 // The Message format of TWCC, @see https://tools.ietf.org/html/draft-holmer-rmcat-transport-wide-cc-extensions-01#section-3.1
 //       0                   1                   2                   3
@@ -259,15 +261,15 @@ public:
 #define kTwccFbPktFormat (15)
 #define kTwccFbPayloadType (205)
 #define kTwccFbMaxPktStatusCount (0xffff)
-#define kTwccFbDeltaUnit (250)	 // multiple of 250us
-#define kTwccFbTimeMultiplier (kTwccFbDeltaUnit * (1 << 8)) // multiplicand multiplier/* 250us -> 64ms  (1 << 8) */
-#define kTwccFbReferenceTimeDivisor ((1ll<<24) * kTwccFbTimeMultiplier) // dividend divisor
+#define kTwccFbDeltaUnit (250)                                            // multiple of 250us
+#define kTwccFbTimeMultiplier (kTwccFbDeltaUnit * (1 << 8))               // multiplicand multiplier/* 250us -> 64ms  (1 << 8) */
+#define kTwccFbReferenceTimeDivisor ((1ll << 24) * kTwccFbTimeMultiplier) // dividend divisor
 
-#define kTwccFbMaxRunLength 		0x1fff
-#define kTwccFbOneBitElements 		14
-#define kTwccFbTwoBitElements 		7
-#define kTwccFbLargeRecvDeltaBytes	2
-#define kTwccFbMaxBitElements 		kTwccFbOneBitElements
+#define kTwccFbMaxRunLength 0x1fff
+#define kTwccFbOneBitElements 14
+#define kTwccFbTwoBitElements 7
+#define kTwccFbLargeRecvDeltaBytes 2
+#define kTwccFbMaxBitElements kTwccFbOneBitElements
 
 class SrsRtcpTWCC : public SrsRtcpFbCommon
 {
@@ -291,18 +293,20 @@ private:
 
     int pkt_len;
     uint16_t next_base_sn_;
+
 private:
     void clear();
     srs_utime_t calculate_delta_us(srs_utime_t ts, srs_utime_t last);
-    srs_error_t process_pkt_chunk(SrsRtcpTWCCChunk& chunk, int delta_size);
-    bool can_add_to_chunk(SrsRtcpTWCCChunk& chunk, int delta_size);
-    void add_to_chunk(SrsRtcpTWCCChunk& chunk, int delta_size);
-    srs_error_t encode_chunk(SrsRtcpTWCCChunk& chunk);
-    srs_error_t encode_chunk_run_length(SrsRtcpTWCCChunk& chunk);
-    srs_error_t encode_chunk_one_bit(SrsRtcpTWCCChunk& chunk);
-    srs_error_t encode_chunk_two_bit(SrsRtcpTWCCChunk& chunk, size_t size, bool shift);
-    void reset_chunk(SrsRtcpTWCCChunk& chunk);
-    srs_error_t encode_remaining_chunk(SrsRtcpTWCCChunk& chunk);
+    srs_error_t process_pkt_chunk(SrsRtcpTWCCChunk &chunk, int delta_size);
+    bool can_add_to_chunk(SrsRtcpTWCCChunk &chunk, int delta_size);
+    void add_to_chunk(SrsRtcpTWCCChunk &chunk, int delta_size);
+    srs_error_t encode_chunk(SrsRtcpTWCCChunk &chunk);
+    srs_error_t encode_chunk_run_length(SrsRtcpTWCCChunk &chunk);
+    srs_error_t encode_chunk_one_bit(SrsRtcpTWCCChunk &chunk);
+    srs_error_t encode_chunk_two_bit(SrsRtcpTWCCChunk &chunk, size_t size, bool shift);
+    void reset_chunk(SrsRtcpTWCCChunk &chunk);
+    srs_error_t encode_remaining_chunk(SrsRtcpTWCCChunk &chunk);
+
 public:
     SrsRtcpTWCC(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpTWCC();
@@ -322,11 +326,12 @@ public:
     srs_error_t recv_packet(uint16_t sn, srs_utime_t ts);
     bool need_feedback();
 
-// interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
-    virtual srs_error_t encode(SrsBuffer *buffer);   
+    virtual srs_error_t encode(SrsBuffer *buffer);
+
 private:
     srs_error_t do_encode(SrsBuffer *buffer);
 };
@@ -341,6 +346,7 @@ private:
     };
 
     std::set<uint16_t, SrsSeqCompareLess> lost_sns_;
+
 public:
     SrsRtcpNack(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpNack();
@@ -349,11 +355,11 @@ public:
     bool empty();
 
     void add_lost_sn(uint16_t sn);
-// interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
-    virtual srs_error_t encode(SrsBuffer *buffer);      
+    virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
 class SrsRtcpPli : public SrsRtcpFbCommon
@@ -362,11 +368,11 @@ public:
     SrsRtcpPli(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpPli();
 
-// interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
-    virtual srs_error_t encode(SrsBuffer *buffer);  
+    virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
 class SrsRtcpSli : public SrsRtcpFbCommon
@@ -375,69 +381,71 @@ private:
     uint16_t first_;
     uint16_t number_;
     uint8_t picture_;
+
 public:
     SrsRtcpSli(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpSli();
 
- // interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
-    virtual srs_error_t encode(SrsBuffer *buffer);   
-}; 
+    virtual srs_error_t encode(SrsBuffer *buffer);
+};
 
 class SrsRtcpRpsi : public SrsRtcpFbCommon
 {
 private:
     uint8_t pb_;
     uint8_t payload_type_;
-    char* native_rpsi_;
+    char *native_rpsi_;
     int nb_native_rpsi_;
 
 public:
     SrsRtcpRpsi(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpRpsi();
 
- // interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
-    virtual srs_error_t encode(SrsBuffer *buffer);   
+    virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
 class SrsRtcpXr : public SrsRtcpFbCommon
 {
 public:
-    SrsRtcpXr (uint32_t ssrc = 0);
+    SrsRtcpXr(uint32_t ssrc = 0);
     virtual ~SrsRtcpXr();
 
-   // interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
-    virtual srs_error_t encode(SrsBuffer *buffer);   
+    virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
 class SrsRtcpCompound : public ISrsCodec
 {
 private:
-    std::vector<SrsRtcpCommon*> rtcps_;
+    std::vector<SrsRtcpCommon *> rtcps_;
     int nb_bytes_;
-    char* data_;
+    char *data_;
     int nb_data_;
+
 public:
     SrsRtcpCompound();
     virtual ~SrsRtcpCompound();
 
     // TODO: FIXME: Should rename it to pop(), because it's not a GET method.
-    SrsRtcpCommon* get_next_rtcp();
+    SrsRtcpCommon *get_next_rtcp();
     srs_error_t add_rtcp(SrsRtcpCommon *rtcp);
     void clear();
 
-    char* data();
+    char *data();
     int size();
 
-// interface ISrsCodec
+    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
     virtual uint64_t nb_bytes();
@@ -445,4 +453,3 @@ public:
 };
 
 #endif
-

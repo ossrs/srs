@@ -9,12 +9,12 @@
 
 #include <srs_core.hpp>
 
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
-#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_rtc_rtcp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 class SrsRtpPacket;
 class SrsRtpQueue;
@@ -34,11 +34,12 @@ private:
     // Capacity of the ring-buffer.
     uint16_t capacity_;
     // Ring bufer.
-    SrsRtpPacket** queue_;
+    SrsRtpPacket **queue_;
     // Increase one when uint16 flip back, for get_extended_highest_sequence.
     uint64_t nn_seq_flip_backs;
     // Whether initialized, because we use uint16 so we can't use -1.
     bool initialized_;
+
 public:
     // The begin iterator for ring buffer.
     // For example, when got 1 elems, the begin is 0.
@@ -46,9 +47,11 @@ public:
     // The end iterator for ring buffer.
     // For example, when got 1 elems, the end is 1.
     uint16_t end;
+
 public:
     SrsRtpRingBuffer(int capacity);
     virtual ~SrsRtpRingBuffer();
+
 public:
     // Whether the ring buffer is empty.
     bool empty();
@@ -57,26 +60,27 @@ public:
     // Move the low position of buffer to seq.
     void advance_to(uint16_t seq);
     // Free the packet at position.
-    void set(uint16_t at, SrsRtpPacket* pkt);
+    void set(uint16_t at, SrsRtpPacket *pkt);
     void remove(uint16_t at);
     // The highest sequence number, calculate the flip back base.
     uint32_t get_extended_highest_sequence();
     // Update the sequence, got the nack range by [first, last).
     // @return If false, the seq is too old.
-    bool update(uint16_t seq, uint16_t& nack_first, uint16_t& nack_last);
+    bool update(uint16_t seq, uint16_t &nack_first, uint16_t &nack_last);
     // Get the packet by seq.
-    SrsRtpPacket* at(uint16_t seq);
+    SrsRtpPacket *at(uint16_t seq);
+
 public:
     // TODO: FIXME: Refine it?
     void notify_nack_list_full();
     void notify_drop_seq(uint16_t seq);
+
 public:
     void clear_histroy(uint16_t seq);
     void clear_all_histroy();
 };
 
-struct SrsNackOption
-{
+struct SrsNackOption {
     int max_count;
     srs_utime_t max_alive_time;
     srs_utime_t first_nack_interval;
@@ -89,8 +93,7 @@ struct SrsNackOption
     SrsNackOption();
 };
 
-struct SrsRtpNackInfo
-{
+struct SrsRtpNackInfo {
     // Use to control the time of first nack req and the life of seq.
     srs_utime_t generate_time_;
     // Use to control nack interval.
@@ -108,22 +111,28 @@ private:
     std::map<uint16_t, SrsRtpNackInfo, SrsSeqCompareLess> queue_;
     // Max nack count.
     size_t max_queue_size_;
-    SrsRtpRingBuffer* rtp_;
+    SrsRtpRingBuffer *rtp_;
     SrsNackOption opts_;
+
 private:
     srs_utime_t pre_check_time_;
+
 private:
     int rtt_;
+
 public:
-    SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue_size);
+    SrsRtpNackForReceiver(SrsRtpRingBuffer *rtp, size_t queue_size);
     virtual ~SrsRtpNackForReceiver();
+
 public:
     void insert(uint16_t first, uint16_t last);
     void remove(uint16_t seq);
-    SrsRtpNackInfo* find(uint16_t seq);
+    SrsRtpNackInfo *find(uint16_t seq);
     void check_queue_size();
+
 public:
-    void get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_nacks);
+    void get_nack_seqs(SrsRtcpNack &seqs, uint32_t &timeout_nacks);
+
 public:
     void update_rtt(int rtt);
 };

@@ -15,19 +15,19 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_timer = NULL;
-SrsPps* _srs_pps_conn = NULL;
-SrsPps* _srs_pps_pub = NULL;
+SrsPps *_srs_pps_timer = NULL;
+SrsPps *_srs_pps_conn = NULL;
+SrsPps *_srs_pps_pub = NULL;
 
-extern SrsPps* _srs_pps_clock_15ms;
-extern SrsPps* _srs_pps_clock_20ms;
-extern SrsPps* _srs_pps_clock_25ms;
-extern SrsPps* _srs_pps_clock_30ms;
-extern SrsPps* _srs_pps_clock_35ms;
-extern SrsPps* _srs_pps_clock_40ms;
-extern SrsPps* _srs_pps_clock_80ms;
-extern SrsPps* _srs_pps_clock_160ms;
-extern SrsPps* _srs_pps_timer_s;
+extern SrsPps *_srs_pps_clock_15ms;
+extern SrsPps *_srs_pps_clock_20ms;
+extern SrsPps *_srs_pps_clock_25ms;
+extern SrsPps *_srs_pps_clock_30ms;
+extern SrsPps *_srs_pps_clock_35ms;
+extern SrsPps *_srs_pps_clock_40ms;
+extern SrsPps *_srs_pps_clock_80ms;
+extern SrsPps *_srs_pps_clock_160ms;
+extern SrsPps *_srs_pps_timer_s;
 
 ISrsHourGlass::ISrsHourGlass()
 {
@@ -37,7 +37,7 @@ ISrsHourGlass::~ISrsHourGlass()
 {
 }
 
-SrsHourGlass::SrsHourGlass(string label, ISrsHourGlass* h, srs_utime_t resolution)
+SrsHourGlass::SrsHourGlass(string label, ISrsHourGlass *h, srs_utime_t resolution)
 {
     label_ = label;
     handler = h;
@@ -75,14 +75,14 @@ srs_error_t SrsHourGlass::tick(srs_utime_t interval)
 srs_error_t SrsHourGlass::tick(int event, srs_utime_t interval)
 {
     srs_error_t err = srs_success;
-    
+
     if (_resolution > 0 && (interval % _resolution) != 0) {
         return srs_error_new(ERROR_SYSTEM_HOURGLASS_RESOLUTION,
-            "invalid interval=%dms, resolution=%dms", srsu2msi(interval), srsu2msi(_resolution));
+                             "invalid interval=%dms, resolution=%dms", srsu2msi(interval), srsu2msi(_resolution));
     }
-    
+
     ticks[event] = interval;
-    
+
     return err;
 }
 
@@ -102,7 +102,7 @@ srs_error_t SrsHourGlass::cycle()
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "quit");
         }
-    
+
         map<int, srs_utime_t>::iterator it;
         for (it = ticks.begin(); it != ticks.end(); ++it) {
             int event = it->first;
@@ -121,7 +121,7 @@ srs_error_t SrsHourGlass::cycle()
         total_elapse += _resolution;
         srs_usleep(_resolution);
     }
-    
+
     return err;
 }
 
@@ -155,16 +155,16 @@ srs_error_t SrsFastTimer::start()
     return err;
 }
 
-void SrsFastTimer::subscribe(ISrsFastTimer* timer)
+void SrsFastTimer::subscribe(ISrsFastTimer *timer)
 {
     if (std::find(handlers_.begin(), handlers_.end(), timer) == handlers_.end()) {
         handlers_.push_back(timer);
     }
 }
 
-void SrsFastTimer::unsubscribe(ISrsFastTimer* timer)
+void SrsFastTimer::unsubscribe(ISrsFastTimer *timer)
 {
-    vector<ISrsFastTimer*>::iterator it = std::find(handlers_.begin(), handlers_.end(), timer);
+    vector<ISrsFastTimer *>::iterator it = std::find(handlers_.begin(), handlers_.end(), timer);
     if (it != handlers_.end()) {
         handlers_.erase(it);
     }
@@ -182,7 +182,7 @@ srs_error_t SrsFastTimer::cycle()
         ++_srs_pps_timer->sugar;
 
         for (int i = 0; i < (int)handlers_.size(); i++) {
-            ISrsFastTimer* timer = handlers_.at(i);
+            ISrsFastTimer *timer = handlers_.at(i);
 
             if ((err = timer->on_timer(interval_)) != srs_success) {
                 srs_freep(err); // Ignore any error for shared timer.
@@ -240,4 +240,3 @@ srs_error_t SrsClockWallMonitor::on_timer(srs_utime_t interval)
 
     return err;
 }
-

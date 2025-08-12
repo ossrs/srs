@@ -6,11 +6,11 @@
 
 #include <srs_app_ffmpeg.hpp>
 
-#include <stdlib.h>
-#include <sys/wait.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
@@ -20,12 +20,12 @@
 #include <vector>
 using namespace std;
 
+#include <srs_app_config.hpp>
+#include <srs_app_process.hpp>
+#include <srs_app_utility.hpp>
+#include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_app_config.hpp>
-#include <srs_app_utility.hpp>
-#include <srs_app_process.hpp>
-#include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
 
 #ifdef SRS_FFMPEG_STUB
@@ -93,7 +93,7 @@ srs_error_t SrsFFMPEG::initialize(string in, string out, string log)
     return err;
 }
 
-srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
+srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective *engine)
 {
     srs_error_t err = srs_success;
 
@@ -411,5 +411,3 @@ void SrsFFMPEG::fast_kill()
 }
 
 #endif
-
-

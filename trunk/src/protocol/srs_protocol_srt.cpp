@@ -10,45 +10,44 @@
 
 using namespace std;
 
-#include <srs_kernel_error.hpp>
-#include <srs_kernel_log.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_core_deprecated.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
 
 #include <srt/srt.h>
 
 // TODO: FIXME: protocol could no include app's header file, so define TAG_SRT in this file.
 #define TAG_SRT "SRT"
 
-#define SET_SRT_OPT_STR(srtfd, optname, buf, size)                                  \
-    if (srt_setsockflag(srtfd, optname, buf, size) == SRT_ERROR) {                  \
-        std::stringstream ss;                                                       \
-        ss << "srtfd=" << srtfd << ",set " << #optname                              \
-           << " failed,err=" << srt_getlasterror_str();                             \
-        return srs_error_new(ERROR_SRT_SOCKOPT, "%s", ss.str().c_str());            \
-    } 
+#define SET_SRT_OPT_STR(srtfd, optname, buf, size)                       \
+    if (srt_setsockflag(srtfd, optname, buf, size) == SRT_ERROR) {       \
+        std::stringstream ss;                                            \
+        ss << "srtfd=" << srtfd << ",set " << #optname                   \
+           << " failed,err=" << srt_getlasterror_str();                  \
+        return srs_error_new(ERROR_SRT_SOCKOPT, "%s", ss.str().c_str()); \
+    }
 
-#define SET_SRT_OPT(srtfd, optname, val)                                            \
-    if (srt_setsockflag(srtfd, optname, &val, sizeof(val)) == SRT_ERROR) {          \
-        std::stringstream ss;                                                       \
-        ss << "srtfd=" << srtfd << ",set " << #optname << "=" << val                \
-           << " failed,err=" << srt_getlasterror_str();                             \
-        return srs_error_new(ERROR_SRT_SOCKOPT, "%s", ss.str().c_str());            \
-    } 
+#define SET_SRT_OPT(srtfd, optname, val)                                   \
+    if (srt_setsockflag(srtfd, optname, &val, sizeof(val)) == SRT_ERROR) { \
+        std::stringstream ss;                                              \
+        ss << "srtfd=" << srtfd << ",set " << #optname << "=" << val       \
+           << " failed,err=" << srt_getlasterror_str();                    \
+        return srs_error_new(ERROR_SRT_SOCKOPT, "%s", ss.str().c_str());   \
+    }
 
-#define GET_SRT_OPT(srtfd, optname, val)                                        \
-    do {                                                                        \
-        int size = sizeof(val);                                                 \
-        if (srt_getsockflag(srtfd, optname, &val, &size) == SRT_ERROR) {        \
-            std::stringstream ss;                                               \
-            ss << "srtfd=" << srtfd << ",get " << #optname                      \
-               << " failed,err=" << srt_getlasterror_str();                     \
-            return srs_error_new(ERROR_SRT_SOCKOPT, "%s", ss.str().c_str());    \
-        }                                                                       \
+#define GET_SRT_OPT(srtfd, optname, val)                                     \
+    do {                                                                     \
+        int size = sizeof(val);                                              \
+        if (srt_getsockflag(srtfd, optname, &val, &size) == SRT_ERROR) {     \
+            std::stringstream ss;                                            \
+            ss << "srtfd=" << srtfd << ",get " << #optname                   \
+               << " failed,err=" << srt_getlasterror_str();                  \
+            return srs_error_new(ERROR_SRT_SOCKOPT, "%s", ss.str().c_str()); \
+        }                                                                    \
     } while (0)
 
-
-static srs_error_t do_srs_srt_listen(srs_srt_t srt_fd, addrinfo* r)
+static srs_error_t do_srs_srt_listen(srs_srt_t srt_fd, addrinfo *r)
 {
     srs_error_t err = srs_success;
 
@@ -67,7 +66,7 @@ static srs_error_t do_srs_srt_listen(srs_srt_t srt_fd, addrinfo* r)
     return err;
 }
 
-static srs_error_t do_srs_srt_get_streamid(srs_srt_t srt_fd, string& streamid)
+static srs_error_t do_srs_srt_get_streamid(srs_srt_t srt_fd, string &streamid)
 {
     // SRT max streamid length is 512.
     char sid[512];
@@ -77,41 +76,51 @@ static srs_error_t do_srs_srt_get_streamid(srs_srt_t srt_fd, string& streamid)
     return srs_success;
 }
 
-static void srs_srt_log_handler(void* opaque, int level, const char* file, int line, const char* area, const char* message)
+static void srs_srt_log_handler(void *opaque, int level, const char *file, int line, const char *area, const char *message)
 {
     switch (level) {
-        case srt_logging::LogLevel::debug:
-            srs_info2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
-            break;
-        case srt_logging::LogLevel::note:
-            srs_trace2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
-            break;
-        case srt_logging::LogLevel::warning:
-            srs_warn2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
-            break;
-        case srt_logging::LogLevel::error:
-        case srt_logging::LogLevel::fatal:
-            srs_error2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
-            break;
-        default:
-            srs_trace2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
-            break;
+    case srt_logging::LogLevel::debug:
+        srs_info2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
+        break;
+    case srt_logging::LogLevel::note:
+        srs_trace2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
+        break;
+    case srt_logging::LogLevel::warning:
+        srs_warn2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
+        break;
+    case srt_logging::LogLevel::error:
+    case srt_logging::LogLevel::fatal:
+        srs_error2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
+        break;
+    default:
+        srs_trace2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
+        break;
     }
 }
 
-static string srt_sockstatus_to_str(const SRT_SOCKSTATUS& status)
+static string srt_sockstatus_to_str(const SRT_SOCKSTATUS &status)
 {
     switch (status) {
-        case SRTS_INIT: return "SRTS_INIT";
-        case SRTS_OPENED: return "SRTS_OPENED";
-        case SRTS_LISTENING: return "SRTS_LISTENING";
-        case SRTS_CONNECTING: return "SRT_CONNECTING";
-        case SRTS_CONNECTED: return "SRTS_CONNECTED";
-        case SRTS_BROKEN: return "SRTS_BROKEN";
-        case SRTS_CLOSING: return "SRTS_CLOSING";
-        case SRTS_CLOSED: return "SRTS_CLOSED";
-        case SRTS_NONEXIST: return "SRTS_NONEXIST";
-        default: return "unknown";
+    case SRTS_INIT:
+        return "SRTS_INIT";
+    case SRTS_OPENED:
+        return "SRTS_OPENED";
+    case SRTS_LISTENING:
+        return "SRTS_LISTENING";
+    case SRTS_CONNECTING:
+        return "SRT_CONNECTING";
+    case SRTS_CONNECTED:
+        return "SRTS_CONNECTED";
+    case SRTS_BROKEN:
+        return "SRTS_BROKEN";
+    case SRTS_CLOSING:
+        return "SRTS_CLOSING";
+    case SRTS_CLOSED:
+        return "SRTS_CLOSED";
+    case SRTS_NONEXIST:
+        return "SRTS_NONEXIST";
+    default:
+        return "unknown";
     }
 
     return "unknown";
@@ -122,7 +131,7 @@ srs_error_t srs_srt_log_initialize()
     srs_error_t err = srs_success;
 
     srt_setlogflags(0 | SRT_LOGF_DISABLE_TIME | SRT_LOGF_DISABLE_SEVERITY |
-        SRT_LOGF_DISABLE_THREADNAME | SRT_LOGF_DISABLE_EOL);
+                    SRT_LOGF_DISABLE_THREADNAME | SRT_LOGF_DISABLE_EOL);
     srt_setloghandler(NULL, srs_srt_log_handler);
 
     return err;
@@ -133,7 +142,7 @@ srs_srt_t srs_srt_socket_invalid()
     return SRT_INVALID_SOCK;
 }
 
-srs_error_t srs_srt_socket(srs_srt_t* pfd)
+srs_error_t srs_srt_socket(srs_srt_t *pfd)
 {
     srs_error_t err = srs_success;
 
@@ -154,7 +163,7 @@ srs_error_t srs_srt_close(srs_srt_t fd)
     return srs_success;
 }
 
-srs_error_t srs_srt_socket_with_default_option(srs_srt_t* pfd)
+srs_error_t srs_srt_socket_with_default_option(srs_srt_t *pfd)
 {
     srs_error_t err = srs_success;
 
@@ -194,14 +203,14 @@ srs_error_t srs_srt_listen(srs_srt_t srt_fd, std::string ip, int port)
 
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_UNSPEC;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags    = AI_NUMERICHOST;
+    hints.ai_flags = AI_NUMERICHOST;
 
-    addrinfo* r_raw = NULL;
-    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r_raw)) {
+    addrinfo *r_raw = NULL;
+    if (getaddrinfo(ip.c_str(), sport, (const addrinfo *)&hints, &r_raw)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
-            hints.ai_family, hints.ai_socktype, hints.ai_flags);
+                             hints.ai_family, hints.ai_socktype, hints.ai_flags);
     }
     SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
 
@@ -294,13 +303,13 @@ srs_error_t srs_srt_set_peer_latency(srs_srt_t srt_fd, int peer_latency)
     return srs_success;
 }
 
-srs_error_t srs_srt_set_streamid(srs_srt_t srt_fd, const std::string& streamid)
+srs_error_t srs_srt_set_streamid(srs_srt_t srt_fd, const std::string &streamid)
 {
     SET_SRT_OPT_STR(srt_fd, SRTO_STREAMID, streamid.data(), streamid.size());
     return srs_success;
 }
 
-srs_error_t srs_srt_set_passphrase(srs_srt_t srt_fd, const std::string& passphrase)
+srs_error_t srs_srt_set_passphrase(srs_srt_t srt_fd, const std::string &passphrase)
 {
     SET_SRT_OPT_STR(srt_fd, SRTO_PASSPHRASE, passphrase.data(), passphrase.size());
     return srs_success;
@@ -312,79 +321,79 @@ srs_error_t srs_srt_set_pbkeylen(srs_srt_t srt_fd, int pbkeylen)
     return srs_success;
 }
 
-srs_error_t srs_srt_get_maxbw(srs_srt_t srt_fd, int64_t& maxbw)
+srs_error_t srs_srt_get_maxbw(srs_srt_t srt_fd, int64_t &maxbw)
 {
     GET_SRT_OPT(srt_fd, SRTO_MAXBW, maxbw);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_mss(srs_srt_t srt_fd, int& mss)
+srs_error_t srs_srt_get_mss(srs_srt_t srt_fd, int &mss)
 {
     GET_SRT_OPT(srt_fd, SRTO_MSS, mss);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_payload_size(srs_srt_t srt_fd, int& payload_size)
+srs_error_t srs_srt_get_payload_size(srs_srt_t srt_fd, int &payload_size)
 {
     GET_SRT_OPT(srt_fd, SRTO_PAYLOADSIZE, payload_size);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_connect_timeout(srs_srt_t srt_fd, int& timeout)
+srs_error_t srs_srt_get_connect_timeout(srs_srt_t srt_fd, int &timeout)
 {
     GET_SRT_OPT(srt_fd, SRTO_CONNTIMEO, timeout);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_peer_idle_timeout(srs_srt_t srt_fd, int& timeout)
+srs_error_t srs_srt_get_peer_idle_timeout(srs_srt_t srt_fd, int &timeout)
 {
     GET_SRT_OPT(srt_fd, SRTO_PEERIDLETIMEO, timeout);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_tsbpdmode(srs_srt_t srt_fd, bool& tsbpdmode)
+srs_error_t srs_srt_get_tsbpdmode(srs_srt_t srt_fd, bool &tsbpdmode)
 {
     GET_SRT_OPT(srt_fd, SRTO_TSBPDMODE, tsbpdmode);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_sndbuf(srs_srt_t srt_fd, int& sndbuf)
+srs_error_t srs_srt_get_sndbuf(srs_srt_t srt_fd, int &sndbuf)
 {
     GET_SRT_OPT(srt_fd, SRTO_SNDBUF, sndbuf);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_rcvbuf(srs_srt_t srt_fd, int& rcvbuf)
+srs_error_t srs_srt_get_rcvbuf(srs_srt_t srt_fd, int &rcvbuf)
 {
     GET_SRT_OPT(srt_fd, SRTO_RCVBUF, rcvbuf);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_tlpktdrop(srs_srt_t srt_fd, bool& tlpktdrop)
+srs_error_t srs_srt_get_tlpktdrop(srs_srt_t srt_fd, bool &tlpktdrop)
 {
     GET_SRT_OPT(srt_fd, SRTO_TLPKTDROP, tlpktdrop);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_latency(srs_srt_t srt_fd, int& latency)
+srs_error_t srs_srt_get_latency(srs_srt_t srt_fd, int &latency)
 {
     GET_SRT_OPT(srt_fd, SRTO_LATENCY, latency);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_rcv_latency(srs_srt_t srt_fd, int& rcv_latency)
+srs_error_t srs_srt_get_rcv_latency(srs_srt_t srt_fd, int &rcv_latency)
 {
     GET_SRT_OPT(srt_fd, SRTO_RCVLATENCY, rcv_latency);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_peer_latency(srs_srt_t srt_fd, int& peer_latency)
+srs_error_t srs_srt_get_peer_latency(srs_srt_t srt_fd, int &peer_latency)
 {
     GET_SRT_OPT(srt_fd, SRTO_PEERLATENCY, peer_latency);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_streamid(srs_srt_t srt_fd, std::string& streamid)
+srs_error_t srs_srt_get_streamid(srs_srt_t srt_fd, std::string &streamid)
 {
     srs_error_t err = srs_success;
 
@@ -395,64 +404,64 @@ srs_error_t srs_srt_get_streamid(srs_srt_t srt_fd, std::string& streamid)
     return err;
 }
 
-srs_error_t srs_srt_get_local_ip_port(srs_srt_t srt_fd, std::string& ip, int& port)
+srs_error_t srs_srt_get_local_ip_port(srs_srt_t srt_fd, std::string &ip, int &port)
 {
     srs_error_t err = srs_success;
 
     // discovery client information
     sockaddr_storage addr;
     int addrlen = sizeof(addr);
-    if (srt_getsockname(srt_fd, (sockaddr*)&addr, &addrlen) == -1) {
+    if (srt_getsockname(srt_fd, (sockaddr *)&addr, &addrlen) == -1) {
         return srs_error_new(ERROR_SRT_SOCKOPT, "srt_getsockname");
     }
 
     char saddr[64];
-    char* h = (char*)saddr;
+    char *h = (char *)saddr;
     socklen_t nbh = (socklen_t)sizeof(saddr);
-    const int r0 = getnameinfo((const sockaddr*)&addr, addrlen, h, nbh,NULL, 0, NI_NUMERICHOST);
+    const int r0 = getnameinfo((const sockaddr *)&addr, addrlen, h, nbh, NULL, 0, NI_NUMERICHOST);
     if (r0) {
         return srs_error_new(ERROR_SRT_SOCKOPT, "getnameinfo");
     }
 
-    switch(addr.ss_family) {
-        case AF_INET:
-            port = ntohs(((sockaddr_in*)&addr)->sin_port);
-         break;
-        case AF_INET6:
-            port = ntohs(((sockaddr_in6*)&addr)->sin6_port);
-         break;
+    switch (addr.ss_family) {
+    case AF_INET:
+        port = ntohs(((sockaddr_in *)&addr)->sin_port);
+        break;
+    case AF_INET6:
+        port = ntohs(((sockaddr_in6 *)&addr)->sin6_port);
+        break;
     }
 
     ip.assign(saddr);
     return err;
 }
 
-srs_error_t srs_srt_get_remote_ip_port(srs_srt_t srt_fd, std::string& ip, int& port)
+srs_error_t srs_srt_get_remote_ip_port(srs_srt_t srt_fd, std::string &ip, int &port)
 {
     srs_error_t err = srs_success;
 
     // discovery client information
     sockaddr_storage addr;
     int addrlen = sizeof(addr);
-    if (srt_getpeername(srt_fd, (sockaddr*)&addr, &addrlen) == -1) {
+    if (srt_getpeername(srt_fd, (sockaddr *)&addr, &addrlen) == -1) {
         return srs_error_new(ERROR_SRT_SOCKOPT, "srt_getpeername");
     }
 
     char saddr[64];
-    char* h = (char*)saddr;
+    char *h = (char *)saddr;
     socklen_t nbh = (socklen_t)sizeof(saddr);
-    const int r0 = getnameinfo((const sockaddr*)&addr, addrlen, h, nbh,NULL, 0, NI_NUMERICHOST);
+    const int r0 = getnameinfo((const sockaddr *)&addr, addrlen, h, nbh, NULL, 0, NI_NUMERICHOST);
     if (r0) {
         return srs_error_new(ERROR_SRT_SOCKOPT, "getnameinfo");
     }
 
-    switch(addr.ss_family) {
-        case AF_INET:
-            port = ntohs(((sockaddr_in*)&addr)->sin_port);
-         break;
-        case AF_INET6:
-            port = ntohs(((sockaddr_in6*)&addr)->sin6_port);
-         break;
+    switch (addr.ss_family) {
+    case AF_INET:
+        port = ntohs(((sockaddr_in *)&addr)->sin_port);
+        break;
+    case AF_INET6:
+        port = ntohs(((sockaddr_in6 *)&addr)->sin6_port);
+        break;
     }
 
     ip.assign(saddr);
@@ -466,55 +475,55 @@ SrsSrtStat::SrsSrtStat()
 
 SrsSrtStat::~SrsSrtStat()
 {
-    SRT_TRACEBSTATS* p = (SRT_TRACEBSTATS*)stat_;
+    SRT_TRACEBSTATS *p = (SRT_TRACEBSTATS *)stat_;
     srs_freep(p);
 }
 
 int64_t SrsSrtStat::pktRecv()
 {
-    return ((SRT_TRACEBSTATS*)stat_)->pktRecv;
+    return ((SRT_TRACEBSTATS *)stat_)->pktRecv;
 }
 
 int SrsSrtStat::pktRcvLoss()
 {
-    return ((SRT_TRACEBSTATS*)stat_)->pktRcvLoss;
+    return ((SRT_TRACEBSTATS *)stat_)->pktRcvLoss;
 }
 
 int SrsSrtStat::pktRcvRetrans()
 {
-    return ((SRT_TRACEBSTATS*)stat_)->pktRcvRetrans;
+    return ((SRT_TRACEBSTATS *)stat_)->pktRcvRetrans;
 }
 
 int SrsSrtStat::pktRcvDrop()
 {
-    return ((SRT_TRACEBSTATS*)stat_)->pktRcvDrop;
+    return ((SRT_TRACEBSTATS *)stat_)->pktRcvDrop;
 }
 
 int64_t SrsSrtStat::pktSent()
 {
-    return ((SRT_TRACEBSTATS*)stat_)->pktSent;
+    return ((SRT_TRACEBSTATS *)stat_)->pktSent;
 }
 
 int SrsSrtStat::pktSndLoss()
 {
-    return ((SRT_TRACEBSTATS*)stat_)->pktSndLoss;
+    return ((SRT_TRACEBSTATS *)stat_)->pktSndLoss;
 }
 
 int SrsSrtStat::pktRetrans()
 {
-    return ((SRT_TRACEBSTATS*)stat_)->pktRetrans;
+    return ((SRT_TRACEBSTATS *)stat_)->pktRetrans;
 }
 
 int SrsSrtStat::pktSndDrop()
 {
-    return ((SRT_TRACEBSTATS*)stat_)->pktSndDrop;
+    return ((SRT_TRACEBSTATS *)stat_)->pktSndDrop;
 }
 
 srs_error_t SrsSrtStat::fetch(srs_srt_t srt_fd, bool clear)
 {
     srs_error_t err = srs_success;
 
-    int r0 = srt_bstats(srt_fd, (SRT_TRACEBSTATS*)stat_, clear);
+    int r0 = srt_bstats(srt_fd, (SRT_TRACEBSTATS *)stat_, clear);
     if (r0) {
         return srs_error_new(ERROR_SRT_STATS, "srt_bstats r0=%d", r0);
     }
@@ -527,17 +536,20 @@ class SrsSrtPoller : public ISrsSrtPoller
 public:
     SrsSrtPoller();
     virtual ~SrsSrtPoller();
+
 public:
     srs_error_t initialize();
-    srs_error_t add_socket(SrsSrtSocket* srt_skt);
-    srs_error_t mod_socket(SrsSrtSocket* srt_skt);
-    srs_error_t del_socket(SrsSrtSocket* srt_skt);
-    srs_error_t wait(int timeout_ms, int* pn_fds);
+    srs_error_t add_socket(SrsSrtSocket *srt_skt);
+    srs_error_t mod_socket(SrsSrtSocket *srt_skt);
+    srs_error_t del_socket(SrsSrtSocket *srt_skt);
+    srs_error_t wait(int timeout_ms, int *pn_fds);
+
 public:
     virtual int size();
+
 private:
     // Find SrsSrtSocket* context by srs_srt_t.
-    std::map<srs_srt_t, SrsSrtSocket*> fd_sockets_;
+    std::map<srs_srt_t, SrsSrtSocket *> fd_sockets_;
     int srt_epoller_fd_;
     std::vector<SRT_EPOLL_EVENT> events_;
 };
@@ -567,7 +579,7 @@ srs_error_t SrsSrtPoller::initialize()
     return err;
 }
 
-srs_error_t SrsSrtPoller::add_socket(SrsSrtSocket* srt_skt)
+srs_error_t SrsSrtPoller::add_socket(SrsSrtSocket *srt_skt)
 {
     srs_error_t err = srs_success;
 
@@ -587,7 +599,7 @@ srs_error_t SrsSrtPoller::add_socket(SrsSrtSocket* srt_skt)
     return err;
 }
 
-srs_error_t SrsSrtPoller::del_socket(SrsSrtSocket* srt_skt)
+srs_error_t SrsSrtPoller::del_socket(SrsSrtSocket *srt_skt)
 {
     srs_error_t err = srs_success;
 
@@ -604,7 +616,7 @@ srs_error_t SrsSrtPoller::del_socket(SrsSrtSocket* srt_skt)
     return err;
 }
 
-srs_error_t SrsSrtPoller::wait(int timeout_ms, int* pn_fds)
+srs_error_t SrsSrtPoller::wait(int timeout_ms, int *pn_fds)
 {
     srs_error_t err = srs_success;
 
@@ -618,12 +630,12 @@ srs_error_t SrsSrtPoller::wait(int timeout_ms, int* pn_fds)
 
     for (int i = 0; i < ret; ++i) {
         SRT_EPOLL_EVENT event = events_[i];
-        map<srs_srt_t, SrsSrtSocket*>::iterator iter = fd_sockets_.find(event.fd);
+        map<srs_srt_t, SrsSrtSocket *>::iterator iter = fd_sockets_.find(event.fd);
         if (iter == fd_sockets_.end()) {
             srs_assert(false);
         }
 
-        SrsSrtSocket* srt_skt = iter->second;
+        SrsSrtSocket *srt_skt = iter->second;
         srs_assert(srt_skt != NULL);
 
         // notify error, don't notify read/write event.
@@ -647,7 +659,7 @@ int SrsSrtPoller::size()
     return (int)fd_sockets_.size();
 }
 
-srs_error_t SrsSrtPoller::mod_socket(SrsSrtSocket* srt_skt)
+srs_error_t SrsSrtPoller::mod_socket(SrsSrtSocket *srt_skt)
 {
     srs_error_t err = srs_success;
 
@@ -672,12 +684,12 @@ ISrsSrtPoller::~ISrsSrtPoller()
 {
 }
 
-ISrsSrtPoller* srs_srt_poller_new()
+ISrsSrtPoller *srs_srt_poller_new()
 {
     return new SrsSrtPoller();
 }
 
-SrsSrtSocket::SrsSrtSocket(ISrsSrtPoller* srt_poller, srs_srt_t srt_fd)
+SrsSrtSocket::SrsSrtSocket(ISrsSrtPoller *srt_poller, srs_srt_t srt_fd)
 {
     srt_poller_ = srt_poller;
     srt_fd_ = srt_fd;
@@ -709,7 +721,7 @@ SrsSrtSocket::~SrsSrtSocket()
     srt_close(srt_fd_);
 }
 
-srs_error_t SrsSrtSocket::connect(const string& ip, int port)
+srs_error_t SrsSrtSocket::connect(const string &ip, int port)
 {
     srs_error_t err = srs_success;
 
@@ -720,7 +732,7 @@ srs_error_t SrsSrtSocket::connect(const string& ip, int port)
     inaddr.sin_addr.s_addr = inet_addr(ip.c_str());
 
     // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_connect
-    int ret = srt_connect(srt_fd_, (const sockaddr*)&inaddr, sizeof(inaddr));
+    int ret = srt_connect(srt_fd_, (const sockaddr *)&inaddr, sizeof(inaddr));
     if (ret != 0) {
         return srs_error_new(ERROR_SRT_IO, "srt_connect, err=%s", srt_getlasterror_str());
     }
@@ -747,7 +759,7 @@ srs_error_t SrsSrtSocket::connect(const string& ip, int port)
     return err;
 }
 
-srs_error_t SrsSrtSocket::accept(srs_srt_t* client_srt_fd)
+srs_error_t SrsSrtSocket::accept(srs_srt_t *client_srt_fd)
 {
     srs_error_t err = srs_success;
 
@@ -755,7 +767,7 @@ srs_error_t SrsSrtSocket::accept(srs_srt_t* client_srt_fd)
         sockaddr_in inaddr;
         int addrlen = sizeof(inaddr);
         // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_accept
-        srs_srt_t srt_fd = srt_accept(srt_fd_, (sockaddr*)&inaddr, &addrlen);
+        srs_srt_t srt_fd = srt_accept(srt_fd_, (sockaddr *)&inaddr, &addrlen);
 
         // Accept ok, return with the SRT client fd.
         if (srt_fd != srs_srt_socket_invalid()) {
@@ -777,13 +789,13 @@ srs_error_t SrsSrtSocket::accept(srs_srt_t* client_srt_fd)
     return err;
 }
 
-srs_error_t SrsSrtSocket::recvmsg(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsSrtSocket::recvmsg(void *buf, size_t size, ssize_t *nread)
 {
     srs_error_t err = srs_success;
 
     while (true) {
         // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_recvmsg
-        int ret = srt_recvmsg(srt_fd_, (char*)buf, size);
+        int ret = srt_recvmsg(srt_fd_, (char *)buf, size);
 
         // Receive message ok.
         if (ret >= 0) {
@@ -806,13 +818,13 @@ srs_error_t SrsSrtSocket::recvmsg(void* buf, size_t size, ssize_t* nread)
     return err;
 }
 
-srs_error_t SrsSrtSocket::sendmsg(void* buf, size_t size, ssize_t* nwrite)
+srs_error_t SrsSrtSocket::sendmsg(void *buf, size_t size, ssize_t *nwrite)
 {
     srs_error_t err = srs_success;
 
     while (true) {
         // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_sendmsg
-        int ret = srt_sendmsg(srt_fd_, (const char*)buf, size, -1, 1);
+        int ret = srt_sendmsg(srt_fd_, (const char *)buf, size, -1, 1);
 
         // Send message ok.
         if (ret >= 0) {
@@ -1000,4 +1012,3 @@ srs_error_t SrsSrtSocket::check_error()
 
     return err;
 }
-
