@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-08-12, Merge [#4230](https://github.com/ossrs/srs/pull/4230): MP4 DVR: Fix audio/video synchronization issues in WebRTC recordings. v7.0.52 (#4230)
 * v7.0, 2025-08-12, Merge [#4301](https://github.com/ossrs/srs/pull/4301): Valgrind: Return error for unsupported check=new on Valgrind < 3.21. v7.0.52 (#4301)
 * v7.0, 2025-08-12, Merge [#4431](https://github.com/ossrs/srs/pull/4431): fix srt cmake 4.x compiling error. v7.0.52 (#4431)
 * v7.0, 2025-08-11, Merge [#4433](https://github.com/ossrs/srs/pull/4433): Use clang format. v7.0.52 (#4433)
@@ -65,6 +66,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2025-08-12, Merge [#4230](https://github.com/ossrs/srs/pull/4230): MP4 DVR: Fix audio/video synchronization issues in WebRTC recordings. v6.0.172 (#4230)
 * v6.0, 2025-08-11, Merge [#4432](https://github.com/ossrs/srs/pull/4432): AI: HTTP-FLV: Fix heap-use-after-free crash during stream unmount. v6.0.171 (#4432)
 * v6.0, 2025-07-28, Merge [#4245](https://github.com/ossrs/srs/pull/4245): Allow Forward to be configured with Env Var. v6.0.170 (#4245)
 * v6.0, 2025-07-10, Merge [#4414](https://github.com/ossrs/srs/pull/4414): Fix H.264 B-frame detection logic to comply with specification. v6.0.169 (#4414)
