@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -61,4 +61,3 @@ ISrsWriteSeeker::ISrsWriteSeeker()
 ISrsWriteSeeker::~ISrsWriteSeeker()
 {
 }
-

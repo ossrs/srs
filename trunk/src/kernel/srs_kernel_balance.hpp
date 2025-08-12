@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -9,8 +9,8 @@
 
 #include <srs_core.hpp>
 
-#include <vector>
 #include <string>
+#include <vector>
 
 /**
  * the round-robin load balance algorithm,
@@ -25,14 +25,15 @@ private:
     uint32_t count;
     // current selected server.
     std::string elem;
+
 public:
     SrsLbRoundRobin();
     virtual ~SrsLbRoundRobin();
+
 public:
     virtual uint32_t current();
     virtual std::string selected();
-    virtual std::string select(const std::vector<std::string>& servers);
+    virtual std::string select(const std::vector<std::string> &servers);
 };
 
 #endif
-

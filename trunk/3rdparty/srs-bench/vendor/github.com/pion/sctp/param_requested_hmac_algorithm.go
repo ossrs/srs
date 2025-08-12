@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -10,13 +13,16 @@ type hmacAlgorithm uint16
 
 const (
 	hmacResv1  hmacAlgorithm = 0
-	hmacSHA128               = 1
+	hmacSHA128 hmacAlgorithm = 1
 	hmacResv2  hmacAlgorithm = 2
 	hmacSHA256 hmacAlgorithm = 3
 )
 
 // ErrInvalidAlgorithmType is returned if unknown auth algorithm is specified.
 var ErrInvalidAlgorithmType = errors.New("invalid algorithm type")
+
+// ErrInvalidChunkLength is returned if the chunk length is invalid.
+var ErrInvalidChunkLength = errors.New("invalid chunk length")
 
 func (c hmacAlgorithm) String() string {
 	switch c {
@@ -54,6 +60,9 @@ func (r *paramRequestedHMACAlgorithm) unmarshal(raw []byte) (param, error) {
 	err := r.paramHeader.unmarshal(raw)
 	if err != nil {
 		return nil, err
+	}
+	if len(r.raw)%2 == 1 {
+		return nil, ErrInvalidChunkLength
 	}
 
 	i := 0

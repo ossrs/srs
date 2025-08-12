@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtp
 
 import (
@@ -5,7 +8,7 @@ import (
 )
 
 const (
-	// transport-wide sequence
+	// transport-wide sequence.
 	transportCCExtensionSize = 2
 )
 
@@ -18,22 +21,25 @@ const (
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |  ID   | L=1   |transport-wide sequence number | zero padding  |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// .
 type TransportCCExtension struct {
 	TransportSequence uint16
 }
 
-// Marshal serializes the members to buffer
+// Marshal serializes the members to buffer.
 func (t TransportCCExtension) Marshal() ([]byte, error) {
 	buf := make([]byte, transportCCExtensionSize)
 	binary.BigEndian.PutUint16(buf[0:2], t.TransportSequence)
+
 	return buf, nil
 }
 
-// Unmarshal parses the passed byte slice and stores the result in the members
+// Unmarshal parses the passed byte slice and stores the result in the members.
 func (t *TransportCCExtension) Unmarshal(rawData []byte) error {
 	if len(rawData) < transportCCExtensionSize {
 		return errTooSmall
 	}
 	t.TransportSequence = binary.BigEndian.Uint16(rawData[0:2])
+
 	return nil
 }

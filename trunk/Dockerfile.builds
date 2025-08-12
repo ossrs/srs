@@ -26,7 +26,7 @@ RUN cd /srs/trunk && ./configure --srt=off --gb28181=off && make
 
 FROM ossrs/srs:ubuntu16-cache AS ubuntu16-all
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=on --gb28181=on --h265=on && make
+RUN cd /srs/trunk && ./configure --srt=on --gb28181=on && make
 
 ########################################################
 FROM ossrs/srs:ubuntu18-cache AS ubuntu18-baseline
@@ -35,7 +35,7 @@ RUN cd /srs/trunk && ./configure --srt=off --gb28181=off && make
 
 FROM ossrs/srs:ubuntu18-cache AS ubuntu18-all
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=on --gb28181=on --h265=on && make
+RUN cd /srs/trunk && ./configure --srt=on --gb28181=on && make
 
 ########################################################
 FROM ossrs/srs:ubuntu20-cache AS ubuntu20-baseline

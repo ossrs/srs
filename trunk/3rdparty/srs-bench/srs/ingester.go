@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// # Copyright (c) 2021 Winlin
+// # Copyright (c) 2025 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -32,14 +32,15 @@ import (
 	"github.com/pion/interceptor"
 	"github.com/pion/rtp"
 	"github.com/pion/sdp/v3"
-	"github.com/pion/webrtc/v3"
-	"github.com/pion/webrtc/v3/pkg/media"
-	"github.com/pion/webrtc/v3/pkg/media/h264reader"
-	"github.com/pion/webrtc/v3/pkg/media/oggreader"
+	"github.com/pion/webrtc/v4"
+	"github.com/pion/webrtc/v4/pkg/media"
+	"github.com/pion/webrtc/v4/pkg/media/h264reader"
+	"github.com/pion/webrtc/v4/pkg/media/oggreader"
 )
 
 type videoIngester struct {
 	sourceVideo       string
+	codecType         string // "h264", "hevc", or "vp8"
 	fps               int
 	markerInterceptor *rtpInterceptor
 	sVideoTrack       *webrtc.TrackLocalStaticSample
@@ -48,9 +49,26 @@ type videoIngester struct {
 	readyCancel       context.CancelFunc
 }
 
-func newVideoIngester(sourceVideo string) *videoIngester {
-	v := &videoIngester{markerInterceptor: &rtpInterceptor{}, sourceVideo: sourceVideo}
+// WithCodec sets the codec type for the video ingester
+func WithCodec(codecType string) func(*videoIngester) {
+	return func(v *videoIngester) {
+		v.codecType = codecType
+	}
+}
+
+func newVideoIngester(sourceVideo string, opts ...func(*videoIngester)) *videoIngester {
+	v := &videoIngester{
+		markerInterceptor: &rtpInterceptor{},
+		sourceVideo:       sourceVideo,
+		codecType:         "h264", // default codec
+	}
 	v.ready, v.readyCancel = context.WithCancel(context.Background())
+
+	// Apply options
+	for _, opt := range opts {
+		opt(v)
+	}
+
 	return v
 }
 
@@ -66,8 +84,20 @@ func (v *videoIngester) AddTrack(pc *webrtc.PeerConnection, fps int) error {
 	v.fps = fps
 
 	mimeType, trackID := "video/H264", "video"
-	if strings.HasSuffix(v.sourceVideo, ".ivf") {
+
+	// Determine MIME type based on codec type or file extension
+	switch v.codecType {
+	case "hevc", "h265":
+		mimeType = "video/H265"
+	case "vp8":
 		mimeType = "video/VP8"
+	case "h264":
+		mimeType = "video/H264"
+	default:
+		// Fallback to file extension detection
+		if strings.HasSuffix(v.sourceVideo, ".ivf") {
+			mimeType = "video/VP8"
+		}
 	}
 
 	var err error

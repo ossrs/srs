@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -14,4 +14,3 @@ srs_utime_t srs_duration(srs_utime_t start, srs_utime_t end)
 
     return end - start;
 }
-

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sdp
 
 import (
@@ -7,21 +10,22 @@ import (
 	"strings"
 )
 
-// Default ext values
+// Default ext values.
 const (
 	DefExtMapValueABSSendTime     = 1
 	DefExtMapValueTransportCC     = 2
 	DefExtMapValueSDESMid         = 3
 	DefExtMapValueSDESRTPStreamID = 4
 
-	ABSSendTimeURI     = "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time"
-	TransportCCURI     = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01"
-	SDESMidURI         = "urn:ietf:params:rtp-hdrext:sdes:mid"
-	SDESRTPStreamIDURI = "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id"
-	AudioLevelURI      = "urn:ietf:params:rtp-hdrext:ssrc-audio-level"
+	ABSSendTimeURI           = "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time"
+	TransportCCURI           = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01"
+	SDESMidURI               = "urn:ietf:params:rtp-hdrext:sdes:mid"
+	SDESRTPStreamIDURI       = "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id"
+	SDESRepairRTPStreamIDURI = "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id"
+	AudioLevelURI            = "urn:ietf:params:rtp-hdrext:ssrc-audio-level"
 )
 
-// ExtMap represents the activation of a single RTP header extension
+// ExtMap represents the activation of a single RTP header extension.
 type ExtMap struct {
 	Value     int
 	Direction Direction
@@ -29,12 +33,12 @@ type ExtMap struct {
 	ExtAttr   *string
 }
 
-// Clone converts this object to an Attribute
+// Clone converts this object to an Attribute.
 func (e *ExtMap) Clone() Attribute {
 	return Attribute{Key: "extmap", Value: e.string()}
 }
 
-// Unmarshal creates an Extmap from a string
+// Unmarshal creates an Extmap from a string.
 func (e *ExtMap) Unmarshal(raw string) error {
 	parts := strings.SplitN(raw, ":", 2)
 	if len(parts) != 2 {
@@ -76,10 +80,11 @@ func (e *ExtMap) Unmarshal(raw string) error {
 	e.Value = int(value)
 	e.Direction = direction
 	e.URI = uri
+
 	return nil
 }
 
-// Marshal creates a string from an ExtMap
+// Marshal creates a string from an ExtMap.
 func (e *ExtMap) Marshal() string {
 	return e.Name() + ":" + e.string()
 }
@@ -102,7 +107,7 @@ func (e *ExtMap) string() string {
 	return output
 }
 
-// Name returns the constant name of this object
+// Name returns the constant name of this object.
 func (e *ExtMap) Name() string {
 	return "extmap"
 }
