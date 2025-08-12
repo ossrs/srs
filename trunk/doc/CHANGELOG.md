@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-08-12, Merge [#4301](https://github.com/ossrs/srs/pull/4301): Valgrind: Return error for unsupported check=new on Valgrind < 3.21. v7.0.52 (#4301)
 * v7.0, 2025-08-12, Merge [#4431](https://github.com/ossrs/srs/pull/4431): fix srt cmake 4.x compiling error. v7.0.52 (#4431)
 * v7.0, 2025-08-11, Merge [#4433](https://github.com/ossrs/srs/pull/4433): Use clang format. v7.0.52 (#4433)
 * v7.0, 2025-08-11, Merge [#4159](https://github.com/ossrs/srs/pull/4159): Feature: Support HLS with fmp4 segment for HEVC/LLHLS. v7.0.51 (#4159)
