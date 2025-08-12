@@ -2443,15 +2443,18 @@ private:
     uint64_t audio_start_dts_;
     bool has_first_video_;
     bool has_first_audio_;
+
 public:
     SrsMp4DvrJitter();
     virtual ~SrsMp4DvrJitter();
+
 public:
     // Record the first sample timestamp for each track type
-    virtual void on_sample(SrsMp4Sample* sample);
+    virtual void on_sample(SrsMp4Sample *sample);
     // Calculate the initial STTS delta for the first sample of a track
     // to maintain A/V synchronization in MP4 files
     virtual uint32_t get_first_sample_delta(SrsFrameType track);
+
 private:
     // Reset the jitter state (useful for new recording sessions)
     virtual void reset();
@@ -2471,7 +2474,7 @@ private:
 class SrsMp4SampleManager
 {
 private:
-    SrsMp4DvrJitter* jitter_;  // MP4 A/V sync jitter handler
+    SrsMp4DvrJitter *jitter_; // MP4 A/V sync jitter handler
 
 public:
     std::vector<SrsMp4Sample *> samples;

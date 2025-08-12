@@ -5558,7 +5558,7 @@ SrsMp4DvrJitter::~SrsMp4DvrJitter()
 {
 }
 
-void SrsMp4DvrJitter::on_sample(SrsMp4Sample* sample)
+void SrsMp4DvrJitter::on_sample(SrsMp4Sample *sample)
 {
     if (!has_first_audio_ && sample->type == SrsFrameTypeAudio) {
         has_first_audio_ = true;
