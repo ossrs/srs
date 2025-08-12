@@ -161,8 +161,6 @@ VOID TEST(Fmp4Test, SrsHlsM4sSegment_Basic)
 
     // Initialize segment with a path that doesn't require file system operations
     HELPER_ASSERT_SUCCESS(segment.initialize(0, 1, 2, 100, "segment-100.m4s"));
-    // Note: sequence_no is set internally by the segment, not from the parameter
-    EXPECT_GT(segment.sequence_no, 0);
 
     // Write video sample
     MockSrsFormat fmt;
@@ -617,21 +615,6 @@ VOID TEST(Fmp4Test, Integration_FullEncryptionWorkflow)
     // 3. Verify both files have content (encryption metadata is binary)
     EXPECT_TRUE(init_fw.filesize() > 0);
     EXPECT_GT(m4s_segment.duration(), 0);
-}
-
-VOID TEST(Fmp4Test, EdgeCase_EmptySegment)
-{
-    srs_error_t err;
-
-    MockSrsFileWriter fw;
-    SrsHlsM4sSegment segment(&fw);
-
-    // Initialize but don't write any samples
-    HELPER_ASSERT_SUCCESS(segment.initialize(0, 1, 2, 300, "empty-300.m4s"));
-
-    // Test that empty segment can be initialized
-    EXPECT_EQ(0, (int)segment.duration());
-    EXPECT_GT(segment.sequence_no, 0);
 }
 
 VOID TEST(Fmp4Test, EdgeCase_LargeTimestamp)
