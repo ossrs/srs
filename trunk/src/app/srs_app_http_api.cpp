@@ -1118,13 +1118,6 @@ srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
 {
     srs_error_t err = srs_success;
 
-    if (!trd_) {
-        trd_ = new SrsSTCoroutine("valgrind", this, _srs_context->get_id());
-        if ((err = trd_->start()) != srs_success) {
-            return srs_error_wrap(err, "start");
-        }
-    }
-
     string check = r->query_get("check");
     srs_trace("query check=%s", check.c_str());
 
@@ -1132,6 +1125,22 @@ srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
     if (check != "full" && check != "added" && check != "changed" && check != "new" && check != "quick") {
         srs_warn("force set check=%s to full", check.c_str());
         check = "full";
+    }
+
+    // Check if 'new' leak check is supported in current Valgrind version
+    if (check == "new") {
+#if !defined(VALGRIND_DO_NEW_LEAK_CHECK)
+        return srs_error_new(ERROR_NOT_SUPPORTED,
+            "valgrind?check=new requires Valgrind 3.21+, current version is %d.%d",
+            __VALGRIND_MAJOR__, __VALGRIND_MINOR__);
+#endif
+    }
+
+    if (!trd_) {
+        trd_ = new SrsSTCoroutine("valgrind", this, _srs_context->get_id());
+        if ((err = trd_->start()) != srs_success) {
+            return srs_error_wrap(err, "start");
+        }
     }
 
     // By default, response the json style response.
@@ -1187,15 +1196,7 @@ srs_error_t SrsGoApiValgrind::cycle()
         } else if (check == "changed") {
             VALGRIND_DO_CHANGED_LEAK_CHECK;
         } else if (check == "new") {
-#if defined(VALGRIND_DO_NEW_LEAK_CHECK)
             VALGRIND_DO_NEW_LEAK_CHECK;
-#else
-            srs_warn("valgrind?check=new is not supported in current Valgrind version(%d.%d),"
-                    "please upgrade to 3.22 or higher. "
-                    "Fallback to valgrind?check=full",
-                    __VALGRIND_MAJOR__, __VALGRIND_MINOR__);
-            VALGRIND_DO_LEAK_CHECK;
-#endif
         }
 
         srs_usleep(3 * SRS_UTIME_SECONDS);

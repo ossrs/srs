@@ -109,7 +109,8 @@
     XX(ERROR_SYSTEM_FILE_SETVBUF, 1096, "FileSetVBuf", "Failed to set file vbuf")                                      \
     XX(ERROR_NO_SOURCE, 1097, "NoSource", "No source found")                                                           \
     XX(ERROR_STREAM_DISPOSING, 1098, "StreamDisposing", "Stream is disposing")                                         \
-    XX(ERROR_NOT_IMPLEMENTED, 1099, "NotImplemented", "Feature is not implemented")
+    XX(ERROR_NOT_IMPLEMENTED, 1099, "NotImplemented", "Feature is not implemented")                                    \
+    XX(ERROR_NOT_SUPPORTED, 1100, "NotSupported", "Feature is not supported")
 
 /**************************************************/
 /* RTMP protocol error. */
