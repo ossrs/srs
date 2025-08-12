@@ -2434,6 +2434,31 @@ public:
     virtual uint32_t pts_ms();
 };
 
+// MP4 DVR jitter for audio/video synchronization in DVR recordings.
+// Handles timing offset between audio and video tracks to ensure proper A/V sync in MP4 files.
+class SrsMp4DvrJitter
+{
+private:
+    uint64_t video_start_dts_;
+    uint64_t audio_start_dts_;
+    bool has_first_video_;
+    bool has_first_audio_;
+public:
+    SrsMp4DvrJitter();
+    virtual ~SrsMp4DvrJitter();
+public:
+    // Record the first sample timestamp for each track type
+    virtual void on_sample(SrsMp4Sample* sample);
+    // Calculate the initial STTS delta for the first sample of a track
+    // to maintain A/V synchronization in MP4 files
+    virtual uint32_t get_first_sample_delta(SrsFrameType track);
+private:
+    // Reset the jitter state (useful for new recording sessions)
+    virtual void reset();
+    // Check if both audio and video start times have been captured
+    virtual bool is_initialized();
+};
+
 // Build samples from moov, or write samples to moov.
 // One or more sample are grouped to a chunk, each track contains one or more chunks.
 //      The offset of chunk is specified by stco.
@@ -2446,10 +2471,8 @@ public:
 class SrsMp4SampleManager
 {
 private:
-    uint64_t video_start_dts_;
-    uint64_t audio_start_dts_;
-    bool has_first_video_;
-    bool has_first_audio_;
+    SrsMp4DvrJitter* jitter_;  // MP4 A/V sync jitter handler
+
 public:
     std::vector<SrsMp4Sample *> samples;
 
