@@ -6,8 +6,8 @@
 
 #include <srs_protocol_protobuf.hpp>
 
-#include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_error.hpp>
 
 using namespace std;
 
@@ -16,34 +16,274 @@ int SrsProtobufVarints::bits_len64(uint64_t x)
 {
     // See Go bits.len8tab of package math/bits.
     static uint8_t bits_len8tab[256] = {
-            0x00, 0x01, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
-            0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
-            0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
-            0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
-            0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
-            0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
-            0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
-            0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
-            0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-            0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-            0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-            0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-            0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-            0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-            0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
-            0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+        0x00,
+        0x01,
+        0x02,
+        0x02,
+        0x03,
+        0x03,
+        0x03,
+        0x03,
+        0x04,
+        0x04,
+        0x04,
+        0x04,
+        0x04,
+        0x04,
+        0x04,
+        0x04,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x05,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x06,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x07,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
+        0x08,
     };
 
     int n = 0;
-    if (x >= (uint64_t)1<<32) {
+    if (x >= (uint64_t)1 << 32) {
         x >>= 32;
         n = 32;
     }
-    if (x >= (uint64_t)1<<16) {
+    if (x >= (uint64_t)1 << 16) {
         x >>= 16;
         n += 16;
     }
-    if (x >= (uint64_t)1<<8) {
+    if (x >= (uint64_t)1 << 8) {
         x >>= 8;
         n += 8;
     }
@@ -58,7 +298,7 @@ int SrsProtobufVarints::sizeof_varint(uint64_t v)
 }
 
 // See Go protowire.AppendVarint of package google.golang.org/protobuf/encoding/protowire
-srs_error_t SrsProtobufVarints::encode(SrsBuffer* b, uint64_t v)
+srs_error_t SrsProtobufVarints::encode(SrsBuffer *b, uint64_t v)
 {
     srs_error_t err = srs_success;
 
@@ -66,70 +306,70 @@ srs_error_t SrsProtobufVarints::encode(SrsBuffer* b, uint64_t v)
         return srs_error_new(ERROR_PB_NO_SPACE, "require %d only %d bytes", v, b->left());
     }
 
-    if (v < (uint64_t)1<<7) {
+    if (v < (uint64_t)1 << 7) {
         b->write_1bytes((uint8_t)v);
-    } else if (v < (uint64_t)1<<14) {
-        b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(v>>7));
-    } else if (v < (uint64_t)1<<21) {
-        b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(v>>14));
-    } else if (v < (uint64_t)1<<28) {
-        b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(v>>21));
-    } else if (v < (uint64_t)1<<35) {
-        b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(v>>28));
-    } else if (v < (uint64_t)1<<42) {
-        b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>28)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(v>>35));
-    } else if (v < (uint64_t)1<<49) {
-        b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>28)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>35)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(v>>42));
-    } else if(v < (uint64_t)1<<56) {
-        b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>28)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>35)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>42)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(v>>49));
-    } else if (v < (uint64_t)1<<63) {
-        b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>28)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>35)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>42)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>49)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(v>>56));
+    } else if (v < (uint64_t)1 << 14) {
+        b->write_1bytes((uint8_t)(((v >> 0) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(v >> 7));
+    } else if (v < (uint64_t)1 << 21) {
+        b->write_1bytes((uint8_t)(((v >> 0) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 7) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(v >> 14));
+    } else if (v < (uint64_t)1 << 28) {
+        b->write_1bytes((uint8_t)(((v >> 0) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 7) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 14) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(v >> 21));
+    } else if (v < (uint64_t)1 << 35) {
+        b->write_1bytes((uint8_t)(((v >> 0) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 7) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 14) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 21) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(v >> 28));
+    } else if (v < (uint64_t)1 << 42) {
+        b->write_1bytes((uint8_t)(((v >> 0) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 7) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 14) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 21) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 28) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(v >> 35));
+    } else if (v < (uint64_t)1 << 49) {
+        b->write_1bytes((uint8_t)(((v >> 0) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 7) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 14) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 21) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 28) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 35) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(v >> 42));
+    } else if (v < (uint64_t)1 << 56) {
+        b->write_1bytes((uint8_t)(((v >> 0) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 7) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 14) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 21) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 28) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 35) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 42) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(v >> 49));
+    } else if (v < (uint64_t)1 << 63) {
+        b->write_1bytes((uint8_t)(((v >> 0) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 7) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 14) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 21) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 28) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 35) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 42) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 49) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(v >> 56));
     } else {
-        b->write_1bytes((uint8_t)(((v>>0)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>7)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>14)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>21)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>28)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>35)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>42)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>49)&0x7f)|0x80));
-        b->write_1bytes((uint8_t)(((v>>56)&0x7f)|0x80));
+        b->write_1bytes((uint8_t)(((v >> 0) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 7) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 14) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 21) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 28) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 35) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 42) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 49) & 0x7f) | 0x80));
+        b->write_1bytes((uint8_t)(((v >> 56) & 0x7f) | 0x80));
         b->write_1bytes((uint8_t)1);
     }
 
@@ -141,9 +381,9 @@ int SrsProtobufFixed64::sizeof_int(uint64_t v)
     return 8;
 }
 
-srs_error_t SrsProtobufFixed64::encode(SrsBuffer* b, uint64_t v)
+srs_error_t SrsProtobufFixed64::encode(SrsBuffer *b, uint64_t v)
 {
-    srs_error_t  err = srs_success;
+    srs_error_t err = srs_success;
 
     if (!b->require(8)) {
         return srs_error_new(ERROR_PB_NO_SPACE, "require 8 only %d byte", b->left());
@@ -157,16 +397,16 @@ srs_error_t SrsProtobufFixed64::encode(SrsBuffer* b, uint64_t v)
 }
 
 // See Go protowire.SizeBytes of package google.golang.org/protobuf/encoding/protowire
-int SrsProtobufString::sizeof_string(const std::string& v)
+int SrsProtobufString::sizeof_string(const std::string &v)
 {
     uint64_t n = v.length();
     return SrsProtobufVarints::sizeof_varint(uint64_t(n)) + n;
 }
 
 // See Go protowire.AppendString of package google.golang.org/protobuf/encoding/protowire
-srs_error_t SrsProtobufString::encode(SrsBuffer* b, const std::string& v)
+srs_error_t SrsProtobufString::encode(SrsBuffer *b, const std::string &v)
 {
-    srs_error_t  err = srs_success;
+    srs_error_t err = srs_success;
 
     uint64_t n = v.length();
     if ((err = SrsProtobufVarints::encode(b, n)) != srs_success) {
@@ -186,12 +426,12 @@ srs_error_t SrsProtobufString::encode(SrsBuffer* b, const std::string& v)
     return err;
 }
 
-int SrsProtobufObject::sizeof_object(ISrsEncoder* obj)
+int SrsProtobufObject::sizeof_object(ISrsEncoder *obj)
 {
     uint64_t size = obj->nb_bytes();
     return SrsProtobufVarints::sizeof_varint(size) + size;
 }
-srs_error_t SrsProtobufObject::encode(SrsBuffer* b, ISrsEncoder* obj)
+srs_error_t SrsProtobufObject::encode(SrsBuffer *b, ISrsEncoder *obj)
 {
     srs_error_t err = srs_success;
 
@@ -214,7 +454,7 @@ int SrsProtobufKey::sizeof_key()
     return 1;
 }
 
-srs_error_t SrsProtobufKey::encode(SrsBuffer* b, uint8_t fieldId, SrsProtobufField fieldType)
+srs_error_t SrsProtobufKey::encode(SrsBuffer *b, uint8_t fieldId, SrsProtobufField fieldType)
 {
     srs_error_t err = srs_success;
 
@@ -227,4 +467,3 @@ srs_error_t SrsProtobufKey::encode(SrsBuffer* b, uint8_t fieldId, SrsProtobufFie
 
     return err;
 }
-

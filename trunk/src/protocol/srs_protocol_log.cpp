@@ -6,10 +6,10 @@
 
 #include <srs_protocol_log.hpp>
 
+#include <sstream>
 #include <stdarg.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <sstream>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -18,8 +18,8 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_cids_get = NULL;
-SrsPps* _srs_pps_cids_set = NULL;
+SrsPps *_srs_pps_cids_get = NULL;
+SrsPps *_srs_pps_cids_set = NULL;
 
 #define SRS_BASIC_LOG_SIZE 8192
 
@@ -39,13 +39,13 @@ SrsContextId SrsThreadContext::generate_id()
 
 static SrsContextId _srs_context_default;
 static int _srs_context_key = -1;
-void _srs_context_destructor(void* arg)
+void _srs_context_destructor(void *arg)
 {
-    SrsContextId* cid = (SrsContextId*)arg;
+    SrsContextId *cid = (SrsContextId *)arg;
     srs_freep(cid);
 }
 
-const SrsContextId& SrsThreadContext::get_id()
+const SrsContextId &SrsThreadContext::get_id()
 {
     ++_srs_pps_cids_get->sugar;
 
@@ -53,15 +53,15 @@ const SrsContextId& SrsThreadContext::get_id()
         return _srs_context_default;
     }
 
-    void* cid = srs_thread_getspecific(_srs_context_key);
+    void *cid = srs_thread_getspecific(_srs_context_key);
     if (!cid) {
         return _srs_context_default;
     }
 
-    return *(SrsContextId*)cid;
+    return *(SrsContextId *)cid;
 }
 
-const SrsContextId& SrsThreadContext::set_id(const SrsContextId& v)
+const SrsContextId &SrsThreadContext::set_id(const SrsContextId &v)
 {
     return srs_context_set_cid_of(srs_thread_self(), v);
 }
@@ -70,7 +70,7 @@ void SrsThreadContext::clear_cid()
 {
 }
 
-const SrsContextId& srs_context_set_cid_of(srs_thread_t trd, const SrsContextId& v)
+const SrsContextId &srs_context_set_cid_of(srs_thread_t trd, const SrsContextId &v)
 {
     ++_srs_pps_cids_set->sugar;
 
@@ -79,7 +79,7 @@ const SrsContextId& srs_context_set_cid_of(srs_thread_t trd, const SrsContextId&
         return v;
     }
 
-    SrsContextId* cid = new SrsContextId();
+    SrsContextId *cid = new SrsContextId();
     *cid = v;
 
     if (_srs_context_key < 0) {
@@ -108,7 +108,7 @@ SrsConsoleLog::SrsConsoleLog(SrsLogLevel l, bool u)
 {
     level_ = l;
     utc = u;
-    
+
     buffer = new char[SRS_BASIC_LOG_SIZE];
 }
 
@@ -126,12 +126,12 @@ void SrsConsoleLog::reopen()
 {
 }
 
-void SrsConsoleLog::log(SrsLogLevel level, const char* tag, const SrsContextId& context_id, const char* fmt, va_list args)
+void SrsConsoleLog::log(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, va_list args)
 {
     if (level < level_ || level >= SrsLogLevelDisabled) {
         return;
     }
-    
+
     int size = 0;
     if (!srs_log_header(buffer, SRS_BASIC_LOG_SIZE, utc, level >= SrsLogLevelWarn, tag, context_id, srs_log_level_strings[level], &size)) {
         return;
@@ -162,14 +162,14 @@ void SrsConsoleLog::log(SrsLogLevel level, const char* tag, const SrsContextId& 
     }
 }
 
-bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char* tag, SrsContextId cid, const char* level, int* psize)
+bool srs_log_header(char *buffer, int size, bool utc, bool dangerous, const char *tag, SrsContextId cid, const char *level, int *psize)
 {
     // clock time
     timeval tv;
     if (gettimeofday(&tv, NULL) == -1) {
         return false;
     }
-    
+
     // to calendar time
     struct tm now;
     // Each of these functions returns NULL in case an error was detected. @see https://linux.die.net/man/3/localtime_r
@@ -182,31 +182,31 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
             return false;
         }
     }
-    
+
     int written = -1;
     if (dangerous) {
         if (tag) {
             written = snprintf(buffer, size,
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%d][%s] ",
-                1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
-                level, getpid(), cid.c_str(), errno, tag);
+                               "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%d][%s] ",
+                               1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
+                               level, getpid(), cid.c_str(), errno, tag);
         } else {
             written = snprintf(buffer, size,
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%d] ",
-                1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
-                level, getpid(), cid.c_str(), errno);
+                               "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%d] ",
+                               1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
+                               level, getpid(), cid.c_str(), errno);
         }
     } else {
         if (tag) {
             written = snprintf(buffer, size,
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%s] ",
-                1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
-                level, getpid(), cid.c_str(), tag);
+                               "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%s] ",
+                               1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
+                               level, getpid(), cid.c_str(), tag);
         } else {
             written = snprintf(buffer, size,
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s] ",
-                1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
-                level, getpid(), cid.c_str());
+                               "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s] ",
+                               1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
+                               level, getpid(), cid.c_str());
         }
     }
 
@@ -215,10 +215,9 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
     if (written <= 0 || written >= size) {
         return false;
     }
-    
+
     // write the header size.
     *psize = written;
-    
+
     return true;
 }
-

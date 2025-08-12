@@ -20,15 +20,15 @@ class MockSrsConnection : public ISrsConnection
 public:
     // Whether switch the coroutine context when free the object, for special case test.
     bool do_switch;
+
 public:
     MockSrsConnection();
     virtual ~MockSrsConnection();
-// Interface ISrsConnection.
+    // Interface ISrsConnection.
 public:
-    virtual const SrsContextId& get_id();
+    virtual const SrsContextId &get_id();
     virtual std::string desc();
     virtual std::string remote_ip();
 };
 
 #endif
-

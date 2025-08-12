@@ -5,16 +5,16 @@
 //
 #include <srs_utest_rtc2.hpp>
 
-#include <srs_kernel_error.hpp>
-#include <srs_core_autofree.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_core_autofree.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_error.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 
 #include <srs_utest_service.hpp>
 
-#include <vector>
 #include <chrono>
+#include <vector>
 using namespace std;
 
 VOID TEST(KernelRTC2Test, SrsCodecPayloadVideoCodecCaching)
@@ -23,11 +23,11 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadVideoCodecCaching)
     if (true) {
         SrsCodecPayload payload;
         payload.name_ = "H264";
-        
+
         // First call should parse and cache the codec
         int8_t codec1 = payload.codec(true);
         EXPECT_EQ(SrsVideoCodecIdAVC, codec1);
-        
+
         // Second call should return cached value
         int8_t codec2 = payload.codec(true);
         EXPECT_EQ(SrsVideoCodecIdAVC, codec2);
@@ -41,11 +41,11 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadAudioCodecCaching)
     if (true) {
         SrsCodecPayload payload;
         payload.name_ = "AAC";
-        
+
         // First call should parse and cache the codec
         int8_t codec1 = payload.codec(false);
         EXPECT_EQ(SrsAudioCodecIdAAC, codec1);
-        
+
         // Second call should return cached value
         int8_t codec2 = payload.codec(false);
         EXPECT_EQ(SrsAudioCodecIdAAC, codec2);
@@ -61,38 +61,38 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadVideoCodecTypes)
         SrsCodecPayload h264_payload;
         h264_payload.name_ = "H264";
         EXPECT_EQ(SrsVideoCodecIdAVC, h264_payload.codec(true));
-        
+
         // Alternative H.264 name
         SrsCodecPayload avc_payload;
         avc_payload.name_ = "AVC";
         EXPECT_EQ(SrsVideoCodecIdAVC, avc_payload.codec(true));
     }
-    
+
     if (true) {
         // H.265/HEVC codec
         SrsCodecPayload h265_payload;
         h265_payload.name_ = "H265";
         EXPECT_EQ(SrsVideoCodecIdHEVC, h265_payload.codec(true));
-        
+
         // Alternative H.265 name
         SrsCodecPayload hevc_payload;
         hevc_payload.name_ = "HEVC";
         EXPECT_EQ(SrsVideoCodecIdHEVC, hevc_payload.codec(true));
     }
-    
+
     if (true) {
         // AV1 codec
         SrsCodecPayload av1_payload;
         av1_payload.name_ = "AV1";
         EXPECT_EQ(SrsVideoCodecIdAV1, av1_payload.codec(true));
     }
-    
+
     if (true) {
         // VP6 codec
         SrsCodecPayload vp6_payload;
         vp6_payload.name_ = "VP6";
         EXPECT_EQ(SrsVideoCodecIdOn2VP6, vp6_payload.codec(true));
-        
+
         // VP6 with alpha channel
         SrsCodecPayload vp6a_payload;
         vp6a_payload.name_ = "VP6A";
@@ -109,21 +109,21 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadAudioCodecTypes)
         aac_payload.name_ = "AAC";
         EXPECT_EQ(SrsAudioCodecIdAAC, aac_payload.codec(false));
     }
-    
+
     if (true) {
         // MP3 codec
         SrsCodecPayload mp3_payload;
         mp3_payload.name_ = "MP3";
         EXPECT_EQ(SrsAudioCodecIdMP3, mp3_payload.codec(false));
     }
-    
+
     if (true) {
         // Opus codec
         SrsCodecPayload opus_payload;
         opus_payload.name_ = "OPUS";
         EXPECT_EQ(SrsAudioCodecIdOpus, opus_payload.codec(false));
     }
-    
+
     if (true) {
         // Speex codec
         SrsCodecPayload speex_payload;
@@ -140,31 +140,31 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadCaseInsensitive)
         SrsCodecPayload h264_lower;
         h264_lower.name_ = "h264";
         EXPECT_EQ(SrsVideoCodecIdAVC, h264_lower.codec(true));
-        
+
         SrsCodecPayload hevc_lower;
         hevc_lower.name_ = "hevc";
         EXPECT_EQ(SrsVideoCodecIdHEVC, hevc_lower.codec(true));
-        
+
         // Video codecs - mixed case
         SrsCodecPayload h264_mixed;
         h264_mixed.name_ = "H264";
         EXPECT_EQ(SrsVideoCodecIdAVC, h264_mixed.codec(true));
-        
+
         SrsCodecPayload hevc_mixed;
         hevc_mixed.name_ = "Hevc";
         EXPECT_EQ(SrsVideoCodecIdHEVC, hevc_mixed.codec(true));
     }
-    
+
     if (true) {
         // Audio codecs - lowercase
         SrsCodecPayload aac_lower;
         aac_lower.name_ = "aac";
         EXPECT_EQ(SrsAudioCodecIdAAC, aac_lower.codec(false));
-        
+
         SrsCodecPayload opus_lower;
         opus_lower.name_ = "opus";
         EXPECT_EQ(SrsAudioCodecIdOpus, opus_lower.codec(false));
-        
+
         // Audio codecs - mixed case
         SrsCodecPayload mp3_mixed;
         mp3_mixed.name_ = "Mp3";
@@ -178,21 +178,21 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadUnknownCodecs)
     if (true) {
         // Unknown video codec
         SrsCodecPayload unknown_video;
-        unknown_video.name_ = "H266";  // Future codec not yet supported
+        unknown_video.name_ = "H266"; // Future codec not yet supported
         EXPECT_EQ(SrsVideoCodecIdReserved, unknown_video.codec(true));
-        
+
         // Completely unknown video codec
         SrsCodecPayload invalid_video;
         invalid_video.name_ = "UNKNOWN_VIDEO";
         EXPECT_EQ(SrsVideoCodecIdReserved, invalid_video.codec(true));
     }
-    
+
     if (true) {
         // Unknown audio codec
         SrsCodecPayload unknown_audio;
-        unknown_audio.name_ = "FLAC";  // Not supported in this context
+        unknown_audio.name_ = "FLAC"; // Not supported in this context
         EXPECT_EQ(SrsAudioCodecIdReserved1, unknown_audio.codec(false));
-        
+
         // Completely unknown audio codec
         SrsCodecPayload invalid_audio;
         invalid_audio.name_ = "UNKNOWN_AUDIO";
@@ -207,7 +207,7 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadEmptyName)
         SrsCodecPayload empty_video;
         empty_video.name_ = "";
         EXPECT_EQ(SrsVideoCodecIdReserved, empty_video.codec(true));
-        
+
         SrsCodecPayload empty_audio;
         empty_audio.name_ = "";
         EXPECT_EQ(SrsAudioCodecIdReserved1, empty_audio.codec(false));
@@ -221,14 +221,14 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadContextSensitive)
         // This test demonstrates that the video/audio context parameter matters
         SrsCodecPayload payload;
         payload.name_ = "H264";
-        
+
         // When called with video=true, should return video codec ID
         int8_t video_codec = payload.codec(true);
         EXPECT_EQ(SrsVideoCodecIdAVC, video_codec);
-        
+
         // Reset the cached value to test audio context
         payload.codec_ = -1;
-        
+
         // When called with video=false, H264 is not a valid audio codec
         int8_t audio_codec = payload.codec(false);
         EXPECT_EQ(SrsAudioCodecIdReserved1, audio_codec);
@@ -242,7 +242,7 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadConstructorInitialization)
         SrsCodecPayload payload1;
         // codec_ should be initialized to -1 (not cached)
         EXPECT_EQ(-1, payload1.codec_);
-        
+
         SrsCodecPayload payload2(96, "H264", 90000);
         // codec_ should be initialized to -1 (not cached)
         EXPECT_EQ(-1, payload2.codec_);
@@ -286,12 +286,12 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadCacheInvalidation)
         // Change the name but cache should still return old value
         payload.name_ = "HEVC";
         int8_t codec2 = payload.codec(true);
-        EXPECT_EQ(SrsVideoCodecIdAVC, codec2);  // Still returns cached H264 value
+        EXPECT_EQ(SrsVideoCodecIdAVC, codec2); // Still returns cached H264 value
 
         // Manual cache reset allows new parsing
         payload.codec_ = -1;
         int8_t codec3 = payload.codec(true);
-        EXPECT_EQ(SrsVideoCodecIdHEVC, codec3);  // Now returns HEVC
+        EXPECT_EQ(SrsVideoCodecIdHEVC, codec3); // Now returns HEVC
     }
 }
 
@@ -318,7 +318,7 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadBoundaryValues)
     if (true) {
         // Test very long codec name
         SrsCodecPayload long_name;
-        long_name.name_ = std::string(1000, 'A');  // 1000 character string
+        long_name.name_ = std::string(1000, 'A'); // 1000 character string
         EXPECT_EQ(SrsVideoCodecIdReserved, long_name.codec(true));
         // Already cached by video, so should return same result for audio.
         EXPECT_EQ(SrsVideoCodecIdReserved, long_name.codec(false));
@@ -404,13 +404,13 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadCopyBehavior)
         EXPECT_EQ(SrsVideoCodecIdAVC, codec_original);
 
         // Copy the payload
-        SrsCodecPayload* copied = original.copy();
+        SrsCodecPayload *copied = original.copy();
 
         // The copied payload should have the same name but uncached codec
         EXPECT_EQ(original.name_, copied->name_);
         EXPECT_EQ(original.pt_, copied->pt_);
         EXPECT_EQ(original.sample_, copied->sample_);
-        EXPECT_EQ(-1, copied->codec_);  // Should not copy cached value
+        EXPECT_EQ(-1, copied->codec_); // Should not copy cached value
 
         // But calling codec() should return the same result
         EXPECT_EQ(SrsVideoCodecIdAVC, copied->codec(true));
@@ -420,9 +420,9 @@ VOID TEST(KernelRTC2Test, SrsCodecPayloadCopyBehavior)
 }
 
 // Helper function to create a test RTP packet
-SrsRtpPacket* mock_create_test_rtp_packet(uint16_t sequence_number, uint32_t timestamp, bool marker = false)
+SrsRtpPacket *mock_create_test_rtp_packet(uint16_t sequence_number, uint32_t timestamp, bool marker = false)
 {
-    SrsRtpPacket* pkt = new SrsRtpPacket();
+    SrsRtpPacket *pkt = new SrsRtpPacket();
     pkt->header.set_sequence(sequence_number);
     pkt->header.set_timestamp(timestamp);
     pkt->header.set_marker(marker);
@@ -431,16 +431,16 @@ SrsRtpPacket* mock_create_test_rtp_packet(uint16_t sequence_number, uint32_t tim
 }
 
 // Helper function to create a test FU-A payload
-SrsRtpFUAPayload2* mock_create_test_fua_payload(bool start, bool end, const char* payload_data, int size)
+SrsRtpFUAPayload2 *mock_create_test_fua_payload(bool start, bool end, const char *payload_data, int size)
 {
-    SrsRtpFUAPayload2* fua = new SrsRtpFUAPayload2();
+    SrsRtpFUAPayload2 *fua = new SrsRtpFUAPayload2();
     fua->start = start;
     fua->end = end;
     fua->nalu_type = SrsAvcNaluTypeNonIDR; // Use a common NALU type
     fua->nri = SrsAvcNaluTypeNonIDR;
 
     // Create a buffer for the payload
-    char* buf = new char[size];
+    char *buf = new char[size];
     memcpy(buf, payload_data, size);
     fua->payload = buf;
     fua->size = size;
@@ -455,16 +455,16 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheBasicOperations)
         SrsRtcFrameBuilderVideoPacketCache cache;
 
         // Test storing and retrieving a packet
-        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpPacket *pkt1 = mock_create_test_rtp_packet(100, 1000);
         cache.store_packet(pkt1);
 
-        SrsRtpPacket* retrieved = cache.get_packet(100);
+        SrsRtpPacket *retrieved = cache.get_packet(100);
         EXPECT_TRUE(retrieved != NULL);
         EXPECT_EQ(100, retrieved->header.get_sequence());
         EXPECT_EQ(1000, retrieved->header.get_timestamp());
 
         // Test getting non-existent packet
-        SrsRtpPacket* missing = cache.get_packet(200);
+        SrsRtpPacket *missing = cache.get_packet(200);
         EXPECT_TRUE(missing == NULL);
     }
 }
@@ -479,7 +479,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheNullPacket)
         cache.store_packet(NULL);
 
         // Cache should remain empty
-        SrsRtpPacket* retrieved = cache.get_packet(100);
+        SrsRtpPacket *retrieved = cache.get_packet(100);
         EXPECT_TRUE(retrieved == NULL);
     }
 }
@@ -491,15 +491,15 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheOverwrite)
         SrsRtcFrameBuilderVideoPacketCache cache;
 
         // Store first packet
-        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpPacket *pkt1 = mock_create_test_rtp_packet(100, 1000);
         cache.store_packet(pkt1);
 
         // Store second packet with same sequence (should overwrite)
-        SrsRtpPacket* pkt2 = mock_create_test_rtp_packet(100, 2000);
+        SrsRtpPacket *pkt2 = mock_create_test_rtp_packet(100, 2000);
         cache.store_packet(pkt2);
 
         // Should get the second packet
-        SrsRtpPacket* retrieved = cache.get_packet(100);
+        SrsRtpPacket *retrieved = cache.get_packet(100);
         EXPECT_TRUE(retrieved != NULL);
         EXPECT_EQ(100, retrieved->header.get_sequence());
         EXPECT_EQ(2000, retrieved->header.get_timestamp());
@@ -515,17 +515,17 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheModuloIndexing)
         SrsRtcFrameBuilderVideoPacketCache cache;
 
         // Store packets that would map to the same cache slot (N apart)
-        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(100, 1000);
-        SrsRtpPacket* pkt2 = mock_create_test_rtp_packet(100 + cache_size, 2000);
+        SrsRtpPacket *pkt1 = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpPacket *pkt2 = mock_create_test_rtp_packet(100 + cache_size, 2000);
 
         cache.store_packet(pkt1);
         cache.store_packet(pkt2);
 
         // Should get the second packet (overwrote first)
-        SrsRtpPacket* retrieved1 = cache.get_packet(100);
+        SrsRtpPacket *retrieved1 = cache.get_packet(100);
         EXPECT_TRUE(retrieved1 == NULL); // First packet was overwritten
 
-        SrsRtpPacket* retrieved2 = cache.get_packet(100 + cache_size);
+        SrsRtpPacket *retrieved2 = cache.get_packet(100 + cache_size);
         EXPECT_TRUE(retrieved2 != NULL);
         EXPECT_EQ(100 + cache_size, retrieved2->header.get_sequence());
         EXPECT_EQ(2000, retrieved2->header.get_timestamp());
@@ -539,11 +539,11 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheTakePacket)
         SrsRtcFrameBuilderVideoPacketCache cache;
 
         // Store a packet
-        SrsRtpPacket* pkt = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpPacket *pkt = mock_create_test_rtp_packet(100, 1000);
         cache.store_packet(pkt);
 
         // Take the packet (should remove from cache)
-        SrsRtpPacket* taken = cache.take_packet(100);
+        SrsRtpPacket *taken = cache.take_packet(100);
         EXPECT_TRUE(taken != NULL);
         EXPECT_EQ(100, taken->header.get_sequence());
 
@@ -551,7 +551,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheTakePacket)
         srs_freep(taken);
 
         // Packet should no longer be in cache
-        SrsRtpPacket* retrieved = cache.get_packet(100);
+        SrsRtpPacket *retrieved = cache.get_packet(100);
         EXPECT_TRUE(retrieved == NULL);
     }
 }
@@ -563,7 +563,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheTakeNonExistent)
         SrsRtcFrameBuilderVideoPacketCache cache;
 
         // Try to take packet that doesn't exist
-        SrsRtpPacket* taken = cache.take_packet(100);
+        SrsRtpPacket *taken = cache.take_packet(100);
         EXPECT_TRUE(taken == NULL);
     }
 }
@@ -576,12 +576,12 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheClearAll)
 
         // Store multiple packets
         for (int i = 0; i < 10; i++) {
-            SrsRtpPacket* pkt = mock_create_test_rtp_packet(100 + i, 1000 + i);
+            SrsRtpPacket *pkt = mock_create_test_rtp_packet(100 + i, 1000 + i);
             cache.store_packet(pkt);
         }
 
         // Verify packets are stored
-        SrsRtpPacket* retrieved = cache.get_packet(105);
+        SrsRtpPacket *retrieved = cache.get_packet(105);
         EXPECT_TRUE(retrieved != NULL);
 
         // Clear all packets
@@ -589,7 +589,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheClearAll)
 
         // Verify all packets are gone
         for (int i = 0; i < 10; i++) {
-            SrsRtpPacket* pkt = cache.get_packet(100 + i);
+            SrsRtpPacket *pkt = cache.get_packet(100 + i);
             EXPECT_TRUE(pkt == NULL);
         }
     }
@@ -604,7 +604,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheFindNextLostSnComple
         // Store a complete sequence of packets with same timestamp
         uint32_t timestamp = 1000;
         for (uint16_t i = 100; i <= 105; i++) {
-            SrsRtpPacket* pkt = mock_create_test_rtp_packet(i, timestamp, i == 105); // Last packet has marker
+            SrsRtpPacket *pkt = mock_create_test_rtp_packet(i, timestamp, i == 105); // Last packet has marker
             cache.store_packet(pkt);
         }
 
@@ -772,7 +772,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameCompleteSi
 
         // Store simple packets (no FU-A payload)
         for (uint16_t i = 100; i <= 103; i++) {
-            SrsRtpPacket* pkt = mock_create_test_rtp_packet(i, 1000);
+            SrsRtpPacket *pkt = mock_create_test_rtp_packet(i, 1000);
             cache.store_packet(pkt);
         }
 
@@ -792,20 +792,20 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameCompleteFr
         char payload_data[] = "test_payload";
 
         // First fragment (start=true, end=false)
-        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(100, 1000);
-        SrsRtpFUAPayload2* fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt1 = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpFUAPayload2 *fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
         pkt1->set_payload(fua1, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt1);
 
         // Middle fragment (start=false, end=false)
-        SrsRtpPacket* pkt2 = mock_create_test_rtp_packet(101, 1000);
-        SrsRtpFUAPayload2* fua2 = mock_create_test_fua_payload(false, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt2 = mock_create_test_rtp_packet(101, 1000);
+        SrsRtpFUAPayload2 *fua2 = mock_create_test_fua_payload(false, false, payload_data, sizeof(payload_data));
         pkt2->set_payload(fua2, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt2);
 
         // Last fragment (start=false, end=true)
-        SrsRtpPacket* pkt3 = mock_create_test_rtp_packet(102, 1000);
-        SrsRtpFUAPayload2* fua3 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt3 = mock_create_test_rtp_packet(102, 1000);
+        SrsRtpFUAPayload2 *fua3 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
         pkt3->set_payload(fua3, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt3);
 
@@ -824,18 +824,18 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameIncomplete
         char payload_data[] = "test_payload";
 
         // Two start fragments but only one end fragment (incomplete)
-        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(100, 1000);
-        SrsRtpFUAPayload2* fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt1 = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpFUAPayload2 *fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
         pkt1->set_payload(fua1, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt1);
 
-        SrsRtpPacket* pkt2 = mock_create_test_rtp_packet(101, 1000);
-        SrsRtpFUAPayload2* fua2 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt2 = mock_create_test_rtp_packet(101, 1000);
+        SrsRtpFUAPayload2 *fua2 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
         pkt2->set_payload(fua2, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt2);
 
-        SrsRtpPacket* pkt3 = mock_create_test_rtp_packet(102, 1000);
-        SrsRtpFUAPayload2* fua3 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt3 = mock_create_test_rtp_packet(102, 1000);
+        SrsRtpFUAPayload2 *fua3 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
         pkt3->set_payload(fua3, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt3);
 
@@ -854,25 +854,25 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameCompleteOn
         char payload_data[] = "test_payload";
 
         // Single fragmented NALU: start fragment
-        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(100, 1000);
-        SrsRtpFUAPayload2* fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt1 = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpFUAPayload2 *fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
         pkt1->set_payload(fua1, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt1);
 
         // Middle fragments (no start, no end)
-        SrsRtpPacket* pkt2 = mock_create_test_rtp_packet(101, 1000);
-        SrsRtpFUAPayload2* fua2 = mock_create_test_fua_payload(false, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt2 = mock_create_test_rtp_packet(101, 1000);
+        SrsRtpFUAPayload2 *fua2 = mock_create_test_fua_payload(false, false, payload_data, sizeof(payload_data));
         pkt2->set_payload(fua2, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt2);
 
-        SrsRtpPacket* pkt3 = mock_create_test_rtp_packet(102, 1000);
-        SrsRtpFUAPayload2* fua3 = mock_create_test_fua_payload(false, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt3 = mock_create_test_rtp_packet(102, 1000);
+        SrsRtpFUAPayload2 *fua3 = mock_create_test_fua_payload(false, false, payload_data, sizeof(payload_data));
         pkt3->set_payload(fua3, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt3);
 
         // End fragment
-        SrsRtpPacket* pkt4 = mock_create_test_rtp_packet(103, 1000);
-        SrsRtpFUAPayload2* fua4 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt4 = mock_create_test_rtp_packet(103, 1000);
+        SrsRtpFUAPayload2 *fua4 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
         pkt4->set_payload(fua4, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt4);
 
@@ -891,26 +891,26 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameCompleteMu
         char payload_data[] = "test_payload";
 
         // First NALU: start fragment
-        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(100, 1000);
-        SrsRtpFUAPayload2* fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt1 = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpFUAPayload2 *fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
         pkt1->set_payload(fua1, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt1);
 
         // First NALU: end fragment
-        SrsRtpPacket* pkt2 = mock_create_test_rtp_packet(101, 1000);
-        SrsRtpFUAPayload2* fua2 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt2 = mock_create_test_rtp_packet(101, 1000);
+        SrsRtpFUAPayload2 *fua2 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
         pkt2->set_payload(fua2, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt2);
 
         // Second NALU: start fragment
-        SrsRtpPacket* pkt3 = mock_create_test_rtp_packet(102, 1000);
-        SrsRtpFUAPayload2* fua3 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt3 = mock_create_test_rtp_packet(102, 1000);
+        SrsRtpFUAPayload2 *fua3 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
         pkt3->set_payload(fua3, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt3);
 
         // Second NALU: end fragment
-        SrsRtpPacket* pkt4 = mock_create_test_rtp_packet(103, 1000);
-        SrsRtpFUAPayload2* fua4 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt4 = mock_create_test_rtp_packet(103, 1000);
+        SrsRtpFUAPayload2 *fua4 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
         pkt4->set_payload(fua4, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt4);
 
@@ -927,10 +927,10 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheCheckFrameCompleteNu
         SrsRtcFrameBuilderVideoPacketCache cache;
 
         // Store only some packets in the range
-        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpPacket *pkt1 = mock_create_test_rtp_packet(100, 1000);
         cache.store_packet(pkt1);
         // Skip 101 (will be null)
-        SrsRtpPacket* pkt3 = mock_create_test_rtp_packet(102, 1000);
+        SrsRtpPacket *pkt3 = mock_create_test_rtp_packet(102, 1000);
         cache.store_packet(pkt3);
 
         // Should handle null packets gracefully and return true (no fragmentation, 0 == 0)
@@ -947,19 +947,19 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheSequenceWrapAround)
 
         // Test near the 16-bit boundary
         uint16_t seq_near_max = 65534;
-        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(seq_near_max, 1000);
+        SrsRtpPacket *pkt1 = mock_create_test_rtp_packet(seq_near_max, 1000);
         cache.store_packet(pkt1);
 
         uint16_t seq_wrapped = 1; // After wrap-around
-        SrsRtpPacket* pkt2 = mock_create_test_rtp_packet(seq_wrapped, 1000);
+        SrsRtpPacket *pkt2 = mock_create_test_rtp_packet(seq_wrapped, 1000);
         cache.store_packet(pkt2);
 
         // Should be able to retrieve both packets
-        SrsRtpPacket* retrieved1 = cache.get_packet(seq_near_max);
+        SrsRtpPacket *retrieved1 = cache.get_packet(seq_near_max);
         EXPECT_TRUE(retrieved1 != NULL);
         EXPECT_EQ(seq_near_max, retrieved1->header.get_sequence());
 
-        SrsRtpPacket* retrieved2 = cache.get_packet(seq_wrapped);
+        SrsRtpPacket *retrieved2 = cache.get_packet(seq_wrapped);
         EXPECT_TRUE(retrieved2 != NULL);
         EXPECT_EQ(seq_wrapped, retrieved2->header.get_sequence());
     }
@@ -972,15 +972,15 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheMemoryManagement)
         SrsRtcFrameBuilderVideoPacketCache cache;
 
         // Store a packet
-        SrsRtpPacket* pkt = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpPacket *pkt = mock_create_test_rtp_packet(100, 1000);
         cache.store_packet(pkt);
 
         // Overwrite with another packet (should free the first one)
-        SrsRtpPacket* pkt2 = mock_create_test_rtp_packet(100, 2000);
+        SrsRtpPacket *pkt2 = mock_create_test_rtp_packet(100, 2000);
         cache.store_packet(pkt2);
 
         // Verify the second packet is stored
-        SrsRtpPacket* retrieved = cache.get_packet(100);
+        SrsRtpPacket *retrieved = cache.get_packet(100);
         EXPECT_TRUE(retrieved != NULL);
         EXPECT_EQ(2000, retrieved->header.get_timestamp());
 
@@ -988,7 +988,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoPacketCacheMemoryManagement)
         cache.clear_all();
 
         // Cache should be empty
-        SrsRtpPacket* after_clear = cache.get_packet(100);
+        SrsRtpPacket *after_clear = cache.get_packet(100);
         EXPECT_TRUE(after_clear == NULL);
     }
 }
@@ -1126,7 +1126,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorDetectFrameWithGap
 
         // Test is_lost_sn functionality
         bool is_lost = detector.is_lost_sn(101);
-        EXPECT_TRUE(is_lost); // 101 should be the lost sequence number
+        EXPECT_TRUE(is_lost);                   // 101 should be the lost sequence number
         EXPECT_FALSE(detector.is_lost_sn(100)); // 100 should not be lost
         EXPECT_FALSE(detector.is_lost_sn(102)); // 102 should not be lost
 
@@ -1287,7 +1287,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorSequenceWrapAround
         cache.store_packet(mock_create_test_rtp_packet(seq_near_max, 1000, false));
         cache.store_packet(mock_create_test_rtp_packet(65535, 1000, false));
         cache.store_packet(mock_create_test_rtp_packet(0, 1000, false)); // wrapped
-        cache.store_packet(mock_create_test_rtp_packet(1, 1000, true)); // marker bit
+        cache.store_packet(mock_create_test_rtp_packet(1, 1000, true));  // marker bit
 
         uint16_t frame_start = 0, frame_end = 0;
         bool frame_ready = false;
@@ -1336,7 +1336,7 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorIsLostSnBasic)
         EXPECT_EQ(101, detector.lost_sn_);
 
         // Test is_lost_sn
-        EXPECT_TRUE(detector.is_lost_sn(101)); // Should be lost
+        EXPECT_TRUE(detector.is_lost_sn(101));  // Should be lost
         EXPECT_FALSE(detector.is_lost_sn(100)); // Should not be lost
         EXPECT_FALSE(detector.is_lost_sn(102)); // Should not be lost
         EXPECT_FALSE(detector.is_lost_sn(103)); // Should not be lost
@@ -1463,20 +1463,20 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorFragmentedFrames)
         char payload_data[] = "test_fragmented_payload";
 
         // Start fragment
-        SrsRtpPacket* pkt1 = mock_create_test_rtp_packet(100, 1000);
-        SrsRtpFUAPayload2* fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt1 = mock_create_test_rtp_packet(100, 1000);
+        SrsRtpFUAPayload2 *fua1 = mock_create_test_fua_payload(true, false, payload_data, sizeof(payload_data));
         pkt1->set_payload(fua1, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt1);
 
         // Middle fragment
-        SrsRtpPacket* pkt2 = mock_create_test_rtp_packet(101, 1000);
-        SrsRtpFUAPayload2* fua2 = mock_create_test_fua_payload(false, false, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt2 = mock_create_test_rtp_packet(101, 1000);
+        SrsRtpFUAPayload2 *fua2 = mock_create_test_fua_payload(false, false, payload_data, sizeof(payload_data));
         pkt2->set_payload(fua2, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt2);
 
         // End fragment with marker bit
-        SrsRtpPacket* pkt3 = mock_create_test_rtp_packet(102, 1000, true);
-        SrsRtpFUAPayload2* fua3 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
+        SrsRtpPacket *pkt3 = mock_create_test_rtp_packet(102, 1000, true);
+        SrsRtpFUAPayload2 *fua3 = mock_create_test_fua_payload(false, true, payload_data, sizeof(payload_data));
         pkt3->set_payload(fua3, SrsRtpPacketPayloadTypeFUA2);
         cache.store_packet(pkt3);
 
@@ -1514,4 +1514,3 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderVideoFrameDetectorNullPacketHandling
         EXPECT_FALSE(frame_ready); // Should not be ready without packets
     }
 }
-

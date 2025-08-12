@@ -8,18 +8,18 @@
 
 using namespace std;
 
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_utility.hpp>
-#include <srs_protocol_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_srt_conn.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_kernel_log.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_protocol_log.hpp>
 
 #ifdef SRS_SRT
-SrsSrtEventLoop* _srt_eventloop = NULL;
+SrsSrtEventLoop *_srt_eventloop = NULL;
 #endif
 
-SrsSrtAcceptor::SrsSrtAcceptor(SrsSrtServer* srt_server)
+SrsSrtAcceptor::SrsSrtAcceptor(SrsSrtServer *srt_server)
 {
     port_ = 0;
     srt_server_ = srt_server;
@@ -114,7 +114,7 @@ srs_error_t SrsSrtAcceptor::set_srt_opt()
     }
 
     string passphrase = _srs_config->get_srto_passphrase();
-    if (! passphrase.empty()) {
+    if (!passphrase.empty()) {
         if ((err = srs_srt_set_passphrase(listener_->fd(), passphrase)) != srs_success) {
             return srs_error_wrap(err, "set opt passphrase=%s failed", passphrase.c_str());
         }
@@ -137,7 +137,7 @@ srs_error_t SrsSrtAcceptor::on_srt_client(srs_srt_t srt_fd)
         srs_warn("accept srt client failed, err is %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
-    
+
     return err;
 }
 
@@ -157,7 +157,7 @@ srs_error_t SrsSrtServer::initialize()
 {
     srs_error_t err = srs_success;
 
-    if (! _srs_config->get_srt_enabled()) {
+    if (!_srs_config->get_srt_enabled()) {
         return err;
     }
 
@@ -171,7 +171,7 @@ srs_error_t SrsSrtServer::initialize()
 srs_error_t SrsSrtServer::listen()
 {
     srs_error_t err = srs_success;
-    
+
     // Listen mpegts over srt.
     if ((err = listen_srt_mpegts()) != srs_success) {
         return srs_error_wrap(err, "srt mpegts listen");
@@ -188,7 +188,7 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
 {
     srs_error_t err = srs_success;
 
-    if (! _srs_config->get_srt_enabled()) {
+    if (!_srs_config->get_srt_enabled()) {
         return err;
     }
 
@@ -196,10 +196,11 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
     close_listeners();
 
     // Start a listener for SRT, we might need multiple listeners in the future.
-    SrsSrtAcceptor* acceptor = new SrsSrtAcceptor(this);
+    SrsSrtAcceptor *acceptor = new SrsSrtAcceptor(this);
     acceptors_.push_back(acceptor);
 
-    int port; string ip;
+    int port;
+    string ip;
     srs_parse_endpoint(srs_int2str(_srs_config->get_srt_listen_port()), ip, port);
 
     if ((err = acceptor->listen(ip, port)) != srs_success) {
@@ -211,9 +212,9 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
 
 void SrsSrtServer::close_listeners()
 {
-    std::vector<SrsSrtAcceptor*>::iterator it;
+    std::vector<SrsSrtAcceptor *>::iterator it;
     for (it = acceptors_.begin(); it != acceptors_.end();) {
-        SrsSrtAcceptor* acceptor = *it;
+        SrsSrtAcceptor *acceptor = *it;
         srs_freep(acceptor);
 
         it = acceptors_.erase(it);
@@ -224,31 +225,31 @@ srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd)
 {
     srs_error_t err = srs_success;
 
-    ISrsResource* resource = NULL;
+    ISrsResource *resource = NULL;
     if ((err = fd_to_resource(srt_fd, &resource)) != srs_success) {
-        //close fd on conn error, otherwise will lead to fd leak -gs
-        // TODO: FIXME: Handle error.
+        // close fd on conn error, otherwise will lead to fd leak -gs
+        //  TODO: FIXME: Handle error.
         srs_srt_close(srt_fd);
         return srs_error_wrap(err, "srt fd to resource");
     }
     srs_assert(resource);
-    
+
     // directly enqueue, the cycle thread will remove the client.
     conn_manager_->add(resource);
 
     // Note that conn is managed by conn_manager, so we don't need to free it.
-    ISrsStartable* conn = dynamic_cast<ISrsStartable*>(resource);
+    ISrsStartable *conn = dynamic_cast<ISrsStartable *>(resource);
     if ((err = conn->start()) != srs_success) {
         return srs_error_wrap(err, "start srt conn coroutine");
     }
-    
+
     return err;
 }
 
-srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsResource** pr)
+srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsResource **pr)
 {
     srs_error_t err = srs_success;
-    
+
     string ip = "";
     int port = 0;
     if ((err = srs_srt_get_remote_ip_port(srt_fd, ip, port)) != srs_success) {
@@ -262,11 +263,11 @@ srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsResource** pr)
 
     // Covert to SRT conection.
     *pr = new SrsMpegtsSrtConn(this, srt_fd, ip, port);
-    
+
     return err;
 }
 
-void SrsSrtServer::remove(ISrsResource* c)
+void SrsSrtServer::remove(ISrsResource *c)
 {
     // use manager to free it async.
     conn_manager_->remove(c);
@@ -297,7 +298,9 @@ srs_error_t SrsSrtServer::notify(int event, srs_utime_t interval, srs_utime_t ti
     srs_error_t err = srs_success;
 
     switch (event) {
-        case 8: resample_kbps(); break;
+    case 8:
+        resample_kbps();
+        break;
     }
 
     return err;
@@ -307,9 +310,9 @@ void SrsSrtServer::resample_kbps()
 {
     // collect delta from all clients.
     for (int i = 0; i < (int)conn_manager_->size(); i++) {
-        ISrsResource* c = conn_manager_->at(i);
+        ISrsResource *c = conn_manager_->at(i);
 
-        SrsMpegtsSrtConn* conn = dynamic_cast<SrsMpegtsSrtConn*>(c);
+        SrsMpegtsSrtConn *conn = dynamic_cast<SrsMpegtsSrtConn *>(c);
         srs_assert(conn);
 
         // add delta of connection to server kbps.,
@@ -349,7 +352,7 @@ srs_error_t SrsSrtServerAdapter::initialize()
     return err;
 }
 
-srs_error_t SrsSrtServerAdapter::run(SrsWaitGroup* wg)
+srs_error_t SrsSrtServerAdapter::run(SrsWaitGroup *wg)
 {
     srs_error_t err = srs_success;
 
@@ -369,7 +372,7 @@ void SrsSrtServerAdapter::stop()
 {
 }
 
-SrsSrtServer* SrsSrtServerAdapter::instance()
+SrsSrtServer *SrsSrtServerAdapter::instance()
 {
     return srt_server_;
 }
@@ -419,7 +422,7 @@ srs_error_t SrsSrtEventLoop::cycle()
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "srt listener");
         }
-       
+
         // Check and notify fired SRT events by epoll.
         //
         // Note that the SRT poller use a dedicated and isolated epoll, which is not the same as the one of SRS, in
@@ -434,7 +437,6 @@ srs_error_t SrsSrtEventLoop::cycle()
         // We use sleep to switch to other coroutines, because the SRT poller is not possible to do this.
         srs_usleep((n_fds ? 1 : 10) * SRS_UTIME_MILLISECONDS);
     }
-    
+
     return err;
 }
-

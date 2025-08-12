@@ -29,7 +29,7 @@ VOID TEST(ConfigMainTest, CheckIncludeEmptyConfig)
             SrsFileWriter fw;
             fw.open(filepath);
             string content = _MIN_OK_CONF "include " + included + ";";
-            fw.write((void*)content.data(), (int)content.length(), NULL);
+            fw.write((void *)content.data(), (int)content.length(), NULL);
         }
 
         SrsConfig conf;
@@ -44,4 +44,3 @@ VOID TEST(ConfigMainTest, CheckIncludeEmptyConfig)
         EXPECT_EQ(1, (int)conf.get_listens().size());
     }
 }
-

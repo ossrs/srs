@@ -43,40 +43,64 @@ int MockReloadHandler::count_total()
 int MockReloadHandler::count_true()
 {
     int count_true = 0;
-    
-    if (listen_reloaded) count_true++;
-    if (pithy_print_reloaded) count_true++;
-    if (vhost_added_reloaded) count_true++;
-    if (vhost_removed_reloaded) count_true++;
-    if (vhost_play_reloaded) count_true++;
-    if (vhost_forward_reloaded) count_true++;
-    if (vhost_hls_reloaded) count_true++;
-    if (vhost_dvr_reloaded) count_true++;
-    if (vhost_transcode_reloaded) count_true++;
-    if (ingest_removed_reloaded) count_true++;
-    if (ingest_added_reloaded) count_true++;
-    if (ingest_updated_reloaded) count_true++;
-    
+
+    if (listen_reloaded)
+        count_true++;
+    if (pithy_print_reloaded)
+        count_true++;
+    if (vhost_added_reloaded)
+        count_true++;
+    if (vhost_removed_reloaded)
+        count_true++;
+    if (vhost_play_reloaded)
+        count_true++;
+    if (vhost_forward_reloaded)
+        count_true++;
+    if (vhost_hls_reloaded)
+        count_true++;
+    if (vhost_dvr_reloaded)
+        count_true++;
+    if (vhost_transcode_reloaded)
+        count_true++;
+    if (ingest_removed_reloaded)
+        count_true++;
+    if (ingest_added_reloaded)
+        count_true++;
+    if (ingest_updated_reloaded)
+        count_true++;
+
     return count_true;
 }
 
 int MockReloadHandler::count_false()
 {
     int count_false = 0;
-    
-    if (!listen_reloaded) count_false++;
-    if (!pithy_print_reloaded) count_false++;
-    if (!vhost_added_reloaded) count_false++;
-    if (!vhost_removed_reloaded) count_false++;
-    if (!vhost_play_reloaded) count_false++;
-    if (!vhost_forward_reloaded) count_false++;
-    if (!vhost_hls_reloaded) count_false++;
-    if (!vhost_dvr_reloaded) count_false++;
-    if (!vhost_transcode_reloaded) count_false++;
-    if (!ingest_removed_reloaded) count_false++;
-    if (!ingest_added_reloaded) count_false++;
-    if (!ingest_updated_reloaded) count_false++;
-    
+
+    if (!listen_reloaded)
+        count_false++;
+    if (!pithy_print_reloaded)
+        count_false++;
+    if (!vhost_added_reloaded)
+        count_false++;
+    if (!vhost_removed_reloaded)
+        count_false++;
+    if (!vhost_play_reloaded)
+        count_false++;
+    if (!vhost_forward_reloaded)
+        count_false++;
+    if (!vhost_hls_reloaded)
+        count_false++;
+    if (!vhost_dvr_reloaded)
+        count_false++;
+    if (!vhost_transcode_reloaded)
+        count_false++;
+    if (!ingest_removed_reloaded)
+        count_false++;
+    if (!ingest_added_reloaded)
+        count_false++;
+    if (!ingest_updated_reloaded)
+        count_false++;
+
     return count_false;
 }
 
@@ -179,7 +203,7 @@ MockSrsReloadConfig::~MockSrsReloadConfig()
 srs_error_t MockSrsReloadConfig::do_reload(string buf)
 {
     srs_error_t err = srs_success;
-    
+
     MockSrsReloadConfig conf;
     if ((err = conf.parse(buf)) != srs_success) {
         return srs_error_wrap(err, "parse");
@@ -188,7 +212,7 @@ srs_error_t MockSrsReloadConfig::do_reload(string buf)
     if ((err = MockSrsConfig::reload_conf(&conf)) != srs_success) {
         return srs_error_wrap(err, "reload conf");
     }
-    
+
     return err;
 }
 
@@ -198,7 +222,7 @@ VOID TEST(ConfigReloadTest, ReloadEmpty)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
     HELPER_EXPECT_FAILED(conf.parse(""));
     HELPER_EXPECT_FAILED(conf.do_reload(""));
@@ -211,37 +235,37 @@ VOID TEST(ConfigReloadTest, ReloadListen)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
     HELPER_EXPECT_SUCCESS(conf.parse("listen 1935;"));
     HELPER_EXPECT_SUCCESS(conf.do_reload("listen 1935;"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
+
     HELPER_EXPECT_SUCCESS(conf.do_reload("listen 1936;"));
     EXPECT_TRUE(handler.listen_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
+
     HELPER_EXPECT_SUCCESS(conf.do_reload("listen 1936;"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
+
     HELPER_EXPECT_SUCCESS(conf.do_reload("listen 1936 1935;"));
     EXPECT_TRUE(handler.listen_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
+
     HELPER_EXPECT_SUCCESS(conf.do_reload("listen 1935;"));
     EXPECT_TRUE(handler.listen_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
+
     HELPER_EXPECT_SUCCESS(conf.do_reload("listen 1935 1935;"));
     EXPECT_TRUE(handler.listen_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
+
     HELPER_EXPECT_SUCCESS(conf.do_reload("listen 1935;"));
     EXPECT_TRUE(handler.listen_reloaded);
     EXPECT_EQ(1, handler.count_true());
@@ -254,19 +278,19 @@ VOID TEST(ConfigReloadTest, ReloadPithyPrint)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"pithy_print_ms 1000;"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"pithy_print_ms 1000;"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "pithy_print_ms 1000;"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "pithy_print_ms 1000;"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"pithy_print_ms 2000;"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "pithy_print_ms 2000;"));
     EXPECT_TRUE(handler.pithy_print_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"pithy_print_ms 1000;"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "pithy_print_ms 1000;"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -277,19 +301,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostAdded)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{} vhost b{}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{} vhost b{}"));
     EXPECT_TRUE(handler.vhost_added_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -300,19 +324,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostRemoved)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{enabled off;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{enabled off;}"));
     EXPECT_TRUE(handler.vhost_removed_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -323,19 +347,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostRemoved2)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{} vhost b{}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{} vhost b{}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{} vhost b{}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{} vhost b{}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{}"));
     EXPECT_TRUE(handler.vhost_removed_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{} vhost b{}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{} vhost b{}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -346,19 +370,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostAtc)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{atc off;}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{atc off;}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{atc off;}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{atc off;}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{atc on;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{atc on;}"));
     EXPECT_TRUE(handler.vhost_play_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{atc off;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{atc off;}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -369,19 +393,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostGopCache)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{gop_cache off;}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{gop_cache off;}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{gop_cache off;}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{gop_cache off;}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{gop_cache on;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{gop_cache on;}"));
     EXPECT_TRUE(handler.vhost_play_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{gop_cache off;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{gop_cache off;}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -392,19 +416,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostQueueLength)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{queue_length 10;}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{queue_length 10;}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{queue_length 10;}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{queue_length 10;}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{queue_length 20;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{queue_length 20;}"));
     EXPECT_TRUE(handler.vhost_play_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{queue_length 10;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{queue_length 10;}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -415,19 +439,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostTimeJitter)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{time_jitter full;}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{time_jitter full;}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{time_jitter full;}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{time_jitter full;}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{time_jitter zero;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{time_jitter zero;}"));
     EXPECT_TRUE(handler.vhost_play_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{time_jitter full;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{time_jitter full;}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -438,19 +462,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostForward)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{forward 127.0.0.1:1936;}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{forward 127.0.0.1:1936;}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{forward 127.0.0.1:1936;}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{forward 127.0.0.1:1936;}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{forward 127.0.0.1:1937;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{forward 127.0.0.1:1937;}"));
     EXPECT_TRUE(handler.vhost_forward_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{forward 127.0.0.1:1936;}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{forward 127.0.0.1:1936;}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -461,19 +485,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostHls)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{hls {enabled on;}}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{hls {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{hls {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{hls {enabled on;}}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{hls {enabled off;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{hls {enabled off;}}"));
     EXPECT_TRUE(handler.vhost_hls_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{hls {enabled on;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{hls {enabled on;}}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -484,19 +508,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostDvr)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{dvr {enabled on;}}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{dvr {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{dvr {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{dvr {enabled on;}}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{dvr {enabled off;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{dvr {enabled off;}}"));
     EXPECT_TRUE(handler.vhost_dvr_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{dvr {enabled on;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{dvr {enabled on;}}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -507,19 +531,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostTranscode)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{transcode {enabled on;}}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{transcode {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{transcode {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{transcode {enabled on;}}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{transcode {enabled off;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{transcode {enabled off;}}"));
     EXPECT_TRUE(handler.vhost_transcode_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{transcode {enabled on;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{transcode {enabled on;}}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -530,19 +554,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostIngestAdded)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest {enabled on;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest {enabled on;}}"));
     EXPECT_TRUE(handler.ingest_added_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -553,19 +577,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostIngestAdded2)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{ingest a {enabled on;}}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest a {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{ingest a {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest a {enabled on;}}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest a {enabled on;} ingest b {enabled on;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest a {enabled on;} ingest b {enabled on;}}"));
     EXPECT_TRUE(handler.ingest_added_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest a {enabled on;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest a {enabled on;}}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -576,19 +600,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostIngestRemoved)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{ingest {enabled on;}}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{ingest {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest {enabled on;}}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{}"));
     EXPECT_TRUE(handler.ingest_removed_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest {enabled on;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest {enabled on;}}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -599,19 +623,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostIngestRemoved2)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{ingest {enabled on;}}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{ingest {enabled on;}}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest {enabled on;}}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest {enabled off;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest {enabled off;}}"));
     EXPECT_TRUE(handler.ingest_removed_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest {enabled on;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest {enabled on;}}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
@@ -622,20 +646,19 @@ VOID TEST(ConfigReloadTest, ReloadVhostIngestUpdated)
 
     MockReloadHandler handler;
     MockSrsReloadConfig conf;
-    
+
     conf.subscribe(&handler);
-    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF"vhost a{ingest {enabled on;ffmpeg ffmpeg;}}"));
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest {enabled on;ffmpeg ffmpeg;}}"));
+    HELPER_EXPECT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost a{ingest {enabled on;ffmpeg ffmpeg;}}"));
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest {enabled on;ffmpeg ffmpeg;}}"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest {enabled on;ffmpeg ffmpeg1;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest {enabled on;ffmpeg ffmpeg1;}}"));
     EXPECT_TRUE(handler.ingest_updated_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
-    
-    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF"vhost a{ingest {enabled on;ffmpeg ffmpeg;}}"));
+
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost a{ingest {enabled on;ffmpeg ffmpeg;}}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
-

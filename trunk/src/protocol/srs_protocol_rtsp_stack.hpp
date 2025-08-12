@@ -10,8 +10,8 @@
 #include <srs_core.hpp>
 #include <srs_kernel_consts.hpp>
 
-#include <string>
 #include <sstream>
+#include <string>
 
 class SrsBuffer;
 class SrsSimpleStream;
@@ -30,7 +30,7 @@ class ISrsProtocolReadWriter;
 // Lines are terminated by CRLF, but
 // receivers should be prepared to also interpret CR and LF by
 // themselves as line terminators.
-#define SRS_RTSP_CRLF "\r\n" // 0x0D0A
+#define SRS_RTSP_CRLF "\r\n"         // 0x0D0A
 #define SRS_RTSP_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
 
 // RTSP token
@@ -45,17 +45,17 @@ class ISrsProtocolReadWriter;
 #define SRS_RTSP_TOKEN_RANGE "Range"
 
 // RTSP methods
-#define SRS_RTSP_METHOD_OPTIONS            "OPTIONS"
-#define SRS_RTSP_METHOD_DESCRIBE           "DESCRIBE"
-#define SRS_RTSP_METHOD_ANNOUNCE           "ANNOUNCE"
-#define SRS_RTSP_METHOD_SETUP              "SETUP"
-#define SRS_RTSP_METHOD_PLAY               "PLAY"
-#define SRS_RTSP_METHOD_PAUSE              "PAUSE"
-#define SRS_RTSP_METHOD_TEARDOWN           "TEARDOWN"
-#define SRS_RTSP_METHOD_GET_PARAMETER      "GET_PARAMETER"
-#define SRS_RTSP_METHOD_SET_PARAMETER      "SET_PARAMETER"
-#define SRS_RTSP_METHOD_REDIRECT           "REDIRECT"
-#define SRS_RTSP_METHOD_RECORD             "RECORD"
+#define SRS_RTSP_METHOD_OPTIONS "OPTIONS"
+#define SRS_RTSP_METHOD_DESCRIBE "DESCRIBE"
+#define SRS_RTSP_METHOD_ANNOUNCE "ANNOUNCE"
+#define SRS_RTSP_METHOD_SETUP "SETUP"
+#define SRS_RTSP_METHOD_PLAY "PLAY"
+#define SRS_RTSP_METHOD_PAUSE "PAUSE"
+#define SRS_RTSP_METHOD_TEARDOWN "TEARDOWN"
+#define SRS_RTSP_METHOD_GET_PARAMETER "GET_PARAMETER"
+#define SRS_RTSP_METHOD_SET_PARAMETER "SET_PARAMETER"
+#define SRS_RTSP_METHOD_REDIRECT "REDIRECT"
+#define SRS_RTSP_METHOD_RECORD "RECORD"
 
 // RTSP-Version
 #define SRS_RTSP_VERSION "RTSP/1.0"
@@ -71,8 +71,7 @@ class ISrsProtocolReadWriter;
 // method, for example, for live feeds. If a server does not support a
 // particular method, it MUST return "501 Not Implemented" and a client
 // SHOULD not try this method again for this server.
-enum SrsRtspMethod
-{
+enum SrsRtspMethod {
     SrsRtspMethodDescribe = 0x0001,
     SrsRtspMethodAnnounce = 0x0002,
     SrsRtspMethodGetParameter = 0x0004,
@@ -87,8 +86,7 @@ enum SrsRtspMethod
 };
 
 // The state of rtsp token.
-enum SrsRtspTokenState
-{
+enum SrsRtspTokenState {
     // Parse token failed, default state.
     SrsRtspTokenStateError = 100,
     // When SP follow the token.
@@ -142,14 +140,16 @@ public:
     //      [client_port_min, client_port_max)
     int client_port_min;
     int client_port_max;
+
 public:
     SrsRtspTransport();
     virtual ~SrsRtspTransport();
+
 public:
     // Parse a line of token for transport.
     virtual srs_error_t parse(std::string attr);
     // Copy the transport from src.
-    virtual void copy(SrsRtspTransport* src);
+    virtual void copy(SrsRtspTransport *src);
 };
 
 // The rtsp request message.
@@ -195,18 +195,20 @@ public:
     long content_length;
     // The session id.
     std::string session;
-    
+
     // The transport in setup, NULL for no transport.
-    SrsRtspTransport* transport;
+    SrsRtspTransport *transport;
     // For setup message, parse the stream id from uri.
     int stream_id;
 
     std::string accept;
     std::string user_agent;
     std::string range;
+
 public:
     SrsRtspRequest();
     virtual ~SrsRtspRequest();
+
 public:
     virtual bool is_options();
     virtual bool is_describe();
@@ -253,15 +255,18 @@ public:
     long seq;
     // The session id.
     std::string session;
+
 public:
     SrsRtspResponse(int cseq);
     virtual ~SrsRtspResponse();
+
 public:
     // Encode message to string.
-    virtual srs_error_t encode(std::stringstream& ss);
+    virtual srs_error_t encode(std::stringstream &ss);
+
 protected:
     // Sub classes override this to encode the headers.
-    virtual srs_error_t encode_header(std::stringstream& ss);
+    virtual srs_error_t encode_header(std::stringstream &ss);
 };
 
 // 10.1 OPTIONS, @see rfc2326-1998-rtsp.pdf, page 59
@@ -273,11 +278,13 @@ class SrsRtspOptionsResponse : public SrsRtspResponse
 public:
     // Join of SrsRtspMethod
     SrsRtspMethod methods;
+
 public:
     SrsRtspOptionsResponse(int cseq);
     virtual ~SrsRtspOptionsResponse();
+
 protected:
-    virtual srs_error_t encode_header(std::stringstream& ss);
+    virtual srs_error_t encode_header(std::stringstream &ss);
 };
 
 // 10.2 DESCRIBE, @see rfc2326-1998-rtsp.pdf, page 61
@@ -286,11 +293,13 @@ class SrsRtspDescribeResponse : public SrsRtspResponse
 public:
     // The sdp in describe.
     std::string sdp;
+
 public:
     SrsRtspDescribeResponse(int cseq);
     virtual ~SrsRtspDescribeResponse();
+
 protected:
-    virtual srs_error_t encode_header(std::stringstream& ss);
+    virtual srs_error_t encode_header(std::stringstream &ss);
 };
 
 // 10.4 SETUP, @see rfc2326-1998-rtsp.pdf, page 65
@@ -313,14 +322,16 @@ public:
     int local_port_min;
     int local_port_max;
 
-    SrsRtspTransport* transport;
+    SrsRtspTransport *transport;
     // The ssrc of the stream.
     std::string ssrc;
+
 public:
     SrsRtspSetupResponse(int cseq);
     virtual ~SrsRtspSetupResponse();
+
 protected:
-    virtual srs_error_t encode_header(std::stringstream& ss);
+    virtual srs_error_t encode_header(std::stringstream &ss);
 };
 
 // 10.5 PLAY, @see rfc2326-1998-rtsp.pdf, page 67
@@ -329,8 +340,9 @@ class SrsRtspPlayResponse : public SrsRtspResponse
 public:
     SrsRtspPlayResponse(int cseq);
     virtual ~SrsRtspPlayResponse();
+
 protected:
-    virtual srs_error_t encode_header(std::stringstream& ss);
+    virtual srs_error_t encode_header(std::stringstream &ss);
 };
 
 // The rtsp protocol stack to parse the rtsp packets.
@@ -338,18 +350,20 @@ class SrsRtspStack
 {
 private:
     // The cached bytes buffer.
-    SrsSimpleStream* buf;
+    SrsSimpleStream *buf;
     // The underlayer socket object, send/recv bytes.
-    ISrsProtocolReadWriter* skt;
+    ISrsProtocolReadWriter *skt;
+
 public:
-    SrsRtspStack(ISrsProtocolReadWriter* s);
+    SrsRtspStack(ISrsProtocolReadWriter *s);
     virtual ~SrsRtspStack();
+
 public:
     // Recv rtsp message from underlayer io.
     // @param preq the output rtsp request message, which user must free it.
     // @return an int error code.
     //       ERROR_RTSP_REQUEST_HEADER_EOF indicates request header EOF.
-    virtual srs_error_t recv_message(SrsRtspRequest** preq);
+    virtual srs_error_t recv_message(SrsRtspRequest **preq);
     // Try to detect and consume RTCP frame from buffered data.
     // @return srs_success if RTCP frame is consumed successfully.
     //         ERROR_RTSP_NEED_MORE_DATA if more data is needed to complete the frame.
@@ -358,17 +372,18 @@ public:
     // Send rtsp message over underlayer io.
     // @param res the rtsp response message, which user should never free it.
     // @return an int error code.
-    virtual srs_error_t send_message(SrsRtspResponse* res);
+    virtual srs_error_t send_message(SrsRtspResponse *res);
+
 private:
     // Recv the rtsp message.
-    virtual srs_error_t do_recv_message(SrsRtspRequest* req);
+    virtual srs_error_t do_recv_message(SrsRtspRequest *req);
     // Read a normal token from io, error when token state is not normal.
-    virtual srs_error_t recv_token_normal(std::string& token);
+    virtual srs_error_t recv_token_normal(std::string &token);
     // Read a normal token from io, error when token state is not eof.
-    virtual srs_error_t recv_token_eof(std::string& token);
+    virtual srs_error_t recv_token_eof(std::string &token);
     // Read the token util got eof, for example, to read the response status Reason-Phrase
     // @param pconsumed, output the token parsed length. NULL to ignore.
-    virtual srs_error_t recv_token_util_eof(std::string& token, int* pconsumed = NULL);
+    virtual srs_error_t recv_token_util_eof(std::string &token, int *pconsumed = NULL);
     // Read a token from io, split by SP, endswith CRLF:
     //       token1 SP token2 SP ... tokenN CRLF
     // @param token, output the read token.
@@ -377,8 +392,7 @@ private:
     //       the SP use to indicates the normal token, @see SRS_RTSP_SP
     //       the 0x00 use to ignore normal token flag. @see recv_token_util_eof
     // @param pconsumed, output the token parsed length. NULL to ignore.
-    virtual srs_error_t recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch = SRS_RTSP_SP, int* pconsumed = NULL);
+    virtual srs_error_t recv_token(std::string &token, SrsRtspTokenState &state, char normal_ch = SRS_RTSP_SP, int *pconsumed = NULL);
 };
 
 #endif
-

@@ -12,13 +12,13 @@
 
 #include <stdint.h>
 
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 const std::string kTWCCExt = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01";
 
 // TDOO: FIXME: Rename it, and add utest.
-extern std::vector<std::string> split_str(const std::string& str, const std::string& delim);
+extern std::vector<std::string> split_str(const std::string &str, const std::string &delim);
 
 class SrsSessionConfig
 {
@@ -33,12 +33,13 @@ public:
     SrsSessionInfo();
     virtual ~SrsSessionInfo();
 
-    srs_error_t parse_attribute(const std::string& attribute, const std::string& value);
-    srs_error_t encode(std::ostringstream& os);
+    srs_error_t parse_attribute(const std::string &attribute, const std::string &value);
+    srs_error_t encode(std::ostringstream &os);
 
-    bool operator==(const SrsSessionInfo& rhs);
+    bool operator==(const SrsSessionInfo &rhs);
     // user-defined copy assignment (copy-and-swap idiom)
-    SrsSessionInfo& operator=(SrsSessionInfo other);
+    SrsSessionInfo &operator=(SrsSessionInfo other);
+
 public:
     std::string ice_ufrag_;
     std::string ice_pwd_;
@@ -54,8 +55,10 @@ public:
     SrsSSRCInfo();
     SrsSSRCInfo(uint32_t ssrc, std::string cname, std::string stream_id, std::string track_id);
     virtual ~SrsSSRCInfo();
+
 public:
-    srs_error_t encode(std::ostringstream& os);
+    srs_error_t encode(std::ostringstream &os);
+
 public:
     // See https://webrtchacks.com/sdp-anatomy/
     uint32_t ssrc_;
@@ -79,41 +82,42 @@ class SrsSSRCGroup
 {
 public:
     SrsSSRCGroup();
-    SrsSSRCGroup(const std::string& usage, const std::vector<uint32_t>& ssrcs);
+    SrsSSRCGroup(const std::string &usage, const std::vector<uint32_t> &ssrcs);
     virtual ~SrsSSRCGroup();
+
 public:
-    srs_error_t encode(std::ostringstream& os);
+    srs_error_t encode(std::ostringstream &os);
+
 public:
     // e.g FIX, FEC, SIM.
     std::string semantic_;
-    // SSRCs of this type. 
+    // SSRCs of this type.
     std::vector<uint32_t> ssrcs_;
 };
 
-struct H264SpecificParam
-{
+struct H264SpecificParam {
     std::string profile_level_id;
     std::string packetization_mode;
     std::string level_asymmetry_allow;
 };
 
-struct H265SpecificParam
-{
+struct H265SpecificParam {
     std::string level_id;
     std::string profile_id;
     std::string tier_flag;
     std::string tx_mode;
 };
 
-extern srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264_param);
-extern srs_error_t srs_parse_h265_fmtp(const std::string& fmtp, H265SpecificParam& h265_param);
+extern srs_error_t srs_parse_h264_fmtp(const std::string &fmtp, H264SpecificParam &h264_param);
+extern srs_error_t srs_parse_h265_fmtp(const std::string &fmtp, H265SpecificParam &h265_param);
 class SrsMediaPayloadType
 {
 public:
     SrsMediaPayloadType(int payload_type);
     virtual ~SrsMediaPayloadType();
 
-    srs_error_t encode(std::ostringstream& os);
+    srs_error_t encode(std::ostringstream &os);
+
 public:
     int payload_type_;
 
@@ -125,8 +129,7 @@ public:
     std::string format_specific_param_;
 };
 
-struct SrsCandidate
-{
+struct SrsCandidate {
     std::string protocol_;
     std::string ip_;
     int port_;
@@ -136,31 +139,34 @@ struct SrsCandidate
 class SrsMediaDesc
 {
 public:
-    SrsMediaDesc(const std::string& type);
+    SrsMediaDesc(const std::string &type);
     virtual ~SrsMediaDesc();
+
 public:
-    srs_error_t parse_line(const std::string& line);
-    srs_error_t encode(std::ostringstream& os);
-    SrsMediaPayloadType* find_media_with_payload_type(int payload_type);
-    std::vector<SrsMediaPayloadType> find_media_with_encoding_name(const std::string& encoding_name) const;
-    const std::map<int, std::string>& get_extmaps() const { return extmaps_; }
+    srs_error_t parse_line(const std::string &line);
+    srs_error_t encode(std::ostringstream &os);
+    SrsMediaPayloadType *find_media_with_payload_type(int payload_type);
+    std::vector<SrsMediaPayloadType> find_media_with_encoding_name(const std::string &encoding_name) const;
+    const std::map<int, std::string> &get_extmaps() const { return extmaps_; }
     srs_error_t update_msid(std::string id);
 
     bool is_audio() const { return type_ == "audio"; }
     bool is_video() const { return type_ == "video"; }
+
 private:
-    srs_error_t parse_attribute(const std::string& content);
-    srs_error_t parse_attr_rtpmap(const std::string& value);
-    srs_error_t parse_attr_rtcp(const std::string& value);
-    srs_error_t parse_attr_rtcp_fb(const std::string& value);
-    srs_error_t parse_attr_fmtp(const std::string& value);
-    srs_error_t parse_attr_mid(const std::string& value);
-    srs_error_t parse_attr_msid(const std::string& value);
-    srs_error_t parse_attr_ssrc(const std::string& value);
-    srs_error_t parse_attr_ssrc_group(const std::string& value);
-    srs_error_t parse_attr_extmap(const std::string& value);
+    srs_error_t parse_attribute(const std::string &content);
+    srs_error_t parse_attr_rtpmap(const std::string &value);
+    srs_error_t parse_attr_rtcp(const std::string &value);
+    srs_error_t parse_attr_rtcp_fb(const std::string &value);
+    srs_error_t parse_attr_fmtp(const std::string &value);
+    srs_error_t parse_attr_mid(const std::string &value);
+    srs_error_t parse_attr_msid(const std::string &value);
+    srs_error_t parse_attr_ssrc(const std::string &value);
+    srs_error_t parse_attr_ssrc_group(const std::string &value);
+    srs_error_t parse_attr_extmap(const std::string &value);
+
 private:
-    SrsSSRCInfo& fetch_or_create_ssrc_info(uint32_t ssrc);
+    SrsSSRCInfo &fetch_or_create_ssrc_info(uint32_t ssrc);
 
 public:
     SrsSessionInfo session_info_;
@@ -188,7 +194,7 @@ public:
 
     std::vector<SrsCandidate> candidates_;
     std::vector<SrsSSRCGroup> ssrc_groups_;
-    std::vector<SrsSSRCInfo>  ssrc_infos_;
+    std::vector<SrsSSRCInfo> ssrc_infos_;
     std::map<int, std::string> extmaps_;
 };
 
@@ -197,35 +203,42 @@ class SrsSdp
 public:
     SrsSdp();
     virtual ~SrsSdp();
+
 public:
-    srs_error_t parse(const std::string& sdp_str);
-    srs_error_t encode(std::ostringstream& os);
+    srs_error_t parse(const std::string &sdp_str);
+    srs_error_t encode(std::ostringstream &os);
+
 public:
-    std::vector<SrsMediaDesc*> find_media_descs(const std::string& type);
+    std::vector<SrsMediaDesc *> find_media_descs(const std::string &type);
+
 public:
-    void set_ice_ufrag(const std::string& ufrag);
-    void set_ice_pwd(const std::string& pwd);
-    void set_dtls_role(const std::string& dtls_role);
-    void set_fingerprint_algo(const std::string& algo);
-    void set_fingerprint(const std::string& fingerprint);
-    void add_candidate(const std::string& protocol, const std::string& ip, const int& port, const std::string& type);
+    void set_ice_ufrag(const std::string &ufrag);
+    void set_ice_pwd(const std::string &pwd);
+    void set_dtls_role(const std::string &dtls_role);
+    void set_fingerprint_algo(const std::string &algo);
+    void set_fingerprint(const std::string &fingerprint);
+    void add_candidate(const std::string &protocol, const std::string &ip, const int &port, const std::string &type);
 
     std::string get_ice_ufrag() const;
     std::string get_ice_pwd() const;
     std::string get_dtls_role() const;
+
 private:
-    srs_error_t parse_line(const std::string& line);
+    srs_error_t parse_line(const std::string &line);
+
 private:
-    srs_error_t parse_origin(const std::string& content);
-    srs_error_t parse_version(const std::string& content);
-    srs_error_t parse_session_name(const std::string& content);
-    srs_error_t parse_timing(const std::string& content);
-    srs_error_t parse_attribute(const std::string& content);
-    srs_error_t parse_gb28181_ssrc(const std::string& content);
-    srs_error_t parse_media_description(const std::string& content);
-    srs_error_t parse_attr_group(const std::string& content);
+    srs_error_t parse_origin(const std::string &content);
+    srs_error_t parse_version(const std::string &content);
+    srs_error_t parse_session_name(const std::string &content);
+    srs_error_t parse_timing(const std::string &content);
+    srs_error_t parse_attribute(const std::string &content);
+    srs_error_t parse_gb28181_ssrc(const std::string &content);
+    srs_error_t parse_media_description(const std::string &content);
+    srs_error_t parse_attr_group(const std::string &content);
+
 private:
     bool in_media_session_;
+
 public:
     // version
     std::string version_;
@@ -266,7 +279,7 @@ public:
     // m-line, media sessions
     std::vector<SrsMediaDesc> media_descs_;
 
-     bool is_unified() const;
+    bool is_unified() const;
     // TODO: FIXME: will be fixed when use single pc.
     srs_error_t update_msid(std::string id);
 };

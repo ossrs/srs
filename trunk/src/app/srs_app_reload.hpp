@@ -21,12 +21,14 @@ class ISrsReloadHandler
 public:
     ISrsReloadHandler();
     virtual ~ISrsReloadHandler();
+
 public:
     virtual srs_error_t on_reload_max_conns();
     virtual srs_error_t on_reload_listen();
     virtual srs_error_t on_reload_pithy_print();
     virtual srs_error_t on_reload_http_api_raw_api();
     virtual srs_error_t on_reload_rtc_server();
+
 public:
     virtual srs_error_t on_reload_vhost_added(std::string vhost);
     virtual srs_error_t on_reload_vhost_removed(std::string vhost);

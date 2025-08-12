@@ -7,14 +7,14 @@
 
 using namespace std;
 
-#include <srs_core_autofree.hpp>
-#include <srs_protocol_conn.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_core_autofree.hpp>
 #include <srs_core_deprecated.hpp>
+#include <srs_protocol_conn.hpp>
 
 VOID TEST(CoreAutoFreeTest, Free)
 {
-    char* data = new char[32];
+    char *data = new char[32];
     srs_freepa(data);
     EXPECT_TRUE(data == NULL);
 }
@@ -134,13 +134,14 @@ VOID TEST(CoreSmartPtr, SharedPtrReset)
     }
 }
 
-SrsSharedPtr<int> mock_create_from_ptr(SrsSharedPtr<int> p) {
+SrsSharedPtr<int> mock_create_from_ptr(SrsSharedPtr<int> p)
+{
     return p;
 }
 
 VOID TEST(CoreSmartPtr, SharedPtrContructor)
 {
-    int* p = new int(100);
+    int *p = new int(100);
     SrsSharedPtr<int> q = mock_create_from_ptr(p);
     EXPECT_EQ(100, *q);
 }
@@ -167,20 +168,25 @@ VOID TEST(CoreSmartPtr, SharedPtrNullptr)
 class MockWrapper
 {
 public:
-    int* ptr;
+    int *ptr;
+
 public:
-    MockWrapper(int* p) {
+    MockWrapper(int *p)
+    {
         ptr = p;
-        if (ptr) *ptr = *ptr + 1;
+        if (ptr)
+            *ptr = *ptr + 1;
     }
-    ~MockWrapper() {
-        if (ptr) *ptr = *ptr - 1;
+    ~MockWrapper()
+    {
+        if (ptr)
+            *ptr = *ptr - 1;
     }
 };
 
 VOID TEST(CoreSmartPtr, SharedPtrWrapper)
 {
-    int* ptr = new int(100);
+    int *ptr = new int(100);
     SrsUniquePtr<int> ptr_uptr(ptr);
     EXPECT_EQ(100, *ptr);
 
@@ -230,17 +236,17 @@ VOID TEST(CoreSmartPtr, SharedPtrAssign)
         SrsSharedPtr<int> p(new int(100));
         SrsSharedPtr<int> q(new int(101));
 
-        int* q0 = q.get();
+        int *q0 = q.get();
         q = p;
         EXPECT_EQ(p.get(), q.get());
         EXPECT_NE(q0, q.get());
     }
 
-    int* ptr0 = new int(100);
+    int *ptr0 = new int(100);
     SrsUniquePtr<int> ptr0_uptr(ptr0);
     EXPECT_EQ(100, *ptr0);
 
-    int* ptr1 = new int(200);
+    int *ptr1 = new int(200);
     SrsUniquePtr<int> ptr1_uptr(ptr1);
     EXPECT_EQ(200, *ptr1);
 
@@ -264,14 +270,16 @@ VOID TEST(CoreSmartPtr, SharedPtrAssign)
     EXPECT_EQ(200, *ptr1);
 }
 
-template<typename T>
-SrsSharedPtr<T> mock_shared_ptr_move_assign(SrsSharedPtr<T> p) {
+template <typename T>
+SrsSharedPtr<T> mock_shared_ptr_move_assign(SrsSharedPtr<T> p)
+{
     SrsSharedPtr<T> q = p;
     return q;
 }
 
-template<typename T>
-SrsSharedPtr<T> mock_shared_ptr_move_ctr(SrsSharedPtr<T> p) {
+template <typename T>
+SrsSharedPtr<T> mock_shared_ptr_move_ctr(SrsSharedPtr<T> p)
+{
     return p;
 }
 
@@ -291,7 +299,7 @@ VOID TEST(CoreSmartPtr, SharedPtrMove)
         EXPECT_EQ(q.get(), p.get());
     }
 
-    int* ptr = new int(100);
+    int *ptr = new int(100);
     SrsUniquePtr<int> ptr_uptr(ptr);
     EXPECT_EQ(100, *ptr);
 
@@ -339,16 +347,22 @@ class MockIntResource : public ISrsResource
 public:
     SrsContextId id_;
     int value_;
+
 public:
-    MockIntResource(int value) : value_(value) {
+    MockIntResource(int value) : value_(value)
+    {
     }
-    virtual ~MockIntResource() {
+    virtual ~MockIntResource()
+    {
     }
+
 public:
-    virtual const SrsContextId& get_id() {
+    virtual const SrsContextId &get_id()
+    {
         return id_;
     }
-    virtual std::string desc() {
+    virtual std::string desc()
+    {
         return id_.c_str();
     }
 };
@@ -356,7 +370,7 @@ public:
 VOID TEST(CoreSmartPtr, SharedResourceTypical)
 {
     if (true) {
-        SrsSharedResource<MockIntResource>* p = new SrsSharedResource<MockIntResource>(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> *p = new SrsSharedResource<MockIntResource>(new MockIntResource(100));
         EXPECT_TRUE(*p);
         EXPECT_EQ(100, (*p)->value_);
         srs_freep(p);
@@ -404,14 +418,16 @@ VOID TEST(CoreSmartPtr, SharedResourceTypical)
     }
 }
 
-template<typename T>
-SrsSharedResource<T> mock_shared_resource_move_assign(SrsSharedResource<T> p) {
+template <typename T>
+SrsSharedResource<T> mock_shared_resource_move_assign(SrsSharedResource<T> p)
+{
     SrsSharedResource<T> q = p;
     return q;
 }
 
-template<typename T>
-SrsSharedResource<T> mock_shared_resource_move_ctr(SrsSharedResource<T> p) {
+template <typename T>
+SrsSharedResource<T> mock_shared_resource_move_ctr(SrsSharedResource<T> p)
+{
     return p;
 }
 
@@ -441,7 +457,7 @@ VOID TEST(CoreSmartPtr, UniquePtrNormal)
         EXPECT_EQ(100, *p.get());
     }
 
-    int* ptr = new int(100);
+    int *ptr = new int(100);
     SrsUniquePtr<int> ptr_uptr(ptr);
     EXPECT_EQ(100, *ptr);
 
@@ -460,14 +476,14 @@ VOID TEST(CoreSmartPtr, UniquePtrNormal)
 VOID TEST(CoreSmartPtr, UniquePtrArray)
 {
     if (true) {
-        int* ptr = new int[100];
+        int *ptr = new int[100];
         ptr[0] = 100;
 
         SrsUniquePtr<int[]> p(ptr);
         EXPECT_EQ(100, *p.get());
     }
 
-    int* ptr = new int(100);
+    int *ptr = new int(100);
     SrsUniquePtr<int> ptr_uptr(ptr);
     EXPECT_EQ(100, *ptr);
 
@@ -487,19 +503,20 @@ VOID TEST(CoreSmartPtr, UniquePtrArray)
 #include <netdb.h>
 #endif
 
-void mock_free_chars(char* p) {
+void mock_free_chars(char *p)
+{
     free(p);
 }
 
 VOID TEST(CoreSmartPtr, UniquePtrDeleterExample)
 {
     if (true) {
-        char* p = (char*)malloc(1024);
+        char *p = (char *)malloc(1024);
         SrsUniquePtr<char> ptr(p, mock_free_chars);
     }
 
     if (true) {
-        addrinfo* r = NULL;
+        addrinfo *r = NULL;
         getaddrinfo("127.0.0.1", NULL, NULL, &r);
         SrsUniquePtr<addrinfo> ptr(r, freeaddrinfo);
     }
@@ -508,15 +525,20 @@ VOID TEST(CoreSmartPtr, UniquePtrDeleterExample)
 class MockSlice
 {
 public:
-    const char* bytes_;
+    const char *bytes_;
+
 public:
-    MockSlice(const char* bytes) {
+    MockSlice(const char *bytes)
+    {
         bytes_ = bytes;
     }
-    virtual ~MockSlice() {
+    virtual ~MockSlice()
+    {
     }
+
 public:
-    static void deleter(MockSlice* p) {
+    static void deleter(MockSlice *p)
+    {
         p->bytes_ = NULL;
     }
 };
@@ -535,21 +557,26 @@ VOID TEST(CoreSmartPtr, UniquePtrDeleterSlice)
 class MockSpecialPacket
 {
 public:
-    char* bytes_;
+    char *bytes_;
     int size_;
+
 public:
-    MockSpecialPacket(char* bytes, int size) {
+    MockSpecialPacket(char *bytes, int size)
+    {
         bytes_ = bytes;
         size_ = size;
     }
-    virtual ~MockSpecialPacket() {
+    virtual ~MockSpecialPacket()
+    {
         srs_freep(bytes_);
     }
+
 public:
-    static void deleter(vector<MockSpecialPacket*>* pkts) {
-        vector<MockSpecialPacket*>::iterator it;
+    static void deleter(vector<MockSpecialPacket *> *pkts)
+    {
+        vector<MockSpecialPacket *>::iterator it;
         for (it = pkts->begin(); it != pkts->end(); ++it) {
-            MockSpecialPacket* pkt = *it;
+            MockSpecialPacket *pkt = *it;
             srs_freep(pkt);
         }
         pkts->clear();
@@ -558,16 +585,16 @@ public:
 
 VOID TEST(CoreSmartPtr, UniquePtrDeleterVector)
 {
-    vector<MockSpecialPacket*> pkts;
+    vector<MockSpecialPacket *> pkts;
     for (int i = 0; i < 10; i++) {
-        char* bytes = new char[1024];
-        MockSpecialPacket* pkt = new MockSpecialPacket(bytes, 1024);
+        char *bytes = new char[1024];
+        MockSpecialPacket *pkt = new MockSpecialPacket(bytes, 1024);
         pkts.push_back(pkt);
     }
     EXPECT_EQ(10, (int)pkts.size());
 
     if (true) {
-        SrsUniquePtr<vector<MockSpecialPacket*>> ptr(&pkts, MockSpecialPacket::deleter);
+        SrsUniquePtr<vector<MockSpecialPacket *> > ptr(&pkts, MockSpecialPacket::deleter);
     }
     EXPECT_EQ(0, (int)pkts.size());
 }
@@ -575,16 +602,21 @@ VOID TEST(CoreSmartPtr, UniquePtrDeleterVector)
 class MockMalloc
 {
 public:
-    const char* bytes_;
+    const char *bytes_;
+
 public:
-    MockMalloc(int size) {
-        bytes_ = (char*)malloc(size);
+    MockMalloc(int size)
+    {
+        bytes_ = (char *)malloc(size);
     }
-    virtual ~MockMalloc() {
+    virtual ~MockMalloc()
+    {
     }
+
 public:
-    static void deleter(MockMalloc* p) {
-        free((void*)p->bytes_);
+    static void deleter(MockMalloc *p)
+    {
+        free((void *)p->bytes_);
         p->bytes_ = NULL;
     }
 };
@@ -599,4 +631,3 @@ VOID TEST(CoreSmartPtr, UniquePtrDeleterMalloc)
     }
     EXPECT_TRUE(p.bytes_ == NULL);
 }
-

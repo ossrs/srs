@@ -23,6 +23,7 @@ class ISrsHourGlass
 public:
     ISrsHourGlass();
     virtual ~ISrsHourGlass();
+
 public:
     // When time is ticked, this function is called.
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick) = 0;
@@ -56,8 +57,8 @@ class SrsHourGlass : public ISrsCoroutineHandler
 {
 private:
     std::string label_;
-    SrsCoroutine* trd;
-    ISrsHourGlass* handler;
+    SrsCoroutine *trd;
+    ISrsHourGlass *handler;
     srs_utime_t _resolution;
     // The ticks:
     //      key: the event of tick.
@@ -66,14 +67,17 @@ private:
     // The total elapsed time,
     // for each cycle, we increase it with a resolution.
     srs_utime_t total_elapse;
+
 public:
     // TODO: FIMXE: Refine to SrsHourGlass(std::string label);
-    SrsHourGlass(std::string label, ISrsHourGlass* h, srs_utime_t resolution);
+    SrsHourGlass(std::string label, ISrsHourGlass *h, srs_utime_t resolution);
     virtual ~SrsHourGlass();
+
 public:
     // Start or stop the hourglass.
     virtual srs_error_t start();
     virtual void stop();
+
 public:
     // TODO: FIXME: Refine to tick with handler. Remove the tick(interval).
     // Add a pair of tick(event, interval).
@@ -83,6 +87,7 @@ public:
     virtual srs_error_t tick(int event, srs_utime_t interval);
     // Remove the tick by event.
     void untick(int event);
+
 public:
     // Cycle the hourglass, which will sleep resolution every time.
     // and call handler when ticked.
@@ -95,6 +100,7 @@ class ISrsFastTimer
 public:
     ISrsFastTimer();
     virtual ~ISrsFastTimer();
+
 public:
     // Tick when timer is active.
     virtual srs_error_t on_timer(srs_utime_t interval) = 0;
@@ -106,18 +112,21 @@ public:
 class SrsFastTimer : public ISrsCoroutineHandler
 {
 private:
-    SrsCoroutine* trd_;
+    SrsCoroutine *trd_;
     srs_utime_t interval_;
-    std::vector<ISrsFastTimer*> handlers_;
+    std::vector<ISrsFastTimer *> handlers_;
+
 public:
     SrsFastTimer(std::string label, srs_utime_t interval);
     virtual ~SrsFastTimer();
+
 public:
     srs_error_t start();
+
 public:
-    void subscribe(ISrsFastTimer* timer);
-    void unsubscribe(ISrsFastTimer* timer);
-// Interface ISrsCoroutineHandler
+    void subscribe(ISrsFastTimer *timer);
+    void unsubscribe(ISrsFastTimer *timer);
+    // Interface ISrsCoroutineHandler
 private:
     // Cycle the hourglass, which will sleep resolution every time.
     // and call handler when ticked.
@@ -130,7 +139,7 @@ class SrsClockWallMonitor : public ISrsFastTimer
 public:
     SrsClockWallMonitor();
     virtual ~SrsClockWallMonitor();
-// interface ISrsFastTimer
+    // interface ISrsFastTimer
 private:
     srs_error_t on_timer(srs_utime_t interval);
 };

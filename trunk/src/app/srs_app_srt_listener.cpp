@@ -18,7 +18,7 @@ ISrsSrtHandler::~ISrsSrtHandler()
 {
 }
 
-SrsSrtListener::SrsSrtListener(ISrsSrtHandler* h, std::string i, int p)
+SrsSrtListener::SrsSrtListener(ISrsSrtHandler *h, std::string i, int p)
 {
     handler_ = h;
     ip_ = i;
@@ -26,7 +26,7 @@ SrsSrtListener::SrsSrtListener(ISrsSrtHandler* h, std::string i, int p)
 
     lfd_ = srs_srt_socket_invalid();
     srt_skt_ = NULL;
-    
+
     trd_ = new SrsDummyCoroutine();
 }
 
@@ -64,36 +64,36 @@ srs_error_t SrsSrtListener::listen()
     // Accept never timeout.
     srt_skt_->set_recv_timeout(SRS_UTIME_NO_TIMEOUT);
     srt_skt_->set_send_timeout(SRS_UTIME_NO_TIMEOUT);
-    
+
     srs_freep(trd_);
     trd_ = new SrsSTCoroutine("srt_listener", this);
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start coroutine");
     }
-    
+
     return err;
 }
 
 srs_error_t SrsSrtListener::cycle()
 {
     srs_error_t err = srs_success;
-    
+
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "srt listener");
         }
-        
+
         srs_srt_t client_srt_fd = srs_srt_socket_invalid();
         if ((err = srt_skt_->accept(&client_srt_fd)) != srs_success) {
             return srs_error_wrap(err, "srt accept");
         }
-        
+
         // TODO: FIXME: print some log and client srt options.
 
         if ((err = handler_->on_srt_client(client_srt_fd)) != srs_success) {
             return srs_error_wrap(err, "handle srt fd=%d", client_srt_fd);
         }
     }
-    
+
     return err;
 }

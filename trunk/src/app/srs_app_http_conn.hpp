@@ -13,12 +13,12 @@
 #include <string>
 #include <vector>
 
-#include <srs_protocol_http_conn.hpp>
-#include <srs_app_reload.hpp>
-#include <srs_kernel_file.hpp>
-#include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_app_reload.hpp>
 #include <srs_app_source.hpp>
+#include <srs_app_st.hpp>
+#include <srs_kernel_file.hpp>
+#include <srs_protocol_http_conn.hpp>
 
 class SrsServer;
 class SrsLiveSource;
@@ -44,15 +44,16 @@ class ISrsHttpConnOwner
 public:
     ISrsHttpConnOwner();
     virtual ~ISrsHttpConnOwner();
+
 public:
     // When start the coroutine to process connection.
     virtual srs_error_t on_start() = 0;
     // Handle the HTTP message r, which may be parsed partially.
     // For the static service or api, discard any body.
     // For the stream caster, for instance, http flv streaming, may discard the flv header or not.
-    virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w) = 0;
+    virtual srs_error_t on_http_message(ISrsHttpMessage *r, SrsHttpResponseWriter *w) = 0;
     // When message is processed, we may need to do more things.
-    virtual srs_error_t on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w) = 0;
+    virtual srs_error_t on_message_done(ISrsHttpMessage *r, SrsHttpResponseWriter *w) = 0;
     // When connection is destroy, should use manager to dispose it.
     // The r0 is the original error, we will use the returned new error.
     virtual srs_error_t on_conn_done(srs_error_t r0) = 0;
@@ -60,54 +61,59 @@ public:
 
 // TODO: FIXME: Should rename to roundtrip or responder, not connection.
 // The http connection which request the static or stream content.
-class SrsHttpConn : public ISrsConnection, public ISrsStartable, public ISrsCoroutineHandler
-    , public ISrsExpire
+class SrsHttpConn : public ISrsConnection, public ISrsStartable, public ISrsCoroutineHandler, public ISrsExpire
 {
 protected:
-    SrsHttpParser* parser;
-    ISrsHttpServeMux* http_mux;
-    SrsHttpCorsMux* cors;
-    SrsHttpAuthMux* auth;
-    ISrsHttpConnOwner* handler_;
+    SrsHttpParser *parser;
+    ISrsHttpServeMux *http_mux;
+    SrsHttpCorsMux *cors;
+    SrsHttpAuthMux *auth;
+    ISrsHttpConnOwner *handler_;
+
 protected:
-    ISrsProtocolReadWriter* skt;
+    ISrsProtocolReadWriter *skt;
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
-    SrsCoroutine* trd;
+    SrsCoroutine *trd;
     // The ip and port of client.
     std::string ip;
     int port;
+
 private:
     // The delta for statistic.
-    SrsNetworkDelta* delta_;
+    SrsNetworkDelta *delta_;
     // The create time in milliseconds.
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
+
 public:
-    SrsHttpConn(ISrsHttpConnOwner* handler, ISrsProtocolReadWriter* fd, ISrsHttpServeMux* m, std::string cip, int port);
+    SrsHttpConn(ISrsHttpConnOwner *handler, ISrsProtocolReadWriter *fd, ISrsHttpServeMux *m, std::string cip, int port);
     virtual ~SrsHttpConn();
-// Interface ISrsResource.
+    // Interface ISrsResource.
 public:
     virtual std::string desc();
+
 public:
-    ISrsKbpsDelta* delta();
-// Interface ISrsStartable
+    ISrsKbpsDelta *delta();
+    // Interface ISrsStartable
 public:
     virtual srs_error_t start();
-// Interface ISrsCoroutineHandler
+    // Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
+
 private:
     virtual srs_error_t do_cycle();
-    virtual srs_error_t process_requests(SrsRequest** preq);
-    virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, int rid);
+    virtual srs_error_t process_requests(SrsRequest **preq);
+    virtual srs_error_t process_request(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, int rid);
     // When the connection disconnect, call this method.
     // e.g. log msg of connection and report to other system.
     // @param request: request which is converted by the last http message.
-    virtual srs_error_t on_disconnect(SrsRequest* req);
+    virtual srs_error_t on_disconnect(SrsRequest *req);
+
 public:
     // Get the HTTP message handler.
-    virtual ISrsHttpConnOwner* handler();
+    virtual ISrsHttpConnOwner *handler();
     // Whether the connection coroutine is error or terminated.
     virtual srs_error_t pull();
     // Whether enable the CORS(cross-domain).
@@ -116,11 +122,11 @@ public:
     virtual srs_error_t set_auth_enabled(bool auth_enabled);
     // Whether enable the JSONP.
     virtual srs_error_t set_jsonp(bool v);
-// Interface ISrsConnection.
+    // Interface ISrsConnection.
 public:
     virtual std::string remote_ip();
-    virtual const SrsContextId& get_id();
-// Interface ISrsExpire.
+    virtual const SrsContextId &get_id();
+    // Interface ISrsExpire.
 public:
     virtual void expire();
 };
@@ -130,19 +136,20 @@ class SrsHttpxConn : public ISrsConnection, public ISrsStartable, public ISrsHtt
 {
 private:
     // The manager object to manage the connection.
-    ISrsResourceManager* manager;
-    ISrsProtocolReadWriter* io_;
-    SrsSslConnection* ssl;
-    SrsHttpConn* conn;
+    ISrsResourceManager *manager;
+    ISrsProtocolReadWriter *io_;
+    SrsSslConnection *ssl;
+    SrsHttpConn *conn;
     // We should never enable the stat, unless HTTP stream connection requires.
     bool enable_stat_;
     // ssl key & cert file
     const std::string ssl_key_file_;
     const std::string ssl_cert_file_;
-    
+
 public:
-    SrsHttpxConn(ISrsResourceManager* cm, ISrsProtocolReadWriter* io, ISrsHttpServeMux* m, std::string cip, int port, std::string key, std::string cert);
+    SrsHttpxConn(ISrsResourceManager *cm, ISrsProtocolReadWriter *io, ISrsHttpServeMux *m, std::string cip, int port, std::string key, std::string cert);
     virtual ~SrsHttpxConn();
+
 public:
     // Require statistic about HTTP connection, for HTTP streaming clients only.
     void set_enable_stat(bool v);
@@ -151,49 +158,52 @@ public:
     // serving it, but we need to start a thread to read message to detect whether FD is closed.
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     // @remark Should only used in HTTP-FLV streaming connection.
-    virtual srs_error_t pop_message(ISrsHttpMessage** preq);
-// Interface ISrsHttpConnOwner.
+    virtual srs_error_t pop_message(ISrsHttpMessage **preq);
+    // Interface ISrsHttpConnOwner.
 public:
     virtual srs_error_t on_start();
-    virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
-    virtual srs_error_t on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
+    virtual srs_error_t on_http_message(ISrsHttpMessage *r, SrsHttpResponseWriter *w);
+    virtual srs_error_t on_message_done(ISrsHttpMessage *r, SrsHttpResponseWriter *w);
     virtual srs_error_t on_conn_done(srs_error_t r0);
-// Interface ISrsResource.
+    // Interface ISrsResource.
 public:
     virtual std::string desc();
-// Interface ISrsConnection.
+    // Interface ISrsConnection.
 public:
     virtual std::string remote_ip();
-    virtual const SrsContextId& get_id();
-// Interface ISrsStartable
+    virtual const SrsContextId &get_id();
+    // Interface ISrsStartable
 public:
     virtual srs_error_t start();
+
 public:
-    ISrsKbpsDelta* delta();
+    ISrsKbpsDelta *delta();
 };
 
 // The http server, use http stream or static server to serve requests.
 class SrsHttpServer : public ISrsHttpServeMux
 {
 private:
-    SrsServer* server;
-    SrsHttpStaticServer* http_static;
-    SrsHttpStreamServer* http_stream;
+    SrsServer *server;
+    SrsHttpStaticServer *http_static;
+    SrsHttpStreamServer *http_stream;
+
 public:
-    SrsHttpServer(SrsServer* svr);
+    SrsHttpServer(SrsServer *svr);
     virtual ~SrsHttpServer();
+
 public:
     virtual srs_error_t initialize();
-// Interface ISrsHttpServeMux
+    // Interface ISrsHttpServeMux
 public:
-    virtual srs_error_t handle(std::string pattern, ISrsHttpHandler* handler);
-// Interface ISrsHttpHandler
+    virtual srs_error_t handle(std::string pattern, ISrsHttpHandler *handler);
+    // Interface ISrsHttpHandler
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
 public:
-    virtual srs_error_t http_mount(SrsRequest* r);
-    virtual void http_unmount(SrsRequest* r);
+    virtual srs_error_t http_mount(SrsRequest *r);
+    virtual void http_unmount(SrsRequest *r);
 };
 
 #endif
-

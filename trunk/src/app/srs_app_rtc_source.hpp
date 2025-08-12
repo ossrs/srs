@@ -9,20 +9,18 @@
 
 #include <srs_core.hpp>
 
-#include <vector>
-#include <map>
 #include <inttypes.h>
-#include <vector>
-#include <string>
 #include <map>
+#include <string>
+#include <vector>
 
-#include <srs_app_rtc_sdp.hpp>
-#include <srs_protocol_st.hpp>
-#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_app_hourglass.hpp>
-#include <srs_protocol_format.hpp>
+#include <srs_app_rtc_sdp.hpp>
 #include <srs_app_stream_bridge.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
+#include <srs_protocol_format.hpp>
+#include <srs_protocol_st.hpp>
 
 class SrsRequest;
 class SrsMetaCache;
@@ -46,7 +44,7 @@ class SrsLiveSource;
 class SrsRtpVideoBuilder;
 
 // Firefox defaults as 109, Chrome is 111.
-const int kAudioPayloadType     = 111;
+const int kAudioPayloadType = 111;
 // Firefox defaults as 126, Chrome is 102.
 const int kVideoPayloadType = 102;
 // Chrome HEVC defaults as 49.
@@ -66,12 +64,15 @@ public:
     uint64_t ntp_;
     uint32_t ntp_second_;
     uint32_t ntp_fractions_;
+
 public:
     SrsNtp();
     virtual ~SrsNtp();
+
 public:
     static SrsNtp from_time_ms(uint64_t ms);
     static SrsNtp to_time_ms(uint64_t ntp);
+
 public:
     static uint64_t kMagicNtpFractionalUnit;
 };
@@ -82,8 +83,9 @@ class ISrsRtcSourceChangeCallback
 public:
     ISrsRtcSourceChangeCallback();
     virtual ~ISrsRtcSourceChangeCallback();
+
 public:
-    virtual void on_stream_change(SrsRtcSourceDescription* desc) = 0;
+    virtual void on_stream_change(SrsRtcSourceDescription *desc) = 0;
 };
 
 // The RTC stream consumer, consume packets from RTC stream source.
@@ -91,63 +93,72 @@ class SrsRtcConsumer
 {
 private:
     // Because source references to this object, so we should directly use the source ptr.
-    SrsRtcSource* source_;
+    SrsRtcSource *source_;
+
 private:
-    std::vector<SrsRtpPacket*> queue;
+    std::vector<SrsRtpPacket *> queue;
     // when source id changed, notice all consumers
     bool should_update_source_id;
     // The cond wait for mw.
     srs_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
+
 private:
     // The callback for stream change event.
-    ISrsRtcSourceChangeCallback* handler_;
+    ISrsRtcSourceChangeCallback *handler_;
+
 public:
-    SrsRtcConsumer(SrsRtcSource* s);
+    SrsRtcConsumer(SrsRtcSource *s);
     virtual ~SrsRtcConsumer();
+
 public:
     // When source id changed, notice client to print.
     virtual void update_source_id();
     // Put RTP packet into queue.
     // @note We do not drop packet here, but drop it in sender.
-    srs_error_t enqueue(SrsRtpPacket* pkt);
+    srs_error_t enqueue(SrsRtpPacket *pkt);
     // For RTC, we only got one packet, because there is not many packets in queue.
-    virtual srs_error_t dump_packet(SrsRtpPacket** ppkt);
+    virtual srs_error_t dump_packet(SrsRtpPacket **ppkt);
     // Wait for at-least some messages incoming in queue.
     virtual void wait(int nb_msgs);
+
 public:
-    void set_handler(ISrsRtcSourceChangeCallback* h) { handler_ = h; } // SrsRtcConsumer::set_handler()
-    void on_stream_change(SrsRtcSourceDescription* desc);
+    void set_handler(ISrsRtcSourceChangeCallback *h) { handler_ = h; } // SrsRtcConsumer::set_handler()
+    void on_stream_change(SrsRtcSourceDescription *desc);
 };
 
 class SrsRtcSourceManager : public ISrsHourGlass
 {
 private:
     srs_mutex_t lock;
-    std::map< std::string, SrsSharedPtr<SrsRtcSource> > pool;
-    SrsHourGlass* timer_;
+    std::map<std::string, SrsSharedPtr<SrsRtcSource> > pool;
+    SrsHourGlass *timer_;
+
 public:
     SrsRtcSourceManager();
     virtual ~SrsRtcSourceManager();
+
 public:
     virtual srs_error_t initialize();
-// interface ISrsHourGlass
+    // interface ISrsHourGlass
 private:
     virtual srs_error_t setup_ticks();
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
+
 public:
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsRtcSource>& pps);
+    virtual srs_error_t fetch_or_create(SrsRequest *r, SrsSharedPtr<SrsRtcSource> &pps);
+
 public:
     // Get the exists source, NULL when not exists.
-    virtual SrsSharedPtr<SrsRtcSource> fetch(SrsRequest* r);
+    virtual SrsSharedPtr<SrsRtcSource> fetch(SrsRequest *r);
 };
 
 // Global singleton instance.
-extern SrsRtcSourceManager* _srs_rtc_sources;
+extern SrsRtcSourceManager *_srs_rtc_sources;
 
 // A publish stream interface, for source to callback with.
 class ISrsRtcPublishStream
@@ -155,11 +166,12 @@ class ISrsRtcPublishStream
 public:
     ISrsRtcPublishStream();
     virtual ~ISrsRtcPublishStream();
+
 public:
     // Request keyframe(PLI) from publisher, for fresh consumer.
     virtual void request_keyframe(uint32_t ssrc, SrsContextId cid) = 0;
     // Get context id.
-    virtual const SrsContextId& context_id() = 0;
+    virtual const SrsContextId &context_id() = 0;
 };
 
 class ISrsRtcSourceEventHandler
@@ -167,6 +179,7 @@ class ISrsRtcSourceEventHandler
 public:
     ISrsRtcSourceEventHandler();
     virtual ~ISrsRtcSourceEventHandler();
+
 public:
     // stream unpublish, sync API.
     virtual void on_unpublish() = 0;
@@ -185,65 +198,78 @@ private:
     SrsContextId _source_id;
     // previous source id.
     SrsContextId _pre_source_id;
-    SrsRequest* req;
-    ISrsRtcPublishStream* publish_stream_;
+    SrsRequest *req;
+    ISrsRtcPublishStream *publish_stream_;
     // Steam description for this steam.
-    SrsRtcSourceDescription* stream_desc_;
+    SrsRtcSourceDescription *stream_desc_;
+
 private:
 #ifdef SRS_FFMPEG_FIT
     // Collect and build WebRTC RTP packets to AV frames.
-    SrsRtcFrameBuilder* frame_builder_;
+    SrsRtcFrameBuilder *frame_builder_;
 #endif
     // The Source bridge, bridge stream to other source.
-    ISrsStreamBridge* bridge_;
+    ISrsStreamBridge *bridge_;
+
 private:
     // To delivery stream to clients.
-    std::vector<SrsRtcConsumer*> consumers;
+    std::vector<SrsRtcConsumer *> consumers;
     // Whether stream is created, that is, SDP is done.
     bool is_created_;
     // Whether stream is delivering data, that is, DTLS is done.
     bool is_delivering_packets_;
     // Notify stream event to event handler
-    std::vector<ISrsRtcSourceEventHandler*> event_handlers_;
+    std::vector<ISrsRtcSourceEventHandler *> event_handlers_;
+
 private:
     // The PLI for RTC2RTMP.
     srs_utime_t pli_for_rtmp_;
     srs_utime_t pli_elapsed_;
+
 private:
     // The last die time, while die means neither publishers nor players.
     srs_utime_t stream_die_at_;
+
 public:
     SrsRtcSource();
     virtual ~SrsRtcSource();
+
 public:
-    virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t initialize(SrsRequest *r);
+
 public:
     // Whether stream is dead, which is no publisher or player.
     virtual bool stream_is_dead();
+
 private:
     void init_for_play_before_publishing();
+
 public:
     // Update the authentication information in request.
-    virtual void update_auth(SrsRequest* r);
+    virtual void update_auth(SrsRequest *r);
+
 private:
     // The stream source changed.
     virtual srs_error_t on_source_changed();
+
 public:
     // Get current source id.
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
+
 public:
-    void set_bridge(ISrsStreamBridge* bridge);
+    void set_bridge(ISrsStreamBridge *bridge);
+
 public:
     // Create consumer
     // @param consumer, output the create consumer.
-    virtual srs_error_t create_consumer(SrsRtcConsumer*& consumer);
+    virtual srs_error_t create_consumer(SrsRtcConsumer *&consumer);
     // Dumps packets in cache to consumer.
     // @param ds, whether dumps the sequence header.
     // @param dm, whether dumps the metadata.
     // @param dg, whether dumps the gop cache.
-    virtual srs_error_t consumer_dumps(SrsRtcConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
-    virtual void on_consumer_destroy(SrsRtcConsumer* consumer);
+    virtual srs_error_t consumer_dumps(SrsRtcConsumer *consumer, bool ds = true, bool dm = true, bool dg = true);
+    virtual void on_consumer_destroy(SrsRtcConsumer *consumer);
     // Whether we can publish stream to the source, return false if it exists.
     // @remark Note that when SDP is done, we set the stream is not able to publish.
     virtual bool can_publish();
@@ -253,21 +279,23 @@ public:
     virtual srs_error_t on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
+
 public:
     // For event handler
-    void subscribe(ISrsRtcSourceEventHandler* h);
-    void unsubscribe(ISrsRtcSourceEventHandler* h);
+    void subscribe(ISrsRtcSourceEventHandler *h);
+    void unsubscribe(ISrsRtcSourceEventHandler *h);
+
 public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
-    ISrsRtcPublishStream* publish_stream();
-    void set_publish_stream(ISrsRtcPublishStream* v);
+    ISrsRtcPublishStream *publish_stream();
+    void set_publish_stream(ISrsRtcPublishStream *v);
     // Consume the shared RTP packet, user must free it.
-    srs_error_t on_rtp(SrsRtpPacket* pkt);
+    srs_error_t on_rtp(SrsRtpPacket *pkt);
     // Set and get stream description for source
     bool has_stream_desc();
-    void set_stream_desc(SrsRtcSourceDescription* stream_desc);
-    std::vector<SrsRtcTrackDescription*> get_track_desc(std::string type, std::string media_type);
-// interface ISrsFastTimer
+    void set_stream_desc(SrsRtcSourceDescription *stream_desc);
+    std::vector<SrsRtcTrackDescription *> get_track_desc(std::string type, std::string media_type);
+    // interface ISrsFastTimer
 private:
     srs_error_t on_timer(srs_utime_t interval);
 };
@@ -278,56 +306,66 @@ private:
 class SrsRtcRtpBuilder
 {
 private:
-    SrsRequest* req;
-    SrsFrameToRtcBridge* bridge_;
+    SrsRequest *req;
+    SrsFrameToRtcBridge *bridge_;
     // The format, codec information.
-    SrsRtmpFormat* format;
+    SrsRtmpFormat *format;
     // The metadata cache.
-    SrsMetaCache* meta;
+    SrsMetaCache *meta;
     // The video builder, convert frame to RTP packets.
-    SrsRtpVideoBuilder* video_builder_;
+    SrsRtpVideoBuilder *video_builder_;
+
 private:
     SrsAudioCodecId latest_codec_;
-    SrsAudioTranscoder* codec_;
+    SrsAudioTranscoder *codec_;
     bool keep_bframe;
     bool keep_avc_nalu_sei;
     bool merge_nalus;
     uint16_t audio_sequence;
+
 private:
     uint32_t audio_ssrc_;
     uint8_t audio_payload_type_;
+
 private:
     SrsSharedPtr<SrsRtcSource> source_;
     // Lazy initialization flags
     bool audio_initialized_;
     bool video_initialized_;
+
 public:
-    SrsRtcRtpBuilder(SrsFrameToRtcBridge* bridge, SrsSharedPtr<SrsRtcSource> source);
+    SrsRtcRtpBuilder(SrsFrameToRtcBridge *bridge, SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsRtcRtpBuilder();
+
 private:
     // Lazy initialization methods
     srs_error_t initialize_audio_track(SrsAudioCodecId codec);
     srs_error_t initialize_video_track(SrsVideoCodecId codec);
+
 public:
-    virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t initialize(SrsRequest *r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame);
+    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
+
 private:
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
+    virtual srs_error_t on_audio(SrsSharedPtrMessage *msg);
+
 private:
     srs_error_t init_codec(SrsAudioCodecId codec);
-    srs_error_t transcode(SrsAudioFrame* audio);
-    srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt);
+    srs_error_t transcode(SrsAudioFrame *audio);
+    srs_error_t package_opus(SrsAudioFrame *audio, SrsRtpPacket *pkt);
+
 private:
-    virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
+    virtual srs_error_t on_video(SrsSharedPtrMessage *msg);
+
 private:
-    srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, std::vector<SrsSample*>& samples);
-    srs_error_t package_stap_a(SrsSharedPtrMessage* msg, SrsRtpPacket* pkt);
-    srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacket*>& pkts);
-    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket*>& pkts);
-    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket*>& pkts);
-    srs_error_t consume_packets(std::vector<SrsRtpPacket*>& pkts);
+    srs_error_t filter(SrsSharedPtrMessage *msg, SrsFormat *format, bool &has_idr, std::vector<SrsSample *> &samples);
+    srs_error_t package_stap_a(SrsSharedPtrMessage *msg, SrsRtpPacket *pkt);
+    srs_error_t package_nalus(SrsSharedPtrMessage *msg, const std::vector<SrsSample *> &samples, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t package_single_nalu(SrsSharedPtrMessage *msg, SrsSample *sample, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t package_fu_a(SrsSharedPtrMessage *msg, SrsSample *sample, int fu_payload_size, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t consume_packets(std::vector<SrsRtpPacket *> &pkts);
 };
 
 // Video packet cache for RTP packet management
@@ -341,27 +379,32 @@ private:
         uint16_t sn;
         uint32_t ts;
         uint32_t rtp_ts;
-        SrsRtpPacket* pkt;
+        SrsRtpPacket *pkt;
     };
     RtcPacketCache cache_pkts_[cache_size_];
+
 public:
     SrsRtcFrameBuilderVideoPacketCache();
     virtual ~SrsRtcFrameBuilderVideoPacketCache();
+
 public:
-    SrsRtpPacket* get_packet(uint16_t sequence_number);
-    void store_packet(SrsRtpPacket* pkt);
+    SrsRtpPacket *get_packet(uint16_t sequence_number);
+    void store_packet(SrsRtpPacket *pkt);
     void clear_all();
-    SrsRtpPacket* take_packet(uint16_t sequence_number);
+    SrsRtpPacket *take_packet(uint16_t sequence_number);
+
 public:
     // Find next lost sequence number starting from current_sn
     // Returns: lost_sn if found, -1 if complete frame found (sets end_sn), -2 if cache overflow
-    int32_t find_next_lost_sn(uint16_t current_sn, uint16_t header_sn, uint16_t& end_sn);
+    int32_t find_next_lost_sn(uint16_t current_sn, uint16_t header_sn, uint16_t &end_sn);
     // Check if frame is complete by verifying FU-A start/end fragment counts match
     bool check_frame_complete(const uint16_t start, const uint16_t end);
+
 private:
     bool is_slot_in_use(uint16_t sequence_number);
     uint32_t get_rtp_timestamp(uint16_t sequence_number);
-    inline uint16_t cache_index(uint16_t sequence_number) {
+    inline uint16_t cache_index(uint16_t sequence_number)
+    {
         return sequence_number % cache_size_;
     }
 };
@@ -370,17 +413,19 @@ private:
 class SrsRtcFrameBuilderVideoFrameDetector
 {
 private:
-    SrsRtcFrameBuilderVideoPacketCache* video_cache_;
+    SrsRtcFrameBuilderVideoPacketCache *video_cache_;
     uint16_t header_sn_;
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
+
 public:
-    SrsRtcFrameBuilderVideoFrameDetector(SrsRtcFrameBuilderVideoPacketCache* cache);
+    SrsRtcFrameBuilderVideoFrameDetector(SrsRtcFrameBuilderVideoPacketCache *cache);
     virtual ~SrsRtcFrameBuilderVideoFrameDetector();
+
 public:
-    void on_keyframe_start(SrsRtpPacket* pkt);
-    srs_error_t detect_frame(uint16_t received, uint16_t& frame_start, uint16_t& frame_end, bool& frame_ready);
-    srs_error_t detect_next_frame(uint16_t next_head, uint16_t& next_start, uint16_t& next_end, bool& next_ready);
+    void on_keyframe_start(SrsRtpPacket *pkt);
+    srs_error_t detect_frame(uint16_t received, uint16_t &frame_start, uint16_t &frame_end, bool &frame_ready);
+    srs_error_t detect_next_frame(uint16_t next_head, uint16_t &next_start, uint16_t &next_end, bool &next_ready);
     void on_keyframe_detached();
     bool is_lost_sn(uint16_t received);
 };
@@ -390,7 +435,7 @@ class SrsRtcFrameBuilderAudioPacketCache
 {
 private:
     // Audio jitter buffer, map sequence number to packet
-    std::map<uint16_t, SrsRtpPacket*> audio_buffer_;
+    std::map<uint16_t, SrsRtpPacket *> audio_buffer_;
     // Last processed sequence number
     uint16_t last_audio_seq_num_;
     // Last time we processed the jitter buffer
@@ -399,15 +444,17 @@ private:
     bool initialized_;
     // Timeout for waiting out-of-order packets (in microseconds)
     srs_utime_t timeout_;
+
 public:
     SrsRtcFrameBuilderAudioPacketCache();
     virtual ~SrsRtcFrameBuilderAudioPacketCache();
+
 public:
     // Set timeout for waiting out-of-order packets (in microseconds)
     void set_timeout(srs_utime_t timeout);
     // Process audio packet through jitter buffer
     // Returns packets ready for transcoding in order
-    srs_error_t process_packet(SrsRtpPacket* src, std::vector<SrsRtpPacket*>& ready_packets);
+    srs_error_t process_packet(SrsRtpPacket *src, std::vector<SrsRtpPacket *> &ready_packets);
     // Clear all cached packets
     void clear_all();
 };
@@ -416,46 +463,55 @@ public:
 class SrsRtcFrameBuilder
 {
 private:
-    ISrsStreamBridge* bridge_;
+    ISrsStreamBridge *bridge_;
+
 private:
     bool is_first_audio_;
     SrsAudioTranscoder *audio_transcoder_;
     SrsVideoCodecId video_codec_;
+
 private:
-    SrsRtcFrameBuilderAudioPacketCache* audio_cache_;
-    SrsRtcFrameBuilderVideoPacketCache* video_cache_;
-    SrsRtcFrameBuilderVideoFrameDetector* frame_detector_;
+    SrsRtcFrameBuilderAudioPacketCache *audio_cache_;
+    SrsRtcFrameBuilderVideoPacketCache *video_cache_;
+    SrsRtcFrameBuilderVideoFrameDetector *frame_detector_;
+
 private:
     // The state for timestamp sync state. -1 for init. 0 not sync. 1 sync.
     int sync_state_;
+
 private:
     // For OBS WHIP, send (VPS/)SPS/PPS in dedicated RTP packet.
-    SrsRtpPacket* obs_whip_vps_;
-    SrsRtpPacket* obs_whip_sps_;
-    SrsRtpPacket* obs_whip_pps_;
+    SrsRtpPacket *obs_whip_vps_;
+    SrsRtpPacket *obs_whip_sps_;
+    SrsRtpPacket *obs_whip_pps_;
+
 public:
-    SrsRtcFrameBuilder(ISrsStreamBridge* bridge);
+    SrsRtcFrameBuilder(ISrsStreamBridge *bridge);
     virtual ~SrsRtcFrameBuilder();
+
 public:
-    srs_error_t initialize(SrsRequest* r, SrsAudioCodecId audio_codec, SrsVideoCodecId video_codec);
+    srs_error_t initialize(SrsRequest *r, SrsAudioCodecId audio_codec, SrsVideoCodecId video_codec);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
     virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
+
 private:
-    srs_error_t packet_audio(SrsRtpPacket* pkt);
+    srs_error_t packet_audio(SrsRtpPacket *pkt);
     srs_error_t transcode_audio(SrsRtpPacket *pkt);
-    void packet_aac(SrsCommonMessage* audio, char* data, int len, uint32_t pts, bool is_header);
+    void packet_aac(SrsCommonMessage *audio, char *data, int len, uint32_t pts, bool is_header);
+
 private:
-    srs_error_t packet_video(SrsRtpPacket* pkt);
-    srs_error_t packet_video_key_frame(SrsRtpPacket* pkt);
-    srs_error_t packet_sequence_header_avc(SrsRtpPacket* pkt);
-    srs_error_t do_packet_sequence_header_avc(SrsRtpPacket* pkt, SrsSample* sps, SrsSample* pps);
-    srs_error_t packet_sequence_header_hevc(SrsRtpPacket* pkt);
-    srs_error_t do_packet_sequence_header_hevc(SrsRtpPacket* pkt, SrsSample* vps, SrsSample* sps, SrsSample* pps);
+    srs_error_t packet_video(SrsRtpPacket *pkt);
+    srs_error_t packet_video_key_frame(SrsRtpPacket *pkt);
+    srs_error_t packet_sequence_header_avc(SrsRtpPacket *pkt);
+    srs_error_t do_packet_sequence_header_avc(SrsRtpPacket *pkt, SrsSample *sps, SrsSample *pps);
+    srs_error_t packet_sequence_header_hevc(SrsRtpPacket *pkt);
+    srs_error_t do_packet_sequence_header_hevc(SrsRtpPacket *pkt, SrsSample *vps, SrsSample *sps, SrsSample *pps);
+
 private:
     srs_error_t packet_video_rtmp(const uint16_t start, const uint16_t end);
-    int calculate_packet_payload_size(SrsRtpPacket* pkt);
-    void write_packet_payload_to_buffer(SrsRtpPacket* pkt, SrsBuffer& payload, int& nalu_len);
+    int calculate_packet_payload_size(SrsRtpPacket *pkt);
+    void write_packet_payload_to_buffer(SrsRtpPacket *pkt, SrsBuffer &payload, int &nalu_len);
 };
 
 #endif
@@ -473,6 +529,7 @@ public:
     int sample_;
 
     std::vector<std::string> rtcp_fbs_;
+
 private:
     // The cached codec ID, corresponding to name_.
     // For video, you can convert it to type SrsVideoCodecId
@@ -480,15 +537,17 @@ private:
     // Note: Set up to -1, which means not initialized/cached yet
     // Note: Won't copy codec_, it will be recalculated when codec(bool) is called
     int8_t codec_;
+
 public:
     SrsCodecPayload();
     SrsCodecPayload(uint8_t pt, std::string encode_name, int sample);
     virtual ~SrsCodecPayload();
+
 public:
     // Get codec ID with context information about whether it's video or audio
     // Returns the numeric codec ID, with caching for performance
     int8_t codec(bool video);
-    virtual SrsCodecPayload* copy();
+    virtual SrsCodecPayload *copy();
     virtual SrsMediaPayloadType generate_media_payload_type();
 };
 
@@ -503,10 +562,12 @@ public:
     SrsVideoPayload();
     SrsVideoPayload(uint8_t pt, std::string encode_name, int sample);
     virtual ~SrsVideoPayload();
+
 public:
-    virtual SrsVideoPayload* copy();
+    virtual SrsVideoPayload *copy();
     virtual SrsMediaPayloadType generate_media_payload_type();
     virtual SrsMediaPayloadType generate_media_payload_type_h265();
+
 public:
     srs_error_t set_h264_param_desc(std::string fmtp);
     srs_error_t set_h265_param_desc(std::string fmtp);
@@ -515,14 +576,14 @@ public:
 // TODO: FIXME: Rename it.
 class SrsAudioPayload : public SrsCodecPayload
 {
-    struct SrsOpusParameter
-    {
+    struct SrsOpusParameter {
         int minptime;
         bool use_inband_fec;
         bool stereo;
         bool usedtx;
 
-        SrsOpusParameter() {
+        SrsOpusParameter()
+        {
             minptime = 0;
             use_inband_fec = false;
             stereo = false;
@@ -535,13 +596,16 @@ public:
     SrsOpusParameter opus_param_;
     // AAC configuration hex string for SDP fmtp line
     std::string aac_config_hex_;
+
 public:
     SrsAudioPayload();
     SrsAudioPayload(uint8_t pt, std::string encode_name, int sample, int channel);
     virtual ~SrsAudioPayload();
+
 public:
-    virtual SrsAudioPayload* copy();
+    virtual SrsAudioPayload *copy();
     virtual SrsMediaPayloadType generate_media_payload_type();
+
 public:
     srs_error_t set_opus_param_desc(std::string fmtp);
 };
@@ -551,12 +615,14 @@ class SrsRedPayload : public SrsCodecPayload
 {
 public:
     int channel_;
+
 public:
     SrsRedPayload();
     SrsRedPayload(uint8_t pt, std::string encode_name, int sample, int channel);
     virtual ~SrsRedPayload();
+
 public:
-    virtual SrsRedPayload* copy();
+    virtual SrsRedPayload *copy();
     virtual SrsMediaPayloadType generate_media_payload_type();
 };
 
@@ -564,13 +630,14 @@ class SrsRtxPayloadDes : public SrsCodecPayload
 {
 public:
     uint8_t apt_;
+
 public:
     SrsRtxPayloadDes();
     SrsRtxPayloadDes(uint8_t pt, uint8_t apt);
     virtual ~SrsRtxPayloadDes();
 
 public:
-    virtual SrsRtxPayloadDes* copy();
+    virtual SrsRtxPayloadDes *copy();
     virtual SrsMediaPayloadType generate_media_payload_type();
 };
 
@@ -602,31 +669,35 @@ public:
     std::string msid_;
 
     // meida payload, such as opus, h264.
-    SrsCodecPayload* media_;
-    SrsCodecPayload* red_;
-    SrsCodecPayload* rtx_;
-    SrsCodecPayload* ulpfec_;
+    SrsCodecPayload *media_;
+    SrsCodecPayload *red_;
+    SrsCodecPayload *rtx_;
+    SrsCodecPayload *ulpfec_;
+
 public:
     SrsRtcTrackDescription();
     virtual ~SrsRtcTrackDescription();
+
 public:
     // whether or not the track has ssrc.
     // for example:
     //    we need check track has the ssrc in the ssrc_group, then add ssrc_group to the track,
     bool has_ssrc(uint32_t ssrc);
+
 public:
     void add_rtp_extension_desc(int id, std::string uri);
     void del_rtp_extension_desc(std::string uri);
     void set_direction(std::string direction);
-    void set_codec_payload(SrsCodecPayload* payload);
+    void set_codec_payload(SrsCodecPayload *payload);
     // auxiliary paylod include red, rtx, ulpfec.
     void create_auxiliary_payload(const std::vector<SrsMediaPayloadType> payload_types);
     void set_rtx_ssrc(uint32_t ssrc);
     void set_fec_ssrc(uint32_t ssrc);
     void set_mid(std::string mid);
     int get_rtp_extension_id(std::string uri);
+
 public:
-    SrsRtcTrackDescription* copy();
+    SrsRtcTrackDescription *copy();
 };
 
 class SrsRtcSourceDescription
@@ -635,28 +706,32 @@ public:
     // the id for this stream;
     std::string id_;
 
-    SrsRtcTrackDescription* audio_track_desc_;
-    std::vector<SrsRtcTrackDescription*> video_track_descs_;
+    SrsRtcTrackDescription *audio_track_desc_;
+    std::vector<SrsRtcTrackDescription *> video_track_descs_;
+
 public:
     SrsRtcSourceDescription();
     virtual ~SrsRtcSourceDescription();
 
 public:
-    SrsRtcSourceDescription* copy();
-    SrsRtcTrackDescription* find_track_description_by_ssrc(uint32_t ssrc);
+    SrsRtcSourceDescription *copy();
+    SrsRtcTrackDescription *find_track_description_by_ssrc(uint32_t ssrc);
 };
 
 class SrsRtcRecvTrack
 {
 protected:
-    SrsRtcTrackDescription* track_desc_;
+    SrsRtcTrackDescription *track_desc_;
+
 protected:
-    SrsRtcConnection* session_;
-    SrsRtpRingBuffer* rtp_queue_;
-    SrsRtpNackForReceiver* nack_receiver_;
+    SrsRtcConnection *session_;
+    SrsRtpRingBuffer *rtp_queue_;
+    SrsRtpNackForReceiver *nack_receiver_;
+
 private:
     // By config, whether no copy.
     bool nack_no_copy_;
+
 protected:
     // Latest sender report ntp and rtp time.
     SrsNtp last_sender_report_ntp_;
@@ -668,65 +743,75 @@ protected:
 
     double rate_;
     uint64_t last_sender_report_sys_time_;
+
 public:
-    SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs, bool is_audio);
+    SrsRtcRecvTrack(SrsRtcConnection *session, SrsRtcTrackDescription *stream_descs, bool is_audio);
     virtual ~SrsRtcRecvTrack();
+
 public:
     // SrsRtcSendTrack::set_nack_no_copy
     void set_nack_no_copy(bool v) { nack_no_copy_ = v; }
     bool has_ssrc(uint32_t ssrc);
     uint32_t get_ssrc();
     void update_rtt(int rtt);
-    void update_send_report_time(const SrsNtp& ntp, uint32_t rtp_time);
+    void update_send_report_time(const SrsNtp &ntp, uint32_t rtp_time);
     int64_t cal_avsync_time(uint32_t rtp_time);
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
+
 public:
     // Note that we can set the pkt to NULL to avoid copy, for example, if the NACK cache the pkt and
     // set to NULL, nack nerver copy it but set the pkt to NULL.
-    srs_error_t on_nack(SrsRtpPacket** ppkt);
+    srs_error_t on_nack(SrsRtpPacket **ppkt);
+
 public:
-    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt) = 0;
+    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource> &source, SrsRtpPacket *pkt) = 0;
     virtual srs_error_t check_send_nacks() = 0;
+
 protected:
-    virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
+    virtual srs_error_t do_check_send_nacks(uint32_t &timeout_nacks);
 };
 
 class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
-    SrsRtcAudioRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
+    SrsRtcAudioRecvTrack(SrsRtcConnection *session, SrsRtcTrackDescription *track_desc);
     virtual ~SrsRtcAudioRecvTrack();
+
 public:
-    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt);
+    virtual void on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer *buf, ISrsRtpPayloader **ppayload, SrsRtpPacketPayloadType *ppt);
+
 public:
-    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt);
+    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource> &source, SrsRtpPacket *pkt);
     virtual srs_error_t check_send_nacks();
 };
 
 class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
-    SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs);
+    SrsRtcVideoRecvTrack(SrsRtcConnection *session, SrsRtcTrackDescription *stream_descs);
     virtual ~SrsRtcVideoRecvTrack();
+
 public:
-    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt);
+    virtual void on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer *buf, ISrsRtpPayloader **ppayload, SrsRtpPacketPayloadType *ppt);
+
 public:
-    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource>& source, SrsRtpPacket* pkt);
+    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource> &source, SrsRtpPacket *pkt);
     virtual srs_error_t check_send_nacks();
 };
 
 // RTC jitter for TS or sequence number, only reset the base, and keep in original order.
-template<typename T, typename ST>
+template <typename T, typename ST>
 class SrsRtcJitter
 {
 private:
     ST threshold_;
-    typedef ST (*PFN) (const T&, const T&);
+    typedef ST (*PFN)(const T &, const T &);
     PFN distance_;
+
 private:
     // The value about packet.
     T pkt_base_;
@@ -738,8 +823,10 @@ private:
     T base_;
     // Whether initialized. Note that we should not use correct_base_(0) as init state, because it might flip back.
     bool init_;
+
 public:
-    SrsRtcJitter(T base, ST threshold, PFN distance) {
+    SrsRtcJitter(T base, ST threshold, PFN distance)
+    {
         threshold_ = threshold;
         distance_ = distance;
         base_ = base;
@@ -748,10 +835,13 @@ public:
         correct_last_ = correct_base_ = 0;
         init_ = false;
     }
-    virtual ~SrsRtcJitter() {
+    virtual ~SrsRtcJitter()
+    {
     }
+
 public:
-    T correct(T value) {
+    T correct(T value)
+    {
         if (!init_) {
             init_ = true;
             correct_base_ = base_;
@@ -763,7 +853,7 @@ public:
             ST distance = distance_(value, pkt_last_);
             if (distance > threshold_ || distance < -1 * threshold_) {
                 srs_trace("RTC: Jitter rebase value=%u, last=%u, distance=%d, pkt-base=%u/%u, correct-base=%u/%u",
-                    value, pkt_last_, distance, pkt_base_, value, correct_base_, correct_last_);
+                          value, pkt_last_, distance, pkt_base_, value, correct_base_, correct_last_);
                 pkt_base_ = value;
                 correct_base_ = correct_last_;
             }
@@ -780,10 +870,12 @@ public:
 class SrsRtcTsJitter
 {
 private:
-    SrsRtcJitter<uint32_t, int32_t>* jitter_;
+    SrsRtcJitter<uint32_t, int32_t> *jitter_;
+
 public:
     SrsRtcTsJitter(uint32_t base);
     virtual ~SrsRtcTsJitter();
+
 public:
     uint32_t correct(uint32_t value);
 };
@@ -792,10 +884,12 @@ public:
 class SrsRtcSeqJitter
 {
 private:
-    SrsRtcJitter<uint16_t, int16_t>* jitter_;
+    SrsRtcJitter<uint16_t, int16_t> *jitter_;
+
 public:
     SrsRtcSeqJitter(uint16_t base);
     virtual ~SrsRtcSeqJitter();
+
 public:
     uint16_t correct(uint16_t value);
 };
@@ -804,77 +898,89 @@ class SrsRtcSendTrack
 {
 public:
     // send track description
-    SrsRtcTrackDescription* track_desc_;
+    SrsRtcTrackDescription *track_desc_;
+
 protected:
     // The owner connection for this track.
-    SrsRtcConnection* session_;
+    SrsRtcConnection *session_;
     // NACK ARQ ring buffer.
-    SrsRtpRingBuffer* rtp_queue_;
+    SrsRtpRingBuffer *rtp_queue_;
+
 protected:
     // The jitter to correct ts and sequence number.
-    SrsRtcTsJitter* jitter_ts_;
-    SrsRtcSeqJitter* jitter_seq_;
+    SrsRtcTsJitter *jitter_ts_;
+    SrsRtcSeqJitter *jitter_seq_;
+
 private:
     // By config, whether no copy.
     bool nack_no_copy_;
     // The pithy print for special stage.
-    SrsErrorPithyPrint* nack_epp;
+    SrsErrorPithyPrint *nack_epp;
+
 public:
-    SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio);
+    SrsRtcSendTrack(SrsRtcConnection *session, SrsRtcTrackDescription *track_desc, bool is_audio);
     virtual ~SrsRtcSendTrack();
+
 public:
     // SrsRtcSendTrack::set_nack_no_copy
     void set_nack_no_copy(bool v) { nack_no_copy_ = v; }
     bool has_ssrc(uint32_t ssrc);
-    SrsRtpPacket* fetch_rtp_packet(uint16_t seq);
+    SrsRtpPacket *fetch_rtp_packet(uint16_t seq);
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
+
 protected:
-    void rebuild_packet(SrsRtpPacket* pkt);
+    void rebuild_packet(SrsRtpPacket *pkt);
+
 public:
     // Note that we can set the pkt to NULL to avoid copy, for example, if the NACK cache the pkt and
     // set to NULL, nack nerver copy it but set the pkt to NULL.
-    srs_error_t on_nack(SrsRtpPacket** ppkt);
+    srs_error_t on_nack(SrsRtpPacket **ppkt);
+
 public:
-    virtual srs_error_t on_rtp(SrsRtpPacket* pkt) = 0;
-    virtual srs_error_t on_rtcp(SrsRtpPacket* pkt) = 0;
-    virtual srs_error_t on_recv_nack(const std::vector<uint16_t>& lost_seqs);
+    virtual srs_error_t on_rtp(SrsRtpPacket *pkt) = 0;
+    virtual srs_error_t on_rtcp(SrsRtpPacket *pkt) = 0;
+    virtual srs_error_t on_recv_nack(const std::vector<uint16_t> &lost_seqs);
 };
 
 class SrsRtcAudioSendTrack : public SrsRtcSendTrack
 {
 public:
-    SrsRtcAudioSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
+    SrsRtcAudioSendTrack(SrsRtcConnection *session, SrsRtcTrackDescription *track_desc);
     virtual ~SrsRtcAudioSendTrack();
+
 public:
-    virtual srs_error_t on_rtp(SrsRtpPacket* pkt);
-    virtual srs_error_t on_rtcp(SrsRtpPacket* pkt);
+    virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
+    virtual srs_error_t on_rtcp(SrsRtpPacket *pkt);
 };
 
 class SrsRtcVideoSendTrack : public SrsRtcSendTrack
 {
 public:
-    SrsRtcVideoSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
+    SrsRtcVideoSendTrack(SrsRtcConnection *session, SrsRtcTrackDescription *track_desc);
     virtual ~SrsRtcVideoSendTrack();
+
 public:
-    virtual srs_error_t on_rtp(SrsRtpPacket* pkt);
-    virtual srs_error_t on_rtcp(SrsRtpPacket* pkt);
+    virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
+    virtual srs_error_t on_rtcp(SrsRtpPacket *pkt);
 };
 
 class SrsRtcSSRCGenerator
 {
 private:
-    static SrsRtcSSRCGenerator* _instance;
+    static SrsRtcSSRCGenerator *_instance;
+
 private:
     uint32_t ssrc_num;
+
 private:
     SrsRtcSSRCGenerator();
     virtual ~SrsRtcSSRCGenerator();
+
 public:
-    static SrsRtcSSRCGenerator* instance();
+    static SrsRtcSSRCGenerator *instance();
     uint32_t generate_ssrc();
 };
 
 #endif
-

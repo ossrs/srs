@@ -6,8 +6,8 @@
 
 #include <srs_kernel_kbps.hpp>
 
-#include <srs_kernel_utility.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_utility.hpp>
 
 SrsRateSample::SrsRateSample()
 {
@@ -19,7 +19,7 @@ SrsRateSample::~SrsRateSample()
 {
 }
 
-SrsRateSample* SrsRateSample::update(int64_t nn, srs_utime_t t, int k)
+SrsRateSample *SrsRateSample::update(int64_t nn, srs_utime_t t, int k)
 {
     total = nn;
     time = t;
@@ -27,14 +27,14 @@ SrsRateSample* SrsRateSample::update(int64_t nn, srs_utime_t t, int k)
     return this;
 }
 
-void srs_pps_init(SrsRateSample& sample, int64_t nn, srs_utime_t now)
+void srs_pps_init(SrsRateSample &sample, int64_t nn, srs_utime_t now)
 {
     if (sample.time < 0 || nn < sample.total) {
         sample.update(nn, now, 0);
     }
 }
 
-void srs_pps_update(SrsRateSample& sample, int64_t nn, srs_utime_t now)
+void srs_pps_update(SrsRateSample &sample, int64_t nn, srs_utime_t now)
 {
     int pps = (int)((nn - sample.total) * 1000 / srsu2ms(now - sample.time));
     if (pps == 0 && nn > sample.total) {
@@ -110,5 +110,4 @@ srs_utime_t SrsWallClock::now()
     return srs_get_system_time();
 }
 
-SrsWallClock* _srs_clock = NULL;
-
+SrsWallClock *_srs_clock = NULL;

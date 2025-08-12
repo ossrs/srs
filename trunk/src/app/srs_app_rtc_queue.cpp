@@ -6,22 +6,22 @@
 
 #include <srs_app_rtc_queue.hpp>
 
+#include <sstream>
 #include <string.h>
 #include <unistd.h>
-#include <sstream>
 
 using namespace std;
 
+#include <srs_app_threads.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_app_utility.hpp>
-#include <srs_app_threads.hpp>
 
 #include <srs_protocol_kbps.hpp>
 
-extern SrsPps* _srs_pps_snack3;
-extern SrsPps* _srs_pps_snack4;
+extern SrsPps *_srs_pps_snack3;
+extern SrsPps *_srs_pps_snack4;
 
 SrsRtpRingBuffer::SrsRtpRingBuffer(int capacity)
 {
@@ -30,14 +30,14 @@ SrsRtpRingBuffer::SrsRtpRingBuffer(int capacity)
     capacity_ = (uint16_t)capacity;
     initialized_ = false;
 
-    queue_ = new SrsRtpPacket*[capacity_];
-    memset(queue_, 0, sizeof(SrsRtpPacket*) * capacity);
+    queue_ = new SrsRtpPacket *[capacity_];
+    memset(queue_, 0, sizeof(SrsRtpPacket *) * capacity);
 }
 
 SrsRtpRingBuffer::~SrsRtpRingBuffer()
 {
     for (int i = 0; i < capacity_; ++i) {
-        SrsRtpPacket* pkt = queue_[i];
+        SrsRtpPacket *pkt = queue_[i];
         srs_freep(pkt);
     }
     srs_freepa(queue_);
@@ -60,9 +60,9 @@ void SrsRtpRingBuffer::advance_to(uint16_t seq)
     begin = seq;
 }
 
-void SrsRtpRingBuffer::set(uint16_t at, SrsRtpPacket* pkt)
+void SrsRtpRingBuffer::set(uint16_t at, SrsRtpPacket *pkt)
 {
-    SrsRtpPacket* p = queue_[at % capacity_];
+    SrsRtpPacket *p = queue_[at % capacity_];
     srs_freep(p);
 
     queue_[at % capacity_] = pkt;
@@ -78,7 +78,7 @@ uint32_t SrsRtpRingBuffer::get_extended_highest_sequence()
     return nn_seq_flip_backs * 65536 + end - 1;
 }
 
-bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t& nack_first, uint16_t& nack_last)
+bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t &nack_first, uint16_t &nack_last)
 {
     if (!initialized_) {
         initialized_ = true;
@@ -89,9 +89,9 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t& nack_first, uint16_t& nack
 
     // Normal sequence, seq follows high_.
     if (srs_rtp_seq_distance(end, seq) >= 0) {
-        //TODO: FIXME: if diff_upper > limit_max_size clear?
-        // int16_t diff_upper = srs_rtp_seq_distance(end, seq)
-        // notify_nack_list_full()
+        // TODO: FIXME: if diff_upper > limit_max_size clear?
+        //  int16_t diff_upper = srs_rtp_seq_distance(end, seq)
+        //  notify_nack_list_full()
         nack_first = end;
         nack_last = seq;
 
@@ -120,13 +120,14 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t& nack_first, uint16_t& nack
         // Because we don't know the ISN(initiazlie sequence number), the first packet
         // we received maybe no the first packet client sent.
         // @remark We only log a warning, because it seems ok for publisher.
-        //return false;
+        // return false;
     }
 
     return true;
 }
 
-SrsRtpPacket* SrsRtpRingBuffer::at(uint16_t seq) {
+SrsRtpPacket *SrsRtpRingBuffer::at(uint16_t seq)
+{
     return queue_[seq % capacity_];
 }
 
@@ -141,14 +142,14 @@ void SrsRtpRingBuffer::notify_nack_list_full()
 void SrsRtpRingBuffer::notify_drop_seq(uint16_t seq)
 {
     remove(seq);
-    advance_to(seq+1);
+    advance_to(seq + 1);
 }
 
 void SrsRtpRingBuffer::clear_histroy(uint16_t seq)
 {
     // TODO FIXME Did not consider loopback
     for (uint16_t i = 0; i < capacity_; i++) {
-        SrsRtpPacket* p = queue_[i];
+        SrsRtpPacket *p = queue_[i];
         if (p && p->header.get_sequence() < seq) {
             srs_freep(p);
             queue_[i] = NULL;
@@ -159,7 +160,7 @@ void SrsRtpRingBuffer::clear_histroy(uint16_t seq)
 void SrsRtpRingBuffer::clear_all_histroy()
 {
     for (uint16_t i = 0; i < capacity_; i++) {
-        SrsRtpPacket* p = queue_[i];
+        SrsRtpPacket *p = queue_[i];
         if (p) {
             srs_freep(p);
             queue_[i] = NULL;
@@ -178,16 +179,16 @@ SrsNackOption::SrsNackOption()
 
     nack_check_interval = 20 * SRS_UTIME_MILLISECONDS;
 
-    //TODO: FIXME: audio and video using diff nack strategy
-    // video:
-    // max_alive_time = 1 * SRS_UTIME_SECONDS
-    // max_count = 15;
-    // nack_interval = 50 * SRS_UTIME_MILLISECONDS
-    // 
-    // audio:
-    // DefaultRequestNackDelay = 30; //ms
-    // DefaultLostPacketLifeTime = 600; //ms
-    // FirstRequestInterval = 50;//ms
+    // TODO: FIXME: audio and video using diff nack strategy
+    //  video:
+    //  max_alive_time = 1 * SRS_UTIME_SECONDS
+    //  max_count = 15;
+    //  nack_interval = 50 * SRS_UTIME_MILLISECONDS
+    //
+    //  audio:
+    //  DefaultRequestNackDelay = 30; //ms
+    //  DefaultLostPacketLifeTime = 600; //ms
+    //  FirstRequestInterval = 50;//ms
 }
 
 SrsRtpNackInfo::SrsRtpNackInfo()
@@ -197,7 +198,7 @@ SrsRtpNackInfo::SrsRtpNackInfo()
     req_nack_count_ = 0;
 }
 
-SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue_size)
+SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer *rtp, size_t queue_size)
 {
     max_queue_size_ = queue_size;
     rtp_ = rtp;
@@ -205,7 +206,7 @@ SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue
     rtt_ = 0;
 
     srs_info("max_queue_size=%u, nack opt: max_count=%d, max_alive_time=%us, first_nack_interval=%" PRId64 ", nack_interval=%" PRId64,
-        max_queue_size_, opts_.max_count, opts_.max_alive_time, opts_.first_nack_interval, opts_.nack_interval);
+             max_queue_size_, opts_.max_count, opts_.max_alive_time, opts_.first_nack_interval, opts_.nack_interval);
 }
 
 SrsRtpNackForReceiver::~SrsRtpNackForReceiver()
@@ -230,7 +231,7 @@ void SrsRtpNackForReceiver::remove(uint16_t seq)
     queue_.erase(seq);
 }
 
-SrsRtpNackInfo* SrsRtpNackForReceiver::find(uint16_t seq)
+SrsRtpNackInfo *SrsRtpNackForReceiver::find(uint16_t seq)
 {
     std::map<uint16_t, SrsRtpNackInfo>::iterator iter = queue_.find(seq);
 
@@ -249,7 +250,7 @@ void SrsRtpNackForReceiver::check_queue_size()
     }
 }
 
-void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_nacks)
+void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack &seqs, uint32_t &timeout_nacks)
 {
     // If circuit-breaker is enabled, disable nack.
     if (_srs_circuit_breaker->hybrid_high_water_level()) {
@@ -268,8 +269,8 @@ void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_n
 
     std::map<uint16_t, SrsRtpNackInfo>::iterator iter = queue_.begin();
     while (iter != queue_.end()) {
-        const uint16_t& seq = iter->first;
-        SrsRtpNackInfo& nack_info = iter->second;
+        const uint16_t &seq = iter->first;
+        SrsRtpNackInfo &nack_info = iter->second;
 
         int alive_time = now - nack_info.generate_time_;
         if (alive_time > opts_.max_alive_time || nack_info.req_nack_count_ > opts_.max_count) {
@@ -285,11 +286,11 @@ void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_n
         }
 
         srs_utime_t nack_interval = srs_max(opts_.min_nack_interval, opts_.nack_interval / 3);
-        if(opts_.nack_interval < 50 * SRS_UTIME_MILLISECONDS){
+        if (opts_.nack_interval < 50 * SRS_UTIME_MILLISECONDS) {
             nack_interval = srs_max(opts_.min_nack_interval, opts_.nack_interval);
         }
 
-        if (now - nack_info.pre_req_nack_time_ >= nack_interval ) {
+        if (now - nack_info.pre_req_nack_time_ >= nack_interval) {
             ++nack_info.req_nack_count_;
             nack_info.pre_req_nack_time_ = now;
             seqs.add_lost_sn(seq);
@@ -304,11 +305,10 @@ void SrsRtpNackForReceiver::update_rtt(int rtt)
     rtt_ = rtt * SRS_UTIME_MILLISECONDS;
 
     if (rtt_ > opts_.nack_interval) {
-        opts_.nack_interval = opts_.nack_interval  * 0.8 + rtt_ * 0.2;
+        opts_.nack_interval = opts_.nack_interval * 0.8 + rtt_ * 0.2;
     } else {
         opts_.nack_interval = rtt_;
     }
 
     opts_.nack_interval = srs_min(opts_.nack_interval, opts_.max_nack_interval);
 }
-

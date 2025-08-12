@@ -6,21 +6,21 @@
 
 #include <srs_app_threads.hpp>
 
+#include <srs_app_async_call.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_conn.hpp>
 #include <srs_app_hybrid.hpp>
-#include <srs_app_utility.hpp>
-#include <srs_kernel_utility.hpp>
-#include <srs_app_rtc_source.hpp>
-#include <srs_app_source.hpp>
+#include <srs_app_log.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_rtc_server.hpp>
-#include <srs_app_log.hpp>
-#include <srs_app_async_call.hpp>
+#include <srs_app_rtc_source.hpp>
+#include <srs_app_source.hpp>
 #include <srs_app_tencentcloud.hpp>
-#include <srs_app_conn.hpp>
+#include <srs_app_utility.hpp>
+#include <srs_kernel_utility.hpp>
 #ifdef SRS_RTC
-#include <srs_app_rtc_dtls.hpp>
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_dtls.hpp>
 #endif
 #ifdef SRS_SRT
 #include <srs_app_srt_source.hpp>
@@ -36,146 +36,148 @@
 #include <string>
 using namespace std;
 
-#include <unistd.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #if defined(SRS_OSX) || defined(SRS_CYGWIN64)
-    pid_t gettid() {
-        return 0;
-    }
+pid_t gettid()
+{
+    return 0;
+}
 #else
-    #if __GLIBC__ == 2 && __GLIBC_MINOR__ < 30
-        #include <sys/syscall.h>
-        #define gettid() syscall(SYS_gettid)
-    #endif
+#if __GLIBC__ == 2 && __GLIBC_MINOR__ < 30
+#include <sys/syscall.h>
+#define gettid() syscall(SYS_gettid)
+#endif
 #endif
 
 // These functions first appeared in glibc in version 2.12.
 // See https://man7.org/linux/man-pages/man3/pthread_setname_np.3.html
 #if defined(SRS_CYGWIN64) || (defined(SRS_CROSSBUILD) && defined(__GLIBC__) && ((__GLIBC__ < 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 12)))
-    void pthread_setname_np(pthread_t trd, const char* name) {
-    }
+void pthread_setname_np(pthread_t trd, const char *name)
+{
+}
 #endif
 
-extern ISrsLog* _srs_log;
-extern ISrsContext* _srs_context;
-extern SrsConfig* _srs_config;
+extern ISrsLog *_srs_log;
+extern ISrsContext *_srs_context;
+extern SrsConfig *_srs_config;
 
-extern SrsStageManager* _srs_stages;
+extern SrsStageManager *_srs_stages;
 
 #ifdef SRS_RTC
-extern SrsRtcBlackhole* _srs_blackhole;
-extern SrsResourceManager* _srs_rtc_manager;
+extern SrsRtcBlackhole *_srs_blackhole;
+extern SrsResourceManager *_srs_rtc_manager;
 
-extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
+extern SrsDtlsCertificate *_srs_rtc_dtls_certificate;
 #endif
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_aloss2 = NULL;
+SrsPps *_srs_pps_aloss2 = NULL;
 
-extern SrsPps* _srs_pps_ids;
-extern SrsPps* _srs_pps_fids;
-extern SrsPps* _srs_pps_fids_level0;
-extern SrsPps* _srs_pps_dispose;
+extern SrsPps *_srs_pps_ids;
+extern SrsPps *_srs_pps_fids;
+extern SrsPps *_srs_pps_fids_level0;
+extern SrsPps *_srs_pps_dispose;
 
-extern SrsPps* _srs_pps_timer;
+extern SrsPps *_srs_pps_timer;
 
-extern SrsPps* _srs_pps_snack;
-extern SrsPps* _srs_pps_snack2;
-extern SrsPps* _srs_pps_snack3;
-extern SrsPps* _srs_pps_snack4;
-extern SrsPps* _srs_pps_sanack;
-extern SrsPps* _srs_pps_svnack;
+extern SrsPps *_srs_pps_snack;
+extern SrsPps *_srs_pps_snack2;
+extern SrsPps *_srs_pps_snack3;
+extern SrsPps *_srs_pps_snack4;
+extern SrsPps *_srs_pps_sanack;
+extern SrsPps *_srs_pps_svnack;
 
-extern SrsPps* _srs_pps_rnack;
-extern SrsPps* _srs_pps_rnack2;
-extern SrsPps* _srs_pps_rhnack;
-extern SrsPps* _srs_pps_rmnack;
-
-#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
-extern SrsPps* _srs_pps_recvfrom;
-extern SrsPps* _srs_pps_recvfrom_eagain;
-extern SrsPps* _srs_pps_sendto;
-extern SrsPps* _srs_pps_sendto_eagain;
-
-extern SrsPps* _srs_pps_read;
-extern SrsPps* _srs_pps_read_eagain;
-extern SrsPps* _srs_pps_readv;
-extern SrsPps* _srs_pps_readv_eagain;
-extern SrsPps* _srs_pps_writev;
-extern SrsPps* _srs_pps_writev_eagain;
-
-extern SrsPps* _srs_pps_recvmsg;
-extern SrsPps* _srs_pps_recvmsg_eagain;
-extern SrsPps* _srs_pps_sendmsg;
-extern SrsPps* _srs_pps_sendmsg_eagain;
-
-extern SrsPps* _srs_pps_epoll;
-extern SrsPps* _srs_pps_epoll_zero;
-extern SrsPps* _srs_pps_epoll_shake;
-extern SrsPps* _srs_pps_epoll_spin;
-
-extern SrsPps* _srs_pps_sched_15ms;
-extern SrsPps* _srs_pps_sched_20ms;
-extern SrsPps* _srs_pps_sched_25ms;
-extern SrsPps* _srs_pps_sched_30ms;
-extern SrsPps* _srs_pps_sched_35ms;
-extern SrsPps* _srs_pps_sched_40ms;
-extern SrsPps* _srs_pps_sched_80ms;
-extern SrsPps* _srs_pps_sched_160ms;
-extern SrsPps* _srs_pps_sched_s;
-#endif
-
-extern SrsPps* _srs_pps_clock_15ms;
-extern SrsPps* _srs_pps_clock_20ms;
-extern SrsPps* _srs_pps_clock_25ms;
-extern SrsPps* _srs_pps_clock_30ms;
-extern SrsPps* _srs_pps_clock_35ms;
-extern SrsPps* _srs_pps_clock_40ms;
-extern SrsPps* _srs_pps_clock_80ms;
-extern SrsPps* _srs_pps_clock_160ms;
-extern SrsPps* _srs_pps_timer_s;
+extern SrsPps *_srs_pps_rnack;
+extern SrsPps *_srs_pps_rnack2;
+extern SrsPps *_srs_pps_rhnack;
+extern SrsPps *_srs_pps_rmnack;
 
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
-extern SrsPps* _srs_pps_thread_run;
-extern SrsPps* _srs_pps_thread_idle;
-extern SrsPps* _srs_pps_thread_yield;
-extern SrsPps* _srs_pps_thread_yield2;
+extern SrsPps *_srs_pps_recvfrom;
+extern SrsPps *_srs_pps_recvfrom_eagain;
+extern SrsPps *_srs_pps_sendto;
+extern SrsPps *_srs_pps_sendto_eagain;
+
+extern SrsPps *_srs_pps_read;
+extern SrsPps *_srs_pps_read_eagain;
+extern SrsPps *_srs_pps_readv;
+extern SrsPps *_srs_pps_readv_eagain;
+extern SrsPps *_srs_pps_writev;
+extern SrsPps *_srs_pps_writev_eagain;
+
+extern SrsPps *_srs_pps_recvmsg;
+extern SrsPps *_srs_pps_recvmsg_eagain;
+extern SrsPps *_srs_pps_sendmsg;
+extern SrsPps *_srs_pps_sendmsg_eagain;
+
+extern SrsPps *_srs_pps_epoll;
+extern SrsPps *_srs_pps_epoll_zero;
+extern SrsPps *_srs_pps_epoll_shake;
+extern SrsPps *_srs_pps_epoll_spin;
+
+extern SrsPps *_srs_pps_sched_15ms;
+extern SrsPps *_srs_pps_sched_20ms;
+extern SrsPps *_srs_pps_sched_25ms;
+extern SrsPps *_srs_pps_sched_30ms;
+extern SrsPps *_srs_pps_sched_35ms;
+extern SrsPps *_srs_pps_sched_40ms;
+extern SrsPps *_srs_pps_sched_80ms;
+extern SrsPps *_srs_pps_sched_160ms;
+extern SrsPps *_srs_pps_sched_s;
 #endif
 
-extern SrsPps* _srs_pps_rpkts;
-extern SrsPps* _srs_pps_addrs;
-extern SrsPps* _srs_pps_fast_addrs;
+extern SrsPps *_srs_pps_clock_15ms;
+extern SrsPps *_srs_pps_clock_20ms;
+extern SrsPps *_srs_pps_clock_25ms;
+extern SrsPps *_srs_pps_clock_30ms;
+extern SrsPps *_srs_pps_clock_35ms;
+extern SrsPps *_srs_pps_clock_40ms;
+extern SrsPps *_srs_pps_clock_80ms;
+extern SrsPps *_srs_pps_clock_160ms;
+extern SrsPps *_srs_pps_timer_s;
 
-extern SrsPps* _srs_pps_spkts;
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+extern SrsPps *_srs_pps_thread_run;
+extern SrsPps *_srs_pps_thread_idle;
+extern SrsPps *_srs_pps_thread_yield;
+extern SrsPps *_srs_pps_thread_yield2;
+#endif
 
-extern SrsPps* _srs_pps_sstuns;
-extern SrsPps* _srs_pps_srtcps;
-extern SrsPps* _srs_pps_srtps;
+extern SrsPps *_srs_pps_rpkts;
+extern SrsPps *_srs_pps_addrs;
+extern SrsPps *_srs_pps_fast_addrs;
 
-extern SrsPps* _srs_pps_pli;
-extern SrsPps* _srs_pps_twcc;
-extern SrsPps* _srs_pps_rr;
-extern SrsPps* _srs_pps_pub;
-extern SrsPps* _srs_pps_conn;
+extern SrsPps *_srs_pps_spkts;
 
-extern SrsPps* _srs_pps_rstuns;
-extern SrsPps* _srs_pps_rrtps;
-extern SrsPps* _srs_pps_rrtcps;
+extern SrsPps *_srs_pps_sstuns;
+extern SrsPps *_srs_pps_srtcps;
+extern SrsPps *_srs_pps_srtps;
 
-extern SrsPps* _srs_pps_aloss2;
+extern SrsPps *_srs_pps_pli;
+extern SrsPps *_srs_pps_twcc;
+extern SrsPps *_srs_pps_rr;
+extern SrsPps *_srs_pps_pub;
+extern SrsPps *_srs_pps_conn;
 
-extern SrsPps* _srs_pps_cids_get;
-extern SrsPps* _srs_pps_cids_set;
+extern SrsPps *_srs_pps_rstuns;
+extern SrsPps *_srs_pps_rrtps;
+extern SrsPps *_srs_pps_rrtcps;
 
-extern SrsPps* _srs_pps_objs_msgs;
+extern SrsPps *_srs_pps_aloss2;
 
-extern SrsPps* _srs_pps_objs_rtps;
-extern SrsPps* _srs_pps_objs_rraw;
-extern SrsPps* _srs_pps_objs_rfua;
-extern SrsPps* _srs_pps_objs_rbuf;
-extern SrsPps* _srs_pps_objs_rothers;
+extern SrsPps *_srs_pps_cids_get;
+extern SrsPps *_srs_pps_cids_set;
+
+extern SrsPps *_srs_pps_objs_msgs;
+
+extern SrsPps *_srs_pps_objs_rtps;
+extern SrsPps *_srs_pps_objs_rraw;
+extern SrsPps *_srs_pps_objs_rfua;
+extern SrsPps *_srs_pps_objs_rbuf;
+extern SrsPps *_srs_pps_objs_rothers;
 
 SrsCircuitBreaker::SrsCircuitBreaker()
 {
@@ -213,8 +215,8 @@ srs_error_t SrsCircuitBreaker::initialize()
     _srs_hybrid->timer1s()->subscribe(this);
 
     srs_trace("CircuitBreaker: enabled=%d, high=%dx%d, critical=%dx%d, dying=%dx%d", enabled_,
-        high_pulse_, high_threshold_, critical_pulse_, critical_threshold_,
-        dying_pulse_, dying_threshold_);
+              high_pulse_, high_threshold_, critical_pulse_, critical_threshold_,
+              dying_pulse_, dying_threshold_);
 
     return err;
 }
@@ -240,7 +242,7 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
 
     // Update the CPU usage.
     srs_update_proc_stat();
-    SrsProcSelfStat* stat = srs_get_self_proc_stat();
+    SrsProcSelfStat *stat = srs_get_self_proc_stat();
 
     // Reset the high water-level when CPU is low for N times.
     if (stat->percent * 100 > high_threshold_) {
@@ -264,7 +266,7 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
     }
 
     // Show statistics for RTC server.
-    SrsProcSelfStat* u = srs_get_self_proc_stat();
+    SrsProcSelfStat *u = srs_get_self_proc_stat();
     // Resident Set Size: number of pages the process has in real memory.
     int memory = (int)(u->rss * 4 / 1024);
 
@@ -276,7 +278,7 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
     static char buf[128];
     if (_srs_pps_snack2->r10s()) {
         snprintf(buf, sizeof(buf), ", snk=%d,%d,%d",
-            _srs_pps_snack2->r10s(), _srs_pps_snack3->r10s(), _srs_pps_snack4->r10s() // NACK packet,seqs sent.
+                 _srs_pps_snack2->r10s(), _srs_pps_snack3->r10s(), _srs_pps_snack4->r10s() // NACK packet,seqs sent.
         );
         snk_desc = buf;
     }
@@ -284,18 +286,17 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
 
     if (enabled_ && (hybrid_high_water_level() || hybrid_critical_water_level())) {
         srs_trace("CircuitBreaker: cpu=%.2f%%,%dMB, break=%d,%d,%d, cond=%.2f%%%s",
-            u->percent * 100, memory,
-            hybrid_high_water_level(), hybrid_critical_water_level(), hybrid_dying_water_level(), // Whether Circuit-Break is enable.
-            thread_percent, // The conditions to enable Circuit-Breaker.
-            snk_desc.c_str()
-        );
+                  u->percent * 100, memory,
+                  hybrid_high_water_level(), hybrid_critical_water_level(), hybrid_dying_water_level(), // Whether Circuit-Break is enable.
+                  thread_percent,                                                                       // The conditions to enable Circuit-Breaker.
+                  snk_desc.c_str());
     }
 
     return err;
 }
 
-SrsCircuitBreaker* _srs_circuit_breaker = NULL;
-SrsAsyncCallWorker* _srs_dvr_async = NULL;
+SrsCircuitBreaker *_srs_circuit_breaker = NULL;
+SrsAsyncCallWorker *_srs_dvr_async = NULL;
 
 extern srs_error_t _srs_reload_err;
 extern SrsReloadState _srs_reload_state;
@@ -527,7 +528,7 @@ SrsThreadPool::SrsThreadPool()
     hybrid_ = NULL;
 
     // Add primordial thread, current thread itself.
-    SrsThreadEntry* entry = new SrsThreadEntry();
+    SrsThreadEntry *entry = new SrsThreadEntry();
     threads_.push_back(entry);
     entry_ = entry;
 
@@ -579,7 +580,7 @@ srs_error_t SrsThreadPool::initialize()
     }
 
     // Initialize the master primordial thread.
-    SrsThreadEntry* entry = (SrsThreadEntry*)entry_;
+    SrsThreadEntry *entry = (SrsThreadEntry *)entry_;
 
     interval_ = _srs_config->get_threads_interval();
 
@@ -594,7 +595,7 @@ srs_error_t SrsThreadPool::acquire_pid_file()
 
     // -rw-r--r--
     // 644
-    int mode = S_IRUSR | S_IWUSR |  S_IRGRP | S_IROTH;
+    int mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
     int fd;
     // open pid file
@@ -605,13 +606,13 @@ srs_error_t SrsThreadPool::acquire_pid_file()
     // require write lock
     struct flock lock;
 
-    lock.l_type = F_WRLCK; // F_RDLCK, F_WRLCK, F_UNLCK
-    lock.l_start = 0; // type offset, relative to l_whence
-    lock.l_whence = SEEK_SET;  // SEEK_SET, SEEK_CUR, SEEK_END
+    lock.l_type = F_WRLCK;    // F_RDLCK, F_WRLCK, F_UNLCK
+    lock.l_start = 0;         // type offset, relative to l_whence
+    lock.l_whence = SEEK_SET; // SEEK_SET, SEEK_CUR, SEEK_END
     lock.l_len = 0;
 
     if (fcntl(fd, F_SETLK, &lock) == -1) {
-        if(errno == EACCES || errno == EAGAIN) {
+        if (errno == EACCES || errno == EAGAIN) {
             ::close(fd);
             srs_error("srs is already running!");
             return srs_error_new(ERROR_SYSTEM_PID_ALREADY_RUNNING, "srs is already running");
@@ -646,11 +647,11 @@ srs_error_t SrsThreadPool::acquire_pid_file()
     return srs_success;
 }
 
-srs_error_t SrsThreadPool::execute(string label, srs_error_t (*start)(void* arg), void* arg)
+srs_error_t SrsThreadPool::execute(string label, srs_error_t (*start)(void *arg), void *arg)
 {
     srs_error_t err = srs_success;
 
-    SrsThreadEntry* entry = new SrsThreadEntry();
+    SrsThreadEntry *entry = new SrsThreadEntry();
 
     // Update the hybrid thread entry for circuit breaker.
     if (label == "hybrid") {
@@ -697,7 +698,7 @@ srs_error_t SrsThreadPool::run()
     srs_error_t err = srs_success;
 
     while (true) {
-        vector<SrsThreadEntry*> threads;
+        vector<SrsThreadEntry *> threads;
         if (true) {
             SrsThreadLocker(lock_);
             threads = threads_;
@@ -707,7 +708,7 @@ srs_error_t SrsThreadPool::run()
         int loops = (int)(interval_ / SRS_UTIME_SECONDS);
         for (int i = 0; i < loops; i++) {
             for (int j = 0; j < (int)threads.size(); j++) {
-                SrsThreadEntry* entry = threads.at(j);
+                SrsThreadEntry *entry = threads.at(j);
                 if (entry->err != srs_success) {
                     // Quit with success.
                     if (srs_error_code(entry->err) == ERROR_THREAD_FINISHED) {
@@ -727,7 +728,7 @@ srs_error_t SrsThreadPool::run()
         }
 
         // Show statistics for RTC server.
-        SrsProcSelfStat* u = srs_get_self_proc_stat();
+        SrsProcSelfStat *u = srs_get_self_proc_stat();
         // Resident Set Size: number of pages the process has in real memory.
         int memory = (int)(u->rss * 4 / 1024);
 
@@ -742,9 +743,9 @@ void SrsThreadPool::stop()
     // TODO: FIXME: Should notify other threads to do cleanup and quit.
 }
 
-SrsThreadEntry* SrsThreadPool::self()
+SrsThreadEntry *SrsThreadPool::self()
 {
-    std::vector<SrsThreadEntry*> threads;
+    std::vector<SrsThreadEntry *> threads;
 
     if (true) {
         SrsThreadLocker(lock_);
@@ -752,7 +753,7 @@ SrsThreadEntry* SrsThreadPool::self()
     }
 
     for (int i = 0; i < (int)threads.size(); i++) {
-        SrsThreadEntry* entry = threads.at(i);
+        SrsThreadEntry *entry = threads.at(i);
         if (entry->trd == pthread_self()) {
             return entry;
         }
@@ -761,21 +762,21 @@ SrsThreadEntry* SrsThreadPool::self()
     return NULL;
 }
 
-SrsThreadEntry* SrsThreadPool::hybrid()
+SrsThreadEntry *SrsThreadPool::hybrid()
 {
     return hybrid_;
 }
 
-vector<SrsThreadEntry*> SrsThreadPool::hybrids()
+vector<SrsThreadEntry *> SrsThreadPool::hybrids()
 {
     return hybrids_;
 }
 
-void* SrsThreadPool::start(void* arg)
+void *SrsThreadPool::start(void *arg)
 {
     srs_error_t err = srs_success;
 
-    SrsThreadEntry* entry = (SrsThreadEntry*)arg;
+    SrsThreadEntry *entry = (SrsThreadEntry *)arg;
 
     // Initialize thread-local variables.
     if ((err = SrsThreadPool::setup_thread_locals()) != srs_success) {
@@ -809,5 +810,4 @@ void* SrsThreadPool::start(void* arg)
 }
 
 // It MUST be thread-safe, global and shared object.
-SrsThreadPool* _srs_thread_pool = new SrsThreadPool();
-
+SrsThreadPool *_srs_thread_pool = new SrsThreadPool();

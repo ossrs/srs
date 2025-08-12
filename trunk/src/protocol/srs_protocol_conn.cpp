@@ -39,4 +39,3 @@ ISrsConnection::ISrsConnection()
 ISrsConnection::~ISrsConnection()
 {
 }
-

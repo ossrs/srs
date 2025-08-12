@@ -12,4 +12,3 @@
 #include <st.h>
 
 #endif // SRS_UTEST_ST_HPP
-

@@ -7,15 +7,15 @@
 #include <srs_utest_rtc3.hpp>
 
 #include <srs_app_rtc_source.hpp>
-#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_utest_kernel.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_protocol_st.hpp>
+#include <srs_utest_kernel.hpp>
 
 // Helper function to create a mock RTP packet for testing
-SrsRtpPacket* mock_create_audio_rtp_packet(uint16_t sequence, uint32_t timestamp, const char* payload_data = NULL, int payload_size = 10)
+SrsRtpPacket *mock_create_audio_rtp_packet(uint16_t sequence, uint32_t timestamp, const char *payload_data = NULL, int payload_size = 10)
 {
-    SrsRtpPacket* pkt = new SrsRtpPacket();
+    SrsRtpPacket *pkt = new SrsRtpPacket();
 
     // Set RTP header
     pkt->header.set_padding(false);
@@ -36,7 +36,7 @@ SrsRtpPacket* mock_create_audio_rtp_packet(uint16_t sequence, uint32_t timestamp
 }
 
 // Helper function to free a vector of RTP packets
-void free_audio_packets(std::vector<SrsRtpPacket*>& packets)
+void free_audio_packets(std::vector<SrsRtpPacket *> &packets)
 {
     for (size_t i = 0; i < packets.size(); ++i) {
         srs_freep(packets[i]);
@@ -51,7 +51,7 @@ VOID TEST(RTC3AudioCacheTest, BasicPacketProcessing)
     // Test basic packet processing in order
     if (true) {
         SrsRtcFrameBuilderAudioPacketCache cache;
-        std::vector<SrsRtpPacket*> ready_packets;
+        std::vector<SrsRtpPacket *> ready_packets;
 
         // Process first packet
         SrsUniquePtr<SrsRtpPacket> pkt1(mock_create_audio_rtp_packet(100, 1000));
@@ -82,7 +82,7 @@ VOID TEST(RTC3AudioCacheTest, OutOfOrderPackets)
     // Test out-of-order packet handling
     if (true) {
         SrsRtcFrameBuilderAudioPacketCache cache;
-        std::vector<SrsRtpPacket*> ready_packets;
+        std::vector<SrsRtpPacket *> ready_packets;
 
         // Process first packet 100 to initialize
         SrsUniquePtr<SrsRtpPacket> pkt1(mock_create_audio_rtp_packet(100, 1000));
@@ -126,7 +126,7 @@ VOID TEST(RTC3AudioCacheTest, LatePacketHandling)
     // Test late packet detection and discard
     if (true) {
         SrsRtcFrameBuilderAudioPacketCache cache;
-        std::vector<SrsRtpPacket*> ready_packets;
+        std::vector<SrsRtpPacket *> ready_packets;
 
         // Process packets 100, 101, 102 in order
         for (uint16_t seq = 100; seq <= 102; seq++) {
@@ -153,7 +153,7 @@ VOID TEST(RTC3AudioCacheTest, SequenceNumberWrapAround)
     // Test sequence number wrap-around (16-bit overflow)
     if (true) {
         SrsRtcFrameBuilderAudioPacketCache cache;
-        std::vector<SrsRtpPacket*> ready_packets;
+        std::vector<SrsRtpPacket *> ready_packets;
 
         // Process packets near the 16-bit boundary
         uint16_t seq_near_max = 65534;
@@ -193,7 +193,7 @@ VOID TEST(RTC3AudioCacheTest, PacketLossWithTimeout)
     // Test packet loss handling with timeout
     if (true) {
         SrsRtcFrameBuilderAudioPacketCache cache;
-        std::vector<SrsRtpPacket*> ready_packets;
+        std::vector<SrsRtpPacket *> ready_packets;
 
         // Set a very short timeout for testing (1ms)
         cache.set_timeout(1 * SRS_UTIME_MILLISECONDS);
@@ -238,7 +238,7 @@ VOID TEST(RTC3AudioCacheTest, BufferOverflowProtection)
     // Test buffer overflow protection
     if (true) {
         SrsRtcFrameBuilderAudioPacketCache cache;
-        std::vector<SrsRtpPacket*> ready_packets;
+        std::vector<SrsRtpPacket *> ready_packets;
 
         // Process first packet to initialize
         SrsUniquePtr<SrsRtpPacket> pkt1(mock_create_audio_rtp_packet(100, 1000));
@@ -267,7 +267,7 @@ VOID TEST(RTC3AudioCacheTest, ClearAllFunctionality)
     // Test clear_all functionality
     if (true) {
         SrsRtcFrameBuilderAudioPacketCache cache;
-        std::vector<SrsRtpPacket*> ready_packets;
+        std::vector<SrsRtpPacket *> ready_packets;
 
         // Process first packet to initialize
         SrsUniquePtr<SrsRtpPacket> pkt1(mock_create_audio_rtp_packet(100, 1000));
@@ -298,7 +298,7 @@ VOID TEST(RTC3AudioCacheTest, DuplicatePacketHandling)
     // Test duplicate packet handling
     if (true) {
         SrsRtcFrameBuilderAudioPacketCache cache;
-        std::vector<SrsRtpPacket*> ready_packets;
+        std::vector<SrsRtpPacket *> ready_packets;
 
         // Process first packet
         SrsUniquePtr<SrsRtpPacket> pkt1(mock_create_audio_rtp_packet(100, 1000));

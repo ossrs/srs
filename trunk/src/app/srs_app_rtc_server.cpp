@@ -10,56 +10,54 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_kernel_utility.hpp>
-#include <srs_kernel_log.hpp>
+#include <srs_app_http_api.hpp>
+#include <srs_app_pithy_print.hpp>
+#include <srs_app_rtc_api.hpp>
+#include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_dtls.hpp>
+#include <srs_app_rtc_network.hpp>
+#include <srs_app_rtc_source.hpp>
+#include <srs_app_server.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
-#include <srs_app_pithy_print.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_app_rtc_conn.hpp>
-#include <srs_protocol_rtc_stun.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
+#include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_stack.hpp>
-#include <srs_app_server.hpp>
-#include <srs_app_http_api.hpp>
-#include <srs_app_rtc_dtls.hpp>
-#include <srs_protocol_utility.hpp>
-#include <srs_protocol_utility.hpp>
-#include <srs_app_rtc_source.hpp>
-#include <srs_app_rtc_api.hpp>
-#include <srs_protocol_utility.hpp>
 #include <srs_protocol_log.hpp>
-#include <srs_app_rtc_network.hpp>
+#include <srs_protocol_rtc_stun.hpp>
+#include <srs_protocol_utility.hpp>
 
-extern SrsPps* _srs_pps_rpkts;
-SrsPps* _srs_pps_rstuns = NULL;
-SrsPps* _srs_pps_rrtps = NULL;
-SrsPps* _srs_pps_rrtcps = NULL;
-extern SrsPps* _srs_pps_addrs;
-extern SrsPps* _srs_pps_fast_addrs;
+extern SrsPps *_srs_pps_rpkts;
+SrsPps *_srs_pps_rstuns = NULL;
+SrsPps *_srs_pps_rrtps = NULL;
+SrsPps *_srs_pps_rrtcps = NULL;
+extern SrsPps *_srs_pps_addrs;
+extern SrsPps *_srs_pps_fast_addrs;
 
-extern SrsPps* _srs_pps_spkts;
-extern SrsPps* _srs_pps_sstuns;
-extern SrsPps* _srs_pps_srtcps;
-extern SrsPps* _srs_pps_srtps;
+extern SrsPps *_srs_pps_spkts;
+extern SrsPps *_srs_pps_sstuns;
+extern SrsPps *_srs_pps_srtcps;
+extern SrsPps *_srs_pps_srtps;
 
-extern SrsPps* _srs_pps_ids;
-extern SrsPps* _srs_pps_fids;
-extern SrsPps* _srs_pps_fids_level0;
+extern SrsPps *_srs_pps_ids;
+extern SrsPps *_srs_pps_fids;
+extern SrsPps *_srs_pps_fids_level0;
 
-extern SrsPps* _srs_pps_pli;
-extern SrsPps* _srs_pps_twcc;
-extern SrsPps* _srs_pps_rr;
+extern SrsPps *_srs_pps_pli;
+extern SrsPps *_srs_pps_twcc;
+extern SrsPps *_srs_pps_rr;
 
-extern SrsPps* _srs_pps_snack;
-extern SrsPps* _srs_pps_snack2;
-extern SrsPps* _srs_pps_sanack;
-extern SrsPps* _srs_pps_svnack;
+extern SrsPps *_srs_pps_snack;
+extern SrsPps *_srs_pps_snack2;
+extern SrsPps *_srs_pps_sanack;
+extern SrsPps *_srs_pps_svnack;
 
-extern SrsPps* _srs_pps_rnack;
-extern SrsPps* _srs_pps_rnack2;
-extern SrsPps* _srs_pps_rhnack;
-extern SrsPps* _srs_pps_rmnack;
+extern SrsPps *_srs_pps_rnack;
+extern SrsPps *_srs_pps_rnack2;
+extern SrsPps *_srs_pps_rhnack;
+extern SrsPps *_srs_pps_rmnack;
 
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
@@ -90,7 +88,8 @@ srs_error_t SrsRtcBlackhole::initialize()
         return err;
     }
 
-    string host; int port;
+    string host;
+    int port;
     srs_parse_hostport(blackhole_ep, host, port);
 
     srs_freep(blackhole_addr);
@@ -108,37 +107,37 @@ srs_error_t SrsRtcBlackhole::initialize()
     return err;
 }
 
-void SrsRtcBlackhole::sendto(void* data, int len)
+void SrsRtcBlackhole::sendto(void *data, int len)
 {
     if (!blackhole) {
         return;
     }
 
     // For blackhole, we ignore any error.
-    srs_sendto(blackhole_stfd, data, len, (sockaddr*)blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
+    srs_sendto(blackhole_stfd, data, len, (sockaddr *)blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
 }
 
-SrsRtcBlackhole* _srs_blackhole = NULL;
+SrsRtcBlackhole *_srs_blackhole = NULL;
 
 // @global dtls certficate for rtc module.
-SrsDtlsCertificate* _srs_rtc_dtls_certificate = NULL;
+SrsDtlsCertificate *_srs_rtc_dtls_certificate = NULL;
 
 // TODO: Should support error response.
 // For STUN packet, 0x00 is binding request, 0x01 is binding success response.
-bool srs_is_stun(const uint8_t* data, size_t size)
+bool srs_is_stun(const uint8_t *data, size_t size)
 {
     return size > 0 && (data[0] == 0 || data[0] == 1);
 }
 
 // change_cipher_spec(20), alert(21), handshake(22), application_data(23)
 // @see https://tools.ietf.org/html/rfc2246#section-6.2.1
-bool srs_is_dtls(const uint8_t* data, size_t len)
+bool srs_is_dtls(const uint8_t *data, size_t len)
 {
     return (len >= 13 && (data[0] > 19 && data[0] < 64));
 }
 
 // For RTP or RTCP, the V=2 which is in the high 2bits, 0xC0 (1100 0000)
-bool srs_is_rtp_or_rtcp(const uint8_t* data, size_t len)
+bool srs_is_rtp_or_rtcp(const uint8_t *data, size_t len)
 {
     return (len >= 12 && (data[0] & 0xC0) == 0x80);
 }
@@ -146,12 +145,12 @@ bool srs_is_rtp_or_rtcp(const uint8_t* data, size_t len)
 // For RTCP, PT is [128, 223] (or without marker [0, 95]).
 // Literally, RTCP starts from 64 not 0, so PT is [192, 223] (or without marker [64, 95]).
 // @note For RTP, the PT is [96, 127], or [224, 255] with marker.
-bool srs_is_rtcp(const uint8_t* data, size_t len)
+bool srs_is_rtcp(const uint8_t *data, size_t len)
 {
     return (len >= 12) && (data[0] & 0x80) && (data[1] >= 192 && data[1] <= 223);
 }
 
-srs_error_t api_server_as_candidates(string api, set<string>& candidate_ips)
+srs_error_t api_server_as_candidates(string api, set<string> &candidate_ips)
 {
     srs_error_t err = srs_success;
 
@@ -192,7 +191,7 @@ srs_error_t api_server_as_candidates(string api, set<string>& candidate_ips)
     return err;
 }
 
-static set<string> discover_candidates(SrsRtcUserConfig* ruc)
+static set<string> discover_candidates(SrsRtcUserConfig *ruc)
 {
     srs_error_t err = srs_success;
 
@@ -216,7 +215,7 @@ static set<string> discover_candidates(SrsRtcUserConfig* ruc)
     }
 
     // All automatically detected IP list.
-    vector<SrsIPAddress*>& ips = srs_get_local_ips();
+    vector<SrsIPAddress *> &ips = srs_get_local_ips();
     if (ips.empty()) {
         return candidate_ips;
     }
@@ -225,8 +224,8 @@ static set<string> discover_candidates(SrsRtcUserConfig* ruc)
     if (_srs_config->get_use_auto_detect_network_ip()) {
         // We try to find the best match candidates, no loopback.
         string family = _srs_config->get_rtc_server_ip_family();
-        for (int i = 0; i < (int) ips.size(); ++i) {
-            SrsIPAddress* ip = ips[i];
+        for (int i = 0; i < (int)ips.size(); ++i) {
+            SrsIPAddress *ip = ips[i];
             if (ip->is_loopback) {
                 continue;
             }
@@ -249,7 +248,7 @@ static set<string> discover_candidates(SrsRtcUserConfig* ruc)
 
     // Then, we use the ipv4 address.
     for (int i = 0; i < (int)ips.size(); ++i) {
-        SrsIPAddress* ip = ips[i];
+        SrsIPAddress *ip = ips[i];
         if (!ip->is_ipv4) {
             continue;
         }
@@ -261,7 +260,7 @@ static set<string> discover_candidates(SrsRtcUserConfig* ruc)
 
     // We use the first one, to make sure there will be at least one CANDIDATE.
     if (candidate_ips.empty()) {
-        SrsIPAddress* ip = ips[0];
+        SrsIPAddress *ip = ips[0];
         candidate_ips.insert(ip->ip);
         srs_warn("No best matched, use first ip=%s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
         return candidate_ips;
@@ -295,9 +294,9 @@ SrsRtcServer::~SrsRtcServer()
     _srs_config->unsubscribe(this);
 
     if (true) {
-        vector<SrsUdpMuxListener*>::iterator it;
+        vector<SrsUdpMuxListener *>::iterator it;
         for (it = listeners.begin(); it != listeners.end(); ++it) {
-            SrsUdpMuxListener* listener = *it;
+            SrsUdpMuxListener *listener = *it;
             srs_freep(listener);
         }
     }
@@ -329,7 +328,7 @@ srs_error_t SrsRtcServer::on_reload_rtc_server()
     return srs_success;
 }
 
-srs_error_t SrsRtcServer::exec_async_work(ISrsAsyncCallTask * t)
+srs_error_t SrsRtcServer::exec_async_work(ISrsAsyncCallTask *t)
 {
     return async->execute(t);
 }
@@ -352,7 +351,7 @@ srs_error_t SrsRtcServer::listen_udp()
 
     int nn_listeners = _srs_config->get_rtc_server_reuseport();
     for (int i = 0; i < nn_listeners; i++) {
-        SrsUdpMuxListener* listener = new SrsUdpMuxListener(this, ip, port);
+        SrsUdpMuxListener *listener = new SrsUdpMuxListener(this, ip, port);
 
         if ((err = listener->listen()) != srs_success) {
             srs_freep(listener);
@@ -366,23 +365,24 @@ srs_error_t SrsRtcServer::listen_udp()
     return err;
 }
 
-srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
+srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket *skt)
 {
     srs_error_t err = srs_success;
 
-    SrsRtcConnection* session = NULL;
-    char* data = skt->data(); int size = skt->size();
-    bool is_rtp_or_rtcp = srs_is_rtp_or_rtcp((uint8_t*)data, size);
-    bool is_rtcp = srs_is_rtcp((uint8_t*)data, size);
+    SrsRtcConnection *session = NULL;
+    char *data = skt->data();
+    int size = skt->size();
+    bool is_rtp_or_rtcp = srs_is_rtp_or_rtcp((uint8_t *)data, size);
+    bool is_rtcp = srs_is_rtcp((uint8_t *)data, size);
 
     uint64_t fast_id = skt->fast_id();
     // Try fast id first, if not found, search by long peer id.
     if (fast_id) {
-        session = (SrsRtcConnection*)_srs_rtc_manager->find_by_fast_id(fast_id);
+        session = (SrsRtcConnection *)_srs_rtc_manager->find_by_fast_id(fast_id);
     }
     if (!session) {
         string peer_id = skt->peer_id();
-        session = (SrsRtcConnection*)_srs_rtc_manager->find_by_id(peer_id);
+        session = (SrsRtcConnection *)_srs_rtc_manager->find_by_id(peer_id);
     }
 
     if (session) {
@@ -391,7 +391,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     }
 
     // For STUN, the peer address may change.
-    if (!is_rtp_or_rtcp && srs_is_stun((uint8_t*)data, size)) {
+    if (!is_rtp_or_rtcp && srs_is_stun((uint8_t *)data, size)) {
         ++_srs_pps_rstuns->sugar;
         string peer_id = skt->peer_id();
 
@@ -408,12 +408,12 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         }
 
         srs_info("recv stun packet from %s, fast=%" PRId64 ", use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
-            peer_id.c_str(), fast_id, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
+                 peer_id.c_str(), fast_id, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
         // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
         if (!session) {
             return srs_error_new(ERROR_RTC_STUN, "no session, stun username=%s, peer_id=%s, fast=%" PRId64,
-                ping.get_username().c_str(), peer_id.c_str(), fast_id);
+                                 ping.get_username().c_str(), peer_id.c_str(), fast_id);
         }
 
         // For each binding request, update the UDP socket.
@@ -447,7 +447,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
         return session->udp()->on_rtcp(data, size);
     }
-    if (srs_is_dtls((uint8_t*)data, size)) {
+    if (srs_is_dtls((uint8_t *)data, size)) {
         ++_srs_pps_rstuns->sugar;
 
         return session->udp()->on_dtls(data, size);
@@ -460,7 +460,7 @@ srs_error_t SrsRtcServer::listen_api()
     srs_error_t err = srs_success;
 
     // TODO: FIXME: Fetch api from hybrid manager, not from SRS.
-    ISrsHttpServeMux* http_api_mux = _srs_hybrid->srs()->instance()->api_server();
+    ISrsHttpServeMux *http_api_mux = _srs_hybrid->srs()->instance()->api_server();
 
     if ((err = http_api_mux->handle("/rtc/v1/play/", new SrsGoApiRtcPlay(this))) != srs_success) {
         return srs_error_wrap(err, "handle play");
@@ -494,13 +494,13 @@ srs_error_t SrsRtcServer::listen_api()
     return err;
 }
 
-srs_error_t SrsRtcServer::create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection** psession)
+srs_error_t SrsRtcServer::create_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, SrsRtcConnection **psession)
 {
     srs_error_t err = srs_success;
 
     SrsContextId cid = _srs_context->get_id();
 
-    SrsRequest* req = ruc->req_;
+    SrsRequest *req = ruc->req_;
 
     SrsSharedPtr<SrsRtcSource> source;
     if ((err = _srs_rtc_sources->fetch_or_create(req, source)) != srs_success) {
@@ -512,7 +512,7 @@ srs_error_t SrsRtcServer::create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sd
     }
 
     // TODO: FIXME: add do_create_session to error process.
-    SrsRtcConnection* session = new SrsRtcConnection(this, cid);
+    SrsRtcConnection *session = new SrsRtcConnection(this, cid);
     if ((err = do_create_session(ruc, local_sdp, session)) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "create session");
@@ -523,11 +523,11 @@ srs_error_t SrsRtcServer::create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sd
     return err;
 }
 
-srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection* session)
+srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, SrsRtcConnection *session)
 {
     srs_error_t err = srs_success;
 
-    SrsRequest* req = ruc->req_;
+    SrsRequest *req = ruc->req_;
 
     // first add publisher/player for negotiate sdp media info
     if (ruc->publish_) {
@@ -571,8 +571,10 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
         set<string> candidates = discover_candidates(ruc);
         for (set<string>::iterator it = candidates.begin(); it != candidates.end(); ++it) {
             string hostname;
-            int uport = udp_port; srs_parse_hostport(*it, hostname, uport);
-            int tport = tcp_port; srs_parse_hostport(*it, hostname, tport);
+            int uport = udp_port;
+            srs_parse_hostport(*it, hostname, uport);
+            int tport = tcp_port;
+            srs_parse_hostport(*it, hostname, tport);
 
             if (protocol == "udp") {
                 local_sdp.add_candidate("udp", hostname, uport, "host");
@@ -622,10 +624,10 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
     return err;
 }
 
-SrsRtcConnection* SrsRtcServer::find_session_by_username(const std::string& username)
+SrsRtcConnection *SrsRtcServer::find_session_by_username(const std::string &username)
 {
-    ISrsResource* conn = _srs_rtc_manager->find_by_name(username);
-    return dynamic_cast<SrsRtcConnection*>(conn);
+    ISrsResource *conn = _srs_rtc_manager->find_by_name(username);
+    return dynamic_cast<SrsRtcConnection *>(conn);
 }
 
 srs_error_t SrsRtcServer::on_timer(srs_utime_t interval)
@@ -637,7 +639,7 @@ srs_error_t SrsRtcServer::on_timer(srs_utime_t interval)
 
     // Check all sessions and dispose the dead sessions.
     for (int i = 0; i < (int)_srs_rtc_manager->size(); i++) {
-        SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(_srs_rtc_manager->at(i));
+        SrsRtcConnection *session = dynamic_cast<SrsRtcConnection *>(_srs_rtc_manager->at(i));
         // Ignore not session, or already disposing.
         if (!session || session->disposing_) {
             continue;
@@ -667,58 +669,75 @@ srs_error_t SrsRtcServer::on_timer(srs_utime_t interval)
     static char buf[128];
 
     string rpkts_desc;
-    _srs_pps_rpkts->update(); _srs_pps_rrtps->update(); _srs_pps_rstuns->update(); _srs_pps_rrtcps->update();
+    _srs_pps_rpkts->update();
+    _srs_pps_rrtps->update();
+    _srs_pps_rstuns->update();
+    _srs_pps_rrtcps->update();
     if (_srs_pps_rpkts->r10s() || _srs_pps_rrtps->r10s() || _srs_pps_rstuns->r10s() || _srs_pps_rrtcps->r10s()) {
         snprintf(buf, sizeof(buf), ", rpkts=(%d,rtp:%d,stun:%d,rtcp:%d)", _srs_pps_rpkts->r10s(), _srs_pps_rrtps->r10s(), _srs_pps_rstuns->r10s(), _srs_pps_rrtcps->r10s());
         rpkts_desc = buf;
     }
 
     string spkts_desc;
-    _srs_pps_spkts->update(); _srs_pps_srtps->update(); _srs_pps_sstuns->update(); _srs_pps_srtcps->update();
+    _srs_pps_spkts->update();
+    _srs_pps_srtps->update();
+    _srs_pps_sstuns->update();
+    _srs_pps_srtcps->update();
     if (_srs_pps_spkts->r10s() || _srs_pps_srtps->r10s() || _srs_pps_sstuns->r10s() || _srs_pps_srtcps->r10s()) {
         snprintf(buf, sizeof(buf), ", spkts=(%d,rtp:%d,stun:%d,rtcp:%d)", _srs_pps_spkts->r10s(), _srs_pps_srtps->r10s(), _srs_pps_sstuns->r10s(), _srs_pps_srtcps->r10s());
         spkts_desc = buf;
     }
 
     string rtcp_desc;
-    _srs_pps_pli->update(); _srs_pps_twcc->update(); _srs_pps_rr->update();
+    _srs_pps_pli->update();
+    _srs_pps_twcc->update();
+    _srs_pps_rr->update();
     if (_srs_pps_pli->r10s() || _srs_pps_twcc->r10s() || _srs_pps_rr->r10s()) {
         snprintf(buf, sizeof(buf), ", rtcp=(pli:%d,twcc:%d,rr:%d)", _srs_pps_pli->r10s(), _srs_pps_twcc->r10s(), _srs_pps_rr->r10s());
         rtcp_desc = buf;
     }
 
     string snk_desc;
-    _srs_pps_snack->update(); _srs_pps_snack2->update(); _srs_pps_sanack->update(); _srs_pps_svnack->update();
+    _srs_pps_snack->update();
+    _srs_pps_snack2->update();
+    _srs_pps_sanack->update();
+    _srs_pps_svnack->update();
     if (_srs_pps_snack->r10s() || _srs_pps_sanack->r10s() || _srs_pps_svnack->r10s() || _srs_pps_snack2->r10s()) {
         snprintf(buf, sizeof(buf), ", snk=(%d,a:%d,v:%d,h:%d)", _srs_pps_snack->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(), _srs_pps_snack2->r10s());
         snk_desc = buf;
     }
 
     string rnk_desc;
-    _srs_pps_rnack->update(); _srs_pps_rnack2->update(); _srs_pps_rhnack->update(); _srs_pps_rmnack->update();
+    _srs_pps_rnack->update();
+    _srs_pps_rnack2->update();
+    _srs_pps_rhnack->update();
+    _srs_pps_rmnack->update();
     if (_srs_pps_rnack->r10s() || _srs_pps_rnack2->r10s() || _srs_pps_rhnack->r10s() || _srs_pps_rmnack->r10s()) {
         snprintf(buf, sizeof(buf), ", rnk=(%d,%d,h:%d,m:%d)", _srs_pps_rnack->r10s(), _srs_pps_rnack2->r10s(), _srs_pps_rhnack->r10s(), _srs_pps_rmnack->r10s());
         rnk_desc = buf;
     }
 
     string loss_desc;
-    SrsSnmpUdpStat* s = srs_get_udp_snmp_stat();
+    SrsSnmpUdpStat *s = srs_get_udp_snmp_stat();
     if (s->rcv_buf_errors_delta || s->snd_buf_errors_delta) {
         snprintf(buf, sizeof(buf), ", loss=(r:%d,s:%d)", s->rcv_buf_errors_delta, s->snd_buf_errors_delta);
         loss_desc = buf;
     }
 
     string fid_desc;
-    _srs_pps_ids->update(); _srs_pps_fids->update(); _srs_pps_fids_level0->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
+    _srs_pps_ids->update();
+    _srs_pps_fids->update();
+    _srs_pps_fids_level0->update();
+    _srs_pps_addrs->update();
+    _srs_pps_fast_addrs->update();
     if (_srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s()) {
         snprintf(buf, sizeof(buf), ", fid=(id:%d,fid:%d,ffid:%d,addr:%d,faddr:%d)", _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s());
         fid_desc = buf;
     }
 
     srs_trace("RTC: Server conns=%u%s%s%s%s%s%s%s",
-        nn_rtc_conns,
-        rpkts_desc.c_str(), spkts_desc.c_str(), rtcp_desc.c_str(), snk_desc.c_str(), rnk_desc.c_str(), loss_desc.c_str(), fid_desc.c_str()
-    );
+              nn_rtc_conns,
+              rpkts_desc.c_str(), spkts_desc.c_str(), rtcp_desc.c_str(), snk_desc.c_str(), rnk_desc.c_str(), loss_desc.c_str(), fid_desc.c_str());
 
     return err;
 }
@@ -748,7 +767,7 @@ srs_error_t RtcServerAdapter::initialize()
     return err;
 }
 
-srs_error_t RtcServerAdapter::run(SrsWaitGroup* wg)
+srs_error_t RtcServerAdapter::run(SrsWaitGroup *wg)
 {
     srs_error_t err = srs_success;
 
@@ -771,5 +790,4 @@ void RtcServerAdapter::stop()
 {
 }
 
-SrsResourceManager* _srs_rtc_manager = NULL;
-
+SrsResourceManager *_srs_rtc_manager = NULL;

@@ -6,13 +6,13 @@
 
 #include <srs_app_stream_bridge.hpp>
 
-#include <srs_app_source.hpp>
-#include <srs_protocol_format.hpp>
-#include <srs_app_rtc_source.hpp>
 #include <srs_app_config.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
-#include <srs_kernel_rtc_rtp.hpp>
+#include <srs_app_rtc_source.hpp>
+#include <srs_app_source.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
+#include <srs_protocol_format.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #ifdef SRS_RTSP
 #include <srs_app_rtsp_source.hpp>
 #endif
@@ -37,7 +37,7 @@ SrsFrameToRtmpBridge::~SrsFrameToRtmpBridge()
 {
 }
 
-srs_error_t SrsFrameToRtmpBridge::initialize(SrsRequest* r)
+srs_error_t SrsFrameToRtmpBridge::initialize(SrsRequest *r)
 {
     return srs_success;
 }
@@ -60,7 +60,7 @@ void SrsFrameToRtmpBridge::on_unpublish()
     source_->on_unpublish();
 }
 
-srs_error_t SrsFrameToRtmpBridge::on_frame(SrsSharedPtrMessage* frame)
+srs_error_t SrsFrameToRtmpBridge::on_frame(SrsSharedPtrMessage *frame)
 {
     return source_->on_frame(frame);
 }
@@ -83,7 +83,7 @@ SrsFrameToRtcBridge::~SrsFrameToRtcBridge()
 #endif
 }
 
-srs_error_t SrsFrameToRtcBridge::initialize(SrsRequest* r)
+srs_error_t SrsFrameToRtcBridge::initialize(SrsRequest *r)
 {
 #ifdef SRS_FFMPEG_FIT
     return rtp_builder_->initialize(r);
@@ -121,7 +121,7 @@ void SrsFrameToRtcBridge::on_unpublish()
     source_->on_unpublish();
 }
 
-srs_error_t SrsFrameToRtcBridge::on_frame(SrsSharedPtrMessage* frame)
+srs_error_t SrsFrameToRtcBridge::on_frame(SrsSharedPtrMessage *frame)
 {
 #ifdef SRS_FFMPEG_FIT
     return rtp_builder_->on_frame(frame);
@@ -130,7 +130,7 @@ srs_error_t SrsFrameToRtcBridge::on_frame(SrsSharedPtrMessage* frame)
 #endif
 }
 
-srs_error_t SrsFrameToRtcBridge::on_rtp(SrsRtpPacket* pkt)
+srs_error_t SrsFrameToRtcBridge::on_rtp(SrsRtpPacket *pkt)
 {
     return source_->on_rtp(pkt);
 }
@@ -151,7 +151,7 @@ SrsFrameToRtspBridge::~SrsFrameToRtspBridge()
     srs_freep(rtp_builder_);
 }
 
-srs_error_t SrsFrameToRtspBridge::initialize(SrsRequest* r)
+srs_error_t SrsFrameToRtspBridge::initialize(SrsRequest *r)
 {
     return rtp_builder_->initialize(r);
 }
@@ -181,12 +181,12 @@ void SrsFrameToRtspBridge::on_unpublish()
     source_->on_unpublish();
 }
 
-srs_error_t SrsFrameToRtspBridge::on_frame(SrsSharedPtrMessage* frame)
+srs_error_t SrsFrameToRtspBridge::on_frame(SrsSharedPtrMessage *frame)
 {
     return rtp_builder_->on_frame(frame);
 }
 
-srs_error_t SrsFrameToRtspBridge::on_rtp(SrsRtpPacket* pkt)
+srs_error_t SrsFrameToRtspBridge::on_rtp(SrsRtpPacket *pkt)
 {
     return source_->on_rtp(pkt);
 }
@@ -198,18 +198,18 @@ SrsCompositeBridge::SrsCompositeBridge()
 
 SrsCompositeBridge::~SrsCompositeBridge()
 {
-    for (vector<ISrsStreamBridge*>::iterator it = bridges_.begin(); it != bridges_.end(); ++it) {
-        ISrsStreamBridge* bridge = *it;
+    for (vector<ISrsStreamBridge *>::iterator it = bridges_.begin(); it != bridges_.end(); ++it) {
+        ISrsStreamBridge *bridge = *it;
         srs_freep(bridge);
     }
 }
 
-srs_error_t SrsCompositeBridge::initialize(SrsRequest* r)
+srs_error_t SrsCompositeBridge::initialize(SrsRequest *r)
 {
     srs_error_t err = srs_success;
 
-    for (vector<ISrsStreamBridge*>::iterator it = bridges_.begin(); it != bridges_.end(); ++it) {
-        ISrsStreamBridge* bridge = *it;
+    for (vector<ISrsStreamBridge *>::iterator it = bridges_.begin(); it != bridges_.end(); ++it) {
+        ISrsStreamBridge *bridge = *it;
         if ((err = bridge->initialize(r)) != srs_success) {
             return err;
         }
@@ -222,8 +222,8 @@ srs_error_t SrsCompositeBridge::on_publish()
 {
     srs_error_t err = srs_success;
 
-    for (vector<ISrsStreamBridge*>::iterator it = bridges_.begin(); it != bridges_.end(); ++it) {
-        ISrsStreamBridge* bridge = *it;
+    for (vector<ISrsStreamBridge *>::iterator it = bridges_.begin(); it != bridges_.end(); ++it) {
+        ISrsStreamBridge *bridge = *it;
         if ((err = bridge->on_publish()) != srs_success) {
             return err;
         }
@@ -234,18 +234,18 @@ srs_error_t SrsCompositeBridge::on_publish()
 
 void SrsCompositeBridge::on_unpublish()
 {
-    for (vector<ISrsStreamBridge*>::iterator it = bridges_.begin(); it != bridges_.end(); ++it) {
-        ISrsStreamBridge* bridge = *it;
+    for (vector<ISrsStreamBridge *>::iterator it = bridges_.begin(); it != bridges_.end(); ++it) {
+        ISrsStreamBridge *bridge = *it;
         bridge->on_unpublish();
     }
 }
 
-srs_error_t SrsCompositeBridge::on_frame(SrsSharedPtrMessage* frame)
+srs_error_t SrsCompositeBridge::on_frame(SrsSharedPtrMessage *frame)
 {
     srs_error_t err = srs_success;
 
-    for (vector<ISrsStreamBridge*>::iterator it = bridges_.begin(); it != bridges_.end(); ++it) {
-        ISrsStreamBridge* bridge = *it;
+    for (vector<ISrsStreamBridge *>::iterator it = bridges_.begin(); it != bridges_.end(); ++it) {
+        ISrsStreamBridge *bridge = *it;
         if ((err = bridge->on_frame(frame)) != srs_success) {
             return err;
         }
@@ -254,9 +254,8 @@ srs_error_t SrsCompositeBridge::on_frame(SrsSharedPtrMessage* frame)
     return err;
 }
 
-SrsCompositeBridge* SrsCompositeBridge::append(ISrsStreamBridge* bridge)
+SrsCompositeBridge *SrsCompositeBridge::append(ISrsStreamBridge *bridge)
 {
     bridges_.push_back(bridge);
     return this;
 }
-

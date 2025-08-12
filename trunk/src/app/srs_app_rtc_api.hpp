@@ -7,8 +7,8 @@
 #ifndef SRS_APP_RTC_API_HPP
 #define SRS_APP_RTC_API_HPP
 
-#include <srs_core.hpp>
 #include <srs_app_security.hpp>
+#include <srs_core.hpp>
 #include <srs_protocol_http_stack.hpp>
 
 class SrsRtcServer;
@@ -19,71 +19,88 @@ class SrsRtcUserConfig;
 class SrsGoApiRtcPlay : public ISrsHttpHandler
 {
 private:
-    SrsRtcServer* server_;
-    SrsSecurity* security_;
+    SrsRtcServer *server_;
+    SrsSecurity *security_;
+
 public:
-    SrsGoApiRtcPlay(SrsRtcServer* server);
+    SrsGoApiRtcPlay(SrsRtcServer *server);
     virtual ~SrsGoApiRtcPlay();
+
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
 private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *res);
+
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRtcUserConfig* ruc);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc);
+
 private:
-    srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
+    srs_error_t check_remote_sdp(const SrsSdp &remote_sdp);
+
 private:
-    virtual srs_error_t http_hooks_on_play(SrsRequest* req);
+    virtual srs_error_t http_hooks_on_play(SrsRequest *req);
 };
 
 class SrsGoApiRtcPublish : public ISrsHttpHandler
 {
 private:
-    SrsRtcServer* server_;
-    SrsSecurity* security_;
+    SrsRtcServer *server_;
+    SrsSecurity *security_;
+
 public:
-    SrsGoApiRtcPublish(SrsRtcServer* server);
+    SrsGoApiRtcPublish(SrsRtcServer *server);
     virtual ~SrsGoApiRtcPublish();
+
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
 private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *res);
+
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRtcUserConfig* ruc);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc);
+
 private:
-    srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
+    srs_error_t check_remote_sdp(const SrsSdp &remote_sdp);
+
 private:
-    virtual srs_error_t http_hooks_on_publish(SrsRequest* req);
+    virtual srs_error_t http_hooks_on_publish(SrsRequest *req);
 };
 
 // See https://datatracker.ietf.org/doc/draft-ietf-wish-whip/
 class SrsGoApiRtcWhip : public ISrsHttpHandler
 {
 private:
-    SrsRtcServer* server_;
-    SrsGoApiRtcPublish* publish_;
-    SrsGoApiRtcPlay* play_;
+    SrsRtcServer *server_;
+    SrsGoApiRtcPublish *publish_;
+    SrsGoApiRtcPlay *play_;
+
 public:
-    SrsGoApiRtcWhip(SrsRtcServer* server);
+    SrsGoApiRtcWhip(SrsRtcServer *server);
     virtual ~SrsGoApiRtcWhip();
+
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
 private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRtcUserConfig* ruc);
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc);
 };
 
 class SrsGoApiRtcNACK : public ISrsHttpHandler
 {
 private:
-    SrsRtcServer* server_;
+    SrsRtcServer *server_;
+
 public:
-    SrsGoApiRtcNACK(SrsRtcServer* server);
+    SrsGoApiRtcNACK(SrsRtcServer *server);
     virtual ~SrsGoApiRtcNACK();
+
 public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
 private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *res);
 };
 
 #endif
-

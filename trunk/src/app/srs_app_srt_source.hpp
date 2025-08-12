@@ -12,11 +12,11 @@
 #include <map>
 #include <vector>
 
-#include <srs_kernel_ts.hpp>
-#include <srs_protocol_st.hpp>
+#include <srs_app_hourglass.hpp>
 #include <srs_app_stream_bridge.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_app_hourglass.hpp>
+#include <srs_kernel_ts.hpp>
+#include <srs_protocol_st.hpp>
 
 class SrsSharedPtrMessage;
 class SrsRequest;
@@ -31,19 +31,22 @@ class SrsSrtPacket
 public:
     SrsSrtPacket();
     virtual ~SrsSrtPacket();
+
 public:
     // Wrap buffer to shared_message, which is managed by us.
-    char* wrap(int size);
-    char* wrap(char* data, int size);
+    char *wrap(int size);
+    char *wrap(char *data, int size);
     // Wrap the shared message, we copy it.
-    char* wrap(SrsSharedPtrMessage* msg);
+    char *wrap(SrsSharedPtrMessage *msg);
     // Copy the SRT packet.
-    virtual SrsSrtPacket* copy();
+    virtual SrsSrtPacket *copy();
+
 public:
-    char* data();
+    char *data();
     int size();
+
 private:
-    SrsSharedPtrMessage* shared_buffer_;
+    SrsSharedPtrMessage *shared_buffer_;
     // The size of SRT packet or SRT payload.
     int actual_buffer_size_;
 };
@@ -52,50 +55,56 @@ class SrsSrtSourceManager : public ISrsHourGlass
 {
 private:
     srs_mutex_t lock;
-    std::map< std::string, SrsSharedPtr<SrsSrtSource> > pool;
-    SrsHourGlass* timer_;
+    std::map<std::string, SrsSharedPtr<SrsSrtSource> > pool;
+    SrsHourGlass *timer_;
+
 public:
     SrsSrtSourceManager();
     virtual ~SrsSrtSourceManager();
+
 public:
     virtual srs_error_t initialize();
-// interface ISrsHourGlass
+    // interface ISrsHourGlass
 private:
     virtual srs_error_t setup_ticks();
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
+
 public:
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsSharedPtr<SrsSrtSource>& pps);
+    virtual srs_error_t fetch_or_create(SrsRequest *r, SrsSharedPtr<SrsSrtSource> &pps);
 };
 
 // Global singleton instance.
-extern SrsSrtSourceManager* _srs_srt_sources;
+extern SrsSrtSourceManager *_srs_srt_sources;
 
 class SrsSrtConsumer
 {
 public:
-    SrsSrtConsumer(SrsSrtSource* source);
+    SrsSrtConsumer(SrsSrtSource *source);
     virtual ~SrsSrtConsumer();
+
 private:
     // Because source references to this object, so we should directly use the source ptr.
-    SrsSrtSource* source_;
+    SrsSrtSource *source_;
+
 private:
-    std::vector<SrsSrtPacket*> queue;
+    std::vector<SrsSrtPacket *> queue;
     // when source id changed, notice all consumers
     bool should_update_source_id;
     // The cond wait for mw.
     srs_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
+
 public:
     // When source id changed, notice client to print.
     void update_source_id();
     // Put SRT packet into queue.
-    srs_error_t enqueue(SrsSrtPacket* packet);
+    srs_error_t enqueue(SrsSrtPacket *packet);
     // For SRT, we only got one packet, because there is not many packets in queue.
-    virtual srs_error_t dump_packet(SrsSrtPacket** ppkt);
+    virtual srs_error_t dump_packet(SrsSrtPacket **ppkt);
     // Wait for at-least some messages incoming in queue.
     virtual void wait(int nb_msgs, srs_utime_t timeout);
 };
@@ -104,31 +113,36 @@ public:
 class SrsSrtFrameBuilder : public ISrsTsHandler
 {
 public:
-    SrsSrtFrameBuilder(ISrsStreamBridge* bridge);
+    SrsSrtFrameBuilder(ISrsStreamBridge *bridge);
     virtual ~SrsSrtFrameBuilder();
+
 public:
-    srs_error_t initialize(SrsRequest* r);
+    srs_error_t initialize(SrsRequest *r);
+
 public:
     virtual srs_error_t on_publish();
-    virtual srs_error_t on_packet(SrsSrtPacket* pkt);
+    virtual srs_error_t on_packet(SrsSrtPacket *pkt);
     virtual void on_unpublish();
-// Interface ISrsTsHandler
+    // Interface ISrsTsHandler
 public:
-    virtual srs_error_t on_ts_message(SrsTsMessage* msg);
+    virtual srs_error_t on_ts_message(SrsTsMessage *msg);
+
 private:
-    srs_error_t on_ts_video_avc(SrsTsMessage* msg, SrsBuffer* avs);
-    srs_error_t on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
-    srs_error_t check_sps_pps_change(SrsTsMessage* msg);
-    srs_error_t on_h264_frame(SrsTsMessage* msg, std::vector< std::pair<char*, int> >& ipb_frames);
-    srs_error_t check_audio_sh_change(SrsTsMessage* msg, uint32_t pts);
-    srs_error_t on_aac_frame(SrsTsMessage* msg, uint32_t pts, char* frame, int frame_size);
+    srs_error_t on_ts_video_avc(SrsTsMessage *msg, SrsBuffer *avs);
+    srs_error_t on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs);
+    srs_error_t check_sps_pps_change(SrsTsMessage *msg);
+    srs_error_t on_h264_frame(SrsTsMessage *msg, std::vector<std::pair<char *, int> > &ipb_frames);
+    srs_error_t check_audio_sh_change(SrsTsMessage *msg, uint32_t pts);
+    srs_error_t on_aac_frame(SrsTsMessage *msg, uint32_t pts, char *frame, int frame_size);
     srs_error_t on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs);
     srs_error_t check_vps_sps_pps_change(SrsTsMessage *msg);
-    srs_error_t on_hevc_frame(SrsTsMessage *msg, std::vector< std::pair<char *, int> > &ipb_frames);
+    srs_error_t on_hevc_frame(SrsTsMessage *msg, std::vector<std::pair<char *, int> > &ipb_frames);
+
 private:
-    ISrsStreamBridge* bridge_;
+    ISrsStreamBridge *bridge_;
+
 private:
-    SrsTsContext* ts_ctx_;
+    SrsTsContext *ts_ctx_;
     // Record sps/pps had changed, if change, need to generate new video sh frame.
     bool sps_pps_change_;
     std::string sps_;
@@ -140,15 +154,17 @@ private:
     // Record audio sepcific config had changed, if change, need to generate new audio sh frame.
     bool audio_sh_change_;
     std::string audio_sh_;
+
 private:
-    SrsRequest* req_;
+    SrsRequest *req_;
+
 private:
     // SRT to rtmp, video stream id.
     int video_streamid_;
     // SRT to rtmp, audio stream id.
     int audio_streamid_;
     // Cycle print when audio duration too large because mpegts may merge multi audio frame in one pes packet.
-    SrsAlonePithyPrint* pp_audio_duration_;
+    SrsAlonePithyPrint *pp_audio_duration_;
 };
 
 class SrsSrtSource
@@ -156,11 +172,14 @@ class SrsSrtSource
 public:
     SrsSrtSource();
     virtual ~SrsSrtSource();
+
 public:
-    virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t initialize(SrsRequest *r);
+
 public:
     // Whether stream is dead, which is no publisher or player.
     virtual bool stream_is_dead();
+
 public:
     // The source id changed.
     virtual srs_error_t on_source_id_changed(SrsContextId id);
@@ -168,39 +187,43 @@ public:
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
     // Update the authentication information in request.
-    virtual void update_auth(SrsRequest* r);
+    virtual void update_auth(SrsRequest *r);
+
 public:
-    void set_bridge(ISrsStreamBridge* bridge);
+    void set_bridge(ISrsStreamBridge *bridge);
+
 public:
     // Create consumer
     // @param consumer, output the create consumer.
-    virtual srs_error_t create_consumer(SrsSrtConsumer*& consumer);
+    virtual srs_error_t create_consumer(SrsSrtConsumer *&consumer);
     // Dumps packets in cache to consumer.
-    virtual srs_error_t consumer_dumps(SrsSrtConsumer* consumer);
-    virtual void on_consumer_destroy(SrsSrtConsumer* consumer);
+    virtual srs_error_t consumer_dumps(SrsSrtConsumer *consumer);
+    virtual void on_consumer_destroy(SrsSrtConsumer *consumer);
     // Whether we can publish stream to the source, return false if it exists.
     virtual bool can_publish();
     // When start publish stream.
     virtual srs_error_t on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
+
 public:
-    srs_error_t on_packet(SrsSrtPacket* packet);
+    srs_error_t on_packet(SrsSrtPacket *packet);
+
 private:
     // Source id.
     SrsContextId _source_id;
     // previous source id.
     SrsContextId _pre_source_id;
-    SrsRequest* req;
+    SrsRequest *req;
     // To delivery packets to clients.
-    std::vector<SrsSrtConsumer*> consumers;
+    std::vector<SrsSrtConsumer *> consumers;
     bool can_publish_;
     // The last die time, while die means neither publishers nor players.
     srs_utime_t stream_die_at_;
+
 private:
-    SrsSrtFrameBuilder* frame_builder_;
-    ISrsStreamBridge* bridge_;
+    SrsSrtFrameBuilder *frame_builder_;
+    ISrsStreamBridge *bridge_;
 };
 
 #endif
-

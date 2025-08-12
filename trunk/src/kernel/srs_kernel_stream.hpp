@@ -19,9 +19,11 @@ class SrsSimpleStream
 {
 private:
     std::vector<char> data;
+
 public:
     SrsSimpleStream();
     virtual ~SrsSimpleStream();
+
 public:
     /**
      * get the length of buffer. empty if zero.
@@ -32,7 +34,7 @@ public:
      * get the buffer bytes.
      * @return the bytes, NULL if empty.
      */
-    virtual char* bytes();
+    virtual char *bytes();
     /**
      * erase size of bytes from begin.
      * @param size to erase size of bytes.
@@ -45,8 +47,8 @@ public:
      * @param size the size of bytes
      * @remark assert size is positive.
      */
-    virtual void append(const char* bytes, int size);
-    virtual void append(SrsSimpleStream* src);
+    virtual void append(const char *bytes, int size);
+    virtual void append(SrsSimpleStream *src);
 };
 
 #endif

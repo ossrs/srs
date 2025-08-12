@@ -6,12 +6,12 @@
 
 #include <srs_kernel_ps.hpp>
 
-#include <srs_kernel_error.hpp>
-#include <srs_kernel_buffer.hpp>
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_stream.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 
 #include <string>
@@ -21,7 +21,8 @@ using namespace std;
 #define SRS_PS_MIN_REQUIRED 32
 
 SrsPsDecodeHelper::SrsPsDecodeHelper()
-{;
+{
+    ;
     rtp_seq_ = 0;
     rtp_ts_ = 0;
     rtp_pt_ = 0;
@@ -63,7 +64,7 @@ void SrsPsContext::set_detect_ps_integrity(bool v)
     detect_ps_integrity_ = v;
 }
 
-SrsTsMessage* SrsPsContext::last()
+SrsTsMessage *SrsPsContext::last()
 {
     if (!last_) {
         last_ = new SrsTsMessage();
@@ -72,15 +73,15 @@ SrsTsMessage* SrsPsContext::last()
     return last_;
 }
 
-SrsTsMessage* SrsPsContext::reap()
+SrsTsMessage *SrsPsContext::reap()
 {
-    SrsTsMessage* msg = last_;
+    SrsTsMessage *msg = last_;
     last_ = new SrsTsMessage();
     last_->ps_helper_ = &helper_;
     return msg;
 }
 
-srs_error_t SrsPsContext::decode(SrsBuffer* stream, ISrsPsMessageHandler* handler)
+srs_error_t SrsPsContext::decode(SrsBuffer *stream, ISrsPsMessageHandler *handler)
 {
     srs_error_t err = srs_success;
 
@@ -88,7 +89,7 @@ srs_error_t SrsPsContext::decode(SrsBuffer* stream, ISrsPsMessageHandler* handle
     while (!stream->empty()) {
         // If new PS packet but not enough packet, ignore.
         if (detect_ps_integrity_ && stream->left() >= 4) {
-            uint8_t* p = (uint8_t*)stream->head();
+            uint8_t *p = (uint8_t *)stream->head();
             if (p[0] == 0x00 && p[1] == 0x00 && p[2] == 0x01 && stream->left() <= SRS_PS_MIN_REQUIRED) {
                 break;
             }
@@ -134,7 +135,7 @@ srs_error_t SrsPsContext::decode(SrsBuffer* stream, ISrsPsMessageHandler* handle
             helper_.pack_pre_msg_last_seq_ = helper_.rtp_seq_;
             helper_.pack_nn_msgs_++;
 
-            //srs_error("PS: Got message %s, dts=%" PRId64 ", payload=%dB", msg->is_video() ? "Video" : "Audio", msg->dts/9000, msg->PES_packet_length);
+            // srs_error("PS: Got message %s, dts=%" PRId64 ", payload=%dB", msg->is_video() ? "Video" : "Audio", msg->dts/9000, msg->PES_packet_length);
             if (handler && (err = handler->on_ts_message(msg.get())) != srs_success) {
                 return srs_error_wrap(err, "handle PS message");
             }
@@ -146,7 +147,7 @@ srs_error_t SrsPsContext::decode(SrsBuffer* stream, ISrsPsMessageHandler* handle
     return err;
 }
 
-srs_error_t SrsPsContext::do_decode(SrsBuffer* stream, ISrsPsMessageHandler* handler)
+srs_error_t SrsPsContext::do_decode(SrsBuffer *stream, ISrsPsMessageHandler *handler)
 {
     srs_error_t err = srs_success;
 
@@ -163,7 +164,7 @@ srs_error_t SrsPsContext::do_decode(SrsBuffer* stream, ISrsPsMessageHandler* han
     if (!stream->require(4)) {
         return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
     }
-    uint8_t* p = (uint8_t*)stream->head();
+    uint8_t *p = (uint8_t *)stream->head();
 
     // For normal mode, should start with 00 00 01, for pack or system header or PES packet.
     if (p[0] != 0x00 || p[1] != 0x00 || p[2] != 0x01) {
@@ -195,7 +196,7 @@ srs_error_t SrsPsContext::do_decode(SrsBuffer* stream, ISrsPsMessageHandler* han
     return err;
 }
 
-SrsPsPacket::SrsPsPacket(SrsPsContext* context)
+SrsPsPacket::SrsPsPacket(SrsPsContext *context)
 {
     context_ = context;
     has_pack_header_ = has_system_header_ = false;
@@ -230,13 +231,14 @@ SrsPsPacket::~SrsPsPacket()
 {
 }
 
-srs_error_t SrsPsPacket::decode(SrsBuffer* stream)
+srs_error_t SrsPsPacket::decode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
     // Program Stream pack header.
-    if (!stream->require(4)) return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
-    uint8_t* p = (uint8_t*)stream->head();
+    if (!stream->require(4))
+        return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
+    uint8_t *p = (uint8_t *)stream->head();
     if (p[0] == 0x00 && p[1] == 0x00 && p[2] == 0x01 && p[3] == 0xba) {
         if ((err = decode_pack(stream)) != srs_success) {
             return srs_error_wrap(err, "pack");
@@ -245,9 +247,11 @@ srs_error_t SrsPsPacket::decode(SrsBuffer* stream)
     }
 
     // Program stream system header.
-    if (stream->empty()) return err; // Parsed done, OK.
-    if (!stream->require(4)) return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
-    p = (uint8_t*)stream->head();
+    if (stream->empty())
+        return err; // Parsed done, OK.
+    if (!stream->require(4))
+        return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
+    p = (uint8_t *)stream->head();
     if (p[0] == 0x00 && p[1] == 0x00 && p[2] == 0x01 && p[3] == 0xbb) {
         if ((err = decode_system(stream)) != srs_success) {
             return srs_error_wrap(err, "system");
@@ -257,17 +261,20 @@ srs_error_t SrsPsPacket::decode(SrsBuffer* stream)
 
     // Packet start code prefix.
     while (!stream->empty()) {
-        if (!stream->require(4)) return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
-        p = (uint8_t*)stream->head();
-        if (p[0] != 0x00 || p[1] != 0x00 || p[2] != 0x01) break;
-        if (p[3] == 0xba || p[3] == 0xbb) break; // Reparse for pack or system header.
+        if (!stream->require(4))
+            return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
+        p = (uint8_t *)stream->head();
+        if (p[0] != 0x00 || p[1] != 0x00 || p[2] != 0x01)
+            break;
+        if (p[3] == 0xba || p[3] == 0xbb)
+            break; // Reparse for pack or system header.
 
         SrsMpegPES pes;
         if ((err = pes.decode(stream)) != srs_success) {
             return srs_error_wrap(err, "decode pes");
         }
 
-        SrsTsMessage* lm = context_->last();
+        SrsTsMessage *lm = context_->last();
 
         // The stream id should never change for PS stream.
         if (lm->sid != (SrsTsPESStreamId)0 && lm->sid != (SrsTsPESStreamId)pes.stream_id) {
@@ -297,7 +304,7 @@ srs_error_t SrsPsPacket::decode(SrsBuffer* stream)
     return err;
 }
 
-srs_error_t SrsPsPacket::decode_pack(SrsBuffer* stream)
+srs_error_t SrsPsPacket::decode_pack(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
@@ -312,18 +319,17 @@ srs_error_t SrsPsPacket::decode_pack(SrsBuffer* stream)
     uint64_t r0 = stream->read_4bytes();
     uint16_t r1 = stream->read_2bytes();
     system_clock_reference_extension_ = (r1 >> 1) & 0x1ff;
-    system_clock_reference_base_ = 0x00
-        | ((uint64_t) ((r0 >> 27) & 0x07) << 30) // 3bits
-        | ((uint64_t) ((r0 >> 11) & 0x7fff) << 15) // 15bits
-        | ((uint64_t) (r0 & 0x03ff) << 5) // 10bits
-        | (uint64_t) ((r1 >> 11) & 0x1f); // 5bits
+    system_clock_reference_base_ = 0x00 | ((uint64_t)((r0 >> 27) & 0x07) << 30) // 3bits
+                                   | ((uint64_t)((r0 >> 11) & 0x7fff) << 15)    // 15bits
+                                   | ((uint64_t)(r0 & 0x03ff) << 5)             // 10bits
+                                   | (uint64_t)((r1 >> 11) & 0x1f);             // 5bits
 
     program_mux_rate_ = stream->read_3bytes();
     program_mux_rate_ = (program_mux_rate_ >> 2) & 0x3fffff;
 
     pack_stuffing_length_ = stream->read_1bytes();
     pack_stuffing_length_ &= 0x07;
-    //srs_warn("PS: New pack header clock=%" PRId64 ", rate=%d", system_clock_reference_base_, program_mux_rate_);
+    // srs_warn("PS: New pack header clock=%" PRId64 ", rate=%d", system_clock_reference_base_, program_mux_rate_);
 
     if (!stream->require(pack_stuffing_length_)) {
         return srs_error_new(ERROR_GB_PS_HEADER, "requires %d only %d bytes", pack_stuffing_length_, stream->left());
@@ -333,7 +339,7 @@ srs_error_t SrsPsPacket::decode_pack(SrsBuffer* stream)
     return err;
 }
 
-srs_error_t SrsPsPacket::decode_system(SrsBuffer* stream)
+srs_error_t SrsPsPacket::decode_system(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
@@ -366,12 +372,13 @@ srs_error_t SrsPsPacket::decode_system(SrsBuffer* stream)
 
     packet_rate_restriction_flag_ = b.read_1bytes();
     packet_rate_restriction_flag_ = (packet_rate_restriction_flag_ >> 5) & 0x01;
-    //srs_warn("PS: New system header rate_bound=%d, video_bound=%d, audio_bound=%d", rate_bound_, video_bound_, audio_bound_);
+    // srs_warn("PS: New system header rate_bound=%d, video_bound=%d, audio_bound=%d", rate_bound_, video_bound_, audio_bound_);
 
     // Parse stream_id and buffer information.
     while (!b.empty()) {
-        uint8_t r2 = (uint8_t) b.head()[0];
-        if ((r2 & 0x80) != 0x80) break;
+        uint8_t r2 = (uint8_t)b.head()[0];
+        if ((r2 & 0x80) != 0x80)
+            break;
 
         if (!b.require(3)) {
             return srs_error_new(ERROR_GB_PS_HEADER, "requires 3 only %d bytes", b.left());
@@ -379,14 +386,14 @@ srs_error_t SrsPsPacket::decode_system(SrsBuffer* stream)
 
         SrsTsPESStreamId stream_id = (SrsTsPESStreamId)(uint8_t)b.read_1bytes();
         uint16_t buffer_size_bound = b.read_2bytes();
-        uint8_t buffer_bound_scale = (uint8_t)((buffer_size_bound>>13) & 0x01);
+        uint8_t buffer_bound_scale = (uint8_t)((buffer_size_bound >> 13) & 0x01);
         buffer_size_bound &= 0x1fff;
 
-        if (((stream_id>>4) & 0x0f) == SrsTsPESStreamIdVideoChecker) {
+        if (((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideoChecker) {
             video_stream_id_ = stream_id;
             video_buffer_bound_scale_ = buffer_bound_scale;
             video_buffer_size_bound_ = buffer_size_bound;
-        } else if (((stream_id>>5) & 0x07) == SrsTsPESStreamIdAudioChecker) {
+        } else if (((stream_id >> 5) & 0x07) == SrsTsPESStreamIdAudioChecker) {
             audio_stream_id_ = stream_id;
             audio_buffer_bound_scale_ = buffer_bound_scale;
             audio_buffer_size_bound_ = buffer_size_bound;
@@ -417,7 +424,7 @@ SrsPsPsmPacket::~SrsPsPsmPacket()
 {
 }
 
-srs_error_t SrsPsPsmPacket::decode(SrsBuffer* stream)
+srs_error_t SrsPsPsmPacket::decode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
@@ -427,14 +434,14 @@ srs_error_t SrsPsPsmPacket::decode(SrsBuffer* stream)
     }
 
     uint8_t r0 = stream->read_1bytes();
-    program_stream_map_version_ = r0&0x1f;
-    current_next_indicator_ = (r0>>7) & 0x01;
+    program_stream_map_version_ = r0 & 0x1f;
+    current_next_indicator_ = (r0 >> 7) & 0x01;
     if (!current_next_indicator_) {
         return srs_error_new(ERROR_GB_PS_HEADER, "invalid indicator of 0x%#x", r0);
     }
 
     uint8_t r1 = stream->read_1bytes();
-    if ((r1&0x01) != 0x01) {
+    if ((r1 & 0x01) != 0x01) {
         return srs_error_new(ERROR_GB_PS_HEADER, "invalid marker of 0x%#x", r1);
     }
 
@@ -494,4 +501,3 @@ srs_error_t SrsPsPsmPacket::decode(SrsBuffer* stream)
 
     return err;
 }
-

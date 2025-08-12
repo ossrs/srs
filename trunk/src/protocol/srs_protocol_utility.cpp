@@ -11,40 +11,39 @@
 #endif
 
 #include <arpa/inet.h>
-#include <stdlib.h>
 #include <sstream>
+#include <stdlib.h>
 using namespace std;
 
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_utility.hpp>
 #include <srs_kernel_buffer.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_consts.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_kernel_log.hpp>
+#include <srs_kernel_utility.hpp>
 #include <srs_protocol_io.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 
-#include <limits.h>
-#include <unistd.h>
 #include <arpa/inet.h>
-#include <net/if.h>
 #include <ifaddrs.h>
-#include <netdb.h>
-#include <math.h>
-#include <stdlib.h>
+#include <limits.h>
 #include <map>
+#include <math.h>
+#include <net/if.h>
+#include <netdb.h>
 #include <sstream>
+#include <stdlib.h>
+#include <unistd.h>
 using namespace std;
 
-#include <srs_protocol_st.hpp>
-#include <srs_kernel_error.hpp>
+#include <srs_core_autofree.hpp>
 #include <srs_kernel_consts.hpp>
+#include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_stack.hpp>
-#include <srs_core_autofree.hpp>
+#include <srs_protocol_st.hpp>
 
-void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vhost, string& app, string& stream, int& port, string& param)
+void srs_discovery_tc_url(string tcUrl, string &schema, string &host, string &vhost, string &app, string &stream, int &port, string &param)
 {
     // For compatibility, transform
     //      rtmp://ip/app...vhost...VHOST/stream
@@ -64,8 +63,8 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     size_t pos_query = fullUrl.find_first_of("?#");
     size_t pos_rslash = fullUrl.rfind("/");
     if (pos_rslash != string::npos && pos_query != string::npos && pos_query < pos_rslash) {
-        fullUrl = fullUrl.substr(0, pos_query) // rtmp://ip/app/app2
-                  + fullUrl.substr(pos_rslash) // /stream
+        fullUrl = fullUrl.substr(0, pos_query)                         // rtmp://ip/app/app2
+                  + fullUrl.substr(pos_rslash)                         // /stream
                   + fullUrl.substr(pos_query, pos_rslash - pos_query); // ?k=v
     }
 
@@ -92,14 +91,19 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
 
     // Parse app without the prefix slash.
     app = srs_path_dirname(uri.get_path());
-    if (!app.empty() && app.at(0) == '/') app = app.substr(1);
-    if (app.empty()) app = SRS_CONSTS_RTMP_DEFAULT_APP;
+    if (!app.empty() && app.at(0) == '/')
+        app = app.substr(1);
+    if (app.empty())
+        app = SRS_CONSTS_RTMP_DEFAULT_APP;
 
     // Try to parse vhost from query, or use host if not specified.
     string vhost_in_query = uri.get_query_by_key("vhost");
-    if (vhost_in_query.empty()) vhost_in_query = uri.get_query_by_key("domain");
-    if (!vhost_in_query.empty() && vhost_in_query != SRS_CONSTS_RTMP_DEFAULT_VHOST) vhost = vhost_in_query;
-    if (vhost.empty()) vhost = host;
+    if (vhost_in_query.empty())
+        vhost_in_query = uri.get_query_by_key("domain");
+    if (!vhost_in_query.empty() && vhost_in_query != SRS_CONSTS_RTMP_DEFAULT_VHOST)
+        vhost = vhost_in_query;
+    if (vhost.empty())
+        vhost = host;
 
     // Only one param, the default vhost, clear it.
     if (param.find("&") == string::npos && vhost_in_query == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
@@ -107,7 +111,7 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     }
 }
 
-void srs_guess_stream_by_app(string& app, string& param, string& stream)
+void srs_guess_stream_by_app(string &app, string &param, string &stream)
 {
     size_t pos = std::string::npos;
 
@@ -130,7 +134,7 @@ void srs_guess_stream_by_app(string& app, string& param, string& stream)
     }
 }
 
-void srs_parse_query_string(string q, map<string,string>& query)
+void srs_parse_query_string(string q, map<string, string> &query)
 {
     // query string flags.
     static vector<string> flags;
@@ -141,17 +145,17 @@ void srs_parse_query_string(string q, map<string,string>& query)
         flags.push_back("&");
         flags.push_back(";");
     }
-    
+
     vector<string> kvs = srs_string_split(q, flags);
-    for (int i = 0; i < (int)kvs.size(); i+=2) {
+    for (int i = 0; i < (int)kvs.size(); i += 2) {
         string k = kvs.at(i);
-        string v = (i < (int)kvs.size() - 1)? kvs.at(i+1):"";
-        
+        string v = (i < (int)kvs.size() - 1) ? kvs.at(i + 1) : "";
+
         query[k] = v;
     }
 }
 
-void srs_random_generate(char* bytes, int size)
+void srs_random_generate(char *bytes, int size)
 {
     for (int i = 0; i < size; i++) {
         // the common value in [0x0f, 0xf0]
@@ -177,7 +181,7 @@ long srs_random()
     static bool _random_initialized = false;
     if (!_random_initialized) {
         _random_initialized = true;
-        ::srandom((unsigned long)(srs_update_system_time() | (::getpid()<<13)));
+        ::srandom((unsigned long)(srs_update_system_time() | (::getpid() << 13)));
     }
 
     return random();
@@ -186,19 +190,19 @@ long srs_random()
 string srs_generate_tc_url(string schema, string host, string vhost, string app, int port)
 {
     string tcUrl = schema + "://";
-    
+
     if (vhost == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         tcUrl += host.empty() ? SRS_CONSTS_RTMP_DEFAULT_VHOST : host;
     } else {
         tcUrl += vhost;
     }
-    
+
     if (port && port != SRS_CONSTS_RTMP_DEFAULT_PORT) {
         tcUrl += ":" + srs_int2str(port);
     }
-    
+
     tcUrl += "/" + app;
-    
+
     return tcUrl;
 }
 
@@ -238,7 +242,7 @@ string srs_generate_stream_with_query(string host, string vhost, string stream, 
             query = query.substr(0, pos) + query.substr(end);
         }
     }
-    
+
     // Remove the start & and ? when param is empty.
     query = srs_string_trim_start(query, "&?");
 
@@ -246,27 +250,27 @@ string srs_generate_stream_with_query(string host, string vhost, string stream, 
     if (!query.empty() && !srs_string_starts_with(query, "?")) {
         url += "?";
     }
-    
+
     // Append query to url.
     if (!query.empty()) {
         url += query;
     }
-    
+
     return url;
 }
 
-template<typename T>
-srs_error_t srs_do_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, int stream_id, T** ppmsg)
+template <typename T>
+srs_error_t srs_do_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, T **ppmsg)
 {
     srs_error_t err = srs_success;
-    
+
     *ppmsg = NULL;
-    T* msg = NULL;
-    
+    T *msg = NULL;
+
     if (type == SrsFrameTypeAudio) {
         SrsMessageHeader header;
         header.initialize_audio(size, timestamp, stream_id);
-        
+
         msg = new T();
         if ((err = msg->create(&header, data, size)) != srs_success) {
             srs_freep(msg);
@@ -275,7 +279,7 @@ srs_error_t srs_do_rtmp_create_msg(char type, uint32_t timestamp, char* data, in
     } else if (type == SrsFrameTypeVideo) {
         SrsMessageHeader header;
         header.initialize_video(size, timestamp, stream_id);
-        
+
         msg = new T();
         if ((err = msg->create(&header, data, size)) != srs_success) {
             srs_freep(msg);
@@ -284,7 +288,7 @@ srs_error_t srs_do_rtmp_create_msg(char type, uint32_t timestamp, char* data, in
     } else if (type == SrsFrameTypeScript) {
         SrsMessageHeader header;
         header.initialize_amf0_script(size, stream_id);
-        
+
         msg = new T();
         if ((err = msg->create(&header, data, size)) != srs_success) {
             srs_freep(msg);
@@ -293,56 +297,56 @@ srs_error_t srs_do_rtmp_create_msg(char type, uint32_t timestamp, char* data, in
     } else {
         return srs_error_new(ERROR_STREAM_CASTER_FLV_TAG, "unknown tag=%#x", (uint8_t)type);
     }
-    
+
     *ppmsg = msg;
-    
+
     return err;
 }
 
-srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg)
+srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, SrsSharedPtrMessage **ppmsg)
 {
     srs_error_t err = srs_success;
-    
+
     // only when failed, we must free the data.
     if ((err = srs_do_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != srs_success) {
         srs_freepa(data);
         return srs_error_wrap(err, "create message");
     }
-    
+
     return err;
 }
 
-srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, int stream_id, SrsCommonMessage** ppmsg)
+srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, SrsCommonMessage **ppmsg)
 {
     srs_error_t err = srs_success;
-    
+
     // only when failed, we must free the data.
     if ((err = srs_do_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != srs_success) {
         srs_freepa(data);
         return srs_error_wrap(err, "create message");
     }
-    
+
     return err;
 }
 
 string srs_generate_stream_url(string vhost, string app, string stream)
 {
     std::string url = "";
-    
-    if (SRS_CONSTS_RTMP_DEFAULT_VHOST != vhost){
+
+    if (SRS_CONSTS_RTMP_DEFAULT_VHOST != vhost) {
         url += vhost;
     }
     url += "/" + app;
     // Note that we ignore any extension.
     url += "/" + srs_path_filename(stream);
-    
+
     return url;
 }
 
-void srs_parse_rtmp_url(string url, string& tcUrl, string& stream)
+void srs_parse_rtmp_url(string url, string &tcUrl, string &stream)
 {
     size_t pos;
-    
+
     if ((pos = url.rfind("/")) != string::npos) {
         stream = url.substr(pos + 1);
         tcUrl = url.substr(0, pos);
@@ -353,16 +357,16 @@ void srs_parse_rtmp_url(string url, string& tcUrl, string& stream)
 
 string srs_generate_rtmp_url(string server, int port, string host, string vhost, string app, string stream, string param)
 {
-    string tcUrl = "rtmp://" + server + ":" + srs_int2str(port) + "/"  + app;
+    string tcUrl = "rtmp://" + server + ":" + srs_int2str(port) + "/" + app;
     string streamWithQuery = srs_generate_stream_with_query(host, vhost, stream, param);
     string url = tcUrl + "/" + streamWithQuery;
     return url;
 }
 
-srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int size, ssize_t* pnwrite)
+srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter *skt, iovec *iovs, int size, ssize_t *pnwrite)
 {
     srs_error_t err = srs_success;
-    
+
     // the limits of writev iovs.
 #ifndef _WIN32
     // for linux, generally it's 1024.
@@ -370,7 +374,7 @@ srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int s
 #else
     static int limits = 1024;
 #endif
-    
+
     // send in a time.
     if (size <= limits) {
         if ((err = skt->writev(iovs, size, pnwrite)) != srs_success) {
@@ -378,7 +382,7 @@ srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int s
         }
         return err;
     }
-   
+
     // send in multiple times.
     int cur_iov = 0;
     ssize_t nwrite = 0;
@@ -392,7 +396,7 @@ srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int s
             *pnwrite += nwrite;
         }
     }
-    
+
     return err;
 }
 
@@ -406,14 +410,15 @@ bool srs_is_ipv4(string domain)
         if (ch >= '0' && ch <= '9') {
             continue;
         }
-        
+
         return false;
     }
-    
+
     return true;
 }
 
-uint32_t srs_ipv4_to_num(string ip) {
+uint32_t srs_ipv4_to_num(string ip)
+{
     uint32_t addr = 0;
     if (inet_pton(AF_INET, ip.c_str(), &addr) <= 0) {
         return 0;
@@ -422,7 +427,8 @@ uint32_t srs_ipv4_to_num(string ip) {
     return ntohl(addr);
 }
 
-bool srs_ipv4_within_mask(string ip, string network, string mask) {
+bool srs_ipv4_within_mask(string ip, string network, string mask)
+{
     uint32_t ip_addr = srs_ipv4_to_num(ip);
     uint32_t mask_addr = srs_ipv4_to_num(mask);
     uint32_t network_addr = srs_ipv4_to_num(network);
@@ -434,48 +440,49 @@ static struct CIDR_VALUE {
     size_t length;
     std::string mask;
 } CIDR_VALUES[32] = {
-    { 1,  "128.0.0.0" },
-    { 2,  "192.0.0.0" },
-    { 3,  "224.0.0.0" },
-    { 4,  "240.0.0.0" },
-    { 5,  "248.0.0.0" },
-    { 6,  "252.0.0.0" },
-    { 7,  "254.0.0.0" },
-    { 8,  "255.0.0.0" },
-    { 9,  "255.128.0.0" },
-    { 10, "255.192.0.0" },
-    { 11, "255.224.0.0" },
-    { 12, "255.240.0.0" },
-    { 13, "255.248.0.0" },
-    { 14, "255.252.0.0" },
-    { 15, "255.254.0.0" },
-    { 16, "255.255.0.0" },
-    { 17, "255.255.128.0" },
-    { 18, "255.255.192.0" },
-    { 19, "255.255.224.0" },
-    { 20, "255.255.240.0" },
-    { 21, "255.255.248.0" },
-    { 22, "255.255.252.0" },
-    { 23, "255.255.254.0" },
-    { 24, "255.255.255.0" },
-    { 25, "255.255.255.128" },
-    { 26, "255.255.255.192" },
-    { 27, "255.255.255.224" },
-    { 28, "255.255.255.240" },
-    { 29, "255.255.255.248" },
-    { 30, "255.255.255.252" },
-    { 31, "255.255.255.254" },
-    { 32, "255.255.255.255" },
+    {1, "128.0.0.0"},
+    {2, "192.0.0.0"},
+    {3, "224.0.0.0"},
+    {4, "240.0.0.0"},
+    {5, "248.0.0.0"},
+    {6, "252.0.0.0"},
+    {7, "254.0.0.0"},
+    {8, "255.0.0.0"},
+    {9, "255.128.0.0"},
+    {10, "255.192.0.0"},
+    {11, "255.224.0.0"},
+    {12, "255.240.0.0"},
+    {13, "255.248.0.0"},
+    {14, "255.252.0.0"},
+    {15, "255.254.0.0"},
+    {16, "255.255.0.0"},
+    {17, "255.255.128.0"},
+    {18, "255.255.192.0"},
+    {19, "255.255.224.0"},
+    {20, "255.255.240.0"},
+    {21, "255.255.248.0"},
+    {22, "255.255.252.0"},
+    {23, "255.255.254.0"},
+    {24, "255.255.255.0"},
+    {25, "255.255.255.128"},
+    {26, "255.255.255.192"},
+    {27, "255.255.255.224"},
+    {28, "255.255.255.240"},
+    {29, "255.255.255.248"},
+    {30, "255.255.255.252"},
+    {31, "255.255.255.254"},
+    {32, "255.255.255.255"},
 };
 
-string srs_get_cidr_mask(string network_address) {
+string srs_get_cidr_mask(string network_address)
+{
     string delimiter = "/";
 
     size_t delimiter_position = network_address.find(delimiter);
     if (delimiter_position == string::npos) {
         // Even if it does not have "/N", it can be a valid IP, by default "/32".
         if (srs_is_ipv4(network_address)) {
-            return CIDR_VALUES[32-1].mask;
+            return CIDR_VALUES[32 - 1].mask;
         }
         return "";
     }
@@ -506,10 +513,11 @@ string srs_get_cidr_mask(string network_address) {
         return "";
     }
 
-    return CIDR_VALUES[cidr_length_num-1].mask;
+    return CIDR_VALUES[cidr_length_num - 1].mask;
 }
 
-string srs_get_cidr_ipv4(string network_address) {
+string srs_get_cidr_ipv4(string network_address)
+{
     string delimiter = "/";
 
     size_t delimiter_position = network_address.find(delimiter);
@@ -565,8 +573,8 @@ bool srs_is_digit_number(string str)
         return false;
     }
 
-    const char* p = str.c_str();
-    const char* p_end = str.data() + str.length();
+    const char *p = str.c_str();
+    const char *p_end = str.data() + str.length();
     for (; p < p_end; p++) {
         if (*p != '0') {
             break;
@@ -578,7 +586,7 @@ bool srs_is_digit_number(string str)
 
     int64_t v = ::atoll(p);
     int64_t powv = (int64_t)pow(10, p_end - p - 1);
-    return  v / powv >= 1 && v / powv <= 9;
+    return v / powv >= 1 && v / powv <= 9;
 }
 
 // we detect all network device as internet or intranet device, by its ip address.
@@ -596,10 +604,10 @@ bool srs_net_device_is_internet(string ifname)
     return _srs_device_ifs[ifname];
 }
 
-bool srs_net_device_is_internet(const sockaddr* addr)
+bool srs_net_device_is_internet(const sockaddr *addr)
 {
-    if(addr->sa_family == AF_INET) {
-        const in_addr inaddr = ((sockaddr_in*)addr)->sin_addr;
+    if (addr->sa_family == AF_INET) {
+        const in_addr inaddr = ((sockaddr_in *)addr)->sin_addr;
         const uint32_t addr_h = ntohl(inaddr.s_addr);
 
         // lo, 127.0.0.0-127.0.0.1
@@ -621,8 +629,8 @@ bool srs_net_device_is_internet(const sockaddr* addr)
         if (addr_h >= 0xc0a80000 && addr_h <= 0xc0a8ffff) {
             return false;
         }
-    } else if(addr->sa_family == AF_INET6) {
-        const sockaddr_in6* a6 = (const sockaddr_in6*)addr;
+    } else if (addr->sa_family == AF_INET6) {
+        const sockaddr_in6 *a6 = (const sockaddr_in6 *)addr;
 
         // IPv6 loopback is ::1
         if (IN6_IS_ADDR_LOOPBACK(&a6->sin6_addr)) {
@@ -672,24 +680,24 @@ bool srs_net_device_is_internet(const sockaddr* addr)
     return true;
 }
 
-vector<SrsIPAddress*> _srs_system_ips;
+vector<SrsIPAddress *> _srs_system_ips;
 
-void discover_network_iface(ifaddrs* cur, vector<SrsIPAddress*>& ips, stringstream& ss0, stringstream& ss1, bool ipv6, bool loopback)
+void discover_network_iface(ifaddrs *cur, vector<SrsIPAddress *> &ips, stringstream &ss0, stringstream &ss1, bool ipv6, bool loopback)
 {
     char saddr[64];
-    char* h = (char*)saddr;
+    char *h = (char *)saddr;
     socklen_t nbh = (socklen_t)sizeof(saddr);
     const int r0 = getnameinfo(cur->ifa_addr, sizeof(sockaddr_storage), h, nbh, NULL, 0, NI_NUMERICHOST);
-    if(r0) {
+    if (r0) {
         srs_warn("convert local ip failed: %s", gai_strerror(r0));
         return;
     }
 
     std::string ip(saddr, strlen(saddr));
-    ss0 << ", iface[" << (int)ips.size() << "] " << cur->ifa_name << " " << (ipv6? "ipv6":"ipv4")
-        << " 0x" << std::hex << cur->ifa_flags  << std::dec << " " << ip;
+    ss0 << ", iface[" << (int)ips.size() << "] " << cur->ifa_name << " " << (ipv6 ? "ipv6" : "ipv4")
+        << " 0x" << std::hex << cur->ifa_flags << std::dec << " " << ip;
 
-    SrsIPAddress* ip_address = new SrsIPAddress();
+    SrsIPAddress *ip_address = new SrsIPAddress();
     ip_address->ip = ip;
     ip_address->is_ipv4 = !ipv6;
     ip_address->is_loopback = loopback;
@@ -710,10 +718,10 @@ void discover_network_iface(ifaddrs* cur, vector<SrsIPAddress*>& ips, stringstre
 
 void retrieve_local_ips()
 {
-    vector<SrsIPAddress*>& ips = _srs_system_ips;
+    vector<SrsIPAddress *> &ips = _srs_system_ips;
 
     // Get the addresses.
-    ifaddrs* ifap;
+    ifaddrs *ifap;
     if (getifaddrs(&ifap) == -1) {
         srs_warn("retrieve local ips, getifaddrs failed.");
         return;
@@ -726,8 +734,8 @@ void retrieve_local_ips()
     ss1 << "devices";
 
     // Discover IPv4 first.
-    for (ifaddrs* p = ifap; p ; p = p->ifa_next) {
-        ifaddrs* cur = p;
+    for (ifaddrs *p = ifap; p; p = p->ifa_next) {
+        ifaddrs *cur = p;
 
         // Ignore if no address for this interface.
         // @see https://github.com/ossrs/srs/issues/1087#issuecomment-408847115
@@ -748,8 +756,8 @@ void retrieve_local_ips()
     }
 
     // Then, discover IPv6 addresses.
-    for (ifaddrs* p = ifap; p ; p = p->ifa_next) {
-        ifaddrs* cur = p;
+    for (ifaddrs *p = ifap; p; p = p->ifa_next) {
+        ifaddrs *cur = p;
 
         // Ignore if no address for this interface.
         // @see https://github.com/ossrs/srs/issues/1087#issuecomment-408847115
@@ -770,8 +778,8 @@ void retrieve_local_ips()
 
     // If empty, disover IPv4 loopback.
     if (ips.empty()) {
-        for (ifaddrs* p = ifap; p ; p = p->ifa_next) {
-            ifaddrs* cur = p;
+        for (ifaddrs *p = ifap; p; p = p->ifa_next) {
+            ifaddrs *cur = p;
 
             // Ignore if no address for this interface.
             // @see https://github.com/ossrs/srs/issues/1087#issuecomment-408847115
@@ -797,7 +805,7 @@ void retrieve_local_ips()
     freeifaddrs(ifap);
 }
 
-vector<SrsIPAddress*>& srs_get_local_ips()
+vector<SrsIPAddress *> &srs_get_local_ips()
 {
     if (_srs_system_ips.empty()) {
         retrieve_local_ips();
@@ -814,11 +822,11 @@ string srs_get_public_internet_address(bool ipv4_only)
         return _public_internet_address;
     }
 
-    std::vector<SrsIPAddress*>& ips = srs_get_local_ips();
+    std::vector<SrsIPAddress *> &ips = srs_get_local_ips();
 
     // find the best match public address.
     for (int i = 0; i < (int)ips.size(); i++) {
-        SrsIPAddress* ip = ips[i];
+        SrsIPAddress *ip = ips[i];
         if (!ip->is_internet) {
             continue;
         }
@@ -833,7 +841,7 @@ string srs_get_public_internet_address(bool ipv4_only)
 
     // no public address, use private address.
     for (int i = 0; i < (int)ips.size(); i++) {
-        SrsIPAddress* ip = ips[i];
+        SrsIPAddress *ip = ips[i];
         if (ip->is_loopback) {
             continue;
         }
@@ -848,7 +856,7 @@ string srs_get_public_internet_address(bool ipv4_only)
 
     // Finally, use first whatever kind of address.
     if (!ips.empty() && _public_internet_address.empty()) {
-        SrsIPAddress* ip = ips[0];
+        SrsIPAddress *ip = ips[0];
 
         srs_warn("use first address as ip: %s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
         _public_internet_address = ip->ip;
@@ -858,9 +866,9 @@ string srs_get_public_internet_address(bool ipv4_only)
     return "";
 }
 
-string srs_get_original_ip(ISrsHttpMessage* r)
+string srs_get_original_ip(ISrsHttpMessage *r)
 {
-    SrsHttpHeader* h = r->header();
+    SrsHttpHeader *h = r->header();
 
     string x_forwarded_for = h->get("X-Forwarded-For");
     if (!x_forwarded_for.empty()) {
@@ -901,7 +909,7 @@ string srs_get_system_hostname()
     return _srs_system_hostname;
 }
 
-srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content)
+srs_error_t srs_ioutil_read_all(ISrsReader *in, std::string &content)
 {
     srs_error_t err = srs_success;
 
@@ -913,9 +921,7 @@ srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content)
         ssize_t nb_read = 0;
         if ((err = in->read(buf.get(), SRS_HTTP_READ_CACHE_BYTES, &nb_read)) != srs_success) {
             int code = srs_error_code(err);
-            if (code == ERROR_SYSTEM_FILE_EOF || code == ERROR_HTTP_RESPONSE_EOF || code == ERROR_HTTP_REQUEST_EOF
-                || code == ERROR_HTTP_STREAM_EOF
-            ) {
+            if (code == ERROR_SYSTEM_FILE_EOF || code == ERROR_HTTP_RESPONSE_EOF || code == ERROR_HTTP_REQUEST_EOF || code == ERROR_HTTP_STREAM_EOF) {
                 srs_freep(err);
                 return err;
             }
@@ -931,9 +937,9 @@ srs_error_t srs_ioutil_read_all(ISrsReader* in, std::string& content)
 }
 
 #if defined(__linux__) || defined(SRS_OSX)
-utsname* srs_get_system_uname_info()
+utsname *srs_get_system_uname_info()
 {
-    static utsname* system_info = NULL;
+    static utsname *system_info = NULL;
 
     if (system_info != NULL) {
         return system_info;
@@ -949,25 +955,25 @@ utsname* srs_get_system_uname_info()
 }
 #endif
 
-string srs_string_dumps_hex(const std::string& str)
+string srs_string_dumps_hex(const std::string &str)
 {
     return srs_string_dumps_hex(str.c_str(), str.size());
 }
 
-string srs_string_dumps_hex(const char* str, int length)
+string srs_string_dumps_hex(const char *str, int length)
 {
     return srs_string_dumps_hex(str, length, INT_MAX);
 }
 
-string srs_string_dumps_hex(const char* str, int length, int limit)
+string srs_string_dumps_hex(const char *str, int length, int limit)
 {
     return srs_string_dumps_hex(str, length, limit, ' ', 128, '\n');
 }
 
-string srs_string_dumps_hex(const char* str, int length, int limit, char seperator, int line_limit, char newline)
+string srs_string_dumps_hex(const char *str, int length, int limit, char seperator, int line_limit, char newline)
 {
     // 1 byte trailing '\0'.
-    const int LIMIT = 1024*16 + 1;
+    const int LIMIT = 1024 * 16 + 1;
     static char buf[LIMIT];
 
     int len = 0;
@@ -1007,4 +1013,3 @@ string srs_string_dumps_hex(const char* str, int length, int limit, char seperat
 
     return string(buf, len);
 }
-

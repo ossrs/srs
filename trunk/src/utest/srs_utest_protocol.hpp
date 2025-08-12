@@ -12,13 +12,13 @@
 */
 #include <srs_utest.hpp>
 
-#include <string>
 #include <srs_protocol_utility.hpp>
+#include <string>
 
-#include <srs_protocol_rtmp_stack.hpp>
-#include <srs_protocol_rtmp_handshake.hpp>
-#include <srs_protocol_stream.hpp>
 #include <srs_protocol_kbps.hpp>
+#include <srs_protocol_rtmp_handshake.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_stream.hpp>
 
 using namespace srs_internal;
 
@@ -29,24 +29,24 @@ class MockEmptyIO : public ISrsProtocolReadWriter
 public:
     MockEmptyIO();
     virtual ~MockEmptyIO();
-// for handshake.
+    // for handshake.
 public:
-    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
-// for protocol
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread);
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+    // for protocol
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
-// for protocol
+    // for protocol
 public:
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();
     virtual int64_t get_send_bytes();
-    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
-// for protocol/amf0/msg-codec
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
+    // for protocol/amf0/msg-codec
 public:
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
 };
 
 class MockBufferIO : public ISrsProtocolReadWriter
@@ -62,41 +62,45 @@ public:
     SrsSimpleStream in_buffer;
     // data buffer for socket send.
     SrsSimpleStream out_buffer;
+
 public:
     // Mock error for io.
     srs_error_t in_err;
     srs_error_t out_err;
+
 public:
     MockBufferIO();
     virtual ~MockBufferIO();
+
 public:
     virtual int length();
-    virtual MockBufferIO* append(std::string data);
-    virtual MockBufferIO* append(MockBufferIO* data);
-    virtual MockBufferIO* append(uint8_t* data, int size);
+    virtual MockBufferIO *append(std::string data);
+    virtual MockBufferIO *append(MockBufferIO *data);
+    virtual MockBufferIO *append(uint8_t *data, int size);
+
 public:
     virtual int out_length();
-    virtual MockBufferIO* out_append(std::string data);
-    virtual MockBufferIO* out_append(MockBufferIO* data);
-    virtual MockBufferIO* out_append(uint8_t* data, int size);
-// for handshake.
+    virtual MockBufferIO *out_append(std::string data);
+    virtual MockBufferIO *out_append(MockBufferIO *data);
+    virtual MockBufferIO *out_append(uint8_t *data, int size);
+    // for handshake.
 public:
-    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
-// for protocol
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread);
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+    // for protocol
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
-// for protocol
+    // for protocol
 public:
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();
     virtual int64_t get_send_bytes();
-    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
-// for protocol/amf0/msg-codec
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
+    // for protocol/amf0/msg-codec
 public:
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
 };
 
 class MockStatistic : public ISrsProtocolStatistic
@@ -104,31 +108,36 @@ class MockStatistic : public ISrsProtocolStatistic
 private:
     int64_t in;
     int64_t out;
+
 public:
     MockStatistic();
     virtual ~MockStatistic();
+
 public:
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
+
 public:
-    MockStatistic* set_in(int64_t v);
-    MockStatistic* set_out(int64_t v);
-    MockStatistic* add_in(int64_t v);
-    MockStatistic* add_out(int64_t v);
+    MockStatistic *set_in(int64_t v);
+    MockStatistic *set_out(int64_t v);
+    MockStatistic *add_in(int64_t v);
+    MockStatistic *add_out(int64_t v);
 };
 
 class MockWallClock : public SrsWallClock
 {
 private:
     int64_t clock;
+
 public:
     MockWallClock();
     virtual ~MockWallClock();
+
 public:
     virtual srs_utime_t now();
+
 public:
-    virtual MockWallClock* set_clock(srs_utime_t v);
+    virtual MockWallClock *set_clock(srs_utime_t v);
 };
 
 #endif
-

@@ -19,29 +19,29 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 
-static srs_error_t hmac_encode(const std::string& algo, const char* key, const int& key_length,  
-        const char* input, const int input_length, char* output, unsigned int& output_length)
+static srs_error_t hmac_encode(const std::string &algo, const char *key, const int &key_length,
+                               const char *input, const int input_length, char *output, unsigned int &output_length)
 {
     srs_error_t err = srs_success;
 
-    const EVP_MD* engine = NULL;
-    if (algo == "sha512") {   
+    const EVP_MD *engine = NULL;
+    if (algo == "sha512") {
         engine = EVP_sha512();
-    } else if(algo == "sha256") { 
+    } else if (algo == "sha256") {
         engine = EVP_sha256();
-    } else if(algo == "sha1") { 
+    } else if (algo == "sha1") {
         engine = EVP_sha1();
-    } else if(algo == "md5") { 
+    } else if (algo == "md5") {
         engine = EVP_md5();
-    } else if(algo == "sha224") { 
+    } else if (algo == "sha224") {
         engine = EVP_sha224();
-    } else if(algo == "sha384") { 
+    } else if (algo == "sha384") {
         engine = EVP_sha384();
-    } else { 
+    } else {
         return srs_error_new(ERROR_RTC_STUN, "unknown algo=%s", algo.c_str());
-    } 
+    }
 
-    HMAC_CTX* ctx = HMAC_CTX_new();
+    HMAC_CTX *ctx = HMAC_CTX_new();
     if (ctx == NULL) {
         return srs_error_new(ERROR_RTC_STUN, "hmac init faied");
     }
@@ -51,21 +51,20 @@ static srs_error_t hmac_encode(const std::string& algo, const char* key, const i
         return srs_error_new(ERROR_RTC_STUN, "hmac init faied");
     }
 
-    if (HMAC_Update(ctx, (const unsigned char*)input, input_length) < 0) {
+    if (HMAC_Update(ctx, (const unsigned char *)input, input_length) < 0) {
         HMAC_CTX_free(ctx);
         return srs_error_new(ERROR_RTC_STUN, "hmac update faied");
     }
 
-    if (HMAC_Final(ctx, (unsigned char*)output, &output_length) < 0) {
+    if (HMAC_Final(ctx, (unsigned char *)output, &output_length) < 0) {
         HMAC_CTX_free(ctx);
         return srs_error_new(ERROR_RTC_STUN, "hmac final faied");
     }
 
     HMAC_CTX_free(ctx);
-	
+
     return err;
 }
-
 
 SrsStunPacket::SrsStunPacket()
 {
@@ -143,41 +142,41 @@ bool SrsStunPacket::get_use_candidate() const
     return use_candidate;
 }
 
-void SrsStunPacket::set_message_type(const uint16_t& m)
+void SrsStunPacket::set_message_type(const uint16_t &m)
 {
     message_type = m;
 }
 
-void SrsStunPacket::set_local_ufrag(const std::string& u)
+void SrsStunPacket::set_local_ufrag(const std::string &u)
 {
     local_ufrag = u;
 }
 
-void SrsStunPacket::set_remote_ufrag(const std::string& u)
+void SrsStunPacket::set_remote_ufrag(const std::string &u)
 {
     remote_ufrag = u;
 }
 
-void SrsStunPacket::set_transcation_id(const std::string& t)
+void SrsStunPacket::set_transcation_id(const std::string &t)
 {
     transcation_id = t;
 }
 
-void SrsStunPacket::set_mapped_address(const uint32_t& addr)
+void SrsStunPacket::set_mapped_address(const uint32_t &addr)
 {
     mapped_address = addr;
 }
 
-void SrsStunPacket::set_mapped_port(const uint32_t& port)
+void SrsStunPacket::set_mapped_port(const uint32_t &port)
 {
     mapped_port = port;
 }
 
-srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
+srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
 {
     srs_error_t err = srs_success;
 
-    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(const_cast<char*>(buf), nb_buf));
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(const_cast<char *>(buf), nb_buf));
 
     if (stream->left() < 20) {
         return srs_error_new(ERROR_RTC_STUN, "invalid stun packet, size=%d", stream->size());
@@ -207,51 +206,51 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
         }
 
         switch (type) {
-            case Username: {
-                username = val;
-                size_t p = val.find(":");
-                if (p != string::npos) {
-                    local_ufrag = val.substr(0, p);
-                    remote_ufrag = val.substr(p + 1);
-                    srs_verbose("stun packet local_ufrag=%s, remote_ufrag=%s", local_ufrag.c_str(), remote_ufrag.c_str());
-                }
-                break;
+        case Username: {
+            username = val;
+            size_t p = val.find(":");
+            if (p != string::npos) {
+                local_ufrag = val.substr(0, p);
+                remote_ufrag = val.substr(p + 1);
+                srs_verbose("stun packet local_ufrag=%s, remote_ufrag=%s", local_ufrag.c_str(), remote_ufrag.c_str());
             }
+            break;
+        }
 
-			case UseCandidate: {
-                use_candidate = true;
-                srs_verbose("stun use-candidate");
-                break;
-            }
+        case UseCandidate: {
+            use_candidate = true;
+            srs_verbose("stun use-candidate");
+            break;
+        }
 
-            // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-5.1.2
-			// One agent full, one lite:  The full agent MUST take the controlling
-            // role, and the lite agent MUST take the controlled role.  The full
-            // agent will form check lists, run the ICE state machines, and
-            // generate connectivity checks.
-			case IceControlled: {
-                ice_controlled = true;
-                srs_verbose("stun ice-controlled");
-                break;
-            }
+        // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-5.1.2
+        // One agent full, one lite:  The full agent MUST take the controlling
+        // role, and the lite agent MUST take the controlled role.  The full
+        // agent will form check lists, run the ICE state machines, and
+        // generate connectivity checks.
+        case IceControlled: {
+            ice_controlled = true;
+            srs_verbose("stun ice-controlled");
+            break;
+        }
 
-			case IceControlling: {
-                ice_controlling = true;
-                srs_verbose("stun ice-controlling");
-                break;
-            }
-            
-            default: {
-                srs_verbose("stun type=%u, no process", type);
-                break;
-            }
+        case IceControlling: {
+            ice_controlling = true;
+            srs_verbose("stun ice-controlling");
+            break;
+        }
+
+        default: {
+            srs_verbose("stun type=%u, no process", type);
+            break;
+        }
         }
     }
 
     return err;
 }
 
-srs_error_t SrsStunPacket::encode(const string& pwd, SrsBuffer* stream)
+srs_error_t SrsStunPacket::encode(const string &pwd, SrsBuffer *stream)
 {
     if (is_binding_response()) {
         return encode_binding_response(pwd, stream);
@@ -261,7 +260,7 @@ srs_error_t SrsStunPacket::encode(const string& pwd, SrsBuffer* stream)
 }
 
 // FIXME: make this function easy to read
-srs_error_t SrsStunPacket::encode_binding_response(const string& pwd, SrsBuffer* stream)
+srs_error_t SrsStunPacket::encode_binding_response(const string &pwd, SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
@@ -336,7 +335,7 @@ string SrsStunPacket::encode_mapped_address()
     return string(stream->data(), stream->pos());
 }
 
-string SrsStunPacket::encode_hmac(char* hmac_buf, const int hmac_buf_len)
+string SrsStunPacket::encode_hmac(char *hmac_buf, const int hmac_buf_len)
 {
     char buf[1460];
     SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));

@@ -9,9 +9,9 @@
 #include <stdlib.h>
 using namespace std;
 
-#include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 
 SrsStageInfo::SrsStageInfo(int _stage_id, double ratio)
@@ -21,9 +21,9 @@ SrsStageInfo::SrsStageInfo(int _stage_id, double ratio)
     age = 0;
     nn_count = 0;
     interval_ratio = ratio;
-    
+
     update_print_time();
-    
+
     _srs_config->subscribe(this);
 }
 
@@ -45,12 +45,12 @@ void SrsStageInfo::elapse(srs_utime_t diff)
 bool SrsStageInfo::can_print()
 {
     srs_utime_t can_print_age = nb_clients * (srs_utime_t)(interval_ratio * interval);
-    
+
     bool can_print = age >= can_print_age;
     if (can_print) {
         age = 0;
     }
-    
+
     return can_print;
 }
 
@@ -66,20 +66,20 @@ SrsStageManager::SrsStageManager()
 
 SrsStageManager::~SrsStageManager()
 {
-    map<int, SrsStageInfo*>::iterator it;
+    map<int, SrsStageInfo *>::iterator it;
     for (it = stages.begin(); it != stages.end(); ++it) {
-        SrsStageInfo* stage = it->second;
+        SrsStageInfo *stage = it->second;
         srs_freep(stage);
     }
 }
 
-SrsStageInfo* SrsStageManager::fetch_or_create(int stage_id, bool* pnew)
+SrsStageInfo *SrsStageManager::fetch_or_create(int stage_id, bool *pnew)
 {
-    std::map<int, SrsStageInfo*>::iterator it = stages.find(stage_id);
+    std::map<int, SrsStageInfo *>::iterator it = stages.find(stage_id);
 
     // Create one if not exists.
     if (it == stages.end()) {
-        SrsStageInfo* stage = new SrsStageInfo(stage_id);
+        SrsStageInfo *stage = new SrsStageInfo(stage_id);
         stages[stage_id] = stage;
 
         if (pnew) {
@@ -90,7 +90,7 @@ SrsStageInfo* SrsStageManager::fetch_or_create(int stage_id, bool* pnew)
     }
 
     // Exists, fetch it.
-    SrsStageInfo* stage = it->second;
+    SrsStageInfo *stage = it->second;
 
     if (pnew) {
         *pnew = false;
@@ -109,16 +109,16 @@ SrsErrorPithyPrint::~SrsErrorPithyPrint()
 {
 }
 
-bool SrsErrorPithyPrint::can_print(srs_error_t err, uint32_t* pnn)
+bool SrsErrorPithyPrint::can_print(srs_error_t err, uint32_t *pnn)
 {
     int error_code = srs_error_code(err);
     return can_print(error_code, pnn);
 }
 
-bool SrsErrorPithyPrint::can_print(int error_code, uint32_t* pnn)
+bool SrsErrorPithyPrint::can_print(int error_code, uint32_t *pnn)
 {
     bool new_stage = false;
-    SrsStageInfo* stage = stages.fetch_or_create(error_code, &new_stage);
+    SrsStageInfo *stage = stages.fetch_or_create(error_code, &new_stage);
 
     // Increase the count.
     stage->nn_count++;
@@ -150,7 +150,7 @@ bool SrsErrorPithyPrint::can_print(int error_code, uint32_t* pnn)
 
 SrsAlonePithyPrint::SrsAlonePithyPrint() : info_(0)
 {
-    //stage work for one print
+    // stage work for one print
     info_.nb_clients = 1;
 
     previous_tick_ = srs_get_system_time();
@@ -176,7 +176,7 @@ bool SrsAlonePithyPrint::can_print()
 }
 
 // The global stage manager for pithy print, multiple stages.
-SrsStageManager* _srs_stages = NULL;
+SrsStageManager *_srs_stages = NULL;
 
 SrsPithyPrint::SrsPithyPrint(int _stage_id)
 {
@@ -226,83 +226,83 @@ SrsPithyPrint::SrsPithyPrint(int _stage_id)
 #define SRS_CONSTS_STAGE_SRT_PUBLISH 16
 #endif
 
-SrsPithyPrint* SrsPithyPrint::create_rtmp_play()
+SrsPithyPrint *SrsPithyPrint::create_rtmp_play()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_PLAY_USER);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_rtmp_publish()
+SrsPithyPrint *SrsPithyPrint::create_rtmp_publish()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_PUBLISH_USER);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_hls()
+SrsPithyPrint *SrsPithyPrint::create_hls()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_HLS);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_forwarder()
+SrsPithyPrint *SrsPithyPrint::create_forwarder()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_FORWARDER);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_encoder()
+SrsPithyPrint *SrsPithyPrint::create_encoder()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_ENCODER);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_exec()
+SrsPithyPrint *SrsPithyPrint::create_exec()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_EXEC);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_ingester()
+SrsPithyPrint *SrsPithyPrint::create_ingester()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_INGESTER);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_edge()
+SrsPithyPrint *SrsPithyPrint::create_edge()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_EDGE);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_caster()
+SrsPithyPrint *SrsPithyPrint::create_caster()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_CASTER);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_http_stream()
+SrsPithyPrint *SrsPithyPrint::create_http_stream()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_HTTP_STREAM);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_http_stream_cache()
+SrsPithyPrint *SrsPithyPrint::create_http_stream_cache()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_HTTP_STREAM_CACHE);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_rtc_play()
+SrsPithyPrint *SrsPithyPrint::create_rtc_play()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_RTC_PLAY);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_rtc_send(int fd)
+SrsPithyPrint *SrsPithyPrint::create_rtc_send(int fd)
 {
-    return new SrsPithyPrint(fd<<16 | SRS_CONSTS_STAGE_RTC_SEND);
+    return new SrsPithyPrint(fd << 16 | SRS_CONSTS_STAGE_RTC_SEND);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_rtc_recv(int fd)
+SrsPithyPrint *SrsPithyPrint::create_rtc_recv(int fd)
 {
-    return new SrsPithyPrint(fd<<16 | SRS_CONSTS_STAGE_RTC_RECV);
+    return new SrsPithyPrint(fd << 16 | SRS_CONSTS_STAGE_RTC_RECV);
 }
 
 #ifdef SRS_SRT
-SrsPithyPrint* SrsPithyPrint::create_srt_play()
+SrsPithyPrint *SrsPithyPrint::create_srt_play()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_SRT_PLAY);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_srt_publish()
+SrsPithyPrint *SrsPithyPrint::create_srt_publish()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_SRT_PUBLISH);
 }
@@ -315,38 +315,38 @@ SrsPithyPrint::~SrsPithyPrint()
 
 int SrsPithyPrint::enter_stage()
 {
-    SrsStageInfo* stage = _srs_stages->fetch_or_create(stage_id);
+    SrsStageInfo *stage = _srs_stages->fetch_or_create(stage_id);
     srs_assert(stage != NULL);
     client_id = stage->nb_clients++;
-    
+
     srs_verbose("enter stage, stage_id=%d, client_id=%d, nb_clients=%d",
                 stage->stage_id, client_id, stage->nb_clients);
-    
+
     return client_id;
 }
 
 void SrsPithyPrint::leave_stage()
 {
-    SrsStageInfo* stage = _srs_stages->fetch_or_create(stage_id);
+    SrsStageInfo *stage = _srs_stages->fetch_or_create(stage_id);
     srs_assert(stage != NULL);
-    
+
     stage->nb_clients--;
-    
+
     srs_verbose("leave stage, stage_id=%d, client_id=%d, nb_clients=%d",
                 stage->stage_id, client_id, stage->nb_clients);
 }
 
 void SrsPithyPrint::elapse()
 {
-    SrsStageInfo* stage = cache_;
+    SrsStageInfo *stage = cache_;
     if (!stage) {
         stage = cache_ = _srs_stages->fetch_or_create(stage_id);
     }
     srs_assert(stage != NULL);
-    
+
     srs_utime_t diff = srs_get_system_time() - previous_tick;
     diff = srs_max(0, diff);
-    
+
     stage->elapse(diff);
     _age += diff;
     previous_tick = srs_get_system_time();
@@ -354,12 +354,12 @@ void SrsPithyPrint::elapse()
 
 bool SrsPithyPrint::can_print()
 {
-    SrsStageInfo* stage = cache_;
+    SrsStageInfo *stage = cache_;
     if (!stage) {
         stage = cache_ = _srs_stages->fetch_or_create(stage_id);
     }
     srs_assert(stage != NULL);
-    
+
     return stage->can_print();
 }
 
@@ -367,5 +367,3 @@ srs_utime_t SrsPithyPrint::age()
 {
     return _age;
 }
-
-

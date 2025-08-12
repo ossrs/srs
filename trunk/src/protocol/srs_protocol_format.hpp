@@ -22,16 +22,16 @@ class SrsRtmpFormat : public SrsFormat
 public:
     SrsRtmpFormat();
     virtual ~SrsRtmpFormat();
+
 public:
     // Initialize the format from metadata, optional.
-    virtual srs_error_t on_metadata(SrsOnMetaDataPacket* meta);
+    virtual srs_error_t on_metadata(SrsOnMetaDataPacket *meta);
     // When got a parsed audio packet.
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio);
-    virtual srs_error_t on_audio(int64_t timestamp, char* data, int size);
+    virtual srs_error_t on_audio(SrsSharedPtrMessage *shared_audio);
+    virtual srs_error_t on_audio(int64_t timestamp, char *data, int size);
     // When got a parsed video packet.
-    virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video);
-    virtual srs_error_t on_video(int64_t timestamp, char* data, int size);
+    virtual srs_error_t on_video(SrsSharedPtrMessage *shared_video);
+    virtual srs_error_t on_video(int64_t timestamp, char *data, int size);
 };
 
 #endif
-

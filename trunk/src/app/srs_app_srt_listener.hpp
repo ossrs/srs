@@ -7,8 +7,8 @@
 #ifndef SRS_APP_SRT_LISTENER_HPP
 #define SRS_APP_SRT_LISTENER_HPP
 
-#include <srs_core.hpp>
 #include <srs_app_st.hpp>
+#include <srs_core.hpp>
 #include <srs_protocol_srt.hpp>
 
 #include <string>
@@ -19,6 +19,7 @@ class ISrsSrtHandler
 public:
     ISrsSrtHandler();
     virtual ~ISrsSrtHandler();
+
 public:
     // When got srt client.
     virtual srs_error_t on_srt_client(srs_srt_t srt_fd) = 0;
@@ -29,25 +30,28 @@ class SrsSrtListener : public ISrsCoroutineHandler
 {
 private:
     srs_srt_t lfd_;
-    SrsSrtSocket* srt_skt_;
-    SrsCoroutine* trd_;
+    SrsSrtSocket *srt_skt_;
+    SrsCoroutine *trd_;
+
 private:
-    ISrsSrtHandler* handler_;
+    ISrsSrtHandler *handler_;
     std::string ip_;
     int port_;
+
 public:
-    SrsSrtListener(ISrsSrtHandler* h, std::string i, int p);
+    SrsSrtListener(ISrsSrtHandler *h, std::string i, int p);
     virtual ~SrsSrtListener();
+
 public:
     virtual srs_srt_t fd();
+
 public:
     // Create srt socket, separate this step because of srt have some option must set before listen.
     virtual srs_error_t create_socket();
     virtual srs_error_t listen();
-// Interface ISrsReusableThreadHandler.
+    // Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
 };
 
 #endif
-

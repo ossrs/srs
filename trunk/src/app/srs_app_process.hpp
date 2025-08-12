@@ -32,6 +32,7 @@ private:
     // Whether SIGTERM send but need to wait or SIGKILL.
     bool fast_stopped;
     pid_t pid;
+
 private:
     std::string bin;
     std::string stdout_file;
@@ -40,9 +41,11 @@ private:
     // The cli to fork process.
     std::string cli;
     std::string actual_cli;
+
 public:
     SrsProcess();
     virtual ~SrsProcess();
+
 public:
     // Get pid of process.
     virtual int get_pid();
@@ -53,9 +56,11 @@ public:
     // @param argv the argv for binary path, the argv[0] generally is the binary.
     // @remark the argv[0] must be the binary.
     virtual srs_error_t initialize(std::string binary, std::vector<std::string> argv);
+
 private:
     // Redirect standard I/O.
     virtual srs_error_t redirect_io();
+
 public:
     // Start the process, ignore when already started.
     virtual srs_error_t start();
@@ -67,6 +72,7 @@ public:
     // process quit timeout.
     // @remark use fast_stop before stop one by one, when got lots of process to quit.
     virtual void stop();
+
 public:
     // The fast stop is to send a SIGTERM.
     // for example, the ingesters owner lots of FFMPEG, it will take a long time
@@ -82,4 +88,3 @@ public:
 };
 
 #endif
-

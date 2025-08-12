@@ -5,13 +5,13 @@
 //
 #include <srs_utest_srt.hpp>
 
+#include <srs_app_srt_server.hpp>
+#include <srs_app_srt_utility.hpp>
+#include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_protocol_srt.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
-#include <srs_app_srt_utility.hpp>
-#include <srs_app_srt_server.hpp>
-#include <srs_core_autofree.hpp>
+#include <srs_protocol_srt.hpp>
 
 #include <sstream>
 #include <vector>
@@ -19,23 +19,23 @@ using namespace std;
 
 #include <srt/srt.h>
 
-extern SrsSrtEventLoop* _srt_eventloop;
+extern SrsSrtEventLoop *_srt_eventloop;
 
 // TODO: FIXME: set srt log handler.
 
 // Test srt st service
-VOID TEST(ServiceSrtPoller, SrtPollOperateSocket) 
+VOID TEST(ServiceSrtPoller, SrtPollOperateSocket)
 {
     srs_error_t err = srs_success;
 
-    ISrsSrtPoller* srt_poller = srs_srt_poller_new();
+    ISrsSrtPoller *srt_poller = srs_srt_poller_new();
     HELPER_EXPECT_SUCCESS(srt_poller->initialize());
 
     srs_srt_t srt_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket(&srt_fd));
     EXPECT_TRUE(srt_fd > 0);
 
-    SrsSrtSocket* srt_socket = new SrsSrtSocket(srt_poller, srt_fd);
+    SrsSrtSocket *srt_socket = new SrsSrtSocket(srt_poller, srt_fd);
     EXPECT_EQ(srt_socket->events(), 0);
 
     // Enable read, will subscribe SRT_EPOLL_IN and  SRT_EPOLL_ERR event in srt poller.
@@ -66,7 +66,7 @@ VOID TEST(ServiceSrtPoller, SrtPollOperateSocket)
     srs_freep(srt_poller);
 }
 
-VOID TEST(ServiceSrtPoller, SrtSetGetSocketOpt) 
+VOID TEST(ServiceSrtPoller, SrtSetGetSocketOpt)
 {
     srs_error_t err = srs_success;
 
@@ -134,15 +134,17 @@ VOID TEST(ServiceSrtPoller, SrtSetGetSocketOpt)
 class MockSrtServer
 {
 public:
-    SrsSrtSocket* srt_socket_;
+    SrsSrtSocket *srt_socket_;
     srs_srt_t srt_server_fd_;
 
-    MockSrtServer() {
+    MockSrtServer()
+    {
         srt_server_fd_ = srs_srt_socket_invalid();
         srt_socket_ = NULL;
     }
 
-    srs_error_t create_socket() {
+    srs_error_t create_socket()
+    {
         srs_error_t err = srs_success;
         if ((err = srs_srt_socket_with_default_option(&srt_server_fd_)) != srs_success) {
             return srs_error_wrap(err, "create srt socket");
@@ -150,11 +152,13 @@ public:
         return err;
     }
 
-    srs_srt_t fd() {
+    srs_srt_t fd()
+    {
         return srt_server_fd_;
     }
 
-    srs_error_t listen(std::string ip, int port) {
+    srs_error_t listen(std::string ip, int port)
+    {
         srs_error_t err = srs_success;
 
         if ((err = srs_srt_listen(srt_server_fd_, ip, port)) != srs_success) {
@@ -166,11 +170,13 @@ public:
         return err;
     }
 
-    virtual ~MockSrtServer() {
+    virtual ~MockSrtServer()
+    {
         srs_freep(srt_socket_);
     }
 
-    virtual srs_error_t accept(srs_srt_t* client_fd) {
+    virtual srs_error_t accept(srs_srt_t *client_fd)
+    {
         srs_error_t err = srs_success;
 
         if ((err = srt_socket_->accept(client_fd)) != srs_success) {
@@ -181,7 +187,7 @@ public:
     }
 };
 
-VOID TEST(ServiceStSRTTest, ListenConnectAccept) 
+VOID TEST(ServiceStSRTTest, ListenConnectAccept)
 {
     srs_error_t err = srs_success;
 
@@ -214,20 +220,20 @@ VOID TEST(ServiceStSRTTest, ListenConnectAccept)
     EXPECT_NE(srt_fd, srs_srt_socket_invalid());
 }
 
-VOID TEST(ServiceStSRTTest, ConnectTimeout) 
+VOID TEST(ServiceStSRTTest, ConnectTimeout)
 {
     srs_error_t err = srs_success;
 
     srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
-    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+    SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
     srt_client_socket->set_send_timeout(50 * SRS_UTIME_MILLISECONDS);
     // Client connect to server which is no listening.
     HELPER_EXPECT_FAILED(srt_client_socket->connect("127.0.0.1", 9099));
 }
 
-VOID TEST(ServiceStSRTTest, ConnectWithStreamid) 
+VOID TEST(ServiceStSRTTest, ConnectWithStreamid)
 {
     srs_error_t err = srs_success;
 
@@ -242,7 +248,7 @@ VOID TEST(ServiceStSRTTest, ConnectWithStreamid)
     srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
     HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
-    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+    SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
     HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
 
@@ -254,7 +260,7 @@ VOID TEST(ServiceStSRTTest, ConnectWithStreamid)
     EXPECT_EQ(s, streamid);
 }
 
-VOID TEST(ServiceStSRTTest, ReadWrite) 
+VOID TEST(ServiceStSRTTest, ReadWrite)
 {
     srs_error_t err = srs_success;
 
@@ -267,7 +273,7 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
 
     srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
-    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+    SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
     // Client connect to server
     HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
@@ -276,14 +282,14 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
     srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srt_server.accept(&srt_server_accepted_fd));
     EXPECT_NE(srt_server_accepted_fd, srs_srt_socket_invalid());
-    SrsSrtSocket* srt_server_accepted_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_server_accepted_fd);
+    SrsSrtSocket *srt_server_accepted_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_server_accepted_fd);
 
     if (true) {
         std::string content = "Hello, SRS SRT!";
 
         // Client send msg to server.
         ssize_t nb_write = 0;
-        HELPER_EXPECT_SUCCESS(srt_client_socket->sendmsg((char*)content.data(), content.size(), &nb_write));
+        HELPER_EXPECT_SUCCESS(srt_client_socket->sendmsg((char *)content.data(), content.size(), &nb_write));
         EXPECT_EQ((size_t)nb_write, content.size());
 
         // Server recv msg from client
@@ -315,42 +321,49 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
     }
 }
 
-// Test srt server 
+// Test srt server
 class MockSrtHandler : public ISrsSrtHandler
 {
 private:
     srs_srt_t srt_fd;
+
 public:
-	MockSrtHandler() {
+    MockSrtHandler()
+    {
         srt_fd = srs_srt_socket_invalid();
-	}
-	virtual ~MockSrtHandler() {
-	}
+    }
+    virtual ~MockSrtHandler()
+    {
+    }
+
 public:
-    virtual srs_error_t on_srt_client(srs_srt_t fd) {
+    virtual srs_error_t on_srt_client(srs_srt_t fd)
+    {
         srt_fd = fd;
         return srs_success;
-	}
+    }
 };
 
-VOID TEST(SrtServerTest, SrtListener) 
+VOID TEST(SrtServerTest, SrtListener)
 {
     srs_error_t err = srs_success;
 
     if (true) {
         MockSrtHandler h;
         SrsSrtListener srt_listener(&h, "127.0.0.1", 9000);
-	    HELPER_EXPECT_SUCCESS(srt_listener.create_socket());
+        HELPER_EXPECT_SUCCESS(srt_listener.create_socket());
         HELPER_EXPECT_SUCCESS(srt_listener.listen());
-		EXPECT_TRUE(srt_listener.fd() > 0);
+        EXPECT_TRUE(srt_listener.fd() > 0);
     }
 }
 
 // Test srt app
-VOID TEST(ProtocolSrtTest, SrtGetStreamInfoNormal) 
+VOID TEST(ProtocolSrtTest, SrtGetStreamInfoNormal)
 {
     if (true) {
-        SrtMode mode; string vhost; string subpath;
+        SrtMode mode;
+        string vhost;
+        string subpath;
         EXPECT_TRUE(srs_srt_streamid_info("#!::r=live/livestream,key1=value1,key2=value2", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("", vhost.c_str());
@@ -358,7 +371,9 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoNormal)
     }
 
     if (true) {
-        SrtMode mode; string vhost; string subpath;
+        SrtMode mode;
+        string vhost;
+        string subpath;
         EXPECT_TRUE(srs_srt_streamid_info("#!::h=host.com,r=live/livestream,key1=value1,key2=value2", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("host.com", vhost.c_str());
@@ -366,27 +381,33 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoNormal)
     }
 }
 
-VOID TEST(ProtocolSrtTest, SrtGetStreamInfoMethod) 
+VOID TEST(ProtocolSrtTest, SrtGetStreamInfoMethod)
 {
     if (true) {
-        SrtMode mode; string vhost; string subpath;
+        SrtMode mode;
+        string vhost;
+        string subpath;
         EXPECT_TRUE(srs_srt_streamid_info("#!::r=live/livestream,m=request", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("live/livestream", subpath.c_str());
     }
 
     if (true) {
-        SrtMode mode; string vhost; string subpath;
+        SrtMode mode;
+        string vhost;
+        string subpath;
         EXPECT_TRUE(srs_srt_streamid_info("#!::r=live/livestream,m=publish", mode, vhost, subpath));
         EXPECT_EQ(SrtModePush, mode);
         EXPECT_STREQ("live/livestream", subpath.c_str());
     }
 }
 
-VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible) 
+VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible)
 {
     if (true) {
-        SrtMode mode; string vhost; string subpath;
+        SrtMode mode;
+        string vhost;
+        string subpath;
         EXPECT_TRUE(srs_srt_streamid_info("#!::h=live/livestream,m=request", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("", vhost.c_str());
@@ -394,7 +415,9 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible)
     }
 
     if (true) {
-        SrtMode mode; string vhost; string subpath;
+        SrtMode mode;
+        string vhost;
+        string subpath;
         EXPECT_TRUE(srs_srt_streamid_info("#!::h=live/livestream,m=publish", mode, vhost, subpath));
         EXPECT_EQ(SrtModePush, mode);
         EXPECT_STREQ("", vhost.c_str());
@@ -402,7 +425,9 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible)
     }
 
     if (true) {
-        SrtMode mode; string vhost; string subpath;
+        SrtMode mode;
+        string vhost;
+        string subpath;
         EXPECT_TRUE(srs_srt_streamid_info("#!::h=srs.srt.com.cn/live/livestream,m=request", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("srs.srt.com.cn", vhost.c_str());
@@ -410,7 +435,9 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible)
     }
 
     if (true) {
-        SrtMode mode; string vhost; string subpath;
+        SrtMode mode;
+        string vhost;
+        string subpath;
         EXPECT_TRUE(srs_srt_streamid_info("#!::h=srs.srt.com.cn/live/livestream,m=publish", mode, vhost, subpath));
         EXPECT_EQ(SrtModePush, mode);
         EXPECT_STREQ("srs.srt.com.cn", vhost.c_str());
@@ -418,7 +445,9 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible)
     }
 
     if (true) {
-        SrtMode mode; string vhost; string subpath;
+        SrtMode mode;
+        string vhost;
+        string subpath;
         EXPECT_TRUE(srs_srt_streamid_info("#!::h=live/livestream?secret=d6d2be37,m=publish", mode, vhost, subpath));
         EXPECT_EQ(SrtModePush, mode);
         EXPECT_STREQ("", vhost.c_str());
@@ -473,7 +502,7 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
     }
 }
 
-VOID TEST(ServiceSRTTest, Encrypt) 
+VOID TEST(ServiceSRTTest, Encrypt)
 {
     srs_error_t err = srs_success;
 
@@ -492,7 +521,7 @@ VOID TEST(ServiceSRTTest, Encrypt)
         srs_srt_t srt_client_fd = srs_srt_socket_invalid();
         HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
         HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
-        SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+        SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
         // SRT connect without passphrase, will reject.
         HELPER_EXPECT_FAILED(srt_client_socket->connect(server_ip, server_port));
@@ -503,7 +532,7 @@ VOID TEST(ServiceSRTTest, Encrypt)
         HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
         HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
         HELPER_EXPECT_SUCCESS(srs_srt_set_passphrase(srt_client_fd, "wrong_passphrase"));
-        SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+        SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
         // SRT connect with wrong passphrase, will reject.
         HELPER_EXPECT_FAILED(srt_client_socket->connect(server_ip, server_port));
@@ -515,7 +544,7 @@ VOID TEST(ServiceSRTTest, Encrypt)
         HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
         // Set correct passphrase.
         HELPER_EXPECT_SUCCESS(srs_srt_set_passphrase(srt_client_fd, passphrase));
-        SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+        SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
         HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
 
         srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();
@@ -536,7 +565,7 @@ VOID TEST(ServiceSRTTest, Encrypt)
             HELPER_EXPECT_SUCCESS(srs_srt_set_passphrase(srt_client_fd, passphrase));
             // Set different pbkeylen.
             HELPER_EXPECT_SUCCESS(srs_srt_set_pbkeylen(srt_client_fd, pbkeylens[i]));
-            SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+            SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
             HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
 
             srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();
@@ -551,4 +580,3 @@ VOID TEST(ServiceSRTTest, Encrypt)
 
 // TODO: FIXME: add mpegts conn test
 // set srt option, recv srt client, get srt client opt and check.
-

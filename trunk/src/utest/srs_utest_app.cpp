@@ -7,28 +7,32 @@
 
 using namespace std;
 
-#include <srs_kernel_error.hpp>
+#include <srs_app_config.hpp>
 #include <srs_app_fragment.hpp>
 #include <srs_app_security.hpp>
-#include <srs_app_config.hpp>
+#include <srs_kernel_error.hpp>
 
+#include <srs_app_conn.hpp>
 #include <srs_app_st.hpp>
 #include <srs_protocol_conn.hpp>
-#include <srs_app_conn.hpp>
 
 class MockIDResource : public ISrsResource
 {
 public:
     int id;
-    MockIDResource(int v) {
+    MockIDResource(int v)
+    {
         id = v;
     }
-    virtual ~MockIDResource() {
+    virtual ~MockIDResource()
+    {
     }
-    virtual const SrsContextId& get_id() {
+    virtual const SrsContextId &get_id()
+    {
         return _srs_context->get_id();
     }
-    virtual std::string desc() {
+    virtual std::string desc()
+    {
         return "";
     }
 };
@@ -44,26 +48,27 @@ VOID TEST(AppResourceManagerTest, FindByFastID)
         m.add_with_fast_id(101, new MockIDResource(1));
         m.add_with_fast_id(102, new MockIDResource(2));
         m.add_with_fast_id(103, new MockIDResource(3));
-        EXPECT_EQ(1, ((MockIDResource*)m.find_by_fast_id(101))->id);
-        EXPECT_EQ(2, ((MockIDResource*)m.find_by_fast_id(102))->id);
-        EXPECT_EQ(3, ((MockIDResource*)m.find_by_fast_id(103))->id);
+        EXPECT_EQ(1, ((MockIDResource *)m.find_by_fast_id(101))->id);
+        EXPECT_EQ(2, ((MockIDResource *)m.find_by_fast_id(102))->id);
+        EXPECT_EQ(3, ((MockIDResource *)m.find_by_fast_id(103))->id);
     }
 
     if (true) {
         SrsResourceManager m("test");
         HELPER_EXPECT_SUCCESS(m.start());
 
-        MockIDResource* r1 = new MockIDResource(1);
-        MockIDResource* r2 = new MockIDResource(2);
-        MockIDResource* r3 = new MockIDResource(3);
+        MockIDResource *r1 = new MockIDResource(1);
+        MockIDResource *r2 = new MockIDResource(2);
+        MockIDResource *r3 = new MockIDResource(3);
         m.add_with_fast_id(101, r1);
         m.add_with_fast_id(102, r2);
         m.add_with_fast_id(103, r3);
-        EXPECT_EQ(1, ((MockIDResource*)m.find_by_fast_id(101))->id);
-        EXPECT_EQ(2, ((MockIDResource*)m.find_by_fast_id(102))->id);
-        EXPECT_EQ(3, ((MockIDResource*)m.find_by_fast_id(103))->id);
+        EXPECT_EQ(1, ((MockIDResource *)m.find_by_fast_id(101))->id);
+        EXPECT_EQ(2, ((MockIDResource *)m.find_by_fast_id(102))->id);
+        EXPECT_EQ(3, ((MockIDResource *)m.find_by_fast_id(103))->id);
 
-        m.remove(r2); srs_usleep(0);
+        m.remove(r2);
+        srs_usleep(0);
         EXPECT_TRUE(m.find_by_fast_id(102) == NULL);
     }
 
@@ -71,23 +76,26 @@ VOID TEST(AppResourceManagerTest, FindByFastID)
         SrsResourceManager m("test");
         HELPER_EXPECT_SUCCESS(m.start());
 
-        MockIDResource* r1 = new MockIDResource(1);
-        MockIDResource* r2 = new MockIDResource(2);
-        MockIDResource* r3 = new MockIDResource(3);
+        MockIDResource *r1 = new MockIDResource(1);
+        MockIDResource *r2 = new MockIDResource(2);
+        MockIDResource *r3 = new MockIDResource(3);
         m.add_with_fast_id(1, r1);
         m.add_with_fast_id(100001, r2);
         m.add_with_fast_id(1000001, r3);
-        EXPECT_EQ(1, ((MockIDResource*)m.find_by_fast_id(1))->id);
-        EXPECT_EQ(2, ((MockIDResource*)m.find_by_fast_id(100001))->id);
-        EXPECT_EQ(3, ((MockIDResource*)m.find_by_fast_id(1000001))->id);
+        EXPECT_EQ(1, ((MockIDResource *)m.find_by_fast_id(1))->id);
+        EXPECT_EQ(2, ((MockIDResource *)m.find_by_fast_id(100001))->id);
+        EXPECT_EQ(3, ((MockIDResource *)m.find_by_fast_id(1000001))->id);
 
-        m.remove(r2); srs_usleep(0);
+        m.remove(r2);
+        srs_usleep(0);
         EXPECT_TRUE(m.find_by_fast_id(100001) == NULL);
 
-        m.remove(r3); srs_usleep(0);
+        m.remove(r3);
+        srs_usleep(0);
         EXPECT_TRUE(m.find_by_fast_id(1000001) == NULL);
 
-        m.remove(r1); srs_usleep(0);
+        m.remove(r1);
+        srs_usleep(0);
         EXPECT_TRUE(m.find_by_fast_id(1) == NULL);
     }
 
@@ -105,16 +113,16 @@ VOID TEST(AppResourceManagerTest, FindByFastID)
         m.add_with_fast_id(10101010101010101LL, new MockIDResource(8));
         m.add_with_fast_id(1010101010101010101ULL, new MockIDResource(9));
         m.add_with_fast_id(11010101010101010101ULL, new MockIDResource(10));
-        EXPECT_EQ(1, ((MockIDResource*)m.find_by_fast_id(101))->id);
-        EXPECT_EQ(2, ((MockIDResource*)m.find_by_fast_id(10101))->id);
-        EXPECT_EQ(3, ((MockIDResource*)m.find_by_fast_id(1010101))->id);
-        EXPECT_EQ(4, ((MockIDResource*)m.find_by_fast_id(101010101))->id);
-        EXPECT_EQ(5, ((MockIDResource*)m.find_by_fast_id(10101010101LL))->id);
-        EXPECT_EQ(6, ((MockIDResource*)m.find_by_fast_id(1010101010101LL))->id);
-        EXPECT_EQ(7, ((MockIDResource*)m.find_by_fast_id(101010101010101LL))->id);
-        EXPECT_EQ(8, ((MockIDResource*)m.find_by_fast_id(10101010101010101LL))->id);
-        EXPECT_EQ(9, ((MockIDResource*)m.find_by_fast_id(1010101010101010101ULL))->id);
-        EXPECT_EQ(10, ((MockIDResource*)m.find_by_fast_id(11010101010101010101ULL))->id);
+        EXPECT_EQ(1, ((MockIDResource *)m.find_by_fast_id(101))->id);
+        EXPECT_EQ(2, ((MockIDResource *)m.find_by_fast_id(10101))->id);
+        EXPECT_EQ(3, ((MockIDResource *)m.find_by_fast_id(1010101))->id);
+        EXPECT_EQ(4, ((MockIDResource *)m.find_by_fast_id(101010101))->id);
+        EXPECT_EQ(5, ((MockIDResource *)m.find_by_fast_id(10101010101LL))->id);
+        EXPECT_EQ(6, ((MockIDResource *)m.find_by_fast_id(1010101010101LL))->id);
+        EXPECT_EQ(7, ((MockIDResource *)m.find_by_fast_id(101010101010101LL))->id);
+        EXPECT_EQ(8, ((MockIDResource *)m.find_by_fast_id(10101010101010101LL))->id);
+        EXPECT_EQ(9, ((MockIDResource *)m.find_by_fast_id(1010101010101010101ULL))->id);
+        EXPECT_EQ(10, ((MockIDResource *)m.find_by_fast_id(11010101010101010101ULL))->id);
     }
 
     if (true) {
@@ -123,7 +131,7 @@ VOID TEST(AppResourceManagerTest, FindByFastID)
 
         m.add_with_fast_id(101, new MockIDResource(1));
         m.add_with_fast_id(101, new MockIDResource(4));
-        EXPECT_EQ(1, ((MockIDResource*)m.find_by_fast_id(101))->id);
+        EXPECT_EQ(1, ((MockIDResource *)m.find_by_fast_id(101))->id);
     }
 }
 
@@ -181,27 +189,33 @@ VOID TEST(AppCoroutineTest, Dummy)
     }
 }
 
-class MockCoroutineHandler : public ISrsCoroutineHandler {
+class MockCoroutineHandler : public ISrsCoroutineHandler
+{
 public:
-    SrsSTCoroutine* trd;
+    SrsSTCoroutine *trd;
     srs_error_t err;
     srs_cond_t running;
     srs_cond_t exited;
     SrsContextId cid;
     // Quit without error.
     bool quit;
+
 public:
-    MockCoroutineHandler() : trd(NULL), err(srs_success), quit(false) {
+    MockCoroutineHandler() : trd(NULL), err(srs_success), quit(false)
+    {
         cid.set_value("0");
         running = srs_cond_new();
         exited = srs_cond_new();
     }
-    virtual ~MockCoroutineHandler() {
+    virtual ~MockCoroutineHandler()
+    {
         srs_cond_destroy(running);
         srs_cond_destroy(exited);
     }
+
 public:
-    virtual srs_error_t cycle() {
+    virtual srs_error_t cycle()
+    {
         srs_error_t r0 = srs_success;
 
         srs_cond_signal(running);
@@ -423,7 +437,8 @@ VOID TEST(AppCoroutineTest, Cycle)
     }
 }
 
-void* mock_st_thread_create(void *(*/*start*/)(void *arg), void */*arg*/, int /*joinable*/, int /*stack_size*/) {
+void *mock_st_thread_create(void *(* /*start*/)(void *arg), void * /*arg*/, int /*joinable*/, int /*stack_size*/)
+{
     return NULL;
 }
 
@@ -446,70 +461,70 @@ VOID TEST(AppCoroutineTest, StartThread)
 
 VOID TEST(AppFragmentTest, CheckDuration)
 {
-	if (true) {
-		SrsFragment frg;
-		EXPECT_EQ(-1, frg.start_dts);
-		EXPECT_EQ(0, frg.dur);
-		EXPECT_FALSE(frg.sequence_header);
-	}
+    if (true) {
+        SrsFragment frg;
+        EXPECT_EQ(-1, frg.start_dts);
+        EXPECT_EQ(0, frg.dur);
+        EXPECT_FALSE(frg.sequence_header);
+    }
 
-	if (true) {
-		SrsFragment frg;
+    if (true) {
+        SrsFragment frg;
 
-		frg.append(0);
-		EXPECT_EQ(0, frg.duration());
+        frg.append(0);
+        EXPECT_EQ(0, frg.duration());
 
-		frg.append(10);
-		EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, frg.duration());
+        frg.append(10);
+        EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, frg.duration());
 
-		frg.append(99);
-		EXPECT_EQ(99 * SRS_UTIME_MILLISECONDS, frg.duration());
+        frg.append(99);
+        EXPECT_EQ(99 * SRS_UTIME_MILLISECONDS, frg.duration());
 
-		frg.append(0x7fffffffLL);
-		EXPECT_EQ(0x7fffffffLL * SRS_UTIME_MILLISECONDS, frg.duration());
+        frg.append(0x7fffffffLL);
+        EXPECT_EQ(0x7fffffffLL * SRS_UTIME_MILLISECONDS, frg.duration());
 
-		frg.append(0xffffffffLL);
-		EXPECT_EQ(0xffffffffLL * SRS_UTIME_MILLISECONDS, frg.duration());
+        frg.append(0xffffffffLL);
+        EXPECT_EQ(0xffffffffLL * SRS_UTIME_MILLISECONDS, frg.duration());
 
-		frg.append(0x20c49ba5e353f7LL);
-		EXPECT_EQ(0x20c49ba5e353f7LL * SRS_UTIME_MILLISECONDS, frg.duration());
-	}
+        frg.append(0x20c49ba5e353f7LL);
+        EXPECT_EQ(0x20c49ba5e353f7LL * SRS_UTIME_MILLISECONDS, frg.duration());
+    }
 
-	if (true) {
-		SrsFragment frg;
+    if (true) {
+        SrsFragment frg;
 
-		frg.append(0);
-		EXPECT_EQ(0, frg.duration());
+        frg.append(0);
+        EXPECT_EQ(0, frg.duration());
 
-		frg.append(0x7fffffffffffffffLL);
-		EXPECT_EQ(0, frg.duration());
-	}
+        frg.append(0x7fffffffffffffffLL);
+        EXPECT_EQ(0, frg.duration());
+    }
 
-	if (true) {
-		SrsFragment frg;
+    if (true) {
+        SrsFragment frg;
 
-		frg.append(100);
-		EXPECT_EQ(0, frg.duration());
+        frg.append(100);
+        EXPECT_EQ(0, frg.duration());
 
-		frg.append(10);
-		EXPECT_EQ(0, frg.duration());
+        frg.append(10);
+        EXPECT_EQ(0, frg.duration());
 
-		frg.append(100);
-		EXPECT_EQ(90 * SRS_UTIME_MILLISECONDS, frg.duration());
-	}
+        frg.append(100);
+        EXPECT_EQ(90 * SRS_UTIME_MILLISECONDS, frg.duration());
+    }
 
-	if (true) {
-		SrsFragment frg;
+    if (true) {
+        SrsFragment frg;
 
-		frg.append(-10);
-		EXPECT_EQ(0, frg.duration());
+        frg.append(-10);
+        EXPECT_EQ(0, frg.duration());
 
-		frg.append(-5);
-		EXPECT_EQ(0, frg.duration());
+        frg.append(-5);
+        EXPECT_EQ(0, frg.duration());
 
-		frg.append(10);
-		EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, frg.duration());
-	}
+        frg.append(10);
+        EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, frg.duration());
+    }
 }
 
 VOID TEST(AppSecurity, CheckSecurity)
@@ -518,37 +533,49 @@ VOID TEST(AppSecurity, CheckSecurity)
 
     // Deny if no rules.
     if (true) {
-        SrsSecurity sec; SrsRequest rr;
+        SrsSecurity sec;
+        SrsRequest rr;
         HELPER_EXPECT_FAILED(sec.do_check(NULL, SrsRtmpConnUnknown, "", &rr));
     }
 
     // Deny if not allowed.
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnUnknown, "", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
-        rules.get_or_create("others"); rules.get_or_create("any");
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
+        rules.get_or_create("others");
+        rules.get_or_create("any");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnUnknown, "", &rr));
     }
 
     // Deny by rule.
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "all");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "12.13.14.15");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "11.12.13.14");
         if (true) {
-            SrsConfDirective* d = new SrsConfDirective();
+            SrsConfDirective *d = new SrsConfDirective();
             d->name = "deny";
             d->args.push_back("play");
             d->args.push_back("12.13.14.15");
@@ -557,20 +584,26 @@ VOID TEST(AppSecurity, CheckSecurity)
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "all");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtcConnPlay, "", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "12.13.14.15");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtcConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "11.12.13.14");
         if (true) {
-            SrsConfDirective* d = new SrsConfDirective();
+            SrsConfDirective *d = new SrsConfDirective();
             d->name = "deny";
             d->args.push_back("play");
             d->args.push_back("12.13.14.15");
@@ -579,198 +612,272 @@ VOID TEST(AppSecurity, CheckSecurity)
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtcConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "publish", "12.13.14.15");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "publish", "12.13.14.15");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFlashPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "publish", "all");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFlashPublish, "11.12.13.14", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "publish", "12.13.14.15");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "publish", "12.13.14.15");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtcConnPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "publish", "all");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtcConnPublish, "11.12.13.14", &rr));
     }
 
     // Allowed if not denied.
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "all");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "11.12.13.14", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "publish", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "publish", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnUnknown, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "publish", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFlashPublish, "11.12.13.14", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtcConnPlay, "11.12.13.14", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "publish", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtcConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "all");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtcConnPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtcConnPublish, "12.13.14.15", &rr));
     }
 
     // Allowed by rule.
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "play", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "play", "all");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "play", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtcConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "play", "all");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtcConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "publish", "all");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtcConnPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "publish", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtcConnPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "publish", "all");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "publish", "all");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFlashPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "publish", "all");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "publish", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
     }
 
     // Allowed if not denied.
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("deny", "play", "all");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
     }
 
     // Denied if not allowd.
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "play", "11.12.13.14");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "play", "11.12.13.14");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "publish", "12.13.14.15");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "play", "11.12.13.14");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtcConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "publish", "12.13.14.15");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtcConnPlay, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "publish", "11.12.13.14");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "publish", "11.12.13.14");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnUnknown, "11.12.13.14", &rr));
     }
 
     // Denied if dup.
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "play", "11.12.13.14");
         rules.get_or_create("deny", "play", "11.12.13.14");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "11.12.13.14", &rr));
     }
     if (true) {
-        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        SrsSecurity sec;
+        SrsRequest rr;
+        SrsConfDirective rules;
         rules.get_or_create("allow", "play", "11.12.13.14");
         rules.get_or_create("deny", "play", "11.12.13.14");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtcConnPlay, "11.12.13.14", &rr));
@@ -782,4 +889,3 @@ VOID TEST(AppSecurity, CheckSecurity)
     //       3. allow if matches allow strategy.
     //       4. deny if matches deny strategy.
 }
-

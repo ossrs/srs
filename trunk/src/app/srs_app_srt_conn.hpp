@@ -12,11 +12,11 @@
 #include <string>
 #include <vector>
 
-#include <srs_protocol_srt.hpp>
-#include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
-#include <srs_app_srt_utility.hpp>
 #include <srs_app_security.hpp>
+#include <srs_app_srt_utility.hpp>
+#include <srs_app_st.hpp>
+#include <srs_protocol_srt.hpp>
 
 class SrsBuffer;
 class SrsLiveSource;
@@ -32,70 +32,79 @@ class SrsSrtConnection : public ISrsProtocolReadWriter
 public:
     SrsSrtConnection(srs_srt_t srt_fd);
     virtual ~SrsSrtConnection();
+
 public:
     virtual srs_error_t initialize();
-// Interface ISrsProtocolReadWriter
+    // Interface ISrsProtocolReadWriter
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
-    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread);
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
-    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
+
 private:
     // The underlayer srt fd handler.
     srs_srt_t srt_fd_;
     // The underlayer srt socket.
-    SrsSrtSocket* srt_skt_;
+    SrsSrtSocket *srt_skt_;
 };
 
 class SrsSrtRecvThread : public ISrsCoroutineHandler
 {
 public:
-    SrsSrtRecvThread(SrsSrtConnection* srt_conn);
+    SrsSrtRecvThread(SrsSrtConnection *srt_conn);
     ~SrsSrtRecvThread();
-// Interface ISrsCoroutineHandler
+    // Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
+
 private:
     srs_error_t do_cycle();
+
 public:
     srs_error_t start();
     srs_error_t get_recv_err();
+
 private:
-    SrsSrtConnection* srt_conn_;
-    SrsCoroutine* trd_;
+    SrsSrtConnection *srt_conn_;
+    SrsCoroutine *trd_;
     srs_error_t recv_err_;
 };
 
 class SrsMpegtsSrtConn : public ISrsConnection, public ISrsStartable, public ISrsCoroutineHandler, public ISrsExpire
 {
 public:
-    SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port);
+    SrsMpegtsSrtConn(SrsSrtServer *srt_server, srs_srt_t srt_fd, std::string ip, int port);
     virtual ~SrsMpegtsSrtConn();
-// Interface ISrsResource.
+    // Interface ISrsResource.
 public:
     virtual std::string desc();
+
 public:
-    ISrsKbpsDelta* delta();
-// Interface ISrsExpire
+    ISrsKbpsDelta *delta();
+    // Interface ISrsExpire
 public:
     virtual void expire();
+
 public:
     virtual srs_error_t start();
-// Interface ISrsConnection.
+    // Interface ISrsConnection.
 public:
     virtual std::string remote_ip();
-    virtual const SrsContextId& get_id();
-// Interface ISrsCoroutineHandler
+    virtual const SrsContextId &get_id();
+    // Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
+
 protected:
     virtual srs_error_t do_cycle();
+
 private:
     srs_error_t publishing();
     srs_error_t playing();
@@ -103,8 +112,10 @@ private:
     void release_publish();
     srs_error_t do_publishing();
     srs_error_t do_playing();
+
 private:
-    srs_error_t on_srt_packet(char* buf, int nb_buf);
+    srs_error_t on_srt_packet(char *buf, int nb_buf);
+
 private:
     srs_error_t http_hooks_on_connect();
     void http_hooks_on_close();
@@ -112,20 +123,20 @@ private:
     void http_hooks_on_unpublish();
     srs_error_t http_hooks_on_play();
     void http_hooks_on_stop();
+
 private:
-    SrsSrtServer* srt_server_;
+    SrsSrtServer *srt_server_;
     srs_srt_t srt_fd_;
-    SrsSrtConnection* srt_conn_;
-    SrsNetworkDelta* delta_;
-    SrsNetworkKbps* kbps_;
+    SrsSrtConnection *srt_conn_;
+    SrsNetworkDelta *delta_;
+    SrsNetworkKbps *kbps_;
     std::string ip_;
     int port_;
-    SrsCoroutine* trd_;
+    SrsCoroutine *trd_;
 
-    SrsRequest* req_;
+    SrsRequest *req_;
     SrsSharedPtr<SrsSrtSource> srt_source_;
-    SrsSecurity* security_;
+    SrsSecurity *security_;
 };
 
 #endif
-

@@ -8,17 +8,16 @@
 
 using namespace std;
 
-#include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
-#include <srs_kernel_utility.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_protocol_utility.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_utility.hpp>
 
 // See streamid of https://github.com/ossrs/srs/issues/2893
 // TODO: FIMXE: We should parse SRT streamid to URL object, rather than a HTTP url subpath.
-bool srs_srt_streamid_info(const std::string& streamid, SrtMode& mode, std::string& vhost, std::string& url_subpath)
+bool srs_srt_streamid_info(const std::string &streamid, SrtMode &mode, std::string &vhost, std::string &url_subpath)
 {
     mode = SrtModePull;
 
@@ -33,7 +32,7 @@ bool srs_srt_streamid_info(const std::string& streamid, SrtMode& mode, std::stri
         return true;
     }
 
-    //SRT url supports multiple QueryStrings, which are passed to RTMP to realize authentication and other capabilities
+    // SRT url supports multiple QueryStrings, which are passed to RTMP to realize authentication and other capabilities
     //@see https://github.com/ossrs/srs/issues/2893
     std::string params;
     std::string real_streamid;
@@ -86,9 +85,9 @@ bool srs_srt_streamid_info(const std::string& streamid, SrtMode& mode, std::stri
             std::transform(it->second.begin(), it->second.end(), mode_str.begin(), ::tolower);
             if (mode_str == "publish") {
                 mode = SrtModePush;
-            }  else if (mode_str == "request") {
+            } else if (mode_str == "request") {
                 mode = SrtModePull;
-            }  else {
+            } else {
                 srs_warn("unknown mode_str:%s", mode_str.c_str());
                 return false;
             }
@@ -113,11 +112,11 @@ bool srs_srt_streamid_info(const std::string& streamid, SrtMode& mode, std::stri
     return true;
 }
 
-bool srs_srt_streamid_to_request(const std::string& streamid, SrtMode& mode, SrsRequest* request)
+bool srs_srt_streamid_to_request(const std::string &streamid, SrtMode &mode, SrsRequest *request)
 {
     string url_subpath = "";
     bool ret = srs_srt_streamid_info(streamid, mode, request->vhost, url_subpath);
-    if (! ret) {
+    if (!ret) {
         return ret;
     }
 
@@ -140,7 +139,8 @@ bool srs_srt_streamid_to_request(const std::string& streamid, SrtMode& mode, Srs
     }
 
     request->host = srs_get_public_internet_address();
-    if (request->vhost.empty()) request->vhost = request->host;
+    if (request->vhost.empty())
+        request->vhost = request->host;
     request->tcUrl = srs_generate_tc_url("srt", request->host, request->vhost, request->app, request->port);
 
     return ret;

@@ -11,12 +11,12 @@
 
 #include <string>
 
-#include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_reload.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
-#include <srs_protocol_rtmp_conn.hpp>
+#include <srs_app_st.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_protocol_rtmp_conn.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 
 class SrsServer;
 class SrsRtmpServer;
@@ -47,6 +47,7 @@ class SrsSimpleRtmpClient : public SrsBasicRtmpClient
 public:
     SrsSimpleRtmpClient(std::string u, srs_utime_t ctm, srs_utime_t stm);
     virtual ~SrsSimpleRtmpClient();
+
 protected:
     virtual srs_error_t connect_app();
 };
@@ -60,29 +61,30 @@ public:
     // Whether the client connected at the edge server.
     bool edge;
     // Original request object from client.
-    SrsRequest* req;
+    SrsRequest *req;
     // Response object to client.
-    SrsResponse* res;
+    SrsResponse *res;
+
 public:
     SrsClientInfo();
     virtual ~SrsClientInfo();
 };
 
 // The client provides the main logic control for RTMP clients.
-class SrsRtmpConn : public ISrsConnection, public ISrsStartable, public ISrsReloadHandler
-    , public ISrsCoroutineHandler, public ISrsExpire
+class SrsRtmpConn : public ISrsConnection, public ISrsStartable, public ISrsReloadHandler, public ISrsCoroutineHandler, public ISrsExpire
 {
     // For the thread to directly access any field of connection.
     friend class SrsPublishRecvThread;
+
 private:
-    SrsServer* server;
-    SrsRtmpServer* rtmp;
-    SrsRefer* refer;
-    SrsBandwidth* bandwidth;
-    SrsSecurity* security;
+    SrsServer *server;
+    SrsRtmpServer *rtmp;
+    SrsRefer *refer;
+    SrsBandwidth *bandwidth;
+    SrsSecurity *security;
     // The wakable handler, maybe NULL.
     // TODO: FIXME: Should refine the state for receiving thread.
-    ISrsWakable* wakable;
+    ISrsWakable *wakable;
     // The elapsed duration in srs_utime_t
     // For live play duration, for instance, rtmpdump to record.
     srs_utime_t duration;
@@ -101,45 +103,50 @@ private:
     // Whether enable the tcp_nodelay.
     bool tcp_nodelay;
     // About the rtmp client.
-    SrsClientInfo* info;
+    SrsClientInfo *info;
+
 private:
     srs_netfd_t stfd;
-    SrsTcpConnection* skt;
+    SrsTcpConnection *skt;
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
-    SrsCoroutine* trd;
+    SrsCoroutine *trd;
     // The manager object to manage the connection.
-    ISrsResourceManager* manager;
+    ISrsResourceManager *manager;
     // The ip and port of client.
     std::string ip;
     int port;
     // The delta for statistic.
-    SrsNetworkDelta* delta_;
-    SrsNetworkKbps* kbps;
+    SrsNetworkDelta *delta_;
+    SrsNetworkKbps *kbps;
     // The create time in milliseconds.
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
     // The span for tracing connection establishment.
-    ISrsApmSpan* span_main_;
-    ISrsApmSpan* span_connect_;
-    ISrsApmSpan* span_client_;
+    ISrsApmSpan *span_main_;
+    ISrsApmSpan *span_connect_;
+    ISrsApmSpan *span_client_;
+
 public:
-    SrsRtmpConn(SrsServer* svr, srs_netfd_t c, std::string cip, int port);
+    SrsRtmpConn(SrsServer *svr, srs_netfd_t c, std::string cip, int port);
     virtual ~SrsRtmpConn();
-// Interface ISrsResource.
+    // Interface ISrsResource.
 public:
     virtual std::string desc();
+
 protected:
     virtual srs_error_t do_cycle();
-// Interface ISrsReloadHandler
+    // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_removed(std::string vhost);
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
     virtual srs_error_t on_reload_vhost_tcp_nodelay(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
     virtual srs_error_t on_reload_vhost_publish(std::string vhost);
+
 public:
-    virtual ISrsKbpsDelta* delta();
+    virtual ISrsKbpsDelta *delta();
+
 private:
     // When valid and connected to vhost/app, service the client.
     virtual srs_error_t service_cycle();
@@ -147,22 +154,25 @@ private:
     virtual srs_error_t stream_service_cycle();
     virtual srs_error_t check_vhost(bool try_default_vhost);
     virtual srs_error_t playing(SrsSharedPtr<SrsLiveSource> source);
-    virtual srs_error_t do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer* consumer, SrsQueueRecvThread* trd);
+    virtual srs_error_t do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer *consumer, SrsQueueRecvThread *trd);
     virtual srs_error_t publishing(SrsSharedPtr<SrsLiveSource> source);
-    virtual srs_error_t do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPublishRecvThread* trd);
+    virtual srs_error_t do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPublishRecvThread *trd);
     virtual srs_error_t acquire_publish(SrsSharedPtr<SrsLiveSource> source);
     virtual void release_publish(SrsSharedPtr<SrsLiveSource> source);
-    virtual srs_error_t handle_publish_message(SrsSharedPtr<SrsLiveSource>& source, SrsCommonMessage* msg);
-    virtual srs_error_t process_publish_message(SrsSharedPtr<SrsLiveSource>& source, SrsCommonMessage* msg);
-    virtual srs_error_t process_play_control_msg(SrsLiveConsumer* consumer, SrsCommonMessage* msg);
+    virtual srs_error_t handle_publish_message(SrsSharedPtr<SrsLiveSource> &source, SrsCommonMessage *msg);
+    virtual srs_error_t process_publish_message(SrsSharedPtr<SrsLiveSource> &source, SrsCommonMessage *msg);
+    virtual srs_error_t process_play_control_msg(SrsLiveConsumer *consumer, SrsCommonMessage *msg);
     virtual void set_sock_options();
+
 private:
     virtual srs_error_t check_edge_token_traverse_auth();
-    virtual srs_error_t do_token_traverse_auth(SrsRtmpClient* client);
+    virtual srs_error_t do_token_traverse_auth(SrsRtmpClient *client);
+
 private:
     // When the connection disconnect, call this method.
     // e.g. log msg of connection and report to other system.
     virtual srs_error_t on_disconnect();
+
 private:
     virtual srs_error_t http_hooks_on_connect();
     virtual void http_hooks_on_close();
@@ -170,8 +180,8 @@ private:
     virtual void http_hooks_on_unpublish();
     virtual srs_error_t http_hooks_on_play();
     virtual void http_hooks_on_stop();
-// Extract APIs from SrsTcpConnection.
-// Interface ISrsStartable
+    // Extract APIs from SrsTcpConnection.
+    // Interface ISrsStartable
 public:
     // Start the client green thread.
     // when server get a client from listener,
@@ -181,20 +191,19 @@ public:
     // when client cycle thread stop, invoke the on_thread_stop(), which will use server
     // To remove the client by server->remove(this).
     virtual srs_error_t start();
-// Interface ISrsCoroutineHandler
+    // Interface ISrsCoroutineHandler
 public:
     // The thread cycle function,
     // when serve connection completed, terminate the loop which will terminate the thread,
     // thread will invoke the on_thread_stop() when it terminated.
     virtual srs_error_t cycle();
-// Interface ISrsConnection.
+    // Interface ISrsConnection.
 public:
     virtual std::string remote_ip();
-    virtual const SrsContextId& get_id();
-// Interface ISrsExpire.
+    virtual const SrsContextId &get_id();
+    // Interface ISrsExpire.
 public:
     virtual void expire();
 };
 
 #endif
-

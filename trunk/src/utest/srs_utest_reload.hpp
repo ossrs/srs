@@ -12,8 +12,8 @@
 */
 #include <srs_utest.hpp>
 
-#include <srs_utest_config.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_utest_config.hpp>
 
 class MockReloadHandler : public ISrsReloadHandler
 {
@@ -30,9 +30,11 @@ public:
     bool ingest_removed_reloaded;
     bool ingest_added_reloaded;
     bool ingest_updated_reloaded;
+
 public:
     MockReloadHandler();
     virtual ~MockReloadHandler();
+
 public:
     virtual void reset();
     virtual bool all_false();
@@ -40,6 +42,7 @@ public:
     virtual int count_total();
     virtual int count_true();
     virtual int count_false();
+
 public:
     virtual srs_error_t on_reload_listen();
     virtual srs_error_t on_reload_pithy_print();
@@ -61,9 +64,9 @@ class MockSrsReloadConfig : public MockSrsConfig
 public:
     MockSrsReloadConfig();
     virtual ~MockSrsReloadConfig();
+
 public:
     virtual srs_error_t do_reload(std::string buf);
 };
 
 #endif
-
