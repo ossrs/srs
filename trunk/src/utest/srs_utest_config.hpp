@@ -45,13 +45,17 @@ class ISrsSetEnvConfig
 {
 private:
     std::string key;
+    SrsConfig* conf;
 public:
-    ISrsSetEnvConfig(const std::string& k, const std::string& v, bool overwrite) {
+    ISrsSetEnvConfig(SrsConfig* c, const std::string& k, const std::string& v, bool overwrite) {
+        conf = c;
         key = k;
         srs_setenv(k, v, overwrite);
     }
     virtual ~ISrsSetEnvConfig() {
         srs_unsetenv(key);
+        srs_freep(conf->env_cache_);
+        conf->env_cache_ = new SrsConfDirective();
     }
 private:
     // Adds, changes environment variables, which may starts with $.
@@ -60,8 +64,8 @@ private:
     int srs_unsetenv(const std::string& key);
 };
 
-#define SrsSetEnvConfig(instance, key, value) \
-    ISrsSetEnvConfig _SRS_free_##instance(key, value, true)
+#define SrsSetEnvConfig(conf, instance, key, value) \
+    ISrsSetEnvConfig _SRS_free_##instance(&conf, key, value, true)
 
 #endif
 

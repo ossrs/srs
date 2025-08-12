@@ -222,10 +222,11 @@ srs_error_t SrsHlsStream::serve_exists_session(ISrsHttpResponseWriter* w, ISrsHt
     }
 
     // Rebuild the m3u8 content, make .ts with hls_ctx.
-    size_t pos_ts = content.find(".ts");
     static string QUERY_PREFIX = string(".ts?") + string(SRS_CONTEXT_IN_HLS) + string("=");
-
-    if (pos_ts != string::npos) {
+    static string M4S_QUERY_PREFIX = string(".m4s?") + string(SRS_CONTEXT_IN_HLS) + string("=");
+    static string INIT_MP4_QUERY_PREFIX = string("init.mp4?") + string(SRS_CONTEXT_IN_HLS) + string("=");
+    
+    if (content.find(".ts") != string::npos) {
         string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
         string query = QUERY_PREFIX + ctx;
 
@@ -235,6 +236,28 @@ srs_error_t SrsHlsStream::serve_exists_session(ISrsHttpResponseWriter* w, ISrsHt
             content = srs_string_replace(content, ".ts?", query);
         } else {
             content = srs_string_replace(content, ".ts", query);
+        }
+    } else if (content.find(".m4s") != string::npos) {
+        string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
+        string query = M4S_QUERY_PREFIX + ctx;
+
+        size_t pos_query = content.find(".m4s?");
+        if (pos_query != string::npos) {
+            query += "&";
+            content = srs_string_replace(content, ".m4s?", query);
+        } else {
+            content = srs_string_replace(content, ".m4s", query);
+        }
+    } else if (content.find("init.mp4") != string::npos) {
+        string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
+        string query = INIT_MP4_QUERY_PREFIX + ctx;
+
+        size_t pos_query = content.find("init.mp4?");
+        if (pos_query != string::npos) {
+            query += "&";
+            content = srs_string_replace(content, "init.mp4?", query);
+        } else {
+            content = srs_string_replace(content, "init.mp4", query);
         }
     }
 

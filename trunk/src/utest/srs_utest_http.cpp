@@ -1569,6 +1569,50 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(h.serve_http(&w2, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "livestream-13.ts?hls_ctx=123456", w2);
     }
+
+    // fmp4 .m4s with hls_ctx test
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("livestream-13.m4s"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456\n", w);
+
+        MockResponseWriter w2;
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w2, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "livestream-13.m4s?hls_ctx=123456", w2);
+    }
+
+    // fmp4 init.mp4 with hls_ctx test
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("init.mp4"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ4(200, "/index.m3u8?hls_ctx=123456\n", w);
+
+        MockResponseWriter w2;
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w2, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "init.mp4?hls_ctx=123456", w2);
+    }
 }
 
 VOID TEST(ProtocolHTTPTest, BasicHandlers)

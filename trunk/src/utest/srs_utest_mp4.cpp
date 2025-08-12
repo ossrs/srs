@@ -12,6 +12,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_mp4.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_hls.hpp>
 
 VOID TEST(KernelMp4Test, PrintPadding)
 {
@@ -535,6 +536,21 @@ VOID TEST(KernelMp4Test, FullBoxDump)
     }
 }
 
+VOID TEST(KernelMp4Test, MOOFBox)
+{
+    if (true) {
+        SrsMp4MovieFragmentBox box;
+
+        SrsMp4MovieFragmentHeaderBox *mfhd = new SrsMp4MovieFragmentHeaderBox();
+        box.set_mfhd(mfhd);
+        EXPECT_EQ(box.mfhd(), mfhd);
+
+        SrsMp4TrackFragmentBox* traf = new SrsMp4TrackFragmentBox();
+        box.add_traf(traf);
+        EXPECT_TRUE(traf == box.get(SrsMp4BoxTypeTRAF));
+    }
+}
+
 VOID TEST(KernelMp4Test, MFHDBox)
 {
     srs_error_t err;
@@ -898,11 +914,10 @@ VOID TEST(KernelMp4Test, TREXBox)
     }
 
     SrsMp4MovieExtendsBox box;
-    EXPECT_TRUE(NULL == box.trex());
 
     SrsMp4TrackExtendsBox* trex = new SrsMp4TrackExtendsBox();
-    box.set_trex(trex);
-    EXPECT_TRUE(trex == box.trex());
+    box.add_trex(trex);
+    EXPECT_TRUE(trex == box.get(SrsMp4BoxTypeTREX));
 }
 
 VOID TEST(KernelMp4Test, TKHDBox)
@@ -1823,6 +1838,442 @@ VOID TEST(KernelMp4Test, STSDBox)
     }
 }
 
+VOID TEST(KernelMp4Test, SAIZBox)
+{
+    srs_error_t err;
+    // flags & 1 == 0; default_sample_info_size == 1
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+        
+        uint8_t data[12+5];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeSAIZ); b.write_1bytes(0); b.write_3bytes(0);
+        b.write_1bytes(1); b.write_4bytes(0); b.skip(-17);
+
+        HELPER_ASSERT_SUCCESS(saiz.decode(&b));
+        EXPECT_EQ(17, (int)saiz.nb_header());
+        EXPECT_EQ(0, (int)saiz.version);
+        EXPECT_EQ(0, (int)saiz.flags);
+        EXPECT_EQ(1, (int)saiz.default_sample_info_size);
+        EXPECT_EQ(0, (int)saiz.sample_count);
+        EXPECT_EQ(0, saiz.sample_info_sizes.size());
+    }
+
+    // flags & 1 == 1; default_sample_info_size == 1
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+        
+        uint8_t data[12+13];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeSAIZ); b.write_1bytes(0); b.write_3bytes(1);
+        b.write_4bytes(1); b.write_4bytes(2);
+        b.write_1bytes(1); b.write_4bytes(0); b.skip(-25);
+
+        HELPER_ASSERT_SUCCESS(saiz.decode(&b));
+        EXPECT_EQ(25, (int)saiz.nb_header());
+        EXPECT_EQ(0, (int)saiz.version);
+        EXPECT_EQ(1, (int)saiz.flags);
+        EXPECT_EQ(1, (int)saiz.aux_info_type);
+        EXPECT_EQ(2, (int)saiz.aux_info_type_parameter);
+        EXPECT_EQ(1, (int)saiz.default_sample_info_size);
+        EXPECT_EQ(0, (int)saiz.sample_count);
+        EXPECT_EQ(0, saiz.sample_info_sizes.size());
+    }
+
+    // flags & 1 == 1; default_sample_info_size == 0; sample_count = 3;
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+        
+        uint8_t data[12+16];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeSAIZ); b.write_1bytes(0); b.write_3bytes(1);
+        b.write_4bytes(1); b.write_4bytes(2);
+        b.write_1bytes(0); b.write_4bytes(3);
+        b.write_1bytes(4); b.write_1bytes(5); b.write_1bytes(6);
+        b.skip(-28);
+
+        HELPER_ASSERT_SUCCESS(saiz.decode(&b));
+        EXPECT_EQ(28, (int)saiz.nb_header());
+        EXPECT_EQ(0, (int)saiz.version);
+        EXPECT_EQ(1, (int)saiz.flags);
+        EXPECT_EQ(1, (int)saiz.aux_info_type);
+        EXPECT_EQ(2, (int)saiz.aux_info_type_parameter);
+        EXPECT_EQ(0, (int)saiz.default_sample_info_size);
+        EXPECT_EQ(3, (int)saiz.sample_count);
+        EXPECT_EQ(3, saiz.sample_info_sizes.size());
+        EXPECT_EQ(4, saiz.sample_info_sizes[0]);
+        EXPECT_EQ(5, saiz.sample_info_sizes[1]);
+        EXPECT_EQ(6, saiz.sample_info_sizes[2]);
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+        saiz.flags = 0;
+        saiz.default_sample_info_size = 1;
+        saiz.sample_count = 0;
+
+        EXPECT_EQ(17, saiz.nb_header());
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saiz.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("default_sample_info_size=1, sample_count=0", v.c_str());
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+        saiz.flags = 1;
+        saiz.default_sample_info_size = 1;
+        saiz.sample_count = 0;
+
+        EXPECT_EQ(25, saiz.nb_header());
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saiz.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("default_sample_info_size=1, sample_count=0", v.c_str());
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+        saiz.flags = 1;
+        saiz.default_sample_info_size = 0;
+        saiz.sample_count = 1;
+        saiz.sample_info_sizes.push_back(4);
+
+        EXPECT_EQ(26, saiz.nb_header());
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saiz.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("default_sample_info_size=0, sample_count=1", v.c_str());
+    }
+}
+
+VOID TEST(KernelMp4Test, SAIOBox)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+
+        uint8_t data[12+8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeSAIO); b.write_1bytes(0); b.write_3bytes(0);
+        b.write_4bytes(1); b.write_4bytes(2); b.skip(-20);
+
+        HELPER_ASSERT_SUCCESS(saio.decode(&b));
+        EXPECT_EQ(20, (int)saio.nb_header());
+        EXPECT_EQ(0, (int)saio.version);
+        EXPECT_EQ(0, (int)saio.flags);
+        EXPECT_EQ(1, (int)saio.offsets.size());
+        EXPECT_EQ(2, (int)saio.offsets[0]);
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+
+        uint8_t data[12+16];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeSAIO); b.write_1bytes(0); b.write_3bytes(1);
+        b.write_4bytes(1); b.write_4bytes(2);
+        b.write_4bytes(1); b.write_4bytes(2); b.skip(-28);
+
+        HELPER_ASSERT_SUCCESS(saio.decode(&b));
+        EXPECT_EQ(28, (int)saio.nb_header());
+        EXPECT_EQ(0, (int)saio.version);
+        EXPECT_EQ(1, (int)saio.flags);
+        EXPECT_EQ(1, (int)saio.aux_info_type);
+        EXPECT_EQ(2, (int)saio.aux_info_type_parameter);
+        EXPECT_EQ(1, (int)saio.offsets.size());
+        EXPECT_EQ(2, (int)saio.offsets[0]);
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+
+        uint8_t data[12+20];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeSAIO); b.write_1bytes(1); b.write_3bytes(1);
+        b.write_4bytes(1); b.write_4bytes(2);
+        b.write_4bytes(1); b.write_8bytes(2); b.skip(-32);
+
+        HELPER_ASSERT_SUCCESS(saio.decode(&b));
+        EXPECT_EQ(32, (int)saio.nb_header());
+        EXPECT_EQ(1, (int)saio.version);
+        EXPECT_EQ(1, (int)saio.flags);
+        EXPECT_EQ(1, (int)saio.aux_info_type);
+        EXPECT_EQ(2, (int)saio.aux_info_type_parameter);
+        EXPECT_EQ(1, (int)saio.offsets.size());
+        EXPECT_EQ(2, (int)saio.offsets[0]);
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+        saio.version = 0;
+        saio.flags = 0;
+        saio.offsets.push_back(2);
+        EXPECT_EQ(20, (int)saio.nb_header());
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saio.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("entry_count=1", v.c_str());
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+        saio.version = 0;
+        saio.flags = 1;
+        saio.offsets.push_back(2);
+        EXPECT_EQ(28, (int)saio.nb_header());
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saio.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("entry_count=1", v.c_str());
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+        saio.version = 1;
+        saio.flags = 1;
+        saio.offsets.push_back(2);
+        EXPECT_EQ(32, (int)saio.nb_header());
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saio.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("entry_count=1", v.c_str());
+    }
+}
+
+VOID TEST(KernelMp4Test, SENCBox)
+{
+    srs_error_t err;
+    
+    if (true) {
+        SrsMp4SampleEncryptionBox senc(8);
+
+        uint8_t data[12+4];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeSENC); b.write_1bytes(0); b.write_3bytes(0);
+        b.write_4bytes(0); b.skip(-16);
+
+        HELPER_ASSERT_SUCCESS(senc.decode(&b));
+        EXPECT_EQ(16, (int)senc.nb_header());
+        EXPECT_EQ(0, (int)senc.version);
+        EXPECT_EQ(0, (int)senc.flags);
+        EXPECT_EQ(0, (int)senc.entries.size());
+    }
+
+    if (true) {
+        SrsMp4SampleEncryptionBox senc(8);
+
+        uint8_t data[12+12];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeSENC); b.write_1bytes(0); b.write_3bytes(0);
+        b.write_4bytes(1); b.write_8bytes(1); b.skip(-24);
+
+        HELPER_ASSERT_SUCCESS(senc.decode(&b));
+        EXPECT_EQ(24, (int)senc.nb_header());
+        EXPECT_EQ(0, (int)senc.version);
+        EXPECT_EQ(0, (int)senc.flags);
+        EXPECT_EQ(1, (int)senc.entries.size());
+    }
+}
+
+VOID TEST(KernelMp4Test, FRMABox)
+{
+    srs_error_t err;
+    
+    if (true) {
+        SrsMp4OriginalFormatBox frma(1);
+        uint8_t data[8+4];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(0); b.write_4bytes(SrsMp4BoxTypeFRMA);
+        b.write_4bytes(1); b.skip(-12);
+
+        HELPER_ASSERT_SUCCESS(frma.decode(&b));
+        EXPECT_EQ(12, (int)frma.nb_header());
+    }
+
+    if (true) {
+        SrsMp4OriginalFormatBox frma(1);
+        EXPECT_EQ(12, (int)frma.nb_header());
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        frma.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("original format=1\n", v.c_str());
+    }
+}
+
+VOID TEST(KernelMp4Test, SCHMBox) {
+    srs_error_t err;
+
+    if (true) {
+        SrsMp4SchemeTypeBox schm;
+        uint8_t data[12+8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeSCHM); b.write_1bytes(0); b.write_3bytes(0);
+        b.write_4bytes(1); b.write_4bytes(2); b.skip(-20);
+
+        HELPER_ASSERT_SUCCESS(schm.decode(&b));
+        EXPECT_EQ(20, (int)schm.nb_header());
+        EXPECT_EQ(0, (int)schm.version);
+        EXPECT_EQ(0, (int)schm.flags);
+        EXPECT_EQ(1, (int)schm.scheme_type);
+        EXPECT_EQ(2, (int)schm.scheme_version);
+    }
+
+    if (true) {
+        SrsMp4SchemeTypeBox schm;
+        uint8_t data[12+8+4];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeSCHM); b.write_1bytes(0); b.write_3bytes(1);
+        b.write_4bytes(1); b.write_4bytes(2);
+        b.write_1bytes(65); b.write_1bytes(65); b.write_1bytes(65); b.write_1bytes(0); b.skip(-24);
+
+        HELPER_ASSERT_SUCCESS(schm.decode(&b));
+        EXPECT_EQ(24, (int)schm.nb_header());
+        EXPECT_EQ(0, (int)schm.version);
+        EXPECT_EQ(1, (int)schm.flags);
+        EXPECT_EQ(1, (int)schm.scheme_type);
+        EXPECT_EQ(2, (int)schm.scheme_version);
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        schm.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("scheme_type=1, scheme_version=2\nscheme_uri=AAA\n", v.c_str());
+    }
+}
+
+VOID TEST(KernelMp4Test, SrsInitMp4Segment)
+{
+    srs_error_t err;
+    // write single video segment
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsInitMp4Segment segment(&fw);
+
+        segment.set_path("/tmp/init.mp4");
+        SrsFormat fmt;
+        HELPER_ASSERT_SUCCESS(fmt.initialize());
+
+        uint8_t raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
+        };
+        HELPER_ASSERT_SUCCESS(fmt.on_video(0, (char*)raw, sizeof(raw)));
+
+        HELPER_ASSERT_SUCCESS(segment.write_video_only(&fmt, 1));
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
+
+    // write single audio segment
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsInitMp4Segment segment(&fw);
+
+        segment.set_path("/tmp/init.mp4");
+        SrsFormat fmt;
+        HELPER_ASSERT_SUCCESS(fmt.initialize());
+
+        uint8_t raw[] = {
+            0xaf, 0x00, 0x12, 0x10
+        };
+        
+        HELPER_ASSERT_SUCCESS(fmt.on_audio(0, (char*)raw, sizeof(raw)));
+
+        HELPER_ASSERT_SUCCESS(segment.write_audio_only(&fmt, 1));
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
+
+    // write both audio and video segment
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsInitMp4Segment segment(&fw);
+
+        segment.set_path("/tmp/init.mp4");
+        SrsFormat fmt;
+        HELPER_ASSERT_SUCCESS(fmt.initialize());
+
+        uint8_t video_raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
+        };
+
+        HELPER_ASSERT_SUCCESS(fmt.on_video(0, (char*)video_raw, sizeof(video_raw)));
+        
+        uint8_t audio_raw[] = {
+            0xaf, 0x00, 0x12, 0x10
+        };
+        
+        HELPER_ASSERT_SUCCESS(fmt.on_audio(0, (char*)audio_raw, sizeof(audio_raw)));
+
+        HELPER_ASSERT_SUCCESS(segment.write(&fmt, 1, 2));
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
+}
+
+VOID TEST(KernelMp4Test, SrsFmp4SegmentEncoder)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsFmp4SegmentEncoder encoder;
+        encoder.initialize(&fw, 0, 0, 1, 2);
+
+        SrsFormat video_fmt;
+        HELPER_ASSERT_SUCCESS(video_fmt.initialize());
+
+        SrsFormat audio_fmt;
+        HELPER_ASSERT_SUCCESS(audio_fmt.initialize());
+
+        uint8_t video_raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
+        };
+
+        HELPER_ASSERT_SUCCESS(video_fmt.on_video(0, (char*)video_raw, sizeof(video_raw)));
+        
+        uint8_t audio_raw[] = {
+            0xaf, 0x00, 0x12, 0x10
+        };
+        
+        HELPER_ASSERT_SUCCESS(audio_fmt.on_audio(0, (char*)audio_raw, sizeof(audio_raw)));
+
+        SrsVideoAvcFrameType video_frame_type = video_fmt.video->frame_type;
+        uint32_t cts = (uint32_t)video_fmt.video->cts;
+        
+        uint32_t dts = 0;
+        uint32_t pts = dts + cts;
+        
+        uint8_t* video_sample = (uint8_t*)video_fmt.raw;
+        uint32_t nb_video_sample = (uint32_t)video_fmt.nb_raw;
+        encoder.write_sample(SrsMp4HandlerTypeVIDE, video_frame_type, dts, pts, video_sample, nb_video_sample);
+        uint8_t* audio_sample = (uint8_t*)audio_fmt.raw;
+        uint32_t nb_audio_sample = (uint32_t)audio_fmt.nb_raw;
+        encoder.write_sample(SrsMp4HandlerTypeSOUN, 0, 0, 0, audio_sample, nb_audio_sample);
+        encoder.flush(dts);
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
+}
+
 VOID TEST(KernelMp4Test, SrsMp4M2tsInitEncoder)
 {
     srs_error_t err;
@@ -1865,6 +2316,33 @@ VOID TEST(KernelMp4Test, SrsMp4M2tsInitEncoder)
         EXPECT_TRUE(srs_success == fmt.on_audio(0, (char*)raw, sizeof(raw)));
 
         HELPER_ASSERT_SUCCESS(enc.write(&fmt, false, 1));
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
+
+    if (true) {
+        MockSrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(fw.open("test.mp4"));
+
+        SrsMp4M2tsInitEncoder enc;
+        HELPER_ASSERT_SUCCESS(enc.initialize(&fw));
+
+        SrsFormat fmt;
+        EXPECT_TRUE(srs_success == fmt.initialize());
+
+        uint8_t video_raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
+        };
+        EXPECT_TRUE(srs_success == fmt.on_video(0, (char*)video_raw, sizeof(video_raw)));
+
+        uint8_t audio_raw[] = {
+            0xaf, 0x00, 0x12, 0x10
+        };
+        EXPECT_TRUE(srs_success == fmt.on_audio(0, (char*)audio_raw, sizeof(audio_raw)));
+
+        HELPER_ASSERT_SUCCESS(enc.write(&fmt, 1, 2));
         EXPECT_TRUE(fw.filesize() > 0);
     }
 }

@@ -2693,7 +2693,7 @@ srs_error_t SrsConfig::check_normal_config()
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                         && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
                         && m != "hls_wait_keyframe" && m != "hls_dispose" && m != "hls_keys" && m != "hls_fragments_per_key" && m != "hls_key_file"
-                        && m != "hls_key_file_path" && m != "hls_key_url" && m != "hls_dts_directly" && m != "hls_ctx" && m != "hls_ts_ctx") {
+                        && m != "hls_key_file_path" && m != "hls_key_url" && m != "hls_dts_directly" && m != "hls_ctx" && m != "hls_ts_ctx" && m != "hls_use_fmp4" && m != "hls_fmp4_file" && m != "hls_init_file") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.hls.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                     
@@ -5673,7 +5673,10 @@ int SrsConfig::get_global_chunk_size()
     return ::atoi(conf->arg0().c_str());
 }
 
-bool SrsConfig::get_forward_enabled(string vhost) {
+bool SrsConfig::get_forward_enabled(string vhost) 
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.forward.enabled"); // SRS_VHOST_FORWARD_ENABLED
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = get_vhost(vhost);
@@ -5686,6 +5689,8 @@ bool SrsConfig::get_forward_enabled(string vhost) {
 
 bool SrsConfig::get_forward_enabled(SrsConfDirective* vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.forward.enabled"); // SRS_VHOST_FORWARD_ENABLED
+
     static bool DEFAULT = false;
 
     SrsConfDirective* conf = vhost->get("forward");
@@ -5718,6 +5723,9 @@ SrsConfDirective* SrsConfig::get_forwards(string vhost)
 
 SrsConfDirective* SrsConfig::get_forward_backend(string vhost)
 {
+
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.forward.backend"); // SRS_VHOST_FORWARD_BACKEND
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
         return NULL;
@@ -7043,6 +7051,31 @@ bool SrsConfig::get_hls_enabled(SrsConfDirective* vhost)
     return SRS_CONF_PREFER_FALSE(conf->arg0());
 }
 
+bool SrsConfig::get_hls_use_fmp4(std::string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.hls.hls_use_fmp4"); // SRS_VHOST_HLS_HLS_USE_FMP4
+
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("hls");
+    
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_use_fmp4");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
 string SrsConfig::get_hls_entry_prefix(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_entry_prefix"); // SRS_VHOST_HLS_HLS_ENTRY_PREFIX
@@ -7116,6 +7149,44 @@ string SrsConfig::get_hls_ts_file(string vhost)
         return DEFAULT;
     }
     
+    return conf->arg0();
+}
+
+string SrsConfig::get_hls_fmp4_file(std::string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_fmp4_file"); // SRS_VHOST_HLS_HLS_FMP4_FILE
+
+    static string DEFAULT = "[app]/[stream]-[seq].m4s";
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_fmp4_file");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_hls_init_file(std::string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_init_file"); // SRS_VHOST_HLS_HLS_INIT_FILE
+
+    static string DEFAULT = "[app]/[stream]/init.mp4";
+
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("hls_init_file");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
     return conf->arg0();
 }
 
