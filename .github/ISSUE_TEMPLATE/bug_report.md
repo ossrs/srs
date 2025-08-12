@@ -7,10 +7,7 @@ assignees: ''
 
 ---
 
-!!! Before submitting a new bug report, please ensure you have searched for any existing bugs and utilized 
-the `Ask AI` feature at https://ossrs.io or https://ossrs.net (for users in China). Duplicate issues or 
-questions that are overly simple or already addressed in the documentation will be removed without any 
-response.
+!!! Before submitting a new bug report, make sure you have asked the [AI](https://ossrs.io/lts/en-us/docs/v7/doc/getting-started-ai) about your issue, because we have setup the project with docs for AI, so AI know everything including questions, usage, bugs, features, workflows, etc.
 
 **Describe the bug**
 A clear and concise description of what the bug is.

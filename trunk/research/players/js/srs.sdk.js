@@ -1,6 +1,6 @@
 
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2025 Winlin
 //
 // SPDX-License-Identifier: MIT
 //
@@ -527,36 +527,56 @@ function SrsRtcWhipWhepAsync() {
     // @url The WebRTC url to publish with, for example:
     //      http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream
     // @options The options to control playing, supports:
-    //      videoOnly: boolean, whether only play video, default to false.
-    //      audioOnly: boolean, whether only play audio, default to false.
+    //      camera: boolean, whether capture video from camera, default to true.
+    //      screen: boolean, whether capture video from screen, default to false.
+    //      audio: boolean, whether play audio, default to true.
     self.publish = async function (url, options) {
         if (url.indexOf('/whip/') === -1) throw new Error(`invalid WHIP url ${url}`);
-        if (options?.videoOnly && options?.audioOnly) throw new Error(`The videoOnly and audioOnly in options can't be true at the same time`);
+        const hasAudio = options?.audio ?? true;
+        const useCamera = options?.camera ?? true;
+        const useScreen = options?.screen ?? false;
 
-        if (!options?.videoOnly) {
+        if (!hasAudio && !useCamera && !useScreen) throw new Error(`The camera, screen and audio can't be false at the same time`);
+
+        if (hasAudio) {
             self.pc.addTransceiver("audio", {direction: "sendonly"});
         } else {
             self.constraints.audio = false;
         }
 
-        if (!options?.audioOnly) {
+        if (useCamera || useScreen) {
             self.pc.addTransceiver("video", {direction: "sendonly"});
-        } else {
+        }
+
+        if (!useCamera) {
             self.constraints.video = false;
         }
 
         if (!navigator.mediaDevices && window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
             throw new SrsError('HttpsRequiredError', `Please use HTTPS or localhost to publish, read https://github.com/ossrs/srs/issues/2762#issuecomment-983147576`);
         }
-        var stream = await navigator.mediaDevices.getUserMedia(self.constraints);
 
-        // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
-        stream.getTracks().forEach(function (track) {
-            self.pc.addTrack(track);
+        if (useScreen) {
+            const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true
+            });
+            // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
+            displayStream.getTracks().forEach(function (track) {
+                self.pc.addTrack(track);
+				// Notify about local track when stream is ok.
+                self.ontrack && self.ontrack({track: track});
+            });
+        }
 
-            // Notify about local track when stream is ok.
-            self.ontrack && self.ontrack({track: track});
-        });
+       if (useCamera || hasAudio) {
+            const userStream = await navigator.mediaDevices.getUserMedia(self.constraints);
+
+            userStream.getTracks().forEach(function (track) {
+                self.pc.addTrack(track);
+                // Notify about local track when stream is ok.
+                self.ontrack && self.ontrack({track: track});
+            });
+       }
 
         var offer = await self.pc.createOffer();
         await self.pc.setLocalDescription(offer);
@@ -666,33 +686,29 @@ function SrsRtcWhipWhepAsync() {
     return self;
 }
 
-// Format the codec of RTCRtpSender, kind(audio/video) is optional filter.
-// https://developer.mozilla.org/en-US/docs/Web/Media/Formats/WebRTC_codecs#getting_the_supported_codecs
-function SrsRtcFormatSenders(senders, kind) {
+// https://developer.mozilla.org/en-US/docs/Web/API/RTCStatsReport
+function SrsRtcFormatStats(stats, kind) {
     var codecs = [];
-    senders.forEach(function (sender) {
-        var params = sender.getParameters();
-        params && params.codecs && params.codecs.forEach(function(c) {
-            if (kind && sender.track.kind !== kind) {
-                return;
-            }
-
-            if (c.mimeType.indexOf('/red') > 0 || c.mimeType.indexOf('/rtx') > 0 || c.mimeType.indexOf('/fec') > 0) {
-                return;
-            }
-
+    stats.forEach((report) => {
+        if (report.type === 'codec' && report.mimeType?.toLowerCase().startsWith(kind)) {
             var s = '';
 
-            s += c.mimeType.replace('audio/', '').replace('video/', '');
-            s += ', ' + c.clockRate + 'HZ';
-            if (sender.track.kind === "audio") {
-                s += ', channels: ' + c.channels;
+            s += report.mimeType.split('/')[1] || report.mimeType;
+            
+            if (report.clockRate) {
+                s += ', ' + report.clockRate + 'HZ';
             }
-            s += ', pt: ' + c.payloadType;
 
+            if (kind === 'audio' && report.channels) {
+                s += ', channels: ' + report.channels;
+            }
+            
+            if (report.payloadType) {
+                s += ', pt: ' + report.payloadType;
+            }
+            
             codecs.push(s);
-        });
+        }
     });
     return codecs.join(", ");
 }
-

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -310,7 +310,7 @@ srs_error_t SrsSrtFrameBuilder::on_packet(SrsSrtPacket *pkt)
         SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(p, SRS_TS_PACKET_SIZE));
 
         // Process each ts packet. Note that the jitter of UDP may cause video glitch when packet loss or wrong seq. We
-        // don't handle it because SRT will, see tlpktdrop at https://ossrs.net/lts/zh-cn/docs/v4/doc/srt-params
+        // don't handle it because SRT will, see tlpktdrop at https://ossrs.io/lts/en-us/docs/v7/doc/srt
         if ((err = ts_ctx_->decode(stream.get(), this)) != srs_success) {
             srs_warn("parse ts packet err=%s", srs_error_desc(err).c_str());
             srs_error_reset(err);
@@ -372,13 +372,11 @@ srs_error_t SrsSrtFrameBuilder::on_ts_message(SrsTsMessage* msg)
     }
     
     // TODO: FIXME: implements other codec?
-#ifdef SRS_H265
     if (msg->channel->stream == SrsTsStreamVideoHEVC) {
         if ((err = on_ts_video_hevc(msg, &avs)) != srs_success) {
             return srs_error_wrap(err, "ts: consume hevc video");
         }
     }
-#endif
 
     return err;
 }
@@ -555,7 +553,6 @@ srs_error_t SrsSrtFrameBuilder::on_h264_frame(SrsTsMessage* msg, vector<pair<cha
     return err;
 }
 
-#ifdef SRS_H265
 srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
@@ -708,7 +705,7 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
         // 4 bytes for nalu length.
         frame_size += 4 + ipb_frames[i].second;
         SrsHevcNaluType nalu_type = SrsHevcNaluTypeParse(ipb_frames[i].first[0]);
-        if ((nalu_type >= SrsHevcNaluType_CODED_SLICE_BLA) && (nalu_type <= SrsHevcNaluType_RESERVED_23)) {
+        if (SrsIsIRAP(nalu_type)) {
             frame_type = SrsVideoAvcFrameTypeKeyFrame;
         }
     }
@@ -753,7 +750,6 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage* msg, vector<pair<cha
 
     return err;
 }
-#endif
 
 srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
@@ -821,7 +817,7 @@ srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
         // MPEG-TS always merge multi audio frame into one pes packet, may cause high latency and AV synchronization errors
         // @see https://github.com/ossrs/srs/issues/3164
         srs_warn("srt to rtmp, audio duration=%dms too large, audio frames=%d, may cause high latency and AV synchronization errors, "
-            "read https://ossrs.io/lts/en-us/docs/v5/doc/srt-codec#ffmpeg-push-srt-stream", duration_ms, frame_idx);
+            "read https://ossrs.io/lts/en-us/docs/v7/doc/srt#ffmpeg-push-srt-stream", duration_ms, frame_idx);
     }
     
     return err;

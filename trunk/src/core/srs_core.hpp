@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -20,7 +20,7 @@
 
 // The project informations, may sent to client in HTTP header or RTMP metadata.
 #define RTMP_SIG_SRS_KEY "SRS"
-#define RTMP_SIG_SRS_CODE "Hang"
+#define RTMP_SIG_SRS_CODE "Kai"
 #define RTMP_SIG_SRS_URL "https://github.com/ossrs/srs"
 #define RTMP_SIG_SRS_LICENSE "MIT"
 #define SRS_CONSTRIBUTORS "https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#contributors"

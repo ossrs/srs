@@ -302,7 +302,10 @@ if [[ $SRS_SRT == YES ]]; then
     ModuleLibIncs+=(${LibSRTRoot})
 fi
 if [[ $SRS_RTC == YES ]]; then
-    MODULE_FILES+=("srs_protocol_rtc_stun")
+    MODULE_FILES+=("srs_protocol_rtc_stun" "srs_protocol_rtp")
+fi
+if [[ $SRS_RTSP == YES ]]; then
+    MODULE_FILES+=("srs_protocol_rtsp_stack")
 fi
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . $SRS_WORKDIR/auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
@@ -338,6 +341,9 @@ fi
 if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_app_rtc_conn" "srs_app_rtc_dtls" "srs_app_rtc_sdp" "srs_app_rtc_network"
         "srs_app_rtc_queue" "srs_app_rtc_server" "srs_app_rtc_source" "srs_app_rtc_api")
+fi
+if [[ $SRS_RTSP == YES ]]; then
+    MODULE_FILES+=("srs_app_rtsp_source" "srs_app_rtsp_conn")
 fi
 if [[ $SRS_APM == YES ]]; then
     MODULE_FILES+=("srs_app_tencentcloud")
@@ -464,7 +470,8 @@ if [[ $SRS_UTEST == YES ]]; then
     MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_kernel" "srs_utest_core"
         "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
         "srs_utest_mp4" "srs_utest_service" "srs_utest_app" "srs_utest_rtc" "srs_utest_config2"
-        "srs_utest_protocol" "srs_utest_protocol2" "srs_utest_kernel2" "srs_utest_protocol3")
+        "srs_utest_protocol" "srs_utest_protocol2" "srs_utest_kernel2" "srs_utest_protocol3"
+        "srs_utest_st" "srs_utest_rtc2" "srs_utest_rtc3" "srs_utest_fmp4")
     if [[ $SRS_SRT == YES ]]; then
         MODULE_FILES+=("srs_utest_srt")
     fi
@@ -669,7 +676,7 @@ install:
 	@mkdir -p \$(__REAL_INSTALL)/usr/lib/systemd/system
 	@cp -f usr/lib/systemd/system/srs.service \$(__REAL_INSTALL)/usr/lib/systemd/system/srs.service
 	@echo ""
-	@echo "@see: https://ossrs.net/lts/zh-cn/docs/v4/doc/service"
+	@echo "@see: https://ossrs.net/lts/zh-cn/docs/v7/doc/service"
 
 END
 
@@ -735,11 +742,7 @@ if [[ $SRS_GB28181 == YES ]]; then
 else
     echo -e "${GREEN}Warning: GB28181 is disabled.${BLACK}"
 fi
-if [[ $SRS_H265 == YES ]]; then
-    echo -e "${YELLOW}Experiment: HEVC/H.265 is enabled. https://github.com/ossrs/srs/issues/465${BLACK}"
-else
-    echo -e "${GREEN}Warning: HEVC/H.265 is disabled.${BLACK}"
-fi
+echo -e "${GREEN}Experiment: HEVC/H.265 is enabled. https://github.com/ossrs/srs/issues/465${BLACK}"
 if [[ $SRS_SRT == YES ]]; then
     echo -e "${YELLOW}Experiment: SRT is enabled. https://github.com/ossrs/srs/issues/1147${BLACK}"
 else
@@ -749,6 +752,11 @@ if [[ $SRS_RTC == YES ]]; then
     echo -e "${YELLOW}Experiment: RTC is enabled. https://github.com/ossrs/srs/issues/307${BLACK}"
 else
     echo -e "${GREEN}Warning: RTC is disabled.${BLACK}"
+fi
+if [[ $SRS_RTSP == YES ]]; then
+    echo -e "${YELLOW}Experiment: RTSP is enabled (requires RTC).${BLACK}"
+else
+    echo -e "${GREEN}Warning: RTSP is disabled.${BLACK}"
 fi
 if [[ $SRS_HTTPS == YES ]]; then
     echo -e "${YELLOW}Experiment: HTTPS is enabled. https://github.com/ossrs/srs/issues/1657${BLACK}"

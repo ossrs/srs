@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -41,6 +41,12 @@ srs_utime_t srs_duration(srs_utime_t start, srs_utime_t end);
 
 // Never timeout.
 #define SRS_UTIME_NO_TIMEOUT ((srs_utime_t) -1LL)
+
+// Get current system time in srs_utime_t, use cache to avoid performance problem
+extern srs_utime_t srs_get_system_time();
+extern srs_utime_t srs_get_system_startup_time();
+// A daemon st-thread updates it.
+extern srs_utime_t srs_update_system_time();
 
 #endif
 

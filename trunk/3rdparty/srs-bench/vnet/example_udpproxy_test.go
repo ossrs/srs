@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// # Copyright (c) 2021 Winlin
+// # Copyright (c) 2025 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -25,7 +25,7 @@ import (
 
 	vnet_proxy "github.com/ossrs/srs-bench/vnet"
 	"github.com/pion/logging"
-	"github.com/pion/transport/v2/vnet"
+	"github.com/pion/transport/v3/vnet"
 )
 
 // Proxy many vnet endpoint to one real server endpoint.

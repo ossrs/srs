@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// # Copyright (c) 2021 Winlin
+// # Copyright (c) 2025 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -31,13 +31,6 @@ import (
 	"crypto/x509/pkix"
 	"flag"
 	"fmt"
-	"github.com/ossrs/go-oryx-lib/amf0"
-	"github.com/ossrs/go-oryx-lib/avc"
-	"github.com/ossrs/go-oryx-lib/flv"
-	"github.com/ossrs/go-oryx-lib/rtmp"
-	"github.com/pion/ice/v2"
-	"github.com/pion/rtp"
-	"github.com/pion/rtp/codecs"
 	"io"
 	"math/big"
 	"math/rand"
@@ -51,15 +44,28 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bluenviron/gortsplib/v4"
+	"github.com/bluenviron/gortsplib/v4/pkg/base"
+	"github.com/bluenviron/gortsplib/v4/pkg/description"
+	"github.com/bluenviron/gortsplib/v4/pkg/format"
+	"github.com/ossrs/go-oryx-lib/amf0"
+	"github.com/ossrs/go-oryx-lib/avc"
+	"github.com/ossrs/go-oryx-lib/flv"
+	"github.com/ossrs/go-oryx-lib/rtmp"
+	"github.com/pion/ice/v4"
+	"github.com/pion/rtp"
+	"github.com/pion/rtp/codecs"
+
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
 	vnet_proxy "github.com/ossrs/srs-bench/vnet"
 	"github.com/pion/interceptor"
 	"github.com/pion/logging"
 	"github.com/pion/rtcp"
-	"github.com/pion/transport/v2/vnet"
-	"github.com/pion/webrtc/v3"
-	"github.com/pion/webrtc/v3/pkg/media/h264reader"
+	"github.com/pion/transport/v3/vnet"
+	"github.com/pion/webrtc/v4"
+	"github.com/pion/webrtc/v4/pkg/media/h264reader"
+	"github.com/pion/webrtc/v4/pkg/media/h265reader"
 )
 
 var srsHttps *bool
@@ -79,6 +85,7 @@ var srsStream *string
 var srsLiveStream *string
 var srsPublishAudio *string
 var srsPublishVideo *string
+var srsPublishVideoH265 *string
 var srsPublishAvatar *string
 var srsPublishBBB *string
 var srsVnetClientIP *string
@@ -96,6 +103,7 @@ func prepareTest() (err error) {
 	srsPublishOKPackets = flag.Int("srs-publish-ok-packets", 3, "If send N RTP, recv N RTCP packets, it's ok, or fail")
 	srsPublishAudio = flag.String("srs-publish-audio", "avatar.ogg", "The audio file for publisher.")
 	srsPublishVideo = flag.String("srs-publish-video", "avatar.h264", "The video file for publisher.")
+	srsPublishVideoH265 = flag.String("srs-publish-video-h265", "avatar.h265", "The H.265 video file for publisher.")
 	srsPublishAvatar = flag.String("srs-publish-avatar", "avatar.flv", "The avatar file for publisher.")
 	srsPublishBBB = flag.String("srs-publish-bbb", "bbb.flv", "The bbb file for publisher.")
 	srsPublishVideoFps = flag.Int("srs-publish-video-fps", 25, "The video fps for publisher.")
@@ -139,6 +147,10 @@ func prepareTest() (err error) {
 	}
 
 	if *srsPublishVideo, err = tryOpenFile(*srsPublishVideo); err != nil {
+		return err
+	}
+
+	if *srsPublishVideoH265, err = tryOpenFile(*srsPublishVideoH265); err != nil {
 		return err
 	}
 
@@ -632,16 +644,28 @@ func registerMiniCodecs(api *testWebRTCAPI) error {
 	v := api
 
 	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
-		RTPCodecCapability: webrtc.RTPCodecCapability{webrtc.MimeTypeOpus, 48000, 2, "minptime=10;useinbandfec=1", nil},
-		PayloadType:        111,
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType: webrtc.MimeTypeOpus, ClockRate: 48000, Channels: 2,
+			SDPFmtpLine: "minptime=10;useinbandfec=1", RTCPFeedback: nil,
+		},
+		PayloadType: 111,
 	}, webrtc.RTPCodecTypeAudio); err != nil {
 		return err
 	}
 
-	videoRTCPFeedback := []webrtc.RTCPFeedback{{"goog-remb", ""}, {"ccm", "fir"}, {"nack", ""}, {"nack", "pli"}}
+	videoRTCPFeedback := []webrtc.RTCPFeedback{
+		{Type: "goog-remb", Parameter: ""},
+		{Type: "ccm", Parameter: "fir"},
+		{Type: "nack", Parameter: ""},
+		{Type: "nack", Parameter: "pli"},
+	}
 	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
-		RTPCodecCapability: webrtc.RTPCodecCapability{webrtc.MimeTypeH264, 90000, 0, "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f", videoRTCPFeedback},
-		PayloadType:        108,
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType: webrtc.MimeTypeH264, ClockRate: 90000, Channels: 0,
+			SDPFmtpLine:  "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+			RTCPFeedback: videoRTCPFeedback,
+		},
+		PayloadType: 108,
 	}, webrtc.RTPCodecTypeVideo); err != nil {
 		return err
 	}
@@ -655,21 +679,70 @@ func registerMiniCodecsWithoutNack(api *testWebRTCAPI) error {
 	v := api
 
 	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
-		RTPCodecCapability: webrtc.RTPCodecCapability{webrtc.MimeTypeOpus, 48000, 2, "minptime=10;useinbandfec=1", nil},
-		PayloadType:        111,
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType: webrtc.MimeTypeOpus, ClockRate: 48000, Channels: 2,
+			SDPFmtpLine: "minptime=10;useinbandfec=1", RTCPFeedback: nil,
+		},
+		PayloadType: 111,
 	}, webrtc.RTPCodecTypeAudio); err != nil {
 		return err
 	}
 
-	videoRTCPFeedback := []webrtc.RTCPFeedback{{"goog-remb", ""}, {"ccm", "fir"}}
+	videoRTCPFeedback := []webrtc.RTCPFeedback{
+		{Type: "goog-remb", Parameter: ""},
+		{Type: "ccm", Parameter: "fir"},
+	}
 	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
-		RTPCodecCapability: webrtc.RTPCodecCapability{webrtc.MimeTypeH264, 90000, 0, "level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=42e01f", videoRTCPFeedback},
-		PayloadType:        108,
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType: webrtc.MimeTypeH264, ClockRate: 90000, Channels: 0,
+			SDPFmtpLine:  "level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=42e01f",
+			RTCPFeedback: videoRTCPFeedback,
+		},
+		PayloadType: 108,
 	}, webrtc.RTPCodecTypeVideo); err != nil {
 		return err
 	}
 
 	// Interceptors for NACK??? @see webrtc.ConfigureNack(v.mediaEngine, v.registry)
+	return nil
+}
+
+// Implements interface testWebRTCAPIInitFunc to init testWebRTCAPI with HEVC support
+func registerHEVCCodecs(api *testWebRTCAPI) error {
+	v := api
+
+	// Register Opus audio codec
+	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType: webrtc.MimeTypeOpus, ClockRate: 48000, Channels: 2,
+			SDPFmtpLine: "minptime=10;useinbandfec=1", RTCPFeedback: nil,
+		},
+		PayloadType: 111,
+	}, webrtc.RTPCodecTypeAudio); err != nil {
+		return err
+	}
+
+	// Register HEVC/H.265 video codec
+	videoRTCPFeedback := []webrtc.RTCPFeedback{
+		{Type: "goog-remb", Parameter: ""},
+		{Type: "ccm", Parameter: "fir"},
+		{Type: "nack", Parameter: ""},
+		{Type: "nack", Parameter: "pli"},
+	}
+	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType: webrtc.MimeTypeH265, ClockRate: 90000, Channels: 0,
+			SDPFmtpLine: "level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST", RTCPFeedback: videoRTCPFeedback,
+		},
+		PayloadType: 49, // Use payload type 49 for HEVC as mentioned in PR description
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		return err
+	}
+
+	if err := webrtc.RegisterDefaultInterceptors(v.mediaEngine, v.registry); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -735,7 +808,7 @@ func (v *testWebRTCAPI) Setup(vnetClientIP string, options ...testWebRTCAPIOptio
 			return errors.Wrapf(err, "create network for api")
 		}
 
-		v.settingEngine.SetVNet(v.network)
+		v.settingEngine.SetNet(v.network)
 
 		// Create a proxy bind to the router.
 		if v.proxy, err = vnet_proxy.NewProxy(v.router); err != nil {
@@ -783,6 +856,8 @@ type testPlayer struct {
 	api *testWebRTCAPI
 	// Optional suffix for stream url.
 	streamSuffix string
+	// Optional codec for stream, e.g., "hevc", "h264".
+	streamCodec string
 	// Optional app/stream to play, use srsStream by default.
 	defaultStream string
 }
@@ -834,6 +909,13 @@ func (v *testPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
 	}
 	if v.streamSuffix != "" {
 		r = fmt.Sprintf("%v-%v", r, v.streamSuffix)
+	}
+	if v.streamCodec != "" {
+		if strings.Contains(r, "?") {
+			r = fmt.Sprintf("%v&codec=%v", r, v.streamCodec)
+		} else {
+			r = fmt.Sprintf("%v?codec=%v", r, v.streamCodec)
+		}
 	}
 	pli := time.Duration(*srsPlayPLI) * time.Millisecond
 	logger.Tf(ctx, "Run play url=%v", r)
@@ -1051,6 +1133,10 @@ type testPublisher struct {
 	api *testWebRTCAPI
 	// Optional suffix for stream url.
 	streamSuffix string
+	// Optional query parameters for stream url.
+	streamQuery string
+	// Video codec type: "h264", "hevc", "vp8"
+	videoCodec string
 	// To cancel the publisher, pass by Run.
 	cancel context.CancelFunc
 	// The config for peer connection.
@@ -1063,7 +1149,8 @@ func newTestPublisher(init testWebRTCAPIInitFunc, options ...testPublisherOption
 	sourceVideo, sourceAudio := *srsPublishVideo, *srsPublishAudio
 
 	v := &testPublisher{
-		pcc: &webrtc.Configuration{},
+		pcc:        &webrtc.Configuration{},
+		videoCodec: "h264", // Default to H.264
 	}
 
 	api, err := newTestWebRTCAPI(init)
@@ -1083,7 +1170,7 @@ func newTestPublisher(init testWebRTCAPIInitFunc, options ...testPublisherOption
 		v.aIngester = newAudioIngester(sourceAudio)
 	}
 	if sourceVideo != "" {
-		v.vIngester = newVideoIngester(sourceVideo)
+		v.vIngester = newVideoIngester(sourceVideo, WithCodec(v.videoCodec))
 	}
 
 	// Setup the interceptors for packets.
@@ -1146,6 +1233,9 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 	r := fmt.Sprintf("%v://%v%v", srsSchema, *srsServer, *srsStream)
 	if v.streamSuffix != "" {
 		r = fmt.Sprintf("%v-%v", r, v.streamSuffix)
+	}
+	if v.streamQuery != "" {
+		r = fmt.Sprintf("%v?%v", r, v.streamQuery)
 	}
 	sourceVideo, sourceAudio, fps := *srsPublishVideo, *srsPublishAudio, *srsPublishVideoFps
 
@@ -1213,7 +1303,7 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 	logger.Tf(ctx, "State signaling=%v, ice=%v, conn=%v", pc.SignalingState(), pc.ICEConnectionState(), pc.ConnectionState())
 
 	// ICE state management.
-	pc.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
+	pc.OnICEGatheringStateChange(func(state webrtc.ICEGatheringState) {
 		logger.Tf(ctx, "ICE gather state %v", state)
 	})
 	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
@@ -1597,7 +1687,7 @@ func (v *RTMPPublisher) Publish(ctx context.Context, rtmpUrl string) error {
 	return v.client.Publish(ctx, rtmpUrl)
 }
 
-func (v *RTMPPublisher) Ingest(ctx context.Context, flvInput string) error {
+func (v *RTMPPublisher) Ingest(ctx context.Context, input string) error {
 	// If ctx is cancelled, close the RTMP transport.
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -1612,8 +1702,16 @@ func (v *RTMPPublisher) Ingest(ctx context.Context, flvInput string) error {
 	}()
 
 	// Consume all packets.
-	logger.Tf(ctx, "Start to ingest %v", flvInput)
-	err := v.ingest(ctx, flvInput)
+	logger.Tf(ctx, "Start to ingest %v", input)
+
+	// Check file extension to determine format
+	var err error
+	if strings.HasSuffix(strings.ToLower(input), ".h265") {
+		err = v.ingestH265(ctx, input)
+	} else {
+		// Default to FLV format for H.264
+		err = v.ingestFLV(ctx, input)
+	}
 	if err == io.EOF {
 		return nil
 	}
@@ -1623,7 +1721,7 @@ func (v *RTMPPublisher) Ingest(ctx context.Context, flvInput string) error {
 	return err
 }
 
-func (v *RTMPPublisher) ingest(ctx context.Context, flvInput string) error {
+func (v *RTMPPublisher) ingestFLV(ctx context.Context, flvInput string) error {
 	p := v.client
 
 	fs, err := os.Open(flvInput)
@@ -1679,6 +1777,247 @@ func (v *RTMPPublisher) ingest(ctx context.Context, flvInput string) error {
 	}
 
 	return nil
+}
+
+func (v *RTMPPublisher) ingestH265(ctx context.Context, h265Input string) error {
+	p := v.client
+
+	fs, err := os.Open(h265Input)
+	if err != nil {
+		return err
+	}
+	defer fs.Close()
+	logger.Tf(ctx, "Open H.265 input %v", h265Input)
+
+	h265Reader, err := h265reader.NewReader(fs)
+	if err != nil {
+		return err
+	}
+
+	// Send sequence header first
+	var vps, sps, pps []byte
+	var timestamp uint64 = 0
+
+	// Read NALUs to find VPS, SPS, PPS
+	for {
+		nal, err := h265Reader.NextNAL()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		if nal == nil {
+			break
+		}
+
+		// Extract parameter sets using pion constants
+		switch nal.NalUnitType {
+		case h265reader.NalUnitTypeVps: // VPS (32)
+			vps = nal.Data
+		case h265reader.NalUnitTypeSps: // SPS (33)
+			sps = nal.Data
+		case h265reader.NalUnitTypePps: // PPS (34)
+			pps = nal.Data
+		}
+
+		// Once we have all parameter sets, send sequence header
+		if len(vps) > 0 && len(sps) > 0 && len(pps) > 0 {
+			if err := v.sendH265SequenceHeader(p, vps, sps, pps, timestamp); err != nil {
+				return err
+			}
+			break
+		}
+	}
+
+	// Reset reader for actual frame data
+	fs.Seek(0, 0)
+	h265Reader, err = h265reader.NewReader(fs)
+	if err != nil {
+		return err
+	}
+
+	// Send video frames
+	frameCount := 0
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		nal, err := h265Reader.NextNAL()
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+
+		if nal == nil {
+			return nil
+		}
+
+		// Skip parameter sets as they were already sent
+		if nal.NalUnitType == h265reader.NalUnitTypeVps || nal.NalUnitType == h265reader.NalUnitTypeSps || nal.NalUnitType == h265reader.NalUnitTypePps {
+			continue
+		}
+
+		// Send video frame - check for IDR and CRA frames (key frames)
+		isKeyFrame := (nal.NalUnitType >= h265reader.NalUnitTypeBlaWLp && nal.NalUnitType <= h265reader.NalUnitTypeCraNut)
+		if err := v.sendH265Frame(p, nal.Data, timestamp, isKeyFrame); err != nil {
+			return err
+		}
+
+		frameCount++
+		timestamp += 40 // 25fps = 40ms per frame
+
+		if v.onSendPacket != nil {
+			m := rtmp.NewStreamMessage(p.streamID)
+			m.MessageType = rtmp.MessageTypeVideo
+			m.Timestamp = timestamp
+			m.Payload = nal.Data
+			if err = v.onSendPacket(m); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (v *RTMPPublisher) sendH265SequenceHeader(p *RTMPClient, vps, sps, pps []byte, timestamp uint64) error {
+	// Create HEVC sequence header using enhanced-RTMP format
+	// Format: [IsExHeader | FrameType | PacketType] [fourcc 'hvc1'] [HEVCDecoderConfigurationRecord]
+	// @see: https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf, page 9
+
+	const flvIsExHeader = 0x80
+	const videoAvcFrameTypeKeyFrame = 1
+	const videoHEVCFrameTraitPacketTypeSequenceStart = 0
+
+	// IsExHeader | FrameType | PacketType
+	frameTypeAndPacket := byte(flvIsExHeader | (videoAvcFrameTypeKeyFrame << 4) | videoHEVCFrameTraitPacketTypeSequenceStart)
+
+	// Enhanced-RTMP fourcc 'hvc1' for HEVC (0x68766331)
+	fourcc := []byte{'h', 'v', 'c', '1'}
+
+	// Create proper HEVCDecoderConfigurationRecord
+	hvcc := v.createHVCC(vps, sps, pps)
+
+	// Build enhanced-RTMP packet
+	var payload []byte
+	payload = append(payload, frameTypeAndPacket)
+	payload = append(payload, fourcc...)
+	payload = append(payload, hvcc...)
+
+	m := rtmp.NewStreamMessage(p.streamID)
+	m.MessageType = rtmp.MessageTypeVideo
+	m.Timestamp = timestamp
+	m.Payload = payload
+
+	return p.proto.WriteMessage(m)
+}
+
+func (v *RTMPPublisher) createHVCC(vps, sps, pps []byte) []byte {
+	// Create HEVCDecoderConfigurationRecord based on SRS format
+	// @see: trunk/src/protocol/srs_protocol_raw_avc.cpp mux_sequence_header
+
+	var hvcc []byte
+
+	// configuration_version (1 byte) - must be 1
+	hvcc = append(hvcc, 0x01)
+
+	// general_profile_space (2 bits) + general_tier_flag (1 bit) + general_profile_idc (5 bits)
+	hvcc = append(hvcc, 0x01) // simplified: profile_space=0, tier_flag=0, profile_idc=1
+
+	// general_profile_compatibility_flags (4 bytes)
+	hvcc = append(hvcc, 0x60, 0x00, 0x00, 0x00)
+
+	// general_constraint_indicator_flags (6 bytes)
+	hvcc = append(hvcc, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00)
+
+	// general_level_idc (1 byte)
+	hvcc = append(hvcc, 0x5d) // Level 3.1
+
+	// min_spatial_segmentation_idc (12 bits) + reserved (4 bits)
+	hvcc = append(hvcc, 0xf0, 0x00)
+
+	// parallelismType (2 bits) + reserved (6 bits)
+	hvcc = append(hvcc, 0xfc)
+
+	// chromaFormat (2 bits) + reserved (6 bits)
+	hvcc = append(hvcc, 0xfd)
+
+	// bitDepthLumaMinus8 (3 bits) + reserved (5 bits)
+	hvcc = append(hvcc, 0xf8)
+
+	// bitDepthChromaMinus8 (3 bits) + reserved (5 bits)
+	hvcc = append(hvcc, 0xf8)
+
+	// avgFrameRate (2 bytes)
+	hvcc = append(hvcc, 0x00, 0x00)
+
+	// constantFrameRate (2 bits) + numTemporalLayers (3 bits) + temporalIdNested (1 bit) + lengthSizeMinusOne (2 bits)
+	hvcc = append(hvcc, 0x0f) // lengthSizeMinusOne = 3 (4-byte length)
+
+	// numOfArrays (1 byte) - we have 3 arrays: VPS, SPS, PPS
+	hvcc = append(hvcc, 0x03)
+
+	// VPS array
+	hvcc = append(hvcc, 0x20)                              // array_completeness=0, reserved=0, NAL_unit_type=32 (VPS)
+	hvcc = append(hvcc, 0x00, 0x01)                        // numNalus = 1
+	hvcc = append(hvcc, byte(len(vps)>>8), byte(len(vps))) // nalUnitLength
+	hvcc = append(hvcc, vps...)
+
+	// SPS array
+	hvcc = append(hvcc, 0x21)                              // array_completeness=0, reserved=0, NAL_unit_type=33 (SPS)
+	hvcc = append(hvcc, 0x00, 0x01)                        // numNalus = 1
+	hvcc = append(hvcc, byte(len(sps)>>8), byte(len(sps))) // nalUnitLength
+	hvcc = append(hvcc, sps...)
+
+	// PPS array
+	hvcc = append(hvcc, 0x22)                              // array_completeness=0, reserved=0, NAL_unit_type=34 (PPS)
+	hvcc = append(hvcc, 0x00, 0x01)                        // numNalus = 1
+	hvcc = append(hvcc, byte(len(pps)>>8), byte(len(pps))) // nalUnitLength
+	hvcc = append(hvcc, pps...)
+
+	return hvcc
+}
+
+func (v *RTMPPublisher) sendH265Frame(p *RTMPClient, nalData []byte, timestamp uint64, isKeyFrame bool) error {
+	// Create HEVC frame packet using enhanced-RTMP format
+	// Format: [IsExHeader | FrameType | PacketType] [fourcc 'hvc1'] [NALU data]
+	// @see: https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf, page 9
+
+	const flvIsExHeader = 0x80
+	const videoAvcFrameTypeKeyFrame = 1
+	const videoAvcFrameTypeInterFrame = 2
+	const videoHEVCFrameTraitPacketTypeCodedFramesX = 3
+
+	var frameType byte = videoAvcFrameTypeInterFrame
+	if isKeyFrame {
+		frameType = videoAvcFrameTypeKeyFrame
+	}
+
+	// IsExHeader | FrameType | PacketType
+	frameTypeAndPacket := byte(flvIsExHeader | (frameType << 4) | videoHEVCFrameTraitPacketTypeCodedFramesX)
+
+	// Enhanced-RTMP fourcc 'hvc1' for HEVC (0x68766331)
+	fourcc := []byte{'h', 'v', 'c', '1'}
+
+	var payload []byte
+	payload = append(payload, frameTypeAndPacket)
+	payload = append(payload, fourcc...)
+
+	// Add NALU length and data (IBMF format)
+	payload = append(payload, byte(len(nalData)>>24), byte(len(nalData)>>16), byte(len(nalData)>>8), byte(len(nalData)))
+	payload = append(payload, nalData...)
+
+	m := rtmp.NewStreamMessage(p.streamID)
+	m.MessageType = rtmp.MessageTypeVideo
+	m.Timestamp = timestamp
+	m.Payload = payload
+
+	return p.proto.WriteMessage(m)
 }
 
 type RTMPPlayer struct {
@@ -1885,6 +2224,89 @@ func (v *FLVPlayer) consume(ctx context.Context) (err error) {
 	}
 }
 
+// RTSPPlayer
+type RTSPPlayer struct {
+	rtspUrl string
+
+	client *gortsplib.Client
+
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	onRTPPacket func(media *description.Media, format uint8, packet *rtp.Packet) error
+}
+
+func NewRTSPPlayer() *RTSPPlayer {
+	return &RTSPPlayer{}
+}
+
+func (v *RTSPPlayer) Close() error {
+	if v.cancel != nil {
+		v.cancel()
+	}
+	if v.client != nil {
+		v.client.Close()
+	}
+	return nil
+}
+
+func (v *RTSPPlayer) Play(ctx context.Context, rtspUrl string) error {
+	v.rtspUrl = rtspUrl
+	v.ctx, v.cancel = context.WithCancel(ctx)
+
+	transport := gortsplib.Transport(gortsplib.TransportTCP)
+	v.client = &gortsplib.Client{
+		Transport:    &transport,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+	}
+
+	u, err := base.ParseURL(rtspUrl)
+	if err != nil {
+		return errors.Wrapf(err, "parse url %v", rtspUrl)
+	}
+
+	err = v.client.Start(u.Scheme, u.Host)
+	if err != nil {
+		return errors.Wrapf(err, "connect rtsp %v", rtspUrl)
+	}
+
+	desc, _, err := v.client.Describe(u)
+	if err != nil {
+		return errors.Wrapf(err, "describe rtsp %v", rtspUrl)
+	}
+
+	err = v.client.SetupAll(desc.BaseURL, desc.Medias)
+	if err != nil {
+		return errors.Wrapf(err, "setup rtsp %v", rtspUrl)
+	}
+
+	v.client.OnPacketRTPAny(func(media *description.Media, forma format.Format, packet *rtp.Packet) {
+		if v.onRTPPacket != nil {
+			if err := v.onRTPPacket(media, uint8(forma.ClockRate()), packet); err != nil {
+				logger.Wf(ctx, "rtsp: on rtp error %+v", err)
+			}
+		}
+	})
+
+	_, err = v.client.Play(nil)
+	if err != nil {
+		return errors.Wrapf(err, "play rtsp %v", rtspUrl)
+	}
+
+	go func() {
+		err := v.client.Wait()
+		if err != nil {
+			logger.Wf(ctx, "rtsp: client error %+v", err)
+		}
+		if v.cancel != nil {
+			v.cancel()
+		}
+	}()
+
+	return nil
+}
+
 func IsAvccrEquals(a, b *avc.AVCDecoderConfigurationRecord) bool {
 	if a == nil || b == nil {
 		return false
@@ -1899,13 +2321,13 @@ func IsAvccrEquals(a, b *avc.AVCDecoderConfigurationRecord) bool {
 	}
 
 	for i := 0; i < len(a.SequenceParameterSetNALUnits); i++ {
-		if !IsNALUEquals(a.SequenceParameterSetNALUnits[i], b.SequenceParameterSetNALUnits[i]) {
+		if !isNALUEquals(a.SequenceParameterSetNALUnits[i], b.SequenceParameterSetNALUnits[i]) {
 			return false
 		}
 	}
 
 	for i := 0; i < len(a.PictureParameterSetNALUnits); i++ {
-		if !IsNALUEquals(a.PictureParameterSetNALUnits[i], b.PictureParameterSetNALUnits[i]) {
+		if !isNALUEquals(a.PictureParameterSetNALUnits[i], b.PictureParameterSetNALUnits[i]) {
 			return false
 		}
 	}
@@ -1913,7 +2335,7 @@ func IsAvccrEquals(a, b *avc.AVCDecoderConfigurationRecord) bool {
 	return true
 }
 
-func IsNALUEquals(a, b *avc.NALU) bool {
+func isNALUEquals(a, b *avc.NALU) bool {
 	if a == nil || b == nil {
 		return false
 	}
@@ -1925,7 +2347,7 @@ func IsNALUEquals(a, b *avc.NALU) bool {
 	return bytes.Equal(a.Data, b.Data)
 }
 
-func DemuxRtpSpsPps(payload []byte) ([]byte, []*avc.NALU, error) {
+func demuxRtpSpsPps(payload []byte) ([]byte, []*avc.NALU, error) {
 	// Parse RTP packet.
 	pkt := rtp.Packet{}
 	if err := pkt.Unmarshal(payload); err != nil {

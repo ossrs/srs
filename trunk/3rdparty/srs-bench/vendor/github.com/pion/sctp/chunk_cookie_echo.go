@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -22,7 +25,7 @@ type chunkCookieEcho struct {
 	cookie []byte
 }
 
-// Cookie echo chunk errors
+// Cookie echo chunk errors.
 var (
 	ErrChunkTypeNotCookieEcho = errors.New("ChunkType is not of type COOKIEECHO")
 )
@@ -43,6 +46,7 @@ func (c *chunkCookieEcho) unmarshal(raw []byte) error {
 func (c *chunkCookieEcho) marshal() ([]byte, error) {
 	c.chunkHeader.typ = ctCookieEcho
 	c.chunkHeader.raw = c.cookie
+
 	return c.chunkHeader.marshal()
 }
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -508,6 +508,16 @@ public:
     virtual srs_utime_t get_stream_caster_sip_reinvite(SrsConfDirective* conf);
     // Get the candidate for SDP.
     virtual std::string get_stream_caster_sip_candidate(SrsConfDirective* conf);
+// rtsp section
+public:
+    virtual bool get_rtsp_server_enabled();
+    virtual bool get_rtsp_server_enabled(SrsConfDirective* conf);
+    virtual int get_rtsp_server_listen();
+public:
+    SrsConfDirective* get_rtsp(std::string vhost);
+    bool get_rtsp_enabled(std::string vhost);
+    bool get_rtsp_from_rtmp(std::string vhost);
+
 // rtc section
 public:
     virtual bool get_rtc_server_enabled();
@@ -776,11 +786,11 @@ public:
     // Get the transformed vhost for edge,
     virtual std::string get_vhost_edge_transform_vhost(std::string vhost);
     // Whether enable the origin cluster.
-    // @see https://ossrs.net/lts/zh-cn/docs/v4/doc/origin-cluster
+    // @see https://ossrs.io/lts/en-us/docs/v7/doc/origin-cluster#legacy
     virtual bool get_vhost_origin_cluster(std::string vhost);
     virtual bool get_vhost_origin_cluster(SrsConfDirective* conf);
     // Get the co-workers of origin cluster.
-    // @see https://ossrs.net/lts/zh-cn/docs/v4/doc/origin-cluster
+    // @see https://ossrs.io/lts/en-us/docs/v7/doc/origin-cluster#legacy
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost);
 // vhost security section
 public:
@@ -933,6 +943,8 @@ public:
     // Whether HLS is enabled.
     virtual bool get_hls_enabled(std::string vhost);
     virtual bool get_hls_enabled(SrsConfDirective* vhost);
+    // Whether HLS use fmp4 container format
+    virtual bool get_hls_use_fmp4(std::string vhost);
     // Get the HLS m3u8 list ts segment entry prefix info.
     virtual std::string get_hls_entry_prefix(std::string vhost);
     // Get the HLS ts/m3u8 file store path.
@@ -941,6 +953,10 @@ public:
     virtual std::string get_hls_m3u8_file(std::string vhost);
     // Get the HLS ts file path template.
     virtual std::string get_hls_ts_file(std::string vhost);
+    // Get the HLS fmp4 file path template.
+    virtual std::string get_hls_fmp4_file(std::string vhost);
+    // Get the HLS init mp4 file path template.
+    virtual std::string get_hls_init_file(std::string vhost);
     // Whether enable the floor(timestamp/hls_fragment) for variable timestamp.
     virtual bool get_hls_ts_floor(std::string vhost);
     // Get the hls fragment time, in srs_utime_t.
@@ -985,6 +1001,7 @@ public:
     // Whether enable hls_ctx
     virtual bool get_hls_ctx_enabled(std::string vhost);
     // Whether enable session for ts file.
+    // The ts file including .ts file for MPEG-ts segment, .m4s file and init.mp4 file for fmp4 segment.
     virtual bool get_hls_ts_ctx_enabled(std::string vhost);
 // hds section
 private:
@@ -1104,10 +1121,10 @@ public:
     // Get the http flv live stream mount point for vhost.
     // used to generate the flv stream mount path.
     virtual std::string get_vhost_http_remux_mount(std::string vhost);
-// http heartbeart section
+// http heartbeat section
 private:
     // Get the heartbeat directive.
-    virtual SrsConfDirective* get_heartbeart();
+    virtual SrsConfDirective* get_heartbeat();
 public:
     // Whether heartbeat enabled.
     virtual bool get_heartbeat_enabled();

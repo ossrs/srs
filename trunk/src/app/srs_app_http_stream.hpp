@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -198,6 +198,9 @@ public:
     virtual srs_error_t update_auth(SrsRequest* r);
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    srs_error_t serve_http_impl(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+public:
     virtual bool alive();
 // Interface ISrsExpire
 public:

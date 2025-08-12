@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -15,7 +15,7 @@
 // When reload callback, the config is updated yet.
 //
 // Features not support reload,
-// @see: https://ossrs.net/lts/zh-cn/docs/v4/doc/reload#notsupportedfeatures
+// @see: https://ossrs.io/lts/en-us/docs/v7/doc/reload#notsupportedfeatures
 class ISrsReloadHandler
 {
 public:

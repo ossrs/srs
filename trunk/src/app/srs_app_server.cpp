@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -47,6 +47,10 @@ using namespace std;
 #endif
 #ifdef SRS_SRT
 #include <srs_app_srt_source.hpp>
+#endif
+#ifdef SRS_RTSP
+#include <srs_app_rtsp_conn.hpp>
+#include <srs_app_rtsp_source.hpp>
 #endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
@@ -341,6 +345,9 @@ SrsServer::SrsServer()
     http_listener_ = new SrsTcpListener(this);
     https_listener_ = new SrsTcpListener(this);
     webrtc_listener_ = new SrsTcpListener(this);
+#ifdef SRS_RTSP
+    rtsp_listener_ = new SrsTcpListener(this);
+#endif
     stream_caster_flv_listener_ = new SrsHttpFlvListener();
     stream_caster_mpegts_ = new SrsUdpCasterListener();
     exporter_listener_ = new SrsTcpListener(this);
@@ -398,6 +405,9 @@ void SrsServer::destroy()
     srs_freep(http_listener_);
     srs_freep(https_listener_);
     srs_freep(webrtc_listener_);
+#ifdef SRS_RTSP
+    srs_freep(rtsp_listener_);
+#endif
     srs_freep(stream_caster_flv_listener_);
     srs_freep(stream_caster_mpegts_);
     srs_freep(exporter_listener_);
@@ -417,6 +427,9 @@ void SrsServer::dispose()
     http_listener_->close();
     https_listener_->close();
     webrtc_listener_->close();
+#ifdef SRS_RTSP
+    rtsp_listener_->close();
+#endif
     stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
@@ -448,6 +461,9 @@ void SrsServer::gracefully_dispose()
     http_listener_->close();
     https_listener_->close();
     webrtc_listener_->close();
+#ifdef SRS_RTSP
+    rtsp_listener_->close();
+#endif
     stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
@@ -626,6 +642,16 @@ srs_error_t SrsServer::listen()
         webrtc_listener_->set_endpoint(srs_int2str(_srs_config->get_rtc_server_tcp_listen()))->set_label("WebRTC");
         if ((err = webrtc_listener_->listen()) != srs_success) {
             return srs_error_wrap(err, "webrtc tcp listen");
+        }
+    }
+#endif
+
+#ifdef SRS_RTSP
+    // Start RTSP listener. RTC is a critical dependency.
+    if (_srs_config->get_rtsp_server_enabled()) {
+        rtsp_listener_->set_endpoint(srs_int2str(_srs_config->get_rtsp_server_listen()))->set_label("RTSP");
+        if ((err = rtsp_listener_->listen()) != srs_success) {
+            return srs_error_wrap(err, "rtsp listen");
         }
     }
 #endif
@@ -835,6 +861,12 @@ srs_error_t SrsServer::start(SrsWaitGroup* wg)
 #ifdef SRS_RTC
     if ((err = _srs_rtc_sources->initialize()) != srs_success) {
         return srs_error_wrap(err, "rtc sources");
+    }
+#endif
+
+#ifdef SRS_RTSP
+    if ((err = _srs_rtsp_sources->initialize()) != srs_success) {
+        return srs_error_wrap(err, "rtsp sources");
     }
 #endif
 
@@ -1137,6 +1169,14 @@ void SrsServer::resample_kbps()
             continue;
         }
 
+#ifdef SRS_RTSP
+        SrsRtspConnection* rtsp = dynamic_cast<SrsRtspConnection*>(c);
+        if (rtsp) {
+            stat->kbps_add_delta(c->get_id().c_str(), rtsp->delta());
+            continue;
+        }
+#endif
+
 #ifdef SRS_RTC
         SrsRtcTcpConn* tcp = dynamic_cast<SrsRtcTcpConn*>(c);
         if (tcp) {
@@ -1245,6 +1285,10 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
         } else if (listener == webrtc_listener_) {
             resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
 #endif
+#ifdef SRS_RTSP
+        } else if (listener == rtsp_listener_) {
+            resource = new SrsRtspConnection(this, new SrsTcpConnection(stfd2), ip, port);
+#endif
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.
             resource = new SrsHttpxConn(this, new SrsTcpConnection(stfd2), http_api_mux, ip, port, "", "");
@@ -1275,6 +1319,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
     conn_manager->add(resource);
 
     // If connection is a resource to start, start a coroutine to handle it.
+    // Note that conn is managed by conn_manager, so we don't need to free it.
     ISrsStartable* conn = dynamic_cast<ISrsStartable*>(resource);
     srs_assert(conn);
     if ((err = conn->start()) != srs_success) {

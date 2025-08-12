@@ -52,3 +52,4 @@ bug
 *.svg
 /3rdparty/st-srs/srs
 /3rdparty/st-srs/.circleci
+/test_detail.xml

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -600,8 +600,6 @@ VOID TEST(SrsAVCTest, AACMuxToFLV)
     }
 }
 
-#ifdef SRS_H265
-
 VOID TEST(SrsAVCTest, HevcMultiPPS)
 {
     srs_error_t err;
@@ -685,6 +683,4 @@ VOID TEST(SrsAVCTest, HevcMultiPPS)
 
     EXPECT_TRUE(stream.empty());
 }
-
-#endif
 

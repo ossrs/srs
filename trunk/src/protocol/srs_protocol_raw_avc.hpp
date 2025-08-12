@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -53,7 +53,6 @@ public:
     virtual srs_error_t mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv);
 };
 
-#ifdef SRS_H265
 // The raw h.265 stream, in annexb.
 class SrsRawHEVCStream
 {
@@ -95,8 +94,16 @@ public:
     // @param flv output the muxed flv packet.
     // @param nb_flv output the muxed flv size.
     virtual srs_error_t mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv);
+    // Mux the hevc video packet to flv video packet, enhanced mode.
+    // @param packet_type, SrsVideoHEVCFrameTraitPacketTypeSequenceStart or SrsVideoHEVCFrameTraitPacketTypeCodedFrames.
+    // @param frame_type, SrsVideoAvcFrameTypeKeyFrame or SrsVideoAvcFrameTypeInterFrame.
+    // @param video the hevc raw data.
+    // @param flv output the muxed flv packet.
+    // @param nb_flv output the muxed flv size.
+    // TODO: Rename method to mux_hevc2flv_enhanced since AVC is an alias for H.264, not H.265/HEVC.
+    //       This affects other modules like SRT and GB28181, so should be done in a separate refactoring.
+    virtual srs_error_t mux_avc2flv_enhanced(std::string video, int8_t frame_type, int8_t packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv);
 };
-#endif
 
 // The header of adts sample.
 struct SrsRawAacStreamCodec

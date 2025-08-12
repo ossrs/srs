@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -117,6 +117,15 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
 
             uint16_t endpoint = _srs_config->get_srt_listen_port();
             o->append(SrsJsonAny::str(srs_fmt("udp://0.0.0.0:%d", endpoint).c_str()));
+        }
+
+        // For RTSP listen endpoints.
+        if (_srs_config->get_rtsp_server_enabled()) {
+            SrsJsonArray* o = SrsJsonAny::array();
+            obj->set("rtsp", o);
+
+            int endpoint = _srs_config->get_rtsp_server_listen();
+            o->append(SrsJsonAny::str(srs_fmt("rtsp://0.0.0.0:%d", endpoint).c_str()));
         }
 
         // For WebRTC listen endpoints.

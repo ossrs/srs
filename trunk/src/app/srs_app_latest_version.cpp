@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -63,6 +63,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE3(!string(SRS_PACKAGER).empty(), "packager", SRS_PACKAGER, ss);
     SRS_CHECK_FEATURE2(SRS_CROSSBUILD_BOOL, "cross", ss);
 
+    SRS_CHECK_FEATURE2(SRS_RTC_BOOL && _srs_config->get_rtsp_server_enabled(), "rtsp", ss);
     SRS_CHECK_FEATURE2(SRS_RTC_BOOL && _srs_config->get_rtc_server_enabled(), "rtc", ss);
     SRS_CHECK_FEATURE2(SRS_SRT_BOOL && _srs_config->get_srt_enabled(), "srt", ss);
     SRS_CHECK_FEATURE2(_srs_config->get_http_api_enabled(), "api", ss);

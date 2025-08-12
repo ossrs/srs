@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -94,11 +94,19 @@ struct H264SpecificParam
 {
     std::string profile_level_id;
     std::string packetization_mode;
-    std::string level_asymmerty_allow;
+    std::string level_asymmetry_allow;
+};
+
+struct H265SpecificParam
+{
+    std::string level_id;
+    std::string profile_id;
+    std::string tier_flag;
+    std::string tx_mode;
 };
 
 extern srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264_param);
-
+extern srs_error_t srs_parse_h265_fmtp(const std::string& fmtp, H265SpecificParam& h265_param);
 class SrsMediaPayloadType
 {
 public:
@@ -166,6 +174,10 @@ public:
     bool recvonly_;
     bool sendrecv_;
     bool inactive_;
+
+    // Control URL, ONLY for RTSP, media control.
+    // @see rfc2326-1998-rtsp.pdf, page 159
+    std::string control_;
 
     std::string mid_;
     std::string msid_;
@@ -246,6 +258,10 @@ public:
     std::string ice_lite_;
     std::string msid_semantic_;
     std::vector<std::string> msids_;
+
+    // Control URL, ONLY for RTSP.
+    // @see rfc2326-1998-rtsp.pdf, page 159
+    std::string control_;
 
     // m-line, media sessions
     std::vector<SrsMediaDesc> media_descs_;

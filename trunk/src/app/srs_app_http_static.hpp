@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -74,6 +74,7 @@ protected:
     virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int64_t start, int64_t end);
     // Support HLS streaming with pseudo session id.
     virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    // the ts file including: .ts .m4s init.mp4
     virtual srs_error_t serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 };
 

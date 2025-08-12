@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -130,6 +130,10 @@ private:
     SrsTcpListener* https_listener_;
     // WebRTC over TCP listener. Please note that there is always a UDP listener by RTC server.
     SrsTcpListener* webrtc_listener_;
+#ifdef SRS_RTSP
+    // RTSP listener, over TCP.
+    SrsTcpListener* rtsp_listener_;
+#endif
     // Stream Caster for push over HTTP-FLV.
     SrsHttpFlvListener* stream_caster_flv_listener_;
     // Stream Caster for push over MPEGTS-UDP

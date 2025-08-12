@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -868,7 +868,11 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
         
         char* payload = msg->payload;
         int size = msg->size;
-        bool is_key_frame = SrsFlvVideo::h264(payload, size) && SrsFlvVideo::keyframe(payload, size) && !SrsFlvVideo::sh(payload, size);
+
+        bool codec_ok = SrsFlvVideo::h264(payload, size);
+        codec_ok = codec_ok? true : SrsFlvVideo::hevc(payload, size);
+
+        bool is_key_frame = codec_ok && SrsFlvVideo::keyframe(payload, size) && !SrsFlvVideo::sh(payload, size);
         if (!is_key_frame) {
             return err;
         }
