@@ -2134,10 +2134,18 @@ srs_error_t SrsHlsMp4Controller::on_unpublish()
 srs_error_t SrsHlsMp4Controller::write_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
+    SrsAudioFrame *frame = format->audio;
 
     // Ignore audio sequence header
     if (format->is_aac_sequence_header() || format->is_mp3_sequence_header()) {
         return err;
+    }
+
+    // Refresh the codec ASAP.
+    if (muxer_->latest_acodec() != frame->acodec()->id) {
+        srs_trace("HLS: Switch audio codec %d(%s) to %d(%s)", muxer_->latest_acodec(), srs_audio_codec_id2str(muxer_->latest_acodec()).c_str(),
+                  frame->acodec()->id, srs_audio_codec_id2str(frame->acodec()->id).c_str());
+        muxer_->set_latest_acodec(frame->acodec()->id);
     }
 
     audio_dts_ = shared_audio->timestamp;
@@ -2156,7 +2164,7 @@ srs_error_t SrsHlsMp4Controller::write_video(SrsSharedPtrMessage *shared_video, 
 
     // Refresh the codec ASAP.
     if (muxer_->latest_vcodec() != frame->vcodec()->id) {
-        srs_trace("HLS: Switch video codec %d(%s) to %d(%s)", muxer_->latest_acodec(), srs_video_codec_id2str(muxer_->latest_vcodec()).c_str(),
+        srs_trace("HLS: Switch video codec %d(%s) to %d(%s)", muxer_->latest_vcodec(), srs_video_codec_id2str(muxer_->latest_vcodec()).c_str(),
                   frame->vcodec()->id, srs_video_codec_id2str(frame->vcodec()->id).c_str());
         muxer_->set_latest_vcodec(frame->vcodec()->id);
     }

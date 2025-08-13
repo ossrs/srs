@@ -751,6 +751,84 @@ VOID TEST(Fmp4Test, Configuration_SequenceHeaderValidation)
     controller.dispose();
 }
 
+VOID TEST(Fmp4Test, CodecDetection_AudioCodecUpdate)
+{
+    srs_error_t err;
+
+    SrsHlsMp4Controller controller;
+    HELPER_ASSERT_SUCCESS(controller.initialize());
+
+    MockSrsRequest req;
+    HELPER_ASSERT_SUCCESS(controller.on_publish(&req));
+
+    // Create mock format with AAC audio codec
+    MockSrsFormat fmt;
+    fmt.acodec = new SrsAudioCodecConfig();
+    fmt.acodec->id = SrsAudioCodecIdAAC;
+    fmt.audio = new SrsAudioFrame();
+    fmt.audio->codec = fmt.acodec;
+
+    // Initial codec should be forbidden (not set)
+    EXPECT_EQ(SrsAudioCodecIdForbidden, controller.muxer_->latest_acodec());
+
+    // Write audio frame - should detect and update codec
+    MockSrsSharedPtrMessage audio_msg(false, 1000);
+    HELPER_ASSERT_SUCCESS(controller.write_audio(&audio_msg, &fmt));
+
+    // Codec should now be detected as AAC
+    EXPECT_EQ(SrsAudioCodecIdAAC, controller.muxer_->latest_acodec());
+
+    // Test codec change from AAC to MP3
+    fmt.acodec->id = SrsAudioCodecIdMP3;
+    HELPER_ASSERT_SUCCESS(controller.write_audio(&audio_msg, &fmt));
+
+    // Codec should now be updated to MP3
+    EXPECT_EQ(SrsAudioCodecIdMP3, controller.muxer_->latest_acodec());
+
+    controller.dispose();
+    srs_freep(fmt.acodec);
+    srs_freep(fmt.audio);
+}
+
+VOID TEST(Fmp4Test, CodecDetection_VideoCodecUpdate)
+{
+    srs_error_t err;
+
+    SrsHlsMp4Controller controller;
+    HELPER_ASSERT_SUCCESS(controller.initialize());
+
+    MockSrsRequest req;
+    HELPER_ASSERT_SUCCESS(controller.on_publish(&req));
+
+    // Create mock format with H.264 video codec
+    MockSrsFormat fmt;
+    fmt.vcodec = new SrsVideoCodecConfig();
+    fmt.vcodec->id = SrsVideoCodecIdAVC;
+    fmt.video = new SrsVideoFrame();
+    fmt.video->codec = fmt.vcodec;
+
+    // Initial codec should be forbidden (not set)
+    EXPECT_EQ(SrsVideoCodecIdForbidden, controller.muxer_->latest_vcodec());
+
+    // Write video frame - should detect and update codec
+    MockSrsSharedPtrMessage video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(controller.write_video(&video_msg, &fmt));
+
+    // Codec should now be detected as H.264
+    EXPECT_EQ(SrsVideoCodecIdAVC, controller.muxer_->latest_vcodec());
+
+    // Test codec change from H.264 to HEVC
+    fmt.vcodec->id = SrsVideoCodecIdHEVC;
+    HELPER_ASSERT_SUCCESS(controller.write_video(&video_msg, &fmt));
+
+    // Codec should now be updated to HEVC
+    EXPECT_EQ(SrsVideoCodecIdHEVC, controller.muxer_->latest_vcodec());
+
+    controller.dispose();
+    srs_freep(fmt.vcodec);
+    srs_freep(fmt.video);
+}
+
 VOID TEST(Fmp4Test, Performance_MultipleSegments)
 {
     srs_error_t err;
