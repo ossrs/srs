@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -46,14 +49,14 @@ type gapAckBlock struct {
 	end   uint16
 }
 
-// Selective ack chunk errors
+// Selective ack chunk errors.
 var (
 	ErrChunkTypeNotSack           = errors.New("ChunkType is not of type SACK")
 	ErrSackSizeNotLargeEnoughInfo = errors.New("SACK Chunk size is not large enough to contain header")
 	ErrSackSizeNotMatchPredicted  = errors.New("SACK Chunk size does not match predicted amount from header values")
 )
 
-// String makes gapAckBlock printable
+// String makes gapAckBlock printable.
 func (g gapAckBlock) String() string {
 	return fmt.Sprintf("%d - %d", g.start, g.end)
 }
@@ -111,8 +114,8 @@ func (s *chunkSelectiveAck) marshal() ([]byte, error) {
 	sackRaw := make([]byte, selectiveAckHeaderSize+(4*len(s.gapAckBlocks)+(4*len(s.duplicateTSN))))
 	binary.BigEndian.PutUint32(sackRaw[0:], s.cumulativeTSNAck)
 	binary.BigEndian.PutUint32(sackRaw[4:], s.advertisedReceiverWindowCredit)
-	binary.BigEndian.PutUint16(sackRaw[8:], uint16(len(s.gapAckBlocks)))
-	binary.BigEndian.PutUint16(sackRaw[10:], uint16(len(s.duplicateTSN)))
+	binary.BigEndian.PutUint16(sackRaw[8:], uint16(len(s.gapAckBlocks)))  //nolint:gosec // G115
+	binary.BigEndian.PutUint16(sackRaw[10:], uint16(len(s.duplicateTSN))) //nolint:gosec // G115
 	offset := selectiveAckHeaderSize
 	for _, g := range s.gapAckBlocks {
 		binary.BigEndian.PutUint16(sackRaw[offset:], g.start)
@@ -126,6 +129,7 @@ func (s *chunkSelectiveAck) marshal() ([]byte, error) {
 
 	s.chunkHeader.typ = ctSack
 	s.chunkHeader.raw = sackRaw
+
 	return s.chunkHeader.marshal()
 }
 
@@ -133,7 +137,7 @@ func (s *chunkSelectiveAck) check() (abort bool, err error) {
 	return false, nil
 }
 
-// String makes chunkSelectiveAck printable
+// String makes chunkSelectiveAck printable.
 func (s *chunkSelectiveAck) String() string {
 	res := fmt.Sprintf("SACK cumTsnAck=%d arwnd=%d dupTsn=%d",
 		s.cumulativeTSNAck,

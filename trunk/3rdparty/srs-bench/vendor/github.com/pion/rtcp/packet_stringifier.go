@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -6,26 +9,26 @@ import (
 )
 
 /*
-	Converts an RTCP Packet into a human-readable format. The Packets
-	themselves can control the presentation as follows:
+Converts an RTCP Packet into a human-readable format. The Packets
+themselves can control the presentation as follows:
 
-	- Fields of a type that have a String() method will be formatted
-	  with that String method (which should not emit '\n' characters)
+  - Fields of a type that have a String() method will be formatted
+    with that String method (which should not emit '\n' characters)
 
-	- Otherwise, fields with a tag containing a "fmt" string will use that
-	  format when serializing the value. For example, to format an SSRC
-	  value as base 16 insted of base 10:
+  - Otherwise, fields with a tag containing a "fmt" string will use that
+    format when serializing the value. For example, to format an SSRC
+    value as base 16 insted of base 10:
 
-	  type ExamplePacket struct {
-	  	LocalSSRC   uint32   `fmt:"0x%X"`
-	  	RemotsSSRCs []uint32 `fmt:"%X"`
-	  }
+    type ExamplePacket struct {
+    LocalSSRC   uint32   `fmt:"0x%X"`
+    RemotsSSRCs []uint32 `fmt:"%X"`
+    }
 
-	- If no fmt string is present, "%+v" is used by default
+- If no fmt string is present, "%+v" is used by default
 
-	The intention of this stringify() function is to simplify creation
-	of String() methods on new packet types, as it provides a simple
-	baseline implementation that works well in the majority of cases.
+The intention of this stringify() function is to simplify creation
+of String() methods on new packet types, as it provides a simple
+baseline implementation that works well in the majority of cases.
 */
 func stringify(p Packet) string {
 	value := reflect.Indirect(reflect.ValueOf(p))

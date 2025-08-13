@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -45,7 +48,7 @@ const (
 	reconfigResultInProgress                    reconfigResult = 6
 )
 
-// Reconfiguration response errors
+// Reconfiguration response errors.
 var (
 	ErrReconfigRespParamTooShort = errors.New("reconfig response parameter too short")
 )

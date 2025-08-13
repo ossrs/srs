@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -93,7 +96,7 @@ func (r SenderReport) Marshal() ([]byte, error) {
 	 *        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 */
 
-	rawPacket := make([]byte, r.len())
+	rawPacket := make([]byte, r.MarshalSize())
 	packetBody := rawPacket[headerLength:]
 
 	binary.BigEndian.PutUint32(packetBody[srSSRCOffset:], r.SSRC)
@@ -225,7 +228,8 @@ func (r *SenderReport) DestinationSSRC() []uint32 {
 	return out
 }
 
-func (r *SenderReport) len() int {
+// MarshalSize returns the size of the packet once marshaled
+func (r *SenderReport) MarshalSize() int {
 	repsLength := 0
 	for _, rep := range r.Reports {
 		repsLength += rep.len()
@@ -238,7 +242,7 @@ func (r *SenderReport) Header() Header {
 	return Header{
 		Count:  uint8(len(r.Reports)),
 		Type:   TypeSenderReport,
-		Length: uint16((r.len() / 4) - 1),
+		Length: uint16((r.MarshalSize() / 4) - 1),
 	}
 }
 

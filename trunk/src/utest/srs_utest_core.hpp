@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -18,14 +18,16 @@ class MyNormalObject
 {
 private:
     int id_;
+
 public:
-    MyNormalObject(int id) {
+    MyNormalObject(int id)
+    {
         id_ = id;
     }
-    int id() {
+    int id()
+    {
         return id_;
     }
 };
 
 #endif
-

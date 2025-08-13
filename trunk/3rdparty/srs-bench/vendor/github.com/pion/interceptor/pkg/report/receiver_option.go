@@ -16,6 +16,7 @@ type ReceiverOption func(r *ReceiverInterceptor) error
 func ReceiverLog(log logging.LeveledLogger) ReceiverOption {
 	return func(r *ReceiverInterceptor) error {
 		r.log = log
+
 		return nil
 	}
 }
@@ -24,6 +25,7 @@ func ReceiverLog(log logging.LeveledLogger) ReceiverOption {
 func ReceiverInterval(interval time.Duration) ReceiverOption {
 	return func(r *ReceiverInterceptor) error {
 		r.interval = interval
+
 		return nil
 	}
 }
@@ -32,6 +34,7 @@ func ReceiverInterval(interval time.Duration) ReceiverOption {
 func ReceiverNow(f func() time.Time) ReceiverOption {
 	return func(r *ReceiverInterceptor) error {
 		r.now = f
+
 		return nil
 	}
 }

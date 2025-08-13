@@ -1,0 +1,73 @@
+linters:
+  enable:
+  - asciicheck
+  - bidichk
+  - bodyclose
+  #- contextcheck
+  - copyloopvar
+  - dupl
+  - errorlint
+  - gochecknoinits
+  - gocritic
+  - gofmt
+  - gofumpt
+  - lll
+  - misspell
+  - nilerr
+  - prealloc
+  - predeclared
+  - revive
+  - usestdlibvars
+  - unconvert
+  #- usetesting
+  - tparallel
+  - wastedassign
+  - whitespace
+
+issues:
+  exclude-use-default: false
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+    - io.Copy
+    - (io.Closer).Close
+    - (io.Writer).Write
+    - (hash.Hash).Write
+    - (net.Conn).Close
+    - (net.Conn).SetReadDeadline
+    - (net.Conn).SetWriteDeadline
+    - (*net.TCPConn).SetKeepAlive
+    - (*net.TCPConn).SetKeepAlivePeriod
+    - (*net.TCPConn).SetNoDelay
+    - (net.Listener).Close
+    - (net.PacketConn).Close
+    - (net.PacketConn).SetReadDeadline
+    - (net.PacketConn).SetWriteDeadline
+    - (net/http.ResponseWriter).Write
+    - (*net/http.Server).Serve
+    - (*net/http.Server).ServeTLS
+    - (*net/http.Server).Shutdown
+    - os.Chdir
+    - os.Mkdir
+    - os.MkdirAll
+    - os.Remove
+    - os.RemoveAll
+    - os.Setenv
+    - os.Unsetenv
+    - (*os.File).WriteString
+    - (*os.File).Close
+    - (github.com/datarhei/gosrt.Conn).Close
+    - (github.com/datarhei/gosrt.Conn).SetReadDeadline
+    - (github.com/datarhei/gosrt.Conn).SetWriteDeadline
+    - (*github.com/bluenviron/gortsplib/v4.Client).Close
+    - (*github.com/bluenviron/gortsplib/v4.Server).Close
+    - (*github.com/bluenviron/gortsplib/v4.ServerSession).Close
+    - (*github.com/bluenviron/gortsplib/v4.ServerStream).Close
+    - (*github.com/bluenviron/gortsplib/v4.ServerConn).Close
+
+  govet:
+    enable-all: true
+    disable:
+    - fieldalignment
+    - reflectvaluecompare

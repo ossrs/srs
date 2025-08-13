@@ -1,0 +1,377 @@
+# Augment Guidelines for SRS Repository
+
+project:
+  name: "SRS (Simple Realtime Server)"
+  description: "A C++ streaming media server supporting RTMP, WebRTC, WHIP, WHEP, SRT, HLS, and HTTP-FLV"
+  type: "media-server"
+
+architecture:
+  overview: |
+    Core C++ streaming server with protocol implementations and media processing capabilities.
+    Uses State Threads (ST) for high-performance coroutine-based networking.
+
+  threading_model: |
+    Single-threaded, coroutine/goroutine-based application architecture:
+    - No traditional multi-threading issues (no thread switching, async race conditions)
+    - Uses coroutines/goroutines that cooperatively yield control
+    - Context switching occurs during async I/O operations
+    - Different context switch problems compared to multi-threaded applications:
+      * Coroutine state must be preserved across yields by async I/O operations
+      * Shared state can be modified between context switches
+      * Timing-dependent bugs related to when coroutines yield
+
+  key_components:
+    - name: "SrsServer"
+      description: "Main server class of live stream for RTMP/HTTP-FLV/HLS/DASH and HTTP-API"
+    - name: "SrsLiveSource"
+      description: "Central management of live stream sources for RTMP/HTTP-FLV/HLS/DASH"
+
+  webrtc_architecture:
+    sfu_model: |
+      SRS is a WebRTC SFU (Selective Forwarding Unit) server, not a TURN server.
+      Key characteristics:
+      - Acts as a media relay/forwarding server between WebRTC clients
+      - Handles media routing and distribution without media processing/transcoding
+      - Supports WHIP (WebRTC-HTTP Ingestion Protocol) for publishing
+      - Supports WHEP (WebRTC-HTTP Egress Protocol) for playing/subscribing
+      - Does NOT require external TURN servers for most use cases
+      - Clients connect directly to SRS for media exchange
+
+    no_turn_needed: |
+      SRS does NOT need a separate TURN server because:
+      - SRS itself acts as the media relay point for WebRTC sessions
+      - Clients establish WebRTC connections directly with SRS
+      - SRS handles the media forwarding between publishers and subscribers
+      - The SFU architecture eliminates the need for peer-to-peer TURN relay
+      - SRS provides the necessary ICE candidates and media routing functionality
+
+    deployment_notes:
+      - "SRS can be deployed as a standalone WebRTC SFU without additional TURN infrastructure"
+      - "For NAT traversal, SRS provides its own ICE candidate generation"
+      - "External TURN servers are only needed in very specific network scenarios, not for normal SFU operation"
+      - "WHIP/WHEP protocols handle WebRTC signaling through HTTP, simplifying client integration"
+
+  origin_cluster_architecture:
+    evolution: |
+      SRS Origin Cluster architecture has evolved significantly between major versions:
+      - SRS 6.0: Uses MESH mode origin cluster architecture (Deprecated)
+      - SRS 7.0: Introduces new Proxy mode architecture for improved scalability and performance (Recommended)
+
+    srs_6_mesh_architecture:
+      description: "Legacy MESH mode origin cluster - deprecated in favor of SRS 7.0 Proxy mode"
+      characteristics:
+        - "Traditional origin cluster approach used in SRS 6.0"
+        - "Direct C++ implementation within SRS core"
+        - "Only supports RTMP protocol"
+        - "Limited scalability compared to new Proxy mode"
+      status: "Legacy - not recommended for new deployments"
+
+    srs_7_proxy_architecture:
+      description: "New SRS Proxy mode - recommended architecture for origin clustering in SRS 7.0+"
+      implementation: "Go-based proxy service that forwards all protocols to specified SRS Origin server"
+      repository: 
+        - Go: "https://github.com/ossrs/proxy-go"
+      characteristics:
+        - "Implemented in Go for better performance and maintainability"
+        - "Protocol-agnostic proxy - supports all SRS protocols (RTMP, WebRTC, WHIP, WHEP, SRT, HLS, HTTP-FLV, etc.)"
+        - "Forwards traffic to designated SRS Origin server"
+        - "Improved scalability and resource management"
+        - "Cleaner separation of concerns between proxy and origin functionality"
+      benefits:
+        - "Better horizontal scaling capabilities"
+        - "Simplified deployment and configuration"
+        - "Enhanced performance through Go's networking capabilities"
+        - "Protocol transparency - no protocol-specific handling needed in proxy layer"
+
+    migration_guidance:
+      recommendation: "Use SRS 7.0 Proxy mode for all new origin cluster deployments"
+      legacy_support: "SRS 6.0 MESH mode architecture is maintained for backward compatibility but not recommended"
+      future_direction: "All future development and optimization will focus on SRS 7.0 Proxy architecture"
+
+    deployment_patterns:
+      proxy_mode:
+        - "Deploy SRS Proxy (Go) instances as edge servers"
+        - "Configure proxy to forward all traffic to SRS Origin server"
+        - "Scale horizontally by adding more proxy instances"
+        - "Origin server handles actual media processing and storage"
+      origin_server:
+        - "Single or clustered SRS Origin servers handle media processing"
+        - "Receives all traffic forwarded from SRS Proxy instances"
+        - "Maintains media state and performs actual streaming operations"
+
+codebase_structure:
+  key_directories:
+    - path: "trunk/src/"
+      description: "Main source code directory"
+    - path: "trunk/src/main/"
+      description: "Entry points including srs_main_server.cpp"
+    - path: "trunk/src/core/"
+      description: "Core platform abstractions and common definitions"
+    - path: "trunk/src/kernel/"
+      description: "Low-level codec implementations (AAC, H.264, FLV, MP4, RTC, etc.)"
+    - path: "trunk/src/protocol/"
+      description: "Protocol implementations (RTMP, HTTP, RTC, SRT, etc.)"
+    - path: "trunk/src/app/"
+      description: "High-level application logic and server components"
+
+  key_files:
+    - path: "trunk/src/main/srs_main_server.cpp"
+      description: "Main entry point and server initialization"
+    - path: "trunk/src/app/srs_app_server.hpp"
+      description: "Core server class definition"
+    - path: "trunk/src/core/srs_core.hpp"
+      description: "Core definitions and project metadata"
+    - path: "trunk/src/core/srs_core_autofree.hpp"
+      description: "Smart pointer definitions for memory management"
+
+code_patterns:
+  cpp_compatibility:
+    standard: "C++98"
+    description: |
+      SRS codebase must be compatible with C++98 standard. Do NOT use C++11 or later features.
+    forbidden_features:
+      - "auto keyword for type deduction"
+      - "nullptr (use NULL instead)"
+      - "Range-based for loops (use traditional for loops)"
+      - "Lambda expressions"
+      - "std::unique_ptr, std::shared_ptr (use SRS custom smart pointers instead)"
+      - "Initializer lists"
+      - "decltype"
+      - "constexpr"
+      - "override and final keywords"
+      - "Strongly typed enums (enum class)"
+      - "Static assertions (static_assert)"
+      - "Variadic templates"
+      - "Rvalue references and move semantics"
+    allowed_patterns:
+      - "Traditional for loops: for (int i = 0; i < size; ++i)"
+      - "NULL instead of nullptr"
+      - "typedef instead of using for type aliases"
+      - "SRS custom smart pointers (SrsUniquePtr, SrsSharedPtr)"
+      - "Traditional function pointers instead of std::function"
+
+  memory_management:
+    - pattern: "SrsUniquePtr<T>"
+      description: "Smart pointer for unique ownership - preferred for single ownership scenarios"
+      usage: "SrsUniquePtr<MyClass> ptr(new MyClass()); ptr->method(); // automatic cleanup"
+    - pattern: "SrsSharedPtr<T>"
+      description: "Smart pointer for shared ownership - preferred for reference counting scenarios"
+      usage: "SrsSharedPtr<MyClass> ptr(new MyClass()); SrsSharedPtr<MyClass> copy = ptr; // reference counted"
+    - pattern: "srs_freep"
+      description: "Custom macro for freeing pointers - use only when smart pointers are not suitable"
+    - pattern: "srs_freepa"
+      description: "Custom macro for freeing arrays - use only when smart pointers are not suitable"
+
+  error_handling:
+    - pattern: "srs_error_t"
+      description: "Custom error handling system - MANDATORY for all functions that return srs_error_t"
+
+    - pattern: "error_checking_and_wrapping"
+      description: "MANDATORY pattern for calling functions that return srs_error_t - ALWAYS check and wrap errors"
+      usage: |
+        WRONG: Not checking error return value (causes error object leak)
+        muxer_->write_audio(shared_audio, format);
+        reader.read(start, filesize, &nread);
+
+        CORRECT: Always check error and wrap with context
+        if ((err = muxer_->write_audio(shared_audio, format)) != srs_success) {
+            return srs_error_wrap(err, "write audio");
+        }
+
+        ssize_t nread = 0;
+        if ((err = reader.read(start, filesize, &nread)) != srs_success) {
+            return srs_error_wrap(err, "read %d only %d bytes", filesize, (int)nread);
+        }
+      rationale: |
+        - Prevents error object memory leaks
+        - Provides proper error context propagation
+        - Includes relevant local variables in error messages for debugging
+        - Maintains error chain for better troubleshooting
+
+    - pattern: "error_wrapping_with_context"
+      description: "When wrapping errors, include relevant local variables and context information"
+      rules:
+        - "Always include newly created local variables in error messages"
+        - "Include function parameters that provide context"
+        - "Use descriptive error messages that explain what operation failed"
+        - "Format numeric values appropriately (cast to int for display if needed)"
+      examples:
+        - "return srs_error_wrap(err, \"read %d only %d bytes\", filesize, (int)nread);"
+        - "return srs_error_wrap(err, \"write audio format=%d\", format->codec);"
+        - "return srs_error_wrap(err, \"connect to %s:%d\", host.c_str(), port);"
+
+    - pattern: "error_variable_declaration"
+      description: "Always declare srs_error_t err variable at function scope for error handling"
+      usage: |
+        CORRECT: Declare err variable at function start
+        srs_error_t MyClass::my_function() {
+            srs_error_t err = srs_success;
+
+            // ... function implementation with error checking
+            if ((err = some_function()) != srs_success) {
+                return srs_error_wrap(err, "context");
+            }
+
+            return err;
+        }
+
+  binary_data_handling:
+    - pattern: "SrsBuffer"
+      description: "MANDATORY utility for marshaling and unmarshaling structs with bytes - ALWAYS use this instead of manual byte manipulation"
+      usage: |
+        WRONG: Manual byte manipulation
+        char* buf = new char[4];
+        buf[0] = 0xff;
+        buf[1] = (value >> 8) & 0xFF;
+        buf[2] = value & 0xFF;
+
+        CORRECT: Use SrsBuffer
+        char* buf = new char[4];
+        SrsBuffer buffer(buf, 4);
+        buffer.write_1bytes(0xff);
+        buffer.write_2bytes(value);
+      key_methods:
+        read: "read_1bytes(), read_2bytes(), read_4bytes(), read_8bytes(), read_string(len), read_bytes(data, size)"
+        write: "write_1bytes(), write_2bytes(), write_4bytes(), write_8bytes(), write_string(), write_bytes()"
+        utility: "pos(), left(), empty(), require(size), skip(size)"
+      rationale: "Provides consistent byte-order handling, bounds checking, and position tracking for binary data operations"
+
+  time_handling:
+    - pattern: "srs_utime_t"
+      description: "MANDATORY type for all time variables - ALWAYS use srs_utime_t instead of int64_t for time values"
+      usage: |
+        WRONG: Using int64_t for time
+        int64_t now = srs_get_system_time();
+        int64_t duration = end_time - start_time;
+        int64_t timeout_ms = timeout / 1000;
+
+        CORRECT: Use srs_utime_t for time
+        srs_utime_t now = srs_get_system_time();
+        srs_utime_t duration = now - start_time;
+        int timeout_ms = srsu2msi(timeout);
+      rationale: "srs_utime_t provides consistent time handling across platforms and ensures proper microsecond precision"
+
+    - pattern: "srs_get_system_time()"
+      description: "Standard function to get current system time in microseconds"
+      usage: "srs_utime_t now = srs_get_system_time();"
+
+    - pattern: "duration calculation"
+      description: "Calculate time duration using simple subtraction"
+      usage: |
+        srs_utime_t starttime = srs_get_system_time();
+        // ... some operations ...
+        srs_utime_t duration = srs_get_system_time() - starttime;
+        int duration_ms = srsu2ms(duration);
+      note: "For simple cases, use direct subtraction. srs_duration() function is available for special cases with zero checks."
+
+    - pattern: "srsu2ms(us)"
+      description: "MANDATORY macro to convert microseconds to milliseconds - ALWAYS use instead of division by 1000"
+      usage: |
+        WRONG: Manual division
+        int ms = now / 1000;
+        int timeout_ms = timeout / 1000;
+
+        CORRECT: Use srsu2ms macro
+        int ms = srsu2ms(now);
+        int timeout_ms = srsu2ms(timeout);
+      rationale: "Provides consistent conversion and avoids magic numbers"
+
+    - pattern: "srsu2msi(us)"
+      description: "Convert microseconds to milliseconds as integer"
+      usage: "int ms = srsu2msi(timeout);"
+
+    - pattern: "srsu2s(us) / srsu2si(us)"
+      description: "Convert microseconds to seconds"
+      usage: "int seconds = srsu2si(duration);"
+
+    - pattern: "time_constants"
+      description: "Standard time constants for SRS"
+      constants:
+        - "SRS_UTIME_MILLISECONDS (1000) - microseconds in one millisecond"
+        - "SRS_UTIME_SECONDS (1000000LL) - microseconds in one second"
+        - "SRS_UTIME_MINUTES (60000000LL) - microseconds in one minute"
+        - "SRS_UTIME_HOURS (3600000000LL) - microseconds in one hour"
+        - "SRS_UTIME_NO_TIMEOUT - special value for no timeout"
+
+    - pattern: "best_practices"
+      description: "Time handling best practices"
+      practices:
+        - "Always declare time variables as srs_utime_t, never int64_t"
+        - "Use srs_get_system_time() to get current time"
+        - "Use simple subtraction (end - start) for calculating time differences"
+        - "Use srsu2ms() family macros for time unit conversions"
+        - "Use time constants (SRS_UTIME_SECONDS, etc.) for time arithmetic"
+        - "Check for SRS_UTIME_NO_TIMEOUT when handling timeout values"
+
+  conditional_compilation:
+    - pattern: "#ifdef SRS_VALGRIND"
+      description: "Valgrind support"
+
+  codec_handling:
+    enhanced_rtmp:
+      description: |
+        For HEVC and other new codecs in RTMP/FLV protocols, always use enhanced-RTMP codec fourcc instead of legacy RTMP codec IDs.
+        Enhanced-RTMP provides better support for modern codecs and is the preferred approach.
+        NOTE: This guidance applies ONLY to RTMP/FLV protocols, not to other protocols like SRT/WebRTC/WHIP/WHEP/HLS/DASH/GB28181.
+
+      hevc_codec:
+        - pattern: "fourcc: hvc1"
+          description: "Use enhanced-RTMP fourcc 'hvc1' for HEVC codec identification in RTMP/FLV"
+          usage: "Always use fourcc 'hvc1' for HEVC instead of legacy RTMP codecid(12)"
+          rationale: "Enhanced-RTMP fourcc provides better codec identification and compatibility"
+
+      general_rule:
+        - "Do NOT use legacy RTMP codecid(12) for HEVC"
+        - "Always prefer enhanced-RTMP codec fourcc for new codecs"
+        - "Use fourcc format for codec identification in enhanced-RTMP contexts"
+        - "This applies ONLY to RTMP/FLV protocols - other protocols use their own codec identification methods"
+
+build_and_development:
+  build:
+    command: "make -j"
+    description: "Build the SRS server using parallel make in the trunk directory"
+    working_directory: "trunk"
+
+  run_utests:
+    command: "make utest -j && ./objs/srs_utest"
+    description: "Run the unit tests for SRS"
+    working_directory: "trunk"
+
+testing:
+  test_patterns:
+    - Note that private and protected members are accessible in utests, as there is a macro to convert them to public
+    - Use descriptive test names that clearly indicate what functionality is being tested
+    - Group related tests together (e.g., all tests for one class should be consecutive)
+    - Test both success and failure paths, especially for error handling scenarios
+    - Verify edge cases like sequence number wrap-around, cache overflow, and null inputs
+    - Use existing mock helper functions for consistency and maintainability
+
+  error_handling_macros:
+    - Use HELPER_EXPECT_SUCCESS(x) when expecting a function to succeed (returns srs_success)
+    - Use HELPER_EXPECT_FAILED(x) when expecting a function to fail (returns non-srs_success error)
+    - These macros automatically handle error cleanup and provide better error messages
+    - Always declare "srs_error_t err;" at the beginning of test functions that use these macros
+    - |
+      Example:
+      VOID TEST(MyTest, TestFunction) {
+          srs_error_t err;
+          HELPER_EXPECT_SUCCESS(some_function_that_should_succeed());
+          HELPER_EXPECT_FAILED(some_function_that_should_fail());
+      }
+
+code_review:
+  github_pull_requests:
+    - When reviewing or understanding GitHub pull requests, use the diff URL to get the code changes
+    - Format: https://patch-diff.githubusercontent.com/raw/ossrs/srs/pull/{PR_NUMBER}.diff
+    - Example: For PR #4289, access https://patch-diff.githubusercontent.com/raw/ossrs/srs/pull/4289.diff
+    - This provides the raw diff showing all changes made in the pull request
+    - Use web-fetch tool to retrieve and analyze the diff content
+
+documentation:
+  location: "3rdparty/srs-docs"
+  description: |
+    SRS documentation source files are located in the 3rdparty/srs-docs directory
+  usage: |
+    When looking for documentation or need to update docs, check this directory for markdown 
+    files and documentation structure. Do not search ossrs.io or ossrs.net for documentation,
+    use the local files instead.
