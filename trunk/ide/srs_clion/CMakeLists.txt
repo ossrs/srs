@@ -27,11 +27,11 @@ ProcessorCount(JOBS)
 # We should always configure SRS for switching between branches.
 IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     EXECUTE_PROCESS(
-        COMMAND ./configure --osx --srt=on --gb28181=on --apm=on --h265=on --hds=on --utest=on --ffmpeg-opus=off --jobs=${JOBS}
+        COMMAND ./configure --osx --srt=on --gb28181=on --rtsp=on --apm=on --h265=on --hds=on --utest=on --ffmpeg-opus=off --jobs=${JOBS}
         WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ELSE ()
     EXECUTE_PROCESS(
-        COMMAND ./configure --srt=on --gb28181=on --apm=on --h265=on --hds=on --utest=on --ffmpeg-opus=off --jobs=${JOBS}
+        COMMAND ./configure --srt=on --gb28181=on --rtsp=on --apm=on --h265=on --hds=on --utest=on --ffmpeg-opus=off --jobs=${JOBS}
         WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ENDIF ()
 if(NOT ret EQUAL 0)
@@ -110,5 +110,5 @@ TARGET_LINK_LIBRARIES(utest -fsanitize=address -fno-omit-frame-pointer)
 
 ###########################################################
 # Done
-MESSAGE(STATUS "@see https://ossrs.net/lts/zh-cn/docs/v5/doc/ide")
+MESSAGE(STATUS "@see https://ossrs.net/lts/zh-cn/docs/v7/doc/ide")
 

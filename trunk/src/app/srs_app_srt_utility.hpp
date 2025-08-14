@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2024 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -16,17 +16,15 @@
 
 class SrsRequest;
 
-enum SrtMode 
-{
+enum SrtMode {
     SrtModePull = 1,
     SrtModePush = 2,
 };
 
 // Get SRT streamid info.
-extern bool srs_srt_streamid_info(const std::string& streamid, SrtMode& mode, std::string& vhost, std::string& url_subpath);
+extern bool srs_srt_streamid_info(const std::string &streamid, SrtMode &mode, std::string &vhost, std::string &url_subpath);
 
 // SRT streamid to request.
-extern bool srs_srt_streamid_to_request(const std::string& streamid, SrtMode& mode, SrsRequest* request);
+extern bool srs_srt_streamid_to_request(const std::string &streamid, SrtMode &mode, SrsRequest *request);
 
 #endif
-

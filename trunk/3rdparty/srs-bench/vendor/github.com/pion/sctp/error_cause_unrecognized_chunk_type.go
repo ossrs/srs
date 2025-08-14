@@ -1,6 +1,9 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
-// errorCauseUnrecognizedChunkType represents an SCTP error cause
+// errorCauseUnrecognizedChunkType represents an SCTP error cause.
 type errorCauseUnrecognizedChunkType struct {
 	errorCauseHeader
 	unrecognizedChunk []byte
@@ -9,6 +12,7 @@ type errorCauseUnrecognizedChunkType struct {
 func (e *errorCauseUnrecognizedChunkType) marshal() ([]byte, error) {
 	e.code = unrecognizedChunkType
 	e.errorCauseHeader.raw = e.unrecognizedChunk
+
 	return e.errorCauseHeader.marshal()
 }
 
@@ -19,10 +23,11 @@ func (e *errorCauseUnrecognizedChunkType) unmarshal(raw []byte) error {
 	}
 
 	e.unrecognizedChunk = e.errorCauseHeader.raw
+
 	return nil
 }
 
-// String makes errorCauseUnrecognizedChunkType printable
+// String makes errorCauseUnrecognizedChunkType printable.
 func (e *errorCauseUnrecognizedChunkType) String() string {
 	return e.errorCauseHeader.String()
 }

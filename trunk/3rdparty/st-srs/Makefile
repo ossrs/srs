@@ -185,11 +185,9 @@ endif
 # make EXTRA_CFLAGS=-UMD_HAVE_EPOLL <target>
 #
 # or to enable sendmmsg(2) support:
-#
 # make EXTRA_CFLAGS="-DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
 #
 # or to enable stats for ST:
-#
 # make EXTRA_CFLAGS=-DDEBUG_STATS
 #
 # or cache the stack and reuse it:
@@ -200,6 +198,9 @@ endif
 #
 # or enable support for asan:
 # make EXTRA_CFLAGS="-DMD_ASAN -fsanitize=address -fno-omit-frame-pointer"
+#
+# or to disable the clock_gettime for MacOS before 10.12, see https://github.com/ossrs/srs/issues/3978
+# make EXTRA_CFLAGS=-DMD_OSX_NO_CLOCK_GETTIME
 #
 # or enable the coverage for utest:
 # make UTEST_FLAGS="-fprofile-arcs -ftest-coverage"

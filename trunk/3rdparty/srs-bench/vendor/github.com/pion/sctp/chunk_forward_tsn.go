@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -43,7 +46,7 @@ const (
 	forwardTSNStreamLength = 4
 )
 
-// Forward TSN chunk errors
+// Forward TSN chunk errors.
 var (
 	ErrMarshalStreamFailed = errors.New("failed to marshal stream")
 	ErrChunkTooShort       = errors.New("chunk too short")
@@ -87,11 +90,12 @@ func (c *chunkForwardTSN) marshal() ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrMarshalStreamFailed, err) //nolint:errorlint
 		}
-		out = append(out, b...)
+		out = append(out, b...) //nolint:makezero // TODO: fix
 	}
 
 	c.typ = ctForwardTSN
 	c.raw = out
+
 	return c.chunkHeader.marshal()
 }
 
@@ -99,12 +103,13 @@ func (c *chunkForwardTSN) check() (abort bool, err error) {
 	return true, nil
 }
 
-// String makes chunkForwardTSN printable
+// String makes chunkForwardTSN printable.
 func (c *chunkForwardTSN) String() string {
 	res := fmt.Sprintf("New Cumulative TSN: %d\n", c.newCumulativeTSN)
 	for _, s := range c.streams {
 		res += fmt.Sprintf(" - si=%d, ssn=%d\n", s.identifier, s.sequence)
 	}
+
 	return res
 }
 
