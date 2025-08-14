@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-08-14, Merge [#4161](https://github.com/ossrs/srs/pull/4161): fix hls & dash segments cleanup. v7.0.54 (#4161)
 * v7.0, 2025-08-13, Merge [#4225](https://github.com/ossrs/srs/pull/4225): issue #4223: remove hls_acodec and hls_vcodec config. v7.0.53 (#4225)
 * v7.0, 2025-08-12, Merge [#4230](https://github.com/ossrs/srs/pull/4230): MP4 DVR: Fix audio/video synchronization issues in WebRTC recordings. v7.0.52 (#4230)
 * v7.0, 2025-08-12, Merge [#4301](https://github.com/ossrs/srs/pull/4301): Valgrind: Return error for unsupported check=new on Valgrind < 3.21. v7.0.52 (#4301)
@@ -67,6 +68,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2025-08-14, Merge [#4161](https://github.com/ossrs/srs/pull/4161): fix hls & dash segments cleanup. v6.0.173 (#4161)
 * v6.0, 2025-08-12, Merge [#4230](https://github.com/ossrs/srs/pull/4230): MP4 DVR: Fix audio/video synchronization issues in WebRTC recordings. v6.0.172 (#4230)
 * v6.0, 2025-08-11, Merge [#4432](https://github.com/ossrs/srs/pull/4432): AI: HTTP-FLV: Fix heap-use-after-free crash during stream unmount. v6.0.171 (#4432)
 * v6.0, 2025-07-28, Merge [#4245](https://github.com/ossrs/srs/pull/4245): Allow Forward to be configured with Env Var. v6.0.170 (#4245)
