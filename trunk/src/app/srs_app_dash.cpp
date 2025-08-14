@@ -702,7 +702,7 @@ void SrsDash::dispose()
 srs_error_t SrsDash::cycle()
 {
     srs_error_t err = srs_success;
-    
+
     if (last_update_time_ <= 0) {
         last_update_time_ = srs_get_system_time();
     }

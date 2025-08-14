@@ -1958,7 +1958,7 @@ bool SrsLiveSource::stream_is_dead()
         return false;
     }
 
-    // Delay cleanup source for at least SRS_SOURCE_CLEANUP=3 seconds
+    // Delay cleanup source.
     srs_utime_t now = srs_get_system_time();
     if (now < stream_die_at_ + SRS_SOURCE_CLEANUP) {
         return false;
