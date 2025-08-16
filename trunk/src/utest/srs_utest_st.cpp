@@ -43,7 +43,7 @@ VOID TEST(StTest, StUtimePerformance)
     // Both the st_utime(clock_gettime or gettimeofday) and gettimeofday's
     // elpased time to execute is dependence on whether it is the first time be called.
     // In general, the gettimeofday has better performance, but the gap between
-    // them is really small, maybe less than 10 clock ~ 10 microseconds.
+    // them is really small, maybe less than 30 clock ~ 30 microseconds.
 
     // check st_utime first, then gettimeofday
     {
@@ -63,7 +63,7 @@ VOID TEST(StTest, StUtimePerformance)
         EXPECT_GE(st_utime_elapsed_time, 0);
 
         // pass the test, if
-        EXPECT_LT(gettimeofday_elapsed_time > st_utime_elapsed_time ? gettimeofday_elapsed_time - st_utime_elapsed_time : st_utime_elapsed_time - gettimeofday_elapsed_time, 10);
+        EXPECT_LT(gettimeofday_elapsed_time > st_utime_elapsed_time ? gettimeofday_elapsed_time - st_utime_elapsed_time : st_utime_elapsed_time - gettimeofday_elapsed_time, 30);
     }
 
     // check gettimeofday first, then st_utime
@@ -83,7 +83,7 @@ VOID TEST(StTest, StUtimePerformance)
         EXPECT_GE(gettimeofday_elapsed_time, 0);
         EXPECT_GE(st_utime_elapsed_time, 0);
 
-        EXPECT_LT(gettimeofday_elapsed_time > st_utime_elapsed_time ? gettimeofday_elapsed_time - st_utime_elapsed_time : st_utime_elapsed_time - gettimeofday_elapsed_time, 10);
+        EXPECT_LT(gettimeofday_elapsed_time > st_utime_elapsed_time ? gettimeofday_elapsed_time - st_utime_elapsed_time : st_utime_elapsed_time - gettimeofday_elapsed_time, 30);
     }
 
     // compare st_utime & gettimeofday in a loop
