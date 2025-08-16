@@ -2413,7 +2413,8 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     }
 
     if ((err = bridge_->on_frame(&msg)) != srs_success) {
-        srs_warn("fail to pack video frame");
+        srs_warn("fail to pack video frame: %s", srs_error_summary(err).c_str());
+        srs_freep(err);
     }
 
     // Try to detect and detach next RTMP packet.
