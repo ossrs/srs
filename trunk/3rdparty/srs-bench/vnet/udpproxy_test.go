@@ -1,3 +1,4 @@
+//go:build !wasm
 // +build !wasm
 
 package vnet
@@ -90,9 +91,12 @@ func TestMain(m *testing.M) {
 }
 
 // vnet client:
-//		10.0.0.11:5787
+//
+//	10.0.0.11:5787
+//
 // proxy to real server:
-//		192.168.1.10:8000
+//
+//	192.168.1.10:8000
 func TestUDPProxyOne2One(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -235,10 +239,13 @@ func TestUDPProxyOne2One(t *testing.T) {
 }
 
 // vnet client:
-//		10.0.0.11:5787
-//		10.0.0.11:5788
+//
+//	10.0.0.11:5787
+//	10.0.0.11:5788
+//
 // proxy to real server:
-//		192.168.1.10:8000
+//
+//	192.168.1.10:8000
 func TestUDPProxyTwo2One(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -409,14 +416,20 @@ func TestUDPProxyTwo2One(t *testing.T) {
 }
 
 // vnet client:
-//		10.0.0.11:5787
+//
+//	10.0.0.11:5787
+//
 // proxy to real server:
-//		192.168.1.10:8000
+//
+//	192.168.1.10:8000
 //
 // vnet client:
-//		10.0.0.11:5788
+//
+//	10.0.0.11:5788
+//
 // proxy to real server:
-//		192.168.1.10:8000
+//
+//	192.168.1.10:8000
 func TestUDPProxyProxyTwice(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 

@@ -253,7 +253,7 @@ public:
    CInfoBlock& copyFrom(const CInfoBlock& obj);
    CInfoBlock(const CInfoBlock& src) { copyFrom(src); }
    CInfoBlock& operator=(const CInfoBlock& src) { return copyFrom(src); }
-   bool operator==(const CInfoBlock& obj);
+   bool operator==(const CInfoBlock& obj) const;
    CInfoBlock* clone();
    int getKey();
    void release() {}

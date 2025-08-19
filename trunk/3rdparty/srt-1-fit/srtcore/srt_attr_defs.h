@@ -89,7 +89,7 @@ used by SRT library internally.
 // - Other compilers: none.
 ///////////////////////////////////////////////////////////////////////////////
 #if _MSC_VER >= 1920
-// In case of MSVC these attributes have to preceed the attributed objects (variable, function).
+// In case of MSVC these attributes have to precede the attributed objects (variable, function).
 // E.g. SRT_ATTR_GUARDED_BY(mtx) int object;
 // It is tricky to annotate e.g. the following function, as clang complaints it does not know 'm'.
 // SRT_ATTR_EXCLUDES(m) SRT_ATTR_ACQUIRE(m)

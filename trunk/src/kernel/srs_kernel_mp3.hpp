@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_KERNEL_MP3_HPP
@@ -20,17 +20,20 @@ class SrsFileWriter;
 class SrsMp3Transmuxer
 {
 private:
-    SrsFileWriter* writer;
+    SrsFileWriter *writer;
+
 public:
     SrsMp3Transmuxer();
     virtual ~SrsMp3Transmuxer();
+
 public:
     /**
      * initialize the underlayer file stream.
      * @remark user can initialize multiple times to encode multiple mp3 files.
      * @remark, user must free the @param fw, mp3 encoder never close/free it.
      */
-    virtual srs_error_t initialize(SrsFileWriter* fw);
+    virtual srs_error_t initialize(SrsFileWriter *fw);
+
 public:
     /**
      * write mp3 id3 v2.3 header.
@@ -41,8 +44,7 @@ public:
      * write audio/video packet.
      * @remark assert data is not NULL.
      */
-    virtual srs_error_t write_audio(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_audio(int64_t timestamp, char *data, int size);
 };
 
 #endif
-

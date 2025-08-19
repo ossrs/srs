@@ -13,12 +13,12 @@ written by
    Haivision Systems Inc.
 
    2019-06-27 (jdube)
-        GnuTLS/Nettle CRYSPR/4SRT (CRYypto Service PRovider for SRT)
+        MBedTLS CRYSPR/4SRT (CRYypto Service PRovider for SRT)
 
 *****************************************************************************/
 
-#ifndef CRYSPR_GNUTLS_H
-#define CRYSPR_GNUTLS_H
+#ifndef CRYSPR_MBEDTLS_H
+#define CRYSPR_MBEDTLS_H
 
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/aes.h>
@@ -59,5 +59,5 @@ typedef mbedtls_aes_context CRYSPR_AESCTX;   /* CRYpto Service PRovider AES key 
 
 struct tag_CRYSPR_methods *crysprMbedtls(void);
 
-#endif /* CRYSPR_GNUTLS_H */
+#endif /* CRYSPR_MBEDTLS_H */
 

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_CORE_HPP
@@ -20,7 +20,7 @@
 
 // The project informations, may sent to client in HTTP header or RTMP metadata.
 #define RTMP_SIG_SRS_KEY "SRS"
-#define RTMP_SIG_SRS_CODE "Bee"
+#define RTMP_SIG_SRS_CODE "Kai"
 #define RTMP_SIG_SRS_URL "https://github.com/ossrs/srs"
 #define RTMP_SIG_SRS_LICENSE "MIT"
 #define SRS_CONSTRIBUTORS "https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#contributors"
@@ -29,7 +29,7 @@
 #define RTMP_SIG_SRS_DOMAIN "ossrs.net"
 
 // The current stable release.
-#define VERSION_STABLE 4
+#define VERSION_STABLE 5
 #define VERSION_STABLE_BRANCH SRS_XSTR(VERSION_STABLE) ".0release"
 
 // For platform specified headers and defines.
@@ -44,23 +44,23 @@
 // To free the p and set to NULL.
 // @remark The p must be a pointer T*.
 #define srs_freep(p) \
-    delete p; \
-    p = NULL; \
+    delete p;        \
+    p = NULL;        \
     (void)0
 // Please use the freepa(T[]) to free an array, otherwise the behavior is undefined.
 #define srs_freepa(pa) \
-    delete[] pa; \
-    pa = NULL; \
+    delete[] pa;       \
+    pa = NULL;         \
     (void)0
 
 // Check CPU for ST(state-threads), please read https://github.com/ossrs/state-threads/issues/22
 #if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__) && !defined(__aarch64__) && !defined(__mips__) && !defined(__mips64) && !defined(__loongarch64) && !defined(__riscv)
-    #error "Only support i386/amd64/x86_64/arm/aarch64/mips/mips64/loongarch64/riscv cpu"
+#error "Only support i386/amd64/x86_64/arm/aarch64/mips/mips64/loongarch64/riscv cpu"
 #endif
 
 // Error predefined for all modules.
 class SrsCplxError;
-typedef SrsCplxError* srs_error_t;
+typedef SrsCplxError *srs_error_t;
 
 #include <string>
 // The context ID, it default to a string object, we can also use other objects.
@@ -70,21 +70,23 @@ class _SrsContextId
 {
 private:
     std::string v_;
+
 public:
     _SrsContextId();
-    _SrsContextId(const _SrsContextId& cp);
-    _SrsContextId& operator=(const _SrsContextId& cp);
+    _SrsContextId(const _SrsContextId &cp);
+    _SrsContextId &operator=(const _SrsContextId &cp);
     virtual ~_SrsContextId();
+
 public:
-    const char* c_str() const;
+    const char *c_str() const;
     bool empty() const;
     // Compare the two context id. @see http://www.cplusplus.com/reference/string/string/compare/
     //      0	They compare equal
     //      <0	Either the value of the first character that does not match is lower in the compared string, or all compared characters match but the compared string is shorter.
     //      >0	Either the value of the first character that does not match is greater in the compared string, or all compared characters match but the compared string is longer.
-    int compare(const _SrsContextId& to) const;
+    int compare(const _SrsContextId &to) const;
     // Set the value of context id.
-    _SrsContextId& set_value(const std::string& v);
+    _SrsContextId &set_value(const std::string &v);
 };
 typedef _SrsContextId SrsContextId;
 #else

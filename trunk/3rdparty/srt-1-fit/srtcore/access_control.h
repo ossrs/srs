@@ -41,7 +41,7 @@ written by
 // CODE NOT IN USE 408: unused: no timeout predicted for listener callback
 #define SRT_REJX_CONFLICT 1409  // The resource being accessed is already locked for modification. This is in case of m=publish and the specified resource is currently read-only.
 // CODE NOT IN USE 410: unused: treated as a specific case of 404
-// CODE NOT IN USE 411: unused: no reason to include lenght in the protocol
+// CODE NOT IN USE 411: unused: no reason to include length in the protocol
 // CODE NOT IN USE 412: unused: preconditions not predicted in AC
 // CODE NOT IN USE 413: unused: AC size is already defined as 512
 // CODE NOT IN USE 414: unused: AC size is already defined as 512

@@ -1,24 +1,28 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_utest.hpp>
 
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_app_server.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_rtc_dtls.hpp>
+#include <srs_app_server.hpp>
 #include <srs_app_threads.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
 
 #include <string>
 using namespace std;
 
+#include <sys/mman.h>
+#include <sys/types.h>
+
 #ifdef SRS_SRT
 #include <srs_app_srt_server.hpp>
+#include <srt/srt.h>
 #endif
 
 // Temporary disk config.
@@ -29,21 +33,30 @@ int _srs_tmp_port = 11935;
 srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
 
 // kernel module.
-ISrsLog* _srs_log = NULL;
-ISrsContext* _srs_context = NULL;
+ISrsLog *_srs_log = NULL;
+ISrsContext *_srs_context = NULL;
 // app module.
-SrsConfig* _srs_config = NULL;
-SrsServer* _srs_server = NULL;
+SrsConfig *_srs_config = NULL;
+SrsServer *_srs_server = NULL;
 bool _srs_in_docker = false;
 bool _srs_config_by_env = false;
 
 // The binary name of SRS.
-const char* _srs_binary = NULL;
+const char *_srs_binary = NULL;
 
 #include <srs_app_st.hpp>
 
+#ifdef SRS_SRT
+static void srs_srt_utest_null_log_handler(void *opaque, int level, const char *file, int line,
+                                           const char *area, const char *message)
+{
+    // srt null log handler, do no print any log.
+}
+#endif
+
 // Initialize global settings.
-srs_error_t prepare_main() {
+srs_error_t prepare_main()
+{
     srs_error_t err = srs_success;
 
     if ((err = srs_global_initialize()) != srs_success) {
@@ -69,6 +82,9 @@ srs_error_t prepare_main() {
         return srs_error_wrap(err, "srt log initialize");
     }
 
+    // Prevent the output of srt logs in utest.
+    srt_setloghandler(NULL, srs_srt_utest_null_log_handler);
+
     _srt_eventloop = new SrsSrtEventLoop();
     if ((err = _srt_eventloop->initialize()) != srs_success) {
         return srs_error_wrap(err, "srt poller initialize");
@@ -81,12 +97,10 @@ srs_error_t prepare_main() {
     return err;
 }
 
-// Free global data, for address sanitizer.
-extern void srs_free_global_system_ips();
-
 // We could do something in the main of utest.
 // Copy from gtest-1.6.0/src/gtest_main.cc
-GTEST_API_ int main(int argc, char **argv) {
+GTEST_API_ int main(int argc, char **argv)
+{
     srs_error_t err = srs_success;
 
     _srs_binary = argv[0];
@@ -102,8 +116,6 @@ GTEST_API_ int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
     int r0 = RUN_ALL_TESTS();
 
-    srs_free_global_system_ips();
-
     return r0;
 }
 
@@ -116,9 +128,9 @@ MockEmptyLog::~MockEmptyLog()
 {
 }
 
-void srs_bytes_print(char* pa, int size)
+void srs_bytes_print(char *pa, int size)
 {
-    for(int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++) {
         char v = pa[i];
         printf("%#x ", v);
     }
@@ -126,7 +138,7 @@ void srs_bytes_print(char* pa, int size)
 }
 
 // basic test and samples.
-VOID TEST(SampleTest, FastSampleInt64Test) 
+VOID TEST(SampleTest, FastSampleInt64Test)
 {
     EXPECT_EQ(1, (int)sizeof(int8_t));
     EXPECT_EQ(2, (int)sizeof(int16_t));
@@ -134,11 +146,11 @@ VOID TEST(SampleTest, FastSampleInt64Test)
     EXPECT_EQ(8, (int)sizeof(int64_t));
 }
 
-VOID TEST(SampleTest, FastSampleMacrosTest) 
+VOID TEST(SampleTest, FastSampleMacrosTest)
 {
     EXPECT_TRUE(1);
     EXPECT_FALSE(0);
-    
+
     EXPECT_EQ(1, 1); // ==
     EXPECT_NE(1, 2); // !=
     EXPECT_LE(1, 2); // <=
@@ -150,7 +162,7 @@ VOID TEST(SampleTest, FastSampleMacrosTest)
     EXPECT_STRNE("winlin", "srs");
     EXPECT_STRCASEEQ("winlin", "Winlin");
     EXPECT_STRCASENE("winlin", "srs");
-    
+
     EXPECT_FLOAT_EQ(1.0, 1.000000000000001);
     EXPECT_DOUBLE_EQ(1.0, 1.0000000000000001);
     EXPECT_NEAR(10, 15, 5);
@@ -167,35 +179,42 @@ VOID TEST(SampleTest, StringEQTest)
 class MockSrsContextId
 {
 public:
-    MockSrsContextId() {
+    MockSrsContextId()
+    {
         bind_ = NULL;
     }
-    MockSrsContextId(const MockSrsContextId& cp){
+    MockSrsContextId(const MockSrsContextId &cp)
+    {
         bind_ = NULL;
         if (cp.bind_) {
             bind_ = cp.bind_->copy();
         }
     }
-    MockSrsContextId& operator= (const MockSrsContextId& cp) {
+    MockSrsContextId &operator=(const MockSrsContextId &cp)
+    {
         srs_freep(bind_);
         if (cp.bind_) {
             bind_ = cp.bind_->copy();
         }
         return *this;
     }
-    virtual ~MockSrsContextId() {
+    virtual ~MockSrsContextId()
+    {
         srs_freep(bind_);
     }
+
 public:
-    MockSrsContextId* copy() const {
-        MockSrsContextId* cp = new MockSrsContextId();
+    MockSrsContextId *copy() const
+    {
+        MockSrsContextId *cp = new MockSrsContextId();
         if (bind_) {
             cp->bind_ = bind_->copy();
         }
         return cp;
     }
+
 private:
-    MockSrsContextId* bind_;
+    MockSrsContextId *bind_;
 };
 
 VOID TEST(SampleTest, ContextTest)
@@ -208,3 +227,39 @@ VOID TEST(SampleTest, ContextTest)
     cache[0] = cid;
 }
 
+MockProtectedBuffer::MockProtectedBuffer() : raw_memory_(NULL), size_(0), data_(NULL)
+{
+}
+
+MockProtectedBuffer::~MockProtectedBuffer()
+{
+    if (size_ && raw_memory_) {
+        long page_size = sysconf(_SC_PAGESIZE);
+        munmap(raw_memory_, page_size * 2);
+    }
+}
+
+int MockProtectedBuffer::alloc(int size)
+{
+    srs_assert(!raw_memory_);
+
+    long page_size = sysconf(_SC_PAGESIZE);
+    if (size >= page_size)
+        return -1;
+
+    char *data = (char *)mmap(NULL, page_size * 2, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    if (data == MAP_FAILED) {
+        return -1;
+    }
+
+    size_ = size;
+    raw_memory_ = data;
+    data_ = data + page_size - size;
+
+    int r0 = mprotect(data + page_size, page_size, PROT_NONE);
+    if (r0 < 0) {
+        return r0;
+    }
+
+    return 0;
+}

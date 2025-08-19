@@ -2,6 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin,go1.12
+//go:build darwin && go1.12
 
 // This exists solely so we can linkname in symbols from syscall.

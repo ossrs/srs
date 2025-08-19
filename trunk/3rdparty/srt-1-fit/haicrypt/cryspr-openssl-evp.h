@@ -34,6 +34,10 @@ written by
 */
 #define CRYSPR_HAS_AESCTR 1
 
+/* Define CRYSPR_HAS_AESGCM to 1 if this CRYSPR has AES GCM cipher mode. OpenSSL EVP supports GCM.
+*/
+#define CRYSPR_HAS_AESGCM 1
+
 /* Define CRYSPR_HAS_AESKWRAP to 1 if this CRYSPR has AES Key Wrap
    if not set to 0 to enable default/fallback crysprFallback_AES_WrapKey/crysprFallback_AES_UnwrapKey methods
    and provide the aes_ecb_cipher method  .

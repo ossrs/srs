@@ -1,24 +1,21 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 #include <srs_utest_core.hpp>
 
 using namespace std;
 
+#include <srs_app_conn.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_core_deprecated.hpp>
+#include <srs_protocol_conn.hpp>
 
 VOID TEST(CoreAutoFreeTest, Free)
 {
-    char* data = new char[32];
+    char *data = new char[32];
     srs_freepa(data);
-    EXPECT_TRUE(data == NULL);
-
-    if (true) {
-        data = new char[32];
-        SrsAutoFreeA(char, data);
-    }
     EXPECT_TRUE(data == NULL);
 }
 
@@ -54,7 +51,7 @@ VOID TEST(CoreLogger, CheckVsnprintf)
         HELPER_ARRAY_INIT(buf, sizeof(buf), 0xf);
 
         // Return the number of characters printed.
-        EXPECT_EQ(6, sprintf(buf, "%s", "Hello!"));
+        EXPECT_EQ(6, snprintf(buf, sizeof(buf), "%s", "Hello!"));
         EXPECT_EQ('H', buf[0]);
         EXPECT_EQ('!', buf[5]);
         EXPECT_EQ(0x0, buf[6]);
@@ -86,3 +83,551 @@ VOID TEST(CoreLogger, CheckVsnprintf)
     }
 }
 
+VOID TEST(CoreSmartPtr, SharedPtrTypical)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, *p);
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(p);
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        EXPECT_TRUE(p);
+        EXPECT_TRUE(q);
+        EXPECT_EQ(100, *p);
+        EXPECT_EQ(100, *q);
+    }
+}
+
+VOID TEST(CoreSmartPtr, SharedPtrReset)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        p.reset();
+        EXPECT_FALSE(p);
+        EXPECT_TRUE(q);
+        EXPECT_EQ(100, *q);
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = p;
+        q.reset();
+        EXPECT_TRUE(p);
+        EXPECT_FALSE(q);
+        EXPECT_EQ(100, *p);
+    }
+}
+
+SrsSharedPtr<int> mock_create_from_ptr(SrsSharedPtr<int> p)
+{
+    return p;
+}
+
+VOID TEST(CoreSmartPtr, SharedPtrContructor)
+{
+    int *p = new int(100);
+    SrsSharedPtr<int> q = mock_create_from_ptr(p);
+    EXPECT_EQ(100, *q);
+}
+
+VOID TEST(CoreSmartPtr, SharedPtrObject)
+{
+    SrsSharedPtr<MyNormalObject> p(new MyNormalObject(100));
+    EXPECT_TRUE(p);
+    EXPECT_EQ(100, p->id());
+}
+
+VOID TEST(CoreSmartPtr, SharedPtrNullptr)
+{
+    SrsSharedPtr<int> p(NULL);
+    EXPECT_FALSE(p);
+
+    p.reset();
+    EXPECT_FALSE(p);
+
+    SrsSharedPtr<int> q = p;
+    EXPECT_FALSE(q);
+}
+
+class MockWrapper
+{
+public:
+    int *ptr;
+
+public:
+    MockWrapper(int *p)
+    {
+        ptr = p;
+        if (ptr)
+            *ptr = *ptr + 1;
+    }
+    ~MockWrapper()
+    {
+        if (ptr)
+            *ptr = *ptr - 1;
+    }
+};
+
+VOID TEST(CoreSmartPtr, SharedPtrWrapper)
+{
+    int *ptr = new int(100);
+    SrsUniquePtr<int> ptr_uptr(ptr);
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsSharedPtr<MockWrapper> q = p;
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+        EXPECT_EQ(101, *q->ptr);
+
+        SrsSharedPtr<MockWrapper> r(new MockWrapper(ptr));
+        EXPECT_EQ(102, *ptr);
+        EXPECT_EQ(102, *p->ptr);
+        EXPECT_EQ(102, *q->ptr);
+        EXPECT_EQ(102, *r->ptr);
+
+        SrsSharedPtr<MockWrapper> s(new MockWrapper(ptr));
+        EXPECT_EQ(103, *ptr);
+        EXPECT_EQ(103, *p->ptr);
+        EXPECT_EQ(103, *q->ptr);
+        EXPECT_EQ(103, *r->ptr);
+        EXPECT_EQ(103, *s->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+}
+
+VOID TEST(CoreSmartPtr, SharedPtrAssign)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(NULL);
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(new int(101));
+
+        int *q0 = q.get();
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+        EXPECT_NE(q0, q.get());
+    }
+
+    int *ptr0 = new int(100);
+    SrsUniquePtr<int> ptr0_uptr(ptr0);
+    EXPECT_EQ(100, *ptr0);
+
+    int *ptr1 = new int(200);
+    SrsUniquePtr<int> ptr1_uptr(ptr1);
+    EXPECT_EQ(200, *ptr1);
+
+    if (true) {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr0));
+        EXPECT_EQ(101, *ptr0);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsSharedPtr<MockWrapper> q(new MockWrapper(ptr1));
+        EXPECT_EQ(201, *ptr1);
+        EXPECT_EQ(201, *q->ptr);
+
+        q = p;
+        EXPECT_EQ(200, *ptr1);
+        EXPECT_EQ(101, *ptr0);
+        EXPECT_EQ(101, *p->ptr);
+        EXPECT_EQ(101, *q->ptr);
+    }
+
+    EXPECT_EQ(100, *ptr0);
+    EXPECT_EQ(200, *ptr1);
+}
+
+template <typename T>
+SrsSharedPtr<T> mock_shared_ptr_move_assign(SrsSharedPtr<T> p)
+{
+    SrsSharedPtr<T> q = p;
+    return q;
+}
+
+template <typename T>
+SrsSharedPtr<T> mock_shared_ptr_move_ctr(SrsSharedPtr<T> p)
+{
+    return p;
+}
+
+VOID TEST(CoreSmartPtr, SharedPtrMove)
+{
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(new int(101));
+        q = mock_shared_ptr_move_ctr(p);
+        EXPECT_EQ(q.get(), p.get());
+    }
+
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q(new int(101));
+        q = mock_shared_ptr_move_assign(p);
+        EXPECT_EQ(q.get(), p.get());
+    }
+
+    int *ptr = new int(100);
+    SrsUniquePtr<int> ptr_uptr(ptr);
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsSharedPtr<MockWrapper> q(new MockWrapper(ptr));
+        q = mock_shared_ptr_move_ctr(p);
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *q->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsSharedPtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsSharedPtr<MockWrapper> q(new MockWrapper(ptr));
+        q = mock_shared_ptr_move_assign(p);
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *q->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+
+    // Note that this will not trigger the move constructor or move assignment operator.
+    if (true) {
+        SrsSharedPtr<int> p(new int(100));
+        SrsSharedPtr<int> q = mock_shared_ptr_move_assign(p);
+        EXPECT_EQ(q.get(), p.get());
+    }
+
+    // Note that this will not trigger the move constructor or move assignment operator.
+    if (true) {
+        SrsSharedPtr<int> p = SrsSharedPtr<int>(new int(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, *p);
+    }
+}
+
+class MockIntResource : public ISrsResource
+{
+public:
+    SrsContextId id_;
+    int value_;
+
+public:
+    MockIntResource(int value) : value_(value)
+    {
+    }
+    virtual ~MockIntResource()
+    {
+    }
+
+public:
+    virtual const SrsContextId &get_id()
+    {
+        return id_;
+    }
+    virtual std::string desc()
+    {
+        return id_.c_str();
+    }
+};
+
+VOID TEST(CoreSmartPtr, SharedResourceTypical)
+{
+    if (true) {
+        SrsSharedResource<MockIntResource> *p = new SrsSharedResource<MockIntResource>(new MockIntResource(100));
+        EXPECT_TRUE(*p);
+        EXPECT_EQ(100, (*p)->value_);
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, p->value_);
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p = SrsSharedResource<MockIntResource>(new MockIntResource(100));
+        EXPECT_TRUE(p);
+        EXPECT_EQ(100, p->value_);
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q(NULL);
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q(new MockIntResource(200));
+        q = p;
+        EXPECT_EQ(p.get(), q.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q = p;
+        EXPECT_TRUE(p);
+        EXPECT_TRUE(q);
+        EXPECT_EQ(100, p->value_);
+        EXPECT_EQ(100, q->value_);
+    }
+}
+
+template <typename T>
+SrsSharedResource<T> mock_shared_resource_move_assign(SrsSharedResource<T> p)
+{
+    SrsSharedResource<T> q = p;
+    return q;
+}
+
+template <typename T>
+SrsSharedResource<T> mock_shared_resource_move_ctr(SrsSharedResource<T> p)
+{
+    return p;
+}
+
+VOID TEST(CoreSmartPtr, SharedResourceMove)
+{
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q(new MockIntResource(101));
+        q = mock_shared_resource_move_ctr(p);
+        EXPECT_EQ(100, q->value_);
+        EXPECT_EQ(q.get(), p.get());
+    }
+
+    if (true) {
+        SrsSharedResource<MockIntResource> p(new MockIntResource(100));
+        SrsSharedResource<MockIntResource> q(new MockIntResource(101));
+        q = mock_shared_resource_move_assign(p);
+        EXPECT_EQ(100, q->value_);
+        EXPECT_EQ(q.get(), p.get());
+    }
+}
+
+VOID TEST(CoreSmartPtr, UniquePtrNormal)
+{
+    if (true) {
+        SrsUniquePtr<int> p(new int(100));
+        EXPECT_EQ(100, *p.get());
+    }
+
+    int *ptr = new int(100);
+    SrsUniquePtr<int> ptr_uptr(ptr);
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsUniquePtr<MockWrapper> p(new MockWrapper(ptr));
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *p->ptr);
+
+        SrsUniquePtr<MockWrapper> p0(new MockWrapper(ptr));
+        EXPECT_EQ(102, *ptr);
+        EXPECT_EQ(102, *p0->ptr);
+    }
+    EXPECT_EQ(100, *ptr);
+}
+
+VOID TEST(CoreSmartPtr, UniquePtrArray)
+{
+    if (true) {
+        int *ptr = new int[100];
+        ptr[0] = 100;
+
+        SrsUniquePtr<int[]> p(ptr);
+        EXPECT_EQ(100, *p.get());
+    }
+
+    int *ptr = new int(100);
+    SrsUniquePtr<int> ptr_uptr(ptr);
+    EXPECT_EQ(100, *ptr);
+
+    if (true) {
+        SrsUniquePtr<MockWrapper[]> p(new MockWrapper[1]{MockWrapper(ptr)});
+        EXPECT_EQ(101, *ptr);
+        EXPECT_EQ(101, *(p[0].ptr));
+
+        SrsUniquePtr<MockWrapper[]> p0(new MockWrapper[1]{MockWrapper(ptr)});
+        EXPECT_EQ(102, *ptr);
+        EXPECT_EQ(102, *(p0[0].ptr));
+    }
+    EXPECT_EQ(100, *ptr);
+}
+
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+
+void mock_free_chars(char *p)
+{
+    free(p);
+}
+
+VOID TEST(CoreSmartPtr, UniquePtrDeleterExample)
+{
+    if (true) {
+        char *p = (char *)malloc(1024);
+        SrsUniquePtr<char> ptr(p, mock_free_chars);
+    }
+
+    if (true) {
+        addrinfo *r = NULL;
+        getaddrinfo("127.0.0.1", NULL, NULL, &r);
+        SrsUniquePtr<addrinfo> ptr(r, freeaddrinfo);
+    }
+}
+
+class MockSlice
+{
+public:
+    const char *bytes_;
+
+public:
+    MockSlice(const char *bytes)
+    {
+        bytes_ = bytes;
+    }
+    virtual ~MockSlice()
+    {
+    }
+
+public:
+    static void deleter(MockSlice *p)
+    {
+        p->bytes_ = NULL;
+    }
+};
+
+VOID TEST(CoreSmartPtr, UniquePtrDeleterSlice)
+{
+    MockSlice p("Hello");
+    EXPECT_TRUE(p.bytes_ != NULL);
+
+    if (true) {
+        SrsUniquePtr<MockSlice> ptr(&p, MockSlice::deleter);
+    }
+    EXPECT_TRUE(p.bytes_ == NULL);
+}
+
+class MockSpecialPacket
+{
+public:
+    char *bytes_;
+    int size_;
+
+public:
+    MockSpecialPacket(char *bytes, int size)
+    {
+        bytes_ = bytes;
+        size_ = size;
+    }
+    virtual ~MockSpecialPacket()
+    {
+        srs_freep(bytes_);
+    }
+
+public:
+    static void deleter(vector<MockSpecialPacket *> *pkts)
+    {
+        vector<MockSpecialPacket *>::iterator it;
+        for (it = pkts->begin(); it != pkts->end(); ++it) {
+            MockSpecialPacket *pkt = *it;
+            srs_freep(pkt);
+        }
+        pkts->clear();
+    }
+};
+
+VOID TEST(CoreSmartPtr, UniquePtrDeleterVector)
+{
+    vector<MockSpecialPacket *> pkts;
+    for (int i = 0; i < 10; i++) {
+        char *bytes = new char[1024];
+        MockSpecialPacket *pkt = new MockSpecialPacket(bytes, 1024);
+        pkts.push_back(pkt);
+    }
+    EXPECT_EQ(10, (int)pkts.size());
+
+    if (true) {
+        SrsUniquePtr<vector<MockSpecialPacket *> > ptr(&pkts, MockSpecialPacket::deleter);
+    }
+    EXPECT_EQ(0, (int)pkts.size());
+}
+
+class MockMalloc
+{
+public:
+    const char *bytes_;
+
+public:
+    MockMalloc(int size)
+    {
+        bytes_ = (char *)malloc(size);
+    }
+    virtual ~MockMalloc()
+    {
+    }
+
+public:
+    static void deleter(MockMalloc *p)
+    {
+        free((void *)p->bytes_);
+        p->bytes_ = NULL;
+    }
+};
+
+VOID TEST(CoreSmartPtr, UniquePtrDeleterMalloc)
+{
+    MockMalloc p(1024);
+    EXPECT_TRUE(p.bytes_ != NULL);
+
+    if (true) {
+        SrsUniquePtr<MockMalloc> ptr(&p, MockMalloc::deleter);
+    }
+    EXPECT_TRUE(p.bytes_ == NULL);
+}

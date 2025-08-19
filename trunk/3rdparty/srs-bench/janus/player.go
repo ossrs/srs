@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 Winlin
+// # Copyright (c) 2025 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -23,16 +23,17 @@ package janus
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
 	"github.com/pion/interceptor"
 	"github.com/pion/rtcp"
 	"github.com/pion/sdp/v3"
-	"github.com/pion/webrtc/v3"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
+	"github.com/pion/webrtc/v4"
 )
 
 func startPlay(ctx context.Context, r string, enableAudioLevel, enableTWCC bool, pli int) error {

@@ -76,7 +76,7 @@ arguments can be passed to the kernel. The third is for low-level use by the
 ForkExec wrapper. Unlike the first two, it does not call into the scheduler to
 let it know that a system call is running.
 
-When porting Go to an new architecture/OS, this file must be implemented for
+When porting Go to a new architecture/OS, this file must be implemented for
 each GOOS/GOARCH pair.
 
 ### mksysnum
@@ -107,7 +107,7 @@ prototype can be exported (capitalized) or not.
 Adding a new syscall often just requires adding a new `//sys` function prototype
 with the desired arguments and a capitalized name so it is exported. However, if
 you want the interface to the syscall to be different, often one will make an
-unexported `//sys` prototype, an then write a custom wrapper in
+unexported `//sys` prototype, and then write a custom wrapper in
 `syscall_${GOOS}.go`.
 
 ### types files
@@ -137,7 +137,7 @@ some `#if/#elif` macros in your include statements.
 
 This script is used to generate the system's various constants. This doesn't
 just include the error numbers and error strings, but also the signal numbers
-an a wide variety of miscellaneous constants. The constants come from the list
+and a wide variety of miscellaneous constants. The constants come from the list
 of include files in the `includes_${uname}` variable. A regex then picks out
 the desired `#define` statements, and generates the corresponding Go constants.
 The error numbers and strings are generated from `#include <errno.h>`, and the
@@ -149,14 +149,14 @@ To add a constant, add the header that includes it to the appropriate variable.
 Then, edit the regex (if necessary) to match the desired constant. Avoid making
 the regex too broad to avoid matching unintended constants.
 
-### mkmerge.go
+### internal/mkmerge
 
 This program is used to extract duplicate const, func, and type declarations
 from the generated architecture-specific files listed below, and merge these
 into a common file for each OS.
 
 The merge is performed in the following steps:
-1. Construct the set of common code that is idential in all architecture-specific files.
+1. Construct the set of common code that is identical in all architecture-specific files.
 2. Write this common code to the merged file.
 3. Remove the common code from all architecture-specific files.
 

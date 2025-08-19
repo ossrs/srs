@@ -4,7 +4,7 @@ name: "Release"
 on:
   push:
     tags:
-      - v6*
+      - v7*
 
 # For draft, need write permission.
 permissions:
@@ -25,6 +25,7 @@ jobs:
       #   SRS_VERSION=6.0.145
       #   SRS_VERSION=6.0-r8
       #   SRS_MAJOR=6
+      #   SRS_XYZ=6.0.145
       # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
       - name: Generate varaiables
         run: |
@@ -34,12 +35,19 @@ jobs:
           echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
           SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
           echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
+          VFILE="trunk/src/core/srs_core_version6.hpp"
+          SRS_X=$(cat $VFILE |grep VERSION_MAJOR |awk '{print $3}')
+          SRS_Y=$(cat $VFILE |grep VERSION_MINOR |awk '{print $3}')
+          SRS_Z=$(cat $VFILE |grep VERSION_REVISION |awk '{print $3}')
+          SRS_XYZ=$SRS_X.$SRS_Y.$SRS_Z
+          echo "SRS_XYZ=$SRS_XYZ" >> $GITHUB_ENV
     # Map a step output to a job output, see https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
     outputs:
       SRS_TAG: ${{ env.SRS_TAG }}
       SRS_VERSION: ${{ env.SRS_VERSION }}
       SRS_MAJOR: ${{ env.SRS_MAJOR }}
-    runs-on: ubuntu-20.04
+      SRS_XYZ: ${{ env.SRS_XYZ }}
+    runs-on: ubuntu-22.04
 
   test:
     name: test
@@ -67,9 +75,9 @@ jobs:
       - name: Run SRS regression-test
         run: |
           docker run --rm srs:test bash -c 'make && \
-            ./objs/srs -c conf/regression-test.conf && \
+            ./objs/srs -c conf/regression-test.conf && sleep 10 && \
             cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   draft:
     name: draft
@@ -89,7 +97,7 @@ jobs:
     # Map a step output to a job output, see https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
     outputs:
       SRS_RELEASE_ID: ${{ steps.create_draft.outputs.id }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   cygwin64:
     name: cygwin64
@@ -100,7 +108,7 @@ jobs:
       # See https://github.com/cygwin/cygwin-install-action#parameters
       # Note that https://github.com/egor-tensin/setup-cygwin fails to install packages.
       - name: Setup Cygwin
-        uses: cygwin/cygwin-install-action@db475590d56881c6cef7b3f96f6f3dd9532ea1f4 # master
+        uses: cygwin/cygwin-install-action@006ad0b0946ca6d0a3ea2d4437677fa767392401 # master
         with:
           platform: x86_64
           packages: bash make gcc-g++ cmake automake patch pkg-config tcl unzip
@@ -229,7 +237,7 @@ jobs:
       SRS_PACKAGE_MD5: ${{ env.SRS_PACKAGE_MD5 }}
       SRS_SOURCE_TAR: ${{ env.SRS_SOURCE_TAR }}
       SRS_SOURCE_MD5: ${{ env.SRS_SOURCE_MD5 }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   docker-srs:
     name: docker-srs
@@ -242,6 +250,7 @@ jobs:
           echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
           echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
           echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
+          echo "SRS_XYZ=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
@@ -267,7 +276,9 @@ jobs:
           echo "Release ossrs/srs:$SRS_TAG"
           docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
             --output "type=image,push=true" \
-            -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile .
+            -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER \
+            --build-arg CONFARGS='--sanitizer=off --gb28181=on' \
+            -f Dockerfile .
       # Docker alias images
       # TODO: FIXME: If stable, please set the latest from 5.0 to 6.0
       - name: Docker alias images for ossrs/srs
@@ -278,7 +289,9 @@ jobs:
             ossrs/srs:${{ env.SRS_VERSION }}
             ossrs/srs:${{ env.SRS_MAJOR }}
             ossrs/srs:v${{ env.SRS_MAJOR }}
-    runs-on: ubuntu-20.04
+            ossrs/srs:${{ env.SRS_XYZ }}
+            ossrs/srs:v${{ env.SRS_XYZ }}
+    runs-on: ubuntu-22.04
 
   aliyun-srs:
     name: aliyun-srs
@@ -293,6 +306,7 @@ jobs:
           echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
           echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
           echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
+          echo "SRS_XYZ=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 5.0 to 6.0
       - name: Login aliyun hub
@@ -310,7 +324,9 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_VERSION }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_MAJOR }}
-    runs-on: ubuntu-20.04
+            registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_XYZ }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_XYZ }}
+    runs-on: ubuntu-22.04
 
   update:
     name: update
@@ -375,7 +391,7 @@ jobs:
               docker rmi -f $image
               echo "Remove image $image, r0=$?"
             done
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   release:
     name: release
@@ -392,6 +408,7 @@ jobs:
           echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
           echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
           echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
+          echo "SRS_XYZ=${{ needs.envs.outputs.SRS_XYZ }}" >> $GITHUB_ENV
           echo "SRS_RELEASE_ID=${{ needs.draft.outputs.SRS_RELEASE_ID }}" >> $GITHUB_ENV
           echo "SRS_PACKAGE_ZIP=${{ needs.linux.outputs.SRS_PACKAGE_ZIP }}" >> $GITHUB_ENV
           echo "SRS_PACKAGE_MD5=${{ needs.linux.outputs.SRS_PACKAGE_MD5 }}" >> $GITHUB_ENV
@@ -405,7 +422,7 @@ jobs:
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       # Create release.
       # TODO: FIXME: Refine the release when 6.0 released
-      # TODO: FIXME: Change prerelease to false when 6.0 released
+      # TODO: FIXME: Change prerelease to false and makeLatest to true when 6.0 released
       - name: Update release
         id: update_release
         uses: ncipollo/release-action@a2e71bdd4e7dab70ca26a852f29600c98b33153e # v1.12.0
@@ -432,28 +449,31 @@ jobs:
             * Binary: ${{ env.SRS_CYGWIN_MD5 }} [${{ env.SRS_CYGWIN_TAR }}](https://gitee.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_CYGWIN_TAR }})
             
             ## Docker
-            * [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
-            * [docker pull ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
+            * [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.io/lts/en-us/docs/v7/doc/getting-started)
+            * [docker pull ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.io/lts/en-us/docs/v7/doc/getting-started)
+            * [docker pull ossrs/srs:${{ env.SRS_XYZ }}](https://ossrs.io/lts/en-us/docs/v7/doc/getting-started)
             
             ## Docker Mirror: aliyun.com
-            * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started)
-            * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started)
+            * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.net/lts/zh-cn/docs/v7/doc/getting-started)
+            * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}](https://ossrs.net/lts/zh-cn/docs/v7/doc/getting-started)
+            * [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_XYZ }}](https://ossrs.net/lts/zh-cn/docs/v7/doc/getting-started)
             
             ## Doc: ossrs.io
-            * [Getting Started](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
-            * [Wiki home](https://ossrs.io/lts/en-us/docs/v5/doc/introduction)
+            * [Getting Started](https://ossrs.io/lts/en-us/docs/v7/doc/getting-started)
+            * [Wiki home](https://ossrs.io/lts/en-us/docs/v7/doc/introduction)
             * [FAQ](https://ossrs.io/lts/en-us/faq), [Features](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) or [ChangeLogs](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
             
             ## Doc: ossrs.net
-            * [快速入门](https://ossrs.net/lts/zh-cn/docs/v5/doc/getting-started)
-            * [中文Wiki首页](https://ossrs.net/lts/zh-cn/docs/v5/doc/introduction)
+            * [快速入门](https://ossrs.net/lts/zh-cn/docs/v7/doc/getting-started)
+            * [中文Wiki首页](https://ossrs.net/lts/zh-cn/docs/v7/doc/introduction)
             * [中文FAQ](https://ossrs.net/lts/zh-cn/faq), [功能列表](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) 或 [修订历史](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false
           prerelease: true
-    runs-on: ubuntu-20.04
+          makeLatest: false
+    runs-on: ubuntu-22.04
 
   release-done:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs:
       - update
       - release

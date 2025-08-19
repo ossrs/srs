@@ -1,3 +1,4 @@
+//go:build !wasm
 // +build !wasm
 
 package vnet
@@ -15,9 +16,13 @@ import (
 )
 
 // The vnet client:
-//		10.0.0.11:5787
+//
+//	10.0.0.11:5787
+//
 // which proxy to real server:
-//		192.168.1.10:8000
+//
+//	192.168.1.10:8000
+//
 // We should get a reply if directly deliver to proxy.
 func TestUDPProxyDirectDeliverTypical(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())

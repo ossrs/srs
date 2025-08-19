@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -14,7 +17,9 @@ type RapidResynchronizationRequest struct {
 	MediaSSRC uint32
 }
 
-var _ Packet = (*RapidResynchronizationRequest)(nil) // assert is a Packet
+// RapidResynchronisationRequest is provided as RFC 6051 spells resynchronization with an s.
+// We provide both names to be consistent with other RFCs which spell resynchronization with a z.
+type RapidResynchronisationRequest = RapidResynchronizationRequest
 
 const (
 	rrrLength       = 2
@@ -30,7 +35,7 @@ func (p RapidResynchronizationRequest) Marshal() ([]byte, error) {
 	 *
 	 * The semantics of this FB message is independent of the payload type.
 	 */
-	rawPacket := make([]byte, p.len())
+	rawPacket := make([]byte, p.MarshalSize())
 	packetBody := rawPacket[headerLength:]
 
 	binary.BigEndian.PutUint32(packetBody, p.SenderSSRC)
@@ -65,7 +70,8 @@ func (p *RapidResynchronizationRequest) Unmarshal(rawPacket []byte) error {
 	return nil
 }
 
-func (p *RapidResynchronizationRequest) len() int {
+// MarshalSize returns the size of the packet once marshaled
+func (p *RapidResynchronizationRequest) MarshalSize() int {
 	return headerLength + rrrHeaderLength
 }
 

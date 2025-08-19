@@ -1,8 +1,10 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sdp
 
 import (
 	"strconv"
-	"strings"
 )
 
 // TimeDescription describes "t=", "r=" fields of the session description
@@ -26,9 +28,17 @@ type Timing struct {
 }
 
 func (t Timing) String() string {
-	output := strconv.FormatUint(t.StartTime, 10)
-	output += " " + strconv.FormatUint(t.StopTime, 10)
-	return output
+	return stringFromMarshal(t.marshalInto, t.marshalSize)
+}
+
+func (t Timing) marshalInto(b []byte) []byte {
+	b = append(strconv.AppendUint(b, t.StartTime, 10), ' ')
+
+	return strconv.AppendUint(b, t.StopTime, 10)
+}
+
+func (t Timing) marshalSize() (size int) {
+	return lenUint(t.StartTime) + 1 + lenUint(t.StopTime)
 }
 
 // RepeatTime describes the "r=" fields of the session description which
@@ -40,12 +50,27 @@ type RepeatTime struct {
 }
 
 func (r RepeatTime) String() string {
-	fields := make([]string, 0)
-	fields = append(fields, strconv.FormatInt(r.Interval, 10))
-	fields = append(fields, strconv.FormatInt(r.Duration, 10))
+	return stringFromMarshal(r.marshalInto, r.marshalSize)
+}
+
+func (r RepeatTime) marshalInto(b []byte) []byte {
+	b = strconv.AppendInt(b, r.Interval, 10)
+	b = append(b, ' ')
+	b = strconv.AppendInt(b, r.Duration, 10)
 	for _, value := range r.Offsets {
-		fields = append(fields, strconv.FormatInt(value, 10))
+		b = append(b, ' ')
+		b = strconv.AppendInt(b, value, 10)
 	}
 
-	return strings.Join(fields, " ")
+	return b
+}
+
+func (r RepeatTime) marshalSize() (size int) {
+	size = lenInt(r.Interval)
+	size += 1 + lenInt(r.Duration)
+	for _, o := range r.Offsets {
+		size += 1 + lenInt(o)
+	}
+
+	return
 }

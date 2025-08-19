@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_PROTOCOL_RTMP_CONN_HPP
@@ -34,13 +34,16 @@ private:
     std::string url;
     srs_utime_t connect_timeout;
     srs_utime_t stream_timeout;
+
 protected:
-    SrsRequest* req;
+    SrsRequest *req;
+
 private:
-    SrsTcpClient* transport;
-    SrsRtmpClient* client;
-    SrsNetworkKbps* kbps;
+    SrsTcpClient *transport;
+    SrsRtmpClient *client;
+    SrsNetworkKbps *kbps;
     int stream_id;
+
 public:
     // Constructor.
     // @param r The RTMP url, for example, rtmp://ip:port/app/stream?domain=vhost
@@ -48,31 +51,36 @@ public:
     // @param stm The timeout in srs_utime_t to delivery A/V stream.
     SrsBasicRtmpClient(std::string r, srs_utime_t ctm, srs_utime_t stm);
     virtual ~SrsBasicRtmpClient();
+
 public:
     // Get extra args to carry more information.
-    SrsAmf0Object* extra_args();
+    SrsAmf0Object *extra_args();
+
 public:
     // Connect, handshake and connect app to RTMP server.
     // @remark We always close the transport.
     virtual srs_error_t connect();
     virtual void close();
+
 protected:
     virtual srs_error_t connect_app();
     virtual srs_error_t do_connect_app(std::string local_ip, bool debug);
+
 public:
-    virtual srs_error_t publish(int chunk_size, bool with_vhost = true, std::string* pstream = NULL);
-    virtual srs_error_t play(int chunk_size, bool with_vhost = true, std::string* pstream = NULL);
-    virtual void kbps_sample(const char* label, srs_utime_t age);
-    virtual void kbps_sample(const char* label, srs_utime_t age, int msgs);
+    virtual srs_error_t publish(int chunk_size, bool with_vhost = true, std::string *pstream = NULL);
+    virtual srs_error_t play(int chunk_size, bool with_vhost = true, std::string *pstream = NULL);
+    virtual void kbps_sample(const char *label, srs_utime_t age);
+    virtual void kbps_sample(const char *label, srs_utime_t age, int msgs);
     virtual int sid();
+
 public:
-    virtual srs_error_t recv_message(SrsCommonMessage** pmsg);
-    virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
-    virtual srs_error_t send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
-    virtual srs_error_t send_and_free_message(SrsSharedPtrMessage* msg);
+    virtual srs_error_t recv_message(SrsCommonMessage **pmsg);
+    virtual srs_error_t decode_message(SrsCommonMessage *msg, SrsPacket **ppacket);
+    virtual srs_error_t send_and_free_messages(SrsSharedPtrMessage **msgs, int nb_msgs);
+    virtual srs_error_t send_and_free_message(SrsSharedPtrMessage *msg);
+
 public:
     virtual void set_recv_timeout(srs_utime_t timeout);
 };
 
 #endif
-

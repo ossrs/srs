@@ -1,24 +1,62 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
+	"errors"
+	"fmt"
 	"io"
-	"math"
+	"os"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/pion/logging"
-	"github.com/pkg/errors"
+	"github.com/pion/transport/v3/deadline"
 )
 
 const (
-	// ReliabilityTypeReliable is used for reliable transmission
+	// ReliabilityTypeReliable is used for reliable transmission.
 	ReliabilityTypeReliable byte = 0
-	// ReliabilityTypeRexmit is used for partial reliability by retransmission count
+	// ReliabilityTypeRexmit is used for partial reliability by retransmission count.
 	ReliabilityTypeRexmit byte = 1
-	// ReliabilityTypeTimed is used for partial reliability by retransmission duration
+	// ReliabilityTypeTimed is used for partial reliability by retransmission duration.
 	ReliabilityTypeTimed byte = 2
 )
 
-// Stream represents an SCTP stream
+// StreamState is an enum for SCTP Stream state field
+// This field identifies the state of stream.
+type StreamState int
+
+// StreamState enums.
+const (
+	StreamStateOpen    StreamState = iota // Stream object starts with StreamStateOpen
+	StreamStateClosing                    // Outgoing stream is being reset
+	StreamStateClosed                     // Stream has been closed
+)
+
+func (ss StreamState) String() string {
+	switch ss {
+	case StreamStateOpen:
+		return "open"
+	case StreamStateClosing:
+		return "closing"
+	case StreamStateClosed:
+		return "closed"
+	}
+
+	return "unknown"
+}
+
+// SCTP stream errors.
+var (
+	ErrOutboundPacketTooLarge = errors.New("outbound packet larger than maximum message size")
+	ErrStreamClosed           = errors.New("stream closed")
+	ErrReadDeadlineExceeded   = fmt.Errorf("read deadline exceeded: %w", os.ErrDeadlineExceeded)
+)
+
+// Stream represents an SCTP stream.
 type Stream struct {
 	association         *Association
 	lock                sync.RWMutex
@@ -28,13 +66,16 @@ type Stream struct {
 	sequenceNumber      uint16
 	readNotifier        *sync.Cond
 	readErr             error
-	writeErr            error
+	readTimeoutCancel   chan struct{}
+	writeDeadline       *deadline.Deadline
+	writeLock           sync.Mutex
 	unordered           bool
 	reliabilityType     byte
 	reliabilityValue    uint32
 	bufferedAmount      uint64
 	bufferedAmountLow   uint64
 	onBufferedAmountLow func()
+	state               StreamState
 	log                 logging.LeveledLogger
 	name                string
 }
@@ -43,20 +84,13 @@ type Stream struct {
 func (s *Stream) StreamIdentifier() uint16 {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
+
 	return s.streamIdentifier
 }
 
 // SetDefaultPayloadType sets the default payload type used by Write.
 func (s *Stream) SetDefaultPayloadType(defaultPayloadType PayloadProtocolIdentifier) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.setDefaultPayloadType(defaultPayloadType)
-}
-
-// setDefaultPayloadType sets the defaultPayloadType. The caller should hold the lock.
-func (s *Stream) setDefaultPayloadType(defaultPayloadType PayloadProtocolIdentifier) {
-	s.defaultPayloadType = defaultPayloadType
+	atomic.StoreUint32((*uint32)(&s.defaultPayloadType), uint32(defaultPayloadType))
 }
 
 // SetReliabilityParams sets reliability parameters for this stream.
@@ -82,32 +116,86 @@ func (s *Stream) setReliabilityParams(unordered bool, relType byte, relVal uint3
 // otherwise.
 func (s *Stream) Read(p []byte) (int, error) {
 	n, _, err := s.ReadSCTP(p)
+
 	return n, err
 }
 
-// ReadSCTP reads a packet of len(p) bytes and returns the associated Payload
+// ReadSCTP reads a packet of len(payload) bytes and returns the associated Payload
 // Protocol Identifier.
 // Returns EOF when the stream is reset or an error if the stream is closed
 // otherwise.
-func (s *Stream) ReadSCTP(p []byte) (int, PayloadProtocolIdentifier, error) {
+func (s *Stream) ReadSCTP(payload []byte) (int, PayloadProtocolIdentifier, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	defer func() {
+		// close readTimeoutCancel if the current read timeout routine is no longer effective
+		if s.readTimeoutCancel != nil && s.readErr != nil {
+			close(s.readTimeoutCancel)
+			s.readTimeoutCancel = nil
+		}
+	}()
+
 	for {
-		n, ppi, err := s.reassemblyQueue.read(p)
-		if err == nil {
-			return n, ppi, nil
-		} else if errors.Is(err, io.ErrShortBuffer) {
-			return 0, PayloadProtocolIdentifier(0), err
+		n, ppi, err := s.reassemblyQueue.read(payload)
+		if err == nil || errors.Is(err, io.ErrShortBuffer) {
+			return n, ppi, err
 		}
 
-		err = s.readErr
-		if err != nil {
-			return 0, PayloadProtocolIdentifier(0), err
+		if s.readErr != nil {
+			return 0, PayloadProtocolIdentifier(0), s.readErr
 		}
 
 		s.readNotifier.Wait()
 	}
+}
+
+// SetReadDeadline sets the read deadline in an identical way to net.Conn.
+func (s *Stream) SetReadDeadline(deadline time.Time) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if s.readTimeoutCancel != nil {
+		close(s.readTimeoutCancel)
+		s.readTimeoutCancel = nil
+	}
+
+	if s.readErr != nil {
+		if !errors.Is(s.readErr, ErrReadDeadlineExceeded) {
+			return nil
+		}
+		s.readErr = nil
+	}
+
+	if !deadline.IsZero() {
+		s.readTimeoutCancel = make(chan struct{})
+
+		go func(readTimeoutCancel chan struct{}) {
+			t := time.NewTimer(time.Until(deadline))
+			select {
+			case <-readTimeoutCancel:
+				t.Stop()
+
+				return
+			case <-t.C:
+				select {
+				case <-readTimeoutCancel:
+					return
+				default:
+				}
+				s.lock.Lock()
+				if s.readErr == nil {
+					s.readErr = ErrReadDeadlineExceeded
+				}
+				s.readTimeoutCancel = nil
+				s.lock.Unlock()
+
+				s.readNotifier.Signal()
+			}
+		}(s.readTimeoutCancel)
+	}
+
+	return nil
 }
 
 func (s *Stream) handleData(pd *chunkPayloadData) {
@@ -172,36 +260,72 @@ func (s *Stream) handleForwardTSNForUnordered(newCumulativeTSN uint32) {
 	}
 }
 
-// Write writes len(p) bytes from p with the default Payload Protocol Identifier
-func (s *Stream) Write(p []byte) (n int, err error) {
-	return s.WriteSCTP(p, s.defaultPayloadType)
+// Write writes len(payload) bytes from payload with the default Payload Protocol Identifier.
+func (s *Stream) Write(payload []byte) (n int, err error) {
+	ppi := PayloadProtocolIdentifier(atomic.LoadUint32((*uint32)(&s.defaultPayloadType)))
+
+	return s.WriteSCTP(payload, ppi)
 }
 
-// WriteSCTP writes len(p) bytes from p to the DTLS connection
-func (s *Stream) WriteSCTP(p []byte, ppi PayloadProtocolIdentifier) (n int, err error) {
+// WriteSCTP writes len(payload) bytes from payload to the DTLS connection.
+func (s *Stream) WriteSCTP(payload []byte, ppi PayloadProtocolIdentifier) (int, error) {
 	maxMessageSize := s.association.MaxMessageSize()
-	if len(p) > int(maxMessageSize) {
-		return 0, errors.Errorf("Outbound packet larger than maximum message size %v", math.MaxUint16)
+	if len(payload) > int(maxMessageSize) {
+		return 0, fmt.Errorf("%w: %v", ErrOutboundPacketTooLarge, maxMessageSize)
 	}
 
-	s.lock.RLock()
-	err = s.writeErr
-	s.lock.RUnlock()
+	if s.State() != StreamStateOpen {
+		return 0, ErrStreamClosed
+	}
+
+	// the send could fail if the association is blocked for writing (timeout), it will left a hole
+	// in the stream sequence number space, so we need to lock the write to avoid concurrent send and decrement
+	// the sequence number in case of failure
+	if s.association.isBlockWrite() {
+		s.writeLock.Lock()
+	}
+	chunks, unordered := s.packetize(payload, ppi)
+	n := len(payload)
+	err := s.association.sendPayloadData(s.writeDeadline, chunks)
 	if err != nil {
-		return 0, err
+		s.lock.Lock()
+		s.bufferedAmount -= uint64(n)
+		if !unordered {
+			s.sequenceNumber--
+		}
+		s.lock.Unlock()
+		n = 0
+	}
+	if s.association.isBlockWrite() {
+		s.writeLock.Unlock()
 	}
 
-	chunks := s.packetize(p, ppi)
-
-	return len(p), s.association.sendPayloadData(chunks)
+	return n, err
 }
 
-func (s *Stream) packetize(raw []byte, ppi PayloadProtocolIdentifier) []*chunkPayloadData {
+// SetWriteDeadline sets the write deadline in an identical way to net.Conn,
+// it will only work for blocking writes.
+func (s *Stream) SetWriteDeadline(deadline time.Time) error {
+	s.writeDeadline.Set(deadline)
+
+	return nil
+}
+
+// SetDeadline sets the read and write deadlines in an identical way to net.Conn.
+func (s *Stream) SetDeadline(t time.Time) error {
+	if err := s.SetReadDeadline(t); err != nil {
+		return err
+	}
+
+	return s.SetWriteDeadline(t)
+}
+
+func (s *Stream) packetize(raw []byte, ppi PayloadProtocolIdentifier) ([]*chunkPayloadData, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	i := uint32(0)
-	remaining := uint32(len(raw))
+	offset := uint32(0)
+	remaining := uint32(len(raw)) //nolint:gosec // G115
 
 	// From draft-ietf-rtcweb-data-protocol-09, section 6:
 	//   All Data Channel Establishment Protocol messages MUST be sent using
@@ -216,13 +340,13 @@ func (s *Stream) packetize(raw []byte, ppi PayloadProtocolIdentifier) []*chunkPa
 		// Copy the userdata since we'll have to store it until acked
 		// and the caller may re-use the buffer in the mean time
 		userData := make([]byte, fragmentSize)
-		copy(userData, raw[i:i+fragmentSize])
+		copy(userData, raw[offset:offset+fragmentSize])
 
 		chunk := &chunkPayloadData{
 			streamIdentifier:     s.streamIdentifier,
 			userData:             userData,
 			unordered:            unordered,
-			beginningFragment:    i == 0,
+			beginningFragment:    offset == 0,
 			endingFragment:       remaining-fragmentSize == 0,
 			immediateSack:        false,
 			payloadType:          ppi,
@@ -237,7 +361,7 @@ func (s *Stream) packetize(raw []byte, ppi PayloadProtocolIdentifier) []*chunkPa
 		chunks = append(chunks, chunk)
 
 		remaining -= fragmentSize
-		i += fragmentSize
+		offset += fragmentSize
 	}
 
 	// RFC 4960 Sec 6.6
@@ -251,32 +375,31 @@ func (s *Stream) packetize(raw []byte, ppi PayloadProtocolIdentifier) []*chunkPa
 	s.bufferedAmount += uint64(len(raw))
 	s.log.Tracef("[%s] bufferedAmount = %d", s.name, s.bufferedAmount)
 
-	return chunks
+	return chunks, unordered
 }
 
 // Close closes the write-direction of the stream.
 // Future calls to Write are not permitted after calling Close.
 func (s *Stream) Close() error {
-	if sid, isOpen := func() (uint16, bool) {
+	if sid, resetOutbound := func() (uint16, bool) {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 
-		isOpen := true
-		if s.writeErr == nil {
-			s.writeErr = errors.New("Stream closed")
-		} else {
-			isOpen = false
+		s.log.Debugf("[%s] Close: state=%s", s.name, s.state.String())
+
+		if s.state == StreamStateOpen {
+			if s.readErr == nil {
+				s.state = StreamStateClosing
+			} else {
+				s.state = StreamStateClosed
+			}
+			s.log.Debugf("[%s] state change: open => %s", s.name, s.state.String())
+
+			return s.streamIdentifier, true
 		}
 
-		if s.readErr == nil {
-			s.readErr = io.EOF
-		} else {
-			isOpen = false
-		}
-		s.readNotifier.Broadcast() // broadcast regardless
-
-		return s.streamIdentifier, isOpen
-	}(); isOpen {
+		return s.streamIdentifier, false
+	}(); resetOutbound {
 		// Reset the outgoing stream
 		// https://tools.ietf.org/html/rfc6525
 		return s.association.sendResetRequest(sid)
@@ -345,6 +468,7 @@ func (s *Stream) onBufferReleased(nBytesReleased int) {
 		f := s.onBufferedAmountLow
 		s.lock.Unlock()
 		f()
+
 		return
 	}
 
@@ -354,4 +478,37 @@ func (s *Stream) onBufferReleased(nBytesReleased int) {
 func (s *Stream) getNumBytesInReassemblyQueue() int {
 	// No lock is required as it reads the size with atomic load function.
 	return s.reassemblyQueue.getNumBytes()
+}
+
+func (s *Stream) onInboundStreamReset() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.log.Debugf("[%s] onInboundStreamReset: state=%s", s.name, s.state.String())
+
+	// No more inbound data to read. Unblock the read with io.EOF.
+	// This should cause DCEP layer (datachannel package) to call Close() which
+	// will reset outgoing stream also.
+
+	// See RFC 8831 section 6.7:
+	//	if one side decides to close the data channel, it resets the corresponding
+	//	outgoing stream.  When the peer sees that an incoming stream was
+	//	reset, it also resets its corresponding outgoing stream.  Once this
+	//	is completed, the data channel is closed.
+
+	s.readErr = io.EOF
+	s.readNotifier.Broadcast()
+
+	if s.state == StreamStateClosing {
+		s.log.Debugf("[%s] state change: closing => closed", s.name)
+		s.state = StreamStateClosed
+	}
+}
+
+// State return the stream state.
+func (s *Stream) State() StreamState {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.state
 }

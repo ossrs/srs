@@ -1,17 +1,18 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 #include <srs_utest_mp4.hpp>
 
 #include <sstream>
 using namespace std;
 
-#include <srs_utest_kernel.hpp>
+#include <srs_app_hls.hpp>
+#include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_mp4.hpp>
-#include <srs_core_autofree.hpp>
+#include <srs_utest_kernel.hpp>
 
 VOID TEST(KernelMp4Test, PrintPadding)
 {
@@ -28,17 +29,20 @@ VOID TEST(KernelMp4Test, PrintPadding)
     EXPECT_STREQ("        ", ss.str().c_str());
 }
 
-struct MockBox
-{
+struct MockBox {
 public:
-    MockBox() {
+    MockBox()
+    {
     }
-    virtual ~MockBox() {
+    virtual ~MockBox()
+    {
     }
-    virtual void dumps(stringstream&ss, SrsMp4DumpContext /*dc*/) {
+    virtual void dumps(stringstream &ss, SrsMp4DumpContext /*dc*/)
+    {
         ss << "mock";
     }
-    virtual void dumps_detail(stringstream&ss, SrsMp4DumpContext /*dc*/) {
+    virtual void dumps_detail(stringstream &ss, SrsMp4DumpContext /*dc*/)
+    {
         ss << "mock-detail";
     }
 };
@@ -46,8 +50,8 @@ public:
 VOID TEST(KernelMp4Test, DumpsArray)
 {
     if (true) {
-        char* p = (char*)"srs";
-        vector<char> arr(p, p+3);
+        char *p = (char *)"srs";
+        vector<char> arr(p, p + 3);
 
         stringstream ss;
         SrsMp4DumpContext dc;
@@ -107,7 +111,7 @@ VOID TEST(KernelMp4Test, DumpsArray)
     }
 
     if (true) {
-        MockBox* arr[1] = {new MockBox()};
+        MockBox *arr[1] = {new MockBox()};
 
         stringstream ss;
         SrsMp4DumpContext dc;
@@ -118,7 +122,7 @@ VOID TEST(KernelMp4Test, DumpsArray)
     }
 
     if (true) {
-        MockBox* arr[1] = {new MockBox()};
+        MockBox *arr[1] = {new MockBox()};
 
         stringstream ss;
         SrsMp4DumpContext dc;
@@ -156,7 +160,7 @@ VOID TEST(KernelMp4Test, PrintBytes)
 
         stringstream ss;
         SrsMp4DumpContext dc;
-        srs_mp4_print_bytes(ss, (const char*)arr, 1, dc, 4, 8);
+        srs_mp4_print_bytes(ss, (const char *)arr, 1, dc, 4, 8);
 
         EXPECT_STREQ("0xec", ss.str().c_str());
     }
@@ -166,7 +170,7 @@ VOID TEST(KernelMp4Test, PrintBytes)
 
         stringstream ss;
         SrsMp4DumpContext dc;
-        srs_mp4_print_bytes(ss, (const char*)arr, 1, dc, 4, 8);
+        srs_mp4_print_bytes(ss, (const char *)arr, 1, dc, 4, 8);
 
         EXPECT_STREQ("0x0c", ss.str().c_str());
     }
@@ -176,7 +180,7 @@ VOID TEST(KernelMp4Test, PrintBytes)
 
         stringstream ss;
         SrsMp4DumpContext dc;
-        srs_mp4_print_bytes(ss, (const char*)arr, 5, dc, 4, 8);
+        srs_mp4_print_bytes(ss, (const char *)arr, 5, dc, 4, 8);
 
         EXPECT_STREQ("0xec, 0xb1, 0xa3, 0xe1,\n0xab", ss.str().c_str());
     }
@@ -184,10 +188,10 @@ VOID TEST(KernelMp4Test, PrintBytes)
 
 VOID TEST(KernelMp4Test, ChildBoxes)
 {
-    SrsMp4Box* box = new SrsMp4Box();
+    SrsMp4Box *box = new SrsMp4Box();
     EXPECT_TRUE(box->get(SrsMp4BoxTypeFTYP) == NULL);
 
-    SrsMp4Box* ftyp = new SrsMp4FileTypeBox();
+    SrsMp4Box *ftyp = new SrsMp4FileTypeBox();
     box->append(ftyp);
     EXPECT_TRUE(box->get(SrsMp4BoxTypeFTYP) == ftyp);
 
@@ -200,7 +204,7 @@ VOID TEST(KernelMp4Test, ChildBoxes)
 VOID TEST(KernelMp4Test, DiscoveryBox)
 {
     srs_error_t err;
-    SrsMp4Box* pbox;
+    SrsMp4Box *pbox;
 
     if (true) {
         SrsBuffer b(NULL, 0);
@@ -208,21 +212,23 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
     }
 
     if (true) {
-        uint8_t data[] = {0,0,0,1, 0,0,0,0};
-        SrsBuffer b((char*)data, sizeof(data));
+        uint8_t data[] = {0, 0, 0, 1, 0, 0, 0, 0};
+        SrsBuffer b((char *)data, sizeof(data));
         HELPER_ASSERT_FAILED(SrsMp4Box::discovery(&b, &pbox));
     }
 
     if (true) {
-        uint8_t data[] = {0,0,0,1, 0,0,0,1,0,0,0,0};
-        SrsBuffer b((char*)data, sizeof(data));
+        uint8_t data[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0};
+        SrsBuffer b((char *)data, sizeof(data));
         HELPER_ASSERT_FAILED(SrsMp4Box::discovery(&b, &pbox));
     }
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeEDTS); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeEDTS);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeEDTS, pbox->type);
         srs_freep(pbox);
@@ -230,8 +236,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeELST); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeELST);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeELST, pbox->type);
         srs_freep(pbox);
@@ -239,8 +247,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeURN); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeURN);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeURN, pbox->type);
         srs_freep(pbox);
@@ -248,8 +258,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeCTTS); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeCTTS);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeCTTS, pbox->type);
         srs_freep(pbox);
@@ -257,8 +269,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeCO64); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeCO64);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeCO64, pbox->type);
         srs_freep(pbox);
@@ -266,8 +280,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeUDTA); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeUDTA);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeUDTA, pbox->type);
         srs_freep(pbox);
@@ -275,8 +291,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeMVEX); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeMVEX);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeMVEX, pbox->type);
         srs_freep(pbox);
@@ -284,8 +302,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeTREX); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeTREX);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeTREX, pbox->type);
         srs_freep(pbox);
@@ -293,8 +313,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeSTYP); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeSTYP);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeSTYP, pbox->type);
         srs_freep(pbox);
@@ -302,8 +324,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeMOOF); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeMOOF);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeMOOF, pbox->type);
         srs_freep(pbox);
@@ -311,8 +335,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeMFHD); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeMFHD);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeMFHD, pbox->type);
         srs_freep(pbox);
@@ -320,8 +346,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeTRAF); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeTRAF);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeTRAF, pbox->type);
         srs_freep(pbox);
@@ -329,8 +357,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeTFHD); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeTFHD);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeTFHD, pbox->type);
         srs_freep(pbox);
@@ -338,8 +368,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeTFDT); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeTFDT);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeTFDT, pbox->type);
         srs_freep(pbox);
@@ -347,8 +379,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeTRUN); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeTRUN);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeTRUN, pbox->type);
         srs_freep(pbox);
@@ -356,8 +390,10 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeSIDX); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeSIDX);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeSIDX, pbox->type);
         srs_freep(pbox);
@@ -367,36 +403,45 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
 VOID TEST(KernelMp4Test, UUIDBoxDecode)
 {
     srs_error_t err;
-    SrsMp4Box* pbox;
+    SrsMp4Box *pbox;
 
     if (true) {
         uint8_t data[24];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeUUID);
+        b.skip(-8);
         SrsMp4Box box;
         HELPER_EXPECT_SUCCESS(box.decode(&b));
     }
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeUUID);
+        b.skip(-8);
         SrsMp4Box box;
         HELPER_ASSERT_FAILED(box.decode(&b));
     }
 
     if (true) {
         uint8_t data[16];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(1); b.write_8bytes(0x80000000LL); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-16);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(1);
+        b.write_8bytes(0x80000000LL);
+        b.write_4bytes(SrsMp4BoxTypeUUID);
+        b.skip(-16);
         SrsMp4Box box;
         HELPER_ASSERT_FAILED(box.decode(&b));
     }
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(1); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(1);
+        b.write_4bytes(SrsMp4BoxTypeUUID);
+        b.skip(-8);
         SrsMp4Box box;
         HELPER_ASSERT_FAILED(box.decode(&b));
     }
@@ -409,8 +454,10 @@ VOID TEST(KernelMp4Test, UUIDBoxDecode)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(0); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(0);
+        b.write_4bytes(SrsMp4BoxTypeUUID);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeUUID, pbox->type);
         HELPER_EXPECT_SUCCESS(pbox->decode(&b));
@@ -419,8 +466,10 @@ VOID TEST(KernelMp4Test, UUIDBoxDecode)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(8);
+        b.write_4bytes(SrsMp4BoxTypeUUID);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeUUID, pbox->type);
         srs_freep(pbox);
@@ -428,8 +477,10 @@ VOID TEST(KernelMp4Test, UUIDBoxDecode)
 
     if (true) {
         uint8_t data[8];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(0); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(0);
+        b.write_4bytes(SrsMp4BoxTypeUUID);
+        b.skip(-8);
         HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
         ASSERT_EQ(SrsMp4BoxTypeUUID, pbox->type);
         srs_freep(pbox);
@@ -469,8 +520,12 @@ VOID TEST(KernelMp4Test, FullBoxDump)
 
     if (true) {
         uint8_t data[12];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(12); b.write_4bytes(SrsMp4BoxTypeMFHD); b.write_1bytes(1); b.write_3bytes(2); b.skip(-12);
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(12);
+        b.write_4bytes(SrsMp4BoxTypeMFHD);
+        b.write_1bytes(1);
+        b.write_3bytes(2);
+        b.skip(-12);
 
         SrsMp4FullBox box;
         HELPER_ASSERT_SUCCESS(box.decode(&b));
@@ -535,15 +590,34 @@ VOID TEST(KernelMp4Test, FullBoxDump)
     }
 }
 
+VOID TEST(KernelMp4Test, MOOFBox)
+{
+    if (true) {
+        SrsMp4MovieFragmentBox box;
+
+        SrsMp4MovieFragmentHeaderBox *mfhd = new SrsMp4MovieFragmentHeaderBox();
+        box.set_mfhd(mfhd);
+        EXPECT_EQ(box.mfhd(), mfhd);
+
+        SrsMp4TrackFragmentBox *traf = new SrsMp4TrackFragmentBox();
+        box.add_traf(traf);
+        EXPECT_TRUE(traf == box.get(SrsMp4BoxTypeTRAF));
+    }
+}
+
 VOID TEST(KernelMp4Test, MFHDBox)
 {
     srs_error_t err;
 
     if (true) {
-        uint8_t data[12+4];
-        SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(16); b.write_4bytes(SrsMp4BoxTypeMFHD); b.write_1bytes(0); b.write_3bytes(0);
-        b.write_4bytes(3); b.skip(-16);
+        uint8_t data[12 + 4];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeMFHD);
+        b.write_1bytes(0);
+        b.write_3bytes(0);
+        b.write_4bytes(3);
+        b.skip(-16);
 
         SrsMp4MovieFragmentHeaderBox box;
         HELPER_ASSERT_SUCCESS(box.decode(&b));
@@ -573,7 +647,7 @@ VOID TEST(KernelMp4Test, TFHDBox)
     srs_error_t err;
 
     if (true) {
-        char buf[12+4];
+        char buf[12 + 4];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -599,16 +673,13 @@ VOID TEST(KernelMp4Test, TFHDBox)
     }
 
     if (true) {
-        char buf[12+28];
+        char buf[12 + 28];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
             SrsMp4TrackFragmentHeaderBox box;
             box.track_id = 100;
-            box.flags = SrsMp4TfhdFlagsBaseDataOffset | SrsMp4TfhdFlagsSampleDescriptionIndex
-                | SrsMp4TfhdFlagsDefaultSampleDuration | SrsMp4TfhdFlagsDefautlSampleSize
-                | SrsMp4TfhdFlagsDefaultSampleFlags | SrsMp4TfhdFlagsDurationIsEmpty
-                | SrsMp4TfhdFlagsDefaultBaseIsMoof;
+            box.flags = SrsMp4TfhdFlagsBaseDataOffset | SrsMp4TfhdFlagsSampleDescriptionIndex | SrsMp4TfhdFlagsDefaultSampleDuration | SrsMp4TfhdFlagsDefautlSampleSize | SrsMp4TfhdFlagsDefaultSampleFlags | SrsMp4TfhdFlagsDurationIsEmpty | SrsMp4TfhdFlagsDefaultBaseIsMoof;
             box.base_data_offset = 10;
             box.sample_description_index = 11;
             box.default_sample_duration = 12;
@@ -644,7 +715,7 @@ VOID TEST(KernelMp4Test, TFDTBox)
     srs_error_t err;
 
     if (true) {
-        char buf[12+4];
+        char buf[12 + 4];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -670,7 +741,7 @@ VOID TEST(KernelMp4Test, TFDTBox)
     }
 
     if (true) {
-        char buf[12+8];
+        char buf[12 + 8];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -702,7 +773,7 @@ VOID TEST(KernelMp4Test, TRUNBox)
     srs_error_t err;
 
     if (true) {
-        char buf[12+4];
+        char buf[12 + 4];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -726,14 +797,14 @@ VOID TEST(KernelMp4Test, TRUNBox)
     }
 
     if (true) {
-        char buf[12+8];
+        char buf[12 + 8];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
             SrsMp4TrackFragmentRunBox box;
             box.flags = SrsMp4TrunFlagsSampleDuration;
 
-            SrsMp4TrunEntry* entry = new SrsMp4TrunEntry(&box);
+            SrsMp4TrunEntry *entry = new SrsMp4TrunEntry(&box);
             entry->sample_duration = 1000;
             box.entries.push_back(entry);
 
@@ -754,8 +825,8 @@ VOID TEST(KernelMp4Test, TRUNBox)
             HELPER_EXPECT_SUCCESS(box.decode(&b));
             ASSERT_EQ(1, (int)box.entries.size());
 
-            SrsMp4TrunEntry* entry = box.entries.at(0);
-            EXPECT_EQ(1000,  (int)entry->sample_duration);
+            SrsMp4TrunEntry *entry = box.entries.at(0);
+            EXPECT_EQ(1000, (int)entry->sample_duration);
         }
     }
 }
@@ -765,7 +836,7 @@ VOID TEST(KernelMp4Test, FreeBox)
     srs_error_t err;
 
     if (true) {
-        char buf[8+4];
+        char buf[8 + 4];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -828,18 +899,18 @@ VOID TEST(KernelMp4Test, MOOVBox)
         EXPECT_EQ(0, box.nb_vide_tracks());
         EXPECT_EQ(0, box.nb_soun_tracks());
 
-        SrsMp4MovieHeaderBox* mvhd = new SrsMp4MovieHeaderBox();
+        SrsMp4MovieHeaderBox *mvhd = new SrsMp4MovieHeaderBox();
         box.set_mvhd(mvhd);
         EXPECT_TRUE(mvhd == box.mvhd());
 
-        SrsMp4MovieExtendsBox* mvex = new SrsMp4MovieExtendsBox();
+        SrsMp4MovieExtendsBox *mvex = new SrsMp4MovieExtendsBox();
         box.set_mvex(mvex);
         EXPECT_TRUE(mvex == box.mvex());
 
-        SrsMp4TrackBox* video = new SrsMp4TrackBox();
+        SrsMp4TrackBox *video = new SrsMp4TrackBox();
         if (true) {
-            SrsMp4MediaBox* media = new SrsMp4MediaBox();
-            SrsMp4HandlerReferenceBox* hdr = new SrsMp4HandlerReferenceBox();
+            SrsMp4MediaBox *media = new SrsMp4MediaBox();
+            SrsMp4HandlerReferenceBox *hdr = new SrsMp4HandlerReferenceBox();
             hdr->handler_type = SrsMp4HandlerTypeVIDE;
             media->set_hdlr(hdr);
             video->set_mdia(media);
@@ -848,10 +919,10 @@ VOID TEST(KernelMp4Test, MOOVBox)
         EXPECT_TRUE(video == box.video());
         EXPECT_EQ(1, box.nb_vide_tracks());
 
-        SrsMp4TrackBox* audio = new SrsMp4TrackBox();
+        SrsMp4TrackBox *audio = new SrsMp4TrackBox();
         if (true) {
-            SrsMp4MediaBox* media = new SrsMp4MediaBox();
-            SrsMp4HandlerReferenceBox* hdr = new SrsMp4HandlerReferenceBox();
+            SrsMp4MediaBox *media = new SrsMp4MediaBox();
+            SrsMp4HandlerReferenceBox *hdr = new SrsMp4HandlerReferenceBox();
             hdr->handler_type = SrsMp4HandlerTypeSOUN;
             media->set_hdlr(hdr);
             audio->set_mdia(media);
@@ -867,13 +938,16 @@ VOID TEST(KernelMp4Test, TREXBox)
     srs_error_t err;
 
     if (true) {
-        char buf[12+20];
+        char buf[12 + 20];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
             SrsMp4TrackExtendsBox box;
-            box.track_ID = 1; box.default_sample_description_index = 2; box.default_sample_size = 3;
-            box.default_sample_duration = 4; box.default_sample_flags = 5;
+            box.track_ID = 1;
+            box.default_sample_description_index = 2;
+            box.default_sample_size = 3;
+            box.default_sample_duration = 4;
+            box.default_sample_flags = 5;
             EXPECT_EQ((int)sizeof(buf), (int)box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
@@ -898,11 +972,10 @@ VOID TEST(KernelMp4Test, TREXBox)
     }
 
     SrsMp4MovieExtendsBox box;
-    EXPECT_TRUE(NULL == box.trex());
 
-    SrsMp4TrackExtendsBox* trex = new SrsMp4TrackExtendsBox();
-    box.set_trex(trex);
-    EXPECT_TRUE(trex == box.trex());
+    SrsMp4TrackExtendsBox *trex = new SrsMp4TrackExtendsBox();
+    box.add_trex(trex);
+    EXPECT_TRUE(trex == box.get(SrsMp4BoxTypeTREX));
 }
 
 VOID TEST(KernelMp4Test, TKHDBox)
@@ -910,7 +983,7 @@ VOID TEST(KernelMp4Test, TKHDBox)
     srs_error_t err;
 
     if (true) {
-        char buf[12+20+60];
+        char buf[12 + 20 + 60];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -936,7 +1009,7 @@ VOID TEST(KernelMp4Test, TKHDBox)
     }
 
     if (true) {
-        char buf[12+32+60];
+        char buf[12 + 32 + 60];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -968,7 +1041,7 @@ VOID TEST(KernelMp4Test, ELSTBox)
     srs_error_t err;
 
     if (true) {
-        char buf[12+4];
+        char buf[12 + 4];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -992,7 +1065,7 @@ VOID TEST(KernelMp4Test, ELSTBox)
     }
 
     if (true) {
-        char buf[12+4+12];
+        char buf[12 + 4 + 12];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1021,7 +1094,7 @@ VOID TEST(KernelMp4Test, ELSTBox)
 
     if (true) {
         SrsMp4MediaBox box;
-        SrsMp4HandlerReferenceBox* hdlr = new SrsMp4HandlerReferenceBox();
+        SrsMp4HandlerReferenceBox *hdlr = new SrsMp4HandlerReferenceBox();
         box.set_hdlr(hdlr);
         EXPECT_TRUE(hdlr == box.hdlr());
     }
@@ -1032,7 +1105,7 @@ VOID TEST(KernelMp4Test, MDHDBox)
     srs_error_t err;
 
     if (true) {
-        char buf[12+20];
+        char buf[12 + 20];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1056,7 +1129,7 @@ VOID TEST(KernelMp4Test, MDHDBox)
     }
 
     if (true) {
-        char buf[12+20];
+        char buf[12 + 20];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1113,7 +1186,7 @@ VOID TEST(KernelMp4Test, HDLRBox)
     srs_error_t err;
 
     if (true) {
-        char buf[12+21];
+        char buf[12 + 21];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1139,7 +1212,7 @@ VOID TEST(KernelMp4Test, HDLRBox)
     }
 
     if (true) {
-        char buf[12+21];
+        char buf[12 + 21];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1165,7 +1238,7 @@ VOID TEST(KernelMp4Test, HDLRBox)
     }
 
     if (true) {
-        char buf[12+24];
+        char buf[12 + 24];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1193,28 +1266,28 @@ VOID TEST(KernelMp4Test, HDLRBox)
 
     if (true) {
         SrsMp4MediaInformationBox box;
-        SrsMp4VideoMeidaHeaderBox* vmhd = new SrsMp4VideoMeidaHeaderBox();
+        SrsMp4VideoMeidaHeaderBox *vmhd = new SrsMp4VideoMeidaHeaderBox();
         box.set_vmhd(vmhd);
         EXPECT_TRUE(vmhd == box.vmhd());
     }
 
     if (true) {
         SrsMp4MediaInformationBox box;
-        SrsMp4SoundMeidaHeaderBox* smhd = new SrsMp4SoundMeidaHeaderBox();
+        SrsMp4SoundMeidaHeaderBox *smhd = new SrsMp4SoundMeidaHeaderBox();
         box.set_smhd(smhd);
         EXPECT_TRUE(smhd == box.smhd());
     }
 
     if (true) {
         SrsMp4MediaInformationBox box;
-        SrsMp4DataInformationBox* dinf = new SrsMp4DataInformationBox();
+        SrsMp4DataInformationBox *dinf = new SrsMp4DataInformationBox();
         box.set_dinf(dinf);
         EXPECT_TRUE(dinf == box.dinf());
     }
 
     if (true) {
         SrsMp4DataInformationBox box;
-        SrsMp4DataReferenceBox* dref = new SrsMp4DataReferenceBox();
+        SrsMp4DataReferenceBox *dref = new SrsMp4DataReferenceBox();
         box.set_dref(dref);
         EXPECT_TRUE(dref == box.dref());
     }
@@ -1225,7 +1298,7 @@ VOID TEST(KernelMp4Test, URLBox)
     srs_error_t err;
 
     if (true) {
-        char buf[12+1];
+        char buf[12 + 1];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1249,7 +1322,7 @@ VOID TEST(KernelMp4Test, URLBox)
     }
 
     if (true) {
-        char buf[12+2];
+        char buf[12 + 2];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1274,18 +1347,18 @@ VOID TEST(KernelMp4Test, URLBox)
 
     if (true) {
         SrsMp4DataReferenceBox box;
-        SrsMp4DataEntryUrnBox* urn = new SrsMp4DataEntryUrnBox();
+        SrsMp4DataEntryUrnBox *urn = new SrsMp4DataEntryUrnBox();
         box.append(urn);
         EXPECT_TRUE(urn == box.entry_at(0));
     }
 
     if (true) {
-        char buf[12+4 + 12+2];
+        char buf[12 + 4 + 12 + 2];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
             SrsMp4DataReferenceBox box;
-            SrsMp4DataEntryUrnBox* urn = new SrsMp4DataEntryUrnBox();
+            SrsMp4DataEntryUrnBox *urn = new SrsMp4DataEntryUrnBox();
             box.append(urn);
             EXPECT_EQ((int)sizeof(buf), (int)box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
@@ -1307,7 +1380,7 @@ VOID TEST(KernelMp4Test, URLBox)
 
     if (true) {
         SrsMp4SampleTableBox box;
-        SrsMp4CompositionTime2SampleBox* ctts = new SrsMp4CompositionTime2SampleBox();
+        SrsMp4CompositionTime2SampleBox *ctts = new SrsMp4CompositionTime2SampleBox();
         box.set_ctts(ctts);
         EXPECT_TRUE(ctts == box.ctts());
     }
@@ -1318,7 +1391,7 @@ VOID TEST(KernelMp4Test, SampleDescBox)
     srs_error_t err;
 
     if (true) {
-        char buf[8+8+70];
+        char buf[8 + 8 + 70];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1367,7 +1440,7 @@ VOID TEST(KernelMp4Test, SampleDescBox)
     }
 
     if (true) {
-        char buf[8+8+70];
+        char buf[8 + 8 + 70];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1416,7 +1489,7 @@ VOID TEST(KernelMp4Test, SampleDescBox)
     }
 
     if (true) {
-        char buf[8+8+20];
+        char buf[8 + 8 + 20];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1446,7 +1519,7 @@ VOID TEST(KernelMp4Test, SpecificInfoBox)
     srs_error_t err;
 
     if (true) {
-        char buf[2+2];
+        char buf[2 + 2];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1471,7 +1544,7 @@ VOID TEST(KernelMp4Test, SpecificInfoBox)
     }
 
     if (true) {
-        char buf[2+13];
+        char buf[2 + 13];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1495,7 +1568,7 @@ VOID TEST(KernelMp4Test, SpecificInfoBox)
     }
 
     if (true) {
-        char buf[2+21];
+        char buf[2 + 21];
         SrsBuffer b(buf, sizeof(buf));
 
         if (true) {
@@ -1793,7 +1866,7 @@ VOID TEST(KernelMp4Test, STSDBox)
 
     if (true) {
         SrsMp4TrackBox box;
-        SrsMp4TrackHeaderBox* tkhd = new SrsMp4TrackHeaderBox();
+        SrsMp4TrackHeaderBox *tkhd = new SrsMp4TrackHeaderBox();
         box.set_tkhd(tkhd);
         EXPECT_TRUE(tkhd == box.tkhd());
     }
@@ -1823,6 +1896,496 @@ VOID TEST(KernelMp4Test, STSDBox)
     }
 }
 
+VOID TEST(KernelMp4Test, SAIZBox)
+{
+    srs_error_t err;
+    // flags & 1 == 0; default_sample_info_size == 1
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+
+        uint8_t data[12 + 5];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeSAIZ);
+        b.write_1bytes(0);
+        b.write_3bytes(0);
+        b.write_1bytes(1);
+        b.write_4bytes(0);
+        b.skip(-17);
+
+        HELPER_ASSERT_SUCCESS(saiz.decode(&b));
+        EXPECT_EQ(17, (int)saiz.nb_header());
+        EXPECT_EQ(0, (int)saiz.version);
+        EXPECT_EQ(0, (int)saiz.flags);
+        EXPECT_EQ(1, (int)saiz.default_sample_info_size);
+        EXPECT_EQ(0, (int)saiz.sample_count);
+        EXPECT_EQ(0, saiz.sample_info_sizes.size());
+    }
+
+    // flags & 1 == 1; default_sample_info_size == 1
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+
+        uint8_t data[12 + 13];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeSAIZ);
+        b.write_1bytes(0);
+        b.write_3bytes(1);
+        b.write_4bytes(1);
+        b.write_4bytes(2);
+        b.write_1bytes(1);
+        b.write_4bytes(0);
+        b.skip(-25);
+
+        HELPER_ASSERT_SUCCESS(saiz.decode(&b));
+        EXPECT_EQ(25, (int)saiz.nb_header());
+        EXPECT_EQ(0, (int)saiz.version);
+        EXPECT_EQ(1, (int)saiz.flags);
+        EXPECT_EQ(1, (int)saiz.aux_info_type);
+        EXPECT_EQ(2, (int)saiz.aux_info_type_parameter);
+        EXPECT_EQ(1, (int)saiz.default_sample_info_size);
+        EXPECT_EQ(0, (int)saiz.sample_count);
+        EXPECT_EQ(0, saiz.sample_info_sizes.size());
+    }
+
+    // flags & 1 == 1; default_sample_info_size == 0; sample_count = 3;
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+
+        uint8_t data[12 + 16];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeSAIZ);
+        b.write_1bytes(0);
+        b.write_3bytes(1);
+        b.write_4bytes(1);
+        b.write_4bytes(2);
+        b.write_1bytes(0);
+        b.write_4bytes(3);
+        b.write_1bytes(4);
+        b.write_1bytes(5);
+        b.write_1bytes(6);
+        b.skip(-28);
+
+        HELPER_ASSERT_SUCCESS(saiz.decode(&b));
+        EXPECT_EQ(28, (int)saiz.nb_header());
+        EXPECT_EQ(0, (int)saiz.version);
+        EXPECT_EQ(1, (int)saiz.flags);
+        EXPECT_EQ(1, (int)saiz.aux_info_type);
+        EXPECT_EQ(2, (int)saiz.aux_info_type_parameter);
+        EXPECT_EQ(0, (int)saiz.default_sample_info_size);
+        EXPECT_EQ(3, (int)saiz.sample_count);
+        EXPECT_EQ(3, saiz.sample_info_sizes.size());
+        EXPECT_EQ(4, saiz.sample_info_sizes[0]);
+        EXPECT_EQ(5, saiz.sample_info_sizes[1]);
+        EXPECT_EQ(6, saiz.sample_info_sizes[2]);
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+        saiz.flags = 0;
+        saiz.default_sample_info_size = 1;
+        saiz.sample_count = 0;
+
+        EXPECT_EQ(17, saiz.nb_header());
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saiz.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("default_sample_info_size=1, sample_count=0", v.c_str());
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+        saiz.flags = 1;
+        saiz.default_sample_info_size = 1;
+        saiz.sample_count = 0;
+
+        EXPECT_EQ(25, saiz.nb_header());
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saiz.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("default_sample_info_size=1, sample_count=0", v.c_str());
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoSizeBox saiz;
+        saiz.flags = 1;
+        saiz.default_sample_info_size = 0;
+        saiz.sample_count = 1;
+        saiz.sample_info_sizes.push_back(4);
+
+        EXPECT_EQ(26, saiz.nb_header());
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saiz.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("default_sample_info_size=0, sample_count=1", v.c_str());
+    }
+}
+
+VOID TEST(KernelMp4Test, SAIOBox)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+
+        uint8_t data[12 + 8];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeSAIO);
+        b.write_1bytes(0);
+        b.write_3bytes(0);
+        b.write_4bytes(1);
+        b.write_4bytes(2);
+        b.skip(-20);
+
+        HELPER_ASSERT_SUCCESS(saio.decode(&b));
+        EXPECT_EQ(20, (int)saio.nb_header());
+        EXPECT_EQ(0, (int)saio.version);
+        EXPECT_EQ(0, (int)saio.flags);
+        EXPECT_EQ(1, (int)saio.offsets.size());
+        EXPECT_EQ(2, (int)saio.offsets[0]);
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+
+        uint8_t data[12 + 16];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeSAIO);
+        b.write_1bytes(0);
+        b.write_3bytes(1);
+        b.write_4bytes(1);
+        b.write_4bytes(2);
+        b.write_4bytes(1);
+        b.write_4bytes(2);
+        b.skip(-28);
+
+        HELPER_ASSERT_SUCCESS(saio.decode(&b));
+        EXPECT_EQ(28, (int)saio.nb_header());
+        EXPECT_EQ(0, (int)saio.version);
+        EXPECT_EQ(1, (int)saio.flags);
+        EXPECT_EQ(1, (int)saio.aux_info_type);
+        EXPECT_EQ(2, (int)saio.aux_info_type_parameter);
+        EXPECT_EQ(1, (int)saio.offsets.size());
+        EXPECT_EQ(2, (int)saio.offsets[0]);
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+
+        uint8_t data[12 + 20];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeSAIO);
+        b.write_1bytes(1);
+        b.write_3bytes(1);
+        b.write_4bytes(1);
+        b.write_4bytes(2);
+        b.write_4bytes(1);
+        b.write_8bytes(2);
+        b.skip(-32);
+
+        HELPER_ASSERT_SUCCESS(saio.decode(&b));
+        EXPECT_EQ(32, (int)saio.nb_header());
+        EXPECT_EQ(1, (int)saio.version);
+        EXPECT_EQ(1, (int)saio.flags);
+        EXPECT_EQ(1, (int)saio.aux_info_type);
+        EXPECT_EQ(2, (int)saio.aux_info_type_parameter);
+        EXPECT_EQ(1, (int)saio.offsets.size());
+        EXPECT_EQ(2, (int)saio.offsets[0]);
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+        saio.version = 0;
+        saio.flags = 0;
+        saio.offsets.push_back(2);
+        EXPECT_EQ(20, (int)saio.nb_header());
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saio.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("entry_count=1", v.c_str());
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+        saio.version = 0;
+        saio.flags = 1;
+        saio.offsets.push_back(2);
+        EXPECT_EQ(28, (int)saio.nb_header());
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saio.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("entry_count=1", v.c_str());
+    }
+
+    if (true) {
+        SrsMp4SampleAuxiliaryInfoOffsetBox saio;
+        saio.version = 1;
+        saio.flags = 1;
+        saio.offsets.push_back(2);
+        EXPECT_EQ(32, (int)saio.nb_header());
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        saio.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("entry_count=1", v.c_str());
+    }
+}
+
+VOID TEST(KernelMp4Test, SENCBox)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsMp4SampleEncryptionBox senc(8);
+
+        uint8_t data[12 + 4];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeSENC);
+        b.write_1bytes(0);
+        b.write_3bytes(0);
+        b.write_4bytes(0);
+        b.skip(-16);
+
+        HELPER_ASSERT_SUCCESS(senc.decode(&b));
+        EXPECT_EQ(16, (int)senc.nb_header());
+        EXPECT_EQ(0, (int)senc.version);
+        EXPECT_EQ(0, (int)senc.flags);
+        EXPECT_EQ(0, (int)senc.entries.size());
+    }
+
+    if (true) {
+        SrsMp4SampleEncryptionBox senc(8);
+
+        uint8_t data[12 + 12];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeSENC);
+        b.write_1bytes(0);
+        b.write_3bytes(0);
+        b.write_4bytes(1);
+        b.write_8bytes(1);
+        b.skip(-24);
+
+        HELPER_ASSERT_SUCCESS(senc.decode(&b));
+        EXPECT_EQ(24, (int)senc.nb_header());
+        EXPECT_EQ(0, (int)senc.version);
+        EXPECT_EQ(0, (int)senc.flags);
+        EXPECT_EQ(1, (int)senc.entries.size());
+    }
+}
+
+VOID TEST(KernelMp4Test, FRMABox)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsMp4OriginalFormatBox frma(1);
+        uint8_t data[8 + 4];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(0);
+        b.write_4bytes(SrsMp4BoxTypeFRMA);
+        b.write_4bytes(1);
+        b.skip(-12);
+
+        HELPER_ASSERT_SUCCESS(frma.decode(&b));
+        EXPECT_EQ(12, (int)frma.nb_header());
+    }
+
+    if (true) {
+        SrsMp4OriginalFormatBox frma(1);
+        EXPECT_EQ(12, (int)frma.nb_header());
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        frma.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("original format=1\n", v.c_str());
+    }
+}
+
+VOID TEST(KernelMp4Test, SCHMBox)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsMp4SchemeTypeBox schm;
+        uint8_t data[12 + 8];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeSCHM);
+        b.write_1bytes(0);
+        b.write_3bytes(0);
+        b.write_4bytes(1);
+        b.write_4bytes(2);
+        b.skip(-20);
+
+        HELPER_ASSERT_SUCCESS(schm.decode(&b));
+        EXPECT_EQ(20, (int)schm.nb_header());
+        EXPECT_EQ(0, (int)schm.version);
+        EXPECT_EQ(0, (int)schm.flags);
+        EXPECT_EQ(1, (int)schm.scheme_type);
+        EXPECT_EQ(2, (int)schm.scheme_version);
+    }
+
+    if (true) {
+        SrsMp4SchemeTypeBox schm;
+        uint8_t data[12 + 8 + 4];
+        SrsBuffer b((char *)data, sizeof(data));
+        b.write_4bytes(16);
+        b.write_4bytes(SrsMp4BoxTypeSCHM);
+        b.write_1bytes(0);
+        b.write_3bytes(1);
+        b.write_4bytes(1);
+        b.write_4bytes(2);
+        b.write_1bytes(65);
+        b.write_1bytes(65);
+        b.write_1bytes(65);
+        b.write_1bytes(0);
+        b.skip(-24);
+
+        HELPER_ASSERT_SUCCESS(schm.decode(&b));
+        EXPECT_EQ(24, (int)schm.nb_header());
+        EXPECT_EQ(0, (int)schm.version);
+        EXPECT_EQ(1, (int)schm.flags);
+        EXPECT_EQ(1, (int)schm.scheme_type);
+        EXPECT_EQ(2, (int)schm.scheme_version);
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        schm.dumps_detail(ss, dc);
+        string v = ss.str();
+        EXPECT_STREQ("scheme_type=1, scheme_version=2\nscheme_uri=AAA\n", v.c_str());
+    }
+}
+
+VOID TEST(KernelMp4Test, SrsInitMp4Segment)
+{
+    srs_error_t err;
+    // write single video segment
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsInitMp4Segment segment(&fw);
+
+        segment.set_path("/tmp/init.mp4");
+        SrsFormat fmt;
+        HELPER_ASSERT_SUCCESS(fmt.initialize());
+
+        uint8_t raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+        HELPER_ASSERT_SUCCESS(fmt.on_video(0, (char *)raw, sizeof(raw)));
+
+        HELPER_ASSERT_SUCCESS(segment.write_video_only(&fmt, 1));
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
+
+    // write single audio segment
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsInitMp4Segment segment(&fw);
+
+        segment.set_path("/tmp/init.mp4");
+        SrsFormat fmt;
+        HELPER_ASSERT_SUCCESS(fmt.initialize());
+
+        uint8_t raw[] = {
+            0xaf, 0x00, 0x12, 0x10};
+
+        HELPER_ASSERT_SUCCESS(fmt.on_audio(0, (char *)raw, sizeof(raw)));
+
+        HELPER_ASSERT_SUCCESS(segment.write_audio_only(&fmt, 1));
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
+
+    // write both audio and video segment
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsInitMp4Segment segment(&fw);
+
+        segment.set_path("/tmp/init.mp4");
+        SrsFormat fmt;
+        HELPER_ASSERT_SUCCESS(fmt.initialize());
+
+        uint8_t video_raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+
+        HELPER_ASSERT_SUCCESS(fmt.on_video(0, (char *)video_raw, sizeof(video_raw)));
+
+        uint8_t audio_raw[] = {
+            0xaf, 0x00, 0x12, 0x10};
+
+        HELPER_ASSERT_SUCCESS(fmt.on_audio(0, (char *)audio_raw, sizeof(audio_raw)));
+
+        HELPER_ASSERT_SUCCESS(segment.write(&fmt, 1, 2));
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
+}
+
+VOID TEST(KernelMp4Test, SrsFmp4SegmentEncoder)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsFmp4SegmentEncoder encoder;
+        encoder.initialize(&fw, 0, 0, 1, 2);
+
+        SrsFormat video_fmt;
+        HELPER_ASSERT_SUCCESS(video_fmt.initialize());
+
+        SrsFormat audio_fmt;
+        HELPER_ASSERT_SUCCESS(audio_fmt.initialize());
+
+        uint8_t video_raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+
+        HELPER_ASSERT_SUCCESS(video_fmt.on_video(0, (char *)video_raw, sizeof(video_raw)));
+
+        uint8_t audio_raw[] = {
+            0xaf, 0x00, 0x12, 0x10};
+
+        HELPER_ASSERT_SUCCESS(audio_fmt.on_audio(0, (char *)audio_raw, sizeof(audio_raw)));
+
+        SrsVideoAvcFrameType video_frame_type = video_fmt.video->frame_type;
+        uint32_t cts = (uint32_t)video_fmt.video->cts;
+
+        uint32_t dts = 0;
+        uint32_t pts = dts + cts;
+
+        uint8_t *video_sample = (uint8_t *)video_fmt.raw;
+        uint32_t nb_video_sample = (uint32_t)video_fmt.nb_raw;
+        encoder.write_sample(SrsMp4HandlerTypeVIDE, video_frame_type, dts, pts, video_sample, nb_video_sample);
+        uint8_t *audio_sample = (uint8_t *)audio_fmt.raw;
+        uint32_t nb_audio_sample = (uint32_t)audio_fmt.nb_raw;
+        encoder.write_sample(SrsMp4HandlerTypeSOUN, 0, 0, 0, audio_sample, nb_audio_sample);
+        encoder.flush(dts);
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
+}
+
 VOID TEST(KernelMp4Test, SrsMp4M2tsInitEncoder)
 {
     srs_error_t err;
@@ -1841,9 +2404,8 @@ VOID TEST(KernelMp4Test, SrsMp4M2tsInitEncoder)
             0x17,
             0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
             0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-        };
-        EXPECT_TRUE(srs_success == fmt.on_video(0, (char*)raw, sizeof(raw)));
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+        EXPECT_TRUE(srs_success == fmt.on_video(0, (char *)raw, sizeof(raw)));
 
         HELPER_ASSERT_SUCCESS(enc.write(&fmt, true, 1));
         EXPECT_TRUE(fw.filesize() > 0);
@@ -1860,12 +2422,176 @@ VOID TEST(KernelMp4Test, SrsMp4M2tsInitEncoder)
         EXPECT_TRUE(srs_success == fmt.initialize());
 
         uint8_t raw[] = {
-            0xaf, 0x00, 0x12, 0x10
-        };
-        EXPECT_TRUE(srs_success == fmt.on_audio(0, (char*)raw, sizeof(raw)));
+            0xaf, 0x00, 0x12, 0x10};
+        EXPECT_TRUE(srs_success == fmt.on_audio(0, (char *)raw, sizeof(raw)));
 
         HELPER_ASSERT_SUCCESS(enc.write(&fmt, false, 1));
         EXPECT_TRUE(fw.filesize() > 0);
     }
+
+    if (true) {
+        MockSrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(fw.open("test.mp4"));
+
+        SrsMp4M2tsInitEncoder enc;
+        HELPER_ASSERT_SUCCESS(enc.initialize(&fw));
+
+        SrsFormat fmt;
+        EXPECT_TRUE(srs_success == fmt.initialize());
+
+        uint8_t video_raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+        EXPECT_TRUE(srs_success == fmt.on_video(0, (char *)video_raw, sizeof(video_raw)));
+
+        uint8_t audio_raw[] = {
+            0xaf, 0x00, 0x12, 0x10};
+        EXPECT_TRUE(srs_success == fmt.on_audio(0, (char *)audio_raw, sizeof(audio_raw)));
+
+        HELPER_ASSERT_SUCCESS(enc.write(&fmt, 1, 2));
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
 }
 
+VOID TEST(KernelMp4Test, SrsMp4DvrJitter)
+{
+    // Test basic initialization
+    if (true) {
+        SrsMp4DvrJitter jitter;
+
+        // Should not be initialized yet
+        EXPECT_FALSE(jitter.is_initialized());
+
+        // Delta should be 0 for uninitialized jitter
+        EXPECT_EQ(0, jitter.get_first_sample_delta(SrsFrameTypeVideo));
+        EXPECT_EQ(0, jitter.get_first_sample_delta(SrsFrameTypeAudio));
+    }
+
+    // Test audio first scenario
+    if (true) {
+        SrsMp4DvrJitter jitter;
+
+        // Create audio sample that arrives first
+        SrsMp4Sample audio_sample;
+        audio_sample.type = SrsFrameTypeAudio;
+        audio_sample.dts = 1000; // Audio starts at 1000us
+
+        // Create video sample that arrives later
+        SrsMp4Sample video_sample;
+        video_sample.type = SrsFrameTypeVideo;
+        video_sample.dts = 2000; // Video starts at 2000us
+
+        // Process samples
+        jitter.on_sample(&audio_sample);
+        jitter.on_sample(&video_sample);
+
+        // Should be initialized now
+        EXPECT_TRUE(jitter.is_initialized());
+
+        // Video should have delta = video_start - audio_start = 2000 - 1000 = 1000
+        EXPECT_EQ(1000, jitter.get_first_sample_delta(SrsFrameTypeVideo));
+
+        // Audio should have delta = 0 (since audio started first)
+        EXPECT_EQ(0, jitter.get_first_sample_delta(SrsFrameTypeAudio));
+    }
+
+    // Test video first scenario
+    if (true) {
+        SrsMp4DvrJitter jitter;
+
+        // Create video sample that arrives first
+        SrsMp4Sample video_sample;
+        video_sample.type = SrsFrameTypeVideo;
+        video_sample.dts = 500; // Video starts at 500us
+
+        // Create audio sample that arrives later
+        SrsMp4Sample audio_sample;
+        audio_sample.type = SrsFrameTypeAudio;
+        audio_sample.dts = 1500; // Audio starts at 1500us
+
+        // Process samples
+        jitter.on_sample(&video_sample);
+        jitter.on_sample(&audio_sample);
+
+        // Should be initialized now
+        EXPECT_TRUE(jitter.is_initialized());
+
+        // Audio should have delta = audio_start - video_start = 1500 - 500 = 1000
+        EXPECT_EQ(1000, jitter.get_first_sample_delta(SrsFrameTypeAudio));
+
+        // Video should have delta = 0 (since video started first)
+        EXPECT_EQ(0, jitter.get_first_sample_delta(SrsFrameTypeVideo));
+    }
+
+    // Test same start time scenario
+    if (true) {
+        SrsMp4DvrJitter jitter;
+
+        // Create samples with same start time
+        SrsMp4Sample audio_sample;
+        audio_sample.type = SrsFrameTypeAudio;
+        audio_sample.dts = 1000;
+
+        SrsMp4Sample video_sample;
+        video_sample.type = SrsFrameTypeVideo;
+        video_sample.dts = 1000;
+
+        // Process samples
+        jitter.on_sample(&audio_sample);
+        jitter.on_sample(&video_sample);
+
+        // Should be initialized now
+        EXPECT_TRUE(jitter.is_initialized());
+
+        // Both should have delta = 0 (same start time)
+        EXPECT_EQ(0, jitter.get_first_sample_delta(SrsFrameTypeVideo));
+        EXPECT_EQ(0, jitter.get_first_sample_delta(SrsFrameTypeAudio));
+    }
+
+    // Test reset functionality
+    if (true) {
+        SrsMp4DvrJitter jitter;
+
+        // Initialize with samples
+        SrsMp4Sample audio_sample;
+        audio_sample.type = SrsFrameTypeAudio;
+        audio_sample.dts = 1000;
+
+        jitter.on_sample(&audio_sample);
+
+        // Reset and verify
+        jitter.reset();
+        EXPECT_FALSE(jitter.is_initialized());
+        EXPECT_EQ(0, jitter.get_first_sample_delta(SrsFrameTypeVideo));
+        EXPECT_EQ(0, jitter.get_first_sample_delta(SrsFrameTypeAudio));
+    }
+
+    // Test multiple samples of same type (should only record first)
+    if (true) {
+        SrsMp4DvrJitter jitter;
+
+        // Create multiple audio samples
+        SrsMp4Sample audio1;
+        audio1.type = SrsFrameTypeAudio;
+        audio1.dts = 1000;
+
+        SrsMp4Sample audio2;
+        audio2.type = SrsFrameTypeAudio;
+        audio2.dts = 2000; // This should be ignored
+
+        SrsMp4Sample video1;
+        video1.type = SrsFrameTypeVideo;
+        video1.dts = 1500;
+
+        // Process samples
+        jitter.on_sample(&audio1);
+        jitter.on_sample(&audio2); // Should be ignored
+        jitter.on_sample(&video1);
+
+        // Should use first audio sample (1000) not second (2000)
+        EXPECT_EQ(500, jitter.get_first_sample_delta(SrsFrameTypeVideo)); // 1500 - 1000 = 500
+        EXPECT_EQ(0, jitter.get_first_sample_delta(SrsFrameTypeAudio));
+    }
+}

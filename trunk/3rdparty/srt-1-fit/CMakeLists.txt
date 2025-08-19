@@ -8,7 +8,7 @@
 #
 
 cmake_minimum_required (VERSION 2.8.12 FATAL_ERROR)
-set (SRT_VERSION 1.5.1)
+set (SRT_VERSION 1.5.3)
 
 set (CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/scripts")
 include(haiUtil) # needed for set_version_variables
@@ -117,6 +117,9 @@ if (ENABLE_DEBUG)
 	set(ENABLE_HEAVY_LOGGING_DEFAULT ON)
 endif()
 
+# Note that the IP_PKTINFO  has a limited portability and may not work on some platforms
+# (Windows, FreeBSD, ...).
+set (ENABLE_PKTINFO_DEFAULT OFF)
 
 set(ENABLE_STDCXX_SYNC_DEFAULT OFF)
 set(ENABLE_MONOTONIC_CLOCK_DEFAULT OFF)
@@ -144,10 +147,13 @@ option(ENABLE_HEAVY_LOGGING "Should heavy debug logging be enabled" ${ENABLE_HEA
 option(ENABLE_HAICRYPT_LOGGING "Should logging in haicrypt be enabled" 0)
 option(ENABLE_SHARED "Should libsrt be built as a shared library" ON)
 option(ENABLE_STATIC "Should libsrt be built as a static library" ON)
+option(ENABLE_PKTINFO "Enable using IP_PKTINFO to allow the listener extracting the target IP address from incoming packets" ${ENABLE_PKTINFO_DEFAULT})
 option(ENABLE_RELATIVE_LIBPATH "Should application contain relative library paths, like ../lib" OFF)
 option(ENABLE_GETNAMEINFO "In-logs sockaddr-to-string should do rev-dns" OFF)
 option(ENABLE_UNITTESTS "Enable unit tests" OFF)
 option(ENABLE_ENCRYPTION "Enable encryption in SRT" ON)
+option(ENABLE_AEAD_API_PREVIEW "Enable AEAD API preview in SRT" Off)
+option(ENABLE_MAXREXMITBW "Enable SRTO_MAXREXMITBW (v1.6.0 API preview)" Off)
 option(ENABLE_CXX_DEPS "Extra library dependencies in srt.pc for the CXX libraries useful with C language" ON)
 option(USE_STATIC_LIBSTDCXX "Should use static rather than shared libstdc++" OFF)
 option(ENABLE_INET_PTON "Set to OFF to prevent usage of inet_pton when building against modern SDKs while still requiring compatibility with older Windows versions, such as Windows XP, Windows Server 2003 etc." ON)
@@ -160,7 +166,6 @@ option(USE_BUSY_WAITING "Enable more accurate sending times at a cost of potenti
 option(USE_GNUSTL "Get c++ library/headers from the gnustl.pc" OFF)
 option(ENABLE_SOCK_CLOEXEC "Enable setting SOCK_CLOEXEC on a socket" ON)
 option(ENABLE_SHOW_PROJECT_CONFIG "Enable show Project Configuration" OFF)
-option(ENABLE_NEW_RCVBUFFER "Enable new receiver buffer implementation" ON)
 
 option(ENABLE_CLANG_TSA "Enable Clang Thread Safety Analysis" OFF)
 
@@ -198,6 +203,16 @@ if (USE_BUSY_WAITING)
 	list(APPEND SRT_EXTRA_CFLAGS "-DUSE_BUSY_WAITING=1")
 else()
 	message(STATUS "USE_BUSY_WAITING: OFF (default)")
+endif()
+
+# Reduce the frequency of some frequent logs, milliseconds
+set(SRT_LOG_SLOWDOWN_FREQ_MS_DEFAULT 1000) # 1s
+if (NOT DEFINED SRT_LOG_SLOWDOWN_FREQ_MS)
+	if (ENABLE_HEAVY_LOGGING)
+		set(SRT_LOG_SLOWDOWN_FREQ_MS 0) # Just show every log message.
+	else()
+		set(SRT_LOG_SLOWDOWN_FREQ_MS ${SRT_LOG_SLOWDOWN_FREQ_MS_DEFAULT})
+	endif()
 endif()
 
 if ( CYGWIN AND NOT CYGWIN_USE_POSIX )
@@ -285,7 +300,13 @@ if(WIN32)
 	if(ENABLE_INET_PTON)
 		set(CMAKE_REQUIRED_LIBRARIES ws2_32)
 		check_function_exists(inet_pton HAVE_INET_PTON)
-		add_definitions(-D_WIN32_WINNT=0x0600)
+		try_compile(AT_LEAST_VISTA
+			${CMAKE_BINARY_DIR}
+			"${CMAKE_CURRENT_SOURCE_DIR}/scripts/test_vista.c")
+		if(NOT AT_LEAST_VISTA)
+			# force targeting Vista
+			add_definitions(-D_WIN32_WINNT=0x0600)
+		endif()
 	else()
 		add_definitions(-D_WIN32_WINNT=0x0501)
 	endif()
@@ -422,8 +443,21 @@ if (ENABLE_ENCRYPTION)
 	add_definitions(-DSRT_ENABLE_ENCRYPTION)
 	message(STATUS "ENCRYPTION: ENABLED, using: ${SSL_REQUIRED_MODULES}")
 	message (STATUS "SSL libraries: ${SSL_LIBRARIES}")
+
+	if (ENABLE_AEAD_API_PREVIEW)
+		if ("${USE_ENCLIB}" STREQUAL "openssl-evp")
+			add_definitions(-DENABLE_AEAD_API_PREVIEW)
+			message(STATUS "ENCRYPTION AEAD API: ENABLED")
+		else()
+			message(FATAL_ERROR "ENABLE_AEAD_API_PREVIEW is only available with USE_ENCLIB=openssl-evp!")
+		endif()
+	else()
+		message(STATUS "ENCRYPTION AEAD API: DISABLED")
+	endif()
+
 else()
 	message(STATUS "ENCRYPTION: DISABLED")
+	message(STATUS "ENCRYPTION AEAD API: N/A")
 endif()
 
 if (USE_GNUSTL)
@@ -433,8 +467,15 @@ if (USE_GNUSTL)
 	set (SRT_LIBS_PRIVATE ${SRT_LIBS_PRIVATE} ${GNUSTL_LIBRARIES} ${GNUSTL_LDFLAGS})
 endif()
 
+if (ENABLE_MAXREXMITBW)
+	add_definitions(-DENABLE_MAXREXMITBW)
+	message(STATUS "MAXREXMITBW API: ENABLED")
+else()
+	message(STATUS "MAXREXMITBW API: DISABLED")
+endif()
+
 if (USING_DEFAULT_COMPILER_PREFIX)
-# Detect if the compiler is GNU compatable for flags
+# Detect if the compiler is GNU compatible for flags
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Intel|Clang|AppleClang")
 	message(STATUS "COMPILER: ${CMAKE_CXX_COMPILER_ID} (${CMAKE_CXX_COMPILER}) - GNU compat")
 	set(HAVE_COMPILER_GNU_COMPAT 1)
@@ -477,6 +518,15 @@ CheckGCCAtomicIntrinsics()
 #  HAVE_CXX_ATOMIC_STATIC
 include(CheckCXXAtomic)
 CheckCXXAtomic()
+
+# Check for std::put_time():
+# Sets:
+#  HAVE_CXX_STD_PUT_TIME
+include(CheckCXXStdPutTime)
+CheckCXXStdPutTime()
+if (HAVE_CXX_STD_PUT_TIME)
+	add_definitions(-DHAVE_CXX_STD_PUT_TIME=1)
+endif()
 
 if (DISABLE_CXX11)
 	set (ENABLE_CXX11 0)
@@ -531,14 +581,6 @@ message(STATUS "MONOTONIC_CLOCK: ${ENABLE_MONOTONIC_CLOCK}")
 
 if (ENABLE_SOCK_CLOEXEC)
 	add_definitions(-DENABLE_SOCK_CLOEXEC=1)
-endif()
-
-if (ENABLE_NEW_RCVBUFFER)
-	add_definitions(-DENABLE_NEW_RCVBUFFER=1)
-	message(STATUS "RECEIVER_BUFFER: NEW")
-else()
-	remove_definitions(-DENABLE_NEW_RCVBUFFER)
-	message(STATUS "RECEIVER_BUFFER: OLD")
 endif()
 
 if (CMAKE_MAJOR_VERSION LESS 3)
@@ -614,6 +656,9 @@ endif()
 # add extra warning flags for gccish compilers
 if (HAVE_COMPILER_GNU_COMPAT)
 	set (SRT_GCC_WARN "-Wall -Wextra")
+	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		set (SRT_GCC_WARN "${SRT_GCC_WARN} -Wshadow=local")
+	endif()
 else()
 	# cpp debugging on Windows :D
 	#set (SRT_GCC_WARN "/showIncludes")
@@ -719,6 +764,15 @@ endif()
 if (ENABLE_GETNAMEINFO)
 	list(APPEND SRT_EXTRA_CFLAGS "-DENABLE_GETNAMEINFO=1")
 endif()
+
+if (ENABLE_PKTINFO)
+	if (WIN32 OR BSD)
+		message(FATAL_ERROR "PKTINFO is not implemented on Windows or *BSD.")
+	endif()
+
+	list(APPEND SRT_EXTRA_CFLAGS "-DSRT_ENABLE_PKTINFO=1")
+endif()
+
 
 # ENABLE_EXPERIMENTAL_BONDING is deprecated. Use ENABLE_BONDING. ENABLE_EXPERIMENTAL_BONDING is be removed in v1.6.0.
 if (ENABLE_EXPERIMENTAL_BONDING)
@@ -1040,6 +1094,8 @@ if (ENABLE_SHARED)
 	target_compile_definitions(srt_virtual PUBLIC -DSRT_DYNAMIC)
 endif()
 
+target_compile_definitions(srt_virtual PRIVATE -DSRT_LOG_SLOWDOWN_FREQ_MS=${SRT_LOG_SLOWDOWN_FREQ_MS})
+
 if (srt_libspec_shared)
 	if (MICROSOFT)
 		target_link_libraries(${TARGET_srt}_shared PUBLIC Ws2_32.lib)
@@ -1061,6 +1117,11 @@ if (HAVE_GCCATOMIC_INTRINSICS_REQUIRES_LIBATOMIC AND HAVE_LIBATOMIC)
 elseif (HAVE_LIBATOMIC AND HAVE_LIBATOMIC_COMPILES_STATIC)
 	# This is a workaround for ANDROID NDK<17 builds, which need to link
 	#  to libatomic when linking statically to the SRT library.
+	if (srt_libspec_static)
+		target_link_libraries(${TARGET_srt}_static PUBLIC atomic)
+	endif()
+elseif (LINUX AND HAVE_LIBATOMIC AND HAVE_LIBATOMIC_COMPILES)
+	# This is a workaround for some older Linux Toolchains.
 	if (srt_libspec_static)
 		target_link_libraries(${TARGET_srt}_static PUBLIC atomic)
 	endif()
@@ -1122,7 +1183,7 @@ endif()
 # obtained by `pkg-config --libs`.
 if(ENABLE_CXX_DEPS)
 	foreach(LIB ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES})
-		if(IS_ABSOLUTE ${LIB} AND EXISTS ${LIB})
+		if((IS_ABSOLUTE ${LIB} AND EXISTS ${LIB}) OR (${LIB} MATCHES "^-l"))
 			set(SRT_LIBS_PRIVATE ${SRT_LIBS_PRIVATE} ${LIB})
 		else()
 			set(SRT_LIBS_PRIVATE ${SRT_LIBS_PRIVATE} "-l${LIB}")
@@ -1334,6 +1395,10 @@ if (ENABLE_EXAMPLES)
 		
 	srt_add_example(recvfile.cpp)
 
+	srt_add_example(sendmsg.cpp)
+		
+	srt_add_example(recvmsg.cpp)
+
 	srt_add_example(test-c-client.c)
 
 	srt_add_example(example-client-nonblock.c)
@@ -1363,7 +1428,13 @@ if (ENABLE_UNITTESTS AND ENABLE_CXX11)
 
 	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-	find_package(GTest 1.8)
+	# Version ranges are only supported with CMake 3.19 or later.
+	# Need GTest v1.10 or higher to support GTEST_SKIP.
+	if (${CMAKE_VERSION} VERSION_LESS "3.19.0")
+		find_package(GTest 1.10)
+	else()
+		find_package(GTest 1.10...1.12)
+	endif()
 	if (NOT GTEST_FOUND)
 		message(STATUS "GTEST not found! Fetching from git.")
 		include(googletest)
@@ -1395,12 +1466,13 @@ if (ENABLE_UNITTESTS AND ENABLE_CXX11)
 			NAME	test-srt
 			COMMAND	${CMAKE_BINARY_DIR}/test-srt
 		)
+		#set_tests_properties(test-srt PROPERTIES RUN_SERIAL TRUE)
 	else()
 		gtest_add_tests(
-			test-srt
-			""
-			AUTO
+			TEST_LIST tests_srt
+			TARGET test-srt
 		)
+		set_tests_properties(${tests_srt} PROPERTIES RUN_SERIAL TRUE)
 	endif()
 
 	enable_testing()

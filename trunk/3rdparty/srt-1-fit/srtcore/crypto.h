@@ -50,8 +50,6 @@ const size_t SRT_KMR_KMSTATE = 0;
 #define SRT_CMD_MAXSZ       HCRYPT_MSG_KM_MAX_SZ  /* Maximum SRT custom messages payload size (bytes) */
 const size_t SRTDATA_MAXSIZE = SRT_CMD_MAXSZ/sizeof(uint32_t);
 
-enum Whether2RegenKm {DONT_REGEN_KM = 0, REGEN_KM = 1};
-
 class CCryptoControl
 {
     SRTSOCKET m_SocketID;
@@ -69,10 +67,12 @@ private:
     // putting the whole HaiCrypt_Cfg object here.
     int m_KmRefreshRatePkt;
     int m_KmPreAnnouncePkt;
+    int m_iCryptoMode;
 
     HaiCrypt_Secret m_KmSecret;     //Key material shared secret
     // Sender
     sync::steady_clock::time_point m_SndKmLastTime;
+    sync::Mutex m_mtxLock; // A mutex to protect concurrent access to CCryptoControl.
     struct {
         unsigned char Msg[HCRYPT_MSG_KM_MAX_SZ];
         size_t MsgLen;
@@ -86,6 +86,8 @@ private:
 
 public:
     static void globalInit();
+
+    static bool isAESGCMSupported();
 
     bool sendingAllowed()
     {
@@ -109,15 +111,16 @@ public:
         return m_KmSecret.len > 0;
     }
 
-private:
-#ifdef SRT_ENABLE_ENCRYPTION
-    /// Regenerate cryptographic key material.
+    int getCryptoMode() const
+    {
+        return m_iCryptoMode;
+    }
+
+    /// Regenerate cryptographic key material if needed.
     /// @param[in] sock If not null, the socket will be used to send the KM message to the peer (e.g. KM refresh).
     /// @param[in] bidirectional If true, the key material will be regenerated for both directions (receiver and sender).
+    SRT_ATTR_EXCLUDES(m_mtxLock)
     void regenCryptoKm(CUDT* sock, bool bidirectional);
-#endif
-
-public:
 
     size_t KeyLen() { return m_iSndKmKeyLen; }
 
@@ -205,13 +208,17 @@ public:
     std::string FormatKmMessage(std::string hdr, int cmd, size_t srtlen);
 
     bool init(HandshakeSide, const CSrtConfig&, bool);
+    SRT_ATTR_EXCLUDES(m_mtxLock)
     void close();
 
-    /// @return True if the handshake is in progress.
+    /// (Re)send KM request to a peer on timeout.
     /// This function is used in:
-    /// - HSv4 (initial key material exchange - in HSv5 it's attached to handshake)
-    /// - case of key regeneration, which should be then exchanged again.
-    void sendKeysToPeer(CUDT* sock, int iSRTT, Whether2RegenKm regen);
+    /// - HSv4 (initial key material exchange - in HSv5 it's attached to handshake).
+    /// - The case of key regeneration (KM refresh), when a new key has to be sent again.
+    ///   In this case the first sending happens in regenCryptoKm(..). This function
+    ///   retransmits the KM request by timeout if not KM response has been received.
+    SRT_ATTR_EXCLUDES(m_mtxLock)
+    void sendKeysToPeer(CUDT* sock, int iSRTT);
 
     void setCryptoSecret(const HaiCrypt_Secret& secret)
     {
@@ -224,7 +231,7 @@ public:
         m_iRcvKmKeyLen = keylen;
     }
 
-    bool createCryptoCtx(size_t keylen, HaiCrypt_CryptoDir tx, HaiCrypt_Handle& rh);
+    bool createCryptoCtx(HaiCrypt_Handle& rh, size_t keylen, HaiCrypt_CryptoDir tx, bool bAESGCM);
 
     int getSndCryptoFlags() const
     {

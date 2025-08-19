@@ -1,13 +1,15 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
-// errorCauseCode is a cause code that appears in either a ERROR or ABORT chunk
+// errorCauseCode is a cause code that appears in either a ERROR or ABORT chunk.
 type errorCauseCode uint16
 
 type errorCause interface {
@@ -19,26 +21,34 @@ type errorCause interface {
 	errorCauseCode() errorCauseCode
 }
 
-// buildErrorCause delegates the building of a error cause from raw bytes to the correct structure
+// Error and abort chunk errors.
+var (
+	ErrBuildErrorCaseHandle = errors.New("BuildErrorCause does not handle")
+)
+
+// buildErrorCause delegates the building of a error cause from raw bytes to the correct structure.
 func buildErrorCause(raw []byte) (errorCause, error) {
-	var e errorCause
+	var errCause errorCause
 
 	c := errorCauseCode(binary.BigEndian.Uint16(raw[0:]))
 	switch c {
 	case invalidMandatoryParameter:
-		e = &errorCauseInvalidMandatoryParameter{}
+		errCause = &errorCauseInvalidMandatoryParameter{}
 	case unrecognizedChunkType:
-		e = &errorCauseUnrecognizedChunkType{}
+		errCause = &errorCauseUnrecognizedChunkType{}
 	case protocolViolation:
-		e = &errorCauseProtocolViolation{}
+		errCause = &errorCauseProtocolViolation{}
+	case userInitiatedAbort:
+		errCause = &errorCauseUserInitiatedAbort{}
 	default:
-		return nil, errors.Errorf("BuildErrorCause does not handle %s", c.String())
+		return nil, fmt.Errorf("%w: %s", ErrBuildErrorCaseHandle, c.String())
 	}
 
-	if err := e.unmarshal(raw); err != nil {
+	if err := errCause.unmarshal(raw); err != nil {
 		return nil, err
 	}
-	return e, nil
+
+	return errCause, nil
 }
 
 const (
@@ -57,7 +67,7 @@ const (
 	protocolViolation                      errorCauseCode = 13
 )
 
-func (e errorCauseCode) String() string {
+func (e errorCauseCode) String() string { //nolint:cyclop
 	switch e {
 	case invalidStreamIdentifier:
 		return "Invalid Stream Identifier"

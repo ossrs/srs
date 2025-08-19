@@ -60,6 +60,7 @@ written by
 
 // LOGF uses printf-like style formatting.
 // Usage: LOGF(gglog.Debug, "%s: %d", param1.c_str(), int(param2));
+// NOTE: LOGF is deprecated and should not be used
 #define LOGF(logdes, ...) if (logdes.CheckEnabled()) logdes().setloc(__FILE__, __LINE__, __FUNCTION__).form(__VA_ARGS__)
 
 // LOGP is C++11 only OR with only one string argument.
@@ -165,14 +166,24 @@ public:
 
         // See Logger::Logger; we know this has normally 2 characters,
         // except !!FATAL!!, which has 9. Still less than 32.
-        strcpy(prefix, your_pfx);
-
         // If the size of the FA name together with severity exceeds the size,
         // just skip the former.
         if (logger_pfx && strlen(prefix) + strlen(logger_pfx) + 1 < MAX_PREFIX_SIZE)
         {
-            strcat(prefix, ":");
-            strcat(prefix, logger_pfx);
+#if defined(_MSC_VER) && _MSC_VER < 1900
+            _snprintf(prefix, MAX_PREFIX_SIZE, "%s:%s", your_pfx, logger_pfx);
+#else
+            snprintf(prefix, MAX_PREFIX_SIZE + 1, "%s:%s", your_pfx, logger_pfx);
+#endif
+        }
+        else
+        {
+#ifdef _MSC_VER
+            strncpy_s(prefix, MAX_PREFIX_SIZE + 1, your_pfx, _TRUNCATE);
+#else
+            strncpy(prefix, your_pfx, MAX_PREFIX_SIZE);
+            prefix[MAX_PREFIX_SIZE] = '\0';
+#endif
         }
     }
 
@@ -242,7 +253,9 @@ public:
             return *this;
         }
 
-        DummyProxy& form(const char*, ...)
+        // DEPRECATED: DO NOT use LOGF/HLOGF macros anymore.
+        // Use iostream-style formatting with LOGC or a direct argument with LOGP.
+        SRT_ATR_DEPRECATED_PX DummyProxy& form(const char*, ...) SRT_ATR_DEPRECATED
         {
             return *this;
         }
@@ -356,7 +369,11 @@ struct LogDispatcher::Proxy
     {
         char buf[512];
 
-        vsprintf(buf, fmts, ap);
+#if defined(_MSC_VER) && _MSC_VER < 1900
+        _vsnprintf(buf, sizeof(buf) - 1, fmts, ap);
+#else
+        vsnprintf(buf, sizeof(buf), fmts, ap);
+#endif
         size_t len = strlen(buf);
         if ( buf[len-1] == '\n' )
         {

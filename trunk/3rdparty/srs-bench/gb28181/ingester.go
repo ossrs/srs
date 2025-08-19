@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// # Copyright (c) 2022 Winlin
+// # Copyright (c) 2022-2025 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -22,11 +22,6 @@ package gb28181
 
 import (
 	"context"
-	"github.com/ghettovoice/gosip/sip"
-	"github.com/ossrs/go-oryx-lib/errors"
-	"github.com/ossrs/go-oryx-lib/logger"
-	"github.com/pion/webrtc/v3/pkg/media/h264reader"
-	"github.com/yapingcat/gomedia/mpeg2"
 	"io"
 	"os"
 	"path"
@@ -34,6 +29,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ghettovoice/gosip/sip"
+	"github.com/ossrs/go-oryx-lib/errors"
+	"github.com/ossrs/go-oryx-lib/logger"
+	"github.com/pion/webrtc/v4/pkg/media/h264reader"
+	"github.com/yapingcat/gomedia/mpeg2"
 )
 
 type GBSessionConfig struct {
@@ -455,13 +456,13 @@ func (v *PSIngester) writeH265(ctx context.Context, pack *PSPackStream, h265 *H2
 
 		videoFrames = append(videoFrames, frame)
 		logger.If(ctx, "NALU %v PictureOrderCount=%v, ForbiddenZeroBit=%v, %v bytes",
-			frame.UnitType, frame.PictureOrderCount, frame.ForbiddenZeroBit, len(frame.Data))
+			frame.NalUnitType, frame.PictureOrderCount, frame.ForbiddenZeroBit, len(frame.Data))
 
-		if frame.UnitType == NaluTypeVps {
+		if frame.NalUnitType == NaluTypeVps {
 			vps = frame
-		} else if frame.UnitType == NaluTypeSps {
+		} else if frame.NalUnitType == NaluTypeSps {
 			sps = frame
-		} else if frame.UnitType == NaluTypePps {
+		} else if frame.NalUnitType == NaluTypePps {
 			pps = frame
 		} else {
 			break

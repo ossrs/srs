@@ -1,17 +1,17 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_rtc_sdp.hpp>
 
 #include <stdlib.h>
 
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <vector>
-#include <algorithm>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -20,17 +20,17 @@ using namespace std;
 // TODO: FIXME: Maybe we should use json.encode to escape it?
 const std::string kCRLF = "\r\n";
 
-#define FETCH(is,word) \
-if (!(is >> word)) {\
-    return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch failed");\
-}\
+#define FETCH(is, word)                                             \
+    if (!(is >> word)) {                                            \
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch failed"); \
+    }
 
-#define FETCH_WITH_DELIM(is,word,delim) \
-if (!getline(is,word,delim)) {\
-    return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch with delim failed");\
-}\
+#define FETCH_WITH_DELIM(is, word, delim)                                      \
+    if (!getline(is, word, delim)) {                                           \
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch with delim failed"); \
+    }
 
-std::vector<std::string> split_str(const std::string& str, const std::string& delim)
+std::vector<std::string> split_str(const std::string &str, const std::string &delim)
 {
     std::vector<std::string> ret;
     size_t pre_pos = 0;
@@ -46,21 +46,22 @@ std::vector<std::string> split_str(const std::string& str, const std::string& de
     return ret;
 }
 
-static void skip_first_spaces(std::string& str)
+static void skip_first_spaces(std::string &str)
 {
-    while (! str.empty() && str[0] == ' ') {
+    while (!str.empty() && str[0] == ' ') {
         str.erase(0, 1);
     }
 }
 
-srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264_param)
+srs_error_t srs_parse_h264_fmtp(const std::string &fmtp, H264SpecificParam &h264_param)
 {
     srs_error_t err = srs_success;
 
     std::vector<std::string> vec = srs_string_split(fmtp, ";");
     for (size_t i = 0; i < vec.size(); ++i) {
         std::vector<std::string> kv = srs_string_split(vec[i], "=");
-        if (kv.size() != 2) continue;
+        if (kv.size() != 2)
+            continue;
 
         if (kv[0] == "profile-level-id") {
             h264_param.profile_level_id = kv[1];
@@ -75,7 +76,7 @@ srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264
             // @see https://tools.ietf.org/html/rfc6184#section-6.3
             h264_param.packetization_mode = kv[1];
         } else if (kv[0] == "level-asymmetry-allowed") {
-            h264_param.level_asymmerty_allow = kv[1];
+            h264_param.level_asymmetry_allow = kv[1];
         }
     }
 
@@ -85,8 +86,45 @@ srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264
     if (h264_param.packetization_mode.empty()) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "no h264 param: packetization-mode");
     }
-    if (h264_param.level_asymmerty_allow.empty()) {
+    if (h264_param.level_asymmetry_allow.empty()) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "no h264 param: level-asymmetry-allowed");
+    }
+
+    return err;
+}
+
+srs_error_t srs_parse_h265_fmtp(const std::string &fmtp, H265SpecificParam &h265_param)
+{
+    srs_error_t err = srs_success;
+
+    std::vector<std::string> vec = srs_string_split(fmtp, ";");
+    for (size_t i = 0; i < vec.size(); ++i) {
+        std::vector<std::string> kv = srs_string_split(vec[i], "=");
+        if (kv.size() != 2)
+            continue;
+
+        if (kv[0] == "level-id") {
+            h265_param.level_id = kv[1];
+        } else if (kv[0] == "profile-id") {
+            h265_param.profile_id = kv[1];
+        } else if (kv[0] == "tier-flag") {
+            h265_param.tier_flag = kv[1];
+        } else if (kv[0] == "tx-mode") {
+            h265_param.tx_mode = kv[1];
+        }
+    }
+
+    if (h265_param.level_id.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: level-id");
+    }
+    if (h265_param.profile_id.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: profile-id");
+    }
+    if (h265_param.tier_flag.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: tier-flag");
+    }
+    if (h265_param.tx_mode.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h265 param: tx-mode");
     }
 
     return err;
@@ -100,7 +138,7 @@ SrsSessionInfo::~SrsSessionInfo()
 {
 }
 
-srs_error_t SrsSessionInfo::parse_attribute(const std::string& attribute, const std::string& value)
+srs_error_t SrsSessionInfo::parse_attribute(const std::string &attribute, const std::string &value)
 {
     srs_error_t err = srs_success;
 
@@ -124,14 +162,14 @@ srs_error_t SrsSessionInfo::parse_attribute(const std::string& attribute, const 
     return err;
 }
 
-srs_error_t SrsSessionInfo::encode(std::ostringstream& os)
+srs_error_t SrsSessionInfo::encode(std::ostringstream &os)
 {
     srs_error_t err = srs_success;
 
     if (!ice_ufrag_.empty()) {
         os << "a=ice-ufrag:" << ice_ufrag_ << kCRLF;
     }
-    
+
     if (!ice_pwd_.empty()) {
         os << "a=ice-pwd:" << ice_pwd_ << kCRLF;
     }
@@ -140,11 +178,11 @@ srs_error_t SrsSessionInfo::encode(std::ostringstream& os)
     if (!ice_options_.empty()) {
         os << "a=ice-options:" << ice_options_ << kCRLF;
     }
-    
-    if (!fingerprint_algo_.empty() && ! fingerprint_.empty()) {
+
+    if (!fingerprint_algo_.empty() && !fingerprint_.empty()) {
         os << "a=fingerprint:" << fingerprint_algo_ << " " << fingerprint_ << kCRLF;
     }
-    
+
     if (!setup_.empty()) {
         os << "a=setup:" << setup_ << kCRLF;
     }
@@ -152,17 +190,18 @@ srs_error_t SrsSessionInfo::encode(std::ostringstream& os)
     return err;
 }
 
-bool SrsSessionInfo::operator==(const SrsSessionInfo& rhs)
+bool SrsSessionInfo::operator==(const SrsSessionInfo &rhs)
 {
-    return ice_ufrag_        == rhs.ice_ufrag_ &&
-           ice_pwd_          == rhs.ice_pwd_ &&
-           ice_options_      == rhs.ice_options_ &&
+    return ice_ufrag_ == rhs.ice_ufrag_ &&
+           ice_pwd_ == rhs.ice_pwd_ &&
+           ice_options_ == rhs.ice_options_ &&
            fingerprint_algo_ == rhs.fingerprint_algo_ &&
-           fingerprint_      == rhs.fingerprint_ &&
-           setup_            == rhs.setup_;
+           fingerprint_ == rhs.fingerprint_ &&
+           setup_ == rhs.setup_;
 }
 
-SrsSessionInfo &SrsSessionInfo::operator=(SrsSessionInfo other) {
+SrsSessionInfo &SrsSessionInfo::operator=(SrsSessionInfo other)
+{
     std::swap(ice_ufrag_, other.ice_ufrag_);
     std::swap(ice_pwd_, other.ice_pwd_);
     std::swap(ice_options_, other.ice_options_);
@@ -191,7 +230,7 @@ SrsSSRCInfo::~SrsSSRCInfo()
 {
 }
 
-srs_error_t SrsSSRCInfo::encode(std::ostringstream& os)
+srs_error_t SrsSSRCInfo::encode(std::ostringstream &os)
 {
     srs_error_t err = srs_success;
 
@@ -236,13 +275,13 @@ SrsSSRCGroup::~SrsSSRCGroup()
 {
 }
 
-SrsSSRCGroup::SrsSSRCGroup(const std::string& semantic, const std::vector<uint32_t>& ssrcs)
+SrsSSRCGroup::SrsSSRCGroup(const std::string &semantic, const std::vector<uint32_t> &ssrcs)
 {
     semantic_ = semantic;
     ssrcs_ = ssrcs;
 }
 
-srs_error_t SrsSSRCGroup::encode(std::ostringstream& os)
+srs_error_t SrsSSRCGroup::encode(std::ostringstream &os)
 {
     srs_error_t err = srs_success;
 
@@ -272,7 +311,7 @@ SrsMediaPayloadType::~SrsMediaPayloadType()
 {
 }
 
-srs_error_t SrsMediaPayloadType::encode(std::ostringstream& os)
+srs_error_t SrsMediaPayloadType::encode(std::ostringstream &os)
 {
     srs_error_t err = srs_success;
 
@@ -296,7 +335,7 @@ srs_error_t SrsMediaPayloadType::encode(std::ostringstream& os)
     return err;
 }
 
-SrsMediaDesc::SrsMediaDesc(const std::string& type)
+SrsMediaDesc::SrsMediaDesc(const std::string &type)
 {
     type_ = type;
 
@@ -316,7 +355,7 @@ SrsMediaDesc::~SrsMediaDesc()
 {
 }
 
-SrsMediaPayloadType* SrsMediaDesc::find_media_with_payload_type(int payload_type)
+SrsMediaPayloadType *SrsMediaDesc::find_media_with_payload_type(int payload_type)
 {
     for (size_t i = 0; i < payload_types_.size(); ++i) {
         if (payload_types_[i].payload_type_ == payload_type) {
@@ -327,7 +366,7 @@ SrsMediaPayloadType* SrsMediaDesc::find_media_with_payload_type(int payload_type
     return NULL;
 }
 
-vector<SrsMediaPayloadType> SrsMediaDesc::find_media_with_encoding_name(const std::string& encoding_name) const
+vector<SrsMediaPayloadType> SrsMediaDesc::find_media_with_encoding_name(const std::string &encoding_name) const
 {
     std::vector<SrsMediaPayloadType> payloads;
 
@@ -349,8 +388,8 @@ srs_error_t SrsMediaDesc::update_msid(string id)
 {
     srs_error_t err = srs_success;
 
-    for(vector<SrsSSRCInfo>::iterator it = ssrc_infos_.begin(); it != ssrc_infos_.end(); ++it) {
-        SrsSSRCInfo& info = *it;
+    for (vector<SrsSSRCInfo>::iterator it = ssrc_infos_.begin(); it != ssrc_infos_.end(); ++it) {
+        SrsSSRCInfo &info = *it;
 
         info.msid_ = id;
         info.mslabel_ = id;
@@ -359,29 +398,29 @@ srs_error_t SrsMediaDesc::update_msid(string id)
     return err;
 }
 
-srs_error_t SrsMediaDesc::parse_line(const std::string& line)
+srs_error_t SrsMediaDesc::parse_line(const std::string &line)
 {
     srs_error_t err = srs_success;
     std::string content = line.substr(2);
 
     switch (line[0]) {
-        case 'a': {
-            return parse_attribute(content);
-        }
-        case 'c': {
-            // TODO: process c-line
-            break;
-        }
-        default: {
-            srs_trace("ignore media line=%s", line.c_str());
-            break;
-        }
+    case 'a': {
+        return parse_attribute(content);
+    }
+    case 'c': {
+        // TODO: process c-line
+        break;
+    }
+    default: {
+        srs_trace("ignore media line=%s", line.c_str());
+        break;
+    }
     }
 
     return err;
 }
 
-srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
+srs_error_t SrsMediaDesc::encode(std::ostringstream &os)
 {
     srs_error_t err = srs_success;
 
@@ -393,16 +432,18 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
     os << kCRLF;
 
     // TODO:nettype and address type
-    if (!connection_.empty()) os << connection_ << kCRLF;
+    if (!connection_.empty())
+        os << connection_ << kCRLF;
 
     if ((err = session_info_.encode(os)) != srs_success) {
         return srs_error_wrap(err, "encode session info failed");
     }
 
-    if (!mid_.empty()) os << "a=mid:" << mid_ << kCRLF;
+    if (!mid_.empty())
+        os << "a=mid:" << mid_ << kCRLF;
     if (!msid_.empty()) {
         os << "a=msid:" << msid_;
-        
+
         if (!msid_tracker_.empty()) {
             os << " " << msid_tracker_;
         }
@@ -410,8 +451,8 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         os << kCRLF;
     }
 
-    for(map<int, string>::iterator it = extmaps_.begin(); it != extmaps_.end(); ++it) {
-        os << "a=extmap:"<< it->first<< " "<< it->second<< kCRLF;
+    for (map<int, string>::iterator it = extmaps_.begin(); it != extmaps_.end(); ++it) {
+        os << "a=extmap:" << it->first << " " << it->second << kCRLF;
     }
     if (sendonly_) {
         os << "a=sendonly" << kCRLF;
@@ -434,6 +475,10 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         os << "a=rtcp-rsize" << kCRLF;
     }
 
+    if (!control_.empty()) {
+        os << "a=control:" << control_ << kCRLF;
+    }
+
     for (std::vector<SrsMediaPayloadType>::iterator iter = payload_types_.begin(); iter != payload_types_.end(); ++iter) {
         if ((err = iter->encode(os)) != srs_success) {
             return srs_error_wrap(err, "encode media payload failed");
@@ -441,7 +486,7 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
     }
 
     for (std::vector<SrsSSRCInfo>::iterator iter = ssrc_infos_.begin(); iter != ssrc_infos_.end(); ++iter) {
-        SrsSSRCInfo& ssrc_info = *iter;
+        SrsSSRCInfo &ssrc_info = *iter;
 
         if ((err = ssrc_info.encode(os)) != srs_success) {
             return srs_error_wrap(err, "encode ssrc failed");
@@ -452,7 +497,7 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
     int component_id = 1; /* RTP */
     for (std::vector<SrsCandidate>::iterator iter = candidates_.begin(); iter != candidates_.end(); ++iter) {
         // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-4.2
-        uint32_t priority = (1<<24)*(126) + (1<<8)*(65535) + (1)*(256 - component_id);
+        uint32_t priority = (1 << 24) * (126) + (1 << 8) * (65535) + (1) * (256 - component_id);
 
         // See ICE TCP at https://www.rfc-editor.org/rfc/rfc6544
         if (iter->protocol_ == "tcp") {
@@ -478,7 +523,7 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
     return err;
 }
 
-srs_error_t SrsMediaDesc::parse_attribute(const std::string& content)
+srs_error_t SrsMediaDesc::parse_attribute(const std::string &content)
 {
     srs_error_t err = srs_success;
     std::string attribute = "";
@@ -528,13 +573,13 @@ srs_error_t SrsMediaDesc::parse_attribute(const std::string& content)
 
     return err;
 }
-srs_error_t SrsMediaDesc::parse_attr_extmap(const std::string& value)
+srs_error_t SrsMediaDesc::parse_attr_extmap(const std::string &value)
 {
     srs_error_t err = srs_success;
     std::istringstream is(value);
     int id = 0;
     FETCH(is, id);
-    if(extmaps_.end() != extmaps_.find(id)) {
+    if (extmaps_.end() != extmaps_.find(id)) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "duplicate ext id: %d", id);
     }
     string ext;
@@ -543,7 +588,7 @@ srs_error_t SrsMediaDesc::parse_attr_extmap(const std::string& value)
     return err;
 }
 
-srs_error_t SrsMediaDesc::parse_attr_rtpmap(const std::string& value)
+srs_error_t SrsMediaDesc::parse_attr_rtpmap(const std::string &value)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc4566#page-25
@@ -554,7 +599,7 @@ srs_error_t SrsMediaDesc::parse_attr_rtpmap(const std::string& value)
     int payload_type = 0;
     FETCH(is, payload_type);
 
-    SrsMediaPayloadType* payload = find_media_with_payload_type(payload_type);
+    SrsMediaPayloadType *payload = find_media_with_payload_type(payload_type);
     if (payload == NULL) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "can not find payload %d when pase rtpmap", payload_type);
     }
@@ -577,7 +622,7 @@ srs_error_t SrsMediaDesc::parse_attr_rtpmap(const std::string& value)
     return err;
 }
 
-srs_error_t SrsMediaDesc::parse_attr_rtcp(const std::string& value)
+srs_error_t SrsMediaDesc::parse_attr_rtcp(const std::string &value)
 {
     srs_error_t err = srs_success;
 
@@ -586,7 +631,7 @@ srs_error_t SrsMediaDesc::parse_attr_rtcp(const std::string& value)
     return err;
 }
 
-srs_error_t SrsMediaDesc::parse_attr_rtcp_fb(const std::string& value)
+srs_error_t SrsMediaDesc::parse_attr_rtcp_fb(const std::string &value)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc5104#section-7.1
@@ -596,7 +641,7 @@ srs_error_t SrsMediaDesc::parse_attr_rtcp_fb(const std::string& value)
     int payload_type = 0;
     FETCH(is, payload_type);
 
-    SrsMediaPayloadType* payload = find_media_with_payload_type(payload_type);
+    SrsMediaPayloadType *payload = find_media_with_payload_type(payload_type);
     if (payload == NULL) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "can not find payload %d when pase rtcp-fb", payload_type);
     }
@@ -609,7 +654,7 @@ srs_error_t SrsMediaDesc::parse_attr_rtcp_fb(const std::string& value)
     return err;
 }
 
-srs_error_t SrsMediaDesc::parse_attr_fmtp(const std::string& value)
+srs_error_t SrsMediaDesc::parse_attr_fmtp(const std::string &value)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc4566#page-30
@@ -620,7 +665,7 @@ srs_error_t SrsMediaDesc::parse_attr_fmtp(const std::string& value)
     int payload_type = 0;
     FETCH(is, payload_type);
 
-    SrsMediaPayloadType* payload = find_media_with_payload_type(payload_type);
+    SrsMediaPayloadType *payload = find_media_with_payload_type(payload_type);
     if (payload == NULL) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "can not find payload %d when pase fmtp", payload_type);
     }
@@ -633,7 +678,7 @@ srs_error_t SrsMediaDesc::parse_attr_fmtp(const std::string& value)
     return err;
 }
 
-srs_error_t SrsMediaDesc::parse_attr_mid(const std::string& value)
+srs_error_t SrsMediaDesc::parse_attr_mid(const std::string &value)
 {
     // @see: https://tools.ietf.org/html/rfc3388#section-3
     srs_error_t err = srs_success;
@@ -644,7 +689,7 @@ srs_error_t SrsMediaDesc::parse_attr_mid(const std::string& value)
     return err;
 }
 
-srs_error_t SrsMediaDesc::parse_attr_msid(const std::string& value)
+srs_error_t SrsMediaDesc::parse_attr_msid(const std::string &value)
 {
     // @see: https://tools.ietf.org/id/draft-ietf-mmusic-msid-08.html#rfc.section.2
     // TODO: msid and msid_tracker
@@ -656,7 +701,7 @@ srs_error_t SrsMediaDesc::parse_attr_msid(const std::string& value)
     return err;
 }
 
-srs_error_t SrsMediaDesc::parse_attr_ssrc(const std::string& value)
+srs_error_t SrsMediaDesc::parse_attr_ssrc(const std::string &value)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc5576#section-4.1
@@ -673,7 +718,7 @@ srs_error_t SrsMediaDesc::parse_attr_ssrc(const std::string& value)
     std::string ssrc_value = is.str().substr(is.tellg());
     skip_first_spaces(ssrc_value);
 
-    SrsSSRCInfo& ssrc_info = fetch_or_create_ssrc_info(ssrc);
+    SrsSSRCInfo &ssrc_info = fetch_or_create_ssrc_info(ssrc);
 
     if (ssrc_attr == "cname") {
         // @see: https://tools.ietf.org/html/rfc5576#section-6.1
@@ -699,7 +744,7 @@ srs_error_t SrsMediaDesc::parse_attr_ssrc(const std::string& value)
     return err;
 }
 
-srs_error_t SrsMediaDesc::parse_attr_ssrc_group(const std::string& value)
+srs_error_t SrsMediaDesc::parse_attr_ssrc_group(const std::string &value)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc5576#section-4.2
@@ -730,7 +775,7 @@ srs_error_t SrsMediaDesc::parse_attr_ssrc_group(const std::string& value)
     return err;
 }
 
-SrsSSRCInfo& SrsMediaDesc::fetch_or_create_ssrc_info(uint32_t ssrc)
+SrsSSRCInfo &SrsMediaDesc::fetch_or_create_ssrc_info(uint32_t ssrc)
 {
     for (size_t i = 0; i < ssrc_infos_.size(); ++i) {
         if (ssrc_infos_[i].ssrc_ == ssrc) {
@@ -748,7 +793,7 @@ SrsSSRCInfo& SrsMediaDesc::fetch_or_create_ssrc_info(uint32_t ssrc)
 SrsSdp::SrsSdp()
 {
     in_media_session_ = false;
-    
+
     start_time_ = 0;
     end_time_ = 0;
 
@@ -759,7 +804,7 @@ SrsSdp::~SrsSdp()
 {
 }
 
-srs_error_t SrsSdp::parse(const std::string& sdp_str)
+srs_error_t SrsSdp::parse(const std::string &sdp_str)
 {
     srs_error_t err = srs_success;
 
@@ -786,8 +831,8 @@ srs_error_t SrsSdp::parse(const std::string& sdp_str)
         if (line.size() < 2 || line[1] != '=') {
             return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid sdp line=%s", line.c_str());
         }
-        if (!line.empty() && line[line.size()-1] == '\r') {
-            line.erase(line.size()-1, 1);
+        if (!line.empty() && line[line.size() - 1] == '\r') {
+            line.erase(line.size() - 1, 1);
         }
 
         // Strip the space of line, for pion WebRTC client.
@@ -800,13 +845,13 @@ srs_error_t SrsSdp::parse(const std::string& sdp_str)
 
     // The msid/tracker/mslabel is optional for SSRC, so we copy it when it's empty.
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc& media_desc = *iter;
+        SrsMediaDesc &media_desc = *iter;
 
         for (size_t i = 0; i < media_desc.ssrc_infos_.size(); ++i) {
-            SrsSSRCInfo& ssrc_info = media_desc.ssrc_infos_.at(i);
+            SrsSSRCInfo &ssrc_info = media_desc.ssrc_infos_.at(i);
 
             if (ssrc_info.msid_.empty()) {
-                ssrc_info.msid_  = media_desc.msid_;
+                ssrc_info.msid_ = media_desc.msid_;
             }
 
             if (ssrc_info.msid_tracker_.empty()) {
@@ -826,7 +871,7 @@ srs_error_t SrsSdp::parse(const std::string& sdp_str)
     return err;
 }
 
-srs_error_t SrsSdp::encode(std::ostringstream& os)
+srs_error_t SrsSdp::encode(std::ostringstream &os)
 {
     srs_error_t err = srs_success;
 
@@ -834,11 +879,13 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
     os << "o=" << username_ << " " << session_id_ << " " << session_version_ << " " << nettype_ << " " << addrtype_ << " " << unicast_address_ << kCRLF;
     os << "s=" << session_name_ << kCRLF;
     // Session level connection data, see https://www.ietf.org/rfc/rfc4566.html#section-5.7
-    if (!connection_.empty()) os << connection_ << kCRLF;
+    if (!connection_.empty())
+        os << connection_ << kCRLF;
     // Timing, see https://www.ietf.org/rfc/rfc4566.html#section-5.9
     os << "t=" << start_time_ << " " << end_time_ << kCRLF;
     // ice-lite is a minimal version of the ICE specification, intended for servers running on a public IP address.
-    if (!ice_lite_.empty()) os << ice_lite_ << kCRLF;
+    if (!ice_lite_.empty())
+        os << ice_lite_ << kCRLF;
 
     if (!groups_.empty()) {
         os << "a=group:" << group_policy_;
@@ -860,6 +907,10 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
         return srs_error_wrap(err, "encode session info failed");
     }
 
+    if (!control_.empty()) {
+        os << "a=control:" << control_ << kCRLF;
+    }
+
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         if ((err = (*iter).encode(os)) != srs_success) {
             return srs_error_wrap(err, "encode media description failed");
@@ -869,11 +920,11 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
     return err;
 }
 
-std::vector<SrsMediaDesc*> SrsSdp::find_media_descs(const std::string& type)
+std::vector<SrsMediaDesc *> SrsSdp::find_media_descs(const std::string &type)
 {
-    std::vector<SrsMediaDesc*> descs;
+    std::vector<SrsMediaDesc *> descs;
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = &(*iter);
+        SrsMediaDesc *desc = &(*iter);
 
         if (desc->type_ == type) {
             descs.push_back(desc);
@@ -883,47 +934,47 @@ std::vector<SrsMediaDesc*> SrsSdp::find_media_descs(const std::string& type)
     return descs;
 }
 
-void SrsSdp::set_ice_ufrag(const std::string& ufrag)
+void SrsSdp::set_ice_ufrag(const std::string &ufrag)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = &(*iter);
+        SrsMediaDesc *desc = &(*iter);
         desc->session_info_.ice_ufrag_ = ufrag;
     }
 }
 
-void SrsSdp::set_ice_pwd(const std::string& pwd)
+void SrsSdp::set_ice_pwd(const std::string &pwd)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = &(*iter);
+        SrsMediaDesc *desc = &(*iter);
         desc->session_info_.ice_pwd_ = pwd;
     }
 }
 
-void SrsSdp::set_dtls_role(const std::string& dtls_role)
+void SrsSdp::set_dtls_role(const std::string &dtls_role)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = &(*iter);
+        SrsMediaDesc *desc = &(*iter);
         desc->session_info_.setup_ = dtls_role;
     }
 }
 
-void SrsSdp::set_fingerprint_algo(const std::string& algo)
+void SrsSdp::set_fingerprint_algo(const std::string &algo)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = &(*iter);
+        SrsMediaDesc *desc = &(*iter);
         desc->session_info_.fingerprint_algo_ = algo;
     }
 }
 
-void SrsSdp::set_fingerprint(const std::string& fingerprint)
+void SrsSdp::set_fingerprint(const std::string &fingerprint)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = &(*iter);
+        SrsMediaDesc *desc = &(*iter);
         desc->session_info_.fingerprint_ = fingerprint;
     }
 }
 
-void SrsSdp::add_candidate(const std::string& protocol, const std::string& ip, const int& port, const std::string& type)
+void SrsSdp::add_candidate(const std::string &protocol, const std::string &ip, const int &port, const std::string &type)
 {
     // @see: https://tools.ietf.org/id/draft-ietf-mmusic-ice-sip-sdp-14.html#rfc.section.5.1
     SrsCandidate candidate;
@@ -933,16 +984,21 @@ void SrsSdp::add_candidate(const std::string& protocol, const std::string& ip, c
     candidate.type_ = type;
 
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = &(*iter);
+        SrsMediaDesc *desc = &(*iter);
         desc->candidates_.push_back(candidate);
     }
 }
 
 std::string SrsSdp::get_ice_ufrag() const
 {
-    // Becaues we use BUNDLE, so we can choose the first element.
+    // For OBS WHIP, use the global ice-ufrag.
+    if (!session_info_.ice_ufrag_.empty()) {
+        return session_info_.ice_ufrag_;
+    }
+
+    // Because we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        const SrsMediaDesc* desc = &(*iter);
+        const SrsMediaDesc *desc = &(*iter);
         return desc->session_info_.ice_ufrag_;
     }
 
@@ -951,9 +1007,14 @@ std::string SrsSdp::get_ice_ufrag() const
 
 std::string SrsSdp::get_ice_pwd() const
 {
-    // Becaues we use BUNDLE, so we can choose the first element.
+    // For OBS WHIP, use the global ice pwd.
+    if (!session_info_.ice_pwd_.empty()) {
+        return session_info_.ice_pwd_;
+    }
+
+    // Because we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        const SrsMediaDesc* desc = &(*iter);
+        const SrsMediaDesc *desc = &(*iter);
         return desc->session_info_.ice_pwd_;
     }
 
@@ -962,60 +1023,60 @@ std::string SrsSdp::get_ice_pwd() const
 
 std::string SrsSdp::get_dtls_role() const
 {
-    // Becaues we use BUNDLE, so we can choose the first element.
+    // Because we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        const SrsMediaDesc* desc = &(*iter);
+        const SrsMediaDesc *desc = &(*iter);
         return desc->session_info_.setup_;
     }
 
     return "";
 }
 
-srs_error_t SrsSdp::parse_line(const std::string& line)
+srs_error_t SrsSdp::parse_line(const std::string &line)
 {
     srs_error_t err = srs_success;
 
     std::string content = line.substr(2);
 
     switch (line[0]) {
-        case 'o': {
-            return parse_origin(content);
+    case 'o': {
+        return parse_origin(content);
+    }
+    case 'v': {
+        return parse_version(content);
+    }
+    case 's': {
+        return parse_session_name(content);
+    }
+    case 't': {
+        return parse_timing(content);
+    }
+    case 'a': {
+        if (in_media_session_) {
+            return media_descs_.back().parse_line(line);
         }
-        case 'v': {
-            return parse_version(content);
-        }
-        case 's': {
-            return parse_session_name(content);
-        }
-        case 't': {
-            return parse_timing(content);
-        }
-        case 'a': {
-            if (in_media_session_) {
-                return media_descs_.back().parse_line(line);
-            }
-            return parse_attribute(content);
-        }
-        case 'y': {
-            return parse_gb28181_ssrc(content);
-        }
-        case 'm': {
-            return parse_media_description(content);
-        }
-        case 'c': {
-            // TODO: process c-line
-            break;
-        }
-        default: {
-            srs_trace("ignore sdp line=%s", line.c_str());
-            break;
-        }
+        return parse_attribute(content);
+    }
+    case 'y': {
+        return parse_gb28181_ssrc(content);
+    }
+    case 'm': {
+        return parse_media_description(content);
+    }
+    case 'c': {
+        // TODO: process c-line
+        break;
+    }
+    default: {
+        srs_trace("ignore sdp line=%s", line.c_str());
+        break;
+    }
     }
 
     return err;
 }
 
-srs_error_t SrsSdp::parse_origin(const std::string& content)
+srs_error_t SrsSdp::parse_origin(const std::string &content)
 {
     srs_error_t err = srs_success;
 
@@ -1034,7 +1095,7 @@ srs_error_t SrsSdp::parse_origin(const std::string& content)
     return err;
 }
 
-srs_error_t SrsSdp::parse_version(const std::string& content)
+srs_error_t SrsSdp::parse_version(const std::string &content)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc4566#section-5.1
@@ -1046,7 +1107,7 @@ srs_error_t SrsSdp::parse_version(const std::string& content)
     return err;
 }
 
-srs_error_t SrsSdp::parse_session_name(const std::string& content)
+srs_error_t SrsSdp::parse_session_name(const std::string &content)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc4566#section-5.3
@@ -1057,12 +1118,12 @@ srs_error_t SrsSdp::parse_session_name(const std::string& content)
     return err;
 }
 
-srs_error_t SrsSdp::parse_timing(const std::string& content)
+srs_error_t SrsSdp::parse_timing(const std::string &content)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc4566#section-5.9
     // t=<start-time> <stop-time>
-    
+
     std::istringstream is(content);
 
     FETCH(is, start_time_);
@@ -1071,7 +1132,7 @@ srs_error_t SrsSdp::parse_timing(const std::string& content)
     return err;
 }
 
-srs_error_t SrsSdp::parse_attribute(const std::string& content)
+srs_error_t SrsSdp::parse_attribute(const std::string &content)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc4566#section-5.13
@@ -1104,7 +1165,7 @@ srs_error_t SrsSdp::parse_attribute(const std::string& content)
     return err;
 }
 
-srs_error_t SrsSdp::parse_gb28181_ssrc(const std::string& content)
+srs_error_t SrsSdp::parse_gb28181_ssrc(const std::string &content)
 {
     srs_error_t err = srs_success;
 
@@ -1127,10 +1188,16 @@ srs_error_t SrsSdp::parse_gb28181_ssrc(const std::string& content)
     return err;
 }
 
-srs_error_t SrsSdp::parse_attr_group(const std::string& value)
+srs_error_t SrsSdp::parse_attr_group(const std::string &value)
 {
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc5888#section-5
+
+    // Overlook the OBS WHIP group LS, as it is utilized for synchronizing the playback of
+    // the relevant media streams, see https://datatracker.ietf.org/doc/html/rfc5888#section-7
+    if (srs_string_starts_with(value, "LS")) {
+        return err;
+    }
 
     std::istringstream is(value);
 
@@ -1144,7 +1211,7 @@ srs_error_t SrsSdp::parse_attr_group(const std::string& value)
     return err;
 }
 
-srs_error_t SrsSdp::parse_media_description(const std::string& content)
+srs_error_t SrsSdp::parse_media_description(const std::string &content)
 {
     srs_error_t err = srs_success;
 
@@ -1192,7 +1259,7 @@ srs_error_t SrsSdp::update_msid(string id)
     msids_.push_back(id);
 
     for (vector<SrsMediaDesc>::iterator it = media_descs_.begin(); it != media_descs_.end(); ++it) {
-        SrsMediaDesc& desc = *it;
+        SrsMediaDesc &desc = *it;
 
         if ((err = desc.update_msid(id)) != srs_success) {
             return srs_error_wrap(err, "desc %s update msid %s", desc.mid_.c_str(), id.c_str());
@@ -1201,4 +1268,3 @@ srs_error_t SrsSdp::update_msid(string id)
 
     return err;
 }
-

@@ -1,0 +1,6 @@
+---
+# SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+# SPDX-License-Identifier: MIT
+
+exclude_paths:
+  - examples/examples.json

@@ -151,11 +151,11 @@ modified by
 //   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 //   Loss List Field Coding:
-//      For any consectutive lost seqeunce numbers that the differnece between
+//      For any consecutive lost seqeunce numbers that the differnece between
 //      the last and first is more than 1, only record the first (a) and the
 //      the last (b) sequence numbers in the loss list field, and modify the
 //      the first bit of a to 1.
-//      For any single loss or consectutive loss less than 2 packets, use
+//      For any single loss or consecutive loss less than 2 packets, use
 //      the original sequence numbers in the field.
 
 #include "platform_sys.h"
@@ -172,9 +172,12 @@ extern Logger inlog;
 }
 using namespace srt_logging;
 
+namespace srt {
+
 // Set up the aliases in the constructure
-srt::CPacket::CPacket()
-    : m_extra_pad()
+CPacket::CPacket()
+    : m_nHeader() // Silences GCC 12 warning "used uninitialized".
+    , m_extra_pad()
     , m_data_owned(false)
     , m_iSeqNo((int32_t&)(m_nHeader[SRT_PH_SEQNO]))
     , m_iMsgNo((int32_t&)(m_nHeader[SRT_PH_MSGNO]))
@@ -194,12 +197,12 @@ srt::CPacket::CPacket()
     m_PacketVector[PV_DATA].set(NULL, 0);
 }
 
-char* srt::CPacket::getData()
+char* CPacket::getData()
 {
     return (char*)m_PacketVector[PV_DATA].dataRef();
 }
 
-void srt::CPacket::allocate(size_t alloc_buffer_size)
+void CPacket::allocate(size_t alloc_buffer_size)
 {
     if (m_data_owned)
     {
@@ -213,14 +216,15 @@ void srt::CPacket::allocate(size_t alloc_buffer_size)
     m_data_owned = true;
 }
 
-void srt::CPacket::deallocate()
+void CPacket::deallocate()
 {
     if (m_data_owned)
         delete[](char*) m_PacketVector[PV_DATA].data();
     m_PacketVector[PV_DATA].set(NULL, 0);
+    m_data_owned = false;
 }
 
-char* srt::CPacket::release()
+char* CPacket::release()
 {
     // When not owned, release returns NULL.
     char* buffer = NULL;
@@ -234,31 +238,99 @@ char* srt::CPacket::release()
     return buffer;
 }
 
-srt::CPacket::~CPacket()
+CPacket::~CPacket()
 {
     // PV_HEADER is always owned, PV_DATA may use a "borrowed" buffer.
     // Delete the internal buffer only if it was declared as owned.
-    if (m_data_owned)
-        delete[](char*) m_PacketVector[PV_DATA].data();
+    deallocate();
 }
 
-size_t srt::CPacket::getLength() const
+size_t CPacket::getLength() const
 {
     return m_PacketVector[PV_DATA].size();
 }
 
-void srt::CPacket::setLength(size_t len)
+void CPacket::setLength(size_t len)
 {
     m_PacketVector[PV_DATA].setLength(len);
 }
 
-void srt::CPacket::pack(UDTMessageType pkttype, const int32_t* lparam, void* rparam, size_t size)
+void CPacket::setLength(size_t len, size_t cap)
+{
+   SRT_ASSERT(len <= cap);
+   setLength(len);
+   m_zCapacity = cap;
+}
+
+#if ENABLE_HEAVY_LOGGING
+// Debug only
+static std::string FormatNumbers(UDTMessageType pkttype, const int32_t* lparam, void* rparam, const size_t size)
+{
+    // This may be changed over time, so use special interpretation
+    // only for certain types, and still display all data, no matter
+    // if it is expected to provide anything or not.
+    std::ostringstream out;
+
+    out << "ARG=";
+    if (lparam)
+        out << *lparam;
+    else
+        out << "none";
+
+    if (size == 0)
+    {
+        out << " [no data]";
+        return out.str();
+    }
+    else if (!rparam)
+    {
+        out << " [ {" << size << "} ]";
+        return out.str();
+    }
+
+    bool interp_as_seq = (pkttype == UMSG_LOSSREPORT || pkttype == UMSG_DROPREQ);
+    bool display_dec = (pkttype == UMSG_ACK || pkttype == UMSG_ACKACK || pkttype == UMSG_DROPREQ);
+
+    out << " [ ";
+
+    // Will be effective only for hex/oct.
+    out << std::showbase;
+
+    const size_t size32 = size/4;
+    for (size_t i = 0; i < size32; ++i)
+    {
+        int32_t val = ((int32_t*)rparam)[i];
+        if (interp_as_seq)
+        {
+            if (val & LOSSDATA_SEQNO_RANGE_FIRST)
+                out << "<" << (val & (~LOSSDATA_SEQNO_RANGE_FIRST)) << ">";
+            else
+                out << val;
+        }
+        else
+        {
+            if (!display_dec)
+            {
+                out << std::hex;
+                out << val << "/";
+                out << std::dec;
+            }
+            out << val;
+
+        }
+        out << " ";
+    }
+
+    out << "]";
+    return out.str();
+}
+#endif
+
+void CPacket::pack(UDTMessageType pkttype, const int32_t* lparam, void* rparam, size_t size)
 {
     // Set (bit-0 = 1) and (bit-1~15 = type)
     setControl(pkttype);
-    HLOGC(inlog.Debug,
-          log << "pack: type=" << MessageTypeStr(pkttype) << " ARG=" << (lparam ? Sprint(*lparam) : std::string("NULL"))
-              << " [ " << (rparam ? Sprint(*(int32_t*)rparam) : std::string()) << " ]");
+    HLOGC(inlog.Debug, log << "pack: type=" << MessageTypeStr(pkttype) << " " << FormatNumbers(pkttype, lparam, rparam, size));
 
     // Set additional information and control information field
     switch (pkttype)
@@ -364,7 +436,7 @@ void srt::CPacket::pack(UDTMessageType pkttype, const int32_t* lparam, void* rpa
     }
 }
 
-void srt::CPacket::toNL()
+void CPacket::toNL()
 {
     // XXX USE HtoNLA!
     if (isControl())
@@ -382,7 +454,7 @@ void srt::CPacket::toNL()
     }
 }
 
-void srt::CPacket::toHL()
+void CPacket::toHL()
 {
     // convert back into local host order
     uint32_t* p = m_nHeader;
@@ -399,22 +471,22 @@ void srt::CPacket::toHL()
     }
 }
 
-srt::IOVector* srt::CPacket::getPacketVector()
+IOVector* CPacket::getPacketVector()
 {
     return m_PacketVector;
 }
 
-srt::UDTMessageType srt::CPacket::getType() const
+UDTMessageType CPacket::getType() const
 {
     return UDTMessageType(SEQNO_MSGTYPE::unwrap(m_nHeader[SRT_PH_SEQNO]));
 }
 
-int srt::CPacket::getExtendedType() const
+int CPacket::getExtendedType() const
 {
     return SEQNO_EXTTYPE::unwrap(m_nHeader[SRT_PH_SEQNO]);
 }
 
-int32_t srt::CPacket::getAckSeqNo() const
+int32_t CPacket::getAckSeqNo() const
 {
     // read additional information field
     // This field is used only in UMSG_ACK and UMSG_ACKACK,
@@ -423,7 +495,7 @@ int32_t srt::CPacket::getAckSeqNo() const
     return m_nHeader[SRT_PH_MSGNO];
 }
 
-uint16_t srt::CPacket::getControlFlags() const
+uint16_t CPacket::getControlFlags() const
 {
     // This returns exactly the "extended type" value,
     // which is not used at all in case when the standard
@@ -432,17 +504,17 @@ uint16_t srt::CPacket::getControlFlags() const
     return SEQNO_EXTTYPE::unwrap(m_nHeader[SRT_PH_SEQNO]);
 }
 
-srt::PacketBoundary srt::CPacket::getMsgBoundary() const
+PacketBoundary CPacket::getMsgBoundary() const
 {
     return PacketBoundary(MSGNO_PACKET_BOUNDARY::unwrap(m_nHeader[SRT_PH_MSGNO]));
 }
 
-bool srt::CPacket::getMsgOrderFlag() const
+bool CPacket::getMsgOrderFlag() const
 {
     return 0 != MSGNO_PACKET_INORDER::unwrap(m_nHeader[SRT_PH_MSGNO]);
 }
 
-int32_t srt::CPacket::getMsgSeq(bool has_rexmit) const
+int32_t CPacket::getMsgSeq(bool has_rexmit) const
 {
     if (has_rexmit)
     {
@@ -454,13 +526,18 @@ int32_t srt::CPacket::getMsgSeq(bool has_rexmit) const
     }
 }
 
-bool srt::CPacket::getRexmitFlag() const
+bool CPacket::getRexmitFlag() const
 {
-    // return false; //
     return 0 != MSGNO_REXMIT::unwrap(m_nHeader[SRT_PH_MSGNO]);
 }
 
-srt::EncryptionKeySpec srt::CPacket::getMsgCryptoFlags() const
+void CPacket::setRexmitFlag(bool bRexmit)
+{
+    const int32_t clr_msgno = m_nHeader[SRT_PH_MSGNO] & ~MSGNO_REXMIT::mask;
+    m_nHeader[SRT_PH_MSGNO] = clr_msgno | MSGNO_REXMIT::wrap(bRexmit? 1 : 0);
+}
+
+EncryptionKeySpec CPacket::getMsgCryptoFlags() const
 {
     return EncryptionKeySpec(MSGNO_ENCKEYSPEC::unwrap(m_nHeader[SRT_PH_MSGNO]));
 }
@@ -468,31 +545,29 @@ srt::EncryptionKeySpec srt::CPacket::getMsgCryptoFlags() const
 // This is required as the encryption/decryption happens in place.
 // This is required to clear off the flags after decryption or set
 // crypto flags after encrypting a packet.
-void srt::CPacket::setMsgCryptoFlags(EncryptionKeySpec spec)
+void CPacket::setMsgCryptoFlags(EncryptionKeySpec spec)
 {
     int32_t clr_msgno       = m_nHeader[SRT_PH_MSGNO] & ~MSGNO_ENCKEYSPEC::mask;
     m_nHeader[SRT_PH_MSGNO] = clr_msgno | EncryptionKeyBits(spec);
 }
 
-uint32_t srt::CPacket::getMsgTimeStamp() const
+uint32_t CPacket::getMsgTimeStamp() const
 {
-    // SRT_DEBUG_TSBPD_WRAP may enable smaller timestamp for faster wraparoud handling tests
+    // SRT_DEBUG_TSBPD_WRAP used to enable smaller timestamps for faster testing of how wraparounds are handled
     return (uint32_t)m_nHeader[SRT_PH_TIMESTAMP] & TIMESTAMP_MASK;
 }
 
-srt::CPacket* srt::CPacket::clone() const
+CPacket* CPacket::clone() const
 {
     CPacket* pkt = new CPacket;
     memcpy((pkt->m_nHeader), m_nHeader, HDR_SIZE);
-    pkt->m_pcData = new char[m_PacketVector[PV_DATA].size()];
-    memcpy((pkt->m_pcData), m_pcData, m_PacketVector[PV_DATA].size());
-    pkt->m_PacketVector[PV_DATA].setLength(m_PacketVector[PV_DATA].size());
+    pkt->allocate(this->getLength());
+    SRT_ASSERT(this->getLength() == pkt->getLength());
+    memcpy((pkt->m_pcData), m_pcData, this->getLength());
+    pkt->m_DestAddr = m_DestAddr;
 
     return pkt;
 }
-
-namespace srt
-{
 
 // Useful for debugging
 std::string PacketMessageFlagStr(uint32_t msgno_field)
@@ -522,10 +597,8 @@ inline void SprintSpecialWord(std::ostream& os, int32_t val)
         os << val;
 }
 
-} // namespace srt
-
 #if ENABLE_LOGGING
-std::string srt::CPacket::Info()
+std::string CPacket::Info()
 {
     std::ostringstream os;
     os << "TARGET=@" << m_iID << " ";
@@ -580,3 +653,5 @@ std::string srt::CPacket::Info()
     return os.str();
 }
 #endif
+
+} // end namespace srt

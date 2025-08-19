@@ -1,16 +1,19 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package datachannel
 
 import (
 	"encoding/binary"
-
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 /*
 channelOpen represents a DATA_CHANNEL_OPEN Message
 
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	0                   1                   2                   3
+	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |  Message Type |  Channel Type |            Priority           |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -72,6 +75,23 @@ const (
 	ChannelTypePartialReliableTimedUnordered ChannelType = 0x82
 )
 
+func (c ChannelType) String() string {
+	switch c {
+	case ChannelTypeReliable:
+	case ChannelTypeReliableUnordered:
+		return "ReliableUnordered"
+	case ChannelTypePartialReliableRexmit:
+		return "PartialReliableRexmit"
+	case ChannelTypePartialReliableRexmitUnordered:
+		return "PartialReliableRexmitUnordered"
+	case ChannelTypePartialReliableTimed:
+		return "PartialReliableTimed"
+	case ChannelTypePartialReliableTimedUnordered:
+		return "PartialReliableTimedUnordered"
+	}
+	return "Unknown"
+}
+
 // ChannelPriority enums
 const (
 	ChannelPriorityBelowNormal uint16 = 128
@@ -104,7 +124,7 @@ func (c *channelOpen) Marshal() ([]byte, error) {
 // Unmarshal populates the struct with the given raw data
 func (c *channelOpen) Unmarshal(raw []byte) error {
 	if len(raw) < channelOpenHeaderLength {
-		return errors.Errorf("Length of input is not long enough to satisfy header %d", len(raw))
+		return fmt.Errorf("%w expected(%d) actual(%d)", ErrExpectedAndActualLengthMismatch, channelOpenHeaderLength, len(raw))
 	}
 	c.ChannelType = ChannelType(raw[1])
 	c.Priority = binary.BigEndian.Uint16(raw[2:])
@@ -113,11 +133,15 @@ func (c *channelOpen) Unmarshal(raw []byte) error {
 	labelLength := binary.BigEndian.Uint16(raw[8:])
 	protocolLength := binary.BigEndian.Uint16(raw[10:])
 
-	if len(raw) != int(channelOpenHeaderLength+labelLength+protocolLength) {
-		return errors.Errorf("Label + Protocol length don't match full packet length")
+	if expectedLen := channelOpenHeaderLength + int(labelLength) + int(protocolLength); len(raw) != expectedLen {
+		return fmt.Errorf("%w expected(%d) actual(%d)", ErrExpectedAndActualLengthMismatch, expectedLen, len(raw))
 	}
 
 	c.Label = raw[channelOpenHeaderLength : channelOpenHeaderLength+labelLength]
 	c.Protocol = raw[channelOpenHeaderLength+labelLength : channelOpenHeaderLength+labelLength+protocolLength]
 	return nil
+}
+
+func (c channelOpen) String() string {
+	return fmt.Sprintf("Open ChannelType(%s) Priority(%v) ReliabilityParameter(%d) Label(%s) Protocol(%s)", c.ChannelType, c.Priority, c.ReliabilityParameter, string(c.Label), string(c.Protocol))
 }

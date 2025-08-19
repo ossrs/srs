@@ -1,0 +1,85 @@
+#!/bin/sh
+
+while getopts n:o:a:t:d:h: option
+do
+ case "${option}"
+ in
+ n) ANDROID_NDK=${OPTARG};;
+ o) OPENSSL_VERSION=${OPTARG};;
+ a) API_LEVEL=${OPTARG};;
+ t) BUILD_TARGETS=${OPTARG};;
+ d) OUT_DIR=${OPTARG};;
+ h) HOST_TAG=${OPTARG};;
+ *) twentytwo=${OPTARG};;
+ esac
+done
+
+
+BUILD_DIR=/tmp/openssl_android_build
+
+if [ ! -d openssl-${OPENSSL_VERSION} ]
+then
+    if [ ! -f openssl-${OPENSSL_VERSION}.tar.gz ]
+    then
+        wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz || exit 128
+    fi
+    tar xzf openssl-${OPENSSL_VERSION}.tar.gz || exit 128
+fi
+
+cd openssl-${OPENSSL_VERSION} || exit 128
+
+
+##### export ndk directory. Required by openssl-build-scripts #####
+case ${OPENSSL_VERSION} in
+    1.1.1*)
+        export ANDROID_NDK_HOME=$ANDROID_NDK
+    ;;
+    *)
+        export ANDROID_NDK_ROOT=$ANDROID_NDK
+    ;;
+esac
+
+export PATH=$ANDROID_NDK/toolchains/llvm/prebuilt/$HOST_TAG/bin:$PATH
+
+##### build-function #####
+build_the_thing() {
+    make clean
+    ./Configure $SSL_TARGET -D__ANDROID_API__=$API_LEVEL && \
+    make SHLIB_EXT=.so && \
+    make install SHLIB_EXT=.so DESTDIR=$DESTDIR || exit 128
+}
+
+##### set variables according to build-tagret #####
+for build_target in $BUILD_TARGETS
+do
+    case $build_target in
+    armeabi-v7a)
+        DESTDIR="$BUILD_DIR/armeabi-v7a"
+        SSL_TARGET="android-arm"
+    ;;
+    x86)
+        DESTDIR="$BUILD_DIR/x86"
+        SSL_TARGET="android-x86"
+    ;;
+    x86_64)
+        DESTDIR="$BUILD_DIR/x86_64"
+        SSL_TARGET="android-x86_64"
+    ;;
+    arm64-v8a)
+        DESTDIR="$BUILD_DIR/arm64-v8a"
+        SSL_TARGET="android-arm64"
+    ;;
+    esac
+
+    rm -rf $DESTDIR
+    build_the_thing
+#### copy libraries and includes to output-directory #####
+    mkdir -p $OUT_DIR/$build_target/include
+    cp -R $DESTDIR/usr/local/include/* $OUT_DIR/$build_target/include
+    cp -R $DESTDIR/usr/local/ssl/* $OUT_DIR/$build_target/
+    mkdir -p $OUT_DIR/$build_target/lib
+    cp -R $DESTDIR/usr/local/lib/*.so $OUT_DIR/$build_target/lib
+    cp -R $DESTDIR/usr/local/lib/*.a $OUT_DIR/$build_target/lib
+done
+
+echo Success

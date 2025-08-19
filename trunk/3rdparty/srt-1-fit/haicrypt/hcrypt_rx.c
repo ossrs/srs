@@ -53,7 +53,7 @@ int HaiCrypt_Rx_Data(HaiCrypt_Handle hhc,
 		if (0 > (nb = crypto->cryspr->ms_decrypt(crypto->cryspr_cb, ctx, &indata, 1, NULL, NULL, NULL))) {
 			HCRYPT_LOG(LOG_ERR, "%s", "ms_decrypt failed\n");
 		} else {
-			nb = indata.len;
+			nb = (int)indata.len;
 		}
 	} else { /* No key received yet */
 		nb = 0;
@@ -124,9 +124,6 @@ int HaiCrypt_Rx_Process(HaiCrypt_Handle hhc,
 		||  (0 != memcmp(ctx->KMmsg_cache, in_msg, in_len))) { /* or different */
 
 			nbout = hcryptCtx_Rx_ParseKM(crypto, in_msg, in_len);
-			//-2: unmatched shared secret
-			//-1: other failures
-			//0: success
 		} else {
 			nbout = 0;
 		}

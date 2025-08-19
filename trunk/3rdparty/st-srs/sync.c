@@ -87,7 +87,7 @@ int st_set_utime_function(st_utime_t (*func)(void))
 
 st_utime_t st_utime_last_clock(void)
 {
-    return _ST_LAST_CLOCK;
+    return _st_this_vp.last_clock;
 }
 
 
@@ -116,7 +116,7 @@ time_t st_time(void)
 
 int st_usleep(st_utime_t usecs)
 {
-    _st_thread_t *me = _ST_CURRENT_THREAD();
+    _st_thread_t *me = _st_this_thread;
     
     if (me->flags & _ST_FL_INTERRUPT) {
         me->flags &= ~_ST_FL_INTERRUPT;
@@ -126,11 +126,11 @@ int st_usleep(st_utime_t usecs)
     
     if (usecs != ST_UTIME_NO_TIMEOUT) {
         me->state = _ST_ST_SLEEPING;
-        _ST_ADD_SLEEPQ(me, usecs);
+        _st_add_sleep_q(me, usecs);
     } else
         me->state = _ST_ST_SUSPENDED;
     
-    _ST_SWITCH_CONTEXT(me);
+    _st_switch_context(me);
     
     if (me->flags & _ST_FL_INTERRUPT) {
         me->flags &= ~_ST_FL_INTERRUPT;
@@ -158,7 +158,7 @@ _st_cond_t *st_cond_new(void)
     
     cvar = (_st_cond_t *) calloc(1, sizeof(_st_cond_t));
     if (cvar) {
-        ST_INIT_CLIST(&cvar->wait_q);
+        st_clist_init(&cvar->wait_q);
     }
     
     return cvar;
@@ -180,7 +180,7 @@ int st_cond_destroy(_st_cond_t *cvar)
 
 int st_cond_timedwait(_st_cond_t *cvar, st_utime_t timeout)
 {
-    _st_thread_t *me = _ST_CURRENT_THREAD();
+    _st_thread_t *me = _st_this_thread;
     int rv;
     
     if (me->flags & _ST_FL_INTERRUPT) {
@@ -191,14 +191,14 @@ int st_cond_timedwait(_st_cond_t *cvar, st_utime_t timeout)
     
     /* Put caller thread on the condition variable's wait queue */
     me->state = _ST_ST_COND_WAIT;
-    ST_APPEND_LINK(&me->wait_links, &cvar->wait_q);
+    st_clist_insert_before(&me->wait_links, &cvar->wait_q);
     
     if (timeout != ST_UTIME_NO_TIMEOUT)
-        _ST_ADD_SLEEPQ(me, timeout);
+        _st_add_sleep_q(me, timeout);
     
-    _ST_SWITCH_CONTEXT(me);
+    _st_switch_context(me);
     
-    ST_REMOVE_LINK(&me->wait_links);
+    st_clist_remove(&me->wait_links);
     rv = 0;
     
     if (me->flags & _ST_FL_TIMEDOUT) {
@@ -231,11 +231,11 @@ static int _st_cond_signal(_st_cond_t *cvar, int broadcast)
         thread = _ST_THREAD_WAITQ_PTR(q);
         if (thread->state == _ST_ST_COND_WAIT) {
             if (thread->flags & _ST_FL_ON_SLEEPQ)
-                _ST_DEL_SLEEPQ(thread);
+                _st_del_sleep_q(thread);
             
             /* Make thread runnable */
             thread->state = _ST_ST_RUNNABLE;
-            _ST_ADD_RUNQ(thread);
+            st_clist_insert_before(&thread->links, &_st_this_vp.run_q);
             if (!broadcast)
                 break;
         }
@@ -267,7 +267,7 @@ _st_mutex_t *st_mutex_new(void)
     
     lock = (_st_mutex_t *) calloc(1, sizeof(_st_mutex_t));
     if (lock) {
-        ST_INIT_CLIST(&lock->wait_q);
+        st_clist_init(&lock->wait_q);
         lock->owner = NULL;
     }
     
@@ -290,7 +290,7 @@ int st_mutex_destroy(_st_mutex_t *lock)
 
 int st_mutex_lock(_st_mutex_t *lock)
 {
-    _st_thread_t *me = _ST_CURRENT_THREAD();
+    _st_thread_t *me = _st_this_thread;
     
     if (me->flags & _ST_FL_INTERRUPT) {
         me->flags &= ~_ST_FL_INTERRUPT;
@@ -311,11 +311,11 @@ int st_mutex_lock(_st_mutex_t *lock)
     
     /* Put caller thread on the mutex's wait queue */
     me->state = _ST_ST_LOCK_WAIT;
-    ST_APPEND_LINK(&me->wait_links, &lock->wait_q);
+    st_clist_insert_before(&me->wait_links, &lock->wait_q);
     
-    _ST_SWITCH_CONTEXT(me);
+    _st_switch_context(me);
     
-    ST_REMOVE_LINK(&me->wait_links);
+    st_clist_remove(&me->wait_links);
     
     if ((me->flags & _ST_FL_INTERRUPT) && lock->owner != me) {
         me->flags &= ~_ST_FL_INTERRUPT;
@@ -332,7 +332,7 @@ int st_mutex_unlock(_st_mutex_t *lock)
     _st_thread_t *thread;
     _st_clist_t *q;
     
-    if (lock->owner != _ST_CURRENT_THREAD()) {
+    if (lock->owner != _st_this_thread) {
         errno = EPERM;
         return -1;
     }
@@ -343,7 +343,7 @@ int st_mutex_unlock(_st_mutex_t *lock)
             lock->owner = thread;
             /* Make thread runnable */
             thread->state = _ST_ST_RUNNABLE;
-            _ST_ADD_RUNQ(thread);
+            st_clist_insert_before(&thread->links, &_st_this_vp.run_q);
             return 0;
         }
     }
@@ -363,7 +363,7 @@ int st_mutex_trylock(_st_mutex_t *lock)
     }
     
     /* Got the mutex */
-    lock->owner = _ST_CURRENT_THREAD();
+    lock->owner = _st_this_thread;
     
     return 0;
 }

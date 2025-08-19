@@ -1,27 +1,27 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_latest_version.hpp>
 
+#include <srs_app_config.hpp>
+#include <srs_app_http_client.hpp>
+#include <srs_app_http_conn.hpp>
+#include <srs_app_statistic.hpp>
+#include <srs_app_tencentcloud.hpp>
+#include <srs_app_utility.hpp>
+#include <srs_app_uuid.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_app_config.hpp>
-#include <srs_app_http_conn.hpp>
-#include <srs_app_http_client.hpp>
-#include <srs_app_utility.hpp>
-#include <srs_app_uuid.hpp>
-#include <srs_app_statistic.hpp>
-#include <srs_app_tencentcloud.hpp>
 
-#include <unistd.h>
 #include <sstream>
+#include <unistd.h>
 using namespace std;
 
 // Whether we are in docker, defined in main module.
@@ -31,13 +31,19 @@ extern bool _srs_in_docker;
 extern bool _srs_config_by_env;
 
 // Check the feature by cond
-#define SRS_CHECK_FEATURE(cond, ss) if (cond) ss << "&" << #cond << "=1"
-#define SRS_CHECK_FEATURE2(cond, key, ss) if (cond) ss << "&" << key << "=1"
-#define SRS_CHECK_FEATURE3(cond, key, value, ss) if (cond) ss << "&" << key << "=" << value
+#define SRS_CHECK_FEATURE(cond, ss) \
+    if (cond)                       \
+    ss << "&" << #cond << "=1"
+#define SRS_CHECK_FEATURE2(cond, key, ss) \
+    if (cond)                             \
+    ss << "&" << key << "=1"
+#define SRS_CHECK_FEATURE3(cond, key, value, ss) \
+    if (cond)                                    \
+    ss << "&" << key << "=" << value
 
 // @see https://github.com/ossrs/srs/issues/2424
 // @see https://github.com/ossrs/srs/issues/2508
-void srs_build_features(stringstream& ss)
+void srs_build_features(stringstream &ss)
 {
     if (SRS_OSX_BOOL) {
         ss << "&os=mac";
@@ -63,6 +69,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE3(!string(SRS_PACKAGER).empty(), "packager", SRS_PACKAGER, ss);
     SRS_CHECK_FEATURE2(SRS_CROSSBUILD_BOOL, "cross", ss);
 
+    SRS_CHECK_FEATURE2(SRS_RTC_BOOL && _srs_config->get_rtsp_server_enabled(), "rtsp", ss);
     SRS_CHECK_FEATURE2(SRS_RTC_BOOL && _srs_config->get_rtc_server_enabled(), "rtc", ss);
     SRS_CHECK_FEATURE2(SRS_SRT_BOOL && _srs_config->get_srt_enabled(), "srt", ss);
     SRS_CHECK_FEATURE2(_srs_config->get_http_api_enabled(), "api", ss);
@@ -70,6 +77,8 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE2(_srs_config->get_raw_api(), "raw", ss);
     SRS_CHECK_FEATURE2(_srs_config->get_exporter_enabled(), "prom", ss);
 
+    string platform = srs_getenv("SRS_PLATFORM");
+    SRS_CHECK_FEATURE3(!string(platform).empty(), "plat", platform, ss);
     string region = srs_getenv("SRS_REGION");
     SRS_CHECK_FEATURE3(!string(region).empty(), "region", region, ss);
     string source = srs_getenv("SRS_SOURCE");
@@ -80,10 +89,10 @@ void srs_build_features(stringstream& ss)
     bool hooks = false, dash = false, hds = false, exec = false, transcode = false, security = false;
     bool flv2 = false, oc = false;
 
-    SrsConfDirective* root = _srs_config->get_root();
+    SrsConfDirective *root = _srs_config->get_root();
     // Note that we limit the loop, never detect all configs.
     for (int i = 0; i < (int)root->directives.size() && i < 128; i++) {
-        SrsConfDirective* conf = root->at(i);
+        SrsConfDirective *conf = root->at(i);
 
         if (!gb28181 && conf->is_stream_caster() && _srs_config->get_stream_caster_enabled(conf)) {
             string engine = _srs_config->get_stream_caster_engine(conf);
@@ -132,7 +141,7 @@ void srs_build_features(stringstream& ss)
             }
 
             for (int j = 0; j < (int)conf->directives.size() && j < 64; j++) {
-                SrsConfDirective* prop = conf->directives.at(j);
+                SrsConfDirective *prop = conf->directives.at(j);
 
                 if (!ingest && prop->name == "ingest" && _srs_config->get_ingest_enabled(prop)) {
                     ingest = true;
@@ -223,8 +232,8 @@ srs_error_t SrsLatestVersion::cycle()
         }
 
         srs_trace("Finish query id=%s, session=%s, eip=%s, match=%s, stable=%s, cost=%dms, url=%s",
-            server_id_.c_str(), session_id_.c_str(), srs_get_public_internet_address().c_str(), match_version_.c_str(),
-            stable_version_.c_str(), srsu2msi(srs_update_system_time() - starttime), url.c_str());
+                  server_id_.c_str(), session_id_.c_str(), srs_get_public_internet_address().c_str(), match_version_.c_str(),
+                  stable_version_.c_str(), srsu2msi(srs_update_system_time() - starttime), url.c_str());
 
         srs_usleep(3600 * SRS_UTIME_SECONDS); // Every an hour.
     }
@@ -232,18 +241,18 @@ srs_error_t SrsLatestVersion::cycle()
     return err;
 }
 
-srs_error_t SrsLatestVersion::query_latest_version(string& url)
+srs_error_t SrsLatestVersion::query_latest_version(string &url)
 {
     srs_error_t err = srs_success;
 
     // Generate uri and parse to object.
     stringstream ss;
     ss << "http://api.ossrs.net/service/v1/releases?"
-          << "version=v" << VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_REVISION
-          << "&id=" << server_id_ << "&session=" << session_id_ << "&role=srs"
-          << "&eip=" << srs_get_public_internet_address()
-          << "&ts=" << srs_get_system_time()
-          << "&alive=" << srsu2ms(srs_get_system_time() - srs_get_system_startup_time()) / 1000;
+       << "version=v" << VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_REVISION
+       << "&id=" << server_id_ << "&session=" << session_id_ << "&role=srs"
+       << "&eip=" << srs_get_public_internet_address()
+       << "&ts=" << srs_get_system_time()
+       << "&alive=" << srsu2ms(srs_get_system_time() - srs_get_system_startup_time()) / 1000;
     srs_build_features(ss);
     SrsStatistic::instance()->dumps_hints_kv(ss);
     url = ss.str();
@@ -264,11 +273,12 @@ srs_error_t SrsLatestVersion::query_latest_version(string& url)
     path += "?";
     path += uri.get_query();
 
-    ISrsHttpMessage* msg = NULL;
-    if ((err = http.get(path, "", &msg)) != srs_success) {
+    ISrsHttpMessage *msg_raw = NULL;
+    if ((err = http.get(path, "", &msg_raw)) != srs_success) {
         return err;
     }
-    SrsAutoFree(ISrsHttpMessage, msg);
+
+    SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
 
     string res;
     int code = msg->status_code();
@@ -286,14 +296,13 @@ srs_error_t SrsLatestVersion::query_latest_version(string& url)
     }
 
     // Response in json object.
-    SrsJsonAny* jres = SrsJsonAny::loads((char*)res.c_str());
-    if (!jres || !jres->is_object()) {
+    SrsUniquePtr<SrsJsonAny> jres(SrsJsonAny::loads((char *)res.c_str()));
+    if (!jres.get() || !jres->is_object()) {
         return srs_error_new(ERROR_HTTP_DATA_INVALID, "invalid response %s", res.c_str());
     }
-    SrsAutoFree(SrsJsonAny, jres);
 
-    SrsJsonObject* obj = jres->to_object();
-    SrsJsonAny* prop = NULL;
+    SrsJsonObject *obj = jres->to_object();
+    SrsJsonAny *prop = NULL;
 
     // Parse fields of response.
     if ((prop = obj->ensure_property_string("match_version")) == NULL) {
@@ -308,4 +317,3 @@ srs_error_t SrsLatestVersion::query_latest_version(string& url)
 
     return err;
 }
-

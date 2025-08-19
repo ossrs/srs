@@ -1,0 +1,111 @@
+#!/bin/sh
+
+echo_help()
+{
+  echo "Usage: $0 [options...]"
+  echo "    -n    NDK root path for the build"
+  echo "    -a    Target API level"
+  echo "    -t    Space-separated list of target architectures"
+  echo "          Android supports the following architectures: armeabi-v7a arm64-v8a x86 x86_64"
+  echo "    -e    Encryption library to be used. Possible options: openssl (default) mbedtls"
+  echo "    -o    OpenSSL version. E.g. 1.1.1l"
+  echo "    -m    Mbed TLS version. E.g. v2.26.0"
+  echo
+  echo "Example: ./build-android -n /home/username/Android/Sdk/ndk/23.0.7599858 -a 28 -t \"arm64-v8a x86_64\""
+  echo
+}
+
+# Init optional command line vars
+NDK_ROOT=""
+API_LEVEL=28
+BUILD_TARGETS="armeabi-v7a arm64-v8a x86 x86_64"
+OPENSSL_VERSION=1.1.1l
+ENC_LIB=openssl
+MBEDTLS_VERSION=v2.26.0
+
+while getopts n:a:t:o:s:e:m: option
+do
+ case "${option}"
+ in
+ n) NDK_ROOT=${OPTARG};;
+ a) API_LEVEL=${OPTARG};;
+ t) BUILD_TARGETS=${OPTARG};;
+ o) OPENSSL_VERSION=${OPTARG};;
+ s) SRT_VERSION=${OPTARG};;
+ e) ENC_LIB=${OPTARG};;
+ m) MBEDTLS_VERSION=${OPTARG};;
+ *) twentytwo=${OPTARG};;
+ esac
+done
+
+echo_help
+
+if [ -z "$NDK_ROOT" ] ; then
+ echo "NDK directory not set."
+ exit 128
+else
+ if [ ! -d "$NDK_ROOT" ]; then
+  echo "NDK directory does not exist: $NDK_ROOT"
+  exit 128
+ fi
+fi
+
+SCRIPT_DIR=$(pwd)
+HOST_TAG='unknown'
+unamestr=$(uname -s)
+if [ "$unamestr" = 'Linux' ]; then
+ HOST_TAG='linux-x86_64'
+elif [ "$unamestr" = 'Darwin' ]; then
+ if [ $(uname -p) = 'arm' ]; then
+  echo "NDK does not currently support ARM64"
+  exit 128
+ else
+  HOST_TAG='darwin-x86_64'
+ fi
+fi
+
+# Write files relative to current location
+BASE_DIR=$(pwd)
+case "${BASE_DIR}" in
+  *\ * )
+    echo "Your path contains whitespaces, which is not supported by 'make install'."
+    exit 128
+  ;;
+esac
+cd "${BASE_DIR}"
+
+if [ $ENC_LIB = 'openssl' ]; then
+ echo "Building OpenSSL $OPENSSL_VERSION"
+ $SCRIPT_DIR/mkssl -n $NDK_ROOT -a $API_LEVEL -t "$BUILD_TARGETS" -o $OPENSSL_VERSION -d $BASE_DIR -h $HOST_TAG
+elif [ $ENC_LIB = 'mbedtls' ]; then
+ if [ ! -d $BASE_DIR/mbedtls ]; then
+  git clone https://github.com/ARMmbed/mbedtls mbedtls
+  if [ ! -z "$MBEDTLS_VERSION" ]; then
+   git -C $BASE_DIR/mbedtls checkout $MBEDTLS_VERSION
+  fi
+ fi
+else
+ echo "Unknown encryption library. Possible options: openssl mbedtls"
+ exit 128
+fi
+
+# Build working copy of srt repository
+REPO_DIR="../.."
+
+for build_target in $BUILD_TARGETS; do
+ LIB_DIR=$BASE_DIR/$build_target/lib
+ JNI_DIR=$BASE_DIR/prebuilt/$build_target
+
+ mkdir -p $JNI_DIR
+
+ if [ $ENC_LIB = 'mbedtls' ]; then
+  $SCRIPT_DIR/mkmbedtls -n $NDK_ROOT -a $API_LEVEL -t $build_target -s $BASE_DIR/mbedtls -i $BASE_DIR/$build_target
+  cp $LIB_DIR/libmbedcrypto.so $JNI_DIR/libmbedcrypto.so
+  cp $LIB_DIR/libmbedtls.so $JNI_DIR/libmbedtls.so
+  cp $LIB_DIR/libmbedx509.so $JNI_DIR/libmbedx509.so
+ fi
+
+ git -C $REPO_DIR clean -fd -e scripts
+ $SCRIPT_DIR/mksrt -n $NDK_ROOT -a $API_LEVEL -t $build_target -e $ENC_LIB -s $REPO_DIR -i $BASE_DIR/$build_target
+ cp $LIB_DIR/libsrt.so $JNI_DIR/libsrt.so
+done

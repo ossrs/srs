@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_UTEST_KERNEL2_HPP
@@ -15,4 +15,3 @@
 #include <srs_utest_kernel.hpp>
 
 #endif
-

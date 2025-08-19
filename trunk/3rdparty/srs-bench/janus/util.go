@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 Winlin
+// # Copyright (c) 2025 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -44,9 +44,9 @@ import (
 	"github.com/pion/interceptor"
 	"github.com/pion/logging"
 	"github.com/pion/rtcp"
-	"github.com/pion/transport/vnet"
-	"github.com/pion/webrtc/v3"
-	"github.com/pion/webrtc/v3/pkg/media/h264reader"
+	"github.com/pion/transport/v3/vnet"
+	"github.com/pion/webrtc/v4"
+	"github.com/pion/webrtc/v4/pkg/media/h264reader"
 )
 
 var srsHttps *bool
@@ -636,15 +636,18 @@ func (v *testWebRTCAPI) Setup(vnetClientIP string, options ...testWebRTCAPIOptio
 
 		// Each api should bind to a network, however, it's possible to share it
 		// for different apis.
-		v.network = vnet.NewNet(&vnet.NetConfig{
+		v.network, err = vnet.NewNet(&vnet.NetConfig{
 			StaticIP: vnetClientIP,
 		})
+		if err != nil {
+			return errors.Wrapf(err, "create network for api")
+		}
 
 		if err = v.router.AddNet(v.network); err != nil {
 			return errors.Wrapf(err, "create network for api")
 		}
 
-		v.settingEngine.SetVNet(v.network)
+		v.settingEngine.SetNet(v.network)
 
 		// Create a proxy bind to the router.
 		if v.proxy, err = vnet_proxy.NewProxy(v.router); err != nil {
@@ -892,14 +895,14 @@ func newTestPublisher(options ...testPublisherOptionFunc) (*testPublisher, error
 		rtcpInterceptor.rtcpWriter = func(pkts []rtcp.Packet, attributes interceptor.Attributes) (int, error) {
 			return rtcpInterceptor.nextRTCPWriter.Write(pkts, attributes)
 		}
-		api.registry.Add(rtcpInterceptor)
+		api.registry.Add(&rtcpInteceptorFactory{rtcpInterceptor})
 
 		// Filter for ingesters.
 		if sourceAudio != "" {
-			api.registry.Add(v.aIngester.audioLevelInterceptor)
+			api.registry.Add(&rtpInteceptorFactory{v.aIngester.audioLevelInterceptor})
 		}
 		if sourceVideo != "" {
-			api.registry.Add(v.vIngester.markerInterceptor)
+			api.registry.Add(&rtpInteceptorFactory{v.vIngester.markerInterceptor})
 		}
 	})
 
@@ -1009,7 +1012,7 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 	logger.Tf(ctx, "State signaling=%v, ice=%v, conn=%v", pc.SignalingState(), pc.ICEConnectionState(), pc.ConnectionState())
 
 	// ICE state management.
-	pc.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
+	pc.OnICEGatheringStateChange(func(state webrtc.ICEGatheringState) {
 		logger.Tf(ctx, "ICE gather state %v", state)
 	})
 	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {

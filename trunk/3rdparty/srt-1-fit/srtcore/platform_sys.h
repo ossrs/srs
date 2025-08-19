@@ -24,7 +24,6 @@
 
 
 #ifdef _WIN32
-   #define _CRT_SECURE_NO_WARNINGS 1 // silences windows complaints for sscanf
    #include <winsock2.h>
    #include <ws2tcpip.h>
    #include <ws2ipdef.h>
@@ -40,9 +39,6 @@
 
    #include <stdint.h>
    #include <inttypes.h>
-   #if defined(_MSC_VER)
-      #pragma warning(disable: 4251 26812)
-   #endif
 #else
 
 #if defined(__APPLE__) && __APPLE__

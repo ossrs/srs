@@ -71,16 +71,7 @@ class CUDT;
 struct CUnit
 {
     CPacket m_Packet; // packet
-    enum Flag
-    {
-        FREE    = 0,
-        GOOD    = 1,
-        PASSACK = 2,
-        DROPPED = 3
-    };
-
-    // TODO: The new RcvBuffer allows to use atomic_bool here.
-    sync::atomic<Flag> m_iFlag; // 0: free, 1: occupied, 2: msg read but not freed (out-of-order), 3: msg dropped
+    sync::atomic<bool> m_bTaken; // true if the unit is is use (can be stored in the RCV buffer).
 };
 
 class CUnitQueue
@@ -106,7 +97,7 @@ public:
 
     void makeUnitFree(CUnit* unit);
 
-    void makeUnitGood(CUnit* unit);
+    void makeUnitTaken(CUnit* unit);
 
 private:
     struct CQEntry
@@ -203,7 +194,7 @@ private:
     void insert_(const sync::steady_clock::time_point& ts, const CUDT* u);
 
     /// Insert a new UDT instance into the list without realloc.
-    /// Should be called if there is a gauranteed space for the element.
+    /// Should be called if there is a guaranteed space for the element.
     ///
     /// @param [in] ts time stamp: next processing time
     /// @param [in] u pointer to the UDT instance
@@ -419,25 +410,25 @@ public:
     /// Initialize the sending queue.
     /// @param [in] c UDP channel to be associated to the queue
     /// @param [in] t Timer
-
     void init(CChannel* c, sync::CTimer* t);
 
-    /// Send out a packet to a given address.
+    /// Send out a packet to a given address. The @a src parameter is
+    /// blindly passed by the caller down the call with intention to
+    /// be received eventually by CChannel::sendto, and used only if
+    /// appropriate conditions state so.
     /// @param [in] addr destination address
-    /// @param [in] packet packet to be sent out
+    /// @param [in,ref] packet packet to be sent out
+    /// @param [in] src The source IP address (details above)
     /// @return Size of data sent out.
-
-    int sendto(const sockaddr_any& addr, CPacket& packet);
+    int sendto(const sockaddr_any& addr, CPacket& packet, const sockaddr_any& src);
 
     /// Get the IP TTL.
     /// @param [in] ttl IP Time To Live.
     /// @return TTL.
-
     int getIpTTL() const;
 
     /// Get the IP Type of Service.
     /// @return ToS.
-
     int getIpToS() const;
 
 #ifdef SRT_ENABLE_BINDTODEVICE
@@ -460,9 +451,10 @@ private:
 
     sync::atomic<bool> m_bClosing;            // closing the worker
 
+public:
 #if defined(SRT_DEBUG_SNDQ_HIGHRATE) //>>debug high freq worker
-    uint64_t m_ullDbgPeriod;
-    uint64_t m_ullDbgTime;
+    sync::steady_clock::duration m_DbgPeriod;
+    mutable sync::steady_clock::time_point m_DbgTime;
     struct
     {
         unsigned long lIteration;   //
@@ -471,14 +463,15 @@ private:
         unsigned long lSendTo;
         unsigned long lNotReadyTs;
         unsigned long lCondWait; // block on m_WindowCond
-    } m_WorkerStats;
+    } mutable m_WorkerStats;
 #endif /* SRT_DEBUG_SNDQ_HIGHRATE */
+
+private:
 
 #if ENABLE_LOGGING
     static int m_counter;
 #endif
 
-private:
     CSndQueue(const CSndQueue&);
     CSndQueue& operator=(const CSndQueue&);
 };
@@ -533,7 +526,7 @@ private:
     CUnitQueue*   m_pUnitQueue; // The received packet queue
     CRcvUList*    m_pRcvUList;  // List of UDT instances that will read packets from the queue
     CHash*        m_pHash;      // Hash table for UDT socket looking up
-    CChannel*     m_pChannel;   // UDP channel for receving packets
+    CChannel*     m_pChannel;   // UDP channel for receiving packets
     sync::CTimer* m_pTimer;     // shared timer with the snd queue
 
     int m_iIPversion;           // IP version
@@ -558,7 +551,7 @@ private:
     bool  ifNewEntry();
     CUDT* getNewEntry();
 
-    void storePkt(int32_t id, CPacket* pkt);
+    void storePktClone(int32_t id, const CPacket& pkt);
 
 private:
     sync::Mutex       m_LSLock;

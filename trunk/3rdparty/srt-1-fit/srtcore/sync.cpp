@@ -66,7 +66,7 @@ std::string FormatTimeSys(const steady_clock::time_point& timestamp)
     const steady_clock::time_point now_timestamp = steady_clock::now();
     const int64_t                  delta_us      = count_microseconds(timestamp - now_timestamp);
     const int64_t                  delta_s =
-        floor((static_cast<int64_t>(count_microseconds(now_timestamp.time_since_epoch()) % 1000000) + delta_us) / 1000000.0);
+        static_cast<int64_t>(floor((static_cast<double>(count_microseconds(now_timestamp.time_since_epoch()) % 1000000) + delta_us) / 1000000.0));
     const time_t tt = now_s + delta_s;
     struct tm    tm = SysLocalTime(tt); // in seconds
     char         tmp_buf[512];
@@ -94,7 +94,11 @@ bool StartThread(CThread& th, void* (*f) (void*), void* args, const string& name
         th.create_thread(f, args);
 #endif
     }
+#if ENABLE_HEAVY_LOGGING
     catch (const CThreadException& e)
+#else
+    catch (const CThreadException&)
+#endif
     {
         HLOGC(inlog.Debug, log << name << ": failed to start thread. " << e.what());
         return false;

@@ -11,12 +11,9 @@
 #ifndef INC_SRT_BUFFER_RCV_H
 #define INC_SRT_BUFFER_RCV_H
 
-#if ENABLE_NEW_RCVBUFFER
-
-#include "buffer.h" // AvgBufSize
+#include "buffer_tools.h" // AvgBufSize
 #include "common.h"
 #include "queue.h"
-#include "sync.h"
 #include "tsbpd_time.h"
 
 namespace srt
@@ -26,7 +23,7 @@ namespace srt
  *   Circular receiver buffer.
  *
  *   |<------------------- m_szSize ---------------------------->|
- *   |       |<------------ m_iMaxPosInc ----------->|           |
+ *   |       |<------------ m_iMaxPosOff ----------->|           |
  *   |       |                                       |           |
  *   +---+---+---+---+---+---+---+---+---+---+---+---+---+   +---+
  *   | 0 | 0 | 1 | 1 | 1 | 0 | 1 | 1 | 1 | 1 | 0 | 1 | 0 |...| 0 | m_pUnit[]
@@ -45,15 +42,15 @@ namespace srt
  *    first_nonread_pos_:
  */
 
-class CRcvBufferNew
+class CRcvBuffer
 {
     typedef sync::steady_clock::time_point time_point;
     typedef sync::steady_clock::duration   duration;
 
 public:
-    CRcvBufferNew(int initSeqNo, size_t size, CUnitQueue* unitqueue, bool bMessageAPI);
+    CRcvBuffer(int initSeqNo, size_t size, CUnitQueue* unitqueue, bool bMessageAPI);
 
-    ~CRcvBufferNew();
+    ~CRcvBuffer();
 
 public:
     /// Insert a unit into the buffer.
@@ -77,14 +74,29 @@ public:
     /// @return the number of dropped packets.
     int dropAll();
 
-    /// @brief Drop the whole message from the buffer.
-    /// If message number is 0, then use sequence numbers to locate sequence range to drop [seqnolo, seqnohi].
-    /// When one packet of the message is in the range of dropping, the whole message is to be dropped.
+    enum DropActionIfExists {
+        DROP_EXISTING = 0,
+        KEEP_EXISTING = 1
+    };
+
+    /// @brief Drop a sequence of packets from the buffer.
+    /// If @a msgno is valid, sender has requested to drop the whole message by TTL. In this case it has to also provide a pkt seqno range.
+    /// However, if a message has been partially acknowledged and already removed from the SND buffer,
+    /// the @a seqnolo might specify some position in the middle of the message, not the very first packet.
+    /// If those packets have been acknowledged, they must exist in the receiver buffer unless already read.
+    /// In this case the @a msgno should be used to determine starting packets of the message.
+    /// Some packets of the message can be missing on the receiver, therefore the actual drop should still be performed by pkt seqno range.
+    /// If message number is 0 or SRT_MSGNO_NONE, then use sequence numbers to locate sequence range to drop [seqnolo, seqnohi].
+    /// A SOLO message packet can be kept depending on @a actionOnExisting value.
+    /// TODO: A message in general can be kept if all of its packets are in the buffer, depending on @a actionOnExisting value.
+    /// This is done to avoid dropping existing packet when the sender was asked to re-transmit a packet from an outdated loss report,
+    /// which is already not available in the SND buffer.
     /// @param seqnolo sequence number of the first packet in the dropping range.
     /// @param seqnohi sequence number of the last packet in the dropping range.
     /// @param msgno message number to drop (0 if unknown)
+    /// @param actionOnExisting Should an exising SOLO packet be dropped from the buffer or preserved?
     /// @return the number of packets actually dropped.
-    int dropMessage(int32_t seqnolo, int32_t seqnohi, int32_t msgno);
+    int dropMessage(int32_t seqnolo, int32_t seqnohi, int32_t msgno, DropActionIfExists actionOnExisting);
 
     /// Read the whole message from one or several packets.
     ///
@@ -130,9 +142,8 @@ public:
         const int iRBufSeqNo  = getStartSeqNo();
         if (CSeqNo::seqcmp(iRBufSeqNo, iFirstUnackSeqNo) >= 0) // iRBufSeqNo >= iFirstUnackSeqNo
         {
-            // Full capacity is available, still don't want to encourage extra packets to come.
-            // Note: CSeqNo::seqlen(n, n) returns 1.
-            return capacity() - CSeqNo::seqlen(iFirstUnackSeqNo, iRBufSeqNo) + 1;
+            // Full capacity is available.
+            return capacity();
         }
 
         // Note: CSeqNo::seqlen(n, n) returns 1.
@@ -140,13 +151,14 @@ public:
     }
 
     /// @brief Checks if the buffer has packets available for reading regardless of the TSBPD.
+    /// A message is available for reading only if all of its packets are present in the buffer.
     /// @return true if there are packets available for reading, false otherwise.
     bool hasAvailablePackets() const;
 
     /// Query how many data has been continuously received (for reading) and available for reading out
     /// regardless of the TSBPD.
     /// TODO: Rename to countAvailablePackets().
-    /// @return size of valid (continous) data for reading.
+    /// @return size of valid (continuous) data for reading.
     int getRcvDataSize() const;
 
     /// Get the number of packets, bytes and buffer timespan.
@@ -165,11 +177,11 @@ public:
     /// Parameters (of the 1st packet queue, ready to play or not):
     /// @param [out] tsbpdtime localtime-based (uSec) packet time stamp including buffering delay of 1st packet or 0 if
     /// none
-    /// @param [out] passack   true if 1st ready packet is not yet acknowleged (allowed to be delivered to the app)
-    /// @param [out] skipseqno -1 or seq number of 1st unacknowledged pkt ready to play preceeded by missing packets.
+    /// @param [out] passack   true if 1st ready packet is not yet acknowledged (allowed to be delivered to the app)
+    /// @param [out] skipseqno -1 or sequence number of 1st unacknowledged packet (after one or more missing packets) that is ready to play.
     /// @retval true 1st packet ready to play (tsbpdtime <= now). Not yet acknowledged if passack == true
     /// @retval false IF tsbpdtime = 0: rcv buffer empty; ELSE:
-    ///                   IF skipseqno != -1, packet ready to play preceeded by missing packets.;
+    ///                   IF skipseqno != -1, packet ready to play preceded by missing packets.;
     ///                   IF skipseqno == -1, no missing packet but 1st not ready to play.
     PacketInfo getFirstValidPacketInfo() const;
 
@@ -185,7 +197,7 @@ public:
 
     bool empty() const
     {
-        return (m_iMaxPosInc == 0);
+        return (m_iMaxPosOff == 0);
     }
 
     /// Return buffer capacity.
@@ -227,6 +239,18 @@ private:
     inline int incPos(int pos, int inc = 1) const { return (pos + inc) % m_szSize; }
     inline int decPos(int pos) const { return (pos - 1) >= 0 ? (pos - 1) : int(m_szSize - 1); }
     inline int offPos(int pos1, int pos2) const { return (pos2 >= pos1) ? (pos2 - pos1) : int(m_szSize + pos2 - pos1); }
+    inline int cmpPos(int pos2, int pos1) const
+    {
+        // XXX maybe not the best implementation, but this keeps up to the rule
+        const int off1 = pos1 >= m_iStartPos ? pos1 - m_iStartPos : pos1 + (int)m_szSize - m_iStartPos;
+        const int off2 = pos2 >= m_iStartPos ? pos2 - m_iStartPos : pos2 + (int)m_szSize - m_iStartPos;
+
+        return off2 - off1;
+    }
+
+    // NOTE: Assumes that pUnit != NULL
+    CPacket& packetAt(int pos) { return m_entries[pos].pUnit->m_Packet; }
+    const CPacket& packetAt(int pos) const { return m_entries[pos].pUnit->m_Packet; }
 
 private:
     void countBytes(int pkts, int bytes);
@@ -268,7 +292,7 @@ private:
     int getTimespan_ms() const;
 
 private:
-    // TODO: Call makeUnitGood upon assignment, and makeUnitFree upon clearing.
+    // TODO: Call makeUnitTaken upon assignment, and makeUnitFree upon clearing.
     // TODO: CUnitPtr is not in use at the moment, but may be a smart pointer.
     // class CUnitPtr
     // {
@@ -313,7 +337,7 @@ private:
     int m_iStartSeqNo;
     int m_iStartPos;        // the head position for I/O (inclusive)
     int m_iFirstNonreadPos; // First position that can't be read (<= m_iLastAckPos)
-    int m_iMaxPosInc;       // the furthest data position
+    int m_iMaxPosOff;       // the furthest data position
     int m_iNotch;           // the starting read point of the first unit
 
     size_t m_numOutOfOrderPackets;  // The number of stored packets with "inorder" flag set to false
@@ -326,7 +350,7 @@ public: // TSBPD public functions
     /// Set TimeStamp-Based Packet Delivery Rx Mode
     /// @param [in] timebase localtime base (uSec) of packet time stamps including buffering delay
     /// @param [in] wrap Is in wrapping period
-    /// @param [in] delay aggreed TsbPD delay
+    /// @param [in] delay agreed TsbPD delay
     ///
     /// @return 0
     void setTsbPdMode(const time_point& timebase, bool wrap, duration delay);
@@ -343,6 +367,8 @@ public: // TSBPD public functions
 
     time_point getTsbPdTimeBase(uint32_t usPktTimestamp) const;
     void       updateTsbPdTimeBase(uint32_t usPktTimestamp);
+
+    bool isTsbPd() const { return m_tsbpd.isEnabled(); }
 
     /// Form a string of the current buffer fullness state.
     /// number of packets acknowledged, TSBPD readiness, etc.
@@ -363,5 +389,4 @@ private: // Statistics
 
 } // namespace srt
 
-#endif // ENABLE_NEW_RCVBUFFER
 #endif // INC_SRT_BUFFER_RCV_H

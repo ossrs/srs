@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package interceptor
 
 // RTPHeaderExtension represents a negotiated RFC5285 RTP header extension.
@@ -6,18 +9,22 @@ type RTPHeaderExtension struct {
 	ID  int
 }
 
-// StreamInfo is the Context passed when a StreamLocal or StreamRemote has been Binded or Unbinded
+// StreamInfo is the Context passed when a StreamLocal or StreamRemote has been Binded or Unbinded.
 type StreamInfo struct {
-	ID                  string
-	Attributes          Attributes
-	SSRC                uint32
-	PayloadType         uint8
-	RTPHeaderExtensions []RTPHeaderExtension
-	MimeType            string
-	ClockRate           uint32
-	Channels            uint16
-	SDPFmtpLine         string
-	RTCPFeedback        []RTCPFeedback
+	ID                                string
+	Attributes                        Attributes
+	SSRC                              uint32
+	SSRCRetransmission                uint32
+	SSRCForwardErrorCorrection        uint32
+	PayloadType                       uint8
+	PayloadTypeRetransmission         uint8
+	PayloadTypeForwardErrorCorrection uint8
+	RTPHeaderExtensions               []RTPHeaderExtension
+	MimeType                          string
+	ClockRate                         uint32
+	Channels                          uint16
+	SDPFmtpLine                       string
+	RTCPFeedback                      []RTCPFeedback
 }
 
 // RTCPFeedback signals the connection to use additional RTCP packet types.

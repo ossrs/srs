@@ -159,6 +159,8 @@ extern st_netfd_t st_open(const char *path, int oflags, mode_t mode);
 extern void st_destroy(void);
 extern int st_thread_setspecific2(st_thread_t thread, int key, void *value);
 
+extern void st_set_primordial_stack(void *top, void *bottom);
+
 #ifdef DEBUG
 extern void _st_show_thread_stack(st_thread_t thread, const char *messg);
 extern void _st_iterate_threads(void);

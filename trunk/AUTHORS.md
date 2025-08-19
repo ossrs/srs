@@ -1,16 +1,18 @@
-## TOC
+## Maintainers
 
-The TOC(Technical Oversight Committee):
+The maintainers of SRS, ranked by the number of commits:
 
-- `Winlin<winlin@vip.126.com>`
-- `ZhaoWenjie<zhaowenjie@tal.com>`
-- `ShiWei<shiwei05@kuaishou.com>`
+- `Winlin<winlinvip@gmail.com>`
 - `XiaoZhihong<hondaxiao@tencent.com>`
-- `WuPengqiang<pengqiang.wpq@alibaba-inc.com>`
-- `XiaLixin<xialixin@kanzhun.com>`
-- `LiPeng<mozhan.lp@alibaba-inc.com>`
-- `ChenGuanghua<jinxue.cgh@alibaba-inc.com>`
 - `ChenHaibo<nmgchenhaibo@foxmail.com>`
+- `ZhangJunqin<chundonglinlin@126.com>`
+- `XiaLixin<xialixin@kanzhun.com>`
+- `JacobSu<suzp1984@gmail.com>`
+- `ShiWei<xiaoq_bj@126.com>`
+- `ChenGuanghua<chengh_math@126.com>`
+- `LiPeng<lipeng19811218@gmail.com>`
+- `ZhaoWenjie<zhaowenjie@tal.com>`
+- `WuPengqiang<309554135@qq.com>`
 
 ## CONTRIBUTORS
 
@@ -80,6 +82,7 @@ CONTRIBUTORS ordered by first contribution.
 * `lam2003<linmin3@yy.com>`
 * `ShiWei<shiwei05@kuaishou.com>`
 * `ShiWei<shi.weibd@hotmail.com>`
+* `ShiWei<xiaoq_bj@126.com>`
 * `XiaofengWang<wasphin@gmail.com>`
 * `XiaoZhihong<hondaxiao@tencent.com>`
 * `XiaoZhihong<xiaozhihong8@gmail.com>`
@@ -145,4 +148,20 @@ CONTRIBUTORS ordered by first contribution.
 * `simon1tan1<107955289+simon1tan1@users.noreply.github.com>`
 * `feng<308276366@qq.com>`
 * `wangzhen<wrennywang@hotmail.com>`
+* `yashwardhan-jyani<100014271+yashwardhan-jyani@users.noreply.github.com>`
+* `qyt<486179@qq.com>`
+* `Kazuo<hagihara@miharu.co.jp>`
+* `MarkCao<industriousonesoft@gmail.com>`
+* `Mr.Li<iskyman@163.com>`
+* `Loken<lokenetwork@users.noreply.github.com>`
+* `JacobSu<suzp1984@gmail.com>`
+* `terrencetang2023<tangshaoteng@163.com>`
+* `jb-alvarado<2212056+jb-alvarado@users.noreply.github.com>`
+* `Jay<39650910+w41203208@users.noreply.github.com>`
+* `Arjen10<47875127+Arjen10@users.noreply.github.com>`
+* `Lukas<89481353+Lukas-Kaufmann@users.noreply.github.com>`
+* `VampireAchao<achao1441470436@gmail.com>`
+* `Laurentiu<laurfb@gmail.com>`
+* `Bahamut<retamia@gmail.com>`
+* `MarcOlzheim<zlo@zlo.nu>`
 

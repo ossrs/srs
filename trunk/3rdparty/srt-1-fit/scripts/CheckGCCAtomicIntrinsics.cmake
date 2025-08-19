@@ -36,7 +36,7 @@ function(CheckGCCAtomicIntrinsics)
 	unset(CMAKE_REQUIRED_LIBRARIES)
 	unset(CMAKE_REQUIRED_LINK_OPTIONS)
 
-	# Check for existance of libatomic and whether this symbol is present.
+	# Check for existence of libatomic and whether this symbol is present.
 	check_library_exists(atomic __atomic_fetch_add_8 "" HAVE_LIBATOMIC)
 
 	set(CheckLibAtomicCompiles_CODE

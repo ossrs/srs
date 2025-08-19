@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 // Package interceptor contains the Interceptor interface, with some useful interceptors that should be safe to use
 // in most cases.
 package interceptor
@@ -9,10 +12,14 @@ import (
 	"github.com/pion/rtp"
 )
 
+// Factory provides an interface for constructing interceptors.
+type Factory interface {
+	NewInterceptor(id string) (Interceptor, error)
+}
+
 // Interceptor can be used to add functionality to you PeerConnections by modifying any incoming/outgoing rtp/rtcp
 // packets, or sending your own packets as needed.
 type Interceptor interface {
-
 	// BindRTCPReader lets you modify any incoming RTCP packets. It is called once per sender/receiver, however this might
 	// change in the future. The returned method will be called once per packet batch.
 	BindRTCPReader(reader RTCPReader) RTCPReader
@@ -28,7 +35,8 @@ type Interceptor interface {
 	// UnbindLocalStream is called when the Stream is removed. It can be used to clean up any data related to that track.
 	UnbindLocalStream(info *StreamInfo)
 
-	// BindRemoteStream lets you modify any incoming RTP packets. It is called once for per RemoteStream. The returned method
+	// BindRemoteStream lets you modify any incoming RTP packets.
+	// It is called once for per RemoteStream. The returned method
 	// will be called once per rtp packet.
 	BindRemoteStream(info *StreamInfo, reader RTPReader) RTPReader
 
@@ -62,47 +70,34 @@ type RTCPReader interface {
 	Read([]byte, Attributes) (int, Attributes, error)
 }
 
-// Attributes are a generic key/value store used by interceptors
-type Attributes map[interface{}]interface{}
-
-// RTPWriterFunc is an adapter for RTPWrite interface
+// RTPWriterFunc is an adapter for RTPWrite interface.
 type RTPWriterFunc func(header *rtp.Header, payload []byte, attributes Attributes) (int, error)
 
-// RTPReaderFunc is an adapter for RTPReader interface
+// RTPReaderFunc is an adapter for RTPReader interface.
 type RTPReaderFunc func([]byte, Attributes) (int, Attributes, error)
 
-// RTCPWriterFunc is an adapter for RTCPWriter interface
+// RTCPWriterFunc is an adapter for RTCPWriter interface.
 type RTCPWriterFunc func(pkts []rtcp.Packet, attributes Attributes) (int, error)
 
-// RTCPReaderFunc is an adapter for RTCPReader interface
+// RTCPReaderFunc is an adapter for RTCPReader interface.
 type RTCPReaderFunc func([]byte, Attributes) (int, Attributes, error)
 
-// Write a rtp packet
+// Write a rtp packet.
 func (f RTPWriterFunc) Write(header *rtp.Header, payload []byte, attributes Attributes) (int, error) {
 	return f(header, payload, attributes)
 }
 
-// Read a rtp packet
+// Read a rtp packet.
 func (f RTPReaderFunc) Read(b []byte, a Attributes) (int, Attributes, error) {
 	return f(b, a)
 }
 
-// Write a batch of rtcp packets
+// Write a batch of rtcp packets.
 func (f RTCPWriterFunc) Write(pkts []rtcp.Packet, attributes Attributes) (int, error) {
 	return f(pkts, attributes)
 }
 
-// Read a batch of rtcp packets
+// Read a batch of rtcp packets.
 func (f RTCPReaderFunc) Read(b []byte, a Attributes) (int, Attributes, error) {
 	return f(b, a)
-}
-
-// Get returns the attribute associated with key.
-func (a Attributes) Get(key interface{}) interface{} {
-	return a[key]
-}
-
-// Set sets the attribute associated with key to the given value.
-func (a Attributes) Set(key interface{}, val interface{}) {
-	a[key] = val
 }

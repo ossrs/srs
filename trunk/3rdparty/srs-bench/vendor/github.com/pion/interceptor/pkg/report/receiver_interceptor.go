@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package report
 
 import (
@@ -7,8 +10,35 @@ import (
 	"github.com/pion/interceptor"
 	"github.com/pion/logging"
 	"github.com/pion/rtcp"
-	"github.com/pion/rtp"
 )
+
+// ReceiverInterceptorFactory is a interceptor.Factory for a ReceiverInterceptor.
+type ReceiverInterceptorFactory struct {
+	opts []ReceiverOption
+}
+
+// NewInterceptor constructs a new ReceiverInterceptor.
+func (r *ReceiverInterceptorFactory) NewInterceptor(_ string) (interceptor.Interceptor, error) {
+	receiverInterceptor := &ReceiverInterceptor{
+		interval: 1 * time.Second,
+		now:      time.Now,
+		log:      logging.NewDefaultLoggerFactory().NewLogger("receiver_interceptor"),
+		close:    make(chan struct{}),
+	}
+
+	for _, opt := range r.opts {
+		if err := opt(receiverInterceptor); err != nil {
+			return nil, err
+		}
+	}
+
+	return receiverInterceptor, nil
+}
+
+// NewReceiverInterceptor returns a new ReceiverInterceptorFactory.
+func NewReceiverInterceptor(opts ...ReceiverOption) (*ReceiverInterceptorFactory, error) {
+	return &ReceiverInterceptorFactory{opts}, nil
+}
 
 // ReceiverInterceptor interceptor generates receiver reports.
 type ReceiverInterceptor struct {
@@ -20,24 +50,6 @@ type ReceiverInterceptor struct {
 	m        sync.Mutex
 	wg       sync.WaitGroup
 	close    chan struct{}
-}
-
-// NewReceiverInterceptor returns a new ReceiverInterceptor interceptor.
-func NewReceiverInterceptor(opts ...ReceiverOption) (*ReceiverInterceptor, error) {
-	r := &ReceiverInterceptor{
-		interval: 1 * time.Second,
-		now:      time.Now,
-		log:      logging.NewDefaultLoggerFactory().NewLogger("receiver_interceptor"),
-		close:    make(chan struct{}),
-	}
-
-	for _, opt := range opts {
-		if err := opt(r); err != nil {
-			return nil, err
-		}
-	}
-
-	return r, nil
 }
 
 func (r *ReceiverInterceptor) isClosed() bool {
@@ -83,18 +95,17 @@ func (r *ReceiverInterceptor) loop(rtcpWriter interceptor.RTCPWriter) {
 	defer r.wg.Done()
 
 	ticker := time.NewTicker(r.interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			now := r.now()
-			r.streams.Range(func(key, value interface{}) bool {
-				stream := value.(*receiverStream)
-
-				var pkts []rtcp.Packet
-
-				pkts = append(pkts, stream.generateReport(now))
-
-				if _, err := rtcpWriter.Write(pkts, interceptor.Attributes{}); err != nil {
+			r.streams.Range(func(_, value interface{}) bool {
+				if stream, ok := value.(*receiverStream); !ok {
+					r.log.Warnf("failed to cast ReceiverInterceptor stream")
+				} else if _, err := rtcpWriter.Write(
+					[]rtcp.Packet{stream.generateReport(now)}, interceptor.Attributes{},
+				); err != nil {
 					r.log.Warnf("failed sending: %+v", err)
 				}
 
@@ -107,9 +118,11 @@ func (r *ReceiverInterceptor) loop(rtcpWriter interceptor.RTCPWriter) {
 	}
 }
 
-// BindRemoteStream lets you modify any incoming RTP packets. It is called once for per RemoteStream. The returned method
-// will be called once per rtp packet.
-func (r *ReceiverInterceptor) BindRemoteStream(info *interceptor.StreamInfo, reader interceptor.RTPReader) interceptor.RTPReader {
+// BindRemoteStream lets you modify any incoming RTP packets. It is called once for per RemoteStream.
+// The returned method will be called once per rtp packet.
+func (r *ReceiverInterceptor) BindRemoteStream(
+	info *interceptor.StreamInfo, reader interceptor.RTPReader,
+) interceptor.RTPReader {
 	stream := newReceiverStream(info.SSRC, info.ClockRate)
 	r.streams.Store(info.SSRC, stream)
 
@@ -119,19 +132,22 @@ func (r *ReceiverInterceptor) BindRemoteStream(info *interceptor.StreamInfo, rea
 			return 0, nil, err
 		}
 
-		pkt := rtp.Packet{}
-		if err = pkt.Unmarshal(b[:i]); err != nil {
+		if attr == nil {
+			attr = make(interceptor.Attributes)
+		}
+		header, err := attr.GetRTPHeader(b[:i])
+		if err != nil {
 			return 0, nil, err
 		}
 
-		stream.processRTP(r.now(), &pkt)
+		stream.processRTP(r.now(), header)
 
 		return i, attr, nil
 	})
 }
 
-// UnbindLocalStream is called when the Stream is removed. It can be used to clean up any data related to that track.
-func (r *ReceiverInterceptor) UnbindLocalStream(info *interceptor.StreamInfo) {
+// UnbindRemoteStream is called when the Stream is removed. It can be used to clean up any data related to that track.
+func (r *ReceiverInterceptor) UnbindRemoteStream(info *interceptor.StreamInfo) {
 	r.streams.Delete(info.SSRC)
 }
 
@@ -144,7 +160,10 @@ func (r *ReceiverInterceptor) BindRTCPReader(reader interceptor.RTCPReader) inte
 			return 0, nil, err
 		}
 
-		pkts, err := rtcp.Unmarshal(b[:i])
+		if attr == nil {
+			attr = make(interceptor.Attributes)
+		}
+		pkts, err := attr.GetRTCPPackets(b[:i])
 		if err != nil {
 			return 0, nil, err
 		}
@@ -156,8 +175,11 @@ func (r *ReceiverInterceptor) BindRTCPReader(reader interceptor.RTCPReader) inte
 					continue
 				}
 
-				stream := value.(*receiverStream)
-				stream.processSenderReport(r.now(), sr)
+				if stream, ok := value.(*receiverStream); !ok {
+					r.log.Warnf("failed to cast ReceiverInterceptor stream")
+				} else {
+					stream.processSenderReport(r.now(), sr)
+				}
 			}
 		}
 

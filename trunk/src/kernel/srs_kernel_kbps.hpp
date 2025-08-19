@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_KERNEL_KBPS_HPP
@@ -21,18 +21,21 @@ public:
     srs_utime_t time;
     // kbps or kps
     int rate;
+
 public:
     SrsRateSample();
     virtual ~SrsRateSample();
+
 public:
-    virtual SrsRateSample* update(int64_t nn, srs_utime_t t, int k);
+    virtual SrsRateSample *update(int64_t nn, srs_utime_t t, int k);
 };
 
 // A pps manager every some duration.
 class SrsPps
 {
 private:
-    SrsWallClock* clk_;
+    SrsWallClock *clk_;
+
 private:
     // samples
     SrsRateSample sample_10s_;
@@ -40,12 +43,15 @@ private:
     SrsRateSample sample_1m_;
     SrsRateSample sample_5m_;
     SrsRateSample sample_60m_;
+
 public:
     // Sugar for target to stat.
     int64_t sugar;
+
 public:
     SrsPps();
     virtual ~SrsPps();
+
 public:
     // Update with the nn which is target.
     void update();
@@ -65,6 +71,7 @@ class SrsWallClock
 public:
     SrsWallClock();
     virtual ~SrsWallClock();
+
 public:
     /**
      * Current time in srs_utime_t.
@@ -73,6 +80,6 @@ public:
 };
 
 // The global clock.
-extern SrsWallClock* _srs_clock;
+extern SrsWallClock *_srs_clock;
 
 #endif

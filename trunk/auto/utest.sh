@@ -17,7 +17,7 @@ mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/utest
 # trunk of srs, which contains the src dir, relative to objs/utest, it's trunk
 SRS_TRUNK_PREFIX=../../..
 # gest dir, relative to objs/utest, it's trunk/objs/{Platform}/gtest
-GTEST_DIR=../3rdpatry/gtest/googletest
+GTEST_DIR=../3rdparty/gtest/googletest
 
 # Whether enable C++11 or higher versions.
 # For linux, always use C++11 for gtest required, see https://github.com/google/googletest

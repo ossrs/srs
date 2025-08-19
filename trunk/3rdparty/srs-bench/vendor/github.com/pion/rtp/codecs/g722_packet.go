@@ -1,16 +1,19 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package codecs
 
-// G722Payloader payloads G722 packets
+// G722Payloader payloads G722 packets.
 type G722Payloader struct{}
 
-// Payload fragments an G722 packet across one or more byte arrays
-func (p *G722Payloader) Payload(mtu int, payload []byte) [][]byte {
+// Payload fragments an G722 packet across one or more byte arrays.
+func (p *G722Payloader) Payload(mtu uint16, payload []byte) [][]byte {
 	var out [][]byte
-	if payload == nil || mtu <= 0 {
+	if payload == nil || mtu == 0 {
 		return out
 	}
 
-	for len(payload) > mtu {
+	for len(payload) > int(mtu) {
 		o := make([]byte, mtu)
 		copy(o, payload[:mtu])
 		payload = payload[mtu:]
@@ -18,5 +21,6 @@ func (p *G722Payloader) Payload(mtu int, payload []byte) [][]byte {
 	}
 	o := make([]byte, len(payload))
 	copy(o, payload)
+
 	return append(out, o)
 }

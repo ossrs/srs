@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package sctp
 
 import (
@@ -52,7 +55,10 @@ type paramOutgoingResetRequest struct {
 	streamIdentifiers []uint16
 }
 
-var errSSNResetRequestParamTooShort = errors.New("outgoing SSN reset request parameter too short")
+// Outgoing reset request parameter errors.
+var (
+	ErrSSNResetRequestParamTooShort = errors.New("outgoing SSN reset request parameter too short")
+)
 
 func (r *paramOutgoingResetRequest) marshal() ([]byte, error) {
 	r.typ = outSSNResetReq
@@ -63,6 +69,7 @@ func (r *paramOutgoingResetRequest) marshal() ([]byte, error) {
 	for i, sID := range r.streamIdentifiers {
 		binary.BigEndian.PutUint16(r.raw[paramOutgoingResetRequestStreamIdentifiersOffset+2*i:], sID)
 	}
+
 	return r.paramHeader.marshal()
 }
 
@@ -72,7 +79,7 @@ func (r *paramOutgoingResetRequest) unmarshal(raw []byte) (param, error) {
 		return nil, err
 	}
 	if len(r.raw) < paramOutgoingResetRequestStreamIdentifiersOffset {
-		return nil, errSSNResetRequestParamTooShort
+		return nil, ErrSSNResetRequestParamTooShort
 	}
 	r.reconfigRequestSequenceNumber = binary.BigEndian.Uint32(r.raw)
 	r.reconfigResponseSequenceNumber = binary.BigEndian.Uint32(r.raw[4:])

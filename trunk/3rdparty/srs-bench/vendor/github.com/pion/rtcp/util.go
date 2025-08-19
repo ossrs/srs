@@ -1,11 +1,14 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 // getPadding Returns the padding required to make the length a multiple of 4
-func getPadding(len int) int {
-	if len%4 == 0 {
+func getPadding(packetLen int) int {
+	if packetLen%4 == 0 {
 		return 0
 	}
-	return 4 - (len % 4)
+	return 4 - (packetLen % 4)
 }
 
 // setNBitsOfUint16 will truncate the value to size, left-shift to startIndex position and set

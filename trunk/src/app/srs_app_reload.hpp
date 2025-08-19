@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_APP_RELOAD_HPP
@@ -15,18 +15,20 @@
 // When reload callback, the config is updated yet.
 //
 // Features not support reload,
-// @see: https://ossrs.net/lts/zh-cn/docs/v4/doc/reload#notsupportedfeatures
+// @see: https://ossrs.io/lts/en-us/docs/v7/doc/reload#notsupportedfeatures
 class ISrsReloadHandler
 {
 public:
     ISrsReloadHandler();
     virtual ~ISrsReloadHandler();
+
 public:
     virtual srs_error_t on_reload_max_conns();
     virtual srs_error_t on_reload_listen();
     virtual srs_error_t on_reload_pithy_print();
     virtual srs_error_t on_reload_http_api_raw_api();
     virtual srs_error_t on_reload_rtc_server();
+
 public:
     virtual srs_error_t on_reload_vhost_added(std::string vhost);
     virtual srs_error_t on_reload_vhost_removed(std::string vhost);

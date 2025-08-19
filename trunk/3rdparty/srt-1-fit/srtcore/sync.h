@@ -11,6 +11,8 @@
 #ifndef INC_SRT_SYNC_H
 #define INC_SRT_SYNC_H
 
+#include "platform_sys.h"
+
 #include <cstdlib>
 #include <limits>
 #ifdef ENABLE_STDCXX_SYNC
@@ -233,7 +235,7 @@ inline Duration<steady_clock> operator*(const int& lhs, const Duration<steady_cl
 
 #endif // ENABLE_STDCXX_SYNC
 
-// NOTE: Moved the following class definitons to "atomic_clock.h"
+// NOTE: Moved the following class definitions to "atomic_clock.h"
 //   template <class Clock>
 //      class AtomicDuration;
 //   template <class Clock>
@@ -602,7 +604,7 @@ public:
     /// Causes the current thread to block until
     /// a specific time is reached.
     ///
-    /// @return true  if condition occured or spuriously woken up
+    /// @return true  if condition occurred or spuriously woken up
     ///         false on timeout
     bool lock_wait_until(const steady_clock::time_point& tp);
 
@@ -613,7 +615,7 @@ public:
     /// It may also be unblocked spuriously.
     /// Uses internal mutex to lock.
     ///
-    /// @return true  if condition occured or spuriously woken up
+    /// @return true  if condition occurred or spuriously woken up
     ///         false on timeout
     bool lock_wait_for(const steady_clock::duration& rel_time);
 
@@ -624,7 +626,7 @@ public:
     /// It may also be unblocked spuriously.
     /// When unblocked, regardless of the reason, lock is reacquiredand wait_for() exits.
     ///
-    /// @return true  if condition occured or spuriously woken up
+    /// @return true  if condition occurred or spuriously woken up
     ///         false on timeout
     bool wait_for(UniqueLock& lk, const steady_clock::duration& rel_time);
 

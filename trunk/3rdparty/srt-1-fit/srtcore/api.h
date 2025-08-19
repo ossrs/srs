@@ -193,6 +193,15 @@ public:
     /// to finish sending the data that were scheduled for sending so far.
     void setClosed();
 
+    // This is necessary to be called from the group before the group clears
+    // the connection with the socket. As for managed groups (and there are
+    // currently no other group types), a socket disconnected from the group
+    // is no longer usable.
+    void setClosing()
+    {
+        core().m_bClosing = true;
+    }
+
     /// This does the same as setClosed, plus sets the m_bBroken to true.
     /// Such a socket can still be read from so that remaining data from
     /// the receiver buffer can be read, but no longer sends anything.
@@ -447,6 +456,8 @@ private:
     /// @param cfgSocket socket configuration.
     /// @return tru if configurations match, false otherwise.
     static bool channelSettingsMatch(const CSrtMuxerConfig& cfgMuxer, const CSrtConfig& cfgSocket);
+    static bool inet6SettingsCompat(const sockaddr_any& muxaddr, const CSrtMuxerConfig& cfgMuxer,
+        const sockaddr_any& reqaddr, const CSrtMuxerConfig& cfgSocket);
 
 private:
     std::map<int, CMultiplexer> m_mMultiplexer; // UDP multiplexer

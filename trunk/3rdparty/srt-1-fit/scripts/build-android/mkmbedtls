@@ -1,0 +1,27 @@
+#!/bin/sh
+
+while getopts s:i:t:n:a: option
+do
+ case "${option}"
+ in
+ s) SRC_DIR=${OPTARG};;
+ i) INSTALL_DIR=${OPTARG};;
+ t) ARCH_ABI=${OPTARG};;
+ n) NDK_ROOT=${OPTARG};;
+ a) API_LEVEL=${OPTARG};;
+ *) twentytwo=${OPTARG};;
+ esac
+done
+
+
+BUILD_DIR=/tmp/mbedtls_android_build
+rm -rf $BUILD_DIR
+mkdir $BUILD_DIR
+cd $BUILD_DIR
+cmake -DENABLE_TESTING=Off -DUSE_SHARED_MBEDTLS_LIBRARY=On \
+-DCMAKE_PREFIX_PATH=$INSTALL_DIR -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -DCMAKE_ANDROID_NDK=$NDK_ROOT \
+-DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=$API_LEVEL -DCMAKE_ANDROID_ARCH_ABI=$ARCH_ABI \
+-DCMAKE_C_FLAGS="-fPIC" -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--build-id" \
+-DCMAKE_BUILD_TYPE=RelWithDebInfo $SRC_DIR
+cmake --build .
+cmake --install .

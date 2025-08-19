@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -14,8 +17,6 @@ type PictureLossIndication struct {
 	MediaSSRC uint32
 }
 
-var _ Packet = (*PictureLossIndication)(nil) // assert is a Packet
-
 const (
 	pliLength = 2
 )
@@ -28,7 +29,7 @@ func (p PictureLossIndication) Marshal() ([]byte, error) {
 	 *
 	 * The semantics of this FB message is independent of the payload type.
 	 */
-	rawPacket := make([]byte, p.len())
+	rawPacket := make([]byte, p.MarshalSize())
 	packetBody := rawPacket[headerLength:]
 
 	binary.BigEndian.PutUint32(packetBody, p.SenderSSRC)
@@ -77,7 +78,8 @@ func (p *PictureLossIndication) Header() Header {
 	}
 }
 
-func (p *PictureLossIndication) len() int {
+// MarshalSize returns the size of the packet once marshaled
+func (p *PictureLossIndication) MarshalSize() int {
 	return headerLength + ssrcLength*2
 }
 

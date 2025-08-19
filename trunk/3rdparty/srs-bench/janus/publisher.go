@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 Winlin
+// # Copyright (c) 2025 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -23,16 +23,17 @@ package janus
 import (
 	"context"
 	"fmt"
-	"github.com/ossrs/go-oryx-lib/errors"
-	"github.com/ossrs/go-oryx-lib/logger"
-	"github.com/pion/interceptor"
-	"github.com/pion/sdp/v3"
-	"github.com/pion/webrtc/v3"
 	"io"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/ossrs/go-oryx-lib/errors"
+	"github.com/ossrs/go-oryx-lib/logger"
+	"github.com/pion/interceptor"
+	"github.com/pion/sdp/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps int, enableAudioLevel, enableTWCC bool) error {
@@ -97,11 +98,11 @@ func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 
 		if sourceAudio != "" {
 			aIngester = newAudioIngester(sourceAudio)
-			registry.Add(aIngester.audioLevelInterceptor)
+			registry.Add(&rtpInteceptorFactory{aIngester.audioLevelInterceptor})
 		}
 		if sourceVideo != "" {
 			vIngester = newVideoIngester(sourceVideo)
-			registry.Add(vIngester.markerInterceptor)
+			registry.Add(&rtpInteceptorFactory{vIngester.markerInterceptor})
 		}
 
 		api := webrtc.NewAPI(webrtc.WithMediaEngine(m), webrtc.WithInterceptorRegistry(registry))

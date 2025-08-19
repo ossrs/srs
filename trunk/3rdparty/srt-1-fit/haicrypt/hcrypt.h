@@ -32,10 +32,6 @@ written by
 #ifdef _WIN32
    #include <winsock2.h>
    #include <ws2tcpip.h>
-   #if defined(_MSC_VER)
-      #pragma warning(disable:4267)
-      #pragma warning(disable:4018)
-   #endif
 #else
    #include <sys/time.h>
 #endif
@@ -163,7 +159,18 @@ int hcryptCtx_Tx_AsmKM(hcrypt_Session *crypto, hcrypt_Ctx *ctx, unsigned char *a
 int hcryptCtx_Tx_ManageKM(hcrypt_Session *crypto);
 int hcryptCtx_Tx_InjectKM(hcrypt_Session *crypto, void *out_p[], size_t out_len_p[], int maxout);
 
+/// @brief Initialize receiving crypto context.
+/// @param crypto library instance handle.
+/// @param ctx additional crypto context.
+/// @param cfg crypto configuration.
+/// @return -1 on error, 0 otherwise.
 int hcryptCtx_Rx_Init(hcrypt_Session *crypto, hcrypt_Ctx *ctx, const HaiCrypt_Cfg *cfg);
+
+/// @brief Parse an incoming message related to cryptography module.
+/// @param crypto library instance handle.
+/// @param msg a message to parse.
+/// @param msg_len length of the message in bytes.
+/// @return 0 on success; -3 on cipher mode mismatch; -2 on unmatched shared secret; -1 on other failures.
 int hcryptCtx_Rx_ParseKM(hcrypt_Session *crypto, unsigned char *msg, size_t msg_len);
 
 #endif /* HCRYPT_H */

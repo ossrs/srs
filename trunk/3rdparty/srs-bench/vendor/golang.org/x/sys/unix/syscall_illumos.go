@@ -1,24 +1,25 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // illumos system calls not present on Solaris.
 
-// +build amd64,illumos
+//go:build amd64 && illumos
 
 package unix
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 func bytes2iovec(bs [][]byte) []Iovec {
 	iovecs := make([]Iovec, len(bs))
 	for i, b := range bs {
 		iovecs[i].SetLen(len(b))
 		if len(b) > 0 {
-			// somehow Iovec.Base on illumos is (*int8), not (*byte)
-			iovecs[i].Base = (*int8)(unsafe.Pointer(&b[0]))
+			iovecs[i].Base = &b[0]
 		} else {
-			iovecs[i].Base = (*int8)(unsafe.Pointer(&_zero))
+			iovecs[i].Base = (*byte)(unsafe.Pointer(&_zero))
 		}
 	}
 	return iovecs
@@ -74,17 +75,4 @@ func Accept4(fd int, flags int) (nfd int, sa Sockaddr, err error) {
 		nfd = 0
 	}
 	return
-}
-
-//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
-
-func Pipe2(p []int, flags int) error {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	var pp [2]_C_int
-	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return err
 }

@@ -1,43 +1,41 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #include <srs_app_http_static.hpp>
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <sstream>
 using namespace std;
 
-#include <srs_protocol_stream.hpp>
-#include <srs_protocol_utility.hpp>
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_app_st.hpp>
-#include <srs_core_autofree.hpp>
 #include <srs_app_config.hpp>
-#include <srs_kernel_utility.hpp>
+#include <srs_app_http_hooks.hpp>
+#include <srs_app_hybrid.hpp>
+#include <srs_app_pithy_print.hpp>
+#include <srs_app_server.hpp>
+#include <srs_app_source.hpp>
+#include <srs_app_st.hpp>
+#include <srs_app_statistic.hpp>
+#include <srs_core_autofree.hpp>
+#include <srs_kernel_aac.hpp>
+#include <srs_kernel_error.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_flv.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
-#include <srs_app_source.hpp>
-#include <srs_protocol_rtmp_msg_array.hpp>
-#include <srs_kernel_aac.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_kernel_mp3.hpp>
 #include <srs_kernel_ts.hpp>
-#include <srs_app_pithy_print.hpp>
-#include <srs_app_source.hpp>
-#include <srs_app_server.hpp>
-#include <srs_protocol_utility.hpp>
-#include <srs_app_http_hooks.hpp>
-#include <srs_app_statistic.hpp>
-#include <srs_app_hybrid.hpp>
+#include <srs_kernel_utility.hpp>
 #include <srs_protocol_log.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_stream.hpp>
+#include <srs_protocol_utility.hpp>
 
 #define SRS_CONTEXT_IN_HLS "hls_ctx"
 
@@ -57,28 +55,30 @@ void SrsHlsVirtualConn::expire()
     interrupt = true;
 
     // remove statistic quickly
-    SrsStatistic* stat = SrsStatistic::instance();
+    SrsStatistic *stat = SrsStatistic::instance();
     stat->on_disconnect(ctx, srs_success);
 }
 
 SrsHlsStream::SrsHlsStream()
 {
     _srs_hybrid->timer5s()->subscribe(this);
+    security_ = new SrsSecurity();
 }
 
 SrsHlsStream::~SrsHlsStream()
 {
     _srs_hybrid->timer5s()->unsubscribe(this);
 
-    std::map<std::string, SrsHlsVirtualConn*>::iterator it;
+    std::map<std::string, SrsHlsVirtualConn *>::iterator it;
     for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {
-        SrsHlsVirtualConn* info = it->second;
+        SrsHlsVirtualConn *info = it->second;
         srs_freep(info);
     }
     map_ctx_info_.clear();
+    srs_freep(security_);
 }
 
-srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, string fullpath, SrsRequest* req, bool* served)
+srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, ISrsFileReaderFactory *factory, string fullpath, SrsRequest *req, bool *served)
 {
     srs_error_t err = srs_success;
 
@@ -122,20 +122,20 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMess
     return err;
 }
 
-void SrsHlsStream::on_serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+void SrsHlsStream::on_serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
     string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
     if (ctx.empty() || !ctx_is_exist(ctx)) {
         return;
     }
 
-    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
     srs_assert(hr);
 
-    SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
+    SrsHttpConn *hc = dynamic_cast<SrsHttpConn *>(hr->connection());
     srs_assert(hc);
 
-    ISrsKbpsDelta* delta = hc->delta();
+    ISrsKbpsDelta *delta = hc->delta();
     srs_assert(delta);
 
     // Only update the delta, because SrsServer will sample it. Note that SrsServer also does the stat for all clients
@@ -144,17 +144,17 @@ void SrsHlsStream::on_serve_ts_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     SrsStatistic::instance()->kbps_add_delta(ctx, delta);
 }
 
-srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsRequest* req, std::string& ctx)
+srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRequest *req, std::string &ctx)
 {
     srs_error_t err = srs_success;
 
-    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
     srs_assert(hr);
 
     if (ctx.empty()) {
         // make sure unique
         do {
-            ctx = srs_random_str(8);  // the same as cid
+            ctx = srs_random_str(8); // the same as cid
         } while (ctx_is_exist(ctx));
     }
 
@@ -162,9 +162,13 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
     _srs_context->set_id(SrsContextId().set_value(ctx));
 
     // We must do stat the client before hooks, because hooks depends on it.
-    SrsStatistic* stat = SrsStatistic::instance();
+    SrsStatistic *stat = SrsStatistic::instance();
     if ((err = stat->on_client(ctx, req, NULL, SrsHlsPlay)) != srs_success) {
         return srs_error_wrap(err, "stat on client");
+    }
+
+    if ((err = security_->check(SrsHlsPlay, req->ip, req)) != srs_success) {
+        return srs_error_wrap(err, "HLS: security check");
     }
 
     // We must do hook after stat, because depends on it.
@@ -179,6 +183,7 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
     if (!hr->query().empty() && hr->query_get(SRS_CONTEXT_IN_HLS).empty()) {
         ss << "&" << hr->query();
     }
+    ss << SRS_CONSTS_LF;
 
     std::string res = ss.str();
     int length = res.length();
@@ -187,7 +192,7 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
     w->header()->set_content_type("application/vnd.apple.mpegurl");
     w->write_header(SRS_CONSTS_HTTP_OK);
 
-    if ((err = w->write((char*)res.c_str(), length)) != srs_success) {
+    if ((err = w->write((char *)res.c_str(), length)) != srs_success) {
         return srs_error_wrap(err, "write  bytes=%d", length);
     }
 
@@ -198,28 +203,28 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter* w, ISrsHttpM
     return err;
 }
 
-srs_error_t SrsHlsStream::serve_exists_session(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, ISrsFileReaderFactory* factory, std::string fullpath)
+srs_error_t SrsHlsStream::serve_exists_session(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, ISrsFileReaderFactory *factory, std::string fullpath)
 {
     srs_error_t err = srs_success;
 
     // Read m3u8 content.
-    SrsFileReader* fs = factory->create_file_reader();
-    SrsAutoFree(SrsFileReader, fs);
+    SrsUniquePtr<SrsFileReader> fs(factory->create_file_reader());
 
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open %s", fullpath.c_str());
     }
 
     string content;
-    if ((err = srs_ioutil_read_all(fs, content)) != srs_success) {
+    if ((err = srs_ioutil_read_all(fs.get(), content)) != srs_success) {
         return srs_error_wrap(err, "read %s", fullpath.c_str());
     }
 
     // Rebuild the m3u8 content, make .ts with hls_ctx.
-    size_t pos_ts = content.find(".ts");
     static string QUERY_PREFIX = string(".ts?") + string(SRS_CONTEXT_IN_HLS) + string("=");
+    static string M4S_QUERY_PREFIX = string(".m4s?") + string(SRS_CONTEXT_IN_HLS) + string("=");
+    static string INIT_MP4_QUERY_PREFIX = string("init.mp4?") + string(SRS_CONTEXT_IN_HLS) + string("=");
 
-    if (pos_ts != string::npos) {
+    if (content.find(".ts") != string::npos) {
         string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
         string query = QUERY_PREFIX + ctx;
 
@@ -230,6 +235,28 @@ srs_error_t SrsHlsStream::serve_exists_session(ISrsHttpResponseWriter* w, ISrsHt
         } else {
             content = srs_string_replace(content, ".ts", query);
         }
+    } else if (content.find(".m4s") != string::npos) {
+        string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
+        string query = M4S_QUERY_PREFIX + ctx;
+
+        size_t pos_query = content.find(".m4s?");
+        if (pos_query != string::npos) {
+            query += "&";
+            content = srs_string_replace(content, ".m4s?", query);
+        } else {
+            content = srs_string_replace(content, ".m4s", query);
+        }
+    } else if (content.find("init.mp4") != string::npos) {
+        string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
+        string query = INIT_MP4_QUERY_PREFIX + ctx;
+
+        size_t pos_query = content.find("init.mp4?");
+        if (pos_query != string::npos) {
+            query += "&";
+            content = srs_string_replace(content, "init.mp4?", query);
+        } else {
+            content = srs_string_replace(content, "init.mp4", query);
+        }
     }
 
     // Response with rebuilt content.
@@ -237,7 +264,7 @@ srs_error_t SrsHlsStream::serve_exists_session(ISrsHttpResponseWriter* w, ISrsHt
     w->header()->set_content_length(content.length());
     w->write_header(SRS_CONSTS_HTTP_OK);
     if (!content.empty()) {
-        w->write((char*)content.data(), content.length());
+        w->write((char *)content.data(), content.length());
     }
 
     if ((err = w->final_request()) != srs_success) {
@@ -252,21 +279,21 @@ bool SrsHlsStream::ctx_is_exist(std::string ctx)
     return (map_ctx_info_.find(ctx) != map_ctx_info_.end());
 }
 
-void SrsHlsStream::alive(std::string ctx, SrsRequest* req)
+void SrsHlsStream::alive(std::string ctx, SrsRequest *req)
 {
-    std::map<std::string, SrsHlsVirtualConn*>::iterator it = map_ctx_info_.find(ctx);
+    std::map<std::string, SrsHlsVirtualConn *>::iterator it = map_ctx_info_.find(ctx);
 
     // Create new context.
     if (it == map_ctx_info_.end()) {
-        SrsHlsVirtualConn* conn = new SrsHlsVirtualConn();
+        SrsHlsVirtualConn *conn = new SrsHlsVirtualConn();
         conn->req = req->copy();
         conn->ctx = ctx;
         conn->request_time = srs_get_system_time();
         map_ctx_info_.insert(make_pair(ctx, conn));
 
         // Update the conn of stat client, which is used for receiving the event of kickoff.
-        SrsStatistic* stat = SrsStatistic::instance();
-        SrsStatisticClient* client = stat->find_client(ctx);
+        SrsStatistic *stat = SrsStatistic::instance();
+        SrsStatisticClient *client = stat->find_client(ctx);
         if (client) {
             client->conn = conn;
         }
@@ -275,13 +302,13 @@ void SrsHlsStream::alive(std::string ctx, SrsRequest* req)
     }
 
     // Update alive time of context for virtual connection.
-    SrsHlsVirtualConn* conn = it->second;
+    SrsHlsVirtualConn *conn = it->second;
     if (!conn->interrupt) {
         conn->request_time = srs_get_system_time();
     }
 }
 
-srs_error_t SrsHlsStream::http_hooks_on_play(SrsRequest* req)
+srs_error_t SrsHlsStream::http_hooks_on_play(SrsRequest *req)
 {
     srs_error_t err = srs_success;
 
@@ -295,7 +322,7 @@ srs_error_t SrsHlsStream::http_hooks_on_play(SrsRequest* req)
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_play(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost);
 
         if (!conf) {
             return err;
@@ -314,7 +341,7 @@ srs_error_t SrsHlsStream::http_hooks_on_play(SrsRequest* req)
     return err;
 }
 
-void SrsHlsStream::http_hooks_on_stop(SrsRequest* req)
+void SrsHlsStream::http_hooks_on_stop(SrsRequest *req)
 {
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         return;
@@ -326,7 +353,7 @@ void SrsHlsStream::http_hooks_on_stop(SrsRequest* req)
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_stop(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(req->vhost);
 
         if (!conf) {
             srs_info("ignore the empty http callback: on_stop");
@@ -348,10 +375,10 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
-    std::map<std::string, SrsHlsVirtualConn*>::iterator it;
+    std::map<std::string, SrsHlsVirtualConn *>::iterator it;
     for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {
         string ctx = it->first;
-        SrsHlsVirtualConn* info = it->second;
+        SrsHlsVirtualConn *info = it->second;
 
         srs_utime_t hls_window = _srs_config->get_hls_window(info->req->vhost);
         if (info->request_time + (2 * hls_window) < srs_get_system_time()) {
@@ -360,7 +387,7 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
 
             http_hooks_on_stop(info->req);
 
-            SrsStatistic* stat = SrsStatistic::instance();
+            SrsStatistic *stat = SrsStatistic::instance();
             // TODO: FIXME: Should finger out the err.
             stat->on_disconnect(ctx, srs_success);
 
@@ -374,8 +401,9 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
     return err;
 }
 
-bool SrsHlsStream::is_interrupt(std::string id) {
-    std::map<std::string, SrsHlsVirtualConn*>::iterator it = map_ctx_info_.find(id);
+bool SrsHlsStream::is_interrupt(std::string id)
+{
+    std::map<std::string, SrsHlsVirtualConn *>::iterator it = map_ctx_info_.find(id);
     if (it != map_ctx_info_.end()) {
         return it->second->interrupt;
     }
@@ -390,42 +418,39 @@ SrsVodStream::~SrsVodStream()
 {
 }
 
-srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int64_t offset)
+srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, string fullpath, int64_t offset)
 {
     srs_error_t err = srs_success;
-    
-    SrsFileReader* fs = fs_factory->create_file_reader();
-    SrsAutoFree(SrsFileReader, fs);
-    
+
+    SrsUniquePtr<SrsFileReader> fs(fs_factory->create_file_reader());
+
     // open flv file
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open file");
     }
-    
+
     if (offset > fs->filesize()) {
         return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http flv streaming %s overflow. size=%" PRId64 ", offset=%" PRId64,
-            fullpath.c_str(), fs->filesize(), offset);
+                             fullpath.c_str(), fs->filesize(), offset);
     }
-    
+
     SrsFlvVodStreamDecoder ffd;
-    
+
     // open fast decoder
-    if ((err = ffd.initialize(fs)) != srs_success) {
+    if ((err = ffd.initialize(fs.get())) != srs_success) {
         return srs_error_wrap(err, "init ffd");
     }
-    
+
     // save header, send later.
     char flv_header[13];
-    
+
     // send flv header
     if ((err = ffd.read_header_ext(flv_header)) != srs_success) {
         return srs_error_wrap(err, "ffd read header");
     }
-    
+
     // save sequence header, send later
-    char* sh_data = NULL;
     int sh_size = 0;
-    
     if (true) {
         // send sequence header
         int64_t start = 0;
@@ -436,110 +461,108 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
             return srs_error_new(ERROR_HTTP_REMUX_SEQUENCE_HEADER, "no sequence, size=%d", sh_size);
         }
     }
-    sh_data = new char[sh_size];
-    SrsAutoFreeA(char, sh_data);
-    if ((err = fs->read(sh_data, sh_size, NULL)) != srs_success) {
+
+    SrsUniquePtr<char[]> sh_data(new char[sh_size]);
+    if ((err = fs->read(sh_data.get(), sh_size, NULL)) != srs_success) {
         return srs_error_wrap(err, "fs read");
     }
-    
+
     // seek to data offset
     int64_t left = fs->filesize() - offset;
-    
+
     // write http header for ts.
     w->header()->set_content_length(sizeof(flv_header) + sh_size + left);
     w->header()->set_content_type("video/x-flv");
     w->write_header(SRS_CONSTS_HTTP_OK);
-    
+
     // write flv header and sequence header.
     if ((err = w->write(flv_header, sizeof(flv_header))) != srs_success) {
         return srs_error_wrap(err, "write flv header");
     }
-    if (sh_size > 0 && (err = w->write(sh_data, sh_size)) != srs_success) {
+    if (sh_size > 0 && (err = w->write(sh_data.get(), sh_size)) != srs_success) {
         return srs_error_wrap(err, "write sequence");
     }
-    
+
     // write body.
     if ((err = ffd.seek2(offset)) != srs_success) {
         return srs_error_wrap(err, "ffd seek");
     }
-    
+
     // send data
-    if ((err = copy(w, fs, r, left)) != srs_success) {
+    if ((err = copy(w, fs.get(), r, left)) != srs_success) {
         return srs_error_wrap(err, "read flv=%s size=%" PRId64, fullpath.c_str(), left);
     }
-    
+
     return err;
 }
 
-srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int64_t start, int64_t end)
+srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, string fullpath, int64_t start, int64_t end)
 {
     srs_error_t err = srs_success;
-    
+
     srs_assert(start >= 0);
     srs_assert(end == -1 || end >= 0);
-    
-    SrsFileReader* fs = fs_factory->create_file_reader();
-    SrsAutoFree(SrsFileReader, fs);
-    
+
+    SrsUniquePtr<SrsFileReader> fs(fs_factory->create_file_reader());
+
     // open flv file
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "fs open");
     }
-    
+
     // parse -1 to whole file.
     if (end == -1) {
         end = fs->filesize() - 1;
     }
-    
+
     if (end > fs->filesize() || start > end || end < 0) {
         return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d",
-            fullpath.c_str(), fs->filesize(), start);
+                             fullpath.c_str(), fs->filesize(), start);
     }
-    
+
     // seek to data offset, [start, end] for range.
     int64_t left = end - start + 1;
-    
+
     // write http header for ts.
     w->header()->set_content_length(left);
     w->header()->set_content_type("video/mp4");
     w->write_header(SRS_CONSTS_HTTP_PartialContent);
-    
+
     // response the content range header.
     // https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
     std::stringstream content_range;
     content_range << "bytes " << start << "-" << end << "/" << fs->filesize();
     w->header()->set("Content-Range", content_range.str());
-    
+
     // write body.
     fs->seek2(start);
-    
+
     // send data
-    if ((err = copy(w, fs, r, left)) != srs_success) {
+    if ((err = copy(w, fs.get(), r, left)) != srs_success) {
         return srs_error_wrap(err, "read mp4=%s size=%" PRId64, fullpath.c_str(), left);
     }
-    
+
     return err;
 }
 
-srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
+srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath)
 {
     srs_error_t err = srs_success;
 
-    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
     srs_assert(hr);
 
-    SrsRequest* req = hr->to_request(hr->host())->as_http();
-    SrsAutoFree(SrsRequest, req);
+    SrsUniquePtr<SrsRequest> req(hr->to_request(hr->host())->as_http());
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
+    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req->vhost);
     if (parsed_vhost) {
         req->vhost = parsed_vhost->arg0();
     }
 
     // Try to serve by HLS streaming.
     bool served = false;
-    if ((err = hls_.serve_m3u8_ctx(w, r, fs_factory, fullpath, req, &served)) != srs_success) {
+    if ((err = hls_.serve_m3u8_ctx(w, r, fs_factory, fullpath, req.get(), &served)) != srs_success) {
         return srs_error_wrap(err, "hls ctx");
     }
 
@@ -551,15 +574,15 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
     return err;
 }
 
-srs_error_t SrsVodStream::serve_ts_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
+srs_error_t SrsVodStream::serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath)
 {
     srs_error_t err = srs_success;
 
     // SrsServer also stat all HTTP connections including this one, but it should be ignored because the id is not
     // matched to any exists client. And we will do stat for the HLS streaming by session in hls_ctx.
-    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
-    SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
-    SrsHttpxConn* hxc = dynamic_cast<SrsHttpxConn*>(hc->handler());
+    SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
+    SrsHttpConn *hc = dynamic_cast<SrsHttpConn *>(hr->connection());
+    SrsHttpxConn *hxc = dynamic_cast<SrsHttpxConn *>(hc->handler());
 
     // Note that we never enable the stat for the HTTP connection, because we always stat the pseudo HLS streaming
     // session identified by hls_ctx, which served by an SrsHlsStream object.
@@ -574,7 +597,7 @@ srs_error_t SrsVodStream::serve_ts_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessa
     return err;
 }
 
-SrsHttpStaticServer::SrsHttpStaticServer(SrsServer* svr)
+SrsHttpStaticServer::SrsHttpStaticServer(SrsServer *svr)
 {
     server = svr;
     _srs_config->subscribe(this);
@@ -588,31 +611,31 @@ SrsHttpStaticServer::~SrsHttpStaticServer()
 srs_error_t SrsHttpStaticServer::initialize()
 {
     srs_error_t err = srs_success;
-    
+
     bool default_root_exists = false;
-    
+
     // http static file and flv vod stream mount for each vhost.
-    SrsConfDirective* root = _srs_config->get_root();
+    SrsConfDirective *root = _srs_config->get_root();
     for (int i = 0; i < (int)root->directives.size(); i++) {
-        SrsConfDirective* conf = root->at(i);
-        
+        SrsConfDirective *conf = root->at(i);
+
         if (!conf->is_vhost()) {
             continue;
         }
-        
+
         string pmount;
         string vhost = conf->arg0();
         if ((err = mount_vhost(vhost, pmount)) != srs_success) {
             return srs_error_wrap(err, "mount vhost");
         }
-        
+
         if (pmount == "/") {
             default_root_exists = true;
             std::string dir = _srs_config->get_vhost_http_dir(vhost);
             srs_warn("http: root mount to %s", dir.c_str());
         }
     }
-    
+
     if (!default_root_exists) {
         // add root
         std::string dir = _srs_config->get_http_stream_dir();
@@ -621,59 +644,58 @@ srs_error_t SrsHttpStaticServer::initialize()
         }
         srs_trace("http: root mount to %s", dir.c_str());
     }
-    
+
     return err;
 }
 
-srs_error_t SrsHttpStaticServer::mount_vhost(string vhost, string& pmount)
+srs_error_t SrsHttpStaticServer::mount_vhost(string vhost, string &pmount)
 {
     srs_error_t err = srs_success;
-    
+
     // when vhost disabled, ignore.
     if (!_srs_config->get_vhost_enabled(vhost)) {
         return err;
     }
-    
+
     // when vhost http_static disabled, ignore.
     if (!_srs_config->get_vhost_http_enabled(vhost)) {
         return err;
     }
-    
+
     std::string mount = _srs_config->get_vhost_http_mount(vhost);
     std::string dir = _srs_config->get_vhost_http_dir(vhost);
-    
+
     // replace the vhost variable
     mount = srs_string_replace(mount, "[vhost]", vhost);
     dir = srs_string_replace(dir, "[vhost]", vhost);
-    
+
     // remove the default vhost mount
-    mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
-    
+    mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST "/", "/");
+
     // the dir mount must always ends with "/"
     if (mount != "/" && !srs_string_ends_with(mount, "/")) {
         mount += "/";
     }
-    
+
     // mount the http of vhost.
     if ((err = mux.handle(mount, new SrsVodStream(dir))) != srs_success) {
         return srs_error_wrap(err, "mux handle");
     }
     srs_trace("http: vhost=%s mount to %s at %s", vhost.c_str(), mount.c_str(), dir.c_str());
-    
+
     pmount = mount;
-    
+
     return err;
 }
 
 srs_error_t SrsHttpStaticServer::on_reload_vhost_added(string vhost)
 {
     srs_error_t err = srs_success;
-    
+
     string pmount;
     if ((err = mount_vhost(vhost, pmount)) != srs_success) {
         return srs_error_wrap(err, "mount vhost");
     }
-    
+
     return err;
 }
-

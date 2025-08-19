@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+// SPDX-License-Identifier: MIT
+
 package rtcp
 
 import (
@@ -18,8 +21,6 @@ type ReceiverReport struct {
 	// be reported regularly about the receiver.
 	ProfileExtensions []byte
 }
-
-var _ Packet = (*ReceiverReport)(nil) // assert is a Packet
 
 const (
 	ssrcLength     = 4
@@ -57,7 +58,7 @@ func (r ReceiverReport) Marshal() ([]byte, error) {
 	 *        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 */
 
-	rawPacket := make([]byte, r.len())
+	rawPacket := make([]byte, r.MarshalSize())
 	packetBody := rawPacket[headerLength:]
 
 	binary.BigEndian.PutUint32(packetBody, r.SSRC)
@@ -156,7 +157,8 @@ func (r *ReceiverReport) Unmarshal(rawPacket []byte) error {
 	return nil
 }
 
-func (r *ReceiverReport) len() int {
+// MarshalSize returns the size of the packet once marshaled
+func (r *ReceiverReport) MarshalSize() int {
 	repsLength := 0
 	for _, rep := range r.Reports {
 		repsLength += rep.len()
@@ -169,7 +171,7 @@ func (r *ReceiverReport) Header() Header {
 	return Header{
 		Count:  uint8(len(r.Reports)),
 		Type:   TypeReceiverReport,
-		Length: uint16((r.len()/4)-1) + uint16(getPadding(len(r.ProfileExtensions))),
+		Length: uint16((r.MarshalSize()/4)-1) + uint16(getPadding(len(r.ProfileExtensions))),
 	}
 }
 

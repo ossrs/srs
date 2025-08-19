@@ -48,12 +48,12 @@ int crysprOpenSSL_AES_SetKey(
     (void)cipher_type;
 
     if (bEncrypt) {        /* Encrypt key */
-        if (AES_set_encrypt_key(kstr, kstr_len * 8, aes_key)) {
+        if (AES_set_encrypt_key(kstr, (int)(kstr_len * 8), aes_key)) {
             HCRYPT_LOG(LOG_ERR, "%s", "AES_set_encrypt_key(kek) failed\n");
             return(-1);
         }
     } else {               /* Decrypt key */
-        if (AES_set_decrypt_key(kstr, kstr_len * 8, aes_key)) {
+        if (AES_set_decrypt_key(kstr, (int)(kstr_len * 8), aes_key)) {
             HCRYPT_LOG(LOG_ERR, "%s", "AES_set_decrypt_key(kek) failed\n");
             return(-1);
         }
@@ -163,7 +163,7 @@ int crysprOpenSSL_KmPbkdf2(
     unsigned char *out)     /* derived key */
 {
     (void)cryspr_cb;
-    int rc = PKCS5_PBKDF2_HMAC_SHA1(passwd,passwd_len,salt,salt_len,itr,key_len,out);
+    int rc = PKCS5_PBKDF2_HMAC_SHA1(passwd,(int)passwd_len,salt,(int)salt_len,itr,(int)key_len,out);
     return(rc == 1? 0 : -1);
 }
 

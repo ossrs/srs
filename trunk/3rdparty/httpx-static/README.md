@@ -15,9 +15,8 @@ Images at https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/httpx/image
 *HTTP*: Start a HTTP static server
 
 ```
-go get github.com/ossrs/go-oryx/httpx-static &&
-cd $GOPATH/src/github.com/ossrs/go-oryx/httpx-static &&
-$GOPATH/bin/httpx-static -http 8080 -root `pwd`/html
+go install github.com/ossrs/go-oryx/httpx-static@latest &&
+$HOME/go/bin/httpx-static -http 8080 -root `pwd`
 ```
 
 Open http://localhost:8080/ in browser.
@@ -25,12 +24,11 @@ Open http://localhost:8080/ in browser.
 *HTTPS self-sign*: Start a HTTPS static server
 
 ```
-go get github.com/ossrs/go-oryx/httpx-static &&
-cd $GOPATH/src/github.com/ossrs/go-oryx/httpx-static &&
+go install github.com/ossrs/go-oryx/httpx-static@latest &&
 openssl genrsa -out server.key 2048 &&
 subj="/C=CN/ST=Beijing/L=Beijing/O=Me/OU=Me/CN=me.org" &&
 openssl req -new -x509 -key server.key -out server.crt -days 365 -subj $subj &&
-$GOPATH/bin/httpx-static -https 8443 -root `pwd`/html
+$HOME/go/bin/httpx-static -https 8443 -root `pwd`
 ```
 
 Open https://localhost:8443/ in browser.
@@ -40,12 +38,11 @@ Open https://localhost:8443/ in browser.
 *HTTPS proxy*: Proxy http as https
 
 ```
-go get github.com/ossrs/go-oryx/httpx-static &&
-cd $GOPATH/src/github.com/ossrs/go-oryx/httpx-static &&
+go install github.com/ossrs/go-oryx/httpx-static@latest &&
 openssl genrsa -out server.key 2048 &&
 subj="/C=CN/ST=Beijing/L=Beijing/O=Me/OU=Me/CN=me.org" &&
 openssl req -new -x509 -key server.key -out server.crt -days 365 -subj $subj &&
-$GOPATH/bin/httpx-static -https 8443 -root `pwd`/html -proxy http://ossrs.net:1985/api/v1
+$HOME/go/bin/httpx-static -https 8443 -root `pwd` -proxy http://ossrs.net:1985/api/v1
 ```
 
 Open https://localhost:8443/api/v1/summaries in browser.

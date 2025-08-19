@@ -139,7 +139,23 @@ static int set_cloexec(int fd, int set)
 
 srt::CChannel::CChannel()
     : m_iSocket(INVALID_SOCKET)
+#ifdef SRT_ENABLE_PKTINFO
+    , m_bBindMasked(true)
+#endif
 {
+#ifdef SRT_ENABLE_PKTINFO
+   // Do the check for ancillary data buffer size, kinda assertion
+   static const size_t CMSG_MAX_SPACE = sizeof (CMSGNodeIPv4) + sizeof (CMSGNodeIPv6);
+
+   if (CMSG_MAX_SPACE < CMSG_SPACE(sizeof(in_pktinfo)) + CMSG_SPACE(sizeof(in6_pktinfo)))
+   {
+       LOGC(kmlog.Fatal, log << "Size of CMSG_MAX_SPACE="
+               << CMSG_MAX_SPACE << " too short for cmsg "
+               << CMSG_SPACE(sizeof(in_pktinfo)) << ", "
+               << CMSG_SPACE(sizeof(in6_pktinfo)) << " - PLEASE FIX");
+       throw CUDTException(MJ_SETUP, MN_NONE, 0);
+   }
+#endif
 }
 
 srt::CChannel::~CChannel() {}
@@ -207,6 +223,9 @@ void srt::CChannel::open(const sockaddr_any& addr)
         throw CUDTException(MJ_SETUP, MN_NORES, NET_ERROR);
 
     m_BindAddr = addr;
+#ifdef SRT_ENABLE_PKTINFO
+    m_bBindMasked = m_BindAddr.isany();
+#endif
     LOGC(kmlog.Debug, log << "CHANNEL: Bound to local address: " << m_BindAddr.str());
 
     setUDPSockOpt();
@@ -246,6 +265,12 @@ void srt::CChannel::open(int family)
         throw CUDTException(MJ_SETUP, MN_NORES, NET_ERROR);
     }
     m_BindAddr = sockaddr_any(res->ai_addr, (sockaddr_any::len_t)res->ai_addrlen);
+
+#ifdef SRT_ENABLE_PKTINFO
+    // We know that this is intentionally bound now to "any",
+    // so the requester-destination address must be remembered and passed.
+    m_bBindMasked = true;
+#endif
 
     ::freeaddrinfo(res);
 
@@ -472,6 +497,27 @@ void srt::CChannel::setUDPSockOpt()
     if (0 != ::setsockopt(m_iSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(timeval)))
         throw CUDTException(MJ_SETUP, MN_NORES, NET_ERROR);
 #endif
+
+#ifdef SRT_ENABLE_PKTINFO
+    if (m_bBindMasked)
+    {
+        HLOGP(kmlog.Debug, "Socket bound to ANY - setting PKTINFO for address retrieval");
+        const int on = 1, off SRT_ATR_UNUSED = 0;
+
+        if (m_BindAddr.family() == AF_INET || m_mcfg.iIpV6Only == 0)
+        {
+            ::setsockopt(m_iSocket, IPPROTO_IP, IP_PKTINFO, (char*)&on, sizeof(on));
+        }
+
+        if (m_BindAddr.family() == AF_INET6)
+        {
+            ::setsockopt(m_iSocket, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof(on));
+        }
+
+        // XXX Unknown why this has to be off. RETEST.
+        //::setsockopt(m_iSocket, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off));
+    }
+#endif
 }
 
 void srt::CChannel::close() const
@@ -500,6 +546,11 @@ int srt::CChannel::getRcvBufSize()
 void srt::CChannel::setConfig(const CSrtMuxerConfig& config)
 {
     m_mcfg = config;
+}
+
+void srt::CChannel::getSocketOption(int level, int option, char* pw_dataptr, socklen_t& w_len, int& w_status)
+{
+    w_status = ::getsockopt(m_iSocket, level, option, (pw_dataptr), (&w_len));
 }
 
 int srt::CChannel::getIpTTL() const
@@ -610,11 +661,19 @@ void srt::CChannel::getPeerAddr(sockaddr_any& w_addr) const
     w_addr.len = namelen;
 }
 
-int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet) const
+int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const sockaddr_any& source_addr SRT_ATR_UNUSED) const
 {
-    HLOGC(kslog.Debug,
-          log << "CChannel::sendto: SENDING NOW DST=" << addr.str() << " target=@" << packet.m_iID
-              << " size=" << packet.getLength() << " pkt.ts=" << packet.m_iTimeStamp << " " << packet.Info());
+#if ENABLE_HEAVY_LOGGING
+    ostringstream dsrc;
+#ifdef SRT_ENABLE_PKTINFO
+    dsrc << " sourceIP=" << (m_bBindMasked && !source_addr.isany() ? source_addr.str() : "default");
+#endif
+
+    LOGC(kslog.Debug,
+         log << "CChannel::sendto: SENDING NOW DST=" << addr.str() << " target=@" << packet.m_iID
+             << " size=" << packet.getLength() << " pkt.ts=" << packet.m_iTimeStamp
+             << dsrc.str() << " " << packet.Info());
+#endif
 
 #ifdef SRT_TEST_FAKE_LOSS
 
@@ -683,16 +742,51 @@ int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet) const
     mh.msg_namelen    = addr.size();
     mh.msg_iov        = (iovec*)packet.m_PacketVector;
     mh.msg_iovlen     = 2;
-    mh.msg_control    = NULL;
-    mh.msg_controllen = 0;
+    bool have_set_src = false;
+
+#ifdef SRT_ENABLE_PKTINFO
+
+    // Note that even if PKTINFO is desired, the first caller's packet will be sent
+    // without ancillary info anyway because there's no "peer" yet to know where to send it.
+    if (m_bBindMasked && source_addr.family() != AF_UNSPEC && !source_addr.isany())
+    {
+        if (!setSourceAddress(mh, source_addr))
+        {
+            LOGC(kslog.Error, log << "CChannel::setSourceAddress: source address invalid family #" << source_addr.family() << ", NOT setting.");
+        }
+        else
+        {
+            HLOGC(kslog.Debug, log << "CChannel::setSourceAddress: setting as " << source_addr.str());
+            have_set_src = true;
+        }
+    }
+
+#endif
+
+    if (!have_set_src)
+    {
+        mh.msg_control    = NULL;
+        mh.msg_controllen = 0;
+    }
     mh.msg_flags      = 0;
 
-    const int res = ::sendmsg(m_iSocket, &mh, 0);
+    const int res = (int)::sendmsg(m_iSocket, &mh, 0);
 #else
     DWORD size     = (DWORD)(CPacket::HDR_SIZE + packet.getLength());
     int   addrsize = addr.size();
-    int   res = ::WSASendTo(m_iSocket, (LPWSABUF)packet.m_PacketVector, 2, &size, 0, addr.get(), addrsize, NULL, NULL);
-    res       = (0 == res) ? size : -1;
+    WSAOVERLAPPED overlapped;
+    SecureZeroMemory((PVOID)&overlapped, sizeof(WSAOVERLAPPED));
+    int   res = ::WSASendTo(m_iSocket, (LPWSABUF)packet.m_PacketVector, 2, &size, 0, addr.get(), addrsize, &overlapped, NULL);
+
+    if (res == SOCKET_ERROR && NET_ERROR == WSA_IO_PENDING)
+    {
+        DWORD dwFlags = 0;
+        const bool bCompleted = WSAGetOverlappedResult(m_iSocket, &overlapped, &size, true, &dwFlags);
+        WSACloseEvent(overlapped.hEvent);
+        res = bCompleted ? 0 : -1;
+    }
+
+    res = (0 == res) ? size : -1;
 #endif
 
     packet.toHL();
@@ -725,18 +819,36 @@ srt::EReadStatus srt::CChannel::recvfrom(sockaddr_any& w_addr, CPacket& w_packet
     }
 
 #ifndef _WIN32
+    msghdr mh; // will not be used on failure
+
     if (select_ret > 0)
     {
-        msghdr mh;
         mh.msg_name       = (w_addr.get());
         mh.msg_namelen    = w_addr.size();
         mh.msg_iov        = (w_packet.m_PacketVector);
         mh.msg_iovlen     = 2;
+
+        // Default
         mh.msg_control    = NULL;
         mh.msg_controllen = 0;
+
+#ifdef SRT_ENABLE_PKTINFO
+        // Without m_bBindMasked, we don't need ancillary data - the source
+        // address will always be the bound address.
+        if (m_bBindMasked)
+        {
+            // Extract the destination IP address from the ancillary
+            // data. This might be interesting for the connection to
+            // know to which address the packet should be sent back during
+            // the handshake and then addressed when sending during connection.
+            mh.msg_control = (m_acCmsgRecvBuffer);
+            mh.msg_controllen = sizeof m_acCmsgRecvBuffer;
+        }
+#endif
+
         mh.msg_flags      = 0;
 
-        recv_size = ::recvmsg(m_iSocket, (&mh), 0);
+        recv_size = (int)::recvmsg(m_iSocket, (&mh), 0);
         msg_flags = mh.msg_flags;
     }
 
@@ -778,6 +890,17 @@ srt::EReadStatus srt::CChannel::recvfrom(sockaddr_any& w_addr, CPacket& w_packet
 
         goto Return_error;
     }
+
+#ifdef SRT_ENABLE_PKTINFO
+    if (m_bBindMasked)
+    {
+        // Extract the address. Set it explicitly; if this returns address that isany(),
+        // it will simply set this on the packet so that it behaves as if nothing was
+        // extracted (it will "fail the old way").
+        w_packet.m_DestAddr = getTargetAddress(mh);
+        HLOGC(krlog.Debug, log << CONID() << "(sys)recvmsg: ANY BOUND, retrieved DEST ADDR: " << w_packet.m_DestAddr.str());
+    }
+#endif
 
 #else
     // XXX REFACTORING NEEDED!
@@ -876,9 +999,30 @@ srt::EReadStatus srt::CChannel::recvfrom(sockaddr_any& w_addr, CPacket& w_packet
     // packet was received, so the packet will be then retransmitted.
     if (msg_flags != 0)
     {
+#if ENABLE_HEAVY_LOGGING
+
+        std::ostringstream flg;
+
+#if !defined(_WIN32)
+
+        static const pair<int, const char* const> errmsgflg [] = {
+            make_pair<int>(MSG_OOB, "OOB"),
+            make_pair<int>(MSG_EOR, "EOR"),
+            make_pair<int>(MSG_TRUNC, "TRUNC"),
+            make_pair<int>(MSG_CTRUNC, "CTRUNC")
+        };
+
+        for (size_t i = 0; i < Size(errmsgflg); ++i)
+            if ((msg_flags & errmsgflg[i].first) != 0)
+                flg << " " << errmsgflg[i].second;
+
+        // This doesn't work the same way on Windows, so on Windows just skip it.
+#endif
+
         HLOGC(krlog.Debug,
               log << CONID() << "NET ERROR: packet size=" << recv_size << " msg_flags=0x" << hex << msg_flags
-                  << ", possibly MSG_TRUNC)");
+                  << ", detected flags:" << flg.str());
+#endif
         status = RST_AGAIN;
         goto Return_error;
     }

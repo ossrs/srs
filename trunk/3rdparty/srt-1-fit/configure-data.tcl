@@ -43,6 +43,7 @@ set cmake_options {
     enable-logging "Should logging be enabled (default: ON)"
     enable-heavy-logging "Should heavy debug logging be enabled (default: OFF)"
     enable-haicrypt-logging "Should logging in haicrypt be enabled (default: OFF)"
+    enable-pktinfo "Should pktinfo reading and using be enabled (POSIX only) (default: OFF)"
     enable-shared "Should libsrt be built as a shared library (default: ON)"
     enable-static "Should libsrt be built as a static library (default: ON)"
     enable-relative-libpath "Should applications contain relative library paths, like ../lib (default: OFF)"

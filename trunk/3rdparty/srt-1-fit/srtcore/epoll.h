@@ -69,8 +69,11 @@ class CUDTGroup;
 
 class CEPollDesc
 {
+#ifdef __GNUG__
    const int m_iID;                                // epoll ID
-
+#else
+   const int m_iID SRT_ATR_UNUSED;                 // epoll ID
+#endif
    struct Wait;
 
    struct Notice: public SRT_EPOLL_EVENT

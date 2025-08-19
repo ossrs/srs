@@ -28,16 +28,24 @@ jobs:
     steps:
       - name: Download Cache for Cygwin
         run: |
+          echo "Generate convert.sh" &&
+          echo "for file in \$(find objs -type l); do" > convert.sh &&
+          echo "    REAL=\$(readlink -f \$file) &&" >> convert.sh &&
+          echo "    echo \"convert \$file to \$REAL\" &&" >> convert.sh &&
+          echo "    rm -rf \$file &&" >> convert.sh &&
+          echo "    cp -r \$REAL \$file" >> convert.sh &&
+          echo "done" >> convert.sh &&
+          cat convert.sh &&
           docker run --rm -v $(pwd):/srs -w /usr/local/srs-cache/srs/trunk ossrs/srs:cygwin64-cache \
-            tar jcf /srs/objs.tar.bz2 objs &&
+              bash -c "bash /srs/convert.sh && tar cf /srs/objs.tar.bz2 objs" &&
           pwd && du -sh *
       ##################################################################################################################
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      - uses: actions/upload-artifact@v4
         with:
           name: srs-cache
           path: objs.tar.bz2
           retention-days: 1
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   cygwin64:
     name: cygwin64
@@ -47,7 +55,7 @@ jobs:
       # See https://github.com/cygwin/cygwin-install-action#parameters
       # Note that https://github.com/egor-tensin/setup-cygwin fails to install packages.
       - name: Setup Cygwin
-        uses: cygwin/cygwin-install-action@db475590d56881c6cef7b3f96f6f3dd9532ea1f4 # master
+        uses: cygwin/cygwin-install-action@006ad0b0946ca6d0a3ea2d4437677fa767392401 # master
         with:
           platform: x86_64
           packages: bash make gcc-g++ cmake automake patch pkg-config tcl unzip
@@ -57,10 +65,11 @@ jobs:
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       ##################################################################################################################
       # Note that we must download artifact after checkout code, because it will change the files in workspace.
-      - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+      - uses: actions/download-artifact@v4
         with:
           name: srs-cache
-      - uses: geekyeggo/delete-artifact@54ab544f12cdb7b71613a16a2b5a37a9ade990af # v2.0.0
+      # https://github.com/marketplace/actions/delete-artifact?version=v5.0.0#-compatibility
+      - uses: geekyeggo/delete-artifact@v5.0.0
         with:
           name: srs-cache
       ##################################################################################################################
@@ -71,9 +80,11 @@ jobs:
         shell: C:\cygwin64\bin\bash.exe --login '{0}'
         run: |
           WORKDIR=$(cygpath -u $SRS_WORKSPACE) && export PATH=/usr/bin:/usr/local/bin && cd ${WORKDIR} &&
-          pwd && rm -rf /usr/local/srs-cache && mkdir -p /usr/local/srs-cache/srs/trunk && 
-          tar xf objs.tar.bz2 -C /usr/local/srs-cache/srs/trunk/ && du -sh /usr/local/srs-cache/srs/trunk/* && 
-          cd ${WORKDIR}/trunk && ./configure --gb28181=on --utest=on && ls -lh && du -sh * && du -sh objs/* &&
+          pwd && rm -rf /usr/local/srs-cache && mkdir -p /usr/local/srs-cache/srs/trunk && ls -lh &&
+          tar xf objs.tar.bz2 -C /usr/local/srs-cache/srs/trunk/ && 
+          du -sh /usr/local/srs-cache/srs/trunk/* && du -sh /usr/local/srs-cache/srs/trunk/objs/* && 
+          cd ${WORKDIR}/trunk && ./configure --h265=on --gb28181=on --utest=on && 
+          ls -lh && du -sh * && du -sh objs/* &&
           cd ${WORKDIR}/trunk && make utest && ./objs/srs_utest
     runs-on: windows-latest
 
@@ -95,7 +106,7 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-asm .
       - name: Build on CentOS7, C++98, no FFmpeg
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   build-ubuntu16:
     name: build-ubuntu16
@@ -109,7 +120,7 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-baseline .
       - name: Build on Ubuntu16, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-all .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   build-ubuntu18:
     name: build-ubuntu18
@@ -123,7 +134,7 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-baseline .
       - name: Build on Ubuntu18, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-all .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   build-ubuntu20:
     name: build-ubuntu20
@@ -137,7 +148,7 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-baseline .
       - name: Build on Ubuntu20, with all features
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-all .
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   build-cross-arm:
     name: build-cross-arm
@@ -147,10 +158,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       - name: Cross Build for ARMv7 on Ubuntu16
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cache-cross-armv7 .
       - name: Cross Build for ARMv7 on Ubuntu20
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-armv7 .
-    runs-on: ubuntu-20.04
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cache-cross-armv7 .
+    runs-on: ubuntu-22.04
 
   build-cross-aarch64:
     name: build-cross-aarch64
@@ -160,10 +171,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       - name: Cross Build for AARCH64 on Ubuntu16
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-aarch64 .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cache-cross-aarch64 .
       - name: Cross Build for AARCH64 on Ubuntu20
-        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cross-aarch64 .
-    runs-on: ubuntu-20.04
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-cache-cross-aarch64 .
+    runs-on: ubuntu-22.04
 
   test:
     name: utest-regression-blackbox-test
@@ -182,16 +193,17 @@ jobs:
           docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
             ./objs/srs_blackbox_test -test.v -test.run '^TestFast' -test.parallel 64
           docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
-            ./objs/srs_blackbox_test -test.v -test.run '^TestSlow' -test.parallel 4
+            ./objs/srs_blackbox_test -test.v -test.run '^TestSlow' -test.parallel 1
       # For utest
       - name: Run SRS utest
         run: docker run --rm srs:test ./objs/srs_utest
       # For regression-test
       - name: Run SRS regression-test
         run: |
-          docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && \
-              cd 3rdparty/srs-bench && ./objs/srs_test -test.v && ./objs/srs_gb28181_test -test.v'
-    runs-on: ubuntu-20.04
+          docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && sleep 10 && \
+              cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1)) && \
+              ./objs/srs_gb28181_test -test.v'
+    runs-on: ubuntu-22.04
 
   coverage:
     name: coverage
@@ -224,7 +236,7 @@ jobs:
             --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
             srs:cov bash -c './objs/srs_utest && bash auto/codecov.sh'
           #
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   multiple-arch-armv7:
     name: multiple-arch-armv7
@@ -244,8 +256,8 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             --build-arg INSTALLDEPENDS="NO" \
-            -f trunk/Dockerfile .
-    runs-on: ubuntu-20.04
+            -f Dockerfile .
+    runs-on: ubuntu-22.04
 
   multiple-arch-aarch64:
     name: multiple-arch-aarch64
@@ -265,8 +277,8 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             --build-arg INSTALLDEPENDS="NO" \
-            -f trunk/Dockerfile .
-    runs-on: ubuntu-20.04
+            -f Dockerfile .
+    runs-on: ubuntu-22.04
 
   multiple-arch-amd64:
     name: multiple-arch-amd64
@@ -287,8 +299,8 @@ jobs:
           docker buildx build --platform linux/amd64 \
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
-            -f trunk/Dockerfile .
-    runs-on: ubuntu-20.04
+            -f Dockerfile .
+    runs-on: ubuntu-22.04
 
   fast:
     name: fast
@@ -296,7 +308,7 @@ jobs:
       - cygwin64-cache
     steps:
       - run: echo 'Start fast jobs'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
   test-done:
     needs:
@@ -312,7 +324,7 @@ jobs:
       - multiple-arch-armv7
       - multiple-arch-aarch64
       - multiple-arch-amd64
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - run: echo 'All done'
 

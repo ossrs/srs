@@ -125,9 +125,11 @@ Section "Install"
     ; Header files.
     CreateDirectory "$INSTDIR\include\srt"
     SetOutPath "$INSTDIR\include\srt"
+    File "${RepoDir}\srtcore\access_control.h"
     File "${RepoDir}\srtcore\logging_api.h"
     File "${RepoDir}\srtcore\platform_sys.h"
     File "${RepoDir}\srtcore\srt.h"
+    File "${RepoDir}\srtcore\udt.h"
     File "${Build64Dir}\version.h"
 
     CreateDirectory "$INSTDIR\include\win"

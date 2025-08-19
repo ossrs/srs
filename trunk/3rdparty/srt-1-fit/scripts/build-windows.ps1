@@ -101,7 +101,7 @@ if ( $null -eq (Get-Command "cmake.exe" -ErrorAction SilentlyContinue) ) {
 
 # get pthreads from nuget if CXX11 is not enabled
 if ( $CXX11 -eq "OFF" ) {
-    # get pthreads (this is legacy, and is only availble in nuget for VS2015 and VS2013)
+    # get pthreads (this is legacy, and is only available in nuget for VS2015 and VS2013)
     if ( $VS_VERSION -gt 2015 ) { 
         Write-Output "Pthreads is not recommended for use beyond VS2015 and is not supported by this build script - aborting build"
         throw

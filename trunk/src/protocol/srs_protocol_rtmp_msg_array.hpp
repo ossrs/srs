@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2023 The SRS Authors
+// Copyright (c) 2013-2025 The SRS Authors
 //
-// SPDX-License-Identifier: MIT or MulanPSL-2.0
+// SPDX-License-Identifier: MIT
 //
 
 #ifndef SRS_PROTOCOL_MESSAGE_ARRAY_HPP
@@ -24,20 +24,22 @@ public:
     // When user already send all msgs, please set to NULL,
     // for instance, msg= msgs.msgs[i], msgs.msgs[i]=NULL, send(msg),
     // where send(msg) will always send and free it.
-    SrsSharedPtrMessage** msgs;
+    SrsSharedPtrMessage **msgs;
     int max;
+
 public:
     // Create msg array, initialize array to NULL ptrs.
     SrsMessageArray(int max_msgs);
     // Free the msgs not sent out(not NULL).
     virtual ~SrsMessageArray();
+
 public:
     // Free specified count of messages.
     virtual void free(int count);
+
 private:
     // Zero initialize the message array.
     virtual void zero(int count);
 };
 
 #endif
-
