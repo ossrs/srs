@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-08-19, Merge [#3126](https://github.com/ossrs/srs/pull/3126): HLS: restore HLS information when republish stream.(#3088). v7.0.57 (#3126)
 * v7.0, 2025-08-18, Merge [#4443](https://github.com/ossrs/srs/pull/4443): Support RTMPS server. v7.0.56 (#4443)
 * v7.0, 2025-08-16, Merge [#4441](https://github.com/ossrs/srs/pull/4441): fix err memory leak in rtc to rtmp bridge. v7.0.55 (#4441)
 * v7.0, 2025-08-14, Merge [#4161](https://github.com/ossrs/srs/pull/4161): fix hls & dash segments cleanup. v7.0.54 (#4161)
