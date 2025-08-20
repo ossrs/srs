@@ -1266,20 +1266,16 @@ srs_error_t SrsHlsMuxer::recover_hls()
     srs_trace("hls: recover stream m3u8=%s, m3u8_url=%s, hls_path=%s",
               m3u8.c_str(), m3u8_url.c_str(), hls_path.c_str());
 
-    // read m3u8
+    // read whole m3u8 file content as a string
     SrsFileReader fr;
     if ((err = fr.open(m3u8)) != srs_success) {
         return srs_error_wrap(err, "open file");
     }
 
-    int nb_fbuf = fr.filesize();
-    SrsUniquePtr<char[]> fbuf(new char[nb_fbuf]);
-    if ((err = fr.read(fbuf.get(), nb_fbuf, NULL)) != srs_success) {
+    std::string body;
+    if ((err = srs_ioutil_read_all(&fr, body)) != srs_success) {
         return srs_error_wrap(err, "read data");
     }
-
-    // parse
-    std::string body(fbuf.get(), nb_fbuf);
     if (body.empty()) {
         return srs_error_wrap(err, "read empty m3u8");
     }
