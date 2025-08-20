@@ -1264,7 +1264,7 @@ srs_error_t SrsHlsMuxer::recover_hls()
     }
 
     srs_trace("hls: recover stream m3u8=%s, m3u8_url=%s, hls_path=%s",
-            m3u8.c_str(), m3u8_url.c_str(), hls_path.c_str());
+              m3u8.c_str(), m3u8_url.c_str(), hls_path.c_str());
 
     // read m3u8
     SrsFileReader fr;
@@ -1372,7 +1372,7 @@ srs_error_t SrsHlsMuxer::recover_hls()
                 default_vcodec = latest_vcodec_;
 
             // new segment.
-            SrsHlsSegment* seg = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
+            SrsHlsSegment *seg = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
             seg->sequence_no = _sequence_no++;
             seg->set_path(hls_path + "/" + req->app + "/" + ts_url);
             seg->uri = ts_url;
@@ -1393,10 +1393,10 @@ srs_error_t SrsHlsMuxer::recover_hls()
     return err;
 }
 
-bool SrsHlsMuxer::segment_exists(const std::string& ts_url)
+bool SrsHlsMuxer::segment_exists(const std::string &ts_url)
 {
     for (int i = 0; i < segments->size(); i++) {
-        SrsHlsSegment* existing_seg = dynamic_cast<SrsHlsSegment*>(segments->at(i));
+        SrsHlsSegment *existing_seg = dynamic_cast<SrsHlsSegment *>(segments->at(i));
         if (existing_seg && existing_seg->uri == ts_url) {
             return true;
         }
@@ -1986,10 +1986,10 @@ srs_error_t SrsHlsController::on_publish(SrsRequest *req)
         return srs_error_wrap(err, "hls: update config");
     }
 
-    if (recover && (err = muxer->recover_hls()) != srs_success ) {
+    if (recover && (err = muxer->recover_hls()) != srs_success) {
         return srs_error_wrap(err, "hls: recover stream");
     }
-    
+
     if ((err = muxer->segment_open()) != srs_success) {
         return srs_error_wrap(err, "hls: segment open");
     }

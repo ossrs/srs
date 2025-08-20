@@ -295,7 +295,8 @@ private:
     virtual srs_error_t refresh_m3u8();
     virtual srs_error_t _refresh_m3u8(std::string m3u8_file);
     // Check if a segment with the given URI already exists in the segments list.
-    virtual bool segment_exists(const std::string& ts_url);
+    virtual bool segment_exists(const std::string &ts_url);
+
 public:
     // HLS recover mode.
     srs_error_t recover_hls();

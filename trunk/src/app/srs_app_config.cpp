@@ -7529,7 +7529,7 @@ bool SrsConfig::get_hls_recover(string vhost)
 
     static bool DEFAULT = true;
 
-    SrsConfDirective* conf = get_hls(vhost);
+    SrsConfDirective *conf = get_hls(vhost);
     if (!conf) {
         return DEFAULT;
     }
