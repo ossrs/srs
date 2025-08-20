@@ -1254,7 +1254,7 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest *r, string entry_prefix,
     return err;
 }
 
-srs_error_t SrsHlsMuxer::restore_stream()
+srs_error_t SrsHlsMuxer::recover_hls()
 {
     srs_error_t err = srs_success;
 
@@ -1263,7 +1263,7 @@ srs_error_t SrsHlsMuxer::restore_stream()
         return err;
     }
 
-    srs_trace("hls: restore stream m3u8=%s, m3u8_url=%s, hls_path=%s",
+    srs_trace("hls: recover stream m3u8=%s, m3u8_url=%s, hls_path=%s",
             m3u8.c_str(), m3u8_url.c_str(), hls_path.c_str());
 
     // read m3u8
@@ -1273,19 +1273,17 @@ srs_error_t SrsHlsMuxer::restore_stream()
     }
 
     int nb_fbuf = fr.filesize();
-    char* fbuf = new char[nb_fbuf];
-    SrsAutoFreeA(char, fbuf);
-    if ((err = fr.read(fbuf, nb_fbuf, NULL)) != srs_success) {
+    SrsUniquePtr<char[]> fbuf(new char[nb_fbuf]);
+    if ((err = fr.read(fbuf.get(), nb_fbuf, NULL)) != srs_success) {
         return srs_error_wrap(err, "read data");
     }
 
     // parse
-    std::string body(fbuf, nb_fbuf);
+    std::string body(fbuf.get(), nb_fbuf);
     if (body.empty()) {
         return srs_error_wrap(err, "read empty m3u8");
     }
 
-    srs_utime_t max_target_duration = 0;
     bool discon = false;
 
     std::string ptl;
@@ -1326,22 +1324,10 @@ srs_error_t SrsHlsMuxer::restore_stream()
             _sequence_no = ::atof(line.substr(string("#EXT-X-MEDIA-SEQUENCE:").length()).c_str());
         }
 
-        // #EXT-X-TARGETDURATION:12
-        // the target duration is required.
-        if (srs_string_starts_with(line, "#EXT-X-TARGETDURATION:")) {
-            max_target_duration = ::atof(line.substr(string("#EXT-X-TARGETDURATION:").length()).c_str());
-        }
-
         // #EXT-X-DISCONTINUITY
         // the discontinuity tag.
         if (srs_string_starts_with(line, "#EXT-X-DISCONTINUITY")) {
             discon = true;
-        }
-
-        // #EXT-X-ENDLIST
-        // parse completed.
-        if (line == "#EXT-X-ENDLIST") {
-            break;
         }
 
         // #EXTINF:11.401,
@@ -1369,50 +1355,53 @@ srs_error_t SrsHlsMuxer::restore_stream()
 
         double ts_duration = ::atof(line.c_str());
 
-        // load the default acodec from config.
-        SrsAudioCodecId default_acodec = SrsAudioCodecIdAAC;
-        if (true) {
-            std::string default_acodec_str = _srs_config->get_hls_acodec(req->vhost);
-            if (default_acodec_str == "mp3") {
-                default_acodec = SrsAudioCodecIdMP3;
-            } else if (default_acodec_str == "aac") {
-                default_acodec = SrsAudioCodecIdAAC;
-            } else if (default_acodec_str == "an") {
-                default_acodec = SrsAudioCodecIdDisabled;
-            } else {
-                srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
-            }
+        // Only create new segment if it doesn't already exist
+        if (!segment_exists(ts_url)) {
+            // load the default acodec, use the same logic as segment_open().
+            SrsAudioCodecId default_acodec = SrsAudioCodecIdDisabled;
+
+            // Now that we know the latest audio codec in stream, use it.
+            if (latest_acodec_ != SrsAudioCodecIdForbidden)
+                default_acodec = latest_acodec_;
+
+            // load the default vcodec, use the same logic as segment_open().
+            SrsVideoCodecId default_vcodec = SrsVideoCodecIdDisabled;
+
+            // Now that we know the latest video codec in stream, use it.
+            if (latest_vcodec_ != SrsVideoCodecIdForbidden)
+                default_vcodec = latest_vcodec_;
+
+            // new segment.
+            SrsHlsSegment* seg = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
+            seg->sequence_no = _sequence_no++;
+            seg->set_path(hls_path + "/" + req->app + "/" + ts_url);
+            seg->uri = ts_url;
+            seg->set_sequence_header(discon);
+
+            seg->append(0);
+            seg->append(ts_duration * 1000);
+
+            segments->append(seg);
+        } else {
+            // Segment already exists, just increment sequence number to maintain consistency
+            _sequence_no++;
         }
-
-        // load the default vcodec from config.
-        SrsVideoCodecId default_vcodec = SrsVideoCodecIdAVC;
-        if (true) {
-            std::string default_vcodec_str = _srs_config->get_hls_vcodec(req->vhost);
-            if (default_vcodec_str == "h264") {
-                default_vcodec = SrsVideoCodecIdAVC;
-            } else if (default_vcodec_str == "vn") {
-                default_vcodec = SrsVideoCodecIdDisabled;
-            } else {
-                srs_warn("hls: use h264 for other codec=%s", default_vcodec_str.c_str());
-            }
-        }
-
-        // new segment.
-        SrsHlsSegment* seg = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
-        seg->sequence_no = _sequence_no++;
-        seg->set_path(hls_path + "/" + req->app + "/" + ts_url);
-        seg->uri = ts_url;
-        seg->set_sequence_header(discon);
-
-        seg->append(0);
-        seg->append(ts_duration * 1000);
-
-        segments->append(seg);
 
         discon = false;
     }
 
     return err;
+}
+
+bool SrsHlsMuxer::segment_exists(const std::string& ts_url)
+{
+    for (int i = 0; i < segments->size(); i++) {
+        SrsHlsSegment* existing_seg = dynamic_cast<SrsHlsSegment*>(segments->at(i));
+        if (existing_seg && existing_seg->uri == ts_url) {
+            return true;
+        }
+    }
+    return false;
 }
 
 srs_error_t SrsHlsMuxer::segment_open()
@@ -1983,9 +1972,9 @@ srs_error_t SrsHlsController::on_publish(SrsRequest *req)
     string hls_key_file_path = _srs_config->get_hls_key_file_path(vhost);
     string hls_key_url = _srs_config->get_hls_key_url(vhost);
 
-    // TODO: FIXME: support load exists m3u8, to continue publish stream.
+    // TODO: FIXME: support load exists m3u8, to recover publish stream.
     // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
-    bool continuous = _srs_config->get_hls_continuous(vhost);
+    bool recover = _srs_config->get_hls_recover(vhost);
 
     if ((err = muxer->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "muxer publish");
@@ -1997,8 +1986,8 @@ srs_error_t SrsHlsController::on_publish(SrsRequest *req)
         return srs_error_wrap(err, "hls: update config");
     }
 
-    if (continuous && (err = muxer->restore_stream()) != srs_success ) {
-        return srs_error_wrap(err, "hls: restore stream");
+    if (recover && (err = muxer->recover_hls()) != srs_success ) {
+        return srs_error_wrap(err, "hls: recover stream");
     }
     
     if ((err = muxer->segment_open()) != srs_success) {

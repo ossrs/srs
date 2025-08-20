@@ -1032,10 +1032,10 @@ public:
     // Whether enable session for ts file.
     // The ts file including .ts file for MPEG-ts segment, .m4s file and init.mp4 file for fmp4 segment.
     virtual bool get_hls_ts_ctx_enabled(std::string vhost);
-    // Toggles HLS continuous mode.
+    // Toggles HLS recover mode.
     // In this mode HLS sequence number is started from where it stopped last time.
     // Old fragments are kept. Default is on.
-    virtual bool get_hls_continuous(std::string vhost);
+    virtual bool get_hls_recover(std::string vhost);
     // hds section
 private:
     // Get the hds directive of vhost.

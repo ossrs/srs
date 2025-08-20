@@ -1,12 +1,10 @@
+# CMake minimum version should be called first
+cmake_minimum_required(VERSION 3.10)
+
 # Name of the project.
 # Language "C" is required for find_package(Threads).
-if (CMAKE_VERSION VERSION_LESS 3.0)
-    project(srs CXX C)
-else()
-    cmake_policy(SET CMP0048 NEW)
-    project(srs VERSION 4.0.0 LANGUAGES CXX C)
-endif()
-cmake_minimum_required(VERSION 2.8.12)
+cmake_policy(SET CMP0048 NEW)
+project(srs VERSION 4.0.0 LANGUAGES CXX C)
 
 # For utest required C++11.
 set (CMAKE_CXX_STANDARD 11)
