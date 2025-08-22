@@ -666,6 +666,8 @@ type ffmpegClient struct {
 	// The backend service process.
 	process *backendService
 
+	// FFmpeg cmd name
+	ffmpegCmdName string
 	// FFmpeg cli args, without ffmpeg binary.
 	args []string
 	// Let the process quit, do not cancel the case.
@@ -678,6 +680,7 @@ func NewFFmpeg(opts ...func(v *ffmpegClient)) FFmpegClient {
 	v := &ffmpegClient{
 		process:            newBackendService(),
 		cancelCaseWhenQuit: true,
+		ffmpegCmdName:      *srsFFmpeg,
 	}
 
 	// Do cleanup.
@@ -702,7 +705,7 @@ func (v *ffmpegClient) ReadyCtx() context.Context {
 func (v *ffmpegClient) Run(ctx context.Context, cancel context.CancelFunc) error {
 	logger.Tf(ctx, "Starting FFmpeg by %v", strings.Join(v.args, " "))
 
-	v.process.name = *srsFFmpeg
+	v.process.name = v.ffmpegCmdName
 	v.process.args = v.args
 	v.process.env = os.Environ()
 	v.process.duration = v.ffmpegDuration
@@ -746,6 +749,10 @@ type ffprobeClient struct {
 	// The timeout to wait for task to done.
 	timeout time.Duration
 
+	// the FFprobe cmd name
+	ffprobeCmdName string
+	// the ffmpeg cmd name
+	ffmpegCmdName string
 	// Whether do DVR by FFmpeg, if using SRS DVR, please set to false.
 	dvrByFFmpeg bool
 	// The stream to DVR for probing. Ignore if not DVR by ffmpeg
@@ -764,8 +771,10 @@ type ffprobeClient struct {
 
 func NewFFprobe(opts ...func(v *ffprobeClient)) FFprobeClient {
 	v := &ffprobeClient{
-		metadata:    &ffprobeObject{},
-		dvrByFFmpeg: true,
+		metadata:       &ffprobeObject{},
+		dvrByFFmpeg:    true,
+		ffprobeCmdName: *srsFFprobe,
+		ffmpegCmdName:  *srsFFmpeg,
 	}
 	v.doneCtx, v.doneCancel = context.WithCancel(context.Background())
 
@@ -842,7 +851,7 @@ func (v *ffprobeClient) doDVR(ctx context.Context) error {
 	}
 
 	process := newBackendService()
-	process.name = *srsFFmpeg
+	process.name = v.ffmpegCmdName
 	process.args = []string{
 		"-t", fmt.Sprintf("%v", int64(v.duration/time.Second)),
 		"-i", v.streamURL, "-c", "copy", "-y", v.dvrFile,
@@ -869,7 +878,7 @@ func (v *ffprobeClient) doDVR(ctx context.Context) error {
 
 func (v *ffprobeClient) doProbe(ctx context.Context, cancel context.CancelFunc) error {
 	process := newBackendService()
-	process.name = *srsFFprobe
+	process.name = v.ffprobeCmdName
 	process.args = []string{
 		"-show_error", "-show_private_data", "-v", "quiet", "-find_stream_info",
 		"-analyzeduration", fmt.Sprintf("%v", int64(v.duration/time.Microsecond)),

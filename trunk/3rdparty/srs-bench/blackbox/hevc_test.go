@@ -709,6 +709,8 @@ func TestSlow_SrtPublish_RtmpPlay_HEVC_Basic(t *testing.T) {
 		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.ts", streamID))
 		v.streamURL = fmt.Sprintf("rtmp://localhost:%v/live/%v", svr.RTMPPort(), streamID)
 		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
+		v.ffmpegCmdName = "ffmpeg7" // ffmpeg 5 don't support enhanced rtmp, so use ffmpeg 7 instead.
+		v.ffprobeCmdName = "ffprobe7"
 	})
 	wg.Add(1)
 	go func() {
@@ -807,6 +809,8 @@ func TestSlow_SrtPublish_HttpFlvPlay_HEVC_Basic(t *testing.T) {
 		v.dvrFile = path.Join(svr.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.ts", streamID))
 		v.streamURL = fmt.Sprintf("http://localhost:%v/live/%v.flv", svr.HTTPPort(), streamID)
 		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
+		v.ffmpegCmdName = "ffmpeg7" // ffmpeg 5 don't support enhanced rtmp, so use ffmpeg 7 instead.
+		v.ffprobeCmdName = "ffprobe7"
 	})
 	wg.Add(1)
 	go func() {

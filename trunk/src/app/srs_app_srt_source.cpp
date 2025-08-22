@@ -693,7 +693,7 @@ srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage *msg)
                                           &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "hevc sh to flv");
     }
-    
+
     SrsMessageHeader header;
     header.initialize_video(nb_flv, dts, video_streamid_);
     SrsRtmpCommonMessage rtmp;
