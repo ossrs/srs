@@ -1798,13 +1798,26 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     //type_codec1 + avc_type + composition time + nalu size + nalu
     nb_payload += 1 + 1 + 3;
 
+    // find the first not emtpy rtp packet, which is always exist in seq range [start, end],
+    // because nb_payload check above.
+    // @see https://github.com/ossrs/srs/issues/4450
+    SrsRtpPacket* first_pkt = NULL;
+    for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
+        uint16_t index = cache_index(start + i);
+        SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
+
+        if (pkt) {
+            first_pkt = pkt;
+            break;
+        }
+    }
+
     SrsCommonMessage rtmp;
-    SrsRtpPacket* pkt = cache_video_pkts_[cache_index(start)].pkt;
-    rtmp.header.initialize_video(nb_payload, pkt->get_avsync_time(), 1);
+    rtmp.header.initialize_video(nb_payload, first_pkt->get_avsync_time(), 1);
     rtmp.create_payload(nb_payload);
     rtmp.size = nb_payload;
     SrsBuffer payload(rtmp.payload, rtmp.size);
-    if (pkt->is_keyframe()) {
+    if (first_pkt->is_keyframe()) {
         payload.write_1bytes(0x17); // type(4 bits): key frame; code(4bits): avc
         rtp_key_frame_ts_ = -1;
     } else {
