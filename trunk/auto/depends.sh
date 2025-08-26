@@ -671,6 +671,11 @@ fi
 if [[ $SRS_SRT == YES && $SRS_USE_SYS_SRT == NO ]]; then
     # Always disable c++11 for libsrt, because only the srt-app requres it.
     LIBSRT_OPTIONS="--enable-apps=0  --enable-static=1 --enable-c++11=0"
+    CMAKE_VERSION=$(cmake --version | head -n1 | cut -d' ' -f3)
+    CMAKE_MAJOR=$(echo $CMAKE_VERSION | cut -d'.' -f1)
+    if [[ $CMAKE_MAJOR -ge 4 ]]; then
+        LIBSRT_OPTIONS="$LIBSRT_OPTIONS --CMAKE_POLICY_VERSION_MINIMUM=3.5"
+    fi
     if [[ $SRS_SHARED_SRT == YES ]]; then
         LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=1"
     else

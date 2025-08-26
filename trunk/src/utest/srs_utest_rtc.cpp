@@ -1365,3 +1365,124 @@ VOID TEST(KernelRTCTest, JitterSequence)
     EXPECT_EQ((uint32_t)11, jitter.correct(11));
 }
 
+// Helper function to create a test RTP packet
+SrsRtpPacket *mock_create_test_rtp_packet(uint16_t sequence_number, uint32_t timestamp, bool marker = false)
+{
+    SrsRtpPacket *pkt = new SrsRtpPacket();
+    pkt->header.set_sequence(sequence_number);
+    pkt->header.set_timestamp(timestamp);
+    pkt->header.set_marker(marker);
+    pkt->header.set_ssrc(12345);
+    return pkt;
+}
+
+// Mock bridge for testing SrsRtcFrameBuilder
+class MockStreamBridge : public ISrsStreamBridge
+{
+public:
+    srs_error_t last_error;
+    int frame_count;
+
+    MockStreamBridge() {
+        last_error = srs_success;
+        frame_count = 0;
+    }
+
+    virtual ~MockStreamBridge() {
+        srs_freep(last_error);
+    }
+
+    virtual srs_error_t initialize(SrsRequest *r) {
+        return srs_success;
+    }
+
+    virtual srs_error_t on_publish() {
+        return srs_success;
+    }
+
+    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame) {
+        frame_count++;
+        return srs_success;
+    }
+
+    virtual void on_unpublish() {
+    }
+};
+
+VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderPacketVideoRtmpNullPointerCrash)
+{
+    srs_error_t err;
+
+    // Test reproducing the null pointer crash from issue #4450 fixed by PR #4451
+    //
+    // ISSUE BACKGROUND:
+    // Before PR 4451, the packet_video_rtmp() function assumed that the packet at the
+    // 'start' sequence number would always be available in the cache. However, due to
+    // network packet loss or reordering, the packet at the start position could be missing.
+    //
+    // THE CRASH:
+    // The original code did: pkt = cache_video_pkts_[cache_index(start)].pkt;
+    // When pkt was NULL, calling pkt->get_avsync_time() caused a segmentation fault.
+    //
+    // THE FIX:
+    // PR #4451 added a loop to find the first non-null packet in the sequence range
+    // instead of blindly using the packet at the start position.
+    //
+    // This test simulates the crash scenario: packets exist at positions 101, 102, 103
+    // but the start packet (100) is missing. With the fix, the function should use
+    // packet 101 (first available) instead of crashing on the missing packet 100.
+    if (true) {
+        MockStreamBridge bridge;
+        SrsRtcFrameBuilder frame_builder(&bridge);
+
+        // Skip initialization and directly set up the test scenario
+        // We only need to test the packet_video_rtmp function, not the full initialization
+
+        // Manually populate the video cache to simulate the crash scenario
+        // We'll store packets at positions 101, 102, 103 but NOT at position 100 (start)
+        // This simulates network packet loss where the first packet is missing
+
+        // Create test packets with payload to ensure nb_payload > 0
+        SrsRtpPacket *pkt101 = mock_create_test_rtp_packet(101, 1000, false);
+        SrsRtpPacket *pkt102 = mock_create_test_rtp_packet(102, 1000, false);
+        SrsRtpPacket *pkt103 = mock_create_test_rtp_packet(103, 1000, true); // marker bit
+
+        // Add some payload to ensure packets are not empty
+        char payload_data[] = "test_payload_data";
+        SrsRtpRawPayload *payload101 = new SrsRtpRawPayload();
+        payload101->payload = (char*)payload_data;
+        payload101->nn_payload = strlen(payload_data);
+        pkt101->set_payload(payload101, SrsRtspPacketPayloadTypeRaw);
+
+        SrsRtpRawPayload *payload102 = new SrsRtpRawPayload();
+        payload102->payload = (char*)payload_data;
+        payload102->nn_payload = strlen(payload_data);
+        pkt102->set_payload(payload102, SrsRtspPacketPayloadTypeRaw);
+
+        SrsRtpRawPayload *payload103 = new SrsRtpRawPayload();
+        payload103->payload = (char*)payload_data;
+        payload103->nn_payload = strlen(payload_data);
+        pkt103->set_payload(payload103, SrsRtspPacketPayloadTypeRaw);
+
+        // Set the avsync time for the packets to avoid other null pointer issues
+        pkt101->set_avsync_time(1000);
+        pkt102->set_avsync_time(1000);
+        pkt103->set_avsync_time(1000);
+
+        // Store packets in cache (but skip sequence 100 - this is the missing start packet)
+        frame_builder.cache_video_pkts_[frame_builder.cache_index(pkt101->header.get_sequence())].pkt = pkt101;
+        frame_builder.cache_video_pkts_[frame_builder.cache_index(pkt102->header.get_sequence())].pkt = pkt102;
+        frame_builder.cache_video_pkts_[frame_builder.cache_index(pkt103->header.get_sequence())].pkt = pkt103;
+
+        // Before the fix in PR #4451, calling packet_video_rtmp(100, 103) would crash
+        // because it would try to access cache_video_pkts_[cache_index(100)].pkt which is NULL
+        // and then call pkt->get_avsync_time() causing a null pointer dereference
+
+        // The fix ensures we find the first non-null packet (101) instead of assuming
+        // the start packet (100) exists
+        HELPER_EXPECT_SUCCESS(frame_builder.packet_video_rtmp(100, 103));
+
+        // Verify that a frame was successfully processed
+        EXPECT_EQ(1, bridge.frame_count);
+    }
+}
