@@ -50,7 +50,7 @@ if [[ $SRS_GENERATE_OBJS == YES ]]; then exit 0; fi
 #####################################################################################
 # ubuntu echo in Makefile cannot display color, use bash instead
 SRS_BUILD_SUMMARY="_srs_build_summary.sh"
-
+SRS_UTEST = YES
 # utest make entry, (cd utest; make)
 SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
 if [[ $SRS_UTEST == YES ]]; then SrsUtestMakeEntry="\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/utest"; fi
@@ -377,7 +377,7 @@ if [[ $SRS_UTEST == YES ]]; then
         "srs_utest_mp4" "srs_utest_service" "srs_utest_app" "srs_utest_rtc" "srs_utest_config2"
         "srs_utest_protocol" "srs_utest_protocol2" "srs_utest_kernel2" "srs_utest_protocol3"
         "srs_utest_st" "srs_utest_rtc2" "srs_utest_rtc3" "srs_utest_fmp4" "srs_utest_source_lock"
-        "srs_utest_stream_token")
+        "srs_utest_stream_token" "srs_utest_rtc_recv_track")
     # Always include SRT utest
     MODULE_FILES+=("srs_utest_srt")
     if [[ $SRS_GB28181 == YES ]]; then
@@ -443,7 +443,7 @@ fi
 # the real entry for all platform:
 cat << END >> ${SRS_MAKEFILE}
 
-default: server
+default: _default
 
 all: _default
 

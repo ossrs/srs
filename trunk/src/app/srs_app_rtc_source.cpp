@@ -3186,20 +3186,20 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket **ppkt)
 #ifdef SRS_NACK_DEBUG_DROP_ENABLED
         srs_trace("NACK: recovered seq=%u", seq);
 #endif
-        return err;
+    } else {
+        // insert check nack list
+        uint16_t nack_first = 0, nack_last = 0;
+        if (!rtp_queue_->update(seq, nack_first, nack_last)) {
+            srs_warn("NACK: too old seq %u, range [%u, %u]", seq, rtp_queue_->begin,
+                    rtp_queue_->end);
+        }
+        if (srs_rtp_seq_distance(nack_first, nack_last) > 0) {
+            srs_trace("NACK: update seq=%u, nack range [%u, %u]", seq, nack_first,
+                    nack_last);
+            nack_receiver_->insert(nack_first, nack_last);
+            nack_receiver_->check_queue_size();
+        }
     }
-
-    // insert check nack list
-    uint16_t nack_first = 0, nack_last = 0;
-    if (!rtp_queue_->update(seq, nack_first, nack_last)) {
-        srs_warn("NACK: too old seq %u, range [%u, %u]", seq, rtp_queue_->begin, rtp_queue_->end);
-    }
-    if (srs_rtp_seq_distance(nack_first, nack_last) > 0) {
-        srs_trace("NACK: update seq=%u, nack range [%u, %u]", seq, nack_first, nack_last);
-        nack_receiver_->insert(nack_first, nack_last);
-        nack_receiver_->check_queue_size();
-    }
-
     // insert into video_queue and audio_queue
     // We directly use the pkt, never copy it, so we should set the pkt to NULL.
     if (nack_no_copy_) {
