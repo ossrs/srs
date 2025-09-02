@@ -50,7 +50,6 @@ if [[ $SRS_GENERATE_OBJS == YES ]]; then exit 0; fi
 #####################################################################################
 # ubuntu echo in Makefile cannot display color, use bash instead
 SRS_BUILD_SUMMARY="_srs_build_summary.sh"
-SRS_UTEST = YES
 # utest make entry, (cd utest; make)
 SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
 if [[ $SRS_UTEST == YES ]]; then SrsUtestMakeEntry="\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/utest"; fi
@@ -443,7 +442,7 @@ fi
 # the real entry for all platform:
 cat << END >> ${SRS_MAKEFILE}
 
-default: _default
+default: server
 
 all: _default
 
