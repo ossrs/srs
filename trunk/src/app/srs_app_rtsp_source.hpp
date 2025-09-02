@@ -223,23 +223,23 @@ public:
     virtual srs_error_t initialize(ISrsRequest *r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
+    virtual srs_error_t on_frame(SrsMediaPacket *frame);
 
 private:
-    virtual srs_error_t on_audio(SrsSharedPtrMessage *msg);
+    virtual srs_error_t on_audio(SrsMediaPacket *msg);
 
 private:
-    srs_error_t package_aac(SrsAudioFrame *audio, SrsRtpPacket *pkt);
+    srs_error_t package_aac(SrsParsedAudioPacket *audio, SrsRtpPacket *pkt);
 
 private:
-    virtual srs_error_t on_video(SrsSharedPtrMessage *msg);
+    virtual srs_error_t on_video(SrsMediaPacket *msg);
 
 private:
-    srs_error_t filter(SrsSharedPtrMessage *msg, SrsFormat *format, bool &has_idr, std::vector<SrsSample *> &samples);
-    srs_error_t package_stap_a(SrsSharedPtrMessage *msg, SrsRtpPacket *pkt);
-    srs_error_t package_nalus(SrsSharedPtrMessage *msg, const std::vector<SrsSample *> &samples, std::vector<SrsRtpPacket *> &pkts);
-    srs_error_t package_single_nalu(SrsSharedPtrMessage *msg, SrsSample *sample, std::vector<SrsRtpPacket *> &pkts);
-    srs_error_t package_fu_a(SrsSharedPtrMessage *msg, SrsSample *sample, int fu_payload_size, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t filter(SrsMediaPacket *msg, SrsFormat *format, bool &has_idr, std::vector<SrsNaluSample *> &samples);
+    srs_error_t package_stap_a(SrsMediaPacket *msg, SrsRtpPacket *pkt);
+    srs_error_t package_nalus(SrsMediaPacket *msg, const std::vector<SrsNaluSample *> &samples, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t package_single_nalu(SrsMediaPacket *msg, SrsNaluSample *sample, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t package_fu_a(SrsMediaPacket *msg, SrsNaluSample *sample, int fu_payload_size, std::vector<SrsRtpPacket *> &pkts);
     srs_error_t consume_packets(std::vector<SrsRtpPacket *> &pkts);
 };
 

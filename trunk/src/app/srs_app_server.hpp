@@ -60,7 +60,9 @@ class SrsPidFileLocker;
 // Initialize global shared variables cross all threads.
 extern srs_error_t srs_global_initialize();
 
-// SRS RTMP server, initialize and listen, start connection service thread, destroy client.
+// SrsServer is the main server class of SRS (Simple Realtime Server) that provides comprehensive
+// streaming media server functionality. It serves as the central orchestrator for all streaming
+// protocols and services in a single-threaded, coroutine-based architecture.
 class SrsServer : public ISrsReloadHandler, // Reload framework for permormance optimization.
                   public ISrsLiveSourceHandler,
                   public ISrsTcpHandler,
@@ -69,7 +71,6 @@ class SrsServer : public ISrsReloadHandler, // Reload framework for permormance 
                   public ISrsUdpMuxHandler
 {
 private:
-    // TODO: FIXME: Extract an HttpApiServer.
     ISrsHttpServeMux *http_api_mux_;
     SrsHttpServer *http_server_;
 
@@ -118,8 +119,12 @@ private:
     // Stream Caster for GB28181.
     SrsGbListener *stream_caster_gb28181_;
 #endif
+
+private:
     // SRT acceptors for MPEG-TS over SRT.
     std::vector<SrsSrtAcceptor *> srt_acceptors_;
+
+private:
     // WebRTC UDP listeners for RTC server functionality.
     std::vector<SrsUdpMuxListener *> rtc_listeners_;
     // WebRTC session manager.

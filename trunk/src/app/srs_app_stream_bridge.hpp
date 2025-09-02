@@ -15,7 +15,7 @@
 #include <vector>
 
 class ISrsRequest;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsLiveSource;
 class SrsRtcSource;
 class SrsRtmpFormat;
@@ -37,7 +37,7 @@ public:
 public:
     virtual srs_error_t initialize(ISrsRequest *r) = 0;
     virtual srs_error_t on_publish() = 0;
-    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame) = 0;
+    virtual srs_error_t on_frame(SrsMediaPacket *frame) = 0;
     virtual void on_unpublish() = 0;
 };
 
@@ -59,7 +59,7 @@ public:
     virtual void on_unpublish();
 
 public:
-    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
+    virtual srs_error_t on_frame(SrsMediaPacket *frame);
 };
 
 // A bridge to covert AV frame to WebRTC stream.
@@ -80,7 +80,7 @@ public:
     virtual srs_error_t initialize(ISrsRequest *r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
+    virtual srs_error_t on_frame(SrsMediaPacket *frame);
     srs_error_t on_rtp(SrsRtpPacket *pkt);
 };
 
@@ -102,7 +102,7 @@ public:
     virtual srs_error_t initialize(ISrsRequest *r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
+    virtual srs_error_t on_frame(SrsMediaPacket *frame);
     srs_error_t on_rtp(SrsRtpPacket *pkt);
 };
 #endif
@@ -124,7 +124,7 @@ public:
     virtual void on_unpublish();
 
 public:
-    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
+    virtual srs_error_t on_frame(SrsMediaPacket *frame);
 
 public:
     SrsCompositeBridge *append(ISrsStreamBridge *bridge);

@@ -19,7 +19,7 @@
 #include <srs_protocol_stream.hpp>
 
 class SrsRtmpServer;
-class SrsCommonMessage;
+class SrsRtmpCommonMessage;
 class SrsRtmpConn;
 class SrsLiveSource;
 class ISrsRequest;
@@ -37,7 +37,7 @@ public:
 public:
     // Consume the received message.
     // @remark user must free this message.
-    virtual srs_error_t consume(SrsCommonMessage *msg) = 0;
+    virtual srs_error_t consume(SrsRtmpCommonMessage *msg) = 0;
 };
 
 // The message pumper to pump messages to processer.
@@ -99,7 +99,7 @@ private:
 class SrsQueueRecvThread : public ISrsMessagePumper
 {
 private:
-    std::vector<SrsCommonMessage *> queue;
+    std::vector<SrsRtmpCommonMessage *> queue;
     SrsRecvThread trd;
     SrsRtmpServer *rtmp;
     // The recv thread error code.
@@ -118,11 +118,11 @@ public:
 public:
     virtual bool empty();
     virtual int size();
-    virtual SrsCommonMessage *pump();
+    virtual SrsRtmpCommonMessage *pump();
     virtual srs_error_t error_code();
     // Interface ISrsMessagePumper
 public:
-    virtual srs_error_t consume(SrsCommonMessage *msg);
+    virtual srs_error_t consume(SrsRtmpCommonMessage *msg);
     virtual bool interrupted();
     virtual void interrupt(srs_error_t err);
     virtual void on_start();
@@ -183,7 +183,7 @@ public:
     virtual void stop();
     // Interface ISrsMessagePumper
 public:
-    virtual srs_error_t consume(SrsCommonMessage *msg);
+    virtual srs_error_t consume(SrsRtmpCommonMessage *msg);
     virtual bool interrupted();
     virtual void interrupt(srs_error_t err);
     virtual void on_start();

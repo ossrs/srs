@@ -16,8 +16,8 @@
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 
-class SrsSharedPtrMessage;
-class SrsSample;
+class SrsMediaPacket;
+class SrsNaluSample;
 class SrsRtpPacket;
 class SrsFormat;
 
@@ -36,10 +36,10 @@ public:
 
 public:
     srs_error_t initialize(SrsFormat *format, uint32_t ssrc, uint8_t payload_type);
-    srs_error_t package_stap_a(SrsSharedPtrMessage *msg, SrsRtpPacket *pkt);
-    srs_error_t package_nalus(SrsSharedPtrMessage *msg, const std::vector<SrsSample *> &samples, std::vector<SrsRtpPacket *> &pkts);
-    srs_error_t package_single_nalu(SrsSharedPtrMessage *msg, SrsSample *sample, std::vector<SrsRtpPacket *> &pkts);
-    srs_error_t package_fu_a(SrsSharedPtrMessage *msg, SrsSample *sample, int fu_payload_size, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t package_stap_a(SrsMediaPacket *msg, SrsRtpPacket *pkt);
+    srs_error_t package_nalus(SrsMediaPacket *msg, const std::vector<SrsNaluSample *> &samples, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t package_single_nalu(SrsMediaPacket *msg, SrsNaluSample *sample, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t package_fu_a(SrsMediaPacket *msg, SrsNaluSample *sample, int fu_payload_size, std::vector<SrsRtpPacket *> &pkts);
 };
 
 #endif

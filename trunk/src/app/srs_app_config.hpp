@@ -1082,7 +1082,6 @@ private:
 
 public:
     // Whether http stream enabled.
-    // TODO: FIXME: rename to http_static.
     virtual bool get_http_stream_enabled();
     // Get the http stream listen addresses, support IPv4 and IPv6.
     virtual std::vector<std::string> get_http_stream_listens();

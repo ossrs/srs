@@ -2917,7 +2917,7 @@ SrsTsMessageCache::~SrsTsMessageCache()
     srs_freep(video);
 }
 
-srs_error_t SrsTsMessageCache::cache_audio(SrsAudioFrame *frame, int64_t dts)
+srs_error_t SrsTsMessageCache::cache_audio(SrsParsedAudioPacket *frame, int64_t dts)
 {
     srs_error_t err = srs_success;
 
@@ -2951,7 +2951,7 @@ srs_error_t SrsTsMessageCache::cache_audio(SrsAudioFrame *frame, int64_t dts)
     return err;
 }
 
-srs_error_t SrsTsMessageCache::cache_video(SrsVideoFrame *frame, int64_t dts)
+srs_error_t SrsTsMessageCache::cache_video(SrsParsedVideoPacket *frame, int64_t dts)
 {
     srs_error_t err = srs_success;
 
@@ -2979,21 +2979,21 @@ srs_error_t SrsTsMessageCache::cache_video(SrsVideoFrame *frame, int64_t dts)
     return err;
 }
 
-srs_error_t SrsTsMessageCache::do_cache_mp3(SrsAudioFrame *frame)
+srs_error_t SrsTsMessageCache::do_cache_mp3(SrsParsedAudioPacket *frame)
 {
     srs_error_t err = srs_success;
 
     // for mp3, directly write to cache.
     // TODO: FIXME: implements the ts jitter.
     for (int i = 0; i < frame->nb_samples; i++) {
-        SrsSample *sample = &frame->samples[i];
+        SrsNaluSample *sample = &frame->samples[i];
         audio->payload->append(sample->bytes, sample->size);
     }
 
     return err;
 }
 
-srs_error_t SrsTsMessageCache::do_cache_aac(SrsAudioFrame *frame)
+srs_error_t SrsTsMessageCache::do_cache_aac(SrsParsedAudioPacket *frame)
 {
     srs_error_t err = srs_success;
 
@@ -3001,7 +3001,7 @@ srs_error_t SrsTsMessageCache::do_cache_aac(SrsAudioFrame *frame)
     srs_assert(codec);
 
     for (int i = 0; i < frame->nb_samples; i++) {
-        SrsSample *sample = &frame->samples[i];
+        SrsNaluSample *sample = &frame->samples[i];
         int32_t size = sample->size;
 
         if (!sample->bytes || size <= 0 || size > 0x1fff) {
@@ -3118,7 +3118,7 @@ void srs_avc_insert_aud(SrsSimpleStream *payload, bool aud_inserted)
     }
 }
 
-srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame *frame)
+srs_error_t SrsTsMessageCache::do_cache_avc(SrsParsedVideoPacket *frame)
 {
     srs_error_t err = srs_success;
 
@@ -3169,7 +3169,7 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame *frame)
 
     // all sample use cont nalu header, except the sps-pps before IDR frame.
     for (int i = 0; i < frame->nb_samples; i++) {
-        SrsSample *sample = &frame->samples[i];
+        SrsNaluSample *sample = &frame->samples[i];
         int32_t size = sample->size;
 
         if (!sample->bytes || size <= 0) {
@@ -3202,7 +3202,7 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame *frame)
     return err;
 }
 
-srs_error_t SrsTsMessageCache::do_cache_hevc(SrsVideoFrame *frame)
+srs_error_t SrsTsMessageCache::do_cache_hevc(SrsParsedVideoPacket *frame)
 {
     srs_error_t err = srs_success;
 
@@ -3216,7 +3216,7 @@ srs_error_t SrsTsMessageCache::do_cache_hevc(SrsVideoFrame *frame)
 
     // all sample use cont nalu header, except the sps-pps before IDR frame.
     for (int i = 0; i < frame->nb_samples; i++) {
-        SrsSample *sample = &frame->samples[i];
+        SrsNaluSample *sample = &frame->samples[i];
         int32_t size = sample->size;
 
         if (!sample->bytes || size <= 0) {

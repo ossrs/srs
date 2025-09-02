@@ -29,7 +29,7 @@ class SrsHttpParser;
 class ISrsHttpMessage;
 class SrsHttpHandler;
 class SrsMessageQueue;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsFastStream;
 class SrsHttpUri;
 class SrsHttpMessage;

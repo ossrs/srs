@@ -692,7 +692,7 @@ void SrsRtspRtpBuilder::on_unpublish()
     meta->update_previous_ash();
 }
 
-srs_error_t SrsRtspRtpBuilder::on_frame(SrsSharedPtrMessage *frame)
+srs_error_t SrsRtspRtpBuilder::on_frame(SrsMediaPacket *frame)
 {
     if (frame->is_audio()) {
         return on_audio(frame);
@@ -702,7 +702,7 @@ srs_error_t SrsRtspRtpBuilder::on_frame(SrsSharedPtrMessage *frame)
     return srs_success;
 }
 
-srs_error_t SrsRtspRtpBuilder::on_audio(SrsSharedPtrMessage *msg)
+srs_error_t SrsRtspRtpBuilder::on_audio(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
@@ -753,7 +753,7 @@ srs_error_t SrsRtspRtpBuilder::on_audio(SrsSharedPtrMessage *msg)
     return err;
 }
 
-srs_error_t SrsRtspRtpBuilder::package_aac(SrsAudioFrame *audio, SrsRtpPacket *pkt)
+srs_error_t SrsRtspRtpBuilder::package_aac(SrsParsedAudioPacket *audio, SrsRtpPacket *pkt)
 {
     srs_error_t err = srs_success;
 
@@ -827,12 +827,12 @@ static void free_packets(vector<SrsRtpPacket *> *pkts)
     pkts->clear();
 }
 
-srs_error_t SrsRtspRtpBuilder::on_video(SrsSharedPtrMessage *msg)
+srs_error_t SrsRtspRtpBuilder::on_video(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
     // cache the sequence header if h264
-    bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
+    bool is_sequence_header = SrsFlvVideo::sh(msg->payload(), msg->size());
     if (is_sequence_header && (err = meta->update_vsh(msg)) != srs_success) {
         return srs_error_wrap(err, "meta update video");
     }
@@ -862,7 +862,7 @@ srs_error_t SrsRtspRtpBuilder::on_video(SrsSharedPtrMessage *msg)
     }
 
     bool has_idr = false;
-    vector<SrsSample *> samples;
+    vector<SrsNaluSample *> samples;
     if ((err = filter(msg, format, has_idr, samples)) != srs_success) {
         return srs_error_wrap(err, "filter video");
     }
@@ -888,7 +888,7 @@ srs_error_t SrsRtspRtpBuilder::on_video(SrsSharedPtrMessage *msg)
 
     // By default, we package each NALU(sample) to a RTP or FUA packet.
     for (int i = 0; i < nn_samples; i++) {
-        SrsSample *sample = samples[i];
+        SrsNaluSample *sample = samples[i];
 
         if (sample->size <= kRtpMaxPayloadSize) {
             if ((err = package_single_nalu(msg, sample, pkts)) != srs_success) {
@@ -908,7 +908,7 @@ srs_error_t SrsRtspRtpBuilder::on_video(SrsSharedPtrMessage *msg)
     return consume_packets(pkts);
 }
 
-srs_error_t SrsRtspRtpBuilder::filter(SrsSharedPtrMessage *msg, SrsFormat *format, bool &has_idr, vector<SrsSample *> &samples)
+srs_error_t SrsRtspRtpBuilder::filter(SrsMediaPacket *msg, SrsFormat *format, bool &has_idr, vector<SrsNaluSample *> &samples)
 {
     srs_error_t err = srs_success;
 
@@ -919,14 +919,14 @@ srs_error_t SrsRtspRtpBuilder::filter(SrsSharedPtrMessage *msg, SrsFormat *forma
 
     // Update samples to shared frame.
     for (int i = 0; i < format->video->nb_samples; ++i) {
-        SrsSample *sample = &format->video->samples[i];
+        SrsNaluSample *sample = &format->video->samples[i];
         samples.push_back(sample);
     }
 
     return err;
 }
 
-srs_error_t SrsRtspRtpBuilder::package_stap_a(SrsSharedPtrMessage *msg, SrsRtpPacket *pkt)
+srs_error_t SrsRtspRtpBuilder::package_stap_a(SrsMediaPacket *msg, SrsRtpPacket *pkt)
 {
     srs_error_t err = srs_success;
 
@@ -938,7 +938,7 @@ srs_error_t SrsRtspRtpBuilder::package_stap_a(SrsSharedPtrMessage *msg, SrsRtpPa
     return video_builder_->package_stap_a(msg, pkt);
 }
 
-srs_error_t SrsRtspRtpBuilder::package_nalus(SrsSharedPtrMessage *msg, const vector<SrsSample *> &samples, vector<SrsRtpPacket *> &pkts)
+srs_error_t SrsRtspRtpBuilder::package_nalus(SrsMediaPacket *msg, const vector<SrsNaluSample *> &samples, vector<SrsRtpPacket *> &pkts)
 {
     srs_error_t err = srs_success;
 
@@ -951,12 +951,12 @@ srs_error_t SrsRtspRtpBuilder::package_nalus(SrsSharedPtrMessage *msg, const vec
 }
 
 // Single NAL Unit Packet @see https://tools.ietf.org/html/rfc6184#section-5.6
-srs_error_t SrsRtspRtpBuilder::package_single_nalu(SrsSharedPtrMessage *msg, SrsSample *sample, vector<SrsRtpPacket *> &pkts)
+srs_error_t SrsRtspRtpBuilder::package_single_nalu(SrsMediaPacket *msg, SrsNaluSample *sample, vector<SrsRtpPacket *> &pkts)
 {
     return video_builder_->package_single_nalu(msg, sample, pkts);
 }
 
-srs_error_t SrsRtspRtpBuilder::package_fu_a(SrsSharedPtrMessage *msg, SrsSample *sample, int fu_payload_size, vector<SrsRtpPacket *> &pkts)
+srs_error_t SrsRtspRtpBuilder::package_fu_a(SrsMediaPacket *msg, SrsNaluSample *sample, int fu_payload_size, vector<SrsRtpPacket *> &pkts)
 {
     srs_error_t err = srs_success;
 

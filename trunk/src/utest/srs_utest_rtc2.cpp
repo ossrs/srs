@@ -1543,7 +1543,7 @@ public:
         return srs_success;
     }
 
-    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame)
+    virtual srs_error_t on_frame(SrsMediaPacket *frame)
     {
         frame_count++;
         return srs_success;

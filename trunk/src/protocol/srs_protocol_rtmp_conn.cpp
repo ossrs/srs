@@ -201,22 +201,22 @@ int SrsBasicRtmpClient::sid()
     return stream_id;
 }
 
-srs_error_t SrsBasicRtmpClient::recv_message(SrsCommonMessage **pmsg)
+srs_error_t SrsBasicRtmpClient::recv_message(SrsRtmpCommonMessage **pmsg)
 {
     return client->recv_message(pmsg);
 }
 
-srs_error_t SrsBasicRtmpClient::decode_message(SrsCommonMessage *msg, SrsPacket **ppacket)
+srs_error_t SrsBasicRtmpClient::decode_message(SrsRtmpCommonMessage *msg, SrsRtmpCommand **ppacket)
 {
     return client->decode_message(msg, ppacket);
 }
 
-srs_error_t SrsBasicRtmpClient::send_and_free_messages(SrsSharedPtrMessage **msgs, int nb_msgs)
+srs_error_t SrsBasicRtmpClient::send_and_free_messages(SrsMediaPacket **msgs, int nb_msgs)
 {
     return client->send_and_free_messages(msgs, nb_msgs, stream_id);
 }
 
-srs_error_t SrsBasicRtmpClient::send_and_free_message(SrsSharedPtrMessage *msg)
+srs_error_t SrsBasicRtmpClient::send_and_free_message(SrsMediaPacket *msg)
 {
     return client->send_and_free_message(msg, stream_id);
 }

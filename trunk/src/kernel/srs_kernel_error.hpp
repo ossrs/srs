@@ -161,7 +161,7 @@
     XX(ERROR_RTMP_CLIENT_NOT_FOUND, 2049, "ClientNotFound", "Request client is not found")                             \
     XX(ERROR_OpenSslCreateHMAC, 2050, "SslCreateHmac", "Failed to create HMAC for SSL")                                \
     XX(ERROR_RTMP_STREAM_NAME_EMPTY, 2051, "StreamNameEmpty", "Invalid stream for name is empty")                      \
-    XX(ERROR_HTTP_HIJACK, 2052, "HttpHijack", "Failed to hijack HTTP handler")                                         \
+    XX(ERROR_HTTP_DYNAMIC_MATCH, 2052, "HttpDynamicMatch", "Failed to dynamic match HTTP handler")                     \
     XX(ERROR_RTMP_MESSAGE_CREATE, 2053, "MessageCreate", "Failed to create shared pointer message")                    \
     XX(ERROR_RTMP_PROXY_EXCEED, 2054, "RtmpProxy", "Failed to decode message of RTMP proxy")                           \
     XX(ERROR_RTMP_CREATE_STREAM_DEPTH, 2055, "RtmpIdentify", "Failed to identify RTMP client")                         \

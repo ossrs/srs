@@ -12,6 +12,9 @@
 #include <string>
 #include <vector>
 
+#include <srs_core_autofree.hpp>
+#include <srs_kernel_buffer.hpp>
+
 class SrsBuffer;
 class SrsBitBuffer;
 class SrsFormat;
@@ -264,6 +267,8 @@ enum SrsFrameType {
     SrsFrameTypeVideo = 9,
     // 18 = script data
     SrsFrameTypeScript = 18,
+    // 20 = command data
+    SrsFrameTypeCommand = 20,
 };
 
 /**
@@ -1108,30 +1113,6 @@ enum SrsHevcLevel {
 std::string srs_hevc_level2str(SrsHevcLevel level);
 
 /**
- * A sample is the unit of frame.
- * It's a NALU for H.264, H.265.
- * It's the whole AAC raw data for AAC.
- * @remark Neither SPS/PPS or ASC is sample unit, it's codec sequence header.
- */
-class SrsSample
-{
-public:
-    // The size of unit.
-    int size;
-    // The ptr of unit, user must free it.
-    char *bytes;
-
-public:
-    SrsSample();
-    SrsSample(char *b, int s);
-    ~SrsSample();
-
-public:
-    // Copy sample, share the bytes pointer.
-    SrsSample *copy();
-};
-
-/**
  * The codec is the information of encoder,
  * corresponding to the sequence header of FLV,
  * parsed to detail info.
@@ -1246,183 +1227,6 @@ public:
 
 public:
     virtual bool is_avc_codec_ok();
-};
-
-// A frame, consists of a codec and a group of samples.
-// TODO: FIXME: Rename to packet to follow names of FFmpeg, which means before decoding or after decoding.
-class SrsFrame
-{
-public:
-    // The DTS/PTS in milliseconds, which is TBN=1000.
-    int64_t dts;
-    // PTS = DTS + CTS.
-    int32_t cts;
-
-public:
-    // The codec info of frame.
-    SrsCodecConfig *codec;
-    // The actual parsed number of samples.
-    int nb_samples;
-    // The sampels cache.
-    SrsSample samples[SrsMaxNbSamples];
-
-public:
-    SrsFrame();
-    virtual ~SrsFrame();
-
-public:
-    // Initialize the frame, to parse sampels.
-    virtual srs_error_t initialize(SrsCodecConfig *c);
-    // Add a sample to frame.
-    virtual srs_error_t add_sample(char *bytes, int size);
-};
-
-// A audio frame, besides a frame, contains the audio frame info, such as frame type.
-// TODO: FIXME: Rename to packet to follow names of FFmpeg, which means before decoding or after decoding.
-class SrsAudioFrame : public SrsFrame
-{
-public:
-    SrsAudioAacFrameTrait aac_packet_type;
-
-public:
-    SrsAudioFrame();
-    virtual ~SrsAudioFrame();
-
-public:
-    virtual SrsAudioCodecConfig *acodec();
-};
-
-// A video frame, besides a frame, contains the video frame info, such as frame type.
-// TODO: FIXME: Rename to packet to follow names of FFmpeg, which means before decoding or after decoding.
-class SrsVideoFrame : public SrsFrame
-{
-public:
-    // video specified
-    SrsVideoAvcFrameType frame_type;
-    SrsVideoAvcFrameTrait avc_packet_type;
-    // whether sample_units contains IDR frame.
-    bool has_idr;
-    // Whether exists AUD NALU.
-    bool has_aud;
-    // Whether exists SPS/PPS NALU.
-    bool has_sps_pps;
-    // The first nalu type.
-    SrsAvcNaluType first_nalu_type;
-
-public:
-    SrsVideoFrame();
-    virtual ~SrsVideoFrame();
-
-public:
-    // Initialize the frame, to parse sampels.
-    virtual srs_error_t initialize(SrsCodecConfig *c);
-    // Add the sample without ANNEXB or IBMF header, or RAW AAC or MP3 data.
-    virtual srs_error_t add_sample(char *bytes, int size);
-
-public:
-    virtual SrsVideoCodecConfig *vcodec();
-
-public:
-    static srs_error_t parse_avc_nalu_type(const SrsSample *sample, SrsAvcNaluType &avc_nalu_type);
-    static srs_error_t parse_avc_bframe(const SrsSample *sample, bool &is_b_frame);
-    static srs_error_t parse_hevc_nalu_type(const SrsSample *sample, SrsHevcNaluType &hevc_nalu_type);
-    static srs_error_t parse_hevc_bframe(const SrsSample *sample, SrsFormat *format, bool &is_b_frame);
-};
-
-/**
- * A codec format, including one or many stream, each stream identified by a frame.
- * For example, a typical RTMP stream format, consits of a video and audio frame.
- * Maybe some RTMP stream only has a audio stream, for instance, redio application.
- */
-class SrsFormat
-{
-public:
-    SrsAudioFrame *audio;
-    SrsAudioCodecConfig *acodec;
-    SrsVideoFrame *video;
-    SrsVideoCodecConfig *vcodec;
-
-public:
-    char *raw;
-    int nb_raw;
-
-public:
-    // for sequence header, whether parse the h.264 sps.
-    // TODO: FIXME: Refine it.
-    bool avc_parse_sps;
-    // Whether try to parse in ANNEXB, then by IBMF.
-    bool try_annexb_first;
-
-public:
-    SrsFormat();
-    virtual ~SrsFormat();
-
-public:
-    // Initialize the format.
-    virtual srs_error_t initialize();
-    // When got a parsed audio packet.
-    // @param data The data in FLV format.
-    virtual srs_error_t on_audio(int64_t timestamp, char *data, int size);
-    // When got a parsed video packet.
-    // @param data The data in FLV format.
-    virtual srs_error_t on_video(int64_t timestamp, char *data, int size);
-    // When got a audio aac sequence header.
-    virtual srs_error_t on_aac_sequence_header(char *data, int size);
-
-public:
-    virtual bool is_aac_sequence_header();
-    virtual bool is_mp3_sequence_header();
-    // TODO: is avc|hevc|av1 sequence header
-    virtual bool is_avc_sequence_header();
-
-private:
-    // Demux the video packet in H.264 codec.
-    // The packet is muxed in FLV format, defined in flv specification.
-    //          Demux the sps/pps from sequence header.
-    //          Demux the samples from NALUs.
-    virtual srs_error_t video_avc_demux(SrsBuffer *stream, int64_t timestamp);
-
-private:
-    virtual srs_error_t hevc_demux_hvcc(SrsBuffer *stream);
-
-private:
-    virtual srs_error_t hevc_demux_vps_sps_pps(SrsHevcHvccNalu *nal);
-    virtual srs_error_t hevc_demux_vps_rbsp(char *rbsp, int nb_rbsp);
-    virtual srs_error_t hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp);
-    virtual srs_error_t hevc_demux_pps_rbsp(char *rbsp, int nb_rbsp);
-    virtual srs_error_t hevc_demux_rbsp_ptl(SrsBitBuffer *bs, SrsHevcProfileTierLevel *ptl, int profile_present_flag, int max_sub_layers_minus1);
-
-public:
-    virtual srs_error_t hevc_demux_vps(SrsBuffer *stream);
-    virtual srs_error_t hevc_demux_sps(SrsBuffer *stream);
-    virtual srs_error_t hevc_demux_pps(SrsBuffer *stream);
-
-private:
-    // Parse the H.264 SPS/PPS.
-    virtual srs_error_t avc_demux_sps_pps(SrsBuffer *stream);
-    virtual srs_error_t avc_demux_sps();
-    virtual srs_error_t avc_demux_sps_rbsp(char *rbsp, int nb_rbsp);
-
-private:
-    // Parse the H.264 or H.265 NALUs.
-    virtual srs_error_t video_nalu_demux(SrsBuffer *stream);
-    // Demux the avc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
-    virtual srs_error_t avc_demux_annexb_format(SrsBuffer *stream);
-    virtual srs_error_t do_avc_demux_annexb_format(SrsBuffer *stream);
-    // Demux the avc NALU in "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
-    virtual srs_error_t avc_demux_ibmf_format(SrsBuffer *stream);
-    virtual srs_error_t do_avc_demux_ibmf_format(SrsBuffer *stream);
-
-private:
-    // Demux the audio packet in AAC codec.
-    //          Demux the asc from sequence header.
-    //          Demux the sampels from RAW data.
-    virtual srs_error_t audio_aac_demux(SrsBuffer *stream, int64_t timestamp);
-    virtual srs_error_t audio_mp3_demux(SrsBuffer *stream, int64_t timestamp, bool fresh);
-
-public:
-    // Directly demux the sequence header, without RTMP packet header.
-    virtual srs_error_t audio_aac_sequence_header_demux(char *data, int size);
 };
 
 // To read H.264 NALU uev.

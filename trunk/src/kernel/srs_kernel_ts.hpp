@@ -15,6 +15,7 @@
 
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_packet.hpp>
 
 class SrsBuffer;
 class SrsTsMessageCache;
@@ -1366,15 +1367,15 @@ public:
 
 public:
     // Write audio to cache
-    virtual srs_error_t cache_audio(SrsAudioFrame *frame, int64_t dts);
+    virtual srs_error_t cache_audio(SrsParsedAudioPacket *frame, int64_t dts);
     // Write video to muxer.
-    virtual srs_error_t cache_video(SrsVideoFrame *frame, int64_t dts);
+    virtual srs_error_t cache_video(SrsParsedVideoPacket *frame, int64_t dts);
 
 private:
-    virtual srs_error_t do_cache_mp3(SrsAudioFrame *frame);
-    virtual srs_error_t do_cache_aac(SrsAudioFrame *frame);
-    virtual srs_error_t do_cache_avc(SrsVideoFrame *frame);
-    virtual srs_error_t do_cache_hevc(SrsVideoFrame *frame);
+    virtual srs_error_t do_cache_mp3(SrsParsedAudioPacket *frame);
+    virtual srs_error_t do_cache_aac(SrsParsedAudioPacket *frame);
+    virtual srs_error_t do_cache_avc(SrsParsedVideoPacket *frame);
+    virtual srs_error_t do_cache_hevc(SrsParsedVideoPacket *frame);
 };
 
 // Transmux the RTMP stream to HTTP-TS stream.

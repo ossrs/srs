@@ -117,17 +117,17 @@ srs_error_t SrsDvrSegmenter::open()
     return err;
 }
 
-srs_error_t SrsDvrSegmenter::write_metadata(SrsSharedPtrMessage *metadata)
+srs_error_t SrsDvrSegmenter::write_metadata(SrsMediaPacket *metadata)
 {
     return encode_metadata(metadata);
 }
 
-srs_error_t SrsDvrSegmenter::write_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
+srs_error_t SrsDvrSegmenter::write_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
     // TODO: FIXME: Use SrsSharedPtr instead.
-    SrsUniquePtr<SrsSharedPtrMessage> audio(shared_audio->copy());
+    SrsUniquePtr<SrsMediaPacket> audio(shared_audio->copy());
 
     if ((err = jitter->correct(audio.get(), jitter_algorithm)) != srs_success) {
         return srs_error_wrap(err, "jitter");
@@ -144,12 +144,12 @@ srs_error_t SrsDvrSegmenter::write_audio(SrsSharedPtrMessage *shared_audio, SrsF
     return err;
 }
 
-srs_error_t SrsDvrSegmenter::write_video(SrsSharedPtrMessage *shared_video, SrsFormat *format)
+srs_error_t SrsDvrSegmenter::write_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
     // TODO: FIXME: Use SrsSharedPtr instead.
-    SrsUniquePtr<SrsSharedPtrMessage> video(shared_video->copy());
+    SrsUniquePtr<SrsMediaPacket> video(shared_video->copy());
 
     if ((err = jitter->correct(video.get(), jitter_algorithm)) != srs_success) {
         return srs_error_wrap(err, "jitter");
@@ -215,7 +215,7 @@ string SrsDvrSegmenter::generate_path()
     return flv_path;
 }
 
-srs_error_t SrsDvrSegmenter::on_update_duration(SrsSharedPtrMessage *msg)
+srs_error_t SrsDvrSegmenter::on_update_duration(SrsMediaPacket *msg)
 {
     fragment->append(msg->timestamp);
     return srs_success;
@@ -310,7 +310,7 @@ srs_error_t SrsDvrFlvSegmenter::open_encoder()
     return err;
 }
 
-srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsSharedPtrMessage *metadata)
+srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsMediaPacket *metadata)
 {
     srs_error_t err = srs_success;
 
@@ -319,7 +319,7 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsSharedPtrMessage *metadata)
         return err;
     }
 
-    SrsBuffer stream(metadata->payload, metadata->size);
+    SrsBuffer stream(metadata->payload(), metadata->size());
 
     SrsUniquePtr<SrsAmf0Any> name(SrsAmf0Any::str());
     if ((err = name->read(&stream)) != srs_success) {
@@ -366,12 +366,12 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsSharedPtrMessage *metadata)
     return err;
 }
 
-srs_error_t SrsDvrFlvSegmenter::encode_audio(SrsSharedPtrMessage *audio, SrsFormat *format)
+srs_error_t SrsDvrFlvSegmenter::encode_audio(SrsMediaPacket *audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
-    char *payload = audio->payload;
-    int size = audio->size;
+    char *payload = audio->payload();
+    int size = audio->size();
     if ((err = enc->write_audio(audio->timestamp, payload, size)) != srs_success) {
         return srs_error_wrap(err, "write audio");
     }
@@ -379,12 +379,12 @@ srs_error_t SrsDvrFlvSegmenter::encode_audio(SrsSharedPtrMessage *audio, SrsForm
     return err;
 }
 
-srs_error_t SrsDvrFlvSegmenter::encode_video(SrsSharedPtrMessage *video, SrsFormat *format)
+srs_error_t SrsDvrFlvSegmenter::encode_video(SrsMediaPacket *video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
-    char *payload = video->payload;
-    int size = video->size;
+    char *payload = video->payload();
+    int size = video->size();
     bool sh = (format->video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader);
     bool keyframe = (!sh && format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame);
 
@@ -439,12 +439,12 @@ srs_error_t SrsDvrMp4Segmenter::open_encoder()
     return err;
 }
 
-srs_error_t SrsDvrMp4Segmenter::encode_metadata(SrsSharedPtrMessage * /*metadata*/)
+srs_error_t SrsDvrMp4Segmenter::encode_metadata(SrsMediaPacket * /*metadata*/)
 {
     return srs_success;
 }
 
-srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage *audio, SrsFormat *format)
+srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsMediaPacket *audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -472,7 +472,7 @@ srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage *audio, SrsForm
     return err;
 }
 
-srs_error_t SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage *video, SrsFormat *format)
+srs_error_t SrsDvrMp4Segmenter::encode_video(SrsMediaPacket *video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -607,7 +607,7 @@ void SrsDvrPlan::on_unpublish()
 {
 }
 
-srs_error_t SrsDvrPlan::on_meta_data(SrsSharedPtrMessage *shared_metadata)
+srs_error_t SrsDvrPlan::on_meta_data(SrsMediaPacket *shared_metadata)
 {
     srs_error_t err = srs_success;
 
@@ -618,7 +618,7 @@ srs_error_t SrsDvrPlan::on_meta_data(SrsSharedPtrMessage *shared_metadata)
     return segment->write_metadata(shared_metadata);
 }
 
-srs_error_t SrsDvrPlan::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
+srs_error_t SrsDvrPlan::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -633,7 +633,7 @@ srs_error_t SrsDvrPlan::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *f
     return err;
 }
 
-srs_error_t SrsDvrPlan::on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format)
+srs_error_t SrsDvrPlan::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -816,7 +816,7 @@ void SrsDvrSegmentPlan::on_unpublish()
     SrsDvrPlan::on_unpublish();
 }
 
-srs_error_t SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
+srs_error_t SrsDvrSegmentPlan::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -831,7 +831,7 @@ srs_error_t SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage *shared_audio, SrsFo
     return err;
 }
 
-srs_error_t SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format)
+srs_error_t SrsDvrSegmentPlan::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -846,7 +846,7 @@ srs_error_t SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage *shared_video, SrsFo
     return err;
 }
 
-srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage *msg)
+srs_error_t SrsDvrSegmentPlan::update_duration(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
@@ -870,8 +870,8 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage *msg)
             return err;
         }
 
-        char *payload = msg->payload;
-        int size = msg->size;
+        char *payload = msg->payload();
+        int size = msg->size();
 
         bool codec_ok = SrsFlvVideo::h264(payload, size);
         codec_ok = codec_ok ? true : SrsFlvVideo::hevc(payload, size);
@@ -981,7 +981,7 @@ void SrsDvr::on_unpublish()
     plan->on_unpublish();
 }
 
-srs_error_t SrsDvr::on_meta_data(SrsSharedPtrMessage *metadata)
+srs_error_t SrsDvr::on_meta_data(SrsMediaPacket *metadata)
 {
     srs_error_t err = srs_success;
 
@@ -997,7 +997,7 @@ srs_error_t SrsDvr::on_meta_data(SrsSharedPtrMessage *metadata)
     return err;
 }
 
-srs_error_t SrsDvr::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
+srs_error_t SrsDvr::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     // the dvr for this stream is not actived.
     if (!actived) {
@@ -1007,7 +1007,7 @@ srs_error_t SrsDvr::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *forma
     return plan->on_audio(shared_audio, format);
 }
 
-srs_error_t SrsDvr::on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format)
+srs_error_t SrsDvr::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     // the dvr for this stream is not actived.
     if (!actived) {

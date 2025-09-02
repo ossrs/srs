@@ -35,7 +35,7 @@ class SrsLiveConsumer;
 class SrsStunPacket;
 class SrsServer;
 class SrsRtcConnection;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsRtcSource;
 class SrsRtpPacket;
 class ISrsCodec;

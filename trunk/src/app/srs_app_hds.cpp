@@ -38,9 +38,9 @@ char flv_header[] = {'F', 'L', 'V',
                      0x01, 0x05, 0x00, 0x00, 0x00, 0x09,
                      0x00, 0x00, 0x00, 0x00};
 
-string serialFlv(SrsSharedPtrMessage *msg)
+string serialFlv(SrsMediaPacket *msg)
 {
-    int size = 15 + msg->size;
+    int size = 15 + msg->size();
     char *byte = new char[size];
 
     SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(byte, size));
@@ -50,14 +50,14 @@ string serialFlv(SrsSharedPtrMessage *msg)
     char type = msg->is_video() ? 0x09 : 0x08;
 
     stream->write_1bytes(type);
-    stream->write_3bytes(msg->size);
+    stream->write_3bytes(msg->size());
     stream->write_3bytes((int32_t)dts);
     stream->write_1bytes(dts >> 24 & 0xFF);
     stream->write_3bytes(0);
-    stream->write_bytes(msg->payload, msg->size);
+    stream->write_bytes(msg->payload(), msg->size());
 
     // pre tag size
-    int preTagSize = msg->size + 11;
+    int preTagSize = msg->size() + 11;
     stream->write_4bytes(preTagSize);
 
     string ret(stream->data(), stream->size());
@@ -81,22 +81,22 @@ public:
         srs_freep(audioSh);
 
         // clean msgs
-        list<SrsSharedPtrMessage *>::iterator iter;
+        list<SrsMediaPacket *>::iterator iter;
         for (iter = msgs.begin(); iter != msgs.end(); ++iter) {
-            SrsSharedPtrMessage *msg = *iter;
+            SrsMediaPacket *msg = *iter;
             srs_freep(msg);
         }
     }
 
-    void on_video(SrsSharedPtrMessage *msg)
+    void on_video(SrsMediaPacket *msg)
     {
-        SrsSharedPtrMessage *_msg = msg->copy();
+        SrsMediaPacket *_msg = msg->copy();
         msgs.push_back(_msg);
     }
 
-    void on_audio(SrsSharedPtrMessage *msg)
+    void on_audio(SrsMediaPacket *msg)
     {
-        SrsSharedPtrMessage *_msg = msg->copy();
+        SrsMediaPacket *_msg = msg->copy();
         msgs.push_back(_msg);
     }
 
@@ -116,9 +116,9 @@ public:
             data.append(serialFlv(audioSh));
         }
 
-        list<SrsSharedPtrMessage *>::iterator iter;
+        list<SrsMediaPacket *>::iterator iter;
         for (iter = msgs.begin(); iter != msgs.end(); ++iter) {
-            SrsSharedPtrMessage *msg = *iter;
+            SrsMediaPacket *msg = *iter;
             data.append(serialFlv(msg));
         }
 
@@ -158,10 +158,10 @@ public:
         long long last_msg_ts = 0;
 
         if (msgs.size() >= 2) {
-            SrsSharedPtrMessage *first_msg = msgs.front();
+            SrsMediaPacket *first_msg = msgs.front();
             first_msg_ts = first_msg->timestamp;
 
-            SrsSharedPtrMessage *last_msg = msgs.back();
+            SrsMediaPacket *last_msg = msgs.back();
             last_msg_ts = last_msg->timestamp;
 
             duration_ms = (int)(last_msg_ts - first_msg_ts);
@@ -200,13 +200,13 @@ public:
         return start_time;
     }
 
-    void set_video_sh(SrsSharedPtrMessage *msg)
+    void set_video_sh(SrsMediaPacket *msg)
     {
         srs_freep(videoSh);
         videoSh = msg->copy();
     }
 
-    void set_audio_sh(SrsSharedPtrMessage *msg)
+    void set_audio_sh(SrsMediaPacket *msg)
     {
         srs_freep(audioSh);
         audioSh = msg->copy();
@@ -219,7 +219,7 @@ public:
 
 private:
     ISrsRequest *req;
-    list<SrsSharedPtrMessage *> msgs;
+    list<SrsMediaPacket *> msgs;
 
     /*!
      the index of this fragment
@@ -227,8 +227,8 @@ private:
     int index;
     long long start_time;
 
-    SrsSharedPtrMessage *videoSh;
-    SrsSharedPtrMessage *audioSh;
+    SrsMediaPacket *videoSh;
+    SrsMediaPacket *audioSh;
     string path;
 };
 
@@ -290,7 +290,7 @@ srs_error_t SrsHds::on_unpublish()
     return err;
 }
 
-srs_error_t SrsHds::on_video(SrsSharedPtrMessage *msg)
+srs_error_t SrsHds::on_video(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
@@ -298,7 +298,7 @@ srs_error_t SrsHds::on_video(SrsSharedPtrMessage *msg)
         return err;
     }
 
-    if (SrsFlvVideo::sh(msg->payload, msg->size)) {
+    if (SrsFlvVideo::sh(msg->payload(), msg->size())) {
         srs_freep(video_sh);
         video_sh = msg->copy();
     }
@@ -340,7 +340,7 @@ srs_error_t SrsHds::on_video(SrsSharedPtrMessage *msg)
     return err;
 }
 
-srs_error_t SrsHds::on_audio(SrsSharedPtrMessage *msg)
+srs_error_t SrsHds::on_audio(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
@@ -348,7 +348,7 @@ srs_error_t SrsHds::on_audio(SrsSharedPtrMessage *msg)
         return err;
     }
 
-    if (SrsFlvAudio::sh(msg->payload, msg->size)) {
+    if (SrsFlvAudio::sh(msg->payload(), msg->size())) {
         srs_freep(audio_sh);
         audio_sh = msg->copy();
     }

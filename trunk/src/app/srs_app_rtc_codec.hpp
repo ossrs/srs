@@ -10,6 +10,7 @@
 #include <srs_core.hpp>
 
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_packet.hpp>
 
 #include <string>
 
@@ -60,9 +61,9 @@ public:
     // The bit_rate specifies the bitrate of encoder, for example, 48000.
     srs_error_t initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate);
     // Transcode the input audio frame in, as output audio frames outs.
-    virtual srs_error_t transcode(SrsAudioFrame *in, std::vector<SrsAudioFrame *> &outs);
+    virtual srs_error_t transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs);
     // Free the generated audio frames by transcode.
-    void free_frames(std::vector<SrsAudioFrame *> &frames);
+    void free_frames(std::vector<SrsParsedAudioPacket *> &frames);
 
 public:
     // Get the aac codec header, for example, FLV sequence header.
@@ -75,8 +76,8 @@ private:
     srs_error_t init_swr(AVCodecContext *decoder);
     srs_error_t init_fifo();
 
-    srs_error_t decode_and_resample(SrsAudioFrame *pkt);
-    srs_error_t encode(std::vector<SrsAudioFrame *> &pkts);
+    srs_error_t decode_and_resample(SrsParsedAudioPacket *pkt);
+    srs_error_t encode(std::vector<SrsParsedAudioPacket *> &pkts);
 
     srs_error_t add_samples_to_fifo(uint8_t **samples, int frame_size);
     void free_swr_samples();

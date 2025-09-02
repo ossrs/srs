@@ -27,9 +27,9 @@ class SrsLiveConsumer;
 class SrsPlayEdge;
 class SrsPublishEdge;
 class SrsLiveSource;
-class SrsCommonMessage;
+class SrsRtmpCommonMessage;
 class SrsOnMetaDataPacket;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsForwarder;
 class ISrsRequest;
 class SrsStSocket;
@@ -73,7 +73,7 @@ public:
 public:
     // detect the time jitter and correct it.
     // @param ag the algorithm to use for time jitter.
-    virtual srs_error_t correct(SrsSharedPtrMessage *msg, SrsRtmpJitterAlgorithm ag);
+    virtual srs_error_t correct(SrsMediaPacket *msg, SrsRtmpJitterAlgorithm ag);
     // Get current client time, the last packet time.
     virtual int64_t get_time();
 };
@@ -83,7 +83,7 @@ public:
 class SrsFastVector
 {
 private:
-    SrsSharedPtrMessage **msgs;
+    SrsMediaPacket **msgs;
     int nb_msgs;
     int count;
 
@@ -95,11 +95,11 @@ public:
     virtual int size();
     virtual int begin();
     virtual int end();
-    virtual SrsSharedPtrMessage **data();
-    virtual SrsSharedPtrMessage *at(int index);
+    virtual SrsMediaPacket **data();
+    virtual SrsMediaPacket *at(int index);
     virtual void clear();
     virtual void erase(int _begin, int _end);
-    virtual void push_back(SrsSharedPtrMessage *msg);
+    virtual void push_back(SrsMediaPacket *msg);
     virtual void free();
 };
 #endif
@@ -121,7 +121,7 @@ private:
 #ifdef SRS_PERF_QUEUE_FAST_VECTOR
     SrsFastVector msgs;
 #else
-    std::vector<SrsSharedPtrMessage *> msgs;
+    std::vector<SrsMediaPacket *> msgs;
 #endif
 public:
     SrsMessageQueue(bool ignore_shrink = false);
@@ -140,12 +140,12 @@ public:
     // Enqueue the message, the timestamp always monotonically.
     // @param msg, the msg to enqueue, user never free it whatever the return code.
     // @param is_overflow, whether overflow and shrinked. NULL to ignore.
-    virtual srs_error_t enqueue(SrsSharedPtrMessage *msg, bool *is_overflow = NULL);
+    virtual srs_error_t enqueue(SrsMediaPacket *msg, bool *is_overflow = NULL);
     // Get packets in consumer queue.
-    // @pmsgs SrsSharedPtrMessage*[], used to store the msgs, user must alloc it.
+    // @pmsgs SrsMediaPacket*[], used to store the msgs, user must alloc it.
     // @count the count in array, output param.
     // @max_count the max count to dequeue, must be positive.
-    virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage **pmsgs, int &count);
+    virtual srs_error_t dump_packets(int max_count, SrsMediaPacket **pmsgs, int &count);
     // Dumps packets to consumer, use specified args.
     // @remark the atc/tba/tbv/ag are same to SrsLiveConsumer.enqueue().
     virtual srs_error_t dump_packets(SrsLiveConsumer *consumer, bool atc, SrsRtmpJitterAlgorithm ag);
@@ -212,7 +212,7 @@ public:
     // @param shared_msg, directly ptr, copy it if need to save it.
     // @param whether atc, donot use jitter correct if true.
     // @param ag the algorithm of time jitter.
-    virtual srs_error_t enqueue(SrsSharedPtrMessage *shared_msg, bool atc, SrsRtmpJitterAlgorithm ag);
+    virtual srs_error_t enqueue(SrsMediaPacket *shared_msg, bool atc, SrsRtmpJitterAlgorithm ag);
     // Get packets in consumer queue.
     // @param msgs the msgs array to dump packets to send.
     // @param count the count in array, intput and output param.
@@ -262,7 +262,7 @@ private:
     // @see: https://github.com/ossrs/srs/issues/124
     int audio_after_last_video_count;
     // cached gop.
-    std::vector<SrsSharedPtrMessage *> gop_cache;
+    std::vector<SrsMediaPacket *> gop_cache;
 
 public:
     SrsGopCache();
@@ -279,7 +279,7 @@ public:
     // 1. cache the gop when got h264 video packet.
     // 2. clear gop when got keyframe.
     // @param shared_msg, directly ptr, copy it if need to save it.
-    virtual srs_error_t cache(SrsSharedPtrMessage *shared_msg);
+    virtual srs_error_t cache(SrsMediaPacket *shared_msg);
     // clear the gop cache.
     virtual void clear();
     // dump the cached gop to consumer.
@@ -317,7 +317,7 @@ class SrsMixQueue
 private:
     uint32_t nb_videos;
     uint32_t nb_audios;
-    std::multimap<int64_t, SrsSharedPtrMessage *> msgs;
+    std::multimap<int64_t, SrsMediaPacket *> msgs;
 
 public:
     SrsMixQueue();
@@ -325,8 +325,8 @@ public:
 
 public:
     virtual void clear();
-    virtual void push(SrsSharedPtrMessage *msg);
-    virtual SrsSharedPtrMessage *pop();
+    virtual void push(SrsMediaPacket *msg);
+    virtual SrsMediaPacket *pop();
 };
 
 // The hub for origin is a collection of utilities for origin only,
@@ -381,11 +381,11 @@ public:
 
 public:
     // When got a parsed metadata.
-    virtual srs_error_t on_meta_data(SrsSharedPtrMessage *shared_metadata, SrsOnMetaDataPacket *packet);
+    virtual srs_error_t on_meta_data(SrsMediaPacket *shared_metadata, SrsOnMetaDataPacket *packet);
     // When got a parsed audio packet.
-    virtual srs_error_t on_audio(SrsSharedPtrMessage *shared_audio);
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio);
     // When got a parsed video packet.
-    virtual srs_error_t on_video(SrsSharedPtrMessage *shared_video, bool is_sequence_header);
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video, bool is_sequence_header);
 
 public:
     // When start publish stream.
@@ -413,13 +413,13 @@ class SrsMetaCache
 {
 private:
     // The cached metadata, FLV script data tag.
-    SrsSharedPtrMessage *meta;
+    SrsMediaPacket *meta;
     // The cached video sequence header, for example, sps/pps for h.264.
-    SrsSharedPtrMessage *video;
-    SrsSharedPtrMessage *previous_video;
+    SrsMediaPacket *video;
+    SrsMediaPacket *previous_video;
     // The cached audio sequence header, for example, asc for aac.
-    SrsSharedPtrMessage *audio;
-    SrsSharedPtrMessage *previous_audio;
+    SrsMediaPacket *audio;
+    SrsMediaPacket *previous_audio;
     // The format for sequence header.
     SrsRtmpFormat *vformat;
     SrsRtmpFormat *aformat;
@@ -436,12 +436,12 @@ public:
 
 public:
     // Get the cached metadata.
-    virtual SrsSharedPtrMessage *data();
+    virtual SrsMediaPacket *data();
     // Get the cached vsh(video sequence header).
-    virtual SrsSharedPtrMessage *vsh();
+    virtual SrsMediaPacket *vsh();
     virtual SrsFormat *vsh_format();
     // Get the cached ash(audio sequence header).
-    virtual SrsSharedPtrMessage *ash();
+    virtual SrsMediaPacket *ash();
     virtual SrsFormat *ash_format();
     // Dumps cached metadata to consumer.
     // @param dm Whether dumps the metadata.
@@ -450,8 +450,8 @@ public:
 
 public:
     // Previous exists sequence header.
-    virtual SrsSharedPtrMessage *previous_vsh();
-    virtual SrsSharedPtrMessage *previous_ash();
+    virtual SrsMediaPacket *previous_vsh();
+    virtual SrsMediaPacket *previous_ash();
     // Update previous sequence header, drop old one, set to new sequence header.
     virtual void update_previous_vsh();
     virtual void update_previous_ash();
@@ -460,9 +460,9 @@ public:
     // Update the cached metadata by packet.
     virtual srs_error_t update_data(SrsMessageHeader *header, SrsOnMetaDataPacket *metadata, bool &updated);
     // Update the cached audio sequence header.
-    virtual srs_error_t update_ash(SrsSharedPtrMessage *msg);
+    virtual srs_error_t update_ash(SrsMediaPacket *msg);
     // Update the cached video sequence header.
-    virtual srs_error_t update_vsh(SrsSharedPtrMessage *msg);
+    virtual srs_error_t update_vsh(SrsMediaPacket *msg);
 };
 
 // The source manager to create and refresh all stream sources.
@@ -592,25 +592,25 @@ public:
 
 public:
     virtual bool can_publish(bool is_edge);
-    virtual srs_error_t on_meta_data(SrsCommonMessage *msg, SrsOnMetaDataPacket *metadata);
+    virtual srs_error_t on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaDataPacket *metadata);
 
 public:
-    // TODO: FIXME: Use SrsSharedPtrMessage instead.
-    virtual srs_error_t on_audio(SrsCommonMessage *audio);
-    srs_error_t on_frame(SrsSharedPtrMessage *msg);
+    // TODO: FIXME: Use SrsMediaPacket instead.
+    virtual srs_error_t on_audio(SrsRtmpCommonMessage *audio);
+    srs_error_t on_frame(SrsMediaPacket *msg);
 
 private:
-    virtual srs_error_t on_audio_imp(SrsSharedPtrMessage *audio);
+    virtual srs_error_t on_audio_imp(SrsMediaPacket *audio);
 
 public:
-    // TODO: FIXME: Use SrsSharedPtrMessage instead.
-    virtual srs_error_t on_video(SrsCommonMessage *video);
+    // TODO: FIXME: Use SrsMediaPacket instead.
+    virtual srs_error_t on_video(SrsRtmpCommonMessage *video);
 
 private:
-    virtual srs_error_t on_video_imp(SrsSharedPtrMessage *video);
+    virtual srs_error_t on_video_imp(SrsMediaPacket *video);
 
 public:
-    virtual srs_error_t on_aggregate(SrsCommonMessage *msg);
+    virtual srs_error_t on_aggregate(SrsRtmpCommonMessage *msg);
     // Publish stream event notify.
     // @param _req the request from client, the source will deep copy it,
     //         for when reload the request of client maybe invalid.
@@ -635,7 +635,7 @@ public:
     // For edge, when publish edge stream, check the state
     virtual srs_error_t on_edge_start_publish();
     // For edge, proxy the publish
-    virtual srs_error_t on_edge_proxy_publish(SrsCommonMessage *msg);
+    virtual srs_error_t on_edge_proxy_publish(SrsRtmpCommonMessage *msg);
     // For edge, proxy stop publish
     virtual void on_edge_proxy_unpublish();
 

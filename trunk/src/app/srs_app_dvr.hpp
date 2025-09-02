@@ -17,7 +17,7 @@ class SrsOriginHub;
 class ISrsRequest;
 class SrsBuffer;
 class SrsRtmpJitter;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsFileWriter;
 class SrsFlvTransmuxer;
 class SrsDvrPlan;
@@ -65,13 +65,13 @@ public:
     // @remark Ignore when file is already open.
     virtual srs_error_t open();
     // Write the metadata.
-    virtual srs_error_t write_metadata(SrsSharedPtrMessage *metadata);
+    virtual srs_error_t write_metadata(SrsMediaPacket *metadata);
     // Write audio packet.
     // @param shared_audio, directly ptr, copy it if need to save it.
-    virtual srs_error_t write_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
+    virtual srs_error_t write_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
     // Write video packet.
     // @param shared_video, directly ptr, copy it if need to save it.
-    virtual srs_error_t write_video(SrsSharedPtrMessage *shared_video, SrsFormat *format);
+    virtual srs_error_t write_video(SrsMediaPacket *shared_video, SrsFormat *format);
     // Refresh the metadata. For example, there is duration in flv metadata,
     // when DVR in append mode, the duration must be update every some seconds.
     // @remark Maybe ignored by concreate segmenter.
@@ -82,16 +82,16 @@ public:
 
 protected:
     virtual srs_error_t open_encoder() = 0;
-    virtual srs_error_t encode_metadata(SrsSharedPtrMessage *metadata) = 0;
-    virtual srs_error_t encode_audio(SrsSharedPtrMessage *audio, SrsFormat *format) = 0;
-    virtual srs_error_t encode_video(SrsSharedPtrMessage *video, SrsFormat *format) = 0;
+    virtual srs_error_t encode_metadata(SrsMediaPacket *metadata) = 0;
+    virtual srs_error_t encode_audio(SrsMediaPacket *audio, SrsFormat *format) = 0;
+    virtual srs_error_t encode_video(SrsMediaPacket *video, SrsFormat *format) = 0;
     virtual srs_error_t close_encoder() = 0;
 
 private:
     // Generate the flv segment path.
     virtual std::string generate_path();
     // When update the duration of segment by rtmp msg.
-    virtual srs_error_t on_update_duration(SrsSharedPtrMessage *msg);
+    virtual srs_error_t on_update_duration(SrsMediaPacket *msg);
 };
 
 // The FLV segmenter to use FLV encoder to write file.
@@ -120,9 +120,9 @@ public:
 
 protected:
     virtual srs_error_t open_encoder();
-    virtual srs_error_t encode_metadata(SrsSharedPtrMessage *metadata);
-    virtual srs_error_t encode_audio(SrsSharedPtrMessage *audio, SrsFormat *format);
-    virtual srs_error_t encode_video(SrsSharedPtrMessage *video, SrsFormat *format);
+    virtual srs_error_t encode_metadata(SrsMediaPacket *metadata);
+    virtual srs_error_t encode_audio(SrsMediaPacket *audio, SrsFormat *format);
+    virtual srs_error_t encode_video(SrsMediaPacket *video, SrsFormat *format);
     virtual srs_error_t close_encoder();
 };
 
@@ -142,9 +142,9 @@ public:
 
 protected:
     virtual srs_error_t open_encoder();
-    virtual srs_error_t encode_metadata(SrsSharedPtrMessage *metadata);
-    virtual srs_error_t encode_audio(SrsSharedPtrMessage *audio, SrsFormat *format);
-    virtual srs_error_t encode_video(SrsSharedPtrMessage *video, SrsFormat *format);
+    virtual srs_error_t encode_metadata(SrsMediaPacket *metadata);
+    virtual srs_error_t encode_audio(SrsMediaPacket *audio, SrsFormat *format);
+    virtual srs_error_t encode_video(SrsMediaPacket *video, SrsFormat *format);
     virtual srs_error_t close_encoder();
 };
 
@@ -184,9 +184,9 @@ public:
     virtual srs_error_t initialize(SrsOriginHub *h, SrsDvrSegmenter *s, ISrsRequest *r);
     virtual srs_error_t on_publish(ISrsRequest *r);
     virtual void on_unpublish();
-    virtual srs_error_t on_meta_data(SrsSharedPtrMessage *shared_metadata);
-    virtual srs_error_t on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
-    virtual srs_error_t on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format);
+    virtual srs_error_t on_meta_data(SrsMediaPacket *shared_metadata);
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
     // Internal interface for segmenter.
 public:
     // When segmenter close a segment.
@@ -226,11 +226,11 @@ public:
     virtual srs_error_t initialize(SrsOriginHub *h, SrsDvrSegmenter *s, ISrsRequest *r);
     virtual srs_error_t on_publish(ISrsRequest *r);
     virtual void on_unpublish();
-    virtual srs_error_t on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
-    virtual srs_error_t on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format);
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
 
 private:
-    virtual srs_error_t update_duration(SrsSharedPtrMessage *msg);
+    virtual srs_error_t update_duration(SrsMediaPacket *msg);
 };
 
 // DVR(Digital Video Recorder) to record RTMP stream to flv/mp4 file.
@@ -264,13 +264,13 @@ public:
     // when encoder stop(unpublish) to publish RTMP stream.
     virtual void on_unpublish();
     // get some information from metadata, it's optinal.
-    virtual srs_error_t on_meta_data(SrsSharedPtrMessage *metadata);
+    virtual srs_error_t on_meta_data(SrsMediaPacket *metadata);
     // mux the audio packets to dvr.
     // @param shared_audio, directly ptr, copy it if need to save it.
-    virtual srs_error_t on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *foramt);
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *foramt);
     // mux the video packets to dvr.
     // @param shared_video, directly ptr, copy it if need to save it.
-    virtual srs_error_t on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format);
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
 };
 
 extern SrsAsyncCallWorker *_srs_dvr_async;

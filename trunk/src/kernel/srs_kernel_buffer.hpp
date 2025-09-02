@@ -195,4 +195,43 @@ public:
     srs_error_t read_bits_se(int32_t &v);
 };
 
+// Memory block for shared payload data.
+// This class encapsulates a memory buffer with size information,
+// designed to be used with SrsSharedPtr for efficient memory sharing.
+class SrsMemoryBlock
+{
+private:
+    // The current message parsed size,
+    //       size <= allocated buffer size
+    // For the payload maybe sent in multiple chunks.
+    int size_;
+    // The payload of message, the SrsMemoryBlock manages the memory lifecycle.
+    // @remark, not all message payload can be decoded to packet. for example,
+    //       video/audio packet use raw bytes, no video/audio packet.
+    char *payload_;
+
+public:
+    SrsMemoryBlock();
+    virtual ~SrsMemoryBlock();
+
+public:
+    char *payload() { return payload_; }
+    int size() { return size_; }
+
+public:
+    // Create memory block with specified size.
+    // @param size, the size of memory to allocate. Must be non-negative.
+    virtual void create(int size);
+    // Create memory block from existing buffer.
+    // @param data, the buffer to copy from.
+    // @param size, the size of buffer. Must be non-negative.
+    // @remark, this method will copy the data.
+    virtual void create(char *data, int size);
+    // Attach existing buffer to memory block.
+    // @param data, the buffer to attach, memory block takes ownership.
+    // @param size, the size of buffer. Must be non-negative.
+    // @remark, this method takes ownership of data, caller should not free it.
+    virtual void attach(char *data, int size);
+};
+
 #endif

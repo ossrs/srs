@@ -19,7 +19,7 @@
 #include <srs_kernel_mp4.hpp>
 
 class SrsFormat;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsAmf0Object;
 class SrsRtmpJitter;
 class SrsTsContextWriter;
@@ -117,7 +117,7 @@ public:
 public:
     virtual srs_error_t initialize(int64_t time, uint32_t v_tid, uint32_t a_tid, int sequence_number, std::string m4s_path);
     virtual void config_cipher(unsigned char *key, unsigned char *iv);
-    virtual srs_error_t write(SrsSharedPtrMessage *shared_msg, SrsFormat *format);
+    virtual srs_error_t write(SrsMediaPacket *shared_msg, SrsFormat *format);
     // Finalizes segment
     virtual srs_error_t reap(uint64_t dts);
 };
@@ -410,8 +410,8 @@ public:
 
 public:
     virtual srs_error_t write_init_mp4(SrsFormat *format, bool has_video, bool has_audio);
-    virtual srs_error_t write_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
-    virtual srs_error_t write_video(SrsSharedPtrMessage *shared_video, SrsFormat *format);
+    virtual srs_error_t write_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
+    virtual srs_error_t write_video(SrsMediaPacket *shared_video, SrsFormat *format);
 
 public:
     virtual srs_error_t on_unpublish();
@@ -459,11 +459,11 @@ public:
     virtual srs_error_t on_unpublish() = 0;
 
 public:
-    virtual srs_error_t write_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format) = 0;
-    virtual srs_error_t write_video(SrsSharedPtrMessage *shared_video, SrsFormat *format) = 0;
+    virtual srs_error_t write_audio(SrsMediaPacket *shared_audio, SrsFormat *format) = 0;
+    virtual srs_error_t write_video(SrsMediaPacket *shared_video, SrsFormat *format) = 0;
 
 public:
-    virtual srs_error_t on_sequence_header(SrsSharedPtrMessage *msg, SrsFormat *format) = 0;
+    virtual srs_error_t on_sequence_header(SrsMediaPacket *msg, SrsFormat *format) = 0;
     virtual int sequence_no() = 0;
     // TODO: maybe rename to segment_url?
     virtual std::string ts_url() = 0;
@@ -524,11 +524,11 @@ public:
     // must write a #EXT-X-DISCONTINUITY to m3u8.
     // @see: hls-m3u8-draft-pantos-http-live-streaming-12.txt
     // @see: 3.4.11.  EXT-X-DISCONTINUITY
-    virtual srs_error_t on_sequence_header(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
+    virtual srs_error_t on_sequence_header(SrsMediaPacket *shared_audio, SrsFormat *format);
     // write audio to cache, if need to flush, flush to muxer.
-    virtual srs_error_t write_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
+    virtual srs_error_t write_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
     // write video to muxer.
-    virtual srs_error_t write_video(SrsSharedPtrMessage *shared_video, SrsFormat *format);
+    virtual srs_error_t write_video(SrsMediaPacket *shared_video, SrsFormat *format);
 
 private:
     // Reopen the muxer for a new hls segment,
@@ -572,11 +572,11 @@ public:
     // When publish or unpublish stream.
     virtual srs_error_t on_publish(ISrsRequest *req);
     virtual srs_error_t on_unpublish();
-    virtual srs_error_t write_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
-    virtual srs_error_t write_video(SrsSharedPtrMessage *shared_video, SrsFormat *format);
+    virtual srs_error_t write_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
+    virtual srs_error_t write_video(SrsMediaPacket *shared_video, SrsFormat *format);
 
 public:
-    virtual srs_error_t on_sequence_header(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
+    virtual srs_error_t on_sequence_header(SrsMediaPacket *shared_audio, SrsFormat *format);
     virtual int sequence_no();
     virtual std::string ts_url();
     virtual srs_utime_t duration();
@@ -637,12 +637,12 @@ public:
     virtual void on_unpublish();
     // Mux the audio packets to ts.
     // @param shared_audio, directly ptr, copy it if need to save it.
-    virtual srs_error_t on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
     // Mux the video packets to ts.
     // @param shared_video, directly ptr, copy it if need to save it.
     // @param is_sps_pps whether the video is h.264 sps/pps.
     // TODO: FIXME: Remove param is_sps_pps.
-    virtual srs_error_t on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format);
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
 
 private:
     virtual void hls_show_mux_log();

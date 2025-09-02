@@ -279,10 +279,14 @@ srs_error_t SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader *rr, SrsFlvDecod
             return srs_error_wrap(err, "read tag data");
         }
 
-        SrsSharedPtrMessage *msg = NULL;
-        if ((err = srs_rtmp_create_msg(type, time, data, size, sdk->sid(), &msg)) != srs_success) {
+        SrsRtmpCommonMessage *cmsg = NULL;
+        if ((err = srs_rtmp_create_msg(type, time, data, size, sdk->sid(), &cmsg)) != srs_success) {
             return srs_error_wrap(err, "create message");
         }
+
+        SrsMediaPacket *msg = new SrsMediaPacket();
+        cmsg->to_msg(msg);
+        srs_freep(cmsg);
 
         // TODO: FIXME: for post flv, reconnect when error.
         if ((err = sdk->send_and_free_message(msg)) != srs_success) {

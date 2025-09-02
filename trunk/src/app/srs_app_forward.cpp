@@ -98,11 +98,11 @@ void SrsForwarder::on_unpublish()
         sdk->close();
 }
 
-srs_error_t SrsForwarder::on_meta_data(SrsSharedPtrMessage *shared_metadata)
+srs_error_t SrsForwarder::on_meta_data(SrsMediaPacket *shared_metadata)
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage *metadata = shared_metadata->copy();
+    SrsMediaPacket *metadata = shared_metadata->copy();
 
     // TODO: FIXME: config the jitter of Forwarder.
     if ((err = jitter->correct(metadata, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
@@ -116,18 +116,18 @@ srs_error_t SrsForwarder::on_meta_data(SrsSharedPtrMessage *shared_metadata)
     return err;
 }
 
-srs_error_t SrsForwarder::on_audio(SrsSharedPtrMessage *shared_audio)
+srs_error_t SrsForwarder::on_audio(SrsMediaPacket *shared_audio)
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage *msg = shared_audio->copy();
+    SrsMediaPacket *msg = shared_audio->copy();
 
     // TODO: FIXME: config the jitter of Forwarder.
     if ((err = jitter->correct(msg, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
         return srs_error_wrap(err, "jitter");
     }
 
-    if (SrsFlvAudio::sh(msg->payload, msg->size)) {
+    if (SrsFlvAudio::sh(msg->payload(), msg->size())) {
         srs_freep(sh_audio);
         sh_audio = msg->copy();
     }
@@ -139,18 +139,18 @@ srs_error_t SrsForwarder::on_audio(SrsSharedPtrMessage *shared_audio)
     return err;
 }
 
-srs_error_t SrsForwarder::on_video(SrsSharedPtrMessage *shared_video)
+srs_error_t SrsForwarder::on_video(SrsMediaPacket *shared_video)
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage *msg = shared_video->copy();
+    SrsMediaPacket *msg = shared_video->copy();
 
     // TODO: FIXME: config the jitter of Forwarder.
     if ((err = jitter->correct(msg, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
         return srs_error_wrap(err, "jitter");
     }
 
-    if (SrsFlvVideo::sh(msg->payload, msg->size)) {
+    if (SrsFlvVideo::sh(msg->payload(), msg->size())) {
         srs_freep(sh_video);
         sh_video = msg->copy();
     }
@@ -274,7 +274,7 @@ srs_error_t SrsForwarder::forward()
 
         // read from client.
         if (true) {
-            SrsCommonMessage *msg = NULL;
+            SrsRtmpCommonMessage *msg = NULL;
             err = sdk->recv_message(&msg);
 
             if (err != srs_success && srs_error_code(err) != ERROR_SOCKET_TIMEOUT) {

@@ -188,7 +188,7 @@ srs_error_t SrsBufferCache::cycle()
 
         // free the messages.
         for (int i = 0; i < count; i++) {
-            SrsSharedPtrMessage *msg = msgs.msgs[i];
+            SrsMediaPacket *msg = msgs.msgs[i];
             queue->enqueue(msg);
         }
     }
@@ -369,7 +369,7 @@ srs_error_t SrsFlvStreamEncoder::dump_cache(SrsLiveConsumer * /*consumer*/, SrsR
     return srs_success;
 }
 
-srs_error_t SrsFlvStreamEncoder::write_tags(SrsSharedPtrMessage **msgs, int count)
+srs_error_t SrsFlvStreamEncoder::write_tags(SrsMediaPacket **msgs, int count)
 {
     srs_error_t err = srs_success;
 
@@ -390,13 +390,13 @@ srs_error_t SrsFlvStreamEncoder::write_tags(SrsSharedPtrMessage **msgs, int coun
 
             // Note that we must iterate all messages to count the audio and video frames.
             for (int i = 0; i < count; i++) {
-                SrsSharedPtrMessage *msg = msgs[i];
+                SrsMediaPacket *msg = msgs[i];
                 if (msg->is_video()) {
-                    if (!SrsFlvVideo::sh(msg->payload, msg->size))
+                    if (!SrsFlvVideo::sh(msg->payload(), msg->size()))
                         nn_video_frames++;
                     has_video = true;
                 } else if (msg->is_audio()) {
-                    if (!SrsFlvAudio::sh(msg->payload, msg->size))
+                    if (!SrsFlvAudio::sh(msg->payload(), msg->size()))
                         nn_audio_frames++;
                     has_audio = true;
                 }
@@ -862,7 +862,7 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, SrsLiveConsumer 
 
         // free the messages.
         for (int i = 0; i < count; i++) {
-            SrsSharedPtrMessage *msg = msgs.msgs[i];
+            SrsMediaPacket *msg = msgs.msgs[i];
             srs_freep(msg);
         }
 
@@ -948,21 +948,21 @@ void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage *r)
     return;
 }
 
-srs_error_t SrsLiveStream::streaming_send_messages(ISrsBufferEncoder *enc, SrsSharedPtrMessage **msgs, int nb_msgs)
+srs_error_t SrsLiveStream::streaming_send_messages(ISrsBufferEncoder *enc, SrsMediaPacket **msgs, int nb_msgs)
 {
     srs_error_t err = srs_success;
 
     // TODO: In gop cache, we know both the audio and video codec, so we should notice the encoder, which might depends
     // on setting the correct codec information, for example, HTTP-TS or HLS will write PMT.
     for (int i = 0; i < nb_msgs; i++) {
-        SrsSharedPtrMessage *msg = msgs[i];
+        SrsMediaPacket *msg = msgs[i];
 
         if (msg->is_audio()) {
-            err = enc->write_audio(msg->timestamp, msg->payload, msg->size);
+            err = enc->write_audio(msg->timestamp, msg->payload(), msg->size());
         } else if (msg->is_video()) {
-            err = enc->write_video(msg->timestamp, msg->payload, msg->size);
+            err = enc->write_video(msg->timestamp, msg->payload(), msg->size());
         } else {
-            err = enc->write_metadata(msg->timestamp, msg->payload, msg->size);
+            err = enc->write_metadata(msg->timestamp, msg->payload(), msg->size());
         }
 
         if (err != srs_success) {
@@ -1020,13 +1020,13 @@ SrsHttpStreamServer::SrsHttpStreamServer(SrsServer *svr)
     server = svr;
     async_ = new SrsAsyncCallWorker();
 
-    mux.hijack(this);
+    mux.add_dynamic_matcher(this);
     _srs_config->subscribe(this);
 }
 
 SrsHttpStreamServer::~SrsHttpStreamServer()
 {
-    mux.unhijack(this);
+    mux.remove_dynamic_matcher(this);
     _srs_config->unsubscribe(this);
 
     async_->stop();
@@ -1168,7 +1168,7 @@ void SrsHttpStreamServer::http_unmount(ISrsRequest *r)
     }
 }
 
-srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage *request, ISrsHttpHandler **ph)
+srs_error_t SrsHttpStreamServer::dynamic_match(ISrsHttpMessage *request, ISrsHttpHandler **ph)
 {
     srs_error_t err = srs_success;
 
@@ -1178,7 +1178,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage *request, ISrsHttpHandle
         return err;
     }
 
-    // only hijack for http streaming, http-flv/ts/mp3/aac.
+    // only match for http streaming, http-flv/ts/mp3/aac.
     std::string ext = request->ext();
     if (ext.empty()) {
         return err;
@@ -1203,7 +1203,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage *request, ISrsHttpHandle
         // for origin, the http stream will be mount already when publish,
         //      so it must never enter this line for stream already mounted.
         // for edge, the http stream is trigger by hstrs and mount by it,
-        //      so we only hijack when only edge and hstrs is on.
+        //      so we only match when only edge and hstrs is on.
         entry = it->second;
 
         // check entry and request extension.
@@ -1244,7 +1244,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage *request, ISrsHttpHandle
     SrsHttpMessage *hreq = dynamic_cast<SrsHttpMessage *>(request);
     srs_assert(hreq);
 
-    // hijack for entry.
+    // match for entry.
     SrsUniquePtr<ISrsRequest> r(hreq->to_request(vhost->arg0()));
 
     std::string sid = r->get_stream_url();
@@ -1254,10 +1254,10 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage *request, ISrsHttpHandle
         SrsLiveEntry *s_entry = streamHandlers[sid];
         if (!s_entry->stream->entry->enabled) {
             // only when the http entry is disabled, check the config whether http flv disable,
-            // for the http flv edge use hijack to trigger the edge ingester, we always mount it
+            // for the http flv edge use match to trigger the edge ingester, we always mount it
             // eventhough the origin does not exists the specified stream.
             if (!_srs_config->get_vhost_http_remux_enabled(r->vhost)) {
-                return srs_error_new(ERROR_HTTP_HIJACK, "stream disabled");
+                return srs_error_new(ERROR_HTTP_DYNAMIC_MATCH, "stream disabled");
             }
         }
     }
@@ -1273,7 +1273,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage *request, ISrsHttpHandle
         *ph = entry->stream;
     }
 
-    srs_trace("flv: hijack %s ok", upath.c_str());
+    srs_trace("flv: dynamic match %s ok", upath.c_str());
 
     return err;
 }

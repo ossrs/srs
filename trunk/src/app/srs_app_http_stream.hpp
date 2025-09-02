@@ -105,7 +105,7 @@ public:
 
 public:
     // Write the tags in a time.
-    virtual srs_error_t write_tags(SrsSharedPtrMessage **msgs, int count);
+    virtual srs_error_t write_tags(SrsMediaPacket **msgs, int count);
 
 private:
     virtual srs_error_t write_header(bool has_video, bool has_audio);
@@ -239,7 +239,7 @@ private:
     virtual srs_error_t do_serve_http(SrsLiveSource *source, SrsLiveConsumer *consumer, ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
     virtual srs_error_t http_hooks_on_play(ISrsHttpMessage *r);
     virtual void http_hooks_on_stop(ISrsHttpMessage *r);
-    virtual srs_error_t streaming_send_messages(ISrsBufferEncoder *enc, SrsSharedPtrMessage **msgs, int nb_msgs);
+    virtual srs_error_t streaming_send_messages(ISrsBufferEncoder *enc, SrsMediaPacket **msgs, int nb_msgs);
 };
 
 // The Live Entry, to handle HTTP Live Streaming.
@@ -276,7 +276,7 @@ public:
 
 // The HTTP Live Streaming Server, to serve FLV/TS/MP3/AAC stream.
 // TODO: Support multiple stream.
-class SrsHttpStreamServer : public ISrsReloadHandler, public ISrsHttpMatchHijacker
+class SrsHttpStreamServer : public ISrsReloadHandler, public ISrsHttpDynamicMatcher
 {
 private:
     SrsServer *server;
@@ -300,9 +300,10 @@ public:
     // HTTP flv/ts/mp3/aac stream
     virtual srs_error_t http_mount(ISrsRequest *r);
     virtual void http_unmount(ISrsRequest *r);
-    // Interface ISrsHttpMatchHijacker
+
+    // Interface ISrsHttpDynamicMatcher
 public:
-    virtual srs_error_t hijack(ISrsHttpMessage *request, ISrsHttpHandler **ph);
+    virtual srs_error_t dynamic_match(ISrsHttpMessage *request, ISrsHttpHandler **ph);
 
 private:
     virtual srs_error_t initialize_flv_streaming();

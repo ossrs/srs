@@ -54,25 +54,25 @@ public:
     virtual ~MockSrsFormat() {}
 };
 
-class MockSrsSharedPtrMessage : public SrsSharedPtrMessage
+class MockSrsMediaPacket : public SrsMediaPacket
 {
 public:
-    MockSrsSharedPtrMessage(bool is_video_msg, uint32_t ts)
+    MockSrsMediaPacket(bool is_video_msg, uint32_t ts)
     {
         timestamp = ts;
 
         // Create sample payload
         char *payload = new char[1024];
         memset(payload, 0x00, 1024);
-        SrsSharedPtrMessage::wrap(payload, 1024);
+        SrsMediaPacket::wrap(payload, 1024);
 
         if (is_video_msg) {
-            ptr->header.message_type = RTMP_MSG_VideoMessage;
+            message_type = SrsFrameTypeVideo;
         } else {
-            ptr->header.message_type = RTMP_MSG_AudioMessage;
+            message_type = SrsFrameTypeAudio;
         }
     }
-    virtual ~MockSrsSharedPtrMessage() {}
+    virtual ~MockSrsMediaPacket() {}
 };
 
 VOID TEST(Fmp4Test, SrsInitMp4Segment_VideoOnly)
@@ -165,11 +165,11 @@ VOID TEST(Fmp4Test, SrsHlsM4sSegment_Basic)
 
     // Write video sample
     MockSrsFormat fmt;
-    MockSrsSharedPtrMessage video_msg(true, 1000);
+    MockSrsMediaPacket video_msg(true, 1000);
     HELPER_ASSERT_SUCCESS(segment.write(&video_msg, &fmt));
 
     // Write audio sample
-    MockSrsSharedPtrMessage audio_msg(false, 2000); // Different timestamp
+    MockSrsMediaPacket audio_msg(false, 2000); // Different timestamp
     HELPER_ASSERT_SUCCESS(segment.write(&audio_msg, &fmt));
 
     // Test duration - should be > 0 after writing samples with different timestamps
@@ -199,10 +199,10 @@ VOID TEST(Fmp4Test, SrsHlsM4sSegment_WithEncryption)
 
     // Write samples with different timestamps to create duration
     MockSrsFormat fmt;
-    MockSrsSharedPtrMessage video_msg1(true, 1000);
+    MockSrsMediaPacket video_msg1(true, 1000);
     HELPER_ASSERT_SUCCESS(segment.write(&video_msg1, &fmt));
 
-    MockSrsSharedPtrMessage video_msg2(true, 2000);
+    MockSrsMediaPacket video_msg2(true, 2000);
     HELPER_ASSERT_SUCCESS(segment.write(&video_msg2, &fmt));
 
     // Test that segment has content
@@ -330,19 +330,19 @@ VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_WriteMedia)
     HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
 
     // Write video samples
-    MockSrsSharedPtrMessage video_msg(true, 1000);
+    MockSrsMediaPacket video_msg(true, 1000);
     HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
 
     // Write audio samples
-    MockSrsSharedPtrMessage audio_msg(false, 1000);
+    MockSrsMediaPacket audio_msg(false, 1000);
     HELPER_ASSERT_SUCCESS(muxer.write_audio(&audio_msg, &fmt));
 
     // Write more samples with time progression to accumulate duration
     for (int i = 1; i <= 5; i++) {
-        MockSrsSharedPtrMessage video_msg2(true, 1000 + i * 1000); // 1 second increments
+        MockSrsMediaPacket video_msg2(true, 1000 + i * 1000); // 1 second increments
         HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg2, &fmt));
 
-        MockSrsSharedPtrMessage audio_msg2(false, 1000 + i * 1000);
+        MockSrsMediaPacket audio_msg2(false, 1000 + i * 1000);
         HELPER_ASSERT_SUCCESS(muxer.write_audio(&audio_msg2, &fmt));
     }
 
@@ -385,17 +385,17 @@ VOID TEST(Fmp4Test, SrsHlsMp4Controller_PublishWorkflow)
 
     // Handle sequence headers
     MockSrsFormat fmt;
-    MockSrsSharedPtrMessage video_sh(true, 0);
+    MockSrsMediaPacket video_sh(true, 0);
     HELPER_ASSERT_SUCCESS(controller.on_sequence_header(&video_sh, &fmt));
 
-    MockSrsSharedPtrMessage audio_sh(false, 0);
+    MockSrsMediaPacket audio_sh(false, 0);
     HELPER_ASSERT_SUCCESS(controller.on_sequence_header(&audio_sh, &fmt));
 
     // Write media samples
-    MockSrsSharedPtrMessage video_msg(true, 1000);
+    MockSrsMediaPacket video_msg(true, 1000);
     HELPER_ASSERT_SUCCESS(controller.write_video(&video_msg, &fmt));
 
-    MockSrsSharedPtrMessage audio_msg(false, 1000);
+    MockSrsMediaPacket audio_msg(false, 1000);
     HELPER_ASSERT_SUCCESS(controller.write_audio(&audio_msg, &fmt));
 
     // Unpublish
@@ -601,13 +601,13 @@ VOID TEST(Fmp4Test, Integration_FullEncryptionWorkflow)
     m4s_segment.config_cipher(seg_key, seg_iv);
 
     // Write samples to encrypted segment with time progression
-    MockSrsSharedPtrMessage video_msg1(true, 2000);
+    MockSrsMediaPacket video_msg1(true, 2000);
     HELPER_ASSERT_SUCCESS(m4s_segment.write(&video_msg1, &fmt));
 
-    MockSrsSharedPtrMessage audio_msg1(false, 2500);
+    MockSrsMediaPacket audio_msg1(false, 2500);
     HELPER_ASSERT_SUCCESS(m4s_segment.write(&audio_msg1, &fmt));
 
-    MockSrsSharedPtrMessage video_msg2(true, 3000);
+    MockSrsMediaPacket video_msg2(true, 3000);
     HELPER_ASSERT_SUCCESS(m4s_segment.write(&video_msg2, &fmt));
 
     // Should have duration from timestamp progression
@@ -720,11 +720,11 @@ VOID TEST(Fmp4Test, Configuration_TrackIdManagement)
     HELPER_ASSERT_SUCCESS(controller.on_publish(&req));
 
     MockSrsFormat fmt;
-    MockSrsSharedPtrMessage video_sh(true, 0);
+    MockSrsMediaPacket video_sh(true, 0);
     HELPER_ASSERT_SUCCESS(controller.on_sequence_header(&video_sh, &fmt));
     EXPECT_TRUE(controller.has_video_sh_);
 
-    MockSrsSharedPtrMessage audio_sh(false, 0);
+    MockSrsMediaPacket audio_sh(false, 0);
     HELPER_ASSERT_SUCCESS(controller.on_sequence_header(&audio_sh, &fmt));
     EXPECT_TRUE(controller.has_audio_sh_);
 
@@ -740,7 +740,7 @@ VOID TEST(Fmp4Test, Configuration_SequenceHeaderValidation)
 
     // Test sequence header without request (should fail)
     MockSrsFormat fmt;
-    MockSrsSharedPtrMessage video_sh(true, 0);
+    MockSrsMediaPacket video_sh(true, 0);
     HELPER_EXPECT_FAILED(controller.on_sequence_header(&video_sh, &fmt));
 
     // Set request and try again
@@ -765,14 +765,14 @@ VOID TEST(Fmp4Test, CodecDetection_AudioCodecUpdate)
     MockSrsFormat fmt;
     fmt.acodec = new SrsAudioCodecConfig();
     fmt.acodec->id = SrsAudioCodecIdAAC;
-    fmt.audio = new SrsAudioFrame();
+    fmt.audio = new SrsParsedAudioPacket();
     fmt.audio->codec = fmt.acodec;
 
     // Initial codec should be forbidden (not set)
     EXPECT_EQ(SrsAudioCodecIdForbidden, controller.muxer_->latest_acodec());
 
     // Write audio frame - should detect and update codec
-    MockSrsSharedPtrMessage audio_msg(false, 1000);
+    MockSrsMediaPacket audio_msg(false, 1000);
     HELPER_ASSERT_SUCCESS(controller.write_audio(&audio_msg, &fmt));
 
     // Codec should now be detected as AAC
@@ -804,14 +804,14 @@ VOID TEST(Fmp4Test, CodecDetection_VideoCodecUpdate)
     MockSrsFormat fmt;
     fmt.vcodec = new SrsVideoCodecConfig();
     fmt.vcodec->id = SrsVideoCodecIdAVC;
-    fmt.video = new SrsVideoFrame();
+    fmt.video = new SrsParsedVideoPacket();
     fmt.video->codec = fmt.vcodec;
 
     // Initial codec should be forbidden (not set)
     EXPECT_EQ(SrsVideoCodecIdForbidden, controller.muxer_->latest_vcodec());
 
     // Write video frame - should detect and update codec
-    MockSrsSharedPtrMessage video_msg(true, 1000);
+    MockSrsMediaPacket video_msg(true, 1000);
     HELPER_ASSERT_SUCCESS(controller.write_video(&video_msg, &fmt));
 
     // Codec should now be detected as H.264
@@ -847,11 +847,11 @@ VOID TEST(Fmp4Test, Performance_MultipleSegments)
 
     // Write many samples to create multiple segments
     for (int i = 0; i < 500; i++) {
-        MockSrsSharedPtrMessage video_msg(true, i * 40);
+        MockSrsMediaPacket video_msg(true, i * 40);
         HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
 
         if (i % 2 == 0) { // Write audio less frequently
-            MockSrsSharedPtrMessage audio_msg(false, i * 40);
+            MockSrsMediaPacket audio_msg(false, i * 40);
             HELPER_ASSERT_SUCCESS(muxer.write_audio(&audio_msg, &fmt));
         }
     }
@@ -876,13 +876,13 @@ VOID TEST(Fmp4Test, Compatibility_SequenceHeaderIgnore)
     MockSrsFormat fmt;
 
     // Create audio sequence header message
-    MockSrsSharedPtrMessage audio_sh(false, 0);
+    MockSrsMediaPacket audio_sh(false, 0);
 
     // Should ignore sequence headers in write_audio
     HELPER_ASSERT_SUCCESS(controller.write_audio(&audio_sh, &fmt));
 
     // Regular audio message should be processed
-    MockSrsSharedPtrMessage audio_msg(false, 1000);
+    MockSrsMediaPacket audio_msg(false, 1000);
     HELPER_ASSERT_SUCCESS(controller.write_audio(&audio_msg, &fmt));
 
     controller.dispose();

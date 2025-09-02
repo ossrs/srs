@@ -523,3 +523,57 @@ srs_error_t SrsBitBuffer::read_bits_se(int32_t &v)
 
     return err;
 }
+
+SrsMemoryBlock::SrsMemoryBlock()
+{
+    payload_ = NULL;
+    size_ = 0;
+}
+
+SrsMemoryBlock::~SrsMemoryBlock()
+{
+    srs_freepa(payload_);
+}
+
+void SrsMemoryBlock::create(int size)
+{
+    srs_assert(size >= 0);
+
+    // Free existing payload
+    srs_freepa(payload_);
+
+    // Allocate new buffer
+    if (size > 0) {
+        payload_ = new char[size];
+        memset(payload_, 0, size);
+        size_ = size;
+    } else {
+        payload_ = NULL;
+        size_ = 0;
+    }
+}
+
+void SrsMemoryBlock::create(char *data, int size)
+{
+    srs_assert(size >= 0);
+
+    create(size);
+
+    // Copy data if provided
+    if (data && size > 0) {
+        memcpy(payload_, data, size);
+        size_ = size;
+    }
+}
+
+void SrsMemoryBlock::attach(char *data, int size)
+{
+    srs_assert(size >= 0);
+
+    // Free existing payload
+    srs_freepa(payload_);
+
+    // Attach new buffer
+    payload_ = data;
+    size_ = size;
+}

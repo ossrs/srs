@@ -112,7 +112,7 @@ srs_error_t SrsFragmentedMp4::initialize(ISrsRequest *r, bool video, int64_t tim
     return err;
 }
 
-srs_error_t SrsFragmentedMp4::write(SrsSharedPtrMessage *shared_msg, SrsFormat *format)
+srs_error_t SrsFragmentedMp4::write(SrsMediaPacket *shared_msg, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -480,7 +480,7 @@ void SrsDashController::on_unpublish()
     }
 }
 
-srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
+srs_error_t SrsDashController::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -552,7 +552,7 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage *shared_audio, SrsFo
     return err;
 }
 
-srs_error_t SrsDashController::on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format)
+srs_error_t SrsDashController::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -641,11 +641,11 @@ srs_error_t SrsDashController::refresh_mpd(SrsFormat *format)
     return err;
 }
 
-srs_error_t SrsDashController::refresh_init_mp4(SrsSharedPtrMessage *msg, SrsFormat *format)
+srs_error_t SrsDashController::refresh_init_mp4(SrsMediaPacket *msg, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
-    if (msg->size <= 0 || (msg->is_video() && !format->vcodec->is_avc_codec_ok()) || (msg->is_audio() && !format->acodec->is_aac_codec_ok())) {
+    if (msg->size() <= 0 || (msg->is_video() && !format->vcodec->is_avc_codec_ok()) || (msg->is_audio() && !format->acodec->is_aac_codec_ok())) {
         srs_warn("DASH: Ignore empty sequence header.");
         return err;
     }
@@ -796,7 +796,7 @@ srs_error_t SrsDash::on_publish()
     return err;
 }
 
-srs_error_t SrsDash::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
+srs_error_t SrsDash::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -818,7 +818,7 @@ srs_error_t SrsDash::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *form
     return err;
 }
 
-srs_error_t SrsDash::on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format)
+srs_error_t SrsDash::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 

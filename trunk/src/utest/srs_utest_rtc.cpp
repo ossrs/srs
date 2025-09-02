@@ -2344,21 +2344,21 @@ VOID TEST(KernelRTCTest, H265RtpSTAPPayload)
         SrsRtpSTAPPayloadHevc stap;
 
         // Create sample VPS NALU
-        SrsSample *vps = new SrsSample();
+        SrsNaluSample *vps = new SrsNaluSample();
         uint8_t vps_data[] = {0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3d, 0x95, 0x98, 0x09};
         vps->bytes = (char *)vps_data;
         vps->size = sizeof(vps_data);
         stap.nalus.push_back(vps);
 
         // Create sample SPS NALU
-        SrsSample *sps = new SrsSample();
+        SrsNaluSample *sps = new SrsNaluSample();
         uint8_t sps_data[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3d, 0xa0, 0x02, 0x80, 0x80, 0x2d, 0x16, 0x59, 0x59, 0xa4, 0x93, 0x2b, 0xc0, 0x5a, 0x70, 0x80, 0x80, 0x80, 0x82};
         sps->bytes = (char *)sps_data;
         sps->size = sizeof(sps_data);
         stap.nalus.push_back(sps);
 
         // Create sample PPS NALU
-        SrsSample *pps = new SrsSample();
+        SrsNaluSample *pps = new SrsNaluSample();
         uint8_t pps_data[] = {0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40};
         pps->bytes = (char *)pps_data;
         pps->size = sizeof(pps_data);
@@ -2383,17 +2383,17 @@ VOID TEST(KernelRTCTest, H265RtpSTAPPayload)
         EXPECT_EQ(3, (int)decode_stap.nalus.size());
 
         // Check VPS
-        SrsSample *decoded_vps = decode_stap.get_vps();
+        SrsNaluSample *decoded_vps = decode_stap.get_vps();
         EXPECT_TRUE(decoded_vps != NULL);
         EXPECT_EQ(sizeof(vps_data), (size_t)decoded_vps->size);
 
         // Check SPS
-        SrsSample *decoded_sps = decode_stap.get_sps();
+        SrsNaluSample *decoded_sps = decode_stap.get_sps();
         EXPECT_TRUE(decoded_sps != NULL);
         EXPECT_EQ(sizeof(sps_data), (size_t)decoded_sps->size);
 
         // Check PPS
-        SrsSample *decoded_pps = decode_stap.get_pps();
+        SrsNaluSample *decoded_pps = decode_stap.get_pps();
         EXPECT_TRUE(decoded_pps != NULL);
         EXPECT_EQ(sizeof(pps_data), (size_t)decoded_pps->size);
 
@@ -2443,7 +2443,7 @@ VOID TEST(KernelRTCTest, H265RtpFUAPayload)
         fua.nalu_type = SrsHevcNaluType_CODED_SLICE_IDR;
 
         // Create sample payload data
-        SrsSample *sample = new SrsSample();
+        SrsNaluSample *sample = new SrsNaluSample();
         uint8_t payload_data[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
         sample->bytes = (char *)payload_data;
         sample->size = sizeof(payload_data);
@@ -2576,7 +2576,7 @@ VOID TEST(KernelRTCTest, H265RtpPacketKeyframe)
         pkt.set_payload(stap_payload, SrsRtpPacketPayloadTypeSTAPHevc);
 
         // Create VPS NALU
-        SrsSample *vps = new SrsSample();
+        SrsNaluSample *vps = new SrsNaluSample();
         uint8_t vps_data[] = {0x40, 0x01}; // VPS NALU header
         vps->bytes = (char *)vps_data;
         vps->size = sizeof(vps_data);
@@ -2624,7 +2624,7 @@ VOID TEST(KernelRTCTest, H265RtpRawNALUsSkipBytes)
         SrsRtpRawNALUs raw_nalus;
 
         // Create sample HEVC NALU
-        SrsSample *sample = new SrsSample();
+        SrsNaluSample *sample = new SrsNaluSample();
         uint8_t nalu_data[] = {0x26, 0x01, 0x12, 0x34, 0x56, 0x78}; // IDR slice
         sample->bytes = (char *)nalu_data;
         sample->size = sizeof(nalu_data);
@@ -2635,7 +2635,7 @@ VOID TEST(KernelRTCTest, H265RtpRawNALUsSkipBytes)
         EXPECT_EQ(0x26, header); // Should return first byte
 
         // Verify remaining data
-        std::vector<SrsSample *> samples;
+        std::vector<SrsNaluSample *> samples;
         HELPER_EXPECT_SUCCESS(raw_nalus.read_samples(samples, 4));
         EXPECT_EQ(1, (int)samples.size());
         EXPECT_EQ(4, samples[0]->size);
@@ -2655,7 +2655,7 @@ VOID TEST(KernelRTCTest, H265RtpRawNALUsSkipBytes)
         SrsRtpRawNALUs raw_nalus;
 
         // Create sample H.264 NALU
-        SrsSample *sample = new SrsSample();
+        SrsNaluSample *sample = new SrsNaluSample();
         uint8_t nalu_data[] = {0x65, 0x12, 0x34, 0x56}; // IDR slice
         sample->bytes = (char *)nalu_data;
         sample->size = sizeof(nalu_data);
@@ -2666,7 +2666,7 @@ VOID TEST(KernelRTCTest, H265RtpRawNALUsSkipBytes)
         EXPECT_EQ(0x65, header); // Should return first byte
 
         // Verify remaining data
-        std::vector<SrsSample *> samples;
+        std::vector<SrsNaluSample *> samples;
         HELPER_EXPECT_SUCCESS(raw_nalus.read_samples(samples, 3));
         EXPECT_EQ(1, (int)samples.size());
         EXPECT_EQ(3, samples[0]->size);

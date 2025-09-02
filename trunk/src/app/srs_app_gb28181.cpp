@@ -1547,15 +1547,15 @@ SrsMpegpsQueue::SrsMpegpsQueue()
 
 SrsMpegpsQueue::~SrsMpegpsQueue()
 {
-    std::map<int64_t, SrsSharedPtrMessage *>::iterator it;
+    std::map<int64_t, SrsMediaPacket *>::iterator it;
     for (it = msgs.begin(); it != msgs.end(); ++it) {
-        SrsSharedPtrMessage *msg = it->second;
+        SrsMediaPacket *msg = it->second;
         srs_freep(msg);
     }
     msgs.clear();
 }
 
-srs_error_t SrsMpegpsQueue::push(SrsSharedPtrMessage *msg)
+srs_error_t SrsMpegpsQueue::push(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
@@ -1588,7 +1588,7 @@ srs_error_t SrsMpegpsQueue::push(SrsSharedPtrMessage *msg)
     return err;
 }
 
-SrsSharedPtrMessage *SrsMpegpsQueue::dequeue()
+SrsMediaPacket *SrsMpegpsQueue::dequeue()
 {
     // got 2+ videos and audios, ok to dequeue.
     bool av_ok = nb_videos >= 2 && nb_audios >= 2;
@@ -1596,8 +1596,8 @@ SrsSharedPtrMessage *SrsMpegpsQueue::dequeue()
     bool av_overflow = nb_videos > 100 || nb_audios > 300;
 
     if (av_ok || av_overflow) {
-        std::map<int64_t, SrsSharedPtrMessage *>::iterator it = msgs.begin();
-        SrsSharedPtrMessage *msg = it->second;
+        std::map<int64_t, SrsMediaPacket *>::iterator it = msgs.begin();
+        SrsMediaPacket *msg = it->second;
         msgs.erase(it);
 
         if (msg->is_audio()) {
@@ -2107,12 +2107,14 @@ srs_error_t SrsGbMuxer::rtmp_write_packet(char type, uint32_t timestamp, char *d
         return srs_error_wrap(err, "connect");
     }
 
-    SrsSharedPtrMessage *msg = NULL;
-
-    if ((err = srs_rtmp_create_msg(type, timestamp, data, size, sdk_->sid(), &msg)) != srs_success) {
+    SrsRtmpCommonMessage *cmsg = NULL;
+    if ((err = srs_rtmp_create_msg(type, timestamp, data, size, sdk_->sid(), &cmsg)) != srs_success) {
         return srs_error_wrap(err, "create message");
     }
-    srs_assert(msg);
+
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    cmsg->to_msg(msg);
+    srs_freep(cmsg);
 
     // push msg to queue.
     if ((err = queue_->push(msg)) != srs_success) {
@@ -2129,7 +2131,7 @@ srs_error_t SrsGbMuxer::rtmp_write_packet(char type, uint32_t timestamp, char *d
             srs_trace("Muxer: send msg %s age=%d, dts=%" PRId64 ", size=%d",
                       msg->is_audio() ? "A" : msg->is_video() ? "V"
                                                               : "N",
-                      pprint_->age(), msg->timestamp, msg->size);
+                      pprint_->age(), msg->timestamp, msg->size());
         }
 
         // send out encoded msg.

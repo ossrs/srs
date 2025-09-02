@@ -159,7 +159,7 @@ srs_error_t SrsAudioTranscoder::initialize(SrsAudioCodecId src_codec, SrsAudioCo
     return err;
 }
 
-srs_error_t SrsAudioTranscoder::transcode(SrsAudioFrame *in_pkt, std::vector<SrsAudioFrame *> &out_pkts)
+srs_error_t SrsAudioTranscoder::transcode(SrsParsedAudioPacket *in_pkt, std::vector<SrsParsedAudioPacket *> &out_pkts)
 {
     srs_error_t err = srs_success;
 
@@ -174,10 +174,10 @@ srs_error_t SrsAudioTranscoder::transcode(SrsAudioFrame *in_pkt, std::vector<Srs
     return err;
 }
 
-void SrsAudioTranscoder::free_frames(std::vector<SrsAudioFrame *> &frames)
+void SrsAudioTranscoder::free_frames(std::vector<SrsParsedAudioPacket *> &frames)
 {
-    for (std::vector<SrsAudioFrame *>::iterator it = frames.begin(); it != frames.end(); ++it) {
-        SrsAudioFrame *p = *it;
+    for (std::vector<SrsParsedAudioPacket *>::iterator it = frames.begin(); it != frames.end(); ++it) {
+        SrsParsedAudioPacket *p = *it;
 
         for (int i = 0; i < p->nb_samples; i++) {
             char *pa = p->samples[i].bytes;
@@ -325,7 +325,7 @@ srs_error_t SrsAudioTranscoder::init_fifo()
     return srs_success;
 }
 
-srs_error_t SrsAudioTranscoder::decode_and_resample(SrsAudioFrame *pkt)
+srs_error_t SrsAudioTranscoder::decode_and_resample(SrsParsedAudioPacket *pkt)
 {
     srs_error_t err = srs_success;
 
@@ -380,7 +380,7 @@ srs_error_t SrsAudioTranscoder::decode_and_resample(SrsAudioFrame *pkt)
     return err;
 }
 
-srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame *> &pkts)
+srs_error_t SrsAudioTranscoder::encode(std::vector<SrsParsedAudioPacket *> &pkts)
 {
     char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
 
@@ -435,7 +435,7 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsAudioFrame *> &pkts)
             enc_packet_->dts = av_rescale(enc_packet_->dts, 1000, enc_->time_base.den);
             enc_packet_->pts = av_rescale(enc_packet_->pts, 1000, enc_->time_base.den);
 
-            SrsAudioFrame *out_frame = new SrsAudioFrame;
+            SrsParsedAudioPacket *out_frame = new SrsParsedAudioPacket;
             char *buf = new char[enc_packet_->size];
             memcpy(buf, enc_packet_->data, enc_packet_->size);
             out_frame->add_sample(buf, enc_packet_->size);

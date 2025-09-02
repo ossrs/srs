@@ -167,6 +167,8 @@ extern SrsPps *_srs_pps_objs_rbuf;
 extern SrsPps *_srs_pps_objs_msgs;
 extern SrsPps *_srs_pps_objs_rothers;
 
+extern SrsPps *_srs_pps_objs_msgs;
+
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
 // Debug thread statistics
 extern SrsPps *_srs_pps_thread_run;

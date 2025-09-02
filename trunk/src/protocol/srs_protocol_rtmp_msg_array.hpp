@@ -9,7 +9,7 @@
 
 #include <srs_core.hpp>
 
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 
 // The class to auto free the shared ptr message array.
 // When need to get some messages, for instance, from Consumer queue,
@@ -24,7 +24,7 @@ public:
     // When user already send all msgs, please set to NULL,
     // for instance, msg= msgs.msgs[i], msgs.msgs[i]=NULL, send(msg),
     // where send(msg) will always send and free it.
-    SrsSharedPtrMessage **msgs;
+    SrsMediaPacket **msgs;
     int max;
 
 public:

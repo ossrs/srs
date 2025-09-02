@@ -60,7 +60,7 @@ void SrsFrameToRtmpBridge::on_unpublish()
     source_->on_unpublish();
 }
 
-srs_error_t SrsFrameToRtmpBridge::on_frame(SrsSharedPtrMessage *frame)
+srs_error_t SrsFrameToRtmpBridge::on_frame(SrsMediaPacket *frame)
 {
     return source_->on_frame(frame);
 }
@@ -120,7 +120,7 @@ void SrsFrameToRtcBridge::on_unpublish()
     source_->on_unpublish();
 }
 
-srs_error_t SrsFrameToRtcBridge::on_frame(SrsSharedPtrMessage *frame)
+srs_error_t SrsFrameToRtcBridge::on_frame(SrsMediaPacket *frame)
 {
 #ifdef SRS_FFMPEG_FIT
     return rtp_builder_->on_frame(frame);
@@ -178,7 +178,7 @@ void SrsFrameToRtspBridge::on_unpublish()
     source_->on_unpublish();
 }
 
-srs_error_t SrsFrameToRtspBridge::on_frame(SrsSharedPtrMessage *frame)
+srs_error_t SrsFrameToRtspBridge::on_frame(SrsMediaPacket *frame)
 {
     return rtp_builder_->on_frame(frame);
 }
@@ -237,7 +237,7 @@ void SrsCompositeBridge::on_unpublish()
     }
 }
 
-srs_error_t SrsCompositeBridge::on_frame(SrsSharedPtrMessage *frame)
+srs_error_t SrsCompositeBridge::on_frame(SrsMediaPacket *frame)
 {
     srs_error_t err = srs_success;
 

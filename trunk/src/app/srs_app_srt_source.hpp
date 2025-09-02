@@ -18,7 +18,7 @@
 #include <srs_kernel_ts.hpp>
 #include <srs_protocol_st.hpp>
 
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class ISrsRequest;
 class SrsLiveSource;
 class SrsSrtSource;
@@ -37,7 +37,7 @@ public:
     char *wrap(int size);
     char *wrap(char *data, int size);
     // Wrap the shared message, we copy it.
-    char *wrap(SrsSharedPtrMessage *msg);
+    char *wrap(SrsMediaPacket *msg);
     // Copy the SRT packet.
     virtual SrsSrtPacket *copy();
 
@@ -46,7 +46,7 @@ public:
     int size();
 
 private:
-    SrsSharedPtrMessage *shared_buffer_;
+    SrsMediaPacket *shared_buffer_;
     // The size of SRT packet or SRT payload.
     int actual_buffer_size_;
 };

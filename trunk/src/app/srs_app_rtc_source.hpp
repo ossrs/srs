@@ -24,14 +24,14 @@
 
 class ISrsRequest;
 class SrsMetaCache;
-class SrsSharedPtrMessage;
-class SrsCommonMessage;
+class SrsMediaPacket;
+class SrsRtmpCommonMessage;
 class SrsMessageArray;
 class SrsRtcSource;
 class SrsFrameToRtcBridge;
 class SrsAudioTranscoder;
 class SrsRtpPacket;
-class SrsSample;
+class SrsNaluSample;
 class SrsRtcSourceDescription;
 class SrsRtcTrackDescription;
 class SrsRtcConnection;
@@ -346,25 +346,25 @@ public:
     virtual srs_error_t initialize(ISrsRequest *r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_frame(SrsSharedPtrMessage *frame);
+    virtual srs_error_t on_frame(SrsMediaPacket *frame);
 
 private:
-    virtual srs_error_t on_audio(SrsSharedPtrMessage *msg);
+    virtual srs_error_t on_audio(SrsMediaPacket *msg);
 
 private:
     srs_error_t init_codec(SrsAudioCodecId codec);
-    srs_error_t transcode(SrsAudioFrame *audio);
-    srs_error_t package_opus(SrsAudioFrame *audio, SrsRtpPacket *pkt);
+    srs_error_t transcode(SrsParsedAudioPacket *audio);
+    srs_error_t package_opus(SrsParsedAudioPacket *audio, SrsRtpPacket *pkt);
 
 private:
-    virtual srs_error_t on_video(SrsSharedPtrMessage *msg);
+    virtual srs_error_t on_video(SrsMediaPacket *msg);
 
 private:
-    srs_error_t filter(SrsSharedPtrMessage *msg, SrsFormat *format, bool &has_idr, std::vector<SrsSample *> &samples);
-    srs_error_t package_stap_a(SrsSharedPtrMessage *msg, SrsRtpPacket *pkt);
-    srs_error_t package_nalus(SrsSharedPtrMessage *msg, const std::vector<SrsSample *> &samples, std::vector<SrsRtpPacket *> &pkts);
-    srs_error_t package_single_nalu(SrsSharedPtrMessage *msg, SrsSample *sample, std::vector<SrsRtpPacket *> &pkts);
-    srs_error_t package_fu_a(SrsSharedPtrMessage *msg, SrsSample *sample, int fu_payload_size, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t filter(SrsMediaPacket *msg, SrsFormat *format, bool &has_idr, std::vector<SrsNaluSample *> &samples);
+    srs_error_t package_stap_a(SrsMediaPacket *msg, SrsRtpPacket *pkt);
+    srs_error_t package_nalus(SrsMediaPacket *msg, const std::vector<SrsNaluSample *> &samples, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t package_single_nalu(SrsMediaPacket *msg, SrsNaluSample *sample, std::vector<SrsRtpPacket *> &pkts);
+    srs_error_t package_fu_a(SrsMediaPacket *msg, SrsNaluSample *sample, int fu_payload_size, std::vector<SrsRtpPacket *> &pkts);
     srs_error_t consume_packets(std::vector<SrsRtpPacket *> &pkts);
 };
 
@@ -498,15 +498,15 @@ public:
 private:
     srs_error_t packet_audio(SrsRtpPacket *pkt);
     srs_error_t transcode_audio(SrsRtpPacket *pkt);
-    void packet_aac(SrsCommonMessage *audio, char *data, int len, uint32_t pts, bool is_header);
+    void packet_aac(SrsRtmpCommonMessage *audio, char *data, int len, uint32_t pts, bool is_header);
 
 private:
     srs_error_t packet_video(SrsRtpPacket *pkt);
     srs_error_t packet_video_key_frame(SrsRtpPacket *pkt);
     srs_error_t packet_sequence_header_avc(SrsRtpPacket *pkt);
-    srs_error_t do_packet_sequence_header_avc(SrsRtpPacket *pkt, SrsSample *sps, SrsSample *pps);
+    srs_error_t do_packet_sequence_header_avc(SrsRtpPacket *pkt, SrsNaluSample *sps, SrsNaluSample *pps);
     srs_error_t packet_sequence_header_hevc(SrsRtpPacket *pkt);
-    srs_error_t do_packet_sequence_header_hevc(SrsRtpPacket *pkt, SrsSample *vps, SrsSample *sps, SrsSample *pps);
+    srs_error_t do_packet_sequence_header_hevc(SrsRtpPacket *pkt, SrsNaluSample *vps, SrsNaluSample *sps, SrsNaluSample *pps);
 
 private:
     srs_error_t packet_video_rtmp(const uint16_t start, const uint16_t end);

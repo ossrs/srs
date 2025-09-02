@@ -203,7 +203,7 @@ void SrsHlsM4sSegment::config_cipher(unsigned char *key, unsigned char *iv)
     memcpy(this->iv, iv, 16);
 }
 
-srs_error_t SrsHlsM4sSegment::write(SrsSharedPtrMessage *shared_msg, SrsFormat *format)
+srs_error_t SrsHlsM4sSegment::write(SrsMediaPacket *shared_msg, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -580,7 +580,7 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
     return err;
 }
 
-srs_error_t SrsHlsFmp4Muxer::write_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
+srs_error_t SrsHlsFmp4Muxer::write_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -604,7 +604,7 @@ srs_error_t SrsHlsFmp4Muxer::write_audio(SrsSharedPtrMessage *shared_audio, SrsF
     return err;
 }
 
-srs_error_t SrsHlsFmp4Muxer::write_video(SrsSharedPtrMessage *shared_video, SrsFormat *format)
+srs_error_t SrsHlsFmp4Muxer::write_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -2039,7 +2039,7 @@ srs_error_t SrsHlsController::on_unpublish()
     return err;
 }
 
-srs_error_t SrsHlsController::on_sequence_header(SrsSharedPtrMessage *msg, SrsFormat *format)
+srs_error_t SrsHlsController::on_sequence_header(SrsMediaPacket *msg, SrsFormat *format)
 {
     // TODO: support discontinuity for the same stream
     // currently we reap and insert discontinity when encoder republish,
@@ -2050,10 +2050,10 @@ srs_error_t SrsHlsController::on_sequence_header(SrsSharedPtrMessage *msg, SrsFo
     return muxer->on_sequence_header();
 }
 
-srs_error_t SrsHlsController::write_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
+srs_error_t SrsHlsController::write_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
-    SrsAudioFrame *frame = format->audio;
+    SrsParsedAudioPacket *frame = format->audio;
 
     // Reset the aac samples counter when DTS jitter.
     if (previous_audio_dts > shared_audio->timestamp) {
@@ -2140,10 +2140,10 @@ srs_error_t SrsHlsController::write_audio(SrsSharedPtrMessage *shared_audio, Srs
     return err;
 }
 
-srs_error_t SrsHlsController::write_video(SrsSharedPtrMessage *shared_video, SrsFormat *format)
+srs_error_t SrsHlsController::write_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
-    SrsVideoFrame *frame = format->video;
+    SrsParsedVideoPacket *frame = format->video;
     int64_t dts = shared_video->timestamp * 90;
 
     // Refresh the codec ASAP.
@@ -2306,10 +2306,10 @@ srs_error_t SrsHlsMp4Controller::on_unpublish()
     return err;
 }
 
-srs_error_t SrsHlsMp4Controller::write_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
+srs_error_t SrsHlsMp4Controller::write_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
-    SrsAudioFrame *frame = format->audio;
+    SrsParsedAudioPacket *frame = format->audio;
 
     // Ignore audio sequence header
     if (format->is_aac_sequence_header() || format->is_mp3_sequence_header()) {
@@ -2332,10 +2332,10 @@ srs_error_t SrsHlsMp4Controller::write_audio(SrsSharedPtrMessage *shared_audio, 
     return err;
 }
 
-srs_error_t SrsHlsMp4Controller::write_video(SrsSharedPtrMessage *shared_video, SrsFormat *format)
+srs_error_t SrsHlsMp4Controller::write_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
-    SrsVideoFrame *frame = format->video;
+    SrsParsedVideoPacket *frame = format->video;
 
     // Refresh the codec ASAP.
     if (muxer_->latest_vcodec() != frame->vcodec()->id) {
@@ -2353,7 +2353,7 @@ srs_error_t SrsHlsMp4Controller::write_video(SrsSharedPtrMessage *shared_video, 
     return err;
 }
 
-srs_error_t SrsHlsMp4Controller::on_sequence_header(SrsSharedPtrMessage *msg, SrsFormat *format)
+srs_error_t SrsHlsMp4Controller::on_sequence_header(SrsMediaPacket *msg, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -2622,7 +2622,7 @@ void SrsHls::on_unpublish()
     unpublishing_ = false;
 }
 
-srs_error_t SrsHls::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format)
+srs_error_t SrsHls::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -2642,7 +2642,7 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *forma
     // update the hls time, for hls_dispose.
     last_update_time = srs_time_now_cached();
 
-    SrsUniquePtr<SrsSharedPtrMessage> audio(shared_audio->copy());
+    SrsUniquePtr<SrsMediaPacket> audio(shared_audio->copy());
 
     // ts support audio codec: aac/mp3
     SrsAudioCodecId acodec = format->acodec->id;
@@ -2669,7 +2669,7 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *forma
     return err;
 }
 
-srs_error_t SrsHls::on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format)
+srs_error_t SrsHls::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
@@ -2688,7 +2688,7 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage *shared_video, SrsFormat *forma
     // update the hls time, for hls_dispose.
     last_update_time = srs_time_now_cached();
 
-    SrsUniquePtr<SrsSharedPtrMessage> video(shared_video->copy());
+    SrsUniquePtr<SrsMediaPacket> video(shared_video->copy());
 
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909

@@ -70,7 +70,7 @@ SrsRtmpJitter::~SrsRtmpJitter()
 {
 }
 
-srs_error_t SrsRtmpJitter::correct(SrsSharedPtrMessage *msg, SrsRtmpJitterAlgorithm ag)
+srs_error_t SrsRtmpJitter::correct(SrsMediaPacket *msg, SrsRtmpJitterAlgorithm ag)
 {
     srs_error_t err = srs_success;
 
@@ -140,7 +140,7 @@ SrsFastVector::SrsFastVector()
 {
     count = 0;
     nb_msgs = 8;
-    msgs = new SrsSharedPtrMessage *[nb_msgs];
+    msgs = new SrsMediaPacket *[nb_msgs];
 }
 
 SrsFastVector::~SrsFastVector()
@@ -164,12 +164,12 @@ int SrsFastVector::end()
     return count;
 }
 
-SrsSharedPtrMessage **SrsFastVector::data()
+SrsMediaPacket **SrsFastVector::data()
 {
     return msgs;
 }
 
-SrsSharedPtrMessage *SrsFastVector::at(int index)
+SrsMediaPacket *SrsFastVector::at(int index)
 {
     srs_assert(index < count);
     return msgs[index];
@@ -193,13 +193,13 @@ void SrsFastVector::erase(int _begin, int _end)
     count -= _end - _begin;
 }
 
-void SrsFastVector::push_back(SrsSharedPtrMessage *msg)
+void SrsFastVector::push_back(SrsMediaPacket *msg)
 {
     // increase vector.
     if (count >= nb_msgs) {
         int size = srs_max(SRS_PERF_MW_MSGS * 8, nb_msgs * 2);
-        SrsSharedPtrMessage **buf = msgs;
-        msgs = new SrsSharedPtrMessage *[size];
+        SrsMediaPacket **buf = msgs;
+        msgs = new SrsMediaPacket *[size];
         for (int i = 0; i < nb_msgs; i++) {
             msgs[i] = buf[i];
         }
@@ -216,7 +216,7 @@ void SrsFastVector::push_back(SrsSharedPtrMessage *msg)
 void SrsFastVector::free()
 {
     for (int i = 0; i < count; i++) {
-        SrsSharedPtrMessage *msg = msgs[i];
+        SrsMediaPacket *msg = msgs[i];
         srs_freep(msg);
     }
     count = 0;
@@ -250,7 +250,7 @@ void SrsMessageQueue::set_queue_size(srs_utime_t queue_size)
     max_queue_size = queue_size;
 }
 
-srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage *msg, bool *is_overflow)
+srs_error_t SrsMessageQueue::enqueue(SrsMediaPacket *msg, bool *is_overflow)
 {
     srs_error_t err = srs_success;
 
@@ -283,7 +283,7 @@ srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage *msg, bool *is_overflow
     return err;
 }
 
-srs_error_t SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage **pmsgs, int &count)
+srs_error_t SrsMessageQueue::dump_packets(int max_count, SrsMediaPacket **pmsgs, int &count)
 {
     srs_error_t err = srs_success;
 
@@ -295,10 +295,10 @@ srs_error_t SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage **p
     srs_assert(max_count > 0);
     count = srs_min(max_count, nb_msgs);
 
-    SrsSharedPtrMessage **omsgs = msgs.data();
-    memcpy(pmsgs, omsgs, count * sizeof(SrsSharedPtrMessage *));
+    SrsMediaPacket **omsgs = msgs.data();
+    memcpy(pmsgs, omsgs, count * sizeof(SrsMediaPacket *));
 
-    SrsSharedPtrMessage *last = omsgs[count - 1];
+    SrsMediaPacket *last = omsgs[count - 1];
     av_start_time = srs_utime_t(last->timestamp * SRS_UTIME_MILLISECONDS);
 
     if (count >= nb_msgs) {
@@ -324,9 +324,9 @@ srs_error_t SrsMessageQueue::dump_packets(SrsLiveConsumer *consumer, bool atc, S
         return err;
     }
 
-    SrsSharedPtrMessage **omsgs = msgs.data();
+    SrsMediaPacket **omsgs = msgs.data();
     for (int i = 0; i < nb_msgs; i++) {
-        SrsSharedPtrMessage *msg = omsgs[i];
+        SrsMediaPacket *msg = omsgs[i];
         if ((err = consumer->enqueue(msg, atc, ag)) != srs_success) {
             return srs_error_wrap(err, "consume message");
         }
@@ -337,19 +337,19 @@ srs_error_t SrsMessageQueue::dump_packets(SrsLiveConsumer *consumer, bool atc, S
 
 void SrsMessageQueue::shrink()
 {
-    SrsSharedPtrMessage *video_sh = NULL;
-    SrsSharedPtrMessage *audio_sh = NULL;
+    SrsMediaPacket *video_sh = NULL;
+    SrsMediaPacket *audio_sh = NULL;
     int msgs_size = (int)msgs.size();
 
     // Remove all msgs, mark the sequence headers.
     for (int i = 0; i < (int)msgs.size(); i++) {
-        SrsSharedPtrMessage *msg = msgs.at(i);
+        SrsMediaPacket *msg = msgs.at(i);
 
-        if (msg->is_video() && SrsFlvVideo::sh(msg->payload, msg->size)) {
+        if (msg->is_video() && SrsFlvVideo::sh(msg->payload(), msg->size())) {
             srs_freep(video_sh);
             video_sh = msg;
             continue;
-        } else if (msg->is_audio() && SrsFlvAudio::sh(msg->payload, msg->size)) {
+        } else if (msg->is_audio() && SrsFlvAudio::sh(msg->payload(), msg->size())) {
             srs_freep(audio_sh);
             audio_sh = msg;
             continue;
@@ -380,10 +380,10 @@ void SrsMessageQueue::shrink()
 void SrsMessageQueue::clear()
 {
 #ifndef SRS_PERF_QUEUE_FAST_VECTOR
-    std::vector<SrsSharedPtrMessage *>::iterator it;
+    std::vector<SrsMediaPacket *>::iterator it;
 
     for (it = msgs.begin(); it != msgs.end(); ++it) {
-        SrsSharedPtrMessage *msg = *it;
+        SrsMediaPacket *msg = *it;
         srs_freep(msg);
     }
 #else
@@ -445,11 +445,11 @@ int64_t SrsLiveConsumer::get_time()
     return jitter->get_time();
 }
 
-srs_error_t SrsLiveConsumer::enqueue(SrsSharedPtrMessage *shared_msg, bool atc, SrsRtmpJitterAlgorithm ag)
+srs_error_t SrsLiveConsumer::enqueue(SrsMediaPacket *shared_msg, bool atc, SrsRtmpJitterAlgorithm ag)
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage *msg = shared_msg->copy();
+    SrsMediaPacket *msg = shared_msg->copy();
 
     if (!atc) {
         if ((err = jitter->correct(msg, ag)) != srs_success) {
@@ -606,7 +606,7 @@ bool SrsGopCache::enabled()
     return enable_gop_cache;
 }
 
-srs_error_t SrsGopCache::cache(SrsSharedPtrMessage *shared_msg)
+srs_error_t SrsGopCache::cache(SrsMediaPacket *shared_msg)
 {
     srs_error_t err = srs_success;
 
@@ -615,13 +615,13 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage *shared_msg)
     }
 
     // the gop cache know when to gop it.
-    SrsSharedPtrMessage *msg = shared_msg;
+    SrsMediaPacket *msg = shared_msg;
 
     // got video, update the video count if acceptable
     if (msg->is_video()) {
         // Drop video when not h.264 or h.265.
-        bool codec_ok = SrsFlvVideo::h264(msg->payload, msg->size);
-        codec_ok = codec_ok ? true : SrsFlvVideo::hevc(msg->payload, msg->size);
+        bool codec_ok = SrsFlvVideo::h264(msg->payload(), msg->size());
+        codec_ok = codec_ok ? true : SrsFlvVideo::hevc(msg->payload(), msg->size());
         if (!codec_ok)
             return err;
 
@@ -647,7 +647,7 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage *shared_msg)
     }
 
     // clear gop cache when got key frame
-    if (msg->is_video() && SrsFlvVideo::keyframe(msg->payload, msg->size)) {
+    if (msg->is_video() && SrsFlvVideo::keyframe(msg->payload(), msg->size())) {
         clear();
 
         // curent msg is video frame, so we set to 1.
@@ -669,9 +669,9 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage *shared_msg)
 
 void SrsGopCache::clear()
 {
-    std::vector<SrsSharedPtrMessage *>::iterator it;
+    std::vector<SrsMediaPacket *>::iterator it;
     for (it = gop_cache.begin(); it != gop_cache.end(); ++it) {
-        SrsSharedPtrMessage *msg = *it;
+        SrsMediaPacket *msg = *it;
         srs_freep(msg);
     }
     gop_cache.clear();
@@ -684,9 +684,9 @@ srs_error_t SrsGopCache::dump(SrsLiveConsumer *consumer, bool atc, SrsRtmpJitter
 {
     srs_error_t err = srs_success;
 
-    std::vector<SrsSharedPtrMessage *>::iterator it;
+    std::vector<SrsMediaPacket *>::iterator it;
     for (it = gop_cache.begin(); it != gop_cache.end(); ++it) {
-        SrsSharedPtrMessage *msg = *it;
+        SrsMediaPacket *msg = *it;
         if ((err = consumer->enqueue(msg, atc, jitter_algorithm)) != srs_success) {
             return srs_error_wrap(err, "enqueue message");
         }
@@ -707,7 +707,7 @@ srs_utime_t SrsGopCache::start_time()
         return 0;
     }
 
-    SrsSharedPtrMessage *msg = gop_cache[0];
+    SrsMediaPacket *msg = gop_cache[0];
     srs_assert(msg);
 
     return srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
@@ -727,7 +727,7 @@ ISrsLiveSourceHandler::~ISrsLiveSourceHandler()
 }
 
 // TODO: FIXME: Remove it?
-bool srs_hls_can_continue(int ret, SrsSharedPtrMessage *sh, SrsSharedPtrMessage *msg)
+bool srs_hls_can_continue(int ret, SrsMediaPacket *sh, SrsMediaPacket *msg)
 {
     // only continue for decode error.
     if (ret != ERROR_HLS_DECODE_ERROR) {
@@ -737,7 +737,7 @@ bool srs_hls_can_continue(int ret, SrsSharedPtrMessage *sh, SrsSharedPtrMessage 
     // when video size equals to sequence header,
     // the video actually maybe a sequence header,
     // continue to make ffmpeg happy.
-    if (sh && sh->size == msg->size) {
+    if (sh && sh->size() == msg->size()) {
         srs_warn("the msg is actually a sequence header, ignore this packet.");
         return true;
     }
@@ -758,9 +758,9 @@ SrsMixQueue::~SrsMixQueue()
 
 void SrsMixQueue::clear()
 {
-    std::multimap<int64_t, SrsSharedPtrMessage *>::iterator it;
+    std::multimap<int64_t, SrsMediaPacket *>::iterator it;
     for (it = msgs.begin(); it != msgs.end(); ++it) {
-        SrsSharedPtrMessage *msg = it->second;
+        SrsMediaPacket *msg = it->second;
         srs_freep(msg);
     }
     msgs.clear();
@@ -769,7 +769,7 @@ void SrsMixQueue::clear()
     nb_audios = 0;
 }
 
-void SrsMixQueue::push(SrsSharedPtrMessage *msg)
+void SrsMixQueue::push(SrsMediaPacket *msg)
 {
     msgs.insert(std::make_pair(msg->timestamp, msg));
 
@@ -780,7 +780,7 @@ void SrsMixQueue::push(SrsSharedPtrMessage *msg)
     }
 }
 
-SrsSharedPtrMessage *SrsMixQueue::pop()
+SrsMediaPacket *SrsMixQueue::pop()
 {
     bool mix_ok = false;
 
@@ -804,8 +804,8 @@ SrsSharedPtrMessage *SrsMixQueue::pop()
     }
 
     // pop the first msg.
-    std::multimap<int64_t, SrsSharedPtrMessage *>::iterator it = msgs.begin();
-    SrsSharedPtrMessage *msg = it->second;
+    std::multimap<int64_t, SrsMediaPacket *>::iterator it = msgs.begin();
+    SrsMediaPacket *msg = it->second;
     msgs.erase(it);
 
     if (msg->is_video()) {
@@ -920,7 +920,7 @@ srs_utime_t SrsOriginHub::cleanup_delay()
     return srs_max(hls_delay, dash_delay);
 }
 
-srs_error_t SrsOriginHub::on_meta_data(SrsSharedPtrMessage *shared_metadata, SrsOnMetaDataPacket *packet)
+srs_error_t SrsOriginHub::on_meta_data(SrsMediaPacket *shared_metadata, SrsOnMetaDataPacket *packet)
 {
     srs_error_t err = srs_success;
 
@@ -942,11 +942,11 @@ srs_error_t SrsOriginHub::on_meta_data(SrsSharedPtrMessage *shared_metadata, Srs
     return err;
 }
 
-srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage *shared_audio)
+srs_error_t SrsOriginHub::on_audio(SrsMediaPacket *shared_audio)
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage *msg = shared_audio;
+    SrsMediaPacket *msg = shared_audio;
     SrsRtmpFormat *format = source_->format_;
 
     // Handle the metadata when got sequence header.
@@ -965,11 +965,11 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage *shared_audio)
 
         if (format->acodec->id == SrsAudioCodecIdMP3) {
             srs_trace("%dB audio sh, codec(%d, %dbits, %dchannels, %dHZ)",
-                      msg->size, c->id, flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
+                      msg->size(), c->id, flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
                       srs_flv_srates[c->sound_rate]);
         } else {
             srs_trace("%dB audio sh, codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), flv(%dbits, %dchannels, %dHZ)",
-                      msg->size, c->id, srs_aac_object2str(c->aac_object).c_str(), c->aac_channels,
+                      msg->size(), c->id, srs_aac_object2str(c->aac_object).c_str(), c->aac_channels,
                       c->audio_data_rate / 1000, srs_aac_srates[c->aac_sample_rate],
                       flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
                       srs_flv_srates[c->sound_rate]);
@@ -1028,11 +1028,11 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage *shared_audio)
     return err;
 }
 
-srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage *shared_video, bool is_sequence_header)
+srs_error_t SrsOriginHub::on_video(SrsMediaPacket *shared_video, bool is_sequence_header)
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage *msg = shared_video;
+    SrsMediaPacket *msg = shared_video;
     SrsRtmpFormat *format = source_->format_;
 
     // cache the sequence header if h264
@@ -1047,12 +1047,12 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage *shared_video, bool is_se
         if (c->id == SrsVideoCodecIdAVC) {
             err = stat->on_video_info(req_, c->id, c->avc_profile, c->avc_level, c->width, c->height);
             srs_trace("%dB video sh, codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %.1ffps, %.1fs)",
-                      msg->size, c->id, srs_avc_profile2str(c->avc_profile).c_str(), srs_avc_level2str(c->avc_level).c_str(),
+                      msg->size(), c->id, srs_avc_profile2str(c->avc_profile).c_str(), srs_avc_level2str(c->avc_level).c_str(),
                       c->width, c->height, c->video_data_rate / 1000, c->frame_rate, c->duration);
         } else if (c->id == SrsVideoCodecIdHEVC) {
             err = stat->on_video_info(req_, c->id, c->hevc_profile, c->hevc_level, c->width, c->height);
             srs_trace("%dB video sh, codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %.1ffps, %.1fs)",
-                      msg->size, c->id, srs_hevc_profile2str(c->hevc_profile).c_str(), srs_hevc_level2str(c->hevc_level).c_str(),
+                      msg->size(), c->id, srs_hevc_profile2str(c->hevc_profile).c_str(), srs_hevc_level2str(c->hevc_level).c_str(),
                       c->width, c->height, c->video_data_rate / 1000, c->frame_rate, c->duration);
         }
         if (err != srs_success) {
@@ -1186,9 +1186,9 @@ srs_error_t SrsOriginHub::on_forwarder_start(SrsForwarder *forwarder)
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage *cache_metadata = source_->meta->data();
-    SrsSharedPtrMessage *cache_sh_video = source_->meta->vsh();
-    SrsSharedPtrMessage *cache_sh_audio = source_->meta->ash();
+    SrsMediaPacket *cache_metadata = source_->meta->data();
+    SrsMediaPacket *cache_sh_video = source_->meta->vsh();
+    SrsMediaPacket *cache_sh_audio = source_->meta->ash();
 
     // feed the forwarder the metadata/sequence header,
     // when reload to enable the forwarder.
@@ -1209,9 +1209,9 @@ srs_error_t SrsOriginHub::on_dvr_request_sh()
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage *cache_metadata = source_->meta->data();
-    SrsSharedPtrMessage *cache_sh_video = source_->meta->vsh();
-    SrsSharedPtrMessage *cache_sh_audio = source_->meta->ash();
+    SrsMediaPacket *cache_metadata = source_->meta->data();
+    SrsMediaPacket *cache_sh_video = source_->meta->vsh();
+    SrsMediaPacket *cache_sh_audio = source_->meta->ash();
 
     // feed the dvr the metadata/sequence header,
     // when reload to start dvr, dvr will never get the sequence header in stream,
@@ -1239,14 +1239,14 @@ srs_error_t SrsOriginHub::on_hls_request_sh()
 {
     srs_error_t err = srs_success;
 
-    SrsSharedPtrMessage *cache_sh_video = source_->meta->vsh();
+    SrsMediaPacket *cache_sh_video = source_->meta->vsh();
     if (cache_sh_video) {
         if ((err = hls->on_video(cache_sh_video, source_->meta->vsh_format())) != srs_success) {
             return srs_error_wrap(err, "hls video");
         }
     }
 
-    SrsSharedPtrMessage *cache_sh_audio = source_->meta->ash();
+    SrsMediaPacket *cache_sh_audio = source_->meta->ash();
     if (cache_sh_audio) {
         if ((err = hls->on_audio(cache_sh_audio, source_->meta->ash_format())) != srs_success) {
             return srs_error_wrap(err, "hls audio");
@@ -1399,12 +1399,12 @@ void SrsMetaCache::clear()
     srs_freep(audio);
 }
 
-SrsSharedPtrMessage *SrsMetaCache::data()
+SrsMediaPacket *SrsMetaCache::data()
 {
     return meta;
 }
 
-SrsSharedPtrMessage *SrsMetaCache::vsh()
+SrsMediaPacket *SrsMetaCache::vsh()
 {
     return video;
 }
@@ -1414,7 +1414,7 @@ SrsFormat *SrsMetaCache::vsh_format()
     return vformat;
 }
 
-SrsSharedPtrMessage *SrsMetaCache::ash()
+SrsMediaPacket *SrsMetaCache::ash()
 {
     return audio;
 }
@@ -1448,12 +1448,12 @@ srs_error_t SrsMetaCache::dumps(SrsLiveConsumer *consumer, bool atc, SrsRtmpJitt
     return err;
 }
 
-SrsSharedPtrMessage *SrsMetaCache::previous_vsh()
+SrsMediaPacket *SrsMetaCache::previous_vsh()
 {
     return previous_video;
 }
 
-SrsSharedPtrMessage *SrsMetaCache::previous_ash()
+SrsMediaPacket *SrsMetaCache::previous_ash()
 {
     return previous_audio;
 }
@@ -1520,19 +1520,21 @@ srs_error_t SrsMetaCache::update_data(SrsMessageHeader *header, SrsOnMetaDataPac
 
     // create a shared ptr message.
     srs_freep(meta);
-    meta = new SrsSharedPtrMessage();
+    meta = new SrsMediaPacket();
     updated = true;
 
     // dump message to shared ptr message.
     // the payload/size managed by cache_metadata, user should not free it.
-    if ((err = meta->create(header, payload, size)) != srs_success) {
+    SrsRtmpCommonMessage common_msg;
+    if ((err = common_msg.create(header, payload, size)) != srs_success) {
         return srs_error_wrap(err, "create metadata");
     }
+    common_msg.to_msg(meta);
 
     return err;
 }
 
-srs_error_t SrsMetaCache::update_ash(SrsSharedPtrMessage *msg)
+srs_error_t SrsMetaCache::update_ash(SrsMediaPacket *msg)
 {
     srs_freep(audio);
     audio = msg->copy();
@@ -1540,7 +1542,7 @@ srs_error_t SrsMetaCache::update_ash(SrsSharedPtrMessage *msg)
     return aformat->on_audio(msg);
 }
 
-srs_error_t SrsMetaCache::update_vsh(SrsSharedPtrMessage *msg)
+srs_error_t SrsMetaCache::update_vsh(SrsMediaPacket *msg)
 {
     srs_freep(video);
     video = msg->copy();
@@ -1910,7 +1912,7 @@ bool SrsLiveSource::can_publish(bool is_edge)
     return can_publish_;
 }
 
-srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage *msg, SrsOnMetaDataPacket *metadata)
+srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaDataPacket *metadata)
 {
     srs_error_t err = srs_success;
 
@@ -1942,7 +1944,7 @@ srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage *msg, SrsOnMetaDataPack
     bool drop_for_reduce = false;
     if (meta->data() && _srs_config->get_reduce_sequence_header(req->vhost)) {
         drop_for_reduce = true;
-        srs_warn("drop for reduce sh metadata, size=%d", msg->size);
+        srs_warn("drop for reduce sh metadata, size=%d", msg->size());
     }
 
     // copy to all consumer
@@ -1960,9 +1962,8 @@ srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage *msg, SrsOnMetaDataPack
     return hub->on_meta_data(meta->data(), metadata);
 }
 
-srs_error_t SrsLiveSource::on_audio(SrsCommonMessage *shared_audio)
+srs_error_t SrsLiveSource::on_audio(SrsRtmpCommonMessage *shared_audio)
 {
-    srs_error_t err = srs_success;
 
     // Detect where stream is monotonically increasing.
     if (!mix_correct && is_monotonically_increase) {
@@ -1976,15 +1977,13 @@ srs_error_t SrsLiveSource::on_audio(SrsCommonMessage *shared_audio)
 
     // convert shared_audio to msg, user should not use shared_audio again.
     // the payload is transfer to msg, and set to NULL in shared_audio.
-    SrsSharedPtrMessage msg;
-    if ((err = msg.create(shared_audio)) != srs_success) {
-        return srs_error_wrap(err, "create message");
-    }
+    SrsMediaPacket msg;
+    shared_audio->to_msg(&msg);
 
     return on_frame(&msg);
 }
 
-srs_error_t SrsLiveSource::on_frame(SrsSharedPtrMessage *msg)
+srs_error_t SrsLiveSource::on_frame(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
@@ -2001,7 +2000,7 @@ srs_error_t SrsLiveSource::on_frame(SrsSharedPtrMessage *msg)
     mix_queue->push(msg->copy());
 
     // fetch someone from mix queue.
-    SrsSharedPtrMessage *m = mix_queue->pop();
+    SrsMediaPacket *m = mix_queue->pop();
     if (!m) {
         return err;
     }
@@ -2017,7 +2016,7 @@ srs_error_t SrsLiveSource::on_frame(SrsSharedPtrMessage *msg)
     return err;
 }
 
-srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage *msg)
+srs_error_t SrsLiveSource::on_audio_imp(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
@@ -2038,9 +2037,9 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage *msg)
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
     if (is_sequence_header && meta->previous_ash() && _srs_config->get_reduce_sequence_header(req->vhost)) {
-        if (meta->previous_ash()->size == msg->size) {
-            drop_for_reduce = srs_bytes_equal(meta->previous_ash()->payload, msg->payload, msg->size);
-            srs_warn("drop for reduce sh audio, size=%d", msg->size);
+        if (meta->previous_ash()->size() == msg->size()) {
+            drop_for_reduce = srs_bytes_equal(meta->previous_ash()->payload(), msg->payload(), msg->size());
+            srs_warn("drop for reduce sh audio, size=%d", msg->size());
         }
     }
 
@@ -2094,7 +2093,7 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage *msg)
     return err;
 }
 
-srs_error_t SrsLiveSource::on_video(SrsCommonMessage *shared_video)
+srs_error_t SrsLiveSource::on_video(SrsRtmpCommonMessage *shared_video)
 {
     srs_error_t err = srs_success;
 
@@ -2110,31 +2109,29 @@ srs_error_t SrsLiveSource::on_video(SrsCommonMessage *shared_video)
 
     // drop any unknown header video.
     // @see https://github.com/ossrs/srs/issues/421
-    if (!SrsFlvVideo::acceptable(shared_video->payload, shared_video->size)) {
+    if (!SrsFlvVideo::acceptable(shared_video->payload(), shared_video->size())) {
         char b0 = 0x00;
-        if (shared_video->size > 0) {
-            b0 = shared_video->payload[0];
+        if (shared_video->size() > 0) {
+            b0 = shared_video->payload()[0];
         }
 
-        srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
+        srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size(), b0);
         return err;
     }
 
     // convert shared_video to msg, user should not use shared_video again.
     // the payload is transfer to msg, and set to NULL in shared_video.
-    SrsSharedPtrMessage msg;
-    if ((err = msg.create(shared_video)) != srs_success) {
-        return srs_error_wrap(err, "create message");
-    }
+    SrsMediaPacket msg;
+    shared_video->to_msg(&msg);
 
     return on_frame(&msg);
 }
 
-srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage *msg)
+srs_error_t SrsLiveSource::on_video_imp(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
-    bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
+    bool is_sequence_header = SrsFlvVideo::sh(msg->payload(), msg->size());
 
     // user can disable the sps parse to workaround when parse sps failed.
     // @see https://github.com/ossrs/srs/issues/474
@@ -2155,9 +2152,9 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage *msg)
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
     if (is_sequence_header && meta->previous_vsh() && _srs_config->get_reduce_sequence_header(req->vhost)) {
-        if (meta->previous_vsh()->size == msg->size) {
-            drop_for_reduce = srs_bytes_equal(meta->previous_vsh()->payload, msg->payload, msg->size);
-            srs_warn("drop for reduce sh video, size=%d", msg->size);
+        if (meta->previous_vsh()->size() == msg->size()) {
+            drop_for_reduce = srs_bytes_equal(meta->previous_vsh()->payload(), msg->payload(), msg->size());
+            srs_warn("drop for reduce sh video, size=%d", msg->size());
         }
     }
 
@@ -2210,11 +2207,11 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage *msg)
     return err;
 }
 
-srs_error_t SrsLiveSource::on_aggregate(SrsCommonMessage *msg)
+srs_error_t SrsLiveSource::on_aggregate(SrsRtmpCommonMessage *msg)
 {
     srs_error_t err = srs_success;
 
-    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(msg->payload, msg->size));
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(msg->payload(), msg->size()));
 
     // the aggregate message always use abs time.
     int delta = -1;
@@ -2264,19 +2261,17 @@ srs_error_t SrsLiveSource::on_aggregate(SrsCommonMessage *msg)
         }
 
         // to common message.
-        SrsCommonMessage o;
+        SrsRtmpCommonMessage o;
 
         o.header.message_type = type;
         o.header.payload_length = data_size;
         o.header.timestamp_delta = timestamp;
         o.header.timestamp = timestamp;
         o.header.stream_id = stream_id;
-        o.header.prefer_cid = msg->header.prefer_cid;
 
         if (data_size > 0) {
-            o.size = data_size;
-            o.payload = new char[o.size];
-            stream->read_bytes(o.payload, o.size);
+            o.create_payload(data_size);
+            stream->read_bytes(o.payload(), data_size);
         }
 
         if (!stream->require(4)) {
@@ -2517,7 +2512,7 @@ srs_error_t SrsLiveSource::on_edge_start_publish()
 }
 
 // TODO: FIXME: Use edge strategy pattern.
-srs_error_t SrsLiveSource::on_edge_proxy_publish(SrsCommonMessage *msg)
+srs_error_t SrsLiveSource::on_edge_proxy_publish(SrsRtmpCommonMessage *msg)
 {
     return publish_edge->on_proxy_publish(msg);
 }

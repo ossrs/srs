@@ -154,6 +154,8 @@ SrsPps *_srs_pps_rrtcps = NULL;
 // NACK and loss statistics (only _srs_pps_aloss2 was originally in srs_app_server.cpp)
 SrsPps *_srs_pps_aloss2 = NULL;
 
+SrsPps *_srs_pps_objs_msgs = NULL;
+
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
 // Debug thread statistics
 SrsPps *_srs_pps_thread_run = NULL;
@@ -366,6 +368,7 @@ void srs_global_kbps_update(SrsKbpsStats *stats)
     }
 
     string &recvfrom_desc = stats->recvfrom_desc;
+    (void)recvfrom_desc;
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
     _srs_pps_recvfrom->update(_st_stat_recvfrom);
     _srs_pps_recvfrom_eagain->update(_st_stat_recvfrom_eagain);
@@ -378,6 +381,7 @@ void srs_global_kbps_update(SrsKbpsStats *stats)
 #endif
 
     string &io_desc = stats->io_desc;
+    (void)io_desc;
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
     _srs_pps_read->update(_st_stat_read);
     _srs_pps_read_eagain->update(_st_stat_read_eagain);
@@ -392,6 +396,7 @@ void srs_global_kbps_update(SrsKbpsStats *stats)
 #endif
 
     string &msg_desc = stats->msg_desc;
+    (void)msg_desc;
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
     _srs_pps_recvmsg->update(_st_stat_recvmsg);
     _srs_pps_recvmsg_eagain->update(_st_stat_recvmsg_eagain);
@@ -404,6 +409,7 @@ void srs_global_kbps_update(SrsKbpsStats *stats)
 #endif
 
     string &epoll_desc = stats->epoll_desc;
+    (void)epoll_desc;
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
     _srs_pps_epoll->update(_st_stat_epoll);
     _srs_pps_epoll_zero->update(_st_stat_epoll_zero);
@@ -416,6 +422,7 @@ void srs_global_kbps_update(SrsKbpsStats *stats)
 #endif
 
     string &sched_desc = stats->sched_desc;
+    (void)sched_desc;
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
     _srs_pps_sched_160ms->update(_st_stat_sched_160ms);
     _srs_pps_sched_s->update(_st_stat_sched_s);
@@ -448,6 +455,7 @@ void srs_global_kbps_update(SrsKbpsStats *stats)
     }
 
     string &thread_desc = stats->thread_desc;
+    (void)thread_desc;
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
     _srs_pps_thread_run->update(_st_stat_thread_run);
     _srs_pps_thread_idle->update(_st_stat_thread_idle);

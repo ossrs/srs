@@ -785,11 +785,11 @@ SrsHttpMuxEntry::~SrsHttpMuxEntry()
     srs_freep(handler);
 }
 
-ISrsHttpMatchHijacker::ISrsHttpMatchHijacker()
+ISrsHttpDynamicMatcher::ISrsHttpDynamicMatcher()
 {
 }
 
-ISrsHttpMatchHijacker::~ISrsHttpMatchHijacker()
+ISrsHttpDynamicMatcher::~ISrsHttpDynamicMatcher()
 {
 }
 
@@ -808,14 +808,14 @@ SrsHttpServeMux::SrsHttpServeMux()
 SrsHttpServeMux::~SrsHttpServeMux()
 {
     std::map<std::string, SrsHttpMuxEntry *>::iterator it;
-    for (it = entries.begin(); it != entries.end(); ++it) {
+    for (it = static_matchers_.begin(); it != static_matchers_.end(); ++it) {
         SrsHttpMuxEntry *entry = it->second;
         srs_freep(entry);
     }
-    entries.clear();
+    static_matchers_.clear();
 
-    vhosts.clear();
-    hijackers.clear();
+    vhosts_.clear();
+    dynamic_matchers_.clear();
 }
 
 srs_error_t SrsHttpServeMux::initialize()
@@ -827,22 +827,24 @@ srs_error_t SrsHttpServeMux::initialize()
     return err;
 }
 
-void SrsHttpServeMux::hijack(ISrsHttpMatchHijacker *h)
+void SrsHttpServeMux::add_dynamic_matcher(ISrsHttpDynamicMatcher *h)
 {
-    std::vector<ISrsHttpMatchHijacker *>::iterator it = std::find(hijackers.begin(), hijackers.end(), h);
-    if (it != hijackers.end()) {
+    std::vector<ISrsHttpDynamicMatcher *>::iterator it;
+    it = std::find(dynamic_matchers_.begin(), dynamic_matchers_.end(), h);
+    if (it != dynamic_matchers_.end()) {
         return;
     }
-    hijackers.push_back(h);
+    dynamic_matchers_.push_back(h);
 }
 
-void SrsHttpServeMux::unhijack(ISrsHttpMatchHijacker *h)
+void SrsHttpServeMux::remove_dynamic_matcher(ISrsHttpDynamicMatcher *h)
 {
-    std::vector<ISrsHttpMatchHijacker *>::iterator it = std::find(hijackers.begin(), hijackers.end(), h);
-    if (it == hijackers.end()) {
+    std::vector<ISrsHttpDynamicMatcher *>::iterator it;
+    it = std::find(dynamic_matchers_.begin(), dynamic_matchers_.end(), h);
+    if (it == dynamic_matchers_.end()) {
         return;
     }
-    it = hijackers.erase(it);
+    it = dynamic_matchers_.erase(it);
 }
 
 srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler *handler)
@@ -853,8 +855,8 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler *handle
         return srs_error_new(ERROR_HTTP_PATTERN_EMPTY, "empty pattern");
     }
 
-    if (entries.find(pattern) != entries.end()) {
-        SrsHttpMuxEntry *exists = entries[pattern];
+    if (static_matchers_.find(pattern) != static_matchers_.end()) {
+        SrsHttpMuxEntry *exists = static_matchers_[pattern];
         if (exists->explicit_match) {
             return srs_error_new(ERROR_HTTP_PATTERN_DUPLICATED, "pattern=%s exists", pattern.c_str());
         }
@@ -865,7 +867,7 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler *handle
         if (pattern.find("/") != string::npos) {
             vhost = pattern.substr(0, pattern.find("/"));
         }
-        vhosts[vhost] = handler;
+        vhosts_[vhost] = handler;
     }
 
     if (true) {
@@ -875,11 +877,11 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler *handle
         entry->pattern = pattern;
         entry->handler->entry = entry;
 
-        if (entries.find(pattern) != entries.end()) {
-            SrsHttpMuxEntry *exists = entries[pattern];
+        if (static_matchers_.find(pattern) != static_matchers_.end()) {
+            SrsHttpMuxEntry *exists = static_matchers_[pattern];
             srs_freep(exists);
         }
-        entries[pattern] = entry;
+        static_matchers_[pattern] = entry;
     }
 
     // Helpful behavior:
@@ -890,8 +892,8 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler *handle
         SrsHttpMuxEntry *entry = NULL;
 
         // free the exists implicit entry
-        if (entries.find(rpattern) != entries.end()) {
-            entry = entries[rpattern];
+        if (static_matchers_.find(rpattern) != static_matchers_.end()) {
+            entry = static_matchers_[rpattern];
         }
 
         // create implicit redirect.
@@ -904,7 +906,7 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler *handle
             entry->pattern = pattern;
             entry->handler->entry = entry;
 
-            entries[rpattern] = entry;
+            static_matchers_[rpattern] = entry;
         }
     }
 
@@ -914,10 +916,10 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler *handle
 void SrsHttpServeMux::unhandle(std::string pattern, ISrsHttpHandler *handler)
 {
     if (true) {
-        std::map<std::string, SrsHttpMuxEntry *>::iterator it = entries.find(pattern);
-        if (it != entries.end()) {
+        std::map<std::string, SrsHttpMuxEntry *>::iterator it = static_matchers_.find(pattern);
+        if (it != static_matchers_.end()) {
             SrsHttpMuxEntry *entry = it->second;
-            entries.erase(it);
+            static_matchers_.erase(it);
 
             // We don't free the handler, because user should free it.
             if (entry->handler == handler) {
@@ -935,9 +937,9 @@ void SrsHttpServeMux::unhandle(std::string pattern, ISrsHttpHandler *handler)
             vhost = pattern.substr(0, pattern.find("/"));
         }
 
-        std::map<std::string, ISrsHttpHandler *>::iterator it = vhosts.find(vhost);
-        if (it != vhosts.end())
-            vhosts.erase(it);
+        std::map<std::string, ISrsHttpHandler *>::iterator it = vhosts_.find(vhost);
+        if (it != vhosts_.end())
+            vhosts_.erase(it);
     }
 }
 
@@ -971,14 +973,14 @@ srs_error_t SrsHttpServeMux::find_handler(ISrsHttpMessage *r, ISrsHttpHandler **
         return srs_error_wrap(err, "http match");
     }
 
-    // always hijack.
-    if (!hijackers.empty()) {
-        // notify all hijackers unless matching failed.
-        std::vector<ISrsHttpMatchHijacker *>::iterator it;
-        for (it = hijackers.begin(); it != hijackers.end(); ++it) {
-            ISrsHttpMatchHijacker *hijacker = *it;
-            if ((err = hijacker->hijack(r, ph)) != srs_success) {
-                return srs_error_wrap(err, "http hijack");
+    // always try to handle by dynamic matchers.
+    if (!dynamic_matchers_.empty()) {
+        // notify all dynamic matchers unless matching failed.
+        std::vector<ISrsHttpDynamicMatcher *>::iterator it;
+        for (it = dynamic_matchers_.begin(); it != dynamic_matchers_.end(); ++it) {
+            ISrsHttpDynamicMatcher *matcher = *it;
+            if ((err = matcher->dynamic_match(r, ph)) != srs_success) {
+                return srs_error_wrap(err, "http dynamic match");
             }
         }
     }
@@ -996,7 +998,7 @@ srs_error_t SrsHttpServeMux::match(ISrsHttpMessage *r, ISrsHttpHandler **ph)
     std::string path = r->path();
 
     // Host-specific pattern takes precedence over generic ones
-    if (!vhosts.empty() && vhosts.find(r->host()) != vhosts.end()) {
+    if (!vhosts_.empty() && vhosts_.find(r->host()) != vhosts_.end()) {
         path = r->host() + path;
     }
 
@@ -1004,7 +1006,7 @@ srs_error_t SrsHttpServeMux::match(ISrsHttpMessage *r, ISrsHttpHandler **ph)
     ISrsHttpHandler *h = NULL;
 
     std::map<std::string, SrsHttpMuxEntry *>::iterator it;
-    for (it = entries.begin(); it != entries.end(); ++it) {
+    for (it = static_matchers_.begin(); it != static_matchers_.end(); ++it) {
         std::string pattern = it->first;
         SrsHttpMuxEntry *entry = it->second;
 

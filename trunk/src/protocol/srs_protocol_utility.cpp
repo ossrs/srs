@@ -43,35 +43,28 @@ using namespace std;
 
 void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string &vhost, string &app, string &stream, int &port, string &param)
 {
-    // For compatibility, transform
-    //      rtmp://ip/app...vhost...VHOST/stream
-    // to typical format:
-    //      rtmp://ip/app?vhost=VHOST/stream
-    string fullUrl = srs_strings_replace(tcUrl, "...vhost...", "?vhost=");
-
-    // Standard URL is:
-    //      rtmp://ip/app/app2/stream?k=v
-    // Where after last slash is stream.
+    // Build the full URL with stream and param if provided
+    string fullUrl = tcUrl;
     fullUrl += stream.empty() ? "/" : (stream.at(0) == '/' ? stream : "/" + stream);
     fullUrl += param.empty() ? "" : (param.at(0) == '?' ? param : "?" + param);
 
-    // First, we covert the FMLE URL to standard URL:
-    //      rtmp://ip/app/app2?k=v/stream , or:
-    //      rtmp://ip/app/app2#k=v/stream
-    size_t pos_query = fullUrl.find_first_of("?#");
-    size_t pos_rslash = fullUrl.rfind("/");
-    if (pos_rslash != string::npos && pos_query != string::npos && pos_query < pos_rslash) {
-        fullUrl = fullUrl.substr(0, pos_query)                         // rtmp://ip/app/app2
-                  + fullUrl.substr(pos_rslash)                         // /stream
-                  + fullUrl.substr(pos_query, pos_rslash - pos_query); // ?k=v
-    }
+    // For compatibility, transform legacy ...vhost... format
+    //      rtmp://ip/app...vhost...VHOST/stream
+    // to query parameter format:
+    //      rtmp://ip/app?vhost=VHOST/stream
+    fullUrl = srs_strings_replace(fullUrl, "...vhost...", "?vhost=");
+
+    // Convert legacy RTMP URL format to standard format
+    // Legacy: rtmp://ip/app/app2?vhost=xxx/stream
+    // Standard: rtmp://ip/app/app2/stream?vhost=xxx
+    fullUrl = srs_net_url_convert_legacy_rtmp_url(fullUrl);
 
     // Remove the _definst_ of FMLE URL.
     if (fullUrl.find("/_definst_") != string::npos) {
         fullUrl = srs_strings_replace(fullUrl, "/_definst_", "");
     }
 
-    // Parse the standard URL.
+    // Parse the standard URL using SrsHttpUri.
     SrsHttpUri uri;
     srs_error_t err = srs_success;
     if ((err = uri.initialize(fullUrl)) != srs_success) {
@@ -80,6 +73,7 @@ void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string 
         return;
     }
 
+    // Extract basic URL components
     schema = uri.get_schema();
     host = uri.get_host();
     port = uri.get_port();
@@ -94,7 +88,7 @@ void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string 
     if (app.empty())
         app = SRS_CONSTS_RTMP_DEFAULT_APP;
 
-    // Try to parse vhost from query, or use host if not specified.
+    // Discover vhost from query parameters, or use host if not specified.
     string vhost_in_query = uri.get_query_by_key("vhost");
     if (vhost_in_query.empty())
         vhost_in_query = uri.get_query_by_key("domain");
@@ -107,6 +101,36 @@ void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string 
     if (param.find("&") == string::npos && vhost_in_query == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         param = "";
     }
+}
+
+string srs_net_url_convert_legacy_rtmp_url(const string &url)
+{
+    // Check if this is a legacy RTMP URL format: rtmp://ip/app/app2?vhost=xxx/stream
+    // We need to convert it to standard format: rtmp://ip/app/app2/stream?vhost=xxx
+
+    // Find the query part starting with ?
+    size_t query_pos = url.find('?');
+
+    // Find the last slash in the URL
+    size_t last_slash_pos = url.rfind('/');
+    if (last_slash_pos == string::npos) {
+        // No slash in URL, return as is
+        return url;
+    }
+
+    // Check for normal legacy case: query exists and slash is after query
+    if (query_pos != string::npos && last_slash_pos > query_pos) {
+        // Normal legacy case: rtmp://ip/app/app2?vhost=xxx/stream
+        string base_url = url.substr(0, query_pos);                            // rtmp://ip/app/app2
+        string query_part = url.substr(query_pos, last_slash_pos - query_pos); // ?vhost=xxx
+        string stream_part = url.substr(last_slash_pos);                       // /stream
+
+        // Reconstruct as standard format: base_url + stream_part + query_part
+        return base_url + stream_part + query_part;
+    }
+
+    // No conversion needed, return as is
+    return url;
 }
 
 void srs_net_url_guess_stream(string &app, string &param, string &stream)
@@ -259,19 +283,18 @@ string srs_net_url_encode_rtmp_url(string server, int port, string host, string 
     return url;
 }
 
-template <typename T>
-srs_error_t srs_do_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, T **ppmsg)
+srs_error_t srs_do_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, SrsRtmpCommonMessage **ppmsg)
 {
     srs_error_t err = srs_success;
 
     *ppmsg = NULL;
-    T *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
 
     if (type == SrsFrameTypeAudio) {
         SrsMessageHeader header;
         header.initialize_audio(size, timestamp, stream_id);
 
-        msg = new T();
+        msg = new SrsRtmpCommonMessage();
         if ((err = msg->create(&header, data, size)) != srs_success) {
             srs_freep(msg);
             return srs_error_wrap(err, "create message");
@@ -280,7 +303,7 @@ srs_error_t srs_do_rtmp_create_msg(char type, uint32_t timestamp, char *data, in
         SrsMessageHeader header;
         header.initialize_video(size, timestamp, stream_id);
 
-        msg = new T();
+        msg = new SrsRtmpCommonMessage();
         if ((err = msg->create(&header, data, size)) != srs_success) {
             srs_freep(msg);
             return srs_error_wrap(err, "create message");
@@ -289,7 +312,7 @@ srs_error_t srs_do_rtmp_create_msg(char type, uint32_t timestamp, char *data, in
         SrsMessageHeader header;
         header.initialize_amf0_script(size, stream_id);
 
-        msg = new T();
+        msg = new SrsRtmpCommonMessage();
         if ((err = msg->create(&header, data, size)) != srs_success) {
             srs_freep(msg);
             return srs_error_wrap(err, "create message");
@@ -303,20 +326,7 @@ srs_error_t srs_do_rtmp_create_msg(char type, uint32_t timestamp, char *data, in
     return err;
 }
 
-srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, SrsSharedPtrMessage **ppmsg)
-{
-    srs_error_t err = srs_success;
-
-    // only when failed, we must free the data.
-    if ((err = srs_do_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != srs_success) {
-        srs_freepa(data);
-        return srs_error_wrap(err, "create message");
-    }
-
-    return err;
-}
-
-srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, SrsCommonMessage **ppmsg)
+srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, SrsRtmpCommonMessage **ppmsg)
 {
     srs_error_t err = srs_success;
 

@@ -178,7 +178,7 @@ public:
     }
 };
 
-class MockHttpHandler : public ISrsHttpHandler, public ISrsHttpMatchHijacker
+class MockHttpHandler : public ISrsHttpHandler, public ISrsHttpDynamicMatcher
 {
 public:
     string bytes;
@@ -193,7 +193,7 @@ public:
     {
         return w->write((char *)bytes.data(), (int)bytes.length());
     }
-    virtual srs_error_t hijack(ISrsHttpMessage * /*r*/, ISrsHttpHandler **ph)
+    virtual srs_error_t dynamic_match(ISrsHttpMessage * /*r*/, ISrsHttpHandler **ph)
     {
         if (ph) {
             *ph = this;
@@ -840,10 +840,10 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerHijack)
         HELPER_ASSERT_SUCCESS(s.initialize());
 
         MockHttpHandler h1("Done");
-        s.hijack(&h1);
+        s.add_dynamic_matcher(&h1);
 
         MockHttpHandler h0("Hello, world!");
-        s.hijack(&h0);
+        s.add_dynamic_matcher(&h0);
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
@@ -859,10 +859,10 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerHijack)
         HELPER_ASSERT_SUCCESS(s.initialize());
 
         MockHttpHandler h0("Hello, world!");
-        s.hijack(&h0);
+        s.add_dynamic_matcher(&h0);
 
         MockHttpHandler h1("Done");
-        s.hijack(&h1);
+        s.add_dynamic_matcher(&h1);
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
@@ -877,8 +877,8 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerHijack)
         HELPER_ASSERT_SUCCESS(s.initialize());
 
         MockHttpHandler hroot("Hello, world!");
-        s.hijack(&hroot);
-        s.unhijack(&hroot);
+        s.add_dynamic_matcher(&hroot);
+        s.remove_dynamic_matcher(&hroot);
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
@@ -893,7 +893,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerHijack)
         HELPER_ASSERT_SUCCESS(s.initialize());
 
         MockHttpHandler hroot("Hello, world!");
-        s.hijack(&hroot);
+        s.add_dynamic_matcher(&hroot);
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);

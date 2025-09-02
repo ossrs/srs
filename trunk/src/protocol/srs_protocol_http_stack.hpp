@@ -409,18 +409,18 @@ public:
     virtual ~SrsHttpMuxEntry();
 };
 
-// The hijacker for http pattern match.
-class ISrsHttpMatchHijacker
+// The dynamic matcher for http pattern match.
+class ISrsHttpDynamicMatcher
 {
 public:
-    ISrsHttpMatchHijacker();
-    virtual ~ISrsHttpMatchHijacker();
+    ISrsHttpDynamicMatcher();
+    virtual ~ISrsHttpDynamicMatcher();
 
 public:
     // When match the request failed, no handler to process request.
     // @param request the http request message to match the handler.
-    // @param ph the already matched handler, hijack can rewrite it.
-    virtual srs_error_t hijack(ISrsHttpMessage *request, ISrsHttpHandler **ph) = 0;
+    // @param ph the already matched handler, dynamic matcher can rewrite it.
+    virtual srs_error_t dynamic_match(ISrsHttpMessage *request, ISrsHttpHandler **ph) = 0;
 };
 
 // The server mux, all http server should implements it.
@@ -466,17 +466,19 @@ class SrsHttpServeMux : public ISrsHttpServeMux
 {
 private:
     // The pattern handler, to handle the http request.
-    std::map<std::string, SrsHttpMuxEntry *> entries;
+    std::map<std::string, SrsHttpMuxEntry *> static_matchers_;
     // The vhost handler.
     // When find the handler to process the request,
     // append the matched vhost when pattern not starts with /,
     // For example, for pattern /live/livestream.flv of vhost ossrs.net,
     // The path will rewrite to ossrs.net/live/livestream.flv
-    std::map<std::string, ISrsHttpHandler *> vhosts;
-    // all hijackers for http match.
+    std::map<std::string, ISrsHttpHandler *> vhosts_;
+
+private:
+    // all dynamic matcher for http match.
     // For example, the hstrs(http stream trigger rtmp source)
-    // can hijack and install handler when request incoming and no handler.
-    std::vector<ISrsHttpMatchHijacker *> hijackers;
+    // can dynamic match and install handler when request incoming and no handler.
+    std::vector<ISrsHttpDynamicMatcher *> dynamic_matchers_;
 
 public:
     SrsHttpServeMux();
@@ -485,9 +487,11 @@ public:
 public:
     // Initialize the http serve mux.
     virtual srs_error_t initialize();
-    // hijack the http match.
-    virtual void hijack(ISrsHttpMatchHijacker *h);
-    virtual void unhijack(ISrsHttpMatchHijacker *h);
+
+public:
+    // Add a dynamic matcher for the http match.
+    virtual void add_dynamic_matcher(ISrsHttpDynamicMatcher *h);
+    virtual void remove_dynamic_matcher(ISrsHttpDynamicMatcher *h);
 
 public:
     // Handle registers the handler for the given pattern.

@@ -21,7 +21,7 @@ class SrsRtmpClient;
 class SrsStSocket;
 class ISrsRequest;
 class SrsRawH264Stream;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsRawAacStream;
 struct SrsRawAacStreamCodec;
 class SrsPithyPrint;
@@ -56,7 +56,7 @@ class SrsMpegtsQueue
 {
 private:
     // The key: dts, value: msg.
-    std::map<int64_t, SrsSharedPtrMessage *> msgs;
+    std::map<int64_t, SrsMediaPacket *> msgs;
     int nb_audios;
     int nb_videos;
 
@@ -65,8 +65,8 @@ public:
     virtual ~SrsMpegtsQueue();
 
 public:
-    virtual srs_error_t push(SrsSharedPtrMessage *msg);
-    virtual SrsSharedPtrMessage *dequeue();
+    virtual srs_error_t push(SrsMediaPacket *msg);
+    virtual SrsMediaPacket *dequeue();
 };
 
 // The mpegts over udp stream caster.

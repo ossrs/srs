@@ -25,19 +25,19 @@ class SrsResponse;
 class SrsLiveSource;
 class SrsRefer;
 class SrsLiveConsumer;
-class SrsCommonMessage;
+class SrsRtmpCommonMessage;
 class SrsStSocket;
 class SrsHttpHooks;
 class SrsBandwidth;
 class SrsKbps;
 class SrsRtmpClient;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsQueueRecvThread;
 class SrsPublishRecvThread;
 class SrsSecurity;
 class ISrsWakable;
-class SrsCommonMessage;
-class SrsPacket;
+class SrsRtmpCommonMessage;
+class SrsRtmpCommand;
 class SrsNetworkDelta;
 
 class SrsSslConnection;
@@ -195,9 +195,9 @@ private:
     virtual srs_error_t do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPublishRecvThread *trd);
     virtual srs_error_t acquire_publish(SrsSharedPtr<SrsLiveSource> source);
     virtual void release_publish(SrsSharedPtr<SrsLiveSource> source);
-    virtual srs_error_t handle_publish_message(SrsSharedPtr<SrsLiveSource> &source, SrsCommonMessage *msg);
-    virtual srs_error_t process_publish_message(SrsSharedPtr<SrsLiveSource> &source, SrsCommonMessage *msg);
-    virtual srs_error_t process_play_control_msg(SrsLiveConsumer *consumer, SrsCommonMessage *msg);
+    virtual srs_error_t handle_publish_message(SrsSharedPtr<SrsLiveSource> &source, SrsRtmpCommonMessage *msg);
+    virtual srs_error_t process_publish_message(SrsSharedPtr<SrsLiveSource> &source, SrsRtmpCommonMessage *msg);
+    virtual srs_error_t process_play_control_msg(SrsLiveConsumer *consumer, SrsRtmpCommonMessage *msg);
     virtual void set_sock_options();
 
 private:

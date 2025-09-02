@@ -14,7 +14,7 @@
 #include <srs_app_st.hpp>
 
 class ISrsProtocolReadWriter;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsOnMetaDataPacket;
 class SrsMessageQueue;
 class SrsRtmpJitter;
@@ -46,8 +46,8 @@ private:
     SrsRtmpJitter *jitter;
     SrsMessageQueue *queue;
     // Cache the sequence header for retry when slave is failed.
-    SrsSharedPtrMessage *sh_audio;
-    SrsSharedPtrMessage *sh_video;
+    SrsMediaPacket *sh_audio;
+    SrsMediaPacket *sh_video;
 
 public:
     SrsForwarder(SrsOriginHub *h);
@@ -62,13 +62,13 @@ public:
     virtual void on_unpublish();
     // Forward the audio packet.
     // @param shared_metadata, directly ptr, copy it if need to save it.
-    virtual srs_error_t on_meta_data(SrsSharedPtrMessage *shared_metadata);
+    virtual srs_error_t on_meta_data(SrsMediaPacket *shared_metadata);
     // Forward the audio packet.
     // @param shared_audio, directly ptr, copy it if need to save it.
-    virtual srs_error_t on_audio(SrsSharedPtrMessage *shared_audio);
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio);
     // Forward the video packet.
     // @param shared_video, directly ptr, copy it if need to save it.
-    virtual srs_error_t on_video(SrsSharedPtrMessage *shared_video);
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video);
     // Interface ISrsReusableThread2Handler.
 public:
     virtual srs_error_t cycle();

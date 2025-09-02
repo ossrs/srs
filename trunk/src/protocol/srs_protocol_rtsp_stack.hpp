@@ -15,7 +15,7 @@
 
 class SrsBuffer;
 class SrsSimpleStream;
-class SrsAudioFrame;
+class SrsParsedAudioPacket;
 class ISrsProtocolReadWriter;
 
 // From rtsp specification

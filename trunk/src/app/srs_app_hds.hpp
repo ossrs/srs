@@ -14,7 +14,7 @@
 #include <list>
 
 class ISrsRequest;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsHdsFragment;
 class SrsLiveSource;
 
@@ -28,8 +28,8 @@ public:
     srs_error_t on_publish(ISrsRequest *req);
     srs_error_t on_unpublish();
 
-    srs_error_t on_video(SrsSharedPtrMessage *msg);
-    srs_error_t on_audio(SrsSharedPtrMessage *msg);
+    srs_error_t on_video(SrsMediaPacket *msg);
+    srs_error_t on_audio(SrsMediaPacket *msg);
 
 private:
     srs_error_t flush_mainfest();
@@ -40,8 +40,8 @@ private:
     std::list<SrsHdsFragment *> fragments;
     SrsHdsFragment *currentSegment;
     int fragment_index;
-    SrsSharedPtrMessage *video_sh;
-    SrsSharedPtrMessage *audio_sh;
+    SrsMediaPacket *video_sh;
+    SrsMediaPacket *audio_sh;
 
     ISrsRequest *hds_req;
     bool hds_enabled;

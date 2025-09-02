@@ -16,7 +16,7 @@
 
 class ISrsRequest;
 class SrsOriginHub;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsFormat;
 class SrsFileWriter;
 class SrsMpdWriter;
@@ -54,7 +54,7 @@ public:
     // Initialize the fragment, create the home dir, open the file.
     virtual srs_error_t initialize(ISrsRequest *r, bool video, int64_t time, SrsMpdWriter *mpd, uint32_t tid);
     // Write media message to fragment.
-    virtual srs_error_t write(SrsSharedPtrMessage *shared_msg, SrsFormat *format);
+    virtual srs_error_t write(SrsMediaPacket *shared_msg, SrsFormat *format);
     // Reap the fragment, close the fd and rename tmp to official file.
     virtual srs_error_t reap(uint64_t &dts);
 };
@@ -154,12 +154,12 @@ public:
     virtual srs_error_t initialize(ISrsRequest *r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
-    virtual srs_error_t on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format);
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
 
 private:
     virtual srs_error_t refresh_mpd(SrsFormat *format);
-    virtual srs_error_t refresh_init_mp4(SrsSharedPtrMessage *msg, SrsFormat *format);
+    virtual srs_error_t refresh_init_mp4(SrsMediaPacket *msg, SrsFormat *format);
 };
 
 // The MPEG-DASH encoder, transmux RTMP to DASH.
@@ -190,9 +190,9 @@ public:
     // When stream start publishing.
     virtual srs_error_t on_publish();
     // When got an shared audio message.
-    virtual srs_error_t on_audio(SrsSharedPtrMessage *shared_audio, SrsFormat *format);
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
     // When got an shared video message.
-    virtual srs_error_t on_video(SrsSharedPtrMessage *shared_video, SrsFormat *format);
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
     // When stream stop publishing.
     virtual void on_unpublish();
 };

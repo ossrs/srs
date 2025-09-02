@@ -36,7 +36,7 @@ srs_error_t SrsRtpVideoBuilder::initialize(SrsFormat *format, uint32_t ssrc, uin
     return srs_success;
 }
 
-srs_error_t SrsRtpVideoBuilder::package_stap_a(SrsSharedPtrMessage *msg, SrsRtpPacket *pkt)
+srs_error_t SrsRtpVideoBuilder::package_stap_a(SrsMediaPacket *msg, SrsRtpPacket *pkt)
 {
     srs_error_t err = srs_success;
 
@@ -86,7 +86,7 @@ srs_error_t SrsRtpVideoBuilder::package_stap_a(SrsSharedPtrMessage *msg, SrsRtpP
 
     for (vector<vector<char> *>::iterator it = params.begin(); it != params.end(); ++it) {
         vector<char> *param = *it;
-        SrsSample *sample = new SrsSample();
+        SrsNaluSample *sample = new SrsNaluSample();
         sample->bytes = payload;
         sample->size = param->size();
         if (format->vcodec->id == SrsVideoCodecIdHEVC) {
@@ -102,7 +102,7 @@ srs_error_t SrsRtpVideoBuilder::package_stap_a(SrsSharedPtrMessage *msg, SrsRtpP
     return err;
 }
 
-srs_error_t SrsRtpVideoBuilder::package_nalus(SrsSharedPtrMessage *msg, const vector<SrsSample *> &samples, vector<SrsRtpPacket *> &pkts)
+srs_error_t SrsRtpVideoBuilder::package_nalus(SrsMediaPacket *msg, const vector<SrsNaluSample *> &samples, vector<SrsRtpPacket *> &pkts)
 {
     srs_error_t err = srs_success;
 
@@ -116,7 +116,7 @@ srs_error_t SrsRtpVideoBuilder::package_nalus(SrsSharedPtrMessage *msg, const ve
     uint8_t first_nalu_type = 0;
 
     for (int i = 0; i < (int)samples.size(); i++) {
-        SrsSample *sample = samples[i];
+        SrsNaluSample *sample = samples[i];
 
         if (!sample->size) {
             continue;
@@ -148,7 +148,7 @@ srs_error_t SrsRtpVideoBuilder::package_nalus(SrsSharedPtrMessage *msg, const ve
         pkt->header.set_sequence(video_sequence_++);
         pkt->header.set_timestamp(msg->timestamp * 90);
         pkt->set_payload(raw_raw, SrsRtpPacketPayloadTypeNALU);
-        pkt->wrap(msg);
+        pkt->wrap(msg->payload_);
     } else {
         // We must free it, should never use RTP packets to free it,
         // because more than one RTP packet will refer to it.
@@ -202,7 +202,7 @@ srs_error_t SrsRtpVideoBuilder::package_nalus(SrsSharedPtrMessage *msg, const ve
                 pkt->set_payload(fua, SrsRtpPacketPayloadTypeFUA);
             }
 
-            pkt->wrap(msg);
+            pkt->wrap(msg->payload_);
 
             nb_left -= packet_size;
         }
@@ -212,7 +212,7 @@ srs_error_t SrsRtpVideoBuilder::package_nalus(SrsSharedPtrMessage *msg, const ve
 }
 
 // Single NAL Unit Packet @see https://tools.ietf.org/html/rfc6184#section-5.6
-srs_error_t SrsRtpVideoBuilder::package_single_nalu(SrsSharedPtrMessage *msg, SrsSample *sample, vector<SrsRtpPacket *> &pkts)
+srs_error_t SrsRtpVideoBuilder::package_single_nalu(SrsMediaPacket *msg, SrsNaluSample *sample, vector<SrsRtpPacket *> &pkts)
 {
     srs_error_t err = srs_success;
 
@@ -231,12 +231,12 @@ srs_error_t SrsRtpVideoBuilder::package_single_nalu(SrsSharedPtrMessage *msg, Sr
     raw->payload = sample->bytes;
     raw->nn_payload = sample->size;
 
-    pkt->wrap(msg);
+    pkt->wrap(msg->payload_);
 
     return err;
 }
 
-srs_error_t SrsRtpVideoBuilder::package_fu_a(SrsSharedPtrMessage *msg, SrsSample *sample, int fu_payload_size, vector<SrsRtpPacket *> &pkts)
+srs_error_t SrsRtpVideoBuilder::package_fu_a(SrsMediaPacket *msg, SrsNaluSample *sample, int fu_payload_size, vector<SrsRtpPacket *> &pkts)
 {
     srs_error_t err = srs_success;
 
@@ -292,7 +292,7 @@ srs_error_t SrsRtpVideoBuilder::package_fu_a(SrsSharedPtrMessage *msg, SrsSample
             fua->size = packet_size;
         }
 
-        pkt->wrap(msg);
+        pkt->wrap(msg->payload_);
 
         p += packet_size;
         nb_left -= packet_size;

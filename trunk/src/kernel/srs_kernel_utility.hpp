@@ -232,6 +232,11 @@ extern bool srs_net_url_is_rtmp(std::string url);
 extern void srs_net_url_parse_tcurl(std::string tcUrl, std::string &schema, std::string &host, std::string &vhost, std::string &app,
                                     std::string &stream, int &port, std::string &param);
 
+// Convert legacy RTMP URL format to standard format.
+// Legacy format: rtmp://ip/app/app2?vhost=xxx/stream
+// Standard format: rtmp://ip/app/app2/stream?vhost=xxx
+extern std::string srs_net_url_convert_legacy_rtmp_url(const std::string &url);
+
 // Guessing stream by app and param, to make OBS happy. For example:
 //      rtmp://ip/live/livestream
 //      rtmp://ip/live/livestream?secret=xxx

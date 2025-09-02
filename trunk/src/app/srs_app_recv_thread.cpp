@@ -123,7 +123,7 @@ srs_error_t SrsRecvThread::do_cycle()
             continue;
         }
 
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
 
         // Process the received message.
         if ((err = rtmp->recv_message(&msg)) == srs_success) {
@@ -157,9 +157,9 @@ SrsQueueRecvThread::~SrsQueueRecvThread()
     stop();
 
     // clear all messages.
-    std::vector<SrsCommonMessage *>::iterator it;
+    std::vector<SrsRtmpCommonMessage *>::iterator it;
     for (it = queue.begin(); it != queue.end(); ++it) {
-        SrsCommonMessage *msg = *it;
+        SrsRtmpCommonMessage *msg = *it;
         srs_freep(msg);
     }
     queue.clear();
@@ -193,11 +193,11 @@ int SrsQueueRecvThread::size()
     return (int)queue.size();
 }
 
-SrsCommonMessage *SrsQueueRecvThread::pump()
+SrsRtmpCommonMessage *SrsQueueRecvThread::pump()
 {
     srs_assert(!queue.empty());
 
-    SrsCommonMessage *msg = *queue.begin();
+    SrsRtmpCommonMessage *msg = *queue.begin();
 
     queue.erase(queue.begin());
 
@@ -209,7 +209,7 @@ srs_error_t SrsQueueRecvThread::error_code()
     return srs_error_copy(recv_error);
 }
 
-srs_error_t SrsQueueRecvThread::consume(SrsCommonMessage *msg)
+srs_error_t SrsQueueRecvThread::consume(SrsRtmpCommonMessage *msg)
 {
     // put into queue, the send thread will get and process it,
     // @see SrsRtmpConn::process_play_control_msg
@@ -348,7 +348,7 @@ void SrsPublishRecvThread::stop()
     trd.stop();
 }
 
-srs_error_t SrsPublishRecvThread::consume(SrsCommonMessage *msg)
+srs_error_t SrsPublishRecvThread::consume(SrsRtmpCommonMessage *msg)
 {
     srs_error_t err = srs_success;
 

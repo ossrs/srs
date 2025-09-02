@@ -32,8 +32,8 @@
 class ISrsHttpMessage;
 
 class SrsMessageHeader;
-class SrsSharedPtrMessage;
-class SrsCommonMessage;
+class SrsMediaPacket;
+class SrsRtmpCommonMessage;
 class ISrsProtocolReadWriter;
 class ISrsReader;
 
@@ -55,6 +55,11 @@ class ISrsReader;
  */
 extern void srs_net_url_parse_tcurl(std::string tcUrl, std::string &schema, std::string &host, std::string &vhost, std::string &app,
                                     std::string &stream, int &port, std::string &param);
+
+// Convert legacy RTMP URL format to standard format.
+// Legacy format: rtmp://ip/app/app2?vhost=xxx/stream
+// Standard format: rtmp://ip/app/app2/stream?vhost=xxx
+extern std::string srs_net_url_convert_legacy_rtmp_url(const std::string &url);
 
 // Guessing stream by app and param, to make OBS happy. For example:
 //      rtmp://ip/live/livestream
@@ -96,8 +101,7 @@ extern std::string srs_net_url_encode_rtmp_url(std::string server, int port, std
  * @param data the packet bytes. user should never free it.
  * @param ppmsg output the shared ptr message. user should free it.
  */
-extern srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, SrsSharedPtrMessage **ppmsg);
-extern srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, SrsCommonMessage **ppmsg);
+extern srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char *data, int size, int stream_id, SrsRtmpCommonMessage **ppmsg);
 
 // write large numbers of iovs.
 extern srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter *skt, iovec *iovs, int size, ssize_t *pnwrite = NULL);

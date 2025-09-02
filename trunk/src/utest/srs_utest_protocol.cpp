@@ -896,10 +896,11 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
     srs_error_t err = srs_success;
 
     SrsMessageHeader header;
-    SrsSharedPtrMessage msg;
+    SrsMediaPacket msg;
     char *payload = new char[1024];
-    HELPER_EXPECT_SUCCESS(msg.create(&header, payload, 1024));
-    EXPECT_EQ(0, msg.count());
+    SrsRtmpCommonMessage common_msg;
+    HELPER_EXPECT_SUCCESS(common_msg.create(&header, payload, 1024));
+    common_msg.to_msg(&msg);
 
     if (true) {
         SrsMessageArray arr(3);
@@ -908,15 +909,11 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
         SrsUniquePtr<SrsMessageArray> parr2(parr, srs_utest_free_message_array);
 
         arr.msgs[0] = msg.copy();
-        EXPECT_EQ(1, msg.count());
 
         arr.msgs[1] = msg.copy();
-        EXPECT_EQ(2, msg.count());
 
         arr.msgs[2] = msg.copy();
-        EXPECT_EQ(3, msg.count());
     }
-    EXPECT_EQ(0, msg.count());
 
     if (true) {
         SrsMessageArray arr(3);
@@ -925,12 +922,9 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
         SrsUniquePtr<SrsMessageArray> parr2(parr, srs_utest_free_message_array);
 
         arr.msgs[0] = msg.copy();
-        EXPECT_EQ(1, msg.count());
 
         arr.msgs[2] = msg.copy();
-        EXPECT_EQ(2, msg.count());
     }
-    EXPECT_EQ(0, msg.count());
 }
 
 /**
@@ -1016,13 +1010,13 @@ VOID TEST(ProtocolStackTest, ProtocolRecvMessage)
         0x67, 0x00, 0x40, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
-    SrsPacket *pkt = NULL;
+    SrsRtmpCommand *pkt = NULL;
     HELPER_EXPECT_SUCCESS(proto.decode_message(msg, &pkt));
-    SrsUniquePtr<SrsPacket> pkt_uptr(pkt);
+    SrsUniquePtr<SrsRtmpCommand> pkt_uptr(pkt);
 
     SrsConnectAppPacket *spkt = dynamic_cast<SrsConnectAppPacket *>(pkt);
     ASSERT_TRUE(NULL != spkt);
@@ -1053,13 +1047,13 @@ VOID TEST(ProtocolStackTest, ProtocolRecvMessageBug98)
     };
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
-    SrsPacket *pkt = NULL;
+    SrsRtmpCommand *pkt = NULL;
     HELPER_EXPECT_SUCCESS(proto.decode_message(msg, &pkt));
-    SrsUniquePtr<SrsPacket> pkt_uptr(pkt);
+    SrsUniquePtr<SrsRtmpCommand> pkt_uptr(pkt);
 
     SrsUserControlPacket *spkt = dynamic_cast<SrsUserControlPacket *>(pkt);
     ASSERT_TRUE(NULL != spkt);
@@ -1089,13 +1083,13 @@ VOID TEST(ProtocolStackTest, ProtocolRecvAckSizeMessage)
         0x00, 0x00, 0x07, 0x63};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
-    SrsPacket *pkt = NULL;
+    SrsRtmpCommand *pkt = NULL;
     HELPER_EXPECT_SUCCESS(proto.decode_message(msg, &pkt));
-    SrsUniquePtr<SrsPacket> pkt_uptr(pkt);
+    SrsUniquePtr<SrsRtmpCommand> pkt_uptr(pkt);
 
     SrsSetWindowAckSizePacket *spkt = dynamic_cast<SrsSetWindowAckSizePacket *>(pkt);
     ASSERT_TRUE(NULL != spkt);
@@ -1124,9 +1118,9 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVMessage)
         0x00, 0x00, 0x07, 0x63};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
 }
 
@@ -1152,9 +1146,9 @@ VOID TEST(ProtocolStackTest, ProtocolRecvAMessage)
         0x00, 0x00, 0x07, 0x63};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_audio());
 }
 
@@ -1199,9 +1193,9 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVMessage2Trunk)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
 }
 
@@ -1408,15 +1402,15 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAMessage)
     }
 
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_audio());
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
     }
 }
@@ -1647,15 +1641,15 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAFmt1)
     }
 
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_audio());
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
     }
 }
@@ -1882,15 +1876,15 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAFmt2)
     }
 
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_audio());
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
     }
 }
@@ -2114,15 +2108,15 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAFmt3)
     }
 
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_audio());
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
     }
 }
@@ -2493,25 +2487,25 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVMessage)
     }
 
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x20, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -2897,25 +2891,25 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVFmt1)
     }
 
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x22, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -3299,25 +3293,25 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVFmt2)
     }
 
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x22, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -3700,25 +3694,25 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVFmt3)
     }
 
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x10, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_audio());
         EXPECT_EQ(0x15, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
     }
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_video());
         EXPECT_EQ(0x20, msg->header.timestamp);
         EXPECT_EQ(0x01, msg->header.stream_id);
@@ -3769,12 +3763,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid1BNormal)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 1B cid(6bits), cid in 2-63
-    EXPECT_EQ(0x09, msg->header.prefer_cid);
 }
 
 /**
@@ -3821,12 +3813,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid1BMax)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 1B cid(6bits), max is 63
-    EXPECT_EQ(0x3F, msg->header.prefer_cid);
 }
 
 /**
@@ -3873,12 +3863,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid2BMin)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 2B cid(8bits), min is 64
-    EXPECT_EQ(64, msg->header.prefer_cid);
 }
 
 /**
@@ -3925,12 +3913,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid2BNormal)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 2B cid(8bits), cid in 64-319
-    EXPECT_EQ(0x10 + 64, msg->header.prefer_cid);
 }
 
 /**
@@ -3977,12 +3963,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid2BNormal2)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 2B cid(8bits), cid in 64-319
-    EXPECT_EQ(0x11 + 64, msg->header.prefer_cid);
 }
 
 /**
@@ -4029,12 +4013,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid2BMax)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 2B cid(68bits), max is 319
-    EXPECT_EQ(319, msg->header.prefer_cid);
 }
 
 /**
@@ -4081,12 +4063,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BMin)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 3B cid(16bits), min is 64
-    EXPECT_EQ(64, msg->header.prefer_cid);
 }
 
 /**
@@ -4133,12 +4113,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BNormal)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 3B cid(16bits), cid in 64-65599
-    EXPECT_EQ(0x10 * 256 + 64, msg->header.prefer_cid);
 }
 
 /**
@@ -4185,12 +4163,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BNormal2)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 3B cid(16bits), cid in 64-65599
-    EXPECT_EQ(0x01 + (0x10 * 256) + 64, msg->header.prefer_cid);
 }
 
 /**
@@ -4237,12 +4213,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BNormal3)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 3B cid(16bits), cid in 64-65599
-    EXPECT_EQ(0xFF + (0x10 * 256) + 64, msg->header.prefer_cid);
 }
 
 /**
@@ -4289,12 +4263,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BNormal4)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 3B cid(16bits), cid in 64-65599
-    EXPECT_EQ(0x02 + (0x10 * 256) + 64, msg->header.prefer_cid);
 }
 
 /**
@@ -4341,12 +4313,10 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BMax)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
-    // 2B cid(16bits), max is 65599
-    EXPECT_EQ(65599, msg->header.prefer_cid);
 }
 
 /**
@@ -4380,9 +4350,9 @@ VOID TEST(ProtocolStackTest, ProtocolRecvV0LenMessage)
         0x00, 0x00, 0x07, 0x63};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     EXPECT_TRUE(msg->header.is_video());
     // protocol stack will ignore the empty video message.
     EXPECT_EQ(4, msg->header.payload_length);
@@ -4400,14 +4370,13 @@ VOID TEST(ProtocolStackTest, ProtocolSendVMessage)
 
     uint8_t data[] = {0x01, 0x02, 0x03, 0x04};
 
-    SrsCommonMessage *msg = new SrsCommonMessage();
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
-    msg->size = sizeof(data);
-    msg->payload = new char[msg->size];
-    memcpy(msg->payload, data, msg->size);
+    SrsRtmpCommonMessage *msg = new SrsRtmpCommonMessage();
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
+    msg->create_payload(sizeof(data));
+    memcpy(msg->payload(), data, sizeof(data));
 
-    SrsSharedPtrMessage m;
-    HELPER_ASSERT_SUCCESS(m.create(msg));
+    SrsMediaPacket m;
+    msg->to_msg(&m);
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_message(m.copy(), 0));
     EXPECT_EQ(16, bio.out_buffer.length());
@@ -4436,7 +4405,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsCallPacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
-        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x76, 0x14,
+        0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x76, 0x14,
         0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x07, 0x6d,
         0x79, 0x5f, 0x63, 0x61, 0x6c, 0x6c, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
@@ -4479,7 +4448,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsCallResPacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
-        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x76, 0x14,
+        0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x76, 0x14,
         0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x07, 0x5f,
         0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
@@ -4514,7 +4483,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsCreateStreamPacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
-        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0x14,
+        0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0x14,
         0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x0c, 0x63,
         0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x74, 0x72,
         0x65, 0x61, 0x6d, 0x00, 0x40, 0x00, 0x00, 0x00,
@@ -4539,7 +4508,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsFMLEStartPacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
-        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x23, 0x14,
+        0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x23, 0x14,
         0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x09, 0x46,
         0x4d, 0x4c, 0x45, 0x53, 0x74, 0x61, 0x72, 0x74,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -4570,7 +4539,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsFMLEStartResPacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     uint8_t buf[] = {
-        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0x14,
+        0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0x14,
         0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x09, 0x46,
         0x4d, 0x4c, 0x45, 0x53, 0x74, 0x61, 0x72, 0x74,
         0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -4657,7 +4626,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnBWDonePacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
-        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15, 0x14,
+        0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15, 0x14,
         0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x08, 0x6f,
         0x6e, 0x42, 0x57, 0x44, 0x6f, 0x6e, 0x65, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -4733,16 +4702,16 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnStatusDataPacket)
 }
 
 /**
- * send a SrsSampleAccessPacket packet
+ * send a SrsNaluSampleAccessPacket packet
  */
-VOID TEST(ProtocolStackTest, ProtocolSendSrsSampleAccessPacket)
+VOID TEST(ProtocolStackTest, ProtocolSendSrsNaluSampleAccessPacket)
 {
     srs_error_t err = srs_success;
 
     MockBufferIO bio;
     SrsProtocol proto(&bio);
 
-    SrsSampleAccessPacket *pkt = new SrsSampleAccessPacket();
+    SrsNaluSampleAccessPacket *pkt = new SrsNaluSampleAccessPacket();
     pkt->command_name = "|RtmpSampleAccess";
     pkt->video_sample_access = true;
     pkt->audio_sample_access = true;
@@ -4778,7 +4747,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnMetaDataPacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     uint8_t buf[] = {
-        0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x32, 0x12,
+        0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x32, 0x12,
         0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x0a, 0x6f,
         0x6e, 0x4d, 0x65, 0x74, 0x61, 0x44, 0x61, 0x74,
         0x61, 0x03, 0x00, 0x05, 0x77, 0x69, 0x64, 0x74,
@@ -4804,7 +4773,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsSetWindowAckSizePacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     uint8_t buf[] = {
-        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x05,
+        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x05,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x90, 0x00};
     EXPECT_TRUE(srs_bytes_equal(bio.out_buffer.bytes(), (char *)buf, sizeof(buf)));
 }
@@ -4824,7 +4793,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsAcknowledgementPacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
-        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x03,
+        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x03,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00};
     EXPECT_TRUE(srs_bytes_equal(bio.out_buffer.bytes(), buf, sizeof(buf)));
 }
@@ -4844,7 +4813,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsSetChunkSizePacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
-        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01,
+        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00};
     EXPECT_TRUE(srs_bytes_equal(bio.out_buffer.bytes(), buf, sizeof(buf)));
 }
@@ -4865,7 +4834,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsSetPeerBandwidthPacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
-        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x06,
+        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x06,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00,
         0x01};
     EXPECT_TRUE(srs_bytes_equal(bio.out_buffer.bytes(), buf, sizeof(buf)));
@@ -4888,7 +4857,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsUserControlPacket)
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
-        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0x04,
+        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0x04,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
         0x00, 0x01, 0x00, 0x00, 0x00, 0x10};
 
@@ -4940,7 +4909,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVMessageFmtInvalid)
         0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     HELPER_EXPECT_FAILED(proto.recv_message(&msg));
 }
 
@@ -4962,16 +4931,16 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
     }
 
     if (true) {
-        SrsCommonMessage *msg = new SrsCommonMessage();
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
-        msg->header.payload_length = msg->size = 4096;
-        msg->payload = new char[msg->size];
+        SrsRtmpCommonMessage *msg = new SrsRtmpCommonMessage();
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
+        msg->create_payload(4096);
+        msg->header.payload_length = 4096;
 
         msg->header.message_type = 9;
         EXPECT_TRUE(msg->header.is_video());
 
-        SrsSharedPtrMessage m;
-        HELPER_ASSERT_SUCCESS(m.create(msg));
+        SrsMediaPacket m;
+        msg->to_msg(&m);
 
         HELPER_EXPECT_SUCCESS(proto.send_and_free_message(m.copy(), 1));
     }
@@ -4984,16 +4953,16 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
 
     // recv SrsSetWindowAckSizePacket
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         ASSERT_TRUE(msg->header.is_window_ackledgement_size());
     }
     // recv video
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         ASSERT_TRUE(msg->header.is_video());
     }
 
@@ -5004,24 +4973,24 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
     }
     // recv auto send acked size. #1
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         ASSERT_TRUE(msg->header.is_ackledgement());
     }
 
     // send again
     if (true) {
-        SrsCommonMessage *msg = new SrsCommonMessage();
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
-        msg->header.payload_length = msg->size = 4096;
-        msg->payload = new char[msg->size];
+        SrsRtmpCommonMessage *msg = new SrsRtmpCommonMessage();
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
+        msg->header.payload_length = 4096;
+        msg->create_payload(4096);
 
         msg->header.message_type = 9;
         EXPECT_TRUE(msg->header.is_video());
 
-        SrsSharedPtrMessage m;
-        HELPER_ASSERT_SUCCESS(m.create(msg));
+        SrsMediaPacket m;
+        msg->to_msg(&m);
 
         HELPER_EXPECT_SUCCESS(proto.send_and_free_message(m.copy(), 1));
     }
@@ -5032,9 +5001,9 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
     }
     // recv video
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         ASSERT_TRUE(msg->header.is_video());
     }
 
@@ -5045,9 +5014,9 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
     }
     // recv auto send acked size. #2
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         ASSERT_TRUE(msg->header.is_ackledgement());
     }
 }
@@ -5076,9 +5045,9 @@ VOID TEST(ProtocolStackTest, ProtocolPingFlow)
     }
     // recv ping
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         EXPECT_TRUE(msg->header.is_user_control_message());
     }
 
@@ -5090,14 +5059,14 @@ VOID TEST(ProtocolStackTest, ProtocolPingFlow)
     }
     // recv ping
     if (true) {
-        SrsCommonMessage *msg = NULL;
+        SrsRtmpCommonMessage *msg = NULL;
         HELPER_ASSERT_SUCCESS(proto.recv_message(&msg));
-        SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+        SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         ASSERT_TRUE(msg->header.is_user_control_message());
 
-        SrsPacket *pkt = NULL;
+        SrsRtmpCommand *pkt = NULL;
         HELPER_ASSERT_SUCCESS(proto.decode_message(msg, &pkt));
-        SrsUniquePtr<SrsPacket> pkt_uptr(pkt);
+        SrsUniquePtr<SrsRtmpCommand> pkt_uptr(pkt);
 
         SrsUserControlPacket *spkt = dynamic_cast<SrsUserControlPacket *>(pkt);
         ASSERT_TRUE(spkt != NULL);
@@ -5154,10 +5123,10 @@ VOID TEST(ProtocolStackTest, ProtocolExcpectMessage)
         0x67, 0x00, 0x40, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09};
     bio.in_buffer.append((char *)data, sizeof(data));
 
-    SrsCommonMessage *msg = NULL;
+    SrsRtmpCommonMessage *msg = NULL;
     SrsConnectAppPacket *pkt = NULL;
     HELPER_ASSERT_SUCCESS(proto.expect_message<SrsConnectAppPacket>(&msg, &pkt));
-    SrsUniquePtr<SrsCommonMessage> msg_uptr(msg);
+    SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
     SrsUniquePtr<SrsConnectAppPacket> pkt_uptr(pkt);
     ASSERT_TRUE(NULL != pkt);
 }
@@ -5218,7 +5187,7 @@ VOID TEST(ProtocolRTMPTest, RTMPRequest)
     req.stream = "livestream";
     srs_net_url_parse_tcurl("rtmp://std.ossrs.net/live#b=2",
                             req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
-    EXPECT_STREQ("#b=2", param.c_str());
+    EXPECT_STREQ("#b=2/livestream", param.c_str());
 
     param = "";
     req.stream = "livestream";

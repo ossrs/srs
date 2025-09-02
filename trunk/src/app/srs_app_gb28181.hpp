@@ -37,7 +37,7 @@ class SrsSimpleRtmpClient;
 struct SrsRawAacStreamCodec;
 class SrsRawH264Stream;
 class SrsRawHEVCStream;
-class SrsSharedPtrMessage;
+class SrsMediaPacket;
 class SrsPithyPrint;
 class SrsRawAacStream;
 class ISrsHttpServeMux;
@@ -485,7 +485,7 @@ class SrsMpegpsQueue
 {
 private:
     // The key: dts, value: msg.
-    std::map<int64_t, SrsSharedPtrMessage *> msgs;
+    std::map<int64_t, SrsMediaPacket *> msgs;
     int nb_audios;
     int nb_videos;
 
@@ -494,8 +494,8 @@ public:
     virtual ~SrsMpegpsQueue();
 
 public:
-    virtual srs_error_t push(SrsSharedPtrMessage *msg);
-    virtual SrsSharedPtrMessage *dequeue();
+    virtual srs_error_t push(SrsMediaPacket *msg);
+    virtual SrsMediaPacket *dequeue();
 };
 
 // Mux GB28181 to RTMP.

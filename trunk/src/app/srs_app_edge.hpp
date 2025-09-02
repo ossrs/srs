@@ -21,14 +21,14 @@ class ISrsRequest;
 class SrsPlayEdge;
 class SrsPublishEdge;
 class SrsRtmpClient;
-class SrsCommonMessage;
+class SrsRtmpCommonMessage;
 class SrsMessageQueue;
 class ISrsProtocolReadWriter;
 class SrsKbps;
 class SrsLbRoundRobin;
 class SrsTcpClient;
 class SrsSimpleRtmpClient;
-class SrsPacket;
+class SrsRtmpCommand;
 class SrsHttpClient;
 class ISrsHttpMessage;
 class SrsHttpFileReader;
@@ -65,8 +65,8 @@ public:
 
 public:
     virtual srs_error_t connect(ISrsRequest *r, SrsLbRoundRobin *lb) = 0;
-    virtual srs_error_t recv_message(SrsCommonMessage **pmsg) = 0;
-    virtual srs_error_t decode_message(SrsCommonMessage *msg, SrsPacket **ppacket) = 0;
+    virtual srs_error_t recv_message(SrsRtmpCommonMessage **pmsg) = 0;
+    virtual srs_error_t decode_message(SrsRtmpCommonMessage *msg, SrsRtmpCommand **ppacket) = 0;
     virtual void close() = 0;
 
 public:
@@ -95,8 +95,8 @@ public:
 
 public:
     virtual srs_error_t connect(ISrsRequest *r, SrsLbRoundRobin *lb);
-    virtual srs_error_t recv_message(SrsCommonMessage **pmsg);
-    virtual srs_error_t decode_message(SrsCommonMessage *msg, SrsPacket **ppacket);
+    virtual srs_error_t recv_message(SrsRtmpCommonMessage **pmsg);
+    virtual srs_error_t decode_message(SrsRtmpCommonMessage *msg, SrsRtmpCommand **ppacket);
     virtual void close();
 
 public:
@@ -134,8 +134,8 @@ private:
     virtual srs_error_t do_connect(ISrsRequest *r, SrsLbRoundRobin *lb, int redirect_depth);
 
 public:
-    virtual srs_error_t recv_message(SrsCommonMessage **pmsg);
-    virtual srs_error_t decode_message(SrsCommonMessage *msg, SrsPacket **ppacket);
+    virtual srs_error_t recv_message(SrsRtmpCommonMessage **pmsg);
+    virtual srs_error_t decode_message(SrsRtmpCommonMessage *msg, SrsRtmpCommand **ppacket);
     virtual void close();
 
 public:
@@ -177,7 +177,7 @@ private:
 
 private:
     virtual srs_error_t ingest(std::string &redirect);
-    virtual srs_error_t process_publish_message(SrsCommonMessage *msg, std::string &redirect);
+    virtual srs_error_t process_publish_message(SrsRtmpCommonMessage *msg, std::string &redirect);
 };
 
 // The edge used to forward stream to origin.
@@ -220,7 +220,7 @@ private:
     virtual srs_error_t do_cycle();
 
 public:
-    virtual srs_error_t proxy(SrsCommonMessage *msg);
+    virtual srs_error_t proxy(SrsRtmpCommonMessage *msg);
 };
 
 // The play edge control service.
@@ -270,7 +270,7 @@ public:
     // When client publish stream on edge.
     virtual srs_error_t on_client_publish();
     // Proxy publish stream to edge
-    virtual srs_error_t on_proxy_publish(SrsCommonMessage *msg);
+    virtual srs_error_t on_proxy_publish(SrsRtmpCommonMessage *msg);
     // Proxy unpublish stream to edge.
     virtual void on_proxy_unpublish();
 };
