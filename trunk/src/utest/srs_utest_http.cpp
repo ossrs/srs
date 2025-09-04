@@ -537,6 +537,36 @@ VOID TEST(ProtocolHTTPTest, ClientRequest)
 {
     srs_error_t err;
 
+    // Normal case, with empty server.
+    if (true) {
+        MockBufferIO io;
+        io.append(mock_http_response3(200, "Hello, world!"));
+        SrsHttpParser hp;
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
+        ISrsHttpMessage *msg = NULL;
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        string res;
+        HELPER_ASSERT_SUCCESS(msg->body_read_all(res));
+        EXPECT_EQ(200, msg->status_code());
+        EXPECT_STREQ("Hello, world!", res.c_str());
+        srs_freep(msg);
+    }
+
+    // Normal case, with specified content-length.
+    if (true) {
+        MockBufferIO io;
+        io.append(mock_http_response(200, "Hello, world!"));
+        SrsHttpParser hp;
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
+        ISrsHttpMessage *msg = NULL;
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        string res;
+        HELPER_ASSERT_SUCCESS(msg->body_read_all(res));
+        EXPECT_EQ(200, msg->status_code());
+        EXPECT_STREQ("Hello, world!", res.c_str());
+        srs_freep(msg);
+    }
+
     // Normal case, with chunked encoding.
     if (true) {
         MockBufferIO io;
@@ -562,36 +592,6 @@ VOID TEST(ProtocolHTTPTest, ClientRequest)
         HELPER_ASSERT_SUCCESS(msg->body_read_all(res));
         EXPECT_EQ(200, msg->status_code());
         EXPECT_STREQ("Hello!", res.c_str());
-        srs_freep(msg);
-    }
-
-    // Normal case, with specified content-length.
-    if (true) {
-        MockBufferIO io;
-        io.append(mock_http_response(200, "Hello, world!"));
-        SrsHttpParser hp;
-        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
-        ISrsHttpMessage *msg = NULL;
-        HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
-        string res;
-        HELPER_ASSERT_SUCCESS(msg->body_read_all(res));
-        EXPECT_EQ(200, msg->status_code());
-        EXPECT_STREQ("Hello, world!", res.c_str());
-        srs_freep(msg);
-    }
-
-    // Normal case, with empty server.
-    if (true) {
-        MockBufferIO io;
-        io.append(mock_http_response3(200, "Hello, world!"));
-        SrsHttpParser hp;
-        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
-        ISrsHttpMessage *msg = NULL;
-        HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
-        string res;
-        HELPER_ASSERT_SUCCESS(msg->body_read_all(res));
-        EXPECT_EQ(200, msg->status_code());
-        EXPECT_STREQ("Hello, world!", res.c_str());
         srs_freep(msg);
     }
 }
@@ -1100,7 +1100,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs(&s);
@@ -1119,7 +1119,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, (llhttp_status_t)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs(&s);
@@ -1139,7 +1139,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs(&s);
@@ -1158,7 +1158,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, (llhttp_status_t)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs(&s);
@@ -1199,7 +1199,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
 
         SrsHttpHeader h;
         h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
@@ -1224,7 +1224,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
 
         SrsHttpHeader h;
         h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
@@ -1249,7 +1249,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
 
         SrsHttpHeader h;
         h.set("Authorization", "Basic BasicYWRtaW46YWRtaW4="); // duplicate 'Basic'
@@ -1274,7 +1274,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
 
         SrsHttpHeader h;
         h.set("Authorization", "YWRtaW46YWRtaW4="); // admin:admin
@@ -1299,7 +1299,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
 
         SrsHttpHeader h;
         h.set("Authorization", "Basic admin:admin"); // admin:admin
@@ -1324,7 +1324,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
         SrsHttpAuthMux auth(&s);
@@ -1344,7 +1344,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/clients/", false));
 
         SrsHttpAuthMux auth(&s);
@@ -1364,7 +1364,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
 
         SrsHttpHeader h;
         h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
@@ -1389,7 +1389,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
 
         SrsHttpHeader h;
         h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
@@ -1414,7 +1414,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
 
         SrsHttpHeader h;
         h.set("Authorization", "Basic YWRtaW46YWRtaW4="); // admin:admin
@@ -1866,6 +1866,48 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageParser)
 
     if (true) {
         MockMSegmentsReader r;
+        r.in_bytes.push_back("G");
+        r.in_bytes.push_back("ET ");
+        r.in_bytes.push_back("/api/v1/versions HTTP/1.1\r\n");
+        r.in_bytes.push_back("Host: ossrs");
+        r.in_bytes.push_back(".net\r");
+        r.in_bytes.push_back("\n");
+        r.in_bytes.push_back("\r\n");
+
+        SrsHttpParser p;
+        HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST));
+
+        ISrsHttpMessage *msg = NULL;
+        HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        EXPECT_TRUE(msg->is_http_get());
+        EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
+        EXPECT_STREQ("ossrs.net", msg->host().c_str());
+        srs_freep(msg);
+    }
+
+    if (true) {
+        MockMSegmentsReader r;
+        r.in_bytes.push_back("GET");
+        r.in_bytes.push_back(" ");
+        r.in_bytes.push_back("/api/v1/versions HTTP/1.1\r\n");
+        r.in_bytes.push_back("Host: ossrs");
+        r.in_bytes.push_back(".net\r");
+        r.in_bytes.push_back("\n");
+        r.in_bytes.push_back("\r\n");
+
+        SrsHttpParser p;
+        HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST));
+
+        ISrsHttpMessage *msg = NULL;
+        HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        EXPECT_TRUE(msg->is_http_get());
+        EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
+        EXPECT_STREQ("ossrs.net", msg->host().c_str());
+        srs_freep(msg);
+    }
+
+    if (true) {
+        MockMSegmentsReader r;
         r.in_bytes.push_back("GET /api/v1/versions HTTP/1.1\r\n");
         r.in_bytes.push_back("Host: ossrs");
         r.in_bytes.push_back(".net\r");
@@ -2053,7 +2095,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 
         SrsHttpMessage m;
         m.set_header(&h, false);
-        HELPER_EXPECT_FAILED(m.set_url("/api/v1", false));
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1", false));
     }
 
     // Port use 80 if error.
@@ -2118,7 +2160,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 
         SrsHttpMessage m;
         m.set_header(&h, false);
-        m.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, 2);
+        m.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, 2);
         EXPECT_EQ(10, m.content_length());
     }
 
@@ -2128,7 +2170,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
         h.set("Content-Length", "10");
 
         SrsHttpMessage m;
-        m.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, 2);
+        m.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, 2);
         m.set_header(&h, false);
         EXPECT_EQ(10, m.content_length());
     }
@@ -2162,7 +2204,19 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 
     if (true) {
         SrsHttpMessage m;
-        m.set_basic(HTTP_REQUEST, HTTP_POST, (http_status)200, 0);
+        m.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, 0);
+        EXPECT_EQ(-1, m.content_length());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Content-Length", "0");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        EXPECT_EQ(0, m.content_length());
+
+        m.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, 0);
         EXPECT_EQ(0, m.content_length());
     }
 

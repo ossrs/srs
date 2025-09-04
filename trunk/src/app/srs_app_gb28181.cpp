@@ -29,9 +29,6 @@
 #include <sstream>
 using namespace std;
 
-// See https://www.ietf.org/rfc/rfc3261.html#section-8.1.1.7
-#define SRS_GB_BRANCH_MAGIC "z9hG4bK"
-#define SRS_GB_SIP_PORT 5060
 #define SRS_GB_MAX_RECOVER 16
 #define SRS_GB_MAX_TIMEOUT 3
 #define SRS_GB_LARGE_PACKET 1500
@@ -58,34 +55,7 @@ std::string srs_gb_state(SrsGbSessionState ostate, SrsGbSessionState state)
     return srs_fmt_sprintf("%s->%s", srs_gb_session_state(ostate).c_str(), srs_gb_session_state(state).c_str());
 }
 
-std::string srs_gb_sip_state(SrsGbSipState state)
-{
-    switch (state) {
-    case SrsGbSipStateInit:
-        return "Init";
-    case SrsGbSipStateRegistered:
-        return "Registered";
-    case SrsGbSipStateInviting:
-        return "Inviting";
-    case SrsGbSipStateTrying:
-        return "Trying";
-    case SrsGbSipStateStable:
-        return "Stable";
-    case SrsGbSipStateReinviting:
-        return "Re-inviting";
-    case SrsGbSipStateBye:
-        return "Bye";
-    default:
-        return "Invalid";
-    }
-}
-
-std::string srs_sip_state(SrsGbSipState ostate, SrsGbSipState state)
-{
-    return srs_fmt_sprintf("%s->%s", srs_gb_sip_state(ostate).c_str(), srs_gb_sip_state(state).c_str());
-}
-
-SrsGbSession::SrsGbSession() : sip_(new SrsGbSipTcpConn()), media_(new SrsGbMediaTcpConn())
+SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
 {
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
@@ -95,10 +65,8 @@ SrsGbSession::SrsGbSession() : sip_(new SrsGbSipTcpConn()), media_(new SrsGbMedi
     state_ = SrsGbSessionStateInit;
 
     connecting_starttime_ = 0;
-    connecting_timeout_ = 0;
     nn_timeout_ = 0;
     reinviting_starttime_ = 0;
-    reinvite_wait_ = 0;
 
     ppp_ = new SrsAlonePithyPrint();
     startime_ = srs_time_now_realtime();
@@ -128,18 +96,10 @@ SrsGbSession::~SrsGbSession()
 
 void SrsGbSession::setup(SrsConfDirective *conf)
 {
-    pip_ = candidate_ = _srs_config->get_stream_caster_sip_candidate(conf);
-    if (candidate_ == "*") {
-        pip_ = srs_get_public_internet_address(true);
-    }
-
     std::string output = _srs_config->get_stream_caster_output(conf);
     muxer_->setup(output);
 
-    connecting_timeout_ = _srs_config->get_stream_caster_sip_timeout(conf);
-    reinvite_wait_ = _srs_config->get_stream_caster_sip_reinvite(conf);
-    srs_trace("Session: Start timeout=%dms, reinvite=%dms, candidate=%s, pip=%s, output=%s", srsu2msi(connecting_timeout_),
-              srsu2msi(reinvite_wait_), candidate_.c_str(), pip_.c_str(), output.c_str());
+    srs_trace("Session: Start output=%s", output.c_str());
 }
 
 void SrsGbSession::setup_owner(SrsSharedResource<SrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid)
@@ -212,29 +172,12 @@ void SrsGbSession::on_ps_pack(SrsPackContext *ctx, SrsPsPacket *ps, const std::v
     }
 }
 
-void SrsGbSession::on_sip_transport(SrsSharedResource<SrsGbSipTcpConn> sip)
-{
-    sip_ = sip;
-    // Change id of SIP and all its child coroutines.
-    sip_->set_cid(cid_);
-}
-
-SrsSharedResource<SrsGbSipTcpConn> SrsGbSession::sip_transport()
-{
-    return sip_;
-}
-
 void SrsGbSession::on_media_transport(SrsSharedResource<SrsGbMediaTcpConn> media)
 {
     media_ = media;
 
     // Change id of SIP and all its child coroutines.
     media_->set_cid(cid_);
-}
-
-std::string SrsGbSession::pip()
-{
-    return pip_;
 }
 
 srs_error_t SrsGbSession::cycle()
@@ -244,14 +187,13 @@ srs_error_t SrsGbSession::cycle()
     // Update all context id to cid of session.
     _srs_context->set_id(cid_);
     owner_cid_->set_cid(cid_);
-    sip_->set_cid(cid_);
+
     media_->set_cid(cid_);
 
     // Drive the session cycle.
     err = do_cycle();
 
-    // Interrupt the SIP and media transport when session terminated.
-    sip_->interrupt();
+    // Interrupt the media transport when session terminated.
     media_->interrupt();
 
     // success.
@@ -295,12 +237,7 @@ srs_error_t SrsGbSession::do_cycle()
         // Drive the state in a fixed interval.
         srs_usleep(SRS_GB_SESSION_DRIVE_INTERVAL);
 
-        // Client send bye, we should dispose the session.
-        if (sip_->is_bye()) {
-            return err;
-        }
-
-        // Regular state, driven by state of SIP and transport.
+        // Regular state, driven by state of transport.
         if ((err = drive_state()) != srs_success) {
             return srs_error_wrap(err, "drive");
         }
@@ -323,68 +260,24 @@ srs_error_t SrsGbSession::drive_state()
 {
     srs_error_t err = srs_success;
 
-#define SRS_GB_CHANGE_STATE_TO(state)                                               \
-    {                                                                               \
-        SrsGbSessionState ostate = set_state(state);                                \
-        srs_trace("Session: Change device=%s, state=%s", sip_->device_id().c_str(), \
-                  srs_gb_state(ostate, state_).c_str());                            \
+#define SRS_GB_CHANGE_STATE_TO(state)                                        \
+    {                                                                        \
+        SrsGbSessionState ostate = set_state(state);                         \
+        srs_trace("Session: Change device=%s, state=%s", device_id_.c_str(), \
+                  srs_gb_state(ostate, state_).c_str());                     \
     }
 
     if (state_ == SrsGbSessionStateInit) {
-        // Set to connecting, whatever media is connected or not, because the connecting state will handle it if media
-        // is connected, so we don't need to handle it here.
-        if (sip_->is_registered()) {
-            SRS_GB_CHANGE_STATE_TO(SrsGbSessionStateConnecting);
-            connecting_starttime_ = srs_time_now_realtime();
-        }
-
-        // Invite if media is not connected.
-        if (sip_->is_registered() && !media_->is_connected()) {
-            uint32_t ssrc = 0;
-            if ((err = sip_->invite_request(&ssrc)) != srs_success) {
-                return srs_error_wrap(err, "invite");
-            }
-
-            // Now, we're able to query session by ssrc, for media packets.
-            _srs_gb_manager->add_with_fast_id(ssrc, wrapper_);
-        }
-    }
-
-    if (state_ == SrsGbSessionStateConnecting) {
-        if (srs_time_now_realtime() - connecting_starttime_ >= connecting_timeout_) {
-            if ((nn_timeout_++) > SRS_GB_MAX_TIMEOUT) {
-                return srs_error_new(ERROR_GB_TIMEOUT, "timeout");
-            }
-
-            srs_trace("Session: Connecting timeout, nn=%d, state=%s, sip=%s, media=%d", nn_timeout_, srs_gb_session_state(state_).c_str(),
-                      srs_gb_sip_state(sip_->state()).c_str(), media_->is_connected());
-            sip_->reset_to_register();
-            SRS_GB_CHANGE_STATE_TO(SrsGbSessionStateInit);
-        }
-
-        if (sip_->is_stable() && media_->is_connected()) {
+        // With external SIP server, we assume media connection is handled externally
+        if (media_->is_connected()) {
             SRS_GB_CHANGE_STATE_TO(SrsGbSessionStateEstablished);
         }
     }
 
     if (state_ == SrsGbSessionStateEstablished) {
-        if (sip_->is_bye()) {
-            srs_trace("Session: Dispose for client bye");
-            return err;
-        }
-
-        // When media disconnected, we wait for a while then reinvite.
+        // Simple state management - just check if media is still connected
         if (!media_->is_connected()) {
-            if (!reinviting_starttime_) {
-                reinviting_starttime_ = srs_time_now_realtime();
-            }
-            if (srs_time_now_cached() - reinviting_starttime_ > reinvite_wait_) {
-                reinviting_starttime_ = 0;
-                srs_trace("Session: Re-invite for disconnect, state=%s, sip=%s, media=%d", srs_gb_session_state(state_).c_str(),
-                          srs_gb_sip_state(sip_->state()).c_str(), media_->is_connected());
-                sip_->reset_to_register();
-                SRS_GB_CHANGE_STATE_TO(SrsGbSessionStateInit);
-            }
+            SRS_GB_CHANGE_STATE_TO(SrsGbSessionStateInit);
         }
     }
 
@@ -411,14 +304,12 @@ std::string SrsGbSession::desc()
 SrsGbListener::SrsGbListener()
 {
     conf_ = NULL;
-    sip_listener_ = new SrsTcpListener(this);
     media_listener_ = new SrsTcpListener(this);
 }
 
 SrsGbListener::~SrsGbListener()
 {
     srs_freep(conf_);
-    srs_freep(sip_listener_);
     srs_freep(media_listener_);
 }
 
@@ -435,14 +326,6 @@ srs_error_t SrsGbListener::initialize(SrsConfDirective *conf)
         media_listener_->set_endpoint(ip, port)->set_label("GB-TCP");
     }
 
-    bool sip_enabled = _srs_config->get_stream_caster_sip_enable(conf);
-    if (!sip_enabled) {
-        srs_warn("GB SIP is disabled.");
-    } else {
-        int port = _srs_config->get_stream_caster_sip_listen(conf);
-        sip_listener_->set_endpoint(ip, port)->set_label("SIP-TCP");
-    }
-
     return err;
 }
 
@@ -451,10 +334,6 @@ srs_error_t SrsGbListener::listen()
     srs_error_t err = srs_success;
 
     if ((err = media_listener_->listen()) != srs_success) {
-        return srs_error_wrap(err, "listen");
-    }
-
-    if ((err = sip_listener_->listen()) != srs_success) {
         return srs_error_wrap(err, "listen");
     }
 
@@ -486,21 +365,7 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener *listener, srs_netfd_t stf
     srs_error_t err = srs_success;
 
     // Handle TCP connections.
-    if (listener == sip_listener_) {
-        SrsGbSipTcpConn *raw_conn = new SrsGbSipTcpConn();
-        raw_conn->setup(conf_, sip_listener_, media_listener_, stfd);
-
-        SrsSharedResource<SrsGbSipTcpConn> *conn = new SrsSharedResource<SrsGbSipTcpConn>(raw_conn);
-        _srs_gb_manager->add(conn, NULL);
-
-        SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(_srs_gb_manager, conn, raw_conn, raw_conn);
-        raw_conn->setup_owner(conn, executor, executor);
-
-        if ((err = executor->start()) != srs_success) {
-            srs_freep(executor);
-            return srs_error_wrap(err, "gb sip");
-        }
-    } else if (listener == media_listener_) {
+    if (listener == media_listener_) {
         SrsGbMediaTcpConn *raw_conn = new SrsGbMediaTcpConn();
         raw_conn->setup(stfd);
 
@@ -517,760 +382,6 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener *listener, srs_netfd_t stf
     } else {
         srs_warn("GB: Ignore TCP client");
         srs_close_stfd(stfd);
-    }
-
-    return err;
-}
-
-SrsGbSipTcpConn::SrsGbSipTcpConn()
-{
-    wrapper_ = NULL;
-    owner_coroutine_ = NULL;
-    owner_cid_ = NULL;
-    cid_ = _srs_context->get_id();
-
-    session_ = NULL;
-    state_ = SrsGbSipStateInit;
-    register_ = new SrsSipMessage();
-    invite_ok_ = new SrsSipMessage();
-    ssrc_v_ = 0;
-
-    conf_ = NULL;
-    sip_listener_ = NULL;
-    media_listener_ = NULL;
-    conn_ = NULL;
-    receiver_ = NULL;
-    sender_ = NULL;
-}
-
-SrsGbSipTcpConn::~SrsGbSipTcpConn()
-{
-    srs_freep(receiver_);
-    srs_freep(sender_);
-    srs_freep(conn_);
-    srs_freep(register_);
-    srs_freep(invite_ok_);
-    srs_freep(conf_);
-}
-
-void SrsGbSipTcpConn::setup(SrsConfDirective *conf, SrsTcpListener *sip, SrsTcpListener *media, srs_netfd_t stfd)
-{
-    srs_freep(conf_);
-    conf_ = conf->copy();
-
-    sip_listener_ = sip;
-    media_listener_ = media;
-    conn_ = new SrsTcpConnection(stfd);
-    receiver_ = new SrsGbSipTcpReceiver(this, conn_);
-    sender_ = new SrsGbSipTcpSender(conn_);
-}
-
-void SrsGbSipTcpConn::setup_owner(SrsSharedResource<SrsGbSipTcpConn> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid)
-{
-    wrapper_ = wrapper;
-    owner_coroutine_ = owner_coroutine;
-    owner_cid_ = owner_cid;
-}
-
-void SrsGbSipTcpConn::on_executor_done(ISrsInterruptable *executor)
-{
-    owner_coroutine_ = NULL;
-}
-
-std::string SrsGbSipTcpConn::device_id()
-{
-    return register_->device_id();
-}
-
-void SrsGbSipTcpConn::set_device_id(const std::string &id)
-{
-    register_->from_address_user_ = id;
-}
-
-void SrsGbSipTcpConn::set_cid(const SrsContextId &cid)
-{
-    if (owner_cid_)
-        owner_cid_->set_cid(cid);
-    if (receiver_)
-        receiver_->set_cid(cid);
-    if (sender_)
-        sender_->set_cid(cid);
-    cid_ = cid;
-}
-
-void SrsGbSipTcpConn::query_ports(int *sip, int *media)
-{
-    if (sip)
-        *sip = sip_listener_->port();
-    if (media)
-        *media = media_listener_->port();
-}
-
-srs_error_t SrsGbSipTcpConn::on_sip_message(SrsSipMessage *msg)
-{
-    srs_error_t err = srs_success;
-
-    // Finger out the GB session to handle SIP messages.
-    if (!session_ && (err = bind_session(msg, &session_)) != srs_success) {
-        return srs_error_wrap(err, "bind session");
-    }
-
-    // Ignore if session not found.
-    if (!session_) {
-        srs_warn("SIP: No session, drop message type=%d, id=%s, body=%s", msg->type_,
-                 msg->device_id().c_str(), msg->body_escaped_.c_str());
-        return err;
-    }
-
-    // For state to use device id from register message.
-    if (msg->is_register()) {
-        srs_freep(register_);
-        register_ = msg->copy(); // Cache the register request message.
-    }
-
-    // Drive state machine of SIP connection.
-    drive_state(msg);
-
-    // Notify session about the SIP message.
-    if (msg->is_register()) {
-        register_response(msg); // Response for REGISTER.
-    } else if (msg->is_message()) {
-        // Response for MESSAGE, the heartbeat message.
-        // Set 403 to require client register, see https://www.ietf.org/rfc/rfc3261.html#section-21.4
-        // Please note that it does not work for GB device, which just ignore 4xx packets like no response.
-        message_response(msg, (state_ == SrsGbSipStateInit ? HTTP_STATUS_FORBIDDEN : HTTP_STATUS_OK));
-    } else if (msg->is_invite_ok()) {
-        srs_freep(invite_ok_);
-        invite_ok_ = msg->copy(); // Cache the invite ok message.
-        invite_ack(msg);          // Response for INVITE OK.
-    } else if (msg->is_bye()) {
-        bye_response(msg); // Response for Bye OK.
-    } else if (msg->is_trying() || msg->is_bye_ok()) {
-        // Ignore SIP message 100(Trying).
-        // Ignore BYE ok.
-    } else {
-        srs_warn("SIP: Ignore message type=%d, status=%d, method=%d, body=%s", msg->type_,
-                 msg->status_, msg->method_, msg->body_escaped_.c_str());
-    }
-
-    return err;
-}
-
-void SrsGbSipTcpConn::enqueue_sip_message(SrsSipMessage *msg)
-{
-    // Drive state machine when enqueue message.
-    drive_state(msg);
-
-    // TODO: Support SIP transaction and wait for response for request?
-    sender_->enqueue(msg);
-}
-
-void SrsGbSipTcpConn::drive_state(SrsSipMessage *msg)
-{
-    srs_error_t err = srs_success;
-
-#define SRS_GB_SIP_CHANGE_STATE_TO(state)                                            \
-    {                                                                                \
-        SrsGbSipState ostate = set_state(state);                                     \
-        srs_trace("SIP: Change device=%s, state=%s", register_->device_id().c_str(), \
-                  srs_sip_state(ostate, state_).c_str());                            \
-    }
-
-    // const char* mt = msg->type_ == HTTP_REQUEST ? "REQUEST" : "RESPONSE";
-    // const char* mm = msg->type_ == HTTP_REQUEST ? http_method_str(msg->method_) : "Response";
-    // int ms = msg->type_ == HTTP_REQUEST ? 200 : msg->status_;
-    // srs_trace("SIP: Got message type=%s, method=%s, status=%d, expire=%d", mt, mm, ms, msg->expires_);
-
-    if (state_ == SrsGbSipStateInit) {
-        // The register message, we will invite it automatically.
-        if (msg->is_register() && msg->expires_ > 0)
-            SRS_GB_SIP_CHANGE_STATE_TO(SrsGbSipStateRegistered);
-        // Client bye or unregister, we should destroy the session because it might never publish again.
-        if (msg->is_register() && msg->expires_ == 0)
-            SRS_GB_SIP_CHANGE_STATE_TO(SrsGbSipStateBye);
-        // When got heartbeat message, we restore to stable state.
-        if (msg->is_message())
-            SRS_GB_SIP_CHANGE_STATE_TO(SrsGbSipStateStable);
-    }
-
-    if (state_ == SrsGbSipStateRegistered) {
-        if (msg->is_invite())
-            SRS_GB_SIP_CHANGE_STATE_TO(SrsGbSipStateInviting);
-    }
-
-    if (state_ == SrsGbSipStateInviting) {
-        if (msg->is_trying())
-            SRS_GB_SIP_CHANGE_STATE_TO(SrsGbSipStateTrying);
-        if (msg->is_invite_ok())
-            SRS_GB_SIP_CHANGE_STATE_TO(SrsGbSipStateStable);
-
-        // If device got invite request and disconnect, it might register again, we should re-invite.
-        if (msg->is_register()) {
-            srs_warn("SIP: Re-invite for got REGISTER in state=%s", srs_gb_sip_state(state_).c_str());
-            if ((err = invite_request(NULL)) != srs_success) {
-                // TODO: FIXME: Should fail the SIP session.
-                srs_freep(err);
-            }
-        }
-    }
-
-    if (state_ == SrsGbSipStateTrying) {
-        if (msg->is_invite_ok())
-            SRS_GB_SIP_CHANGE_STATE_TO(SrsGbSipStateStable);
-    }
-
-    if (state_ == SrsGbSipStateStable) {
-        // Client bye or unregister, we should destroy the session because it might never publish again.
-        if (msg->is_register() && msg->expires_ == 0)
-            SRS_GB_SIP_CHANGE_STATE_TO(SrsGbSipStateBye);
-        if (msg->is_bye())
-            SRS_GB_SIP_CHANGE_STATE_TO(SrsGbSipStateBye);
-    }
-
-    if (state_ == SrsGbSipStateReinviting) {
-        if (msg->is_bye_ok())
-            SRS_GB_SIP_CHANGE_STATE_TO(SrsGbSipStateInviting);
-    }
-}
-
-void SrsGbSipTcpConn::register_response(SrsSipMessage *msg)
-{
-    SrsSipMessage *res = new SrsSipMessage();
-
-    res->type_ = HTTP_RESPONSE;
-    res->status_ = HTTP_STATUS_OK;
-    res->via_ = msg->via_;
-    res->from_ = msg->from_;
-    res->to_ = msg->to_;
-    res->cseq_ = msg->cseq_;
-    res->call_id_ = msg->call_id_;
-    res->contact_ = msg->contact_;
-    res->expires_ = msg->expires_;
-
-    enqueue_sip_message(res);
-}
-
-void SrsGbSipTcpConn::message_response(SrsSipMessage *msg, http_status status)
-{
-    SrsSipMessage *res = new SrsSipMessage();
-
-    res->type_ = HTTP_RESPONSE;
-    res->status_ = status;
-    res->via_ = msg->via_;
-    res->from_ = msg->from_;
-    res->to_ = msg->to_;
-    res->cseq_ = msg->cseq_;
-    res->call_id_ = msg->call_id_;
-
-    enqueue_sip_message(res);
-}
-
-void SrsGbSipTcpConn::invite_ack(SrsSipMessage *msg)
-{
-    string pip = session_->pip(); // Parse from CANDIDATE
-    int sip_port;
-    query_ports(&sip_port, NULL);
-    string gb_device_id = srs_fmt_sprintf("sip:%s@%s", msg->to_address_user_.c_str(), msg->to_address_host_.c_str());
-    string branch = srs_rand_gen_str(6);
-
-    SrsSipMessage *req = new SrsSipMessage();
-    req->type_ = HTTP_REQUEST;
-    req->method_ = HTTP_ACK;
-    req->request_uri_ = gb_device_id;
-    req->via_ = srs_fmt_sprintf("SIP/2.0/TCP %s:%d;rport;branch=%s%s", pip.c_str(), sip_port, SRS_GB_BRANCH_MAGIC, branch.c_str());
-    req->from_ = msg->from_;
-    req->to_ = msg->to_;
-    req->cseq_ = srs_fmt_sprintf("%d ACK", msg->cseq_number_);
-    req->call_id_ = msg->call_id_;
-    req->max_forwards_ = 70;
-
-    enqueue_sip_message(req);
-}
-
-void SrsGbSipTcpConn::bye_response(SrsSipMessage *msg)
-{
-    SrsSipMessage *res = new SrsSipMessage();
-
-    res->type_ = HTTP_RESPONSE;
-    res->status_ = HTTP_STATUS_OK;
-    res->via_ = msg->via_;
-    res->from_ = msg->from_;
-    res->to_ = msg->to_;
-    res->cseq_ = msg->cseq_;
-    res->call_id_ = msg->call_id_;
-
-    enqueue_sip_message(res);
-}
-
-srs_error_t SrsGbSipTcpConn::invite_request(uint32_t *pssrc)
-{
-    srs_error_t err = srs_success;
-
-    srs_assert(register_);
-
-    if (true) {
-        // Generate SSRC, detect conflict.
-        string ssrc = ssrc_str_;
-        for (int i = 0; ssrc.empty() && i < 16; i++) {
-            int flag = 0; // 0 is realtime.
-            string ssrc_str = srs_fmt_sprintf("%d%s%04d", flag, register_->ssrc_domain_id().c_str(), srs_rand_integer() % 10000);
-            uint32_t ssrc_v = (uint32_t)::atol(ssrc_str.c_str());
-            if (!_srs_gb_manager->find_by_fast_id(ssrc_v)) {
-                ssrc = ssrc_str;
-                break;
-            }
-        }
-        if (ssrc.empty()) {
-            return srs_error_new(ERROR_GB_SSRC_GENERATE, "Generate SSRC failed");
-        }
-
-        // Update and cache the SSRC for re-invite.
-        ssrc_str_ = ssrc;
-        ssrc_v_ = (uint32_t)::atol(ssrc_str_.c_str());
-        if (pssrc)
-            *pssrc = ssrc_v_;
-    }
-
-    string pip = session_->pip(); // Parse from CANDIDATE
-    int sip_port, media_port;
-    query_ports(&sip_port, &media_port);
-    string srs_device_id = srs_fmt_sprintf("sip:%s@%s", register_->request_uri_user_.c_str(), register_->request_uri_host_.c_str());
-    string gb_device_id = srs_fmt_sprintf("sip:%s@%s", register_->from_address_user_.c_str(), register_->from_address_host_.c_str());
-    string subject = srs_fmt_sprintf("%s:%s,%s:0", register_->from_address_user_.c_str(), ssrc_str_.c_str(), register_->request_uri_user_.c_str());
-    string branch = srs_rand_gen_str(6);
-    string tag = srs_rand_gen_str(8);
-    string call_id = srs_rand_gen_str(16);
-    int cseq = (int)(srs_rand_integer() % 1000); // TODO: FIXME: Increase.
-
-    SrsSdp local_sdp;
-    local_sdp.version_ = "0";
-    local_sdp.username_ = register_->contact_user_;
-    local_sdp.session_id_ = "0";
-    local_sdp.session_version_ = "0";
-    local_sdp.nettype_ = "IN";
-    local_sdp.addrtype_ = "IP4";
-    local_sdp.unicast_address_ = pip; // Parse from CANDIDATE
-    local_sdp.session_name_ = "Play";
-    local_sdp.start_time_ = 0;
-    local_sdp.end_time_ = 0;
-    local_sdp.ice_lite_ = "";                                            // Disable this line.
-    local_sdp.connection_ = srs_fmt_sprintf("c=IN IP4 %s", pip.c_str()); // Session level connection.
-
-    local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
-    SrsMediaDesc &media = local_sdp.media_descs_.at(0);
-    media.port_ = media_port; // Read from config.
-    media.protos_ = "TCP/RTP/AVP";
-    media.connection_ = ""; // Disable media level connection.
-    media.recvonly_ = true;
-
-    media.payload_types_.push_back(SrsMediaPayloadType(96));
-    SrsMediaPayloadType &ps = media.payload_types_.at(0);
-    ps.encoding_name_ = "PS";
-    ps.clock_rate_ = 90000;
-
-    media.ssrc_infos_.push_back(SrsSSRCInfo());
-    SrsSSRCInfo &ssrc_info = media.ssrc_infos_.at(0);
-    ssrc_info.cname_ = ssrc_str_;
-    ssrc_info.ssrc_ = ssrc_v_;
-    ssrc_info.label_ = "gb28181";
-
-    ostringstream ss;
-    if ((err = local_sdp.encode(ss)) != srs_success) {
-        return srs_error_wrap(err, "encode sdp");
-    }
-
-    SrsSipMessage *req = new SrsSipMessage();
-    req->type_ = HTTP_REQUEST;
-    req->method_ = HTTP_INVITE;
-    req->request_uri_ = gb_device_id;
-    req->via_ = srs_fmt_sprintf("SIP/2.0/TCP %s:%d;rport;branch=%s%s", pip.c_str(), sip_port, SRS_GB_BRANCH_MAGIC, branch.c_str());
-    req->from_ = srs_fmt_sprintf("<%s>;tag=SRS%s", srs_device_id.c_str(), tag.c_str());
-    req->to_ = srs_fmt_sprintf("<%s>", gb_device_id.c_str());
-    req->cseq_ = srs_fmt_sprintf("%d INVITE", cseq);
-    req->call_id_ = call_id;
-    req->content_type_ = "Application/SDP";
-    req->contact_ = srs_fmt_sprintf("<%s>", srs_device_id.c_str());
-    req->max_forwards_ = 70;
-    req->subject_ = subject;
-    req->set_body(ss.str());
-
-    enqueue_sip_message(req);
-    srs_trace("SIP: INVITE device=%s, branch=%s, tag=%s, call=%s, ssrc=%s, sdp is %s", gb_device_id.c_str(), branch.c_str(),
-              tag.c_str(), call_id.c_str(), ssrc_str_.c_str(), req->body_escaped_.c_str());
-
-    return err;
-}
-
-void SrsGbSipTcpConn::interrupt()
-{
-    receiver_->interrupt();
-    sender_->interrupt();
-    if (owner_coroutine_)
-        owner_coroutine_->interrupt();
-}
-
-SrsGbSipState SrsGbSipTcpConn::state()
-{
-    return state_;
-}
-
-void SrsGbSipTcpConn::reset_to_register()
-{
-    state_ = SrsGbSipStateRegistered;
-}
-
-bool SrsGbSipTcpConn::is_registered()
-{
-    return state_ >= SrsGbSipStateRegistered && state_ <= SrsGbSipStateStable;
-}
-
-bool SrsGbSipTcpConn::is_stable()
-{
-    return state_ == SrsGbSipStateStable;
-}
-
-bool SrsGbSipTcpConn::is_bye()
-{
-    return state_ == SrsGbSipStateBye;
-}
-
-SrsGbSipState SrsGbSipTcpConn::set_state(SrsGbSipState v)
-{
-    SrsGbSipState state = state_;
-    state_ = v;
-    return state;
-}
-
-const SrsContextId &SrsGbSipTcpConn::get_id()
-{
-    return cid_;
-}
-
-std::string SrsGbSipTcpConn::desc()
-{
-    return "GB-SIP-TCP";
-}
-
-srs_error_t SrsGbSipTcpConn::cycle()
-{
-    srs_error_t err = srs_success;
-
-    if ((err = receiver_->start()) != srs_success) {
-        return srs_error_wrap(err, "receiver");
-    }
-
-    if ((err = sender_->start()) != srs_success) {
-        return srs_error_wrap(err, "sender");
-    }
-
-    // Wait for the SIP connection to be terminated.
-    err = do_cycle();
-
-    // Interrupt the receiver and sender coroutine.
-    receiver_->interrupt();
-    sender_->interrupt();
-
-    // success.
-    if (err == srs_success) {
-        srs_trace("client finished.");
-        return err;
-    }
-
-    // It maybe success with message.
-    if (srs_error_code(err) == ERROR_SUCCESS) {
-        srs_trace("client finished%s.", srs_error_summary(err).c_str());
-        srs_freep(err);
-        return err;
-    }
-
-    // client close peer.
-    // TODO: FIXME: Only reset the error when client closed it.
-    if (srs_is_client_gracefully_close(err)) {
-        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
-    } else if (srs_is_server_gracefully_close(err)) {
-        srs_warn("server disconnect. ret=%d", srs_error_code(err));
-    } else {
-        srs_error("serve error %s", srs_error_desc(err).c_str());
-    }
-
-    srs_freep(err);
-    return srs_success;
-}
-
-srs_error_t SrsGbSipTcpConn::do_cycle()
-{
-    srs_error_t err = srs_success;
-
-    while (true) {
-        if (!owner_coroutine_)
-            return err;
-        if ((err = owner_coroutine_->pull()) != srs_success) {
-            return srs_error_wrap(err, "pull");
-        }
-
-        srs_usleep(SRS_UTIME_NO_TIMEOUT);
-    }
-
-    return err;
-}
-
-srs_error_t SrsGbSipTcpConn::bind_session(SrsSipMessage *msg, SrsGbSession **psession)
-{
-    srs_error_t err = srs_success;
-
-    string device = msg->device_id();
-    if (device.empty())
-        return err;
-
-    // Only create session for REGISTER request.
-    if (msg->type_ != HTTP_REQUEST || msg->method_ != HTTP_REGISTER)
-        return err;
-
-    // Find exists session for register, might be created by another object and still alive.
-    SrsSharedResource<SrsGbSession> *session = dynamic_cast<SrsSharedResource<SrsGbSession> *>(_srs_gb_manager->find_by_id(device));
-    SrsGbSession *raw_session = session ? (*session).get() : NULL;
-    if (!session) {
-        // Create new GB session.
-        raw_session = new SrsGbSession();
-        raw_session->setup(conf_);
-
-        session = new SrsSharedResource<SrsGbSession>(raw_session);
-        _srs_gb_manager->add_with_id(device, session);
-
-        SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(_srs_gb_manager, session, raw_session, raw_session);
-        raw_session->setup_owner(session, executor, executor);
-
-        if ((err = executor->start()) != srs_success) {
-            srs_freep(executor);
-            return srs_error_wrap(err, "gb session");
-        }
-    }
-
-    // Try to load state from previous SIP connection.
-    SrsSharedResource<SrsGbSipTcpConn> pre = raw_session->sip_transport();
-    if (pre.get() && pre.get() != this) {
-        state_ = pre->state_;
-        ssrc_str_ = pre->ssrc_str_;
-        ssrc_v_ = pre->ssrc_v_;
-        srs_freep(register_);
-        register_ = pre->register_->copy();
-        srs_freep(invite_ok_);
-        invite_ok_ = pre->invite_ok_->copy();
-    }
-
-    // Notice session to use current SIP connection.
-    raw_session->on_sip_transport(*wrapper_);
-    *psession = raw_session;
-
-    return err;
-}
-
-SrsGbSipTcpReceiver::SrsGbSipTcpReceiver(SrsGbSipTcpConn *sip, SrsTcpConnection *conn)
-{
-    sip_ = sip;
-    conn_ = conn;
-    trd_ = new SrsSTCoroutine("sip-receiver", this);
-}
-
-SrsGbSipTcpReceiver::~SrsGbSipTcpReceiver()
-{
-    srs_freep(trd_);
-}
-
-void SrsGbSipTcpReceiver::interrupt()
-{
-    trd_->interrupt();
-}
-
-void SrsGbSipTcpReceiver::set_cid(const SrsContextId &cid)
-{
-    trd_->set_cid(cid);
-}
-
-srs_error_t SrsGbSipTcpReceiver::start()
-{
-    srs_error_t err = srs_success;
-
-    if ((err = trd_->start()) != srs_success) {
-        return srs_error_wrap(err, "coroutine");
-    }
-
-    return err;
-}
-
-srs_error_t SrsGbSipTcpReceiver::cycle()
-{
-    srs_error_t err = do_cycle();
-
-    // TODO: FIXME: Notify SIP transport to cleanup.
-    if (err != srs_success) {
-        srs_error("SIP: Receive err %s", srs_error_desc(err).c_str());
-    }
-
-    return err;
-}
-
-srs_error_t SrsGbSipTcpReceiver::do_cycle()
-{
-    srs_error_t err = srs_success;
-
-    SrsUniquePtr<SrsHttpParser> parser(new SrsHttpParser());
-
-    // We might get SIP request or response message.
-    if ((err = parser->initialize(HTTP_BOTH)) != srs_success) {
-        return srs_error_wrap(err, "init parser");
-    }
-
-    while (true) {
-        if ((err = trd_->pull()) != srs_success) {
-            return srs_error_wrap(err, "pull");
-        }
-
-        // Use HTTP parser to parse SIP messages.
-        ISrsHttpMessage *hmsg_raw = NULL;
-        if ((err = parser->parse_message(conn_, &hmsg_raw)) != srs_success) {
-            return srs_error_wrap(err, "parse message");
-        }
-        SrsUniquePtr<ISrsHttpMessage> hmsg(hmsg_raw);
-
-        SrsSipMessage smsg;
-        if ((err = smsg.parse(hmsg.get())) != srs_success) {
-            srs_warn("SIP: Drop msg type=%d, method=%d, err is %s", hmsg->message_type(), hmsg->method(), srs_error_summary(err).c_str());
-            srs_freep(err);
-            continue;
-        }
-
-        if ((err = sip_->on_sip_message(&smsg)) != srs_success) {
-            srs_warn("SIP: Ignore on msg err %s", srs_error_desc(err).c_str());
-            srs_freep(err);
-            continue;
-        }
-    }
-
-    return err;
-}
-
-SrsGbSipTcpSender::SrsGbSipTcpSender(SrsTcpConnection *conn)
-{
-    conn_ = conn;
-    wait_ = srs_cond_new();
-    trd_ = new SrsSTCoroutine("sip-sender", this);
-}
-
-SrsGbSipTcpSender::~SrsGbSipTcpSender()
-{
-    srs_freep(trd_);
-    srs_cond_destroy(wait_);
-
-    for (vector<SrsSipMessage *>::iterator it = msgs_.begin(); it != msgs_.end(); ++it) {
-        SrsSipMessage *msg = *it;
-        srs_freep(msg);
-    }
-}
-
-void SrsGbSipTcpSender::enqueue(SrsSipMessage *msg)
-{
-    msgs_.push_back(msg);
-    srs_cond_signal(wait_);
-}
-
-void SrsGbSipTcpSender::interrupt()
-{
-    trd_->interrupt();
-}
-
-void SrsGbSipTcpSender::set_cid(const SrsContextId &cid)
-{
-    trd_->set_cid(cid);
-}
-
-srs_error_t SrsGbSipTcpSender::start()
-{
-    srs_error_t err = srs_success;
-
-    if ((err = trd_->start()) != srs_success) {
-        return srs_error_wrap(err, "coroutine");
-    }
-
-    return err;
-}
-
-srs_error_t SrsGbSipTcpSender::cycle()
-{
-    srs_error_t err = do_cycle();
-
-    // TODO: FIXME: Notify SIP transport to cleanup.
-    if (err != srs_success) {
-        srs_error("SIP: Send err %s", srs_error_desc(err).c_str());
-    }
-
-    return err;
-}
-
-srs_error_t SrsGbSipTcpSender::do_cycle()
-{
-    srs_error_t err = srs_success;
-
-    while (true) {
-        if (msgs_.empty()) {
-            srs_cond_wait(wait_);
-        }
-
-        if ((err = trd_->pull()) != srs_success) {
-            return srs_error_wrap(err, "pull");
-        }
-
-        SrsUniquePtr<SrsSipMessage> msg(msgs_.front());
-        msgs_.erase(msgs_.begin());
-
-        if (msg->type_ == HTTP_RESPONSE) {
-            SrsSipResponseWriter res(conn_);
-            res.header()->set("Via", msg->via_);
-            res.header()->set("From", msg->from_);
-            res.header()->set("To", msg->to_);
-            res.header()->set("CSeq", msg->cseq_);
-            res.header()->set("Call-ID", msg->call_id_);
-            res.header()->set("User-Agent", RTMP_SIG_SRS_SERVER);
-            if (!msg->contact_.empty())
-                res.header()->set("Contact", msg->contact_);
-            if (msg->expires_ != UINT32_MAX)
-                res.header()->set("Expires", srs_strconv_format_int(msg->expires_));
-
-            res.header()->set_content_length(msg->body_.length());
-            res.write_header(msg->status_);
-            if (!msg->body_.empty())
-                res.write((char *)msg->body_.c_str(), msg->body_.length());
-            if ((err = res.final_request()) != srs_success) {
-                return srs_error_wrap(err, "response");
-            }
-        } else if (msg->type_ == HTTP_REQUEST) {
-            SrsSipRequestWriter req(conn_);
-            req.header()->set("Via", msg->via_);
-            req.header()->set("From", msg->from_);
-            req.header()->set("To", msg->to_);
-            req.header()->set("CSeq", msg->cseq_);
-            req.header()->set("Call-ID", msg->call_id_);
-            req.header()->set("User-Agent", RTMP_SIG_SRS_SERVER);
-            if (!msg->contact_.empty())
-                req.header()->set("Contact", msg->contact_);
-            if (!msg->subject_.empty())
-                req.header()->set("Subject", msg->subject_);
-            if (msg->max_forwards_)
-                req.header()->set("Max-Forwards", srs_strconv_format_int(msg->max_forwards_));
-
-            if (!msg->content_type_.empty())
-                req.header()->set_content_type(msg->content_type_);
-            req.header()->set_content_length(msg->body_.length());
-            req.write_header(http_method_str(msg->method_), msg->request_uri_);
-            if (!msg->body_.empty())
-                req.write((char *)msg->body_.c_str(), msg->body_.length());
-            if ((err = req.final_request()) != srs_success) {
-                return srs_error_wrap(err, "request");
-            }
-        } else {
-            srs_warn("SIP: Sender drop message type=%d, method=%s, body=%dB", msg->type_,
-                     http_method_str(msg->method_), msg->body_.length());
-        }
     }
 
     return err;
@@ -2156,7 +1267,7 @@ srs_error_t SrsGbMuxer::connect()
     // Cleanup the data before connect again.
     close();
 
-    string url = srs_strings_replace(output_, "[stream]", session_->sip_transport()->device_id());
+    string url = srs_strings_replace(output_, "[stream]", session_->device_id_);
     srs_trace("Muxer: Convert GB to RTMP %s", url.c_str());
 
     srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
@@ -2187,318 +1298,6 @@ void SrsGbMuxer::close()
     h264_sps_pps_sent_ = false;
     h264_sps_ = "";
     h264_pps_ = "";
-}
-
-SrsSipResponseWriter::SrsSipResponseWriter(ISrsProtocolReadWriter *io) : SrsHttpResponseWriter(io)
-{
-}
-
-SrsSipResponseWriter::~SrsSipResponseWriter()
-{
-}
-
-srs_error_t SrsSipResponseWriter::build_first_line(std::stringstream &ss, char *data, int size)
-{
-    // Write status line for response.
-    ss << "SIP/2.0 " << status << " " << srs_generate_http_status_text(status) << SRS_HTTP_CRLF;
-    return srs_success;
-}
-
-SrsSipRequestWriter::SrsSipRequestWriter(ISrsProtocolReadWriter *io) : SrsHttpRequestWriter(io)
-{
-}
-
-SrsSipRequestWriter::~SrsSipRequestWriter()
-{
-}
-
-srs_error_t SrsSipRequestWriter::build_first_line(std::stringstream &ss, char *data, int size)
-{
-    // Write status line for response.
-    ss << method_ << " " << path_ << " SIP/2.0" << SRS_HTTP_CRLF;
-    return srs_success;
-}
-
-SrsSipMessage::SrsSipMessage()
-{
-    method_ = HTTP_GET;
-    cseq_number_ = 0;
-    expires_ = UINT32_MAX; // Never use 0 because it means unregister.
-    max_forwards_ = 0;
-    via_send_by_port_ = SRS_GB_SIP_PORT;
-    contact_host_port_ = SRS_GB_SIP_PORT;
-}
-
-SrsSipMessage::~SrsSipMessage()
-{
-}
-
-SrsSipMessage *SrsSipMessage::copy()
-{
-    SrsSipMessage *cp = new SrsSipMessage();
-    *cp = *this;
-    return cp;
-}
-
-const std::string &SrsSipMessage::device_id()
-{
-    // If request is sent by device, then the "from" address must be the ID of device. While we use id to identify the
-    // requests of device, so we can use the "from" address.
-    return from_address_user_;
-}
-
-std::string SrsSipMessage::ssrc_domain_id()
-{
-    // The request uri user is GB domain, the 4-8 is used as domain id for SSRC, so the length must be 8+ bytes,
-    // see https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=469659DC56B9B8187671FF08748CEC89
-    return (request_uri_user_.length() < 8) ? "00000" : request_uri_user_.substr(3, 5);
-}
-
-SrsSipMessage *SrsSipMessage::set_body(std::string v)
-{
-    body_ = v;
-    body_escaped_ = v;
-    body_escaped_ = srs_strings_replace(body_escaped_, "\r", "\\r");
-    body_escaped_ = srs_strings_replace(body_escaped_, "\n", "\\n");
-    return this;
-}
-
-srs_error_t SrsSipMessage::parse(ISrsHttpMessage *m)
-{
-    srs_error_t err = srs_success;
-
-    // Parse body if exists any. Note that we must read body even the message is invalid, because we might need to parse
-    // the next message when skip current invalid message.
-    string v;
-    ISrsHttpResponseReader *br = m->body_reader();
-    if (!br->eof() && (err = srs_io_readall(br, v)) != srs_success) {
-        return srs_error_wrap(err, "read body");
-    }
-
-    set_body(v);
-
-    // Parse the first line.
-    type_ = (http_parser_type)m->message_type();
-    if (type_ == HTTP_REQUEST) {
-        // Parse request line.
-        method_ = (http_method)m->method();
-        request_uri_ = srs_strings_trim_start(m->path(), "/");
-        srs_sip_parse_address(request_uri_, request_uri_user_, request_uri_host_);
-    } else if (type_ == HTTP_RESPONSE) {
-        // Parse status line for response.
-        status_ = (http_status)m->status_code();
-    } else {
-        return srs_error_new(ERROR_GB_SIP_HEADER, "Invalid message type=%d", type_);
-    }
-
-    // Check fields for SIP request.
-    if (type_ == HTTP_REQUEST) {
-        if (method_ < HTTP_REGISTER || method_ > HTTP_BYE) {
-            return srs_error_new(ERROR_GB_SIP_MESSAGE, "Invalid method=%d(%s) of message", method_, http_method_str(method_));
-        }
-        if (request_uri_.empty())
-            return srs_error_new(ERROR_GB_SIP_MESSAGE, "No Request-URI in message");
-    }
-
-    // Get fields of SIP.
-    via_ = m->header()->get("Via");
-    from_ = m->header()->get("From");
-    to_ = m->header()->get("To");
-    call_id_ = m->header()->get("Call-ID");
-    cseq_ = m->header()->get("CSeq");
-    contact_ = m->header()->get("Contact");
-    subject_ = m->header()->get("Subject");
-    content_type_ = m->header()->content_type();
-
-    string expires = m->header()->get("Expires");
-    if (!expires.empty()) {
-        expires_ = (uint32_t)::atol(expires.c_str());
-        // See https://www.ietf.org/rfc/rfc3261.html#section-20.19
-        if (!expires_ && expires != "0") {
-            return srs_error_new(ERROR_GB_SIP_HEADER, "Invalid Expires=%s in header", expires.c_str());
-        }
-    }
-
-    string max_forwards = m->header()->get("Max-Forwards");
-    if (!max_forwards.empty() && max_forwards != "0") {
-        max_forwards_ = (uint32_t)::atol(max_forwards.c_str());
-        // See https://www.ietf.org/rfc/rfc3261.html#section-20.22
-        if (!max_forwards_) {
-            return srs_error_new(ERROR_GB_SIP_HEADER, "Invalid Max-Forwards=%s in header", max_forwards.c_str());
-        }
-    }
-
-    if (via_.empty())
-        return srs_error_new(ERROR_GB_SIP_HEADER, "No Via in header");
-    if (from_.empty())
-        return srs_error_new(ERROR_GB_SIP_HEADER, "No From in header");
-    if (to_.empty())
-        return srs_error_new(ERROR_GB_SIP_HEADER, "No To in header");
-    if (call_id_.empty())
-        return srs_error_new(ERROR_GB_SIP_HEADER, "No Call-ID in header");
-    if (cseq_.empty())
-        return srs_error_new(ERROR_GB_SIP_HEADER, "No CSeq in header");
-
-    // Parse more information from fields.
-    if ((err = parse_via(via_)) != srs_success) {
-        return srs_error_wrap(err, "parse via=%s", via_.c_str());
-    }
-    if ((err = parse_from(from_)) != srs_success) {
-        return srs_error_wrap(err, "parse from=%s", from_.c_str());
-    }
-    if ((err = parse_to(to_)) != srs_success) {
-        return srs_error_wrap(err, "parse to=%s", to_.c_str());
-    }
-    if ((err = parse_cseq(cseq_)) != srs_success) {
-        return srs_error_wrap(err, "parse cseq=%s", cseq_.c_str());
-    }
-    if ((err = parse_contact(contact_)) != srs_success) {
-        return srs_error_wrap(err, "parse contact=%s", contact_.c_str());
-    }
-
-    srs_sip_parse_address(from_address_, from_address_user_, from_address_host_);
-    srs_sip_parse_address(to_address_, to_address_user_, to_address_host_);
-
-    // Except REGISTER, the initial Request-URI of the message SHOULD be set to the value of the URI in the To field.
-    // See https://www.ietf.org/rfc/rfc3261.html#section-8.1.1.1
-    if (type_ == HTTP_REQUEST && method_ != HTTP_REGISTER && to_address_user_ != request_uri_user_) {
-        return srs_error_new(ERROR_GB_SIP_HEADER, "User of Request-URI=%s not in To=%s", request_uri_.c_str(), to_.c_str());
-    }
-
-    return err;
-}
-
-srs_error_t SrsSipMessage::parse_via(const std::string &via)
-{
-    srs_error_t err = srs_success;
-
-    if (!srs_strings_starts_with(via, "SIP/2.0/")) {
-        return srs_error_new(ERROR_GB_SIP_HEADER, "Via protocol invalid");
-    }
-
-    if (srs_strings_starts_with(via, "SIP/2.0/TCP")) {
-        via_transport_ = "TCP";
-    } else if (srs_strings_starts_with(via, "SIP/2.0/UDP")) {
-        via_transport_ = "UDP";
-    } else {
-        return srs_error_new(ERROR_GB_SIP_HEADER, "Via transport invalid");
-    }
-
-    vector<string> vs = srs_strings_split(via, " ");
-    if (vs.size() <= 1)
-        return srs_error_new(ERROR_GB_SIP_HEADER, "Via no send-by");
-
-    vector<string> params = srs_strings_split(vs[1], ";");
-    if (params.size() <= 1)
-        return srs_error_new(ERROR_GB_SIP_HEADER, "Via no params");
-
-    via_send_by_ = params[0];
-    srs_net_split_hostport(via_send_by_, via_send_by_address_, via_send_by_port_);
-
-    for (int i = 1; i < (int)params.size(); i++) {
-        string param = params[i];
-        if (srs_strings_starts_with(param, "rport")) {
-            via_rport_ = param;
-        } else if (srs_strings_starts_with(param, "branch")) {
-            via_branch_ = param;
-        }
-    }
-
-    // Before a request is sent, the client transport MUST insert a value of the "sent-by" field into the Via header
-    // field. See https://www.ietf.org/rfc/rfc3261.html#section-18.1.1
-    if (via_send_by_.empty())
-        return srs_error_new(ERROR_GB_SIP_HEADER, "Via no sent-by");
-    // The Via header field value MUST contain a branch parameter.
-    // See https://www.ietf.org/rfc/rfc3261.html#section-8.1.1.7
-    if (via_branch_.empty())
-        return srs_error_new(ERROR_GB_SIP_HEADER, "Via no branch");
-    // The branch ID inserted by an element compliant with this specification MUST always begin with the characters
-    // "z9hG4bK". See https://www.ietf.org/rfc/rfc3261.html#section-8.1.1.7
-    if (!srs_strings_starts_with(via_branch_, string("branch=") + SRS_GB_BRANCH_MAGIC)) {
-        return srs_error_new(ERROR_GB_SIP_HEADER, "Invalid branch=%s", via_branch_.c_str());
-    }
-
-    return err;
-}
-
-srs_error_t SrsSipMessage::parse_from(const std::string &from)
-{
-    srs_error_t err = srs_success;
-
-    vector<string> params = srs_strings_split(from, ";");
-    if (params.size() < 2)
-        return srs_error_new(ERROR_GB_SIP_HEADER, "From no params");
-
-    from_address_ = params[0];
-    for (int i = 1; i < (int)params.size(); i++) {
-        string param = params[i];
-        if (srs_strings_starts_with(param, "tag")) {
-            from_tag_ = param;
-        }
-    }
-
-    // The From field MUST contain a new "tag" parameter, chosen by the UAC.
-    // See https://www.ietf.org/rfc/rfc3261.html#section-8.1.1.3
-    if (from_tag_.empty())
-        return srs_error_new(ERROR_GB_SIP_HEADER, "From no tag");
-
-    return err;
-}
-
-srs_error_t SrsSipMessage::parse_to(const std::string &to)
-{
-    srs_error_t err = srs_success;
-
-    vector<string> params = srs_strings_split(to, ";");
-    if (params.size() < 1)
-        return srs_error_new(ERROR_GB_SIP_HEADER, "To is empty");
-
-    to_address_ = params[0];
-    for (int i = 1; i < (int)params.size(); i++) {
-        string param = params[i];
-        if (srs_strings_starts_with(param, "tag")) {
-            to_tag_ = param;
-        }
-    }
-
-    return err;
-}
-
-srs_error_t SrsSipMessage::parse_cseq(const std::string &cseq)
-{
-    srs_error_t err = srs_success;
-
-    vector<string> params = srs_strings_split(cseq, " ");
-    if (params.size() < 2)
-        return srs_error_new(ERROR_GB_SIP_HEADER, "CSeq is empty");
-
-    string sno = params[0];
-    if (sno != "0") {
-        cseq_number_ = (uint32_t)::atol(sno.c_str());
-
-        // The sequence number MUST be expressible as a 32-bit unsigned integer.
-        // See https://www.ietf.org/rfc/rfc3261.html#section-20.16
-        if (!cseq_number_)
-            return srs_error_new(ERROR_GB_SIP_HEADER, "CSeq number is invalid");
-    }
-
-    cseq_method_ = params[1];
-    // The method part of CSeq is case-sensitive. See https://www.ietf.org/rfc/rfc3261.html#section-20.16
-    if (type_ == HTTP_REQUEST && string(http_method_str(method_)) != cseq_method_) {
-        return srs_error_new(ERROR_GB_SIP_HEADER, "CSeq method=%s is invalid, expect=%d(%s)", cseq_method_.c_str(), method_, http_method_str(method_));
-    }
-
-    return err;
-}
-
-srs_error_t SrsSipMessage::parse_contact(const std::string &contact)
-{
-    srs_error_t err = srs_success;
-
-    srs_sip_parse_address(contact, contact_user_, contact_host_);
-    srs_net_split_hostport(contact_host_, contact_host_address_, contact_host_port_);
-
-    return err;
 }
 
 SrsPackContext::SrsPackContext(ISrsPsPackHandler *handler)
@@ -2748,29 +1547,6 @@ bool srs_skip_util_pack(SrsBuffer *stream)
     return false;
 }
 
-void srs_sip_parse_address(const std::string &address, std::string &user, std::string &host)
-{
-    string v = address;
-
-    size_t pos;
-
-    if ((pos = v.find("<")) != string::npos) {
-        v = v.substr(pos + 1);
-    }
-    if ((pos = v.find(">")) != string::npos) {
-        v = v.substr(0, pos);
-    }
-    if ((pos = v.find("sip:")) != string::npos) {
-        v = v.substr(4);
-    }
-
-    user = v;
-    if ((pos = v.find("@")) != string::npos) {
-        user = v.substr(0, pos);
-        host = v.substr(pos + 1);
-    }
-}
-
 SrsGoApiGbPublish::SrsGoApiGbPublish(SrsConfDirective *conf)
 {
     conf_ = conf->copy();
@@ -2873,7 +1649,7 @@ srs_error_t SrsGoApiGbPublish::bind_session(std::string id, uint64_t ssrc)
 
     SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(_srs_gb_manager, session, raw_session, raw_session);
     raw_session->setup_owner(session, executor, executor);
-    raw_session->sip_transport()->set_device_id(id);
+    raw_session->device_id_ = id;
 
     if ((err = executor->start()) != srs_success) {
         srs_freep(executor);

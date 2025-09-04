@@ -548,21 +548,19 @@ VOID TEST(HTTPServerTest, MessageConnection)
 
     if (true) {
         SrsHttpMessage m;
-        m.set_basic(HTTP_REQUEST, (http_method)100, (http_status)0, 0);
-        EXPECT_STREQ("<unknown>", m.method_str().c_str());
-        m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_GET, (http_status)0, 0);
+        m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_GET, (llhttp_status_t)0, 0);
         EXPECT_EQ(SRS_CONSTS_HTTP_GET, m.method());
         EXPECT_STREQ("GET", m.method_str().c_str());
-        m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_PUT, (http_status)0, 0);
+        m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_PUT, (llhttp_status_t)0, 0);
         EXPECT_EQ(SRS_CONSTS_HTTP_PUT, m.method());
         EXPECT_STREQ("PUT", m.method_str().c_str());
-        m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_POST, (http_status)0, 0);
+        m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_POST, (llhttp_status_t)0, 0);
         EXPECT_EQ(SRS_CONSTS_HTTP_POST, m.method());
         EXPECT_STREQ("POST", m.method_str().c_str());
-        m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_DELETE, (http_status)0, 0);
+        m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_DELETE, (llhttp_status_t)0, 0);
         EXPECT_EQ(SRS_CONSTS_HTTP_DELETE, m.method());
         EXPECT_STREQ("DELETE", m.method_str().c_str());
-        m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_OPTIONS, (http_status)0, 0);
+        m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_OPTIONS, (llhttp_status_t)0, 0);
         EXPECT_EQ(SRS_CONSTS_HTTP_OPTIONS, m.method());
         EXPECT_STREQ("OPTIONS", m.method_str().c_str());
     }

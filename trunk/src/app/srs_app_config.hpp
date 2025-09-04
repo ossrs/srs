@@ -484,16 +484,6 @@ public:
     virtual std::string get_stream_caster_output(SrsConfDirective *conf);
     // Get the listen port of stream caster.
     virtual int get_stream_caster_listen(SrsConfDirective *conf);
-    // Get the sip.enabled configuration.
-    virtual bool get_stream_caster_sip_enable(SrsConfDirective *conf);
-    // Get the sip.listen port configuration.
-    virtual int get_stream_caster_sip_listen(SrsConfDirective *conf);
-    // Get the sip.timeout configuration.
-    virtual srs_utime_t get_stream_caster_sip_timeout(SrsConfDirective *conf);
-    // Get the sip.reinvite configuration.
-    virtual srs_utime_t get_stream_caster_sip_reinvite(SrsConfDirective *conf);
-    // Get the candidate for SDP.
-    virtual std::string get_stream_caster_sip_candidate(SrsConfDirective *conf);
     // rtsp section
 public:
     virtual bool get_rtsp_server_enabled();

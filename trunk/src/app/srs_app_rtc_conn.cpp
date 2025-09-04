@@ -928,17 +928,28 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
 
 SrsRtcPublishRtcpTimer::SrsRtcPublishRtcpTimer(SrsRtcPublishStream *p) : p_(p)
 {
+    lock_ = srs_mutex_new();
     _srs_shared_timer->timer1s()->subscribe(this);
 }
 
 SrsRtcPublishRtcpTimer::~SrsRtcPublishRtcpTimer()
 {
-    _srs_shared_timer->timer1s()->unsubscribe(this);
+    if (true) {
+        SrsLocker(lock_);
+        _srs_shared_timer->timer1s()->unsubscribe(this);
+    }
+    srs_mutex_destroy(lock_);
 }
 
 srs_error_t SrsRtcPublishRtcpTimer::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
+
+    // This is a very heavy function, and it may potentially cause a coroutine switch.
+    // Therefore, during this function, the 'this' pointer might become invalid because
+    // the object could be freed by another thread. As a result, we must lock the object
+    // to prevent it from being freed.
+    SrsLocker(lock_);
 
     ++_srs_pps_pub->sugar;
 
@@ -964,17 +975,28 @@ srs_error_t SrsRtcPublishRtcpTimer::on_timer(srs_utime_t interval)
 
 SrsRtcPublishTwccTimer::SrsRtcPublishTwccTimer(SrsRtcPublishStream *p) : p_(p)
 {
+    lock_ = srs_mutex_new();
     _srs_shared_timer->timer100ms()->subscribe(this);
 }
 
 SrsRtcPublishTwccTimer::~SrsRtcPublishTwccTimer()
 {
-    _srs_shared_timer->timer100ms()->unsubscribe(this);
+    if (true) {
+        SrsLocker(lock_);
+        _srs_shared_timer->timer100ms()->unsubscribe(this);
+    }
+    srs_mutex_destroy(lock_);
 }
 
 srs_error_t SrsRtcPublishTwccTimer::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
+
+    // This is a very heavy function, and it may potentially cause a coroutine switch.
+    // Therefore, during this function, the 'this' pointer might become invalid because
+    // the object could be freed by another thread. As a result, we must lock the object
+    // to prevent it from being freed.
+    SrsLocker(lock_);
 
     ++_srs_pps_pub->sugar;
 

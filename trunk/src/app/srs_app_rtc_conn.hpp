@@ -306,6 +306,7 @@ class SrsRtcPublishRtcpTimer : public ISrsFastTimer
 {
 private:
     SrsRtcPublishStream *p_;
+    srs_mutex_t lock_;
 
 public:
     SrsRtcPublishRtcpTimer(SrsRtcPublishStream *p);
@@ -320,6 +321,7 @@ class SrsRtcPublishTwccTimer : public ISrsFastTimer
 {
 private:
     SrsRtcPublishStream *p_;
+    srs_mutex_t lock_;
 
 public:
     SrsRtcPublishTwccTimer(SrsRtcPublishStream *p);

@@ -7,6 +7,9 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-09-03, Merge [#4469](https://github.com/ossrs/srs/pull/4469): Upgrade HTTP parser from http-parser to llhttp. v7.0.77 (#4469)
+* v7.0, 2025-09-03, Merge [#4470](https://github.com/ossrs/srs/pull/4470): RTX: Fix race condition for timer. v7.0.76 (#4470)
+* v7.0, 2025-09-02, Merge [#4466](https://github.com/ossrs/srs/pull/4466): AI: GB28181: Remove embedded SIP server and enforce external SIP usage. v7.0.75 (#4466)
 * v7.0, 2025-09-01, Merge [#4465](https://github.com/ossrs/srs/pull/4465): AI: Replace SrsSharedPtrMessage with SrsMediaPacket for unified media packet handling. v7.0.74 (#4465)
 * v7.0, 2025-09-01, Merge [#4464](https://github.com/ossrs/srs/pull/4464): AI: Use shared ptr in RTMP message. v7.0.73 (#4464)
 * v7.0, 2025-09-01, Merge [#4463](https://github.com/ossrs/srs/pull/4463): AI: Use SrsHttpUri for URL parsing and add legacy RTMP URL conversion. v7.0.72 (#4463)

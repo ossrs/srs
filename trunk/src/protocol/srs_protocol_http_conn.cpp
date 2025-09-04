@@ -35,18 +35,15 @@ SrsHttpParser::~SrsHttpParser()
     srs_freep(header);
 }
 
-srs_error_t SrsHttpParser::initialize(enum http_parser_type type)
+srs_error_t SrsHttpParser::initialize(enum llhttp_type type)
 {
     srs_error_t err = srs_success;
 
     jsonp = false;
     type_ = type;
 
-    // Initialize the parser, however it's not necessary.
-    http_parser_init(&parser, type_);
-    parser.data = (void *)this;
-
-    memset(&settings, 0, sizeof(settings));
+    // Initialize the settings first
+    llhttp_settings_init(&settings);
     settings.on_message_begin = on_message_begin;
     settings.on_url = on_url;
     settings.on_header_field = on_header_field;
@@ -54,6 +51,10 @@ srs_error_t SrsHttpParser::initialize(enum http_parser_type type)
     settings.on_headers_complete = on_headers_complete;
     settings.on_body = on_body;
     settings.on_message_complete = on_message_complete;
+
+    // Initialize the parser with settings
+    llhttp_init(&parser, type_, &settings);
+    parser.data = (void *)this;
 
     return err;
 }
@@ -71,7 +72,7 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader *reader, ISrsHttpMessage **p
 
     // Reset parser data and state.
     state = SrsHttpParseStateInit;
-    memset(&hp_header, 0, sizeof(http_parser));
+    memset(&hp_header, 0, sizeof(llhttp_t));
     // We must reset the field name and value, because we may get a partial value in on_header_value.
     field_name = field_value = "";
     // Reset the url.
@@ -89,7 +90,8 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader *reader, ISrsHttpMessage **p
     // when got next message, the whole next message is parsed as the body of previous one,
     // and the message fail.
     // @note You can comment the bellow line, the utest will fail.
-    http_parser_init(&parser, type_);
+    llhttp_reset(&parser);
+
     // Reset the parsed type.
     parsed_type_ = HTTP_BOTH;
     // callback object ptr.
@@ -106,8 +108,8 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader *reader, ISrsHttpMessage **p
     SrsHttpMessage *msg = new SrsHttpMessage(reader, buffer);
 
     // Initialize the basic information.
-    msg->set_basic(hp_header.type, (http_method)hp_header.method, (http_status)hp_header.status_code, hp_header.content_length);
-    msg->set_header(header, http_should_keep_alive(&hp_header));
+    msg->set_basic(hp_header.type, (llhttp_method_t)hp_header.method, (llhttp_status_t)hp_header.status_code, hp_header.content_length);
+    msg->set_header(header, llhttp_should_keep_alive(&hp_header));
     // For HTTP response, no url.
     if (parsed_type_ != HTTP_RESPONSE && (err = msg->set_url(url, jsonp)) != srs_success) {
         srs_freep(msg);
@@ -126,19 +128,40 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader *reader)
 
     while (true) {
         if (buffer->size() > 0) {
-            ssize_t consumed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
+            const char *data_start = buffer->bytes();
+            llhttp_errno_t code = llhttp_execute(&parser, data_start, buffer->size());
 
-            // The error is set in http_errno.
-            enum http_errno code = HTTP_PARSER_ERRNO(&parser);
-            if (code != HPE_OK) {
+            ssize_t consumed = 0;
+            if (code == HPE_OK) {
+                // No problem, all buffer should be consumed.
+                consumed = buffer->size();
+            } else if (code == HPE_PAUSED) {
+                // We only consume the header, not message or body.
+                const char *error_pos = llhttp_get_error_pos(&parser);
+                if (error_pos && error_pos < data_start) {
+                    return srs_error_new(ERROR_HTTP_PARSE_HEADER, "llhttp error_pos=%p < data_start=%p", error_pos, data_start);
+                }
+
+                if (error_pos && error_pos >= data_start) {
+                    consumed = error_pos - data_start;
+                }
+            }
+
+            // Check for errors (but allow certain conditions that are normal)
+            // HPE_OK: success
+            // HPE_PAUSED: we use to skip body
+            if (code != HPE_OK && code != HPE_PAUSED) {
                 return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse %dB, nparsed=%d, err=%d/%s %s",
-                                     buffer->size(), (int)consumed, code, http_errno_name(code), http_errno_description(code));
+                                     buffer->size(), (int)consumed, code, llhttp_errno_name(code),
+                                     llhttp_get_error_reason(&parser) ? llhttp_get_error_reason(&parser) : "");
             }
 
             srs_info("size=%d, nparsed=%d", buffer->size(), (int)consumed);
 
             // Only consume the header bytes.
-            buffer->read_slice(consumed);
+            if (consumed > 0) {
+                buffer->read_slice(consumed);
+            }
 
             // Done when header completed, never wait for body completed, because it maybe chunked.
             if (state >= SrsHttpParseStateHeaderComplete) {
@@ -161,7 +184,7 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader *reader)
     return err;
 }
 
-int SrsHttpParser::on_message_begin(http_parser *parser)
+int SrsHttpParser::on_message_begin(llhttp_t *parser)
 {
     SrsHttpParser *obj = (SrsHttpParser *)parser->data;
     srs_assert(obj);
@@ -170,14 +193,14 @@ int SrsHttpParser::on_message_begin(http_parser *parser)
     obj->state = SrsHttpParseStateStart;
 
     // If we set to HTTP_BOTH, the type is detected and speicifed by parser.
-    obj->parsed_type_ = (http_parser_type)parser->type;
+    obj->parsed_type_ = (llhttp_type)parser->type;
 
     srs_info("***MESSAGE BEGIN***");
 
     return 0;
 }
 
-int SrsHttpParser::on_headers_complete(http_parser *parser)
+int SrsHttpParser::on_headers_complete(llhttp_t *parser)
 {
     SrsHttpParser *obj = (SrsHttpParser *)parser->data;
     srs_assert(obj);
@@ -189,20 +212,21 @@ int SrsHttpParser::on_headers_complete(http_parser *parser)
     srs_info("***HEADERS COMPLETE***");
 
     // The return code of this callback:
-    //      0: Continue to process body.
-    //      1: Skip body, but continue to parse util all data parsed.
-    //      2: Upgrade and skip body and left message, because it is in a different protocol.
-    //      N: Error and failed as HPE_CB_headers_complete.
-    // We choose 2 because we only want to parse the header, not the body.
-    return 2;
+    //      `0`: Proceed normally.
+    //      `1`: Assume that request/response has no body, and proceed to parsing the next message.
+    //      `2`: Assume absence of body (as above) and make `llhttp_execute()` return `HPE_PAUSED_UPGRADE`.
+    //      `-1`: Error
+    //      `HPE_PAUSED`: Pause parsing and wait for user to call `llhttp_resume()`.
+    // We use HPE_PAUSED to skip body.
+    return HPE_PAUSED;
 }
 
-int SrsHttpParser::on_message_complete(http_parser *parser)
+int SrsHttpParser::on_message_complete(llhttp_t *parser)
 {
     SrsHttpParser *obj = (SrsHttpParser *)parser->data;
     srs_assert(obj);
 
-    // save the parser when body parse completed.
+    // Note that we should never get here, because we always return HPE_PAUSED in on_headers_complete.
     obj->state = SrsHttpParseStateMessageComplete;
 
     srs_info("***MESSAGE COMPLETE***\n");
@@ -210,7 +234,7 @@ int SrsHttpParser::on_message_complete(http_parser *parser)
     return 0;
 }
 
-int SrsHttpParser::on_url(http_parser *parser, const char *at, size_t length)
+int SrsHttpParser::on_url(llhttp_t *parser, const char *at, size_t length)
 {
     SrsHttpParser *obj = (SrsHttpParser *)parser->data;
     srs_assert(obj);
@@ -225,7 +249,7 @@ int SrsHttpParser::on_url(http_parser *parser, const char *at, size_t length)
     return 0;
 }
 
-int SrsHttpParser::on_header_field(http_parser *parser, const char *at, size_t length)
+int SrsHttpParser::on_header_field(llhttp_t *parser, const char *at, size_t length)
 {
     SrsHttpParser *obj = (SrsHttpParser *)parser->data;
     srs_assert(obj);
@@ -243,7 +267,7 @@ int SrsHttpParser::on_header_field(http_parser *parser, const char *at, size_t l
     return 0;
 }
 
-int SrsHttpParser::on_header_value(http_parser *parser, const char *at, size_t length)
+int SrsHttpParser::on_header_value(llhttp_t *parser, const char *at, size_t length)
 {
     SrsHttpParser *obj = (SrsHttpParser *)parser->data;
     srs_assert(obj);
@@ -256,7 +280,7 @@ int SrsHttpParser::on_header_value(http_parser *parser, const char *at, size_t l
     return 0;
 }
 
-int SrsHttpParser::on_body(http_parser *parser, const char *at, size_t length)
+int SrsHttpParser::on_body(llhttp_t *parser, const char *at, size_t length)
 {
     SrsHttpParser *obj = (SrsHttpParser *)parser->data;
     srs_assert(obj);
@@ -279,9 +303,9 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader *reader, SrsFastStream *buffer) : ISrs
     jsonp = false;
 
     // As 0 is DELETE, so we use GET as default.
-    _method = (http_method)SRS_CONSTS_HTTP_GET;
+    _method = (llhttp_method_t)SRS_CONSTS_HTTP_GET;
     // 200 is ok.
-    _status = (http_status)SRS_CONSTS_HTTP_OK;
+    _status = (llhttp_status_t)SRS_CONSTS_HTTP_OK;
     // -1 means infinity chunked mode.
     _content_length = -1;
     // From HTTP/1.1, default to keep alive.
@@ -297,12 +321,15 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_uri);
 }
 
-void SrsHttpMessage::set_basic(uint8_t type, http_method method, http_status status, int64_t content_length)
+void SrsHttpMessage::set_basic(uint8_t type, llhttp_method_t method, llhttp_status_t status, int64_t content_length)
 {
     type_ = type;
     _method = method;
     _status = status;
-    if (_content_length == -1) {
+
+    // We use -1 as uninitialized mode, while llhttp use 0, so we should only
+    // update it when it's not 0 and the message is not initialized.
+    if (_content_length == -1 && content_length) {
         _content_length = content_length;
     }
 }
@@ -455,7 +482,7 @@ string SrsHttpMessage::method_str()
         return jsonp_method;
     }
 
-    return http_method_str((http_method)_method);
+    return llhttp_method_name((llhttp_method_t)_method);
 }
 
 bool SrsHttpMessage::is_http_get()
@@ -1136,6 +1163,7 @@ srs_error_t SrsHttpResponseReader::read_chunked(void *data, size_t nb_data, ssiz
             // find the CRLF of chunk header end.
             char *start = buffer->bytes();
             char *end = start + buffer->size();
+
             for (char *p = start; p < end - 1; p++) {
                 if (p[0] == SRS_HTTP_CR && p[1] == SRS_HTTP_LF) {
                     // invalid chunk, ignore.

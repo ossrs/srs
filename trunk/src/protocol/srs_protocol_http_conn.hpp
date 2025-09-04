@@ -21,13 +21,13 @@ class ISrsReader;
 class SrsHttpResponseReader;
 class ISrsProtocolReadWriter;
 
-// A wrapper for http-parser,
+// A wrapper for llhttp,
 // provides HTTP message originted service.
 class SrsHttpParser
 {
 private:
-    http_parser_settings settings;
-    http_parser parser;
+    llhttp_settings_t settings;
+    llhttp_t parser;
     // The global parse buffer.
     SrsFastStream *buffer;
     // Whether allow jsonp parse.
@@ -37,20 +37,20 @@ private:
     std::string field_name;
     std::string field_value;
     SrsHttpParseState state;
-    http_parser hp_header;
+    llhttp_t hp_header;
     std::string url;
     SrsHttpHeader *header;
-    enum http_parser_type type_;
-    enum http_parser_type parsed_type_;
+    enum llhttp_type type_;
+    enum llhttp_type parsed_type_;
 
 public:
     SrsHttpParser();
     virtual ~SrsHttpParser();
 
 public:
-    // initialize the http parser with specified type,
+    // initialize the llhttp parser with specified type,
     // one parser can only parse request or response messages.
-    virtual srs_error_t initialize(enum http_parser_type type);
+    virtual srs_error_t initialize(enum llhttp_type type);
     // Whether allow jsonp parser, which indicates the method in query string.
     virtual void set_jsonp(bool allow_jsonp);
     // always parse a http message,
@@ -65,13 +65,13 @@ private:
     virtual srs_error_t parse_message_imp(ISrsReader *reader);
 
 private:
-    static int on_message_begin(http_parser *parser);
-    static int on_headers_complete(http_parser *parser);
-    static int on_message_complete(http_parser *parser);
-    static int on_url(http_parser *parser, const char *at, size_t length);
-    static int on_header_field(http_parser *parser, const char *at, size_t length);
-    static int on_header_value(http_parser *parser, const char *at, size_t length);
-    static int on_body(http_parser *parser, const char *at, size_t length);
+    static int on_message_begin(llhttp_t *parser);
+    static int on_headers_complete(llhttp_t *parser);
+    static int on_message_complete(llhttp_t *parser);
+    static int on_url(llhttp_t *parser, const char *at, size_t length);
+    static int on_header_field(llhttp_t *parser, const char *at, size_t length);
+    static int on_header_value(llhttp_t *parser, const char *at, size_t length);
+    static int on_body(llhttp_t *parser, const char *at, size_t length);
 };
 
 // A Request represents an HTTP request received by a server
@@ -95,8 +95,8 @@ private:
     //      enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
     uint8_t type_;
     // The HTTP method defined by HTTP_METHOD_MAP
-    http_method _method;
-    http_status _status;
+    llhttp_method_t _method;
+    llhttp_status_t _status;
     int64_t _content_length;
 
 private:
@@ -131,7 +131,7 @@ public:
 public:
     // Set the basic information for HTTP request.
     // @remark User must call set_basic before set_header, because the content_length will be overwrite by header.
-    virtual void set_basic(uint8_t type, http_method method, http_status status, int64_t content_length);
+    virtual void set_basic(uint8_t type, llhttp_method_t method, llhttp_status_t status, int64_t content_length);
     // Set HTTP header and whether the request require keep alive.
     // @remark User must call set_header before set_url, because the Host in header is used for url.
     virtual void set_header(SrsHttpHeader *header, bool keep_alive);

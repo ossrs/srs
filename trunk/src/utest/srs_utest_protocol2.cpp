@@ -7714,14 +7714,14 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt3)
 }
 
 struct MockStage {
-    http_parser parser;
+    llhttp_t parser;
     const char *at;
     size_t length;
 
-    MockStage(http_parser *from);
+    MockStage(llhttp_t *from);
 };
 
-MockStage::MockStage(http_parser *from)
+MockStage::MockStage(llhttp_t *from)
 {
     parser = *from;
     at = NULL;
@@ -7731,8 +7731,8 @@ MockStage::MockStage(http_parser *from)
 class MockParser
 {
 private:
-    http_parser_settings settings;
-    http_parser *parser;
+    llhttp_settings_t settings;
+    llhttp_t *parser;
     size_t parsed;
 
 public:
@@ -7755,22 +7755,22 @@ public:
     srs_error_t parse(string data);
 
 private:
-    static int on_message_begin(http_parser *parser);
-    static int on_url(http_parser *parser, const char *at, size_t length);
-    static int on_status(http_parser *parser, const char *at, size_t length);
-    static int on_header_field(http_parser *parser, const char *at, size_t length);
-    static int on_header_value(http_parser *parser, const char *at, size_t length);
-    static int on_headers_complete(http_parser *parser);
-    static int on_body(http_parser *parser, const char *at, size_t length);
-    static int on_message_complete(http_parser *parser);
-    static int on_chunk_header(http_parser *parser);
-    static int on_chunk_complete(http_parser *parser);
+    static int on_message_begin(llhttp_t *parser);
+    static int on_url(llhttp_t *parser, const char *at, size_t length);
+    static int on_status(llhttp_t *parser, const char *at, size_t length);
+    static int on_header_field(llhttp_t *parser, const char *at, size_t length);
+    static int on_header_value(llhttp_t *parser, const char *at, size_t length);
+    static int on_headers_complete(llhttp_t *parser);
+    static int on_body(llhttp_t *parser, const char *at, size_t length);
+    static int on_message_complete(llhttp_t *parser);
+    static int on_chunk_header(llhttp_t *parser);
+    static int on_chunk_complete(llhttp_t *parser);
 };
 
 MockParser::MockParser()
 {
-    parser = new http_parser();
-    http_parser_init(parser, HTTP_REQUEST);
+    parser = new llhttp_t();
+    llhttp_init(parser, HTTP_REQUEST, &settings);
     parser->data = (void *)this;
     parsed = 0;
 
@@ -7814,7 +7814,7 @@ MockParser::~MockParser()
     srs_freep(chunk_complete);
 }
 
-int MockParser::on_message_begin(http_parser *parser)
+int MockParser::on_message_begin(llhttp_t *parser)
 {
     MockParser *obj = (MockParser *)parser->data;
     srs_assert(obj);
@@ -7825,7 +7825,7 @@ int MockParser::on_message_begin(http_parser *parser)
     return 0;
 }
 
-int MockParser::on_url(http_parser *parser, const char *at, size_t length)
+int MockParser::on_url(llhttp_t *parser, const char *at, size_t length)
 {
     MockParser *obj = (MockParser *)parser->data;
     srs_assert(obj);
@@ -7838,7 +7838,7 @@ int MockParser::on_url(http_parser *parser, const char *at, size_t length)
     return 0;
 }
 
-int MockParser::on_status(http_parser *parser, const char *at, size_t length)
+int MockParser::on_status(llhttp_t *parser, const char *at, size_t length)
 {
     MockParser *obj = (MockParser *)parser->data;
     srs_assert(obj);
@@ -7851,7 +7851,7 @@ int MockParser::on_status(http_parser *parser, const char *at, size_t length)
     return 0;
 }
 
-int MockParser::on_header_field(http_parser *parser, const char *at, size_t length)
+int MockParser::on_header_field(llhttp_t *parser, const char *at, size_t length)
 {
     MockParser *obj = (MockParser *)parser->data;
     srs_assert(obj);
@@ -7864,7 +7864,7 @@ int MockParser::on_header_field(http_parser *parser, const char *at, size_t leng
     return 0;
 }
 
-int MockParser::on_header_value(http_parser *parser, const char *at, size_t length)
+int MockParser::on_header_value(llhttp_t *parser, const char *at, size_t length)
 {
     MockParser *obj = (MockParser *)parser->data;
     srs_assert(obj);
@@ -7877,7 +7877,7 @@ int MockParser::on_header_value(http_parser *parser, const char *at, size_t leng
     return 0;
 }
 
-int MockParser::on_headers_complete(http_parser *parser)
+int MockParser::on_headers_complete(llhttp_t *parser)
 {
     MockParser *obj = (MockParser *)parser->data;
     srs_assert(obj);
@@ -7885,10 +7885,10 @@ int MockParser::on_headers_complete(http_parser *parser)
     srs_freep(obj->headers_complete);
     obj->headers_complete = new MockStage(parser);
 
-    return 0;
+    return HPE_PAUSED;
 }
 
-int MockParser::on_body(http_parser *parser, const char *at, size_t length)
+int MockParser::on_body(llhttp_t *parser, const char *at, size_t length)
 {
     MockParser *obj = (MockParser *)parser->data;
     srs_assert(obj);
@@ -7901,7 +7901,7 @@ int MockParser::on_body(http_parser *parser, const char *at, size_t length)
     return 0;
 }
 
-int MockParser::on_message_complete(http_parser *parser)
+int MockParser::on_message_complete(llhttp_t *parser)
 {
     MockParser *obj = (MockParser *)parser->data;
     srs_assert(obj);
@@ -7912,7 +7912,7 @@ int MockParser::on_message_complete(http_parser *parser)
     return 0;
 }
 
-int MockParser::on_chunk_header(http_parser *parser)
+int MockParser::on_chunk_header(llhttp_t *parser)
 {
     MockParser *obj = (MockParser *)parser->data;
     srs_assert(obj);
@@ -7923,7 +7923,7 @@ int MockParser::on_chunk_header(http_parser *parser)
     return 0;
 }
 
-int MockParser::on_chunk_complete(http_parser *parser)
+int MockParser::on_chunk_complete(llhttp_t *parser)
 {
     MockParser *obj = (MockParser *)parser->data;
     srs_assert(obj);
@@ -7938,14 +7938,38 @@ srs_error_t MockParser::parse(string data)
 {
     srs_error_t err = srs_success;
 
+    parsed = 0;
+
     const char *buf = (const char *)data.data();
     size_t size = (size_t)data.length();
-    size_t nparsed = http_parser_execute(parser, &settings, buf, size);
-    parsed = nparsed;
+    llhttp_errno_t code = llhttp_execute(parser, buf, size);
 
-    if (nparsed != size) {
-        return srs_error_new(-1, "nparsed=%d, size=%d", nparsed, size);
+    ssize_t consumed = 0;
+    if (code == HPE_OK) {
+        // No problem, all buffer should be consumed.
+        consumed = (int)data.size();
+    } else if (code == HPE_PAUSED) {
+        // We only consume the header, not message or body.
+        const char *error_pos = llhttp_get_error_pos(parser);
+        if (error_pos && error_pos < buf) {
+            return srs_error_new(-1, "llhttp error_pos=%p < data_start=%p", error_pos, buf);
+        }
+
+        if (error_pos && error_pos >= buf) {
+            consumed = error_pos - buf;
+        }
     }
+
+    // Check for errors (but allow certain conditions that are normal)
+    // HPE_OK: success
+    // HPE_PAUSED: we use to skip body
+    if (code != HPE_OK && code != HPE_PAUSED) {
+        return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse %dB, nparsed=%d, err=%d/%s %s",
+                             (int)data.size(), (int)consumed, code, llhttp_errno_name(code),
+                             llhttp_get_error_reason(parser) ? llhttp_get_error_reason(parser) : "");
+    }
+
+    parsed = consumed;
 
     return err;
 }
@@ -7956,10 +7980,17 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 
     if (true) {
         MockParser parser;
+        // size = 79, nparsed = 0, nread = 1, content_length = -1, Header("Content-Length", 5)
+        HELPER_EXPECT_FAILED(parser.parse("elloGET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
+        EXPECT_EQ(0, (int)parser.parsed);
+        EXPECT_EQ(0, (int64_t)parser.parser->content_length);
+    }
+
+    if (true) {
+        MockParser parser;
         // size = 70, nparsed = 70, nread = 0
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\n"));
         EXPECT_EQ(70, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
         EXPECT_TRUE(!parser.body);
         EXPECT_TRUE(parser.headers_complete);
         EXPECT_TRUE(!parser.message_complete);
@@ -7967,21 +7998,19 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 
     if (true) {
         MockParser parser;
-        // size = 75, nparsed = 75, nread = 0
+        // size = 75, nparsed = 70, nread = 0
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
-        EXPECT_EQ(75, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
-        EXPECT_TRUE(parser.body && 5 == parser.body->length);
+        EXPECT_EQ(70, (int)parser.parsed);
+        EXPECT_TRUE(!parser.body);
         EXPECT_TRUE(parser.headers_complete);
-        EXPECT_TRUE(parser.message_complete);
+        EXPECT_TRUE(!parser.message_complete);
     }
 
     if (true) {
         MockParser parser;
-        // size = 150, nparsed = 150, nread = 0
+        // size = 150, nparsed = 70, nread = 0
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHelloGET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nWorld"));
-        EXPECT_EQ(150, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
+        EXPECT_EQ(70, (int)parser.parsed);
     }
 
     if (true) {
@@ -7989,14 +8018,7 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // size = 70, nparsed = 70, nread = 0, content_length = 5, Header("Content-Length", 5)
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\n"));
         EXPECT_EQ(70, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
         EXPECT_EQ(5, (int)parser.parser->content_length);
-
-        // size = 79, nparsed = 5, nread = 1, content_length = -1, Header("Content-Length", 5)
-        HELPER_EXPECT_FAILED(parser.parse("elloGET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
-        EXPECT_EQ(5, (int)parser.parsed);
-        EXPECT_EQ(1, (int)parser.parser->nread);
-        EXPECT_EQ(-1, (int64_t)parser.parser->content_length);
     }
 
     if (true) {
@@ -8004,32 +8026,31 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // size = 70, nparsed = 70, nread = 0, content_length = 5, Header("Content-Length", 5)
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\n"));
         EXPECT_EQ(70, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
         EXPECT_EQ(5, (int)parser.parser->content_length);
+
+        // Reset for the next message.
+        parser.parser->content_length = 0;
 
         // size = 80, nparsed = 70, nread = 0, content_length = 0, Header("Content-Length", 5)
-        HELPER_EXPECT_SUCCESS(parser.parse("HelloGET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nWorld"));
-        EXPECT_EQ(80, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
+        HELPER_EXPECT_FAILED(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nWorld"));
+        EXPECT_EQ(0, (int)parser.parsed);
         EXPECT_EQ(0, (int)parser.parser->content_length);
     }
 
     if (true) {
         MockParser parser;
-        // size = 73, nparsed = 73, nread = 0, content_length = 2, Header("Content-Length", 5)
+        // size = 73, nparsed = 70, nread = 0, content_length = 5, Header("Content-Length", 5)
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHel"));
-        EXPECT_EQ(73, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
-        EXPECT_EQ(2, (int)parser.parser->content_length);
+        EXPECT_EQ(70, (int)parser.parsed);
+        EXPECT_EQ(5, (int)parser.parser->content_length);
     }
 
     if (true) {
         MockParser parser;
-        // size = 82, nparsed = 75, nread = 1, content_length = -1, Header("Content-Length", 5)
-        HELPER_EXPECT_FAILED(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello World!"));
-        EXPECT_EQ(75, (int)parser.parsed);
-        EXPECT_EQ(1, (int)parser.parser->nread);
-        EXPECT_EQ(-1, (int64_t)parser.parser->content_length);
+        // size = 82, nparsed = 70, nread = 1, content_length = 5, Header("Content-Length", 5)
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello World!"));
+        EXPECT_EQ(70, (int)parser.parsed);
+        EXPECT_EQ(5, (int64_t)parser.parser->content_length);
     }
 
     if (true) {
@@ -8037,12 +8058,10 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // size = 34, nparsed = 34, nread = 34
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHo"));
         EXPECT_EQ(34, (int)parser.parsed);
-        EXPECT_EQ(34, (int)parser.parser->nread);
 
-        // size = 41, nparsed = 41, nread = 0
+        // size = 41, nparsed = 36, nread = 0
         HELPER_EXPECT_SUCCESS(parser.parse("st: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
-        EXPECT_EQ(41, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
+        EXPECT_EQ(36, (int)parser.parsed);
     }
 
     if (true) {
@@ -8050,12 +8069,10 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // size = 41, nparsed = 41, nread = 41
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: oss"));
         EXPECT_EQ(41, (int)parser.parsed);
-        EXPECT_EQ(41, (int)parser.parser->nread);
 
-        // size = 34, nparsed = 34, nread = 0
+        // size = 34, nparsed = 29, nread = 0
         HELPER_EXPECT_SUCCESS(parser.parse("rs.net\r\nContent-Length: 5\r\n\r\nHello"));
-        EXPECT_EQ(34, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
+        EXPECT_EQ(29, (int)parser.parsed);
     }
 
     if (true) {
@@ -8063,12 +8080,10 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // size = 48, nparsed = 48, nread = 48
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r"));
         EXPECT_EQ(48, (int)parser.parsed);
-        EXPECT_EQ(48, (int)parser.parser->nread);
 
-        // size = 27, nparsed = 27, nread = 0
+        // size = 27, nparsed = 22, nread = 0
         HELPER_EXPECT_SUCCESS(parser.parse("\nContent-Length: 5\r\n\r\nHello"));
-        EXPECT_EQ(27, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
+        EXPECT_EQ(22, (int)parser.parsed);
     }
 
     if (true) {
@@ -8076,12 +8091,10 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // size = 68, nparsed = 68, nread = 68
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n"));
         EXPECT_EQ(68, (int)parser.parsed);
-        EXPECT_EQ(68, (int)parser.parser->nread);
 
-        // size = 7, nparsed = 7, nread = 0
+        // size = 7, nparsed = 2, nread = 0
         HELPER_EXPECT_SUCCESS(parser.parse("\r\nHello"));
-        EXPECT_EQ(7, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
+        EXPECT_EQ(2, (int)parser.parsed);
     }
 
     if (true) {
@@ -8089,20 +8102,17 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // size = 69, nparsed = 69, nread = 69
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r"));
         EXPECT_EQ(69, (int)parser.parsed);
-        EXPECT_EQ(69, (int)parser.parser->nread);
 
-        // size = 6, nparsed = 6, nread = 0
+        // size = 6, nparsed = 1, nread = 0
         HELPER_EXPECT_SUCCESS(parser.parse("\nHello"));
-        EXPECT_EQ(6, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
+        EXPECT_EQ(1, (int)parser.parsed);
     }
 
     if (true) {
         MockParser parser;
-        // size = 75, nparsed = 75, nread = 0
+        // size = 75, nparsed = 70, nread = 0
         HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
-        EXPECT_EQ(75, (int)parser.parsed);
-        EXPECT_EQ(0, (int)parser.parser->nread);
+        EXPECT_EQ(70, (int)parser.parsed);
     }
 
     if (true) {
@@ -8110,12 +8120,10 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // nparsed = 2, size = 2, nread = 2
         HELPER_EXPECT_SUCCESS(parser.parse("GE"));
         EXPECT_EQ(2, (int)parser.parsed);
-        EXPECT_EQ(2, (int)parser.parser->nread);
 
         // size = 0, nparsed = 1, nread=2
-        HELPER_EXPECT_FAILED(parser.parse(""));
-        EXPECT_EQ(1, (int)parser.parsed);
-        EXPECT_EQ(2, (int)parser.parser->nread);
+        HELPER_EXPECT_SUCCESS(parser.parse(""));
+        EXPECT_EQ(0, (int)parser.parsed);
     }
 
     if (true) {
@@ -8123,12 +8131,10 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // size = 2, nparsed = 2, nread = 2
         HELPER_EXPECT_SUCCESS(parser.parse("GE"));
         EXPECT_EQ(2, (int)parser.parsed);
-        EXPECT_EQ(2, (int)parser.parser->nread);
 
         // size = 1, nparsed = 0, nread = 3
         HELPER_EXPECT_FAILED(parser.parse("X"));
         EXPECT_EQ(0, (int)parser.parsed);
-        EXPECT_EQ(3, (int)parser.parser->nread);
     }
 
     if (true) {
@@ -8136,12 +8142,10 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // size = 2, nparsed = 2, nread = 2
         HELPER_EXPECT_SUCCESS(parser.parse("GE"));
         EXPECT_EQ(2, (int)parser.parsed);
-        EXPECT_EQ(2, (int)parser.parser->nread);
 
         // size = 1, nparsed = 1, nread = 3
         HELPER_EXPECT_SUCCESS(parser.parse("T"));
         EXPECT_EQ(1, (int)parser.parsed);
-        EXPECT_EQ(3, (int)parser.parser->nread);
     }
 
     if (true) {
@@ -8149,7 +8153,6 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         // size = 3, nparsed = 3, nread = 3
         HELPER_EXPECT_SUCCESS(parser.parse("GET"));
         EXPECT_EQ(3, (int)parser.parsed);
-        EXPECT_EQ(3, (int)parser.parser->nread);
     }
 }
 
