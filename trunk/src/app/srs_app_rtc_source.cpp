@@ -3168,6 +3168,7 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket **ppkt)
     SrsRtpPacket *pkt = *ppkt;
     uint16_t seq = pkt->header.get_sequence();
     SrsRtpNackInfo *nack_info = nack_receiver_->find(seq);
+    
     if (nack_info) {
         // seq had been received.
         nack_receiver_->remove(seq);
@@ -3188,6 +3189,7 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket **ppkt)
             nack_receiver_->check_queue_size();
         }
     }
+
     // insert into video_queue and audio_queue
     // We directly use the pkt, never copy it, so we should set the pkt to NULL.
     if (nack_no_copy_) {

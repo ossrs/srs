@@ -10,10 +10,6 @@
 /*
 #include <srs_utest_rtc.hpp>
 */
-#include <srs_app_rtc_conn.hpp>
-#include <srs_app_rtc_dtls.hpp>
-#include <srs_app_rtc_source.hpp>
-#include <srs_kernel_error.hpp>
 #include <srs_utest.hpp>
 #include <srs_utest_service.hpp>
 
