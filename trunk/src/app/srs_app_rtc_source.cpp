@@ -3168,7 +3168,7 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket **ppkt)
     SrsRtpPacket *pkt = *ppkt;
     uint16_t seq = pkt->header.get_sequence();
     SrsRtpNackInfo *nack_info = nack_receiver_->find(seq);
-    
+
     if (nack_info) {
         // seq had been received.
         nack_receiver_->remove(seq);
@@ -3180,11 +3180,11 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket **ppkt)
         uint16_t nack_first = 0, nack_last = 0;
         if (!rtp_queue_->update(seq, nack_first, nack_last)) {
             srs_warn("NACK: too old seq %u, range [%u, %u]", seq, rtp_queue_->begin,
-                    rtp_queue_->end);
+                     rtp_queue_->end);
         }
         if (srs_rtp_seq_distance(nack_first, nack_last) > 0) {
             srs_trace("NACK: update seq=%u, nack range [%u, %u]", seq, nack_first,
-                    nack_last);
+                      nack_last);
             nack_receiver_->insert(nack_first, nack_last);
             nack_receiver_->check_queue_size();
         }

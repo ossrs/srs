@@ -14,10 +14,12 @@ using namespace std;
 
 class SrsRtcRecvTrack;
 
-class MockSrsRtcRecvTrack : public SrsRtcRecvTrack {
+class MockSrsRtcRecvTrack : public SrsRtcRecvTrack
+{
 private:
-    static SrsRtcTrackDescription* create_default_track_desc() {
-        SrsRtcTrackDescription* desc = new SrsRtcTrackDescription();
+    static SrsRtcTrackDescription *create_default_track_desc()
+    {
+        SrsRtcTrackDescription *desc = new SrsRtcTrackDescription();
         // Initialize with minimal required values
         desc->type_ = "audio";
         desc->id_ = "test_track";
@@ -27,41 +29,50 @@ private:
     }
 
 public:
-    void receiver_insert(uint16_t first, uint16_t last) {
+    void receiver_insert(uint16_t first, uint16_t last)
+    {
         nack_receiver_->insert(first, last);
     }
 
-    void receiver_remove(uint16_t seq) {
+    void receiver_remove(uint16_t seq)
+    {
         nack_receiver_->remove(seq);
     }
 
-    SrsRtpNackInfo* receiver_find(uint16_t seq) {
+    SrsRtpNackInfo *receiver_find(uint16_t seq)
+    {
         return nack_receiver_->find(seq);
     }
 
-    void set_nack_no_copy_for_test(bool v) {
+    void set_nack_no_copy_for_test(bool v)
+    {
         set_nack_no_copy(v);
     }
 
-    SrsRtpPacket* get_packet_from_queue(uint16_t seq) {
+    SrsRtpPacket *get_packet_from_queue(uint16_t seq)
+    {
         return rtp_queue_->at(seq);
     }
 
-    bool is_queue_empty() {
+    bool is_queue_empty()
+    {
         return rtp_queue_->empty();
     }
 
-    int get_queue_size() {
+    int get_queue_size()
+    {
         return rtp_queue_->size();
     }
 
     // Implement pure virtual methods from SrsRtcRecvTrack
-    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource> &source, SrsRtpPacket *pkt) {
+    virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource> &source, SrsRtpPacket *pkt)
+    {
         // Mock implementation - just return success
         return srs_success;
     }
 
-    virtual srs_error_t check_send_nacks() {
+    virtual srs_error_t check_send_nacks()
+    {
         // Mock implementation - just return success
         return srs_success;
     }
@@ -70,7 +81,8 @@ public:
         : SrsRtcRecvTrack(nullptr, create_default_track_desc(), true) {} // true for is_audio
 };
 
-VOID TEST(RtcRecvTrackTest, OnNackBasicTest) {
+VOID TEST(RtcRecvTrackTest, OnNackBasicTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -91,7 +103,8 @@ VOID TEST(RtcRecvTrackTest, OnNackBasicTest) {
     HELPER_EXPECT_SUCCESS(recv_track.on_nack(&ppkt));
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackRecoveredPacketTest) {
+VOID TEST(RtcRecvTrackTest, OnNackRecoveredPacketTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -118,7 +131,8 @@ VOID TEST(RtcRecvTrackTest, OnNackRecoveredPacketTest) {
     EXPECT_TRUE(queued_pkt->header.get_sequence() == 200);
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackSequentialPacketsTest) {
+VOID TEST(RtcRecvTrackTest, OnNackSequentialPacketsTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -137,7 +151,8 @@ VOID TEST(RtcRecvTrackTest, OnNackSequentialPacketsTest) {
     }
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackOutOfOrderPacketsTest) {
+VOID TEST(RtcRecvTrackTest, OnNackOutOfOrderPacketsTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -158,7 +173,8 @@ VOID TEST(RtcRecvTrackTest, OnNackOutOfOrderPacketsTest) {
     }
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackNoCopyModeTest) {
+VOID TEST(RtcRecvTrackTest, OnNackNoCopyModeTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -183,7 +199,8 @@ VOID TEST(RtcRecvTrackTest, OnNackNoCopyModeTest) {
     EXPECT_TRUE(queued_pkt == pkt); // Should be the same object
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackCopyModeTest) {
+VOID TEST(RtcRecvTrackTest, OnNackCopyModeTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -208,7 +225,8 @@ VOID TEST(RtcRecvTrackTest, OnNackCopyModeTest) {
     EXPECT_TRUE(queued_pkt != &pkt); // Should be a different object (copy)
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackSequenceWrapAroundTest) {
+VOID TEST(RtcRecvTrackTest, OnNackSequenceWrapAroundTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -229,7 +247,8 @@ VOID TEST(RtcRecvTrackTest, OnNackSequenceWrapAroundTest) {
     }
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackMixedRecoveredAndNewPacketsTest) {
+VOID TEST(RtcRecvTrackTest, OnNackMixedRecoveredAndNewPacketsTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -267,7 +286,8 @@ VOID TEST(RtcRecvTrackTest, OnNackMixedRecoveredAndNewPacketsTest) {
     }
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackDuplicatePacketTest) {
+VOID TEST(RtcRecvTrackTest, OnNackDuplicatePacketTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -299,7 +319,8 @@ VOID TEST(RtcRecvTrackTest, OnNackDuplicatePacketTest) {
     EXPECT_TRUE(queued_pkt2 != queued_pkt1);
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackLargeGapTest) {
+VOID TEST(RtcRecvTrackTest, OnNackLargeGapTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -329,7 +350,8 @@ VOID TEST(RtcRecvTrackTest, OnNackLargeGapTest) {
     EXPECT_TRUE(queued_pkt2->header.get_sequence() == seq2);
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackRecoveredPacketRemovedFromNackTest) {
+VOID TEST(RtcRecvTrackTest, OnNackRecoveredPacketRemovedFromNackTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -366,7 +388,8 @@ VOID TEST(RtcRecvTrackTest, OnNackRecoveredPacketRemovedFromNackTest) {
     }
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackBugFixVerificationTest) {
+VOID TEST(RtcRecvTrackTest, OnNackBugFixVerificationTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -399,7 +422,8 @@ VOID TEST(RtcRecvTrackTest, OnNackBugFixVerificationTest) {
     // This test ensures that recovered packets are properly processed and not discarded
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackControlFlowTest) {
+VOID TEST(RtcRecvTrackTest, OnNackControlFlowTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -443,7 +467,8 @@ VOID TEST(RtcRecvTrackTest, OnNackControlFlowTest) {
     EXPECT_TRUE(recovered_queued->header.get_sequence() == recovered_seq);
 }
 
-VOID TEST(RtcRecvTrackTest, OnNackStressTest) {
+VOID TEST(RtcRecvTrackTest, OnNackStressTest)
+{
     srs_error_t err;
     MockSrsRtcRecvTrack recv_track;
 
@@ -481,4 +506,3 @@ VOID TEST(RtcRecvTrackTest, OnNackStressTest) {
         EXPECT_TRUE(queued_pkt->header.get_sequence() == seq);
     }
 }
-
