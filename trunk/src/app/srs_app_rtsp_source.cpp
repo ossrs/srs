@@ -666,7 +666,7 @@ srs_error_t SrsRtspRtpBuilder::initialize(ISrsRequest *r)
     }
 
     // Setup the SPS/PPS parsing strategy.
-    format->try_annexb_first_ = _srs_config->try_annexb_first(r->vhost);
+    format->try_annexb_first_ = _srs_config->try_annexb_first(r->vhost_);
 
     srs_trace("RTSP bridge from RTMP, try_annexb_first=%d", format->try_annexb_first_);
 

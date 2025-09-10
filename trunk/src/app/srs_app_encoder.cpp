@@ -164,22 +164,22 @@ srs_error_t SrsEncoder::parse_scope_engines(ISrsRequest *req)
 
     // parse vhost scope engines
     std::string scope = "";
-    if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
+    if ((conf = _srs_config->get_transcode(req->vhost_, scope)) != NULL) {
         if ((err = parse_ffmpeg(req, conf)) != srs_success) {
             return srs_error_wrap(err, "parse ffmpeg");
         }
     }
     // parse app scope engines
-    scope = req->app;
-    if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
+    scope = req->app_;
+    if ((conf = _srs_config->get_transcode(req->vhost_, scope)) != NULL) {
         if ((err = parse_ffmpeg(req, conf)) != srs_success) {
             return srs_error_wrap(err, "parse ffmpeg");
         }
     }
     // parse stream scope engines
     scope += "/";
-    scope += req->stream;
-    if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
+    scope += req->stream_;
+    if ((conf = _srs_config->get_transcode(req->vhost_, scope)) != NULL) {
         if ((err = parse_ffmpeg(req, conf)) != srs_success) {
             return srs_error_wrap(err, "parse ffmpeg");
         }
@@ -244,29 +244,29 @@ srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG *ffmpeg, ISrsRequest *req, S
     input = "rtmp://";
     input += SRS_CONSTS_LOCALHOST;
     input += ":";
-    input += srs_strconv_format_int(req->port);
+    input += srs_strconv_format_int(req->port_);
     input += "/";
-    input += req->app;
+    input += req->app_;
     input += "/";
-    input += req->stream;
+    input += req->stream_;
     input += "?vhost=";
-    input += req->vhost;
+    input += req->vhost_;
 
     // stream name: vhost/app/stream for print
-    input_stream_name = req->vhost;
+    input_stream_name = req->vhost_;
     input_stream_name += "/";
-    input_stream_name += req->app;
+    input_stream_name += req->app_;
     input_stream_name += "/";
-    input_stream_name += req->stream;
+    input_stream_name += req->stream_;
 
     std::string output = _srs_config->get_engine_output(engine);
     // output stream, to other/self server
     // ie. rtmp://localhost:1935/live/livestream_sd
-    output = srs_strings_replace(output, "[vhost]", req->vhost);
-    output = srs_strings_replace(output, "[port]", srs_strconv_format_int(req->port));
-    output = srs_strings_replace(output, "[app]", req->app);
-    output = srs_strings_replace(output, "[stream]", req->stream);
-    output = srs_strings_replace(output, "[param]", req->param);
+    output = srs_strings_replace(output, "[vhost]", req->vhost_);
+    output = srs_strings_replace(output, "[port]", srs_strconv_format_int(req->port_));
+    output = srs_strings_replace(output, "[app]", req->app_);
+    output = srs_strings_replace(output, "[stream]", req->stream_);
+    output = srs_strings_replace(output, "[param]", req->param_);
     output = srs_strings_replace(output, "[engine]", engine->arg0());
     output = srs_path_build_timestamp(output);
 
@@ -277,11 +277,11 @@ srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG *ffmpeg, ISrsRequest *req, S
         log_file += "/";
         log_file += "ffmpeg-encoder";
         log_file += "-";
-        log_file += req->vhost;
+        log_file += req->vhost_;
         log_file += "-";
-        log_file += req->app;
+        log_file += req->app_;
         log_file += "-";
-        log_file += req->stream;
+        log_file += req->stream_;
         if (!engine->args.empty()) {
             log_file += "-";
             log_file += engine->arg0();

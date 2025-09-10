@@ -462,10 +462,10 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
         SrsRequest req;
         EXPECT_TRUE(srs_srt_streamid_to_request("#!::r=live/livestream?key1=val1,key2=val2", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
-        EXPECT_STREQ(req.vhost.c_str(), srs_get_public_internet_address().c_str());
-        EXPECT_STREQ(req.app.c_str(), "live");
-        EXPECT_STREQ(req.stream.c_str(), "livestream");
-        EXPECT_STREQ(req.param.c_str(), "key1=val1&key2=val2");
+        EXPECT_STREQ(req.vhost_.c_str(), srs_get_public_internet_address().c_str());
+        EXPECT_STREQ(req.app_.c_str(), "live");
+        EXPECT_STREQ(req.stream_.c_str(), "livestream");
+        EXPECT_STREQ(req.param_.c_str(), "key1=val1&key2=val2");
     }
 
     if (true) {
@@ -473,10 +473,10 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
         SrsRequest req;
         EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=srs.srt.com.cn,r=live/livestream?key1=val1,key2=val2", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
-        EXPECT_STREQ(req.vhost.c_str(), "srs.srt.com.cn");
-        EXPECT_STREQ(req.app.c_str(), "live");
-        EXPECT_STREQ(req.stream.c_str(), "livestream");
-        EXPECT_STREQ(req.param.c_str(), "vhost=srs.srt.com.cn&key1=val1&key2=val2");
+        EXPECT_STREQ(req.vhost_.c_str(), "srs.srt.com.cn");
+        EXPECT_STREQ(req.app_.c_str(), "live");
+        EXPECT_STREQ(req.stream_.c_str(), "livestream");
+        EXPECT_STREQ(req.param_.c_str(), "vhost=srs.srt.com.cn&key1=val1&key2=val2");
     }
 
     if (true) {
@@ -484,10 +484,10 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
         SrsRequest req;
         EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=live/livestream?key1=val1,key2=val2", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
-        EXPECT_STREQ(req.vhost.c_str(), srs_get_public_internet_address().c_str());
-        EXPECT_STREQ(req.app.c_str(), "live");
-        EXPECT_STREQ(req.stream.c_str(), "livestream");
-        EXPECT_STREQ(req.param.c_str(), "key1=val1&key2=val2");
+        EXPECT_STREQ(req.vhost_.c_str(), srs_get_public_internet_address().c_str());
+        EXPECT_STREQ(req.app_.c_str(), "live");
+        EXPECT_STREQ(req.stream_.c_str(), "livestream");
+        EXPECT_STREQ(req.param_.c_str(), "key1=val1&key2=val2");
     }
 
     if (true) {
@@ -495,10 +495,10 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
         SrsRequest req;
         EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=srs.srt.com.cn/live/livestream?key1=val1,key2=val2", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
-        EXPECT_STREQ(req.vhost.c_str(), "srs.srt.com.cn");
-        EXPECT_STREQ(req.app.c_str(), "live");
-        EXPECT_STREQ(req.stream.c_str(), "livestream");
-        EXPECT_STREQ(req.param.c_str(), "vhost=srs.srt.com.cn&key1=val1&key2=val2");
+        EXPECT_STREQ(req.vhost_.c_str(), "srs.srt.com.cn");
+        EXPECT_STREQ(req.app_.c_str(), "live");
+        EXPECT_STREQ(req.stream_.c_str(), "livestream");
+        EXPECT_STREQ(req.param_.c_str(), "vhost=srs.srt.com.cn&key1=val1&key2=val2");
     }
 }
 

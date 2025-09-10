@@ -209,7 +209,7 @@ srs_error_t SrsForwarder::do_cycle()
         srs_net_split_hostport(ep_forward, server, port);
 
         // generate url
-        url = srs_net_url_encode_rtmp_url(server, port, req->host, req->vhost, req->app, req->stream, req->param);
+        url = srs_net_url_encode_rtmp_url(server, port, req->host_, req->vhost_, req->app_, req->stream_, req->param_);
     }
 
     srs_freep(sdk);
@@ -224,7 +224,7 @@ srs_error_t SrsForwarder::do_cycle()
     // For RTMP client, we pass the vhost in tcUrl when connecting,
     // so we publish without vhost in stream.
     string stream;
-    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost), false, &stream)) != srs_success) {
+    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost_), false, &stream)) != srs_success) {
         return srs_error_wrap(err, "sdk publish");
     }
 
@@ -236,7 +236,7 @@ srs_error_t SrsForwarder::do_cycle()
         return srs_error_wrap(err, "forward");
     }
 
-    srs_trace("forward publish url %s, stream=%s%s as %s", url.c_str(), req->stream.c_str(), req->param.c_str(), stream.c_str());
+    srs_trace("forward publish url %s, stream=%s%s as %s", url.c_str(), req->stream_.c_str(), req->param_.c_str(), stream.c_str());
 
     return err;
 }
@@ -286,9 +286,9 @@ srs_error_t SrsForwarder::forward()
         }
 
         // forward all messages.
-        // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
+        // each msg in msgs.msgs_ must be free, for the SrsMessageArray never free them.
         int count = 0;
-        if ((err = queue->dump_packets(msgs.max, msgs.msgs, count)) != srs_success) {
+        if ((err = queue->dump_packets(msgs.max_, msgs.msgs_, count)) != srs_success) {
             return srs_error_wrap(err, "dump packets");
         }
 
@@ -303,7 +303,7 @@ srs_error_t SrsForwarder::forward()
         }
 
         // sendout messages, all messages are freed by send_and_free_messages().
-        if ((err = sdk->send_and_free_messages(msgs.msgs, count)) != srs_success) {
+        if ((err = sdk->send_and_free_messages(msgs.msgs_, count)) != srs_success) {
             return srs_error_wrap(err, "send messages");
         }
     }

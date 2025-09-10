@@ -807,7 +807,7 @@ srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
         // May have more than one aac frame in PES packet, and shared same timestamp,
         // so we must calculate each aac frame's timestamp.
         int sample_rate = 44100;
-        switch (codec.sound_rate) {
+        switch (codec.sound_rate_) {
         case SrsAudioSampleRate5512:
             sample_rate = 5512;
             break;

@@ -1180,7 +1180,7 @@ srs_error_t SrsGbMuxer::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
             }
             aac_specific_config_ = sh;
 
-            codec.aac_packet_type = 0;
+            codec.aac_packet_type_ = 0;
 
             if ((err = write_audio_raw_frame((char *)sh.data(), (int)sh.length(), &codec, dts)) != srs_success) {
                 return srs_error_wrap(err, "write raw audio frame");
@@ -1188,7 +1188,7 @@ srs_error_t SrsGbMuxer::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
         }
 
         // audio raw data.
-        codec.aac_packet_type = 1;
+        codec.aac_packet_type_ = 1;
         if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
             return srs_error_wrap(err, "write audio raw frame");
         }

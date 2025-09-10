@@ -124,19 +124,19 @@ srs_error_t SrsNgExec::parse_exec_publish(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_exec_enabled(req->vhost)) {
-        srs_trace("ignore disabled exec for vhost=%s", req->vhost.c_str());
+    if (!_srs_config->get_exec_enabled(req->vhost_)) {
+        srs_trace("ignore disabled exec for vhost=%s", req->vhost_.c_str());
         return err;
     }
 
     // stream name: vhost/app/stream for print
-    input_stream_name = req->vhost;
+    input_stream_name = req->vhost_;
     input_stream_name += "/";
-    input_stream_name += req->app;
+    input_stream_name += req->app_;
     input_stream_name += "/";
-    input_stream_name += req->stream;
+    input_stream_name += req->stream_;
 
-    std::vector<SrsConfDirective *> eps = _srs_config->get_exec_publishs(req->vhost);
+    std::vector<SrsConfDirective *> eps = _srs_config->get_exec_publishs(req->vhost_);
     for (int i = 0; i < (int)eps.size(); i++) {
         SrsConfDirective *ep = eps.at(i);
         SrsProcess *process = new SrsProcess();
@@ -162,7 +162,7 @@ srs_error_t SrsNgExec::parse_exec_publish(ISrsRequest *req)
 
         if ((err = process->initialize(binary, argv)) != srs_success) {
             srs_freep(process);
-            return srs_error_wrap(err, "initialize process failed, binary=%s, vhost=%s", binary.c_str(), req->vhost.c_str());
+            return srs_error_wrap(err, "initialize process failed, binary=%s, vhost=%s", binary.c_str(), req->vhost_.c_str());
         }
 
         exec_publishs.push_back(process);
@@ -197,19 +197,19 @@ string SrsNgExec::parse(ISrsRequest *req, string tmpl)
 {
     string output = tmpl;
 
-    output = srs_strings_replace(output, "[vhost]", req->vhost);
-    output = srs_strings_replace(output, "[port]", srs_strconv_format_int(req->port));
-    output = srs_strings_replace(output, "[app]", req->app);
-    output = srs_strings_replace(output, "[stream]", req->stream);
+    output = srs_strings_replace(output, "[vhost]", req->vhost_);
+    output = srs_strings_replace(output, "[port]", srs_strconv_format_int(req->port_));
+    output = srs_strings_replace(output, "[app]", req->app_);
+    output = srs_strings_replace(output, "[stream]", req->stream_);
 
-    output = srs_strings_replace(output, "[tcUrl]", req->tcUrl);
-    output = srs_strings_replace(output, "[swfUrl]", req->swfUrl);
-    output = srs_strings_replace(output, "[pageUrl]", req->pageUrl);
+    output = srs_strings_replace(output, "[tcUrl]", req->tcUrl_);
+    output = srs_strings_replace(output, "[swfUrl]", req->swfUrl_);
+    output = srs_strings_replace(output, "[pageUrl]", req->pageUrl_);
 
     output = srs_path_build_timestamp(output);
 
     if (output.find("[url]") != string::npos) {
-        string url = srs_net_url_encode_rtmp_url(req->host, req->port, req->host, req->vhost, req->app, req->stream, req->param);
+        string url = srs_net_url_encode_rtmp_url(req->host_, req->port_, req->host_, req->vhost_, req->app_, req->stream_, req->param_);
         output = srs_strings_replace(output, "[url]", url);
     }
 

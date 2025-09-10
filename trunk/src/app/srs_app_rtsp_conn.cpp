@@ -359,7 +359,7 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     disposing_ = false;
 
     request_ = new SrsRequest();
-    request_->ip = cip;
+    request_->ip_ = cip;
     ip_ = cip;
     port_ = port;
     rtsp_ = new SrsRtspStack(skt);
@@ -683,15 +683,15 @@ void SrsRtspConnection::alive()
 srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp)
 {
     srs_error_t err = srs_success;
-    srs_net_url_parse_rtmp_url(req->uri, request_->tcUrl, request_->stream);
+    srs_net_url_parse_rtmp_url(req->uri, request_->tcUrl_, request_->stream_);
 
-    srs_net_url_parse_tcurl(request_->tcUrl, request_->schema, request_->host, request_->vhost,
-                            request_->app, request_->stream, request_->port, request_->param);
+    srs_net_url_parse_tcurl(request_->tcUrl_, request_->schema_, request_->host_, request_->vhost_,
+                            request_->app_, request_->stream_, request_->port_, request_->param_);
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(request_->vhost);
+    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(request_->vhost_);
     if (parsed_vhost) {
-        request_->vhost = parsed_vhost->arg0();
+        request_->vhost_ = parsed_vhost->arg0();
     }
 
     if ((err = security_->check(SrsRtcConnPlay, ip_, request_)) != srs_success) {
@@ -854,7 +854,7 @@ srs_error_t SrsRtspConnection::http_hooks_on_play(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -864,7 +864,7 @@ srs_error_t SrsRtspConnection::http_hooks_on_play(ISrsRequest *req)
     std::vector<std::string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost_);
 
         if (!conf) {
             return err;

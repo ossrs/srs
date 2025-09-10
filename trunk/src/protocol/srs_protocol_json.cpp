@@ -1309,14 +1309,14 @@ public:
 
     SrsJsonString(const char *v)
     {
-        marker = SRS_JSON_String;
+        marker_ = SRS_JSON_String;
         if (v) {
             value = v;
         }
     }
     SrsJsonString(const char *v, int s)
     {
-        marker = SRS_JSON_String;
+        marker_ = SRS_JSON_String;
         if (v) {
             value.append(v, s);
         }
@@ -1333,7 +1333,7 @@ public:
 
     SrsJsonBoolean(bool v)
     {
-        marker = SRS_JSON_Boolean;
+        marker_ = SRS_JSON_Boolean;
         value = v;
     }
     virtual ~SrsJsonBoolean()
@@ -1348,7 +1348,7 @@ public:
 
     SrsJsonInteger(int64_t v)
     {
-        marker = SRS_JSON_Integer;
+        marker_ = SRS_JSON_Integer;
         value = v;
     }
     virtual ~SrsJsonInteger()
@@ -1363,7 +1363,7 @@ public:
 
     SrsJsonNumber(double v)
     {
-        marker = SRS_JSON_Number;
+        marker_ = SRS_JSON_Number;
         value = v;
     }
     virtual ~SrsJsonNumber()
@@ -1376,7 +1376,7 @@ class SrsJsonNull : public SrsJsonAny
 public:
     SrsJsonNull()
     {
-        marker = SRS_JSON_Null;
+        marker_ = SRS_JSON_Null;
     }
     virtual ~SrsJsonNull()
     {
@@ -1385,7 +1385,7 @@ public:
 
 SrsJsonAny::SrsJsonAny()
 {
-    marker = 0;
+    marker_ = 0;
 }
 
 SrsJsonAny::~SrsJsonAny()
@@ -1394,37 +1394,37 @@ SrsJsonAny::~SrsJsonAny()
 
 bool SrsJsonAny::is_string()
 {
-    return marker == SRS_JSON_String;
+    return marker_ == SRS_JSON_String;
 }
 
 bool SrsJsonAny::is_boolean()
 {
-    return marker == SRS_JSON_Boolean;
+    return marker_ == SRS_JSON_Boolean;
 }
 
 bool SrsJsonAny::is_number()
 {
-    return marker == SRS_JSON_Number;
+    return marker_ == SRS_JSON_Number;
 }
 
 bool SrsJsonAny::is_integer()
 {
-    return marker == SRS_JSON_Integer;
+    return marker_ == SRS_JSON_Integer;
 }
 
 bool SrsJsonAny::is_object()
 {
-    return marker == SRS_JSON_Object;
+    return marker_ == SRS_JSON_Object;
 }
 
 bool SrsJsonAny::is_array()
 {
-    return marker == SRS_JSON_Array;
+    return marker_ == SRS_JSON_Array;
 }
 
 bool SrsJsonAny::is_null()
 {
-    return marker == SRS_JSON_Null;
+    return marker_ == SRS_JSON_Null;
 }
 
 string SrsJsonAny::to_str()
@@ -1514,7 +1514,7 @@ string json_serialize_string(const string &v)
 
 string SrsJsonAny::dumps()
 {
-    switch (marker) {
+    switch (marker_) {
     case SRS_JSON_String: {
         SrsJsonString *p = dynamic_cast<SrsJsonString *>(this);
         srs_assert(p != NULL);
@@ -1551,7 +1551,7 @@ string SrsJsonAny::dumps()
 
 SrsAmf0Any *SrsJsonAny::to_amf0()
 {
-    switch (marker) {
+    switch (marker_) {
     case SRS_JSON_String: {
         return SrsAmf0Any::str(to_str().c_str());
     }
@@ -1688,36 +1688,36 @@ SrsJsonAny *SrsJsonAny::loads(string str)
 
 SrsJsonObject::SrsJsonObject()
 {
-    marker = SRS_JSON_Object;
+    marker_ = SRS_JSON_Object;
 }
 
 SrsJsonObject::~SrsJsonObject()
 {
     std::vector<SrsJsonObjectPropertyType>::iterator it;
-    for (it = properties.begin(); it != properties.end(); ++it) {
+    for (it = properties_.begin(); it != properties_.end(); ++it) {
         SrsJsonObjectPropertyType item = *it;
         SrsJsonAny *obj = item.second;
         srs_freep(obj);
     }
-    properties.clear();
+    properties_.clear();
 }
 
 int SrsJsonObject::count()
 {
-    return (int)properties.size();
+    return (int)properties_.size();
 }
 
 string SrsJsonObject::key_at(int index)
 {
     srs_assert(index < count());
-    SrsJsonObjectPropertyType &elem = properties[index];
+    SrsJsonObjectPropertyType &elem = properties_[index];
     return elem.first;
 }
 
 SrsJsonAny *SrsJsonObject::value_at(int index)
 {
     srs_assert(index < count());
-    SrsJsonObjectPropertyType &elem = properties[index];
+    SrsJsonObjectPropertyType &elem = properties_[index];
     return elem.second;
 }
 
@@ -1727,12 +1727,12 @@ string SrsJsonObject::dumps()
 
     ss << SRS_JOBJECT_START;
 
-    for (int i = 0; i < (int)properties.size(); i++) {
+    for (int i = 0; i < (int)properties_.size(); i++) {
         std::string name = this->key_at(i);
         SrsJsonAny *any = this->value_at(i);
 
         ss << SRS_JFIELD_NAME(name) << any->dumps();
-        if (i < (int)properties.size() - 1) {
+        if (i < (int)properties_.size() - 1) {
             ss << SRS_JFIELD_CONT;
         }
     }
@@ -1746,7 +1746,7 @@ SrsAmf0Any *SrsJsonObject::to_amf0()
 {
     SrsAmf0Object *obj = SrsAmf0Any::object();
 
-    for (int i = 0; i < (int)properties.size(); i++) {
+    for (int i = 0; i < (int)properties_.size(); i++) {
         std::string name = this->key_at(i);
         SrsJsonAny *any = this->value_at(i);
 
@@ -1765,19 +1765,19 @@ SrsJsonObject *SrsJsonObject::set(string key, SrsJsonAny *value)
 
     std::vector<SrsJsonObjectPropertyType>::iterator it;
 
-    for (it = properties.begin(); it != properties.end(); ++it) {
+    for (it = properties_.begin(); it != properties_.end(); ++it) {
         SrsJsonObjectPropertyType &elem = *it;
         std::string name = elem.first;
         SrsJsonAny *any = elem.second;
 
         if (key == name) {
             srs_freep(any);
-            it = properties.erase(it);
+            it = properties_.erase(it);
             break;
         }
     }
 
-    properties.push_back(std::make_pair(key, value));
+    properties_.push_back(std::make_pair(key, value));
     return this;
 }
 
@@ -1785,7 +1785,7 @@ SrsJsonAny *SrsJsonObject::get_property(string name)
 {
     std::vector<SrsJsonObjectPropertyType>::iterator it;
 
-    for (it = properties.begin(); it != properties.end(); ++it) {
+    for (it = properties_.begin(); it != properties_.end(); ++it) {
         SrsJsonObjectPropertyType &elem = *it;
         std::string key = elem.first;
         SrsJsonAny *any = elem.second;
@@ -1889,34 +1889,34 @@ SrsJsonAny *SrsJsonObject::ensure_property_array(string name)
 
 SrsJsonArray::SrsJsonArray()
 {
-    marker = SRS_JSON_Array;
+    marker_ = SRS_JSON_Array;
 }
 
 SrsJsonArray::~SrsJsonArray()
 {
     std::vector<SrsJsonAny *>::iterator it;
-    for (it = properties.begin(); it != properties.end(); ++it) {
+    for (it = properties_.begin(); it != properties_.end(); ++it) {
         SrsJsonAny *item = *it;
         srs_freep(item);
     }
-    properties.clear();
+    properties_.clear();
 }
 
 int SrsJsonArray::count()
 {
-    return (int)properties.size();
+    return (int)properties_.size();
 }
 
 SrsJsonAny *SrsJsonArray::at(int index)
 {
     srs_assert(index < count());
-    SrsJsonAny *elem = properties[index];
+    SrsJsonAny *elem = properties_[index];
     return elem;
 }
 
 SrsJsonArray *SrsJsonArray::add(SrsJsonAny *value)
 {
-    properties.push_back(value);
+    properties_.push_back(value);
     return this;
 }
 
@@ -1932,12 +1932,12 @@ string SrsJsonArray::dumps()
 
     ss << SRS_JARRAY_START;
 
-    for (int i = 0; i < (int)properties.size(); i++) {
-        SrsJsonAny *any = properties[i];
+    for (int i = 0; i < (int)properties_.size(); i++) {
+        SrsJsonAny *any = properties_[i];
 
         ss << any->dumps();
 
-        if (i < (int)properties.size() - 1) {
+        if (i < (int)properties_.size() - 1) {
             ss << SRS_JFIELD_CONT;
         }
     }
@@ -1951,8 +1951,8 @@ SrsAmf0Any *SrsJsonArray::to_amf0()
 {
     SrsAmf0StrictArray *arr = SrsAmf0Any::strict_array();
 
-    for (int i = 0; i < (int)properties.size(); i++) {
-        SrsJsonAny *any = properties[i];
+    for (int i = 0; i < (int)properties_.size(); i++) {
+        SrsJsonAny *any = properties_[i];
 
         arr->append(any->to_amf0());
     }

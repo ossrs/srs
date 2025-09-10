@@ -47,7 +47,7 @@ SrsBufferCache::SrsBufferCache(SrsServer *s, ISrsRequest *r)
     trd = new SrsSTCoroutine("http-stream", this);
 
     // TODO: FIXME: support reload.
-    fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
+    fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost_);
     server_ = s;
 }
 
@@ -188,7 +188,7 @@ srs_error_t SrsBufferCache::cycle()
 
         // free the messages.
         for (int i = 0; i < count; i++) {
-            SrsMediaPacket *msg = msgs.msgs[i];
+            SrsMediaPacket *msg = msgs.msgs_[i];
             queue->enqueue(msg);
         }
     }
@@ -655,12 +655,12 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
 
     // Correct the app and stream by path, which is created from template.
     // @remark Be careful that the stream has extension now, might cause identify fail.
-    req->stream = srs_path_filepath_base(r->path());
+    req->stream_ = srs_path_filepath_base(r->path());
     // remove the extension of stream if have. for instance, test.flv -> test
-    req->stream = srs_path_filepath_filename(req->stream);
+    req->stream_ = srs_path_filepath_filename(req->stream_);
 
     // update client ip
-    req->ip = hc->remote_ip();
+    req->ip_ = hc->remote_ip();
 
     // We must do stat the client before hooks, because hooks depends on it.
     SrsStatistic *stat = SrsStatistic::instance();
@@ -668,7 +668,7 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_error_wrap(err, "stat on client");
     }
 
-    if ((err = security_->check(SrsFlvPlay, req->ip, req)) != srs_success) {
+    if ((err = security_->check(SrsFlvPlay, req->ip_, req)) != srs_success) {
         return srs_error_wrap(err, "flv: security check");
     }
 
@@ -689,8 +689,8 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
     srs_assert(live_source.get() != NULL);
 
-    bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
-    int gcmf = _srs_config->get_gop_cache_max_frames(req->vhost);
+    bool enabled_cache = _srs_config->get_gop_cache(req->vhost_);
+    int gcmf = _srs_config->get_gop_cache_max_frames(req->vhost_);
     live_source->set_cache(enabled_cache);
     live_source->set_gop_cache_max_frames(gcmf);
 
@@ -740,10 +740,10 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, SrsLiveConsumer 
     ISrsBufferEncoder *enc_raw = NULL;
 
     srs_assert(entry);
-    bool drop_if_not_match = _srs_config->get_vhost_http_remux_drop_if_not_match(req->vhost);
-    bool has_audio = _srs_config->get_vhost_http_remux_has_audio(req->vhost);
-    bool has_video = _srs_config->get_vhost_http_remux_has_video(req->vhost);
-    bool guess_has_av = _srs_config->get_vhost_http_remux_guess_has_av(req->vhost);
+    bool drop_if_not_match = _srs_config->get_vhost_http_remux_drop_if_not_match(req->vhost_);
+    bool has_audio = _srs_config->get_vhost_http_remux_has_audio(req->vhost_);
+    bool has_video = _srs_config->get_vhost_http_remux_has_video(req->vhost_);
+    bool guess_has_av = _srs_config->get_vhost_http_remux_guess_has_av(req->vhost_);
 
     if (srs_strings_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
@@ -816,9 +816,9 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, SrsLiveConsumer 
         return srs_error_wrap(err, "start recv thread");
     }
 
-    srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost);
+    srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost_);
     srs_trace("FLV %s, encoder=%s, mw_sleep=%dms, cache=%d, msgs=%d, dinm=%d, guess_av=%d/%d/%d",
-              entry->pattern.c_str(), enc_desc.c_str(), srsu2msi(mw_sleep), enc->has_cache(), msgs.max, drop_if_not_match,
+              entry->pattern.c_str(), enc_desc.c_str(), srsu2msi(mw_sleep), enc->has_cache(), msgs.max_, drop_if_not_match,
               has_audio, has_video, guess_has_av);
 
     // TODO: free and erase the disabled entry after all related connections is closed.
@@ -853,16 +853,16 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, SrsLiveConsumer 
 
         // sendout all messages.
         if (ffe) {
-            err = ffe->write_tags(msgs.msgs, count);
+            err = ffe->write_tags(msgs.msgs_, count);
         } else {
-            err = streaming_send_messages(enc.get(), msgs.msgs, count);
+            err = streaming_send_messages(enc.get(), msgs.msgs_, count);
         }
 
         // TODO: FIXME: Update the stat.
 
         // free the messages.
         for (int i = 0; i < count; i++) {
-            SrsMediaPacket *msg = msgs.msgs[i];
+            SrsMediaPacket *msg = msgs.msgs_[i];
             srs_freep(msg);
         }
 
@@ -881,13 +881,13 @@ srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r)
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
     // Create request to report for the specified connection.
     SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
-    SrsUniquePtr<ISrsRequest> nreq(hr->to_request(req->vhost));
+    SrsUniquePtr<ISrsRequest> nreq(hr->to_request(req->vhost_));
 
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
@@ -895,7 +895,7 @@ srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r)
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_play(nreq->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_play(nreq->vhost_);
 
         if (!conf) {
             return err;
@@ -916,13 +916,13 @@ srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r)
 
 void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage *r)
 {
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return;
     }
 
     // Create request to report for the specified connection.
     SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
-    SrsUniquePtr<ISrsRequest> nreq(hr->to_request(req->vhost));
+    SrsUniquePtr<ISrsRequest> nreq(hr->to_request(req->vhost_));
 
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
@@ -930,7 +930,7 @@ void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage *r)
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(nreq->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(nreq->vhost_);
 
         if (!conf) {
             srs_info("ignore the empty http callback: on_stop");
@@ -1077,18 +1077,18 @@ srs_error_t SrsHttpStreamServer::http_mount(ISrsRequest *r)
 
     // create stream from template when not found.
     if (streamHandlers.find(sid) == streamHandlers.end()) {
-        if (templateHandlers.find(r->vhost) == templateHandlers.end()) {
+        if (templateHandlers.find(r->vhost_) == templateHandlers.end()) {
             return err;
         }
 
-        SrsLiveEntry *tmpl = templateHandlers[r->vhost];
+        SrsLiveEntry *tmpl = templateHandlers[r->vhost_];
 
         std::string mount = tmpl->mount;
 
         // replace the vhost variable
-        mount = srs_strings_replace(mount, "[vhost]", r->vhost);
-        mount = srs_strings_replace(mount, "[app]", r->app);
-        mount = srs_strings_replace(mount, "[stream]", r->stream);
+        mount = srs_strings_replace(mount, "[vhost]", r->vhost_);
+        mount = srs_strings_replace(mount, "[app]", r->app_);
+        mount = srs_strings_replace(mount, "[stream]", r->stream_);
 
         // remove the default vhost mount
         mount = srs_strings_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST "/", "/");
@@ -1256,7 +1256,7 @@ srs_error_t SrsHttpStreamServer::dynamic_match(ISrsHttpMessage *request, ISrsHtt
             // only when the http entry is disabled, check the config whether http flv disable,
             // for the http flv edge use match to trigger the edge ingester, we always mount it
             // eventhough the origin does not exists the specified stream.
-            if (!_srs_config->get_vhost_http_remux_enabled(r->vhost)) {
+            if (!_srs_config->get_vhost_http_remux_enabled(r->vhost_)) {
                 return srs_error_new(ERROR_HTTP_DYNAMIC_MATCH, "stream disabled");
             }
         }

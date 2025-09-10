@@ -108,7 +108,7 @@ class SrsAmf0Date;
 class SrsAmf0Any
 {
 public:
-    char marker;
+    char marker_;
 
 public:
     SrsAmf0Any();
@@ -319,8 +319,8 @@ public:
 class SrsAmf0Object : public SrsAmf0Any
 {
 private:
-    srs_internal::SrsUnSortedHashtable *properties;
-    srs_internal::SrsAmf0ObjectEOF *eof;
+    srs_internal::SrsUnSortedHashtable *properties_;
+    srs_internal::SrsAmf0ObjectEOF *eof_;
 
 private:
     friend class SrsAmf0Any;
@@ -411,8 +411,8 @@ public:
 class SrsAmf0EcmaArray : public SrsAmf0Any
 {
 private:
-    srs_internal::SrsUnSortedHashtable *properties;
-    srs_internal::SrsAmf0ObjectEOF *eof;
+    srs_internal::SrsUnSortedHashtable *properties_;
+    srs_internal::SrsAmf0ObjectEOF *eof_;
     int32_t _count;
 
 private:
@@ -499,7 +499,7 @@ public:
 class SrsAmf0StrictArray : public SrsAmf0Any
 {
 private:
-    std::vector<SrsAmf0Any *> properties;
+    std::vector<SrsAmf0Any *> properties_;
     int32_t _count;
 
 private:
@@ -628,7 +628,7 @@ namespace srs_internal
 class SrsAmf0String : public SrsAmf0Any
 {
 public:
-    std::string value;
+    std::string value_;
 
 private:
     friend class SrsAmf0Any;
@@ -658,7 +658,7 @@ public:
 class SrsAmf0Boolean : public SrsAmf0Any
 {
 public:
-    bool value;
+    bool value_;
 
 private:
     friend class SrsAmf0Any;
@@ -687,7 +687,7 @@ public:
 class SrsAmf0Number : public SrsAmf0Any
 {
 public:
-    double value;
+    double value_;
 
 private:
     friend class SrsAmf0Any;
@@ -807,7 +807,7 @@ class SrsUnSortedHashtable
 {
 private:
     typedef std::pair<std::string, SrsAmf0Any *> SrsAmf0ObjectPropertyType;
-    std::vector<SrsAmf0ObjectPropertyType> properties;
+    std::vector<SrsAmf0ObjectPropertyType> properties_;
 
 public:
     SrsUnSortedHashtable();

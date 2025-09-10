@@ -74,7 +74,7 @@ srs_error_t SrsSimpleRtmpClient::connect_app()
     srs_assert(_srs_config->get_stats_network() < (int)ips.size());
     SrsIPAddress *local_ip = ips[_srs_config->get_stats_network()];
 
-    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
+    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req_->vhost_);
 
     return do_connect_app(local_ip->ip, debug_srs_upnode);
 }
@@ -286,31 +286,31 @@ srs_error_t SrsRtmpConn::do_cycle()
     }
 
     // set client ip to request.
-    req->ip = ip;
+    req->ip_ = ip;
 
     srs_trace("connect app, tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, args=%s",
-              req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(),
-              req->schema.c_str(), req->vhost.c_str(), req->port,
-              req->app.c_str(), (req->args ? "(obj)" : "null"));
+              req->tcUrl_.c_str(), req->pageUrl_.c_str(), req->swfUrl_.c_str(),
+              req->schema_.c_str(), req->vhost_.c_str(), req->port_,
+              req->app_.c_str(), (req->args_ ? "(obj)" : "null"));
 
     // show client identity
-    if (req->args) {
+    if (req->args_) {
         std::string srs_version;
         std::string srs_server_ip;
         int srs_pid = 0;
         int srs_id = 0;
 
         SrsAmf0Any *prop = NULL;
-        if ((prop = req->args->ensure_property_string("srs_version")) != NULL) {
+        if ((prop = req->args_->ensure_property_string("srs_version")) != NULL) {
             srs_version = prop->to_str();
         }
-        if ((prop = req->args->ensure_property_string("srs_server_ip")) != NULL) {
+        if ((prop = req->args_->ensure_property_string("srs_server_ip")) != NULL) {
             srs_server_ip = prop->to_str();
         }
-        if ((prop = req->args->ensure_property_number("srs_pid")) != NULL) {
+        if ((prop = req->args_->ensure_property_number("srs_pid")) != NULL) {
             srs_pid = (int)prop->to_number();
         }
-        if ((prop = req->args->ensure_property_number("srs_id")) != NULL) {
+        if ((prop = req->args_->ensure_property_number("srs_id")) != NULL) {
             srs_id = (int)prop->to_number();
         }
 
@@ -349,12 +349,12 @@ srs_error_t SrsRtmpConn::service_cycle()
 
     ISrsRequest *req = info->req;
 
-    int out_ack_size = _srs_config->get_out_ack_size(req->vhost);
+    int out_ack_size = _srs_config->get_out_ack_size(req->vhost_);
     if (out_ack_size && (err = rtmp->set_window_ack_size(out_ack_size)) != srs_success) {
         return srs_error_wrap(err, "rtmp: set out window ack size");
     }
 
-    int in_ack_size = _srs_config->get_in_ack_size(req->vhost);
+    int in_ack_size = _srs_config->get_in_ack_size(req->vhost_);
     if (in_ack_size && (err = rtmp->set_in_window_ack_size(in_ack_size)) != srs_success) {
         return srs_error_wrap(err, "rtmp: set in window ack size");
     }
@@ -369,7 +369,7 @@ srs_error_t SrsRtmpConn::service_cycle()
     // set chunk size to larger.
     // set the chunk size before any larger response greater than 128,
     // to make OBS happy, @see https://github.com/ossrs/srs/issues/454
-    int chunk_size = _srs_config->get_chunk_size(req->vhost);
+    int chunk_size = _srs_config->get_chunk_size(req->vhost_);
     if ((err = rtmp->set_chunk_size(chunk_size)) != srs_success) {
         return srs_error_wrap(err, "rtmp: set chunk size %d", chunk_size);
     }
@@ -443,32 +443,32 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     srs_error_t err = srs_success;
 
     ISrsRequest *req = info->req;
-    if ((err = rtmp->identify_client(info->res->stream_id, info->type, req->stream, req->duration)) != srs_success) {
+    if ((err = rtmp->identify_client(info->res->stream_id_, info->type, req->stream_, req->duration_)) != srs_success) {
         return srs_error_wrap(err, "rtmp: identify client");
     }
 
-    srs_net_url_parse_tcurl(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
+    srs_net_url_parse_tcurl(req->tcUrl_, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
 
     // guess stream name
-    if (req->stream.empty()) {
-        string app = req->app, param = req->param;
-        srs_net_url_guess_stream(req->app, req->param, req->stream);
-        srs_trace("Guessing by app=%s, param=%s to app=%s, param=%s, stream=%s", app.c_str(), param.c_str(), req->app.c_str(), req->param.c_str(), req->stream.c_str());
+    if (req->stream_.empty()) {
+        string app = req->app_, param = req->param_;
+        srs_net_url_guess_stream(req->app_, req->param_, req->stream_);
+        srs_trace("Guessing by app=%s, param=%s to app=%s, param=%s, stream=%s", app.c_str(), param.c_str(), req->app_.c_str(), req->param_.c_str(), req->stream_.c_str());
     }
 
     req->strip();
     srs_trace("client identified, type=%s, vhost=%s, app=%s, stream=%s, param=%s, duration=%dms",
-              srs_client_type_string(info->type).c_str(), req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), req->param.c_str(), srsu2msi(req->duration));
+              srs_client_type_string(info->type).c_str(), req->vhost_.c_str(), req->app_.c_str(), req->stream_.c_str(), req->param_.c_str(), srsu2msi(req->duration_));
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req->vhost);
+    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req->vhost_);
     if (parsed_vhost) {
-        req->vhost = parsed_vhost->arg0();
+        req->vhost_ = parsed_vhost->arg0();
     }
 
-    if (req->schema.empty() || req->vhost.empty() || req->port == 0 || req->app.empty()) {
+    if (req->schema_.empty() || req->vhost_.empty() || req->port_ == 0 || req->app_.empty()) {
         return srs_error_new(ERROR_RTMP_REQ_TCURL, "discovery tcUrl failed, tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s",
-                             req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
+                             req->tcUrl_.c_str(), req->schema_.c_str(), req->vhost_.c_str(), req->port_, req->app_.c_str());
     }
 
     // check vhost, allow default vhost.
@@ -477,14 +477,14 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     }
 
     srs_trace("connected stream, tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, stream=%s, param=%s, args=%s",
-              req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port,
-              req->app.c_str(), req->stream.c_str(), req->param.c_str(), (req->args ? "(obj)" : "null"));
+              req->tcUrl_.c_str(), req->pageUrl_.c_str(), req->swfUrl_.c_str(), req->schema_.c_str(), req->vhost_.c_str(), req->port_,
+              req->app_.c_str(), req->stream_.c_str(), req->param_.c_str(), (req->args_ ? "(obj)" : "null"));
 
     // do token traverse before serve it.
     // @see https://github.com/ossrs/srs/pull/239
     if (true) {
-        info->edge = _srs_config->get_vhost_is_edge(req->vhost);
-        bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost);
+        info->edge = _srs_config->get_vhost_is_edge(req->vhost_);
+        bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost_);
         if (info->edge && edge_traverse) {
             if ((err = check_edge_token_traverse_auth()) != srs_success) {
                 return srs_error_wrap(err, "rtmp: check token traverse");
@@ -499,7 +499,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
 
     // Never allow the empty stream name, for HLS may write to a file with empty name.
     // @see https://github.com/ossrs/srs/issues/834
-    if (req->stream.empty()) {
+    if (req->stream_.empty()) {
         return srs_error_new(ERROR_RTMP_STREAM_NAME_EMPTY, "rtmp: empty stream");
     }
 
@@ -525,8 +525,8 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     }
     srs_assert(live_source.get() != NULL);
 
-    bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
-    int gcmf = _srs_config->get_gop_cache_max_frames(req->vhost);
+    bool enabled_cache = _srs_config->get_gop_cache(req->vhost_);
+    int gcmf = _srs_config->get_gop_cache_max_frames(req->vhost_);
     srs_trace("source url=%s, ip=%s, cache=%d/%d, is_edge=%d, source_id=%s/%s",
               req->get_stream_url().c_str(), ip.c_str(), enabled_cache, gcmf, info->edge, live_source->source_id().c_str(),
               live_source->pre_source_id().c_str());
@@ -536,7 +536,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     switch (info->type) {
     case SrsRtmpConnPlay: {
         // response connection start play
-        if ((err = rtmp->start_play(info->res->stream_id)) != srs_success) {
+        if ((err = rtmp->start_play(info->res->stream_id_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: start play");
         }
 
@@ -564,7 +564,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
         return err;
     }
     case SrsRtmpConnFMLEPublish: {
-        if ((err = rtmp->start_fmle_publish(info->res->stream_id)) != srs_success) {
+        if ((err = rtmp->start_fmle_publish(info->res->stream_id_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: start FMLE publish");
         }
 
@@ -578,7 +578,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
         return publishing(live_source);
     }
     case SrsRtmpConnHaivisionPublish: {
-        if ((err = rtmp->start_haivision_publish(info->res->stream_id)) != srs_success) {
+        if ((err = rtmp->start_haivision_publish(info->res->stream_id_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: start HAIVISION publish");
         }
 
@@ -592,7 +592,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
         return publishing(live_source);
     }
     case SrsRtmpConnFlashPublish: {
-        if ((err = rtmp->start_flash_publish(info->res->stream_id)) != srs_success) {
+        if ((err = rtmp->start_flash_publish(info->res->stream_id_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: start FLASH publish");
         }
 
@@ -620,22 +620,22 @@ srs_error_t SrsRtmpConn::check_vhost(bool try_default_vhost)
     ISrsRequest *req = info->req;
     srs_assert(req != NULL);
 
-    SrsConfDirective *vhost = _srs_config->get_vhost(req->vhost, try_default_vhost);
+    SrsConfDirective *vhost = _srs_config->get_vhost(req->vhost_, try_default_vhost);
     if (vhost == NULL) {
-        return srs_error_new(ERROR_RTMP_VHOST_NOT_FOUND, "rtmp: no vhost %s", req->vhost.c_str());
+        return srs_error_new(ERROR_RTMP_VHOST_NOT_FOUND, "rtmp: no vhost %s", req->vhost_.c_str());
     }
 
-    if (!_srs_config->get_vhost_enabled(req->vhost)) {
-        return srs_error_new(ERROR_RTMP_VHOST_NOT_FOUND, "rtmp: vhost %s disabled", req->vhost.c_str());
+    if (!_srs_config->get_vhost_enabled(req->vhost_)) {
+        return srs_error_new(ERROR_RTMP_VHOST_NOT_FOUND, "rtmp: vhost %s disabled", req->vhost_.c_str());
     }
 
-    if (req->vhost != vhost->arg0()) {
-        srs_trace("vhost change from %s to %s", req->vhost.c_str(), vhost->arg0().c_str());
-        req->vhost = vhost->arg0();
+    if (req->vhost_ != vhost->arg0()) {
+        srs_trace("vhost change from %s to %s", req->vhost_.c_str(), vhost->arg0().c_str());
+        req->vhost_ = vhost->arg0();
     }
 
-    if (_srs_config->get_refer_enabled(req->vhost)) {
-        if ((err = refer->check(req->pageUrl, _srs_config->get_refer_all(req->vhost))) != srs_success) {
+    if (_srs_config->get_refer_enabled(req->vhost_)) {
+        if ((err = refer->check(req->pageUrl_, _srs_config->get_refer_all(req->vhost_))) != srs_success) {
             return srs_error_wrap(err, "rtmp: referer check");
         }
     }
@@ -653,23 +653,23 @@ srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
 
     // Check page referer of player.
     ISrsRequest *req = info->req;
-    if (_srs_config->get_refer_enabled(req->vhost)) {
-        if ((err = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != srs_success) {
+    if (_srs_config->get_refer_enabled(req->vhost_)) {
+        if ((err = refer->check(req->pageUrl_, _srs_config->get_refer_play(req->vhost_))) != srs_success) {
             return srs_error_wrap(err, "rtmp: referer check");
         }
     }
 
     // When origin cluster enabled, try to redirect to the origin which is active.
     // A active origin is a server which is delivering stream.
-    if (!info->edge && _srs_config->get_vhost_origin_cluster(req->vhost) && source->inactive()) {
-        vector<string> coworkers = _srs_config->get_vhost_coworkers(req->vhost);
+    if (!info->edge && _srs_config->get_vhost_origin_cluster(req->vhost_) && source->inactive()) {
+        vector<string> coworkers = _srs_config->get_vhost_coworkers(req->vhost_);
         for (int i = 0; i < (int)coworkers.size(); i++) {
             // TODO: FIXME: User may config the server itself as coworker, we must identify and ignore it.
             string host;
             int port = 0;
             string coworker = coworkers.at(i);
 
-            string url = "http://" + coworker + "/api/v1/clusters?" + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream + "&coworker=" + coworker;
+            string url = "http://" + coworker + "/api/v1/clusters?" + "vhost=" + req->vhost_ + "&ip=" + req->host_ + "&app=" + req->app_ + "&stream=" + req->stream_ + "&coworker=" + coworker;
             if ((err = _srs_hooks->discover_co_workers(url, host, port)) != srs_success) {
                 // If failed to discovery stream in this coworker, we should request the next one util the last.
                 // @see https://github.com/ossrs/srs/issues/1223
@@ -679,9 +679,9 @@ srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
             }
 
-            string rurl = srs_net_url_encode_rtmp_url(host, port, req->host, req->vhost, req->app, req->stream, req->param);
+            string rurl = srs_net_url_encode_rtmp_url(host, port, req->host_, req->vhost_, req->app_, req->stream_, req->param_);
             srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s, rurl=%s",
-                      req->host.c_str(), req->port, host.c_str(), port, url.c_str(), rurl.c_str());
+                      req->host_.c_str(), req->port_, host.c_str(), port, url.c_str(), rurl.c_str());
 
             // Ignore if host or port is invalid.
             if (host.empty() || port == 0) {
@@ -747,18 +747,18 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
     SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_rtmp_play());
 
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
-    bool user_specified_duration_to_stop = (req->duration > 0);
+    bool user_specified_duration_to_stop = (req->duration_ > 0);
     int64_t starttime = -1;
 
     // setup the realtime.
-    realtime = _srs_config->get_realtime_enabled(req->vhost);
+    realtime = _srs_config->get_realtime_enabled(req->vhost_);
     // setup the mw config.
     // when mw_sleep changed, resize the socket send buffer.
-    mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime);
-    mw_sleep = _srs_config->get_mw_sleep(req->vhost);
+    mw_msgs = _srs_config->get_mw_msgs(req->vhost_, realtime);
+    mw_sleep = _srs_config->get_mw_sleep(req->vhost_);
     transport_->set_socket_buffer(mw_sleep);
     // initialize the send_min_interval
-    send_min_interval = _srs_config->get_send_min_interval(req->vhost);
+    send_min_interval = _srs_config->get_send_min_interval(req->vhost_);
 
     srs_trace("start play smi=%dms, mw_sleep=%d, mw_msgs=%d, realtime=%d, tcp_nodelay=%d",
               srsu2msi(send_min_interval), srsu2msi(mw_sleep), mw_msgs, realtime, tcp_nodelay);
@@ -825,7 +825,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
         // we start to collect the durations for each message.
         if (user_specified_duration_to_stop) {
             for (int i = 0; i < count; i++) {
-                SrsMediaPacket *msg = msgs.msgs[i];
+                SrsMediaPacket *msg = msgs.msgs_[i];
 
                 // foreach msg, collect the duration.
                 // @remark: never use msg when sent it, for the protocol sdk will free it.
@@ -839,15 +839,15 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
 
         // sendout messages, all messages are freed by send_and_free_messages().
         // no need to assert msg, for the rtmp will assert it.
-        if (count > 0 && (err = rtmp->send_and_free_messages(msgs.msgs, count, info->res->stream_id)) != srs_success) {
+        if (count > 0 && (err = rtmp->send_and_free_messages(msgs.msgs_, count, info->res->stream_id_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: send %d messages", count);
         }
 
         // if duration specified, and exceed it, stop play live.
         // @see: https://github.com/ossrs/srs/issues/45
         if (user_specified_duration_to_stop) {
-            if (duration >= req->duration) {
-                return srs_error_new(ERROR_RTMP_DURATION_EXCEED, "rtmp: time %d up %d", srsu2msi(duration), srsu2msi(req->duration));
+            if (duration >= req->duration_) {
+                return srs_error_new(ERROR_RTMP_DURATION_EXCEED, "rtmp: time %d up %d", srsu2msi(duration), srsu2msi(req->duration_));
             }
         }
 
@@ -870,8 +870,8 @@ srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
 
     ISrsRequest *req = info->req;
 
-    if (_srs_config->get_refer_enabled(req->vhost)) {
-        if ((err = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != srs_success) {
+    if (_srs_config->get_refer_enabled(req->vhost_)) {
+        if ((err = refer->check(req->pageUrl_, _srs_config->get_refer_publish(req->vhost_))) != srs_success) {
             return srs_error_wrap(err, "rtmp: referer check");
         }
     }
@@ -921,16 +921,16 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
     }
 
     // initialize the publish timeout.
-    publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
-    publish_normal_timeout = _srs_config->get_publish_normal_timeout(req->vhost);
-    srs_utime_t publish_kickoff_for_idle = _srs_config->get_publish_kickoff_for_idle(req->vhost);
+    publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost_);
+    publish_normal_timeout = _srs_config->get_publish_normal_timeout(req->vhost_);
+    srs_utime_t publish_kickoff_for_idle = _srs_config->get_publish_kickoff_for_idle(req->vhost_);
 
     // set the sock options.
     set_sock_options();
 
     if (true) {
-        bool mr = _srs_config->get_mr_enabled(req->vhost);
-        srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost);
+        bool mr = _srs_config->get_mr_enabled(req->vhost_);
+        srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost_);
         srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d", mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout), tcp_nodelay);
     }
 
@@ -939,7 +939,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
 #endif
 
     // Response the start publishing message, let client start to publish messages.
-    if ((err = rtmp->start_publishing(info->res->stream_id)) != srs_success) {
+    if ((err = rtmp->start_publishing(info->res->stream_id_)) != srs_success) {
         return srs_error_wrap(err, "start publishing");
     }
 
@@ -952,7 +952,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
 
         // Kick off the publisher when idle for a period of timeout.
         if (source->publisher_is_idle_for(publish_kickoff_for_idle)) {
-            return srs_error_new(ERROR_KICKOFF_FOR_IDLE, "kicked for idle, url=%s, timeout=%ds", req->tcUrl.c_str(), srsu2si(publish_kickoff_for_idle));
+            return srs_error_new(ERROR_KICKOFF_FOR_IDLE, "kicked for idle, url=%s, timeout=%ds", req->tcUrl_.c_str(), srsu2si(publish_kickoff_for_idle));
         }
 
         pprint->elapse();
@@ -988,8 +988,8 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
         // reportable
         if (pprint->can_print()) {
             kbps->sample();
-            bool mr = _srs_config->get_mr_enabled(req->vhost);
-            srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost);
+            bool mr = _srs_config->get_mr_enabled(req->vhost_);
+            srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost_);
             srs_trace("<- " SRS_CONSTS_LOG_CLIENT_PUBLISH " time=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d",
                       (int)pprint->age(), kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                       kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), mr, srsu2msi(mr_sleep),
@@ -1020,7 +1020,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsSharedPtr<SrsLiveSource> source)
     // Check whether RTC stream is busy.
     SrsSharedPtr<SrsRtcSource> rtc;
     bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
-    bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost);
+    bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost_);
     if (rtc_server_enabled && rtc_enabled && !info->edge) {
         if ((err = _srs_rtc_sources->fetch_or_create(req, rtc)) != srs_success) {
             return srs_error_wrap(err, "create source");
@@ -1033,7 +1033,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsSharedPtr<SrsLiveSource> source)
 
     // Check whether SRT stream is busy.
     bool srt_server_enabled = _srs_config->get_srt_enabled();
-    bool srt_enabled = _srs_config->get_srt_enabled(req->vhost);
+    bool srt_enabled = _srs_config->get_srt_enabled(req->vhost_);
     if (srt_server_enabled && srt_enabled && !info->edge) {
         SrsSharedPtr<SrsSrtSource> srt;
         if ((err = _srs_srt_sources->fetch_or_create(req, srt)) != srs_success) {
@@ -1049,7 +1049,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsSharedPtr<SrsLiveSource> source)
     // RTSP only support viewer, so we don't need to check it.
     SrsSharedPtr<SrsRtspSource> rtsp;
     bool rtsp_server_enabled = _srs_config->get_rtsp_server_enabled();
-    bool rtsp_enabled = _srs_config->get_rtsp_enabled(req->vhost);
+    bool rtsp_enabled = _srs_config->get_rtsp_enabled(req->vhost_);
     if (rtsp_server_enabled && rtsp_enabled && !info->edge) {
         if ((err = _srs_rtsp_sources->fetch_or_create(req, rtsp)) != srs_success) {
             return srs_error_wrap(err, "create source");
@@ -1062,13 +1062,13 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsSharedPtr<SrsLiveSource> source)
     SrsCompositeBridge *bridge = new SrsCompositeBridge();
 
 #if defined(SRS_FFMPEG_FIT)
-    if (rtc.get() && _srs_config->get_rtc_from_rtmp(req->vhost)) {
+    if (rtc.get() && _srs_config->get_rtc_from_rtmp(req->vhost_)) {
         bridge->append(new SrsFrameToRtcBridge(rtc));
     }
 #endif
 
 #ifdef SRS_RTSP
-    if (rtsp.get() && _srs_config->get_rtsp_from_rtmp(req->vhost)) {
+    if (rtsp.get() && _srs_config->get_rtsp_from_rtmp(req->vhost_)) {
         bridge->append(new SrsFrameToRtspBridge(rtsp));
     }
 #endif
@@ -1126,7 +1126,7 @@ srs_error_t SrsRtmpConn::handle_publish_message(SrsSharedPtr<SrsLiveSource> &sou
         // for fmle, drop others except the fmle start packet.
         if (dynamic_cast<SrsFMLEStartPacket *>(pkt.get())) {
             SrsFMLEStartPacket *unpublish = dynamic_cast<SrsFMLEStartPacket *>(pkt.get());
-            if ((err = rtmp->fmle_unpublish(info->res->stream_id, unpublish->transaction_id)) != srs_success) {
+            if ((err = rtmp->fmle_unpublish(info->res->stream_id_, unpublish->transaction_id_)) != srs_success) {
                 return srs_error_wrap(err, "rtmp: republish");
             }
             return srs_error_new(ERROR_CONTROL_REPUBLISH, "rtmp: republish");
@@ -1232,10 +1232,10 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsLiveConsumer *consumer, Srs
     if (call) {
         // only response it when transaction id not zero,
         // for the zero means donot need response.
-        if (call->transaction_id > 0) {
-            SrsCallResPacket *res = new SrsCallResPacket(call->transaction_id);
-            res->command_object = SrsAmf0Any::null();
-            res->response = SrsAmf0Any::null();
+        if (call->transaction_id_ > 0) {
+            SrsCallResPacket *res = new SrsCallResPacket(call->transaction_id_);
+            res->command_object_ = SrsAmf0Any::null();
+            res->response_ = SrsAmf0Any::null();
             if ((err = rtmp->send_and_free_packet(res, 0)) != srs_success) {
                 return srs_error_wrap(err, "rtmp: send packets");
             }
@@ -1246,10 +1246,10 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsLiveConsumer *consumer, Srs
     // pause
     SrsPausePacket *pause = dynamic_cast<SrsPausePacket *>(pkt.get());
     if (pause) {
-        if ((err = rtmp->on_play_client_pause(info->res->stream_id, pause->is_pause)) != srs_success) {
+        if ((err = rtmp->on_play_client_pause(info->res->stream_id_, pause->is_pause_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: pause");
         }
-        if ((err = consumer->on_play_client_pause(pause->is_pause)) != srs_success) {
+        if ((err = consumer->on_play_client_pause(pause->is_pause_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: pause");
         }
         return err;
@@ -1263,7 +1263,7 @@ void SrsRtmpConn::set_sock_options()
 {
     ISrsRequest *req = info->req;
 
-    bool nvalue = _srs_config->get_tcp_nodelay(req->vhost);
+    bool nvalue = _srs_config->get_tcp_nodelay(req->vhost_);
     if (nvalue != tcp_nodelay) {
         tcp_nodelay = nvalue;
 
@@ -1282,7 +1282,7 @@ srs_error_t SrsRtmpConn::check_edge_token_traverse_auth()
     ISrsRequest *req = info->req;
     srs_assert(req);
 
-    vector<string> args = _srs_config->get_vhost_edge_origin(req->vhost)->args;
+    vector<string> args = _srs_config->get_vhost_edge_origin(req->vhost_)->args;
     if (args.empty()) {
         return err;
     }
@@ -1297,7 +1297,7 @@ srs_error_t SrsRtmpConn::check_edge_token_traverse_auth()
 
         SrsUniquePtr<SrsTcpClient> transport(new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT));
         if ((err = transport->connect()) != srs_success) {
-            srs_warn("Illegal edge token, tcUrl=%s, %s", req->tcUrl.c_str(), srs_error_desc(err).c_str());
+            srs_warn("Illegal edge token, tcUrl=%s, %s", req->tcUrl_.c_str(), srs_error_desc(err).c_str());
             srs_freep(err);
             continue;
         }
@@ -1325,11 +1325,11 @@ srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient *client)
 
     // for token tranverse, always take the debug info(which carries token).
     SrsServerInfo si;
-    if ((err = client->connect_app(req->app, req->tcUrl, req, true, &si)) != srs_success) {
+    if ((err = client->connect_app(req->app_, req->tcUrl_, req, true, &si)) != srs_success) {
         return srs_error_wrap(err, "rtmp: connect tcUrl");
     }
 
-    srs_trace("edge token auth ok, tcUrl=%s", req->tcUrl.c_str());
+    srs_trace("edge token auth ok, tcUrl=%s", req->tcUrl_.c_str());
     return err;
 }
 
@@ -1350,7 +1350,7 @@ srs_error_t SrsRtmpConn::http_hooks_on_connect()
 
     ISrsRequest *req = info->req;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -1360,7 +1360,7 @@ srs_error_t SrsRtmpConn::http_hooks_on_connect()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_connect(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_connect(req->vhost_);
 
         if (!conf) {
             return err;
@@ -1383,7 +1383,7 @@ void SrsRtmpConn::http_hooks_on_close()
 {
     ISrsRequest *req = info->req;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return;
     }
 
@@ -1393,7 +1393,7 @@ void SrsRtmpConn::http_hooks_on_close()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_close(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_close(req->vhost_);
 
         if (!conf) {
             return;
@@ -1414,7 +1414,7 @@ srs_error_t SrsRtmpConn::http_hooks_on_publish()
 
     ISrsRequest *req = info->req;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -1424,7 +1424,7 @@ srs_error_t SrsRtmpConn::http_hooks_on_publish()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_publish(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_publish(req->vhost_);
 
         if (!conf) {
             return err;
@@ -1447,7 +1447,7 @@ void SrsRtmpConn::http_hooks_on_unpublish()
 {
     ISrsRequest *req = info->req;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return;
     }
 
@@ -1457,7 +1457,7 @@ void SrsRtmpConn::http_hooks_on_unpublish()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_unpublish(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_unpublish(req->vhost_);
 
         if (!conf) {
             return;
@@ -1478,7 +1478,7 @@ srs_error_t SrsRtmpConn::http_hooks_on_play()
 
     ISrsRequest *req = info->req;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -1488,7 +1488,7 @@ srs_error_t SrsRtmpConn::http_hooks_on_play()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost_);
 
         if (!conf) {
             return err;
@@ -1511,7 +1511,7 @@ void SrsRtmpConn::http_hooks_on_stop()
 {
     ISrsRequest *req = info->req;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return;
     }
 
@@ -1521,7 +1521,7 @@ void SrsRtmpConn::http_hooks_on_stop()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(req->vhost_);
 
         if (!conf) {
             return;

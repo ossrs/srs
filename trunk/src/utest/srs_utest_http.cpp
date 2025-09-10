@@ -1236,7 +1236,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "123456"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
-        EXPECT_EQ(401, w.w->status);
+        EXPECT_EQ(401, w.w->status_);
     }
 
     // incorrect token, duplicate Basic
@@ -1261,7 +1261,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
-        EXPECT_EQ(401, w.w->status);
+        EXPECT_EQ(401, w.w->status_);
     }
 
     // Authorization NOT start with 'Basic '
@@ -1286,7 +1286,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
-        EXPECT_EQ(401, w.w->status);
+        EXPECT_EQ(401, w.w->status_);
     }
 
     // NOT base64
@@ -1311,7 +1311,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
-        EXPECT_EQ(401, w.w->status);
+        EXPECT_EQ(401, w.w->status_);
     }
 
     // empty Authorization
@@ -1331,7 +1331,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
         HELPER_ASSERT_SUCCESS(auth.initialize(true, "admin", "admin"));
 
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
-        EXPECT_EQ(401, w.w->status);
+        EXPECT_EQ(401, w.w->status_);
     }
 
     // auth disabled, response with 200 ok, even though empty Authorization

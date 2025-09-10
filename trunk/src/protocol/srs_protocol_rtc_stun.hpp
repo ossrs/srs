@@ -60,16 +60,16 @@ enum SrsStunMessageAttribute {
 class SrsStunPacket
 {
 private:
-    uint16_t message_type;
-    std::string username;
-    std::string local_ufrag;
-    std::string remote_ufrag;
-    std::string transcation_id;
-    uint32_t mapped_address;
-    uint16_t mapped_port;
-    bool use_candidate;
-    bool ice_controlled;
-    bool ice_controlling;
+    uint16_t message_type_;
+    std::string username_;
+    std::string local_ufrag_;
+    std::string remote_ufrag_;
+    std::string transcation_id_;
+    uint32_t mapped_address_;
+    uint16_t mapped_port_;
+    bool use_candidate_;
+    bool ice_controlled_;
+    bool ice_controlling_;
 
 public:
     SrsStunPacket();

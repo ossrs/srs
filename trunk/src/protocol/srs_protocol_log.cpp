@@ -107,14 +107,14 @@ impl_SrsContextRestore::~impl_SrsContextRestore()
 SrsConsoleLog::SrsConsoleLog(SrsLogLevel l, bool u)
 {
     level_ = l;
-    utc = u;
+    utc_ = u;
 
-    buffer = new char[SRS_BASIC_LOG_SIZE];
+    buffer_ = new char[SRS_BASIC_LOG_SIZE];
 }
 
 SrsConsoleLog::~SrsConsoleLog()
 {
-    srs_freepa(buffer);
+    srs_freepa(buffer_);
 }
 
 srs_error_t SrsConsoleLog::initialize()
@@ -133,12 +133,12 @@ void SrsConsoleLog::log(SrsLogLevel level, const char *tag, const SrsContextId &
     }
 
     int size = 0;
-    if (!srs_log_header(buffer, SRS_BASIC_LOG_SIZE, utc, level >= SrsLogLevelWarn, tag, context_id, srs_log_level_strings[level], &size)) {
+    if (!srs_log_header(buffer_, SRS_BASIC_LOG_SIZE, utc_, level >= SrsLogLevelWarn, tag, context_id, srs_log_level_strings[level], &size)) {
         return;
     }
 
     // Something not expected, drop the log.
-    int r0 = vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, args);
+    int r0 = vsnprintf(buffer_ + size, SRS_BASIC_LOG_SIZE - size, fmt, args);
     if (r0 <= 0 || r0 >= SRS_BASIC_LOG_SIZE - size) {
         return;
     }
@@ -146,7 +146,7 @@ void SrsConsoleLog::log(SrsLogLevel level, const char *tag, const SrsContextId &
 
     // Add errno and strerror() if error.
     if (level == SrsLogLevelError && errno != 0) {
-        r0 = snprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, "(%s)", strerror(errno));
+        r0 = snprintf(buffer_ + size, SRS_BASIC_LOG_SIZE - size, "(%s)", strerror(errno));
 
         // Something not expected, drop the log.
         if (r0 <= 0 || r0 >= SRS_BASIC_LOG_SIZE - size) {
@@ -156,9 +156,9 @@ void SrsConsoleLog::log(SrsLogLevel level, const char *tag, const SrsContextId &
     }
 
     if (level >= SrsLogLevelWarn) {
-        fprintf(stderr, "%s\n", buffer);
+        fprintf(stderr, "%s\n", buffer_);
     } else {
-        fprintf(stdout, "%s\n", buffer);
+        fprintf(stdout, "%s\n", buffer_);
     }
 }
 

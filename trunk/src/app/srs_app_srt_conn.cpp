@@ -173,7 +173,7 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_sr
     trd_ = new SrsSTCoroutine("ts-srt", this, _srs_context->get_id());
 
     req_ = new SrsRequest();
-    req_->ip = ip;
+    req_->ip_ = ip;
 
     security_ = new SrsSecurity();
 }
@@ -273,17 +273,17 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     }
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req_->vhost);
+    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req_->vhost_);
     if (parsed_vhost) {
-        req_->vhost = parsed_vhost->arg0();
+        req_->vhost_ = parsed_vhost->arg0();
     }
 
-    if (!_srs_config->get_srt_enabled(req_->vhost)) {
-        return srs_error_new(ERROR_SRT_CONN, "srt disabled, vhost=%s", req_->vhost.c_str());
+    if (!_srs_config->get_srt_enabled(req_->vhost_)) {
+        return srs_error_new(ERROR_SRT_CONN, "srt disabled, vhost=%s", req_->vhost_.c_str());
     }
 
     srs_trace("@srt, streamid=%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
-              streamid.c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
+              streamid.c_str(), req_->get_stream_url().c_str(), req_->vhost_.c_str(), req_->app_.c_str(), req_->stream_.c_str(), req_->param_.c_str());
 
     // Acquire stream publish token to prevent race conditions across all protocols.
     SrsStreamPublishToken *publish_token_raw = NULL;
@@ -390,8 +390,8 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
 
     srs_assert(live_source.get() != NULL);
 
-    bool enabled_cache = _srs_config->get_gop_cache(req_->vhost);
-    int gcmf = _srs_config->get_gop_cache_max_frames(req_->vhost);
+    bool enabled_cache = _srs_config->get_gop_cache(req_->vhost_);
+    int gcmf = _srs_config->get_gop_cache_max_frames(req_->vhost_);
     live_source->set_cache(enabled_cache);
     live_source->set_gop_cache_max_frames(gcmf);
 
@@ -401,8 +401,8 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
     // Check whether RTC stream is busy.
     SrsSharedPtr<SrsRtcSource> rtc;
     bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
-    bool rtc_enabled = _srs_config->get_rtc_enabled(req_->vhost);
-    bool edge = _srs_config->get_vhost_is_edge(req_->vhost);
+    bool rtc_enabled = _srs_config->get_rtc_enabled(req_->vhost_);
+    bool edge = _srs_config->get_vhost_is_edge(req_->vhost_);
     if (rtc_server_enabled && rtc_enabled && !edge) {
         if ((err = _srs_rtc_sources->fetch_or_create(req_, rtc)) != srs_success) {
             return srs_error_wrap(err, "create source");
@@ -413,13 +413,13 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
         }
     }
 
-    if (_srs_config->get_srt_to_rtmp(req_->vhost)) {
+    if (_srs_config->get_srt_to_rtmp(req_->vhost_)) {
         // Bridge to RTMP and RTC streaming.
         SrsCompositeBridge *bridge = new SrsCompositeBridge();
         bridge->append(new SrsFrameToRtmpBridge(live_source));
 
 #if defined(SRS_FFMPEG_FIT)
-        if (rtc.get() && _srs_config->get_rtc_from_rtmp(req_->vhost)) {
+        if (rtc.get() && _srs_config->get_rtc_from_rtmp(req_->vhost_)) {
             bridge->append(new SrsFrameToRtcBridge(rtc));
         }
 #endif
@@ -605,7 +605,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_connect()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return err;
     }
 
@@ -615,7 +615,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_connect()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_connect(req_->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_connect(req_->vhost_);
 
         if (!conf) {
             return err;
@@ -636,7 +636,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_connect()
 
 void SrsMpegtsSrtConn::http_hooks_on_close()
 {
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return;
     }
 
@@ -646,7 +646,7 @@ void SrsMpegtsSrtConn::http_hooks_on_close()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_close(req_->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_close(req_->vhost_);
 
         if (!conf) {
             return;
@@ -665,7 +665,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_publish()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return err;
     }
 
@@ -675,7 +675,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_publish()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_publish(req_->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_publish(req_->vhost_);
 
         if (!conf) {
             return err;
@@ -696,7 +696,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_publish()
 
 void SrsMpegtsSrtConn::http_hooks_on_unpublish()
 {
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return;
     }
 
@@ -706,7 +706,7 @@ void SrsMpegtsSrtConn::http_hooks_on_unpublish()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_unpublish(req_->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_unpublish(req_->vhost_);
 
         if (!conf) {
             return;
@@ -725,7 +725,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_play()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return err;
     }
 
@@ -735,7 +735,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_play()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req_->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req_->vhost_);
 
         if (!conf) {
             return err;
@@ -756,7 +756,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_play()
 
 void SrsMpegtsSrtConn::http_hooks_on_stop()
 {
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return;
     }
 
@@ -766,7 +766,7 @@ void SrsMpegtsSrtConn::http_hooks_on_stop()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(req_->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(req_->vhost_);
 
         if (!conf) {
             return;

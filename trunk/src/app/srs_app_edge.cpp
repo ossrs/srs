@@ -70,12 +70,12 @@ srs_error_t SrsEdgeRtmpUpstream::connect(ISrsRequest *r, ISrsLbRoundRobin *lb)
 
     std::string url;
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_edge_origin(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_edge_origin(req->vhost_);
 
         // when origin is error, for instance, server is shutdown,
         // then user remove the vhost then reload, the conf is empty.
         if (!conf) {
-            return srs_error_new(ERROR_EDGE_VHOST_REMOVED, "vhost %s removed", req->vhost.c_str());
+            return srs_error_new(ERROR_EDGE_VHOST_REMOVED, "vhost %s removed", req->vhost_.c_str());
         }
 
         // select the origin.
@@ -98,10 +98,10 @@ srs_error_t SrsEdgeRtmpUpstream::connect(ISrsRequest *r, ISrsLbRoundRobin *lb)
         selected_port = port;
 
         // support vhost tranform for edge,
-        std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
-        vhost = srs_strings_replace(vhost, "[vhost]", req->vhost);
+        std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost_);
+        vhost = srs_strings_replace(vhost, "[vhost]", req->vhost_);
 
-        url = srs_net_url_encode_rtmp_url(server, port, req->host, vhost, req->app, req->stream, req->param);
+        url = srs_net_url_encode_rtmp_url(server, port, req->host_, vhost, req->app_, req->stream_, req->param_);
     }
 
     srs_freep(sdk);
@@ -116,11 +116,11 @@ srs_error_t SrsEdgeRtmpUpstream::connect(ISrsRequest *r, ISrsLbRoundRobin *lb)
     // For RTMP client, we pass the vhost in tcUrl when connecting,
     // so we publish without vhost in stream.
     string stream;
-    if ((err = sdk->play(_srs_config->get_chunk_size(req->vhost), false, &stream)) != srs_success) {
+    if ((err = sdk->play(_srs_config->get_chunk_size(req->vhost_), false, &stream)) != srs_success) {
         return srs_error_wrap(err, "edge pull %s stream failed", url.c_str());
     }
 
-    srs_trace("edge-pull publish url %s, stream=%s%s as %s", url.c_str(), req->stream.c_str(), req->param.c_str(), stream.c_str());
+    srs_trace("edge-pull publish url %s, stream=%s%s as %s", url.c_str(), req->stream_.c_str(), req->param_.c_str(), stream.c_str());
 
     return err;
 }
@@ -192,12 +192,12 @@ srs_error_t SrsEdgeFlvUpstream::do_connect(ISrsRequest *r, ISrsLbRoundRobin *lb,
     ISrsRequest *req = r;
 
     if (redirect_depth == 0) {
-        SrsConfDirective *conf = _srs_config->get_vhost_edge_origin(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_edge_origin(req->vhost_);
 
         // when origin is error, for instance, server is shutdown,
         // then user remove the vhost then reload, the conf is empty.
         if (!conf) {
-            return srs_error_new(ERROR_EDGE_VHOST_REMOVED, "vhost %s removed", req->vhost.c_str());
+            return srs_error_new(ERROR_EDGE_VHOST_REMOVED, "vhost %s removed", req->vhost_.c_str());
         }
 
         // select the origin.
@@ -213,20 +213,20 @@ srs_error_t SrsEdgeFlvUpstream::do_connect(ISrsRequest *r, ISrsLbRoundRobin *lb,
         selected_port = port;
     } else {
         // If HTTP redirect, use the server in location.
-        schema_ = req->schema;
-        selected_ip = req->host;
-        selected_port = req->port;
+        schema_ = req->schema_;
+        selected_ip = req->host_;
+        selected_port = req->port_;
     }
 
     srs_freep(sdk_);
     sdk_ = new SrsHttpClient();
 
-    string path = "/" + req->app + "/" + req->stream;
-    if (!srs_strings_ends_with(req->stream, ".flv")) {
+    string path = "/" + req->app_ + "/" + req->stream_;
+    if (!srs_strings_ends_with(req->stream_, ".flv")) {
         path += ".flv";
     }
-    if (!req->param.empty()) {
-        path += req->param;
+    if (!req->param_.empty()) {
+        path += req->param_;
     }
 
     string url = schema_ + "://" + selected_ip + ":" + srs_strconv_format_int(selected_port);
@@ -267,12 +267,12 @@ srs_error_t SrsEdgeFlvUpstream::do_connect(ISrsRequest *r, ISrsLbRoundRobin *lb,
             string schema, host, vhost, param;
             srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream_name, port, param);
 
-            r->schema = schema;
-            r->host = host;
-            r->port = port;
-            r->app = app;
-            r->stream = stream_name;
-            r->param = param;
+            r->schema_ = schema;
+            r->host_ = host;
+            r->port_ = port;
+            r->app_ = app;
+            r->stream_ = stream_name;
+            r->param_ = param;
         }
         return do_connect(r, lb, redirect_depth + 1);
     }
@@ -519,12 +519,12 @@ srs_error_t SrsEdgeIngester::do_cycle()
         }
 
         // Use protocol in config.
-        string edge_protocol = _srs_config->get_vhost_edge_protocol(req->vhost);
+        string edge_protocol = _srs_config->get_vhost_edge_protocol(req->vhost_);
 
         // If follow client protocol, change to protocol of client.
-        bool follow_client = _srs_config->get_vhost_edge_follow_client(req->vhost);
-        if (follow_client && !req->protocol.empty()) {
-            edge_protocol = req->protocol;
+        bool follow_client = _srs_config->get_vhost_edge_follow_client(req->vhost_);
+        if (follow_client && !req->protocol_.empty()) {
+            edge_protocol = req->protocol_;
         }
 
         // Create object by protocol.
@@ -670,12 +670,12 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsRtmpCommonMessage *msg, 
         // RTMP 302 redirect
         if (dynamic_cast<SrsCallPacket *>(pkt.get())) {
             SrsCallPacket *call = dynamic_cast<SrsCallPacket *>(pkt.get());
-            if (!call->arguments->is_object()) {
+            if (!call->arguments_->is_object()) {
                 return err;
             }
 
             SrsAmf0Any *prop = NULL;
-            SrsAmf0Object *evt = call->arguments->to_object();
+            SrsAmf0Object *evt = call->arguments_->to_object();
 
             if ((prop = evt->ensure_property_string("level")) == NULL) {
                 return err;
@@ -758,7 +758,7 @@ srs_error_t SrsEdgeForwarder::start()
 
     std::string url;
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_edge_origin(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_edge_origin(req->vhost_);
         srs_assert(conf);
 
         // select the origin.
@@ -767,10 +767,10 @@ srs_error_t SrsEdgeForwarder::start()
         srs_net_split_hostport(server, server, port);
 
         // support vhost tranform for edge,
-        std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
-        vhost = srs_strings_replace(vhost, "[vhost]", req->vhost);
+        std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost_);
+        vhost = srs_strings_replace(vhost, "[vhost]", req->vhost_);
 
-        url = srs_net_url_encode_rtmp_url(server, port, req->host, vhost, req->app, req->stream, req->param);
+        url = srs_net_url_encode_rtmp_url(server, port, req->host_, vhost, req->app_, req->stream_, req->param_);
     }
 
     // We must stop the coroutine before disposing the sdk.
@@ -790,7 +790,7 @@ srs_error_t SrsEdgeForwarder::start()
     // For RTMP client, we pass the vhost in tcUrl when connecting,
     // so we publish without vhost in stream.
     string stream;
-    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost), false, &stream)) != srs_success) {
+    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost_), false, &stream)) != srs_success) {
         return srs_error_wrap(err, "sdk publish");
     }
 
@@ -799,7 +799,7 @@ srs_error_t SrsEdgeForwarder::start()
         return srs_error_wrap(err, "coroutine");
     }
 
-    srs_trace("edge-fwr publish url %s, stream=%s%s as %s", url.c_str(), req->stream.c_str(), req->param.c_str(), stream.c_str());
+    srs_trace("edge-fwr publish url %s, stream=%s%s as %s", url.c_str(), req->stream_.c_str(), req->param_.c_str(), stream.c_str());
 
     return err;
 }
@@ -881,9 +881,9 @@ srs_error_t SrsEdgeForwarder::do_cycle()
         }
 
         // forward all messages.
-        // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
+        // each msg in msgs.msgs_ must be free, for the SrsMessageArray never free them.
         int count = 0;
-        if ((err = queue->dump_packets(msgs.max, msgs.msgs, count)) != srs_success) {
+        if ((err = queue->dump_packets(msgs.max_, msgs.msgs_, count)) != srs_success) {
             return srs_error_wrap(err, "queue dumps packets");
         }
 
@@ -901,7 +901,7 @@ srs_error_t SrsEdgeForwarder::do_cycle()
         }
 
         // sendout messages, all messages are freed by send_and_free_messages().
-        if ((err = sdk->send_and_free_messages(msgs.msgs, count)) != srs_success) {
+        if ((err = sdk->send_and_free_messages(msgs.msgs_, count)) != srs_success) {
             return srs_error_wrap(err, "send messages");
         }
     }

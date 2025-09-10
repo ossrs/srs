@@ -88,26 +88,26 @@ enum srs_schema_type {
 //     random-data: (764-offset-128-4)bytes
 //     offset: 4bytes
 // @see also: http://blog.csdn.net/win_lin/article/details/13006803
-class key_block
+class SrsKeyBlock
 {
 public:
     // (offset)bytes
-    char *random0;
-    int random0_size;
+    char *random0_;
+    int random0_size_;
 
     // 128bytes
-    char key[128];
+    char key_[128];
 
     // (764-offset-128-4)bytes
-    char *random1;
-    int random1_size;
+    char *random1_;
+    int random1_size_;
 
     // 4bytes
-    int32_t offset;
+    int32_t offset_;
 
 public:
-    key_block();
-    virtual ~key_block();
+    SrsKeyBlock();
+    virtual ~SrsKeyBlock();
 
 public:
     // Parse key block from c1s1.
@@ -127,26 +127,26 @@ private:
 //     digest-data: 32bytes
 //     random-data: (764-4-offset-32)bytes
 // @see also: http://blog.csdn.net/win_lin/article/details/13006803
-class digest_block
+class SrsDigestBlock
 {
 public:
     // 4bytes
-    int32_t offset;
+    int32_t offset_;
 
     // (offset)bytes
-    char *random0;
-    int random0_size;
+    char *random0_;
+    int random0_size_;
 
     // 32bytes
-    char digest[32];
+    char digest_[32];
 
     // (764-4-offset-32)bytes
-    char *random1;
-    int random1_size;
+    char *random1_;
+    int random1_size_;
 
 public:
-    digest_block();
-    virtual ~digest_block();
+    SrsDigestBlock();
+    virtual ~SrsDigestBlock();
 
 public:
     // Parse digest block from c1s1.
@@ -160,20 +160,20 @@ private:
     int calc_valid_offset();
 };
 
-class c1s1;
+class SrsC1S1;
 
 // The c1s1 strategy, use schema0 or schema1.
 // The template method class to defines common behaviors,
 // while the concrete class to implements in schema0 or schema1.
-class c1s1_strategy
+class SrsC1S1Strategy
 {
 protected:
-    key_block key;
-    digest_block digest;
+    SrsKeyBlock key_;
+    SrsDigestBlock digest_;
 
 public:
-    c1s1_strategy();
-    virtual ~c1s1_strategy();
+    SrsC1S1Strategy();
+    virtual ~SrsC1S1Strategy();
 
 public:
     // Get the scema.
@@ -184,7 +184,7 @@ public:
     virtual char *get_key();
     // Copy to bytes.
     // @param size must be 1536.
-    virtual srs_error_t dump(c1s1 *owner, char *_c1s1, int size);
+    virtual srs_error_t dump(SrsC1S1 *owner, char *_c1s1, int size);
     // For server: parse the c1s1, discovery the key and digest by schema.
     // use the c1_validate_digest() to valid the digest of c1.
     virtual srs_error_t parse(char *_c1s1, int size) = 0;
@@ -203,9 +203,9 @@ public:
     //        schema = choose schema0 or schema1
     //        digest-data = calc_c1_digest(c1, schema)
     //        copy digest-data to c1
-    virtual srs_error_t c1_create(c1s1 *owner);
+    virtual srs_error_t c1_create(SrsC1S1 *owner);
     // For server:  validate the parsed c1 schema
-    virtual srs_error_t c1_validate_digest(c1s1 *owner, bool &is_valid);
+    virtual srs_error_t c1_validate_digest(SrsC1S1 *owner, bool &is_valid);
     // For server:  create and sign the s1 from c1.
     //       // decode c1 try schema0 then schema1
     //       c1-digest-data = get-c1-digest-data(schema0)
@@ -231,20 +231,20 @@ public:
     //       s1-digest-data = HMACsha256(c1s1-joined, FMSKey, 36)
     //       copy s1-digest-data and s1-key-data to s1.
     // @param c1, to get the peer_pub_key of client.
-    virtual srs_error_t s1_create(c1s1 *owner, c1s1 *c1);
+    virtual srs_error_t s1_create(SrsC1S1 *owner, SrsC1S1 *c1);
     // For server:  validate the parsed s1 schema
-    virtual srs_error_t s1_validate_digest(c1s1 *owner, bool &is_valid);
+    virtual srs_error_t s1_validate_digest(SrsC1S1 *owner, bool &is_valid);
 
 public:
     // Calculate the digest for c1
-    virtual srs_error_t calc_c1_digest(c1s1 *owner, char *&c1_digest);
+    virtual srs_error_t calc_c1_digest(SrsC1S1 *owner, char *&c1_digest);
     // Calculate the digest for s1
-    virtual srs_error_t calc_s1_digest(c1s1 *owner, char *&s1_digest);
+    virtual srs_error_t calc_s1_digest(SrsC1S1 *owner, char *&s1_digest);
     // Copy whole c1s1 to bytes.
     // @param size must always be 1536 with digest, and 1504 without digest.
-    virtual srs_error_t copy_to(c1s1 *owner, char *bytes, int size, bool with_digest) = 0;
+    virtual srs_error_t copy_to(SrsC1S1 *owner, char *bytes, int size, bool with_digest) = 0;
     // Copy time and version to stream.
-    virtual void copy_time_version(SrsBuffer *stream, c1s1 *owner);
+    virtual void copy_time_version(SrsBuffer *stream, SrsC1S1 *owner);
     // Copy key to stream.
     virtual void copy_key(SrsBuffer *stream);
     // Copy digest to stream.
@@ -254,35 +254,35 @@ public:
 // The c1s1 schema0
 //     key: 764bytes
 //     digest: 764bytes
-class c1s1_strategy_schema0 : public c1s1_strategy
+class SrsC1S1StrategySchema0 : public SrsC1S1Strategy
 {
 public:
-    c1s1_strategy_schema0();
-    virtual ~c1s1_strategy_schema0();
+    SrsC1S1StrategySchema0();
+    virtual ~SrsC1S1StrategySchema0();
 
 public:
     virtual srs_schema_type schema();
     virtual srs_error_t parse(char *_c1s1, int size);
 
 public:
-    virtual srs_error_t copy_to(c1s1 *owner, char *bytes, int size, bool with_digest);
+    virtual srs_error_t copy_to(SrsC1S1 *owner, char *bytes, int size, bool with_digest);
 };
 
 // The c1s1 schema1
 //     digest: 764bytes
 //     key: 764bytes
-class c1s1_strategy_schema1 : public c1s1_strategy
+class SrsC1S1StrategySchema1 : public SrsC1S1Strategy
 {
 public:
-    c1s1_strategy_schema1();
-    virtual ~c1s1_strategy_schema1();
+    SrsC1S1StrategySchema1();
+    virtual ~SrsC1S1StrategySchema1();
 
 public:
     virtual srs_schema_type schema();
     virtual srs_error_t parse(char *_c1s1, int size);
 
 public:
-    virtual srs_error_t copy_to(c1s1 *owner, char *bytes, int size, bool with_digest);
+    virtual srs_error_t copy_to(SrsC1S1 *owner, char *bytes, int size, bool with_digest);
 };
 
 // The c1s1 schema0
@@ -296,19 +296,19 @@ public:
 //     digest: 764bytes
 //     key: 764bytes
 // @see also: http://blog.csdn.net/win_lin/article/details/13006803
-class c1s1
+class SrsC1S1
 {
 public:
     // 4bytes
-    int32_t time;
+    int32_t time_;
     // 4bytes
-    int32_t version;
+    int32_t version_;
     // 764bytes+764bytes
-    c1s1_strategy *payload;
+    SrsC1S1Strategy *payload_;
 
 public:
-    c1s1();
-    virtual ~c1s1();
+    SrsC1S1();
+    virtual ~SrsC1S1();
 
 public:
     // Get the scema.
@@ -371,7 +371,7 @@ public:
     //       get c1s1-joined by specified schema
     //       s1-digest-data = HMACsha256(c1s1-joined, FMSKey, 36)
     //       copy s1-digest-data and s1-key-data to s1.
-    virtual srs_error_t s1_create(c1s1 *c1);
+    virtual srs_error_t s1_create(SrsC1S1 *c1);
     // For server:  validate the parsed s1 schema
     virtual srs_error_t s1_validate_digest(bool &is_valid);
 };
@@ -380,15 +380,15 @@ public:
 // random-data: 1504bytes
 // digest-data: 32bytes
 // @see also: http://blog.csdn.net/win_lin/article/details/13006803
-class c2s2
+class SrsC2S2
 {
 public:
-    char random[1504];
-    char digest[32];
+    char random_[1504];
+    char digest_[32];
 
 public:
-    c2s2();
-    virtual ~c2s2();
+    SrsC2S2();
+    virtual ~SrsC2S2();
 
 public:
     // Copy to bytes.
@@ -405,10 +405,10 @@ public:
     // // client generate C2, or server valid C2
     // temp-key = HMACsha256(s1-digest, FPKey, 62)
     // c2-digest-data = HMACsha256(c2-random-data, temp-key, 32)
-    virtual srs_error_t c2_create(c1s1 *s1);
+    virtual srs_error_t c2_create(SrsC1S1 *s1);
 
     // Validate the c2 from client.
-    virtual srs_error_t c2_validate(c1s1 *s1, bool &is_valid);
+    virtual srs_error_t c2_validate(SrsC1S1 *s1, bool &is_valid);
 
 public:
     // Create s2.
@@ -417,10 +417,10 @@ public:
     // For server generate S2, or client valid S2
     // temp-key = HMACsha256(c1-digest, FMSKey, 68)
     // s2-digest-data = HMACsha256(s2-random-data, temp-key, 32)
-    virtual srs_error_t s2_create(c1s1 *c1);
+    virtual srs_error_t s2_create(SrsC1S1 *c1);
 
     // Validate the s2 from server.
-    virtual srs_error_t s2_validate(c1s1 *c1, bool &is_valid);
+    virtual srs_error_t s2_validate(SrsC1S1 *c1, bool &is_valid);
 };
 } // namespace srs_internal
 

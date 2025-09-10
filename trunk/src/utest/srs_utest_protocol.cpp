@@ -663,18 +663,18 @@ VOID TEST(ProtocolHandshakeTest, VerifyFPC0C1)
     EXPECT_EQ(0x03, c0c1[0]);
 
     // c1
-    c1s1 c1;
+    SrsC1S1 c1;
 
     // the schema of data must be schema0: key-digest.
     HELPER_ASSERT_SUCCESS(c1.parse((char *)c0c1 + 1, 1536, srs_schema0));
-    EXPECT_EQ((int32_t)0x000f64d0, c1.time);
-    EXPECT_EQ((int32_t)0x80000702, c1.version);
+    EXPECT_EQ((int32_t)0x000f64d0, c1.time_);
+    EXPECT_EQ((int32_t)0x80000702, c1.version_);
 
     // manually validate the c1
     // @see: calc_c1_digest
     char *c1s1_joined_bytes = new char[1536 - 32];
     SrsUniquePtr<char[]> cp_uptr(c1s1_joined_bytes);
-    HELPER_ASSERT_SUCCESS(c1.payload->copy_to(&c1, c1s1_joined_bytes, 1536 - 32, false));
+    HELPER_ASSERT_SUCCESS(c1.payload_->copy_to(&c1, c1s1_joined_bytes, 1536 - 32, false));
 
     bool is_valid;
     HELPER_ASSERT_SUCCESS(c1.c1_validate_digest(is_valid));
@@ -713,34 +713,34 @@ VOID TEST(ProtocolHandshakeTest, ComplexHandshake)
     SrsHandshakeBytes bytes;
     if (true) {
         HELPER_ASSERT_SUCCESS(bytes.create_c0c1());
-        memcpy(bytes.c0c1, c0c1, 1537);
+        memcpy(bytes.c0c1_, c0c1, 1537);
         HELPER_ASSERT_SUCCESS(bytes.create_s0s1s2());
-        memcpy(bytes.s0s1s2, s0s1s2, 3073);
+        memcpy(bytes.s0s1s2_, s0s1s2, 3073);
         HELPER_ASSERT_SUCCESS(bytes.create_c2());
-        memcpy(bytes.c2, c2, 1536);
+        memcpy(bytes.c2_, c2, 1536);
     }
 
     SrsHandshakeBytes *hs_bytes = &bytes;
     if (true) {
         bool is_valid;
 
-        c1s1 c1;
-        HELPER_ASSERT_SUCCESS(c1.parse(hs_bytes->c0c1 + 1, 1536, srs_schema0));
+        SrsC1S1 c1;
+        HELPER_ASSERT_SUCCESS(c1.parse(hs_bytes->c0c1_ + 1, 1536, srs_schema0));
         HELPER_ASSERT_SUCCESS(c1.c1_validate_digest(is_valid));
         ASSERT_TRUE(is_valid);
 
-        c1s1 s1;
-        HELPER_ASSERT_SUCCESS(s1.parse(hs_bytes->s0s1s2 + 1, 1536, c1.schema()));
+        SrsC1S1 s1;
+        HELPER_ASSERT_SUCCESS(s1.parse(hs_bytes->s0s1s2_ + 1, 1536, c1.schema()));
         HELPER_ASSERT_SUCCESS(s1.s1_validate_digest(is_valid));
         ASSERT_TRUE(is_valid);
 
-        c2s2 c2;
-        c2.parse(hs_bytes->c2, 1536);
+        SrsC2S2 c2;
+        c2.parse(hs_bytes->c2_, 1536);
         HELPER_ASSERT_SUCCESS(c2.c2_validate(&s1, is_valid));
         ASSERT_TRUE(is_valid);
 
-        c2s2 s2;
-        s2.parse(hs_bytes->s0s1s2 + 1 + 1536, 1536);
+        SrsC2S2 s2;
+        s2.parse(hs_bytes->s0s1s2_ + 1 + 1536, 1536);
         HELPER_ASSERT_SUCCESS(s2.s2_validate(&c1, is_valid));
         ASSERT_TRUE(is_valid);
     }
@@ -790,11 +790,11 @@ VOID TEST(ProtocolHandshakeTest, SimpleHandshake)
     if (true) {
         SrsHandshakeBytes bytes;
         HELPER_ASSERT_SUCCESS(bytes.create_c0c1());
-        memcpy(bytes.c0c1, c0c1, 1537);
+        memcpy(bytes.c0c1_, c0c1, 1537);
         HELPER_ASSERT_SUCCESS(bytes.create_s0s1s2());
-        memcpy(bytes.s0s1s2, s0s1s2, 3073);
+        memcpy(bytes.s0s1s2_, s0s1s2, 3073);
         HELPER_ASSERT_SUCCESS(bytes.create_c2());
-        memcpy(bytes.c2, c2, 1536);
+        memcpy(bytes.c2_, c2, 1536);
 
         MockEmptyIO eio;
         SrsSimpleHandshake hs;
@@ -883,8 +883,8 @@ VOID TEST(ProtocolUtilityTest, GenerateTcUrl)
 
 void srs_utest_free_message_array(SrsMessageArray *arr)
 {
-    for (int i = 0; i < arr->max; i++) {
-        srs_freep(arr->msgs[i]);
+    for (int i = 0; i < arr->max_; i++) {
+        srs_freep(arr->msgs_[i]);
     }
 }
 
@@ -908,11 +908,11 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
         SrsMessageArray *parr = &arr;
         SrsUniquePtr<SrsMessageArray> parr2(parr, srs_utest_free_message_array);
 
-        arr.msgs[0] = msg.copy();
+        arr.msgs_[0] = msg.copy();
 
-        arr.msgs[1] = msg.copy();
+        arr.msgs_[1] = msg.copy();
 
-        arr.msgs[2] = msg.copy();
+        arr.msgs_[2] = msg.copy();
     }
 
     if (true) {
@@ -921,9 +921,9 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
         SrsMessageArray *parr = &arr;
         SrsUniquePtr<SrsMessageArray> parr2(parr, srs_utest_free_message_array);
 
-        arr.msgs[0] = msg.copy();
+        arr.msgs_[0] = msg.copy();
 
-        arr.msgs[2] = msg.copy();
+        arr.msgs_[2] = msg.copy();
     }
 }
 
@@ -1057,8 +1057,8 @@ VOID TEST(ProtocolStackTest, ProtocolRecvMessageBug98)
 
     SrsUserControlPacket *spkt = dynamic_cast<SrsUserControlPacket *>(pkt);
     ASSERT_TRUE(NULL != spkt);
-    EXPECT_EQ(SrcPCUCPingRequest, spkt->event_type);
-    EXPECT_EQ(0x0d0f, spkt->event_data);
+    EXPECT_EQ(SrcPCUCPingRequest, spkt->event_type_);
+    EXPECT_EQ(0x0d0f, spkt->event_data_);
 }
 
 /**
@@ -1093,7 +1093,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvAckSizeMessage)
 
     SrsSetWindowAckSizePacket *spkt = dynamic_cast<SrsSetWindowAckSizePacket *>(pkt);
     ASSERT_TRUE(NULL != spkt);
-    EXPECT_EQ(0x0763, spkt->ackowledgement_window_size);
+    EXPECT_EQ(0x0763, spkt->ackowledgement_window_size_);
 }
 
 /**
@@ -4395,9 +4395,9 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsCallPacket)
     SrsAmf0Object *args = SrsAmf0Any::object();
 
     SrsCallPacket *pkt = new SrsCallPacket();
-    pkt->command_name = "my_call";
-    pkt->command_object = SrsAmf0Any::null();
-    pkt->arguments = args;
+    pkt->command_name_ = "my_call";
+    pkt->command_object_ = SrsAmf0Any::null();
+    pkt->arguments_ = args;
 
     args->set("video_id", SrsAmf0Any::number(100));
     args->set("url", SrsAmf0Any::str("http://ossrs.net/api/v1/videos/100"));
@@ -4438,9 +4438,9 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsCallResPacket)
     SrsAmf0Object *args = SrsAmf0Any::object();
 
     SrsCallResPacket *pkt = new SrsCallResPacket(0);
-    pkt->command_name = "_result";
-    pkt->command_object = SrsAmf0Any::null();
-    pkt->response = args;
+    pkt->command_name_ = "_result";
+    pkt->command_object_ = SrsAmf0Any::null();
+    pkt->response_ = args;
 
     args->set("video_id", SrsAmf0Any::number(100));
     args->set("url", SrsAmf0Any::str("http://ossrs.net/api/v1/videos/100"));
@@ -4502,9 +4502,9 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsFMLEStartPacket)
     SrsProtocol proto(&bio);
 
     SrsFMLEStartPacket *pkt = new SrsFMLEStartPacket();
-    pkt->command_name = "FMLEStart";
+    pkt->command_name_ = "FMLEStart";
     pkt->set_command_object(SrsAmf0Any::null());
-    pkt->stream_name = "livestream";
+    pkt->stream_name_ = "livestream";
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
@@ -4530,7 +4530,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsFMLEStartResPacket)
     SrsAmf0Object *args = SrsAmf0Any::object();
 
     SrsFMLEStartResPacket *pkt = new SrsFMLEStartResPacket(1);
-    pkt->command_name = "FMLEStart";
+    pkt->command_name_ = "FMLEStart";
     pkt->set_command_object(SrsAmf0Any::null());
     pkt->set_args(args);
 
@@ -4558,10 +4558,10 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsPublishPacket)
     SrsProtocol proto(&bio);
 
     SrsPublishPacket *pkt = new SrsPublishPacket();
-    pkt->command_name = "publish";
+    pkt->command_name_ = "publish";
     pkt->set_command_object(SrsAmf0Any::null());
-    pkt->stream_name = "livestream";
-    pkt->type = "live";
+    pkt->stream_name_ = "livestream";
+    pkt->type_ = "live";
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     uint8_t buf[] = {
@@ -4588,7 +4588,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsPlayResPacket)
     SrsAmf0Object *args = SrsAmf0Any::object();
 
     SrsPlayResPacket *pkt = new SrsPlayResPacket();
-    pkt->command_name = "_result";
+    pkt->command_name_ = "_result";
     pkt->set_command_object(SrsAmf0Any::null());
     pkt->set_desc(args);
 
@@ -4621,7 +4621,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnBWDonePacket)
     SrsProtocol proto(&bio);
 
     SrsOnBWDonePacket *pkt = new SrsOnBWDonePacket();
-    pkt->command_name = "onBWDone";
+    pkt->command_name_ = "onBWDone";
     pkt->set_args(SrsAmf0Any::null());
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
@@ -4650,7 +4650,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnStatusCallPacket)
     args->set("start", SrsAmf0Any::number(0));
 
     SrsOnStatusCallPacket *pkt = new SrsOnStatusCallPacket();
-    pkt->command_name = "onStatus";
+    pkt->command_name_ = "onStatus";
     pkt->set_args(SrsAmf0Any::null());
     pkt->set_data(args);
 
@@ -4685,7 +4685,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnStatusDataPacket)
     args->set("start", SrsAmf0Any::number(0));
 
     SrsOnStatusDataPacket *pkt = new SrsOnStatusDataPacket();
-    pkt->command_name = "onData";
+    pkt->command_name_ = "onData";
     pkt->set_data(args);
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
@@ -4712,9 +4712,9 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsNaluSampleAccessPacket)
     SrsProtocol proto(&bio);
 
     SrsNaluSampleAccessPacket *pkt = new SrsNaluSampleAccessPacket();
-    pkt->command_name = "|RtmpSampleAccess";
-    pkt->video_sample_access = true;
-    pkt->audio_sample_access = true;
+    pkt->command_name_ = "|RtmpSampleAccess";
+    pkt->video_sample_access_ = true;
+    pkt->audio_sample_access_ = true;
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
@@ -4742,7 +4742,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnMetaDataPacket)
     args->set("height", SrsAmf0Any::number(576));
 
     SrsOnMetaDataPacket *pkt = new SrsOnMetaDataPacket();
-    pkt->name = "onMetaData";
+    pkt->name_ = "onMetaData";
     pkt->set_metadata(args);
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
@@ -4769,7 +4769,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsSetWindowAckSizePacket)
     SrsProtocol proto(&bio);
 
     SrsSetWindowAckSizePacket *pkt = new SrsSetWindowAckSizePacket();
-    pkt->ackowledgement_window_size = 102400;
+    pkt->ackowledgement_window_size_ = 102400;
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     uint8_t buf[] = {
@@ -4789,7 +4789,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsAcknowledgementPacket)
     SrsProtocol proto(&bio);
 
     SrsAcknowledgementPacket *pkt = new SrsAcknowledgementPacket();
-    pkt->sequence_number = 1024;
+    pkt->sequence_number_ = 1024;
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
@@ -4809,7 +4809,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsSetChunkSizePacket)
     SrsProtocol proto(&bio);
 
     SrsSetChunkSizePacket *pkt = new SrsSetChunkSizePacket();
-    pkt->chunk_size = 1024;
+    pkt->chunk_size_ = 1024;
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
@@ -4829,8 +4829,8 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsSetPeerBandwidthPacket)
     SrsProtocol proto(&bio);
 
     SrsSetPeerBandwidthPacket *pkt = new SrsSetPeerBandwidthPacket();
-    pkt->type = SrsPeerBandwidthSoft;
-    pkt->bandwidth = 1024;
+    pkt->type_ = SrsPeerBandwidthSoft;
+    pkt->bandwidth_ = 1024;
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
@@ -4851,9 +4851,9 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsUserControlPacket)
     SrsProtocol proto(&bio);
 
     SrsUserControlPacket *pkt = new SrsUserControlPacket();
-    pkt->event_type = SrcPCUCSetBufferLength;
-    pkt->event_data = 0x01;
-    pkt->extra_data = 0x10;
+    pkt->event_type_ = SrcPCUCSetBufferLength;
+    pkt->event_data_ = 0x01;
+    pkt->extra_data_ = 0x10;
 
     HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     char buf[] = {
@@ -4925,7 +4925,7 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
 
     if (true) {
         SrsSetWindowAckSizePacket *pkt = new SrsSetWindowAckSizePacket();
-        pkt->ackowledgement_window_size = 512;
+        pkt->ackowledgement_window_size_ = 512;
 
         HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     }
@@ -5034,8 +5034,8 @@ VOID TEST(ProtocolStackTest, ProtocolPingFlow)
     // ping request
     if (true) {
         SrsUserControlPacket *pkt = new SrsUserControlPacket();
-        pkt->event_type = SrcPCUCPingRequest;
-        pkt->event_data = 0x3456;
+        pkt->event_type_ = SrcPCUCPingRequest;
+        pkt->event_data_ = 0x3456;
         HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(pkt, 0));
     }
     // copy output to input
@@ -5071,8 +5071,8 @@ VOID TEST(ProtocolStackTest, ProtocolPingFlow)
         SrsUserControlPacket *spkt = dynamic_cast<SrsUserControlPacket *>(pkt);
         ASSERT_TRUE(spkt != NULL);
 
-        EXPECT_TRUE(SrcPCUCPingResponse == spkt->event_type);
-        EXPECT_TRUE(0x3456 == spkt->event_data);
+        EXPECT_TRUE(SrcPCUCPingResponse == spkt->event_type_);
+        EXPECT_TRUE(0x3456 == spkt->event_data_);
     }
 }
 
@@ -5136,78 +5136,78 @@ VOID TEST(ProtocolRTMPTest, RTMPRequest)
     SrsRequest req;
     std::string param;
 
-    req.stream = "livestream";
+    req.stream_ = "livestream";
     srs_net_url_parse_tcurl("rtmp://std.ossrs.net/live",
-                            req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+                            req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, param);
     req.strip();
-    EXPECT_STREQ("rtmp", req.schema.c_str());
-    EXPECT_STREQ("std.ossrs.net", req.host.c_str());
-    EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
-    EXPECT_STREQ("live", req.app.c_str());
-    EXPECT_EQ(1935, req.port);
+    EXPECT_STREQ("rtmp", req.schema_.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.host_.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.vhost_.c_str());
+    EXPECT_STREQ("live", req.app_.c_str());
+    EXPECT_EQ(1935, req.port_);
 
-    req.stream = "livestream";
+    req.stream_ = "livestream";
     srs_net_url_parse_tcurl("rtmp://s td.os srs.n et/li v e",
-                            req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+                            req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, param);
     req.strip();
-    EXPECT_STREQ("rtmp", req.schema.c_str());
-    EXPECT_STREQ("std.ossrs.net", req.host.c_str());
-    EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
-    EXPECT_STREQ("live", req.app.c_str());
-    EXPECT_EQ(1935, req.port);
+    EXPECT_STREQ("rtmp", req.schema_.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.host_.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.vhost_.c_str());
+    EXPECT_STREQ("live", req.app_.c_str());
+    EXPECT_EQ(1935, req.port_);
 
-    req.stream = "livestream";
+    req.stream_ = "livestream";
     srs_net_url_parse_tcurl("rtmp://s\ntd.o\rssrs.ne\nt/li\nve",
-                            req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+                            req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, param);
     req.strip();
-    EXPECT_STREQ("rtmp", req.schema.c_str());
-    EXPECT_STREQ("std.ossrs.net", req.host.c_str());
-    EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
-    EXPECT_STREQ("live", req.app.c_str());
-    EXPECT_EQ(1935, req.port);
+    EXPECT_STREQ("rtmp", req.schema_.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.host_.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.vhost_.c_str());
+    EXPECT_STREQ("live", req.app_.c_str());
+    EXPECT_EQ(1935, req.port_);
 
-    req.stream = "livestream";
+    req.stream_ = "livestream";
     srs_net_url_parse_tcurl("rtmp://std.ossrs.net/live ",
-                            req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+                            req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, param);
     req.strip();
-    EXPECT_STREQ("rtmp", req.schema.c_str());
-    EXPECT_STREQ("std.ossrs.net", req.host.c_str());
-    EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
-    EXPECT_STREQ("live", req.app.c_str());
-    EXPECT_EQ(1935, req.port);
+    EXPECT_STREQ("rtmp", req.schema_.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.host_.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.vhost_.c_str());
+    EXPECT_STREQ("live", req.app_.c_str());
+    EXPECT_EQ(1935, req.port_);
 
-    EXPECT_TRUE(NULL == req.args);
+    EXPECT_TRUE(NULL == req.args_);
     SrsRequest req1;
-    req1.args = SrsAmf0Any::object();
+    req1.args_ = SrsAmf0Any::object();
     req.update_auth(&req1);
-    EXPECT_TRUE(NULL != req.args);
-    EXPECT_TRUE(req1.args != req.args);
+    EXPECT_TRUE(NULL != req.args_);
+    EXPECT_TRUE(req1.args_ != req.args_);
 
     param = "";
-    req.stream = "livestream";
+    req.stream_ = "livestream";
     srs_net_url_parse_tcurl("rtmp://std.ossrs.net/live#b=2",
-                            req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+                            req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, param);
     EXPECT_STREQ("#b=2/livestream", param.c_str());
 
     param = "";
-    req.stream = "livestream";
+    req.stream_ = "livestream";
     srs_net_url_parse_tcurl("rtmp://std.ossrs.net/live?a=1#b=2",
-                            req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+                            req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, param);
     EXPECT_STREQ("?a=1#b=2", param.c_str());
 
     param = "";
     srs_net_url_parse_tcurl("rtmp://std.ossrs.net/live?a=1&c=3#b=2",
-                            req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+                            req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, param);
     EXPECT_STREQ("?a=1&c=3#b=2", param.c_str());
 
     param = "";
     srs_net_url_parse_tcurl("rtmp://std.ossrs.net/live?a=1&c=3#b=2#d=4",
-                            req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+                            req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, param);
     EXPECT_STREQ("?a=1&c=3#b=2#d=4", param.c_str());
 
     param = "";
     srs_net_url_parse_tcurl("rtmp://std.ossrs.net/live?a=1#e=5&c=3#b=2#d=4",
-                            req.schema, req.host, req.vhost, req.app, req.stream, req.port, param);
+                            req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, param);
     EXPECT_STREQ("?a=1#e=5&c=3#b=2#d=4", param.c_str());
 }
 
@@ -5223,13 +5223,13 @@ VOID TEST(ProtocolRTMPTest, RTMPHandshakeBytes)
     bio.in_buffer.append(hs, sizeof(hs));
 
     HELPER_EXPECT_SUCCESS(bytes.read_c0c1(&bio));
-    EXPECT_TRUE(bytes.c0c1 != NULL);
+    EXPECT_TRUE(bytes.c0c1_ != NULL);
 
     HELPER_EXPECT_SUCCESS(bytes.read_c2(&bio));
-    EXPECT_TRUE(bytes.c2 != NULL);
+    EXPECT_TRUE(bytes.c2_ != NULL);
 
     HELPER_EXPECT_SUCCESS(bytes.read_s0s1s2(&bio));
-    EXPECT_TRUE(bytes.s0s1s2 != NULL);
+    EXPECT_TRUE(bytes.s0s1s2_ != NULL);
 }
 
 #ifdef SRS_RTSP

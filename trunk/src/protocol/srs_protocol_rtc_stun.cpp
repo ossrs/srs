@@ -109,14 +109,14 @@ static srs_error_t hmac_encode(const std::string &algo, const char *key, const i
 
 SrsStunPacket::SrsStunPacket()
 {
-    message_type = 0;
-    local_ufrag = "";
-    remote_ufrag = "";
-    use_candidate = false;
-    ice_controlled = false;
-    ice_controlling = false;
-    mapped_port = 0;
-    mapped_address = 0;
+    message_type_ = 0;
+    local_ufrag_ = "";
+    remote_ufrag_ = "";
+    use_candidate_ = false;
+    ice_controlled_ = false;
+    ice_controlling_ = false;
+    mapped_port_ = 0;
+    mapped_address_ = 0;
 }
 
 SrsStunPacket::~SrsStunPacket()
@@ -125,92 +125,92 @@ SrsStunPacket::~SrsStunPacket()
 
 bool SrsStunPacket::is_binding_request() const
 {
-    return message_type == BindingRequest;
+    return message_type_ == BindingRequest;
 }
 
 bool SrsStunPacket::is_binding_response() const
 {
-    return message_type == BindingResponse;
+    return message_type_ == BindingResponse;
 }
 
 uint16_t SrsStunPacket::get_message_type() const
 {
-    return message_type;
+    return message_type_;
 }
 
 std::string SrsStunPacket::get_username() const
 {
-    return username;
+    return username_;
 }
 
 std::string SrsStunPacket::get_local_ufrag() const
 {
-    return local_ufrag;
+    return local_ufrag_;
 }
 
 std::string SrsStunPacket::get_remote_ufrag() const
 {
-    return remote_ufrag;
+    return remote_ufrag_;
 }
 
 std::string SrsStunPacket::get_transcation_id() const
 {
-    return transcation_id;
+    return transcation_id_;
 }
 
 uint32_t SrsStunPacket::get_mapped_address() const
 {
-    return mapped_address;
+    return mapped_address_;
 }
 
 uint16_t SrsStunPacket::get_mapped_port() const
 {
-    return mapped_port;
+    return mapped_port_;
 }
 
 bool SrsStunPacket::get_ice_controlled() const
 {
-    return ice_controlled;
+    return ice_controlled_;
 }
 
 bool SrsStunPacket::get_ice_controlling() const
 {
-    return ice_controlling;
+    return ice_controlling_;
 }
 
 bool SrsStunPacket::get_use_candidate() const
 {
-    return use_candidate;
+    return use_candidate_;
 }
 
 void SrsStunPacket::set_message_type(const uint16_t &m)
 {
-    message_type = m;
+    message_type_ = m;
 }
 
 void SrsStunPacket::set_local_ufrag(const std::string &u)
 {
-    local_ufrag = u;
+    local_ufrag_ = u;
 }
 
 void SrsStunPacket::set_remote_ufrag(const std::string &u)
 {
-    remote_ufrag = u;
+    remote_ufrag_ = u;
 }
 
 void SrsStunPacket::set_transcation_id(const std::string &t)
 {
-    transcation_id = t;
+    transcation_id_ = t;
 }
 
 void SrsStunPacket::set_mapped_address(const uint32_t &addr)
 {
-    mapped_address = addr;
+    mapped_address_ = addr;
 }
 
 void SrsStunPacket::set_mapped_port(const uint32_t &port)
 {
-    mapped_port = port;
+    mapped_port_ = port;
 }
 
 srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
@@ -223,10 +223,10 @@ srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
         return srs_error_new(ERROR_RTC_STUN, "invalid stun packet, size=%d", stream->size());
     }
 
-    message_type = stream->read_2bytes();
+    message_type_ = stream->read_2bytes();
     uint16_t message_len = stream->read_2bytes();
     string magic_cookie = stream->read_string(4);
-    transcation_id = stream->read_string(12);
+    transcation_id_ = stream->read_string(12);
 
     if (nb_buf != 20 + message_len) {
         return srs_error_new(ERROR_RTC_STUN, "invalid stun packet, message_len=%d, nb_buf=%d", message_len, nb_buf);
@@ -248,18 +248,18 @@ srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
 
         switch (type) {
         case Username: {
-            username = val;
+            username_ = val;
             size_t p = val.find(":");
             if (p != string::npos) {
-                local_ufrag = val.substr(0, p);
-                remote_ufrag = val.substr(p + 1);
-                srs_verbose("stun packet local_ufrag=%s, remote_ufrag=%s", local_ufrag.c_str(), remote_ufrag.c_str());
+                local_ufrag_ = val.substr(0, p);
+                remote_ufrag_ = val.substr(p + 1);
+                srs_verbose("stun packet local_ufrag=%s, remote_ufrag=%s", local_ufrag_.c_str(), remote_ufrag_.c_str());
             }
             break;
         }
 
         case UseCandidate: {
-            use_candidate = true;
+            use_candidate_ = true;
             srs_verbose("stun use-candidate");
             break;
         }
@@ -270,13 +270,13 @@ srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
         // agent will form check lists, run the ICE state machines, and
         // generate connectivity checks.
         case IceControlled: {
-            ice_controlled = true;
+            ice_controlled_ = true;
             srs_verbose("stun ice-controlled");
             break;
         }
 
         case IceControlling: {
-            ice_controlling = true;
+            ice_controlling_ = true;
             srs_verbose("stun ice-controlling");
             break;
         }
@@ -311,7 +311,7 @@ srs_error_t SrsStunPacket::encode_binding_response(const string &pwd, SrsBuffer 
     stream->write_2bytes(BindingResponse);
     stream->write_2bytes(property_username.size() + mapped_address.size());
     stream->write_4bytes(kStunMagicCookie);
-    stream->write_string(transcation_id);
+    stream->write_string(transcation_id_);
     stream->write_string(property_username);
     stream->write_string(mapped_address);
 
@@ -347,7 +347,7 @@ string SrsStunPacket::encode_username()
     char buf[1460];
     SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
 
-    string username = remote_ufrag + ":" + local_ufrag;
+    string username = remote_ufrag_ + ":" + local_ufrag_;
 
     stream->write_2bytes(Username);
     stream->write_2bytes(username.size());
@@ -370,8 +370,8 @@ string SrsStunPacket::encode_mapped_address()
     stream->write_2bytes(8);
     stream->write_1bytes(0); // ignore this bytes
     stream->write_1bytes(1); // ipv4 family
-    stream->write_2bytes(mapped_port ^ (kStunMagicCookie >> 16));
-    stream->write_4bytes(mapped_address ^ kStunMagicCookie);
+    stream->write_2bytes(mapped_port_ ^ (kStunMagicCookie >> 16));
+    stream->write_4bytes(mapped_address_ ^ kStunMagicCookie);
 
     return string(stream->data(), stream->pos());
 }

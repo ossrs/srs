@@ -12,8 +12,8 @@ SrsMessageArray::SrsMessageArray(int max_msgs)
 {
     srs_assert(max_msgs > 0);
 
-    msgs = new SrsMediaPacket *[max_msgs];
-    max = max_msgs;
+    msgs_ = new SrsMediaPacket *[max_msgs];
+    max_ = max_msgs;
 
     zero(max_msgs);
 }
@@ -23,17 +23,17 @@ SrsMessageArray::~SrsMessageArray()
     // we just free the msgs itself,
     // both delete and delete[] is ok,
     // for all msgs is already freed by send_and_free_messages.
-    srs_freepa(msgs);
+    srs_freepa(msgs_);
 }
 
 void SrsMessageArray::free(int count)
 {
     // initialize
     for (int i = 0; i < count; i++) {
-        SrsMediaPacket *msg = msgs[i];
+        SrsMediaPacket *msg = msgs_[i];
         srs_freep(msg);
 
-        msgs[i] = NULL;
+        msgs_[i] = NULL;
     }
 }
 
@@ -41,6 +41,6 @@ void SrsMessageArray::zero(int count)
 {
     // initialize
     for (int i = 0; i < count; i++) {
-        msgs[i] = NULL;
+        msgs_[i] = NULL;
     }
 }

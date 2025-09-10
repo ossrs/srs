@@ -47,29 +47,29 @@ public:
         enable_context_switch = context_switch;
 
         // Initialize all ISrsRequest members to safe defaults
-        objectEncoding = RTMP_SIG_AMF0_VER;
-        duration = -1;
-        port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-        args = NULL; // Initialize to NULL to prevent crashes
-        protocol = "rtmp";
+        objectEncoding_ = RTMP_SIG_AMF0_VER;
+        duration_ = -1;
+        port_ = SRS_CONSTS_RTMP_DEFAULT_PORT;
+        args_ = NULL; // Initialize to NULL to prevent crashes
+        protocol_ = "rtmp";
 
         // Parse the URL to set vhost, app, stream
         size_t app_pos = url.find('/', 1); // Find second slash
         if (app_pos != string::npos) {
             size_t stream_pos = url.find('/', app_pos + 1); // Find third slash
             if (stream_pos != string::npos) {
-                app = url.substr(app_pos + 1, stream_pos - app_pos - 1);
-                stream = url.substr(stream_pos + 1);
+                app_ = url.substr(app_pos + 1, stream_pos - app_pos - 1);
+                stream_ = url.substr(stream_pos + 1);
             } else {
-                app = url.substr(app_pos + 1);
-                stream = "livestream";
+                app_ = url.substr(app_pos + 1);
+                stream_ = "livestream";
             }
         } else {
-            app = "live";
-            stream = "livestream";
+            app_ = "live";
+            stream_ = "livestream";
         }
 
-        vhost = "localhost";
+        vhost_ = "localhost";
     }
 
     virtual string get_stream_url()
@@ -93,8 +93,8 @@ public:
         MockAsyncSrsRequest *cp = new MockAsyncSrsRequest(mock_stream_url, enable_context_switch);
 
         *cp = *this;
-        if (args) {
-            cp->args = args->copy()->to_object();
+        if (args_) {
+            cp->args_ = args_->copy()->to_object();
         }
 
         return cp;

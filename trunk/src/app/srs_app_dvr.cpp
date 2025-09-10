@@ -62,8 +62,8 @@ srs_error_t SrsDvrSegmenter::initialize(SrsDvrPlan *p, ISrsRequest *r)
     req = r;
     plan = p;
 
-    jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_dvr_time_jitter(req->vhost);
-    wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
+    jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_dvr_time_jitter(req->vhost_);
+    wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost_);
 
     return srs_success;
 }
@@ -113,7 +113,7 @@ srs_error_t SrsDvrSegmenter::open()
         return srs_error_wrap(err, "open encoder");
     }
 
-    srs_trace("dvr stream %s to file %s", req->stream.c_str(), path.c_str());
+    srs_trace("dvr stream %s to file %s", req->stream_.c_str(), path.c_str());
     return err;
 }
 
@@ -200,7 +200,7 @@ string SrsDvrSegmenter::generate_path()
 {
     // the path in config, for example,
     //      /data/[vhost]/[app]/[stream]/[2006]/[01]/[02]/[15].[04].[05].[999].flv
-    std::string path_config = _srs_config->get_dvr_path(req->vhost);
+    std::string path_config = _srs_config->get_dvr_path(req->vhost_);
 
     // add [stream].[timestamp].flv as filename for dir
     if (!srs_strings_ends_with(path_config, ".flv", ".mp4")) {
@@ -209,7 +209,7 @@ string SrsDvrSegmenter::generate_path()
 
     // the flv file path
     std::string flv_path = path_config;
-    flv_path = srs_path_build_stream(flv_path, req->vhost, req->app, req->stream);
+    flv_path = srs_path_build_stream(flv_path, req->vhost_, req->app_, req->stream_);
     flv_path = srs_path_build_timestamp(flv_path);
 
     return flv_path;
@@ -525,7 +525,7 @@ srs_error_t SrsDvrAsyncCallOnDvr::call()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -535,7 +535,7 @@ srs_error_t SrsDvrAsyncCallOnDvr::call()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_dvr(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_dvr(req->vhost_);
         if (conf) {
             hooks = conf->args;
         }
@@ -554,7 +554,7 @@ srs_error_t SrsDvrAsyncCallOnDvr::call()
 string SrsDvrAsyncCallOnDvr::to_string()
 {
     std::stringstream ss;
-    ss << "vhost=" << req->vhost << ", file=" << path;
+    ss << "vhost=" << req->vhost_ << ", file=" << path;
     return ss.str();
 }
 
@@ -706,7 +706,7 @@ srs_error_t SrsDvrSessionPlan::on_publish(ISrsRequest *r)
         return err;
     }
 
-    if (!_srs_config->get_dvr_enabled(req->vhost)) {
+    if (!_srs_config->get_dvr_enabled(req->vhost_)) {
         return err;
     }
 
@@ -763,9 +763,9 @@ srs_error_t SrsDvrSegmentPlan::initialize(SrsOriginHub *h, SrsDvrSegmenter *s, I
         return srs_error_wrap(err, "segment plan");
     }
 
-    wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
+    wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost_);
 
-    cduration = _srs_config->get_dvr_duration(req->vhost);
+    cduration = _srs_config->get_dvr_duration(req->vhost_);
 
     return srs_success;
 }
@@ -783,7 +783,7 @@ srs_error_t SrsDvrSegmentPlan::on_publish(ISrsRequest *r)
         return err;
     }
 
-    if (!_srs_config->get_dvr_enabled(req->vhost)) {
+    if (!_srs_config->get_dvr_enabled(req->vhost_)) {
         return err;
     }
 
@@ -934,15 +934,15 @@ srs_error_t SrsDvr::initialize(SrsOriginHub *h, ISrsRequest *r)
     req = r->copy();
     hub = h;
 
-    SrsConfDirective *conf = _srs_config->get_dvr_apply(r->vhost);
+    SrsConfDirective *conf = _srs_config->get_dvr_apply(r->vhost_);
     actived = srs_config_apply_filter(conf, r);
 
     srs_freep(plan);
-    if ((err = SrsDvrPlan::create_plan(r->vhost, &plan)) != srs_success) {
+    if ((err = SrsDvrPlan::create_plan(r->vhost_, &plan)) != srs_success) {
         return srs_error_wrap(err, "create plan");
     }
 
-    std::string path = _srs_config->get_dvr_path(r->vhost);
+    std::string path = _srs_config->get_dvr_path(r->vhost_);
     SrsDvrSegmenter *segmenter = NULL;
     if (srs_strings_ends_with(path, ".mp4")) {
         segmenter = new SrsDvrMp4Segmenter();

@@ -637,11 +637,11 @@ class SrsHttpUri
 {
 private:
     std::string url_;
-    std::string schema;
-    std::string host;
-    int port;
-    std::string path;
-    std::string query;
+    std::string schema_;
+    std::string host_;
+    int port_;
+    std::string path_;
+    std::string query_;
     std::string fragment_;
     std::string username_;
     std::string password_;

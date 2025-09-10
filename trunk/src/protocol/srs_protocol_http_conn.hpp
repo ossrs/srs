@@ -26,20 +26,20 @@ class ISrsProtocolReadWriter;
 class SrsHttpParser
 {
 private:
-    llhttp_settings_t settings;
-    llhttp_t parser;
+    llhttp_settings_t settings_;
+    llhttp_t parser_;
     // The global parse buffer.
-    SrsFastStream *buffer;
+    SrsFastStream *buffer_;
     // Whether allow jsonp parse.
-    bool jsonp;
+    bool jsonp_;
 
 private:
-    std::string field_name;
-    std::string field_value;
-    SrsHttpParseState state;
-    llhttp_t hp_header;
-    std::string url;
-    SrsHttpHeader *header;
+    std::string field_name_;
+    std::string field_value_;
+    SrsHttpParseState state_;
+    llhttp_t hp_header_;
+    std::string url_;
+    SrsHttpHeader *header_;
     enum llhttp_type type_;
     enum llhttp_type parsed_type_;
 
@@ -88,7 +88,7 @@ private:
     SrsHttpResponseReader *_body;
     // Use a buffer to read and send ts file.
     // The transport connection, can be NULL.
-    ISrsConnection *owner_conn;
+    ISrsConnection *owner_conn_;
 
 private:
     // The request type defined as
@@ -105,7 +105,7 @@ private:
     // Whether the request indicates should keep alive for the http connection.
     bool _keep_alive;
     // Whether the body is chunked.
-    bool chunked;
+    bool chunked_;
 
 private:
     std::string schema_;
@@ -120,9 +120,9 @@ private:
 
 private:
     // Whether request is jsonp.
-    bool jsonp;
+    bool jsonp_;
     // The method in QueryString will override the HTTP method.
-    std::string jsonp_method;
+    std::string jsonp_method_;
 
 public:
     SrsHttpMessage(ISrsReader *reader = NULL, SrsFastStream *buffer = NULL);
@@ -232,8 +232,8 @@ public:
 class SrsHttpMessageWriter
 {
 private:
-    ISrsProtocolReadWriter *skt;
-    SrsHttpHeader *hdr;
+    ISrsProtocolReadWriter *skt_;
+    SrsHttpHeader *hdr_;
     // Before writing header, there is a chance to filter it,
     // such as remove some headers or inject new.
     ISrsHttpHeaderFilter *hf_;
@@ -241,9 +241,9 @@ private:
     ISrsHttpFirstLineWriter *flw_;
 
 private:
-    char header_cache[SRS_HTTP_HEADER_CACHE_SIZE];
-    iovec *iovss_cache;
-    int nb_iovss_cache;
+    char header_cache_[SRS_HTTP_HEADER_CACHE_SIZE];
+    iovec *iovss_cache_;
+    int nb_iovss_cache_;
 
 private:
     // Reply header has been (logically) written
@@ -251,16 +251,16 @@ private:
 
 private:
     // The explicitly-declared Content-Length; or -1
-    int64_t content_length;
+    int64_t content_length_;
     // The number of bytes written in body
-    int64_t written;
+    int64_t written_;
 
 private:
     // The wroteHeader tells whether the header's been written to "the
     // wire" (or rather: w.conn.buf). this is unlike
     // (*response).wroteHeader, which tells only whether it was
     // logically written.
-    bool header_sent;
+    bool header_sent_;
 
 public:
     SrsHttpMessageWriter(ISrsProtocolReadWriter *io, ISrsHttpFirstLineWriter *flw);
@@ -285,7 +285,7 @@ class SrsHttpResponseWriter : public ISrsHttpResponseWriter, public ISrsHttpFirs
 protected:
     SrsHttpMessageWriter *writer_;
     // The status code passed to WriteHeader, for response only.
-    int status;
+    int status_;
 
 public:
     SrsHttpResponseWriter(ISrsProtocolReadWriter *io);
@@ -335,16 +335,16 @@ public:
 class SrsHttpResponseReader : public ISrsHttpResponseReader
 {
 private:
-    ISrsReader *skt;
-    SrsHttpMessage *owner;
-    SrsFastStream *buffer;
-    bool is_eof;
+    ISrsReader *skt_;
+    SrsHttpMessage *owner_;
+    SrsFastStream *buffer_;
+    bool is_eof_;
     // The left bytes in chunk.
-    size_t nb_left_chunk;
+    size_t nb_left_chunk_;
     // The number of bytes of current chunk.
-    size_t nb_chunk;
+    size_t nb_chunk_;
     // Already read total bytes.
-    int64_t nb_total_read;
+    int64_t nb_total_read_;
 
 public:
     // Generally the reader is the under-layer io such as socket,

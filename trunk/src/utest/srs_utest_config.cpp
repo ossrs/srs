@@ -2488,8 +2488,8 @@ VOID TEST(ConfigUnitTest, ApplyFilter)
     if (true) {
         SrsConfDirective d;
         SrsRequest r;
-        r.app = "live";
-        r.stream = "stream";
+        r.app_ = "live";
+        r.stream_ = "stream";
         d.args.push_back("live/stream");
         EXPECT_TRUE(srs_config_apply_filter(&d, &r));
     }

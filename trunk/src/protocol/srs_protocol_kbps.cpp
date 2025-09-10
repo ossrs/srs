@@ -10,9 +10,9 @@
 
 SrsKbpsSlice::SrsKbpsSlice(SrsWallClock *c)
 {
-    clk = c;
-    starttime = 0;
-    bytes = 0;
+    clk_ = c;
+    starttime_ = 0;
+    bytes_ = 0;
 }
 
 SrsKbpsSlice::~SrsKbpsSlice()
@@ -21,36 +21,36 @@ SrsKbpsSlice::~SrsKbpsSlice()
 
 void SrsKbpsSlice::sample()
 {
-    srs_utime_t now = clk->now();
+    srs_utime_t now = clk_->now();
 
-    if (sample_30s.time_ < 0) {
-        sample_30s.update(bytes, now, 0);
+    if (sample_30s_.time_ < 0) {
+        sample_30s_.update(bytes_, now, 0);
     }
-    if (sample_1m.time_ < 0) {
-        sample_1m.update(bytes, now, 0);
+    if (sample_1m_.time_ < 0) {
+        sample_1m_.update(bytes_, now, 0);
     }
-    if (sample_5m.time_ < 0) {
-        sample_5m.update(bytes, now, 0);
+    if (sample_5m_.time_ < 0) {
+        sample_5m_.update(bytes_, now, 0);
     }
-    if (sample_60m.time_ < 0) {
-        sample_60m.update(bytes, now, 0);
+    if (sample_60m_.time_ < 0) {
+        sample_60m_.update(bytes_, now, 0);
     }
 
-    if (now - sample_30s.time_ >= 30 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((bytes - sample_30s.total_) * 8 / srsu2ms(now - sample_30s.time_));
-        sample_30s.update(bytes, now, kbps);
+    if (now - sample_30s_.time_ >= 30 * SRS_UTIME_SECONDS) {
+        int kbps = (int)((bytes_ - sample_30s_.total_) * 8 / srsu2ms(now - sample_30s_.time_));
+        sample_30s_.update(bytes_, now, kbps);
     }
-    if (now - sample_1m.time_ >= 60 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((bytes - sample_1m.total_) * 8 / srsu2ms(now - sample_1m.time_));
-        sample_1m.update(bytes, now, kbps);
+    if (now - sample_1m_.time_ >= 60 * SRS_UTIME_SECONDS) {
+        int kbps = (int)((bytes_ - sample_1m_.total_) * 8 / srsu2ms(now - sample_1m_.time_));
+        sample_1m_.update(bytes_, now, kbps);
     }
-    if (now - sample_5m.time_ >= 300 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((bytes - sample_5m.total_) * 8 / srsu2ms(now - sample_5m.time_));
-        sample_5m.update(bytes, now, kbps);
+    if (now - sample_5m_.time_ >= 300 * SRS_UTIME_SECONDS) {
+        int kbps = (int)((bytes_ - sample_5m_.total_) * 8 / srsu2ms(now - sample_5m_.time_));
+        sample_5m_.update(bytes_, now, kbps);
     }
-    if (now - sample_60m.time_ >= 3600 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((bytes - sample_60m.total_) * 8 / srsu2ms(now - sample_60m.time_));
-        sample_60m.update(bytes, now, kbps);
+    if (now - sample_60m_.time_ >= 3600 * SRS_UTIME_SECONDS) {
+        int kbps = (int)((bytes_ - sample_60m_.total_) * 8 / srsu2ms(now - sample_60m_.time_));
+        sample_60m_.update(bytes_, now, kbps);
     }
 }
 
@@ -136,20 +136,20 @@ void SrsNetworkDelta::remark(int64_t *in, int64_t *out)
 
 SrsKbps::SrsKbps(SrsWallClock *c)
 {
-    clk = c ? c : _srs_clock;
-    is = new SrsKbpsSlice(clk);
-    os = new SrsKbpsSlice(clk);
+    clk_ = c ? c : _srs_clock;
+    is_ = new SrsKbpsSlice(clk_);
+    os_ = new SrsKbpsSlice(clk_);
 }
 
 SrsKbps::~SrsKbps()
 {
-    srs_freep(is);
-    srs_freep(os);
+    srs_freep(is_);
+    srs_freep(os_);
 }
 
 int SrsKbps::get_send_kbps()
 {
-    int duration = srsu2ms(clk->now() - is->starttime);
+    int duration = srsu2ms(clk_->now() - is_->starttime_);
     if (duration <= 0) {
         return 0;
     }
@@ -160,7 +160,7 @@ int SrsKbps::get_send_kbps()
 
 int SrsKbps::get_recv_kbps()
 {
-    int duration = srsu2ms(clk->now() - os->starttime);
+    int duration = srsu2ms(clk_->now() - os_->starttime_);
     if (duration <= 0) {
         return 0;
     }
@@ -171,22 +171,22 @@ int SrsKbps::get_recv_kbps()
 
 int SrsKbps::get_send_kbps_30s()
 {
-    return os->sample_30s.rate_;
+    return os_->sample_30s_.rate_;
 }
 
 int SrsKbps::get_recv_kbps_30s()
 {
-    return is->sample_30s.rate_;
+    return is_->sample_30s_.rate_;
 }
 
 int SrsKbps::get_send_kbps_5m()
 {
-    return os->sample_5m.rate_;
+    return os_->sample_5m_.rate_;
 }
 
 int SrsKbps::get_recv_kbps_5m()
 {
-    return is->sample_5m.rate_;
+    return is_->sample_5m_.rate_;
 }
 
 void SrsKbps::add_delta(ISrsKbpsDelta *delta)
@@ -202,26 +202,26 @@ void SrsKbps::add_delta(ISrsKbpsDelta *delta)
 void SrsKbps::add_delta(int64_t in, int64_t out)
 {
     // update the total bytes
-    is->bytes += in;
-    os->bytes += out;
+    is_->bytes_ += in;
+    os_->bytes_ += out;
 
     // we donot sample, please use sample() to do resample.
 }
 
 void SrsKbps::sample()
 {
-    is->sample();
-    os->sample();
+    is_->sample();
+    os_->sample();
 }
 
 int64_t SrsKbps::get_send_bytes()
 {
-    return os->bytes;
+    return os_->bytes_;
 }
 
 int64_t SrsKbps::get_recv_bytes()
 {
-    return is->bytes;
+    return is_->bytes_;
 }
 
 SrsNetworkKbps::SrsNetworkKbps(SrsWallClock *clock)

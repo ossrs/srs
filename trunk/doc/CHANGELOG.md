@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-09-09, Merge [#4482](https://github.com/ossrs/srs/pull/4482): AI: Fix naming issue for protocol module. v7.0.83 (#4482)
 * v7.0, 2025-09-07, Merge [#4479](https://github.com/ossrs/srs/pull/4479): AI: Fix naming problem in kernel module. v7.0.82 (#4479)
 * v7.0, 2025-09-06, Merge [#4478](https://github.com/ossrs/srs/pull/4478): AI: Add more utests for kernel module. v7.0.81 (#4478)
 * v7.0, 2025-09-06, Merge [#4475](https://github.com/ossrs/srs/pull/4475): AI: Support anonymous coroutine with code block. v7.0.80 (#4475)

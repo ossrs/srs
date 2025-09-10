@@ -91,7 +91,7 @@ srs_error_t SrsFragmentedMp4::initialize(ISrsRequest *r, bool video, int64_t tim
                               (uint32_t)sequence_number, file_home.c_str(), file_name.c_str());
     }
 
-    string home = _srs_config->get_dash_path(r->vhost);
+    string home = _srs_config->get_dash_path(r->vhost_);
     set_path(home + "/" + file_home + "/" + file_name);
     // Set number of the fragment, use in mpd SegmentTemplate@startNumber later.
     set_number(sequence_number);
@@ -177,7 +177,7 @@ SrsMpdWriter::~SrsMpdWriter()
 void SrsMpdWriter::dispose()
 {
     if (req) {
-        string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
+        string mpd_path = srs_path_build_stream(mpd_file, req->vhost_, req->app_, req->stream_);
         string full_path = home + "/" + mpd_path;
         if (unlink(full_path.c_str()) < 0) {
             srs_warn("ignore remove mpd failed, %s", full_path.c_str());
@@ -201,15 +201,15 @@ srs_error_t SrsMpdWriter::on_publish()
 {
     ISrsRequest *r = req;
 
-    fragment = _srs_config->get_dash_fragment(r->vhost);
-    update_period = _srs_config->get_dash_update_period(r->vhost);
-    timeshit = _srs_config->get_dash_timeshift(r->vhost);
-    home = _srs_config->get_dash_path(r->vhost);
-    mpd_file = _srs_config->get_dash_mpd_file(r->vhost);
+    fragment = _srs_config->get_dash_fragment(r->vhost_);
+    update_period = _srs_config->get_dash_update_period(r->vhost_);
+    timeshit = _srs_config->get_dash_timeshift(r->vhost_);
+    home = _srs_config->get_dash_path(r->vhost_);
+    mpd_file = _srs_config->get_dash_mpd_file(r->vhost_);
 
-    string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
-    fragment_home = srs_path_filepath_dir(mpd_path) + "/" + req->stream;
-    window_size_ = _srs_config->get_dash_window_size(r->vhost);
+    string mpd_path = srs_path_build_stream(mpd_file, req->vhost_, req->app_, req->stream_);
+    fragment_home = srs_path_filepath_dir(mpd_path) + "/" + req->stream_;
+    window_size_ = _srs_config->get_dash_window_size(r->vhost_);
 
     srs_trace("DASH: Config fragment=%dms, period=%dms, window=%d, timeshit=%dms, home=%s, mpd=%s",
               srsu2msi(fragment), srsu2msi(update_period), window_size_, srsu2msi(timeshit), home.c_str(), mpd_file.c_str());
@@ -230,11 +230,11 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, SrsFragmentWindow *afragments
         return err;
     }
 
-    string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
+    string mpd_path = srs_path_build_stream(mpd_file, req->vhost_, req->app_, req->stream_);
     string full_path = home + "/" + mpd_path;
     string full_home = srs_path_filepath_dir(full_path);
 
-    fragment_home = srs_path_filepath_dir(mpd_path) + "/" + req->stream;
+    fragment_home = srs_path_filepath_dir(mpd_path) + "/" + req->stream_;
 
     if ((err = srs_os_mkdir_all(full_home)) != srs_success) {
         return srs_error_wrap(err, "Create MPD home failed, home=%s", full_home.c_str());
@@ -254,7 +254,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, SrsFragmentWindow *afragments
        << "    publishTime=\"" << srs_time_to_utc_format_str(srs_time_now_cached()) << "\" " << endl
        << "    minBufferTime=\"PT" << srs_fmt_sprintf("%.3f", 2 * last_duration) << "S\" >" << endl;
 
-    ss << "    <BaseURL>" << req->stream << "/" << "</BaseURL>" << endl;
+    ss << "    <BaseURL>" << req->stream_ << "/" << "</BaseURL>" << endl;
 
     ss << "    <Period start=\"PT0S\">" << endl;
 
@@ -425,8 +425,8 @@ srs_error_t SrsDashController::on_publish()
 
     ISrsRequest *r = req;
 
-    fragment = _srs_config->get_dash_fragment(r->vhost);
-    home = _srs_config->get_dash_path(r->vhost);
+    fragment = _srs_config->get_dash_fragment(r->vhost_);
+    home = _srs_config->get_dash_path(r->vhost_);
 
     if ((err = mpd->on_publish()) != srs_success) {
         return srs_error_wrap(err, "mpd");
@@ -531,8 +531,8 @@ srs_error_t SrsDashController::on_audio(SrsMediaPacket *shared_audio, SrsFormat 
         return srs_error_wrap(err, "Write audio to fragment failed");
     }
 
-    srs_utime_t fragment = _srs_config->get_dash_fragment(req->vhost);
-    int window_size = _srs_config->get_dash_window_size(req->vhost);
+    srs_utime_t fragment = _srs_config->get_dash_fragment(req->vhost_);
+    int window_size = _srs_config->get_dash_window_size(req->vhost_);
     int dash_window = 2 * window_size * fragment;
     if (afragments->size() > window_size) {
         int w = 0;
@@ -545,7 +545,7 @@ srs_error_t SrsDashController::on_audio(SrsMediaPacket *shared_audio, SrsFormat 
         afragments->shrink(dash_window);
     }
 
-    bool dash_cleanup = _srs_config->get_dash_cleanup(req->vhost);
+    bool dash_cleanup = _srs_config->get_dash_cleanup(req->vhost_);
     // remove the m4s file.
     afragments->clear_expired(dash_cleanup);
 
@@ -604,8 +604,8 @@ srs_error_t SrsDashController::on_video(SrsMediaPacket *shared_video, SrsFormat 
         return srs_error_wrap(err, "Write video to fragment failed");
     }
 
-    srs_utime_t fragment = _srs_config->get_dash_fragment(req->vhost);
-    int window_size = _srs_config->get_dash_window_size(req->vhost);
+    srs_utime_t fragment = _srs_config->get_dash_fragment(req->vhost_);
+    int window_size = _srs_config->get_dash_window_size(req->vhost_);
     int dash_window = 2 * window_size * fragment;
     if (vfragments->size() > window_size) {
         int w = 0;
@@ -618,7 +618,7 @@ srs_error_t SrsDashController::on_video(SrsMediaPacket *shared_video, SrsFormat 
         vfragments->shrink(dash_window);
     }
 
-    bool dash_cleanup = _srs_config->get_dash_cleanup(req->vhost);
+    bool dash_cleanup = _srs_config->get_dash_cleanup(req->vhost_);
     // remove the m4s file.
     vfragments->clear_expired(dash_cleanup);
 
@@ -650,7 +650,7 @@ srs_error_t SrsDashController::refresh_init_mp4(SrsMediaPacket *msg, SrsFormat *
         return err;
     }
 
-    string full_home = home + "/" + req->app + "/" + req->stream;
+    string full_home = home + "/" + req->app_ + "/" + req->stream_;
     if ((err = srs_os_mkdir_all(full_home)) != srs_success) {
         return srs_error_wrap(err, "Create media home failed, home=%s", full_home.c_str());
     }
@@ -703,7 +703,7 @@ void SrsDash::dispose()
     }
 
     // Ignore when dash_dispose disabled.
-    srs_utime_t dash_dispose = _srs_config->get_dash_dispose(req->vhost);
+    srs_utime_t dash_dispose = _srs_config->get_dash_dispose(req->vhost_);
     if (!dash_dispose) {
         return;
     }
@@ -723,7 +723,7 @@ srs_error_t SrsDash::cycle()
         return err;
     }
 
-    srs_utime_t dash_dispose = _srs_config->get_dash_dispose(req->vhost);
+    srs_utime_t dash_dispose = _srs_config->get_dash_dispose(req->vhost_);
     if (dash_dispose <= 0) {
         return err;
     }
@@ -746,7 +746,7 @@ srs_error_t SrsDash::cycle()
 srs_utime_t SrsDash::cleanup_delay()
 {
     // We use larger timeout to cleanup the HLS, after disposed it if required.
-    return _srs_config->get_dash_dispose(req->vhost) * 1.1;
+    return _srs_config->get_dash_dispose(req->vhost_) * 1.1;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -778,7 +778,7 @@ srs_error_t SrsDash::on_publish()
         return err;
     }
 
-    if (!_srs_config->get_dash_enabled(req->vhost)) {
+    if (!_srs_config->get_dash_enabled(req->vhost_)) {
         return err;
     }
     enabled = true;

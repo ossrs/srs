@@ -1205,7 +1205,7 @@ ISrsHttpMessage::~ISrsHttpMessage()
 
 SrsHttpUri::SrsHttpUri()
 {
-    port = 0;
+    port_ = 0;
 }
 
 SrsHttpUri::~SrsHttpUri()
@@ -1214,7 +1214,7 @@ SrsHttpUri::~SrsHttpUri()
 
 srs_error_t SrsHttpUri::initialize(string url)
 {
-    schema = host = path = query = fragment_ = "";
+    schema_ = host_ = path_ = query_ = fragment_ = "";
     url_ = url;
 
     // Replace the default vhost to a domain like string, or parse failed.
@@ -1226,25 +1226,25 @@ srs_error_t SrsHttpUri::initialize(string url)
 
     // Simple URL parser to replace http-parser URL parsing
     srs_error_t err = srs_success;
-    if ((err = parse_url_simple(parsing_url, schema, host, port, path, query, fragment_, username_, password_)) != srs_success) {
+    if ((err = parse_url_simple(parsing_url, schema_, host_, port_, path_, query_, fragment_, username_, password_)) != srs_success) {
         return srs_error_wrap(err, "parse url %s as %s failed", url.c_str(), parsing_url.c_str());
     }
 
     // Restore the default vhost.
     if (pos_default_vhost != string::npos) {
-        host = SRS_CONSTS_RTMP_DEFAULT_VHOST;
+        host_ = SRS_CONSTS_RTMP_DEFAULT_VHOST;
     }
 
     // Set default ports if not specified
-    if (port <= 0) {
-        if (schema == "https") {
-            port = SRS_DEFAULT_HTTPS_PORT;
-        } else if (schema == "rtmp") {
-            port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-        } else if (schema == "redis") {
-            port = SRS_DEFAULT_REDIS_PORT;
+    if (port_ <= 0) {
+        if (schema_ == "https") {
+            port_ = SRS_DEFAULT_HTTPS_PORT;
+        } else if (schema_ == "rtmp") {
+            port_ = SRS_CONSTS_RTMP_DEFAULT_PORT;
+        } else if (schema_ == "redis") {
+            port_ = SRS_DEFAULT_REDIS_PORT;
         } else {
-            port = SRS_DEFAULT_HTTP_PORT;
+            port_ = SRS_DEFAULT_HTTP_PORT;
         }
     }
 
@@ -1253,12 +1253,12 @@ srs_error_t SrsHttpUri::initialize(string url)
 
 void SrsHttpUri::set_schema(std::string v)
 {
-    schema = v;
+    schema_ = v;
 
     // Update url with new schema.
     size_t pos = url_.find("://");
     if (pos != string::npos) {
-        url_ = schema + "://" + url_.substr(pos + 3);
+        url_ = schema_ + "://" + url_.substr(pos + 3);
     }
 }
 
@@ -1269,27 +1269,27 @@ string SrsHttpUri::get_url()
 
 string SrsHttpUri::get_schema()
 {
-    return schema;
+    return schema_;
 }
 
 string SrsHttpUri::get_host()
 {
-    return host;
+    return host_;
 }
 
 int SrsHttpUri::get_port()
 {
-    return port;
+    return port_;
 }
 
 string SrsHttpUri::get_path()
 {
-    return path;
+    return path_;
 }
 
 string SrsHttpUri::get_query()
 {
-    return query;
+    return query_;
 }
 
 string SrsHttpUri::get_query_by_key(std::string key)
@@ -1416,17 +1416,17 @@ srs_error_t SrsHttpUri::parse_url_simple(const string &url, string &schema, stri
 srs_error_t SrsHttpUri::parse_query()
 {
     srs_error_t err = srs_success;
-    if (query.empty()) {
+    if (query_.empty()) {
         return err;
     }
 
-    size_t begin = query.find("?");
+    size_t begin = query_.find("?");
     if (string::npos != begin) {
         begin++;
     } else {
         begin = 0;
     }
-    string query_str = query.substr(begin);
+    string query_str = query_.substr(begin);
     query_values_.clear();
     srs_net_url_parse_query(query_str, query_values_);
 

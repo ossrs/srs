@@ -185,7 +185,7 @@ code_patterns:
         public:
             srs_error_t initialize();
         };
-      scope: "Applies ONLY to fields (member variables) in classes and structs - NOT to functions, methods, or parameters"
+      scope: "Applies ONLY to fields (member variables) in classes and structs - NOT to functions, methods, comments, error messages, or parameters"
       exceptions: "Only applies to SRS-defined classes/structs - do NOT change 3rd party code like llhttp"
       rationale: "Consistent naming convention across SRS codebase for better code readability and maintenance - underscore distinguishes member variables from local variables and parameters"
 

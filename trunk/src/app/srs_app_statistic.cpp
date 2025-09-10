@@ -225,12 +225,12 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject *obj)
     obj->set("id", SrsJsonAny::str(id.c_str()));
     obj->set("vhost", SrsJsonAny::str(stream->vhost->id.c_str()));
     obj->set("stream", SrsJsonAny::str(stream->id.c_str()));
-    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
-    obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
-    obj->set("swfUrl", SrsJsonAny::str(req->swfUrl.c_str()));
-    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
+    obj->set("ip", SrsJsonAny::str(req->ip_.c_str()));
+    obj->set("pageUrl", SrsJsonAny::str(req->pageUrl_.c_str()));
+    obj->set("swfUrl", SrsJsonAny::str(req->swfUrl_.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl_.c_str()));
     obj->set("url", SrsJsonAny::str(req->get_stream_url().c_str()));
-    obj->set("name", SrsJsonAny::str(req->stream.c_str()));
+    obj->set("name", SrsJsonAny::str(req->stream_.c_str()));
     obj->set("type", SrsJsonAny::str(srs_client_type_string(type).c_str()));
     obj->set("publish", SrsJsonAny::boolean(srs_client_type_is_publish(type)));
     obj->set("alive", SrsJsonAny::number(srsu2ms(srs_time_now_cached() - create) / 1000.0));
@@ -739,15 +739,15 @@ SrsStatisticVhost *SrsStatistic::create_vhost(ISrsRequest *req)
     SrsStatisticVhost *vhost = NULL;
 
     // create vhost if not exists.
-    if (rvhosts.find(req->vhost) == rvhosts.end()) {
+    if (rvhosts.find(req->vhost_) == rvhosts.end()) {
         vhost = new SrsStatisticVhost();
-        vhost->vhost = req->vhost;
-        rvhosts[req->vhost] = vhost;
+        vhost->vhost = req->vhost_;
+        rvhosts[req->vhost_] = vhost;
         vhosts[vhost->id] = vhost;
         return vhost;
     }
 
-    vhost = rvhosts[req->vhost];
+    vhost = rvhosts[req->vhost_];
 
     return vhost;
 }
@@ -767,10 +767,10 @@ SrsStatisticStream *SrsStatistic::create_stream(SrsStatisticVhost *vhost, ISrsRe
     if (rstreams.find(url) == rstreams.end()) {
         stream = new SrsStatisticStream();
         stream->vhost = vhost;
-        stream->stream = req->stream;
-        stream->app = req->app;
+        stream->stream = req->stream_;
+        stream->app = req->app_;
         stream->url = url;
-        stream->tcUrl = req->tcUrl;
+        stream->tcUrl = req->tcUrl_;
         rstreams[url] = stream;
         streams[stream->id] = stream;
         return stream;

@@ -115,7 +115,7 @@ bool srs_srt_streamid_info(const std::string &streamid, SrtMode &mode, std::stri
 bool srs_srt_streamid_to_request(const std::string &streamid, SrtMode &mode, ISrsRequest *request)
 {
     string url_subpath = "";
-    bool ret = srs_srt_streamid_info(streamid, mode, request->vhost, url_subpath);
+    bool ret = srs_srt_streamid_info(streamid, mode, request->vhost_, url_subpath);
     if (!ret) {
         return ret;
     }
@@ -123,25 +123,25 @@ bool srs_srt_streamid_to_request(const std::string &streamid, SrtMode &mode, ISr
     size_t pos = url_subpath.find("/");
     string stream_with_params = "";
     if (pos == string::npos) {
-        request->app = _srs_config->get_default_app_name();
+        request->app_ = _srs_config->get_default_app_name();
         stream_with_params = url_subpath;
     } else {
-        request->app = url_subpath.substr(0, pos);
+        request->app_ = url_subpath.substr(0, pos);
         stream_with_params = url_subpath.substr(pos + 1);
     }
 
     pos = stream_with_params.find("?");
     if (pos == string::npos) {
-        request->stream = stream_with_params;
+        request->stream_ = stream_with_params;
     } else {
-        request->stream = stream_with_params.substr(0, pos);
-        request->param = stream_with_params.substr(pos + 1);
+        request->stream_ = stream_with_params.substr(0, pos);
+        request->param_ = stream_with_params.substr(pos + 1);
     }
 
-    request->host = srs_get_public_internet_address();
-    if (request->vhost.empty())
-        request->vhost = request->host;
-    request->tcUrl = srs_net_url_encode_tcurl("srt", request->host, request->vhost, request->app, request->port);
+    request->host_ = srs_get_public_internet_address();
+    if (request->vhost_.empty())
+        request->vhost_ = request->host_;
+    request->tcUrl_ = srs_net_url_encode_tcurl("srt", request->host_, request->vhost_, request->app_, request->port_);
 
     return ret;
 }

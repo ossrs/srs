@@ -509,8 +509,8 @@ VOID TEST(HTTPServerTest, MessageConnection)
     if (true) {
         SrsHttpMessage m;
         HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=POST", true));
-        EXPECT_TRUE(m.jsonp);
-        EXPECT_STREQ("POST", m.jsonp_method.c_str());
+        EXPECT_TRUE(m.jsonp_);
+        EXPECT_STREQ("POST", m.jsonp_method_.c_str());
         EXPECT_TRUE(m.is_jsonp());
     }
 
@@ -635,9 +635,9 @@ VOID TEST(HTTPServerTest, MessageTurnRequest)
         SrsHttpMessage m;
         HELPER_ASSERT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv", false));
         ISrsRequest *r = m.to_request("ossrs.net");
-        EXPECT_STREQ("live", r->app.c_str());
-        EXPECT_STREQ("livestream", r->stream.c_str());
-        EXPECT_STREQ("rtmp://ossrs.net/live", r->tcUrl.c_str());
+        EXPECT_STREQ("live", r->app_.c_str());
+        EXPECT_STREQ("livestream", r->stream_.c_str());
+        EXPECT_STREQ("rtmp://ossrs.net/live", r->tcUrl_.c_str());
         srs_freep(r);
     }
 
@@ -645,8 +645,8 @@ VOID TEST(HTTPServerTest, MessageTurnRequest)
         SrsHttpMessage m;
         HELPER_ASSERT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?token=key", false));
         ISrsRequest *r = m.to_request("ossrs.net");
-        EXPECT_STREQ("rtmp://ossrs.net/live", r->tcUrl.c_str());
-        EXPECT_STREQ("?token=key", r->param.c_str());
+        EXPECT_STREQ("rtmp://ossrs.net/live", r->tcUrl_.c_str());
+        EXPECT_STREQ("?token=key", r->param_.c_str());
         srs_freep(r);
     }
 
@@ -656,7 +656,7 @@ VOID TEST(HTTPServerTest, MessageTurnRequest)
         m.set_connection(&conn);
 
         ISrsRequest *r = m.to_request("ossrs.net");
-        EXPECT_STREQ("127.0.0.1", r->ip.c_str());
+        EXPECT_STREQ("127.0.0.1", r->ip_.c_str());
         srs_freep(r);
     }
 
@@ -670,7 +670,7 @@ VOID TEST(HTTPServerTest, MessageTurnRequest)
         m.set_header(&hdr, false);
 
         ISrsRequest *r = m.to_request("ossrs.net");
-        EXPECT_STREQ("10.11.12.13", r->ip.c_str());
+        EXPECT_STREQ("10.11.12.13", r->ip_.c_str());
         srs_freep(r);
     }
 }

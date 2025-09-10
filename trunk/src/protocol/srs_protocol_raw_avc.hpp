@@ -110,19 +110,19 @@ public:
 // The header of adts sample.
 struct SrsRawAacStreamCodec {
     // Codec level informations.
-    int8_t protection_absent;
-    SrsAacObjectType aac_object;
-    int8_t sampling_frequency_index;
-    int8_t channel_configuration;
-    int16_t frame_length;
+    int8_t protection_absent_;
+    SrsAacObjectType aac_object_;
+    int8_t sampling_frequency_index_;
+    int8_t channel_configuration_;
+    int16_t frame_length_;
 
     // Format level, RTMP as such, informations.
-    char sound_format;
-    char sound_rate;
-    char sound_size;
-    char sound_type;
+    char sound_format_;
+    char sound_rate_;
+    char sound_size_;
+    char sound_type_;
     // 0 for sh; 1 for raw data.
-    int8_t aac_packet_type;
+    int8_t aac_packet_type_;
 };
 
 // The raw aac stream, in adts.

@@ -22,10 +22,10 @@ class SrsMessageArray
 {
 public:
     // When user already send all msgs, please set to NULL,
-    // for instance, msg= msgs.msgs[i], msgs.msgs[i]=NULL, send(msg),
+    // for instance, msg= msgs.msgs_[i], msgs.msgs_[i]=NULL, send(msg),
     // where send(msg) will always send and free it.
-    SrsMediaPacket **msgs;
-    int max;
+    SrsMediaPacket **msgs_;
+    int max_;
 
 public:
     // Create msg array, initialize array to NULL ptrs.

@@ -324,16 +324,16 @@ VOID TEST(SrsAVCTest, AACDemuxADTS)
         uint8_t b[] = {0xff, 0xf9, 0x2c, 0x40, 0, 0xe0, 0};
         SrsBuffer buf((char *)b, sizeof(b));
         HELPER_ASSERT_SUCCESS(h.adts_demux(&buf, &frame, &nb_frame, codec));
-        EXPECT_EQ(1, codec.protection_absent);                // b[1]
-        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object); // b[2]
-        EXPECT_EQ(0xb, codec.sampling_frequency_index);       // b[2]
-        EXPECT_EQ(1, codec.channel_configuration);            // b[3]
-        EXPECT_EQ(7, codec.frame_length);                     // b[5]
+        EXPECT_EQ(1, codec.protection_absent_);                // b[1]
+        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object_); // b[2]
+        EXPECT_EQ(0xb, codec.sampling_frequency_index_);       // b[2]
+        EXPECT_EQ(1, codec.channel_configuration_);            // b[3]
+        EXPECT_EQ(7, codec.frame_length_);                     // b[5]
         EXPECT_EQ(0, nb_frame);
 
-        EXPECT_EQ(SrsAudioSampleRate5512, codec.sound_rate);
-        EXPECT_EQ(0, codec.sound_type);
-        EXPECT_EQ(1, codec.sound_size);
+        EXPECT_EQ(SrsAudioSampleRate5512, codec.sound_rate_);
+        EXPECT_EQ(0, codec.sound_type_);
+        EXPECT_EQ(1, codec.sound_size_);
     }
 
     // For lower sampling rate, such as 22050HZ.
@@ -345,16 +345,16 @@ VOID TEST(SrsAVCTest, AACDemuxADTS)
         uint8_t b[] = {0xff, 0xf9, 0x18, 0x40, 0, 0xe0, 0};
         SrsBuffer buf((char *)b, sizeof(b));
         HELPER_ASSERT_SUCCESS(h.adts_demux(&buf, &frame, &nb_frame, codec));
-        EXPECT_EQ(1, codec.protection_absent);                // b[1]
-        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object); // b[2]
-        EXPECT_EQ(6, codec.sampling_frequency_index);         // b[2]
-        EXPECT_EQ(1, codec.channel_configuration);            // b[3]
-        EXPECT_EQ(7, codec.frame_length);                     // b[5]
+        EXPECT_EQ(1, codec.protection_absent_);                // b[1]
+        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object_); // b[2]
+        EXPECT_EQ(6, codec.sampling_frequency_index_);         // b[2]
+        EXPECT_EQ(1, codec.channel_configuration_);            // b[3]
+        EXPECT_EQ(7, codec.frame_length_);                     // b[5]
         EXPECT_EQ(0, nb_frame);
 
-        EXPECT_EQ(SrsAudioSampleRate22050, codec.sound_rate);
-        EXPECT_EQ(0, codec.sound_type);
-        EXPECT_EQ(1, codec.sound_size);
+        EXPECT_EQ(SrsAudioSampleRate22050, codec.sound_rate_);
+        EXPECT_EQ(0, codec.sound_type_);
+        EXPECT_EQ(1, codec.sound_size_);
     }
 
     // For higher sampling rate, use 44100HZ.
@@ -366,16 +366,16 @@ VOID TEST(SrsAVCTest, AACDemuxADTS)
         uint8_t b[] = {0xff, 0xf9, 0x04, 0x40, 0, 0xe0, 0};
         SrsBuffer buf((char *)b, sizeof(b));
         HELPER_ASSERT_SUCCESS(h.adts_demux(&buf, &frame, &nb_frame, codec));
-        EXPECT_EQ(1, codec.protection_absent);                // b[1]
-        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object); // b[2]
-        EXPECT_EQ(1, codec.sampling_frequency_index);         // b[2]
-        EXPECT_EQ(1, codec.channel_configuration);            // b[3]
-        EXPECT_EQ(7, codec.frame_length);                     // b[5]
+        EXPECT_EQ(1, codec.protection_absent_);                // b[1]
+        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object_); // b[2]
+        EXPECT_EQ(1, codec.sampling_frequency_index_);         // b[2]
+        EXPECT_EQ(1, codec.channel_configuration_);            // b[3]
+        EXPECT_EQ(7, codec.frame_length_);                     // b[5]
         EXPECT_EQ(0, nb_frame);
 
-        EXPECT_EQ(SrsAudioSampleRate44100, codec.sound_rate);
-        EXPECT_EQ(0, codec.sound_type);
-        EXPECT_EQ(1, codec.sound_size);
+        EXPECT_EQ(SrsAudioSampleRate44100, codec.sound_rate_);
+        EXPECT_EQ(0, codec.sound_type_);
+        EXPECT_EQ(1, codec.sound_size_);
     }
 
     // If protected, there are 2B signature.
@@ -387,17 +387,17 @@ VOID TEST(SrsAVCTest, AACDemuxADTS)
         uint8_t b[] = {0xff, 0xf0, 0x10, 0x40, 0x01, 0x40, 0, 0, 0, 1};
         SrsBuffer buf((char *)b, sizeof(b));
         HELPER_ASSERT_SUCCESS(h.adts_demux(&buf, &frame, &nb_frame, codec));
-        EXPECT_EQ(0, codec.protection_absent);                // b[1]
-        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object); // b[2]
-        EXPECT_EQ(4, codec.sampling_frequency_index);         // b[2]
-        EXPECT_EQ(1, codec.channel_configuration);            // b[3]
-        EXPECT_EQ(10, codec.frame_length);                    // b[4,5]
+        EXPECT_EQ(0, codec.protection_absent_);                // b[1]
+        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object_); // b[2]
+        EXPECT_EQ(4, codec.sampling_frequency_index_);         // b[2]
+        EXPECT_EQ(1, codec.channel_configuration_);            // b[3]
+        EXPECT_EQ(10, codec.frame_length_);                    // b[4,5]
         ASSERT_EQ(1, nb_frame);
         EXPECT_EQ(1, (uint8_t)frame[0]);
 
-        EXPECT_EQ(SrsAudioSampleRate44100, codec.sound_rate);
-        EXPECT_EQ(0, codec.sound_type);
-        EXPECT_EQ(1, codec.sound_size);
+        EXPECT_EQ(SrsAudioSampleRate44100, codec.sound_rate_);
+        EXPECT_EQ(0, codec.sound_type_);
+        EXPECT_EQ(1, codec.sound_size_);
     }
 
     // Fail if not enough data.
@@ -442,17 +442,17 @@ VOID TEST(SrsAVCTest, AACDemuxADTS)
         uint8_t b[] = {0xff, 0xf9, 0x10, 0x40, 0x01, 0, 0, 1};
         SrsBuffer buf((char *)b, sizeof(b));
         HELPER_ASSERT_SUCCESS(h.adts_demux(&buf, &frame, &nb_frame, codec));
-        EXPECT_EQ(1, codec.protection_absent);                // b[1]
-        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object); // b[2]
-        EXPECT_EQ(4, codec.sampling_frequency_index);         // b[2]
-        EXPECT_EQ(1, codec.channel_configuration);            // b[3]
-        EXPECT_EQ(8, codec.frame_length);                     // b[4]
+        EXPECT_EQ(1, codec.protection_absent_);                // b[1]
+        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object_); // b[2]
+        EXPECT_EQ(4, codec.sampling_frequency_index_);         // b[2]
+        EXPECT_EQ(1, codec.channel_configuration_);            // b[3]
+        EXPECT_EQ(8, codec.frame_length_);                     // b[4]
         ASSERT_EQ(1, nb_frame);
         EXPECT_EQ(1, (uint8_t)frame[0]);
 
-        EXPECT_EQ(SrsAudioSampleRate44100, codec.sound_rate);
-        EXPECT_EQ(0, codec.sound_type);
-        EXPECT_EQ(1, codec.sound_size);
+        EXPECT_EQ(SrsAudioSampleRate44100, codec.sound_rate_);
+        EXPECT_EQ(0, codec.sound_type_);
+        EXPECT_EQ(1, codec.sound_size_);
     }
 
     // Minimum AAC frame, no raw data.
@@ -464,16 +464,16 @@ VOID TEST(SrsAVCTest, AACDemuxADTS)
         uint8_t b[] = {0xff, 0xf9, 0x10, 0x40, 0, 0xe0, 0};
         SrsBuffer buf((char *)b, sizeof(b));
         HELPER_ASSERT_SUCCESS(h.adts_demux(&buf, &frame, &nb_frame, codec));
-        EXPECT_EQ(1, codec.protection_absent);                // b[1]
-        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object); // b[2]
-        EXPECT_EQ(4, codec.sampling_frequency_index);         // b[2]
-        EXPECT_EQ(1, codec.channel_configuration);            // b[3]
-        EXPECT_EQ(7, codec.frame_length);                     // b[5]
+        EXPECT_EQ(1, codec.protection_absent_);                // b[1]
+        EXPECT_EQ(SrsAacObjectTypeAacMain, codec.aac_object_); // b[2]
+        EXPECT_EQ(4, codec.sampling_frequency_index_);         // b[2]
+        EXPECT_EQ(1, codec.channel_configuration_);            // b[3]
+        EXPECT_EQ(7, codec.frame_length_);                     // b[5]
         EXPECT_EQ(0, nb_frame);
 
-        EXPECT_EQ(SrsAudioSampleRate44100, codec.sound_rate);
-        EXPECT_EQ(0, codec.sound_type);
-        EXPECT_EQ(1, codec.sound_size);
+        EXPECT_EQ(SrsAudioSampleRate44100, codec.sound_rate_);
+        EXPECT_EQ(0, codec.sound_type_);
+        EXPECT_EQ(1, codec.sound_size_);
     }
 }
 
@@ -486,10 +486,10 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         SrsRawAacStream h;
         string sh;
         SrsRawAacStreamCodec codec;
-        codec.aac_object = SrsAacObjectTypeAacMain;
-        codec.channel_configuration = 1;
-        codec.sound_rate = SrsAudioSampleRate22050;
-        codec.sampling_frequency_index = 7;
+        codec.aac_object_ = SrsAacObjectTypeAacMain;
+        codec.channel_configuration_ = 1;
+        codec.sound_rate_ = SrsAudioSampleRate22050;
+        codec.sampling_frequency_index_ = 7;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
         EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0b, (uint8_t)sh.at(0));
@@ -501,10 +501,10 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         SrsRawAacStream h;
         string sh;
         SrsRawAacStreamCodec codec;
-        codec.aac_object = SrsAacObjectTypeAacMain;
-        codec.channel_configuration = 1;
-        codec.sound_rate = SrsAudioSampleRate11025;
-        codec.sampling_frequency_index = 0xa;
+        codec.aac_object_ = SrsAacObjectTypeAacMain;
+        codec.channel_configuration_ = 1;
+        codec.sound_rate_ = SrsAudioSampleRate11025;
+        codec.sampling_frequency_index_ = 0xa;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
         EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0d, (uint8_t)sh.at(0));
@@ -516,9 +516,9 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         SrsRawAacStream h;
         string sh;
         SrsRawAacStreamCodec codec;
-        codec.aac_object = SrsAacObjectTypeAacMain;
-        codec.sampling_frequency_index = SrsAacSampleRateUnset;
-        codec.sound_rate = SrsAudioSampleRateReserved;
+        codec.aac_object_ = SrsAacObjectTypeAacMain;
+        codec.sampling_frequency_index_ = SrsAacSampleRateUnset;
+        codec.sound_rate_ = SrsAudioSampleRateReserved;
         HELPER_EXPECT_FAILED(h.mux_sequence_header(&codec, sh));
     }
 
@@ -527,10 +527,10 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         SrsRawAacStream h;
         string sh;
         SrsRawAacStreamCodec codec;
-        codec.aac_object = SrsAacObjectTypeAacMain;
-        codec.channel_configuration = 1;
-        codec.sampling_frequency_index = 4;
-        codec.sound_rate = SrsAudioSampleRateReserved;
+        codec.aac_object_ = SrsAacObjectTypeAacMain;
+        codec.channel_configuration_ = 1;
+        codec.sampling_frequency_index_ = 4;
+        codec.sound_rate_ = SrsAudioSampleRateReserved;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
         EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0a, (uint8_t)sh.at(0));
@@ -542,7 +542,7 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         SrsRawAacStream h;
         string sh;
         SrsRawAacStreamCodec codec;
-        codec.aac_object = SrsAacObjectTypeReserved;
+        codec.aac_object_ = SrsAacObjectTypeReserved;
         HELPER_EXPECT_FAILED(h.mux_sequence_header(&codec, sh));
     }
 
@@ -551,10 +551,10 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         SrsRawAacStream h;
         string sh;
         SrsRawAacStreamCodec codec;
-        codec.aac_object = SrsAacObjectTypeAacMain;
-        codec.channel_configuration = 1;
-        codec.sound_rate = SrsAudioSampleRate44100;
-        codec.sampling_frequency_index = 4;
+        codec.aac_object_ = SrsAacObjectTypeAacMain;
+        codec.channel_configuration_ = 1;
+        codec.sound_rate_ = SrsAudioSampleRate44100;
+        codec.sampling_frequency_index_ = 4;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
         EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0a, (uint8_t)sh.at(0));
@@ -566,10 +566,10 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         SrsRawAacStream h;
         string sh;
         SrsRawAacStreamCodec codec;
-        codec.aac_object = SrsAacObjectTypeAacMain;
-        codec.channel_configuration = 1;
-        codec.sound_rate = SrsAudioSampleRate22050;
-        codec.sampling_frequency_index = 4;
+        codec.aac_object_ = SrsAacObjectTypeAacMain;
+        codec.channel_configuration_ = 1;
+        codec.sound_rate_ = SrsAudioSampleRate22050;
+        codec.sampling_frequency_index_ = 4;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
         EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0a, (uint8_t)sh.at(0));
@@ -581,10 +581,10 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         SrsRawAacStream h;
         string sh;
         SrsRawAacStreamCodec codec;
-        codec.aac_object = SrsAacObjectTypeAacMain;
-        codec.channel_configuration = 1;
-        codec.sound_rate = SrsAudioSampleRate44100;
-        codec.sampling_frequency_index = SrsAacSampleRateUnset;
+        codec.aac_object_ = SrsAacObjectTypeAacMain;
+        codec.channel_configuration_ = 1;
+        codec.sound_rate_ = SrsAudioSampleRate44100;
+        codec.sampling_frequency_index_ = SrsAacSampleRateUnset;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
         EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0a, (uint8_t)sh.at(0));
@@ -603,11 +603,11 @@ VOID TEST(SrsAVCTest, AACMuxToFLV)
         SrsRawAacStreamCodec codec;
         char *flv = NULL;
         int nb_flv = 0;
-        codec.sound_format = SrsAudioCodecIdMP3;
-        codec.sound_rate = 0;
-        codec.sound_size = 1;
-        codec.sound_type = 1;
-        codec.aac_packet_type = 4;
+        codec.sound_format_ = SrsAudioCodecIdMP3;
+        codec.sound_rate_ = 0;
+        codec.sound_size_ = 1;
+        codec.sound_type_ = 1;
+        codec.aac_packet_type_ = 4;
         HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char *)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
         EXPECT_EQ(6, nb_flv);
         EXPECT_EQ(0x23, (uint8_t)flv[0]);
@@ -622,11 +622,11 @@ VOID TEST(SrsAVCTest, AACMuxToFLV)
         SrsRawAacStreamCodec codec;
         char *flv = NULL;
         int nb_flv = 0;
-        codec.sound_format = SrsAudioCodecIdOpus;
-        codec.sound_rate = 0;
-        codec.sound_size = 1;
-        codec.sound_type = 1;
-        codec.aac_packet_type = 4;
+        codec.sound_format_ = SrsAudioCodecIdOpus;
+        codec.sound_rate_ = 0;
+        codec.sound_size_ = 1;
+        codec.sound_type_ = 1;
+        codec.aac_packet_type_ = 4;
         HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char *)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
         EXPECT_EQ(6, nb_flv);
         EXPECT_EQ(0xd3, (uint8_t)flv[0]);
@@ -641,11 +641,11 @@ VOID TEST(SrsAVCTest, AACMuxToFLV)
         SrsRawAacStreamCodec codec;
         char *flv = NULL;
         int nb_flv = 0;
-        codec.sound_format = SrsAudioCodecIdSpeex;
-        codec.sound_rate = 0;
-        codec.sound_size = 1;
-        codec.sound_type = 1;
-        codec.aac_packet_type = 4;
+        codec.sound_format_ = SrsAudioCodecIdSpeex;
+        codec.sound_rate_ = 0;
+        codec.sound_size_ = 1;
+        codec.sound_type_ = 1;
+        codec.aac_packet_type_ = 4;
         HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char *)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
         EXPECT_EQ(6, nb_flv);
         EXPECT_EQ(0xb3, (uint8_t)flv[0]);
@@ -660,11 +660,11 @@ VOID TEST(SrsAVCTest, AACMuxToFLV)
         SrsRawAacStreamCodec codec;
         char *flv = NULL;
         int nb_flv = 0;
-        codec.sound_format = SrsAudioCodecIdAAC;
-        codec.sound_rate = 0;
-        codec.sound_size = 1;
-        codec.sound_type = 1;
-        codec.aac_packet_type = 4;
+        codec.sound_format_ = SrsAudioCodecIdAAC;
+        codec.sound_rate_ = 0;
+        codec.sound_size_ = 1;
+        codec.sound_type_ = 1;
+        codec.aac_packet_type_ = 4;
         HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char *)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
         EXPECT_EQ(7, nb_flv);
         EXPECT_EQ(0xa3, (uint8_t)flv[0]);
@@ -678,11 +678,11 @@ VOID TEST(SrsAVCTest, AACMuxToFLV)
         SrsRawAacStreamCodec codec;
         char *flv = NULL;
         int nb_flv = 0;
-        codec.sound_format = SrsAudioCodecIdAAC;
-        codec.sound_rate = 1;
-        codec.sound_size = 1;
-        codec.sound_type = 0;
-        codec.aac_packet_type = 4;
+        codec.sound_format_ = SrsAudioCodecIdAAC;
+        codec.sound_rate_ = 1;
+        codec.sound_size_ = 1;
+        codec.sound_type_ = 0;
+        codec.aac_packet_type_ = 4;
         HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char *)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
         EXPECT_EQ(7, nb_flv);
         EXPECT_EQ(0xa6, (uint8_t)flv[0]);
@@ -696,11 +696,11 @@ VOID TEST(SrsAVCTest, AACMuxToFLV)
         SrsRawAacStreamCodec codec;
         char *flv = NULL;
         int nb_flv = 0;
-        codec.sound_format = SrsAudioCodecIdAAC;
-        codec.sound_rate = 1;
-        codec.sound_size = 0;
-        codec.sound_type = 1;
-        codec.aac_packet_type = 4;
+        codec.sound_format_ = SrsAudioCodecIdAAC;
+        codec.sound_rate_ = 1;
+        codec.sound_size_ = 0;
+        codec.sound_type_ = 1;
+        codec.aac_packet_type_ = 4;
         HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char *)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
         EXPECT_EQ(7, nb_flv);
         EXPECT_EQ(0xa5, (uint8_t)flv[0]);
@@ -714,11 +714,11 @@ VOID TEST(SrsAVCTest, AACMuxToFLV)
         SrsRawAacStreamCodec codec;
         char *flv = NULL;
         int nb_flv = 0;
-        codec.sound_format = SrsAudioCodecIdAAC;
-        codec.sound_rate = 1;
-        codec.sound_size = 1;
-        codec.sound_type = 1;
-        codec.aac_packet_type = 4;
+        codec.sound_format_ = SrsAudioCodecIdAAC;
+        codec.sound_rate_ = 1;
+        codec.sound_size_ = 1;
+        codec.sound_type_ = 1;
+        codec.aac_packet_type_ = 4;
         HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char *)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
         EXPECT_EQ(7, nb_flv);
         EXPECT_EQ(0xa7, (uint8_t)flv[0]);
@@ -732,11 +732,11 @@ VOID TEST(SrsAVCTest, AACMuxToFLV)
         SrsRawAacStreamCodec codec;
         char *flv = NULL;
         int nb_flv = 0;
-        codec.sound_format = SrsAudioCodecIdAAC;
-        codec.sound_rate = 3;
-        codec.sound_size = 1;
-        codec.sound_type = 1;
-        codec.aac_packet_type = 4;
+        codec.sound_format_ = SrsAudioCodecIdAAC;
+        codec.sound_rate_ = 3;
+        codec.sound_size_ = 1;
+        codec.sound_type_ = 1;
+        codec.aac_packet_type_ = 4;
         HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char *)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
         EXPECT_EQ(7, nb_flv);
         EXPECT_EQ(0xaf, (uint8_t)flv[0]);

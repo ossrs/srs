@@ -494,10 +494,10 @@ srs_error_t SrsLiveConsumer::dump_packets(SrsMessageArray *msgs, int &count)
     srs_error_t err = srs_success;
 
     srs_assert(count >= 0);
-    srs_assert(msgs->max > 0);
+    srs_assert(msgs->max_ > 0);
 
     // the count used as input to reset the max if positive.
-    int max = count ? srs_min(count, msgs->max) : msgs->max;
+    int max = count ? srs_min(count, msgs->max_) : msgs->max_;
 
     // the count specifies the max acceptable count,
     // here maybe 1+, and we must set to 0 when got nothing.
@@ -514,7 +514,7 @@ srs_error_t SrsLiveConsumer::dump_packets(SrsMessageArray *msgs, int &count)
     }
 
     // pump msgs from queue.
-    if ((err = queue->dump_packets(max, msgs->msgs, count)) != srs_success) {
+    if ((err = queue->dump_packets(max, msgs->msgs_, count)) != srs_success) {
         return srs_error_wrap(err, "dump packets");
     }
 
@@ -978,7 +978,7 @@ srs_error_t SrsOriginHub::on_audio(SrsMediaPacket *shared_audio)
 
     if ((err = hls->on_audio(msg, format)) != srs_success) {
         // apply the error strategy for hls.
-        std::string hls_error_strategy = _srs_config->get_hls_on_error(req_->vhost);
+        std::string hls_error_strategy = _srs_config->get_hls_on_error(req_->vhost_);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls: ignore audio error %s", srs_error_desc(err).c_str());
             hls->on_unpublish();
@@ -1069,7 +1069,7 @@ srs_error_t SrsOriginHub::on_video(SrsMediaPacket *shared_video, bool is_sequenc
     if ((err = hls->on_video(msg, format)) != srs_success) {
         // TODO: We should support more strategies.
         // apply the error strategy for hls.
-        std::string hls_error_strategy = _srs_config->get_hls_on_error(req_->vhost);
+        std::string hls_error_strategy = _srs_config->get_hls_on_error(req_->vhost_);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls: ignore video error %s", srs_error_desc(err).c_str());
             hls->on_unpublish();
@@ -1260,7 +1260,7 @@ srs_error_t SrsOriginHub::create_forwarders()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_forward_enabled(req_->vhost)) {
+    if (!_srs_config->get_forward_enabled(req_->vhost_)) {
         return err;
     }
 
@@ -1277,7 +1277,7 @@ srs_error_t SrsOriginHub::create_forwarders()
     }
 
     // For destanition config
-    SrsConfDirective *conf = _srs_config->get_forwards(req_->vhost);
+    SrsConfDirective *conf = _srs_config->get_forwards(req_->vhost_);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {
         std::string forward_server = conf->args.at(i);
 
@@ -1289,12 +1289,12 @@ srs_error_t SrsOriginHub::create_forwarders()
             return srs_error_wrap(err, "init forwarder");
         }
 
-        srs_utime_t queue_size = _srs_config->get_queue_length(req_->vhost);
+        srs_utime_t queue_size = _srs_config->get_queue_length(req_->vhost_);
         forwarder->set_queue_size(queue_size);
 
         if ((err = forwarder->on_publish()) != srs_success) {
             return srs_error_wrap(err, "start forwarder failed, vhost=%s, app=%s, stream=%s, forward-to=%s",
-                                  req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), forward_server.c_str());
+                                  req_->vhost_.c_str(), req_->app_.c_str(), req_->stream_.c_str(), forward_server.c_str());
         }
     }
 
@@ -1308,7 +1308,7 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool &applied)
     // default not configure backend service
     applied = false;
 
-    SrsConfDirective *conf = _srs_config->get_forward_backend(req_->vhost);
+    SrsConfDirective *conf = _srs_config->get_forward_backend(req_->vhost_);
     if (!conf || conf->arg0().empty()) {
         return err;
     }
@@ -1332,27 +1332,27 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool &applied)
 
         // create temp Request by url
         SrsUniquePtr<ISrsRequest> req(new SrsRequest());
-        srs_net_url_parse_rtmp_url(url, req->tcUrl, req->stream);
-        srs_net_url_parse_tcurl(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
+        srs_net_url_parse_rtmp_url(url, req->tcUrl_, req->stream_);
+        srs_net_url_parse_tcurl(req->tcUrl_, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
 
         // create forwarder
         SrsForwarder *forwarder = new SrsForwarder(this);
         forwarders.push_back(forwarder);
 
         std::stringstream forward_server;
-        forward_server << req->host << ":" << req->port;
+        forward_server << req->host_ << ":" << req->port_;
 
         // initialize the forwarder with request.
         if ((err = forwarder->initialize(req.get(), forward_server.str())) != srs_success) {
             return srs_error_wrap(err, "init backend forwarder failed, forward-to=%s", forward_server.str().c_str());
         }
 
-        srs_utime_t queue_size = _srs_config->get_queue_length(req_->vhost);
+        srs_utime_t queue_size = _srs_config->get_queue_length(req_->vhost_);
         forwarder->set_queue_size(queue_size);
 
         if ((err = forwarder->on_publish()) != srs_success) {
             return srs_error_wrap(err, "start backend forwarder failed, vhost=%s, app=%s, stream=%s, forward-to=%s",
-                                  req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), forward_server.str().c_str());
+                                  req_->vhost_.c_str(), req_->app_.c_str(), req_->stream_.c_str(), forward_server.str().c_str());
         }
     }
 
@@ -1479,32 +1479,32 @@ srs_error_t SrsMetaCache::update_data(SrsMessageHeader *header, SrsOnMetaDataPac
     SrsAmf0Any *prop = NULL;
 
     // when exists the duration, remove it to make ExoPlayer happy.
-    if (metadata->metadata->get_property("duration") != NULL) {
-        metadata->metadata->remove("duration");
+    if (metadata->metadata_->get_property("duration") != NULL) {
+        metadata->metadata_->remove("duration");
     }
 
     // generate metadata info to print
     std::stringstream ss;
-    if ((prop = metadata->metadata->ensure_property_number("width")) != NULL) {
+    if ((prop = metadata->metadata_->ensure_property_number("width")) != NULL) {
         ss << ", width=" << (int)prop->to_number();
     }
-    if ((prop = metadata->metadata->ensure_property_number("height")) != NULL) {
+    if ((prop = metadata->metadata_->ensure_property_number("height")) != NULL) {
         ss << ", height=" << (int)prop->to_number();
     }
-    if ((prop = metadata->metadata->ensure_property_number("videocodecid")) != NULL) {
+    if ((prop = metadata->metadata_->ensure_property_number("videocodecid")) != NULL) {
         ss << ", vcodec=" << (int)prop->to_number();
     }
-    if ((prop = metadata->metadata->ensure_property_number("audiocodecid")) != NULL) {
+    if ((prop = metadata->metadata_->ensure_property_number("audiocodecid")) != NULL) {
         ss << ", acodec=" << (int)prop->to_number();
     }
     srs_trace("got metadata%s", ss.str().c_str());
 
     // add server info to metadata
-    metadata->metadata->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
+    metadata->metadata_->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
 
     // version, for example, 1.0.0
     // add version to metadata, please donot remove it, for debug.
-    metadata->metadata->set("server_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    metadata->metadata_->set("server_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
 
     // encode the metadata to payload
     int size = 0;
@@ -1823,17 +1823,17 @@ srs_error_t SrsLiveSource::initialize(SrsSharedPtr<SrsLiveSource> wrapper, ISrsR
     srs_assert(!req);
 
     req = r->copy();
-    atc = _srs_config->get_atc(req->vhost);
+    atc = _srs_config->get_atc(req->vhost_);
 
-    jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(req->vhost);
-    mix_correct = _srs_config->get_mix_correct(req->vhost);
+    jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(req->vhost_);
+    mix_correct = _srs_config->get_mix_correct(req->vhost_);
 
     if ((err = format_->initialize()) != srs_success) {
         return srs_error_wrap(err, "format initialize");
     }
 
     // Setup the SPS/PPS parsing strategy.
-    format_->try_annexb_first_ = _srs_config->try_annexb_first(r->vhost);
+    format_->try_annexb_first_ = _srs_config->try_annexb_first(r->vhost_);
 
     if ((err = play_edge->initialize(wrapper, req)) != srs_success) {
         return srs_error_wrap(err, "edge(play)");
@@ -1842,7 +1842,7 @@ srs_error_t SrsLiveSource::initialize(SrsSharedPtr<SrsLiveSource> wrapper, ISrsR
         return srs_error_wrap(err, "edge(publish)");
     }
 
-    srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
+    srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost_);
     publish_edge->set_queue_size(queue_size);
 
     if ((err = hub->initialize(wrapper, req)) != srs_success) {
@@ -1922,9 +1922,9 @@ srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaData
 
     // if allow atc_auto and bravo-atc detected, open atc for vhost.
     SrsAmf0Any *prop = NULL;
-    atc = _srs_config->get_atc(req->vhost);
-    if (_srs_config->get_atc_auto(req->vhost)) {
-        if ((prop = metadata->metadata->get_property("bravo_atc")) != NULL) {
+    atc = _srs_config->get_atc(req->vhost_);
+    if (_srs_config->get_atc_auto(req->vhost_)) {
+        if ((prop = metadata->metadata_->get_property("bravo_atc")) != NULL) {
             if (prop->is_string() && prop->to_str() == "true") {
                 atc = true;
             }
@@ -1942,7 +1942,7 @@ srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaData
 
     // when already got metadata, drop when reduce sequence header.
     bool drop_for_reduce = false;
-    if (meta->data() && _srs_config->get_reduce_sequence_header(req->vhost)) {
+    if (meta->data() && _srs_config->get_reduce_sequence_header(req->vhost_)) {
         drop_for_reduce = true;
         srs_warn("drop for reduce sh metadata, size=%d", msg->size());
     }
@@ -2036,7 +2036,7 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsMediaPacket *msg)
 
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
-    if (is_sequence_header && meta->previous_ash() && _srs_config->get_reduce_sequence_header(req->vhost)) {
+    if (is_sequence_header && meta->previous_ash() && _srs_config->get_reduce_sequence_header(req->vhost_)) {
         if (meta->previous_ash()->size() == msg->size()) {
             drop_for_reduce = srs_bytes_equal(meta->previous_ash()->payload(), msg->payload(), msg->size());
             srs_warn("drop for reduce sh audio, size=%d", msg->size());
@@ -2136,7 +2136,7 @@ srs_error_t SrsLiveSource::on_video_imp(SrsMediaPacket *msg)
     // user can disable the sps parse to workaround when parse sps failed.
     // @see https://github.com/ossrs/srs/issues/474
     if (is_sequence_header) {
-        format_->avc_parse_sps_ = _srs_config->get_parse_sps(req->vhost);
+        format_->avc_parse_sps_ = _srs_config->get_parse_sps(req->vhost_);
     }
 
     if ((err = format_->on_video(msg)) != srs_success) {
@@ -2151,7 +2151,7 @@ srs_error_t SrsLiveSource::on_video_imp(SrsMediaPacket *msg)
 
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
-    if (is_sequence_header && meta->previous_vsh() && _srs_config->get_reduce_sequence_header(req->vhost)) {
+    if (is_sequence_header && meta->previous_vsh() && _srs_config->get_reduce_sequence_header(req->vhost_)) {
         if (meta->previous_vsh()->size() == msg->size()) {
             drop_for_reduce = srs_bytes_equal(meta->previous_vsh()->payload(), msg->payload(), msg->size());
             srs_warn("drop for reduce sh video, size=%d", msg->size());
@@ -2404,7 +2404,7 @@ srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer *&consumer)
     srs_error_t err = srs_success;
 
     // for edge, when play edge stream, check the state
-    if (_srs_config->get_vhost_is_edge(req->vhost)) {
+    if (_srs_config->get_vhost_is_edge(req->vhost_)) {
         // notice edge to start for the first client.
         if ((err = play_edge->on_client_play()) != srs_success) {
             return srs_error_wrap(err, "play edge");
@@ -2425,7 +2425,7 @@ srs_error_t SrsLiveSource::consumer_dumps(SrsLiveConsumer *consumer, bool ds, bo
 {
     srs_error_t err = srs_success;
 
-    srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
+    srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost_);
     consumer->set_queue_size(queue_size);
 
     // if atc, update the sequence header to gop cache time.
@@ -2482,7 +2482,7 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer *consumer)
 
         // For edge server, the stream die when the last player quit, because the edge stream is created by player
         // activities, so it should die when all players quit.
-        if (_srs_config->get_vhost_is_edge(req->vhost)) {
+        if (_srs_config->get_vhost_is_edge(req->vhost_)) {
             stream_die_at_ = srs_time_now_cached();
         }
 

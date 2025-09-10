@@ -126,18 +126,18 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
 
     // The RTC user config object.
     SrsRtcUserConfig ruc;
-    ruc.req_->ip = clientip;
+    ruc.req_->ip_ = clientip;
     ruc.api_ = api;
 
-    srs_net_url_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
+    srs_net_url_parse_rtmp_url(streamurl, ruc.req_->tcUrl_, ruc.req_->stream_);
 
-    srs_net_url_parse_tcurl(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost,
-                            ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
+    srs_net_url_parse_tcurl(ruc.req_->tcUrl_, ruc.req_->schema_, ruc.req_->host_, ruc.req_->vhost_,
+                            ruc.req_->app_, ruc.req_->stream_, ruc.req_->port_, ruc.req_->param_);
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
+    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost_);
     if (parsed_vhost) {
-        ruc.req_->vhost = parsed_vhost->arg0();
+        ruc.req_->vhost_ = parsed_vhost->arg0();
     }
 
     // For client to specifies the candidate(EIP) of server.
@@ -152,8 +152,8 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
 
     srs_trace(
         "RTC play %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s",
-        streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), ruc.req_->app.c_str(),
-        ruc.req_->stream.c_str(), remote_sdp_str.length(),
+        streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), ruc.req_->app_.c_str(),
+        ruc.req_->stream_.c_str(), remote_sdp_str.length(),
         eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str());
 
     ruc.eip_ = eip;
@@ -200,18 +200,18 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     SrsSdp local_sdp;
 
     // Config for SDP and session.
-    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(ruc->req_->vhost);
-    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(ruc->req_->vhost);
+    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(ruc->req_->vhost_);
+    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(ruc->req_->vhost_);
 
     // Whether enabled.
     bool server_enabled = _srs_config->get_rtc_server_enabled();
-    bool rtc_enabled = _srs_config->get_rtc_enabled(ruc->req_->vhost);
+    bool rtc_enabled = _srs_config->get_rtc_enabled(ruc->req_->vhost_);
     if (server_enabled && !rtc_enabled) {
-        srs_warn("RTC disabled in vhost %s", ruc->req_->vhost.c_str());
+        srs_warn("RTC disabled in vhost %s", ruc->req_->vhost_.c_str());
     }
     if (!server_enabled || !rtc_enabled) {
         return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
-                             server_enabled, rtc_enabled, ruc->req_->vhost.c_str());
+                             server_enabled, rtc_enabled, ruc->req_->vhost_.c_str());
     }
 
     // Whether RTC stream is active.
@@ -222,14 +222,14 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     }
 
     // For RTMP to RTC, fail if disabled and RTMP is active, see https://github.com/ossrs/srs/issues/2728
-    if (!is_rtc_stream_active && !_srs_config->get_rtc_from_rtmp(ruc->req_->vhost)) {
+    if (!is_rtc_stream_active && !_srs_config->get_rtc_from_rtmp(ruc->req_->vhost_)) {
         SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(ruc->req_);
         if (live_source.get() && !live_source->inactive()) {
-            return srs_error_new(ERROR_RTC_DISABLED, "Disabled rtmp_to_rtc of %s, see #2728", ruc->req_->vhost.c_str());
+            return srs_error_new(ERROR_RTC_DISABLED, "Disabled rtmp_to_rtc of %s, see #2728", ruc->req_->vhost_.c_str());
         }
     }
 
-    if ((err = security_->check(SrsRtcConnPlay, ruc->req_->ip, ruc->req_)) != srs_success) {
+    if ((err = security_->check(SrsRtcConnPlay, ruc->req_->ip_, ruc->req_)) != srs_success) {
         return srs_error_wrap(err, "RTC: security check");
     }
 
@@ -297,7 +297,7 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -307,7 +307,7 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(ISrsRequest *req)
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost_);
 
         if (!conf) {
             return err;
@@ -422,20 +422,20 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
 
     // The RTC user config object.
     SrsRtcUserConfig ruc;
-    ruc.req_->ip = clientip;
+    ruc.req_->ip_ = clientip;
     ruc.api_ = api;
 
-    srs_net_url_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
-    srs_net_url_parse_tcurl(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost,
-                            ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
+    srs_net_url_parse_rtmp_url(streamurl, ruc.req_->tcUrl_, ruc.req_->stream_);
+    srs_net_url_parse_tcurl(ruc.req_->tcUrl_, ruc.req_->schema_, ruc.req_->host_, ruc.req_->vhost_,
+                            ruc.req_->app_, ruc.req_->stream_, ruc.req_->port_, ruc.req_->param_);
 
     // Identify WebRTC publisher by param upstream=rtc
-    ruc.req_->param = srs_strings_trim_start(ruc.req_->param + "&upstream=rtc", "&");
+    ruc.req_->param_ = srs_strings_trim_start(ruc.req_->param_ + "&upstream=rtc", "&");
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
+    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost_);
     if (parsed_vhost) {
-        ruc.req_->vhost = parsed_vhost->arg0();
+        ruc.req_->vhost_ = parsed_vhost->arg0();
     }
 
     // For client to specifies the candidate(EIP) of server.
@@ -446,7 +446,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
     string codec = r->query_get("codec");
 
     srs_trace("RTC publish %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
-              streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), ruc.req_->app.c_str(), ruc.req_->stream.c_str(),
+              streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), ruc.req_->app_.c_str(), ruc.req_->stream_.c_str(),
               remote_sdp_str.length(), eip.c_str(), codec.c_str());
 
     ruc.eip_ = eip;
@@ -488,18 +488,18 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
 
     // TODO: FIXME: move to create_session.
     // Config for SDP and session.
-    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(ruc->req_->vhost);
-    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(ruc->req_->vhost);
+    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(ruc->req_->vhost_);
+    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(ruc->req_->vhost_);
 
     // Whether enabled.
     bool server_enabled = _srs_config->get_rtc_server_enabled();
-    bool rtc_enabled = _srs_config->get_rtc_enabled(ruc->req_->vhost);
+    bool rtc_enabled = _srs_config->get_rtc_enabled(ruc->req_->vhost_);
     if (server_enabled && !rtc_enabled) {
-        srs_warn("RTC disabled in vhost %s", ruc->req_->vhost.c_str());
+        srs_warn("RTC disabled in vhost %s", ruc->req_->vhost_.c_str());
     }
     if (!server_enabled || !rtc_enabled) {
         return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
-                             server_enabled, rtc_enabled, ruc->req_->vhost.c_str());
+                             server_enabled, rtc_enabled, ruc->req_->vhost_.c_str());
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
@@ -509,7 +509,7 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_error_wrap(err, "create session");
     }
 
-    if ((err = security_->check(SrsRtcConnPublish, ruc->req_->ip, ruc->req_)) != srs_success) {
+    if ((err = security_->check(SrsRtcConnPublish, ruc->req_->ip_, ruc->req_)) != srs_success) {
         return srs_error_wrap(err, "RTC: security check");
     }
 
@@ -572,7 +572,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -582,7 +582,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(ISrsRequest *req)
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_publish(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_publish(req->vhost_);
         if (!conf) {
             return err;
         }
@@ -657,7 +657,7 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     w->header()->set("Content-Type", "application/sdp");
     // The location for DELETE resource, not required by SRS, but required by WHIP.
     w->header()->set("Location", srs_fmt_sprintf("/rtc/v1/whip/?action=delete&token=%s&app=%s&stream=%s&session=%s",
-                                                 ruc.token_.c_str(), ruc.req_->app.c_str(), ruc.req_->stream.c_str(), ruc.session_id_.c_str()));
+                                                 ruc.token_.c_str(), ruc.req_->app_.c_str(), ruc.req_->stream_.c_str(), ruc.session_id_.c_str()));
     w->header()->set_content_length((int64_t)sdp.length());
     // Must be 201, see https://datatracker.ietf.org/doc/draft-ietf-wish-whip/
     w->write_header(201);
@@ -703,12 +703,12 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
 
     // The RTC user config object.
-    ruc->req_->ip = clientip;
-    ruc->req_->host = r->host();
-    ruc->req_->vhost = ruc->req_->host;
-    ruc->req_->app = app.empty() ? "live" : app;
-    ruc->req_->stream = stream.empty() ? "livestream" : stream;
-    ruc->req_->param = r->query();
+    ruc->req_->ip_ = clientip;
+    ruc->req_->host_ = r->host();
+    ruc->req_->vhost_ = ruc->req_->host_;
+    ruc->req_->app_ = app.empty() ? "live" : app;
+    ruc->req_->stream_ = stream.empty() ? "livestream" : stream;
+    ruc->req_->param_ = r->query();
 
     ruc->req_->ice_ufrag_ = r->query_get("ice-ufrag");
     ruc->req_->ice_pwd_ = r->query_get("ice-pwd");
@@ -720,9 +720,9 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(ruc->req_->vhost);
+    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(ruc->req_->vhost_);
     if (parsed_vhost) {
-        ruc->req_->vhost = parsed_vhost->arg0();
+        ruc->req_->vhost_ = parsed_vhost->arg0();
     }
 
     // For client to specifies whether encrypt by SRTP.
@@ -730,9 +730,9 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     string dtls = r->query_get("dtls");
 
     srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s, ufrag=%s, pwd=%s, param=%s",
-              action.c_str(), ruc->req_->get_stream_url().c_str(), clientip.c_str(), ruc->req_->app.c_str(), ruc->req_->stream.c_str(),
+              action.c_str(), ruc->req_->get_stream_url().c_str(), clientip.c_str(), ruc->req_->app_.c_str(), ruc->req_->stream_.c_str(),
               remote_sdp_str.length(), eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str(), ruc->req_->ice_ufrag_.c_str(),
-              ruc->req_->ice_pwd_.c_str(), ruc->req_->param.c_str());
+              ruc->req_->ice_pwd_.c_str(), ruc->req_->param_.c_str());
 
     ruc->eip_ = eip;
     ruc->codec_ = codec;

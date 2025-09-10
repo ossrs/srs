@@ -24,9 +24,9 @@ class MockSrsRequest : public SrsRequest
 public:
     MockSrsRequest()
     {
-        vhost = "__defaultVhost__";
-        app = "live";
-        stream = "livestream";
+        vhost_ = "__defaultVhost__";
+        app_ = "live";
+        stream_ = "livestream";
     }
     virtual ~MockSrsRequest() {}
 };

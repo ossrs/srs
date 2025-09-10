@@ -85,14 +85,14 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
 
     // If HLS stream is disabled, use SrsHttpFileServer to serve HLS, which is normal file server.
-    if (!_srs_config->get_hls_ctx_enabled(req->vhost)) {
+    if (!_srs_config->get_hls_ctx_enabled(req->vhost_)) {
         *served = false;
         return srs_success;
     }
 
     // Correct the app and stream by path, which is created from template.
     // @remark Be careful that the stream has extension now, might cause identify fail.
-    req->stream = srs_path_filepath_base(r->path());
+    req->stream_ = srs_path_filepath_base(r->path());
 
     // Served by us.
     *served = true;
@@ -100,7 +100,7 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     // Already exists context, response with rebuilt m3u8 content.
     if (!ctx.empty() && ctx_is_exist(ctx)) {
         // If HLS stream is disabled, use SrsHttpFileServer to serve HLS, which is normal file server.
-        if (!_srs_config->get_hls_ts_ctx_enabled(req->vhost)) {
+        if (!_srs_config->get_hls_ts_ctx_enabled(req->vhost_)) {
             *served = false;
             return srs_success;
         }
@@ -167,7 +167,7 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter *w, ISrsHttpM
         return srs_error_wrap(err, "stat on client");
     }
 
-    if ((err = security_->check(SrsHlsPlay, req->ip, req)) != srs_success) {
+    if ((err = security_->check(SrsHlsPlay, req->ip_, req)) != srs_success) {
         return srs_error_wrap(err, "HLS: security check");
     }
 
@@ -312,7 +312,7 @@ srs_error_t SrsHlsStream::http_hooks_on_play(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -322,7 +322,7 @@ srs_error_t SrsHlsStream::http_hooks_on_play(ISrsRequest *req)
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost_);
 
         if (!conf) {
             return err;
@@ -343,7 +343,7 @@ srs_error_t SrsHlsStream::http_hooks_on_play(ISrsRequest *req)
 
 void SrsHlsStream::http_hooks_on_stop(ISrsRequest *req)
 {
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return;
     }
 
@@ -353,7 +353,7 @@ void SrsHlsStream::http_hooks_on_stop(ISrsRequest *req)
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(req->vhost_);
 
         if (!conf) {
             srs_info("ignore the empty http callback: on_stop");
@@ -380,7 +380,7 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
         string ctx = it->first;
         SrsHlsVirtualConn *info = it->second;
 
-        srs_utime_t hls_window = _srs_config->get_hls_window(info->req->vhost);
+        srs_utime_t hls_window = _srs_config->get_hls_window(info->req->vhost_);
         if (info->request_time + (2 * hls_window) < srs_time_now_cached()) {
             SrsContextRestore(_srs_context->get_id());
             _srs_context->set_id(SrsContextId().set_value(ctx));
@@ -555,9 +555,9 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     SrsUniquePtr<ISrsRequest> req(hr->to_request(hr->host())->as_http());
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req->vhost);
+    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req->vhost_);
     if (parsed_vhost) {
-        req->vhost = parsed_vhost->arg0();
+        req->vhost_ = parsed_vhost->arg0();
     }
 
     // Try to serve by HLS streaming.

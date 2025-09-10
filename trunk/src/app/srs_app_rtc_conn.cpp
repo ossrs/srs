@@ -381,7 +381,7 @@ srs_error_t SrsRtcAsyncCallOnStop::call()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -391,7 +391,7 @@ srs_error_t SrsRtcAsyncCallOnStop::call()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(req->vhost_);
 
         if (!conf) {
             return err;
@@ -505,8 +505,8 @@ srs_error_t SrsRtcPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, Sr
     }
 
     // TODO: FIXME: Support reload.
-    nack_enabled_ = _srs_config->get_rtc_nack_enabled(req->vhost);
-    nack_no_copy_ = _srs_config->get_rtc_nack_no_copy(req->vhost);
+    nack_enabled_ = _srs_config->get_rtc_nack_enabled(req->vhost_);
+    nack_no_copy_ = _srs_config->get_rtc_nack_no_copy(req->vhost_);
     srs_trace("RTC player nack=%d, nnc=%d", nack_enabled_, nack_no_copy_);
 
     // Setup tracks.
@@ -642,8 +642,8 @@ srs_error_t SrsRtcPlayStream::cycle()
         return srs_error_wrap(err, "dumps consumer, url=%s", req_->get_stream_url().c_str());
     }
 
-    realtime = _srs_config->get_realtime_enabled(req_->vhost, true);
-    mw_msgs = _srs_config->get_mw_msgs(req_->vhost, realtime, true);
+    realtime = _srs_config->get_realtime_enabled(req_->vhost_, true);
+    mw_msgs = _srs_config->get_mw_msgs(req_->vhost_, realtime, true);
 
     // TODO: FIXME: Add cost in ms.
     SrsContextId cid = source->source_id();
@@ -1042,7 +1042,7 @@ srs_error_t SrsRtcAsyncCallOnUnpublish::call()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -1052,7 +1052,7 @@ srs_error_t SrsRtcAsyncCallOnUnpublish::call()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_unpublish(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_unpublish(req->vhost_);
 
         if (!conf) {
             return err;
@@ -1176,10 +1176,10 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
         rtcp_twcc_.set_media_ssrc(media_ssrc);
     }
 
-    nack_enabled_ = _srs_config->get_rtc_nack_enabled(req_->vhost);
-    nack_no_copy_ = _srs_config->get_rtc_nack_no_copy(req_->vhost);
-    pt_to_drop_ = (uint16_t)_srs_config->get_rtc_drop_for_pt(req_->vhost);
-    twcc_enabled_ = _srs_config->get_rtc_twcc_enabled(req_->vhost);
+    nack_enabled_ = _srs_config->get_rtc_nack_enabled(req_->vhost_);
+    nack_no_copy_ = _srs_config->get_rtc_nack_no_copy(req_->vhost_);
+    pt_to_drop_ = (uint16_t)_srs_config->get_rtc_drop_for_pt(req_->vhost_);
+    twcc_enabled_ = _srs_config->get_rtc_twcc_enabled(req_->vhost_);
 
     // No TWCC when negotiate, disable it.
     if (twcc_id <= 0) {
@@ -1213,7 +1213,7 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
 
     // Check whether SRT stream is busy.
     bool srt_server_enabled = _srs_config->get_srt_enabled();
-    bool srt_enabled = _srs_config->get_srt_enabled(r->vhost);
+    bool srt_enabled = _srs_config->get_srt_enabled(r->vhost_);
     if (srt_server_enabled && srt_enabled) {
         SrsSharedPtr<SrsSrtSource> srt;
         if ((err = _srs_srt_sources->fetch_or_create(r, srt)) != srs_success) {
@@ -1227,7 +1227,7 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
 
     // Bridge to rtmp
 #if defined(SRS_FFMPEG_FIT)
-    bool rtc_to_rtmp = _srs_config->get_rtc_to_rtmp(req_->vhost);
+    bool rtc_to_rtmp = _srs_config->get_rtc_to_rtmp(req_->vhost_);
     if (rtc_to_rtmp) {
         if ((err = _srs_sources->fetch_or_create(r, live_source)) != srs_success) {
             return srs_error_wrap(err, "create source");
@@ -2052,10 +2052,10 @@ srs_error_t SrsRtcConnection::initialize(ISrsRequest *r, bool dtls, bool srtp, s
     }
 
     // TODO: FIXME: Support reload.
-    session_timeout = _srs_config->get_rtc_stun_timeout(req_->vhost);
+    session_timeout = _srs_config->get_rtc_stun_timeout(req_->vhost_);
     last_stun_time = srs_time_now_cached();
 
-    nack_enabled_ = _srs_config->get_rtc_nack_enabled(req_->vhost);
+    nack_enabled_ = _srs_config->get_rtc_nack_enabled(req_->vhost_);
 
     srs_trace("RTC init session, user=%s, url=%s, encrypt=%u/%u, DTLS(role=%s, version=%s), timeout=%dms, nack=%d",
               username.c_str(), r->get_stream_url().c_str(), dtls, srtp, cfg->dtls_role.c_str(), cfg->dtls_version.c_str(),
@@ -2564,7 +2564,7 @@ srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket *r, string &ice_p
 
     ++_srs_pps_sstuns->sugar_;
 
-    bool strict_check = _srs_config->get_rtc_stun_strict_check(req_->vhost);
+    bool strict_check = _srs_config->get_rtc_stun_strict_check(req_->vhost_);
     if (strict_check && r->get_ice_controlled()) {
         // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-6.1.3.1
         // TODO: Send 487 (Role Conflict) error response.
@@ -2679,8 +2679,8 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig *ruc
     ISrsRequest *req = ruc->req_;
     const SrsSdp &remote_sdp = ruc->remote_sdp_;
 
-    bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
-    bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
+    bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost_);
+    bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost_);
     // TODO: FIME: Should check packetization-mode=1 also.
     bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
@@ -2989,7 +2989,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(ISrsRequest *req, SrsSd
     local_sdp.session_name_ = "SRSPublishSession";
 
     local_sdp.msid_semantic_ = "WMS";
-    std::string stream_id = req->app + "/" + req->stream;
+    std::string stream_id = req->app_ + "/" + req->stream_;
     local_sdp.msids_.push_back(stream_id);
 
     local_sdp.group_policy_ = "BUNDLE";
@@ -3111,8 +3111,8 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig *ruc, s
     ISrsRequest *req = ruc->req_;
     const SrsSdp &remote_sdp = ruc->remote_sdp_;
 
-    bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
-    bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
+    bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost_);
+    bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost_);
 
     SrsSharedPtr<SrsRtcSource> source;
     if ((err = _srs_rtc_sources->fetch_or_create(req, source)) != srs_success) {
@@ -3367,7 +3367,7 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(ISrsRequest *req, SrsSdp &
     local_sdp.session_name_ = "SRSPlaySession";
 
     local_sdp.msid_semantic_ = "WMS";
-    std::string stream_id = req->app + "/" + req->stream;
+    std::string stream_id = req->app_ + "/" + req->stream_;
     local_sdp.msids_.push_back(stream_id);
 
     local_sdp.group_policy_ = "BUNDLE";

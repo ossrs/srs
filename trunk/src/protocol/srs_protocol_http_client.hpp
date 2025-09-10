@@ -33,13 +33,13 @@ class SrsTcpClient;
 class SrsSslClient : public ISrsReader, public ISrsStreamWriter
 {
 private:
-    SrsTcpClient *transport;
+    SrsTcpClient *transport_;
 
 private:
-    SSL_CTX *ssl_ctx;
-    SSL *ssl;
-    BIO *bio_in;
-    BIO *bio_out;
+    SSL_CTX *ssl_ctx_;
+    SSL *ssl_;
+    BIO *bio_in_;
+    BIO *bio_out_;
 
 public:
     SrsSslClient(SrsTcpClient *tcp);
@@ -65,22 +65,22 @@ class SrsHttpClient
 private:
     // The underlayer TCP transport, set to NULL when disconnect, or never not NULL when connected.
     // We will disconnect transport when initialize or channel error, such as send/recv error.
-    SrsTcpClient *transport;
-    SrsHttpParser *parser;
-    std::map<std::string, std::string> headers;
-    SrsNetworkKbps *kbps;
+    SrsTcpClient *transport_;
+    SrsHttpParser *parser_;
+    std::map<std::string, std::string> headers_;
+    SrsNetworkKbps *kbps_;
 
 private:
     // The timeout in srs_utime_t.
-    srs_utime_t timeout;
-    srs_utime_t recv_timeout;
+    srs_utime_t timeout_;
+    srs_utime_t recv_timeout_;
     // The schema, host name or ip.
     std::string schema_;
-    std::string host;
-    int port;
+    std::string host_;
+    int port_;
 
 private:
-    SrsSslClient *ssl_transport;
+    SrsSslClient *ssl_transport_;
 
 public:
     SrsHttpClient();

@@ -689,7 +689,7 @@ srs_error_t SrsRtcSource::on_publish()
         }
 
         // The PLI interval for RTC2RTMP.
-        pli_for_rtmp_ = _srs_config->get_rtc_pli_for_rtmp(req->vhost);
+        pli_for_rtmp_ = _srs_config->get_rtc_pli_for_rtmp(req->vhost_);
 
         // @see SrsRtcSource::on_timer()
         _srs_shared_timer->timer100ms()->subscribe(this);
@@ -975,10 +975,10 @@ srs_error_t SrsRtcRtpBuilder::initialize(ISrsRequest *r)
     }
 
     // Setup the SPS/PPS parsing strategy.
-    format->try_annexb_first_ = _srs_config->try_annexb_first(r->vhost);
+    format->try_annexb_first_ = _srs_config->try_annexb_first(r->vhost_);
 
-    keep_bframe = _srs_config->get_rtc_keep_bframe(req->vhost);
-    keep_avc_nalu_sei = _srs_config->get_rtc_keep_avc_nalu_sei(req->vhost);
+    keep_bframe = _srs_config->get_rtc_keep_bframe(req->vhost_);
+    keep_avc_nalu_sei = _srs_config->get_rtc_keep_avc_nalu_sei(req->vhost_);
     merge_nalus = _srs_config->get_rtc_server_merge_nalus();
     srs_trace("RTC bridge from RTMP, keep_bframe=%d, keep_avc_nalu_sei=%d, merge_nalus=%d",
               keep_bframe, keep_avc_nalu_sei, merge_nalus);
@@ -1098,7 +1098,7 @@ srs_error_t SrsRtcRtpBuilder::init_codec(SrsAudioCodecId codec)
     codec_ = new SrsAudioTranscoder();
 
     // Initialize the codec according to the codec in stream.
-    int bitrate = _srs_config->get_rtc_opus_bitrate(req->vhost); // The output bitrate in bps.
+    int bitrate = _srs_config->get_rtc_opus_bitrate(req->vhost_); // The output bitrate in bps.
     if ((err = codec_->initialize(codec, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "init codec=%d", codec);
     }
@@ -1767,10 +1767,10 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     srs_freep(audio_transcoder_);
     audio_transcoder_ = new SrsAudioTranscoder();
 
-    SrsAudioCodecId to = SrsAudioCodecIdAAC;                  // The output audio codec.
-    int channels = 2;                                         // The output audio channels.
-    int sample_rate = 48000;                                  // The output audio sample rate in HZ.
-    int bitrate = _srs_config->get_rtc_aac_bitrate(r->vhost); // The output audio bitrate in bps.
+    SrsAudioCodecId to = SrsAudioCodecIdAAC;                   // The output audio codec.
+    int channels = 2;                                          // The output audio channels.
+    int sample_rate = 48000;                                   // The output audio sample rate in HZ.
+    int bitrate = _srs_config->get_rtc_aac_bitrate(r->vhost_); // The output audio bitrate in bps.
 
     // TODO: FIXME:
     // In the future, when we support enhanced-RTMP with Opus format,

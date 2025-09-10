@@ -229,8 +229,8 @@ set<string> discover_candidates(SrsRtcUserConfig *ruc)
     }
 
     // Try to discover from api of request, if api_as_candidates enabled.
-    if ((err = api_server_as_candidates(ruc->req_->host, candidate_ips)) != srs_success) {
-        srs_warn("ignore discovering ip from api %s, err %s", ruc->req_->host.c_str(), srs_error_summary(err).c_str());
+    if ((err = api_server_as_candidates(ruc->req_->host_, candidate_ips)) != srs_success) {
+        srs_warn("ignore discovering ip from api %s, err %s", ruc->req_->host_.c_str(), srs_error_summary(err).c_str());
         srs_freep(err);
     }
 

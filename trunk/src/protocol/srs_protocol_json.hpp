@@ -41,7 +41,7 @@ class SrsJsonObject;
 class SrsJsonAny
 {
 public:
-    char marker;
+    char marker_;
     // Don't directly create this object,
     // please use SrsJsonAny::str() to create a concreated one.
 protected:
@@ -103,7 +103,7 @@ class SrsJsonObject : public SrsJsonAny
 {
 private:
     typedef std::pair<std::string, SrsJsonAny *> SrsJsonObjectPropertyType;
-    std::vector<SrsJsonObjectPropertyType> properties;
+    std::vector<SrsJsonObjectPropertyType> properties_;
 
 private:
     // Use SrsJsonAny::object() to create it.
@@ -138,7 +138,7 @@ public:
 class SrsJsonArray : public SrsJsonAny
 {
 private:
-    std::vector<SrsJsonAny *> properties;
+    std::vector<SrsJsonAny *> properties_;
 
 private:
     // Use SrsJsonAny::array() to create it.

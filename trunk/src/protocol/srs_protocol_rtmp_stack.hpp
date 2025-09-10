@@ -136,55 +136,55 @@ private:
     class AckWindowSize
     {
     public:
-        uint32_t window;
+        uint32_t window_;
         // number of received bytes.
-        int64_t nb_recv_bytes;
+        int64_t nb_recv_bytes_;
         // previous responsed sequence number.
-        uint32_t sequence_number;
+        uint32_t sequence_number_;
 
         AckWindowSize();
     };
     // For peer in/out
 private:
     // The underlayer socket object, send/recv bytes.
-    ISrsProtocolReadWriter *skt;
+    ISrsProtocolReadWriter *skt_;
     // The requests sent out, used to build the response.
     // key: transactionId
     // value: the request command name
-    std::map<double, std::string> requests;
+    std::map<double, std::string> requests_;
     // For peer in
 private:
     // The chunk stream to decode RTMP messages.
-    std::map<int, SrsChunkStream *> chunk_streams;
+    std::map<int, SrsChunkStream *> chunk_streams_;
     // Cache some frequently used chunk header.
     // cs_cache, the chunk stream cache.
-    SrsChunkStream **cs_cache;
+    SrsChunkStream **cs_cache_;
     // The bytes buffer cache, recv from skt, provide services for stream.
-    SrsFastStream *in_buffer;
+    SrsFastStream *in_buffer_;
     // The input chunk size, default to 128, set by peer packet.
-    int32_t in_chunk_size;
+    int32_t in_chunk_size_;
     // The input ack window, to response acknowledge to peer,
     // For example, to respose the encoder, for server got lots of packets.
-    AckWindowSize in_ack_size;
+    AckWindowSize in_ack_size_;
     // The output ack window, to require peer to response the ack.
-    AckWindowSize out_ack_size;
+    AckWindowSize out_ack_size_;
     // The buffer length set by peer.
-    int32_t in_buffer_length;
+    int32_t in_buffer_length_;
     // Whether print the protocol level debug info.
     // Generally we print the debug info when got or send first A/V packet.
-    bool show_debug_info;
+    bool show_debug_info_;
     // Whether auto response when recv messages.
     // default to true for it's very easy to use the protocol stack.
-    bool auto_response_when_recv;
+    bool auto_response_when_recv_;
     // When not auto response message, manual flush the messages in queue.
-    std::vector<SrsRtmpCommand *> manual_response_queue;
+    std::vector<SrsRtmpCommand *> manual_response_queue_;
     // For peer out
 private:
     // Cache for multiple messages send,
     // initialize to iovec[SRS_CONSTS_IOVS_MAX] and realloc when consumed,
     // it's ok to realloc the iovs cache, for all ptr is ok.
-    iovec *out_iovs;
-    int nb_out_iovs;
+    iovec *out_iovs_;
+    int nb_out_iovs_;
     // The output header cache.
     // used for type0, 11bytes(or 15bytes with extended timestamp) header.
     // or for type3, 1bytes(or 5bytes with extended timestamp) header.
@@ -192,11 +192,11 @@ private:
     //
     // @remark, the c0c3 cache cannot be realloc.
     // To allocate it in heap to make VS2015 happy.
-    char *out_c0c3_caches;
+    char *out_c0c3_caches_;
     // Whether warned user to increase the c0c3 header cache.
-    bool warned_c0c3_cache_dry;
+    bool warned_c0c3_cache_dry_;
     // The output chunk size, default to 128, set by config.
-    int32_t out_chunk_size;
+    int32_t out_chunk_size_;
 
 public:
     SrsProtocol(ISrsProtocolReadWriter *io);
@@ -380,25 +380,25 @@ class SrsChunkStream
 public:
     // Represents the basic header fmt,
     // which used to identify the variant message header type.
-    char fmt;
+    char fmt_;
     // Represents the basic header cid,
     // which is the chunk stream id.
-    int cid;
+    int cid_;
     // Cached message header
-    SrsMessageHeader header;
+    SrsMessageHeader header_;
     // Whether the chunk message header has extended timestamp.
-    bool has_extended_timestamp;
+    bool has_extended_timestamp_;
     // The partially read message.
-    SrsRtmpCommonMessage *msg;
+    SrsRtmpCommonMessage *msg_;
     // Current writing position of message.
     char *writing_pos_;
     // Decoded msg count, to identify whether the chunk stream is fresh.
-    int64_t msg_count;
+    int64_t msg_count_;
     // Because the extended timestamp may be a delta timestamp, it can differ
     // from the timestamp in the header, so it should be stored as a distinct field
     // for comparison with the extended timestamp of subsequent chunks.
     // See https://github.com/ossrs/srs/pull/4356 for details.
-    int32_t extended_timestamp;
+    int32_t extended_timestamp_;
 
 public:
     SrsChunkStream(int _cid);
@@ -409,7 +409,7 @@ class ISrsRequest
 {
 public:
     // The client ip.
-    std::string ip;
+    std::string ip_;
 
 public:
     // Support pass vhost in RTMP URL, such as:
@@ -418,28 +418,28 @@ public:
     //    rtmp://ip:port/app?vhost=VHOST/stream
     //    rtmp://ip:port/app...vhost...VHOST/stream
     // While tcUrl is url without stream.
-    std::string tcUrl;
+    std::string tcUrl_;
 
 public:
-    std::string pageUrl;
-    std::string swfUrl;
-    double objectEncoding;
+    std::string pageUrl_;
+    std::string swfUrl_;
+    double objectEncoding_;
     // The data discovery from request.
 public:
     // Discovery from tcUrl and play/publish.
-    std::string schema;
+    std::string schema_;
     // The vhost in tcUrl.
-    std::string vhost;
+    std::string vhost_;
     // The host in tcUrl.
-    std::string host;
+    std::string host_;
     // The port in tcUrl.
-    int port;
+    int port_;
     // The app in tcUrl, without param.
-    std::string app;
+    std::string app_;
     // The param in tcUrl(app).
-    std::string param;
+    std::string param_;
     // The stream in play/publish
-    std::string stream;
+    std::string stream_;
     // User specify the ice-ufrag, the username of ice, for test only.
     std::string ice_ufrag_;
     // User specify the ice-pwd, the password of ice, for test only.
@@ -447,18 +447,18 @@ public:
     // For play live stream,
     // used to specified the stop when exceed the duration.
     // in srs_utime_t.
-    srs_utime_t duration;
+    srs_utime_t duration_;
     // The token in the connect request,
     // used for edge traverse to origin authentication,
     // @see https://github.com/ossrs/srs/issues/104
-    SrsAmf0Object *args;
+    SrsAmf0Object *args_;
 
 public:
     // The protocol of client:
     //      rtmp, Adobe RTMP protocol.
     //      flv, HTTP-FLV protocol.
     //      flvs, HTTPS-FLV protocol.
-    std::string protocol;
+    std::string protocol_;
 
 public:
     ISrsRequest();
@@ -509,7 +509,7 @@ class SrsResponse
 {
 public:
     // The stream id to response client createStream.
-    int stream_id;
+    int stream_id_;
 
 public:
     SrsResponse();
@@ -541,13 +541,13 @@ class SrsHandshakeBytes
 {
 public:
     // For RTMP proxy, the real IP.
-    uint32_t proxy_real_ip;
+    uint32_t proxy_real_ip_;
     // [1+1536]
-    char *c0c1;
+    char *c0c1_;
     // [1+1536+1536]
-    char *s0s1s2;
+    char *s0s1s2_;
     // [1536]
-    char *c2;
+    char *c2_;
 
 public:
     SrsHandshakeBytes();
@@ -567,14 +567,14 @@ public:
 
 // The information return from RTMP server.
 struct SrsServerInfo {
-    std::string ip;
-    std::string sig;
-    int pid;
-    int cid;
-    int major;
-    int minor;
-    int revision;
-    int build;
+    std::string ip_;
+    std::string sig_;
+    int pid_;
+    int cid_;
+    int major_;
+    int minor_;
+    int revision_;
+    int build_;
 
     SrsServerInfo();
 };
@@ -583,11 +583,11 @@ struct SrsServerInfo {
 class SrsRtmpClient
 {
 private:
-    SrsHandshakeBytes *hs_bytes;
+    SrsHandshakeBytes *hs_bytes_;
 
 protected:
-    SrsProtocol *protocol;
-    ISrsProtocolReadWriter *io;
+    SrsProtocol *protocol_;
+    ISrsProtocolReadWriter *io_;
 
 public:
     SrsRtmpClient(ISrsProtocolReadWriter *skt);
@@ -649,7 +649,7 @@ public:
     template <class T>
     srs_error_t expect_message(SrsRtmpCommonMessage **pmsg, T **ppacket)
     {
-        return protocol->expect_message<T>(pmsg, ppacket);
+        return protocol_->expect_message<T>(pmsg, ppacket);
     }
 };
 
@@ -659,9 +659,9 @@ public:
 class SrsRtmpServer
 {
 private:
-    SrsHandshakeBytes *hs_bytes;
-    SrsProtocol *protocol;
-    ISrsProtocolReadWriter *io;
+    SrsHandshakeBytes *hs_bytes_;
+    SrsProtocol *protocol_;
+    ISrsProtocolReadWriter *io_;
 
 public:
     SrsRtmpServer(ISrsProtocolReadWriter *skt);
@@ -821,7 +821,7 @@ public:
     template <class T>
     srs_error_t expect_message(SrsRtmpCommonMessage **pmsg, T **ppacket)
     {
-        return protocol->expect_message<T>(pmsg, ppacket);
+        return protocol_->expect_message<T>(pmsg, ppacket);
     }
 
 private:
@@ -841,17 +841,17 @@ class SrsConnectAppPacket : public SrsRtmpCommand
 {
 public:
     // Name of the command. Set to "connect".
-    std::string command_name;
+    std::string command_name_;
     // Always set to 1.
-    double transaction_id;
+    double transaction_id_;
     // Command information object which has the name-value pairs.
     // @remark: alloc in packet constructor, user can directly use it,
     //       user should never alloc it again which will cause memory leak.
     // @remark, never be NULL.
-    SrsAmf0Object *command_object;
+    SrsAmf0Object *command_object_;
     // Any optional information
     // @remark, optional, init to and maybe NULL.
-    SrsAmf0Object *args;
+    SrsAmf0Object *args_;
 
 public:
     SrsConnectAppPacket();
@@ -872,16 +872,16 @@ class SrsConnectAppResPacket : public SrsRtmpCommand
 {
 public:
     // The _result or _error; indicates whether the response is result or error.
-    std::string command_name;
+    std::string command_name_;
     // Transaction ID is 1 for call connect responses
-    double transaction_id;
+    double transaction_id_;
     // Name-value pairs that describe the properties(fmsver etc.) of the connection.
     // @remark, never be NULL.
-    SrsAmf0Object *props;
+    SrsAmf0Object *props_;
     // Name-value pairs that describe the response from|the server. 'code',
     // 'level', 'description' are names of few among such information.
     // @remark, never be NULL.
-    SrsAmf0Object *info;
+    SrsAmf0Object *info_;
 
 public:
     SrsConnectAppResPacket();
@@ -906,16 +906,16 @@ class SrsCallPacket : public SrsRtmpCommand
 {
 public:
     // Name of the remote procedure that is called.
-    std::string command_name;
+    std::string command_name_;
     // If a response is expected we give a transaction Id. Else we pass a value of 0
-    double transaction_id;
+    double transaction_id_;
     // If there exists any command info this
     // is set, else this is set to null type.
     // @remark, optional, init to and maybe NULL.
-    SrsAmf0Any *command_object;
+    SrsAmf0Any *command_object_;
     // Any optional arguments to be provided
     // @remark, optional, init to and maybe NULL.
-    SrsAmf0Any *arguments;
+    SrsAmf0Any *arguments_;
 
 public:
     SrsCallPacket();
@@ -936,15 +936,15 @@ class SrsCallResPacket : public SrsRtmpCommand
 {
 public:
     // Name of the command.
-    std::string command_name;
+    std::string command_name_;
     // ID of the command, to which the response belongs to
-    double transaction_id;
+    double transaction_id_;
     // If there exists any command info this is set, else this is set to null type.
     // @remark, optional, init to and maybe NULL.
-    SrsAmf0Any *command_object;
+    SrsAmf0Any *command_object_;
     // Response from the method that was called.
     // @remark, optional, init to and maybe NULL.
-    SrsAmf0Any *response;
+    SrsAmf0Any *response_;
 
 public:
     SrsCallResPacket(double _transaction_id);
@@ -967,12 +967,12 @@ class SrsCreateStreamPacket : public SrsRtmpCommand
 {
 public:
     // Name of the command. Set to "createStream".
-    std::string command_name;
+    std::string command_name_;
     // Transaction ID of the command.
-    double transaction_id;
+    double transaction_id_;
     // If there exists any command info this is set, else this is set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *command_object; // null
+    SrsAmf0Any *command_object_; // null
 public:
     SrsCreateStreamPacket();
     virtual ~SrsCreateStreamPacket();
@@ -995,14 +995,14 @@ class SrsCreateStreamResPacket : public SrsRtmpCommand
 {
 public:
     // The _result or _error; indicates whether the response is result or error.
-    std::string command_name;
+    std::string command_name_;
     // ID of the command that response belongs to.
-    double transaction_id;
+    double transaction_id_;
     // If there exists any command info this is set, else this is set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *command_object; // null
+    SrsAmf0Any *command_object_; // null
     // The return value is either a stream ID or an error information object.
-    double stream_id;
+    double stream_id_;
 
 public:
     SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
@@ -1024,12 +1024,12 @@ class SrsCloseStreamPacket : public SrsRtmpCommand
 {
 public:
     // Name of the command, set to "closeStream".
-    std::string command_name;
+    std::string command_name_;
     // Transaction ID set to 0.
-    double transaction_id;
+    double transaction_id_;
     // Command information object does not exist. Set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *command_object; // null
+    SrsAmf0Any *command_object_; // null
 public:
     SrsCloseStreamPacket();
     virtual ~SrsCloseStreamPacket();
@@ -1043,14 +1043,14 @@ class SrsFMLEStartPacket : public SrsRtmpCommand
 {
 public:
     // Name of the command
-    std::string command_name;
+    std::string command_name_;
     // The transaction ID to get the response.
-    double transaction_id;
+    double transaction_id_;
     // If there exists any command info this is set, else this is set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *command_object; // null
+    SrsAmf0Any *command_object_; // null
     // The stream name to start publish or release.
-    std::string stream_name;
+    std::string stream_name_;
 
 public:
     SrsFMLEStartPacket();
@@ -1078,15 +1078,15 @@ class SrsFMLEStartResPacket : public SrsRtmpCommand
 {
 public:
     // Name of the command
-    std::string command_name;
+    std::string command_name_;
     // The transaction ID to get the response.
-    double transaction_id;
+    double transaction_id_;
     // If there exists any command info this is set, else this is set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *command_object; // null
+    SrsAmf0Any *command_object_; // null
     // The optional args, set to undefined.
     // @remark, never be NULL, an AMF0 undefined instance.
-    SrsAmf0Any *args; // undefined
+    SrsAmf0Any *args_; // undefined
 public:
     SrsFMLEStartResPacket(double _transaction_id);
     virtual ~SrsFMLEStartResPacket();
@@ -1115,14 +1115,14 @@ class SrsPublishPacket : public SrsRtmpCommand
 {
 public:
     // Name of the command, set to "publish".
-    std::string command_name;
+    std::string command_name_;
     // Transaction ID set to 0.
-    double transaction_id;
+    double transaction_id_;
     // Command information object does not exist. Set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *command_object; // null
+    SrsAmf0Any *command_object_; // null
     // Name with which the stream is published.
-    std::string stream_name;
+    std::string stream_name_;
     // Type of publishing. Set to "live", "record", or "append".
     //   record: The stream is published and the data is recorded to a new file.The file
     //           is stored on the server in a subdirectory within the directory that
@@ -1133,7 +1133,7 @@ public:
     //   live: Live data is published without recording it in a file.
     // @remark, SRS only support live.
     // @remark, optional, default to live.
-    std::string type;
+    std::string type_;
 
 public:
     SrsPublishPacket();
@@ -1160,19 +1160,19 @@ class SrsPausePacket : public SrsRtmpCommand
 {
 public:
     // Name of the command, set to "pause".
-    std::string command_name;
+    std::string command_name_;
     // There is no transaction ID for this command. Set to 0.
-    double transaction_id;
+    double transaction_id_;
     // Command information object does not exist. Set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *command_object; // null
+    SrsAmf0Any *command_object_; // null
     // true or false, to indicate pausing or resuming play
-    bool is_pause;
+    bool is_pause_;
     // Number of milliseconds at which the the stream is paused or play resumed.
     // This is the current stream time at the Client when stream was paused. When the
     // playback is resumed, the server will only send messages with timestamps
     // greater than this value.
-    double time_ms;
+    double time_ms_;
 
 public:
     SrsPausePacket();
@@ -1188,12 +1188,12 @@ class SrsPlayPacket : public SrsRtmpCommand
 {
 public:
     // Name of the command. Set to "play".
-    std::string command_name;
+    std::string command_name_;
     // Transaction ID set to 0.
-    double transaction_id;
+    double transaction_id_;
     // Command information does not exist. Set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *command_object; // null
+    SrsAmf0Any *command_object_; // null
     // Name of the stream to play.
     // To play video (FLV) files, specify the name of the stream without a file
     //       extension (for example, "sample").
@@ -1202,7 +1202,7 @@ public:
     // To play H.264/AAC files, you must precede the stream name with mp4: and specify the
     //       file extension. For example, to play the file sample.m4v, specify
     //       "mp4:sample.m4v"
-    std::string stream_name;
+    std::string stream_name_;
     // An optional parameter that specifies the start time in seconds.
     // The default value is -2, which means the subscriber first tries to play the live
     //       stream specified in the Stream Name field. If a live stream of that name is
@@ -1213,7 +1213,7 @@ public:
     //       in the Stream Name field is played beginning from the time specified in the
     //       Start field.
     // If no recorded stream is found, the next item in the playlist is played.
-    double start;
+    double start_;
     // An optional parameter that specifies the duration of playback in seconds.
     // The default value is -1. The -1 value means a live stream is played until it is no
     //       longer available or a recorded stream is played until it ends.
@@ -1226,10 +1226,10 @@ public:
     //       time specified in the Duration field, playback ends when the stream ends.)
     // If you pass a negative number other than -1 in the Duration field, it interprets the
     //       value as if it were -1.
-    double duration;
+    double duration_;
     // An optional Boolean value or number that specifies whether to flush any
     // previous playlist.
-    bool reset;
+    bool reset_;
 
 public:
     SrsPlayPacket();
@@ -1253,17 +1253,17 @@ class SrsPlayResPacket : public SrsRtmpCommand
 public:
     // Name of the command. If the play command is successful, the command
     // name is set to onStatus.
-    std::string command_name;
+    std::string command_name_;
     // Transaction ID set to 0.
-    double transaction_id;
+    double transaction_id_;
     // Command information does not exist. Set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *command_object; // null
+    SrsAmf0Any *command_object_; // null
     // If the play command is successful, the client receives OnStatus message from
     // server which is NetStream.Play.Start. If the specified stream is not found,
     // NetStream.Play.StreamNotFound is received.
     // @remark, never be NULL, an AMF0 object instance.
-    SrsAmf0Object *desc;
+    SrsAmf0Object *desc_;
 
 public:
     SrsPlayResPacket();
@@ -1286,12 +1286,12 @@ class SrsOnBWDonePacket : public SrsRtmpCommand
 {
 public:
     // Name of command. Set to "onBWDone"
-    std::string command_name;
+    std::string command_name_;
     // Transaction ID set to 0.
-    double transaction_id;
+    double transaction_id_;
     // Command information does not exist. Set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *args; // null
+    SrsAmf0Any *args_; // null
 public:
     SrsOnBWDonePacket();
     virtual ~SrsOnBWDonePacket();
@@ -1313,16 +1313,16 @@ class SrsOnStatusCallPacket : public SrsRtmpCommand
 {
 public:
     // Name of command. Set to "onStatus"
-    std::string command_name;
+    std::string command_name_;
     // Transaction ID set to 0.
-    double transaction_id;
+    double transaction_id_;
     // Command information does not exist. Set to null type.
     // @remark, never be NULL, an AMF0 null instance.
-    SrsAmf0Any *args; // null
+    SrsAmf0Any *args_; // null
     // Name-value pairs that describe the response from the server.
     // 'code','level', 'description' are names of few among such information.
     // @remark, never be NULL, an AMF0 object instance.
-    SrsAmf0Object *data;
+    SrsAmf0Object *data_;
 
 public:
     SrsOnStatusCallPacket();
@@ -1346,11 +1346,11 @@ class SrsOnStatusDataPacket : public SrsRtmpCommand
 {
 public:
     // Name of command. Set to "onStatus"
-    std::string command_name;
+    std::string command_name_;
     // Name-value pairs that describe the response from the server.
     // 'code', are names of few among such information.
     // @remark, never be NULL, an AMF0 object instance.
-    SrsAmf0Object *data;
+    SrsAmf0Object *data_;
 
 public:
     SrsOnStatusDataPacket();
@@ -1374,13 +1374,13 @@ class SrsNaluSampleAccessPacket : public SrsRtmpCommand
 {
 public:
     // Name of command. Set to "|RtmpSampleAccess".
-    std::string command_name;
+    std::string command_name_;
     // Whether allow access the sample of video.
     // @see: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#videoSampleAccess
-    bool video_sample_access;
+    bool video_sample_access_;
     // Whether allow access the sample of audio.
     // @see: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#audioSampleAccess
-    bool audio_sample_access;
+    bool audio_sample_access_;
 
 public:
     SrsNaluSampleAccessPacket();
@@ -1401,10 +1401,10 @@ class SrsOnMetaDataPacket : public SrsRtmpCommand
 {
 public:
     // Name of metadata. Set to "onMetaData"
-    std::string name;
+    std::string name_;
     // Metadata of stream.
     // @remark, never be NULL, an AMF0 object instance.
-    SrsAmf0Object *metadata;
+    SrsAmf0Object *metadata_;
 
 public:
     SrsOnMetaDataPacket();
@@ -1430,7 +1430,7 @@ protected:
 class SrsSetWindowAckSizePacket : public SrsRtmpCommand
 {
 public:
-    int32_t ackowledgement_window_size;
+    int32_t ackowledgement_window_size_;
 
 public:
     SrsSetWindowAckSizePacket();
@@ -1453,7 +1453,7 @@ protected:
 class SrsAcknowledgementPacket : public SrsRtmpCommand
 {
 public:
-    uint32_t sequence_number;
+    uint32_t sequence_number_;
 
 public:
     SrsAcknowledgementPacket();
@@ -1478,7 +1478,7 @@ class SrsSetChunkSizePacket : public SrsRtmpCommand
 public:
     // The maximum chunk size can be 65536 bytes. The chunk size is
     // maintained independently for each direction.
-    int32_t chunk_size;
+    int32_t chunk_size_;
 
 public:
     SrsSetChunkSizePacket();
@@ -1510,9 +1510,9 @@ enum SrsPeerBandwidthType {
 class SrsSetPeerBandwidthPacket : public SrsRtmpCommand
 {
 public:
-    int32_t bandwidth;
+    int32_t bandwidth_;
     // @see: SrsPeerBandwidthType
-    int8_t type;
+    int8_t type_;
 
 public:
     SrsSetPeerBandwidthPacket();
@@ -1614,13 +1614,13 @@ class SrsUserControlPacket : public SrsRtmpCommand
 public:
     // Event type is followed by Event data.
     // @see: SrcPCUCEventType
-    int16_t event_type;
+    int16_t event_type_;
     // The event data generally in 4bytes.
     // @remark for event type is 0x001a, only 1bytes.
     // @see SrsPCUCFmsEvent0
-    int32_t event_data;
+    int32_t event_data_;
     // 4bytes if event_type is SetBufferLength; otherwise 0.
-    int32_t extra_data;
+    int32_t extra_data_;
 
 public:
     SrsUserControlPacket();

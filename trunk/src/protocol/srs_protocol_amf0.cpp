@@ -46,7 +46,7 @@ using namespace srs_internal;
 
 SrsAmf0Any::SrsAmf0Any()
 {
-    marker = RTMP_AMF0_Invalid;
+    marker_ = RTMP_AMF0_Invalid;
 }
 
 SrsAmf0Any::~SrsAmf0Any()
@@ -55,47 +55,47 @@ SrsAmf0Any::~SrsAmf0Any()
 
 bool SrsAmf0Any::is_string()
 {
-    return marker == RTMP_AMF0_String;
+    return marker_ == RTMP_AMF0_String;
 }
 
 bool SrsAmf0Any::is_boolean()
 {
-    return marker == RTMP_AMF0_Boolean;
+    return marker_ == RTMP_AMF0_Boolean;
 }
 
 bool SrsAmf0Any::is_number()
 {
-    return marker == RTMP_AMF0_Number;
+    return marker_ == RTMP_AMF0_Number;
 }
 
 bool SrsAmf0Any::is_null()
 {
-    return marker == RTMP_AMF0_Null;
+    return marker_ == RTMP_AMF0_Null;
 }
 
 bool SrsAmf0Any::is_undefined()
 {
-    return marker == RTMP_AMF0_Undefined;
+    return marker_ == RTMP_AMF0_Undefined;
 }
 
 bool SrsAmf0Any::is_object()
 {
-    return marker == RTMP_AMF0_Object;
+    return marker_ == RTMP_AMF0_Object;
 }
 
 bool SrsAmf0Any::is_ecma_array()
 {
-    return marker == RTMP_AMF0_EcmaArray;
+    return marker_ == RTMP_AMF0_EcmaArray;
 }
 
 bool SrsAmf0Any::is_strict_array()
 {
-    return marker == RTMP_AMF0_StrictArray;
+    return marker_ == RTMP_AMF0_StrictArray;
 }
 
 bool SrsAmf0Any::is_date()
 {
-    return marker == RTMP_AMF0_Date;
+    return marker_ == RTMP_AMF0_Date;
 }
 
 bool SrsAmf0Any::is_complex_object()
@@ -107,28 +107,28 @@ string SrsAmf0Any::to_str()
 {
     SrsAmf0String *p = dynamic_cast<SrsAmf0String *>(this);
     srs_assert(p != NULL);
-    return p->value;
+    return p->value_;
 }
 
 const char *SrsAmf0Any::to_str_raw()
 {
     SrsAmf0String *p = dynamic_cast<SrsAmf0String *>(this);
     srs_assert(p != NULL);
-    return p->value.data();
+    return p->value_.data();
 }
 
 bool SrsAmf0Any::to_boolean()
 {
     SrsAmf0Boolean *p = dynamic_cast<SrsAmf0Boolean *>(this);
     srs_assert(p != NULL);
-    return p->value;
+    return p->value_;
 }
 
 double SrsAmf0Any::to_number()
 {
     SrsAmf0Number *p = dynamic_cast<SrsAmf0Number *>(this);
     srs_assert(p != NULL);
-    return p->value;
+    return p->value_;
 }
 
 int64_t SrsAmf0Any::to_date()
@@ -170,12 +170,12 @@ void SrsAmf0Any::set_number(double value)
 {
     SrsAmf0Number *p = dynamic_cast<SrsAmf0Number *>(this);
     srs_assert(p != NULL);
-    p->value = value;
+    p->value_ = value;
 }
 
 bool SrsAmf0Any::is_object_eof()
 {
-    return marker == RTMP_AMF0_ObjectEnd;
+    return marker_ == RTMP_AMF0_ObjectEnd;
 }
 
 void srs_fill_level_spaces(stringstream &ss, int level)
@@ -273,7 +273,7 @@ char *SrsAmf0Any::human_print(char **pdata, int *psize)
 
 SrsJsonAny *SrsAmf0Any::to_json()
 {
-    switch (marker) {
+    switch (marker_) {
     case RTMP_AMF0_String: {
         return SrsJsonAny::str(to_str().c_str());
     }
@@ -442,38 +442,38 @@ SrsUnSortedHashtable::~SrsUnSortedHashtable()
 
 int SrsUnSortedHashtable::count()
 {
-    return (int)properties.size();
+    return (int)properties_.size();
 }
 
 void SrsUnSortedHashtable::clear()
 {
     std::vector<SrsAmf0ObjectPropertyType>::iterator it;
-    for (it = properties.begin(); it != properties.end(); ++it) {
+    for (it = properties_.begin(); it != properties_.end(); ++it) {
         SrsAmf0ObjectPropertyType &elem = *it;
         SrsAmf0Any *any = elem.second;
         srs_freep(any);
     }
-    properties.clear();
+    properties_.clear();
 }
 
 string SrsUnSortedHashtable::key_at(int index)
 {
     srs_assert(index < count());
-    SrsAmf0ObjectPropertyType &elem = properties[index];
+    SrsAmf0ObjectPropertyType &elem = properties_[index];
     return elem.first;
 }
 
 const char *SrsUnSortedHashtable::key_raw_at(int index)
 {
     srs_assert(index < count());
-    SrsAmf0ObjectPropertyType &elem = properties[index];
+    SrsAmf0ObjectPropertyType &elem = properties_[index];
     return elem.first.data();
 }
 
 SrsAmf0Any *SrsUnSortedHashtable::value_at(int index)
 {
     srs_assert(index < count());
-    SrsAmf0ObjectPropertyType &elem = properties[index];
+    SrsAmf0ObjectPropertyType &elem = properties_[index];
     return elem.second;
 }
 
@@ -481,20 +481,20 @@ void SrsUnSortedHashtable::set(string key, SrsAmf0Any *value)
 {
     std::vector<SrsAmf0ObjectPropertyType>::iterator it;
 
-    for (it = properties.begin(); it != properties.end(); ++it) {
+    for (it = properties_.begin(); it != properties_.end(); ++it) {
         SrsAmf0ObjectPropertyType &elem = *it;
         std::string name = elem.first;
         SrsAmf0Any *any = elem.second;
 
         if (key == name) {
             srs_freep(any);
-            it = properties.erase(it);
+            it = properties_.erase(it);
             break;
         }
     }
 
     if (value) {
-        properties.push_back(std::make_pair(key, value));
+        properties_.push_back(std::make_pair(key, value));
     }
 }
 
@@ -502,7 +502,7 @@ SrsAmf0Any *SrsUnSortedHashtable::get_property(string name)
 {
     std::vector<SrsAmf0ObjectPropertyType>::iterator it;
 
-    for (it = properties.begin(); it != properties.end(); ++it) {
+    for (it = properties_.begin(); it != properties_.end(); ++it) {
         SrsAmf0ObjectPropertyType &elem = *it;
         std::string key = elem.first;
         SrsAmf0Any *any = elem.second;
@@ -548,14 +548,14 @@ void SrsUnSortedHashtable::remove(string name)
 {
     std::vector<SrsAmf0ObjectPropertyType>::iterator it;
 
-    for (it = properties.begin(); it != properties.end();) {
+    for (it = properties_.begin(); it != properties_.end();) {
         std::string key = it->first;
         SrsAmf0Any *any = it->second;
 
         if (key == name) {
             srs_freep(any);
 
-            it = properties.erase(it);
+            it = properties_.erase(it);
         } else {
             ++it;
         }
@@ -565,7 +565,7 @@ void SrsUnSortedHashtable::remove(string name)
 void SrsUnSortedHashtable::copy(SrsUnSortedHashtable *src)
 {
     std::vector<SrsAmf0ObjectPropertyType>::iterator it;
-    for (it = src->properties.begin(); it != src->properties.end(); ++it) {
+    for (it = src->properties_.begin(); it != src->properties_.end(); ++it) {
         SrsAmf0ObjectPropertyType &elem = *it;
         std::string key = elem.first;
         SrsAmf0Any *any = elem.second;
@@ -575,7 +575,7 @@ void SrsUnSortedHashtable::copy(SrsUnSortedHashtable *src)
 
 SrsAmf0ObjectEOF::SrsAmf0ObjectEOF()
 {
-    marker = RTMP_AMF0_ObjectEnd;
+    marker_ = RTMP_AMF0_ObjectEnd;
 }
 
 SrsAmf0ObjectEOF::~SrsAmf0ObjectEOF()
@@ -640,22 +640,22 @@ SrsAmf0Any *SrsAmf0ObjectEOF::copy()
 
 SrsAmf0Object::SrsAmf0Object()
 {
-    properties = new SrsUnSortedHashtable();
-    eof = new SrsAmf0ObjectEOF();
-    marker = RTMP_AMF0_Object;
+    properties_ = new SrsUnSortedHashtable();
+    eof_ = new SrsAmf0ObjectEOF();
+    marker_ = RTMP_AMF0_Object;
 }
 
 SrsAmf0Object::~SrsAmf0Object()
 {
-    srs_freep(properties);
-    srs_freep(eof);
+    srs_freep(properties_);
+    srs_freep(eof_);
 }
 
 int SrsAmf0Object::total_size()
 {
     int size = 1;
 
-    for (int i = 0; i < properties->count(); i++) {
+    for (int i = 0; i < properties_->count(); i++) {
         std::string name = key_at(i);
         SrsAmf0Any *value = value_at(i);
 
@@ -724,7 +724,7 @@ srs_error_t SrsAmf0Object::write(SrsBuffer *stream)
     stream->write_1bytes(RTMP_AMF0_Object);
 
     // value
-    for (int i = 0; i < properties->count(); i++) {
+    for (int i = 0; i < properties_->count(); i++) {
         std::string name = this->key_at(i);
         SrsAmf0Any *any = this->value_at(i);
 
@@ -737,7 +737,7 @@ srs_error_t SrsAmf0Object::write(SrsBuffer *stream)
         }
     }
 
-    if ((err = eof->write(stream)) != srs_success) {
+    if ((err = eof_->write(stream)) != srs_success) {
         return srs_error_wrap(err, "write EOF");
     }
 
@@ -747,7 +747,7 @@ srs_error_t SrsAmf0Object::write(SrsBuffer *stream)
 SrsAmf0Any *SrsAmf0Object::copy()
 {
     SrsAmf0Object *copy = new SrsAmf0Object();
-    copy->properties->copy(properties);
+    copy->properties_->copy(properties_);
     return copy;
 }
 
@@ -755,7 +755,7 @@ SrsJsonAny *SrsAmf0Object::to_json()
 {
     SrsJsonObject *obj = SrsJsonAny::object();
 
-    for (int i = 0; i < properties->count(); i++) {
+    for (int i = 0; i < properties_->count(); i++) {
         std::string name = this->key_at(i);
         SrsAmf0Any *any = this->value_at(i);
 
@@ -767,73 +767,73 @@ SrsJsonAny *SrsAmf0Object::to_json()
 
 void SrsAmf0Object::clear()
 {
-    properties->clear();
+    properties_->clear();
 }
 
 int SrsAmf0Object::count()
 {
-    return properties->count();
+    return properties_->count();
 }
 
 string SrsAmf0Object::key_at(int index)
 {
-    return properties->key_at(index);
+    return properties_->key_at(index);
 }
 
 const char *SrsAmf0Object::key_raw_at(int index)
 {
-    return properties->key_raw_at(index);
+    return properties_->key_raw_at(index);
 }
 
 SrsAmf0Any *SrsAmf0Object::value_at(int index)
 {
-    return properties->value_at(index);
+    return properties_->value_at(index);
 }
 
 void SrsAmf0Object::set(string key, SrsAmf0Any *value)
 {
-    properties->set(key, value);
+    properties_->set(key, value);
 }
 
 SrsAmf0Any *SrsAmf0Object::get_property(string name)
 {
-    return properties->get_property(name);
+    return properties_->get_property(name);
 }
 
 SrsAmf0Any *SrsAmf0Object::ensure_property_string(string name)
 {
-    return properties->ensure_property_string(name);
+    return properties_->ensure_property_string(name);
 }
 
 SrsAmf0Any *SrsAmf0Object::ensure_property_number(string name)
 {
-    return properties->ensure_property_number(name);
+    return properties_->ensure_property_number(name);
 }
 
 void SrsAmf0Object::remove(string name)
 {
-    properties->remove(name);
+    properties_->remove(name);
 }
 
 SrsAmf0EcmaArray::SrsAmf0EcmaArray()
 {
     _count = 0;
-    properties = new SrsUnSortedHashtable();
-    eof = new SrsAmf0ObjectEOF();
-    marker = RTMP_AMF0_EcmaArray;
+    properties_ = new SrsUnSortedHashtable();
+    eof_ = new SrsAmf0ObjectEOF();
+    marker_ = RTMP_AMF0_EcmaArray;
 }
 
 SrsAmf0EcmaArray::~SrsAmf0EcmaArray()
 {
-    srs_freep(properties);
-    srs_freep(eof);
+    srs_freep(properties_);
+    srs_freep(eof_);
 }
 
 int SrsAmf0EcmaArray::total_size()
 {
     int size = 1 + 4;
 
-    for (int i = 0; i < properties->count(); i++) {
+    for (int i = 0; i < properties_->count(); i++) {
         std::string name = key_at(i);
         SrsAmf0Any *value = value_at(i);
 
@@ -917,7 +917,7 @@ srs_error_t SrsAmf0EcmaArray::write(SrsBuffer *stream)
     stream->write_4bytes(this->_count);
 
     // value
-    for (int i = 0; i < properties->count(); i++) {
+    for (int i = 0; i < properties_->count(); i++) {
         std::string name = this->key_at(i);
         SrsAmf0Any *any = this->value_at(i);
 
@@ -930,7 +930,7 @@ srs_error_t SrsAmf0EcmaArray::write(SrsBuffer *stream)
         }
     }
 
-    if ((err = eof->write(stream)) != srs_success) {
+    if ((err = eof_->write(stream)) != srs_success) {
         return srs_error_wrap(err, "write EOF");
     }
 
@@ -940,7 +940,7 @@ srs_error_t SrsAmf0EcmaArray::write(SrsBuffer *stream)
 SrsAmf0Any *SrsAmf0EcmaArray::copy()
 {
     SrsAmf0EcmaArray *copy = new SrsAmf0EcmaArray();
-    copy->properties->copy(properties);
+    copy->properties_->copy(properties_);
     copy->_count = _count;
     return copy;
 }
@@ -949,7 +949,7 @@ SrsJsonAny *SrsAmf0EcmaArray::to_json()
 {
     SrsJsonObject *obj = SrsJsonAny::object();
 
-    for (int i = 0; i < properties->count(); i++) {
+    for (int i = 0; i < properties_->count(); i++) {
         std::string name = this->key_at(i);
         SrsAmf0Any *any = this->value_at(i);
 
@@ -961,52 +961,52 @@ SrsJsonAny *SrsAmf0EcmaArray::to_json()
 
 void SrsAmf0EcmaArray::clear()
 {
-    properties->clear();
+    properties_->clear();
 }
 
 int SrsAmf0EcmaArray::count()
 {
-    return properties->count();
+    return properties_->count();
 }
 
 string SrsAmf0EcmaArray::key_at(int index)
 {
-    return properties->key_at(index);
+    return properties_->key_at(index);
 }
 
 const char *SrsAmf0EcmaArray::key_raw_at(int index)
 {
-    return properties->key_raw_at(index);
+    return properties_->key_raw_at(index);
 }
 
 SrsAmf0Any *SrsAmf0EcmaArray::value_at(int index)
 {
-    return properties->value_at(index);
+    return properties_->value_at(index);
 }
 
 void SrsAmf0EcmaArray::set(string key, SrsAmf0Any *value)
 {
-    properties->set(key, value);
+    properties_->set(key, value);
 }
 
 SrsAmf0Any *SrsAmf0EcmaArray::get_property(string name)
 {
-    return properties->get_property(name);
+    return properties_->get_property(name);
 }
 
 SrsAmf0Any *SrsAmf0EcmaArray::ensure_property_string(string name)
 {
-    return properties->ensure_property_string(name);
+    return properties_->ensure_property_string(name);
 }
 
 SrsAmf0Any *SrsAmf0EcmaArray::ensure_property_number(string name)
 {
-    return properties->ensure_property_number(name);
+    return properties_->ensure_property_number(name);
 }
 
 SrsAmf0StrictArray::SrsAmf0StrictArray()
 {
-    marker = RTMP_AMF0_StrictArray;
+    marker_ = RTMP_AMF0_StrictArray;
     _count = 0;
 }
 
@@ -1019,8 +1019,8 @@ int SrsAmf0StrictArray::total_size()
 {
     int size = 1 + 4;
 
-    for (int i = 0; i < (int)properties.size(); i++) {
-        SrsAmf0Any *any = properties[i];
+    for (int i = 0; i < (int)properties_.size(); i++) {
+        SrsAmf0Any *any = properties_[i];
         size += any->total_size();
     }
 
@@ -1059,7 +1059,7 @@ srs_error_t SrsAmf0StrictArray::read(SrsBuffer *stream)
         }
 
         // add property
-        properties.push_back(elem);
+        properties_.push_back(elem);
     }
 
     return err;
@@ -1084,8 +1084,8 @@ srs_error_t SrsAmf0StrictArray::write(SrsBuffer *stream)
     stream->write_4bytes(this->_count);
 
     // value
-    for (int i = 0; i < (int)properties.size(); i++) {
-        SrsAmf0Any *any = properties[i];
+    for (int i = 0; i < (int)properties_.size(); i++) {
+        SrsAmf0Any *any = properties_[i];
 
         if ((err = srs_amf0_write_any(stream, any)) != srs_success) {
             return srs_error_wrap(err, "write property");
@@ -1100,7 +1100,7 @@ SrsAmf0Any *SrsAmf0StrictArray::copy()
     SrsAmf0StrictArray *copy = new SrsAmf0StrictArray();
 
     std::vector<SrsAmf0Any *>::iterator it;
-    for (it = properties.begin(); it != properties.end(); ++it) {
+    for (it = properties_.begin(); it != properties_.end(); ++it) {
         SrsAmf0Any *any = *it;
         copy->append(any->copy());
     }
@@ -1113,8 +1113,8 @@ SrsJsonAny *SrsAmf0StrictArray::to_json()
 {
     SrsJsonArray *arr = SrsJsonAny::array();
 
-    for (int i = 0; i < (int)properties.size(); i++) {
-        SrsAmf0Any *any = properties[i];
+    for (int i = 0; i < (int)properties_.size(); i++) {
+        SrsAmf0Any *any = properties_[i];
 
         arr->append(any->to_json());
     }
@@ -1125,28 +1125,28 @@ SrsJsonAny *SrsAmf0StrictArray::to_json()
 void SrsAmf0StrictArray::clear()
 {
     std::vector<SrsAmf0Any *>::iterator it;
-    for (it = properties.begin(); it != properties.end(); ++it) {
+    for (it = properties_.begin(); it != properties_.end(); ++it) {
         SrsAmf0Any *any = *it;
         srs_freep(any);
     }
-    properties.clear();
+    properties_.clear();
 }
 
 int SrsAmf0StrictArray::count()
 {
-    return (int)properties.size();
+    return (int)properties_.size();
 }
 
 SrsAmf0Any *SrsAmf0StrictArray::at(int index)
 {
-    srs_assert(index < (int)properties.size());
-    return properties.at(index);
+    srs_assert(index < (int)properties_.size());
+    return properties_.at(index);
 }
 
 void SrsAmf0StrictArray::append(SrsAmf0Any *any)
 {
-    properties.push_back(any);
-    _count = (int32_t)properties.size();
+    properties_.push_back(any);
+    _count = (int32_t)properties_.size();
 }
 
 int SrsAmf0Size::utf8(string value)
@@ -1227,9 +1227,9 @@ int SrsAmf0Size::any(SrsAmf0Any *o)
 
 SrsAmf0String::SrsAmf0String(const char *_value)
 {
-    marker = RTMP_AMF0_String;
+    marker_ = RTMP_AMF0_String;
     if (_value) {
-        value = _value;
+        value_ = _value;
     }
 }
 
@@ -1239,29 +1239,29 @@ SrsAmf0String::~SrsAmf0String()
 
 int SrsAmf0String::total_size()
 {
-    return SrsAmf0Size::str(value);
+    return SrsAmf0Size::str(value_);
 }
 
 srs_error_t SrsAmf0String::read(SrsBuffer *stream)
 {
-    return srs_amf0_read_string(stream, value);
+    return srs_amf0_read_string(stream, value_);
 }
 
 srs_error_t SrsAmf0String::write(SrsBuffer *stream)
 {
-    return srs_amf0_write_string(stream, value);
+    return srs_amf0_write_string(stream, value_);
 }
 
 SrsAmf0Any *SrsAmf0String::copy()
 {
-    SrsAmf0String *copy = new SrsAmf0String(value.c_str());
+    SrsAmf0String *copy = new SrsAmf0String(value_.c_str());
     return copy;
 }
 
 SrsAmf0Boolean::SrsAmf0Boolean(bool _value)
 {
-    marker = RTMP_AMF0_Boolean;
-    value = _value;
+    marker_ = RTMP_AMF0_Boolean;
+    value_ = _value;
 }
 
 SrsAmf0Boolean::~SrsAmf0Boolean()
@@ -1275,24 +1275,24 @@ int SrsAmf0Boolean::total_size()
 
 srs_error_t SrsAmf0Boolean::read(SrsBuffer *stream)
 {
-    return srs_amf0_read_boolean(stream, value);
+    return srs_amf0_read_boolean(stream, value_);
 }
 
 srs_error_t SrsAmf0Boolean::write(SrsBuffer *stream)
 {
-    return srs_amf0_write_boolean(stream, value);
+    return srs_amf0_write_boolean(stream, value_);
 }
 
 SrsAmf0Any *SrsAmf0Boolean::copy()
 {
-    SrsAmf0Boolean *copy = new SrsAmf0Boolean(value);
+    SrsAmf0Boolean *copy = new SrsAmf0Boolean(value_);
     return copy;
 }
 
 SrsAmf0Number::SrsAmf0Number(double _value)
 {
-    marker = RTMP_AMF0_Number;
-    value = _value;
+    marker_ = RTMP_AMF0_Number;
+    value_ = _value;
 }
 
 SrsAmf0Number::~SrsAmf0Number()
@@ -1306,23 +1306,23 @@ int SrsAmf0Number::total_size()
 
 srs_error_t SrsAmf0Number::read(SrsBuffer *stream)
 {
-    return srs_amf0_read_number(stream, value);
+    return srs_amf0_read_number(stream, value_);
 }
 
 srs_error_t SrsAmf0Number::write(SrsBuffer *stream)
 {
-    return srs_amf0_write_number(stream, value);
+    return srs_amf0_write_number(stream, value_);
 }
 
 SrsAmf0Any *SrsAmf0Number::copy()
 {
-    SrsAmf0Number *copy = new SrsAmf0Number(value);
+    SrsAmf0Number *copy = new SrsAmf0Number(value_);
     return copy;
 }
 
 SrsAmf0Date::SrsAmf0Date(int64_t value)
 {
-    marker = RTMP_AMF0_Date;
+    marker_ = RTMP_AMF0_Date;
     _date_value = value;
     _time_zone = 0;
 }
@@ -1424,7 +1424,7 @@ int16_t SrsAmf0Date::time_zone()
 
 SrsAmf0Null::SrsAmf0Null()
 {
-    marker = RTMP_AMF0_Null;
+    marker_ = RTMP_AMF0_Null;
 }
 
 SrsAmf0Null::~SrsAmf0Null()
@@ -1454,7 +1454,7 @@ SrsAmf0Any *SrsAmf0Null::copy()
 
 SrsAmf0Undefined::SrsAmf0Undefined()
 {
-    marker = RTMP_AMF0_Undefined;
+    marker_ = RTMP_AMF0_Undefined;
 }
 
 SrsAmf0Undefined::~SrsAmf0Undefined()

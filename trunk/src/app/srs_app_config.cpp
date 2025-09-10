@@ -355,7 +355,7 @@ bool srs_config_apply_filter(SrsConfDirective *dvr_apply, ISrsRequest *req)
         return true;
     }
 
-    string id = req->app + "/" + req->stream;
+    string id = req->app_ + "/" + req->stream_;
     if (std::find(args.begin(), args.end(), id) != args.end()) {
         return true;
     }

@@ -275,7 +275,7 @@ srs_error_t SrsDvrAsyncCallOnHls::call()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -285,7 +285,7 @@ srs_error_t SrsDvrAsyncCallOnHls::call()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_hls(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_hls(req->vhost_);
 
         if (!conf) {
             return err;
@@ -325,7 +325,7 @@ srs_error_t SrsDvrAsyncCallOnHlsNotify::call()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -335,7 +335,7 @@ srs_error_t SrsDvrAsyncCallOnHlsNotify::call()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_hls_notify(req->vhost);
+        SrsConfDirective *conf = _srs_config->get_vhost_on_hls_notify(req->vhost_);
 
         if (!conf) {
             return err;
@@ -344,7 +344,7 @@ srs_error_t SrsDvrAsyncCallOnHlsNotify::call()
         hooks = conf->args;
     }
 
-    int nb_notify = _srs_config->get_vhost_hls_nb_notify(req->vhost);
+    int nb_notify = _srs_config->get_vhost_hls_nb_notify(req->vhost_);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
         if ((err = _srs_hooks->on_hls_notify(cid, url, req, ts_url, nb_notify)) != srs_success) {
@@ -494,9 +494,9 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
 {
     srs_error_t err = srs_success;
 
-    std::string vhost = req_->vhost;
-    std::string stream = req_->stream;
-    std::string app = req_->app;
+    std::string vhost = req_->vhost_;
+    std::string stream = req_->stream_;
+    std::string app = req_->app_;
 
     // Get init.mp4 file template from configuration
     std::string init_file = _srs_config->get_hls_init_file(vhost);
@@ -645,9 +645,9 @@ srs_error_t SrsHlsFmp4Muxer::update_config(ISrsRequest *r)
     srs_freep(req_);
     req_ = r->copy();
 
-    std::string vhost = req_->vhost;
-    std::string stream = req_->stream;
-    std::string app = req_->app;
+    std::string vhost = req_->vhost_;
+    std::string stream = req_->stream_;
+    std::string app = req_->app_;
 
     hls_fragment_ = _srs_config->get_hls_fragment(vhost);
     double hls_td_ratio = _srs_config->get_hls_td_ratio(vhost);
@@ -722,7 +722,7 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
 
     // generate filename.
     std::string m4s_file = hls_m4s_file_;
-    m4s_file = srs_path_build_stream(m4s_file, req_->vhost, req_->app, req_->stream);
+    m4s_file = srs_path_build_stream(m4s_file, req_->vhost_, req_->app_, req_->stream_);
     if (hls_ts_floor_) {
         // accept the floor ts for the first piece.
         int64_t current_floor_ts = srs_time_now_realtime() / hls_fragment_;
@@ -903,7 +903,7 @@ srs_error_t SrsHlsFmp4Muxer::write_hls_key()
             return srs_error_wrap(err, "rand iv failed.");
         }
 
-        string key_file = srs_path_build_stream(hls_key_file_, req_->vhost, req_->app, req_->stream);
+        string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
         key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(current_->sequence_no));
         string key_url = hls_key_file_path_ + "/" + key_file;
 
@@ -1016,7 +1016,7 @@ srs_error_t SrsHlsFmp4Muxer::_refresh_m3u8(std::string m3u8_file)
             srs_hex_encode_to_string(hexiv, segment->iv, 16);
             hexiv[32] = '\0';
 
-            string key_file = srs_path_build_stream(hls_key_file_, req_->vhost, req_->app, req_->stream);
+            string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
             key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no));
 
             string key_path = key_file;
@@ -1236,11 +1236,11 @@ srs_error_t SrsHlsMuxer::update_config(ISrsRequest *r, string entry_prefix,
     hls_key_url = key_url;
 
     // generate the m3u8 dir and path.
-    m3u8_url = srs_path_build_stream(m3u8_file, req->vhost, req->app, req->stream);
+    m3u8_url = srs_path_build_stream(m3u8_file, req->vhost_, req->app_, req->stream_);
     m3u8 = path + "/" + m3u8_url;
 
     // when update config, reset the history target duration.
-    max_td = fragment * _srs_config->get_hls_td_ratio(r->vhost);
+    max_td = fragment * _srs_config->get_hls_td_ratio(r->vhost_);
 
     // create m3u8 dir once.
     m3u8_dir = srs_path_filepath_dir(m3u8);
@@ -1249,7 +1249,7 @@ srs_error_t SrsHlsMuxer::update_config(ISrsRequest *r, string entry_prefix,
     }
 
     if (hls_keys && (hls_path != hls_key_file_path)) {
-        string key_file = srs_path_build_stream(hls_key_file, req->vhost, req->app, req->stream);
+        string key_file = srs_path_build_stream(hls_key_file, req->vhost_, req->app_, req->stream_);
         string key_url = hls_key_file_path + "/" + key_file;
         string key_dir = srs_path_filepath_dir(key_url);
         if ((err = srs_os_mkdir_all(key_dir)) != srs_success) {
@@ -1382,7 +1382,7 @@ srs_error_t SrsHlsMuxer::recover_hls()
             // new segment.
             SrsHlsSegment *seg = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
             seg->sequence_no = _sequence_no++;
-            seg->set_path(hls_path + "/" + req->app + "/" + ts_url);
+            seg->set_path(hls_path + "/" + req->app_ + "/" + ts_url);
             seg->uri = ts_url;
             seg->set_sequence_header(discon);
 
@@ -1448,7 +1448,7 @@ srs_error_t SrsHlsMuxer::segment_open()
 
     // generate filename.
     std::string ts_file = hls_ts_file;
-    ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
+    ts_file = srs_path_build_stream(ts_file, req->vhost_, req->app_, req->stream_);
     if (hls_ts_floor) {
         // accept the floor ts for the first piece.
         int64_t current_floor_ts = srs_time_now_realtime() / hls_fragment;
@@ -1741,7 +1741,7 @@ srs_error_t SrsHlsMuxer::write_hls_key()
             return srs_error_wrap(err, "rand iv failed.");
         }
 
-        string key_file = srs_path_build_stream(hls_key_file, req->vhost, req->app, req->stream);
+        string key_file = srs_path_build_stream(hls_key_file, req->vhost_, req->app_, req->stream_);
         key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(current->sequence_no));
         string key_url = hls_key_file_path + "/" + key_file;
 
@@ -1852,7 +1852,7 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
             srs_hex_encode_to_string(hexiv, segment->iv, 16);
             hexiv[32] = '\0';
 
-            string key_file = srs_path_build_stream(hls_key_file, req->vhost, req->app, req->stream);
+            string key_file = srs_path_build_stream(hls_key_file, req->vhost_, req->app_, req->stream_);
             key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no));
 
             string key_path = key_file;
@@ -1957,9 +1957,9 @@ srs_error_t SrsHlsController::on_publish(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    std::string vhost = req->vhost;
-    std::string stream = req->stream;
-    std::string app = req->app;
+    std::string vhost = req->vhost_;
+    std::string stream = req->stream_;
+    std::string app = req->app_;
 
     srs_utime_t hls_fragment = _srs_config->get_hls_fragment(vhost);
     double hls_td_ratio = _srs_config->get_hls_td_ratio(vhost);
@@ -2011,7 +2011,7 @@ srs_error_t SrsHlsController::on_publish(ISrsRequest *req)
     // This config item is used in SrsHls, we just log its value here.
     // If enabled, directly turn FLV timestamp to TS DTS.
     // @remark It'll be reloaded automatically, because the origin hub will republish while reloading.
-    hls_dts_directly = _srs_config->get_vhost_hls_dts_directly(req->vhost);
+    hls_dts_directly = _srs_config->get_vhost_hls_dts_directly(req->vhost_);
 
     srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, tdr=%.2f, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms, dts_directly=%d",
               srsu2msi(hls_window), srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(), ts_file.c_str(),
@@ -2268,9 +2268,9 @@ srs_error_t SrsHlsMp4Controller::on_publish(ISrsRequest *req)
     srs_error_t err = srs_success;
 
     req_ = req;
-    std::string vhost = req->vhost;
-    std::string stream = req->stream;
-    std::string app = req->app;
+    std::string vhost = req->vhost_;
+    std::string stream = req->stream_;
+    std::string app = req->app_;
 
     // get the hls m3u8 ts list entry prefix config
     std::string entry_prefix = _srs_config->get_hls_entry_prefix(vhost);
@@ -2483,7 +2483,7 @@ void SrsHls::dispose()
 
     // Ignore when hls_dispose disabled.
     // @see https://github.com/ossrs/srs/issues/865
-    srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
+    srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost_);
     if (!hls_dispose) {
         return;
     }
@@ -2512,7 +2512,7 @@ srs_error_t SrsHls::cycle()
         return err;
 
     // If not unpublishing and not reloading, try to dispose HLS stream.
-    srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
+    srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost_);
     if (hls_dispose <= 0) {
         return err;
     }
@@ -2535,7 +2535,7 @@ srs_error_t SrsHls::cycle()
 srs_utime_t SrsHls::cleanup_delay()
 {
     // We use larger timeout to cleanup the HLS, after disposed it if required.
-    return _srs_config->get_hls_dispose(req->vhost) * 1.1;
+    return _srs_config->get_hls_dispose(req->vhost_) * 1.1;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -2551,7 +2551,7 @@ srs_error_t SrsHls::initialize(SrsOriginHub *h, ISrsRequest *r)
     hub = h;
     req = r;
 
-    bool is_fmp4_enabled = _srs_config->get_hls_use_fmp4(r->vhost);
+    bool is_fmp4_enabled = _srs_config->get_hls_use_fmp4(r->vhost_);
 
     if (!controller) {
         if (is_fmp4_enabled) {
@@ -2580,7 +2580,7 @@ srs_error_t SrsHls::on_publish()
         return err;
     }
 
-    if (!_srs_config->get_hls_enabled(req->vhost)) {
+    if (!_srs_config->get_hls_enabled(req->vhost_)) {
         return err;
     }
 

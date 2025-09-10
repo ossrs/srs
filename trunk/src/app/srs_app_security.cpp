@@ -24,12 +24,12 @@ srs_error_t SrsSecurity::check(SrsRtmpConnType type, string ip, ISrsRequest *req
     srs_error_t err = srs_success;
 
     // allow all if security disabled.
-    if (!_srs_config->get_security_enabled(req->vhost)) {
+    if (!_srs_config->get_security_enabled(req->vhost_)) {
         return err; // OK
     }
 
     // rules to apply
-    SrsConfDirective *rules = _srs_config->get_security_rules(req->vhost);
+    SrsConfDirective *rules = _srs_config->get_security_rules(req->vhost_);
     return do_check(rules, type, ip, req);
 }
 

@@ -31,18 +31,18 @@ class SrsAmf0Object;
 class SrsBasicRtmpClient
 {
 private:
-    std::string url;
-    srs_utime_t connect_timeout;
-    srs_utime_t stream_timeout;
+    std::string url_;
+    srs_utime_t connect_timeout_;
+    srs_utime_t stream_timeout_;
 
 protected:
-    ISrsRequest *req;
+    ISrsRequest *req_;
 
 private:
-    SrsTcpClient *transport;
-    SrsRtmpClient *client;
-    SrsNetworkKbps *kbps;
-    int stream_id;
+    SrsTcpClient *transport_;
+    SrsRtmpClient *client_;
+    SrsNetworkKbps *kbps_;
+    int stream_id_;
 
 public:
     // Constructor.

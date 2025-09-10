@@ -98,7 +98,7 @@ SrsJsonAny *SrsCoWorkers::dumps(string vhost, string coworker, string app, strin
     return SrsJsonAny::object()
         ->set("ip", SrsJsonAny::str(service_ip.c_str()))
         ->set("port", SrsJsonAny::integer(listen_port))
-        ->set("vhost", SrsJsonAny::str(r->vhost.c_str()))
+        ->set("vhost", SrsJsonAny::str(r->vhost_.c_str()))
         ->set("api", SrsJsonAny::str(backend.c_str()))
         ->set("routers", routers);
 }

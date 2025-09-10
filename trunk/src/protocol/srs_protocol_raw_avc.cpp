@@ -755,30 +755,30 @@ srs_error_t SrsRawAacStream::adts_demux(SrsBuffer *stream, char **pframe, int *p
         }
 
         // the codec info.
-        codec.protection_absent = protection_absent;
-        codec.aac_object = srs_aac_ts2rtmp((SrsAacProfile)profile);
-        codec.sampling_frequency_index = sampling_frequency_index;
-        codec.channel_configuration = channel_configuration;
-        codec.frame_length = frame_length;
+        codec.protection_absent_ = protection_absent;
+        codec.aac_object_ = srs_aac_ts2rtmp((SrsAacProfile)profile);
+        codec.sampling_frequency_index_ = sampling_frequency_index;
+        codec.channel_configuration_ = channel_configuration;
+        codec.frame_length_ = frame_length;
 
         // The aac sampleing rate defined in srs_aac_srates.
         // TODO: FIXME: maybe need to resample audio.
-        codec.sound_format = 10; // AAC
+        codec.sound_format_ = 10; // AAC
         if (sampling_frequency_index <= 0x0c && sampling_frequency_index > 0x0a) {
-            codec.sound_rate = SrsAudioSampleRate5512;
+            codec.sound_rate_ = SrsAudioSampleRate5512;
         } else if (sampling_frequency_index <= 0x0a && sampling_frequency_index > 0x07) {
-            codec.sound_rate = SrsAudioSampleRate11025;
+            codec.sound_rate_ = SrsAudioSampleRate11025;
         } else if (sampling_frequency_index <= 0x07 && sampling_frequency_index > 0x04) {
-            codec.sound_rate = SrsAudioSampleRate22050;
+            codec.sound_rate_ = SrsAudioSampleRate22050;
         } else if (sampling_frequency_index <= 0x04) {
-            codec.sound_rate = SrsAudioSampleRate44100;
+            codec.sound_rate_ = SrsAudioSampleRate44100;
         } else {
-            codec.sound_rate = SrsAudioSampleRate44100;
+            codec.sound_rate_ = SrsAudioSampleRate44100;
             srs_warn("adts invalid sample rate for flv, rate=%#x", sampling_frequency_index);
         }
-        codec.sound_type = srs_max(0, srs_min(1, channel_configuration - 1));
+        codec.sound_type_ = srs_max(0, srs_min(1, channel_configuration - 1));
         // TODO: FIXME: finger it out the sound size by adts.
-        codec.sound_size = 1; // 0(8bits) or 1(16bits).
+        codec.sound_size_ = 1; // 0(8bits) or 1(16bits).
 
         // frame data.
         *pframe = stream->data() + stream->pos();
@@ -796,12 +796,12 @@ srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec *codec, st
     srs_error_t err = srs_success;
 
     // only support aac profile 1-4.
-    if (codec->aac_object == SrsAacObjectTypeReserved) {
+    if (codec->aac_object_ == SrsAacObjectTypeReserved) {
         return srs_error_new(ERROR_AAC_DATA_INVALID, "invalid aac object");
     }
 
-    SrsAacObjectType audioObjectType = codec->aac_object;
-    char channelConfiguration = codec->channel_configuration;
+    SrsAacObjectType audioObjectType = codec->aac_object_;
+    char channelConfiguration = codec->channel_configuration_;
 
     // Here we are generating AAC sequence header, the ASC structure,
     // because we have already parsed the sampling rate from AAC codec,
@@ -810,9 +810,9 @@ srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec *codec, st
     // For example, AAC sampling_frequency_index is 3(48000HZ) or 4(44100HZ),
     // the sound_rate is always 3(44100HZ), if we covert sound_rate to
     // sampling_frequency_index, we may make mistake.
-    uint8_t samplingFrequencyIndex = (uint8_t)codec->sampling_frequency_index;
+    uint8_t samplingFrequencyIndex = (uint8_t)codec->sampling_frequency_index_;
     if (samplingFrequencyIndex >= SrsAacSampleRateUnset) {
-        switch (codec->sound_rate) {
+        switch (codec->sound_rate_) {
         case SrsAudioSampleRate5512:
             samplingFrequencyIndex = 0x0c;
             break;
@@ -864,11 +864,11 @@ srs_error_t SrsRawAacStream::mux_aac2flv(char *frame, int nb_frame, SrsRawAacStr
 {
     srs_error_t err = srs_success;
 
-    char sound_format = codec->sound_format;
-    char sound_type = codec->sound_type;
-    char sound_size = codec->sound_size;
-    char sound_rate = codec->sound_rate;
-    char aac_packet_type = codec->aac_packet_type;
+    char sound_format = codec->sound_format_;
+    char sound_type = codec->sound_type_;
+    char sound_size = codec->sound_size_;
+    char sound_rate = codec->sound_rate_;
+    char aac_packet_type = codec->aac_packet_type_;
 
     // for audio frame, there is 1 or 2 bytes header:
     //      1bytes, SoundFormat|SoundRate|SoundSize|SoundType

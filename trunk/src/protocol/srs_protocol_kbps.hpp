@@ -18,22 +18,22 @@
 class SrsKbpsSlice
 {
 private:
-    SrsWallClock *clk;
+    SrsWallClock *clk_;
 
 public:
     // session startup bytes
     // @remark, use total_bytes() to get the total bytes of slice.
-    int64_t bytes;
+    int64_t bytes_;
     // slice starttime, the first time to record bytes.
-    srs_utime_t starttime;
+    srs_utime_t starttime_;
     // samples
-    SrsRateSample sample_30s;
-    SrsRateSample sample_1m;
-    SrsRateSample sample_5m;
-    SrsRateSample sample_60m;
+    SrsRateSample sample_30s_;
+    SrsRateSample sample_1m_;
+    SrsRateSample sample_5m_;
+    SrsRateSample sample_60m_;
 
 public:
-    SrsKbpsSlice(SrsWallClock *clk);
+    SrsKbpsSlice(SrsWallClock *c);
     virtual ~SrsKbpsSlice();
 
 public:
@@ -119,9 +119,9 @@ public:
 class SrsKbps
 {
 private:
-    SrsKbpsSlice *is;
-    SrsKbpsSlice *os;
-    SrsWallClock *clk;
+    SrsKbpsSlice *is_;
+    SrsKbpsSlice *os_;
+    SrsWallClock *clk_;
 
 public:
     // Note that we won't free the clock c.

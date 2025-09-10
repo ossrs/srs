@@ -20,7 +20,7 @@
 class SrsThreadContext : public ISrsContext
 {
 private:
-    std::map<srs_thread_t, SrsContextId> cache;
+    std::map<srs_thread_t, SrsContextId> cache_;
 
 public:
     SrsThreadContext();
@@ -57,10 +57,10 @@ class SrsConsoleLog : public ISrsLog
 {
 private:
     SrsLogLevel level_;
-    bool utc;
+    bool utc_;
 
 private:
-    char *buffer;
+    char *buffer_;
 
 public:
     SrsConsoleLog(SrsLogLevel l, bool u);

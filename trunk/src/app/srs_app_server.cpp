@@ -1342,7 +1342,7 @@ srs_error_t SrsServer::create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_s
 
     // Security or system flow control check. For WebRTC, use 0 as fd and port, because for
     // the WebRTC HTTP API, it's not useful information.
-    if ((err = on_before_connection("RTC", (int)0, req->ip, 0)) != srs_success) {
+    if ((err = on_before_connection("RTC", (int)0, req->ip_, 0)) != srs_success) {
         return srs_error_wrap(err, "check");
     }
 
