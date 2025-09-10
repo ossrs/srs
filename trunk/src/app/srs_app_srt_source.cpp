@@ -673,7 +673,6 @@ srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage *msg)
     uint32_t dts = (uint32_t)(msg->dts_ / 90);
     uint32_t pts = (uint32_t)(msg->pts_ / 90);
 
-
     std::string sh;
     SrsUniquePtr<SrsRawHEVCStream> hevc(new SrsRawHEVCStream());
 
