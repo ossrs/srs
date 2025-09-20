@@ -12,8 +12,6 @@
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_codec.hpp>
 
-#include <vector>
-
 class ISrsRequest;
 class SrsMediaPacket;
 class SrsLiveSource;
@@ -22,8 +20,10 @@ class SrsRtmpFormat;
 class SrsMetaCache;
 class SrsRtpPacket;
 class SrsRtcRtpBuilder;
+#ifdef SRS_RTSP
 class SrsRtspSource;
 class SrsRtspRtpBuilder;
+#endif
 class SrsRtcFrameBuilder;
 class ISrsStreamBridge;
 class SrsSrtFrameBuilder;
@@ -94,7 +94,9 @@ private:
 #endif
     // The Source bridge, bridge stream to other source.
     SrsSharedPtr<SrsRtcSource> rtc_target_;
+#ifdef SRS_RTSP
     SrsSharedPtr<SrsRtspSource> rtsp_target_;
+#endif
 
 public:
     SrsRtmpBridge();
@@ -103,7 +105,9 @@ public:
 public:
     bool empty();
     void enable_rtmp2rtc(SrsSharedPtr<SrsRtcSource> rtc_source);
+#ifdef SRS_RTSP
     void enable_rtmp2rtsp(SrsSharedPtr<SrsRtspSource> rtsp_source);
+#endif
 
 public:
     virtual srs_error_t initialize(ISrsRequest *r);
