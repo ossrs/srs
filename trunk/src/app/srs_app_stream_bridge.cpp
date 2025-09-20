@@ -79,11 +79,17 @@ SrsRtmpBridge::~SrsRtmpBridge()
 
 bool SrsRtmpBridge::empty()
 {
+    if (rtc_target_.get()) {
+        return false;
+    }
+
 #ifdef SRS_RTSP
-    return !rtc_target_.get() || !rtsp_target_.get();
-#else
-    return !rtc_target_.get();
+    if (rtsp_target_.get()) {
+        return false;
+    }
 #endif
+
+    return true;
 }
 
 void SrsRtmpBridge::enable_rtmp2rtc(SrsSharedPtr<SrsRtcSource> rtc_source)
