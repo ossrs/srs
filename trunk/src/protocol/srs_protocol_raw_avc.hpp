@@ -89,22 +89,28 @@ public:
     // @param ibp output the packet.
     // @param frame_type output the frame type.
     virtual srs_error_t mux_ipb_frame(char *frame, int nb_frame, std::string &ibp);
-    // Mux the hevc video packet to flv video packet.
+    // Mux the hevc video packet to flv video packet using non-standard HEVC codec ID.
+    // This method uses the conventional approach adopted by domestic CDN vendors in China,
+    // which adds a new codecID (12) to the FLV video tag for HEVC support.
+    // NOTE: This is a non-standard extension compared to enhanced-rtmp.
+    // The enhanced-rtmp approach (mux_hevc2flv_enhanced) is more universal and recommended.
     // @param frame_type, SrsVideoAvcFrameTypeKeyFrame or SrsVideoAvcFrameTypeInterFrame.
     // @param avc_packet_type, SrsVideoAvcFrameTraitSequenceHeader or SrsVideoAvcFrameTraitNALU.
     // @param video the hevc raw data.
     // @param flv output the muxed flv packet.
     // @param nb_flv output the muxed flv size.
-    virtual srs_error_t mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv);
-    // Mux the hevc video packet to flv video packet, enhanced mode.
+    virtual srs_error_t mux_hevc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv);
+    // Mux the hevc video packet to flv video packet using enhanced-rtmp standard.
+    // This method follows the enhanced-rtmp specification, which is the more universal
+    // and standardized approach for HEVC support in FLV/RTMP streams.
+    // Enhanced-rtmp uses fourcc 'hvc1' for HEVC codec identification instead of codec ID.
+    // @see https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf
     // @param packet_type, SrsVideoHEVCFrameTraitPacketTypeSequenceStart or SrsVideoHEVCFrameTraitPacketTypeCodedFrames.
     // @param frame_type, SrsVideoAvcFrameTypeKeyFrame or SrsVideoAvcFrameTypeInterFrame.
     // @param video the hevc raw data.
     // @param flv output the muxed flv packet.
     // @param nb_flv output the muxed flv size.
-    // TODO: Rename method to mux_hevc2flv_enhanced since AVC is an alias for H.264, not H.265/HEVC.
-    //       This affects other modules like SRT and GB28181, so should be done in a separate refactoring.
-    virtual srs_error_t mux_avc2flv_enhanced(std::string video, int8_t frame_type, int8_t packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv);
+    virtual srs_error_t mux_hevc2flv_enhanced(std::string video, int8_t frame_type, int8_t packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv);
 };
 
 // The header of adts sample.

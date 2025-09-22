@@ -683,7 +683,7 @@ srs_error_t SrsSrtFrameBuilder::check_vps_sps_pps_change(SrsTsMessage *msg)
     // h265 packet to flv packet.
     char *flv = NULL;
     int nb_flv = 0;
-    if ((err = hevc->mux_avc2flv_enhanced(sh,
+    if ((err = hevc->mux_hevc2flv_enhanced(sh,
                                           SrsVideoAvcFrameTypeKeyFrame,
                                           SrsVideoHEVCFrameTraitPacketTypeSequenceStart,
                                           dts,

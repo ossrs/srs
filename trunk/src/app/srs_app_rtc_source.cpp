@@ -2163,7 +2163,7 @@ srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_hevc(SrsRtpPacket *pkt
 
     char *flv = NULL;
     int nb_flv = 0;
-    if ((err = hevc->mux_avc2flv_enhanced(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoHEVCFrameTraitPacketTypeSequenceStart, pkt->get_avsync_time(),
+    if ((err = hevc->mux_hevc2flv_enhanced(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoHEVCFrameTraitPacketTypeSequenceStart, pkt->get_avsync_time(),
                                           pkt->get_avsync_time(), &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "mux sequence header");
     }

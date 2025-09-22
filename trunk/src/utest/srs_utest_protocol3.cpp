@@ -760,13 +760,13 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxIpbFrame)
     }
 }
 
-VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
+VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxHevc2flv)
 {
     srs_error_t err = srs_success;
 
     SrsRawHEVCStream hevc;
 
-    // Test mux_avc2flv with sequence header
+    // Test mux_hevc2flv with sequence header
     if (true) {
         std::string video_data = std::string("\x01\x64\x00\x20\xff\xe1\x00\x19\x67\x64\x00\x20", 12);
         int8_t frame_type = 1;      // keyframe
@@ -776,7 +776,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv(video_data, frame_type, avc_packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv(video_data, frame_type, avc_packet_type, dts, pts, &flv_data, &nb_flv));
 
         // Should produce FLV packet with 5-byte header + video data
         EXPECT_TRUE(flv_data != NULL);
@@ -798,7 +798,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
         }
     }
 
-    // Test mux_avc2flv with NALU frame
+    // Test mux_hevc2flv with NALU frame
     if (true) {
         std::string video_data = std::string("\x00\x00\x00\x0e\x26\x01\xaf\x06\xb8\x63\xef\x3a\x7f\x3c\x00\x01\x00\x80", 18);
         int8_t frame_type = 1;      // keyframe
@@ -808,7 +808,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv(video_data, frame_type, avc_packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv(video_data, frame_type, avc_packet_type, dts, pts, &flv_data, &nb_flv));
 
         EXPECT_TRUE(flv_data != NULL);
         EXPECT_EQ(5 + video_data.length(), nb_flv);
@@ -822,7 +822,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
         }
     }
 
-    // Test mux_avc2flv with inter frame
+    // Test mux_hevc2flv with inter frame
     if (true) {
         std::string video_data = std::string("\x00\x00\x00\x08\x02\x01\xd0\x80\x93\x25\x88\x84", 12);
         int8_t frame_type = 2;      // inter frame
@@ -832,7 +832,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv(video_data, frame_type, avc_packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv(video_data, frame_type, avc_packet_type, dts, pts, &flv_data, &nb_flv));
 
         EXPECT_TRUE(flv_data != NULL);
         if (flv_data) {
@@ -842,7 +842,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
         }
     }
 
-    // Test mux_avc2flv with empty video data
+    // Test mux_hevc2flv with empty video data
     if (true) {
         std::string empty_video_data;
         int8_t frame_type = 1;      // keyframe
@@ -852,7 +852,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv(empty_video_data, frame_type, avc_packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv(empty_video_data, frame_type, avc_packet_type, dts, pts, &flv_data, &nb_flv));
 
         // Should produce FLV packet with 5-byte header only
         EXPECT_TRUE(flv_data != NULL);
@@ -871,7 +871,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
         }
     }
 
-    // Test mux_avc2flv with large composition time offset
+    // Test mux_hevc2flv with large composition time offset
     if (true) {
         std::string video_data = std::string("\x00\x00\x00\x04\x26\x01\xaf\x06", 8);
         int8_t frame_type = 1;      // keyframe
@@ -881,7 +881,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv(video_data, frame_type, avc_packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv(video_data, frame_type, avc_packet_type, dts, pts, &flv_data, &nb_flv));
 
         EXPECT_TRUE(flv_data != NULL);
         if (flv_data) {
@@ -894,13 +894,13 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flv)
     }
 }
 
-VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
+VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxHevc2flvEnhanced)
 {
     srs_error_t err = srs_success;
 
     SrsRawHEVCStream hevc;
 
-    // Test mux_avc2flv_enhanced with sequence header
+    // Test mux_hevc2flv_enhanced with sequence header
     if (true) {
         std::string video_data = std::string("\x01\x64\x00\x20\xff\xe1\x00\x19\x67\x64\x00\x20", 12);
         int8_t frame_type = 1;  // keyframe
@@ -910,7 +910,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
 
         // Should produce enhanced FLV packet with 5-byte header + video data
         EXPECT_TRUE(flv_data != NULL);
@@ -936,7 +936,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         }
     }
 
-    // Test mux_avc2flv_enhanced with coded frames
+    // Test mux_hevc2flv_enhanced with coded frames
     if (true) {
         std::string video_data = std::string("\x00\x00\x00\x0e\x26\x01\xaf\x06\xb8\x63\xef\x3a\x7f\x3c\x00\x01\x00\x80", 18);
         int8_t frame_type = 1;  // keyframe
@@ -946,7 +946,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
 
         EXPECT_TRUE(flv_data != NULL);
         EXPECT_EQ(5 + video_data.length(), nb_flv);
@@ -960,7 +960,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         }
     }
 
-    // Test mux_avc2flv_enhanced with inter frame
+    // Test mux_hevc2flv_enhanced with inter frame
     if (true) {
         std::string video_data = std::string("\x00\x00\x00\x08\x02\x01\xd0\x80\x93\x25\x88\x84", 12);
         int8_t frame_type = 2;  // inter frame
@@ -970,7 +970,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
 
         EXPECT_TRUE(flv_data != NULL);
         if (flv_data) {
@@ -982,7 +982,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         }
     }
 
-    // Test mux_avc2flv_enhanced with sequence end packet
+    // Test mux_hevc2flv_enhanced with sequence end packet
     if (true) {
         std::string video_data; // Empty for sequence end
         int8_t frame_type = 1;  // keyframe
@@ -992,7 +992,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
 
         EXPECT_TRUE(flv_data != NULL);
         EXPECT_EQ(5, nb_flv); // Should produce 5-byte header only
@@ -1014,7 +1014,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         }
     }
 
-    // Test mux_avc2flv_enhanced with different frame types
+    // Test mux_hevc2flv_enhanced with different frame types
     if (true) {
         std::string video_data = std::string("\x00\x00\x00\x06\x04\x01\x70\x80\x12\x34", 10);
         int8_t frame_type = 3;  // disposable inter frame
@@ -1024,7 +1024,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
 
         EXPECT_TRUE(flv_data != NULL);
         if (flv_data) {
@@ -1036,7 +1036,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         }
     }
 
-    // Test mux_avc2flv_enhanced with empty video data
+    // Test mux_hevc2flv_enhanced with empty video data
     if (true) {
         std::string empty_video_data;
         int8_t frame_type = 1;  // keyframe
@@ -1046,7 +1046,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxAvc2flvEnhanced)
         char *flv_data = NULL;
         int nb_flv = 0;
 
-        HELPER_EXPECT_SUCCESS(hevc.mux_avc2flv_enhanced(empty_video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv_enhanced(empty_video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
 
         // Should produce enhanced FLV packet with 5-byte header only
         EXPECT_TRUE(flv_data != NULL);

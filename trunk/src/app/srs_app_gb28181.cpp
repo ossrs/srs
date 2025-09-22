@@ -1087,7 +1087,7 @@ srs_error_t SrsGbMuxer::write_h265_vps_sps_pps(uint32_t dts, uint32_t pts)
     char *flv = NULL;
     int nb_flv = 0;
 
-    if ((err = hevc_->mux_avc2flv(sh, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+    if ((err = hevc_->mux_hevc2flv(sh, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "hevc to flv");
     }
 
@@ -1131,7 +1131,7 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(char *frame, int frame_size, uint32
     char *flv = NULL;
     int nb_flv = 0;
 
-    if ((err = hevc_->mux_avc2flv(ipb, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+    if ((err = hevc_->mux_hevc2flv(ipb, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "hevc to flv");
     }
 

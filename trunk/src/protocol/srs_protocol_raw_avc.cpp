@@ -564,13 +564,15 @@ srs_error_t SrsRawHEVCStream::mux_ipb_frame(char *frame, int nb_frame, std::stri
     return err;
 }
 
-srs_error_t SrsRawHEVCStream::mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv)
+srs_error_t SrsRawHEVCStream::mux_hevc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv)
 {
     srs_error_t err = srs_success;
 
-    // for h265 in RTMP video payload, there is 5bytes header:
-    //      1bytes, FrameType | CodecID
-    //      1bytes, AVCPacketType
+    // Non-standard HEVC support using codec ID 12 in FLV video tag.
+    // This follows the conventional approach adopted by domestic CDN vendors in China.
+    // For h265 in RTMP video payload, there is 5bytes header:
+    //      1bytes, FrameType | CodecID (CodecID = 12 for HEVC)
+    //      1bytes, AVCPacketType (reused from AVC for compatibility)
     //      3bytes, CompositionTime, the cts.
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
     int size = (int)video.length() + 5;
@@ -605,11 +607,13 @@ srs_error_t SrsRawHEVCStream::mux_avc2flv(std::string video, int8_t frame_type, 
     return err;
 }
 
-srs_error_t SrsRawHEVCStream::mux_avc2flv_enhanced(std::string video, int8_t frame_type, int8_t packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv)
+srs_error_t SrsRawHEVCStream::mux_hevc2flv_enhanced(std::string video, int8_t frame_type, int8_t packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv)
 {
     srs_error_t err = srs_success;
 
-    // for h265 in RTMP video payload, there is 5bytes header:
+    // Standard enhanced-rtmp HEVC support using fourcc 'hvc1'.
+    // This is the more universal and standardized approach for HEVC in FLV/RTMP.
+    // For h265 in enhanced-rtmp video payload, there is 5bytes header:
     //      1bytes, IsExHeader | FrameType | PacketType
     //      4bytes, Video FourCC. AV1 = { 'a', 'v', '0', '1' }
     //                            VP9 = { 'v', 'p', '0', '9' }
