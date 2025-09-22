@@ -2851,7 +2851,7 @@ SrsMediaPayloadType SrsRtxPayloadDes::generate_media_payload_type()
     media_payload_type.encoding_name_ = name_;
     media_payload_type.clock_rate_ = sample_;
     std::ostringstream format_specific_param;
-    format_specific_param << "fmtp:" << (int)pt_ << " apt=" << (int)apt_;
+    format_specific_param << "fmtp:" << pt_ << " apt=" << apt_;
 
     media_payload_type.format_specific_param_ = format_specific_param.str();
 
