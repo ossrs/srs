@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-09-21, Merge [#4505](https://github.com/ossrs/srs/pull/4505): improve blackbox test for rtsp. v7.0.93 (#4505)
 * v7.0, 2025-09-21, Fix WHIP with transcoding bug. v7.0.92 (#4495)
 * v7.0, 2025-09-20, Merge [#4504](https://github.com/ossrs/srs/pull/4504): fix rtsp compiling warning. v7.0.91 (#4504)
 * v7.0, 2025-09-19, Merge [#4503](https://github.com/ossrs/srs/pull/4503): AI: Refine RTMP/SRT/RTC bridge. v7.0.90 (#4503)

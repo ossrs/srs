@@ -1287,13 +1287,13 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterSEIFiltering)
 
     // Create SEI NALU sample
     uint8_t sei_data[] = {0x06, 0x01, 0x02, 0x03}; // SEI NALU type (6)
-    SrsNaluSample sei_sample((char*)sei_data, sizeof(sei_data));
+    SrsNaluSample sei_sample((char *)sei_data, sizeof(sei_data));
     format.video_->samples_[0] = sei_sample;
     format.video_->nb_samples_ = 1;
 
     SrsMediaPacket msg;
     bool has_idr = false;
-    std::vector<SrsNaluSample*> samples;
+    std::vector<SrsNaluSample *> samples;
 
     // When keep_avc_nalu_sei_ = true, SEI should be kept
     HELPER_EXPECT_SUCCESS(builder.filter(&msg, &format, has_idr, samples));
@@ -1309,7 +1309,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterSEIFiltering)
 
     // Test 3: Non-SEI NALU with SEI filtering enabled
     uint8_t idr_data[] = {0x05, 0x01, 0x02, 0x03}; // IDR NALU type (5)
-    SrsNaluSample idr_sample((char*)idr_data, sizeof(idr_data));
+    SrsNaluSample idr_sample((char *)idr_data, sizeof(idr_data));
     format.video_->samples_[0] = idr_sample;
     samples.clear();
 
@@ -1319,9 +1319,9 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterSEIFiltering)
 
     // Test 4: Mixed SEI and non-SEI NALUs
     SrsNaluSample mixed_samples[3];
-    mixed_samples[0] = sei_sample;  // SEI (should be filtered)
-    mixed_samples[1] = idr_sample;  // IDR (should be kept)
-    mixed_samples[2] = sei_sample;  // SEI (should be filtered)
+    mixed_samples[0] = sei_sample; // SEI (should be filtered)
+    mixed_samples[1] = idr_sample; // IDR (should be kept)
+    mixed_samples[2] = sei_sample; // SEI (should be filtered)
 
     format.video_->samples_[0] = mixed_samples[0];
     format.video_->samples_[1] = mixed_samples[1];
@@ -1365,14 +1365,14 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterBFrameFilteringAVC)
 
     SrsMediaPacket msg;
     bool has_idr = false;
-    std::vector<SrsNaluSample*> samples;
+    std::vector<SrsNaluSample *> samples;
 
     // Test 1: B-frame filtering disabled (keep_bframe_ = true)
     builder.keep_bframe_ = true;
 
     // Create B-frame NALU sample (NonIDR with B-frame slice type)
     uint8_t bframe_data[] = {0x01, 0xA8, 0x00, 0x00}; // NonIDR NALU type (1), slice_type=1 (B)
-    SrsNaluSample bframe_sample((char*)bframe_data, sizeof(bframe_data));
+    SrsNaluSample bframe_sample((char *)bframe_data, sizeof(bframe_data));
     format.video_->samples_[0] = bframe_sample;
     format.video_->nb_samples_ = 1;
 
@@ -1390,7 +1390,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterBFrameFilteringAVC)
 
     // Test 3: Non-B-frame NALU with B-frame filtering enabled
     uint8_t pframe_data[] = {0x01, 0x88, 0x00, 0x00}; // NonIDR NALU type (1), slice_type=0 (P)
-    SrsNaluSample pframe_sample((char*)pframe_data, sizeof(pframe_data));
+    SrsNaluSample pframe_sample((char *)pframe_data, sizeof(pframe_data));
     format.video_->samples_[0] = pframe_sample;
     samples.clear();
 
@@ -1446,14 +1446,14 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterBFrameFilteringHEVC)
 
     SrsMediaPacket msg;
     bool has_idr = false;
-    std::vector<SrsNaluSample*> samples;
+    std::vector<SrsNaluSample *> samples;
 
     // Test 1: B-frame filtering disabled (keep_bframe_ = true)
     builder.keep_bframe_ = true;
 
     // Create HEVC B-frame NALU sample
     uint8_t hevc_bframe_data[] = {0x02, 0x01, 0xE0, 0x44}; // HEVC NALU with B-frame slice type
-    SrsNaluSample hevc_bframe_sample((char*)hevc_bframe_data, sizeof(hevc_bframe_data));
+    SrsNaluSample hevc_bframe_sample((char *)hevc_bframe_data, sizeof(hevc_bframe_data));
     format.video_->samples_[0] = hevc_bframe_sample;
     format.video_->nb_samples_ = 1;
 
@@ -1471,7 +1471,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterBFrameFilteringHEVC)
 
     // Test 3: Non-B-frame HEVC NALU with B-frame filtering enabled
     uint8_t hevc_pframe_data[] = {0x02, 0x01, 0xD0, 0x30}; // HEVC NALU with P-frame slice type
-    SrsNaluSample hevc_pframe_sample((char*)hevc_pframe_data, sizeof(hevc_pframe_data));
+    SrsNaluSample hevc_pframe_sample((char *)hevc_pframe_data, sizeof(hevc_pframe_data));
     format.video_->samples_[0] = hevc_pframe_sample;
     samples.clear();
 
@@ -1481,7 +1481,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterBFrameFilteringHEVC)
 
     // Test 4: HEVC VPS/SPS/PPS NALUs (should not be filtered as B-frames)
     uint8_t hevc_vps_data[] = {0x40, 0x01, 0xE0, 0x44}; // VPS NALU
-    SrsNaluSample hevc_vps_sample((char*)hevc_vps_data, sizeof(hevc_vps_data));
+    SrsNaluSample hevc_vps_sample((char *)hevc_vps_data, sizeof(hevc_vps_data));
     format.video_->samples_[0] = hevc_vps_sample;
     samples.clear();
 
@@ -1522,33 +1522,33 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterCombinedSEIAndBFrameFiltering
 
     SrsMediaPacket msg;
     bool has_idr = false;
-    std::vector<SrsNaluSample*> samples;
+    std::vector<SrsNaluSample *> samples;
 
     // Test complex scenario with multiple NALU types
     SrsNaluSample test_samples[6];
 
     // SEI NALU (should be filtered by SEI filter)
     uint8_t sei_data[] = {0x06, 0x01, 0x02, 0x03};
-    test_samples[0] = SrsNaluSample((char*)sei_data, sizeof(sei_data));
+    test_samples[0] = SrsNaluSample((char *)sei_data, sizeof(sei_data));
 
     // B-frame NALU (should be filtered by B-frame filter)
     uint8_t bframe_data[] = {0x01, 0xA8, 0x00, 0x00};
-    test_samples[1] = SrsNaluSample((char*)bframe_data, sizeof(bframe_data));
+    test_samples[1] = SrsNaluSample((char *)bframe_data, sizeof(bframe_data));
 
     // P-frame NALU (should be kept)
     uint8_t pframe_data[] = {0x01, 0x88, 0x00, 0x00};
-    test_samples[2] = SrsNaluSample((char*)pframe_data, sizeof(pframe_data));
+    test_samples[2] = SrsNaluSample((char *)pframe_data, sizeof(pframe_data));
 
     // IDR NALU (should be kept)
     uint8_t idr_data[] = {0x05, 0x01, 0x02, 0x03};
-    test_samples[3] = SrsNaluSample((char*)idr_data, sizeof(idr_data));
+    test_samples[3] = SrsNaluSample((char *)idr_data, sizeof(idr_data));
 
     // Another SEI NALU (should be filtered by SEI filter)
-    test_samples[4] = SrsNaluSample((char*)sei_data, sizeof(sei_data));
+    test_samples[4] = SrsNaluSample((char *)sei_data, sizeof(sei_data));
 
     // SPS NALU (should be kept)
     uint8_t sps_data[] = {0x07, 0x01, 0x02, 0x03};
-    test_samples[5] = SrsNaluSample((char*)sps_data, sizeof(sps_data));
+    test_samples[5] = SrsNaluSample((char *)sps_data, sizeof(sps_data));
 
     // Set up format with all samples
     for (int i = 0; i < 6; i++) {
@@ -1564,9 +1564,12 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterCombinedSEIAndBFrameFiltering
     bool found_pframe = false, found_idr = false, found_sps = false;
     for (size_t i = 0; i < samples.size(); i++) {
         uint8_t nalu_type = samples[i]->bytes_[0] & 0x1F;
-        if (nalu_type == 0x01) found_pframe = true;  // P-frame
-        if (nalu_type == 0x05) found_idr = true;     // IDR
-        if (nalu_type == 0x07) found_sps = true;     // SPS
+        if (nalu_type == 0x01)
+            found_pframe = true; // P-frame
+        if (nalu_type == 0x05)
+            found_idr = true; // IDR
+        if (nalu_type == 0x07)
+            found_sps = true; // SPS
     }
     EXPECT_TRUE(found_pframe);
     EXPECT_TRUE(found_idr);
@@ -1606,12 +1609,12 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterIDRDetection)
 
     SrsMediaPacket msg;
     bool has_idr = false;
-    std::vector<SrsNaluSample*> samples;
+    std::vector<SrsNaluSample *> samples;
 
     // Test 1: No IDR frame
     format.video_->has_idr_ = false;
     uint8_t pframe_data[] = {0x01, 0x88, 0x00, 0x00};
-    SrsNaluSample pframe_sample((char*)pframe_data, sizeof(pframe_data));
+    SrsNaluSample pframe_sample((char *)pframe_data, sizeof(pframe_data));
     format.video_->samples_[0] = pframe_sample;
     format.video_->nb_samples_ = 1;
 
@@ -1660,7 +1663,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterErrorHandling)
 
     SrsMediaPacket msg;
     bool has_idr = false;
-    std::vector<SrsNaluSample*> samples;
+    std::vector<SrsNaluSample *> samples;
 
     // Test with empty NALU sample (should cause parse error)
     SrsNaluSample empty_sample(NULL, 0);
@@ -1706,13 +1709,13 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterNonAVCCodecSkipsSEIFiltering)
 
     // Create a sample that would be SEI in AVC (0x06), but should be kept for HEVC
     uint8_t hevc_data[] = {0x06, 0x01, 0x02, 0x03};
-    SrsNaluSample hevc_sample((char*)hevc_data, sizeof(hevc_data));
+    SrsNaluSample hevc_sample((char *)hevc_data, sizeof(hevc_data));
     hevc_format.video_->samples_[0] = hevc_sample;
     hevc_format.video_->nb_samples_ = 1;
 
     SrsMediaPacket msg;
     bool has_idr = false;
-    std::vector<SrsNaluSample*> samples;
+    std::vector<SrsNaluSample *> samples;
 
     // For HEVC, SEI filtering should be skipped, so sample should be kept
     HELPER_EXPECT_SUCCESS(builder.filter(&msg, &hevc_format, has_idr, samples));
@@ -1729,7 +1732,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterNonAVCCodecSkipsSEIFiltering)
     unknown_format.video_ = new SrsParsedVideoPacket();
 
     uint8_t unknown_data[] = {0x06, 0x01, 0x02, 0x03};
-    SrsNaluSample unknown_sample((char*)unknown_data, sizeof(unknown_data));
+    SrsNaluSample unknown_sample((char *)unknown_data, sizeof(unknown_data));
     unknown_format.video_->samples_[0] = unknown_sample;
     unknown_format.video_->nb_samples_ = 1;
 
@@ -1775,7 +1778,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterZeroSamples)
 
     SrsMediaPacket msg;
     bool has_idr = false;
-    std::vector<SrsNaluSample*> samples;
+    std::vector<SrsNaluSample *> samples;
 
     // Should handle zero samples gracefully
     HELPER_EXPECT_SUCCESS(builder.filter(&msg, &format, has_idr, samples));
@@ -1811,8 +1814,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMergeNalusMultipleSamples)
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data = new char[sizeof(h264_seq_raw)];
     memcpy(h264_data, h264_seq_raw, sizeof(h264_seq_raw));
@@ -1831,10 +1833,10 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMergeNalusMultipleSamples)
 
         // Create H.264 frame with single NALU (known working pattern)
         uint8_t h264_frame_raw[] = {
-            0x17, // keyframe + AVC codec
-            0x01, // AVC NALU (not sequence header)
-            0x00, 0x00, 0x00, // composition time
-            0x00, 0x00, 0x00, 0x05, // NALU length (5 bytes)
+            0x17,                                       // keyframe + AVC codec
+            0x01,                                       // AVC NALU (not sequence header)
+            0x00, 0x00, 0x00,                           // composition time
+            0x00, 0x00, 0x00, 0x05,                     // NALU length (5 bytes)
             0x65, 0x88, 0x84, 0x00, (uint8_t)(0x10 + i) // IDR slice data (vary last byte)
         };
 
@@ -1885,8 +1887,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoLargeNaluPackageFuA)
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data = new char[sizeof(h264_seq_raw)];
     memcpy(h264_data, h264_seq_raw, sizeof(h264_seq_raw));
@@ -1971,8 +1972,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoExtremelyLargeNaluPackageFuA
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data = new char[sizeof(h264_seq_raw)];
     memcpy(h264_data, h264_seq_raw, sizeof(h264_seq_raw));
@@ -2052,8 +2052,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMergeNalusWithMultipleNalus)
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data = new char[sizeof(h264_seq_raw)];
     memcpy(h264_data, h264_seq_raw, sizeof(h264_seq_raw));
@@ -2070,17 +2069,17 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMergeNalusWithMultipleNalus)
     // Create frame with multiple small NALUs - use minimal valid NALU structure
     // Total frame: 5 (header) + 4+3 (first NALU) + 4+3 (second NALU) = 19 bytes
     uint8_t h264_idr_raw[] = {
-        0x17, // keyframe + AVC codec
-        0x01, // AVC NALU (not sequence header)
+        0x17,             // keyframe + AVC codec
+        0x01,             // AVC NALU (not sequence header)
         0x00, 0x00, 0x00, // composition time
 
         // First NALU: 3 bytes of data
         0x00, 0x00, 0x00, 0x03, // NALU length (3 bytes)
-        0x65, 0x88, 0x84, // Minimal IDR slice
+        0x65, 0x88, 0x84,       // Minimal IDR slice
 
         // Second NALU: 3 bytes of data
         0x00, 0x00, 0x00, 0x03, // NALU length (3 bytes)
-        0x65, 0x88, 0x85  // Minimal IDR slice (slightly different)
+        0x65, 0x88, 0x85        // Minimal IDR slice (slightly different)
     };
 
     char *idr_data = new char[sizeof(h264_idr_raw)];
@@ -2136,8 +2135,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMultipleLargeNalusPackageFuA
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data = new char[sizeof(h264_seq_raw)];
     memcpy(h264_data, h264_seq_raw, sizeof(h264_seq_raw));
@@ -2217,8 +2215,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMergeNalusLargePayload)
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data = new char[sizeof(h264_seq_raw)];
     memcpy(h264_data, h264_seq_raw, sizeof(h264_seq_raw));
@@ -2244,7 +2241,9 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMergeNalusLargePayload)
     // AVC header
     large_data[pos++] = 0x17; // keyframe + AVC codec
     large_data[pos++] = 0x01; // AVC NALU
-    large_data[pos++] = 0x00; large_data[pos++] = 0x00; large_data[pos++] = 0x00; // composition time
+    large_data[pos++] = 0x00;
+    large_data[pos++] = 0x00;
+    large_data[pos++] = 0x00; // composition time
 
     // First large NALU
     large_data[pos++] = (first_nalu_size >> 24) & 0xFF;
@@ -2318,7 +2317,9 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioRealAacFrames)
     frame_data[0] = 0xAF; // AAC, 44kHz, 16-bit, stereo
     frame_data[1] = 0x01; // AAC raw data (not sequence header)
     // Add minimal AAC raw data - transcoding may fail but we'll reach the target lines
-    frame_data[2] = 0x21; frame_data[3] = 0x10; frame_data[4] = 0x05;
+    frame_data[2] = 0x21;
+    frame_data[3] = 0x10;
+    frame_data[4] = 0x05;
 
     aac_frame->wrap(frame_data, 5);
     aac_frame->timestamp_ = 2000;
@@ -2379,7 +2380,9 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioAddSampleFailure)
     char *frame_data = new char[5];
     frame_data[0] = 0xAF; // AAC, 44kHz, 16-bit, stereo
     frame_data[1] = 0x01; // AAC raw data
-    frame_data[2] = 0x21; frame_data[3] = 0x10; frame_data[4] = 0x05;
+    frame_data[2] = 0x21;
+    frame_data[3] = 0x10;
+    frame_data[4] = 0x05;
 
     aac_frame->wrap(frame_data, 5);
     aac_frame->timestamp_ = 2000;
@@ -2433,7 +2436,8 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioTranscodeFailure)
     frame_data[0] = 0xAF; // AAC, 44kHz, 16-bit, stereo
     frame_data[1] = 0x01; // AAC raw data
     // Add minimal AAC data - will likely cause transcoding to fail
-    frame_data[2] = 0x00; frame_data[3] = 0x00;
+    frame_data[2] = 0x00;
+    frame_data[3] = 0x00;
 
     aac_frame->wrap(frame_data, 4);
     aac_frame->timestamp_ = 2000;
@@ -2486,7 +2490,9 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioMemoryCleanup)
         char *frame_data = new char[5];
         frame_data[0] = 0xAF; // AAC, 44kHz, 16-bit, stereo
         frame_data[1] = 0x01; // AAC raw data
-        frame_data[2] = 0x21 + i; frame_data[3] = 0x10; frame_data[4] = 0x05;
+        frame_data[2] = 0x21 + i;
+        frame_data[3] = 0x10;
+        frame_data[4] = 0x05;
 
         aac_frame->wrap(frame_data, 5);
         aac_frame->timestamp_ = 2000 + i * 1000;
@@ -2531,8 +2537,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoComprehensiveCoverage)
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data = new char[sizeof(h264_seq_raw)];
     memcpy(h264_data, h264_seq_raw, sizeof(h264_seq_raw));
@@ -2548,10 +2553,10 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoComprehensiveCoverage)
     h264_frame->message_type_ = SrsFrameTypeVideo;
 
     uint8_t h264_frame_raw[] = {
-        0x17, // keyframe + AVC codec
-        0x01, // AVC NALU (not sequence header)
-        0x00, 0x00, 0x00, // composition time
-        0x00, 0x00, 0x00, 0x05, // NALU length
+        0x17,                        // keyframe + AVC codec
+        0x01,                        // AVC NALU (not sequence header)
+        0x00, 0x00, 0x00,            // composition time
+        0x00, 0x00, 0x00, 0x05,      // NALU length
         0x65, 0x88, 0x84, 0x00, 0x10 // IDR slice data
     };
 
@@ -2592,9 +2597,9 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoUnsupportedCodec)
     h263_frame->message_type_ = SrsFrameTypeVideo;
 
     uint8_t h263_raw[] = {
-        0x22, // keyframe + H.263 codec (codec ID 2)
-        0x00, // packet type
-        0x00, 0x00, 0x00, // composition time
+        0x22,                        // keyframe + H.263 codec (codec ID 2)
+        0x00,                        // packet type
+        0x00, 0x00, 0x00,            // composition time
         0x01, 0x02, 0x03, 0x04, 0x05 // dummy H.263 data
     };
 
@@ -2633,7 +2638,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoNoVcodecParsed)
 
     // Create invalid video data that format_->on_video() can process but won't set vcodec_
     uint8_t invalid_raw[] = {
-        0x00, // invalid frame type and codec combination
+        0x00,                  // invalid frame type and codec combination
         0x00, 0x00, 0x00, 0x00 // minimal data
     };
 
@@ -2675,8 +2680,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoInitializeTrackError)
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data = new char[sizeof(h264_seq_raw)];
     memcpy(h264_data, h264_seq_raw, sizeof(h264_seq_raw));
@@ -2696,10 +2700,10 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoInitializeTrackError)
     h264_frame2->message_type_ = SrsFrameTypeVideo;
 
     uint8_t h264_frame_raw[] = {
-        0x17, // keyframe + AVC codec
-        0x01, // AVC NALU (not sequence header)
-        0x00, 0x00, 0x00, // composition time
-        0x00, 0x00, 0x00, 0x05, // NALU length
+        0x17,                        // keyframe + AVC codec
+        0x01,                        // AVC NALU (not sequence header)
+        0x00, 0x00, 0x00,            // composition time
+        0x00, 0x00, 0x00, 0x05,      // NALU length
         0x65, 0x88, 0x84, 0x00, 0x10 // IDR slice data
     };
 
@@ -2739,8 +2743,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoFilterMethod)
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data = new char[sizeof(h264_seq_raw)];
     memcpy(h264_data, h264_seq_raw, sizeof(h264_seq_raw));
@@ -2755,17 +2758,17 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoFilterMethod)
 
     // Create IDR frame with multiple NALUs to test filter method thoroughly
     uint8_t idr_raw[] = {
-        0x17, // keyframe + AVC codec
-        0x01, // AVC NALU (not sequence header)
+        0x17,             // keyframe + AVC codec
+        0x01,             // AVC NALU (not sequence header)
         0x00, 0x00, 0x00, // composition time
         // First NALU (SPS)
-        0x00, 0x00, 0x00, 0x08, // NALU length
+        0x00, 0x00, 0x00, 0x08,                         // NALU length
         0x67, 0x64, 0x00, 0x20, 0xac, 0xd9, 0x40, 0xc0, // SPS data
         // Second NALU (PPS)
         0x00, 0x00, 0x00, 0x04, // NALU length
         0x68, 0xeb, 0xec, 0xb2, // PPS data
         // Third NALU (IDR slice)
-        0x00, 0x00, 0x00, 0x06, // NALU length
+        0x00, 0x00, 0x00, 0x06,            // NALU length
         0x65, 0x88, 0x84, 0x00, 0x10, 0x20 // IDR slice data
     };
 
@@ -2782,10 +2785,10 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoFilterMethod)
     p_frame->message_type_ = SrsFrameTypeVideo;
 
     uint8_t p_raw[] = {
-        0x27, // inter frame + AVC codec
-        0x01, // AVC NALU
-        0x00, 0x00, 0x00, // composition time
-        0x00, 0x00, 0x00, 0x05, // NALU length
+        0x27,                        // inter frame + AVC codec
+        0x01,                        // AVC NALU
+        0x00, 0x00, 0x00,            // composition time
+        0x00, 0x00, 0x00, 0x05,      // NALU length
         0x41, 0x88, 0x84, 0x00, 0x10 // P slice data
     };
 
@@ -2843,8 +2846,8 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoFormatError)
 
     // Create malformed data with valid codec ID but invalid structure
     uint8_t malformed_raw[] = {
-        0x17, // keyframe + AVC codec
-        0x00, // sequence header indicator
+        0x17,            // keyframe + AVC codec
+        0x00,            // sequence header indicator
         0xFF, 0xFF, 0xFF // invalid composition time and truncated data
     };
 
@@ -2888,8 +2891,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoCodecSwitching)
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data = new char[sizeof(h264_seq_raw)];
     memcpy(h264_data, h264_seq_raw, sizeof(h264_seq_raw));
@@ -2903,10 +2905,10 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoCodecSwitching)
     h264_frame->message_type_ = SrsFrameTypeVideo;
 
     uint8_t h264_frame_raw[] = {
-        0x17, // keyframe + AVC codec
-        0x01, // AVC NALU
-        0x00, 0x00, 0x00, // composition time
-        0x00, 0x00, 0x00, 0x05, // NALU length
+        0x17,                        // keyframe + AVC codec
+        0x01,                        // AVC NALU
+        0x00, 0x00, 0x00,            // composition time
+        0x00, 0x00, 0x00, 0x05,      // NALU length
         0x65, 0x88, 0x84, 0x00, 0x10 // IDR slice data
     };
 
@@ -2927,8 +2929,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoCodecSwitching)
         0x17, // keyframe + AVC codec
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
-        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
-    };
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
 
     char *h264_data2 = new char[sizeof(h264_seq_raw2)];
     memcpy(h264_data2, h264_seq_raw2, sizeof(h264_seq_raw2));
@@ -4255,8 +4256,6 @@ VOID TEST(RtcFrameBuilderTest, TranscodeAudio_ErrorInTranscoderLoop)
     // Should have attempted to send at least one frame before failing
     EXPECT_EQ(1, target.on_frame_count_); // Failed on first transcoded frame
 }
-
-
 
 // Test SrsRtcFrameBuilder::packet_video with complete frame detection and packet_video_rtmp error
 VOID TEST(RtcFrameBuilderTest, PacketVideo_CompleteFrameDetectionWithPacketVideoRtmpError)

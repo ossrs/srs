@@ -12,12 +12,12 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_app_rtc_codec.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
-#include <srs_protocol_amf0.hpp>
-#include <srs_app_rtc_codec.hpp>
 
 // Forward declarations
 class SrsMediaPacket;
