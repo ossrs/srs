@@ -8,15 +8,15 @@
 
 using namespace std;
 
+#include <srs_app_rtc_codec.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtmp_source.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_packet.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
-#include <srs_app_rtmp_source.hpp>
-#include <srs_app_rtc_codec.hpp>
-#include <srs_kernel_packet.hpp>
 
 MockRtcFrameTarget::MockRtcFrameTarget()
 {
@@ -33,13 +33,13 @@ MockRtcFrameTarget::~MockRtcFrameTarget()
 srs_error_t MockRtcFrameTarget::on_frame(SrsMediaPacket *frame)
 {
     on_frame_count_++;
-    
+
     // Store a copy of the frame for verification
     srs_freep(last_frame_);
     if (frame) {
         last_frame_ = frame->copy();
     }
-    
+
     return srs_error_copy(frame_error_);
 }
 
@@ -360,21 +360,21 @@ SrsRtpPacket *create_hevc_stap_packet_with_vps_sps_pps()
 VOID TEST(RtcFrameBuilderTest, OnRtp_NoPayload)
 {
     srs_error_t err;
-    
+
     MockRtcFrameTarget target;
     SrsRtcFrameBuilder builder(&target);
-    
+
     // Initialize the builder
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
-    
+
     // Create RTP packet with no payload
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
     pkt->set_avsync_time(1000);
-    
+
     // Should return success but do nothing
     HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt.get()));
-    
+
     // No frames should be generated
     EXPECT_EQ(0, target.on_frame_count_);
 }
@@ -383,20 +383,20 @@ VOID TEST(RtcFrameBuilderTest, OnRtp_NoPayload)
 VOID TEST(RtcFrameBuilderTest, OnRtp_NoAvsyncTime_InitialState)
 {
     srs_error_t err;
-    
+
     MockRtcFrameTarget target;
     SrsRtcFrameBuilder builder(&target);
-    
+
     // Initialize the builder
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
-    
+
     // Create RTP packet with no avsync_time (initial sync_state_ is -1)
     SrsUniquePtr<SrsRtpPacket> pkt(create_mock_rtp_packet(true, 0)); // avsync_time = 0
-    
+
     // Should return success but discard packet and change sync_state_ from -1 to 0
     HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt.get()));
-    
+
     // No frames should be generated
     EXPECT_EQ(0, target.on_frame_count_);
 }
@@ -405,22 +405,22 @@ VOID TEST(RtcFrameBuilderTest, OnRtp_NoAvsyncTime_InitialState)
 VOID TEST(RtcFrameBuilderTest, OnRtp_NoAvsyncTime_StateZero)
 {
     srs_error_t err;
-    
+
     MockRtcFrameTarget target;
     SrsRtcFrameBuilder builder(&target);
-    
+
     // Initialize the builder
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
-    
+
     // First packet with no avsync_time to set sync_state_ to 0
     SrsUniquePtr<SrsRtpPacket> pkt1(create_mock_rtp_packet(true, 0));
     HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt1.get()));
-    
+
     // Second packet with no avsync_time (sync_state_ is now 0, should not trace)
     SrsUniquePtr<SrsRtpPacket> pkt2(create_mock_rtp_packet(false, -1)); // avsync_time = -1
     HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt2.get()));
-    
+
     // No frames should be generated
     EXPECT_EQ(0, target.on_frame_count_);
 }
@@ -1789,8 +1789,6 @@ VOID TEST(RtcFrameBuilderTest, OnRtp_ComprehensiveCodePathCoverage)
     HELPER_EXPECT_SUCCESS(builder.on_rtp(video_process.get()));
 }
 
-
-
 // Helper function to create a mock RTP packet with STAP-A payload containing SPS and PPS
 SrsRtpPacket *create_stap_a_packet_with_sps_pps()
 {
@@ -1843,10 +1841,6 @@ SrsRtpPacket *create_raw_payload_packet(SrsAvcNaluType nalu_type, const uint8_t 
     pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
     return pkt;
 }
-
-
-
-
 
 // Test SrsRtcFrameBuilder::packet_sequence_header_avc with STAP-A payload containing SPS and PPS
 VOID TEST(RtcFrameBuilderTest, PacketSequenceHeaderAvc_STAPAPayload_WithSPSAndPPS)
@@ -3332,7 +3326,7 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_OutOfOrderPackets)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create audio packet
-    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -3354,23 +3348,28 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_OutOfOrderPackets)
     // Send packets out of order: 100, 102, 101, 104, 103
     SrsUniquePtr<SrsRtpPacket> pkt1(create_audio_packet(100, 48000, 1000));
     srs_error_t result1 = builder.packet_audio(pkt1.get());
-    if (result1 != srs_success) srs_freep(result1);
+    if (result1 != srs_success)
+        srs_freep(result1);
 
     SrsUniquePtr<SrsRtpPacket> pkt3(create_audio_packet(102, 48000 + 2 * 960, 1040));
     srs_error_t result3 = builder.packet_audio(pkt3.get());
-    if (result3 != srs_success) srs_freep(result3);
+    if (result3 != srs_success)
+        srs_freep(result3);
 
     SrsUniquePtr<SrsRtpPacket> pkt2(create_audio_packet(101, 48000 + 960, 1020));
     srs_error_t result2 = builder.packet_audio(pkt2.get());
-    if (result2 != srs_success) srs_freep(result2);
+    if (result2 != srs_success)
+        srs_freep(result2);
 
     SrsUniquePtr<SrsRtpPacket> pkt5(create_audio_packet(104, 48000 + 4 * 960, 1080));
     srs_error_t result5 = builder.packet_audio(pkt5.get());
-    if (result5 != srs_success) srs_freep(result5);
+    if (result5 != srs_success)
+        srs_freep(result5);
 
     SrsUniquePtr<SrsRtpPacket> pkt4(create_audio_packet(103, 48000 + 3 * 960, 1060));
     srs_error_t result4 = builder.packet_audio(pkt4.get());
-    if (result4 != srs_success) srs_freep(result4);
+    if (result4 != srs_success)
+        srs_freep(result4);
 
     // Audio cache should handle out-of-order packets and deliver them in sequence
 }
@@ -3388,7 +3387,7 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_DuplicatePackets)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create audio packet
-    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -3410,17 +3409,20 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_DuplicatePackets)
     // Send original packet
     SrsUniquePtr<SrsRtpPacket> pkt1(create_audio_packet(100, 48000, 1000));
     srs_error_t result1 = builder.packet_audio(pkt1.get());
-    if (result1 != srs_success) srs_freep(result1);
+    if (result1 != srs_success)
+        srs_freep(result1);
 
     // Send duplicate packet with same sequence number
     SrsUniquePtr<SrsRtpPacket> pkt1_dup(create_audio_packet(100, 48000, 1000));
     srs_error_t result1_dup = builder.packet_audio(pkt1_dup.get());
-    if (result1_dup != srs_success) srs_freep(result1_dup);
+    if (result1_dup != srs_success)
+        srs_freep(result1_dup);
 
     // Send next packet
     SrsUniquePtr<SrsRtpPacket> pkt2(create_audio_packet(101, 48000 + 960, 1020));
     srs_error_t result2 = builder.packet_audio(pkt2.get());
-    if (result2 != srs_success) srs_freep(result2);
+    if (result2 != srs_success)
+        srs_freep(result2);
 
     // Audio cache should handle duplicate packets gracefully
 }
@@ -3438,7 +3440,7 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_LatePackets)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create audio packet
-    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -3460,20 +3462,24 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_LatePackets)
     // Send packets in order: 100, 101, 102
     SrsUniquePtr<SrsRtpPacket> pkt1(create_audio_packet(100, 48000, 1000));
     srs_error_t result1 = builder.packet_audio(pkt1.get());
-    if (result1 != srs_success) srs_freep(result1);
+    if (result1 != srs_success)
+        srs_freep(result1);
 
     SrsUniquePtr<SrsRtpPacket> pkt2(create_audio_packet(101, 48000 + 960, 1020));
     srs_error_t result2 = builder.packet_audio(pkt2.get());
-    if (result2 != srs_success) srs_freep(result2);
+    if (result2 != srs_success)
+        srs_freep(result2);
 
     SrsUniquePtr<SrsRtpPacket> pkt3(create_audio_packet(102, 48000 + 2 * 960, 1040));
     srs_error_t result3 = builder.packet_audio(pkt3.get());
-    if (result3 != srs_success) srs_freep(result3);
+    if (result3 != srs_success)
+        srs_freep(result3);
 
     // Now send a late packet with sequence number 99 (before already processed 100)
     SrsUniquePtr<SrsRtpPacket> late_pkt(create_audio_packet(99, 48000 - 960, 980));
     srs_error_t late_result = builder.packet_audio(late_pkt.get());
-    if (late_result != srs_success) srs_freep(late_result);
+    if (late_result != srs_success)
+        srs_freep(late_result);
 
     // Audio cache should discard late packets gracefully
 }
@@ -3662,7 +3668,7 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_SequenceWrapAround)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create audio packet
-    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -3684,19 +3690,23 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_SequenceWrapAround)
     // Test sequence number wrap-around: 65534, 65535, 0, 1
     SrsUniquePtr<SrsRtpPacket> pkt1(create_audio_packet(65534, 48000, 1000));
     srs_error_t result1 = builder.packet_audio(pkt1.get());
-    if (result1 != srs_success) srs_freep(result1);
+    if (result1 != srs_success)
+        srs_freep(result1);
 
     SrsUniquePtr<SrsRtpPacket> pkt2(create_audio_packet(65535, 48000 + 960, 1020));
     srs_error_t result2 = builder.packet_audio(pkt2.get());
-    if (result2 != srs_success) srs_freep(result2);
+    if (result2 != srs_success)
+        srs_freep(result2);
 
     SrsUniquePtr<SrsRtpPacket> pkt3(create_audio_packet(0, 48000 + 2 * 960, 1040));
     srs_error_t result3 = builder.packet_audio(pkt3.get());
-    if (result3 != srs_success) srs_freep(result3);
+    if (result3 != srs_success)
+        srs_freep(result3);
 
     SrsUniquePtr<SrsRtpPacket> pkt4(create_audio_packet(1, 48000 + 3 * 960, 1060));
     srs_error_t result4 = builder.packet_audio(pkt4.get());
-    if (result4 != srs_success) srs_freep(result4);
+    if (result4 != srs_success)
+        srs_freep(result4);
 
     // Audio cache should handle sequence number wrap-around correctly
 }
@@ -3714,7 +3724,7 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_TimestampWrapAround)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create audio packet
-    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -3736,19 +3746,23 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_TimestampWrapAround)
     // Test timestamp wrap-around: near UINT32_MAX, then wrap to 0
     SrsUniquePtr<SrsRtpPacket> pkt1(create_audio_packet(100, UINT32_MAX - 960, 1000));
     srs_error_t result1 = builder.packet_audio(pkt1.get());
-    if (result1 != srs_success) srs_freep(result1);
+    if (result1 != srs_success)
+        srs_freep(result1);
 
     SrsUniquePtr<SrsRtpPacket> pkt2(create_audio_packet(101, UINT32_MAX, 1020));
     srs_error_t result2 = builder.packet_audio(pkt2.get());
-    if (result2 != srs_success) srs_freep(result2);
+    if (result2 != srs_success)
+        srs_freep(result2);
 
     SrsUniquePtr<SrsRtpPacket> pkt3(create_audio_packet(102, 0, 1040));
     srs_error_t result3 = builder.packet_audio(pkt3.get());
-    if (result3 != srs_success) srs_freep(result3);
+    if (result3 != srs_success)
+        srs_freep(result3);
 
     SrsUniquePtr<SrsRtpPacket> pkt4(create_audio_packet(103, 960, 1060));
     srs_error_t result4 = builder.packet_audio(pkt4.get());
-    if (result4 != srs_success) srs_freep(result4);
+    if (result4 != srs_success)
+        srs_freep(result4);
 
     // Should handle timestamp wrap-around correctly
 }
@@ -3766,7 +3780,7 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_DifferentSSRC)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create audio packet
-    auto create_audio_packet = [](uint16_t seq, uint32_t ssrc, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_audio_packet = [](uint16_t seq, uint32_t ssrc, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(ssrc);
         pkt->header_.set_sequence(seq);
@@ -3788,15 +3802,18 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_DifferentSSRC)
     // Send packets with different SSRC values
     SrsUniquePtr<SrsRtpPacket> pkt1(create_audio_packet(100, 11111, 48000, 1000));
     srs_error_t result1 = builder.packet_audio(pkt1.get());
-    if (result1 != srs_success) srs_freep(result1);
+    if (result1 != srs_success)
+        srs_freep(result1);
 
     SrsUniquePtr<SrsRtpPacket> pkt2(create_audio_packet(101, 22222, 48000 + 960, 1020));
     srs_error_t result2 = builder.packet_audio(pkt2.get());
-    if (result2 != srs_success) srs_freep(result2);
+    if (result2 != srs_success)
+        srs_freep(result2);
 
     SrsUniquePtr<SrsRtpPacket> pkt3(create_audio_packet(102, 33333, 48000 + 2 * 960, 1040));
     srs_error_t result3 = builder.packet_audio(pkt3.get());
-    if (result3 != srs_success) srs_freep(result3);
+    if (result3 != srs_success)
+        srs_freep(result3);
 
     // Should handle packets with different SSRC values
 }
@@ -3814,7 +3831,7 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_RapidSequence)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create audio packet
-    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -3837,7 +3854,8 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_RapidSequence)
     for (int i = 0; i < 50; ++i) {
         SrsUniquePtr<SrsRtpPacket> pkt(create_audio_packet(100 + i, 48000 + i * 960, 1000 + i * 20));
         srs_error_t result = builder.packet_audio(pkt.get());
-        if (result != srs_success) srs_freep(result);
+        if (result != srs_success)
+            srs_freep(result);
     }
 
     // All packets should be processed through audio cache (transcoding may fail)
@@ -4185,7 +4203,7 @@ VOID TEST(RtcFrameBuilderTest, PacketVideo_SequenceWrapAround)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create video packet
-    auto create_video_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_video_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -4234,7 +4252,7 @@ VOID TEST(RtcFrameBuilderTest, PacketVideo_TimestampWrapAround)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create video packet
-    auto create_video_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_video_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -4283,7 +4301,7 @@ VOID TEST(RtcFrameBuilderTest, PacketVideo_DifferentSSRC)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create video packet
-    auto create_video_packet = [](uint16_t seq, uint32_t ssrc, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_video_packet = [](uint16_t seq, uint32_t ssrc, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(ssrc);
         pkt->header_.set_sequence(seq);
@@ -4371,7 +4389,7 @@ VOID TEST(RtcFrameBuilderTest, PacketVideo_RapidSequence)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create video packet
-    auto create_video_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time, bool is_keyframe = false) -> SrsRtpPacket* {
+    auto create_video_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time, bool is_keyframe = false) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -4414,7 +4432,7 @@ VOID TEST(RtcFrameBuilderTest, PacketVideo_MixedKeyframeSequence)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create video packet
-    auto create_video_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time, SrsAvcNaluType nalu_type) -> SrsRtpPacket* {
+    auto create_video_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time, SrsAvcNaluType nalu_type) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -4653,7 +4671,7 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_MixedPayloadSizes)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create audio packet with specific payload size
-    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time, int payload_size) -> SrsRtpPacket* {
+    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time, int payload_size) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -4675,7 +4693,8 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_MixedPayloadSizes)
     for (int i = 0; i < 8; ++i) {
         SrsUniquePtr<SrsRtpPacket> pkt(create_audio_packet(100 + i, 48000 + i * 960, 1000 + i * 20, payload_sizes[i]));
         srs_error_t result = builder.packet_audio(pkt.get());
-        if (result != srs_success) srs_freep(result);
+        if (result != srs_success)
+            srs_freep(result);
     }
 
     // Should handle packets with different payload sizes
@@ -4694,7 +4713,7 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_ComprehensiveScenario)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Helper function to create audio packet
-    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket* {
+    auto create_audio_packet = [](uint16_t seq, uint32_t ts, uint32_t avsync_time) -> SrsRtpPacket * {
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkt->header_.set_ssrc(12345);
         pkt->header_.set_sequence(seq);
@@ -4717,36 +4736,43 @@ VOID TEST(RtcFrameBuilderTest, PacketAudio_ComprehensiveScenario)
     // 1. Normal sequential packets
     SrsUniquePtr<SrsRtpPacket> pkt1(create_audio_packet(100, 48000, 1000));
     srs_error_t result1 = builder.packet_audio(pkt1.get());
-    if (result1 != srs_success) srs_freep(result1);
+    if (result1 != srs_success)
+        srs_freep(result1);
 
     SrsUniquePtr<SrsRtpPacket> pkt2(create_audio_packet(101, 48000 + 960, 1020));
     srs_error_t result2 = builder.packet_audio(pkt2.get());
-    if (result2 != srs_success) srs_freep(result2);
+    if (result2 != srs_success)
+        srs_freep(result2);
 
     // 2. Out-of-order packet
     SrsUniquePtr<SrsRtpPacket> pkt4(create_audio_packet(103, 48000 + 3 * 960, 1060));
     srs_error_t result4 = builder.packet_audio(pkt4.get());
-    if (result4 != srs_success) srs_freep(result4);
+    if (result4 != srs_success)
+        srs_freep(result4);
 
     // 3. Fill the gap
     SrsUniquePtr<SrsRtpPacket> pkt3(create_audio_packet(102, 48000 + 2 * 960, 1040));
     srs_error_t result3 = builder.packet_audio(pkt3.get());
-    if (result3 != srs_success) srs_freep(result3);
+    if (result3 != srs_success)
+        srs_freep(result3);
 
     // 4. Duplicate packet
     SrsUniquePtr<SrsRtpPacket> pkt3_dup(create_audio_packet(102, 48000 + 2 * 960, 1040));
     srs_error_t result3_dup = builder.packet_audio(pkt3_dup.get());
-    if (result3_dup != srs_success) srs_freep(result3_dup);
+    if (result3_dup != srs_success)
+        srs_freep(result3_dup);
 
     // 5. Late packet (should be discarded)
     SrsUniquePtr<SrsRtpPacket> late_pkt(create_audio_packet(99, 48000 - 960, 980));
     srs_error_t late_result = builder.packet_audio(late_pkt.get());
-    if (late_result != srs_success) srs_freep(late_result);
+    if (late_result != srs_success)
+        srs_freep(late_result);
 
     // 6. Continue with normal sequence
     SrsUniquePtr<SrsRtpPacket> pkt5(create_audio_packet(104, 48000 + 4 * 960, 1080));
     srs_error_t result5 = builder.packet_audio(pkt5.get());
-    if (result5 != srs_success) srs_freep(result5);
+    if (result5 != srs_success)
+        srs_freep(result5);
 
     // All scenarios should be handled correctly by the audio cache (transcoding may fail)
 }
