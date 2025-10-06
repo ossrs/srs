@@ -281,10 +281,6 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp &remote_sdp)
 {
     srs_error_t err = srs_success;
 
-    if (remote_sdp.group_policy_ != "BUNDLE") {
-        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only support BUNDLE, group policy=%s", remote_sdp.group_policy_.c_str());
-    }
-
     if (remote_sdp.media_descs_.empty()) {
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no media descriptions");
     }
@@ -562,10 +558,6 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
 srs_error_t SrsGoApiRtcPublish::check_remote_sdp(const SrsSdp &remote_sdp)
 {
     srs_error_t err = srs_success;
-
-    if (remote_sdp.group_policy_ != "BUNDLE") {
-        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only support BUNDLE, group policy=%s", remote_sdp.group_policy_.c_str());
-    }
 
     if (remote_sdp.media_descs_.empty()) {
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no media descriptions");
