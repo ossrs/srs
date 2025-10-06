@@ -1310,11 +1310,6 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
         return srs_error_wrap(err, "create bridge");
     }
 
-    if ((err = bridge->initialize(r)) != srs_success) {
-        srs_freep(bridge);
-        return srs_error_wrap(err, "create bridge");
-    }
-
     source_->set_bridge(bridge);
 
     return err;
