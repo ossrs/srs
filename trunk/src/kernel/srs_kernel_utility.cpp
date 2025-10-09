@@ -725,26 +725,32 @@ bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code)
     
     char* bytes = stream->data() + stream->pos();
     char* p = bytes;
+
+    // h264 annexb start codes are either 00 00 01 or 00 00 00 01
+    if (!stream->require(3)) {
+        return false;
+    }
     
-    for (;;) {
-        if (!stream->require((int)(p - bytes + 3))) {
-            return false;
+    // first check if starts with 00 00
+    if (p[0] != (char)0x00 || p[1] != (char)0x00) {
+        return false;
+    }
+    
+    // check for 00 00 01
+    if (p[2] == (char)0x01) {
+        if (pnb_start_code) {
+            *pnb_start_code = 3;
         }
-        
-        // not match
-        if (p[0] != (char)0x00 || p[1] != (char)0x00) {
-            return false;
+        return true;
+    }
+    
+    // check for 00 00 00 01
+    // only check when we have enough bytes
+    if (stream->require(4) && p[2] == (char)0x00 && p[3] == (char)0x01) {
+        if (pnb_start_code) {
+            *pnb_start_code = 4;
         }
-        
-        // match N[00] 00 00 01, where N>=0
-        if (p[2] == (char)0x01) {
-            if (pnb_start_code) {
-                *pnb_start_code = (int)(p - bytes) + 3;
-            }
-            return true;
-        }
-        
-        p++;
+        return true;
     }
     
     return false;
