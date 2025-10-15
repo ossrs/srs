@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-10-15, Merge [#4520](https://github.com/ossrs/srs/pull/4520): srs_app_rtc_conn: fix illegal memory access. v7.0.97 (#4520)
 * v7.0, 2025-10-14, Disable sanitizer by default to fix memory leak. (#4364) v7.0.96
 * v7.0, 2025-10-01, SRT: Support configurable default_streamid option. v7.0.95 (#4515)
 * v7.0, 2025-09-27, Merge [#4513](https://github.com/ossrs/srs/pull/4513): For Edge, only support RTMP or HTTP-FLV. v7.0.94 (#4513)
