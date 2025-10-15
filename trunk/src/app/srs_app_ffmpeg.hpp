@@ -16,19 +16,56 @@
 
 class SrsConfDirective;
 class SrsPithyPrint;
+class ISrsPithyPrint;
 class SrsProcess;
+class ISrsProcess;
+class ISrsAppConfig;
+
+// The ffmpeg interface.
+class ISrsFFMPEG
+{
+public:
+    ISrsFFMPEG();
+    virtual ~ISrsFFMPEG();
+
+public:
+    virtual void append_iparam(std::string iparam) = 0;
+    virtual void set_oformat(std::string format) = 0;
+    virtual std::string output() = 0;
+
+public:
+    virtual srs_error_t initialize(std::string in, std::string out, std::string log) = 0;
+    virtual srs_error_t initialize_transcode(SrsConfDirective *engine) = 0;
+    virtual srs_error_t initialize_copy() = 0;
+
+public:
+    virtual srs_error_t start() = 0;
+    virtual srs_error_t cycle() = 0;
+    virtual void stop() = 0;
+
+public:
+    virtual void fast_stop() = 0;
+    virtual void fast_kill() = 0;
+};
 
 // A transcode engine: ffmepg, used to transcode a stream to another.
-class SrsFFMPEG
+class SrsFFMPEG : public ISrsFFMPEG
 {
-private:
-    SrsProcess *process_;
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsProcess *process_;
     std::vector<std::string> params_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string log_file_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string ffmpeg_;
     std::vector<std::string> iparams_;
     std::vector<std::string> perfile_;

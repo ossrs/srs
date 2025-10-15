@@ -24,11 +24,8 @@ class SrsTcpConnection;
 class ISrsCoroutine;
 class SrsPackContext;
 class SrsBuffer;
-
 class SrsGbSession;
-
 class SrsGbMediaTcpConn;
-
 class SrsAlonePithyPrint;
 class SrsGbMuxer;
 class SrsSimpleRtmpClient;
@@ -38,7 +35,28 @@ class SrsRawHEVCStream;
 class SrsMediaPacket;
 class SrsPithyPrint;
 class SrsRawAacStream;
-class ISrsHttpServeMux;
+class ISrsCommonHttpHandler;
+class ISrsGbMuxer;
+class ISrsGbSession;
+class ISrsPackContext;
+class ISrsMpegpsQueue;
+class ISrsPsContext;
+class ISrsListener;
+class ISrsProtocolReadWriter;
+class ISrsRawH264Stream;
+class ISrsRawHEVCStream;
+class ISrsRawAacStream;
+class ISrsPithyPrint;
+class ISrsBasicRtmpClient;
+class SrsTsMessage;
+class SrsPsPacket;
+class ISrsGbSession;
+class ISrsGbMediaTcpConn;
+class ISrsAppConfig;
+class ISrsApiServerOwner;
+class ISrsResourceManager;
+class ISrsAppFactory;
+class ISrsIpListener;
 
 // The state machine for GB session.
 // init:
@@ -55,6 +73,7 @@ enum SrsGbSessionState {
     SrsGbSessionStateEstablished,
 };
 std::string srs_gb_session_state(SrsGbSessionState state);
+std::string srs_gb_state(SrsGbSessionState ostate, SrsGbSessionState state);
 
 // For external SIP server mode, where SRS acts only as a media relay server
 //     1. SIP server POST request via HTTP API with stream ID and SSRC
@@ -72,7 +91,14 @@ std::string srs_gb_session_state(SrsGbSessionState state);
 //      {"port":9000, "is_tcp": true}
 class SrsGoApiGbPublish : public ISrsHttpHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+    ISrsResourceManager *gb_manager_;
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsConfDirective *conf_;
 
 public:
@@ -82,34 +108,65 @@ public:
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *res);
     srs_error_t bind_session(std::string stream, uint64_t ssrc);
+};
+
+// The interface for GB session.
+class ISrsGbSession : public ISrsResource, public ISrsCoroutineHandler, public ISrsExecutorHandler
+{
+public:
+    std::string device_id_;
+
+public:
+    ISrsGbSession();
+    virtual ~ISrsGbSession();
+
+public:
+    // Initialize the GB session.
+    virtual void setup(SrsConfDirective *conf) = 0;
+    // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
+    virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid) = 0;
+    // Notice session to use current media connection.
+    virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media) = 0;
+
+public:
+    virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs) = 0;
 };
 
 // The main logic object for GB, the session.
 // Each session contains a media object, that are managed by session. This means session always
 // lives longer than media, and session will dispose media when session disposed. In another word,
 // media objects use directly pointer to session, while session use shared ptr.
-class SrsGbSession : public ISrsResource, public ISrsCoroutineHandler, public ISrsExecutorHandler
+class SrsGbSession : public ISrsGbSession
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The shared resource which own this object, we should never free it because it's managed by shared ptr.
-    SrsSharedResource<SrsGbSession> *wrapper_;
+    SrsSharedResource<ISrsGbSession> *wrapper_;
     // The owner coroutine, allow user to interrupt the loop.
     ISrsInterruptable *owner_coroutine_;
     ISrsContextIdSetter *owner_cid_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsGbSessionState state_;
 
-    SrsSharedResource<SrsGbMediaTcpConn> media_;
-    SrsGbMuxer *muxer_;
+    SrsSharedResource<ISrsGbMediaTcpConn> media_;
+    ISrsGbMuxer *muxer_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // When wait for media connecting, timeout if exceed.
     srs_utime_t connecting_starttime_;
     // The time we enter reinviting state.
@@ -117,7 +174,8 @@ private:
     // The number of timeout, dispose session if exceed.
     uint32_t nn_timeout_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsAlonePithyPrint *ppp_;
     srs_utime_t startime_;
     uint64_t total_packs_;
@@ -126,7 +184,8 @@ private:
     uint64_t total_msgs_dropped_;
     uint64_t total_reserved_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint32_t media_id_;
     srs_utime_t media_starttime_;
     uint64_t media_msgs_;
@@ -148,27 +207,29 @@ public:
     // Initialize the GB session.
     void setup(SrsConfDirective *conf);
     // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
-    void setup_owner(SrsSharedResource<SrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
+    void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     // Interface ISrsExecutorHandler
 public:
     virtual void on_executor_done(ISrsInterruptable *executor);
 
 public:
     // When got a pack of messages.
-    void on_ps_pack(SrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
+    void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
 
     // When got available media transport.
-    void on_media_transport(SrsSharedResource<SrsGbMediaTcpConn> media);
+    void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
 
     // Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle();
     srs_error_t drive_state();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsGbSessionState set_state(SrsGbSessionState v);
     // Interface ISrsResource
 public:
@@ -176,12 +237,30 @@ public:
     virtual std::string desc();
 };
 
-// The Media listener for GB.
-class SrsGbListener : public ISrsListener, public ISrsTcpHandler
+// The listener for GB.
+class ISrsGbListener : public ISrsListener
 {
-private:
+public:
+    ISrsGbListener();
+    virtual ~ISrsGbListener();
+
+public:
+};
+
+// The Media listener for GB.
+class SrsGbListener : public ISrsGbListener, public ISrsTcpHandler
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+    ISrsApiServerOwner *api_server_owner_;
+    ISrsResourceManager *gb_manager_;
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsConfDirective *conf_;
-    SrsTcpListener *media_listener_;
+    ISrsIpListener *media_listener_;
 
 public:
     SrsGbListener();
@@ -195,7 +274,8 @@ public:
 public:
     virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t listen_api();
 };
 
@@ -212,26 +292,54 @@ public:
     virtual srs_error_t on_ps_pack(SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs) = 0;
 };
 
-// A GB28181 TCP media connection, for PS stream.
-class SrsGbMediaTcpConn : public ISrsResource, public ISrsCoroutineHandler, public ISrsPsPackHandler, public ISrsExecutorHandler
+// The interface for GB media transport.
+class ISrsGbMediaTcpConn : public ISrsResource, public ISrsCoroutineHandler, public ISrsExecutorHandler
 {
-private:
+public:
+    ISrsGbMediaTcpConn();
+    virtual ~ISrsGbMediaTcpConn();
+
+public:
+    // Setup object, to keep empty constructor.
+    virtual void setup(srs_netfd_t stfd) = 0;
+    // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
+    virtual void setup_owner(SrsSharedResource<ISrsGbMediaTcpConn> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid) = 0;
+    // Whether media is connected.
+    virtual bool is_connected() = 0;
+    // Interrupt transport by session.
+    virtual void interrupt() = 0;
+    // Set the cid of all coroutines.
+    virtual void set_cid(const SrsContextId &cid) = 0;
+};
+
+// A GB28181 TCP media connection, for PS stream.
+class SrsGbMediaTcpConn : public ISrsGbMediaTcpConn, // It's a resource, coroutine handler, and executor handler.
+                          public ISrsPsPackHandler
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsResourceManager *gb_manager_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     bool connected_;
     // The owner session object, note that we use the raw pointer and should never free it.
-    SrsGbSession *session_;
+    ISrsGbSession *session_;
     uint32_t nn_rtcp_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The shared resource which own this object, we should never free it because it's managed by shared ptr.
-    SrsSharedResource<SrsGbMediaTcpConn> *wrapper_;
+    SrsSharedResource<ISrsGbMediaTcpConn> *wrapper_;
     // The owner coroutine, allow user to interrupt the loop.
     ISrsInterruptable *owner_coroutine_;
     ISrsContextIdSetter *owner_cid_;
     SrsContextId cid_;
 
-private:
-    SrsPackContext *pack_;
-    SrsTcpConnection *conn_;
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsPackContext *pack_;
+    ISrsProtocolReadWriter *conn_;
     uint8_t *buffer_;
 
 public:
@@ -242,7 +350,7 @@ public:
     // Setup object, to keep empty constructor.
     void setup(srs_netfd_t stfd);
     // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
-    void setup_owner(SrsSharedResource<SrsGbMediaTcpConn> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
+    void setup_owner(SrsSharedResource<ISrsGbMediaTcpConn> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     // Interface ISrsExecutorHandler
 public:
     virtual void on_executor_done(ISrsInterruptable *executor);
@@ -262,25 +370,42 @@ public:
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle();
     // Interface ISrsPsPackHandler
 public:
     virtual srs_error_t on_ps_pack(SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Create session if no one, or bind to an existed session.
-    srs_error_t bind_session(uint32_t ssrc, SrsGbSession **psession);
+    srs_error_t
+    bind_session(uint32_t ssrc, ISrsGbSession **psession);
+};
+
+// The interface for mpegps queue.
+class ISrsMpegpsQueue
+{
+public:
+    ISrsMpegpsQueue();
+    virtual ~ISrsMpegpsQueue();
+
+public:
+    virtual srs_error_t push(SrsMediaPacket *msg) = 0;
+    virtual SrsMediaPacket *dequeue() = 0;
 };
 
 // The queue for mpegts over udp to send packets.
 // For the aac in mpegts contains many flv packets in a pes packet,
 // we must recalc the timestamp.
-class SrsMpegpsQueue
+class SrsMpegpsQueue : public ISrsMpegpsQueue
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The key: dts, value: msg.
-    std::map<int64_t, SrsMediaPacket *> msgs_;
+    std::map<int64_t, SrsMediaPacket *>
+        msgs_;
     int nb_audios_;
     int nb_videos_;
 
@@ -293,47 +418,68 @@ public:
     virtual SrsMediaPacket *dequeue();
 };
 
-// Mux GB28181 to RTMP.
-class SrsGbMuxer
+// The interface for GB muxer.
+class ISrsGbMuxer
 {
-private:
-    // The owner session object, note that we use the raw pointer and should never free it.
-    SrsGbSession *session_;
-    std::string output_;
-    SrsSimpleRtmpClient *sdk_;
+public:
+    ISrsGbMuxer();
+    virtual ~ISrsGbMuxer();
 
-private:
-    SrsRawH264Stream *avc_;
+public:
+    virtual void setup(std::string output) = 0;
+    virtual srs_error_t on_ts_message(SrsTsMessage *msg) = 0;
+};
+
+// Mux GB28181 to RTMP.
+class SrsGbMuxer : public ISrsGbMuxer
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // The owner session object, note that we use the raw pointer and should never free it.
+    ISrsGbSession *session_;
+    std::string output_;
+    ISrsBasicRtmpClient *sdk_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsRawH264Stream *avc_;
     std::string h264_sps_;
     bool h264_sps_changed_;
     std::string h264_pps_;
     bool h264_pps_changed_;
     bool h264_sps_pps_sent_;
 
-    SrsRawHEVCStream *hevc_;
+    ISrsRawHEVCStream *hevc_;
     bool vps_sps_pps_change_;
     std::string h265_vps_;
     std::string h265_sps_;
     std::string h265_pps_;
     bool vps_sps_pps_sent_;
 
-private:
-    SrsRawAacStream *aac_;
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsRawAacStream *aac_;
     std::string aac_specific_config_;
 
-private:
-    SrsMpegpsQueue *queue_;
-    SrsPithyPrint *pprint_;
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsMpegpsQueue *queue_;
+    ISrsPithyPrint *pprint_;
 
 public:
-    SrsGbMuxer(SrsGbSession *session);
+    SrsGbMuxer(ISrsGbSession *session);
     virtual ~SrsGbMuxer();
 
 public:
     void setup(std::string output);
     srs_error_t on_ts_message(SrsTsMessage *msg);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_ts_video(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t mux_h264(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
@@ -345,20 +491,33 @@ private:
     virtual srs_error_t write_audio_raw_frame(char *frame, int frame_size, SrsRawAacStreamCodec *codec, uint32_t dts);
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char *data, int size);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Connect to RTMP server.
-    virtual srs_error_t connect();
+    virtual srs_error_t
+    connect();
     // Close the connection to RTMP server.
     virtual void close();
 };
 
-// Recoverable PS context for GB28181.
-class SrsRecoverablePsContext
+// The interface for recoverable PS context.
+class ISrsRecoverablePsContext
 {
 public:
-    SrsPsContext ctx_;
+    ISrsRecoverablePsContext();
+    virtual ~ISrsRecoverablePsContext();
 
-private:
+public:
+};
+
+// Recoverable PS context for GB28181.
+class SrsRecoverablePsContext : public ISrsRecoverablePsContext
+{
+public:
+    ISrsPsContext *ctx_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // If decoding error, enter the recover mode. Drop all left bytes util next pack header.
     int recover_;
 
@@ -371,22 +530,19 @@ public:
     // parsed by previous decoding, we should move to the start of payload bytes.
     virtual srs_error_t decode_rtp(SrsBuffer *stream, int reserved, ISrsPsMessageHandler *handler);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Decode the RTP payload as PS pack stream.
-    virtual srs_error_t decode(SrsBuffer *stream, ISrsPsMessageHandler *handler);
+    virtual srs_error_t
+    decode(SrsBuffer *stream, ISrsPsMessageHandler *handler);
     // When got error, drop data and enter recover mode.
     srs_error_t enter_recover_mode(SrsBuffer *stream, ISrsPsMessageHandler *handler, int pos, srs_error_t err);
     // Quit Recover mode when got pack header.
     void quit_recover_mode(SrsBuffer *stream, ISrsPsMessageHandler *handler);
 };
 
-// The PS pack context, for GB28181 to process based on PS pack, which contains a video and audios messages. For large
-// video frame, it might be split to multiple PES packets, which must be group to one video frame.
-// Please note that a pack might contain multiple audio frames, so size of audio PES packet should not exceed 64KB,
-// which is limited by the 16 bits PES_packet_length.
-// We also correct the timestamp, or DTS/PTS of video frames, which might be 0 if more than one video PES packets in a
-// PS pack stream.
-class SrsPackContext : public ISrsPsMessageHandler
+// The interface for PS pack context.
+class ISrsPackContext : public ISrsPsMessageHandler
 {
 public:
     // Each media transport only use one context, so the context id is the media id.
@@ -396,7 +552,21 @@ public:
     uint64_t media_nn_msgs_dropped_;
     uint64_t media_reserved_;
 
-private:
+public:
+    ISrsPackContext();
+    virtual ~ISrsPackContext();
+};
+
+// The PS pack context, for GB28181 to process based on PS pack, which contains a video and audios messages. For large
+// video frame, it might be split to multiple PES packets, which must be group to one video frame.
+// Please note that a pack might contain multiple audio frames, so size of audio PES packet should not exceed 64KB,
+// which is limited by the 16 bits PES_packet_length.
+// We also correct the timestamp, or DTS/PTS of video frames, which might be 0 if more than one video PES packets in a
+// PS pack stream.
+class SrsPackContext : public ISrsPackContext
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // To process a pack of TS/PS messages.
     ISrsPsPackHandler *handler_;
     // Note that it might be freed, so never use its fields.
@@ -408,8 +578,9 @@ public:
     SrsPackContext(ISrsPsPackHandler *handler);
     virtual ~SrsPackContext();
 
-private:
+public:
     void clear();
+
     // Interface ISrsPsMessageHandler
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage *msg);

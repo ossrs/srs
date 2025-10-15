@@ -53,10 +53,12 @@ public:
 // That is, the task is execute/call in async mode.
 class SrsAsyncCallWorker : public ISrsCoroutineHandler, public ISrsAsyncCallWorker
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     std::vector<ISrsAsyncCallTask *> tasks_;
     srs_cond_t wait_;
     srs_mutex_t lock_;
@@ -76,7 +78,8 @@ public:
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual void flush_tasks();
 };
 

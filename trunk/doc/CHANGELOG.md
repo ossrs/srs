@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-10-14, Disable sanitizer by default to fix memory leak. (#4364) v7.0.96
 * v7.0, 2025-10-01, SRT: Support configurable default_streamid option. v7.0.95 (#4515)
 * v7.0, 2025-09-27, Merge [#4513](https://github.com/ossrs/srs/pull/4513): For Edge, only support RTMP or HTTP-FLV. v7.0.94 (#4513)
 * v7.0, 2025-09-21, Merge [#4505](https://github.com/ossrs/srs/pull/4505): improve blackbox test for rtsp. v7.0.93 (#4505)
@@ -109,6 +110,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2025-10-14, Disable sanitizer by default to fix memory leak. (#4364) v6.0.181
 * v6.0, 2025-10-01, SRT: Support configurable default_streamid option. v6.0.180 (#4515)
 * v6.0, 2025-09-27, For Edge, only support RTMP or HTTP-FLV. v6.0.179 (#4512)
 * v6.0, 2025-09-21, Fix WHIP with transcoding bug. v6.0.178 (#4495)

@@ -19,13 +19,16 @@ class SrsLiveSource;
 // For origin cluster.
 class SrsCoWorkers
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     static SrsCoWorkers *instance_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::map<std::string, ISrsRequest *> streams_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsCoWorkers();
     virtual ~SrsCoWorkers();
 
@@ -35,7 +38,8 @@ public:
 public:
     virtual SrsJsonAny *dumps(std::string vhost, std::string coworker, std::string app, std::string stream);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual ISrsRequest *find_stream_info(std::string vhost, std::string app, std::string stream);
 
 public:

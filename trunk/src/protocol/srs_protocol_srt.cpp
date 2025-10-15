@@ -698,6 +698,14 @@ ISrsSrtPoller *srs_srt_poller_new()
     return new SrsSrtPoller();
 }
 
+ISrsSrtSocket::ISrsSrtSocket()
+{
+}
+
+ISrsSrtSocket::~ISrsSrtSocket()
+{
+}
+
 SrsSrtSocket::SrsSrtSocket(ISrsSrtPoller *srt_poller, srs_srt_t srt_fd)
 {
     srt_poller_ = srt_poller;

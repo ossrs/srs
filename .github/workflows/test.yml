@@ -180,6 +180,7 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             --build-arg INSTALLDEPENDS="NO" \
+            --build-arg CONFARGS="--sanitizer=on" \
             -f Dockerfile .
     runs-on: ubuntu-22.04
 
@@ -201,6 +202,7 @@ jobs:
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             --build-arg INSTALLDEPENDS="NO" \
+            --build-arg CONFARGS="--sanitizer=on" \
             -f Dockerfile .
     runs-on: ubuntu-22.04
 
@@ -221,6 +223,7 @@ jobs:
           docker buildx build --platform linux/amd64 \
             --output "type=image,push=false" \
             --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
+            --build-arg CONFARGS="--sanitizer=on" \
             -f Dockerfile .
     runs-on: ubuntu-22.04
 

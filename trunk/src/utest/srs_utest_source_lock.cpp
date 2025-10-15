@@ -814,4 +814,4 @@ VOID TEST(SourceLockTest, RtspSourceManager_BasicFunctionality)
     HELPER_EXPECT_SUCCESS(manager.fetch_or_create(&req, source2));
     EXPECT_EQ(source.get(), source2.get());
 }
-#endif
+#endif // SRS_RTSP

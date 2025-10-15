@@ -12,6 +12,36 @@
 #include <string>
 #include <vector>
 
+// The process interface.
+class ISrsProcess
+{
+public:
+    ISrsProcess();
+    virtual ~ISrsProcess();
+
+public:
+    // Get pid of process.
+    virtual int get_pid() = 0;
+    // whether process is already started.
+    virtual bool started() = 0;
+    // Initialize the process with binary and argv.
+    virtual srs_error_t initialize(std::string binary, std::vector<std::string> argv) = 0;
+
+public:
+    // Start the process, ignore when already started.
+    virtual srs_error_t start() = 0;
+    // cycle check the process, update the state of process.
+    virtual srs_error_t cycle() = 0;
+    // Send SIGTERM then SIGKILL to ensure the process stopped.
+    virtual void stop() = 0;
+
+public:
+    // The fast stop is to send a SIGTERM.
+    virtual void fast_stop() = 0;
+    // Directly kill process, never use it except server quiting.
+    virtual void fast_kill() = 0;
+};
+
 // Start and stop a process. Call cycle to restart the process when terminated.
 // The usage:
 //      // the binary is the process to fork.
@@ -25,15 +55,17 @@
 //      if ((ret = process->cycle()) != ERROR_SUCCESS) { return ret; }
 //      process->fast_stop();
 //      process->stop();
-class SrsProcess
+class SrsProcess : public ISrsProcess
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     bool is_started_;
     // Whether SIGTERM send but need to wait or SIGKILL.
     bool fast_stopped_;
     pid_t pid_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string bin_;
     std::string stdout_file_;
     std::string stderr_file_;
@@ -57,9 +89,11 @@ public:
     // @remark the argv[0] must be the binary.
     virtual srs_error_t initialize(std::string binary, std::vector<std::string> argv);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Redirect standard I/O.
-    virtual srs_error_t redirect_io();
+    virtual srs_error_t
+    redirect_io();
 
 public:
     // Start the process, ignore when already started.

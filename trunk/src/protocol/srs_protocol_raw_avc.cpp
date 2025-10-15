@@ -39,6 +39,14 @@ bool srs_aac_startswith_adts(SrsBuffer *stream)
     return true;
 }
 
+ISrsRawH264Stream::ISrsRawH264Stream()
+{
+}
+
+ISrsRawH264Stream::~ISrsRawH264Stream()
+{
+}
+
 SrsRawH264Stream::SrsRawH264Stream()
 {
 }
@@ -282,6 +290,14 @@ srs_error_t SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_
     *nb_flv = size;
 
     return err;
+}
+
+ISrsRawHEVCStream::ISrsRawHEVCStream()
+{
+}
+
+ISrsRawHEVCStream::~ISrsRawHEVCStream()
+{
 }
 
 SrsRawHEVCStream::SrsRawHEVCStream()
@@ -639,6 +655,14 @@ srs_error_t SrsRawHEVCStream::mux_hevc2flv_enhanced(std::string video, int8_t fr
     *nb_flv = size;
 
     return err;
+}
+
+ISrsRawAacStream::ISrsRawAacStream()
+{
+}
+
+ISrsRawAacStream::~ISrsRawAacStream()
+{
 }
 
 SrsRawAacStream::SrsRawAacStream()

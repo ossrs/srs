@@ -41,7 +41,8 @@ public:
     // @param req the request object of client.
     virtual srs_error_t check(SrsRtmpConnType type, std::string ip, ISrsRequest *req);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_check(SrsConfDirective *rules, SrsRtmpConnType type, std::string ip, ISrsRequest *req);
     virtual srs_error_t allow_check(SrsConfDirective *rules, SrsRtmpConnType type, std::string ip);
     virtual srs_error_t deny_check(SrsConfDirective *rules, SrsRtmpConnType type, std::string ip);

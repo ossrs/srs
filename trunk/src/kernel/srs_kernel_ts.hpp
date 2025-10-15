@@ -338,18 +338,21 @@ public:
 // The context of ts, to decode the ts stream.
 class SrsTsContext : public ISrsTsContext
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Whether context is ready, failed if try to write data when not ready.
     // When PAT and PMT writen, the context is ready.
     // @see https://github.com/ossrs/srs/issues/834
     bool ready_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::map<int, SrsTsChannel *> pids_;
     bool pure_audio_;
     int8_t sync_byte_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // when any codec changed, write the PAT/PMT.
     SrsVideoCodecId vcodec_;
     SrsAudioCodecId acodec_;
@@ -391,7 +394,8 @@ public:
     // @param ac The audio codec, write the PAT/PMT table when changed.
     virtual srs_error_t encode(ISrsStreamWriter *writer, SrsTsMessage *msg, SrsVideoCodecId vc, SrsAudioCodecId ac);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t encode_pat_pmt(ISrsStreamWriter *writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
     virtual srs_error_t encode_pes(ISrsStreamWriter *writer, SrsTsMessage *msg, int16_t pid, SrsTsStream sid, bool pure_audio);
 };
@@ -471,7 +475,8 @@ public:
     // The continuity counter may be discontinuous when the discontinuity_indicator is set to '1' (refer to 2.4.3.4). In the case of
     // a null packet the value of the continuity_counter is undefined.
     uint8_t continuity_counter_; // 4bits
-private:
+/* clang-format off */
+SRS_DECLARE_PRIVATE:   /* clang-format on */
     SrsTsAdaptationField *adaptation_field_;
     SrsTsPayload *payload_;
 
@@ -742,7 +747,8 @@ public:
     // decoder.
     int nb_af_reserved_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsTsPacket *packet_;
 
 public:
@@ -788,7 +794,8 @@ enum SrsTsPsiId {
 // The payload of ts packet, can be PES or PSI payload.
 class SrsTsPayload
 {
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     SrsTsPacket *packet_;
 
 public:
@@ -1071,7 +1078,8 @@ public:
     virtual int size();
     virtual srs_error_t encode(SrsBuffer *stream);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t decode_33bits_dts_pts(SrsBuffer *stream, int64_t *pv);
     virtual srs_error_t encode_33bits_dts_pts(SrsBuffer *stream, uint8_t fb, int64_t v);
 };
@@ -1145,7 +1153,8 @@ public:
     virtual int size();
     virtual srs_error_t encode(SrsBuffer *stream);
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual int psi_size() = 0;
     virtual srs_error_t psi_encode(SrsBuffer *stream) = 0;
     virtual srs_error_t psi_decode(SrsBuffer *stream) = 0;
@@ -1226,10 +1235,12 @@ public:
     SrsTsPayloadPAT(SrsTsPacket *p);
     virtual ~SrsTsPayloadPAT();
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t psi_decode(SrsBuffer *stream);
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual int psi_size();
     virtual srs_error_t psi_encode(SrsBuffer *stream);
 };
@@ -1331,10 +1342,12 @@ public:
     SrsTsPayloadPMT(SrsTsPacket *p);
     virtual ~SrsTsPayloadPMT();
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t psi_decode(SrsBuffer *stream);
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual int psi_size();
     virtual srs_error_t psi_encode(SrsBuffer *stream);
 };
@@ -1366,12 +1379,14 @@ public:
 // Write the TS message to TS context.
 class SrsTsContextWriter : public ISrsTsContextWriter
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // User must config the codec in right way.
     SrsVideoCodecId vcodec_;
     SrsAudioCodecId acodec_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsTsContext *context_;
     ISrsStreamWriter *writer_;
     std::string path_;
@@ -1411,11 +1426,13 @@ public:
 public:
     srs_error_t config_cipher(unsigned char *key, unsigned char *iv);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     unsigned char *key;
     unsigned char iv[16];
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     char *buf;
     int nb_buf;
 };
@@ -1437,10 +1454,10 @@ public:
 
 public:
     // Getters and setters for cached messages
-    virtual SrsTsMessage* audio() = 0;
-    virtual void set_audio(SrsTsMessage* msg) = 0;
-    virtual SrsTsMessage* video() = 0;
-    virtual void set_video(SrsTsMessage* msg) = 0;
+    virtual SrsTsMessage *audio() = 0;
+    virtual void set_audio(SrsTsMessage *msg) = 0;
+    virtual SrsTsMessage *video() = 0;
+    virtual void set_video(SrsTsMessage *msg) = 0;
 };
 
 // TS messages cache, to group frames to TS message,
@@ -1464,12 +1481,13 @@ public:
 
 public:
     // Getters and setters for cached messages
-    virtual SrsTsMessage* audio();
-    virtual void set_audio(SrsTsMessage* msg);
-    virtual SrsTsMessage* video();
-    virtual void set_video(SrsTsMessage* msg);
+    virtual SrsTsMessage *audio();
+    virtual void set_audio(SrsTsMessage *msg);
+    virtual SrsTsMessage *video();
+    virtual void set_video(SrsTsMessage *msg);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cache_mp3(SrsParsedAudioPacket *frame);
     virtual srs_error_t do_cache_aac(SrsParsedAudioPacket *frame);
     virtual srs_error_t do_cache_avc(SrsParsedVideoPacket *frame);
@@ -1497,13 +1515,15 @@ public:
 // Transmux the RTMP stream to HTTP-TS stream.
 class SrsTsTransmuxer : public ISrsTsTransmuxer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStreamWriter *writer_;
     bool has_audio_;
     bool has_video_;
     bool guess_has_av_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsFormat *format_;
     ISrsTsMessageCache *tsmc_;
     ISrsTsContextWriter *tscw_;
@@ -1529,7 +1549,8 @@ public:
     virtual srs_error_t write_audio(int64_t timestamp, char *data, int size);
     virtual srs_error_t write_video(int64_t timestamp, char *data, int size);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t flush_audio();
     virtual srs_error_t flush_video();
 };

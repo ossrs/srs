@@ -33,6 +33,15 @@ class SrsHttpClient;
 class ISrsHttpMessage;
 class SrsHttpFileReader;
 class SrsFlvDecoder;
+class ISrsAppConfig;
+class ISrsBasicRtmpClient;
+class ISrsHttpClient;
+class ISrsFileReader;
+class ISrsFlvDecoder;
+class ISrsLiveSource;
+class ISrsPlayEdge;
+class ISrsPublishEdge;
+class ISrsAppFactory;
 
 // The state of edge, auto machine
 enum SrsEdgeState {
@@ -57,11 +66,11 @@ enum SrsEdgeUserState {
 };
 
 // The upstream of edge, can be rtmp or http.
-class SrsEdgeUpstream
+class ISrsEdgeUpstream
 {
 public:
-    SrsEdgeUpstream();
-    virtual ~SrsEdgeUpstream();
+    ISrsEdgeUpstream();
+    virtual ~ISrsEdgeUpstream();
 
 public:
     virtual srs_error_t connect(ISrsRequest *r, ISrsLbRoundRobin *lb) = 0;
@@ -75,15 +84,23 @@ public:
     virtual void kbps_sample(const char *label, srs_utime_t age) = 0;
 };
 
-class SrsEdgeRtmpUpstream : public SrsEdgeUpstream
+// The RTMP upstream of edge.
+class SrsEdgeRtmpUpstream : public ISrsEdgeUpstream
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // For RTMP 302, if not empty,
     // use this <ip[:port]> as upstream.
     std::string redirect_;
-    SrsSimpleRtmpClient *sdk_;
+    ISrsBasicRtmpClient *sdk_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Current selected server, the ip:port.
     std::string selected_ip_;
     int selected_port_;
@@ -105,18 +122,27 @@ public:
     virtual void kbps_sample(const char *label, srs_utime_t age);
 };
 
-class SrsEdgeFlvUpstream : public SrsEdgeUpstream
+// The HTTP FLV upstream of edge.
+class SrsEdgeFlvUpstream : public ISrsEdgeUpstream
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string schema_;
-    SrsHttpClient *sdk_;
+    ISrsHttpClient *sdk_;
     ISrsHttpMessage *hr_;
 
-private:
-    SrsHttpFileReader *reader_;
-    SrsFlvDecoder *decoder_;
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsFileReader *reader_;
+    ISrsFlvDecoder *decoder_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // We might modify the request by HTTP redirect.
     ISrsRequest *req_;
     // Current selected server, the ip:port.
@@ -130,7 +156,8 @@ public:
 public:
     virtual srs_error_t connect(ISrsRequest *r, ISrsLbRoundRobin *lb);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_connect(ISrsRequest *r, ISrsLbRoundRobin *lb, int redirect_depth);
 
 public:
@@ -144,26 +171,48 @@ public:
     virtual void kbps_sample(const char *label, srs_utime_t age);
 };
 
-// The edge used to ingest stream from origin.
-class SrsEdgeIngester : public ISrsCoroutineHandler
+// The interface for edge ingester.
+class ISrsEdgeIngester
 {
-private:
-    // Because source references to this object, so we should directly use the source ptr.
-    SrsLiveSource *source_;
+public:
+    ISrsEdgeIngester();
+    virtual ~ISrsEdgeIngester();
 
-private:
-    SrsPlayEdge *edge_;
+public:
+    // Initialize the ingester.
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, ISrsPlayEdge *e, ISrsRequest *r) = 0;
+    // Start the ingester.
+    virtual srs_error_t start() = 0;
+    // Stop the ingester.
+    virtual void stop() = 0;
+};
+
+// The edge used to ingest stream from origin.
+class SrsEdgeIngester : public ISrsCoroutineHandler, public ISrsEdgeIngester
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Because source references to this object, so we should directly use the source ptr.
+    ISrsLiveSource *source_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsPlayEdge *edge_;
     ISrsRequest *req_;
     ISrsCoroutine *trd_;
     ISrsLbRoundRobin *lb_;
-    SrsEdgeUpstream *upstream_;
+    ISrsEdgeUpstream *upstream_;
 
 public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
 
 public:
-    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, SrsPlayEdge *e, ISrsRequest *r);
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, ISrsPlayEdge *e, ISrsRequest *r);
     virtual srs_error_t start();
     virtual void stop();
 
@@ -171,23 +220,51 @@ public:
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t ingest(std::string &redirect);
     virtual srs_error_t process_publish_message(SrsRtmpCommonMessage *msg, std::string &redirect);
 };
 
-// The edge used to forward stream to origin.
-class SrsEdgeForwarder : public ISrsCoroutineHandler
+// The interface for edge forwarder.
+class ISrsEdgeForwarder
 {
-private:
-    // Because source references to this object, so we should directly use the source ptr.
-    SrsLiveSource *source_;
+public:
+    ISrsEdgeForwarder();
+    virtual ~ISrsEdgeForwarder();
 
-private:
-    SrsPublishEdge *edge_;
+public:
+    // Set the queue size.
+    virtual void set_queue_size(srs_utime_t queue_size) = 0;
+    // Initialize the forwarder.
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, ISrsPublishEdge *e, ISrsRequest *r) = 0;
+    // Start the forwarder.
+    virtual srs_error_t start() = 0;
+    // Stop the forwarder.
+    virtual void stop() = 0;
+    // Proxy publish stream to edge.
+    virtual srs_error_t proxy(SrsRtmpCommonMessage *msg) = 0;
+};
+
+// The edge used to forward stream to origin.
+class SrsEdgeForwarder : public ISrsCoroutineHandler, public ISrsEdgeForwarder
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Because source references to this object, so we should directly use the source ptr.
+    ISrsLiveSource *source_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsPublishEdge *edge_;
     ISrsRequest *req_;
     ISrsCoroutine *trd_;
     SrsSimpleRtmpClient *sdk_;
@@ -208,26 +285,40 @@ public:
     virtual void set_queue_size(srs_utime_t queue_size);
 
 public:
-    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, SrsPublishEdge *e, ISrsRequest *r);
+    virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, ISrsPublishEdge *e, ISrsRequest *r);
     virtual srs_error_t start();
     virtual void stop();
     // Interface ISrsReusableThread2Handler
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle();
 
 public:
     virtual srs_error_t proxy(SrsRtmpCommonMessage *msg);
 };
 
-// The play edge control service.
-class SrsPlayEdge
+// The interface for play edge.
+class ISrsPlayEdge
 {
-private:
+public:
+    ISrsPlayEdge();
+    virtual ~ISrsPlayEdge();
+
+public:
+    // When ingester start to play stream.
+    virtual srs_error_t on_ingest_play() = 0;
+};
+
+// The play edge control service.
+class SrsPlayEdge : public ISrsPlayEdge
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsEdgeState state_;
-    SrsEdgeIngester *ingester_;
+    ISrsEdgeIngester *ingester_;
 
 public:
     SrsPlayEdge();
@@ -248,12 +339,23 @@ public:
     virtual srs_error_t on_ingest_play();
 };
 
-// The publish edge control service.
-class SrsPublishEdge
+// The interface for publish edge.
+class ISrsPublishEdge
 {
-private:
+public:
+    ISrsPublishEdge();
+    virtual ~ISrsPublishEdge();
+
+public:
+};
+
+// The publish edge control service.
+class SrsPublishEdge : public ISrsPublishEdge
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsEdgeState state_;
-    SrsEdgeForwarder *forwarder_;
+    ISrsEdgeForwarder *forwarder_;
 
 public:
     SrsPublishEdge();

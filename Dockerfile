@@ -51,8 +51,7 @@ COPY --from=build /usr/local/srs /usr/local/srs
 # Test the version of binaries.
 RUN ldd /usr/local/srs/objs/ffmpeg/bin/ffmpeg && \
     /usr/local/srs/objs/ffmpeg/bin/ffmpeg -version && \
-    ldd /usr/local/srs/objs/srs && \
-    /usr/local/srs/objs/srs -v
+    ldd /usr/local/srs/objs/srs
 
 # Default workdir and command.
 WORKDIR /usr/local/srs

@@ -30,10 +30,12 @@ public:
 // Transmux the RTMP packets to AAC stream.
 class SrsAacTransmuxer : public ISrsAacTransmuxer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStreamWriter *writer_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsAacObjectType aac_object_;
     int8_t aac_sample_rate_;
     int8_t aac_channels_;

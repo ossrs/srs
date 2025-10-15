@@ -30,12 +30,14 @@ public:
 // A common srt acceptor, for SRT server.
 class SrsSrtAcceptor : public ISrsSrtHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string ip_;
     int port_;
     ISrsSrtClientHandler *srt_handler_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsSrtListener *listener_;
 
 public:
@@ -45,7 +47,8 @@ public:
 public:
     virtual srs_error_t listen(std::string ip, int port);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t set_srt_opt();
     // Interface ISrsSrtHandler
 public:
@@ -69,7 +72,8 @@ public:
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSrtPoller *srt_poller_;
     ISrsCoroutine *trd_;
 };

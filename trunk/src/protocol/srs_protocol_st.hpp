@@ -91,7 +91,8 @@ extern int srs_mutex_unlock(srs_mutex_t mutex);
 //      cond->signal();
 class SrsCond : public ISrsCond
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_cond_t cond_;
 
 public:
@@ -111,7 +112,8 @@ public:
 //      SrsLocker(mutex->get());
 class SrsMutex
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_mutex_t mutex_;
 
 public:
@@ -153,7 +155,8 @@ extern bool srs_is_never_timeout(srs_utime_t tm);
 
 class impl__SrsLocker
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_mutex_t *lock_;
 
 public:
@@ -174,7 +177,8 @@ public:
 // that is, the sync socket mechanism.
 class SrsStSocket : public ISrsProtocolReadWriter
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The recv/send timeout in srs_utime_t.
     // @remark Use SRS_UTIME_NO_TIMEOUT for never timeout.
     srs_utime_t rtm_;
@@ -190,7 +194,8 @@ public:
     SrsStSocket(srs_netfd_t fd);
     virtual ~SrsStSocket();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     void init(srs_netfd_t fd);
 
 public:
@@ -220,11 +225,13 @@ public:
 // @remark User can directly free the object, which will close the fd.
 class SrsTcpClient : public ISrsProtocolReadWriter
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_netfd_t stfd_;
     SrsStSocket *io_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string host_;
     int port_;
     // The timeout in srs_utime_t.

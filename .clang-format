@@ -5,6 +5,7 @@
 #     ColumnLimit: 0
 #     IndentWidth: 4
 #     TabWidth: 4
+#     Macros: SRS_DECLARE_PRIVATE=private, SRS_DECLARE_PROTECTED=protected (treat as access specifiers)
 # refer to https://clang.llvm.org/docs/ClangFormatStyleOptions.html for more details.
 ---
 Language:        Cpp
@@ -198,6 +199,9 @@ LambdaBodyIndentation: Signature
 LineEnding:      DeriveLF
 MacroBlockBegin: ''
 MacroBlockEnd:   ''
+Macros:
+  - 'SRS_DECLARE_PRIVATE=private:'
+  - 'SRS_DECLARE_PROTECTED=protected:'
 MainIncludeChar: Quote
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: None

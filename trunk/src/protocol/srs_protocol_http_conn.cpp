@@ -20,6 +20,14 @@ using namespace std;
 #include <srs_protocol_stream.hpp>
 #include <srs_protocol_utility.hpp>
 
+ISrsHttpParser::ISrsHttpParser()
+{
+}
+
+ISrsHttpParser::~ISrsHttpParser()
+{
+}
+
 SrsHttpParser::SrsHttpParser()
 {
     buffer_ = new SrsFastStream();
@@ -293,7 +301,7 @@ int SrsHttpParser::on_body(llhttp_t *parser, const char *at, size_t length)
     return 0;
 }
 
-SrsHttpMessage::SrsHttpMessage(ISrsReader *reader, SrsFastStream *buffer) : ISrsHttpMessage()
+SrsHttpMessage::SrsHttpMessage(ISrsReader *reader, SrsFastStream *buffer)
 {
     owner_conn_ = NULL;
     chunked_ = false;

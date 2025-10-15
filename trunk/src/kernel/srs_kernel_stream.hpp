@@ -17,7 +17,8 @@
  */
 class SrsSimpleStream
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<char> data_;
 
 public:

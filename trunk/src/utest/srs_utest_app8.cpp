@@ -242,6 +242,7 @@ MockAppFactory::MockAppFactory()
     real_writer_ = NULL;
     real_file_ = NULL;
     real_reader_ = NULL;
+    real_fragmented_mp4_ = NULL;
     create_file_writer_count_ = 0;
     create_file_reader_count_ = 0;
 }
@@ -253,6 +254,8 @@ MockAppFactory::~MockAppFactory()
     // real_file_ is also not owned - it's part of real_writer_
     // real_reader_ is owned by this factory
     srs_freep(real_reader_);
+    // Note: real_fragmented_mp4_ is NOT owned by this factory - it's freed by the caller
+    real_fragmented_mp4_ = NULL;
 }
 
 ISrsFileWriter *MockAppFactory::create_file_writer()
@@ -271,6 +274,15 @@ ISrsFileReader *MockAppFactory::create_file_reader()
     return real_reader_;
 }
 
+ISrsFragmentedMp4 *MockAppFactory::create_fragmented_mp4()
+{
+    // Return the mock fragmented mp4 that was set up for testing
+    // The caller takes ownership of this object
+    ISrsFragmentedMp4 *result = real_fragmented_mp4_;
+    real_fragmented_mp4_ = NULL; // Clear reference after returning
+    return result;
+}
+
 void MockAppFactory::reset()
 {
     create_file_writer_count_ = 0;
@@ -280,6 +292,8 @@ void MockAppFactory::reset()
     srs_freep(real_file_);
     real_file_ = NULL;
     // Note: Don't free real_reader_ here as it may still be in use
+    // Note: real_fragmented_mp4_ should be NULL after being returned by create_fragmented_mp4()
+    real_fragmented_mp4_ = NULL;
 }
 
 // Mock HLS muxer implementation

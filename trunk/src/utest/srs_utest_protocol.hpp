@@ -105,7 +105,8 @@ public:
 
 class MockStatistic : public ISrsProtocolStatistic
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int64_t in;
     int64_t out;
 
@@ -126,7 +127,8 @@ public:
 
 class MockWallClock : public SrsWallClock
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int64_t clock;
 
 public:

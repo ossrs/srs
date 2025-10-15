@@ -1406,7 +1406,7 @@ MockDashForOriginHub::~MockDashForOriginHub()
     srs_freep(initialize_error_);
 }
 
-srs_error_t MockDashForOriginHub::initialize(SrsOriginHub *h, ISrsRequest *r)
+srs_error_t MockDashForOriginHub::initialize(ISrsOriginHub *h, ISrsRequest *r)
 {
     initialize_count_++;
     return srs_error_copy(initialize_error_);
@@ -1457,12 +1457,16 @@ MockDvrForOriginHub::MockDvrForOriginHub()
     on_video_count_ = 0;
 }
 
+void MockDvrForOriginHub::assemble()
+{
+}
+
 MockDvrForOriginHub::~MockDvrForOriginHub()
 {
     srs_freep(initialize_error_);
 }
 
-srs_error_t MockDvrForOriginHub::initialize(SrsOriginHub *h, ISrsRequest *r)
+srs_error_t MockDvrForOriginHub::initialize(ISrsOriginHub *h, ISrsRequest *r)
 {
     initialize_count_++;
     return srs_error_copy(initialize_error_);
@@ -1578,6 +1582,40 @@ SrsMetaCache *MockLiveSourceForOriginHub::meta()
 SrsRtmpFormat *MockLiveSourceForOriginHub::format()
 {
     return format_;
+}
+
+srs_error_t MockLiveSourceForOriginHub::on_source_id_changed(SrsContextId id)
+{
+    return srs_success;
+}
+
+srs_error_t MockLiveSourceForOriginHub::on_publish()
+{
+    return srs_success;
+}
+
+void MockLiveSourceForOriginHub::on_unpublish()
+{
+}
+
+srs_error_t MockLiveSourceForOriginHub::on_audio(SrsRtmpCommonMessage *audio)
+{
+    return srs_success;
+}
+
+srs_error_t MockLiveSourceForOriginHub::on_video(SrsRtmpCommonMessage *video)
+{
+    return srs_success;
+}
+
+srs_error_t MockLiveSourceForOriginHub::on_aggregate(SrsRtmpCommonMessage *msg)
+{
+    return srs_success;
+}
+
+srs_error_t MockLiveSourceForOriginHub::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaDataPacket *metadata)
+{
+    return srs_success;
 }
 
 // Unit test for SrsOriginHub::initialize typical scenario
@@ -1919,6 +1957,67 @@ void MockStatisticForOriginHub::kbps_sample()
 
 srs_error_t MockStatisticForOriginHub::on_video_frames(ISrsRequest *req, int nb_frames)
 {
+    return srs_success;
+}
+
+std::string MockStatisticForOriginHub::server_id()
+{
+    return "mock_server_id";
+}
+
+std::string MockStatisticForOriginHub::service_id()
+{
+    return "mock_service_id";
+}
+
+std::string MockStatisticForOriginHub::service_pid()
+{
+    return "mock_pid";
+}
+
+SrsStatisticVhost *MockStatisticForOriginHub::find_vhost_by_id(std::string vid)
+{
+    return NULL;
+}
+
+SrsStatisticStream *MockStatisticForOriginHub::find_stream(std::string sid)
+{
+    return NULL;
+}
+
+SrsStatisticStream *MockStatisticForOriginHub::find_stream_by_url(std::string url)
+{
+    return NULL;
+}
+
+SrsStatisticClient *MockStatisticForOriginHub::find_client(std::string client_id)
+{
+    return NULL;
+}
+
+srs_error_t MockStatisticForOriginHub::dumps_vhosts(SrsJsonArray *arr)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForOriginHub::dumps_streams(SrsJsonArray *arr, int start, int count)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForOriginHub::dumps_clients(SrsJsonArray *arr, int start, int count)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForOriginHub::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
+{
+    send_bytes = 0;
+    recv_bytes = 0;
+    nstreams = 0;
+    nclients = 0;
+    total_nclients = 0;
+    nerrs = 0;
     return srs_success;
 }
 
@@ -2924,6 +3023,11 @@ srs_error_t MockOriginHubForLiveSource::on_publish()
 
 void MockOriginHubForLiveSource::on_unpublish()
 {
+}
+
+srs_error_t MockOriginHubForLiveSource::on_dvr_request_sh()
+{
+    return srs_success;
 }
 
 MockAppFactoryForLiveSource::MockAppFactoryForLiveSource()

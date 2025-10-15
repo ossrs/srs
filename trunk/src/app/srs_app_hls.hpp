@@ -38,7 +38,7 @@ class SrsTsContext;
 class SrsFmp4SegmentEncoder;
 class ISrsHttpHooks;
 class ISrsAppConfig;
-class SrsAppFactory;
+class ISrsAppFactory;
 
 // The wrapper of m3u8 segment from specification:
 //
@@ -73,11 +73,13 @@ public:
 
 class SrsInitMp4Segment : public SrsFragment
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsFileWriter *fw_;
     SrsMp4M2tsInitEncoder init_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Key ID for encryption
     unsigned char kid_[16];
     // Constant IV for encryption
@@ -96,14 +98,16 @@ public:
     virtual srs_error_t write_video_only(SrsFormat *format, int v_tid);
     virtual srs_error_t write_audio_only(SrsFormat *format, int a_tid);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t init_encoder();
 };
 
 // TODO: merge this code with SrsFragmentedMp4 in dash
 class SrsHlsM4sSegment : public SrsFragment
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsFileWriter *fw_;
     SrsFmp4SegmentEncoder enc_;
 
@@ -130,11 +134,13 @@ public:
 // The hls async call: on_hls
 class SrsDvrAsyncCallOnHls : public ISrsAsyncCallTask
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsHttpHooks *hooks_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
     std::string path_;
     std::string ts_url_;
@@ -157,11 +163,13 @@ public:
 // The hls async call: on_hls_notify
 class SrsDvrAsyncCallOnHlsNotify : public ISrsAsyncCallTask
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsHttpHooks *hooks_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
     std::string ts_url_;
     ISrsRequest *req_;
@@ -184,14 +192,17 @@ public:
 // TODO: Rename to SrsHlsTsMuxer, for TS file only.
 class SrsHlsMuxer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
-    SrsAppFactory *app_factory_;
+    ISrsAppFactory *app_factory_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string hls_entry_prefix_;
     std::string hls_path_;
     std::string hls_ts_file_;
@@ -204,7 +215,8 @@ private:
     srs_utime_t hls_window_;
     SrsAsyncCallWorker *async_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Whether use floor algorithm for timestamp.
     bool hls_ts_floor_;
     // The deviation in piece to adjust the fragment to be more
@@ -215,7 +227,8 @@ private:
     int64_t accept_floor_ts_;
     int64_t previous_floor_ts_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Whether encrypted or not
     bool hls_keys_;
     int hls_fragments_per_key_;
@@ -231,13 +244,15 @@ private:
     // The underlayer file writer.
     ISrsFileWriter *writer_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int sequence_no_;
     srs_utime_t max_td_;
     std::string m3u8_;
     std::string m3u8_url_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The available cached segments in m3u8.
     SrsFragmentWindow *segments_;
     // The current writing segment.
@@ -245,7 +260,8 @@ private:
     // The ts context, to keep cc continous between ts.
     SrsTsContext *context_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Latest audio codec, parsed from stream.
     SrsAudioCodecId latest_acodec_;
     // Latest audio codec, parsed from stream.
@@ -306,7 +322,8 @@ public:
     // Close segment(ts).
     virtual srs_error_t segment_close();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_segment_close();
     virtual srs_error_t write_hls_key();
     virtual srs_error_t refresh_m3u8();
@@ -318,7 +335,8 @@ public:
     // HLS recover mode.
     srs_error_t recover_hls();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_recover_hls();
 };
 
@@ -327,14 +345,17 @@ private:
 // to flush video/audio, without any mechenisms.
 class SrsHlsFmp4Muxer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
-    SrsAppFactory *app_factory_;
+    ISrsAppFactory *app_factory_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string hls_entry_prefix_;
     std::string hls_path_;
     std::string hls_m4s_file_;
@@ -347,7 +368,8 @@ private:
     srs_utime_t hls_window_;
     SrsAsyncCallWorker *async_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Whether use floor algorithm for timestamp.
     bool hls_ts_floor_;
     // The deviation in piece to adjust the fragment to be more
@@ -359,7 +381,8 @@ private:
     int64_t previous_floor_ts_;
     bool init_mp4_ready_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Whether encrypted or not
     // TODO: fmp4 encryption is not yet implemented.
     // fmp4 support four kinds of protection scheme: 'cenc', 'cbc1', 'cens', 'cbcs'.
@@ -385,7 +408,8 @@ private:
     // The underlayer file writer.
     ISrsFileWriter *writer_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int sequence_no_;
     srs_utime_t max_td_;
     std::string m3u8_;
@@ -395,13 +419,15 @@ private:
     int audio_track_id_;
     uint64_t video_dts_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The available cached segments in m3u8.
     SrsFragmentWindow *segments_;
     // The current writing segment.
     SrsHlsM4sSegment *current_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Latest audio codec, parsed from stream.
     SrsAudioCodecId latest_acodec_;
     // Latest audio codec, parsed from stream.
@@ -461,7 +487,8 @@ public:
     // Close segment(ts).
     virtual srs_error_t segment_close();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_segment_close();
     virtual srs_error_t write_hls_key();
     virtual srs_error_t refresh_m3u8();
@@ -513,10 +540,12 @@ public:
 // TODO: Rename to SrsHlsTsController, for TS file only.
 class SrsHlsController : public ISrsHlsController
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The HLS muxer to reap ts and m3u8.
     // The TS is cached to SrsTsMessageCache then flush to ts segment.
     SrsHlsMuxer *muxer_;
@@ -557,39 +586,47 @@ public:
     // write video to muxer.
     virtual srs_error_t write_video(SrsMediaPacket *shared_video, SrsFormat *format);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Reopen the muxer for a new hls segment,
     // close current segment, open a new segment,
     // then write the key frame to the new segment.
     // so, user must reap_segment then flush_video to hls muxer.
-    virtual srs_error_t reap_segment();
+    virtual srs_error_t
+    reap_segment();
 };
 
 // HLS controller for fMP4 (.m4s) segments with init.mp4.
 // Direct sample processing without caching, simpler than TS controller.
 class SrsHlsMp4Controller : public ISrsHlsController
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     bool has_video_sh_;
     bool has_audio_sh_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int video_track_id_;
     int audio_track_id_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Current audio dts.
     uint64_t audio_dts_;
     // Current video dts.
     uint64_t video_dts_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsHlsFmp4Muxer *muxer_;
 
 public:
@@ -637,13 +674,16 @@ public:
 // TODO: FIXME: add utest for hls.
 class SrsHls : public ISrsHls
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsHlsController *controller_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
     // Whether the HLS is enabled.
     bool enabled_;
@@ -657,7 +697,8 @@ private:
     // To detect heartbeat and dispose it if configured.
     srs_utime_t last_update_time_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsOriginHub *hub_;
     SrsRtmpJitter *jitter_;
     SrsPithyPrint *pprint_;
@@ -669,7 +710,8 @@ public:
 public:
     virtual void async_reload();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t reload();
     srs_error_t do_reload(int *reloading, int *reloaded, int *refreshed);
 
@@ -697,7 +739,8 @@ public:
     // TODO: FIXME: Remove param is_sps_pps.
     virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual void hls_show_mux_log();
 };
 

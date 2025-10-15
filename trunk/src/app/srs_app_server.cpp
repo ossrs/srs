@@ -78,14 +78,10 @@ extern std::string _srs_reload_id;
 extern SrsRtcBlackhole *_srs_blackhole;
 extern SrsDtlsCertificate *_srs_rtc_dtls_certificate;
 
+bool _srs_global_initialized = false;
 srs_error_t srs_global_initialize()
 {
     srs_error_t err = srs_success;
-
-    // Root global objects.
-    _srs_log = new SrsFileLog();
-    _srs_context = new SrsThreadContext();
-    _srs_config = new SrsConfig();
 
     // Initialize the global kbps statistics variables
     if ((err = srs_global_kbps_initialize()) != srs_success) {
@@ -108,6 +104,10 @@ srs_error_t srs_global_initialize()
     _srs_stages = new SrsStageManager();
     _srs_sources = new SrsLiveSourceManager();
     _srs_circuit_breaker = new SrsCircuitBreaker();
+
+    // Initialize global statistic instance before _srs_hooks, as SrsHttpHooks depends on it.
+    _srs_stat = new SrsStatistic();
+
     _srs_hooks = new SrsHttpHooks();
 
     _srs_srt_sources = new SrsSrtSourceManager();
@@ -136,10 +136,34 @@ srs_error_t srs_global_initialize()
     SrsRand rand;
     _srs_reload_id = rand.gen_str(7);
 
-    // Initialize global statistic instance.
-    _srs_stat = new SrsStatistic();
+    // Global initialization done
+    _srs_global_initialized = true;
 
     return err;
+}
+
+ISrsSignalHandler::ISrsSignalHandler()
+{
+}
+
+ISrsSignalHandler::~ISrsSignalHandler()
+{
+}
+
+ISrsApiServerOwner::ISrsApiServerOwner()
+{
+}
+
+ISrsApiServerOwner::~ISrsApiServerOwner()
+{
+}
+
+ISrsRtcApiServer::ISrsRtcApiServer()
+{
+}
+
+ISrsRtcApiServer::~ISrsRtcApiServer()
+{
 }
 
 SrsServer::SrsServer()
@@ -262,7 +286,9 @@ SrsServer::~SrsServer()
     circuit_breaker_ = NULL;
     srt_sources_ = NULL;
     rtc_sources_ = NULL;
+#ifdef SRS_RTSP
     rtsp_sources_ = NULL;
+#endif
 #ifdef SRS_GB28181
     gb_manager_ = NULL;
 #endif
@@ -355,7 +381,7 @@ void SrsServer::gracefully_dispose()
     srs_trace("final wait for %dms", srsu2msi(config_->get_grace_final_wait()));
 }
 
-ISrsHttpServeMux *SrsServer::api_server()
+ISrsCommonHttpHandler *SrsServer::api_server()
 {
     return http_api_mux_;
 }
@@ -674,7 +700,8 @@ srs_error_t SrsServer::listen()
 
     // Create exporter server listener.
     if (config_->get_exporter_enabled()) {
-        exporter_listener_->set_endpoint(config_->get_exporter_listen())->set_label("Exporter-Server");
+        exporter_listener_->set_endpoint(config_->get_exporter_listen());
+        exporter_listener_->set_label("Exporter-Server");
         if ((err = exporter_listener_->listen()) != srs_success) {
             return srs_error_wrap(err, "exporter server listen");
         }
@@ -758,9 +785,13 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux_->handle("/api/v1/clients/", new SrsGoApiClients())) != srs_success) {
         return srs_error_wrap(err, "handle clients");
     }
-    if ((err = http_api_mux_->handle("/api/v1/raw", new SrsGoApiRaw(this))) != srs_success) {
+
+    SrsGoApiRaw *raw_api = new SrsGoApiRaw(this);
+    raw_api->assemble();
+    if ((err = http_api_mux_->handle("/api/v1/raw", raw_api)) != srs_success) {
         return srs_error_wrap(err, "handle raw");
     }
+
     if ((err = http_api_mux_->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
         return srs_error_wrap(err, "handle clusters");
     }
@@ -805,7 +836,9 @@ srs_error_t SrsServer::http_handle()
 #endif
 
     // metrics by prometheus
-    if ((err = http_api_mux_->handle("/metrics", new SrsGoApiMetrics())) != srs_success) {
+    SrsGoApiMetrics *metrics = new SrsGoApiMetrics();
+    metrics->assemble();
+    if ((err = http_api_mux_->handle("/metrics", metrics)) != srs_success) {
         return srs_error_wrap(err, "handle tests errors");
     }
 
@@ -1036,6 +1069,12 @@ srs_error_t SrsServer::do_cycle()
 
         if ((err = do2_cycle()) != srs_success) {
             return srs_error_wrap(err, "cycle");
+        }
+
+        // Break the loop when quit signals are set, otherwise we loop forever
+        // printing "cleanup for quit signal" every second.
+        if (signal_fast_quit_ || signal_gracefully_quit_) {
+            break;
         }
 
         srs_usleep(1 * SRS_UTIME_SECONDS);
@@ -1337,7 +1376,7 @@ srs_error_t SrsServer::listen_rtc_udp()
     return err;
 }
 
-srs_error_t SrsServer::on_udp_packet(SrsUdpMuxSocket *skt)
+srs_error_t SrsServer::on_udp_packet(ISrsUdpMuxSocket *skt)
 {
     return rtc_session_manager_->on_udp_packet(skt);
 }
@@ -1378,12 +1417,12 @@ srs_error_t SrsServer::listen_rtc_api()
     return err;
 }
 
-SrsRtcConnection *SrsServer::find_rtc_session_by_username(const std::string &username)
+ISrsRtcConnection *SrsServer::find_rtc_session_by_username(const std::string &username)
 {
     return rtc_session_manager_->find_rtc_session_by_username(username);
 }
 
-srs_error_t SrsServer::create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, SrsRtcConnection **psession)
+srs_error_t SrsServer::create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
 {
     srs_error_t err = srs_success;
 
@@ -1527,7 +1566,9 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
             resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
 #ifdef SRS_RTSP
         } else if (listener == rtsp_listener_) {
-            resource = new SrsRtspConnection(conn_manager_, new SrsTcpConnection(stfd2), ip, port);
+            SrsRtspConnection *conn = new SrsRtspConnection(conn_manager_, new SrsTcpConnection(stfd2), ip, port);
+            conn->assemble();
+            resource = conn;
 #endif
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.
@@ -1542,7 +1583,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
     // For RTC TCP connection, use resource executor to manage the resource.
     SrsRtcTcpConn *raw_conn = dynamic_cast<SrsRtcTcpConn *>(resource);
     if (raw_conn) {
-        SrsSharedResource<SrsRtcTcpConn> *conn = new SrsSharedResource<SrsRtcTcpConn>(raw_conn);
+        SrsSharedResource<ISrsRtcTcpConn> *conn = new SrsSharedResource<ISrsRtcTcpConn>(raw_conn);
         SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(conn_manager_, conn, raw_conn, raw_conn);
         raw_conn->setup_owner(conn, executor, executor);
         if ((err = executor->start()) != srs_success) {

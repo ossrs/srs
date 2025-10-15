@@ -43,27 +43,35 @@ SrsCircuitBreaker::SrsCircuitBreaker()
     hybrid_high_water_level_ = 0;
     hybrid_critical_water_level_ = 0;
     hybrid_dying_water_level_ = 0;
+
+    host_ = new SrsHost();
+
+    config_ = _srs_config;
+    shared_timer_ = _srs_shared_timer;
 }
 
 SrsCircuitBreaker::~SrsCircuitBreaker()
 {
+    srs_freep(host_);
+
+    config_ = NULL;
 }
 
 srs_error_t SrsCircuitBreaker::initialize()
 {
     srs_error_t err = srs_success;
 
-    enabled_ = _srs_config->get_circuit_breaker();
-    high_threshold_ = _srs_config->get_high_threshold();
-    high_pulse_ = _srs_config->get_high_pulse();
-    critical_threshold_ = _srs_config->get_critical_threshold();
-    critical_pulse_ = _srs_config->get_critical_pulse();
-    dying_threshold_ = _srs_config->get_dying_threshold();
-    dying_pulse_ = _srs_config->get_dying_pulse();
+    enabled_ = config_->get_circuit_breaker();
+    high_threshold_ = config_->get_high_threshold();
+    high_pulse_ = config_->get_high_pulse();
+    critical_threshold_ = config_->get_critical_threshold();
+    critical_pulse_ = config_->get_critical_pulse();
+    dying_threshold_ = config_->get_dying_threshold();
+    dying_pulse_ = config_->get_dying_pulse();
 
     // Update the water level for circuit breaker.
     // @see SrsCircuitBreaker::on_timer()
-    _srs_shared_timer->timer1s()->subscribe(this);
+    shared_timer_->timer1s()->subscribe(this);
 
     srs_trace("CircuitBreaker: enabled=%d, high=%dx%d, critical=%dx%d, dying=%dx%d", enabled_,
               high_pulse_, high_threshold_, critical_pulse_, critical_threshold_,
@@ -93,7 +101,7 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
 
     // Update the CPU usage.
     srs_update_proc_stat();
-    SrsProcSelfStat *stat = srs_get_self_proc_stat();
+    SrsProcSelfStat *stat = host_->self_proc_stat();
 
     // Reset the high water-level when CPU is low for N times.
     if (stat->percent_ * 100 > high_threshold_) {
@@ -117,7 +125,7 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
     }
 
     // Show statistics for RTC server.
-    SrsProcSelfStat *u = srs_get_self_proc_stat();
+    SrsProcSelfStat *u = host_->self_proc_stat();
     // Resident Set Size: number of pages the process has in real memory.
     int memory = (int)(u->rss_ * 4 / 1024);
 

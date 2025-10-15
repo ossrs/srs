@@ -15,6 +15,14 @@ using namespace std;
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_utility.hpp>
 
+ISrsBasicRtmpClient::ISrsBasicRtmpClient()
+{
+}
+
+ISrsBasicRtmpClient::~ISrsBasicRtmpClient()
+{
+}
+
 SrsBasicRtmpClient::SrsBasicRtmpClient(string r, srs_utime_t ctm, srs_utime_t stm)
 {
     kbps_ = new SrsNetworkKbps();

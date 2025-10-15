@@ -8,18 +8,31 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_http_api.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_http_stream.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_kernel_balance.hpp>
+#include <srs_kernel_consts.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_packet.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_utest_app10.hpp>
 #include <srs_utest_app9.hpp>
 #include <srs_utest_http.hpp>
 #include <srs_utest_kernel.hpp>
 #include <vector>
+
+// External function declarations for testing
+extern srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter *w, string callback, string data);
+extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, int code);
+extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, srs_error_t code);
+
+// External global variables for reload state
+extern srs_error_t _srs_reload_err;
+extern SrsReloadState _srs_reload_state;
+extern std::string _srs_reload_id;
 
 MockBufferCacheForAac::MockBufferCacheForAac()
 {
@@ -783,12 +796,12 @@ srs_error_t MockHttpxConn::on_start()
     return srs_success;
 }
 
-srs_error_t MockHttpxConn::on_http_message(ISrsHttpMessage *r, SrsHttpResponseWriter *w)
+srs_error_t MockHttpxConn::on_http_message(ISrsHttpMessage *r, ISrsHttpResponseWriter *w)
 {
     return srs_success;
 }
 
-srs_error_t MockHttpxConn::on_message_done(ISrsHttpMessage *r, SrsHttpResponseWriter *w)
+srs_error_t MockHttpxConn::on_message_done(ISrsHttpMessage *r, ISrsHttpResponseWriter *w)
 {
     return srs_success;
 }
@@ -1009,6 +1022,67 @@ void MockStatisticForLiveStream::kbps_sample()
 
 srs_error_t MockStatisticForLiveStream::on_video_frames(ISrsRequest *req, int nb_frames)
 {
+    return srs_success;
+}
+
+std::string MockStatisticForLiveStream::server_id()
+{
+    return "mock_server_id";
+}
+
+std::string MockStatisticForLiveStream::service_id()
+{
+    return "mock_service_id";
+}
+
+std::string MockStatisticForLiveStream::service_pid()
+{
+    return "mock_pid";
+}
+
+SrsStatisticVhost *MockStatisticForLiveStream::find_vhost_by_id(std::string vid)
+{
+    return NULL;
+}
+
+SrsStatisticStream *MockStatisticForLiveStream::find_stream(std::string sid)
+{
+    return NULL;
+}
+
+SrsStatisticStream *MockStatisticForLiveStream::find_stream_by_url(std::string url)
+{
+    return NULL;
+}
+
+SrsStatisticClient *MockStatisticForLiveStream::find_client(std::string client_id)
+{
+    return NULL;
+}
+
+srs_error_t MockStatisticForLiveStream::dumps_vhosts(SrsJsonArray *arr)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForLiveStream::dumps_streams(SrsJsonArray *arr, int start, int count)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForLiveStream::dumps_clients(SrsJsonArray *arr, int start, int count)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForLiveStream::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
+{
+    send_bytes = 0;
+    recv_bytes = 0;
+    nstreams = 0;
+    nclients = 0;
+    total_nclients = 0;
+    nerrs = 0;
     return srs_success;
 }
 
@@ -1468,6 +1542,297 @@ VOID TEST(SrsHttpStreamServerTest, HttpMountAndUnmount)
 
     // Now we can safely free the mock config
     srs_freep(mock_config);
+}
+
+VOID TEST(SrsGoApiSummariesTest, ServeHttpSuccess)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: serve_http returns JSON response with server info and summaries
+    // This covers the typical HTTP API /api/v1/summaries request use case
+
+    // Create SrsGoApiSummaries handler
+    SrsUniquePtr<SrsGoApiSummaries> handler(new SrsGoApiSummaries());
+
+    // Create mock HTTP response writer and message
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_message(new MockHttpMessageForApiResponse());
+
+    // Call serve_http - should return success and write JSON response
+    HELPER_EXPECT_SUCCESS(handler->serve_http(&mock_writer, mock_message.get()));
+
+    // Verify that response was written
+    string response = string(mock_writer.io.out_buffer.bytes(), mock_writer.io.out_buffer.length());
+    EXPECT_TRUE(response.length() > 0);
+
+    // The response includes HTTP headers, we need to extract just the JSON body
+    // Find the start of JSON (after the double CRLF that separates headers from body)
+    size_t json_start = response.find("\r\n\r\n");
+    ASSERT_TRUE(json_start != string::npos);
+    string json_body = response.substr(json_start + 4);
+
+    // Parse the JSON response
+    SrsJsonAny *json = SrsJsonAny::loads(json_body);
+    ASSERT_TRUE(json != NULL);
+    ASSERT_TRUE(json->is_object());
+    SrsUniquePtr<SrsJsonObject> obj((SrsJsonObject *)json);
+
+    // Verify "code" field is ERROR_SUCCESS
+    SrsJsonAny *code_any = obj->get_property("code");
+    ASSERT_TRUE(code_any != NULL);
+    ASSERT_TRUE(code_any->is_integer());
+    EXPECT_EQ(ERROR_SUCCESS, code_any->to_integer());
+
+    // Verify "server" field exists and is a string
+    SrsJsonAny *server_any = obj->get_property("server");
+    ASSERT_TRUE(server_any != NULL);
+    ASSERT_TRUE(server_any->is_string());
+
+    // Verify "service" field exists and is a string
+    SrsJsonAny *service_any = obj->get_property("service");
+    ASSERT_TRUE(service_any != NULL);
+    ASSERT_TRUE(service_any->is_string());
+
+    // Verify "pid" field exists and is a string
+    SrsJsonAny *pid_any = obj->get_property("pid");
+    ASSERT_TRUE(pid_any != NULL);
+    ASSERT_TRUE(pid_any->is_string());
+
+    // Verify "data" object exists (from srs_api_dump_summaries)
+    SrsJsonAny *data_any = obj->get_property("data");
+    ASSERT_TRUE(data_any != NULL);
+    ASSERT_TRUE(data_any->is_object());
+}
+
+VOID TEST(SrsGoApiAuthorsTest, ServeHttpSuccess)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: serve_http returns JSON response with license and contributors
+    // This covers the typical HTTP API /api/v1/authors request use case
+
+    // Create SrsGoApiAuthors handler
+    SrsUniquePtr<SrsGoApiAuthors> handler(new SrsGoApiAuthors());
+
+    // Create mock HTTP response writer and message
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_message(new MockHttpMessageForApiResponse());
+
+    // Call serve_http - should return success and write JSON response
+    HELPER_EXPECT_SUCCESS(handler->serve_http(&mock_writer, mock_message.get()));
+
+    // Verify that response was written
+    string response = string(mock_writer.io.out_buffer.bytes(), mock_writer.io.out_buffer.length());
+    EXPECT_TRUE(response.length() > 0);
+
+    // The response includes HTTP headers, we need to extract just the JSON body
+    // Find the start of JSON (after the double CRLF that separates headers from body)
+    size_t json_start = response.find("\r\n\r\n");
+    ASSERT_TRUE(json_start != string::npos);
+    string json_body = response.substr(json_start + 4);
+
+    // Parse the JSON response
+    SrsJsonAny *json = SrsJsonAny::loads(json_body);
+    ASSERT_TRUE(json != NULL);
+    ASSERT_TRUE(json->is_object());
+    SrsUniquePtr<SrsJsonObject> obj((SrsJsonObject *)json);
+
+    // Verify "code" field is ERROR_SUCCESS
+    SrsJsonAny *code_any = obj->get_property("code");
+    ASSERT_TRUE(code_any != NULL);
+    ASSERT_TRUE(code_any->is_integer());
+    EXPECT_EQ(ERROR_SUCCESS, code_any->to_integer());
+
+    // Verify "server" field exists and is a string
+    SrsJsonAny *server_any = obj->get_property("server");
+    ASSERT_TRUE(server_any != NULL);
+    ASSERT_TRUE(server_any->is_string());
+
+    // Verify "service" field exists and is a string
+    SrsJsonAny *service_any = obj->get_property("service");
+    ASSERT_TRUE(service_any != NULL);
+    ASSERT_TRUE(service_any->is_string());
+
+    // Verify "pid" field exists and is a string
+    SrsJsonAny *pid_any = obj->get_property("pid");
+    ASSERT_TRUE(pid_any != NULL);
+    ASSERT_TRUE(pid_any->is_string());
+
+    // Verify "data" object exists
+    SrsJsonAny *data_any = obj->get_property("data");
+    ASSERT_TRUE(data_any != NULL);
+    ASSERT_TRUE(data_any->is_object());
+    SrsJsonObject *data = (SrsJsonObject *)data_any;
+
+    // Verify "license" field exists and contains "MIT"
+    SrsJsonAny *license_any = data->get_property("license");
+    ASSERT_TRUE(license_any != NULL);
+    ASSERT_TRUE(license_any->is_string());
+    EXPECT_STREQ("MIT", license_any->to_str().c_str());
+
+    // Verify "contributors" field exists and contains the contributors URL
+    SrsJsonAny *contributors_any = data->get_property("contributors");
+    ASSERT_TRUE(contributors_any != NULL);
+    ASSERT_TRUE(contributors_any->is_string());
+    string contributors_url = contributors_any->to_str();
+    EXPECT_TRUE(contributors_url.find("github.com/ossrs/srs") != string::npos);
+    EXPECT_TRUE(contributors_url.find("AUTHORS.md") != string::npos);
+}
+
+VOID TEST(SrsGoApiFeaturesTest, ServeHttpSuccess)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: serve_http returns JSON response with build info and feature flags
+    // This covers the typical HTTP API /api/v1/features request use case
+
+    // Create SrsGoApiFeatures handler
+    SrsUniquePtr<SrsGoApiFeatures> handler(new SrsGoApiFeatures());
+
+    // Create mock HTTP response writer and message
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_message(new MockHttpMessageForApiResponse());
+
+    // Call serve_http - should return success and write JSON response
+    HELPER_EXPECT_SUCCESS(handler->serve_http(&mock_writer, mock_message.get()));
+
+    // Verify that response was written
+    string response = string(mock_writer.io.out_buffer.bytes(), mock_writer.io.out_buffer.length());
+    EXPECT_TRUE(response.length() > 0);
+
+    // The response includes HTTP headers, we need to extract just the JSON body
+    // Find the start of JSON (after the double CRLF that separates headers from body)
+    size_t json_start = response.find("\r\n\r\n");
+    ASSERT_TRUE(json_start != string::npos);
+    string json_body = response.substr(json_start + 4);
+
+    // Parse the JSON response
+    SrsJsonAny *json = SrsJsonAny::loads(json_body);
+    ASSERT_TRUE(json != NULL);
+    ASSERT_TRUE(json->is_object());
+    SrsUniquePtr<SrsJsonObject> obj((SrsJsonObject *)json);
+
+    // Verify "code" field is ERROR_SUCCESS
+    SrsJsonAny *code_any = obj->get_property("code");
+    ASSERT_TRUE(code_any != NULL);
+    ASSERT_TRUE(code_any->is_integer());
+    EXPECT_EQ(ERROR_SUCCESS, code_any->to_integer());
+
+    // Verify "server" field exists and is a string
+    SrsJsonAny *server_any = obj->get_property("server");
+    ASSERT_TRUE(server_any != NULL);
+    ASSERT_TRUE(server_any->is_string());
+
+    // Verify "service" field exists and is a string
+    SrsJsonAny *service_any = obj->get_property("service");
+    ASSERT_TRUE(service_any != NULL);
+    ASSERT_TRUE(service_any->is_string());
+
+    // Verify "pid" field exists and is a string
+    SrsJsonAny *pid_any = obj->get_property("pid");
+    ASSERT_TRUE(pid_any != NULL);
+    ASSERT_TRUE(pid_any->is_string());
+
+    // Verify "data" object exists
+    SrsJsonAny *data_any = obj->get_property("data");
+    ASSERT_TRUE(data_any != NULL);
+    ASSERT_TRUE(data_any->is_object());
+    SrsJsonObject *data = (SrsJsonObject *)data_any;
+
+    // Verify build info fields exist in data
+    SrsJsonAny *options_any = data->get_property("options");
+    ASSERT_TRUE(options_any != NULL);
+    ASSERT_TRUE(options_any->is_string());
+
+    SrsJsonAny *options2_any = data->get_property("options2");
+    ASSERT_TRUE(options2_any != NULL);
+    ASSERT_TRUE(options2_any->is_string());
+
+    SrsJsonAny *build_any = data->get_property("build");
+    ASSERT_TRUE(build_any != NULL);
+    ASSERT_TRUE(build_any->is_string());
+
+    SrsJsonAny *build2_any = data->get_property("build2");
+    ASSERT_TRUE(build2_any != NULL);
+    ASSERT_TRUE(build2_any->is_string());
+
+    // Verify "features" object exists in data
+    SrsJsonAny *features_any = data->get_property("features");
+    ASSERT_TRUE(features_any != NULL);
+    ASSERT_TRUE(features_any->is_object());
+    SrsJsonObject *features = (SrsJsonObject *)features_any;
+
+    // Verify key feature flags exist and are boolean
+    SrsJsonAny *ssl_any = features->get_property("ssl");
+    ASSERT_TRUE(ssl_any != NULL);
+    ASSERT_TRUE(ssl_any->is_boolean());
+    EXPECT_TRUE(ssl_any->to_boolean());
+
+    SrsJsonAny *hls_any = features->get_property("hls");
+    ASSERT_TRUE(hls_any != NULL);
+    ASSERT_TRUE(hls_any->is_boolean());
+    EXPECT_TRUE(hls_any->to_boolean());
+
+    SrsJsonAny *hds_any = features->get_property("hds");
+    ASSERT_TRUE(hds_any != NULL);
+    ASSERT_TRUE(hds_any->is_boolean());
+
+    SrsJsonAny *callback_any = features->get_property("callback");
+    ASSERT_TRUE(callback_any != NULL);
+    ASSERT_TRUE(callback_any->is_boolean());
+    EXPECT_TRUE(callback_any->to_boolean());
+
+    SrsJsonAny *api_any = features->get_property("api");
+    ASSERT_TRUE(api_any != NULL);
+    ASSERT_TRUE(api_any->is_boolean());
+    EXPECT_TRUE(api_any->to_boolean());
+
+    SrsJsonAny *httpd_any = features->get_property("httpd");
+    ASSERT_TRUE(httpd_any != NULL);
+    ASSERT_TRUE(httpd_any->is_boolean());
+    EXPECT_TRUE(httpd_any->to_boolean());
+
+    SrsJsonAny *dvr_any = features->get_property("dvr");
+    ASSERT_TRUE(dvr_any != NULL);
+    ASSERT_TRUE(dvr_any->is_boolean());
+    EXPECT_TRUE(dvr_any->to_boolean());
+
+    SrsJsonAny *transcode_any = features->get_property("transcode");
+    ASSERT_TRUE(transcode_any != NULL);
+    ASSERT_TRUE(transcode_any->is_boolean());
+    EXPECT_TRUE(transcode_any->to_boolean());
+
+    SrsJsonAny *ingest_any = features->get_property("ingest");
+    ASSERT_TRUE(ingest_any != NULL);
+    ASSERT_TRUE(ingest_any->is_boolean());
+    EXPECT_TRUE(ingest_any->to_boolean());
+
+    SrsJsonAny *stat_any = features->get_property("stat");
+    ASSERT_TRUE(stat_any != NULL);
+    ASSERT_TRUE(stat_any->is_boolean());
+    EXPECT_TRUE(stat_any->to_boolean());
+
+    SrsJsonAny *caster_any = features->get_property("caster");
+    ASSERT_TRUE(caster_any != NULL);
+    ASSERT_TRUE(caster_any->is_boolean());
+    EXPECT_TRUE(caster_any->to_boolean());
+
+    // Verify performance feature flags exist and are boolean
+    SrsJsonAny *complex_send_any = features->get_property("complex_send");
+    ASSERT_TRUE(complex_send_any != NULL);
+    ASSERT_TRUE(complex_send_any->is_boolean());
+
+    SrsJsonAny *tcp_nodelay_any = features->get_property("tcp_nodelay");
+    ASSERT_TRUE(tcp_nodelay_any != NULL);
+    ASSERT_TRUE(tcp_nodelay_any->is_boolean());
+
+    SrsJsonAny *so_sendbuf_any = features->get_property("so_sendbuf");
+    ASSERT_TRUE(so_sendbuf_any != NULL);
+    ASSERT_TRUE(so_sendbuf_any->is_boolean());
+
+    SrsJsonAny *mr_any = features->get_property("mr");
+    ASSERT_TRUE(mr_any != NULL);
+    ASSERT_TRUE(mr_any->is_boolean());
 }
 
 VOID TEST(SrsHttpStreamServerTest, DynamicMatchHttpFlv)
@@ -2051,4 +2416,1333 @@ VOID TEST(AppHttpStreamTest, Mp3StreamEncoderMajorScenario)
     // Verify dump_cache was called on the mock cache
     EXPECT_EQ(1, mock_cache.dump_cache_count_);
     EXPECT_EQ(SrsRtmpJitterAlgorithmOFF, mock_cache.last_jitter_);
+}
+
+VOID TEST(HttpApiTest, JsonpResponse)
+{
+    srs_error_t err;
+
+    // Create mock response writer
+    MockResponseWriter w;
+
+    // Test JSONP response with callback and data
+    string callback = "myCallback";
+    string data = "{\"code\":0,\"message\":\"success\"}";
+
+    HELPER_EXPECT_SUCCESS(srs_api_response_jsonp(&w, callback, data));
+
+    // Verify the response contains callback(data) format
+    string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+    EXPECT_TRUE(response.find("myCallback({\"code\":0,\"message\":\"success\"})") != string::npos);
+}
+
+MockHttpMessageForApiResponse::MockHttpMessageForApiResponse()
+{
+    mock_conn_ = new MockHttpConn();
+    set_connection(mock_conn_);
+    is_jsonp_ = false;
+    callback_ = "";
+    path_ = "/api/test";
+}
+
+MockHttpMessageForApiResponse::~MockHttpMessageForApiResponse()
+{
+    srs_freep(mock_conn_);
+}
+
+bool MockHttpMessageForApiResponse::is_jsonp()
+{
+    return is_jsonp_;
+}
+
+std::string MockHttpMessageForApiResponse::query_get(std::string key)
+{
+    if (key == "callback") {
+        return callback_;
+    }
+    std::map<std::string, std::string>::iterator it = query_params_.find(key);
+    if (it != query_params_.end()) {
+        return it->second;
+    }
+    return "";
+}
+
+std::string MockHttpMessageForApiResponse::path()
+{
+    return path_;
+}
+
+VOID TEST(HttpApiTest, GoApiV1ServeHttp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: SrsGoApiV1::serve_http returns JSON with server info and API URLs
+    // This covers the typical HTTP API v1 root endpoint use case
+
+    // Create SrsGoApiV1 instance
+    SrsUniquePtr<SrsGoApiV1> api(new SrsGoApiV1());
+
+    // Create mock statistic
+    MockStatisticForLiveStream mock_stat;
+
+    // Replace stat_ with mock
+    api->stat_ = &mock_stat;
+
+    // Create mock HTTP message and response writer
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    MockResponseWriter mock_writer;
+
+    // Call serve_http - should return JSON with server info and API URLs
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify response was written
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+    EXPECT_TRUE(response.length() > 0);
+
+    // Verify response contains expected JSON fields
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\":\"mock_server_id\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\":\"mock_service_id\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\":\"mock_pid\"") != string::npos);
+
+    // Verify response contains API URLs
+    EXPECT_TRUE(response.find("\"urls\"") != string::npos);
+    EXPECT_TRUE(response.find("\"versions\"") != string::npos);
+    EXPECT_TRUE(response.find("\"summaries\"") != string::npos);
+    EXPECT_TRUE(response.find("\"rusages\"") != string::npos);
+    EXPECT_TRUE(response.find("\"vhosts\"") != string::npos);
+    EXPECT_TRUE(response.find("\"streams\"") != string::npos);
+    EXPECT_TRUE(response.find("\"clients\"") != string::npos);
+    EXPECT_TRUE(response.find("\"raw\"") != string::npos);
+    EXPECT_TRUE(response.find("\"clusters\"") != string::npos);
+
+    // Verify response contains test URLs
+    EXPECT_TRUE(response.find("\"tests\"") != string::npos);
+    EXPECT_TRUE(response.find("\"requests\"") != string::npos);
+    EXPECT_TRUE(response.find("\"errors\"") != string::npos);
+    EXPECT_TRUE(response.find("\"redirects\"") != string::npos);
+
+    // Clean up - set stat_ back to NULL before destruction
+    api->stat_ = NULL;
+}
+
+VOID TEST(SrsGoApiVhostsTest, ServeHttpGetAllVhosts)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: GET request to /api/v1/vhosts/ returns all vhosts
+    // This covers the typical HTTP API request to list all vhosts
+
+    // Create SrsGoApiVhosts handler
+    SrsUniquePtr<SrsGoApiVhosts> handler(new SrsGoApiVhosts());
+
+    // Create mock HTTP mux entry with pattern
+    SrsHttpMuxEntry entry;
+    entry.pattern = "/api/v1/vhosts/";
+    handler->entry_ = &entry;
+
+    // Create mock HTTP response writer and message
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_message(new MockHttpMessageForApiResponse());
+
+    // Set the URL to match the pattern (no vhost_id, so list all vhosts)
+    HELPER_EXPECT_SUCCESS(mock_message->set_url("http://127.0.0.1/api/v1/vhosts/", false));
+
+    // Call serve_http - should return success and write JSON response with all vhosts
+    HELPER_EXPECT_SUCCESS(handler->serve_http(&mock_writer, mock_message.get()));
+
+    // Verify that response was written
+    string response = string(mock_writer.io.out_buffer.bytes(), mock_writer.io.out_buffer.length());
+    EXPECT_TRUE(response.length() > 0);
+
+    // Extract JSON body from HTTP response (after headers)
+    size_t json_start = response.find("\r\n\r\n");
+    ASSERT_TRUE(json_start != string::npos);
+    string json_body = response.substr(json_start + 4);
+
+    // Parse the JSON response
+    SrsJsonAny *json = SrsJsonAny::loads(json_body);
+    ASSERT_TRUE(json != NULL);
+    ASSERT_TRUE(json->is_object());
+    SrsUniquePtr<SrsJsonObject> obj((SrsJsonObject *)json);
+
+    // Verify "code" field is ERROR_SUCCESS
+    SrsJsonAny *code_any = obj->get_property("code");
+    ASSERT_TRUE(code_any != NULL);
+    ASSERT_TRUE(code_any->is_integer());
+    EXPECT_EQ(ERROR_SUCCESS, code_any->to_integer());
+
+    // Verify "server" field exists and is a string
+    SrsJsonAny *server_any = obj->get_property("server");
+    ASSERT_TRUE(server_any != NULL);
+    ASSERT_TRUE(server_any->is_string());
+
+    // Verify "service" field exists and is a string
+    SrsJsonAny *service_any = obj->get_property("service");
+    ASSERT_TRUE(service_any != NULL);
+    ASSERT_TRUE(service_any->is_string());
+
+    // Verify "pid" field exists and is a string
+    SrsJsonAny *pid_any = obj->get_property("pid");
+    ASSERT_TRUE(pid_any != NULL);
+    ASSERT_TRUE(pid_any->is_string());
+
+    // Verify "vhosts" array exists (for listing all vhosts)
+    SrsJsonAny *vhosts_any = obj->get_property("vhosts");
+    ASSERT_TRUE(vhosts_any != NULL);
+    ASSERT_TRUE(vhosts_any->is_array());
+}
+
+VOID TEST(HttpApiTest, ApiResponseCodeWithJsonAndJsonp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: srs_api_response_code handles both JSON and JSONP responses
+    // This covers the typical HTTP API response workflow where the function automatically
+    // detects whether the request is JSONP (has callback parameter) and responds accordingly
+
+    // Test 1: JSON response with integer code (no JSONP)
+    {
+        MockResponseWriter mock_writer;
+        SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+        mock_msg->is_jsonp_ = false;
+
+        HELPER_EXPECT_SUCCESS(srs_api_response_code(&mock_writer, mock_msg.get(), 0));
+
+        // Verify JSON response format: {"code":0}
+        string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+        EXPECT_TRUE(response.find("{\"code\":0}") != string::npos);
+        EXPECT_TRUE(response.find("callback") == string::npos); // No callback wrapper
+    }
+
+    // Test 2: JSONP response with integer code (has callback parameter)
+    {
+        MockResponseWriter mock_writer;
+        SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+        mock_msg->is_jsonp_ = true;
+        mock_msg->callback_ = "myCallback";
+
+        HELPER_EXPECT_SUCCESS(srs_api_response_code(&mock_writer, mock_msg.get(), 0));
+
+        // Verify JSONP response format: myCallback({"code":0})
+        string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+        EXPECT_TRUE(response.find("myCallback({\"code\":0})") != string::npos);
+    }
+
+    // Test 3: JSON response with srs_error_t code (no JSONP)
+    {
+        MockResponseWriter mock_writer;
+        SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+        mock_msg->is_jsonp_ = false;
+
+        srs_error_t test_err = srs_error_new(ERROR_RTMP_STREAM_NOT_FOUND, "stream not found");
+        HELPER_EXPECT_SUCCESS(srs_api_response_code(&mock_writer, mock_msg.get(), test_err));
+        // Note: srs_api_response_code frees the error internally, so we don't need to free it
+
+        // Verify JSON response contains the error code
+        string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+        char expected[128];
+        snprintf(expected, sizeof(expected), "{\"code\":%d}", ERROR_RTMP_STREAM_NOT_FOUND);
+        EXPECT_TRUE(response.find(expected) != string::npos);
+    }
+
+    // Test 4: JSONP response with srs_error_t code (has callback parameter)
+    {
+        MockResponseWriter mock_writer;
+        SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+        mock_msg->is_jsonp_ = true;
+        mock_msg->callback_ = "errorCallback";
+
+        srs_error_t test_err = srs_error_new(ERROR_RTMP_STREAM_NOT_FOUND, "stream not found");
+        HELPER_EXPECT_SUCCESS(srs_api_response_code(&mock_writer, mock_msg.get(), test_err));
+        // Note: srs_api_response_code frees the error internally, so we don't need to free it
+
+        // Verify JSONP response format: errorCallback({"code":ERROR_CODE})
+        string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+        char expected[128];
+        snprintf(expected, sizeof(expected), "errorCallback({\"code\":%d})", ERROR_RTMP_STREAM_NOT_FOUND);
+        EXPECT_TRUE(response.find(expected) != string::npos);
+    }
+
+    // Test 5: JSON response with success code (srs_success as srs_error_t)
+    {
+        MockResponseWriter mock_writer;
+        SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+        mock_msg->is_jsonp_ = false;
+
+        srs_error_t success_err = srs_success;
+        HELPER_EXPECT_SUCCESS(srs_api_response_code(&mock_writer, mock_msg.get(), success_err));
+
+        // Verify JSON response format: {"code":0}
+        string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+        EXPECT_TRUE(response.find("{\"code\":0}") != string::npos);
+    }
+
+    // Test the major use scenario: srs_api_response_code with both JSON and JSONP responses
+    // This covers the typical HTTP API response workflow where the function automatically
+    // detects whether the request is JSONP (has callback parameter) and responds accordingly
+
+    // Test 1: JSON response with success code - most common use case
+    {
+        MockResponseWriterForJsonp w;
+        SrsUniquePtr<MockHttpMessage> msg(new MockHttpMessage());
+
+        // Call srs_api_response_code with success code
+        HELPER_EXPECT_SUCCESS(srs_api_response_code(&w, msg.get(), ERROR_SUCCESS));
+
+        // Verify JSON response was written with correct code
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(response.find("{\"code\":0}") != string::npos);
+
+        // Verify content-type is application/json
+        EXPECT_STREQ("application/json", w.header()->content_type().c_str());
+    }
+
+    // Test 2: JSON response with error code
+    {
+        MockResponseWriterForJsonp w;
+        SrsUniquePtr<MockHttpMessage> msg(new MockHttpMessage());
+
+        // Call srs_api_response_code with error code
+        HELPER_EXPECT_SUCCESS(srs_api_response_code(&w, msg.get(), ERROR_RTMP_STREAM_NOT_FOUND));
+
+        // Verify error code was written in JSON response
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+        char expected[64];
+        snprintf(expected, sizeof(expected), "{\"code\":%d}", ERROR_RTMP_STREAM_NOT_FOUND);
+        EXPECT_TRUE(response.find(expected) != string::npos);
+
+        // Verify content-type is application/json
+        EXPECT_STREQ("application/json", w.header()->content_type().c_str());
+    }
+
+    // Test 3: Error code response with automatic error cleanup (srs_error_t overload)
+    {
+        MockResponseWriterForJsonp w;
+        SrsUniquePtr<MockHttpMessage> msg(new MockHttpMessage());
+
+        // Create an error object - srs_api_response_code will free it automatically
+        srs_error_t error_code = srs_error_new(ERROR_RTMP_STREAM_NOT_FOUND, "stream not found");
+
+        // Call srs_api_response_code with error - it should free the error object
+        HELPER_EXPECT_SUCCESS(srs_api_response_code(&w, msg.get(), error_code));
+
+        // Verify error code was written in JSON response
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+        char expected[64];
+        snprintf(expected, sizeof(expected), "{\"code\":%d}", ERROR_RTMP_STREAM_NOT_FOUND);
+        EXPECT_TRUE(response.find(expected) != string::npos);
+
+        // Verify content-type is application/json
+        EXPECT_STREQ("application/json", w.header()->content_type().c_str());
+
+        // Note: error_code was freed by srs_api_response_code, so we don't free it here
+    }
+
+    // Test 4: JSONP response (with callback parameter)
+    {
+        MockResponseWriterForJsonp w;
+        SrsUniquePtr<MockHttpMessage> msg(new MockHttpMessage());
+
+        // Set up JSONP request by adding callback query parameter
+        msg->set_url("/api/v1/test?callback=myCallback", false);
+
+        // Debug: Check if is_jsonp() works
+        bool is_jsonp = msg->is_jsonp();
+        string callback = msg->query_get("callback");
+
+        // Call srs_api_response_code with success code
+        HELPER_EXPECT_SUCCESS(srs_api_response_code(&w, msg.get(), ERROR_SUCCESS));
+
+        // Verify response was written
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+
+        // If is_jsonp() returns true, expect JSONP format, otherwise expect JSON format
+        if (is_jsonp && !callback.empty()) {
+            // JSONP format: callback({"code":0})
+            EXPECT_TRUE(response.find("myCallback({\"code\":0})") != string::npos);
+            EXPECT_STREQ("text/javascript", w.header()->content_type().c_str());
+        } else {
+            // JSON format: {"code":0}
+            EXPECT_TRUE(response.find("{\"code\":0}") != string::npos);
+            EXPECT_STREQ("application/json", w.header()->content_type().c_str());
+        }
+    }
+}
+
+VOID TEST(HttpApiTest, GoApiApiServeHttp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: SrsGoApiApi::serve_http returns API metadata
+    // This covers the typical /api endpoint that provides server information and API version
+
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsUniquePtr<SrsGoApiApi> api(new SrsGoApiApi());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify JSON response contains expected fields
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+
+    // Check for required fields in response
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"urls\"") != string::npos);
+    EXPECT_TRUE(response.find("\"v1\"") != string::npos);
+    EXPECT_TRUE(response.find("the api version 1.0") != string::npos);
+}
+
+VOID TEST(HttpApiTest, GoApiVersionServeHttp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: SrsGoApiVersion::serve_http returns version information
+    // This covers the typical /api/v1/version endpoint that provides SRS version details
+
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsUniquePtr<SrsGoApiVersion> api(new SrsGoApiVersion());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify JSON response contains expected fields
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+
+    // Check for required fields in response
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"data\"") != string::npos);
+    EXPECT_TRUE(response.find("\"major\"") != string::npos);
+    EXPECT_TRUE(response.find("\"minor\"") != string::npos);
+    EXPECT_TRUE(response.find("\"revision\"") != string::npos);
+    EXPECT_TRUE(response.find("\"version\"") != string::npos);
+}
+
+VOID TEST(HttpApiTest, GoApiRusagesServeHttp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: SrsGoApiRusages::serve_http returns system resource usage information
+    // This covers the typical /api/v1/rusages endpoint that provides system rusage statistics
+
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsUniquePtr<SrsGoApiRusages> api(new SrsGoApiRusages());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify JSON response contains expected fields
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+
+    // Check for required fields in response
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"data\"") != string::npos);
+
+    // Check for rusage-specific fields
+    EXPECT_TRUE(response.find("\"ok\"") != string::npos);
+    EXPECT_TRUE(response.find("\"sample_time\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_utime\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_stime\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_maxrss\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_ixrss\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_idrss\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_isrss\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_minflt\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_majflt\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_nswap\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_inblock\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_oublock\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_msgsnd\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_msgrcv\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_nsignals\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_nvcsw\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ru_nivcsw\"") != string::npos);
+}
+
+VOID TEST(HttpApiTest, GoApiSelfProcStatsServeHttp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: SrsGoApiSelfProcStats::serve_http returns process statistics
+    // This covers the typical /api/v1/self_proc_stats endpoint that provides /proc/self/stat information
+
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsUniquePtr<SrsGoApiSelfProcStats> api(new SrsGoApiSelfProcStats());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify JSON response contains expected fields
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+
+    // Check for required fields in response
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"data\"") != string::npos);
+
+    // Check for self proc stat-specific fields
+    EXPECT_TRUE(response.find("\"ok\"") != string::npos);
+    EXPECT_TRUE(response.find("\"sample_time\"") != string::npos);
+    EXPECT_TRUE(response.find("\"percent\"") != string::npos);
+    EXPECT_TRUE(response.find("\"comm\"") != string::npos);
+    EXPECT_TRUE(response.find("\"state\"") != string::npos);
+    EXPECT_TRUE(response.find("\"ppid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pgrp\"") != string::npos);
+    EXPECT_TRUE(response.find("\"session\"") != string::npos);
+    EXPECT_TRUE(response.find("\"tty_nr\"") != string::npos);
+    EXPECT_TRUE(response.find("\"tpgid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"flags\"") != string::npos);
+    EXPECT_TRUE(response.find("\"minflt\"") != string::npos);
+    EXPECT_TRUE(response.find("\"cminflt\"") != string::npos);
+    EXPECT_TRUE(response.find("\"majflt\"") != string::npos);
+    EXPECT_TRUE(response.find("\"cmajflt\"") != string::npos);
+    EXPECT_TRUE(response.find("\"utime\"") != string::npos);
+    EXPECT_TRUE(response.find("\"stime\"") != string::npos);
+    EXPECT_TRUE(response.find("\"cutime\"") != string::npos);
+    EXPECT_TRUE(response.find("\"cstime\"") != string::npos);
+    EXPECT_TRUE(response.find("\"priority\"") != string::npos);
+    EXPECT_TRUE(response.find("\"nice\"") != string::npos);
+    EXPECT_TRUE(response.find("\"num_threads\"") != string::npos);
+    EXPECT_TRUE(response.find("\"itrealvalue\"") != string::npos);
+    EXPECT_TRUE(response.find("\"starttime\"") != string::npos);
+    EXPECT_TRUE(response.find("\"vsize\"") != string::npos);
+    EXPECT_TRUE(response.find("\"rss\"") != string::npos);
+    EXPECT_TRUE(response.find("\"rsslim\"") != string::npos);
+    EXPECT_TRUE(response.find("\"startcode\"") != string::npos);
+    EXPECT_TRUE(response.find("\"endcode\"") != string::npos);
+    EXPECT_TRUE(response.find("\"startstack\"") != string::npos);
+    EXPECT_TRUE(response.find("\"kstkesp\"") != string::npos);
+    EXPECT_TRUE(response.find("\"kstkeip\"") != string::npos);
+    EXPECT_TRUE(response.find("\"signal\"") != string::npos);
+    EXPECT_TRUE(response.find("\"blocked\"") != string::npos);
+    EXPECT_TRUE(response.find("\"sigignore\"") != string::npos);
+    EXPECT_TRUE(response.find("\"sigcatch\"") != string::npos);
+    EXPECT_TRUE(response.find("\"wchan\"") != string::npos);
+    EXPECT_TRUE(response.find("\"nswap\"") != string::npos);
+    EXPECT_TRUE(response.find("\"cnswap\"") != string::npos);
+    EXPECT_TRUE(response.find("\"exit_signal\"") != string::npos);
+    EXPECT_TRUE(response.find("\"processor\"") != string::npos);
+    EXPECT_TRUE(response.find("\"rt_priority\"") != string::npos);
+    EXPECT_TRUE(response.find("\"policy\"") != string::npos);
+    EXPECT_TRUE(response.find("\"delayacct_blkio_ticks\"") != string::npos);
+    EXPECT_TRUE(response.find("\"guest_time\"") != string::npos);
+    EXPECT_TRUE(response.find("\"cguest_time\"") != string::npos);
+}
+
+VOID TEST(HttpApiTest, GoApiSystemProcStatsServeHttp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: SrsGoApiSystemProcStats::serve_http returns system CPU statistics
+    // This covers the typical /api/v1/system_proc_stats endpoint that provides /proc/stat information
+
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsUniquePtr<SrsGoApiSystemProcStats> api(new SrsGoApiSystemProcStats());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify JSON response contains expected fields
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+
+    // Check for required fields in response
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"data\"") != string::npos);
+
+    // Check for system proc stat-specific fields
+    EXPECT_TRUE(response.find("\"ok\"") != string::npos);
+    EXPECT_TRUE(response.find("\"sample_time\"") != string::npos);
+    EXPECT_TRUE(response.find("\"percent\"") != string::npos);
+    EXPECT_TRUE(response.find("\"user\"") != string::npos);
+    EXPECT_TRUE(response.find("\"nice\"") != string::npos);
+    EXPECT_TRUE(response.find("\"sys\"") != string::npos);
+    EXPECT_TRUE(response.find("\"idle\"") != string::npos);
+    EXPECT_TRUE(response.find("\"iowait\"") != string::npos);
+    EXPECT_TRUE(response.find("\"irq\"") != string::npos);
+    EXPECT_TRUE(response.find("\"softirq\"") != string::npos);
+    EXPECT_TRUE(response.find("\"steal\"") != string::npos);
+    EXPECT_TRUE(response.find("\"guest\"") != string::npos);
+}
+
+VOID TEST(HttpApiTest, GoApiMemInfosServeHttp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: SrsGoApiMemInfos::serve_http returns memory information
+    // This covers the typical /api/v1/meminfos endpoint that provides /proc/meminfo statistics
+
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsUniquePtr<SrsGoApiMemInfos> api(new SrsGoApiMemInfos());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify JSON response contains expected fields
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+
+    // Check for required fields in response
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"data\"") != string::npos);
+
+    // Check for memory info-specific fields
+    EXPECT_TRUE(response.find("\"ok\"") != string::npos);
+    EXPECT_TRUE(response.find("\"sample_time\"") != string::npos);
+    EXPECT_TRUE(response.find("\"percent_ram\"") != string::npos);
+    EXPECT_TRUE(response.find("\"percent_swap\"") != string::npos);
+    EXPECT_TRUE(response.find("\"MemActive\"") != string::npos);
+    EXPECT_TRUE(response.find("\"RealInUse\"") != string::npos);
+    EXPECT_TRUE(response.find("\"NotInUse\"") != string::npos);
+    EXPECT_TRUE(response.find("\"MemTotal\"") != string::npos);
+    EXPECT_TRUE(response.find("\"MemFree\"") != string::npos);
+    EXPECT_TRUE(response.find("\"Buffers\"") != string::npos);
+    EXPECT_TRUE(response.find("\"Cached\"") != string::npos);
+    EXPECT_TRUE(response.find("\"SwapTotal\"") != string::npos);
+    EXPECT_TRUE(response.find("\"SwapFree\"") != string::npos);
+}
+
+VOID TEST(HttpApiTest, GoApiRootServeHttp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: SrsGoApiRoot::serve_http returns API root information
+    // This covers the typical / endpoint that provides server identification and available API URLs
+
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsUniquePtr<SrsGoApiRoot> api(new SrsGoApiRoot());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify JSON response contains expected fields
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+
+    // Verify response contains code field
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+
+    // Verify response contains server identification fields
+    EXPECT_TRUE(response.find("\"server\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\"") != string::npos);
+
+    // Verify response contains urls object
+    EXPECT_TRUE(response.find("\"urls\"") != string::npos);
+    EXPECT_TRUE(response.find("\"api\"") != string::npos);
+
+    // Verify response contains rtc URLs
+    EXPECT_TRUE(response.find("\"rtc\"") != string::npos);
+    EXPECT_TRUE(response.find("\"v1\"") != string::npos);
+    EXPECT_TRUE(response.find("\"play\"") != string::npos);
+    EXPECT_TRUE(response.find("\"publish\"") != string::npos);
+    EXPECT_TRUE(response.find("\"nack\"") != string::npos);
+}
+
+VOID TEST(HttpApiTest, GoApiRequestsServeHttp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: SrsGoApiRequests::serve_http returns request information
+    // This covers the typical /api/v1/requests endpoint that echoes back request details
+    // including URI, path, method, headers, and server information
+
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsUniquePtr<SrsGoApiRequests> api(new SrsGoApiRequests());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify JSON response contains expected fields
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+
+    // Check for required server info fields
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"data\"") != string::npos);
+
+    // Check for request-specific fields in data object
+    EXPECT_TRUE(response.find("\"uri\"") != string::npos);
+    EXPECT_TRUE(response.find("\"path\"") != string::npos);
+    EXPECT_TRUE(response.find("\"METHOD\"") != string::npos);
+    EXPECT_TRUE(response.find("\"headers\"") != string::npos);
+
+    // Check for server information fields
+    EXPECT_TRUE(response.find("\"sigature\"") != string::npos);
+    EXPECT_TRUE(response.find("\"version\"") != string::npos);
+    EXPECT_TRUE(response.find("\"link\"") != string::npos);
+    EXPECT_TRUE(response.find("\"time\"") != string::npos);
+}
+
+VOID TEST(HttpApiTest, GoApiVhostsServeHttpWithVhostId)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: SrsGoApiVhosts::serve_http returns vhost list
+    // This covers the typical /api/v1/vhosts endpoint that provides vhost statistics
+
+    // Create mock response writer and HTTP message
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    // Set URL for parse_rest_id to work correctly
+    HELPER_EXPECT_SUCCESS(mock_msg->set_url("http://127.0.0.1/api/v1/vhosts/", false));
+
+    // Create mock statistic
+    MockStatisticForLiveStream mock_stat;
+
+    // Create API handler and inject mock statistic
+    SrsUniquePtr<SrsGoApiVhosts> api(new SrsGoApiVhosts());
+    api->stat_ = &mock_stat;
+
+    // Setup entry pattern for REST ID parsing
+    api->entry_ = new SrsHttpMuxEntry();
+    api->entry_->pattern = "/api/v1/vhosts/";
+
+    // Test the major use scenario: no vhost ID provided - should list all vhosts
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify JSON response contains expected fields
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+
+    // Check for required fields in response
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"vhosts\"") != string::npos);
+
+    // Clean up
+    api->stat_ = NULL;
+    srs_freep(api->entry_);
+}
+
+VOID TEST(HttpApiTest, StreamsApiGetSpecificStream)
+{
+    srs_error_t err;
+
+    // Create mock HTTP message for GET request with stream ID
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->_method = SRS_CONSTS_HTTP_GET;
+    mock_msg->path_ = "/api/v1/streams/test_stream_id_123";
+    HELPER_EXPECT_SUCCESS(mock_msg->set_url("http://127.0.0.1/api/v1/streams/test_stream_id_123", false));
+
+    // Create mock response writer
+    MockResponseWriter mock_writer;
+
+    // Create mock statistic with a test stream
+    MockStatisticForLiveStream mock_stat;
+
+    // Create a real stream object to return from find_stream
+    SrsStatisticStream test_stream;
+    test_stream.id_ = "test_stream_id_123";
+    test_stream.stream_ = "livestream";
+    test_stream.app_ = "live";
+    test_stream.url_ = "live/livestream";
+    test_stream.tcUrl_ = "rtmp://localhost/live";
+
+    // Create a vhost for the stream
+    SrsStatisticVhost test_vhost;
+    test_vhost.id_ = "test_vhost_id";
+    test_stream.vhost_ = &test_vhost;
+
+    // Mock find_stream to return our test stream
+    // Note: We need to extend MockStatisticForLiveStream to support find_stream
+    // For now, we'll create a custom mock inline
+    class MockStatisticForStreamsApi : public MockStatisticForLiveStream
+    {
+    public:
+        SrsStatisticStream *stream_to_return_;
+        MockStatisticForStreamsApi() : stream_to_return_(NULL) {}
+        virtual SrsStatisticStream *find_stream(std::string sid)
+        {
+            if (sid == "test_stream_id_123" && stream_to_return_) {
+                return stream_to_return_;
+            }
+            return NULL;
+        }
+    };
+
+    MockStatisticForStreamsApi mock_stat_with_stream;
+    mock_stat_with_stream.stream_to_return_ = &test_stream;
+
+    // Create API handler and inject mock statistic
+    SrsUniquePtr<SrsGoApiStreams> api(new SrsGoApiStreams());
+    api->stat_ = &mock_stat_with_stream;
+
+    // Setup entry pattern for REST ID parsing
+    api->entry_ = new SrsHttpMuxEntry();
+    api->entry_->pattern = "/api/v1/streams/";
+
+    // Test the major use scenario: specific stream ID provided - should return stream details
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    // Verify JSON response contains expected fields
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+
+    // Check for required fields in response
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"stream\"") != string::npos);
+
+    // Check for stream-specific fields from dumps() method
+    EXPECT_TRUE(response.find("\"id\":\"test_stream_id_123\"") != string::npos);
+    EXPECT_TRUE(response.find("\"name\":\"livestream\"") != string::npos);
+    EXPECT_TRUE(response.find("\"app\":\"live\"") != string::npos);
+
+    // Clean up
+    api->stat_ = NULL;
+    srs_freep(api->entry_);
+}
+
+VOID TEST(HTTPApiTest, ClientsApiGetAllClients)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: GET /api/v1/clients to list all clients
+    // This covers the typical HTTP API usage for querying client list
+
+    // Create mock statistic with find_client and dumps_clients support
+    class MockStatisticForClientsApi : public MockStatisticForLiveStream
+    {
+    public:
+        SrsStatisticClient *client_to_return_;
+        srs_error_t dumps_clients_error_;
+        int dumps_clients_count_;
+
+        MockStatisticForClientsApi() : client_to_return_(NULL), dumps_clients_error_(srs_success), dumps_clients_count_(0) {}
+        virtual ~MockStatisticForClientsApi() {}
+
+        virtual SrsStatisticClient *find_client(std::string client_id)
+        {
+            if (client_id == "test_client_123" && client_to_return_) {
+                return client_to_return_;
+            }
+            return NULL;
+        }
+
+        virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count)
+        {
+            dumps_clients_count_++;
+            if (dumps_clients_error_ != srs_success) {
+                return srs_error_copy(dumps_clients_error_);
+            }
+            // Add mock client data
+            SrsJsonObject *client = SrsJsonAny::object();
+            client->set("id", SrsJsonAny::str("test_client_123"));
+            client->set("vhost", SrsJsonAny::str("__defaultVhost__"));
+            client->set("stream", SrsJsonAny::str("livestream"));
+            client->set("ip", SrsJsonAny::str("127.0.0.1"));
+            arr->append(client);
+            return srs_success;
+        }
+    };
+
+    // Create mock statistic
+    SrsUniquePtr<MockStatisticForClientsApi> mock_stat(new MockStatisticForClientsApi());
+
+    // Create SrsGoApiClients instance
+    SrsUniquePtr<SrsGoApiClients> api(new SrsGoApiClients());
+    api->stat_ = mock_stat.get();
+
+    // Create mock entry with pattern
+    api->entry_ = new SrsHttpMuxEntry();
+    api->entry_->pattern = "/api/v1/clients/";
+
+    // Create mock HTTP request for GET /api/v1/clients?start=0&count=10
+    SrsUniquePtr<SrsHttpMessage> req(new SrsHttpMessage());
+    HELPER_EXPECT_SUCCESS(req->set_url("http://127.0.0.1/api/v1/clients?start=0&count=10", false));
+
+    // Create mock HTTP response writer
+    MockResponseWriter w;
+
+    // Call serve_http
+    HELPER_EXPECT_SUCCESS(api->serve_http(&w, req.get()));
+
+    // Verify dumps_clients was called
+    EXPECT_EQ(1, mock_stat->dumps_clients_count_);
+
+    // Verify response contains expected JSON structure
+    string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\":\"mock_server_id\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\":\"mock_service_id\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\":\"mock_pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"clients\"") != string::npos);
+    EXPECT_TRUE(response.find("\"id\":\"test_client_123\"") != string::npos);
+    EXPECT_TRUE(response.find("\"stream\":\"livestream\"") != string::npos);
+
+    // Clean up
+    api->stat_ = NULL;
+    srs_freep(api->entry_);
+}
+
+VOID TEST(HTTPApiTest, ClientsApiGetSpecificClient)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: GET /api/v1/clients/{client_id} to get specific client info
+    // This covers the typical HTTP API usage for querying a specific client and calling client->dumps()
+
+    // Create mock statistic with find_client support
+    class MockStatisticForClientApi : public MockStatisticForLiveStream
+    {
+    public:
+        SrsStatisticClient *client_to_return_;
+
+        MockStatisticForClientApi() : client_to_return_(NULL) {}
+        virtual ~MockStatisticForClientApi() {}
+
+        virtual SrsStatisticClient *find_client(std::string client_id)
+        {
+            if (client_id == "test_client_456" && client_to_return_) {
+                return client_to_return_;
+            }
+            return NULL;
+        }
+    };
+
+    // Create mock statistic
+    SrsUniquePtr<MockStatisticForClientApi> mock_stat(new MockStatisticForClientApi());
+
+    // Create a real SrsStatisticClient with all required dependencies
+    SrsUniquePtr<SrsStatisticClient> test_client(new SrsStatisticClient());
+    test_client->id_ = "test_client_456";
+    test_client->type_ = SrsRtmpConnPlay;
+
+    // Create mock request for the client - SrsStatisticClient destructor will free this
+    MockBufferCacheRequest *mock_req = new MockBufferCacheRequest("__defaultVhost__", "live", "livestream");
+    test_client->req_ = mock_req;
+
+    // Create mock vhost and stream for the client
+    SrsStatisticVhost test_vhost;
+    test_vhost.id_ = "__defaultVhost__";
+
+    SrsStatisticStream test_stream;
+    test_stream.id_ = "livestream";
+    test_stream.vhost_ = &test_vhost;
+
+    test_client->stream_ = &test_stream;
+
+    // Set the client to return
+    mock_stat->client_to_return_ = test_client.get();
+
+    // Create SrsGoApiClients instance
+    SrsUniquePtr<SrsGoApiClients> api(new SrsGoApiClients());
+    api->stat_ = mock_stat.get();
+
+    // Create mock entry with pattern
+    api->entry_ = new SrsHttpMuxEntry();
+    api->entry_->pattern = "/api/v1/clients/";
+
+    // Create mock HTTP request for GET /api/v1/clients/test_client_456
+    SrsUniquePtr<SrsHttpMessage> req(new SrsHttpMessage());
+    HELPER_EXPECT_SUCCESS(req->set_url("http://127.0.0.1/api/v1/clients/test_client_456", false));
+
+    // Create mock HTTP response writer
+    MockResponseWriter w;
+
+    // Call serve_http - this should call client->dumps()
+    HELPER_EXPECT_SUCCESS(api->serve_http(&w, req.get()));
+
+    // Verify response contains expected JSON structure with client data
+    string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"server\":\"mock_server_id\"") != string::npos);
+    EXPECT_TRUE(response.find("\"service\":\"mock_service_id\"") != string::npos);
+    EXPECT_TRUE(response.find("\"pid\":\"mock_pid\"") != string::npos);
+    EXPECT_TRUE(response.find("\"client\"") != string::npos);
+    EXPECT_TRUE(response.find("\"id\":\"test_client_456\"") != string::npos);
+    EXPECT_TRUE(response.find("\"vhost\":\"__defaultVhost__\"") != string::npos);
+    EXPECT_TRUE(response.find("\"stream\":\"livestream\"") != string::npos);
+    EXPECT_TRUE(response.find("\"type\":\"rtmp-play\"") != string::npos);
+
+    // Clean up
+    api->stat_ = NULL;
+    srs_freep(api->entry_);
+}
+
+VOID TEST(SrsGoApiClustersTest, ServeHttpSuccess)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: serve_http returns JSON response with query parameters and origin cluster info
+    // This covers the typical HTTP API /api/v1/clusters request use case for origin cluster discovery
+
+    // Create SrsGoApiClusters handler
+    SrsUniquePtr<SrsGoApiClusters> handler(new SrsGoApiClusters());
+
+    // Create mock HTTP response writer
+    MockResponseWriter mock_writer;
+
+    // Create mock HTTP message with query parameters
+    class MockHttpMessageForClusters : public SrsHttpMessage
+    {
+    public:
+        MockHttpConn *mock_conn_;
+        std::map<std::string, std::string> query_params_;
+
+        MockHttpMessageForClusters()
+        {
+            mock_conn_ = new MockHttpConn();
+            set_connection(mock_conn_);
+            // Set query parameters for the test
+            query_params_["ip"] = "192.168.1.100";
+            query_params_["vhost"] = "test.vhost";
+            query_params_["app"] = "live";
+            query_params_["stream"] = "livestream";
+            query_params_["coworker"] = "127.0.0.1:1935";
+        }
+
+        virtual ~MockHttpMessageForClusters()
+        {
+            srs_freep(mock_conn_);
+        }
+
+        virtual std::string query_get(std::string key)
+        {
+            std::map<std::string, std::string>::iterator it = query_params_.find(key);
+            if (it != query_params_.end()) {
+                return it->second;
+            }
+            return "";
+        }
+
+        virtual std::string path()
+        {
+            return "/api/v1/clusters";
+        }
+
+        virtual bool is_jsonp()
+        {
+            return false;
+        }
+    };
+
+    SrsUniquePtr<MockHttpMessageForClusters> mock_message(new MockHttpMessageForClusters());
+
+    // Call serve_http - should return success and write JSON response
+    HELPER_EXPECT_SUCCESS(handler->serve_http(&mock_writer, mock_message.get()));
+
+    // Verify that response was written
+    string response = string(mock_writer.io.out_buffer.bytes(), mock_writer.io.out_buffer.length());
+    EXPECT_TRUE(response.length() > 0);
+
+    // The response includes HTTP headers, we need to extract just the JSON body
+    // Find the start of JSON (after the double CRLF that separates headers from body)
+    size_t json_start = response.find("\r\n\r\n");
+    ASSERT_TRUE(json_start != string::npos);
+    string json_body = response.substr(json_start + 4);
+
+    // Parse the JSON response
+    SrsJsonAny *json = SrsJsonAny::loads(json_body);
+    ASSERT_TRUE(json != NULL);
+    ASSERT_TRUE(json->is_object());
+    SrsUniquePtr<SrsJsonObject> obj((SrsJsonObject *)json);
+
+    // Verify "code" field is ERROR_SUCCESS
+    SrsJsonAny *code_any = obj->get_property("code");
+    ASSERT_TRUE(code_any != NULL);
+    ASSERT_TRUE(code_any->is_integer());
+    EXPECT_EQ(ERROR_SUCCESS, code_any->to_integer());
+
+    // Verify "data" object exists
+    SrsJsonAny *data_any = obj->get_property("data");
+    ASSERT_TRUE(data_any != NULL);
+    ASSERT_TRUE(data_any->is_object());
+    SrsJsonObject *data = (SrsJsonObject *)data_any;
+
+    // Verify "query" object exists and contains the query parameters
+    SrsJsonAny *query_any = data->get_property("query");
+    ASSERT_TRUE(query_any != NULL);
+    ASSERT_TRUE(query_any->is_object());
+    SrsJsonObject *query = (SrsJsonObject *)query_any;
+
+    // Verify query parameters are correctly echoed back
+    SrsJsonAny *ip_any = query->get_property("ip");
+    ASSERT_TRUE(ip_any != NULL);
+    ASSERT_TRUE(ip_any->is_string());
+    EXPECT_STREQ("192.168.1.100", ip_any->to_str().c_str());
+
+    SrsJsonAny *vhost_any = query->get_property("vhost");
+    ASSERT_TRUE(vhost_any != NULL);
+    ASSERT_TRUE(vhost_any->is_string());
+    EXPECT_STREQ("test.vhost", vhost_any->to_str().c_str());
+
+    SrsJsonAny *app_any = query->get_property("app");
+    ASSERT_TRUE(app_any != NULL);
+    ASSERT_TRUE(app_any->is_string());
+    EXPECT_STREQ("live", app_any->to_str().c_str());
+
+    SrsJsonAny *stream_any = query->get_property("stream");
+    ASSERT_TRUE(stream_any != NULL);
+    ASSERT_TRUE(stream_any->is_string());
+    EXPECT_STREQ("livestream", stream_any->to_str().c_str());
+
+    // Verify "origin" field exists (from SrsCoWorkers::dumps)
+    // Note: origin will be null if the stream is not published, which is expected in this test
+    SrsJsonAny *origin_any = data->get_property("origin");
+    ASSERT_TRUE(origin_any != NULL);
+    // origin can be null or object depending on whether stream is published
+}
+
+MockSignalHandler::MockSignalHandler()
+{
+    signal_received_ = 0;
+    signal_count_ = 0;
+}
+
+MockSignalHandler::~MockSignalHandler()
+{
+}
+
+void MockSignalHandler::on_signal(int signo)
+{
+    signal_received_ = signo;
+    signal_count_++;
+}
+
+void MockSignalHandler::reset()
+{
+    signal_received_ = 0;
+    signal_count_ = 0;
+}
+
+MockAppConfigForRawApi::MockAppConfigForRawApi()
+{
+    raw_api_ = false;
+    allow_reload_ = false;
+    allow_query_ = false;
+    allow_update_ = false;
+    raw_to_json_error_ = srs_success;
+}
+
+MockAppConfigForRawApi::~MockAppConfigForRawApi()
+{
+}
+
+bool MockAppConfigForRawApi::get_raw_api()
+{
+    return raw_api_;
+}
+
+bool MockAppConfigForRawApi::get_raw_api_allow_reload()
+{
+    return allow_reload_;
+}
+
+bool MockAppConfigForRawApi::get_raw_api_allow_query()
+{
+    return allow_query_;
+}
+
+bool MockAppConfigForRawApi::get_raw_api_allow_update()
+{
+    return allow_update_;
+}
+
+srs_error_t MockAppConfigForRawApi::raw_to_json(SrsJsonObject *obj)
+{
+    if (raw_to_json_error_ != srs_success) {
+        return srs_error_copy(raw_to_json_error_);
+    }
+
+    // Add some test data to the object
+    obj->set("raw_api", SrsJsonAny::boolean(raw_api_));
+    obj->set("allow_reload", SrsJsonAny::boolean(allow_reload_));
+    obj->set("allow_query", SrsJsonAny::boolean(allow_query_));
+    obj->set("allow_update", SrsJsonAny::boolean(allow_update_));
+
+    return srs_success;
+}
+
+VOID TEST(HttpApiTest, GoApiRawServeHttp)
+{
+    srs_error_t err;
+
+    // Test the major use scenario: HTTP RAW API with reload functionality
+    // This covers the typical RAW API use cases: query config, reload, and reload-fetch
+
+    // Create mock signal handler
+    MockSignalHandler mock_handler;
+
+    // Create mock config
+    MockAppConfigForRawApi mock_config;
+    mock_config.raw_api_ = true;
+    mock_config.allow_reload_ = true;
+    mock_config.allow_query_ = true;
+    mock_config.allow_update_ = true;
+
+    // Create SrsGoApiRaw instance
+    SrsUniquePtr<SrsGoApiRaw> api(new SrsGoApiRaw(&mock_handler));
+
+    // Inject mock config before calling assemble()
+    api->config_ = &mock_config;
+    api->assemble();
+
+    // Test 1: rpc=raw - query the raw api config
+    {
+        MockResponseWriter w;
+        SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+        r->query_params_["rpc"] = "raw";
+
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+        // Verify response contains raw api config
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+        EXPECT_TRUE(response.find("\"raw_api\":true") != string::npos);
+        EXPECT_TRUE(response.find("\"allow_reload\":true") != string::npos);
+    }
+
+    // Test 2: rpc=reload - trigger reload signal
+    {
+        MockResponseWriter w;
+        SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+        r->query_params_["rpc"] = "reload";
+
+        mock_handler.reset();
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+        // Verify reload signal was sent
+        EXPECT_EQ(SRS_SIGNAL_RELOAD, mock_handler.signal_received_);
+        EXPECT_EQ(1, mock_handler.signal_count_);
+
+        // Verify response indicates success
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    }
+
+    // Test 3: rpc=reload-fetch - query reload status
+    {
+        MockResponseWriter w;
+        SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+        r->query_params_["rpc"] = "reload-fetch";
+
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+        // Verify response contains reload status
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+        EXPECT_TRUE(response.find("\"data\"") != string::npos);
+        EXPECT_TRUE(response.find("\"err\"") != string::npos);
+        EXPECT_TRUE(response.find("\"msg\"") != string::npos);
+        EXPECT_TRUE(response.find("\"state\"") != string::npos);
+        EXPECT_TRUE(response.find("\"rid\"") != string::npos);
+    }
+
+    // Unsubscribe before cleanup to avoid double unsubscribe in destructor
+    mock_config.unsubscribe(api.get());
+}
+
+VOID TEST(SrsGoApiMetricsTest, ServeHttpSuccess)
+{
+    srs_error_t err = srs_success;
+
+    // Create mock statistic with test data
+    MockStatisticForResampleKbps mock_stat;
+
+    // Create mock config
+    MockAppConfig mock_config;
+
+    // Create SrsGoApiMetrics instance
+    SrsUniquePtr<SrsGoApiMetrics> api(new SrsGoApiMetrics());
+    api->stat_ = &mock_stat;
+    api->config_ = &mock_config;
+    api->enabled_ = true;
+    api->label_ = "test_label";
+    api->tag_ = "test_tag";
+
+    // Create mock HTTP request and response
+    MockResponseWriter w;
+    SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+
+    // Call serve_http
+    HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+    // Verify response
+    string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+
+    // Verify response contains Prometheus metrics format
+    EXPECT_TRUE(response.find("# HELP srs_build_info") != string::npos);
+    EXPECT_TRUE(response.find("# TYPE srs_build_info gauge") != string::npos);
+    EXPECT_TRUE(response.find("srs_build_info{") != string::npos);
+
+    // Verify server/service info is included
+    EXPECT_TRUE(response.find("server=\"mock_server_id\"") != string::npos);
+    EXPECT_TRUE(response.find("service=\"mock_service_id\"") != string::npos);
+    EXPECT_TRUE(response.find("pid=\"mock_pid\"") != string::npos);
+
+    // Verify label and tag are included
+    EXPECT_TRUE(response.find("label=\"test_label\"") != string::npos);
+    EXPECT_TRUE(response.find("tag=\"test_tag\"") != string::npos);
+
+    // Verify CPU metric
+    EXPECT_TRUE(response.find("# HELP srs_cpu_percent") != string::npos);
+    EXPECT_TRUE(response.find("# TYPE srs_cpu_percent gauge") != string::npos);
+    EXPECT_TRUE(response.find("srs_cpu_percent") != string::npos);
+
+    // Verify memory metric
+    EXPECT_TRUE(response.find("# HELP srs_memory") != string::npos);
+    EXPECT_TRUE(response.find("# TYPE srs_memory gauge") != string::npos);
+    EXPECT_TRUE(response.find("srs_memory") != string::npos);
+
+    // Verify send/receive bytes metrics
+    EXPECT_TRUE(response.find("# HELP srs_send_bytes_total") != string::npos);
+    EXPECT_TRUE(response.find("# TYPE srs_send_bytes_total counter") != string::npos);
+    EXPECT_TRUE(response.find("srs_send_bytes_total") != string::npos);
+
+    EXPECT_TRUE(response.find("# HELP srs_receive_bytes_total") != string::npos);
+    EXPECT_TRUE(response.find("# TYPE srs_receive_bytes_total counter") != string::npos);
+    EXPECT_TRUE(response.find("srs_receive_bytes_total") != string::npos);
+
+    // Verify streams metric
+    EXPECT_TRUE(response.find("# HELP srs_streams") != string::npos);
+    EXPECT_TRUE(response.find("# TYPE srs_streams gauge") != string::npos);
+    EXPECT_TRUE(response.find("srs_streams") != string::npos);
+
+    // Verify clients metrics
+    EXPECT_TRUE(response.find("# HELP srs_clients") != string::npos);
+    EXPECT_TRUE(response.find("# TYPE srs_clients gauge") != string::npos);
+    EXPECT_TRUE(response.find("srs_clients") != string::npos);
+
+    EXPECT_TRUE(response.find("# HELP srs_clients_total") != string::npos);
+    EXPECT_TRUE(response.find("# TYPE srs_clients_total counter") != string::npos);
+    EXPECT_TRUE(response.find("srs_clients_total") != string::npos);
+
+    // Verify errors metric
+    EXPECT_TRUE(response.find("# HELP srs_clients_errs_total") != string::npos);
+    EXPECT_TRUE(response.find("# TYPE srs_clients_errs_total counter") != string::npos);
+    EXPECT_TRUE(response.find("srs_clients_errs_total") != string::npos);
+
+    // Clean up
+    api->stat_ = NULL;
+    api->config_ = NULL;
 }

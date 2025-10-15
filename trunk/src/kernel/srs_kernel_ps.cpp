@@ -43,6 +43,14 @@ ISrsPsMessageHandler::~ISrsPsMessageHandler()
 {
 }
 
+ISrsPsContext::ISrsPsContext()
+{
+}
+
+ISrsPsContext::~ISrsPsContext()
+{
+}
+
 SrsPsContext::SrsPsContext()
 {
     last_ = NULL;
@@ -79,6 +87,11 @@ SrsTsMessage *SrsPsContext::reap()
     last_ = new SrsTsMessage();
     last_->ps_helper_ = &helper_;
     return msg;
+}
+
+SrsPsDecodeHelper *SrsPsContext::helper()
+{
+    return &helper_;
 }
 
 srs_error_t SrsPsContext::decode(SrsBuffer *stream, ISrsPsMessageHandler *handler)

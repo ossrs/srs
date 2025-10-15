@@ -60,7 +60,7 @@ class ISrsHds;
 #endif
 class ISrsNgExec;
 class ISrsForwarder;
-class SrsAppFactory;
+class ISrsAppFactory;
 class ISrsLiveConsumer;
 
 // The time jitter algorithm:
@@ -77,7 +77,8 @@ int srs_time_jitter_string2int(std::string time_jitter);
 // Time jitter detect and correct, to ensure the rtmp stream is monotonically.
 class SrsRtmpJitter
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int64_t last_pkt_time_;
     int64_t last_pkt_correct_time_;
 
@@ -97,7 +98,8 @@ public:
 // To alloc and increase fixed space, fast remove and insert for msgs sender.
 class SrsFastVector
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsMediaPacket **msgs_;
     int nb_msgs_;
     int count_;
@@ -140,12 +142,14 @@ public:
 // We limit the size in seconds, drop old messages(the whole gop) if full.
 class SrsMessageQueue : public ISrsMessageQueue
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The start and end time.
     srs_utime_t av_start_time_;
     srs_utime_t av_end_time_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Whether do logging when shrinking.
     bool _ignore_shrink;
     // The max queue size, shrink if exceed it.
@@ -182,10 +186,12 @@ public:
     // @remark the atc/tba/tbv/ag are same to SrsLiveConsumer.enqueue().
     virtual srs_error_t dump_packets(ISrsLiveConsumer *consumer, bool atc, SrsRtmpJitterAlgorithm ag);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Remove a gop from the front.
     // if no iframe found, clear it.
-    virtual void shrink();
+    virtual void
+    shrink();
 
 public:
     // clear all messages in queue.
@@ -224,11 +230,13 @@ public:
 // The consumer for SrsLiveSource, that is a play client.
 class SrsLiveConsumer : public ISrsWakable, public ISrsLiveConsumer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Because source references to this object, so we should directly use the source ptr.
     ISrsLiveSource *source_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtmpJitter *jitter_;
     SrsMessageQueue *queue_;
     bool paused_;
@@ -285,7 +293,8 @@ public:
 // To enable it to fast startup.
 class SrsGopCache
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // if disabled the gop cache,
     // The client will wait for the next keyframe for h264,
     // and will be black-screen.
@@ -360,7 +369,8 @@ public:
 // The mix queue to correct the timestamp for mix_correct algorithm.
 class SrsMixQueue
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint32_t nb_videos_;
     uint32_t nb_audios_;
     std::multimap<int64_t, SrsMediaPacket *> msgs_;
@@ -402,6 +412,8 @@ public:
     virtual srs_error_t on_publish() = 0;
     // When stop publish stream.
     virtual void on_unpublish() = 0;
+    // When DVR requests sequence header.
+    virtual srs_error_t on_dvr_request_sh() = 0;
 };
 
 // The hub for origin is a collection of utilities for origin only,
@@ -409,20 +421,24 @@ public:
 // they are meanless for edge server.
 class SrsOriginHub : public ISrsReloadHandler, public ISrsOriginHub
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsStatistic *stat_;
     ISrsHttpHooks *hooks_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Because source references to this object, so we should directly use the source ptr.
     ISrsLiveSource *source_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
     bool is_active_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // hls handler.
     ISrsHls *hls_;
     // The DASH encoder.
@@ -482,7 +498,8 @@ public:
     // For the SrsHls to callback to request the sequence headers.
     virtual srs_error_t on_hls_request_sh();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t create_forwarders();
     virtual srs_error_t create_backend_forwarders(bool &applied);
     virtual void destroy_forwarders();
@@ -492,7 +509,8 @@ private:
 // This class cache and update the meta.
 class SrsMetaCache
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The cached metadata, FLV script data tag.
     SrsMediaPacket *meta_;
     // The cached video sequence header, for example, sps/pps for h.264.
@@ -570,10 +588,12 @@ public:
 // The source manager to create and refresh all stream sources.
 class SrsLiveSourceManager : public ISrsHourGlassHandler, public ISrsLiveSourceManager
 {
-private:
-    SrsAppFactory *app_factory_;
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_mutex_t lock_;
     std::map<std::string, SrsSharedPtr<SrsLiveSource> > pool_;
     ISrsHourGlass *timer_;
@@ -598,7 +618,8 @@ public:
     // dispose and cycle all sources.
     virtual void dispose();
     // interface ISrsHourGlassHandler
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t setup_ticks();
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 
@@ -624,18 +645,30 @@ public:
     virtual SrsContextId pre_source_id() = 0;
     virtual SrsMetaCache *meta() = 0;
     virtual SrsRtmpFormat *format() = 0;
+    // The source id changed.
+    virtual srs_error_t on_source_id_changed(SrsContextId id) = 0;
+    // Publish stream event notify.
+    virtual srs_error_t on_publish() = 0;
+    virtual void on_unpublish() = 0;
+    // Handle media messages.
+    virtual srs_error_t on_audio(SrsRtmpCommonMessage *audio) = 0;
+    virtual srs_error_t on_video(SrsRtmpCommonMessage *video) = 0;
+    virtual srs_error_t on_aggregate(SrsRtmpCommonMessage *msg) = 0;
+    virtual srs_error_t on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaDataPacket *metadata) = 0;
 };
 
 // The live streaming source.
 class SrsLiveSource : public ISrsReloadHandler, public ISrsFrameTarget, public ISrsLiveSource
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsStatistic *stat_;
     ISrsLiveSourceHandler *handler_;
-    SrsAppFactory *app_factory_;
+    ISrsAppFactory *app_factory_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // For publish, it's the publish client id.
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
@@ -676,7 +709,8 @@ private:
     // The format, codec information.
     SrsRtmpFormat *format_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Whether source is avaiable for publishing.
     bool can_publish_;
     // The last die time, while die means neither publishers nor players.
@@ -726,14 +760,16 @@ public:
     virtual srs_error_t on_audio(SrsRtmpCommonMessage *audio);
     srs_error_t on_frame(SrsMediaPacket *msg);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_audio_imp(SrsMediaPacket *audio);
 
 public:
     // TODO: FIXME: Use SrsMediaPacket instead.
     virtual srs_error_t on_video(SrsRtmpCommonMessage *video);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_video_imp(SrsMediaPacket *video);
 
 public:

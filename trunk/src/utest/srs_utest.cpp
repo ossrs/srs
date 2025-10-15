@@ -50,8 +50,8 @@ bool _srs_in_docker = false;
 bool _srs_config_by_env = false;
 
 // @global kernel factory.
-ISrsKernelFactory *_srs_kernel_factory = new SrsFinalFactory();
-SrsAppFactory *_srs_app_factory = new SrsAppFactory();
+ISrsAppFactory *_srs_app_factory = new SrsAppFactory();
+ISrsKernelFactory *_srs_kernel_factory = _srs_app_factory;
 
 // The binary name of SRS.
 const char *_srs_binary = NULL;
@@ -68,6 +68,14 @@ static void srs_srt_utest_null_log_handler(void *opaque, int level, const char *
 srs_error_t prepare_main()
 {
     srs_error_t err = srs_success;
+
+    // Root global objects, should be created before any other global objects.
+    _srs_log = new SrsFileLog();
+    _srs_context = new SrsThreadContext();
+    _srs_config = new SrsConfig();
+
+    // For background context id.
+    _srs_context->set_id(_srs_context->generate_id());
 
     if ((err = srs_global_initialize()) != srs_success) {
         return srs_error_wrap(err, "init global");
@@ -222,7 +230,8 @@ public:
         return cp;
     }
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     MockSrsContextId *bind_;
 };
 

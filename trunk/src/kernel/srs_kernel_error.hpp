@@ -434,7 +434,8 @@ extern bool srs_is_server_gracefully_close(srs_error_t err);
 // please @read https://github.com/ossrs/srs/issues/913
 class SrsCplxError
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int code_;
     SrsCplxError *wrapped_;
     std::string msg_;
@@ -449,13 +450,15 @@ private:
     std::string desc_;
     std::string summary_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsCplxError();
 
 public:
     virtual ~SrsCplxError();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual std::string description();
     virtual std::string summary();
 

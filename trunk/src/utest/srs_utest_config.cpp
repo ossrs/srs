@@ -975,41 +975,26 @@ VOID TEST(ConfigDirectiveTest, ParseLineNormal)
     EXPECT_EQ(3, (int)dir2.conf_line_);
 }
 
-VOID TEST(ConfigMainTest, ParseEmpty)
-{
-    srs_error_t err;
-
-    MockSrsConfig conf;
-    HELPER_ASSERT_FAILED(conf.mock_parse(""));
-}
-
 VOID TEST(ConfigMainTest, ParseMinConf)
 {
     srs_error_t err;
 
-    MockSrsConfig conf;
-    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    // Min conf with RTMP server.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-    vector<string> listens = conf.get_listens();
-    EXPECT_EQ(1, (int)listens.size());
-    EXPECT_STREQ("1935", listens.at(0).c_str());
-}
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+    }
 
-VOID TEST(ConfigMainTest, ParseInvalidDirective)
-{
-    srs_error_t err;
-
-    MockSrsConfig conf;
-    HELPER_ASSERT_FAILED(conf.mock_parse("listens 1935;"));
-}
-
-VOID TEST(ConfigMainTest, ParseInvalidDirective2)
-{
-    srs_error_t err;
-
-    MockSrsConfig conf;
-    // check error for user not specified the listen directive.
-    HELPER_ASSERT_FAILED(conf.mock_parse("chunk_size 4096;"));
+    // RTMP is optional now.
+    if (true) {
+        MockSrsConfig conf;
+        // check error for user not specified the listen directive.
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(""));
+    }
 }
 
 VOID TEST(ConfigMainTest, CheckConf_listen)

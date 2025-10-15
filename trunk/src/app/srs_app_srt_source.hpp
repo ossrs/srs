@@ -24,6 +24,9 @@ class SrsLiveSource;
 class SrsSrtSource;
 class SrsAlonePithyPrint;
 class SrsSrtFrameBuilder;
+class ISrsStatistic;
+class ISrsSrtConsumer;
+class ISrsSrtSource;
 
 // The SRT packet with shared message.
 class SrsSrtPacket
@@ -45,7 +48,8 @@ public:
     char *data();
     int size();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsMediaPacket *shared_buffer_;
     // The size of SRT packet or SRT payload.
     int actual_buffer_size_;
@@ -67,7 +71,8 @@ public:
 // The SRT source manager.
 class SrsSrtSourceManager : public ISrsHourGlassHandler, public ISrsSrtSourceManager
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_mutex_t lock_;
     std::map<std::string, SrsSharedPtr<SrsSrtSource> > pool_;
     SrsHourGlass *timer_;
@@ -79,7 +84,8 @@ public:
 public:
     virtual srs_error_t initialize();
     // interface ISrsHourGlassHandler
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t setup_ticks();
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 
@@ -97,17 +103,33 @@ public:
 // Global singleton instance.
 extern SrsSrtSourceManager *_srs_srt_sources;
 
-class SrsSrtConsumer
+// The SRT consumer interface.
+class ISrsSrtConsumer
 {
 public:
-    SrsSrtConsumer(SrsSrtSource *source);
+    ISrsSrtConsumer();
+    virtual ~ISrsSrtConsumer();
+
+public:
+    virtual srs_error_t enqueue(SrsSrtPacket *packet) = 0;
+    virtual srs_error_t dump_packet(SrsSrtPacket **ppkt) = 0;
+    virtual void wait(int nb_msgs, srs_utime_t timeout) = 0;
+};
+
+// The SRT consumer, consume packets from SRT stream source.
+class SrsSrtConsumer : public ISrsSrtConsumer
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Because source references to this object, so we should directly use the source ptr.
+    ISrsSrtSource *source_;
+
+public:
+    SrsSrtConsumer(ISrsSrtSource *source);
     virtual ~SrsSrtConsumer();
 
-private:
-    // Because source references to this object, so we should directly use the source ptr.
-    SrsSrtSource *source_;
-
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<SrsSrtPacket *> queue_;
     // when source id changed, notice all consumers
     bool should_update_source_id_;
@@ -145,7 +167,8 @@ public:
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage *msg);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_ts_video_avc(SrsTsMessage *msg, SrsBuffer *avs);
     srs_error_t on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs);
     srs_error_t check_sps_pps_change(SrsTsMessage *msg);
@@ -156,10 +179,12 @@ private:
     srs_error_t check_vps_sps_pps_change(SrsTsMessage *msg);
     srs_error_t on_hevc_frame(SrsTsMessage *msg, std::vector<std::pair<char *, int> > &ipb_frames);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsFrameTarget *frame_target_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsTsContext *ts_ctx_;
     // Record sps/pps had changed, if change, need to generate new video sh frame.
     bool sps_pps_change_;
@@ -173,10 +198,12 @@ private:
     bool audio_sh_change_;
     std::string audio_sh_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // SRT to rtmp, video stream id.
     int video_streamid_;
     // SRT to rtmp, audio stream id.
@@ -185,9 +212,26 @@ private:
     SrsAlonePithyPrint *pp_audio_duration_;
 };
 
-// A SRT source is a stream, to publish and to play with.
-class SrsSrtSource : public ISrsSrtTarget
+// The SRT source interface.
+class ISrsSrtSource : public ISrsSrtTarget
 {
+public:
+    ISrsSrtSource();
+    virtual ~ISrsSrtSource();
+
+public:
+    virtual SrsContextId source_id() = 0;
+    virtual SrsContextId pre_source_id() = 0;
+    virtual void on_consumer_destroy(ISrsSrtConsumer *consumer) = 0;
+};
+
+// A SRT source is a stream, to publish and to play with.
+class SrsSrtSource : public ISrsSrtSource
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsSrtSource();
     virtual ~SrsSrtSource();
@@ -214,10 +258,10 @@ public:
 public:
     // Create consumer
     // @param consumer, output the create consumer.
-    virtual srs_error_t create_consumer(SrsSrtConsumer *&consumer);
+    virtual srs_error_t create_consumer(ISrsSrtConsumer *&consumer);
     // Dumps packets in cache to consumer.
-    virtual srs_error_t consumer_dumps(SrsSrtConsumer *consumer);
-    virtual void on_consumer_destroy(SrsSrtConsumer *consumer);
+    virtual srs_error_t consumer_dumps(ISrsSrtConsumer *consumer);
+    virtual void on_consumer_destroy(ISrsSrtConsumer *consumer);
     // Whether we can publish stream to the source, return false if it exists.
     virtual bool can_publish();
     // When start publish stream.
@@ -228,19 +272,21 @@ public:
 public:
     srs_error_t on_packet(SrsSrtPacket *packet);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Source id.
     SrsContextId _source_id;
     // previous source id.
     SrsContextId _pre_source_id;
     ISrsRequest *req_;
     // To delivery packets to clients.
-    std::vector<SrsSrtConsumer *> consumers_;
+    std::vector<ISrsSrtConsumer *> consumers_;
     bool can_publish_;
     // The last die time, while die means neither publishers nor players.
     srs_utime_t stream_die_at_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSrtBridge *srt_bridge_;
 };
 

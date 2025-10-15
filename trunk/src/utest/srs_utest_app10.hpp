@@ -69,8 +69,8 @@ public:
     virtual std::string get_exporter_listen();
 };
 
-// Mock ISrsHttpServeMux for testing SrsServer::http_handle()
-class MockHttpServeMux : public ISrsHttpServeMux
+// Mock ISrsCommonHttpHandler for testing SrsServer::http_handle()
+class MockHttpServeMux : public ISrsCommonHttpHandler
 {
 public:
     int handle_count_;
@@ -156,7 +156,7 @@ public:
     virtual void untick(int event);
 };
 
-// Mock SrsAppFactory for testing SrsServer::setup_ticks()
+// Mock ISrsAppFactory for testing SrsServer::setup_ticks()
 class MockAppFactoryForSetupTicks : public SrsAppFactory
 {
 public:
@@ -231,7 +231,13 @@ public:
     virtual bool empty();
     virtual size_t size();
     virtual void add(ISrsResource *conn, bool *exists = NULL);
+    virtual void add_with_id(const std::string &id, ISrsResource *conn);
+    virtual void add_with_fast_id(uint64_t id, ISrsResource *conn);
+    virtual void add_with_name(const std::string &name, ISrsResource *conn);
     virtual ISrsResource *at(int index);
+    virtual ISrsResource *find_by_id(std::string id);
+    virtual ISrsResource *find_by_fast_id(uint64_t id);
+    virtual ISrsResource *find_by_name(std::string name);
     virtual void remove(ISrsResource *c);
     virtual void subscribe(ISrsDisposingHandler *h);
     virtual void unsubscribe(ISrsDisposingHandler *h);
@@ -258,6 +264,17 @@ public:
     virtual void kbps_add_delta(std::string id, ISrsKbpsDelta *delta);
     virtual void kbps_sample();
     virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames);
+    virtual std::string server_id();
+    virtual std::string service_id();
+    virtual std::string service_pid();
+    virtual SrsStatisticVhost *find_vhost_by_id(std::string vid);
+    virtual SrsStatisticStream *find_stream(std::string sid);
+    virtual SrsStatisticStream *find_stream_by_url(std::string url);
+    virtual SrsStatisticClient *find_client(std::string client_id);
+    virtual srs_error_t dumps_vhosts(SrsJsonArray *arr);
+    virtual srs_error_t dumps_streams(SrsJsonArray *arr, int start, int count);
+    virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count);
+    virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs);
     void reset();
 };
 
@@ -290,7 +307,13 @@ public:
     virtual bool empty();
     virtual size_t size();
     virtual void add(ISrsResource *conn, bool *exists = NULL);
+    virtual void add_with_id(const std::string &id, ISrsResource *conn);
+    virtual void add_with_fast_id(uint64_t id, ISrsResource *conn);
+    virtual void add_with_name(const std::string &name, ISrsResource *conn);
     virtual ISrsResource *at(int index);
+    virtual ISrsResource *find_by_id(std::string id);
+    virtual ISrsResource *find_by_fast_id(uint64_t id);
+    virtual ISrsResource *find_by_name(std::string name);
     virtual void remove(ISrsResource *c);
     virtual void subscribe(ISrsDisposingHandler *h);
     virtual void unsubscribe(ISrsDisposingHandler *h);

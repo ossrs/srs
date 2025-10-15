@@ -220,7 +220,15 @@ SrsSharedPtr<SrsSrtSource> SrsSrtSourceManager::fetch(ISrsRequest *r)
 
 SrsSrtSourceManager *_srs_srt_sources = NULL;
 
-SrsSrtConsumer::SrsSrtConsumer(SrsSrtSource *s)
+ISrsSrtConsumer::ISrsSrtConsumer()
+{
+}
+
+ISrsSrtConsumer::~ISrsSrtConsumer()
+{
+}
+
+SrsSrtConsumer::SrsSrtConsumer(ISrsSrtSource *s)
 {
     source_ = s;
     should_update_source_id_ = false;
@@ -916,12 +924,22 @@ srs_error_t SrsSrtFrameBuilder::on_aac_frame(SrsTsMessage *msg, uint32_t pts, ch
     return err;
 }
 
+ISrsSrtSource::ISrsSrtSource()
+{
+}
+
+ISrsSrtSource::~ISrsSrtSource()
+{
+}
+
 SrsSrtSource::SrsSrtSource()
 {
     req_ = NULL;
     can_publish_ = true;
     srt_bridge_ = NULL;
     stream_die_at_ = 0;
+
+    stat_ = _srs_stat;
 }
 
 SrsSrtSource::~SrsSrtSource()
@@ -937,6 +955,8 @@ SrsSrtSource::~SrsSrtSource()
     if (cid.empty())
         cid = _pre_source_id;
     srs_trace("free srt source id=[%s]", cid.c_str());
+
+    stat_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -995,10 +1015,13 @@ srs_error_t SrsSrtSource::on_source_id_changed(SrsContextId id)
     _source_id = id;
 
     // notice all consumer
-    std::vector<SrsSrtConsumer *>::iterator it;
+    std::vector<ISrsSrtConsumer *>::iterator it;
     for (it = consumers_.begin(); it != consumers_.end(); ++it) {
-        SrsSrtConsumer *consumer = *it;
-        consumer->update_source_id();
+        ISrsSrtConsumer *consumer = *it;
+        SrsSrtConsumer *consumer_impl = dynamic_cast<SrsSrtConsumer *>(consumer);
+        if (consumer_impl) {
+            consumer_impl->update_source_id();
+        }
     }
 
     return err;
@@ -1025,7 +1048,7 @@ void SrsSrtSource::set_bridge(ISrsSrtBridge *bridge)
     srt_bridge_ = bridge;
 }
 
-srs_error_t SrsSrtSource::create_consumer(SrsSrtConsumer *&consumer)
+srs_error_t SrsSrtSource::create_consumer(ISrsSrtConsumer *&consumer)
 {
     srs_error_t err = srs_success;
 
@@ -1037,7 +1060,7 @@ srs_error_t SrsSrtSource::create_consumer(SrsSrtConsumer *&consumer)
     return err;
 }
 
-srs_error_t SrsSrtSource::consumer_dumps(SrsSrtConsumer *consumer)
+srs_error_t SrsSrtSource::consumer_dumps(ISrsSrtConsumer *consumer)
 {
     srs_error_t err = srs_success;
 
@@ -1047,9 +1070,9 @@ srs_error_t SrsSrtSource::consumer_dumps(SrsSrtConsumer *consumer)
     return err;
 }
 
-void SrsSrtSource::on_consumer_destroy(SrsSrtConsumer *consumer)
+void SrsSrtSource::on_consumer_destroy(ISrsSrtConsumer *consumer)
 {
-    std::vector<SrsSrtConsumer *>::iterator it;
+    std::vector<ISrsSrtConsumer *>::iterator it;
     it = std::find(consumers_.begin(), consumers_.end(), consumer);
     if (it != consumers_.end()) {
         it = consumers_.erase(it);
@@ -1080,8 +1103,7 @@ srs_error_t SrsSrtSource::on_publish()
         return srs_error_wrap(err, "bridge on publish");
     }
 
-    SrsStatistic *stat = _srs_stat;
-    stat->on_stream_publish(req_, _source_id.c_str());
+    stat_->on_stream_publish(req_, _source_id.c_str());
 
     return err;
 }
@@ -1093,8 +1115,7 @@ void SrsSrtSource::on_unpublish()
         return;
     }
 
-    SrsStatistic *stat = _srs_stat;
-    stat->on_stream_close(req_);
+    stat_->on_stream_close(req_);
 
     if (srt_bridge_) {
         srt_bridge_->on_unpublish();
@@ -1115,7 +1136,7 @@ srs_error_t SrsSrtSource::on_packet(SrsSrtPacket *packet)
     srs_error_t err = srs_success;
 
     for (int i = 0; i < (int)consumers_.size(); i++) {
-        SrsSrtConsumer *consumer = consumers_.at(i);
+        ISrsSrtConsumer *consumer = consumers_.at(i);
         if ((err = consumer->enqueue(packet->copy())) != srs_success) {
             return srs_error_wrap(err, "consume ts packet");
         }

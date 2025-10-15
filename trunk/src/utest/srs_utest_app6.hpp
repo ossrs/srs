@@ -25,6 +25,85 @@
 #include <srs_utest_app2.hpp>
 #include <srs_utest_protocol3.hpp>
 
+// Mock ISrsResourceManager for testing SrsGbMediaTcpConn::bind_session
+class MockResourceManagerForBindSession : public ISrsResourceManager
+{
+public:
+    ISrsResource *session_to_return_;
+
+public:
+    MockResourceManagerForBindSession();
+    virtual ~MockResourceManagerForBindSession();
+
+public:
+    virtual srs_error_t start();
+    virtual bool empty();
+    virtual size_t size();
+    virtual void add(ISrsResource *conn, bool *exists = NULL);
+    virtual void add_with_id(const std::string &id, ISrsResource *conn);
+    virtual void add_with_fast_id(uint64_t id, ISrsResource *conn);
+    virtual void add_with_name(const std::string &name, ISrsResource *conn);
+    virtual ISrsResource *at(int index);
+    virtual ISrsResource *find_by_id(std::string id);
+    virtual ISrsResource *find_by_fast_id(uint64_t id);
+    virtual ISrsResource *find_by_name(std::string name);
+    virtual void remove(ISrsResource *c);
+    virtual void subscribe(ISrsDisposingHandler *h);
+    virtual void unsubscribe(ISrsDisposingHandler *h);
+    void reset();
+};
+
+// Mock ISrsEphemeralDelta for testing SrsRtcUdpNetwork
+class MockEphemeralDelta : public ISrsEphemeralDelta
+{
+public:
+    int64_t in_bytes_;
+    int64_t out_bytes_;
+
+public:
+    MockEphemeralDelta();
+    virtual ~MockEphemeralDelta();
+
+public:
+    virtual void add_delta(int64_t in, int64_t out);
+    virtual void remark(int64_t *in, int64_t *out);
+    void reset();
+};
+
+// Mock ISrsUdpMuxSocket for testing SrsRtcUdpNetwork STUN handling
+class MockUdpMuxSocket : public ISrsUdpMuxSocket
+{
+public:
+    srs_error_t sendto_error_;
+    int sendto_called_count_;
+    int last_sendto_size_;
+    std::string peer_ip_;
+    int peer_port_;
+    std::string peer_id_;
+    uint64_t fast_id_;
+    char *data_;
+    int size_;
+
+public:
+    MockUdpMuxSocket();
+    virtual ~MockUdpMuxSocket();
+
+public:
+    virtual srs_error_t sendto(void *data, int size, srs_utime_t timeout);
+    virtual std::string get_peer_ip() const;
+    virtual int get_peer_port() const;
+    virtual std::string peer_id();
+    virtual uint64_t fast_id();
+    virtual SrsUdpMuxSocket *copy_sendonly();
+    virtual int recvfrom(srs_utime_t timeout);
+    virtual char *data();
+    virtual int size();
+
+public:
+    void reset();
+    void set_sendto_error(srs_error_t err);
+};
+
 // Mock DTLS implementation for testing SrsSecurityTransport
 class MockDtls : public ISrsDtls
 {
@@ -84,10 +163,16 @@ public:
     virtual ~MockRtcNetwork();
 
 public:
+    virtual srs_error_t initialize(SrsSessionConfig *cfg, bool dtls, bool srtp);
+    virtual void set_state(SrsRtcNetworkState state);
     virtual srs_error_t on_dtls_handshake_done();
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
+    virtual srs_error_t on_dtls(char *data, int nb_data);
     virtual srs_error_t protect_rtp(void *packet, int *nb_cipher);
     virtual srs_error_t protect_rtcp(void *packet, int *nb_cipher);
+    virtual srs_error_t on_stun(SrsStunPacket *r, char *data, int nb_data);
+    virtual srs_error_t on_rtp(char *data, int nb_data);
+    virtual srs_error_t on_rtcp(char *data, int nb_data);
     virtual bool is_establelished();
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 
@@ -236,6 +321,11 @@ public:
     bool rtc_twcc_enabled_;
     bool srt_enabled_;
     bool rtc_to_rtmp_;
+    srs_utime_t dash_dispose_;
+    bool dash_enabled_;
+    bool api_as_candidates_;
+    bool resolve_api_domain_;
+    bool keep_api_domain_;
 
 public:
     MockAppConfig();
@@ -248,6 +338,8 @@ public:
     virtual srs_error_t reload(SrsReloadState *pstate) { return srs_success; }
     virtual srs_error_t persistence() { return srs_success; }
     virtual std::string config() { return ""; }
+    virtual SrsConfDirective *get_root() { return NULL; }
+    virtual std::string cwd() { return "./"; }
     virtual int get_max_connections() { return 1000; }
     virtual std::string get_pid_file() { return ""; }
     virtual bool empty_ip_ok() { return false; }
@@ -266,6 +358,14 @@ public:
     virtual std::vector<std::string> get_https_api_listens() { return std::vector<std::string>(); }
     virtual std::string get_https_api_ssl_key() { return ""; }
     virtual std::string get_https_api_ssl_cert() { return ""; }
+    virtual bool get_raw_api() { return false; }
+    virtual bool get_raw_api_allow_reload() { return false; }
+    virtual bool get_raw_api_allow_query() { return false; }
+    virtual bool get_raw_api_allow_update() { return false; }
+    virtual bool get_http_api_auth_enabled() { return false; }
+    virtual std::string get_http_api_auth_username() { return ""; }
+    virtual std::string get_http_api_auth_password() { return ""; }
+    virtual srs_error_t raw_to_json(SrsJsonObject *obj) { return srs_success; }
     virtual bool get_http_stream_enabled() { return false; }
     virtual std::vector<std::string> get_http_stream_listens() { return std::vector<std::string>(); }
     virtual bool get_https_stream_enabled() { return false; }
@@ -273,24 +373,47 @@ public:
     virtual std::string get_https_stream_ssl_key() { return ""; }
     virtual std::string get_https_stream_ssl_cert() { return ""; }
     virtual std::string get_http_stream_dir() { return ""; }
+    virtual bool get_http_stream_crossdomain() { return false; }
     virtual bool get_rtc_server_enabled() { return false; }
     virtual bool get_rtc_server_tcp_enabled() { return false; }
     virtual std::vector<std::string> get_rtc_server_tcp_listens() { return std::vector<std::string>(); }
     virtual std::string get_rtc_server_protocol() { return "udp"; }
     virtual std::vector<std::string> get_rtc_server_listens() { return std::vector<std::string>(); }
     virtual int get_rtc_server_reuseport() { return 1; }
+    virtual bool get_rtc_server_encrypt() { return false; }
+    virtual bool get_api_as_candidates() { return api_as_candidates_; }
+    virtual bool get_resolve_api_domain() { return resolve_api_domain_; }
+    virtual bool get_keep_api_domain() { return keep_api_domain_; }
+    virtual std::string get_rtc_server_candidates() { return "*"; }
+    virtual bool get_use_auto_detect_network_ip() { return true; }
+    virtual std::string get_rtc_server_ip_family() { return "ipv4"; }
     virtual bool get_rtsp_server_enabled() { return false; }
     virtual std::vector<std::string> get_rtsp_server_listens() { return std::vector<std::string>(); }
     virtual std::vector<std::string> get_srt_listens() { return std::vector<std::string>(); }
     virtual std::vector<SrsConfDirective *> get_stream_casters() { return std::vector<SrsConfDirective *>(); }
     virtual bool get_stream_caster_enabled(SrsConfDirective *conf) { return false; }
     virtual std::string get_stream_caster_engine(SrsConfDirective *conf) { return ""; }
+    virtual std::string get_stream_caster_output(SrsConfDirective *conf) { return ""; }
+    virtual int get_stream_caster_listen(SrsConfDirective *conf) { return 0; }
     virtual bool get_exporter_enabled() { return false; }
     virtual std::string get_exporter_listen() { return ""; }
+    virtual std::string get_exporter_label() { return ""; }
+    virtual std::string get_exporter_tag() { return ""; }
     virtual bool get_stats_enabled() { return false; }
     virtual int get_stats_network() { return 0; }
     virtual bool get_heartbeat_enabled() { return false; }
     virtual srs_utime_t get_heartbeat_interval() { return 0; }
+    virtual std::string get_heartbeat_url() { return ""; }
+    virtual std::string get_heartbeat_device_id() { return ""; }
+    virtual bool get_heartbeat_summaries() { return false; }
+    virtual bool get_heartbeat_ports() { return false; }
+    virtual bool get_circuit_breaker() { return false; }
+    virtual int get_high_threshold() { return 0; }
+    virtual int get_high_pulse() { return 0; }
+    virtual int get_critical_threshold() { return 0; }
+    virtual int get_critical_pulse() { return 0; }
+    virtual int get_dying_threshold() { return 0; }
+    virtual int get_dying_pulse() { return 0; }
     virtual std::string get_rtmps_ssl_cert() { return ""; }
     virtual std::string get_rtmps_ssl_key() { return ""; }
     virtual SrsConfDirective *get_vhost(std::string vhost, bool try_default_vhost = true) { return NULL; }
@@ -329,6 +452,7 @@ public:
     virtual bool get_vhost_http_hooks_enabled(std::string vhost);
     virtual SrsConfDirective *get_vhost_on_stop(std::string vhost);
     virtual SrsConfDirective *get_vhost_on_unpublish(std::string vhost);
+    virtual SrsConfDirective *get_vhost_on_dvr(std::string vhost);
     virtual bool get_rtc_nack_enabled(std::string vhost);
     virtual bool get_rtc_nack_no_copy(std::string vhost);
     virtual bool get_realtime_enabled(std::string vhost, bool is_rtc);
@@ -337,9 +461,13 @@ public:
     virtual bool get_rtc_twcc_enabled(std::string vhost);
     virtual bool get_srt_enabled();
     virtual bool get_srt_enabled(std::string vhost);
+    virtual std::string get_srt_default_streamid();
+    virtual bool get_srt_to_rtmp(std::string vhost);
     virtual bool get_rtc_to_rtmp(std::string vhost);
     virtual srs_utime_t get_rtc_stun_timeout(std::string vhost);
     virtual bool get_rtc_stun_strict_check(std::string vhost);
+    virtual std::string get_rtc_dtls_role(std::string vhost);
+    virtual std::string get_rtc_dtls_version(std::string vhost);
     virtual SrsConfDirective *get_vhost_on_hls(std::string vhost);
     virtual SrsConfDirective *get_vhost_on_hls_notify(std::string vhost);
     // HLS methods
@@ -383,7 +511,14 @@ public:
     virtual bool get_atc_auto(std::string vhost);
     virtual bool get_reduce_sequence_header(std::string vhost);
     virtual bool get_parse_sps(std::string vhost);
-    virtual SrsConfDirective *get_root() { return NULL; }
+    // DVR methods
+    virtual std::string get_dvr_path(std::string vhost) { return "./[vhost]/[app]/[stream]/[2006]/[01]/[02]/[15].[04].[05].[999].flv"; }
+    virtual std::string get_dvr_plan(std::string vhost) { return "session"; }
+    virtual bool get_dvr_enabled(std::string vhost) { return false; }
+    virtual SrsConfDirective *get_dvr_apply(std::string vhost) { return NULL; }
+    virtual srs_utime_t get_dvr_duration(std::string vhost) { return 30 * SRS_UTIME_SECONDS; }
+    virtual int get_dvr_time_jitter(std::string vhost) { return 0; }
+    virtual bool get_dvr_wait_keyframe(std::string vhost) { return true; }
     virtual bool get_vhost_enabled(SrsConfDirective *conf) { return true; }
     virtual bool get_vhost_http_remux_enabled(std::string vhost) { return false; }
     virtual bool get_vhost_http_remux_enabled(SrsConfDirective *vhost) { return false; }
@@ -393,6 +528,60 @@ public:
     virtual bool get_vhost_http_remux_has_video(std::string vhost) { return true; }
     virtual bool get_vhost_http_remux_guess_has_av(std::string vhost) { return true; }
     virtual std::string get_vhost_http_remux_mount(std::string vhost) { return ""; }
+    virtual std::string get_vhost_edge_protocol(std::string vhost) { return "rtmp"; }
+    virtual bool get_vhost_edge_follow_client(std::string vhost) { return false; }
+    virtual std::string get_vhost_edge_transform_vhost(std::string vhost) { return ""; }
+    // DASH methods
+    virtual bool get_dash_enabled(std::string vhost) { return dash_enabled_; }
+    virtual bool get_dash_enabled(SrsConfDirective *vhost) { return dash_enabled_; }
+    virtual srs_utime_t get_dash_fragment(std::string vhost) { return 30 * SRS_UTIME_SECONDS; }
+    virtual srs_utime_t get_dash_update_period(std::string vhost) { return 30 * SRS_UTIME_SECONDS; }
+    virtual srs_utime_t get_dash_timeshift(std::string vhost) { return 300 * SRS_UTIME_SECONDS; }
+    virtual std::string get_dash_path(std::string vhost) { return "./[vhost]/[app]/[stream]/"; }
+    virtual std::string get_dash_mpd_file(std::string vhost) { return "[stream].mpd"; }
+    virtual int get_dash_window_size(std::string vhost) { return 10; }
+    virtual bool get_dash_cleanup(std::string vhost) { return true; }
+    virtual srs_utime_t get_dash_dispose(std::string vhost) { return dash_dispose_; }
+    // Exec config
+    virtual bool get_exec_enabled(std::string vhost) { return false; }
+    virtual std::vector<SrsConfDirective *> get_exec_publishs(std::string vhost) { return std::vector<SrsConfDirective *>(); }
+    // Ingest config
+    virtual void get_vhosts(std::vector<SrsConfDirective *> &vhosts) {}
+    virtual std::vector<SrsConfDirective *> get_ingesters(std::string vhost) { return std::vector<SrsConfDirective *>(); }
+    virtual SrsConfDirective *get_ingest_by_id(std::string vhost, std::string ingest_id) { return NULL; }
+    virtual bool get_ingest_enabled(SrsConfDirective *conf) { return false; }
+    virtual std::string get_ingest_ffmpeg(SrsConfDirective *conf) { return ""; }
+    virtual std::string get_ingest_input_type(SrsConfDirective *conf) { return ""; }
+    virtual std::string get_ingest_input_url(SrsConfDirective *conf) { return ""; }
+    // FFmpeg log config
+    virtual bool get_ff_log_enabled() { return false; }
+    virtual std::string get_ff_log_dir() { return ""; }
+    virtual std::string get_ff_log_level() { return ""; }
+    // Transcode/Engine config
+    virtual SrsConfDirective *get_transcode(std::string vhost, std::string scope) { return NULL; }
+    virtual bool get_transcode_enabled(SrsConfDirective *conf) { return false; }
+    virtual std::string get_transcode_ffmpeg(SrsConfDirective *conf) { return ""; }
+    virtual std::vector<SrsConfDirective *> get_transcode_engines(SrsConfDirective *conf) { return std::vector<SrsConfDirective *>(); }
+    virtual bool get_engine_enabled(SrsConfDirective *conf) { return false; }
+    virtual std::vector<std::string> get_engine_perfile(SrsConfDirective *conf) { return std::vector<std::string>(); }
+    virtual std::string get_engine_iformat(SrsConfDirective *conf) { return ""; }
+    virtual std::vector<std::string> get_engine_vfilter(SrsConfDirective *conf) { return std::vector<std::string>(); }
+    virtual std::string get_engine_vcodec(SrsConfDirective *conf) { return ""; }
+    virtual int get_engine_vbitrate(SrsConfDirective *conf) { return 0; }
+    virtual double get_engine_vfps(SrsConfDirective *conf) { return 0; }
+    virtual int get_engine_vwidth(SrsConfDirective *conf) { return 0; }
+    virtual int get_engine_vheight(SrsConfDirective *conf) { return 0; }
+    virtual int get_engine_vthreads(SrsConfDirective *conf) { return 0; }
+    virtual std::string get_engine_vprofile(SrsConfDirective *conf) { return ""; }
+    virtual std::string get_engine_vpreset(SrsConfDirective *conf) { return ""; }
+    virtual std::vector<std::string> get_engine_vparams(SrsConfDirective *conf) { return std::vector<std::string>(); }
+    virtual std::string get_engine_acodec(SrsConfDirective *conf) { return ""; }
+    virtual int get_engine_abitrate(SrsConfDirective *conf) { return 0; }
+    virtual int get_engine_asample_rate(SrsConfDirective *conf) { return 0; }
+    virtual int get_engine_achannels(SrsConfDirective *conf) { return 0; }
+    virtual std::vector<std::string> get_engine_aparams(SrsConfDirective *conf) { return std::vector<std::string>(); }
+    virtual std::string get_engine_oformat(SrsConfDirective *conf) { return ""; }
+    virtual std::string get_engine_output(SrsConfDirective *conf) { return ""; }
     void set_http_hooks_enabled(bool enabled);
     void set_on_stop_urls(const std::vector<std::string> &urls);
     void clear_on_stop_directive();
@@ -404,6 +593,9 @@ public:
     void set_rtc_twcc_enabled(bool enabled);
     void set_srt_enabled(bool enabled);
     void set_rtc_to_rtmp(bool enabled);
+    void set_api_as_candidates(bool enabled);
+    void set_resolve_api_domain(bool enabled);
+    void set_keep_api_domain(bool enabled);
 };
 
 // Mock request for testing SrsRtcAsyncCallOnStop
@@ -469,6 +661,17 @@ public:
     virtual void kbps_add_delta(std::string id, ISrsKbpsDelta *delta);
     virtual void kbps_sample();
     virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames);
+    virtual std::string server_id();
+    virtual std::string service_id();
+    virtual std::string service_pid();
+    virtual SrsStatisticVhost *find_vhost_by_id(std::string vid);
+    virtual SrsStatisticStream *find_stream(std::string sid);
+    virtual SrsStatisticStream *find_stream_by_url(std::string url);
+    virtual SrsStatisticClient *find_client(std::string client_id);
+    virtual srs_error_t dumps_vhosts(SrsJsonArray *arr);
+    virtual srs_error_t dumps_streams(SrsJsonArray *arr, int start, int count);
+    virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count);
+    virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs);
     void set_on_client_error(srs_error_t err);
     void reset();
 };

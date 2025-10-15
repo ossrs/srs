@@ -24,4 +24,5 @@ fi
 echo "Formatting source files in trunk directory..."
 # Exclude the 3rdparty directory and format all .cpp, and .hpp
 # Use -i to edit files in place
-find trunk/src -name "*.*pp" | xargs clang-format -style=file -i
+# Use xargs -P N to run N clang-format processes in parallel
+find trunk/src -name "*.*pp" | xargs -P 16 -n 1 clang-format -style=file -i

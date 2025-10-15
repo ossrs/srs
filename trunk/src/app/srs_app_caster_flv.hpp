@@ -23,6 +23,12 @@ class SrsFlvDecoder;
 class SrsTcpClient;
 class SrsSimpleRtmpClient;
 class SrsAppCasterFlv;
+class ISrsAppCasterFlv;
+class ISrsAppConfig;
+class ISrsAppFactory;
+class ISrsBasicRtmpClient;
+class ISrsProtocolReadWriter;
+class ISrsHttpConn;
 
 #include <srs_app_http_conn.hpp>
 #include <srs_app_listener.hpp>
@@ -30,12 +36,27 @@ class SrsAppCasterFlv;
 #include <srs_kernel_file.hpp>
 #include <srs_protocol_conn.hpp>
 
-// A TCP listener, for flv stream server.
-class SrsHttpFlvListener : public ISrsTcpHandler, public ISrsListener
+// The http flv listener.
+class ISrsHttpFlvListener : public ISrsTcpHandler, public ISrsListener
 {
-private:
+public:
+    ISrsHttpFlvListener();
+    virtual ~ISrsHttpFlvListener();
+
+public:
+};
+
+// A TCP listener, for flv stream server.
+class SrsHttpFlvListener : public ISrsHttpFlvListener
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsTcpListener *listener_;
-    SrsAppCasterFlv *caster_;
+    ISrsAppCasterFlv *caster_;
 
 public:
     SrsHttpFlvListener();
@@ -50,10 +71,26 @@ public:
     virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
 };
 
-// The stream caster for flv stream over HTTP POST.
-class SrsAppCasterFlv : public ISrsTcpHandler, public ISrsResourceManager, public ISrsHttpHandler
+// The http flv caster interface.
+class ISrsAppCasterFlv : public ISrsTcpHandler, public ISrsResourceManager, public ISrsHttpHandler
 {
-private:
+public:
+    ISrsAppCasterFlv();
+    virtual ~ISrsAppCasterFlv();
+
+public:
+    virtual srs_error_t initialize(SrsConfDirective *c) = 0;
+};
+
+// The stream caster for flv stream over HTTP POST.
+class SrsAppCasterFlv : public ISrsAppCasterFlv
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string output_;
     SrsHttpServeMux *http_mux_;
     std::vector<ISrsConnection *> conns_;
@@ -74,7 +111,13 @@ public:
     virtual bool empty();
     virtual size_t size();
     virtual void add(ISrsResource *conn, bool *exists = NULL);
+    virtual void add_with_id(const std::string &id, ISrsResource *conn);
+    virtual void add_with_fast_id(uint64_t id, ISrsResource *conn);
+    virtual void add_with_name(const std::string &name, ISrsResource *conn);
     virtual ISrsResource *at(int index);
+    virtual ISrsResource *find_by_id(std::string id);
+    virtual ISrsResource *find_by_fast_id(uint64_t id);
+    virtual ISrsResource *find_by_name(std::string name);
     virtual void remove(ISrsResource *c);
     virtual void subscribe(ISrsDisposingHandler *h);
     virtual void unsubscribe(ISrsDisposingHandler *h);
@@ -84,18 +127,35 @@ public:
 };
 
 // The dynamic http connection, never drop the body.
-class SrsDynamicHttpConn : public ISrsConnection, public ISrsStartable, public ISrsHttpConnOwner, public ISrsReloadHandler
+class ISrsDynamicHttpConn : public ISrsConnection, public ISrsStartable, public ISrsHttpConnOwner
 {
-private:
+public:
+    ISrsDynamicHttpConn();
+    virtual ~ISrsDynamicHttpConn();
+
+public:
+};
+
+// The dynamic http connection, never drop the body.
+class SrsDynamicHttpConn : public ISrsDynamicHttpConn
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The manager object to manage the connection.
     ISrsResourceManager *manager_;
     std::string output_;
     SrsPithyPrint *pprint_;
-    SrsSimpleRtmpClient *sdk_;
-    SrsTcpConnection *skt_;
-    SrsHttpConn *conn_;
+    ISrsBasicRtmpClient *sdk_;
+    ISrsProtocolReadWriter *skt_;
+    ISrsHttpConn *conn_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The ip and port of client.
     std::string ip_;
     int port_;
@@ -107,14 +167,15 @@ public:
 public:
     virtual srs_error_t proxy(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string o);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_proxy(ISrsHttpResponseReader *rr, SrsFlvDecoder *dec);
     // Extract APIs from SrsTcpConnection.
     // Interface ISrsHttpConnOwner.
 public:
     virtual srs_error_t on_start();
-    virtual srs_error_t on_http_message(ISrsHttpMessage *r, SrsHttpResponseWriter *w);
-    virtual srs_error_t on_message_done(ISrsHttpMessage *r, SrsHttpResponseWriter *w);
+    virtual srs_error_t on_http_message(ISrsHttpMessage *r, ISrsHttpResponseWriter *w);
+    virtual srs_error_t on_message_done(ISrsHttpMessage *r, ISrsHttpResponseWriter *w);
     virtual srs_error_t on_conn_done(srs_error_t r0);
     // Interface ISrsResource.
 public:
@@ -129,10 +190,22 @@ public:
 };
 
 // The http wrapper for file reader, to read http post stream like a file.
-class SrsHttpFileReader : public SrsFileReader
+class ISrsHttpFileReader : public ISrsFileReader
 {
-private:
+public:
+    ISrsHttpFileReader();
+    virtual ~ISrsHttpFileReader();
+
+public:
+};
+
+// The http wrapper for file reader, to read http post stream like a file.
+class SrsHttpFileReader : public ISrsHttpFileReader
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsHttpResponseReader *http_;
+    SrsFileReader *file_reader_;
 
 public:
     SrsHttpFileReader(ISrsHttpResponseReader *h);

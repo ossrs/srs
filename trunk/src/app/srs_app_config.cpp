@@ -1879,13 +1879,6 @@ srs_error_t SrsConfig::check_normal_config()
     srs_trace("srs checking config...");
 
     ////////////////////////////////////////////////////////////////////////
-    // check empty
-    ////////////////////////////////////////////////////////////////////////
-    if (!env_only_ && root_->directives_.size() == 0) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "conf is empty");
-    }
-
-    ////////////////////////////////////////////////////////////////////////
     // check root directives.
     ////////////////////////////////////////////////////////////////////////
     for (int i = 0; i < (int)root_->directives_.size(); i++) {
@@ -2010,9 +2003,6 @@ srs_error_t SrsConfig::check_normal_config()
     ////////////////////////////////////////////////////////////////////////
     if (true) {
         vector<string> listens = get_listens();
-        if (!env_only_ && listens.size() <= 0) {
-            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "listen requires params");
-        }
         for (int i = 0; i < (int)listens.size(); i++) {
             if (!srs_net_is_valid_endpoint(listens[i])) {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "rtmp.listen=%s is invalid", listens[i].c_str());

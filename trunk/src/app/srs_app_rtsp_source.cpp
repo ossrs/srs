@@ -250,6 +250,9 @@ SrsRtspSource::SrsRtspSource()
     req_ = NULL;
 
     stream_die_at_ = 0;
+
+    stat_ = _srs_stat;
+    circuit_breaker_ = _srs_circuit_breaker;
 }
 
 SrsRtspSource::~SrsRtspSource()
@@ -266,6 +269,9 @@ SrsRtspSource::~SrsRtspSource()
     if (cid.empty())
         cid = _pre_source_id;
     srs_trace("free rtc source id=[%s]", cid.c_str());
+
+    stat_ = NULL;
+    circuit_breaker_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -437,8 +443,7 @@ srs_error_t SrsRtspSource::on_publish()
         return srs_error_wrap(err, "source id change");
     }
 
-    SrsStatistic *stat = _srs_stat;
-    stat->on_stream_publish(req_, _source_id.c_str());
+    stat_->on_stream_publish(req_, _source_id.c_str());
 
     return err;
 }
@@ -457,8 +462,7 @@ void SrsRtspSource::on_unpublish()
     }
     _source_id = SrsContextId();
 
-    SrsStatistic *stat = _srs_stat;
-    stat->on_stream_close(req_);
+    stat_->on_stream_close(req_);
 
     // Destroy and cleanup source when no publishers and consumers.
     if (consumers_.empty()) {
@@ -475,7 +479,7 @@ srs_error_t SrsRtspSource::on_rtp(SrsRtpPacket *pkt)
     srs_error_t err = srs_success;
 
     // If circuit-breaker is dying, drop packet.
-    if (_srs_circuit_breaker->hybrid_dying_water_level()) {
+    if (circuit_breaker_->hybrid_dying_water_level()) {
         _srs_pps_aloss2->sugar_ += (int64_t)consumers_.size();
         return err;
     }
@@ -531,6 +535,8 @@ SrsRtspRtpBuilder::SrsRtspRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtsp
     // Lazy initialization flags
     audio_initialized_ = false;
     video_initialized_ = false;
+
+    config_ = _srs_config;
 }
 
 SrsRtspRtpBuilder::~SrsRtspRtpBuilder()
@@ -538,6 +544,8 @@ SrsRtspRtpBuilder::~SrsRtspRtpBuilder()
     srs_freep(format_);
     srs_freep(meta_);
     srs_freep(video_builder_);
+
+    config_ = NULL;
 }
 
 srs_error_t SrsRtspRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
@@ -679,7 +687,7 @@ srs_error_t SrsRtspRtpBuilder::initialize(ISrsRequest *r)
     }
 
     // Setup the SPS/PPS parsing strategy.
-    format_->try_annexb_first_ = _srs_config->try_annexb_first(r->vhost_);
+    format_->try_annexb_first_ = config_->try_annexb_first(r->vhost_);
 
     srs_trace("RTSP bridge from RTMP, try_annexb_first=%d", format_->try_annexb_first_);
 
@@ -997,7 +1005,15 @@ srs_error_t SrsRtspRtpBuilder::consume_packets(vector<SrsRtpPacket *> &pkts)
     return err;
 }
 
-SrsRtspSendTrack::SrsRtspSendTrack(SrsRtspConnection *session, SrsRtcTrackDescription *track_desc, bool is_audio)
+ISrsRtspSendTrack::ISrsRtspSendTrack()
+{
+}
+
+ISrsRtspSendTrack::~ISrsRtspSendTrack()
+{
+}
+
+SrsRtspSendTrack::SrsRtspSendTrack(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc, bool is_audio)
 {
     session_ = session;
     track_desc_ = track_desc->copy();
@@ -1031,7 +1047,12 @@ std::string SrsRtspSendTrack::get_track_id()
     return track_desc_->id_;
 }
 
-SrsRtspAudioSendTrack::SrsRtspAudioSendTrack(SrsRtspConnection *session, SrsRtcTrackDescription *track_desc)
+SrsRtcTrackDescription *SrsRtspSendTrack::track_desc()
+{
+    return track_desc_;
+}
+
+SrsRtspAudioSendTrack::SrsRtspAudioSendTrack(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc)
     : SrsRtspSendTrack(session, track_desc, true)
 {
 }
@@ -1071,7 +1092,7 @@ srs_error_t SrsRtspAudioSendTrack::on_rtp(SrsRtpPacket *pkt)
     return err;
 }
 
-SrsRtspVideoSendTrack::SrsRtspVideoSendTrack(SrsRtspConnection *session, SrsRtcTrackDescription *track_desc)
+SrsRtspVideoSendTrack::SrsRtspVideoSendTrack(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc)
     : SrsRtspSendTrack(session, track_desc, false)
 {
 }

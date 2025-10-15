@@ -36,14 +36,16 @@ srs_error_t openssl_generate_key(char *public_key, int32_t size);
 // The DH wrapper.
 class SrsDH
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     DH *pdh;
 
 public:
     SrsDH();
     virtual ~SrsDH();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual void close();
 
 public:
@@ -67,7 +69,8 @@ public:
     //       user should never ignore this size.
     virtual srs_error_t copy_shared_key(const char *ppkey, int32_t ppkey_size, char *skey, int32_t &skey_size);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_initialize();
 };
 // The schema type.
@@ -91,7 +94,8 @@ enum srs_schema_type {
 // @see also: http://blog.csdn.net/win_lin/article/details/13006803
 class SrsKeyBlock
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRand rand_;
 
 public:
@@ -119,10 +123,12 @@ public:
     // @stream contains c1s1_key_bytes the key start bytes
     srs_error_t parse(SrsBuffer *stream);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Calculate the offset of key,
     // The key->offset cannot be used as the offset of key.
-    int calc_valid_offset();
+    int
+    calc_valid_offset();
 };
 
 // The 764bytes digest structure
@@ -133,7 +139,8 @@ private:
 // @see also: http://blog.csdn.net/win_lin/article/details/13006803
 class SrsDigestBlock
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRand rand_;
 
 public:
@@ -161,10 +168,12 @@ public:
     // @stream contains c1s1_digest_bytes the digest start bytes
     srs_error_t parse(SrsBuffer *stream);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Calculate the offset of digest,
     // The key->offset cannot be used as the offset of digest.
-    int calc_valid_offset();
+    int
+    calc_valid_offset();
 };
 
 class SrsC1S1;
@@ -174,7 +183,8 @@ class SrsC1S1;
 // while the concrete class to implements in schema0 or schema1.
 class SrsC1S1Strategy
 {
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     SrsKeyBlock key_;
     SrsDigestBlock digest_;
 
@@ -389,7 +399,8 @@ public:
 // @see also: http://blog.csdn.net/win_lin/article/details/13006803
 class SrsC2S2
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRand rand_;
 
 public:

@@ -33,7 +33,7 @@ class SrsRtcConnection;
 class ISrsAsyncCallTask;
 class SrsSignalManager;
 class SrsServer;
-class ISrsHttpServeMux;
+class ISrsCommonHttpHandler;
 class SrsHttpServer;
 class SrsIngester;
 class SrsHttpHeartbeat;
@@ -68,10 +68,46 @@ class ISrsRtspSourceManager;
 class ISrsLog;
 class ISrsStatistic;
 class ISrsHourGlass;
-class SrsAppFactory;
+class ISrsAppFactory;
+class ISrsUdpMuxSocket;
+class ISrsRtcConnection;
 
 // Initialize global shared variables cross all threads.
 extern srs_error_t srs_global_initialize();
+
+// The signal handler interface.
+class ISrsSignalHandler
+{
+public:
+    ISrsSignalHandler();
+    virtual ~ISrsSignalHandler();
+
+public:
+    virtual void on_signal(int signo) = 0;
+};
+
+// The API server owner interface.
+class ISrsApiServerOwner
+{
+public:
+    ISrsApiServerOwner();
+    virtual ~ISrsApiServerOwner();
+
+public:
+    virtual ISrsCommonHttpHandler *api_server() = 0;
+};
+
+// The RTC API server owner interface.
+class ISrsRtcApiServer
+{
+public:
+    ISrsRtcApiServer();
+    virtual ~ISrsRtcApiServer();
+
+public:
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession) = 0;
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag) = 0;
+};
 
 // SrsServer is the main server class of SRS (Simple Realtime Server) that provides comprehensive
 // streaming media server functionality. It serves as the central orchestrator for all streaming
@@ -81,9 +117,13 @@ class SrsServer : public ISrsReloadHandler, // Reload framework for permormance 
                   public ISrsTcpHandler,
                   public ISrsHourGlassHandler,
                   public ISrsSrtClientHandler,
-                  public ISrsUdpMuxHandler
+                  public ISrsUdpMuxHandler,
+                  public ISrsSignalHandler,
+                  public ISrsApiServerOwner,
+                  public ISrsRtcApiServer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsLiveSourceManager *live_sources_;
     ISrsResourceManager *conn_manager_;
@@ -92,28 +132,34 @@ private:
     ISrsCircuitBreaker *circuit_breaker_;
     ISrsSrtSourceManager *srt_sources_;
     ISrsRtcSourceManager *rtc_sources_;
+#ifdef SRS_RTSP
     ISrsRtspSourceManager *rtsp_sources_;
+#endif
 #ifdef SRS_GB28181
     ISrsResourceManager *gb_manager_;
 #endif
     ISrsLog *log_;
     ISrsStatistic *stat_;
-    SrsAppFactory *app_factory_;
+    ISrsAppFactory *app_factory_;
 
-private:
-    ISrsHttpServeMux *http_api_mux_;
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsCommonHttpHandler *http_api_mux_;
     SrsHttpServer *http_server_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsHttpHeartbeat *http_heartbeat_;
     SrsIngester *ingester_;
     ISrsHourGlass *timer_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // PID file manager for process identification and locking.
     SrsPidFileLocker *pid_file_locker_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // If reusing, HTTP API use the same port of HTTP server.
     bool reuse_api_over_server_;
     // If reusing, WebRTC TCP use the same port of HTTP server.
@@ -150,17 +196,22 @@ private:
     SrsGbListener *stream_caster_gb28181_;
 #endif
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // SRT acceptors for MPEG-TS over SRT.
-    std::vector<SrsSrtAcceptor *> srt_acceptors_;
+    std::vector<SrsSrtAcceptor *>
+        srt_acceptors_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // WebRTC UDP listeners for RTC server functionality.
-    std::vector<SrsUdpMuxListener *> rtc_listeners_;
+    std::vector<SrsUdpMuxListener *>
+        rtc_listeners_;
     // WebRTC session manager.
     SrsRtcSessionManager *rtc_session_manager_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Signal manager which convert gignal to io message.
     SrsSignalManager *signal_manager_;
     // To query the latest available version of SRS.
@@ -178,17 +229,19 @@ public:
     SrsServer();
     virtual ~SrsServer();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // When SIGTERM, SRS should do cleanup, for example,
     // to stop all ingesters, cleanup HLS and dvr.
-    virtual void dispose();
+    virtual void
+    dispose();
     // Close listener to stop accepting new connections,
     // then wait and quit when all connections finished.
     virtual void gracefully_dispose();
 
 public:
     // Get the HTTP API server mux.
-    ISrsHttpServeMux *api_server();
+    ISrsCommonHttpHandler *api_server();
 
     // server startup workflow, @see run_master()
 public:
@@ -199,7 +252,8 @@ public:
 public:
     srs_error_t run();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t initialize_st();
     virtual srs_error_t initialize_signal();
     virtual srs_error_t listen();
@@ -211,7 +265,8 @@ public:
     void stop();
 
     // interface ISrsCoroutineHandler
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t cycle();
 
     // server utilities.
@@ -231,21 +286,26 @@ public:
     // @remark, maybe the HTTP RAW API will trigger the on_signal() also.
     virtual void on_signal(int signo);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The server thread main cycle,
     // update the global static data, for instance, the current time,
     // the cpu/mem/network statistic.
-    virtual srs_error_t do_cycle();
+    virtual srs_error_t
+    do_cycle();
     virtual srs_error_t do2_cycle();
 
     // interface ISrsHourGlassHandler
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t setup_ticks();
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Resample the server kbs.
-    virtual void resample_kbps();
+    virtual void
+    resample_kbps();
 
     // SRT-related methods
     virtual srs_error_t listen_srt_mpegts();
@@ -253,29 +313,34 @@ private:
     virtual srs_error_t accept_srt_client(srs_srt_t srt_fd);
     virtual srs_error_t srt_fd_to_resource(srs_srt_t srt_fd, ISrsResource **pr);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // WebRTC-related methods
-    virtual srs_error_t listen_rtc_udp();
+    virtual srs_error_t
+    listen_rtc_udp();
 
     // Interface ISrsUdpMuxHandler
 public:
-    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket *skt);
+    virtual srs_error_t on_udp_packet(ISrsUdpMuxSocket *skt);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t listen_rtc_api();
 
 public:
-    virtual SrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag);
-    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, SrsRtcConnection **psession);
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag);
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t srs_update_server_statistics();
 
     // Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stfd);
     virtual srs_error_t on_before_connection(const char *label, int fd, const std::string &ip, int port);
 
@@ -292,13 +357,15 @@ extern SrsServer *_srs_server;
 // @see: st-1.9/docs/notes.html
 class SrsSignalManager : public ISrsCoroutineHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Per-process pipe which is used as a signal queue.
     // Up to PIPE_BUF/sizeof(int) signals can be queued up.
     int sig_pipe_[2];
     srs_netfd_t signal_read_stfd_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsServer *server_;
     ISrsCoroutine *trd_;
 
@@ -313,7 +380,8 @@ public:
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Global singleton instance
     static SrsSignalManager *instance;
     // Signal catching function.
@@ -325,10 +393,12 @@ private:
 // @see https://github.com/ossrs/srs/issues/1635
 class SrsInotifyWorker : public ISrsCoroutineHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsServer *server_;
     ISrsCoroutine *trd_;
     srs_netfd_t inotify_fd_;
@@ -347,10 +417,12 @@ public:
 // PID file manager for process identification and locking.
 class SrsPidFileLocker
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int pid_fd_;
     std::string pid_file_;
 
@@ -362,9 +434,11 @@ public:
     // Acquire the PID file for the whole process.
     virtual srs_error_t acquire();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Close the PID file descriptor.
-    virtual void close();
+    virtual void
+    close();
 };
 
 #endif

@@ -19,6 +19,9 @@ class SrsSdp;
 class ISrsRequest;
 class ISrsHttpResponseWriter;
 class SrsHttpConn;
+class ISrsSignalHandler;
+class ISrsStatistic;
+class ISrsAppConfig;
 
 #include <string>
 
@@ -35,6 +38,10 @@ extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMess
 // For http root.
 class SrsGoApiRoot : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiRoot();
     virtual ~SrsGoApiRoot();
@@ -45,6 +52,10 @@ public:
 
 class SrsGoApiApi : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiApi();
     virtual ~SrsGoApiApi();
@@ -55,6 +66,10 @@ public:
 
 class SrsGoApiV1 : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiV1();
     virtual ~SrsGoApiV1();
@@ -65,6 +80,10 @@ public:
 
 class SrsGoApiVersion : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiVersion();
     virtual ~SrsGoApiVersion();
@@ -75,6 +94,10 @@ public:
 
 class SrsGoApiSummaries : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiSummaries();
     virtual ~SrsGoApiSummaries();
@@ -85,6 +108,10 @@ public:
 
 class SrsGoApiRusages : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiRusages();
     virtual ~SrsGoApiRusages();
@@ -95,6 +122,10 @@ public:
 
 class SrsGoApiSelfProcStats : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiSelfProcStats();
     virtual ~SrsGoApiSelfProcStats();
@@ -105,6 +136,10 @@ public:
 
 class SrsGoApiSystemProcStats : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiSystemProcStats();
     virtual ~SrsGoApiSystemProcStats();
@@ -115,6 +150,10 @@ public:
 
 class SrsGoApiMemInfos : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiMemInfos();
     virtual ~SrsGoApiMemInfos();
@@ -125,6 +164,10 @@ public:
 
 class SrsGoApiAuthors : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiAuthors();
     virtual ~SrsGoApiAuthors();
@@ -135,6 +178,10 @@ public:
 
 class SrsGoApiFeatures : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiFeatures();
     virtual ~SrsGoApiFeatures();
@@ -145,6 +192,10 @@ public:
 
 class SrsGoApiRequests : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiRequests();
     virtual ~SrsGoApiRequests();
@@ -155,6 +206,10 @@ public:
 
 class SrsGoApiVhosts : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiVhosts();
     virtual ~SrsGoApiVhosts();
@@ -165,6 +220,10 @@ public:
 
 class SrsGoApiStreams : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiStreams();
     virtual ~SrsGoApiStreams();
@@ -175,6 +234,10 @@ public:
 
 class SrsGoApiClients : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiClients();
     virtual ~SrsGoApiClients();
@@ -185,17 +248,25 @@ public:
 
 class SrsGoApiRaw : public ISrsHttpHandler, public ISrsReloadHandler
 {
-private:
-    SrsServer *server_;
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+    ISrsAppConfig *config_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsSignalHandler *handler_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     bool raw_api_;
     bool allow_reload_;
     bool allow_query_;
     bool allow_update_;
 
 public:
-    SrsGoApiRaw(SrsServer *svr);
+    SrsGoApiRaw(ISrsSignalHandler *handler);
+    void assemble();
     virtual ~SrsGoApiRaw();
 
 public:
@@ -204,6 +275,10 @@ public:
 
 class SrsGoApiClusters : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiClusters();
     virtual ~SrsGoApiClusters();
@@ -214,6 +289,10 @@ public:
 
 class SrsGoApiError : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiError();
     virtual ~SrsGoApiError();
@@ -225,6 +304,10 @@ public:
 #ifdef SRS_GPERF
 class SrsGoApiTcmalloc : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiTcmalloc();
     virtual ~SrsGoApiTcmalloc();
@@ -237,7 +320,12 @@ public:
 #ifdef SRS_VALGRIND
 class SrsGoApiValgrind : public ISrsHttpHandler, public ISrsCoroutineHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     std::string task_;
 
@@ -256,6 +344,10 @@ public:
 #ifdef SRS_SIGNAL_API
 class SrsGoApiSignal : public ISrsHttpHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
 public:
     SrsGoApiSignal();
     virtual ~SrsGoApiSignal();
@@ -267,13 +359,20 @@ public:
 
 class SrsGoApiMetrics : public ISrsHttpHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+    ISrsAppConfig *config_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     bool enabled_;
     std::string label_;
     std::string tag_;
 
 public:
     SrsGoApiMetrics();
+    void assemble();
     virtual ~SrsGoApiMetrics();
 
 public:

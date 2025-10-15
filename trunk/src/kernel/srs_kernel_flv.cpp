@@ -667,6 +667,14 @@ srs_error_t SrsFlvTransmuxer::write_tag(char *header, int header_size, char *tag
     return err;
 }
 
+ISrsFlvDecoder::ISrsFlvDecoder()
+{
+}
+
+ISrsFlvDecoder::~ISrsFlvDecoder()
+{
+}
+
 SrsFlvDecoder::SrsFlvDecoder()
 {
     reader_ = NULL;

@@ -13,9 +13,9 @@
 // @see https://stackoverflow.com/questions/47839718/sstream-redeclared-with-public-access-compiler-error
 #include "gtest/gtest.h"
 
-// Public all private and protected members.
-#define private public
-#define protected public
+// Note: The #define private public and #define protected public are now handled in srs_core.hpp
+// when SRS_FORCE_PUBLIC4UTEST is enabled (automatically enabled when --utest=on is specified).
+// This ensures consistent class layout between production code and utest code with AddressSanitizer.
 
 /*
 #include <srs_utest.hpp>
@@ -120,7 +120,8 @@ public:
 // @remark The size of memory to allocate, should smaller than page size, generally 4096 bytes.
 class MockProtectedBuffer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     char *raw_memory_;
 
 public:
@@ -139,7 +140,8 @@ public:
 // The chan never free the args, you must manage the memory.
 class SrsCoroutineChan
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<void *> args_;
     srs_mutex_t lock_;
 
@@ -206,7 +208,7 @@ public:
 #define SRS_COROUTINE_GO_IMPL(context, id, code_block)                \
     class AnonymousCoroutineHandler##id : public ISrsCoroutineHandler \
     {                                                                 \
-    private:                                                          \
+    public:                                                           \
         SrsCoroutineChan *ctx_;                                       \
                                                                       \
     public:                                                           \
@@ -283,7 +285,8 @@ public:
 // but with proper HTTP response formatting
 class SrsHttpTestServer : public ISrsCoroutineHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     srs_netfd_t fd_;
     string response_body_;
@@ -304,14 +307,16 @@ public:
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle(srs_netfd_t cfd);
 };
 
 // Simple HTTPS test server similar to Go's httptest.NewServer but with SSL support
 class SrsHttpsTestServer : public ISrsCoroutineHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     srs_netfd_t fd_;
     string response_body_;
@@ -329,10 +334,12 @@ public:
     virtual int get_port();
 
     // Interface ISrsCoroutineHandler
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t handle_client(srs_netfd_t client_fd);
 };
 
@@ -340,7 +347,8 @@ private:
 // This server handles basic RTMP handshake and connect app operations
 class SrsRtmpTestServer : public ISrsCoroutineHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     srs_netfd_t fd_;
     string app_;
@@ -366,7 +374,8 @@ public:
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle(srs_netfd_t cfd);
     virtual srs_error_t handle_rtmp_client(srs_netfd_t cfd);
 };
@@ -374,7 +383,8 @@ private:
 // Test TCP server for testing SrsTcpConnection
 class SrsTestTcpServer : public ISrsCoroutineHandler, public ISrsTcpHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     SrsTcpListener *listener_;
     string ip_;
@@ -403,7 +413,8 @@ public:
 // Test TCP client for testing SrsTcpConnection
 class SrsTestTcpClient
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsTcpClient *client_;
     SrsTcpConnection *conn_;
     string host_;
@@ -425,7 +436,8 @@ public:
 // Test UDP server for testing UDP socket communication
 class SrsUdpTestServer : public ISrsCoroutineHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_netfd_t lfd_;
     ISrsCoroutine *trd_;
     SrsStSocket *socket_;
@@ -450,7 +462,8 @@ public:
 // Test UDP client for testing UDP socket communication
 class SrsUdpTestClient
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_netfd_t stfd_;
     SrsStSocket *socket_;
     string host_;

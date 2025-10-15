@@ -1046,24 +1046,36 @@ bool SrsLiveEntry::is_mp3()
     return is_mp3_;
 }
 
+ISrsHttpStreamServer::ISrsHttpStreamServer()
+{
+}
+
+ISrsHttpStreamServer::~ISrsHttpStreamServer()
+{
+}
+
 SrsHttpStreamServer::SrsHttpStreamServer()
 {
     async_ = new SrsAsyncCallWorker();
-
-    mux_.add_dynamic_matcher(this);
+    mux_ = new SrsHttpServeMux();
 
     config_ = _srs_config;
 }
 
 void SrsHttpStreamServer::assemble()
 {
-    config_->subscribe(this);
+    SrsHttpServeMux *mux = dynamic_cast<SrsHttpServeMux *>(mux_);
+    if (!mux) {
+        mux->add_dynamic_matcher(this);
+    }
 }
 
 SrsHttpStreamServer::~SrsHttpStreamServer()
 {
-    mux_.remove_dynamic_matcher(this);
-    config_->unsubscribe(this);
+    SrsHttpServeMux *mux = dynamic_cast<SrsHttpServeMux *>(mux_);
+    if (mux) {
+        mux->remove_dynamic_matcher(this);
+    }
 
     async_->stop();
     srs_freep(async_);
@@ -1102,6 +1114,11 @@ srs_error_t SrsHttpStreamServer::initialize()
     }
 
     return err;
+}
+
+ISrsHttpServeMux *SrsHttpStreamServer::mux()
+{
+    return mux_;
 }
 
 // TODO: FIXME: rename for HTTP FLV mount.
@@ -1152,7 +1169,7 @@ srs_error_t SrsHttpStreamServer::http_mount(ISrsRequest *r)
         // mount the http flv stream.
         // we must register the handler, then start the thread,
         // for the thread will cause thread switch context.
-        if ((err = mux_.handle(mount, entry->stream_)) != srs_success) {
+        if ((err = mux_->handle(mount, entry->stream_)) != srs_success) {
             return srs_error_wrap(err, "http: mount flv stream for vhost=%s failed", sid.c_str());
         }
 
@@ -1200,7 +1217,7 @@ void SrsHttpStreamServer::http_unmount(ISrsRequest *r)
 
     // Use async worker to execute the task, which will destroy the stream.
     srs_error_t err = srs_success;
-    if ((err = async_->execute(new SrsHttpStreamDestroy(&mux_, &streamHandlers_, sid))) != srs_success) {
+    if ((err = async_->execute(new SrsHttpStreamDestroy(mux_, &streamHandlers_, sid))) != srs_success) {
         srs_warn("http: ignore unmount stream failed, sid=%s, err=%s", sid.c_str(), srs_error_desc(err).c_str());
         srs_freep(err);
     }
@@ -1353,7 +1370,7 @@ srs_error_t SrsHttpStreamServer::initialize_flv_entry(std::string vhost)
     return err;
 }
 
-SrsHttpStreamDestroy::SrsHttpStreamDestroy(SrsHttpServeMux *mux, map<std::string, SrsLiveEntry *> *handlers, string sid)
+SrsHttpStreamDestroy::SrsHttpStreamDestroy(ISrsHttpServeMux *mux, map<std::string, SrsLiveEntry *> *handlers, string sid)
 {
     mux_ = mux;
     sid_ = sid;

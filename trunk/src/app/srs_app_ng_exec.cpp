@@ -32,6 +32,8 @@ SrsNgExec::SrsNgExec()
 {
     trd_ = new SrsDummyCoroutine();
     pprint_ = SrsPithyPrint::create_exec();
+
+    config_ = _srs_config;
 }
 
 SrsNgExec::~SrsNgExec()
@@ -40,6 +42,8 @@ SrsNgExec::~SrsNgExec()
 
     srs_freep(trd_);
     srs_freep(pprint_);
+
+    config_ = NULL;
 }
 
 srs_error_t SrsNgExec::on_publish(ISrsRequest *req)
@@ -132,7 +136,7 @@ srs_error_t SrsNgExec::parse_exec_publish(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_exec_enabled(req->vhost_)) {
+    if (!config_->get_exec_enabled(req->vhost_)) {
         srs_trace("ignore disabled exec for vhost=%s", req->vhost_.c_str());
         return err;
     }
@@ -144,7 +148,7 @@ srs_error_t SrsNgExec::parse_exec_publish(ISrsRequest *req)
     input_stream_name_ += "/";
     input_stream_name_ += req->stream_;
 
-    std::vector<SrsConfDirective *> eps = _srs_config->get_exec_publishs(req->vhost_);
+    std::vector<SrsConfDirective *> eps = config_->get_exec_publishs(req->vhost_);
     for (int i = 0; i < (int)eps.size(); i++) {
         SrsConfDirective *ep = eps.at(i);
         SrsProcess *process = new SrsProcess();

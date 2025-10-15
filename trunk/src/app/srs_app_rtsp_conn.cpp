@@ -13,8 +13,11 @@ using namespace std;
 #include <sstream>
 
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_http_hooks.hpp>
+#ifdef SRS_RTSP
 #include <srs_app_rtsp_source.hpp>
+#endif
 #include <srs_app_security.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
@@ -26,7 +29,9 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#ifdef SRS_RTSP
 #include <srs_protocol_rtsp_stack.hpp>
+#endif
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_utility.hpp>
 
@@ -41,7 +46,15 @@ extern SrsPps *_srs_pps_rnack2;
 extern SrsPps *_srs_pps_pub;
 extern SrsPps *_srs_pps_conn;
 
-SrsRtspPlayStream::SrsRtspPlayStream(SrsRtspConnection *s, const SrsContextId &cid) : source_(new SrsRtspSource())
+ISrsRtspPlayStream::ISrsRtspPlayStream()
+{
+}
+
+ISrsRtspPlayStream::~ISrsRtspPlayStream()
+{
+}
+
+SrsRtspPlayStream::SrsRtspPlayStream(ISrsRtspConnection *s, const SrsContextId &cid) : source_(new SrsRtspSource())
 {
     cid_ = cid;
     trd_ = NULL;
@@ -53,6 +66,10 @@ SrsRtspPlayStream::SrsRtspPlayStream(SrsRtspConnection *s, const SrsContextId &c
 
     cache_ssrc0_ = cache_ssrc1_ = cache_ssrc2_ = 0;
     cache_track0_ = cache_track1_ = cache_track2_ = NULL;
+
+    app_factory_ = _srs_app_factory;
+    stat_ = _srs_stat;
+    rtsp_sources_ = _srs_rtsp_sources;
 }
 
 SrsRtspPlayStream::~SrsRtspPlayStream()
@@ -61,23 +78,26 @@ SrsRtspPlayStream::~SrsRtspPlayStream()
     srs_freep(req_);
 
     if (true) {
-        std::map<uint32_t, SrsRtspAudioSendTrack *>::iterator it;
+        std::map<uint32_t, ISrsRtspSendTrack *>::iterator it;
         for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
             srs_freep(it->second);
         }
     }
 
     if (true) {
-        std::map<uint32_t, SrsRtspVideoSendTrack *>::iterator it;
+        std::map<uint32_t, ISrsRtspSendTrack *>::iterator it;
         for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
             srs_freep(it->second);
         }
     }
 
     // update the statistic when client coveried.
-    SrsStatistic *stat = _srs_stat;
     // TODO: FIXME: Should finger out the err.
-    stat->on_disconnect(cid_.c_str(), srs_success);
+    stat_->on_disconnect(cid_.c_str(), srs_success);
+
+    app_factory_ = NULL;
+    stat_ = NULL;
+    rtsp_sources_ = NULL;
 }
 
 srs_error_t SrsRtspPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, SrsRtcTrackDescription *> sub_relations)
@@ -87,12 +107,11 @@ srs_error_t SrsRtspPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, S
     req_ = req->copy();
 
     // We must do stat the client before hooks, because hooks depends on it.
-    SrsStatistic *stat = _srs_stat;
-    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPlay)) != srs_success) {
+    if ((err = stat_->on_client(cid_.c_str(), req_, session_, SrsRtcConnPlay)) != srs_success) {
         return srs_error_wrap(err, "RTSP: stat client");
     }
 
-    if ((err = _srs_rtsp_sources->fetch_or_create(req_, source_)) != srs_success) {
+    if ((err = rtsp_sources_->fetch_or_create(req_, source_)) != srs_success) {
         return srs_error_wrap(err, "RTSP: fetch source failed");
     }
 
@@ -101,12 +120,12 @@ srs_error_t SrsRtspPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, S
         SrsRtcTrackDescription *desc = it->second;
 
         if (desc->type_ == "audio") {
-            SrsRtspAudioSendTrack *track = new SrsRtspAudioSendTrack(session_, desc);
+            ISrsRtspSendTrack *track = app_factory_->create_rtsp_audio_send_track(session_, desc);
             audio_tracks_.insert(make_pair(ssrc, track));
         }
 
         if (desc->type_ == "video") {
-            SrsRtspVideoSendTrack *track = new SrsRtspVideoSendTrack(session_, desc);
+            ISrsRtspSendTrack *track = app_factory_->create_rtsp_video_send_track(session_, desc);
             video_tracks_.insert(make_pair(ssrc, track));
         }
     }
@@ -125,15 +144,15 @@ void SrsRtspPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
     if (desc && desc->audio_track_desc_ && audio_tracks_.size() == 1) {
         if (!audio_tracks_.empty()) {
             uint32_t ssrc = desc->audio_track_desc_->ssrc_;
-            SrsRtspAudioSendTrack *track = audio_tracks_.begin()->second;
+            ISrsRtspSendTrack *track = audio_tracks_.begin()->second;
 
-            if (track->track_desc_->media_->pt_of_publisher_ != desc->audio_track_desc_->media_->pt_) {
-                track->track_desc_->media_->pt_of_publisher_ = desc->audio_track_desc_->media_->pt_;
+            if (track->track_desc()->media_->pt_of_publisher_ != desc->audio_track_desc_->media_->pt_) {
+                track->track_desc()->media_->pt_of_publisher_ = desc->audio_track_desc_->media_->pt_;
             }
 
-            if (desc->audio_track_desc_->red_ && track->track_desc_->red_ &&
-                track->track_desc_->red_->pt_of_publisher_ != desc->audio_track_desc_->red_->pt_) {
-                track->track_desc_->red_->pt_of_publisher_ = desc->audio_track_desc_->red_->pt_;
+            if (desc->audio_track_desc_->red_ && track->track_desc()->red_ &&
+                track->track_desc()->red_->pt_of_publisher_ != desc->audio_track_desc_->red_->pt_) {
+                track->track_desc()->red_->pt_of_publisher_ = desc->audio_track_desc_->red_->pt_;
             }
 
             audio_tracks_.clear();
@@ -147,15 +166,15 @@ void SrsRtspPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
         if (!video_tracks_.empty()) {
             SrsRtcTrackDescription *vdesc = desc->video_track_descs_.at(0);
             uint32_t ssrc = vdesc->ssrc_;
-            SrsRtspVideoSendTrack *track = video_tracks_.begin()->second;
+            ISrsRtspSendTrack *track = video_tracks_.begin()->second;
 
-            if (track->track_desc_->media_->pt_of_publisher_ != vdesc->media_->pt_) {
-                track->track_desc_->media_->pt_of_publisher_ = vdesc->media_->pt_;
+            if (track->track_desc()->media_->pt_of_publisher_ != vdesc->media_->pt_) {
+                track->track_desc()->media_->pt_of_publisher_ = vdesc->media_->pt_;
             }
 
-            if (vdesc->red_ && track->track_desc_->red_ &&
-                track->track_desc_->red_->pt_of_publisher_ != vdesc->red_->pt_) {
-                track->track_desc_->red_->pt_of_publisher_ = vdesc->red_->pt_;
+            if (vdesc->red_ && track->track_desc()->red_ &&
+                track->track_desc()->red_->pt_of_publisher_ != vdesc->red_->pt_) {
+                track->track_desc()->red_->pt_of_publisher_ = vdesc->red_->pt_;
             }
 
             video_tracks_.clear();
@@ -267,7 +286,7 @@ srs_error_t SrsRtspPlayStream::send_packet(SrsRtpPacket *&pkt)
     uint32_t ssrc = pkt->header_.get_ssrc();
 
     // Try to find track from cache.
-    SrsRtspSendTrack *track = NULL;
+    ISrsRtspSendTrack *track = NULL;
     if (cache_ssrc0_ == ssrc) {
         track = cache_track0_;
     } else if (cache_ssrc1_ == ssrc) {
@@ -279,12 +298,12 @@ srs_error_t SrsRtspPlayStream::send_packet(SrsRtpPacket *&pkt)
     // Find by original tracks and build fast cache.
     if (!track) {
         if (pkt->is_audio()) {
-            map<uint32_t, SrsRtspAudioSendTrack *>::iterator it = audio_tracks_.find(ssrc);
+            map<uint32_t, ISrsRtspSendTrack *>::iterator it = audio_tracks_.find(ssrc);
             if (it != audio_tracks_.end()) {
                 track = it->second;
             }
         } else {
-            map<uint32_t, SrsRtspVideoSendTrack *>::iterator it = video_tracks_.find(ssrc);
+            map<uint32_t, ISrsRtspSendTrack *>::iterator it = video_tracks_.find(ssrc);
             if (it != video_tracks_.end()) {
                 track = it->second;
             }
@@ -324,9 +343,9 @@ void SrsRtspPlayStream::set_all_tracks_status(bool status)
 
     // set video track status
     if (true) {
-        std::map<uint32_t, SrsRtspVideoSendTrack *>::iterator it;
+        std::map<uint32_t, ISrsRtspSendTrack *>::iterator it;
         for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
-            SrsRtspVideoSendTrack *track = it->second;
+            ISrsRtspSendTrack *track = it->second;
 
             bool previous = track->set_track_status(status);
             merged_log << "{track: " << track->get_track_id() << ", is_active: " << previous << "=>" << status << "},";
@@ -335,9 +354,9 @@ void SrsRtspPlayStream::set_all_tracks_status(bool status)
 
     // set audio track status
     if (true) {
-        std::map<uint32_t, SrsRtspAudioSendTrack *>::iterator it;
+        std::map<uint32_t, ISrsRtspSendTrack *>::iterator it;
         for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
-            SrsRtspAudioSendTrack *track = it->second;
+            ISrsRtspSendTrack *track = it->second;
 
             bool previous = track->set_track_status(status);
             merged_log << "{track: " << track->get_track_id() << ", is_active: " << previous << "=>" << status << "},";
@@ -345,6 +364,14 @@ void SrsRtspPlayStream::set_all_tracks_status(bool status)
     }
 
     srs_trace("RTSP: Init tracks %s ok", merged_log.str().c_str());
+}
+
+ISrsRtspConnection::ISrsRtspConnection()
+{
+}
+
+ISrsRtspConnection::~ISrsRtspConnection()
+{
 }
 
 SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWriter *skt, std::string cip, int port)
@@ -378,12 +405,21 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     delta_ = new SrsEphemeralDelta();
     security_ = new SrsSecurity();
 
-    _srs_rtsp_manager->subscribe(this);
+    rtsp_manager_ = _srs_rtsp_manager;
+    stat_ = _srs_stat;
+    config_ = _srs_config;
+    rtsp_sources_ = _srs_rtsp_sources;
+    hooks_ = _srs_hooks;
+}
+
+void SrsRtspConnection::assemble()
+{
+    rtsp_manager_->subscribe(this);
 }
 
 SrsRtspConnection::~SrsRtspConnection()
 {
-    _srs_rtsp_manager->unsubscribe(this);
+    rtsp_manager_->unsubscribe(this);
 
     srs_freep(request_);
     srs_freep(rtsp_);
@@ -410,6 +446,12 @@ SrsRtspConnection::~SrsRtspConnection()
         srs_freep(cache_iov_);
     }
     srs_freep(cache_buffer_);
+
+    rtsp_manager_ = NULL;
+    stat_ = NULL;
+    config_ = NULL;
+    rtsp_sources_ = NULL;
+    hooks_ = NULL;
 }
 
 srs_error_t SrsRtspConnection::do_send_packet(SrsRtpPacket *pkt)
@@ -487,8 +529,7 @@ srs_error_t SrsRtspConnection::cycle()
     err = do_cycle();
 
     // Update statistic when done.
-    SrsStatistic *stat = _srs_stat;
-    stat->kbps_add_delta(get_id().c_str(), delta());
+    stat_->kbps_add_delta(get_id().c_str(), delta());
 
     do_teardown();
 
@@ -538,99 +579,111 @@ srs_error_t SrsRtspConnection::do_cycle()
         if ((err = rtsp_->recv_message(&req_raw)) != srs_success) {
             return srs_error_wrap(err, "recv message");
         }
-        SrsUniquePtr<SrsRtspRequest> req(req_raw);
 
-        if (req->is_options()) {
-            srs_trace("RTSP: OPTIONS cseq=%ld, url=%s, client=%s:%d", req->seq_, req->uri_.c_str(), ip_.c_str(), port_);
-            SrsUniquePtr<SrsRtspOptionsResponse> res(new SrsRtspOptionsResponse((int)req->seq_));
-            if ((err = rtsp_->send_message(res.get())) != srs_success) {
-                return srs_error_wrap(err, "response option");
-            }
-        } else if (req->is_describe()) {
-            // create session.
-            if (session_id_.empty()) {
-                SrsRand rand;
-                session_id_ = rand.gen_str(8);
-            }
-
-            SrsUniquePtr<SrsRtspDescribeResponse> res(new SrsRtspDescribeResponse((int)req->seq_));
-            res->session_ = session_id_;
-
-            std::string sdp;
-            if ((err = do_describe(req.get(), sdp)) != srs_success) {
-                res->status_ = SRS_CONSTS_RTSP_InternalServerError;
-                if (srs_error_code(err) == ERROR_RTSP_NO_TRACK) {
-                    res->status_ = SRS_CONSTS_RTSP_NotFound;
-                } else if (srs_error_code(err) == ERROR_SYSTEM_SECURITY_DENY) {
-                    res->status_ = SRS_CONSTS_RTSP_Forbidden;
-                }
-                srs_warn("RTSP: DESCRIBE failed: %s", srs_error_desc(err).c_str());
-                srs_freep(err);
-            }
-
-            res->sdp_ = sdp;
-            if ((err = rtsp_->send_message(res.get())) != srs_success) {
-                return srs_error_wrap(err, "response describe");
-            }
-
-            // Filter the \r\n to \\r\\n for JSON.
-            std::string local_sdp_escaped = srs_strings_replace(sdp.c_str(), "\r\n", "\\r\\n");
-            srs_trace("RTSP: DESCRIBE cseq=%ld, session=%s, sdp: %s", req->seq_, session_id_.c_str(), local_sdp_escaped.c_str());
-        } else if (req->is_setup()) {
-            srs_assert(req->transport_);
-
-            SrsUniquePtr<SrsRtspSetupResponse> res(new SrsRtspSetupResponse((int)req->seq_));
-            res->session_ = session_id_;
-
-            uint32_t ssrc = 0;
-            if ((err = do_setup(req.get(), &ssrc)) != srs_success) {
-                if (srs_error_code(err) == ERROR_RTSP_TRANSPORT_NOT_SUPPORTED) {
-                    res->status_ = SRS_CONSTS_RTSP_UnsupportedTransport;
-                    srs_warn("RTSP: SETUP failed: %s", srs_error_summary(err).c_str());
-                } else {
-                    res->status_ = SRS_CONSTS_RTSP_InternalServerError;
-                    srs_warn("RTSP: SETUP failed: %s", srs_error_desc(err).c_str());
-                }
-                srs_freep(err);
-            }
-
-            res->transport_->copy(req->transport_);
-            res->session_ = session_id_;
-            res->ssrc_ = srs_strconv_format_int(ssrc);
-            res->client_port_min_ = req->transport_->client_port_min_;
-            res->client_port_max_ = req->transport_->client_port_max_;
-            // TODO: FIXME: listen local port
-            res->local_port_min_ = 0;
-            res->local_port_max_ = 0;
-            if ((err = rtsp_->send_message(res.get())) != srs_success) {
-                return srs_error_wrap(err, "response setup");
-            }
-            srs_trace("RTSP: SETUP cseq=%ld, session=%s, transport=%s/%s/%s, ssrc=%u, client_port=%d-%d",
-                      req->seq_, session_id_.c_str(), req->transport_->transport_.c_str(), req->transport_->profile_.c_str(),
-                      req->transport_->lower_transport_.c_str(), ssrc, req->transport_->client_port_min_, req->transport_->client_port_max_);
-        } else if (req->is_play()) {
-            SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
-            res->session_ = session_id_;
-            if ((err = rtsp_->send_message(res.get())) != srs_success) {
-                return srs_error_wrap(err, "response record");
-            }
-
-            if ((err = do_play(req.get(), this)) != srs_success) {
-                return srs_error_wrap(err, "prepare play");
-            }
-            srs_trace("RTSP: PLAY cseq=%ld, session=%s, streaming started", req->seq_, session_id_.c_str());
-        } else if (req->is_teardown()) {
-            SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
-            res->session_ = session_id_;
-            if ((err = rtsp_->send_message(res.get())) != srs_success) {
-                return srs_error_wrap(err, "response teardown");
-            }
-
-            if ((err = do_teardown()) != srs_success) {
-                return srs_error_wrap(err, "teardown");
-            }
-            srs_trace("RTSP: TEARDOWN cseq=%ld, session=%s, streaming stopped", req->seq_, session_id_.c_str());
+        if ((err = on_rtsp_request(req_raw)) != srs_success) {
+            return srs_error_wrap(err, "on rtsp request");
         }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsRtspRequest> req(req_raw);
+
+    if (req->is_options()) {
+        srs_trace("RTSP: OPTIONS cseq=%ld, url=%s, client=%s:%d", req->seq_, req->uri_.c_str(), ip_.c_str(), port_);
+        SrsUniquePtr<SrsRtspOptionsResponse> res(new SrsRtspOptionsResponse((int)req->seq_));
+        if ((err = rtsp_->send_message(res.get())) != srs_success) {
+            return srs_error_wrap(err, "response option");
+        }
+    } else if (req->is_describe()) {
+        // create session.
+        if (session_id_.empty()) {
+            SrsRand rand;
+            session_id_ = rand.gen_str(8);
+        }
+
+        SrsUniquePtr<SrsRtspDescribeResponse> res(new SrsRtspDescribeResponse((int)req->seq_));
+        res->session_ = session_id_;
+
+        std::string sdp;
+        if ((err = do_describe(req.get(), sdp)) != srs_success) {
+            res->status_ = SRS_CONSTS_RTSP_InternalServerError;
+            if (srs_error_code(err) == ERROR_RTSP_NO_TRACK) {
+                res->status_ = SRS_CONSTS_RTSP_NotFound;
+            } else if (srs_error_code(err) == ERROR_SYSTEM_SECURITY_DENY) {
+                res->status_ = SRS_CONSTS_RTSP_Forbidden;
+            }
+            srs_warn("RTSP: DESCRIBE failed: %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+
+        res->sdp_ = sdp;
+        if ((err = rtsp_->send_message(res.get())) != srs_success) {
+            return srs_error_wrap(err, "response describe");
+        }
+
+        // Filter the \r\n to \\r\\n for JSON.
+        std::string local_sdp_escaped = srs_strings_replace(sdp.c_str(), "\r\n", "\\r\\n");
+        srs_trace("RTSP: DESCRIBE cseq=%ld, session=%s, sdp: %s", req->seq_, session_id_.c_str(), local_sdp_escaped.c_str());
+    } else if (req->is_setup()) {
+        srs_assert(req->transport_);
+
+        SrsUniquePtr<SrsRtspSetupResponse> res(new SrsRtspSetupResponse((int)req->seq_));
+        res->session_ = session_id_;
+
+        uint32_t ssrc = 0;
+        if ((err = do_setup(req.get(), &ssrc)) != srs_success) {
+            if (srs_error_code(err) == ERROR_RTSP_TRANSPORT_NOT_SUPPORTED) {
+                res->status_ = SRS_CONSTS_RTSP_UnsupportedTransport;
+                srs_warn("RTSP: SETUP failed: %s", srs_error_summary(err).c_str());
+            } else {
+                res->status_ = SRS_CONSTS_RTSP_InternalServerError;
+                srs_warn("RTSP: SETUP failed: %s", srs_error_desc(err).c_str());
+            }
+            srs_freep(err);
+        }
+
+        res->transport_->copy(req->transport_);
+        res->session_ = session_id_;
+        res->ssrc_ = srs_strconv_format_int(ssrc);
+        res->client_port_min_ = req->transport_->client_port_min_;
+        res->client_port_max_ = req->transport_->client_port_max_;
+        // TODO: FIXME: listen local port
+        res->local_port_min_ = 0;
+        res->local_port_max_ = 0;
+        if ((err = rtsp_->send_message(res.get())) != srs_success) {
+            return srs_error_wrap(err, "response setup");
+        }
+        srs_trace("RTSP: SETUP cseq=%ld, session=%s, transport=%s/%s/%s, ssrc=%u, client_port=%d-%d",
+                  req->seq_, session_id_.c_str(), req->transport_->transport_.c_str(), req->transport_->profile_.c_str(),
+                  req->transport_->lower_transport_.c_str(), ssrc, req->transport_->client_port_min_, req->transport_->client_port_max_);
+    } else if (req->is_play()) {
+        SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
+        res->session_ = session_id_;
+        if ((err = rtsp_->send_message(res.get())) != srs_success) {
+            return srs_error_wrap(err, "response record");
+        }
+
+        if ((err = do_play(req.get(), this)) != srs_success) {
+            return srs_error_wrap(err, "prepare play");
+        }
+        srs_trace("RTSP: PLAY cseq=%ld, session=%s, streaming started", req->seq_, session_id_.c_str());
+    } else if (req->is_teardown()) {
+        SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
+        res->session_ = session_id_;
+        if ((err = rtsp_->send_message(res.get())) != srs_success) {
+            return srs_error_wrap(err, "response teardown");
+        }
+
+        if ((err = do_teardown()) != srs_success) {
+            return srs_error_wrap(err, "teardown");
+        }
+        srs_trace("RTSP: TEARDOWN cseq=%ld, session=%s, streaming stopped", req->seq_, session_id_.c_str());
     }
 
     return err;
@@ -690,7 +743,7 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
                             request_->app_, request_->stream_, request_->port_, request_->param_);
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(request_->vhost_);
+    SrsConfDirective *parsed_vhost = config_->get_vhost(request_->vhost_);
     if (parsed_vhost) {
         request_->vhost_ = parsed_vhost->arg0();
     }
@@ -703,7 +756,7 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
         return srs_error_wrap(err, "RTSP: http_hooks_on_play");
     }
 
-    if ((err = _srs_rtsp_sources->fetch_or_create(request_, source_)) != srs_success) {
+    if ((err = rtsp_sources_->fetch_or_create(request_, source_)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
@@ -855,7 +908,7 @@ srs_error_t SrsRtspConnection::http_hooks_on_play(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
+    if (!config_->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -865,7 +918,7 @@ srs_error_t SrsRtspConnection::http_hooks_on_play(ISrsRequest *req)
     std::vector<std::string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost_);
+        SrsConfDirective *conf = config_->get_vhost_on_play(req->vhost_);
 
         if (!conf) {
             return err;
@@ -876,7 +929,7 @@ srs_error_t SrsRtspConnection::http_hooks_on_play(ISrsRequest *req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = _srs_hooks->on_play(url, req)) != srs_success) {
+        if ((err = hooks_->on_play(url, req)) != srs_success) {
             return srs_error_wrap(err, "on_play %s", url.c_str());
         }
     }

@@ -101,6 +101,7 @@ public:
     MockSrsFileWriter *real_writer_;
     MockSrsFile *real_file_;
     MockSrsFileReader *real_reader_;
+    ISrsFragmentedMp4 *real_fragmented_mp4_;
     int create_file_writer_count_;
     int create_file_reader_count_;
 
@@ -109,6 +110,7 @@ public:
     virtual ~MockAppFactory();
     virtual ISrsFileWriter *create_file_writer();
     virtual ISrsFileReader *create_file_reader();
+    virtual ISrsFragmentedMp4 *create_fragmented_mp4();
     void reset();
 };
 

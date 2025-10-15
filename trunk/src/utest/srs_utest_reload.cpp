@@ -89,19 +89,6 @@ srs_error_t MockSrsReloadConfig::do_reload(string buf)
     return err;
 }
 
-VOID TEST(ConfigReloadTest, ReloadEmpty)
-{
-    srs_error_t err = srs_success;
-
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-
-    conf.subscribe(&handler);
-    HELPER_EXPECT_FAILED(conf.mock_parse(""));
-    HELPER_EXPECT_FAILED(conf.do_reload(""));
-    EXPECT_TRUE(handler.all_false());
-}
-
 VOID TEST(ConfigReloadTest, ReloadVhostChunkSize)
 {
     srs_error_t err = srs_success;

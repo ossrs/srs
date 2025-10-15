@@ -26,15 +26,21 @@ class SrsRtcSourceDescription;
 class SrsResourceManager;
 class SrsRtspConnection;
 class SrsRtpVideoBuilder;
+class ISrsStatistic;
+class ISrsCircuitBreaker;
+class ISrsAppConfig;
+class ISrsRtspConnection;
 
 // The RTSP stream consumer, consume packets from RTSP stream source.
 class SrsRtspConsumer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Because source references to this object, so we should directly use the source ptr.
     SrsRtspSource *source_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<SrsRtpPacket *> queue_;
     // when source id changed, notice all consumers
     bool should_update_source_id_;
@@ -43,7 +49,8 @@ private:
     bool mw_waiting_;
     int mw_min_msgs_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The callback for stream change event.
     ISrsRtcSourceChangeCallback *handler_;
 
@@ -83,7 +90,8 @@ public:
 // The RTSP source manager.
 class SrsRtspSourceManager : public ISrsHourGlassHandler, public ISrsRtspSourceManager
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_mutex_t lock_;
     std::map<std::string, SrsSharedPtr<SrsRtspSource> > pool_;
     SrsHourGlass *timer_;
@@ -95,7 +103,8 @@ public:
 public:
     virtual srs_error_t initialize();
     // interface ISrsHourGlassHandler
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t setup_ticks();
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 
@@ -118,7 +127,13 @@ extern SrsResourceManager *_srs_rtsp_manager;
 // A Source is a stream, to publish and to play with, binding to SrsRtspPlayStream.
 class SrsRtspSource : public ISrsRtpTarget
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+    ISrsCircuitBreaker *circuit_breaker_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // For publish, it's the publish client id.
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
@@ -131,15 +146,18 @@ private:
     SrsRtcTrackDescription *audio_desc_;
     SrsRtcTrackDescription *video_desc_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // To delivery stream to clients.
-    std::vector<SrsRtspConsumer *> consumers_;
+    std::vector<SrsRtspConsumer *>
+        consumers_;
     // Whether stream is created, that is, SDP is done.
     bool is_created_;
     // Whether stream is delivering data, that is, DTLS is done.
     bool is_delivering_packets_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The last die time, while die means neither publishers nor players.
     srs_utime_t stream_die_at_;
 
@@ -158,9 +176,11 @@ public:
     // Update the authentication information in request.
     virtual void update_auth(ISrsRequest *r);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The stream source changed.
-    virtual srs_error_t on_source_changed();
+    virtual srs_error_t
+    on_source_changed();
 
 public:
     // Get current source id.
@@ -201,7 +221,12 @@ public:
 // Convert AV frame to RTSP RTP packets.
 class SrsRtspRtpBuilder
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
     ISrsRtpTarget *rtp_target_;
     // The format, codec information.
@@ -211,13 +236,15 @@ private:
     // The video builder, convert frame to RTP packets.
     SrsRtpVideoBuilder *video_builder_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint16_t audio_sequence_;
     uint32_t audio_ssrc_;
     uint8_t audio_payload_type_;
     int audio_sample_rate_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsSharedPtr<SrsRtspSource> source_;
     // Lazy initialization flags
     bool audio_initialized_;
@@ -227,9 +254,11 @@ public:
     SrsRtspRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtspSource> source);
     virtual ~SrsRtspRtpBuilder();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Lazy initialization methods
-    srs_error_t initialize_audio_track(SrsAudioCodecId codec);
+    srs_error_t
+    initialize_audio_track(SrsAudioCodecId codec);
     srs_error_t initialize_video_track(SrsVideoCodecId codec);
 
 public:
@@ -238,16 +267,20 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_frame(SrsMediaPacket *frame);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_audio(SrsMediaPacket *msg);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t package_aac(SrsParsedAudioPacket *audio, SrsRtpPacket *pkt);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_video(SrsMediaPacket *msg);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t filter(SrsMediaPacket *msg, SrsFormat *format, bool &has_idr, std::vector<SrsNaluSample *> &samples);
     srs_error_t package_stap_a(SrsMediaPacket *msg, SrsRtpPacket *pkt);
     srs_error_t package_nalus(SrsMediaPacket *msg, const std::vector<SrsNaluSample *> &samples, std::vector<SrsRtpPacket *> &pkts);
@@ -256,18 +289,32 @@ private:
     srs_error_t consume_packets(std::vector<SrsRtpPacket *> &pkts);
 };
 
-class SrsRtspSendTrack
+class ISrsRtspSendTrack
+{
+public:
+    ISrsRtspSendTrack();
+    virtual ~ISrsRtspSendTrack();
+
+public:
+    virtual bool set_track_status(bool active) = 0;
+    virtual std::string get_track_id() = 0;
+    virtual SrsRtcTrackDescription *track_desc() = 0;
+    virtual srs_error_t on_rtp(SrsRtpPacket *pkt) = 0;
+};
+
+class SrsRtspSendTrack : public ISrsRtspSendTrack
 {
 public:
     // send track description
     SrsRtcTrackDescription *track_desc_;
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     // The owner connection for this track.
-    SrsRtspConnection *session_;
+    ISrsRtspConnection *session_;
 
 public:
-    SrsRtspSendTrack(SrsRtspConnection *session, SrsRtcTrackDescription *track_desc, bool is_audio);
+    SrsRtspSendTrack(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc, bool is_audio);
     virtual ~SrsRtspSendTrack();
 
 public:
@@ -276,15 +323,13 @@ public:
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
-
-public:
-    virtual srs_error_t on_rtp(SrsRtpPacket *pkt) = 0;
+    virtual SrsRtcTrackDescription *track_desc();
 };
 
 class SrsRtspAudioSendTrack : public SrsRtspSendTrack
 {
 public:
-    SrsRtspAudioSendTrack(SrsRtspConnection *session, SrsRtcTrackDescription *track_desc);
+    SrsRtspAudioSendTrack(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc);
     virtual ~SrsRtspAudioSendTrack();
 
 public:
@@ -294,7 +339,7 @@ public:
 class SrsRtspVideoSendTrack : public SrsRtspSendTrack
 {
 public:
-    SrsRtspVideoSendTrack(SrsRtspConnection *session, SrsRtcTrackDescription *track_desc);
+    SrsRtspVideoSendTrack(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc);
     virtual ~SrsRtspVideoSendTrack();
 
 public:

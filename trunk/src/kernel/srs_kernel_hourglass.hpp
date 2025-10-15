@@ -70,7 +70,8 @@ public:
 //      hg->start();
 class SrsHourGlass : public ISrsCoroutineHandler, public ISrsHourGlass
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string label_;
     ISrsCoroutine *trd_;
     ISrsHourGlassHandler *handler_;
@@ -139,7 +140,8 @@ public:
 // instead, we should start only one fast timer in server.
 class SrsFastTimer : public ISrsCoroutineHandler, public ISrsFastTimer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     srs_utime_t interval_;
     std::vector<ISrsFastTimerHandler *> handlers_;
@@ -156,23 +158,27 @@ public:
     void subscribe(ISrsFastTimerHandler *timer);
     void unsubscribe(ISrsFastTimerHandler *timer);
     // Interface ISrsCoroutineHandler
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Cycle the hourglass, which will sleep resolution every time.
     // and call handler when ticked.
-    virtual srs_error_t cycle();
+    virtual srs_error_t
+    cycle();
 };
 
 // To monitor the system wall clock timer deviation.
 class SrsClockWallMonitor : public ISrsFastTimerHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsTime *time_;
 
 public:
     SrsClockWallMonitor();
     virtual ~SrsClockWallMonitor();
     // interface ISrsFastTimerHandler
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_timer(srs_utime_t interval);
 };
 
@@ -193,7 +199,8 @@ public:
 // Global shared timer manager
 class SrsSharedTimer : public ISrsSharedTimer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsFastTimer *timer20ms_;
     SrsFastTimer *timer100ms_;
     SrsFastTimer *timer1s_;

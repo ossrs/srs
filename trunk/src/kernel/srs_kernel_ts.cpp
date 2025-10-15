@@ -3003,22 +3003,22 @@ srs_error_t SrsTsMessageCache::cache_video(SrsParsedVideoPacket *frame, int64_t 
     return err;
 }
 
-SrsTsMessage* SrsTsMessageCache::audio()
+SrsTsMessage *SrsTsMessageCache::audio()
 {
     return audio_;
 }
 
-void SrsTsMessageCache::set_audio(SrsTsMessage* msg)
+void SrsTsMessageCache::set_audio(SrsTsMessage *msg)
 {
     audio_ = msg;
 }
 
-SrsTsMessage* SrsTsMessageCache::video()
+SrsTsMessage *SrsTsMessageCache::video()
 {
     return video_;
 }
 
-void SrsTsMessageCache::set_video(SrsTsMessage* msg)
+void SrsTsMessageCache::set_video(SrsTsMessage *msg)
 {
     video_ = msg;
 }
@@ -3469,7 +3469,7 @@ srs_error_t SrsTsTransmuxer::flush_audio()
     }
 
     // write success, clear and free the ts message.
-    SrsTsMessage* audio_msg = tsmc_->audio();
+    SrsTsMessage *audio_msg = tsmc_->audio();
     srs_freep(audio_msg);
     tsmc_->set_audio(NULL);
 
@@ -3485,7 +3485,7 @@ srs_error_t SrsTsTransmuxer::flush_video()
     }
 
     // write success, clear and free the ts message.
-    SrsTsMessage* video_msg = tsmc_->video();
+    SrsTsMessage *video_msg = tsmc_->video();
     srs_freep(video_msg);
     tsmc_->set_video(NULL);
 

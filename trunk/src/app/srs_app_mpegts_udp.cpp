@@ -14,6 +14,7 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_utility.hpp>
@@ -35,24 +36,29 @@ SrsUdpCasterListener::SrsUdpCasterListener()
 {
     caster_ = new SrsMpegtsOverUdp();
     listener_ = new SrsUdpListener(caster_);
+
+    config_ = _srs_config;
 }
 
 SrsUdpCasterListener::~SrsUdpCasterListener()
 {
     srs_freep(listener_);
     srs_freep(caster_);
+
+    config_ = NULL;
 }
 
 srs_error_t SrsUdpCasterListener::initialize(SrsConfDirective *conf)
 {
     srs_error_t err = srs_success;
 
-    int port = _srs_config->get_stream_caster_listen(conf);
+    int port = config_->get_stream_caster_listen(conf);
     if (port <= 0) {
         return srs_error_new(ERROR_STREAM_CASTER_PORT, "invalid port=%d", port);
     }
 
-    listener_->set_endpoint(srs_net_address_any(), port)->set_label("MPEGTS");
+    listener_->set_endpoint(srs_net_address_any(), port);
+    listener_->set_label("MPEGTS");
 
     if ((err = caster_->initialize(conf)) != srs_success) {
         return srs_error_wrap(err, "init caster port=%d", port);
@@ -75,6 +81,14 @@ srs_error_t SrsUdpCasterListener::listen()
 void SrsUdpCasterListener::close()
 {
     listener_->close();
+}
+
+ISrsMpegtsQueue::ISrsMpegtsQueue()
+{
+}
+
+ISrsMpegtsQueue::~ISrsMpegtsQueue()
+{
 }
 
 SrsMpegtsQueue::SrsMpegtsQueue()
@@ -151,6 +165,14 @@ SrsMediaPacket *SrsMpegtsQueue::dequeue()
     return NULL;
 }
 
+ISrsMpegtsOverUdp::ISrsMpegtsOverUdp()
+{
+}
+
+ISrsMpegtsOverUdp::~ISrsMpegtsOverUdp()
+{
+}
+
 SrsMpegtsOverUdp::SrsMpegtsOverUdp()
 {
     context_ = new SrsTsContext();
@@ -165,6 +187,9 @@ SrsMpegtsOverUdp::SrsMpegtsOverUdp()
     h264_sps_pps_sent_ = false;
     queue_ = new SrsMpegtsQueue();
     pprint_ = SrsPithyPrint::create_caster();
+
+    config_ = _srs_config;
+    app_factory_ = _srs_app_factory;
 }
 
 SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
@@ -177,11 +202,14 @@ SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
     srs_freep(aac_);
     srs_freep(queue_);
     srs_freep(pprint_);
+
+    config_ = NULL;
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsMpegtsOverUdp::initialize(SrsConfDirective *c)
 {
-    output_ = _srs_config->get_stream_caster_output(c);
+    output_ = config_->get_stream_caster_output(c);
     return srs_success;
 }
 
@@ -653,7 +681,7 @@ srs_error_t SrsMpegtsOverUdp::connect()
 
     srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
     srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
-    sdk_ = new SrsSimpleRtmpClient(output_, cto, sto);
+    sdk_ = app_factory_->create_rtmp_client(output_, cto, sto);
 
     if ((err = sdk_->connect()) != srs_success) {
         close();

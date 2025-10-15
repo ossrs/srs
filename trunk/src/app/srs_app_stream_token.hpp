@@ -24,7 +24,8 @@ class SrsStreamPublishTokenManager;
 // This prevents race conditions across all protocols (RTMP, RTC, SRT, etc.).
 class SrsStreamPublishToken
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The stream URL this token is for
     std::string stream_url_;
     // Whether this token is currently acquired
@@ -70,9 +71,11 @@ public:
 // This prevents race conditions across all protocols.
 class SrsStreamPublishTokenManager : public ISrsStreamPublishTokenManager
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Map of stream URL to token
-    std::map<std::string, SrsStreamPublishToken *> tokens_;
+    std::map<std::string, SrsStreamPublishToken *>
+        tokens_;
     // Mutex to protect the tokens map
     srs_mutex_t mutex_;
 

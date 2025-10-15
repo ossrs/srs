@@ -138,14 +138,23 @@ echo "" >> ${FILE}; echo "" >> ${FILE}
 # Depends, the depends objects
 echo "# Depends, the depends objects" >> ${FILE}
 #
-# current module header files
-echo -n "SRS_UTEST_DEPS = " >> ${FILE}
+# current SRS object files
+echo -n "SRS_SOURCE_OBJS = " >> ${FILE}
 for item in ${MODULE_OBJS[*]}; do
     FILE_NAME=${item%.*}
     echo -n "${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${FILE_NAME}.o " >> ${FILE}
 done
 echo "" >> ${FILE}; echo "" >> ${FILE}
 #
+# current SRS header files
+echo -n "SRS_SOURCE_HEADERS = " >> ${FILE}
+for item in ${MODULE_OBJS[*]}; do
+    FILE_NAME=${item%.*}
+    echo -n "${SRS_TRUNK_PREFIX}/${FILE_NAME}.hpp " >> ${FILE}
+done
+echo "" >> ${FILE}; echo "" >> ${FILE}
+#
+# current utest header files
 echo "# Depends, utest header files" >> ${FILE}
 DEPS_NAME="UTEST_DEPS"
 echo -n "${DEPS_NAME} = " >> ${FILE}
@@ -163,7 +172,7 @@ MODULE_OBJS=()
 for item in ${MODULE_FILES[*]}; do
     MODULE_OBJS="${MODULE_OBJS[@]} ${item}.o"
     cat << END >> ${FILE}
-${item}.o : \$(${DEPS_NAME}) ${SRS_TRUNK_PREFIX}/${MODULE_DIR}/${item}.cpp \$(SRS_UTEST_DEPS)
+${item}.o : \$(${DEPS_NAME}) ${SRS_TRUNK_PREFIX}/${MODULE_DIR}/${item}.cpp \$(SRS_SOURCE_HEADERS)
 	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) \$(SRS_UTEST_INC) -c ${SRS_TRUNK_PREFIX}/${MODULE_DIR}/${item}.cpp -o \$@
 END
 done
@@ -186,7 +195,7 @@ echo "" >> ${FILE}; echo "" >> ${FILE}
 #
 echo "# generate the utest binary" >> ${FILE}
 cat << END >> ${FILE}
-${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${APP_NAME} : \$(SRS_UTEST_DEPS) ${MODULE_OBJS} gtest.a
+${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${APP_NAME} : \$(SRS_SOURCE_OBJS) ${MODULE_OBJS} gtest.a
 	\$(CXX) -o \$@ \$(CPPFLAGS) \$(CXXFLAGS) \$^ \$(DEPS_LIBRARIES_FILES) ${LINK_OPTIONS}
 END
 

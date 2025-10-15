@@ -45,19 +45,23 @@ public:
 // Forward the stream to other servers.
 class SrsForwarder : public ISrsCoroutineHandler, public ISrsForwarder
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The ep to forward, server[:port].
     std::string ep_forward_;
     ISrsRequest *req_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The source or stream context id to bind to.
     SrsContextId source_cid_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsOriginHub *hub_;
     SrsSimpleRtmpClient *sdk_;
     SrsRtmpJitter *jitter_;
@@ -90,10 +94,12 @@ public:
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t forward();
 };
 

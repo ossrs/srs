@@ -119,11 +119,13 @@ public:
 // The RTC stream consumer, consume packets from RTC stream source.
 class SrsRtcConsumer : public ISrsRtcConsumer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Because source references to this object, so we should directly use the source ptr.
     ISrsRtcSourceForConsumer *source_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<SrsRtpPacket *> queue_;
     // when source id changed, notice all consumers
     bool should_update_source_id_;
@@ -132,7 +134,8 @@ private:
     bool mw_waiting_;
     int mw_min_msgs_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The callback for stream change event.
     ISrsRtcSourceChangeCallback *handler_;
 
@@ -172,7 +175,8 @@ public:
 // The RTC source manager.
 class SrsRtcSourceManager : public ISrsRtcSourceManager, public ISrsHourGlassHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_mutex_t lock_;
     std::map<std::string, SrsSharedPtr<SrsRtcSource> > pool_;
     SrsHourGlass *timer_;
@@ -184,7 +188,8 @@ public:
 public:
     virtual srs_error_t initialize();
     // interface ISrsHourGlassHandler
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t setup_ticks();
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 
@@ -233,11 +238,13 @@ public:
 // A Source is a stream, to publish and to play with, binding to SrsRtcPublishStream and SrsRtcPlayStream.
 class SrsRtcSource : public ISrsRtpTarget, public ISrsFastTimerHandler, public ISrsRtcSourceForConsumer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The RTP bridge, convert RTP packets to other protocols.
     ISrsRtcBridge *rtc_bridge_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Circuit breaker for protecting server resources.
     ISrsCircuitBreaker *circuit_breaker_;
     // For publish, it's the publish client id.
@@ -252,9 +259,11 @@ private:
     // Steam description for this steam.
     SrsRtcSourceDescription *stream_desc_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // To delivery stream to clients.
-    std::vector<ISrsRtcConsumer *> consumers_;
+    std::vector<ISrsRtcConsumer *>
+        consumers_;
     // Whether stream is created, that is, SDP is done.
     bool is_created_;
     // Whether stream is delivering data, that is, DTLS is done.
@@ -262,12 +271,14 @@ private:
     // Notify stream event to event handler
     std::vector<ISrsRtcSourceEventHandler *> event_handlers_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The PLI for RTC2RTMP.
     srs_utime_t pli_for_rtmp_;
     srs_utime_t pli_elapsed_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The last die time, while die means neither publishers nor players.
     srs_utime_t stream_die_at_;
 
@@ -282,16 +293,19 @@ public:
     // Whether stream is dead, which is no publisher or player.
     virtual bool stream_is_dead();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     void init_for_play_before_publishing();
 
 public:
     // Update the authentication information in request.
     virtual void update_auth(ISrsRequest *r);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The stream source changed.
-    virtual srs_error_t on_source_changed();
+    virtual srs_error_t
+    on_source_changed();
 
 public:
     // Get current source id.
@@ -337,7 +351,8 @@ public:
     virtual void set_stream_desc(SrsRtcSourceDescription *stream_desc);
     virtual std::vector<SrsRtcTrackDescription *> get_track_desc(std::string type, std::string media_type);
     // interface ISrsFastTimerHandler
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_timer(srs_utime_t interval);
 };
 
@@ -346,7 +361,8 @@ private:
 // Convert AV frame to RTC RTP packets.
 class SrsRtcRtpBuilder
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
     ISrsRtpTarget *rtp_target_;
     // The format, codec information.
@@ -356,7 +372,8 @@ private:
     // The video builder, convert frame to RTP packets.
     SrsRtpVideoBuilder *video_builder_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsAudioCodecId latest_codec_;
     ISrsAudioTranscoder *codec_;
     bool keep_bframe_;
@@ -364,11 +381,13 @@ private:
     bool merge_nalus_;
     uint16_t audio_sequence_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint32_t audio_ssrc_;
     uint8_t audio_payload_type_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsSharedPtr<SrsRtcSource> source_;
     // Lazy initialization flags
     bool audio_initialized_;
@@ -378,9 +397,11 @@ public:
     SrsRtcRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsRtcRtpBuilder();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Lazy initialization methods
-    srs_error_t initialize_audio_track(SrsAudioCodecId codec);
+    srs_error_t
+    initialize_audio_track(SrsAudioCodecId codec);
     srs_error_t initialize_video_track(SrsVideoCodecId codec);
 
 public:
@@ -389,18 +410,22 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_frame(SrsMediaPacket *frame);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_audio(SrsMediaPacket *msg);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t init_codec(SrsAudioCodecId codec);
     srs_error_t transcode(SrsParsedAudioPacket *audio);
     srs_error_t package_opus(SrsParsedAudioPacket *audio, SrsRtpPacket *pkt);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_video(SrsMediaPacket *msg);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t filter(SrsMediaPacket *msg, SrsFormat *format, bool &has_idr, std::vector<SrsNaluSample *> &samples);
     srs_error_t package_stap_a(SrsMediaPacket *msg, SrsRtpPacket *pkt);
     srs_error_t package_nalus(SrsMediaPacket *msg, const std::vector<SrsNaluSample *> &samples, std::vector<SrsRtpPacket *> &pkts);
@@ -413,7 +438,8 @@ private:
 // TODO: Maybe should use SrsRtpRingBuffer?
 class SrsRtcFrameBuilderVideoPacketCache
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     const static uint16_t cache_size_ = 512;
     struct RtcPacketCache {
         bool in_use_;
@@ -441,7 +467,8 @@ public:
     // Check if frame is complete by verifying FU-A start/end fragment counts match
     bool check_frame_complete(const uint16_t start, const uint16_t end);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     bool is_slot_in_use(uint16_t sequence_number);
     uint32_t get_rtp_timestamp(uint16_t sequence_number);
     inline uint16_t cache_index(uint16_t sequence_number)
@@ -453,7 +480,8 @@ private:
 // Video frame detector for managing frame boundaries and packet loss detection
 class SrsRtcFrameBuilderVideoFrameDetector
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtcFrameBuilderVideoPacketCache *video_cache_;
     uint16_t header_sn_;
     uint16_t lost_sn_;
@@ -474,9 +502,11 @@ public:
 // Audio packet cache for RTP packet jitter buffer management
 class SrsRtcFrameBuilderAudioPacketCache
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Audio jitter buffer, map sequence number to packet
-    std::map<uint16_t, SrsRtpPacket *> audio_buffer_;
+    std::map<uint16_t, SrsRtpPacket *>
+        audio_buffer_;
     // Last processed sequence number
     uint16_t last_audio_seq_num_;
     // Last time we processed the jitter buffer
@@ -503,24 +533,29 @@ public:
 // Collect and build WebRTC RTP packets to AV frames.
 class SrsRtcFrameBuilder
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsFrameTarget *frame_target_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     bool is_first_audio_;
     ISrsAudioTranscoder *audio_transcoder_;
     SrsVideoCodecId video_codec_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtcFrameBuilderAudioPacketCache *audio_cache_;
     SrsRtcFrameBuilderVideoPacketCache *video_cache_;
     SrsRtcFrameBuilderVideoFrameDetector *frame_detector_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The state for timestamp sync state. -1 for init. 0 not sync. 1 sync.
     int sync_state_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // For OBS WHIP, send (VPS/)SPS/PPS in dedicated RTP packet.
     SrsRtpPacket *obs_whip_vps_;
     SrsRtpPacket *obs_whip_sps_;
@@ -536,12 +571,14 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t packet_audio(SrsRtpPacket *pkt);
     srs_error_t transcode_audio(SrsRtpPacket *pkt);
     void packet_aac(SrsRtmpCommonMessage *audio, char *data, int len, uint32_t pts, bool is_header);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t packet_video(SrsRtpPacket *pkt);
     srs_error_t packet_video_key_frame(SrsRtpPacket *pkt);
     srs_error_t packet_sequence_header_avc(SrsRtpPacket *pkt);
@@ -549,7 +586,8 @@ private:
     srs_error_t packet_sequence_header_hevc(SrsRtpPacket *pkt);
     srs_error_t do_packet_sequence_header_hevc(SrsRtpPacket *pkt, SrsNaluSample *vps, SrsNaluSample *sps, SrsNaluSample *pps);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t packet_video_rtmp(const uint16_t start, const uint16_t end);
     int calculate_packet_payload_size(SrsRtpPacket *pkt);
     void write_packet_payload_to_buffer(SrsRtpPacket *pkt, SrsBuffer &payload, int &nalu_len);
@@ -571,7 +609,8 @@ public:
 
     std::vector<std::string> rtcp_fbs_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The cached codec ID, corresponding to name_.
     // For video, you can convert it to type SrsVideoCodecId
     // For audio, you can convert it to type SrsAudioCodecId
@@ -777,19 +816,23 @@ public:
 // The RTC receive track.
 class SrsRtcRecvTrack
 {
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     SrsRtcTrackDescription *track_desc_;
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     ISrsRtcPacketReceiver *receiver_;
     SrsRtpRingBuffer *rtp_queue_;
     SrsRtpNackForReceiver *nack_receiver_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // By config, whether no copy.
     bool nack_no_copy_;
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     // Latest sender report ntp and rtp time.
     SrsNtp last_sender_report_ntp_;
     int64_t last_sender_report_rtp_time_;
@@ -828,7 +871,8 @@ public:
     virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource> &source, SrsRtpPacket *pkt) = 0;
     virtual srs_error_t check_send_nacks() = 0;
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t do_check_send_nacks(uint32_t &timeout_nacks);
 };
 
@@ -864,12 +908,14 @@ public:
 template <typename T, typename ST>
 class SrsRtcJitter
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ST threshold_;
     typedef ST (*PFN)(const T &, const T &);
     PFN distance_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The value about packet.
     T pkt_base_;
     T pkt_last_;
@@ -926,7 +972,8 @@ public:
 // For RTC timestamp jitter.
 class SrsRtcTsJitter
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtcJitter<uint32_t, int32_t> *jitter_;
 
 public:
@@ -940,7 +987,8 @@ public:
 // For RTC sequence jitter.
 class SrsRtcSeqJitter
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtcJitter<uint16_t, int16_t> *jitter_;
 
 public:
@@ -968,18 +1016,21 @@ public:
     // send track description
     SrsRtcTrackDescription *track_desc_;
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     // The owner connection for this track.
     ISrsRtcPacketSender *sender_;
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer *rtp_queue_;
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     // The jitter to correct ts and sequence number.
     SrsRtcTsJitter *jitter_ts_;
     SrsRtcSeqJitter *jitter_seq_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // By config, whether no copy.
     bool nack_no_copy_;
     // The pithy print for special stage.
@@ -998,7 +1049,8 @@ public:
     bool get_track_status();
     std::string get_track_id();
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     void rebuild_packet(SrsRtpPacket *pkt);
 
 public:
@@ -1036,13 +1088,16 @@ public:
 
 class SrsRtcSSRCGenerator
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     static SrsRtcSSRCGenerator *instance_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint32_t ssrc_num_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtcSSRCGenerator();
     virtual ~SrsRtcSSRCGenerator();
 

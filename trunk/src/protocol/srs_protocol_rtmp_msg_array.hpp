@@ -37,9 +37,11 @@ public:
     // Free specified count of messages.
     virtual void free(int count);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Zero initialize the message array.
-    virtual void zero(int count);
+    virtual void
+    zero(int count);
 };
 
 #endif

@@ -44,7 +44,8 @@ public:
     char marker_;
     // Don't directly create this object,
     // please use SrsJsonAny::str() to create a concreated one.
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     SrsJsonAny();
 
 public:
@@ -101,11 +102,13 @@ public:
 
 class SrsJsonObject : public SrsJsonAny
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     typedef std::pair<std::string, SrsJsonAny *> SrsJsonObjectPropertyType;
     std::vector<SrsJsonObjectPropertyType> properties_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Use SrsJsonAny::object() to create it.
     friend class SrsJsonAny;
     SrsJsonObject();
@@ -137,10 +140,12 @@ public:
 
 class SrsJsonArray : public SrsJsonAny
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<SrsJsonAny *> properties_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Use SrsJsonAny::array() to create it.
     friend class SrsJsonAny;
     SrsJsonArray();

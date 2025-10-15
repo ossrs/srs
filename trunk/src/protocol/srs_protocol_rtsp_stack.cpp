@@ -399,6 +399,14 @@ srs_error_t SrsRtspPlayResponse::encode_header(stringstream &ss)
     return srs_success;
 }
 
+ISrsRtspStack::ISrsRtspStack()
+{
+}
+
+ISrsRtspStack::~ISrsRtspStack()
+{
+}
+
 SrsRtspStack::SrsRtspStack(ISrsProtocolReadWriter *s)
 {
     buf_ = new SrsSimpleStream();

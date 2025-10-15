@@ -330,6 +330,28 @@ public:
     int64_t total();
 };
 
+// The host interface.
+class ISrsHost
+{
+public:
+    ISrsHost();
+    virtual ~ISrsHost();
+
+public:
+    virtual SrsProcSelfStat *self_proc_stat() = 0;
+};
+
+// Get the host info.
+class SrsHost : public ISrsHost
+{
+public:
+    SrsHost();
+    virtual ~SrsHost();
+
+public:
+    virtual SrsProcSelfStat *self_proc_stat();
+};
+
 // Get system cpu stat, use cache to avoid performance problem.
 extern SrsProcSelfStat *srs_get_self_proc_stat();
 // Get system cpu stat, use cache to avoid performance problem.

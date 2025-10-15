@@ -56,14 +56,16 @@ class ISrsSecurity;
 // The simple rtmp client for SRS.
 class SrsSimpleRtmpClient : public SrsBasicRtmpClient
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
 
 public:
     SrsSimpleRtmpClient(std::string u, srs_utime_t ctm, srs_utime_t stm);
     virtual ~SrsSimpleRtmpClient();
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t connect_app();
 };
 
@@ -106,7 +108,8 @@ public:
 // The base transport layer for RTMP connections over plain TCP.
 class SrsRtmpTransport : public ISrsRtmpTransport
 {
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     srs_netfd_t stfd_;
     SrsTcpConnection *skt_;
 
@@ -135,10 +138,12 @@ public:
 // The SSL/TLS transport layer for RTMPS connections.
 class SrsRtmpsTransport : public SrsRtmpTransport
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsSslConnection *ssl_;
 
 public:
@@ -154,12 +159,18 @@ public:
     virtual const char *transport_type();
 };
 
-class SrsRtmpConn : public ISrsConnection, public ISrsStartable, public ISrsReloadHandler, public ISrsCoroutineHandler, public ISrsExpire
+// The RTMP connection, for client to publish or play stream.
+class SrsRtmpConn : public ISrsConnection, // It's a resource.
+                    public ISrsStartable,
+                    public ISrsReloadHandler,
+                    public ISrsCoroutineHandler,
+                    public ISrsExpire
 {
     // For the thread to directly access any field of connection.
     friend class SrsPublishRecvThread;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsResourceManager *manager_;
     ISrsAppConfig *config_;
     ISrsStreamPublishTokenManager *stream_publish_tokens_;
@@ -172,7 +183,8 @@ private:
     ISrsRtspSourceManager *rtsp_sources_;
 #endif
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtmpServer *rtmp_;
     SrsRefer *refer_;
     SrsBandwidth *bandwidth_;
@@ -200,7 +212,8 @@ private:
     // About the rtmp client.
     SrsClientInfo *info_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtmpTransport *transport_;
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
@@ -223,15 +236,18 @@ public:
 public:
     virtual std::string desc();
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t do_cycle();
 
 public:
     virtual ISrsKbpsDelta *delta();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // When valid and connected to vhost/app, service the client.
-    virtual srs_error_t service_cycle();
+    virtual srs_error_t
+    service_cycle();
     // The stream(play/publish) service cycle, identify client first.
     virtual srs_error_t stream_service_cycle();
     virtual srs_error_t check_vhost(bool try_default_vhost);
@@ -246,16 +262,20 @@ private:
     virtual srs_error_t process_play_control_msg(SrsLiveConsumer *consumer, SrsRtmpCommonMessage *msg);
     virtual void set_sock_options();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t check_edge_token_traverse_auth();
     virtual srs_error_t do_token_traverse_auth(SrsRtmpClient *client);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // When the connection disconnect, call this method.
     // e.g. log msg of connection and report to other system.
-    virtual srs_error_t on_disconnect();
+    virtual srs_error_t
+    on_disconnect();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t http_hooks_on_connect();
     virtual void http_hooks_on_close();
     virtual srs_error_t http_hooks_on_publish();

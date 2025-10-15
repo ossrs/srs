@@ -490,22 +490,22 @@ bool SrsFormat::is_avc_sequence_header()
     return vcodec_ && (h264 || h265 || av1) && video_ && video_->avc_packet_type_ == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
-SrsParsedAudioPacket* SrsFormat::audio()
+SrsParsedAudioPacket *SrsFormat::audio()
 {
     return audio_;
 }
 
-SrsAudioCodecConfig* SrsFormat::acodec()
+SrsAudioCodecConfig *SrsFormat::acodec()
 {
     return acodec_;
 }
 
-SrsParsedVideoPacket* SrsFormat::video()
+SrsParsedVideoPacket *SrsFormat::video()
 {
     return video_;
 }
 
-SrsVideoCodecConfig* SrsFormat::vcodec()
+SrsVideoCodecConfig *SrsFormat::vcodec()
 {
     return vcodec_;
 }

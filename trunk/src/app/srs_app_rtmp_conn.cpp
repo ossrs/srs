@@ -244,7 +244,9 @@ void SrsRtmpConn::assemble()
 
 SrsRtmpConn::~SrsRtmpConn()
 {
-    config_->unsubscribe(this);
+    if (config_) {
+        config_->unsubscribe(this);
+    }
 
     trd_->interrupt();
     // wakeup the handler which need to notice.
@@ -262,6 +264,7 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(refer_);
     srs_freep(security_);
 
+    config_ = NULL;
     manager_ = NULL;
     stream_publish_tokens_ = NULL;
     live_sources_ = NULL;
@@ -890,6 +893,8 @@ srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237
         SrsPublishRecvThread rtrd(rtmp_, req, srs_netfd_fileno(transport_->fd()), 0, this, source, _srs_context->get_id());
+        rtrd.assemble();
+
         err = do_publishing(source, &rtrd);
         rtrd.stop();
     }

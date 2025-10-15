@@ -264,9 +264,11 @@ public:
     // Encode message to string.
     virtual srs_error_t encode(std::stringstream &ss);
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     // Sub classes override this to encode the headers.
-    virtual srs_error_t encode_header(std::stringstream &ss);
+    virtual srs_error_t
+    encode_header(std::stringstream &ss);
 };
 
 // 10.1 OPTIONS, @see rfc2326-1998-rtsp.pdf, page 59
@@ -283,7 +285,8 @@ public:
     SrsRtspOptionsResponse(int cseq);
     virtual ~SrsRtspOptionsResponse();
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t encode_header(std::stringstream &ss);
 };
 
@@ -298,7 +301,8 @@ public:
     SrsRtspDescribeResponse(int cseq);
     virtual ~SrsRtspDescribeResponse();
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t encode_header(std::stringstream &ss);
 };
 
@@ -330,7 +334,8 @@ public:
     SrsRtspSetupResponse(int cseq);
     virtual ~SrsRtspSetupResponse();
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t encode_header(std::stringstream &ss);
 };
 
@@ -341,12 +346,32 @@ public:
     SrsRtspPlayResponse(int cseq);
     virtual ~SrsRtspPlayResponse();
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t encode_header(std::stringstream &ss);
 };
 
+// The interface for rtsp stack.
+class ISrsRtspStack
+{
+public:
+    ISrsRtspStack();
+    virtual ~ISrsRtspStack();
+
+public:
+    // Recv rtsp message from underlayer io.
+    // @param preq the output rtsp request message, which user must free it.
+    // @return an int error code.
+    //       ERROR_RTSP_REQUEST_HEADER_EOF indicates request header EOF.
+    virtual srs_error_t recv_message(SrsRtspRequest **preq) = 0;
+    // Send rtsp message over underlayer io.
+    // @param res the rtsp response message, which user should never free it.
+    // @return an int error code.
+    virtual srs_error_t send_message(SrsRtspResponse *res) = 0;
+};
+
 // The rtsp protocol stack to parse the rtsp packets.
-class SrsRtspStack
+class SrsRtspStack : public ISrsRtspStack
 {
 private:
     // The cached bytes buffer.

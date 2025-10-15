@@ -12,6 +12,7 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_fragment.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_utility.hpp>
@@ -28,6 +29,14 @@ using namespace std;
 
 #define SRS_FWRITE_CACHE_SIZE 65536
 
+ISrsDvrSegmenter::ISrsDvrSegmenter()
+{
+}
+
+ISrsDvrSegmenter::~ISrsDvrSegmenter()
+{
+}
+
 SrsDvrSegmenter::SrsDvrSegmenter()
 {
     req_ = NULL;
@@ -39,16 +48,23 @@ SrsDvrSegmenter::SrsDvrSegmenter()
     fs_ = new SrsFileWriter();
     jitter_algorithm_ = SrsRtmpJitterAlgorithmOFF;
 
-    _srs_config->subscribe(this);
+    config_ = _srs_config;
+}
+
+void SrsDvrSegmenter::assemble()
+{
+    config_->subscribe(this);
 }
 
 SrsDvrSegmenter::~SrsDvrSegmenter()
 {
-    _srs_config->unsubscribe(this);
+    config_->unsubscribe(this);
 
     srs_freep(fragment_);
     srs_freep(jitter_);
     srs_freep(fs_);
+
+    config_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -57,13 +73,13 @@ SrsDvrSegmenter::~SrsDvrSegmenter()
 // IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
 // This prevents the race condition where multiple coroutines could create duplicate sources
 // for the same stream when context switches occurred during initialization.
-srs_error_t SrsDvrSegmenter::initialize(SrsDvrPlan *p, ISrsRequest *r)
+srs_error_t SrsDvrSegmenter::initialize(ISrsDvrPlan *p, ISrsRequest *r)
 {
     req_ = r;
     plan_ = p;
 
-    jitter_algorithm_ = (SrsRtmpJitterAlgorithm)_srs_config->get_dvr_time_jitter(req_->vhost_);
-    wait_keyframe_ = _srs_config->get_dvr_wait_keyframe(req_->vhost_);
+    jitter_algorithm_ = (SrsRtmpJitterAlgorithm)config_->get_dvr_time_jitter(req_->vhost_);
+    wait_keyframe_ = config_->get_dvr_wait_keyframe(req_->vhost_);
 
     return srs_success;
 }
@@ -201,7 +217,7 @@ string SrsDvrSegmenter::generate_path()
 {
     // the path in config, for example,
     //      /data/[vhost]/[app]/[stream]/[2006]/[01]/[02]/[15].[04].[05].[999].flv
-    std::string path_config = _srs_config->get_dvr_path(req_->vhost_);
+    std::string path_config = config_->get_dvr_path(req_->vhost_);
 
     // add [stream].[timestamp].flv as filename for dir
     if (!srs_strings_ends_with(path_config, ".flv", ".mp4")) {
@@ -230,11 +246,15 @@ SrsDvrFlvSegmenter::SrsDvrFlvSegmenter()
     filesize_offset_ = 0;
 
     has_keyframe_ = false;
+
+    app_factory_ = _srs_app_factory;
 }
 
 SrsDvrFlvSegmenter::~SrsDvrFlvSegmenter()
 {
     srs_freep(enc_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
@@ -297,7 +317,7 @@ srs_error_t SrsDvrFlvSegmenter::open_encoder()
     filesize_offset_ = 0;
 
     srs_freep(enc_);
-    enc_ = new SrsFlvTransmuxer();
+    enc_ = app_factory_->create_flv_transmuxer();
 
     if ((err = enc_->initialize(fs_)) != srs_success) {
         return srs_error_wrap(err, "init encoder");
@@ -414,11 +434,15 @@ srs_error_t SrsDvrFlvSegmenter::close_encoder()
 SrsDvrMp4Segmenter::SrsDvrMp4Segmenter()
 {
     enc_ = new SrsMp4Encoder();
+
+    app_factory_ = _srs_app_factory;
 }
 
 SrsDvrMp4Segmenter::~SrsDvrMp4Segmenter()
 {
     srs_freep(enc_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsDvrMp4Segmenter::refresh_metadata()
@@ -431,7 +455,7 @@ srs_error_t SrsDvrMp4Segmenter::open_encoder()
     srs_error_t err = srs_success;
 
     srs_freep(enc_);
-    enc_ = new SrsMp4Encoder();
+    enc_ = app_factory_->create_mp4_encoder();
 
     if ((err = enc_->initialize(fs_)) != srs_success) {
         return srs_error_wrap(err, "init encoder");
@@ -456,10 +480,7 @@ srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsMediaPacket *audio, SrsFormat *f
 
     SrsAudioAacFrameTrait ct = format->audio_->aac_packet_type_;
     if (ct == SrsAudioAacFrameTraitSequenceHeader || ct == SrsAudioMp3FrameTraitSequenceHeader) {
-        enc_->acodec_ = sound_format;
-        enc_->sample_rate_ = sound_rate;
-        enc_->sound_bits_ = sound_size;
-        enc_->channels_ = channels;
+        enc_->set_audio_codec(sound_format, sound_rate, sound_size, channels);
     }
 
     uint8_t *sample = (uint8_t *)format->raw_;
@@ -515,18 +536,24 @@ SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(SrsContextId c, ISrsRequest *r, strin
     cid_ = c;
     req_ = r->copy();
     path_ = p;
+
+    hooks_ = _srs_hooks;
+    config_ = _srs_config;
 }
 
 SrsDvrAsyncCallOnDvr::~SrsDvrAsyncCallOnDvr()
 {
     srs_freep(req_);
+
+    hooks_ = NULL;
+    config_ = NULL;
 }
 
 srs_error_t SrsDvrAsyncCallOnDvr::call()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
+    if (!config_->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return err;
     }
 
@@ -536,7 +563,7 @@ srs_error_t SrsDvrAsyncCallOnDvr::call()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_dvr(req_->vhost_);
+        SrsConfDirective *conf = config_->get_vhost_on_dvr(req_->vhost_);
         if (conf) {
             hooks = conf->args_;
         }
@@ -544,7 +571,7 @@ srs_error_t SrsDvrAsyncCallOnDvr::call()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = _srs_hooks->on_dvr(cid_, url, req_, path_)) != srs_success) {
+        if ((err = hooks_->on_dvr(cid_, url, req_, path_)) != srs_success) {
             return srs_error_wrap(err, "callback on_dvr %s", url.c_str());
         }
     }
@@ -559,6 +586,14 @@ string SrsDvrAsyncCallOnDvr::to_string()
     return ss.str();
 }
 
+ISrsDvrPlan::ISrsDvrPlan()
+{
+}
+
+ISrsDvrPlan::~ISrsDvrPlan()
+{
+}
+
 SrsDvrPlan::SrsDvrPlan()
 {
     req_ = NULL;
@@ -566,12 +601,18 @@ SrsDvrPlan::SrsDvrPlan()
 
     dvr_enabled_ = false;
     segment_ = NULL;
+
+    async_ = _srs_dvr_async;
+    config_ = _srs_config;
 }
 
 SrsDvrPlan::~SrsDvrPlan()
 {
     srs_freep(segment_);
     srs_freep(req_);
+
+    async_ = NULL;
+    config_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -580,7 +621,7 @@ SrsDvrPlan::~SrsDvrPlan()
 // IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
 // This prevents the race condition where multiple coroutines could create duplicate sources
 // for the same stream when context switches occurred during initialization.
-srs_error_t SrsDvrPlan::initialize(SrsOriginHub *h, SrsDvrSegmenter *s, ISrsRequest *r)
+srs_error_t SrsDvrPlan::initialize(ISrsOriginHub *h, ISrsDvrSegmenter *s, ISrsRequest *r)
 {
     srs_error_t err = srs_success;
 
@@ -658,7 +699,7 @@ srs_error_t SrsDvrPlan::on_reap_segment()
     SrsFragment *fragment = segment_->current();
     string fullpath = fragment->fullpath();
 
-    if ((err = _srs_dvr_async->execute(new SrsDvrAsyncCallOnDvr(cid, req_, fullpath))) != srs_success) {
+    if ((err = async_->execute(new SrsDvrAsyncCallOnDvr(cid, req_, fullpath))) != srs_success) {
         return srs_error_wrap(err, "reap segment");
     }
 
@@ -671,9 +712,9 @@ srs_error_t SrsDvrPlan::on_reap_segment()
 // IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
 // This prevents the race condition where multiple coroutines could create duplicate sources
 // for the same stream when context switches occurred during initialization.
-srs_error_t SrsDvrPlan::create_plan(string vhost, SrsDvrPlan **pplan)
+srs_error_t SrsDvrPlan::create_plan(ISrsAppConfig *config, string vhost, ISrsDvrPlan **pplan)
 {
-    std::string plan = _srs_config->get_dvr_plan(vhost);
+    std::string plan = config->get_dvr_plan(vhost);
     if (srs_config_dvr_is_plan_segment(plan)) {
         *pplan = new SrsDvrSegmentPlan();
     } else if (srs_config_dvr_is_plan_session(plan)) {
@@ -707,7 +748,7 @@ srs_error_t SrsDvrSessionPlan::on_publish(ISrsRequest *r)
         return err;
     }
 
-    if (!_srs_config->get_dvr_enabled(req_->vhost_)) {
+    if (!config_->get_dvr_enabled(req_->vhost_)) {
         return err;
     }
 
@@ -734,7 +775,7 @@ void SrsDvrSessionPlan::on_unpublish()
     // ignore error.
     srs_error_t err = segment_->close();
     if (err != srs_success) {
-        srs_warn("ignore flv close error %s", srs_error_desc(err).c_str());
+        srs_warn("ignore dvr segment close failed. ret=%d", srs_error_code(err));
         srs_freep(err);
     }
 
@@ -756,7 +797,7 @@ SrsDvrSegmentPlan::~SrsDvrSegmentPlan()
 {
 }
 
-srs_error_t SrsDvrSegmentPlan::initialize(SrsOriginHub *h, SrsDvrSegmenter *s, ISrsRequest *r)
+srs_error_t SrsDvrSegmentPlan::initialize(ISrsOriginHub *h, ISrsDvrSegmenter *s, ISrsRequest *r)
 {
     srs_error_t err = srs_success;
 
@@ -764,9 +805,9 @@ srs_error_t SrsDvrSegmentPlan::initialize(SrsOriginHub *h, SrsDvrSegmenter *s, I
         return srs_error_wrap(err, "segment plan");
     }
 
-    wait_keyframe_ = _srs_config->get_dvr_wait_keyframe(req_->vhost_);
+    wait_keyframe_ = config_->get_dvr_wait_keyframe(req_->vhost_);
 
-    cduration_ = _srs_config->get_dvr_duration(req_->vhost_);
+    cduration_ = config_->get_dvr_duration(req_->vhost_);
 
     return srs_success;
 }
@@ -784,7 +825,7 @@ srs_error_t SrsDvrSegmentPlan::on_publish(ISrsRequest *r)
         return err;
     }
 
-    if (!_srs_config->get_dvr_enabled(req_->vhost_)) {
+    if (!config_->get_dvr_enabled(req_->vhost_)) {
         return err;
     }
 
@@ -919,15 +960,24 @@ SrsDvr::SrsDvr()
     req_ = NULL;
     actived_ = false;
 
-    _srs_config->subscribe(this);
+    config_ = _srs_config;
+    app_factory_ = _srs_app_factory;
+}
+
+void SrsDvr::assemble()
+{
+    config_->subscribe(this);
 }
 
 SrsDvr::~SrsDvr()
 {
-    _srs_config->unsubscribe(this);
+    config_->unsubscribe(this);
 
     srs_freep(plan_);
     srs_freep(req_);
+
+    config_ = NULL;
+    app_factory_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -936,28 +986,29 @@ SrsDvr::~SrsDvr()
 // IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
 // This prevents the race condition where multiple coroutines could create duplicate sources
 // for the same stream when context switches occurred during initialization.
-srs_error_t SrsDvr::initialize(SrsOriginHub *h, ISrsRequest *r)
+srs_error_t SrsDvr::initialize(ISrsOriginHub *h, ISrsRequest *r)
 {
     srs_error_t err = srs_success;
 
     req_ = r->copy();
     hub_ = h;
 
-    SrsConfDirective *conf = _srs_config->get_dvr_apply(r->vhost_);
+    SrsConfDirective *conf = config_->get_dvr_apply(r->vhost_);
     actived_ = srs_config_apply_filter(conf, r);
 
     srs_freep(plan_);
-    if ((err = SrsDvrPlan::create_plan(r->vhost_, &plan_)) != srs_success) {
+    if ((err = SrsDvrPlan::create_plan(config_, r->vhost_, &plan_)) != srs_success) {
         return srs_error_wrap(err, "create plan");
     }
 
-    std::string path = _srs_config->get_dvr_path(r->vhost_);
-    SrsDvrSegmenter *segmenter = NULL;
+    std::string path = config_->get_dvr_path(r->vhost_);
+    ISrsDvrSegmenter *segmenter = NULL;
     if (srs_strings_ends_with(path, ".mp4")) {
-        segmenter = new SrsDvrMp4Segmenter();
+        segmenter = app_factory_->create_dvr_mp4_segmenter();
     } else {
-        segmenter = new SrsDvrFlvSegmenter();
+        segmenter = app_factory_->create_dvr_flv_segmenter();
     }
+    segmenter->assemble();
 
     if ((err = plan_->initialize(hub_, segmenter, r)) != srs_success) {
         return srs_error_wrap(err, "plan initialize");

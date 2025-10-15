@@ -93,8 +93,20 @@ public:
 public:
     // Add a resource to the manager.
     virtual void add(ISrsResource *conn, bool *exists = NULL) = 0;
+    // Add a resource with string id to the manager.
+    virtual void add_with_id(const std::string &id, ISrsResource *conn) = 0;
+    // Add a resource with fast(int) id to the manager.
+    virtual void add_with_fast_id(uint64_t id, ISrsResource *conn) = 0;
     // Get resource at specified index.
     virtual ISrsResource *at(int index) = 0;
+    // Find resource by string id.
+    virtual ISrsResource *find_by_id(std::string id) = 0;
+    // Find resource by fast(int) id.
+    virtual ISrsResource *find_by_fast_id(uint64_t id) = 0;
+    // Find resource by name.
+    virtual ISrsResource *find_by_name(std::string name) = 0;
+    // Add a resource with name to the manager.
+    virtual void add_with_name(const std::string &name, ISrsResource *conn) = 0;
 
 public:
     // Remove then free the specified connection. Note that the manager always free c resource,
@@ -111,12 +123,14 @@ public:
 // The resource manager remove resource and delete it asynchronously.
 class SrsResourceManager : public ISrsCoroutineHandler, public ISrsResourceManager
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string label_;
     SrsContextId cid_;
     bool verbose_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     ISrsCond *cond_;
     // Callback handlers.
@@ -129,9 +143,11 @@ private:
     std::vector<ISrsResource *> zombies_;
     std::vector<ISrsResource *> *p_disposing_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The connections without any id.
-    std::vector<ISrsResource *> conns_;
+    std::vector<ISrsResource *>
+        conns_;
     // The connections with resource id.
     std::map<std::string, ISrsResource *> conns_id_;
     // The connections with resource fast(int) id.
@@ -171,7 +187,8 @@ public:
 public:
     virtual void remove(ISrsResource *c);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     void do_remove(ISrsResource *c);
     void check_remove(ISrsResource *c, bool &in_zombie, bool &in_disposing);
     void clear();
@@ -198,7 +215,8 @@ private:
 template <typename T>
 class SrsSharedResource : public ISrsResource
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsSharedPtr<T> ptr_;
 
 public:
@@ -232,9 +250,11 @@ public:
         return *this;
     }
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Overload the * operator.
-    T &operator*()
+    T &
+    operator*()
     {
         return ptr_.operator*();
     }

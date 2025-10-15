@@ -302,6 +302,14 @@ srs_error_t SrsBufferedReadWriter::writev(const iovec *iov, int iov_size, ssize_
     return io_->writev(iov, iov_size, nwrite);
 }
 
+ISrsSslConnection::ISrsSslConnection()
+{
+}
+
+ISrsSslConnection::~ISrsSslConnection()
+{
+}
+
 SrsSslConnection::SrsSslConnection(ISrsProtocolReadWriter *c)
 {
     transport_ = c;

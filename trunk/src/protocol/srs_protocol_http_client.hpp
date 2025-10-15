@@ -32,10 +32,12 @@ class SrsTcpClient;
 // The SSL client over TCP transport.
 class SrsSslClient : public ISrsReader, public ISrsStreamWriter
 {
-private:
-    SrsTcpClient *transport_;
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsProtocolReadWriter *transport_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SSL_CTX *ssl_ctx_;
     SSL *ssl_;
     BIO *bio_in_;
@@ -53,6 +55,26 @@ public:
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 };
 
+// The interface for http client.
+class ISrsHttpClient
+{
+public:
+    ISrsHttpClient();
+    virtual ~ISrsHttpClient();
+
+public:
+    // Initialize the client.
+    virtual srs_error_t initialize(std::string schema, std::string h, int p, srs_utime_t tm = SRS_HTTP_CLIENT_TIMEOUT) = 0;
+    // Get data from the uri.
+    virtual srs_error_t get(std::string path, std::string req, ISrsHttpMessage **ppmsg) = 0;
+    // Post data to the uri.
+    virtual srs_error_t post(std::string path, std::string req, ISrsHttpMessage **ppmsg) = 0;
+    // Set receive timeout.
+    virtual void set_recv_timeout(srs_utime_t tm) = 0;
+    // Sample kbps for statistics.
+    virtual void kbps_sample(const char *label, srs_utime_t age) = 0;
+};
+
 // The client to GET/POST/PUT/DELETE over HTTP.
 // @remark We will reuse the TCP transport until initialize or channel error,
 //      such as send/recv failed.
@@ -60,9 +82,10 @@ public:
 //      SrsHttpClient hc;
 //      hc.initialize("127.0.0.1", 80, 9000);
 //      hc.post("/api/v1/version", "Hello world!", NULL);
-class SrsHttpClient
+class SrsHttpClient : public ISrsHttpClient
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The underlayer TCP transport, set to NULL when disconnect, or never not NULL when connected.
     // We will disconnect transport when initialize or channel error, such as send/recv error.
     SrsTcpClient *transport_;
@@ -70,7 +93,8 @@ private:
     std::map<std::string, std::string> headers_;
     SrsNetworkKbps *kbps_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The timeout in srs_utime_t.
     srs_utime_t timeout_;
     srs_utime_t recv_timeout_;
@@ -79,7 +103,8 @@ private:
     std::string host_;
     int port_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsSslClient *ssl_transport_;
 
 public:
@@ -116,7 +141,8 @@ public:
 public:
     virtual void kbps_sample(const char *label, srs_utime_t age);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual void disconnect();
     virtual srs_error_t connect();
     ISrsStreamWriter *writer();

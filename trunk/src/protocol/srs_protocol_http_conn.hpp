@@ -22,11 +22,33 @@ class SrsHttpResponseReader;
 class ISrsProtocolReadWriter;
 class SrsProtocolUtility;
 
+// The interface for HTTP parser.
+class ISrsHttpParser
+{
+public:
+    ISrsHttpParser();
+    virtual ~ISrsHttpParser();
+
+public:
+    // initialize the llhttp parser with specified type,
+    // one parser can only parse request or response messages.
+    virtual srs_error_t initialize(enum llhttp_type type) = 0;
+    // Whether allow jsonp parser, which indicates the method in query string.
+    virtual void set_jsonp(bool allow_jsonp) = 0;
+    // always parse a http message,
+    // that is, the *ppmsg always NOT-NULL when return success.
+    // or error and *ppmsg must be NULL.
+    // @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
+    // @remark user must free the ppmsg if not NULL.
+    virtual srs_error_t parse_message(ISrsReader *reader, ISrsHttpMessage **ppmsg) = 0;
+};
+
 // A wrapper for llhttp,
 // provides HTTP message originted service.
-class SrsHttpParser
+class SrsHttpParser : public ISrsHttpParser
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     llhttp_settings_t settings_;
     llhttp_t parser_;
     // The global parse buffer.
@@ -34,7 +56,8 @@ private:
     // Whether allow jsonp parse.
     bool jsonp_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string field_name_;
     std::string field_value_;
     SrsHttpParseState state_;
@@ -61,11 +84,14 @@ public:
     // @remark user must free the ppmsg if not NULL.
     virtual srs_error_t parse_message(ISrsReader *reader, ISrsHttpMessage **ppmsg);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // parse the HTTP message to member field: msg.
-    virtual srs_error_t parse_message_imp(ISrsReader *reader);
+    virtual srs_error_t
+    parse_message_imp(ISrsReader *reader);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     static int on_message_begin(llhttp_t *parser);
     static int on_headers_complete(llhttp_t *parser);
     static int on_message_complete(llhttp_t *parser);
@@ -83,7 +109,8 @@ private:
 // documentation for Request.Write and RoundTripper.
 class SrsHttpMessage : public ISrsHttpMessage
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The body object, reader object.
     // @remark, user can get body in string by get_body().
     SrsHttpResponseReader *_body;
@@ -91,7 +118,8 @@ private:
     // The transport connection, can be NULL.
     ISrsConnection *owner_conn_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The request type defined as
     //      enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
     uint8_t type_;
@@ -100,7 +128,8 @@ private:
     llhttp_status_t _status;
     int64_t _content_length;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The http headers
     SrsHttpHeader _header;
     // Whether the request indicates should keep alive for the http connection.
@@ -108,7 +137,8 @@ private:
     // Whether the body is chunked.
     bool chunked_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string schema_;
     // The parsed url.
     std::string _url;
@@ -119,7 +149,8 @@ private:
     // The query map
     std::map<std::string, std::string> _query;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Whether request is jsonp.
     bool jsonp_;
     // The method in QueryString will override the HTTP method.
@@ -232,7 +263,8 @@ public:
 // HTTP request, the first line is RequestLine. While for HTTP response, it's StatusLine.
 class SrsHttpMessageWriter
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsProtocolReadWriter *skt_;
     SrsHttpHeader *hdr_;
     // Before writing header, there is a chance to filter it,
@@ -241,22 +273,26 @@ private:
     // The first line writer.
     ISrsHttpFirstLineWriter *flw_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     char header_cache_[SRS_HTTP_HEADER_CACHE_SIZE];
     iovec *iovss_cache_;
     int nb_iovss_cache_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Reply header has been (logically) written
     bool header_wrote_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The explicitly-declared Content-Length; or -1
     int64_t content_length_;
     // The number of bytes written in body
     int64_t written_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The wroteHeader tells whether the header's been written to "the
     // wire" (or rather: w.conn.buf). this is unlike
     // (*response).wroteHeader, which tells only whether it was
@@ -285,7 +321,8 @@ public:
 // Response writer use st socket
 class SrsHttpResponseWriter : public ISrsHttpResponseWriter, public ISrsHttpFirstLineWriter
 {
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     SrsHttpMessageWriter *writer_;
     // The status code passed to WriteHeader, for response only.
     int status_;
@@ -312,7 +349,8 @@ public:
 // Request writer use st socket
 class SrsHttpRequestWriter : public ISrsHttpRequestWriter, public ISrsHttpFirstLineWriter
 {
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     SrsHttpMessageWriter *writer_;
     // The method and path passed to WriteHeader, for request only.
     std::string method_;
@@ -337,7 +375,8 @@ public:
 // Response reader use st socket.
 class SrsHttpResponseReader : public ISrsHttpResponseReader
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsReader *skt_;
     SrsHttpMessage *owner_;
     SrsFastStream *buffer_;
@@ -365,7 +404,8 @@ public:
     virtual bool eof();
     virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t read_chunked(void *buf, size_t size, ssize_t *nread);
     virtual srs_error_t read_specified(void *buf, size_t size, ssize_t *nread);
 };

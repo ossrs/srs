@@ -20,11 +20,13 @@
 // when you want to use different level, override this classs, set the protected _level.
 class SrsFileLog : public ISrsLog, public ISrsReloadHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Defined in SrsLogLevel.
     SrsLogLevel level_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     char *log_data_;
     // Log to file if specified srs_log_file
     int fd_;
@@ -42,7 +44,8 @@ public:
     virtual void reopen();
     virtual void log(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, va_list args);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual void write_log(int &fd, char *str_log, int size, int level);
     virtual void open_log_file();
 };

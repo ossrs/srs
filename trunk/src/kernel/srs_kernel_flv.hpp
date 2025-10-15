@@ -268,13 +268,15 @@ public:
 // Transmux RTMP packets to FLV stream.
 class SrsFlvTransmuxer : public ISrsFlvTransmuxer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     bool has_audio_;
     bool has_video_;
     bool drop_if_not_match_;
     ISrsWriter *writer_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     char tag_header_[SRS_FLV_TAG_HEADER_SIZE];
 
 public:
@@ -317,7 +319,8 @@ public:
     // @remark assert data_size is not negative.
     static int size_tag(int data_size);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The cache tag header.
     int nb_tag_headers_;
     char *tag_headers_;
@@ -332,7 +335,8 @@ public:
     // Write the tags in a time.
     virtual srs_error_t write_tags(SrsMediaPacket **msgs, int count);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual void cache_metadata(char type, char *data, int size, char *cache);
     virtual void cache_audio(int64_t timestamp, char *data, int size, char *cache);
     virtual void cache_video(int64_t timestamp, char *data, int size, char *cache);
@@ -340,10 +344,31 @@ private:
     virtual srs_error_t write_tag(char *header, int header_size, char *tag, int tag_size);
 };
 
-// Decode flv file.
-class SrsFlvDecoder
+// The interface for FLV decoder.
+class ISrsFlvDecoder
 {
-private:
+public:
+    ISrsFlvDecoder();
+    virtual ~ISrsFlvDecoder();
+
+public:
+    // Initialize the underlayer file stream.
+    virtual srs_error_t initialize(ISrsReader *fr) = 0;
+    // Read the flv header.
+    virtual srs_error_t read_header(char header[9]) = 0;
+    // Read the tag header infos.
+    virtual srs_error_t read_tag_header(char *ptype, int32_t *pdata_size, uint32_t *ptime) = 0;
+    // Read the tag data.
+    virtual srs_error_t read_tag_data(char *data, int32_t size) = 0;
+    // Read the 4bytes previous tag size.
+    virtual srs_error_t read_previous_tag_size(char previous_tag_size[4]) = 0;
+};
+
+// Decode flv file.
+class SrsFlvDecoder : public ISrsFlvDecoder
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsReader *reader_;
 
 public:
@@ -376,7 +401,8 @@ public:
 // then seek to specified offset.
 class SrsFlvVodStreamDecoder
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsFileReader *reader_;
 
 public:

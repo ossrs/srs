@@ -15,8 +15,26 @@
 
 class SrsBuffer;
 
+// The interface for raw h.264 stream.
+class ISrsRawH264Stream
+{
+public:
+    ISrsRawH264Stream();
+    virtual ~ISrsRawH264Stream();
+
+public:
+    virtual srs_error_t annexb_demux(SrsBuffer *stream, char **pframe, int *pnb_frame) = 0;
+    virtual bool is_sps(char *frame, int nb_frame) = 0;
+    virtual bool is_pps(char *frame, int nb_frame) = 0;
+    virtual srs_error_t sps_demux(char *frame, int nb_frame, std::string &sps) = 0;
+    virtual srs_error_t pps_demux(char *frame, int nb_frame, std::string &pps) = 0;
+    virtual srs_error_t mux_sequence_header(std::string sps, std::string pps, std::string &sh) = 0;
+    virtual srs_error_t mux_ipb_frame(char *frame, int nb_frame, std::string &ibp) = 0;
+    virtual srs_error_t mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv) = 0;
+};
+
 // The raw h.264 stream, in annexb.
-class SrsRawH264Stream
+class SrsRawH264Stream : public ISrsRawH264Stream
 {
 public:
     SrsRawH264Stream();
@@ -55,8 +73,28 @@ public:
     virtual srs_error_t mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv);
 };
 
+// The interface for raw h.265 stream.
+class ISrsRawHEVCStream
+{
+public:
+    ISrsRawHEVCStream();
+    virtual ~ISrsRawHEVCStream();
+
+public:
+    virtual srs_error_t annexb_demux(SrsBuffer *stream, char **pframe, int *pnb_frame) = 0;
+    virtual bool is_sps(char *frame, int nb_frame) = 0;
+    virtual bool is_pps(char *frame, int nb_frame) = 0;
+    virtual bool is_vps(char *frame, int nb_frame) = 0;
+    virtual srs_error_t sps_demux(char *frame, int nb_frame, std::string &sps) = 0;
+    virtual srs_error_t pps_demux(char *frame, int nb_frame, std::string &pps) = 0;
+    virtual srs_error_t vps_demux(char *frame, int nb_frame, std::string &vps) = 0;
+    virtual srs_error_t mux_sequence_header(std::string vps, std::string sps, std::vector<std::string> &pps, std::string &sh) = 0;
+    virtual srs_error_t mux_ipb_frame(char *frame, int nb_frame, std::string &ibp) = 0;
+    virtual srs_error_t mux_hevc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv) = 0;
+};
+
 // The raw h.265 stream, in annexb.
-class SrsRawHEVCStream
+class SrsRawHEVCStream : public ISrsRawHEVCStream
 {
 public:
     SrsRawHEVCStream();
@@ -131,8 +169,21 @@ struct SrsRawAacStreamCodec {
     int8_t aac_packet_type_;
 };
 
+// The interface for raw aac stream.
+class ISrsRawAacStream
+{
+public:
+    ISrsRawAacStream();
+    virtual ~ISrsRawAacStream();
+
+public:
+    virtual srs_error_t adts_demux(SrsBuffer *stream, char **pframe, int *pnb_frame, SrsRawAacStreamCodec &codec) = 0;
+    virtual srs_error_t mux_sequence_header(SrsRawAacStreamCodec *codec, std::string &sh) = 0;
+    virtual srs_error_t mux_aac2flv(char *frame, int nb_frame, SrsRawAacStreamCodec *codec, uint32_t dts, char **flv, int *nb_flv) = 0;
+};
+
 // The raw aac stream, in adts.
-class SrsRawAacStream
+class SrsRawAacStream : public ISrsRawAacStream
 {
 public:
     SrsRawAacStream();

@@ -612,6 +612,14 @@ ISrsKbpsDelta::~ISrsKbpsDelta()
 {
 }
 
+ISrsEphemeralDelta::ISrsEphemeralDelta()
+{
+}
+
+ISrsEphemeralDelta::~ISrsEphemeralDelta()
+{
+}
+
 SrsEphemeralDelta::SrsEphemeralDelta()
 {
     in_ = out_ = 0;
@@ -634,6 +642,14 @@ void SrsEphemeralDelta::remark(int64_t *in, int64_t *out)
     if (out)
         *out = out_;
     in_ = out_ = 0;
+}
+
+ISrsNetworkDelta::ISrsNetworkDelta()
+{
+}
+
+ISrsNetworkDelta::~ISrsNetworkDelta()
+{
 }
 
 SrsNetworkDelta::SrsNetworkDelta()

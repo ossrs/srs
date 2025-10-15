@@ -30,12 +30,16 @@ public:
     virtual srs_error_t open(std::string p) = 0;
     virtual void close() = 0;
     virtual bool is_open() = 0;
+    virtual srs_error_t set_iobuf_size(int size) = 0;
+    virtual void seek2(int64_t offset) = 0;
+    virtual int64_t tellg() = 0;
 };
 
 // file writer, to write to file.
 class SrsFileWriter : public ISrsFileWriter
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string path_;
     FILE *fp_;
     char *buf_;
@@ -104,7 +108,8 @@ public:
  */
 class SrsFileReader : public ISrsFileReader
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string path_;
     int fd_;
 

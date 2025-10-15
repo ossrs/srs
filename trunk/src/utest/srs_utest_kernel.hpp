@@ -45,7 +45,8 @@ public:
 
 class MockFileRemover
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string path_;
 
 public:
@@ -70,6 +71,7 @@ public:
 public:
     virtual srs_error_t open(std::string file);
     virtual void close();
+    virtual srs_error_t set_iobuf_size(int size);
 
 public:
     virtual bool is_open();
@@ -123,7 +125,8 @@ public:
 
 class MockBufferReader : public ISrsReader
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::string str;
 
 public:

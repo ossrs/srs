@@ -1021,7 +1021,34 @@ void MockConnectionManagerForExpire::add(ISrsResource * /*conn*/, bool * /*exist
 {
 }
 
+void MockConnectionManagerForExpire::add_with_id(const std::string & /*id*/, ISrsResource * /*conn*/)
+{
+}
+
+void MockConnectionManagerForExpire::add_with_fast_id(uint64_t /*id*/, ISrsResource * /*conn*/)
+{
+}
+
+void MockConnectionManagerForExpire::add_with_name(const std::string & /*name*/, ISrsResource * /*conn*/)
+{
+}
+
 ISrsResource *MockConnectionManagerForExpire::at(int /*index*/)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManagerForExpire::find_by_id(std::string /*id*/)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManagerForExpire::find_by_fast_id(uint64_t /*id*/)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManagerForExpire::find_by_name(std::string /*name*/)
 {
     return NULL;
 }

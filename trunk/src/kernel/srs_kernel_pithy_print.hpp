@@ -43,7 +43,8 @@ public:
 // Of course, we can add the multiple user support, which is SrsPithyPrint.
 class SrsStageManager
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::map<int, SrsStageInfo *> stages_;
 
 public:
@@ -63,7 +64,8 @@ public:
     // The number of call of can_print().
     uint32_t nn_count_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     double ratio_;
     SrsStageManager stages_;
     std::map<int, srs_utime_t> ticks_;
@@ -82,7 +84,8 @@ public:
 // An standalone pithy print, without shared stages.
 class SrsAlonePithyPrint
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsStageInfo info_;
     srs_utime_t previous_tick_;
 
@@ -93,6 +96,19 @@ public:
 public:
     virtual void elapse();
     virtual bool can_print();
+};
+
+// The interface for pithy print.
+class ISrsPithyPrint
+{
+public:
+    ISrsPithyPrint();
+    virtual ~ISrsPithyPrint();
+
+public:
+    virtual void elapse() = 0;
+    virtual bool can_print() = 0;
+    virtual srs_utime_t age() = 0;
 };
 
 // The stage is used for a collection of object to do print,
@@ -112,16 +128,18 @@ public:
 //            }
 //            // read and write RTMP messages.
 //        }
-class SrsPithyPrint
+class SrsPithyPrint : public ISrsPithyPrint
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int client_id_;
     SrsStageInfo *cache_;
     int stage_id_;
     srs_utime_t age_;
     srs_utime_t previous_tick_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsPithyPrint(int _stage_id);
 
 public:
@@ -144,9 +162,11 @@ public:
     static SrsPithyPrint *create_srt_publish();
     virtual ~SrsPithyPrint();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Enter the specified stage, return the client id.
-    virtual int enter_stage();
+    virtual int
+    enter_stage();
     // Leave the specified stage, release the client id.
     virtual void leave_stage();
 

@@ -63,7 +63,8 @@ struct SrsRtcpHeader {
 
 class SrsRtcpCommon : public ISrsCodec
 {
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     SrsRtcpHeader header_;
     uint32_t ssrc_;
     uint8_t payload_[kRtcpPacketSize];
@@ -72,7 +73,8 @@ protected:
     char *data_;
     int nb_data_;
 
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     srs_error_t decode_header(SrsBuffer *buffer);
     srs_error_t encode_header(SrsBuffer *buffer);
 
@@ -96,7 +98,8 @@ public:
 
 class SrsRtcpApp : public SrsRtcpCommon
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint8_t name_[4];
 
 public:
@@ -144,7 +147,8 @@ struct SrsRtcpRB {
 
 class SrsRtcpSR : public SrsRtcpCommon
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint64_t ntp_;
     uint32_t rtp_ts_;
     uint32_t send_rtp_packets_;
@@ -175,7 +179,8 @@ public:
 
 class SrsRtcpRR : public SrsRtcpCommon
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtcpRB rb_;
 
 public:
@@ -213,7 +218,8 @@ public:
 // inlucde Transport layer FB message and Payload-specific FB message.
 class SrsRtcpFbCommon : public SrsRtcpCommon
 {
-protected:
+// clang-format off
+SRS_DECLARE_PROTECTED: // clang-format on
     uint32_t media_ssrc_;
 
 public:
@@ -273,7 +279,8 @@ public:
 
 class SrsRtcpTWCC : public SrsRtcpFbCommon
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint16_t base_sn_;
     int32_t reference_time_;
     uint8_t fb_pkt_count_;
@@ -294,7 +301,8 @@ private:
     int pkt_len_;
     uint16_t next_base_sn_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     void clear();
     srs_utime_t calculate_delta_us(srs_utime_t ts, srs_utime_t last);
     srs_error_t process_pkt_chunk(SrsRtcpTWCCChunk &chunk, int delta_size);
@@ -332,13 +340,15 @@ public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t do_encode(SrsBuffer *buffer);
 };
 
 class SrsRtcpNack : public SrsRtcpFbCommon
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     struct SrsPidBlp {
         uint16_t pid_;
         uint16_t blp_;
@@ -377,7 +387,8 @@ public:
 
 class SrsRtcpSli : public SrsRtcpFbCommon
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint16_t first_;
     uint16_t number_;
     uint8_t picture_;
@@ -395,7 +406,8 @@ public:
 
 class SrsRtcpRpsi : public SrsRtcpFbCommon
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint8_t pb_;
     uint8_t payload_type_;
     char *native_rpsi_;
@@ -427,7 +439,8 @@ public:
 
 class SrsRtcpCompound : public ISrsCodec
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<SrsRtcpCommon *> rtcps_;
     int nb_bytes_;
     char *data_;

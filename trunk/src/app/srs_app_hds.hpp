@@ -45,12 +45,14 @@ public:
     srs_error_t on_video(SrsMediaPacket *msg);
     srs_error_t on_audio(SrsMediaPacket *msg);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t flush_mainfest();
     srs_error_t flush_bootstrap();
     void adjust_windows();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::list<SrsHdsFragment *> fragments_;
     SrsHdsFragment *currentSegment_;
     int fragment_index_;

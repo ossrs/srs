@@ -115,7 +115,7 @@ public:
 public:
     MockDashForOriginHub();
     virtual ~MockDashForOriginHub();
-    virtual srs_error_t initialize(SrsOriginHub *h, ISrsRequest *r);
+    virtual srs_error_t initialize(ISrsOriginHub *h, ISrsRequest *r);
     virtual srs_error_t on_publish();
     virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
     virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
@@ -137,8 +137,9 @@ public:
 
 public:
     MockDvrForOriginHub();
+    virtual void assemble();
     virtual ~MockDvrForOriginHub();
-    virtual srs_error_t initialize(SrsOriginHub *h, ISrsRequest *r);
+    virtual srs_error_t initialize(ISrsOriginHub *h, ISrsRequest *r);
     virtual srs_error_t on_publish(ISrsRequest *r);
     virtual void on_unpublish();
     virtual srs_error_t on_meta_data(SrsMediaPacket *metadata);
@@ -169,7 +170,8 @@ public:
 // Mock ISrsLiveSource for testing SrsOriginHub::on_audio
 class MockLiveSourceForOriginHub : public ISrsLiveSource
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtmpFormat *format_;
     SrsMetaCache *meta_;
 
@@ -181,6 +183,13 @@ public:
     virtual SrsContextId pre_source_id();
     virtual SrsMetaCache *meta();
     virtual SrsRtmpFormat *format();
+    virtual srs_error_t on_source_id_changed(SrsContextId id);
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
+    virtual srs_error_t on_audio(SrsRtmpCommonMessage *audio);
+    virtual srs_error_t on_video(SrsRtmpCommonMessage *video);
+    virtual srs_error_t on_aggregate(SrsRtmpCommonMessage *msg);
+    virtual srs_error_t on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaDataPacket *metadata);
 };
 
 // Mock ISrsStatistic for testing SrsOriginHub::on_video
@@ -202,6 +211,17 @@ public:
     virtual void kbps_add_delta(std::string id, ISrsKbpsDelta *delta);
     virtual void kbps_sample();
     virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames);
+    virtual std::string server_id();
+    virtual std::string service_id();
+    virtual std::string service_pid();
+    virtual SrsStatisticVhost *find_vhost_by_id(std::string vid);
+    virtual SrsStatisticStream *find_stream(std::string sid);
+    virtual SrsStatisticStream *find_stream_by_url(std::string url);
+    virtual SrsStatisticClient *find_client(std::string client_id);
+    virtual srs_error_t dumps_vhosts(SrsJsonArray *arr);
+    virtual srs_error_t dumps_streams(SrsJsonArray *arr, int start, int count);
+    virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count);
+    virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs);
 };
 
 // Mock ISrsNgExec for testing SrsOriginHub::on_publish
@@ -287,7 +307,7 @@ public:
     virtual void untick(int event);
 };
 
-// Mock SrsAppFactory for testing SrsLiveSourceManager::fetch_or_create
+// Mock ISrsAppFactory for testing SrsLiveSourceManager::fetch_or_create
 class MockAppFactoryForSourceManager : public SrsAppFactory
 {
 public:
@@ -319,9 +339,10 @@ public:
     virtual srs_error_t on_video(SrsMediaPacket *shared_video, bool is_sequence_header);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
+    virtual srs_error_t on_dvr_request_sh();
 };
 
-// Mock SrsAppFactory for testing SrsLiveSource::initialize
+// Mock ISrsAppFactory for testing SrsLiveSource::initialize
 class MockAppFactoryForLiveSource : public SrsAppFactory
 {
 public:

@@ -15,6 +15,7 @@ SRS_CXX14=NO
 SRS_BACKTRACE=YES
 SRS_NGINX=NO
 SRS_UTEST=NO
+SRS_FORCE_PUBLIC4UTEST=NO
 # Always enable the bellow features.
 SRS_STREAM_CASTER=YES
 SRS_INGEST=YES
@@ -551,10 +552,11 @@ function apply_auto_options() {
         SRS_SHARED_SRTP=YES
     fi
 
-    # Enable asan, but disable for Centos
+    # Disable sanitizer by default to avoid issues with daemon mode.
+    # Enable sanitizer only for utest and when explicitly requested.
     # @see https://github.com/ossrs/srs/issues/3347
-    if [[ $SRS_SANITIZER == RESERVED && $OS_IS_CENTOS != YES ]]; then
-        echo "Enable asan by auto options."
+    if [[ $SRS_SANITIZER == RESERVED && $SRS_UTEST == YES ]]; then
+        echo "Enable asan for utest."
         SRS_SANITIZER=YES
     fi
 
@@ -596,6 +598,13 @@ function apply_auto_options() {
     if [[ $SRS_CXX11 != NO ]]; then
         echo "Warning: C++11 support has been disabled. Forcing C++98 compatibility mode."
         SRS_CXX11=NO
+    fi
+
+    # When utest is enabled, automatically enable SRS_FORCE_PUBLIC4UTEST to make private members public
+    # This ensures consistent class layout between production code and utest code with AddressSanitizer
+    if [[ $SRS_UTEST == YES ]]; then
+        echo "Enable SRS_FORCE_PUBLIC4UTEST for utest to make private members public."
+        SRS_FORCE_PUBLIC4UTEST=YES
     fi
 
     # Force disable C++14 always - C++98 compatibility is required

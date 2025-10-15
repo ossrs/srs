@@ -58,7 +58,8 @@ public:
 // The audio transcoder, transcode audio from one codec to another.
 class SrsAudioTranscoder : public ISrsAudioTranscoder
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     AVCodecContext *dec_;
     AVFrame *dec_frame_;
     AVPacket *dec_packet_;
@@ -95,7 +96,8 @@ public:
     // @remark User should never free the data, it's managed by this transcoder.
     void aac_codec_header(uint8_t **data, int *len);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t init_dec(SrsAudioCodecId from);
     srs_error_t init_enc(SrsAudioCodecId to, int channels, int samplerate, int bit_rate);
     srs_error_t init_swr(AVCodecContext *decoder);

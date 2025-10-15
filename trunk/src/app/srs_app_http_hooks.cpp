@@ -11,6 +11,7 @@ using namespace std;
 
 #include <srs_app_config.hpp>
 #include <srs_app_dvr.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_http_client.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_st.hpp>
@@ -46,10 +47,16 @@ ISrsHttpHooks::~ISrsHttpHooks()
 
 SrsHttpHooks::SrsHttpHooks()
 {
+    factory_ = _srs_app_factory;
+    stat_ = _srs_stat;
+    config_ = _srs_config;
 }
 
 SrsHttpHooks::~SrsHttpHooks()
 {
+    factory_ = NULL;
+    stat_ = NULL;
+    config_ = NULL;
 }
 
 srs_error_t SrsHttpHooks::on_connect(string url, ISrsRequest *req)
@@ -57,7 +64,7 @@ srs_error_t SrsHttpHooks::on_connect(string url, ISrsRequest *req)
     srs_error_t err = srs_success;
 
     SrsContextId cid = _srs_context->get_id();
-    SrsStatistic *stat = _srs_stat;
+    ISrsStatistic *stat = stat_;
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
@@ -76,8 +83,8 @@ srs_error_t SrsHttpHooks::on_connect(string url, ISrsRequest *req)
     std::string res;
     int status_code;
 
-    SrsHttpClient http;
-    if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = do_post(http.get(), url, data, status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http: on_connect failed, client_id=%s, url=%s, request=%s, response=%s, code=%d",
                               cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
@@ -93,7 +100,7 @@ void SrsHttpHooks::on_close(string url, ISrsRequest *req, int64_t send_bytes, in
     srs_error_t err = srs_success;
 
     SrsContextId cid = _srs_context->get_id();
-    SrsStatistic *stat = _srs_stat;
+    ISrsStatistic *stat = stat_;
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
@@ -110,8 +117,8 @@ void SrsHttpHooks::on_close(string url, ISrsRequest *req, int64_t send_bytes, in
     std::string res;
     int status_code;
 
-    SrsHttpClient http;
-    if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = do_post(http.get(), url, data, status_code, res)) != srs_success) {
         int ret = srs_error_code(err);
         srs_freep(err);
         srs_warn("http: ignore on_close failed, client_id=%s, url=%s, request=%s, response=%s, code=%d, ret=%d",
@@ -130,7 +137,7 @@ srs_error_t SrsHttpHooks::on_publish(string url, ISrsRequest *req)
     srs_error_t err = srs_success;
 
     SrsContextId cid = _srs_context->get_id();
-    SrsStatistic *stat = _srs_stat;
+    ISrsStatistic *stat = stat_;
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
@@ -154,8 +161,8 @@ srs_error_t SrsHttpHooks::on_publish(string url, ISrsRequest *req)
     std::string res;
     int status_code;
 
-    SrsHttpClient http;
-    if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = do_post(http.get(), url, data, status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http: on_publish failed, client_id=%s, url=%s, request=%s, response=%s, code=%d",
                               cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
@@ -171,7 +178,7 @@ void SrsHttpHooks::on_unpublish(string url, ISrsRequest *req)
     srs_error_t err = srs_success;
 
     SrsContextId cid = _srs_context->get_id();
-    SrsStatistic *stat = _srs_stat;
+    ISrsStatistic *stat = stat_;
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
@@ -195,8 +202,8 @@ void SrsHttpHooks::on_unpublish(string url, ISrsRequest *req)
     std::string res;
     int status_code;
 
-    SrsHttpClient http;
-    if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = do_post(http.get(), url, data, status_code, res)) != srs_success) {
         int ret = srs_error_code(err);
         srs_freep(err);
         srs_warn("http: ignore on_unpublish failed, client_id=%s, url=%s, request=%s, response=%s, status=%d, ret=%d",
@@ -215,7 +222,7 @@ srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req)
     srs_error_t err = srs_success;
 
     SrsContextId cid = _srs_context->get_id();
-    SrsStatistic *stat = _srs_stat;
+    ISrsStatistic *stat = stat_;
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
@@ -240,8 +247,8 @@ srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req)
     std::string res;
     int status_code;
 
-    SrsHttpClient http;
-    if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = do_post(http.get(), url, data, status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http: on_play failed, client_id=%s, url=%s, request=%s, response=%s, status=%d",
                               cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
@@ -257,7 +264,7 @@ void SrsHttpHooks::on_stop(string url, ISrsRequest *req)
     srs_error_t err = srs_success;
 
     SrsContextId cid = _srs_context->get_id();
-    SrsStatistic *stat = _srs_stat;
+    ISrsStatistic *stat = stat_;
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
@@ -281,8 +288,8 @@ void SrsHttpHooks::on_stop(string url, ISrsRequest *req)
     std::string res;
     int status_code;
 
-    SrsHttpClient http;
-    if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = do_post(http.get(), url, data, status_code, res)) != srs_success) {
         int ret = srs_error_code(err);
         srs_freep(err);
         srs_warn("http: ignore on_stop failed, client_id=%s, url=%s, request=%s, response=%s, code=%d, ret=%d",
@@ -301,9 +308,9 @@ srs_error_t SrsHttpHooks::on_dvr(SrsContextId c, string url, ISrsRequest *req, s
     srs_error_t err = srs_success;
 
     SrsContextId cid = c;
-    std::string cwd = _srs_config->cwd();
+    std::string cwd = config_->cwd();
 
-    SrsStatistic *stat = _srs_stat;
+    ISrsStatistic *stat = stat_;
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
@@ -329,8 +336,8 @@ srs_error_t SrsHttpHooks::on_dvr(SrsContextId c, string url, ISrsRequest *req, s
     std::string res;
     int status_code;
 
-    SrsHttpClient http;
-    if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = do_post(http.get(), url, data, status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http post on_dvr uri failed, client_id=%s, url=%s, request=%s, response=%s, code=%d",
                               cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
@@ -346,7 +353,7 @@ srs_error_t SrsHttpHooks::on_hls(SrsContextId c, string url, ISrsRequest *req, s
     srs_error_t err = srs_success;
 
     SrsContextId cid = c;
-    std::string cwd = _srs_config->cwd();
+    std::string cwd = config_->cwd();
 
     // the ts_url is under the same dir of m3u8_url.
     SrsPath path;
@@ -355,7 +362,7 @@ srs_error_t SrsHttpHooks::on_hls(SrsContextId c, string url, ISrsRequest *req, s
         ts_url = prefix + "/" + ts_url;
     }
 
-    SrsStatistic *stat = _srs_stat;
+    ISrsStatistic *stat = stat_;
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
@@ -386,8 +393,8 @@ srs_error_t SrsHttpHooks::on_hls(SrsContextId c, string url, ISrsRequest *req, s
     std::string res;
     int status_code;
 
-    SrsHttpClient http;
-    if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = do_post(http.get(), url, data, status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http: post %s with %s, status=%d, res=%s", url.c_str(), data.c_str(), status_code, res.c_str());
     }
 
@@ -402,13 +409,13 @@ srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, ISrsReq
     srs_error_t err = srs_success;
 
     SrsContextId cid = c;
-    std::string cwd = _srs_config->cwd();
+    std::string cwd = config_->cwd();
 
     if (srs_net_url_is_http(ts_url)) {
         url = ts_url;
     }
 
-    SrsStatistic *stat = _srs_stat;
+    ISrsStatistic *stat = stat_;
 
     url = srs_strings_replace(url, "[server_id]", stat->server_id().c_str());
     url = srs_strings_replace(url, "[service_id]", stat->service_id().c_str());
@@ -424,8 +431,8 @@ srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, ISrsReq
         return srs_error_wrap(err, "http: init url=%s", url.c_str());
     }
 
-    SrsHttpClient http;
-    if ((err = http.initialize(uri.get_schema(), uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TIMEOUT)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = http->initialize(uri.get_schema(), uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TIMEOUT)) != srs_success) {
         return srs_error_wrap(err, "http: init client for %s", url.c_str());
     }
 
@@ -440,7 +447,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, ISrsReq
     srs_info("GET %s", path.c_str());
 
     ISrsHttpMessage *msg_raw = NULL;
-    if ((err = http.get(path.c_str(), "", &msg_raw)) != srs_success) {
+    if ((err = http->get(path.c_str(), "", &msg_raw)) != srs_success) {
         return srs_error_wrap(err, "http: get %s", url.c_str());
     }
     SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
@@ -474,8 +481,8 @@ srs_error_t SrsHttpHooks::discover_co_workers(string url, string &host, int &por
     std::string res;
     int status_code;
 
-    SrsHttpClient http;
-    if ((err = do_post(&http, url, "", status_code, res)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = do_post(http.get(), url, "", status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http: post %s, status=%d, res=%s", url.c_str(), status_code, res.c_str());
     }
 
@@ -527,7 +534,7 @@ srs_error_t SrsHttpHooks::on_forward_backend(string url, ISrsRequest *req, std::
 
     SrsContextId cid = _srs_context->get_id();
 
-    SrsStatistic *stat = _srs_stat;
+    ISrsStatistic *stat = stat_;
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("action", SrsJsonAny::str("on_forward"));
@@ -545,8 +552,8 @@ srs_error_t SrsHttpHooks::on_forward_backend(string url, ISrsRequest *req, std::
     std::string res;
     int status_code;
 
-    SrsHttpClient http;
-    if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
+    if ((err = do_post(http.get(), url, data, status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http: on_forward_backend failed, client_id=%s, url=%s, request=%s, response=%s, code=%d",
                               cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
@@ -589,7 +596,7 @@ srs_error_t SrsHttpHooks::on_forward_backend(string url, ISrsRequest *req, std::
     return err;
 }
 
-srs_error_t SrsHttpHooks::do_post(SrsHttpClient *hc, std::string url, std::string req, int &code, string &res)
+srs_error_t SrsHttpHooks::do_post(ISrsHttpClient *hc, std::string url, std::string req, int &code, string &res)
 {
     srs_error_t err = srs_success;
 

@@ -182,7 +182,8 @@ public:
 // @remark The buffer never manages the bytes memory, user must manage it.
 class SrsBuffer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Current read/write position within the buffer
     char *p_;
     // Pointer to the start of the buffer data (not owned by this class)
@@ -402,7 +403,8 @@ public:
 // @remark This class does not take ownership of the SrsBuffer pointer.
 class SrsBitBuffer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Current byte being processed (cached from stream)
     int8_t cb_;
     // Number of unread bits remaining in current byte (0-8)
@@ -534,7 +536,8 @@ public:
 // @remark The size may be less than the allocated buffer size for chunked data.
 class SrsMemoryBlock
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Current size of valid data in the buffer.
     // This may be less than the allocated buffer size for chunked data
     // that arrives in multiple parts.

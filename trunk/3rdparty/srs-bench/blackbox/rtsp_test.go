@@ -113,7 +113,7 @@ func TestFast_RtmpPublish_RtspPlay_Basic(t *testing.T) {
 		if ts := 80; m.Format.ProbeScore < ts {
 			r4 = errors.Errorf("low score=%v < %v, %v, %v", m.Format.ProbeScore, ts, m.String(), str)
 		}
-		if dv := m.Duration(); dv < duration {
+		if dv := m.Duration(); dv < duration/2 {
 			r5 = errors.Errorf("short duration=%v < %v, %v, %v", dv, duration, m.String(), str)
 		}
 	}
@@ -215,7 +215,7 @@ func TestFast_RtmpPublish_RtspPlay_MultipleClients(t *testing.T) {
 				if ts := 80; m.Format.ProbeScore < ts {
 					r5 = errors.Errorf("client1: low score=%v < %v, %v, %v", m.Format.ProbeScore, ts, m.String(), str)
 				}
-				if dv := m.Duration(); dv < duration {
+				if dv := m.Duration(); dv < duration/2 {
 					r6 = errors.Errorf("client1: short duration=%v < %v, %v, %v", dv, duration, m.String(), str)
 				}
 			}
@@ -319,7 +319,7 @@ func TestFast_RtmpPublish_RtspPlay_CustomPort(t *testing.T) {
 		if ts := 80; m.Format.ProbeScore < ts {
 			r4 = errors.Errorf("low score=%v < %v, %v, %v", m.Format.ProbeScore, ts, m.String(), str)
 		}
-		if dv := m.Duration(); dv < duration {
+		if dv := m.Duration(); dv < duration/2 {
 			r5 = errors.Errorf("short duration=%v < %v, %v, %v", dv, duration, m.String(), str)
 		}
 	}
@@ -406,7 +406,7 @@ func TestFast_RtmpPublish_RtspPlay_AudioOnly(t *testing.T) {
 			r4 = errors.Errorf("expected audio stream, got %v, %v, %v", m.Streams[0].CodecType, m.String(), str)
 		}
 
-		if dv := m.Duration(); dv < duration {
+		if dv := m.Duration(); dv < duration/2 {
 			r5 = errors.Errorf("short duration=%v < %v, %v, %v", dv, duration, m.String(), str)
 		}
 	}

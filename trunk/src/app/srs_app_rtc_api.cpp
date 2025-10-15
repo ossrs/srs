@@ -29,15 +29,27 @@ using namespace std;
 // To limit user to use too long password, to cause unknown issue.
 #define SRS_ICE_PWD_MAX 32
 
-SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsServer *server)
+SrsGoApiRtcPlay::SrsGoApiRtcPlay(ISrsRtcApiServer *server)
 {
     server_ = server;
     security_ = new SrsSecurity();
+
+    config_ = _srs_config;
+    stat_ = _srs_stat;
+    rtc_sources_ = _srs_rtc_sources;
+    live_sources_ = _srs_sources;
+    hooks_ = _srs_hooks;
 }
 
 SrsGoApiRtcPlay::~SrsGoApiRtcPlay()
 {
     srs_freep(security_);
+
+    config_ = NULL;
+    stat_ = NULL;
+    rtc_sources_ = NULL;
+    live_sources_ = NULL;
+    hooks_ = NULL;
 }
 
 // Request:
@@ -135,7 +147,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
                             ruc.req_->app_, ruc.req_->stream_, ruc.req_->port_, ruc.req_->param_);
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost_);
+    SrsConfDirective *parsed_vhost = config_->get_vhost(ruc.req_->vhost_);
     if (parsed_vhost) {
         ruc.req_->vhost_ = parsed_vhost->arg0();
     }
@@ -162,7 +174,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     ruc.dtls_ = (dtls != "false");
 
     if (srtp.empty()) {
-        ruc.srtp_ = _srs_config->get_rtc_server_encrypt();
+        ruc.srtp_ = config_->get_rtc_server_encrypt();
     } else {
         ruc.srtp_ = (srtp != "false");
     }
@@ -178,9 +190,9 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
-    res->set("server", SrsJsonAny::str(_srs_stat->server_id().c_str()));
-    res->set("service", SrsJsonAny::str(_srs_stat->service_id().c_str()));
-    res->set("pid", SrsJsonAny::str(_srs_stat->service_pid().c_str()));
+    res->set("server", SrsJsonAny::str(stat_->server_id().c_str()));
+    res->set("service", SrsJsonAny::str(stat_->service_id().c_str()));
+    res->set("pid", SrsJsonAny::str(stat_->service_pid().c_str()));
 
     // TODO: add candidates in response json?
     res->set("sdp", SrsJsonAny::str(ruc.local_sdp_str_.c_str()));
@@ -200,13 +212,13 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     SrsSdp local_sdp;
 
     // Config for SDP and session.
-    local_sdp.session_config_.dtls_role_ = _srs_config->get_rtc_dtls_role(ruc->req_->vhost_);
-    local_sdp.session_config_.dtls_version_ = _srs_config->get_rtc_dtls_version(ruc->req_->vhost_);
+    local_sdp.session_config_.dtls_role_ = config_->get_rtc_dtls_role(ruc->req_->vhost_);
+    local_sdp.session_config_.dtls_version_ = config_->get_rtc_dtls_version(ruc->req_->vhost_);
 
     // Whether enabled.
-    bool server_enabled = _srs_config->get_rtc_server_enabled();
-    bool rtc_enabled = _srs_config->get_rtc_enabled(ruc->req_->vhost_);
-    bool edge = _srs_config->get_vhost_is_edge(ruc->req_->vhost_);
+    bool server_enabled = config_->get_rtc_server_enabled();
+    bool rtc_enabled = config_->get_rtc_enabled(ruc->req_->vhost_);
+    bool edge = config_->get_vhost_is_edge(ruc->req_->vhost_);
 
     if (rtc_enabled && edge) {
         rtc_enabled = false;
@@ -224,19 +236,19 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     // Whether RTC stream is active.
     bool is_rtc_stream_active = false;
     if (true) {
-        SrsSharedPtr<SrsRtcSource> source = _srs_rtc_sources->fetch(ruc->req_);
+        SrsSharedPtr<SrsRtcSource> source = rtc_sources_->fetch(ruc->req_);
         is_rtc_stream_active = (source.get() && !source->can_publish());
     }
 
     // For RTMP to RTC, fail if disabled and RTMP is active, see https://github.com/ossrs/srs/issues/2728
-    bool rtmp_to_rtc = _srs_config->get_rtc_from_rtmp(ruc->req_->vhost_);
+    bool rtmp_to_rtc = config_->get_rtc_from_rtmp(ruc->req_->vhost_);
     if (rtmp_to_rtc && edge) {
         rtmp_to_rtc = false;
         srs_warn("disable RTMP to WebRTC for edge vhost=%s", ruc->req_->vhost_.c_str());
     }
 
     if (!is_rtc_stream_active && !rtmp_to_rtc) {
-        SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(ruc->req_);
+        SrsSharedPtr<SrsLiveSource> live_source = live_sources_->fetch(ruc->req_);
         if (live_source.get() && !live_source->inactive()) {
             return srs_error_new(ERROR_RTC_DISABLED, "Disabled rtmp_to_rtc of %s, see #2728", ruc->req_->vhost_.c_str());
         }
@@ -251,7 +263,7 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    SrsRtcConnection *session = NULL;
+    ISrsRtcConnection *session = NULL;
     if ((err = server_->create_rtc_session(ruc, local_sdp, &session)) != srs_success) {
         return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", ruc->dtls_, ruc->srtp_, ruc->eip_.c_str());
     }
@@ -310,7 +322,7 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
+    if (!config_->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -320,7 +332,7 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(ISrsRequest *req)
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req->vhost_);
+        SrsConfDirective *conf = config_->get_vhost_on_play(req->vhost_);
 
         if (!conf) {
             return err;
@@ -331,7 +343,7 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(ISrsRequest *req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = _srs_hooks->on_play(url, req)) != srs_success) {
+        if ((err = hooks_->on_play(url, req)) != srs_success) {
             return srs_error_wrap(err, "on_play %s", url.c_str());
         }
     }
@@ -339,15 +351,23 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(ISrsRequest *req)
     return err;
 }
 
-SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsServer *server)
+SrsGoApiRtcPublish::SrsGoApiRtcPublish(ISrsRtcApiServer *server)
 {
     server_ = server;
     security_ = new SrsSecurity();
+
+    config_ = _srs_config;
+    stat_ = _srs_stat;
+    hooks_ = _srs_hooks;
 }
 
 SrsGoApiRtcPublish::~SrsGoApiRtcPublish()
 {
     srs_freep(security_);
+
+    config_ = NULL;
+    stat_ = NULL;
+    hooks_ = NULL;
 }
 
 // Request:
@@ -446,7 +466,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
     ruc.req_->param_ = srs_strings_trim_start(ruc.req_->param_ + "&upstream=rtc", "&");
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost_);
+    SrsConfDirective *parsed_vhost = config_->get_vhost(ruc.req_->vhost_);
     if (parsed_vhost) {
         ruc.req_->vhost_ = parsed_vhost->arg0();
     }
@@ -478,9 +498,9 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
     }
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
-    res->set("server", SrsJsonAny::str(_srs_stat->server_id().c_str()));
-    res->set("service", SrsJsonAny::str(_srs_stat->service_id().c_str()));
-    res->set("pid", SrsJsonAny::str(_srs_stat->service_pid().c_str()));
+    res->set("server", SrsJsonAny::str(stat_->server_id().c_str()));
+    res->set("service", SrsJsonAny::str(stat_->service_id().c_str()));
+    res->set("pid", SrsJsonAny::str(stat_->service_pid().c_str()));
 
     // TODO: add candidates in response json?
     res->set("sdp", SrsJsonAny::str(ruc.local_sdp_str_.c_str()));
@@ -501,13 +521,13 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
 
     // TODO: FIXME: move to create_session.
     // Config for SDP and session.
-    local_sdp.session_config_.dtls_role_ = _srs_config->get_rtc_dtls_role(ruc->req_->vhost_);
-    local_sdp.session_config_.dtls_version_ = _srs_config->get_rtc_dtls_version(ruc->req_->vhost_);
+    local_sdp.session_config_.dtls_role_ = config_->get_rtc_dtls_role(ruc->req_->vhost_);
+    local_sdp.session_config_.dtls_version_ = config_->get_rtc_dtls_version(ruc->req_->vhost_);
 
     // Whether enabled.
-    bool server_enabled = _srs_config->get_rtc_server_enabled();
-    bool rtc_enabled = _srs_config->get_rtc_enabled(ruc->req_->vhost_);
-    bool edge = _srs_config->get_vhost_is_edge(ruc->req_->vhost_);
+    bool server_enabled = config_->get_rtc_server_enabled();
+    bool rtc_enabled = config_->get_rtc_enabled(ruc->req_->vhost_);
+    bool edge = config_->get_vhost_is_edge(ruc->req_->vhost_);
 
     if (rtc_enabled && edge) {
         rtc_enabled = false;
@@ -524,7 +544,7 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     // We must do stat the client before hooks, because hooks depends on it.
-    SrsRtcConnection *session = NULL;
+    ISrsRtcConnection *session = NULL;
     if ((err = server_->create_rtc_session(ruc, local_sdp, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
     }
@@ -592,7 +612,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost_)) {
+    if (!config_->get_vhost_http_hooks_enabled(req->vhost_)) {
         return err;
     }
 
@@ -602,7 +622,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(ISrsRequest *req)
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_publish(req->vhost_);
+        SrsConfDirective *conf = config_->get_vhost_on_publish(req->vhost_);
         if (!conf) {
             return err;
         }
@@ -611,7 +631,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(ISrsRequest *req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = _srs_hooks->on_publish(url, req)) != srs_success) {
+        if ((err = hooks_->on_publish(url, req)) != srs_success) {
             return srs_error_wrap(err, "rtmp on_publish %s", url.c_str());
         }
     }
@@ -619,17 +639,21 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(ISrsRequest *req)
     return err;
 }
 
-SrsGoApiRtcWhip::SrsGoApiRtcWhip(SrsServer *server)
+SrsGoApiRtcWhip::SrsGoApiRtcWhip(ISrsRtcApiServer *server)
 {
     server_ = server;
     publish_ = new SrsGoApiRtcPublish(server);
     play_ = new SrsGoApiRtcPlay(server);
+
+    config_ = _srs_config;
 }
 
 SrsGoApiRtcWhip::~SrsGoApiRtcWhip()
 {
     srs_freep(publish_);
     srs_freep(play_);
+
+    config_ = NULL;
 }
 
 srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
@@ -648,7 +672,7 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
             return srs_error_new(ERROR_RTC_INVALID_SESSION, "token empty");
         }
 
-        SrsRtcConnection *session = server_->find_rtc_session_by_username(username);
+        ISrsRtcConnection *session = server_->find_rtc_session_by_username(username);
         if (session && token != session->token()) {
             return srs_error_new(ERROR_RTC_INVALID_SESSION, "token %s not match", token.c_str());
         }
@@ -740,7 +764,7 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(ruc->req_->vhost_);
+    SrsConfDirective *parsed_vhost = config_->get_vhost(ruc->req_->vhost_);
     if (parsed_vhost) {
         ruc->req_->vhost_ = parsed_vhost->arg0();
     }
@@ -761,7 +785,7 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     // For client to specifies whether encrypt by SRTP.
     ruc->dtls_ = (dtls != "false");
     if (srtp.empty()) {
-        ruc->srtp_ = _srs_config->get_rtc_server_encrypt();
+        ruc->srtp_ = config_->get_rtc_server_encrypt();
     } else {
         ruc->srtp_ = (srtp != "false");
     }
@@ -780,7 +804,7 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     return err;
 }
 
-SrsGoApiRtcNACK::SrsGoApiRtcNACK(SrsServer *server)
+SrsGoApiRtcNACK::SrsGoApiRtcNACK(ISrsRtcApiServer *server)
 {
     server_ = server;
 }
@@ -823,7 +847,7 @@ srs_error_t SrsGoApiRtcNACK::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_error_new(ERROR_RTC_INVALID_PARAMS, "invalid drop=%s/%d", dropv.c_str(), drop);
     }
 
-    SrsRtcConnection *session = server_->find_rtc_session_by_username(username);
+    ISrsRtcConnection *session = server_->find_rtc_session_by_username(username);
     if (!session) {
         return srs_error_new(ERROR_RTC_NO_SESSION, "no session username=%s", username.c_str());
     }

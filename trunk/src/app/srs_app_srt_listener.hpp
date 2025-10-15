@@ -28,12 +28,14 @@ public:
 // Bind and listen SRT(udp) port, use handler to process the client.
 class SrsSrtListener : public ISrsCoroutineHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_srt_t lfd_;
     SrsSrtSocket *srt_skt_;
     ISrsCoroutine *trd_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSrtHandler *handler_;
     std::string ip_;
     int port_;

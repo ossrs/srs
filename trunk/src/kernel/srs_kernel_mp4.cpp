@@ -6493,6 +6493,14 @@ srs_error_t SrsMp4Decoder::do_load_next_box(SrsMp4Box **ppbox, uint32_t required
     return err;
 }
 
+ISrsMp4Encoder::ISrsMp4Encoder()
+{
+}
+
+ISrsMp4Encoder::~ISrsMp4Encoder()
+{
+}
+
 SrsMp4Encoder::SrsMp4Encoder()
 {
     wsio_ = NULL;
@@ -6641,7 +6649,7 @@ srs_error_t SrsMp4Encoder::flush()
     srs_error_t err = srs_success;
 
     if (!nb_audios_ && !nb_videos_) {
-        return srs_error_new(ERROR_MP4_ILLEGAL_MOOV, "Missing audio and video track");
+        return srs_error_new(ERROR_MP4_ILLEGAL_MOOV, "Missing audio and video track, nb_audios=%d, nb_videos=%d", nb_audios_, nb_videos_);
     }
 
     // Write moov.
@@ -6889,6 +6897,14 @@ srs_error_t SrsMp4Encoder::flush()
     return err;
 }
 
+void SrsMp4Encoder::set_audio_codec(SrsAudioCodecId vcodec, SrsAudioSampleRate sample_rate, SrsAudioSampleBits sound_bits, SrsAudioChannels channels)
+{
+    acodec_ = vcodec;
+    sample_rate_ = sample_rate;
+    sound_bits_ = sound_bits;
+    channels_ = channels;
+}
+
 srs_error_t SrsMp4Encoder::copy_sequence_header(SrsFormat *format, bool vsh, uint8_t *sample, uint32_t nb_sample)
 {
     srs_error_t err = srs_success;
@@ -6927,6 +6943,7 @@ srs_error_t SrsMp4Encoder::copy_sequence_header(SrsFormat *format, bool vsh, uin
             pavcc_ = std::vector<char>(sample, sample + nb_sample);
         }
         if (format && format->vcodec_) {
+            vcodec_ = format->vcodec_->id_;
             width_ = format->vcodec_->width_;
             height_ = format->vcodec_->height_;
         }
@@ -6972,6 +6989,14 @@ SrsMp4ObjectType SrsMp4Encoder::get_audio_object_type()
     default:
         return SrsMp4ObjectTypeForbidden;
     }
+}
+
+ISrsMp4M2tsInitEncoder::ISrsMp4M2tsInitEncoder()
+{
+}
+
+ISrsMp4M2tsInitEncoder::~ISrsMp4M2tsInitEncoder()
+{
 }
 
 SrsMp4M2tsInitEncoder::SrsMp4M2tsInitEncoder()
@@ -7562,6 +7587,14 @@ srs_error_t SrsMp4M2tsInitEncoder::config_sample_description_encryption(SrsMp4Sa
     sinf->set_schi(schi);
 
     return err;
+}
+
+ISrsMp4M2tsSegmentEncoder::ISrsMp4M2tsSegmentEncoder()
+{
+}
+
+ISrsMp4M2tsSegmentEncoder::~ISrsMp4M2tsSegmentEncoder()
+{
 }
 
 SrsMp4M2tsSegmentEncoder::SrsMp4M2tsSegmentEncoder()

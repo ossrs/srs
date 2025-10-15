@@ -71,10 +71,12 @@ public:
 // A pps manager every some duration.
 class SrsPps
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsClock *clk_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // samples
     SrsRateSample sample_10s_;
     SrsRateSample sample_30s_;
@@ -252,7 +254,8 @@ void srs_global_rtc_update(SrsKbsRtcStats *stats);
  */
 class SrsKbpsSlice
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsClock *clk_;
 
 public:
@@ -300,11 +303,23 @@ public:
     virtual void remark(int64_t *in, int64_t *out) = 0;
 };
 
+// The interface which provices delta of bytes. For example, we got a delta from a UDP client:
+class ISrsEphemeralDelta : public ISrsKbpsDelta
+{
+public:
+    ISrsEphemeralDelta();
+    virtual ~ISrsEphemeralDelta();
+
+public:
+    virtual void add_delta(int64_t in, int64_t out) = 0;
+};
+
 // A delta data source for SrsKbps, used in ephemeral case, for example, UDP server to increase stat when received or
 // sent out each UDP packet.
-class SrsEphemeralDelta : public ISrsKbpsDelta
+class SrsEphemeralDelta : public ISrsEphemeralDelta
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint64_t in_;
     uint64_t out_;
 
@@ -319,10 +334,22 @@ public:
     virtual void remark(int64_t *in, int64_t *out);
 };
 
-// A network delta data source for SrsKbps.
-class SrsNetworkDelta : public ISrsKbpsDelta
+// The interface which provices delta of bytes. For example, we got a delta from a TCP client:
+class ISrsNetworkDelta : public ISrsKbpsDelta
 {
-private:
+public:
+    ISrsNetworkDelta();
+    virtual ~ISrsNetworkDelta();
+
+public:
+    virtual void set_io(ISrsProtocolStatistic *in, ISrsProtocolStatistic *out) = 0;
+};
+
+// A network delta data source for SrsKbps.
+class SrsNetworkDelta : public ISrsNetworkDelta
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsProtocolStatistic *in_;
     ISrsProtocolStatistic *out_;
     uint64_t in_base_;
@@ -353,7 +380,8 @@ public:
  */
 class SrsKbps
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsKbpsSlice *is_;
     SrsKbpsSlice *os_;
     ISrsClock *clk_;
@@ -389,7 +417,8 @@ public:
 // A sugar to use SrsNetworkDelta and SrsKbps.
 class SrsNetworkKbps
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsNetworkDelta *delta_;
     SrsKbps *kbps_;
 

@@ -11,6 +11,7 @@
 #include <srs_app_http_conn.hpp>
 #include <srs_app_statistic.hpp>
 
+#include <srs_app_factory.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
@@ -176,11 +177,15 @@ void srs_build_features(stringstream &ss)
 SrsLatestVersion::SrsLatestVersion()
 {
     trd_ = new SrsSTCoroutine("signal", this);
+
+    app_factory_ = _srs_app_factory;
 }
 
 SrsLatestVersion::~SrsLatestVersion()
 {
     srs_freep(trd_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsLatestVersion::start()
@@ -255,8 +260,8 @@ srs_error_t SrsLatestVersion::query_latest_version(string &url)
     }
 
     // Start HTTP request and read response.
-    SrsHttpClient http;
-    if ((err = http.initialize(uri.get_schema(), uri.get_host(), uri.get_port())) != srs_success) {
+    SrsUniquePtr<ISrsHttpClient> http(app_factory_->create_http_client());
+    if ((err = http->initialize(uri.get_schema(), uri.get_host(), uri.get_port())) != srs_success) {
         return err;
     }
 
@@ -266,7 +271,7 @@ srs_error_t SrsLatestVersion::query_latest_version(string &url)
     path += uri.get_query();
 
     ISrsHttpMessage *msg_raw = NULL;
-    if ((err = http.get(path, "", &msg_raw)) != srs_success) {
+    if ((err = http->get(path, "", &msg_raw)) != srs_success) {
         return err;
     }
 

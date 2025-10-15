@@ -1,65 +1,65 @@
 ########################################################
 FROM ossrs/srs:dev-cache AS centos7-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=off --gb28181=off && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=off --gb28181=off && make
 
 FROM ossrs/srs:dev-cache AS centos7-no-webrtc
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=off --gb28181=off --rtc=off && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=off --gb28181=off --rtc=off && make
 
 FROM ossrs/srs:dev-cache AS centos7-no-asm
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=off --gb28181=off --nasm=off --srtp-nasm=off && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=off --gb28181=off --nasm=off --srtp-nasm=off && make
 
 FROM ossrs/srs:dev-cache AS centos7-all
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=on --gb28181=on --apm=on --h265=on && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=on --gb28181=on --apm=on --h265=on && make
 
 FROM ossrs/srs:dev-cache AS centos7-ansi-no-ffmpeg
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=off --gb28181=off --cxx11=off --cxx14=off --ffmpeg-fit=off && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=off --gb28181=off --cxx11=off --cxx14=off --ffmpeg-fit=off && make
 
 ########################################################
 FROM ossrs/srs:ubuntu16-cache AS ubuntu16-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=off --gb28181=off && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=off --gb28181=off && make
 
 FROM ossrs/srs:ubuntu16-cache AS ubuntu16-all
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=on --gb28181=on && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=on --gb28181=on && make
 
 ########################################################
 FROM ossrs/srs:ubuntu18-cache AS ubuntu18-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=off --gb28181=off && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=off --gb28181=off && make
 
 FROM ossrs/srs:ubuntu18-cache AS ubuntu18-all
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=on --gb28181=on && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=on --gb28181=on && make
 
 ########################################################
 FROM ossrs/srs:ubuntu20-cache AS ubuntu20-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=off --gb28181=off && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=off --gb28181=off && make
 
 FROM ossrs/srs:ubuntu20-cache AS ubuntu20-all
 COPY . /srs
-RUN cd /srs/trunk && ./configure --srt=on --gb28181=on --apm=on --h265=on && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --srt=on --gb28181=on --apm=on --h265=on && make
 
 ########################################################
 FROM ossrs/srs:ubuntu16-cache-cross-arm AS ubuntu16-cache-cross-armv7
 COPY . /srs
-RUN cd /srs/trunk && ./configure --cross-build --cross-prefix=arm-linux-gnueabihf- && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --cross-build --cross-prefix=arm-linux-gnueabihf- && make
 
 FROM ossrs/srs:ubuntu16-cache-cross-aarch64 AS ubuntu16-cache-cross-aarch64
 COPY . /srs
-RUN cd /srs/trunk && ./configure --cross-build --cross-prefix=aarch64-linux-gnu- && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --cross-build --cross-prefix=aarch64-linux-gnu- && make
 
 ########################################################
 FROM ossrs/srs:ubuntu20-cache-cross-arm AS ubuntu20-cache-cross-armv7
 COPY . /srs
-RUN cd /srs/trunk && ./configure --cross-build --cross-prefix=arm-linux-gnueabihf- && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --cross-build --cross-prefix=arm-linux-gnueabihf- && make
 
 FROM ossrs/srs:ubuntu20-cache-cross-aarch64 AS ubuntu20-cache-cross-aarch64
 COPY . /srs
-RUN cd /srs/trunk && ./configure --cross-build --cross-prefix=aarch64-linux-gnu- && make
+RUN cd /srs/trunk && ./configure --sanitizer=on --cross-build --cross-prefix=aarch64-linux-gnu- && make

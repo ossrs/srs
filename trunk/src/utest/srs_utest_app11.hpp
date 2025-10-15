@@ -16,6 +16,7 @@
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_http_stream.hpp>
 #include <srs_app_rtmp_source.hpp>
+#include <srs_app_server.hpp>
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_app6.hpp>
@@ -64,8 +65,8 @@ public:
 public:
     virtual void set_enable_stat(bool v);
     virtual srs_error_t on_start();
-    virtual srs_error_t on_http_message(ISrsHttpMessage *r, SrsHttpResponseWriter *w);
-    virtual srs_error_t on_message_done(ISrsHttpMessage *r, SrsHttpResponseWriter *w);
+    virtual srs_error_t on_http_message(ISrsHttpMessage *r, ISrsHttpResponseWriter *w);
+    virtual srs_error_t on_message_done(ISrsHttpMessage *r, ISrsHttpResponseWriter *w);
     virtual srs_error_t on_conn_done(srs_error_t r0);
 };
 
@@ -249,6 +250,17 @@ public:
     virtual void kbps_add_delta(std::string id, ISrsKbpsDelta *delta);
     virtual void kbps_sample();
     virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames);
+    virtual std::string server_id();
+    virtual std::string service_id();
+    virtual std::string service_pid();
+    virtual SrsStatisticVhost *find_vhost_by_id(std::string vid);
+    virtual SrsStatisticStream *find_stream(std::string sid);
+    virtual SrsStatisticStream *find_stream_by_url(std::string url);
+    virtual SrsStatisticClient *find_client(std::string client_id);
+    virtual srs_error_t dumps_vhosts(SrsJsonArray *arr);
+    virtual srs_error_t dumps_streams(SrsJsonArray *arr, int start, int count);
+    virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count);
+    virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs);
 };
 
 // Mock ISrsSecurity for testing SrsLiveStream::serve_http_impl
@@ -347,6 +359,64 @@ public:
     virtual std::string path();
     virtual std::string ext();
     virtual std::string host();
+};
+
+// Mock SrsHttpMessage for testing HTTP API response functions
+class MockHttpMessageForApiResponse : public SrsHttpMessage
+{
+public:
+    MockHttpConn *mock_conn_;
+    bool is_jsonp_;
+    std::string callback_;
+    std::string path_;
+    std::map<std::string, std::string> query_params_;
+
+public:
+    MockHttpMessageForApiResponse();
+    virtual ~MockHttpMessageForApiResponse();
+
+public:
+    virtual bool is_jsonp();
+    virtual std::string query_get(std::string key);
+    virtual std::string path();
+};
+
+// Mock ISrsSignalHandler for testing SrsGoApiRaw
+class MockSignalHandler : public ISrsSignalHandler
+{
+public:
+    int signal_received_;
+    int signal_count_;
+
+public:
+    MockSignalHandler();
+    virtual ~MockSignalHandler();
+
+public:
+    virtual void on_signal(int signo);
+    void reset();
+};
+
+// Mock ISrsAppConfig for testing SrsGoApiRaw
+class MockAppConfigForRawApi : public MockAppConfig
+{
+public:
+    bool raw_api_;
+    bool allow_reload_;
+    bool allow_query_;
+    bool allow_update_;
+    srs_error_t raw_to_json_error_;
+
+public:
+    MockAppConfigForRawApi();
+    virtual ~MockAppConfigForRawApi();
+
+public:
+    virtual bool get_raw_api();
+    virtual bool get_raw_api_allow_reload();
+    virtual bool get_raw_api_allow_query();
+    virtual bool get_raw_api_allow_update();
+    virtual srs_error_t raw_to_json(SrsJsonObject *obj);
 };
 
 #endif

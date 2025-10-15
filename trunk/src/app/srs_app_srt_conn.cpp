@@ -92,7 +92,15 @@ srs_error_t SrsSrtConnection::writev(const iovec *iov, int iov_size, ssize_t *nw
     return srs_error_new(ERROR_SRT_CONN, "unsupport method");
 }
 
-SrsSrtRecvThread::SrsSrtRecvThread(SrsSrtConnection *srt_conn)
+ISrsSrtRecvThread::ISrsSrtRecvThread()
+{
+}
+
+ISrsSrtRecvThread::~ISrsSrtRecvThread()
+{
+}
+
+SrsSrtRecvThread::SrsSrtRecvThread(ISrsProtocolReadWriter *srt_conn)
 {
     srt_conn_ = srt_conn;
     trd_ = new SrsSTCoroutine("srt-recv", this, _srs_context->get_id());
@@ -153,6 +161,14 @@ srs_error_t SrsSrtRecvThread::get_recv_err()
     return srs_error_copy(recv_err_);
 }
 
+ISrsMpegtsSrtConnection::ISrsMpegtsSrtConnection()
+{
+}
+
+ISrsMpegtsSrtConnection::~ISrsMpegtsSrtConnection()
+{
+}
+
 SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_srt_t srt_fd, std::string ip, int port) : srt_source_(new SrsSrtSource())
 {
     // Create a identify for this client.
@@ -176,6 +192,14 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_sr
     req_->ip_ = ip;
 
     security_ = new SrsSecurity();
+
+    stat_ = _srs_stat;
+    config_ = _srs_config;
+    stream_publish_tokens_ = _srs_stream_publish_tokens;
+    srt_sources_ = _srs_srt_sources;
+    live_sources_ = _srs_sources;
+    rtc_sources_ = _srs_rtc_sources;
+    hooks_ = _srs_hooks;
 }
 
 SrsMpegtsSrtConn::~SrsMpegtsSrtConn()
@@ -187,6 +211,14 @@ SrsMpegtsSrtConn::~SrsMpegtsSrtConn()
     srs_freep(srt_conn_);
     srs_freep(req_);
     srs_freep(security_);
+
+    stat_ = NULL;
+    config_ = NULL;
+    stream_publish_tokens_ = NULL;
+    srt_sources_ = NULL;
+    live_sources_ = NULL;
+    rtc_sources_ = NULL;
+    hooks_ = NULL;
 }
 
 std::string SrsMpegtsSrtConn::desc()
@@ -230,9 +262,8 @@ srs_error_t SrsMpegtsSrtConn::cycle()
     srs_error_t err = do_cycle();
 
     // Update statistic when done.
-    SrsStatistic *stat = _srs_stat;
-    stat->kbps_add_delta(get_id().c_str(), delta_);
-    stat->on_disconnect(get_id().c_str(), err);
+    stat_->kbps_add_delta(get_id().c_str(), delta_);
+    stat_->on_disconnect(get_id().c_str(), err);
 
     // Notify manager to remove it.
     // Note that we create this object, so we use manager to remove it.
@@ -262,7 +293,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
 
     // If streamid empty, using default streamid instead.
     if (streamid.empty()) {
-        streamid = _srs_config->get_srt_default_streamid();
+        streamid = config_->get_srt_default_streamid();
         srs_warn("srt get empty streamid, using default streamid %s instead", streamid.c_str());
     }
 
@@ -273,13 +304,13 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     }
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req_->vhost_);
+    SrsConfDirective *parsed_vhost = config_->get_vhost(req_->vhost_);
     if (parsed_vhost) {
         req_->vhost_ = parsed_vhost->arg0();
     }
 
-    bool srt_enabled = _srs_config->get_srt_enabled(req_->vhost_);
-    bool edge = _srs_config->get_vhost_is_edge(req_->vhost_);
+    bool srt_enabled = config_->get_srt_enabled(req_->vhost_);
+    bool edge = config_->get_vhost_is_edge(req_->vhost_);
 
     if (srt_enabled && edge) {
         srt_enabled = false;
@@ -295,7 +326,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
 
     // Acquire stream publish token to prevent race conditions across all protocols.
     SrsStreamPublishToken *publish_token_raw = NULL;
-    if (mode == SrtModePush && (err = _srs_stream_publish_tokens->acquire_token(req_, publish_token_raw)) != srs_success) {
+    if (mode == SrtModePush && (err = stream_publish_tokens_->acquire_token(req_, publish_token_raw)) != srs_success) {
         return srs_error_wrap(err, "acquire stream publish token");
     }
     SrsUniquePtr<SrsStreamPublishToken> publish_token(publish_token_raw);
@@ -303,7 +334,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
         srs_trace("stream publish token acquired, type=srt, url=%s", req_->get_stream_url().c_str());
     }
 
-    if ((err = _srs_srt_sources->fetch_or_create(req_, srt_source_)) != srs_success) {
+    if ((err = srt_sources_->fetch_or_create(req_, srt_source_)) != srs_success) {
         return srs_error_wrap(err, "fetch srt source");
     }
 
@@ -327,8 +358,7 @@ srs_error_t SrsMpegtsSrtConn::publishing()
     srs_error_t err = srs_success;
 
     // We must do stat the client before hooks, because hooks depends on it.
-    SrsStatistic *stat = _srs_stat;
-    if ((err = stat->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPublish)) != srs_success) {
+    if ((err = stat_->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPublish)) != srs_success) {
         return srs_error_wrap(err, "srt: stat client");
     }
 
@@ -356,8 +386,7 @@ srs_error_t SrsMpegtsSrtConn::playing()
     srs_error_t err = srs_success;
 
     // We must do stat the client before hooks, because hooks depends on it.
-    SrsStatistic *stat = _srs_stat;
-    if ((err = stat->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPlay)) != srs_success) {
+    if ((err = stat_->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPlay)) != srs_success) {
         return srs_error_wrap(err, "srt: stat client");
     }
 
@@ -387,19 +416,19 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
     }
 
     // Check rtmp stream is busy.
-    SrsSharedPtr<SrsLiveSource> live_source = _srs_sources->fetch(req_);
+    SrsSharedPtr<SrsLiveSource> live_source = live_sources_->fetch(req_);
     if (live_source.get() && !live_source->can_publish(false)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "live_source stream %s busy", req_->get_stream_url().c_str());
     }
 
-    if ((err = _srs_sources->fetch_or_create(req_, live_source)) != srs_success) {
+    if ((err = live_sources_->fetch_or_create(req_, live_source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
     srs_assert(live_source.get() != NULL);
 
-    bool enabled_cache = _srs_config->get_gop_cache(req_->vhost_);
-    int gcmf = _srs_config->get_gop_cache_max_frames(req_->vhost_);
+    bool enabled_cache = config_->get_gop_cache(req_->vhost_);
+    int gcmf = config_->get_gop_cache_max_frames(req_->vhost_);
     live_source->set_cache(enabled_cache);
     live_source->set_gop_cache_max_frames(gcmf);
 
@@ -408,9 +437,9 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
 
     // Check whether RTC stream is busy.
     SrsSharedPtr<SrsRtcSource> rtc;
-    bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
-    bool rtc_enabled = _srs_config->get_rtc_enabled(req_->vhost_);
-    bool edge = _srs_config->get_vhost_is_edge(req_->vhost_);
+    bool rtc_server_enabled = config_->get_rtc_server_enabled();
+    bool rtc_enabled = config_->get_rtc_enabled(req_->vhost_);
+    bool edge = config_->get_vhost_is_edge(req_->vhost_);
 
     if (rtc_enabled && edge) {
         rtc_enabled = false;
@@ -418,7 +447,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
     }
 
     if (rtc_server_enabled && rtc_enabled) {
-        if ((err = _srs_rtc_sources->fetch_or_create(req_, rtc)) != srs_success) {
+        if ((err = rtc_sources_->fetch_or_create(req_, rtc)) != srs_success) {
             return srs_error_wrap(err, "create source");
         }
 
@@ -430,7 +459,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
     // Bridge to RTMP and RTC streaming.
     SrsSrtBridge *bridge = new SrsSrtBridge();
 
-    bool srt_to_rtmp = _srs_config->get_srt_to_rtmp(req_->vhost_);
+    bool srt_to_rtmp = config_->get_srt_to_rtmp(req_->vhost_);
     if (srt_to_rtmp && edge) {
         srt_to_rtmp = false;
         srs_warn("disable SRT to RTMP for edge vhost=%s", req_->vhost_.c_str());
@@ -440,7 +469,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
         bridge->enable_srt2rtmp(live_source);
     }
 
-    bool rtmp_to_rtc = _srs_config->get_rtc_from_rtmp(req_->vhost_);
+    bool rtmp_to_rtc = config_->get_rtc_from_rtmp(req_->vhost_);
     if (rtmp_to_rtc && edge) {
         rtmp_to_rtc = false;
         srs_warn("disable RTMP to WebRTC for edge vhost=%s", req_->vhost_.c_str());
@@ -524,13 +553,13 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
 {
     srs_error_t err = srs_success;
 
-    SrsSrtConsumer *consumer_raw = NULL;
+    ISrsSrtConsumer *consumer_raw = NULL;
     if ((err = srt_source_->create_consumer(consumer_raw)) != srs_success) {
         return srs_error_wrap(err, "create consumer, ts source=%s", req_->get_stream_url().c_str());
     }
 
     srs_assert(consumer_raw);
-    SrsUniquePtr<SrsSrtConsumer> consumer(consumer_raw);
+    SrsUniquePtr<ISrsSrtConsumer> consumer(consumer_raw);
 
     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
     if ((err = srt_source_->consumer_dumps(consumer.get())) != srs_success) {
@@ -632,7 +661,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_connect()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
+    if (!config_->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return err;
     }
 
@@ -642,7 +671,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_connect()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_connect(req_->vhost_);
+        SrsConfDirective *conf = config_->get_vhost_on_connect(req_->vhost_);
 
         if (!conf) {
             return err;
@@ -653,7 +682,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_connect()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = _srs_hooks->on_connect(url, req_)) != srs_success) {
+        if ((err = hooks_->on_connect(url, req_)) != srs_success) {
             return srs_error_wrap(err, "srt on_connect %s", url.c_str());
         }
     }
@@ -663,7 +692,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_connect()
 
 void SrsMpegtsSrtConn::http_hooks_on_close()
 {
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
+    if (!config_->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return;
     }
 
@@ -673,7 +702,7 @@ void SrsMpegtsSrtConn::http_hooks_on_close()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_close(req_->vhost_);
+        SrsConfDirective *conf = config_->get_vhost_on_close(req_->vhost_);
 
         if (!conf) {
             return;
@@ -684,7 +713,7 @@ void SrsMpegtsSrtConn::http_hooks_on_close()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        _srs_hooks->on_close(url, req_, srt_conn_->get_send_bytes(), srt_conn_->get_recv_bytes());
+        hooks_->on_close(url, req_, srt_conn_->get_send_bytes(), srt_conn_->get_recv_bytes());
     }
 }
 
@@ -692,7 +721,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_publish()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
+    if (!config_->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return err;
     }
 
@@ -702,7 +731,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_publish()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_publish(req_->vhost_);
+        SrsConfDirective *conf = config_->get_vhost_on_publish(req_->vhost_);
 
         if (!conf) {
             return err;
@@ -713,7 +742,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_publish()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = _srs_hooks->on_publish(url, req_)) != srs_success) {
+        if ((err = hooks_->on_publish(url, req_)) != srs_success) {
             return srs_error_wrap(err, "srt on_publish %s", url.c_str());
         }
     }
@@ -723,7 +752,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_publish()
 
 void SrsMpegtsSrtConn::http_hooks_on_unpublish()
 {
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
+    if (!config_->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return;
     }
 
@@ -733,7 +762,7 @@ void SrsMpegtsSrtConn::http_hooks_on_unpublish()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_unpublish(req_->vhost_);
+        SrsConfDirective *conf = config_->get_vhost_on_unpublish(req_->vhost_);
 
         if (!conf) {
             return;
@@ -744,7 +773,7 @@ void SrsMpegtsSrtConn::http_hooks_on_unpublish()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        _srs_hooks->on_unpublish(url, req_);
+        hooks_->on_unpublish(url, req_);
     }
 }
 
@@ -752,7 +781,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_play()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
+    if (!config_->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return err;
     }
 
@@ -762,7 +791,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_play()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_play(req_->vhost_);
+        SrsConfDirective *conf = config_->get_vhost_on_play(req_->vhost_);
 
         if (!conf) {
             return err;
@@ -773,7 +802,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_play()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = _srs_hooks->on_play(url, req_)) != srs_success) {
+        if ((err = hooks_->on_play(url, req_)) != srs_success) {
             return srs_error_wrap(err, "srt on_play %s", url.c_str());
         }
     }
@@ -783,7 +812,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_play()
 
 void SrsMpegtsSrtConn::http_hooks_on_stop()
 {
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost_)) {
+    if (!config_->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return;
     }
 
@@ -793,7 +822,7 @@ void SrsMpegtsSrtConn::http_hooks_on_stop()
     vector<string> hooks;
 
     if (true) {
-        SrsConfDirective *conf = _srs_config->get_vhost_on_stop(req_->vhost_);
+        SrsConfDirective *conf = config_->get_vhost_on_stop(req_->vhost_);
 
         if (!conf) {
             return;
@@ -804,7 +833,7 @@ void SrsMpegtsSrtConn::http_hooks_on_stop()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        _srs_hooks->on_stop(url, req_);
+        hooks_->on_stop(url, req_);
     }
 
     return;

@@ -228,9 +228,6 @@ VOID TEST(SrsServerTest, ListenRtmpSuccess)
     // - Socket binding succeeded on the random port
     // - Connection manager started successfully
     EXPECT_TRUE(server.get() != NULL);
-
-    // Cleanup: restore original config to avoid side effects
-    server->config_ = _srs_config;
 }
 
 MockHttpServeMux::MockHttpServeMux()
@@ -272,7 +269,7 @@ VOID TEST(SrsServerTest, HttpHandleSuccess)
     EXPECT_TRUE(server.get() != NULL);
 
     // Inject mock HTTP API mux
-    ISrsHttpServeMux *original_mux = server->http_api_mux_;
+    ISrsCommonHttpHandler *original_mux = server->http_api_mux_;
     server->http_api_mux_ = mock_mux;
 
     // Set reuse_api_over_server_ to false to test all handler registrations
@@ -606,7 +603,7 @@ VOID TEST(ServerTest, SetupTicksWithStatsAndHeartbeat)
 
     // Create and inject mock app factory
     MockAppFactoryForSetupTicks *mock_factory = new MockAppFactoryForSetupTicks();
-    SrsAppFactory *original_factory = server->app_factory_;
+    ISrsAppFactory *original_factory = server->app_factory_;
     server->app_factory_ = mock_factory;
 
     // Test major use scenario: setup_ticks with stats and heartbeat enabled
@@ -702,12 +699,39 @@ void MockConnectionManagerForResampleKbps::add(ISrsResource *conn, bool *exists)
     connections_.push_back(conn);
 }
 
+void MockConnectionManagerForResampleKbps::add_with_id(const std::string & /*id*/, ISrsResource * /*conn*/)
+{
+}
+
+void MockConnectionManagerForResampleKbps::add_with_fast_id(uint64_t /*id*/, ISrsResource * /*conn*/)
+{
+}
+
+void MockConnectionManagerForResampleKbps::add_with_name(const std::string & /*name*/, ISrsResource * /*conn*/)
+{
+}
+
 ISrsResource *MockConnectionManagerForResampleKbps::at(int index)
 {
     if (index < 0 || index >= (int)connections_.size()) {
         return NULL;
     }
     return connections_[index];
+}
+
+ISrsResource *MockConnectionManagerForResampleKbps::find_by_id(std::string /*id*/)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManagerForResampleKbps::find_by_fast_id(uint64_t /*id*/)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManagerForResampleKbps::find_by_name(std::string /*name*/)
+{
+    return NULL;
 }
 
 void MockConnectionManagerForResampleKbps::remove(ISrsResource *c)
@@ -771,6 +795,67 @@ void MockStatisticForResampleKbps::kbps_sample()
 
 srs_error_t MockStatisticForResampleKbps::on_video_frames(ISrsRequest *req, int nb_frames)
 {
+    return srs_success;
+}
+
+std::string MockStatisticForResampleKbps::server_id()
+{
+    return "mock_server_id";
+}
+
+std::string MockStatisticForResampleKbps::service_id()
+{
+    return "mock_service_id";
+}
+
+std::string MockStatisticForResampleKbps::service_pid()
+{
+    return "mock_pid";
+}
+
+SrsStatisticVhost *MockStatisticForResampleKbps::find_vhost_by_id(std::string vid)
+{
+    return NULL;
+}
+
+SrsStatisticStream *MockStatisticForResampleKbps::find_stream(std::string sid)
+{
+    return NULL;
+}
+
+SrsStatisticStream *MockStatisticForResampleKbps::find_stream_by_url(std::string url)
+{
+    return NULL;
+}
+
+SrsStatisticClient *MockStatisticForResampleKbps::find_client(std::string client_id)
+{
+    return NULL;
+}
+
+srs_error_t MockStatisticForResampleKbps::dumps_vhosts(SrsJsonArray *arr)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForResampleKbps::dumps_streams(SrsJsonArray *arr, int start, int count)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForResampleKbps::dumps_clients(SrsJsonArray *arr, int start, int count)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForResampleKbps::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
+{
+    send_bytes = 0;
+    recv_bytes = 0;
+    nstreams = 0;
+    nclients = 0;
+    total_nclients = 0;
+    nerrs = 0;
     return srs_success;
 }
 
@@ -913,7 +998,34 @@ void MockConnectionManagerForConnectionLimit::add(ISrsResource *conn, bool *exis
 {
 }
 
+void MockConnectionManagerForConnectionLimit::add_with_id(const std::string & /*id*/, ISrsResource * /*conn*/)
+{
+}
+
+void MockConnectionManagerForConnectionLimit::add_with_fast_id(uint64_t /*id*/, ISrsResource * /*conn*/)
+{
+}
+
+void MockConnectionManagerForConnectionLimit::add_with_name(const std::string & /*name*/, ISrsResource * /*conn*/)
+{
+}
+
 ISrsResource *MockConnectionManagerForConnectionLimit::at(int index)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManagerForConnectionLimit::find_by_id(std::string /*id*/)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManagerForConnectionLimit::find_by_fast_id(uint64_t /*id*/)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManagerForConnectionLimit::find_by_name(std::string /*name*/)
 {
     return NULL;
 }
@@ -1657,7 +1769,7 @@ VOID TEST(SrsRtmpConnTest, StreamServiceCycleSelection)
 // Test srs_get_disk_diskstats_stat() function to verify proper disk statistics
 // collection from /proc/diskstats. This test covers the major use scenario of
 // reading disk I/O statistics for configured disk devices. The function uses
-// the global _srs_config to get disk device configuration.
+// the global config to get disk device configuration.
 VOID TEST(SrsUtilityTest, GetDiskDiskstatsStat)
 {
     // Test case 1: Call with default config - should return true with ok_ = true
@@ -2823,9 +2935,9 @@ VOID TEST(SrsRtmpConnTest, HttpHooksOnClose)
     EXPECT_EQ(0, mock_hooks->on_close_calls_[1].send_bytes_);
     EXPECT_EQ(0, mock_hooks->on_close_calls_[1].recv_bytes_);
 
-    // Cleanup: restore original config and hooks to avoid side effects
-    conn->config_ = _srs_config;
-    conn->hooks_ = _srs_hooks;
+    // Clean up injected dependencies to avoid double-free
+    conn->config_ = NULL;
+    conn->hooks_ = NULL;
     srs_freep(mock_config);
     srs_freep(mock_hooks);
 }
@@ -2977,9 +3089,9 @@ VOID TEST(SrsRtmpConnTest, HttpHooksOnPublishSuccess)
     EXPECT_STREQ("http://localhost:8085/api/v1/publish", mock_hooks->on_publish_calls_[1].first.c_str());
     EXPECT_TRUE(mock_hooks->on_publish_calls_[1].second == conn->info_->req_);
 
-    // Cleanup: restore original config and hooks to avoid side effects
-    conn->config_ = _srs_config;
-    conn->hooks_ = _srs_hooks;
+    // Clean up injected dependencies to avoid double-free
+    conn->config_ = NULL;
+    conn->hooks_ = NULL;
     srs_freep(mock_config);
     srs_freep(mock_hooks);
 }
@@ -3058,9 +3170,9 @@ VOID TEST(SrsRtmpConnTest, HttpHooksOnUnpublishSuccess)
     EXPECT_STREQ("http://localhost:8085/api/v1/unpublish", mock_hooks->on_unpublish_calls_[1].first.c_str());
     EXPECT_TRUE(mock_hooks->on_unpublish_calls_[1].second == conn->info_->req_);
 
-    // Cleanup: restore original config and hooks to avoid side effects
-    conn->config_ = _srs_config;
-    conn->hooks_ = _srs_hooks;
+    // Clean up injected dependencies to avoid double-free
+    conn->config_ = NULL;
+    conn->hooks_ = NULL;
     srs_freep(mock_config);
     srs_freep(mock_hooks);
 }
@@ -3139,9 +3251,9 @@ VOID TEST(SrsRtmpConnTest, HttpHooksOnStopSuccess)
     EXPECT_STREQ("http://localhost:8085/api/v1/stop", mock_hooks->on_stop_calls_[1].first.c_str());
     EXPECT_TRUE(mock_hooks->on_stop_calls_[1].second == conn->info_->req_);
 
-    // Cleanup: restore original config and hooks to avoid side effects
-    conn->config_ = _srs_config;
-    conn->hooks_ = _srs_hooks;
+    // Clean up injected dependencies to avoid double-free
+    conn->config_ = NULL;
+    conn->hooks_ = NULL;
     srs_freep(mock_config);
     srs_freep(mock_hooks);
 }
@@ -3293,9 +3405,9 @@ VOID TEST(SrsRtmpConnTest, HttpHooksOnPlaySuccess)
     EXPECT_STREQ("http://localhost:8085/api/v1/play", mock_hooks->on_play_calls_[1].first.c_str());
     EXPECT_TRUE(mock_hooks->on_play_calls_[1].second == conn->info_->req_);
 
-    // Cleanup: restore original config and hooks to avoid side effects
-    conn->config_ = _srs_config;
-    conn->hooks_ = _srs_hooks;
+    // Clean up injected dependencies to avoid double-free
+    conn->config_ = NULL;
+    conn->hooks_ = NULL;
     srs_freep(mock_config);
     srs_freep(mock_hooks);
 }

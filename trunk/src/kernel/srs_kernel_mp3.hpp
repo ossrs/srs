@@ -32,7 +32,8 @@ public:
  */
 class SrsMp3Transmuxer : public ISrsMp3Transmuxer
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsFileWriter *writer_;
 
 public:

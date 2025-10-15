@@ -27,6 +27,14 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
 
+ISrsProcess::ISrsProcess()
+{
+}
+
+ISrsProcess::~ISrsProcess()
+{
+}
+
 SrsProcess::SrsProcess()
 {
     is_started_ = false;

@@ -14,6 +14,14 @@
 #include <unistd.h>
 using namespace std;
 
+ISrsFragment::ISrsFragment()
+{
+}
+
+ISrsFragment::~ISrsFragment()
+{
+}
+
 SrsFragment::SrsFragment()
 {
     dur_ = 0;
@@ -155,22 +163,30 @@ uint64_t SrsFragment::number()
     return number_;
 }
 
+ISrsFragmentWindow::ISrsFragmentWindow()
+{
+}
+
+ISrsFragmentWindow::~ISrsFragmentWindow()
+{
+}
+
 SrsFragmentWindow::SrsFragmentWindow()
 {
 }
 
 SrsFragmentWindow::~SrsFragmentWindow()
 {
-    vector<SrsFragment *>::iterator it;
+    vector<ISrsFragment *>::iterator it;
 
     for (it = fragments_.begin(); it != fragments_.end(); ++it) {
-        SrsFragment *fragment = *it;
+        ISrsFragment *fragment = *it;
         srs_freep(fragment);
     }
     fragments_.clear();
 
     for (it = expired_fragments_.begin(); it != expired_fragments_.end(); ++it) {
-        SrsFragment *fragment = *it;
+        ISrsFragment *fragment = *it;
         srs_freep(fragment);
     }
     expired_fragments_.clear();
@@ -180,10 +196,10 @@ void SrsFragmentWindow::dispose()
 {
     srs_error_t err = srs_success;
 
-    std::vector<SrsFragment *>::iterator it;
+    std::vector<ISrsFragment *>::iterator it;
 
     for (it = fragments_.begin(); it != fragments_.end(); ++it) {
-        SrsFragment *fragment = *it;
+        ISrsFragment *fragment = *it;
         if ((err = fragment->unlink_file()) != srs_success) {
             srs_warn("Unlink ts failed %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -193,7 +209,7 @@ void SrsFragmentWindow::dispose()
     fragments_.clear();
 
     for (it = expired_fragments_.begin(); it != expired_fragments_.end(); ++it) {
-        SrsFragment *fragment = *it;
+        ISrsFragment *fragment = *it;
         if ((err = fragment->unlink_file()) != srs_success) {
             srs_warn("Unlink ts failed %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -203,7 +219,7 @@ void SrsFragmentWindow::dispose()
     expired_fragments_.clear();
 }
 
-void SrsFragmentWindow::append(SrsFragment *fragment)
+void SrsFragmentWindow::append(ISrsFragment *fragment)
 {
     fragments_.push_back(fragment);
 }
@@ -215,7 +231,7 @@ void SrsFragmentWindow::shrink(srs_utime_t window)
     int remove_index = -1;
 
     for (int i = (int)fragments_.size() - 1; i >= 0; i--) {
-        SrsFragment *fragment = fragments_[i];
+        ISrsFragment *fragment = fragments_[i];
         duration += fragment->duration();
 
         if (duration > window) {
@@ -225,7 +241,7 @@ void SrsFragmentWindow::shrink(srs_utime_t window)
     }
 
     for (int i = 0; i < remove_index && !fragments_.empty(); i++) {
-        SrsFragment *fragment = *fragments_.begin();
+        ISrsFragment *fragment = *fragments_.begin();
         fragments_.erase(fragments_.begin());
         expired_fragments_.push_back(fragment);
     }
@@ -235,10 +251,10 @@ void SrsFragmentWindow::clear_expired(bool delete_files)
 {
     srs_error_t err = srs_success;
 
-    std::vector<SrsFragment *>::iterator it;
+    std::vector<ISrsFragment *>::iterator it;
 
     for (it = expired_fragments_.begin(); it != expired_fragments_.end(); ++it) {
-        SrsFragment *fragment = *it;
+        ISrsFragment *fragment = *it;
         if (delete_files && (err = fragment->unlink_file()) != srs_success) {
             srs_warn("Unlink ts failed, %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -253,10 +269,10 @@ srs_utime_t SrsFragmentWindow::max_duration()
 {
     srs_utime_t v = 0;
 
-    std::vector<SrsFragment *>::iterator it;
+    std::vector<ISrsFragment *>::iterator it;
 
     for (it = fragments_.begin(); it != fragments_.end(); ++it) {
-        SrsFragment *fragment = *it;
+        ISrsFragment *fragment = *it;
         v = srs_max(v, fragment->duration());
     }
 
@@ -268,7 +284,7 @@ bool SrsFragmentWindow::empty()
     return fragments_.empty();
 }
 
-SrsFragment *SrsFragmentWindow::first()
+ISrsFragment *SrsFragmentWindow::first()
 {
     return fragments_.at(0);
 }
@@ -278,7 +294,7 @@ int SrsFragmentWindow::size()
     return (int)fragments_.size();
 }
 
-SrsFragment *SrsFragmentWindow::at(int index)
+ISrsFragment *SrsFragmentWindow::at(int index)
 {
     return fragments_.at(index);
 }

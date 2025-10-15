@@ -40,6 +40,28 @@ public:
     virtual srs_error_t filter(SrsHttpHeader *h);
 };
 
+// Mock response writer for JSONP testing - does not filter Content-Type header
+class MockResponseWriterForJsonp : public ISrsHttpResponseWriter, public ISrsHttpHeaderFilter
+{
+public:
+    SrsHttpResponseWriter *w;
+    MockBufferIO io;
+
+public:
+    MockResponseWriterForJsonp();
+    virtual ~MockResponseWriterForJsonp();
+
+public:
+    virtual srs_error_t final_request();
+    virtual SrsHttpHeader *header();
+    virtual srs_error_t write(char *data, int size);
+    virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite);
+    virtual void write_header(int code);
+
+public:
+    virtual srs_error_t filter(SrsHttpHeader *h);
+};
+
 class MockMSegmentsReader : public ISrsReader
 {
 public:

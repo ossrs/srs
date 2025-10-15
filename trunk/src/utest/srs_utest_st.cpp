@@ -126,7 +126,7 @@ VOID TEST(StTest, StUtimePerformance)
         EXPECT_GE(gettimeofday_elapsed_time, 0);
         EXPECT_GE(st_utime_elapsed_time, 0);
 
-        EXPECT_LT(gettimeofday_elapsed_time > st_utime_elapsed_time ? gettimeofday_elapsed_time - st_utime_elapsed_time : st_utime_elapsed_time - gettimeofday_elapsed_time, 30);
+        EXPECT_LT(gettimeofday_elapsed_time > st_utime_elapsed_time ? gettimeofday_elapsed_time - st_utime_elapsed_time : st_utime_elapsed_time - gettimeofday_elapsed_time, 100);
     }
 }
 

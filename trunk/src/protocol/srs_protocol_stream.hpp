@@ -49,7 +49,8 @@ public:
 // TODO: FIXME: add utest for it.
 class SrsFastStream
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
 #ifdef SRS_PERF_MERGED_READ
     // the merged handler
     bool merged_read_;

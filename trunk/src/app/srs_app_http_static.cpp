@@ -599,14 +599,27 @@ srs_error_t SrsVodStream::serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessag
     return err;
 }
 
+ISrsHttpStaticServer::ISrsHttpStaticServer()
+{
+}
+
+ISrsHttpStaticServer::~ISrsHttpStaticServer()
+{
+}
+
 SrsHttpStaticServer::SrsHttpStaticServer()
 {
-    _srs_config->subscribe(this);
+    mux_ = new SrsHttpServeMux();
 }
 
 SrsHttpStaticServer::~SrsHttpStaticServer()
 {
-    _srs_config->unsubscribe(this);
+    srs_freep(mux_);
+}
+
+srs_error_t SrsHttpStaticServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+{
+    return mux_->serve_http(w, r);
 }
 
 srs_error_t SrsHttpStaticServer::initialize()
@@ -640,13 +653,18 @@ srs_error_t SrsHttpStaticServer::initialize()
     if (!default_root_exists) {
         // add root
         std::string dir = _srs_config->get_http_stream_dir();
-        if ((err = mux_.handle("/", new SrsVodStream(dir))) != srs_success) {
+        if ((err = mux_->handle("/", new SrsVodStream(dir))) != srs_success) {
             return srs_error_wrap(err, "mount root dir=%s", dir.c_str());
         }
         srs_trace("http: root mount to %s", dir.c_str());
     }
 
     return err;
+}
+
+ISrsHttpServeMux *SrsHttpStaticServer::mux()
+{
+    return mux_;
 }
 
 srs_error_t SrsHttpStaticServer::mount_vhost(string vhost, string &pmount)
@@ -679,7 +697,7 @@ srs_error_t SrsHttpStaticServer::mount_vhost(string vhost, string &pmount)
     }
 
     // mount the http of vhost.
-    if ((err = mux_.handle(mount, new SrsVodStream(dir))) != srs_success) {
+    if ((err = mux_->handle(mount, new SrsVodStream(dir))) != srs_success) {
         return srs_error_wrap(err, "mux handle");
     }
     srs_trace("http: vhost=%s mount to %s at %s", vhost.c_str(), mount.c_str(), dir.c_str());

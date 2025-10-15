@@ -10,6 +10,7 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
@@ -33,6 +34,9 @@ SrsEncoder::SrsEncoder()
 {
     trd_ = new SrsDummyCoroutine();
     pprint_ = SrsPithyPrint::create_encoder();
+
+    config_ = _srs_config;
+    app_factory_ = _srs_app_factory;
 }
 
 SrsEncoder::~SrsEncoder()
@@ -41,6 +45,9 @@ SrsEncoder::~SrsEncoder()
 
     srs_freep(trd_);
     srs_freep(pprint_);
+
+    config_ = NULL;
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsEncoder::on_publish(ISrsRequest *req)
@@ -64,7 +71,7 @@ srs_error_t SrsEncoder::on_publish(ISrsRequest *req)
 
     // start thread to run all encoding engines.
     srs_freep(trd_);
-    trd_ = new SrsSTCoroutine("encoder", this, _srs_context->get_id());
+    trd_ = app_factory_->create_coroutine("encoder", this, _srs_context->get_id());
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start encoder");
     }
@@ -102,10 +109,10 @@ srs_error_t SrsEncoder::cycle()
     }
 
     // kill ffmpeg when finished and it alive
-    std::vector<SrsFFMPEG *>::iterator it;
+    std::vector<ISrsFFMPEG *>::iterator it;
 
     for (it = ffmpegs_.begin(); it != ffmpegs_.end(); ++it) {
-        SrsFFMPEG *ffmpeg = *it;
+        ISrsFFMPEG *ffmpeg = *it;
         ffmpeg->stop();
     }
 
@@ -116,9 +123,9 @@ srs_error_t SrsEncoder::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    std::vector<SrsFFMPEG *>::iterator it;
+    std::vector<ISrsFFMPEG *>::iterator it;
     for (it = ffmpegs_.begin(); it != ffmpegs_.end(); ++it) {
-        SrsFFMPEG *ffmpeg = *it;
+        ISrsFFMPEG *ffmpeg = *it;
 
         // start all ffmpegs.
         if ((err = ffmpeg->start()) != srs_success) {
@@ -139,10 +146,10 @@ srs_error_t SrsEncoder::do_cycle()
 
 void SrsEncoder::clear_engines()
 {
-    std::vector<SrsFFMPEG *>::iterator it;
+    std::vector<ISrsFFMPEG *>::iterator it;
 
     for (it = ffmpegs_.begin(); it != ffmpegs_.end(); ++it) {
-        SrsFFMPEG *ffmpeg = *it;
+        ISrsFFMPEG *ffmpeg = *it;
 
         std::string output = ffmpeg->output();
 
@@ -158,7 +165,7 @@ void SrsEncoder::clear_engines()
     ffmpegs_.clear();
 }
 
-SrsFFMPEG *SrsEncoder::at(int index)
+ISrsFFMPEG *SrsEncoder::at(int index)
 {
     return ffmpegs_[index];
 }
@@ -172,14 +179,14 @@ srs_error_t SrsEncoder::parse_scope_engines(ISrsRequest *req)
 
     // parse vhost scope engines
     std::string scope = "";
-    if ((conf = _srs_config->get_transcode(req->vhost_, scope)) != NULL) {
+    if ((conf = config_->get_transcode(req->vhost_, scope)) != NULL) {
         if ((err = parse_ffmpeg(req, conf)) != srs_success) {
             return srs_error_wrap(err, "parse ffmpeg");
         }
     }
     // parse app scope engines
     scope = req->app_;
-    if ((conf = _srs_config->get_transcode(req->vhost_, scope)) != NULL) {
+    if ((conf = config_->get_transcode(req->vhost_, scope)) != NULL) {
         if ((err = parse_ffmpeg(req, conf)) != srs_success) {
             return srs_error_wrap(err, "parse ffmpeg");
         }
@@ -187,7 +194,7 @@ srs_error_t SrsEncoder::parse_scope_engines(ISrsRequest *req)
     // parse stream scope engines
     scope += "/";
     scope += req->stream_;
-    if ((conf = _srs_config->get_transcode(req->vhost_, scope)) != NULL) {
+    if ((conf = config_->get_transcode(req->vhost_, scope)) != NULL) {
         if ((err = parse_ffmpeg(req, conf)) != srs_success) {
             return srs_error_wrap(err, "parse ffmpeg");
         }
@@ -203,20 +210,20 @@ srs_error_t SrsEncoder::parse_ffmpeg(ISrsRequest *req, SrsConfDirective *conf)
     srs_assert(conf);
 
     // enabled
-    if (!_srs_config->get_transcode_enabled(conf)) {
+    if (!config_->get_transcode_enabled(conf)) {
         srs_trace("ignore the disabled transcode: %s", conf->arg0().c_str());
         return err;
     }
 
     // ffmpeg
-    std::string ffmpeg_bin = _srs_config->get_transcode_ffmpeg(conf);
+    std::string ffmpeg_bin = config_->get_transcode_ffmpeg(conf);
     if (ffmpeg_bin.empty()) {
         srs_trace("ignore the empty ffmpeg transcode: %s", conf->arg0().c_str());
         return err;
     }
 
     // get all engines.
-    std::vector<SrsConfDirective *> engines = _srs_config->get_transcode_engines(conf);
+    std::vector<SrsConfDirective *> engines = config_->get_transcode_engines(conf);
     if (engines.empty()) {
         srs_trace("ignore the empty transcode engine: %s", conf->arg0().c_str());
         return err;
@@ -225,12 +232,12 @@ srs_error_t SrsEncoder::parse_ffmpeg(ISrsRequest *req, SrsConfDirective *conf)
     // create engine
     for (int i = 0; i < (int)engines.size(); i++) {
         SrsConfDirective *engine = engines[i];
-        if (!_srs_config->get_engine_enabled(engine)) {
+        if (!config_->get_engine_enabled(engine)) {
             srs_trace("ignore the diabled transcode engine: %s %s", conf->arg0().c_str(), engine->arg0().c_str());
             continue;
         }
 
-        SrsFFMPEG *ffmpeg = new SrsFFMPEG(ffmpeg_bin);
+        ISrsFFMPEG *ffmpeg = app_factory_->create_ffmpeg(ffmpeg_bin);
         if ((err = initialize_ffmpeg(ffmpeg, req, engine)) != srs_success) {
             srs_freep(ffmpeg);
             return srs_error_wrap(err, "init ffmpeg");
@@ -242,7 +249,7 @@ srs_error_t SrsEncoder::parse_ffmpeg(ISrsRequest *req, SrsConfDirective *conf)
     return err;
 }
 
-srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG *ffmpeg, ISrsRequest *req, SrsConfDirective *engine)
+srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, SrsConfDirective *engine)
 {
     srs_error_t err = srs_success;
 
@@ -267,7 +274,7 @@ srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG *ffmpeg, ISrsRequest *req, S
     input_stream_name_ += "/";
     input_stream_name_ += req->stream_;
 
-    std::string output = _srs_config->get_engine_output(engine);
+    std::string output = config_->get_engine_output(engine);
     // output stream, to other/self server
     // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_strings_replace(output, "[vhost]", req->vhost_);
@@ -280,8 +287,8 @@ srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG *ffmpeg, ISrsRequest *req, S
 
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
     // write ffmpeg info to log file.
-    if (_srs_config->get_ff_log_enabled()) {
-        log_file = _srs_config->get_ff_log_dir();
+    if (config_->get_ff_log_enabled()) {
+        log_file = config_->get_ff_log_dir();
         log_file += "/";
         log_file += "ffmpeg-encoder";
         log_file += "-";

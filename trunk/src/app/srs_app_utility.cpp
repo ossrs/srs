@@ -324,6 +324,27 @@ int64_t SrsProcSystemStat::total()
     return user_ + nice_ + sys_ + idle_ + iowait_ + irq_ + softirq_ + steal_ + guest_;
 }
 
+ISrsHost::ISrsHost()
+{
+}
+
+ISrsHost::~ISrsHost()
+{
+}
+
+SrsHost::SrsHost()
+{
+}
+
+SrsHost::~SrsHost()
+{
+}
+
+SrsProcSelfStat *SrsHost::self_proc_stat()
+{
+    return srs_get_self_proc_stat();
+}
+
 SrsProcSelfStat *srs_get_self_proc_stat()
 {
     return &_srs_system_cpu_self_stat;

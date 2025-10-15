@@ -137,10 +137,12 @@ public:
     SrsRtpExtensionTypes();
     virtual ~SrsRtpExtensionTypes();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     bool register_id(int id, SrsRtpExtensionType type, std::string uri);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint8_t ids_[kRtpExtensionNumberOfExtensions];
 };
 
@@ -197,17 +199,20 @@ public:
 // Note that the extensions should never extends from any class, for performance.
 class SrsRtpExtensions // : public ISrsCodec
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     bool has_ext_;
     // by default, twcc isnot decoded. Because it is decoded by fast function(srs_rtp_fast_parse_twcc)
     bool decode_twcc_extension_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The extension types is used to decode the packet, which is reference to
     // the types in publish stream.
     SrsRtpExtensionTypes *types_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtpExtensionTwcc twcc_;
     SrsRtpExtensionOneByte audio_level_;
 
@@ -227,7 +232,8 @@ public:
 public:
     virtual srs_error_t decode(SrsBuffer *buf);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t decode_0xbede(SrsBuffer *buf);
 
 public:
@@ -238,7 +244,8 @@ public:
 // Note that the header should never extends from any class, for performance.
 class SrsRtpHeader // : public ISrsCodec
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     uint8_t padding_length_;
     uint8_t cc_;
     bool marker_;
@@ -257,7 +264,8 @@ public:
 public:
     virtual srs_error_t decode(SrsBuffer *buf);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t parse_extensions(SrsBuffer *buf);
 
 public:
@@ -326,16 +334,19 @@ class SrsRtpPacket
 public:
     SrsRtpHeader header_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtpPayloader *payload_;
     SrsRtpPacketPayloadType payload_type_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The original shared memory block, all RTP packets can refer to its data.
     // Note that the size of shared memory block, is not the packet size, it's a larger aligned buffer.
     // @remark Note that it may point to the whole RTP packet(for RTP parser, which decode RTP packet from buffer),
     //      and it may point to the RTP payload(for RTMP to RTP, which build RTP header and payload).
-    SrsSharedPtr<SrsMemoryBlock> shared_buffer_;
+    SrsSharedPtr<SrsMemoryBlock>
+        shared_buffer_;
     // The size of RTP packet or RTP payload.
     int actual_buffer_size_;
     // Helper fields.
@@ -345,13 +356,15 @@ public:
     // The frame type, for RTMP bridge or SFU source.
     SrsFrameType frame_type_;
     // Fast cache for performance.
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The cached payload size for packet.
     int cached_payload_size_;
     // The helper handler for decoder, use RAW payload if NULL.
     ISrsRtpPacketDecodeHandler *decode_handler_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int64_t avsync_time_;
 
 public:
@@ -428,9 +441,11 @@ public:
 // Multiple NALUs, automatically insert 001 between NALUs.
 class SrsRtpRawNALUs : public ISrsRtpPayloader
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // We will manage the samples, but the sample itself point to the shared memory.
-    std::vector<SrsNaluSample *> nalus_;
+    std::vector<SrsNaluSample *>
+        nalus_;
     int nn_bytes_;
     int cursor_;
 

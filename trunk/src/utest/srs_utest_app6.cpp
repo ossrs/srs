@@ -17,6 +17,201 @@ using namespace std;
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_app2.hpp>
 
+// Mock ISrsResourceManager implementation
+MockResourceManagerForBindSession::MockResourceManagerForBindSession()
+{
+    session_to_return_ = NULL;
+}
+
+MockResourceManagerForBindSession::~MockResourceManagerForBindSession()
+{
+}
+
+srs_error_t MockResourceManagerForBindSession::start()
+{
+    return srs_success;
+}
+
+bool MockResourceManagerForBindSession::empty()
+{
+    return true;
+}
+
+size_t MockResourceManagerForBindSession::size()
+{
+    return 0;
+}
+
+void MockResourceManagerForBindSession::add(ISrsResource *conn, bool *exists)
+{
+}
+
+void MockResourceManagerForBindSession::add_with_id(const std::string &id, ISrsResource *conn)
+{
+}
+
+void MockResourceManagerForBindSession::add_with_fast_id(uint64_t id, ISrsResource *conn)
+{
+}
+
+void MockResourceManagerForBindSession::add_with_name(const std::string & /*name*/, ISrsResource * /*conn*/)
+{
+}
+
+ISrsResource *MockResourceManagerForBindSession::at(int index)
+{
+    return NULL;
+}
+
+ISrsResource *MockResourceManagerForBindSession::find_by_id(std::string id)
+{
+    return NULL;
+}
+
+ISrsResource *MockResourceManagerForBindSession::find_by_fast_id(uint64_t id)
+{
+    return session_to_return_;
+}
+
+ISrsResource *MockResourceManagerForBindSession::find_by_name(std::string /*name*/)
+{
+    return NULL;
+}
+
+void MockResourceManagerForBindSession::remove(ISrsResource *c)
+{
+}
+
+void MockResourceManagerForBindSession::subscribe(ISrsDisposingHandler *h)
+{
+}
+
+void MockResourceManagerForBindSession::unsubscribe(ISrsDisposingHandler *h)
+{
+}
+
+void MockResourceManagerForBindSession::reset()
+{
+    session_to_return_ = NULL;
+}
+
+// Mock ISrsEphemeralDelta implementation
+MockEphemeralDelta::MockEphemeralDelta()
+{
+    in_bytes_ = 0;
+    out_bytes_ = 0;
+}
+
+MockEphemeralDelta::~MockEphemeralDelta()
+{
+}
+
+void MockEphemeralDelta::add_delta(int64_t in, int64_t out)
+{
+    in_bytes_ += in;
+    out_bytes_ += out;
+}
+
+void MockEphemeralDelta::remark(int64_t *in, int64_t *out)
+{
+    if (in)
+        *in = in_bytes_;
+    if (out)
+        *out = out_bytes_;
+    in_bytes_ = 0;
+    out_bytes_ = 0;
+}
+
+void MockEphemeralDelta::reset()
+{
+    in_bytes_ = 0;
+    out_bytes_ = 0;
+}
+
+// Mock ISrsUdpMuxSocket implementation
+MockUdpMuxSocket::MockUdpMuxSocket()
+{
+    sendto_error_ = srs_success;
+    sendto_called_count_ = 0;
+    last_sendto_size_ = 0;
+    peer_ip_ = "192.168.1.100";
+    peer_port_ = 5000;
+    peer_id_ = "192.168.1.100:5000";
+    fast_id_ = 0;
+    data_ = NULL;
+    size_ = 0;
+}
+
+MockUdpMuxSocket::~MockUdpMuxSocket()
+{
+    srs_freep(sendto_error_);
+    data_ = NULL;
+}
+
+srs_error_t MockUdpMuxSocket::sendto(void *data, int size, srs_utime_t timeout)
+{
+    sendto_called_count_++;
+    last_sendto_size_ = size;
+    return srs_error_copy(sendto_error_);
+}
+
+std::string MockUdpMuxSocket::get_peer_ip() const
+{
+    return peer_ip_;
+}
+
+int MockUdpMuxSocket::get_peer_port() const
+{
+    return peer_port_;
+}
+
+std::string MockUdpMuxSocket::peer_id()
+{
+    return peer_id_;
+}
+
+uint64_t MockUdpMuxSocket::fast_id()
+{
+    return fast_id_;
+}
+
+SrsUdpMuxSocket *MockUdpMuxSocket::copy_sendonly()
+{
+    // Return self for testing purposes - in real implementation this creates a copy
+    return (SrsUdpMuxSocket *)this;
+}
+
+int MockUdpMuxSocket::recvfrom(srs_utime_t timeout)
+{
+    // Mock implementation - return the size of data received
+    return size_;
+}
+
+char *MockUdpMuxSocket::data()
+{
+    // Mock implementation - return the data buffer
+    return data_;
+}
+
+int MockUdpMuxSocket::size()
+{
+    // Mock implementation - return the size of data
+    return size_;
+}
+
+void MockUdpMuxSocket::reset()
+{
+    srs_freep(sendto_error_);
+    sendto_called_count_ = 0;
+    last_sendto_size_ = 0;
+}
+
+void MockUdpMuxSocket::set_sendto_error(srs_error_t err)
+{
+    srs_freep(sendto_error_);
+    sendto_error_ = srs_error_copy(err);
+}
+
 // Mock DTLS implementation
 MockDtls::MockDtls()
 {
@@ -166,6 +361,15 @@ void MockRtcNetwork::reset()
     is_established_ = true;
 }
 
+srs_error_t MockRtcNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
+{
+    return srs_success;
+}
+
+void MockRtcNetwork::set_state(SrsRtcNetworkState state)
+{
+}
+
 srs_error_t MockRtcNetwork::on_dtls_handshake_done()
 {
     on_dtls_handshake_done_count_++;
@@ -180,6 +384,11 @@ srs_error_t MockRtcNetwork::on_dtls_alert(std::string type, std::string desc)
     return srs_error_copy(on_dtls_alert_error_);
 }
 
+srs_error_t MockRtcNetwork::on_dtls(char *data, int nb_data)
+{
+    return srs_success;
+}
+
 srs_error_t MockRtcNetwork::protect_rtp(void *packet, int *nb_cipher)
 {
     protect_rtp_count_++;
@@ -190,6 +399,21 @@ srs_error_t MockRtcNetwork::protect_rtcp(void *packet, int *nb_cipher)
 {
     protect_rtcp_count_++;
     return srs_error_copy(protect_rtcp_error_);
+}
+
+srs_error_t MockRtcNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcNetwork::on_rtp(char *data, int nb_data)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcNetwork::on_rtcp(char *data, int nb_data)
+{
+    return srs_success;
 }
 
 bool MockRtcNetwork::is_establelished()
@@ -2152,6 +2376,11 @@ MockAppConfig::MockAppConfig()
     rtc_twcc_enabled_ = true;
     srt_enabled_ = false;
     rtc_to_rtmp_ = false;
+    dash_dispose_ = 0;
+    dash_enabled_ = false;
+    api_as_candidates_ = true;
+    resolve_api_domain_ = true;
+    keep_api_domain_ = false;
 }
 
 MockAppConfig::~MockAppConfig()
@@ -2195,6 +2424,11 @@ SrsConfDirective *MockAppConfig::get_vhost_on_unpublish(std::string vhost)
     return on_unpublish_directive_;
 }
 
+SrsConfDirective *MockAppConfig::get_vhost_on_dvr(std::string vhost)
+{
+    return NULL;
+}
+
 bool MockAppConfig::get_rtc_nack_enabled(std::string vhost)
 {
     return rtc_nack_enabled_;
@@ -2235,6 +2469,16 @@ bool MockAppConfig::get_srt_enabled(std::string vhost)
     return srt_enabled_;
 }
 
+std::string MockAppConfig::get_srt_default_streamid()
+{
+    return "#!::r=live/livestream,m=request";
+}
+
+bool MockAppConfig::get_srt_to_rtmp(std::string vhost)
+{
+    return true;
+}
+
 bool MockAppConfig::get_rtc_to_rtmp(std::string vhost)
 {
     return rtc_to_rtmp_;
@@ -2248,6 +2492,16 @@ srs_utime_t MockAppConfig::get_rtc_stun_timeout(std::string vhost)
 bool MockAppConfig::get_rtc_stun_strict_check(std::string vhost)
 {
     return false; // Default to non-strict mode
+}
+
+std::string MockAppConfig::get_rtc_dtls_role(std::string vhost)
+{
+    return "passive"; // Default DTLS role
+}
+
+std::string MockAppConfig::get_rtc_dtls_version(std::string vhost)
+{
+    return "auto"; // Default DTLS version
 }
 
 SrsConfDirective *MockAppConfig::get_vhost_on_hls(std::string vhost)
@@ -2525,6 +2779,21 @@ void MockAppConfig::set_rtc_to_rtmp(bool enabled)
     rtc_to_rtmp_ = enabled;
 }
 
+void MockAppConfig::set_api_as_candidates(bool enabled)
+{
+    api_as_candidates_ = enabled;
+}
+
+void MockAppConfig::set_resolve_api_domain(bool enabled)
+{
+    resolve_api_domain_ = enabled;
+}
+
+void MockAppConfig::set_keep_api_domain(bool enabled)
+{
+    keep_api_domain_ = enabled;
+}
+
 // Mock request implementation
 MockRtcAsyncCallRequest::MockRtcAsyncCallRequest(std::string vhost, std::string app, std::string stream)
 {
@@ -2702,6 +2971,67 @@ void MockRtcStatistic::kbps_sample()
 
 srs_error_t MockRtcStatistic::on_video_frames(ISrsRequest *req, int nb_frames)
 {
+    return srs_success;
+}
+
+std::string MockRtcStatistic::server_id()
+{
+    return "mock_server_id";
+}
+
+std::string MockRtcStatistic::service_id()
+{
+    return "mock_service_id";
+}
+
+std::string MockRtcStatistic::service_pid()
+{
+    return "mock_pid";
+}
+
+SrsStatisticVhost *MockRtcStatistic::find_vhost_by_id(std::string vid)
+{
+    return NULL;
+}
+
+SrsStatisticStream *MockRtcStatistic::find_stream(std::string sid)
+{
+    return NULL;
+}
+
+SrsStatisticStream *MockRtcStatistic::find_stream_by_url(std::string url)
+{
+    return NULL;
+}
+
+SrsStatisticClient *MockRtcStatistic::find_client(std::string client_id)
+{
+    return NULL;
+}
+
+srs_error_t MockRtcStatistic::dumps_vhosts(SrsJsonArray *arr)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcStatistic::dumps_streams(SrsJsonArray *arr, int start, int count)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcStatistic::dumps_clients(SrsJsonArray *arr, int start, int count)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcStatistic::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
+{
+    send_bytes = 0;
+    recv_bytes = 0;
+    nstreams = 0;
+    nclients = 0;
+    total_nclients = 0;
+    nerrs = 0;
     return srs_success;
 }
 

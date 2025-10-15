@@ -114,6 +114,56 @@ srs_error_t MockResponseWriter::filter(SrsHttpHeader *h)
     return srs_success;
 }
 
+MockResponseWriterForJsonp::MockResponseWriterForJsonp()
+{
+    w = new SrsHttpResponseWriter(&io);
+    w->set_header_filter(this);
+}
+
+MockResponseWriterForJsonp::~MockResponseWriterForJsonp()
+{
+    srs_freep(w);
+}
+
+srs_error_t MockResponseWriterForJsonp::final_request()
+{
+    return w->final_request();
+}
+
+SrsHttpHeader *MockResponseWriterForJsonp::header()
+{
+    return w->header();
+}
+
+srs_error_t MockResponseWriterForJsonp::write(char *data, int size)
+{
+    return w->write(data, size);
+}
+
+srs_error_t MockResponseWriterForJsonp::writev(const iovec *iov, int iovcnt, ssize_t *pnwrite)
+{
+    return w->writev(iov, iovcnt, pnwrite);
+}
+
+void MockResponseWriterForJsonp::write_header(int code)
+{
+    w->write_header(code);
+}
+
+srs_error_t MockResponseWriterForJsonp::filter(SrsHttpHeader *h)
+{
+    // Do NOT filter Content-Type for JSONP testing - we need to verify it
+    h->del("Server");
+    h->del("Connection");
+    h->del("Location");
+    h->del("Content-Range");
+    h->del("Access-Control-Allow-Origin");
+    h->del("Access-Control-Allow-Methods");
+    h->del("Access-Control-Expose-Headers");
+    h->del("Access-Control-Allow-Headers");
+    return srs_success;
+}
+
 string mock_http_response(int status, string content)
 {
     stringstream ss;

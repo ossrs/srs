@@ -1816,6 +1816,14 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp &n
     }
 }
 
+ISrsRtcConnection::ISrsRtcConnection()
+{
+}
+
+ISrsRtcConnection::~ISrsRtcConnection()
+{
+}
+
 ISrsRtcConnectionNackTimerHandler::ISrsRtcConnectionNackTimerHandler()
 {
 }
@@ -2401,17 +2409,22 @@ bool SrsRtcConnection::is_alive()
     return last_stun_time_ + session_timeout_ > srs_time_now_cached();
 }
 
+bool SrsRtcConnection::is_disposing()
+{
+    return disposing_;
+}
+
 void SrsRtcConnection::alive()
 {
     last_stun_time_ = srs_time_now_cached();
 }
 
-SrsRtcUdpNetwork *SrsRtcConnection::udp()
+ISrsRtcNetwork *SrsRtcConnection::udp()
 {
     return networks_->udp();
 }
 
-SrsRtcTcpNetwork *SrsRtcConnection::tcp()
+ISrsRtcNetwork *SrsRtcConnection::tcp()
 {
     return networks_->tcp();
 }

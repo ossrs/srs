@@ -267,6 +267,14 @@ srs_error_t SrsSslClient::write(void *plaintext, size_t nn_plaintext, ssize_t *n
     return err;
 }
 
+ISrsHttpClient::ISrsHttpClient()
+{
+}
+
+ISrsHttpClient::~ISrsHttpClient()
+{
+}
+
 SrsHttpClient::SrsHttpClient()
 {
     transport_ = NULL;

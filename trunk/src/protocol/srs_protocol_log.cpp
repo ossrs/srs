@@ -46,8 +46,14 @@ void _srs_context_destructor(void *arg)
     srs_freep(cid);
 }
 
+extern bool _srs_global_initialized;
+
 const SrsContextId &SrsThreadContext::get_id()
 {
+    if (!_srs_global_initialized) {
+        return _srs_context_default;
+    }
+
     ++_srs_pps_cids_get->sugar_;
 
     if (!srs_thread_self()) {
@@ -71,8 +77,14 @@ void SrsThreadContext::clear_cid()
 {
 }
 
+extern bool _srs_global_initialized;
 const SrsContextId &srs_context_set_cid_of(srs_thread_t trd, const SrsContextId &v)
 {
+    if (!_srs_global_initialized) {
+        _srs_context_default = v;
+        return v;
+    }
+
     ++_srs_pps_cids_set->sugar_;
 
     if (!trd) {

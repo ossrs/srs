@@ -150,6 +150,12 @@ void MockSrsFileWriter::close()
     uf->close();
 }
 
+srs_error_t MockSrsFileWriter::set_iobuf_size(int size)
+{
+    // Mock implementation - just return success
+    return srs_success;
+}
+
 bool MockSrsFileWriter::is_open()
 {
     return opened;

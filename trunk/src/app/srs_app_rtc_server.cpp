@@ -12,6 +12,7 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_rtc_api.hpp>
 #include <srs_app_rtc_conn.hpp>
@@ -177,11 +178,11 @@ bool srs_is_rtcp(const uint8_t *data, size_t len)
     return (len >= 12) && (data[0] & 0x80) && (data[1] >= 192 && data[1] <= 223);
 }
 
-srs_error_t api_server_as_candidates(string api, set<string> &candidate_ips)
+srs_error_t api_server_as_candidates(ISrsAppConfig *config, string api, set<string> &candidate_ips)
 {
     srs_error_t err = srs_success;
 
-    if (api.empty() || !_srs_config->get_api_as_candidates()) {
+    if (api.empty() || !config->get_api_as_candidates()) {
         return err;
     }
 
@@ -194,12 +195,12 @@ srs_error_t api_server_as_candidates(string api, set<string> &candidate_ips)
     }
 
     // Whether add domain name.
-    if (!srs_net_is_ipv4(hostname) && _srs_config->get_keep_api_domain()) {
+    if (!srs_net_is_ipv4(hostname) && config->get_keep_api_domain()) {
         candidate_ips.insert(hostname);
     }
 
     // Try to parse the domain name if not IP.
-    if (!srs_net_is_ipv4(hostname) && _srs_config->get_resolve_api_domain()) {
+    if (!srs_net_is_ipv4(hostname) && config->get_resolve_api_domain()) {
         int family = 0;
         string ip = srs_dns_resolve(hostname, family);
         if (ip.empty() || ip == SRS_CONSTS_LOCALHOST || ip == SRS_CONSTS_LOOPBACK || ip == SRS_CONSTS_LOOPBACK6) {
@@ -218,7 +219,7 @@ srs_error_t api_server_as_candidates(string api, set<string> &candidate_ips)
     return err;
 }
 
-set<string> discover_candidates(SrsRtcUserConfig *ruc)
+set<string> discover_candidates(SrsProtocolUtility *utility, ISrsAppConfig *config, SrsRtcUserConfig *ruc)
 {
     srs_error_t err = srs_success;
 
@@ -229,29 +230,28 @@ set<string> discover_candidates(SrsRtcUserConfig *ruc)
     }
 
     // Try to discover from api of request, if api_as_candidates enabled.
-    if ((err = api_server_as_candidates(ruc->req_->host_, candidate_ips)) != srs_success) {
+    if ((err = api_server_as_candidates(config, ruc->req_->host_, candidate_ips)) != srs_success) {
         srs_warn("ignore discovering ip from api %s, err %s", ruc->req_->host_.c_str(), srs_error_summary(err).c_str());
         srs_freep(err);
     }
 
     // If not * or 0.0.0.0, use the candidate as exposed IP.
-    string candidate = _srs_config->get_rtc_server_candidates();
+    string candidate = config->get_rtc_server_candidates();
     if (candidate != "*" && candidate != "0.0.0.0") {
         candidate_ips.insert(candidate);
         return candidate_ips;
     }
 
     // All automatically detected IP list.
-    SrsProtocolUtility utility;
-    vector<SrsIPAddress *> &ips = utility.local_ips();
+    vector<SrsIPAddress *> &ips = utility->local_ips();
     if (ips.empty()) {
         return candidate_ips;
     }
 
     // Discover from local network interface addresses.
-    if (_srs_config->get_use_auto_detect_network_ip()) {
+    if (config->get_use_auto_detect_network_ip()) {
         // We try to find the best match candidates, no loopback.
-        string family = _srs_config->get_rtc_server_ip_family();
+        string family = config->get_rtc_server_ip_family();
         for (int i = 0; i < (int)ips.size(); ++i) {
             SrsIPAddress *ip = ips[i];
             if (ip->is_loopback_) {
@@ -313,12 +313,26 @@ SrsRtcUserConfig::~SrsRtcUserConfig()
 SrsRtcSessionManager::SrsRtcSessionManager()
 {
     rtc_async_ = new SrsAsyncCallWorker();
+
+    conn_manager_ = _srs_conn_manager;
+    stream_publish_tokens_ = _srs_stream_publish_tokens;
+    rtc_sources_ = _srs_rtc_sources;
+    dtls_certificate_ = _srs_rtc_dtls_certificate;
+    config_ = _srs_config;
+    app_factory_ = _srs_app_factory;
 }
 
 SrsRtcSessionManager::~SrsRtcSessionManager()
 {
     rtc_async_->stop();
     srs_freep(rtc_async_);
+
+    conn_manager_ = NULL;
+    stream_publish_tokens_ = NULL;
+    rtc_sources_ = NULL;
+    dtls_certificate_ = NULL;
+    config_ = NULL;
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsRtcSessionManager::initialize()
@@ -332,13 +346,13 @@ srs_error_t SrsRtcSessionManager::initialize()
     return err;
 }
 
-SrsRtcConnection *SrsRtcSessionManager::find_rtc_session_by_username(const std::string &username)
+ISrsRtcConnection *SrsRtcSessionManager::find_rtc_session_by_username(const std::string &username)
 {
-    ISrsResource *conn = _srs_conn_manager->find_by_name(username);
-    return dynamic_cast<SrsRtcConnection *>(conn);
+    ISrsResource *conn = conn_manager_->find_by_name(username);
+    return dynamic_cast<ISrsRtcConnection *>(conn);
 }
 
-srs_error_t SrsRtcSessionManager::create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, SrsRtcConnection **psession)
+srs_error_t SrsRtcSessionManager::create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
 {
     srs_error_t err = srs_success;
 
@@ -346,7 +360,7 @@ srs_error_t SrsRtcSessionManager::create_rtc_session(SrsRtcUserConfig *ruc, SrsS
 
     // Acquire stream publish token to prevent race conditions across all protocols.
     SrsStreamPublishToken *publish_token_raw = NULL;
-    if (ruc->publish_ && (err = _srs_stream_publish_tokens->acquire_token(req, publish_token_raw)) != srs_success) {
+    if (ruc->publish_ && (err = stream_publish_tokens_->acquire_token(req, publish_token_raw)) != srs_success) {
         return srs_error_wrap(err, "acquire stream publish token");
     }
     SrsSharedPtr<SrsStreamPublishToken> publish_token(publish_token_raw);
@@ -355,7 +369,7 @@ srs_error_t SrsRtcSessionManager::create_rtc_session(SrsRtcUserConfig *ruc, SrsS
     }
 
     SrsSharedPtr<SrsRtcSource> source;
-    if ((err = _srs_rtc_sources->fetch_or_create(req, source)) != srs_success) {
+    if ((err = rtc_sources_->fetch_or_create(req, source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
@@ -365,8 +379,7 @@ srs_error_t SrsRtcSessionManager::create_rtc_session(SrsRtcUserConfig *ruc, SrsS
 
     // TODO: FIXME: add do_create_session to error process.
     SrsContextId cid = _srs_context->get_id();
-    SrsRtcConnection *session = new SrsRtcConnection(this, cid);
-    session->assemble();
+    ISrsRtcConnection *session = app_factory_->create_rtc_connection(this, cid);
 
     if ((err = do_create_rtc_session(ruc, local_sdp, session)) != srs_success) {
         srs_freep(session);
@@ -383,7 +396,7 @@ srs_error_t SrsRtcSessionManager::create_rtc_session(SrsRtcUserConfig *ruc, SrsS
     return err;
 }
 
-srs_error_t SrsRtcSessionManager::do_create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, SrsRtcConnection *session)
+srs_error_t SrsRtcSessionManager::do_create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection *session)
 {
     srs_error_t err = srs_success;
 
@@ -410,7 +423,7 @@ srs_error_t SrsRtcSessionManager::do_create_rtc_session(SrsRtcUserConfig *ruc, S
     std::string username = "";
     while (true) {
         username = local_ufrag + ":" + ruc->remote_sdp_.get_ice_ufrag();
-        if (!_srs_conn_manager->find_by_name(username)) {
+        if (!conn_manager_->find_by_name(username)) {
             break;
         }
 
@@ -421,7 +434,7 @@ srs_error_t SrsRtcSessionManager::do_create_rtc_session(SrsRtcUserConfig *ruc, S
     local_sdp.set_ice_ufrag(local_ufrag);
     local_sdp.set_ice_pwd(local_pwd);
     local_sdp.set_fingerprint_algo("sha-256");
-    local_sdp.set_fingerprint(_srs_rtc_dtls_certificate->get_fingerprint());
+    local_sdp.set_fingerprint(dtls_certificate_->get_fingerprint());
 
     // We allows to mock the eip of server.
     if (true) {
@@ -429,20 +442,21 @@ srs_error_t SrsRtcSessionManager::do_create_rtc_session(SrsRtcUserConfig *ruc, S
         int udp_port = 0;
         if (true) {
             string udp_host;
-            string udp_hostport = _srs_config->get_rtc_server_listens().at(0);
+            string udp_hostport = config_->get_rtc_server_listens().at(0);
             srs_net_split_for_listener(udp_hostport, udp_host, udp_port);
         }
 
         int tcp_port = 0;
         if (true) {
             string tcp_host;
-            string tcp_hostport = _srs_config->get_rtc_server_tcp_listens().at(0);
+            string tcp_hostport = config_->get_rtc_server_tcp_listens().at(0);
             srs_net_split_for_listener(tcp_hostport, tcp_host, tcp_port);
         }
 
-        string protocol = _srs_config->get_rtc_server_protocol();
+        string protocol = config_->get_rtc_server_protocol();
 
-        set<string> candidates = discover_candidates(ruc);
+        SrsProtocolUtility utility;
+        set<string> candidates = discover_candidates(&utility, config_, ruc);
         for (set<string>::iterator it = candidates.begin(); it != candidates.end(); ++it) {
             string hostname;
             int uport = udp_port;
@@ -494,7 +508,7 @@ srs_error_t SrsRtcSessionManager::do_create_rtc_session(SrsRtcUserConfig *ruc, S
     }
 
     // We allows username is optional, but it never empty here.
-    _srs_conn_manager->add_with_name(username, session);
+    conn_manager_->add_with_name(username, session);
 
     return err;
 }
@@ -505,10 +519,10 @@ void SrsRtcSessionManager::srs_update_rtc_sessions()
     int nn_rtc_conns = 0;
 
     // Check all sessions and dispose the dead sessions.
-    for (int i = 0; i < (int)_srs_conn_manager->size(); i++) {
-        SrsRtcConnection *session = dynamic_cast<SrsRtcConnection *>(_srs_conn_manager->at(i));
+    for (int i = 0; i < (int)conn_manager_->size(); i++) {
+        ISrsRtcConnection *session = dynamic_cast<ISrsRtcConnection *>(conn_manager_->at(i));
         // Ignore not session, or already disposing.
-        if (!session || session->disposing_) {
+        if (!session || session->is_disposing()) {
             continue;
         }
 
@@ -525,7 +539,7 @@ void SrsRtcSessionManager::srs_update_rtc_sessions()
         srs_trace("RTC: session destroy by timeout, username=%s", username.c_str());
 
         // Use manager to free session and notify other objects.
-        _srs_conn_manager->remove(session);
+        conn_manager_->remove(session);
     }
 
     // Ignore stats if no RTC connections.
@@ -556,11 +570,11 @@ srs_error_t SrsRtcSessionManager::exec_rtc_async_work(ISrsAsyncCallTask *t)
     return rtc_async_->execute(t);
 }
 
-srs_error_t SrsRtcSessionManager::on_udp_packet(SrsUdpMuxSocket *skt)
+srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
 {
     srs_error_t err = srs_success;
 
-    SrsRtcConnection *session = NULL;
+    ISrsRtcConnection *session = NULL;
     char *data = skt->data();
     int size = skt->size();
     bool is_rtp_or_rtcp = srs_is_rtp_or_rtcp((uint8_t *)data, size);
@@ -569,11 +583,11 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(SrsUdpMuxSocket *skt)
     uint64_t fast_id = skt->fast_id();
     // Try fast id first, if not found, search by long peer id.
     if (fast_id) {
-        session = (SrsRtcConnection *)_srs_conn_manager->find_by_fast_id(fast_id);
+        session = (ISrsRtcConnection *)conn_manager_->find_by_fast_id(fast_id);
     }
     if (!session) {
         string peer_id = skt->peer_id();
-        session = (SrsRtcConnection *)_srs_conn_manager->find_by_id(peer_id);
+        session = (ISrsRtcConnection *)conn_manager_->find_by_id(peer_id);
     }
 
     if (session) {
@@ -609,7 +623,9 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(SrsUdpMuxSocket *skt)
 
         // For each binding request, update the UDP socket.
         if (ping.is_binding_request()) {
-            session->udp()->update_sendonly_socket(skt);
+            SrsRtcUdpNetwork *udp_network = dynamic_cast<SrsRtcUdpNetwork *>(session->udp());
+            srs_assert(udp_network);
+            udp_network->update_sendonly_socket(skt);
         }
 
         return session->udp()->on_stun(&ping, data, size);

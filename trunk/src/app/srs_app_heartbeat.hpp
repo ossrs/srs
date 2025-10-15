@@ -9,9 +9,17 @@
 
 #include <srs_core.hpp>
 
+class ISrsAppConfig;
+class ISrsAppFactory;
+
 // The http heartbeat to api-server to notice api that the information of SRS.
 class SrsHttpHeartbeat
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+    ISrsAppFactory *app_factory_;
+
 public:
     SrsHttpHeartbeat();
     virtual ~SrsHttpHeartbeat();
@@ -19,7 +27,8 @@ public:
 public:
     virtual void heartbeat();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_heartbeat();
 };
 

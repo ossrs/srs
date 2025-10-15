@@ -171,6 +171,14 @@ bool SrsAlonePithyPrint::can_print()
 // The global stage manager for pithy print, multiple stages.
 SrsStageManager *_srs_stages = NULL;
 
+ISrsPithyPrint::ISrsPithyPrint()
+{
+}
+
+ISrsPithyPrint::~ISrsPithyPrint()
+{
+}
+
 SrsPithyPrint::SrsPithyPrint(int _stage_id)
 {
     stage_id_ = _stage_id;

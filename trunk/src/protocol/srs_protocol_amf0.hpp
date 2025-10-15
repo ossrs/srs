@@ -318,11 +318,13 @@ public:
  */
 class SrsAmf0Object : public SrsAmf0Any
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_internal::SrsUnSortedHashtable *properties_;
     srs_internal::SrsAmf0ObjectEOF *eof_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     friend class SrsAmf0Any;
     /**
      * make amf0 object to private,
@@ -410,12 +412,14 @@ public:
  */
 class SrsAmf0EcmaArray : public SrsAmf0Any
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_internal::SrsUnSortedHashtable *properties_;
     srs_internal::SrsAmf0ObjectEOF *eof_;
     int32_t count_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     friend class SrsAmf0Any;
     /**
      * make amf0 object to private,
@@ -498,11 +502,13 @@ public:
  */
 class SrsAmf0StrictArray : public SrsAmf0Any
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<SrsAmf0Any *> properties_;
     int32_t count_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     friend class SrsAmf0Any;
     /**
      * make amf0 object to private,
@@ -630,7 +636,8 @@ class SrsAmf0String : public SrsAmf0Any
 public:
     std::string value_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     friend class SrsAmf0Any;
     /**
      * make amf0 string to private,
@@ -660,7 +667,8 @@ class SrsAmf0Boolean : public SrsAmf0Any
 public:
     bool value_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     friend class SrsAmf0Any;
     /**
      * make amf0 boolean to private,
@@ -689,7 +697,8 @@ class SrsAmf0Number : public SrsAmf0Any
 public:
     double value_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     friend class SrsAmf0Any;
     /**
      * make amf0 number to private,
@@ -715,11 +724,13 @@ public:
  */
 class SrsAmf0Date : public SrsAmf0Any
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int64_t date_value_;
     int16_t time_zone_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     friend class SrsAmf0Any;
     /**
      * make amf0 date to private,
@@ -754,7 +765,8 @@ public:
  */
 class SrsAmf0Null : public SrsAmf0Any
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     friend class SrsAmf0Any;
     /**
      * make amf0 null to private,
@@ -779,7 +791,8 @@ public:
  */
 class SrsAmf0Undefined : public SrsAmf0Any
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     friend class SrsAmf0Any;
     /**
      * make amf0 undefined to private,
@@ -805,7 +818,8 @@ public:
  */
 class SrsUnSortedHashtable
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     typedef std::pair<std::string, SrsAmf0Any *> SrsAmf0ObjectPropertyType;
     std::vector<SrsAmf0ObjectPropertyType> properties_;
 

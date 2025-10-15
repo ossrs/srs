@@ -7734,7 +7734,8 @@ MockStage::MockStage(llhttp_t *from)
 
 class MockParser
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     llhttp_settings_t settings;
     llhttp_t *parser;
     size_t parsed;
@@ -7758,7 +7759,8 @@ public:
 public:
     srs_error_t parse(string data);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     static int on_message_begin(llhttp_t *parser);
     static int on_url(llhttp_t *parser, const char *at, size_t length);
     static int on_status(llhttp_t *parser, const char *at, size_t length);

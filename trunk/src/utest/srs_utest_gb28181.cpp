@@ -47,7 +47,7 @@ VOID TEST(KernelPSTest, PsPacketDecodePartialPesHeader2)
     SrsRecoverablePsContext context;
 
     // Ignore if PS header is not integrity.
-    context.ctx_.set_detect_ps_integrity(true);
+    context.ctx_->set_detect_ps_integrity(true);
 
     // A PES packet with complete header, but without enough data.
     string raw = string("\x00\x00\x01\xc0\x00\x82\x8c\x80", 8);
@@ -445,7 +445,7 @@ VOID TEST(KernelPSTest, PsPacketDecodeInvalidStartCode)
         ASSERT_EQ((size_t)3, handler.msgs_.size());
         EXPECT_EQ(0, context.recover_);
 
-        SrsTsMessage *last = context.ctx_.last_;
+        SrsTsMessage *last = context.ctx_->last();
         ASSERT_EQ(65472, last->PES_packet_length_);
         ASSERT_EQ(1156, last->payload_->length());
     }
@@ -459,12 +459,12 @@ VOID TEST(KernelPSTest, PsPacketDecodeInvalidStartCode)
         ASSERT_EQ((size_t)3, handler.msgs_.size()); // We don't clear handler, so there must be 3 messages.
         EXPECT_EQ(0, context.recover_);
 
-        SrsTsMessage *last = context.ctx_.last_;
+        SrsTsMessage *last = context.ctx_->last();
         ASSERT_EQ(65472, last->PES_packet_length_);
         ASSERT_EQ(1156 + 1400 * (i + 1), last->payload_->length());
     }
     if (true) {
-        SrsTsMessage *last = context.ctx_.last_;
+        SrsTsMessage *last = context.ctx_->last();
         ASSERT_EQ(65472, last->PES_packet_length_);
         ASSERT_EQ(64156, last->payload_->length());
     }
@@ -487,7 +487,7 @@ VOID TEST(KernelPSTest, PsPacketDecodeInvalidStartCode)
         ASSERT_EQ((size_t)4, handler.msgs_.size());
         EXPECT_EQ(0, context.recover_);
 
-        SrsTsMessage *last = context.ctx_.last_;
+        SrsTsMessage *last = context.ctx_->last();
         ASSERT_EQ(65472, last->PES_packet_length_);
         ASSERT_EQ(72, last->payload_->length());
     }
@@ -501,12 +501,12 @@ VOID TEST(KernelPSTest, PsPacketDecodeInvalidStartCode)
         ASSERT_EQ((size_t)4, handler.msgs_.size()); // We don't clear handler, so there must be 4 messages.
         EXPECT_EQ(0, context.recover_);
 
-        SrsTsMessage *last = context.ctx_.last_;
+        SrsTsMessage *last = context.ctx_->last();
         ASSERT_EQ(65472, last->PES_packet_length_);
         ASSERT_EQ(72 + 1400 * (i + 1), last->payload_->length());
     }
     if (true) {
-        SrsTsMessage *last = context.ctx_.last_;
+        SrsTsMessage *last = context.ctx_->last();
         ASSERT_EQ(65472, last->PES_packet_length_);
         ASSERT_EQ(64472, last->payload_->length());
     }
@@ -526,7 +526,7 @@ VOID TEST(KernelPSTest, PsPacketDecodeInvalidStartCode)
         ASSERT_EQ((size_t)5, handler.msgs_.size());
         EXPECT_EQ(0, context.recover_);
 
-        SrsTsMessage *last = context.ctx_.last_;
+        SrsTsMessage *last = context.ctx_->last();
         ASSERT_EQ(10172, last->PES_packet_length_);
         ASSERT_EQ(388, last->payload_->length());
     }
@@ -540,12 +540,12 @@ VOID TEST(KernelPSTest, PsPacketDecodeInvalidStartCode)
         ASSERT_EQ((size_t)5, handler.msgs_.size()); // We don't clear handler, so there must be 5 messages.
         EXPECT_EQ(0, context.recover_);
 
-        SrsTsMessage *last = context.ctx_.last_;
+        SrsTsMessage *last = context.ctx_->last();
         ASSERT_EQ(10172, last->PES_packet_length_);
         ASSERT_EQ(388 + 1400 * (i + 1), last->payload_->length());
     }
     if (true) {
-        SrsTsMessage *last = context.ctx_.last_;
+        SrsTsMessage *last = context.ctx_->last();
         ASSERT_EQ(10172, last->PES_packet_length_);
         ASSERT_EQ(8788, last->payload_->length());
     }
@@ -564,7 +564,7 @@ VOID TEST(KernelPSTest, PsPacketDecodeInvalidStartCode)
         ASSERT_EQ((size_t)6, handler.msgs_.size());
         EXPECT_EQ(0, context.recover_);
 
-        SrsTsMessage *last = context.ctx_.last_;
+        SrsTsMessage *last = context.ctx_->last();
         ASSERT_EQ(96, last->PES_packet_length_);
         ASSERT_EQ(0, last->payload_->length());
     }

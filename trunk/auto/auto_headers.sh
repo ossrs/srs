@@ -119,6 +119,12 @@ else
     srs_undefine_macro "SRS_UTEST" $SRS_AUTO_HEADERS_H
 fi
 
+if [[ $SRS_FORCE_PUBLIC4UTEST == YES ]]; then
+    srs_define_macro "SRS_FORCE_PUBLIC4UTEST" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_FORCE_PUBLIC4UTEST" $SRS_AUTO_HEADERS_H
+fi
+
 # whatever the FFMPEG tools, if transcode and ingest specified,
 # srs always compile the FFMPEG tool stub which used to start the FFMPEG process.
 if [[ $SRS_FFMPEG_STUB == YES ]]; then

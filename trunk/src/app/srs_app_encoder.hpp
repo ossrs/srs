@@ -17,7 +17,11 @@
 class SrsConfDirective;
 class ISrsRequest;
 class SrsPithyPrint;
+class ISrsPithyPrint;
 class SrsFFMPEG;
+class ISrsFFMPEG;
+class ISrsAppConfig;
+class ISrsAppFactory;
 
 // The encoder interface.
 class ISrsMediaEncoder
@@ -38,13 +42,20 @@ public:
 // ffmpegs to transcode the specified stream.
 class SrsEncoder : public ISrsCoroutineHandler, public ISrsMediaEncoder
 {
-private:
-    std::string input_stream_name_;
-    std::vector<SrsFFMPEG *> ffmpegs_;
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+    ISrsAppFactory *app_factory_;
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    std::string input_stream_name_;
+    std::vector<ISrsFFMPEG *> ffmpegs_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
-    SrsPithyPrint *pprint_;
+    ISrsPithyPrint *pprint_;
 
 public:
     SrsEncoder();
@@ -57,15 +68,17 @@ public:
 public:
     virtual srs_error_t cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle();
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     virtual void clear_engines();
-    virtual SrsFFMPEG *at(int index);
+    virtual ISrsFFMPEG *at(int index);
     virtual srs_error_t parse_scope_engines(ISrsRequest *req);
     virtual srs_error_t parse_ffmpeg(ISrsRequest *req, SrsConfDirective *conf);
-    virtual srs_error_t initialize_ffmpeg(SrsFFMPEG *ffmpeg, ISrsRequest *req, SrsConfDirective *engine);
+    virtual srs_error_t initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, SrsConfDirective *engine);
     virtual void show_encode_log_message();
 };
 

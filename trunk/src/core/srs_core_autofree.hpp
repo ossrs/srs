@@ -32,7 +32,8 @@
 template <class T>
 class SrsUniquePtr
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     T *ptr_;
     void (*deleter_)(T *);
 
@@ -63,19 +64,23 @@ public:
         return ptr_;
     }
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Copy the unique ptr.
     SrsUniquePtr(const SrsUniquePtr<T> &);
     // The assign operator.
     SrsUniquePtr<T> &operator=(const SrsUniquePtr<T> &);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Overload the * operator.
-    T &operator*();
+    T &
+    operator*();
     // Overload the bool operator.
     operator bool() const;
 #if __cplusplus >= 201103L // C++11
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The move constructor.
     SrsUniquePtr(SrsUniquePtr<T> &&);
     // The move assign operator.
@@ -96,7 +101,8 @@ private:
 template <class T>
 class SrsUniquePtr<T[]>
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     T *ptr_;
 
 public:
@@ -125,19 +131,23 @@ public:
         return ptr_[index];
     }
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Copy the unique ptr.
     SrsUniquePtr(const SrsUniquePtr<T> &);
     // The assign operator.
     SrsUniquePtr<T> &operator=(const SrsUniquePtr<T> &);
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Overload the * operator.
-    T &operator*();
+    T &
+    operator*();
     // Overload the bool operator.
     operator bool() const;
 #if __cplusplus >= 201103L // C++11
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The move constructor.
     SrsUniquePtr(SrsUniquePtr<T> &&);
     // The move assign operator.
@@ -157,7 +167,8 @@ private:
 template <class T>
 class SrsSharedPtr
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The pointer to the object.
     T *ptr_;
     // The reference count of the object.
@@ -181,9 +192,11 @@ public:
         reset();
     }
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Reset the shared ptr.
-    void reset()
+    void
+    reset()
     {
         if (!ref_count_)
             return;
@@ -235,9 +248,11 @@ public:
         return *this;
     }
 
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Overload the * operator.
-    T &operator*()
+    T &
+    operator*()
     {
         return *ptr_;
     }

@@ -35,7 +35,8 @@ public:
 
 class MockTcpHandler : public ISrsTcpHandler
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_netfd_t fd;
 
 public:
@@ -92,7 +93,13 @@ public:
     virtual bool empty();
     virtual size_t size();
     virtual void add(ISrsResource *conn, bool *exists = NULL);
+    virtual void add_with_id(const std::string &id, ISrsResource *conn);
+    virtual void add_with_fast_id(uint64_t id, ISrsResource *conn);
+    virtual void add_with_name(const std::string &name, ISrsResource *conn);
     virtual ISrsResource *at(int index);
+    virtual ISrsResource *find_by_id(std::string id);
+    virtual ISrsResource *find_by_fast_id(uint64_t id);
+    virtual ISrsResource *find_by_name(std::string name);
     virtual void remove(ISrsResource *c);
     virtual void subscribe(ISrsDisposingHandler *h);
     virtual void unsubscribe(ISrsDisposingHandler *h);

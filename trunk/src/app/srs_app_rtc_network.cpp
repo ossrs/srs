@@ -36,7 +36,15 @@ extern bool srs_is_dtls(const uint8_t *data, size_t len);
 extern bool srs_is_rtp_or_rtcp(const uint8_t *data, size_t len);
 extern bool srs_is_rtcp(const uint8_t *data, size_t len);
 
-SrsRtcNetworks::SrsRtcNetworks(SrsRtcConnection *conn)
+ISrsRtcNetworks::ISrsRtcNetworks()
+{
+}
+
+ISrsRtcNetworks::~ISrsRtcNetworks()
+{
+}
+
+SrsRtcNetworks::SrsRtcNetworks(ISrsRtcConnection *conn)
 {
     conn_ = conn;
     delta_ = new SrsEphemeralDelta();
@@ -74,12 +82,12 @@ void SrsRtcNetworks::set_state(SrsRtcNetworkState state)
     tcp_->set_state(state);
 }
 
-SrsRtcUdpNetwork *SrsRtcNetworks::udp()
+ISrsRtcNetwork *SrsRtcNetworks::udp()
 {
     return udp_;
 }
 
-SrsRtcTcpNetwork *SrsRtcNetworks::tcp()
+ISrsRtcNetwork *SrsRtcNetworks::tcp()
 {
     return tcp_;
 }
@@ -117,6 +125,15 @@ SrsRtcDummyNetwork::~SrsRtcDummyNetwork()
 {
 }
 
+srs_error_t SrsRtcDummyNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
+{
+    return srs_success;
+}
+
+void SrsRtcDummyNetwork::set_state(SrsRtcNetworkState state)
+{
+}
+
 bool SrsRtcDummyNetwork::is_establelished()
 {
     return true;
@@ -132,6 +149,11 @@ srs_error_t SrsRtcDummyNetwork::on_dtls_alert(std::string type, std::string desc
     return srs_success;
 }
 
+srs_error_t SrsRtcDummyNetwork::on_dtls(char *data, int nb_data)
+{
+    return srs_success;
+}
+
 srs_error_t SrsRtcDummyNetwork::protect_rtp(void *packet, int *nb_cipher)
 {
     return srs_success;
@@ -142,12 +164,27 @@ srs_error_t SrsRtcDummyNetwork::protect_rtcp(void *packet, int *nb_cipher)
     return srs_success;
 }
 
+srs_error_t SrsRtcDummyNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
+{
+    return srs_success;
+}
+
+srs_error_t SrsRtcDummyNetwork::on_rtp(char *data, int nb_data)
+{
+    return srs_success;
+}
+
+srs_error_t SrsRtcDummyNetwork::on_rtcp(char *data, int nb_data)
+{
+    return srs_success;
+}
+
 srs_error_t SrsRtcDummyNetwork::write(void *buf, size_t size, ssize_t *nwrite)
 {
     return srs_success;
 }
 
-SrsRtcUdpNetwork::SrsRtcUdpNetwork(SrsRtcConnection *conn, SrsEphemeralDelta *delta)
+SrsRtcUdpNetwork::SrsRtcUdpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *delta)
 {
     state_ = SrsRtcNetworkStateInit;
     conn_ = conn;
@@ -155,6 +192,8 @@ SrsRtcUdpNetwork::SrsRtcUdpNetwork(SrsRtcConnection *conn, SrsEphemeralDelta *de
     sendonly_skt_ = NULL;
     pp_address_change_ = new SrsErrorPithyPrint();
     transport_ = new SrsSecurityTransport(this);
+
+    conn_manager_ = _srs_conn_manager;
 }
 
 SrsRtcUdpNetwork::~SrsRtcUdpNetwork()
@@ -164,13 +203,15 @@ SrsRtcUdpNetwork::~SrsRtcUdpNetwork()
 
     // Note that we should never delete the sendonly_skt,
     // it's just point to the object in peer_addresses_.
-    map<string, SrsUdpMuxSocket *>::iterator it;
+    map<string, ISrsUdpMuxSocket *>::iterator it;
     for (it = peer_addresses_.begin(); it != peer_addresses_.end(); ++it) {
-        SrsUdpMuxSocket *addr = it->second;
+        ISrsUdpMuxSocket *addr = it->second;
         srs_freep(addr);
     }
 
     srs_freep(pp_address_change_);
+
+    conn_manager_ = NULL;
 }
 
 srs_error_t SrsRtcUdpNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
@@ -327,7 +368,7 @@ int SrsRtcUdpNetwork::get_peer_port()
     return sendonly_skt_->get_peer_port();
 }
 
-void SrsRtcUdpNetwork::update_sendonly_socket(SrsUdpMuxSocket *skt)
+void SrsRtcUdpNetwork::update_sendonly_socket(ISrsUdpMuxSocket *skt)
 {
     // TODO: FIXME: Refine performance.
     string prev_peer_id, peer_id = skt->peer_id();
@@ -341,9 +382,9 @@ void SrsRtcUdpNetwork::update_sendonly_socket(SrsUdpMuxSocket *skt)
     }
 
     // Find object from cache.
-    SrsUdpMuxSocket *addr_cache = NULL;
+    ISrsUdpMuxSocket *addr_cache = NULL;
     if (true) {
-        map<string, SrsUdpMuxSocket *>::iterator it = peer_addresses_.find(peer_id);
+        map<string, ISrsUdpMuxSocket *>::iterator it = peer_addresses_.find(peer_id);
         if (it != peer_addresses_.end()) {
             addr_cache = it->second;
         }
@@ -363,11 +404,11 @@ void SrsRtcUdpNetwork::update_sendonly_socket(SrsUdpMuxSocket *skt)
     // If no cache, build cache and setup the relations in connection.
     if (!addr_cache) {
         peer_addresses_[peer_id] = addr_cache = skt->copy_sendonly();
-        _srs_conn_manager->add_with_id(peer_id, conn_);
+        conn_manager_->add_with_id(peer_id, conn_);
 
         uint64_t fast_id = skt->fast_id();
         if (fast_id) {
-            _srs_conn_manager->add_with_fast_id(fast_id, conn_);
+            conn_manager_->add_with_fast_id(fast_id, conn_);
         }
     }
 
@@ -451,7 +492,7 @@ srs_error_t SrsRtcUdpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
     return sendonly_skt_->sendto(buf, size, SRS_UTIME_NO_TIMEOUT);
 }
 
-SrsRtcTcpNetwork::SrsRtcTcpNetwork(SrsRtcConnection *conn, SrsEphemeralDelta *delta) : owner_(new SrsRtcTcpConn())
+SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *delta) : owner_(new SrsRtcTcpConn())
 {
     conn_ = conn;
     delta_ = delta;
@@ -718,6 +759,17 @@ void SrsRtcTcpConn::setup()
     pkt_ = NULL;
     delta_ = NULL;
     skt_ = NULL;
+
+    conn_manager_ = _srs_conn_manager;
+    stat_ = _srs_stat;
+}
+
+ISrsRtcTcpConn::ISrsRtcTcpConn()
+{
+}
+
+ISrsRtcTcpConn::~ISrsRtcTcpConn()
+{
 }
 
 SrsRtcTcpConn::SrsRtcTcpConn()
@@ -743,9 +795,12 @@ SrsRtcTcpConn::~SrsRtcTcpConn()
     srs_freepa(pkt_);
     srs_freep(delta_);
     srs_freep(skt_);
+
+    conn_manager_ = NULL;
+    stat_ = NULL;
 }
 
-void SrsRtcTcpConn::setup_owner(SrsSharedResource<SrsRtcTcpConn> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid)
+void SrsRtcTcpConn::setup_owner(SrsSharedResource<ISrsRtcTcpConn> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid)
 {
     wrapper_ = wrapper;
     owner_coroutine_ = owner_coroutine;
@@ -789,8 +844,8 @@ srs_error_t SrsRtcTcpConn::cycle()
     srs_error_t err = do_cycle();
 
     // Only stat the HTTP streaming clients, ignore all API clients.
-    _srs_stat->on_disconnect(get_id().c_str(), err);
-    _srs_stat->kbps_add_delta(get_id().c_str(), delta_);
+    stat_->on_disconnect(get_id().c_str(), err);
+    stat_->kbps_add_delta(get_id().c_str(), delta_);
 
     // Only remove session when network is established, because client might use other UDP network.
     if (session_ && session_->tcp()->is_establelished()) {
@@ -888,7 +943,7 @@ srs_error_t SrsRtcTcpConn::handshake()
     }
 
     srs_assert(!session_);
-    SrsRtcConnection *session = dynamic_cast<SrsRtcConnection *>(_srs_conn_manager->find_by_name(ping.get_username()));
+    ISrsRtcConnection *session = dynamic_cast<ISrsRtcConnection *>(conn_manager_->find_by_name(ping.get_username()));
     // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
     if (!session) {
         return srs_error_new(ERROR_RTC_TCP_STUN, "no session, stun username=%s", ping.get_username().c_str());
@@ -910,12 +965,12 @@ srs_error_t SrsRtcTcpConn::handshake()
 
     // For each binding request, update the TCP socket.
     if (ping.is_binding_request()) {
-        session_->tcp()->update_sendonly_socket(skt_);
-        session_->tcp()->set_peer_id(ip_, port_);
+        network->update_sendonly_socket(skt_);
+        network->set_peer_id(ip_, port_);
     }
 
     // Use the session network to handle packet.
-    return session_->tcp()->on_stun(&ping, pkt_, npkt);
+    return network->on_stun(&ping, pkt_, npkt);
 }
 
 srs_error_t SrsRtcTcpConn::read_packet(char *pkt, int *nb_pkt)

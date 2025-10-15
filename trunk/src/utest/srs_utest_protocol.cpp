@@ -18,7 +18,9 @@ using namespace std;
 #include <srs_protocol_protobuf.hpp>
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#ifdef SRS_RTSP
 #include <srs_protocol_rtsp_stack.hpp>
+#endif
 #include <srs_protocol_utility.hpp>
 
 #include <srs_protocol_sdp.hpp>

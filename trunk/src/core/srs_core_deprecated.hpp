@@ -60,7 +60,7 @@
 // template<class T>
 // class impl_SrsAutoFree
 //{
-// private:
+// SRS_DECLARE_PRIVATE:
 //    T** ptr;
 //    bool is_array;
 //    bool _use_free;

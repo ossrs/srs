@@ -44,6 +44,14 @@ using namespace std;
 #define SRS_RTMP_ENCODER_LIBAACPLUS "libaacplus"
 #define SRS_RTMP_ENCODER_LIBFDKAAC "libfdk_aac"
 
+ISrsFFMPEG::ISrsFFMPEG()
+{
+}
+
+ISrsFFMPEG::~ISrsFFMPEG()
+{
+}
+
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
     ffmpeg_ = ffmpeg_bin;
@@ -58,6 +66,8 @@ SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
     achannels_ = 0;
 
     process_ = new SrsProcess();
+
+    config_ = _srs_config;
 }
 
 SrsFFMPEG::~SrsFFMPEG()
@@ -65,6 +75,8 @@ SrsFFMPEG::~SrsFFMPEG()
     stop();
 
     srs_freep(process_);
+
+    config_ = NULL;
 }
 
 void SrsFFMPEG::append_iparam(string iparam)
@@ -97,24 +109,24 @@ srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective *engine)
 {
     srs_error_t err = srs_success;
 
-    perfile_ = _srs_config->get_engine_perfile(engine);
-    iformat_ = _srs_config->get_engine_iformat(engine);
-    vfilter_ = _srs_config->get_engine_vfilter(engine);
-    vcodec_ = _srs_config->get_engine_vcodec(engine);
-    vbitrate_ = _srs_config->get_engine_vbitrate(engine);
-    vfps_ = _srs_config->get_engine_vfps(engine);
-    vwidth_ = _srs_config->get_engine_vwidth(engine);
-    vheight_ = _srs_config->get_engine_vheight(engine);
-    vthreads_ = _srs_config->get_engine_vthreads(engine);
-    vprofile_ = _srs_config->get_engine_vprofile(engine);
-    vpreset_ = _srs_config->get_engine_vpreset(engine);
-    vparams_ = _srs_config->get_engine_vparams(engine);
-    acodec_ = _srs_config->get_engine_acodec(engine);
-    abitrate_ = _srs_config->get_engine_abitrate(engine);
-    asample_rate_ = _srs_config->get_engine_asample_rate(engine);
-    achannels_ = _srs_config->get_engine_achannels(engine);
-    aparams_ = _srs_config->get_engine_aparams(engine);
-    oformat_ = _srs_config->get_engine_oformat(engine);
+    perfile_ = config_->get_engine_perfile(engine);
+    iformat_ = config_->get_engine_iformat(engine);
+    vfilter_ = config_->get_engine_vfilter(engine);
+    vcodec_ = config_->get_engine_vcodec(engine);
+    vbitrate_ = config_->get_engine_vbitrate(engine);
+    vfps_ = config_->get_engine_vfps(engine);
+    vwidth_ = config_->get_engine_vwidth(engine);
+    vheight_ = config_->get_engine_vheight(engine);
+    vthreads_ = config_->get_engine_vthreads(engine);
+    vprofile_ = config_->get_engine_vprofile(engine);
+    vpreset_ = config_->get_engine_vpreset(engine);
+    vparams_ = config_->get_engine_vparams(engine);
+    acodec_ = config_->get_engine_acodec(engine);
+    abitrate_ = config_->get_engine_abitrate(engine);
+    asample_rate_ = config_->get_engine_asample_rate(engine);
+    achannels_ = config_->get_engine_achannels(engine);
+    aparams_ = config_->get_engine_aparams(engine);
+    oformat_ = config_->get_engine_oformat(engine);
 
     // ensure the size is even.
     vwidth_ -= vwidth_ % 2;

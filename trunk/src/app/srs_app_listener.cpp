@@ -17,16 +17,16 @@
 #include <unistd.h>
 using namespace std;
 
+#include <srs_app_factory.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
-
-#include <srs_kernel_kbps.hpp>
 
 SrsPps *_srs_pps_rpkts = NULL;
 SrsPps *_srs_pps_addrs = NULL;
@@ -64,6 +64,14 @@ ISrsListener::~ISrsListener()
 {
 }
 
+ISrsIpListener::ISrsIpListener()
+{
+}
+
+ISrsIpListener::~ISrsIpListener()
+{
+}
+
 ISrsTcpHandler::ISrsTcpHandler()
 {
 }
@@ -83,6 +91,8 @@ SrsUdpListener::SrsUdpListener(ISrsUdpHandler *h)
     buf_ = new char[nb_buf_];
 
     trd_ = new SrsDummyCoroutine();
+
+    factory_ = _srs_app_factory;
 }
 
 SrsUdpListener::~SrsUdpListener()
@@ -90,15 +100,17 @@ SrsUdpListener::~SrsUdpListener()
     srs_freep(trd_);
     srs_close_stfd(lfd_);
     srs_freepa(buf_);
+
+    factory_ = NULL;
 }
 
-SrsUdpListener *SrsUdpListener::set_label(const std::string &label)
+ISrsListener *SrsUdpListener::set_label(const std::string &label)
 {
     label_ = label;
     return this;
 }
 
-SrsUdpListener *SrsUdpListener::set_endpoint(const std::string &i, int p)
+ISrsListener *SrsUdpListener::set_endpoint(const std::string &i, int p)
 {
     ip_ = i;
     port_ = p;
@@ -175,7 +187,7 @@ srs_error_t SrsUdpListener::listen()
     set_socket_buffer();
 
     srs_freep(trd_);
-    trd_ = new SrsSTCoroutine("udp", this, _srs_context->get_id());
+    trd_ = factory_->create_coroutine("udp", this, _srs_context->get_id());
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start thread");
     }
@@ -242,28 +254,32 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler *h)
     lfd_ = NULL;
     label_ = "TCP";
     trd_ = new SrsDummyCoroutine();
+
+    factory_ = _srs_app_factory;
 }
 
 SrsTcpListener::~SrsTcpListener()
 {
     srs_freep(trd_);
     srs_close_stfd(lfd_);
+
+    factory_ = NULL;
 }
 
-SrsTcpListener *SrsTcpListener::set_label(const std::string &label)
+ISrsListener *SrsTcpListener::set_label(const std::string &label)
 {
     label_ = label;
     return this;
 }
 
-SrsTcpListener *SrsTcpListener::set_endpoint(const std::string &i, int p)
+ISrsListener *SrsTcpListener::set_endpoint(const std::string &i, int p)
 {
     ip_ = i;
     port_ = p;
     return this;
 }
 
-SrsTcpListener *SrsTcpListener::set_endpoint(const std::string &endpoint)
+ISrsListener *SrsTcpListener::set_endpoint(const std::string &endpoint)
 {
     std::string ip;
     int port_;
@@ -290,7 +306,7 @@ srs_error_t SrsTcpListener::listen()
     }
 
     srs_freep(trd_);
-    trd_ = new SrsSTCoroutine("tcp", this);
+    trd_ = factory_->create_coroutine("tcp", this, _srs_context->get_id());
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start coroutine");
     }
@@ -348,35 +364,50 @@ srs_error_t SrsTcpListener::do_cycle()
 SrsMultipleTcpListeners::SrsMultipleTcpListeners(ISrsTcpHandler *h)
 {
     handler_ = h;
+
+    factory_ = _srs_app_factory;
 }
 
 SrsMultipleTcpListeners::~SrsMultipleTcpListeners()
 {
-    for (vector<SrsTcpListener *>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
-        SrsTcpListener *l = *it;
+    for (vector<ISrsIpListener *>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+        ISrsIpListener *l = *it;
         srs_freep(l);
     }
+
+    factory_ = NULL;
 }
 
-SrsMultipleTcpListeners *SrsMultipleTcpListeners::set_label(const std::string &label)
+ISrsListener *SrsMultipleTcpListeners::set_label(const std::string &label)
 {
-    for (vector<SrsTcpListener *>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
-        SrsTcpListener *l = *it;
+    for (vector<ISrsIpListener *>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+        ISrsIpListener *l = *it;
         l->set_label(label);
     }
 
     return this;
 }
 
-SrsMultipleTcpListeners *SrsMultipleTcpListeners::add(const std::vector<std::string> &endpoints)
+ISrsListener *SrsMultipleTcpListeners::set_endpoint(const std::string &i, int p)
+{
+    for (vector<ISrsIpListener *>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+        ISrsIpListener *l = *it;
+        l->set_endpoint(i, p);
+    }
+
+    return this;
+}
+
+ISrsIpListener *SrsMultipleTcpListeners::add(const std::vector<std::string> &endpoints)
 {
     for (int i = 0; i < (int)endpoints.size(); i++) {
         string ip;
         int port;
         srs_net_split_for_listener(endpoints[i], ip, port);
 
-        SrsTcpListener *l = new SrsTcpListener(this);
-        listeners_.push_back(l->set_endpoint(ip, port));
+        ISrsIpListener *l = factory_->create_tcp_listener(this);
+        l->set_endpoint(ip, port);
+        listeners_.push_back(l);
     }
 
     return this;
@@ -386,8 +417,8 @@ srs_error_t SrsMultipleTcpListeners::listen()
 {
     srs_error_t err = srs_success;
 
-    for (vector<SrsTcpListener *>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
-        SrsTcpListener *l = *it;
+    for (vector<ISrsIpListener *>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+        ISrsIpListener *l = *it;
 
         if ((err = l->listen()) != srs_success) {
             return srs_error_wrap(err, "listen");
@@ -399,8 +430,8 @@ srs_error_t SrsMultipleTcpListeners::listen()
 
 void SrsMultipleTcpListeners::close()
 {
-    for (vector<SrsTcpListener *>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
-        SrsTcpListener *l = *it;
+    for (vector<ISrsIpListener *>::iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+        ISrsIpListener *l = *it;
         srs_freep(l);
     }
     listeners_.clear();
@@ -409,6 +440,14 @@ void SrsMultipleTcpListeners::close()
 srs_error_t SrsMultipleTcpListeners::on_tcp_client(ISrsListener *listener, srs_netfd_t stfd)
 {
     return handler_->on_tcp_client(this, stfd);
+}
+
+ISrsUdpMuxSocket::ISrsUdpMuxSocket()
+{
+}
+
+ISrsUdpMuxSocket::~ISrsUdpMuxSocket()
+{
 }
 
 SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
@@ -593,7 +632,7 @@ SrsBuffer *SrsUdpMuxSocket::buffer()
     return cache_buffer_;
 }
 
-SrsUdpMuxSocket *SrsUdpMuxSocket::copy_sendonly()
+ISrsUdpMuxSocket *SrsUdpMuxSocket::copy_sendonly()
 {
     SrsUdpMuxSocket *sendonly = new SrsUdpMuxSocket(lfd_);
 
@@ -628,6 +667,8 @@ SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler *h, std::string i, int p)
 
     trd_ = new SrsDummyCoroutine();
     cid_ = _srs_context->generate_id();
+
+    factory_ = _srs_app_factory;
 }
 
 SrsUdpMuxListener::~SrsUdpMuxListener()
@@ -635,6 +676,8 @@ SrsUdpMuxListener::~SrsUdpMuxListener()
     srs_freep(trd_);
     srs_close_stfd(lfd_);
     srs_freepa(buf_);
+
+    factory_ = NULL;
 }
 
 int SrsUdpMuxListener::fd()
@@ -656,7 +699,7 @@ srs_error_t SrsUdpMuxListener::listen()
     }
 
     srs_freep(trd_);
-    trd_ = new SrsSTCoroutine("udp", this, cid_);
+    trd_ = factory_->create_coroutine("udp", this, cid_);
 
     // change stack size to 256K, fix crash when call some 3rd-part api.
     ((SrsSTCoroutine *)trd_)->set_stack_size(1 << 18);
@@ -727,7 +770,8 @@ srs_error_t SrsUdpMuxListener::cycle()
     // Because we have to decrypt the cipher of received packet payload,
     // and the size is not determined, so we think there is at least one copy,
     // and we can reuse the plaintext h264/opus with players when got plaintext.
-    SrsUdpMuxSocket skt(lfd_);
+    SrsUniquePtr<SrsUdpMuxSocket> skt_ptr(new SrsUdpMuxSocket(lfd_));
+    ISrsUdpMuxSocket *skt = skt_ptr.get();
 
     // How many messages to run a yield.
     uint32_t nn_msgs_for_yield = 0;
@@ -739,7 +783,7 @@ srs_error_t SrsUdpMuxListener::cycle()
 
         nn_loop++;
 
-        int nread = skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
+        int nread = skt->recvfrom(SRS_UTIME_NO_TIMEOUT);
         if (nread <= 0) {
             if (nread < 0) {
                 srs_warn("udp recv error nn=%d", nread);
@@ -752,7 +796,7 @@ srs_error_t SrsUdpMuxListener::cycle()
         nn_msgs_stage++;
 
         // Handle the UDP packet.
-        err = handler_->on_udp_packet(&skt);
+        err = handler_->on_udp_packet(skt);
 
         // Use pithy print to show more smart information.
         if (err != srs_success) {
@@ -762,7 +806,7 @@ srs_error_t SrsUdpMuxListener::cycle()
                 _srs_context->set_id(cid_);
 
                 // Append more information.
-                err = srs_error_wrap(err, "size=%u, data=[%s]", skt.size(), srs_strings_dumps_hex(skt.data(), skt.size(), 8).c_str());
+                err = srs_error_wrap(err, "size=%u, data=[%s]", skt->size(), srs_strings_dumps_hex(skt->data(), skt->size(), 8).c_str());
                 srs_warn("handle udp pkt, count=%u/%u, err: %s", pp_pkt_handler_err->nn_count_, nn, srs_error_desc(err).c_str());
             }
             srs_freep(err);

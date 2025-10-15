@@ -16,7 +16,8 @@
 
 class MyNormalObject
 {
-private:
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     int id_;
 
 public:

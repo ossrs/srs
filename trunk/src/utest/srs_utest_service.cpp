@@ -1371,7 +1371,34 @@ void MockConnectionManager::add(ISrsResource * /*conn*/, bool * /*exists*/)
 {
 }
 
+void MockConnectionManager::add_with_id(const std::string & /*id*/, ISrsResource * /*conn*/)
+{
+}
+
+void MockConnectionManager::add_with_fast_id(uint64_t /*id*/, ISrsResource * /*conn*/)
+{
+}
+
+void MockConnectionManager::add_with_name(const std::string & /*name*/, ISrsResource * /*conn*/)
+{
+}
+
 ISrsResource *MockConnectionManager::at(int /*index*/)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManager::find_by_id(std::string /*id*/)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManager::find_by_fast_id(uint64_t /*id*/)
+{
+    return NULL;
+}
+
+ISrsResource *MockConnectionManager::find_by_name(std::string /*name*/)
 {
     return NULL;
 }

@@ -29,6 +29,7 @@
 **/3rdparty/patches/**
 **/3rdparty/signaling/**
 **/3rdparty/srt-1-fit/**
+**/3rdparty/srs-bench/vendor/**
 
 # Research files.
 **/tools/**
