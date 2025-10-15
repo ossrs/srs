@@ -4556,12 +4556,12 @@ VOID TEST(CircuitBreakerTest, InitializeAndWaterLevelTransitions)
 
     // Configure circuit breaker settings
     mock_config->circuit_breaker_enabled_ = true;
-    mock_config->high_threshold_ = 90;      // CPU > 90% triggers high water level
-    mock_config->high_pulse_ = 2;           // High level lasts for 2 timer ticks
-    mock_config->critical_threshold_ = 95;  // CPU > 95% triggers critical water level
-    mock_config->critical_pulse_ = 1;       // Critical level lasts for 1 timer tick
-    mock_config->dying_threshold_ = 99;     // CPU > 99% triggers dying water level
-    mock_config->dying_pulse_ = 5;          // Dying level requires 5 consecutive ticks
+    mock_config->high_threshold_ = 90;     // CPU > 90% triggers high water level
+    mock_config->high_pulse_ = 2;          // High level lasts for 2 timer ticks
+    mock_config->critical_threshold_ = 95; // CPU > 95% triggers critical water level
+    mock_config->critical_pulse_ = 1;      // Critical level lasts for 1 timer tick
+    mock_config->dying_threshold_ = 99;    // CPU > 99% triggers dying water level
+    mock_config->dying_pulse_ = 5;         // Dying level requires 5 consecutive ticks
 
     // Create SrsCircuitBreaker
     SrsUniquePtr<SrsCircuitBreaker> breaker(new SrsCircuitBreaker());
@@ -4584,7 +4584,7 @@ VOID TEST(CircuitBreakerTest, InitializeAndWaterLevelTransitions)
     EXPECT_FALSE(breaker->hybrid_dying_water_level());
 
     // Test 3: Simulate high CPU load (91% > high_threshold 90%)
-    mock_host->proc_stat_->percent_ = 0.91;  // 91% CPU
+    mock_host->proc_stat_->percent_ = 0.91; // 91% CPU
     HELPER_EXPECT_SUCCESS(breaker->on_timer(1 * SRS_UTIME_SECONDS));
 
     // After 1 tick with high CPU, high water level should be active
@@ -4593,7 +4593,7 @@ VOID TEST(CircuitBreakerTest, InitializeAndWaterLevelTransitions)
     EXPECT_FALSE(breaker->hybrid_dying_water_level());
 
     // Test 4: Simulate critical CPU load (96% > critical_threshold 95%)
-    mock_host->proc_stat_->percent_ = 0.96;  // 96% CPU
+    mock_host->proc_stat_->percent_ = 0.96; // 96% CPU
     HELPER_EXPECT_SUCCESS(breaker->on_timer(1 * SRS_UTIME_SECONDS));
 
     // After 1 tick with critical CPU, both high and critical should be active
@@ -4603,7 +4603,7 @@ VOID TEST(CircuitBreakerTest, InitializeAndWaterLevelTransitions)
 
     // Test 5: Simulate dying CPU load (99.5% > dying_threshold 99%)
     // Need 5 consecutive ticks to activate dying level
-    mock_host->proc_stat_->percent_ = 0.995;  // 99.5% CPU
+    mock_host->proc_stat_->percent_ = 0.995; // 99.5% CPU
     for (int i = 0; i < 5; i++) {
         HELPER_EXPECT_SUCCESS(breaker->on_timer(1 * SRS_UTIME_SECONDS));
     }
@@ -4614,7 +4614,7 @@ VOID TEST(CircuitBreakerTest, InitializeAndWaterLevelTransitions)
     EXPECT_TRUE(breaker->hybrid_dying_water_level());
 
     // Test 6: Simulate CPU load decrease (back to 50%)
-    mock_host->proc_stat_->percent_ = 0.50;  // 50% CPU
+    mock_host->proc_stat_->percent_ = 0.50; // 50% CPU
     HELPER_EXPECT_SUCCESS(breaker->on_timer(1 * SRS_UTIME_SECONDS));
 
     // Dying level should immediately reset to 0 when CPU drops
@@ -4627,7 +4627,7 @@ VOID TEST(CircuitBreakerTest, InitializeAndWaterLevelTransitions)
 
     // Test 7: Continue with low CPU - high should decay to 0 after 1 more tick
     HELPER_EXPECT_SUCCESS(breaker->on_timer(1 * SRS_UTIME_SECONDS));
-    EXPECT_FALSE(breaker->hybrid_high_water_level());  // High now false (high_water_level_ = 0)
+    EXPECT_FALSE(breaker->hybrid_high_water_level()); // High now false (high_water_level_ = 0)
     EXPECT_FALSE(breaker->hybrid_critical_water_level());
     EXPECT_FALSE(breaker->hybrid_dying_water_level());
 
