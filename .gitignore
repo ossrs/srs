@@ -25,6 +25,7 @@
 /trunk/research/api-server/static-dir/forward
 /trunk/research/api-server/static-dir/live
 /trunk/research/api-server/static-dir/players
+/trunk/DVR_Record
 
 # Apple-specific garbage files.
 .AppleDouble
