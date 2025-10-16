@@ -516,6 +516,75 @@ Output:
 
 Winlin 2020.02
 
+## IPv6
+
+SRS (v7.0.67+) supports IPv6 for WebRTC protocols, enabling dual-stack (IPv4/IPv6) operation for both UDP and TCP media transport. This includes support for WHIP/WHEP signaling and media transmission over IPv6.
+
+IPv6 support is enabled automatically when SRS detects IPv6 addresses in the configuration. Configure the RTC server to listen on IPv6 addresses:
+
+```bash
+rtc_server {
+    enabled on;
+    # Listen on both IPv4 and IPv6 for UDP media
+    listen 8000 [::]:8000;
+
+    # For WebRTC over TCP
+    tcp {
+        enabled on;
+        listen 8000 [::]:8000;
+    }
+}
+
+# HTTP API server for WHIP/WHEP over IPv6
+http_api {
+    enabled on;
+    listen 1985 [::]:1985;
+}
+
+# HTTPS API server for secure WHIP/WHEP over IPv6
+https_api {
+    enabled on;
+    listen 1990 [::]:1990;
+    key ./conf/server.key;
+    cert ./conf/server.crt;
+}
+```
+
+Publish using WHIP via IPv6:
+- WHIP URL: `http://[::1]:1985/rtc/v1/whip/?app=live&stream=livestream`
+- Test page: [http://[::1]:8080/players/whip.html](http://[::1]:8080/players/whip.html)
+
+Play using WHEP via IPv6:
+- WHEP URL: `http://[::1]:1985/rtc/v1/whep/?app=live&stream=livestream`
+- Test page: [http://[::1]:8080/players/whep.html](http://[::1]:8080/players/whep.html)
+
+For secure connections over IPv6:
+
+Publish using WHIP via HTTPS IPv6:
+- WHIP URL: `https://[::1]:1990/rtc/v1/whip/?app=live&stream=livestream`
+- Test page: [https://[::1]:8088/players/whip.html](https://[::1]:8088/players/whip.html)
+
+Play using WHEP via HTTPS IPv6:
+- WHEP URL: `https://[::1]:1990/rtc/v1/whep/?app=live&stream=livestream`
+- Test page: [https://[::1]:8088/players/whep.html](https://[::1]:8088/players/whep.html)
+
+SRS supports dual-stack WebRTC, allowing both IPv4 and IPv6 clients to connect simultaneously:
+
+```bash
+rtc_server {
+    enabled on;
+    # Listen on both IPv4 and IPv6
+    listen 8000 [::]:8000;
+
+    # Configure candidates for both protocols
+    candidate 192.168.1.100 [2001:db8::1];
+}
+```
+
+This enables:
+- IPv4 clients to connect via: `http://192.168.1.100:1985/rtc/v1/whip/`
+- IPv6 clients to connect via: `http://[2001:db8::1]:1985/rtc/v1/whip/`
+
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.io&path=/lts/doc/en/v7/webrtc)
 
 

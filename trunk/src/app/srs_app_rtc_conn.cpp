@@ -21,6 +21,7 @@ using namespace std;
 
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_log.hpp>
@@ -304,6 +305,14 @@ ISrsRtcPliWorkerHandler::~ISrsRtcPliWorkerHandler()
 {
 }
 
+ISrsRtcPliWorker::ISrsRtcPliWorker()
+{
+}
+
+ISrsRtcPliWorker::~ISrsRtcPliWorker()
+{
+}
+
 SrsRtcPliWorker::SrsRtcPliWorker(ISrsRtcPliWorkerHandler *h)
 {
     handler_ = h;
@@ -455,6 +464,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expir
     config_ = _srs_config;
     rtc_sources_ = _srs_rtc_sources;
     stat_ = _srs_stat;
+    app_factory_ = _srs_app_factory;
 }
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
@@ -491,6 +501,7 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
     config_ = NULL;
     rtc_sources_ = NULL;
     stat_ = NULL;
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsRtcPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, SrsRtcTrackDescription *> sub_relations)
@@ -617,7 +628,7 @@ srs_error_t SrsRtcPlayStream::start()
     }
 
     srs_freep(trd_);
-    trd_ = new SrsFastCoroutine("rtc_sender", this, cid_);
+    trd_ = app_factory_->create_coroutine("rtc_sender", this, cid_);
 
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "rtc_sender");

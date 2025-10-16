@@ -64,6 +64,8 @@ class ISrsSrtSourceManager;
 class ISrsLiveSourceManager;
 class SrsRtcPublisherNegotiator;
 class SrsRtcPlayerNegotiator;
+class ISrsAppFactory;
+class ISrsCoroutine;
 
 const uint8_t kSR = 200;
 const uint8_t kRR = 201;
@@ -192,8 +194,20 @@ public:
     virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid) = 0;
 };
 
+// The interface for PLI worker coroutine.
+class ISrsRtcPliWorker : public ISrsCoroutineHandler
+{
+public:
+    ISrsRtcPliWorker();
+    virtual ~ISrsRtcPliWorker();
+
+public:
+    virtual srs_error_t start() = 0;
+    virtual void request_keyframe(uint32_t ssrc, SrsContextId cid) = 0;
+};
+
 // A worker coroutine to request the PLI.
-class SrsRtcPliWorker : public ISrsCoroutineHandler
+class SrsRtcPliWorker : public ISrsRtcPliWorker
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -247,6 +261,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsExecRtcAsyncTask *exec_;
     ISrsExpire *expire_;
     ISrsRtcPacketSender *sender_;
+    ISrsAppFactory *app_factory_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -257,8 +272,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
-    SrsFastCoroutine *trd_;
-    SrsRtcPliWorker *pli_worker_;
+    ISrsCoroutine *trd_;
+    ISrsRtcPliWorker *pli_worker_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

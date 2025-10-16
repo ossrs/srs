@@ -2,7 +2,7 @@
 ############################################################
 # build
 ############################################################
-FROM registry.cn-hangzhou.aliyuncs.com/ossrs/srs:dev AS build
+FROM ossrs/srs:ubuntu20 AS build
 
 COPY . /tmp/signaling
 RUN cd /tmp/signaling && make
@@ -12,7 +12,7 @@ RUN cp -R /tmp/signaling/www /usr/local/
 ############################################################
 # dist
 ############################################################
-FROM centos:7 AS dist
+FROM ubuntu:focal AS dist
 
 # HTTP/1989
 EXPOSE 1989

@@ -341,6 +341,62 @@ openssl req -new -x509 -key server.key -out server.crt -days 3650 \
 
 For production environments, use certificates from a trusted Certificate Authority (CA) or Let's Encrypt.
 
+## IPv6
+
+SRS (v7.0.67+) supports IPv6 for RTMP and RTMPS protocols, enabling dual-stack (IPv4/IPv6) operation. This allows clients to connect using IPv6 addresses while maintaining full compatibility with existing IPv4 infrastructure.
+
+IPv6 support is enabled automatically when SRS detects IPv6 addresses in the configuration. You can configure SRS to listen on IPv6 addresses by specifying them in the `listen` directive:
+
+```bash
+rtmp {
+    # Listen on both IPv4 and IPv6
+    listen 1935 [::]:1935;
+}
+
+# For RTMPS
+rtmps {
+    enabled on;
+    listen 1443 [::]:1443;
+    key ./conf/server.key;
+    cert ./conf/server.crt;
+}
+```
+
+Publish RTMP stream via IPv6:
+
+```bash
+ffmpeg -re -i ./doc/source.flv -c copy -f flv 'rtmp://[::1]:1935/live/livestream'
+```
+
+Publish RTMPS stream via IPv6:
+
+```bash
+ffmpeg -re -i ./doc/source.flv -c copy -f flv 'rtmps://[::1]:1443/live/livestream'
+```
+
+Play RTMP stream via IPv6:
+
+```bash
+ffplay 'rtmp://[::1]:1935/live/livestream'
+```
+
+Play RTMPS stream via IPv6:
+
+```bash
+ffplay 'rtmps://[::1]:1443/live/livestream'
+```
+
+SRS supports dual-stack operation, allowing both IPv4 and IPv6 clients to connect simultaneously:
+
+```bash
+# Listen on both IPv4 and IPv6 addresses
+listen 1935 [::]:1935;
+
+# This allows connections from:
+# - IPv4 clients: rtmp://192.168.1.100:1935/live/stream
+# - IPv6 clients: rtmp://[2001:db8::1]:1935/live/stream
+```
+
 ## On Demand Live Streaming
 
 In some situations, you might want to start streaming only when someone starts watching:

@@ -384,8 +384,8 @@ if [[ $SRS_UTEST == YES ]]; then
         "srs_utest_coworkers" "srs_utest_pithy_print" "srs_utest_kernel3" "srs_utest_protocol4"
         "srs_utest_protocol3" "srs_utest_app" "srs_utest_app2" "srs_utest_app3" "srs_utest_app4"
         "srs_utest_app5" "srs_utest_app6" "srs_utest_app7" "srs_utest_app8" "srs_utest_app9"
-        "srs_utest_app10" "srs_utest_app11" "srs_utest_app15" "srs_utest_app16" 
-        "srs_utest_app17")
+        "srs_utest_app10" "srs_utest_app11" "srs_utest_app15" "srs_utest_app16"
+        "srs_utest_app17" "srs_utest_rtc_playstream")
     # Always include SRT utest
     MODULE_FILES+=("srs_utest_srt")
     if [[ $SRS_GB28181 == YES ]]; then

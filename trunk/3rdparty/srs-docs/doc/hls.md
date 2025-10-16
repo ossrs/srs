@@ -587,5 +587,52 @@ The generated m3u8 playlist will reference fMP4 segments instead of TS segments,
 
 Play the stream by SRS player: [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?stream=livestream.m3u8)
 
+## IPv6
+
+SRS (v7.0.67+) supports IPv6 for HLS streaming, enabling dual-stack (IPv4/IPv6) operation for HTTP-based live streaming. This allows HLS clients to access streams using IPv6 addresses while maintaining full compatibility with existing IPv4 infrastructure.
+
+IPv6 support is enabled automatically when SRS detects IPv6 addresses in the HTTP server configuration. Configure the HTTP server to listen on IPv6 addresses:
+
+```bash
+http_server {
+    enabled on;
+    # Listen on both IPv4 and IPv6
+    listen 8080 [::]:8080;
+    dir ./objs/nginx/html;
+}
+```
+
+Access HLS streams via IPv6:
+
+```bash
+# HLS stream via IPv6
+http://[::1]:8080/live/livestream.m3u8
+
+# HLS segments are also accessible via IPv6
+http://[::1]:8080/live/livestream-1.ts
+http://[::1]:8080/live/livestream-2.ts
+```
+
+Play HLS stream via IPv6 using FFplay:
+
+```bash
+ffplay 'http://[::1]:8080/live/livestream.m3u8'
+```
+
+SRS supports dual-stack HLS operation, allowing both IPv4 and IPv6 clients to access streams simultaneously:
+
+```bash
+http_server {
+    enabled on;
+    # Listen on both IPv4 and IPv6
+    listen 8080 [::]:8080;
+    dir ./objs/nginx/html;
+}
+```
+
+This configuration allows:
+- IPv4 clients: `http://192.168.1.100:8080/live/livestream.m3u8`
+- IPv6 clients: `http://[2001:db8::1]:8080/live/livestream.m3u8`
+
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.io&path=/lts/doc/en/v7/hls)
 

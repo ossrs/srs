@@ -136,6 +136,15 @@ the HLS, all edge server never output HLS util client access the RTMP stream on 
 That is, never config HLS on edge server, it's no use. The HLS delivery must use squid or 
 traffic server to cache the HTTP origin server.
 
+## WebRTC Edge
+
+Currently edge cluster only support RTMP and HTTP-FLV, doesn't support WebRTC. A new version 
+of Edge Cluster is planning, see [#4402](https://github.com/ossrs/srs/discussions/4402) for details.
+
+Note that you can use new version of [Origin Cluster](./origin-cluster.md) for WebRTC, as it 
+can also used to expand the capacity of streams. However, if you need to expand the capacity 
+of viewers for one stream, you still need the new version of Edge Cluster.
+
 ## Transform Vhost
 
 The design of CDN stream system, always use `up.xxxx` and `down.xxxx` to operate them, for example, user publish to cdn by host `up.srs.com` and play by `down.srs.com`.

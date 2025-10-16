@@ -13,19 +13,7 @@ can be resolved through the documentation, and in cases where you still encounte
 assistance from other community members. Friends in the community might offer help, but they are not 
 obligated to do so, as it's a universal rule of open-source communities.
 
-I have a full-time job and support the community during my spare time, focusing primarily on code and 
-documentation development. As a result, I have limited time available for community support and prioritize
-assistance to project contributors. If you wish for me to dedicate time specifically to assist you, you 
-may consider becoming a backer or sponsor of the project.
-
-Our documentation and code are open and free, so you don't need to sponsor the community to access these resources. We are a truly open-source community. For financial sponsors, we also offer additional support, including:
-
-* Backer: $5 per month. Online text chat support through Discord. No custom development included.
-* Sponsor: $100 per month. Online text chat and online meeting support. No custom development included.
-* Custom Development: Must be a Backer or Sponsor first. Fees based on duration, evaluated separately. Please contact us on Discord.
-
-Please visit [OpenCollective](https://opencollective.com/srs-server) to become a backer or sponsor, 
-and send me a direct message on [Discord](https://discord.gg/yZ4BnPmHAd).
+Our documentation and code are open and free, so you don't need to sponsor the community to access these resources. We are a truly open-source community. Please visit [OpenCollective](https://opencollective.com/srs-server) to become a backer or sponsor.
 
 ## Discussion
 

@@ -131,6 +131,66 @@ go test ./blackbox -mod=vendor -v -count=1 -run=TestFast_RtmpPublish_RtspPlay_Ba
 
 The current version implements only basic functionality. Additional features like authentication, redirection, and RTCP will be planned according to actual needs, possibly in the near future.
 
+## IPv6
+
+SRS (v7.0.67+) supports IPv6 for RTSP protocol, enabling dual-stack (IPv4/IPv6) operation for standards-based streaming. This allows RTSP clients to connect using IPv6 addresses while maintaining full compatibility with existing IPv4 infrastructure.
+
+IPv6 support is enabled automatically when SRS detects IPv6 addresses in the configuration. Configure the RTSP server to listen on IPv6 addresses:
+
+```bash
+rtsp_server {
+    enabled on;
+    # Listen on both IPv4 and IPv6 for UDP media
+    listen 8554 [::]:8554;
+}
+
+vhost __defaultVhost__ {
+    rtsp {
+        enabled on;
+        rtmp_to_rtsp on;
+    }
+}
+```
+
+Play RTSP stream via IPv6 using FFplay (TCP transport only):
+
+```bash
+ffplay -rtsp_transport tcp -i 'rtsp://[::1]:8554/live/livestream'
+```
+
+Play RTSP stream via IPv6 using VLC:
+
+```bash
+vlc 'rtsp://[::1]:8554/live/livestream'
+```
+
+When using IPv6 addresses in RTSP URLs, the IPv6 address must be enclosed in square brackets:
+
+```bash
+# Local IPv6 loopback
+rtsp://[::1]:8554/live/livestream
+
+# Public IPv6 address
+rtsp://[2001:db8::1]:8554/live/livestream
+
+# With authentication (if implemented)
+rtsp://user:pass@[2001:db8::1]:8554/live/livestream
+```
+
+SRS supports dual-stack RTSP operation, allowing both IPv4 and IPv6 clients to connect simultaneously:
+
+```bash
+rtsp_server {
+    enabled on;
+    # Listen on both IPv4 and IPv6
+    listen 8554 [::]:8554;
+}
+```
+
+This configuration allows:
+- IPv4 clients: `rtsp://192.168.1.100:8554/live/livestream`
+- IPv6 clients: `rtsp://[2001:db8::1]:8554/live/livestream`
+
 ## References
 
 - [rfc2326-1998-rtsp.pdf](/files/rfc2326-1998-rtsp.pdf)

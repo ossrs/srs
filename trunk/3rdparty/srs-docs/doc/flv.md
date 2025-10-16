@@ -209,5 +209,54 @@ Why use HTTP FLV? HTTP FLV streaming is becoming more popular. The main advantag
 5. Universality: Flash can play both RTMP and HTTP FLV. Custom apps and mainstream players also support HTTP FLV playback.
 6. Simplicity: FLV is the simplest streaming media encapsulation, and HTTP is the most widely used protocol. Combining these two makes maintenance much easier than RTMP.
 
+## IPv6
+
+SRS (v7.0.67+) supports IPv6 for HTTP-FLV streaming, enabling dual-stack (IPv4/IPv6) operation for low-latency live streaming. This allows HTTP-FLV clients to access streams using IPv6 addresses while maintaining full compatibility with existing IPv4 infrastructure.
+
+IPv6 support is enabled automatically when SRS detects IPv6 addresses in the HTTP server configuration. Configure the HTTP server to listen on IPv6 addresses:
+
+```bash
+http_server {
+    enabled on;
+    # Listen on both IPv4 and IPv6
+    listen 8080 [::]:8080;
+    dir ./objs/nginx/html;
+}
+```
+
+Access HTTP-FLV streams via IPv6:
+
+```bash
+# HTTP-FLV stream via IPv6
+http://[::1]:8080/live/livestream.flv
+```
+
+Play HTTP-FLV stream via IPv6 using FFplay:
+
+```bash
+ffplay 'http://[::1]:8080/live/livestream.flv'
+```
+
+SRS supports dual-stack HTTP-FLV operation, allowing both IPv4 and IPv6 clients to access streams simultaneously:
+
+```bash
+http_server {
+    enabled on;
+    # Listen on both IPv4 and IPv6
+    listen 8080 [::]:8080;
+    dir ./objs/nginx/html;
+}
+vhost __defaultVhost__ {
+    http_remux {
+        enabled on;
+        mount [vhost]/[app]/[stream].flv;
+    }
+}
+```
+
+This configuration allows:
+- IPv4 clients: `http://192.168.1.100:8080/live/livestream.flv`
+- IPv6 clients: `http://[2001:db8::1]:8080/live/livestream.flv`
+
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.net&path=/lts/doc/en/v7/flv)
 
