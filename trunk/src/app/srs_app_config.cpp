@@ -1509,6 +1509,12 @@ srs_error_t SrsConfig::reload_conf(SrsConfig *conf)
         SrsConfDirective *old_vhost = old_root->get("vhost", vhost);
         SrsConfDirective *new_vhost = root_->get("vhost", vhost);
 
+        // Only compare config when both old and new vhost exist.
+        // @see https://github.com/ossrs/srs/issues/4529
+        if (!old_vhost || !new_vhost) {
+            continue;
+        }
+
         // chunk_size, only one per vhost.
         if (!srs_directive_equals(new_vhost->get("chunk_size"), old_vhost->get("chunk_size"))) {
             for (it = subscribes_.begin(); it != subscribes_.end(); ++it) {

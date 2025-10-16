@@ -111,3 +111,39 @@ VOID TEST(ConfigReloadTest, ReloadVhostChunkSize)
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
+
+VOID TEST(ConfigReloadTest, ReloadAddNewVhost)
+{
+    srs_error_t err = srs_success;
+
+    MockReloadHandler handler;
+    MockSrsReloadConfig conf;
+
+    conf.subscribe(&handler);
+    // Start with one vhost
+    HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net { chunk_size 60000; }"));
+
+    // Add a new vhost - should not crash
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost ossrs.net { chunk_size 60000; } vhost new_vhost { chunk_size 65536; }"));
+    // Handler should not be triggered for new vhost
+    EXPECT_TRUE(handler.all_false());
+    handler.reset();
+}
+
+VOID TEST(ConfigReloadTest, ReloadRemoveVhost)
+{
+    srs_error_t err = srs_success;
+
+    MockReloadHandler handler;
+    MockSrsReloadConfig conf;
+
+    conf.subscribe(&handler);
+    // Start with two vhosts
+    HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net { chunk_size 60000; } vhost old_vhost { chunk_size 65536; }"));
+
+    // Remove old_vhost - should not crash
+    HELPER_EXPECT_SUCCESS(conf.do_reload(_MIN_OK_CONF "vhost ossrs.net { chunk_size 60000; }"));
+    // Handler should not be triggered for removed vhost
+    EXPECT_TRUE(handler.all_false());
+    handler.reset();
+}
