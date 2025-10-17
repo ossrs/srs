@@ -378,7 +378,7 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
     srs_error_t err = srs_success;
 
     std::map<std::string, SrsHlsVirtualConn *>::iterator it;
-    for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {
+    for (it = map_ctx_info_.begin(); it != map_ctx_info_.end();) {
         string ctx = it->first;
         SrsHlsVirtualConn *info = it->second;
 
@@ -393,10 +393,10 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
             // TODO: FIXME: Should finger out the err.
             stat->on_disconnect(ctx, srs_success);
 
-            map_ctx_info_.erase(it);
             srs_freep(info);
-
-            break;
+            map_ctx_info_.erase(it++);
+        } else {
+            ++it;
         }
     }
 
