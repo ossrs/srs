@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-10-17, Merge [#4534](https://github.com/ossrs/srs/pull/4534): HLS: Fix a iterator bug in hls_ctx cleanup function. v7.0.99 (#4534)
 * v7.0, 2025-10-16, Merge [#4530](https://github.com/ossrs/srs/pull/4530): fix crash issue caused by reload configuration file. v7.0.98 (#4530)
 * v7.0, 2025-10-15, Merge [#4520](https://github.com/ossrs/srs/pull/4520): srs_app_rtc_conn: fix illegal memory access. v7.0.97 (#4520)
 * v7.0, 2025-10-14, Disable sanitizer by default to fix memory leak. (#4364) v7.0.96
@@ -112,6 +113,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2025-10-17, Merge [#4534](https://github.com/ossrs/srs/pull/4534): HLS: Fix a iterator bug in hls_ctx cleanup function. v6.0.182 (#4534)
 * v6.0, 2025-10-14, Disable sanitizer by default to fix memory leak. (#4364) v6.0.181
 * v6.0, 2025-10-01, SRT: Support configurable default_streamid option. v6.0.180 (#4515)
 * v6.0, 2025-09-27, For Edge, only support RTMP or HTTP-FLV. v6.0.179 (#4512)

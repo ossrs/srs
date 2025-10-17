@@ -13,8 +13,8 @@
 #include <srs_utest_app6.hpp>
 #include <srs_utest_mock.hpp>
 
-// This test is used to verify the basic workflow of the RTC play stream. 
-// It's finished with the help of AI, but each step is manually designed 
+// This test is used to verify the basic workflow of the RTC play stream.
+// It's finished with the help of AI, but each step is manually designed
 // and verified. So this is not dominated by AI, but by humanbeing.
 VOID TEST(RtcPlayStreamTest, ManuallyVerifyBasicWorkflow)
 {
@@ -64,7 +64,7 @@ VOID TEST(RtcPlayStreamTest, ManuallyVerifyBasicWorkflow)
         // Verify is_started_ flag is set
         EXPECT_TRUE(play_stream->is_started_);
 
-        // Wait for coroutine to start and create consumer. Normally it should be ready 
+        // Wait for coroutine to start and create consumer. Normally it should be ready
         // and stopped at wait for RTP packets from consumer.
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
     }

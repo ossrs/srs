@@ -8,8 +8,8 @@
 
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_source.hpp>
-#include <srs_kernel_error.hpp>
 #include <srs_app_rtmp_source.hpp>
+#include <srs_kernel_error.hpp>
 
 // MockRtcTrackDescriptionFactory implementation
 MockRtcTrackDescriptionFactory::MockRtcTrackDescriptionFactory()
@@ -805,4 +805,3 @@ void MockAppConfig::set_keep_api_domain(bool enabled)
 {
     keep_api_domain_ = enabled;
 }
-
