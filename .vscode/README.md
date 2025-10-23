@@ -17,26 +17,26 @@ Run commmand to configure the project by pressing `Command+Shift+P`, then type `
 then select `Clang` as the toolchain. Or run the command manually in terminal:
 
 ```bash
-cmake -S $HOME/git/srs/trunk/ide/srs_clion -B $HOME/git/srs/trunk/ide/vscode-build
+cmake -S $HOME/git/srs/trunk/cmake -B $HOME/git/srs/trunk/cmake/build
 ```
 
 > Note: Sometimes it may fail to configure when building libsrtp. Just retry, and it will succeed.
 
 > Note: Make sure you have `xcode` installed, and run `xcode-select --install` to setup the toolchains.
 
-> Note: The `settings.json` is used to configure the cmake. It will use `$HOME/git/srs/trunk/ide/srs_clion/CMakeLists.txt` 
-> and `$HOME/git/srs/trunk/ide/vscode-build` as the source file and build directory.
+> Note: The `settings.json` is used to configure the cmake. It will use `$HOME/git/srs/trunk/cmake/CMakeLists.txt` 
+> and `$HOME/git/srs/trunk/cmake/build` as the source file and build directory.
 
 Click the `Run > Run Without Debugging` or `Run > Start Debugging` from menu to start or 
 debug the server. It will invoke the `build` task defined in `tasks.json`, or you can run 
 it manually:
 
 ```bash
-cmake --build $HOME/git/srs/trunk/ide/vscode-build
+cmake --build $HOME/git/srs/trunk/cmake/build
 ```
 
 > Note: The `launch.json` is used for running and debugging. The build will output the binary to
-> `$HOME/git/srs/trunk/ide/vscode-build/srs`.
+> `$HOME/git/srs/trunk/cmake/build/srs`.
 
 ## macOS: SRS UTest
 
@@ -51,7 +51,7 @@ Run commmand to configure the project by pressing `Command+Shift+P`, then type `
 then select `Clang` as the toolchain. Or run the command manually in terminal:
 
 ```bash
-cmake -S $HOME/git/srs/trunk/ide/srs_clion -B $HOME/git/srs/trunk/ide/vscode-build
+cmake -S $HOME/git/srs/trunk/cmake -B $HOME/git/srs/trunk/cmake/build
 ```
 
 > Note: Sometimes it may fail to configure when building libsrtp. Just retry, and it will succeed.
@@ -60,7 +60,7 @@ Afterwards, build the utest by pressing `Command+Shift+P`, then type `CMake: Bui
 build command. It will invoke the `build` task defined in `tasks.json`, or you can run it manually:
 
 ```bash
-cmake --build $HOME/git/srs/trunk/ide/vscode-build
+cmake --build $HOME/git/srs/trunk/cmake/build
 ```
 
 Then you will discover all the unit testcases from the `View > Testing` panel. You can 
