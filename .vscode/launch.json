@@ -5,7 +5,7 @@
           "name": "Launch SRS",
           "type": "cppdbg",
           "request": "launch",
-          "program": "${workspaceFolder}/trunk/ide/vscode-build/srs",
+          "program": "${workspaceFolder}/trunk/cmake/build/srs",
           "args": ["-c", "conf/console.conf"],
           "stopAtEntry": false,
           "cwd": "${workspaceFolder}/trunk",

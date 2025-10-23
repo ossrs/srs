@@ -4,7 +4,7 @@
       {
         "label": "build",
         "type": "shell",
-        "command": "cmake --build ${workspaceFolder}/trunk/ide/vscode-build",
+        "command": "cmake --build ${workspaceFolder}/trunk/cmake/build",
         "group": {
           "kind": "build",
           "isDefault": true

@@ -1,11 +1,11 @@
 {
-    "cmake.sourceDirectory": "${workspaceFolder}/trunk/ide/srs_clion",
-    "cmake.buildDirectory": "${workspaceFolder}/trunk/ide/vscode-build",
+    "cmake.sourceDirectory": "${workspaceFolder}/trunk/cmake",
+    "cmake.buildDirectory": "${workspaceFolder}/trunk/cmake/build",
     "cmake.configureOnOpen": false,
     "cmake.ctest.testExplorerIntegrationEnabled": false,
     "testMate.cpp.test.advancedExecutables": [ 
         "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST}*",
-        "${workspaceFolder}/trunk/ide/vscode-build/**/*{utest,test,Test,TEST}*"
+        "${workspaceFolder}/trunk/cmake/build/**/*{utest,test,Test,TEST}*"
     ],
     "files.associations": {
         "vector": "cpp",

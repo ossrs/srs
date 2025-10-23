@@ -11,7 +11,7 @@ set (CMAKE_CXX_STANDARD 11)
 
 ###########################################################
 execute_process(
-        COMMAND bash -c "cd ${PROJECT_SOURCE_DIR}/../../ && pwd"
+        COMMAND bash -c "cd ${PROJECT_SOURCE_DIR}/../ && pwd"
         OUTPUT_VARIABLE SRS_DIR
 )
 string(STRIP ${SRS_DIR} SRS_DIR)
