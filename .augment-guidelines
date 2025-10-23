@@ -1,278 +1,48 @@
-# Augment Guidelines for SRS Repository
+# SRS Repository Guidelines
 
 project:
   name: "SRS (Simple Realtime Server)"
-  description: "A C++ streaming media server supporting RTMP, WebRTC, WHIP, WHEP, SRT, HLS, and HTTP-FLV"
-  type: "media-server"
+  type: "C++ streaming media server (RTMP/WebRTC/WHIP/WHEP/SRT/HLS/HTTP-FLV)"
 
 architecture:
-  overview: |
-    Core C++ streaming server with protocol implementations and media processing capabilities.
-    Uses State Threads (ST) for high-performance coroutine-based networking.
+  overview: "C++ streaming server using State Threads (ST) for coroutine-based networking"
+  threading: "Single-threaded coroutine architecture - no multi-threading, context switches on async I/O"
+  key_classes: "SrsServer (main), SrsLiveSource (source management)"
 
-  threading_model: |
-    Single-threaded, coroutine/goroutine-based application architecture:
-    - No traditional multi-threading issues (no thread switching, async race conditions)
-    - Uses coroutines/goroutines that cooperatively yield control
-    - Context switching occurs during async I/O operations
-    - Different context switch problems compared to multi-threaded applications:
-      * Coroutine state must be preserved across yields by async I/O operations
-      * Shared state can be modified between context switches
-      * Timing-dependent bugs related to when coroutines yield
+  webrtc: "SFU (Selective Forwarding Unit) - media relay without transcoding. Supports WHIP/WHEP. NO external TURN needed (SRS provides ICE/relay)"
 
-  key_components:
-    - name: "SrsServer"
-      description: "Main server class of live stream for RTMP/HTTP-FLV/HLS/DASH and HTTP-API"
-    - name: "SrsLiveSource"
-      description: "Central management of live stream sources for RTMP/HTTP-FLV/HLS/DASH"
-
-  webrtc_architecture:
-    sfu_model: |
-      SRS is a WebRTC SFU (Selective Forwarding Unit) server, not a TURN server.
-      Key characteristics:
-      - Acts as a media relay/forwarding server between WebRTC clients
-      - Handles media routing and distribution without media processing/transcoding
-      - Supports WHIP (WebRTC-HTTP Ingestion Protocol) for publishing
-      - Supports WHEP (WebRTC-HTTP Egress Protocol) for playing/subscribing
-      - Does NOT require external TURN servers for most use cases
-      - Clients connect directly to SRS for media exchange
-
-    no_turn_needed: |
-      SRS does NOT need a separate TURN server because:
-      - SRS itself acts as the media relay point for WebRTC sessions
-      - Clients establish WebRTC connections directly with SRS
-      - SRS handles the media forwarding between publishers and subscribers
-      - The SFU architecture eliminates the need for peer-to-peer TURN relay
-      - SRS provides the necessary ICE candidates and media routing functionality
-
-    deployment_notes:
-      - "SRS can be deployed as a standalone WebRTC SFU without additional TURN infrastructure"
-      - "For NAT traversal, SRS provides its own ICE candidate generation"
-      - "External TURN servers are only needed in very specific network scenarios, not for normal SFU operation"
-      - "WHIP/WHEP protocols handle WebRTC signaling through HTTP, simplifying client integration"
-
-  origin_cluster_architecture:
-    evolution: |
-      SRS Origin Cluster architecture has evolved significantly between major versions:
-      - SRS 6.0: Uses MESH mode origin cluster architecture (Deprecated)
-      - SRS 7.0: Introduces new Proxy mode architecture for improved scalability and performance (Recommended)
-
-    srs_6_mesh_architecture:
-      description: "Legacy MESH mode origin cluster - deprecated in favor of SRS 7.0 Proxy mode"
-      characteristics:
-        - "Traditional origin cluster approach used in SRS 6.0"
-        - "Direct C++ implementation within SRS core"
-        - "Only supports RTMP protocol"
-        - "Limited scalability compared to new Proxy mode"
-      status: "Legacy - not recommended for new deployments"
-
-    srs_7_proxy_architecture:
-      description: "New SRS Proxy mode - recommended architecture for origin clustering in SRS 7.0+"
-      implementation: "Go-based proxy service that forwards all protocols to specified SRS Origin server"
-      repository: 
-        - Go: "https://github.com/ossrs/proxy-go"
-      characteristics:
-        - "Implemented in Go for better performance and maintainability"
-        - "Protocol-agnostic proxy - supports all SRS protocols (RTMP, WebRTC, WHIP, WHEP, SRT, HLS, HTTP-FLV, etc.)"
-        - "Forwards traffic to designated SRS Origin server"
-        - "Improved scalability and resource management"
-        - "Cleaner separation of concerns between proxy and origin functionality"
-      benefits:
-        - "Better horizontal scaling capabilities"
-        - "Simplified deployment and configuration"
-        - "Enhanced performance through Go's networking capabilities"
-        - "Protocol transparency - no protocol-specific handling needed in proxy layer"
-
-    migration_guidance:
-      recommendation: "Use SRS 7.0 Proxy mode for all new origin cluster deployments"
-      legacy_support: "SRS 6.0 MESH mode architecture is maintained for backward compatibility but not recommended"
-      future_direction: "All future development and optimization will focus on SRS 7.0 Proxy architecture"
-
-    deployment_patterns:
-      proxy_mode:
-        - "Deploy SRS Proxy (Go) instances as edge servers"
-        - "Configure proxy to forward all traffic to SRS Origin server"
-        - "Scale horizontally by adding more proxy instances"
-        - "Origin server handles actual media processing and storage"
-      origin_server:
-        - "Single or clustered SRS Origin servers handle media processing"
-        - "Receives all traffic forwarded from SRS Proxy instances"
-        - "Maintains media state and performs actual streaming operations"
+  origin_cluster:
+    v6_mesh: "DEPRECATED - C++ MESH mode, RTMP only"
+    v7_proxy: "RECOMMENDED - Go-based proxy (github.com/ossrs/proxy-go), all protocols, better scaling"
 
 codebase_structure:
-  key_directories:
-    - path: "trunk/src/"
-      description: "Main source code directory"
-    - path: "trunk/src/main/"
-      description: "Entry points including srs_main_server.cpp"
-    - path: "trunk/src/core/"
-      description: "Core platform abstractions and common definitions"
-    - path: "trunk/src/kernel/"
-      description: "Low-level codec implementations (AAC, H.264, FLV, MP4, RTC, etc.)"
-    - path: "trunk/src/protocol/"
-      description: "Protocol implementations (RTMP, HTTP, RTC, SRT, etc.)"
-    - path: "trunk/src/app/"
-      description: "High-level application logic and server components"
-
-  key_files:
-    - path: "trunk/src/main/srs_main_server.cpp"
-      description: "Main entry point and server initialization"
-    - path: "trunk/src/app/srs_app_server.hpp"
-      description: "Core server class definition"
-    - path: "trunk/src/core/srs_core.hpp"
-      description: "Core definitions and project metadata"
-    - path: "trunk/src/core/srs_core_autofree.hpp"
-      description: "Smart pointer definitions for memory management"
+  dirs: "trunk/src/{main,core,kernel,protocol,app}"
+  key_files: "srs_main_server.cpp, srs_app_server.hpp, srs_core.hpp, srs_core_autofree.hpp"
 
 code_patterns:
   dependency_inversion:
-    principle: "MANDATORY - Classes should depend on interfaces, not concrete classes"
-    description: |
-      Follow the Dependency Inversion Principle (DIP) - high-level modules should not depend on low-level modules.
-      Both should depend on abstractions (interfaces). This improves testability, maintainability, and flexibility.
-
-      In SRS, interfaces start with 'ISrs' prefix (e.g., ISrsBufferCache, ISrsMessageQueue), while concrete classes
-      start with 'Srs' prefix (e.g., SrsBufferCache, SrsMessageQueue).
-
-    usage: |
-      WRONG: Depending on concrete class
-      class SrsBufferCache {
-      private:
-          SrsMessageQueue *queue_;  // Direct dependency on concrete class
-      };
-
-      CORRECT: Depending on interface
-      class SrsBufferCache : public ISrsBufferCache {
-      private:
-          ISrsMessageQueue *queue_;  // Dependency on interface
-      };
-
+    principle: "MANDATORY - Depend on interfaces (ISrs*), not concrete classes (Srs*)"
     rules:
-      - "Interfaces start with 'ISrs' prefix (e.g., ISrsMessageQueue, ISrsBufferCache, ISrsCoroutineHandler)"
-      - "Concrete classes start with 'Srs' prefix (e.g., SrsMessageQueue, SrsBufferCache, SrsServer)"
-      - "Class member variables should use interface types (ISrs*) instead of concrete types (Srs*)"
-      - "Classes should implement interfaces when they provide functionality that may need to be mocked or substituted"
-      - "Use concrete types only for instantiation, not for member variable declarations"
-
-    benefits:
-      - "Enables dependency injection for unit testing"
-      - "Allows easy mocking of dependencies in tests"
-      - "Reduces coupling between components"
-      - "Makes code more flexible and maintainable"
-      - "Facilitates future refactoring and extensions"
-
-    rationale: "Interface-based design is fundamental to testable, maintainable code. It allows components to be tested in isolation and makes the codebase more flexible for future changes."
+      - "Member variables use ISrs* types (e.g., ISrsMessageQueue *queue_)"
+      - "Concrete types only for instantiation"
+      - "Enables mocking for unit tests"
 
   avoid_global_variables:
-    principle: "MANDATORY - Never directly use global variables, convert to member fields for mockability"
-    description: |
-      Direct use of global variables makes code untestable because globals cannot be mocked.
-      Global variables in SRS start with _srs prefix (e.g., _srs_config, _srs_sources, _srs_stat, _srs_hooks, _srs_context).
-      Always store global references as member fields in the constructor so they can be replaced with mocks in tests.
-
-    usage: |
-      WRONG: Direct use of global variable
-      srs_error_t SrsBufferCache::start() {
-          fast_cache_ = _srs_config->get_vhost_http_remux_fast_cache(req_->vhost_);
-      }
-
-      CORRECT: Store global as member field for mockability
-      SrsBufferCache::SrsBufferCache(ISrsRequest *r) {
-          config_ = _srs_config;  // Store global reference as member field
-      }
-      SrsBufferCache::~SrsBufferCache() {
-          config_ = NULL;  // Set to NULL, do NOT free (it's a global reference)
-      }
-      srs_error_t SrsBufferCache::start() {
-          fast_cache_ = config_->get_vhost_http_remux_fast_cache(req_->vhost_);
-      }
-
-    rules:
-      - "Global variables in SRS start with _srs prefix: _srs_config, _srs_sources, _srs_stat, _srs_hooks, _srs_context, etc."
-      - "Never access global variables directly in methods"
-      - "Always store global references as member fields in constructor"
-      - "Use interface types for member fields (e.g., ISrsAppConfig* config_)"
-      - "In destructor, set global reference fields to NULL but do NOT free them"
-      - "This allows tests to inject mock objects by setting the member field"
-
-    common_global_variables:
-      core_globals:
-        - "_srs_log - Global logging interface (ISrsLog*)"
-        - "_srs_context - Thread context for coroutine management (ISrsContext*)"
-        - "_srs_config - Global configuration object (SrsConfig*)"
-        - "_srs_kernel_factory - Kernel object factory (ISrsKernelFactory*)"
-        - "_srs_app_factory - Application object factory (SrsAppFactory*)"
-
-      app_globals:
-        - "_srs_server - Main SRS server instance (SrsServer*)"
-        - "_srs_sources - Live source manager (SrsLiveSourceManager*)"
-        - "_srs_stat - Statistics manager (SrsStatistic*)"
-        - "_srs_hooks - HTTP hooks manager (ISrsHttpHooks*)"
-        - "_srs_circuit_breaker - Circuit breaker for overload protection (ISrsCircuitBreaker*)"
-        - "_srs_dvr_async - Async worker for DVR operations (SrsAsyncCallWorker*)"
-
-      timing_globals:
-        - "_srs_clock - Wall clock for time operations (SrsWallClock*)"
-        - "_srs_shared_timer - Shared timer for periodic tasks (SrsSharedTimer*)"
-        - "_srs_stages - Stage manager for pithy print (SrsStageManager*)"
-
-      resource_globals:
-        - "_srs_conn_manager - Connection resource manager (SrsResourceManager*)"
-        - "_srs_pps_* - Various PPS (packets per second) statistics counters"
-
-      webrtc_globals:
-        - "_srs_blackhole - WebRTC blackhole for packet dropping (SrsRtcBlackhole*)"
-        - "_srs_rtc_dtls_certificate - DTLS certificate for WebRTC (SrsDtlsCertificate*)"
-
-      other_globals:
-        - "_srs_in_docker - Boolean flag indicating if running in Docker"
-        - "_srs_config_by_env - Boolean flag for environment variable configuration"
-        - "_srs_binary - Binary name of SRS executable"
-
-    benefits:
-      - "Enables dependency injection for unit testing"
-      - "Allows mocking of global dependencies in tests"
-      - "Makes dependencies explicit and visible in class interface"
-      - "Improves code testability and maintainability"
-
-    rationale: "Global variables create hidden dependencies that cannot be mocked or controlled in tests. Converting them to member fields makes dependencies explicit and testable."
+    principle: "MANDATORY - Store globals (_srs_*) as member fields for mockability"
+    pattern: |
+      Constructor: config_ = _srs_config;  // Store reference
+      Destructor: config_ = NULL;  // Set NULL, don't free
+      Methods: Use config_->method() instead of _srs_config->method()
+    common_globals: "_srs_config, _srs_sources, _srs_stat, _srs_hooks, _srs_context, _srs_log, _srs_server"
 
   cpp_compatibility:
-    standard: "C++98"
-    description: |
-      SRS codebase must be compatible with C++98 standard. Do NOT use C++11 or later features.
-    forbidden_features:
-      - "auto keyword for type deduction"
-      - "nullptr (use NULL instead)"
-      - "Range-based for loops (use traditional for loops)"
-      - "Lambda expressions"
-      - "std::unique_ptr, std::shared_ptr (use SRS custom smart pointers instead)"
-      - "Initializer lists"
-      - "decltype"
-      - "constexpr"
-      - "override and final keywords"
-      - "Strongly typed enums (enum class)"
-      - "Static assertions (static_assert)"
-      - "Variadic templates"
-      - "Rvalue references and move semantics"
-    allowed_patterns:
-      - "Traditional for loops: for (int i = 0; i < size; ++i)"
-      - "NULL instead of nullptr"
-      - "typedef instead of using for type aliases"
-      - "SRS custom smart pointers (SrsUniquePtr, SrsSharedPtr)"
-      - "Traditional function pointers instead of std::function"
+    standard: "C++98 only - NO C++11+ features"
+    forbidden: "auto, nullptr, range-for, lambda, std::unique_ptr, enum class, override, constexpr"
+    use: "NULL, traditional for-loops, typedef, SrsUniquePtr/SrsSharedPtr"
 
   memory_management:
-    - pattern: "SrsUniquePtr<T>"
-      description: "Smart pointer for unique ownership - preferred for single ownership scenarios"
-      usage: "SrsUniquePtr<MyClass> ptr(new MyClass()); ptr->method(); // automatic cleanup"
-    - pattern: "SrsSharedPtr<T>"
-      description: "Smart pointer for shared ownership - preferred for reference counting scenarios"
-      usage: "SrsSharedPtr<MyClass> ptr(new MyClass()); SrsSharedPtr<MyClass> copy = ptr; // reference counted"
-    - pattern: "srs_freep"
-      description: "Custom macro for freeing pointers - use only when smart pointers are not suitable"
-    - pattern: "srs_freepa"
-      description: "Custom macro for freeing arrays - use only when smart pointers are not suitable"
+    smart_pointers: "SrsUniquePtr<T> (unique ownership), SrsSharedPtr<T> (shared ownership)"
+    macros: "srs_freep (pointers), srs_freepa (arrays) - use only when smart pointers unsuitable"
 
   naming_conventions:
     - pattern: "field_naming"
@@ -306,27 +76,7 @@ code_patterns:
       description: "MANDATORY - Always use SRS_DECLARE_PRIVATE instead of 'private' and SRS_DECLARE_PROTECTED instead of 'protected' in class definitions"
       purpose: "Enables unit tests to access private and protected members for dependency injection and mocking"
 
-      macro_definition: |
-        #ifdef SRS_FORCE_PUBLIC4UTEST
-            #define SRS_DECLARE_PRIVATE public
-            #define SRS_DECLARE_PROTECTED public
-        #else
-            #define SRS_DECLARE_PRIVATE private
-            #define SRS_DECLARE_PROTECTED protected
-        #endif
-
       usage: |
-        WRONG: Using standard C++ access specifiers
-        class SrsBufferCache {
-        private:
-            ISrsAppConfig *config_;
-            ISrsRequest *req_;
-        protected:
-            virtual srs_error_t do_start();
-        public:
-            srs_error_t start();
-        };
-
         CORRECT: Using SRS access specifier macros
         class SrsBufferCache {
         SRS_DECLARE_PRIVATE:
@@ -344,14 +94,6 @@ code_patterns:
         - "Use standard 'public' keyword for public members (no macro needed)"
         - "This applies to ALL production code classes in trunk/src/"
         - "When SRS_FORCE_PUBLIC4UTEST is defined, all private/protected members become public for testing"
-
-      benefits:
-        - "Enables unit tests to inject mock dependencies into private member fields"
-        - "Allows tests to access and verify internal state"
-        - "Makes classes fully testable without breaking encapsulation in production"
-        - "Provides clean separation between production and test builds"
-
-      rationale: "This pattern allows unit tests to access private/protected members for dependency injection and mocking, while maintaining proper encapsulation in production builds. It's essential for writing comprehensive unit tests that can mock all dependencies."
 
   commenting_style:
     - pattern: "C++ style comments"
@@ -419,21 +161,6 @@ code_patterns:
         - "return srs_error_wrap(err, \"read %d only %d bytes\", filesize, (int)nread);"
         - "return srs_error_wrap(err, \"write audio format=%d\", format->codec);"
         - "return srs_error_wrap(err, \"connect to %s:%d\", host.c_str(), port);"
-
-    - pattern: "error_variable_declaration"
-      description: "Always declare srs_error_t err variable at function scope for error handling"
-      usage: |
-        CORRECT: Declare err variable at function start
-        srs_error_t MyClass::my_function() {
-            srs_error_t err = srs_success;
-
-            // ... function implementation with error checking
-            if ((err = some_function()) != srs_success) {
-                return srs_error_wrap(err, "context");
-            }
-
-            return err;
-        }
 
   binary_data_handling:
     - pattern: "SrsBuffer"
@@ -527,71 +254,6 @@ code_patterns:
     - pattern: "#ifdef SRS_VALGRIND"
       description: "Valgrind support"
 
-  dependency_injection_for_testing:
-    - pattern: "assemble() method pattern"
-      description: "MANDATORY pattern for making classes testable by separating construction from initialization - applies ONLY to production code, NOT to unit test code or mock classes"
-      purpose: "Enables dependency injection for unit testing by deferring subscription/registration operations that depend on global state or external dependencies"
-
-      usage: |
-        WRONG: Direct dependency in constructor (not testable)
-        class SrsOriginHub {
-        public:
-            SrsOriginHub() {
-                _srs_config->subscribe(this);  // Hard dependency on global config
-            }
-            ~SrsOriginHub() {
-                _srs_config->unsubscribe(this);
-            }
-        };
-
-        CORRECT: Separate construction from initialization with assemble()
-        class SrsOriginHub {
-        private:
-            SrsConfig* config_;
-        public:
-            SrsOriginHub() {
-                config_ = _srs_config;  // Store reference only
-            }
-            void assemble() {
-                config_->subscribe(this);  // Actual initialization
-            }
-            ~SrsOriginHub() {
-                config_->unsubscribe(this);
-                config_ = NULL;
-            }
-        };
-
-        // Production code usage
-        hub_ = new SrsOriginHub();
-        hub_->assemble();  // Call immediately after construction
-
-        // Unit test usage
-        SrsOriginHub* hub = new SrsOriginHub();
-        hub->config_ = mock_config;  // Inject mock dependency
-        hub->assemble();              // Now uses mock config
-        // Or skip assemble() entirely to avoid side effects
-
-      scope: "Applies ONLY to production code in trunk/src/app/, trunk/src/protocol/, trunk/src/kernel/, trunk/src/core/ - does NOT apply to unit test code or mock classes"
-
-      when_to_use:
-        - "When constructor needs to invoke functions (e.g., subscribe(), register(), initialize() on dependencies)"
-        - "Exception: Simple object creation functions like srs_mutex_new() can remain in constructor - no need to extract to assemble()"
-        - "Rule: If constructor calls methods on dependencies, move those calls to assemble()"
-
-      when_not_to_use:
-        - "In unit test code (trunk/src/utest/) - tests can use direct construction"
-        - "In mock classes (Mock* classes in utest files) - mocks are designed for testing"
-        - "For simple value initialization without external dependencies"
-        - "When the class is already easily testable without this pattern"
-
-      benefits:
-        - "Enables dependency injection for unit testing"
-        - "Allows mocking of global dependencies"
-        - "Separates object construction from initialization side effects"
-        - "Makes code more testable without changing production behavior"
-
-      rationale: "This pattern enables unit testing by allowing mock dependencies to be injected before initialization, while maintaining clean production code that calls assemble() immediately after construction. Unit test code and mock classes don't need this pattern because they are already designed for testing purposes."
-
   codec_handling:
     enhanced_rtmp:
       description: |
@@ -641,232 +303,7 @@ build_and_development:
       description: "Run all blackbox tests with verbose output and detailed SRS logs"
       working_directory: "trunk/3rdparty/srs-bench"
 
-    run_specific_test:
-      command: "./objs/srs_blackbox_test -test.v -srs-log -srs-stdout -test.run TestName"
-      description: "Run a specific test by name (e.g., TestFast_RtmpPublish_DvrFlv_Basic)"
-      examples:
-        - "./objs/srs_blackbox_test -test.v -srs-log -srs-stdout -test.run TestFast_RtmpPublish_DvrFlv_Basic"
-        - "./objs/srs_blackbox_test -test.v -srs-log -srs-stdout -test.run TestFast_RtmpPublish_RtmpPlay_Basic"
-        - "./objs/srs_blackbox_test -test.v -srs-log -srs-stdout -test.run 'TestFast_RtmpPublish_Dvr.*'"
-
-    test_options:
-      - flag: "-test.v"
-        description: "Verbose output showing test progress (recommended)"
-      - flag: "-test.run <pattern>"
-        description: "Run only tests matching the pattern (Go regex)"
-      - flag: "-srs-log"
-        description: "Enable detailed SRS log output (recommended for debugging)"
-      - flag: "-srs-stdout"
-        description: "Show SRS stdout logs (recommended for debugging)"
-      - flag: "-srs-ffmpeg-stderr"
-        description: "Show FFmpeg stderr logs"
-      - flag: "-srs-ffprobe-stdout"
-        description: "Show FFprobe stdout logs"
-      - flag: "-srs-binary <path>"
-        description: "Specify custom SRS binary path (default: ../../objs/srs)"
-      - flag: "-srs-timeout <ms>"
-        description: "Timeout for each test case in milliseconds (default: 64000)"
-
-    how_it_works:
-      - "Each blackbox test automatically starts a fresh SRS server instance"
-      - "SRS is configured via environment variables (e.g., SRS_VHOST_DVR_ENABLED=on)"
-      - "Tests use FFmpeg to publish streams and FFprobe to verify output"
-      - "SRS server is automatically stopped when test completes"
-      - "Each test runs in isolation with its own SRS instance and random ports"
-      - "No need to manually start or stop SRS server"
-
-    test_categories:
-      rtmp: "TestFast_RtmpPublish_RtmpPlay_*, TestFast_RtmpPublish_HttpFlvPlay_*"
-      dvr: "TestFast_RtmpPublish_DvrFlv_*, TestFast_RtmpPublish_DvrMp4_*"
-      hls: "TestFast_RtmpPublish_HlsPlay_*"
-      hevc: "TestSlow_RtmpPublish_*_HEVC_*, TestSlow_SrtPublish_*_HEVC_*"
-      srt: "TestFast_SrtPublish_SrtPlay_*"
-      rtsp: "TestFast_RtmpPublish_RtspPlay_*"
-      http_api: "TestFast_Http_Api_*"
-      mp3: "TestFast_RtmpPublish_*_CodecMP3_*"
-
-    common_workflows:
-      quick_test:
-        description: "Run a single fast test to verify basic functionality"
-        command: "./objs/srs_blackbox_test -test.v -srs-log -srs-stdout -test.run TestFast_RtmpPublish_RtmpPlay_Basic"
-
-      dvr_tests:
-        description: "Run all DVR-related tests"
-        command: "./objs/srs_blackbox_test -test.v -srs-log -srs-stdout -test.run 'TestFast_RtmpPublish_Dvr.*'"
-
-      debug_test:
-        description: "Run test with full logging including FFmpeg stderr for debugging"
-        command: "./objs/srs_blackbox_test -test.v -srs-log -srs-stdout -srs-ffmpeg-stderr -test.run TestName"
-
 testing:
-  test_patterns:
-    - Note that private and protected members are accessible in utests, as there is a macro to convert them to public
-    - Use descriptive test names that clearly indicate what functionality is being tested
-    - Group related tests together (e.g., all tests for one class should be consecutive)
-    - Test both success and failure paths, especially for error handling scenarios
-    - Verify edge cases like sequence number wrap-around, cache overflow, and null inputs
-    - Use existing mock helper functions for consistency and maintainability
-
-  mock_interface_fields:
-    principle: "MANDATORY - Always mock all private/protected interface member fields (ISrs* types) in the class under test"
-    description: |
-      When writing unit tests, ALWAYS identify and mock ALL interface member fields in the class under test.
-      Interface fields are those with ISrs* prefix (e.g., ISrsAppConfig*, ISrsBasicRtmpClient*, ISrsRequest*).
-      This enables proper dependency injection and isolation of the unit under test.
-
-    process:
-      - "Step 1: View the class header file to identify all private/protected member fields"
-      - "Step 2: Identify which fields are interfaces (start with ISrs prefix)"
-      - "Step 3: Create or reuse mock classes for each interface type"
-      - "Step 4: In the test, inject mock instances into the class under test by setting the private fields directly"
-      - "Step 5: After test completes, set injected fields to NULL before object destruction to avoid double-free"
-
-    example: |
-      // Class under test has these private fields:
-      class SrsEdgeRtmpUpstream {
-      private:
-          ISrsAppConfig *config_;           // Interface - MUST mock
-          ISrsBasicRtmpClient *sdk_;        // Interface - MUST mock
-          std::string redirect_;            // Not interface - no need to mock
-          int selected_port_;               // Not interface - no need to mock
-      };
-
-      // In unit test:
-      VOID TEST(EdgeRtmpUpstreamTest, ConnectToOrigin) {
-          // Create mocks for ALL interface fields
-          SrsUniquePtr<MockEdgeConfig> mock_config(new MockEdgeConfig());
-          MockEdgeRtmpClient *mock_sdk = new MockEdgeRtmpClient();
-
-          // Create object under test
-          SrsUniquePtr<SrsEdgeRtmpUpstream> upstream(new SrsEdgeRtmpUpstream(""));
-
-          // Inject mocks into private interface fields
-          upstream->config_ = mock_config.get();
-          upstream->sdk_ = mock_sdk;
-
-          // Run test
-          err = upstream->connect(req.get(), lb.get());
-          HELPER_EXPECT_SUCCESS(err);
-
-          // Verify mock interactions
-          EXPECT_TRUE(mock_sdk->connect_called_);
-
-          // Clean up - set to NULL to avoid double-free
-          upstream->sdk_ = NULL;
-          srs_freep(mock_sdk);
-      }
-
-    rules:
-      - "ALWAYS view the class header file first to identify all member fields"
-      - "ALWAYS mock ALL interface fields (ISrs* prefix) - no exceptions"
-      - "Create mock classes that implement the interface if they don't exist"
-      - "Reuse existing mock classes from srs_utest_app*.hpp when available"
-      - "Inject mocks by directly setting private member fields (accessible in utests)"
-      - "Set injected fields to NULL before object destruction to prevent double-free"
-      - "Non-interface fields (std::string, int, etc.) do not need mocking"
-
-    rationale: "Mocking all interface dependencies ensures tests are isolated, fast, and don't require real network/file/database resources. It also makes tests deterministic and easier to debug."
-
-  test_object_declaration:
-    - pattern: "Use unique pointers for object instantiation"
-      description: "MANDATORY - Always use SrsUniquePtr for object declaration in unit tests instead of stack allocation"
-      usage: |
-        WRONG: Stack allocation for SRS classes
-        SrsRtcPublishStream publish_stream(&mock_exec, &mock_expire, &mock_receiver, cid);
-        SrsBuffer buffer(data, size);
-        SrsHttpUri uri;
-
-        CORRECT: Use SrsUniquePtr for SRS classes
-        SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
-        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(data, size));
-        SrsUniquePtr<SrsHttpUri> uri(new SrsHttpUri());
-
-        // Access members using -> operator
-        HELPER_EXPECT_SUCCESS(publish_stream->initialize());
-        buffer->write_1bytes(0xff);
-        uri->parse("http://example.com");
-
-        EXCEPTION: Mock objects should be declared directly (stack allocation)
-        MockRtcPacketReceiver mock_receiver;
-        MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
-        MockRtcAsyncTaskExecutor mock_exec;
-      rationale: "Consistent with SRS memory management patterns, automatic cleanup, and prevents stack overflow issues with large objects. Mock objects are lightweight and designed for direct instantiation."
-
-  mock_class_organization:
-    - pattern: "Mock class structure"
-      description: "MANDATORY - Always create mock class declarations in .hpp files and implementations in .cpp files"
-      usage: |
-        WRONG: Inline mock class definition in .cpp test file
-        // In srs_utest_app.cpp
-        class MockRtcConnection {
-        public:
-            bool enabled() { return true; }
-            srs_error_t send_packet() { return srs_success; }
-        };
-
-        CORRECT: Mock class declaration in .hpp, implementation in .cpp
-        // In srs_utest_app.hpp
-        class MockRtcConnection {
-        public:
-            bool enabled();
-            srs_error_t send_packet();
-        };
-
-        // In srs_utest_app.cpp
-        bool MockRtcConnection::enabled() {
-            return true;
-        }
-        srs_error_t MockRtcConnection::send_packet() {
-            return srs_success;
-        }
-      rationale: "Proper separation of interface and implementation, better code organization, and easier maintenance"
-
-    - pattern: "Mock function organization"
-      description: "MANDATORY - Always declare mock functions in .hpp files and implement in .cpp files"
-      usage: |
-        WRONG: Inline mock function in .cpp test file
-        // In srs_utest_app.cpp
-        srs_error_t mock_read_function(char* buf, int size) {
-            return srs_success;
-        }
-
-        CORRECT: Mock function declaration in .hpp, implementation in .cpp
-        // In srs_utest_app.hpp
-        srs_error_t mock_read_function(char* buf, int size);
-
-        // In srs_utest_app.cpp
-        srs_error_t mock_read_function(char* buf, int size) {
-            return srs_success;
-        }
-      rationale: "Consistent with SRS coding standards and better code organization"
-
-    - pattern: "Reuse existing mocks"
-      description: "MANDATORY - Always try to use existing mock classes by including the appropriate header file before creating new mocks"
-      usage: |
-        CORRECT: Check and reuse existing mocks
-        // First, include existing mock headers
-        #include "srs_utest_app.hpp"     // For MockRtcConnection, MockHttpServer, etc.
-
-        // Use existing mock if available
-        MockRtcConnection* mock_conn = new MockRtcConnection();
-
-        // Only create new mock if none exists
-        class MockNewFeature {
-        public:
-            srs_error_t new_method();
-        };
-      rationale: "Reduces code duplication, maintains consistency, and leverages existing test infrastructure"
-
-    - pattern: "Mock creation guidelines"
-      description: "Guidelines for when and how to create new mock classes"
-      rules:
-        - "Only create new mock classes if no suitable existing mock is available"
-        - "Check all existing utest header files (srs_utest_app*.hpp) for reusable mocks"
-        - "Place new mock class declarations in the appropriate srs_utest_app*.hpp file"
-        - "Place new mock class implementations in the corresponding srs_utest_app*.cpp file"
-        - "Follow existing mock naming conventions (Mock prefix + class name)"
-        - "Keep mock implementations simple and focused on test requirements"
-
   error_handling_macros:
     - Use HELPER_EXPECT_SUCCESS(x) when expecting a function to succeed (returns srs_success)
     - Use HELPER_EXPECT_FAILED(x) when expecting a function to fail (returns non-srs_success error)
@@ -896,37 +333,3 @@ documentation:
     When looking for documentation or need to update docs, check this directory for markdown
     files and documentation structure. Do not search ossrs.io or ossrs.net for documentation,
     use the local files instead.
-
-faq:
-  rtmps_forward:
-    question: "Why doesn't SRS support RTMPS in the forward feature?"
-    answer: |
-      SRS SSL is designed for server-side only (accepting connections), not client-side (initiating connections).
-      Forward feature uses SrsSimpleRtmpClient which only supports plain RTMP protocol.
-      Solution: Use FFmpeg with SRS HTTP Hooks (on_publish/on_unpublish events) to automatically relay streams to RTMPS destinations.
-
-  srt_missing_sps_pps:
-    question: "SRT streams missing SPS/PPS causing 'sps or pps empty' errors and black screen for players"
-    answer: |
-      When SRT streams are published without SPS/PPS (e.g., OBS with QSV/VAAPI encoder), SRS cannot generate video sequence headers.
-      The error is logged and ignored (connection stays alive), but no video frames are forwarded to RTMP/WebRTC.
-      Players connect successfully but see black screen (no video data). This is an encoder bug, not an SRS issue.
-      Solution: Use FFmpeg with QSV/VAAPI instead of OBS, or fix encoder settings to include SPS/PPS.
-
-  webrtc_network_switch_rejoin:
-    question: "WebRTC multi-party call: Unable to re-enter room after network switching"
-    answer: |
-      When network switches occur (e.g., switching from intranet to external Wi-Fi), the server cannot detect the UDP connection
-      break immediately, leaving a stale session that blocks rejoining with the same display name.
-      Workarounds: Wait for session timeout (30-60 seconds), use unique display names with timestamps (e.g., "username_" + Date.now()),
-      or implement client-side retry logic with exponential backoff.
-      Why not fixed: Properly fixing this requires significant changes to WebRTC signaling protocol, heartbeat mechanisms,
-      and session management across server and all client SDKs. The complexity and maintenance cost is too high for this edge case.
-
-  pcm_audio_not_supported:
-    question: "PCM audio codec not working in RTMP/FLV streaming"
-    answer: |
-      PCM audio codec is not supported in SRS. Only AAC, MP3, and Opus audio codecs are supported for RTMP/FLV streaming.
-      As of v7.0.102 (#4516), SRS explicitly returns an error for unsupported audio codecs instead of silently ignoring them.
-      Solution: Use FFmpeg to convert PCM audio to AAC: ffmpeg -i input -c:v copy -c:a aac -b:a 128k -f flv rtmp://server/live/stream
-
