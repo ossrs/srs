@@ -896,7 +896,7 @@ documentation:
     When looking for documentation or need to update docs, check this directory for markdown
     files and documentation structure. Do not search ossrs.io or ossrs.net for documentation,
     use the local files instead.
-    
+
 faq:
   rtmps_forward:
     question: "Why doesn't SRS support RTMPS in the forward feature?"
@@ -922,4 +922,11 @@ faq:
       or implement client-side retry logic with exponential backoff.
       Why not fixed: Properly fixing this requires significant changes to WebRTC signaling protocol, heartbeat mechanisms,
       and session management across server and all client SDKs. The complexity and maintenance cost is too high for this edge case.
+
+  pcm_audio_not_supported:
+    question: "PCM audio codec not working in RTMP/FLV streaming"
+    answer: |
+      PCM audio codec is not supported in SRS. Only AAC, MP3, and Opus audio codecs are supported for RTMP/FLV streaming.
+      As of v7.0.102 (#4516), SRS explicitly returns an error for unsupported audio codecs instead of silently ignoring them.
+      Solution: Use FFmpeg to convert PCM audio to AAC: ffmpeg -i input -c:v copy -c:a aac -b:a 128k -f flv rtmp://server/live/stream
 

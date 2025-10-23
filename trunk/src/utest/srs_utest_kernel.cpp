@@ -4474,13 +4474,27 @@ VOID TEST(KernelCodecTest, AudioFormat)
 {
     srs_error_t err;
 
+    // Test edge cases with NULL/empty audio data
     if (true) {
         SrsFormat f;
         HELPER_EXPECT_SUCCESS(f.initialize());
 
+        // NULL data should return success (early return)
         HELPER_EXPECT_SUCCESS(f.on_audio(0, NULL, 0));
+        // Zero size should return success (early return)
         HELPER_EXPECT_SUCCESS(f.on_audio(0, (char *)"\x00", 0));
-        HELPER_EXPECT_SUCCESS(f.on_audio(0, (char *)"\x00", 1));
+        // Single byte with valid codec (MP3: 0x2F = codec ID 2) should succeed
+        HELPER_EXPECT_SUCCESS(f.on_audio(0, (char *)"\x2F", 1));
+    }
+
+    // Test that unsupported codec (PCM) now returns error
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // PCM codec (0x00) should now return error
+        err = f.on_audio(0, (char *)"\x00", 1);
+        HELPER_EXPECT_FAILED(err);
     }
 
     // For MP3
@@ -4601,6 +4615,111 @@ VOID TEST(KernelCodecTest, AudioFormat)
         EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, f.audio_->aac_packet_type_);
         EXPECT_TRUE(f.is_aac_sequence_header());
         EXPECT_TRUE(!f.is_avc_sequence_header());
+    }
+}
+
+VOID TEST(KernelCodecTest, UnsupportedAudioCodecs)
+{
+    srs_error_t err;
+
+    // Test PCM codec (codec ID 0 = Linear PCM, platform endian)
+    // Should return error instead of silently ignoring
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // PCM audio: 0x0F = (0 << 4) | 0x0F (codec=0, 44kHz, 16-bit, stereo)
+        err = f.on_audio(0, (char *)"\x0F\x00\x01\x02", 4);
+        HELPER_EXPECT_FAILED(err);
+        EXPECT_TRUE(NULL == f.acodec_); // acodec_ should remain NULL
+    }
+
+    // Test PCM little endian codec (codec ID 3)
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // PCM little endian: 0x3F = (3 << 4) | 0x0F
+        err = f.on_audio(0, (char *)"\x3F\x00\x01\x02", 4);
+        HELPER_EXPECT_FAILED(err);
+        EXPECT_TRUE(NULL == f.acodec_);
+    }
+
+    // Test ADPCM codec (codec ID 1)
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // ADPCM: 0x1F = (1 << 4) | 0x0F
+        err = f.on_audio(0, (char *)"\x1F\x00\x01\x02", 4);
+        HELPER_EXPECT_FAILED(err);
+        EXPECT_TRUE(NULL == f.acodec_);
+    }
+
+    // Test Speex codec (codec ID 11)
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // Speex: 0xBF = (11 << 4) | 0x0F
+        err = f.on_audio(0, (char *)"\xBF\x00\x01\x02", 4);
+        HELPER_EXPECT_FAILED(err);
+        EXPECT_TRUE(NULL == f.acodec_);
+    }
+
+    // Test Nellymoser codec (codec ID 6)
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // Nellymoser: 0x6F = (6 << 4) | 0x0F
+        err = f.on_audio(0, (char *)"\x6F\x00\x01\x02", 4);
+        HELPER_EXPECT_FAILED(err);
+        EXPECT_TRUE(NULL == f.acodec_);
+    }
+
+    // Test G.711 A-law codec (codec ID 7)
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // G.711 A-law: 0x7F = (7 << 4) | 0x0F
+        err = f.on_audio(0, (char *)"\x7F\x00\x01\x02", 4);
+        HELPER_EXPECT_FAILED(err);
+        EXPECT_TRUE(NULL == f.acodec_);
+    }
+
+    // Test G.711 mu-law codec (codec ID 8)
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // G.711 mu-law: 0x8F = (8 << 4) | 0x0F
+        err = f.on_audio(0, (char *)"\x8F\x00\x01\x02", 4);
+        HELPER_EXPECT_FAILED(err);
+        EXPECT_TRUE(NULL == f.acodec_);
+    }
+
+    // Verify that supported codecs still work: AAC (codec ID 10)
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // AAC sequence header should still work
+        HELPER_EXPECT_SUCCESS(f.on_audio(0, (char *)"\xAF\x00\x12\x10", 4));
+        EXPECT_TRUE(NULL != f.acodec_);
+        EXPECT_EQ(SrsAudioCodecIdAAC, f.acodec_->id_);
+    }
+
+    // Verify that supported codecs still work: MP3 (codec ID 2)
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // MP3: 0x2F = (2 << 4) | 0x0F
+        HELPER_EXPECT_SUCCESS(f.on_audio(0, (char *)"\x2F\x00", 2));
+        EXPECT_TRUE(NULL != f.acodec_);
+        EXPECT_EQ(SrsAudioCodecIdMP3, f.acodec_->id_);
     }
 }
 

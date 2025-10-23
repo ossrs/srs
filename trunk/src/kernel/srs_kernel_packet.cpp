@@ -414,7 +414,7 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char *data, int size)
     SrsAudioCodecId codec = (SrsAudioCodecId)((v >> 4) & 0x0f);
 
     if (codec != SrsAudioCodecIdMP3 && codec != SrsAudioCodecIdAAC && codec != SrsAudioCodecIdOpus) {
-        return err;
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "unsupported audio codec=%d(%s)", codec, srs_audio_codec_id2str(codec).c_str());
     }
 
     bool fresh = !acodec_;

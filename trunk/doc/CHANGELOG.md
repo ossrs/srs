@@ -7,7 +7,8 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
-* v7.0, 2025-11-04, AI: Fix AAC audio sample rate reporting in API. v7.0.101 (#4518)
+* v7.0, 2025-10-22, AI: Only support AAC/MP3/Opus audio codec. v7.0.102 (#4516)
+* v7.0, 2025-10-22, AI: Fix AAC audio sample rate reporting in API. v7.0.101 (#4518)
 * v7.0, 2025-10-20, Merge [#4537](https://github.com/ossrs/srs/pull/4537): Forward: Reject RTMPS destinations with clear error message. v7.0.100 (#4537)
 * v7.0, 2025-10-17, Merge [#4534](https://github.com/ossrs/srs/pull/4534): HLS: Fix a iterator bug in hls_ctx cleanup function. v7.0.99 (#4534)
 * v7.0, 2025-10-16, Merge [#4530](https://github.com/ossrs/srs/pull/4530): fix crash issue caused by reload configuration file. v7.0.98 (#4530)
