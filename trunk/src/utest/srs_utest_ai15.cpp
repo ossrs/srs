@@ -27,6 +27,22 @@ using namespace std;
 #include <srs_utest_ai14.hpp>
 #include <sys/socket.h>
 
+// Mock PID file locker implementation for SrsServer::initialize() testing
+MockPidFileLocker::MockPidFileLocker()
+{
+}
+
+MockPidFileLocker::~MockPidFileLocker()
+{
+}
+
+srs_error_t MockPidFileLocker::acquire()
+{
+    // Mock implementation that always succeeds without actually locking a file
+    // This allows tests to run even when a real SRS server is running
+    return srs_success;
+}
+
 // Mock config implementation for SrsServer::listen() testing
 MockAppConfigForServerListen::MockAppConfigForServerListen()
 {
@@ -170,6 +186,11 @@ VOID TEST(SrsServerTest, InitializeSuccess)
     SrsUniquePtr<SrsServer> server(new SrsServer());
     EXPECT_TRUE(server.get() != NULL);
 
+    // Replace the PID file locker with a mock to avoid conflicts with running SRS server
+    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    MockPidFileLocker *mock_locker = new MockPidFileLocker();
+    server->pid_file_locker_ = mock_locker;
+
     // Call initialize() - this is the main test
     // This will initialize all server components in the correct sequence:
     // 1. PID file locker acquisition
@@ -188,6 +209,10 @@ VOID TEST(SrsServerTest, InitializeSuccess)
     // The fact that initialize() returned success means all components
     // were initialized properly without errors
     EXPECT_TRUE(server.get() != NULL);
+
+    // Restore original locker and cleanup mock
+    server->pid_file_locker_ = original_locker;
+    srs_freep(mock_locker);
 }
 
 // Test SrsServer::listen() method to verify proper listener setup for RTMP protocol.
@@ -212,6 +237,11 @@ VOID TEST(SrsServerTest, ListenRtmpSuccess)
     // Inject mock config
     server->config_ = &mock_config;
 
+    // Replace the PID file locker with a mock to avoid conflicts with running SRS server
+    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    MockPidFileLocker *mock_locker = new MockPidFileLocker();
+    server->pid_file_locker_ = mock_locker;
+
     // Initialize server first (required before listen)
     HELPER_EXPECT_SUCCESS(server->initialize());
 
@@ -228,6 +258,10 @@ VOID TEST(SrsServerTest, ListenRtmpSuccess)
     // - Socket binding succeeded on the random port
     // - Connection manager started successfully
     EXPECT_TRUE(server.get() != NULL);
+
+    // Restore original locker and cleanup mock
+    server->pid_file_locker_ = original_locker;
+    srs_freep(mock_locker);
 }
 
 // Test SrsServer::http_handle() method to verify proper HTTP API handler registration.

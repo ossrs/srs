@@ -3291,17 +3291,17 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioFormatConsumeError)
     SrsUniquePtr<SrsMediaPacket> invalid_frame(new SrsMediaPacket());
     invalid_frame->message_type_ = SrsFrameTypeAudio;
 
-    // Create invalid audio data (empty payload)
+    // Create invalid audio data with unsupported codec (Linear PCM, codec ID 0)
     char *invalid_data = new char[1];
-    invalid_data[0] = 0x00; // Invalid audio format
+    invalid_data[0] = 0x00; // Linear PCM codec (ID=0) - unsupported
 
     invalid_frame->wrap(invalid_data, 1);
     invalid_frame->timestamp_ = 1000;
 
     // Test on_frame which calls on_audio internally
-    // This should call format_->on_audio(msg) but the format parsing should handle gracefully
-    // Note: SrsFormat::on_audio returns success for invalid data, just doesn't parse codec
-    HELPER_EXPECT_SUCCESS(builder.on_frame(invalid_frame.get()));
+    // This should call format_->on_audio(msg) which will return error for unsupported codec
+    // SrsFormat::on_audio now returns error for codecs that are not MP3/AAC/Opus
+    HELPER_EXPECT_FAILED(builder.on_frame(invalid_frame.get()));
 
     // Test with NULL payload data
     SrsUniquePtr<SrsMediaPacket> null_frame(new SrsMediaPacket());
@@ -3334,7 +3334,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioNoAcodecParsed)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
 
     // Test with audio data that has unknown/unsupported codec
-    // This will cause format_->on_audio() to succeed but not parse acodec_
+    // This will cause format_->on_audio() to return error for unsupported codec
     SrsUniquePtr<SrsMediaPacket> unknown_codec_frame(new SrsMediaPacket());
     unknown_codec_frame->message_type_ = SrsFrameTypeAudio;
 
@@ -3349,23 +3349,18 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioNoAcodecParsed)
     unknown_codec_frame->timestamp_ = 1000;
 
     // Test on_frame which calls on_audio internally
-    // This should call format_->on_audio(msg) successfully, but format_->acodec_ will be NULL
-    // because ADPCM is not supported, so the method should return early at line 1033-1035
-    HELPER_EXPECT_SUCCESS(builder.on_frame(unknown_codec_frame.get()));
+    // This should call format_->on_audio(msg) which returns error for unsupported codec
+    // SrsFormat::on_audio now validates codec and returns error for non-MP3/AAC/Opus codecs
+    HELPER_EXPECT_FAILED(builder.on_frame(unknown_codec_frame.get()));
 
-    // Test with very short audio data that can't be parsed
-    SrsUniquePtr<SrsMediaPacket> short_frame(new SrsMediaPacket());
-    short_frame->message_type_ = SrsFrameTypeAudio;
+    // Test with NULL payload - this should succeed as format handles NULL gracefully
+    SrsUniquePtr<SrsMediaPacket> null_frame(new SrsMediaPacket());
+    null_frame->message_type_ = SrsFrameTypeAudio;
+    null_frame->timestamp_ = 2000;
+    // Don't wrap any data, payload will be NULL
 
-    // Create very short audio data (less than minimum required)
-    char *short_data = new char[1];
-    short_data[0] = 0xFF; // Some data but too short to parse properly
-
-    short_frame->wrap(short_data, 1);
-    short_frame->timestamp_ = 2000;
-
-    // This should also result in format_->acodec_ being NULL after parsing
-    HELPER_EXPECT_SUCCESS(builder.on_frame(short_frame.get()));
+    // This should call format_->on_audio(msg) with NULL payload which returns success
+    HELPER_EXPECT_SUCCESS(builder.on_frame(null_frame.get()));
 
     // Verify that frames were processed successfully
     EXPECT_TRUE(true); // Basic test passed - no crash occurred
@@ -3424,8 +3419,8 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioUnsupportedCodec)
     speex_frame->wrap(speex_data, 6);
     speex_frame->timestamp_ = 2000;
 
-    // This should also fail the codec validation since Speex is not AAC or MP3
-    HELPER_EXPECT_SUCCESS(builder.on_frame(speex_frame.get()));
+    // This should fail the codec validation since Speex is not MP3/AAC/Opus
+    HELPER_EXPECT_FAILED(builder.on_frame(speex_frame.get()));
 
     // Test with Linear PCM codec (codec ID 0)
     SrsUniquePtr<SrsMediaPacket> pcm_frame(new SrsMediaPacket());
@@ -3443,8 +3438,8 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioUnsupportedCodec)
     pcm_frame->wrap(pcm_data, 6);
     pcm_frame->timestamp_ = 3000;
 
-    // This should also fail the codec validation since Linear PCM is not AAC or MP3
-    HELPER_EXPECT_SUCCESS(builder.on_frame(pcm_frame.get()));
+    // This should also fail the codec validation since Linear PCM is not MP3/AAC/Opus
+    HELPER_EXPECT_FAILED(builder.on_frame(pcm_frame.get()));
 
     // Verify that frames were processed successfully
     EXPECT_TRUE(true); // Basic test passed - no crash occurred
@@ -3577,8 +3572,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioCodecValidationFailure)
     // This should succeed and set up format_->acodec_
     HELPER_EXPECT_SUCCESS(builder.on_frame(aac_frame.get()));
 
-    // Now test with Linear PCM codec (ID=0) which is not supported by RTC builder
-    // but could theoretically be parsed (though format_ doesn't actually support it either)
+    // Now test with Linear PCM codec (ID=0) which is not supported by format
     SrsUniquePtr<SrsMediaPacket> pcm_frame(new SrsMediaPacket());
     pcm_frame->message_type_ = SrsFrameTypeAudio;
 
@@ -3593,9 +3587,9 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioCodecValidationFailure)
     pcm_frame->wrap(pcm_data, 6);
     pcm_frame->timestamp_ = 2000;
 
-    // This should call format_->on_audio() which will not parse Linear PCM (returns early),
-    // so format_->acodec_ will remain NULL, covering the path at lines 1033-1035
-    HELPER_EXPECT_SUCCESS(builder.on_frame(pcm_frame.get()));
+    // This should call format_->on_audio() which will return error for unsupported codec
+    // SrsFormat::on_audio validates codec and returns error for non-MP3/AAC/Opus codecs
+    HELPER_EXPECT_FAILED(builder.on_frame(pcm_frame.get()));
 
     // Verify that frames were processed successfully
     EXPECT_TRUE(true); // Test passed - covered codec validation paths
@@ -3626,7 +3620,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioComprehensiveCoverage)
     // This covers the path where format_->on_audio() handles NULL/empty data gracefully
     HELPER_EXPECT_SUCCESS(builder.on_frame(empty_frame.get()));
 
-    // Test 2: Invalid codec data - covers format_->acodec_ being NULL after parsing
+    // Test 2: Invalid codec data - covers format_->on_audio() returning error for unsupported codec
     SrsUniquePtr<SrsMediaPacket> invalid_frame(new SrsMediaPacket());
     invalid_frame->message_type_ = SrsFrameTypeAudio;
 
@@ -3637,8 +3631,8 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioComprehensiveCoverage)
     invalid_frame->wrap(invalid_data, 2);
     invalid_frame->timestamp_ = 2000;
 
-    // This covers the path where format_->acodec_ is NULL (lines 1033-1035)
-    HELPER_EXPECT_SUCCESS(builder.on_frame(invalid_frame.get()));
+    // This covers the path where format_->on_audio() returns error for unsupported codec
+    HELPER_EXPECT_FAILED(builder.on_frame(invalid_frame.get()));
 
     // Test 3: OPUS codec - covers format_->on_audio() error path
     SrsUniquePtr<SrsMediaPacket> opus_frame(new SrsMediaPacket());

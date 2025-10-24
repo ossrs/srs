@@ -22,8 +22,8 @@ using namespace std;
 #include <srs_utest_ai08.hpp>
 #include <srs_utest_ai10.hpp>
 #include <srs_utest_ai11.hpp>
-#include <srs_utest_config.hpp>
-#include <srs_utest_coworkers.hpp>
+#include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_coworkers.hpp>
 
 // Mock frame target implementation
 MockSrtFrameTarget::MockSrtFrameTarget()

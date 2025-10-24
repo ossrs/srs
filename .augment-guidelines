@@ -304,6 +304,14 @@ build_and_development:
       working_directory: "trunk/3rdparty/srs-bench"
 
 testing:
+  utest_file_naming:
+    description: "Unit test file naming indicates ownership and maintenance responsibility"
+
+    patterns:
+      - "srs_utest_ai*.cpp - AI-managed, AI has full autonomy"
+      - "srs_utest_workflow_*.cpp - Human-dominated with AI help, human maintains"
+      - "srs_utest_manual_*.cpp - Human-written, AI should NOT modify without permission"
+
   error_handling_macros:
     - Use HELPER_EXPECT_SUCCESS(x) when expecting a function to succeed (returns srs_success)
     - Use HELPER_EXPECT_FAILED(x) when expecting a function to fail (returns non-srs_success error)

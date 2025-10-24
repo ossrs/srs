@@ -10,6 +10,6 @@
 /*
 #include <srs_utest_ai01.hpp>
 */
-#include <srs_utest_config.hpp>
+#include <srs_utest_manual_config.hpp>
 
 #endif

@@ -15,7 +15,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
-#include <srs_utest_kernel.hpp>
+#include <srs_utest_manual_kernel.hpp>
 
 // Mock app config implementation for HLS notify testing
 MockAppConfigForHlsNotify::MockAppConfigForHlsNotify()

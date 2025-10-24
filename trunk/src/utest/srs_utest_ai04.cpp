@@ -10,7 +10,7 @@
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_protocol_st.hpp>
-#include <srs_utest_kernel.hpp>
+#include <srs_utest_manual_kernel.hpp>
 
 // Helper function to create a mock RTP packet for testing
 SrsRtpPacket *mock_create_audio_rtp_packet(uint16_t sequence, uint32_t timestamp, const char *payload_data = NULL, int payload_size = 10)
@@ -211,19 +211,21 @@ VOID TEST(RTC3AudioCacheTest, PacketLossWithTimeout)
         // Should not process yet, waiting for missing packets
         EXPECT_EQ(0, (int)ready_packets.size());
 
-        // Sleep for 10ms to exceed the 1ms timeout
-        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
-
-        // Process another packet to trigger timeout check
-        SrsUniquePtr<SrsRtpPacket> pkt4(mock_create_audio_rtp_packet(104, 1080));
-        HELPER_EXPECT_SUCCESS(cache.process_packet(pkt4.get(), ready_packets));
-
-        // Should process packet 103 despite missing 101, 102 due to timeout
         bool found_103 = false;
-        for (size_t i = 0; i < ready_packets.size(); i++) {
-            if (ready_packets[i]->header_.get_sequence() == 103) {
-                found_103 = true;
-                break;
+        for (int i = 0; i < 10 && !found_103; i++) {
+            // Sleep for N ms to exceed the 1ms timeout
+            srs_usleep(3 * SRS_UTIME_MILLISECONDS);
+
+            // Process another packet to trigger timeout check
+            SrsUniquePtr<SrsRtpPacket> pkt4(mock_create_audio_rtp_packet(104, 1080));
+            HELPER_EXPECT_SUCCESS(cache.process_packet(pkt4.get(), ready_packets));
+
+            // Should process packet 103 despite missing 101, 102 due to timeout
+            for (size_t i = 0; i < ready_packets.size(); i++) {
+                if (ready_packets[i]->header_.get_sequence() == 103) {
+                    found_103 = true;
+                    break;
+                }
             }
         }
         EXPECT_TRUE(found_103);

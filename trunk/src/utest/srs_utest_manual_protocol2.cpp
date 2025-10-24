@@ -1,0 +1,8276 @@
+//
+// Copyright (c) 2013-2025 The SRS Authors
+//
+// SPDX-License-Identifier: MIT
+//
+#include <srs_utest_manual_protocol2.hpp>
+
+using namespace std;
+
+#include <srs_app_st.hpp>
+#include <srs_core_autofree.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_protocol_amf0.hpp>
+#include <srs_protocol_http_conn.hpp>
+#include <srs_protocol_protobuf.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_utility.hpp>
+
+/**
+ * recv video, audio, video and video, interlaced in chunks.
+ * the continue chunks use fmt=1, last video with fmt=1 header
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt11)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    /**
+     * parse the message header.
+     *   3bytes: timestamp delta,    fmt=0,1,2
+     *   3bytes: payload length,     fmt=0,1
+     *   1bytes: message type,       fmt=0,1
+     *   4bytes: stream id,          fmt=0
+     * where:
+     *   fmt=0, 0x0X
+     *   fmt=1, 0x4X
+     *   fmt=2, 0x8X
+     *   fmt=3, 0xCX
+     */
+
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x03,
+            0x00, 0x00, 0x10,       // timestamp
+            0x00, 0x01, 0x10,       // length, 272
+            0x09,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x04,
+            0x00, 0x00, 0x15,       // timestamp
+            0x00, 0x00, 0x90,       // length, 144
+            0x08,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x43,
+            0x00, 0x00, 0x10, // timestamp
+            0x00, 0x01, 0x10, // length, 272
+            0x09,             // message_type
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC4, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x43,
+            0x00, 0x00, 0x20, // timestamp
+            0x00, 0x01, 0x10, // length, 272
+            0x09,             // message_type
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x10, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x15, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x20, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x40, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+}
+
+/**
+ * recv video, audio, video and video, interlaced in chunks.
+ * the continue chunks use fmt=1, last video with fmt=1 header,
+ * last video changed length
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt11Length)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    /**
+     * parse the message header.
+     *   3bytes: timestamp delta,    fmt=0,1,2
+     *   3bytes: payload length,     fmt=0,1
+     *   1bytes: message type,       fmt=0,1
+     *   4bytes: stream id,          fmt=0
+     * where:
+     *   fmt=0, 0x0X
+     *   fmt=1, 0x4X
+     *   fmt=2, 0x8X
+     *   fmt=3, 0xCX
+     */
+
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x03,
+            0x00, 0x00, 0x10,       // timestamp
+            0x00, 0x01, 0x10,       // length, 272
+            0x09,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x04,
+            0x00, 0x00, 0x15,       // timestamp
+            0x00, 0x00, 0x90,       // length, 144
+            0x08,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x43,
+            0x00, 0x00, 0x10, // timestamp
+            0x00, 0x01, 0x20, // length, 288
+            0x09,             // message_type
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC4, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e,
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x43,
+            0x00, 0x00, 0x20, // timestamp
+            0x00, 0x01, 0x10, // length, 272
+            0x09,             // message_type
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x10, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x15, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x20, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x40, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+}
+
+/**
+ * recv video, audio, video and video, interlaced in chunks.
+ * the continue chunks use fmt=1, last video with fmt=2 header
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt12)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    /**
+     * parse the message header.
+     *   3bytes: timestamp delta,    fmt=0,1,2
+     *   3bytes: payload length,     fmt=0,1
+     *   1bytes: message type,       fmt=0,1
+     *   4bytes: stream id,          fmt=0
+     * where:
+     *   fmt=0, 0x0X
+     *   fmt=1, 0x4X
+     *   fmt=2, 0x8X
+     *   fmt=3, 0xCX
+     */
+
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x03,
+            0x00, 0x00, 0x10,       // timestamp
+            0x00, 0x01, 0x10,       // length, 272
+            0x09,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x04,
+            0x00, 0x00, 0x15,       // timestamp
+            0x00, 0x00, 0x90,       // length, 144
+            0x08,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x43,
+            0x00, 0x00, 0x10, // timestamp
+            0x00, 0x01, 0x10, // length, 272
+            0x09,             // message_type
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC4, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x83,
+            0x00, 0x00, 0x20, // timestamp
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x10, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x15, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x20, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x40, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+}
+
+/**
+ * recv video, audio, video and video, interlaced in chunks.
+ * the continue chunks use fmt=1, last video with fmt=2 header,
+ * last video changed length
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt12Length)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    /**
+     * parse the message header.
+     *   3bytes: timestamp delta,    fmt=0,1,2
+     *   3bytes: payload length,     fmt=0,1
+     *   1bytes: message type,       fmt=0,1
+     *   4bytes: stream id,          fmt=0
+     * where:
+     *   fmt=0, 0x0X
+     *   fmt=1, 0x4X
+     *   fmt=2, 0x8X
+     *   fmt=3, 0xCX
+     */
+
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x03,
+            0x00, 0x00, 0x10,       // timestamp
+            0x00, 0x01, 0x10,       // length, 272
+            0x09,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x04,
+            0x00, 0x00, 0x15,       // timestamp
+            0x00, 0x00, 0x90,       // length, 144
+            0x08,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x43,
+            0x00, 0x00, 0x10, // timestamp
+            0x00, 0x01, 0x20, // length, 288
+            0x09,             // message_type
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC4, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e,
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x83,
+            0x00, 0x00, 0x20, // timestamp
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e,
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x10, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+        EXPECT_EQ(0x110, msg->header_.payload_length_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x15, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x20, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+        EXPECT_EQ(0x120, msg->header_.payload_length_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x40, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+        EXPECT_EQ(0x120, msg->header_.payload_length_);
+    }
+}
+
+/**
+ * recv video, with extended timestamp.
+ * small timestamp < 0xffffff
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvExtTimeMessage)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    /**
+     * parse the message header.
+     *   3bytes: timestamp delta,    fmt=0,1,2
+     *   3bytes: payload length,     fmt=0,1
+     *   1bytes: message type,       fmt=0,1
+     *   4bytes: stream id,          fmt=0
+     * where:
+     *   fmt=0, 0x0X
+     *   fmt=1, 0x4X
+     *   fmt=2, 0x8X
+     *   fmt=3, 0xCX
+     */
+
+    uint8_t data[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x03,
+        0xff, 0xff, 0xff,       // timestamp
+        0x00, 0x00, 0x04,       // length
+        0x09,                   // message_type
+        0x00, 0x00, 0x00, 0x00, // stream_id
+        0x00, 0x00, 0x00, 0x10, // extended timestamp
+        // msg payload start
+        0x00, 0x00, 0x07, 0x63};
+    bio.in_buffer.append((char *)data, sizeof(data));
+
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+    EXPECT_TRUE(msg->header_.is_video());
+    EXPECT_EQ(0x10, msg->header_.timestamp_);
+}
+
+/**
+ * recv video, with extended timestamp.
+ * big timestamp > 0xffffff
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvExtTimeMessage2)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    /**
+     * parse the message header.
+     *   3bytes: timestamp delta,    fmt=0,1,2
+     *   3bytes: payload length,     fmt=0,1
+     *   1bytes: message type,       fmt=0,1
+     *   4bytes: stream id,          fmt=0
+     * where:
+     *   fmt=0, 0x0X
+     *   fmt=1, 0x4X
+     *   fmt=2, 0x8X
+     *   fmt=3, 0xCX
+     */
+
+    uint8_t data[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x03,
+        0xff, 0xff, 0xff,       // timestamp
+        0x00, 0x00, 0x04,       // length
+        0x09,                   // message_type
+        0x00, 0x00, 0x00, 0x00, // stream_id
+        0x7f, 0x01, 0x02, 0x03, // extended timestamp
+        // msg payload start
+        0x00, 0x00, 0x07, 0x63};
+    bio.in_buffer.append((char *)data, sizeof(data));
+
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+    EXPECT_TRUE(msg->header_.is_video());
+    EXPECT_EQ(0x7f010203, msg->header_.timestamp_);
+}
+
+/**
+ * recv video, with extended timestamp.
+ * always use 31bits timestamp.
+ */
+// always use 31bits timestamp, for some server may use 32bits extended timestamp.
+VOID TEST(ProtocolStackTest, ProtocolRecvExtTimeMessage3)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    /**
+     * parse the message header.
+     *   3bytes: timestamp delta,    fmt=0,1,2
+     *   3bytes: payload length,     fmt=0,1
+     *   1bytes: message type,       fmt=0,1
+     *   4bytes: stream id,          fmt=0
+     * where:
+     *   fmt=0, 0x0X
+     *   fmt=1, 0x4X
+     *   fmt=2, 0x8X
+     *   fmt=3, 0xCX
+     */
+
+    uint8_t data[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x03,
+        0xff, 0xff, 0xff,       // timestamp
+        0x00, 0x00, 0x04,       // length
+        0x09,                   // message_type
+        0x00, 0x00, 0x00, 0x00, // stream_id
+        0xff, 0x01, 0x02, 0x03, // extended timestamp
+        // msg payload start
+        0x00, 0x00, 0x07, 0x63};
+    bio.in_buffer.append((char *)data, sizeof(data));
+
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+    EXPECT_TRUE(msg->header_.is_video());
+    // always use 31bits timestamp
+    EXPECT_EQ(0x7f010203, msg->header_.timestamp_);
+}
+
+/**
+ * recv video, with extended timestamp, in 2 chunks packet.
+ * always send extended timestamp in 0xCX chunk packets.
+ */
+/**
+ * RTMP specification and ffmpeg/librtmp is false,
+ * but, adobe changed the specification, so flash/FMLE/FMS always true.
+ * default to true to support flash/FMLE/FMS.
+ *
+ * ffmpeg/librtmp may donot send this filed, need to detect the value.
+ * @see also: http://blog.csdn.net/win_lin/article/details/13363699
+ * compare to the chunk timestamp, which is set by chunk message header
+ * type 0,1 or 2.
+ *
+ * @remark, nginx send the extended-timestamp in sequence-header,
+ * and timestamp delta in continue C1 chunks, and so compatible with ffmpeg,
+ * that is, there is no continue chunks and extended-timestamp in nginx-rtmp.
+ *
+ * @remark, srs always send the extended-timestamp, to keep simple,
+ * and compatible with adobe products.
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvVExtTime2Trunk)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    // video message
+    uint8_t data[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x03,
+        0xff, 0xff, 0xff,       // timestamp
+        0x00, 0x01, 0x10,       // length, 272
+        0x09,                   // message_type
+        0x00, 0x00, 0x00, 0x00, // stream_id
+        0x00, 0x01, 0x02, 0x03, // extended timestamp
+        // msg payload start
+        0x02, 0x00, 0x07, 0x63,
+        0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+        0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+        0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+        0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+        0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+        0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+        0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+        0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c,
+        // chunk #2
+        0xC3,
+        0x00, 0x01, 0x02, 0x03, // extended timestamp
+        /*next chunk.*/ 0x61, 0x79, 0x65, 0x72,
+        0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e,
+        0x32, 0x33, 0x00, 0x05, 0x74, 0x63, 0x55, 0x72, 0x6c, 0x02, 0x00, 0x14, 0x72, 0x74, 0x6d, 0x70,
+        0x3a, 0x2f, 0x2f, 0x64, 0x65, 0x76, 0x3a, 0x31, 0x39, 0x33, 0x35, 0x2f, 0x6c, 0x69, 0x76, 0x65,
+        0x00, 0x04, 0x66, 0x70, 0x61, 0x64, 0x01, 0x00, 0x00, 0x0c, 0x63, 0x61, 0x70, 0x61, 0x62, 0x69,
+        0x6c, 0x69, 0x74, 0x69, 0x65, 0x73, 0x00, 0x40, 0x6d, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x0b, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x43, 0x6f, 0x64, 0x65, 0x63, 0x73, 0x00, 0x40, 0xab, 0xee,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x43, 0x6f, 0x64, 0x65,
+        0x63, 0x73, 0x00, 0x40, 0x6f, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        // chunk #2
+        0xC3,
+        0x00, 0x01, 0x02, 0x03, // extended timestamp
+        /*next chunk.*/
+        0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+    bio.in_buffer.append((char *)data, sizeof(data));
+
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+    EXPECT_TRUE(msg->header_.is_video());
+    // 0xCX with extended timestamp.
+    EXPECT_EQ(0x00010203, msg->header_.timestamp_);
+}
+
+/**
+ * recv video, with extended timestamp, in 2 chunks packet.
+ * never send extended timestamp in 0xCX chunk packets.
+ */
+// FFMPEG/librtmp, RTMP specification standard protocol.
+VOID TEST(ProtocolStackTest, ProtocolRecvVExtTime2Trunk2)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    // video message
+    uint8_t data[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x03,
+        0xff, 0xff, 0xff,       // timestamp
+        0x00, 0x01, 0x10,       // length, 272
+        0x09,                   // message_type
+        0x00, 0x00, 0x00, 0x00, // stream_id
+        0x00, 0x01, 0x02, 0x03, // extended timestamp
+        // msg payload start
+        0x02, 0x00, 0x07, 0x63,
+        0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+        0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+        0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+        0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+        0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+        0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+        0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+        0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c,
+        // chunk #2
+        0xC3,
+        /*next chunk.*/ 0x61, 0x79, 0x65, 0x72,
+        0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e,
+        0x32, 0x33, 0x00, 0x05, 0x74, 0x63, 0x55, 0x72, 0x6c, 0x02, 0x00, 0x14, 0x72, 0x74, 0x6d, 0x70,
+        0x3a, 0x2f, 0x2f, 0x64, 0x65, 0x76, 0x3a, 0x31, 0x39, 0x33, 0x35, 0x2f, 0x6c, 0x69, 0x76, 0x65,
+        0x00, 0x04, 0x66, 0x70, 0x61, 0x64, 0x01, 0x00, 0x00, 0x0c, 0x63, 0x61, 0x70, 0x61, 0x62, 0x69,
+        0x6c, 0x69, 0x74, 0x69, 0x65, 0x73, 0x00, 0x40, 0x6d, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x0b, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x43, 0x6f, 0x64, 0x65, 0x63, 0x73, 0x00, 0x40, 0xab, 0xee,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x43, 0x6f, 0x64, 0x65,
+        0x63, 0x73, 0x00, 0x40, 0x6f, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        // chunk #2
+        0xC3,
+        /*next chunk.*/
+        0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+    bio.in_buffer.append((char *)data, sizeof(data));
+
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+    EXPECT_TRUE(msg->header_.is_video());
+    // 0xCX without extended timestamp.
+    EXPECT_EQ(0x00010203, msg->header_.timestamp_);
+}
+
+/**
+ * 2 audio and video packet, fmt 1/2
+ * first audio packet:  dts:10000
+ * first video packet:  dts:11000
+ * second audio packet:  dts : 16787216   delta: 16777216
+ * second video packet:  dts : 16787216   delta: 16776216
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvAVExtTimedeltaStream)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    // audio message
+    uint8_t audio_data1[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x03, // fmt 0
+        0x00,
+        0x27,
+        0x10, // timestamp 10000
+        0x00,
+        0x00,
+        0x80, // length, 128
+        0x08, // message_type
+        0x00,
+        0x00,
+        0x00,
+        0x00, // stream_id
+        // msg payload start
+        0x02,
+        0x00,
+        0x07,
+        0x63,
+        0x6f,
+        0x6e,
+        0x6e,
+        0x65,
+        0x63,
+        0x74,
+        0x00,
+        0x3f,
+        0xf0,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x03,
+        0x00,
+        0x03,
+        0x61,
+        0x70,
+        0x70,
+        0x02,
+        0x00,
+        0x04,
+        0x6c,
+        0x69,
+        0x76,
+        0x65,
+        0x00,
+        0x08,
+        0x66,
+        0x6c,
+        0x61,
+        0x73,
+        0x68,
+        0x56,
+        0x65,
+        0x72,
+        0x02,
+        0x00,
+        0x0d,
+        0x57,
+        0x49,
+        0x4e,
+        0x20,
+        0x31,
+        0x32,
+        0x2c,
+        0x30,
+        0x2c,
+        0x30,
+        0x2c,
+        0x34,
+        0x31,
+        0x00,
+        0x06,
+        0x73,
+        0x77,
+        0x66,
+        0x55,
+        0x72,
+        0x6c,
+        0x02,
+        0x00,
+        0x51,
+        0x68,
+        0x74,
+        0x74,
+        0x70,
+        0x3a,
+        0x2f,
+        0x2f,
+        0x77,
+        0x77,
+        0x77,
+        0x2e,
+        0x6f,
+        0x73,
+        0x73,
+        0x72,
+        0x73,
+        0x2e,
+        0x6e,
+        0x65,
+        0x74,
+        0x3a,
+        0x38,
+        0x30,
+        0x38,
+        0x35,
+        0x2f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x73,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x2f,
+        0x72,
+        0x65,
+        0x6c,
+        0x65,
+        0x61,
+        0x73,
+        0x65,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+    };
+
+    uint8_t audio_data2[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x43, // fmt 1
+        0xff,
+        0xff,
+        0xff, // means extended timestamp
+        0x00,
+        0x00,
+        0x80, // length, 128
+        0x08, // message_type
+        0x01,
+        0x00,
+        0x00,
+        0x00, // extended timestamp delta:16777216
+        // msg payload start
+        0x02,
+        0x00,
+        0x07,
+        0x63,
+        0x6f,
+        0x6e,
+        0x6e,
+        0x65,
+        0x63,
+        0x74,
+        0x00,
+        0x3f,
+        0xf0,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x03,
+        0x00,
+        0x03,
+        0x61,
+        0x70,
+        0x70,
+        0x02,
+        0x00,
+        0x04,
+        0x6c,
+        0x69,
+        0x76,
+        0x65,
+        0x00,
+        0x08,
+        0x66,
+        0x6c,
+        0x61,
+        0x73,
+        0x68,
+        0x56,
+        0x65,
+        0x72,
+        0x02,
+        0x00,
+        0x0d,
+        0x57,
+        0x49,
+        0x4e,
+        0x20,
+        0x31,
+        0x32,
+        0x2c,
+        0x30,
+        0x2c,
+        0x30,
+        0x2c,
+        0x34,
+        0x31,
+        0x00,
+        0x06,
+        0x73,
+        0x77,
+        0x66,
+        0x55,
+        0x72,
+        0x6c,
+        0x02,
+        0x00,
+        0x51,
+        0x68,
+        0x74,
+        0x74,
+        0x70,
+        0x3a,
+        0x2f,
+        0x2f,
+        0x77,
+        0x77,
+        0x77,
+        0x2e,
+        0x6f,
+        0x73,
+        0x73,
+        0x72,
+        0x73,
+        0x2e,
+        0x6e,
+        0x65,
+        0x74,
+        0x3a,
+        0x38,
+        0x30,
+        0x38,
+        0x35,
+        0x2f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x73,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x2f,
+        0x72,
+        0x65,
+        0x6c,
+        0x65,
+        0x61,
+        0x73,
+        0x65,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+    };
+
+    // video message
+    uint8_t video_data1[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x04, // fmt 0
+        0x00,
+        0x2a,
+        0xf8, // timestamp 11000
+        0x00,
+        0x00,
+        0x80, // length, 128
+        0x09, // message_type
+        0x00,
+        0x00,
+        0x00,
+        0x01, // stream_id
+        // msg payload start
+        0x02,
+        0x00,
+        0x07,
+        0x63,
+        0x6f,
+        0x6e,
+        0x6e,
+        0x65,
+        0x63,
+        0x74,
+        0x00,
+        0x3f,
+        0xf0,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x03,
+        0x00,
+        0x03,
+        0x61,
+        0x70,
+        0x70,
+        0x02,
+        0x00,
+        0x04,
+        0x6c,
+        0x69,
+        0x76,
+        0x65,
+        0x00,
+        0x08,
+        0x66,
+        0x6c,
+        0x61,
+        0x73,
+        0x68,
+        0x56,
+        0x65,
+        0x72,
+        0x02,
+        0x00,
+        0x0d,
+        0x57,
+        0x49,
+        0x4e,
+        0x20,
+        0x31,
+        0x32,
+        0x2c,
+        0x30,
+        0x2c,
+        0x30,
+        0x2c,
+        0x34,
+        0x31,
+        0x00,
+        0x06,
+        0x73,
+        0x77,
+        0x66,
+        0x55,
+        0x72,
+        0x6c,
+        0x02,
+        0x00,
+        0x51,
+        0x68,
+        0x74,
+        0x74,
+        0x70,
+        0x3a,
+        0x2f,
+        0x2f,
+        0x77,
+        0x77,
+        0x77,
+        0x2e,
+        0x6f,
+        0x73,
+        0x73,
+        0x72,
+        0x73,
+        0x2e,
+        0x6e,
+        0x65,
+        0x74,
+        0x3a,
+        0x38,
+        0x30,
+        0x38,
+        0x35,
+        0x2f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x73,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x2f,
+        0x72,
+        0x65,
+        0x6c,
+        0x65,
+        0x61,
+        0x73,
+        0x65,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+    };
+
+    uint8_t video_data2[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x44, // fmt 1
+        0xff,
+        0xff,
+        0xff, // means extended timestamp
+        0x00,
+        0x00,
+        0x80, // length, 128
+        0x09, // message_type
+        0x00,
+        0xff,
+        0xfc,
+        0x18, // extended timestamp delta:16776216
+        // msg payload start
+        0x02,
+        0x00,
+        0x07,
+        0x63,
+        0x6f,
+        0x6e,
+        0x6e,
+        0x65,
+        0x63,
+        0x74,
+        0x00,
+        0x3f,
+        0xf0,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x03,
+        0x00,
+        0x03,
+        0x61,
+        0x70,
+        0x70,
+        0x02,
+        0x00,
+        0x04,
+        0x6c,
+        0x69,
+        0x76,
+        0x65,
+        0x00,
+        0x08,
+        0x66,
+        0x6c,
+        0x61,
+        0x73,
+        0x68,
+        0x56,
+        0x65,
+        0x72,
+        0x02,
+        0x00,
+        0x0d,
+        0x57,
+        0x49,
+        0x4e,
+        0x20,
+        0x31,
+        0x32,
+        0x2c,
+        0x30,
+        0x2c,
+        0x30,
+        0x2c,
+        0x34,
+        0x31,
+        0x00,
+        0x06,
+        0x73,
+        0x77,
+        0x66,
+        0x55,
+        0x72,
+        0x6c,
+        0x02,
+        0x00,
+        0x51,
+        0x68,
+        0x74,
+        0x74,
+        0x70,
+        0x3a,
+        0x2f,
+        0x2f,
+        0x77,
+        0x77,
+        0x77,
+        0x2e,
+        0x6f,
+        0x73,
+        0x73,
+        0x72,
+        0x73,
+        0x2e,
+        0x6e,
+        0x65,
+        0x74,
+        0x3a,
+        0x38,
+        0x30,
+        0x38,
+        0x35,
+        0x2f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x73,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x2f,
+        0x72,
+        0x65,
+        0x6c,
+        0x65,
+        0x61,
+        0x73,
+        0x65,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+    };
+
+    if (true) {
+        bio.in_buffer.append((char *)audio_data1, sizeof(audio_data1));
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x00002710, msg->header_.timestamp_);
+    }
+
+    if (true) {
+        bio.in_buffer.append((char *)video_data1, sizeof(video_data1));
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x00002af8, msg->header_.timestamp_);
+    }
+
+    if (true) {
+        bio.in_buffer.append((char *)audio_data2, sizeof(audio_data2));
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x01002710, msg->header_.timestamp_);
+    }
+
+    if (true) {
+        bio.in_buffer.append((char *)video_data2, sizeof(video_data2));
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x01002710, msg->header_.timestamp_);
+    }
+}
+
+/**
+ * 2 audio packet, fmt 1/2
+ * first audio packet:  dts:10000
+ * second audio packet:  dts : 16787216   delta: 16777216
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvAVExtTimedeltaAudio)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    // audio message
+    uint8_t audio_data1[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x03, // fmt 0
+        0x00,
+        0x27,
+        0x10, // timestamp 10000
+        0x00,
+        0x00,
+        0x80, // length, 128
+        0x08, // message_type
+        0x00,
+        0x00,
+        0x00,
+        0x00, // stream_id
+        // msg payload start
+        0x02,
+        0x00,
+        0x07,
+        0x63,
+        0x6f,
+        0x6e,
+        0x6e,
+        0x65,
+        0x63,
+        0x74,
+        0x00,
+        0x3f,
+        0xf0,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x03,
+        0x00,
+        0x03,
+        0x61,
+        0x70,
+        0x70,
+        0x02,
+        0x00,
+        0x04,
+        0x6c,
+        0x69,
+        0x76,
+        0x65,
+        0x00,
+        0x08,
+        0x66,
+        0x6c,
+        0x61,
+        0x73,
+        0x68,
+        0x56,
+        0x65,
+        0x72,
+        0x02,
+        0x00,
+        0x0d,
+        0x57,
+        0x49,
+        0x4e,
+        0x20,
+        0x31,
+        0x32,
+        0x2c,
+        0x30,
+        0x2c,
+        0x30,
+        0x2c,
+        0x34,
+        0x31,
+        0x00,
+        0x06,
+        0x73,
+        0x77,
+        0x66,
+        0x55,
+        0x72,
+        0x6c,
+        0x02,
+        0x00,
+        0x51,
+        0x68,
+        0x74,
+        0x74,
+        0x70,
+        0x3a,
+        0x2f,
+        0x2f,
+        0x77,
+        0x77,
+        0x77,
+        0x2e,
+        0x6f,
+        0x73,
+        0x73,
+        0x72,
+        0x73,
+        0x2e,
+        0x6e,
+        0x65,
+        0x74,
+        0x3a,
+        0x38,
+        0x30,
+        0x38,
+        0x35,
+        0x2f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x73,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x2f,
+        0x72,
+        0x65,
+        0x6c,
+        0x65,
+        0x61,
+        0x73,
+        0x65,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+    };
+
+    uint8_t audio_data2[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x43, // fmt 1
+        0xff,
+        0xff,
+        0xff, // means extended timestamp
+        0x00,
+        0x00,
+        0x80, // length, 128
+        0x08, // message_type
+        0x01,
+        0x00,
+        0x00,
+        0x00, // extended timestamp delta:16777216
+        // msg payload start
+        0x02,
+        0x00,
+        0x07,
+        0x63,
+        0x6f,
+        0x6e,
+        0x6e,
+        0x65,
+        0x63,
+        0x74,
+        0x00,
+        0x3f,
+        0xf0,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x03,
+        0x00,
+        0x03,
+        0x61,
+        0x70,
+        0x70,
+        0x02,
+        0x00,
+        0x04,
+        0x6c,
+        0x69,
+        0x76,
+        0x65,
+        0x00,
+        0x08,
+        0x66,
+        0x6c,
+        0x61,
+        0x73,
+        0x68,
+        0x56,
+        0x65,
+        0x72,
+        0x02,
+        0x00,
+        0x0d,
+        0x57,
+        0x49,
+        0x4e,
+        0x20,
+        0x31,
+        0x32,
+        0x2c,
+        0x30,
+        0x2c,
+        0x30,
+        0x2c,
+        0x34,
+        0x31,
+        0x00,
+        0x06,
+        0x73,
+        0x77,
+        0x66,
+        0x55,
+        0x72,
+        0x6c,
+        0x02,
+        0x00,
+        0x51,
+        0x68,
+        0x74,
+        0x74,
+        0x70,
+        0x3a,
+        0x2f,
+        0x2f,
+        0x77,
+        0x77,
+        0x77,
+        0x2e,
+        0x6f,
+        0x73,
+        0x73,
+        0x72,
+        0x73,
+        0x2e,
+        0x6e,
+        0x65,
+        0x74,
+        0x3a,
+        0x38,
+        0x30,
+        0x38,
+        0x35,
+        0x2f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x73,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x2f,
+        0x72,
+        0x65,
+        0x6c,
+        0x65,
+        0x61,
+        0x73,
+        0x65,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+    };
+
+    if (true) {
+        bio.in_buffer.append((char *)audio_data1, sizeof(audio_data1));
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x00002710, msg->header_.timestamp_);
+    }
+
+    if (true) {
+        bio.in_buffer.append((char *)audio_data2, sizeof(audio_data2));
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x01002710, msg->header_.timestamp_);
+    }
+}
+
+/**
+ * 2 video packet, fmt 1/2
+ * first video packet:  dts:11000
+ * second video packet:  dts : 16787216   delta: 16776216
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvAVExtTimedeltaVideo)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    // video message
+    uint8_t video_data1[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x04, // fmt 0
+        0x00,
+        0x2a,
+        0xf8, // timestamp 11000
+        0x00,
+        0x00,
+        0x80, // length, 128
+        0x09, // message_type
+        0x00,
+        0x00,
+        0x00,
+        0x01, // stream_id
+        // msg payload start
+        0x02,
+        0x00,
+        0x07,
+        0x63,
+        0x6f,
+        0x6e,
+        0x6e,
+        0x65,
+        0x63,
+        0x74,
+        0x00,
+        0x3f,
+        0xf0,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x03,
+        0x00,
+        0x03,
+        0x61,
+        0x70,
+        0x70,
+        0x02,
+        0x00,
+        0x04,
+        0x6c,
+        0x69,
+        0x76,
+        0x65,
+        0x00,
+        0x08,
+        0x66,
+        0x6c,
+        0x61,
+        0x73,
+        0x68,
+        0x56,
+        0x65,
+        0x72,
+        0x02,
+        0x00,
+        0x0d,
+        0x57,
+        0x49,
+        0x4e,
+        0x20,
+        0x31,
+        0x32,
+        0x2c,
+        0x30,
+        0x2c,
+        0x30,
+        0x2c,
+        0x34,
+        0x31,
+        0x00,
+        0x06,
+        0x73,
+        0x77,
+        0x66,
+        0x55,
+        0x72,
+        0x6c,
+        0x02,
+        0x00,
+        0x51,
+        0x68,
+        0x74,
+        0x74,
+        0x70,
+        0x3a,
+        0x2f,
+        0x2f,
+        0x77,
+        0x77,
+        0x77,
+        0x2e,
+        0x6f,
+        0x73,
+        0x73,
+        0x72,
+        0x73,
+        0x2e,
+        0x6e,
+        0x65,
+        0x74,
+        0x3a,
+        0x38,
+        0x30,
+        0x38,
+        0x35,
+        0x2f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x73,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x2f,
+        0x72,
+        0x65,
+        0x6c,
+        0x65,
+        0x61,
+        0x73,
+        0x65,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+    };
+
+    uint8_t video_data2[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x44, // fmt 1
+        0xff,
+        0xff,
+        0xff, // means extended timestamp
+        0x00,
+        0x00,
+        0x80, // length, 128
+        0x09, // message_type
+        0x00,
+        0xff,
+        0xfc,
+        0x18, // extended timestamp delta:16776216
+        // msg payload start
+        0x02,
+        0x00,
+        0x07,
+        0x63,
+        0x6f,
+        0x6e,
+        0x6e,
+        0x65,
+        0x63,
+        0x74,
+        0x00,
+        0x3f,
+        0xf0,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x03,
+        0x00,
+        0x03,
+        0x61,
+        0x70,
+        0x70,
+        0x02,
+        0x00,
+        0x04,
+        0x6c,
+        0x69,
+        0x76,
+        0x65,
+        0x00,
+        0x08,
+        0x66,
+        0x6c,
+        0x61,
+        0x73,
+        0x68,
+        0x56,
+        0x65,
+        0x72,
+        0x02,
+        0x00,
+        0x0d,
+        0x57,
+        0x49,
+        0x4e,
+        0x20,
+        0x31,
+        0x32,
+        0x2c,
+        0x30,
+        0x2c,
+        0x30,
+        0x2c,
+        0x34,
+        0x31,
+        0x00,
+        0x06,
+        0x73,
+        0x77,
+        0x66,
+        0x55,
+        0x72,
+        0x6c,
+        0x02,
+        0x00,
+        0x51,
+        0x68,
+        0x74,
+        0x74,
+        0x70,
+        0x3a,
+        0x2f,
+        0x2f,
+        0x77,
+        0x77,
+        0x77,
+        0x2e,
+        0x6f,
+        0x73,
+        0x73,
+        0x72,
+        0x73,
+        0x2e,
+        0x6e,
+        0x65,
+        0x74,
+        0x3a,
+        0x38,
+        0x30,
+        0x38,
+        0x35,
+        0x2f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x73,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x2f,
+        0x72,
+        0x65,
+        0x6c,
+        0x65,
+        0x61,
+        0x73,
+        0x65,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+    };
+
+    if (true) {
+        bio.in_buffer.append((char *)video_data1, sizeof(video_data1));
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x00002af8, msg->header_.timestamp_);
+    }
+
+    if (true) {
+        bio.in_buffer.append((char *)video_data2, sizeof(video_data2));
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x01002710, msg->header_.timestamp_);
+    }
+}
+
+/**
+ * 2 video packet, fmt 3
+ * first video packet:  dts:11000
+ * second video packet:  dts : 16787216   delta: 16776216
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvAVExtTimedeltaVideoFmt3)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    // video message
+    uint8_t video_data1[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x04, // fmt 0
+        0x00,
+        0x2a,
+        0xf8, // timestamp 11000
+        0x00,
+        0x01,
+        0x00, // length, 256
+        0x09, // message_type
+        0x00,
+        0x00,
+        0x00,
+        0x01, // stream_id
+        // msg payload start
+        0x02,
+        0x00,
+        0x07,
+        0x63,
+        0x6f,
+        0x6e,
+        0x6e,
+        0x65,
+        0x63,
+        0x74,
+        0x00,
+        0x3f,
+        0xf0,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x03,
+        0x00,
+        0x03,
+        0x61,
+        0x70,
+        0x70,
+        0x02,
+        0x00,
+        0x04,
+        0x6c,
+        0x69,
+        0x76,
+        0x65,
+        0x00,
+        0x08,
+        0x66,
+        0x6c,
+        0x61,
+        0x73,
+        0x68,
+        0x56,
+        0x65,
+        0x72,
+        0x02,
+        0x00,
+        0x0d,
+        0x57,
+        0x49,
+        0x4e,
+        0x20,
+        0x31,
+        0x32,
+        0x2c,
+        0x30,
+        0x2c,
+        0x30,
+        0x2c,
+        0x34,
+        0x31,
+        0x00,
+        0x06,
+        0x73,
+        0x77,
+        0x66,
+        0x55,
+        0x72,
+        0x6c,
+        0x02,
+        0x00,
+        0x51,
+        0x68,
+        0x74,
+        0x74,
+        0x70,
+        0x3a,
+        0x2f,
+        0x2f,
+        0x77,
+        0x77,
+        0x77,
+        0x2e,
+        0x6f,
+        0x73,
+        0x73,
+        0x72,
+        0x73,
+        0x2e,
+        0x6e,
+        0x65,
+        0x74,
+        0x3a,
+        0x38,
+        0x30,
+        0x38,
+        0x35,
+        0x2f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x73,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+        0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x2f,
+        0x72,
+        0x65,
+        0x6c,
+        0x65,
+        0x61,
+        0x73,
+        0x65,
+        0x2f,
+        0x73,
+        0x72,
+        0x73,
+        0x5f,
+        0x70,
+        0x6c,
+        // chunk #2
+        0xC4, // fmt 3
+        /*next chunk.*/ 0x61,
+        0x79,
+        0x65,
+        0x72,
+        0x2e,
+        0x73,
+        0x77,
+        0x66,
+        0x3f,
+        0x5f,
+        0x76,
+        0x65,
+        0x72,
+        0x73,
+        0x69,
+        0x6f,
+        0x6e,
+        0x3d,
+        0x31,
+        0x2e,
+        0x32,
+        0x33,
+        0x00,
+        0x05,
+        0x74,
+        0x63,
+        0x55,
+        0x72,
+        0x6c,
+        0x02,
+        0x00,
+        0x14,
+        0x72,
+        0x74,
+        0x6d,
+        0x70,
+        0x3a,
+        0x2f,
+        0x2f,
+        0x64,
+        0x65,
+        0x76,
+        0x3a,
+        0x31,
+        0x39,
+        0x33,
+        0x35,
+        0x2f,
+        0x6c,
+        0x69,
+        0x76,
+        0x65,
+        0x00,
+        0x04,
+        0x66,
+        0x70,
+        0x61,
+        0x64,
+        0x01,
+        0x00,
+        0x00,
+        0x0c,
+        0x63,
+        0x61,
+        0x70,
+        0x61,
+        0x62,
+        0x69,
+        0x6c,
+        0x69,
+        0x74,
+        0x69,
+        0x65,
+        0x73,
+        0x00,
+        0x40,
+        0x6d,
+        0xe0,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x0b,
+        0x61,
+        0x75,
+        0x64,
+        0x69,
+        0x6f,
+        0x43,
+        0x6f,
+        0x64,
+        0x65,
+        0x63,
+        0x73,
+        0x00,
+        0x40,
+        0xab,
+        0xee,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x0b,
+        0x76,
+        0x69,
+        0x64,
+        0x65,
+        0x6f,
+        0x43,
+        0x6f,
+        0x64,
+        0x65,
+        0x63,
+        0x73,
+        0x00,
+        0x40,
+        0x6f,
+        0x80,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+    };
+
+    uint8_t video_data2[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x44,                   // fmt 1
+        0xff, 0xff, 0xff,       // means extended timestamp
+        0x00, 0x01, 0x10,       // length, 272
+        0x09,                   // message_type
+        0x00, 0xff, 0xfc, 0x18, // extended timestamp delta:16776216
+        // msg payload start
+        0x02, 0x00, 0x07, 0x63,
+        0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+        0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+        0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+        0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+        0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+        0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+        0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+        0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c,
+        // chunk #2
+        0xC4,                   // fmt 3
+        0x00, 0xff, 0xfc, 0x18, // extended timestamp delta:16776216
+        /*next chunk.*/ 0x61, 0x79, 0x65, 0x72,
+        0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e,
+        0x32, 0x33, 0x00, 0x05, 0x74, 0x63, 0x55, 0x72, 0x6c, 0x02, 0x00, 0x14, 0x72, 0x74, 0x6d, 0x70,
+        0x3a, 0x2f, 0x2f, 0x64, 0x65, 0x76, 0x3a, 0x31, 0x39, 0x33, 0x35, 0x2f, 0x6c, 0x69, 0x76, 0x65,
+        0x00, 0x04, 0x66, 0x70, 0x61, 0x64, 0x01, 0x00, 0x00, 0x0c, 0x63, 0x61, 0x70, 0x61, 0x62, 0x69,
+        0x6c, 0x69, 0x74, 0x69, 0x65, 0x73, 0x00, 0x40, 0x6d, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x0b, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x43, 0x6f, 0x64, 0x65, 0x63, 0x73, 0x00, 0x40, 0xab, 0xee,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x43, 0x6f, 0x64, 0x65,
+        0x63, 0x73, 0x00, 0x40, 0x6f, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        // chunk #2
+        0xC4,
+        /*next chunk.*/
+        0x00, 0xff, 0xfc, 0x18, // extended timestamp delta:16776216
+        0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+
+    if (true) {
+        bio.in_buffer.append((char *)video_data1, sizeof(video_data1));
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x00002af8, msg->header_.timestamp_);
+    }
+
+    if (true) {
+        bio.in_buffer.append((char *)video_data2, sizeof(video_data2));
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x01002710, msg->header_.timestamp_);
+    }
+}
+
+/**
+ * a video message, in 2 chunks packet.
+ * use 1B chunk header, min chunk id is 2.
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvVCid1BMin)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    // video message
+    uint8_t data[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        0x02,
+        0x00, 0x00, 0x00,       // timestamp
+        0x00, 0x01, 0x10,       // length, 272
+        0x09,                   // message_type
+        0x00, 0x00, 0x00, 0x00, // stream_id
+        // msg payload start
+        0x02, 0x00, 0x07, 0x63,
+        0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+        0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+        0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+        0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+        0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+        0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+        0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+        0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c,
+        // chunk #2
+        0xC2, /*next chunk.*/ 0x61, 0x79, 0x65, 0x72,
+        0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e,
+        0x32, 0x33, 0x00, 0x05, 0x74, 0x63, 0x55, 0x72, 0x6c, 0x02, 0x00, 0x14, 0x72, 0x74, 0x6d, 0x70,
+        0x3a, 0x2f, 0x2f, 0x64, 0x65, 0x76, 0x3a, 0x31, 0x39, 0x33, 0x35, 0x2f, 0x6c, 0x69, 0x76, 0x65,
+        0x00, 0x04, 0x66, 0x70, 0x61, 0x64, 0x01, 0x00, 0x00, 0x0c, 0x63, 0x61, 0x70, 0x61, 0x62, 0x69,
+        0x6c, 0x69, 0x74, 0x69, 0x65, 0x73, 0x00, 0x40, 0x6d, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x0b, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x43, 0x6f, 0x64, 0x65, 0x63, 0x73, 0x00, 0x40, 0xab, 0xee,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x43, 0x6f, 0x64, 0x65,
+        0x63, 0x73, 0x00, 0x40, 0x6f, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        // chunk #2
+        0xC2, /*next chunk.*/
+        0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+    bio.in_buffer.append((char *)data, sizeof(data));
+
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+    EXPECT_TRUE(msg->header_.is_video());
+}
+
+VOID TEST(ProtocolKbpsTest, Connections)
+{
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsKbps *kbps = new SrsKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
+
+        SrsNetworkDelta *delta = new SrsNetworkDelta();
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
+        delta->set_io(io, io);
+
+        // No data, 0kbps.
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_in(30 * 100 * 1000)->set_out(30 * 100 * 1000);
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 300s.
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_in(330 * 100 * 1000)->set_out(330 * 100 * 1000);
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(800, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(800, kbps->get_send_kbps_5m());
+    }
+
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsKbps *kbps = new SrsKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
+
+        SrsNetworkDelta *delta = new SrsNetworkDelta();
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
+        delta->set_io(io, io);
+
+        // No data, 0kbps.
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_in(30 * 100 * 1000);
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 300s.
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_in(330 * 100 * 1000);
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(800, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+    }
+
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsKbps *kbps = new SrsKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
+
+        SrsNetworkDelta *delta = new SrsNetworkDelta();
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
+        delta->set_io(io, io);
+
+        // No data, 0kbps.
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_out(30 * 100 * 1000);
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 300s.
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_out(330 * 100 * 1000);
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(800, kbps->get_send_kbps_5m());
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, Delta)
+{
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsNetworkDelta *delta = new SrsNetworkDelta();
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
+        delta->set_io(io, io);
+
+        // No data.
+        int64_t in, out;
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+
+        // 800kb.
+        io->set_in(100 * 1000)->set_out(100 * 1000);
+        delta->remark(&in, &out);
+        EXPECT_EQ(100 * 1000, in);
+        EXPECT_EQ(100 * 1000, out);
+
+        // No data.
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+    }
+
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsNetworkDelta *delta = new SrsNetworkDelta();
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
+        delta->set_io(io, io);
+
+        // No data.
+        int64_t in, out;
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+
+        // 800kb.
+        io->set_in(100 * 1000)->set_out(100 * 1000);
+        delta->remark(&in, &out);
+        EXPECT_EQ(100 * 1000, in);
+        EXPECT_EQ(100 * 1000, out);
+
+        // Kbps without io, gather delta.
+        SrsKbps *kbps = new SrsKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
+
+        // No data, 0kbps.
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
+        kbps->add_delta(30 * in, 30 * out);
+        kbps->sample();
+
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, RAWStatistic)
+{
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsNetworkDelta *delta = new SrsNetworkDelta();
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
+        delta->set_io(io, io);
+
+        SrsKbps *kbps = new SrsKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
+
+        // No data, 0kbps.
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_out(30 * 100 * 1000);
+        kbps->add_delta(delta);
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+    }
+
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+
+        SrsKbps *kbps = new SrsKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsKbps> kbps_uptr(kbps);
+
+        // No io, no data.
+        EXPECT_EQ(0, kbps->get_recv_bytes());
+        EXPECT_EQ(0, kbps->get_send_bytes());
+
+        // With io, zero data.
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsNetworkDelta *delta = new SrsNetworkDelta();
+        SrsUniquePtr<SrsNetworkDelta> delta_uptr(delta);
+        delta->set_io(io, io);
+
+        kbps->add_delta(delta);
+        kbps->sample();
+        EXPECT_EQ(0, kbps->get_recv_bytes());
+        EXPECT_EQ(0, kbps->get_send_bytes());
+
+        // With io with data.
+        io->set_in(100 * 1000)->set_out(100 * 1000);
+        kbps->add_delta(delta);
+        kbps->sample();
+        EXPECT_EQ(100 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(100 * 1000, kbps->get_send_bytes());
+
+        // No io, cached data.
+        delta->set_io(NULL, NULL);
+        kbps->add_delta(delta);
+        kbps->sample();
+        EXPECT_EQ(100 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(100 * 1000, kbps->get_send_bytes());
+
+        // Use the same IO, but as a fresh io.
+        delta->set_io(io, io);
+        kbps->add_delta(delta);
+        kbps->sample();
+        EXPECT_EQ(200 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(200 * 1000, kbps->get_send_bytes());
+
+        io->set_in(150 * 1000)->set_out(150 * 1000);
+        kbps->add_delta(delta);
+        kbps->sample();
+        EXPECT_EQ(250 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(250 * 1000, kbps->get_send_bytes());
+
+        // No io, cached data.
+        delta->set_io(NULL, NULL);
+        kbps->add_delta(delta);
+        kbps->sample();
+        EXPECT_EQ(250 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(250 * 1000, kbps->get_send_bytes());
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, WriteLargeIOVs)
+{
+    srs_error_t err;
+
+    if (true) {
+        iovec iovs[1];
+        iovs[0].iov_base = (char *)"Hello";
+        iovs[0].iov_len = 5;
+
+        MockBufferIO io;
+        SrsProtocolUtility utility;
+        ssize_t nn = 0;
+        HELPER_EXPECT_SUCCESS(utility.write_iovs(&io, iovs, 1, &nn));
+        EXPECT_EQ(5, nn);
+        EXPECT_EQ(5, io.sbytes);
+    }
+
+    if (true) {
+        iovec iovs[1024];
+        int nn_iovs = (int)(sizeof(iovs) / sizeof(iovec));
+        for (int i = 0; i < nn_iovs; i++) {
+            iovs[i].iov_base = (char *)"Hello";
+            iovs[i].iov_len = 5;
+        }
+
+        MockBufferIO io;
+        SrsProtocolUtility utility;
+        ssize_t nn = 0;
+        HELPER_EXPECT_SUCCESS(utility.write_iovs(&io, iovs, nn_iovs, &nn));
+        EXPECT_EQ(5 * nn_iovs, nn);
+        EXPECT_EQ(5 * nn_iovs, io.sbytes);
+    }
+
+    if (true) {
+        iovec iovs[1025];
+        int nn_iovs = (int)(sizeof(iovs) / sizeof(iovec));
+        for (int i = 0; i < nn_iovs; i++) {
+            iovs[i].iov_base = (char *)"Hello";
+            iovs[i].iov_len = 5;
+        }
+
+        MockBufferIO io;
+        SrsProtocolUtility utility;
+        ssize_t nn = 0;
+        HELPER_EXPECT_SUCCESS(utility.write_iovs(&io, iovs, nn_iovs, &nn));
+        EXPECT_EQ(5 * nn_iovs, nn);
+        EXPECT_EQ(5 * nn_iovs, io.sbytes);
+    }
+
+    if (true) {
+        iovec iovs[4096];
+        int nn_iovs = (int)(sizeof(iovs) / sizeof(iovec));
+        for (int i = 0; i < nn_iovs; i++) {
+            iovs[i].iov_base = (char *)"Hello";
+            iovs[i].iov_len = 5;
+        }
+
+        MockBufferIO io;
+        SrsProtocolUtility utility;
+        ssize_t nn = 0;
+        HELPER_EXPECT_SUCCESS(utility.write_iovs(&io, iovs, nn_iovs, &nn));
+        EXPECT_EQ(5 * nn_iovs, nn);
+        EXPECT_EQ(5 * nn_iovs, io.sbytes);
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, ConnectionsSugar)
+{
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsNetworkKbps *kbps = new SrsNetworkKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
+        kbps->set_io(io, io);
+
+        // No data, 0kbps.
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_in(30 * 100 * 1000)->set_out(30 * 100 * 1000);
+        kbps->sample();
+
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 300s.
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_in(330 * 100 * 1000)->set_out(330 * 100 * 1000);
+        kbps->sample();
+
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(800, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(800, kbps->get_send_kbps_5m());
+    }
+
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsNetworkKbps *kbps = new SrsNetworkKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
+        kbps->set_io(io, io);
+
+        // No data, 0kbps.
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_in(30 * 100 * 1000);
+        kbps->sample();
+
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 300s.
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_in(330 * 100 * 1000);
+        kbps->sample();
+
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(800, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+    }
+
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsNetworkKbps *kbps = new SrsNetworkKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
+        kbps->set_io(io, io);
+
+        // No data, 0kbps.
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_out(30 * 100 * 1000);
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 300s.
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_out(330 * 100 * 1000);
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(800, kbps->get_send_kbps_5m());
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, DeltaSugar)
+{
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        // Kbps without io, gather delta.
+        SrsNetworkKbps *kbps = new SrsNetworkKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
+        kbps->set_io(io, io);
+
+        // No data, 0kbps.
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_in(30 * 100 * 1000)->set_out(30 * 100 * 1000);
+        kbps->sample();
+
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, RAWStatisticSugar)
+{
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+
+        SrsNetworkKbps *kbps = new SrsNetworkKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
+        kbps->set_io(io, io);
+
+        // No data, 0kbps.
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
+        io->set_out(30 * 100 * 1000);
+        kbps->sample();
+
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+    }
+
+    if (true) {
+        MockWallClock *clock = new MockWallClock();
+        SrsUniquePtr<MockWallClock> clock_uptr(clock);
+
+        SrsNetworkKbps *kbps = new SrsNetworkKbps(clock->set_clock(0));
+        SrsUniquePtr<SrsNetworkKbps> kbps_uptr(kbps);
+
+        // No io, no data.
+        EXPECT_EQ(0, kbps->get_recv_bytes());
+        EXPECT_EQ(0, kbps->get_send_bytes());
+
+        // With io, zero data.
+        MockStatistic *io = new MockStatistic();
+        SrsUniquePtr<MockStatistic> io_uptr(io);
+        kbps->set_io(io, io);
+
+        kbps->sample();
+        EXPECT_EQ(0, kbps->get_recv_bytes());
+        EXPECT_EQ(0, kbps->get_send_bytes());
+
+        // With io with data.
+        io->set_in(100 * 1000)->set_out(100 * 1000);
+        kbps->sample();
+        EXPECT_EQ(100 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(100 * 1000, kbps->get_send_bytes());
+
+        // No io, cached data.
+        kbps->set_io(NULL, NULL);
+        kbps->sample();
+        EXPECT_EQ(100 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(100 * 1000, kbps->get_send_bytes());
+
+        // Use the same IO, but as a fresh io.
+        kbps->set_io(io, io);
+        kbps->sample();
+        EXPECT_EQ(200 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(200 * 1000, kbps->get_send_bytes());
+
+        io->set_in(150 * 1000)->set_out(150 * 1000);
+        kbps->sample();
+        EXPECT_EQ(250 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(250 * 1000, kbps->get_send_bytes());
+
+        // No io, cached data.
+        kbps->set_io(NULL, NULL);
+        kbps->sample();
+        EXPECT_EQ(250 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(250 * 1000, kbps->get_send_bytes());
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, StreamIdentify)
+{
+    EXPECT_STREQ("/live/livestream", srs_net_url_encode_sid("", "live", "livestream").c_str());
+    EXPECT_STREQ("/live/livestream", srs_net_url_encode_sid("", "live", "livestream.flv").c_str());
+    EXPECT_STREQ("/live/livestream", srs_net_url_encode_sid("", "live", "livestream.m3u8").c_str());
+    EXPECT_STREQ("/live/livestream", srs_net_url_encode_sid("__defaultVhost__", "live", "livestream").c_str());
+
+    EXPECT_STREQ("ossrs.io/live/livestream", srs_net_url_encode_sid("ossrs.io", "live", "livestream").c_str());
+    EXPECT_STREQ("ossrs.io/live/livestream", srs_net_url_encode_sid("ossrs.io", "live", "livestream.flv").c_str());
+    EXPECT_STREQ("ossrs.io/live/livestream", srs_net_url_encode_sid("ossrs.io", "live", "livestream.m3u8").c_str());
+}
+
+VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+
+        bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
+
+        ISrsHttpMessage *req = NULL;
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
+
+        // We should read body, or next parsing message will fail.
+        // @see https://github.com/ossrs/srs/issues/1181
+        EXPECT_FALSE(req->body_reader()->eof());
+        srs_freep(req);
+
+        // Got new packet, notice that previous body still exists in bio.
+        bio.append("GET /gslb/v2/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
+
+        // Should fail because there is body which not read.
+        // @see https://github.com/ossrs/srs/issues/1181
+        HELPER_ASSERT_FAILED(hp.parse_message(&bio, &req));
+        srs_freep(req);
+    }
+
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+
+        bio.append("GET");
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
+
+        // Should fail if not completed message.
+        ISrsHttpMessage *req = NULL;
+        HELPER_ASSERT_FAILED(hp.parse_message(&bio, &req));
+        srs_freep(req);
+    }
+
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+
+        bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
+
+        ISrsHttpMessage *req = NULL;
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
+        SrsUniquePtr<ISrsHttpMessage> req_uptr(req);
+
+        char v[64] = {0};
+        HELPER_ASSERT_SUCCESS(req->body_reader()->read(v, sizeof(v), NULL));
+        EXPECT_TRUE(string("Hello") == string(v));
+
+        EXPECT_TRUE(req->body_reader()->eof());
+    }
+
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+
+        bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 0\r\n\r\n");
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
+
+        ISrsHttpMessage *req = NULL;
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
+        SrsUniquePtr<ISrsHttpMessage> req_uptr(req);
+    }
+
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+
+        bio.append("GET /gslb/v1/versions HTTP/1.1\r\n\r\n");
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
+
+        ISrsHttpMessage *req = NULL;
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
+        SrsUniquePtr<ISrsHttpMessage> req_uptr(req);
+    }
+
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+
+        bio.append("GET /gslb/v1/versions HTTP/1.1\r\n\r\n");
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
+
+        ISrsHttpMessage *req = NULL;
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
+        SrsUniquePtr<ISrsHttpMessage> req_uptr(req);
+    }
+}
+
+VOID TEST(ProtocolProtobufTest, VarintsSize)
+{
+    EXPECT_EQ(1, SrsProtobufVarints::sizeof_varint(0x00));
+    EXPECT_EQ(1, SrsProtobufVarints::sizeof_varint(0x70));
+    EXPECT_EQ(1, SrsProtobufVarints::sizeof_varint(0x7f));
+    EXPECT_EQ(2, SrsProtobufVarints::sizeof_varint(0x80));
+    EXPECT_EQ(2, SrsProtobufVarints::sizeof_varint(0x3ff0));
+    EXPECT_EQ(2, SrsProtobufVarints::sizeof_varint(0x3fff));
+    EXPECT_EQ(3, SrsProtobufVarints::sizeof_varint(0x4000));
+    EXPECT_EQ(3, SrsProtobufVarints::sizeof_varint(0x1ffff0));
+    EXPECT_EQ(3, SrsProtobufVarints::sizeof_varint(0x1fffff));
+    EXPECT_EQ(4, SrsProtobufVarints::sizeof_varint(0x200000));
+    EXPECT_EQ(4, SrsProtobufVarints::sizeof_varint(0x0ffffff0));
+    EXPECT_EQ(4, SrsProtobufVarints::sizeof_varint(0x0fffffff));
+    EXPECT_EQ(5, SrsProtobufVarints::sizeof_varint(0x10000000));
+    EXPECT_EQ(5, SrsProtobufVarints::sizeof_varint(0x7fffffff0));
+    EXPECT_EQ(5, SrsProtobufVarints::sizeof_varint(0x7ffffffff));
+    EXPECT_EQ(6, SrsProtobufVarints::sizeof_varint(0x800000000));
+    EXPECT_EQ(6, SrsProtobufVarints::sizeof_varint(0x3fffffffff0));
+    EXPECT_EQ(6, SrsProtobufVarints::sizeof_varint(0x3ffffffffff));
+    EXPECT_EQ(7, SrsProtobufVarints::sizeof_varint(0x40000000000));
+    EXPECT_EQ(7, SrsProtobufVarints::sizeof_varint(0x1fffffffffff0));
+    EXPECT_EQ(7, SrsProtobufVarints::sizeof_varint(0x1ffffffffffff));
+    EXPECT_EQ(8, SrsProtobufVarints::sizeof_varint(0x2000000000000));
+    EXPECT_EQ(8, SrsProtobufVarints::sizeof_varint(0x0fffffffffffff0));
+    EXPECT_EQ(8, SrsProtobufVarints::sizeof_varint(0x0ffffffffffffff));
+    EXPECT_EQ(9, SrsProtobufVarints::sizeof_varint(0x100000000000000));
+    EXPECT_EQ(9, SrsProtobufVarints::sizeof_varint(0x7ffffffffffffff0));
+    EXPECT_EQ(9, SrsProtobufVarints::sizeof_varint(0x7fffffffffffffff));
+    EXPECT_EQ(10, SrsProtobufVarints::sizeof_varint(0x8000000000000000));
+    EXPECT_EQ(10, SrsProtobufVarints::sizeof_varint(0xfffffffffffffff0));
+    EXPECT_EQ(10, SrsProtobufVarints::sizeof_varint(0xffffffffffffffff));
+}
+
+VOID TEST(ProtocolProtobufTest, VarintsEncode)
+{
+    srs_error_t err = srs_success;
+    static char buf[128];
+
+    if (true) {
+        SrsBuffer b(buf, 1);
+        uint8_t expect[] = {0x00};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x0));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 1);
+        uint8_t expect[] = {0x70};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x70));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 1);
+        uint8_t expect[] = {0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x7f));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 2);
+        uint8_t expect[] = {0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x80));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 2);
+        uint8_t expect[] = {0xf0, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x3ff0));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 2);
+        uint8_t expect[] = {0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x3fff));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 3);
+        uint8_t expect[] = {0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x4000));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 3);
+        uint8_t expect[] = {0xf0, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x1ffff0));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 3);
+        uint8_t expect[] = {0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x1fffff));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 4);
+        uint8_t expect[] = {0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x200000));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 4);
+        uint8_t expect[] = {0xf0, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xffffff0));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 4);
+        uint8_t expect[] = {0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xfffffff));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 5);
+        uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x10000000));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 5);
+        uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x7fffffff0));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 5);
+        uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x7ffffffff));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 6);
+        uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x800000000));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 6);
+        uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x3fffffffff0));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 6);
+        uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x3ffffffffff));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 7);
+        uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x40000000000));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 7);
+        uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x1fffffffffff0));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 7);
+        uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x1ffffffffffff));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 8);
+        uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x2000000000000));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 8);
+        uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xfffffffffffff0));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 8);
+        uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xffffffffffffff));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 9);
+        uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x100000000000000));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 9);
+        uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x7ffffffffffffff0));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 9);
+        uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x7fffffffffffffff));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 10);
+        uint8_t expect[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0x8000000000000000));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 10);
+        uint8_t expect[] = {0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xfffffffffffffff0));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+    if (true) {
+        SrsBuffer b(buf, 10);
+        uint8_t expect[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01};
+        HELPER_ASSERT_SUCCESS(SrsProtobufVarints::encode(&b, 0xffffffffffffffff));
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+}
+
+VOID TEST(ProtocolProtobufTest, String)
+{
+    srs_error_t err = srs_success;
+    static char buf[128];
+
+    if (true) {
+        EXPECT_EQ(1 + 10, SrsProtobufString::sizeof_string("HelloWorld"));
+
+        SrsBuffer b(buf, 1 + 10);
+        HELPER_ASSERT_SUCCESS(SrsProtobufString::encode(&b, "HelloWorld"));
+
+        uint8_t expect[] = {0x0a, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x57, 0x6f, 0x72, 0x6c, 0x64};
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+
+    if (true) {
+        EXPECT_EQ(1, SrsProtobufString::sizeof_string(""));
+
+        SrsBuffer b(buf, 1);
+        HELPER_ASSERT_SUCCESS(SrsProtobufString::encode(&b, ""));
+
+        uint8_t expect[] = {0x00};
+        EXPECT_TRUE(srs_bytes_equal(buf, (char *)expect, sizeof(expect)));
+    }
+}
+
+class MockProtobufObject : public ISrsEncoder
+{
+public:
+    uint64_t nb_bytes()
+    {
+        return 1;
+    }
+    srs_error_t encode(SrsBuffer *b)
+    {
+        b->write_1bytes(0x0f);
+        return srs_success;
+    }
+};
+
+VOID TEST(ProtocolProtobufTest, FieldKey)
+{
+    srs_error_t err = srs_success;
+    static char buf[128];
+
+    EXPECT_EQ(2, SrsProtobufFieldString);
+    EXPECT_EQ(2, SrsProtobufFieldBytes);
+    EXPECT_EQ(2, SrsProtobufFieldObject);
+    EXPECT_EQ(2, SrsProtobufFieldLengthDelimited);
+
+    EXPECT_EQ(1, SrsProtobufKey::sizeof_key());
+
+    MockProtobufObject obj;
+    EXPECT_EQ(2, SrsProtobufObject::sizeof_object(&obj));
+    if (true) {
+        SrsBuffer b(buf, 2);
+        HELPER_ASSERT_SUCCESS(SrsProtobufObject::encode(&b, &obj));
+        EXPECT_EQ(0x01, buf[0]);
+        EXPECT_EQ(0x0f, buf[1]);
+    }
+
+    // Encode the field key as [ID=1, TYPE=2(Length delimited)]
+    if (true) {
+        SrsBuffer b(buf, 1);
+        HELPER_ASSERT_SUCCESS(SrsProtobufKey::encode(&b, 1, SrsProtobufFieldLengthDelimited));
+        EXPECT_EQ(0x0a, buf[0]);
+    }
+
+    // Encode the field value as [ID=2, TYPE=2(Length delimited)]
+    if (true) {
+        SrsBuffer b(buf, 1);
+        HELPER_ASSERT_SUCCESS(SrsProtobufKey::encode(&b, 2, SrsProtobufFieldLengthDelimited));
+        EXPECT_EQ(0x12, buf[0]);
+    }
+
+    // Encode the field time as [ID=1, TYPE=0(Varint)]
+    if (true) {
+        SrsBuffer b(buf, 1);
+        HELPER_ASSERT_SUCCESS(SrsProtobufKey::encode(&b, 1, SrsProtobufFieldVarint));
+        EXPECT_EQ(0x08, buf[0]);
+    }
+
+    // Encode the field source as [ID=4, TYPE=2(Length delimited)]
+    if (true) {
+        SrsBuffer b(buf, 1);
+        HELPER_ASSERT_SUCCESS(SrsProtobufKey::encode(&b, 4, SrsProtobufFieldLengthDelimited));
+        EXPECT_EQ(0x22, buf[0]);
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, NewDelta)
+{
+    if (true) {
+        SrsEphemeralDelta ed;
+
+        ISrsKbpsDelta *delta = (ISrsKbpsDelta *)&ed;
+        int64_t in, out;
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+
+        ed.add_delta(100 * 1000, 100 * 1000);
+        delta->remark(&in, &out);
+        EXPECT_EQ(100 * 1000, in);
+        EXPECT_EQ(100 * 1000, out);
+
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+    }
+
+    if (true) {
+        SrsNetworkDelta nd;
+
+        ISrsKbpsDelta *delta = (ISrsKbpsDelta *)&nd;
+        int64_t in, out;
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+
+        MockStatistic ms;
+        ms.set_in(100 * 1000)->set_out(100 * 1000);
+        nd.set_io(&ms, &ms);
+        delta->remark(&in, &out);
+        EXPECT_EQ(100 * 1000, in);
+        EXPECT_EQ(100 * 1000, out);
+
+        ms.add_in(10 * 1000)->add_out(10 * 1000);
+        delta->remark(&in, &out);
+        EXPECT_EQ(10 * 1000, in);
+        EXPECT_EQ(10 * 1000, out);
+
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+    }
+}
+
+/**
+ * recv video, audio, video and video, interlaced in chunks.
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvVAVVMessage)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x03,
+            0x00, 0x00, 0x10,       // timestamp
+            0x00, 0x01, 0x10,       // length, 272
+            0x09,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x04,
+            0x00, 0x00, 0x15,       // timestamp
+            0x00, 0x00, 0x90,       // length, 144
+            0x08,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x03,
+            0x00, 0x00, 0x20,       // timestamp
+            0x00, 0x01, 0x10,       // length, 272
+            0x09,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC4, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x03,
+            0x00, 0x00, 0x30,       // timestamp
+            0x00, 0x01, 0x10,       // length, 272
+            0x09,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x10, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x15, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x20, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x30, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+}
+
+/**
+ * recv video, audio, video and video, interlaced in chunks.
+ * the continue chunks use fmt=1 header
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt1)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    /**
+     * parse the message header.
+     *   3bytes: timestamp delta,    fmt=0,1,2
+     *   3bytes: payload length,     fmt=0,1
+     *   1bytes: message type,       fmt=0,1
+     *   4bytes: stream id,          fmt=0
+     * where:
+     *   fmt=0, 0x0X
+     *   fmt=1, 0x4X
+     *   fmt=2, 0x8X
+     *   fmt=3, 0xCX
+     */
+
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x03,
+            0x00, 0x00, 0x10,       // timestamp
+            0x00, 0x01, 0x10,       // length, 272
+            0x09,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x04,
+            0x00, 0x00, 0x15,       // timestamp
+            0x00, 0x00, 0x90,       // length, 144
+            0x08,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x43,
+            0x00, 0x00, 0x10, // timestamp
+            0x00, 0x01, 0x10, // length, 272
+            0x09,             // message_type
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC4, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x43,
+            0x00, 0x00, 0x10, // timestamp
+            0x00, 0x01, 0x10, // length, 272
+            0x09,             // message_type
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x10, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x15, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x20, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x30, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+}
+
+/**
+ * recv video, audio, video and video, interlaced in chunks.
+ * the continue chunks use fmt=2 header
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt2)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    /**
+     * parse the message header.
+     *   3bytes: timestamp delta,    fmt=0,1,2
+     *   3bytes: payload length,     fmt=0,1
+     *   1bytes: message type,       fmt=0,1
+     *   4bytes: stream id,          fmt=0
+     * where:
+     *   fmt=0, 0x0X
+     *   fmt=1, 0x4X
+     *   fmt=2, 0x8X
+     *   fmt=3, 0xCX
+     */
+
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x03,
+            0x00, 0x00, 0x10,       // timestamp
+            0x00, 0x01, 0x10,       // length, 272
+            0x09,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x04,
+            0x00, 0x00, 0x15,       // timestamp
+            0x00, 0x00, 0x90,       // length, 144
+            0x08,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x83,
+            0x00, 0x00, 0x10, // timestamp
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC4, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x83,
+            0x00, 0x00, 0x10, // timestamp
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x10, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x15, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x20, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x30, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+}
+
+/**
+ * recv video, audio, video and video, interlaced in chunks.
+ * the continue chunks use fmt=3 header
+ */
+VOID TEST(ProtocolStackTest, ProtocolRecvVAVVFmt3)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+
+    /**
+     * parse the message header.
+     *   3bytes: timestamp delta,    fmt=0,1,2
+     *   3bytes: payload length,     fmt=0,1
+     *   1bytes: message type,       fmt=0,1
+     *   4bytes: stream id,          fmt=0
+     * where:
+     *   fmt=0, 0x0X
+     *   fmt=1, 0x4X
+     *   fmt=2, 0x8X
+     *   fmt=3, 0xCX
+     */
+
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x03,
+            0x00, 0x00, 0x10,       // timestamp
+            0x00, 0x01, 0x10,       // length, 272
+            0x09,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0x04,
+            0x00, 0x00, 0x15,       // timestamp
+            0x00, 0x00, 0x90,       // length, 144
+            0x08,                   // message_type
+            0x01, 0x00, 0x00, 0x00, // stream_id
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0xC3,
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // audio message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC4, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#1
+    if (true) {
+        uint8_t data[] = {
+            // 12bytes header, 1byts chunk header, 11bytes msg heder
+            0xC3,
+            // msg payload start
+            0x02, 0x00, 0x07, 0x63,
+            0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x08, 0x66, 0x6c,
+            0x61, 0x73, 0x68, 0x56, 0x65, 0x72, 0x02, 0x00, 0x0d, 0x57, 0x49, 0x4e, 0x20, 0x31, 0x32, 0x2c,
+            0x30, 0x2c, 0x30, 0x2c, 0x34, 0x31, 0x00, 0x06, 0x73, 0x77, 0x66, 0x55, 0x72, 0x6c, 0x02, 0x00,
+            0x51, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x6f, 0x73, 0x73, 0x72,
+            0x73, 0x2e, 0x6e, 0x65, 0x74, 0x3a, 0x38, 0x30, 0x38, 0x35, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x73, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2f, 0x72, 0x65,
+            0x6c, 0x65, 0x61, 0x73, 0x65, 0x2f, 0x73, 0x72, 0x73, 0x5f, 0x70, 0x6c};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#2
+    if (true) {
+        uint8_t data[] = {
+            0xC3,
+            /*next chunk.*/ 0x61,
+            0x79,
+            0x65,
+            0x72,
+            0x2e,
+            0x73,
+            0x77,
+            0x66,
+            0x3f,
+            0x5f,
+            0x76,
+            0x65,
+            0x72,
+            0x73,
+            0x69,
+            0x6f,
+            0x6e,
+            0x3d,
+            0x31,
+            0x2e,
+            0x32,
+            0x33,
+            0x00,
+            0x05,
+            0x74,
+            0x63,
+            0x55,
+            0x72,
+            0x6c,
+            0x02,
+            0x00,
+            0x14,
+            0x72,
+            0x74,
+            0x6d,
+            0x70,
+            0x3a,
+            0x2f,
+            0x2f,
+            0x64,
+            0x65,
+            0x76,
+            0x3a,
+            0x31,
+            0x39,
+            0x33,
+            0x35,
+            0x2f,
+            0x6c,
+            0x69,
+            0x76,
+            0x65,
+            0x00,
+            0x04,
+            0x66,
+            0x70,
+            0x61,
+            0x64,
+            0x01,
+            0x00,
+            0x00,
+            0x0c,
+            0x63,
+            0x61,
+            0x70,
+            0x61,
+            0x62,
+            0x69,
+            0x6c,
+            0x69,
+            0x74,
+            0x69,
+            0x65,
+            0x73,
+            0x00,
+            0x40,
+            0x6d,
+            0xe0,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x61,
+            0x75,
+            0x64,
+            0x69,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0xab,
+            0xee,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x76,
+            0x69,
+            0x64,
+            0x65,
+            0x6f,
+            0x43,
+            0x6f,
+            0x64,
+            0x65,
+            0x63,
+            0x73,
+            0x00,
+            0x40,
+            0x6f,
+            0x80,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+    // video message, chunk#3
+    if (true) {
+        uint8_t data[] = {
+            0xC3, /*next chunk.*/
+            0x2e, 0x73, 0x77, 0x66, 0x3f, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x3d, 0x31, 0x2e};
+        bio.in_buffer.append((char *)data, sizeof(data));
+    }
+
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x10, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_audio());
+        EXPECT_EQ(0x15, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x20, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+    if (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(proto.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->header_.is_video());
+        EXPECT_EQ(0x30, msg->header_.timestamp_);
+        EXPECT_EQ(0x01, msg->header_.stream_id_);
+    }
+}
+
+struct MockStage {
+    llhttp_t parser;
+    const char *at;
+    size_t length;
+
+    MockStage(llhttp_t *from);
+};
+
+MockStage::MockStage(llhttp_t *from)
+{
+    parser = *from;
+    at = NULL;
+    length = 0;
+}
+
+class MockParser
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    llhttp_settings_t settings;
+    llhttp_t *parser;
+    size_t parsed;
+
+public:
+    MockStage *message_begin;
+    MockStage *url;
+    MockStage *status;
+    MockStage *header_field;
+    MockStage *header_value;
+    MockStage *headers_complete;
+    MockStage *body;
+    MockStage *message_complete;
+    MockStage *chunk_header;
+    MockStage *chunk_complete;
+
+public:
+    MockParser();
+    virtual ~MockParser();
+
+public:
+    srs_error_t parse(string data);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    static int on_message_begin(llhttp_t *parser);
+    static int on_url(llhttp_t *parser, const char *at, size_t length);
+    static int on_status(llhttp_t *parser, const char *at, size_t length);
+    static int on_header_field(llhttp_t *parser, const char *at, size_t length);
+    static int on_header_value(llhttp_t *parser, const char *at, size_t length);
+    static int on_headers_complete(llhttp_t *parser);
+    static int on_body(llhttp_t *parser, const char *at, size_t length);
+    static int on_message_complete(llhttp_t *parser);
+    static int on_chunk_header(llhttp_t *parser);
+    static int on_chunk_complete(llhttp_t *parser);
+};
+
+MockParser::MockParser()
+{
+    parser = new llhttp_t();
+    llhttp_init(parser, HTTP_REQUEST, &settings);
+    parser->data = (void *)this;
+    parsed = 0;
+
+    memset(&settings, 0, sizeof(settings));
+    settings.on_message_begin = on_message_begin;
+    settings.on_url = on_url;
+    settings.on_status = on_status;
+    settings.on_header_field = on_header_field;
+    settings.on_header_value = on_header_value;
+    settings.on_headers_complete = on_headers_complete;
+    settings.on_body = on_body;
+    settings.on_message_complete = on_message_complete;
+    settings.on_chunk_header = on_chunk_header;
+    settings.on_chunk_complete = on_chunk_complete;
+
+    message_begin = NULL;
+    url = NULL;
+    status = NULL;
+    header_field = NULL;
+    header_value = NULL;
+    headers_complete = NULL;
+    body = NULL;
+    message_complete = NULL;
+    chunk_header = NULL;
+    chunk_complete = NULL;
+}
+
+MockParser::~MockParser()
+{
+    srs_freep(parser);
+
+    srs_freep(message_begin);
+    srs_freep(url);
+    srs_freep(status);
+    srs_freep(header_field);
+    srs_freep(header_value);
+    srs_freep(headers_complete);
+    srs_freep(body);
+    srs_freep(message_complete);
+    srs_freep(chunk_header);
+    srs_freep(chunk_complete);
+}
+
+int MockParser::on_message_begin(llhttp_t *parser)
+{
+    MockParser *obj = (MockParser *)parser->data;
+    srs_assert(obj);
+
+    srs_freep(obj->message_begin);
+    obj->message_begin = new MockStage(parser);
+
+    return 0;
+}
+
+int MockParser::on_url(llhttp_t *parser, const char *at, size_t length)
+{
+    MockParser *obj = (MockParser *)parser->data;
+    srs_assert(obj);
+
+    srs_freep(obj->url);
+    obj->url = new MockStage(parser);
+    obj->url->at = at;
+    obj->url->length = length;
+
+    return 0;
+}
+
+int MockParser::on_status(llhttp_t *parser, const char *at, size_t length)
+{
+    MockParser *obj = (MockParser *)parser->data;
+    srs_assert(obj);
+
+    srs_freep(obj->status);
+    obj->status = new MockStage(parser);
+    obj->status->at = at;
+    obj->status->length = length;
+
+    return 0;
+}
+
+int MockParser::on_header_field(llhttp_t *parser, const char *at, size_t length)
+{
+    MockParser *obj = (MockParser *)parser->data;
+    srs_assert(obj);
+
+    srs_freep(obj->header_field);
+    obj->header_field = new MockStage(parser);
+    obj->header_field->at = at;
+    obj->header_field->length = length;
+
+    return 0;
+}
+
+int MockParser::on_header_value(llhttp_t *parser, const char *at, size_t length)
+{
+    MockParser *obj = (MockParser *)parser->data;
+    srs_assert(obj);
+
+    srs_freep(obj->header_value);
+    obj->header_value = new MockStage(parser);
+    obj->header_value->at = at;
+    obj->header_value->length = length;
+
+    return 0;
+}
+
+int MockParser::on_headers_complete(llhttp_t *parser)
+{
+    MockParser *obj = (MockParser *)parser->data;
+    srs_assert(obj);
+
+    srs_freep(obj->headers_complete);
+    obj->headers_complete = new MockStage(parser);
+
+    return HPE_PAUSED;
+}
+
+int MockParser::on_body(llhttp_t *parser, const char *at, size_t length)
+{
+    MockParser *obj = (MockParser *)parser->data;
+    srs_assert(obj);
+
+    srs_freep(obj->body);
+    obj->body = new MockStage(parser);
+    obj->body->at = at;
+    obj->body->length = length;
+
+    return 0;
+}
+
+int MockParser::on_message_complete(llhttp_t *parser)
+{
+    MockParser *obj = (MockParser *)parser->data;
+    srs_assert(obj);
+
+    srs_freep(obj->message_complete);
+    obj->message_complete = new MockStage(parser);
+
+    return 0;
+}
+
+int MockParser::on_chunk_header(llhttp_t *parser)
+{
+    MockParser *obj = (MockParser *)parser->data;
+    srs_assert(obj);
+
+    srs_freep(obj->chunk_header);
+    obj->chunk_header = new MockStage(parser);
+
+    return 0;
+}
+
+int MockParser::on_chunk_complete(llhttp_t *parser)
+{
+    MockParser *obj = (MockParser *)parser->data;
+    srs_assert(obj);
+
+    srs_freep(obj->chunk_complete);
+    obj->chunk_complete = new MockStage(parser);
+
+    return 0;
+}
+
+srs_error_t MockParser::parse(string data)
+{
+    srs_error_t err = srs_success;
+
+    parsed = 0;
+
+    const char *buf = (const char *)data.data();
+    size_t size = (size_t)data.length();
+    llhttp_errno_t code = llhttp_execute(parser, buf, size);
+
+    ssize_t consumed = 0;
+    if (code == HPE_OK) {
+        // No problem, all buffer should be consumed.
+        consumed = (int)data.size();
+    } else if (code == HPE_PAUSED) {
+        // We only consume the header, not message or body.
+        const char *error_pos = llhttp_get_error_pos(parser);
+        if (error_pos && error_pos < buf) {
+            return srs_error_new(-1, "llhttp error_pos=%p < data_start=%p", error_pos, buf);
+        }
+
+        if (error_pos && error_pos >= buf) {
+            consumed = error_pos - buf;
+        }
+    }
+
+    // Check for errors (but allow certain conditions that are normal)
+    // HPE_OK: success
+    // HPE_PAUSED: we use to skip body
+    if (code != HPE_OK && code != HPE_PAUSED) {
+        return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse %dB, nparsed=%d, err=%d/%s %s",
+                             (int)data.size(), (int)consumed, code, llhttp_errno_name(code),
+                             llhttp_get_error_reason(parser) ? llhttp_get_error_reason(parser) : "");
+    }
+
+    parsed = consumed;
+
+    return err;
+}
+
+VOID TEST(ProtocolHTTPTest, HTTPParser)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockParser parser;
+        // size = 79, nparsed = 0, nread = 1, content_length = -1, Header("Content-Length", 5)
+        HELPER_EXPECT_FAILED(parser.parse("elloGET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
+        EXPECT_EQ(0, (int)parser.parsed);
+        EXPECT_EQ(0, (int64_t)parser.parser->content_length);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 70, nparsed = 70, nread = 0
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\n"));
+        EXPECT_EQ(70, (int)parser.parsed);
+        EXPECT_TRUE(!parser.body);
+        EXPECT_TRUE(parser.headers_complete);
+        EXPECT_TRUE(!parser.message_complete);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 75, nparsed = 70, nread = 0
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
+        EXPECT_EQ(70, (int)parser.parsed);
+        EXPECT_TRUE(!parser.body);
+        EXPECT_TRUE(parser.headers_complete);
+        EXPECT_TRUE(!parser.message_complete);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 150, nparsed = 70, nread = 0
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHelloGET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nWorld"));
+        EXPECT_EQ(70, (int)parser.parsed);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 70, nparsed = 70, nread = 0, content_length = 5, Header("Content-Length", 5)
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\n"));
+        EXPECT_EQ(70, (int)parser.parsed);
+        EXPECT_EQ(5, (int)parser.parser->content_length);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 70, nparsed = 70, nread = 0, content_length = 5, Header("Content-Length", 5)
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\n"));
+        EXPECT_EQ(70, (int)parser.parsed);
+        EXPECT_EQ(5, (int)parser.parser->content_length);
+
+        // Reset for the next message.
+        parser.parser->content_length = 0;
+
+        // size = 80, nparsed = 70, nread = 0, content_length = 0, Header("Content-Length", 5)
+        HELPER_EXPECT_FAILED(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nWorld"));
+        EXPECT_EQ(0, (int)parser.parsed);
+        EXPECT_EQ(0, (int)parser.parser->content_length);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 73, nparsed = 70, nread = 0, content_length = 5, Header("Content-Length", 5)
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHel"));
+        EXPECT_EQ(70, (int)parser.parsed);
+        EXPECT_EQ(5, (int)parser.parser->content_length);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 82, nparsed = 70, nread = 1, content_length = 5, Header("Content-Length", 5)
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello World!"));
+        EXPECT_EQ(70, (int)parser.parsed);
+        EXPECT_EQ(5, (int64_t)parser.parser->content_length);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 34, nparsed = 34, nread = 34
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHo"));
+        EXPECT_EQ(34, (int)parser.parsed);
+
+        // size = 41, nparsed = 36, nread = 0
+        HELPER_EXPECT_SUCCESS(parser.parse("st: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
+        EXPECT_EQ(36, (int)parser.parsed);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 41, nparsed = 41, nread = 41
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: oss"));
+        EXPECT_EQ(41, (int)parser.parsed);
+
+        // size = 34, nparsed = 29, nread = 0
+        HELPER_EXPECT_SUCCESS(parser.parse("rs.net\r\nContent-Length: 5\r\n\r\nHello"));
+        EXPECT_EQ(29, (int)parser.parsed);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 48, nparsed = 48, nread = 48
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r"));
+        EXPECT_EQ(48, (int)parser.parsed);
+
+        // size = 27, nparsed = 22, nread = 0
+        HELPER_EXPECT_SUCCESS(parser.parse("\nContent-Length: 5\r\n\r\nHello"));
+        EXPECT_EQ(22, (int)parser.parsed);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 68, nparsed = 68, nread = 68
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n"));
+        EXPECT_EQ(68, (int)parser.parsed);
+
+        // size = 7, nparsed = 2, nread = 0
+        HELPER_EXPECT_SUCCESS(parser.parse("\r\nHello"));
+        EXPECT_EQ(2, (int)parser.parsed);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 69, nparsed = 69, nread = 69
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r"));
+        EXPECT_EQ(69, (int)parser.parsed);
+
+        // size = 6, nparsed = 1, nread = 0
+        HELPER_EXPECT_SUCCESS(parser.parse("\nHello"));
+        EXPECT_EQ(1, (int)parser.parsed);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 75, nparsed = 70, nread = 0
+        HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
+        EXPECT_EQ(70, (int)parser.parsed);
+    }
+
+    if (true) {
+        MockParser parser;
+        // nparsed = 2, size = 2, nread = 2
+        HELPER_EXPECT_SUCCESS(parser.parse("GE"));
+        EXPECT_EQ(2, (int)parser.parsed);
+
+        // size = 0, nparsed = 1, nread=2
+        HELPER_EXPECT_SUCCESS(parser.parse(""));
+        EXPECT_EQ(0, (int)parser.parsed);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 2, nparsed = 2, nread = 2
+        HELPER_EXPECT_SUCCESS(parser.parse("GE"));
+        EXPECT_EQ(2, (int)parser.parsed);
+
+        // size = 1, nparsed = 0, nread = 3
+        HELPER_EXPECT_FAILED(parser.parse("X"));
+        EXPECT_EQ(0, (int)parser.parsed);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 2, nparsed = 2, nread = 2
+        HELPER_EXPECT_SUCCESS(parser.parse("GE"));
+        EXPECT_EQ(2, (int)parser.parsed);
+
+        // size = 1, nparsed = 1, nread = 3
+        HELPER_EXPECT_SUCCESS(parser.parse("T"));
+        EXPECT_EQ(1, (int)parser.parsed);
+    }
+
+    if (true) {
+        MockParser parser;
+        // size = 3, nparsed = 3, nread = 3
+        HELPER_EXPECT_SUCCESS(parser.parse("GET"));
+        EXPECT_EQ(3, (int)parser.parsed);
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, ParseUrlFailed)
+{
+    if (true) {
+        string tcUrl = "rtmp://__defaultVhost__/live", stream = "livestream";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(1935, port);
+    }
+
+    if (true) {
+        string tcUrl = "rtmp://__defaultVhost__:1936/live", stream = "livestream";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(1936, port);
+    }
+
+    if (true) {
+        string tcUrl = "http://__defaultVhost__/live", stream = "livestream.flv";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("http", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(80, port);
+    }
+
+    if (true) {
+        string tcUrl = "http://__defaultVhost__/live", stream = "livestream.m3u8";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("http", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(80, port);
+    }
+
+    if (true) {
+        string tcUrl = "http://__defaultVhost__:8080/live", stream = "livestream.m3u8";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("http", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(8080, port);
+    }
+
+    if (true) {
+        string tcUrl = "https://__defaultVhost__/live", stream = "livestream.flv";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("https", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(443, port);
+    }
+
+    if (true) {
+        string tcUrl = "https://__defaultVhost__/live", stream = "livestream.m3u8";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("https", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(443, port);
+    }
+
+    if (true) {
+        string tcUrl = "https://__defaultVhost__:8088/live", stream = "livestream.m3u8";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("https", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(8088, port);
+    }
+
+    if (true) {
+        string tcUrl = "webrtc://__defaultVhost__/live", stream = "livestream";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("webrtc", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(80, port);
+    }
+
+    if (true) {
+        string tcUrl = "webrtc://__defaultVhost__:8080/live", stream = "livestream";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+        EXPECT_STREQ("webrtc", schema.c_str());
+        EXPECT_STREQ("__defaultVhost__", host.c_str());
+        EXPECT_STREQ("__defaultVhost__", vhost.c_str());
+        EXPECT_EQ(8080, port);
+    }
+}

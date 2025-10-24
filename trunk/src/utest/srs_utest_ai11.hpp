@@ -23,7 +23,7 @@
 #include <srs_app_statistic.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai07.hpp>
-#include <srs_utest_protocol3.hpp>
+#include <srs_utest_manual_protocol3.hpp>
 
 // Mock ISrsResourceManager for testing SrsGbMediaTcpConn::bind_session
 class MockResourceManagerForBindSession : public ISrsResourceManager

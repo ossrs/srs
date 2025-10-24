@@ -27,7 +27,7 @@
 #include <srs_utest_ai11.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
-#include <srs_utest_kernel.hpp>
+#include <srs_utest_manual_kernel.hpp>
 
 // Mock ISrsAppConfig for testing SrsUdpCasterListener
 class MockAppConfigForUdpCaster : public MockAppConfig

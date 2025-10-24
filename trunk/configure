@@ -375,20 +375,20 @@ fi
 #
 # utest, the unit-test cases of srs, base on gtest1.6
 if [[ $SRS_UTEST == YES ]]; then
-    MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_kernel" "srs_utest_core" "srs_utest_srt"
-        "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
-        "srs_utest_mp4" "srs_utest_service" "srs_utest_app_rtc2rtmp" "srs_utest_rtc" "srs_utest_config2"
-        "srs_utest_protocol" "srs_utest_protocol2" "srs_utest_kernel2" "srs_utest_st" "srs_utest_fmp4" 
-        "srs_utest_source_lock" "srs_utest_stream_token" "srs_utest_rtc_recv_track" "srs_utest_st2" 
-        "srs_utest_hevc_structs" "srs_utest_coworkers" "srs_utest_pithy_print" "srs_utest_protocol3" 
-        "srs_utest_app" "srs_utest_mock" "srs_utest_rtc_playstream" "srs_utest_rtc_publishstream" 
-        "srs_utest_rtc_conn" "srs_utest_rtmp_conn" "srs_utest_srt_conn" "srs_utest_http_conn")
+    MODULE_FILES=("srs_utest" "srs_utest_manual_amf0" "srs_utest_manual_kernel" "srs_utest_manual_core" "srs_utest_manual_srt"
+        "srs_utest_manual_config" "srs_utest_manual_rtmp" "srs_utest_manual_http" "srs_utest_manual_avc" "srs_utest_manual_reload"
+        "srs_utest_manual_mp4" "srs_utest_manual_service" "srs_utest_manual_app_rtc2rtmp" "srs_utest_manual_rtc" "srs_utest_manual_config2"
+        "srs_utest_manual_protocol" "srs_utest_manual_protocol2" "srs_utest_manual_kernel2" "srs_utest_manual_st" "srs_utest_manual_fmp4"
+        "srs_utest_manual_source_lock" "srs_utest_manual_stream_token" "srs_utest_manual_rtc_recv_track" "srs_utest_manual_st2"
+        "srs_utest_manual_hevc_structs" "srs_utest_manual_coworkers" "srs_utest_manual_pithy_print" "srs_utest_manual_protocol3"
+        "srs_utest_manual_app" "srs_utest_manual_mock" "srs_utest_workflow_rtc_playstream" "srs_utest_workflow_rtc_publishstream"
+        "srs_utest_workflow_rtc_conn" "srs_utest_workflow_rtmp_conn" "srs_utest_workflow_srt_conn" "srs_utest_workflow_http_conn")
     MODULE_FILES+=("srs_utest_ai01" "srs_utest_ai02" "srs_utest_ai03" "srs_utest_ai04" "srs_utest_ai05"
         "srs_utest_ai06" "srs_utest_ai07" "srs_utest_ai08" "srs_utest_ai09" "srs_utest_ai10" "srs_utest_ai11"
         "srs_utest_ai12" "srs_utest_ai13" "srs_utest_ai14" "srs_utest_ai15" "srs_utest_ai16" "srs_utest_ai17"
-        "srs_utest_ai18" "srs_utest_ai19" "srs_utest_ai20" "srs_utest_forward")
+        "srs_utest_ai18" "srs_utest_ai19" "srs_utest_ai20" "srs_utest_workflow_forward")
     if [[ $SRS_GB28181 == YES ]]; then
-        MODULE_FILES+=("srs_utest_gb28181" "srs_utest_ai23")
+        MODULE_FILES+=("srs_utest_manual_gb28181" "srs_utest_ai23")
     fi
     if [[ $SRS_RTSP == YES ]]; then
         MODULE_FILES+=("srs_utest_ai21" "srs_utest_ai22")

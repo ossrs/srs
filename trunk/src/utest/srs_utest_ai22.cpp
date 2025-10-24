@@ -22,10 +22,10 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
-#include <srs_utest_config.hpp>
-#include <srs_utest_fmp4.hpp>
-#include <srs_utest_kernel.hpp>
-#include <srs_utest_protocol.hpp>
+#include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_fmp4.hpp>
+#include <srs_utest_manual_kernel.hpp>
+#include <srs_utest_manual_protocol.hpp>
 
 // Mock request implementation
 MockEdgeRequest::MockEdgeRequest(std::string vhost, std::string app, std::string stream)
@@ -1049,13 +1049,21 @@ VOID TEST(EdgeIngesterTest, ProcessPublishMessageAudioVideo)
     srs_freep(ingester->upstream_);
     ingester->upstream_ = mock_upstream;
 
-    // Test 1: Process audio message
+    // Test 1: Process audio message with valid AAC codec
     {
         SrsUniquePtr<SrsRtmpCommonMessage> audio_msg(new SrsRtmpCommonMessage());
         audio_msg->header_.message_type_ = RTMP_MSG_AudioMessage;
         audio_msg->header_.payload_length_ = 10;
         audio_msg->header_.timestamp_ = 1000;
         audio_msg->create_payload(10);
+
+        // Set valid AAC audio data (codec ID 10)
+        char *payload = audio_msg->payload();
+        payload[0] = 0xAF; // AAC codec (ID=10), 44kHz, 16-bit, stereo
+        payload[1] = 0x01; // AAC raw data (not sequence header)
+        for (int i = 2; i < 10; i++) {
+            payload[i] = 0x00; // Sample AAC data
+        }
 
         std::string redirect;
         HELPER_EXPECT_SUCCESS(ingester->process_publish_message(audio_msg.get(), redirect));

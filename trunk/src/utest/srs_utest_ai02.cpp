@@ -12,7 +12,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_utest_config.hpp>
+#include <srs_utest_manual_config.hpp>
 
 VOID TEST(ConfigHttpsStreamTest, CheckHttpsStreamListensDefault)
 {

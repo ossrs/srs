@@ -17,6 +17,7 @@
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_security.hpp>
+#include <srs_app_server.hpp>
 #include <srs_kernel_hourglass.hpp>
 #include <srs_protocol_http_stack.hpp>
 #include <srs_utest_ai11.hpp>
@@ -67,6 +68,17 @@ public:
     virtual std::vector<std::string> get_rtsp_server_listens();
     virtual bool get_exporter_enabled();
     virtual std::string get_exporter_listen();
+};
+
+// Mock PID file locker for testing SrsServer::initialize()
+class MockPidFileLocker : public SrsPidFileLocker
+{
+public:
+    MockPidFileLocker();
+    virtual ~MockPidFileLocker();
+
+public:
+    virtual srs_error_t acquire();
 };
 
 // Mock ISrsLog for testing SrsServer::on_signal()

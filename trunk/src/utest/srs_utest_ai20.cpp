@@ -12,7 +12,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_st.hpp>
-#include <srs_utest_mock.hpp>
+#include <srs_utest_manual_mock.hpp>
 #include <unistd.h>
 
 // Mock ISrsSignalHandler implementation

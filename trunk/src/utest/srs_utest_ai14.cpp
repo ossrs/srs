@@ -25,9 +25,9 @@ using namespace std;
 #include <srs_utest_ai11.hpp>
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai22.hpp>
-#include <srs_utest_config.hpp>
-#include <srs_utest_coworkers.hpp>
-#include <srs_utest_protocol2.hpp>
+#include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_coworkers.hpp>
+#include <srs_utest_manual_protocol2.hpp>
 
 MockMediaPacketForJitter::MockMediaPacketForJitter(int64_t timestamp, bool is_av)
 {

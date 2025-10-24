@@ -25,9 +25,9 @@ using namespace std;
 #include <srs_protocol_rtmp_conn.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai16.hpp>
-#include <srs_utest_http.hpp>
-#include <srs_utest_kernel.hpp>
-#include <srs_utest_protocol.hpp>
+#include <srs_utest_manual_http.hpp>
+#include <srs_utest_manual_kernel.hpp>
+#include <srs_utest_manual_protocol.hpp>
 
 // Mock ISrsGbMuxer implementation
 MockGbMuxer::MockGbMuxer()

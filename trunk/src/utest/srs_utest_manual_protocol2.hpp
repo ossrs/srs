@@ -1,0 +1,15 @@
+//
+// Copyright (c) 2013-2025 The SRS Authors
+//
+// SPDX-License-Identifier: MIT
+//
+
+#ifndef SRS_UTEST_PROTOCOL2_HPP
+#define SRS_UTEST_PROTOCOL2_HPP
+
+/*
+#include <srs_utest_manual_protocol2.hpp>
+*/
+#include <srs_utest_manual_protocol.hpp>
+
+#endif

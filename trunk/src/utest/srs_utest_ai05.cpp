@@ -23,7 +23,7 @@
 #include <srs_kernel_st.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_utest_protocol.hpp>
+#include <srs_utest_manual_protocol.hpp>
 
 #include <algorithm>
 

@@ -18,7 +18,7 @@
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_ai07.hpp>
 #include <srs_utest_ai11.hpp>
-#include <srs_utest_service.hpp>
+#include <srs_utest_manual_service.hpp>
 
 // Mock video recv track for testing check_send_nacks
 class MockRtcVideoRecvTrackForNack : public SrsRtcVideoRecvTrack

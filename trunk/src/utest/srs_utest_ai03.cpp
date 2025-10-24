@@ -11,7 +11,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 
-#include <srs_utest_service.hpp>
+#include <srs_utest_manual_service.hpp>
 
 #include <chrono>
 #include <vector>

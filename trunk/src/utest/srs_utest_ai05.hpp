@@ -16,7 +16,7 @@
 #include <srs_kernel_io.hpp>
 #include <srs_kernel_resource.hpp>
 #include <srs_kernel_rtc_queue.hpp>
-#include <srs_utest_kernel.hpp>
+#include <srs_utest_manual_kernel.hpp>
 
 // Mock classes for IO testing
 class MockSrsReader : public ISrsReader

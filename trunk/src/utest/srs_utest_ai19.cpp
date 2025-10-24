@@ -28,8 +28,8 @@ using namespace std;
 #include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai05.hpp>
-#include <srs_utest_coworkers.hpp>
-#include <srs_utest_http.hpp>
+#include <srs_utest_manual_coworkers.hpp>
+#include <srs_utest_manual_http.hpp>
 
 // Mock ISrsAppConfig implementation
 MockAppConfigForUdpCaster::MockAppConfigForUdpCaster()

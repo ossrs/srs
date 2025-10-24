@@ -20,8 +20,8 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
-#include <srs_utest_http.hpp>
-#include <srs_utest_kernel.hpp>
+#include <srs_utest_manual_http.hpp>
+#include <srs_utest_manual_kernel.hpp>
 #include <vector>
 
 // External function declarations for testing

@@ -16,7 +16,7 @@
 #include <srs_app_hls.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_utest_ai11.hpp>
-#include <srs_utest_kernel.hpp>
+#include <srs_utest_manual_kernel.hpp>
 
 // Extended mock app config for HLS notify testing
 class MockAppConfigForHlsNotify : public MockAppConfig

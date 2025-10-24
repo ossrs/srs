@@ -19,7 +19,7 @@ using namespace std;
 #include <srs_protocol_rtmp_conn.hpp>
 #include <srs_protocol_rtp.hpp>
 #include <srs_protocol_st.hpp>
-#include <srs_utest_http.hpp>
+#include <srs_utest_manual_http.hpp>
 
 VOID TEST(HTTPClientTest, HTTPClientUtility)
 {
