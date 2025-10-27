@@ -36,6 +36,45 @@
 #include <srs_utest_manual_service.hpp>
 #include <srs_utest_workflow_rtc_conn.hpp>
 
+// Mock app factory for RTC to RTMP workflow testing
+class MockAppFactoryForRtc2Rtmp : public SrsAppFactory
+{
+public:
+    MockAudioCache *last_created_audio_cache_;
+    MockAudioTranscoder *last_created_audio_transcoder_;
+
+public:
+    MockAppFactoryForRtc2Rtmp()
+    {
+        last_created_audio_cache_ = NULL;
+        last_created_audio_transcoder_ = NULL;
+    }
+
+    virtual ~MockAppFactoryForRtc2Rtmp()
+    {
+        // Don't delete last_created_audio_cache_ or last_created_audio_transcoder_ here,
+        // they are managed by frame builder
+    }
+
+#ifdef SRS_FFMPEG_FIT
+    virtual ISrsRtcFrameBuilderAudioPacketCache *create_rtc_frame_builder_audio_packet_cache()
+    {
+        // Create a new mock audio cache each time
+        MockAudioCache *cache = new MockAudioCache();
+        last_created_audio_cache_ = cache;
+        return cache;
+    }
+
+    virtual ISrsAudioTranscoder *create_audio_transcoder()
+    {
+        // Create a new mock audio transcoder each time
+        MockAudioTranscoder *transcoder = new MockAudioTranscoder();
+        last_created_audio_transcoder_ = transcoder;
+        return transcoder;
+    }
+#endif
+};
+
 // This test is used to verify the basic workflow of the RTC connection.
 // It's finished with the help of AI, but each step is manually designed
 // and verified. So this is not dominated by AI, but by humanbeing.
@@ -53,10 +92,8 @@ VOID TEST(BasicWorkflowRtc2RtmpTest, ManuallyVerifyTypicalScenario)
     SrsUniquePtr<MockRtcPacketReceiver> mock_receiver(new MockRtcPacketReceiver());
     SrsUniquePtr<MockRtcTrackDescriptionFactory> track_factory(new MockRtcTrackDescriptionFactory());
     SrsUniquePtr<MockLiveSourceManager> mock_sources(new MockLiveSourceManager());
-    MockAudioCache *mock_audio_cache = new MockAudioCache();
-    MockAudioTranscoder *mock_audio_transcoder = new MockAudioTranscoder();
+    SrsUniquePtr<MockAppFactoryForRtc2Rtmp> mock_factory(new MockAppFactoryForRtc2Rtmp());
 
-    mock_audio_transcoder->aac_header_ = std::string("\xAF\x00\x12\x10", 4); // AAC sequence header.
     mock_config->rtc_to_rtmp_ = true;
 
     // Create RTC publish stream - use real pli_worker_
@@ -71,12 +108,12 @@ VOID TEST(BasicWorkflowRtc2RtmpTest, ManuallyVerifyTypicalScenario)
         publish_stream->rtc_sources_ = mock_rtc_sources.get();
         publish_stream->live_sources_ = mock_sources.get();
         publish_stream->stat_ = mock_stat.get();
+        publish_stream->app_factory_ = mock_factory.get();
     }
 
     // Initialize publish stream, rtc2rtmp bridge should be created
     SrsRtcBridge *bridge = NULL;
     SrsLiveSource *live_source = NULL;
-    SrsRtcFrameBuilder *frame_builder = NULL;
     if (true) {
         SrsUniquePtr<SrsRtcSourceDescription> stream_desc(track_factory->create_stream_description());
 
@@ -94,33 +131,31 @@ VOID TEST(BasicWorkflowRtc2RtmpTest, ManuallyVerifyTypicalScenario)
 
         live_source = bridge->rtmp_target_.get();
         EXPECT_TRUE(live_source != NULL);
-
-        frame_builder = bridge->frame_builder_;
-        EXPECT_TRUE(frame_builder != NULL);
-
-        // Mock the frame builder object
-        srs_freep(frame_builder->audio_cache_);
-        frame_builder->audio_cache_ = mock_audio_cache;
     }
 
     // Start the publish stream.
+    SrsRtcFrameBuilder *frame_builder = NULL;
     if (true) {
         // Test: First call to start() should succeed
         HELPER_EXPECT_SUCCESS(publish_stream->start());
 
-        // Wait for coroutine to start. 
+        // Wait for coroutine to start.
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
         // Verify is_sender_started_ flag is set
         EXPECT_TRUE(publish_stream->is_sender_started_);
 
-        // When starting the publish stream, the frame builder should not be recreated
-        EXPECT_TRUE(frame_builder == bridge->frame_builder_);
+        // When starting the publish stream, the frame builder should be recreated
+        frame_builder = bridge->frame_builder_;
         EXPECT_TRUE(frame_builder != NULL);
 
-        // Mock the frame builder object. When publish, the transcoder will be recreated.
-        srs_freep(frame_builder->audio_transcoder_);
-        frame_builder->audio_transcoder_ = mock_audio_transcoder;
+        // Verify the audio cache was created by the factory
+        EXPECT_TRUE(mock_factory->last_created_audio_cache_ != NULL);
+        EXPECT_EQ(frame_builder->audio_cache_, mock_factory->last_created_audio_cache_);
+
+        // Verify the audio transcoder was created by the factory
+        EXPECT_TRUE(mock_factory->last_created_audio_transcoder_ != NULL);
+        EXPECT_EQ(frame_builder->audio_transcoder_, mock_factory->last_created_audio_transcoder_);
     }
 
     // Got a RTP audio packet.

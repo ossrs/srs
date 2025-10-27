@@ -44,6 +44,7 @@ class SrsRtpVideoBuilder;
 class ISrsRtcConsumer;
 class ISrsCircuitBreaker;
 class ISrsRtcPublishStream;
+class ISrsAppFactory;
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType = 111;
@@ -227,11 +228,12 @@ class SrsRtcSource : public ISrsRtpTarget, public ISrsFastTimerHandler, public I
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The RTP bridge, convert RTP packets to other protocols.
-    ISrsRtcBridge *rtc_bridge_;
+    ISrsAppFactory *app_factory_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    // The RTP bridge, convert RTP packets to other protocols.
+    ISrsRtcBridge *rtc_bridge_;
     // Circuit breaker for protecting server resources.
     ISrsCircuitBreaker *circuit_breaker_;
     // For publish, it's the publish client id.
@@ -349,6 +351,10 @@ class SrsRtcRtpBuilder
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
     ISrsRtpTarget *rtp_target_;
     // The format, codec information.
@@ -380,7 +386,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool video_initialized_;
 
 public:
-    SrsRtcRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtcSource> source);
+    SrsRtcRtpBuilder(ISrsAppFactory *factory, ISrsRtpTarget *target, SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsRtcRtpBuilder();
 
 // clang-format off
@@ -563,6 +569,10 @@ class SrsRtcFrameBuilder
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsFrameTarget *frame_target_;
 
 // clang-format off
@@ -590,7 +600,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtpPacket *obs_whip_pps_;
 
 public:
-    SrsRtcFrameBuilder(ISrsFrameTarget *target);
+    SrsRtcFrameBuilder(ISrsAppFactory *factory, ISrsFrameTarget *target);
     virtual ~SrsRtcFrameBuilder();
 
 public:

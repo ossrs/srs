@@ -1223,6 +1223,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(ISrsExecRtcAsyncTask *exec, ISrsExpire 
     live_sources_ = _srs_sources;
     srt_sources_ = _srs_srt_sources;
     circuit_breaker_ = _srs_circuit_breaker;
+    app_factory_ = _srs_app_factory;
 }
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
@@ -1268,6 +1269,7 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     live_sources_ = NULL;
     srt_sources_ = NULL;
     circuit_breaker_ = NULL;
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescription *stream_desc)
@@ -1367,7 +1369,7 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
     }
 
     // Create the bridge for RTC.
-    SrsRtcBridge *bridge = new SrsRtcBridge();
+    SrsRtcBridge *bridge = new SrsRtcBridge(app_factory_);
 
     // Bridge to RTMP.
     // TODO: Support bridge to RTSP.

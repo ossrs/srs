@@ -67,16 +67,7 @@ VOID TEST(BasicWorkflowRtmpConnTest, ManuallyVerifyForPublisher)
     mock_config->mw_msgs_ = 0;  // Handle each RTMP message, no merging write.
     mock_config->mw_sleep_ = 0; // Handle each RTMP message, no merging write.
 
-    mock_rtmp_server->type_ = SrsRtmpConnFMLEPublish;
-    mock_rtmp_server->stream_ = "livestream";
-    mock_rtmp_server->ip_ = "192.168.1.100";
-    mock_rtmp_server->vhost_ = "utest.ossrs.io";
-    mock_rtmp_server->app_ = "utest";
-    mock_rtmp_server->stream_ = "livestream";
-    mock_rtmp_server->tcUrl_ = "rtmp://127.0.0.1/utest";
-    mock_rtmp_server->schema_ = "rtmp";
-    mock_rtmp_server->port_ = 1935;
-    mock_rtmp_server->host_ = "127.0.0.1";
+    mock_rtmp_server->set_request(SrsRtmpConnFMLEPublish, "192.168.1.100", "utest.ossrs.io", "utest", "livestream", "rtmp://127.0.0.1/utest", "rtmp", 1935, "127.0.0.1");
 
     // Create SrsRtmpConn - it takes ownership of transport
     ISrsRtmpTransport *transport = new MockRtmpTransport();

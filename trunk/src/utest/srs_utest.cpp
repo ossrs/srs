@@ -32,6 +32,7 @@ using namespace std;
 
 // For TCP test server and client
 #include <srs_app_listener.hpp>
+#include <srs_app_rtc_codec.hpp>
 #include <srs_app_st.hpp>
 
 // Temporary disk config.
@@ -52,6 +53,9 @@ bool _srs_config_by_env = false;
 // @global kernel factory.
 ISrsAppFactory *_srs_app_factory = new SrsAppFactory();
 ISrsKernelFactory *_srs_kernel_factory = _srs_app_factory;
+
+// Register FFmpeg log callback funciton.
+SrsFFmpegLogHelper _srs_ffmpeg_log_helper;
 
 // The binary name of SRS.
 const char *_srs_binary = NULL;
@@ -96,6 +100,9 @@ srs_error_t prepare_main()
     if ((err = srs_srt_log_initialize()) != srs_success) {
         return srs_error_wrap(err, "srt log initialize");
     }
+
+    // Disable FFmpeg detail log in utest.
+    _srs_ffmpeg_log_helper.disable_ffmpeg_log();
 
     // Prevent the output of srt logs in utest.
     srt_setloghandler(NULL, srs_srt_utest_null_log_handler);

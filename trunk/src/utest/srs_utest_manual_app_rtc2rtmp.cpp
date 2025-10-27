@@ -334,7 +334,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_SameKeyframeTimestampVideoSequence)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -404,7 +404,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_SameStapForIdrVideoSequence)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -456,7 +456,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_DifferentKeyframeTimestampVideoSequen
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -524,7 +524,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_TypicalVideoSequence)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -595,7 +595,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_SingleVideoSequence)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -652,7 +652,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_SingleVideoSequence_LargePFrame)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -728,7 +728,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_AcceptableVideoSequence)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -792,7 +792,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_EmptyIDRBeforeNormalFrames)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -855,7 +855,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_EmptyIDRBeforeNormalFrames_FUA)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -917,7 +917,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_BaselinePackets)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -985,7 +985,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_NoSpsPpsPackets)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -1044,7 +1044,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_ReorderingIdrPackets)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -1113,7 +1113,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_PframeBeforeIdrPackets)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -1188,7 +1188,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_PframeReorderingPackets)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -1262,7 +1262,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_IdrPframeReorderingPackets)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -1341,7 +1341,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketVideo_PframeLostPackets)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with AVC codec
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -1402,7 +1402,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketAudio_ThreeAudioPackets)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with Opus codec (typical for WebRTC)
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());
@@ -1452,7 +1452,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketAudio_ReorderingAudioPackets)
     srs_error_t err;
 
     MockRtc2RtmpFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize the builder with Opus codec (typical for WebRTC)
     SrsUniquePtr<MockRtc2RtmpRequest> req(new MockRtc2RtmpRequest());

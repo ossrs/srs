@@ -275,6 +275,8 @@ public:
     bool rtc_from_rtmp_;
     SrsConfDirective *forwards_directive_;
     SrsConfDirective *backend_directive_;
+    bool rtc_server_enabled_;
+    bool rtc_enabled_;
 
 public:
     MockAppConfig();
@@ -328,7 +330,7 @@ public:
     virtual std::string get_https_stream_ssl_cert() { return ""; }
     virtual std::string get_http_stream_dir() { return ""; }
     virtual bool get_http_stream_crossdomain() { return false; }
-    virtual bool get_rtc_server_enabled() { return false; }
+    virtual bool get_rtc_server_enabled() { return rtc_server_enabled_; }
     virtual bool get_rtc_server_tcp_enabled() { return false; }
     virtual std::vector<std::string> get_rtc_server_tcp_listens()
     {
@@ -408,7 +410,7 @@ public:
     virtual SrsConfDirective *get_vhost_on_close(std::string vhost) { return NULL; }
     virtual SrsConfDirective *get_vhost_on_publish(std::string vhost) { return NULL; }
     virtual SrsConfDirective *get_vhost_on_play(std::string vhost) { return NULL; }
-    virtual bool get_rtc_enabled(std::string vhost) { return false; }
+    virtual bool get_rtc_enabled(std::string vhost) { return rtc_enabled_; }
     virtual bool get_rtsp_enabled(std::string vhost) { return false; }
     virtual bool get_rtc_from_rtmp(std::string vhost) { return rtc_from_rtmp_; }
     virtual bool get_rtsp_from_rtmp(std::string vhost) { return false; }
@@ -750,6 +752,9 @@ public:
 public:
     MockRtmpServer();
     virtual ~MockRtmpServer();
+
+public:
+    void set_request(SrsRtmpConnType type, std::string ip, std::string vhost, std::string app, std::string stream, std::string tcUrl, std::string schema, int port, std::string host);
 
 public:
     virtual void set_recv_timeout(srs_utime_t tm);

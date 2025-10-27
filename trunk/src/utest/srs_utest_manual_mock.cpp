@@ -557,6 +557,8 @@ MockAppConfig::MockAppConfig()
     rtc_from_rtmp_ = false;
     forwards_directive_ = NULL;
     backend_directive_ = NULL;
+    rtc_server_enabled_ = false;
+    rtc_enabled_ = false;
 }
 
 MockAppConfig::~MockAppConfig()
@@ -1377,6 +1379,19 @@ MockRtmpServer::~MockRtmpServer()
         srs_freep(msg);
     }
     recv_msgs_.clear();
+}
+
+void MockRtmpServer::set_request(SrsRtmpConnType type, std::string ip, std::string vhost, std::string app, std::string stream, std::string tcUrl, std::string schema, int port, std::string host)
+{
+    type_ = type;
+    ip_ = ip;
+    vhost_ = vhost;
+    app_ = app;
+    stream_ = stream;
+    tcUrl_ = tcUrl;
+    schema_ = schema;
+    port_ = port;
+    host_ = host;
 }
 
 void MockRtmpServer::set_recv_timeout(srs_utime_t tm)
@@ -2673,6 +2688,8 @@ void MockRtmpClient::set_url(std::string url)
 MockAudioTranscoder::MockAudioTranscoder()
 {
     transcode_count_ = 0;
+    // Set default AAC header for mock transcoder
+    aac_header_ = std::string("\xAF\x00\x12\x10", 4);
 }
 
 MockAudioTranscoder::~MockAudioTranscoder()
@@ -2706,6 +2723,10 @@ void MockAudioTranscoder::free_frames(std::vector<SrsParsedAudioPacket *> &frame
 void MockAudioTranscoder::aac_codec_header(uint8_t **data, int *len)
 {
     int size = aac_header_.size();
+    if (size <= 0) {
+        return;
+    }
+    
     uint8_t *copy = new uint8_t[size];
     memcpy(copy, aac_header_.data(), size);
     *data = copy;

@@ -7,6 +7,7 @@
 #include <srs_app_stream_bridge.hpp>
 
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_srt_source.hpp>
@@ -53,7 +54,7 @@ ISrsRtmpBridge::~ISrsRtmpBridge()
 {
 }
 
-SrsRtmpBridge::SrsRtmpBridge()
+SrsRtmpBridge::SrsRtmpBridge(ISrsAppFactory *factory)
 {
 #ifdef SRS_FFMPEG_FIT
     rtp_builder_ = NULL;
@@ -63,6 +64,8 @@ SrsRtmpBridge::SrsRtmpBridge()
     rtsp_target_ = NULL;
 #endif
     rtc_target_ = NULL;
+
+    app_factory_ = factory;
 }
 
 SrsRtmpBridge::~SrsRtmpBridge()
@@ -75,6 +78,8 @@ SrsRtmpBridge::~SrsRtmpBridge()
     rtsp_target_ = NULL;
 #endif
     rtc_target_ = NULL;
+
+    app_factory_ = NULL;
 }
 
 bool SrsRtmpBridge::empty()
@@ -111,7 +116,7 @@ srs_error_t SrsRtmpBridge::initialize(ISrsRequest *r)
 #ifdef SRS_FFMPEG_FIT
     if (rtc_target_.get()) {
         srs_freep(rtp_builder_);
-        rtp_builder_ = new SrsRtcRtpBuilder(rtc_target_.get(), rtc_target_);
+        rtp_builder_ = new SrsRtcRtpBuilder(app_factory_, rtc_target_.get(), rtc_target_);
         if ((err = rtp_builder_->initialize(r)) != srs_success) {
             return srs_error_wrap(err, "rtp builder initialize");
         }
@@ -211,7 +216,7 @@ ISrsSrtBridge::~ISrsSrtBridge()
 {
 }
 
-SrsSrtBridge::SrsSrtBridge()
+SrsSrtBridge::SrsSrtBridge(ISrsAppFactory *factory)
 {
     frame_builder_ = new SrsSrtFrameBuilder(this);
     rtmp_target_ = NULL;
@@ -220,6 +225,8 @@ SrsSrtBridge::SrsSrtBridge()
     rtp_builder_ = NULL;
 #endif
     rtc_target_ = NULL;
+
+    app_factory_ = factory;
 }
 
 SrsSrtBridge::~SrsSrtBridge()
@@ -231,6 +238,8 @@ SrsSrtBridge::~SrsSrtBridge()
 #ifdef SRS_FFMPEG_FIT
     srs_freep(rtp_builder_);
 #endif
+
+    app_factory_ = NULL;
 }
 
 bool SrsSrtBridge::empty()
@@ -259,7 +268,7 @@ srs_error_t SrsSrtBridge::initialize(ISrsRequest *r)
 #ifdef SRS_FFMPEG_FIT
     if (rtc_target_.get()) {
         srs_freep(rtp_builder_);
-        rtp_builder_ = new SrsRtcRtpBuilder(rtc_target_.get(), rtc_target_);
+        rtp_builder_ = new SrsRtcRtpBuilder(app_factory_, rtc_target_.get(), rtc_target_);
         if ((err = rtp_builder_->initialize(r)) != srs_success) {
             return srs_error_wrap(err, "rtp builder initialize");
         }
@@ -356,13 +365,15 @@ ISrsRtcBridge::~ISrsRtcBridge()
 {
 }
 
-SrsRtcBridge::SrsRtcBridge()
+SrsRtcBridge::SrsRtcBridge(ISrsAppFactory *factory)
 {
     req_ = NULL;
 #ifdef SRS_FFMPEG_FIT
     frame_builder_ = NULL;
 #endif
     rtmp_target_ = NULL;
+
+    app_factory_ = factory;
 }
 
 SrsRtcBridge::~SrsRtcBridge()
@@ -372,7 +383,8 @@ SrsRtcBridge::~SrsRtcBridge()
     srs_freep(frame_builder_);
 #endif
     rtmp_target_ = NULL;
-    initialized_ = false;
+
+    app_factory_ = NULL;
 }
 
 void SrsRtcBridge::enable_rtc2rtmp(SrsSharedPtr<SrsLiveSource> rtmp_target)
@@ -389,18 +401,13 @@ srs_error_t SrsRtcBridge::initialize(ISrsRequest *r)
 {
     srs_error_t err = srs_success;
 
-    if (initialized_) {
-        return err;
-    }
-    initialized_ = true;
-
     srs_freep(req_);
     req_ = r->copy();
 
 #ifdef SRS_FFMPEG_FIT
     srs_assert(rtmp_target_.get());
     srs_freep(frame_builder_);
-    frame_builder_ = new SrsRtcFrameBuilder(rtmp_target_.get());
+    frame_builder_ = app_factory_->create_rtc_frame_builder(rtmp_target_.get());
 #endif
 
     return err;

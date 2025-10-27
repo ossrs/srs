@@ -517,18 +517,19 @@ class SrsRtcPublishStream : public ISrsRtcPublishStream
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    ISrsExecRtcAsyncTask *exec_;
-    ISrsExpire *expire_;
-    ISrsRtcPacketReceiver *receiver_;
-    ISrsCircuitBreaker *circuit_breaker_;
-
-// clang-format off
-SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
     ISrsAppConfig *config_;
     ISrsRtcSourceManager *rtc_sources_;
     ISrsLiveSourceManager *live_sources_;
     ISrsSrtSourceManager *srt_sources_;
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsExecRtcAsyncTask *exec_;
+    ISrsExpire *expire_;
+    ISrsRtcPacketReceiver *receiver_;
+    ISrsCircuitBreaker *circuit_breaker_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

@@ -32,14 +32,13 @@
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
-
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
 #endif
-
 #include <srs_kernel_kbps.hpp>
 #include <srs_protocol_raw_avc.hpp>
 #include <srs_protocol_rtp.hpp>
+#include <srs_app_factory.hpp>
 
 // The NACK sent by us(SFU).
 SrsPps *_srs_pps_snack = NULL;
@@ -401,6 +400,8 @@ SrsRtcSource::SrsRtcSource()
 
     pli_for_rtmp_ = pli_elapsed_ = 0;
     stream_die_at_ = 0;
+
+    app_factory_ = _srs_app_factory;
 }
 
 SrsRtcSource::~SrsRtcSource()
@@ -417,6 +418,8 @@ SrsRtcSource::~SrsRtcSource()
     if (cid.empty())
         cid = _pre_source_id;
     srs_trace("free rtc source id=[%s]", cid.c_str());
+
+    app_factory_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -879,14 +882,14 @@ srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 
 #ifdef SRS_FFMPEG_FIT
 
-SrsRtcRtpBuilder::SrsRtcRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtcSource> source)
+SrsRtcRtpBuilder::SrsRtcRtpBuilder(ISrsAppFactory *factory, ISrsRtpTarget *target, SrsSharedPtr<SrsRtcSource> source)
 {
     rtp_target_ = target;
     source_ = source;
 
     req_ = NULL;
     format_ = new SrsRtmpFormat();
-    codec_ = new SrsAudioTranscoder();
+    codec_ = factory->create_audio_transcoder();
     latest_codec_ = SrsAudioCodecIdForbidden;
     keep_bframe_ = false;
     keep_avc_nalu_sei_ = true;
@@ -902,6 +905,8 @@ SrsRtcRtpBuilder::SrsRtcRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtcSou
     // Lazy initialization flags
     audio_initialized_ = false;
     video_initialized_ = false;
+
+    app_factory_ = factory;
 }
 
 SrsRtcRtpBuilder::~SrsRtcRtpBuilder()
@@ -910,6 +915,8 @@ SrsRtcRtpBuilder::~SrsRtcRtpBuilder()
     srs_freep(codec_);
     srs_freep(meta_);
     srs_freep(video_builder_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsRtcRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
@@ -1097,7 +1104,7 @@ srs_error_t SrsRtcRtpBuilder::init_codec(SrsAudioCodecId codec)
 
     // Create a new codec.
     srs_freep(codec_);
-    codec_ = new SrsAudioTranscoder();
+    codec_ = app_factory_->create_audio_transcoder();
 
     // Initialize the codec according to the codec in stream.
     int bitrate = _srs_config->get_rtc_opus_bitrate(req_->vhost_); // The output bitrate in bps.
@@ -1504,7 +1511,7 @@ int32_t SrsRtcFrameBuilderVideoPacketCache::find_next_lost_sn(uint16_t current_s
         }
     }
 
-    srs_error("cache overflow. the packet count of video frame is more than %u", cache_size_);
+    srs_warn("cache overflow. the packet count of video frame is more than %u", cache_size_);
     return -2;
 }
 
@@ -1776,17 +1783,19 @@ void SrsRtcFrameBuilderAudioPacketCache::clear_all()
     audio_buffer_.clear();
 }
 
-SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsFrameTarget *target)
+SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsAppFactory *factory, ISrsFrameTarget *target)
 {
     frame_target_ = target;
     is_first_audio_ = true;
     audio_transcoder_ = NULL;
     video_codec_ = SrsVideoCodecIdAVC;
-    audio_cache_ = new SrsRtcFrameBuilderAudioPacketCache();
+    audio_cache_ = factory->create_rtc_frame_builder_audio_packet_cache();
     video_cache_ = new SrsRtcFrameBuilderVideoPacketCache();
     frame_detector_ = new SrsRtcFrameBuilderVideoFrameDetector(video_cache_);
     sync_state_ = -1;
     obs_whip_vps_ = obs_whip_sps_ = obs_whip_pps_ = NULL;
+
+    app_factory_ = factory;
 }
 
 SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
@@ -1798,6 +1807,8 @@ SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
     srs_freep(obs_whip_vps_);
     srs_freep(obs_whip_sps_);
     srs_freep(obs_whip_pps_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio_codec, SrsVideoCodecId video_codec)
@@ -1805,7 +1816,7 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     srs_error_t err = srs_success;
 
     srs_freep(audio_transcoder_);
-    audio_transcoder_ = new SrsAudioTranscoder();
+    audio_transcoder_ = app_factory_->create_audio_transcoder();
 
     SrsAudioCodecId to = SrsAudioCodecIdAAC;                   // The output audio codec.
     int channels = 2;                                          // The output audio channels.
@@ -1904,6 +1915,9 @@ srs_error_t SrsRtcFrameBuilder::transcode_audio(SrsRtpPacket *pkt)
         int header_len = 0;
         uint8_t *header = NULL;
         audio_transcoder_->aac_codec_header(&header, &header_len);
+        if (header_len <= 0) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "no aac header");
+        }
 
         SrsRtmpCommonMessage out_rtmp;
         packet_aac(&out_rtmp, (char *)header, header_len, ts, is_first_audio_);

@@ -9,6 +9,7 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
@@ -501,7 +502,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
     }
 
     // Bridge to RTMP and RTC streaming.
-    SrsSrtBridge *bridge = new SrsSrtBridge();
+    SrsSrtBridge *bridge = new SrsSrtBridge(_srs_app_factory);
 
     bool srt_to_rtmp = config_->get_srt_to_rtmp(req_->vhost_);
     if (srt_to_rtmp && edge) {
@@ -620,12 +621,13 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
     int nb_packets = 0;
 
     while (true) {
-        if ((err = trd_->pull()) != srs_success) {
-            return srs_error_wrap(err, "srt play thread");
-        }
-
+        // Check recv thread error first, so we can detect the client disconnecting event.
         if ((err = srt_recv_trd.get_recv_err()) != srs_success) {
             return srs_error_wrap(err, "srt play recv thread");
+        }
+
+        if ((err = trd_->pull()) != srs_success) {
+            return srs_error_wrap(err, "srt play thread");
         }
 
         // Wait for amount of packets.

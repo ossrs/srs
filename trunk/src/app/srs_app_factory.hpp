@@ -50,6 +50,10 @@ class ISrsRtcPlayStream;
 class ISrsRtcPacketSender;
 class ISrsHttpResponseWriter;
 class ISrsProtocolReadWriter;
+class SrsRtcFrameBuilder;
+class ISrsFrameTarget;
+class ISrsRtcFrameBuilderAudioPacketCache;
+class ISrsAudioTranscoder;
 
 // The factory to create app objects.
 class ISrsAppFactory : public ISrsKernelFactory
@@ -93,6 +97,11 @@ public:
     virtual ISrsRtcPublishStream *create_rtc_publish_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketReceiver *receiver, const SrsContextId &cid) = 0;
     virtual ISrsRtcPlayStream *create_rtc_play_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketSender *sender, const SrsContextId &cid) = 0;
     virtual ISrsHttpResponseWriter *create_http_response_writer(ISrsProtocolReadWriter *io) = 0;
+#ifdef SRS_FFMPEG_FIT
+    virtual SrsRtcFrameBuilder *create_rtc_frame_builder(ISrsFrameTarget *target) = 0;
+    virtual ISrsRtcFrameBuilderAudioPacketCache *create_rtc_frame_builder_audio_packet_cache() = 0;
+    virtual ISrsAudioTranscoder *create_audio_transcoder() = 0;
+#endif
 };
 
 // The factory to create app objects.
@@ -141,6 +150,11 @@ public:
     virtual ISrsRtcPublishStream *create_rtc_publish_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketReceiver *receiver, const SrsContextId &cid);
     virtual ISrsRtcPlayStream *create_rtc_play_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketSender *sender, const SrsContextId &cid);
     virtual ISrsHttpResponseWriter *create_http_response_writer(ISrsProtocolReadWriter *io);
+#ifdef SRS_FFMPEG_FIT
+    virtual SrsRtcFrameBuilder *create_rtc_frame_builder(ISrsFrameTarget *target);
+    virtual ISrsRtcFrameBuilderAudioPacketCache *create_rtc_frame_builder_audio_packet_cache();
+    virtual ISrsAudioTranscoder *create_audio_transcoder();
+#endif
 
 public:
     virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid);

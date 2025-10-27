@@ -1165,7 +1165,7 @@ srs_error_t SrsHttpAuthMux::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessag
 {
     srs_error_t err;
     if ((err = do_auth(w, r)) != srs_success) {
-        srs_error("do_auth %s", srs_error_desc(err).c_str());
+        srs_warn("do_auth %s", srs_error_desc(err).c_str());
         srs_freep(err);
         w->write_header(SRS_CONSTS_HTTP_Unauthorized);
         return w->final_request();

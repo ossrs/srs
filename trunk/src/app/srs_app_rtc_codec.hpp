@@ -31,6 +31,22 @@ extern "C" {
 }
 #endif
 
+// Register FFmpeg log callback funciton.
+class SrsFFmpegLogHelper
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    static bool disabled_;
+
+public:
+    SrsFFmpegLogHelper();
+    virtual ~SrsFFmpegLogHelper();
+
+public:
+    static void disable_ffmpeg_log();
+    static void ffmpeg_log_callback(void *, int level, const char *fmt, va_list vl);
+};
+
 // The interface for audio transcoder.
 class ISrsAudioTranscoder
 {

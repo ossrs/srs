@@ -28,6 +28,7 @@ class SrsRtcFrameBuilder;
 class ISrsStreamBridge;
 class SrsSrtFrameBuilder;
 class SrsSrtPacket;
+class ISrsAppFactory;
 
 // A target to feed AV frame, such as a RTMP live source, or a RTMP bridge
 // that take frame and converts to RTC packets, or a SRT bridge that converts
@@ -87,6 +88,10 @@ class SrsRtmpBridge : public ISrsRtmpBridge
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
 #ifdef SRS_FFMPEG_FIT
     SrsRtcRtpBuilder *rtp_builder_;
 #endif
@@ -100,7 +105,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 #endif
 
 public:
-    SrsRtmpBridge();
+    SrsRtmpBridge(ISrsAppFactory *factory);
     virtual ~SrsRtmpBridge();
 
 public:
@@ -138,6 +143,10 @@ class SrsSrtBridge : public ISrsSrtBridge, public ISrsFrameTarget
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // Convert SRT TS packets to media frame packets.
     SrsSrtFrameBuilder *frame_builder_;
     // Deliver media frame packets to RTMP target.
@@ -150,7 +159,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsSharedPtr<SrsRtcSource> rtc_target_;
 
 public:
-    SrsSrtBridge();
+    SrsSrtBridge(ISrsAppFactory *factory);
     virtual ~SrsSrtBridge();
 
 public:
@@ -188,6 +197,10 @@ class SrsRtcBridge : public ISrsRtcBridge
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
 #ifdef SRS_FFMPEG_FIT
     // Collect and build WebRTC RTP packets to AV frames.
@@ -195,11 +208,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 #endif
     // The Source bridge, bridge stream to other source.
     SrsSharedPtr<SrsLiveSource> rtmp_target_;
-    // To avoid initialize multiple times, we use this flag.
-    bool initialized_;
 
 public:
-    SrsRtcBridge();
+    SrsRtcBridge(ISrsAppFactory *factory);
     virtual ~SrsRtcBridge();
 
 public:

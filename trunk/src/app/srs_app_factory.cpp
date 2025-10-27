@@ -24,6 +24,8 @@
 #include <srs_app_rtsp_source.hpp>
 #endif
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_source.hpp>
+#include <srs_app_rtc_codec.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_flv.hpp>
@@ -211,6 +213,23 @@ ISrsHttpResponseWriter *SrsAppFactory::create_http_response_writer(ISrsProtocolR
 {
     return new SrsHttpResponseWriter(io);
 }
+
+#ifdef SRS_FFMPEG_FIT
+SrsRtcFrameBuilder *SrsAppFactory::create_rtc_frame_builder(ISrsFrameTarget *target)
+{
+    return new SrsRtcFrameBuilder(this, target);
+}
+
+ISrsRtcFrameBuilderAudioPacketCache *SrsAppFactory::create_rtc_frame_builder_audio_packet_cache()
+{
+    return new SrsRtcFrameBuilderAudioPacketCache();
+}
+
+ISrsAudioTranscoder *SrsAppFactory::create_audio_transcoder()
+{
+    return new SrsAudioTranscoder();
+}
+#endif
 
 ISrsCoroutine *SrsAppFactory::create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
 {

@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_rtc_codec.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_srt_server.hpp>
@@ -62,6 +63,9 @@ SrsConfig *_srs_config = NULL;
 // @global kernel factory.
 ISrsAppFactory *_srs_app_factory = new SrsAppFactory();
 ISrsKernelFactory *_srs_kernel_factory = _srs_app_factory;
+
+// Register FFmpeg log callback funciton.
+SrsFFmpegLogHelper _srs_ffmpeg_log_helper;
 
 // @global version of srs, which can grep keyword "XCORE"
 extern const char *_srs_version;

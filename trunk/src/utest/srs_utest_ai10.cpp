@@ -63,7 +63,7 @@ SrsCodecPayload *create_test_codec_payload(uint8_t pt, std::string name, int sam
 VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeBasic)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Test with NULL packet
     int null_size = builder.calculate_packet_payload_size(NULL);
@@ -84,7 +84,7 @@ VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeBasic)
 VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeFUA)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Test H.264 FU-A payload (SrsRtpFUAPayload2) - start fragment
     SrsUniquePtr<SrsRtpPacket> fua_start_pkt(new SrsRtpPacket());
@@ -149,7 +149,7 @@ VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeFUA)
 VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeSTAP)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Test H.264 STAP-A payload (SrsRtpSTAPPayload) with multiple NALUs
     SrsUniquePtr<SrsRtpPacket> stap_pkt(new SrsRtpPacket());
@@ -221,7 +221,7 @@ VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeSTAP)
 VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeFUAHevc)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Test H.265 FU-A payload (SrsRtpFUAPayloadHevc2) - start fragment
     SrsUniquePtr<SrsRtpPacket> fua_hevc_start_pkt(new SrsRtpPacket());
@@ -286,7 +286,7 @@ VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeFUAHevc)
 VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeSTAPHevc)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Test H.265 STAP payload (SrsRtpSTAPPayloadHevc) with multiple NALUs
     SrsUniquePtr<SrsRtpPacket> stap_hevc_pkt(new SrsRtpPacket());
@@ -366,7 +366,7 @@ VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeSTAPHevc)
 VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeEdgeCases)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Test with unknown payload type (should fall through to default case)
     SrsUniquePtr<SrsRtpPacket> unknown_pkt(new SrsRtpPacket());
@@ -394,7 +394,7 @@ VOID TEST(SrsRtcFrameBuilderTest, CalculatePacketPayloadSizeEdgeCases)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferRaw)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with raw payload
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -435,7 +435,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferRaw)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAStart)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with H.264 FU-A start fragment
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -482,7 +482,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAStart)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAMiddle)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with H.264 FU-A middle fragment
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -523,7 +523,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAMiddle)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAEnd)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with H.264 FU-A end fragment
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -579,7 +579,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAEnd)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAHevc)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Test H.265 FU-A start fragment
     SrsUniquePtr<SrsRtpPacket> hevc_pkt(new SrsRtpPacket());
@@ -623,7 +623,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAHevc)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAEdgeCases)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Test H.264 FU-A with zero-size payload
     SrsUniquePtr<SrsRtpPacket> zero_pkt(new SrsRtpPacket());
@@ -694,7 +694,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAEdgeCases)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUASequence)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     char buffer_data[1024];
     SrsBuffer buffer(buffer_data, sizeof(buffer_data));
@@ -782,7 +782,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUASequence)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferSTAP)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with H.264 STAP payload
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -857,7 +857,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferSTAP)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferSTAPWithEmptyNALUs)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with H.264 STAP payload
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -930,7 +930,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferSTAPWithEmptyNALUs)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAHevcStart)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with H.265 FU-A start fragment
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -978,7 +978,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAHevcStart)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAHevcMiddle)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with H.265 FU-A middle fragment
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -1018,7 +1018,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAHevcMiddle)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAHevcEnd)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with H.265 FU-A end fragment
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -1073,7 +1073,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferFUAHevcEnd)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferSTAPHevc)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with H.265 STAP payload
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -1148,7 +1148,7 @@ VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferSTAPHevc)
 VOID TEST(SrsRtcFrameBuilderTest, WritePacketPayloadToBufferSTAPHevcWithEmptyNALUs)
 {
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Create test RTP packet with H.265 STAP payload
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
@@ -1229,7 +1229,7 @@ VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpEmptyNaluBasic)
     srs_error_t err;
 
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize builder with H.264 codec
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
@@ -1280,7 +1280,7 @@ VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpEmptyNaluNoNextFrame)
     srs_error_t err;
 
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize builder with H.264 codec
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
@@ -1323,7 +1323,7 @@ VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpEmptyNaluRecursiveCall)
     srs_error_t err;
 
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize builder with H.264 codec
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
@@ -1377,7 +1377,7 @@ VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpEmptyNaluMultipleEmptyFrames)
     srs_error_t err;
 
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize builder with H.264 codec
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
@@ -1438,7 +1438,7 @@ VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpEmptyNaluZeroSizePayloads)
     srs_error_t err;
 
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize builder with H.264 codec
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
@@ -1497,7 +1497,7 @@ VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpEmptyNaluHevc)
     srs_error_t err;
 
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize builder with H.265 codec
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
@@ -1548,7 +1548,7 @@ VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpEmptyNaluSequenceWrapAround)
     srs_error_t err;
 
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize builder with H.264 codec
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
@@ -1597,7 +1597,7 @@ VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpEmptyNaluFrameProcessing)
     srs_error_t err;
 
     MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(&target);
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
 
     // Initialize builder with H.264 codec
     SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());

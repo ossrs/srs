@@ -239,6 +239,7 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPlayer)
     // Simulate client quit event, the receive thread will get this error.
     if (true) {
         mock_srt_conn->read_error_ = srs_error_new(ERROR_SOCKET_READ, "mock client quit");
+        mock_srt_conn->cond_->signal();
 
         // Wait for coroutine to stop.
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);

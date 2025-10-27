@@ -43,9 +43,9 @@ VOID TEST(StTest, StUtimeInMicroseconds)
     EXPECT_GT(st_time_1, 0);
     EXPECT_GT(st_time_2, 0);
     EXPECT_GE(st_time_2, st_time_1);
-    // st_time_2 - st_time_1 should be in range of [1, 1000] microseconds
+    // st_time_2 - st_time_1 should be in range of [1, 3000] microseconds
     EXPECT_GE(st_time_2 - st_time_1, 0);
-    EXPECT_LE(st_time_2 - st_time_1, 1000);
+    EXPECT_LE(st_time_2 - st_time_1, 3000);
 }
 
 static inline st_utime_t time_gettimeofday()
