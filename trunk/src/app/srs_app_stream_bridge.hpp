@@ -195,6 +195,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 #endif
     // The Source bridge, bridge stream to other source.
     SrsSharedPtr<SrsLiveSource> rtmp_target_;
+    // To avoid initialize multiple times, we use this flag.
+    bool initialized_;
 
 public:
     SrsRtcBridge();

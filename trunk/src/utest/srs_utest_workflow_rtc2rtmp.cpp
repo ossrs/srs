@@ -36,102 +36,6 @@
 #include <srs_utest_manual_service.hpp>
 #include <srs_utest_workflow_rtc_conn.hpp>
 
-// Create a mock audio cache ISrsRtcFrameBuilderAudioPacketCache
-class MockAudioCache : public ISrsRtcFrameBuilderAudioPacketCache
-{
-public:
-    int process_packet_count_;
-
-public:
-    MockAudioCache();
-    virtual ~MockAudioCache();
-
-public:
-    virtual srs_error_t process_packet(SrsRtpPacket *src, std::vector<SrsRtpPacket *> &ready_packets);
-    virtual void clear_all();
-};
-
-MockAudioCache::MockAudioCache()
-{
-    process_packet_count_ = 0;
-}
-
-MockAudioCache::~MockAudioCache()
-{
-}
-
-srs_error_t MockAudioCache::process_packet(SrsRtpPacket *src, std::vector<SrsRtpPacket *> &ready_packets)
-{
-    process_packet_count_++;
-
-    // Copy the packet.
-    SrsRtpPacket *copy = src->copy();
-    ready_packets.push_back(copy);
-
-    return srs_success;
-}
-
-void MockAudioCache::clear_all()
-{
-}
-
-// Mock the audio transcoder ISrsAudioTranscoder.
-class MockAudioTranscoderForRtc2Rtmp : public ISrsAudioTranscoder
-{
-public:
-    int transcode_count_;
-    std::vector<SrsParsedAudioPacket *> output_packets_;
-    std::string aac_header_;
-
-public:
-    MockAudioTranscoderForRtc2Rtmp();
-    virtual ~MockAudioTranscoderForRtc2Rtmp();
-
-public:
-    virtual srs_error_t initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate);
-    virtual srs_error_t transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs);
-    virtual void free_frames(std::vector<SrsParsedAudioPacket *> &frames);
-    virtual void aac_codec_header(uint8_t **data, int *len);
-};
-
-MockAudioTranscoderForRtc2Rtmp::MockAudioTranscoderForRtc2Rtmp()
-{
-    transcode_count_ = 0;
-}
-
-MockAudioTranscoderForRtc2Rtmp::~MockAudioTranscoderForRtc2Rtmp()
-{
-}
-
-srs_error_t MockAudioTranscoderForRtc2Rtmp::initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate)
-{
-    return srs_success;
-}
-
-srs_error_t MockAudioTranscoderForRtc2Rtmp::transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs)
-{
-    transcode_count_++;
-
-    SrsParsedAudioPacket *out = in->copy();
-    output_packets_.push_back(out);
-    outs.push_back(out);
-
-    return srs_success;
-}
-
-void MockAudioTranscoderForRtc2Rtmp::free_frames(std::vector<SrsParsedAudioPacket *> &frames)
-{
-}
-
-void MockAudioTranscoderForRtc2Rtmp::aac_codec_header(uint8_t **data, int *len)
-{
-    int size = aac_header_.size();
-    uint8_t *copy = new uint8_t[size];
-    memcpy(copy, aac_header_.data(), size);
-    *data = copy;
-    *len = size;
-}
-
 // This test is used to verify the basic workflow of the RTC connection.
 // It's finished with the help of AI, but each step is manually designed
 // and verified. So this is not dominated by AI, but by humanbeing.
@@ -150,7 +54,7 @@ VOID TEST(BasicWorkflowRtc2RtmpTest, ManuallyVerifyTypicalScenario)
     SrsUniquePtr<MockRtcTrackDescriptionFactory> track_factory(new MockRtcTrackDescriptionFactory());
     SrsUniquePtr<MockLiveSourceManager> mock_sources(new MockLiveSourceManager());
     MockAudioCache *mock_audio_cache = new MockAudioCache();
-    MockAudioTranscoderForRtc2Rtmp *mock_audio_transcoder = new MockAudioTranscoderForRtc2Rtmp();
+    MockAudioTranscoder *mock_audio_transcoder = new MockAudioTranscoder();
 
     mock_audio_transcoder->aac_header_ = std::string("\xAF\x00\x12\x10", 4); // AAC sequence header.
     mock_config->rtc_to_rtmp_ = true;
@@ -193,6 +97,10 @@ VOID TEST(BasicWorkflowRtc2RtmpTest, ManuallyVerifyTypicalScenario)
 
         frame_builder = bridge->frame_builder_;
         EXPECT_TRUE(frame_builder != NULL);
+
+        // Mock the frame builder object
+        srs_freep(frame_builder->audio_cache_);
+        frame_builder->audio_cache_ = mock_audio_cache;
     }
 
     // Start the publish stream.
@@ -200,17 +108,17 @@ VOID TEST(BasicWorkflowRtc2RtmpTest, ManuallyVerifyTypicalScenario)
         // Test: First call to start() should succeed
         HELPER_EXPECT_SUCCESS(publish_stream->start());
 
+        // Wait for coroutine to start. 
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
         // Verify is_sender_started_ flag is set
         EXPECT_TRUE(publish_stream->is_sender_started_);
 
-        // When starting the publish stream, the frame builder should be recreated
-        EXPECT_TRUE(frame_builder != bridge->frame_builder_);
-        frame_builder = bridge->frame_builder_;
+        // When starting the publish stream, the frame builder should not be recreated
+        EXPECT_TRUE(frame_builder == bridge->frame_builder_);
         EXPECT_TRUE(frame_builder != NULL);
 
-        // Mock the frame builder object
-        srs_freep(frame_builder->audio_cache_);
-        frame_builder->audio_cache_ = mock_audio_cache;
+        // Mock the frame builder object. When publish, the transcoder will be recreated.
         srs_freep(frame_builder->audio_transcoder_);
         frame_builder->audio_transcoder_ = mock_audio_transcoder;
     }
@@ -223,6 +131,12 @@ VOID TEST(BasicWorkflowRtc2RtmpTest, ManuallyVerifyTypicalScenario)
         pkt.header_.set_sequence(100);
         pkt.header_.set_timestamp(1000);
         pkt.header_.set_payload_type(track_factory->audio_pt_);
+
+        // Create fake audio payload.
+        SrsRtpRawPayload *raw = new SrsRtpRawPayload();
+        pkt.set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+        raw->payload_ = pkt.wrap(100);
+        raw->nn_payload_ = 100;
 
         SrsUniquePtr<char[]> data(new char[1500]);
         SrsBuffer buf(data.get(), 1500);

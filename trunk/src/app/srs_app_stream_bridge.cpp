@@ -372,6 +372,7 @@ SrsRtcBridge::~SrsRtcBridge()
     srs_freep(frame_builder_);
 #endif
     rtmp_target_ = NULL;
+    initialized_ = false;
 }
 
 void SrsRtcBridge::enable_rtc2rtmp(SrsSharedPtr<SrsLiveSource> rtmp_target)
@@ -387,6 +388,11 @@ bool SrsRtcBridge::empty()
 srs_error_t SrsRtcBridge::initialize(ISrsRequest *r)
 {
     srs_error_t err = srs_success;
+
+    if (initialized_) {
+        return err;
+    }
+    initialized_ = true;
 
     srs_freep(req_);
     req_ = r->copy();

@@ -17,6 +17,7 @@
 #include <srs_app_config.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_ffmpeg.hpp>
+#include <srs_app_rtc_codec.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_app_rtc_source.hpp>
@@ -1111,6 +1112,21 @@ public:
     void set_on_dvr_request_sh_error(srs_error_t err);
 };
 
+// Mock audio cache for ISrsRtcFrameBuilderAudioPacketCache
+class MockAudioCache : public ISrsRtcFrameBuilderAudioPacketCache
+{
+public:
+    int process_packet_count_;
+
+public:
+    MockAudioCache();
+    virtual ~MockAudioCache();
+
+public:
+    virtual srs_error_t process_packet(SrsRtpPacket *src, std::vector<SrsRtpPacket *> &ready_packets);
+    virtual void clear_all();
+};
+
 // Mock ISrsBasicRtmpClient for testing SrsForwarder
 class MockRtmpClient : public ISrsBasicRtmpClient
 {
@@ -1162,6 +1178,25 @@ public:
 
 public:
     virtual void set_url(std::string url);
+};
+
+// Mock the audio transcoder ISrsAudioTranscoder.
+class MockAudioTranscoder : public ISrsAudioTranscoder
+{
+public:
+    int transcode_count_;
+    std::vector<SrsParsedAudioPacket *> output_packets_;
+    std::string aac_header_;
+
+public:
+    MockAudioTranscoder();
+    virtual ~MockAudioTranscoder();
+
+public:
+    virtual srs_error_t initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate);
+    virtual srs_error_t transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs);
+    virtual void free_frames(std::vector<SrsParsedAudioPacket *> &frames);
+    virtual void aac_codec_header(uint8_t **data, int *len);
 };
 
 #endif

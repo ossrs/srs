@@ -3833,7 +3833,7 @@ VOID TEST(RtcFrameBuilderTest, TranscodeAudio_Success)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Replace the audio transcoder with our mock
-    MockAudioTranscoder *mock_transcoder = new MockAudioTranscoder();
+    MockAudioTranscoderForUtest *mock_transcoder = new MockAudioTranscoderForUtest();
     mock_transcoder->set_output_packets(2); // Mock transcoder will output 2 packets
 
     // Access private member through friendship (utests have access to private members)
@@ -3880,7 +3880,7 @@ VOID TEST(RtcFrameBuilderTest, TranscodeAudio_TranscoderError)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Replace the audio transcoder with our mock
-    MockAudioTranscoder *mock_transcoder = new MockAudioTranscoder();
+    MockAudioTranscoderForUtest *mock_transcoder = new MockAudioTranscoderForUtest();
     srs_error_t mock_error = srs_error_new(ERROR_RTC_RTP_MUXER, "mock transcoder error");
     mock_transcoder->set_transcode_error(mock_error);
 
@@ -3925,7 +3925,7 @@ VOID TEST(RtcFrameBuilderTest, TranscodeAudio_FrameTargetError)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Replace the audio transcoder with our mock
-    MockAudioTranscoder *mock_transcoder = new MockAudioTranscoder();
+    MockAudioTranscoderForUtest *mock_transcoder = new MockAudioTranscoderForUtest();
     mock_transcoder->set_output_packets(1); // Mock transcoder will output 1 packet
 
     builder.audio_transcoder_ = mock_transcoder;
@@ -3972,7 +3972,7 @@ VOID TEST(RtcFrameBuilderTest, TranscodeAudio_MultipleOutputPackets)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Replace the audio transcoder with our mock
-    MockAudioTranscoder *mock_transcoder = new MockAudioTranscoder();
+    MockAudioTranscoderForUtest *mock_transcoder = new MockAudioTranscoderForUtest();
     mock_transcoder->set_output_packets(5); // Mock transcoder will output 5 packets
 
     builder.audio_transcoder_ = mock_transcoder;
@@ -4018,7 +4018,7 @@ VOID TEST(RtcFrameBuilderTest, TranscodeAudio_NoOutputPackets)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Replace the audio transcoder with our mock
-    MockAudioTranscoder *mock_transcoder = new MockAudioTranscoder();
+    MockAudioTranscoderForUtest *mock_transcoder = new MockAudioTranscoderForUtest();
     mock_transcoder->set_output_packets(0); // Mock transcoder will output 0 packets
 
     builder.audio_transcoder_ = mock_transcoder;
@@ -4062,7 +4062,7 @@ VOID TEST(RtcFrameBuilderTest, TranscodeAudio_FrameTargetErrorOnTranscodedFrame)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Replace the audio transcoder with our mock
-    MockAudioTranscoder *mock_transcoder = new MockAudioTranscoder();
+    MockAudioTranscoderForUtest *mock_transcoder = new MockAudioTranscoderForUtest();
     mock_transcoder->set_output_packets(3); // Mock transcoder will output 3 packets
 
     builder.audio_transcoder_ = mock_transcoder;
@@ -4133,7 +4133,7 @@ VOID TEST(RtcFrameBuilderTest, TranscodeAudio_SpecificCodePath)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Replace the audio transcoder with our mock
-    MockAudioTranscoder *mock_transcoder = new MockAudioTranscoder();
+    MockAudioTranscoderForUtest *mock_transcoder = new MockAudioTranscoderForUtest();
 
     // Set up mock transcoder to output packets with specific timestamps and sample data
     const char sample_data[] = {0x21, 0x10, 0x04, 0x60, (char)0x8C}; // Mock AAC data
@@ -4194,7 +4194,7 @@ VOID TEST(RtcFrameBuilderTest, TranscodeAudio_ErrorInTranscoderLoop)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
 
     // Replace the audio transcoder with our mock
-    MockAudioTranscoder *mock_transcoder = new MockAudioTranscoder();
+    MockAudioTranscoderForUtest *mock_transcoder = new MockAudioTranscoderForUtest();
     mock_transcoder->set_output_packets(3); // Mock transcoder will output 3 packets
 
     builder.audio_transcoder_ = mock_transcoder;

@@ -39,7 +39,7 @@ public:
 };
 
 // Mock audio transcoder for testing SrsRtcFrameBuilder::transcode_audio
-class MockAudioTranscoder : public ISrsAudioTranscoder
+class MockAudioTranscoderForUtest : public ISrsAudioTranscoder
 {
 public:
     // Control behavior
@@ -50,8 +50,8 @@ public:
     int aac_header_len_;
 
 public:
-    MockAudioTranscoder();
-    virtual ~MockAudioTranscoder();
+    MockAudioTranscoderForUtest();
+    virtual ~MockAudioTranscoderForUtest();
 
 public:
     // ISrsAudioTranscoder interface

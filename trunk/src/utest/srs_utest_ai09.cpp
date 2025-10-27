@@ -50,7 +50,7 @@ void MockRtcFrameTarget::reset()
     srs_freep(frame_error_);
 }
 
-MockAudioTranscoder::MockAudioTranscoder()
+MockAudioTranscoderForUtest::MockAudioTranscoderForUtest()
 {
     transcode_error_ = srs_success;
     should_output_packets_ = false;
@@ -58,13 +58,13 @@ MockAudioTranscoder::MockAudioTranscoder()
     aac_header_len_ = 0;
 }
 
-MockAudioTranscoder::~MockAudioTranscoder()
+MockAudioTranscoderForUtest::~MockAudioTranscoderForUtest()
 {
     reset();
     srs_freepa(aac_header_data_);
 }
 
-srs_error_t MockAudioTranscoder::initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate)
+srs_error_t MockAudioTranscoderForUtest::initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate)
 {
     // Create default AAC header for testing
     if (!aac_header_data_) {
@@ -76,7 +76,7 @@ srs_error_t MockAudioTranscoder::initialize(SrsAudioCodecId from, SrsAudioCodecI
     return srs_success;
 }
 
-srs_error_t MockAudioTranscoder::transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs)
+srs_error_t MockAudioTranscoderForUtest::transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs)
 {
     if (transcode_error_ != srs_success) {
         return srs_error_copy(transcode_error_);
@@ -105,7 +105,7 @@ srs_error_t MockAudioTranscoder::transcode(SrsParsedAudioPacket *in, std::vector
     return srs_success;
 }
 
-void MockAudioTranscoder::free_frames(std::vector<SrsParsedAudioPacket *> &frames)
+void MockAudioTranscoderForUtest::free_frames(std::vector<SrsParsedAudioPacket *> &frames)
 {
     for (std::vector<SrsParsedAudioPacket *>::iterator it = frames.begin(); it != frames.end(); ++it) {
         SrsParsedAudioPacket *p = *it;
@@ -119,13 +119,13 @@ void MockAudioTranscoder::free_frames(std::vector<SrsParsedAudioPacket *> &frame
     }
 }
 
-void MockAudioTranscoder::aac_codec_header(uint8_t **data, int *len)
+void MockAudioTranscoderForUtest::aac_codec_header(uint8_t **data, int *len)
 {
     *data = aac_header_data_;
     *len = aac_header_len_;
 }
 
-void MockAudioTranscoder::reset()
+void MockAudioTranscoderForUtest::reset()
 {
     srs_freep(transcode_error_);
 
@@ -141,7 +141,7 @@ void MockAudioTranscoder::reset()
     should_output_packets_ = false;
 }
 
-void MockAudioTranscoder::set_output_packets(int count, const char *sample_data, int sample_size)
+void MockAudioTranscoderForUtest::set_output_packets(int count, const char *sample_data, int sample_size)
 {
     reset();
     should_output_packets_ = true;
@@ -167,7 +167,7 @@ void MockAudioTranscoder::set_output_packets(int count, const char *sample_data,
     }
 }
 
-void MockAudioTranscoder::set_transcode_error(srs_error_t err)
+void MockAudioTranscoderForUtest::set_transcode_error(srs_error_t err)
 {
     srs_freep(transcode_error_);
     transcode_error_ = srs_error_copy(err);

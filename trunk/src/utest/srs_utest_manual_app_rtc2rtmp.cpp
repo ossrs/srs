@@ -1409,7 +1409,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketAudio_ThreeAudioPackets)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdOpus, SrsVideoCodecIdAVC));
 
     // Replace the audio transcoder with our mock to avoid FFmpeg issues
-    MockAudioTranscoder *mock_transcoder = new MockAudioTranscoder();
+    MockAudioTranscoderForUtest *mock_transcoder = new MockAudioTranscoderForUtest();
     mock_transcoder->set_output_packets(1); // Each input packet produces 1 output packet
 
     // Access private member through friendship (utests have access to private members)
@@ -1459,7 +1459,7 @@ VOID TEST(Rtc2RtmpConvertTest, PacketAudio_ReorderingAudioPackets)
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdOpus, SrsVideoCodecIdAVC));
 
     // Replace the audio transcoder with our mock to avoid FFmpeg issues
-    MockAudioTranscoder *mock_transcoder = new MockAudioTranscoder();
+    MockAudioTranscoderForUtest *mock_transcoder = new MockAudioTranscoderForUtest();
     mock_transcoder->set_output_packets(1); // Each input packet produces 1 output packet
 
     // Access private member through friendship (utests have access to private members)

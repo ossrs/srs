@@ -2483,6 +2483,31 @@ void MockOriginHub::set_on_forwarder_start_error(srs_error_t err)
     on_forwarder_start_error_ = srs_error_copy(err);
 }
 
+// MockAudioCache implementation
+MockAudioCache::MockAudioCache()
+{
+    process_packet_count_ = 0;
+}
+
+MockAudioCache::~MockAudioCache()
+{
+}
+
+srs_error_t MockAudioCache::process_packet(SrsRtpPacket *src, std::vector<SrsRtpPacket *> &ready_packets)
+{
+    process_packet_count_++;
+
+    // Copy the packet.
+    SrsRtpPacket *copy = src->copy();
+    ready_packets.push_back(copy);
+
+    return srs_success;
+}
+
+void MockAudioCache::clear_all()
+{
+}
+
 // Mock ISrsBasicRtmpClient implementation
 MockRtmpClient::MockRtmpClient()
 {
@@ -2643,4 +2668,46 @@ void MockRtmpClient::set_recv_timeout(srs_utime_t timeout)
 void MockRtmpClient::set_url(std::string url)
 {
     url_ = url;
+}
+
+MockAudioTranscoder::MockAudioTranscoder()
+{
+    transcode_count_ = 0;
+}
+
+MockAudioTranscoder::~MockAudioTranscoder()
+{
+}
+
+srs_error_t MockAudioTranscoder::initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate)
+{
+    return srs_success;
+}
+
+srs_error_t MockAudioTranscoder::transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs)
+{
+    transcode_count_++;
+
+    SrsParsedAudioPacket *out = in->copy();
+    output_packets_.push_back(out);
+    outs.push_back(out);
+
+    return srs_success;
+}
+
+void MockAudioTranscoder::free_frames(std::vector<SrsParsedAudioPacket *> &frames)
+{
+    for (std::vector<SrsParsedAudioPacket *>::iterator it = frames.begin(); it != frames.end(); ++it) {
+        SrsParsedAudioPacket *p = *it;
+        srs_freep(p);
+    }
+}
+
+void MockAudioTranscoder::aac_codec_header(uint8_t **data, int *len)
+{
+    int size = aac_header_.size();
+    uint8_t *copy = new uint8_t[size];
+    memcpy(copy, aac_header_.data(), size);
+    *data = copy;
+    *len = size;
 }
