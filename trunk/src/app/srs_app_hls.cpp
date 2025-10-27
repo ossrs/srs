@@ -2549,9 +2549,13 @@ srs_error_t SrsHls::do_reload(int *reloading, int *reloaded, int *refreshed)
 
 void SrsHls::dispose()
 {
-    if (enabled_) {
-        on_unpublish();
+    // We disabled the reload, so HLS will not be enabled by reloading. 
+    // As a result, if HLS is disabled, we don't need to dispose.
+    if (!enabled_) {
+        return;
     }
+
+    on_unpublish();
 
     // Ignore when hls_dispose disabled.
     // @see https://github.com/ossrs/srs/issues/865

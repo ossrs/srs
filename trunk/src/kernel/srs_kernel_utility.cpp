@@ -539,6 +539,40 @@ bool SrsPath::exists(std::string path)
 
 srs_error_t SrsPath::unlink(std::string path)
 {
+    // Define the directories that are forbidden to delete.
+    std::string forbidden[] = {
+        "./",
+        "../",
+        "/",
+        "/bin",
+        "/boot",
+        "/dev",
+        "/etc",
+        "/home",
+        "/lib",
+        "/lib32",
+        "/lib64",
+        "/libx32",
+        "/lost+found",
+        "/media",
+        "/mnt",
+        "/opt",
+        "/proc",
+        "/root",
+        "/run",
+        "/sbin",
+        "/srv",
+        "/sys",
+        "/tmp",
+        "/usr",
+        "/var",
+    };
+    for (int i = 0; i < sizeof(forbidden) / sizeof(forbidden[0]); i++) {
+        if (path == forbidden[i]) {
+            return srs_error_new(ERROR_SYSTEM_FILE_UNLINK, "unlink forbidden %s", path.c_str());
+        }
+    }
+
     if (::unlink(path.c_str()) < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_UNLINK, "unlink %s", path.c_str());
     }
