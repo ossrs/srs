@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 //
-#include <srs_utest_ai_rtc_avsync.hpp>
+#include <srs_utest_ai24.hpp>
 
 #include <srs_app_rtc_source.hpp>
 #include <srs_kernel_error.hpp>
