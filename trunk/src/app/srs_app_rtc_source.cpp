@@ -1820,8 +1820,9 @@ srs_error_t SrsRtcFrameBuilder::on_rtp(SrsRtpPacket *pkt)
         return err;
     }
 
-    // Have no received any sender report, can't calculate avsync_time,
-    // discard it to avoid timestamp problem in live source
+    // Check if avsync_time is valid (> 0).
+    // NOTE: This check should NEVER fail unless SDP has no sample rate, in which case packets are discarded
+    // to avoid timestamp problems in live source.
     const SrsRtpHeader &h = pkt->header_;
     if (pkt->get_avsync_time() <= 0) {
         if (sync_state_ < 0) {
@@ -3105,7 +3106,17 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDes
 
     last_sender_report_rtp_time_ = 0;
     last_sender_report_rtp_time1_ = 0;
+
+    // Initialize rate from SDP sample rate
+    // rate_ is RTP units per millisecond (e.g., 90 for video 90kHz, 48 for audio 48kHz)
+    // This allows immediate A/V sync before receiving 2 RTCP SR packets
+    // Will be updated to precise rate after receiving 2nd SR
     rate_ = 0.0;
+    if (track_desc_->media_) {
+        rate_ = static_cast<double>(track_desc_->media_->sample_) / 1000.0;
+        srs_trace("RTC: Init %s track, ssrc=%u, rate from SDP=%.0f (RTP units per ms, will be updated after 2nd SR)",
+                 track_desc_->type_.c_str(), track_desc_->ssrc_, rate_);
+    }
 
     last_sender_report_sys_time_ = 0;
 }
@@ -3163,8 +3174,14 @@ void SrsRtcRecvTrack::update_send_report_time(const SrsNtp &ntp, uint32_t rtp_ti
         double rtp_time_elpased = static_cast<double>(last_sender_report_rtp_time_) - static_cast<double>(last_sender_report_rtp_time1_);
         double rate = round(rtp_time_elpased / sys_time_elapsed);
 
-        // TODO: FIXME: use the sample rate from sdp.
         if (rate > 0) {
+            if (rate_ != rate) {
+                srs_warn("RTC: SR update %s, ssrc=%u, ntp_ms=%u->%u (delta=%.0fms), rtp_time=%u->%u (delta=%.0f), rate %.0f->%.0f",
+                        track_desc_->type_.c_str(), track_desc_->ssrc_,
+                        last_sender_report_ntp1_.system_ms_, last_sender_report_ntp_.system_ms_, sys_time_elapsed,
+                        (uint32_t)last_sender_report_rtp_time1_, (uint32_t)last_sender_report_rtp_time_, rtp_time_elpased,
+                        rate_, rate);
+                }
             rate_ = rate;
         }
     }
