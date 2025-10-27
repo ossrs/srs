@@ -21,11 +21,11 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SRS_UTEST_RTC_CONN_HPP
-#define SRS_UTEST_RTC_CONN_HPP
+#ifndef SRS_UTEST_WORKFLOW_RTC_CONN_HPP
+#define SRS_UTEST_WORKFLOW_RTC_CONN_HPP
 
 /*
-#include <srs_utest_rtc_conn.hpp>
+#include <srs_utest_workflow_rtc_conn.hpp>
 */
 #include <srs_utest.hpp>
 

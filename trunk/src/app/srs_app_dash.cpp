@@ -878,7 +878,7 @@ SrsDash::~SrsDash()
 
 void SrsDash::dispose()
 {
-    // We disabled the reload, so DASH will not be enabled by reloading. 
+    // We disabled the reload, so DASH will not be enabled by reloading.
     // As a result, if DASH is disabled, we don't need to dispose.
     if (!enabled_) {
         return;

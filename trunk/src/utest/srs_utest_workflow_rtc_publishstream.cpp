@@ -96,9 +96,4 @@ VOID TEST(BasicWorkflowRtcPublishStreamTest, ManuallyVerify)
 
     // Stop the publish stream
     publish_stream->stop();
-
-    // Clean up - set injected fields to NULL to avoid double-free
-    publish_stream->config_ = NULL;
-    publish_stream->rtc_sources_ = NULL;
-    publish_stream->stat_ = NULL;
 }

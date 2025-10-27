@@ -142,6 +142,25 @@ srs_error_t SrsParsedPacket::add_sample(char *bytes, int size)
     return err;
 }
 
+SrsParsedPacket *SrsParsedPacket::copy()
+{
+    SrsParsedPacket *p = new SrsParsedPacket();
+    do_copy(p);
+    return p;
+}
+
+void SrsParsedPacket::do_copy(SrsParsedPacket *p)
+{
+    p->codec_ = codec_;
+    p->nb_samples_ = nb_samples_;
+    for (int i = 0; i < nb_samples_; i++) {
+        p->samples_[i].size_ = samples_[i].size_;
+        p->samples_[i].bytes_ = samples_[i].bytes_;
+    }
+    p->dts_ = dts_;
+    p->cts_ = cts_;
+}
+
 SrsParsedAudioPacket::SrsParsedAudioPacket()
 {
     aac_packet_type_ = SrsAudioAacFrameTraitForbidden;
@@ -154,6 +173,16 @@ SrsParsedAudioPacket::~SrsParsedAudioPacket()
 SrsAudioCodecConfig *SrsParsedAudioPacket::acodec()
 {
     return (SrsAudioCodecConfig *)codec_;
+}
+
+SrsParsedAudioPacket *SrsParsedAudioPacket::copy()
+{
+    SrsParsedAudioPacket *p = new SrsParsedAudioPacket();
+
+    do_copy(p);
+    p->aac_packet_type_ = aac_packet_type_;
+
+    return p;
 }
 
 SrsParsedVideoPacket::SrsParsedVideoPacket()
@@ -211,6 +240,21 @@ srs_error_t SrsParsedVideoPacket::add_sample(char *bytes, int size)
     }
 
     return err;
+}
+
+SrsParsedVideoPacket *SrsParsedVideoPacket::copy()
+{
+    SrsParsedVideoPacket *p = new SrsParsedVideoPacket();
+
+    do_copy(p);
+    p->frame_type_ = frame_type_;
+    p->avc_packet_type_ = avc_packet_type_;
+    p->has_idr_ = has_idr_;
+    p->has_aud_ = has_aud_;
+    p->has_sps_pps_ = has_sps_pps_;
+    p->first_nalu_type_ = first_nalu_type_;
+
+    return p;
 }
 
 SrsVideoCodecConfig *SrsParsedVideoPacket::vcodec()

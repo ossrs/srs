@@ -381,12 +381,14 @@ if [[ $SRS_UTEST == YES ]]; then
         "srs_utest_manual_protocol" "srs_utest_manual_protocol2" "srs_utest_manual_kernel2" "srs_utest_manual_st" "srs_utest_manual_fmp4"
         "srs_utest_manual_source_lock" "srs_utest_manual_stream_token" "srs_utest_manual_rtc_recv_track" "srs_utest_manual_st2"
         "srs_utest_manual_hevc_structs" "srs_utest_manual_coworkers" "srs_utest_manual_pithy_print" "srs_utest_manual_protocol3"
-        "srs_utest_manual_app" "srs_utest_manual_mock" "srs_utest_workflow_rtc_playstream" "srs_utest_workflow_rtc_publishstream"
-        "srs_utest_workflow_rtc_conn" "srs_utest_workflow_rtmp_conn" "srs_utest_workflow_srt_conn" "srs_utest_workflow_http_conn")
+        "srs_utest_manual_app" "srs_utest_manual_mock")
+    MODULE_FILES+=("srs_utest_workflow_rtc_playstream" "srs_utest_workflow_rtc_publishstream"
+        "srs_utest_workflow_rtc_conn" "srs_utest_workflow_rtmp_conn" "srs_utest_workflow_srt_conn" "srs_utest_workflow_http_conn"
+        "srs_utest_workflow_forward" "srs_utest_workflow_rtc2rtmp")
     MODULE_FILES+=("srs_utest_ai01" "srs_utest_ai02" "srs_utest_ai03" "srs_utest_ai04" "srs_utest_ai05"
         "srs_utest_ai06" "srs_utest_ai07" "srs_utest_ai08" "srs_utest_ai09" "srs_utest_ai10" "srs_utest_ai11"
         "srs_utest_ai12" "srs_utest_ai13" "srs_utest_ai14" "srs_utest_ai15" "srs_utest_ai16" "srs_utest_ai17"
-        "srs_utest_ai18" "srs_utest_ai19" "srs_utest_ai20" "srs_utest_ai24" "srs_utest_workflow_forward")
+        "srs_utest_ai18" "srs_utest_ai19" "srs_utest_ai20" "srs_utest_ai24")
     if [[ $SRS_GB28181 == YES ]]; then
         MODULE_FILES+=("srs_utest_manual_gb28181" "srs_utest_ai23")
     fi

@@ -109,6 +109,12 @@ public:
     virtual srs_error_t initialize(SrsCodecConfig *c);
     // Add a sample to frame.
     virtual srs_error_t add_sample(char *bytes, int size);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Copy the packet.
+    virtual SrsParsedPacket *copy();
+    virtual void do_copy(SrsParsedPacket *p);
 };
 
 // A parsed audio packet, besides a frame, contains the audio frame info, such as frame type.
@@ -123,6 +129,10 @@ public:
 
 public:
     virtual SrsAudioCodecConfig *acodec();
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    virtual SrsParsedAudioPacket *copy();
 };
 
 // A parsed video packet, besides a frame, contains the video frame info, such as frame type.
@@ -150,6 +160,10 @@ public:
     virtual srs_error_t initialize(SrsCodecConfig *c);
     // Add the sample without ANNEXB or IBMF header, or RAW AAC or MP3 data.
     virtual srs_error_t add_sample(char *bytes, int size);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    virtual SrsParsedVideoPacket *copy();
 
 public:
     virtual SrsVideoCodecConfig *vcodec();

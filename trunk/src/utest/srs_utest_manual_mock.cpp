@@ -180,6 +180,10 @@ MockRtcTrackDescriptionFactory::MockRtcTrackDescriptionFactory()
     audio_ssrc_ = 12345;
     video_ssrc_ = 67890;
     screen_ssrc_ = 98765;
+
+    audio_pt_ = 111;
+    video_pt_ = 96;
+    screen_pt_ = 97;
 }
 
 MockRtcTrackDescriptionFactory::~MockRtcTrackDescriptionFactory()
@@ -227,12 +231,17 @@ SrsRtcTrackDescription *MockRtcTrackDescriptionFactory::create_audio_track(uint3
     audio_desc->is_active_ = true;
     audio_desc->direction_ = "sendrecv";
     audio_desc->mid_ = mid;
-    audio_desc->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+    audio_desc->media_ = new SrsAudioPayload(audio_pt_, "opus", 48000, 2);
     return audio_desc;
 }
 
 SrsRtcTrackDescription *MockRtcTrackDescriptionFactory::create_video_track(uint32_t ssrc, std::string id, std::string mid)
 {
+    uint8_t pt = video_pt_;
+    if (ssrc == screen_ssrc_) {
+        pt = screen_pt_;
+    }
+
     SrsRtcTrackDescription *video_desc = new SrsRtcTrackDescription();
     video_desc->type_ = "video";
     video_desc->ssrc_ = ssrc;
@@ -240,7 +249,7 @@ SrsRtcTrackDescription *MockRtcTrackDescriptionFactory::create_video_track(uint3
     video_desc->is_active_ = true;
     video_desc->direction_ = "sendrecv";
     video_desc->mid_ = mid;
-    video_desc->media_ = new SrsVideoPayload(96, "H264", 90000);
+    video_desc->media_ = new SrsVideoPayload(pt, "H264", 90000);
     return video_desc;
 }
 
@@ -1160,6 +1169,7 @@ MockLiveSource::MockLiveSource()
     on_audio_count_ = 0;
     on_video_count_ = 0;
     on_dump_packets_count_ = 0;
+    on_frame_count_ = 0;
 }
 
 MockLiveSource::~MockLiveSource()
@@ -1196,14 +1206,23 @@ srs_error_t MockLiveSource::consumer_dumps(ISrsLiveConsumer *consumer, bool ds, 
 
 srs_error_t MockLiveSource::on_audio(SrsRtmpCommonMessage *audio)
 {
-    on_audio_count_++;
     return SrsLiveSource::on_audio(audio);
 }
 
 srs_error_t MockLiveSource::on_video(SrsRtmpCommonMessage *video)
 {
-    on_video_count_++;
     return SrsLiveSource::on_video(video);
+}
+
+srs_error_t MockLiveSource::on_frame(SrsMediaPacket *msg)
+{
+    on_frame_count_++;
+    if (msg->is_audio()) {
+        on_audio_count_++;
+    } else if (msg->is_video()) {
+        on_video_count_++;
+    }
+    return SrsLiveSource::on_frame(msg);
 }
 
 // Mock SRT source implementation

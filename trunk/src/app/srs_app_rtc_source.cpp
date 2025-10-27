@@ -1377,6 +1377,14 @@ srs_error_t SrsRtcRtpBuilder::consume_packets(vector<SrsRtpPacket *> &pkts)
     return err;
 }
 
+ISrsRtcFrameBuilderVideoPacketCache::ISrsRtcFrameBuilderVideoPacketCache()
+{
+}
+
+ISrsRtcFrameBuilderVideoPacketCache::~ISrsRtcFrameBuilderVideoPacketCache()
+{
+}
+
 SrsRtcFrameBuilderVideoPacketCache::SrsRtcFrameBuilderVideoPacketCache()
 {
     memset(cache_pkts_, 0, sizeof(cache_pkts_));
@@ -1536,7 +1544,15 @@ bool SrsRtcFrameBuilderVideoPacketCache::check_frame_complete(const uint16_t sta
     return nn_fu_start == nn_fu_end;
 }
 
-SrsRtcFrameBuilderVideoFrameDetector::SrsRtcFrameBuilderVideoFrameDetector(SrsRtcFrameBuilderVideoPacketCache *cache)
+ISrsRtcFrameBuilderVideoFrameDetector::ISrsRtcFrameBuilderVideoFrameDetector()
+{
+}
+
+ISrsRtcFrameBuilderVideoFrameDetector::~ISrsRtcFrameBuilderVideoFrameDetector()
+{
+}
+
+SrsRtcFrameBuilderVideoFrameDetector::SrsRtcFrameBuilderVideoFrameDetector(ISrsRtcFrameBuilderVideoPacketCache *cache)
 {
     video_cache_ = cache;
     header_sn_ = 0;
@@ -1638,6 +1654,14 @@ void SrsRtcFrameBuilderVideoFrameDetector::on_keyframe_detached()
 bool SrsRtcFrameBuilderVideoFrameDetector::is_lost_sn(uint16_t received)
 {
     return lost_sn_ == received;
+}
+
+ISrsRtcFrameBuilderAudioPacketCache::ISrsRtcFrameBuilderAudioPacketCache()
+{
+}
+
+ISrsRtcFrameBuilderAudioPacketCache::~ISrsRtcFrameBuilderAudioPacketCache()
+{
 }
 
 SrsRtcFrameBuilderAudioPacketCache::SrsRtcFrameBuilderAudioPacketCache()
@@ -3115,7 +3139,7 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDes
     if (track_desc_->media_) {
         rate_ = static_cast<double>(track_desc_->media_->sample_) / 1000.0;
         srs_trace("RTC: Init %s track, ssrc=%u, rate from SDP=%.0f (RTP units per ms, will be updated after 2nd SR)",
-                 track_desc_->type_.c_str(), track_desc_->ssrc_, rate_);
+                  track_desc_->type_.c_str(), track_desc_->ssrc_, rate_);
     }
 
     last_sender_report_sys_time_ = 0;
@@ -3177,11 +3201,11 @@ void SrsRtcRecvTrack::update_send_report_time(const SrsNtp &ntp, uint32_t rtp_ti
         if (rate > 0) {
             if (rate_ != rate) {
                 srs_warn("RTC: SR update %s, ssrc=%u, ntp_ms=%u->%u (delta=%.0fms), rtp_time=%u->%u (delta=%.0f), rate %.0f->%.0f",
-                        track_desc_->type_.c_str(), track_desc_->ssrc_,
-                        last_sender_report_ntp1_.system_ms_, last_sender_report_ntp_.system_ms_, sys_time_elapsed,
-                        (uint32_t)last_sender_report_rtp_time1_, (uint32_t)last_sender_report_rtp_time_, rtp_time_elpased,
-                        rate_, rate);
-                }
+                         track_desc_->type_.c_str(), track_desc_->ssrc_,
+                         last_sender_report_ntp1_.system_ms_, last_sender_report_ntp_.system_ms_, sys_time_elapsed,
+                         (uint32_t)last_sender_report_rtp_time1_, (uint32_t)last_sender_report_rtp_time_, rtp_time_elpased,
+                         rate_, rate);
+            }
             rate_ = rate;
         }
     }

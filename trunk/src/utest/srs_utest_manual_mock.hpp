@@ -111,6 +111,11 @@ public:
     uint32_t screen_ssrc_;
 
 public:
+    uint8_t audio_pt_;
+    uint8_t video_pt_;
+    uint8_t screen_pt_;
+
+public:
     // Create a map of track descriptions with audio and video tracks (for play stream)
     std::map<uint32_t, SrsRtcTrackDescription *> create_audio_video_tracks();
 
@@ -634,6 +639,7 @@ public:
     int on_audio_count_;
     int on_video_count_;
     int on_dump_packets_count_;
+    int on_frame_count_;
 
 public:
     MockLiveSource();
@@ -647,6 +653,7 @@ public:
 public:
     virtual srs_error_t on_audio(SrsRtmpCommonMessage *audio);
     virtual srs_error_t on_video(SrsRtmpCommonMessage *video);
+    virtual srs_error_t on_frame(SrsMediaPacket *msg);
 };
 
 // Mock SRT source for testing SrsRtcPublishStream

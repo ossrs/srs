@@ -221,9 +221,4 @@ VOID TEST(BasicWorkflowRtcPlayStreamTest, ManuallyVerify)
 
     // Stop the play stream
     play_stream->stop();
-
-    // Clean up - set to NULL to avoid double-free
-    play_stream->config_ = NULL;
-    play_stream->rtc_sources_ = NULL;
-    play_stream->stat_ = NULL;
 }
