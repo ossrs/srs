@@ -178,10 +178,21 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter *w, ISrsHttpM
         return srs_error_wrap(err, "HLS: http_hooks_on_play");
     }
 
+    // Determine the media playlist URL path in master playlist based on configuration.
+    // When hls_master_m3u8_path_relative is on, use relative path (just filename) for better
+    // compatibility with reverse proxies that do path rewriting.
+    // For example, convert "/live/livestream.m3u8" to "livestream.m3u8"
+    // When off (default), use absolute path for backward compatibility.
+    std::string media_playlist_url = hr->path();
+    if (_srs_config->get_hls_master_m3u8_path_relative(req->vhost_)) {
+        SrsPath path;
+        media_playlist_url = path.filepath_base(hr->path());
+    }
+
     std::stringstream ss;
     ss << "#EXTM3U" << SRS_CONSTS_LF;
     ss << "#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1" << SRS_CONSTS_LF;
-    ss << hr->path() << "?" << SRS_CONTEXT_IN_HLS << "=" << ctx;
+    ss << media_playlist_url << "?" << SRS_CONTEXT_IN_HLS << "=" << ctx;
     if (!hr->query().empty() && hr->query_get(SRS_CONTEXT_IN_HLS).empty()) {
         ss << "&" << hr->query();
     }

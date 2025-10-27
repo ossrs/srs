@@ -85,8 +85,8 @@ VOID TEST(StTest, StUtimePerformance)
 
         // Calculate absolute difference between the two elapsed times
         int time_diff = gettimeofday_elapsed_time > st_utime_elapsed_time
-            ? gettimeofday_elapsed_time - st_utime_elapsed_time
-            : st_utime_elapsed_time - gettimeofday_elapsed_time;
+                            ? gettimeofday_elapsed_time - st_utime_elapsed_time
+                            : st_utime_elapsed_time - gettimeofday_elapsed_time;
 
         // The difference should be less than N clock ticks (microseconds)
         EXPECT_LT(time_diff, 100);
@@ -111,8 +111,8 @@ VOID TEST(StTest, StUtimePerformance)
 
         // Calculate absolute difference between the two elapsed times
         int time_diff = gettimeofday_elapsed_time > st_utime_elapsed_time
-            ? gettimeofday_elapsed_time - st_utime_elapsed_time
-            : st_utime_elapsed_time - gettimeofday_elapsed_time;
+                            ? gettimeofday_elapsed_time - st_utime_elapsed_time
+                            : st_utime_elapsed_time - gettimeofday_elapsed_time;
 
         // The difference should be less than N clock ticks (microseconds)
         EXPECT_LT(time_diff, 100);
@@ -139,8 +139,8 @@ VOID TEST(StTest, StUtimePerformance)
 
         // Calculate absolute difference between the two elapsed times
         int time_diff = gettimeofday_elapsed_time > st_utime_elapsed_time
-            ? gettimeofday_elapsed_time - st_utime_elapsed_time
-            : st_utime_elapsed_time - gettimeofday_elapsed_time;
+                            ? gettimeofday_elapsed_time - st_utime_elapsed_time
+                            : st_utime_elapsed_time - gettimeofday_elapsed_time;
 
         // The difference should be less than N clock ticks (microseconds)
         EXPECT_LT(time_diff, 100);

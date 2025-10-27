@@ -24,12 +24,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ossrs/go-oryx-lib/errors"
-	"github.com/ossrs/go-oryx-lib/logger"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ossrs/go-oryx-lib/errors"
+	"github.com/ossrs/go-oryx-lib/logger"
 )
 
 var sr string

@@ -4972,6 +4972,51 @@ VOID TEST(ProtocolKbpsTest, StreamIdentify)
     EXPECT_STREQ("ossrs.io/live/livestream", srs_net_url_encode_sid("ossrs.io", "live", "livestream.m3u8").c_str());
 }
 
+// Reproduce bug from issue 4011: Stream names with dots get truncated incorrectly
+// https://github.com/ossrs/srs/issues/4011
+// The filepath_filename() function removes everything after the LAST dot in the stream name.
+// This was intended to strip extensions like .flv, but it breaks stream names that contain
+// dots as part of the identifier (like WavMain.exe_rooms_290_20240402).
+// This causes edge servers to treat different streams as the same source.
+//
+// This test FAILS to demonstrate the bug - when the bug is fixed, this test should PASS.
+VOID TEST(ProtocolKbpsTest, StreamIdentifyWithDotsInName_Issue4011)
+{
+    // Case 1: THE ACTUAL BUG from issue 4011
+    // Stream names like "WavMain.exe_rooms_290_20240402" contain a dot in ".exe"
+    // Expected: Each stream should have a unique source URL preserving the full name
+    // Actual (BUG): filepath_filename() strips everything after the dot in ".exe"
+    std::string url1 = srs_net_url_encode_sid("", "imlive", "WavMain.exe_rooms_290_20240402");
+    std::string url2 = srs_net_url_encode_sid("", "imlive", "WavMain.exe_rooms_311_20240402");
+    std::string url3 = srs_net_url_encode_sid("", "imlive", "WavMain.exe_rooms_222_20240402");
+
+    // EXPECTED: Each stream should preserve its full name
+    EXPECT_STREQ("/imlive/WavMain.exe_rooms_290_20240402", url1.c_str());
+    EXPECT_STREQ("/imlive/WavMain.exe_rooms_311_20240402", url2.c_str());
+    EXPECT_STREQ("/imlive/WavMain.exe_rooms_222_20240402", url3.c_str());
+
+    // EXPECTED: Different streams should have different URLs
+    EXPECT_STRNE(url1.c_str(), url2.c_str());
+    EXPECT_STRNE(url1.c_str(), url3.c_str());
+    EXPECT_STRNE(url2.c_str(), url3.c_str());
+
+    // Case 2: Stream names with multiple dots should preserve the full name
+    // (only strip known extensions like .flv, .m3u8, not arbitrary suffixes)
+    EXPECT_STREQ("/live/test.backup.stream", srs_net_url_encode_sid("", "live", "test.backup.stream").c_str());
+    EXPECT_STREQ("/live/my.stream.v2", srs_net_url_encode_sid("", "live", "my.stream.v2").c_str());
+    EXPECT_STREQ("/live/camera.1.hd", srs_net_url_encode_sid("", "live", "camera.1.hd").c_str());
+
+    // Case 3: Different streams with same prefix should be different
+    std::string backup1 = srs_net_url_encode_sid("", "live", "test.backup.stream");
+    std::string backup2 = srs_net_url_encode_sid("", "live", "test.backup.stream2");
+    EXPECT_STRNE(backup1.c_str(), backup2.c_str()); // Should be different
+
+    // Case 4: The intended behavior - stripping ONLY known extensions
+    // These should work correctly (strip .flv and .m3u8)
+    EXPECT_STREQ("/live/livestream", srs_net_url_encode_sid("", "live", "livestream.flv").c_str());
+    EXPECT_STREQ("/live/livestream", srs_net_url_encode_sid("", "live", "livestream.m3u8").c_str());
+}
+
 VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
 {
     srs_error_t err = srs_success;

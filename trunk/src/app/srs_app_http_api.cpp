@@ -781,13 +781,23 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
     if (r->is_http_get()) {
         if (!stream) {
+            // Add total count of streams
+            int64_t send_bytes = 0, recv_bytes = 0, nstreams = 0, nclients = 0, total_nclients = 0, nerrs = 0;
+            if ((err = stat_->dumps_metrics(send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs)) != srs_success) {
+                int code = srs_error_code(err);
+                srs_freep(err);
+                return srs_api_response_code(w, r, code);
+            }
+            obj->set("total", SrsJsonAny::integer(nstreams));
+
+            // Add streams
             SrsJsonArray *data = SrsJsonAny::array();
             obj->set("streams", data);
 
             std::string rstart = r->query_get("start");
             std::string rcount = r->query_get("count");
             int start = srs_max(0, atoi(rstart.c_str()));
-            int count = srs_max(10, atoi(rcount.c_str()));
+            int count = srs_max(1, atoi(rcount.c_str()));
             if ((err = stat_->dumps_streams(data, start, count)) != srs_success) {
                 int code = srs_error_code(err);
                 srs_freep(err);
@@ -843,13 +853,23 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
     if (r->is_http_get()) {
         if (!client) {
+            // Add total count of clients
+            int64_t send_bytes = 0, recv_bytes = 0, nstreams = 0, nclients = 0, total_nclients = 0, nerrs = 0;
+            if ((err = stat_->dumps_metrics(send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs)) != srs_success) {
+                int code = srs_error_code(err);
+                srs_freep(err);
+                return srs_api_response_code(w, r, code);
+            }
+            obj->set("total", SrsJsonAny::integer(nclients));
+
+            // Add clients
             SrsJsonArray *data = SrsJsonAny::array();
             obj->set("clients", data);
 
             std::string rstart = r->query_get("start");
             std::string rcount = r->query_get("count");
             int start = srs_max(0, atoi(rstart.c_str()));
-            int count = srs_max(10, atoi(rcount.c_str()));
+            int count = srs_max(1, atoi(rcount.c_str()));
             if ((err = stat_->dumps_clients(data, start, count)) != srs_success) {
                 int code = srs_error_code(err);
                 srs_freep(err);

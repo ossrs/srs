@@ -48,140 +48,92 @@ if [[ $SRS_OSX == YES ]]; then
         echo "Please install brew at https://brew.sh/"; exit $ret;
     fi
 fi
-# Check perl, which is depended by automake for building libopus etc.
-perl --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install perl by:"
-        echo "  yum install -y perl"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install perl by:"
-        echo "  apt install -y perl"
-    else
-        echo "Please install perl"
+
+# Arrays to track missing dependencies
+MISSING_DEPS=()
+MISSING_DEPS_UBUNTU=()
+MISSING_DEPS_CENTOS=()
+MISSING_DEPS_OSX=()
+
+# Helper function to check if a command exists
+check_command() {
+    local cmd=$1
+    local cmd_name=$2
+    local ubuntu_pkg=$3
+    local centos_pkg=$4
+    local osx_pkg=$5
+
+    $cmd >/dev/null 2>/dev/null
+    if [[ $? -ne 0 ]]; then
+        MISSING_DEPS+=("$cmd_name")
+        if [[ ! -z "$ubuntu_pkg" ]]; then
+            MISSING_DEPS_UBUNTU+=("$ubuntu_pkg")
+        fi
+        if [[ ! -z "$centos_pkg" ]]; then
+            MISSING_DEPS_CENTOS+=("$centos_pkg")
+        fi
+        if [[ ! -z "$osx_pkg" ]]; then
+            MISSING_DEPS_OSX+=("$osx_pkg")
+        fi
+        return 1
     fi
-    exit $ret;
-fi
-gcc --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install gcc by:"
-        echo "  yum install -y gcc"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install gcc by:"
-        echo "  apt install -y gcc"
-    else
-        echo "Please install gcc"
-    fi
-    exit $ret;
-fi
-g++ --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install g++ by:"
-        echo "  yum install -y gcc-c++"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install g++ by:"
-        echo "  apt install -y g++"
-    else
-        echo "Please install gcc-c++"
-    fi
-    exit $ret;
-fi
-make --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install make by:"
-        echo "  yum install -y make"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install make by:"
-        echo "  apt install -y make"
-    else
-        echo "Please install make"
-    fi
-    exit $ret;
-fi
-patch --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install patch by:"
-        echo "  yum install -y patch"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install patch by:"
-        echo "  apt install -y patch"
-    else
-        echo "Please install patch"
-    fi
-    exit $ret;
-fi
-unzip -v >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install unzip by:"
-        echo "  yum install -y unzip"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install unzip by:"
-        echo "  apt install -y unzip"
-    else
-        echo "Please install unzip"
-    fi
-    exit $ret;
-fi
-automake --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install automake by:"
-        echo "  yum install -y automake"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install automake by:"
-        echo "  apt install -y automake"
-    else
-        echo "Please install automake"
-    fi
-    exit $ret;
-fi
+    return 0
+}
+
+# Check required tools
+echo "Checking required tools: perl gcc g++ make patch unzip automake pkg-config which"
+check_command "perl --version" "perl" "perl" "perl" "perl"
+check_command "gcc --version" "gcc" "gcc" "gcc" "gcc"
+check_command "g++ --version" "g++" "g++" "gcc-c++" "gcc"
+check_command "make --version" "make" "make" "make" "make"
+check_command "patch --version" "patch" "patch" "patch" "gpatch"
+check_command "unzip -v" "unzip" "unzip" "unzip" "unzip"
+check_command "automake --version" "automake" "automake" "automake" "automake"
+check_command "pkg-config --version" "pkg-config" "pkg-config" "pkgconfig" "pkg-config"
+check_command "which ls" "which" "which" "which" "which"
+
+# Check optional tools for valgrind
 if [[ $SRS_VALGRIND == YES ]]; then
-    valgrind --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Please install valgrind"; exit $ret;
-    fi
+    check_command "valgrind --version" "valgrind" "valgrind" "valgrind" "valgrind"
     if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
-        echo "Please install valgrind-dev"; exit $ret;
+        MISSING_DEPS+=("valgrind-dev")
+        MISSING_DEPS_UBUNTU+=("valgrind")
+        MISSING_DEPS_CENTOS+=("valgrind-devel")
+        MISSING_DEPS_OSX+=("valgrind")
     fi
 fi
-# Check tclsh, which is depended by SRT.
+
+# Check optional tools for SRT
 if [[ $SRS_SRT == YES ]]; then
-    tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        if [[ $OS_IS_CENTOS == YES ]]; then
-            echo "Please install tclsh by:"
-            echo "  yum install -y tcl"
-        elif [[ $OS_IS_UBUNTU == YES ]]; then
-            echo "Please install tclsh by:"
-            echo "  apt install -y tclsh"
-        else
-            echo "Please install tclsh"
-        fi
-        exit $ret;
+    echo "Checking optional tools for SRT: tclsh cmake"
+    # Special check for tclsh
+    tclsh <<< "exit" >/dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+        MISSING_DEPS+=("tclsh")
+        MISSING_DEPS_UBUNTU+=("tclsh")
+        MISSING_DEPS_CENTOS+=("tcl")
+        MISSING_DEPS_OSX+=("tcl-tk")
     fi
-    cmake --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-        if [[ $OS_IS_CENTOS == YES ]]; then
-            echo "Please install cmake by:"
-            echo "  yum install -y cmake"
-        elif [[ $OS_IS_UBUNTU == YES ]]; then
-            echo "Please install cmake by:"
-            echo "  apt install -y cmake"
-        else
-            echo "Please install cmake"
-        fi
-        exit $ret;
-    fi
+    check_command "cmake --version" "cmake" "cmake" "cmake" "cmake"
 fi
-pkg-config --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    echo "Please install pkg-config"; exit $ret;
-fi
-which ls >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install which by:"
-        echo "  yum install -y which"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install which by:"
-        echo "  apt install -y which"
+
+# Report all missing dependencies at once
+if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
+    echo ""
+    echo -e "Missing dependencies (${#MISSING_DEPS[@]}): ${RED}${MISSING_DEPS[@]}${BLACK}"
+
+    if [[ $OS_IS_UBUNTU == YES && ${#MISSING_DEPS_UBUNTU[@]} -gt 0 ]]; then
+        echo -e "Please install missing dependencies by: ${GREEN}sudo apt install -y ${MISSING_DEPS_UBUNTU[@]}${BLACK}"
+    elif [[ $OS_IS_CENTOS == YES && ${#MISSING_DEPS_CENTOS[@]} -gt 0 ]]; then
+        echo -e "Please install missing dependencies by: ${GREEN}sudo yum install -y ${MISSING_DEPS_CENTOS[@]}${BLACK}"
+    elif [[ $SRS_OSX == YES && ${#MISSING_DEPS_OSX[@]} -gt 0 ]]; then
+        echo -e "Please install missing dependencies by: ${GREEN}brew install ${MISSING_DEPS_OSX[@]}${BLACK}"
     else
-        echo "Please install which"
+        echo "Please install the missing dependencies above."
     fi
-    exit $ret;
+
+    echo "Please install the missing dependencies above and rerun configure."
+    exit 1
 fi
 
 #####################################################################################

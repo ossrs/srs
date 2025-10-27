@@ -21,12 +21,13 @@
 package srs
 
 import (
-	"github.com/ossrs/go-oryx-lib/logger"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/ossrs/go-oryx-lib/logger"
 )
 
 func TestMain(m *testing.M) {

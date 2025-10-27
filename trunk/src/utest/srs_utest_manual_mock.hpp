@@ -456,6 +456,7 @@ public:
     virtual bool get_vhost_hls_dts_directly(std::string vhost);
     virtual bool get_hls_ctx_enabled(std::string vhost);
     virtual bool get_hls_ts_ctx_enabled(std::string vhost);
+    virtual bool get_hls_master_m3u8_path_relative(std::string vhost);
     virtual bool get_hls_recover(std::string vhost);
     virtual bool get_forward_enabled(std::string vhost);
     virtual SrsConfDirective *get_forwards(std::string vhost);

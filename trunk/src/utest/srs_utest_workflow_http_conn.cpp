@@ -184,7 +184,7 @@ VOID TEST(BasicWorkflowHttpConnTest, ManuallyVerifyForHttpStream)
     live_stream->hooks_ = mock_hooks.get();
 
     // Do not wait for utest, consume messages immediately. Remove this when HTTP stream use cond signal.
-    mock_config->mw_sleep_ = 0;
+    mock_config->mw_sleep_ = 100; // 0.1ms
 
     mock_entry->enabled = true;
     mock_entry->pattern = "/live/livestream.flv";

@@ -20,18 +20,23 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // The oryx logger package provides connection-oriented log service.
-//		logger.I(ctx, ...)
-//		logger.T(ctx, ...)
-//		logger.W(ctx, ...)
-//		logger.E(ctx, ...)
+//
+//	logger.I(ctx, ...)
+//	logger.T(ctx, ...)
+//	logger.W(ctx, ...)
+//	logger.E(ctx, ...)
+//
 // Or use format:
-//		logger.If(ctx, format, ...)
-//		logger.Tf(ctx, format, ...)
-//		logger.Wf(ctx, format, ...)
-//		logger.Ef(ctx, format, ...)
+//
+//	logger.If(ctx, format, ...)
+//	logger.Tf(ctx, format, ...)
+//	logger.Wf(ctx, format, ...)
+//	logger.Ef(ctx, format, ...)
+//
 // @remark the Context is optional thus can be nil.
 // @remark From 1.7+, the ctx could be context.Context, wrap by logger.WithContext,
-// 	please read ExampleLogger_ContextGO17().
+//
+//	please read ExampleLogger_ContextGO17().
 package logger
 
 import (

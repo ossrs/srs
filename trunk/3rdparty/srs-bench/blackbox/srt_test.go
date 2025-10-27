@@ -23,14 +23,15 @@ package blackbox
 import (
 	"context"
 	"fmt"
-	"github.com/ossrs/go-oryx-lib/errors"
-	"github.com/ossrs/go-oryx-lib/logger"
 	"math/rand"
 	"os"
 	"path"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ossrs/go-oryx-lib/errors"
+	"github.com/ossrs/go-oryx-lib/logger"
 )
 
 func TestFast_SrtPublish_SrtPlay_Basic(t *testing.T) {

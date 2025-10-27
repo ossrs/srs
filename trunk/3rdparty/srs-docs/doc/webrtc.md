@@ -453,7 +453,7 @@ docker run --rm --env CANDIDATE=$CANDIDATE \
 
 > Note: Please set CANDIDATE as the ip of server, please read [CANDIDATE](./webrtc.md#config-candidate).
 
-Then startup the signaling, please read [usage](http://ossrs.net/srs.release/wiki/https://github.com/ossrs/signaling#usage):
+Then startup the signaling, please read [usage](https://github.com/ossrs/signaling#usage):
 
 ```bash
 docker run --rm -p 1989:1989 ossrs/signaling:1
@@ -584,6 +584,32 @@ rtc_server {
 This enables:
 - IPv4 clients to connect via: `http://192.168.1.100:1985/rtc/v1/whip/`
 - IPv6 clients to connect via: `http://[2001:db8::1]:1985/rtc/v1/whip/`
+
+## Known Limitation: Initial Audio Loss
+
+When publishing WebRTC streams, you may notice that the **first 4-6 seconds of audio are missing** in recordings (DVR),
+RTMP playback, or HTTP-FLV streams. This is a **known limitation** of WebRTC's audio/video synchronization mechanism,
+not a bug.
+
+**Root Cause**: WebRTC uses RTCP Sender Reports (SR) to synchronize audio and video timestamps. When a WebRTC stream
+starts, both audio and video RTP packets arrive immediately. However, SRS needs RTCP Sender Reports to calculate proper
+timestamps for synchronizing audio and video. The A/V sync calculation requires **TWO** RTCP Sender Reports to establish
+the timing rate between RTP timestamps and system time. All RTP packets (both audio and video) with `avsync_time <= 0`
+are **discarded** to avoid timestamp problems in the live source. RTCP Sender Reports typically arrive every 2-3 seconds.
+After the **second** SR arrives (~4-6 seconds), the A/V sync rate is calculated, and packets start being accepted. If DVR
+is configured with `dvr_wait_keyframe on`, recording starts at the first video keyframe anyway. Video keyframes typically
+arrive every 2-4 seconds, so by the time the first keyframe arrives, A/V sync is often already established. However, audio
+packets that arrived before sync was established are **permanently lost**.
+
+**Why This Won't Be Fixed**: This is a **fundamental limitation** of WebRTC's A/V synchronization mechanism. The RTCP-based
+A/V synchronization is essential for WebRTC. Without it, audio and video timestamps would be misaligned, causing severe sync
+issues throughout the entire stream. The current design prioritizes **correct A/V synchronization** over capturing the first
+few seconds. This is a reasonable trade-off for most live streaming scenarios where streams run for extended periods (minutes
+to hours), losing 4-6 seconds at the start is acceptable, and perfect A/V sync throughout the stream is critical. Fixing this
+would require fundamentally redesigning the WebRTC A/V sync mechanism, which is extremely complex and risky.
+
+**Related Issues**: [#4418](https://github.com/ossrs/srs/issues/4418), [#4151](https://github.com/ossrs/srs/issues/4151),
+[#4076](https://github.com/ossrs/srs/issues/4076)
 
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.io&path=/lts/doc/en/v7/webrtc)
 

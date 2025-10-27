@@ -23,12 +23,13 @@ package blackbox
 import (
 	"context"
 	"fmt"
-	"github.com/ossrs/go-oryx-lib/errors"
-	"github.com/ossrs/go-oryx-lib/logger"
 	"net/http"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ossrs/go-oryx-lib/errors"
+	"github.com/ossrs/go-oryx-lib/logger"
 )
 
 func TestFast_Http_Api_Basic_Auth(t *testing.T) {

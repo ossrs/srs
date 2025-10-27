@@ -241,6 +241,7 @@ srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req)
     SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
     if (stream) {
         obj->set("stream_id", SrsJsonAny::str(stream->id_.c_str()));
+        obj->set("clients", SrsJsonAny::integer(stream->nb_clients_));
     }
 
     std::string data = obj->dumps();
@@ -282,6 +283,7 @@ void SrsHttpHooks::on_stop(string url, ISrsRequest *req)
     SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
     if (stream) {
         obj->set("stream_id", SrsJsonAny::str(stream->id_.c_str()));
+        obj->set("clients", SrsJsonAny::integer(stream->nb_clients_));
     }
 
     std::string data = obj->dumps();

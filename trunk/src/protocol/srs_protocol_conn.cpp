@@ -533,6 +533,12 @@ srs_error_t SrsSslConnection::read(void *plaintext, size_t nn_plaintext, ssize_t
         int r2 = BIO_ctrl_pending(bio_in_);
         int r3 = SSL_is_init_finished(ssl_);
 
+        // Peer gracefully close.
+        if (r0 == 0 && r1 == SSL_ERROR_ZERO_RETURN) {
+            return srs_error_new(ERROR_SOCKET_READ, "SSL_read r0=%d, r1=%d, r2=%d, r3=%d",
+                                 r0, r1, r2, r3);
+        }
+
         // OK, got data.
         if (r0 > 0) {
             srs_assert(r0 <= (int)nn_plaintext);

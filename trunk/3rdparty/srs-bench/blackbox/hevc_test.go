@@ -23,8 +23,6 @@ package blackbox
 import (
 	"context"
 	"fmt"
-	"github.com/ossrs/go-oryx-lib/errors"
-	"github.com/ossrs/go-oryx-lib/logger"
 	"math/rand"
 	"os"
 	"path"
@@ -32,6 +30,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ossrs/go-oryx-lib/errors"
+	"github.com/ossrs/go-oryx-lib/logger"
 )
 
 func TestSlow_RtmpPublish_RtmpPlay_HEVC_Basic(t *testing.T) {

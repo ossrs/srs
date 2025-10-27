@@ -67,6 +67,31 @@
 </div>
 <script type="text/javascript">
 $(function(){
+    // Convert webrtc:// URL to WHEP URL
+    // webrtc://domain:port/app/stream => http://domain:1985/rtc/v1/whep/?app=app&stream=stream
+    var convertToWhepUrl = function(webrtcUrl) {
+        var a = document.createElement("a");
+        a.href = webrtcUrl.replace("webrtc://", "http://").replace("rtc://", "http://");
+
+        var schema = window.location.protocol;
+        var port = a.port || 1985;
+        if (schema === 'https:') {
+            port = a.port || 443;
+        }
+
+        var app = a.pathname.substring(1, a.pathname.lastIndexOf("/"));
+        var stream = a.pathname.slice(a.pathname.lastIndexOf("/") + 1);
+
+        var whepUrl = schema + '//' + a.hostname + ':' + port + '/rtc/v1/whep/?app=' + app + '&stream=' + stream;
+
+        // Append query parameters from original URL
+        if (a.search) {
+            whepUrl += '&' + a.search.substring(1);
+        }
+
+        return whepUrl;
+    };
+
     var sdk = null; // Global handler to do cleanup when replaying.
     var startPlay = function() {
         $('#rtc_media_player').show();
@@ -75,7 +100,7 @@ $(function(){
         if (sdk) {
             sdk.close();
         }
-        sdk = new SrsRtcPlayerAsync();
+        sdk = new SrsRtcWhipWhepAsync();
 
         // https://webrtc.org/getting-started/remote-streams
         $('#rtc_media_player').prop('srcObject', sdk.stream);
@@ -83,8 +108,10 @@ $(function(){
         // sdk.ontrack = function (event) { console.log('Got track', event); sdk.stream.addTrack(event.track); };
 
         // For example: webrtc://r.ossrs.net/live/livestream
+        // Convert to WHEP URL: http://localhost:1985/rtc/v1/whep/?app=live&stream=livestream
         var url = $("#txt_url").val();
-        sdk.play(url).then(function(session){
+        var whepUrl = convertToWhepUrl(url);
+        sdk.play(whepUrl).then(function(session){
             $('#sessionid').html(session.sessionid);
             $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
         }).catch(function (reason) {

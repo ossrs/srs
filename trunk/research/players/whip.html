@@ -53,6 +53,7 @@
         URL:
         <input type="text" id="txt_url" class="input-xxlarge" value="">
         <button class="btn btn-primary" id="btn_publish">Publish</button>
+        <button class="btn btn-danger" id="btn_stop" disabled>Stop</button>
     </div>
 
     <p></p>
@@ -138,6 +139,9 @@ $(function(){
         }).then(function(session){
             $('#sessionid').html(session.sessionid);
             $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
+            // Enable stop button after successful publish
+            $('#btn_stop').prop('disabled', false);
+            $('#btn_publish').prop('disabled', true);
         }).catch(function (reason) {
             // Throw by sdk.
             if (reason instanceof SrsError) {
@@ -164,11 +168,29 @@ $(function(){
         });
     };
 
+    var stopPublish = function() {
+        if (sdk) {
+            sdk.close();
+
+            if (statsTimer) {
+                clearInterval(statsTimer);
+                statsTimer = null;
+            }
+
+            $('#btn_stop').prop('disabled', true);
+            $('#btn_publish').prop('disabled', false);
+            $('#sessionid').html('(stopped)');
+            $('#rtc_media_player').hide();
+            console.log('PeerConnection closed. Check if camera indicator is still on!');
+        }
+    };
+
     $('#rtc_media_player').hide();
     var query = parse_query_string();
     srs_init_whip("#txt_url", query);
 
     $("#btn_publish").click(startPublish);
+    $("#btn_stop").click(stopPublish);
     // Never play util windows loaded @see https://github.com/ossrs/srs/issues/2732
     if (query.autostart === 'true') {
         window.addEventListener("load", function(){ startPublish(); });

@@ -213,23 +213,33 @@
             }
         };
 
+        // Convert webrtc:// URL to WHIP URL
+        var convertToWhipUrl = function(host, room, display) {
+            var schema = window.location.protocol;
+            var port = 1985;
+            if (schema === 'https:') {
+                port = 443;
+            }
+            return schema + '//' + host + ':' + port + '/rtc/v1/whip/?app=' + room + '&stream=' + display + conf.query.replace('?', '&');
+        };
+
         var startPublish = function (host, room, display) {
             $(".ff_first").each(function(i,e) {
                 $(e).text(display);
             });
 
-            var url = 'webrtc://' + host + '/' + room + '/' + display + conf.query;
+            var whipUrl = convertToWhipUrl(host, room, display);
             $('#rtc_media_publisher').show();
             $('#publisher').show();
 
             if (publisher) {
                 publisher.close();
             }
-            publisher = new SrsRtcPublisherAsync();
+            publisher = new SrsRtcWhipWhepAsync();
             $('#rtc_media_publisher').prop('srcObject', publisher.stream);
 
-            return publisher.publish(url).then(function(session){
-                $('#self').text('Self: ' + url);
+            return publisher.publish(whipUrl).then(function(session){
+                $('#self').text('Self: ' + display);
             }).catch(function (reason) {
                 publisher.close();
                 $('#rtc_media_publisher').hide();
@@ -237,12 +247,22 @@
             });
         };
 
+        // Convert webrtc:// URL to WHEP URL
+        var convertToWhepUrl = function(host, room, display) {
+            var schema = window.location.protocol;
+            var port = 1985;
+            if (schema === 'https:') {
+                port = 443;
+            }
+            return schema + '//' + host + ':' + port + '/rtc/v1/whep/?app=' + room + '&stream=' + display + conf.query.replace('?', '&');
+        };
+
         var startPlay = function (host, room, display) {
             $(".ff_second").each(function(i,e) {
                 $(e).text(display);
             });
 
-            var url = 'webrtc://' + host + '/' + room + '/' + display + conf.query;
+            var whepUrl = convertToWhepUrl(host, room, display);
             $('#rtc_media_player').show();
             $('#player').show();
 
@@ -250,10 +270,10 @@
                 player.close();
             }
 
-            player = new SrsRtcPlayerAsync();
+            player = new SrsRtcWhipWhepAsync();
             $('#rtc_media_player').prop('srcObject', player.stream);
 
-            player.play(url).then(function(session){
+            player.play(whepUrl).then(function(session){
                 $('#peer').text('Peer: ' + display);
                 $('#rtc_media_player').prop('muted', false);
             }).catch(function (reason) {

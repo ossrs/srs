@@ -260,9 +260,21 @@ string srs_net_url_encode_sid(string vhost, string app, string stream)
         url += vhost;
     }
     url += "/" + app;
-    // Note that we ignore any extension.
-    SrsPath path;
-    url += "/" + path.filepath_filename(stream);
+
+    // Strip only known streaming extensions, not arbitrary dots in stream names.
+    // This fixes issue 4011 where stream names like "WavMain.exe_rooms_290" were
+    // incorrectly truncated to "WavMain" because filepath_filename() stripped
+    // everything after any dot.
+    std::string stream_name = stream;
+    size_t pos = stream_name.rfind(".");
+    if (pos != string::npos) {
+        std::string ext = stream_name.substr(pos);
+        // Only strip known streaming extensions
+        if (ext == ".flv" || ext == ".m3u8" || ext == ".mp4" || ext == ".ts") {
+            stream_name = stream_name.substr(0, pos);
+        }
+    }
+    url += "/" + stream_name;
 
     return url;
 }

@@ -519,6 +519,7 @@ public:
     virtual bool get_vhost_hls_dts_directly(std::string vhost) = 0;
     virtual bool get_hls_ctx_enabled(std::string vhost) = 0;
     virtual bool get_hls_ts_ctx_enabled(std::string vhost) = 0;
+    virtual bool get_hls_master_m3u8_path_relative(std::string vhost) = 0;
     virtual bool get_hls_recover(std::string vhost) = 0;
     virtual bool get_dash_enabled(std::string vhost) = 0;
     virtual bool get_dash_enabled(SrsConfDirective *vhost) = 0;
@@ -1366,6 +1367,11 @@ public:
     // Whether enable session for ts file.
     // The ts file including .ts file for MPEG-ts segment, .m4s file and init.mp4 file for fmp4 segment.
     virtual bool get_hls_ts_ctx_enabled(std::string vhost);
+    // Whether use relative path for media playlist URL in HLS master playlist.
+    // When on, uses relative path (e.g., "livestream.m3u8?hls_ctx=xxx").
+    // When off, uses absolute path (e.g., "/live/livestream.m3u8?hls_ctx=xxx").
+    // Default is off for backward compatibility.
+    virtual bool get_hls_master_m3u8_path_relative(std::string vhost);
     // Toggles HLS recover mode.
     // In this mode HLS sequence number is started from where it stopped last time.
     // Old fragments are kept. Default is on.

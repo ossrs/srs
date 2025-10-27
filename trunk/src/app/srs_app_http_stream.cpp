@@ -851,6 +851,13 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, ISrsLiveConsumer
     }
 
     srs_utime_t mw_sleep = config_->get_mw_sleep(req_->vhost_);
+
+    // For HTTP FLV, we must wait for some milliseconds to avoid the spin.
+    // See https://github.com/ossrs/srs/issues/3963 for more details.
+    if (mw_sleep == 0) {
+        mw_sleep = 10 * SRS_UTIME_MILLISECONDS;
+    }
+
     srs_trace("FLV %s, encoder=%s, mw_sleep=%dms, cache=%d, msgs=%d, dinm=%d, guess_av=%d/%d/%d",
               entry_->pattern.c_str(), enc_desc.c_str(), srsu2msi(mw_sleep), enc->has_cache(), msgs.max_, drop_if_not_match,
               has_audio, has_video, guess_has_av);

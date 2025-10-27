@@ -26,9 +26,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/ossrs/go-oryx-lib/errors"
-	ohttp "github.com/ossrs/go-oryx-lib/http"
-	"github.com/ossrs/go-oryx-lib/logger"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -41,6 +38,10 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/ossrs/go-oryx-lib/errors"
+	ohttp "github.com/ossrs/go-oryx-lib/http"
+	"github.com/ossrs/go-oryx-lib/logger"
 )
 
 var srsLog *bool

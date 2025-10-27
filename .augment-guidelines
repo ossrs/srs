@@ -325,6 +325,20 @@ testing:
           HELPER_EXPECT_FAILED(some_function_that_should_fail());
       }
 
+debugging:
+  memory_and_pointer_issues:
+    description: "For memory corruption, crashes, pointer issues, or undefined behavior, proper debugging information is MANDATORY"
+    required_information: "User MUST provide either coredump stack trace OR sanitizer output - without it, memory issues cannot be diagnosed"
+
+    sanitizer:
+      description: "AddressSanitizer (ASAN) - Google's memory error detection tool for catching buffer overflows, use-after-free, memory leaks, etc."
+      when_enabled: "Automatically enabled for unit tests (--utest=on), manually enabled with ./configure --sanitizer=on, disabled by default for production builds (causes memory leak and increasing forever)"
+      how_to_enable: "./configure --sanitizer=on && make"
+
+    coredump:
+      description: "When sanitizer cannot be used, coredump with stack trace is required"
+      how_to_get: "ulimit -c unlimited, run SRS until crash, gdb ./objs/srs core.xxx -ex 'bt' -ex 'quit'"
+
 code_review:
   github_pull_requests:
     - When reviewing or understanding GitHub pull requests, use the diff URL to get the code changes

@@ -426,6 +426,23 @@ Then configure `hls_path` or create a soft link to the directory.
 
 To deploy an HLS distribution cluster and edge distribution cluster for your own CDN to handle a large number of viewers, please refer to [Nginx for HLS](./nginx-for-hls.md).
 
+## HLS with Reverse Proxy
+
+When deploying SRS behind a reverse proxy with path rewriting, you may encounter issues where HLS master playlists use absolute paths (e.g., `/live/livestream.m3u8?hls_ctx=xxx`), which can break playback when the proxy rewrites request paths. For example, if the external URL is `http://proxy/srs/live/stream.m3u8` but gets rewritten to `http://origin/live/stream.m3u8`, the absolute path in the master playlist will drop the `/srs` prefix, causing a 404 error.
+
+SRS (v7.0.104+) provides the `hls_master_m3u8_path_relative` option to use relative paths in master playlists for reverse proxy compatibility:
+
+```bash
+vhost __defaultVhost__ {
+    hls {
+        enabled on;
+        hls_master_m3u8_path_relative on;  # Use relative path for reverse proxy
+    }
+}
+```
+
+When enabled, the master playlist uses relative paths (e.g., `livestream.m3u8?hls_ctx=xxx`) instead of absolute paths, allowing the player to correctly resolve URLs through the reverse proxy. This is useful for deployments with Nginx, Apache, HAProxy, API gateways, or multi-tenant systems with path-based routing. The default is `off` for backward compatibility.
+
 ## HLS Low Latency
 
 How to reduce HLS latency? The key is to reduce the number of slices and the number of TS files in the m3u8. SRS's default configuration is 10 seconds per slice and 60 seconds per m3u8, resulting in a latency of about 30 seconds. Some players start requesting slices from the middle position, so there will be a delay of 3 slices.

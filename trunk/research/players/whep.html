@@ -53,6 +53,7 @@
         URL:
         <input type="text" id="txt_url" class="input-xxlarge" value="">
         <button class="btn btn-primary" id="btn_play">Play</button>
+        <button class="btn btn-danger" id="btn_stop" disabled>Stop</button>
     </div>
 
     <p></p>
@@ -130,6 +131,9 @@ $(function(){
         }).then(function(session){
             $('#sessionid').html(session.sessionid);
             $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
+            // Enable stop button after successful play
+            $('#btn_stop').prop('disabled', false);
+            $('#btn_play').prop('disabled', true);
         }).catch(function (reason) {
             sdk.close();
             $('#rtc_media_player').hide();
@@ -137,11 +141,28 @@ $(function(){
         });
     };
 
+    var stopPlay = function() {
+        if (sdk) {
+            sdk.close();
+
+            if (statsTimer) {
+                clearInterval(statsTimer);
+                statsTimer = null;
+            }
+
+            $('#btn_stop').prop('disabled', true);
+            $('#btn_play').prop('disabled', false);
+            $('#sessionid').html('(stopped)');
+            $('#rtc_media_player').hide();
+        }
+    };
+
     $('#rtc_media_player').hide();
     var query = parse_query_string();
     srs_init_whep("#txt_url", query);
 
     $("#btn_play").click(startPlay);
+    $("#btn_stop").click(stopPlay);
     // Never play util windows loaded @see https://github.com/ossrs/srs/issues/2732
     if (query.autostart === 'true') {
         $('#rtc_media_player').prop('muted', true);

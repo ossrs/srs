@@ -174,7 +174,7 @@ func Run(ctx context.Context) error {
 				gStatLive.Publishers.Alive--
 				logger.Tf(ctx, "Publisher %v done, alive=%v", pr, gStatLive.Publishers.Alive)
 
-				<- publisherStartedCtx.Done()
+				<-publisherStartedCtx.Done()
 				if gStatLive.Publishers.Alive == 0 {
 					cancel()
 				}

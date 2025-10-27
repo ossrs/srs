@@ -842,6 +842,11 @@ bool MockAppConfig::get_hls_ts_ctx_enabled(std::string vhost)
     return true;
 }
 
+bool MockAppConfig::get_hls_master_m3u8_path_relative(std::string vhost)
+{
+    return false;
+}
+
 bool MockAppConfig::get_hls_recover(std::string vhost)
 {
     return true;
