@@ -54,8 +54,10 @@ bool _srs_config_by_env = false;
 ISrsAppFactory *_srs_app_factory = new SrsAppFactory();
 ISrsKernelFactory *_srs_kernel_factory = _srs_app_factory;
 
+#ifdef SRS_FFMPEG_FIT
 // Register FFmpeg log callback funciton.
 SrsFFmpegLogHelper _srs_ffmpeg_log_helper;
+#endif
 
 // The binary name of SRS.
 const char *_srs_binary = NULL;
@@ -101,8 +103,10 @@ srs_error_t prepare_main()
         return srs_error_wrap(err, "srt log initialize");
     }
 
+#ifdef SRS_FFMPEG_FIT
     // Disable FFmpeg detail log in utest.
     _srs_ffmpeg_log_helper.disable_ffmpeg_log();
+#endif
 
     // Prevent the output of srt logs in utest.
     srt_setloghandler(NULL, srs_srt_utest_null_log_handler);
