@@ -2340,7 +2340,7 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "rtc") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
-                    if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check" && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp" && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe" && m != "opus_bitrate" && m != "aac_bitrate" && m != "keep_avc_nalu_sei") {
+                    if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check" && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp" && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe" && m != "opus_bitrate" && m != "aac_bitrate" && m != "keep_avc_nalu_sei" && m != "init_rate_from_sdp") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
