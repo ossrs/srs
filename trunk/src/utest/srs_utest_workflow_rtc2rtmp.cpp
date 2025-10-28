@@ -95,6 +95,7 @@ VOID TEST(BasicWorkflowRtc2RtmpTest, ManuallyVerifyTypicalScenario)
     SrsUniquePtr<MockAppFactoryForRtc2Rtmp> mock_factory(new MockAppFactoryForRtc2Rtmp());
 
     mock_config->rtc_to_rtmp_ = true;
+    mock_config->rtc_init_rate_from_sdp_ = true;
 
     // Create RTC publish stream - use real pli_worker_
     SrsContextId cid;

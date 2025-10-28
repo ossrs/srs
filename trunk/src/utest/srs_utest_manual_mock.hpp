@@ -291,20 +291,72 @@ public:
     SrsConfDirective *backend_directive_;
     bool rtc_server_enabled_;
     bool rtc_enabled_;
+    bool rtc_init_rate_from_sdp_;
 
 public:
-    MockAppConfig();
-    virtual ~MockAppConfig();
+    MockAppConfig()
+    {
+        http_hooks_enabled_ = true;
+        on_stop_directive_ = NULL;
+        on_unpublish_directive_ = NULL;
+        rtc_nack_enabled_ = true;
+        rtc_nack_no_copy_ = false;
+        rtc_drop_for_pt_ = 0;
+        rtc_twcc_enabled_ = true;
+        srt_enabled_ = false;
+        rtc_to_rtmp_ = false;
+        dash_dispose_ = 0;
+        dash_enabled_ = false;
+        api_as_candidates_ = true;
+        resolve_api_domain_ = true;
+        keep_api_domain_ = false;
+        mw_msgs_ = 8;
+        mw_sleep_ = 350 * SRS_UTIME_MILLISECONDS;
+        rtc_dtls_role_ = "passive";
+        default_vhost_ = NULL;
+        srt_to_rtmp_ = true;
+        rtc_from_rtmp_ = false;
+        forwards_directive_ = NULL;
+        backend_directive_ = NULL;
+        rtc_server_enabled_ = false;
+        rtc_enabled_ = false;
+        rtc_init_rate_from_sdp_ = false;
+    }
+    virtual ~MockAppConfig()
+    {
+        clear_on_stop_directive();
+        clear_on_unpublish_directive();
+
+        srs_freep(default_vhost_);
+        srs_freep(forwards_directive_);
+        srs_freep(backend_directive_);
+    }
 
 public:
     // Helper methods for setting forward configuration
-    void set_forward_destinations(const std::vector<std::string> &destinations);
-    void set_forward_backend(const std::string &backend_url);
+    void set_forward_destinations(const std::vector<std::string> &destinations)
+    {
+        srs_freep(forwards_directive_);
+        if (!destinations.empty()) {
+            forwards_directive_ = new SrsConfDirective();
+            forwards_directive_->name_ = "destination";
+            forwards_directive_->args_ = destinations;
+        }
+    }
+    void set_forward_backend(const std::string &backend_url)
+    {
+        srs_freep(backend_directive_);
+        if (!backend_url.empty()) {
+            backend_directive_ = new SrsConfDirective();
+            backend_directive_->name_ = "backend";
+            backend_directive_->args_.push_back(backend_url);
+        }
+    }
     // ISrsConfig methods
-    virtual srs_utime_t get_pithy_print();
-    virtual std::string get_default_app_name();
-    virtual void subscribe(ISrsReloadHandler *handler);
-    virtual void unsubscribe(ISrsReloadHandler *handler);
+    srs_utime_t get_pithy_print() { return 10 * SRS_UTIME_SECONDS; }
+    std::string get_default_app_name() { return "live"; }
+    void subscribe(ISrsReloadHandler *handler) {}
+    void unsubscribe(ISrsReloadHandler *handler) {}
     virtual srs_error_t reload(SrsReloadState *pstate) { return srs_success; }
     virtual srs_error_t persistence() { return srs_success; }
     virtual std::string config() { return ""; }
@@ -429,69 +481,70 @@ public:
     virtual bool get_rtc_from_rtmp(std::string vhost) { return rtc_from_rtmp_; }
     virtual bool get_rtsp_from_rtmp(std::string vhost) { return false; }
     // ISrsAppConfig methods
-    virtual bool get_vhost_http_hooks_enabled(std::string vhost);
-    virtual SrsConfDirective *get_vhost_on_stop(std::string vhost);
-    virtual SrsConfDirective *get_vhost_on_unpublish(std::string vhost);
-    virtual SrsConfDirective *get_vhost_on_dvr(std::string vhost);
-    virtual bool get_rtc_nack_enabled(std::string vhost);
-    virtual bool get_rtc_nack_no_copy(std::string vhost);
-    virtual bool get_realtime_enabled(std::string vhost, bool is_rtc);
-    virtual int get_mw_msgs(std::string vhost, bool is_realtime, bool is_rtc);
-    virtual int get_rtc_drop_for_pt(std::string vhost);
-    virtual bool get_rtc_twcc_enabled(std::string vhost);
-    virtual bool get_srt_enabled();
-    virtual bool get_srt_enabled(std::string vhost);
-    virtual std::string get_srt_default_streamid();
-    virtual bool get_srt_to_rtmp(std::string vhost);
-    virtual bool get_rtc_to_rtmp(std::string vhost);
-    virtual srs_utime_t get_rtc_stun_timeout(std::string vhost);
-    virtual bool get_rtc_stun_strict_check(std::string vhost);
-    virtual std::string get_rtc_dtls_role(std::string vhost);
-    virtual std::string get_rtc_dtls_version(std::string vhost);
-    virtual SrsConfDirective *get_vhost_on_hls(std::string vhost);
-    virtual SrsConfDirective *get_vhost_on_hls_notify(std::string vhost);
+    virtual bool get_vhost_http_hooks_enabled(std::string vhost) { return http_hooks_enabled_; }
+    virtual SrsConfDirective *get_vhost_on_stop(std::string vhost) { return on_stop_directive_; }
+    virtual SrsConfDirective *get_vhost_on_unpublish(std::string vhost) { return on_unpublish_directive_; }
+    virtual SrsConfDirective *get_vhost_on_dvr(std::string vhost) { return NULL; }
+    virtual bool get_rtc_nack_enabled(std::string vhost) { return rtc_nack_enabled_; }
+    virtual bool get_rtc_nack_no_copy(std::string vhost) { return rtc_nack_no_copy_; }
+    virtual bool get_realtime_enabled(std::string vhost, bool is_rtc) { return true; }
+    virtual int get_mw_msgs(std::string vhost, bool is_realtime, bool is_rtc) { return mw_msgs_; }
+    virtual int get_rtc_drop_for_pt(std::string vhost) { return rtc_drop_for_pt_; }
+    virtual bool get_rtc_twcc_enabled(std::string vhost) { return rtc_twcc_enabled_; }
+    virtual bool get_rtc_init_rate_from_sdp(std::string vhost) { return rtc_init_rate_from_sdp_; }
+    virtual bool get_srt_enabled() { return srt_enabled_; }
+    virtual bool get_srt_enabled(std::string vhost) { return srt_enabled_; }
+    virtual std::string get_srt_default_streamid() { return "#!::r=live/livestream,m=request"; }
+    virtual bool get_srt_to_rtmp(std::string vhost) { return srt_to_rtmp_; }
+    virtual bool get_rtc_to_rtmp(std::string vhost) { return rtc_to_rtmp_; }
+    virtual srs_utime_t get_rtc_stun_timeout(std::string vhost) { return 30 * SRS_UTIME_SECONDS; }
+    virtual bool get_rtc_stun_strict_check(std::string vhost) { return false; }
+    virtual std::string get_rtc_dtls_role(std::string vhost) { return rtc_dtls_role_; }
+    virtual std::string get_rtc_dtls_version(std::string vhost) { return "auto"; }
+    virtual SrsConfDirective *get_vhost_on_hls(std::string vhost) { return NULL; }
+    virtual SrsConfDirective *get_vhost_on_hls_notify(std::string vhost) { return NULL; }
     // HLS methods
-    virtual bool get_hls_enabled(std::string vhost);
-    virtual bool get_hls_enabled(SrsConfDirective *vhost);
-    virtual bool get_hls_use_fmp4(std::string vhost);
-    virtual std::string get_hls_entry_prefix(std::string vhost);
-    virtual std::string get_hls_path(std::string vhost);
-    virtual std::string get_hls_m3u8_file(std::string vhost);
-    virtual std::string get_hls_ts_file(std::string vhost);
-    virtual std::string get_hls_fmp4_file(std::string vhost);
-    virtual std::string get_hls_init_file(std::string vhost);
-    virtual bool get_hls_ts_floor(std::string vhost);
-    virtual srs_utime_t get_hls_fragment(std::string vhost);
-    virtual double get_hls_td_ratio(std::string vhost);
-    virtual double get_hls_aof_ratio(std::string vhost);
-    virtual srs_utime_t get_hls_window(std::string vhost);
-    virtual std::string get_hls_on_error(std::string vhost);
-    virtual bool get_hls_cleanup(std::string vhost);
-    virtual srs_utime_t get_hls_dispose(std::string vhost);
-    virtual bool get_hls_wait_keyframe(std::string vhost);
-    virtual bool get_hls_keys(std::string vhost);
-    virtual int get_hls_fragments_per_key(std::string vhost);
-    virtual std::string get_hls_key_file(std::string vhost);
-    virtual std::string get_hls_key_file_path(std::string vhost);
-    virtual std::string get_hls_key_url(std::string vhost);
-    virtual int get_vhost_hls_nb_notify(std::string vhost);
-    virtual bool get_vhost_hls_dts_directly(std::string vhost);
-    virtual bool get_hls_ctx_enabled(std::string vhost);
-    virtual bool get_hls_ts_ctx_enabled(std::string vhost);
-    virtual bool get_hls_master_m3u8_path_relative(std::string vhost);
-    virtual bool get_hls_recover(std::string vhost);
-    virtual bool get_forward_enabled(std::string vhost);
-    virtual SrsConfDirective *get_forwards(std::string vhost);
-    virtual srs_utime_t get_queue_length(std::string vhost);
-    virtual SrsConfDirective *get_forward_backend(std::string vhost);
-    virtual bool get_atc(std::string vhost);
-    virtual int get_time_jitter(std::string vhost);
-    virtual bool get_mix_correct(std::string vhost);
-    virtual bool try_annexb_first(std::string vhost);
-    virtual bool get_vhost_is_edge(std::string vhost);
-    virtual bool get_atc_auto(std::string vhost);
-    virtual bool get_reduce_sequence_header(std::string vhost);
-    virtual bool get_parse_sps(std::string vhost);
+    virtual bool get_hls_enabled(std::string vhost) { return false; }
+    virtual bool get_hls_enabled(SrsConfDirective *vhost) { return false; }
+    virtual bool get_hls_use_fmp4(std::string vhost) { return false; }
+    virtual std::string get_hls_entry_prefix(std::string vhost) { return ""; }
+    virtual std::string get_hls_path(std::string vhost) { return "./objs/nginx/html"; }
+    virtual std::string get_hls_m3u8_file(std::string vhost) { return "[app]/[stream].m3u8"; }
+    virtual std::string get_hls_ts_file(std::string vhost) { return "[app]/[stream]-[seq].ts"; }
+    virtual std::string get_hls_fmp4_file(std::string vhost) { return "[app]/[stream]-[seq].m4s"; }
+    virtual std::string get_hls_init_file(std::string vhost) { return "[app]/[stream]-init.mp4"; }
+    virtual bool get_hls_ts_floor(std::string vhost) { return false; }
+    virtual srs_utime_t get_hls_fragment(std::string vhost) { return 10 * SRS_UTIME_SECONDS; }
+    virtual double get_hls_td_ratio(std::string vhost) { return 1.5; }
+    virtual double get_hls_aof_ratio(std::string vhost) { return 2.0; }
+    virtual srs_utime_t get_hls_window(std::string vhost) { return 60 * SRS_UTIME_SECONDS; }
+    virtual std::string get_hls_on_error(std::string vhost) { return "continue"; }
+    virtual bool get_hls_cleanup(std::string vhost) { return true; }
+    virtual srs_utime_t get_hls_dispose(std::string vhost) { return 120 * SRS_UTIME_SECONDS; }
+    virtual bool get_hls_wait_keyframe(std::string vhost) { return true; }
+    virtual bool get_hls_keys(std::string vhost) { return false; }
+    virtual int get_hls_fragments_per_key(std::string vhost) { return 5; }
+    virtual std::string get_hls_key_file(std::string vhost) { return "[app]/[stream]-[seq].key"; }
+    virtual std::string get_hls_key_file_path(std::string vhost) { return "./objs/nginx/html"; }
+    virtual std::string get_hls_key_url(std::string vhost) { return ""; }
+    virtual int get_vhost_hls_nb_notify(std::string vhost) { return 64; }
+    virtual bool get_vhost_hls_dts_directly(std::string vhost) { return true; }
+    virtual bool get_hls_ctx_enabled(std::string vhost) { return true; }
+    virtual bool get_hls_ts_ctx_enabled(std::string vhost) { return true; }
+    virtual bool get_hls_master_m3u8_path_relative(std::string vhost) { return false; }
+    virtual bool get_hls_recover(std::string vhost) { return true; }
+    virtual bool get_forward_enabled(std::string vhost) { return forwards_directive_ != NULL || backend_directive_ != NULL; }
+    virtual SrsConfDirective *get_forwards(std::string vhost) { return forwards_directive_; }
+    virtual srs_utime_t get_queue_length(std::string vhost) { return 30 * SRS_UTIME_SECONDS; }
+    virtual SrsConfDirective *get_forward_backend(std::string vhost) { return backend_directive_; }
+    virtual bool get_atc(std::string vhost) { return false; }
+    virtual int get_time_jitter(std::string vhost) { return SrsRtmpJitterAlgorithmFULL; }
+    virtual bool get_mix_correct(std::string vhost) { return false; }
+    virtual bool try_annexb_first(std::string vhost) { return true; }
+    virtual bool get_vhost_is_edge(std::string vhost) { return false; }
+    virtual bool get_atc_auto(std::string vhost) { return false; }
+    virtual bool get_reduce_sequence_header(std::string vhost) { return false; }
+    virtual bool get_parse_sps(std::string vhost) { return true; }
     // DVR methods
     virtual std::string get_dvr_path(std::string vhost) { return "./[vhost]/[app]/[stream]/[2006]/[01]/[02]/[15].[04].[05].[999].flv"; }
     virtual std::string get_dvr_plan(std::string vhost) { return "session"; }
@@ -563,22 +616,38 @@ public:
     virtual std::vector<std::string> get_engine_aparams(SrsConfDirective *conf) { return std::vector<std::string>(); }
     virtual std::string get_engine_oformat(SrsConfDirective *conf) { return ""; }
     virtual std::string get_engine_output(SrsConfDirective *conf) { return ""; }
-    void set_http_hooks_enabled(bool enabled);
-    void set_on_stop_urls(const std::vector<std::string> &urls);
-    void clear_on_stop_directive();
-    void set_on_unpublish_urls(const std::vector<std::string> &urls);
-    void clear_on_unpublish_directive();
-    void set_rtc_nack_enabled(bool enabled);
-    void set_rtc_nack_no_copy(bool no_copy);
-    void set_rtc_drop_for_pt(int pt);
-    void set_rtc_twcc_enabled(bool enabled);
-    void set_srt_enabled(bool enabled);
-    void set_rtc_to_rtmp(bool enabled);
-    void set_api_as_candidates(bool enabled);
-    void set_resolve_api_domain(bool enabled);
-    void set_keep_api_domain(bool enabled);
-    virtual bool get_security_enabled(std::string vhost);
-    virtual SrsConfDirective *get_security_rules(std::string vhost);
+    void set_http_hooks_enabled(bool enabled) { http_hooks_enabled_ = enabled; }
+    void set_on_stop_urls(const std::vector<std::string> &urls)
+    {
+        clear_on_stop_directive();
+        if (!urls.empty()) {
+            on_stop_directive_ = new SrsConfDirective();
+            on_stop_directive_->name_ = "on_stop";
+            on_stop_directive_->args_ = urls;
+        }
+    }
+    void clear_on_stop_directive() { srs_freep(on_stop_directive_); }
+    void set_on_unpublish_urls(const std::vector<std::string> &urls)
+    {
+        clear_on_unpublish_directive();
+        if (!urls.empty()) {
+            on_unpublish_directive_ = new SrsConfDirective();
+            on_unpublish_directive_->name_ = "on_unpublish";
+            on_unpublish_directive_->args_ = urls;
+        }
+    }
+    void clear_on_unpublish_directive() { srs_freep(on_unpublish_directive_); }
+    void set_rtc_nack_enabled(bool enabled) { rtc_nack_enabled_ = enabled; }
+    void set_rtc_nack_no_copy(bool no_copy) { rtc_nack_no_copy_ = no_copy; }
+    void set_rtc_drop_for_pt(int pt) { rtc_drop_for_pt_ = pt; }
+    void set_rtc_twcc_enabled(bool enabled) { rtc_twcc_enabled_ = enabled; }
+    void set_srt_enabled(bool enabled) { srt_enabled_ = enabled; }
+    void set_rtc_to_rtmp(bool enabled) { rtc_to_rtmp_ = enabled; }
+    void set_api_as_candidates(bool enabled) { api_as_candidates_ = enabled; }
+    void set_resolve_api_domain(bool enabled) { resolve_api_domain_ = enabled; }
+    void set_keep_api_domain(bool enabled) { keep_api_domain_ = enabled; }
+    bool get_security_enabled(std::string vhost) { return false; }
+    SrsConfDirective *get_security_rules(std::string vhost) { return NULL; }
 };
 
 // Mock RTC packet receiver for testing SrsRtcPublishStream

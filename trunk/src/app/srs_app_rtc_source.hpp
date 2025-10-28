@@ -883,7 +883,7 @@ SRS_DECLARE_PROTECTED: // clang-format on
     uint64_t last_sender_report_sys_time_;
 
 public:
-    SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *stream_descs, bool is_audio);
+    SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *stream_descs, bool is_audio, bool init_rate_from_sdp);
     virtual ~SrsRtcRecvTrack();
 
 public:
@@ -917,7 +917,7 @@ SRS_DECLARE_PROTECTED: // clang-format on
 class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
-    SrsRtcAudioRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc);
+    SrsRtcAudioRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc, bool init_rate_from_sdp);
     virtual ~SrsRtcAudioRecvTrack();
 
 public:
@@ -931,7 +931,7 @@ public:
 class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
-    SrsRtcVideoRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *stream_descs);
+    SrsRtcVideoRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *stream_descs, bool init_rate_from_sdp);
     virtual ~SrsRtcVideoRecvTrack();
 
 public:

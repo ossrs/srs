@@ -4065,6 +4065,25 @@ int SrsConfig::get_rtc_aac_bitrate(string vhost)
     return v;
 }
 
+bool SrsConfig::get_rtc_init_rate_from_sdp(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.rtc.init_rate_from_sdp"); // SRS_VHOST_RTC_INIT_RATE_FROM_SDP
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective *conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("init_rate_from_sdp");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
 SrsConfDirective *SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
     srs_assert(root_);

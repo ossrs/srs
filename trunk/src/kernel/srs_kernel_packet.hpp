@@ -111,7 +111,7 @@ public:
     virtual srs_error_t add_sample(char *bytes, int size);
 
 // clang-format off
-SRS_DECLARE_PRIVATE: // clang-format on
+SRS_DECLARE_PROTECTED: // clang-format on
     // Copy the packet.
     virtual SrsParsedPacket *copy();
     virtual void do_copy(SrsParsedPacket *p);
@@ -131,7 +131,7 @@ public:
     virtual SrsAudioCodecConfig *acodec();
 
 // clang-format off
-SRS_DECLARE_PRIVATE: // clang-format on
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual SrsParsedAudioPacket *copy();
 };
 
@@ -162,7 +162,7 @@ public:
     virtual srs_error_t add_sample(char *bytes, int size);
 
 // clang-format off
-SRS_DECLARE_PRIVATE: // clang-format on
+SRS_DECLARE_PROTECTED: // clang-format on
     virtual SrsParsedVideoPacket *copy();
 
 public:

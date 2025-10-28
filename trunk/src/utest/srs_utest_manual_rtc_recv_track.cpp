@@ -78,7 +78,7 @@ public:
     }
 
     MockSrsRtcRecvTrack()
-        : SrsRtcRecvTrack(nullptr, create_default_track_desc(), true) {} // true for is_audio
+        : SrsRtcRecvTrack(nullptr, create_default_track_desc(), true, false) {} // true for is_audio, false for init_rate_from_sdp
 };
 
 VOID TEST(RtcRecvTrackTest, OnNackBasicTest)

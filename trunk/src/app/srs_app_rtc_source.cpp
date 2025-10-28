@@ -3128,7 +3128,7 @@ ISrsRtcPacketReceiver::~ISrsRtcPacketReceiver()
 {
 }
 
-SrsRtcRecvTrack::SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc, bool is_audio)
+SrsRtcRecvTrack::SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc, bool is_audio, bool init_rate_from_sdp)
 {
     receiver_ = receiver;
     track_desc_ = track_desc->copy();
@@ -3150,7 +3150,7 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDes
     // This allows immediate A/V sync before receiving 2 RTCP SR packets
     // Will be updated to precise rate after receiving 2nd SR
     rate_ = 0.0;
-    if (track_desc_->media_) {
+    if (init_rate_from_sdp && track_desc_->media_) {
         rate_ = static_cast<double>(track_desc_->media_->sample_) / 1000.0;
         srs_trace("RTC: Init %s track, ssrc=%u, rate from SDP=%.0f (RTP units per ms, will be updated after 2nd SR)",
                   track_desc_->type_.c_str(), track_desc_->ssrc_, rate_);
@@ -3337,8 +3337,8 @@ srs_error_t SrsRtcRecvTrack::do_check_send_nacks(uint32_t &timeout_nacks)
     return err;
 }
 
-SrsRtcAudioRecvTrack::SrsRtcAudioRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc)
-    : SrsRtcRecvTrack(receiver, track_desc, true)
+SrsRtcAudioRecvTrack::SrsRtcAudioRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc, bool init_rate_from_sdp)
+    : SrsRtcRecvTrack(receiver, track_desc, true, init_rate_from_sdp)
 {
 }
 
@@ -3385,8 +3385,8 @@ srs_error_t SrsRtcAudioRecvTrack::check_send_nacks()
     return err;
 }
 
-SrsRtcVideoRecvTrack::SrsRtcVideoRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc)
-    : SrsRtcRecvTrack(receiver, track_desc, false)
+SrsRtcVideoRecvTrack::SrsRtcVideoRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc, bool init_rate_from_sdp)
+    : SrsRtcRecvTrack(receiver, track_desc, false, init_rate_from_sdp)
 {
 }
 

@@ -481,6 +481,7 @@ public:
     virtual SrsConfDirective *get_vhost_on_unpublish(std::string vhost) = 0;
     virtual int get_rtc_drop_for_pt(std::string vhost) = 0;
     virtual bool get_rtc_twcc_enabled(std::string vhost) = 0;
+    virtual bool get_rtc_init_rate_from_sdp(std::string vhost) = 0;
     virtual bool get_srt_enabled() = 0;
     virtual bool get_srt_enabled(std::string vhost) = 0;
     virtual std::string get_srt_default_streamid() = 0;
@@ -909,6 +910,7 @@ public:
     bool get_rtc_twcc_enabled(std::string vhost);
     int get_rtc_opus_bitrate(std::string vhost);
     int get_rtc_aac_bitrate(std::string vhost);
+    bool get_rtc_init_rate_from_sdp(std::string vhost);
 
     // vhost specified section
 public:

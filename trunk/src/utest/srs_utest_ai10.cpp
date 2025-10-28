@@ -2253,7 +2253,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadEmptyBuffer)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("H264", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2276,7 +2276,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadH264RawNALU)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("H264", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2307,7 +2307,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadH264STAP)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("H264", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2342,7 +2342,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadH264FUA)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("H264", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2376,7 +2376,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadHEVCRawNALU)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("H265", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2407,7 +2407,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadHEVCSTAP)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("H265", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2444,7 +2444,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadHEVCFUA)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("H265", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2479,7 +2479,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadUnknownCodec)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("VP8", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2510,7 +2510,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadNoMediaCodec)
     srs_freep(desc->media_);
     desc->media_ = NULL;
 
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2529,7 +2529,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadH264IDR)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("H264", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2560,7 +2560,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadHEVCIDR)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("H265", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2591,7 +2591,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, OnBeforeDecodePayloadSingleByte)
 {
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> desc(create_video_track_description("H264", 12345));
-    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get());
+    SrsRtcVideoRecvTrack track(&mock_receiver, desc.get(), false);
 
     SrsUniquePtr<SrsRtpPacket> pkt(create_test_rtp_packet(100, 1000, 12345));
 
@@ -2928,7 +2928,7 @@ VOID TEST(SrsRtcAudioRecvTrackTest, OnBeforeDecodePayload)
 
     // Create the audio receive track
     MockRtcPacketReceiver mock_receiver;
-    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc);
+    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc, false);
 
     // Test case 1: Empty buffer - should return early without setting payload
     {
@@ -2996,7 +2996,7 @@ VOID TEST(SrsRtcAudioRecvTrackTest, CheckSendNacksWithMock)
 
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> track_desc(create_test_track_description("audio", 12345));
-    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc.get());
+    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc.get(), false);
 
     // Test case 1: Basic check_send_nacks call - should execute successfully
     HELPER_EXPECT_SUCCESS(audio_track.check_send_nacks());
@@ -3017,7 +3017,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, CheckSendNacksWithMock)
 
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> track_desc(create_test_track_description("video", 54321));
-    SrsRtcVideoRecvTrack video_track(&mock_receiver, track_desc.get());
+    SrsRtcVideoRecvTrack video_track(&mock_receiver, track_desc.get(), false);
 
     // Test case 1: Basic check_send_nacks call - should execute successfully
     HELPER_EXPECT_SUCCESS(video_track.check_send_nacks());
@@ -3038,7 +3038,7 @@ VOID TEST(SrsRtcRecvTrackTest, DoCheckSendNacksBasic)
 
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> track_desc(create_test_track_description("audio", 98765));
-    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc.get());
+    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc.get(), false);
 
     // Test case 1: do_check_send_nacks should execute successfully
     uint32_t timeout_nacks = 999;
@@ -3060,7 +3060,7 @@ VOID TEST(SrsRtcAudioRecvTrackTest, CheckSendNacksMultipleCalls)
 
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> track_desc(create_test_track_description("audio", 11111));
-    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc.get());
+    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc.get(), false);
 
     // Test multiple consecutive calls - all should succeed
     HELPER_EXPECT_SUCCESS(audio_track.check_send_nacks());
@@ -3079,7 +3079,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, CheckSendNacksTimeoutScenarios)
 
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> track_desc(create_test_track_description("video", 22222));
-    SrsRtcVideoRecvTrack video_track(&mock_receiver, track_desc.get());
+    SrsRtcVideoRecvTrack video_track(&mock_receiver, track_desc.get(), false);
 
     // Test multiple calls - all should succeed
     HELPER_EXPECT_SUCCESS(video_track.check_send_nacks());
@@ -3106,7 +3106,7 @@ VOID TEST(SrsRtcRecvTrackTest, DoCheckSendNacksDifferentSSRC)
         uint32_t test_ssrc = test_ssrcs[i];
 
         SrsUniquePtr<SrsRtcTrackDescription> track_desc(create_test_track_description("video", test_ssrc));
-        SrsRtcVideoRecvTrack video_track(&mock_receiver, track_desc.get());
+        SrsRtcVideoRecvTrack video_track(&mock_receiver, track_desc.get(), false);
 
         uint32_t timeout_nacks = 999;
         HELPER_EXPECT_SUCCESS(video_track.do_check_send_nacks(timeout_nacks));
@@ -3123,7 +3123,7 @@ VOID TEST(SrsRtcAudioRecvTrackTest, CheckSendNacksEdgeCases)
 
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> track_desc(create_test_track_description("audio", 33333));
-    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc.get());
+    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc.get(), false);
 
     // Test multiple calls with different scenarios - all should succeed
     HELPER_EXPECT_SUCCESS(audio_track.check_send_nacks());
@@ -3142,7 +3142,7 @@ VOID TEST(SrsRtcVideoRecvTrackTest, CheckSendNacksEdgeCases)
 
     MockRtcPacketReceiver mock_receiver;
     SrsUniquePtr<SrsRtcTrackDescription> track_desc(create_test_track_description("video", 44444));
-    SrsRtcVideoRecvTrack video_track(&mock_receiver, track_desc.get());
+    SrsRtcVideoRecvTrack video_track(&mock_receiver, track_desc.get(), false);
 
     // Test multiple calls with different scenarios - all should succeed
     HELPER_EXPECT_SUCCESS(video_track.check_send_nacks());
@@ -3163,8 +3163,8 @@ VOID TEST(SrsRtcRecvTrackTest, NackReceiverParameterPassing)
     SrsUniquePtr<SrsRtcTrackDescription> track_desc1(create_test_track_description("audio", 55555));
     SrsUniquePtr<SrsRtcTrackDescription> track_desc2(create_test_track_description("video", 66666));
 
-    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc1.get());
-    SrsRtcVideoRecvTrack video_track(&mock_receiver, track_desc2.get());
+    SrsRtcAudioRecvTrack audio_track(&mock_receiver, track_desc1.get(), false);
+    SrsRtcVideoRecvTrack video_track(&mock_receiver, track_desc2.get(), false);
 
     // Test audio track functionality
     uint32_t timeout_nacks = 0;

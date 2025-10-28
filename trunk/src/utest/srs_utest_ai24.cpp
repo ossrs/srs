@@ -33,7 +33,7 @@ class MockSrsRtcRecvTrackForAVSync : public SrsRtcRecvTrack
 
 public:
     MockSrsRtcRecvTrackForAVSync(const string &type, uint32_t ssrc, int sample_rate, bool is_audio)
-        : SrsRtcRecvTrack(NULL, create_track_desc(type, ssrc, sample_rate), is_audio)
+        : SrsRtcRecvTrack(NULL, create_track_desc(type, ssrc, sample_rate), is_audio, true)
     {
     }
 

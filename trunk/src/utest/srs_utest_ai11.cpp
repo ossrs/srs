@@ -1835,7 +1835,7 @@ VOID TEST(RtcPublishStreamTest, SendRtcpXrRrtr)
     audio_desc->id_ = "audio_track_1";
     audio_desc->ssrc_ = 12345;
     audio_desc->is_active_ = true;
-    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc);
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc, false);
     publish_stream->audio_tracks_.push_back(audio_track);
 
     // Create video track
@@ -1844,7 +1844,7 @@ VOID TEST(RtcPublishStreamTest, SendRtcpXrRrtr)
     video_desc->id_ = "video_track_1";
     video_desc->ssrc_ = 67890;
     video_desc->is_active_ = true;
-    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_desc);
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_desc, false);
     publish_stream->video_tracks_.push_back(video_track);
 
     // Test successful case
@@ -1899,8 +1899,8 @@ VOID TEST(RtcPublishStreamTest, SendRtcpRrSuccess)
     audio_track_desc->ssrc_ = 67890;
 
     // Create video and audio recv tracks
-    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_track_desc.get());
-    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_track_desc.get());
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_track_desc.get(), false);
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_track_desc.get(), false);
 
     // Add tracks to publish stream (using private member access)
     // The publish stream will take ownership and free them in destructor
@@ -1934,7 +1934,7 @@ VOID TEST(RtcPublishStreamTest, SendRtcpRrVideoTrackError)
     video_track_desc->ssrc_ = 12345;
 
     // Create video recv track
-    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_track_desc.get());
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_track_desc.get(), false);
 
     // Add track to publish stream (only video track to simplify)
     publish_stream->video_tracks_.push_back(video_track);
@@ -2003,10 +2003,10 @@ VOID TEST(RtcPublishStreamTest, SendRtcpRrMultipleTracks)
     audio_track_desc2->ssrc_ = 67891;
 
     // Create tracks
-    SrsRtcVideoRecvTrack *video_track1 = new SrsRtcVideoRecvTrack(&mock_receiver, video_track_desc1.get());
-    SrsRtcVideoRecvTrack *video_track2 = new SrsRtcVideoRecvTrack(&mock_receiver, video_track_desc2.get());
-    SrsRtcAudioRecvTrack *audio_track1 = new SrsRtcAudioRecvTrack(&mock_receiver, audio_track_desc1.get());
-    SrsRtcAudioRecvTrack *audio_track2 = new SrsRtcAudioRecvTrack(&mock_receiver, audio_track_desc2.get());
+    SrsRtcVideoRecvTrack *video_track1 = new SrsRtcVideoRecvTrack(&mock_receiver, video_track_desc1.get(), false);
+    SrsRtcVideoRecvTrack *video_track2 = new SrsRtcVideoRecvTrack(&mock_receiver, video_track_desc2.get(), false);
+    SrsRtcAudioRecvTrack *audio_track1 = new SrsRtcAudioRecvTrack(&mock_receiver, audio_track_desc1.get(), false);
+    SrsRtcAudioRecvTrack *audio_track2 = new SrsRtcAudioRecvTrack(&mock_receiver, audio_track_desc2.get(), false);
 
     // Add tracks to publish stream
     publish_stream->video_tracks_.push_back(video_track1);

@@ -1607,7 +1607,7 @@ VOID TEST(KernelRTCTest, DefaultTrackStatus)
             ds.type_ = "audio";
             ds.id_ = "NSNWOn19NDn12o8nNeji2";
             ds.ssrc_ = 100;
-            audio = new SrsRtcAudioRecvTrack(&mock_receiver, &ds);
+            audio = new SrsRtcAudioRecvTrack(&mock_receiver, &ds, false);
             publish->audio_tracks_.push_back(audio);
         }
         if (true) {
@@ -1615,7 +1615,7 @@ VOID TEST(KernelRTCTest, DefaultTrackStatus)
             ds.type_ = "video";
             ds.id_ = "VMo22nfLDn122nfnDNL2";
             ds.ssrc_ = 200;
-            video = new SrsRtcVideoRecvTrack(&mock_receiver, &ds);
+            video = new SrsRtcVideoRecvTrack(&mock_receiver, &ds, false);
             publish->video_tracks_.push_back(video);
         }
         EXPECT_FALSE(audio->get_track_status());
@@ -1668,7 +1668,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportNormal)
     video_ds.id_ = "VMo22nfLDn122nfnDNL2";
     video_ds.ssrc_ = 200;
 
-    SrsRtcVideoRecvTrack *video = new SrsRtcVideoRecvTrack(&mock_receiver, &video_ds);
+    SrsRtcVideoRecvTrack *video = new SrsRtcVideoRecvTrack(&mock_receiver, &video_ds, false);
     publish.video_tracks_.push_back(video);
 
     publish.set_all_tracks_status(true);
@@ -1736,7 +1736,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportOutOfOrder)
     video_ds.id_ = "VMo22nfLDn122nfnDNL2";
     video_ds.ssrc_ = 200;
 
-    SrsRtcVideoRecvTrack *video = new SrsRtcVideoRecvTrack(&mock_receiver, &video_ds);
+    SrsRtcVideoRecvTrack *video = new SrsRtcVideoRecvTrack(&mock_receiver, &video_ds, false);
     publish.video_tracks_.push_back(video);
 
     publish.set_all_tracks_status(true);
@@ -1809,7 +1809,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
     video_ds.id_ = "VMo22nfLDn122nfnDNL2";
     video_ds.ssrc_ = 200;
 
-    SrsRtcVideoRecvTrack *video = new SrsRtcVideoRecvTrack(&mock_receiver, &video_ds);
+    SrsRtcVideoRecvTrack *video = new SrsRtcVideoRecvTrack(&mock_receiver, &video_ds, false);
     publish.video_tracks_.push_back(video);
 
     publish.set_all_tracks_status(true);
@@ -1915,7 +1915,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportDuplicated)
     video_ds.id_ = "VMo22nfLDn122nfnDNL2";
     video_ds.ssrc_ = 200;
 
-    SrsRtcVideoRecvTrack *video = new SrsRtcVideoRecvTrack(&mock_receiver, &video_ds);
+    SrsRtcVideoRecvTrack *video = new SrsRtcVideoRecvTrack(&mock_receiver, &video_ds, false);
     publish.video_tracks_.push_back(video);
 
     publish.set_all_tracks_status(true);

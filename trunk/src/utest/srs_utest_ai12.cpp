@@ -23,7 +23,7 @@ extern bool srs_sdp_has_h264_profile(const SrsSdp &sdp, const string &profile);
 
 // Mock video recv track implementation
 MockRtcVideoRecvTrackForNack::MockRtcVideoRecvTrackForNack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc)
-    : SrsRtcVideoRecvTrack(receiver, track_desc)
+    : SrsRtcVideoRecvTrack(receiver, track_desc, false)
 {
     check_send_nacks_error_ = srs_success;
     check_send_nacks_count_ = 0;
@@ -52,7 +52,7 @@ void MockRtcVideoRecvTrackForNack::reset()
 
 // Mock audio recv track implementation
 MockRtcAudioRecvTrackForNack::MockRtcAudioRecvTrackForNack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc)
-    : SrsRtcAudioRecvTrack(receiver, track_desc)
+    : SrsRtcAudioRecvTrack(receiver, track_desc, false)
 {
     check_send_nacks_error_ = srs_success;
     check_send_nacks_count_ = 0;
@@ -200,7 +200,7 @@ VOID TEST(SrsRtcPublishStreamTest, OnRtpPlaintextTypicalScenario)
     video_desc.id_ = "video_track_test";
     video_desc.ssrc_ = 0xDEF01234; // SSRC from RTP packet (0xDE, 0xF0, 0x12, 0x34)
     video_desc.is_active_ = true;
-    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, &video_desc);
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, &video_desc, false);
     publish_stream->video_tracks_.push_back(video_track);
 
     // Enable tracks for processing
@@ -308,12 +308,12 @@ VOID TEST(SrsRtcPublishStreamTest, OnBeforeDecodePayloadTypicalScenario)
 
     // Create video track with proper codec payload
     SrsUniquePtr<SrsRtcTrackDescription> video_desc(create_video_track_description_with_codec("H264", 0x12345678));
-    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_desc.get());
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_desc.get(), false);
     publish_stream->video_tracks_.push_back(video_track);
 
     // Create audio track with proper codec payload
     SrsUniquePtr<SrsRtcTrackDescription> audio_desc(create_test_track_description("audio", 0x87654321));
-    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc.get());
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc.get(), false);
     publish_stream->audio_tracks_.push_back(audio_track);
 
     // Test scenario 1: Empty buffer - should return early without processing
@@ -484,7 +484,7 @@ VOID TEST(SrsRtcPublishStreamTest, OnRtcpXrPathTypicalScenario)
     video_desc.id_ = "video_track_xr_path_test";
     video_desc.ssrc_ = 0x12345678;
     video_desc.is_active_ = true;
-    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, &video_desc);
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, &video_desc, false);
     publish_stream->video_tracks_.push_back(video_track);
 
     // Create a valid RTCP XR packet with DLRR block (block type 5)
@@ -535,7 +535,7 @@ VOID TEST(SrsRtcPublishStreamTest, OnRtcpXrTypicalScenario)
     video_desc.id_ = "video_track_xr_test";
     video_desc.ssrc_ = 0x12345678;
     video_desc.is_active_ = true;
-    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, &video_desc);
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, &video_desc, false);
     publish_stream->video_tracks_.push_back(video_track);
 
     // Create a valid RTCP XR packet with DLRR block (block type 5)
@@ -625,7 +625,7 @@ VOID TEST(SrsRtcPublishStreamTest, UpdateRttTypicalScenario)
     audio_desc.id_ = "audio_track_rtt_test";
     audio_desc.ssrc_ = 0x87654321;
     audio_desc.is_active_ = true;
-    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, &audio_desc);
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, &audio_desc, false);
     publish_stream->audio_tracks_.push_back(audio_track);
 
     // Test typical RTT update scenario for audio track
@@ -660,7 +660,7 @@ VOID TEST(SrsRtcPublishStreamTest, UpdateSendReportTimeTypicalScenario)
     // Create test audio track
     SrsUniquePtr<SrsRtcTrackDescription> audio_desc(create_test_track_description("audio", 0x87654321));
     audio_desc->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
-    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc.get());
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc.get(), false);
     publish_stream->audio_tracks_.push_back(audio_track);
 
     // Test typical scenario: update send report time for audio track
@@ -740,7 +740,7 @@ VOID TEST(SrsRtcPublishStreamTest, DoOnRtpPlaintextAudioTrackTypicalScenario)
     // Create audio track with matching SSRC for the RTP packet
     SrsUniquePtr<SrsRtcTrackDescription> audio_desc(create_test_track_description("audio", 0x87654321));
     audio_desc->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
-    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc.get());
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc.get(), false);
     publish_stream->audio_tracks_.push_back(audio_track);
 
     // The publish stream already has its own source_ created in constructor, no need to create a new one
@@ -2266,7 +2266,7 @@ VOID TEST(SrsRtcConnectionTest, OnRtpPlaintextTypicalScenario)
 
     // Create video track with matching SSRC for the RTP packet using helper function
     SrsUniquePtr<SrsRtcTrackDescription> video_desc(create_video_track_description_with_codec("H264", test_ssrc));
-    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_desc.get());
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_desc.get(), false);
     publish_stream->video_tracks_.push_back(video_track);
 
     // Enable tracks for processing
