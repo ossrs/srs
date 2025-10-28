@@ -23,9 +23,9 @@
 #ifdef SRS_RTSP
 #include <srs_app_rtsp_source.hpp>
 #endif
+#include <srs_app_rtc_codec.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_source.hpp>
-#include <srs_app_rtc_codec.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_flv.hpp>

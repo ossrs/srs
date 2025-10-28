@@ -47,6 +47,7 @@ class ISrsStreamPublishTokenManager;
 class ISrsLiveSourceManager;
 class ISrsStatistic;
 class ISrsHttpHooks;
+class ISrsAppFactory;
 class ISrsRtcSourceManager;
 class ISrsSrtSourceManager;
 class ISrsRtspSourceManager;
@@ -174,6 +175,7 @@ class SrsRtmpConn : public ISrsConnection, // It's a resource.
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
     ISrsResourceManager *manager_;
     ISrsAppConfig *config_;
     ISrsStreamPublishTokenManager *stream_publish_tokens_;

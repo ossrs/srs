@@ -23,6 +23,8 @@
 
 #include <srs_utest_workflow_rtmp2rtc.hpp>
 
+#include <srs_app_factory.hpp>
+#include <srs_app_rtc_codec.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_io.hpp>
@@ -38,6 +40,35 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+// Mock app factory for RTMP to RTC workflow testing
+class MockAppFactoryForRtmp2Rtc : public SrsAppFactory
+{
+public:
+    MockAudioTranscoder *last_created_audio_transcoder_;
+
+public:
+    MockAppFactoryForRtmp2Rtc()
+    {
+        last_created_audio_transcoder_ = NULL;
+    }
+
+    virtual ~MockAppFactoryForRtmp2Rtc()
+    {
+        // Don't delete last_created_audio_transcoder_ here,
+        // it is managed by RTP builder
+    }
+
+#ifdef SRS_FFMPEG_FIT
+    virtual ISrsAudioTranscoder *create_audio_transcoder()
+    {
+        // Create a new mock audio transcoder each time
+        MockAudioTranscoder *transcoder = new MockAudioTranscoder();
+        last_created_audio_transcoder_ = transcoder;
+        return transcoder;
+    }
+#endif
+};
+
 // This test is used to verify the basic workflow of the RTMP connection.
 // It's finished with the help of AI, but each step is manually designed
 // and verified. So this is not dominated by AI, but by humanbeing.
@@ -46,6 +77,7 @@ VOID TEST(BasicWorkflowRtmp2RtcTest, ManuallyVerifyTypicalScenario)
     srs_error_t err;
 
     // Mock all interface dependencies
+    SrsUniquePtr<MockAppFactoryForRtmp2Rtc> mock_factory(new MockAppFactoryForRtmp2Rtc());
     SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
     SrsUniquePtr<MockConnectionManager> mock_manager(new MockConnectionManager());
     SrsUniquePtr<MockLiveSourceManager> mock_sources(new MockLiveSourceManager());
@@ -77,6 +109,7 @@ VOID TEST(BasicWorkflowRtmp2RtcTest, ManuallyVerifyTypicalScenario)
     ISrsRtmpTransport *transport = new MockRtmpTransport();
     SrsUniquePtr<SrsRtmpConn> conn(new SrsRtmpConn(transport, "192.168.1.100", 1935));
 
+    conn->app_factory_ = mock_factory.get();
     conn->config_ = mock_config.get();
     conn->manager_ = mock_manager.get();
     conn->live_sources_ = mock_sources.get();
@@ -124,42 +157,83 @@ VOID TEST(BasicWorkflowRtmp2RtcTest, ManuallyVerifyTypicalScenario)
         EXPECT_TRUE(bridge != NULL);
         builder = bridge->rtp_builder_;
         EXPECT_TRUE(builder != NULL);
+
+#ifdef SRS_FFMPEG_FIT
+        // Verify that the mock factory created the audio transcoder
+        EXPECT_TRUE(mock_factory->last_created_audio_transcoder_ != NULL);
+#endif
     }
 
-    // Create an RTMP audio message to feed consumer.
+    // Send AAC sequence header first (required before raw data).
+    MockRtcSource *mock_rtc_source = dynamic_cast<MockRtcSource *>(mock_rtc_sources->mock_source_.get());
     if (true) {
-        // Create a real AAC audio message with proper format.
+        // Create AAC sequence header message.
         // AAC audio format in RTMP/FLV:
         // Byte 0: (SoundFormat << 4) | (SoundRate << 2) | (SoundSize << 1) | SoundType
         //         SoundFormat=10 (AAC), SoundRate=3 (44kHz), SoundSize=1 (16-bit), SoundType=1 (stereo)
         //         = 0xAF
         // Byte 1: AACPacketType (0=sequence header, 1=raw data)
-        // Remaining bytes: AAC data
-        int payload_size = 10;
+        // Remaining bytes: AudioSpecificConfig (ASC) data
+        int payload_size = 4;
         SrsRtmpCommonMessage *msg = new SrsRtmpCommonMessage();
         msg->header_.initialize_audio(payload_size, 0, 1);
         msg->create_payload(payload_size);
 
-        // Fill in AAC audio data
+        // Fill in AAC sequence header
         SrsBuffer stream(msg->payload(), payload_size);
         // Audio format byte: AAC(10), 44kHz(3), 16-bit(1), stereo(1) = 0xAF
         stream.write_1bytes(0xAF);
-        // AAC packet type: 1 = AAC raw data
-        stream.write_1bytes(0x01);
-        // AAC raw data (8 bytes of dummy audio data)
-        for (int i = 0; i < 8; i++) {
-            stream.write_1bytes(0x00);
-        }
+        // AAC packet type: 0 = AAC sequence header
+        stream.write_1bytes(0x00);
+        // AudioSpecificConfig (ASC) data: 0x12 0x10
+        // This represents AAC-LC profile, 44.1kHz sample rate, 2 channels
+        stream.write_1bytes(0x12);
+        stream.write_1bytes(0x10);
 
-        // Feed audio to rtmp server.
+        // Feed sequence header to rtmp server.
         mock_rtmp_server->recv_msgs_.push_back(msg);
         mock_rtmp_server->cond_->signal();
 
         // Wait for consumer to process the message.
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
-        // Verify that the message is sent to the client.
+        // Verify that the sequence header is sent to the RTC source.
         EXPECT_EQ(1, mock_source->on_audio_count_);
+        EXPECT_EQ(0, mock_rtc_source->on_rtp_count_);
+    }
+
+    // Send AAC raw data frame.
+    if (true) {
+        // Create AAC raw data message.
+        // Byte 0: Audio format byte (0xAF)
+        // Byte 1: AACPacketType (1=raw data)
+        // Remaining bytes: AAC raw frame data
+        int payload_size = 10;
+        SrsRtmpCommonMessage *msg = new SrsRtmpCommonMessage();
+        msg->header_.initialize_audio(payload_size, 23, 1); // 23ms timestamp for second frame
+        msg->create_payload(payload_size);
+
+        // Fill in AAC raw data
+        SrsBuffer stream(msg->payload(), payload_size);
+        // Audio format byte: AAC(10), 44kHz(3), 16-bit(1), stereo(1) = 0xAF
+        stream.write_1bytes(0xAF);
+        // AAC packet type: 1 = AAC raw data
+        stream.write_1bytes(0x01);
+        // AAC raw frame data (8 bytes of dummy audio data)
+        for (int i = 0; i < 8; i++) {
+            stream.write_1bytes(0x00);
+        }
+
+        // Feed raw data to rtmp server.
+        mock_rtmp_server->recv_msgs_.push_back(msg);
+        mock_rtmp_server->cond_->signal();
+
+        // Wait for consumer to process the message.
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+        // Verify that the raw data is sent to the client.
+        EXPECT_EQ(2, mock_source->on_audio_count_);
+        EXPECT_EQ(1, mock_rtc_source->on_rtp_count_);
     }
 
     // Simulate client quit event, the receive thread will get this error.

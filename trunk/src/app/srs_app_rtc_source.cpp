@@ -35,10 +35,10 @@
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
 #endif
+#include <srs_app_factory.hpp>
 #include <srs_kernel_kbps.hpp>
 #include <srs_protocol_raw_avc.hpp>
 #include <srs_protocol_rtp.hpp>
-#include <srs_app_factory.hpp>
 
 // The NACK sent by us(SFU).
 SrsPps *_srs_pps_snack = NULL;

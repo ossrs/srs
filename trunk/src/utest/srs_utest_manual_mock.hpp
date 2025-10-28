@@ -157,6 +157,20 @@ public:
     virtual ISrsRequest *as_http();
 };
 
+// Mock RTC source for testing
+class MockRtcSource : public SrsRtcSource
+{
+public:
+    int on_rtp_count_;
+
+public:
+    MockRtcSource();
+    virtual ~MockRtcSource();
+
+public:
+    virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
+};
+
 // Mock RTC source manager for testing
 class MockRtcSourceManager : public ISrsRtcSourceManager
 {

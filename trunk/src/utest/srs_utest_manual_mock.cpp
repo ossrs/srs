@@ -303,6 +303,21 @@ ISrsRequest *MockRtcAsyncCallRequest::as_http()
     return this;
 }
 
+MockRtcSource::MockRtcSource()
+{
+    on_rtp_count_ = 0;
+}
+
+MockRtcSource::~MockRtcSource()
+{
+}
+
+srs_error_t MockRtcSource::on_rtp(SrsRtpPacket *pkt)
+{
+    on_rtp_count_++;
+    return SrsRtcSource::on_rtp(pkt);
+}
+
 // MockRtcSourceManager implementation
 MockRtcSourceManager::MockRtcSourceManager()
 {
@@ -310,7 +325,7 @@ MockRtcSourceManager::MockRtcSourceManager()
     fetch_or_create_error_ = srs_success;
     initialize_count_ = 0;
     fetch_or_create_count_ = 0;
-    mock_source_ = SrsSharedPtr<SrsRtcSource>(new SrsRtcSource());
+    mock_source_ = SrsSharedPtr<SrsRtcSource>(new MockRtcSource());
 }
 
 MockRtcSourceManager::~MockRtcSourceManager()
@@ -2726,7 +2741,7 @@ void MockAudioTranscoder::aac_codec_header(uint8_t **data, int *len)
     if (size <= 0) {
         return;
     }
-    
+
     uint8_t *copy = new uint8_t[size];
     memcpy(copy, aac_header_.data(), size);
     *data = copy;
