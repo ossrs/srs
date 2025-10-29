@@ -17,6 +17,7 @@ APP="./objs/srs"
 CONFIG="./conf/srs.conf"
 DEFAULT_PID_FILE='./objs/srs.pid'
 DEFAULT_LOG_FILE='./objs/srs.log'
+NOFILE_LIMIT="${NOFILE_LIMIT:-10000}"
 
 ########################################################################
 # utility functions
@@ -74,7 +75,14 @@ start() {
     log_dir=`dirname $log_file`
     log_file=`(cd ${ROOT} && cd $log_dir && pwd)`/`basename $log_file`
     
-    # TODO: FIXME: set limit by, for instance, "ulimit -HSn 10000"
+    # Raise file descriptor limits so high-concurrency configs do not fail on startup.
+    local limit_failed=0
+    ulimit -Hn ${NOFILE_LIMIT} 2>/dev/null || limit_failed=1
+    ulimit -Sn ${NOFILE_LIMIT} 2>/dev/null || limit_failed=1
+    if [[ ${limit_failed} -eq 1 ]]; then
+        echo -e "${YELLOW}Warning: unable to set nofile limit to ${NOFILE_LIMIT}. Current soft limit: $(ulimit -Sn).${BLACK}"
+    fi
+
     if [[ -z $log_file ]]; then
         (ulimit -c unlimited && cd ${ROOT}; ${APP} -c ${CONFIG} >/dev/null 2>&1)
     else
