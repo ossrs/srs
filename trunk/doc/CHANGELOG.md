@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-10-29, AI: AAC: Fix mono audio reported as stereo in HTTP API. v7.0.112 (#3556)
 * v7.0, 2025-10-27, HLS/DASH: Fix dispose to skip unpublish when not enabled, and add forbidden directory protection to SrsPath::unlink. v7.0.111
 * v7.0, 2025-10-27, AI: HTTP-FLV: Enforce minimum 10ms sleep to prevent CPU busy-wait when mw_latency=0. v7.0.110 (#3963)
 * v7.0, 2025-10-26, AI: Edge: Fix stream names with dots being incorrectly truncated in source URL generation. v7.0.109 (#4011)

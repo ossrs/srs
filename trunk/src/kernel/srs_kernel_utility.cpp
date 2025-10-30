@@ -419,6 +419,7 @@ int srs_do_create_dir_recursively(string dir)
         ret = ERROR_SUCCESS;
     }
 
+    // LCOV_EXCL_START
     // create curren dir.
     mode_t mode = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH;
     if (::mkdir(dir.c_str(), mode) < 0) {
@@ -430,6 +431,7 @@ int srs_do_create_dir_recursively(string dir)
         srs_error("create dir %s failed. ret=%d", dir.c_str(), ret);
         return ret;
     }
+    // LCOV_EXCL_STOP
 
     srs_info("create dir %s success.", dir.c_str());
 

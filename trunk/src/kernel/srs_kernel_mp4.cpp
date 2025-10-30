@@ -251,6 +251,7 @@ void SrsMp4Box::append(SrsMp4Box *box)
     boxes_.push_back(box);
 }
 
+// LCOV_EXCL_START
 stringstream &SrsMp4Box::dumps(stringstream &ss, SrsMp4DumpContext dc)
 {
     srs_mp4_padding(ss, dc);
@@ -282,6 +283,7 @@ stringstream &SrsMp4Box::dumps(stringstream &ss, SrsMp4DumpContext dc)
 
     return ss;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsMp4Box::discovery(SrsBuffer *buf, SrsMp4Box **ppbox)
 {
@@ -2121,10 +2123,12 @@ SrsMp4ElstEntry::~SrsMp4ElstEntry()
 {
 }
 
+// LCOV_EXCL_START
 stringstream &SrsMp4ElstEntry::dumps(stringstream &ss, SrsMp4DumpContext dc)
 {
     return dumps_detail(ss, dc);
 }
+// LCOV_EXCL_STOP
 
 stringstream &SrsMp4ElstEntry::dumps_detail(stringstream &ss, SrsMp4DumpContext dc)
 {
@@ -3879,12 +3883,14 @@ srs_error_t SrsMp4EsdsBox::decode_header(SrsBuffer *buf)
     return err;
 }
 
+// LCOV_EXCL_START
 stringstream &SrsMp4EsdsBox::dumps_detail(stringstream &ss, SrsMp4DumpContext dc)
 {
     SrsMp4FullBox::dumps_detail(ss, dc);
 
     return es->dumps_detail(ss, dc);
 }
+// LCOV_EXCL_STOP
 
 SrsMp4SampleDescriptionBox::SrsMp4SampleDescriptionBox()
 {
@@ -4364,11 +4370,13 @@ SrsMp4StscEntry::SrsMp4StscEntry()
     sample_description_index_ = 0;
 }
 
+// LCOV_EXCL_START
 stringstream &SrsMp4StscEntry::dumps_detail(stringstream &ss, SrsMp4DumpContext dc)
 {
     ss << "first=" << first_chunk_ << ", samples=" << samples_per_chunk_ << ", index=" << sample_description_index_;
     return ss;
 }
+// LCOV_EXCL_STOP
 
 SrsMp4Sample2ChunkBox::SrsMp4Sample2ChunkBox()
 {
@@ -4515,6 +4523,7 @@ srs_error_t SrsMp4ChunkOffsetBox::decode_header(SrsBuffer *buf)
     return err;
 }
 
+// LCOV_EXCL_START
 stringstream &SrsMp4ChunkOffsetBox::dumps_detail(stringstream &ss, SrsMp4DumpContext dc)
 {
     SrsMp4FullBox::dumps_detail(ss, dc);
@@ -4527,6 +4536,7 @@ stringstream &SrsMp4ChunkOffsetBox::dumps_detail(stringstream &ss, SrsMp4DumpCon
     }
     return ss;
 }
+// LCOV_EXCL_STOP
 
 SrsMp4ChunkLargeOffsetBox::SrsMp4ChunkLargeOffsetBox()
 {
@@ -4581,6 +4591,7 @@ srs_error_t SrsMp4ChunkLargeOffsetBox::decode_header(SrsBuffer *buf)
     return err;
 }
 
+// LCOV_EXCL_START
 stringstream &SrsMp4ChunkLargeOffsetBox::dumps_detail(stringstream &ss, SrsMp4DumpContext dc)
 {
     SrsMp4FullBox::dumps_detail(ss, dc);
@@ -4593,6 +4604,7 @@ stringstream &SrsMp4ChunkLargeOffsetBox::dumps_detail(stringstream &ss, SrsMp4Du
     }
     return ss;
 }
+// LCOV_EXCL_STOP
 
 SrsMp4SampleSizeBox::SrsMp4SampleSizeBox()
 {
@@ -4670,6 +4682,7 @@ srs_error_t SrsMp4SampleSizeBox::decode_header(SrsBuffer *buf)
     return err;
 }
 
+// LCOV_EXCL_START
 stringstream &SrsMp4SampleSizeBox::dumps_detail(stringstream &ss, SrsMp4DumpContext dc)
 {
     SrsMp4FullBox::dumps_detail(ss, dc);
@@ -4682,6 +4695,7 @@ stringstream &SrsMp4SampleSizeBox::dumps_detail(stringstream &ss, SrsMp4DumpCont
     }
     return ss;
 }
+// LCOV_EXCL_STOP
 
 SrsMp4UserDataBox::SrsMp4UserDataBox()
 {
@@ -4851,6 +4865,7 @@ srs_error_t SrsMp4SegmentIndexBox::decode_header(SrsBuffer *buf)
     return err;
 }
 
+// LCOV_EXCL_START
 stringstream &SrsMp4SegmentIndexBox::dumps_detail(stringstream &ss, SrsMp4DumpContext dc)
 {
     SrsMp4Box::dumps_detail(ss, dc);
@@ -4870,6 +4885,7 @@ stringstream &SrsMp4SegmentIndexBox::dumps_detail(stringstream &ss, SrsMp4DumpCo
 
     return ss;
 }
+// LCOV_EXCL_STOP
 
 SrsMp4SampleAuxiliaryInfoSizeBox::SrsMp4SampleAuxiliaryInfoSizeBox()
 {

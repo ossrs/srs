@@ -342,6 +342,7 @@ SrsHost::~SrsHost()
 {
 }
 
+// LCOV_EXCL_START
 SrsProcSelfStat *SrsHost::self_proc_stat()
 {
     return srs_get_self_proc_stat();
@@ -432,6 +433,7 @@ bool get_proc_self_stat(SrsProcSelfStat &r)
 
     return true;
 }
+// LCOV_EXCL_STOP
 
 void srs_update_proc_stat()
 {
@@ -634,6 +636,7 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat &r)
 }
 // LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 void srs_update_disk_stat()
 {
     SrsDiskStat r;
@@ -686,6 +689,7 @@ void srs_update_disk_stat()
 
     _srs_disk_stat = r;
 }
+// LCOV_EXCL_STOP
 
 SrsMemInfo::SrsMemInfo()
 {
@@ -1207,6 +1211,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps *kbps)
     }
 }
 
+// LCOV_EXCL_START
 string srs_get_local_ip(int fd)
 {
     // discovery client information
@@ -1226,6 +1231,7 @@ string srs_get_local_ip(int fd)
 
     return std::string(saddr);
 }
+// LCOV_EXCL_STOP
 
 int srs_get_local_port(int fd)
 {

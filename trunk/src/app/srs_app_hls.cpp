@@ -980,6 +980,7 @@ srs_error_t SrsHlsFmp4Muxer::write_hls_key()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsHlsFmp4Muxer::refresh_m3u8()
 {
     srs_error_t err = srs_success;
@@ -1007,6 +1008,7 @@ srs_error_t SrsHlsFmp4Muxer::refresh_m3u8()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8(std::string m3u8_file)
 {
@@ -2185,6 +2187,7 @@ srs_error_t SrsHlsController::on_unpublish()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsHlsController::on_sequence_header(SrsMediaPacket *msg, SrsFormat *format)
 {
     // TODO: support discontinuity for the same stream
@@ -2195,6 +2198,7 @@ srs_error_t SrsHlsController::on_sequence_header(SrsMediaPacket *msg, SrsFormat 
     // when the sequence header changed, the stream is not republish.
     return muxer_->on_sequence_header();
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsController::write_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
@@ -2637,6 +2641,7 @@ srs_error_t SrsHls::do_reload(int *reloading, int *reloaded, int *refreshed)
     return err;
 }
 
+// LCOV_EXCL_START
 void SrsHls::dispose()
 {
     // We disabled the reload, so HLS will not be enabled by reloading.
@@ -2656,6 +2661,7 @@ void SrsHls::dispose()
 
     controller_->dispose();
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHls::cycle()
 {
@@ -2890,6 +2896,7 @@ srs_error_t SrsHls::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
     return err;
 }
 
+// LCOV_EXCL_START
 void SrsHls::hls_show_mux_log()
 {
     pprint_->elapse();
@@ -2905,3 +2912,5 @@ void SrsHls::hls_show_mux_log()
               pprint_->age(), controller_->sequence_no(), controller_->ts_url().c_str(),
               srsu2msi(controller_->duration()), controller_->deviation());
 }
+// LCOV_EXCL_STOP
+

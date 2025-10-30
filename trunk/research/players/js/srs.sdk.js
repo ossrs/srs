@@ -24,7 +24,9 @@ function SrsRtcWhipWhepAsync() {
     self.constraints = {
         audio: true,
         video: {
-            width: {ideal: 320, max: 576}
+            width: {ideal: 320, max: 720},
+            //width: {ideal: 720, max: 1080},
+            //width: 1280, height: 720, frameRate: 30,
         }
     };
 

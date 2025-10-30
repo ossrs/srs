@@ -1052,3 +1052,65 @@ VOID TEST(ServerTest, InitializeStAsprocessWithPpid1)
     // Call initialize_st - should fail because asprocess is true and ppid is 1
     HELPER_EXPECT_FAILED(server.initialize_st());
 }
+
+// Test: srs_hex_encode_to_string_lowercase converts bytes to lowercase hex string
+VOID TEST(KernelUtilityTest, HexEncodeToStringLowercase)
+{
+    // Test normal case: convert bytes to lowercase hex
+    uint8_t src[] = {0xAB, 0xCD, 0xEF, 0x12, 0x34};
+    char des[11] = {0}; // 5 bytes * 2 chars + 1 null terminator
+
+    char *result = srs_hex_encode_to_string_lowercase(des, src, 5);
+
+    EXPECT_TRUE(result != NULL);
+    EXPECT_STREQ("abcdef1234", des);
+
+    // Test NULL source
+    EXPECT_TRUE(NULL == srs_hex_encode_to_string_lowercase(des, NULL, 5));
+
+    // Test zero length
+    EXPECT_TRUE(NULL == srs_hex_encode_to_string_lowercase(des, src, 0));
+
+    // Test NULL destination
+    EXPECT_TRUE(NULL == srs_hex_encode_to_string_lowercase(NULL, src, 5));
+}
+
+// Test: srs_strings_dumps_hex(const std::string &str) dumps string to hex format
+VOID TEST(KernelUtilityTest, StringsDumpsHexWithString)
+{
+    // Test normal case: dump string to hex
+    std::string input = "ABC";
+    std::string hex_result = srs_strings_dumps_hex(input);
+
+    // Should contain hex values for 'A' (0x41), 'B' (0x42), 'C' (0x43)
+    EXPECT_TRUE(hex_result.find("41") != std::string::npos);
+    EXPECT_TRUE(hex_result.find("42") != std::string::npos);
+    EXPECT_TRUE(hex_result.find("43") != std::string::npos);
+
+    // Test empty string
+    std::string empty_input = "";
+    std::string empty_result = srs_strings_dumps_hex(empty_input);
+    EXPECT_TRUE(empty_result.empty());
+}
+
+// Test: srs_is_boolean checks if string is "true" or "false"
+VOID TEST(AppUtilityTest, IsBoolean)
+{
+    // Test "true" string
+    EXPECT_TRUE(srs_is_boolean("true"));
+
+    // Test "false" string
+    EXPECT_TRUE(srs_is_boolean("false"));
+
+    // Test non-boolean strings
+    EXPECT_FALSE(srs_is_boolean("True"));
+    EXPECT_FALSE(srs_is_boolean("False"));
+    EXPECT_FALSE(srs_is_boolean("TRUE"));
+    EXPECT_FALSE(srs_is_boolean("FALSE"));
+    EXPECT_FALSE(srs_is_boolean("yes"));
+    EXPECT_FALSE(srs_is_boolean("no"));
+    EXPECT_FALSE(srs_is_boolean("1"));
+    EXPECT_FALSE(srs_is_boolean("0"));
+    EXPECT_FALSE(srs_is_boolean(""));
+    EXPECT_FALSE(srs_is_boolean("random"));
+}

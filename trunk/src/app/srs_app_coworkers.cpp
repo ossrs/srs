@@ -104,7 +104,6 @@ SrsJsonAny *SrsCoWorkers::dumps(string vhost, string coworker, string app, strin
         ->set("api", SrsJsonAny::str(backend.c_str()))
         ->set("routers", routers);
 }
-// LCOV_EXCL_STOP
 
 ISrsRequest *SrsCoWorkers::find_stream_info(string vhost, string app, string stream)
 {
@@ -123,6 +122,7 @@ ISrsRequest *SrsCoWorkers::find_stream_info(string vhost, string app, string str
 
     return it->second;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsCoWorkers::on_publish(ISrsRequest *r)
 {

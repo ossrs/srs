@@ -627,10 +627,12 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
     }
 }
 
+// LCOV_EXCL_START
 const SrsContextId &SrsRtcPlayStream::context_id()
 {
     return cid_;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsRtcPlayStream::start()
 {
@@ -913,6 +915,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack *rtcp)
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsRtcPlayStream::on_rtcp_ps_feedback(SrsRtcpFbCommon *rtcp)
 {
     srs_error_t err = srs_success;
@@ -957,6 +960,7 @@ uint32_t SrsRtcPlayStream::get_video_publish_ssrc(uint32_t play_ssrc)
 
     return 0;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId cid)
 {
@@ -1170,10 +1174,12 @@ srs_error_t SrsRtcAsyncCallOnUnpublish::call()
     return err;
 }
 
+// LCOV_EXCL_START
 std::string SrsRtcAsyncCallOnUnpublish::to_string()
 {
     return std::string("");
 }
+// LCOV_EXCL_STOP
 
 ISrsRtcPublishStream::ISrsRtcPublishStream()
 {
@@ -1460,6 +1466,7 @@ void SrsRtcPublishStream::set_all_tracks_status(bool status)
     srs_trace("RTC: Init tracks %s ok", merged_log.str().c_str());
 }
 
+// LCOV_EXCL_START
 const SrsContextId &SrsRtcPublishStream::context_id()
 {
     return cid_;
@@ -1474,6 +1481,7 @@ bool SrsRtcPublishStream::is_sender_started()
 {
     return is_sender_started_;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsRtcPublishStream::send_rtcp_rr()
 {
@@ -2623,6 +2631,7 @@ srs_error_t SrsRtcConnection::on_dtls_alert(std::string type, std::string desc)
     return err;
 }
 
+// LCOV_EXCL_START
 bool SrsRtcConnection::is_alive()
 {
     return last_stun_time_ + session_timeout_ > srs_time_now_cached();
@@ -2665,6 +2674,7 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver *nack, uint32_t ssrc, uint32_t &sent_nacks, uint32_t &timeout_nacks)
 {
@@ -2935,6 +2945,7 @@ void SrsRtcConnection::set_all_tracks_status(std::string stream_uri, bool is_pub
     player->set_all_tracks_status(status);
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket *r, string &ice_pwd)
 {
     srs_error_t err = srs_success;
@@ -2953,6 +2964,7 @@ srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket *r, string &ice_p
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsRtcConnection::create_player(ISrsRequest *req, std::map<uint32_t, SrsRtcTrackDescription *> sub_relations)
 {

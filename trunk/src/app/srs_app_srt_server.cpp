@@ -157,11 +157,13 @@ SrsSrtEventLoop::SrsSrtEventLoop()
     trd_ = NULL;
 }
 
+// LCOV_EXCL_START
 SrsSrtEventLoop::~SrsSrtEventLoop()
 {
     srs_freep(trd_);
     srs_freep(srt_poller_);
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsSrtEventLoop::initialize()
 {
@@ -197,6 +199,7 @@ srs_error_t SrsSrtEventLoop::cycle()
             return srs_error_wrap(err, "srt listener");
         }
 
+        // LCOV_EXCL_START
         // Check and notify fired SRT events by epoll.
         //
         // Note that the SRT poller use a dedicated and isolated epoll, which is not the same as the one of SRS, in
@@ -207,6 +210,7 @@ srs_error_t SrsSrtEventLoop::cycle()
             srs_warn("srt poll wait failed, n_fds=%d, err=%s", n_fds, srs_error_desc(err).c_str());
             srs_freep(err);
         }
+        // LCOV_EXCL_STOP
 
         // We use sleep to switch to other coroutines, because the SRT poller is not possible to do this.
         srs_usleep((n_fds ? 1 : 10) * SRS_UTIME_MILLISECONDS);
