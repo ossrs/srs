@@ -10,7 +10,7 @@
 #include <srs_core.hpp>
 
 // Unique ptr smart pointer, only support unique ptr, with limited APIs and features,
-// see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
+// see https://github.com/ossrs/srs/issues/4551
 //
 // Usage:
 //      SrsUniquePtr<MyClass> ptr(new MyClass());
@@ -89,7 +89,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 };
 
 // The unique ptr for array objects, only support unique ptr, with limited APIs and features,
-// see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
+// see https://github.com/ossrs/srs/issues/4551
 //
 // Usage:
 //      SrsUniquePtr<MyClass[]> ptr(new MyClass[10]);
@@ -156,7 +156,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 };
 
 // Shared ptr smart pointer, only support shared ptr, no weak ptr, no shared from this, no inheritance,
-// no comparing, see https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107
+// no comparing, see https://github.com/ossrs/srs/issues/4551
 //
 // Usage:
 //      SrsSharedPtr<MyClass> ptr(new MyClass());

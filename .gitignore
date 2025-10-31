@@ -29,7 +29,6 @@
 # Apple-specific garbage files.
 .AppleDouble
 .idea
-.gitignore
 .cursor/
 .DS_Store
 *.heap

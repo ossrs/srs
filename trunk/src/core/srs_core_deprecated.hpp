@@ -23,7 +23,7 @@
 //      SrsAutoFree(MyClass, p); // p will be freed even p is changed later.
 //      SrsUniquePtr ptr(p); // crash because p is an invalid pointer.
 //
-// See https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107 for more details.
+// See https://github.com/ossrs/srs/issues/4551 for more details.
 //
 // To delete array. Please use SrsUniquePtr instead. For example:
 //      MyClass** pa = new MyClass*[size];
@@ -37,7 +37,7 @@
 //      SrsAutoFreeA(MyClass*, pa); // pa will be freed even pa is changed later.
 //      SrsUniquePtr<MyClass[]> ptr(pa); // crash because pa is an invalid pointer.
 //
-// See https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107 for more details.
+// See https://github.com/ossrs/srs/issues/4551 for more details.
 //
 // Use hook instead of delete. Please use SrsUniquePtr instead. For example:
 //      addrinfo* r = NULL;
@@ -54,7 +54,7 @@
 //      SrsAutoFreeH(addrinfo, r, freeaddrinfo); // r will be freed even r is changed later.
 //      SrsUniquePtr<addrinfo> ptr(r, freeaddrinfo); // crash because r is an invalid pointer.
 //
-// See https://github.com/ossrs/srs/discussions/3667#discussioncomment-8969107 for more details.
+// See https://github.com/ossrs/srs/issues/4551 for more details.
 //
 // The template implementation.
 // template<class T>
