@@ -1103,7 +1103,7 @@ VOID TEST(AppHlsTest, HlsControllerWriteAudioTypicalScenario)
     MockHlsRequest mock_request("__defaultVhost__", "live", "test");
 
     // Cast to concrete type to access private members for testing
-    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer*>(controller->muxer_);
+    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer *>(controller->muxer_);
     srs_assert(muxer);
 
     // Set up muxer with required fields
@@ -1419,7 +1419,7 @@ VOID TEST(AppHlsTest, HlsControllerSelectionTypicalScenario)
     HELPER_EXPECT_SUCCESS(controller->initialize());
 
     // Cast to concrete type to access private members for testing
-    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer*>(controller->muxer_);
+    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer *>(controller->muxer_);
     srs_assert(muxer);
 
     // Test initial state - no current segment
@@ -1490,7 +1490,7 @@ VOID TEST(AppHlsTest, HlsControllerOnPublishTypicalScenario)
     HELPER_EXPECT_SUCCESS(controller->initialize());
 
     // Cast to concrete type to access private members for testing
-    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer*>(controller->muxer_);
+    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer *>(controller->muxer_);
     srs_assert(muxer);
 
     // Create mock request
@@ -1560,7 +1560,7 @@ VOID TEST(AppHlsTest, HlsControllerOnUnpublishTypicalScenario)
     HELPER_EXPECT_SUCCESS(controller->initialize());
 
     // Cast to concrete type to access private members for testing
-    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer*>(controller->muxer_);
+    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer *>(controller->muxer_);
     srs_assert(muxer);
 
     // Create mock request
@@ -1616,7 +1616,7 @@ VOID TEST(AppHlsTest, HlsControllerWriteVideoTypicalScenario)
     HELPER_EXPECT_SUCCESS(controller->initialize());
 
     // Cast to concrete type to access private members for testing
-    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer*>(controller->muxer_);
+    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer *>(controller->muxer_);
     srs_assert(muxer);
 
     // Create mock request

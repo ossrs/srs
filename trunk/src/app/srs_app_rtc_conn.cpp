@@ -1532,10 +1532,10 @@ srs_error_t SrsRtcPublishStream::on_twcc(uint16_t sn)
 {
     srs_error_t err = srs_success;
 
-    // To get more accurate timestamp, and avoid deviation caused by coroutine scheduler, 
+    // To get more accurate timestamp, and avoid deviation caused by coroutine scheduler,
     // we use realtime for TWCC.
     srs_utime_t now = srs_time_now_realtime();
-    
+
     err = rtcp_twcc_->recv_packet(sn, now);
 
     return err;

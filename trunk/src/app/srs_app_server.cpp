@@ -2042,4 +2042,3 @@ void SrsPidFileLocker::close()
     }
 }
 // LCOV_EXCL_STOP
-

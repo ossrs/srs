@@ -172,4 +172,3 @@ void SrsFileLog::open_log_file()
                  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
 }
 // LCOV_EXCL_STOP
-

@@ -731,4 +731,3 @@ srs_error_t SrsHttpStaticServer::mount_vhost(string vhost, string &pmount)
     return err;
 }
 // LCOV_EXCL_STOP
-

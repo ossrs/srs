@@ -817,7 +817,7 @@ srs_error_t SrsUdpMuxListener::cycle()
         pprint->elapse();
         if (pprint->can_print()) {
             // LCOV_EXCL_START
-            
+
             // For performance, only restore context when output log.
             _srs_context->set_id(cid_);
 

@@ -2638,4 +2638,3 @@ void SrsLiveSource::on_edge_proxy_unpublish()
     publish_edge_->on_proxy_unpublish();
 }
 // LCOV_EXCL_STOP
-

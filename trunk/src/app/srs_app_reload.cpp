@@ -24,4 +24,3 @@ srs_error_t ISrsReloadHandler::on_reload_vhost_chunk_size(string /*vhost*/)
     return srs_success;
 }
 // LCOV_EXCL_STOP
-

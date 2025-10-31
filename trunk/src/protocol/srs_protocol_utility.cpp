@@ -613,7 +613,7 @@ void retrieve_local_ips(SrsProtocolUtility *utility)
             bool loopback = (cur->ifa_flags & IFF_LOOPBACK);
             if (ipv4 && ready && !ignored) {
                 discover_network_iface(utility, cur, ips, ss0, ss1, false, loopback);
-            }   
+            }
             // LCOV_EXCL_STOP
         }
     }

@@ -596,4 +596,3 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
     return srs_error_new(ERROR_RTC_UDP, "unknown packet");
 }
 // LCOV_EXCL_STOP
-

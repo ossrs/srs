@@ -634,7 +634,8 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     }
     default: {
         return srs_error_new(ERROR_SYSTEM_CLIENT_INVALID, "rtmp: unknown client type=%d", info_->type_);
-    }}
+    }
+    }
     // LCOV_EXCL_STOP
 
     return err;
@@ -759,7 +760,7 @@ srs_error_t SrsRtmpConn::redirect_to_origin_cluster(SrsSharedPtr<SrsLiveSource> 
 
         string rurl = srs_net_url_encode_rtmp_url(host, port, req->host_, req->vhost_, req->app_, req->stream_, req->param_);
         srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s, rurl=%s",
-                    req->host_.c_str(), req->port_, host.c_str(), port, url.c_str(), rurl.c_str());
+                  req->host_.c_str(), req->port_, host.c_str(), port, url.c_str(), rurl.c_str());
 
         // Ignore if host or port is invalid.
         if (host.empty() || port == 0) {
@@ -1676,4 +1677,3 @@ void SrsRtmpConn::expire()
     trd_->interrupt();
 }
 // LCOV_EXCL_STOP
-

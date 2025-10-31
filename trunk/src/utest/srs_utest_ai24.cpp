@@ -5,22 +5,22 @@
 //
 #include <srs_utest_ai24.hpp>
 
-#include <srs_app_rtc_source.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_kernel_rtc_rtcp.hpp>
-#include <srs_protocol_sdp.hpp>
-#include <srs_kernel_packet.hpp>
-#include <srs_kernel_codec.hpp>
-#include <srs_app_hls.hpp>
-#include <srs_utest_manual_mock.hpp>
-#include <srs_utest_manual_kernel.hpp>
 #include <srs_app_config.hpp>
-#include <srs_app_http_hooks.hpp>
-#include <srs_app_utility.hpp>
-#include <srs_kernel_utility.hpp>
-#include <srs_protocol_utility.hpp>
 #include <srs_app_fragment.hpp>
+#include <srs_app_hls.hpp>
+#include <srs_app_http_hooks.hpp>
+#include <srs_app_rtc_source.hpp>
 #include <srs_app_server.hpp>
+#include <srs_app_utility.hpp>
+#include <srs_kernel_codec.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_packet.hpp>
+#include <srs_kernel_rtc_rtcp.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_protocol_sdp.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_utest_manual_kernel.hpp>
+#include <srs_utest_manual_mock.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -389,7 +389,7 @@ VOID TEST(ParsedPacketTest, CopyParsedVideoPacket)
 
     // Add sample data
     uint8_t sample_data[] = {0x65, 0x88, 0x84, 0x00};
-    HELPER_EXPECT_SUCCESS(packet.add_sample((char*)sample_data, sizeof(sample_data)));
+    HELPER_EXPECT_SUCCESS(packet.add_sample((char *)sample_data, sizeof(sample_data)));
 
     // Copy the packet
     SrsParsedVideoPacket *copied = packet.copy();
@@ -517,7 +517,7 @@ VOID TEST(DvrAsyncCallOnHlsTest, CallWithMultipleHooks)
 // Mock HLS muxer for testing SrsHlsController::reap_segment
 class MockHlsMuxerForReapSegment : public ISrsHlsMuxer
 {
-SRS_DECLARE_PRIVATE:
+    SRS_DECLARE_PRIVATE:
     int segment_close_count_;
     int segment_open_count_;
     int flush_video_count_;
@@ -659,7 +659,7 @@ VOID TEST(HlsControllerTest, ReapSegmentSuccess)
 // Mock HLS segment for testing do_segment_close
 class MockHlsSegmentForSegmentClose : public SrsHlsSegment
 {
-SRS_DECLARE_PRIVATE:
+    SRS_DECLARE_PRIVATE:
     srs_error_t rename_error_;
     srs_utime_t mock_duration_;
     bool rename_called_;
@@ -851,8 +851,8 @@ VOID TEST(HlsFmp4MuxerTest, DoRefreshM3u8SegmentWithEncryption)
 
     // Create mock segment
     MockHlsM4sSegment segment;
-    segment.sequence_no_ = 10; // 10 % 5 == 0, so key should be written
-    segment.is_sequence_header_ = true; // Should write discontinuity
+    segment.sequence_no_ = 10;                         // 10 % 5 == 0, so key should be written
+    segment.is_sequence_header_ = true;                // Should write discontinuity
     segment.duration_ = 5000 * SRS_UTIME_MILLISECONDS; // 5 seconds
     segment.fullpath_ = "/path/to/segment-[duration].m4s";
 
@@ -885,7 +885,7 @@ VOID TEST(HlsFmp4MuxerTest, DoRefreshM3u8SegmentWithEncryption)
 // Mock HLS segment for testing SrsHlsMuxer::do_refresh_m3u8_segment
 class MockHlsSegmentForRefreshM3u8 : public SrsHlsSegment
 {
-SRS_DECLARE_PRIVATE:
+    SRS_DECLARE_PRIVATE:
     bool is_sequence_header_;
     srs_utime_t duration_;
 
@@ -931,8 +931,8 @@ VOID TEST(HlsMuxerTest, DoRefreshM3u8SegmentWithEncryption)
 
     // Create mock segment
     MockHlsSegmentForRefreshM3u8 segment;
-    segment.sequence_no_ = 10; // 10 % 5 == 0, so key should be written
-    segment.set_is_sequence_header(true); // Should write discontinuity
+    segment.sequence_no_ = 10;                           // 10 % 5 == 0, so key should be written
+    segment.set_is_sequence_header(true);                // Should write discontinuity
     segment.set_duration(5000 * SRS_UTIME_MILLISECONDS); // 5 seconds
 
     // Call do_refresh_m3u8_segment

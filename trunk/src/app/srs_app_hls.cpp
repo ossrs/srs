@@ -1132,7 +1132,7 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, 
     }
     // ss << segment->uri << SRS_CONSTS_LF;
     ss << path.filepath_base(seg_uri) << SRS_CONSTS_LF;
-    
+
     return err;
 }
 
@@ -2947,4 +2947,3 @@ void SrsHls::hls_show_mux_log()
               srsu2msi(controller_->duration()), controller_->deviation());
 }
 // LCOV_EXCL_STOP
-
