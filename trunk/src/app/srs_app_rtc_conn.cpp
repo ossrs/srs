@@ -1311,8 +1311,11 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
 
     int twcc_id = -1;
     uint32_t media_ssrc = 0;
-    // because audio_track_desc have not twcc id, for example, h5demo
-    // fetch twcc_id from video track description,
+    // TWCC is transport-wide, so audio and video share the same extension ID.
+    // We fetch the TWCC ID from video track, which is sufficient because:
+    //   1. Standard WebRTC clients use the same TWCC ID for both audio and video.
+    //   2. The ID is used to parse TWCC extension from all RTP packets (audio+video).
+    //   3. TWCC feedback will include both audio and video packets.
     for (int i = 0; i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription *desc = stream_desc->video_track_descs_.at(i);
         twcc_id = desc->get_rtp_extension_id(kTWCCExt);
@@ -1529,7 +1532,10 @@ srs_error_t SrsRtcPublishStream::on_twcc(uint16_t sn)
 {
     srs_error_t err = srs_success;
 
-    srs_utime_t now = srs_time_now_cached();
+    // To get more accurate timestamp, and avoid deviation caused by coroutine scheduler, 
+    // we use realtime for TWCC.
+    srs_utime_t now = srs_time_now_realtime();
+    
     err = rtcp_twcc_->recv_packet(sn, now);
 
     return err;
@@ -1580,10 +1586,6 @@ srs_error_t SrsRtcPublishStream::on_rtp_cipher(char *data, int nb_data)
 srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char *plaintext, int nb_plaintext)
 {
     srs_error_t err = srs_success;
-
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(plaintext, nb_plaintext);
-    }
 
     // Allocate packet form cache.
     SrsRtpPacket *pkt = new SrsRtpPacket();
@@ -2663,6 +2665,10 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
 
     ++_srs_pps_srtcps->sugar_;
 
+    if (_srs_blackhole->blackhole_) {
+        _srs_blackhole->sendto(data, nb_data);
+    }
+
     int nb_buf = nb_data;
     if ((err = networks_->available()->protect_rtcp(data, &nb_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp");
@@ -2816,10 +2822,6 @@ srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId
     if (pli_epp_->can_print(ssrc, &nn)) {
         srs_trace("RTC: Request PLI ssrc=%u, play=[%s], count=%u/%u, bytes=%uB", ssrc, cid_of_subscriber.c_str(),
                   nn, pli_epp_->nn_count_, stream.pos());
-    }
-
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(stream.data(), stream.pos());
     }
 
     return send_rtcp(stream.data(), stream.pos());

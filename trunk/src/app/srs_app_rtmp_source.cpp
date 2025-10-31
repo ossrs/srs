@@ -1008,11 +1008,12 @@ srs_error_t SrsOriginHub::on_audio(SrsMediaPacket *shared_audio)
             sample_rate = srs_audio_sample_rate_from_number(srs_aac_srates[c->aac_sample_rate_]);
         }
 
-        // For AAC, use aac_channels_ from AudioSpecificConfig instead of sound_type_ from FLV tag.
-        // The FLV sound_type field is often incorrect for AAC streams (e.g., FFmpeg sets it to stereo
-        // even for mono streams). The AAC AudioSpecificConfig channelConfiguration is the authoritative
-        // source: 1=mono, 2=stereo. Map to SrsAudioChannels: 0=mono, 1=stereo.
-        // For MP3 and other codecs, use sound_type_ from FLV tag.
+        // The FLV specification force to be 1(stereo) for AAC codec, see E.4.2 Audio Tags,
+        // video_file_format_spec_v10_1.pdf, page 77.
+        //      If the SoundFormat indicates AAC, the SoundType should be 1 (stereo) and the
+        //      SoundRate should be 3 (44 kHz).
+        // FFmpeg also follows this specification, that is why it always send fixed channels
+        // and sample rate to SRS.
         SrsAudioChannels channels = c->sound_type_;
         if (format->acodec_->id_ == SrsAudioCodecIdAAC) {
             channels = (c->aac_channels_ == 1) ? SrsAudioChannelsMono : SrsAudioChannelsStereo;

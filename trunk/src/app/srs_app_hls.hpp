@@ -358,6 +358,7 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual std::string generate_ts_filename();
+    virtual bool is_segment_open();
 
 public:
     virtual srs_error_t on_sequence_header();
@@ -541,6 +542,7 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual std::string generate_m4s_filename();
+    virtual bool is_segment_open();
 
 public:
     virtual srs_error_t on_sequence_header();

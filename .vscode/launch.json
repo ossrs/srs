@@ -2,11 +2,39 @@
     "version": "0.2.0",
     "configurations": [
         {
-          "name": "Launch SRS",
+          "name": "Launch SRS with conf/console.conf",
           "type": "cppdbg",
           "request": "launch",
           "program": "${workspaceFolder}/trunk/cmake/build/srs",
           "args": ["-c", "conf/console.conf"],
+          "stopAtEntry": false,
+          "cwd": "${workspaceFolder}/trunk",
+          "environment": [],
+          "externalConsole": false,
+          "linux": {
+            "MIMode": "gdb"
+          },
+          "osx": {
+            "MIMode": "lldb"
+          },
+          "setupCommands": [
+            {
+              "description": "Enable pretty-printing for gdb",
+              "text": "-enable-pretty-printing",
+              "ignoreFailures": true
+            }
+          ],
+          "preLaunchTask": "build",
+          "logging": {
+            "engineLogging": true
+          }
+        },
+        {
+          "name": "Launch SRS with conf/rtc.conf",
+          "type": "cppdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/trunk/cmake/build/srs",
+          "args": ["-c", "conf/rtc.conf"],
           "stopAtEntry": false,
           "cwd": "${workspaceFolder}/trunk",
           "environment": [],

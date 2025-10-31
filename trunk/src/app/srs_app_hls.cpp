@@ -847,6 +847,11 @@ std::string SrsHlsFmp4Muxer::generate_m4s_filename()
     return m4s_file;
 }
 
+bool SrsHlsFmp4Muxer::is_segment_open()
+{
+    return current_ != NULL;
+}
+
 srs_error_t SrsHlsFmp4Muxer::on_sequence_header()
 {
     return srs_success;
@@ -854,7 +859,10 @@ srs_error_t SrsHlsFmp4Muxer::on_sequence_header()
 
 bool SrsHlsFmp4Muxer::is_segment_overflow()
 {
-    srs_assert(current_);
+    // If segment is not open, it cannot overflow.
+    if (!is_segment_open()) {
+        return false;
+    }
 
     // to prevent very small segment.
     if (current_->duration() < 2 * SRS_HLS_SEGMENT_MIN_DURATION) {
@@ -876,7 +884,10 @@ bool SrsHlsFmp4Muxer::wait_keyframe()
 
 bool SrsHlsFmp4Muxer::is_segment_absolutely_overflow()
 {
-    srs_assert(current_);
+    // If segment is not open, it cannot overflow.
+    if (!is_segment_open()) {
+        return false;
+    }
 
     // to prevent very small segment.
     if (current_->duration() < 2 * SRS_HLS_SEGMENT_MIN_DURATION) {
@@ -890,6 +901,10 @@ bool SrsHlsFmp4Muxer::is_segment_absolutely_overflow()
 
 void SrsHlsFmp4Muxer::update_duration(uint64_t dts)
 {
+    // If segment is not open, ignore the update event.
+    if (!is_segment_open()) {
+        return;
+    }
     current_->append(dts / 90);
 }
 
@@ -1652,7 +1667,11 @@ srs_error_t SrsHlsMuxer::on_sequence_header()
 {
     srs_error_t err = srs_success;
 
-    srs_assert(current_);
+    // If segment is not open, ignore the sequence header event.
+    if (!is_segment_open()) {
+        srs_warn("sequence header ignored, for segment is not open.");
+        return err;
+    }
 
     // set the current segment to sequence header,
     // when close the segement, it will write a discontinuity to m3u8 file.
@@ -1661,9 +1680,17 @@ srs_error_t SrsHlsMuxer::on_sequence_header()
     return err;
 }
 
+bool SrsHlsMuxer::is_segment_open()
+{
+    return current_ != NULL;
+}
+
 bool SrsHlsMuxer::is_segment_overflow()
 {
-    srs_assert(current_);
+    // If segment is not open, it cannot overflow.
+    if (!is_segment_open()) {
+        return false;
+    }
 
     // to prevent very small segment.
     if (current_->duration() < 2 * SRS_HLS_SEGMENT_MIN_DURATION) {
@@ -1685,7 +1712,10 @@ bool SrsHlsMuxer::wait_keyframe()
 
 bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
-    srs_assert(current_);
+    // If segment is not open, it cannot overflow.
+    if (!is_segment_open()) {
+        return false;
+    }
 
     // to prevent very small segment.
     if (current_->duration() < 2 * SRS_HLS_SEGMENT_MIN_DURATION) {
@@ -1760,6 +1790,10 @@ srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache *cache)
 
 void SrsHlsMuxer::update_duration(uint64_t dts)
 {
+    // If segment is not open, ignore the update event.
+    if (!is_segment_open()) {
+        return;
+    }
     current_->append(dts / 90);
 }
 
