@@ -1067,8 +1067,13 @@ enum SrsAvcLevel {
     SrsAvcLevel_32 = 32,
     SrsAvcLevel_4 = 40,
     SrsAvcLevel_41 = 41,
+    SrsAvcLevel_42 = 42,
     SrsAvcLevel_5 = 50,
     SrsAvcLevel_51 = 51,
+    SrsAvcLevel_52 = 52,
+    SrsAvcLevel_6 = 6,
+    SrsAvcLevel_61 = 61,
+    SrsAvcLevel_62 = 62,
 };
 std::string srs_avc_level2str(SrsAvcLevel level);
 
