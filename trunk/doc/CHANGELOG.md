@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-11-03, Merge [#4556](https://github.com/ossrs/srs/pull/4556): Fill missing defs for H264/AVC video levels. v7.0.116 (#4556)
 * v7.0, 2025-10-31, Merge [#4547](https://github.com/ossrs/srs/pull/4547): Add ignore configuration for cursor. v7.0.115 (#4547)
 * v7.0, 2025-10-30, WebRTC: Use realtime for TWCC timestamp accuracy. v7.0.114
 * v7.0, 2025-10-30, AI: HLS: Fix crash when segment is not open by adding NULL checks. v7.0.113 (#3431)
