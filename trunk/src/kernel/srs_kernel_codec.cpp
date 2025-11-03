@@ -657,10 +657,20 @@ string srs_avc_level2str(SrsAvcLevel level)
         return "4";
     case SrsAvcLevel_41:
         return "4.1";
+    case SrsAvcLevel_42:
+        return "4.2";
     case SrsAvcLevel_5:
         return "5";
     case SrsAvcLevel_51:
         return "5.1";
+    case SrsAvcLevel_52:
+        return "5.2";
+    case SrsAvcLevel_6:
+        return "6";
+    case SrsAvcLevel_61:
+        return "6.1";
+    case SrsAvcLevel_62:
+        return "6.2";
     default:
         return "Other";
     }
