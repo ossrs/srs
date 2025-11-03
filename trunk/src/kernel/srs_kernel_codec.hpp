@@ -1071,7 +1071,7 @@ enum SrsAvcLevel {
     SrsAvcLevel_5 = 50,
     SrsAvcLevel_51 = 51,
     SrsAvcLevel_52 = 52,
-    SrsAvcLevel_6 = 6,
+    SrsAvcLevel_6 = 60,
     SrsAvcLevel_61 = 61,
     SrsAvcLevel_62 = 62,
 };
