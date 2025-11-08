@@ -83,6 +83,8 @@ public:
     std::string create_chrome_player_offer_with_h264();
     // Create a Chrome-like WebRTC publisher offer SDP with AV1
     std::string create_chrome_publisher_offer_with_av1();
+    // Create a Chrome-like WebRTC publisher offer SDP with VP9
+    std::string create_chrome_publisher_offer_with_vp9();
 };
 
 // Mock DTLS certificate for testing
