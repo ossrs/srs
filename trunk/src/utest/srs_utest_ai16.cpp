@@ -827,6 +827,11 @@ srs_error_t MockStatisticForLiveStream::on_video_frames(ISrsRequest *req, int nb
     return srs_success;
 }
 
+srs_error_t MockStatisticForLiveStream::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
 std::string MockStatisticForLiveStream::server_id()
 {
     return "mock_server_id";

@@ -438,6 +438,11 @@ srs_error_t MockAppStatistic::on_video_frames(ISrsRequest *req, int nb_frames)
     return srs_success;
 }
 
+srs_error_t MockAppStatistic::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
 std::string MockAppStatistic::server_id()
 {
     return "";

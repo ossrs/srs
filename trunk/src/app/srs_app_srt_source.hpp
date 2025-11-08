@@ -179,6 +179,7 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    void update_ts_message_stats(bool is_audio);
     srs_error_t parse_video_codec(SrsTsMessage *msg);
     srs_error_t parse_audio_codec(SrsTsMessage *msg);
 
@@ -191,6 +192,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // Track whether we've already reported codec info to avoid duplicate updates
     bool video_codec_reported_;
     bool audio_codec_reported_;
+    // Frame counters for statistics reporting
+    int nn_video_frames_;
+    int nn_audio_frames_;
 };
 
 // Collect and build SRT TS packet to AV frames.

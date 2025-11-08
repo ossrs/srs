@@ -190,6 +190,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     int64_t nb_msgs_;
     // The video frames we got.
     uint64_t video_frames_;
+    // The audio frames we got.
+    uint64_t audio_frames_;
     // For mr(merged read),
     bool mr_;
     int mr_fd_;
@@ -219,6 +221,7 @@ public:
     virtual srs_error_t wait(srs_utime_t tm);
     virtual int64_t nb_msgs();
     virtual uint64_t nb_video_frames();
+    virtual uint64_t nb_audio_frames();
     virtual srs_error_t error_code();
     virtual void set_cid(SrsContextId v);
     virtual SrsContextId get_cid();

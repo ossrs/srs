@@ -63,8 +63,10 @@ public:
 public:
     // The stream total kbps.
     SrsKbps *kbps_;
-    // The fps of stream.
-    SrsPps *frames_;
+    // The fps of stream (video frames/packets).
+    SrsPps *video_frames_;
+    // The fps of audio (audio frames/packets).
+    SrsPps *audio_frames_;
 
 public:
     bool has_video_;
@@ -148,6 +150,7 @@ public:
     virtual void kbps_add_delta(std::string id, ISrsKbpsDelta *delta) = 0;
     virtual void kbps_sample() = 0;
     virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames) = 0;
+    virtual srs_error_t on_audio_frames(ISrsRequest *req, int nb_frames) = 0;
 
 public:
     // Get the server id, used to identify the server.
@@ -240,6 +243,9 @@ public:
     // When got videos, update the frames.
     // We only stat the total number of video frames.
     virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames);
+    // When got audios, update the audio frames.
+    // We only stat the total number of audio frames.
+    virtual srs_error_t on_audio_frames(ISrsRequest *req, int nb_frames);
     // When publish stream.
     // @param req the request object of publish connection.
     // @param publisher_id The id of publish connection.

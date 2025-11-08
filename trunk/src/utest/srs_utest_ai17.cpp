@@ -1707,6 +1707,11 @@ srs_error_t MockStatisticForRtcApi::on_video_frames(ISrsRequest *req, int nb_fra
     return srs_success;
 }
 
+srs_error_t MockStatisticForRtcApi::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
 std::string MockStatisticForRtcApi::server_id()
 {
     return server_id_;
@@ -3189,7 +3194,7 @@ VOID TEST(StatisticTest, StreamMediaInfo)
     // Verify frame count was accumulated correctly
     stream = stat->find_stream_by_url(req->get_stream_url());
     EXPECT_TRUE(stream != NULL);
-    EXPECT_EQ(55, stream->frames_->sugar_);
+    EXPECT_EQ(55, stream->video_frames_->sugar_);
 }
 
 // Test SrsStatistic audio sample rate handling for AAC 48000 Hz
@@ -3802,6 +3807,11 @@ void MockStatisticForHooks::kbps_sample()
 }
 
 srs_error_t MockStatisticForHooks::on_video_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForHooks::on_audio_frames(ISrsRequest *req, int nb_frames)
 {
     return srs_success;
 }

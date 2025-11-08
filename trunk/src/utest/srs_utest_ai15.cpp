@@ -809,6 +809,11 @@ srs_error_t MockStatisticForResampleKbps::on_video_frames(ISrsRequest *req, int 
     return srs_success;
 }
 
+srs_error_t MockStatisticForResampleKbps::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
 std::string MockStatisticForResampleKbps::server_id()
 {
     return "mock_server_id";

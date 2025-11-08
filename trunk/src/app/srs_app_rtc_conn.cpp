@@ -1211,7 +1211,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(ISrsExecRtcAsyncTask *exec, ISrsExpire 
     pt_to_drop_ = 0;
 
     nn_audio_frames_ = 0;
-    nn_rtp_pkts_ = 0;
+    nn_video_frames_ = 0;
     format_ = new SrsRtcFormat();
     twcc_enabled_ = false;
     twcc_id_ = 0;
@@ -1714,18 +1714,28 @@ void SrsRtcPublishStream::update_rtp_packet_stats(bool is_audio)
     srs_error_t err = srs_success;
 
     // Count RTP packets for statistics.
-    ++nn_rtp_pkts_;
     if (is_audio) {
         ++nn_audio_frames_;
+    } else {
+        ++nn_video_frames_;
     }
 
-    // Update the stat for frames, counting RTP packets as frames.
-    if (nn_rtp_pkts_ > 288) {
-        if ((err = stat_->on_video_frames(req_, (int)nn_rtp_pkts_)) != srs_success) {
-            srs_warn("RTC: stat frames err %s", srs_error_desc(err).c_str());
+    // Update the stat for video frames, counting RTP packets as frames.
+    if (nn_video_frames_ > 288) {
+        if ((err = stat_->on_video_frames(req_, nn_video_frames_)) != srs_success) {
+            srs_warn("RTC: stat video frames err %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }
-        nn_rtp_pkts_ = 0;
+        nn_video_frames_ = 0;
+    }
+
+    // Update the stat for audio frames periodically.
+    if (nn_audio_frames_ > 288) {
+        if ((err = stat_->on_audio_frames(req_, nn_audio_frames_)) != srs_success) {
+            srs_warn("RTC: stat audio frames err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        nn_audio_frames_ = 0;
     }
 }
 

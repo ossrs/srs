@@ -542,8 +542,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
-    uint64_t nn_audio_frames_;
-    int nn_rtp_pkts_;
+    int nn_audio_frames_;
+    int nn_video_frames_;
     ISrsRtcFormat *format_;
     ISrsRtcPliWorker *pli_worker_;
     SrsErrorPithyPrint *twcc_epp_;

@@ -1963,6 +1963,11 @@ srs_error_t MockStatisticForOriginHub::on_video_frames(ISrsRequest *req, int nb_
     return srs_success;
 }
 
+srs_error_t MockStatisticForOriginHub::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
 std::string MockStatisticForOriginHub::server_id()
 {
     return "mock_server_id";

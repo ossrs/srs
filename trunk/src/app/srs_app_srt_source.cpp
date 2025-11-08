@@ -941,6 +941,8 @@ SrsSrtFormat::SrsSrtFormat()
     format_ = new SrsRtmpFormat();
     video_codec_reported_ = false;
     audio_codec_reported_ = false;
+    nn_video_frames_ = 0;
+    nn_audio_frames_ = 0;
 
     stat_ = _srs_stat;
 }
@@ -988,12 +990,45 @@ srs_error_t SrsSrtFormat::on_srt_packet(SrsSrtPacket *pkt)
     return err;
 }
 
+void SrsSrtFormat::update_ts_message_stats(bool is_audio)
+{
+    srs_error_t err = srs_success;
+
+    // Count TS messages for statistics.
+    if (is_audio) {
+        ++nn_audio_frames_;
+    } else {
+        ++nn_video_frames_;
+    }
+
+    // Update the stat for video frames, counting TS messages as frames.
+    if (nn_video_frames_ > 288) {
+        if ((err = stat_->on_video_frames(req_, nn_video_frames_)) != srs_success) {
+            srs_warn("SRT: stat video frames err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        nn_video_frames_ = 0;
+    }
+
+    // Update the stat for audio frames periodically.
+    if (nn_audio_frames_ > 288) {
+        if ((err = stat_->on_audio_frames(req_, nn_audio_frames_)) != srs_success) {
+            srs_warn("SRT: stat audio frames err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        nn_audio_frames_ = 0;
+    }
+}
+
 srs_error_t SrsSrtFormat::on_ts_message(SrsTsMessage *msg)
 {
     srs_error_t err = srs_success;
 
     // Only parse video and audio messages
     if (msg->channel_->stream_ == SrsTsStreamVideoH264 || msg->channel_->stream_ == SrsTsStreamVideoHEVC) {
+        // Update statistics for video frames
+        update_ts_message_stats(false);
+
         if (video_codec_reported_) {
             return err;
         }
@@ -1016,6 +1051,9 @@ srs_error_t SrsSrtFormat::on_ts_message(SrsTsMessage *msg)
                       c->width_, c->height_);
         }
     } else if (msg->channel_->stream_ == SrsTsStreamAudioAAC) {
+        // Update statistics for audio frames
+        update_ts_message_stats(true);
+
         if (audio_codec_reported_) {
             return err;
         }

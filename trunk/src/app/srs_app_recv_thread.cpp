@@ -299,6 +299,7 @@ SrsPublishRecvThread::SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest
     recv_error_ = srs_success;
     nb_msgs_ = 0;
     video_frames_ = 0;
+    audio_frames_ = 0;
     error_ = srs_cond_new();
 
     req_ = _req;
@@ -349,6 +350,11 @@ uint64_t SrsPublishRecvThread::nb_video_frames()
     return video_frames_;
 }
 
+uint64_t SrsPublishRecvThread::nb_audio_frames()
+{
+    return audio_frames_;
+}
+
 srs_error_t SrsPublishRecvThread::error_code()
 {
     return srs_error_copy(recv_error_);
@@ -396,6 +402,8 @@ srs_error_t SrsPublishRecvThread::consume(SrsRtmpCommonMessage *msg)
 
     if (msg->header_.is_video()) {
         video_frames_++;
+    } else if (msg->header_.is_audio()) {
+        audio_frames_++;
     }
 
     // log to show the time of recv thread.

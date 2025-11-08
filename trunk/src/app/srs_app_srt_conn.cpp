@@ -554,7 +554,6 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
     SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_srt_publish());
 
     int nb_packets = 0;
-    int nb_frames = 0;
 
     // Max udp packet size equal to 1500.
     char buf[1500];
@@ -586,15 +585,6 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
         }
 
         ++nb_packets;
-        ++nb_frames;
-
-        // Update the stat for frames every 100 packets, counting SRT packets as frames.
-        if (nb_frames > 288) {
-            if ((err = stat_->on_video_frames(req_, nb_frames)) != srs_success) {
-                return srs_error_wrap(err, "srt: stat frames");
-            }
-            nb_frames = 0;
-        }
 
         if ((err = on_srt_packet(buf, nb)) != srs_success) {
             return srs_error_wrap(err, "srt: process packet");

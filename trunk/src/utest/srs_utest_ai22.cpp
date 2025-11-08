@@ -1482,6 +1482,11 @@ srs_error_t MockStatisticForRtspPlayStream::on_video_frames(ISrsRequest *req, in
     return srs_success;
 }
 
+srs_error_t MockStatisticForRtspPlayStream::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
 std::string MockStatisticForRtspPlayStream::server_id()
 {
     return "mock_server_id";

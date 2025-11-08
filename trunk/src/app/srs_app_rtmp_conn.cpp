@@ -988,6 +988,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
 
     int64_t nb_msgs = 0;
     uint64_t nb_frames = 0;
+    uint64_t nb_audio_frames = 0;
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
@@ -1028,6 +1029,12 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
             return srs_error_wrap(err, "rtmp: stat video frames");
         }
         nb_frames = rtrd->nb_video_frames();
+
+        // Update the stat for audio frames.
+        if ((err = stat_->on_audio_frames(req, (int)(rtrd->nb_audio_frames() - nb_audio_frames))) != srs_success) {
+            return srs_error_wrap(err, "rtmp: stat audio frames");
+        }
+        nb_audio_frames = rtrd->nb_audio_frames();
 
         // reportable
         if (pprint->can_print()) {

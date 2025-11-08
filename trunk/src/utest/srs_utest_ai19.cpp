@@ -2234,6 +2234,16 @@ void MockStatisticForHttpxConn::kbps_sample()
 {
 }
 
+srs_error_t MockStatisticForHttpxConn::on_video_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForHttpxConn::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
 srs_error_t MockStatisticForHttpxConn::dumps_vhosts(SrsJsonArray *arr)
 {
     return srs_success;
@@ -2252,6 +2262,41 @@ srs_error_t MockStatisticForHttpxConn::dumps_clients(SrsJsonArray *arr, int star
 srs_error_t MockStatisticForHttpxConn::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
 {
     return srs_success;
+}
+
+std::string MockStatisticForHttpxConn::server_id()
+{
+    return "mock_server_id";
+}
+
+std::string MockStatisticForHttpxConn::service_id()
+{
+    return "mock_service_id";
+}
+
+std::string MockStatisticForHttpxConn::service_pid()
+{
+    return "mock_pid";
+}
+
+SrsStatisticVhost *MockStatisticForHttpxConn::find_vhost_by_id(std::string vid)
+{
+    return NULL;
+}
+
+SrsStatisticStream *MockStatisticForHttpxConn::find_stream(std::string sid)
+{
+    return NULL;
+}
+
+SrsStatisticStream *MockStatisticForHttpxConn::find_stream_by_url(std::string url)
+{
+    return NULL;
+}
+
+SrsStatisticClient *MockStatisticForHttpxConn::find_client(std::string client_id)
+{
+    return NULL;
 }
 
 void MockStatisticForHttpxConn::reset()
